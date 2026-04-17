@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-04-17 — M10 Managed Copilot Proxy UX — PENDING REVIEW
+
+**Task**: Implement ADR-004 — honest UX for the reverse-engineered copilot-api proxy + CI release automation.
+**Implementer**: M10 agent
+**Verdict**: **PENDING**
+
+### Deliverables
+- CI release job (`.github/workflows/ci.yml`) — `softprops/action-gh-release@v2`, triggers on `v*` tags, auto-generated notes, prerelease detection. Free (default GITHUB_TOKEN).
+- Global config (`internal/store/global.go`) — XDG-honouring loader + saver, merge helper, AUP ack helpers. 0600 file perms.
+- Config type (`internal/store/types.go`) — new `CopilotAUPAckAt` field.
+- Reachability probe (`internal/provider/probe.go`) — `Reachable`, `IsLocalEndpoint`, `IsCopilotProxyEndpoint`; 2s bound.
+- CLI wiring (`internal/cli/copilot.go` + `cobra.go`) — `loadAndProbeProvider` with cached per-process probe, `Execute` now prints errors, AUP warning in `init` / `providerSetCmd` / `autoDetectProvider`.
+- Harness doc refresh (`docs/harnesses/copilot.md`) — install path, OS-specific config path, warn-vs-fail rules.
+- Tests — `global_test.go` (6), `probe_test.go` (5). All 7 packages green.
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test ./... -count=1`)
+- [x] Formatted (`gofmt -w .` clean)
+- [x] Artifacts deterministic (global config is flat YAML with fixed field order)
+- [x] Secrets safe (only env var names in config; token never persisted)
+- [x] Matches SPEC / ADR-004 (all 8 decisions implemented)
+- [x] Handoff accurate (CURRENT.md rewritten with behaviours + pointers)
+- [x] Smoke (dead port → hard-fail with install hint; live proxy → falls through)
+
+### Notes
+- `TPATCH_NO_PROBE=1` escape hatch added for offline demos / CI steps that only read store state.
+- Probe cache is process-scoped; acceptable for one-shot CLI, would need invalidation in a long-running daemon.
+- AUP warning copy sits in `internal/cli/copilot.go::copilotAUPWarning` — tweak there, not in harness docs.
+- macOS note baked into the harness doc: global config defaults to `~/Library/Application Support/tpatch/config.yaml` unless `XDG_CONFIG_HOME` is set.
+
+### Action Taken
+Archived prior ADR-004/005 CURRENT entry to HISTORY.md; wrote new CURRENT for this implementation; awaiting supervisor review before commit.
+
+---
+
 ## 2026-04-17 — ADR-004 (M10 UX) + ADR-005 (M11 native provider) — PENDING REVIEW
 
 **Task**: Lock in decisions for M10 and M11 through interactive Q&A with the user; capture as two ADRs.

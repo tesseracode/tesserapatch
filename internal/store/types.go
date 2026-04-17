@@ -74,6 +74,12 @@ type Config struct {
 	MergeStrategy string         `json:"merge_strategy"` // "3way" (default) or "rebase"
 	MaxRetries    int            `json:"max_retries"`    // LLM validation retries (default 2)
 	TestCommand   string         `json:"test_command"`   // shell command run by `tpatch test`
+
+	// CopilotAUPAckAt is the ISO-8601 timestamp at which the user acknowledged
+	// the GitHub Copilot Acceptable Use Policy warning. Written only to the
+	// global config (~/.config/tpatch/config.yaml). Empty means "never
+	// acknowledged"; non-empty suppresses the first-run warning.
+	CopilotAUPAckAt string `json:"copilot_aup_acknowledged_at,omitempty"`
 }
 
 // ProviderConfig stores the LLM provider settings.

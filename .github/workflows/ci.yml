@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: ["main"]
+    tags: ["v*"]
   pull_request:
     branches: ["main"]
 
@@ -55,3 +56,25 @@ jobs:
         run: |
           go install ./cmd/tpatch
           "$(go env GOPATH)/bin/tpatch" --version
+
+  # Publish a GitHub Release whenever a v* tag is pushed.
+  # Release notes are generated from commits since the previous tag.
+  release:
+    name: release
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+

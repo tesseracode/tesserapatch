@@ -177,12 +177,12 @@ Unlike copilot-api which defaults to a 30s rate limit, the native provider has *
 - **Use a PAT with "Copilot Requests" permission instead of OAuth device flow** — rejected. PATs with that permission are newer, poorly documented, and require the user to go create one in GitHub settings; OAuth device flow is a single browser tap.
 - **Keychain-backed token storage** — deferred, not rejected. Revisit when requested or when a security review calls for it.
 
-## Open questions that must be answered before merge
+## Open questions — resolved 2026-04-17
 
-Carried from `PRD-native-copilot-auth.md`:
+Carried from `PRD-native-copilot-auth.md`; user direction captured during M10 kickoff:
 
-1. **Legal/ToS**: can tpatch legitimately send VS Code editor-identification headers to `api.githubcopilot.com`? copilot-api, litellm, opencode, aider, and Neovim Copilot all do this openly today with no observed action from GitHub. Not a legal opinion; a precedent.
-2. **GitHub roadmap**: is an official OpenAI-compatible Copilot endpoint planned? If yes within one quarter, we pause M11 and wait.
+1. **Legal/ToS — editor-identification headers**: **Resolved — proceed, monitor.** Every reference implementation (copilot-api, litellm, opencode, aider, Neovim Copilot) sends these headers openly with no observed action from GitHub. tpatch will do the same, prominently surfacing the AUP warning at provider-selection time. Revisit if GitHub publishes a contrary policy.
+2. **GitHub roadmap — official OpenAI-compatible endpoint**: **Resolved — no indication of an official endpoint exists.** Proceed with the reverse-engineered flow. If an official endpoint lands later, ADR-006 will document the migration path. No gating.
 
 ## Follow-ups / TODOs
 

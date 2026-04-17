@@ -101,11 +101,21 @@ See `docs/milestones/M9-interactive-harness.md` for task list.
 
 **Result**: Confirmed `copilot-api` is reverse-engineered and explicitly unsupported by GitHub; confirmed `github/copilot-cli` is closed-source (only README/install/changelog/LICENSE published). Wrote `docs/prds/PRD-native-copilot-auth.md` with a two-phase recommendation (M10 managed proxy, M11 opt-in native PAT provider). Shelling out to the `copilot` CLI is explicitly rejected — it burns premium requests and re-runs its own agent loop. M11 is soft-blocked on a ToS question (can tpatch send editor headers against `api.githubcopilot.com`?).
 
-## M10 — Managed Copilot Proxy UX (planned, not started)
+## M10 — Managed Copilot Proxy UX ✅ (delivered 2026-04-17, pending review)
 
 **Goal**: One-command access to GitHub Copilot via the `ericc-ch/copilot-api` proxy, without tpatch taking on process-supervision responsibilities. **See ADR-004 for the locked-in decisions.**
 
-**Scope**: Global config file at `~/.config/tpatch/config.yaml`, reachability probe (`GET /v1/models`), warn-but-continue on `init`, hard-fail on workflow commands, first-run AUP warning, no log piping, Windows deferred.
+**Scope**: Global config file at `~/.config/tpatch/config.yaml` (XDG-honouring; macOS defaults to `~/Library/Application Support/tpatch/config.yaml`), reachability probe (`GET /v1/models`, 2s timeout), warn-but-continue on `init`/`provider set`, hard-fail on workflow commands (`analyze|define|explore|implement|cycle`), first-run AUP warning persisted once per user, no log piping, Windows deferred.
+
+**Delivered**:
+- `internal/store/global.go` + `types.go::CopilotAUPAckAt`
+- `internal/provider/probe.go` (`Reachable`, `IsLocalEndpoint`, `IsCopilotProxyEndpoint`)
+- `internal/cli/copilot.go` + `cobra.go::loadAndProbeProvider`
+- CI release automation in `.github/workflows/ci.yml` (tag-triggered GitHub Release via `softprops/action-gh-release@v2`, free)
+- Tests in `internal/store/global_test.go` (6) and `internal/provider/probe_test.go` (5)
+- `docs/harnesses/copilot.md` refresh
+
+**Opt-out**: `TPATCH_NO_PROBE=1` for offline/CI steps.
 
 ## M11 — Native Copilot Provider (opt-in, soft-blocked)
 

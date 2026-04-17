@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -24,6 +25,7 @@ const version = "0.3.0"
 func Execute() int {
 	rootCmd := buildRootCmd()
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 	return 0
@@ -85,6 +87,15 @@ func initCmd() *cobra.Command {
 
 			// GAP 6: Auto-detect provider
 			autoDetectProvider(cmd, s)
+
+			// Post-init: run a reachability probe for local endpoints (warn-continue).
+			// Per ADR-004 D4 — init must never fail because the proxy is down;
+			// the user may start it later. Emit a friendly pointer instead.
+			postProbeCtx, cancel := context.WithTimeout(context.Background(), provider.ProbeTimeout)
+			defer cancel()
+			provCfg := providerConfigFromStore(s)
+			maybeShowAUPWarning(cmd.OutOrStdout(), provCfg)
+			warnIfUnreachable(postProbeCtx, cmd.OutOrStdout(), provCfg)
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Initialized .tpatch/ in %s\n", s.Root)
 			fmt.Fprintf(cmd.OutOrStdout(), "  config:    %s\n", filepath.Join(s.TpatchDir(), "config.yaml"))
@@ -229,9 +240,12 @@ func analyzeCmd() *cobra.Command {
 				return err
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
-			prov, cfg := loadProviderFromStore(s)
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
+			prov, cfg, perr := loadAndProbeProvider(ctx, s)
+			if perr != nil {
+				return perr
+			}
 			if noRetry, _ := cmd.Flags().GetBool("no-retry"); noRetry {
 				ctx = workflow.WithDisableRetry(ctx, true)
 			}
@@ -266,9 +280,12 @@ func defineCmd() *cobra.Command {
 				return err
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
-			prov, cfg := loadProviderFromStore(s)
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
+			prov, cfg, perr := loadAndProbeProvider(ctx, s)
+			if perr != nil {
+				return perr
+			}
 			if noRetry, _ := cmd.Flags().GetBool("no-retry"); noRetry {
 				ctx = workflow.WithDisableRetry(ctx, true)
 			}
@@ -298,9 +315,12 @@ func exploreCmd() *cobra.Command {
 				return err
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
-			prov, cfg := loadProviderFromStore(s)
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
+			prov, cfg, perr := loadAndProbeProvider(ctx, s)
+			if perr != nil {
+				return perr
+			}
 			if noRetry, _ := cmd.Flags().GetBool("no-retry"); noRetry {
 				ctx = workflow.WithDisableRetry(ctx, true)
 			}
@@ -330,9 +350,12 @@ func implementCmd() *cobra.Command {
 				return err
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
-			prov, cfg := loadProviderFromStore(s)
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
+			prov, cfg, perr := loadAndProbeProvider(ctx, s)
+			if perr != nil {
+				return perr
+			}
 			if noRetry, _ := cmd.Flags().GetBool("no-retry"); noRetry {
 				ctx = workflow.WithDisableRetry(ctx, true)
 			}
@@ -634,9 +657,12 @@ func reconcileCmd() *cobra.Command {
 			}
 			upstreamRef, _ := cmd.Flags().GetString("upstream-ref")
 			timeout, _ := cmd.Flags().GetDuration("timeout")
-			prov, cfg := loadProviderFromStore(s)
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
+			prov, cfg, perr := loadAndProbeProvider(ctx, s)
+			if perr != nil {
+				return perr
+			}
 
 			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg)
 			if err != nil {
@@ -744,6 +770,16 @@ func providerSetCmd() *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Provider configured: type=%s url=%s model=%s\n",
 				cfg.Provider.Type, cfg.Provider.BaseURL, cfg.Provider.Model)
+
+			// Show the AUP warning the first time a Copilot-flavoured config
+			// is selected (once per user, recorded in global config).
+			provCfg := provider.Config{
+				Type:    cfg.Provider.Type,
+				BaseURL: cfg.Provider.BaseURL,
+				Model:   cfg.Provider.Model,
+				AuthEnv: cfg.Provider.AuthEnv,
+			}
+			maybeShowAUPWarning(cmd.OutOrStdout(), provCfg)
 			return nil
 		},
 	}
@@ -898,8 +934,15 @@ func openStoreFromCmd(cmd *cobra.Command) (*store.Store, error) {
 	return store.Open(root)
 }
 
+// probedEndpoints tracks base URLs already probed this process so the
+// reachability check only runs once per run, not per workflow phase.
+var (
+	probedEndpoints   = map[string]error{}
+	probedEndpointsMu sync.Mutex
+)
+
 func loadProviderFromStore(s *store.Store) (provider.Provider, provider.Config) {
-	cfg, err := s.LoadConfig()
+	cfg, err := s.LoadMergedConfig()
 	if err != nil {
 		return nil, provider.Config{}
 	}
@@ -913,6 +956,32 @@ func loadProviderFromStore(s *store.Store) (provider.Provider, provider.Config) 
 		return nil, provCfg
 	}
 	return provider.NewFromConfig(provCfg), provCfg
+}
+
+// loadAndProbeProvider is loadProviderFromStore + a one-time reachability
+// probe for local endpoints (cached per-process). Workflow commands use
+// this to hard-fail with an install hint when a local proxy is expected
+// but not running. Returns (nil, cfg, nil) if the provider is not
+// configured (heuristic fallback path is preserved).
+func loadAndProbeProvider(ctx context.Context, s *store.Store) (provider.Provider, provider.Config, error) {
+	prov, cfg := loadProviderFromStore(s)
+	if prov == nil || !provider.IsLocalEndpoint(cfg) || os.Getenv("TPATCH_NO_PROBE") != "" {
+		return prov, cfg, nil
+	}
+	probedEndpointsMu.Lock()
+	cached, seen := probedEndpoints[cfg.BaseURL]
+	probedEndpointsMu.Unlock()
+	if seen {
+		return prov, cfg, cached
+	}
+	probeErr := ensureProviderReachable(ctx, cfg)
+	probedEndpointsMu.Lock()
+	probedEndpoints[cfg.BaseURL] = probeErr
+	probedEndpointsMu.Unlock()
+	if probeErr != nil {
+		return nil, cfg, probeErr
+	}
+	return prov, cfg, nil
 }
 
 // autoDetectProvider probes known provider endpoints and auto-configures if found.
@@ -961,6 +1030,7 @@ func autoDetectProvider(cmd *cobra.Command, s *store.Store) {
 			cfg.Provider.AuthEnv = c.preset.AuthEnv
 			s.SaveConfig(cfg)
 			fmt.Fprintf(cmd.OutOrStdout(), "  Auto-detected provider: %s\n", c.name)
+			maybeShowAUPWarning(cmd.OutOrStdout(), provCfg)
 			return
 		}
 	}

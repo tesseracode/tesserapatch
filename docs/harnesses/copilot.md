@@ -5,12 +5,51 @@ GitHub Copilot CLI (`copilot`) is an agentic terminal client powered by the same
 ## Prerequisites
 
 - `copilot` installed and authenticated with an active Copilot subscription.
-- `tpatch` ≥ `0.3.0-dev`.
+- `tpatch` ≥ `0.3.1`.
 - A configured tpatch provider. If you use copilot-api for both copilot-cli and tpatch, the same token works for both:
   ```bash
   tpatch provider set --preset copilot --auth-env GITHUB_TOKEN
   ```
 - A `.github/copilot/cli/skills/` entry for tpatch (we ship one via `tpatch init` to `.tpatch/steering/`; copy or symlink the `assets/skills/copilot/` skill file into the repo-level skill directory if you want Copilot CLI to discover it automatically).
+
+## The copilot-api proxy (M10)
+
+The `--preset copilot` flag configures tpatch to talk to `copilot-api`
+(https://github.com/ericc-ch/copilot-api) running on `localhost:4141`. tpatch
+**does not supervise** the proxy — you start and stop it yourself:
+
+```bash
+npm install -g copilot-api
+copilot-api start
+
+# or, no install:
+npx copilot-api@latest start
+```
+
+On the first `tpatch provider set --preset copilot` (or matching auto-detect),
+tpatch prints an Acceptable Use Policy warning once. The acknowledgement is
+persisted in the global config:
+
+- Linux / `$XDG_CONFIG_HOME` set: `$XDG_CONFIG_HOME/tpatch/config.yaml`
+- Linux default: `~/.config/tpatch/config.yaml`
+- **macOS default: `~/Library/Application Support/tpatch/config.yaml`** (set
+  `XDG_CONFIG_HOME=$HOME/.config` if you prefer the XDG path)
+- Windows: `%AppData%\tpatch\config.yaml`
+
+Per-repo values in `.tpatch/config.yaml` override the global values field-by-field;
+empty fields fall back to the global config.
+
+If the proxy is not reachable at `localhost:4141`:
+
+- `tpatch init` and `tpatch provider set` warn but continue.
+- `tpatch analyze|define|explore|implement|cycle` hard-fail with an install
+  pointer before starting the LLM call. This keeps heuristic fallbacks
+  explicit rather than silent.
+
+The proxy is reverse-engineered, not supported by GitHub, and may trigger
+abuse-detection if hit too aggressively. See ADR-004 for the UX rationale and
+ADR-005 for the plan to ship a first-party `copilot` provider that removes
+this dependency.
 
 ## Handshake
 
