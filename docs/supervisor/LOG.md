@@ -4,7 +4,36 @@
 
 ---
 
-## 2026-04-17 — Native Copilot Auth Research + PRD — PENDING REVIEW
+## 2026-04-17 — ADR-004 (M10 UX) + ADR-005 (M11 native provider) — PENDING REVIEW
+
+**Task**: Lock in decisions for M10 and M11 through interactive Q&A with the user; capture as two ADRs.
+**Implementer**: Planning agent
+**Verdict**: **PENDING** (plan only, no code)
+
+### Deliverables
+- `docs/adrs/ADR-004-m10-copilot-proxy-ux.md` — 8 decisions: no process supervision, upstream proxy pointer, global+repo config loader, reachability probe behaviour, no log piping, first-run AUP warning, Windows deferred, enterprise deferred to M11.
+- `docs/adrs/ADR-005-m11-native-copilot-provider.md` — 10 decisions: **follow copilot-api/litellm's session-token exchange** rather than opencode's simpler Bearer path, file-based token storage at XDG_DATA_HOME (keychain deferred), long-lived OAuth with retry-and-relogin on 401, enterprise prompt at login, no persistent model cache, overridable headers with copilot-api defaults, distinct `copilot-native` type, opt-in gate, no streaming, no default rate-limit.
+- Updated PRD to reflect the session-token-exchange direction and add litellm/copilot-api references.
+- Research finding: of the three reference implementations (opencode, ericc-ch/copilot-api, litellm), **two of three use the session-token exchange** with `Iv1.b507a08c87ecfe98`. Adopting that pattern gives us the most field-exposed, proven surface and makes Phase 2 behaviourally identical to Phase 1 (only the transport changes).
+
+### Checklist
+- [x] Compiles — no code change
+- [x] Tests pass — unchanged
+- [x] Formatted — unchanged
+- [x] Matches SPEC — ADRs respect the stable `Provider` interface
+- [x] Handoff accurate — CURRENT.md rewritten; ROADMAP updated; PRD revised
+- [x] ADRs cover the architecturally significant decisions (per AGENTS.md)
+
+### Notes
+- The single biggest revision from the previous PRD draft is the M11 transport choice. opencode's path would have been ~200 LOC; the copilot-api path is ~350–400 LOC but substantially safer because it uses the client ID and exchange flow that GitHub's own editor plugins use. User priority of "simpler = proven" drove this.
+- Both ADRs explicitly carry the two open questions (legal/ToS on editor headers, GitHub roadmap for an official endpoint) as hard gates before merge.
+
+### Action Taken
+No code merged. ADRs ready for supervisor review. Awaiting user direction on (a) GitHub Release automation for v0.3.0, (b) whether to start M10 implementation now.
+
+---
+
+## 2026-04-17 — Native Copilot Auth Research + PRD — APPROVED (superseded by ADR-004/005)
 
 **Task**: Plan what it takes to have "native" copilot auth as a tpatch provider; verify whether copilot-api is officially supported (it is not) and whether github/copilot-cli is open source (it is not).
 **Implementer**: Planning agent

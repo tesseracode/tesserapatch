@@ -69,7 +69,7 @@ There is, **as of 2026-04**, no officially documented HTTP endpoint that a tool 
 |--------|-----------|-----------------------|---------------------|------------------|----|
 | **A. Status quo** | User runs copilot-api, tpatch connects to localhost:4141 | No | Zero (shipped) | Medium — abuse detection applies | Requires external setup |
 | **B. Managed proxy** | tpatch auto-installs & manages copilot-api lifecycle | No (same as A) | Medium | Same as A | One-command |
-| **C. Native OAuth device-flow provider** | tpatch calls `api.githubcopilot.com` directly after OAuth device flow — same as opencode | No (endpoint undocumented, but auth *is* documented) | Medium (≈200 LOC Go; opencode's TS is ~350 LOC) | Same as A but without Node dep | `tpatch provider copilot-login` then one-command |
+| **C. Native session-token-exchange provider** | tpatch calls `api.githubcopilot.com` directly after OAuth device flow + Copilot session-token exchange — same transport as copilot-api and litellm, but in-process Go | No (endpoint undocumented; auth *is* documented) | Medium (~350–400 LOC Go) | Same as A but without Node dep | `tpatch provider copilot-login` then one-command |
 | **D. Shell out to `copilot` CLI** | tpatch spawns `copilot -p <prompt>` per phase | Official | Low | Low — sanctioned, but quota-hungry | Burns premium requests; structured output fragile; copilot re-runs its own agent loop |
 | **E. MCP-based** | If Copilot CLI publishes an MCP server mode, tpatch is a client | Speculative | Depends | Low once available | Clean |
 
@@ -175,16 +175,17 @@ Phase 2 ships when:
 
 ## 8. Open Questions
 
-1. **Can we legally ship a header set that identifies tpatch as an "editor" to GitHub's Copilot endpoint?** Needs a quick legal/policy check. anomalyco/opencode ships this pattern openly with no observed action from GitHub, which establishes third-party precedent but is not a legal opinion. If the answer is "no", Phase 2 is blocked and we stay on Phase 1 indefinitely. (ADR-004 when answered.)
+1. **Can we legally ship a header set that identifies tpatch as an "editor" to GitHub's Copilot endpoint?** Needs a quick legal/policy check. anomalyco/opencode, ericc-ch/copilot-api, BerriAI/litellm, aider, and Neovim Copilot all ship this pattern openly with no observed action from GitHub, which establishes third-party precedent but is not a legal opinion. If the answer is "no", Phase 2 is blocked and we stay on Phase 1 indefinitely. (See ADR-005, which documents the decision set if/when the answer is "yes".)
 2. **Does GitHub plan to publish an official OpenAI-compatible Copilot endpoint?** If yes, Phase 2 gets dropped in favor of the official surface. Worth asking on GitHub's Copilot Discussions before building.
 3. **Should `tpatch provider copilot-start` also offer Docker-backed invocation?** A Docker path is lower-friction on Linux servers but heavier on macOS. Probably out of scope for M10; revisit if requested.
 4. **Should we use our own OAuth client ID or the shared editor one (`Ov23li8tweQw6odWQebz`)?** Using the shared ID matches opencode/Zed/Neovim/aider precedent and is what works today. Registering our own would be cleaner in theory but is likely to be rejected by GitHub for a third-party tool targeting Copilot. Default: use the shared one and document it.
 
 ## 9. References
 
-- anomalyco/opencode — `packages/opencode/src/plugin/github-copilot/copilot.ts` (OAuth device flow + direct Bearer against `api.githubcopilot.com`, no session-token exchange).
+- anomalyco/opencode — `packages/opencode/src/plugin/github-copilot/copilot.ts` (OAuth device flow with client ID `Ov23li8tweQw6odWQebz`, Bearer against `api.githubcopilot.com`, **no** session-token exchange).
 - anomalyco/opencode — `packages/opencode/src/plugin/github-copilot/models.ts` (model discovery at `GET /models`).
-- tesserabox/copilot-api — current proxy, reverse-engineered, unsupported per its own README.
+- ericc-ch/copilot-api — `src/lib/api-config.ts` + `src/services/github/get-device-code.ts` (client ID `Iv1.b507a08c87ecfe98`, session-token exchange via `copilot_internal/v2/token`, full VS Code Copilot Chat impersonation). The upstream of `tesserabox/copilot-api`.
+- BerriAI/litellm — `litellm/llms/github_copilot/authenticator.py` (same client ID and token-exchange pattern as copilot-api; tokens persisted to `~/.config/litellm/github_copilot/`).
 - github/copilot-cli — closed-source binary; only `/login` OAuth and PAT documented, no HTTP protocol exposed.
 
 ## 10. Out of Scope

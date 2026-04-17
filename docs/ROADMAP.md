@@ -101,19 +101,19 @@ See `docs/milestones/M9-interactive-harness.md` for task list.
 
 **Result**: Confirmed `copilot-api` is reverse-engineered and explicitly unsupported by GitHub; confirmed `github/copilot-cli` is closed-source (only README/install/changelog/LICENSE published). Wrote `docs/prds/PRD-native-copilot-auth.md` with a two-phase recommendation (M10 managed proxy, M11 opt-in native PAT provider). Shelling out to the `copilot` CLI is explicitly rejected — it burns premium requests and re-runs its own agent loop. M11 is soft-blocked on a ToS question (can tpatch send editor headers against `api.githubcopilot.com`?).
 
-## M10 — Managed Copilot Proxy (planned, not started)
+## M10 — Managed Copilot Proxy UX (planned, not started)
 
-**Goal**: Wrap `copilot-api` lifecycle so a user can `tpatch provider copilot-start/stop/status` without juggling a separate terminal.
+**Goal**: One-command access to GitHub Copilot via the `ericc-ch/copilot-api` proxy, without tpatch taking on process-supervision responsibilities. **See ADR-004 for the locked-in decisions.**
 
-**Scope**: Install-check, background `copilot-api start` supervision, PID/port tracked in `.tpatch/provider-runtime.json` (gitignored), auto-start hook on `tpatch analyze` when preset is `copilot` and proxy is down, prominent abuse-detection warning on first run. No change to the `Provider` interface.
+**Scope**: Global config file at `~/.config/tpatch/config.yaml`, reachability probe (`GET /v1/models`), warn-but-continue on `init`, hard-fail on workflow commands, first-run AUP warning, no log piping, Windows deferred.
 
 ## M11 — Native Copilot Provider (opt-in, soft-blocked)
 
-**Goal**: First-party Go provider speaking directly to `api.githubcopilot.com` after an OAuth device flow — port of anomalyco/opencode's proven pattern. Removes the Node/Bun dependency.
+**Goal**: First-party Go provider speaking directly to `api.githubcopilot.com` — port of the copilot-api/litellm pattern (session-token exchange via `copilot_internal/v2/token`). Removes the Node/Bun dependency. **See ADR-005 for the locked-in decisions.**
 
-**Blueprint**: opencode's `packages/opencode/src/plugin/github-copilot/copilot.ts` — OAuth device flow with editor client ID `Ov23li8tweQw6odWQebz`, Bearer token used directly against `api.githubcopilot.com` (no session-token exchange), `x-initiator: agent` header. ~200 LOC of Go.
+**Blueprint**: ericc-ch/copilot-api's `src/lib/api-config.ts` + `src/services/github/` — client ID `Iv1.b507a08c87ecfe98`, VS Code Copilot Chat editor headers, session-token refresh on ~25-min cadence. ~350–400 LOC of Go.
 
-**Gate**: Requires `provider.copilot_native_optin: true` in config + acceptance of an abuse-detection warning. Blocked pending a legal review of editor-header usage (see PRD open question 1).
+**Gate**: Requires `provider.copilot_native_optin: true` in global config + acceptance of an abuse-detection warning. Blocked pending answers to PRD/ADR-005 open questions 1 (editor-header policy) and 2 (GitHub roadmap).
 
 ## M12+ — Future
 

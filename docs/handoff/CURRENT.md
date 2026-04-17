@@ -1,10 +1,10 @@
 # Current Handoff
 
 ## Active Task
-- **Task ID**: Native Copilot Auth — research + PRD
-- **Milestone**: Planning for M10 (managed proxy UX) + M11 (native PAT provider)
-- **Description**: User asked: "plan what would it take to have a 'native' copilot auth as a provider." Researched copilot-api and github/copilot-cli to determine what's officially supported.
-- **Status**: PRD written, awaiting supervisor review
+- **Task ID**: ADR-004 (M10 proxy UX) + ADR-005 (M11 native provider)
+- **Milestone**: Planning locked-in for M10 and M11
+- **Description**: User chose interactively through open questions; decisions captured as two ADRs. PRD updated to match the session-token-exchange direction (copilot-api/litellm pattern) instead of opencode's simpler path.
+- **Status**: ADRs written, awaiting supervisor review
 - **Assigned**: 2026-04-17
 
 ## Session Summary
@@ -34,21 +34,34 @@
 - `go test ./...` — all 7 packages pass
 - `tpatch --version` → `tpatch 0.3.0`
 
-## Key Decisions in PRD
-- **Reject** shelling out to `copilot` CLI (Option D): not a provider, each prompt burns a premium request, re-runs its own agent loop.
-- **Phase 1 (M10)**: auto-manage copilot-api proxy. Requires user to have the proxy installed (we print install instructions, do not silently install). Defaults to rate-limit 30s + wait. Writes `.tpatch/provider-runtime.json` for lifecycle management.
-- **Phase 2 (M11) opt-in only**: native OAuth device-flow provider (`type: copilot-native`) calling `api.githubcopilot.com` directly — **blueprint: port anomalyco/opencode's `CopilotAuthPlugin`** which proves we do NOT need copilot-api's session-token exchange. ~200 LOC of Go. New `tpatch provider copilot-login` command runs the device flow once; Bearer token stored in `~/.config/tpatch/copilot-auth.json`.
-- **Open question** captured: does GitHub's ToS permit a third-party tool to identify as an editor against their Copilot endpoint? opencode ships this openly today with no observed GitHub action — establishes precedent but not legal clearance.
+## Key Decisions (captured in ADR-004 and ADR-005)
+
+**M10 — copilot-api UX (ADR-004)**
+- No process supervision; we warn when unreachable, point at install instructions.
+- Upstream `ericc-ch/copilot-api` is the recommended proxy; internal TODO to revisit the tesserabox fork if its fixes become blocking.
+- New global config at `~/.config/tpatch/config.yaml`; per-repo `.tpatch/config.yaml` overrides.
+- Reachability probe on first call (`GET /v1/models`, 2s timeout); warn-but-continue on `init`, hard-fail on workflow commands.
+- First-run AUP warning stored in global config; no log piping; Windows deferred.
+
+**M11 — native Copilot provider (ADR-005)**
+- **Changed direction**: port ericc-ch/copilot-api's internal flow (session-token exchange via `copilot_internal/v2/token` + VS Code Copilot Chat client ID `Iv1.b507a08c87ecfe98`) rather than opencode's simpler Bearer-the-OAuth-token path. copilot-api and litellm both use this flow → proven, field-exposed surface that matches what Copilot's own editor plugins do.
+- Token storage: `$XDG_DATA_HOME/tpatch/copilot-auth.json`, chmod 0600. OS keychain deferred.
+- OAuth token treated as long-lived; 401 triggers one retry then "run copilot-login again".
+- Device-flow prompts for GitHub.com vs Enterprise; Enterprise domain captured at login.
+- `GET /models` every session, no persistent cache.
+- Editor headers overridable via `provider.headers_override`; `x-initiator` opt-in, unset by default.
+- `type: copilot-native` distinct from `type: openai-compatible` + copilot proxy.
+- Opt-in gate with AUP acknowledgement in global config.
 
 ## Blockers
 - None for the PRD itself.
 - M11 (native provider) is soft-blocked on the "can we ship the editor header set?" legal question noted in the PRD.
 
 ## Next Steps
-1. **Repo owner**: `git push origin main && git push origin v0.3.0` to publish.
-2. **Repo owner**: make repo public (if not already) so CI + `go install` work.
-3. **Next agent session**: implement M10 (managed proxy) per the PRD. Estimated scope: `provider copilot-start/stop/status` subcommands + `provider-runtime.json` + `.gitignore` entry + integration test with a mocked `copilot-api` binary.
-4. **Before M11**: answer open question 1 in the PRD (editor-headers policy). If permissible, implement `CopilotNativeProvider`.
+1. **Repo owner**: decide whether to create a GitHub Release for v0.3.0 (or add `softprops/action-gh-release@v2` to CI for automation on future tags).
+2. **Before M11 implementation begins**: answer the two open questions in the PRD and ADR-005 (legal/ToS on editor headers; GitHub roadmap for an official endpoint).
+3. **Next agent session — M10 implementation** per ADR-004: add global-config loader, reachability probe in provider-set/init flow, first-run AUP warning helper.
+4. **After M10 lands — M11 implementation** per ADR-005, gated on the open questions.
 
 ## Context for Next Agent
 - PRD lives at `docs/prds/PRD-native-copilot-auth.md`. It includes the full options matrix and the rejection rationale for each alternative.
