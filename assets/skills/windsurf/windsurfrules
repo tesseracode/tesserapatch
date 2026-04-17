@@ -1,0 +1,30 @@
+# Tessera Patch Rules
+
+## Methodology
+
+Follow the 7-phase lifecycle: analyse → define → explore → implement → test → record → reconcile
+
+## CLI Commands
+
+- `tpatch init` — Initialize .tpatch/ workspace
+- `tpatch add <description>` — Create feature request
+- `tpatch status` — Feature status dashboard
+- `tpatch analyze <slug>` — Run analysis phase
+- `tpatch define <slug>` — Generate acceptance criteria
+- `tpatch explore <slug>` — Explore codebase
+- `tpatch implement <slug>` — Generate apply recipe
+- `tpatch apply <slug>` — Execute recipe or record session
+- `tpatch record <slug>` — Capture patches
+- `tpatch reconcile` — Reconcile with upstream
+- `tpatch provider check` — Validate provider
+- `tpatch config show|set` — Manage configuration
+
+## Data Location
+
+All feature data is in `.tpatch/features/<slug>/`. Check `status.json` for current state.
+
+## Safety
+
+- Never write outside the repository root
+- Store auth tokens in env vars, reference by name in config
+- Review apply recipes before executing

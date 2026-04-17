@@ -1,0 +1,20 @@
+# Compiled binary
+tpatch
+
+# Test repo clones (large, reproducible from upstream)
+tests/copilot-api*/
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/
