@@ -158,12 +158,45 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		}
 	}
 
-	// Phase 4: Forward-apply attempt (safety net)
-	forwardOK, _ := gitutil.ForwardApplyCheck(s.Root, patch)
-	if forwardOK {
+	// Phase 4: Forward-apply preview (safety net).
+	// Uses PreviewForwardApply which runs the 3-way merge in an
+	// isolated worktree when a strict apply fails. This replaces the
+	// older ForwardApplyCheck which wrongly reported "reapplied" when
+	// `git apply --3way --check` merely accepted the merge *attempt*
+	// even though the apply would leave conflict markers.
+	preview, _ := gitutil.PreviewForwardApply(s.Root, patch)
+	switch preview.Verdict {
+	case gitutil.ForwardApplyStrict:
 		result.Outcome = store.ReconcileReapplied
-		result.Phase = "phase-4-forward-apply"
-		result.Notes = append(result.Notes, "Patch can be re-applied cleanly to upstream")
+		result.Phase = "phase-4-forward-apply-strict"
+		result.Notes = append(result.Notes, "Patch applies cleanly (strict) — safe to auto-apply")
+		saveReconcileArtifacts(s, slug, result)
+		updateFeatureState(s, slug, result)
+		return result, nil
+	case gitutil.ForwardApply3WayClean:
+		result.Outcome = store.ReconcileReapplied
+		result.Phase = "phase-4-forward-apply-3way"
+		note := "Patch applies via 3-way merge (no conflict markers in preview)"
+		if preview.Stderr != "" {
+			note = fmt.Sprintf("%s [git: %s]", note, preview.Stderr)
+		}
+		result.Notes = append(result.Notes, note)
+		saveReconcileArtifacts(s, slug, result)
+		updateFeatureState(s, slug, result)
+		return result, nil
+	case gitutil.ForwardApply3WayConflicts:
+		// The 3-way merge runs but produces conflict markers. Report as
+		// BLOCKED so humans are warned — previously this silently
+		// reported "reapplied" and users trusted it.
+		result.Outcome = store.ReconcileBlocked
+		result.Phase = "phase-4-forward-apply-conflicts"
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("3-way merge would leave conflict markers in %d file(s) — manual resolution required",
+				len(preview.ConflictFiles)))
+		result.Conflicts = append(result.Conflicts, preview.ConflictFiles...)
+		if preview.Stderr != "" {
+			result.Notes = append(result.Notes, fmt.Sprintf("git: %s", preview.Stderr))
+		}
 		saveReconcileArtifacts(s, slug, result)
 		updateFeatureState(s, slug, result)
 		return result, nil
@@ -173,6 +206,9 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	result.Outcome = store.ReconcileBlocked
 	result.Phase = "phase-4-blocked"
 	result.Notes = append(result.Notes, "Patch cannot be applied cleanly — manual intervention needed")
+	if preview.Stderr != "" {
+		result.Notes = append(result.Notes, fmt.Sprintf("git: %s", preview.Stderr))
+	}
 	result.Conflicts = append(result.Conflicts, "Forward-apply failed — check for merge conflicts")
 	saveReconcileArtifacts(s, slug, result)
 	updateFeatureState(s, slug, result)
@@ -274,14 +310,7 @@ Does the upstream now satisfy this feature's requirements? Compare the acceptanc
 		return "", err
 	}
 
-	// Parse JSON response
-	cleaned := response
-	if idx := strings.Index(cleaned, "{"); idx >= 0 {
-		cleaned = cleaned[idx:]
-		if end := strings.LastIndex(cleaned, "}"); end >= 0 {
-			cleaned = cleaned[:end+1]
-		}
-	}
+	cleaned, _ := ExtractJSONObject(response)
 
 	var decision struct {
 		Decision  string `json:"decision"`

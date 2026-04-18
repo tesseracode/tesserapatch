@@ -63,6 +63,9 @@ agent implements the code).`,
 			if err != nil {
 				return err
 			}
+			if err := assertCycleState(s, slug, store.StateAnalyzed, "analyze"); err != nil {
+				return err
+			}
 			fmt.Fprintf(out, "  Summary: %s\n", truncate(result.Summary, 120))
 			fmt.Fprintf(out, "  Compatibility: %s\n", result.Compatibility.Status)
 			if !confirm(interactive, reader, out, "Continue to define phase?") {
@@ -72,6 +75,9 @@ agent implements the code).`,
 			// [2/6] define
 			fmt.Fprintf(out, "[2/6] Defining acceptance criteria...\n")
 			if err := workflow.RunDefine(ctx, s, slug, prov, provCfg); err != nil {
+				return err
+			}
+			if err := assertCycleState(s, slug, store.StateDefined, "define"); err != nil {
 				return err
 			}
 			fmt.Fprintf(out, "  Spec written to .tpatch/features/%s/spec.md\n", slug)
@@ -87,6 +93,12 @@ agent implements the code).`,
 			if err := workflow.RunExplore(ctx, s, slug, prov, provCfg); err != nil {
 				return err
 			}
+			// Explore does not advance the state machine by design —
+			// it enriches the spec in place. Assert it at least did not
+			// regress below defined.
+			if err := assertCycleState(s, slug, store.StateDefined, "explore"); err != nil {
+				return err
+			}
 			fmt.Fprintf(out, "  Exploration written to .tpatch/features/%s/exploration.md\n", slug)
 			if !confirm(interactive, reader, out, "Continue to implement phase?") {
 				return nil
@@ -95,6 +107,9 @@ agent implements the code).`,
 			// [4/6] implement
 			fmt.Fprintf(out, "[4/6] Generating apply recipe...\n")
 			if err := workflow.RunImplement(ctx, s, slug, prov, provCfg); err != nil {
+				return err
+			}
+			if err := assertCycleState(s, slug, store.StateImplementing, "implement"); err != nil {
 				return err
 			}
 			recipe, loadErr := workflow.LoadRecipe(s, slug)
@@ -163,6 +178,49 @@ agent implements the code).`,
 	cmd.Flags().Bool("skip-execute", false, "Stop before executing the apply recipe")
 	cmd.Flags().Duration("timeout", 5*time.Minute, "Total timeout for all LLM phases")
 	return cmd
+}
+
+// assertCycleState verifies a phase advanced (or at least did not
+// regress) the feature state. Returns a typed error the cycle command
+// surfaces verbatim so the user sees exactly which phase skipped a
+// transition. Prior to this check, a silent heuristic fallback in (e.g.)
+// implement could leave status.State at an earlier value while
+// last_command said "implement" — very confusing live UX.
+func assertCycleState(s *store.Store, slug string, want store.FeatureState, phase string) error {
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return fmt.Errorf("cycle: cannot reload status after %s: %w", phase, err)
+	}
+	if featureStateRank(st.State) < featureStateRank(want) {
+		return fmt.Errorf(
+			"cycle: %s phase did not advance state: expected >= %q, got %q (last_command=%q). "+
+				"This is a bug — please report. Inspect .tpatch/features/%s/status.json and raw-%s-response-*.txt.",
+			phase, want, st.State, st.LastCommand, slug, phase)
+	}
+	return nil
+}
+
+// featureStateRank orders FeatureState values along the main lifecycle
+// path so post-condition checks can say "state must be at least X".
+// Non-linear branches (blocked, reconciling, upstream_merged, active)
+// share the highest rank so a check never wrongly rejects them.
+func featureStateRank(st store.FeatureState) int {
+	switch st {
+	case store.StateRequested:
+		return 1
+	case store.StateAnalyzed:
+		return 2
+	case store.StateDefined:
+		return 3
+	case store.StateImplementing:
+		return 4
+	case store.StateApplied, store.StateActive,
+		store.StateReconciling, store.StateBlocked,
+		store.StateUpstreamMerged:
+		return 5
+	default:
+		return 0
+	}
 }
 
 func confirm(interactive bool, reader *bufio.Reader, out io.Writer, prompt string) bool {

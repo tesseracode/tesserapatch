@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,7 @@ import (
 	"github.com/tesserabox/tesserapatch/internal/workflow"
 )
 
-const version = "0.4.1"
+const version = "0.4.2"
 
 // Execute runs the tpatch CLI root command.
 func Execute() int {
@@ -553,8 +554,37 @@ func recordCmd() *cobra.Command {
 				return fmt.Errorf("cannot capture patch: %w", err)
 			}
 			if patch == "" {
-				fmt.Fprintln(cmd.OutOrStdout(), "No changes to record")
-				return nil
+				// bug / footgun A8 doc-record-timing: previously we
+				// wrote a no-op patch and reported success, letting
+				// the feature advance to state=applied with zero
+				// recorded bytes. The common cause is "user committed
+				// their edits before running record"; working tree is
+				// then clean and CapturePatch (diff HEAD) returns "".
+				// Refuse the empty capture and surface --from candidates.
+				if fromRef != "" {
+					// User explicitly chose --from <ref>..HEAD and it
+					// produced no diff. That is a legitimate "nothing
+					// changed in that range" — keep the old success
+					// semantic so harness scripts are not broken.
+					fmt.Fprintln(cmd.OutOrStdout(), "No changes to record in the specified range")
+					return nil
+				}
+				w := cmd.ErrOrStderr()
+				fmt.Fprintln(w, "tpatch record captured 0 bytes — nothing unstaged or untracked in the working tree.")
+				if gitutil.IsWorkingTreeDirty(s.Root) {
+					fmt.Fprintln(w, "  (working tree is dirty, but no textual diff was produced — possibly mode-only or binary changes)")
+				} else {
+					fmt.Fprintln(w, "  If you already committed your feature edits, rerun with --from <base>:")
+					fmt.Fprintln(w, "    tpatch record "+slug+" --from <base-commit-or-ref>")
+					commits := gitutil.RecentCommits(s.Root, 10)
+					if len(commits) > 0 {
+						fmt.Fprintln(w, "  Recent commits on this branch (candidates for --from base):")
+						for _, c := range commits {
+							fmt.Fprintf(w, "    %s  %s  %s\n", c.SHA, c.When, c.Subject)
+						}
+					}
+				}
+				return fmt.Errorf("empty capture — see diagnostic above")
 			}
 
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
@@ -564,19 +594,31 @@ func recordCmd() *cobra.Command {
 			patchName, _ := s.WritePatch(slug, "record", patch)
 			if patchName != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "  Saved patch: patches/%s\n", patchName)
+				// A9 doc-patches-vs-artifacts: patches/ is append-only
+				// audit trail; surface a one-liner once the directory
+				// gets crowded so users know cleanup is an option (not
+				// a silent footgun). NextPatchNumber is cheap (ReadDir).
+				if nextN := s.NextPatchNumber(slug); nextN > 6 {
+					fmt.Fprintf(cmd.OutOrStdout(),
+						"  note: %d patches accumulated under .tpatch/features/%s/patches/ — patches/NNN-*.patch is historical audit only; for replay use artifacts/post-apply.patch.\n",
+						nextN-1, slug)
+				}
 			}
 
-			// Automated patch validation
-			cfg, _ := s.LoadConfig()
-			strategy := cfg.MergeStrategy
-			if strategy == "" {
-				strategy = "3way"
-			}
-			if valErr := gitutil.ValidatePatch(s.Root, patch, strategy); valErr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: patch validation failed: %v\n", valErr)
-				fmt.Fprintf(cmd.ErrOrStderr(), "  The recorded patch may not apply cleanly during reconciliation.\n")
+			// Automated patch validation. At record-time the working
+			// tree already contains the patch, so a forward `git apply
+			// --check` would always fail (cannot apply something that
+			// is already present). The correct semantic here is
+			// reverse-apply: prove the recorded patch round-trips
+			// against the tree we just captured it from. Forward
+			// validation against an upstream baseline happens at
+			// reconcile-time, not here.
+			if valErr := gitutil.ValidatePatchReverse(s.Root, patch); valErr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", valErr)
+				fmt.Fprintf(cmd.ErrOrStderr(), "  The recorded patch may not represent the on-disk changes accurately.\n")
+				fmt.Fprintf(cmd.ErrOrStderr(), "  Common causes: line-ending differences, binary files without --binary, or post-apply edits.\n")
 			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: applies cleanly\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: round-trips cleanly against working tree\n")
 			}
 
 			diffStat, _ := gitutil.CaptureDiffStat(s.Root)
@@ -655,6 +697,28 @@ func reconcileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// A10 doc-reconcile-workflow: hard-refuse dirty trees /
+			// lingering conflict markers. See docs/reconcile.md for
+			// the rationale — silent corruption beats loud failure.
+			allowDirty, _ := cmd.Flags().GetBool("allow-dirty")
+			preflight, pfErr := gitutil.PreflightReconcile(s.Root)
+			if pfErr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: reconcile preflight failed: %v\n", pfErr)
+			} else if !preflight.Clean() {
+				printReconcilePreflight(cmd.ErrOrStderr(), preflight, allowDirty)
+				if !allowDirty {
+					return fmt.Errorf("reconcile refused — see preflight diagnostic above")
+				}
+			}
+			preflightOnly, _ := cmd.Flags().GetBool("preflight")
+			if preflightOnly {
+				if preflight.Clean() {
+					fmt.Fprintln(cmd.OutOrStdout(), "Preflight: clean. Reconcile is safe to run.")
+				}
+				return nil
+			}
+
 			upstreamRef, _ := cmd.Flags().GetString("upstream-ref")
 			timeout, _ := cmd.Flags().GetDuration("timeout")
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -677,12 +741,62 @@ func reconcileCmd() *cobra.Command {
 					fmt.Fprintf(out, "    %s\n", note)
 				}
 			}
+
+			// Tip: if .tpatch/ is untracked the user's feature state will
+			// not travel with their branch. Cheap to check post-run.
+			if isTpatchUntracked(s.Root) {
+				fmt.Fprintln(out, "tip: .tpatch/ is not tracked; consider `git add .tpatch/` so feature state travels with your branch.")
+			}
 			return nil
 		},
 	}
 	cmd.Flags().String("upstream-ref", "upstream/main", "Upstream ref to reconcile against")
 	cmd.Flags().Duration("timeout", 120*time.Second, "Reconciliation timeout")
+	cmd.Flags().Bool("preflight", false, "Only run the preflight checks and exit (does not reconcile)")
+	cmd.Flags().Bool("allow-dirty", false, "Bypass the clean-tree requirement (verdicts may be wrong — not recommended)")
 	return cmd
+}
+
+// printReconcilePreflight renders a user-facing diagnostic from the
+// preflight report. Mirrors the error-message template from the A10
+// todo so the remediation is reachable without leaving the terminal.
+func printReconcilePreflight(w io.Writer, p gitutil.ReconcilePreflight, allowDirty bool) {
+	if allowDirty {
+		fmt.Fprintln(w, "warning: --allow-dirty set; reconcile will proceed against an unclean tree.")
+	} else {
+		fmt.Fprintln(w, "error: reconcile requires a clean working tree. Detected:")
+	}
+	for _, line := range p.UnstagedFiles {
+		fmt.Fprintf(w, "  modified:         %s\n", line)
+	}
+	for _, f := range p.UntrackedFiles {
+		fmt.Fprintf(w, "  untracked:        %s\n", f)
+	}
+	for _, f := range p.MergeMarkerFiles {
+		fmt.Fprintf(w, "  merge markers:    %s\n", f)
+	}
+	for _, f := range p.LeftoverFiles {
+		fmt.Fprintf(w, "  merge leftover:   %s\n", f)
+	}
+	if allowDirty {
+		return
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "To recover:")
+	fmt.Fprintln(w, "  - If these changes belong to an active feature, commit them first.")
+	fmt.Fprintln(w, "  - If they are a half-applied merge or stash, resolve or abort first:")
+	fmt.Fprintln(w, "      git merge --abort         (if mid-merge)")
+	fmt.Fprintln(w, "      git reset --hard HEAD     (to discard — destructive!)")
+	fmt.Fprintln(w, "      git stash                 (to set aside)")
+	fmt.Fprintln(w, "  - If you understand the risks and want to proceed anyway, pass")
+	fmt.Fprintln(w, "    `--allow-dirty` (not recommended; verdicts may be wrong).")
+	fmt.Fprintln(w, "  - See docs/reconcile.md for the full workflow patterns.")
+}
+
+// isTpatchUntracked reports whether the `.tpatch/` directory is not
+// tracked in the repo. Used as a non-fatal tip at the end of reconcile.
+func isTpatchUntracked(repoRoot string) bool {
+	return !gitutil.IsPathTracked(repoRoot, ".tpatch")
 }
 
 // ─── provider ────────────────────────────────────────────────────────────────
@@ -735,16 +849,43 @@ func providerCheckCmd() *cobra.Command {
 func providerSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set",
-		Short: "Configure provider endpoint",
+		Short: "Configure provider endpoint (global by default; --repo to override per-repo)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := openStoreFromCmd(cmd)
-			if err != nil {
-				return err
+			repoScope, _ := cmd.Flags().GetBool("repo")
+
+			// Load whichever config we are targeting so preset/flag merges
+			// layer onto the existing values (same UX as before the global
+			// default). Repo mode: require .tpatch. Global mode: load from
+			// disk or start empty.
+			var (
+				cfg    store.Config
+				s      *store.Store
+				target string
+			)
+			if repoScope {
+				var err error
+				s, err = openStoreFromCmd(cmd)
+				if err != nil {
+					return err
+				}
+				cfg, err = s.LoadConfig()
+				if err != nil {
+					return err
+				}
+				target = "repo (" + s.ConfigPath() + ")"
+			} else {
+				var err error
+				cfg, err = store.LoadGlobalConfig()
+				if err != nil {
+					return err
+				}
+				path, err := store.GlobalConfigPath()
+				if err != nil {
+					return err
+				}
+				target = "global (" + path + ")"
 			}
-			cfg, err := s.LoadConfig()
-			if err != nil {
-				return err
-			}
+
 			if preset, _ := cmd.Flags().GetString("preset"); preset != "" {
 				p, ok := providerPresets[strings.ToLower(preset)]
 				if !ok {
@@ -777,11 +918,18 @@ func providerSetCmd() *cobra.Command {
 				fmt.Fprint(cmd.OutOrStdout(), copilotNativeOptInPrompt())
 				return fmt.Errorf("copilot-native requires opt-in; run `tpatch config set provider.copilot_native_optin true`")
 			}
-			if err := s.SaveConfig(cfg); err != nil {
-				return err
+
+			if repoScope {
+				if err := s.SaveConfig(cfg); err != nil {
+					return err
+				}
+			} else {
+				if err := store.SaveGlobalConfig(cfg); err != nil {
+					return err
+				}
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Provider configured: type=%s url=%s model=%s\n",
-				cfg.Provider.Type, cfg.Provider.BaseURL, cfg.Provider.Model)
+			fmt.Fprintf(cmd.OutOrStdout(), "Provider configured [%s]: type=%s url=%s model=%s\n",
+				target, cfg.Provider.Type, cfg.Provider.BaseURL, cfg.Provider.Model)
 
 			// Show the AUP warning the first time a Copilot-flavoured config
 			// is selected (once per user, recorded in global config).
@@ -801,6 +949,7 @@ func providerSetCmd() *cobra.Command {
 	cmd.Flags().String("base-url", "", "Provider base URL")
 	cmd.Flags().String("model", "", "Default model")
 	cmd.Flags().String("auth-env", "", "Environment variable name for auth token")
+	cmd.Flags().Bool("repo", false, "Write to the repo-level .tpatch/config.yaml instead of the global config")
 	return cmd
 }
 

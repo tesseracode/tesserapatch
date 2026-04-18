@@ -76,6 +76,10 @@ merge_strategy: 3way
 # Max LLM validation retries when output fails to parse (0 disables retry)
 max_retries: 2
 
+# Max output tokens for the implement phase (default 16384). Bump higher
+# for features that emit many large file bodies inline.
+max_tokens_implement: 16384
+
 # Shell command run by ` + "`tpatch test <slug>`" + ` (e.g. "go test ./...", "bun test")
 test_command: ""
 `
@@ -303,6 +307,10 @@ func (s *Store) SaveConfig(cfg Config) error {
 	if maxRetries < 0 {
 		maxRetries = 0
 	}
+	maxTokensImplement := cfg.MaxTokensImplement
+	if maxTokensImplement <= 0 {
+		maxTokensImplement = DefaultMaxTokensImplement
+	}
 	initiatorLine := ""
 	if cfg.Provider.Initiator != "" {
 		initiatorLine = fmt.Sprintf("  initiator: %s\n", yamlQuote(cfg.Provider.Initiator))
@@ -320,12 +328,16 @@ merge_strategy: %s
 # Max LLM validation retries when output fails to parse (0 disables retry)
 max_retries: %d
 
+# Max output tokens for the implement phase (default 16384). Bump higher
+# for features that emit many large file bodies inline.
+max_tokens_implement: %d
+
 # Shell command run by `+"`tpatch test <slug>`"+` (e.g. "go test ./...", "bun test")
 test_command: %s
 `, yamlQuote(cfg.Provider.Type), yamlQuote(cfg.Provider.BaseURL),
 		yamlQuote(cfg.Provider.Model), yamlQuote(cfg.Provider.AuthEnv),
 		initiatorLine, mergeStrat,
-		maxRetries, yamlQuote(cfg.TestCommand))
+		maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand))
 	return writeFile(s.configPath(), content)
 }
 
@@ -478,6 +490,12 @@ func parseYAMLConfig(content string) Config {
 		}
 	} else {
 		cfg.MaxRetries = 2
+	}
+	if v := extractYAMLValue(content, "max_tokens_implement"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.MaxTokensImplement = n
+		}
 	}
 	cfg.TestCommand = extractYAMLValue(content, "test_command")
 	if v := extractYAMLValue(content, "copilot_native_optin"); v == "true" {

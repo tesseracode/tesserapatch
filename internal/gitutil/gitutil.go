@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -16,6 +17,164 @@ func HeadCommit(repoRoot string) (string, error) {
 		return "", fmt.Errorf("git rev-parse HEAD: %w", err)
 	}
 	return strings.TrimSpace(out), nil
+}
+
+// RecentCommit is a one-line summary of a commit, used to suggest
+// candidate --from base refs when `tpatch record` captures an empty
+// diff (almost always because the user committed before recording).
+type RecentCommit struct {
+	SHA     string // short SHA
+	When    string // "2 hours ago"
+	Subject string // commit subject line
+}
+
+// RecentCommits returns up to `limit` recent commits on HEAD, newest
+// first. Used by the record command to give the user concrete --from
+// candidates in the "you committed before recording" diagnostic. Never
+// returns an error — a bare repo / shallow clone / first commit case
+// simply yields a shorter list.
+func RecentCommits(repoRoot string, limit int) []RecentCommit {
+	if limit <= 0 {
+		limit = 10
+	}
+	// Use an ASCII unit separator between fields so commit subjects
+	// containing tabs or pipes do not break parsing.
+	sep := "\x1f"
+	format := "%h" + sep + "%ar" + sep + "%s"
+	out, err := runGit(repoRoot, "log", fmt.Sprintf("-n%d", limit), "--pretty=format:"+format)
+	if err != nil {
+		return nil
+	}
+	var result []RecentCommit
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, sep, 3)
+		if len(parts) != 3 {
+			continue
+		}
+		result = append(result, RecentCommit{SHA: parts[0], When: parts[1], Subject: parts[2]})
+	}
+	return result
+}
+
+// IsWorkingTreeDirty reports whether there are unstaged or untracked
+// changes in the repo. Used by the record empty-capture diagnostic to
+// distinguish the "nothing changed" case from the "you committed
+// already" case.
+func IsWorkingTreeDirty(repoRoot string) bool {
+	out, err := runGit(repoRoot, "status", "--porcelain")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(out) != ""
+}
+
+// IsPathTracked reports whether `path` (relative to repoRoot) is
+// tracked by git. A missing path or any git error returns false so
+// callers can treat "not tracked" as the conservative default.
+func IsPathTracked(repoRoot, path string) bool {
+	out, err := runGit(repoRoot, "ls-files", "--", path)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(out) != ""
+}
+
+// ReconcilePreflight is the preflight report returned by
+// PreflightReconcile. The Reconcile phase MUST NOT run when any of the
+// four fields is non-empty, unless the user passes --allow-dirty.
+//
+// Rationale (see A10 doc-reconcile-workflow): a dirty tree or lingering
+// conflict markers silently corrupt reverse/forward apply verdicts —
+// reconcile reads file bytes, not git trees, so a `<<<<<<<` line inside
+// a source file looks exactly like any other context line to `git apply
+// --check`. We hard-refuse instead of guessing.
+type ReconcilePreflight struct {
+	// UnstagedFiles lists `git status --porcelain` entries with their
+	// status code, e.g. " M apps/server/src/foo.ts".
+	UnstagedFiles []string
+	// UntrackedFiles lists files present in the tree but ignored by
+	// git (separate from modified-tracked files).
+	UntrackedFiles []string
+	// MergeMarkerFiles lists paths that still contain `<<<<<<< `,
+	// `=======`, or `>>>>>>> ` conflict markers.
+	MergeMarkerFiles []string
+	// LeftoverFiles lists *.orig and *.rej files — the classic "I
+	// aborted a merge but forgot to clean up" footprint.
+	LeftoverFiles []string
+}
+
+// Clean reports whether the preflight found zero violations.
+func (p ReconcilePreflight) Clean() bool {
+	return len(p.UnstagedFiles) == 0 &&
+		len(p.UntrackedFiles) == 0 &&
+		len(p.MergeMarkerFiles) == 0 &&
+		len(p.LeftoverFiles) == 0
+}
+
+// PreflightReconcile inspects the working tree for the four conditions
+// that make reconcile verdicts unreliable. It is read-only — it never
+// modifies files. See ReconcilePreflight for the contract.
+func PreflightReconcile(repoRoot string) (ReconcilePreflight, error) {
+	var p ReconcilePreflight
+
+	// git status --porcelain: first two columns are the status code,
+	// remainder is the path. We split tracked-modified from untracked.
+	out, err := runGit(repoRoot, "status", "--porcelain")
+	if err != nil {
+		return p, fmt.Errorf("git status: %w", err)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		code, path := line[:2], strings.TrimSpace(line[3:])
+		if code == "??" {
+			p.UntrackedFiles = append(p.UntrackedFiles, path)
+		} else {
+			p.UnstagedFiles = append(p.UnstagedFiles, line)
+		}
+	}
+
+	// Conflict markers. `git grep -lE '^<<<<<<< |^=======$|^>>>>>>> '`
+	// scans tracked files only, which is what we want — untracked
+	// noise is already reported above.
+	if mark, _ := runGit(repoRoot, "grep", "-lE", "^<<<<<<< |^=======$|^>>>>>>> "); strings.TrimSpace(mark) != "" {
+		for _, f := range strings.Split(strings.TrimSpace(mark), "\n") {
+			p.MergeMarkerFiles = append(p.MergeMarkerFiles, f)
+		}
+	}
+
+	// *.orig and *.rej leftovers anywhere in the tree (walk, cheap).
+	_ = filepath.Walk(repoRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
+		// Skip .git/ entirely.
+		if info.IsDir() && info.Name() == ".git" {
+			return filepath.SkipDir
+		}
+		if info.IsDir() {
+			return nil
+		}
+		name := info.Name()
+		if strings.HasSuffix(name, ".orig") || strings.HasSuffix(name, ".rej") {
+			rel, rerr := filepath.Rel(repoRoot, path)
+			if rerr != nil {
+				rel = path
+			}
+			p.LeftoverFiles = append(p.LeftoverFiles, rel)
+		}
+		return nil
+	})
+
+	sort.Strings(p.UnstagedFiles)
+	sort.Strings(p.UntrackedFiles)
+	sort.Strings(p.MergeMarkerFiles)
+	sort.Strings(p.LeftoverFiles)
+	return p, nil
 }
 
 // CaptureDiffStat returns `git diff --stat` output.
@@ -140,6 +299,39 @@ func ReverseApplyCheck(repoRoot, patch string) (bool, error) {
 	return err == nil, nil
 }
 
+// ValidatePatchReverse runs `git apply --reverse --check` against the
+// current working tree. This is the correct semantic for record-time
+// validation: the patch was just applied, so the working tree contains
+// its result. A successful reverse-apply proves the recorded patch
+// round-trips against what is on disk — i.e. it is well-formed and
+// describes the changes accurately.
+//
+// Compare with ValidatePatch (forward `git apply --check`) which is
+// correct for reconcile/rebase-time validation against an upstream
+// baseline that does NOT yet contain the patch.
+//
+// Returns nil on success. On failure, surfaces git's stderr so users
+// can see the precise reason (line-ending mismatch, binary file
+// without index, untracked-file collision, etc).
+func ValidatePatchReverse(repoRoot, patch string) error {
+	if patch == "" {
+		return fmt.Errorf("empty patch")
+	}
+	cmd := exec.Command("git", "apply", "--reverse", "--check", "-")
+	cmd.Dir = repoRoot
+	cmd.Stdin = strings.NewReader(patch)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return fmt.Errorf("patch does not round-trip against working tree: %s", msg)
+	}
+	return nil
+}
+
 // ForwardApplyCheck tests if a patch can be applied cleanly.
 // Tries strict apply first, then falls back to 3-way merge check.
 func ForwardApplyCheck(repoRoot, patch string) (bool, error) {
@@ -155,6 +347,206 @@ func ForwardApplyCheck(repoRoot, patch string) (bool, error) {
 	cmd.Dir = repoRoot
 	cmd.Stdin = strings.NewReader(patch)
 	return cmd.Run() == nil, nil
+}
+
+// ForwardApplyVerdict is what phase-4 of reconcile now consumes. It
+// distinguishes a clean re-apply from a 3-way merge that will leave
+// conflict markers in the tree — the latter used to masquerade as
+// "reapplied" because `git apply --3way --check` returns 0 whenever
+// the 3-way machinery *could attempt* the merge, even if the final
+// files contain conflict markers.
+type ForwardApplyVerdict int
+
+const (
+	// ForwardApplyStrict means `git apply --check` (without --3way)
+	// succeeds. Safe to auto-apply.
+	ForwardApplyStrict ForwardApplyVerdict = iota
+	// ForwardApply3WayClean means strict failed but a real 3-way merge
+	// in an isolated worktree completes without conflict markers.
+	ForwardApply3WayClean
+	// ForwardApply3WayConflicts means the 3-way merge runs but leaves
+	// conflict markers — the user must resolve them. ConflictFiles on
+	// the ForwardApplyPreview lists the affected paths.
+	ForwardApply3WayConflicts
+	// ForwardApplyBlocked means neither strict nor 3-way can even
+	// attempt the apply.
+	ForwardApplyBlocked
+)
+
+// ForwardApplyPreview is the structured result of PreviewForwardApply.
+// Verdict is always set; ConflictFiles is non-nil only when Verdict ==
+// ForwardApply3WayConflicts. Stderr carries git's diagnostic output for
+// the final attempt and is surfaced in reconcile notes.
+type ForwardApplyPreview struct {
+	Verdict       ForwardApplyVerdict
+	ConflictFiles []string
+	Stderr        string
+}
+
+// PreviewForwardApply gives an authoritative phase-4 verdict without
+// mutating repoRoot. The algorithm:
+//  1. Strict `git apply --check` — if it passes, return ForwardApplyStrict.
+//  2. Create a temporary linked worktree at HEAD (`git worktree add --detach`).
+//  3. Actually run `git apply --3way` in the worktree.
+//  4. Scan the worktree for conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+//     - No markers + apply exit 0 ⇒ ForwardApply3WayClean.
+//     - Markers present        ⇒ ForwardApply3WayConflicts (+ file list).
+//     - Apply failed outright  ⇒ ForwardApplyBlocked.
+//  5. Remove the worktree.
+//
+// If the worktree provisioning fails (e.g. bare repo, permissions),
+// PreviewForwardApply falls back to the looser strict/--3way --check
+// pair and marks the verdict ForwardApply3WayClean conservatively —
+// logging the fallback reason in Stderr so callers can report it.
+func PreviewForwardApply(repoRoot, patch string) (ForwardApplyPreview, error) {
+	if patch == "" {
+		return ForwardApplyPreview{Verdict: ForwardApplyBlocked, Stderr: "empty patch"}, nil
+	}
+
+	// Phase 4a: strict check.
+	strict := exec.Command("git", "apply", "--check", "-")
+	strict.Dir = repoRoot
+	strict.Stdin = strings.NewReader(patch)
+	if strict.Run() == nil {
+		return ForwardApplyPreview{Verdict: ForwardApplyStrict}, nil
+	}
+
+	// Phase 4b: linked worktree at HEAD for a real 3-way attempt.
+	wt, cleanup, wtErr := mkPreviewWorktree(repoRoot)
+	if wtErr != nil {
+		// Degraded path: use --check --3way so we at least return
+		// something. This preserves the old (less accurate) behavior
+		// and is stamped so the caller can surface it.
+		chk := exec.Command("git", "apply", "--3way", "--check", "-")
+		chk.Dir = repoRoot
+		chk.Stdin = strings.NewReader(patch)
+		var chkErr strings.Builder
+		chk.Stderr = &chkErr
+		if chk.Run() == nil {
+			return ForwardApplyPreview{
+				Verdict: ForwardApply3WayClean,
+				Stderr:  fmt.Sprintf("worktree preview unavailable (%v); used --check --3way instead", wtErr),
+			}, nil
+		}
+		return ForwardApplyPreview{
+			Verdict: ForwardApplyBlocked,
+			Stderr:  fmt.Sprintf("worktree preview unavailable (%v); --check --3way also failed: %s", wtErr, strings.TrimSpace(chkErr.String())),
+		}, nil
+	}
+	defer cleanup()
+
+	apply := exec.Command("git", "apply", "--3way", "-")
+	apply.Dir = wt
+	apply.Stdin = strings.NewReader(patch)
+	var applyErr strings.Builder
+	apply.Stderr = &applyErr
+	applyExit := apply.Run()
+
+	markers := scanConflictMarkers(wt)
+	stderr := strings.TrimSpace(applyErr.String())
+
+	switch {
+	case applyExit == nil && len(markers) == 0:
+		return ForwardApplyPreview{Verdict: ForwardApply3WayClean, Stderr: stderr}, nil
+	case len(markers) > 0:
+		return ForwardApplyPreview{
+			Verdict:       ForwardApply3WayConflicts,
+			ConflictFiles: markers,
+			Stderr:        stderr,
+		}, nil
+	default:
+		return ForwardApplyPreview{Verdict: ForwardApplyBlocked, Stderr: stderr}, nil
+	}
+}
+
+// mkPreviewWorktree provisions a detached linked worktree at HEAD and
+// returns its path plus a cleanup func. Safe to call concurrently
+// because each invocation uses a unique temp directory.
+func mkPreviewWorktree(repoRoot string) (string, func(), error) {
+	dir, err := os.MkdirTemp("", "tpatch-preview-*")
+	if err != nil {
+		return "", nil, err
+	}
+	add := exec.Command("git", "worktree", "add", "--detach", "-q", dir, "HEAD")
+	add.Dir = repoRoot
+	var addErr strings.Builder
+	add.Stderr = &addErr
+	if err := add.Run(); err != nil {
+		os.RemoveAll(dir)
+		return "", nil, fmt.Errorf("git worktree add: %v: %s", err, strings.TrimSpace(addErr.String()))
+	}
+	cleanup := func() {
+		rm := exec.Command("git", "worktree", "remove", "--force", dir)
+		rm.Dir = repoRoot
+		_ = rm.Run()
+		os.RemoveAll(dir)
+	}
+	return dir, cleanup, nil
+}
+
+// scanConflictMarkers walks the worktree looking for files that contain
+// `<<<<<<<` at the start of a line (the canonical git merge marker).
+// Returns repo-relative paths sorted alphabetically.
+func scanConflictMarkers(root string) []string {
+	var out []string
+	_ = filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.Size() > 5*1024*1024 { // skip > 5MB binaries/assets
+			return nil
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil
+		}
+		if bytesHasLine(data, "<<<<<<<") && bytesHasLine(data, ">>>>>>>") {
+			rel, relErr := filepath.Rel(root, p)
+			if relErr == nil {
+				out = append(out, rel)
+			}
+		}
+		return nil
+	})
+	sort.Strings(out)
+	return out
+}
+
+// bytesHasLine reports whether data contains prefix at the start of any
+// line. Avoids allocating a string for large files.
+func bytesHasLine(data []byte, prefix string) bool {
+	if len(data) == 0 || len(prefix) == 0 {
+		return false
+	}
+	p := []byte(prefix)
+	// Start of file.
+	if len(data) >= len(p) && bytesEq(data[:len(p)], p) {
+		return true
+	}
+	for i := 0; i+1+len(p) <= len(data); i++ {
+		if data[i] == '\n' && bytesEq(data[i+1:i+1+len(p)], p) {
+			return true
+		}
+	}
+	return false
+}
+
+func bytesEq(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // ForwardApply applies a patch. Uses 3-way merge if strict apply fails.

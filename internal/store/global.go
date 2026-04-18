@@ -145,6 +145,9 @@ func mergeConfig(global, repo Config) Config {
 	if repo.MaxRetries > 0 {
 		out.MaxRetries = repo.MaxRetries
 	}
+	if repo.MaxTokensImplement > 0 {
+		out.MaxTokensImplement = repo.MaxTokensImplement
+	}
 	if repo.TestCommand != "" {
 		out.TestCommand = repo.TestCommand
 	}
@@ -162,6 +165,10 @@ func renderGlobalYAML(cfg Config) string {
 	maxRetries := cfg.MaxRetries
 	if maxRetries < 0 {
 		maxRetries = 0
+	}
+	maxTokensImplement := cfg.MaxTokensImplement
+	if maxTokensImplement <= 0 {
+		maxTokensImplement = DefaultMaxTokensImplement
 	}
 	optIn := "false"
 	if cfg.CopilotNativeOptIn {
@@ -183,6 +190,7 @@ provider:
 %s
 merge_strategy: %s
 max_retries: %d
+max_tokens_implement: %d
 test_command: %s
 
 # Timestamp the user acknowledged the Copilot AUP warning (ISO-8601).
@@ -197,7 +205,7 @@ copilot_native_optin_at: %s
 		yamlQuote(cfg.Provider.Type), yamlQuote(cfg.Provider.BaseURL),
 		yamlQuote(cfg.Provider.Model), yamlQuote(cfg.Provider.AuthEnv),
 		initiatorLine,
-		mergeStrat, maxRetries, yamlQuote(cfg.TestCommand),
+		mergeStrat, maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand),
 		yamlQuote(cfg.CopilotAUPAckAt),
 		optIn, yamlQuote(cfg.CopilotNativeOptInAt),
 	)

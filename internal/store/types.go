@@ -37,6 +37,12 @@ const (
 	ReconcileBlocked     ReconcileOutcome = "blocked"
 )
 
+// DefaultMaxTokensImplement is the fallback budget for the implement-phase
+// LLM response when Config.MaxTokensImplement is unset or non-positive.
+// Bumped from the previous hard-coded 8192 to reduce mid-JSON truncation
+// for features that emit many large file bodies inline.
+const DefaultMaxTokensImplement = 16384
+
 // FeatureStatus is the machine-readable status of a tracked feature (status.json).
 type FeatureStatus struct {
 	ID            string              `json:"id"`
@@ -76,6 +82,13 @@ type Config struct {
 	MergeStrategy string         `json:"merge_strategy"` // "3way" (default) or "rebase"
 	MaxRetries    int            `json:"max_retries"`    // LLM validation retries (default 2)
 	TestCommand   string         `json:"test_command"`   // shell command run by `tpatch test`
+
+	// MaxTokensImplement caps the LLM response budget for the implement
+	// phase. The implement phase emits whole-file content inline, so it
+	// truncates more aggressively than the other phases. Default 16384
+	// (set when zero/negative). Override per-repo or globally via
+	// `max_tokens_implement:` in config.yaml.
+	MaxTokensImplement int `json:"max_tokens_implement,omitempty"`
 
 	// CopilotAUPAckAt is the ISO-8601 timestamp at which the user acknowledged
 	// the GitHub Copilot Acceptable Use Policy warning. Written only to the

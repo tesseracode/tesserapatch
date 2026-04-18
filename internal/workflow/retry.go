@@ -111,17 +111,20 @@ func (o RetryOptions) safePrefix() string {
 }
 
 // JSONObjectValidator returns a Validator that tries to parse the response
-// (stripping markdown fences) into the provided target type. Used for
-// analyze/implement phases where strict JSON is required.
+// (stripping markdown fences AND trailing prose) into the provided target
+// type. Used for analyze/implement phases where strict JSON is required.
+// Delegates span detection to ExtractJSONObject so prose after the closing
+// brace (a common LLM mistake) is tolerated instead of triggering a retry.
 func JSONObjectValidator(target any) Validator {
 	return func(resp string) error {
-		cleaned := stripJSONFences(resp)
+		cleaned, err := ExtractJSONObject(resp)
+		if err != nil {
+			return fmt.Errorf("could not locate JSON object in response: %v", err)
+		}
 		cleaned = strings.TrimSpace(cleaned)
 		if cleaned == "" {
 			return fmt.Errorf("empty response")
 		}
-		// Unmarshal into a fresh instance of target's underlying type to avoid
-		// mutating the caller's value.
 		if err := json.Unmarshal([]byte(cleaned), target); err != nil {
 			return fmt.Errorf("response is not valid JSON: %v", err)
 		}
@@ -139,19 +142,6 @@ func NonEmptyValidator() Validator {
 	}
 }
 
-func stripJSONFences(s string) string {
-	if idx := strings.Index(s, "```json"); idx >= 0 {
-		s = s[idx+7:]
-		if end := strings.Index(s, "```"); end >= 0 {
-			s = s[:end]
-		}
-		return s
-	}
-	if idx := strings.Index(s, "```"); idx >= 0 {
-		s = s[idx+3:]
-		if end := strings.Index(s, "```"); end >= 0 {
-			s = s[:end]
-		}
-	}
-	return s
-}
+// (stripJSONFences was removed after bug-extract-json-robustness — all
+// call sites now go through ExtractJSONObject, which subsumes fence
+// stripping and brace-balanced span detection.)

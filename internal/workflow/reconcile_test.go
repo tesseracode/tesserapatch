@@ -2,12 +2,15 @@ package workflow
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/tesserabox/tesserapatch/internal/provider"
@@ -134,9 +137,108 @@ index 0000000..abc1234
 	if results[0].Outcome != store.ReconcileReapplied {
 		t.Fatalf("expected reapplied, got %s", results[0].Outcome)
 	}
-	if results[0].Phase != "phase-4-forward-apply" {
-		t.Fatalf("expected phase-4, got %s", results[0].Phase)
+	// Phase name is now three-state: strict / 3way / conflicts. This
+	// test adds a brand-new file so the strict verdict is expected.
+	if results[0].Phase != "phase-4-forward-apply-strict" {
+		t.Fatalf("expected phase-4-forward-apply-strict, got %s", results[0].Phase)
 	}
+}
+
+// TestReconcilePhase4_ConflictMarkersAreBlocked reproduces
+// bug-reconcile-phase4-false-positive: upstream modifies the same
+// line the feature patch touches. `git apply --3way --check` used to
+// return 0 (merge is *attemptable*) so reconcile falsely reported
+// "reapplied". With PreviewForwardApply the 3-way merge actually runs
+// in an isolated worktree; conflict markers are detected and the
+// verdict is promoted to BLOCKED with the offending files surfaced.
+func TestReconcilePhase4_ConflictMarkersAreBlocked(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Baseline file the feature and upstream will both edit on the
+	// same line — guaranteed 3-way conflict.
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared.txt"), []byte("line-a\nline-b\nline-c\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitAdd(t, tmpDir, "shared.txt")
+	gitCommit(t, tmpDir, "add shared.txt")
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Shared edit", Request: "Change line-b to feature value"})
+	s.MarkFeatureState("shared-edit", store.StateApplied, "apply", "")
+
+	// Blob SHAs baked into the patch so git --3way can look up the
+	// merge base. Compute them from the current HEAD.
+	baseBlob := gitHashObject(t, tmpDir, "shared.txt")
+	// Feature wants "line-b-feature" (recorded patch, NOT applied to tree).
+	featureBlob := computeBlobSHA("line-a\nline-b-feature\nline-c\n")
+	patch := "diff --git a/shared.txt b/shared.txt\n" +
+		"index " + baseBlob + ".." + featureBlob + " 100644\n" +
+		"--- a/shared.txt\n" +
+		"+++ b/shared.txt\n" +
+		"@@ -1,3 +1,3 @@\n" +
+		" line-a\n" +
+		"-line-b\n" +
+		"+line-b-feature\n" +
+		" line-c\n"
+	s.WriteArtifact("shared-edit", "post-apply.patch", patch)
+
+	// Upstream edits the same line to a different value. `git apply
+	// --3way` will produce conflict markers on shared.txt.
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared.txt"), []byte("line-a\nline-b-upstream\nline-c\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitAdd(t, tmpDir, "shared.txt")
+	gitCommit(t, tmpDir, "upstream edit")
+
+	results, err := RunReconcile(context.Background(), s, []string{"shared-edit"}, "HEAD", nil, provider.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if results[0].Outcome != store.ReconcileBlocked {
+		t.Fatalf("expected blocked due to conflict markers, got %s (phase=%s, notes=%v)",
+			results[0].Outcome, results[0].Phase, results[0].Notes)
+	}
+	if results[0].Phase != "phase-4-forward-apply-conflicts" {
+		t.Fatalf("expected phase-4-forward-apply-conflicts, got %s", results[0].Phase)
+	}
+	// The conflicted file should be reported verbatim.
+	found := false
+	for _, c := range results[0].Conflicts {
+		if c == "shared.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected shared.txt in Conflicts, got %v", results[0].Conflicts)
+	}
+}
+
+func gitHashObject(t *testing.T, dir, path string) string {
+	t.Helper()
+	cmd := exec.Command("git", "hash-object", path)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git hash-object: %v", err)
+	}
+	return string(out[:len(out)-1]) // trim trailing \n
+}
+
+// computeBlobSHA returns the git blob SHA for a string, matching what
+// `git hash-object -w` would produce. Used to fabricate valid index
+// lines in synthetic patches for --3way to look up.
+func computeBlobSHA(content string) string {
+	h := sha1.New()
+	header := "blob " + strconv.Itoa(len(content)) + "\x00"
+	h.Write([]byte(header))
+	h.Write([]byte(content))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func TestReconcilePhase3_ProviderAssistedUpstreamed(t *testing.T) {

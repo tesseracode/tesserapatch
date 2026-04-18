@@ -338,19 +338,7 @@ func buildAnalysisUserPrompt(request, fileTree, guidance string) string {
 }
 
 func parseAnalysisResponse(response string) (*AnalysisResult, error) {
-	// Try to extract JSON from the response (may be wrapped in markdown code block)
-	cleaned := response
-	if idx := strings.Index(cleaned, "```json"); idx >= 0 {
-		cleaned = cleaned[idx+7:]
-		if end := strings.Index(cleaned, "```"); end >= 0 {
-			cleaned = cleaned[:end]
-		}
-	} else if idx := strings.Index(cleaned, "```"); idx >= 0 {
-		cleaned = cleaned[idx+3:]
-		if end := strings.Index(cleaned, "```"); end >= 0 {
-			cleaned = cleaned[:end]
-		}
-	}
+	cleaned, _ := ExtractJSONObject(response)
 	cleaned = strings.TrimSpace(cleaned)
 
 	var result AnalysisResult

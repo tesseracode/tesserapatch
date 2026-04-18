@@ -24,6 +24,28 @@ var requiredCommands = []string{
 	"tpatch next",
 }
 
+// Required anchor strings that must appear VERBATIM in every skill
+// format. These are the Invocation / Phase Ordering / Preflight
+// contract from bug-skill-invocation-clarity — agents were inventing
+// `npx tpatch` and speculative cwds because the skills never said
+// otherwise. Changing the wording here is a breaking change to the
+// skill-CLI contract; expect to update all 6 asset files together.
+var requiredAnchors = []struct {
+	label  string
+	anchor string
+}{
+	{"invocation/go-binary", "compiled Go binary on PATH"},
+	{"invocation/no-npx", "✗ `npx tpatch"},
+	{"invocation/no-cd", "Do not `cd` to speculative paths"},
+	{"phase-ordering/table", "requested    → tpatch analyze    → analyzed"},
+	{"phase-ordering/never-skip", "Never skip a phase"},
+	{"preflight/status", "`tpatch status <slug>`"},
+	{"preflight/next", "`tpatch next <slug>`"},
+	{"preflight/no-guess", "Do not guess the next phase"},
+	{"preflight/record-timing", "tpatch record <slug> BEFORE git commit"},
+	{"preflight/reconcile-clean-tree", "tpatch reconcile only on a CLEAN working tree"},
+}
+
 // Skill format files that must mention all CLI commands.
 var skillFiles = []struct {
 	name string
@@ -49,6 +71,12 @@ func TestSkillParityGuard(t *testing.T) {
 			for _, cmd := range requiredCommands {
 				if !strings.Contains(content, cmd) {
 					t.Errorf("%s (%s) missing CLI command: %q", sf.name, sf.path, cmd)
+				}
+			}
+			for _, a := range requiredAnchors {
+				if !strings.Contains(content, a.anchor) {
+					t.Errorf("%s (%s) missing required anchor [%s]: %q",
+						sf.name, sf.path, a.label, a.anchor)
 				}
 			}
 		})

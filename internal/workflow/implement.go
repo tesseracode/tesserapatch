@@ -4,10 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/tesserabox/tesserapatch/internal/provider"
 	"github.com/tesserabox/tesserapatch/internal/store"
 )
+
+// WarnWriter receives non-fatal warnings emitted by workflow phases (e.g.
+// when the implement phase falls back to a heuristic recipe because the
+// LLM call failed validation). Defaults to os.Stderr; tests override it
+// to capture output.
+var WarnWriter io.Writer = os.Stderr
 
 // ApplyRecipe is the deterministic operation format for applying changes.
 type ApplyRecipe struct {
@@ -51,11 +59,15 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 			slug, request, spec, exploration)
 
 		storeCfg, _ := s.LoadConfig()
+		maxTokens := storeCfg.MaxTokensImplement
+		if maxTokens <= 0 {
+			maxTokens = store.DefaultMaxTokensImplement
+		}
 		var tmp ApplyRecipe
 		response, err := GenerateWithRetry(ctx, prov, cfg, provider.GenerateRequest{
 			SystemPrompt: systemPrompt,
 			UserPrompt:   userPrompt,
-			MaxTokens:    8192,
+			MaxTokens:    maxTokens,
 			Temperature:  0.1,
 		}, RetryOptions{
 			MaxRetries: storeCfg.MaxRetries,
@@ -65,6 +77,12 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 			Store:      s,
 		})
 		if err != nil {
+			fmt.Fprintf(WarnWriter,
+				"warning: implement LLM call failed after %d retries (%v); "+
+					"falling back to a 1-operation heuristic recipe.\n"+
+					"  Inspect raw responses at .tpatch/features/%s/artifacts/raw-implement-response-*.txt\n"+
+					"  Retry with a larger budget: tpatch config set max_tokens_implement 32768\n",
+				storeCfg.MaxRetries, err, slug)
 			recipeContent = heuristicRecipe(slug)
 		} else {
 			recipeContent = response
@@ -75,7 +93,7 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 
 	// Try to parse and re-serialize for clean formatting
 	var recipe ApplyRecipe
-	if err := json.Unmarshal([]byte(extractJSON(recipeContent)), &recipe); err != nil {
+	if err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe); err != nil {
 		// Save raw content if not valid JSON
 		if err := s.WriteArtifact(slug, "apply-recipe.json", recipeContent); err != nil {
 			return err
@@ -87,7 +105,10 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 		}
 	}
 
-	return s.MarkFeatureState(slug, store.StateDefined, "implement", "Apply recipe generated")
+	// State advances to "implementing" — the recipe is ready but the
+	// code has not been executed/applied yet. The `apply` command moves
+	// it the rest of the way through implementing → applied.
+	return s.MarkFeatureState(slug, store.StateImplementing, "implement", "Apply recipe generated")
 }
 
 func heuristicRecipe(slug string) string {
@@ -105,17 +126,19 @@ func heuristicRecipe(slug string) string {
 	return string(data)
 }
 
-func extractJSON(s string) string {
-	// Try to find JSON in the string (may be wrapped in markdown)
-	if idx := findIndex(s, "```json"); idx >= 0 {
-		s = s[idx+7:]
-		if end := findIndex(s, "```"); end >= 0 {
-			s = s[:end]
-		}
-	} else if idx := findIndex(s, "{"); idx >= 0 {
-		s = s[idx:]
+func extractJSON(s string) string { return mustExtractJSON(s) }
+
+// mustExtractJSON is a thin adapter over ExtractJSONObject that
+// preserves the old "best-effort, never panic" contract of the legacy
+// helper: on parse failure it still returns a non-empty string so the
+// downstream json.Unmarshal path produces its own structured error
+// (which is what the retry loop keys off of).
+func mustExtractJSON(s string) string {
+	out, err := ExtractJSONObject(s)
+	if err != nil {
+		return out
 	}
-	return s
+	return out
 }
 
 func findIndex(s, substr string) int {
