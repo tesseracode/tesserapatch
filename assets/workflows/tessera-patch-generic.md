@@ -88,3 +88,63 @@ When upstream releases a new version, run `tpatch reconcile`. The 4-phase decisi
 2. **Operation-level** — Check individual recipe operations → partial detection
 3. **Provider-assisted** — LLM semantic check → structural differences
 4. **Forward-apply** — Can the patch be re-applied? → REAPPLIED or BLOCKED
+
+## You Are the Provider
+
+Every LLM phase has two paths:
+
+- **Path A — CLI-driven**: `tpatch <phase> <slug>` — configured provider generates the artifact.
+- **Path B — Agent-authored**: author the artifact yourself under `.tpatch/features/<slug>/`, then `tpatch <phase> <slug> --manual` to advance feature state without calling the provider.
+
+You are the provider when no provider is configured, the provider returns empty/truncated/insufficient output (common with implement — 1-op stubs, ensure-directory-only, truncated JSON), or you have more context than it does. Path B is normal, not exceptional — do not wait for a better recipe.
+
+Phase → artifact → state contract (the `--manual` flag validates this):
+
+| phase | artifact | advances state to |
+|---|---|---|
+| analyze | `analysis.md` | `analyzed` |
+| define | `spec.md` | `defined` |
+| explore | `exploration.md` | `defined` |
+| implement | `artifacts/apply-recipe.json` (JSON-validated) | `implementing` |
+
+## apply-recipe.json schema
+
+```json
+{
+  "version": 1,
+  "operations": [
+    { "op": "ensure-directory", "path": "src/feature/" },
+    { "op": "write-file", "path": "src/a.ts", "contents": "export const x = 1;\n" },
+    { "op": "replace-in-file", "path": "src/b.ts",
+      "search": "export * from \"./legacy\";\n",
+      "replace": "export * from \"./legacy\";\nexport * from \"./feature/a\";\n",
+      "occurrences": 1 },
+    { "op": "delete-file", "path": "src/dead.ts" }
+  ]
+}
+```
+
+Semantics:
+
+- `replace-in-file.search` is a **literal string match, not a regex**. Paste the exact text, include surrounding lines for uniqueness.
+- `occurrences` defaults to `1`; `-1` means every occurrence.
+- All `path` values are repo-relative. `../`, absolute paths, or symlinks outside the repo abort `apply --mode execute` (`EnsureSafeRepoPath`).
+- Operations execute in order; later ops may depend on earlier ops.
+
+## Patch vs recipe — mental model
+
+- `artifacts/post-apply.patch` — authoritative git diff. **The patch captures intent.**
+- `artifacts/apply-recipe.json` — deterministic script targeting a specific upstream snapshot.
+
+When they disagree (e.g. the recipe's `replace-in-file` can no longer find its anchor because upstream edited the line), trust the patch. Regenerate the recipe afterward.
+
+## If reconcile returns 3WayConflicts
+
+1. **Never pop the stash.** It holds your pre-reconcile tree.
+2. Restore only the tpatch metadata so you can see the feature's intent:
+   `git checkout stash@{0}^3 -- .tpatch/`
+3. Read `.tpatch/features/<slug>/spec.md` (intent), `.tpatch/features/<slug>/artifacts/post-apply.patch` (diff), and the new upstream version of each conflicted file.
+4. Hand-author a resolution that preserves **both** intents.
+5. `tpatch apply <slug> --mode done && tpatch record <slug>`.
+
+Provider-assisted automation of this playbook is tracked in `docs/adrs/ADR-010-provider-conflict-resolver.md` (v0.5.0 headline).

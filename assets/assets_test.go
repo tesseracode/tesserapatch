@@ -44,6 +44,12 @@ var requiredAnchors = []struct {
 	{"preflight/no-guess", "Do not guess the next phase"},
 	{"preflight/record-timing", "tpatch record <slug> BEFORE git commit"},
 	{"preflight/reconcile-clean-tree", "tpatch reconcile only on a CLEAN working tree"},
+	{"provider-fallback/you-are-the-provider", "You are the provider"},
+	{"recipe-schema/ops-table", "apply-recipe.json schema"},
+	{"recipe-schema/literal-search", "literal string match, not a regex"},
+	{"conflict-playbook/checkout-stash", "git checkout stash@{0}^3 -- .tpatch/"},
+	{"conflict-playbook/never-pop", "Never pop the stash"},
+	{"patch-vs-recipe/intent-vs-snapshot", "patch captures intent"},
 }
 
 // Skill format files that must mention all CLI commands.
