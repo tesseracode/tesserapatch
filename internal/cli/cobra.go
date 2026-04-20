@@ -240,6 +240,9 @@ func analyzeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if isManualFlag(cmd) {
+				return runManualPhase(cmd, s, args[0], "analyze")
+			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
@@ -265,6 +268,7 @@ func analyzeCmd() *cobra.Command {
 	}
 	cmd.Flags().Duration("timeout", 60*time.Second, "Analysis timeout")
 	cmd.Flags().Bool("no-retry", false, "Disable retry-with-feedback on invalid LLM output")
+	addManualFlag(cmd)
 	return cmd
 }
 
@@ -279,6 +283,9 @@ func defineCmd() *cobra.Command {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
+			}
+			if isManualFlag(cmd) {
+				return runManualPhase(cmd, s, args[0], "define")
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -300,6 +307,7 @@ func defineCmd() *cobra.Command {
 	}
 	cmd.Flags().Duration("timeout", 60*time.Second, "Timeout")
 	cmd.Flags().Bool("no-retry", false, "Disable retry-with-feedback on invalid LLM output")
+	addManualFlag(cmd)
 	return cmd
 }
 
@@ -314,6 +322,9 @@ func exploreCmd() *cobra.Command {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
+			}
+			if isManualFlag(cmd) {
+				return runManualPhase(cmd, s, args[0], "explore")
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -335,6 +346,7 @@ func exploreCmd() *cobra.Command {
 	}
 	cmd.Flags().Duration("timeout", 60*time.Second, "Timeout")
 	cmd.Flags().Bool("no-retry", false, "Disable retry-with-feedback on invalid LLM output")
+	addManualFlag(cmd)
 	return cmd
 }
 
@@ -349,6 +361,9 @@ func implementCmd() *cobra.Command {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
+			}
+			if isManualFlag(cmd) {
+				return runManualPhase(cmd, s, args[0], "implement")
 			}
 			timeout, _ := cmd.Flags().GetDuration("timeout")
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -370,6 +385,7 @@ func implementCmd() *cobra.Command {
 	}
 	cmd.Flags().Duration("timeout", 90*time.Second, "Timeout")
 	cmd.Flags().Bool("no-retry", false, "Disable retry-with-feedback on invalid LLM output")
+	addManualFlag(cmd)
 	return cmd
 }
 
@@ -797,6 +813,39 @@ func printReconcilePreflight(w io.Writer, p gitutil.ReconcilePreflight, allowDir
 // tracked in the repo. Used as a non-fatal tip at the end of reconcile.
 func isTpatchUntracked(repoRoot string) bool {
 	return !gitutil.IsPathTracked(repoRoot, ".tpatch")
+}
+
+// ─── --manual / --skip-llm shared helpers ────────────────────────────────────
+
+// addManualFlag installs the --manual flag and the --skip-llm alias on a
+// phase command. Both flags are boolean and hidden behind the same state in
+// cobra's flag set; tests and callers read --manual.
+func addManualFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool("manual", false, "Advance feature state from a hand-authored artifact; do not call the provider")
+	cmd.Flags().Bool("skip-llm", false, "Alias for --manual")
+}
+
+// isManualFlag returns true if either --manual or --skip-llm is set.
+func isManualFlag(cmd *cobra.Command) bool {
+	m, _ := cmd.Flags().GetBool("manual")
+	if m {
+		return true
+	}
+	alias, _ := cmd.Flags().GetBool("skip-llm")
+	return alias
+}
+
+// runManualPhase validates the expected phase artifact exists and advances
+// feature state without invoking the provider. It is the single entry point
+// shared by analyze/define/explore/implement when --manual is set.
+func runManualPhase(cmd *cobra.Command, s *store.Store, slug, phase string) error {
+	if err := s.AdvanceStateManually(slug, phase); err != nil {
+		return err
+	}
+	m, _ := store.ManualPhase(phase)
+	fmt.Fprintf(cmd.OutOrStdout(), "Phase %s advanced manually for %s (artifact: %s; state: %s)\n", phase, slug, m.Path, m.State)
+	fmt.Fprintln(cmd.OutOrStdout(), "  (manual mode — provider not called)")
+	return nil
 }
 
 // ─── provider ────────────────────────────────────────────────────────────────

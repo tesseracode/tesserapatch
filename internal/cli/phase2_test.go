@@ -373,3 +373,128 @@ func TestRecordEmptyCaptureRefused(t *testing.T) {
 		t.Errorf("refused record must not advance state to applied; got %q", status.State)
 	}
 }
+
+// TestManualAnalyzeAdvancesState — --manual with a hand-authored analysis.md
+// advances feature state without calling the provider.
+func TestManualAnalyzeAdvancesState(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Manual analyze fixture")
+
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", "manual-analyze-fixture")
+	if err := os.WriteFile(filepath.Join(featureDir, "analysis.md"), []byte("# Manual Analysis\n\nhand-authored\n"), 0o644); err != nil {
+		t.Fatalf("write analysis.md: %v", err)
+	}
+
+	out, _, code := runCmd("analyze", "--path", tmpDir, "manual-analyze-fixture", "--manual")
+	if code != 0 {
+		t.Fatalf("analyze --manual failed (code %d): %s", code, out)
+	}
+	if !strings.Contains(out, "advanced manually") || !strings.Contains(out, "manual mode") {
+		t.Errorf("expected manual-mode acknowledgment, got:\n%s", out)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(featureDir, "status.json"))
+	if err != nil {
+		t.Fatalf("read status.json: %v", err)
+	}
+	var status struct {
+		State       string `json:"state"`
+		LastCommand string `json:"last_command"`
+		Notes       string `json:"notes"`
+	}
+	_ = json.Unmarshal(raw, &status)
+	if status.State != "analyzed" {
+		t.Errorf("state: want analyzed, got %q", status.State)
+	}
+	if status.LastCommand != "analyze" {
+		t.Errorf("last_command: want analyze, got %q", status.LastCommand)
+	}
+	if !strings.Contains(status.Notes, "manually") {
+		t.Errorf("expected notes to record manual transition; got %q", status.Notes)
+	}
+}
+
+// TestManualRefusesMissingArtifact — --manual without the expected artifact
+// must fail and point at the exact path the agent should author.
+func TestManualRefusesMissingArtifact(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Manual no artifact")
+
+	_, _, code := runCmd("define", "--path", tmpDir, "manual-no-artifact", "--manual")
+	if code == 0 {
+		t.Fatalf("define --manual should refuse when spec.md is missing")
+	}
+	// state must not advance
+	statusPath := filepath.Join(tmpDir, ".tpatch", "features", "manual-no-artifact", "status.json")
+	raw, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatalf("read status.json: %v", err)
+	}
+	var status struct {
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &status)
+	if status.State != "requested" {
+		t.Errorf("refused --manual must not advance state; got %q", status.State)
+	}
+}
+
+// TestManualImplementValidatesJSON — --manual on implement refuses when the
+// recipe file is not valid JSON.
+func TestManualImplementValidatesJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Manual bad recipe")
+
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", "manual-bad-recipe")
+	if err := os.MkdirAll(filepath.Join(featureDir, "artifacts"), 0o755); err != nil {
+		t.Fatalf("mkdir artifacts: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(featureDir, "artifacts", "apply-recipe.json"), []byte("not json at all"), 0o644); err != nil {
+		t.Fatalf("write bad recipe: %v", err)
+	}
+
+	_, _, code := runCmd("implement", "--path", tmpDir, "manual-bad-recipe", "--manual")
+	if code == 0 {
+		t.Fatalf("implement --manual should refuse invalid JSON")
+	}
+
+	// valid JSON → should succeed
+	if err := os.WriteFile(filepath.Join(featureDir, "artifacts", "apply-recipe.json"), []byte(`{"operations":[]}`), 0o644); err != nil {
+		t.Fatalf("write good recipe: %v", err)
+	}
+	out, _, code := runCmd("implement", "--path", tmpDir, "manual-bad-recipe", "--manual")
+	if code != 0 {
+		t.Fatalf("implement --manual should succeed with valid JSON; out: %s", out)
+	}
+	raw, _ := os.ReadFile(filepath.Join(featureDir, "status.json"))
+	var status struct {
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &status)
+	if status.State != "implementing" {
+		t.Errorf("state: want implementing, got %q", status.State)
+	}
+}
+
+// TestManualSkipLLMAlias — --skip-llm is an alias for --manual.
+func TestManualSkipLLMAlias(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Alias check")
+
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", "alias-check")
+	if err := os.WriteFile(filepath.Join(featureDir, "exploration.md"), []byte("# Exploration\n"), 0o644); err != nil {
+		t.Fatalf("write exploration.md: %v", err)
+	}
+
+	out, _, code := runCmd("explore", "--path", tmpDir, "alias-check", "--skip-llm")
+	if code != 0 {
+		t.Fatalf("explore --skip-llm failed (code %d): %s", code, out)
+	}
+	if !strings.Contains(out, "advanced manually") {
+		t.Errorf("expected manual acknowledgment via --skip-llm; got:\n%s", out)
+	}
+}
