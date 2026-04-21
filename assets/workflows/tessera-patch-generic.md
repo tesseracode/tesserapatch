@@ -113,21 +113,22 @@ Phase → artifact → state contract (the `--manual` flag validates this):
 {
   "version": 1,
   "operations": [
-    { "op": "ensure-directory", "path": "src/feature/" },
-    { "op": "write-file", "path": "src/a.ts", "contents": "export const x = 1;\n" },
-    { "op": "replace-in-file", "path": "src/b.ts",
+    { "type": "ensure-directory", "path": "src/feature/" },
+    { "type": "write-file", "path": "src/a.ts", "content": "export const x = 1;\n" },
+    { "type": "replace-in-file", "path": "src/b.ts",
       "search": "export * from \"./legacy\";\n",
-      "replace": "export * from \"./legacy\";\nexport * from \"./feature/a\";\n",
-      "occurrences": 1 },
-    { "op": "delete-file", "path": "src/dead.ts" }
+      "replace": "export * from \"./legacy\";\nexport * from \"./feature/a\";\n" },
+    { "type": "append-file", "path": "src/changelog.md",
+      "content": "\n- added feature/a\n" }
   ]
 }
 ```
 
 Semantics:
 
+- Ops: `ensure-directory`, `write-file { path, content }`, `replace-in-file { path, search, replace }`, `append-file { path, content }`. No `delete-file` / `rename-file` yet — use Path B + `git rm` for deletes.
 - `replace-in-file.search` is a **literal string match, not a regex**. Paste the exact text, include surrounding lines for uniqueness.
-- `occurrences` defaults to `1`; `-1` means every occurrence.
+- `replace-in-file` replaces exactly one occurrence per op. Emit multiple ops to replace several copies.
 - All `path` values are repo-relative. `../`, absolute paths, or symlinks outside the repo abort `apply --mode execute` (`EnsureSafeRepoPath`).
 - Operations execute in order; later ops may depend on earlier ops.
 

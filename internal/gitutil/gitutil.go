@@ -414,23 +414,15 @@ func PreviewForwardApply(repoRoot, patch string) (ForwardApplyPreview, error) {
 	// Phase 4b: linked worktree at HEAD for a real 3-way attempt.
 	wt, cleanup, wtErr := mkPreviewWorktree(repoRoot)
 	if wtErr != nil {
-		// Degraded path: use --check --3way so we at least return
-		// something. This preserves the old (less accurate) behavior
-		// and is stamped so the caller can surface it.
-		chk := exec.Command("git", "apply", "--3way", "--check", "-")
-		chk.Dir = repoRoot
-		chk.Stdin = strings.NewReader(patch)
-		var chkErr strings.Builder
-		chk.Stderr = &chkErr
-		if chk.Run() == nil {
-			return ForwardApplyPreview{
-				Verdict: ForwardApply3WayClean,
-				Stderr:  fmt.Sprintf("worktree preview unavailable (%v); used --check --3way instead", wtErr),
-			}, nil
-		}
+		// Degraded path: without an isolated worktree we cannot prove
+		// that a 3-way merge would be clean. `git apply --3way --check`
+		// returns 0 even for merges that will leave conflict markers
+		// (that's the original bug). Prefer a HONEST Blocked verdict
+		// with a clear reason over an optimistic 3WayClean; reconcile
+		// callers can surface the reason and the user can investigate.
 		return ForwardApplyPreview{
 			Verdict: ForwardApplyBlocked,
-			Stderr:  fmt.Sprintf("worktree preview unavailable (%v); --check --3way also failed: %s", wtErr, strings.TrimSpace(chkErr.String())),
+			Stderr:  fmt.Sprintf("worktree preview unavailable (%v); cannot verify 3-way merge cleanliness — refusing to guess", wtErr),
 		}, nil
 	}
 	defer cleanup()
@@ -487,6 +479,16 @@ func mkPreviewWorktree(repoRoot string) (string, func(), error) {
 // scanConflictMarkers walks the worktree looking for files that contain
 // `<<<<<<<` at the start of a line (the canonical git merge marker).
 // Returns repo-relative paths sorted alphabetically.
+// ScanConflictMarkers walks root looking for files that contain git
+// conflict markers (`<<<<<<<` and `>>>>>>>` on line starts). Skips
+// `.git`, files larger than 5MB (binary-ish), and any read errors.
+// Returns repo-relative paths, sorted. Safe to call on the main
+// working tree as a defensive last-line check; reconcile uses it to
+// detect a conflict-markers-but-reapplied false positive.
+func ScanConflictMarkers(root string) []string {
+	return scanConflictMarkers(root)
+}
+
 func scanConflictMarkers(root string) []string {
 	var out []string
 	_ = filepath.Walk(root, func(p string, info os.FileInfo, err error) error {

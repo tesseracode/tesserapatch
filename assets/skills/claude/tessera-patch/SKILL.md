@@ -121,18 +121,20 @@ The `implement` phase produces a deterministic recipe that the `apply` phase con
 {
   "version": 1,
   "operations": [
-    { "op": "ensure-directory", "path": "src/feature/" },
-    { "op": "write-file",
+    { "type": "ensure-directory", "path": "src/feature/" },
+    { "type": "write-file",
       "path": "src/feature/new.ts",
-      "contents": "export function greet(name: string) {\n  return `hello ${name}`;\n}\n"
+      "content": "export function greet(name: string) {\n  return `hello ${name}`;\n}\n"
     },
-    { "op": "replace-in-file",
+    { "type": "replace-in-file",
       "path": "src/index.ts",
       "search": "export * from \"./legacy\";\n",
-      "replace": "export * from \"./legacy\";\nexport * from \"./feature/new\";\n",
-      "occurrences": 1
+      "replace": "export * from \"./legacy\";\nexport * from \"./feature/new\";\n"
     },
-    { "op": "delete-file", "path": "src/dead.ts" }
+    { "type": "append-file",
+      "path": "src/changelog.md",
+      "content": "\n- added feature/new\n"
+    }
   ]
 }
 ```
@@ -140,17 +142,18 @@ The `implement` phase produces a deterministic recipe that the `apply` phase con
 ### Operations
 
 - **`ensure-directory`** `{ path }` — create the directory if missing. No-op if present.
-- **`write-file`** `{ path, contents }` — write the full file. Overwrites existing content.
-- **`replace-in-file`** `{ path, search, replace, occurrences? }` — replace one (or N) occurrences of `search` with `replace`.
-- **`delete-file`** `{ path }` — remove the file if present.
+- **`write-file`** `{ path, content }` — write the full file. Overwrites existing content.
+- **`replace-in-file`** `{ path, search, replace }` — replace the first occurrence of `search` with `replace`. Errors if `search` is not found.
+- **`append-file`** `{ path, content }` — append to an existing file. Errors if the file does not exist.
 
 ### Semantics
 
 - `replace-in-file.search` is a **literal string match, not a regex**. Escape nothing; paste the exact text you want to replace including surrounding lines for uniqueness.
-- `occurrences` defaults to `1`. Set it to a positive integer to replace multiple copies, or `-1` to replace every occurrence.
-- Include several surrounding lines in `search` when the same string appears more than once in the file.
+- `replace-in-file` replaces exactly one occurrence per operation. To replace multiple copies, emit multiple `replace-in-file` ops — each will target the next occurrence since prior ops rewrote the file.
+- Include several surrounding lines in `search` when the same string appears more than once in the file, so the match is unique.
 - All `path` values are repo-relative. tpatch enforces path safety via `EnsureSafeRepoPath`; any `../`, absolute path, or symlink target outside the repo aborts `apply --mode execute`.
 - Operations are executed in the order they appear. Later ops may depend on earlier ops (e.g. `ensure-directory` before `write-file`).
+- There is no `delete-file` or `rename-file` op in the current schema. To delete a file, use Path B: `apply --mode started`, `git rm <path>`, `apply --mode done`, `record`. Richer ops are tracked in `feat-recipe-schema-expansion`.
 
 ## If reconcile returns 3WayConflicts
 

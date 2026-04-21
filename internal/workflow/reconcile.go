@@ -165,11 +165,33 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	// `git apply --3way --check` merely accepted the merge *attempt*
 	// even though the apply would leave conflict markers.
 	preview, _ := gitutil.PreviewForwardApply(s.Root, patch)
+
+	// Belt-and-braces: even though PreviewForwardApply runs in an
+	// isolated worktree, a prior reconcile run (or an outside workflow)
+	// may have left conflict markers in the live tree. A `reapplied`
+	// verdict in the presence of live markers is the worst-case user
+	// experience — they commit bad code trusting the verdict.
+	// See bug-reconcile-reapplied-with-conflict-markers (t3code case
+	// study, v0.4.4). If markers exist, promote to Blocked.
+	promoteIfMarkers := func(res *ReconcileResult) bool {
+		markers := gitutil.ScanConflictMarkers(s.Root)
+		if len(markers) == 0 {
+			return false
+		}
+		res.Outcome = store.ReconcileBlocked
+		res.Phase = "phase-4-live-conflict-markers"
+		res.Notes = append(res.Notes,
+			fmt.Sprintf("Refused to report reapplied: %d file(s) in the working tree contain unresolved conflict markers", len(markers)))
+		res.Conflicts = append(res.Conflicts, markers...)
+		return true
+	}
+
 	switch preview.Verdict {
 	case gitutil.ForwardApplyStrict:
 		result.Outcome = store.ReconcileReapplied
 		result.Phase = "phase-4-forward-apply-strict"
 		result.Notes = append(result.Notes, "Patch applies cleanly (strict) — safe to auto-apply")
+		promoteIfMarkers(result)
 		saveReconcileArtifacts(s, slug, result)
 		updateFeatureState(s, slug, result)
 		return result, nil
@@ -181,6 +203,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 			note = fmt.Sprintf("%s [git: %s]", note, preview.Stderr)
 		}
 		result.Notes = append(result.Notes, note)
+		promoteIfMarkers(result)
 		saveReconcileArtifacts(s, slug, result)
 		updateFeatureState(s, slug, result)
 		return result, nil

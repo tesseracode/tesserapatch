@@ -59,17 +59,17 @@ replays against the current upstream snapshot.
 {
   "version": 1,
   "operations": [
-    { "op": "ensure-directory", "path": "src/feature/" },
-    { "op": "write-file",
+    { "type": "ensure-directory", "path": "src/feature/" },
+    { "type": "write-file",
       "path": "src/feature/index.ts",
-      "contents": "export const x = 1;\n" },
-    { "op": "replace-in-file",
+      "content": "export const x = 1;\n" },
+    { "type": "replace-in-file",
       "path": "src/registry.ts",
       "search": "export * from \"./legacy\";\n",
-      "replace": "export * from \"./legacy\";\nexport * from \"./feature\";\n",
-      "occurrences": 1 },
-    { "op": "delete-file",
-      "path": "src/dead.ts" }
+      "replace": "export * from \"./legacy\";\nexport * from \"./feature\";\n" },
+    { "type": "append-file",
+      "path": "src/changelog.md",
+      "content": "\n- added feature/\n" }
   ]
 }
 ```
@@ -79,16 +79,23 @@ Operation semantics:
 - `ensure-directory` — `mkdir -p`. Idempotent.
 - `write-file` — creates or overwrites the whole file. Use for new
   files or full rewrites.
-- `replace-in-file` — locates the first (or `occurrences`-th)
-  occurrence of `search` and substitutes `replace`.
+- `replace-in-file` — locates the first occurrence of `search` and
+  substitutes `replace`. Errors if `search` is absent.
   - `search` is a **literal string match, not a regex**. Paste the
     exact text, including leading/trailing whitespace. Escape quotes
     and backslashes per JSON rules, not regex rules.
   - Include surrounding lines for uniqueness — one-line anchors
     collide.
-  - `occurrences` defaults to `1`; pass `-1` for every occurrence.
-- `delete-file` — removes the file; fails if the file is missing
-  (no-op would mask intent).
+  - Exactly one occurrence is replaced per op. To replace several
+    copies, emit several ops; each targets the next occurrence as the
+    prior op has already rewritten the file.
+- `append-file` — appends `content` to an existing file. Errors if
+  the file is missing.
+
+There is no `delete-file` or `rename-file` op in the current schema.
+To delete or rename a file, use Path B: `apply --mode started`,
+`git rm <path>` (or `git mv`), `apply --mode done`, `record`. Richer
+op support is tracked in `feat-recipe-schema-expansion`.
 
 Path safety:
 

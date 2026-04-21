@@ -241,6 +241,66 @@ func computeBlobSHA(content string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// TestReconcilePromotesOnLiveMarkers reproduces
+// bug-reconcile-reapplied-with-conflict-markers (t3code case study,
+// v0.4.4). Even if PreviewForwardApply returns a clean verdict in an
+// isolated worktree, the live working tree may contain unresolved
+// conflict markers (leftover from a prior reconcile, a manual edit,
+// or an outside merge). Returning "reapplied" in that state is a
+// data-corruption risk: the user commits bad code trusting the
+// verdict. The defensive ScanConflictMarkers pass must promote to
+// Blocked and name the offending files.
+func TestReconcilePromotesOnLiveMarkers(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Add note", Request: "Add a note file"})
+	s.MarkFeatureState("add-note", store.StateApplied, "apply", "")
+
+	// A trivially-applicable patch (new file) — would normally give
+	// ForwardApplyStrict and verdict Reapplied.
+	patch := `diff --git a/note.txt b/note.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/note.txt
+@@ -0,0 +1,1 @@
++hello
+`
+	s.WriteArtifact("add-note", "post-apply.patch", patch)
+
+	// Plant conflict markers in an unrelated file in the live tree.
+	if err := os.WriteFile(filepath.Join(tmpDir, "leftover.txt"),
+		[]byte("<<<<<<< ours\nA\n=======\nB\n>>>>>>> theirs\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := RunReconcile(context.Background(), s, []string{"add-note"}, "HEAD", nil, provider.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Outcome != store.ReconcileBlocked {
+		t.Fatalf("expected blocked due to live conflict markers, got %s (phase=%s, notes=%v)",
+			results[0].Outcome, results[0].Phase, results[0].Notes)
+	}
+	if results[0].Phase != "phase-4-live-conflict-markers" {
+		t.Fatalf("expected phase-4-live-conflict-markers, got %s", results[0].Phase)
+	}
+	foundLeftover := false
+	for _, f := range results[0].Conflicts {
+		if f == "leftover.txt" {
+			foundLeftover = true
+		}
+	}
+	if !foundLeftover {
+		t.Fatalf("expected leftover.txt in conflicts list, got %v", results[0].Conflicts)
+	}
+}
+
 func TestReconcilePhase3_ProviderAssistedUpstreamed(t *testing.T) {
 	tmpDir := t.TempDir()
 	setupGitRepo(t, tmpDir)
