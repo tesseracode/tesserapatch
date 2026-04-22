@@ -34,9 +34,25 @@
 
 SQL: `SELECT id, status FROM todos WHERE id LIKE 'b2-%' ORDER BY id;`
 
-### What `b2-reconcile-wiring` needs to do
+### What `b2-cli-flags` needs to do (NEXT)
 
-Inject phase 3.5 between the existing phase-3 (provider semantic check) and phase-4 (forward-apply) in `internal/workflow/reconcile.go`. Specifically:
+Add flags to `reconcileCmd` in `internal/cli/cobra.go`:
+
+- `--resolve` bool → `ReconcileOptions.Resolve`
+- `--apply` bool → `ReconcileOptions.Apply` (requires `--resolve`)
+- `--max-conflicts N` int → `ReconcileOptions.MaxConflicts`
+- `--model NAME` string → `ReconcileOptions.Model`
+- `--accept <slug>`, `--reject <slug>`, `--shadow-diff <slug>` — terminal operations; read `status.Reconcile.ShadowPath` (already populated by b2-state-machine). Mutually exclusive with `--resolve`.
+
+Handler sketch:
+
+- `--accept`: refuse if state != `reconciling-shadow`. Look up resolved_files from `reconcile-session.json`. Call `gitutil.CopyShadowToReal(shadow, root, files)`. Transition state to `applied` via `s.MarkFeatureState`. Add TODO note: "derived artifacts not yet refreshed — run `tpatch record` until b2-derived-refresh lands."
+- `--reject`: `gitutil.PruneShadow(shadow)`. Roll state back to `applied`. Clear `status.Reconcile.ShadowPath`.
+- `--shadow-diff`: walk resolved_files, shell out to `diff -u` per pair, stream to stdout.
+
+Also: truthful validation errors for nonsensical combos (e.g. `--accept` + `--resolve`).
+
+### What was in the old wiring guidance (preserved below for reference — all implemented)
 
 1. **Trigger condition**: only when `PreviewForwardApply` returns `ForwardApply3WayConflicts` AND the caller set `ReconcileOpts.Resolve = true` (new field — add to the opts struct).
 2. **Git plumbing** (new, needs a helper in gitutil or inline): for each conflicted file from the preview, fetch three versions:
@@ -66,6 +82,15 @@ Inject phase 3.5 between the existing phase-3 (provider semantic check) and phas
 - `feat-resolver-heuristic-fallback` — opt-in `--heuristic` for provider-unavailable cases. Depends on `b2-release`.
 - `feat-feature-standalonify` — rebase a dependent feature into standalone. Depends on `feat-feature-dependencies`.
 - `feat-parallel-feature-workflows` — `tpatch workon --parallel` fans out features into per-feature worktrees. Depends on `feat-feature-dependencies`.
+
+## Session Summary (2026-04-22 session — B2 middle)
+
+**Commits this session** (continuing from B2 kickoff):
+- `ed8457b` — docs: checkpoint B2 progress in CURRENT.md
+- `53b38ee` — `b2-reconcile-wiring` (reconcile.go + gitutil.FileAtCommit/MergeBase + 1 test)
+- `1767c1d` — `b2-state-machine` (StateReconcilingShadow + ReconcileSummary fields + status surface + 1 test)
+
+All pushed to origin/main. All tests green.
 
 ## Session Summary (2026-04-21 evening session — B2 kickoff)
 
