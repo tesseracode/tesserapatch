@@ -113,15 +113,31 @@ func initCmd() *cobra.Command {
 func addCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <description...>",
-		Short: "Create a tracked feature request",
-		Args:  cobra.MinimumNArgs(1),
+		Short: "Create a tracked feature request (reads stdin when no args)",
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
 			}
 			slug, _ := cmd.Flags().GetString("slug")
-			description := strings.Join(args, " ")
+
+			var description string
+			switch {
+			case len(args) > 0:
+				description = strings.Join(args, " ")
+			case stdinIsPiped(cmd):
+				raw, err := io.ReadAll(cmd.InOrStdin())
+				if err != nil {
+					return fmt.Errorf("read stdin: %w", err)
+				}
+				description = strings.TrimSpace(string(raw))
+				if description == "" {
+					return fmt.Errorf("empty description on stdin")
+				}
+			default:
+				return fmt.Errorf("provide a description as arguments or pipe via stdin")
+			}
 
 			status, err := s.AddFeature(store.AddFeatureInput{
 				Title: description, Request: description, Slug: slug,
@@ -138,6 +154,25 @@ func addCmd() *cobra.Command {
 	}
 	cmd.Flags().String("slug", "", "Override feature slug")
 	return cmd
+}
+
+// stdinIsPiped reports whether the command's stdin appears to be a pipe
+// or redirected file rather than an interactive terminal. Uses the
+// cobra-injected reader when it's an *os.File (tests using SetIn with
+// a strings.Reader return true via the type-check fallback so piped
+// input is always honoured).
+func stdinIsPiped(cmd *cobra.Command) bool {
+	in := cmd.InOrStdin()
+	f, ok := in.(*os.File)
+	if !ok {
+		// Tests inject strings.Reader / bytes.Buffer etc.; treat as piped.
+		return true
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice == 0
 }
 
 // ─── status ──────────────────────────────────────────────────────────────────
