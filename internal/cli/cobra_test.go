@@ -532,71 +532,89 @@ func TestAmendReadsStdin(t *testing.T) {
 }
 
 func TestRemoveForce(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-runCmd("add", "--path", tmpDir, "Remove force test")
-if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-force-test")); err != nil {
-t.Fatalf("expected feature dir, got %v", err)
-}
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Remove force test")
+	if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-force-test")); err != nil {
+		t.Fatalf("expected feature dir, got %v", err)
+	}
 
-out, _, code := runCmd("remove", "--path", tmpDir, "remove-force-test", "--force")
-if code != 0 {
-t.Fatalf("remove --force failed: %s", out)
-}
-if !strings.Contains(out, "Removed feature") {
-t.Errorf("expected confirmation, got %q", out)
-}
-if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-force-test")); err == nil {
-t.Errorf("feature dir still exists after remove")
-}
+	out, _, code := runCmd("remove", "--path", tmpDir, "remove-force-test", "--force")
+	if code != 0 {
+		t.Fatalf("remove --force failed: %s", out)
+	}
+	if !strings.Contains(out, "Removed feature") {
+		t.Errorf("expected confirmation, got %q", out)
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-force-test")); err == nil {
+		t.Errorf("feature dir still exists after remove")
+	}
 }
 
 func TestRemoveConfirmation(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-runCmd("add", "--path", tmpDir, "Remove confirm test")
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Remove confirm test")
 
-root := buildRootCmd()
-var outBuf, errBuf bytes.Buffer
-root.SetOut(&outBuf)
-root.SetErr(&errBuf)
-root.SetIn(strings.NewReader("y\n"))
-root.SetArgs([]string{"remove", "--path", tmpDir, "remove-confirm-test"})
-if err := root.Execute(); err != nil {
-t.Fatalf("remove with 'y' failed: %v (%s)", err, errBuf.String())
-}
-if !strings.Contains(outBuf.String(), "Removed feature") {
-t.Errorf("expected removal confirmation, got %q", outBuf.String())
-}
+	root := buildRootCmd()
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetIn(strings.NewReader("y\n"))
+	root.SetArgs([]string{"remove", "--path", tmpDir, "remove-confirm-test"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("remove with 'y' failed: %v (%s)", err, errBuf.String())
+	}
+	if !strings.Contains(outBuf.String(), "Removed feature") {
+		t.Errorf("expected removal confirmation, got %q", outBuf.String())
+	}
 }
 
 func TestRemoveDeclined(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-runCmd("add", "--path", tmpDir, "Remove decline test")
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Remove decline test")
 
-root := buildRootCmd()
-var outBuf, errBuf bytes.Buffer
-root.SetOut(&outBuf)
-root.SetErr(&errBuf)
-root.SetIn(strings.NewReader("n\n"))
-root.SetArgs([]string{"remove", "--path", tmpDir, "remove-decline-test"})
-if err := root.Execute(); err != nil {
-t.Fatalf("remove with 'n' unexpectedly errored: %v", err)
-}
-if !strings.Contains(outBuf.String(), "aborted") {
-t.Errorf("expected 'aborted', got %q", outBuf.String())
-}
-if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-decline-test")); err != nil {
-t.Errorf("feature dir should still exist after decline, err=%v", err)
-}
+	root := buildRootCmd()
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetIn(strings.NewReader("n\n"))
+	root.SetArgs([]string{"remove", "--path", tmpDir, "remove-decline-test"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("remove with 'n' unexpectedly errored: %v", err)
+	}
+	if !strings.Contains(outBuf.String(), "aborted") {
+		t.Errorf("expected 'aborted', got %q", outBuf.String())
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-decline-test")); err != nil {
+		t.Errorf("feature dir should still exist after decline, err=%v", err)
+	}
 }
 
 func TestRemoveMissingFeature(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-_, _, code := runCmd("remove", "--path", tmpDir, "nope", "--force")
-if code == 0 {
-t.Fatal("expected error removing nonexistent feature")
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	_, _, code := runCmd("remove", "--path", tmpDir, "nope", "--force")
+	if code == 0 {
+		t.Fatal("expected error removing nonexistent feature")
+	}
 }
+
+func TestRecordLenientSkipsValidation(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Lenient record test")
+
+	// Create a real change so record has something to capture.
+	os.WriteFile(filepath.Join(tmpDir, "note.md"), []byte("draft  \n"), 0o644)
+
+	_, stderr, code := runCmd("record", "--path", tmpDir, "lenient-record-test", "--lenient")
+	if code != 0 {
+		t.Fatalf("record --lenient failed: %s", stderr)
+	}
+	if !strings.Contains(stderr, "--lenient: skipping patch round-trip validation") {
+		t.Errorf("expected lenient warning in stderr, got %q", stderr)
+	}
 }

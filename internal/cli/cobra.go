@@ -750,10 +750,14 @@ func recordCmd() *cobra.Command {
 			// against the tree we just captured it from. Forward
 			// validation against an upstream baseline happens at
 			// reconcile-time, not here.
-			if valErr := gitutil.ValidatePatchReverse(s.Root, patch); valErr != nil {
+			lenient, _ := cmd.Flags().GetBool("lenient")
+			if lenient {
+				fmt.Fprintln(cmd.ErrOrStderr(), "warning: --lenient: skipping patch round-trip validation")
+			} else if valErr := gitutil.ValidatePatchReverse(s.Root, patch); valErr != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", valErr)
 				fmt.Fprintf(cmd.ErrOrStderr(), "  The recorded patch may not represent the on-disk changes accurately.\n")
 				fmt.Fprintf(cmd.ErrOrStderr(), "  Common causes: line-ending differences, binary files without --binary, or post-apply edits.\n")
+				fmt.Fprintf(cmd.ErrOrStderr(), "  To silence this check (e.g. for whitespace-sensitive markdown), rerun with --lenient.\n")
 			} else {
 				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: round-trips cleanly against working tree\n")
 			}
@@ -784,6 +788,7 @@ func recordCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("from", "", "Base commit to diff from (captures committed diff instead of working tree)")
+	cmd.Flags().Bool("lenient", false, "Skip reverse-apply round-trip validation (use for whitespace-sensitive files)")
 	return cmd
 }
 
