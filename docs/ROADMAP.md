@@ -49,7 +49,7 @@ See `docs/milestones/M5-skill-system.md` for task list.
 
 ## M6 — Bug Bash Validation ✅
 
-**Goal**: Pass the reconciliation bug bash end-to-end against tesserabox/copilot-api.
+**Goal**: Pass the reconciliation bug bash end-to-end against tesseracode/copilot-api.
 
 **Result**: Full pass. Feature A → upstream_merged (Phase 3), Feature B → reapplied (Phase 4 with 3-way merge). All 26 tests pass, typecheck clean. See `../tests/tpatch/BUG-BASH-REPORT.md`.
 
@@ -91,9 +91,9 @@ See `docs/milestones/M9-interactive-harness.md` for task list.
 
 ## Distribution (2026-04-17) — `go install` + CI workflow + v0.3.0 release ✅
 
-**Goal**: Make `go install github.com/tesserabox/tesserapatch/cmd/tpatch@latest` work and add a free CI workflow.
+**Goal**: Make `go install github.com/tesseracode/tesserapatch/cmd/tpatch@latest` work and add a free CI workflow.
 
-**Result**: Renamed the module path to match the repo (`github.com/tesserabox/tesserapatch`). Added `.github/workflows/ci.yml` (matrix ubuntu+macOS, `go-version-file: go.mod`, gofmt/vet/build/test/install smoke). Tagged `v0.3.0` locally; ready to push.
+**Result**: Renamed the module path to match the repo (`github.com/tesseracode/tesserapatch`). Added `.github/workflows/ci.yml` (matrix ubuntu+macOS, `go-version-file: go.mod`, gofmt/vet/build/test/install smoke). Tagged `v0.3.0` locally; ready to push.
 
 ## Planning (2026-04-17) — Native Copilot auth research + PRD ✅
 

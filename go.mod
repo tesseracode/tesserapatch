@@ -1,4 +1,4 @@
-module github.com/tesserabox/tesserapatch
+module github.com/tesseracode/tesserapatch
 
 go 1.26.1
 

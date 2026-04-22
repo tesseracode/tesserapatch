@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // setupGitRepo creates a git repo in dir with an initial commit.

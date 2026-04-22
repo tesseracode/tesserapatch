@@ -7,7 +7,7 @@
 
 ## 1. Problem
 
-Today, `tpatch provider set --preset copilot` points at `http://localhost:4141`, which is the [`copilot-api`](https://github.com/tesserabox/copilot-api) proxy — a reverse-engineered translator that exposes GitHub Copilot through an OpenAI-compatible (and now Anthropic-compatible) surface. Users must:
+Today, `tpatch provider set --preset copilot` points at `http://localhost:4141`, which is the [`copilot-api`](https://github.com/tesseracode/copilot-api) proxy — a reverse-engineered translator that exposes GitHub Copilot through an OpenAI-compatible (and now Anthropic-compatible) surface. Users must:
 
 1. Install the proxy themselves (`bun install`, `npm i -g copilot-api`, or Docker).
 2. Run it as a background process before tpatch works.
@@ -19,7 +19,7 @@ Users ask: *"Can I just use the same GitHub account I use with `copilot` CLI?"* 
 
 ### 2.1 copilot-api (the current dependency)
 
-Directly from the `tesserabox/copilot-api` README:
+Directly from the `tesseracode/copilot-api` README:
 
 > **This is a reverse-engineered proxy of GitHub Copilot API. It is not supported by GitHub, and may break unexpectedly. Use at your own risk.**
 >
@@ -184,7 +184,7 @@ Phase 2 ships when:
 
 - anomalyco/opencode — `packages/opencode/src/plugin/github-copilot/copilot.ts` (OAuth device flow with client ID `Ov23li8tweQw6odWQebz`, Bearer against `api.githubcopilot.com`, **no** session-token exchange).
 - anomalyco/opencode — `packages/opencode/src/plugin/github-copilot/models.ts` (model discovery at `GET /models`).
-- ericc-ch/copilot-api — `src/lib/api-config.ts` + `src/services/github/get-device-code.ts` (client ID `Iv1.b507a08c87ecfe98`, session-token exchange via `copilot_internal/v2/token`, full VS Code Copilot Chat impersonation). The upstream of `tesserabox/copilot-api`.
+- ericc-ch/copilot-api — `src/lib/api-config.ts` + `src/services/github/get-device-code.ts` (client ID `Iv1.b507a08c87ecfe98`, session-token exchange via `copilot_internal/v2/token`, full VS Code Copilot Chat impersonation). The upstream of `tesseracode/copilot-api`.
 - BerriAI/litellm — `litellm/llms/github_copilot/authenticator.py` (same client ID and token-exchange pattern as copilot-api; tokens persisted to `~/.config/litellm/github_copilot/`).
 - github/copilot-cli — closed-source binary; only `/login` OAuth and PAT documented, no HTTP protocol exposed.
 

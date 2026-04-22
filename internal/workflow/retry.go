@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // Validator inspects a raw LLM response and returns an error if it cannot be

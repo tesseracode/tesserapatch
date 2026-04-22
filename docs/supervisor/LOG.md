@@ -77,7 +77,7 @@ No code merged. ADRs ready for supervisor review. Awaiting user direction on (a)
 
 ### Deliverables
 - `docs/prds/PRD-native-copilot-auth.md` — options matrix (A–E), two-phase recommendation (M10 managed proxy, M11 opt-in native OAuth-device-flow provider), explicit rejection of shelling out to `copilot` CLI.
-- Confirmed via the `tesserabox/copilot-api` README that it is reverse-engineered, unsupported by GitHub, and subject to abuse-detection warnings.
+- Confirmed via the `tesseracode/copilot-api` README that it is reverse-engineered, unsupported by GitHub, and subject to abuse-detection warnings.
 - Confirmed via the `github/copilot-cli` repo contents that the CLI is closed-source (only README/install.sh/changelog/LICENSE are published) and the only sanctioned auth surface is `/login` OAuth or a PAT with "Copilot Requests" permission — no documented HTTP endpoint.
 - **Confirmed via anomalyco/opencode source** that a much simpler native path is proven in production: OAuth device flow against `github.com` with the well-known editor client ID (`Ov23li8tweQw6odWQebz`), GitHub OAuth access token used directly as Bearer on `api.githubcopilot.com`. **No session-token exchange required** — this removes the biggest implementation-cost concern from the initial draft of the PRD. M11 is now ~200 LOC of Go rather than a full copilot-api reimplementation.
 
@@ -107,7 +107,7 @@ Session ended pending supervisor approval of the PRD. No code merged; v0.3.0 was
 **Verdict**: **PENDING**
 
 ### Deliverables
-- `go.mod` module renamed to `github.com/tesserabox/tesserapatch` (matches the actual GitHub repo). All imports rewritten. Binary still named `tpatch`.
+- `go.mod` module renamed to `github.com/tesseracode/tesserapatch` (matches the actual GitHub repo). All imports rewritten. Binary still named `tpatch`.
 - `.github/workflows/ci.yml`: push+PR to `main`, matrix ubuntu + macOS, `gofmt` + `go vet` + `go build` + `go test` + `go install` smoke test. `go-version-file: go.mod`, module cache enabled, concurrency group cancels superseded runs.
 - `README.md` install block updated to the correct module path.
 
@@ -299,7 +299,7 @@ Session ended pending supervisor approval.
 
 ## 2026-04-16 — M6 Bug Bash (Initial) — APPROVED WITH NOTES
 
-**Task**: M6 — Run reconciliation bug bash against tesserabox/copilot-api  
+**Task**: M6 — Run reconciliation bug bash against tesseracode/copilot-api  
 **Verdict**: **APPROVED WITH NOTES**
 
 **What Passed**:
@@ -422,7 +422,7 @@ Session ended pending supervisor approval.
 - [x] Handoff file accurate
 
 **Files Created**:
-- `go.mod` — module `github.com/tesserabox/tpatch`
+- `go.mod` — module `github.com/tesseracode/tpatch`
 - `cmd/tpatch/main.go` — Entry point
 - `internal/cli/app.go` — CLI dispatcher with 12 command stubs
 - `internal/cli/app_test.go` — 5 test cases

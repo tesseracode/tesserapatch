@@ -22,9 +22,9 @@ tpatch detects whether the proxy is reachable and surfaces actionable errors, bu
 
 Consequence: there is **no** `tpatch provider copilot-start` / `copilot-stop` process-manager in M10. Those commands, if they exist at all, only print instructions and/or check reachability.
 
-### D2. Upstream `ericc-ch/copilot-api`, not the `tesserabox` fork
+### D2. Upstream `ericc-ch/copilot-api`, not the `tesseracode` fork
 
-The `tesserabox/copilot-api` fork adds 1M-context model translation fixes; upstream has a simpler one-liner install. For M10 we document and point users at upstream. An internal `TODO: review switching to tesserabox fork if context-window fixes become blocking` is added in `internal/cli/cobra.go` where the install instructions are emitted.
+The `tesseracode/copilot-api` fork adds 1M-context model translation fixes; upstream has a simpler one-liner install. For M10 we document and point users at upstream. An internal `TODO: review switching to tesseracode fork if context-window fixes become blocking` is added in `internal/cli/cobra.go` where the install instructions are emitted.
 
 Consequence: `tpatch init` and first-run messages recommend `npm install -g copilot-api` or `npx copilot-api@latest start` (the install options the upstream README documents).
 
@@ -99,7 +99,7 @@ Copilot-api supports enterprise via `--account-type <slug>`. M10 exposes this on
 
 - Users still run a separate process in a separate terminal — not "fully native".
 - The two-file config loader is new code and must be tested for precedence edge cases.
-- If the upstream proxy diverges from the tesserabox fork in ways that hurt users, we carry the TODO debt.
+- If the upstream proxy diverges from the tesseracode fork in ways that hurt users, we carry the TODO debt.
 
 ## Alternatives considered and rejected
 

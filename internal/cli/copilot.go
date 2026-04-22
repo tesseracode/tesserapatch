@@ -6,14 +6,14 @@ import (
 	"io"
 	"strings"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // copilotInstallHint returns the multi-line install pointer for the
 // upstream copilot-api proxy. Per ADR-004 D2 we point at ericc-ch/copilot-api.
 //
-// TODO(adr-004): re-evaluate whether to recommend the tesserabox/copilot-api
+// TODO(adr-004): re-evaluate whether to recommend the tesseracode/copilot-api
 // fork if its divergent fixes (1M-context model translations) start to
 // matter more than the ease-of-install of upstream. Check periodically.
 func copilotInstallHint() string {

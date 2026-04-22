@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/provider"
 )
 
 // fakeProvider is a test double that returns scripted responses.

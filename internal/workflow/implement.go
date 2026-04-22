@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // WarnWriter receives non-fatal warnings emitted by workflow phases (e.g.

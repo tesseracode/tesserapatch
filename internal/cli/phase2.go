@@ -14,9 +14,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tesserabox/tesserapatch/internal/gitutil"
-	"github.com/tesserabox/tesserapatch/internal/store"
-	"github.com/tesserabox/tesserapatch/internal/workflow"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // ─── cycle ───────────────────────────────────────────────────────────────────

@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // copilotNativeAUPNotice is shown whenever the user opts in to the

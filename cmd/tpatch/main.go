@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/tesserabox/tesserapatch/internal/cli"
+	"github.com/tesseracode/tesserapatch/internal/cli"
 )
 
 func main() {

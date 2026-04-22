@@ -13,11 +13,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tesserabox/tesserapatch/assets"
-	"github.com/tesserabox/tesserapatch/internal/gitutil"
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
-	"github.com/tesserabox/tesserapatch/internal/workflow"
+	"github.com/tesseracode/tesserapatch/assets"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 const version = "0.4.4"

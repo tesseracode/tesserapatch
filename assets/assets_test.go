@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tesserabox/tesserapatch/internal/workflow"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // Required CLI commands that must appear in all skill formats.

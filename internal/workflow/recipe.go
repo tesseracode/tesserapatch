@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tesserabox/tesserapatch/internal/safety"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/safety"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // RecipeExecResult is the result of executing or dry-running a recipe.

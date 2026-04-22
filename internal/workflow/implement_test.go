@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tesserabox/tesserapatch/internal/provider"
-	"github.com/tesserabox/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // alwaysInvalidProvider returns the same un-parseable response every call,

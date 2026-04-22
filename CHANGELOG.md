@@ -4,7 +4,7 @@ All notable changes to tpatch are recorded here.
 
 ## v0.4.4 — Honest Recipes (pre-B2 ground truth)
 
-Two HIGH-severity bugs surfaced by the v0.4.3 live stress test on tesserabox/t3code (~20h, 9 features, 1 upstream sync). Tight patch release: no new features, fix the ground truth so Tranche B2 (provider-assisted conflict resolution) can land on a reconcile that doesn't lie.
+Two HIGH-severity bugs surfaced by the v0.4.3 live stress test on tesseracode/t3code (~20h, 9 features, 1 upstream sync). Tight patch release: no new features, fix the ground truth so Tranche B2 (provider-assisted conflict resolution) can land on a reconcile that doesn't lie.
 
 ### Fixes
 

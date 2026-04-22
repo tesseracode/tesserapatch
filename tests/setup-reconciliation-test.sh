@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TPATCH="${SCRIPT_DIR}/../tpatch"
 WORK_DIR="${SCRIPT_DIR}/copilot-api-work"
 PINNED_COMMIT="0ea08febdd7e3e055b03dd298bf57e669500b5c1"
-REPO_URL="https://github.com/tesserabox/copilot-api.git"
+REPO_URL="https://github.com/tesseracode/copilot-api.git"
 
 echo "=== Tessera Patch Reconciliation Bug Bash Setup ==="
 echo ""

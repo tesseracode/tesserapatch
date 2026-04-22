@@ -6,7 +6,7 @@
 ## Tasks
 
 - [x] M6.1 — Create test scripts: `tests/setup-reconciliation-test.sh`, `tests/mock-provider.go`
-- [x] M6.2 — Clone `tesserabox/copilot-api` at commit `0ea08febdd7e3e055b03dd298bf57e669500b5c1`
+- [x] M6.2 — Clone `tesseracode/copilot-api` at commit `0ea08febdd7e3e055b03dd298bf57e669500b5c1`
 - [x] M6.3 — Run full lifecycle for Feature A (model translation fix): init → add → analyze → define → apply → record
 - [x] M6.4 — Run full lifecycle for Feature B (models CLI subcommand): add → analyze → apply → record
 - [x] M6.5 — Verify both features work: `bun test` 26/26, `bun run typecheck` clean
@@ -37,5 +37,5 @@
 
 - Prior bug bash guides: `../tests/gpt/RECONCILIATION-BUG-BASH.md`, `../tests/experimental/RECONCILIATION-BUG-BASH.md`, `../tests/cc/RECONCILIATION-BUG-BASH.md`
 - Prior bug bash results: `../tests/gpt/RECONCILIATION-BUG-BASH-REPORT.md`, `../tests/experimental/RECONCILIATION-BUG-BASH-REPORT.md`
-- Fork repo: `https://github.com/tesserabox/copilot-api.git`
+- Fork repo: `https://github.com/tesseracode/copilot-api.git`
 - Pinned commit: `0ea08febdd7e3e055b03dd298bf57e669500b5c1`

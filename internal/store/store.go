@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tesserabox/tesserapatch/internal/safety"
+	"github.com/tesseracode/tesserapatch/internal/safety"
 )
 
 // Store provides read/write access to the .tpatch/ workspace.

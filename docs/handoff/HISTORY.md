@@ -175,12 +175,12 @@ None.
 
 ```
 $ go test ./... -count=1
-ok  github.com/tesserabox/tesserapatch/assets
-ok  github.com/tesserabox/tesserapatch/internal/cli
-ok  github.com/tesserabox/tesserapatch/internal/provider
-ok  github.com/tesserabox/tesserapatch/internal/safety
-ok  github.com/tesserabox/tesserapatch/internal/store
-ok  github.com/tesserabox/tesserapatch/internal/workflow
+ok  github.com/tesseracode/tesserapatch/assets
+ok  github.com/tesseracode/tesserapatch/internal/cli
+ok  github.com/tesseracode/tesserapatch/internal/provider
+ok  github.com/tesseracode/tesserapatch/internal/safety
+ok  github.com/tesseracode/tesserapatch/internal/store
+ok  github.com/tesseracode/tesserapatch/internal/workflow
 $ go build ./cmd/tpatch
 # binary reports 0.4.0-dev
 ```
@@ -237,12 +237,12 @@ endpoint.
 
 Two operational follow-ups:
 
-1. **Module path fixed to match repo** — `go.mod` said `github.com/tesserabox/tpatch` while the GitHub repo is `tesserabox/tesserapatch`. That mismatch blocks `go install`. Renamed the module and all imports to `github.com/tesserabox/tesserapatch` (user-selected option). The binary is still called `tpatch` because Go names installed binaries after the final path segment (`cmd/tpatch`).
+1. **Module path fixed to match repo** — `go.mod` said `github.com/tesseracode/tpatch` while the GitHub repo is `tesseracode/tesserapatch`. That mismatch blocks `go install`. Renamed the module and all imports to `github.com/tesseracode/tesserapatch` (user-selected option). The binary is still called `tpatch` because Go names installed binaries after the final path segment (`cmd/tpatch`).
 2. **CI workflow added** — `.github/workflows/ci.yml` runs on push and PR to `main`. It sets up Go via `go-version-file: go.mod` (so CI tracks local dev), checks formatting with `gofmt`, runs `go vet`, builds, tests, and runs an install smoke test. Matrix on `ubuntu-latest` + `macos-latest`. Concurrency group cancels superseded runs to save minutes. Free for public repos.
 3. **README install block updated** — now points to the correct module path.
 
 ## Files Changed
-- `go.mod` — `module github.com/tesserabox/tesserapatch`.
+- `go.mod` — `module github.com/tesseracode/tesserapatch`.
 - All `.go` files under `cmd/`, `internal/`, `assets/` — import paths rewritten.
 - `.github/workflows/ci.yml` — new CI workflow.
 - `README.md` — install instructions updated.
@@ -257,7 +257,7 @@ Two operational follow-ups:
 1. Make the repo public (required for `go install` without auth and for free unlimited Actions minutes).
 2. Push to `main`; CI should pass on both ubuntu + macOS.
 3. Tag a release: `git tag v0.3.0 && git push origin v0.3.0`. `go install ...@latest` will then resolve to that tag.
-4. Verify from a clean machine: `go install github.com/tesserabox/tesserapatch/cmd/tpatch@latest`.
+4. Verify from a clean machine: `go install github.com/tesseracode/tesserapatch/cmd/tpatch@latest`.
 
 ## Provider Preset Clarification
 `tpatch provider set --preset copilot` targets `http://localhost:4141` with `auth_env: GITHUB_TOKEN`. That is the **copilot-api proxy** endpoint, not the Copilot CLI auth itself. To use the same Copilot subscription as `copilot-cli`:
@@ -420,7 +420,7 @@ None.
 **Status**: Complete — Full pass
 
 **What was done**:
-- Session 2: Ran initial bug bash against `tesserabox/copilot-api` at commit `0ea08feb`
+- Session 2: Ran initial bug bash against `tesseracode/copilot-api` at commit `0ea08feb`
   - Feature A (model translation fix): Correctly detected as `upstream_merged` via Phase 3
   - Feature B (models CLI subcommand): Blocked — 3 bugs found in patch capture and CLI
   - Found BUG-1 (flag ordering), BUG-2 (corrupt patches), BUG-3 (stale recording)
@@ -491,7 +491,7 @@ None.
 1. **Committed Phase 2 work** as commit `dc42718` ("Phase 2 (v0.3.0): providers, validation, interactive/harness, distribution"). Includes all M7/M8/M9, refinement, and distribution changes.
 2. **Released v0.3.0** — bumped version constant from `0.3.0-dev` to `0.3.0`, committed as `305781d`, tagged `v0.3.0` with a full release note. Tag is local; repo owner still needs to `git push origin main --tags`.
 3. **Researched Copilot auth options**:
-   - Pulled `tesserabox/copilot-api` README — explicitly "reverse-engineered proxy… not supported by GitHub… may trigger abuse-detection systems."
+   - Pulled `tesseracode/copilot-api` README — explicitly "reverse-engineered proxy… not supported by GitHub… may trigger abuse-detection systems."
    - Pulled `github/copilot-cli` README and repo root listing — **not open source** (only README, install.sh, changelog, LICENSE published; the CLI is a closed-source binary on Homebrew/npm/WinGet). Official auth paths: `/login` OAuth or `GH_TOKEN`/`GITHUB_TOKEN` with "Copilot Requests" PAT permission.
    - Conclusion: **GitHub does not publish a public OpenAI-compatible Copilot endpoint.** Every third-party integration (copilot-api, Claude Code via proxy, tpatch) is on reverse-engineered surface.
 4. **Wrote PRD** (`docs/prds/PRD-native-copilot-auth.md`) with 5 options evaluated and a two-phase recommendation: M10 managed-proxy UX (`copilot-start` / `copilot-stop` / `copilot-status`), then M11 opt-in native PAT provider calling `api.githubcopilot.com` directly. Shelling out to `copilot` CLI explicitly rejected (burns premium requests, re-runs its own agent loop).
@@ -517,7 +517,7 @@ None.
 
 **M10 — copilot-api UX (ADR-004)**
 - No process supervision; we warn when unreachable, point at install instructions.
-- Upstream `ericc-ch/copilot-api` is the recommended proxy; internal TODO to revisit the tesserabox fork if its fixes become blocking.
+- Upstream `ericc-ch/copilot-api` is the recommended proxy; internal TODO to revisit the tesseracode fork if its fixes become blocking.
 - New global config at `~/.config/tpatch/config.yaml`; per-repo `.tpatch/config.yaml` overrides.
 - Reachability probe on first call (`GET /v1/models`, 2s timeout); warn-but-continue on `init`, hard-fail on workflow commands.
 - First-run AUP warning stored in global config; no log piping; Windows deferred.
@@ -604,7 +604,7 @@ None.
 - **Warn vs fail**: `init` and `provider set` are warn-continue (a user may be bootstrapping before starting the proxy). Workflow commands that actually call the LLM (`analyze|define|explore|implement|cycle`) hard-fail when the local endpoint is unreachable.
 - **Probe scope**: only runs for local endpoints (`localhost`, `127.0.0.1`, `[::1]`). Remote endpoints are trusted.
 - **AUP once**: the AUP warning fires only when the new config actually points at the copilot-api proxy (`openai-compatible` + port 4141) and the user has not acknowledged before.
-- **TODO**: `copilotInstallHint` carries an inline `TODO(adr-004)` comment to revisit the tesserabox fork recommendation if its divergent fixes become blocking.
+- **TODO**: `copilotInstallHint` carries an inline `TODO(adr-004)` comment to revisit the tesseracode fork recommendation if its divergent fixes become blocking.
 
 ## Blockers
 - None for M10.
@@ -683,12 +683,12 @@ A1 landed in this session:
 ## Test Results
 
 ```
-ok  github.com/tesserabox/tesserapatch/assets
-ok  github.com/tesserabox/tesserapatch/internal/cli
-ok  github.com/tesserabox/tesserapatch/internal/provider
-ok  github.com/tesserabox/tesserapatch/internal/safety
-ok  github.com/tesserabox/tesserapatch/internal/store
-ok  github.com/tesserabox/tesserapatch/internal/workflow
+ok  github.com/tesseracode/tesserapatch/assets
+ok  github.com/tesseracode/tesserapatch/internal/cli
+ok  github.com/tesseracode/tesserapatch/internal/provider
+ok  github.com/tesseracode/tesserapatch/internal/safety
+ok  github.com/tesseracode/tesserapatch/internal/store
+ok  github.com/tesseracode/tesserapatch/internal/workflow
 ```
 
 ## Next Steps
