@@ -237,12 +237,20 @@ func (s *Store) LoadFeatureStatus(slug string) (FeatureStatus, error) {
 	return status, nil
 }
 
-// SaveFeatureStatus writes status.json for a feature.
+// SaveFeatureStatus writes status.json for a feature and refreshes FEATURES.md
+// so the human-readable index stays in sync with every state transition.
+// Errors refreshing the index are swallowed: status.json is the source of
+// truth and must land even if the derived index can't be rewritten (e.g.
+// read-only FS, concurrent writer). The next SaveFeatureStatus call retries.
 func (s *Store) SaveFeatureStatus(status FeatureStatus) error {
 	if status.UpdatedAt == "" {
 		status.UpdatedAt = nowStamp()
 	}
-	return writeJSON(s.featureStatusPath(status.Slug), status)
+	if err := writeJSON(s.featureStatusPath(status.Slug), status); err != nil {
+		return err
+	}
+	_ = s.RefreshFeaturesIndex()
+	return nil
 }
 
 // MarkFeatureState updates a feature's state and metadata.

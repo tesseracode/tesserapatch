@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -215,6 +216,54 @@ func TestMarkFeatureState(t *testing.T) {
 	if status.State != StateAnalyzed {
 		t.Fatalf("state = %q, want analyzed", status.State)
 	}
+}
+
+// TestSaveFeatureStatusRefreshesIndex locks in the v0.5.0 fix:
+// FEATURES.md must reflect every state transition, not just AddFeature.
+// Previously the index only got rewritten in AddFeature, so a feature
+// authored via Path B (add → apply --mode started → --mode done → record)
+// left FEATURES.md stuck on "requested" while status.json said "applied".
+func TestSaveFeatureStatusRefreshesIndex(t *testing.T) {
+	tmpDir := t.TempDir()
+	s, _ := Init(tmpDir)
+	s.AddFeature(AddFeatureInput{Title: "Test feature"})
+
+	indexPath := filepath.Join(tmpDir, ".tpatch", "FEATURES.md")
+	initial, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(initial), "requested") {
+		t.Fatalf("initial index missing requested state:\n%s", initial)
+	}
+
+	if err := s.MarkFeatureState("test-feature", StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	after, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(after), "applied") {
+		t.Fatalf("FEATURES.md not refreshed after MarkFeatureState; still:\n%s", after)
+	}
+	if strings.Contains(string(after), "requested") {
+		t.Fatalf("FEATURES.md still shows stale state; got:\n%s", after)
+	}
+}
+
+func contains(haystack, needle string) bool {
+	return len(haystack) >= len(needle) && indexOf(haystack, needle) >= 0
+}
+
+func indexOf(haystack, needle string) int {
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if haystack[i:i+len(needle)] == needle {
+			return i
+		}
+	}
+	return -1
 }
 
 func checkExists(t *testing.T, path string) {

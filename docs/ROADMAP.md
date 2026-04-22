@@ -133,7 +133,7 @@ See `docs/milestones/M9-interactive-harness.md` for task list.
 
 **Opt-in**: `tpatch config set provider.copilot_native_optin true` → `tpatch provider copilot-login` → `tpatch provider set --preset copilot-native`.
 
-## M12 — Provider-Assisted Conflict Resolver 🔨 (Tranche B2, v0.5.0)
+## M12 — Provider-Assisted Conflict Resolver ✅ (Tranche B2, v0.5.0)
 
 **Goal**: Phase 3.5 of reconcile — when 3-way merge fails, provider resolves each conflicted file in a shadow `git worktree`. Validation gates output; accept/reject is atomic.
 

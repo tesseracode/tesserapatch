@@ -3,7 +3,7 @@
 ## Active Task
 
 - **Task ID**: M12 / Tranche B2 / v0.5.0 — Provider-Assisted Conflict Resolver
-- **Status**: In progress. **9 of 10 b2 todos done** (shadow + validation + resolver-core + reconcile-wiring + state-machine + cli-flags + derived-refresh + golden-tests + skills-update). Next: `b2-release` (v0.5.0 tag).
+- **Status**: ✅ **SHIPPED — all 10 b2 todos done. v0.5.0 tagged.** Headline: phase-3.5 provider-assisted conflict resolution with shadow worktree.
 - **PRD**: `docs/prds/PRD-provider-conflict-resolver.md`
 - **Milestone**: `docs/milestones/M12-provider-conflict-resolver.md`
 - **ADR**: `docs/adrs/ADR-010-provider-conflict-resolver.md`
@@ -30,7 +30,7 @@
 | `b2-derived-refresh` | ✅ done | `1507b7a` | `FilesInPatch`/`ForwardApplyExcluding`/`DiffFromCommitForPaths` + `RefreshAfterAccept` + accept flow rewired + 4 tests |
 | `b2-golden-tests` | ✅ done | (this commit) | `golden_reconcile_test.go` — 5 ADR-010 acceptance scenarios (clean-reapply / shadow-awaiting / validation-failed / too-many-conflicts / no-provider) |
 | `b2-skills-update` | ✅ done | (this commit) | 6 skills + `docs/agent-as-provider.md` — Phase 3.5 section, `--resolve/--apply/--accept/--reject/--shadow-diff/--max-conflicts/--model` flags, `reconciling-shadow` state, `reconcile-session.json` schema, shadow worktree concept; parity guard green |
-| `b2-release` | ⏭️ NEXT (unblocked) | — | v0.5.0 tag: bump version, CHANGELOG entry, tag, push |
+| `b2-release` | ✅ done | (this commit) | v0.5.0: version bump in `cobra.go`, CHANGELOG entry, git tag pushed |
 
 SQL: `SELECT id, status FROM todos WHERE id LIKE 'b2-%' ORDER BY id;`
 
@@ -82,6 +82,10 @@ Also: truthful validation errors for nonsensical combos (e.g. `--accept` + `--re
 - `feat-resolver-heuristic-fallback` — opt-in `--heuristic` for provider-unavailable cases. Depends on `b2-release`.
 - `feat-feature-standalonify` — rebase a dependent feature into standalone. Depends on `feat-feature-dependencies`.
 - `feat-parallel-feature-workflows` — `tpatch workon --parallel` fans out features into per-feature worktrees. Depends on `feat-feature-dependencies`.
+
+### Bugs fixed in v0.5.0 alongside B2
+
+- `bug-features-md-stale-state` — `FEATURES.md` not regenerated on state transitions from `apply --mode done` / `record` / etc. Fix: `SaveFeatureStatus` now calls `RefreshFeaturesIndex` unconditionally. Regression test: `TestSaveFeatureStatusRefreshesIndex`.
 
 ## Session Summary (2026-04-22 session — B2 derived-refresh + golden-tests)
 

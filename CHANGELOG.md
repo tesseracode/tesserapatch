@@ -2,6 +2,37 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.5.0 — Provider-Assisted Conflict Resolution (Tranche B2 / M12)
+
+Headline ship of ADR-010: `tpatch reconcile --resolve` now routes 3-way conflicts through the configured provider, one file at a time, inside a **shadow worktree** (`.tpatch/shadow/<slug>-<ts>/`) so the real working tree is untouched until you `--accept`.
+
+### New
+
+- **Phase 3.5 in `reconcile`** — after `PreviewForwardApply` returns `ForwardApply3WayConflicts` and `--resolve` is set, the resolver hands each conflicted file to the provider with `spec.md` + `exploration.md` + base/ours/theirs + the `<<<<<<<`-marked conflict as context. Proposed resolutions land in a shadow git worktree and go through a validation gate: rejected if any `<<<<<<<` / `>>>>>>>` markers remain, or if resolver output fails the JSON schema.
+- **New flags on `reconcile`**: `--resolve`, `--apply` (auto-accept when every file is `resolved`; requires `--resolve`), `--max-conflicts N` (abort before provider call if count > N, default 3), `--model <name>` (per-run override), `--accept <slug>` / `--reject <slug>` / `--shadow-diff <slug>` (terminal operations on a pending shadow session — mutually exclusive; slug is the flag value, not a positional arg). `validateReconcileFlags` rejects nonsensical combos before `openStoreFromCmd`.
+- **Three new verdicts**: `shadow-awaiting` (all files resolved; feature state `reconciling-shadow`), `blocked-requires-human` (validation failed or no provider configured — ADR-010 D9: no heuristic fallback), `blocked-too-many-conflicts` (count > `--max-conflicts`; provider never called).
+- **New feature state `reconciling-shadow`** — surfaced by `tpatch status` with the shadow path so agents acting as provider (Path B) can `ls` the shadow, edit files directly, and `tpatch reconcile --accept <slug>`.
+- **`reconcile-session.json`** — `.tpatch/features/<slug>/reconciliation/reconcile-session.json` records per-file status, validation reasons, model used, shadow path, and overall verdict. Source of truth for Path B shadow editing.
+- **`--accept` is surgical, not a blind copy** — applies non-conflicting hunks of `post-apply.patch` via `git apply --3way --exclude=<resolved>`, overlays resolved files from the shadow, regenerates `artifacts/post-apply.patch` scoped to the feature's touched files (intent-to-add ensures new files appear), and snapshots the resolution delta as `patches/NNN-reconcile.patch`. `apply-recipe.json` is deliberately NOT auto-regenerated (lossy from a raw diff) — re-run `tpatch implement` or `tpatch record` if the recipe matters to you. Without this fix the accept flow would leave the tree half-reconciled (non-conflicted hunks never applied).
+- **Skill updates (all 6 formats)** — Claude, Copilot, Copilot Prompt, Cursor, Windsurf, Generic workflow, plus `docs/agent-as-provider.md`. New "Reconcile Phase 3.5" section in every format documents the flags, verdicts, `reconcile-session.json` schema, shadow worktree concept, and the authoritative accept-flow algorithm. Claude SKILL extends the feature-state diagram with the `reconciling-shadow` branch. Parity guard green.
+- **Golden scenarios** — `internal/workflow/golden_reconcile_test.go` exercises `RunReconcile` end-to-end across the five ADR-010 acceptance scenarios: clean-reapply, shadow-awaiting, validation-failed, too-many-conflicts, and no-provider. Fixtures capture real `git diff --cached HEAD` output so `git apply --3way` can find its base blobs. A single `go test -run GoldenReconcile` now serves as the ADR-010 acceptance suite.
+
+### Design notes
+
+- **No heuristic fallback (ADR-010 D9)** — if `--resolve` is set and no provider is configured, the verdict is `blocked-requires-human` immediately. The CLI never silently degrades to a rule-based merger.
+- **Back-compat** — `ReconcileOptions` zero-value preserves v0.4.x behavior (no phase 3.5, no shadow). All new `ReconcileSummary` fields are `omitempty`. Nothing changes for callers that don't opt in via `--resolve`.
+- **`promoteIfMarkers` v0.4.4 guard preserved** on strict and 3-way-clean paths; phase 3.5 only runs in the 3-way-conflicts branch, so the defensive conflict-marker scan is never bypassed.
+
+### Also in v0.5.0
+
+- **bug-features-md-stale-state** — `FEATURES.md` was only regenerated inside `AddFeature`, so every subsequent state transition (`analyze`, `define`, `explore`, `implement`, `apply`, `record`, `reconcile`) updated `status.json` but left the human-readable index stuck on the original state. Most visible on Path B flows (`add → apply --mode started → --mode done → record`): the table kept showing `requested` even after the feature was fully `applied`. Fix: `SaveFeatureStatus` now calls `RefreshFeaturesIndex` after every write, so the index is always a projection of the live feature statuses. Errors refreshing the index are swallowed (status.json remains the source of truth; next write retries). New `TestSaveFeatureStatusRefreshesIndex` locks this in.
+
+### Follow-ups registered
+
+- `feat-resolver-heuristic-fallback` — opt-in `--heuristic` (basic `git merge -Xours/theirs` + `git rebase` attempts) for future consideration; blocked until the provider path has a track record.
+- `feat-parallel-feature-workflows` — fan out multiple features across shadow worktrees for parallel agent workers.
+- `feat-feature-standalonify` — rebase a feature that used to depend on another into a standalone feature.
+
 ## v0.4.4 — Honest Recipes (pre-B2 ground truth)
 
 Two HIGH-severity bugs surfaced by the v0.4.3 live stress test on tesseracode/t3code (~20h, 9 features, 1 upstream sync). Tight patch release: no new features, fix the ground truth so Tranche B2 (provider-assisted conflict resolution) can land on a reconcile that doesn't lie.
