@@ -744,7 +744,7 @@ func reconcileCmd() *cobra.Command {
 				return perr
 			}
 
-			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg)
+			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg, workflow.ReconcileOptions{})
 			if err != nil {
 				return err
 			}

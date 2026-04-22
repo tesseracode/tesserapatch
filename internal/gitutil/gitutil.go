@@ -599,6 +599,40 @@ func ResolveRef(repoRoot, ref string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+// FileAtCommit returns the contents of a repo-relative path as it
+// existed at a given commit. Used by phase 3.5 to build ConflictInput
+// slices (base/theirs). If the file did not exist at that commit, the
+// returned bytes are nil and the error is nil — callers treat a missing
+// side as empty for three-way reconciliation purposes (git does the
+// same). Any other git failure is returned verbatim.
+func FileAtCommit(repoRoot, commit, relPath string) ([]byte, error) {
+	// `git show <commit>:<path>` prints the blob to stdout.
+	cmd := exec.Command("git", "show", commit+":"+relPath)
+	cmd.Dir = repoRoot
+	out, err := cmd.Output()
+	if err != nil {
+		// "exists on disk, but not in <commit>" or "does not exist in
+		// <commit>" manifest as non-zero exit — treat as absent.
+		if _, ok := err.(*exec.ExitError); ok {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return out, nil
+}
+
+// MergeBase returns the merge-base (common ancestor) of two commits.
+// Used as the "base" side of the three-way reconciliation triple. If
+// no common ancestor exists (disjoint histories), the returned commit
+// is empty and err is non-nil.
+func MergeBase(repoRoot, a, b string) (string, error) {
+	out, err := runGit(repoRoot, "merge-base", a, b)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
 // DeriveIncrementalPatch computes the diff that only contains one feature's changes,
 // given the cumulative patches for the previous features and the current feature.
 // prevCumulativePatch = everything up to (but not including) this feature.

@@ -88,7 +88,7 @@ index 0000000..557db03
 	s.WriteArtifact("add-greeting", "post-apply.patch", patch)
 
 	// The patch is already applied (reverse-apply should succeed), so Phase 1 → UPSTREAMED
-	results, err := RunReconcile(context.Background(), s, []string{"add-greeting"}, "HEAD", nil, provider.Config{})
+	results, err := RunReconcile(context.Background(), s, []string{"add-greeting"}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ index 0000000..abc1234
 	s.WriteArtifact("add-models-command", "post-apply.patch", patch)
 
 	// The patch does NOT exist yet, but can be applied cleanly → Phase 4 → REAPPLIED
-	results, err := RunReconcile(context.Background(), s, []string{"add-models-command"}, "HEAD", nil, provider.Config{})
+	results, err := RunReconcile(context.Background(), s, []string{"add-models-command"}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestReconcilePhase4_ConflictMarkersAreBlocked(t *testing.T) {
 	gitAdd(t, tmpDir, "shared.txt")
 	gitCommit(t, tmpDir, "upstream edit")
 
-	results, err := RunReconcile(context.Background(), s, []string{"shared-edit"}, "HEAD", nil, provider.Config{})
+	results, err := RunReconcile(context.Background(), s, []string{"shared-edit"}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ index 0000000..abc1234
 		t.Fatal(err)
 	}
 
-	results, err := RunReconcile(context.Background(), s, []string{"add-note"}, "HEAD", nil, provider.Config{})
+	results, err := RunReconcile(context.Background(), s, []string{"add-note"}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestReconcilePhase3_ProviderAssistedUpstreamed(t *testing.T) {
 	prov := provider.New()
 	cfg := provider.Config{BaseURL: srv.URL, Model: "test-model"}
 
-	results, err := RunReconcile(context.Background(), s, []string{"fix-model-translation"}, "HEAD", prov, cfg)
+	results, err := RunReconcile(context.Background(), s, []string{"fix-model-translation"}, "HEAD", prov, cfg, ReconcileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,12 +386,74 @@ func TestReconcileBlocked(t *testing.T) {
 	s.WriteArtifact("conflicting-change", "post-apply.patch", patch)
 
 	// No provider → phases 1-2 fail, phase 4 fails → BLOCKED
-	results, err := RunReconcile(context.Background(), s, []string{"conflicting-change"}, "HEAD", nil, provider.Config{})
+	results, err := RunReconcile(context.Background(), s, []string{"conflicting-change"}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if results[0].Outcome != store.ReconcileBlocked {
 		t.Fatalf("expected blocked, got %s", results[0].Outcome)
+	}
+}
+
+// TestReconcilePhase35_NoProviderBlocks verifies that --resolve without
+// a configured provider returns blocked-requires-human rather than
+// silently falling back to heuristics (ADR-010 D9).
+func TestReconcilePhase35_NoProviderBlocks(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Baseline commit: shared.txt with a middle line to conflict on.
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared.txt"), []byte("a\nb\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitAdd(t, tmpDir, "shared.txt")
+	gitCommit(t, tmpDir, "add shared")
+
+	// Feature-applied state: line 2 -> B-local. Stage then capture
+	// a real git diff (includes index/blob refs so --3way can locate
+	// the base blob), then commit.
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared.txt"), []byte("a\nB-local\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitAdd(t, tmpDir, "shared.txt")
+	diffCmd := exec.Command("git", "diff", "--cached", "HEAD")
+	diffCmd.Dir = tmpDir
+	patchBytes, dErr := diffCmd.Output()
+	if dErr != nil {
+		t.Fatalf("git diff: %v", dErr)
+	}
+	patch := string(patchBytes)
+	gitCommit(t, tmpDir, "feature applied")
+
+	// Upstream diverges: line 2 -> B-upstream. Same line conflicts.
+	if err := os.WriteFile(filepath.Join(tmpDir, "shared.txt"), []byte("a\nB-upstream\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitAdd(t, tmpDir, "shared.txt")
+	gitCommit(t, tmpDir, "upstream diverges")
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Feature", Request: "r"})
+	s.MarkFeatureState("feature", store.StateApplied, "apply", "")
+	s.WriteArtifact("feature", "post-apply.patch", patch)
+
+	results, err := RunReconcile(context.Background(), s, []string{"feature"}, "HEAD", nil, provider.Config{},
+		ReconcileOptions{Resolve: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Outcome != store.ReconcileBlockedRequiresHuman {
+		t.Fatalf("expected blocked-requires-human, got %s (phase=%s notes=%v)",
+			results[0].Outcome, results[0].Phase, results[0].Notes)
+	}
+	if results[0].Phase != "phase-3.5-provider-resolve" {
+		t.Fatalf("expected phase 3.5, got %s", results[0].Phase)
 	}
 }

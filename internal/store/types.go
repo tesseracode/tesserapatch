@@ -35,6 +35,15 @@ const (
 	ReconcileReapplied   ReconcileOutcome = "reapplied"
 	ReconcileStillNeeded ReconcileOutcome = "still_needed"
 	ReconcileBlocked     ReconcileOutcome = "blocked"
+
+	// Phase-3.5 (M12 / ADR-010) verdicts. Shadow-awaiting means the
+	// provider-assisted resolver succeeded and staged resolved files in
+	// a shadow worktree for human acceptance. The two blocked-* forms
+	// distinguish honest blockers (too many conflicts; validation/provider
+	// failure) from the catch-all ReconcileBlocked used by earlier phases.
+	ReconcileShadowAwaiting          ReconcileOutcome = "shadow-awaiting"
+	ReconcileBlockedTooManyConflicts ReconcileOutcome = "blocked-too-many-conflicts"
+	ReconcileBlockedRequiresHuman    ReconcileOutcome = "blocked-requires-human"
 )
 
 // DefaultMaxTokensImplement is the fallback budget for the implement-phase

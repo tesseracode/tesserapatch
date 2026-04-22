@@ -24,10 +24,48 @@ type ReconcileResult struct {
 	UpstreamCommit string                 `json:"upstream_commit"`
 	Notes          []string               `json:"notes"`
 	Conflicts      []string               `json:"conflicts,omitempty"`
+
+	// Phase-3.5 (M12 / ADR-010) extensions. Populated only when
+	// RunReconcile is called with ReconcileOptions.Resolve and the
+	// feature reaches phase 3.5.
+	ShadowPath     string   `json:"shadow_path,omitempty"`
+	ResolvedFiles  []string `json:"resolved_files,omitempty"`
+	FailedFiles    []string `json:"failed_files,omitempty"`
+	SkippedFiles   []string `json:"skipped_files,omitempty"`
+	ResolveSession string   `json:"resolve_session_id,omitempty"`
+}
+
+// ReconcileOptions configures RunReconcile. Zero value keeps v0.4.x
+// behavior (phases 1-4, no provider-assisted conflict resolution).
+type ReconcileOptions struct {
+	// Resolve enables phase 3.5 (ADR-010 provider-assisted per-file
+	// conflict resolver). When false, 3-way conflicts short-circuit to
+	// ReconcileBlocked as before.
+	Resolve bool
+
+	// Apply, when combined with Resolve, copies the resolved shadow
+	// worktree onto the real tree iff every file passed validation
+	// (including the optional test_command gate). When false, phase 3.5
+	// leaves the shadow staged and returns ReconcileShadowAwaiting for
+	// human review.
+	Apply bool
+
+	// Model, if non-empty, overrides the provider model for phase 3.5
+	// calls. Useful for budget-sensitive users who reconcile with a
+	// cheaper model than their implement phase.
+	Model string
+
+	// MaxConflicts caps the number of conflicted files per feature.
+	// Zero uses workflow.DefaultMaxConflicts.
+	MaxConflicts int
 }
 
 // RunReconcile reconciles features against the upstream ref.
-func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamRef string, prov provider.Provider, cfg provider.Config) ([]ReconcileResult, error) {
+//
+// Compatibility: the zero-value ReconcileOptions reproduces the
+// pre-M12 behavior, so existing callers that pass ReconcileOptions{}
+// see no change. Phase 3.5 is opt-in via Options.Resolve.
+func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamRef string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) ([]ReconcileResult, error) {
 	// If no slugs specified, reconcile all applied/active features
 	if len(slugs) == 0 {
 		features, err := s.ListFeatures()
@@ -59,7 +97,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	}
 
 	for _, slug := range slugs {
-		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg)
+		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts)
 		if err != nil {
 			results = append(results, ReconcileResult{
 				Slug:           slug,
@@ -80,7 +118,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	return results, nil
 }
 
-func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, upstreamCommit string, prov provider.Provider, cfg provider.Config) (*ReconcileResult, error) {
+func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, upstreamCommit string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) (*ReconcileResult, error) {
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return nil, err
@@ -208,13 +246,20 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		updateFeatureState(s, slug, result)
 		return result, nil
 	case gitutil.ForwardApply3WayConflicts:
-		// The 3-way merge runs but produces conflict markers. Report as
-		// BLOCKED so humans are warned — previously this silently
-		// reported "reapplied" and users trusted it.
+		// Phase 3.5 (M12 / ADR-010): try provider-assisted per-file
+		// conflict resolution if the operator asked for it via
+		// --resolve. Otherwise, preserve the v0.4.4 behavior:
+		// report as BLOCKED so humans are warned.
+		if opts.Resolve {
+			phase35 := tryPhase35(ctx, s, slug, upstreamCommit, prov, cfg, opts, preview.ConflictFiles, result)
+			saveReconcileArtifacts(s, slug, phase35)
+			updateFeatureState(s, slug, phase35)
+			return phase35, nil
+		}
 		result.Outcome = store.ReconcileBlocked
 		result.Phase = "phase-4-forward-apply-conflicts"
 		result.Notes = append(result.Notes,
-			fmt.Sprintf("3-way merge would leave conflict markers in %d file(s) — manual resolution required",
+			fmt.Sprintf("3-way merge would leave conflict markers in %d file(s) — manual resolution required (re-run with --resolve to attempt provider-assisted resolution)",
 				len(preview.ConflictFiles)))
 		result.Conflicts = append(result.Conflicts, preview.ConflictFiles...)
 		if preview.Stderr != "" {
@@ -503,4 +548,152 @@ func extractUpstreamContext(repoRoot, patch string) string {
 		b.WriteString(fmt.Sprintf("## %s\n```\n%s\n```\n\n", file, text))
 	}
 	return b.String()
+}
+
+// tryPhase35 runs the ADR-010 provider-assisted resolver for a feature
+// whose forward-apply preview reported 3WayConflicts. It owns the git
+// plumbing (deriving base/ours/theirs for each conflicted file) and
+// then delegates to RunConflictResolve for the actual per-file loop.
+//
+// Assumption about "ours": reconcile runs after `tpatch apply`, so the
+// feature's patched version lives in the real working tree. We read
+// it from disk. If the user reconciles on a branch that has the
+// feature committed but no working tree change, git show HEAD:path
+// would give the same content — we prefer the on-disk read because it
+// also captures any uncommitted hand edits the user intends to carry
+// through reconciliation.
+//
+// The "base" side is derived as merge-base(HEAD, upstreamCommit). The
+// ".tpatch/upstream.lock" commit from the prior reconcile is a
+// tempting shortcut but may not exist on first reconcile and can be
+// stale; merge-base is always authoritative.
+func tryPhase35(
+	ctx context.Context,
+	s *store.Store,
+	slug string,
+	upstreamCommit string,
+	prov provider.Provider,
+	cfg provider.Config,
+	opts ReconcileOptions,
+	conflictFiles []string,
+	result *ReconcileResult,
+) *ReconcileResult {
+	result.Phase = "phase-3.5-provider-resolve"
+
+	// Refuse without a provider up-front — ADR-010 D9: no heuristic fallback.
+	if prov == nil || !cfg.Configured() {
+		result.Outcome = store.ReconcileBlockedRequiresHuman
+		result.Notes = append(result.Notes,
+			"phase 3.5 requested (--resolve) but no provider is configured; configure a provider (`tpatch provider set ...`) or resolve manually")
+		result.Conflicts = append(result.Conflicts, conflictFiles...)
+		return result
+	}
+
+	headCommit, headErr := gitutil.HeadCommit(s.Root)
+	if headErr != nil {
+		result.Outcome = store.ReconcileBlockedRequiresHuman
+		result.Notes = append(result.Notes, fmt.Sprintf("phase 3.5: cannot resolve HEAD: %v", headErr))
+		result.Conflicts = append(result.Conflicts, conflictFiles...)
+		return result
+	}
+	baseCommit, mbErr := gitutil.MergeBase(s.Root, headCommit, upstreamCommit)
+	if mbErr != nil || baseCommit == "" {
+		result.Outcome = store.ReconcileBlockedRequiresHuman
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("phase 3.5: cannot derive merge-base(HEAD, %s): %v", upstreamCommit, mbErr))
+		result.Conflicts = append(result.Conflicts, conflictFiles...)
+		return result
+	}
+
+	// Build inputs. A git-reported conflict file may be missing on
+	// any of the three sides (rename, delete, add) — FileAtCommit
+	// returns (nil, nil) for missing, which the resolver treats as
+	// empty content. The on-disk read for "ours" may also fail if
+	// git reported a path no longer present; same treatment.
+	inputs := make([]ConflictInput, 0, len(conflictFiles))
+	for _, path := range conflictFiles {
+		base, berr := gitutil.FileAtCommit(s.Root, baseCommit, path)
+		if berr != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("phase 3.5: read base %s: %v", path, berr))
+		}
+		theirs, terr := gitutil.FileAtCommit(s.Root, upstreamCommit, path)
+		if terr != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("phase 3.5: read theirs %s: %v", path, terr))
+		}
+		ours, _ := os.ReadFile(filepath.Join(s.Root, path))
+		inputs = append(inputs, ConflictInput{
+			Path:   path,
+			Base:   base,
+			Ours:   ours,
+			Theirs: theirs,
+		})
+	}
+
+	cfgForCall := cfg
+	testCmd := ""
+	if conf, cErr := s.LoadConfig(); cErr == nil {
+		testCmd = conf.TestCommand
+	}
+	resolveOpts := ResolveOptions{
+		MaxConflicts:  opts.MaxConflicts,
+		ModelOverride: opts.Model,
+		AutoApply:     opts.Apply,
+		Validation: ValidationConfig{
+			TestCommand:     testCmd,
+			IdentifierCheck: true,
+		},
+	}
+
+	rr, err := RunConflictResolve(ctx, s, slug, prov, cfgForCall, inputs, upstreamCommit, resolveOpts)
+	if err != nil {
+		result.Outcome = store.ReconcileBlockedRequiresHuman
+		result.Notes = append(result.Notes, fmt.Sprintf("phase 3.5 failed: %v", err))
+		result.Conflicts = append(result.Conflicts, conflictFiles...)
+		return result
+	}
+
+	// Thread resolver state onto the reconcile result.
+	result.ShadowPath = rr.ShadowPath
+	result.ResolveSession = rr.SessionID
+	for _, o := range rr.Outcomes {
+		switch o.Status {
+		case FileStatusResolved:
+			result.ResolvedFiles = append(result.ResolvedFiles, o.Path)
+		case FileStatusValidationFailed, FileStatusProviderError:
+			result.FailedFiles = append(result.FailedFiles, o.Path)
+		case FileStatusSkippedTooLarge:
+			result.SkippedFiles = append(result.SkippedFiles, o.Path)
+		}
+	}
+	result.Conflicts = append(result.Conflicts, conflictFiles...)
+
+	switch rr.Verdict {
+	case ResolveVerdictAutoAccepted:
+		result.Outcome = store.ReconcileReapplied
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("phase 3.5 auto-accepted %d file(s) (validation + test_command passed)", len(result.ResolvedFiles)))
+		return result
+	case ResolveVerdictShadowAwaiting:
+		result.Outcome = store.ReconcileShadowAwaiting
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("phase 3.5 staged %d resolved file(s) in shadow worktree; review with `tpatch reconcile --accept %s`",
+				len(result.ResolvedFiles), slug))
+		return result
+	case ResolveVerdictBlockedTooManyConflicts:
+		result.Outcome = store.ReconcileBlockedTooManyConflicts
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("phase 3.5 refused: %d conflict(s) exceeds cap (--max-conflicts)", len(conflictFiles)))
+		return result
+	case ResolveVerdictBlockedRequiresHuman:
+		result.Outcome = store.ReconcileBlockedRequiresHuman
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("phase 3.5 blocked: %d file(s) failed validation or provider; see reconcile-session.json",
+				len(result.FailedFiles)))
+		return result
+	default:
+		result.Outcome = store.ReconcileBlockedRequiresHuman
+		result.Notes = append(result.Notes,
+			fmt.Sprintf("phase 3.5 produced unknown verdict %q; blocking", rr.Verdict))
+		return result
+	}
 }
