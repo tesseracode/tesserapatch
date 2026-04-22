@@ -3,7 +3,7 @@
 ## Active Task
 
 - **Task ID**: M12 / Tranche B2 / v0.5.0 — Provider-Assisted Conflict Resolver
-- **Status**: In progress. **5 of 10 b2 todos done** (shadow + validation + resolver-core + reconcile-wiring + state-machine). Next: `b2-cli-flags` or `b2-golden-tests` (parallel-safe).
+- **Status**: In progress. **6 of 10 b2 todos done** (shadow + validation + resolver-core + reconcile-wiring + state-machine + cli-flags). Next: `b2-derived-refresh` or `b2-golden-tests` (both parallel-safe).
 - **PRD**: `docs/prds/PRD-provider-conflict-resolver.md`
 - **Milestone**: `docs/milestones/M12-provider-conflict-resolver.md`
 - **ADR**: `docs/adrs/ADR-010-provider-conflict-resolver.md`
