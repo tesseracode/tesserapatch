@@ -26,8 +26,8 @@
 | `b2-resolver-core` | ✅ done | `25b7774` | `internal/workflow/resolver.go` + test |
 | `b2-reconcile-wiring` | ✅ done | `53b38ee` | `internal/workflow/reconcile.go` + `gitutil.FileAtCommit`/`MergeBase` + test |
 | `b2-state-machine` | ✅ done | (this commit) | `StateReconcilingShadow` + `ReconcileSummary` shadow fields + `status` command surfaces shadow pointer + test |
-| `b2-cli-flags` | ⏭️ NEXT | — | `--resolve --apply --accept --reject --shadow-diff --max-conflicts --model` |
-| `b2-derived-refresh` | blocked on state | — | `store.RefreshDerivedArtifacts` atomic on accept |
+| `b2-cli-flags` | ✅ done | (this commit) | `reconcileCmd` + 7 flags + accept/reject/shadow-diff handlers + `validateReconcileFlags` + 2 tests |
+| `b2-derived-refresh` | ⏭️ NEXT (parallel-safe) | — | `store.RefreshDerivedArtifacts` atomic on accept (currently stubbed as TODO note) |
 | `b2-golden-tests` | unblocked (parallel) | — | `tests/reconcile/golden/` ≥5 scenarios |
 | `b2-skills-update` | blocked on cli+refresh | — | 6 skills + docs/agent-as-provider.md |
 | `b2-release` | blocked on skills+golden | — | v0.5.0 tag |
@@ -82,6 +82,25 @@ Also: truthful validation errors for nonsensical combos (e.g. `--accept` + `--re
 - `feat-resolver-heuristic-fallback` — opt-in `--heuristic` for provider-unavailable cases. Depends on `b2-release`.
 - `feat-feature-standalonify` — rebase a dependent feature into standalone. Depends on `feat-feature-dependencies`.
 - `feat-parallel-feature-workflows` — `tpatch workon --parallel` fans out features into per-feature worktrees. Depends on `feat-feature-dependencies`.
+
+## Session Summary (2026-04-22 session — B2 cli-flags)
+
+**Commits this session** (continuing from b2-state-machine):
+- `53b38ee` — `b2-reconcile-wiring` (prior)
+- `1767c1d` — `b2-state-machine` (prior)
+- `6229203` — docs checkpoint (prior)
+- (this commit) — `b2-cli-flags`: 7 new `tpatch reconcile` flags + 3 terminal handlers (accept/reject/shadow-diff) + mutex validation + 2 tests
+
+All pushed. All tests green. `gofmt`, `go vet` clean.
+
+### What `b2-cli-flags` shipped
+
+- `--resolve`, `--apply`, `--max-conflicts`, `--model` → wired into `ReconcileOptions` struct
+- `--accept <slug>`: reads `reconcile-session.json`, copies resolved files via `gitutil.CopyShadowToReal`, transitions state to `applied`, prunes shadow, clears status pointer. TODO emitted pointing to `tpatch record` (derived-refresh deferred)
+- `--reject <slug>`: prunes shadow, rolls state back to `applied` if parked in `reconciling-shadow`
+- `--shadow-diff <slug>`: non-destructive; streams `gitutil.ShadowDiff` to stdout
+- `validateReconcileFlags`: rejects terminal-op combos + `--apply` without `--resolve`
+- Safety: terminal ops never call `openStoreFromCmd` before flag validation
 
 ## Session Summary (2026-04-22 session — B2 middle)
 

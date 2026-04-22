@@ -721,9 +721,35 @@ func reconcileCmd() *cobra.Command {
 		Use:   "reconcile [slug...]",
 		Short: "Reconcile features against upstream",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Phase-3.5 (M12) terminal operations. These act on the
+			// shadow state left behind by a prior `reconcile --resolve`
+			// and do NOT re-run the reconcile pipeline. They are
+			// mutually exclusive with each other and with --resolve.
+			acceptSlug, _ := cmd.Flags().GetString("accept")
+			rejectSlug, _ := cmd.Flags().GetString("reject")
+			shadowDiffSlug, _ := cmd.Flags().GetString("shadow-diff")
+			resolve, _ := cmd.Flags().GetBool("resolve")
+			apply, _ := cmd.Flags().GetBool("apply")
+			maxConflicts, _ := cmd.Flags().GetInt("max-conflicts")
+			modelOverride, _ := cmd.Flags().GetString("model")
+
+			if err := validateReconcileFlags(acceptSlug, rejectSlug, shadowDiffSlug, resolve, apply); err != nil {
+				return err
+			}
+
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
+			}
+
+			if acceptSlug != "" {
+				return runReconcileAccept(cmd, s, acceptSlug)
+			}
+			if rejectSlug != "" {
+				return runReconcileReject(cmd, s, rejectSlug)
+			}
+			if shadowDiffSlug != "" {
+				return runReconcileShadowDiff(cmd, s, shadowDiffSlug)
 			}
 
 			// A10 doc-reconcile-workflow: hard-refuse dirty trees /
@@ -756,7 +782,13 @@ func reconcileCmd() *cobra.Command {
 				return perr
 			}
 
-			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg, workflow.ReconcileOptions{})
+			opts := workflow.ReconcileOptions{
+				Resolve:      resolve,
+				Apply:        apply,
+				Model:        modelOverride,
+				MaxConflicts: maxConflicts,
+			}
+			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg, opts)
 			if err != nil {
 				return err
 			}
@@ -767,6 +799,15 @@ func reconcileCmd() *cobra.Command {
 				fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, result.Outcome, result.Phase, result.Title)
 				for _, note := range result.Notes {
 					fmt.Fprintf(out, "    %s\n", note)
+				}
+				if result.ShadowPath != "" {
+					fmt.Fprintf(out, "    shadow:   %s\n", result.ShadowPath)
+					fmt.Fprintf(out, "    files:    %d resolved, %d failed, %d skipped\n",
+						len(result.ResolvedFiles), len(result.FailedFiles), len(result.SkippedFiles))
+					if result.Outcome == store.ReconcileShadowAwaiting {
+						fmt.Fprintf(out, "    next:     tpatch reconcile --shadow-diff %s  |  --accept %s  |  --reject %s\n",
+							result.Slug, result.Slug, result.Slug)
+					}
 				}
 			}
 
@@ -782,7 +823,201 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().Duration("timeout", 120*time.Second, "Reconciliation timeout")
 	cmd.Flags().Bool("preflight", false, "Only run the preflight checks and exit (does not reconcile)")
 	cmd.Flags().Bool("allow-dirty", false, "Bypass the clean-tree requirement (verdicts may be wrong — not recommended)")
+	// M12 / ADR-010 phase-3.5 flags.
+	cmd.Flags().Bool("resolve", false, "Enable provider-assisted conflict resolution (phase 3.5) on 3-way conflicts")
+	cmd.Flags().Bool("apply", false, "With --resolve, auto-copy the shadow worktree onto the real tree on full success (skips human review)")
+	cmd.Flags().Int("max-conflicts", 0, "With --resolve, cap the number of conflicted files per feature (0 = workflow default)")
+	cmd.Flags().String("model", "", "With --resolve, override the provider model for phase-3.5 calls only")
+	cmd.Flags().String("accept", "", "Accept a shadow worktree: copy resolved files onto the real tree and transition state → applied")
+	cmd.Flags().String("reject", "", "Reject a shadow worktree: prune it and roll feature state back to applied")
+	cmd.Flags().String("shadow-diff", "", "Emit a unified diff between shadow and real tree for a feature (review without accepting)")
 	return cmd
+}
+
+// validateReconcileFlags refuses nonsensical combinations of the phase-3.5
+// flags. Terminal operations (--accept/--reject/--shadow-diff) are
+// mutually exclusive with each other and with the pipeline flags
+// (--resolve/--apply).
+func validateReconcileFlags(accept, reject, shadowDiff string, resolve, apply bool) error {
+	terminals := 0
+	if accept != "" {
+		terminals++
+	}
+	if reject != "" {
+		terminals++
+	}
+	if shadowDiff != "" {
+		terminals++
+	}
+	if terminals > 1 {
+		return fmt.Errorf("reconcile: --accept, --reject, --shadow-diff are mutually exclusive")
+	}
+	if terminals == 1 && (resolve || apply) {
+		return fmt.Errorf("reconcile: --accept/--reject/--shadow-diff cannot be combined with --resolve/--apply")
+	}
+	if apply && !resolve {
+		return fmt.Errorf("reconcile: --apply requires --resolve")
+	}
+	return nil
+}
+
+// runReconcileAccept copies files from the shadow worktree onto the
+// real tree and transitions the feature state to `applied`. Refuses
+// if the feature is not in `reconciling-shadow` state.
+//
+// TODO(b2-derived-refresh): after copying, invoke
+// store.RefreshDerivedArtifacts to regenerate recipe + post-apply.patch
+// atomically. For v0.5.0 this is deferred; users should re-run
+// `tpatch record` to pick up the accepted changes as a new patch.
+func runReconcileAccept(cmd *cobra.Command, s *store.Store, slug string) error {
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return fmt.Errorf("reconcile --accept: load status: %w", err)
+	}
+	if st.State != store.StateReconcilingShadow {
+		return fmt.Errorf("reconcile --accept: feature %q is in state %q; --accept only valid in %q",
+			slug, st.State, store.StateReconcilingShadow)
+	}
+
+	files, err := loadResolvedFiles(s, slug)
+	if err != nil {
+		return fmt.Errorf("reconcile --accept: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("reconcile --accept: no resolved files recorded for %q (reconcile-session.json missing or empty)", slug)
+	}
+
+	if err := gitutil.CopyShadowToReal(s.Root, slug, files); err != nil {
+		return fmt.Errorf("reconcile --accept: copy shadow → real: %w", err)
+	}
+
+	notes := fmt.Sprintf("reconcile --accept: %d file(s) copied from shadow; run `tpatch record` to refresh derived artifacts", len(files))
+	if err := s.MarkFeatureState(slug, store.StateApplied, "reconcile --accept", notes); err != nil {
+		return fmt.Errorf("reconcile --accept: mark state: %w", err)
+	}
+
+	// Prune the shadow after a successful accept so the audit trail
+	// ends cleanly. The session JSON stays as the historical record.
+	if err := gitutil.PruneShadow(s.Root, slug); err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: reconcile --accept: prune shadow: %v\n", err)
+	}
+
+	// Clear the shadow pointer from status.json; session id stays as
+	// the audit record.
+	if freshErr := clearShadowPointer(s, slug); freshErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: reconcile --accept: clear shadow pointer: %v\n", freshErr)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Accepted %d file(s) for %s; state → applied\n", len(files), slug)
+	fmt.Fprintf(cmd.OutOrStdout(), "TODO: run `tpatch record %s` to refresh apply-recipe.json + post-apply.patch\n", slug)
+	return nil
+}
+
+// runReconcileReject discards the shadow worktree for a feature and
+// rolls state back to `applied` (the pre-reconcile state). Safe to run
+// from any state that has a shadow registered — the shadow is always
+// off-to-the-side, never on the real tree.
+func runReconcileReject(cmd *cobra.Command, s *store.Store, slug string) error {
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return fmt.Errorf("reconcile --reject: load status: %w", err)
+	}
+	if st.Reconcile.ShadowPath == "" {
+		return fmt.Errorf("reconcile --reject: no shadow recorded for %q", slug)
+	}
+
+	if err := gitutil.PruneShadow(s.Root, slug); err != nil {
+		return fmt.Errorf("reconcile --reject: prune shadow: %w", err)
+	}
+	if err := clearShadowPointer(s, slug); err != nil {
+		return fmt.Errorf("reconcile --reject: clear shadow pointer: %w", err)
+	}
+
+	// Only roll the state back if we were parked in reconciling-shadow.
+	// Other states (applied, active) mean the user ran --reject as a
+	// cleanup after having already manually accepted or abandoned; do
+	// not clobber those.
+	if st.State == store.StateReconcilingShadow {
+		if err := s.MarkFeatureState(slug, store.StateApplied, "reconcile --reject", "shadow rejected; rolled back to applied"); err != nil {
+			return fmt.Errorf("reconcile --reject: mark state: %w", err)
+		}
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Rejected shadow for %s; state → applied\n", slug)
+	return nil
+}
+
+// runReconcileShadowDiff streams a unified diff of the shadow's
+// resolved files vs the real tree to stdout. Non-destructive.
+func runReconcileShadowDiff(cmd *cobra.Command, s *store.Store, slug string) error {
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return fmt.Errorf("reconcile --shadow-diff: load status: %w", err)
+	}
+	if st.Reconcile.ShadowPath == "" {
+		return fmt.Errorf("reconcile --shadow-diff: no shadow recorded for %q", slug)
+	}
+
+	files, err := loadResolvedFiles(s, slug)
+	if err != nil {
+		return fmt.Errorf("reconcile --shadow-diff: %w", err)
+	}
+	if len(files) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "(no resolved files recorded in reconcile-session.json)")
+		return nil
+	}
+
+	diff, err := gitutil.ShadowDiff(s.Root, slug, files)
+	if err != nil {
+		return fmt.Errorf("reconcile --shadow-diff: %w", err)
+	}
+	if diff == "" {
+		fmt.Fprintln(cmd.OutOrStdout(), "(shadow matches real tree — nothing to review)")
+		return nil
+	}
+	fmt.Fprint(cmd.OutOrStdout(), diff)
+	return nil
+}
+
+// loadResolvedFiles reads reconcile-session.json and returns the list
+// of files whose resolver status is `resolved` (i.e., worth copying).
+// Skipped and failed files are intentionally excluded.
+func loadResolvedFiles(s *store.Store, slug string) ([]string, error) {
+	raw, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "reconcile-session.json"))
+	if err != nil {
+		return nil, fmt.Errorf("read reconcile-session.json: %w", err)
+	}
+	var session struct {
+		Outcomes []struct {
+			Path   string `json:"path"`
+			Status string `json:"status"`
+		} `json:"outcomes"`
+	}
+	if err := json.Unmarshal([]byte(raw), &session); err != nil {
+		return nil, fmt.Errorf("parse reconcile-session.json: %w", err)
+	}
+	var files []string
+	for _, o := range session.Outcomes {
+		if o.Status == workflow.FileStatusResolved {
+			files = append(files, o.Path)
+		}
+	}
+	return files, nil
+}
+
+// clearShadowPointer resets the phase-3.5 bookkeeping fields on the
+// feature's Reconcile summary. The ResolveSession id is preserved as
+// an audit record.
+func clearShadowPointer(s *store.Store, slug string) error {
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return err
+	}
+	st.Reconcile.ShadowPath = ""
+	st.Reconcile.ResolvedFiles = 0
+	st.Reconcile.FailedFiles = 0
+	st.Reconcile.SkippedFiles = 0
+	return s.SaveFeatureStatus(st)
 }
 
 // printReconcilePreflight renders a user-facing diagnostic from the

@@ -157,3 +157,53 @@ func TestApplyModeFlagsAfterSlug(t *testing.T) {
 		t.Fatalf("expected 'marked as implementing', got %q", out)
 	}
 }
+
+func TestValidateReconcileFlags(t *testing.T) {
+	cases := []struct {
+		name      string
+		accept    string
+		reject    string
+		diff      string
+		resolve   bool
+		apply     bool
+		wantError bool
+	}{
+		{"all zero ok", "", "", "", false, false, false},
+		{"resolve alone ok", "", "", "", true, false, false},
+		{"resolve+apply ok", "", "", "", true, true, false},
+		{"apply without resolve fails", "", "", "", false, true, true},
+		{"accept alone ok", "demo", "", "", false, false, false},
+		{"accept+resolve fails", "demo", "", "", true, false, true},
+		{"accept+reject fails", "demo", "demo", "", false, false, true},
+		{"accept+diff fails", "demo", "", "demo", false, false, true},
+		{"reject+diff fails", "", "demo", "demo", false, false, true},
+		{"reject+apply fails", "", "demo", "", false, true, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateReconcileFlags(tc.accept, tc.reject, tc.diff, tc.resolve, tc.apply)
+			if tc.wantError && err == nil {
+				t.Errorf("expected error, got nil")
+			}
+			if !tc.wantError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestReconcileTerminalFlagsMutexViaCLI(t *testing.T) {
+	// Smoke-test that the CLI surfaces the validation error end-to-end.
+	root := buildRootCmd()
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetArgs([]string{"reconcile", "--accept", "a", "--reject", "b"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatalf("expected error on mutex violation")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("expected 'mutually exclusive' in error, got %q", err.Error())
+	}
+}
