@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -143,4 +144,68 @@ func amendCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("reset", false, "Reset feature state to \"requested\"")
 	return cmd
+}
+
+// ─── remove ──────────────────────────────────────────────────────────────────
+
+func removeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "remove <slug>",
+		Short: "Delete a feature directory and all its artifacts",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			slug := args[0]
+			s, err := openStoreFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if _, err := os.Stat(featureDirPath(s, slug)); err != nil {
+				return fmt.Errorf("feature %s does not exist", slug)
+			}
+
+			force, _ := cmd.Flags().GetBool("force")
+			if !force {
+				if !canPromptForConfirmation(cmd) {
+					return fmt.Errorf("refuse to remove without --force: stdin is not a terminal")
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "Remove feature %s and all its artifacts? [y/N] ", slug)
+				reader := bufio.NewReader(cmd.InOrStdin())
+				line, _ := reader.ReadString('\n')
+				line = strings.TrimSpace(line)
+				if line != "y" && line != "Y" {
+					fmt.Fprintln(cmd.OutOrStdout(), "aborted")
+					return nil
+				}
+			}
+
+			if err := s.RemoveFeature(slug); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Removed feature %s\n", slug)
+			return nil
+		},
+	}
+	cmd.Flags().Bool("force", false, "Skip confirmation prompt")
+	return cmd
+}
+
+// canPromptForConfirmation reports whether it is safe to ask the user
+// a y/N question on the command's input stream. Returns true when:
+//   - stdin is a terminal (regular interactive run), OR
+//   - stdin has been replaced by cobra's SetIn (tests / scripted input).
+//
+// Returns false when stdin is a redirected file or pipe from an
+// unattended context — the classical case where we must refuse to
+// destructively act without an explicit --force.
+func canPromptForConfirmation(cmd *cobra.Command) bool {
+	in := cmd.InOrStdin()
+	f, ok := in.(*os.File)
+	if !ok {
+		return true // tests / scripts using SetIn
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }

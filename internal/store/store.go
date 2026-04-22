@@ -349,6 +349,20 @@ test_command: %s
 	return writeFile(s.configPath(), content)
 }
 
+// RemoveFeature deletes the feature directory (including artifacts,
+// patches, reconciliation, status.json) and refreshes FEATURES.md.
+// Returns an error when the slug does not exist.
+func (s *Store) RemoveFeature(slug string) error {
+	dir := s.featureDir(slug)
+	if _, err := os.Stat(dir); err != nil {
+		return fmt.Errorf("feature %s does not exist", slug)
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("remove %s: %w", dir, err)
+	}
+	return s.RefreshFeaturesIndex()
+}
+
 // HasPatchingInstructions checks for a PATCHING.md in the project root.
 func (s *Store) HasPatchingInstructions() bool {
 	return fileExists(filepath.Join(s.Root, "PATCHING.md"))

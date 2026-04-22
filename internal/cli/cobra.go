@@ -64,6 +64,7 @@ func buildRootCmd() *cobra.Command {
 		nextCmd(),
 		editCmd(),
 		amendCmd(),
+		removeCmd(),
 	)
 
 	return root

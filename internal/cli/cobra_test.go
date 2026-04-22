@@ -466,67 +466,137 @@ func TestEditDefaultsToRequestMD(t *testing.T) {
 }
 
 func TestAmendReplacesRequest(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-runCmd("add", "--path", tmpDir, "Initial description")
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Initial description")
 
-out, _, code := runCmd("amend", "--path", tmpDir, "initial-description", "Updated", "description", "here")
-if code != 0 {
-t.Fatalf("amend failed, out=%q", out)
-}
-if !strings.Contains(out, "Amended feature initial-description") {
-t.Errorf("expected amend confirmation, got %q", out)
-}
-data, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", "initial-description", "request.md"))
-if err != nil {
-t.Fatal(err)
-}
-if !strings.Contains(string(data), "Updated description here") {
-t.Errorf("request.md not updated, got %q", string(data))
-}
+	out, _, code := runCmd("amend", "--path", tmpDir, "initial-description", "Updated", "description", "here")
+	if code != 0 {
+		t.Fatalf("amend failed, out=%q", out)
+	}
+	if !strings.Contains(out, "Amended feature initial-description") {
+		t.Errorf("expected amend confirmation, got %q", out)
+	}
+	data, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", "initial-description", "request.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "Updated description here") {
+		t.Errorf("request.md not updated, got %q", string(data))
+	}
 }
 
 func TestAmendMissingFeature(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-_, _, code := runCmd("amend", "--path", tmpDir, "nope", "anything")
-if code == 0 {
-t.Fatal("expected error for missing feature")
-}
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	_, _, code := runCmd("amend", "--path", tmpDir, "nope", "anything")
+	if code == 0 {
+		t.Fatal("expected error for missing feature")
+	}
 }
 
 func TestAmendResetFlag(t *testing.T) {
-tmpDir := t.TempDir()
-runCmd("init", "--path", tmpDir)
-runCmd("add", "--path", tmpDir, "Reset test")
-// Move state forward manually via analyze so there's something to reset.
-runCmd("analyze", "--path", tmpDir, "reset-test")
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Reset test")
+	// Move state forward manually via analyze so there's something to reset.
+	runCmd("analyze", "--path", tmpDir, "reset-test")
 
-out, _, code := runCmd("amend", "--path", tmpDir, "reset-test", "--reset", "New", "description")
-if code != 0 {
-t.Fatalf("amend --reset failed: %s", out)
-}
-if !strings.Contains(out, "state: requested") {
-t.Errorf("expected state=requested after --reset, got %q", out)
-}
+	out, _, code := runCmd("amend", "--path", tmpDir, "reset-test", "--reset", "New", "description")
+	if code != 0 {
+		t.Fatalf("amend --reset failed: %s", out)
+	}
+	if !strings.Contains(out, "state: requested") {
+		t.Errorf("expected state=requested after --reset, got %q", out)
+	}
 }
 
 func TestAmendReadsStdin(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Stdin amend test")
+
+	root := buildRootCmd()
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetIn(strings.NewReader("Replaced via stdin\n"))
+	root.SetArgs([]string{"amend", "--path", tmpDir, "stdin-amend-test"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("amend via stdin failed: %v (stderr=%q)", err, errBuf.String())
+	}
+	data, _ := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", "stdin-amend-test", "request.md"))
+	if !strings.Contains(string(data), "Replaced via stdin") {
+		t.Errorf("expected stdin content in request.md, got %q", string(data))
+	}
+}
+
+func TestRemoveForce(t *testing.T) {
 tmpDir := t.TempDir()
 runCmd("init", "--path", tmpDir)
-runCmd("add", "--path", tmpDir, "Stdin amend test")
+runCmd("add", "--path", tmpDir, "Remove force test")
+if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-force-test")); err != nil {
+t.Fatalf("expected feature dir, got %v", err)
+}
+
+out, _, code := runCmd("remove", "--path", tmpDir, "remove-force-test", "--force")
+if code != 0 {
+t.Fatalf("remove --force failed: %s", out)
+}
+if !strings.Contains(out, "Removed feature") {
+t.Errorf("expected confirmation, got %q", out)
+}
+if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-force-test")); err == nil {
+t.Errorf("feature dir still exists after remove")
+}
+}
+
+func TestRemoveConfirmation(t *testing.T) {
+tmpDir := t.TempDir()
+runCmd("init", "--path", tmpDir)
+runCmd("add", "--path", tmpDir, "Remove confirm test")
 
 root := buildRootCmd()
 var outBuf, errBuf bytes.Buffer
 root.SetOut(&outBuf)
 root.SetErr(&errBuf)
-root.SetIn(strings.NewReader("Replaced via stdin\n"))
-root.SetArgs([]string{"amend", "--path", tmpDir, "stdin-amend-test"})
+root.SetIn(strings.NewReader("y\n"))
+root.SetArgs([]string{"remove", "--path", tmpDir, "remove-confirm-test"})
 if err := root.Execute(); err != nil {
-t.Fatalf("amend via stdin failed: %v (stderr=%q)", err, errBuf.String())
+t.Fatalf("remove with 'y' failed: %v (%s)", err, errBuf.String())
 }
-data, _ := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", "stdin-amend-test", "request.md"))
-if !strings.Contains(string(data), "Replaced via stdin") {
-t.Errorf("expected stdin content in request.md, got %q", string(data))
+if !strings.Contains(outBuf.String(), "Removed feature") {
+t.Errorf("expected removal confirmation, got %q", outBuf.String())
+}
+}
+
+func TestRemoveDeclined(t *testing.T) {
+tmpDir := t.TempDir()
+runCmd("init", "--path", tmpDir)
+runCmd("add", "--path", tmpDir, "Remove decline test")
+
+root := buildRootCmd()
+var outBuf, errBuf bytes.Buffer
+root.SetOut(&outBuf)
+root.SetErr(&errBuf)
+root.SetIn(strings.NewReader("n\n"))
+root.SetArgs([]string{"remove", "--path", tmpDir, "remove-decline-test"})
+if err := root.Execute(); err != nil {
+t.Fatalf("remove with 'n' unexpectedly errored: %v", err)
+}
+if !strings.Contains(outBuf.String(), "aborted") {
+t.Errorf("expected 'aborted', got %q", outBuf.String())
+}
+if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "remove-decline-test")); err != nil {
+t.Errorf("feature dir should still exist after decline, err=%v", err)
+}
+}
+
+func TestRemoveMissingFeature(t *testing.T) {
+tmpDir := t.TempDir()
+runCmd("init", "--path", tmpDir)
+_, _, code := runCmd("remove", "--path", tmpDir, "nope", "--force")
+if code == 0 {
+t.Fatal("expected error removing nonexistent feature")
 }
 }
