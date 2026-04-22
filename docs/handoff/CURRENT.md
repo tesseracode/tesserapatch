@@ -3,7 +3,7 @@
 ## Active Task
 
 - **Task ID**: M12 / Tranche B2 / v0.5.0 — Provider-Assisted Conflict Resolver
-- **Status**: In progress. **6 of 10 b2 todos done** (shadow + validation + resolver-core + reconcile-wiring + state-machine + cli-flags). Next: `b2-derived-refresh` or `b2-golden-tests` (both parallel-safe).
+- **Status**: In progress. **8 of 10 b2 todos done** (shadow + validation + resolver-core + reconcile-wiring + state-machine + cli-flags + derived-refresh + golden-tests). Next: `b2-skills-update` (now unblocked).
 - **PRD**: `docs/prds/PRD-provider-conflict-resolver.md`
 - **Milestone**: `docs/milestones/M12-provider-conflict-resolver.md`
 - **ADR**: `docs/adrs/ADR-010-provider-conflict-resolver.md`
@@ -26,10 +26,10 @@
 | `b2-resolver-core` | ✅ done | `25b7774` | `internal/workflow/resolver.go` + test |
 | `b2-reconcile-wiring` | ✅ done | `53b38ee` | `internal/workflow/reconcile.go` + `gitutil.FileAtCommit`/`MergeBase` + test |
 | `b2-state-machine` | ✅ done | (this commit) | `StateReconcilingShadow` + `ReconcileSummary` shadow fields + `status` command surfaces shadow pointer + test |
-| `b2-cli-flags` | ✅ done | (this commit) | `reconcileCmd` + 7 flags + accept/reject/shadow-diff handlers + `validateReconcileFlags` + 2 tests |
-| `b2-derived-refresh` | ⏭️ NEXT (parallel-safe) | — | `store.RefreshDerivedArtifacts` atomic on accept (currently stubbed as TODO note) |
-| `b2-golden-tests` | unblocked (parallel) | — | `tests/reconcile/golden/` ≥5 scenarios |
-| `b2-skills-update` | blocked on cli+refresh | — | 6 skills + docs/agent-as-provider.md |
+| `b2-cli-flags` | ✅ done | `c022b19` | `reconcileCmd` + 7 flags + accept/reject/shadow-diff handlers + `validateReconcileFlags` + 2 tests |
+| `b2-derived-refresh` | ✅ done | `1507b7a` | `FilesInPatch`/`ForwardApplyExcluding`/`DiffFromCommitForPaths` + `RefreshAfterAccept` + accept flow rewired + 4 tests |
+| `b2-golden-tests` | ✅ done | (this commit) | `golden_reconcile_test.go` — 5 ADR-010 acceptance scenarios (clean-reapply / shadow-awaiting / validation-failed / too-many-conflicts / no-provider) |
+| `b2-skills-update` | ⏭️ NEXT (unblocked) | — | 6 skills + `docs/agent-as-provider.md` — document `--resolve/--apply/--accept/--reject/--shadow-diff`, reconciling-shadow state, reconcile-session.json schema |
 | `b2-release` | blocked on skills+golden | — | v0.5.0 tag |
 
 SQL: `SELECT id, status FROM todos WHERE id LIKE 'b2-%' ORDER BY id;`
@@ -82,6 +82,44 @@ Also: truthful validation errors for nonsensical combos (e.g. `--accept` + `--re
 - `feat-resolver-heuristic-fallback` — opt-in `--heuristic` for provider-unavailable cases. Depends on `b2-release`.
 - `feat-feature-standalonify` — rebase a dependent feature into standalone. Depends on `feat-feature-dependencies`.
 - `feat-parallel-feature-workflows` — `tpatch workon --parallel` fans out features into per-feature worktrees. Depends on `feat-feature-dependencies`.
+
+## Session Summary (2026-04-22 session — B2 derived-refresh + golden-tests)
+
+**Commits this session** (continuing):
+- `c022b19` — b2-cli-flags (prior)
+- `3aab0c4` — docs checkpoint (prior)
+- `1507b7a` — **b2-derived-refresh**: accept-flow correctness fix + atomic post-apply.patch regen + numbered reconcile patch + 4 tests
+- (this commit) — **b2-golden-tests**: 5 ADR-010 PRD#6 acceptance scenarios
+
+All pushed. `gofmt`, `go vet`, `go test ./...` clean.
+
+### `b2-derived-refresh` fixed a real bug
+
+The prior `--accept` only copied resolved (conflicted) files from the shadow.
+Non-conflicted hunks from `post-apply.patch` were **never applied** to the real
+tree, leaving the feature half-reconciled. New accept flow:
+
+1. `ForwardApplyExcluding(patch, resolvedFiles)` — non-conflicted hunks land via 3-way
+2. `CopyShadowToReal(resolvedFiles)` — resolver output overlays those paths
+3. `RefreshAfterAccept` — regenerates post-apply.patch restricted to originally-touched files (via `git diff <upstreamCommit> -- <paths>` with `git add -N` first so new files appear); snapshots new patch as `patches/NNN-reconcile.patch`
+4. `MarkFeatureState → applied`; prune shadow; clear status pointer
+
+Explicitly deferred: `apply-recipe.json` regen (lossy from a raw diff);
+documented in `refresh.go`. `tpatch record` remains the fallback.
+
+### `b2-golden-tests` — 5 scenarios via `RunReconcile`
+
+File: `internal/workflow/golden_reconcile_test.go`
+
+| Scenario | Fixture | Expected outcome |
+|---|---|---|
+| clean-reapply | Non-conflicting feature vs unchanged upstream | `reapplied` / `upstreamed`, no shadow |
+| shadow-awaiting | Conflict + provider returns clean merge | `shadow-awaiting`, 1 resolved, shadow populated |
+| validation-failed | Conflict + provider returns content with `<<<<<<<` markers | `blocked-requires-human`, 1 failed |
+| too-many-conflicts | 2 conflicted files, MaxConflicts=1 | `blocked-too-many-conflicts`, provider.calls==0 |
+| no-provider | Conflict + nil provider + `--resolve` | `blocked-requires-human`, no shadow |
+
+Pattern reuses `scriptedProvider` with `keyed` map for resolver calls + positional response for phase-3 semantic probe. Fixtures capture real `git diff --cached HEAD` output so `--3way` can locate the base blob.
 
 ## Session Summary (2026-04-22 session — B2 cli-flags)
 
