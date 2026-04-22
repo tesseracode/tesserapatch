@@ -330,3 +330,61 @@ func TestApplyExecuteRecipeStaleGuard(t *testing.T) {
 		}
 	})
 }
+
+func TestApplyAutoMode(t *testing.T) {
+tmpDir := t.TempDir()
+gitInitTestRepo(t, tmpDir)
+runCmd("init", "--path", tmpDir)
+runCmd("add", "--path", tmpDir, "Auto mode test")
+slug := "auto-mode-test"
+
+// Seed a real recipe that creates a file so execute has observable effect.
+artDir := filepath.Join(tmpDir, ".tpatch", "features", slug, "artifacts")
+os.MkdirAll(artDir, 0o755)
+recipe := `{
+  "feature": "` + slug + `",
+  "operations": [
+    {"type": "write-file", "path": "hello.txt", "content": "hi\n"}
+  ]
+}
+`
+os.WriteFile(filepath.Join(artDir, "apply-recipe.json"), []byte(recipe), 0o644)
+
+out, stderr, code := runCmd("apply", "--path", tmpDir, slug)
+if code != 0 {
+t.Fatalf("apply auto failed: stderr=%q", stderr)
+}
+if !strings.Contains(out, "Apply packet prepared") {
+t.Errorf("expected prepare output, got %q", out)
+}
+if !strings.Contains(out, "Recipe executed") {
+t.Errorf("expected execute output, got %q", out)
+}
+if !strings.Contains(out, "marked as applied") {
+t.Errorf("expected done output, got %q", out)
+}
+if !strings.Contains(out, "prepared → executed → recorded") {
+t.Errorf("expected auto summary line, got %q", out)
+}
+if _, err := os.Stat(filepath.Join(tmpDir, "hello.txt")); err != nil {
+t.Errorf("expected hello.txt written, got %v", err)
+}
+}
+
+func TestApplyExplicitPrepareStillWorks(t *testing.T) {
+// Regression: --mode prepare must keep the same semantic it had
+// when it was the default (stops after writing apply-packet.md).
+tmpDir := t.TempDir()
+runCmd("init", "--path", tmpDir)
+runCmd("add", "--path", tmpDir, "Explicit prepare")
+out, _, code := runCmd("apply", "--path", tmpDir, "explicit-prepare", "--mode", "prepare")
+if code != 0 {
+t.Fatalf("apply --mode prepare failed")
+}
+if !strings.Contains(out, "Apply packet prepared") {
+t.Errorf("expected prepare output, got %q", out)
+}
+if strings.Contains(out, "Recipe executed") {
+t.Errorf("explicit prepare should NOT execute recipe, got %q", out)
+}
+}

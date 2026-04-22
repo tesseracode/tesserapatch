@@ -442,119 +442,162 @@ func applyCmd() *cobra.Command {
 
 			switch mode {
 			case "prepare":
-				request, _ := s.ReadFeatureFile(slug, "request.md")
-				spec, _ := s.ReadFeatureFile(slug, "spec.md")
-				exploration, _ := s.ReadFeatureFile(slug, "exploration.md")
-				packet := fmt.Sprintf("# Apply Packet: %s\n\n## Request\n%s\n\n## Spec\n%s\n\n## Exploration\n%s\n",
-					slug, request, spec, exploration)
-				if err := s.WriteArtifact(slug, "apply-packet.md", packet); err != nil {
-					return err
-				}
-				if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode prepare", "Agent packet ready"); err != nil {
-					return err
-				}
-				fmt.Fprintf(out, "Apply packet prepared for %s\n", slug)
-
+				return runApplyPrepare(cmd, s, slug)
 			case "started":
-				if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode started", "Implementation in progress"); err != nil {
-					return err
-				}
-				fmt.Fprintf(out, "Feature %s marked as implementing\n", slug)
-
+				return runApplyStarted(cmd, s, slug)
 			case "execute":
-				// GAP 8: Execute the recipe with path safety checks
-				recipe, err := workflow.LoadRecipe(s, slug)
-				if err != nil {
-					return err
-				}
-				warnRecipeStale(cmd.ErrOrStderr(), s, slug)
-				if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode execute", "Executing recipe"); err != nil {
-					return err
-				}
-				result := workflow.ExecuteRecipe(s.Root, recipe)
-				for _, msg := range result.Messages {
-					fmt.Fprintf(out, "  %s\n", msg)
-				}
-				for _, e := range result.Errors {
-					fmt.Fprintf(cmd.ErrOrStderr(), "  ERROR: %s\n", e)
-				}
-				if result.Success {
-					fmt.Fprintf(out, "Recipe executed: %d/%d operations succeeded\n", result.Applied, result.Operations)
-				} else {
-					return fmt.Errorf("recipe execution failed: %d error(s)", len(result.Errors))
-				}
-
+				_, err := runApplyExecute(cmd, s, slug)
+				return err
 			case "done":
-				note, _ := cmd.Flags().GetString("note")
-				valStatus, _ := cmd.Flags().GetString("validation-status")
-				valNote, _ := cmd.Flags().GetString("validation-note")
-
-				patch, patchErr := gitutil.CapturePatch(s.Root)
-				if patchErr != nil {
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not capture patch: %v\n", patchErr)
-				}
-				if patch != "" {
-					s.WriteArtifact(slug, "post-apply.patch", patch)
-					// GAP 7: Also write sequential patch
-					patchName, _ := s.WritePatch(slug, "apply", patch)
-					if patchName != "" {
-						fmt.Fprintf(out, "  Saved patch: patches/%s\n", patchName)
-					}
-				}
-				diffStat, _ := gitutil.CaptureDiffStat(s.Root)
-				if diffStat != "" {
-					s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
-				}
-
-				now := time.Now().UTC().Format(time.RFC3339)
-				commit, _ := gitutil.HeadCommit(s.Root)
-				status, _ := s.LoadFeatureStatus(slug)
-				status.Apply.BaseCommit = commit
-				status.Apply.CompletedAt = now
-				status.Apply.HasPatch = patch != ""
-				s.SaveFeatureStatus(status)
-
-				// GAP 2: Write apply-session.json
-				session := store.ApplySession{
-					Slug:             slug,
-					PreparedAt:       status.Apply.PreparedAt,
-					StartedAt:        status.Apply.StartedAt,
-					CompletedAt:      now,
-					BaseCommit:       commit,
-					HasPatch:         patch != "",
-					OperatorNotes:    note,
-					ValidationStatus: valStatus,
-					ValidationNotes:  valNote,
-				}
-				s.SaveApplySession(slug, session)
-
-				// GAP 5: Write manual-validation.md if validation notes provided
-				if valNote != "" || valStatus != "" {
-					vs := valStatus
-					if vs == "" {
-						vs = "pending"
-					}
-					validationMD := fmt.Sprintf("# Manual Validation\n\n**Status**: %s\n**Timestamp**: %s\n\n## Notes\n\n%s\n", vs, now, valNote)
-					s.WriteArtifact(slug, "manual-validation.md", validationMD)
-				}
-
-				if err := s.MarkFeatureState(slug, store.StateApplied, "apply --mode done", "Changes applied and recorded"); err != nil {
-					return err
-				}
-				fmt.Fprintf(out, "Feature %s marked as applied\n", slug)
-
+				_, _, err := runApplyDone(cmd, s, slug)
+				return err
+			case "auto":
+				return runApplyAuto(cmd, s, slug)
 			default:
-				return fmt.Errorf("unknown apply mode %q (valid: prepare, started, execute, done)", mode)
+				return fmt.Errorf("unknown apply mode %q (valid: auto, prepare, started, execute, done)", mode)
 			}
-			return nil
 		},
 	}
-	cmd.Flags().String("mode", "prepare", "Apply mode: prepare, started, execute, done")
+	cmd.Flags().String("mode", "auto", "Apply mode: auto (default, runs prepare→execute→done), prepare, started, execute, done")
 	cmd.Flags().Bool("dry-run", false, "Preview recipe execution without modifying files")
 	cmd.Flags().String("note", "", "Operator notes about the apply session")
 	cmd.Flags().String("validation-status", "", "Validation outcome: passed, failed, needs_review")
 	cmd.Flags().String("validation-note", "", "Details about validation")
 	return cmd
+}
+
+func runApplyPrepare(cmd *cobra.Command, s *store.Store, slug string) error {
+	request, _ := s.ReadFeatureFile(slug, "request.md")
+	spec, _ := s.ReadFeatureFile(slug, "spec.md")
+	exploration, _ := s.ReadFeatureFile(slug, "exploration.md")
+	packet := fmt.Sprintf("# Apply Packet: %s\n\n## Request\n%s\n\n## Spec\n%s\n\n## Exploration\n%s\n",
+		slug, request, spec, exploration)
+	if err := s.WriteArtifact(slug, "apply-packet.md", packet); err != nil {
+		return err
+	}
+	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode prepare", "Agent packet ready"); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Apply packet prepared for %s\n", slug)
+	return nil
+}
+
+func runApplyStarted(cmd *cobra.Command, s *store.Store, slug string) error {
+	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode started", "Implementation in progress"); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Feature %s marked as implementing\n", slug)
+	return nil
+}
+
+// runApplyExecute loads the recipe, warns on stale provenance, runs the
+// operations, and returns the execution result. The result is returned
+// so auto-mode can roll it into a final summary without re-running.
+func runApplyExecute(cmd *cobra.Command, s *store.Store, slug string) (workflow.RecipeExecResult, error) {
+	out := cmd.OutOrStdout()
+	recipe, err := workflow.LoadRecipe(s, slug)
+	if err != nil {
+		return workflow.RecipeExecResult{}, err
+	}
+	warnRecipeStale(cmd.ErrOrStderr(), s, slug)
+	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode execute", "Executing recipe"); err != nil {
+		return workflow.RecipeExecResult{}, err
+	}
+	result := workflow.ExecuteRecipe(s.Root, recipe)
+	for _, msg := range result.Messages {
+		fmt.Fprintf(out, "  %s\n", msg)
+	}
+	for _, e := range result.Errors {
+		fmt.Fprintf(cmd.ErrOrStderr(), "  ERROR: %s\n", e)
+	}
+	if result.Success {
+		fmt.Fprintf(out, "Recipe executed: %d/%d operations succeeded\n", result.Applied, result.Operations)
+		return result, nil
+	}
+	return result, fmt.Errorf("recipe execution failed: %d error(s)", len(result.Errors))
+}
+
+// runApplyDone captures the post-apply patch, writes apply-session.json,
+// and advances the feature to state=applied. Returns the patch string
+// and its byte-length so auto-mode can summarise without re-reading.
+func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string, patchBytes int, err error) {
+	out := cmd.OutOrStdout()
+	note, _ := cmd.Flags().GetString("note")
+	valStatus, _ := cmd.Flags().GetString("validation-status")
+	valNote, _ := cmd.Flags().GetString("validation-note")
+
+	patch, patchErr := gitutil.CapturePatch(s.Root)
+	if patchErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not capture patch: %v\n", patchErr)
+	}
+	if patch != "" {
+		s.WriteArtifact(slug, "post-apply.patch", patch)
+		patchName, _ := s.WritePatch(slug, "apply", patch)
+		if patchName != "" {
+			fmt.Fprintf(out, "  Saved patch: patches/%s\n", patchName)
+		}
+	}
+	diffStat, _ := gitutil.CaptureDiffStat(s.Root)
+	if diffStat != "" {
+		s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	commit, _ := gitutil.HeadCommit(s.Root)
+	status, _ := s.LoadFeatureStatus(slug)
+	status.Apply.BaseCommit = commit
+	status.Apply.CompletedAt = now
+	status.Apply.HasPatch = patch != ""
+	s.SaveFeatureStatus(status)
+
+	session := store.ApplySession{
+		Slug:             slug,
+		PreparedAt:       status.Apply.PreparedAt,
+		StartedAt:        status.Apply.StartedAt,
+		CompletedAt:      now,
+		BaseCommit:       commit,
+		HasPatch:         patch != "",
+		OperatorNotes:    note,
+		ValidationStatus: valStatus,
+		ValidationNotes:  valNote,
+	}
+	s.SaveApplySession(slug, session)
+
+	if valNote != "" || valStatus != "" {
+		vs := valStatus
+		if vs == "" {
+			vs = "pending"
+		}
+		validationMD := fmt.Sprintf("# Manual Validation\n\n**Status**: %s\n**Timestamp**: %s\n\n## Notes\n\n%s\n", vs, now, valNote)
+		s.WriteArtifact(slug, "manual-validation.md", validationMD)
+	}
+
+	if err := s.MarkFeatureState(slug, store.StateApplied, "apply --mode done", "Changes applied and recorded"); err != nil {
+		return patch, len(patch), err
+	}
+	fmt.Fprintf(out, "Feature %s marked as applied\n", slug)
+	return patch, len(patch), nil
+}
+
+// runApplyAuto chains prepare → execute → done in one shot. Stops on the
+// first error; surfaces it as-is. On success, prints a consolidated
+// summary naming each phase.
+func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
+	if err := runApplyPrepare(cmd, s, slug); err != nil {
+		return err
+	}
+	execResult, err := runApplyExecute(cmd, s, slug)
+	if err != nil {
+		return err
+	}
+	_, patchBytes, err := runApplyDone(cmd, s, slug)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(),
+		"Feature %s: prepared → executed → recorded (%d ops, %d bytes patch)\n",
+		slug, execResult.Operations, patchBytes)
+	return nil
 }
 
 // warnRecipeStale prints a stderr warning when the recipe-provenance
