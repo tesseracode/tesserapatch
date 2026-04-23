@@ -97,8 +97,20 @@ func editCmd() *cobra.Command {
 func amendCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "amend <slug> [description...]",
-		Short: "Replace a feature's request.md (reads stdin when no description args)",
-		Args:  cobra.MinimumNArgs(1),
+		Short: "Replace a feature's request.md (use --append to add instead of replace)",
+		Long: `Replace (default) or append to a feature's request.md.
+
+Default behavior REPLACES the existing request.md with the new description.
+Use --append to concatenate the new description onto the existing request
+(separated by a blank line).
+
+--append and --reset are mutually exclusive: a state reset alongside an
+append makes no sense (you are reopening the intent while pretending to
+preserve it).
+
+Reads the description from positional args, or from stdin when none are
+provided.`,
+		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slug := args[0]
 			s, err := openStoreFromCmd(cmd)
@@ -107,6 +119,12 @@ func amendCmd() *cobra.Command {
 			}
 			if _, err := os.Stat(featureDirPath(s, slug)); err != nil {
 				return fmt.Errorf("feature %s does not exist", slug)
+			}
+
+			appendMode, _ := cmd.Flags().GetBool("append")
+			reset, _ := cmd.Flags().GetBool("reset")
+			if appendMode && reset {
+				return fmt.Errorf("amend: --append and --reset are mutually exclusive")
 			}
 
 			var description string
@@ -126,11 +144,27 @@ func amendCmd() *cobra.Command {
 				return fmt.Errorf("provide a new description as arguments or pipe via stdin")
 			}
 
-			if err := s.WriteFeatureFile(slug, "request.md", description+"\n"); err != nil {
+			var newBody string
+			if appendMode {
+				// Blind concat with a blank-line separator. A future enhancement
+				// could parse request.md section headers and append to a canonical
+				// "Additional requirements" block; documented in help text so
+				// users are not surprised by the current straightforward model.
+				existing, _ := s.ReadFeatureFile(slug, "request.md")
+				existing = strings.TrimRight(existing, "\n")
+				if existing == "" {
+					newBody = description + "\n"
+				} else {
+					newBody = existing + "\n\n" + description + "\n"
+				}
+			} else {
+				newBody = description + "\n"
+			}
+
+			if err := s.WriteFeatureFile(slug, "request.md", newBody); err != nil {
 				return err
 			}
 
-			reset, _ := cmd.Flags().GetBool("reset")
 			if reset {
 				if err := s.MarkFeatureState(slug, store.StateRequested, "amend --reset", "Request replaced; state reset"); err != nil {
 					return err
@@ -138,11 +172,16 @@ func amendCmd() *cobra.Command {
 			}
 
 			status, _ := s.LoadFeatureStatus(slug)
-			fmt.Fprintf(cmd.OutOrStdout(), "Amended feature %s (state: %s)\n", slug, status.State)
+			verb := "Amended"
+			if appendMode {
+				verb = "Appended to"
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s feature %s (state: %s)\n", verb, slug, status.State)
 			return nil
 		},
 	}
 	cmd.Flags().Bool("reset", false, "Reset feature state to \"requested\"")
+	cmd.Flags().Bool("append", false, "Append to request.md instead of replacing it")
 	return cmd
 }
 

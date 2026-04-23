@@ -531,6 +531,55 @@ func TestAmendReadsStdin(t *testing.T) {
 	}
 }
 
+// TestAmendAppendConcatenates guards the v0.5.2 contract: --append
+// concatenates onto existing request.md rather than replacing it.
+func TestAmendAppendConcatenates(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Initial request body")
+
+	out, _, code := runCmd("amend", "--path", tmpDir, "initial-request-body", "--append", "Extra", "requirement")
+	if code != 0 {
+		t.Fatalf("amend --append failed: %s", out)
+	}
+	if !strings.Contains(out, "Appended to feature initial-request-body") {
+		t.Errorf("expected append confirmation, got %q", out)
+	}
+	data, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", "initial-request-body", "request.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "Initial request body") {
+		t.Errorf("original request content missing after --append, got %q", body)
+	}
+	if !strings.Contains(body, "Extra requirement") {
+		t.Errorf("appended content missing, got %q", body)
+	}
+}
+
+// TestAmendAppendAndResetRejected ensures --append and --reset cannot
+// be combined — a reset implies throwing away the prior intent while
+// --append implies keeping it.
+func TestAmendAppendAndResetRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Conflict flag test")
+
+	root := buildRootCmd()
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetArgs([]string{"amend", "--path", tmpDir, "conflict-flag-test", "--append", "--reset", "nope"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error when --append and --reset are combined")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("expected 'mutually exclusive' error, got %q", err.Error())
+	}
+}
+
 func TestRemoveForce(t *testing.T) {
 	tmpDir := t.TempDir()
 	runCmd("init", "--path", tmpDir)
