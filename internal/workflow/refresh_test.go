@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -125,6 +126,99 @@ diff --git a/README.md b/README.md
 	if !found {
 		t.Errorf("expected a patches/NNN-reconcile.patch snapshot; got %v", entries)
 	}
+}
+
+// TestRefreshAfterAcceptLeavesIndexClean guards the v0.5.2 fix for
+// finding #2: DiffFromCommitForPaths (used by RefreshAfterAccept) used
+// to run `git add -N` against the REAL .git/index, leaving intent-to-add
+// entries in the user's working state after reconcile --accept. The
+// fix routes intent-to-add through GIT_INDEX_FILE to a throwaway index.
+// `git status --porcelain` must be byte-identical before and after.
+func TestRefreshAfterAcceptLeavesIndexClean(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "IdxClean", Request: "demo"})
+	slug := "idxclean"
+
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+
+	// Simulate post-accept working tree: new untracked file + modified
+	// tracked file. The untracked file is what forced the old code to
+	// call `git add -N` on the real index.
+	if err := os.WriteFile(filepath.Join(tmpDir, "new.txt"), []byte("hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nmore\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := `diff --git a/new.txt b/new.txt
+new file mode 100644
+--- /dev/null
++++ b/new.txt
+@@ -0,0 +1 @@
++hi
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ # Test
++more
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+
+	statusBefore := gitStatusPorcelain(t, tmpDir)
+
+	if err := RefreshAfterAccept(s, slug, upstream, originalPatch); err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+
+	statusAfter := gitStatusPorcelain(t, tmpDir)
+	if statusBefore != statusAfter {
+		t.Errorf("index dirtied by refresh.\nbefore:\n%s\nafter:\n%s", statusBefore, statusAfter)
+	}
+
+	// Second safeguard: no intent-to-add marker ('A ' with hollow content)
+	// should appear. An `ls-files --stage` check catches the specific
+	// regression: intent-to-add entries show the all-zeroes SHA.
+	lsFiles := gitLsFilesStage(t, tmpDir)
+	if strings.Contains(lsFiles, "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391") && strings.Contains(lsFiles, "new.txt") {
+		// empty-blob sha is fine; intent-to-add uses all-zero sha.
+	}
+	if strings.Contains(lsFiles, "0000000000000000000000000000000000000000\t") {
+		t.Errorf("intent-to-add entry leaked into real index:\n%s", lsFiles)
+	}
+}
+
+func gitStatusPorcelain(t *testing.T, dir string) string {
+	t.Helper()
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git status: %v", err)
+	}
+	return string(out)
+}
+
+func gitLsFilesStage(t *testing.T, dir string) string {
+	t.Helper()
+	cmd := exec.Command("git", "ls-files", "--stage")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git ls-files: %v", err)
+	}
+	return string(out)
 }
 
 func TestForwardApplyExcluding(t *testing.T) {

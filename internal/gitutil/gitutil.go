@@ -693,28 +693,65 @@ func ForwardApplyExcluding(repoRoot, patch string, excludePaths []string) error 
 // output; this mirrors how `tpatch record` handles newly created
 // files. Used by the reconcile --accept derived-refresh flow to
 // regenerate post-apply.patch after the accepted resolution.
+//
+// IMPORTANT: the intent-to-add markers are written to a *temporary*
+// index (via GIT_INDEX_FILE), not the user's real .git/index. This
+// guarantees that callers do not leak intent-to-add entries into the
+// user's working state after the function returns — a bug from prior
+// versions that left `git status` dirty after reconcile --accept /
+// refresh. The temp file is removed before return.
 func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, error) {
-	// Intent-to-add any paths git doesn't yet know about. `git add -N`
-	// is silent on already-tracked paths, so we can pass the full list.
+	var env []string
 	if len(paths) > 0 {
-		addArgs := append([]string{"add", "-N", "--"}, paths...)
-		if _, err := runGit(repoRoot, addArgs...); err != nil {
-			// Non-fatal: the intent-to-add only helps NEW files; if
-			// git refuses (e.g., file doesn't exist), the diff call
-			// below will still see tracked-file changes. Continue.
-			_ = err
+		tmpIdx, err := os.CreateTemp("", "tpatch-idx-*")
+		if err != nil {
+			return "", fmt.Errorf("create temp index: %w", err)
 		}
+		tmpPath := tmpIdx.Name()
+		_ = tmpIdx.Close()
+		defer os.Remove(tmpPath)
+
+		// Seed the temp index from the real one so tracked files are
+		// known to git when we diff. If the real index is missing
+		// (shallow/bare edge case), leave the temp empty — diff will
+		// still work for path selection.
+		realIndex := filepath.Join(repoRoot, ".git", "index")
+		if data, rerr := os.ReadFile(realIndex); rerr == nil {
+			if werr := os.WriteFile(tmpPath, data, 0o644); werr != nil {
+				return "", fmt.Errorf("seed temp index: %w", werr)
+			}
+		}
+
+		env = append(os.Environ(), "GIT_INDEX_FILE="+tmpPath)
+
+		// Intent-to-add against the TEMP index. Non-fatal: the
+		// intent-to-add only helps NEW files; if git refuses (e.g.,
+		// file doesn't exist), the diff call below will still see
+		// tracked-file changes.
+		addArgs := append([]string{"add", "-N", "--"}, paths...)
+		addCmd := exec.Command("git", addArgs...)
+		addCmd.Dir = repoRoot
+		addCmd.Env = env
+		_, _ = addCmd.CombinedOutput()
 	}
 	args := []string{"diff", commit}
 	if len(paths) > 0 {
 		args = append(args, "--")
 		args = append(args, paths...)
 	}
-	out, err := runGit(repoRoot, args...)
+	diffCmd := exec.Command("git", args...)
+	diffCmd.Dir = repoRoot
+	if env != nil {
+		diffCmd.Env = env
+	}
+	out, err := diffCmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), string(exitErr.Stderr))
+		}
 		return "", err
 	}
-	result := strings.TrimSpace(out)
+	result := strings.TrimSpace(string(out))
 	if result != "" {
 		result += "\n"
 	}
