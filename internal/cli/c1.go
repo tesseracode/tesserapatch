@@ -163,11 +163,15 @@ func removeCmd() *cobra.Command {
 				return fmt.Errorf("feature %s does not exist", slug)
 			}
 
+			// Contract (v0.5.1 shipped):
+			//   --force       → always skip confirmation
+			//   TTY stdin     → prompt [y/N]
+			//   piped stdin / redirected / no TTY → skip confirmation (auto-yes)
+			// The last branch is what lets scripts like
+			//   printf 'y\n' | tpatch remove <slug>
+			// and unattended CI steps succeed without --force.
 			force, _ := cmd.Flags().GetBool("force")
-			if !force {
-				if !canPromptForConfirmation(cmd) {
-					return fmt.Errorf("refuse to remove without --force: stdin is not a terminal")
-				}
+			if !force && canPromptForConfirmation(cmd) {
 				fmt.Fprintf(cmd.OutOrStdout(), "Remove feature %s and all its artifacts? [y/N] ", slug)
 				reader := bufio.NewReader(cmd.InOrStdin())
 				line, _ := reader.ReadString('\n')

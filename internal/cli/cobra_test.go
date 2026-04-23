@@ -601,6 +601,47 @@ func TestRemoveMissingFeature(t *testing.T) {
 	}
 }
 
+// TestRemovePipedStdinSkipsConfirmation guards against regression of the
+// v0.5.1 contract: when stdin is a pipe / redirected file (i.e. not a TTY),
+// `tpatch remove` treats it as auto-yes and proceeds without prompting.
+// Before the fix, this path refused with
+// "refuse to remove without --force: stdin is not a terminal".
+func TestRemovePipedStdinSkipsConfirmation(t *testing.T) {
+	tmpDir := t.TempDir()
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Piped stdin remove test")
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	// Mimic `printf 'y\n' | tpatch remove …`: even though the current
+	// contract ignores stdin contents for non-TTY, writing something
+	// exercises the realistic shape of the invocation and confirms we
+	// do not block reading from the pipe.
+	go func() {
+		_, _ = w.Write([]byte("y\n"))
+		_ = w.Close()
+	}()
+	defer r.Close()
+
+	root := buildRootCmd()
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetIn(r) // pipe, not a terminal
+	root.SetArgs([]string{"remove", "--path", tmpDir, "piped-stdin-remove-test"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("remove with piped stdin unexpectedly errored: %v (stderr=%q)", err, errBuf.String())
+	}
+	if !strings.Contains(outBuf.String(), "Removed feature") {
+		t.Errorf("expected 'Removed feature', got stdout=%q stderr=%q", outBuf.String(), errBuf.String())
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", "piped-stdin-remove-test")); err == nil {
+		t.Errorf("feature dir still exists after piped-stdin remove")
+	}
+}
+
 func TestRecordLenientSkipsValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	gitInitTestRepo(t, tmpDir)
