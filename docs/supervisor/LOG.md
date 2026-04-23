@@ -4,6 +4,39 @@
 
 ---
 
+## Review — M13 / Tranche C1 / v0.5.1 — 2026-04-22
+
+**Reviewer**: c1-reviewer (code-review sub-agent)
+**Implementer**: c1-implementer (general-purpose sub-agent)
+**Task**: UX Polish & Quick Wins — 8 features + release (commits `4f49c76..e069cd8`, tag `v0.5.1`).
+
+### Checklist
+- [x] `go build ./cmd/tpatch` succeeds
+- [x] `go test ./...` passes all packages
+- [x] `gofmt -l .` empty
+- [x] `go vet ./...` clean
+- [x] Parity guard `TestSkillRecipeSchemaMatchesCLI` green (no `base_commit` leaked into recipe schema)
+- [x] All 10 commits carry `Co-authored-by: Copilot <223556219+...>` trailer
+- [x] Tag `v0.5.1` exists (annotated, on `e069cd8`)
+- [x] CHANGELOG v0.5.1 section + breaking-UX call-out present
+- [x] ROADMAP M13 marker flipped 🔨 → ✅
+- [x] CURRENT.md archived to HISTORY.md (timestamped, no duplication)
+- [x] SQL: 9 c1-* todos all `done`
+
+### Verdict: **APPROVED**
+
+### Notes
+- **Recipe stale guard** stored as sidecar `artifacts/recipe-provenance.json` (NOT in `apply-recipe.json`) — preserves parity-guard contract; backward-compat (missing sidecar = silent).
+- **Apply default mode** flipped `prepare → auto`. Auto chains existing prepare/execute/done helpers verbatim (line-for-line extraction, no capture re-derivation). Stale-guard still fires inside auto via shared `runApplyExecute`. Breaking UX called out in CHANGELOG.
+- **Spinner** wired at single choke point (`GenerateWithRetry`), TTY-guarded, race-free cleanup via `sync.Once` + `<-done`. Tests don't depend on wall-clock.
+- **`record --lenient`** shipped as documented escape hatch — implementer ran 4 synthetic repros of the markdown false-positive, all passed reverse-apply cleanly. Without a live reproducer, the documented flag (with stderr warning + error-message hint) is safer than a speculative `--ignore-whitespace` that could mask real divergence. Pragmatic call, accepted.
+- No flaky test patterns, no goroutine leaks, no swallowed errors.
+
+### Action Taken
+Pushed `main` (`ebb5b7a..e069cd8`) and tag `v0.5.1` to `origin`. Tranche C1 complete; supervisor will pick next tranche when user kicks off.
+
+---
+
 ## 2026-04-17 — M10 Managed Copilot Proxy UX — PENDING REVIEW
 
 **Task**: Implement ADR-004 — honest UX for the reverse-engineered copilot-api proxy + CI release automation.
