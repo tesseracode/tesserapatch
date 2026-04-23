@@ -2,8 +2,8 @@
 
 ## Active Task
 
-- **Task ID**: Tranche C2 / v0.5.2 — correctness fix pass (**IN FLIGHT**)
-- **Status**: 🔨 Implementation sub-agent dispatched (see `docs/supervisor/LOG.md` for verification trail)
+- **Task ID**: Tranche C2 / v0.5.2 — correctness fix pass (**IMPLEMENTATION COMPLETE — awaiting supervisor review + release**)
+- **Status**: ✅ 6/6 code+doc items landed on `main`; release task is supervisor's (see Next Steps)
 - **Blocks**: M14.1 — cannot start data model work until reconcile `--resolve --apply` is truthful and the `refresh.go` path no longer dirties the user's index (M14.3 extends both)
 - **Next on deck after C2**: ADR-011 ✅ done → M14.1 data model + validation
 
@@ -59,6 +59,72 @@ See `docs/adrs/ADR-011-feature-dependencies.md` for full rationale.
 - `feat-skills-apply-auto-default` — 6 skills still reference `--mode prepare/execute/done`; v0.5.1 flip not documented
 - `bug-record-roundtrip-false-positive-markdown` — shipped `--lenient` fallback only; needs live repro for root-cause fix
 - `chore-gitignore-tpatch-binary` — trivial one-liner; bundle into next release
+
+## Session Summary — 2026-04-24 — C2 fix pass complete (6/6 code+doc items landed)
+
+All 6 code/doc findings from the C2 correctness pass have landed on `main`. Remaining todo is the supervisor's release task (tag v0.5.2 + CHANGELOG heading) — implementation work is done.
+
+### Commits (on `main`, after `f5e6d9e`)
+
+| # | Finding | Commit |
+|---|---|---|
+| 1 | c2-max-conflicts-drift (docs: default 3 → 10 across 8 sites) | `36e058d` |
+| 2 | c2-remove-piped-stdin (`printf y\|tpatch remove` now auto-yes on pipe) | `dbf7a31` |
+| 3 | c2-amend-append-flag (add `--append`, mutex with `--reset`) | `1c6697e` |
+| 4 | c2-refresh-index-clean (`DiffFromCommitForPaths` uses throwaway `GIT_INDEX_FILE`) | `bc938ec` |
+| 5 | c2-recipe-hash-provenance (stale guard detects content drift via sha256) | `b5e1f88` |
+| 6 | c2-resolve-apply-truthful (`--resolve --apply` actually copies shadow → real) | `73cd648` |
+
+### Key design choices
+
+- **Shared `workflow.AcceptShadow` helper** (new file `internal/workflow/accept.go`) now owns the accept sequence. Both `runReconcileAccept` (manual `--accept`) and the auto-apply branch in `reconcile.go`'s `tryPhase35` route through it — they cannot drift again. On mid-flight failure the shadow is preserved and the outcome flips to `ReconcileBlockedRequiresHuman` so the human can investigate.
+- **`RecipeProvenance.RecipeSHA256` is a `*string` pointer** so legacy sidecars (no field) decode as `nil` and `warnRecipeStale` emits a one-line "predates recipe-hash guard" note instead of a false-positive stale warning. Forward-compatible.
+- **`GIT_INDEX_FILE` approach for `DiffFromCommitForPaths`**: seed a `os.CreateTemp("", "tpatch-idx-*")` file from `.git/index` bytes, run both `git add -N` and `git diff` with `GIT_INDEX_FILE=<temp>`, delete on return. Zero leakage to the user's real index.
+- **`canPromptForConfirmation` + `os.Pipe` in tests**: pipes report `false` (not a TTY), matching real `printf y|tpatch remove`. The existing `SetIn(strings.NewReader(...))` path still reports `true` via the `*os.File` type-check fallback, preserving existing test behavior.
+
+### Fixed drift sites (8, not 6 — also found cursor + windsurf drifts)
+
+`CHANGELOG.md`, `docs/agent-as-provider.md`, `assets/workflows/tessera-patch-generic.md`, `assets/prompts/copilot/tessera-patch-apply.prompt.md`, `assets/skills/copilot/tessera-patch-apply.md`, `assets/skills/cursor/tessera-patch.mdc`, `assets/skills/claude/tessera-patch.md`, `assets/skills/windsurf/.windsurfrules`.
+
+## Files Changed (tranche C2 aggregate)
+
+- `internal/workflow/accept.go` — **NEW** — shared `AcceptShadow` + `AcceptOptions` / `AcceptResult`.
+- `internal/workflow/accept_test.go` — **NEW** — direct coverage + failure-path test.
+- `internal/workflow/reconcile.go` — `ResolveVerdictAutoAccepted` branch rewired through `AcceptShadow`; failure → `BlockedRequiresHuman` + shadow preserved.
+- `internal/workflow/implement.go` — `RecipeProvenance.RecipeSHA256 *string`; provenance now re-reads recipe and hashes it.
+- `internal/workflow/refresh_test.go` — `TestRefreshAfterAcceptLeavesIndexClean` regression guard.
+- `internal/workflow/golden_reconcile_test.go` — `TestGoldenReconcile_ResolveApplyTruthful` end-to-end guard.
+- `internal/gitutil/gitutil.go` — `DiffFromCommitForPaths` uses `GIT_INDEX_FILE` throwaway.
+- `internal/cli/cobra.go` — extended `warnRecipeStale` for HEAD + hash + legacy; `runReconcileAccept` rewritten as thin wrapper over `workflow.AcceptShadow`.
+- `internal/cli/c1.go` — `amendCmd` gained `--append` + mutex with `--reset`; `removeCmd` skips prompt on piped stdin.
+- `internal/cli/cobra_test.go` — stale-guard content-drift + legacy subtests, `TestRemovePipedStdinSkipsConfirmation`, `TestAmendAppendConcatenates`, `TestAmendAppendAndResetRejected`.
+- 8 drift-fix sites (see list above).
+
+## Test Results
+
+- `gofmt -l .` — clean.
+- `go build ./...` — ok.
+- `go test ./...` — all packages green (assets, cli, gitutil, provider, safety, store, workflow).
+- No new Go deps.
+
+## Next Steps
+
+1. **Supervisor**: dispatch code-review sub-agent for the 6 C2 commits (`36e058d..73cd648`).
+2. **Supervisor** (on APPROVED): write `v0.5.2` heading in `CHANGELOG.md`, bump internal version string if present, commit as `release(v0.5.2)`, tag `v0.5.2`, push `main` + tag.
+3. After v0.5.2 tag: archive this CURRENT entry to HISTORY and open the M14.1 data-model handoff.
+
+## Blockers
+
+None. C2 implementation is complete.
+
+## Context for Next Agent
+
+- **Do NOT run `go build ./cmd/tpatch` at repo root** — writes a bare `tpatch` binary not covered by `.gitignore` (registered follow-up `chore-gitignore-tpatch-binary`). Use `go vet + go test`.
+- **`AcceptShadow` is the new single entry point** for anything that wants to promote a shadow into the real tree. Do not open-code the sequence in callers — use the helper.
+- **`RecipeProvenance.RecipeSHA256` being a pointer is load-bearing**: if a future refactor flips it to a value type, legacy sidecars will appear stale and emit spurious warnings. Change only with a migration.
+- **Auto-apply failure mode is `ReconcileBlockedRequiresHuman` with shadow preserved** (ADR-010 §D4). Tests `TestGoldenReconcile_ResolveApplyTruthful` and `TestAcceptShadowErrorsWithoutShadow` lock this in.
+
+---
 
 ## Session Summary — 2026-04-23 — PRD approved, C2 fix pass opened
 
