@@ -158,6 +158,16 @@ Six confirmed findings from the v0.4.3..v0.5.1 delta review, shipped as a focuse
 
 8 regression tests added. Code-review verdict: APPROVED. See `docs/supervisor/LOG.md`.
 
+## M13.6 — Shadow Accept Accounting Fixes (Tranche C3, v0.5.3) ✅
+
+Three external-reviewer findings on the v0.5.2 shadow-accept flow, shipped as a focused correctness release before M14.1.
+
+- c3-separate-resolution-artifact — dual-writer schema collision on `reconcile-session.json` split into `resolution-session.json` (resolver-owned) + `reconcile-session.json` (reconcile summary). Manual `reconcile --accept` works again post-shadow-awaiting.
+- c3-accept-stamps-reconcile-outcome — `AcceptShadow` now stamps `Reconcile.Outcome=reapplied`. Unblocks ADR-011 D6 label composition.
+- c3-manual-accept-regression-test — `TestGoldenReconcile_ManualAcceptFlow` end-to-end guard.
+
+Code-review verdict: APPROVED. See `docs/supervisor/LOG.md`.
+
 **Goal**: Low-risk, high-daily-use-impact improvements. 8 items: apply default mode, stdin add, progress spinner, editor integration, feature amend/remove, recipe stale guard, record lenient mode.
 
 **Scope**: Inline — no separate milestone file for polish tranches.

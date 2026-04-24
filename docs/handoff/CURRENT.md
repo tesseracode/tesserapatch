@@ -2,115 +2,87 @@
 
 ## Active Task
 
-- **Task ID**: Tranche C3 / v0.5.3 — shadow accept accounting fixes (✅ **3/3 items landed on main; release task is supervisor's**)
-- **Status**: ✅ Implementation + regression test landed on `origin/main`. Tag + CHANGELOG + version bump deferred to supervisor (per agent guardrails).
-- **Blocks**: M14.1 — M14.3 reads `status.Reconcile.Outcome` for ADR-011 D6 label composition. C3 clears the baseline.
-- **Previous**: Tranche C2 / v0.5.2 shipped ✅ — archived in `HISTORY.md`
+- **Task ID**: M14.1 — Feature Dependencies data model + validation
+- **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
+- **Status**: Not Started (unblocked by v0.5.3 release)
+- **Assigned**: 2026-04-24
 
-### C3 scope — external reviewer surfaced 3 follow-ups on v0.5.2 shadow flow
+### Context
 
-All verified by code inspection:
+v0.5.3 shipped (`4636878`, `3ac7465`, `8a4af4b`, `6024942`, tag `v0.5.3`). All correctness baselines needed for M14 now in place:
 
-| ID | Severity | Finding | Status |
-|---|---|---|---|
-| c3-separate-resolution-artifact | 🔴 Silent correctness (manual-accept regression) | Resolver writes `ResolveResult` (with `outcomes[]`) to `artifacts/reconcile-session.json`; reconcile.go:398 `saveReconcileArtifacts` overwrites with `ReconcileResult` (no outcomes); `loadResolvedFiles` reads outcomes → errors "no resolved files recorded". Fix: split into `resolution-session.json` (resolver) + `reconcile-session.json` (reconcile summary) | ✅ `4636878` |
-| c3-manual-accept-regression-test | 🟡 Missing coverage | End-to-end shadow-awaiting → manual accept test. Counterpart to `TestGoldenReconcile_ResolveApplyTruthful` but for the manual path. Would have caught both other C3 findings in v0.5.2 | ✅ `8a4af4b` |
-| c3-accept-stamps-reconcile-outcome | 🟡 Internal consistency (M14.3 blocker) | `AcceptShadow` marks `State=applied` but leaves `Reconcile.Outcome=shadow-awaiting`. M14.3 label composition (ADR-011 D6) reads `Reconcile.Outcome` — stale outcome → wrong DAG labels | ✅ `3ac7465` |
+- `workflow.AcceptShadow` is the single accept helper for shadow → real (v0.5.2) and stamps `Reconcile.Outcome=reapplied` (v0.5.3) — M14.3 label composition will read it.
+- Resolver and reconcile have clean artifact ownership: `resolution-session.json` (per-file outcomes) vs `reconcile-session.json` (high-level summary).
+- Recipe stale guard catches both HEAD and content drift.
+- Index-dirty bug on refresh fixed.
 
-### Session Summary — 2026-04-24 — C3 fix pass complete
+No shipped feature currently exposes `depends_on` — M14.1 adds the data model behind `features.dependencies: true` config flag (default false).
 
-Resumed the partial C3 run (resolver-session split + CLI reader already staged)
-and completed the three outstanding deliverables:
+### Authoritative docs (read before coding)
 
-- **Split artifact fully landed** (`4636878`): `internal/workflow/resolver.go`
-  (`persistSession`), `internal/cli/cobra.go` (`loadResolvedFiles` +
-  `shadow-diff`), `resolver_test.go`, and the Notes string in
-  `reconcile.go:tryPhase35` all point at `resolution-session.json`. Drift
-  audit updated the matching copy in 5 skill/prompt/workflow assets plus
-  `docs/agent-as-provider.md` and `docs/prds/PRD-provider-conflict-resolver.md`.
-  CHANGELOG, HISTORY, ADR-010, and M12 milestone are left historical.
-- **AcceptShadow now stamps Outcome** (`3ac7465`):
-  `clearShadowPointerAndStamp` signature extended to `(s, slug, sessionID, phase)`;
-  sets `Reconcile.Outcome = ReconcileReapplied` and `Reconcile.AttemptedAt`.
-  Auto-apply path unchanged externally (outer `updateFeatureState` still writes
-  the same value on top); manual `reconcile --accept` now leaves a truthful
-  `Outcome=reapplied` in status.json.
-- **Regression test** (`8a4af4b`): `TestGoldenReconcile_ManualAcceptFlow`
-  in `internal/workflow/golden_reconcile_test.go` drives
-  `RunReconcile(Resolve:true)` → parses `resolution-session.json` inline
-  (mirroring `loadResolvedFiles`) → calls `workflow.AcceptShadow` → asserts
-  merged content on disk, `State=applied`, `Reconcile.Outcome=reapplied`,
-  `ShadowPath` cleared, shadow directory pruned. Guards all three C3 fixes
-  together.
+1. `docs/adrs/ADR-011-feature-dependencies.md` — **MUST READ**. Locks 9 decisions.
+2. `docs/prds/PRD-feature-dependencies.md` — 736-line PRD (APPROVED WITH NOTES). §3.1 data model, §3.5 composable labels, §4.5 precedence, §6 milestone sizing, §7 acceptance criteria. Note §3.4 residual terminology drift — **always defer to ADR-011 + §4.5** when the two conflict.
+3. `docs/ROADMAP.md` M14 section — sub-milestone boundaries.
 
-### Commits (pushed to `origin/main`)
+### M14.1 scope (~300 LOC)
 
-- `4636878` — fix(workflow): split resolver artifact into resolution-session.json
-- `3ac7465` — fix(workflow): AcceptShadow stamps Reconcile.Outcome=reapplied
-- `8a4af4b` — test(reconcile): end-to-end shadow-awaiting → manual accept regression
+**Code additions**:
+- `internal/store/types.go`: `Dependency` struct (`slug`, `kind` = `hard|soft`, optional `satisfied_by` for `upstream_merged`) added to `FeatureStatus` as `depends_on []Dependency`.
+- `internal/store/dag.go` (new): DFS cycle detection + Kahn topological traversal over the feature set. Pure functions; no IO.
+- `internal/store/validation.go` (new): 5 validation rules per PRD §3.3:
+  1. No self-dependency.
+  2. No cycles.
+  3. No dangling refs (every `slug` must exist in the store).
+  4. No kind conflict (same parent declared both hard and soft is rejected).
+  5. `satisfied_by` only valid when parent state is `upstream_merged`.
+- `internal/store/config.go` (or wherever config lives): `features.dependencies` bool flag, default false. All DAG code paths must no-op when flag is off.
+- CLI plumbing: no user-visible commands in M14.1. Just make `add`/`status` round-trip the new field when the flag is on.
 
-### Test results
+**Tests**:
+- `dag_test.go`: cycle detection (direct self, 2-node, 3-node), topo order determinism (ties broken by slug), empty graph, single node.
+- `validation_test.go`: each of 5 rules with positive and negative cases.
+- Round-trip: add a feature with `depends_on`, reload from disk, verify equality.
+- Feature-flag off: all new code paths bypassed; `status.json` schema unchanged byte-for-byte for pre-M14.1 fixtures.
 
-```
-ok  	github.com/tesseracode/tesserapatch/assets
-?   	github.com/tesseracode/tesserapatch/cmd/tpatch		[no test files]
-ok  	github.com/tesseracode/tesserapatch/internal/cli
-ok  	github.com/tesseracode/tesserapatch/internal/gitutil
-ok  	github.com/tesseracode/tesserapatch/internal/provider
-ok  	github.com/tesseracode/tesserapatch/internal/safety
-ok  	github.com/tesseracode/tesserapatch/internal/store
-ok  	github.com/tesseracode/tesserapatch/internal/workflow
-```
+**Not in M14.1** (belongs to M14.2+):
+- Apply gate enforcement.
+- `created_by` recipe op.
+- Reconcile topological traversal.
+- Composable DAG labels.
+- `status --dag` output.
+- Any of the 6 skill-format updates.
 
-`gofmt -l .` clean; `go build ./cmd/tpatch` succeeds.
+### Suggested approach
 
-### Files changed (drift audit — resolver context only)
+1. Read ADR-011 end to end, then PRD §3 and §4.5.
+2. Sketch the `Dependency` struct + `FeatureStatus` additions.
+3. Write `dag.go` + tests first (pure, fast iteration).
+4. Write `validation.go` + tests.
+5. Wire the config flag; ensure zero behavior change when flag is off.
+6. Round-trip test from existing `status.json` fixtures to prove backward compat.
 
-Assets: `assets/skills/copilot/tessera-patch/SKILL.md`,
-`assets/skills/cursor/tessera-patch.mdc`,
-`assets/skills/windsurf/windsurfrules`,
-`assets/workflows/tessera-patch-generic.md`,
-`assets/prompts/copilot/tessera-patch-apply.prompt.md`
-(Claude SKILL.md was already updated by the prior sub-agent).
+### Validation required
 
-Docs: `docs/agent-as-provider.md`,
-`docs/prds/PRD-provider-conflict-resolver.md`.
+- `gofmt -l .` clean
+- `go build ./cmd/tpatch`
+- `go test ./...`
 
-Intentionally left historical: `CHANGELOG.md`, `docs/handoff/HISTORY.md`,
-`docs/supervisor/LOG.md`, `docs/adrs/ADR-010-*.md`,
-`docs/milestones/M12-*.md`, `docs/milestones/M4-reconciliation.md`
-(the latter refers to the classical phase-4 reconcile summary, which
-legitimately still writes to `reconcile-session.json`).
+### Guardrails
 
-### Next Steps
+- No scope creep into M14.2/.3/.4.
+- No changes to the recipe JSON schema (that's M14.2 — gated by the parity guard).
+- No new external Go dependencies.
+- All commits must carry the `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer.
 
-1. **Supervisor**: run the code-review sub-agent on the three C3 commits.
-2. **Supervisor**: tag `v0.5.3`, bump version string, and add the
-   v0.5.3 heading to `CHANGELOG.md` (implementation agent was explicitly
-   instructed not to do any of these three).
-3. **Supervisor**: unblock M14.1 once the review verdict lands.
+### Deferred behind M14.1
 
-### Artifact naming (locked: Option A)
+- M14.2 — Apply gate + `created_by` recipe op + 6-skill parity-guard rollout (~250 LOC)
+- M14.3 — Reconcile topological traversal + composable labels + compound verdict (~500 LOC)
+- M14.4 — `status --dag`, skills analyze-phase bullet, `docs/dependencies.md`, tag v0.6.0 (~300 LOC)
 
-- `artifacts/resolution-session.json` — resolver-owned, per-file `Outcomes[]`
-- `artifacts/reconcile-session.json` — reconcile-owned, high-level `ReconcileResult` (unchanged external contract)
+### Registered follow-ups (unchanged from C3)
 
-### Deferred behind v0.5.3
-
-- M14.1 Data model + validation (~300 LOC)
-- M14.2 Apply gate + `created_by` + 6-skill rollout (~250 LOC)
-- M14.3 Reconcile topo + composable labels + compound verdict (~500 LOC)
-- M14.4 `status --dag` + skills + release v0.6.0 (~300 LOC)
-
-M14.3 will extend `workflow.AcceptShadow` (with the C3-stamped outcome) for the `blocked-by-parent-and-needs-resolution` compound verdict. C2+C3 correctness baselines are prerequisites.
-
-### Registered follow-ups (not in any tranche yet)
-
-- `feat-ephemeral-mode` — one-shot add-feature with no tracking artifacts; depends on `feat-feature-import` + `feat-delivery-modes`
-- `feat-feature-reorder` — flip parent-child in DAG; depends on `feat-feature-dependencies`
-- `feat-resolver-dag-context` — parent-patch to M12 resolver
-- `feat-feature-autorebase` — auto-rebase child on parent drift
-- `feat-amend-dependent-warning` — stale-parent-* labels
-- `feat-skills-apply-auto-default` — 6 skills still reference `--mode prepare/execute/done`
-- `bug-record-roundtrip-false-positive-markdown` — `--lenient` fallback shipped; live repro pending
-- `chore-gitignore-tpatch-binary` — trivial; bundle into next release
+- `feat-ephemeral-mode` — depends on `feat-feature-import` + `feat-delivery-modes`
+- `feat-feature-reorder` — depends on `feat-feature-dependencies` (i.e., M14)
+- `feat-resolver-dag-context`, `feat-feature-autorebase`, `feat-amend-dependent-warning`
+- `feat-skills-apply-auto-default`, `bug-record-roundtrip-false-positive-markdown`, `chore-gitignore-tpatch-binary`

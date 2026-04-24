@@ -4,6 +4,61 @@
 
 ---
 
+## Review — Tranche C3 / v0.5.3 — 2026-04-24
+
+**Implementers**: c3-implementer + c3-finisher sub-agents (general-purpose)
+**Reviewer**: c3-reviewer sub-agent (code-review, 381s)
+**Task**: Shadow accept accounting fixes — 3 external-reviewer findings on v0.5.2 shadow-accept flow.
+
+### Checklist
+
+- [x] Code compiles: `go build ./cmd/tpatch`
+- [x] Tests pass: `go test ./...` (all packages green)
+- [x] Formatted: `gofmt -l .` empty
+- [x] `.tpatch/` artifacts deterministic; single writer per artifact path
+- [x] Secrets safe (N/A)
+- [x] CLI behavior matches ADR-010 + ADR-011 D6 prerequisite
+- [x] Handoff accurate (CURRENT.md reflects 3/3 landed, deferred release to supervisor per guardrails)
+- [x] Parity guard passes (skill/doc drift for artifact path rename resolved)
+- [x] No regressions (`TestGoldenReconcile_ResolveApplyTruthful` still passes)
+
+### Commits reviewed
+
+- `4636878` fix(workflow): split resolver artifact into `resolution-session.json`
+- `3ac7465` fix(workflow): `AcceptShadow` stamps `Reconcile.Outcome=reapplied`
+- `8a4af4b` test(reconcile): end-to-end shadow-awaiting → manual accept regression
+- `6024942` docs(handoff): C3 complete
+
+### Verdict: **APPROVED**
+
+### Notes
+
+All three confirmed findings properly fixed:
+
+1. **Dual-writer collision resolved**: Clean schema ownership — `resolution-session.json` (resolver, per-file outcomes) vs `reconcile-session.json` (reconcile, high-level summary). Grep-confirmed single writer per path. `loadResolvedFiles` and `--shadow-diff` read the new path; error messages updated.
+2. **Manual accept regression test comprehensive**: `TestGoldenReconcile_ManualAcceptFlow` parses `resolution-session.json` inline (mirrors `loadResolvedFiles`), calls `workflow.AcceptShadow`, asserts merged content + `State=applied` + `Reconcile.Outcome=reapplied` + shadow cleared + directory pruned. Would have caught both artifact collision and outcome-stamp bugs in v0.5.2. PASS in 0.45s.
+3. **Outcome stamp consistency confirmed uniform**: Both manual (`runReconcileAccept` → `AcceptShadow`) and auto-apply (`tryPhase35` → `AcceptShadow` → outer `updateFeatureState`) paths converge on `Reconcile.Outcome=reapplied`. Auto path has benign double-write (helper sets value, outer `updateFeatureState` sets same value) — idempotent, harmless.
+
+Backward compatibility: acceptable breakage — old `reconcile-session.json` from v0.5.2's resolver not consumed on v0.5.3; re-running `reconcile --resolve` regenerates the correct `resolution-session.json`. Shadow worktrees are ephemeral; no on-disk migration required.
+
+Drift audit synchronized 7 files (5 skill formats + 2 docs). Historical references (CHANGELOG, HISTORY, ADR-010, M12 milestone, M4 phase-4 reconcile summary) intentionally left alone.
+
+Scope discipline: no creep beyond C3.1/C3.2/C3.3. Co-author trailers present on all 4 commits.
+
+### Action Taken
+
+**APPROVED** — proceeding with release:
+1. Version bumped 0.5.2 → 0.5.3 (`internal/cli/cobra.go:24`)
+2. CHANGELOG v0.5.3 section added
+3. ROADMAP M13.6 flipped to ✅
+4. Tag v0.5.3 pushed
+5. C3 CURRENT.md archived → HISTORY.md; CURRENT.md rewritten for M14.1
+6. SQL: `c3-release-v0.5.3` → done, `m14.1-data-model` → in_progress
+
+M14.1 (Feature Dependencies data model, ~300 LOC) unblocked. Implementation sub-agent dispatch next.
+
+---
+
 ## Review — Tranche C2 / v0.5.2 — 2026-04-23
 
 **Implementer**: c2-implementer sub-agent (general-purpose, 6400s)

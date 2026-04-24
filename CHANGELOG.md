@@ -2,6 +2,27 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.5.3 — Shadow Accept Accounting Fixes (Tranche C3)
+
+Three follow-up findings from an external reviewer on the v0.5.2 shadow-accept flow. One silent correctness regression (manual `reconcile --accept` broken after shadow-awaiting), one missing end-to-end regression test, one status-metadata inconsistency that would mis-feed M14.3 DAG label composition.
+
+### Fixed
+
+- **c3-separate-resolution-artifact** (silent correctness bug) — Two writers had collided on `artifacts/reconcile-session.json`: the resolver wrote `ResolveResult` with per-file `outcomes[]`, then `saveReconcileArtifacts` overwrote the same path with the high-level `ReconcileResult` (no outcomes). `loadResolvedFiles` — called by manual `reconcile --accept <slug>` and `--shadow-diff` — then failed with "no resolved files recorded". Fix (Option A): split the artifacts. Resolver now writes `artifacts/resolution-session.json` (per-file outcomes, resolver-owned); `reconcile-session.json` remains the reconcile-owned high-level summary (external contract unchanged). `loadResolvedFiles` + `shadow-diff` + the `tryPhase35` notes string all read the new path. Drift audit synchronized 5 skill/prompt/workflow assets + `docs/agent-as-provider.md` + `docs/prds/PRD-provider-conflict-resolver.md`.
+- **c3-accept-stamps-reconcile-outcome** (internal consistency / M14.3 blocker) — `workflow.AcceptShadow` marked `State=applied` and cleared the shadow pointer but left `Reconcile.Outcome=shadow-awaiting` stale in `status.json`. M14.3 label composition (ADR-011 D6) reads `Reconcile.Outcome` as the child's intrinsic verdict before overlaying DAG labels — stale outcome would yield wrong labels. Fix: `clearShadowPointerAndStamp` signature extended to `(s, slug, sessionID, phase)`; now sets `Reconcile.Outcome = ReconcileReapplied` and refreshes `Reconcile.AttemptedAt`. Auto-apply path already wrote the same value at the outer `updateFeatureState` — double-write is harmless (idempotent). Manual `--accept` now leaves a truthful terminal outcome.
+
+### Added
+
+- **c3-manual-accept-regression-test** — `TestGoldenReconcile_ManualAcceptFlow` in `internal/workflow/golden_reconcile_test.go`. Drives `RunReconcile(Resolve:true)` to a `shadow-awaiting` verdict, parses `resolution-session.json` inline (mirrors the CLI `loadResolvedFiles` path), calls `workflow.AcceptShadow`, then asserts: merged content on disk, `State=applied`, `Reconcile.Outcome=reapplied`, `ShadowPath` cleared, shadow directory pruned. Counterpart to `TestGoldenReconcile_ResolveApplyTruthful` (v0.5.2) — together they cover both shadow-accept paths end-to-end. Would have caught both artifact-collision and stale-outcome bugs in v0.5.2.
+
+### Notes
+
+- Version bumped to `0.5.3` in `internal/cli/cobra.go`.
+- `gofmt -l .` clean · `go build ./cmd/tpatch` ok · `go test ./...` all green · assets parity guard passes.
+- All 3 findings shipped as single-purpose commits on `main` (`4636878`, `3ac7465`, `8a4af4b`).
+- Backward compatibility: an old `reconcile-session.json` written by v0.5.2's resolver with the pre-split schema is ignored on v0.5.3; re-running `reconcile --resolve` creates the correct `resolution-session.json`. Shadow worktrees are ephemeral — no migration needed.
+- Code-review sub-agent verdict: **APPROVED**. Both manual and auto-apply paths converge on `Reconcile.Outcome=reapplied` with no divergence.
+
 ## v0.5.2 — Correctness Fix Pass (Tranche C2)
 
 Six confirmed findings from the v0.4.3..v0.5.1 delta review. One silent correctness bug on the v0.5.0 headline feature (`reconcile --resolve --apply`), one index-dirt bug, one stale-guard gap, one contract-drift bug, one feature addition, one doc drift. 8 regression tests added. No new Go dependencies.
