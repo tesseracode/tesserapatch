@@ -138,7 +138,7 @@ func AcceptShadow(s *store.Store, slug string, files []string, upstreamCommit st
 		res.Pruned = true
 	}
 
-	if err := clearShadowPointerAndStamp(s, slug, opts.ResolveSessionID); err != nil {
+	if err := clearShadowPointerAndStamp(s, slug, opts.ResolveSessionID, phase); err != nil {
 		if res.RefreshWarning == "" {
 			res.RefreshWarning = fmt.Sprintf("clear shadow pointer failed: %v", err)
 		} else {
@@ -154,7 +154,15 @@ func AcceptShadow(s *store.Store, slug string, files []string, upstreamCommit st
 // preserves an explicit ResolveSessionID when the caller passes one
 // (the auto-apply path wants to stamp the resolver session id even
 // though the shadow pointer is gone).
-func clearShadowPointerAndStamp(s *store.Store, slug, sessionID string) error {
+//
+// v0.5.3 (C3 finding #3): additionally stamps
+// Reconcile.Outcome=ReconcileReapplied and records the accepting
+// phase + a fresh AttemptedAt timestamp so that both the manual
+// `reconcile --accept` path and the auto-apply `reconcile --resolve
+// --apply` path leave status.json with Outcome=reapplied. Previously
+// the manual path left the pre-accept `shadow-awaiting` outcome in
+// place, which made `tpatch status` misreport completed accepts.
+func clearShadowPointerAndStamp(s *store.Store, slug, sessionID, phase string) error {
 	st, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return err
@@ -166,6 +174,11 @@ func clearShadowPointerAndStamp(s *store.Store, slug, sessionID string) error {
 	if sessionID != "" {
 		st.Reconcile.ResolveSession = sessionID
 	}
+	st.Reconcile.Outcome = store.ReconcileReapplied
+	st.Reconcile.AttemptedAt = time.Now().UTC().Format(time.RFC3339)
+	_ = phase // Phase is currently recorded via MarkFeatureState notes;
+	// kept in the signature so callers can forward it uniformly with
+	// the auto-apply path and future-proof for a dedicated field.
 	st.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	return s.SaveFeatureStatus(st)
 }
