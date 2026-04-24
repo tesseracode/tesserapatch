@@ -19,6 +19,7 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -324,5 +325,132 @@ func TestGoldenReconcile_ResolveApplyTruthful(t *testing.T) {
 	}
 	if st.Reconcile.ResolveSession == "" {
 		t.Errorf("Reconcile.ResolveSession should be preserved; got empty")
+	}
+}
+
+// TestGoldenReconcile_ManualAcceptFlow — v0.5.3 C3 regression.
+// Scenario: `tpatch reconcile --resolve` (NO --apply) stages a resolved
+// file in a shadow worktree → Outcome=shadow-awaiting. The user then
+// runs the equivalent of `tpatch reconcile --accept`, which reads
+// artifacts/resolution-session.json, extracts the resolved files, and
+// calls workflow.AcceptShadow. Expected end-state after manual accept:
+//
+//   - real working tree contains the merged content
+//   - status.State = applied
+//   - status.Reconcile.Outcome = reapplied (C3.3 fix — previously the
+//     manual path left shadow-awaiting in status.json)
+//   - Reconcile.ShadowPath cleared
+//   - shadow worktree directory pruned
+//
+// Regression guards three bugs fixed in v0.5.3:
+//  1. (C3.1/C3.2) The resolver now writes resolution-session.json,
+//     not the reconcile summary path — so loadResolvedFiles (mirrored
+//     inline below) finds the resolved_files entries.
+//  2. (C3.3)      AcceptShadow stamps Reconcile.Outcome=reapplied
+//     uniformly with the auto-apply path.
+//  3. End-to-end: shadow → real copy actually lands merged content
+//     on disk (same guard as ResolveApplyTruthful but for the manual
+//     CLI flow).
+func TestGoldenReconcile_ManualAcceptFlow(t *testing.T) {
+	s, slug := buildConflictFixture(t)
+
+	cfg := provider.Config{Type: "openai-compatible", BaseURL: "http://x", Model: "m", AuthEnv: "X"}
+	prov := &scriptedProvider{
+		responses: []string{`{"verdict":"unclear"}`},
+		keyed:     map[string]string{"shared.txt": "a\nB-merged\nc\n"},
+	}
+
+	// Step 1 — resolve only (no --apply). Expect shadow-awaiting.
+	results, err := RunReconcile(context.Background(), s, []string{slug}, "HEAD", prov, cfg,
+		ReconcileOptions{Resolve: true})
+	if err != nil {
+		t.Fatalf("RunReconcile(resolve): %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("len(results)=%d, want 1", len(results))
+	}
+	r := results[0]
+	if r.Outcome != store.ReconcileShadowAwaiting {
+		t.Fatalf("Outcome = %s, want shadow-awaiting (phase=%s notes=%v)", r.Outcome, r.Phase, r.Notes)
+	}
+
+	// Step 2 — resolution-session.json must exist and carry outcomes[]
+	// with at least one status=resolved entry (this is what
+	// loadResolvedFiles in the CLI reads).
+	raw, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "resolution-session.json"))
+	if err != nil {
+		t.Fatalf("read resolution-session.json: %v", err)
+	}
+	var session struct {
+		Outcomes []struct {
+			Path   string `json:"path"`
+			Status string `json:"status"`
+		} `json:"outcomes"`
+	}
+	if err := json.Unmarshal([]byte(raw), &session); err != nil {
+		t.Fatalf("parse resolution-session.json: %v", err)
+	}
+	var resolved []string
+	for _, o := range session.Outcomes {
+		if o.Status == string(FileStatusResolved) {
+			resolved = append(resolved, o.Path)
+		}
+	}
+	if len(resolved) == 0 {
+		t.Fatalf("resolution-session.json had no resolved outcomes; got %+v", session.Outcomes)
+	}
+
+	// Record the shadow path pre-accept so we can verify prune.
+	stPre, _ := s.LoadFeatureStatus(slug)
+	shadowPath := stPre.Reconcile.ShadowPath
+	if shadowPath == "" {
+		t.Fatalf("expected shadow path populated before accept")
+	}
+
+	// Step 3 — simulate `tpatch reconcile --accept <slug>`.
+	acceptRes, err := AcceptShadow(s, slug, resolved, stPre.Reconcile.UpstreamCommit, AcceptOptions{
+		Phase:            "reconcile --accept",
+		ResolveSessionID: stPre.Reconcile.ResolveSession,
+	})
+	if err != nil {
+		t.Fatalf("AcceptShadow: %v", err)
+	}
+	if !acceptRes.Pruned {
+		t.Errorf("AcceptShadow did not prune the shadow (warning=%q)", acceptRes.RefreshWarning)
+	}
+
+	// Step 4a — real working tree now carries merged content.
+	got, err := os.ReadFile(filepath.Join(s.Root, "shared.txt"))
+	if err != nil {
+		t.Fatalf("read shared.txt: %v", err)
+	}
+	gotStr := string(got)
+	if !strings.Contains(gotStr, "B-merged") {
+		t.Errorf("shared.txt missing merged content; got %q", gotStr)
+	}
+	if strings.Contains(gotStr, "<<<<<<<") || strings.Contains(gotStr, ">>>>>>>") {
+		t.Errorf("shared.txt contains conflict markers; got %q", gotStr)
+	}
+
+	// Step 4b — status.json must reflect the accept.
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatalf("LoadFeatureStatus: %v", err)
+	}
+	if st.State != store.StateApplied {
+		t.Errorf("State = %s, want applied", st.State)
+	}
+	if st.Reconcile.Outcome != store.ReconcileReapplied {
+		t.Errorf("Reconcile.Outcome = %q, want reapplied (C3.3 regression)", st.Reconcile.Outcome)
+	}
+	if st.Reconcile.ShadowPath != "" {
+		t.Errorf("Reconcile.ShadowPath = %q, want empty after accept", st.Reconcile.ShadowPath)
+	}
+
+	// Step 4c — shadow worktree directory removed from disk.
+	if shadowPath != "" {
+		if _, err := os.Stat(shadowPath); !os.IsNotExist(err) {
+			t.Errorf("shadow worktree %q still exists after accept (stat err=%v)", shadowPath, err)
+		}
 	}
 }
