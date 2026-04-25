@@ -4,6 +4,25 @@
 
 ---
 
+## Post-release Review — v0.5.3 follow-up — 2026-04-24
+
+**Reviewer**: external (vscode review session, full `v0.5.2..v0.5.3` delta + targeted probe test)
+**Verdict**: **Effectively APPROVED.** Both v0.5.3 fixes verified at the control flow level; full suite + focused `GoldenReconcile|AcceptShadow` run pass. No code-level regressions found.
+
+### Findings (both LOW severity, doc-only)
+
+1. **ADR-010 stale** — D5 still described the resolver writing the full audit to a single `reconcile-session.json`. Code now splits ownership (`resolution-session.json` resolver-owned, `reconcile-session.json` reconcile-owned). Risk: same kind of drift that caused the v0.5.2 dual-writer bug.
+   **Fix**: ADR-010 D5 expanded to enumerate the split and call out `status.json` as post-accept source of truth.
+
+2. **Undocumented contract** — manual `reconcile --accept` correctly stamps `status.json.Reconcile.Outcome=reapplied`, but does NOT rewrite `artifacts/reconcile-session.json`, which remains the pre-accept `shadow-awaiting` snapshot. Likely intentional (the artifact audits a `RunReconcile` invocation; `status.json` is current truth) but never explicitly stated.
+   **Fix**: doc comment on `saveReconcileArtifacts` in `internal/workflow/reconcile.go` + ADR-010 D5 paragraph make the contract explicit.
+
+### Action Taken
+
+Single docs-only commit on top of v0.5.3 (no version bump — no behavior change). Both findings closed.
+
+---
+
 ## Review — Tranche C3 / v0.5.3 — 2026-04-24
 
 **Implementers**: c3-implementer + c3-finisher sub-agents (general-purpose)

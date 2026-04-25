@@ -391,7 +391,21 @@ Does the upstream now satisfy this feature's requirements? Compare the acceptanc
 	return decision.Decision, nil
 }
 
-// Save reconciliation artifacts
+// saveReconcileArtifacts persists the high-level ReconcileResult for one
+// RunReconcile invocation to artifacts/reconcile-session.json + reconcile.md.
+//
+// Contract (locked in Tranche C3 / v0.5.3):
+//   - reconcile-session.json is reconcile-owned and describes a RunReconcile
+//     invocation (verdict, phase, upstream ref, notes, cost). It is an audit
+//     record of the invocation, not a live mirror of post-accept state.
+//   - Manual accept (workflow.AcceptShadow) intentionally does NOT rewrite
+//     this artifact. status.json is the source of current truth post-accept
+//     (e.g., status.Reconcile.Outcome flips to ReconcileReapplied while the
+//     session artifact may still describe a shadow-awaiting outcome from the
+//     prior RunReconcile call). Re-running reconcile overwrites it.
+//   - Per-file resolver outcomes live in artifacts/resolution-session.json
+//     (resolver-owned) — see resolver.persistSession. Splitting the two
+//     artifacts is what fixes the v0.5.2 dual-writer collision.
 func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult) {
 	// Save reconcile-session.json
 	data, _ := json.MarshalIndent(result, "", "  ")

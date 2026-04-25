@@ -71,8 +71,11 @@ Accept is the single transition point. On `tpatch reconcile --accept <slug>`:
   - `artifacts/post-apply.patch`, `artifacts/incremental.patch`, `artifacts/apply-recipe.json`
   - `record.md` metadata block (Files Changed, Diff Stat, Upstream Commit, Reconciled At)
   - `patches/NNN-reconcile.patch` — numbered snapshot with label `reconcile`
-  - `status.json` — `last_command=reconcile`, new `upstream_commit` field, bump `updated_at`
-  - `reconcile-session.json` — full audit (files resolved, provider, token cost, validation results, test results)
+  - `status.json` — `last_command=reconcile`, new `upstream_commit` field, bump `updated_at`. **Source of current truth post-accept** (e.g., `Reconcile.Outcome=reapplied` after a successful manual accept).
+- **Artifact ownership** (clarified post-v0.5.3 — split during Tranche C3):
+  - `artifacts/resolution-session.json` — **resolver-owned**. Per-file `outcomes[]` from one provider-resolver invocation. Read by `loadResolvedFiles` (manual `reconcile --accept` and `--shadow-diff`).
+  - `artifacts/reconcile-session.json` — **reconcile-owned**. High-level `ReconcileResult` (verdict, phase, upstream ref, notes, cost) for one `RunReconcile` invocation. **Audit record of the invocation, not the post-accept state** — manual accept does not rewrite this artifact; `status.json` is the source of current truth. Re-running `reconcile` overwrites it.
+  - The pre-v0.5.3 design (single `reconcile-session.json` containing both summary and per-file outcomes) caused a dual-writer schema collision; the split removes that risk.
 - INTENT artifacts (`request.md`, `analysis.md`, `spec.md`, `exploration.md`, record.md narrative sections) are **never** touched by reconcile.
 - If any step of the atomic refresh fails, nothing is written and the shadow is preserved.
 
