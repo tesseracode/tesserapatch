@@ -76,6 +76,11 @@ var blockedReconcileOutcomes = map[store.ReconcileOutcome]struct{}{
 // Returns an empty (nil) slice when:
 //   - Config.DAGEnabled() is false (gate per ADR-011 D9).
 //   - The child has no dependencies.
+//   - The child's own Reconcile.Outcome marks it as retired (currently
+//     ReconcileUpstreamed — per ADR-011, once a child is absorbed
+//     upstream the parent context is irrelevant; surfacing
+//     waiting-on-parent / blocked-by-parent on a retiring child is
+//     misleading).
 //   - No hard parent's state warrants a label.
 //
 // Errors only when the child's own status cannot be loaded — parent
@@ -121,11 +126,25 @@ func composeLabelsAt(s *store.Store, slug string, asOf string) ([]store.Reconcil
 	return composeLabelsFromStatus(s, child), nil
 }
 
+// childRetiredOutcomes lists the child's own reconcile outcomes that
+// suppress all parent-derived labels. M14 fix-pass F3 / ADR-011: once a
+// child is absorbed upstream, parent state is irrelevant — the child is
+// being retired. Currently only ReconcileUpstreamed qualifies; other
+// outcomes (Reapplied, StillNeeded, Blocked, ShadowAwaiting,
+// BlockedTooManyConflicts, BlockedRequiresHuman) keep the child live.
+var childRetiredOutcomes = map[store.ReconcileOutcome]struct{}{
+	store.ReconcileUpstreamed: {},
+}
+
 // composeLabelsFromStatus is the body shared by ComposeLabels and
 // composeLabelsAt. It accepts an already-loaded FeatureStatus so the
 // caller can override fields (e.g. AttemptedAt) prior to label
 // composition without round-tripping through disk.
 func composeLabelsFromStatus(s *store.Store, child store.FeatureStatus) []store.ReconcileLabel {
+	if _, retired := childRetiredOutcomes[child.Reconcile.Outcome]; retired {
+		// M14 fix-pass F3: surface no labels for retiring children.
+		return nil
+	}
 	if len(child.DependsOn) == 0 {
 		return nil
 	}
