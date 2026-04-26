@@ -4,7 +4,7 @@
 
 - **Task ID**: M14.3 — Reconcile topological traversal + composable labels + compound verdict
 - **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Status**: In Progress (started 2026-04-26 — implementation sub-agent)
+- **Status**: Review — ready for code-review sub-agent (implementation complete 2026-04-26)
 - **Assigned**: 2026-04-26
 - **Estimated size**: ~500 LOC (largest M14 sub-milestone)
 
@@ -247,3 +247,64 @@ DO NOT bump version. DO NOT update CHANGELOG. DO NOT tag.
 - `feat-feature-autorebase`, `feat-amend-dependent-warning`
 - `feat-skills-apply-auto-default`, `bug-record-roundtrip-false-positive-markdown`, `chore-gitignore-tpatch-binary`
 - `feat-satisfied-by-reachability` — `git merge-base` reachability check for `satisfied_by`; M14.2 deferred this to keep gate logic pure.
+
+---
+
+## Implementation Summary (2026-04-26 — completed)
+
+**Status**: All 5 chunks complete. Ready for code-review sub-agent.
+
+### Chunks delivered
+
+- **Chunk B-types** — `ReconcileLabel` newtype + 3 constants (`waiting-on-parent`, `blocked-by-parent`, `stale-parent-applied`), `ReconcileSummary.Labels []ReconcileLabel` (with `omitempty` for byte-identity round-trip), `EffectiveOutcome()` helper computing the compound `blocked-by-parent-and-needs-resolution` verdict at READ time (per ADR-011 D3).
+- **Chunk A — PlanReconcile** — Hard-parent transitive closure + topological order. Wired into `RunReconcile` gated on `cfg.DAGEnabled()`. Wraps `store.ErrCycle` with cycle-path decoration.
+- **Chunk B — ComposeLabels** — Reads parent verdicts via `store.LoadFeatureStatus(parent).Reconcile.Outcome` ONLY (per ADR-010 D5 / ADR-011 D6). Soft deps never produce labels (D4). Output sorted + deduped. Adversarial test `TestComposeLabels_ReadsStatusJsonNotSessionArtifact` enforces the artifact-ownership invariant.
+- **Chunk C — Phase-3.5 short-circuit** — In `ForwardApply3WayConflicts` arm, `LabelBlockedByParent` short-circuits BEFORE `tryPhase35` runs. Phase string `phase-3.5-skipped-blocked-by-parent`. Tripwire test (`tripwireProvider`) confirms resolver is not invoked.
+- **Chunk D — Skill HOLD** — No skill asset changes for M14.3 (deferred to M14.4 user-facing cutover). Parity guard `go test ./assets/...` green throughout.
+- **Chunk E — AcceptShadow refresh** — When DAG flag on, recompute labels via `ComposeLabels` after `clearShadowPointerAndStamp` so children see refreshed labels next reconcile.
+
+### Files
+
+**New** (8): `internal/store/reconcile_label_test.go`, `internal/workflow/plan_reconcile.go`, `internal/workflow/plan_reconcile_test.go`, `internal/workflow/labels.go`, `internal/workflow/labels_test.go`, `internal/workflow/labels_phase35_test.go`, `internal/workflow/accept_labels_test.go`.
+
+**Modified** (4): `internal/store/types.go`, `internal/workflow/reconcile.go`, `internal/workflow/accept.go`, `docs/handoff/CURRENT.md`.
+
+### Tests added
+
+- 4 ReconcileLabel/EffectiveOutcome/roundtrip tests (store)
+- 4 PlanReconcile tests (closure, topo, cycle, soft-not-pulled-in)
+- 11 ComposeLabels tests (matrix coverage + adversarial artifact-ownership)
+- 3 phase-3.5 short-circuit tests (incl. tripwire)
+- 2 AcceptShadow refresh tests
+
+All passing. Full suite (`go test ./... -count=1`) green. `gofmt -l .` clean. Build clean.
+
+### Validation gate (final)
+
+```
+gofmt -l .                                       → empty
+go build ./cmd/tpatch                            → ok (binary removed)
+go test ./... -count=1                           → all packages ok
+go test ./assets/... -count=1                    → ok (parity guard green)
+go test ./internal/workflow -run 'PlanReconcile|ComposeLabels|EffectiveOutcome|AcceptShadow|GoldenReconcile|Phase35|BlockedByParent' → ok
+go test ./internal/store -run 'DAG|Dependency|Validate|Roundtrip|Reconcile' → ok
+```
+
+Critical regressions held: `TestGoldenReconcile_ResolveApplyTruthful`, `TestGoldenReconcile_ManualAcceptFlow`, all M14.1/M14.2 tests.
+
+### Commits (4 + this docs commit)
+
+1. `7c9aee4` feat(store): ReconcileLabel + Labels field + EffectiveOutcome
+2. `bccf5e2` feat(workflow): PlanReconcile topological planner
+3. `b9efd07` feat(workflow): ComposeLabels + label-aware reconcile + phase-3.5 skip
+4. `a232a7b` feat(workflow): AcceptShadow refreshes labels
+
+### Notes for reviewer
+
+- ADR-011 D3 invariant: `Labels` is overlay; `Outcome` enum unchanged. Compound verdict computed at READ time only via `EffectiveOutcome()`.
+- ADR-010 D5 invariant: every parent-verdict read goes through `store.LoadFeatureStatus(...).Reconcile.Outcome`. Adversarial test guards this.
+- `omitempty` on `Labels` is load-bearing for pre-M14.3 fixture byte-identity (`TestRoundtrip_PreM14_3StatusByteIdentity`).
+- Soft deps: explicitly exempt from labels (PRD §3.5 / ADR-011 D4). `TestComposeLabels_SoftDepNeverProducesLabels` enforces.
+- `saveReconcileArtifacts` only invokes `ComposeLabels` when caller-set `result.Labels` is empty — preserves the phase-3.5 short-circuit's pre-set `[blocked-by-parent]`.
+- No version bump, no CHANGELOG, no tag — deferred to M14.4.
+
