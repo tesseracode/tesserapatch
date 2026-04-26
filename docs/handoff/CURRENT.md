@@ -4,8 +4,57 @@
 
 - **Task ID**: M14.2 — Apply gate + `created_by` recipe op + 6-skill parity-guard rollout
 - **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Status**: Not Started (unblocked by M14.1 APPROVED, commits `02f1ba9`, `d166281`, `7dd5941`)
+- **Status**: Review — ready for code-review sub-agent (implementation complete 2026-04-26)
 - **Assigned**: 2026-04-26
+
+## Session Summary
+
+M14.2 implemented in three coordinated layers:
+
+1. **Recipe schema** — added `CreatedBy string` (json:`created_by,omitempty`) to `workflow.RecipeOperation`. Field is persisted but inert; `omitempty` preserves byte-identity for v0.5.3 recipes.
+2. **6-skill parity-guard rollout** — documented `created_by` in all 6 shipped skill formats + `docs/agent-as-provider.md`. Parity guard re-run after each file; stayed green throughout.
+3. **Apply gate** — new `workflow.CheckDependencyGate(s, slug)` enforces ADR-011 D4. No-op when `Config.DAGEnabled()` is false; otherwise rejects hard parents not in `applied`/`upstream_merged` (with `satisfied_by` SHA-shape check, no reachability — documented limitation per ADR-011 D5). Wired at the top of `runApplyAuto` and inside `runApplyExecute` (defence-in-depth). Soft deps never block. Sentinel `ErrParentNotApplied`, wrappable via `errors.Is`.
+
+## Files Changed
+
+- `internal/workflow/implement.go` — added `CreatedBy` field on `RecipeOperation`
+- `internal/workflow/dependency_gate.go` — new file, `CheckDependencyGate` + `ErrParentNotApplied`
+- `internal/workflow/dependency_gate_test.go` — 9 unit tests (all 8 task-required scenarios + bad-SHA bonus)
+- `internal/workflow/recipe_createdby_test.go` — 3 round-trip / schema-closure tests
+- `internal/cli/cobra.go` — gate wired into `runApplyExecute` + `runApplyAuto`
+- `internal/cli/dependency_gate_apply_test.go` — CLI integration tests (blocked + bypass-when-flag-off)
+- `assets/skills/claude/tessera-patch/SKILL.md` — `created_by` documentation
+- `assets/skills/copilot/tessera-patch/SKILL.md` — `created_by` documentation
+- `assets/skills/cursor/tessera-patch.mdc` — `created_by` documentation
+- `assets/skills/windsurf/windsurfrules` — `created_by` documentation
+- `assets/workflows/tessera-patch-generic.md` — `created_by` documentation
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — `created_by` documentation
+- `docs/agent-as-provider.md` — canonical `created_by` documentation
+- `docs/handoff/CURRENT.md` — status updates (this file)
+
+## Test Results
+
+```
+gofmt -l .                        # clean
+go build ./cmd/tpatch             # ok
+go test ./...                     # all green (assets, cli, gitutil, provider, safety, store, workflow)
+go test ./internal/workflow -run 'DependencyGate|Recipe|CreatedBy' -count=1  # 12 PASS
+go test ./internal/store    -run 'DAG|Dependency|Validate|Roundtrip' -count=1  # 17 PASS (M14.1 regression clean)
+go test ./assets/...              # parity guard PASS
+```
+
+## Deferred / Documented Limitations
+
+- `satisfied_by` reachability (`git merge-base`) is intentionally NOT checked in M14.2. The gate verifies only that the value is a 40-hex SHA; ADR-011 D5 treats `satisfied_by` as provenance, not a runtime guard. Logged here so M14.3+ can choose to add a reachability check if a real consumer materialises.
+- `created_by` is not yet emitted by the implement phase — wiring deferred to M14.3 alongside the label-composition consumer.
+- `--mode prepare` and `--mode started` are deliberately NOT gated. They write only `.tpatch/` artifacts and do not mutate the working tree; ADR-011 D4 scopes the gate to recipe execution.
+
+## Context for Reviewer
+
+- Reviewer guard remained dormant in M14.2 (no reconcile changes). Search `dependency_gate.go` for the `status.Reconcile.Outcome` rule comment — it's documented in the doc-comment so M14.3 inherits the constraint.
+- Soft deps are not surfaced in the error message at all. M14.3 may want to surface soft-dep ordering hints separately; out of scope here.
+- The CLI integration test seeds the recipe by hand under `.tpatch/features/<slug>/artifacts/` — same pattern as `TestApplyAutoMode`.
+
 
 ### Context
 
