@@ -2,10 +2,39 @@
 
 ## Active Task
 
-- **Task ID**: M14.4 — Status DAG view + skills/docs rollout + v0.6.0 release cutover
+- **Task ID**: M14 correctness pass (3 findings) — fix-pass before M14.4
 - **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Status**: Awaiting user approval to dispatch (M14.3 ✅ APPROVED 2026-04-26)
-- **Estimated size**: ~300 LOC + version bump + tag
+- **Status**: Complete — all 3 findings landed, ready for review (2026-04-26)
+- **Estimated size**: ~190 LOC + 11 tests, no version bump (final: ~520 LOC including doc/comments + 11 tests)
+
+### Three findings (all flag-gated, byte-identical when flag off)
+
+1. **F1 (HIGH, cutover-blocking)**: Wire `created_by` apply-time gate. Today
+   `RecipeOperation.CreatedBy` is parsed but inert. Per PRD §4.3 + ADR-011 D4
+   it must gate `replace-in-file` / `append-file` against missing targets when
+   the named parent is hard. Soft parents emit a warning. Validation error
+   when `created_by` names a feature not in `depends_on`. New file
+   `internal/workflow/created_by_gate.go` + sentinel `ErrPathCreatedByParent`
+   + 7 regression tests.
+2. **F2 (MEDIUM)**: `RunReconcile` persists `stale-parent-applied` labels
+   computed against the OLD child `AttemptedAt`, then overwrites the
+   timestamp with `time.Now()`. Result: child appears stale against itself.
+   Fix: thread one shared `attemptedAt` through `saveReconcileArtifacts` →
+   `updateFeatureState`, compose labels using it as the staleness baseline.
+   2 regression tests.
+3. **F3 (MEDIUM)**: `ComposeLabels` keeps emitting parent-derived labels
+   for children whose own outcome is `ReconcileUpstreamed`. Per ADR-011 the
+   child is being retired; surfacing `waiting-on-parent` is misleading. Fix:
+   early return in `ComposeLabels` when `status.Reconcile.Outcome ==
+   ReconcileUpstreamed`. 2 regression tests.
+
+### Strict scope guards (DO NOT)
+
+- DO NOT bump version, update CHANGELOG, or tag.
+- DO NOT touch skill formats (M14.4 work).
+- DO NOT add `tpatch status --dag` (M14.4 work).
+- DO NOT add new `ReconcileOutcome` enum values (ADR-011 D3).
+- DO NOT consult `artifacts/reconcile-session.json` from any new code path.
 
 ### Context
 
@@ -111,30 +140,74 @@ All M14.1+M14.2+M14.3 tests stay green. Golden reconcile + manual accept regress
 
 ## Session Summary
 
-M14.3 closed out. Ready to dispatch M14.4 once user green-lights the user-facing cutover.
+M14 correctness pass complete. Three findings landed in three logical
+commits, all flag-protected:
 
-## Files Changed (M14.3 — closed)
+  - F1 (cbe2873): `created_by` apply-time gate wired into recipe.go
+    (`replace-in-file` / `append-file` only). New sentinel
+    `ErrPathCreatedByParent`. Soft deps emit warning + fall through.
+    7 regression tests.
+  - F2 (071c5ed): one shared `attemptedAt` timestamp threaded through
+    `saveReconcileArtifacts` → `updateFeatureState` so persisted
+    `Labels` reflect the AttemptedAt about to be written. New
+    `composeLabelsAt(s, slug, asOf)` helper; `ComposeLabels` refactored
+    to delegate to `composeLabelsFromStatus(s, child)`. 2 regression
+    tests.
+  - F3 (cc95cbb): early return in `composeLabelsFromStatus` for
+    children whose own outcome is in `childRetiredOutcomes`
+    (currently only `ReconcileUpstreamed`). 2 regression tests.
 
-See `docs/handoff/HISTORY.md` for the full M14.3 entry.
+Validation gate: `gofmt` clean, `go build ./cmd/tpatch` green,
+`go test ./...` green, all targeted regression suites green
+(workflow, store, cli, assets parity). M14.1 / M14.2 / M14.3
+adversarial tripwires
+(`TestComposeLabels_ReadsStatusJsonNotSessionArtifact`,
+`TestReconcile_FlagOn_BlockedByParent_SkipsPhase35`) stay green.
+
+## Files Changed (M14 fix-pass)
+
+  - internal/workflow/created_by_gate.go          (new, F1)
+  - internal/workflow/created_by_gate_test.go     (new, F1)
+  - internal/workflow/recipe.go                   (F1: signatures + gate wiring)
+  - internal/cli/cobra.go                         (F1: 2 call sites)
+  - internal/cli/phase2.go                        (F1: 1 call site)
+  - internal/workflow/reconcile.go                (F2: shared attemptedAt)
+  - internal/workflow/labels.go                   (F2 helper extraction + F3 retired-outcomes)
+  - internal/workflow/labels_freshness_test.go    (new, F2)
+  - internal/workflow/labels_upstreamed_test.go   (new, F3)
 
 ## Test Results
 
-M14.3 final: gofmt clean, `go test ./...` green, 24 new tests + full regression green.
+  gofmt -l .                                                  → clean
+  go build ./cmd/tpatch                                       → ok
+  go test ./...                                               → all packages ok
+  go test ./internal/workflow -run 'CreatedByGate|ComposeLabels|RunReconcile|GoldenReconcile|Phase35|Labels|AcceptShadow|PlanReconcile|Recipe' → ok
+  go test ./internal/store -run 'Label|Reconcile|DAG|Dependency|Roundtrip' → ok
+  go test ./internal/cli -run 'DependencyGate|Apply'                       → ok
+  go test ./assets/...                                                     → ok
 
 ## Next Steps
 
-1. **Wait for user approval** to dispatch M14.4.
-2. On green-light: dispatch `m14-4-implementer` with this scope.
-3. After implementer: dispatch `m14-4-reviewer`.
-4. On APPROVED: supervisor bumps version (if not already), updates CHANGELOG, ROADMAP, archives this handoff, tags `v0.6.0`, pushes.
+1. Reviewer dispatched to verify the three commits against the
+   PRD §4.3 contract and the regression test set.
+2. On APPROVED → archive this handoff, then user may green-light
+   M14.4 (status DAG view + skill rollout + v0.6.0 cutover).
 
 ## Blockers
 
-None. M14.4 is ready to start as soon as the user authorizes the user-facing cutover.
+None.
 
 ## Context for Next Agent
 
-- M14.1+M14.2+M14.3 are all flag-protected. Flipping the flag default in Chunk B is the load-bearing change.
-- The PRD §3.4 has residual terminology drift treating labels as enum verdicts. Defer to ADR-011 D6 + PRD §4.5.
-- External-reviewer guard remains: any DAG/label code reads `status.Reconcile.Outcome`, NEVER `artifacts/reconcile-session.json`.
-- `created_by` is persisted but inert. Population from the implement phase is a separate backlog item, NOT part of M14.4.
+  - All three fixes are flag-gated: with `features_dependencies: false`
+    (current default) behaviour is byte-identical to v0.5.3.
+  - F1 changes the public signatures of `workflow.DryRunRecipe` and
+    `workflow.ExecuteRecipe` from `(repoRoot, recipe)` to `(s, recipe)`.
+    Three internal call sites updated; no external consumers.
+  - F2 adds an unexported `attemptedAt` field to `ReconcileResult`.
+    Unexported, so encoding/json ignores it — no schema impact.
+  - F3 currently treats only `ReconcileUpstreamed` as "retired". If a
+    future enum value (e.g. `ReconcileObsolete`) lands, add it to
+    `childRetiredOutcomes`.
+  - Implement-phase heuristic inference of `created_by` is still a
+    separate backlog item per PRD §4.3.1 (NOT included here).
