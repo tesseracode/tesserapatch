@@ -151,6 +151,9 @@ func mergeConfig(global, repo Config) Config {
 	if repo.TestCommand != "" {
 		out.TestCommand = repo.TestCommand
 	}
+	if repo.FeaturesDependencies {
+		out.FeaturesDependencies = true
+	}
 	return out
 }
 
@@ -173,6 +176,10 @@ func renderGlobalYAML(cfg Config) string {
 	optIn := "false"
 	if cfg.CopilotNativeOptIn {
 		optIn = "true"
+	}
+	featuresDeps := "false"
+	if cfg.FeaturesDependencies {
+		featuresDeps = "true"
 	}
 	initiatorLine := ""
 	if cfg.Provider.Initiator != "" {
@@ -201,6 +208,9 @@ copilot_aup_acknowledged_at: %s
 # Set via `+"`tpatch config set provider.copilot_native_optin true`"+`.
 copilot_native_optin: %s
 copilot_native_optin_at: %s
+
+# Feature dependency DAG (ADR-011). Default false until v0.6.0.
+features_dependencies: %s
 `,
 		yamlQuote(cfg.Provider.Type), yamlQuote(cfg.Provider.BaseURL),
 		yamlQuote(cfg.Provider.Model), yamlQuote(cfg.Provider.AuthEnv),
@@ -208,6 +218,7 @@ copilot_native_optin_at: %s
 		mergeStrat, maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand),
 		yamlQuote(cfg.CopilotAUPAckAt),
 		optIn, yamlQuote(cfg.CopilotNativeOptInAt),
+		featuresDeps,
 	)
 }
 

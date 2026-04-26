@@ -4,8 +4,37 @@
 
 - **Task ID**: M14.1 — Feature Dependencies data model + validation
 - **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Status**: Not Started (unblocked by v0.5.3 release)
+- **Status**: Review (ready for code-review sub-agent, completed 2026-04-24)
 - **Assigned**: 2026-04-24
+
+### Session Summary (2026-04-24)
+
+Implemented the M14.1 data-model + validation slice, fully gated behind `features_dependencies` (default false). No user-visible behaviour change. All 5 PRD §3.3 validation rules covered with sentinel errors + tests; DFS cycle detection and Kahn topological order pure functions in `internal/store/dag.go`; round-trip byte-identity verified against a pre-M14 `status.json` fixture.
+
+### Files Changed
+
+- `internal/store/types.go` — added `Dependency` struct, kind constants, `DependsOn []Dependency` (omitempty) on `FeatureStatus`, `FeaturesDependencies bool` config field, `Config.DAGEnabled()` helper.
+- `internal/store/dag.go` (new) — `DetectCycles`, `TopologicalOrder` (Kahn, deterministic), `Children`, `ErrCycle` sentinel. Pure, no IO. Doc comments enforce the ADR-010 D5 reminder for downstream readers.
+- `internal/store/validation.go` (new) — `ValidateDependencies` + `ValidateAllFeatures`; sentinels `ErrSelfDependency`, `ErrDanglingDependency`, `ErrKindConflict`, `ErrSatisfiedByRequiresUpstream`, `ErrInvalidDependencyKind`.
+- `internal/store/store.go` — repo `SaveConfig`/`parseYAMLConfig` now round-trip the flat `features_dependencies:` key.
+- `internal/store/global.go` — global `renderGlobalYAML` and `mergeConfig` carry the same key (repo-true OR'd into global).
+- `internal/store/dag_test.go` (new) — empty graph, isolated node, self-edge, 2-/3-node cycles, linear acyclic, diamond, deterministic topo (50 iters), Kahn cycle error path, `Children` ordering.
+- `internal/store/validation_test.go` (new) — positive + negative cases for all 5 rules, plus `ValidateAllFeatures` surfacing all sentinels at once.
+- `internal/store/roundtrip_test.go` (new) — pre-M14 fixture byte-identity, empty `depends_on` omit guard, populated `depends_on` round-trip, `Config.FeaturesDependencies` round-trip.
+- `docs/handoff/CURRENT.md` — this update.
+
+### Test Results
+
+- `gofmt -l .` → clean
+- `go build ./cmd/tpatch` → ok
+- `go test ./...` → all packages pass (store 1.6s, cli 5.1s, workflow 12.2s).
+- Targeted: `go test ./internal/store -run 'DAG|Cycle|Topo|Children|Validate|Roundtrip|Config_Features' -count=1 -v` → 30 cases, all PASS.
+
+### Implementation choices (M14.1)
+
+- **Config flag shape**: Option A (flat top-level key `features_dependencies: true|false`). Lower risk; works with existing flat YAML parser (`internal/store/store.go:497`). Nested `features:` block deferred — would force a parser rewrite for no semantic gain.
+- **Flag wiring scope**: Flag parses + round-trips. No callers gate on it in M14.1 — apply/reconcile wiring lives in M14.2/M14.3.
+- **Doc-comment guard**: `Dependency` and DAG types carry an explicit comment that `status.Reconcile.Outcome` is the authoritative reconcile result; `reconcile-session.json` is audit-only (per ADR-010 D5).
 
 ### Context
 

@@ -319,6 +319,10 @@ func (s *Store) SaveConfig(cfg Config) error {
 	if maxTokensImplement <= 0 {
 		maxTokensImplement = DefaultMaxTokensImplement
 	}
+	featuresDeps := "false"
+	if cfg.FeaturesDependencies {
+		featuresDeps = "true"
+	}
 	initiatorLine := ""
 	if cfg.Provider.Initiator != "" {
 		initiatorLine = fmt.Sprintf("  initiator: %s\n", yamlQuote(cfg.Provider.Initiator))
@@ -342,10 +346,14 @@ max_tokens_implement: %d
 
 # Shell command run by `+"`tpatch test <slug>`"+` (e.g. "go test ./...", "bun test")
 test_command: %s
+
+# Feature dependency DAG (ADR-011). Default false until v0.6.0.
+features_dependencies: %s
 `, yamlQuote(cfg.Provider.Type), yamlQuote(cfg.Provider.BaseURL),
 		yamlQuote(cfg.Provider.Model), yamlQuote(cfg.Provider.AuthEnv),
 		initiatorLine, mergeStrat,
-		maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand))
+		maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand),
+		featuresDeps)
 	return writeFile(s.configPath(), content)
 }
 
@@ -524,6 +532,9 @@ func parseYAMLConfig(content string) Config {
 		cfg.CopilotNativeOptIn = true
 	}
 	cfg.CopilotNativeOptInAt = extractYAMLValue(content, "copilot_native_optin_at")
+	if v := extractYAMLValue(content, "features_dependencies"); v == "true" {
+		cfg.FeaturesDependencies = true
+	}
 	return cfg
 }
 
