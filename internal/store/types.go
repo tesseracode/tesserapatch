@@ -66,7 +66,47 @@ type FeatureStatus struct {
 	Notes         string              `json:"notes,omitempty"`
 	Apply         ApplySummary        `json:"apply"`
 	Reconcile     ReconcileSummary    `json:"reconcile"`
+
+	// DependsOn lists the parent features this feature depends on, forming
+	// the feature DAG. Edges flow child → parent (a child's DependsOn lists
+	// its parents). See ADR-011 + docs/prds/PRD-feature-dependencies.md.
+	//
+	// Behaviour gate: this field is only read/written when
+	// Config.FeaturesDependencies is true (default false until v0.6.0).
+	// `omitempty` is load-bearing — when the flag is OFF and no deps are
+	// declared, status.json must round-trip byte-for-byte identical to
+	// pre-M14.1 fixtures.
+	//
+	// Authoritative source for derived reconcile decisions: read
+	// status.Reconcile.Outcome — never read artifacts/reconcile-session.json
+	// for DAG decisions. The session artifact is an audit record of one
+	// RunReconcile invocation; status.json is the source of current truth
+	// post-accept (see ADR-010 D5).
+	DependsOn []Dependency `json:"depends_on,omitempty"`
 }
+
+// Dependency declares a relationship from a child feature to a parent feature
+// in the feature DAG. See ADR-011 + docs/prds/PRD-feature-dependencies.md.
+//
+// Hard vs soft semantics (ADR-011 D4):
+//   - hard: parent must be applied; child apply is gated on parent state.
+//   - soft: ordering hint only; does NOT gate apply (warn-only at apply time).
+//
+// `SatisfiedBy` is set only when the parent has reached state
+// "upstream_merged" (ADR-011 D5); it carries the commit sha that absorbed
+// the parent so the dependency edge retains its provenance even if the
+// parent feature is later removed.
+type Dependency struct {
+	Slug        string `json:"slug"`
+	Kind        string `json:"kind"`
+	SatisfiedBy string `json:"satisfied_by,omitempty"`
+}
+
+// Dependency kind constants. See ADR-011 D4.
+const (
+	DependencyKindHard = "hard"
+	DependencyKindSoft = "soft"
+)
 
 // ApplySummary tracks apply session state.
 type ApplySummary struct {
@@ -120,6 +160,21 @@ type Config struct {
 	CopilotNativeOptIn bool `json:"copilot_native_optin,omitempty"`
 	// CopilotNativeOptInAt is the ISO-8601 timestamp at opt-in.
 	CopilotNativeOptInAt string `json:"copilot_native_optin_at,omitempty"`
+
+	// FeaturesDependencies gates the feature dependency DAG (ADR-011 D9).
+	// Default false until v0.6.0. When false, all DAG-aware code paths
+	// must no-op and status.json must round-trip byte-identical to pre-M14
+	// fixtures. Wired via flat YAML key `features_dependencies: true|false`
+	// (the existing parser does not support nested maps without a rewrite).
+	FeaturesDependencies bool `json:"features_dependencies,omitempty"`
+}
+
+// DAGEnabled reports whether feature-dependency DAG behaviour is active for
+// this config. All callers that gate on the dependency feature should use
+// this helper rather than reading the field directly, so the gate has a
+// single chokepoint (ADR-011 D9).
+func (c Config) DAGEnabled() bool {
+	return c.FeaturesDependencies
 }
 
 // ProviderConfig stores the LLM provider settings.
