@@ -4,6 +4,68 @@
 
 ---
 
+## Review — M14.3 — 2026-04-26
+
+**Implementer**: m14-3-implementer sub-agent (general-purpose, elapsed unknown)
+**Reviewer**: code-review sub-agent (this review)
+**Task**: Reconcile topological traversal + composable labels + compound verdict. Third sub-milestone of M14 / Tranche D / v0.6.0. ~1309 LOC across 11 files, gated behind `features_dependencies` flag.
+
+### Commits reviewed (delta vs M14.2 closeout `0ed64cb`)
+
+- `7c9aee4` feat(store): add ReconcileLabel + Labels field + EffectiveOutcome (M14.3)
+- `bccf5e2` feat(workflow): add PlanReconcile topological planner (M14.3)
+- `b9efd07` feat(workflow): ComposeLabels + label-aware reconcile + phase-3.5 skip (M14.3)
+- `a232a7b` feat(workflow): AcceptShadow refreshes labels (M14.3)
+- `4e39384` docs(handoff): M14.3 complete, ready for review
+
+### Checklist
+
+- [x] Builds, tests, gofmt all green
+- [x] Parity guard pass (no skill asset changes for M14.3, deferred to M14.4)
+- [x] 24 new tests (4 store + 4 PlanReconcile + 11 ComposeLabels + 3 phase-3.5 + 2 AcceptShadow)
+- [x] M14.1 + M14.2 regression clean (all DAG/Dependency/Validate/Roundtrip/GoldenReconcile tests pass)
+- [x] All 5 commits carry the Co-authored-by trailer
+- [x] CURRENT.md accurate (Status: Review)
+- [x] Working tree clean, no tpatch binary
+
+### Critical correctness checks (all 13 pass)
+
+1. **Flag-off byte-identity** ✅ — `TestRoundtrip_PreM14_3StatusByteIdentity` + `TestRoundtrip_EmptyReconcileLabelsOmitted` both do string comparison of round-tripped fixture bytes. `Labels []ReconcileLabel \`json:"labels,omitempty"\`` on line 176 of internal/store/types.go. PlanReconcile gated in reconcile.go:97 preserves input order when flag off. AcceptShadow only invokes ComposeLabels when `cfg.DAGEnabled()` (accept.go:155).
+
+2. **External-reviewer guard (LOAD-BEARING)** ✅ — `TestComposeLabels_ReadsStatusJsonNotSessionArtifact` at internal/workflow/labels_test.go:217-254 is the adversarial test. Seeds misleading `reconcile-session.json` with `outcome: blocked-requires-human` while parent's `status.json` has `Outcome: ReconcileReapplied`. Asserts ComposeLabels returns nil (clean parent → no labels), proving it reads status.json only. Test would fail if session artifact were consulted. Doc comment in labels.go:9-16 explicitly states the load-bearing rule. Implementation at labels.go:110 calls `s.LoadFeatureStatus(dep.Slug)` — no path to reconcile-session.json exists.
+
+3. **ADR-011 D3 (labels ≠ states)** ✅ — `grep -rn "ReconcileWaitingOnParent\|ReconcileBlockedByParent" internal/store/ | grep -v "Label"` returns empty. Only `ReconcileLabel` constants exist (types.go:65-82). `EffectiveOutcome()` at types.go:192-200 computes compound at READ time; no new enum values added to `ReconcileOutcome`. Persisted `Outcome` for compound case is `ReconcileBlockedRequiresHuman` (ADR-011 D6 match confirmed).
+
+4. **Phase-3.5 skip + tripwire** ✅ — `TestReconcile_FlagOn_BlockedByParent_SkipsPhase35` at internal/workflow/labels_phase35_test.go:43-118 is the tripwire test. The `tripwireProvider` type (lines 20-36) returns benign stub for phase-3 but calls `t.Errorf` + returns error if a phase-3.5 prompt (containing `"# File:"`) hits Generate. Test sets up child with 3-way conflict + hard parent in `blocked-requires-human`, runs reconcile with `Resolve: true`, and asserts `Phase: "phase-3.5-skipped-blocked-by-parent"` without tripwire firing. Short-circuit logic at reconcile.go:280-292 checks `hasLabel(labels, store.LabelBlockedByParent)` and skips `tryPhase35`.
+
+5. **Compound verdict semantics** ✅ — `EffectiveOutcome()` (types.go:192-200) returns `"blocked-by-parent-and-needs-resolution"` ONLY when `Outcome == ReconcileBlockedRequiresHuman` AND `Labels` contains `LabelBlockedByParent`. All other cases return stringified `Outcome`. Tests: `TestReconcileSummary_EffectiveOutcome_Compound` + `TestEffectiveOutcome_PassthroughWhenNoCompoundLabels`. Soft deps checked: `TestComposeLabels_SoftParentNeverProducesLabel` (labels_test.go:127-138) asserts soft parent in any state produces empty label set (D4 compliance).
+
+6. **PlanReconcile correctness** ✅ — Transitive hard-parent closure at plan_reconcile.go:74-100 (only `dep.Kind != DependencyKindHard` branches continue). Soft deps contribute to ordering (line 108 passes full `allDeps[slug]` to TopologicalOrder) but don't pull themselves into closure. Cycle error augmented at lines 115-118 with `DetectCycles` path. Deterministic order by slug via `TopologicalOrder` (Kahn's with lexicographic tie-break per ADR-011 D2). Flag-off path: reconcile.go:97 only calls PlanReconcile when `cfg.DAGEnabled()`. Tests: `TestPlanReconcile_TransitiveHardClosure`, `TestPlanReconcile_RejectsCycle`, `TestPlanReconcile_FlagOff_PreservesInputOrder`.
+
+7. **AcceptShadow refresh** ✅ — accept.go:149-168 recomputes labels via `ComposeLabels(s, slug)` ONLY when `cfg.DAGEnabled()`. Flag-off preserves prior `Reconcile.Labels` value (stays nil/absent). Tests: `TestAcceptShadow_FlagOn_RefreshesLabels` + `TestAcceptShadow_FlagOff_LabelsRemainNil`.
+
+8. **Label determinism** ✅ — ComposeLabels (labels.go:161) sorts via `sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })`. Alphabetical ordering per ADR-011 D3. Test: `TestComposeLabels_DeterministicOrder` (labels_test.go:186-202) runs ComposeLabels 50× on same fixture, asserts `reflect.DeepEqual` each iteration.
+
+9. **No scope creep** ✅ — No `--dag` command (`grep -rn "tpatch status --dag"` returns empty). No skill updates (`git diff 0ed64cb..HEAD -- assets/` empty). No version bump / CHANGELOG / tag (`git diff -- CHANGELOG.md VERSION` empty). No `created_by` population in implement phase (grep confirms only test writes it — inherited from M14.2). No parent-patch injection (no M12 resolver changes). No new external Go deps (`git diff -- go.mod` empty).
+
+10. **Parity guard** ✅ — `go test ./assets/... -count=1` passes (1.804s).
+
+11. **Regression** ✅ — All critical tests pass: `TestGoldenReconcile_ResolveApplyTruthful`, `TestGoldenReconcile_ManualAcceptFlow`, all M14.1 (DAG/Dependency/Validate/Roundtrip), all M14.2 (dependency gate). Full suite `go test ./... -count=1` green across all packages.
+
+12. **Hygiene** ✅ — `gofmt -l .` empty. `ls -la tpatch` returns empty (no binary). All 5 commits have Co-authored-by trailer (verified via `git log --format='%B' | grep -c "Co-authored-by: Copilot"` returns 5). `git status --short` empty (working tree clean).
+
+13. **Handoff** ✅ — `docs/handoff/CURRENT.md` Status: Review (line 7), implementation summary lines 253-310 accurate, files + test counts match diff stat (11 files, 1309 insertions).
+
+### Verdict: **APPROVED**
+
+All 13 checks pass. Both non-negotiable tests present and correct:
+- **Adversarial test** (check #2): `TestComposeLabels_ReadsStatusJsonNotSessionArtifact` enforces ADR-010 D5 source-of-truth rule.
+- **Tripwire test** (check #4): `TestReconcile_FlagOn_BlockedByParent_SkipsPhase35` with `tripwireProvider` confirms phase-3.5 short-circuit.
+
+No revisions. No notes. Production-ready for M14.4 user-facing cutover.
+
+---
+
 ## Review — M14.2 — 2026-04-26
 
 **Implementer**: m14-2-implementer sub-agent (general-purpose, 1777s)
