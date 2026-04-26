@@ -33,6 +33,13 @@ type ReconcileResult struct {
 	FailedFiles    []string `json:"failed_files,omitempty"`
 	SkippedFiles   []string `json:"skipped_files,omitempty"`
 	ResolveSession string   `json:"resolve_session_id,omitempty"`
+
+	// Labels is the M14.3 composable-label overlay (ADR-011 D3 + D6).
+	// Populated only when Config.DAGEnabled() is true and at least one
+	// label applies to this child. `omitempty` is load-bearing for
+	// flag-off byte-identity of reconcile-session.json against pre-M14.3
+	// fixtures.
+	Labels []store.ReconcileLabel `json:"labels,omitempty"`
 }
 
 // ReconcileOptions configures RunReconcile. Zero value keeps v0.4.x
@@ -264,6 +271,26 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		// --resolve. Otherwise, preserve the v0.4.4 behavior:
 		// report as BLOCKED so humans are warned.
 		if opts.Resolve {
+			// M14.3 / ADR-011 D6: when a hard parent is blocked, the
+			// resolver cannot meaningfully fix this child — running it
+			// would burn provider budget against a broken baseline.
+			// Short-circuit BEFORE invoking the resolver. The compound
+			// presentation "blocked-by-parent-and-needs-resolution" is
+			// computed at read time by ReconcileSummary.EffectiveOutcome.
+			if cfg, cerr := s.LoadConfig(); cerr == nil && cfg.DAGEnabled() {
+				labels, _ := ComposeLabels(s, slug)
+				if hasLabel(labels, store.LabelBlockedByParent) {
+					result.Outcome = store.ReconcileBlockedRequiresHuman
+					result.Phase = "phase-3.5-skipped-blocked-by-parent"
+					result.Labels = labels
+					result.Conflicts = append(result.Conflicts, preview.ConflictFiles...)
+					result.Notes = append(result.Notes,
+						"phase 3.5 skipped: a hard parent is blocked — resolve the parent first, then retry `tpatch reconcile "+slug+"` (compound verdict: blocked-by-parent-and-needs-resolution)")
+					saveReconcileArtifacts(s, slug, result)
+					updateFeatureState(s, slug, result)
+					return result, nil
+				}
+			}
 			phase35 := tryPhase35(ctx, s, slug, upstreamCommit, prov, cfg, opts, preview.ConflictFiles, result)
 			saveReconcileArtifacts(s, slug, phase35)
 			updateFeatureState(s, slug, phase35)
@@ -420,6 +447,19 @@ Does the upstream now satisfy this feature's requirements? Compare the acceptanc
 //     (resolver-owned) — see resolver.persistSession. Splitting the two
 //     artifacts is what fixes the v0.5.2 dual-writer collision.
 func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult) {
+	// M14.3: enrich the result with composable labels before serializing
+	// so reconcile-session.json captures the DAG context. When the flag
+	// is off, ComposeLabels returns nil and `omitempty` keeps the field
+	// out of JSON (byte-identity vs pre-M14.3 fixtures).
+	//
+	// Skip if the caller already set labels (e.g. the phase-3.5 short-
+	// circuit path explicitly attaches its own label set).
+	if result != nil && len(result.Labels) == 0 {
+		if labels, lerr := ComposeLabels(s, slug); lerr == nil && len(labels) > 0 {
+			result.Labels = labels
+		}
+	}
+
 	// Save reconcile-session.json
 	data, _ := json.MarshalIndent(result, "", "  ")
 	s.WriteArtifact(slug, "reconcile-session.json", string(data)+"\n")
@@ -471,6 +511,9 @@ func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
 		ResolvedFiles:  len(result.ResolvedFiles),
 		FailedFiles:    len(result.FailedFiles),
 		SkippedFiles:   len(result.SkippedFiles),
+		// M14.3: persist the DAG-derived labels alongside the intrinsic
+		// outcome. `omitempty` guarantees flag-off byte-identity.
+		Labels: result.Labels,
 	}
 	status.LastCommand = "reconcile"
 	status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
