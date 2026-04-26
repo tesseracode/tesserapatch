@@ -133,7 +133,7 @@ agent implements the code).`,
 			if err := s.MarkFeatureState(slug, store.StateImplementing, "cycle", "Executing recipe"); err != nil {
 				return err
 			}
-			execResult := workflow.ExecuteRecipe(s.Root, recipe)
+			execResult := workflow.ExecuteRecipe(s, recipe)
 			for _, msg := range execResult.Messages {
 				fmt.Fprintf(out, "  %s\n", msg)
 			}

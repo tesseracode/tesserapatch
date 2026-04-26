@@ -463,7 +463,7 @@ func applyCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				result := workflow.DryRunRecipe(s.Root, recipe)
+				result := workflow.DryRunRecipe(s, recipe)
 				fmt.Fprintf(out, "Dry-run for %s (%d operations):\n", slug, result.Operations)
 				for _, msg := range result.Messages {
 					fmt.Fprintf(out, "  ✓ %s\n", msg)
@@ -549,7 +549,7 @@ func runApplyExecute(cmd *cobra.Command, s *store.Store, slug string) (workflow.
 	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode execute", "Executing recipe"); err != nil {
 		return workflow.RecipeExecResult{}, err
 	}
-	result := workflow.ExecuteRecipe(s.Root, recipe)
+	result := workflow.ExecuteRecipe(s, recipe)
 	for _, msg := range result.Messages {
 		fmt.Fprintf(out, "  %s\n", msg)
 	}

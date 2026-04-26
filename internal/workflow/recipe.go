@@ -22,10 +22,15 @@ type RecipeExecResult struct {
 }
 
 // DryRunRecipe validates a recipe against the codebase without modifying anything.
-func DryRunRecipe(repoRoot string, recipe ApplyRecipe) RecipeExecResult {
+//
+// Takes the store so the M14 created_by apply-time gate (ADR-011 D4) can
+// classify each op against the child feature's declared dependencies.
+// When Config.FeaturesDependencies is false the gate is a no-op and
+// behaviour is byte-identical to v0.5.3.
+func DryRunRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 	result := RecipeExecResult{Operations: len(recipe.Operations)}
 	for _, op := range recipe.Operations {
-		msg, err := dryRunOperation(repoRoot, op)
+		msg, err := dryRunOperation(s, recipe.Feature, op)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))
 		} else {
@@ -38,10 +43,12 @@ func DryRunRecipe(repoRoot string, recipe ApplyRecipe) RecipeExecResult {
 }
 
 // ExecuteRecipe applies recipe operations to the codebase with path safety checks.
-func ExecuteRecipe(repoRoot string, recipe ApplyRecipe) RecipeExecResult {
+//
+// See DryRunRecipe re: the created_by apply-time gate.
+func ExecuteRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 	result := RecipeExecResult{Operations: len(recipe.Operations)}
 	for _, op := range recipe.Operations {
-		if err := executeOperation(repoRoot, op); err != nil {
+		if err := executeOperation(s, recipe.Feature, op); err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))
 		} else {
 			result.Applied++
@@ -65,7 +72,8 @@ func LoadRecipe(s *store.Store, slug string) (ApplyRecipe, error) {
 	return recipe, nil
 }
 
-func dryRunOperation(repoRoot string, op RecipeOperation) (string, error) {
+func dryRunOperation(s *store.Store, slug string, op RecipeOperation) (string, error) {
+	repoRoot := s.Root
 	target := filepath.Join(repoRoot, op.Path)
 	if err := safety.EnsureSafeRepoPath(repoRoot, target); err != nil {
 		return "", fmt.Errorf("path safety: %w", err)
@@ -79,6 +87,15 @@ func dryRunOperation(repoRoot string, op RecipeOperation) (string, error) {
 		return fmt.Sprintf("[write-file] would write %s (%d bytes)", op.Path, len(op.Content)), nil
 
 	case "replace-in-file":
+		// M14 created_by gate (ADR-011 D4): classify the op before the
+		// bare not-found error so a hard-parent miss surfaces with
+		// actionable context. Soft parents emit a warning then fall
+		// through to the existing not-found path.
+		_, statErr := os.Stat(target)
+		targetExists := statErr == nil
+		if gateErr := checkCreatedByGate(s, slug, op, targetExists); gateErr != nil {
+			return "", gateErr
+		}
 		content, err := os.ReadFile(target)
 		if err != nil {
 			return "", fmt.Errorf("file not found: %w", err)
@@ -91,7 +108,12 @@ func dryRunOperation(repoRoot string, op RecipeOperation) (string, error) {
 		return fmt.Sprintf("[replace-in-file] would replace in %s (match at line %d)", op.Path, line), nil
 
 	case "append-file":
-		if _, err := os.Stat(target); os.IsNotExist(err) {
+		_, statErr := os.Stat(target)
+		targetExists := statErr == nil
+		if gateErr := checkCreatedByGate(s, slug, op, targetExists); gateErr != nil {
+			return "", gateErr
+		}
+		if !targetExists {
 			return "", fmt.Errorf("file not found: %s", op.Path)
 		}
 		return fmt.Sprintf("[append-file] would append to %s (%d bytes)", op.Path, len(op.Content)), nil
@@ -107,7 +129,8 @@ func dryRunOperation(repoRoot string, op RecipeOperation) (string, error) {
 	}
 }
 
-func executeOperation(repoRoot string, op RecipeOperation) error {
+func executeOperation(s *store.Store, slug string, op RecipeOperation) error {
+	repoRoot := s.Root
 	target := filepath.Join(repoRoot, op.Path)
 	if err := safety.EnsureSafeRepoPath(repoRoot, target); err != nil {
 		return fmt.Errorf("path safety: %w", err)
@@ -121,6 +144,11 @@ func executeOperation(repoRoot string, op RecipeOperation) error {
 		return os.WriteFile(target, []byte(op.Content), 0o644)
 
 	case "replace-in-file":
+		_, statErr := os.Stat(target)
+		targetExists := statErr == nil
+		if gateErr := checkCreatedByGate(s, slug, op, targetExists); gateErr != nil {
+			return gateErr
+		}
 		content, err := os.ReadFile(target)
 		if err != nil {
 			return fmt.Errorf("file not found: %w", err)
@@ -133,6 +161,11 @@ func executeOperation(repoRoot string, op RecipeOperation) error {
 		return os.WriteFile(target, []byte(replaced), 0o644)
 
 	case "append-file":
+		_, statErr := os.Stat(target)
+		targetExists := statErr == nil
+		if gateErr := checkCreatedByGate(s, slug, op, targetExists); gateErr != nil {
+			return gateErr
+		}
 		f, err := os.OpenFile(target, os.O_APPEND|os.O_WRONLY, 0o644)
 		if err != nil {
 			return err
