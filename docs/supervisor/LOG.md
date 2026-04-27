@@ -4,6 +4,80 @@
 
 ---
 
+## Review — C5 fix-pass — 2026-04-26
+
+**Implementer**: c5-implementer sub-agent (general-purpose, elapsed unknown)
+**Reviewer**: code-review sub-agent (this review)
+**Task**: C5 fix-pass — two re-reviewer findings on M14 correctness pass. F1 (HIGH): reconcile-time label suppression incomplete. F2 (MEDIUM): PRD §4.3 dry-run downgrade not implemented. ~140 LOC across 5 files, flag-protected.
+
+### Commits reviewed (delta vs correctness pass closeout `eb4f4f1`)
+
+- `c84c7a6` fix(workflow): suppress labels in reconcile-time upstreamed path (C5 F1)
+- `dd72c2c` fix(workflow): downgrade created_by to warning in dry-run (C5 F2)
+- `ea94fb7` docs(handoff): C5 fix-pass complete, ready for review
+
+### Checklist
+
+- [x] Builds, tests, gofmt all green
+- [x] 4 new F1 tests (phase-1/2/3 upstreamed + non-upstreamed control)
+- [x] F2 tests split (dry-run-downgrades + execute-errors as separate cases)
+- [x] M14.1+M14.2+M14.3+correctness-pass regression clean
+- [x] All 3 commits carry the Co-authored-by trailer
+- [x] CURRENT.md accurate (Status: C5 fix-pass ✅ COMPLETE — awaiting reviewer)
+- [x] Working tree clean, no tpatch binary
+
+### Critical correctness checks — F1 (reconcile-path label suppression)
+
+1. **Phase-1 reverse-apply** ✅ — `TestRunReconcile_Phase1ReverseApply_UpstreamedClearsLabels` seeds child with OLD `ReconcileBlocked` + persisted `waiting-on-parent` label, parent in `StateAnalyzed` (would normally re-fire label), simulates `result.Outcome = ReconcileUpstreamed` from phase-1, asserts BOTH `status.json` AND `reconcile-session.json` have empty/nil Labels. JSON must not contain `"labels"` key (omitempty defense-in-depth check at line 79 of test). PASS.
+
+2. **Phase-2 op-level** ✅ — `TestRunReconcile_Phase2OperationLevel_UpstreamedClearsLabels` same setup, same assertions, `result.Phase = "phase-2-operation-level"`. PASS.
+
+3. **Phase-3 provider-semantic** ✅ — `TestRunReconcile_Phase3ProviderSemantic_UpstreamedClearsLabels` same pattern, `result.Phase = "phase-3-provider-semantic"`. PASS.
+
+4. **Non-upstreamed control** ✅ — `TestRunReconcile_NonUpstreamedOutcome_StillProducesLabels` uses `ReconcileBlockedRequiresHuman` outcome (not retired), asserts `hasLabel(got.Reconcile.Labels, store.LabelWaitingOnParent)` is true. Guards against over-broad fix that would suppress all labels. PASS.
+
+5. **`updateFeatureState` audit** ✅ — Does NOT independently compose labels. At reconcile.go:523 (inside `updateFeatureState`), it writes `Labels: result.Labels` — propagates the in-memory value from `saveReconcileArtifacts`. No second composition path exists. The C5 F1 guard in `saveReconcileArtifacts` (lines 488-489) forces `result.Labels = nil` for retired outcomes BEFORE `updateFeatureState` sees it, so both status.json and reconcile-session.json get the same nil value.
+
+6. **Pre-existing labels wiped** ✅ — The `seedRetiredChildScaffolding` test helper (labels_reconcile_path_test.go:32-49) explicitly seeds `child.Reconcile.Labels = []store.ReconcileLabel{store.LabelWaitingOnParent}` in the on-disk status before reconcile. All 3 phase tests assert post-reconcile Labels are empty (not "preserved the old label"). Retired child gets a clean slate.
+
+7. **Adversarial guard preserved** ✅ — `TestComposeLabels_ReadsStatusJsonNotSessionArtifact` (from M14.3 tripwire set) still passes. The new C5 code path in `saveReconcileArtifacts` short-circuits BEFORE calling `composeLabelsAt`, so it never touches the session artifact at all. Guard confirmed: grep of reconcile.go shows only WRITES to reconcile-session.json (lines 40, 447, 450, 472, 497, 499), zero reads.
+
+### Critical correctness checks — F2 (dry-run downgrade)
+
+8. **Dry-run hard parent + missing target** ✅ — `TestCreatedByGate_DryRun_HardParent_TargetMissing_DowngradesToWarning` (created_by_gate_test.go:111-142) asserts `res.Success == true` (no error), `res.Applied == 1` (op counted as deferred-applied), `len(res.Warnings) == 1`, warning contains `["src/auth.ts", "parent", "apply parent before executing"]`. Recipe-level test confirms both replace-in-file and append-file op types downgrade. PASS.
+
+9. **Execute hard parent + missing target** ✅ — `TestCreatedByGate_Execute_HardParent_TargetMissing_ReturnsErr` (lines 147-160) asserts `res.Success == false`, `len(res.Errors) == 1`, error contains `"will be created by parent feature parent"`. No regression from correctness pass. PASS.
+
+10. **Soft parent missing target** ✅ — `TestCreatedByGate_SoftParent_TargetMissing_FallsThroughWithWarning` (lines 188-217) asserts `res.Success == false` (bare not-found error), `!errors.Is(errors.New(res.Errors[0]), ErrPathCreatedByParent)`, `WarnWriter` captured text contains `["soft-parent", "soft deps do not gate apply"]`. Dry-run and execute behavior unchanged from correctness pass. PASS.
+
+11. **Recipe-shape validation** ✅ — `TestCreatedByGate_ParentNotInDependsOn_RecipeRejected` (lines 223-249) asserts created_by naming a feature NOT in depends_on is HARD error in BOTH dry-run AND execute, error contains `"is not in depends_on"`, does NOT wrap `ErrPathCreatedByParent`. PRD §4.3 last bullet contract preserved. PASS.
+
+12. **Flag-off behavior** ✅ — `TestCreatedByGate_FlagOff_NoOp` (lines 52-74) with `dagEnabled=false`, created_by set + missing target → bare `"file not found"` error, NO mention of `"will be created by parent feature"`. The downgrade does not leak into flag-off mode. PASS.
+
+13. **The wrong test is gone** ✅ — No test named `TestCreatedByGate_DryRun_HardParent_TargetMissing_Errors` exists. Git log shows the correctness pass had `TestCreatedByGate_HardParent_TargetMissing_ErrPathCreatedByParent` (gate-helper level test, still present at lines 81-102, correct), and C5 ADDED two new recipe-level tests: `..._DowngradesToWarning` (dry-run) and `..._ReturnsErr` (execute). New tests pin the PRD §4.3 split.
+
+### Cross-cutting checks
+
+14. **No scope creep** ✅ — Version still `"0.5.3"` (cobra.go:24). No CHANGELOG entry (`git diff eb4f4f1..HEAD -- CHANGELOG.md` empty). No tag (`git tag --contains HEAD | grep v0.6.0` empty). No skill format updates (`git diff -- assets/` empty). No `tpatch status --dag` (`grep -rn "tpatch status --dag"` empty). No dep-management CLI verbs. No new `ReconcileOutcome` enum values (`grep ReconcileWaitingOnParent|ReconcileBlockedByParent` empty). No new external Go deps (`git diff -- go.mod go.sum` empty). Scope perfectly clean.
+
+15. **No `reconcile-session.json` reads** ✅ — External-reviewer guard: `grep -rn "reconcile-session.json" internal/workflow/recipe.go internal/workflow/reconcile.go` returns ONLY writes (line 499) and comments (lines 40, 447, 450, 472, 497). The new C5 F1 code path at reconcile.go:488-489 short-circuits BEFORE `composeLabelsAt` runs, so it never calls `s.LoadFeatureStatus` → never reads reconcile-session.json. Guard holds.
+
+16. **Regression** ✅ — All critical tests pass: `TestGoldenReconcile_ResolveApplyTruthful` (0.44s), `TestGoldenReconcile_ManualAcceptFlow` (0.44s), all M14.1 (Roundtrip/DAG/Dependency), all M14.2 (CreatedByGate gate-helper level), all M14.3 (ComposeLabels/PlanReconcile/EffectiveOutcome/AcceptShadow), correctness-pass tripwires (`TestComposeLabels_ReadsStatusJsonNotSessionArtifact`, `TestReconcile_FlagOn_BlockedByParent_SkipsPhase35`). Full suite `go test ./...` green (all packages cached after targeted runs). Assets parity guard passes (0.344s).
+
+17. **Hygiene** ✅ — `gofmt -l .` empty. No tpatch binary at root (`ls -la tpatch` → not found). All 3 commits carry Co-authored-by trailer (verified via `git log --format='%B' eb4f4f1..HEAD | grep -c "Co-authored-by: Copilot"` returns 3). Working tree clean (`git status --short` empty).
+
+### Verdict: **APPROVED**
+
+All 17 checks pass. Both HIGH-severity F1 findings completely resolved:
+
+- **F1 (HIGH)**: Reconcile-time persistence path now suppresses parent-derived labels for retired outcomes (currently only `ReconcileUpstreamed`) via early short-circuit in `saveReconcileArtifacts` (reconcile.go:488-489) checking `childRetiredOutcomes[result.Outcome]` BEFORE calling `composeLabelsAt`. All 3 phase paths (reverse-apply, op-level, provider-semantic) tested + non-upstreamed control confirms suppression is narrowly scoped. Pre-existing labels wiped (not preserved). Adversarial test from M14.3 still passes.
+
+- **F2 (MEDIUM)**: PRD §4.3 contract now fully implemented. `dryRunOperation` returns `(msg, warning, error)` tuple (recipe.go:87). Hard-parent `ErrPathCreatedByParent` downgrades to a `RecipeExecResult.Warnings` entry in dry-run (lines 110-112), reports op as Applied (deferred), surfaces actionable hint. Execute-mode unchanged (still returns hard error). Soft-parent behavior unchanged (fall-through to not-found + warning). Recipe-shape validation (parent-not-in-depends_on) remains hard error in BOTH modes. CLI dry-run gains `⚠` rendering (cobra.go:471) + warning-count summary (line 478). Locked-in tests split into dry-run vs execute halves.
+
+No scope creep. No regressions. Flag-off byte-identity preserved. Production-ready for M14.4 dispatch.
+
+---
+
 ## Review — M14.3 — 2026-04-26
 
 **Implementer**: m14-3-implementer sub-agent (general-purpose, elapsed unknown)
