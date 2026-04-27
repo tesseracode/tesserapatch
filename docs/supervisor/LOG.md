@@ -4,6 +4,107 @@
 
 ---
 
+## Review — M15-W3-DESIGN — 2026-04-27
+
+**Reviewer**: m15-w3-design-reviewer
+**Task**: Wave 3 design — PRD + ADR-012 for feat-verify-command + feat-feature-tested-state
+**Commit reviewed**: fdc6e70
+
+### Constraint compliance
+- [x] no Go code modified (only 3 docs files)
+- [x] no tests modified
+- [x] no ADR-011 / ADR-010 edits
+- [x] no reconcile-session.json reads proposed (V9 reads status.Reconcile.Outcome only)
+- [x] omitempty round-trip preserved (D4 explicit, backed by acceptance test)
+- [ ] **BLOCKER**: D2 answered but **contradictory** between PRD and ADR (see below)
+- [x] commit trailer present
+
+### Findings
+
+#### Blocking
+
+**Issue 1: D2 PRD/ADR Contradiction — Most Consequential Decision**
+**Files:** `docs/prds/PRD-verify-and-tested-state.md:263`, `docs/adrs/ADR-012-feature-tested-state.md:44`
+**Severity:** Critical — blocks approval
+**Problem:** PRD §3.4.4 line 263 states "DECISION (locked in ADR-012 D2): Direction B — `tested` does NOT satisfy hard dependencies." This is immediately contradicted at line 272 where "B-pragmatic" is revealed to actually mean `{applied, tested, upstream_merged}` satisfies the gate — which is Direction A. Meanwhile ADR-012 D2 line 44 states "Decided: `tested` satisfies the hard-dep gate, equivalent to `applied`" with no mention of Direction B.
+
+The confusion stems from framing: the PRD calls Direction B "tested does not satisfy" but then implements "tested does satisfy because it's equivalent to applied" as "B-pragmatic" — which is semantically identical to Direction A. The two documents need to agree on what was decided.
+
+**Evidence:** Cross-read PRD:263, PRD:272, ADR-012:44. The locked decision is clearly "`tested` satisfies" (the gate switch gains `case StateTested:` per ADR-012 D2 line 46), but the PRD headline at line 263 says the opposite.
+
+**Suggested fix:** PRD §3.4.4 needs a rewrite. Either:
+- Change line 263 headline to "Direction A — yes, `tested` satisfies (pragmatic equivalence)" and reframe the argument, OR
+- Collapse Direction A and B-pragmatic into a single decision and remove the confusing "Direction B" framing that actually implements Direction A semantics.
+
+ADR-012 D2 is internally consistent and correct; the PRD's presentation is the issue.
+
+#### Non-blocking (approved with notes)
+
+**Note 1: V9 Remediation Message Inconsistency (Open Question Q1)**
+**File:** `docs/prds/PRD-verify-and-tested-state.md:473`
+**Severity:** Medium — UX subtlety, not a contract bug
+**Problem:** Failure case 3 JSON example shows `passed: false` on V9 with remediation text "tested cannot be promoted while reconcile is in a blocked state (warn-only)" but `verdict: passed` and `state_after: tested`. The PRD acknowledges this at line 481-483 but leaves it as an open question (Q1) rather than resolving it.
+
+For a warn-severity check, `passed: false` is semantically correct (the check condition failed), but the field name may mislead operators into thinking promotion was blocked. The PRD's Q1 framing is appropriate, but the implementer will face the same ambiguity when coding Slice A.
+
+**Recommendation:** Settle Q1 now rather than deferring to implementation. See Open Question Recommendations below.
+
+**Note 2: Parent-State Hook Performance — No Hot-Path Added**
+**File:** `docs/prds/PRD-verify-and-tested-state.md:301`, `docs/handoff/CURRENT.md:126`
+**Severity:** Low — clarification request
+**Problem:** PRD §3.4.5 line 301 states "no new hot path" for the parent-state hook, and Open Question Q5 asks the reviewer to confirm. The hook runs in the same `LoadFeatureStatus` loop as M14.3 label recomputation (per PRD), which is already O(V+E). The additional check (parent left `{applied, tested, upstream_merged}` AND child currently `tested`) is a constant-time state comparison per edge.
+
+**Assessment:** The performance claim is sound. The hook is cheap and correctly inserted. No concern.
+
+**Note 3: V6 Warn-Only Severity — Justified but Nuanced**
+**File:** `docs/prds/PRD-verify-and-tested-state.md:173-180`
+**Severity:** Low — design choice documented
+**Problem:** V6 (`dependency_gate_satisfied`) is warn-only, meaning a feature whose hard parent is `defined` can still promote to `tested`. PRD §3.3 justifies this for pre-apply harness handoff and `upstream_merged` parent scenarios. The reviewer-relevant counter-argument is recorded as rejected in D2 alt 3.
+
+**Assessment:** The decision is internally consistent with D2's pragmatic equivalence (tested parents satisfy, so children of tested parents are structurally fine even if the gate check produces a warn). The PRD's justification holds. No change required, but implementers should be aware this is a design choice, not an oversight.
+
+### Open-question recommendations
+
+**Q1 — V9 severity: warn vs block**
+**Recommendation:** Keep **warn** (the PRD default). Reasoning: `shadow-awaiting` is not a structural integrity problem — it's a pending human decision. A feature sitting in `shadow-awaiting` can be perfectly healthy on disk; blocking `tested` on V9 would penalize the harness for the operator not having clicked "accept" yet. If a real need surfaces for "tested implies no pending reconcile work," revisit in a future `feat-tested-stronger-contract` PRD.
+
+**Q2 — `verify --all` skip semantics**
+**Recommendation:** Skip pre-apply states with a `"skipped: pre-apply state"` line (the PRD default). `tested` is meaningless before `applied`. Exit code reflects only post-apply slugs. Slice D detail; document in the `--all` help text.
+
+**Q3 — `passed: false` field name on warn-only checks**
+**Recommendation:** Keep `passed` as the field name. Rename would require touching every check's JSON shape, and "passed" is semantically accurate (the check condition was evaluated; it did not pass). The `severity` field carries the gating semantics. If this proves confusing in practice, revisit in a UX polish pass. For Slice A, ship as designed.
+
+**Q4 — D2 wording check**
+**Recommendation:** **Fix the PRD.** The current PRD headline "Direction B — tested does NOT satisfy" followed by "but actually it does" is confusing. ADR-012 D2 is clear and correct. Rewrite PRD §3.4.4 lines 242-277 to match the ADR's framing: "Direction A — tested satisfies because it's a strict superset of applied." Remove the "B-pragmatic" terminology entirely — it's a semantic no-op over Direction A.
+
+**Q5 — Parent-state hook insertion point**
+**Recommendation:** Approved as designed. The `LoadFeatureStatus` post-processing loop (same site as M14.3 label recomputation) is the correct insertion point. The additional check is cheap (constant-time per edge). No new hot path. Implementer can proceed with Slice B as specified.
+
+### Verdict: **NEEDS REVISION**
+
+**Blocking issue:** D2 PRD/ADR contradiction must be resolved before any implementation slice begins. The locked decision is clear in ADR-012 ("tested satisfies"); the PRD's presentation contradicts itself. Fix required: rewrite PRD §3.4.4 to align with ADR-012 D2, removing the "Direction B" headline that actually implements Direction A.
+
+**Non-blocking notes:** V9 warn-severity UX subtlety (Q1) and V6 warn-only justification are documented design choices, not bugs. Parent-state hook performance is sound.
+
+**Open questions:** All 5 adjudicated above. Q4 (D2 wording) is a blocker-fix requirement; the others are confirmations of the PRD defaults.
+
+### Notes
+
+**For supervisor:**
+- Once D2 PRD rewrite lands, this design is ready for Slice A dispatch.
+- The PRD is otherwise thorough: 678 lines covering 10 checks with primitive citations, full state-transition table, 4 implementation slices with clear boundaries, 3 JSON failure-case examples, backwards-compat contract with acceptance-test enforcement, and explicit out-of-scope cross-links.
+- ADR-012 is well-structured: 201 lines, 7 decisions locked with alternatives considered, full cross-references to ADR-010/ADR-011, and correct preservation of the source-truth guard.
+- No contract conflicts found with ADR-011 (dep DAG), ADR-010 (resolver), or the v0.6.1 satisfied_by contract beyond the D2 presentation issue.
+- Implementation slices are independently dispatchable and correctly scoped.
+
+**For implementer (post-fix):**
+- D2 is "tested satisfies the hard-dep gate" (extend `CheckDependencyGate` switch). Ignore the PRD's "Direction B" headline; read ADR-012 D2 as the source of truth until the PRD is fixed.
+- V9 reads `status.Reconcile.Outcome` only — never `artifacts/reconcile-session.json`. The adversarial test in §7 is mandatory.
+- The omitempty round-trip fixture `TestUpgradeFromV0_6_1_NoVerify_BehavesIdentically` is mandatory for Slice B.
+- Skill parity guard extension (6 surfaces) is mandatory for Slice D.
+
+---
+
 ## Supervisor Fix-Pass — M15-W2 Re-Review — 2026-04-27
 
 **Author**: supervisor (re-review by external reviewer)
