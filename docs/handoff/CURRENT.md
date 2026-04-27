@@ -1,93 +1,54 @@
 # Current Handoff
 
 ## Active Task
-- **Task ID**: M14.4
-- **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Description**: User-facing cutover for the feature-dependency DAG. Seven chunks (A–G): `tpatch status --dag`, default flip, dep-management verbs, status-time validation, 6-skill rollout, `docs/dependencies.md`, release commit.
-- **Status**: **Implementation complete — awaiting reviewer**
-- **Assigned**: closed 2026-04-26
+
+- **Task ID**: (none — Tranche D closed at v0.6.0)
+- **Milestone**: Awaiting next milestone selection
+- **Status**: Idle — awaiting supervisor/user direction
+- **Assigned**: 2026-04-26
 
 ## Session Summary
 
-All 7 chunks landed on `main` (not yet pushed at write time of this file; push will be the next action). Six logical commits (A+D combined). v0.6.0 NOT tagged — that is supervisor's closeout.
+**M14 Tranche D shipped as v0.6.0** (tagged 2026-04-26). All sub-milestones APPROVED:
 
-| Chunk | Title | Commit | Headline |
-|-------|-------|--------|----------|
-| A + D | `tpatch status --dag` + status-time DAG validation | `d1aca5f` | ASCII (`─►` hard / `┄►` soft) + `--json`, scoped + full, cycle-safe; `ValidateAllFeatures` warnings inline on plain `tpatch status`. Reads `status.Reconcile.Outcome` only (ADR-010 D5). 9 new tests. |
-| C     | Dep-management verbs                              | `ca23b35` | `tpatch feature deps [<slug> [add\|remove] <parent>[:hard\|:soft]] \| --validate-all`; `tpatch amend --depends-on / --remove-depends-on` (deps-only mode skips request.md rewrite); `tpatch remove --cascade` reverse-topo + `ErrInteractiveRequired` for non-TTY without `--force`; **`--force` does not bypass dep-integrity** (PRD §3.7 / ADR-011 D7). 9 tests + non-TTY pipe helper (because `/dev/null` is a char device on macOS). |
-| B     | Flag default flip                                 | `5d5f594` | `parseYAMLConfig` defaults `features_dependencies` to `true` when absent; `Init()` template writes the explicit `true`. Two byte-identity tests (apply gate-off, accept-shadow labels-nil) updated to opt out explicitly. Roundtrip test inverted. |
-| E     | 6-skill rollout                                   | `97a994f` | All six shipped skill formats updated atomically with the dependency surface; `created_by` description reframed from "inert" → live apply-time gate. Parity guard (`assets_test.go`) holds. |
-| F     | `docs/dependencies.md`                            | `e0a7d47` | Single user-facing reference (~270 LOC): edge model, declaration, validation, apply gate, `created_by` op-level gate (with dry-run downgrade), reconcile labels, compound verdict, `status --dag` examples, `--cascade` contract, migration, out-of-scope list. |
-| G     | Release cutover                                   | `f2d0d1b` | Version `0.5.3` → `0.6.0`; new `## v0.6.0 — 2026-04-26 — Feature Dependencies (Tranche D)` CHANGELOG section; M14 box flipped 🔨 → ✅ in ROADMAP; obsolete "Feature dependency DAG" bullet pruned from M15+ Future. **NO TAG.** |
+- M14.1 data model + DAG primitives ✅
+- M14.2 schema + dep-state apply gate ✅
+- M14.3 reconcile topo + composable labels + compound verdict ✅
+- M14 correctness pass (F1/F2/F3 from external review) ✅
+- M14 C5 fix-pass (reconcile-path label suppression + dry-run downgrade) ✅
+- M14.4 user-facing cutover (status --dag, dep-CLI, flag flip, 6-skill rollout, docs, release) ✅
+
+`v0.6.0` tag pushed. `features_dependencies: true` is now the default. `tpatch feature deps add/remove`, `amend --depends-on`, `remove --cascade`, and `tpatch status --dag` are all live. `created_by` is a real apply-time gate (not inert). PRD §4.3 dry-run downgrade in effect.
+
+See `docs/handoff/HISTORY.md` (top entry) for the full M14.4 archive — chunk breakdown, files changed, test results, and operator notes.
 
 ## Current State
 
-`main` carries `f2d0d1b`, six commits ahead of `origin/main`. Build is clean, full test suite is green, parity guard holds, scoped DAG/label/dependency tests are all green. Ready for reviewer.
+- HEAD = `v0.6.0` (post-closeout commits push the archive + tag)
+- Build clean, full test suite green, parity guard holds
+- ROADMAP M14 ✅, Tranche D box closed
+- No active in-flight work
 
 ## Files Changed
 
-Created:
-- `internal/cli/status_dag.go` — ASCII tree + JSON renderer for `tpatch status --dag`.
-- `internal/cli/status_dag_test.go` — 9 tests (chunks A + D).
-- `internal/cli/feature_deps.go` — `feature deps` command tree, `applyAmendDependsOn`, `runRemoveWithCascade`, `collectSubtree`, sentinel `ErrHasDependents` + `ErrInteractiveRequired`.
-- `internal/cli/feature_deps_test.go` — 9 tests (chunk C).
-- `internal/cli/test_helpers_test.go` — `openDevNull()` non-TTY pipe helper.
-- `docs/dependencies.md` — user reference (chunk F).
-
-Modified:
-- `internal/cli/cobra.go` — `featureCmd()` registered on root; `--dag` flag wired onto status; status-time `ValidateAllFeatures` warnings; `version` bumped to `0.6.0`.
-- `internal/cli/c1.go` — `amendCmd` gained `--depends-on` / `--remove-depends-on` (deps-only mode); `removeCmd` gained `--cascade` + integrity gate.
-- `internal/cli/dependency_gate_apply_test.go` — `TestApplyExecute_FlagOff_*` opts out of the new default.
-- `internal/store/store.go` — `parseYAMLConfig` defaults `features_dependencies: true`; `Init()` template writes the explicit `true`.
-- `internal/store/types.go` — `Config.FeaturesDependencies` doc updated.
-- `internal/store/roundtrip_test.go` — `TestConfig_FeaturesDependenciesRoundtrip` inverted (default-true + explicit-false opt-out).
-- `internal/workflow/accept_labels_test.go` — `TestAcceptShadow_FlagOff_LabelsRemainNil` opts out explicitly.
-- `assets/skills/claude/tessera-patch/SKILL.md` — `created_by` paragraph reframed; new "Feature dependencies (v0.6.0+)" section.
-- `assets/skills/copilot/tessera-patch/SKILL.md` — same.
-- `assets/skills/cursor/tessera-patch.mdc` — same.
-- `assets/skills/windsurf/windsurfrules` — same.
-- `assets/workflows/tessera-patch-generic.md` — same.
-- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — same.
-- `CHANGELOG.md` — new v0.6.0 section.
-- `docs/ROADMAP.md` — M14 box flipped to ✅; M14.4 line expanded with chunk-level breakdown and commit shas; obsolete M15+ "Feature dependency DAG" bullet removed.
+This handoff transition only:
+- `docs/handoff/CURRENT.md` (this file — reset for next milestone)
+- `docs/handoff/HISTORY.md` (M14.4 archive prepended)
+- `docs/ROADMAP.md` (M14.4 ✅, Tranche D closed — already landed in `f2d0d1b`)
 
 ## Test Results
 
-```
-$ gofmt -l .
-(clean)
-
-$ go build ./cmd/tpatch && rm -f tpatch
-ok
-
-$ go test ./...
-ok  github.com/tesseracode/tesserapatch/assets        0.441s
-?   github.com/tesseracode/tesserapatch/cmd/tpatch    [no test files]
-ok  github.com/tesseracode/tesserapatch/internal/cli  4.968s
-ok  github.com/tesseracode/tesserapatch/internal/gitutil   (cached)
-ok  github.com/tesseracode/tesserapatch/internal/provider  (cached)
-ok  github.com/tesseracode/tesserapatch/internal/safety    (cached)
-ok  github.com/tesseracode/tesserapatch/internal/store     (cached)
-ok  github.com/tesseracode/tesserapatch/internal/workflow  (cached)
-
-$ go test ./assets/... -count=1
-ok  github.com/tesseracode/tesserapatch/assets        0.371s
-    (TestAllSkillFilesExist + TestSkillRecipeSchemaMatchesCLI both green
-     across all 6 formats; TestSkillParityGuard implicit via build.)
-
-$ go test ./internal/cli      -run 'StatusDag'                       -count=1   ok 1.073s
-$ go test ./internal/workflow -run 'CreatedByGate|PlanReconcile|ComposeLabels|EffectiveOutcome|AcceptShadow|GoldenReconcile|Phase35|Labels' -count=1   ok 5.551s
-$ go test ./internal/store    -run 'Label|Reconcile|DAG|Dependency|Roundtrip'   -count=1   ok 0.358s
-```
+Last green validation gate ran during M14.4 (see HISTORY for full output). Reviewer re-ran the gate as part of APPROVED verdict on commit `0779ab5`.
 
 ## Next Steps
 
-1. Reviewer runs the standard checklist (`AGENTS.md` review phase) against the six commits `d1aca5f..f2d0d1b`.
-2. If APPROVED, supervisor:
-   - Tags `v0.6.0` on `f2d0d1b`.
-   - Archives this handoff to `docs/handoff/HISTORY.md`.
-   - Picks the next milestone (M15+ from ROADMAP).
-3. If NEEDS REVISION, the implementer reads the LOG.md verdict and iterates here.
+1. **Supervisor / user**: pick the next milestone from `docs/ROADMAP.md`. Candidates per ROADMAP:
+   - M15+ Future items (review the list)
+   - Pending follow-ups (separate backlog):
+     - `feat-satisfied-by-reachability` (M14.1 deliberate limitation: no `git merge-base` check on `satisfied_by` SHAs)
+     - Implement-phase auto-inference of `created_by` per PRD §4.3.1 (separate from M14.4)
+     - Address any v0.6.0 field-feedback issues that surface
+2. Once a milestone is selected, write the active-task block above and dispatch.
 
 ## Blockers
 
@@ -95,12 +56,10 @@ None.
 
 ## Context for Next Agent
 
-- **Tag is supervisor work, not implementer work.** The release commit deliberately omits a tag. Operator instruction was explicit on this point.
-- **`tpatch` binary at the repo root is NOT gitignored.** Always `rm -f tpatch` after `go build ./cmd/tpatch` — this is a recurring slip that has bitten earlier sessions.
-- **Source-truth guard (ADR-010 D5):** all DAG / label / status code reads `status.Reconcile.Outcome` via `store.LoadFeatureStatus` — never `artifacts/reconcile-session.json`. The M14.3 adversarial test pins this; do not regress.
-- **`--force` is NOT a DAG-integrity bypass.** It only suppresses the TTY confirm prompt on `remove`. Only `--cascade` may opt into removing a feature with downstream dependents. PRD §3.7 / ADR-011 D7. The chunk-C tests pin this.
-- **Default-flip compatibility:** v0.5.3-byte-identity behaviour is recoverable per-repo via `features_dependencies: false` in `.tpatch/config.yaml`. Two existing tests demonstrate the opt-out path (`TestApplyExecute_FlagOff_BypassesDependencyGate`, `TestAcceptShadow_FlagOff_LabelsRemainNil`).
-- **Skill parity guard.** `assets/assets_test.go` enforces required CLI-command anchors and the recipe-op JSON schema. Adding new content to skills is safe; removing required anchors breaks the guard. The chunk-E rollout used the parity guard as the green-light signal.
-- **`/dev/null` is a char device on macOS** — `canPromptForConfirmation` returns true for it. `internal/cli/test_helpers_test.go::openDevNull()` returns an `os.Pipe()` write-end-closed pipe to simulate non-TTY stdin. Reuse it.
-- **Amend deps-only mode:** when `--depends-on` / `--remove-depends-on` is set with only the slug arg and no piped stdin, `amend` skips the request.md rewrite path. Don't accidentally re-couple them.
-- **`store.Init()` refuses if `.tpatch/` already exists** — the validate-all-on-init style test in chunk C instead asserts that `feature deps --validate-all` runs cleanly post-init. Use the same shape for follow-up tests.
+- **Default flip is now LIVE.** `features_dependencies: true` by default. Existing v0.5.x repos get the new behavior on first run unless they set `features_dependencies: false` in `.tpatch/config.yaml`.
+- **`tpatch` binary at the repo root is NOT gitignored.** A bare `tpatch` ignore would shadow `cmd/tpatch/`. After every `go build ./cmd/tpatch` run `rm -f tpatch` BEFORE staging. Recurring slip across the entire M14 series.
+- **Commit trailer mandatory**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`. Use `git -c commit.gpgsign=false`.
+- **Source-truth guard (ADR-011 D6)**: all DAG/label/status code reads `status.Reconcile.Outcome` via `store.LoadFeatureStatus`, NEVER `artifacts/reconcile-session.json`. M14.3 has an adversarial test pinning this — do not regress.
+- **`--force` is NOT a DAG-integrity bypass** (PRD §3.7, ADR-011 D7). Only `--cascade` opts into removing a feature with downstream dependents.
+- **Skill parity guard** (`assets/assets_test.go`) enforces required CLI-command anchors and the recipe-op JSON schema. Treat it as a real reviewer.
+- **`git push` is slow** (60+ seconds on the typical operator machine). Use long initial_wait when pushing.
