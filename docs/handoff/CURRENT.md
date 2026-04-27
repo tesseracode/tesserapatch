@@ -28,16 +28,18 @@ This is the first M14 sub-milestone where end users observe new behavior. Dispat
 3. `docs/ROADMAP.md` — M14.4 line + Tranche D summary
 4. M14.1, M14.2, M14.3, correctness-pass closeout entries in `docs/supervisor/LOG.md`
 
-### Scope (5 chunks)
+### Scope (8 chunks — full PRD scope per supervisor decision 2026-04-26)
 
-#### Chunk A — `tpatch status --dag` (~120 LOC)
+> **Scope decision**: M14.4 ships the **full** PRD dependency feature in v0.6.0 (Option A). The dep-management CLI (`feature deps add/remove`, `amend --depends-on`, `remove --cascade`) is part of the cut, not deferred to v0.6.1. Without it the user-facing story is "we shipped a dependency feature, but to use it edit YAML by hand," which undercuts the rollout.
+
+#### Chunk A — `tpatch status --dag` (~140 LOC)
 
 - New `--dag` flag on `status` command in `internal/cli/cobra.go`.
-- Renders the dependency DAG for all features, or a single feature's transitive parent + child set if a slug is given.
+- Renders the dependency DAG for all features, or a single feature's transitive parent + child set if a slug is given (PRD §10 — scoped DAG replaces v1's `graph` command).
 - Output: ASCII tree (deterministic by slug) showing each feature with state + reconcile outcome + labels (using `EffectiveOutcome()`).
 - Hard deps shown with `─►`, soft deps with `┄►`.
-- `--format json` for harness consumption (M9 contract).
-- Tests: cycle handling (must never hang — protected by `DetectCycles`), empty DAG, single-feature subset, label rendering.
+- `--json` flag for harness consumption (PRD §10 — reuses existing `--json` flag, NOT `--format json`).
+- Tests: cycle handling (must never hang — protected by `DetectCycles`), empty DAG, scoped single-feature subset, label rendering, JSON shape stability.
 
 #### Chunk B — Flag default flip (~5 LOC + many test fixtures)
 
@@ -45,7 +47,42 @@ This is the first M14 sub-milestone where end users observe new behavior. Dispat
 - This is the moment the new behavior becomes observable. **Audit every test fixture that asserts byte-identity** — some may need updating to include `labels: []` or topo-ordered output.
 - Run full suite. Fix every regression.
 
-#### Chunk C — 6-skill rollout (parity-guard coordinated, ~80 LOC of docs)
+#### Chunk C — Dep-management CLI verbs (~250 LOC, **new in scope**)
+
+Per PRD §3.7, §10. Without these, users edit YAML by hand.
+
+- `tpatch feature deps <slug>` — read-only print of the dep block.
+- `tpatch feature deps <slug> add <parent>[:hard|:soft]` — adds an edge. Validates cycles + parent existence + no self-ref + no kind conflict (existing M14.1 rules). Atomic write to `status.json`. Re-derives `dependents` across the store.
+- `tpatch feature deps <slug> remove <parent>` — atomic edge removal. Re-derives `dependents`. Does NOT scan recipe bodies (per PRD §10 explanation — `created_by` cross-check catches stale references at next `implement`).
+- `tpatch amend --depends-on <parent>[:hard|:soft]` and `tpatch amend --remove-depends-on <parent>` — same validation path as `feature deps add/remove`.
+- `tpatch remove <slug> --cascade` — when dependents exist:
+  - No `--cascade` → `ErrHasDependents` listing dependents (PRD §3.7).
+  - `--cascade` + TTY → single confirm prompt listing full subtree; on Y, removes children in **reverse-topological order** (leaves first) then parent; per-feature summary.
+  - `--cascade` non-TTY → `ErrInteractiveRequired` unless `--cascade --force`.
+  - `--force` ALONE does NOT bypass dep check (force is for TTY confirm prompt, not graph integrity — PRD §3.7).
+  - Soft and hard dependents treated identically (no "drop soft only" mode in v1).
+- `tpatch feature deps --validate-all` — one-shot validation of the whole DAG (also runs as part of `init` sanity per PRD §6).
+
+Tests:
+- `TestFeatureDepsAdd_RejectsCycle` (full path in error)
+- `TestFeatureDepsAdd_RejectsKindConflict`
+- `TestFeatureDepsRemove_AtomicallyClearsAndRederivesDependents`
+- `TestAmendDependsOn_ValidatedIdenticallyToFeatureDeps`
+- `TestRemoveWithCascade_DeletesInReverseTopoOrder`
+- `TestRemoveWithoutCascade_RefusesWhenDependentsExist`
+- `TestRemoveForce_DoesNotBypassDepCheck`
+- `TestRemoveCascadeNonTTY_RequiresForce`
+- `TestFeatureDepsValidateAll_RunsOnInit`
+
+#### Chunk D — Status-time DAG validation (~40 LOC)
+
+Per PRD §6 + §10. `tpatch status` (with or without `--dag`) revalidates the DAG and surfaces any cycle/dangling/kind-conflict warnings inline. Currently validation only fires on dep writes.
+
+Tests:
+- `TestStatus_SurfacesDanglingDepWarning`
+- `TestStatus_SurfacesCycleWarning`
+
+#### Chunk E — 6-skill rollout (parity-guard coordinated, ~100 LOC of docs)
 
 Update all 6 skill formats with:
 - `dependencies` field documentation (analyze-phase bullet)
@@ -53,6 +90,8 @@ Update all 6 skill formats with:
 - Compound verdict (`blocked-by-parent-and-needs-resolution`)
 - `created_by` recipe field (now a real gate, not inert)
 - `tpatch status --dag` mention
+- **`tpatch feature deps add/remove` and `amend --depends-on`** usage examples
+- **`tpatch remove --cascade`** + the `--force ≠ bypass` rule
 
 Files (all 6 in lockstep):
 - `assets/skills/claude/tessera-patch/SKILL.md`
@@ -66,23 +105,23 @@ Files (all 6 in lockstep):
 
 Also: `docs/agent-as-provider.md` — if it covers reconcile-time agent behavior, add labels section.
 
-#### Chunk D — `docs/dependencies.md` (~150 LOC)
+#### Chunk F — `docs/dependencies.md` (~150 LOC)
 
 User-facing reference doc:
 - What dependencies are (hard vs soft)
-- How to declare them (YAML examples)
-- Validation rules (cycles, dangling, self-ref, etc.)
+- How to declare them (YAML examples + `tpatch feature deps add` examples)
+- Validation rules (cycles, dangling, self-ref, kind conflict)
 - Label semantics + matrix (lifted from PRD §3.5)
 - Compound verdict explanation
-- `created_by` apply-time gate behavior (F1 fix)
-- `--cascade` and force semantics (D7)
-- `tpatch status --dag` examples
+- `created_by` apply-time gate behavior (with dry-run downgrade-to-W per PRD §4.3)
+- `--cascade` and force semantics (PRD §3.7 — `--force` does NOT bypass dep integrity)
+- `tpatch status --dag` examples (ASCII + `--json`)
 - Migration note: existing v0.5.x projects keep working unchanged unless they add deps.
 
-#### Chunk E — Release cutover
+#### Chunk G — Release cutover
 
 - Bump `version = "0.6.0"` in `internal/cli/cobra.go`.
-- New `## 0.6.0 — 2026-MM-DD — Feature Dependencies (Tranche D)` section in `CHANGELOG.md` summarizing M14.1–M14.4 + correctness pass.
+- New `## 0.6.0 — 2026-MM-DD — Feature Dependencies (Tranche D)` section in `CHANGELOG.md` summarizing M14.1–M14.4 + correctness pass + C5 fix-pass.
 - Update `docs/ROADMAP.md`: M14 ✅, Tranche D box closed.
 - Tag `v0.6.0` AFTER push, AFTER full validation.
 
@@ -129,16 +168,22 @@ See `docs/handoff/HISTORY.md` for the M14.3 + correctness-pass entries.
 
 Correctness pass final: gofmt clean, `go test ./...` green, 11 new tests + full regression green.
 
+### Status
+
+- **Awaiting C5 fix-pass to land first** (real F1 bug: F3 only fires on already-persisted upstreamed status, missing the in-flight reconcile path; plus PRD-aligned dry-run downgrade per F3-from-second-review).
+- After C5 lands and is reviewed: dispatch M14.4.
+
 ## Next Steps
 
-1. **Wait for user approval** to dispatch M14.4.
-2. On green-light: dispatch `m14-4-implementer` with this scope.
-3. After implementer: dispatch `m14-4-reviewer`.
-4. On APPROVED: supervisor bumps version (if not already), updates CHANGELOG, ROADMAP, archives this handoff, tags `v0.6.0`, pushes.
+1. C5 fix-pass implementer (already dispatched / in-flight at supervisor's discretion).
+2. C5 reviewer.
+3. On C5 APPROVED: dispatch `m14-4-implementer` against this expanded handoff (Chunks A–G).
+4. After M14.4 implementer: `m14-4-reviewer` (expect a beefy review — 8 chunks, dep-CLI surface).
+5. On APPROVED: supervisor bumps version, updates CHANGELOG, ROADMAP, archives this handoff, tags `v0.6.0`, pushes.
 
 ## Blockers
 
-None. M14 is ready for cutover as soon as user authorizes.
+C5 fix-pass must land first.
 
 ## Context for Next Agent
 
