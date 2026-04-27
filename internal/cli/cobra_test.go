@@ -823,3 +823,62 @@ func TestRecordLenientSkipsValidation(t *testing.T) {
 		t.Errorf("expected lenient warning in stderr, got %q", stderr)
 	}
 }
+
+// TestRecordFilesScopesCapture verifies the --files flag (M15-W2 item 4)
+// narrows the captured patch to the supplied pathspec(s) so concurrent
+// edits to other features do not pollute the recorded diff.
+func TestRecordFilesScopesCapture(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Scoped record test")
+	slug := "scoped-record-test"
+
+	// Two separate edits in flight (simulates two features sharing a tree).
+	if err := os.MkdirAll(filepath.Join(tmpDir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(tmpDir, "src", "auth.go"), []byte("package src\n"), 0o644)
+	os.WriteFile(filepath.Join(tmpDir, "noise.txt"), []byte("unrelated\n"), 0o644)
+
+	_, stderr, code := runCmd("record", "--path", tmpDir, slug, "--files", "src/", "--lenient")
+	if code != 0 {
+		t.Fatalf("record --files failed: %s", stderr)
+	}
+
+	patchPath := filepath.Join(tmpDir, ".tpatch", "features", slug, "artifacts", "post-apply.patch")
+	got, err := os.ReadFile(patchPath)
+	if err != nil {
+		t.Fatalf("read post-apply.patch: %v", err)
+	}
+	patch := string(got)
+	if !strings.Contains(patch, "src/auth.go") {
+		t.Errorf("scoped capture missing in-scope file:\n%s", patch)
+	}
+	if strings.Contains(patch, "noise.txt") {
+		t.Errorf("scoped capture leaked out-of-scope file:\n%s", patch)
+	}
+}
+
+// TestRecordFilesIncompatibleWithFrom asserts the explicit error
+// when --files and --from are combined (committed-range capture does
+// not currently accept pathspec scoping).
+func TestRecordFilesIncompatibleWithFrom(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Files-from clash")
+	slug := "files-from-clash"
+
+	root := buildRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"record", "--path", tmpDir, slug, "--files", "src/", "--from", "HEAD"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatalf("expected error when --files combined with --from")
+	}
+	if !strings.Contains(err.Error(), "--files is incompatible with --from") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}

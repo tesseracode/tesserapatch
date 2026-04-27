@@ -769,11 +769,23 @@ func recordCmd() *cobra.Command {
 			}
 
 			fromRef, _ := cmd.Flags().GetString("from")
+			filesFlag, _ := cmd.Flags().GetString("files")
+			var pathspecs []string
+			if strings.TrimSpace(filesFlag) != "" {
+				for _, p := range strings.Split(filesFlag, ",") {
+					if p = strings.TrimSpace(p); p != "" {
+						pathspecs = append(pathspecs, p)
+					}
+				}
+			}
 			var patch string
 			if fromRef != "" {
+				if len(pathspecs) > 0 {
+					return fmt.Errorf("--files is incompatible with --from (committed-range capture does not accept pathspec scoping in this command)")
+				}
 				patch, err = gitutil.CapturePatchFromCommits(s.Root, fromRef, "HEAD")
 			} else {
-				patch, err = gitutil.CapturePatch(s.Root)
+				patch, err = gitutil.CapturePatchScoped(s.Root, pathspecs)
 			}
 			if err != nil {
 				return fmt.Errorf("cannot capture patch: %w", err)
@@ -915,6 +927,7 @@ func recordCmd() *cobra.Command {
 	cmd.Flags().Bool("lenient", false, "Skip reverse-apply round-trip validation (use for whitespace-sensitive files)")
 	cmd.Flags().Bool("no-recipe-autogen", false, "Disable deriving apply-recipe.json from the captured patch when none exists")
 	cmd.Flags().Bool("regenerate-recipe", false, "Overwrite an existing apply-recipe.json with one derived from the captured patch")
+	cmd.Flags().String("files", "", "Comma-separated git pathspecs to scope the capture to (e.g. 'src/auth/,docs/auth.md'); default captures the full working tree")
 	return cmd
 }
 

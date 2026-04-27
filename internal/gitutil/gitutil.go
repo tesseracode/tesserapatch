@@ -189,6 +189,15 @@ func CaptureDiffStat(repoRoot string) (string, error) {
 // CapturePatch captures a unified diff including tracked modifications and untracked new files.
 // It excludes .tpatch/, .claude/skills/, .github/skills/, .github/prompts/, .cursor/rules/.
 func CapturePatch(repoRoot string) (string, error) {
+	return CapturePatchScoped(repoRoot, nil)
+}
+
+// CapturePatchScoped is like CapturePatch but, when pathspecs is
+// non-empty, narrows the diff to those pathspecs (passed verbatim to
+// `git diff -- <pathspec>...`). Pathspecs may be plain paths, globs,
+// or git's `:(...)` magic forms. Empty pathspecs reproduces the
+// historical full-tree capture byte-for-byte.
+func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	excludePatterns := []string{
 		":(exclude).tpatch",
 		":(exclude).claude/skills",
@@ -224,8 +233,14 @@ func CapturePatch(repoRoot string) (string, error) {
 		}
 	}
 
-	// Capture unified diff (now includes tracked changes AND intent-to-add new files)
+	// Capture unified diff (now includes tracked changes AND intent-to-add new files).
+	// Order: `git diff -- <excludes...> <pathspecs...>`. Excludes come
+	// first so a user-supplied positive pathspec like `src/` does not
+	// re-include files under the always-excluded directories.
 	args := append([]string{"diff", "--"}, excludePatterns...)
+	if len(pathspecs) > 0 {
+		args = append(args, pathspecs...)
+	}
 	patch, err := runGit(repoRoot, args...)
 	if err != nil {
 		patch = ""
