@@ -4,6 +4,121 @@
 
 ---
 
+## Review — M15.1 — 2026-04-26
+
+**Implementer**: m15-1-implementer (general-purpose, ~6.5min per handoff notes)
+**Reviewer**: code-review sub-agent
+
+### Commits reviewed
+
+2 commits between `0559c7d` (M14.4 handoff dispatch) and `4151f01` (HEAD):
+
+- `53b8b90` feat(workflow): M15.1 advisory created_by inference at implement time
+- `4151f01` docs(handoff): M15.1 implementation complete, awaiting reviewer
+
+### Checklist
+
+**Algorithm correctness (PRD §4.3.1) ✅**
+- [x] replace-in-file only: checked at line 103 (`op.Type != "replace-in-file"` continues)
+- [x] Empty CreatedBy guard: line 106 (`op.CreatedBy != ""` continues)
+- [x] Non-empty Search guard: line 109 (`op.Search == ""` continues)
+- [x] Pristine check first: line 159 calls `pristineHasSearch` before parent scan; early-exit if found
+- [x] bytes.Contains used: lines 172, 223 — literal byte substring match, no regex
+- [x] HARD parents only: lines 126-129 filter `dep.Kind == store.DependencyKindHard`
+- [x] Non-transitive: comment line 30 states "non-transitive: only direct parents"; no recursion in code
+- [x] Single match → suggestion: case 1 at lines 183-188
+- [x] Multiple matches → ambiguity warning: default case at lines 189-192
+- [x] Zero matches → silent: case 0 at lines 179-182 (comment confirms apply-time gate handles it)
+
+**Advisory-only contract (PRD §8) ✅**
+- [x] Recipe NEVER mutated: comment line 20 "recipe is NEVER mutated"; function signature line 81 takes `recipe ApplyRecipe` by value; tests verify with `recipeSnapshot` at lines 40-44, 63, 84-86
+- [x] Suggestions to stderr: lines 184-198 write to `WarnWriter` (which is stderr per line 39)
+- [x] Per-suggestion format includes op index, path, suggested parent, reason: lines 184-187
+- [x] Summary line only when suggestions > 0: lines 196-199 guard with `if suggestions > 0`
+- [x] User-set created_by never overwritten: test #2 (TestCreatedByInference_RespectsExistingAnnotation, lines 92-113) asserts silent output when op.CreatedBy already set
+
+**Opt-out + flag-off ✅**
+- [x] `--no-created-by-infer` flag present: cobra.go lines 467-469, 480
+- [x] Flag default ON: flag definition at line 480 has no explicit default=true, so cobra default is false (opt-in), BUT the function checks for opt-OUT, so inference runs by default when flag not set — CORRECT
+- [x] Context plumbing: WithDisableCreatedByInference at lines 61-63; checked at line 82
+- [x] Flag-off via features_dependencies: lines 85-93 check `cfg.DAGEnabled()` and return nil early with comment "byte-identical pre-v0.6 behaviour"
+- [x] Test #5 (TestCreatedByInference_OptOut, lines 185-207) asserts silence with flag set
+- [x] Test #6 (TestCreatedByInference_FlagOff, lines 211-232) asserts silence with features_dependencies=false
+
+**Scope guards (NEGATIVE checks) ✅**
+- [x] created_by_gate.go UNCHANGED: `git diff 0559c7d..HEAD -- internal/workflow/created_by_gate.go` returned empty
+- [x] No write-file ops processed: grep for "write-file" in inference file returned empty (only replace-in-file at line 103)
+- [x] No transitive scanning: confirmed line 30 comment + code only reads child.DependsOn directly
+- [x] No new external deps: `go list -m all` shows only cobra/pflag + stdlib (same as before)
+- [x] No new config keys: inference checks existing `features_dependencies` flag only
+- [x] Version NOT bumped: cobra.go:24 still says `version = "0.6.0"`
+- [x] CHANGELOG NOT touched: `git diff 0559c7d..HEAD -- CHANGELOG.md` returned empty
+
+**Implementer's flagged note ✅**
+- [x] Inference errors degrade to warning: implement.go lines 145-147 wrap `inferCreatedBy` with `if ierr != nil { warn }` and continue
+- [x] Apply-time gate remains authoritative: comment at lines 139-143 confirms this is intentional
+- [x] Silent when no parent contained text: case 0 at inference.go lines 179-182 is silent (no error)
+- [x] Transient read failures handled: lines 140-148 in inference.go skip parent silently when ReadFeatureFile fails (comment confirms this is expected when parent not applied yet)
+
+**Tests (all 8 present and meaningful) ✅**
+1. [x] TestCreatedByInference_SuggestsHardParent (lines 50-87): real fixtures, asserts stderr contains suggestion + op index + path + summary, verifies recipe unchanged
+2. [x] TestCreatedByInference_RespectsExistingAnnotation (lines 92-113): op has created_by set, asserts silence
+3. [x] TestCreatedByInference_AmbiguousMultipleParents (lines 119-152): two parents match, asserts "ambiguous" + both parents listed + NO summary line
+4. [x] TestCreatedByInference_SkipsSoftParents (lines 157-180): soft parent matches but hard doesn't, asserts silence
+5. [x] TestCreatedByInference_OptOut (lines 185-207): WithDisableCreatedByInference set, asserts silence
+6. [x] TestCreatedByInference_FlagOff (lines 211-232): features_dependencies=false, asserts silence
+7. [x] TestCreatedByInference_PristineHasSearch_NoSuggestion (lines 237-261): pristine file contains Search text, asserts silence (proves early-exit)
+8. [x] TestCreatedByInference_NoMatchSilent (lines 267-288): no parent patch matches, asserts silence
+
+**Cross-cutting ✅**
+- [x] Commit trailers present: both commits carry Co-authored-by line (verified with `git log --format="%B"`)
+- [x] No tpatch binary in tree: `git ls-files | grep -E '^tpatch$'` returned empty
+- [x] Working tree clean: `git status --porcelain` returned empty
+- [x] All M14 series tests green: CreatedByGate (9 tests), CreatedByInference (8 tests), ComposeLabels, EffectiveOutcome, AcceptShadow, GoldenReconcile, PlanReconcile, Phase35 all PASS
+
+**Validation gate ✅**
+```
+$ gofmt -l .
+(no output)
+
+$ go build ./cmd/tpatch && rm -f tpatch
+BUILD OK
+
+$ go test ./...
+ok  	github.com/tesseracode/tesserapatch/assets	(cached)
+?   	github.com/tesseracode/tesserapatch/cmd/tpatch	[no test files]
+ok  	github.com/tesseracode/tesserapatch/internal/cli	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/provider	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/safety	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/store	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	(cached)
+
+$ go test ./internal/workflow -run 'CreatedByInference|CreatedByGate|...' -count=1 -v
+(all 8 CreatedByInference + 9 CreatedByGate + all M14 label/DAG tests PASS)
+
+$ go test ./assets/... -count=1
+ok  	github.com/tesseracode/tesserapatch/assets	0.479s
+```
+
+### Verdict: APPROVED
+
+M15.1 is correct and complete. The implementation precisely matches the PRD §4.3.1 algorithm spec: replace-in-file ops with empty created_by and non-empty Search trigger a scan of HARD parents only (soft parents skipped per ADR-011 D4); when exactly one hard parent's post-apply.patch contains the Search bytes AND pristine working tree does not, an advisory suggestion is emitted to stderr. Multiple matches produce an ambiguity warning with no specific suggestion. Zero matches are silent (apply-time gate remains the authoritative enforcement point).
+
+The advisory-only contract is strictly honored: the recipe is never mutated (deep-copy tests verify), operator authority is preserved, and suggestions are written to stderr for manual review. The opt-out flag (`--no-created-by-infer`) and flag-off guard (`features_dependencies: false`) both produce byte-identical pre-v0.6 behavior.
+
+Scope guards all satisfied: created_by_gate.go untouched, no write-file ops processed, no transitive scanning, no new external deps, version stays at 0.6.0, CHANGELOG untouched. All 8 tests are meaningful (real fixtures, observable behavior asserts, covers all branches). Implementer's degradation-to-warning note verified: transient read errors don't block recipe persistence.
+
+Full test suite green (all M14 series tests + new inference tests pass). Code quality high: clear comments, correct error handling, deterministic output (sorted parent matches), efficient fast-paths (candidate collection, cached parent patches, pristine short-circuit).
+
+Ready to archive handoff. Supervisor can decide on v0.6.1 cut timing.
+
+### Notes
+
+None — clean implementation with no issues found.
+
+---
+
 ## Review — M14.4 — 2026-04-26
 
 **Implementer**: m14-4-implementer (general-purpose, ~21min per handoff notes)
