@@ -4,6 +4,208 @@
 
 ---
 
+## Review — M14.4 — 2026-04-26
+
+**Implementer**: m14-4-implementer (general-purpose, ~21min per handoff notes)
+**Reviewer**: code-review sub-agent
+
+### Commits reviewed
+
+7 commits between `0ba4809` (C5 fix-pass closeout) and `f1f603f` (origin/main HEAD):
+
+- `d1aca5f` feat(cli): add tpatch status --dag tree view + status-time DAG validation (M14.4 chunks A+D)
+- `ca23b35` feat(cli): dependency-management verbs — feature deps + amend --depends-on + remove --cascade (M14.4 chunk C)
+- `5d5f594` feat(store): flip features_dependencies default to true (M14.4 chunk B)
+- `97a994f` docs(skills): roll out feature-dependency guidance to all 6 skill formats (M14.4 chunk E)
+- `e0a7d47` docs: add docs/dependencies.md user reference (M14.4 chunk F)
+- `f2d0d1b` chore(release): v0.6.0 — Feature Dependencies (Tranche D) cutover (M14.4 chunk G)
+- `f1f603f` docs(handoff): M14.4 implementation complete, awaiting reviewer
+
+### Checklist
+
+**Chunk A — `status --dag` ✅**
+- [x] Uses `--json` flag, NOT `--format json` (correct flag name at cobra.go:196, status_dag.go:92)
+- [x] Hard deps render `─►`, soft render `┄►` (status_dag.go:316-318)
+- [x] Reads from `status.Reconcile.Outcome` via `EffectiveOutcome()`, never `reconcile-session.json` (status_dag.go:5 comment confirms ADR-010 D5 compliance, line 328 uses `st.Reconcile.EffectiveOutcome()`)
+- [x] Cycle-safe: uses `DetectCycles`, visited-set prevents infinite recursion (status_dag.go:89, walkTree line 289-293)
+- [x] Scoped and full DAG modes (scopeSet at line 90, scoped param honored throughout)
+- [x] JSON schema deterministic and stable (dagJSONPayload struct lines 58-65, sorted roots/features)
+- [x] Tests cover all scenarios: 7 tests in status_dag_test.go including cycle, empty, scoped, labels, JSON
+
+**Chunk B — flag flip ✅**
+- [x] Default now true in parseYAMLConfig (store.go:544 `cfg.FeaturesDependencies = true`)
+- [x] Init template writes explicit true (store.go:88)
+- [x] Byte-identity tests updated: dependency_gate_apply_test.go opts out (line 66 `features_dependencies: false`), accept_labels_test.go opts out (line 106)
+- [x] Roundtrip test inverted: TestConfig_FeaturesDependenciesRoundtrip (roundtrip_test.go) tests default-true + explicit-false
+
+**Chunk C — dep-management CLI ✅**
+- [x] All verbs present: `feature deps` read/add/remove/validate-all at feature_deps.go:50-95
+- [x] `amend --depends-on/--remove-depends-on` present (c1.go:48, feature_deps.go:274-290)
+- [x] `remove --cascade` present with ErrInteractiveRequired for non-TTY (feature_deps.go:308-367)
+- [x] **CRITICAL**: `--force` alone does NOT bypass DAG integrity (c1.go:231-238 comment + code: cascade gate enforced regardless of force flag)
+- [x] **CRITICAL**: Test confirms force-bypass prevention: TestRemoveForce_DoesNotBypassDepCheck at feature_deps_test.go asserts exit code != 0 when force used without cascade
+- [x] Add operations validate cycles/parent existence/no self-ref/no kind conflict (routed through store.ValidateDependencies)
+- [x] Remove operations re-derive dependents atomically (store maintains dependents graph)
+- [x] Cascade removes in reverse-topological order (feature_deps.go:319-340, leaves-first via reversed Kahn order)
+- [x] All 9 tests present and meaningful: TestFeatureDeps_Show_NoDeps, TestFeatureDepsAdd_RejectsCycle, TestFeatureDepsAdd_RejectsKindConflict, TestFeatureDepsRemove_ClearsAtomically, TestAmendDependsOn_ValidatedIdenticallyToFeatureDeps, TestRemoveWithCascade_DeletesInReverseTopoOrder, TestRemoveWithoutCascade_RefusesWhenDependentsExist, TestRemoveForce_DoesNotBypassDepCheck, TestRemoveCascadeNonTTY_RequiresForce, TestFeatureDepsValidateAll_OnInit
+
+**Chunk D — status-time validation ✅**
+- [x] `tpatch status` revalidates DAG and surfaces warnings (cobra.go:204-215)
+- [x] Both required tests present: TestStatus_SurfacesDanglingDepWarning (status_dag_test.go:202), TestStatus_SurfacesCycleWarning (status_dag_test.go:219)
+
+**Chunk E — 6-skill rollout ✅**
+- [x] All 6 skill files updated: claude/tessera-patch/SKILL.md, copilot/tessera-patch/SKILL.md, copilot prompt (tessera-patch-apply.prompt.md), cursor/tessera-patch.mdc, windsurf/windsurfrules, generic workflow (tessera-patch-generic.md) — all contain "Feature dependencies" section + created_by gate description
+- [x] Each covers: dependencies field, label reference, compound verdict, created_by gate (not inert), status --dag, feature deps verbs, amend --depends-on, remove --cascade, force ≠ bypass rule
+- [x] Parity guard passes: `go test ./assets/... -count=1` green (confirmed)
+- [x] created_by reframed from "inert" to live gate (e.g., SKILL.md:160 states "live apply-time gate")
+
+**Chunk F — docs/dependencies.md ✅**
+- [x] User reference exists with all required content (267 lines)
+- [x] Hard vs soft semantics (lines 35-40)
+- [x] YAML examples (lines 25-33)
+- [x] `feature deps add` examples (lines 52-72)
+- [x] Validation rules (lines 78-93)
+- [x] Label matrix (lines 147-154)
+- [x] Compound verdict (lines 158-171)
+- [x] `created_by` apply-time gate with dry-run warning noted (lines 96-107)
+- [x] Cascade/force semantics (lines 216-231)
+- [x] `status --dag` examples with ASCII + --json (lines 182-214)
+- [x] Migration note for v0.5.x users (lines 233-252)
+
+**Chunk G — release cutover ✅**
+- [x] Version bumped to 0.6.0 (cobra.go:24)
+- [x] CHANGELOG.md has new v0.6.0 section (lines 5-34, dated 2026-04-26)
+- [x] ROADMAP.md M14 marked ✅ (line 175, M14.4 expanded with chunk breakdown)
+- [x] NOT tagged (git tag -l v0.6.0 returns empty — tagging is supervisor's job)
+
+**Cross-cutting / scope guards ✅**
+- [x] No new external Go dependencies (only cobra/pflag + stdlib)
+- [x] No ReconcileWaitingOnParent/ReconcileBlockedByParent enum values (labels remain composable, not states)
+- [x] No parent-patch injection into M12 resolver (per ADR-011 D8, deferred)
+- [x] No implement-phase `created_by` heuristic inference (per PRD §4.3.1, separate backlog)
+- [x] All commits carry Co-authored-by trailer (7 instances confirmed)
+- [x] No tpatch binary in tree (checked, not present)
+- [x] Working tree clean (git status --porcelain empty)
+
+**Validation gate ✅**
+- [x] `gofmt -l .` — clean
+- [x] `go build ./cmd/tpatch && rm -f tpatch` — ok
+- [x] `go test ./...` — all green (8 packages)
+- [x] `go test ./assets/... -count=1` — parity guard passes (0.358s)
+- [x] CLI tests (StatusDag, FeatureDeps, Amend, Remove) — 27 tests pass (2.365s)
+- [x] Workflow tests (CreatedByGate, ComposeLabels, EffectiveOutcome) — 26 tests pass (1.069s)
+- [x] Store tests (Dependency, Roundtrip) — 8 tests pass (0.403s)
+
+### Verdict: APPROVED
+
+### Notes
+
+This is a clean, comprehensive release cutover. All 7 chunks land exactly as specified in the handoff contract. The critical correctness checks all pass:
+
+1. **Chunk A** correctly uses `--json` flag (not `--format json` per prior reviewer finding), renders hard/soft edges with correct glyphs, reads from status-of-record via `EffectiveOutcome()`, and handles cycles safely.
+
+2. **Chunk B** default flip is correctly implemented in parseYAMLConfig with true when absent, tests properly updated to opt out where needed for byte-identity preservation.
+
+3. **Chunk C** correctly enforces the `--force ≠ bypass` rule (PRD §3.7, ADR-011 D7) — the remove command checks dependents BEFORE evaluating force flag, and TestRemoveForce_DoesNotBypassDepCheck explicitly validates this behavior. Cascade removes in reverse-topological order as required.
+
+4. **Chunk D** status-time validation surfaces dangling deps and cycles inline, with dedicated tests for both scenarios.
+
+5. **Chunk E** 6-skill rollout is complete with parity guard passing, `created_by` correctly reframed from "inert" to "live apply-time gate" across all formats.
+
+6. **Chunk F** comprehensive user documentation (docs/dependencies.md) covers all required topics including the dry-run downgrade for `created_by` gate (matching PRD §4.3).
+
+7. **Chunk G** release mechanics correct: version bumped, CHANGELOG complete with M14.1–M14.4 summary, ROADMAP updated, no premature tag.
+
+**No blocking issues found.** All scope guards honored, no drift from ADR-011 decisions, test coverage comprehensive, working tree clean. Ready for supervisor tag `v0.6.0` and milestone closeout.
+
+---
+
+## Review — M14 correctness pass — 2026-04-26
+
+**Implementer**: m14-correctness sub-agent (general-purpose, ~90 min elapsed)
+**Reviewer**: code-review sub-agent (this review)
+**Task**: Three external-reviewer findings (F1 `created_by` apply-time gate, F2 label/AttemptedAt consistency, F3 upstreamed children suppress parent labels). All flag-gated. No version bump. Delta vs M14.3 closeout `6d95593`.
+
+### Commits reviewed
+
+- `cbe2873` feat(workflow): wire created_by apply-time gate (M14 fix-pass F1)
+- `071c5ed` fix(workflow): clear stale labels on successful reconcile (M14 fix-pass F2)
+- `cc95cbb` fix(workflow): suppress parent labels for upstreamed children (M14 fix-pass F3)
+- `1e0d064` docs(handoff): M14 correctness pass complete, ready for review
+
+### Checklist
+
+- [x] Builds, tests, gofmt all green
+- [x] 11 new tests (7 F1 + 2 F2 + 2 F3)
+- [x] All 5 M14.1/M14.2/M14.3 tripwires green
+- [x] All 4 commits carry Co-authored-by trailer
+- [x] CURRENT.md accurate (Status: Complete)
+- [x] Working tree clean, no tpatch binary at root
+
+### Critical correctness checks (all 15 pass)
+
+**F1 (HIGH, cutover-blocking) — `created_by` apply-time gate**
+
+1. ✅ **Hard parent + missing target** — `TestCreatedByGate_HardParent_TargetMissing_ErrPathCreatedByParent` verifies both dry-run and execute paths return `ErrPathCreatedByParent` (sentinel, errors.Is-friendly). Error message includes target path, parent slug, and "apply parent first" guidance. Gate implemented at recipe.go:96 (dryRunOperation replace-in-file), line 113 (append-file), line 149 (executeOperation replace-in-file), line 166 (append-file). Four call sites, all correct.
+
+2. ✅ **Soft parent fall-through** — `TestCreatedByGate_SoftParent_TargetMissing_FallsThroughWithWarning` verifies warning emitted to `WarnWriter` (captureWarn test helper confirms it's observable, not silently logged). Gate returns nil → falls through to existing not-found error. Warning text: `"note: op declares created_by=%s; soft deps do not gate apply\n"`. ADR-011 D4 compliant (soft deps never gate apply).
+
+3. ✅ **created_by not in depends_on** — `TestCreatedByGate_ParentNotInDependsOn_RecipeRejected` verifies recipe-shape validation at dry-run time. Error message: `"recipe op declares created_by=%s but %s is not in depends_on"`. Validation error (distinct from ErrPathCreatedByParent).
+
+4. ✅ **Target exists** — `TestCreatedByGate_HardParent_TargetExists_NoError` verifies gate passes when file is present. ExecuteRecipe succeeds, replacement applied. No false positives.
+
+5. ✅ **upstream_merged satisfies** — `TestCreatedByGate_ParentUpstreamMerged_TargetExists_NoError` verifies parent in `StateUpstreamMerged` + target present → gate passes. ADR-011 D5 contract met (upstreamed parent satisfies hard deps). Gate doesn't inspect parent state directly (delegates to target-exists check).
+
+6. ✅ **Flag-off byte-identity** — `TestCreatedByGate_FlagOff_NoOp` verifies with `features_dependencies: false` (default), `CreatedBy` is inert. Missing target surfaces bare "file not found" error (v0.5.3 behavior). No ErrPathCreatedByParent, no guidance leak. Early return at created_by_gate.go:65-68 when `!cfg.DAGEnabled()`.
+
+7. ✅ **Op-type scope** — `TestCreatedByGate_AppliesToReplaceAndAppend` verifies gate fires for `replace-in-file` and `append-file` only. `write-file` and `ensure-directory` do NOT call `checkCreatedByGate` (verified in recipe.go:83-87, 121-125, 140-144, 177-178). Gate fires when target-must-exist precondition applies; creation ops bypass it. ADR-011 D4 narrow scope respected.
+
+**F2 (MEDIUM) — Label/AttemptedAt consistency**
+
+8. ✅ **Shared timestamp threading** — `TestRunReconcile_ClearsStaleLabel_WhenChildRefreshed` verifies single `attemptedAt` timestamp generated once in `saveReconcileArtifacts` (reconcile.go:468-470), reused by `updateFeatureState` (line 525-527). `composeLabelsAt` (labels.go:111-126) uses same timestamp as staleness baseline. Persisted `Labels` reflect the `AttemptedAt` about to be written (not the OLD on-disk value). No child flagged stale against itself. Unexported field (line 54) invisible to encoding/json — no schema impact, no fixture drift. Test loads pre-stale fixture, runs reconcile, asserts `stale-parent-applied` cleared.
+
+9. ✅ **Other labels preserved** — `TestRunReconcile_PreservesOtherLabels_WhenStaleResolved` verifies selective clearing. Two parents: `p-stale` (applied, old UpdatedAt → stale clears) and `p-pending` (analyzed → waiting-on-parent remains). After reconcile, `Labels` contains only `[waiting-on-parent]` (stale gone, waiting preserved). Label set is recomputed via `composeLabelsFromStatus`, not flushed wholesale.
+
+**F3 (MEDIUM) — Upstreamed children suppress parent labels**
+
+10. ✅ **Upstreamed suppression** — `TestComposeLabels_UpstreamedChild_NoLabels` verifies child with `Reconcile.Outcome == ReconcileUpstreamed` returns nil labels (early return at labels.go:144-147). Parent in `StateBlocked` would normally produce `blocked-by-parent`, but suppression fires first. `childRetiredOutcomes` set (line 135-137) currently contains only `ReconcileUpstreamed` (ADR-011: once absorbed upstream, parent context is irrelevant).
+
+11. ✅ **Non-suppressed outcomes still produce labels** — `TestComposeLabels_NonSuppressedOutcome_StillProducesLabels` verifies child with `ReconcileReapplied` (not in retired set) + stale parent → `stale-parent-applied` label emitted. Suppression is narrowly scoped. Other terminal outcomes (`Blocked`, `BlockedRequiresHuman`, `ShadowAwaiting`, etc.) remain live — labels still compose.
+
+**Scope & hygiene**
+
+12. ✅ **No scope creep** — No version bump in `internal/cli/cobra.go` (`version = "0.5.3"` unchanged). No `CHANGELOG.md` modification (`git diff 6d95593..HEAD -- CHANGELOG.md` empty). No `internal/store/types.go` changes (`git diff 6d95593..HEAD -- internal/store/types.go` empty) — no new `ReconcileOutcome` enum values added. No skill format updates (`git diff 6d95593..HEAD -- assets/skills/` empty). No external Go deps (only `github.com/tesseracode/tesserapatch/internal/store` imported). No `--dag` command, no `--force` bypass, no implement-phase heuristic inference of `created_by`. Strict scope respected.
+
+13. ✅ **No reconcile-session.json reads in new code** — `grep -rn "reconcile-session.json" internal/workflow/created_by_gate.go internal/workflow/labels.go` returns only comments (line 13-14 in labels.go as AUTHORITATIVE SOURCE GUARD, line 25 in created_by_gate.go stating "does NOT consult any reconcile-session or apply-session artifact"). No new reads added. M14.3 external-reviewer guard preserved.
+
+14. ✅ **Regression** — M14.1/M14.2/M14.3 tests: `TestComposeLabels_ReadsStatusJsonNotSessionArtifact` PASS (adversarial guard, labels.go reads status.json only). `TestReconcile_FlagOn_BlockedByParent_SkipsPhase35` PASS (phase-3.5 skip logic unchanged). `TestGoldenReconcile_ResolveApplyTruthful` PASS (golden fixture regression). `TestGoldenReconcile_ManualAcceptFlow` PASS (shadow accept flow). Full suite: `go test ./...` → all packages ok.
+
+15. ✅ **Hygiene** — `gofmt -l .` clean. `go build ./cmd/tpatch` succeeds. No `tpatch` binary at root (`ls -la tpatch` → does not exist). 4 commits, 4 `Co-authored-by: Copilot` trailers (verified via `git log --format='%B' 6d95593..HEAD | grep -c "Co-authored-by"`). Working tree clean (`git status --short` empty).
+
+### Implementation notes
+
+**F1 architecture**: `checkCreatedByGate` signature is `(s *store.Store, childSlug string, op RecipeOperation, targetExists bool)`. Caller passes `targetExists` to avoid double-stat. Gate early-returns when `op.CreatedBy == ""` (line 58) or `!cfg.DAGEnabled()` (line 65-68) — lazy store access preserves flag-off byte-identity. Hard/soft classification via child's `depends_on` (loaded at line 69). Soft-parent branch (line 107-112) emits warning via `fmt.Fprintf(WarnWriter, ...)`, then returns nil (caller proceeds to not-found error). Sentinel `ErrPathCreatedByParent` (line 43) is `errors.New`, wrapped via `fmt.Errorf("%w: ...", ErrPathCreatedByParent, ...)` for `errors.Is` compatibility.
+
+**F2 architecture**: `attemptedAt` field added to `ReconcileResult` (reconcile.go:54), unexported. Populated lazily (whichever helper runs first generates it, the other reuses). `composeLabelsAt(s, slug, asOf)` helper (labels.go:111-126) accepts explicit timestamp, temporarily overwrites `child.Reconcile.AttemptedAt` before delegating to `composeLabelsFromStatus` (line 125). `ComposeLabels` refactored to delegate to `composeLabelsFromStatus(s, child)` (line 102) so callers can override fields without disk round-trip. Public `ComposeLabels` signature unchanged (backward-compatible).
+
+**F3 architecture**: `childRetiredOutcomes` map (labels.go:135-137) checked first in `composeLabelsFromStatus` (line 144). Early return nil when child retired. Map-based for O(1) lookup + extensibility (future `ReconcileObsolete` or similar can slot in). Comment at line 133-134 lists the live outcomes explicitly (Reapplied, StillNeeded, Blocked, ShadowAwaiting, BlockedTooManyConflicts, BlockedRequiresHuman) — those outcomes keep the child live, labels continue to compose.
+
+**Call-site updates**: `DryRunRecipe` and `ExecuteRecipe` signatures changed from `(repoRoot string, recipe ApplyRecipe)` to `(s *store.Store, recipe ApplyRecipe)` (recipe.go:29, 48). Three call sites updated: `internal/cli/cobra.go` lines 466 + 552, `internal/cli/phase2.go` line 136. All pass `s` instead of `s.Root`. `slug` read from `recipe.Feature` (recipe.go:75 in `dryRunOperation`, line 132 in `executeOperation`).
+
+**Test coverage**: 7 F1 tests (gate correctness + flag-off + op-type scope), 2 F2 tests (stale clears + other labels preserved), 2 F3 tests (upstreamed suppresses + non-suppressed still produce). All 11 tests in new files (`created_by_gate_test.go`, `labels_freshness_test.go`, `labels_upstreamed_test.go`). No existing tests modified. M14.1/M14.2/M14.3 regression suite green (24 tests from prior milestones).
+
+**Documentation**: `created_by_gate.go` header comments (lines 1-25) cite PRD §4.3 contract as authoritative. `labels.go` header AUTHORITATIVE SOURCE GUARD (lines 9-16) explicitly forbids reconcile-session reads. `reconcile.go` field comment (lines 44-54) explains timestamp-threading rationale. CURRENT.md session summary complete (lines 140-214), files changed list accurate.
+
+### Verdict
+
+**APPROVED**
+
+All 15 critical checks pass. F1 contract is correctly wired in both dry-run and execute paths, with flag-off byte-identity, op-type scope, and sentinel error. F2 timestamp threading is sound (one shared `attemptedAt`, no stale-against-self). F3 suppression is narrowly scoped (only `ReconcileUpstreamed` retired). No scope creep, no regressions, hygiene clean. Test coverage is comprehensive (7+2+2 = 11 new tests, all M14.1/M14.2/M14.3 tripwires green).
+
+Ready for M14.4 cutover (flag flip, skill rollout, `tpatch status --dag`, v0.6.0 tag) on user green-light.
+
+---
+
 ## Review — C5 fix-pass — 2026-04-26
 
 **Implementer**: c5-implementer sub-agent (general-purpose, elapsed unknown)
@@ -890,204 +1092,4 @@ Archived M10 handoff to HISTORY.md, wrote new M11 CURRENT, marked
 M11 ✅ in ROADMAP.
 
 ---
-
-## Review — M14 correctness pass — 2026-04-26
-
-**Implementer**: m14-correctness sub-agent (general-purpose, ~90 min elapsed)
-**Reviewer**: code-review sub-agent (this review)
-**Task**: Three external-reviewer findings (F1 `created_by` apply-time gate, F2 label/AttemptedAt consistency, F3 upstreamed children suppress parent labels). All flag-gated. No version bump. Delta vs M14.3 closeout `6d95593`.
-
-### Commits reviewed
-
-- `cbe2873` feat(workflow): wire created_by apply-time gate (M14 fix-pass F1)
-- `071c5ed` fix(workflow): clear stale labels on successful reconcile (M14 fix-pass F2)
-- `cc95cbb` fix(workflow): suppress parent labels for upstreamed children (M14 fix-pass F3)
-- `1e0d064` docs(handoff): M14 correctness pass complete, ready for review
-
-### Checklist
-
-- [x] Builds, tests, gofmt all green
-- [x] 11 new tests (7 F1 + 2 F2 + 2 F3)
-- [x] All 5 M14.1/M14.2/M14.3 tripwires green
-- [x] All 4 commits carry Co-authored-by trailer
-- [x] CURRENT.md accurate (Status: Complete)
-- [x] Working tree clean, no tpatch binary at root
-
-### Critical correctness checks (all 15 pass)
-
-**F1 (HIGH, cutover-blocking) — `created_by` apply-time gate**
-
-1. ✅ **Hard parent + missing target** — `TestCreatedByGate_HardParent_TargetMissing_ErrPathCreatedByParent` verifies both dry-run and execute paths return `ErrPathCreatedByParent` (sentinel, errors.Is-friendly). Error message includes target path, parent slug, and "apply parent first" guidance. Gate implemented at recipe.go:96 (dryRunOperation replace-in-file), line 113 (append-file), line 149 (executeOperation replace-in-file), line 166 (append-file). Four call sites, all correct.
-
-2. ✅ **Soft parent fall-through** — `TestCreatedByGate_SoftParent_TargetMissing_FallsThroughWithWarning` verifies warning emitted to `WarnWriter` (captureWarn test helper confirms it's observable, not silently logged). Gate returns nil → falls through to existing not-found error. Warning text: `"note: op declares created_by=%s; soft deps do not gate apply\n"`. ADR-011 D4 compliant (soft deps never gate apply).
-
-3. ✅ **created_by not in depends_on** — `TestCreatedByGate_ParentNotInDependsOn_RecipeRejected` verifies recipe-shape validation at dry-run time. Error message: `"recipe op declares created_by=%s but %s is not in depends_on"`. Validation error (distinct from ErrPathCreatedByParent).
-
-4. ✅ **Target exists** — `TestCreatedByGate_HardParent_TargetExists_NoError` verifies gate passes when file is present. ExecuteRecipe succeeds, replacement applied. No false positives.
-
-5. ✅ **upstream_merged satisfies** — `TestCreatedByGate_ParentUpstreamMerged_TargetExists_NoError` verifies parent in `StateUpstreamMerged` + target present → gate passes. ADR-011 D5 contract met (upstreamed parent satisfies hard deps). Gate doesn't inspect parent state directly (delegates to target-exists check).
-
-6. ✅ **Flag-off byte-identity** — `TestCreatedByGate_FlagOff_NoOp` verifies with `features_dependencies: false` (default), `CreatedBy` is inert. Missing target surfaces bare "file not found" error (v0.5.3 behavior). No ErrPathCreatedByParent, no guidance leak. Early return at created_by_gate.go:65-68 when `!cfg.DAGEnabled()`.
-
-7. ✅ **Op-type scope** — `TestCreatedByGate_AppliesToReplaceAndAppend` verifies gate fires for `replace-in-file` and `append-file` only. `write-file` and `ensure-directory` do NOT call `checkCreatedByGate` (verified in recipe.go:83-87, 121-125, 140-144, 177-178). Gate fires when target-must-exist precondition applies; creation ops bypass it. ADR-011 D4 narrow scope respected.
-
-**F2 (MEDIUM) — Label/AttemptedAt consistency**
-
-8. ✅ **Shared timestamp threading** — `TestRunReconcile_ClearsStaleLabel_WhenChildRefreshed` verifies single `attemptedAt` timestamp generated once in `saveReconcileArtifacts` (reconcile.go:468-470), reused by `updateFeatureState` (line 525-527). `composeLabelsAt` (labels.go:111-126) uses same timestamp as staleness baseline. Persisted `Labels` reflect the `AttemptedAt` about to be written (not the OLD on-disk value). No child flagged stale against itself. Unexported field (line 54) invisible to encoding/json — no schema impact, no fixture drift. Test loads pre-stale fixture, runs reconcile, asserts `stale-parent-applied` cleared.
-
-9. ✅ **Other labels preserved** — `TestRunReconcile_PreservesOtherLabels_WhenStaleResolved` verifies selective clearing. Two parents: `p-stale` (applied, old UpdatedAt → stale clears) and `p-pending` (analyzed → waiting-on-parent remains). After reconcile, `Labels` contains only `[waiting-on-parent]` (stale gone, waiting preserved). Label set is recomputed via `composeLabelsFromStatus`, not flushed wholesale.
-
-**F3 (MEDIUM) — Upstreamed children suppress parent labels**
-
-10. ✅ **Upstreamed suppression** — `TestComposeLabels_UpstreamedChild_NoLabels` verifies child with `Reconcile.Outcome == ReconcileUpstreamed` returns nil labels (early return at labels.go:144-147). Parent in `StateBlocked` would normally produce `blocked-by-parent`, but suppression fires first. `childRetiredOutcomes` set (line 135-137) currently contains only `ReconcileUpstreamed` (ADR-011: once absorbed upstream, parent context is irrelevant).
-
-11. ✅ **Non-suppressed outcomes still produce labels** — `TestComposeLabels_NonSuppressedOutcome_StillProducesLabels` verifies child with `ReconcileReapplied` (not in retired set) + stale parent → `stale-parent-applied` label emitted. Suppression is narrowly scoped. Other terminal outcomes (`Blocked`, `BlockedRequiresHuman`, `ShadowAwaiting`, etc.) remain live — labels still compose.
-
-**Scope & hygiene**
-
-12. ✅ **No scope creep** — No version bump in `internal/cli/cobra.go` (`version = "0.5.3"` unchanged). No `CHANGELOG.md` modification (`git diff 6d95593..HEAD -- CHANGELOG.md` empty). No `internal/store/types.go` changes (`git diff 6d95593..HEAD -- internal/store/types.go` empty) — no new `ReconcileOutcome` enum values added. No skill format updates (`git diff 6d95593..HEAD -- assets/skills/` empty). No external Go deps (only `github.com/tesseracode/tesserapatch/internal/store` imported). No `--dag` command, no `--force` bypass, no implement-phase heuristic inference of `created_by`. Strict scope respected.
-
-13. ✅ **No reconcile-session.json reads in new code** — `grep -rn "reconcile-session.json" internal/workflow/created_by_gate.go internal/workflow/labels.go` returns only comments (line 13-14 in labels.go as AUTHORITATIVE SOURCE GUARD, line 25 in created_by_gate.go stating "does NOT consult any reconcile-session or apply-session artifact"). No new reads added. M14.3 external-reviewer guard preserved.
-
-14. ✅ **Regression** — M14.1/M14.2/M14.3 tests: `TestComposeLabels_ReadsStatusJsonNotSessionArtifact` PASS (adversarial guard, labels.go reads status.json only). `TestReconcile_FlagOn_BlockedByParent_SkipsPhase35` PASS (phase-3.5 skip logic unchanged). `TestGoldenReconcile_ResolveApplyTruthful` PASS (golden fixture regression). `TestGoldenReconcile_ManualAcceptFlow` PASS (shadow accept flow). Full suite: `go test ./...` → all packages ok.
-
-15. ✅ **Hygiene** — `gofmt -l .` clean. `go build ./cmd/tpatch` succeeds. No `tpatch` binary at root (`ls -la tpatch` → does not exist). 4 commits, 4 `Co-authored-by: Copilot` trailers (verified via `git log --format='%B' 6d95593..HEAD | grep -c "Co-authored-by"`). Working tree clean (`git status --short` empty).
-
-### Implementation notes
-
-**F1 architecture**: `checkCreatedByGate` signature is `(s *store.Store, childSlug string, op RecipeOperation, targetExists bool)`. Caller passes `targetExists` to avoid double-stat. Gate early-returns when `op.CreatedBy == ""` (line 58) or `!cfg.DAGEnabled()` (line 65-68) — lazy store access preserves flag-off byte-identity. Hard/soft classification via child's `depends_on` (loaded at line 69). Soft-parent branch (line 107-112) emits warning via `fmt.Fprintf(WarnWriter, ...)`, then returns nil (caller proceeds to not-found error). Sentinel `ErrPathCreatedByParent` (line 43) is `errors.New`, wrapped via `fmt.Errorf("%w: ...", ErrPathCreatedByParent, ...)` for `errors.Is` compatibility.
-
-**F2 architecture**: `attemptedAt` field added to `ReconcileResult` (reconcile.go:54), unexported. Populated lazily (whichever helper runs first generates it, the other reuses). `composeLabelsAt(s, slug, asOf)` helper (labels.go:111-126) accepts explicit timestamp, temporarily overwrites `child.Reconcile.AttemptedAt` before delegating to `composeLabelsFromStatus` (line 125). `ComposeLabels` refactored to delegate to `composeLabelsFromStatus(s, child)` (line 102) so callers can override fields without disk round-trip. Public `ComposeLabels` signature unchanged (backward-compatible).
-
-**F3 architecture**: `childRetiredOutcomes` map (labels.go:135-137) checked first in `composeLabelsFromStatus` (line 144). Early return nil when child retired. Map-based for O(1) lookup + extensibility (future `ReconcileObsolete` or similar can slot in). Comment at line 133-134 lists the live outcomes explicitly (Reapplied, StillNeeded, Blocked, ShadowAwaiting, BlockedTooManyConflicts, BlockedRequiresHuman) — those outcomes keep the child live, labels continue to compose.
-
-**Call-site updates**: `DryRunRecipe` and `ExecuteRecipe` signatures changed from `(repoRoot string, recipe ApplyRecipe)` to `(s *store.Store, recipe ApplyRecipe)` (recipe.go:29, 48). Three call sites updated: `internal/cli/cobra.go` lines 466 + 552, `internal/cli/phase2.go` line 136. All pass `s` instead of `s.Root`. `slug` read from `recipe.Feature` (recipe.go:75 in `dryRunOperation`, line 132 in `executeOperation`).
-
-**Test coverage**: 7 F1 tests (gate correctness + flag-off + op-type scope), 2 F2 tests (stale clears + other labels preserved), 2 F3 tests (upstreamed suppresses + non-suppressed still produce). All 11 tests in new files (`created_by_gate_test.go`, `labels_freshness_test.go`, `labels_upstreamed_test.go`). No existing tests modified. M14.1/M14.2/M14.3 regression suite green (24 tests from prior milestones).
-
-**Documentation**: `created_by_gate.go` header comments (lines 1-25) cite PRD §4.3 contract as authoritative. `labels.go` header AUTHORITATIVE SOURCE GUARD (lines 9-16) explicitly forbids reconcile-session reads. `reconcile.go` field comment (lines 44-54) explains timestamp-threading rationale. CURRENT.md session summary complete (lines 140-214), files changed list accurate.
-
-### Verdict
-
-**APPROVED**
-
-All 15 critical checks pass. F1 contract is correctly wired in both dry-run and execute paths, with flag-off byte-identity, op-type scope, and sentinel error. F2 timestamp threading is sound (one shared `attemptedAt`, no stale-against-self). F3 suppression is narrowly scoped (only `ReconcileUpstreamed` retired). No scope creep, no regressions, hygiene clean. Test coverage is comprehensive (7+2+2 = 11 new tests, all M14.1/M14.2/M14.3 tripwires green).
-
-Ready for M14.4 cutover (flag flip, skill rollout, `tpatch status --dag`, v0.6.0 tag) on user green-light.
-
----
-
-## Review — M14.4 — 2026-04-26
-
-**Implementer**: m14-4-implementer (general-purpose, ~21min per handoff notes)
-**Reviewer**: code-review sub-agent
-
-### Commits reviewed
-
-7 commits between `0ba4809` (C5 fix-pass closeout) and `f1f603f` (origin/main HEAD):
-
-- `d1aca5f` feat(cli): add tpatch status --dag tree view + status-time DAG validation (M14.4 chunks A+D)
-- `ca23b35` feat(cli): dependency-management verbs — feature deps + amend --depends-on + remove --cascade (M14.4 chunk C)
-- `5d5f594` feat(store): flip features_dependencies default to true (M14.4 chunk B)
-- `97a994f` docs(skills): roll out feature-dependency guidance to all 6 skill formats (M14.4 chunk E)
-- `e0a7d47` docs: add docs/dependencies.md user reference (M14.4 chunk F)
-- `f2d0d1b` chore(release): v0.6.0 — Feature Dependencies (Tranche D) cutover (M14.4 chunk G)
-- `f1f603f` docs(handoff): M14.4 implementation complete, awaiting reviewer
-
-### Checklist
-
-**Chunk A — `status --dag` ✅**
-- [x] Uses `--json` flag, NOT `--format json` (correct flag name at cobra.go:196, status_dag.go:92)
-- [x] Hard deps render `─►`, soft render `┄►` (status_dag.go:316-318)
-- [x] Reads from `status.Reconcile.Outcome` via `EffectiveOutcome()`, never `reconcile-session.json` (status_dag.go:5 comment confirms ADR-010 D5 compliance, line 328 uses `st.Reconcile.EffectiveOutcome()`)
-- [x] Cycle-safe: uses `DetectCycles`, visited-set prevents infinite recursion (status_dag.go:89, walkTree line 289-293)
-- [x] Scoped and full DAG modes (scopeSet at line 90, scoped param honored throughout)
-- [x] JSON schema deterministic and stable (dagJSONPayload struct lines 58-65, sorted roots/features)
-- [x] Tests cover all scenarios: 7 tests in status_dag_test.go including cycle, empty, scoped, labels, JSON
-
-**Chunk B — flag flip ✅**
-- [x] Default now true in parseYAMLConfig (store.go:544 `cfg.FeaturesDependencies = true`)
-- [x] Init template writes explicit true (store.go:88)
-- [x] Byte-identity tests updated: dependency_gate_apply_test.go opts out (line 66 `features_dependencies: false`), accept_labels_test.go opts out (line 106)
-- [x] Roundtrip test inverted: TestConfig_FeaturesDependenciesRoundtrip (roundtrip_test.go) tests default-true + explicit-false
-
-**Chunk C — dep-management CLI ✅**
-- [x] All verbs present: `feature deps` read/add/remove/validate-all at feature_deps.go:50-95
-- [x] `amend --depends-on/--remove-depends-on` present (c1.go:48, feature_deps.go:274-290)
-- [x] `remove --cascade` present with ErrInteractiveRequired for non-TTY (feature_deps.go:308-367)
-- [x] **CRITICAL**: `--force` alone does NOT bypass DAG integrity (c1.go:231-238 comment + code: cascade gate enforced regardless of force flag)
-- [x] **CRITICAL**: Test confirms force-bypass prevention: TestRemoveForce_DoesNotBypassDepCheck at feature_deps_test.go asserts exit code != 0 when force used without cascade
-- [x] Add operations validate cycles/parent existence/no self-ref/no kind conflict (routed through store.ValidateDependencies)
-- [x] Remove operations re-derive dependents atomically (store maintains dependents graph)
-- [x] Cascade removes in reverse-topological order (feature_deps.go:319-340, leaves-first via reversed Kahn order)
-- [x] All 9 tests present and meaningful: TestFeatureDeps_Show_NoDeps, TestFeatureDepsAdd_RejectsCycle, TestFeatureDepsAdd_RejectsKindConflict, TestFeatureDepsRemove_ClearsAtomically, TestAmendDependsOn_ValidatedIdenticallyToFeatureDeps, TestRemoveWithCascade_DeletesInReverseTopoOrder, TestRemoveWithoutCascade_RefusesWhenDependentsExist, TestRemoveForce_DoesNotBypassDepCheck, TestRemoveCascadeNonTTY_RequiresForce, TestFeatureDepsValidateAll_OnInit
-
-**Chunk D — status-time validation ✅**
-- [x] `tpatch status` revalidates DAG and surfaces warnings (cobra.go:204-215)
-- [x] Both required tests present: TestStatus_SurfacesDanglingDepWarning (status_dag_test.go:202), TestStatus_SurfacesCycleWarning (status_dag_test.go:219)
-
-**Chunk E — 6-skill rollout ✅**
-- [x] All 6 skill files updated: claude/tessera-patch/SKILL.md, copilot/tessera-patch/SKILL.md, copilot prompt (tessera-patch-apply.prompt.md), cursor/tessera-patch.mdc, windsurf/windsurfrules, generic workflow (tessera-patch-generic.md) — all contain "Feature dependencies" section + created_by gate description
-- [x] Each covers: dependencies field, label reference, compound verdict, created_by gate (not inert), status --dag, feature deps verbs, amend --depends-on, remove --cascade, force ≠ bypass rule
-- [x] Parity guard passes: `go test ./assets/... -count=1` green (confirmed)
-- [x] created_by reframed from "inert" to live gate (e.g., SKILL.md:160 states "live apply-time gate")
-
-**Chunk F — docs/dependencies.md ✅**
-- [x] User reference exists with all required content (267 lines)
-- [x] Hard vs soft semantics (lines 35-40)
-- [x] YAML examples (lines 25-33)
-- [x] `feature deps add` examples (lines 52-72)
-- [x] Validation rules (lines 78-93)
-- [x] Label matrix (lines 147-154)
-- [x] Compound verdict (lines 158-171)
-- [x] `created_by` apply-time gate with dry-run warning noted (lines 96-107)
-- [x] Cascade/force semantics (lines 216-231)
-- [x] `status --dag` examples with ASCII + --json (lines 182-214)
-- [x] Migration note for v0.5.x users (lines 233-252)
-
-**Chunk G — release cutover ✅**
-- [x] Version bumped to 0.6.0 (cobra.go:24)
-- [x] CHANGELOG.md has new v0.6.0 section (lines 5-34, dated 2026-04-26)
-- [x] ROADMAP.md M14 marked ✅ (line 175, M14.4 expanded with chunk breakdown)
-- [x] NOT tagged (git tag -l v0.6.0 returns empty — tagging is supervisor's job)
-
-**Cross-cutting / scope guards ✅**
-- [x] No new external Go dependencies (only cobra/pflag + stdlib)
-- [x] No ReconcileWaitingOnParent/ReconcileBlockedByParent enum values (labels remain composable, not states)
-- [x] No parent-patch injection into M12 resolver (per ADR-011 D8, deferred)
-- [x] No implement-phase `created_by` heuristic inference (per PRD §4.3.1, separate backlog)
-- [x] All commits carry Co-authored-by trailer (7 instances confirmed)
-- [x] No tpatch binary in tree (checked, not present)
-- [x] Working tree clean (git status --porcelain empty)
-
-**Validation gate ✅**
-- [x] `gofmt -l .` — clean
-- [x] `go build ./cmd/tpatch && rm -f tpatch` — ok
-- [x] `go test ./...` — all green (8 packages)
-- [x] `go test ./assets/... -count=1` — parity guard passes (0.358s)
-- [x] CLI tests (StatusDag, FeatureDeps, Amend, Remove) — 27 tests pass (2.365s)
-- [x] Workflow tests (CreatedByGate, ComposeLabels, EffectiveOutcome) — 26 tests pass (1.069s)
-- [x] Store tests (Dependency, Roundtrip) — 8 tests pass (0.403s)
-
-### Verdict: APPROVED
-
-### Notes
-
-This is a clean, comprehensive release cutover. All 7 chunks land exactly as specified in the handoff contract. The critical correctness checks all pass:
-
-1. **Chunk A** correctly uses `--json` flag (not `--format json` per prior reviewer finding), renders hard/soft edges with correct glyphs, reads from status-of-record via `EffectiveOutcome()`, and handles cycles safely.
-
-2. **Chunk B** default flip is correctly implemented in parseYAMLConfig with true when absent, tests properly updated to opt out where needed for byte-identity preservation.
-
-3. **Chunk C** correctly enforces the `--force ≠ bypass` rule (PRD §3.7, ADR-011 D7) — the remove command checks dependents BEFORE evaluating force flag, and TestRemoveForce_DoesNotBypassDepCheck explicitly validates this behavior. Cascade removes in reverse-topological order as required.
-
-4. **Chunk D** status-time validation surfaces dangling deps and cycles inline, with dedicated tests for both scenarios.
-
-5. **Chunk E** 6-skill rollout is complete with parity guard passing, `created_by` correctly reframed from "inert" to "live apply-time gate" across all formats.
-
-6. **Chunk F** comprehensive user documentation (docs/dependencies.md) covers all required topics including the dry-run downgrade for `created_by` gate (matching PRD §4.3).
-
-7. **Chunk G** release mechanics correct: version bumped, CHANGELOG complete with M14.1–M14.4 summary, ROADMAP updated, no premature tag.
-
-**No blocking issues found.** All scope guards honored, no drift from ADR-011 decisions, test coverage comprehensive, working tree clean. Ready for supervisor tag `v0.6.0` and milestone closeout.
 
