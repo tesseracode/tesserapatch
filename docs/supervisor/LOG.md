@@ -4,6 +4,47 @@
 
 ---
 
+## Review — M15-W2 — 2026-04-26
+
+**Reviewer**: m15-w2-reviewer (code-review)
+**Task**: Wave 2 — bug-test-command-shell-selection + feat-record-autogen-recipe + bug-recipe-stale-after-manual-flow + feat-record-scoped-files
+**Diff range**: `827239b..2c5ae33`
+
+### Checklist
+- [x] Compiles
+- [x] Tests pass
+- [x] Formatted
+- [x] Parity guard green
+- [x] Recipe-op JSON schema unchanged
+- [x] Source-truth guard preserved (ADR-011 D6)
+- [x] Patch remains reconcile authority (no recipe inversion)
+- [x] Unix shell behavior byte-identical
+- [x] No silent schema extension for delete-file
+- [x] Stale-recipe default is non-destructive
+- [x] Pathspec passed safely (-- separator)
+
+### Verdict: APPROVED
+
+### Findings
+
+None — all 4 items meet contract; 5 design judgment calls verified.
+
+**JC1 — Schema gap handling**: `RecipeFromPatch` (recipe_autogen.go:86-121) correctly skips deleted files at lines 100-102 with reason "deleted — recipe schema has no delete-file op". Warnings surface on stderr at cobra.go:917-919. No new op type added to RecipeOperation schema. ✅
+
+**JC2 — Stale recipe sidecar policy**: Default behavior non-destructive (line 182-199 of recipe_autogen.go writes sidecar, never overwrites recipe unless `regenerate=true`). `--regenerate-recipe` actually regenerates (line 183-188). Sidecar JSON carries stale flag, reason, timestamp (RecipeStaleness struct, lines 27-31). Warning surfaces clearly on stderr (cobra.go:908-913). All scenarios tested (recipe_autogen_test.go). ✅
+
+**JC3 — Drift detection scope**: File-set comparison only, confirmed at recipe_autogen.go:211-239 (`compareRecipeFileSets` checks path set membership, not content hashes). Documented in code comments (line 145-148). No new code reads `apply-recipe.json` for reconcile authority — grep confirms patch remains source of truth. ✅
+
+**JC4 — `--files` + `--from` mutual exclusion**: Explicit error at cobra.go:862-863 with actionable message. Error fires before side effects (before CapturePatch call). Unit test coverage at cobra_test.go:864-882. ✅
+
+**JC5 — Hookable shell selection**: `userShellFor(goos)` at shell.go:19-24 produces byte-identical Unix behavior (`sh`, `-c` — not `bash`, not `/bin/sh`, no path substitution). Windows path is `cmd`, `/C`. Tests cover both branches via goos injection (shell_test.go). All three call sites updated (validation.go, phase2.go per git diff). ✅
+
+### Action Taken
+
+Verdict logged. Supervisor decides closeout, v0.6.1 cut, and Wave 3 dispatch pause.
+
+---
+
 ## Review — M15-W1 — 2026-04-26
 
 **Reviewer**: m15-w1-reviewer (code-review)
