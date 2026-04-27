@@ -871,12 +871,50 @@ func recordCmd() *cobra.Command {
 			if err := s.MarkFeatureState(slug, store.StateApplied, "record", "Patch recorded"); err != nil {
 				return err
 			}
+
+			// Item M15-W2.2/3 — recipe autogen + drift detection.
+			// `artifacts/post-apply.patch` remains the reconcile source
+			// of truth; the recipe is derived for replay/inspection only.
+			noAutogen, _ := cmd.Flags().GetBool("no-recipe-autogen")
+			regen, _ := cmd.Flags().GetBool("regenerate-recipe")
+			autogen := !noAutogen
+			action, skippedPaths, reason, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, autogen, regen)
+			if agErr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: recipe autogen failed: %v\n", agErr)
+			} else {
+				out := cmd.OutOrStdout()
+				w := cmd.ErrOrStderr()
+				switch action {
+				case workflow.AutogenGenerated:
+					fmt.Fprintf(out, "  Recipe generated: artifacts/apply-recipe.json (%d ops)\n", countPatchFiles(patch)-len(skippedPaths))
+				case workflow.AutogenRegenerated:
+					fmt.Fprintf(out, "  Recipe regenerated from captured patch (--regenerate-recipe)\n")
+					if reason != "" {
+						fmt.Fprintf(w, "  drift reason: %s\n", reason)
+					}
+				case workflow.AutogenStale:
+					fmt.Fprintln(w, "warning: apply-recipe.json no longer matches the captured patch (likely after manual edits).")
+					if reason != "" {
+						fmt.Fprintf(w, "  drift: %s\n", reason)
+					}
+					fmt.Fprintln(w, "  recipe-stale.json sidecar written. To replace the recipe with one derived from the patch, rerun:")
+					fmt.Fprintf(w, "    tpatch record %s --regenerate-recipe\n", slug)
+				case workflow.AutogenNoop, workflow.AutogenSkipped:
+					// no user-visible message
+				}
+				for _, sp := range skippedPaths {
+					fmt.Fprintf(w, "  recipe autogen skipped: %s\n", sp)
+				}
+			}
+
 			fmt.Fprintf(cmd.OutOrStdout(), "Recorded patch for %s (%d bytes, %d files)\n", slug, len(patch), filesChanged)
 			return nil
 		},
 	}
 	cmd.Flags().String("from", "", "Base commit to diff from (captures committed diff instead of working tree)")
 	cmd.Flags().Bool("lenient", false, "Skip reverse-apply round-trip validation (use for whitespace-sensitive files)")
+	cmd.Flags().Bool("no-recipe-autogen", false, "Disable deriving apply-recipe.json from the captured patch when none exists")
+	cmd.Flags().Bool("regenerate-recipe", false, "Overwrite an existing apply-recipe.json with one derived from the captured patch")
 	return cmd
 }
 
