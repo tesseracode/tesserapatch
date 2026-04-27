@@ -1,3 +1,78 @@
+## Review — M15-W3-REDESIGN — 2026-04-27
+
+**Reviewer**: m15-w3-redesign-reviewer
+**Task**: Wave 3 redesign — freshness-overlay model + closure-replay spec
+**Commit reviewed**: 37a483d
+
+### Constraint compliance
+- [x] no Go code modified
+- [x] no tests modified
+- [x] ADR-010 / ADR-011 untouched
+- [x] no read-path mutation
+- [x] apply gate stays pure-lifecycle
+- [x] freshness record minimal (see Note 1 below on CheckResults)
+- [x] supersession banners present + correctly linked
+- [x] supersession map present in ADR-013 + complete
+- [x] closure-replay spec precisely defined
+- [x] freshness derivation function precisely defined
+- [x] amend invalidation contract explicit
+- [x] commit trailer present
+
+### Findings
+
+#### Notes (approved with advisories)
+
+**Note 1: CheckResults Array in Persisted Record — Potential Bloat**
+**Files:** `docs/prds/PRD-verify-freshness.md:212`, `docs/adrs/ADR-013-verify-freshness-overlay.md:63`
+**Severity:** Medium — not blocking, but implementer should verify necessity
+
+The `VerifyRecord` includes `CheckResults []VerifyCheckResult` as a persisted field in `status.json`. For a 10-check verify run, this means persisting ~10 small structs (id, severity, passed, remediation) every time verify runs. The PRD §3.2 explicitly lists `check_results` in what gets written to the store.
+
+**Concern**: The primary consumer of per-check results is the `--json` output (§4.3), not the freshness derivation function (§3.4.2), which only consumes the top-level `Passed` boolean, the hashes, and `ParentSnapshot`. Persisting the full check array inflates `status.json` with data that's never read for the core freshness-derivation loop.
+
+**Rationale for keeping (if implementer chooses)**: An operator inspecting `status.json` directly (without re-running verify) can see *which* check failed on the last verify run. This is debugger-friendly but not load-bearing for the freshness overlay model.
+
+**Recommendation**: Implementer may choose to drop `CheckResults` from the persisted `VerifyRecord` and emit it only in the `--json` stdout report. If kept, document the persistence rationale explicitly in Slice A's commit message. Either choice is defensible; the PRD as written permits both interpretations ("writes… including… check_results" can mean "includes in the written record" or "includes in what verify produces, with only a subset persisted").
+
+**Note 2: Edge Case — Verify on Feature With No Recipe Yet**
+**Files:** `docs/prds/PRD-verify-freshness.md:514`
+**Severity:** Low — already covered, confirming clarity
+
+Edge-case table §5 row "Recipe absent" correctly specifies V2/V3/V7 are skipped. Confirm Slice A implementer interprets "recipe absent" as applying to features in `applied` state that predate recipe autogen (legacy v0.5.x features). The PRD says "reasonable for applied-from-pre-autogen-era features," which is correct.
+
+**Note 3: Slice A Boundary — Skill Anchor Regen Deferred**
+**Files:** `docs/prds/PRD-verify-freshness.md:631`
+**Severity:** Low — process check
+
+Slice A explicitly defers skill anchor regeneration to Slice D (line 631: "No skill anchor regen. Slice D handles all skill surface changes"). The parity guard `assets/assets_test.go` will fail as soon as the `verify` command is registered in Slice A, because the skill files don't mention `verify`. 
+
+**Clarification needed**: Does Slice A's test gate allow the parity-guard failure with a TODO comment, or does Slice A require a minimal skill-file stub (e.g., a single "EXPERIMENTAL: tpatch verify — see PRD" line in all 6 surfaces) to keep the parity guard green? The PRD as written suggests "let it fail in Slice A, fix in Slice D," but that breaks the standard `go test ./...` gate.
+
+**Recommendation**: Slice A implementer should add minimal skill stubs (1 sentence each, marked EXPERIMENTAL) to keep parity guard green across all slices. Defer the full §4.4 paragraph to Slice D.
+
+### Verdict: APPROVED WITH NOTES
+
+The redesign successfully addresses all four findings (F1–F4) and satisfies every binding non-negotiable. The supersession map in ADR-013 is complete and accurate. The closure-replay spec (§3.4.3) is precisely defined with fail-fast semantics and the correct JSON failure shape. The freshness derivation function (ADR-013 D5, lines 147–164) is precisely specified. No PRD/ADR contradictions detected. No read-path mutation. No apply-gate changes. Slice boundaries are independently shippable with minor clarification on the parity-guard handling (Note 3).
+
+The three notes above are advisories for the Slice A implementer, not blockers. Note 1 (CheckResults bloat) should be resolved by the implementer at Slice A design time (either drop the field or document why it stays). Note 3 (parity guard) should be resolved before Slice A ships (add stubs or accept intentional failure with clear TODO).
+
+### Notes for Supervisor
+
+1. **Supersession audit trail preserved correctly.** Predecessor docs carry well-formed SUPERSEDED banners pointing to the successors. The supersession map in ADR-013 is the strongest example of "why we chose this over the alternative" documentation I've seen in this repo. Future agents will understand the trade-off clearly.
+
+2. **No hidden structural problems.** The closure-replay spec is unambiguous: topological order over hard-only sub-DAG, skip `upstream_merged`, fail-fast on first non-`applied` parent or replay failure, JSON shape with `failed_at: "parent-replay"` + `parent_slug`. An implementer can code from this without guessing.
+
+3. **Freshness derivation function is computable.** ADR-013 D5 lines 147–164 are pseudocode-grade. The `satisfies_state_or_better` rules (lines 167–172) are explicit. No ambiguity.
+
+4. **Slice A is correctly scoped.** No `--all`, no `--shadow`, no skill regen until later slices (with minor parity-guard clarification per Note 3).
+
+5. **Amend invalidation contract is explicit.** ADR-013 D3 line 117: recipe-touching amend clears `Verify.Passed = false`; intent-only amend leaves it untouched. Clear.
+
+6. **Process lesson reinforced.** The reopening note's "implementer self-reviews are status-only" framing is validated by this pass. An external review with high signal-to-noise is the right gate before Slice A dispatch.
+
+Approve for Slice A dispatch after user reviews Note 1 and Note 3 advisories.
+
+
 ## Reopening — M15-W3-DESIGN — 2026-04-27
 
 **Reopener**: Supervisor (user-mediated external re-review)
