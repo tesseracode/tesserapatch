@@ -4,7 +4,7 @@
 
 - **Task ID**: M14.4 — Status DAG view + skills/docs rollout + v0.6.0 release cutover
 - **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Status**: C5 fix-pass in progress (F1 reconcile-time label suppression + F2 dry-run downgrade for created_by)
+- **Status**: C5 fix-pass ✅ COMPLETE — awaiting reviewer (M14.3 ✅ + correctness pass ✅ APPROVED 2026-04-26 + C5 fix-pass ✅)
 - **Estimated size**: ~300 LOC + version bump + tag
 
 ### Context
@@ -158,32 +158,45 @@ All M14.1+M14.2+M14.3+correctness-pass tests stay green. Golden reconcile + manu
 
 ## Session Summary
 
-M14.3 closed out. M14 correctness pass closed out (F1/F2/F3 from external reviewer). Ready to dispatch M14.4 once user green-lights the user-facing cutover.
+M14.3 closed out. M14 correctness pass closed out (F1/F2/F3 from external reviewer). **C5 fix-pass complete** (re-review of correctness pass surfaced two real gaps): reconcile-time label suppression on retired outcomes and PRD-aligned dry-run downgrade for hard-parent created_by misses. Ready to dispatch M14.4 once C5 reviewer signs off.
+
+### C5 fix-pass details
+
+- **F1** (HIGH, was M14.4-blocking): `saveReconcileArtifacts` previously called `composeLabelsAt` which re-loaded the child status from disk. When a reconcile produced `ReconcileUpstreamed` via phase-1/2/3, the OLD on-disk outcome was used to compose labels — parent state would re-fire `waiting-on-parent`/`blocked-by-parent` and persist alongside the freshly-upstreamed verdict. Fix: gate label composition on `result.Outcome` (the in-memory truth) — retired outcomes force `Labels = nil` before any disk read. `updateFeatureState` propagates the same value. 4 new tests in `labels_reconcile_path_test.go` (one per phase + a non-upstreamed control).
+- **F2** (MEDIUM, PRD alignment): hard-parent `created_by` + missing target now downgrades to a warning in dry-run (per PRD §4.3) while keeping the hard error in execute mode. `dryRunOperation` returns `(msg, warning, error)`; `RecipeExecResult` gains a `Warnings []string` slice; CLI dry-run gains `⚠` lines and a warning-count summary. Locked-in tests in `created_by_gate_test.go` updated to pin the new dry-run-vs-execute split. Recipe-shape validation errors (parent-not-in-depends_on, unknown kind) remain hard errors in both modes.
 
 ## Files Changed
+
+C5 fix-pass:
+
+- `internal/workflow/reconcile.go` — `saveReconcileArtifacts` short-circuits label composition for retired outcomes.
+- `internal/workflow/recipe.go` — `dryRunOperation` returns `(msg, warning, err)`; `RecipeExecResult.Warnings` added; hard-parent created_by misses downgrade to W in dry-run.
+- `internal/cli/cobra.go` — apply --dry-run renders warnings + summary line.
+- `internal/workflow/labels_reconcile_path_test.go` — new (4 tests).
+- `internal/workflow/created_by_gate_test.go` — split locked-in test, added dry-run-vs-execute parity assertion.
 
 See `docs/handoff/HISTORY.md` for the M14.3 + correctness-pass entries.
 
 ## Test Results
 
-Correctness pass final: gofmt clean, `go test ./...` green, 11 new tests + full regression green.
+C5 fix-pass: gofmt clean, `go test ./...` green, full validation gate green (workflow/store/cli targeted runs all pass, all M14.1/M14.2/M14.3/correctness-pass tests green including the adversarial source-truth and phase-3.5 skip tripwires).
 
 ### Status
 
-- **Awaiting C5 fix-pass to land first** (real F1 bug: F3 only fires on already-persisted upstreamed status, missing the in-flight reconcile path; plus PRD-aligned dry-run downgrade per F3-from-second-review).
-- After C5 lands and is reviewed: dispatch M14.4.
+- C5 fix-pass ✅ COMPLETE (F1 reconcile-time label suppression + F2 dry-run downgrade per PRD §4.3).
+- Awaiting C5 reviewer.
+- After C5 APPROVED: dispatch M14.4.
 
 ## Next Steps
 
-1. C5 fix-pass implementer (already dispatched / in-flight at supervisor's discretion).
-2. C5 reviewer.
-3. On C5 APPROVED: dispatch `m14-4-implementer` against this expanded handoff (Chunks A–G).
-4. After M14.4 implementer: `m14-4-reviewer` (expect a beefy review — 8 chunks, dep-CLI surface).
-5. On APPROVED: supervisor bumps version, updates CHANGELOG, ROADMAP, archives this handoff, tags `v0.6.0`, pushes.
+1. C5 reviewer.
+2. On C5 APPROVED: dispatch `m14-4-implementer` against this expanded handoff (Chunks A–G).
+3. After M14.4 implementer: `m14-4-reviewer` (expect a beefy review — 8 chunks, dep-CLI surface).
+4. On APPROVED: supervisor bumps version, updates CHANGELOG, ROADMAP, archives this handoff, tags `v0.6.0`, pushes.
 
 ## Blockers
 
-C5 fix-pass must land first.
+None — C5 fix-pass landed.
 
 ## Context for Next Agent
 
