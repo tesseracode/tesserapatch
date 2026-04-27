@@ -975,3 +975,119 @@ All 15 critical checks pass. F1 contract is correctly wired in both dry-run and 
 
 Ready for M14.4 cutover (flag flip, skill rollout, `tpatch status --dag`, v0.6.0 tag) on user green-light.
 
+---
+
+## Review — M14.4 — 2026-04-26
+
+**Implementer**: m14-4-implementer (general-purpose, ~21min per handoff notes)
+**Reviewer**: code-review sub-agent
+
+### Commits reviewed
+
+7 commits between `0ba4809` (C5 fix-pass closeout) and `f1f603f` (origin/main HEAD):
+
+- `d1aca5f` feat(cli): add tpatch status --dag tree view + status-time DAG validation (M14.4 chunks A+D)
+- `ca23b35` feat(cli): dependency-management verbs — feature deps + amend --depends-on + remove --cascade (M14.4 chunk C)
+- `5d5f594` feat(store): flip features_dependencies default to true (M14.4 chunk B)
+- `97a994f` docs(skills): roll out feature-dependency guidance to all 6 skill formats (M14.4 chunk E)
+- `e0a7d47` docs: add docs/dependencies.md user reference (M14.4 chunk F)
+- `f2d0d1b` chore(release): v0.6.0 — Feature Dependencies (Tranche D) cutover (M14.4 chunk G)
+- `f1f603f` docs(handoff): M14.4 implementation complete, awaiting reviewer
+
+### Checklist
+
+**Chunk A — `status --dag` ✅**
+- [x] Uses `--json` flag, NOT `--format json` (correct flag name at cobra.go:196, status_dag.go:92)
+- [x] Hard deps render `─►`, soft render `┄►` (status_dag.go:316-318)
+- [x] Reads from `status.Reconcile.Outcome` via `EffectiveOutcome()`, never `reconcile-session.json` (status_dag.go:5 comment confirms ADR-010 D5 compliance, line 328 uses `st.Reconcile.EffectiveOutcome()`)
+- [x] Cycle-safe: uses `DetectCycles`, visited-set prevents infinite recursion (status_dag.go:89, walkTree line 289-293)
+- [x] Scoped and full DAG modes (scopeSet at line 90, scoped param honored throughout)
+- [x] JSON schema deterministic and stable (dagJSONPayload struct lines 58-65, sorted roots/features)
+- [x] Tests cover all scenarios: 7 tests in status_dag_test.go including cycle, empty, scoped, labels, JSON
+
+**Chunk B — flag flip ✅**
+- [x] Default now true in parseYAMLConfig (store.go:544 `cfg.FeaturesDependencies = true`)
+- [x] Init template writes explicit true (store.go:88)
+- [x] Byte-identity tests updated: dependency_gate_apply_test.go opts out (line 66 `features_dependencies: false`), accept_labels_test.go opts out (line 106)
+- [x] Roundtrip test inverted: TestConfig_FeaturesDependenciesRoundtrip (roundtrip_test.go) tests default-true + explicit-false
+
+**Chunk C — dep-management CLI ✅**
+- [x] All verbs present: `feature deps` read/add/remove/validate-all at feature_deps.go:50-95
+- [x] `amend --depends-on/--remove-depends-on` present (c1.go:48, feature_deps.go:274-290)
+- [x] `remove --cascade` present with ErrInteractiveRequired for non-TTY (feature_deps.go:308-367)
+- [x] **CRITICAL**: `--force` alone does NOT bypass DAG integrity (c1.go:231-238 comment + code: cascade gate enforced regardless of force flag)
+- [x] **CRITICAL**: Test confirms force-bypass prevention: TestRemoveForce_DoesNotBypassDepCheck at feature_deps_test.go asserts exit code != 0 when force used without cascade
+- [x] Add operations validate cycles/parent existence/no self-ref/no kind conflict (routed through store.ValidateDependencies)
+- [x] Remove operations re-derive dependents atomically (store maintains dependents graph)
+- [x] Cascade removes in reverse-topological order (feature_deps.go:319-340, leaves-first via reversed Kahn order)
+- [x] All 9 tests present and meaningful: TestFeatureDeps_Show_NoDeps, TestFeatureDepsAdd_RejectsCycle, TestFeatureDepsAdd_RejectsKindConflict, TestFeatureDepsRemove_ClearsAtomically, TestAmendDependsOn_ValidatedIdenticallyToFeatureDeps, TestRemoveWithCascade_DeletesInReverseTopoOrder, TestRemoveWithoutCascade_RefusesWhenDependentsExist, TestRemoveForce_DoesNotBypassDepCheck, TestRemoveCascadeNonTTY_RequiresForce, TestFeatureDepsValidateAll_OnInit
+
+**Chunk D — status-time validation ✅**
+- [x] `tpatch status` revalidates DAG and surfaces warnings (cobra.go:204-215)
+- [x] Both required tests present: TestStatus_SurfacesDanglingDepWarning (status_dag_test.go:202), TestStatus_SurfacesCycleWarning (status_dag_test.go:219)
+
+**Chunk E — 6-skill rollout ✅**
+- [x] All 6 skill files updated: claude/tessera-patch/SKILL.md, copilot/tessera-patch/SKILL.md, copilot prompt (tessera-patch-apply.prompt.md), cursor/tessera-patch.mdc, windsurf/windsurfrules, generic workflow (tessera-patch-generic.md) — all contain "Feature dependencies" section + created_by gate description
+- [x] Each covers: dependencies field, label reference, compound verdict, created_by gate (not inert), status --dag, feature deps verbs, amend --depends-on, remove --cascade, force ≠ bypass rule
+- [x] Parity guard passes: `go test ./assets/... -count=1` green (confirmed)
+- [x] created_by reframed from "inert" to live gate (e.g., SKILL.md:160 states "live apply-time gate")
+
+**Chunk F — docs/dependencies.md ✅**
+- [x] User reference exists with all required content (267 lines)
+- [x] Hard vs soft semantics (lines 35-40)
+- [x] YAML examples (lines 25-33)
+- [x] `feature deps add` examples (lines 52-72)
+- [x] Validation rules (lines 78-93)
+- [x] Label matrix (lines 147-154)
+- [x] Compound verdict (lines 158-171)
+- [x] `created_by` apply-time gate with dry-run warning noted (lines 96-107)
+- [x] Cascade/force semantics (lines 216-231)
+- [x] `status --dag` examples with ASCII + --json (lines 182-214)
+- [x] Migration note for v0.5.x users (lines 233-252)
+
+**Chunk G — release cutover ✅**
+- [x] Version bumped to 0.6.0 (cobra.go:24)
+- [x] CHANGELOG.md has new v0.6.0 section (lines 5-34, dated 2026-04-26)
+- [x] ROADMAP.md M14 marked ✅ (line 175, M14.4 expanded with chunk breakdown)
+- [x] NOT tagged (git tag -l v0.6.0 returns empty — tagging is supervisor's job)
+
+**Cross-cutting / scope guards ✅**
+- [x] No new external Go dependencies (only cobra/pflag + stdlib)
+- [x] No ReconcileWaitingOnParent/ReconcileBlockedByParent enum values (labels remain composable, not states)
+- [x] No parent-patch injection into M12 resolver (per ADR-011 D8, deferred)
+- [x] No implement-phase `created_by` heuristic inference (per PRD §4.3.1, separate backlog)
+- [x] All commits carry Co-authored-by trailer (7 instances confirmed)
+- [x] No tpatch binary in tree (checked, not present)
+- [x] Working tree clean (git status --porcelain empty)
+
+**Validation gate ✅**
+- [x] `gofmt -l .` — clean
+- [x] `go build ./cmd/tpatch && rm -f tpatch` — ok
+- [x] `go test ./...` — all green (8 packages)
+- [x] `go test ./assets/... -count=1` — parity guard passes (0.358s)
+- [x] CLI tests (StatusDag, FeatureDeps, Amend, Remove) — 27 tests pass (2.365s)
+- [x] Workflow tests (CreatedByGate, ComposeLabels, EffectiveOutcome) — 26 tests pass (1.069s)
+- [x] Store tests (Dependency, Roundtrip) — 8 tests pass (0.403s)
+
+### Verdict: APPROVED
+
+### Notes
+
+This is a clean, comprehensive release cutover. All 7 chunks land exactly as specified in the handoff contract. The critical correctness checks all pass:
+
+1. **Chunk A** correctly uses `--json` flag (not `--format json` per prior reviewer finding), renders hard/soft edges with correct glyphs, reads from status-of-record via `EffectiveOutcome()`, and handles cycles safely.
+
+2. **Chunk B** default flip is correctly implemented in parseYAMLConfig with true when absent, tests properly updated to opt out where needed for byte-identity preservation.
+
+3. **Chunk C** correctly enforces the `--force ≠ bypass` rule (PRD §3.7, ADR-011 D7) — the remove command checks dependents BEFORE evaluating force flag, and TestRemoveForce_DoesNotBypassDepCheck explicitly validates this behavior. Cascade removes in reverse-topological order as required.
+
+4. **Chunk D** status-time validation surfaces dangling deps and cycles inline, with dedicated tests for both scenarios.
+
+5. **Chunk E** 6-skill rollout is complete with parity guard passing, `created_by` correctly reframed from "inert" to "live apply-time gate" across all formats.
+
+6. **Chunk F** comprehensive user documentation (docs/dependencies.md) covers all required topics including the dry-run downgrade for `created_by` gate (matching PRD §4.3).
+
+7. **Chunk G** release mechanics correct: version bumped, CHANGELOG complete with M14.1–M14.4 summary, ROADMAP updated, no premature tag.
+
+**No blocking issues found.** All scope guards honored, no drift from ADR-011 decisions, test coverage comprehensive, working tree clean. Ready for supervisor tag `v0.6.0` and milestone closeout.
+
