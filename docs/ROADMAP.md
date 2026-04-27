@@ -184,8 +184,9 @@ Code-review verdict: APPROVED. See `docs/supervisor/LOG.md`.
 
 **Scope (4 sub-milestones, ~1350 LOC total)**:
 - **M14.1** — data model + validation (~300 LOC). Dependency struct, cycle DFS, 5 validation rules. ✅ APPROVED (commits `02f1ba9`, `d166281`, `7dd5941`).
-- **M14.2** — apply gate + `created_by` recipe op + 6-skill parity-guard rollout (~250 LOC). Coordinated atomic change to recipe schema + all 6 skill formats + `docs/agent-as-provider.md`. ✅ APPROVED (commits `24baf92`, `9a5f2f3`, `4dfe0f1`, `cdd5484`).
+- **M14.2** — apply gate + `created_by` recipe op + 6-skill parity-guard rollout (~250 LOC). Coordinated atomic change to recipe schema + all 6 skill formats + `docs/agent-as-provider.md`. ✅ APPROVED (commits `24baf92`, `9a5f2f3`, `4dfe0f1`, `cdd5484`). **Note**: the apply-time `created_by` integrity gate was not wired in M14.2 — closed in the M14 correctness pass below.
 - **M14.3** — reconcile topological traversal + composable labels + compound verdict (~500 LOC). Kahn planner, label composition matrix, `blocked-by-parent-and-needs-resolution` compound verdict, M12 interaction. ✅ APPROVED (commits `7c9aee4`, `bccf5e2`, `b9efd07`, `a232a7b`, `4e39384`).
+- **M14 correctness pass** — three external-reviewer findings before the M14.4 cutover. F1 (HIGH, was cutover-blocking): wire `created_by` apply-time gate via new `ErrPathCreatedByParent` sentinel, closing the M14.2 gap. F2: clear stale-parent-applied label after a clean reconcile (label/AttemptedAt consistency). F3: suppress parent-derived labels when child outcome is `ReconcileUpstreamed`. ✅ APPROVED (commits `cbe2873`, `071c5ed`, `cc95cbb`, `1e0d064`).
 - **M14.4** — `status --dag`, skills analyze-phase bullet, `docs/dependencies.md`, tag v0.6.0 (~300 LOC).
 
 **Out of scope** (v0.6.x follow-ups): auto-rebase on parent drift (`feat-feature-autorebase`), parent-patch context for resolver (`feat-resolver-dag-context`), per-dep version ranges (`feat-patch-compatibility`), stacked-PR delivery (`feat-delivery-modes`).
