@@ -206,3 +206,50 @@ func TestIsPathTracked(t *testing.T) {
 		t.Fatal("missing.txt should not be tracked")
 	}
 }
+
+// TestIsAncestor exercises the three documented outcomes of
+// `git merge-base --is-ancestor`:
+//   - ancestor reachable -> (true, nil)
+//   - ancestor unreachable but repo healthy -> (false, nil)
+//   - bogus ref / real git failure -> (false, err)
+func TestIsAncestor(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+
+	first, err := HeadCommit(dir)
+	if err != nil {
+		t.Fatalf("HeadCommit: %v", err)
+	}
+
+	// Add a second commit so we have a non-trivial chain.
+	if err := os.WriteFile(filepath.Join(dir, "hello.txt"), []byte("hello v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", "hello.txt"},
+		{"commit", "-q", "-m", "second"},
+	} {
+		c := exec.Command("git", args...)
+		c.Dir = dir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	second, err := HeadCommit(dir)
+	if err != nil {
+		t.Fatalf("HeadCommit: %v", err)
+	}
+
+	// first is an ancestor of HEAD.
+	if ok, err := IsAncestor(dir, first, "HEAD"); err != nil || !ok {
+		t.Fatalf("IsAncestor(first, HEAD) = (%v, %v), want (true, nil)", ok, err)
+	}
+	// HEAD (=second) is not an ancestor of first.
+	if ok, err := IsAncestor(dir, second, first); err != nil || ok {
+		t.Fatalf("IsAncestor(second, first) = (%v, %v), want (false, nil)", ok, err)
+	}
+	// Bogus SHA -> real failure (non-zero, non-1 exit).
+	if _, err := IsAncestor(dir, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "HEAD"); err == nil {
+		t.Fatal("IsAncestor with bogus ancestor sha should error, got nil")
+	}
+}

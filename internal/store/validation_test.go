@@ -134,6 +134,7 @@ func TestValidateDependencies_SatisfiedByRequiresUpstream(t *testing.T) {
 }
 
 func TestValidateDependencies_SatisfiedByOnUpstreamMerged(t *testing.T) {
+	defer stubIsAncestor(t, true, nil)()
 	s := newStoreWith(t, map[string]FeatureState{
 		"parent": StateUpstreamMerged,
 		"child":  StateRequested,
@@ -141,6 +142,67 @@ func TestValidateDependencies_SatisfiedByOnUpstreamMerged(t *testing.T) {
 	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "deadbeef"}}
 	if err := ValidateDependencies(s, "child", deps); err != nil {
 		t.Fatalf("satisfied_by on upstream_merged parent must be allowed, got %v", err)
+	}
+}
+
+// stubIsAncestor swaps the package-level isAncestor hook for tests so
+// validation can be exercised without standing up a real git repo. The
+// returned func restores the original (use with t.Cleanup or defer).
+func stubIsAncestor(t *testing.T, ok bool, err error) func() {
+	t.Helper()
+	prev := isAncestor
+	isAncestor = func(repoRoot, ancestor, descendant string) (bool, error) {
+		return ok, err
+	}
+	t.Cleanup(func() { isAncestor = prev })
+	return func() { isAncestor = prev }
+}
+
+func TestValidateDependencies_SatisfiedByReachable(t *testing.T) {
+	defer stubIsAncestor(t, true, nil)()
+	s := newStoreWith(t, map[string]FeatureState{
+		"parent": StateUpstreamMerged,
+		"child":  StateRequested,
+	})
+	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "abc1234"}}
+	if err := ValidateDependencies(s, "child", deps); err != nil {
+		t.Fatalf("reachable satisfied_by SHA must validate, got %v", err)
+	}
+}
+
+func TestValidateDependencies_SatisfiedByUnreachable(t *testing.T) {
+	defer stubIsAncestor(t, false, nil)()
+	s := newStoreWith(t, map[string]FeatureState{
+		"parent": StateUpstreamMerged,
+		"child":  StateRequested,
+	})
+	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabricated"}}
+	err := ValidateDependencies(s, "child", deps)
+	if !errors.Is(err, ErrSatisfiedBySHANotReachable) {
+		t.Fatalf("want ErrSatisfiedBySHANotReachable, got %v", err)
+	}
+}
+
+func TestValidateAllFeatures_SatisfiedByUnreachable(t *testing.T) {
+	defer stubIsAncestor(t, false, nil)()
+	s := newStoreWith(t, map[string]FeatureState{
+		"parent": StateUpstreamMerged,
+		"child":  StateRequested,
+	})
+	st, _ := s.LoadFeatureStatus("child")
+	st.DependsOn = []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabricated"}}
+	if err := s.SaveFeatureStatus(st); err != nil {
+		t.Fatal(err)
+	}
+	errs := ValidateAllFeatures(s)
+	found := false
+	for _, e := range errs {
+		if errors.Is(e, ErrSatisfiedBySHANotReachable) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("want ErrSatisfiedBySHANotReachable in %v", errs)
 	}
 }
 

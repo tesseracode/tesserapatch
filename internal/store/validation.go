@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
 // Sentinel errors for dependency validation. Callers can match with
@@ -18,9 +20,20 @@ var (
 	// ErrSatisfiedByRequiresUpstream is returned when satisfied_by is set on a parent
 	// whose state is not upstream_merged (ADR-011 D5).
 	ErrSatisfiedByRequiresUpstream = errors.New("satisfied_by is only valid for upstream_merged parents")
+	// ErrSatisfiedBySHANotReachable is returned when satisfied_by points at a SHA
+	// that is not an ancestor of HEAD. Closes the deliberate M14.1 limitation
+	// where any well-formed hex string was accepted as long as the parent was
+	// upstream_merged. The provenance value must correspond to a commit we can
+	// actually see from the current branch tip.
+	ErrSatisfiedBySHANotReachable = errors.New("satisfied_by SHA not reachable from HEAD")
 	// ErrInvalidDependencyKind is returned when kind is neither "hard" nor "soft".
 	ErrInvalidDependencyKind = errors.New("dependency kind must be \"hard\" or \"soft\"")
 )
+
+// isAncestor is a package-level hook so unit tests can stub the git
+// reachability check without standing up a real repo. Default wires
+// straight to gitutil.IsAncestor.
+var isAncestor = gitutil.IsAncestor
 
 // ValidateDependencies checks the proposed dependency list for `slug`
 // against the live store, applying the 5 rules from PRD §3.3:
@@ -62,6 +75,18 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 		}
 		if d.SatisfiedBy != "" && parent.State != StateUpstreamMerged {
 			return fmt.Errorf("%w: parent %s state is %q (need upstream_merged)", ErrSatisfiedByRequiresUpstream, d.Slug, parent.State)
+		}
+		// satisfied_by must point at a commit that is actually reachable
+		// from HEAD. Only check when the requires-upstream rule already
+		// passed (parent state is upstream_merged) so we don't double-fail.
+		if d.SatisfiedBy != "" && parent.State == StateUpstreamMerged {
+			ok, aerr := isAncestor(s.Root, d.SatisfiedBy, "HEAD")
+			if aerr != nil {
+				return fmt.Errorf("verify satisfied_by reachability for %s -> %s: %w", slug, d.Slug, aerr)
+			}
+			if !ok {
+				return fmt.Errorf("%w: %s -> %s satisfied_by=%s", ErrSatisfiedBySHANotReachable, slug, d.Slug, d.SatisfiedBy)
+			}
 		}
 	}
 
@@ -118,6 +143,14 @@ func ValidateAllFeatures(s *Store) []error {
 			}
 			if d.SatisfiedBy != "" && parent.State != StateUpstreamMerged {
 				out = append(out, fmt.Errorf("%w: %s -> %s parent state %q", ErrSatisfiedByRequiresUpstream, f.Slug, d.Slug, parent.State))
+			}
+			if d.SatisfiedBy != "" && parent.State == StateUpstreamMerged {
+				ok, aerr := isAncestor(s.Root, d.SatisfiedBy, "HEAD")
+				if aerr != nil {
+					out = append(out, fmt.Errorf("verify satisfied_by reachability for %s -> %s: %w", f.Slug, d.Slug, aerr))
+				} else if !ok {
+					out = append(out, fmt.Errorf("%w: %s -> %s satisfied_by=%s", ErrSatisfiedBySHANotReachable, f.Slug, d.Slug, d.SatisfiedBy))
+				}
 			}
 		}
 	}

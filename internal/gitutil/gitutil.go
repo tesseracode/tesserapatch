@@ -621,6 +621,34 @@ func FileAtCommit(repoRoot, commit, relPath string) ([]byte, error) {
 	return out, nil
 }
 
+// IsAncestor reports whether `ancestor` is an ancestor of `descendant`
+// in the git history rooted at repoRoot. Wraps
+//
+//	git merge-base --is-ancestor <ancestor> <descendant>
+//
+// which exits 0 when ancestor is reachable, 1 when it is not, and any
+// other non-zero exit on a real git failure (bad ref, repo missing,
+// etc.). Mapped as: exit 0 -> (true, nil); exit 1 -> (false, nil);
+// otherwise (false, err).
+func IsAncestor(repoRoot, ancestor, descendant string) (bool, error) {
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", ancestor, descendant)
+	cmd.Dir = repoRoot
+	// Capture stderr so a real failure surfaces a useful message.
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return true, nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		if exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+		return false, fmt.Errorf("git merge-base --is-ancestor %s %s: %s", ancestor, descendant, strings.TrimSpace(stderr.String()))
+	}
+	return false, err
+}
+
 // MergeBase returns the merge-base (common ancestor) of two commits.
 // Used as the "base" side of the three-way reconciliation triple. If
 // no common ancestor exists (disjoint histories), the returned commit
