@@ -1,3 +1,57 @@
+# 2026-04-27 — M15-W3-DESIGN — Wave 3 design (PRD + ADR-012) — APPROVED
+
+**Outcome**: APPROVED after one revision cycle. Design is locked; ready for Slice A code dispatch.
+
+## Deliverables
+
+- `docs/prds/PRD-verify-and-tested-state.md` (~678 lines) — combined PRD covering `feat-verify-command` and `feat-feature-tested-state`. 10-check verify sequence (V0–V9), full state-transition truth table, JSON schema with 3 failure-case examples, 4 independently-dispatchable implementation slices, explicit out-of-scope cross-links to `feat-reconcile-code-presence-verdicts`, `feat-reconcile-fresh-branch-mode`, `delete-file` recipe op.
+- `docs/adrs/ADR-012-feature-tested-state.md` (~201 lines) — locks D1–D7 with alternatives-considered. D2 (the consequential decision): `tested` satisfies the hard-dep gate, equivalent to `applied`. Cross-references ADR-010 D5 (source-truth guard) and ADR-011 (dep DAG); does not amend either.
+
+## Key decisions locked
+
+- **D1**: `tested` is a linear forward state from `applied`, not a parallel branch.
+- **D2**: `tested` satisfies the hard-dep gate. The `case StateApplied:` arm in `internal/workflow/dependency_gate.go:79–101` extends to also match `StateTested`. `tested` is a strict superset of `applied`.
+- **D3**: `verify` is the sole producer of `tested` in v0.6.2. `test` does not produce `tested` (separation of concerns).
+- **D4**: v0.6.1 repos that never run verify keep status.json byte-identical via `omitempty` on the new field.
+- **D5**: Forward/backward transitions table:
+  - `applied + verify PASS → tested`
+  - `tested + verify PASS → tested` (idempotent)
+  - `tested + verify FAIL (block-severity) → applied`
+  - `tested + amend (recipe-touching) → applied`
+  - `tested + amend (intent-only) → tested` (preserved)
+  - `tested → applied` demotion does NOT cascade to children
+- **D6**: `tested` is persisted in `status.json`, never inferred from `artifacts/reconcile-session.json`. Reuses ADR-011 D6 wording verbatim.
+- **D7**: `verify` is read-only on the working tree; uses shadow workspace for apply-simulation.
+
+## Reviewer adjudications (binding inputs to Slice A)
+
+- **Q1 (V9 severity)**: warn (default). Block would penalize features in `shadow-awaiting`, which is a pending human decision, not a structural integrity problem.
+- **Q2 (`verify --all` skip)**: skip pre-apply slugs with a `"skipped: pre-apply state"` reason line in the JSON output.
+- **Q3 (`passed: false` field name)**: keep `passed` (semantically accurate; `severity` carries gating).
+- **Q4 (D2 wording)**: PRD §3.4.4 rewritten to align with ADR-012 D2 (Direction A, chosen; Direction B preserved as rejected alternative). Resolved by the revision pass.
+- **Q5 (parent-state hook insertion)**: insert into the existing M14.3 label-recomputation loop. No new hot path.
+
+## Process timeline
+
+1. **`fdc6e70`** — implementer landed PRD + ADR-012. Implementer surfaced 5 open questions for the reviewer to adjudicate.
+2. **`90375c9`** — `m15-w3-design-reviewer` (code-review sub-agent) verdict: **NEEDS REVISION**. One blocking finding: PRD §3.4.4 line 263 stated "Direction B (tested does NOT satisfy)" while ADR-012 D2 line 44 locked the opposite. PRD then walked back into "B-pragmatic" framing that implemented Direction A. Editorial misalignment, not a design flaw.
+3. **`e6473ea`** — revision implementer rewrote PRD §3.4.4 only. Headline now plainly Direction A; Direction B preserved as labelled rejected alternative; ADR-012 D2 cited as locking record. 17 inserts / 18 deletes in PRD, plus reviewer-adjudication block in CURRENT.md.
+4. Supervisor approved revision directly (no second sub-agent review): mechanical fix, single section, scope-bounded.
+
+## Process lessons reinforced
+
+- Single-finding sub-agent reviews remain a strong pattern: targeted, fast, auditable. The `code-review` agent identified a real PRD/ADR contradiction the implementer would not have surfaced solo.
+- **Implementer self-reviews are status-only, never approval signals** (v0.6.1 fix-pass lesson holds): the original implementer call did not flag the D2 contradiction it had created.
+- Combined PRD over two split PRDs paid off: the consequential D2 decision had to be answered exactly once, and the contradiction was localised to one section instead of needing cross-document reconciliation.
+
+## Files changed (commits `fdc6e70`, `90375c9`, `e6473ea`)
+
+- `docs/prds/PRD-verify-and-tested-state.md` — created (`fdc6e70`), revised §3.4.4 (`e6473ea`)
+- `docs/adrs/ADR-012-feature-tested-state.md` — created (`fdc6e70`)
+- `docs/handoff/CURRENT.md` — dispatch contract (`fdc6e70`), reviewer adjudications + revision note (`e6473ea`)
+- `docs/supervisor/LOG.md` — reviewer verdict (`90375c9`)
+
+
 ## 2026-04-27 — M15-W2 fix-pass APPROVED, v0.6.1 release prep
 
 **Trigger**: External re-review against the merged M15-W1+W2 surface (HEAD `ad040ac`) surfaced 4 medium findings. Supervisor closed all 4 in-tree before tagging rather than dispatching a separate implementer cycle (changes are tightly coupled and small).

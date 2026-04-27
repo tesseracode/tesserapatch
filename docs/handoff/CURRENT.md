@@ -2,140 +2,60 @@
 
 ## Active Task
 
-- **Task ID**: M15-W3-DESIGN
-- **Milestone**: M15 → Wave 3 (lifecycle / reconcile semantics tranche), **design-first**
-- **Description**: Write **one combined PRD** covering `feat-verify-command` + `feat-feature-tested-state`, plus a companion **ADR-012** for the state-machine extension. NO CODE in this dispatch — design only. The next agent (separate dispatch) will implement against the approved design.
-- **Status**: In Progress — implementer dispatched
+- **Task ID**: _idle — M15 Wave 3 design APPROVED, awaiting Slice A code dispatch_
+- **Milestone**: M15 → Wave 3 (lifecycle / reconcile semantics tranche)
+- **Status**: Idle
 - **Assigned**: 2026-04-27
 
 ## Session Summary
 
-**Revision pass — 2026-04-27.** Reviewer flagged one blocking finding against commit `fdc6e70` (verdict at `90375c9`, supervisor LOG.md top entry): PRD §3.4.4 line 263 stated "Direction B — `tested` does NOT satisfy hard dependencies" while ADR-012 D2 line 44 locks the opposite ("`tested` satisfies the hard-dep gate, equivalent to `applied`"). The PRD then re-introduced Direction A semantics under a "B-pragmatic" label, producing a contradictory and confusing presentation. Fix: PRD §3.4.4 rewritten so the headline plainly states Direction A (chosen), Direction B is preserved as the rejected alternative with its arguments intact, and ADR-012 D2 is cited as the locking record. No other section of the PRD touched; ADR-012 unchanged; no Go code, no tests, no other tracking docs modified. The four other open questions (Q1, Q2, Q3, Q5) were adjudicated by the reviewer in favour of the PRD defaults — moved to "Reviewer adjudications" below; no PRD changes required for them.
+M15-W3-DESIGN approved after one revision cycle. PRD + ADR-012 locked; archived to `docs/handoff/HISTORY.md` (top entry, 2026-04-27).
 
-## Why one PRD covers both
+The design covers `feat-verify-command` + `feat-feature-tested-state` in a single combined PRD because the two share contract surface — most notably D2 (does `tested` satisfy hard dependencies?), which is now locked: **yes, `tested` is a strict superset of `applied`**.
 
-The reviewer's go-to-tag note explicitly required clarifying how `feat-verify-command` and `feat-feature-tested-state` relate before scoping either. They likely share machinery (`verify` is the most natural producer of the `tested` state) and they share contract surface (does `tested` satisfy hard dependencies? does `verify` transition state? do `verify` checks include reachability of `satisfied_by`?). Splitting into two PRDs forces those decisions twice and risks them drifting apart. Single PRD, two implementation slices later.
+The PRD slices the work into four independently-dispatchable code waves (Slice A: verify command shell; Slice B: tested state plumbing; Slice C: verify produces tested; Slice D: --all / JSON / docs). Slice A is the next dispatch.
 
-## Scope
+## Locked design contract (binding for all Wave 3 code dispatches)
 
-### Must cover in `docs/prds/PRD-verify-and-tested-state.md`
+- **D1**: `tested` is a linear forward state from `applied`. Single-direction extension to `FeatureState` enum.
+- **D2**: `tested` satisfies the hard-dep gate. Implementation is one switch arm: extend `case StateApplied:` in `internal/workflow/dependency_gate.go:79–101` to also match `StateTested`.
+- **D3**: `verify` is the sole producer of `tested` in v0.6.2. `test` is unchanged; `amend` does not produce `tested`.
+- **D4**: New `Tested *TestedRecord` field on the feature status block carries `omitempty` so v0.6.1 repos round-trip byte-identical until verify is run.
+- **D5**: Transitions: `applied + verify PASS → tested`; `tested + verify PASS → tested` (idempotent); `tested + verify FAIL (block-severity) → applied`; `tested + amend (recipe-touching) → applied`; `tested + amend (intent-only) → tested` (preserved). Demotion does NOT cascade to children.
+- **D6**: `tested` lives in `status.json`. Never inferred from `artifacts/reconcile-session.json`. Reuses ADR-011 D6 source-truth guard verbatim.
+- **D7**: `verify` is read-only on the working tree. Apply-simulation uses the existing shadow workspace plumbing.
 
-1. **Goals + non-goals.** Clearly call out what `verify` is NOT (not a re-apply, not a reconcile, not a test runner — those exist as `apply`, `reconcile`, `test`).
-2. **`tpatch verify <slug>` contract.**
-   - Set of checks. Minimum starter set, in order:
-     - spec.md present and non-empty
-     - exploration.md targets exist in the working tree
-     - apply-recipe.json (if present) parses and op targets resolve to real paths
-     - apply-recipe.json operations re-apply cleanly to a clean shadow / fresh-branch workspace
-     - artifacts/post-apply.patch still applies cleanly to the upstream baseline (if recorded)
-     - dependency metadata passes `store.ValidateDependencies` (already exists)
-     - `satisfied_by` SHAs are 40-hex AND reachable from HEAD (already enforced at edit time post-v0.6.1; verify re-checks for drift since edit)
-     - any newly proposed checks (call them out explicitly)
-   - Output: pass/fail per check, machine-readable JSON option (`--json`), actionable remediation per failure mode.
-   - State transitions: does `verify` ever change `FeatureState`? Decision required.
-   - Failure semantics: does `verify` exit non-zero on any failed check? On all? Configurable?
-   - Harness integration: how does an agent harness know to run `verify` between phases?
-   - Interaction with the existing `test` command: do they compose? Sequence? Mutual?
-3. **`tested` lifecycle state.**
-   - Where does `tested` sit in the state machine? Between `applied` and `active`? Or alongside? Truth table required.
-   - Producer: only `verify`? Also `test`? Both? Manual via `amend`?
-   - Persistence: same `status.json` schema, no new file.
-   - **Critical contract questions** (each needs an explicit answer in the PRD):
-     - Does `tested` satisfy hard dependencies? (i.e. does the apply-time gate accept a `tested` parent the same way it accepts `applied`?)
-     - Does `tested` interact with reconcile labels? (`waiting-on-parent` etc.)
-     - Does `upstream_merged` short-circuit `tested` (already-shipped parent never needs verify)?
-     - Forward/backward transitions: can a feature regress from `tested` back to `applied`? On what trigger?
-   - Backwards compatibility: a v0.6.1 repo that never sees `verify` keeps every status.json byte-identical; new state only appears once `verify` is run for the first time on that feature.
-4. **CLI surface.**
-   - `tpatch verify <slug> [--json] [--shadow] [--fresh-branch]` — exact flag set + defaults.
-   - Optional: `tpatch verify --all` for batch.
-   - `tpatch status` rendering of `tested` state (DAG and flat).
-   - `tpatch amend <slug> --state tested` if manual flip is in scope (decision required).
-5. **Skill / harness updates.**
-   - Which of the 6 skill formats need updates and what changes.
-   - Parity guard implications.
-6. **Out of scope.**
-   - Explicitly defer: code-presence reconcile verdicts, fresh-branch reconcile mode, anything that touches `artifacts/post-apply.patch` as authoritative source.
-   - List the 4 remaining Wave 3 candidates and what RELATION they have to verify/tested but are NOT part of this PRD.
-7. **Implementation slices for downstream waves.**
-   - Slice A — verify command shell (no state transition). Lowest risk.
-   - Slice B — tested state + state-machine plumbing.
-   - Slice C — verify wired to produce tested state.
-   - Slice D — `verify --all`, JSON output polish, harness docs.
-   - Each slice is independently dispatchable; the PRD must be specific enough that an implementer can pick one slice and write code without further design.
+## Reviewer adjudications (binding inputs to Slice A's contract)
 
-### Must cover in `docs/adrs/ADR-012-feature-tested-state.md`
-
-Standard ADR shape (see ADR-011 for reference, ~145 lines). Decisions to lock:
-
-1. **Where `tested` sits in the FeatureState enum.** Linear vs branching state machine.
-2. **`tested` satisfies hard dependencies: yes / no / configurable.** This is the single most consequential decision; argue it explicitly with both directions.
-3. **Producers of `tested`.** verify-only vs verify+test+amend. Trade-offs.
-4. **Backwards-compatibility contract.** Byte-identity for v0.6.1 repos that never run verify.
-5. **Transitions.** Allowed forward edges (e.g. `applied → tested`, `tested → upstream_merged`), allowed backward edges (e.g. `tested → applied` on what trigger), and disallowed edges (e.g. `requested → tested` directly).
-6. **Source-truth alignment.** `tested` must NOT be inferred from `artifacts/reconcile-session.json` or any non-`status.json` source (ADR-011 D6).
-
-## Constraints (binding for the implementer)
-
-- **No code changes** in this dispatch. Only `docs/prds/PRD-verify-and-tested-state.md` and `docs/adrs/ADR-012-feature-tested-state.md`.
-- **Reuse existing primitives** where they exist: `store.ValidateDependencies`, `store.satisfiedBySHARe` (40-hex regex), `gitutil.IsAncestor` (reachability), `gitutil.CapturePatchScoped`, `internal/workflow.UserShell` / `shellQuoteFor`.
-- **Source-truth guard (ADR-011 D6)**: any reconcile-related decision MUST read `status.Reconcile.Outcome`, NEVER `artifacts/reconcile-session.json`. Bake this into PRD §verify-checks where it touches reconcile state.
-- **Recipe-op JSON schema is frozen.** No `delete-file` op (separate ADR before that ships). PRD must NOT assume schema extension.
-- **`status.json` schema additions must be omitempty + round-trip stable.** A v0.6.1 repo with no verify history must round-trip byte-identical.
-- **Harness contract:** any new CLI surface must support a `--json` machine-readable output mode for harness integration. Document exact JSON shape in the PRD.
-- **No ADR-011 amendments without an explicit, justified change in this ADR-012.** ADR-011's `Reconcile.Outcome` source-truth guard, the apply-time dependency gate behaviour, and the 40-hex satisfied_by contract are all locked.
-
-## Process
-
-1. Implementer (dispatched as `m15-w3-design-implementer`) writes the PRD + ADR.
-2. Implementer runs no Go tests (this is design-only); validates that PRD/ADR cross-references resolve and that no contract conflicts exist with ADR-011 / ADR-010 / ADR-006 / `docs/dependencies.md`.
-3. Implementer updates this CURRENT.md with files written, decisions made, open questions surfaced for review.
-4. Reviewer (dispatched as `m15-w3-design-reviewer`) critiques the design against the constraints above. Looks for: contract conflicts, missing decisions, unclear slicing, missing failure modes, missing JSON shape, missing source-truth guard, ergonomics gaps.
-5. Supervisor decides: APPROVED / NEEDS REVISION / dispatch the first implementation slice.
+- **Q1 (V9 severity)**: warn (default).
+- **Q2 (`verify --all` skip)**: pre-apply slugs are skipped with a `"skipped: pre-apply state"` reason line in the JSON output, not a failure.
+- **Q3 (`passed` field name)**: retained. `severity` carries gating; `passed` carries pass/fail intent.
+- **Q4 (D2 wording)**: resolved by `e6473ea` revision pass.
+- **Q5 (parent-state hook)**: inserted into the existing M14.3 label-recomputation loop. No new hot path.
 
 ## Files Changed
 
-- `docs/prds/PRD-verify-and-tested-state.md` — **REVISED in this pass.** §3.4.4 rewritten to align headline + decision text with ADR-012 D2: chosen direction is now plainly Direction A (`tested` satisfies the hard-dep gate, equivalent to `applied`); Direction B is labelled rejected with its arguments preserved; the contradictory "B-pragmatic" walk-back is removed. Surrounding sections (trade-off arguments, dependency-gate code citation, Alt-3 derived-label rejection, parent-state hook tie-in) reused without further changes. Original creation note: **NEW.** Combined PRD for `feat-verify-command` + `feat-feature-tested-state`. ~700 lines. Enumerates the 10-check verify sequence (V0–V9) with severities and primitive citations, full state-transition truth table, the consequential D2 decision (`tested` satisfies hard deps — pragmatic equivalence to `applied`), parent-state demotion hook, `--json` schema with three failure-case examples, four implementation slices (A: command shell, B: state plumbing, C: wiring, D: polish), explicit out-of-scope cross-links to `feat-reconcile-code-presence-verdicts`, `feat-reconcile-fresh-branch-mode`, and the frozen recipe-op schema.
-- `docs/adrs/ADR-012-feature-tested-state.md` — **NEW.** Locks D1–D7 with full alternatives-considered. Cross-references ADR-011 D3/D6/D9 and ADR-010 D2/D5; preserves the v0.6.1 source-truth guard verbatim.
-- `docs/handoff/CURRENT.md` — this file; Files Changed / Decisions made / Open questions for reviewer / Test Results sections updated. Active Task / Status / Process / Constraints / Context for Next Agent blocks intact.
+_No active task; nothing pending._
 
-No Go file modified. No test modified. No ADR-011 edit. No reconcile-session.json read.
-
-## Decisions made
-
-The PRD records the *what* and the *why-now*; the ADR locks the architecture. Summary of locked choices (each is justified in ADR-012 with both directions argued where the dispatch demanded):
-
-1. **D1 — `tested` is a linear, sibling state of `applied`** in `FeatureState`. Not branching, not a parallel flag. Lives between `applied` and `active`. Single-string `state` field is preserved.
-2. **D2 — `tested` satisfies the hard-dep gate** (pragmatic equivalence to `applied`). `CheckDependencyGate` satisfaction set extends from `{applied, upstream_merged}` to `{applied, tested, upstream_merged}`. Both directions argued at length in PRD §3.4.4 + ADR-012 D2; B-strict (reject `tested` parents) and the alt-3 derived-label option are deliberately rejected. This is the consequential decision the dispatch flagged.
-3. **D3 — `verify` is the unique producer of `tested`.** `tpatch test`, `amend --state tested`, and implicit-`verify`-after-`apply` are all rejected (alternatives recorded). Producer expansion is reserved for `feat-tested-state-test-producer` (out of scope).
-4. **D4 — Backwards-compat: byte-identical round-trip for v0.6.1 repos that never run `verify`.** Enforced by a regression fixture (PRD §7 + ADR D4). Enum extension is additive; no field-shape change; no new file.
-5. **D5 — Forward / backward transition table.** Verify-driven edges: `applied → tested`, `tested → tested` (idempotent), `tested → applied` on block-severity FAIL. Cross-cutting demotions: `apply --mode execute on tested → applied`; `amend (recipe-touching) on tested → applied`; `amend (intent-only)` preserves `tested`; `reconcile (reapplied/upstreamed) on tested → applied` (NOT `tested`). Parent-state hook: hard-parent regression demotes direct children one step (cascade depth = 1).
-6. **D6 — Source-truth guard preserved verbatim from ADR-011 D6 / ADR-010 D5.** `tested` is persisted in `status.json` only; V9's reconcile-outcome check reads `status.Reconcile.Outcome` only, never `artifacts/reconcile-session.json` or `artifacts/resolution-session.json`. Adversarial test pins this.
-7. **D7 — Verify is read-only on the working tree.** Apply-simulation (V7) runs in a `gitutil.CreateShadow` worktree pruned via `defer PruneShadow(...)`. Per-slug shadow lock: verify refused while reconcile is in-flight (state ∈ `{reconciling, reconciling-shadow}`).
-
-Slicing decision (downstream Wave 3 dispatches) — adopted the dispatch's A/B/C/D boundaries:
-- **Slice A** — Verify command shell + V0–V9 checks; `--no-promote --no-demote` only; no enum / state plumbing yet.
-- **Slice B** — `tested` enum + state-transition plumbing (`CheckDependencyGate` extension, `apply`/`amend`/`reconcile` demotion paths, parent-state hook); no verify wiring.
-- **Slice C** — Wire verify into state transitions; `amend --state tested` rejection; `status` rendering.
-- **Slice D** — Skill bullets in 6 surfaces, parity guard, `verify --all`, CHANGELOG, polish.
-
-## Reviewer adjudications (M15-W3-DESIGN)
-
-The reviewer (`m15-w3-design-reviewer`, verdict at supervisor LOG.md top entry, commit `90375c9`) resolved all five open questions. Dispositions:
-
-1. **Q1 — V9 severity (warn vs block).** **Resolved: keep `warn`** (PRD default stands). `shadow-awaiting` is a pending human decision, not a structural integrity problem; blocking `tested` on V9 would penalise the harness for an un-clicked operator decision. If a "tested implies no pending reconcile work" contract is later needed, revisit in a future `feat-tested-stronger-contract` PRD. No PRD change required.
-2. **Q2 — `verify --all` skip semantics.** **Resolved: skip pre-apply states with a `"skipped: pre-apply state"` line** (PRD default stands). Exit code reflects only post-apply slugs. Slice D detail; document in `--all` help text. No PRD change required.
-3. **Q3 — `passed: false` field name on warn-only checks.** **Resolved: keep `passed`** (PRD default stands). Renaming would touch every check's JSON shape, and `passed` is semantically accurate (the check condition was evaluated; it did not pass). The `severity` field carries the gating semantics. Revisit in a UX-polish pass if it proves confusing in practice. No PRD change required.
-4. **Q4 — D2 wording check.** **Resolved: fix the PRD** (only blocking finding). PRD §3.4.4 was rewritten in this revision pass to align with ADR-012 D2 (`tested` satisfies the hard-dep gate, equivalent to `applied`). The "Direction B" headline that actually implemented Direction A semantics, and the "B-pragmatic" terminology, are removed. ADR-012 D2 is the locking record; PRD §3.4.4 now cites it. See "Files Changed" below.
-5. **Q5 — Slice B parent-state hook performance.** **Resolved: approved as designed.** The `LoadFeatureStatus` post-processing loop (same site as M14.3 label recomputation) is the correct insertion point; the additional check is constant-time per edge. No new hot path. Implementer can proceed with Slice B as specified. No PRD change required.
+Last work: see `docs/handoff/HISTORY.md` 2026-04-27 entry for the full design dispatch + revision archive (commits `fdc6e70`, `90375c9`, `e6473ea`).
 
 ## Test Results
 
-N/A — design-only dispatch. No Go code, no test changes. PRD/ADR cross-references hand-validated (see PRD §10 cross-cutting impact matrix and ADR-012 References section); both documents resolve internally and against ADR-010, ADR-011, `docs/dependencies.md`, and CHANGELOG v0.6.1.
+N/A — design-only phase. The next code dispatch (Slice A) will run the standard `go test ./... && go build ./cmd/tpatch && gofmt -l .` gate.
 
 ## Next Steps
 
-After PRD + ADR approval: dispatch Slice A (`verify` command shell) as the first M15-W3 code wave. The implementation handoff will reference the PRD/ADR sections that bound the work.
+1. **Refresh backlog mirror** to reflect Slice A as the next active code item:
+   ```
+   chmod 644 .tpatch-backlog/backlog.db
+   sqlite3 $SESSION_DB ".backup '.tpatch-backlog/backlog.db'"
+   chmod 444 .tpatch-backlog/backlog.db
+   ```
+2. **Dispatch `m15-w3-slice-a-implementer`** (general-purpose, background) with a tight per-slice contract:
+   - **Scope**: verify command shell — register `tpatch verify <slug>` cobra command + `--json`, `--all`, `--shadow` flags + skeleton check runner that returns the new `VerifyReport` struct shape from PRD §4.2. Implement V0–V2 (cheap structural checks: spec.md present, exploration.md targets exist, recipe parses). Stub V3–V9 with TODO + clean-up sentinel.
+   - **Out of scope for Slice A**: the actual `tested` state plumbing (Slice B), recipe re-apply against shadow (Slice C), `--all` orchestration (Slice D).
+   - **Constraints**: PRD §4.2 JSON shape is binding; cobra wiring follows the existing `applyCmd` / `recordCmd` pattern; skill anchors must be regenerated to mention `verify` (parity guard will fail otherwise).
+3. **Wait for completion**, dispatch `m15-w3-slice-a-reviewer` (`code-review` agent), then user gate before Slice B.
 
 ## Blockers
 
@@ -143,10 +63,8 @@ None.
 
 ## Context for Next Agent
 
-- **`tpatch` binary at the repo root is NOT gitignored.** Always `rm -f tpatch` after any inadvertent `go build`. (Design dispatch should not build, but mentioning for completeness.)
-- **Commit trailer mandatory**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`. Use `git -c commit.gpgsign=false`.
-- **Source-truth guard (ADR-011 D6)**: any DAG/label/status code reads `status.Reconcile.Outcome` via `store.LoadFeatureStatus`, NEVER `artifacts/reconcile-session.json`. Bake into PRD verify-checks.
-- **Recipe vs patch authority**: `artifacts/post-apply.patch` is the reconcile source of truth. Recipes serve replay/inspection. PRD must respect this.
-- **Hookable-var pattern**: `var isAncestor = gitutil.IsAncestor` (Wave 1), `var userShellFor` (Wave 2). Convention for unit-test isolation; design should anticipate continued use.
-- **`satisfied_by` contract (post-v0.6.1)**: 40-hex AND reachable, enforced at edit time. `verify` re-checks reachability for drift since edit.
-- **Self-reviews are status signals only.** Per the v0.6.1 fix-pass lesson, the reviewer agent's verdict on this PRD is one input — supervisor will request an external read before any implementation slice ships.
+- v0.6.1 is shipped on `origin/main` (tag `v0.6.1`, commit `572a038`). Wave 3 design commits (`fdc6e70`, `90375c9`, `e6473ea`) are committed locally and pushed. The current `main` HEAD is the supervisor approval of the revision pass.
+- Authoritative design surface: `docs/prds/PRD-verify-and-tested-state.md` and `docs/adrs/ADR-012-feature-tested-state.md`. Read both before dispatching Slice A. Supplement with `docs/handoff/HISTORY.md` 2026-04-27 entry for the why-this-was-locked-this-way context and reviewer adjudications.
+- Hard rules that still hold: ADR-010 D5 (source-truth guard), ADR-011 D6 (status-as-truth), recipe-op JSON schema frozen (no `delete-file` op), `omitempty` round-trip invariant, secret-by-reference, no nested map keys in YAML config (per stored memory).
+- The `tpatch` root binary is not gitignored; `rm -f tpatch` after any local `go build`.
+- Sub-agent self-reviews remain status-only signals. Always run an external review before approving anything non-trivial.

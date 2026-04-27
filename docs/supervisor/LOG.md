@@ -1,3 +1,36 @@
+## Review — M15-W3-DESIGN (revision pass) — 2026-04-27
+
+**Reviewer**: Supervisor (direct, no sub-agent)
+**Task**: Wave 3 design — D2 PRD/ADR alignment fix
+**Commit reviewed**: `e6473ea`
+
+### Constraint compliance
+- [x] Only `docs/prds/PRD-verify-and-tested-state.md` and `docs/handoff/CURRENT.md` modified
+- [x] ADR-012 untouched
+- [x] No Go / test / LOG.md changes
+- [x] Co-author trailer present
+- [x] Not pushed (supervisor pushes)
+
+### Findings
+None. PRD §3.4.4 now headlines Direction A plainly, cites ADR-012 D2 as the locking record, removes the "B-pragmatic" walk-back, and preserves Direction B as a labelled rejected alternative with its arguments intact. The "tested is a strict superset of applied" framing makes the gate semantics legible.
+
+### Verdict: APPROVED
+
+### Action taken
+1. Archive M15-W3-DESIGN to `docs/handoff/HISTORY.md`.
+2. Reset `CURRENT.md` to design-complete idle, ready for Slice A dispatch.
+3. Push `fdc6e70` + `90375c9` + `e6473ea` to `origin/main`.
+4. Reviewer-adjudicated open questions (Q1–Q5) are now binding inputs to Slice A's contract:
+   - Q1: V9 = warn severity
+   - Q2: `verify --all` skips pre-apply slugs with `"skipped: pre-apply state"` reason line
+   - Q3: `passed` field name retained (severity carries gating)
+   - Q4: D2 = Direction A (resolved by this revision)
+   - Q5: parent-state hook inserted into existing M14.3 label-recomputation loop
+
+### Notes
+The reviewer-then-revision loop caught a real contradiction the implementer would not have surfaced solo. Single-finding reviews remain a strong sub-agent pattern: targeted, fast, auditable. The "implementer self-reviews are status-only" lesson (from v0.6.1 fix-pass) holds — neither implementer call self-flagged D2.
+
+
 # Supervisor Review Log
 
 *Review entries logged in reverse chronological order.*
