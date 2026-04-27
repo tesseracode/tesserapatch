@@ -53,13 +53,18 @@ type RecipeOperation struct {
 	Replace string `json:"replace"` // for replace-in-file: replacement text
 
 	// CreatedBy is an optional parent-feature slug declaring which feature
-	// originated this file. It is an ordering / label hint consumed by the
-	// DAG features added in M14.3+ (label composition, topo reconcile).
+	// originated this file. It is the contract surface between the DAG
+	// features (M14.x) and the apply / implement phases.
 	//
-	// In M14.2 the field is persisted but inert — no apply / reconcile /
-	// record code reads it, and the implement phase does not yet populate
-	// it. Wiring is deferred to M14.3 once a real consumer (label
-	// composition) lands.
+	// Two consumers exist as of v0.6.0:
+	//   - apply-time gate (`internal/workflow/created_by_gate.go`):
+	//     when a hard parent declares this op's path, the gate produces
+	//     `ErrPathCreatedByParent` (execute) or a non-fatal warning
+	//     (dry-run) per PRD §4.3.
+	//   - implement-time advisor (`internal/workflow/created_by_inference.go`):
+	//     advisory suggestion when the heuristic detects a likely parent.
+	//     Never mutates the recipe (advisory only, opt-out via
+	//     `--no-created-by-infer`).
 	//
 	// `omitempty` is load-bearing: recipes that do not declare DAG
 	// provenance must round-trip byte-identical to v0.5.3.

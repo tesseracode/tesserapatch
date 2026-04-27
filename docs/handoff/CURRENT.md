@@ -9,7 +9,7 @@
 
 ## Session Summary
 
-**M15.1 shipped** — `created_by` auto-inference at implement time. Advisory only (recipe never mutated), hard-parents only, opt-out via `--no-created-by-infer`, flag-off byte-identity preserved. Reviewer APPROVED on commit `6407b6b` with no findings.
+**M15.1 shipped** — `created_by` auto-inference at implement time. Advisory only (recipe never mutated), hard-parents only, opt-out via `--no-created-by-infer`, flag-off byte-identity preserved. Reviewer APPROVED on commit `6407b6b`; closeout commit `ee6d6c8` archived the handoff; followup chore `e8542fa` gitignored the `.tpatch-backlog/` mirror dump.
 
 This closes the v0.6.0 user-experience loop: instead of a hard `ErrPathCreatedByParent` at apply time, users now get a stderr suggestion at implement time pointing at the likely parent.
 
@@ -17,7 +17,7 @@ This closes the v0.6.0 user-experience loop: instead of a hard `ErrPathCreatedBy
 
 ## Current State
 
-- HEAD is `6407b6b` on `origin/main` (after handoff archive).
+- HEAD is `e8542fa` on `origin/main` (`.tpatch-backlog/` gitignore chore), with M15.1 review + archive at `6407b6b` + `ee6d6c8`.
 - Build clean, full test suite green, parity guard holds.
 - ROADMAP M14 ✅ (Tranche D); no M15 box flipped (M15 is treated as a backlog stream, not a tranche).
 - No active in-flight work.
