@@ -475,9 +475,22 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	//
 	// Skip if the caller already set labels (e.g. the phase-3.5 short-
 	// circuit path explicitly attaches its own label set).
-	if result != nil && len(result.Labels) == 0 {
-		if labels, lerr := composeLabelsAt(s, slug, result.attemptedAt); lerr == nil && len(labels) > 0 {
-			result.Labels = labels
+	//
+	// C5 F1: if the in-memory outcome marks the child as retired
+	// (currently only ReconcileUpstreamed), suppress label composition
+	// entirely. composeLabelsAt re-loads the child status FROM DISK,
+	// where the OLD outcome still lives — so without this guard, parent
+	// labels would be derived from the pre-reconcile baseline and
+	// persisted alongside a freshly-upstreamed verdict. ADR-011: parent
+	// state is irrelevant once a child is absorbed upstream. Force
+	// Labels to nil so updateFeatureState propagates the same.
+	if result != nil {
+		if _, retired := childRetiredOutcomes[result.Outcome]; retired {
+			result.Labels = nil
+		} else if len(result.Labels) == 0 {
+			if labels, lerr := composeLabelsAt(s, slug, result.attemptedAt); lerr == nil && len(labels) > 0 {
+				result.Labels = labels
+			}
 		}
 	}
 

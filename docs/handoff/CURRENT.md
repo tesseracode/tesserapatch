@@ -4,7 +4,7 @@
 
 - **Task ID**: M14.4 — Status DAG view + skills/docs rollout + v0.6.0 release cutover
 - **Milestone**: M14 — Feature Dependencies / DAG (Tranche D, v0.6.0)
-- **Status**: Awaiting user approval to dispatch (M14.3 ✅ + correctness pass ✅ APPROVED 2026-04-26)
+- **Status**: C5 fix-pass in progress (F1 reconcile-time label suppression + F2 dry-run downgrade for created_by)
 - **Estimated size**: ~300 LOC + version bump + tag
 
 ### Context
