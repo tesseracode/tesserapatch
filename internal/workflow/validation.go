@@ -167,7 +167,8 @@ func nativeParseGate(absPath string, content []byte, syntaxCheckCmd string) Gate
 	}
 
 	cmdline := strings.ReplaceAll(syntaxCheckCmd, "{file}", shellQuote(absPath))
-	cmd := exec.Command("sh", "-c", cmdline)
+	shell, flag := UserShell()
+	cmd := exec.Command(shell, flag, cmdline)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -262,7 +263,8 @@ func RunTestCommandInShadow(shadowPath string, cfg ValidationConfig) (TestRunRes
 		return TestRunResult{}, fmt.Errorf("shadow path unavailable: %w", err)
 	}
 
-	cmd := exec.Command("sh", "-c", cfg.TestCommand)
+	shell, flag := UserShell()
+	cmd := exec.Command(shell, flag, cfg.TestCommand)
 	cmd.Dir = shadowPath
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

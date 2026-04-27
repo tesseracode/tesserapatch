@@ -292,7 +292,8 @@ func testCmd() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			c := exec.CommandContext(ctx, "sh", "-c", testCmdStr)
+			shell, shellFlag := workflow.UserShell()
+			c := exec.CommandContext(ctx, shell, shellFlag, testCmdStr)
 			c.Dir = s.Root
 			output, runErr := c.CombinedOutput()
 			fmt.Fprint(out, string(output))
