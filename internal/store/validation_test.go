@@ -139,9 +139,29 @@ func TestValidateDependencies_SatisfiedByOnUpstreamMerged(t *testing.T) {
 		"parent": StateUpstreamMerged,
 		"child":  StateRequested,
 	})
-	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "deadbeef"}}
+	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "0123456789abcdef0123456789abcdef01234567"}}
 	if err := ValidateDependencies(s, "child", deps); err != nil {
 		t.Fatalf("satisfied_by on upstream_merged parent must be allowed, got %v", err)
+	}
+}
+
+// TestValidateDependencies_SatisfiedByMalformed locks in the contract
+// alignment with the apply-time gate (M15-W2 review F1): non-40-hex
+// values must fail validation rather than persisting and tripping the
+// gate later. The bare `errors.Is` check would not detect a regression
+// where validation reverted to "any reachable ref" semantics.
+func TestValidateDependencies_SatisfiedByMalformed(t *testing.T) {
+	defer stubIsAncestor(t, true, nil)()
+	s := newStoreWith(t, map[string]FeatureState{
+		"parent": StateUpstreamMerged,
+		"child":  StateRequested,
+	})
+	for _, bad := range []string{"abc1234", "deadbeef", "not-a-sha", "0123456789abcdef0123456789abcdef0123456"} { // last is 39-hex
+		deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: bad}}
+		err := ValidateDependencies(s, "child", deps)
+		if !errors.Is(err, ErrSatisfiedByMalformed) {
+			t.Fatalf("satisfied_by=%q: want ErrSatisfiedByMalformed, got %v", bad, err)
+		}
 	}
 }
 
@@ -164,7 +184,7 @@ func TestValidateDependencies_SatisfiedByReachable(t *testing.T) {
 		"parent": StateUpstreamMerged,
 		"child":  StateRequested,
 	})
-	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "abc1234"}}
+	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "0123456789abcdef0123456789abcdef01234567"}}
 	if err := ValidateDependencies(s, "child", deps); err != nil {
 		t.Fatalf("reachable satisfied_by SHA must validate, got %v", err)
 	}
@@ -176,7 +196,7 @@ func TestValidateDependencies_SatisfiedByUnreachable(t *testing.T) {
 		"parent": StateUpstreamMerged,
 		"child":  StateRequested,
 	})
-	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabricated"}}
+	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabbeef0123456789abcdef0123456789abcdef0"}}
 	err := ValidateDependencies(s, "child", deps)
 	if !errors.Is(err, ErrSatisfiedBySHANotReachable) {
 		t.Fatalf("want ErrSatisfiedBySHANotReachable, got %v", err)
@@ -190,7 +210,7 @@ func TestValidateAllFeatures_SatisfiedByUnreachable(t *testing.T) {
 		"child":  StateRequested,
 	})
 	st, _ := s.LoadFeatureStatus("child")
-	st.DependsOn = []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabricated"}}
+	st.DependsOn = []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabbeef0123456789abcdef0123456789abcdef0"}}
 	if err := s.SaveFeatureStatus(st); err != nil {
 		t.Fatal(err)
 	}
@@ -213,13 +233,13 @@ func TestValidateAllFeatures_SatisfiedByUnreachable(t *testing.T) {
 // to ErrSatisfiedBySHANotReachable, because the two signals mean different things
 // (unreachable = forged SHA; git error = malformed ref or env break).
 func TestValidateDependencies_SatisfiedByGitError(t *testing.T) {
-	gitErr := errors.New("fatal: bad revision 'fabricated'")
+	gitErr := errors.New("fatal: bad revision 'fabbeef0'")
 	defer stubIsAncestor(t, false, gitErr)()
 	s := newStoreWith(t, map[string]FeatureState{
 		"parent": StateUpstreamMerged,
 		"child":  StateRequested,
 	})
-	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabricated"}}
+	deps := []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabbeef0123456789abcdef0123456789abcdef0"}}
 	err := ValidateDependencies(s, "child", deps)
 	if err == nil {
 		t.Fatal("want error from git failure path, got nil")
@@ -231,7 +251,7 @@ func TestValidateDependencies_SatisfiedByGitError(t *testing.T) {
 		t.Fatalf("want wrapped underlying git error, got %v", err)
 	}
 	msg := err.Error()
-	for _, want := range []string{"child", "parent", "fabricated"} {
+	for _, want := range []string{"child", "parent", "fabbeef0"} {
 		if !contains(msg, want) {
 			t.Fatalf("error %q must include %q for context", msg, want)
 		}
@@ -239,14 +259,14 @@ func TestValidateDependencies_SatisfiedByGitError(t *testing.T) {
 }
 
 func TestValidateAllFeatures_SatisfiedByGitError(t *testing.T) {
-	gitErr := errors.New("fatal: bad revision 'fabricated'")
+	gitErr := errors.New("fatal: bad revision 'fabbeef0'")
 	defer stubIsAncestor(t, false, gitErr)()
 	s := newStoreWith(t, map[string]FeatureState{
 		"parent": StateUpstreamMerged,
 		"child":  StateRequested,
 	})
 	st, _ := s.LoadFeatureStatus("child")
-	st.DependsOn = []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabricated"}}
+	st.DependsOn = []Dependency{{Slug: "parent", Kind: DependencyKindHard, SatisfiedBy: "fabbeef0123456789abcdef0123456789abcdef0"}}
 	if err := s.SaveFeatureStatus(st); err != nil {
 		t.Fatal(err)
 	}

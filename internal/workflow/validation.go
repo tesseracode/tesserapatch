@@ -30,6 +30,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -233,10 +234,24 @@ func firstLine(s string) string {
 	return ""
 }
 
-// shellQuote single-quotes p for safe substitution into `sh -c`. The
-// shadow paths come from tpatch itself and never contain quotes in
-// practice, but robustness is cheap.
+// shellQuote quotes p so it can be safely substituted into the
+// command line passed to `UserShell()`. On POSIX hosts (`sh -c`) this
+// uses single-quote escaping; on Windows (`cmd /C`) this uses double-
+// quote escaping with `"` doubled — single quotes are not special to
+// cmd.exe, so the POSIX form would leak the quote characters into the
+// invoked tool. M15-W2 review F4: the previous unconditional POSIX
+// form left `{file}` substitutions broken on Windows even after the
+// shell-selection fix landed.
 func shellQuote(p string) string {
+	return shellQuoteFor(runtime.GOOS, p)
+}
+
+func shellQuoteFor(goos, p string) string {
+	if goos == "windows" {
+		// cmd.exe: wrap in double quotes; embedded `"` becomes `""`.
+		return `"` + strings.ReplaceAll(p, `"`, `""`) + `"`
+	}
+	// sh: single quotes; embedded `'` becomes `'\''`.
 	return "'" + strings.ReplaceAll(p, "'", `'\''`) + "'"
 }
 

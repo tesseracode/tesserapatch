@@ -4,9 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
+
+// satisfiedBySHARe matches a 40-character hex commit SHA. This must
+// stay byte-identical to the regex enforced by the apply-time
+// dependency gate (`internal/workflow.satisfiedBySHA`) so that what
+// validation accepts is exactly what the gate accepts. M15-W2 review
+// caught a contract drift where validation accepted unique short SHAs
+// (any ref `git merge-base --is-ancestor` could resolve) while the
+// gate still rejected anything not 40-hex, producing save-now/fail-
+// later dependency paths.
+var satisfiedBySHARe = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
 
 // Sentinel errors for dependency validation. Callers can match with
 // errors.Is. The 5 rules are sourced from PRD §3.3 and ADR-011 D5.
@@ -20,6 +31,11 @@ var (
 	// ErrSatisfiedByRequiresUpstream is returned when satisfied_by is set on a parent
 	// whose state is not upstream_merged (ADR-011 D5).
 	ErrSatisfiedByRequiresUpstream = errors.New("satisfied_by is only valid for upstream_merged parents")
+	// ErrSatisfiedByMalformed is returned when satisfied_by is set but
+	// is not a 40-character hex commit SHA. Mirrors the contract
+	// enforced by the apply-time dependency gate so validation and
+	// gate accept exactly the same value space.
+	ErrSatisfiedByMalformed = errors.New("satisfied_by must be a 40-character hex commit SHA")
 	// ErrSatisfiedBySHANotReachable is returned when satisfied_by points at a SHA
 	// that is not an ancestor of HEAD. Closes the deliberate M14.1 limitation
 	// where any well-formed hex string was accepted as long as the parent was
@@ -76,10 +92,14 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 		if d.SatisfiedBy != "" && parent.State != StateUpstreamMerged {
 			return fmt.Errorf("%w: parent %s state is %q (need upstream_merged)", ErrSatisfiedByRequiresUpstream, d.Slug, parent.State)
 		}
-		// satisfied_by must point at a commit that is actually reachable
-		// from HEAD. Only check when the requires-upstream rule already
-		// passed (parent state is upstream_merged) so we don't double-fail.
+		// satisfied_by must be a well-formed 40-hex SHA AND point at a
+		// commit reachable from HEAD. The 40-hex check mirrors the
+		// apply-time gate's contract; the reachability check hardens
+		// against fabricated-but-well-formed values.
 		if d.SatisfiedBy != "" && parent.State == StateUpstreamMerged {
+			if !satisfiedBySHARe.MatchString(d.SatisfiedBy) {
+				return fmt.Errorf("%w: %s -> %s satisfied_by=%q", ErrSatisfiedByMalformed, slug, d.Slug, d.SatisfiedBy)
+			}
 			ok, aerr := isAncestor(s.Root, d.SatisfiedBy, "HEAD")
 			if aerr != nil {
 				return fmt.Errorf("verify satisfied_by reachability for %s -> %s: %w", slug, d.Slug, aerr)
@@ -145,6 +165,10 @@ func ValidateAllFeatures(s *Store) []error {
 				out = append(out, fmt.Errorf("%w: %s -> %s parent state %q", ErrSatisfiedByRequiresUpstream, f.Slug, d.Slug, parent.State))
 			}
 			if d.SatisfiedBy != "" && parent.State == StateUpstreamMerged {
+				if !satisfiedBySHARe.MatchString(d.SatisfiedBy) {
+					out = append(out, fmt.Errorf("%w: %s -> %s satisfied_by=%q", ErrSatisfiedByMalformed, f.Slug, d.Slug, d.SatisfiedBy))
+					continue
+				}
 				ok, aerr := isAncestor(s.Root, d.SatisfiedBy, "HEAD")
 				if aerr != nil {
 					out = append(out, fmt.Errorf("verify satisfied_by reachability for %s -> %s: %w", f.Slug, d.Slug, aerr))

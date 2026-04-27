@@ -862,7 +862,7 @@ func recordCmd() *cobra.Command {
 				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: round-trips cleanly against working tree\n")
 			}
 
-			diffStat, _ := gitutil.CaptureDiffStat(s.Root)
+			diffStat, _ := gitutil.CaptureDiffStatScoped(s.Root, pathspecs)
 			if diffStat != "" {
 				s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
 			}

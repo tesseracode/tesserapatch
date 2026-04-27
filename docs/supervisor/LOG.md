@@ -4,6 +4,45 @@
 
 ---
 
+## Supervisor Fix-Pass — M15-W2 Re-Review — 2026-04-27
+
+**Author**: supervisor (re-review by external reviewer)
+**Scope**: 4 medium findings against the M15-W1 + M15-W2 surface that landed at `ad040ac`.
+**Disposition**: All 4 fixed in the same pass; no Wave 3 dispatch.
+
+### Findings (re-reviewer)
+
+1. **Medium — F1 satisfied_by contract drift.** Validation accepted any reachable ref (including unique short SHAs); apply-time gate still rejected anything not 40-hex. Save-now/fail-later dependency path. *Anchors:* `internal/store/validation.go:82`, `internal/store/validation_test.go:161`, `internal/workflow/dependency_gate.go:83`.
+2. **Medium — F2 scoped record metadata leak.** `record --files` scoped the patch but `CaptureDiffStat` was unscoped, so `post-apply-diff.txt` and `record.md` still embedded full-tree diffstat (cross-feature pollution). *Anchors:* `internal/cli/cobra.go:865/867/872`, `internal/gitutil/gitutil.go:181`.
+3. **Medium — F3 invalid pathspec swallowed.** `CapturePatchScoped` replaced any git-diff error with empty output, then `recordCmd` reported the generic "captured 0 bytes" diagnostic. *Anchors:* `internal/gitutil/gitutil.go:244/246`, `internal/cli/cobra.go:810/824`.
+4. **Medium — F4 Windows syntax-check quoting.** `UserShell` returns `cmd /C` on Windows, but `shellQuote` always emitted POSIX single-quote form, leaking quote characters into argv. *Anchors:* `internal/workflow/validation.go:169/239`, `internal/workflow/shell.go:13`.
+
+### Fixes
+
+- **F1**: tightened validation to require 40-hex SHA *and* reachability — same value space as the apply-time gate. New sentinel `ErrSatisfiedByMalformed`. Added `TestValidateDependencies_SatisfiedByMalformed`. Existing reachability/git-error tests rebased onto 40-hex literals so they cover the post-fix code path.
+- **F2**: new `CaptureDiffStatScoped(repoRoot, pathspecs)` in `internal/gitutil`; `CaptureDiffStat` now delegates with `nil` (byte-identical default behavior). `recordCmd` calls the scoped variant so artifacts narrow with `--files`.
+- **F3**: `CapturePatchScoped` now propagates the git-diff error when pathspecs is non-empty, wrapping with the rejected pathspecs for diagnostics. Empty pathspecs preserves the historical tolerant behavior the unscoped capture path has always relied on.
+- **F4**: `shellQuote` is now `shellQuoteFor(goos, p)`; Windows uses double-quote/double-quote-escape (cmd.exe convention), Unix retains single-quote form. New `TestShellQuoteFor` and a pairing invariant test (`TestShellQuoteFor_PairsWithUserShell`) lock the contract to the OS the runtime actually picks.
+
+### Validation gate
+
+- `gofmt -l .` clean.
+- `go build ./cmd/tpatch` clean.
+- `go test ./...` clean (all 7 packages).
+- Focused: `go test ./internal/store -run Validate` — 17 cases, all pass; new malformed coverage included.
+
+### Notes
+
+- Apply-gate was deliberately left as-is (`internal/workflow/dependency_gate.go:83` regex check). The contract is now: validation does both (40-hex + reachability), apply does the cheaper well-formed check as defense-in-depth. ADR-011 D5 unchanged; the gate's documented limitation (no reachability at apply-time) is now backed by validation refusing to persist anything reachability would reject.
+- Patch authority invariant preserved (ADR-011 D6, post-apply.patch is reconcile source-of-truth).
+- Skill parity guard passes; recipe-op JSON schema untouched; `delete-file` op still deferred.
+
+### Action
+
+Findings closed in-tree before tagging `v0.6.1`. Handoff transitions: CURRENT.md → fix-pass complete, awaiting tag/Wave 3 decision.
+
+---
+
 ## Review — M15-W2 — 2026-04-26
 
 **Reviewer**: m15-w2-reviewer (code-review)

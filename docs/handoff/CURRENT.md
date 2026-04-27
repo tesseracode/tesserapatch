@@ -2,21 +2,30 @@
 
 ## Active Task
 
-- **Task ID**: (none — M15-W2 closed)
-- **Milestone**: M15 stream → **user-mandated review pause before Wave 3**
-- **Status**: Idle — awaiting user direction on (a) v0.6.1 cut, (b) Wave 3 dispatch scope
-- **Assigned**: 2026-04-26
+- **Task ID**: (none — M15-W2 fix-pass closed)
+- **Milestone**: M15 stream → **awaiting user direction on v0.6.1 tag / Wave 3 dispatch**
+- **Status**: Idle — fix-pass against external re-review landed; suite green.
+- **Assigned**: 2026-04-27
 
 ## Session Summary
 
-**M15-W1 + M15-W2 both shipped, both APPROVED.**
+**M15-W1 + M15-W2 shipped, both APPROVED. External re-review surfaced 4 medium findings against the merged surface; all 4 fixed in a supervisor fix-pass before tagging.**
 
-| Wave | Items | Commits | Verdict |
+| Wave | Items | Initial verdict | Fix-pass |
 |---|---|---|---|
-| W1 | satisfied_by reachability, skill frontmatter, spec alias | `aa0f93e`, `d5f934f`, `99ee60e`, `57bf1ab` | APPROVED WITH NOTES (note closed) |
-| W2 | shell selection, recipe autogen, recipe drift detection, --files scoping | `e7f524d`, `dbd44c2`, `d402653` | APPROVED (zero findings) |
+| W1 | satisfied_by reachability, skill frontmatter, spec alias | APPROVED WITH NOTES (closed) | — |
+| W2 | shell selection, recipe autogen, recipe drift detection, --files scoping | APPROVED (zero findings at the time) | F1+F2+F3+F4 closed in-tree |
 
-7 backlog items shipped end-to-end since `v0.6.0`. 57 pending todos remain in SQL.
+7 backlog items shipped end-to-end since `v0.6.0`, plus the fix-pass. 57 pending todos remain in SQL.
+
+### Fix-pass (2026-04-27)
+
+- **F1** (contract drift): validation now enforces the same 40-hex SHA contract as the apply-time gate, plus reachability. New sentinel `ErrSatisfiedByMalformed`.
+- **F2** (scoped metadata leak): `record --files` now produces a scoped diffstat in `post-apply-diff.txt` and `record.md` via new `gitutil.CaptureDiffStatScoped`.
+- **F3** (swallowed pathspec error): `CapturePatchScoped` now surfaces the underlying git error when called with explicit pathspecs (e.g. invalid magic). Empty pathspecs preserves historical tolerant behavior.
+- **F4** (Windows quoting): `shellQuote` is now OS-aware (`shellQuoteFor`); cmd.exe gets double-quote escaping, sh gets single-quote.
+
+See `docs/supervisor/LOG.md` top entry for full anchors and disposition.
 
 ## Current State
 

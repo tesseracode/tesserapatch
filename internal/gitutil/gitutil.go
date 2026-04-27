@@ -177,9 +177,25 @@ func PreflightReconcile(repoRoot string) (ReconcilePreflight, error) {
 	return p, nil
 }
 
-// CaptureDiffStat returns `git diff --stat` output.
+// CaptureDiffStat returns `git diff --stat` output for the full tree.
 func CaptureDiffStat(repoRoot string) (string, error) {
-	out, err := runGit(repoRoot, "diff", "--stat")
+	return CaptureDiffStatScoped(repoRoot, nil)
+}
+
+// CaptureDiffStatScoped returns `git diff --stat` output narrowed to
+// `pathspecs`. Empty pathspecs reproduces the historical full-tree
+// behaviour byte-for-byte. Used by `record --files <pathspec>...` so
+// that record.md and post-apply-diff.txt stay scoped to the same set
+// the captured patch covers (M15-W2 review F2: previously the patch
+// was scoped but the diffstat metadata was not, leaking cross-feature
+// edits into per-feature artifacts).
+func CaptureDiffStatScoped(repoRoot string, pathspecs []string) (string, error) {
+	args := []string{"diff", "--stat"}
+	if len(pathspecs) > 0 {
+		args = append(args, "--")
+		args = append(args, pathspecs...)
+	}
+	out, err := runGit(repoRoot, args...)
 	if err != nil {
 		return "", err
 	}
@@ -243,6 +259,22 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	}
 	patch, err := runGit(repoRoot, args...)
 	if err != nil {
+		// When the caller supplied explicit pathspecs, surface the git
+		// error (e.g. `fatal: Invalid pathspec magic ...`). Empty
+		// pathspecs preserves the historical "tolerate transient diff
+		// failure → empty patch" behaviour the unscoped capture path
+		// has always relied on (M15-W2 review F3: silent error
+		// swallowing misled `--files` users with a generic "0 bytes"
+		// diagnostic).
+		if len(pathspecs) > 0 {
+			// Best-effort cleanup of any intent-to-add markers we
+			// staged before the diff failed; ignore secondary errors
+			// because the primary error from git is the useful signal.
+			for _, file := range stagedNewFiles {
+				runGit(repoRoot, "reset", "--", file)
+			}
+			return "", fmt.Errorf("git diff failed for pathspecs %v: %w", pathspecs, err)
+		}
 		patch = ""
 	}
 

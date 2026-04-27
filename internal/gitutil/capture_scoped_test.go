@@ -105,3 +105,80 @@ func TestCapturePatchScoped_MultiplePathspecs(t *testing.T) {
 		t.Errorf("multi-pathspec leaked file outside scope:\n%s", scoped)
 	}
 }
+
+// TestCapturePatchScoped_InvalidPathspecSurfacesError pins M15-W2
+// review F3: when the caller supplies pathspecs and git rejects them
+// (e.g. invalid magic), CapturePatchScoped must propagate the git
+// error instead of silently returning an empty patch (which the
+// `record` flow would then misreport as "captured 0 bytes").
+func TestCapturePatchScoped_InvalidPathspecSurfacesError(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+
+	// Stage one real change so we know the diff would not be empty
+	// for a sane pathspec.
+	if err := os.WriteFile(filepath.Join(dir, "hello.txt"), []byte("hello world\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := CapturePatchScoped(dir, []string{":(badmagic)foo"})
+	if err == nil {
+		t.Fatal("invalid pathspec must surface a git error, got nil")
+	}
+	if !strings.Contains(err.Error(), "pathspec") {
+		t.Fatalf("error must mention pathspec for caller diagnostics, got %v", err)
+	}
+}
+
+// TestCaptureDiffStatScoped_NarrowsToPathspec pins M15-W2 review F2:
+// the diffstat metadata that record.md and post-apply-diff.txt embed
+// must be scoped to the same pathspecs as the captured patch, not the
+// full working tree (otherwise scoped record still leaks cross-feature
+// edits into per-feature artifacts).
+func TestCaptureDiffStatScoped_NarrowsToPathspec(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+
+	if err := os.MkdirAll(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src", "auth.go"), []byte("package src\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "noise.txt"), []byte("noise\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// gitInit committed initial state; stage so diff --stat sees both.
+	if _, err := runGit(dir, "add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runGit(dir, "commit", "-m", "baseline"); err != nil {
+		t.Fatal(err)
+	}
+	// Now mutate both.
+	if err := os.WriteFile(filepath.Join(dir, "src", "auth.go"), []byte("package src\nvar X = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "noise.txt"), []byte("noise\nmore\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	full, err := CaptureDiffStat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(full, "noise.txt") || !strings.Contains(full, "src/auth.go") {
+		t.Fatalf("full diffstat should mention both files; got:\n%s", full)
+	}
+
+	scoped, err := CaptureDiffStatScoped(dir, []string{"src/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(scoped, "src/auth.go") {
+		t.Errorf("scoped diffstat missing in-scope file:\n%s", scoped)
+	}
+	if strings.Contains(scoped, "noise.txt") {
+		t.Errorf("scoped diffstat leaked out-of-scope file:\n%s", scoped)
+	}
+}
