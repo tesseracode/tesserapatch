@@ -566,3 +566,55 @@ func TestRunVerifyAll_StatusJSONUnstattable_SurfacesAsErrorRow(t *testing.T) {
 		t.Errorf("good must remain passed; got %+v", report.Features[gIdx])
 	}
 }
+
+// TestRunVerifyAll_TpatchDirUnstattable_SurfacesAsError pins the
+// revision-4 contract: an exotic non-ENOENT FS error on the .tpatch/
+// path itself (here: a symlink loop, ELOOP) must surface as a
+// non-nil error from store.ListFeatureEntries() rather than silently
+// degrading to a green empty aggregate. Same false-green class as
+// rev-1/2/3, this time at the workspace-discovery layer.
+//
+// Note on coverage: empirically (macOS/Linux), once `.tpatch` becomes
+// non-stattable for any reason, `os.ReadDir(.tpatch/features)` also
+// fails with the same exotic error class — so this test exercises the
+// existing line-284 catch-all, not the literal new switch default
+// branch. The new switch default is reachable only under TOCTOU or
+// FS races where ReadDir resolves `.tpatch/features` to ENOENT while
+// Stat(`.tpatch`) racily fails differently, which cannot be staged
+// deterministically. The test is a regression guard for the broader
+// contract: non-ENOENT errors on .tpatch must produce non-zero exit.
+func TestRunVerifyAll_TpatchDirUnstattable_SurfacesAsError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("test requires non-root user")
+	}
+	s := newVerifyAllRepo(t)
+	// Replace the real .tpatch dir with a symlink-loop pair so any
+	// stat/read of .tpatch returns ELOOP ("too many levels of
+	// symbolic links"), which is neither nil nor ENOENT.
+	dotp := filepath.Join(s.Root, ".tpatch")
+	if err := os.RemoveAll(dotp); err != nil {
+		t.Fatalf("remove .tpatch: %v", err)
+	}
+	loopA := filepath.Join(s.Root, "loopA")
+	loopB := filepath.Join(s.Root, "loopB")
+	if err := os.Symlink(loopB, loopA); err != nil {
+		t.Fatalf("symlink loopA: %v", err)
+	}
+	if err := os.Symlink(loopA, loopB); err != nil {
+		t.Fatalf("symlink loopB: %v", err)
+	}
+	if err := os.Symlink(loopA, dotp); err != nil {
+		t.Fatalf("symlink .tpatch -> loopA: %v", err)
+	}
+
+	report, err := RunVerifyAll(s, VerifyOptions{NoWrite: true})
+	if err == nil {
+		t.Fatalf("expected error for unstattable .tpatch; got report=%+v", report)
+	}
+	// Message should reference either the workspace path or the
+	// underlying stat/open failure — anything but a silent green.
+	msg := err.Error()
+	if !strings.Contains(msg, ".tpatch") && !strings.Contains(msg, "symbolic links") && !strings.Contains(msg, "workspace") {
+		t.Errorf("error message must reference workspace or underlying FS error; got %q", msg)
+	}
+}

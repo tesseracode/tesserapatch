@@ -5,7 +5,7 @@
 - **Task ID**: M15-W3-SLICE-D
 - **Milestone**: M15 Wave 3 — Verify freshness rollout (final slice)
 - **Description**: Finalize the verify-freshness work by adding `tpatch verify --all` topo-ordered aggregate reporting, rolling the §4.4 freshness bullet across all 6 skill formats, extending the `assets/assets_test.go` parity guard with the new anchors, cross-linking `docs/dependencies.md` to verify, and shipping CHANGELOG v0.6.2.
-- **Status**: Review (revision-3 in progress) — third HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
+- **Status**: Review (revision-4 in progress) — fourth HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
 - **Source PRD**: `docs/prds/PRD-verify-freshness.md` §9 (Slice D row), §4.4 (skill bullet contract)
 
 ## Predecessor — Slice C
@@ -84,6 +84,83 @@ Full retrospective archived in `docs/handoff/HISTORY.md` under `2026-04-29 — M
 - Provider integration (verify is local-only per PRD §3).
 - `docs/whitepapers/` and the exploratory PRDs listed in Constraints.
 - `tpatch` binary at repo root (untracked artifact).
+
+## Revision-4 (HIGH finding fix)
+
+External supervisor flagged that revision-3's `ListFeatureEntries()`
+helper used a 2-branch check on `os.Stat(s.tpatchDir())`:
+
+```go
+if _, statErr := os.Stat(s.tpatchDir()); statErr == nil {
+    return nil, fmt.Errorf("workspace corruption: ...")
+}
+return nil, nil  // implicit else
+```
+
+Any non-nil non-`ENOENT` stat error (EACCES, EIO, ELOOP, exotic FS
+errors) silently fell through to `return nil, nil`, producing a green
+empty aggregate and exit 0. Same false-green class as the rev-1/2/3
+bugs — fifth occurrence of the pattern, one layer higher.
+
+### Fix
+
+- `internal/store/store.go::ListFeatureEntries` — replace the 2-branch
+  stat check with an explicit 3-way switch on `statErr`:
+  - `nil` → `.tpatch/` present, `features/` removed → workspace
+    corruption error (rev-3 contract preserved verbatim).
+  - `errors.Is(statErr, fs.ErrNotExist)` → `.tpatch/` also absent →
+    preserve `(nil, nil)` so callers that pre-check workspace init
+    are not broken.
+  - default → wrap and surface: `checking workspace state at %s: %w`.
+- Added `io/fs` import for `fs.ErrNotExist`.
+
+### Tests
+
+- `internal/workflow/verify_all_test.go::TestRunVerifyAll_TpatchDirUnstattable_SurfacesAsError`
+  — workflow-level: replace `.tpatch` with a symlink-loop pair so any
+  stat/read of `.tpatch` returns ELOOP. Asserts `RunVerifyAll`
+  surfaces the error (non-zero exit at the CLI layer).
+- `internal/cli/verify_all_test.go::TestVerifyAll_TpatchDirUnstattable_ExitsTwo`
+  — CLI-level: same scenario through `tpatch verify --all`. Asserts
+  `*ExitCodeError` with `Code == 2` and message references the
+  workspace path or underlying FS failure.
+- Both tests skip on root (`os.Geteuid() == 0`).
+
+### Empirical note on branch coverage
+
+The literal new switch `default` branch — i.e., `ReadDir(features)`
+returns `ENOENT` while `Stat(.tpatch)` returns a non-`ENOENT`
+non-nil error — requires an asymmetric FS state where the same
+`.tpatch` path component succeeds for one syscall and fails
+non-`ENOENT` for the other in a single snapshot. This was empirically
+confirmed unreachable on macOS/Linux without TOCTOU races (any
+exotic error on `.tpatch` propagates identically to both `Stat` and
+`ReadDir`). The integration tests exercise the existing line-285
+catch-all path with the same exotic error class (ELOOP) and serve
+as regression guards for the broader contract: non-`ENOENT` errors
+on `.tpatch/` must produce non-zero exit, never a silent green
+empty aggregate. The new `default` branch is correct defensive code
+for races and exotic FS scenarios; it is reviewed by inspection.
+
+### Validation
+
+- `gofmt -l .` → empty.
+- `go build ./cmd/tpatch` → success.
+- `go vet ./...` → clean.
+- `go test ./...` → all green; +2 new tests.
+- BEFORE/AFTER live repro (rev-3 contract preservation):
+  `rm -rf .tpatch/features; tpatch verify --all` → both BEFORE
+  (`d390322`) and AFTER produce
+  `error: ... workspace corruption: .tpatch/features directory is
+  missing` with exit 2. Rev-3 behavior preserved exactly.
+- BEFORE/AFTER live repro for the rev-4 branch itself was not
+  staged because the asymmetric FS state required is unreachable
+  in a deterministic snapshot (see "Empirical note" above). Repro
+  attempts using symlink loops at `.tpatch` are intercepted earlier
+  by `FindProjectRoot`/`fileExists` (which itself uses `os.Stat`),
+  so the CLI exits 2 with a "could not find .tpatch" message before
+  `ListFeatureEntries` is reached. The defensive new branch is the
+  only correct shape for the helper's contract.
 
 ## Revision-3 (HIGH finding fix)
 

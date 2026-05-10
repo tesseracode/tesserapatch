@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -276,10 +277,23 @@ func (s *Store) ListFeatureEntries() ([]FeatureEntry, error) {
 			// layer higher (workspace-discovery layer): aggregate
 			// callers like `verify --all` would emit an empty report
 			// and exit 0 (revision-3 finding).
-			if _, statErr := os.Stat(s.tpatchDir()); statErr == nil {
+			//
+			// Revision-4: explicit 3-way branch on the .tpatch/ stat.
+			// The previous 2-branch form silently treated *any*
+			// non-nil stat error (EACCES, EIO, exotic FS errors) as
+			// "workspace not initialized" → false-green empty
+			// aggregate, exit 0. Same false-green class as rev-1/2/3,
+			// one layer higher (workspace-discovery layer):
+			// non-ENOENT errors must surface as errors.
+			_, statErr := os.Stat(s.tpatchDir())
+			switch {
+			case statErr == nil:
 				return nil, fmt.Errorf("workspace corruption: .tpatch/features directory is missing")
+			case errors.Is(statErr, fs.ErrNotExist):
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("checking workspace state at %s: %w", s.tpatchDir(), statErr)
 			}
-			return nil, nil
 		}
 		return nil, err
 	}
