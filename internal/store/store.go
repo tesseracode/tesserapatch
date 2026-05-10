@@ -248,9 +248,15 @@ type FeatureEntry struct {
 //     silently dropped — same treatment as a non-feature directory in
 //     today's ListFeatures(). The contract is "directories that look
 //     like features"; absence of status.json means it doesn't.
+//   - Directory under features/ whose status.json cannot even be
+//     stat-ed for reasons OTHER than ENOENT (permission denied, IO
+//     error, non-traversable parent, …) is surfaced as an error
+//     entry — silent omission is the same false-green class as the
+//     original Slice D bug (revision-2 finding).
 //   - Directory under features/ with a status.json that is itself a
-//     directory (or otherwise unreadable) is surfaced as an error
-//     entry — its presence signals an attempt at a feature.
+//     directory (or otherwise unreadable at the JSON layer) is
+//     surfaced as an error entry — its presence signals an attempt
+//     at a feature.
 //   - Successful loads sort lexicographically by slug; failed loads
 //     are interleaved by slug so the overall slice is fully lex-sorted
 //     for deterministic ordering.
@@ -275,8 +281,24 @@ func (s *Store) ListFeatureEntries() ([]FeatureEntry, error) {
 		slug := entry.Name()
 		statusPath := s.featureStatusPath(slug)
 		if _, statErr := os.Stat(statusPath); statErr != nil {
-			// No status.json entry at all → not a tracked feature
-			// from this helper's perspective. Drop silently.
+			if errors.Is(statErr, os.ErrNotExist) {
+				// No status.json entry at all → not a tracked
+				// feature from this helper's perspective. Drop
+				// silently (matches today's behavior for empty
+				// dirs and non-feature noise under features/).
+				continue
+			}
+			// Any other stat failure (permission denied, IO
+			// error, non-traversable parent, …) signals an
+			// attempted feature whose entry we cannot inspect.
+			// Surface it as an error row rather than silently
+			// dropping it — silent omission is the same
+			// false-green class as the original Slice D bug
+			// (revision-2 finding).
+			out = append(out, FeatureEntry{
+				Slug: slug,
+				Err:  fmt.Errorf("failed to stat status.json: %w", statErr),
+			})
 			continue
 		}
 		status, loadErr := s.LoadFeatureStatus(slug)

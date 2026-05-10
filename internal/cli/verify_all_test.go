@@ -183,6 +183,75 @@ func TestVerifyAll_UnreadableStatusJSON_ExitsTwoAndIncludesFeature(t *testing.T)
 	}
 }
 
+// TestVerifyAll_UnstattableStatusJSON_ExitsTwoAndIncludesFeature pins
+// the revision-2 contract at the CLI surface: a feature whose
+// status.json cannot even be stat-ed (parent dir chmod 000) must
+// appear in `--json` output as an error row, summary.error must
+// increment, and exit code must be 2. The bug at 67730de silently
+// dropped such features, producing a false-green exit 0 with the
+// locked feature ABSENT from output (the external supervisor's exact
+// chmod-000 repro).
+func TestVerifyAll_UnstattableStatusJSON_ExitsTwoAndIncludesFeature(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("test requires non-root user (root bypasses permission checks)")
+	}
+	tmp := t.TempDir()
+	gitInitTestRepo(t, tmp)
+	if _, _, code := runCmd("init", "--path", tmp); code != 0 {
+		t.Fatalf("init: %d", code)
+	}
+	setupAppliedFeatureForVerifyAll(t, tmp, "good")
+	setupAppliedFeatureForVerifyAll(t, tmp, "locked")
+
+	lockedDir := filepath.Join(tmp, ".tpatch", "features", "locked")
+	if err := os.Chmod(lockedDir, 0o000); err != nil {
+		t.Fatalf("chmod 000 locked: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(lockedDir, 0o700) })
+
+	stdout, _, err := runVerifyAllForExitCode("--path", tmp, "--all", "--json")
+	if err == nil {
+		t.Fatalf("expected ExitCodeError, got nil; stdout=%q", stdout)
+	}
+	var ec *ExitCodeError
+	if !errors.As(err, &ec) {
+		t.Fatalf("expected *ExitCodeError, got %T: %v", err, err)
+	}
+	if ec.Code != 2 {
+		t.Errorf("unstattable status.json must exit 2; got %d", ec.Code)
+	}
+	var parsed map[string]any
+	if jerr := json.Unmarshal([]byte(stdout), &parsed); jerr != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", jerr, stdout)
+	}
+	feats, ok := parsed["features"].([]any)
+	if !ok {
+		t.Fatalf("features array missing")
+	}
+	if len(feats) != 2 {
+		t.Errorf("expected 2 features in aggregate, got %d (the bug omitted locked)", len(feats))
+	}
+	var sawLockedAsError bool
+	var lockedReason string
+	for _, raw := range feats {
+		f, _ := raw.(map[string]any)
+		if f["slug"] == "locked" && f["status"] == "error" {
+			sawLockedAsError = true
+			lockedReason, _ = f["reason"].(string)
+		}
+	}
+	if !sawLockedAsError {
+		t.Errorf("locked feature missing or not status=error in features array: %v", feats)
+	}
+	if !strings.Contains(lockedReason, "stat status.json") {
+		t.Errorf("locked reason=%q must mention stat failure", lockedReason)
+	}
+	summary, _ := parsed["summary"].(map[string]any)
+	if v, _ := summary["error"].(float64); v != 1 {
+		t.Errorf("summary.error=%v want 1; full summary=%v", summary["error"], summary)
+	}
+}
+
 func TestVerifyAll_RejectsSlugArg(t *testing.T) {
 	tmp := t.TempDir()
 	gitInitTestRepo(t, tmp)

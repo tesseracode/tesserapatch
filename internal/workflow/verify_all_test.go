@@ -492,3 +492,55 @@ func TestRunVerifyAll_EmptyRepo(t *testing.T) {
 		t.Errorf("empty repo must not flip exit gate")
 	}
 }
+
+// TestRunVerifyAll_StatusJSONUnstattable_SurfacesAsErrorRow pins the
+// revision-2 contract: a feature directory whose status.json cannot
+// even be stat-ed (here: parent dir chmod 000 → EACCES) must surface
+// as an error row, not be silently dropped. Same false-green class as
+// the original Slice D bug, one layer above the JSON-read layer.
+func TestRunVerifyAll_StatusJSONUnstattable_SurfacesAsErrorRow(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("test requires non-root user (root bypasses permission checks)")
+	}
+	s := newVerifyAllRepo(t)
+	seedFeature(t, s, "good", store.StateApplied, nil, true)
+	seedFeature(t, s, "locked", store.StateApplied, nil, true)
+
+	lockedDir := filepath.Join(s.Root, ".tpatch", "features", "locked")
+	if err := os.Chmod(lockedDir, 0o000); err != nil {
+		t.Fatalf("chmod 000 locked: %v", err)
+	}
+	// Restore perms so t.TempDir cleanup can recurse in.
+	t.Cleanup(func() { _ = os.Chmod(lockedDir, 0o700) })
+
+	report, err := RunVerifyAll(s, VerifyOptions{NoWrite: true})
+	if err != nil {
+		t.Fatalf("RunVerifyAll: %v", err)
+	}
+	if len(report.Features) != 2 {
+		t.Fatalf("expected 2 rows (locked must not be dropped), got %d (%+v)", len(report.Features), report.Features)
+	}
+	idx := indexOf(report, "locked")
+	if idx == -1 {
+		t.Fatalf("locked feature missing from aggregate (the revision-2 bug)")
+	}
+	if report.Features[idx].Status != AggregateStatusError {
+		t.Errorf("locked status=%q want error", report.Features[idx].Status)
+	}
+	if !strings.Contains(report.Features[idx].Reason, "stat status.json") {
+		t.Errorf("locked reason=%q must mention stat failure", report.Features[idx].Reason)
+	}
+	if report.Features[idx].Report != nil {
+		t.Errorf("locked must not carry a per-feature report (RunVerify must not be called)")
+	}
+	if report.Summary.Error != 1 {
+		t.Errorf("Summary.Error=%d want 1", report.Summary.Error)
+	}
+	if !report.HasFailures() {
+		t.Errorf("HasFailures() must be true when stat-error row present; summary=%+v", report.Summary)
+	}
+	gIdx := indexOf(report, "good")
+	if gIdx == -1 || report.Features[gIdx].Status != AggregateStatusPassed {
+		t.Errorf("good must remain passed; got %+v", report.Features[gIdx])
+	}
+}

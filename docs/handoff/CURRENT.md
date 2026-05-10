@@ -5,7 +5,7 @@
 - **Task ID**: M15-W3-SLICE-D
 - **Milestone**: M15 Wave 3 — Verify freshness rollout (final slice)
 - **Description**: Finalize the verify-freshness work by adding `tpatch verify --all` topo-ordered aggregate reporting, rolling the §4.4 freshness bullet across all 6 skill formats, extending the `assets/assets_test.go` parity guard with the new anchors, cross-linking `docs/dependencies.md` to verify, and shipping CHANGELOG v0.6.2.
-- **Status**: Review (revision-1 in progress) — HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
+- **Status**: Review (revision-2 in progress) — second HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
 - **Source PRD**: `docs/prds/PRD-verify-freshness.md` §9 (Slice D row), §4.4 (skill bullet contract)
 
 ## Predecessor — Slice C
@@ -84,6 +84,104 @@ Full retrospective archived in `docs/handoff/HISTORY.md` under `2026-04-29 — M
 - Provider integration (verify is local-only per PRD §3).
 - `docs/whitepapers/` and the exploratory PRDs listed in Constraints.
 - `tpatch` binary at repo root (untracked artifact).
+
+## Revision-2 (HIGH finding fix)
+
+External supervisor flagged that revision-1's `ListFeatureEntries()`
+helper still silently dropped any feature whose `status.json` could
+not be `os.Stat`-ed for ANY reason (not just ENOENT). A pre-read
+`os.Stat(statusPath)` swallowed permission-denied / IO / non-traversable
+parent errors, producing the exact same false-green class as the
+original Slice D bug — one layer above the JSON-read layer that
+revision-1 fixed.
+
+Reproduced locally with a 2-feature repo (`good` healthy + `locked`
+with `chmod 000` on its feature dir): rev-1 binary returned exit=0
+with `locked` ABSENT from `--json` output and `summary.error=0`.
+
+### Fix
+
+- `internal/store/store.go::ListFeatureEntries` — split the pre-read
+  stat into two cases:
+  - `errors.Is(statErr, os.ErrNotExist)` → drop silently (it's not a
+    feature dir; matches today's behavior for empty dirs and
+    non-feature noise).
+  - any other stat error → emit a `FeatureEntry{Slug, Err: fmt.Errorf("failed to stat status.json: %w", statErr)}`
+    so the existing `verify_all.go` error-row branch surfaces it as a
+    `verdict=error` row. `RunVerify` is NOT invoked.
+
+  The `LoadFeatureStatus` error branch below this is unchanged
+  (revision-1 contract preserved). The new stat-error path is
+  purely additive.
+- `internal/workflow/verify_all.go` — unchanged. The existing
+  `loadErrBySlug` branch already routes any `Err`-bearing
+  `FeatureEntry` to a `Status=error` row; the new stat-failure
+  entries flow through the same path.
+- `internal/workflow/verify_all_test.go` — new
+  `TestRunVerifyAll_StatusJSONUnstattable_SurfacesAsErrorRow`
+  exercising the chmod-000 scenario at the workflow layer.
+- `internal/cli/verify_all_test.go` — new
+  `TestVerifyAll_UnstattableStatusJSON_ExitsTwoAndIncludesFeature`
+  exercising the same scenario through the cobra root: asserts
+  exit=2 with typed `*ExitCodeError`, both features present in
+  `--json`, locked has `status=error` with reason mentioning
+  `stat status.json`, `summary.error=1`.
+
+The pre-existing `TestRunVerifyAll_EmptyFeatureDir_SilentlyDropped`
+already pins the ENOENT-drop regression — kept as-is.
+
+### Design decisions pinned
+
+- **ENOENT vs other stat errors**: ENOENT is a positive signal that
+  the directory is not a feature (no status.json present); silent
+  drop matches today's contract. ANY other stat error is ambiguous
+  evidence of an attempted feature whose entry we cannot inspect —
+  surface it so the operator notices, do not assume "not a feature".
+- **Test cleanup approach**: every test that `chmod 000`s a
+  directory under `t.TempDir()` registers a `t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })`
+  so `t.TempDir`'s recursive `RemoveAll` can re-enter the directory.
+- **Root-user skip**: both new tests guard with
+  `if os.Geteuid() == 0 { t.Skip("test requires non-root user (root bypasses permission checks)") }`.
+  Root would `os.Stat` through the chmod-000 dir and the test would
+  spuriously fail.
+- **Reason wording**: `failed to stat status.json: <wrapped err>`,
+  distinct from the JSON-load branch (`failed to load status.json: <err>`)
+  so operators (and the CLI test assertion) can disambiguate the
+  two failure layers.
+
+### BEFORE / AFTER repro (external supervisor scenario)
+
+Two-feature repo, `good` (state=applied, valid artifacts), `locked`
+(same artifacts then `chmod 000` on the feature dir).
+
+```
+BEFORE (binary built from 67730de):
+  exit=0, summary={passed:1, failed:0, skipped:0, error:0}
+  features=[good]   ← locked is COMPLETELY ABSENT (the rev-2 bug)
+
+AFTER (revision-2):
+  exit=2, summary={passed:1, failed:0, skipped:0, error:1}
+  features=[good (passed), locked (status=error, reason="failed to load status.json: failed to stat status.json: …: permission denied")]
+```
+
+### Files changed (revision-2)
+
+- `internal/store/store.go` (`ListFeatureEntries` distinguishes ENOENT)
+- `internal/workflow/verify_all_test.go` (+1 test, chmod-000)
+- `internal/cli/verify_all_test.go` (+1 test, chmod-000 via cobra root)
+- `docs/handoff/CURRENT.md` (this section + Status block bump)
+
+### Validation gate (revision-2)
+
+- `gofmt -l .` → empty
+- `go vet ./...` → clean
+- `go build ./cmd/tpatch` → success
+- `go test ./...` → all pass; `internal/workflow` and `internal/cli`
+  green with the 2 new regressions.
+
+### Test count delta
+
+417 → 419 (+2: 1 workflow + 1 CLI).
 
 ## Revision-1 (HIGH finding fix)
 
@@ -254,6 +352,15 @@ Pre-apply gamma appears at its topo position (last; no parent
 edges) and is skipped without invoking V0 — confirmed via the
 unit test `TestRunVerifyAll_PreApplySkip` which inspects
 `status.json` for an absent `Verify` field.
+
+Revision-2 cumulative status (after both HIGH fixes):
+
+```
+gofmt -l .              → empty
+go vet ./...            → clean
+go build ./cmd/tpatch   → success
+go test ./...           → all pass (419 tests; 401 → 413 Slice D → 417 rev-1 → 419 rev-2)
+```
 
 ## Session Summary
 
@@ -964,3 +1071,99 @@ kept read-only.
   currently names `land` + record collision detection + reconcile
   upstream-lock validation guard, with auto-base as the remediation
   mechanism. Align wording before graduation.
+
+---
+
+## Side Work — 2026-05-10 — PRD-reconcile-lock-guard (OX47)
+
+**Trigger**: CO47 (PRD-tpatch-land owner) brokered a request to
+draft the third v0.7 ship target named in
+`competitive-landscape.md §6 SMART` and `PRD-tpatch-land §6.1`.
+Reviewed against reality (SMART text confirmed at lines 475-478;
+`PreflightReconcile` confirmed at `internal/gitutil/gitutil.go:117`;
+`UpstreamLock` confirmed at `internal/store/types.go:344-350`; no
+existing PRD covers the seam). Verdict: worth doing, well-grounded.
+
+**Agent ID picked**: **OX47** (Claude Opus 4.7 Extra-high reasoning),
+distinct from CO47 (Claude Opus 4.7 base). Per user direction.
+
+**Files Changed**:
+
+- `docs/prds/PRD-reconcile-lock-guard.md` (NEW, ~830 lines) —
+  preflight guard validating that `.tpatch/upstream.lock.commit` is
+  reachable from `<lock.Remote>/<lock.Branch>` HEAD before
+  `tpatch reconcile` runs. Four lock states (Valid / Empty / Missing
+  / Stale + the SKIPPED domain-mismatch case under
+  `--upstream-ref`); strict refuse on Stale, warn-and-proceed on
+  Empty / Missing (preserves v0.6 init-scaffold compatibility).
+  Override flag `--allow-stale-lock` mirrors G55's
+  `--allow-collision <reason>` pattern. Wires into existing
+  `ReconcilePreflight` per CO47's "no new preflight type"
+  constraint. No new data-model objects; sibling-of-WP-001 framing
+  in §0.1. Shared `LoadUpstreamLock` parser primitive coordinated
+  with `PRD-record-auto-base §5` in §5.1-5.4 (one parser, two
+  consumers; lives in `internal/store/upstream_lock.go`).
+- `docs/prds/PRD-patch-already-upstream-detector.md §3.1` — added
+  one-line precondition cite to `PRD-reconcile-lock-guard`
+  (the lock-guard validates the precondition phase 1.5's scan
+  range depends on; the detector itself does no lock validation).
+
+**Cross-PRD coordination locked**:
+
+- **PRD-record-auto-base §5** (G55): `LoadUpstreamLock` lives in
+  `internal/store/upstream_lock.go`. Whichever PRD ships first
+  writes it; the other consumes it. Contract spelled out in
+  `PRD-reconcile-lock-guard §5.2`.
+- **PRD-tpatch-land §6.1** (CO47): land's positioning of the
+  lock-guard PRD as the third v0.7 deliverable
+  (implementation-independent of land) is correct. No drift.
+  Confirmed in `PRD-reconcile-lock-guard §11` cross-review note.
+- **PRD-patch-already-upstream-detector §3.1** (OX47, prior
+  session): cites the lock-guard as its precondition. Enforced
+  one-line edit to that PRD as part of this slice.
+- **PRD-tpatch-hotfix §5.3** (OX47, prior session): hotfix flow
+  inherits guard semantics for free; no edit needed there.
+
+**Out of Scope This Session**:
+
+- Code — paper design only.
+- ADR — supervisor-discretion at acceptance time per CO47's brief.
+- Edits to WP-001, the three exploratory PRDs, or any other
+  agent's PRD (per CO47's constraint).
+- A new reconcile phase — explicitly disallowed by CO47's brief.
+- New data-model objects — explicitly disallowed by CO47's brief.
+
+**Open Questions Logged in the PRD (§9)**:
+
+1. Override-audit persistence — `ReconcileSummary` field vs
+   session-artifact-only. Default-position: session-only for v1.
+2. `--fetch-before-guard` flag — defer to v0.8+.
+3. Override-stacking policy (`--allow-dirty --allow-stale-lock`) —
+   default-position Option A (allow stacking, both warnings emit).
+4. Warn-vs-refuse default flip — default stays refuse.
+5. Whether `--allow-dirty` should auto-suppress lock-guard —
+   default-position no.
+6. Lock state in `--json` output — default-position yes
+   (`"lock_state": "valid|empty|missing|stale|skipped"`).
+
+**Verdict on PRD-tpatch-land §6.1 SMART target wording**
+
+Correct. §6.1 (lines 651-672 of `PRD-tpatch-land.md`) names
+PRD-reconcile-lock-guard as deliverable (3),
+implementation-independent of `land`, with `--auto` as the
+remediation mechanism. Matches both `competitive-landscape.md §6
+SMART` and the new PRD's framing. No drift; no edit requested.
+
+**Other findings or risks**
+
+- The override-stacking risk (`--allow-dirty --allow-stale-lock`)
+  is the largest UX risk; flagged in PRD §9.3 with explicit
+  re-evaluation at v0.7+30 days.
+- Backwards-compat for v0.6 init scaffolds is the second risk;
+  resolved by treating Empty as warn-only (PRD §6.1).
+- A potential follow-up not in this PRD: `tpatch upstream check`
+  (SPEC.md:71) is declared but its implementation status was not
+  re-verified. The diagnostic falls back to manual recovery if
+  the verb is stubbed; PRD §3.4 explicitly handles both cases.
+- Cross-review pass by CO47 + G55 will follow before formal
+  supervisor acceptance per CO47's brief.
