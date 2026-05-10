@@ -268,6 +268,17 @@ func (s *Store) ListFeatureEntries() ([]FeatureEntry, error) {
 	entries, err := os.ReadDir(s.featuresDir())
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			// Distinguish "workspace not initialized" (.tpatch/ also
+			// missing → callers that pre-check init handle it) from
+			// "workspace corrupted" (.tpatch/ present but features/
+			// gone). Silent (nil, nil) on the corruption case is the
+			// same false-green class as the rev-1/rev-2 bugs, one
+			// layer higher (workspace-discovery layer): aggregate
+			// callers like `verify --all` would emit an empty report
+			// and exit 0 (revision-3 finding).
+			if _, statErr := os.Stat(s.tpatchDir()); statErr == nil {
+				return nil, fmt.Errorf("workspace corruption: .tpatch/features directory is missing")
+			}
 			return nil, nil
 		}
 		return nil, err

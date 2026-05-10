@@ -252,6 +252,42 @@ func TestVerifyAll_UnstattableStatusJSON_ExitsTwoAndIncludesFeature(t *testing.T
 	}
 }
 
+// TestVerifyAll_FeaturesDirMissing_ExitsTwo pins the revision-3
+// contract at the CLI surface: a workspace where `.tpatch/` exists
+// but `.tpatch/features/` was removed must exit 2 with an error
+// message naming "features" and "workspace"/"corruption". The bug
+// at e7f8661 returned exit 0 with an empty aggregate (the external
+// supervisor's exact `rm -rf .tpatch/features` repro).
+func TestVerifyAll_FeaturesDirMissing_ExitsTwo(t *testing.T) {
+	tmp := t.TempDir()
+	gitInitTestRepo(t, tmp)
+	if _, _, code := runCmd("init", "--path", tmp); code != 0 {
+		t.Fatalf("init: %d", code)
+	}
+	if err := os.RemoveAll(filepath.Join(tmp, ".tpatch", "features")); err != nil {
+		t.Fatalf("remove features dir: %v", err)
+	}
+
+	stdout, _, err := runVerifyAllForExitCode("--path", tmp, "--all", "--json")
+	if err == nil {
+		t.Fatalf("expected ExitCodeError, got nil; stdout=%q", stdout)
+	}
+	var ec *ExitCodeError
+	if !errors.As(err, &ec) {
+		t.Fatalf("expected *ExitCodeError, got %T: %v", err, err)
+	}
+	if ec.Code != 2 {
+		t.Errorf("missing features dir must exit 2; got %d", ec.Code)
+	}
+	msg := ec.Message
+	if !strings.Contains(msg, "features") {
+		t.Errorf("error message must name features; got %q", msg)
+	}
+	if !strings.Contains(msg, "workspace") && !strings.Contains(msg, "corruption") {
+		t.Errorf("error message must name workspace or corruption; got %q", msg)
+	}
+}
+
 func TestVerifyAll_RejectsSlugArg(t *testing.T) {
 	tmp := t.TempDir()
 	gitInitTestRepo(t, tmp)

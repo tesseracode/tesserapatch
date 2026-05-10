@@ -493,6 +493,28 @@ func TestRunVerifyAll_EmptyRepo(t *testing.T) {
 	}
 }
 
+// TestRunVerifyAll_FeaturesDirMissing_SurfacesAsWorkspaceCorruption pins
+// the revision-3 contract: a workspace where `.tpatch/` exists but
+// `.tpatch/features/` was removed must NOT produce a false-green empty
+// aggregate. The store layer surfaces this as a workspace-corruption
+// error so the CLI dispatcher exits 2. Same false-green class as the
+// rev-1/rev-2 bugs, one layer above the per-feature enumeration.
+func TestRunVerifyAll_FeaturesDirMissing_SurfacesAsWorkspaceCorruption(t *testing.T) {
+	s := newVerifyAllRepo(t)
+	if err := os.RemoveAll(filepath.Join(s.Root, ".tpatch", "features")); err != nil {
+		t.Fatalf("remove features dir: %v", err)
+	}
+
+	report, err := RunVerifyAll(s, VerifyOptions{NoWrite: true})
+	if err == nil {
+		t.Fatalf("expected workspace-corruption error, got report=%+v", report)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "features") || !strings.Contains(msg, "workspace") {
+		t.Errorf("error message must name features and workspace; got %q", msg)
+	}
+}
+
 // TestRunVerifyAll_StatusJSONUnstattable_SurfacesAsErrorRow pins the
 // revision-2 contract: a feature directory whose status.json cannot
 // even be stat-ed (here: parent dir chmod 000 → EACCES) must surface

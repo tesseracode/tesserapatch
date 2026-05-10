@@ -5,7 +5,7 @@
 - **Task ID**: M15-W3-SLICE-D
 - **Milestone**: M15 Wave 3 — Verify freshness rollout (final slice)
 - **Description**: Finalize the verify-freshness work by adding `tpatch verify --all` topo-ordered aggregate reporting, rolling the §4.4 freshness bullet across all 6 skill formats, extending the `assets/assets_test.go` parity guard with the new anchors, cross-linking `docs/dependencies.md` to verify, and shipping CHANGELOG v0.6.2.
-- **Status**: Review (revision-2 in progress) — second HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
+- **Status**: Review (revision-3 in progress) — third HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
 - **Source PRD**: `docs/prds/PRD-verify-freshness.md` §9 (Slice D row), §4.4 (skill bullet contract)
 
 ## Predecessor — Slice C
@@ -84,6 +84,122 @@ Full retrospective archived in `docs/handoff/HISTORY.md` under `2026-04-29 — M
 - Provider integration (verify is local-only per PRD §3).
 - `docs/whitepapers/` and the exploratory PRDs listed in Constraints.
 - `tpatch` binary at repo root (untracked artifact).
+
+## Revision-3 (HIGH finding fix)
+
+External supervisor flagged that revision-2's `ListFeatureEntries()`
+helper still false-greens when `.tpatch/features/` is missing entirely
+(e.g. operator does `rm -rf .tpatch/features`). The `os.ReadDir` on the
+features dir returns `os.ErrNotExist` and the helper swallows it as
+`(nil, nil)`, producing a clean exit-0 empty aggregate. Same false-green
+class as the rev-1/rev-2 bugs, one layer higher (workspace-discovery
+layer).
+
+Reproduced with `tpatch init` then `rm -rf .tpatch/features` then
+`tpatch verify --all --json` against the `e7f8661` binary: exit=0,
+`{"features":[],"summary":{0,0,0,0}}`.
+
+### Fix
+
+- `internal/store/store.go::ListFeatureEntries` — split the `ErrNotExist`
+  branch on `ReadDir(featuresDir())` into two cases:
+  - `.tpatch/` present → workspace corruption: return
+    `fmt.Errorf("workspace corruption: .tpatch/features directory is missing")`
+    so `RunVerifyAll` propagates and the CLI dispatcher exits 2.
+  - `.tpatch/` also absent → preserve `(nil, nil)` so callers that
+    pre-check workspace init are not broken.
+
+  Option A was chosen (fix in the store layer alongside the rev-1/rev-2
+  fixes) over Option B (stat in `RunVerifyAll`) because `RunVerifyAll`
+  is the only caller of `ListFeatureEntries` (verified by grep), so the
+  store layer is the canonical home for this enumeration policy and DRY
+  is preserved.
+
+- `internal/store/store.go::ListFeatures` — INTENTIONALLY UNCHANGED.
+  Other call sites (`feature_deps.go`, `cobra.go`, `status_dag.go`,
+  `plan_reconcile.go`, `reconcile.go`, `validation.go`, `store_test.go`)
+  rely on graceful empty-handling. Per supervisor instructions.
+
+- `internal/workflow/verify_all.go` — UNCHANGED. The existing wrapper
+  `return nil, fmt.Errorf("verify --all: list features: %w", err)`
+  surfaces the new error correctly to the CLI dispatcher's exit-2 path.
+
+- `internal/workflow/verify_all_test.go` — new
+  `TestRunVerifyAll_FeaturesDirMissing_SurfacesAsWorkspaceCorruption`
+  exercising the missing-features-dir scenario at the workflow layer.
+  Asserts the error message names "features" and "workspace".
+
+- `internal/cli/verify_all_test.go` — new
+  `TestVerifyAll_FeaturesDirMissing_ExitsTwo` exercising the same
+  scenario through the cobra root: asserts exit=2 with typed
+  `*ExitCodeError` whose Message names "features" and either
+  "workspace" or "corruption".
+
+The pre-existing `TestRunVerifyAll_EmptyRepo` already pins the
+legitimate-empty case: a tpatch-init repo with `.tpatch/features/`
+present but empty (no subdirs) → exit=0, empty aggregate. The new
+fix does not regress this path (the `os.ReadDir` succeeds and returns
+an empty slice; no error).
+
+### Design decisions pinned
+
+- **Three-state taxonomy**:
+  - `.tpatch/` missing → workspace not initialized; preserved
+    `(nil, nil)` so existing init pre-checks fire as today.
+  - `.tpatch/` present, `.tpatch/features/` missing → **workspace
+    corruption** → exit 2 with a clear error.
+  - `.tpatch/features/` present but empty → legitimate empty repo →
+    exit 0 with empty aggregate (matches today's "no features yet"
+    semantics; pinned by `TestRunVerifyAll_EmptyRepo`).
+- **Why store layer not workflow layer**: `ListFeatureEntries` has a
+  single caller (`RunVerifyAll`); locating the policy in the store
+  keeps the rev-1 / rev-2 / rev-3 fixes co-located and avoids a
+  caller-side stat dance that would have to be duplicated by any
+  future aggregate caller.
+- **Why `ListFeatures` untouched**: legacy helper; six call sites
+  treat empty-or-missing identically. Changing its semantics is out
+  of scope and would risk regressions in unrelated commands.
+
+### BEFORE / AFTER repro (external supervisor scenario)
+
+```
+$ tpatch init
+$ rm -rf .tpatch/features
+$ tpatch verify --all --json
+
+BEFORE (binary built from e7f8661):
+  exit=0
+  {"schema_version":"1.0","features":[],"summary":{"passed":0,"failed":0,"skipped":0,"error":0}}
+
+AFTER (revision-3):
+  exit=2
+  error: verify --all aborted: verify --all: list features: workspace corruption: .tpatch/features directory is missing
+```
+
+### Files changed (revision-3)
+
+- `internal/store/store.go` (`ListFeatureEntries` ErrNotExist branch
+  distinguishes workspace-not-init from workspace-corruption)
+- `internal/workflow/verify_all_test.go` (+1 test, missing features dir)
+- `internal/cli/verify_all_test.go` (+1 test, missing features dir via
+  cobra root)
+- `docs/handoff/CURRENT.md` (this section + test-count baseline note)
+
+### Validation gate (revision-3)
+
+- `gofmt -l .` → empty
+- `go vet ./...` → clean
+- `go build ./cmd/tpatch` → success
+- `go test ./...` → all pass; `internal/workflow` and `internal/cli`
+  green with the 2 new regressions.
+
+### Test count delta
+
++2 tests this revision (1 workflow + 1 CLI). Going forward, only the
+per-revision delta is recorded — absolute baselines drift across
+unrelated work and are not load-bearing for review (per supervisor
+note: prior absolute counts in this file were point-in-time snapshots
+of mixed scope and should not be reconciled retroactively).
 
 ## Revision-2 (HIGH finding fix)
 
@@ -1167,3 +1283,50 @@ SMART` and the new PRD's framing. No drift; no edit requested.
   the verb is stubbed; PRD §3.4 explicitly handles both cases.
 - Cross-review pass by CO47 + G55 will follow before formal
   supervisor acceptance per CO47's brief.
+
+## Side Work — 2026-05-10 — PRD-reconcile-lock-guard revision pass (OX47)
+
+Cross-reviews from CO47 (6 findings) + G55 (3 findings) applied to
+`docs/prds/PRD-reconcile-lock-guard.md`. File now 684 lines.
+
+**CO47 required edits applied**: F1 (third-vs-fourth deliverable
+framing in §0.1 ¶2 fixed), F2 (WP-001 cite split — §9 graduation
+plan + `WP-001-feature-slice-gap.turns.md` Turn 13), F3 ("audit-emit"
+→ plain English), F4 (parser tolerance tightened to double-quoted
+only).
+
+**CO47 suggestions applied**: F5 (option 3 in stale refusal block
+clarifies ref-name difference), F6 (§7.2 leads with sibling-function
+`PreflightReconcileWithOverride`, demotes breaking-signature change).
+
+**G55 high-severity findings addressed**:
+- #1 writer-normalization: NEW §5.3 requires `updateUpstreamLock`
+  fix (split `--upstream-ref` into remote+branch); §4 step 4 adds
+  read-side legacy tolerance for v0.4 lock format
+  (`branch: upstream/main`).
+- #2 `Clean()` conflation: §4 algorithm note + §7.3 pseudocode
+  corrected — `Clean()` stays working-tree-only; lock-state gate
+  evaluated independently at the cli call site.
+- #3 ref-name comparison: §4 step 5 specifies
+  `git rev-parse --symbolic-full-name`, not SHA equality.
+
+**Acceptance criteria additions**: §8 #16-#20 cover writer
+normalization, legacy-lock tolerance, symbolic-ref-name comparison,
+sibling-function coexistence, independent-gate evaluation.
+
+**One factual note for the broker**: CO47's F2 claim that the
+WP-001 main file is "~607 lines, line 694 doesn't exist" is wrong
+— the file is 727 lines and `:694` references the §9 graduation
+plan's reference to T13. CO47's *suggested fix* (split-cite to §9
++ turns.md Turn 13) is more precise and was applied. Original
+cite was technically valid but not the most direct.
+
+**Authority question on `PRD-patch-already-upstream-detector.md`**:
+CO47 flagged the precondition cite as borderline scope-creep
+because that PRD's owner field reads "Core". Clarification: I am
+the author of that PRD this session; "Core" reflects no
+implementation owner, not a different agent. The cross-cite is a
+one-line coordination link, factually correct. Deferring to broker
+if revert is preferred.
+
+**No code touched.** `go test ./...` was green at session start.
