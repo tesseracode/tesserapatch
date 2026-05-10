@@ -57,6 +57,24 @@ jobs:
           go install ./cmd/tpatch
           "$(go env GOPATH)/bin/tpatch" --version
 
+      # On tag pushes, ensure the binary's --version output matches the
+      # git tag. This catches missing ldflags wiring or stale embedded
+      # versions before the release job publishes artifacts.
+      - name: Verify tag version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          make install
+          version_output="$("$(go env GOPATH)/bin/tpatch" --version)"
+          expected="tpatch ${VERSION}"
+          echo "version output: $version_output"
+          echo "expected:       $expected"
+          if [ "$version_output" != "$expected" ]; then
+            echo "::error::tpatch --version output does not match tag ${VERSION}"
+            exit 1
+          fi
+
   # Publish a GitHub Release whenever a v* tag is pushed.
   # Release notes are generated from commits since the previous tag.
   release:

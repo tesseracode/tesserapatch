@@ -15,13 +15,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tesseracode/tesserapatch/assets"
+	"github.com/tesseracode/tesserapatch/internal/buildinfo"
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/provider"
 	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
-
-const version = "0.6.1"
 
 // Execute runs the tpatch CLI root command.
 //
@@ -46,7 +45,7 @@ func buildRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "tpatch",
 		Short:         "Tessera Patch — customize open-source projects with natural-language patches",
-		Version:       version,
+		Version:       buildinfo.String(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
