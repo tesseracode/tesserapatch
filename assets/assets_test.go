@@ -54,6 +54,14 @@ var requiredAnchors = []struct {
 	{"conflict-playbook/checkout-stash", "git checkout stash@{0}^3 -- .tpatch/"},
 	{"conflict-playbook/never-pop", "Never pop the stash"},
 	{"patch-vs-recipe/intent-vs-snapshot", "patch captures intent"},
+	// Slice D (M15-W3, PRD-verify-freshness §4.4): every shipped skill
+	// surface must carry the freshness-overlay bullet so harness agents
+	// know `tpatch verify <slug>` exists, what it writes, and that it
+	// is NOT the project test runner. Anchor on the verbatim opening
+	// phrase so the parity guard fires the moment the bullet is removed
+	// or paraphrased.
+	{"verify-freshness/bullet", "Verify before composing."},
+	{"verify-freshness/all-mode", "tpatch verify --all"},
 }
 
 // Skill format files that must mention all CLI commands.

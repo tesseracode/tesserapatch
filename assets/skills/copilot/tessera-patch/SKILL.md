@@ -66,6 +66,12 @@ Never skip a phase. Never go backwards without `tpatch reconcile`.
 
 analyse → define → explore → implement → test → record → reconcile
 
+## Verify (freshness overlay)
+
+**Verify before composing.** When you finish `tpatch apply` and want a cheap, machine-checkable signal that the feature is structurally healthy, run `tpatch verify <slug>`. Verify writes a freshness record on the feature; downstream readers see a `verified-fresh` label until the recipe, patch, or any hard parent's state drifts, at which point the label flips to `verified-stale`. The lifecycle state is never changed by verify — `applied` stays `applied`. Verify is read-only on the working tree. It does **not** run the project's test suite; for that, use `tpatch test`.
+
+Run `tpatch verify --all` to walk every tracked feature in topological order; pre-apply features are reported with a `skipped: pre-apply` row at their topo position. Non-zero exit if any feature failed.
+
 ## Data Model
 
 Features are tracked in `.tpatch/features/<slug>/` with `status.json`, `request.md`, `analysis.md`, `spec.md`, and `artifacts/`.

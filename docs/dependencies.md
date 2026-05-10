@@ -137,6 +137,26 @@ From v0.6.0 this is **a live gate**, not a comment field. At
   Recipe-shape failures (parent absent from `depends_on`, unknown kind)
   remain hard errors in both modes.
 
+### Cross-link: dependencies and `tpatch verify`
+
+Hard dependencies have a second consumer beyond the apply gate:
+`tpatch verify <slug>`'s V7/V8 closure-replay checks
+(see `docs/prds/PRD-verify-freshness.md` §3.4.3 + §9). When verify
+needs to replay a target's recipe and patch in a shadow worktree, it
+walks the **hard-parent topological closure** first so the shadow
+reflects the same baseline an in-tree apply would produce. Soft
+parents do not contribute to the closure (they are ordering hints,
+not gating edges — same rule as the apply gate).
+
+Implication for operators: if a hard parent is in a non-replayable
+state (`defined`, `analyzed`, etc.), `tpatch verify` on a downstream
+child will fail at V7 with `failed_at: "parent-replay"`. The
+remediation is to advance the parent to `applied` (`tpatch apply
+<parent>`) or to absorb it upstream — exactly the same set of
+remediations the apply gate already enumerates. See
+`PRD-verify-freshness.md` §5 for the full edge-case table and
+`tpatch verify --all` for the topo-ordered aggregate report.
+
 ## Reconcile-time semantics
 
 Reconcile traverses the DAG in topological order so a child only

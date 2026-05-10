@@ -2,6 +2,102 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.6.2 — 2026-05-02 — M15 Wave 3 (verify-freshness rollout complete)
+
+Final M15 release. Adds `tpatch verify` — a freshness-overlay verb
+that runs ten ordered structural checks (V0–V9) against a feature's
+recipe, intent files, dependency graph, and shadow-replay
+reconstruction, then writes a small `Verify` sub-record on
+`status.json`. Composes with the existing reconcile-label vocabulary;
+the lifecycle state is never mutated by verify.
+
+PRD: [`docs/prds/PRD-verify-freshness.md`](./docs/prds/PRD-verify-freshness.md)
+· ADR: [`docs/adrs/ADR-013-verify-freshness-overlay.md`](./docs/adrs/ADR-013-verify-freshness-overlay.md)
+· Slice landing plan: [§9 of the PRD](./docs/prds/PRD-verify-freshness.md#9-implementation-slices).
+
+### Added
+
+- **`tpatch verify <slug>`** (Slices A + C) — runs the V0–V9 freshness
+  overlay against a single post-apply feature. Writes a minimal
+  `Verify` record (`verified_at`, `passed`, `recipe_hash_at_verify`,
+  `patch_hash_at_verify`, `parent_snapshot`) to `status.json`. Emits
+  a 10-check report on `--json` stdout. `--no-write` runs every check
+  but skips persistence. `--quiet` suppresses per-check output. Exit
+  codes: `0` passed, `2` for every failure mode (verdict failed,
+  refused pre-apply state, V0 abort, missing slug, non-tpatch
+  workspace), `1` reserved for generic CLI usage errors.
+- **Hard-parent topological closure replay (V7/V8)** — verify
+  reconstructs the closure of hard parents in a `gitutil.CreateShadow`
+  worktree before replaying the target recipe and `git apply
+  --check`-ing the captured patch. Soft parents do NOT contribute to
+  the closure (same rule as the apply gate). Single shadow allocation
+  per verify run; pruned on exit regardless of verdict (ADR-013 D7).
+- **Four derived freshness labels** (Slice B) — `never-verified`,
+  `verified-fresh`, `verified-stale`, `verify-failed` are derived at
+  read time inside `composeLabelsFromStatus` and surfaced by
+  `tpatch status` / `--dag` / `--json`. Pure read-time computation;
+  no persisted transitions.
+- **`amend` invalidates freshness on recipe touch** (Slice B) — when
+  the bytes of `apply-recipe.json` change OR when `recipe_sha256` no
+  longer matches `Verify.RecipeHashAtVerify`, `amend` clears the
+  `Verify` record so the next read derives `never-verified`. Intent-
+  only amends preserve. `amend --state tested` is rejected: there is
+  no `tested` lifecycle state under the freshness-overlay model.
+- **`tpatch verify --all`** (Slice D) — aggregate runner that walks
+  every tracked feature in topological order (`store.TopologicalOrder`
+  Kahn primitive; lex tie-break) and dispatches each post-apply
+  feature through the unchanged single-feature `RunVerify` entry
+  point. Pre-apply features (`requested`, `analyzed`, `defined`,
+  `implementing`, `reconciling`, `reconciling-shadow`) are reported
+  with a `skipped: pre-apply` row at their topo position; V0 is
+  **not** invoked for skipped features and no `Verify` record is
+  written. Aggregate footer counts {passed, failed, skipped, error};
+  exit `2` if any feature failed or errored (skips alone do not flip
+  the gate). `--json` emits
+  `{schema_version, features: [...], summary: {...}}`.
+- **§4.4 freshness bullet rolled to all 6 skill surfaces** (Slice D)
+  — Claude, Copilot, Copilot Prompt, Cursor, Windsurf, and the
+  generic workflow now ship the verbatim "Verify before composing."
+  paragraph plus a one-line `verify --all` pointer. Anchors enforced
+  by the parity guard.
+- **`assets/assets_test.go` parity-guard extension** — two new anchor
+  substrings (`Verify before composing.` and `tpatch verify --all`)
+  must appear in every shipped skill format. Existing anchors
+  preserved; the guard fails the moment any of the six surfaces
+  drops or paraphrases the bullet.
+- **`docs/dependencies.md` cross-link to verify** (Slice D) — short
+  paragraph in the "Apply-time semantics" section explaining that
+  hard dependencies are also the input to verify's V7/V8 closure
+  replay; soft parents are not.
+
+### Changed
+
+- Skill assets gain a new `## Verify (freshness overlay)` section
+  immediately after the lifecycle/phase-ordering block. No existing
+  CLI-command anchors were dropped.
+- `CHANGELOG.md` now documents the v0.6.2 release per Slice D's
+  scope; v0.6.1 entry is unchanged.
+
+### Notes
+
+- **Out of scope for v0.6.2** (deliberately): provider calls (verify
+  is offline by construction); state transitions (verify never
+  mutates `FeatureState`); apply-gate consultation of freshness (the
+  gate stays pure-lifecycle, ADR-013 D2); `--shadow` flag (rejected
+  by design); `tpatch test` integration as a freshness producer
+  (deferred to `feat-tested-state-test-producer`); recipe-op JSON
+  schema additions (frozen); `verify --all` interaction with the
+  `--shadow` lifecycle (no shared shadow primitive between aggregate
+  runs and the per-feature V7/V8 closure replay — each feature
+  allocates its own shadow inside `RunVerify` and prunes on exit).
+- **Backward compatibility.** A v0.6.1 repo that never runs
+  `tpatch verify` round-trips `status.json` byte-for-byte identical;
+  the `Verify` field is `omitempty`-marshalled (ADR-013 D4).
+- **No new external Go dependencies.** stdlib + `cobra/pflag` only.
+- **Source-truth guard preserved.** Verify reads
+  `status.Reconcile.Outcome` for V9; never any artifact under
+  `artifacts/reconcile-session.json` (ADR-010 D5 / ADR-011 D6).
+
 ## v0.6.1 — 2026-04-27 — M15 Stabilization (Wave 1 + Wave 2 + fix-pass)
 
 User-facing stabilization release. Seven backlog items + a four-finding fix-pass against the merged surface. No schema, ADR, or default-behavior changes — `v0.6.0` repos round-trip byte-identical and behave the same except where explicitly noted.

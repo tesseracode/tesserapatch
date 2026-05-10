@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
@@ -48,11 +50,29 @@ ships V0/V1/V2 as real checks (status_loaded, intent_files_present,
 recipe_parses); V3 (recipe_op_targets_resolve) and V4–V9 are stubs
 deferred to Slice C. The lifecycle state is never mutated — verify is
 a freshness overlay, not a state transition (ADR-013 D1).`,
-		Args: cobra.ExactArgs(1),
+		// Args validated inside RunE — `--all` flips the slug from
+		// required to forbidden. Cobra cannot express that natively.
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
-			slug := args[0]
+
+			all, _ := cmd.Flags().GetBool("all")
+			asJSON, _ := cmd.Flags().GetBool("json")
+			quiet, _ := cmd.Flags().GetBool("quiet")
+			noWrite, _ := cmd.Flags().GetBool("no-write")
+
+			// Slice D arg-shape rules.
+			if all {
+				if len(args) != 0 {
+					return &ExitCodeError{Code: 2, Message: "verify --all takes no slug argument"}
+				}
+			} else {
+				if len(args) != 1 {
+					return &ExitCodeError{Code: 2, Message: "verify requires exactly one slug (or pass --all)"}
+				}
+			}
+
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				// Verify could not even open the workspace — covers
@@ -61,10 +81,11 @@ a freshness overlay, not a state transition (ADR-013 D1).`,
 				return &ExitCodeError{Code: 2, Message: fmt.Sprintf("verify aborted: %v", err)}
 			}
 
-			asJSON, _ := cmd.Flags().GetBool("json")
-			quiet, _ := cmd.Flags().GetBool("quiet")
-			noWrite, _ := cmd.Flags().GetBool("no-write")
+			if all {
+				return runVerifyAll(cmd, s, workflow.VerifyOptions{NoWrite: noWrite}, asJSON, quiet)
+			}
 
+			slug := args[0]
 			report, runErr := workflow.RunVerify(s, slug, workflow.VerifyOptions{NoWrite: noWrite})
 			if report == nil {
 				// RunVerify bailed before producing any report (e.g.
@@ -117,7 +138,47 @@ a freshness overlay, not a state transition (ADR-013 D1).`,
 	cmd.Flags().Bool("json", false, "Emit the full structured report on stdout")
 	cmd.Flags().Bool("quiet", false, "Suppress the per-check human output")
 	cmd.Flags().Bool("no-write", false, "Run all checks but do not persist the Verify record (harness dry-run)")
+	cmd.Flags().Bool("all", false, "Run verify across every tracked feature in topological order (Slice D, PRD §9)")
 	return cmd
+}
+
+// runVerifyAll dispatches `tpatch verify --all`. Reuses the unchanged
+// `workflow.RunVerify` per feature; pre-apply features are skipped at
+// their topo position (PRD Q2 + CURRENT.md "deterministic and ordered
+// first in topo"). Exit 2 if ANY feature fails or errors; pre-apply
+// skips on their own do not flip the exit code.
+func runVerifyAll(cmd *cobra.Command, s *store.Store, opts workflow.VerifyOptions, asJSON, quiet bool) error {
+	report, err := workflow.RunVerifyAll(s, opts)
+	if err != nil {
+		return &ExitCodeError{Code: 2, Message: fmt.Sprintf("verify --all aborted: %v", err)}
+	}
+	out := cmd.OutOrStdout()
+	errOut := cmd.ErrOrStderr()
+
+	if asJSON {
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		if encErr := enc.Encode(report); encErr != nil {
+			return encErr
+		}
+		if !quiet {
+			report.WriteHumanAggregate(errOut)
+		}
+	} else if !quiet {
+		report.WriteHumanAggregate(out)
+	} else {
+		// --quiet without --json: just the summary footer.
+		fmt.Fprintf(out, "verify --all: %d passed, %d failed, %d skipped, %d error\n",
+			report.Summary.Passed, report.Summary.Failed, report.Summary.Skipped, report.Summary.Error)
+	}
+
+	if report.HasFailures() {
+		return &ExitCodeError{
+			Code:    2,
+			Message: fmt.Sprintf("verify --all: %d failed, %d error", report.Summary.Failed, report.Summary.Error),
+		}
+	}
+	return nil
 }
 
 func countFailedBlockers(report *workflow.VerifyReport) int {
