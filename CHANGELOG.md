@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.6.2 — 2026-05-02 — M15 Wave 3 (verify-freshness rollout complete)
+## v0.6.2 — 2026-05-10 — M15 Wave 3 (verify-freshness rollout complete)
 
 Final M15 release. Adds `tpatch verify` — a freshness-overlay verb
 that runs ten ordered structural checks (V0–V9) against a feature's

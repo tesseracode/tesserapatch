@@ -1,3 +1,25 @@
+# 2026-05-10 — M15-W3-SLICE-D — APPROVED, shipped as v0.6.2
+
+**Outcome**: Slice D (`tpatch verify --all` + 6-skill freshness bullet rollout + parity-guard anchors + `docs/dependencies.md` cross-link + CHANGELOG v0.6.2) shipped across five commits after four sub-agent/external supervisor cycles on the same false-green bug class — silent omission in aggregate feature discovery. Final external supervisor verdict APPROVED WITH NOTES on `fa93536`.
+
+**The bug class**: each rev plugged one layer of the discovery stack; external supervisor probed the next layer up and found another. Useful artifact for future verify-style work:
+
+- **rev-0** (Slice D original `19271f7`): aggregate enumeration delegated to `store.ListFeatures()` which silently dropped feature dirs whose `status.json` couldn't be parsed. External SV: 2-feature repo with `bad` carrying `{not valid json` → exit 0, `bad` completely absent from output.
+- **rev-1** (`67730de`): added `ListFeatureEntries()` surfacing JSON-parse errors as `FeatureEntry{Err: ...}` rows. External SV: helper still pre-stat-checked status.json and dropped on ANY stat error → chmod-000 feature dir silently vanished, exit 0.
+- **rev-2** (`e7f8661`): one-line ENOENT-vs-other-stat-error split. External SV: third layer up — `os.ReadDir(featuresDir)` returns `(nil, nil)` on ENOENT → empty green aggregate when `.tpatch/features` is missing entirely.
+- **rev-3** (`d390322`): split the ReadDir ENOENT branch — surface workspace-corruption error when `.tpatch/` exists but `features/` is missing. Sub-agent reviewer (not external) caught the same bug pattern at the new code: `if statErr == nil { ... } return nil, nil` swallows non-ENOENT errors on the new `.tpatch/` stat.
+- **rev-4** (`fa93536`): explicit 3-way switch (nil → corruption error; ErrNotExist → nil/nil; default → wrap as workspace-state error). External SV APPROVED WITH NOTES: the new default branch is defensive — `ReadDir(features/)` already catches exotic `.tpatch/` errors first, so the new branch only fires under TOCTOU race. Higher-layer probes (`.tpatch/` as file/FIFO/socket/symlink-to-null) all failed closed cleanly.
+
+**Process artifact**: 4 of 5 sub-agent reviewer passes missed external-grade findings. Sub-agent rev-3 reviewer broke the streak by catching the implicit-else swallow before external pass. Pattern reinforces "two-stage review" for layered-precondition gates and "speculate one layer up" reviewer prompts.
+
+**Final stack on origin/main**: `dee7f81` → `19271f7` (Slice D) → `67730de` (rev-1) → `e7f8661` (rev-2) → `d390322` (rev-3) → `fa93536` (rev-4) → tracking.
+
+**Test delta across the cycle**: Slice D original +12, rev-1 +4, rev-2 +2, rev-3 +2, rev-4 +2 = +22 verify-aggregate regressions covering enumeration, ENOENT distinction, stat-error surfacing, workspace corruption, and TOCTOU defense.
+
+**Slice D is now ✅ in `docs/ROADMAP.md`. M15 Wave 3 (verify-freshness rollout) is complete.** v0.6.2 released.
+
+---
+
 # 2026-04-29 — M15-W3-SLICE-C — APPROVED, shipped to origin/main
 
 **Outcome**: Slice C (V3–V9 real verify implementations + hard-parent topological closure replay for V7/V8) shipped across three commits. The original (`32f50c8`) was approved by the sub-agent reviewer with all live closure-replay reproductions green, but flagged HIGH by the external supervisor: `runClosureReplay` short-circuited BOTH V7 and V8 when `apply-recipe.json` was absent, contradicting PRD-verify-freshness.md edge-case table line 524 ("Recipe absent | V2/V3/V7 are skipped; V8 runs against the closure-replayed baseline if patch is present"). The supervisor reproduced the false pass with a fresh binary: applied feature, no recipe, invalid post-apply.patch → `verdict=passed`, V8 skipped with the recipe-precondition reason.

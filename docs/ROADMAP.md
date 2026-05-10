@@ -192,7 +192,7 @@ Code-review verdict: APPROVED. See `docs/supervisor/LOG.md`.
 
 **Out of scope** (v0.6.x follow-ups): auto-rebase on parent drift (`feat-feature-autorebase`), parent-patch context for resolver (`feat-resolver-dag-context`), per-dep version ranges (`feat-patch-compatibility`), stacked-PR delivery (`feat-delivery-modes`).
 
-## M15 Wave 3 — Verify freshness overlay (v0.6.2 prep)
+## M15 Wave 3 — Verify freshness overlay (v0.6.2) ✅
 
 Successor to the superseded `feat-feature-tested-state` design (ADR-012).
 Replaced the tested-as-state model with a Git-like freshness overlay per
@@ -216,7 +216,11 @@ lifecycle/freshness conflation. Lifecycle and verification stay separate.
   ~2026-04-29).
 - **Slice D** — `tpatch verify --all` + 6-skill rollout + parity-guard
   anchors + `docs/dependencies.md` cross-link + CHANGELOG v0.6.2.
-  ⬜
+  ✅ APPROVED (commits `19271f7` original + `67730de` revision-1
+  surfacing-malformed-status-as-error-row + `e7f8661` revision-2
+  ENOENT-vs-stat-error-split + `d390322` revision-3
+  workspace-corruption-on-missing-features-dir + `fa93536` revision-4
+  defensive-3-way-branch-on-tpatch-stat, ~2026-05-10).
 
 ## M15+ — Future
 
