@@ -5,7 +5,7 @@
 - **Task ID**: M15-W3-SLICE-D
 - **Milestone**: M15 Wave 3 — Verify freshness rollout (final slice)
 - **Description**: Finalize the verify-freshness work by adding `tpatch verify --all` topo-ordered aggregate reporting, rolling the §4.4 freshness bullet across all 6 skill formats, extending the `assets/assets_test.go` parity guard with the new anchors, cross-linking `docs/dependencies.md` to verify, and shipping CHANGELOG v0.6.2.
-- **Status**: Not Started — ready for implementer dispatch
+- **Status**: Review (revision-1 in progress) — HIGH finding from external supervisor under fix on local commits ahead of `19271f7`
 - **Source PRD**: `docs/prds/PRD-verify-freshness.md` §9 (Slice D row), §4.4 (skill bullet contract)
 
 ## Predecessor — Slice C
@@ -84,6 +84,95 @@ Full retrospective archived in `docs/handoff/HISTORY.md` under `2026-04-29 — M
 - Provider integration (verify is local-only per PRD §3).
 - `docs/whitepapers/` and the exploratory PRDs listed in Constraints.
 - `tpatch` binary at repo root (untracked artifact).
+
+## Revision-1 (HIGH finding fix)
+
+External supervisor flagged that the Slice D aggregate enumerator
+silently dropped any feature whose `status.json` was malformed or
+unreadable, producing a false-green aggregate (exit 0, no row, no
+error). Root cause: `RunVerifyAll` seeded the universe via
+`store.ListFeatures()`, which `continue`s past load failures. The
+`error` row branch in `verify_all.go` was unreachable for this class.
+
+### Fix
+
+- `internal/store/store.go` — added `FeatureEntry` struct + new
+  `ListFeatureEntries()` helper. Returns every directory under
+  `features/` that contains a `status.json` entry (file OR
+  unreadable), pairing each slug with either a loaded `*FeatureStatus`
+  or a load `Err`. Existing `ListFeatures()` behavior is intentionally
+  unchanged so other call sites (FEATURES.md rendering, dep walkers)
+  keep their silent skip-on-broken semantics.
+- `internal/workflow/verify_all.go` — `RunVerifyAll` now uses
+  `ListFeatureEntries()`. Entries with `Err != nil` are added to the
+  topo graph with empty deps (deterministic Kahn lex tie-break) and
+  emitted as `Status=error` rows with `reason="failed to load
+  status.json: <err>"`. `RunVerify` is NOT invoked for these.
+  `Summary.Error++` flips `HasFailures()`, which already drives the
+  exit-2 gate.
+- `internal/workflow/verify_all_test.go` — three new pinned tests:
+  `TestRunVerifyAll_UnreadableStatusJSON_SurfacesAsErrorRow` (the
+  external supervisor's exact 2-feature repro), plus two
+  edge-semantic pins: `TestRunVerifyAll_EmptyFeatureDir_SilentlyDropped`
+  (directory under `features/` with no `status.json` is dropped — same
+  as today's non-feature dir treatment) and
+  `TestRunVerifyAll_StatusJSONIsDirectory_SurfacesAsErrorRow` (a
+  `status.json` that is itself a directory surfaces as an error row,
+  not silently dropped, since presence of the entry signals an
+  attempted feature).
+- `internal/cli/verify_all_test.go` — new
+  `TestVerifyAll_UnreadableStatusJSON_ExitsTwoAndIncludesFeature`
+  exercising the same scenario through the cobra root: asserts
+  exit=2 with typed `*ExitCodeError`, both features present in
+  `--json`, bad has `status=error`, `summary.error=1`.
+
+### Design decisions pinned
+
+- **Topo placement of error-row features**: included in the topo graph
+  with empty deps (treated as no parents). Kahn's lex tie-break makes
+  position deterministic without inventing a separate "appended at
+  end" path. Documented in the new comment block in
+  `verify_all.go::RunVerifyAll`.
+- **Empty feature dir (no status.json at all)**: silently dropped —
+  matches today's treatment of any non-feature directory and keeps
+  the contract "looks like a feature" = "has a status.json entry".
+- **status.json that is itself a directory**: surfaced as an error
+  row. `os.ReadFile` on a directory returns an error which falls
+  naturally into the load-error branch.
+
+### BEFORE / AFTER repro (external supervisor scenario)
+
+Two-feature repo, `good` (state=applied, valid artifacts), `bad` (status.json overwritten with `{not valid json`).
+
+```
+BEFORE (binary built from 19271f7):
+  exit=0, summary={passed:1, failed:0, skipped:0, error:0}
+  features=[good]   ← bad is COMPLETELY ABSENT (the bug)
+
+AFTER (revision-1):
+  exit=2, summary={passed:1, failed:0, skipped:0, error:1}
+  features=[bad (status=error, reason="failed to load status.json: …"), good (passed)]
+```
+
+### Files changed (revision-1)
+
+- `internal/store/store.go` (+`FeatureEntry`, +`ListFeatureEntries`)
+- `internal/workflow/verify_all.go` (`RunVerifyAll` rewired)
+- `internal/workflow/verify_all_test.go` (+3 tests)
+- `internal/cli/verify_all_test.go` (+1 test)
+- `docs/handoff/CURRENT.md` (this section + Status block fix)
+
+### Validation gate (revision-1)
+
+- `gofmt -l .` → empty
+- `go vet ./...` → clean
+- `go build ./cmd/tpatch` → success
+- `go test ./...` → all pass; `internal/workflow` and `internal/cli`
+  green with the 4 new regressions.
+
+### Test count delta
+
+413 → 417 (+4: 3 workflow + 1 CLI).
 
 ## Files Changed
 
@@ -804,3 +893,74 @@ detector for Pat audit + Sam CVE-drop SLA). Slice D was
 delegated to another agent in parallel. The remaining persona
 follow-ups (#3 / #4 / #5 / #6 from prior session enumeration)
 remain parked.
+
+---
+
+## Side Work — 2026-05-09 — Hotfix PRD §3.4 trailer-block fix (PRD-tpatch-land reviewer note)
+
+**Trigger**: `PRD-tpatch-land.md:377-386` "Cross-PRD note for the
+supervisor" flagged `PRD-tpatch-hotfix.md` §3.4 as displaying a
+non-canonical trailer block.
+
+**Verified errors**:
+- Showed `Tpatch-Slug: <slug>` — redundant with `Tpatch-Feature` (same value).
+- Showed `Tpatch-Phase: applied` — not in PRD-tpatch-land §3.4's locked
+  four; no prior-art rationale in `competitive-landscape.md §9 / §11`.
+- **Omitted** `Tpatch-Recipe-SHA` and `Tpatch-Base-Commit` from the
+  canonical four — the more serious bug, since it would have implied
+  a partial trailer-block contract.
+
+**Fix applied** to `docs/prds/PRD-tpatch-hotfix.md` §3.4:
+- Replaced the example block with the canonical four
+  (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`,
+  `Tpatch-Base-Commit`) + additive `Tpatch-CVE` when set.
+- Added explicit ordering rule (`Tpatch-CVE` after the four, before
+  the repo-level `Co-authored-by:` trailer per CLAUDE.md rule 8 /
+  land §3.4).
+- Added "Authoritative emitter" sub-paragraph clarifying `land` does
+  not emit `Tpatch-CVE` — the hotfix verb owns it. This is the
+  authoritative restatement of land §3.4 "Coordination with
+  PRD-tpatch-hotfix".
+- Anchored the grep target as `'^Tpatch-CVE:'` (was unanchored).
+
+**Out of scope**: PRD-tpatch-land's "Cross-PRD note for the
+supervisor" block (lines 377-386) is now stale — the issue it flags
+is fixed. The land PRD's agent owns that block; not edited here. A
+supervisor pass during graduation review can drop or shorten it.
+
+---
+
+## Side Work — 2026-05-10 — G55 guardrail PRD review-response pass
+
+**Trigger**: human broker asked G55 to apply CO47's review of
+`PRD-record-auto-base.md` and `PRD-record-collision-detection.md`,
+then cross-review CO47's `PRD-tpatch-land.md` v2. WP-001,
+`PRD-tpatch-land.md`, exploratory PRDs, and implementation code were
+kept read-only.
+
+**Edits applied**:
+- `docs/prds/PRD-record-auto-base.md`: accepted R2/S1/S4 and added
+  market-research grounding. The merge-base fallback path now refuses
+  inferred ranges with more than one commit by default, prefers remote
+  default branches before hard-coded `main`, and has file:line claims
+  audit evidence.
+- `docs/prds/PRD-record-collision-detection.md`: accepted S2/S3/S4
+  and added market-research grounding. Same-feature duplicate handling
+  now treats canonical byte-identical writes as no-ops, skips only the
+  numbered audit snapshot, and explicitly skips collision scanning for
+  empty patches.
+
+**Cross-review status**:
+- CO47's F1-F5 land v2 fixes are confirmed in the current draft:
+  land-specific dirty-tree preflight, no new-HEAD write to
+  `apply.base_commit`, Pattern A metadata-only out of scope, `--auto`
+  flag forwarding, and refreshed citations.
+- Hotfix trailer coordination is resolved in the current files:
+  `PRD-tpatch-hotfix.md` §3.4 now shows the canonical four trailers
+  plus additive `Tpatch-CVE`, and land §3.4 marks the note resolved.
+- Minor residual review note for supervisor: `PRD-tpatch-land.md` §6.1
+  paraphrases the SMART deliverables as `land` + record collision
+  detection + `record --auto`, while `competitive-landscape.md` §6
+  currently names `land` + record collision detection + reconcile
+  upstream-lock validation guard, with auto-base as the remediation
+  mechanism. Align wording before graduation.

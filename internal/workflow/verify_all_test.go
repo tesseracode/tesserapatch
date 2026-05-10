@@ -369,6 +369,113 @@ func TestRunVerifyAll_JSONShape(t *testing.T) {
 	}
 }
 
+// TestRunVerifyAll_UnreadableStatusJSON_SurfacesAsErrorRow pins the
+// revision-1 contract: a feature whose status.json is malformed must
+// appear in the aggregate output as an `error` row, must NOT call
+// RunVerify, must increment summary.error, and must flip
+// HasFailures(). Silent omission (the bug at 19271f7) is a contract
+// violation per PRD §9.
+func TestRunVerifyAll_UnreadableStatusJSON_SurfacesAsErrorRow(t *testing.T) {
+	s := newVerifyAllRepo(t)
+	seedFeature(t, s, "good", store.StateApplied, nil, true)
+	seedFeature(t, s, "bad", store.StateApplied, nil, true)
+	// Corrupt bad's status.json to malformed JSON.
+	badStatusPath := filepath.Join(s.Root, ".tpatch", "features", "bad", "status.json")
+	if err := os.WriteFile(badStatusPath, []byte("{not valid json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := RunVerifyAll(s, VerifyOptions{NoWrite: true})
+	if err != nil {
+		t.Fatalf("RunVerifyAll: %v", err)
+	}
+	if len(report.Features) != 2 {
+		t.Fatalf("expected 2 rows, got %d (%+v)", len(report.Features), report.Features)
+	}
+	idx := indexOf(report, "bad")
+	if idx == -1 {
+		t.Fatalf("bad feature missing from aggregate output (the revision-1 bug)")
+	}
+	if report.Features[idx].Status != AggregateStatusError {
+		t.Errorf("bad status=%q want error", report.Features[idx].Status)
+	}
+	if !strings.Contains(report.Features[idx].Reason, "failed to load status.json") {
+		t.Errorf("bad reason=%q must mention status.json load failure", report.Features[idx].Reason)
+	}
+	if report.Features[idx].Report != nil {
+		t.Errorf("bad must not carry a per-feature report (RunVerify must not be called)")
+	}
+	if report.Summary.Error != 1 {
+		t.Errorf("Summary.Error=%d want 1", report.Summary.Error)
+	}
+	if !report.HasFailures() {
+		t.Errorf("HasFailures() must be true when error row present; summary=%+v", report.Summary)
+	}
+	// Healthy neighbour preserved.
+	gIdx := indexOf(report, "good")
+	if gIdx == -1 || report.Features[gIdx].Status != AggregateStatusPassed {
+		t.Errorf("good must remain passed; got %+v", report.Features[gIdx])
+	}
+}
+
+// TestRunVerifyAll_EmptyFeatureDir_SilentlyDropped pins the chosen
+// semantic for a directory under features/ with NO status.json: it is
+// treated as a non-feature directory and silently dropped (matches
+// today's behavior for non-feature dirs and keeps `ListFeatureEntries`
+// scoped to "looks like a feature" = "has a status.json entry").
+func TestRunVerifyAll_EmptyFeatureDir_SilentlyDropped(t *testing.T) {
+	s := newVerifyAllRepo(t)
+	seedFeature(t, s, "real", store.StateApplied, nil, true)
+	if err := os.MkdirAll(filepath.Join(s.Root, ".tpatch", "features", "stray"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := RunVerifyAll(s, VerifyOptions{NoWrite: true})
+	if err != nil {
+		t.Fatalf("RunVerifyAll: %v", err)
+	}
+	if len(report.Features) != 1 {
+		t.Fatalf("expected 1 row (stray empty dir dropped), got %d (%+v)", len(report.Features), report.Features)
+	}
+	if report.Features[0].Slug != "real" {
+		t.Errorf("expected real, got %q", report.Features[0].Slug)
+	}
+	if indexOf(report, "stray") != -1 {
+		t.Errorf("empty feature dir must not appear in aggregate")
+	}
+}
+
+// TestRunVerifyAll_StatusJSONIsDirectory_SurfacesAsErrorRow pins the
+// chosen semantic for a feature directory whose `status.json` entry is
+// itself a directory: presence of the entry signals an attempted
+// feature, so it surfaces as an `error` row (not silently dropped).
+func TestRunVerifyAll_StatusJSONIsDirectory_SurfacesAsErrorRow(t *testing.T) {
+	s := newVerifyAllRepo(t)
+	seedFeature(t, s, "ok", store.StateApplied, nil, true)
+	weirdDir := filepath.Join(s.Root, ".tpatch", "features", "weird")
+	if err := os.MkdirAll(filepath.Join(weirdDir, "status.json"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := RunVerifyAll(s, VerifyOptions{NoWrite: true})
+	if err != nil {
+		t.Fatalf("RunVerifyAll: %v", err)
+	}
+	idx := indexOf(report, "weird")
+	if idx == -1 {
+		t.Fatalf("weird feature must appear as error row, not be dropped")
+	}
+	if report.Features[idx].Status != AggregateStatusError {
+		t.Errorf("weird status=%q want error", report.Features[idx].Status)
+	}
+	if report.Summary.Error < 1 {
+		t.Errorf("Summary.Error must include the directory-as-status case")
+	}
+	if !report.HasFailures() {
+		t.Errorf("HasFailures() must trip when status.json is a directory")
+	}
+}
+
 // TestRunVerifyAll_EmptyRepo — a tpatch-init repo with no features
 // produces an empty features array and a zero-summary aggregate; exit
 // gate stays clean.

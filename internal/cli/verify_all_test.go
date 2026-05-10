@@ -125,7 +125,64 @@ func TestVerifyAll_MalformedFeature_ExitsTwo(t *testing.T) {
 	}
 }
 
-// TestVerifyAll_RejectsSlugArg — `verify --all <slug>` is a misuse.
+// TestVerifyAll_UnreadableStatusJSON_ExitsTwoAndIncludesFeature pins
+// the revision-1 contract at the CLI surface: a feature whose
+// status.json is unreadable must appear in `--json` output as an
+// error row, summary.error must increment, and exit code must be 2.
+// The bug at 19271f7 silently dropped such features, producing a
+// false-green exit 0 with the bad feature ABSENT from output.
+func TestVerifyAll_UnreadableStatusJSON_ExitsTwoAndIncludesFeature(t *testing.T) {
+	tmp := t.TempDir()
+	gitInitTestRepo(t, tmp)
+	if _, _, code := runCmd("init", "--path", tmp); code != 0 {
+		t.Fatalf("init: %d", code)
+	}
+	setupAppliedFeatureForVerifyAll(t, tmp, "good")
+	setupAppliedFeatureForVerifyAll(t, tmp, "bad")
+	// Corrupt bad's status.json — the external supervisor's exact repro.
+	badStatusPath := filepath.Join(tmp, ".tpatch", "features", "bad", "status.json")
+	if err := os.WriteFile(badStatusPath, []byte("{not valid json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, _, err := runVerifyAllForExitCode("--path", tmp, "--all", "--json")
+	if err == nil {
+		t.Fatalf("expected ExitCodeError, got nil; stdout=%q", stdout)
+	}
+	var ec *ExitCodeError
+	if !errors.As(err, &ec) {
+		t.Fatalf("expected *ExitCodeError, got %T: %v", err, err)
+	}
+	if ec.Code != 2 {
+		t.Errorf("unreadable status.json must exit 2; got %d", ec.Code)
+	}
+	var parsed map[string]any
+	if jerr := json.Unmarshal([]byte(stdout), &parsed); jerr != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", jerr, stdout)
+	}
+	feats, ok := parsed["features"].([]any)
+	if !ok {
+		t.Fatalf("features array missing")
+	}
+	if len(feats) != 2 {
+		t.Errorf("expected 2 features in aggregate, got %d (the bug omitted bad)", len(feats))
+	}
+	var sawBadAsError bool
+	for _, raw := range feats {
+		f, _ := raw.(map[string]any)
+		if f["slug"] == "bad" && f["status"] == "error" {
+			sawBadAsError = true
+		}
+	}
+	if !sawBadAsError {
+		t.Errorf("bad feature missing or not status=error in features array: %v", feats)
+	}
+	summary, _ := parsed["summary"].(map[string]any)
+	if v, _ := summary["error"].(float64); v != 1 {
+		t.Errorf("summary.error=%v want 1; full summary=%v", summary["error"], summary)
+	}
+}
+
 func TestVerifyAll_RejectsSlugArg(t *testing.T) {
 	tmp := t.TempDir()
 	gitInitTestRepo(t, tmp)

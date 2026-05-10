@@ -228,6 +228,72 @@ func (s *Store) ListFeatures() ([]FeatureStatus, error) {
 	return features, nil
 }
 
+// FeatureEntry pairs a slug with either a loaded status or a load error.
+// Used by ListFeatureEntries so aggregate operations can surface broken
+// features rather than silently skip them.
+type FeatureEntry struct {
+	Slug   string
+	Status *FeatureStatus // nil iff Err != nil
+	Err    error
+}
+
+// ListFeatureEntries returns every directory under features/ that
+// contains a status.json entry (file OR unreadable — e.g. directory in
+// place of file, permission denied, malformed JSON). Use this for
+// aggregate operations that must surface broken features rather than
+// silently skip them.
+//
+// Semantics (pinned by tests):
+//   - Directory under features/ with NO status.json entry at all is
+//     silently dropped — same treatment as a non-feature directory in
+//     today's ListFeatures(). The contract is "directories that look
+//     like features"; absence of status.json means it doesn't.
+//   - Directory under features/ with a status.json that is itself a
+//     directory (or otherwise unreadable) is surfaced as an error
+//     entry — its presence signals an attempt at a feature.
+//   - Successful loads sort lexicographically by slug; failed loads
+//     are interleaved by slug so the overall slice is fully lex-sorted
+//     for deterministic ordering.
+//
+// Existing ListFeatures() behavior is intentionally unchanged; other
+// call sites (FEATURES.md rendering, dependency walkers) rely on
+// silent skip-on-broken.
+func (s *Store) ListFeatureEntries() ([]FeatureEntry, error) {
+	entries, err := os.ReadDir(s.featuresDir())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	out := make([]FeatureEntry, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		slug := entry.Name()
+		statusPath := s.featureStatusPath(slug)
+		if _, statErr := os.Stat(statusPath); statErr != nil {
+			// No status.json entry at all → not a tracked feature
+			// from this helper's perspective. Drop silently.
+			continue
+		}
+		status, loadErr := s.LoadFeatureStatus(slug)
+		if loadErr != nil {
+			out = append(out, FeatureEntry{Slug: slug, Err: loadErr})
+			continue
+		}
+		st := status
+		out = append(out, FeatureEntry{Slug: slug, Status: &st})
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Slug < out[j].Slug
+	})
+	return out, nil
+}
+
 // LoadFeatureStatus reads the status.json for a feature.
 func (s *Store) LoadFeatureStatus(slug string) (FeatureStatus, error) {
 	data, err := os.ReadFile(s.featureStatusPath(slug))

@@ -117,7 +117,7 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 		return nil, fmt.Errorf("verify --all: nil store")
 	}
 
-	feats, err := s.ListFeatures()
+	feats, err := s.ListFeatureEntries()
 	if err != nil {
 		return nil, fmt.Errorf("verify --all: list features: %w", err)
 	}
@@ -134,11 +134,26 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 	// Build the dep graph using the SAME convention store.TopologicalOrder
 	// expects (child → parents). Dangling parents are tolerated by
 	// TopologicalOrder; a cycle returns an error and aborts the run.
+	//
+	// Features whose status.json is unreadable have unknown deps. We
+	// place them in the graph with an EMPTY dep list so they still
+	// participate in topological order (Kahn's lex tie-break makes
+	// position deterministic). The aggregate row is emitted with
+	// Status=error and RunVerify is NOT invoked. This guarantees the
+	// aggregate covers every tracked feature (PRD §9 / external
+	// supervisor revision-1: silent omission of unreadable features
+	// is a contract violation).
 	graph := make(map[string][]store.Dependency, len(feats))
 	stateBySlug := make(map[string]store.FeatureState, len(feats))
+	loadErrBySlug := make(map[string]error, len(feats))
 	for _, f := range feats {
-		graph[f.Slug] = f.DependsOn
-		stateBySlug[f.Slug] = f.State
+		if f.Err != nil {
+			graph[f.Slug] = nil
+			loadErrBySlug[f.Slug] = f.Err
+			continue
+		}
+		graph[f.Slug] = f.Status.DependsOn
+		stateBySlug[f.Slug] = f.Status.State
 	}
 
 	order, terr := store.TopologicalOrder(graph)
@@ -161,6 +176,19 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 	}
 
 	for _, slug := range order {
+		// Pre-flight load failure — surface as an error row WITHOUT
+		// dispatching RunVerify. Position is the topological slot
+		// computed above (deps treated as empty).
+		if loadErr, bad := loadErrBySlug[slug]; bad {
+			report.Features = append(report.Features, AggregateFeatureEntry{
+				Slug:   slug,
+				Status: AggregateStatusError,
+				Reason: fmt.Sprintf("failed to load status.json: %v", loadErr),
+			})
+			report.Summary.Error++
+			continue
+		}
+
 		state := stateBySlug[slug]
 
 		// Pre-apply gate — decided BEFORE V0 fires.
