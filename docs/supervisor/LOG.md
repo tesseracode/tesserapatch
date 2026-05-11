@@ -1,3 +1,38 @@
+## Review — M16-SLICE-3 — 2026-05-10
+
+**Reviewer**: sub-agent
+**Task**: M16 Slice 3 — feat-apply-default-execute + feat-skills-apply-auto-default (unified)
+**Commit reviewed**: eab2c3c
+
+### Checklist
+- [x] Code compiles: `go build ./cmd/tpatch` ok
+- [x] Tests pass: `go test ./...` all green (cached + assets re-run with `-count=1 -v`)
+- [x] Formatted: `gofmt -l .` empty
+- [x] CLI behavior matches SPEC: `internal/cli/cobra.go:586` still `String("mode", "auto", …)` — untouched in this commit
+- [x] Handoff file accurate (Files Changed list + preserved-mention grep matches reality)
+- [x] No regressions — pre-existing M15 W3 anchors (`Verify before composing.`, `tpatch verify --all`) still pass per `TestSkillParityGuard` subtests for all 6 surfaces
+- [x] Branch `main`, commit trailer present, working tree clean
+- [x] No v0.7-cluster paper docs touched
+
+### Verdict: APPROVED
+
+### Findings
+None.
+
+### Notes (layered-discovery probes)
+- **Preserve-vs-replace rule**: `grep -rn "apply --mode execute" assets/skills/ assets/prompts/ assets/workflows/` returns exactly 18 hits. Hand-inspected each: 6 in path-safety prose (`EnsureSafeRepoPath` aborts), 6 in the `created_by` bullet of "Recipe schema", 6 in the v0.6.0 hard-parent gate prose. All describe what the execute *phase* enforces, none are invocation recommendations. Distribution: claude SKILL.md ×3, copilot SKILL.md ×3, cursor.mdc ×3, windsurfrules ×3, copilot prompt ×3, generic workflow ×3 — uniform across surfaces.
+- **Simple invocation present in all 6 surfaces**: `grep "tpatch apply <slug>"` confirms — copilot SKILL.md:55, cursor.mdc:62, windsurfrules:56, claude SKILL.md:276+301, copilot prompt (via "Phase Ordering" + ladder fallback at line 131 with `<slug>`), generic workflow:66+157. Parity guard `TestSkillParityGuard` runs the new `apply-default-auto/simple-invocation` anchor against all 6 subtests — PASS for Claude, Copilot, Copilot_Prompt, Cursor, Windsurf, Generic.
+- **Anchor literal**: `assets/assets_test.go:74` uses `"tpatch apply <slug>"` (angle brackets, not square). Matches the literal byte sequence in the surfaces (verified by grep + passing test).
+- **Ladder still visible in all 6 surfaces**: `grep -l "mode started"` returns all 6 surface files. Phase Ordering tables retain the `OR tpatch apply --mode started / edit / --mode done → applied (advanced)` row — ladder is de-emphasized, not removed.
+- **`(advanced)` tagging consistency**: all 6 Phase Ordering tables use the same `(advanced)` literal at the end of the ladder row — uniform.
+- **Cobra default**: commit touches no `.go` files outside `assets/assets_test.go`. `internal/cli/cobra.go:586` still `String("mode", "auto", …)`.
+- **CHANGELOG quality**: v0.6.4 section sits above v0.6.3 ✓; uses `### Changed` for skill alignment + `### Added` for parity anchor + `### Notes` for behavior-unchanged disclaimer ✓; prose explicitly credits v0.6.0 as the release where `auto` was introduced ✓; date is `2026-05-10` ✓.
+
+### Action Taken
+Verdict written. Supervisor should: archive `CURRENT.md` to `HISTORY.md`, mark M16 Slice 3 complete in the milestone tracker, flip M16 status in `docs/ROADMAP.md`, tag v0.6.4, and pick the next ROADMAP task.
+
+---
+
 ## Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard) — 2026-05-10
 
 **Reviewer**: CO47 (broker-routed multi-agent cross-review; G55 + CO47 + OX47 each reviewed each other's PRDs)
