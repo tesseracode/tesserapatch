@@ -108,6 +108,82 @@ func TestValidatePatchReverse_EmptyPatch(t *testing.T) {
 	}
 }
 
+// TestValidatePatchReverse_MarkdownBlockquoteRoundtrip is the regression
+// test for bug-record-roundtrip-false-positive-markdown.
+//
+// Shape: HEAD has a small markdown file. Working tree adds a multi-paragraph
+// blockquote (`> [!CAUTION]` style) whose final added line ends in a trailing
+// space — a perfectly common pattern in markdown (deliberate soft-break, or
+// just an empty blockquote continuation `> `). The captured patch must
+// round-trip via `git apply --reverse --check` against that same working
+// tree.
+//
+// Pre-fix: CapturePatchScoped called strings.TrimSpace on the whole patch,
+// which ate the trailing space on the final `+> ` line, producing a patch
+// whose last hunk line was `+>`. ValidatePatchReverse then rejected it
+// (correctly — the patch no longer described the on-disk state) and tpatch
+// record emitted a misleading round-trip warning. The corrupted patch was
+// also persisted to disk under patches/NNN-record.patch.
+//
+// Post-fix: capture preserves trailing whitespace on content lines and only
+// normalizes the count of trailing newlines.
+func TestValidatePatchReverse_MarkdownBlockquoteRoundtrip(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+
+	// Commit a baseline README.
+	readme := filepath.Join(dir, "README.md")
+	if err := os.WriteFile(readme, []byte("# Project\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", "README.md"},
+		{"commit", "-q", "-m", "add readme"},
+	} {
+		c := exec.Command("git", args...)
+		c.Dir = dir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+
+	// Insert a multi-paragraph blockquote whose last body line is `> `
+	// (trailing space). Mimics the t3code v0.4.3 readme-copilot-notice
+	// smoke-test failure shape.
+	newContent := "# Project\n" +
+		"> [!CAUTION]\n" +
+		"> This project uses smart quotes — “like these”.\n" +
+		">\n" +
+		"> Multi-paragraph caution body that exercises both non-ASCII\n" +
+		"> codepoints and a final blockquote-continuation line whose\n" +
+		"> trailing space is semantically meaningful.\n" +
+		"> \n"
+	if err := os.WriteFile(readme, []byte(newContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	patch, err := CapturePatchScoped(dir, nil)
+	if err != nil {
+		t.Fatalf("CapturePatchScoped: %v", err)
+	}
+	if patch == "" {
+		t.Fatal("expected non-empty captured patch")
+	}
+	// Guard rail: the captured patch must still contain the trailing
+	// space on the final `+> ` line. Pre-fix this assertion failed.
+	if !strings.Contains(patch, "+> \n") {
+		t.Fatalf("captured patch lost trailing whitespace on blockquote line.\nPatch:\n%s", patch)
+	}
+	// Guard rail: a single trailing newline (no extras, no missing).
+	if !strings.HasSuffix(patch, "\n") || strings.HasSuffix(patch, "\n\n") {
+		t.Fatalf("captured patch must end with exactly one trailing newline; got %q at tail", patch[max(0, len(patch)-8):])
+	}
+
+	if err := ValidatePatchReverse(dir, patch); err != nil {
+		t.Fatalf("reverse-check should succeed for markdown blockquote round-trip, got: %v\nPatch:\n%s", err, patch)
+	}
+}
+
 // TestPreflightReconcile covers the four preflight conditions from A10
 // doc-reconcile-workflow. Clean tree → Clean() true. Modified tracked
 // file → UnstagedFiles populated. Untracked new file → UntrackedFiles.

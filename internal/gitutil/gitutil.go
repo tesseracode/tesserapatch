@@ -283,11 +283,7 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 		runGit(repoRoot, "reset", "--", file)
 	}
 
-	result := strings.TrimSpace(patch)
-	if result != "" {
-		result += "\n" // git patches must end with a newline
-	}
-	return result, nil
+	return normalizePatchTail(patch), nil
 }
 
 // CapturePatchFromCommits captures the diff between two commits, excluding tpatch artifacts.
@@ -330,11 +326,37 @@ func CapturePatchFromCommitsScoped(repoRoot, fromRef, toRef string, pathspecs []
 		}
 		return "", err
 	}
-	result := strings.TrimSpace(out)
-	if result != "" {
-		result += "\n" // git patches must end with a newline
+	return normalizePatchTail(out), nil
+}
+
+// normalizePatchTail returns patch with exactly one trailing newline,
+// or "" when the patch is effectively empty (only whitespace).
+//
+// Root cause of bug-record-roundtrip-false-positive-markdown: the
+// previous implementation called strings.TrimSpace on the whole patch
+// before re-appending a single "\n". TrimSpace strips ALL trailing
+// whitespace bytes, not just the trailing newline — so when the very
+// last line of a `git diff` ends with content that has trailing
+// whitespace (e.g. a markdown blockquote line `+> ` whose space after
+// `>` is a deliberate soft-break, or any added line ending in a space
+// or tab), the trailing space was eaten along with the final newline.
+// Re-appending "\n" then produced a patch whose final hunk line was
+// `+>` instead of `+> `, which no longer matches the on-disk file —
+// causing `git apply --reverse --check` to (correctly!) reject it as
+// "patch does not apply" and `tpatch record` to emit a misleading
+// "patch does not round-trip against working tree" warning. Worse,
+// the corrupted patch was also persisted to patches/NNN-record.patch
+// and would not replay cleanly later.
+//
+// The fix preserves every byte of every content line and only
+// normalizes the trailing newline count to exactly one. We still
+// collapse a wholly-whitespace capture to "" so the upstream
+// "0 bytes — nothing to record" diagnostic keeps firing.
+func normalizePatchTail(patch string) string {
+	if strings.TrimSpace(patch) == "" {
+		return ""
 	}
-	return result, nil
+	return strings.TrimRight(patch, "\n") + "\n"
 }
 
 // ValidatePatch runs `git apply --check` to verify a patch is well-formed and can be applied.

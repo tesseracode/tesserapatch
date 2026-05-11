@@ -2,6 +2,24 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.6.3 — unreleased — M16 (operator polish)
+
+### Fixed
+
+- **`tpatch record` no longer corrupts captured patches whose final
+  hunk line ends in trailing whitespace** (Slice 2 —
+  `bug-record-roundtrip-false-positive-markdown`). Markdown
+  blockquote inserts of the form `> [!CAUTION]` whose body terminated
+  in a `> ` continuation line (trailing space) had that space eaten
+  by an over-eager `strings.TrimSpace` in `gitutil.CapturePatchScoped`
+  / `CapturePatchFromCommitsScoped`. The corrupted patch then
+  (correctly) failed `git apply --reverse --check`, surfacing as a
+  misleading "patch does not round-trip against working tree" warning
+  in `tpatch record`. Worse, the corrupted patch was also persisted
+  to `patches/NNN-record.patch`. Capture now only normalizes the
+  trailing-newline count and preserves all content bytes, including
+  trailing whitespace on the final hunk line.
+
 ## v0.6.2 — 2026-05-10 — M15 Wave 3 (verify-freshness rollout complete)
 
 Final M15 release. Adds `tpatch verify` — a freshness-overlay verb
