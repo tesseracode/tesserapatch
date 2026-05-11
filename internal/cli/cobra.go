@@ -231,6 +231,13 @@ func statusCmd() *cobra.Command {
 				}
 			}
 
+			// feat-amend-dependent-warning (v0.7.0) — derive
+			// `dependent-broken` overlay alongside freshness. We
+			// compute once and reuse for both text and JSON paths
+			// below. A nil/empty map means no dependent reference is
+			// currently broken.
+			brokenByFeature, _ := store.CollectBrokenRefs(s)
+
 			// --dag short-circuits the dashboard render and emits the tree
 			// (or JSON) view directly.
 			if dagMode {
@@ -249,18 +256,36 @@ func statusCmd() *cobra.Command {
 				// Slice B (ADR-013 D5): per-feature, derive the
 				// freshness label at render time and emit it alongside
 				// the labels array + the persisted Verify sub-record.
+				type brokenRefJSON struct {
+					Kind    string `json:"kind"`
+					SHA     string `json:"sha"`
+					Feature string `json:"feature"`
+				}
 				type featureWithFreshness struct {
 					store.FeatureStatus
-					FreshnessLabel store.ReconcileLabel   `json:"freshness_label,omitempty"`
-					RenderedLabels []store.ReconcileLabel `json:"labels_rendered,omitempty"`
+					FreshnessLabel  store.ReconcileLabel   `json:"freshness_label,omitempty"`
+					RenderedLabels  []store.ReconcileLabel `json:"labels_rendered,omitempty"`
+					DependentBroken bool                   `json:"dependent_broken,omitempty"`
+					BrokenRefs      []brokenRefJSON        `json:"broken_refs,omitempty"`
 				}
 				rendered := make([]featureWithFreshness, len(features))
 				for i, f := range features {
 					fl := workflow.DeriveFreshnessLabel(s, f)
+					labels := mergedLabels(f, fl)
+					var brokenJSON []brokenRefJSON
+					if refs, ok := brokenByFeature[f.Slug]; ok && len(refs) > 0 {
+						labels = appendLabel(labels, store.LabelDependentBroken)
+						brokenJSON = make([]brokenRefJSON, len(refs))
+						for j, r := range refs {
+							brokenJSON[j] = brokenRefJSON{Kind: r.Kind, SHA: r.SHA, Feature: r.Feature}
+						}
+					}
 					rendered[i] = featureWithFreshness{
-						FeatureStatus:  f,
-						FreshnessLabel: fl,
-						RenderedLabels: mergedLabels(f, fl),
+						FeatureStatus:   f,
+						FreshnessLabel:  fl,
+						RenderedLabels:  labels,
+						DependentBroken: len(brokenJSON) > 0,
+						BrokenRefs:      brokenJSON,
 					}
 				}
 				payload := map[string]any{
@@ -296,6 +321,9 @@ func statusCmd() *cobra.Command {
 			for _, f := range features {
 				freshness := workflow.DeriveFreshnessLabel(s, f)
 				labels := mergedLabels(f, freshness)
+				if refs, ok := brokenByFeature[f.Slug]; ok && len(refs) > 0 {
+					labels = appendLabel(labels, store.LabelDependentBroken)
+				}
 				line := fmt.Sprintf("  - %s [%s] %s", f.Slug, f.State, f.Title)
 				if len(labels) > 0 {
 					strs := make([]string, len(labels))
@@ -305,6 +333,23 @@ func statusCmd() *cobra.Command {
 					line += " (" + strings.Join(strs, ", ") + ")"
 				}
 				fmt.Fprintln(out, line)
+			}
+			// feat-amend-dependent-warning (v0.7.0) — emit one
+			// diagnostic line per affected feature listing the abbrev
+			// SHA(s) that broke, then a single recovery hint.
+			if len(brokenByFeature) > 0 {
+				slugs := make([]string, 0, len(brokenByFeature))
+				for slug := range brokenByFeature {
+					slugs = append(slugs, slug)
+				}
+				sortStringsAsc(slugs)
+				for _, slug := range slugs {
+					for _, r := range brokenByFeature[slug] {
+						fmt.Fprintf(out, "dependent-broken: feature %q references SHA %s which is no longer reachable (likely amend / rebase upstream)\n",
+							slug, abbrevSHA(r.SHA))
+					}
+				}
+				fmt.Fprintln(out, "hint: re-record affected feature(s) on the new base, or run 'tpatch reconcile' to attempt automatic re-anchor.")
 			}
 			if featureSlug != "" || verbose {
 				slugs := []string{}
@@ -815,6 +860,26 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 				return err
 			}
 
+			// feat-amend-dependent-warning (v0.7.0) — if the user is
+			// recording on top of an amended commit AND the rewritten
+			// SHA was referenced by a downstream feature
+			// (satisfied_by or base_commit), abort by default. The
+			// detection signal is "HEAD@{1}'s parent equals HEAD's
+			// parent" — classic `git commit --amend` shape. A missing
+			// reflog (fresh clone, etc.) is a non-error: we silently
+			// skip the gate rather than block on missing signal.
+			forceAmend, _ := cmd.Flags().GetBool("force-amend")
+			if orphans, prevHead, ok := detectAmendOrphans(s); ok && len(orphans) > 0 {
+				slugs := uniqueOrphanSlugs(orphans)
+				if !forceAmend {
+					return fmt.Errorf("record refuses: this amend would orphan downstream feature(s) [%s]. Their satisfied_by/base_commit references would dangle (rewritten SHA: %s). Use --force-amend to proceed (you take responsibility for re-recording downstream features)",
+						strings.Join(slugs, ", "), abbrevSHA(prevHead))
+				}
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"warning: --force-amend: amend orphans downstream feature(s) [%s] (rewritten SHA: %s). Re-record those features on the new base or run 'tpatch reconcile'.\n",
+					strings.Join(slugs, ", "), abbrevSHA(prevHead))
+			}
+
 			fromRef, _ := cmd.Flags().GetString("from")
 			toRef, _ := cmd.Flags().GetString("to")
 			commitRange, _ := cmd.Flags().GetString("commit-range")
@@ -1000,7 +1065,71 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 	cmd.Flags().Bool("no-recipe-autogen", false, "Disable deriving apply-recipe.json from the captured patch when none exists")
 	cmd.Flags().Bool("regenerate-recipe", false, "Overwrite an existing apply-recipe.json with one derived from the captured patch")
 	cmd.Flags().String("files", "", "Comma-separated git pathspecs to scope the capture to (e.g. 'src/auth/,docs/auth.md'); default captures the full working tree")
+	cmd.Flags().Bool("force-amend", false, "Bypass the dependent-orphan gate when recording on top of an amended commit (you take responsibility for re-recording downstream features)")
 	return cmd
+}
+
+// detectAmendOrphans inspects the reflog to decide whether the current
+// HEAD looks like the result of `git commit --amend` (or a one-commit
+// rebase that replaced a single commit on top of the same parent), and
+// if so, returns the FeatureRefs that would be orphaned by the rewrite.
+//
+// Detection signal: HEAD@{1}'s parent equals HEAD's parent. That is
+// the byte-for-byte shape of a classic `git commit --amend` —
+// new HEAD replaces old HEAD on top of the same parent commit.
+//
+// The third return value is `false` when the gate cannot run (no
+// reflog, single root commit, git failure, etc.). Callers should
+// treat that as "skip the gate" rather than block — missing signal is
+// not the same as "no orphans".
+func detectAmendOrphans(s *store.Store) (orphans []store.FeatureRef, prevHead string, ok bool) {
+	prev, err := gitutil.RevParse(s.Root, "HEAD@{1}")
+	if err != nil || prev == "" {
+		return nil, "", false
+	}
+	prevParent, err := gitutil.RevParse(s.Root, "HEAD@{1}^")
+	if err != nil || prevParent == "" {
+		return nil, "", false
+	}
+	headParent, err := gitutil.RevParse(s.Root, "HEAD^")
+	if err != nil || headParent == "" {
+		return nil, "", false
+	}
+	if prevParent != headParent {
+		// Not an amend shape — the user moved more than one commit
+		// (rebase across multiple commits, merge, branch switch, …).
+		return nil, "", true
+	}
+	curHead, err := gitutil.RevParse(s.Root, "HEAD")
+	if err != nil || curHead == "" {
+		return nil, "", false
+	}
+	if curHead == prev {
+		// HEAD did not actually move — nothing was amended away.
+		return nil, "", true
+	}
+	deps, derr := store.CollectDependentSHAs(s)
+	if derr != nil {
+		return nil, "", false
+	}
+	return store.IsAmendBreaking(prev, deps), prev, true
+}
+
+// uniqueOrphanSlugs returns the de-duplicated, sorted feature slugs
+// from the orphan list. Used to format the user-facing error message
+// emitted by the v0.7.0 record amend gate.
+func uniqueOrphanSlugs(refs []store.FeatureRef) []string {
+	seen := make(map[string]struct{}, len(refs))
+	out := make([]string, 0, len(refs))
+	for _, r := range refs {
+		if _, ok := seen[r.Feature]; ok {
+			continue
+		}
+		seen[r.Feature] = struct{}{}
+		out = append(out, r.Feature)
+	}
+	sortStringsAsc(out)
+	return out
 }
 
 func countPatchFiles(patch string) int {

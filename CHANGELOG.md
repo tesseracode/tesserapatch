@@ -2,6 +2,41 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.7.0 — 2026-05-10 — feat-amend-dependent-warning
+
+Continuation of M15 W3 freshness overlay. Adds detection + warning for the
+classic failure mode where `git commit --amend` (or `git rebase`) on a commit
+referenced by a downstream feature's `satisfied_by` or `base_commit` silently
+orphans the dependent feature.
+
+### Added
+
+- **`tpatch status` — `dependent-broken` derived label.** Walks every active
+  feature.yaml, collects every `apply.base_commit` and
+  `dependencies[].satisfied_by` SHA, and checks reachability via
+  `git merge-base --is-ancestor`. Composable with M15 W3 freshness labels per
+  ADR-013. JSON output adds `"dependent_broken": true` plus
+  `"broken_refs": [{"kind","sha","feature"}]` per affected feature.
+- **`tpatch record --force-amend` flag.** When `tpatch record` detects an
+  amend shape (current HEAD's parent equals reflog `HEAD@{1}`'s parent), it
+  checks whether the amended-away SHA is referenced by any downstream feature
+  and aborts by default with a clear error listing the orphaned features.
+  `--force-amend` bypasses the gate (with a warning still printed to stderr).
+- **6 skill surfaces** updated with a troubleshooting note for the
+  `dependent-broken` label. New parity-guard anchor
+  `dependent-broken/troubleshoot-line` locks the surfaces to the message.
+
+### Implementation notes
+
+- New `internal/store/dependents.go` houses `CollectDependentSHAs`,
+  `IsAmendBreaking`, and `CollectBrokenRefs`; reused by both `status` and
+  `record`.
+- New `internal/gitutil/RevParse` wraps `git rev-parse --verify --quiet` so
+  the record amend gate can probe `HEAD@{1}` without erroring on a missing
+  reflog (fresh clone, single-commit history, …).
+- 5 new tests cover record-refusal, `--force-amend` bypass, status label
+  emission (text + JSON), and the broken-base-commit edge case.
+
 ## v0.6.4 — 2026-05-10 — M16 (operator polish, completion)
 
 Final M16 release. Closes Slice 3 of the operator-polish bundle by

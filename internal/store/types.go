@@ -109,6 +109,14 @@ const (
 	// per ADR-013 D3 may also clear `Passed` to surface invalidation
 	// at write time.
 	LabelVerifyFailed ReconcileLabel = "verify-failed"
+
+	// LabelDependentBroken — `feat-amend-dependent-warning` (v0.7.0).
+	// Composable, derived overlay (NOT persisted). Set on any feature
+	// whose own `apply.base_commit` or whose `dependencies[].satisfied_by`
+	// SHA is no longer reachable from HEAD (likely an upstream amend
+	// or rebase rewrote the commit history). Composes with the four
+	// freshness labels above per ADR-013.
+	LabelDependentBroken ReconcileLabel = "dependent-broken"
 )
 
 // DefaultMaxTokensImplement is the fallback budget for the implement-phase

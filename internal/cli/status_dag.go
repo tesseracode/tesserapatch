@@ -461,3 +461,33 @@ func writeDAGJSON(
 func wireStatusDagFlag(cmd *cobra.Command) {
 	cmd.Flags().Bool("dag", false, "Render the feature dependency DAG (ASCII tree)")
 }
+
+// appendLabel appends `label` to `labels` if not already present and
+// returns the result, preserving alphabetical sort order. Used to
+// compose the v0.7.0 dependent-broken overlay onto an already-sorted
+// label slice produced by mergedLabels.
+func appendLabel(labels []store.ReconcileLabel, label store.ReconcileLabel) []store.ReconcileLabel {
+	for _, l := range labels {
+		if l == label {
+			return labels
+		}
+	}
+	out := append(labels, label)
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// sortStringsAsc sorts in place. Wrapper kept local so the dependent-
+// broken status emission stays self-contained without pulling sort
+// into cobra.go's import set.
+func sortStringsAsc(s []string) { sort.Strings(s) }
+
+// abbrevSHA returns the first 7 characters of `sha` (git's default
+// short form), or `sha` itself if shorter. Used for the
+// dependent-broken status line.
+func abbrevSHA(sha string) string {
+	if len(sha) <= 7 {
+		return sha
+	}
+	return sha[:7]
+}

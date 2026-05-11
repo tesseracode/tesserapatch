@@ -72,6 +72,8 @@ analyse → define → explore → implement → test → record → reconcile
 
 Run `tpatch verify --all` to walk every tracked feature in topological order; pre-apply features are reported with a `skipped: pre-apply` row at their topo position. Non-zero exit if any feature failed.
 
+If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA is no longer reachable — re-record affected features on the new base or run `tpatch reconcile`.
+
 ## Data Model
 
 Features are tracked in `.tpatch/features/<slug>/` with `status.json`, `request.md`, `analysis.md`, `spec.md`, and `artifacts/`.

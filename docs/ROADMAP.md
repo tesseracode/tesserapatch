@@ -328,7 +328,7 @@ keep the freshness UX contiguous. Tracked as `feat-amend-dependent-warning`
 in SQL todos. Brief to be drafted in CURRENT.md when the implementer is
 dispatched.
 
-## M15+ — Future
+## M18+ — Future
 
 - Cost tracking and token budgeting
 - Multi-repo orchestration

@@ -743,6 +743,32 @@ func IsAncestor(repoRoot, ancestor, descendant string) (bool, error) {
 	return false, err
 }
 
+// RevParse resolves `ref` to a 40-character commit SHA via
+// `git rev-parse <ref>`. Returns ("", nil) on a clean exit-128 (ref
+// does not exist — typical for `HEAD@{1}` on a fresh clone with no
+// reflog), and an error on any other git failure. The empty-string
+// "missing ref" path is exposed because some callers
+// (feat-amend-dependent-warning record gate, v0.7.0) treat a missing
+// reflog as "skip the gate" rather than a hard error.
+func RevParse(repoRoot, ref string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--verify", "--quiet", ref)
+	cmd.Dir = repoRoot
+	out, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		// `--verify --quiet` returns exit 1 when the ref does not
+		// exist. Treat that as "missing" rather than an error so
+		// callers can branch on "no signal available".
+		if exitErr.ExitCode() == 1 {
+			return "", nil
+		}
+		return "", fmt.Errorf("git rev-parse %s: %s", ref, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return "", err
+}
+
 // MergeBase returns the merge-base (common ancestor) of two commits.
 // Used as the "base" side of the three-way reconciliation triple. If
 // no common ancestor exists (disjoint histories), the returned commit

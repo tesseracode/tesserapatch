@@ -62,6 +62,14 @@ var requiredAnchors = []struct {
 	// or paraphrased.
 	{"verify-freshness/bullet", "Verify before composing."},
 	{"verify-freshness/all-mode", "tpatch verify --all"},
+	// feat-amend-dependent-warning (v0.7.0): every shipped skill
+	// surface must mention the new `dependent-broken` derived label
+	// so harness agents know what to do when `tpatch status` flags a
+	// downstream feature whose base SHA was rewritten away by an
+	// upstream amend or rebase. Substring match on the label name is
+	// sufficient — the string is unique to this troubleshooting
+	// bullet across all six surfaces.
+	{"dependent-broken/troubleshoot-line", "dependent-broken"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching
