@@ -260,6 +260,52 @@ the data-bug fix immediately rather than wait for Slice 3.
   surfaces and tightened anchor to a regex; external pass
   2026-05-10).
 
+## M17 — v0.7 boundary-capture cluster ⬜
+
+Multi-agent paper-design cluster accepted in `docs/supervisor/LOG.md` →
+"Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard) —
+**2026-05-10**". Sliced into Wave A / Wave B / Wave C mirroring the
+sequencing recorded in that entry. Owners deliberately left **TBD** —
+implementation owner assignment is a pending supervisor decision (see
+the routing entry at the top of `docs/supervisor/LOG.md`). Ships as
+**v0.7.0** assuming the user picks cluster-first ordering; ordering vs
+`feat-amend-dependent-warning` remains a pending supervisor decision.
+
+- **Wave A — independent, parallel** ⬜
+  - **Slice A1 — `impl-record-auto-base`** ⬜
+    - PRD: [`docs/prds/PRD-record-auto-base.md`](prds/PRD-record-auto-base.md)
+    - ADR placeholder: [ADR-016](adrs/ADR-016-record-auto-base-resolution.md)
+    - Owner: TBD (pending supervisor decision)
+    - Wave A also writes the shared `internal/store/upstream_lock.go`
+      parser; whichever Wave A slice ships first owns it, the other
+      consumes by import.
+  - **Slice A2 — `impl-reconcile-lock-guard` + writer-normalization fix** ⬜
+    - PRD: [`docs/prds/PRD-reconcile-lock-guard.md`](prds/PRD-reconcile-lock-guard.md)
+    - ADR placeholder: [ADR-017](adrs/ADR-017-reconcile-lock-guard-and-writer-normalization.md)
+    - Owner: TBD (pending supervisor decision)
+    - Bundles the HIGH-severity writer-normalization fix at
+      `internal/workflow/reconcile.go` (`updateUpstreamLock()`,
+      lines 595–605 at routing time) per `PRD-reconcile-lock-guard §5.3`.
+      Not a standalone task.
+- **Wave B — depends on Wave A (auto-base)** ⬜
+  - **Slice B — `impl-record-collision-detection`** ⬜
+    - PRD: [`docs/prds/PRD-record-collision-detection.md`](prds/PRD-record-collision-detection.md)
+    - ADR placeholder: [ADR-018](adrs/ADR-018-record-collision-detection-signature.md)
+    - Owner: TBD (pending supervisor decision)
+    - Recovery hints depend on `record --auto` being available, hence
+      Wave B placement after Wave A.
+- **Wave C — depends on Wave A + Wave B** ⬜
+  - **Slice C — `impl-tpatch-land`** ⬜
+    - PRD: [`docs/prds/PRD-tpatch-land.md`](prds/PRD-tpatch-land.md)
+    - ADR placeholder: [ADR-019](adrs/ADR-019-tpatch-land-trailer-block-schema.md)
+    - Owner: TBD (pending supervisor decision)
+    - Gated on both Wave A guardrails shipping per
+      `PRD-tpatch-land §0.1`.
+
+Post-cluster note: ship as **v0.7.0**. Ordering vs
+`feat-amend-dependent-warning` (the M15 W3 freshness continuation) is a
+pending supervisor decision tracked in the routing entry.
+
 ## M15+ — Future
 
 - Cost tracking and token budgeting

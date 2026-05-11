@@ -83,3 +83,54 @@ After this routing pass: bring `v0.7-cluster-decide-vs-amend-dependent` to the u
 ## Blockers
 
 None.
+
+## v0.7 Cluster — Queued
+
+Routing pass output (paper-only; awaiting reviewer + supervisor sign-off).
+
+### ADR placeholders created
+
+- `docs/adrs/ADR-016-record-auto-base-resolution.md`
+- `docs/adrs/ADR-017-reconcile-lock-guard-and-writer-normalization.md`
+- `docs/adrs/ADR-018-record-collision-detection-signature.md`
+- `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`
+
+Each is Status=Draft (placeholder), Owner=TBD, body deferred to
+implementation time per ADR-011 precedent.
+
+### Roadmap
+
+**M17 — v0.7 boundary-capture cluster ⬜** slugged in `docs/ROADMAP.md`
+between M16 (✅) and `## M15+ — Future`. Wave A (parallel: A1 auto-base,
+A2 lock-guard + writer-normalization fix), Wave B (collision-detection,
+depends on A1), Wave C (`tpatch land`, depends on Wave A + Wave B).
+Owners left TBD.
+
+### Pending supervisor decisions (3)
+
+1. `PRD-patch-already-upstream-detector.md` placement (keep / move to
+   deferred-research / reject). Not moved by this pass.
+2. Implementation owner assignment for the four v0.7 PRDs.
+3. Codify WP-001 §3.5 claims-audit-table convention in `AGENTS.md` /
+   `docs/whitepapers/README.md`, or leave as informal precedent.
+
+### Implementation task IDs
+
+See SQL `todos` table — `impl-record-auto-base`,
+`impl-reconcile-lock-guard`, `impl-record-collision-detection`,
+`impl-tpatch-land`, plus the four `adr-*` and three `decision-*`
+siblings (already queued in an earlier session; this pass did not
+re-insert). Wave dependencies live in `todo_deps`.
+
+### HIGH bug status
+
+`internal/workflow/reconcile.go` `updateUpstreamLock()` (lines 595–605;
+`branch: %s` at line 599) — **verified present at HEAD**. Bundles into
+Wave A Slice A2 per `PRD-reconcile-lock-guard §5.3`. Not fixed
+standalone.
+
+### Next step
+
+**Implementer dispatch awaits supervisor owner-assignment decision.**
+The routing entry at the top of `docs/supervisor/LOG.md` surfaces all
+three pending decisions for the supervisor.

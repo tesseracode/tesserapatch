@@ -1,3 +1,93 @@
+## Queue — v0.7 Cluster Routing — 2026-05-10
+
+**This is a routing/queue entry, not a review verdict.** It records the
+paper-only routing pass that closes the queueing requested by the
+broker-routed multi-agent v0.7 cluster acceptance entry below
+(`Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard)
+— 2026-05-10`). No code changed; no PRDs edited; ADR bodies deferred to
+implementation time per ADR-011 precedent.
+
+### ADR placeholders opened
+
+| ADR | Source PRD | Locks in |
+|---|---|---|
+| [ADR-016](../adrs/ADR-016-record-auto-base-resolution.md) | `PRD-record-auto-base.md` §3.2 | `record --auto` baseline-inference algorithm |
+| [ADR-017](../adrs/ADR-017-reconcile-lock-guard-and-writer-normalization.md) | `PRD-reconcile-lock-guard.md` §3.1, §3.2, §5.3 | Lock-state taxonomy + `--allow-stale-lock` + writer-normalization mandate |
+| [ADR-018](../adrs/ADR-018-record-collision-detection-signature.md) | `PRD-record-collision-detection.md` §3.1 | Collision refuse-by-default + `--allow-collision` + byte-identity v1 |
+| [ADR-019](../adrs/ADR-019-tpatch-land-trailer-block-schema.md) | `PRD-tpatch-land.md` §3.4, §3.6 | Trailer-block schema (four + additive `Tpatch-CVE`); `Tpatch-Feature` as sole feature↔commit binding; no `apply.base_commit` overwrite |
+
+Each placeholder contains only Status, Owner (TBD), Locks-in summary,
+Source PRD pointer, and the section list to write at implementation
+time. Bodies are explicitly deferred until each PRD's implementer picks
+it up, per ADR-011 precedent.
+
+### Milestone slugged
+
+**M17 — v0.7 boundary-capture cluster ⬜** added to `docs/ROADMAP.md`
+between M16 (✅) and `## M15+ — Future`. Sliced into Wave A (parallel:
+A1 `impl-record-auto-base`, A2 `impl-reconcile-lock-guard` +
+writer-normalization fix), Wave B (`impl-record-collision-detection`,
+depends on A1), Wave C (`impl-tpatch-land`, depends on Wave A + Wave B).
+Owners deliberately left **TBD**.
+
+### Tasks queued (SQL `todos` table; already inserted in earlier session — not re-inserted)
+
+- `impl-record-auto-base`
+- `impl-reconcile-lock-guard`
+- `impl-record-collision-detection`
+- `impl-tpatch-land`
+- ADR siblings: `adr-record-auto-base-algorithm`, `adr-reconcile-lock-state-taxonomy`, `adr-record-collision-policy`, `adr-land-trailer-schema`
+- Decision siblings: `decision-detector-prd-placement`, `decision-cluster-implementation-owners`, `decision-claims-audit-convention`
+
+Wave dependencies tracked in `todo_deps`.
+
+### HIGH bug status
+
+**Verified present at HEAD** in `internal/workflow/reconcile.go`:
+`updateUpstreamLock()` spans lines 595–605; the `branch: %s` format
+specifier sits at line 599 and is interpolated with the `ref` argument,
+which the call site at line 148 supplies as a full `<remote>/<branch>`
+string (e.g. `upstream/main`). Result: a written lock with
+`remote: upstream` + `branch: upstream/main`, exactly matching the
+finding in the v0.7 cluster acceptance entry below. **Not fixed
+standalone in this routing pass.** Per `PRD-reconcile-lock-guard §5.3`
+and ADR-017's source mandate, this fix bundles into Wave A Slice A2 —
+treat as a prerequisite of the lock-guard implementation, not a
+separate task.
+
+### Pending supervisor decisions (3)
+
+1. **`PRD-patch-already-upstream-detector.md` placement** — currently in
+   `docs/prds/`. Options: keep as accepted-exploratory (CO47
+   recommendation in the cluster acceptance entry), move to a
+   deferred-research location, or reject. **Not moved by this routing
+   pass.**
+2. **Implementation owner assignment for the four v0.7 PRDs** — choices
+   include CO47, G55, OX47, a fresh sub-agent dispatch, or human. M17
+   slice rows leave Owner as `TBD (pending supervisor decision)`.
+3. **AGENTS.md / `docs/whitepapers/README.md` update** — codify the
+   claims-audit-table convention from WP-001 §3.5 (adopted across all
+   four cluster PRDs) as a documented PRD authoring rule, or leave it
+   as informal precedent.
+
+### Drift noted vs cluster acceptance entry
+
+- No new PRDs have appeared in `docs/prds/` since 2026-05-10 beyond the
+  set the acceptance entry already covers (the four cluster PRDs +
+  `PRD-patch-already-upstream-detector.md` + `PRD-tpatch-hotfix.md`).
+- HIGH bug locus matches the acceptance entry's quoted range
+  (595–605); no independent fix has landed.
+- No movement of `PRD-patch-already-upstream-detector.md`.
+
+### Status
+
+Routing complete. **Awaiting supervisor decision before any Wave A
+implementer dispatch.** This routing pass closes the queueing requested
+by the broker-routed multi-agent v0.7 cluster acceptance entry directly
+below.
+
+---
+
 ## Review — M16-SLICE-3-REV1 — 2026-05-10
 
 **Reviewer**: sub-agent
