@@ -33,16 +33,31 @@ import (
 )
 
 // dagJSONNode is the per-feature record emitted by `status --dag --json`.
+//
+// `DependentBroken` + `BrokenRefs` mirror the non-DAG `--json` shape
+// emitted by statusCmd in cobra.go (feat-amend-dependent-warning rev-1).
+// Field names, casing, and `omitempty` semantics are intentionally
+// identical so a consumer can union-parse either payload.
 type dagJSONNode struct {
-	Slug           string                 `json:"slug"`
-	State          store.FeatureState     `json:"state"`
-	Outcome        string                 `json:"outcome,omitempty"`
-	Effective      string                 `json:"effective_outcome,omitempty"`
-	Labels         []store.ReconcileLabel `json:"labels,omitempty"`
-	FreshnessLabel store.ReconcileLabel   `json:"freshness_label,omitempty"`
-	Verify         *store.VerifyRecord    `json:"verify,omitempty"`
-	DependsOn      []dagJSONEdge          `json:"depends_on,omitempty"`
-	Dependents     []dagJSONEdge          `json:"dependents,omitempty"`
+	Slug            string                 `json:"slug"`
+	State           store.FeatureState     `json:"state"`
+	Outcome         string                 `json:"outcome,omitempty"`
+	Effective       string                 `json:"effective_outcome,omitempty"`
+	Labels          []store.ReconcileLabel `json:"labels,omitempty"`
+	FreshnessLabel  store.ReconcileLabel   `json:"freshness_label,omitempty"`
+	Verify          *store.VerifyRecord    `json:"verify,omitempty"`
+	DependsOn       []dagJSONEdge          `json:"depends_on,omitempty"`
+	Dependents      []dagJSONEdge          `json:"dependents,omitempty"`
+	DependentBroken bool                   `json:"dependent_broken,omitempty"`
+	BrokenRefs      []dagJSONBrokenRef     `json:"broken_refs,omitempty"`
+}
+
+// dagJSONBrokenRef mirrors the per-ref record in the non-DAG `--json`
+// payload (cobra.go's anonymous `brokenRefJSON` struct).
+type dagJSONBrokenRef struct {
+	Kind    string `json:"kind"`
+	SHA     string `json:"sha"`
+	Feature string `json:"feature"`
 }
 
 type dagJSONEdge struct {
@@ -70,7 +85,13 @@ type dagJSONPayload struct {
 // runStatusDAG is the entry point invoked from statusCmd when --dag is set.
 // scopeSlug "" means "render whole DAG"; non-empty narrows to that feature
 // plus its full transitive parent and child sets.
-func runStatusDAG(out io.Writer, s *store.Store, scopeSlug string, asJSON bool) error {
+//
+// `brokenByFeature` is the precomputed broken-refs map from
+// store.CollectBrokenRefs (feat-amend-dependent-warning rev-1). The
+// caller is responsible for collecting it once per CLI invocation;
+// renderers must NOT recompute it (single source of truth). Pass nil
+// when no broken-refs overlay is desired (e.g. tests).
+func runStatusDAG(out io.Writer, s *store.Store, scopeSlug string, asJSON bool, brokenByFeature map[string][]store.FeatureRef) error {
 	features, err := s.ListFeatures()
 	if err != nil {
 		return err
@@ -93,9 +114,9 @@ func runStatusDAG(out io.Writer, s *store.Store, scopeSlug string, asJSON bool) 
 	scoped := scopeSet(graph, scopeSlug)
 
 	if asJSON {
-		return writeDAGJSON(out, s, features, byslug, graph, scoped, scopeSlug, cyc)
+		return writeDAGJSON(out, s, features, byslug, graph, scoped, scopeSlug, cyc, brokenByFeature)
 	}
-	return writeDAGTree(out, s, features, byslug, graph, scoped, scopeSlug, cyc)
+	return writeDAGTree(out, s, features, byslug, graph, scoped, scopeSlug, cyc, brokenByFeature)
 }
 
 // scopeSet returns the slug set to render. When scopeSlug == "" it
@@ -163,6 +184,7 @@ func writeDAGTree(
 	scoped map[string]struct{},
 	scopeSlug string,
 	cycle []string,
+	brokenByFeature map[string][]store.FeatureRef,
 ) error {
 	if scopeSlug != "" {
 		fmt.Fprintf(out, "DAG (scope: %s)\n", scopeSlug)
@@ -199,7 +221,7 @@ func writeDAGTree(
 		}
 		sort.Strings(slugs)
 		for _, sl := range slugs {
-			fmt.Fprintf(out, "  - %s\n", renderNodeLine(s, byslug[sl]))
+			fmt.Fprintf(out, "  - %s\n", renderNodeLine(s, byslug[sl], brokenByFeature[sl]))
 		}
 		return nil
 	}
@@ -222,7 +244,7 @@ func writeDAGTree(
 
 	visited := make(map[string]struct{}, len(features))
 	for _, root := range roots {
-		walkTree(out, s, byslug, children, scoped, visited, root, "", "", true)
+		walkTree(out, s, byslug, children, scoped, visited, root, "", "", true, brokenByFeature)
 	}
 
 	// Surface unreached in-scope slugs (e.g. orphan children of out-of-
@@ -241,7 +263,7 @@ func writeDAGTree(
 		fmt.Fprintln(out, "")
 		fmt.Fprintln(out, "Orphans (parents out of scope):")
 		for _, o := range orphans {
-			fmt.Fprintf(out, "  - %s\n", renderNodeLine(s, byslug[o]))
+			fmt.Fprintf(out, "  - %s\n", renderNodeLine(s, byslug[o], brokenByFeature[o]))
 		}
 	}
 	return nil
@@ -284,6 +306,7 @@ func walkTree(
 	visited map[string]struct{},
 	slug, prefix, connector string,
 	last bool,
+	brokenByFeature map[string][]store.FeatureRef,
 ) {
 	st, ok := byslug[slug]
 	if !ok {
@@ -296,7 +319,7 @@ func walkTree(
 	}
 	visited[slug] = struct{}{}
 
-	fmt.Fprintf(out, "%s%s%s\n", prefix, connector, renderNodeLine(s, st))
+	fmt.Fprintf(out, "%s%s%s\n", prefix, connector, renderNodeLine(s, st, brokenByFeature[slug]))
 
 	kids := children[slug]
 	// Determine in-scope kids and preserve order.
@@ -321,7 +344,7 @@ func walkTree(
 		if k.kind == store.DependencyKindSoft {
 			arrow = "┄► "
 		}
-		walkTree(out, s, byslug, children, scoped, visited, k.slug, childPrefix, branch+arrow, isLast)
+		walkTree(out, s, byslug, children, scoped, visited, k.slug, childPrefix, branch+arrow, isLast, brokenByFeature)
 	}
 	_ = last
 }
@@ -330,23 +353,34 @@ func walkTree(
 // The `s` parameter is used to derive the read-time freshness label
 // (Slice B / ADR-013 D5). Pass nil to skip freshness derivation (e.g.
 // in tests that don't care about the freshness overlay).
-func renderNodeLine(s *store.Store, st store.FeatureStatus) string {
+//
+// `brokenRefs` is the slice of broken FeatureRefs for this feature (or
+// nil/empty if none). When non-empty, the LabelDependentBroken overlay
+// is composed onto the rendered label set
+// (feat-amend-dependent-warning rev-1).
+func renderNodeLine(s *store.Store, st store.FeatureStatus, brokenRefs []store.FeatureRef) string {
 	var freshness store.ReconcileLabel
 	if s != nil {
 		freshness = workflow.DeriveFreshnessLabel(s, st)
 	}
-	return renderNodeLineWithFreshness(st, freshness)
+	return renderNodeLineWithFreshness(st, freshness, brokenRefs)
 }
 
 // renderNodeLineWithFreshness is the freshness-aware variant. Callers
 // that have a *store.Store available pass the derived freshness label
 // in; callers without one pass "".
-func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.ReconcileLabel) string {
+//
+// `brokenRefs` overlays the dependent-broken label when non-empty
+// (feat-amend-dependent-warning rev-1). nil is safe.
+func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.ReconcileLabel, brokenRefs []store.FeatureRef) string {
 	out := fmt.Sprintf("%s [%s]", st.Slug, st.State)
 	if eff := st.Reconcile.EffectiveOutcome(); eff != "" {
 		out += " " + eff
 	}
 	labels := mergedLabels(st, freshness)
+	if len(brokenRefs) > 0 {
+		labels = appendLabel(labels, store.LabelDependentBroken)
+	}
 	if len(labels) > 0 {
 		strs := make([]string, len(labels))
 		for i, l := range labels {
@@ -383,6 +417,11 @@ func mergedLabels(st store.FeatureStatus, freshness store.ReconcileLabel) []stor
 }
 
 // writeDAGJSON renders the JSON shape consumed by harnesses and tests.
+//
+// `brokenByFeature` is the precomputed broken-refs map. When a slug
+// appears in the map, the emitted node carries `dependent_broken: true`
+// and a `broken_refs` array shaped identically to the non-DAG `--json`
+// payload (feat-amend-dependent-warning rev-1).
 func writeDAGJSON(
 	out io.Writer,
 	s *store.Store,
@@ -392,6 +431,7 @@ func writeDAGJSON(
 	scoped map[string]struct{},
 	scopeSlug string,
 	cycle []string,
+	brokenByFeature map[string][]store.FeatureRef,
 ) error {
 	scope := "all"
 	if scopeSlug != "" {
@@ -420,14 +460,25 @@ func writeDAGJSON(
 		// time and merge it into the labels array. Persisted
 		// Reconcile.Labels carries only M14.3 entries.
 		freshness := workflow.DeriveFreshnessLabel(s, f)
+		labels := mergedLabels(f, freshness)
+		var brokenJSON []dagJSONBrokenRef
+		if refs := brokenByFeature[f.Slug]; len(refs) > 0 {
+			labels = appendLabel(labels, store.LabelDependentBroken)
+			brokenJSON = make([]dagJSONBrokenRef, len(refs))
+			for j, r := range refs {
+				brokenJSON[j] = dagJSONBrokenRef{Kind: r.Kind, SHA: r.SHA, Feature: r.Feature}
+			}
+		}
 		node := dagJSONNode{
-			Slug:           f.Slug,
-			State:          f.State,
-			Outcome:        string(f.Reconcile.Outcome),
-			Effective:      f.Reconcile.EffectiveOutcome(),
-			Labels:         mergedLabels(f, freshness),
-			FreshnessLabel: freshness,
-			Verify:         f.Verify,
+			Slug:            f.Slug,
+			State:           f.State,
+			Outcome:         string(f.Reconcile.Outcome),
+			Effective:       f.Reconcile.EffectiveOutcome(),
+			Labels:          labels,
+			FreshnessLabel:  freshness,
+			Verify:          f.Verify,
+			DependentBroken: len(brokenJSON) > 0,
+			BrokenRefs:      brokenJSON,
 		}
 		for _, d := range f.DependsOn {
 			node.DependsOn = append(node.DependsOn, dagJSONEdge{

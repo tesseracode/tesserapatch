@@ -4,8 +4,8 @@
 
 - **Task ID**: `feat-amend-dependent-warning` — v0.7.0 implementer brief (DRAFT for user review)
 - **Milestone**: v0.7.0 — M15 W3 freshness continuation
-- **Status**: Brief drafted — awaiting user sign-off before implementer dispatch
-- **Assigned**: 2026-05-10
+- **Status**: Revision-1 (NEEDS REVISION addressed) — awaiting external supervisor re-review
+- **Assigned**: 2026-05-10 (rev-0); 2026-05-11 (rev-1)
 
 ## Brief — `feat-amend-dependent-warning` (v0.7.0)
 
@@ -97,6 +97,133 @@ Minimal. One-line addition to each of the 6 skill surfaces in the troubleshootin
 3. **Claims-audit-table convention**: codified in AGENTS.md as "PRD Authoring — Strongly Encouraged Conventions" (3 conventions, no automated guard, reviewer cross-pass remains the safety net).
 4. **Ordering** (bonus): v0.7.0 = `feat-amend-dependent-warning`. M17 boundary-capture cluster ships as **v0.8.0**.
 
+## Revision-1 Implementation — pending-commit — 2026-05-11
+
+External supervisor review of `8306367` returned **NEEDS REVISION** with two
+findings, both verified by code inspection. Both fixed in this revision.
+
+### Finding 1 (Medium) — `dependent-broken` missing from `status --dag` and `status --dag --json`
+
+**Root cause.** `renderNodeLineWithFreshness` and `writeDAGJSON` in
+`internal/cli/status_dag.go` only called `mergedLabels(st, freshness)` and
+never received the `brokenByFeature` map collected at the top of the status
+command. The `appendLabel(LabelDependentBroken)` overlay existed in
+`status_dag.go` but was only invoked from the non-DAG path in `cobra.go`.
+
+**Fix.** Threaded the broken-refs map (`map[string][]store.FeatureRef`) through
+the DAG renderers as a new trailing parameter:
+
+- `runStatusDAG(out, s, scopeSlug, asJSON, brokenByFeature)`
+- `writeDAGTree(..., brokenByFeature)` and `writeDAGJSON(..., brokenByFeature)`
+- `walkTree(..., brokenByFeature)`
+- `renderNodeLine(s, st, brokenRefs)` and `renderNodeLineWithFreshness(st, freshness, brokenRefs)`
+
+Inside the renderers, `appendLabel(labels, store.LabelDependentBroken)` now
+fires when `len(brokenRefs) > 0` — same overlay rule the non-DAG path used.
+The `dagJSONNode` struct gains two fields shaped identically to the non-DAG
+`--json` payload:
+
+```go
+DependentBroken bool                `json:"dependent_broken,omitempty"`
+BrokenRefs      []dagJSONBrokenRef  `json:"broken_refs,omitempty"`
+```
+
+with `dagJSONBrokenRef{Kind, SHA, Feature}` mirroring the anonymous
+`brokenRefJSON` struct in `cobra.go`. **No-recompute rule respected**:
+`CollectBrokenRefs` is still called exactly once per status invocation
+(at `cobra.go:239`) and the result is threaded into both render paths.
+
+**Tests added.**
+- `TestStatusDAG_DependentBrokenLabel` — runs `status --dag` (text), asserts
+  the rendered tree shows `dependent-broken` in the labels parens for the
+  affected feature.
+- `TestStatusDAG_DependentBrokenJSON` — runs `status --dag --json`, parses the
+  payload, asserts `dependent_broken: true`, asserts a `satisfied_by` broken
+  ref with the original A SHA + feature=b, and asserts `dependent-broken` is
+  in the `labels` array.
+
+### Finding 2 (Low) — Plain-text status emitted one line per broken ref
+
+**Root cause.** `cobra.go:346-351` was nested (`for slug` outer, `for r := range
+brokenByFeature[slug]` inner), printing one `dependent-broken: feature %q ...`
+line per broken ref. The comment on lines 337-339 advertised "one diagnostic
+line per affected feature" — the implementation contradicted the advertised
+contract whenever a feature carried both `apply.base_commit` AND `satisfied_by`
+pointing at the same rewritten SHA.
+
+**Fix.** Coalesced per feature: collect the abbrev SHAs for the feature, dedupe
+(via `map[string]struct{}`), sort ascending, and emit ONE line listing all the
+abbrevs joined by `, `. The line text changed slightly to match the multi-SHA
+case uniformly:
+
+```
+dependent-broken: feature "b" references SHA(s) <a7>, <x7> which are no longer reachable (likely amend / rebase upstream)
+```
+
+The `SHA(s)` / `are` phrasing is intentionally singular-friendly — reads
+correctly for both the 1-SHA and N-SHA cases without per-count branching. The
+recovery hint line below remains emitted exactly once per status invocation
+(unchanged, was already correct).
+
+**Tests added.**
+- `TestStatus_DependentBrokenSingleLinePerFeature` — feature `b` has BOTH
+  `apply.base_commit` and `satisfied_by` pointing at the same broken SHA;
+  asserts exactly ONE `dependent-broken: feature "b"` line is emitted, and
+  that the line includes the abbrev SHA.
+- `TestStatus_DependentBrokenMultipleSHAsPerFeature` — feature `c` has
+  `apply.base_commit` = SHA-X (broken) and `satisfied_by` = SHA-A (also
+  broken, distinct SHA); asserts exactly ONE line for feature `c` listing
+  BOTH abbrevs joined `", "` in ascending order.
+
+### Files Changed (rev-1)
+
+Implementation:
+- `internal/cli/status_dag.go` — `dagJSONNode` extended with
+  `DependentBroken` + `BrokenRefs`; new `dagJSONBrokenRef` type; `runStatusDAG`,
+  `writeDAGTree`, `writeDAGJSON`, `walkTree`, `renderNodeLine`,
+  `renderNodeLineWithFreshness` all gain a trailing `brokenByFeature` /
+  `brokenRefs` parameter; `appendLabel(store.LabelDependentBroken)` overlay
+  composed in both renderers.
+- `internal/cli/cobra.go` — `runStatusDAG` callers pass the precomputed
+  `brokenByFeature` map; plain-text emission loop coalesced per feature with
+  deduped + sorted abbrev SHA list.
+
+Tests:
+- `internal/cli/dependent_broken_test.go` — added `sort` import; 4 new tests
+  (`TestStatusDAG_DependentBrokenLabel`, `TestStatusDAG_DependentBrokenJSON`,
+  `TestStatus_DependentBrokenSingleLinePerFeature`,
+  `TestStatus_DependentBrokenMultipleSHAsPerFeature`).
+
+Tracking:
+- `docs/handoff/CURRENT.md` — Active Task status flipped to "Revision-1"; this
+  section appended.
+- `CHANGELOG.md` — v0.7.0 section gains a `### Fixed (revision-1)` subsection
+  naming both findings transparently.
+
+### Verification
+
+- `gofmt -l .` — clean.
+- `go build ./cmd/tpatch` — green.
+- `go test ./...` — all green (full suite).
+- `go test ./assets -run TestSkillParityGuard -count=1 -v` — all 6 surfaces
+  pass.
+- Live repro (the exact reviewer-supplied script with the broken A→B chain
+  and pre-A reset): plain `status` emits ONE `dependent-broken` line per
+  feature; `status --dag` shows `(dependent-broken, never-verified)` in the
+  labels parens for both `a` and `b`; `status --dag --json` payload carries
+  `"dependent_broken": true` and a `"broken_refs": [...]` array shaped
+  identically to the non-DAG `--json` payload.
+
+### Hands-Off Confirmations
+
+- `internal/workflow/reconcile.go:599` HIGH bug NOT touched (Wave A2).
+- `docs/prds/`, `docs/whitepapers/`, `docs/market-research/`,
+  `docs/adrs/ADR-016..019.md` NOT touched.
+- M17 ROADMAP rows NOT touched.
+- `docs/state-of-the-art/` NOT touched (untracked, user-owned).
+- "Side Research — State-of-the-art middle pass" section in this file NOT
+  modified.
+
 ## Background — `feat-amend-dependent-warning`
 
 Continuation of the M15 W3 freshness overlay work (verify-freshness shipped in v0.6.2). The amend-dependent-warning feature warns when a user is about to `git commit --amend` (or otherwise rewrite history) on a commit that has dependent features downstream — preventing silent corruption of the dependency graph.
@@ -141,6 +268,11 @@ Files:
 - `docs/state-of-the-art/patch-theory-and-commutation.md`
 - `docs/state-of-the-art/patch-identity-and-structural-fingerprints.md`
 - `docs/state-of-the-art/search-based-patch-application.md`
+- `docs/state-of-the-art/experiment-guide-structural-middle-pass.md`
+- `docs/state-of-the-art/tpatch-metadata-for-patch-identity.md`
+- `docs/state-of-the-art/patch-capture-context-research-brief.md`
+- `docs/state-of-the-art/patch-capture-prior-art-and-hooks.md`
+- `docs/state-of-the-art/research-roadmap.md`
 - `docs/state-of-the-art/tpatch-middle-pass-synthesis.md`
 
 ### Findings
@@ -159,16 +291,52 @@ Files:
    space.
 5. Beam search is the likely first practical non-LLM planner; MCTS and
    evolutionary algorithms remain candidates for larger uncertain clusters.
+6. Vector retrieval / RAG fits as a distinct middle layer: dense retrieval can
+   rank likely patch/hunk/code-region matches below full provider reasoning,
+   while generation over retrieved context still belongs to the provider tier.
+7. The experiment guide defines collection formats for feature metadata, hunks,
+   keypoints, fingerprints, retrieval results, commutation relations,
+   candidate apply attempts, metrics, and ground-truth labels.
+8. First-party tpatch metadata should be the happy path for tpatch-aware repos:
+   current metadata is good for lifecycle/DAG reasoning, but future patch
+   generations, dependency version snapshots, operation IDs/read-write sets,
+   structural anchors, relation artifacts, and vector manifests would make
+   identity and ordering easier before fuzzy fallback.
+9. A new patch-capture research brief preserves this PRD/ADR queue and defines
+   the next front: Quilt-style explicit file claims, Git index/hook boundaries,
+   IDE hooks, coding-agent event logs, and privacy-safe agent context capture.
+10. Entire is verified as a concrete prior-art target. Its model uses Git hooks,
+    agent hooks, commit trailers, a separate `entire/checkpoints/v1` metadata
+    branch, shadow checkpoints, full transcript/session storage, redaction, and
+    optional checkpoint remotes. tpatch should borrow the Git-native linking
+    pattern but default toward summaries/references over raw transcripts.
+11. `docs/state-of-the-art/research-roadmap.md` is now the durable exploratory
+    tracker so research can advance independently if `docs/handoff/CURRENT.md`
+    is reassigned to implementation work.
 
 ### Candidate follow-up names
 
 These are research outputs only, not queued roadmap work:
 
 - `PRD-structural-patch-fingerprints`
+- `PRD-feature-patch-identity-metadata`
+- `PRD-dependency-version-snapshots`
+- `PRD-recipe-operation-identity`
+- `PRD-structural-anchor-manifest`
+- `PRD-patch-vector-index`
 - `PRD-reconcile-commutation-graph`
 - `PRD-reconcile-search-planner`
 - `ADR-structural-middle-pass-boundary`
 - `PRD-reconcile-planner-audit-artifacts`
+- `PRD-feature-file-claims`
+- `PRD-record-capture-modes`
+- `PRD-active-feature-session`
+- `PRD-agent-event-log`
+- `PRD-ide-capture-hooks`
+- `PRD-git-hook-capture-guards`
+- `ADR-capture-context-privacy-boundary`
+- `ADR-capture-metadata-branch`
+- `PRD-record-context-summary`
 
 ## Blockers
 

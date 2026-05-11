@@ -242,14 +242,14 @@ func statusCmd() *cobra.Command {
 			// (or JSON) view directly.
 			if dagMode {
 				if asJSON {
-					return runStatusDAG(out, s, featureSlug, true)
+					return runStatusDAG(out, s, featureSlug, true, brokenByFeature)
 				}
 				if len(dagWarnings) > 0 {
 					for _, w := range dagWarnings {
 						fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
 					}
 				}
-				return runStatusDAG(out, s, featureSlug, false)
+				return runStatusDAG(out, s, featureSlug, false, brokenByFeature)
 			}
 
 			if asJSON {
@@ -336,7 +336,10 @@ func statusCmd() *cobra.Command {
 			}
 			// feat-amend-dependent-warning (v0.7.0) — emit one
 			// diagnostic line per affected feature listing the abbrev
-			// SHA(s) that broke, then a single recovery hint.
+			// SHA(s) that broke, then a single recovery hint. A single
+			// feature can reference the same rewritten SHA via both
+			// `apply.base_commit` and `satisfied_by` — dedupe abbrevs
+			// so the line collapses to one entry per unique SHA.
 			if len(brokenByFeature) > 0 {
 				slugs := make([]string, 0, len(brokenByFeature))
 				for slug := range brokenByFeature {
@@ -344,10 +347,20 @@ func statusCmd() *cobra.Command {
 				}
 				sortStringsAsc(slugs)
 				for _, slug := range slugs {
-					for _, r := range brokenByFeature[slug] {
-						fmt.Fprintf(out, "dependent-broken: feature %q references SHA %s which is no longer reachable (likely amend / rebase upstream)\n",
-							slug, abbrevSHA(r.SHA))
+					refs := brokenByFeature[slug]
+					abbrevs := make([]string, 0, len(refs))
+					seen := make(map[string]struct{}, len(refs))
+					for _, r := range refs {
+						a := abbrevSHA(r.SHA)
+						if _, ok := seen[a]; ok {
+							continue
+						}
+						seen[a] = struct{}{}
+						abbrevs = append(abbrevs, a)
 					}
+					sortStringsAsc(abbrevs)
+					fmt.Fprintf(out, "dependent-broken: feature %q references SHA(s) %s which are no longer reachable (likely amend / rebase upstream)\n",
+						slug, strings.Join(abbrevs, ", "))
 				}
 				fmt.Fprintln(out, "hint: re-record affected feature(s) on the new base, or run 'tpatch reconcile' to attempt automatic re-anchor.")
 			}

@@ -37,6 +37,23 @@ orphans the dependent feature.
 - 5 new tests cover record-refusal, `--force-amend` bypass, status label
   emission (text + JSON), and the broken-base-commit edge case.
 
+### Fixed (revision-1)
+
+- **`status --dag` and `status --dag --json` now emit `dependent-broken`.** The
+  initial v0.7.0 commit wired the new derived label only into the non-DAG
+  status renderers; the DAG renderers (`renderNodeLineWithFreshness` and
+  `writeDAGJSON`) bypassed it, so users running `tpatch status --dag` or
+  consuming `--dag --json` did not see the new label. The DAG renderers now
+  receive the broken-refs map collected by `store.CollectBrokenRefs` and
+  overlay `LabelDependentBroken` via the existing `appendLabel` helper. The
+  DAG JSON node shape gains `dependent_broken` and `broken_refs` fields
+  matching the non-DAG `--json` contract.
+- **Plain-text `dependent-broken` status line now coalesces per feature.** The
+  initial commit emitted one line per broken ref, producing duplicate output
+  when a feature referenced the same rewritten SHA via both `apply.base_commit`
+  and `satisfied_by`. Now exactly one line per affected feature, listing all
+  broken abbrev SHAs (deduped + sorted).
+
 ## v0.6.4 — 2026-05-10 — M16 (operator polish, completion)
 
 Final M16 release. Closes Slice 3 of the operator-polish bundle by
