@@ -1,3 +1,42 @@
+# 2026-05-11 — v0.7.0 — `feat-amend-dependent-warning` — APPROVED, shipped
+
+**Outcome**: Shipped as v0.7.0, tagged at `6e78eac`. Ship stack: `8306367` (impl) → `6e78eac` (rev-1 fixes) → `a5e7de0` (sub-agent verdict) → `c9c8de3` (tracking close) → tag `v0.7.0`.
+
+**Scope**: Continuation of M15 W3 freshness overlay. Adds an amend-detection guard to `record` that refuses (exit 1) when capturing a feature would orphan a dependent's `base_commit` or `satisfied_by` SHA via a force-pushed amend. `--force-amend` escape hatch warns and proceeds. New `dependent-broken` label surfaces on affected features across `status`, `status --json`, `status --dag`, and `status --dag --json` with a single coalesced diagnostic line per affected feature (deduped + sorted abbrev SHAs) and a recovery hint (`re-record affected feature(s) on the new base`).
+
+**Implementation**:
+- New `internal/store/dependents.go` (~110 lines) — exports `FeatureRef`, `CollectDependentSHAs`, `IsAmendBreaking`, `CollectBrokenRefs`. Walks `s.ListFeatures()`.
+- Reachability via existing `gitutil.IsAncestor` (`git merge-base --is-ancestor`). New `gitutil.RevParse` only used for reflog ref resolution (`HEAD@{1}`, `HEAD^`).
+- Amend signal: `HEAD@{1}^ == HEAD^` when reflog available; missing reflog silently skips (no false negatives raised as errors).
+- 6 skill surfaces updated; parity guard ✓.
+
+**Review history**:
+- Rev-0 (`8306367`): sub-agent APPROVED; external supervisor NEEDS REVISION with two findings.
+  - Finding 1 (Medium): DAG renderers `renderNodeLineWithFreshness` + `writeDAGJSON` did not receive `brokenByFeature` map — `dependent-broken` overlay missing from `status --dag` text and `--dag --json`.
+  - Finding 2 (Low): plain-text status emitted one diagnostic line per broken ref, not per affected feature; duplicates when same feature had both `base_commit` and `satisfied_by` pointing at same broken SHA.
+- Rev-1 (`6e78eac`): both findings addressed.
+  - Threaded `brokenByFeature` into `runStatusDAG`, `writeDAGTree`, `walkTree`, `writeDAGJSON`, `renderNodeLine`, `renderNodeLineWithFreshness`. Overlay via existing `appendLabel(labels, store.LabelDependentBroken)` — no logic duplication.
+  - `dagJSONNode` extended with `DependentBroken bool \`json:"dependent_broken,omitempty"\`` + `BrokenRefs []dagJSONBrokenRef \`json:"broken_refs,omitempty"\``. Shape exactly mirrors non-DAG `brokenRefJSON` for union-parsing.
+  - `store.CollectBrokenRefs` called exactly once (cobra.go:239) and threaded — no recomputation in `status_dag.go`.
+  - Plain-text status loop coalesces per feature with deduped abbrev SHAs sorted, "SHA(s) %s" join.
+  - 4 new tests added (3 required + 1 bonus multi-SHA): `TestStatusDAG_DependentBrokenLabel`, `TestStatusDAG_DependentBrokenJSON`, `TestStatus_DependentBrokenSingleLinePerFeature`, `TestStatus_DependentBrokenMultipleSHAsPerFeature`.
+- Sub-agent reviewer APPROVED rev-1 across 7 review layers (impl gates, finding-1 fix, finding-2 fix, tests, live repro, hands-off scope, tracking). External supervisor APPROVED rev-1.
+
+**Verification**: `gofmt -l .` clean, `go build ./cmd/tpatch` OK, full `go test ./...` green (`internal/cli` 21.177s), parity guard all 6 formats ✓, independent live repro confirmed all 3 status surfaces.
+
+**Hands-off / not bundled** (preserved for M17): HIGH-severity writer-normalization bug at `internal/workflow/reconcile.go:599-604` (interpolates `branch: %s` with full ref like `upstream/main`) — verified present at HEAD, bundles into M17 Wave A2 `impl-reconcile-lock-guard` per `PRD-reconcile-lock-guard §5.3`.
+
+**Cosmetic bundle**: `docs/ROADMAP.md` `## M15+ — Future` renamed to `## M18+ — Future` (M16 + M17 are no longer "future").
+
+**Tracking commits**:
+- `8306367` — implementation
+- `6e78eac` — rev-1 fixes
+- `a5e7de0` — sub-agent verdict appended to LOG.md
+- `c9c8de3` — ROADMAP v0.7.0 row ✅ + CURRENT.md status updated
+- Tag `v0.7.0` at `6e78eac`
+
+---
+
 # 2026-05-10 — v0.7-cluster-routing-pass — APPROVED, paper-only
 
 **Outcome**: Paper-only routing of the v0.7 boundary-capture cluster shipped as `7196ae8` + sub-agent verdict (in-line). External pass not required (paper-only, no code surface).
