@@ -1,3 +1,56 @@
+## Review — M16-SLICE-2 — 2026-05-10
+
+**Reviewer**: sub-agent
+**Task**: M16 Slice 2 — `bug-record-roundtrip-false-positive-markdown`
+**Commit reviewed**: `eba35bf`
+
+### Checklist
+- [x] Code compiles: `go build ./cmd/tpatch` ok
+- [x] Tests pass: `go test ./...` all green
+- [x] Formatted: `gofmt -l .` empty
+- [x] CLI behavior matches SPEC.md (capture-path-only fix; validator and `record` flags untouched)
+- [x] Handoff file accurate and complete (root cause, reproducer shape, scope all stated)
+- [x] No regressions to previously passing functionality (full pre-existing `TestValidatePatchReverse_*` suite still PASS)
+- [x] Commit trailer present; branch is `main`; no untracked files added by the implementer
+
+### Verdict: APPROVED
+
+### Findings
+
+None — no HIGH/MEDIUM/LOW issues identified.
+
+### Notes
+
+**Pre-fix reproducer verified.** Reverted `internal/gitutil/gitutil.go` to `eba35bf~1` (HEAD on `main` minus the fix) and ran `go test ./internal/gitutil/ -run TestValidatePatchReverse_MarkdownBlockquoteRoundtrip -count=1 -v`: FAIL with the right symptom — captured patch lost trailing whitespace on the blockquote line. Restored `gitutil.go`, confirmed clean tree on the changed file, re-ran the test → PASS. Implementer's failure-mode claim holds.
+
+**Negative-case preservation verified.** `TestValidatePatchReverse_FailsWhenPatchDoesNotMatch` and `TestValidatePatchReverse_RoundtripsAgainstWorkingTree` both PASS with `-count=1 -v`. The fix lives in capture, not validation; `git apply --reverse --check` still runs strictly with no `--ignore-whitespace`.
+
+**Layered-up probe (other capture/normalize sites).** Searched `internal/gitutil/`, `internal/cli/`, `internal/store/`, `internal/workflow/` for any `TrimSpace`-on-patch or moral equivalent (`+= "\n"`, "trailing newline normalization"). The only two pre-fix offenders were `CapturePatchScoped` and `CapturePatchFromCommitsScoped`, both addressed. The unscoped `CapturePatch` and `CapturePatchFromCommits` are thin delegators to the scoped variants, so they inherit the fix automatically. All other `TrimSpace` calls in the package operate on git stderr/error strings, single-line refs, or status-porcelain lines — none on hunk payloads. No other capture path remains broken.
+
+**Layered-down probe (tail-shape coverage of `normalizePatchTail`).** Walked the helper against the requested edge cases:
+- `"...\n"` (one trailing newline) → `TrimRight` removes it, `+ "\n"` restores → `"...\n"` ✓
+- `"..."` (zero trailing newlines) → preserved, `+ "\n"` → `"...\n"` ✓
+- `"...\n\n\n"` → collapsed to `"...\n"` ✓
+- `"...+> \n"` (the original bug; trailing space before final newline) → `TrimRight` only strips `\n`, the space survives → `"...+> \n"` ✓
+- `"...\r\n"` (CRLF) → `TrimRight` only strips `\n`, the `\r` survives → `"...\r\n"` ✓ (note: would still be sensitive to git's own CRLF handling on read-back, but the helper itself doesn't corrupt CRLF)
+- `""` empty → `TrimSpace == ""` short-circuits to `""` ✓ (preserves the upstream "0 bytes — nothing to record" diagnostic)
+- `"...\\ No newline at end of file\n"` → that marker is a literal hunk line, treated as content; trailing newline normalized; marker preserved ✓
+- Wholly-whitespace capture (e.g. `"   \n"`) → `TrimSpace == ""` → `""` (also fine; would not be a real diff)
+
+The helper is byte-preserving on all content lines and only touches the trailing `\n` count. No edge case found that would re-introduce corruption.
+
+**Persisted-corruption claim verified.** Traced `tpatch record` end-to-end in `internal/cli/cobra.go:854-901`: it captures via `CapturePatchScoped`/`CapturePatchFromCommitsScoped`, then writes the captured bytes verbatim through `s.WriteArtifact(...)` (→ `writeFile` → `os.WriteFile`, no normalization) and `s.WritePatch(...)` (also straight-through `writeFile`). No downstream re-normalization step exists between capture and disk, so the fix flows through to `patches/NNN-record.patch` and `artifacts/post-apply.patch` correctly. The "data bug, not just warning bug" framing in the commit message is accurate.
+
+**CHANGELOG check.** `## v0.6.3 — unreleased — M16 (operator polish)` section added with one well-scoped `### Fixed` bullet covering both the warning-surface and the persisted-corruption aspect. No Slice 3 entries were preemptively added. Prior `## v0.6.2` section untouched.
+
+**Hard-rules check.** Branch is `main`. Commit trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` present (verified via `git log -1 --format=full eba35bf`). `git status --short` shows only the documented prior-session pending paths (`docs/ROADMAP.md`, `docs/adrs/README.md`, the listed untracked PRDs/whitepapers). No new untracked artifact introduced by this slice.
+
+### Action Taken
+
+Verdict written to LOG.md; CURRENT.md unchanged (no implementer follow-up required). Supervisor may proceed to archive `M16-SLICE-2` to `HISTORY.md`, flip the M16 Slice 2 row in `docs/ROADMAP.md` to ✅, and either dispatch Slice 3 (`feat-apply-default-execute`) or cut the `v0.6.3` release cycle per M16 plan.
+
+---
+
 ## External Supervisor Review — M15-W3-SLICE-D-REVISION-4 — 2026-05-10
 
 **Reviewer**: external supervisor (user-driven)
