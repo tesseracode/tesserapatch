@@ -241,7 +241,7 @@ Dispatch revision-1 implementer.
 
 ---
 
-## Revision-1 Implementation — pending-sha — 2026-05-10
+## Revision-1 Implementation — 38d13fc — 2026-05-10
 
 Addresses external supervisor MEDIUM finding on `eab2c3c`. Path A + B
 (defense-in-depth): genuine standalone `tpatch apply <slug>` added to
