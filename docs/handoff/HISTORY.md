@@ -1,3 +1,28 @@
+# 2026-05-10 — M16-SLICE-2 — APPROVED, shipped as v0.6.3
+
+**Outcome**: Slice 2 of the v0.6.3 polish bundle (`bug-record-roundtrip-false-positive-markdown`) shipped as `eba35bf` + sub-agent verdict `84cdac1`. External supervisor verdict: APPROVED without findings. Tagged v0.6.3.
+
+**The bug, properly named**: not a validator false positive — a real **data corruption bug** in patch capture. `gitutil.CapturePatchScoped` and `CapturePatchFromCommitsScoped` called `strings.TrimSpace(patch) + "\n"` to normalize the trailing newline. `TrimSpace` strips ALL trailing whitespace, so any captured `git diff` ending in a content line with semantically-significant trailing whitespace (markdown blockquote `+> ` continuation, two-space line-break markdown, etc.) had that whitespace eaten. The resulting patch was then both (a) flagged by `ValidatePatchReverse` (correctly — it was actually corrupt) and (b) persisted to `patches/NNN-record.patch` and `artifacts/post-apply.patch` on disk.
+
+**Fix**: introduced `normalizePatchTail` helper that preserves content bytes and only normalizes trailing-newline count. Validator left unchanged.
+
+**Reproducer**: `TestValidatePatchReverse_MarkdownBlockquoteRoundtrip` — constructs a `> [!CAUTION]` block ending in `> ` continuation, asserts captured patch retains `+> \n`, asserts reverse-applies cleanly. Verified failing on `eba35bf~1` and passing on `eba35bf`.
+
+**Layered-discovery checks** (reviewer applied the Slice D lesson):
+- Layer up: searched all `internal/` for `TrimSpace`-on-patch / `+= "\n"` patterns. Only the two scoped capture functions affected; unscoped `CapturePatch{,FromCommits}` delegate to them and inherit the fix.
+- Layer down: walked `normalizePatchTail` against 8 tail shapes (one/zero/many `\n`, trailing whitespace, CRLF, empty, wholly-whitespace, `\ No newline at end of file` marker) — all preserved correctly.
+- End-to-end: traced `tpatch record` from `cobra.go:854-901` → `WriteArtifact`/`WritePatch` → `os.WriteFile`; no downstream renormalization, so the fix flows to disk.
+
+**Scope decision**: Slice 1 (`chore-gitignore-tpatch-binary`) was already in place from a prior cycle — no commit needed. After Slice 2 landed, the user opted to ship v0.6.3 immediately with just the data-bug fix rather than wait for Slice 3 (`feat-apply-default-execute`), which was deferred to v0.6.4.
+
+**Validation gate**: `gofmt -l .` empty, `go build ./cmd/tpatch` ok, `go test ./...` all green.
+
+**Final stack on origin/main**: `e93c978` (v0.6.2 tag note) → `eba35bf` (Slice 2 fix) → `84cdac1` (sub-agent verdict) → tracking.
+
+**Process artifact**: 1 implementer + 1 sub-agent reviewer + 1 external supervisor pass. No revisions needed. The Slice D layered-discovery discipline (probe one layer up and one layer down) was applied proactively by the reviewer and turned up nothing — a clean indication that the fix is well-scoped.
+
+---
+
 # 2026-05-10 — M15-W3-SLICE-D — APPROVED, shipped as v0.6.2
 
 **Outcome**: Slice D (`tpatch verify --all` + 6-skill freshness bullet rollout + parity-guard anchors + `docs/dependencies.md` cross-link + CHANGELOG v0.6.2) shipped across five commits after four sub-agent/external supervisor cycles on the same false-green bug class — silent omission in aggregate feature discovery. Final external supervisor verdict APPROVED WITH NOTES on `fa93536`.

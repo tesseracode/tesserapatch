@@ -1,3 +1,113 @@
+## Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard) — 2026-05-10
+
+**Reviewer**: CO47 (broker-routed multi-agent cross-review; G55 + CO47 + OX47 each reviewed each other's PRDs)
+**Task**: Paper-design acceptance for the four-PRD v0.7 boundary-capture cluster.
+**Origin**: Graduates from `docs/whitepapers/WP-001-feature-slice-gap.md` (closed at T16, 2026-04-28) plus `docs/market-research/competitive-landscape.md` §6 SMART (refreshed 2026-05-02).
+
+### Checklist (paper review)
+- [x] All four PRDs cite WP-001 and competitive-landscape with file:line anchors.
+- [x] Claims-audit tables present in each PRD; spot-checked cites land within ±5 lines of current code.
+- [x] No new data-model objects introduced; WP-001 §5.2 row 11 ("no data-model gap") preserved.
+- [x] Cross-PRD coordination explicit (shared `LoadUpstreamLock` parser at `internal/store/upstream_lock.go`).
+- [x] Implementation sequencing documented (auto-base ships before collision-detection; `land` implementation gated on both guardrails shipping; lock-guard implementation-independent of `land`).
+- [x] Each PRD passed cross-review by at least one peer agent.
+- [x] No edits to closed WP-001 or to the three exploratory PRDs it supersedes.
+
+### Verdict: **APPROVED**
+
+### PRDs accepted
+
+| PRD | Owner | State | Cross-reviewed by |
+|---|---|---|---|
+| `PRD-tpatch-land.md` (v2.1) | CO47 | Accepted | G55 (F1–F5 → addressed in v2; tidy-up cross-cites in v2.1) |
+| `PRD-record-auto-base.md` | G55 | Accepted | CO47 (R2 + S1/S4 → addressed) |
+| `PRD-record-collision-detection.md` | G55 | Accepted | CO47 (S2/S3 → addressed) |
+| `PRD-reconcile-lock-guard.md` | OX47 | Accepted | G55 (writer-normalization, independent Clean()/lock-state gating, symbolic ref-name comparison → all addressed); CO47 (F1–F6 → addressed) |
+
+### Findings worth noting
+
+**HIGH — Adjacent bug surfaced by lock-guard review (must ship with the guard).**
+G55's cross-review of OX47's lock-guard PRD surfaced a real bug at `internal/workflow/reconcile.go:595-605`: `updateUpstreamLock()` hard-codes `remote: upstream` and writes the `ref` argument (a full `<remote>/<branch>` string like `upstream/main`) into the `branch:` field. The result is a lock with `remote: upstream` + `branch: upstream/main`, which the lock-guard would resolve as `upstream/upstream/main` → ref does not exist → every populated lock fails the guard on day one. `PRD-reconcile-lock-guard §5.3` now mandates the writer-normalization fix ship alongside the guard, plus read-side legacy tolerance for pre-fix locks. **This is not a paper-design issue; it's a real bug currently in `main`.** Treat as a prerequisite of the lock-guard implementation, not a separate task.
+
+**MEDIUM — Shared parser primitive locked.**
+`internal/store/upstream_lock.go` (new file) is the single home for `LoadUpstreamLock`. Whichever PRD ships first writes it; the other consumes by import. Parser tolerates double-quoted values only (matching v0.6 scaffold); single-quoted/bare/multi-line values produce `ParseStateMalformed` and both consumers warn-and-proceed-as-Missing.
+
+**MEDIUM — Trailer-block schema locked.**
+Four trailers in `land` commits: `Tpatch-Feature` (the only feature↔commit binding), `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`. Hotfix-kind commits add `Tpatch-CVE` as additive fifth. The repo-wide `Co-authored-by:` trailer follows. Validated by DEP-3 + git-gud / stk prior art per `competitive-landscape.md` §9.
+
+**LOW — Sibling PRD (not in v0.7 cluster) authored unsolicited.**
+`PRD-patch-already-upstream-detector.md` was drafted by OX47 in the same session as the lock-guard PRD. Status field reads "Owner: Core (research-driven; no implementation owner yet)". Scope: a deterministic phase-1.5 fast path between reconcile phases 1 and 2 using `git patch-id --stable` to detect upstream-absorbed patches without invoking the provider. Positioned as post-M14 research, not v0.7. Supervisor decision required: keep in `docs/prds/` as accepted-exploratory, or move to a deferred-research location. **Recommendation: keep in place with explicit "not in v0.7 cluster, post-M14 research" framing.**
+
+### Open ADR requirements (must precede implementation)
+
+Per `PRD-feature-dependencies` precedent (architecture decisions locked in ADR-011 before M14 coding), the v0.7 cluster requires ADRs before any implementation lands. Suggested numbering (assign at draft time):
+
+| ADR | Locks in | Source |
+|---|---|---|
+| ADR-NNN | Trailer-block schema (`land` four + additive `Tpatch-CVE`); `Tpatch-Feature` as sole feature↔commit binding; no `apply.base_commit` overwrite by `land` | `PRD-tpatch-land §3.4`, §3.6 |
+| ADR-NNN | `record --auto` baseline-inference algorithm including merge-base strict-refuse-on-N>1 default + upstream-candidate discovery order | `PRD-record-auto-base §3.2` |
+| ADR-NNN | `record collision-detection` refuse-by-default policy + `--allow-collision <reason>` override; byte-identity (not patch-id) v1 check | `PRD-record-collision-detection §3.1` |
+| ADR-NNN | Lock-state taxonomy (Valid/Empty/Missing/Stale/Skipped) + `--allow-stale-lock` semantics + writer-normalization mandate | `PRD-reconcile-lock-guard §3.1`, §3.2, §5.3 |
+
+Whichever agent picks up implementation also drafts the ADR for that PRD.
+
+### v0.7 SMART target (per `competitive-landscape.md §6`, lines 475-485)
+
+Three strict shipping deliverables + one remediation mechanism:
+
+1. `tpatch land` (CO47).
+2. `tpatch record` collision-detection (G55).
+3. `tpatch reconcile` upstream-lock validation guard (OX47).
+4. `tpatch record --auto` (G55) — positioned as **remediation** for legacy collisions, not a fourth strict primitive.
+
+Success criteria (audit at v0.7+30 days):
+- Zero new collisions in either WP-001 case-study repo for any feature recorded post-v0.7.
+- ≥50% of v0.6 collision-group features re-recorded with `--auto`.
+
+### Implementation sequencing
+
+- Independent / can ship anytime: `tpatch upstream check` (SPEC.md:72 declared but not implemented), `T-doc-1` (`created_by` doc-drift fix in `agent-as-provider.md`).
+- Wave A (no internal dependencies): `record --auto` (foundational), `reconcile lock-guard` (independent). Either can write the shared `LoadUpstreamLock` parser; the other consumes.
+- Wave B (depends on Wave A): `record collision-detection` (depends on `auto-base` for the recovery hints to be meaningful).
+- Wave C (depends on Wave A + Wave B): `tpatch land` implementation (gated on both guardrails shipping per `PRD-tpatch-land §0.1`).
+- Wave C also includes the **writer-normalization fix** at `internal/workflow/reconcile.go:595-605` per the HIGH finding above — must ship with or before the lock-guard.
+
+### Optional cross-cite (G55 closeout note)
+
+G55 explicitly flagged a remaining optional cross-cite: `PRD-record-auto-base §5` could add a one-line pointer to the shared parser location in `PRD-reconcile-lock-guard §5`. Non-blocking. CO47 already applied the symmetric cross-cite in `PRD-tpatch-land` v2.1 Related header.
+
+### Process notes
+
+- Cross-review protocol worked. Each PRD was reviewed by at least one peer agent; review findings were applied through explicit revision passes with status-version bumps (v1 → v2 → v2.1 for `land`; equivalent for others).
+- WP-001's claims-audit-table convention (CO47 §3.5 / G55 §4) was adopted by all four PRDs and is the reason cite drift across the cluster is small. Recommend codifying this as a process expectation in `AGENTS.md` if a fifth exploratory PRD ever appears.
+- OX47 introduced a new agent identity mid-cluster (Claude Opus 4.7 Extra-high reasoning tier, distinct from CO47 base). Authored `PRD-tpatch-hotfix.md`, `PRD-reconcile-lock-guard.md`, and (unsolicited) `PRD-patch-already-upstream-detector.md`. Authorship attribution is preserved in PRD headers and bylines.
+
+### Action Taken
+
+1. Mark all four v0.7-cluster PRDs as APPROVED FOR IMPLEMENTATION in this entry.
+2. Defer ADR drafting to the implementer of each PRD (one ADR per PRD, per `PRD-feature-dependencies` precedent).
+3. Supervisor to make the call on `PRD-patch-already-upstream-detector.md` placement (keep accepted-exploratory vs move to deferred-research). Recommendation: keep.
+4. Supervisor to assign implementation owners and milestone slugs per the Wave A/B/C sequencing above.
+5. CURRENT.md handoff to be updated by the next acting agent to point at the accepted PRDs and the implementation queue.
+
+---
+
+## External Supervisor Review — M16-SLICE-2 — 2026-05-10
+
+**Reviewer**: external supervisor (user-driven)
+**Task**: M16 Slice 2 — `bug-record-roundtrip-false-positive-markdown`
+**Commit reviewed**: `eba35bf`
+
+### Verdict: APPROVED
+
+External supervisor pass approved without findings. Ready to ship as v0.6.3 (Slice 3 deferred to v0.6.4).
+
+### Action Taken
+
+Push 2-commit stack (fix + sub-agent verdict) + tracking commit, tag v0.6.3, archive Slice 2 to HISTORY.md, stage Slice 3 in CURRENT.md.
+
+---
+
 ## Review — M16-SLICE-2 — 2026-05-10
 
 **Reviewer**: sub-agent

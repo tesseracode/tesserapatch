@@ -2,7 +2,10 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.6.3 — unreleased — M16 (operator polish)
+## v0.6.3 — 2026-05-10 — M16 (operator polish, partial)
+
+Polish release. Slice 2 of the M16 bundle ships now;
+`feat-apply-default-execute` (Slice 3) deferred to v0.6.4.
 
 ### Fixed
 

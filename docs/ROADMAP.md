@@ -222,6 +222,32 @@ lifecycle/freshness conflation. Lifecycle and verification stay separate.
   workspace-corruption-on-missing-features-dir + `fa93536` revision-4
   defensive-3-way-branch-on-tpatch-stat, ~2026-05-10).
 
+## M16 — Operator polish bundle (v0.6.3 / v0.6.4) 🚧
+
+Three small, user-facing fixes. Originally planned as a single
+release; split after Slice 2 landed and the user opted to ship
+the data-bug fix immediately rather than wait for Slice 3.
+
+- **Slice 1** — `chore-gitignore-tpatch-binary`: add `/tpatch` to
+  `.gitignore` to ignore bare build output at the repo root. ✅
+  Already in place from a prior cycle (`.gitignore:34: /tpatch`,
+  rooted, anchored, `cmd/tpatch/` shadowing avoided per 2026-04-17
+  incident comment). `git check-ignore -v tpatch` confirms ignore.
+  No commit needed.
+- **Slice 2** — `bug-record-roundtrip-false-positive-markdown`:
+  fix the A3 ValidatePatchReverse false-positive. Turned out to be
+  a real data bug: `gitutil.CapturePatchScoped` /
+  `CapturePatchFromCommitsScoped` used `strings.TrimSpace(patch) +
+  "\n"` to normalize the tail, eating semantically-significant
+  trailing whitespace on the final hunk line (e.g. `+> ` markdown
+  blockquote continuations). Replaced with `normalizePatchTail`
+  helper that preserves content bytes. Shipped as v0.6.3. ✅
+  APPROVED (commit `eba35bf` + sub-agent verdict `84cdac1`,
+  external supervisor pass 2026-05-10).
+- **Slice 3** — `feat-apply-default-execute`: make
+  `tpatch apply <slug>` default to `--mode execute`. Deferred from
+  v0.6.3 to v0.6.4. ⬜
+
 ## M15+ — Future
 
 - Cost tracking and token budgeting
