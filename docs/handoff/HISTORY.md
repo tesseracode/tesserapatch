@@ -1,3 +1,27 @@
+# 2026-05-10 — M16-SLICE-3 — APPROVED, shipped as v0.6.4
+
+**Outcome**: Slice 3 of the M16 polish bundle (`feat-apply-default-execute` + `feat-skills-apply-auto-default` unified) shipped as `eab2c3c` + sub-agent verdict `4556387` + revision `38d13fc` + handoff backfill `477ccc9`. External supervisor verdicts: NEEDS REVISION on the original (parity-anchor false-pass risk) → APPROVED on the rev-1 stack. Tagged v0.6.4.
+
+**Re-scope discovery**: Original brief said "make `tpatch apply <slug>` default to `--mode execute`". On inspection, `internal/cli/cobra.go:586` already had `--mode auto` as default since v0.6.0 (auto = prepare→execute→done). The real work was doc/skill alignment: 6 surfaces still recommended the old explicit `--mode execute` invocation in lifecycle diagrams. Slice merged with `feat-skills-apply-auto-default`.
+
+**Preserve-vs-replace rule applied**: phase-semantics mentions of `execute` (path-safety aborts, `created_by` gates, EnsureSafeRepoPath) — preserved (18 across the 6 surfaces). Invocation-recommendation mentions in lifecycle diagrams — replaced. Implementer reported a uniform 3-per-surface preservation pattern.
+
+**External supervisor finding (rev driver)**: the new parity anchor `apply-default-auto/simple-invocation` used `strings.Contains(content, "tpatch apply <slug>")`, which false-passed on 2 surfaces (`assets/prompts/copilot/tessera-patch-apply.prompt.md`, `assets/workflows/tessera-patch-generic.md`) where the only literal substring match was the advanced fallback `tpatch apply <slug> --mode done`. CHANGELOG prose claim was therefore false for those 2 surfaces.
+
+**Defense-in-depth fix (Path A + B)**:
+- A: Added genuine standalone `tpatch apply <slug>` to the Phase Ordering rows of both weak surfaces. Arrow-column alignment preserved.
+- B: Replaced substring check with regex `(?m)tpatch apply <slug>(?:\s*$|\s+[^-\s]|`+"`"+`)`. `\s+[^-\s]` is the dominant branch — matches `→` continuations but rejects ` --` continuations because `-` fails the `[^-\s]` class. Backtick branch covers inline-code wrapped forms.
+
+**Robustness probe**: temporary-revert of the copilot-prompt edit produced a clean named diagnostic (`Copilot Prompt … missing required regex anchor [apply-default-auto/simple-invocation]`); restore returned green. Verified independently by sub-agent reviewer.
+
+**Layered-discovery checks (rev-1 reviewer)**:
+- Path A verified: standalone forms at line 29 of copilot prompt + line 25 of generic workflow.
+- Path B verified: regex walked through accept (`→`, ` # auto`, backtick) and reject (`-` after spaces) cases.
+- Pre-existing M15 W3 Slice D anchors (`Verify before composing.`, `tpatch verify --all`) untouched.
+- `internal/cli/cobra.go` untouched. v0.7 cluster paper docs untouched.
+
+**Lesson for future skill anchors**: substring match on a phrase that is also a prefix of advanced-mode invocations will false-pass. New convention: test anchors that lock "user should type X by itself" should be regex-based with explicit terminator alternation, not substring.
+
 # 2026-05-10 — M16-SLICE-2 — APPROVED, shipped as v0.6.3
 
 **Outcome**: Slice 2 of the v0.6.3 polish bundle (`bug-record-roundtrip-false-positive-markdown`) shipped as `eba35bf` + sub-agent verdict `84cdac1`. External supervisor verdict: APPROVED without findings. Tagged v0.6.3.

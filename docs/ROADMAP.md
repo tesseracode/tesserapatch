@@ -222,7 +222,7 @@ lifecycle/freshness conflation. Lifecycle and verification stay separate.
   workspace-corruption-on-missing-features-dir + `fa93536` revision-4
   defensive-3-way-branch-on-tpatch-stat, ~2026-05-10).
 
-## M16 — Operator polish bundle (v0.6.3 / v0.6.4) 🚧
+## M16 — Operator polish bundle (v0.6.3 / v0.6.4) ✅
 
 Three small, user-facing fixes. Originally planned as a single
 release; split after Slice 2 landed and the user opted to ship
@@ -244,9 +244,21 @@ the data-bug fix immediately rather than wait for Slice 3.
   helper that preserves content bytes. Shipped as v0.6.3. ✅
   APPROVED (commit `eba35bf` + sub-agent verdict `84cdac1`,
   external supervisor pass 2026-05-10).
-- **Slice 3** — `feat-apply-default-execute`: make
-  `tpatch apply <slug>` default to `--mode execute`. Deferred from
-  v0.6.3 to v0.6.4. ⬜
+- **Slice 3** — `feat-apply-default-execute` +
+  `feat-skills-apply-auto-default` (unified): on inspection the
+  CLI default at `internal/cli/cobra.go:586` is already `auto`
+  (runs prepare→execute→done), so the simple invocation
+  `tpatch apply <slug>` already does the right thing. Real work
+  was doc/skill alignment: 6 skill surfaces updated so the
+  recommended user-facing invocation is `tpatch apply <slug>`,
+  with the four-mode ladder kept as advanced/state-machine
+  fallback. New parity-guard regex anchor
+  `apply-default-auto/simple-invocation` locks the contract.
+  Shipped as v0.6.4. ✅ APPROVED (commit `eab2c3c` + sub-agent
+  verdict `4556387`; external NEEDS REVISION on parity-anchor
+  false-pass risk → revision `38d13fc` strengthened both weak
+  surfaces and tightened anchor to a regex; external pass
+  2026-05-10).
 
 ## M15+ — Future
 

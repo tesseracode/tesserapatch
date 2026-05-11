@@ -1,3 +1,33 @@
+## Review — M16-SLICE-3-REV1 — 2026-05-10
+
+**Reviewer**: sub-agent
+**Task**: M16 Slice 3 rev-1 — strengthen apply-simple parity anchor (Path A + B)
+**Commits reviewed**: 38d13fc (fix), 477ccc9 (handoff SHA backfill)
+
+### Checklist
+- [x] Code compiles: `go build ./cmd/tpatch` ok
+- [x] Tests pass: `go test ./...` all green
+- [x] Formatted: `gofmt -l .` empty
+- [x] Path A — both weak surfaces (copilot prompt line 29, generic workflow line 25) now have genuine standalone `tpatch apply <slug>` rows, alignment preserved
+- [x] Path B — anchor moved to regex `(?m)tpatch apply <slug>(?:\s*$|\s+[^-\s]|`+"`"+`)` with in-source comment citing the supervisor finding
+- [x] Robustness probe re-run independently — temporary revert produced clean named-surface diagnostic; restore returned green
+- [x] Pre-existing anchors (`Verify before composing.`, `tpatch verify --all`) untouched
+- [x] `internal/cli/cobra.go` untouched (empty diff in 38d13fc)
+- [x] v0.7 cluster paper docs untouched
+- [x] CHANGELOG v0.6.4 has transparent `### Fixed` subsection naming the finding + affected surfaces + new regex
+- [x] Branch `main`, working tree clean
+
+### Verdict: APPROVED
+
+### Notes
+Defense-in-depth fix is the right shape: future drift in either direction (weakening surfaces or weakening the regex) will be caught. The regex's three-branch alternation (`\s*$`, `\s+[^-\s]`, `` ` ``) is well-explained in the implementation handoff and covers all current legitimate forms while rejecting `--mode <flag>` continuations.
+
+### External supervisor verdict
+APPROVED on 2026-05-10. Cleared for ship.
+
+### Action Taken
+Pushed 4-commit stack (`eab2c3c`, `4556387`, `38d13fc`, `477ccc9`) to `origin/main`. Tagged v0.6.4 + pushed tag. ROADMAP M16 flipped to ✅. Slice 3 archived to HISTORY.md. CURRENT.md re-written for v0.7 cluster routing pass.
+
 ## Review — M16-SLICE-3 — 2026-05-10
 
 **Reviewer**: sub-agent
