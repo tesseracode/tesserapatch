@@ -2,10 +2,11 @@
 
 ## Active Task
 
-- **Task ID**: `feat-amend-dependent-warning` — v0.7.0 implementer brief (DRAFT for user review)
+- **Task ID**: `feat-amend-dependent-warning` — v0.7.0
 - **Milestone**: v0.7.0 — M15 W3 freshness continuation
-- **Status**: Revision-1 (NEEDS REVISION addressed) — awaiting external supervisor re-review
+- **Status**: ✅ COMPLETE — APPROVED by external supervisor (rev-1, commit `6e78eac`); ready to push and tag `v0.7.0`
 - **Assigned**: 2026-05-10 (rev-0); 2026-05-11 (rev-1)
+- **Ship commits**: `8306367` (impl) → `6e78eac` (rev-1 fixes) → `a5e7de0` (sub-agent verdict) → tracking commit → tag `v0.7.0`
 
 ## Brief — `feat-amend-dependent-warning` (v0.7.0)
 
@@ -313,6 +314,11 @@ Files:
 11. `docs/state-of-the-art/research-roadmap.md` is now the durable exploratory
     tracker so research can advance independently if `docs/handoff/CURRENT.md`
     is reassigned to implementation work.
+12. Amendment models differ by tool: Quilt/StGit usually refresh the managed
+    patch, Git supports both amend and fixup/squash-forward workflows, Aider
+    favors small commits plus undo, and Entire preserves context links around
+    rewrites. tpatch likely needs canonical-current patch plus append-only
+    generations, with explicit amend/fixup/fold/fork semantics.
 
 ### Candidate follow-up names
 
@@ -330,6 +336,8 @@ These are research outputs only, not queued roadmap work:
 - `PRD-reconcile-planner-audit-artifacts`
 - `PRD-feature-file-claims`
 - `PRD-record-capture-modes`
+- `ADR-patch-amendment-policy`
+- `PRD-feature-patch-amend`
 - `PRD-active-feature-session`
 - `PRD-agent-event-log`
 - `PRD-ide-capture-hooks`

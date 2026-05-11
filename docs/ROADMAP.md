@@ -321,12 +321,25 @@ fidelity, but the implementation milestone is v0.8.0.
       separately on a later v0.8.x point release. Independent of Waves
       A–C; can ship in parallel with any of them.
 
-## v0.7.0 — `feat-amend-dependent-warning` ⬜
+## v0.7.0 — `feat-amend-dependent-warning` ✅
 
-Continuation of the M15 W3 freshness overlay work. Ships before M17 to
-keep the freshness UX contiguous. Tracked as `feat-amend-dependent-warning`
-in SQL todos. Brief to be drafted in CURRENT.md when the implementer is
-dispatched.
+Continuation of the M15 W3 freshness overlay work. Shipped before M17 to
+keep the freshness UX contiguous. Adds an amend-detection guard to
+`record` that refuses (exit 1) when capturing a feature would orphan a
+dependent's `base_commit` or `satisfied_by` SHA via a force-pushed amend,
+plus a `--force-amend` escape hatch. Surfaces a `dependent-broken` label
+on the affected features in `status`, `status --json`, `status --dag`,
+and `status --dag --json`, with a single coalesced diagnostic line per
+affected feature listing deduped abbrev SHAs and a recovery hint. New
+`internal/store/dependents.go` exports `CollectDependentSHAs`,
+`IsAmendBreaking`, `CollectBrokenRefs`. Reachability uses
+`gitutil.IsAncestor`; amend signal derived from `HEAD@{1}^ == HEAD^`
+when reflog available. Six skill surfaces updated by parity guard.
+
+Ship commits: `8306367` (impl), `6e78eac` (rev-1), `a5e7de0` (sub-agent
+verdict), tracking commit + tag `v0.7.0`. External supervisor required
+one revision (DAG renderers were missing the overlay; plain-text emitted
+one line per ref instead of per feature) — both addressed in `6e78eac`.
 
 ## M18+ — Future
 
