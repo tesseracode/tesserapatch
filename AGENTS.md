@@ -209,3 +209,15 @@ Each entry in `docs/supervisor/LOG.md`:
 | Reviewer wrote a verdict | `LOG.md` entry + handoff transition |
 | Milestone done | `ROADMAP.md` status flip + milestone file closed |
 | Task done | `CURRENT.md` → `HISTORY.md` archive + new `CURRENT.md` for next task |
+
+## PRD Authoring — Strongly Encouraged Conventions
+
+These are **strongly encouraged but not enforced** (no automated guard). They graduated from `docs/whitepapers/WP-001-feature-slice-gap.md §3.5` after the v0.7 cluster review surfaced repeated cross-PRD blind spots that a self-audit would have caught.
+
+1. **Claims-audit appendix**: Each load-bearing claim about current behavior should cite a `file:line` (or `file:line-range`) anchor in the authoritative docs (`SPEC.md`, `docs/dependencies.md`, `docs/feature-layout.md`, `docs/agent-as-provider.md`) or in `internal/`/`assets/` source. Reviewers should spot-check that cites land within ±5 lines of current code.
+
+2. **"Could existing primitives do this?" pre-flight**: An exploratory PRD that proposes a new data-model object should include a short section enumerating the existing primitives (current `feature.yaml` fields, existing trailers, existing config keys) and explaining why none can carry the new responsibility.
+
+3. **"Related" header should match what the PRD actually cites**: If a PRD lists Related PRDs/ADRs/whitepapers in its header, every claim about those documents in the body should cite them by name (not by paraphrase).
+
+These conventions are not enforced because (a) PRD shape varies enough that a parser would over-fit, and (b) reviewer cross-pass is the real safety net. A PRD that omits them is still acceptable; a reviewer is free to ask for them at acceptance time.

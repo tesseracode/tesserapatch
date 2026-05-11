@@ -1,3 +1,19 @@
+# 2026-05-10 — v0.7-cluster-routing-pass — APPROVED, paper-only
+
+**Outcome**: Paper-only routing of the v0.7 boundary-capture cluster shipped as `7196ae8` + sub-agent verdict (in-line). External pass not required (paper-only, no code surface).
+
+**Scope**: Opened ADR-016 (record-auto-base), ADR-017 (reconcile-lock-guard + writer-normalization), ADR-018 (record-collision-detection), ADR-019 (tpatch-land trailers) as placeholders only — bodies deferred per ADR-011 precedent. Slugged M17 in ROADMAP with Wave A/B/C structure mirroring the LOG entry "Review — v0.7 Cluster PRDs — 2026-05-10". Prepended routing entry to LOG.md surfacing 3 supervisor decisions.
+
+**Verified**: HIGH bug at `internal/workflow/reconcile.go:599` (`branch: %s` interpolation with full ref) still present at HEAD — not fixed standalone (bundles into Wave A2 per `PRD-reconcile-lock-guard §5.3`).
+
+**Followup decisions resolved (same day)**:
+- PRD-detector → accepted-exploratory, slotted into M17 as Wave D (default-OFF).
+- Owner assignment → deferred to backlog (`backlog-assign-m17-owners`).
+- Claims-audit convention → codified in AGENTS.md as strongly-encouraged-not-enforced.
+- Ordering → v0.7.0 = `feat-amend-dependent-warning`, M17 cluster ships as v0.8.0.
+
+**Lesson**: Multi-agent paper-design clusters benefit from a single dedicated routing pass between acceptance and implementation. The routing pass forces the supervisor to: (a) open ADR placeholders before code, (b) flip the ROADMAP, (c) surface every pending decision in one place, (d) resist the temptation to assign owners speculatively. Without the routing pass, the cluster would have sat between LOG.md and ROADMAP.md in an ambiguous accepted-but-unrouted state.
+
 # 2026-05-10 — M16-SLICE-3 — APPROVED, shipped as v0.6.4
 
 **Outcome**: Slice 3 of the M16 polish bundle (`feat-apply-default-execute` + `feat-skills-apply-auto-default` unified) shipped as `eab2c3c` + sub-agent verdict `4556387` + revision `38d13fc` + handoff backfill `477ccc9`. External supervisor verdicts: NEEDS REVISION on the original (parity-anchor false-pass risk) → APPROVED on the rev-1 stack. Tagged v0.6.4.

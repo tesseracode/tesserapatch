@@ -2,135 +2,96 @@
 
 ## Active Task
 
-- **Task ID**: v0.7-cluster-routing-pass (paper-only)
-- **Milestone**: pre-M17 routing
-- **Status**: Not Started
+- **Task ID**: `feat-amend-dependent-warning` — v0.7.0 implementer
+- **Milestone**: v0.7.0 — M15 W3 freshness continuation
+- **Status**: Not Started — brief to be drafted before implementer dispatch
 - **Assigned**: 2026-05-10
 
 ## Just Shipped
 
-**v0.6.4** — M16 Slice 3 (apply-default-auto + 6-surface skill alignment + parity-anchor strengthening). 4-commit stack landed (`eab2c3c` + `4556387` + `38d13fc` + `477ccc9`), tag pushed, ROADMAP M16 flipped ✅, archived to HISTORY.md.
+- **v0.6.4** — M16 Slice 3 (apply-default-auto + 6-surface skill alignment + parity-anchor strengthening). 4-commit stack `eab2c3c` + `4556387` + `38d13fc` + `477ccc9` + tracking `9bd5fb1`. Tag pushed, ROADMAP M16 ✅, archived to HISTORY.md.
+- **v0.7 cluster routing pass** (`7196ae8` + tracking) — opened ADR-016..019 placeholders, slugged M17 with Wave A/B/C/D structure, surfaced 3 supervisor decisions (now resolved — see LOG.md "Supervisor Decisions — v0.7 Cluster Routing — 2026-05-10").
 
-## Background
+## Resolved Supervisor Decisions (2026-05-10)
 
-After v0.6.4, the next planned work is **v0.7.0**. There are two competing scopes:
+1. **PRD-patch-already-upstream-detector**: accepted as accepted-exploratory; slotted into M17 as **Wave D** (default-OFF reconcile fast-path, ships with cluster, user-visible flag flipped on a later v0.8.x point release).
+2. **Implementation owner assignment**: deferred to backlog (`backlog-assign-m17-owners`); fresh implementer sub-agent dispatched per Wave at start time.
+3. **Claims-audit-table convention**: codified in AGENTS.md as "PRD Authoring — Strongly Encouraged Conventions" (3 conventions, no automated guard, reviewer cross-pass remains the safety net).
+4. **Ordering** (bonus): v0.7.0 = `feat-amend-dependent-warning`. M17 boundary-capture cluster ships as **v0.8.0**.
 
-1. **`feat-amend-dependent-warning`** — supervisor's earlier plan (continuation of M15 W3 freshness work).
-2. **v0.7 boundary-capture cluster** — multi-agent paper-design from 2026-05-10 (4 PRDs, accepted in LOG.md):
-   - PRD-record-auto-base (Wave A)
-   - PRD-reconcile-lock-guard (Wave A, bundles HIGH bug fix at `internal/workflow/reconcile.go:600-604`)
-   - PRD-record-collision-detection (Wave B, depends on auto-base)
-   - PRD-tpatch-land (Wave C, gated on auto-base + collision-detection)
-   - Plus PRD-patch-already-upstream-detector (sibling exploratory, placement TBD)
+## Background — `feat-amend-dependent-warning`
 
-User's stated preference: **`feat-amend-dependent-warning` before the boundary-capture cluster**. Final ordering still requires explicit confirmation after this routing pass.
+Continuation of the M15 W3 freshness overlay work (verify-freshness shipped in v0.6.2). The amend-dependent-warning feature warns when a user is about to `git commit --amend` (or otherwise rewrite history) on a commit that has dependent features downstream — preventing silent corruption of the dependency graph.
 
-## This Task — Paper-Only Routing Pass
+**Next step before implementer dispatch**: draft a concrete brief covering:
+- Scope: which `tpatch` commands/hooks emit the warning (record? apply? a new git pre-amend hook?)
+- Detection algorithm: how to identify "this commit is depended on by feature X"
+- Output shape: warning text, exit code, override flag (`--force`?)
+- Skill-surface impact (if any)
+- Test fixtures: amend-on-dependent reproducer
 
-Per the suggesting agent's brief (logged in `~/.copilot/session-state/.../checkpoints/027` and earlier turns), the v0.7 cluster needs paper routing **before** any code lands. **No implementation. No ADR bodies. No PRD edits.**
+The PRD does not yet exist for this feature — it's a smaller polish item that may not need a full PRD. **Decision required from user**: PRD-first or brief-and-implement?
 
-### Acceptance Criteria
+## M17 — Queued for v0.8.0
 
-1. **Open 4 ADR placeholders** in `docs/adrs/` (next numbers: ADR-016, 017, 018, 019). Each placeholder contains ONLY:
-   - Title
-   - `Status: Draft (placeholder)`
-   - `Owner: TBD (assign during implementation)`
-   - `Locks in: <one-paragraph from supervisor entry>`
-   - `Source PRD: <relative path>`
-   - `Sections to write at implementation time:` Decision drivers, Decision, Consequences, Alternatives considered.
+| Slice | PRD | ADR placeholder | Wave deps |
+|-------|-----|-----------------|-----------|
+| A1 — `impl-record-auto-base` | PRD-record-auto-base | ADR-016 | Independent |
+| A2 — `impl-reconcile-lock-guard` + writer-norm fix | PRD-reconcile-lock-guard | ADR-017 | Independent (bundles HIGH bug fix at `internal/workflow/reconcile.go:599`) |
+| B — `impl-record-collision-detection` | PRD-record-collision-detection | ADR-018 | Wave A1 |
+| C — `impl-tpatch-land` | PRD-tpatch-land | ADR-019 | Wave A1 + Wave A2 + Wave B |
+| D — `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | TBD | Independent (default-OFF) |
 
-   Suggested mapping (verify against supervisor LOG entry before locking):
-   - ADR-016 — record auto-base resolution algorithm (PRD-record-auto-base)
-   - ADR-017 — reconcile lock-guard semantics + writer-normalization (PRD-reconcile-lock-guard)
-   - ADR-018 — record collision-detection signature scheme (PRD-record-collision-detection)
-   - ADR-019 — tpatch-land trailer-block schema (PRD-tpatch-land)
+Owner assignment per slice: backlog `backlog-assign-m17-owners`.
 
-2. **Slug M17** in `docs/ROADMAP.md` covering the v0.7 cluster with Wave A/B/C slice rows. Reference the supervisor acceptance entry by date. **Do not assign owners** — that's a pending supervisor decision.
+## Side Research — State-of-the-art middle pass (2026-05-10)
 
-3. **Append `## v0.7 Cluster — Queued` section to CURRENT.md** AFTER this routing pass closes (i.e. in the next task's CURRENT.md), surfacing:
-   - 3 pending supervisor decisions (PRD-detector placement; implementation owner assignment; AGENTS.md claims-audit-table convention).
-   - The queued task IDs (already in SQL — see `todos` table where `id LIKE 'impl-%' OR id LIKE 'adr-%'`).
+Paper-only exploratory pass completed for a non-LLM middle layer between
+deterministic reconcile heuristics and full provider/coding-agent workflows.
+This does **not** change code, schema, CLI behavior, roadmap status, PRDs, or
+ADRs.
 
-4. **Append routing entry to `docs/supervisor/LOG.md`** titled `## Queue — v0.7 Cluster Routing — 2026-05-10` documenting: ADR numbers opened, milestone slugged (M17), tasks queued, supervisor decisions pending. **This is a routing entry, not a review verdict.**
+### Research packet
 
-5. **Verify HIGH bug still present** at `internal/workflow/reconcile.go:600-604` (`branch: %s` interpolated with full ref). If independently fixed, note drift in the routing entry. (Per PRD-reconcile-lock-guard §5.3, this fix bundles into Wave A guard implementation — DO NOT fix standalone.)
+Created `docs/state-of-the-art/` with docs modeled after the existing market
+research / PRD conventions: header block, related links, refresh triggers,
+references, open questions, and disputes.
 
-### Constraints
+Files:
 
-- No edits to `internal/`, `assets/`, or `cmd/`.
-- No edits to the 4 cluster PRDs, WP-001, exploratory PRDs.
-- No ADR bodies (placeholders only).
-- No PRD movement (PRD-patch-already-upstream-detector stays where it is).
-- No owner assignments.
-- No `go test` / `go build` runs needed (paper-only).
+- `docs/state-of-the-art/README.md`
+- `docs/state-of-the-art/patch-theory-and-commutation.md`
+- `docs/state-of-the-art/patch-identity-and-structural-fingerprints.md`
+- `docs/state-of-the-art/search-based-patch-application.md`
+- `docs/state-of-the-art/tpatch-middle-pass-synthesis.md`
 
-## SQL Todos
+### Findings
 
-The 14 v0.7 cluster todos are already queued (`impl-record-auto-base`, `impl-reconcile-lock-guard`, `impl-record-collision-detection`, `impl-tpatch-land`, plus 4 `adr-*` and 3 `decision-*` and the routing pass itself, with full Wave A/B/C dependency graph in `todo_deps`).
+1. Patch theory is useful as vocabulary for identity, inverse, composition,
+   commutation, dependency, and conflict, but tpatch should not claim
+   Darcs/Pijul guarantees on top of unified diffs.
+2. Patch identity should be treated as a ladder: exact bytes, `git patch-id`,
+   token fingerprints, AST/CFG/PDG similarity, behavioral checks, and finally
+   provider/human intent judgment.
+3. Computer-vision feature matching maps to code relocation: detect salient
+   code keypoints, compute local descriptors, match across old/new upstream,
+   reject outliers, then attempt relocated apply in a shadow tree.
+4. Search-based application should operate only on uncertain patch clusters,
+   after deterministic dependency/commutation pre-passes shrink the search
+   space.
+5. Beam search is the likely first practical non-LLM planner; MCTS and
+   evolutionary algorithms remain candidates for larger uncertain clusters.
 
-After this routing pass: bring `v0.7-cluster-decide-vs-amend-dependent` to the user for the ordering call.
+### Candidate follow-up names
 
-## Files to Touch
+These are research outputs only, not queued roadmap work:
 
-- `docs/adrs/ADR-016-*.md` (create)
-- `docs/adrs/ADR-017-*.md` (create)
-- `docs/adrs/ADR-018-*.md` (create)
-- `docs/adrs/ADR-019-*.md` (create)
-- `docs/ROADMAP.md` (add M17 row)
-- `docs/supervisor/LOG.md` (prepend routing entry)
-- `docs/handoff/CURRENT.md` (rewrite once routing closes — handoff for whichever v0.7.0 scope is chosen next)
+- `PRD-structural-patch-fingerprints`
+- `PRD-reconcile-commutation-graph`
+- `PRD-reconcile-search-planner`
+- `ADR-structural-middle-pass-boundary`
+- `PRD-reconcile-planner-audit-artifacts`
 
 ## Blockers
 
-None.
-
-## v0.7 Cluster — Queued
-
-Routing pass output (paper-only; awaiting reviewer + supervisor sign-off).
-
-### ADR placeholders created
-
-- `docs/adrs/ADR-016-record-auto-base-resolution.md`
-- `docs/adrs/ADR-017-reconcile-lock-guard-and-writer-normalization.md`
-- `docs/adrs/ADR-018-record-collision-detection-signature.md`
-- `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`
-
-Each is Status=Draft (placeholder), Owner=TBD, body deferred to
-implementation time per ADR-011 precedent.
-
-### Roadmap
-
-**M17 — v0.7 boundary-capture cluster ⬜** slugged in `docs/ROADMAP.md`
-between M16 (✅) and `## M15+ — Future`. Wave A (parallel: A1 auto-base,
-A2 lock-guard + writer-normalization fix), Wave B (collision-detection,
-depends on A1), Wave C (`tpatch land`, depends on Wave A + Wave B).
-Owners left TBD.
-
-### Pending supervisor decisions (3)
-
-1. `PRD-patch-already-upstream-detector.md` placement (keep / move to
-   deferred-research / reject). Not moved by this pass.
-2. Implementation owner assignment for the four v0.7 PRDs.
-3. Codify WP-001 §3.5 claims-audit-table convention in `AGENTS.md` /
-   `docs/whitepapers/README.md`, or leave as informal precedent.
-
-### Implementation task IDs
-
-See SQL `todos` table — `impl-record-auto-base`,
-`impl-reconcile-lock-guard`, `impl-record-collision-detection`,
-`impl-tpatch-land`, plus the four `adr-*` and three `decision-*`
-siblings (already queued in an earlier session; this pass did not
-re-insert). Wave dependencies live in `todo_deps`.
-
-### HIGH bug status
-
-`internal/workflow/reconcile.go` `updateUpstreamLock()` (lines 595–605;
-`branch: %s` at line 599) — **verified present at HEAD**. Bundles into
-Wave A Slice A2 per `PRD-reconcile-lock-guard §5.3`. Not fixed
-standalone.
-
-### Next step
-
-**Implementer dispatch awaits supervisor owner-assignment decision.**
-The routing entry at the top of `docs/supervisor/LOG.md` surfaces all
-three pending decisions for the supervisor.
+None. Awaiting user choice on PRD-first vs brief-and-implement for `feat-amend-dependent-warning`.

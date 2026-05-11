@@ -1,3 +1,21 @@
+## Supervisor Decisions — v0.7 Cluster Routing — 2026-05-10
+
+Resolves the 3 pending decisions surfaced by the routing pass at `7196ae8`.
+
+**Decision 1 — PRD-patch-already-upstream-detector placement**: **ACCEPTED as accepted-exploratory; slotted into M17 as Wave D.** Stays in `docs/prds/` (not moved to a deferred-research folder). The PRD's own §6 Migration anchors the placement: feature is gated behind `Config.PatchIDDetectorEnabled` default-`false` until v0.8.x, so the infrastructure can land alongside the rest of the boundary-capture cluster while the user-visible flip happens on a later v0.8.x point release. Wave D is independent of Waves A/B/C and can ship in parallel with any of them. ADR placeholder deferred until owner picks the slice up.
+
+**Decision 2 — Implementation owner assignment**: **DEFERRED to backlog.** The 4 cluster PRDs + the detector PRD are paper-complete; assigning owners now would over-commit specific sub-agents to slices that may not start for weeks. New backlog task `backlog-assign-m17-owners` queued — supervisor (or user) revisits at the start of each Wave and dispatches a fresh implementer sub-agent per slice. ROADMAP M17 owner cells reference this task explicitly.
+
+**Decision 3 — Claims-audit-table convention**: **CODIFIED in `AGENTS.md` as strongly encouraged but not enforced.** Added a new "## PRD Authoring — Strongly Encouraged Conventions" section listing three conventions graduated from WP-001 §3.5 (claims-audit appendix; "could existing primitives do this?" pre-flight; "Related" header consistency). No automated guard — reviewer cross-pass remains the safety net. PRDs that omit them are still acceptable; reviewers may ask for them at acceptance time.
+
+**Ordering decision (bonus, also resolved)**: v0.7.0 = `feat-amend-dependent-warning` (M15 W3 freshness continuation, ships first to keep freshness UX contiguous). M17 boundary-capture cluster ships as **v0.8.0**. The cluster name "v0.7 cluster" preserved in earlier LOG entry titles for historical fidelity; ROADMAP and forward-looking docs use v0.8.0.
+
+### Action Taken
+- ROADMAP M17 reframed as v0.8.0; Wave D added for the detector PRD; v0.7.0 row added for `feat-amend-dependent-warning`.
+- AGENTS.md "PRD Authoring — Strongly Encouraged Conventions" section appended.
+- CURRENT.md "v0.7 Cluster — Queued" section updated to reflect resolved decisions.
+- SQL: `decision-detector-prd-placement`, `decision-cluster-implementation-owners`, `decision-claims-audit-convention` flipped to `done`. New `backlog-assign-m17-owners` task queued.
+
 ## Queue — v0.7 Cluster Routing — 2026-05-10
 
 **This is a routing/queue entry, not a review verdict.** It records the
