@@ -44,8 +44,8 @@ requested    → tpatch analyze    → analyzed
 analyzed     → tpatch define     → defined
 defined      → tpatch explore    → defined (exploration.md enriched)
 defined      → tpatch implement  → implementing (apply-recipe.json ready)
-implementing → tpatch apply --mode execute                          → applied
-             OR tpatch apply --mode started / edit / --mode done    → applied
+implementing → tpatch apply                                         → applied
+             OR tpatch apply --mode started / edit / --mode done    → applied (advanced)
 applied      → tpatch record     → active
 active       → tpatch reconcile  → active | upstream_merged | blocked
 ```
@@ -273,7 +273,7 @@ When `tpatch reconcile` cannot forward-apply cleanly, it returns verdict `3WayCo
 6. Forward-apply: edit the files directly in the working tree; tpatch does not need to drive this.
 7. Once the tree is clean and the feature works, run:
    ```
-   tpatch apply <slug> --mode execute         # or --mode started / --mode done if you authored ad-hoc
+   tpatch apply <slug>                          # auto runs prepare→execute→done; or use --mode started / --mode done if you authored ad-hoc
    tpatch record <slug>
    ```
 8. The `post-apply.patch` is rewritten; the recipe is regenerated on the next `implement`.

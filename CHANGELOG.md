@@ -2,6 +2,59 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.6.4 — 2026-05-10 — M16 (operator polish, completion)
+
+Final M16 release. Closes Slice 3 of the operator-polish bundle by
+unifying `feat-apply-default-execute` and
+`feat-skills-apply-auto-default`: the CLI default has been
+`--mode auto` (which runs `prepare → execute → done` as a single
+verb) since v0.6.0, but the 6 shipped skill surfaces still
+documented `apply --mode execute` as the canonical invocation in
+their lifecycle diagrams. This release closes that docs/skills gap so
+agents reading the skills now see the simpler `tpatch apply <slug>`
+form first, with the four-mode ladder preserved as an advanced /
+state-machine fallback.
+
+### Changed
+
+- **All 6 skill surfaces now recommend `tpatch apply <slug>` (no
+  explicit `--mode`) as the canonical user-facing invocation.** The
+  Phase Ordering tables in `assets/skills/claude/tessera-patch/SKILL.md`,
+  `assets/skills/copilot/tessera-patch/SKILL.md`,
+  `assets/prompts/copilot/tessera-patch-apply.prompt.md`,
+  `assets/skills/cursor/tessera-patch.mdc`,
+  `assets/skills/windsurf/windsurfrules`, and
+  `assets/workflows/tessera-patch-generic.md` were updated so the
+  `implementing → applied` row reads `tpatch apply` instead of
+  `tpatch apply --mode execute`. The advanced-fallback row
+  (`tpatch apply --mode started / edit / --mode done`) is preserved
+  and now explicitly tagged `(advanced)`. Path-safety prose
+  (`EnsureSafeRepoPath` aborts) and `created_by`-gate prose
+  (v0.6.0 hard-parent enforcement) intentionally retain the explicit
+  `apply --mode execute` reference because they describe what the
+  execute *phase* enforces, not how to invoke apply — `auto` runs the
+  same execute phase, so the semantics are unchanged.
+
+### Added
+
+- **Parity-guard anchor `apply-default-auto/simple-invocation`** in
+  `assets/assets_test.go`. The literal byte sequence
+  `tpatch apply <slug>` is now required to appear in every shipped
+  skill surface. This locks the simplified one-verb invocation
+  in across all 6 surfaces and prevents future drift back to
+  `apply --mode execute` in invocation-recommendation prose. The
+  anchor only asserts that the simple form is present; it does not
+  forbid the four-mode ladder, which remains documented as the
+  advanced state-machine path.
+
+### Notes
+
+- No CLI behavior change. `internal/cli/cobra.go` still defaults
+  `--mode` to `auto`, the four-mode ladder
+  (`prepare`, `started`, `execute`, `done`) remains fully usable,
+  and `auto` mode still runs `prepare → execute → done` end-to-end.
+  This release is documentation/skills-only.
+
 ## v0.6.3 — 2026-05-10 — M16 (operator polish, partial)
 
 Polish release. Slice 2 of the M16 bundle ships now;

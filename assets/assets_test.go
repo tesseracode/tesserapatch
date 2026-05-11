@@ -62,6 +62,16 @@ var requiredAnchors = []struct {
 	// or paraphrased.
 	{"verify-freshness/bullet", "Verify before composing."},
 	{"verify-freshness/all-mode", "tpatch verify --all"},
+	// Slice 3 (M16, v0.6.4): every shipped skill surface must
+	// recommend the simplified one-verb invocation `tpatch apply
+	// <slug>` (no explicit --mode flag). The CLI default has been
+	// `--mode auto` since v0.6.0; this anchor locks the docs/skills
+	// alignment so future drift back to `apply --mode execute` in
+	// invocation-recommendation prose is caught at test time. The
+	// four-mode ladder (prepare/started/execute/done) remains
+	// documented as an advanced fallback — this anchor only asserts
+	// that the simple form is present, not that the ladder is gone.
+	{"apply-default-auto/simple-invocation", "tpatch apply <slug>"},
 }
 
 // Skill format files that must mention all CLI commands.

@@ -83,15 +83,112 @@ This slice unifies two backlog todos:
 
 ## Files Changed
 
-(implementer fills)
+- `assets/skills/claude/tessera-patch/SKILL.md` — Phase Ordering row + line ~276 worked example simplified to `tpatch apply <slug>`
+- `assets/skills/copilot/tessera-patch/SKILL.md` — Phase Ordering row simplified
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — Phase Ordering row simplified
+- `assets/skills/cursor/tessera-patch.mdc` — Phase Ordering row simplified
+- `assets/skills/windsurf/windsurfrules` — Phase Ordering row simplified
+- `assets/workflows/tessera-patch-generic.md` — Phase Ordering row simplified
+- `assets/assets_test.go` — added parity-guard anchor `apply-default-auto/simple-invocation` requiring literal `tpatch apply <slug>` in all 6 surfaces
+- `CHANGELOG.md` — new `## v0.6.4 — 2026-05-10 — M16 (operator polish, completion)` section above v0.6.3 with Changed/Added/Notes subsections
+
+`internal/cli/cobra.go` was NOT modified — the help text at line 586 already says `auto (default, runs prepare→execute→done)` and the error message at line 582 already lists `auto` first. No tightening needed.
 
 ## Test Results
 
-(implementer fills)
+```
+$ gofmt -l .
+(empty)
+
+$ go build ./cmd/tpatch
+(ok)
+
+$ go test ./...
+ok  	github.com/tesseracode/tesserapatch/assets	0.642s
+?   	github.com/tesseracode/tesserapatch/cmd/tpatch	[no test files]
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/cli	7.755s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/provider	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/safety	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/store	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	(cached)
+
+$ go test ./assets/ -count=1 -v
+=== RUN   TestSkillParityGuard          ... PASS (all 6 surfaces)
+=== RUN   TestAllSkillFilesExist        ... PASS (all 6)
+=== RUN   TestSkillRecipeSchemaMatchesCLI ... PASS (all 6)
+PASS
+ok  	github.com/tesseracode/tesserapatch/assets	0.434s
+```
+
+The new `apply-default-auto/simple-invocation` anchor is asserted on every one of the 6 skill surfaces and all pre-existing anchors (invocation/go-binary, no-npx, no-cd, phase-ordering/table, never-skip, preflight/*, recipe-schema/*, conflict-playbook/*, patch-vs-recipe, verify-freshness/*) still pass.
 
 ## Context for Reviewer
 
-(implementer fills with: which files were touched, which `--mode execute` mentions were preserved and why, parity-guard anchor used, evidence that the simple invocation works end-to-end)
+### Scope of `apply --mode execute` audit
+
+The handoff cited "58 mentions"; the actual count in `assets/skills/`, `assets/prompts/`, `assets/workflows/` was 25 before edit and 18 after. All 18 remaining occurrences are in **phase-semantics prose** that describes what the execute phase enforces, which is preserved by design.
+
+### Replaced (invocation-recommendation prose)
+
+- 6 × Phase Ordering table rows (one per surface): `implementing → tpatch apply --mode execute → applied` → `implementing → tpatch apply → applied`. The `OR` line below was retained and tagged `(advanced)` so the four-mode ladder remains documented as a fallback.
+- 1 × `assets/skills/claude/tessera-patch/SKILL.md` line ~276 — manual-conflict-resolution worked example: `tpatch apply <slug> --mode execute  # or --mode started / --mode done if you authored ad-hoc` → `tpatch apply <slug>  # auto runs prepare→execute→done; or use --mode started / --mode done if you authored ad-hoc`. The ladder is still mentioned in the trailing comment.
+
+### Preserved (phase-semantics prose)
+
+The following 18 mentions ALL describe execute-phase enforcement, not invocation, so they were intentionally left as `apply --mode execute`:
+
+```
+$ grep -rn "apply --mode execute" assets/skills/ assets/prompts/ assets/workflows/
+assets/skills/copilot/tessera-patch/SKILL.md:123 — created_by gate (live apply-time gate)
+assets/skills/copilot/tessera-patch/SKILL.md:126 — path-safety abort (EnsureSafeRepoPath)
+assets/skills/copilot/tessera-patch/SKILL.md:169 — created_by gate detail
+assets/skills/cursor/tessera-patch.mdc:120 — created_by gate
+assets/skills/cursor/tessera-patch.mdc:123 — path-safety abort
+assets/skills/cursor/tessera-patch.mdc:166 — created_by gate detail
+assets/skills/claude/tessera-patch/SKILL.md:165 — path-safety abort
+assets/skills/claude/tessera-patch/SKILL.md:171 — created_by gate
+assets/skills/claude/tessera-patch/SKILL.md:197 — created_by gate detail
+assets/skills/windsurf/windsurfrules:114 — created_by gate
+assets/skills/windsurf/windsurfrules:117 — path-safety abort
+assets/skills/windsurf/windsurfrules:160 — created_by gate detail
+assets/prompts/copilot/tessera-patch-apply.prompt.md:111 — created_by gate
+assets/prompts/copilot/tessera-patch-apply.prompt.md:114 — path-safety abort
+assets/prompts/copilot/tessera-patch-apply.prompt.md:157 — created_by gate detail
+assets/workflows/tessera-patch-generic.md:137 — created_by gate
+assets/workflows/tessera-patch-generic.md:140 — path-safety abort
+assets/workflows/tessera-patch-generic.md:183 — created_by gate detail
+```
+
+Each is in prose like "from v0.6.0 a **live apply-time gate**: `apply --mode execute` rejects ops whose `created_by` parent is missing from `depends_on` (hard-parent miss fails in execute, warns in `--dry-run`)" or "`../`, absolute paths, or symlinks outside the repo abort `apply --mode execute`". Per the handoff §"Acceptance Criteria 2", these are kept verbatim because they describe phase semantics — `auto` runs the same execute phase, so the semantics carry through unchanged. Replacing with `tpatch apply` here would obscure which phase enforces what.
+
+### Other `--mode` references (not in scope of this slice)
+
+`--mode started` and `--mode done` references (Quick Start blocks, copilot apply-prompt Steps, "If reconcile returns 3WayConflicts" recipes, etc.) were left untouched because:
+1. They document the four-mode ladder, which the handoff explicitly preserves as the advanced/state-machine fallback.
+2. The handoff acceptance criteria scope only `--mode execute`.
+3. Those flows describe the manual ad-hoc workflow where there's no recipe to auto-execute.
+
+### Parity-guard anchor
+
+Anchor label: `apply-default-auto/simple-invocation`
+Anchor string: literal `tpatch apply <slug>` (with literal angle brackets — verified to appear in all 6 surfaces before adding the anchor).
+Verification: `grep -c 'tpatch apply <slug>'` returns ≥1 on every surface (claude:2, copilot:2, copilot-prompt:1, cursor:2, windsurf:2, generic:2).
+
+### Layered-discovery check
+
+Confirmed all 6 surfaces still mention the four-mode ladder somewhere — every Phase Ordering table now has the explicit `OR tpatch apply --mode started / edit / --mode done    → applied (advanced)` row, and most surfaces additionally mention `--mode done` and/or `--mode started` in Steps / Quick Start / 3WayConflicts recipes. The advanced ladder is not removed from documentation; it is only de-emphasized for the common case.
+
+### Code unchanged
+
+`internal/cli/cobra.go` was reviewed:
+- Line 586: `cmd.Flags().String("mode", "auto", "Apply mode: auto (default, runs prepare→execute→done), prepare, started, execute, done")` — already names `auto` as default with the pipeline expansion in parens. Clear; no edit.
+- Line 582: `unknown apply mode %q (valid: auto, prepare, started, execute, done)` — already lists `auto` first. Clear; no edit.
+
+### Two-stage review reminder
+
+This sub-agent did not push, did not tag, and did not self-approve. The commit lands on `main` locally with the mandatory co-author trailer. Awaiting reviewer sub-agent then external supervisor pass.
 
 ## Blockers
 
