@@ -193,3 +193,192 @@ This sub-agent did not push, did not tag, and did not self-approve. The commit l
 ## Blockers
 
 None.
+
+---
+
+## Reviewer Verdict — External Supervisor — eab2c3c — 2026-05-10
+
+**Verdict**: NEEDS REVISION (one MEDIUM finding)
+
+### Finding (MEDIUM) — Parity anchor false-passes on 2 of 6 surfaces
+
+`assets/assets_test.go` added an anchor `apply-default-auto/simple-invocation` that does a raw `strings.Contains(content, "tpatch apply <slug>")`. The anchor passes on all 6 surfaces, but on 2 of them it passes for the wrong reason:
+
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — the Phase Ordering row is only `tpatch apply` (no `<slug>`); the only literal `tpatch apply <slug>` substring in the file is `tpatch apply <slug> --mode done` (the advanced-fallback example).
+- `assets/workflows/tessera-patch-generic.md` — same shape: Phase Ordering row is `tpatch apply`; the only literal matches are advanced-mode examples (`tpatch apply <slug> --mode done` etc).
+
+The other 4 surfaces (claude SKILL.md, copilot SKILL.md, cursor mdc, windsurf rules) contain a genuine standalone `tpatch apply <slug>` recommendation.
+
+CHANGELOG v0.6.4 prose currently claims "All 6 skill surfaces now recommend `tpatch apply <slug>`" and "the literal form is required in every shipped surface". That claim is false for the two surfaces above as currently written.
+
+### Required Revision
+
+Pick ONE of (or both):
+
+**Option A — Strengthen the surfaces** (preferred — actually delivers the docs alignment the slice promised):
+- Add a genuine standalone `tpatch apply <slug>` invocation recommendation to:
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md` (e.g. update the Phase Ordering row from `tpatch apply` → `tpatch apply <slug>`)
+  - `assets/workflows/tessera-patch-generic.md` (same shape)
+- Confirm the parity anchor still passes after the edit AND now passes for the right reason.
+
+**Option B — Tighten the parity rule**:
+- Change the anchor logic in `assets/assets_test.go` so `tpatch apply <slug> --mode done` (or any `tpatch apply <slug> --...`) does NOT satisfy the "simple invocation" requirement. Suggested approach: regex match `tpatch apply <slug>` followed by end-of-line, end-of-paragraph, code-block close, or non-flag whitespace. E.g. `regexp.MustCompile("(?m)tpatch apply <slug>(\\s*$|\\s*\\n|\\s*[^-])")` — pick the form that's robust without being brittle.
+- This will cause the anchor to FAIL on the two surfaces that lack a true standalone, exposing the gap. Then fix those two surfaces per Option A.
+
+The recommended path is **A then verify B-style strictness as a defense-in-depth**: do A so the docs actually match the changelog claim, then optionally tighten the anchor regex so future drift can't reintroduce the false-pass.
+
+### CHANGELOG Correction (required regardless of A vs B)
+
+Either:
+- After applying Option A, the existing CHANGELOG v0.6.4 prose is correct as-is.
+- After applying Option B without A, weaken the CHANGELOG prose to match what the surfaces actually deliver.
+
+Reviewer recommendation: do A + tighten anchor (defense-in-depth), keep CHANGELOG as-is.
+
+### Action
+
+Dispatch revision-1 implementer.
+
+---
+
+## Revision-1 Implementation — pending-sha — 2026-05-10
+
+Addresses external supervisor MEDIUM finding on `eab2c3c`. Path A + B
+(defense-in-depth): genuine standalone `tpatch apply <slug>` added to
+both deficient surfaces, and the parity anchor migrated from
+`strings.Contains` to a regex that rejects `--`-flag continuations.
+
+### Files Changed
+
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — Phase
+  Ordering row (line 29) updated from `tpatch apply` →
+  `tpatch apply <slug>`. Column alignment (`→ applied` arrow column)
+  preserved by absorbing 7 chars into the trailing whitespace gap;
+  total line length unchanged at 81 bytes.
+- `assets/workflows/tessera-patch-generic.md` — Phase Ordering row
+  (line 25) same edit, same alignment preservation.
+- `assets/assets_test.go` — Removed
+  `apply-default-auto/simple-invocation` from `requiredAnchors`
+  (literal substring slice). Added new `requiredRegexAnchors` slice
+  alongside it, with the `apply-default-auto/simple-invocation`
+  entry now compiled as
+  `regexp.MustCompile("(?m)tpatch apply <slug>(?:\\s*$|\\s+[^-\\s]|`+"`"+`)")`.
+  `TestSkillParityGuard` extended with a second loop over
+  `requiredRegexAnchors`. In-source comment block explains the
+  external supervisor finding so future agents understand why the
+  shape is what it is.
+- `CHANGELOG.md` — added a `### Fixed` subsection under the existing
+  v0.6.4 entry documenting the strengthened anchor and the surface
+  edits.
+
+### Test Results
+
+```
+$ gofmt -l .
+(empty)
+
+$ go build ./cmd/tpatch
+(ok)
+
+$ go test ./...
+ok  github.com/tesseracode/tesserapatch/assets0.639s
+ok  github.com/tesseracode/tesserapatch/internal/cli8.434s
+(... all packages PASS ...)
+
+$ go test ./assets/ -run TestSkillParityGuard -count=1 -v
+=== RUN   TestSkillParityGuard
+=== RUN   TestSkillParityGuard/Claude
+=== RUN   TestSkillParityGuard/Copilot
+=== RUN   TestSkillParityGuard/Copilot_Prompt
+=== RUN   TestSkillParityGuard/Cursor
+=== RUN   TestSkillParityGuard/Windsurf
+=== RUN   TestSkillParityGuard/Generic
+--- PASS: TestSkillParityGuard (0.00s)
+    --- PASS: TestSkillParityGuard/Claude (0.00s)
+    --- PASS: TestSkillParityGuard/Copilot (0.00s)
+    --- PASS: TestSkillParityGuard/Copilot_Prompt (0.00s)
+    --- PASS: TestSkillParityGuard/Cursor (0.00s)
+    --- PASS: TestSkillParityGuard/Windsurf (0.00s)
+    --- PASS: TestSkillParityGuard/Generic (0.00s)
+PASS
+ok  github.com/tesseracode/tesserapatch/assets0.395s
+```
+
+Regex form used:
+```go
+regexp.MustCompile("(?m)tpatch apply <slug>(?:\\s*$|\\s+[^-\\s]|`)")
+```
+
+### Robustness Probe
+
+Temporarily reverted only the copilot-prompt edit (line 29 back to
+`tpatch apply` without `<slug>`) and re-ran the parity test. Result:
+
+```
+=== RUN   TestSkillParityGuard/Copilot_Prompt
+    assets_test.go:140: Copilot Prompt (prompts/copilot/tessera-patch-apply.prompt.md) missing required regex anchor [apply-default-auto/simple-invocation]: "(?m)tpatch apply <slug>(?:\\s*$|\\s+[^-\\s]|`)"
+--- FAIL: TestSkillParityGuard/Copilot_Prompt (0.00s)
+FAIL
+```
+
+The other 5 surfaces stayed green. The failure message names the
+exact surface (`Copilot Prompt`) and prints the regex that did not
+match, so a future drift toward `tpatch apply <slug> --mode <flag>`
+as the only standalone form will be caught at test time with a clear
+diagnostic. Edit then re-applied; full suite re-run; all 6 surfaces
+green again.
+
+### Context for Reviewer
+
+**Regex shape rationale.** `(?m)tpatch apply <slug>(?:\s*$|\s+[^-\s]|`+"`"+`)`:
+- `(?m)` enables multiline mode so `$` matches end-of-line, not just
+  end-of-string. This handles surfaces where the standalone form sits
+  at the end of a Phase Ordering row inside a fenced block.
+- The non-capturing group `(?:A|B|C)` requires the literal
+  `tpatch apply <slug>` to be followed by ONE of three contexts:
+  - `A = \s*$` — end-of-line with optional trailing whitespace.
+    Covers surfaces where `<slug>` ends a line (uncommon for the
+    current 6 surfaces but supported for future drift).
+  - `B = \s+[^-\s]` — at least one whitespace then a non-`-`,
+    non-whitespace character. This is the dominant match: e.g.
+    `tpatch apply <slug>                                  → applied`
+    (Phase Ordering rows — `→` is the disqualifying character) and
+    `tpatch apply <slug>                          # auto runs ...`
+    (claude SKILL.md line 276 — `#` is the disqualifying character).
+    Crucially, ` --mode` after `<slug>` is whitespace then `-`, which
+    does NOT satisfy `[^-\s]`, so advanced-mode continuations are
+    rejected.
+  - `C = ` `` ` `` — a closing backtick. Covers inline-code wrapped
+    forms such as `` `tpatch apply <slug>` `` (claude SKILL.md
+    line 301; copilot/cursor/windsurf SKILL.md command lists). These
+    have no whitespace between `<slug>` and the closing backtick, so
+    branch B alone would miss them.
+
+**What it accepts** (all 6 surfaces have at least one match):
+- `tpatch apply <slug>                                  → applied`
+  (Phase Ordering rows in copilot prompt + generic workflow + the
+  other 4 SKILL files)
+- `` `tpatch apply <slug>` `` in inline-code list items
+  (copilot/cursor/windsurf/claude command tables)
+- `tpatch apply <slug>                          # auto runs ...`
+  (claude manual-conflict-resolution worked example)
+
+**What it rejects**:
+- `tpatch apply <slug> --mode done` (advanced fallback example)
+- `tpatch apply <slug> --mode started`
+- Any future `tpatch apply <slug> --<flag>` form
+
+**No pre-existing parity anchors weakened.** All M15 W3 Slice D
+anchors (`verify-freshness/bullet` =
+`Verify before composing.`, `verify-freshness/all-mode` =
+`tpatch verify --all`) and all earlier anchors remain intact in the
+literal-substring `requiredAnchors` slice. The new regex slice is
+additive.
+
+**Branch / state.** Stayed on `main`. Did not push, did not tag, did
+not touch `internal/cli/cobra.go`, did not touch the v0.7-cluster
+paper docs, did not touch any other slices' state.
+
+## Blockers
+
+None.

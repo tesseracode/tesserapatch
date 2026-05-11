@@ -47,6 +47,26 @@ state-machine fallback.
   forbid the four-mode ladder, which remains documented as the
   advanced state-machine path.
 
+### Fixed
+
+- **Parity-guard anchor for `tpatch apply <slug>` strengthened**
+  (revision-1 of v0.6.4, external supervisor finding on `eab2c3c`).
+  The original `apply-default-auto/simple-invocation` anchor used
+  `strings.Contains` and false-passed on the copilot prompt
+  (`assets/prompts/copilot/tessera-patch-apply.prompt.md`) and the
+  generic workflow (`assets/workflows/tessera-patch-generic.md`):
+  both surfaces lacked a true standalone `tpatch apply <slug>`
+  recommendation but did contain `tpatch apply <slug> --mode done`
+  inside an advanced-fallback example, which satisfied the substring
+  check. The anchor is now a regex
+  (`(?m)tpatch apply <slug>(?:\s*$|\s+[^-\s]|`+"`"+`)`) that rejects
+  substring matches inside advanced-mode continuations such as
+  `tpatch apply <slug> --mode done`. The two affected surfaces had
+  their Phase Ordering rows updated to carry the genuine standalone
+  form (`implementing → tpatch apply <slug> → applied`), so the
+  v0.6.4 prose claim that all 6 surfaces recommend the simple form
+  is now true at the docs level *and* enforced at the test level.
+
 ### Notes
 
 - No CLI behavior change. `internal/cli/cobra.go` still defaults

@@ -26,7 +26,7 @@ requested    → tpatch analyze    → analyzed
 analyzed     → tpatch define     → defined
 defined      → tpatch explore    → defined (exploration.md enriched)
 defined      → tpatch implement  → implementing (apply-recipe.json ready)
-implementing → tpatch apply                                         → applied
+implementing → tpatch apply <slug>                                  → applied
              OR tpatch apply --mode started / edit / --mode done    → applied (advanced)
 applied      → tpatch record     → active
 active       → tpatch reconcile  → active | upstream_merged | blocked

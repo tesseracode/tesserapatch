@@ -62,16 +62,44 @@ var requiredAnchors = []struct {
 	// or paraphrased.
 	{"verify-freshness/bullet", "Verify before composing."},
 	{"verify-freshness/all-mode", "tpatch verify --all"},
-	// Slice 3 (M16, v0.6.4): every shipped skill surface must
+}
+
+// requiredRegexAnchors holds parity anchors that need richer matching
+// than a literal substring check. Each anchor must match at least once
+// in every shipped skill surface.
+var requiredRegexAnchors = []struct {
+	label string
+	re    *regexp.Regexp
+}{
+	// Slice 3 (M16, v0.6.4) — revision-1 (external supervisor finding
+	// on eab2c3c, 2026-05-10). Every shipped skill surface must
 	// recommend the simplified one-verb invocation `tpatch apply
 	// <slug>` (no explicit --mode flag). The CLI default has been
 	// `--mode auto` since v0.6.0; this anchor locks the docs/skills
 	// alignment so future drift back to `apply --mode execute` in
-	// invocation-recommendation prose is caught at test time. The
-	// four-mode ladder (prepare/started/execute/done) remains
+	// invocation-recommendation prose is caught at test time.
+	//
+	// The regex requires `tpatch apply <slug>` to be followed by one
+	// of:
+	//   - end-of-line (with optional trailing whitespace)
+	//   - whitespace + a non-`-` non-whitespace character (e.g. `→`,
+	//     `#`, `.`, a word — anything that is NOT the start of a
+	//     CLI-flag continuation like ` --mode done`)
+	//   - a backtick (closing inline-code wrapper such as
+	//     `` `tpatch apply <slug>` ``)
+	// This explicitly REJECTS substring false-passes such as
+	// `tpatch apply <slug> --mode done` (the advanced-fallback
+	// example), which previously satisfied a strings.Contains check
+	// on the copilot prompt and generic workflow surfaces even though
+	// neither carried a true standalone recommendation.
+	//
+	// The four-mode ladder (prepare/started/execute/done) remains
 	// documented as an advanced fallback — this anchor only asserts
 	// that the simple form is present, not that the ladder is gone.
-	{"apply-default-auto/simple-invocation", "tpatch apply <slug>"},
+	{
+		label: "apply-default-auto/simple-invocation",
+		re:    regexp.MustCompile("(?m)tpatch apply <slug>(?:\\s*$|\\s+[^-\\s]|`)"),
+	},
 }
 
 // Skill format files that must mention all CLI commands.
@@ -105,6 +133,12 @@ func TestSkillParityGuard(t *testing.T) {
 				if !strings.Contains(content, a.anchor) {
 					t.Errorf("%s (%s) missing required anchor [%s]: %q",
 						sf.name, sf.path, a.label, a.anchor)
+				}
+			}
+			for _, a := range requiredRegexAnchors {
+				if !a.re.MatchString(content) {
+					t.Errorf("%s (%s) missing required regex anchor [%s]: %q",
+						sf.name, sf.path, a.label, a.re.String())
 				}
 			}
 		})
