@@ -1,3 +1,29 @@
+## Review — feat-amend-dependent-warning rev-1 (commit 6e78eac) — 2026-05-11
+
+**Reviewer**: copilot-cli sub-agent (layered discovery review)
+**Task**: Verify rev-1 fixes for the two external-supervisor findings on 8306367 (v0.7.0)
+
+### Checklist
+- [x] **Layer 1 — Implementation gates**: `gofmt -l .` clean; `go build ./cmd/tpatch` OK; `go test ./...` all packages pass; `TestSkillParityGuard` (all 6 formats) pass.
+- [x] **Layer 2 — Finding 1 (DAG overlay)**: `runStatusDAG`, `writeDAGTree`, `walkTree`, `writeDAGJSON`, `renderNodeLine`, `renderNodeLineWithFreshness` all thread `brokenByFeature map[string][]store.FeatureRef` (status_dag.go:94, 178-188, 300-310, 425-435, 361-367, 375-392). Overlay uses existing `appendLabel(labels, store.LabelDependentBroken)` (status_dag.go:382, 466) — no logic duplication. `dagJSONNode.DependentBroken bool \`json:"dependent_broken,omitempty"\`` and `BrokenRefs []dagJSONBrokenRef \`json:"broken_refs,omitempty"\`` added (status_dag.go:51-52). `dagJSONBrokenRef{Kind,SHA,Feature}` with json tags `kind`/`sha`/`feature` (status_dag.go:57-61) byte-for-byte matches the anonymous `brokenRefJSON` struct in cobra.go:259-263. `store.CollectBrokenRefs` is called exactly once in production (cobra.go:239) and threaded into both DAG renderers (cobra.go:245, 252) — no recomputation.
+- [x] **Layer 3 — Finding 2 (per-feature coalesce)**: cobra.go:343-366 now iterates one feature per outer loop, dedupes abbrev SHAs via a `seen` map (cobra.go:352-360), sorts both slugs (cobra.go:348) and abbrevs (cobra.go:361) for determinism, and emits `dependent-broken: feature %q references SHA(s) %s ...` with comma-joined abbrevs.
+- [x] **Layer 4 — Tests are real assertions**: All 4 new tests use `runCmd` + `seedDependentChain` + real git commits and unmarshal real JSON. `TestStatus_DependentBrokenSingleLinePerFeature` asserts `count != 1` (dependent_broken_test.go:411), not just substring. `TestStatus_DependentBrokenMultipleSHAsPerFeature` constructs distinct aSHA + xSHA, asserts `count != 1` and a sorted-joined abbrev substring (dependent_broken_test.go:494-503). DAG tests assert label presence in tree text and unmarshal `dependent_broken`, `broken_refs[]{kind,sha,feature}` shape (dependent_broken_test.go:330-378).
+- [x] **Layer 5 — Live repro**: Plain `status` emits exactly one `dependent-broken: feature "b" references SHA(s) f5059d5 ...` line (deduped across base_commit + satisfied_by); `status --dag` shows `(dependent-broken, never-verified)` on both `a` and `b` tree nodes; `status --dag --json` carries `"dependent_broken": true` + a `broken_refs[]` array of the documented shape on each affected feature.
+- [x] **Layer 6 — Hands-off scope**: `git show 6e78eac` touches no files in `internal/workflow/reconcile.go`, `docs/prds/`, `docs/adrs/`, `docs/state-of-the-art/`. `git diff 8306367..6e78eac -- docs/ROADMAP.md` is empty (M18+ rename preserved). The "Side Research — State-of-the-art middle pass (2026-05-10)" section in CURRENT.md is intact (line 252).
+- [x] **Layer 7 — Tracking**: `docs/handoff/CURRENT.md` Active Task status now reads "Revision-1 (NEEDS REVISION addressed) — awaiting external supervisor re-review" (line 7); a `## Revision-1 Implementation — pending-commit — 2026-05-11` section is appended (line 100). `CHANGELOG.md` v0.7.0 has a `### Fixed (revision-1)` subsection (line 40) describing both findings.
+
+### Verdict: **APPROVED**
+
+### Notes
+- (Informational, not a finding.) Live repro shows feature `a` ALSO emits a `dependent-broken` line because flipping its state to `upstream_merged` while leaving its own `apply.base_commit` pointing at the rewritten SHA matches the base-commit-broken detection path (covered by `TestDependentDetection_BaseCommitBroken`, dependent_broken_test.go:508). This is intentional behavior, not a regression — flagging only because casual readers of the repro output may interpret "two lines" as the rev-1 bug recurring. The actual rev-1 dedupe is verified on feature `b` (one line despite dual base_commit + satisfied_by reference to the same SHA).
+- The unused `last bool` parameter in `walkTree` (status_dag.go:308, `_ = last`) predates this revision — not introduced here, not blocking.
+- Commit `6e78eac` is local-only on `main`, ahead of `origin/main` along with `8306367`. Push is the supervisor's call.
+
+### Action Taken
+None — sub-agent review only. Awaiting external supervisor re-review pass on `6e78eac` before push/tag.
+
+---
+
 ## Supervisor Decisions — v0.7 Cluster Routing — 2026-05-10
 
 Resolves the 3 pending decisions surfaced by the routing pass at `7196ae8`.
