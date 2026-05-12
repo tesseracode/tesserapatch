@@ -114,6 +114,13 @@ func runLand(cmd *cobra.Command, slug string) error {
 		return err
 	}
 
+	// PRD §3.3 step 3: snapshot the global metadata files BEFORE
+	// the embedded record step so we can decide later whether
+	// `record` (e.g. --auto refreshing upstream.lock) actually
+	// touched them. Operator-driven dirty drift on these globals
+	// must NOT be silently absorbed into the feature commit.
+	metaBefore := snapshotMetadataFiles(s.Root)
+
 	// Refusals 5+6 (§3.2): "record would refuse" + cross-feature
 	// collision. Both are produced verbatim by the embedded
 	// `record` step; we surface them as-is per PRD §3.2 #5
@@ -130,14 +137,37 @@ func runLand(cmd *cobra.Command, slug string) error {
 		}
 	}
 
-	// Compute path set (§3.3). After the embedded record step (or
-	// --no-record path), the canonical post-apply.patch is on disk
-	// and tells us which user-code paths the feature owns.
+	// Compute the global-metadata-changed set: only globals whose
+	// content (or existence) changed across the embedded record
+	// step are eligible for inclusion (PRD §3.3 step 3). If a
+	// global is dirty for unrelated reasons, it is left alone.
+	metaAfter := snapshotMetadataFiles(s.Root)
+	metaChanged := metadataChangedSet(metaBefore, metaAfter)
+
+	// Read the canonical patch produced (or already on disk for
+	// --no-record) so the path-set builder can enumerate
+	// user-code paths the feature owns.
 	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 	if err != nil || strings.TrimSpace(patch) == "" {
 		return fmt.Errorf("land: cannot read post-apply.patch for %q: %v", slug, err)
 	}
-	pathSet := computePathSet(s, slug, patch)
+
+	// Update status.json:notes BEFORE staging so the freshly-dirty
+	// status.json is picked up by the slug-prefix branch in
+	// computePathSet (PRD §3.6: working tree must be clean
+	// post-land, including on the --no-record path). The new HEAD
+	// SHA is intentionally NOT written here (PRD F2 / §6 ac.5).
+	now := time.Now().UTC().Format(time.RFC3339)
+	status, _ := s.LoadFeatureStatus(slug)
+	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
+	if err := s.SaveFeatureStatus(status); err != nil {
+		return fmt.Errorf("land: cannot update status.json notes: %w", err)
+	}
+
+	// Compute path set (§3.3) — ordered AFTER the status.notes
+	// save so the slug-prefix branch picks up the dirty
+	// status.json on every path (with-record and --no-record).
+	pathSet := computePathSet(s, slug, patch, metaChanged)
 
 	// Identify dirty paths in the working tree NOT in the path set.
 	// This is the WP-001 §5.2 row 5 boundary check moved one step
@@ -147,7 +177,20 @@ func runLand(cmd *cobra.Command, slug string) error {
 	if err != nil {
 		return fmt.Errorf("land: cannot read git status: %w", err)
 	}
-	extras := classifyExtras(dirty, pathSet)
+	// PRD §3.3 step 3: operator-driven dirty drift on the global
+	// metadata files is neither swept into the commit (already
+	// excluded above) nor counted as an "extras" refusal. Surface
+	// a one-line note and leave them dirty in the working tree.
+	filteredDirty := make([]string, 0, len(dirty))
+	for _, p := range dirty {
+		if (p == ".tpatch/upstream.lock" || p == ".tpatch/FEATURES.md") && !metaChanged[p] {
+			fmt.Fprintf(cmd.ErrOrStderr(),
+				"note: leaving %s dirty (unrelated to feature %q; record did not modify it)\n", p, slug)
+			continue
+		}
+		filteredDirty = append(filteredDirty, p)
+	}
+	extras := classifyExtras(filteredDirty, pathSet)
 	if len(extras) > 0 {
 		if !allowExtra {
 			return formatExtrasRefusal(slug, extras)
@@ -160,17 +203,6 @@ func runLand(cmd *cobra.Command, slug string) error {
 				"note: staging extra path %s (not in feature patch); the feature commit will include this\n", p)
 			pathSet = append(pathSet, p)
 		}
-	}
-
-	// Update status.json:notes BEFORE staging/commit so the
-	// notes change is part of the same commit (PRD §3.6: working
-	// tree and index must be clean post-land). The new HEAD SHA
-	// is intentionally NOT written here (PRD F2 / §6 ac.5).
-	now := time.Now().UTC().Format(time.RFC3339)
-	status, _ := s.LoadFeatureStatus(slug)
-	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
-	if err := s.SaveFeatureStatus(status); err != nil {
-		return fmt.Errorf("land: cannot update status.json notes: %w", err)
 	}
 
 	// Stage the path set. `git add` accepts directories; for
@@ -302,12 +334,18 @@ func embedRecord(cmd *cobra.Command, repoRoot, slug, fromRef string, autoBase bo
 // Path set =
 //   - FilesInPatch(post-apply.patch)
 //   - everything dirty under .tpatch/features/<slug>/ (record's output)
-//   - .tpatch/upstream.lock and .tpatch/FEATURES.md when dirty
+//   - .tpatch/upstream.lock and .tpatch/FEATURES.md ONLY when the
+//     embedded record step actually modified them (PRD §3.3 step 3).
+//     `metaChanged` is the changed-set computed by snapshot/diff
+//     across the embedded record step. A nil map means "no record
+//     step ran" (e.g. dry-run): in that case the global metadata
+//     files are NEVER swept in, since there is no record-driven
+//     justification for staging them.
 //
 // We deliberately compute the metadata portion from `git status` so
 // metadata-files-not-touched stay out of the index. Returned paths are
 // repo-relative and unique.
-func computePathSet(s *store.Store, slug, patch string) []string {
+func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]bool) []string {
 	seen := make(map[string]struct{})
 	var out []string
 	add := func(p string) {
@@ -331,12 +369,64 @@ func computePathSet(s *store.Store, slug, patch string) []string {
 		case strings.HasPrefix(p, featurePrefix):
 			add(p)
 		case p == ".tpatch/upstream.lock":
-			add(p)
+			if metaChanged[p] {
+				add(p)
+			}
 		case p == ".tpatch/FEATURES.md":
-			add(p)
+			if metaChanged[p] {
+				add(p)
+			}
 		}
 	}
 	return out
+}
+
+// snapshotMetadataFiles returns a map from the global metadata file
+// paths (relative to repoRoot) to a content fingerprint. A missing
+// file is recorded as the sentinel "" so the diff against a later
+// snapshot correctly classifies "missing → present" (or vice versa)
+// as a change.
+//
+// Used by `land` to decide whether the embedded record step touched
+// the global metadata (PRD §3.3 step 3): operator-driven dirty drift
+// on these files MUST NOT be silently absorbed into the feature
+// commit.
+func snapshotMetadataFiles(repoRoot string) map[string]string {
+	paths := []string{
+		".tpatch/upstream.lock",
+		".tpatch/FEATURES.md",
+	}
+	out := make(map[string]string, len(paths))
+	for _, rel := range paths {
+		abs := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		data, err := os.ReadFile(abs)
+		if err != nil {
+			out[rel] = ""
+			continue
+		}
+		out[rel] = sha256Hex(data)
+	}
+	return out
+}
+
+// metadataChangedSet returns the set of metadata paths whose content
+// (or existence) differs between the before and after snapshots.
+// Missing-before / missing-after with no transition counts as no
+// change; an existence transition in either direction counts as a
+// change.
+func metadataChangedSet(before, after map[string]string) map[string]bool {
+	changed := make(map[string]bool, len(after))
+	for k, v := range after {
+		if before[k] != v {
+			changed[k] = true
+		}
+	}
+	for k := range before {
+		if _, ok := after[k]; !ok {
+			changed[k] = true
+		}
+	}
+	return changed
 }
 
 // dirtyPaths returns repo-relative paths that `git status --porcelain`
@@ -568,8 +658,12 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	}
 	fmt.Fprintln(out)
 
-	// Staging section.
-	pathSet := computePathSet(s, slug, patch)
+	// Staging section. Dry-run does NOT run the embedded record
+	// step, so there is no record-driven justification for sweeping
+	// global metadata into the would-be commit. Pass nil so the
+	// path-set builder leaves `.tpatch/upstream.lock` and
+	// `.tpatch/FEATURES.md` alone (PRD §3.3 step 3).
+	pathSet := computePathSet(s, slug, patch, nil)
 	dirty, _ := dirtyPaths(s.Root)
 	extras := classifyExtras(dirty, pathSet)
 	fmt.Fprintln(out, "Staging (path set):")

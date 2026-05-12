@@ -6,11 +6,13 @@
 package cli
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -725,5 +727,104 @@ func TestLand_Refuses_HardParent(t *testing.T) {
 	afterChild, _ := s.LoadFeatureStatus(childSlug)
 	if strings.Contains(afterChild.Notes, "landed at ") {
 		t.Errorf("status.notes must not record 'landed at' on a refusal; got=%q", afterChild.Notes)
+	}
+}
+
+// TestLand_DoesNotStageUnrelatedDirtyMetadata — Wave C rev-2 Finding 1.
+// PRD §3.3 step 3: `.tpatch/upstream.lock` and `.tpatch/FEATURES.md`
+// are swept into the feature commit ONLY if the embedded record step
+// modified them. Operator-driven dirty drift on these globals must
+// remain in the working tree, not silently absorbed.
+func TestLand_DoesNotStageUnrelatedDirtyMetadata(t *testing.T) {
+	tmpDir, slug, _ := setupLandFixture(t)
+
+	lockPath := filepath.Join(tmpDir, ".tpatch", "upstream.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf(".tpatch/upstream.lock should exist after init: %v", err)
+	}
+	pre, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("reading upstream.lock: %v", err)
+	}
+	sentinel := append([]byte{}, pre...)
+	sentinel = append(sentinel, []byte("sentinel-unrelated-lock-drift\n")...)
+	if err := os.WriteFile(lockPath, sentinel, 0o644); err != nil {
+		t.Fatalf("writing sentinel: %v", err)
+	}
+
+	_, stderr, code := runCmdWithError("land", "--path", tmpDir, slug)
+	if code != 0 {
+		t.Fatalf("land should succeed (operator drift on globals must not refuse): stderr=%q", stderr)
+	}
+
+	c := exec.Command("git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+	c.Dir = tmpDir
+	out, err := c.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git diff-tree: %s: %v", out, err)
+	}
+	files := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for _, f := range files {
+		if f == ".tpatch/upstream.lock" {
+			t.Errorf("commit must NOT include .tpatch/upstream.lock when record did not touch it; commit files=%v", files)
+		}
+	}
+	hasFeature := false
+	for _, f := range files {
+		if f == "src/feature.txt" {
+			hasFeature = true
+		}
+	}
+	if !hasFeature {
+		t.Errorf("commit must still include legitimate feature paths (src/feature.txt); commit files=%v", files)
+	}
+
+	porcelain := gitPorcelain(t, tmpDir)
+	if !strings.Contains(porcelain, ".tpatch/upstream.lock") {
+		t.Errorf("operator's unrelated dirty drift on upstream.lock must remain in working tree; porcelain=%q", porcelain)
+	}
+	post, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("re-reading upstream.lock: %v", err)
+	}
+	if !bytes.Contains(post, []byte("sentinel-unrelated-lock-drift")) {
+		t.Errorf("sentinel must still be on disk after land; post=%q", post)
+	}
+}
+
+// TestLand_NoRecord_LeavesCleanWorkingTree — Wave C rev-2 Finding 2.
+// PRD §3.6 + §6 ac: after a successful land (with-record OR --no-record)
+// the working tree must be clean. The bug was that on the --no-record
+// path, status.json was saved AFTER the path-set was computed, so its
+// freshly-dirty state was not staged.
+func TestLand_NoRecord_LeavesCleanWorkingTree(t *testing.T) {
+	tmpDir, slug, _ := setupLandFixture(t)
+
+	if _, stderr, code := runCmdWithError("land", "--path", tmpDir, slug); code != 0 {
+		t.Fatalf("initial land failed: %s", stderr)
+	}
+	if got := gitPorcelain(t, tmpDir); strings.TrimSpace(got) != "" {
+		t.Fatalf("working tree should be clean after initial land; porcelain=%q", got)
+	}
+
+	// Sleep just over a second so the second land produces a
+	// different "landed at <RFC3339-second>" notes string and
+	// therefore a real status.json content change. Without this,
+	// timestamp collision can mask the bug being regressed against.
+	time.Sleep(1100 * time.Millisecond)
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "src", "tracked.txt"), []byte("v1\nv2\nv3\n"), 0o644); err != nil {
+		t.Fatalf("writing tracked.txt: %v", err)
+	}
+
+	_, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--no-record", "--message", "amend")
+	if code != 0 {
+		t.Fatalf("land --no-record failed: %s", stderr)
+	}
+
+	porcelain := gitPorcelain(t, tmpDir)
+	if strings.TrimSpace(porcelain) != "" {
+		t.Errorf("working tree must be clean after --no-record land (PRD §3.6); porcelain=%q", porcelain)
 	}
 }

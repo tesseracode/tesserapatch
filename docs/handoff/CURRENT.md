@@ -2,10 +2,99 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` implementation (PRD-tpatch-land), rev-1
+- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` (PRD-tpatch-land), **rev-2**
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Wave A shipped. Wave B + Wave D rev-1 implemented (awaiting review). **Wave C rev-1 implemented** (sub-agent reviewer flagged 3 fixes, all addressed; awaiting re-review).
+- **Status**: Wave C rev-2 — staging fixes for external Medium findings (implemented; awaiting re-review).
 - **Assigned**: 2026-05-13
+
+## Wave C rev-2 — Implementation Summary (staging fixes for external Medium findings)
+
+The external supervisor returned **NEEDS REVISION** with two Medium findings on
+the rev-1 ship stack (HEAD `2e0b791`). Both are now fixed, with regression
+tests that fail against the unmodified `land.go` and pass after the fix.
+
+### Finding 1 — global metadata over-staging (PRD §3.3 step 3)
+
+`land` was sweeping `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` into the
+feature commit whenever they were merely dirty, regardless of whether the
+embedded record step had touched them. This silently absorbed unrelated
+operator drift into the feature commit, violating the safe-staging contract.
+
+**Resolution**: snapshot the on-disk content (sha256, with "" sentinel for
+missing) of both globals BEFORE `embedRecord`, re-snapshot AFTER, and pass the
+changed-set into `computePathSet`. Globals are now staged ONLY if `record`
+actually modified them. Operator-driven dirty drift on these globals is
+neither staged nor counted as an "extras" refusal — instead a one-line
+`note: leaving <path> dirty (...)` is printed to stderr and the file remains
+dirty in the working tree.
+
+**Code anchors** (`internal/cli/land.go`):
+- `runLand` line 122: `metaBefore := snapshotMetadataFiles(...)` (pre-record snapshot).
+- `runLand` lines 144-145: `metaAfter` + `metaChanged` (post-record diff).
+- `runLand` line 170: `pathSet := computePathSet(s, slug, patch, metaChanged)` (changed-set passed in).
+- `runLand` lines 181-191: filter operator-drifted globals out of the dirty set so they don't trigger the extras refusal; emit a `note:` line.
+- `computePathSet` (now ~line 366): switch arms for `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` gated on `metaChanged[p]`.
+- New helpers `snapshotMetadataFiles` (~line 401) and `metadataChangedSet` (~line 426).
+- Dry-run caller updated to pass `nil` for `metaChanged` (no record step → no record-driven justification for sweeping globals).
+
+### Finding 2 — `--no-record` left `status.json` dirty (PRD §3.6, §6 ac)
+
+`runLand` mutated and saved `status.Notes` AFTER `computePathSet` ran. On the
+`--no-record` path, no record-driven dirty events existed for the feature
+directory, so the freshly-dirty `status.json` was never picked up — leaving
+the working tree dirty after a successful `land --no-record`.
+
+**Resolution**: reorder so `status.Notes` mutation + `SaveFeatureStatus`
+happens BEFORE `computePathSet`. The slug-prefix branch now picks up the
+freshly-dirty `status.json` naturally on both paths. Safe because nothing
+downstream of `computePathSet` reads `status.Notes` before commit, and the
+trailer block does not include notes.
+
+**Code anchors** (`internal/cli/land.go`):
+- `runLand` lines 160-165: status save now runs BEFORE `computePathSet` (line 170).
+- The duplicate save block previously at the old ~line 169 has been removed.
+
+### New regression tests (`internal/cli/land_test.go`)
+
+1. **`TestLand_DoesNotStageUnrelatedDirtyMetadata`** — appends a sentinel line
+   to `.tpatch/upstream.lock` before `land`; asserts the resulting commit
+   (via `git diff-tree --no-commit-id --name-only -r HEAD`) does NOT include
+   `.tpatch/upstream.lock`, asserts the legitimate feature path
+   `src/feature.txt` IS in the commit, and asserts the sentinel modification
+   remains visible in `git status --porcelain` after the commit.
+2. **`TestLand_NoRecord_LeavesCleanWorkingTree`** — runs an initial successful
+   `land`, modifies `src/tracked.txt`, runs `land <slug> --no-record --message
+   amend` (with a 1.1s sleep between lands so the `landed at <RFC3339-second>`
+   notes string differs, otherwise the no-op save can mask the bug), and
+   asserts `git status --porcelain` is **completely empty** afterwards.
+
+Both tests **fail** against the unmodified `land.go` (verified by stashing
+`land.go` and re-running) and **pass** after the fix.
+
+### Verification gate results
+
+| Gate | Result |
+|------|--------|
+| `gofmt -l .` | clean (no output) |
+| `go test ./internal/cli -run 'TestLand_' -count=1` | PASS (12.5s) |
+| `go test ./assets -run TestSkillParityGuard -count=1` | PASS |
+| `go build ./cmd/tpatch` | OK |
+| `go test -timeout 180s ./...` | all packages PASS |
+
+### Hands-off compliance
+
+- `docs/state-of-the-art/**` — untouched.
+- "Side Research — State-of-the-art middle pass" section below — preserved byte-identical.
+- `internal/cli/record_auto.go`, `record_auto_test.go` — untouched.
+- `internal/cli/record_collision.go`, `record_collision_test.go` — untouched.
+- `internal/workflow/reconcile.go` (Wave D phase-1.5 + Wave A2 lock guard regions) — untouched.
+- `internal/workflow/patch_id_detector*.go` — untouched.
+- `Config.PatchIDDetectorEnabled` default — still `false`.
+
+Files touched in rev-2:
+- `internal/cli/land.go` — fixes for both findings.
+- `internal/cli/land_test.go` — two new regression tests + `bytes` and `time` imports.
+- `docs/handoff/CURRENT.md` — this section.
 
 ## Wave C rev-1 (2026-05-13) — addressing sub-agent reviewer findings
 
