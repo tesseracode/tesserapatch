@@ -1,3 +1,56 @@
+## Review — M17 Wave A (commits 1d6179c + 8fc2e4e, reviewed as one change) — 2026-05-11
+
+**Reviewer**: copilot-cli sub-agents (two parallel layered discovery reviews)
+**Task**: M17 Wave A (v0.8.0) — Slice A1 `impl-record-auto-base` + Slice A2 `impl-reconcile-lock-guard` + bundled writer-normalization fix. Both slices ran in parallel in the same checkout; this entry consolidates both sub-agent verdicts. The pair is reviewed together (as the user directed) because A2-territory hunks leaked into A1's commit during the surgical-revert step that disambiguated their parallel work.
+
+### Verdict: APPROVED WITH NOTES (cross-commit ownership leak — accepted, not blocking)
+
+### Slice A1 — `impl-record-auto-base` (commit 1d6179c)
+
+**Checklist** (8 layers):
+- [✗] Layer 1 — Implementation gates: HEAD passes (`gofmt` clean, `go build`, `go test ./...` green); **A1-in-isolation FAILS to build** (`internal/gitutil/gitutil.go:111-115` references `LockState`/`LockDiagnostic` types defined in A2's commit). Combined v0.8.0 stack is clean.
+- [x] Layer 2 — PRD spec compliance: §3.2 algorithm steps mapped (`record_auto.go:65-103`), safety gate refuses `n>1` commits (`record_auto.go:240-251`), mutex enforced (`cobra.go:915-919`), `status.apply.base_commit` persists resolved base for all `rangeMode` captures (`cobra.go:1085-1097`), empty-clean-tree refusal leads with `--auto` (`cobra.go:1014`).
+- [x] Layer 3 — Shared parser primitive: correctly placed at `internal/store/upstream_lock.go` (PRD §5); `LoadUpstreamLock`/`ParseUpstreamLock`/`Store.UpstreamLockPath` match brief; 7 unit tests; `parseYAMLConfig` flat-scalar style.
+- [x] Layer 4 — Tests are real assertions: `record_auto_test.go` uses real git fixtures, asserts exit codes + stderr + byte-identical patch parity with `--from <base>` + `status.json` content.
+- [x] Layer 5 — Skill parity: `TestSkillParityGuard` green; all 6 surfaces mention `record --auto`.
+- [x] Layer 6 — Independent live repro: happy path emits PRD-shaped `record --auto selected base <SHA> from upstream.lock commit … (upstream.lock)` + `>1`-commit warning + persists `status.apply.base_commit = <base>` not HEAD; divergent-lock merge-base fallback refuses exit 1 with verbatim PRD diagnostic.
+- [x] Layer 7 — Hands-off scope: surgical reverts of A2 WIP were clean for code; only tracking touch is appended Wave A1 section in CURRENT.md (Side Research preserved verbatim).
+- [✗] Layer 8 — Cross-commit ownership audit: **Confirmed A2 territory in `1d6179c`** — (a) `internal/gitutil/gitutil.go:107-115` `ReconcilePreflight.LockState`/`LockDiagnostic` fields belong to Wave A2 PRD; (b) `CHANGELOG.md` `### Wave A2 — reconcile upstream-lock validation guard` subsection documents A2 deliverables.
+
+**Notes**:
+- Dirty-tree semantic drift (intentional, non-blocker): `record_auto.go:283-291` uses `--untracked-files=no` to avoid tripping on `.tpatch/` while the empty-clean-tree branch uses `gitutil.IsWorkingTreeDirty`. Two definitions of "dirty" coexist in `record`; implementer's rationale justifies it.
+- `LoadUpstreamLock` discards I/O error wrap for non-`ErrNotExist` failures (`upstream_lock.go:26`) — minor.
+
+### Slice A2 — `impl-reconcile-lock-guard` + writer-norm fix (commit 8fc2e4e)
+
+**Checklist** (9 layers):
+- [x] Layer 1 — Implementation gates: gofmt clean; `go build ./cmd/tpatch` ok; `go test ./...` all green incl. `internal/cli` 11.8s.
+- [x] Layer 2 — Writer-normalization fix: `internal/workflow/reconcile.go:596-613` splits ref via `gitutil.SplitUpstreamRef` + populates url via `GitRemoteURL`; regression test `internal/workflow/upstream_lock_writer_test.go:23-60` asserts `remote: "origin"` + `branch: "feat-branch"` from `origin/feat-branch` and explicitly forbids `branch: origin/feat-branch` — would fail on pre-fix code which hard-coded `remote: upstream` and stored full ref in branch.
+- [x] Layer 3 — PRD spec compliance: 5-state taxonomy matches PRD §3.1 exactly (Valid/Empty/Missing/Stale/Skipped, `internal/gitutil/lock_guard.go:17-24`); refuse-on-stale with structured block + 3 remediation paths (`internal/cli/lock_guard_diag.go:50-68`); `--allow-stale-lock` flag (`internal/cli/cobra.go:1406`); recovery hint uses `git fetch` fallback because SPEC.md:72 `tpatch upstream check` is still stubbed (PRD §3.4 explicitly permits); no extension to `store.UpstreamLock` struct; `PreflightReconcile` single-arg signature preserved per acceptance #19.
+- [x] Layer 4 — Parser duplication investigation: import-cycle claim VERIFIED — `internal/store/validation.go:9` + `internal/store/dependents.go:4` both import `internal/gitutil`, so `gitutil → store` is impossible. A2's `scanUpstreamLockBytes` (`internal/gitutil/lock_guard.go:174-204`) mirrors `store.ParseUpstreamLock` (`internal/store/upstream_lock.go:42-77`) line-for-line for the three shared keys; A2 omits `url` (decorative). Duplication is unavoidable absent a leaf-package refactor; follow-up cleanup PRD documented in CURRENT.md.
+- [x] Layer 5 — Tests are real assertions: `lock_guard_test.go` covers 13 cases including all 3 stale sub-causes via commit-tree-with-orphan-commit, missing-ref, and partial lock; `upstream_lock_writer_test.go` has 3 regression tests; no stubs.
+- [x] Layer 6 — Independent live repro (4 PRD scenarios): **A (valid)** → `Preflight: clean.` exit 0; **B (stale)** → full PRD-shaped refusal block with `STALE-COMMIT` sub-cause + 3 remediation lines, exit 1; **C (`--allow-stale-lock`)** → `warning: proceeding past a stale upstream.lock` + clean preflight, exit 0; **D (empty/missing)** → `warning: .tpatch/upstream.lock is empty` / `... not found` exit 0. All match acceptance #1-#5, #8.
+- [x] Layer 7 — Hands-off scope: `git show --stat 8fc2e4e` touches only CURRENT.md, `cli/cobra.go` reconcile path, `cli/lock_guard_diag.go` (new), `gitutil/lock_guard.go` (new) + test, `workflow/reconcile.go`, `workflow/upstream_lock_writer_test.go` (new). Does NOT touch record_auto.go, store/upstream_lock.go, PRDs, ADRs, ROADMAP/LOG/HISTORY, or CHANGELOG. `ReconcilePreflight` struct extension landed in 1d6179c not 8fc2e4e — no re-add conflict.
+- [x] Layer 8 — Skill parity: `TestSkillParityGuard` passes; `--allow-stale-lock` is not surfaced in skills — acceptable, skills already discuss `upstream.lock` at a workflow level.
+- [x] Layer 9 — Parser-drift verification: both scanners iterate `strings.Split(content, "\n")` → skip blank/`#` → find first `:` → trim → strip ` #` inline comment → unquote → dispatch on key. **Identical behavior on the three shared keys**; malformed lines silently skipped by BOTH → fields empty → both call sites classify as Empty. **No drift risk** between A1 `record --auto` path and A2 reconcile path.
+
+**Notes**:
+- Stale refusal prints `<remote>` placeholder instead of `<lock.remote>` literal — minor copy nit, inside PRD §3.2 "exact wording subject to copy-edit" allowance.
+- Acceptance #4 (malformed lock) maps to `LockStateEmpty` rather than emitting a distinct parse-error warning — documented deviation in commit body; user-facing behavior is correct (warn-and-proceed in both cases per PRD).
+- Acceptance #11 (`--allow-dirty` + `--allow-stale-lock` stack) not unit-tested but CLI wiring at `internal/cli/cobra.go:1315-1346` evaluates the two gates independently; recommended for future integration test.
+
+### Consolidated Verdict & Action
+
+**Both sub-agent reviews: APPROVED.** A1 has one structural finding (does not build standalone); A2 has none. Reviewer recommendation accepted: ship A1 + A2 as a single v0.8.0 increment with HISTORY.md noting that `1d6179c` is bound to `8fc2e4e` and cannot be cherry-picked alone. The user-facing release is unaffected.
+
+Awaiting external supervisor pass on the pair (treated as one change per user direction).
+
+### Action Taken
+- Both sub-agent verdicts appended to this LOG entry.
+- Cross-commit binding note will be added to HISTORY.md when v0.8.0 ships.
+
+---
+
 ## Review — feat-amend-dependent-warning rev-1 (commit 6e78eac) — 2026-05-11
 
 **Reviewer**: copilot-cli sub-agent (layered discovery review)
