@@ -53,7 +53,7 @@ After the embedded `record` step writes `artifacts/post-apply.patch`:
 
 1. Compute the **feature path set** = files in `post-apply.patch`.
 2. Append the feature's metadata directory: `.tpatch/features/<slug>/`.
-3. Append `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` if the record step modified them.
+3. Append `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` if the embedded `record` step modified them (snapshot/diff around step 1). If either file is dirty in the working tree but `record` did not modify it (operator drift unrelated to this feature), `land` emits a one-line stderr note (`note: leaving <path> dirty (operator drift outside feature scope; not staged)`) and **leaves the file dirty in the working tree**. The carve-out is bounded to these two named files; see [ADR-021](./adrs/ADR-021-tpatch-land-global-metadata-carve-out.md) and the "Carve-out for global metadata drift" section below.
 4. Diff the working-tree change set against the path set. If any path is dirty in the working tree but **not** in the path set:
    - With `--allow-extra-paths`: stage it and emit a one-line warning per file (`note: staging extra path foo/bar.go (not in feature patch); the feature commit will include this`).
    - Without `--allow-extra-paths`: refuse with the list of extra paths and a hint to either revert them, run `git stash`, or re-run with `--allow-extra-paths`.
@@ -150,13 +150,27 @@ Authoritative source: PRD-tpatch-land §3.5.
 After a successful `tpatch land`:
 
 - HEAD has advanced by exactly **one** commit.
-- Working tree and index are clean (`git status --porcelain` empty).
+- Working tree and index are clean **with respect to feature scope** (`git status --porcelain` shows at most operator-drifted `.tpatch/upstream.lock` and/or `.tpatch/FEATURES.md` entries that were dirty before the embedded `record` step ran; see "Carve-out for global metadata drift" below). All other tracked files, the feature directory, and the index MUST be clean.
 - `status.json:apply.base_commit` is **unchanged by `land`** — it remains whatever the embedded `record` step (or `record --auto`) wrote, which is the lower bound of the captured range, not the new HEAD. A commit cannot embed its own SHA in tracked content; the `Tpatch-Feature:` trailer carries the feature↔commit binding instead.
 - `status.json:notes` records a one-line `landed at <ts>` entry. The new HEAD's SHA is **not** written here (same chicken-and-egg reason).
 - `patches/NNN-record.patch` is the latest numbered audit snapshot (already produced by the embedded `record`).
 - The new commit's `Tpatch-Feature: <slug>` trailer is the canonical feature↔commit binding for any consumer (audit, future `tpatch list`, `feat-noncontiguous-feature-commits`).
 
 Authoritative source: PRD-tpatch-land §3.6.
+
+## Carve-out for global metadata drift
+
+Two `.tpatch/`-side global files — `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` — are shared across all features and routinely accumulate **operator drift** between lands in shared / non-ephemeral worktrees (manual upstream pinning, hand edits to `FEATURES.md`, etc.). Sweeping that drift into a feature commit silently is exactly the boundary-capture failure `land` is built to prevent (WP-001 §5.2 row 5). Refusing on every drift, however, is too rigid for the realistic shared-worktree workflow and would push operators toward `--allow-extra-paths`, which is worse.
+
+`land` therefore applies a **bounded, audit-visible carve-out** to those two files and *only* those two files:
+
+- If the embedded `record` step modified the file → it is staged into the feature commit (normal path).
+- If the file is dirty in the working tree but `record` did not modify it → `land` prints `note: leaving <path> dirty (operator drift outside feature scope; not staged)` to stderr and leaves the file dirty. It is **not** staged, **not** included in the commit, and **not** treated as an "extras" refusal — even with `--allow-extra-paths`.
+- If the file is clean → ignored.
+
+When you see the note, it means: the feature commit is well-formed, but you have unrelated changes to one of the two named globals still sitting in your working tree. Decide what to do with them separately (commit them in their own commit, revert them, or stash). The note is mandatory so that the drift stays visible to reviewers; this is an exception, not a feature to rely on.
+
+Authoritative sources: PRD-tpatch-land §3.3 step 3, §3.6, §6 ac.6; [ADR-021](./adrs/ADR-021-tpatch-land-global-metadata-carve-out.md).
 
 ## Error recovery
 

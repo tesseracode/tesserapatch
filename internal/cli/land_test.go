@@ -757,6 +757,14 @@ func TestLand_DoesNotStageUnrelatedDirtyMetadata(t *testing.T) {
 		t.Fatalf("land should succeed (operator drift on globals must not refuse): stderr=%q", stderr)
 	}
 
+	// PRD §3.3 step 3 / ADR-021: pin the exact stderr note string so
+	// future refactors can't quietly drop the visibility note that
+	// makes the carve-out auditable.
+	wantNote := `note: leaving .tpatch/upstream.lock dirty (operator drift outside feature scope; not staged)`
+	if !strings.Contains(stderr, wantNote) {
+		t.Errorf("stderr must contain canonical carve-out note %q; stderr=%q", wantNote, stderr)
+	}
+
 	c := exec.Command("git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
 	c.Dir = tmpDir
 	out, err := c.CombinedOutput()

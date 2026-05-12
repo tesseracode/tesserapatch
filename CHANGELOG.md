@@ -30,6 +30,19 @@ All notable changes to tpatch are recorded here.
   failures surface `git`'s diagnostics verbatim and the recovery hint
   `re-run with --no-record after fixing the hook`. PRD:
   `docs/prds/PRD-tpatch-land.md`. ADR: `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`.
+- **Wave C rev-3 — global metadata carve-out (contract revision)** —
+  `land`'s "working tree clean" post-condition is qualified to "clean
+  with respect to feature scope". The two named global metadata files
+  `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` MAY retain
+  unrelated operator drift after a successful `land`; in that case
+  `land` emits a one-line stderr note per file
+  (`note: leaving <path> dirty (operator drift outside feature scope;
+  not staged)`) and leaves the file dirty in the working tree. The
+  carve-out is bounded to those two files, no flag widens it. PRD
+  §3.3 step 3 / §3.6 / §6 ac.6 amended; rationale and rejected
+  alternatives in `docs/adrs/ADR-021-tpatch-land-global-metadata-carve-out.md`.
+  No behavioral code change vs. rev-2 except the canonical note
+  string (now pinned by `TestLand_DoesNotStageUnrelatedDirtyMetadata`).
 
 ### Wave D
 

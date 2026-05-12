@@ -2,10 +2,81 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` (PRD-tpatch-land), **rev-2**
+- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` (PRD-tpatch-land), **rev-3**
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Wave C rev-2 — staging fixes for external Medium findings (implemented; awaiting re-review).
+- **Status**: Wave C rev-3 — contract revision (PRD + ADR-021) addressing external rev-2 NEEDS REVISION on the working-tree-clean post-condition gap. Behavioral code unchanged from rev-2 except for the canonical note string.
 - **Assigned**: 2026-05-13
+
+## Wave C rev-3 — Implementation Summary (PRD carve-out + ADR-021)
+
+The external supervisor reviewed rev-2 (HEAD `c6f4402` + verdict `f98a789`)
+and returned **NEEDS REVISION** on one Medium finding: a contract gap
+between the rev-2 code (note-and-continue on operator-drifted global
+metadata) and the PRD (which still promised a strict clean-tree
+post-condition). Decision (made by the supervisor, not re-litigated
+here): adopt note-and-continue as the **contract**. Align the PRD with
+the code, not the other way around.
+
+### Files changed
+
+- `docs/prds/PRD-tpatch-land.md` — §1 summary line + ASCII walkthrough,
+  §3.3 step 3 (full carve-out semantics), §3.5 dry-run sample (added
+  "Carved-out global metadata" block), §3.6 post-conditions ("clean
+  w.r.t. feature scope" with carve-out qualifier), §6 ac.6 (matching
+  qualifier with regression-test pin), §8 Risks (carve-out misuse row).
+- `docs/adrs/ADR-021-tpatch-land-global-metadata-carve-out.md` — new
+  ADR documenting the decision, rejected alternatives (A: strict
+  refuse + `--allow-extra-paths` re-introduces F1; C:
+  `--allow-dirty-globals` flag whose only purpose is to silence the
+  visibility note).
+- `docs/land.md` — qualified post-condition; new "Carve-out for global
+  metadata drift" section after Post-conditions explaining the
+  exception in operator-facing language.
+- `internal/cli/land.go` — note string updated to canonical form
+  (`note: leaving <path> dirty (operator drift outside feature scope;
+  not staged)`). No other behavioral change vs. rev-2.
+- `internal/cli/land_test.go` — strengthened
+  `TestLand_DoesNotStageUnrelatedDirtyMetadata` to pin the exact
+  canonical note string. (Optional second test for both globals was
+  considered but skipped: `record` regenerates `FEATURES.md` via
+  `SaveFeatureStatus → RefreshFeaturesIndex` in this fixture, so a
+  drifted-FEATURES.md case would land on the "changed by record" arm
+  rather than the carve-out arm; building a fixture that suppresses
+  that refresh expanded scope beyond rev-3.)
+- `CHANGELOG.md` — Wave C rev-3 entry under v0.8.0.
+- `docs/handoff/CURRENT.md` — this section.
+
+### Verification gate results
+
+| Gate | Result |
+|------|--------|
+| `gofmt -l .` | clean |
+| `go test ./internal/cli -run 'TestLand_' -count=1 -v` | PASS (24 tests, ~13s) |
+| `go test ./assets -run TestSkillParityGuard -count=1 -v` | PASS |
+| `go build ./cmd/tpatch` | OK |
+| `go test -timeout 180s ./...` | all packages PASS |
+| Manual repro (drift `.tpatch/upstream.lock` + `tpatch land`) | exit 0; stderr note exact match; commit excludes lock; sentinel remains in working tree |
+
+### Hands-off compliance
+
+- `docs/state-of-the-art/**` — untouched.
+- "Side Research — State-of-the-art middle pass" section below — preserved byte-identical.
+- `internal/cli/record_auto*.go` (Wave A1) — untouched.
+- `internal/cli/record_collision*.go` (Wave B) — untouched.
+- `internal/workflow/reconcile.go` (Wave D phase-1.5 ~196-236; Wave A2 lock guard ~560-700) — untouched.
+- `internal/workflow/patch_id_detector*.go` (Wave D) — untouched.
+- `Config.PatchIDDetectorEnabled` default — still `false`.
+- ADR-019 trailer schema — untouched.
+
+### Note for next reviewer
+
+This revision is **primarily contract-level**. The behavioral surface
+of `land` is identical to rev-2 except the wording of the stderr
+`note:` line, which now matches the PRD's prescribed string verbatim
+(pinned by the strengthened test assertion). All previously-approved
+Wave A1/A2/B/D behavior is unchanged.
+
+---
 
 ## Wave C rev-2 — Implementation Summary (staging fixes for external Medium findings)
 

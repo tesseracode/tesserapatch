@@ -96,7 +96,9 @@ operator currently performs by hand:
    anything outside that scope without an explicit override.
 3. **One Git commit** — produce one ordinary Git commit with a
    machine-readable `Tpatch-Feature: <slug>` trailer, leaving the
-   working tree clean.
+   working tree clean **with respect to feature scope** (see §3.6
+   for the precise post-condition; the two named global metadata
+   files MAY retain unrelated operator drift with a stderr note).
 
 That is the entire scope. `land` does not run `analyze`, `define`,
 `explore`, `implement`, `apply`, or `test`. It does not push, rebase,
@@ -108,7 +110,9 @@ tpatch land extra-button
   → record (or re-record) the feature's post-apply.patch
   → stage feature-touched files + .tpatch/features/extra-button/
   → git commit -m "<subject>" with Tpatch-Feature: extra-button trailer
-  → working tree clean; status.json reflects the new HEAD
+  → working tree clean w.r.t. feature scope; status.json reflects the new HEAD
+  (the two global metadata files .tpatch/upstream.lock and .tpatch/FEATURES.md
+   MAY retain unrelated operator drift — see §3.3 step 3 / §3.6)
 ```
 
 ---
@@ -289,10 +293,24 @@ After the embedded `record` step writes `post-apply.patch`:
    (`internal/gitutil/gitutil.go:741`).
 2. Append the feature's metadata directory:
    `.tpatch/features/<slug>/`.
-3. Append `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` if the
-   record step modified them. (Compare `git diff --name-only HEAD`
-   to the path set; complain if metadata files outside the slug
-   directory drift unexpectedly.)
+3. Compare `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` content
+   before vs. after the embedded `record` step (sha256 snapshot
+   around step 1). For each file:
+   - **Changed by `record`**: include in the path set (gets staged
+     and committed as part of the feature commit).
+   - **Unchanged by `record` but dirty in the working tree** (operator
+     drift unrelated to this feature): emit a one-line stderr note
+     (`note: leaving <path> dirty (operator drift outside feature
+     scope; not staged)`) and **leave the file dirty in the working
+     tree**. Do NOT stage it, even with `--allow-extra-paths`.
+   - **Unchanged and clean**: ignore.
+
+   Rationale: in shared / non-ephemeral worktrees these two global
+   files routinely drift between lands; sweeping them into the
+   feature commit reproduces the WP-001 §5.2 row 5 problem, but
+   refusing on every drift is too rigid. Carving them out
+   explicitly is bounded (two named files) and visible (the
+   stderr note). See ADR-021 for the full decision record.
 4. Diff the working-tree change set against the path set. If any
    path is dirty in the working tree but **not** in the path set:
    - With `--allow-extra-paths`: stage it and emit a one-line warning
@@ -421,6 +439,10 @@ Staging (path set):
 Outside path set (would refuse without --allow-extra-paths):
    M unrelated/file.go
 
+Carved-out global metadata (left dirty in working tree, NOT staged):
+   M .tpatch/upstream.lock         (operator drift; record did not modify)
+     → stderr: note: leaving .tpatch/upstream.lock dirty (operator drift outside feature scope; not staged)
+
 Commit:
   subject               : <derived subject>
   trailers              :
@@ -431,7 +453,9 @@ Commit:
 
 Post-conditions if you re-run without --dry-run:
   HEAD will move from <old-sha> to a new commit.
-  Working tree will be clean.
+  Working tree will be clean w.r.t. feature scope (the two global
+    metadata files .tpatch/upstream.lock and .tpatch/FEATURES.md
+    MAY retain unrelated operator drift; see §3.6).
   Feature → commit binding: git log --grep '^Tpatch-Feature: <slug>$'
   status.json:apply.base_commit unchanged (owned by record/auto-base).
 ```
@@ -444,7 +468,15 @@ verbatim where possible.
 After a successful `tpatch land`:
 
 - HEAD has advanced by exactly **one** commit.
-- Working tree and index are clean.
+- Working tree clean **with respect to feature scope** — the new HEAD
+  commit covers the feature path set, the feature directory under
+  `.tpatch/features/<slug>/` is clean, tracked source files outside
+  the feature scope are unchanged, and the index is empty. The two
+  global metadata files (`.tpatch/upstream.lock`, `.tpatch/FEATURES.md`)
+  MAY retain unrelated operator drift if they were dirty before the
+  embedded `record` step ran; in that case `land` emits a one-line
+  note per file (see §3.3 step 3 and ADR-021). All other files MUST
+  be clean.
 - `status.json:apply.base_commit` is **unchanged** by `land` — it
   remains whatever the embedded `record` step (or `record --auto` per
   `PRD-record-auto-base` §3.3) wrote. `land` does **not** overwrite
@@ -611,8 +643,13 @@ hold. Numbered for the supervisor's checklist.
    the captured range, not the new HEAD. (F2: a commit cannot embed
    its own SHA; the `Tpatch-Feature:` trailer carries the
    feature↔commit binding instead.)
-6. After success, the working tree and index are clean
-   (`git status --porcelain` empty).
+6. After success, the working tree and index are clean **with
+   respect to feature scope** (`git status --porcelain` shows at
+   most operator-drifted `.tpatch/upstream.lock` and/or
+   `.tpatch/FEATURES.md` entries that were dirty before the embedded
+   `record` step ran; see §3.3 step 3, §3.6, and ADR-021). All
+   other tracked files, the feature directory, and the index MUST
+   be clean. Each carved-out file produces a one-line stderr note.
 7. `git log --grep '^Tpatch-Feature: <slug>$'` returns the
    landing commit; this is the canonical feature↔commit binding
    for any consumer (audit, `feat-noncontiguous-feature-commits`,
@@ -758,6 +795,7 @@ shows it's noisy.
 | `--allow-extra-paths` becomes the default by habit | Defeats the safe-staging point; reproduces WP-001 row 5. | Help text and `docs/land.md` flag it as an escape hatch, not a normal mode. Skill files do not mention it. |
 | `Tpatch-Feature:` trailer collides with another tool's trailer | Ecosystem friction. | `Tpatch-` prefix is namespaced; if a real collision is reported, switch to `X-Tpatch-Feature` in a v2 ADR. |
 | Cross-PRD drift between guardrail behavior and `land` assumptions | Boundary-capture failure leaks past the gate. | Guardrail PRDs and this PRD share a "Related" header link both ways; any change to either re-opens the others. |
+| Carve-out misuse: operator habitually relies on `land` to leave drift on the two named globals (`.tpatch/upstream.lock`, `.tpatch/FEATURES.md`), normalizing dirty trees post-land. | Visibility erodes; reviewers stop noticing genuine drift. | The stderr note is mandatory and one line per file; `docs/land.md` documents the carve-out as an exception not a feature; assertion in `TestLand_DoesNotStageUnrelatedDirtyMetadata` pins the note wording so future refactors can't quietly drop it. ADR-021 records the bounded scope (two named files, no flag to expand). |
 
 ---
 

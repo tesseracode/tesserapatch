@@ -185,7 +185,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 	for _, p := range dirty {
 		if (p == ".tpatch/upstream.lock" || p == ".tpatch/FEATURES.md") && !metaChanged[p] {
 			fmt.Fprintf(cmd.ErrOrStderr(),
-				"note: leaving %s dirty (unrelated to feature %q; record did not modify it)\n", p, slug)
+				"note: leaving %s dirty (operator drift outside feature scope; not staged)\n", p)
 			continue
 		}
 		filteredDirty = append(filteredDirty, p)
