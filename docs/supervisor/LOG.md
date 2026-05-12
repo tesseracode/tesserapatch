@@ -1,3 +1,25 @@
+## Review - Skill Doc Strategy PRD + ADR-020 - 2026-05-11
+
+**Reviewer**: external reviewer (broker-provided)
+**Task**: Paper-design review of P55's `PRD-skill-doc-strategy.md` and `ADR-020-skill-doc-references.md`.
+
+### Checklist
+- [x] Live grep verified `docs/land.md` and `docs/reconcile.md` references across all six shipped skill surfaces.
+- [x] Live grep verified `docs/record.md` no longer appears in shipped assets.
+- [x] ADR-020 is the next available ADR number after ADR-019.
+- [x] Parity-guard interaction is concrete and bounded.
+- [x] Wave C closure remains unblocked; existing `docs/land.md` creation scope is unchanged.
+
+### Verdict: APPROVED
+
+### Notes
+P55's drift correction is accepted: the original prompt treated `docs/record.md` as live, but the current assets only reference `docs/land.md` and `docs/reconcile.md`. Optional finding F1 was applied by adding WP-001 and supervisor-log references to ADR-020. Optional finding F2 was checked against `.tpatch-backlog/backlog.db`; no `feat-skill-discoverability`-style backlog item exists, so PRD §10 Q3 remains a deferred open question. Optional finding F3 is noted: a future implementer may add an implementation backlog item even though the PRD itself is sufficient paper-design tracking.
+
+### Action Taken
+`PRD-skill-doc-strategy.md` marked Approved. `ADR-020-skill-doc-references.md` marked Accepted. No skill files, `CURRENT.md`, or `HISTORY.md` touched.
+
+---
+
 ## Review — m17-wave-c-rev1-impl (commit 32ad3a5) — 2026-05-11
 
 **Reviewer**: copilot-cli sub-agent (layered discovery review)
@@ -3623,6 +3645,3 @@ Session ended pending supervisor approval.
 ### Action Taken
 Archived M10 handoff to HISTORY.md, wrote new M11 CURRENT, marked
 M11 ✅ in ROADMAP.
-
----
-
