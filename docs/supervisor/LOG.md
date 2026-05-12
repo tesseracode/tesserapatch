@@ -1,3 +1,32 @@
+## Review — M17 Wave C rev-4 (commit 19a335e) — 2026-05-14
+
+**Reviewer**: copilot-cli sub-agent (m17-wave-c-rev4-rev)
+**Task**: rev-4 dry-run carve-out alignment + stale wording cleanup. Responds to the external supervisor's NEEDS REVISION verdict on rev-3 (`876c584`): F1 (Medium) — `runLandDryRun` still used the pre-rev-2 contract, classifying drifted carve-out globals as extras and promising unqualified clean tree, contradicting amended PRD §3.5/§3.6; F2 (Low) — stale wording in PRD line 113 ("status.json reflects the new HEAD" — false post-rev-2) and CHANGELOG (path-set sentence pre-rev-3; non-existent `--allow-soft-parent` flag).
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test -timeout 180s ./...` all packages green; `TestLand_*` 17.1s)
+- [x] Formatted (`gofmt -l .` clean)
+- [x] Dry-run output matches PRD §3.5 — section ordering Pre-flight → Embedded record → Staging → Outside path set → Carved-out global metadata → Commit → Post-conditions; section heading byte-identical to PRD sample; canonical note echo aligned with live path (`internal/cli/land.go:188`)
+- [x] Footer wording correct — "Working tree will be clean w.r.t. feature scope." unconditional; conditional `(carve-out: <N> global metadata file(s) will remain dirty with a stderr note — see §3.3 step 3)` line only when carved-out globals present
+- [x] Test pin verified by checkout-test-restore against `876c584`: `TestLand_DryRun_CarvesOutGlobalMetadata` correctly fails on missing carve-out heading, lock appearing under "Outside path set" instead, and unqualified footer
+- [x] PRD line 113 fix internally consistent (cross-checked against §3.6 / §6 ac.5 — `apply.base_commit` unchanged language already established there)
+- [x] CHANGELOG fixes complete — `grep -rn "allow-soft-parent" docs/ internal/ assets/ CHANGELOG.md README.md` returns only CURRENT.md documentation of the removal itself
+- [x] Frozen-code compliance — `git diff 876c584 19a335e` confirms `record_auto*.go`, `record_collision*.go`, `reconcile.go`, `patch_id_detector*.go`, ADR-019, ADR-021, `docs/state-of-the-art/**` byte-identical; `Config.PatchIDDetectorEnabled` default still `false`
+- [x] Live `land` path not regressed — manual repro of drifted lock + `tpatch land --no-record` still produces canonical stderr note, lock NOT in commit, lock remains dirty in working tree
+- [x] No-drift dry-run does not emit empty carve-out section (verified)
+- [x] Handoff accurate — Side Research section byte-identical (verified via diff between `876c584:docs/handoff/CURRENT.md` line 541+ and `19a335e:docs/handoff/CURRENT.md` line 633+)
+
+### Verdict: APPROVED
+
+### Notes
+Rev-4 is a clean cleanup wave: dry-run code path now mirrors the live path's carve-out semantics; the canonical stderr note string `note: leaving <path> dirty (operator drift outside feature scope; not staged)` is now surfaced verbatim in BOTH live execution (`land.go:188`) and dry-run preview (in the carve-out section's `→ stderr:` echo line), giving operators a single grep target across both surfaces. `--allow-soft-parent` references fully eliminated repo-wide. PRD line 113 + CHANGELOG path-set sentence now consistent with the amended rev-3 contract. No findings.
+
+### Action Taken
+Verdict logged. Stack pushed to `origin/main` for external supervisor review of `19a335e` on top of the previously-approved Wave C ship stack.
+
+---
+
 ## Review — M17 Wave C rev-3 (commit 876c584) — 2026-05-13
 
 **Reviewer**: copilot-cli sub-agent (m17-wave-c-rev3-rev)
