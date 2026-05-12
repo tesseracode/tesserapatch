@@ -1,3 +1,66 @@
+# 2026-05-11 — M17 Wave A (A1 + A2) — APPROVED WITH NOTES, shipped (unreleased; bundled into v0.8.0)
+
+**Outcome**: Both Wave A slices shipped. Pair held as one v0.8.0 increment (Waves B/C/D still pending before v0.8.0 tags). Ship stack on `main`:
+- `1d6179c` — A1 v0: `record --auto` + shared parser
+- `8fc2e4e` — A2: reconcile lock-guard + HIGH writer-norm fix at `internal/workflow/reconcile.go:596-613`
+- `6d67b41` — consolidated sub-agent verdicts (LOG.md)
+- `4484e04` — A1 rev-1: zero-diff refusal + lock-fallback discovery
+- `63a0373` — A1 rev-1 sub-agent verdict (LOG.md)
+
+## Slice A1 — `impl-record-auto-base`
+
+**Scope**: `tpatch record <slug> --auto` opt-in baseline inference. Algorithm: try `.tpatch/upstream.lock.commit` (if reachable from HEAD); fall back to merge-base discovery against `<remote>/<default-branch>` (prefers `origin/HEAD` symbolic-ref over hard-coded `main`); refuse if merge-base range contains >1 commits (broad-capture failure mode per WP-001 §5.2). Persists resolved base as `status.json:apply.base_commit`. Empty-clean-tree refusal now leads with `--auto` as recovery.
+
+**Wrote shared primitive**: `internal/store/upstream_lock.go` — `LoadUpstreamLock`, `ParseUpstreamLock`, `Store.UpstreamLockPath`. Zero-dep flat-scalar YAML extraction; 7 unit tests.
+
+**Skill parity**: All 6 surfaces updated to mention `--auto`.
+
+**Review history**:
+- Rev-0 (`1d6179c`): sub-agent APPROVED WITH NOTES (does not build standalone — A2 hunks `ReconcilePreflight.LockState`/`LockDiagnostic` in `gitutil.go:107-115` + `### Wave A2` CHANGELOG leaked during parallel-dispatch surgical revert). External NEEDS REVISION with two findings:
+  - Finding 1 (Medium): `record --auto` exit 0 with "No changes to record" when inferred range had zero textual diff after pathspec filter — PRD says refuse.
+  - Finding 2 (Low): populated-but-unusable lock hard-refused instead of falling back to discovery — PRD §3.2 step 5 says fall back.
+- Rev-1 (`4484e04`): both findings addressed.
+  - `cobra.go:913,1003-1032`: `autoResolved` state hoisted; `--auto`-driven empty patch refuses exit 1 with structured diagnostic (range, pathspec, 3-bullet recovery hint); explicit-range path preserved at `:1037` (legacy exit 0 unchanged).
+  - `record_auto.go:65-148`: unusable-lock predicate broadened to cover absent/empty-commit/ref-unresolvable/commit-unreachable; warn-and-fallback on `cmd.ErrOrStderr()`; hard-refuse only after discovery also fails.
+  - 2 new tests (`TestRecordAuto_EmptyCapture_AutoRefuses`, `TestRecordAuto_BogusLock_FallsBackToDiscovery`); 5 prior tests untouched.
+- Sub-agent APPROVED all 9 layers including no-regression on explicit-range path and A2 hands-off.
+- External supervisor APPROVED WITH NOTES on `4484e04`.
+
+**External rev-1 follow-up note (Low, non-blocking)**: When ambiguous-discovery refuses *after* an unusable-lock fallback, the candidate refs list (built in `record_auto.go`) is replaced by the outer wrapper text instead of being surfaced. PRD §3.4/§3.5 say candidates should be shown. Captured as backlog `m17-wave-a1-followup-ambig-discovery-diag`.
+
+## Slice A2 — `impl-reconcile-lock-guard` + bundled writer-norm fix
+
+**Scope**: Preflight upstream-lock validation at start of `tpatch reconcile` (BEFORE phase 1 of the 4-phase tree). 5-state taxonomy on `ReconcilePreflight`: Valid / Empty / Missing / Stale / Skipped. Refuse-on-stale exit 1 with structured diagnostic + 3 remediation paths (`git fetch`, re-record, `--allow-stale-lock`). Warn-and-proceed on Empty/Missing — preserves v0.6 init-scaffold default. `--allow-stale-lock` override flag. No new data-model objects (PRD §0.1, §0.3) — only `ReconcilePreflight` in-memory extension; `PreflightReconcile` single-arg signature preserved (acceptance #19). Recovery hint uses `git fetch` fallback because SPEC.md:72 `tpatch upstream check` is still stubbed (PRD §3.4 permits).
+
+**Bundled HIGH writer-norm fix** at `internal/workflow/reconcile.go:596-613`: `updateUpstreamLock()` now splits ref via `gitutil.SplitUpstreamRef` and writes `remote: origin` + `branch: main` (bare) instead of legacy `remote: upstream` + `branch: upstream/main` (full ref); populates `url` via `GitRemoteURL`. Regression test at `internal/workflow/upstream_lock_writer_test.go:23-60` would fail on pre-fix code.
+
+**Second parser** at `internal/gitutil/lock_guard.go:174-204` (`scanUpstreamLockBytes`). Verified store→gitutil import cycle (`internal/store/validation.go:9` and `internal/store/dependents.go:4`) blocks consumption of A1's parser. Two parsers are line-for-line equivalent on the three shared keys; malformed input → both call sites classify as Empty → no drift risk between `record --auto` and `reconcile` decisions. Follow-up cleanup PRD captured in CURRENT.md for a future leaf-package refactor.
+
+**Tests**: 13 cases in `lock_guard_test.go` (all 3 stale sub-causes via commit-tree-with-orphan-commit, missing-ref, partial lock); 3 regression tests in `upstream_lock_writer_test.go`; reconcile CLI integration cases.
+
+**Skill parity**: `--allow-stale-lock` not surfaced in skills (acceptable — skills discuss `upstream.lock` at workflow level).
+
+**Review history**:
+- Sub-agent APPROVED all 9 layers including writer-norm regression validation, import-cycle verification, parser-drift assessment, and all 4 PRD live-repro scenarios.
+- External supervisor APPROVED (covered in the consolidated A1+A2 external pass).
+
+## Cross-commit binding (accepted trade-off)
+
+`1d6179c` cannot be cherry-picked or reverted independently of `8fc2e4e` because `ReconcilePreflight.LockState`/`LockDiagnostic` field declarations + `### Wave A2` CHANGELOG subsection were carried in A1's commit during the parallel-dispatch surgical revert. User-facing release is unaffected — both ship together as v0.8.0 either way. **A revert of v0.8.0 must revert both commits as a unit.**
+
+## Hands-off / not bundled (preserved for later Waves)
+
+- Wave B (`impl-record-collision-detection`) — depends on A1's `--auto` baseline
+- Wave C (`impl-tpatch-land`) — depends on A1 + A2 + B
+- Wave D (`impl-patch-already-upstream-detector`) — independent, default-OFF (`Config.PatchIDDetectorEnabled` per PRD §6)
+
+## Follow-up todos captured
+
+- `m17-wave-a1-followup-ambig-discovery-diag` — surface candidate refs when ambiguous discovery refuses post-unusable-lock fallback (Low, PRD §3.4/§3.5)
+- `m17-wave-a-parser-deduplication` — future leaf-package refactor to remove the duplicated upstream-lock parser between `store/` and `gitutil/`
+
+---
+
 # 2026-05-11 — v0.7.0 — `feat-amend-dependent-warning` — APPROVED, shipped
 
 **Outcome**: Shipped as v0.7.0, tagged at `6e78eac`. Ship stack: `8306367` (impl) → `6e78eac` (rev-1 fixes) → `a5e7de0` (sub-agent verdict) → `c9c8de3` (tracking close) → tag `v0.7.0`.

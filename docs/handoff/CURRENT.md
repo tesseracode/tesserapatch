@@ -2,39 +2,47 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-a-parallel-dispatch` — M17 Wave A1 Revision-1 (NEEDS REVISION addressed) + A2 (APPROVED, untouched)
+- **Task ID**: `m17-wave-bd-parallel-dispatch` — M17 Wave B + Wave D (v0.8.0 boundary-capture cluster, second + third waves; can ship in parallel)
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: A1 rev-1 commit landed on top of `6d67b41`; A2 (`8fc2e4e`) approved and untouched. Awaiting supervisor re-review.
-- **Assigned**: 2026-05-11 (immediately after v0.7.0 ship)
+- **Status**: Ready to dispatch. Wave A (A1 + A2) shipped 2026-05-11 (unreleased, bundled into v0.8.0). Waves B + D are independent of each other and can ship as parallel background implementers. Wave C waits for B.
+- **Assigned**: 2026-05-11 (immediately after Wave A external approval)
 
-## Wave A — Parallel Slices
+## Wave Status
 
-| Slice | Task ID | PRD | ADR placeholder | Owner | Notes |
-|-------|---------|-----|-----------------|-------|-------|
-| A1 | `impl-record-auto-base` | [`PRD-record-auto-base.md`](../prds/PRD-record-auto-base.md) | [`ADR-016`](../adrs/ADR-016-record-auto-base-resolution.md) | TBD (fresh sub-agent) | Adds `tpatch record <slug> --auto` with `.tpatch/upstream.lock` + merge-base baseline inference. |
-| A2 | `impl-reconcile-lock-guard` | [`PRD-reconcile-lock-guard.md`](../prds/PRD-reconcile-lock-guard.md) | [`ADR-017`](../adrs/ADR-017-reconcile-lock-guard-and-writer-normalization.md) | TBD (fresh sub-agent) | Reconcile-time lock validation guard + HIGH writer-normalization fix at `internal/workflow/reconcile.go:599-604` bundled per PRD §5.3. |
+| Slice | Task ID | PRD | Status | Depends |
+|-------|---------|-----|--------|---------|
+| A1 | `impl-record-auto-base` | PRD-record-auto-base | ✅ shipped (`1d6179c` + rev-1 `4484e04`) | — |
+| A2 | `impl-reconcile-lock-guard` | PRD-reconcile-lock-guard | ✅ shipped (`8fc2e4e`) | — |
+| **B** | `impl-record-collision-detection` | PRD-record-collision-detection | ⬜ **ready to dispatch** | A1 (recovery hints need `--auto`) |
+| C | `impl-tpatch-land` | PRD-tpatch-land | ⬜ blocked on A1+A2+B | A1, A2, B |
+| **D** | `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | ⬜ **ready to dispatch** | independent (default-OFF) |
 
-**Coordination point**: Both slices reference a shared `internal/store/upstream_lock.go` parser primitive. **Whichever Wave A slice ships first writes the parser; the second consumes by import.** Both PRDs are explicit about this (`PRD-record-auto-base §5`, `PRD-reconcile-lock-guard §5`). Resolve at review-time, not at dispatch — implementers will independently draft the parser; the reviewer for the second-to-land slice will request a rebase to import the first slice's parser.
+**Coordination notes for parallel B + D dispatch**:
+- Same checkout, same working tree — same risk pattern as Wave A's parallel dispatch.
+- Recommend: dispatch B and D in parallel but with explicit "do not touch the other's territory" lists in their briefs.
+- B touches `internal/cli/cobra.go` record path + `internal/gitutil/` (collision-signature primitive); D touches reconcile workflow (`internal/workflow/reconcile.go`) + `internal/store/types.go` (config flag `PatchIDDetectorEnabled`).
+- Minimal overlap — main shared file is `cobra.go` if D adds a `--no-patch-id-detector` flag. Risk lower than Wave A's A1↔A2 because they share fewer surfaces.
 
-## Dispatch Plan
+## Just Shipped — M17 Wave A
 
-1. Dispatch `m17-wave-a1-impl` background agent with `PRD-record-auto-base.md` as authoritative brief.
-2. Dispatch `m17-wave-a2-impl` background agent with `PRD-reconcile-lock-guard.md` as authoritative brief + explicit reminder to bundle the HIGH bug at `reconcile.go:599-604`.
-3. Both dispatches in parallel; both must include claims-audit-style verification of their PRD's claims against current code before implementing.
-4. On each completion: sub-agent reviewer with layered checklist → external supervisor → push.
-5. Parser coordination: first-to-land writes `internal/store/upstream_lock.go`; second-to-land reviewer requests rebase.
+**M17 Wave A (A1 + A2)** — APPROVED WITH NOTES, archived to HISTORY 2026-05-11. Ship stack: `1d6179c` (A1 v0) + `8fc2e4e` (A2) + `6d67b41` (verdicts) + `4484e04` (A1 rev-1) + `63a0373` (rev-1 verdict). External one revision on A1 (zero-diff false-green + lock-fallback policy); both addressed in `4484e04`. A2 clean. One non-blocking external follow-up captured as backlog `m17-wave-a1-followup-ambig-discovery-diag`. Cross-commit binding (A1 ↔ A2) accepted; HISTORY notes the revert must move both as a unit.
 
-## Just Shipped
+## Tagging Decision (Open)
 
-**v0.7.0 — `feat-amend-dependent-warning`** (archived to HISTORY 2026-05-11): amend-detection guard in `record` (exit 1 by default, `--force-amend` escape hatch), `dependent-broken` overlay across all 4 status surfaces with one coalesced line per affected feature. External supervisor APPROVED after one revision (rev-1 `6e78eac`). Ship stack: `8306367` → `6e78eac` → `a5e7de0` → `c9c8de3`, tag at `6e78eac`.
+Wave A alone is partial v0.8.0. Two paths:
+1. **Tag `v0.8.0-alpha.1` after Wave A push** — early-adopter signal, enables progress visibility, follows precedent of mid-milestone alphas. Cost: pre-release tag count grows; minor versioning bookkeeping.
+2. **Defer tagging until Wave A+B+C+D complete** — single clean `v0.8.0` release. Cost: longer dark period; if Waves B/C/D are large, no incremental ship signal.
 
-## M17 — Remaining Waves (after Wave A)
+Recommendation: defer (option 2). Wave A is internal-facing infrastructure; user-facing value lands with Wave C (`tpatch land`). Tag once at v0.8.0 unless we hit a long pause between waves.
 
-| Slice | PRD | Wave deps |
-|-------|-----|-----------|
-| B — `impl-record-collision-detection` | PRD-record-collision-detection | Wave A1 (recovery hints need `--auto`) |
-| C — `impl-tpatch-land` | PRD-tpatch-land | Wave A1 + Wave A2 + Wave B |
-| D — `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | Independent (default-OFF, ships in parallel with any wave) |
+## Dispatch Plan (proposed)
+
+1. Push current 5-commit stack (`1d6179c` + `8fc2e4e` + `6d67b41` + `4484e04` + `63a0373`) to `origin/main`. No tag.
+2. Dispatch `m17-wave-b-impl` background agent with `PRD-record-collision-detection.md` as authoritative brief.
+3. Dispatch `m17-wave-d-impl` background agent with `PRD-patch-already-upstream-detector.md` as authoritative brief + reminder of default-OFF gating.
+4. Each implementer completes → sub-agent reviewer → external supervisor → push. Same pattern as Wave A.
+5. After both B and D ship: dispatch `m17-wave-c-impl` (depends on A1+A2+B; D independent, can have shipped or be in flight).
+6. After all 4 waves ship + follow-ups assessed: tag `v0.8.0`, archive cluster to HISTORY.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
@@ -133,220 +141,10 @@ These are research outputs only, not queued roadmap work:
 - `PRD-record-context-summary`
 
 
+
 ## Blockers
 
-None. Ready to dispatch Wave A1 + A2 implementers in parallel.
+None. Awaiting user direction on:
+- Wave A push (5 commits, no tag) — user can drive or supervisor can execute on confirmation.
+- Wave B + D parallel dispatch — user OK with same pattern as Wave A?
 
-
-## Wave A1 Implementation — pending-commit — 2026-05-11
-
-**Status**: Implementation complete locally; commit SHA appended on commit.
-
-**Scope delivered** (PRD-record-auto-base):
-
-- **`tpatch record <slug> --auto`** flag with full PRD §3.2 baseline-inference algorithm: upstream.lock.commit (direct ancestor wins), merge-base fallback against lock.commit, lock remote/branch resolution, default-remote-HEAD discovery (`refs/remotes/upstream/HEAD` → `refs/remotes/origin/HEAD` → conventional `*/main`/`*/master` only when exactly one resolves), strict refusal on multi-commit merge-base fallback (§3.2 safety gate), dirty-tree refusal, mutex with `--from` / `--commit-range`.
-- **`internal/store/upstream_lock.go`** — shared zero-dep parser primitive (`LoadUpstreamLock`, `ParseUpstreamLock`, `Store.UpstreamLockPath`) using the same flat-scalar extraction pattern as `parseYAMLConfig`. Wave A2 is expected to import this verbatim; if A2 lands first the reviewer will request a rebase to drop the duplicate.
-- **`gitutil.SymbolicRef`** (default-branch discovery) and **`gitutil.CommitCountInRange`** (`rev-list --count`) helpers.
-- **`status.apply.base_commit` correction** — for all committed-range modes (`--auto`, `--from`, `--commit-range`) the persisted base now matches the canonical patch's lower bound (PRD §3.3). Working-tree capture continues to store `HEAD`.
-- **Empty-clean-tree refusal** — diagnostic now leads with `tpatch record <slug> --auto` and falls back to `--from <base>`.
-- **`record.md` provenance** — added Capture mode / Base commit / Upper bound / Pathspecs lines.
-- **6 skill formats** — all updated to recommend `tpatch record <slug> --auto` as the first recovery path when feature work has been committed. Parity guard passes.
-- **`CHANGELOG.md`** — opened `v0.8.0 (in development)` with `### Added` and `### Changed` subsections.
-
-### Tests
-
-- `internal/store/upstream_lock_test.go` — 7 cases: empty, all-fields, missing-fields, malformed, trailing-whitespace, missing-file, round-trip.
-- `internal/cli/record_auto_test.go` — 5 cases: happy path (lock-ancestor + status.json base, byte-stream parity with `--from <base>`), ambiguous merge-base refusal (2-commit divergence → reject + `git log --oneline` recipe), dirty-tree refusal, mutex flags (`--auto+--from`, `--auto+--commit-range`).
-- `go test ./...` clean. `go test ./assets -run TestSkillParityGuard -count=1` clean.
-
-### Live repro (excerpts)
-
-Happy path:
-
-```text
-record --auto selected base 4341c497 from upstream.lock commit 4341c497 (upstream.lock)
-  equivalent: tpatch record happy-path-auto --from 4341c497
-  range: 4341c497..HEAD (2 commits ahead)
-  warning: 2 commits in the inferred range — if unrelated feature commits are present, narrow with --files or --to.
-  Saved patch: patches/001-record.patch
-Recorded patch for happy-path-auto (228 bytes, 2 files)
-```
-
-Ambiguous merge-base refusal (exit 1):
-
-```text
-record --auto inferred merge-base e4af5a74 against upstream.lock commit 44b84261, but the range contains 2 commits.
-This is too broad to trust automatically; it may include multiple feature commits.
-Inspect with:
-  git log --oneline e4af5a74..HEAD
-Then rerun with one of:
-  tpatch record <slug> --from <precise-base> --to <feature-tip>
-  tpatch record <slug> --from e4af5a74 --to <feature-tip> --files <feature-paths>
-```
-
-### Files changed (A1 only)
-
-- Implementation: `internal/cli/cobra.go`, `internal/cli/record_auto.go` (new), `internal/store/upstream_lock.go` (new, shared with A2), `internal/gitutil/gitutil.go` (+`SymbolicRef`, +`CommitCountInRange`).
-- Tests: `internal/cli/record_auto_test.go` (new), `internal/store/upstream_lock_test.go` (new).
-- Skills: `assets/skills/claude/...`, `assets/skills/copilot/...`, `assets/prompts/copilot/...`, `assets/skills/cursor/...`, `assets/skills/windsurf/...`, `assets/workflows/...` (one-line update each).
-- Docs: `CHANGELOG.md`, `docs/handoff/CURRENT.md` (this append).
-
-### Coordination note for reviewer
-
-This branch **does** ship `internal/store/upstream_lock.go`. Wave A2 also depends on this parser primitive (PRD-reconcile-lock-guard §5). If A2 has not yet landed on `main` at review time, no action is needed — A2's reviewer will request a rebase to import this version. If A2 landed first, please rebase this branch onto A2's head and drop the duplicate file; the parser API (`LoadUpstreamLock` returning `UpstreamLock, error` + `ParseUpstreamLock` returning `UpstreamLock`) and the `Store.UpstreamLockPath` accessor are stable per the PRD coordination point.
-
-### Deviations from PRD
-
-None of substance. Notable design decisions:
-
-- Dirty-tree check uses `git status --porcelain --untracked-files=no` (tracked-only) rather than `gitutil.IsWorkingTreeDirty` (which also flags untracked paths). The PRD §3.2 dirty-tree refusal is about tracked drift that `--auto` would silently ignore; untracked `.tpatch/` artifacts in fresh repos must not falsely trip the gate. Rationale documented in `record_auto.go::isTrackedTreeDirty`.
-
-
-
-## Wave A2 Implementation — pending-commit — 2026-05-12
-
-### Active Task
-- **Task ID**: M17 Wave A2 — `impl-reconcile-lock-guard`
-- **Spec**: `docs/prds/PRD-reconcile-lock-guard.md` (685 lines)
-- **Status**: Implementation complete; tests green; live repro verified.
-
-### Session Summary
-- Added the 5-state upstream-lock validation guard to `tpatch reconcile`
-  (Valid / Empty / Missing / Stale / Skipped per PRD §3.1).
-- Added `--allow-stale-lock` flag (PRD §3.2) — independent of `--allow-dirty`.
-- Fixed the v0.8 writer-normalization bug bundled in the PRD §5.3: the
-  pre-fix `updateUpstreamLock` hard-coded `remote: upstream` and stored
-  the full ref inside `branch:`, which would cause the lock-guard to
-  reassemble `upstream/upstream/main` and refuse every populated lock.
-  Writer now uses `gitutil.SplitUpstreamRef` + `gitutil.GitRemoteURL`.
-- Read-side legacy normalization: if `branch:` starts with `<remote>/`,
-  the prefix is stripped before reassembly (covers locks written by
-  pre-v0.8 reconciles).
-
-### Files Changed
-- New: `internal/gitutil/lock_guard.go` — `LockState`/`LockDiagnostic`
-  types, `PreflightReconcileWithOverride`, `classifyUpstreamLock`,
-  `SymbolicFullRefName`, `SplitUpstreamRef`, `GitRemoteURL`, inline
-  `scanUpstreamLockBytes`.
-- New: `internal/gitutil/lock_guard_test.go` — 13 cases covering all 5
-  states, 3 stale sub-causes, legacy-branch normalization,
-  override-equals-lock (acceptance #18), single-arg form preservation
-  (acceptance #19), `SplitUpstreamRef` table.
-- New: `internal/cli/lock_guard_diag.go` — refusal block + warning
-  formatters.
-- New: `internal/workflow/upstream_lock_writer_test.go` — 3 regression
-  tests for the writer fix.
-- Modified: `internal/workflow/reconcile.go` — rewrote
-  `updateUpstreamLock` per PRD §5.3.
-- Already in HEAD (landed with Wave A1 commit `1d6179c`):
-  `internal/gitutil/gitutil.go` extension of `ReconcilePreflight` with
-  `LockState`/`LockDiagnostic`; `CHANGELOG.md` `### Wave A2` subsection.
-- Modified: `internal/cli/cobra.go` — reconcile command: switch to
-  `PreflightReconcileWithOverride`, add lock-state switch, add
-  `--allow-stale-lock` flag.
-
-### Test Results
-- `go build ./...` ✓
-- `go test ./... -count=1` ✓ all packages green
-- `gofmt -l .` clean
-
-### Deviations from PRD
-1. **§5 parser sharing**: `gitutil` cannot import `internal/store`
-   (store already imports gitutil — see `store/validation.go`,
-   `store/dependents.go`). The lock classifier therefore has an inline
-   `scanUpstreamLockBytes` mirroring `store.ParseUpstreamLock`. A
-   future cleanup PRD should promote the parser to a leaf package.
-2. **§7.1 classifier location**: PRD wanted classification inside the
-   single-arg `PreflightReconcile`. We kept that signature unchanged
-   (LockState defaults to `LockStateUnknown`) and added the new
-   `PreflightReconcileWithOverride` so existing CI gates that call
-   `PreflightReconcile(repoRoot)` for working-tree state only are not
-   forced to think about lock state. Acceptance #19 covers this.
-3. **Malformed lock → Empty (not "Missing-with-parse-error")**:
-   `store.ParseUpstreamLock` is lenient (no parse-state enum surfaced),
-   so an unparseable lock degrades to Empty. Both Empty and Missing
-   warn-and-proceed, so user-visible behavior matches acceptance #4.
-
-### Next Steps
-- Reviewer: run the PRD §8 acceptance criteria checklist.
-- Supervisor: archive this CURRENT.md section to HISTORY.md upon
-  approval and queue Wave A3 / the parser-promotion cleanup PRD.
-
-### Blockers
-None.
-
-## Wave A1 Revision-1 Implementation — pending-commit — 2026-05-11
-
-### Active Task
-- Address external supervisor's NEEDS REVISION verdict on Wave A1 (`1d6179c`).
-  Two findings; A2 (`8fc2e4e`) untouched.
-
-### Findings addressed
-
-**Finding 1 (Medium) — Zero-diff false-green under `--auto`.**
-`record --auto --files <unrelated>` previously printed the decision line,
-then "No changes to record in the specified range", and exited 0 — a
-silent advance to applied state with an empty patch. Per
-`docs/prds/PRD-record-auto-base.md`, an `--auto`-inferred range whose
-pathspec filter empties the diff must refuse.
-
-Fix: in `internal/cli/cobra.go` the `record` command now hoists the
-auto resolution into an outer `autoResolved *autoBaseResolution`. The
-empty-patch branch distinguishes `autoResolved != nil` (refuse with a
-diagnostic naming the inferred range, ahead-count, pathspec, and a
-recovery hint) from explicit `--from`/`--to` (preserves the legacy
-"No changes to record in the specified range" success). Exit code is
-non-zero only on the `--auto` path.
-
-**Finding 2 (Low) — Lock-fallback policy mismatch.**
-A populated-but-bogus `upstream.lock` (`remote: bogus`, `branch: missing`,
-empty commit) caused `record --auto` to hard-refuse with "populated but
-no field resolves" instead of falling back to discovery. PRD §3.2 step 5
-treats "empty or unusable" as the discovery trigger.
-
-Fix: in `internal/cli/record_auto.go`, `resolveAutoBase` now tracks why
-the lock failed (`lockReason`) across steps 2-4. If steps 2-4 produce no
-direct/merge-base resolution, we enter discovery and emit a one-line
-warning to stderr (`record --auto: upstream.lock unusable (<reason>);
-falling back to discovery`). The historical "populated but no field
-resolves" diagnostic is now the LAST resort — emitted only when
-discovery itself also fails. Signature change: `resolveAutoBase` now
-takes `errOut io.Writer` for the warn-and-fallback line; cobra.go
-passes `cmd.ErrOrStderr()`.
-
-### Files changed (rev-1)
-- `internal/cli/record_auto.go` — broaden lock-fallback predicate;
-  warn-and-fallback to discovery when steps 2-4 do not resolve;
-  preserve hard-refuse only as final fallback after discovery fails.
-- `internal/cli/cobra.go` — hoist `autoResolved`; refuse empty
-  capture under `--auto` with structured diagnostic; preserve legacy
-  success for explicit `--from`/`--to` empty ranges.
-- `internal/cli/record_auto_test.go` — two new tests:
-  `TestRecordAuto_EmptyCapture_AutoRefuses` (Finding 1, also asserts
-  the legacy explicit-range success path still works) and
-  `TestRecordAuto_BogusLock_FallsBackToDiscovery` (Finding 2).
-
-### Test Results (rev-1)
-- `gofmt -l .` — clean.
-- `go build ./cmd/tpatch` — ok.
-- `go test ./internal/cli -run 'TestRecordAuto' -count=1 -v` — 7/7
-  pass (5 prior + 2 new).
-- `go test ./...` — all packages pass.
-- Live repros (binary built from `go install ./cmd/tpatch`):
-  - Finding 1 repro: `--auto --files docs/not-touched.md` → exit 1
-    with "yields zero textual diff after filtering by --files
-    \"docs/not-touched.md\"" + recovery hint.
-  - Finding 2 repro: bogus lock + valid `origin/HEAD` → exit 0 with
-    `record --auto: upstream.lock unusable (lock ref bogus/missing
-    does not exist locally); falling back to discovery` warning, then
-    chooses the discovered `origin/main` base.
-
-### Out of scope (preserved)
-- A2 territory untouched: `internal/gitutil/lock_guard.go`,
-  `internal/cli/lock_guard_diag.go`, `internal/workflow/reconcile.go`,
-  `internal/workflow/upstream_lock_writer_test.go`, and the reconcile
-  path / `--allow-stale-lock` flag wiring in `internal/cli/cobra.go`.
-- `internal/store/upstream_lock.go` parser unchanged.
-- The 5 existing `record_auto_test.go` cases unchanged.
-- Skill assets unchanged (parity guard still passes; this fix is
-  diagnostics + control flow only).

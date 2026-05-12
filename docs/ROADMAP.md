@@ -276,22 +276,19 @@ which lands first to keep the freshness work contiguous. The cluster name
 "v0.7 cluster" is preserved in the LOG entry's title for historical
 fidelity, but the implementation milestone is v0.8.0.
 
-- **Wave A — independent, parallel** ⬜
-  - **Slice A1 — `impl-record-auto-base`** ⬜
+- **Wave A — independent, parallel** ✅ (shipped 2026-05-11, unreleased — bundled into v0.8.0)
+  - **Slice A1 — `impl-record-auto-base`** ✅
     - PRD: [`docs/prds/PRD-record-auto-base.md`](prds/PRD-record-auto-base.md)
     - ADR placeholder: [ADR-016](adrs/ADR-016-record-auto-base-resolution.md)
-    - Owner: TBD (backlog: `backlog-assign-m17-owners`)
-    - Wave A also writes the shared `internal/store/upstream_lock.go`
-      parser; whichever Wave A slice ships first owns it, the other
-      consumes by import.
-  - **Slice A2 — `impl-reconcile-lock-guard` + writer-normalization fix** ⬜
+    - Ship commits: `1d6179c` (v0) + `4484e04` (rev-1: zero-diff refusal + lock-fallback discovery)
+    - Wrote shared `internal/store/upstream_lock.go` parser.
+    - Follow-up captured: `m17-wave-a1-followup-ambig-discovery-diag` (Low — ambiguous discovery candidate list not surfaced when post-unusable-lock discovery fails; PRD §3.4/§3.5).
+  - **Slice A2 — `impl-reconcile-lock-guard` + writer-normalization fix** ✅
     - PRD: [`docs/prds/PRD-reconcile-lock-guard.md`](prds/PRD-reconcile-lock-guard.md)
     - ADR placeholder: [ADR-017](adrs/ADR-017-reconcile-lock-guard-and-writer-normalization.md)
-    - Owner: TBD (backlog: `backlog-assign-m17-owners`)
-    - Bundles the HIGH-severity writer-normalization fix at
-      `internal/workflow/reconcile.go` (`updateUpstreamLock()`,
-      lines 595–605 at routing time) per `PRD-reconcile-lock-guard §5.3`.
-      Not a standalone task.
+    - Ship commit: `8fc2e4e`
+    - Bundled the HIGH-severity writer-normalization fix at `internal/workflow/reconcile.go:596-613` (`updateUpstreamLock()`) per `PRD-reconcile-lock-guard §5.3`.
+    - Second parser at `internal/gitutil/lock_guard.go` due to verified `store → gitutil` import cycle (parsers line-for-line equivalent on shared keys; no drift risk). Follow-up cleanup PRD captured in CURRENT.md.
 - **Wave B — depends on Wave A (auto-base)** ⬜
   - **Slice B — `impl-record-collision-detection`** ⬜
     - PRD: [`docs/prds/PRD-record-collision-detection.md`](prds/PRD-record-collision-detection.md)
