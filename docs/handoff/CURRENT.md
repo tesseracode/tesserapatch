@@ -4,8 +4,80 @@
 
 - **Task ID**: `m17-wave-bd-parallel-dispatch` — M17 Wave B + Wave D (v0.8.0 boundary-capture cluster, second + third waves; can ship in parallel)
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Ready to dispatch. Wave A (A1 + A2) shipped 2026-05-11 (unreleased, bundled into v0.8.0). Waves B + D are independent of each other and can ship as parallel background implementers. Wave C waits for B.
+- **Status**: Wave A shipped. Wave B implemented (awaiting review). **Wave D implemented (awaiting review)**. Wave C still blocked on B.
 - **Assigned**: 2026-05-11 (immediately after Wave A external approval)
+
+## Wave D summary (2026-05-11)
+
+Phase-1.5 deterministic patch-already-upstream detector landed,
+default-OFF behind `Config.PatchIDDetectorEnabled` (PRD §6). Files
+touched:
+
+- `internal/store/types.go` — added `Config.PatchIDDetectorEnabled`,
+  `Config.PatchIDScanLimit`, `DefaultPatchIDScanLimit = 5000`,
+  `PatchIDMatch` struct, `ReconcileSummary.PatchIDMatch *PatchIDMatch`
+  (omitempty).
+- `internal/store/store.go` — flat YAML parser learns
+  `patch_id_detector_enabled` and `patch_id_scan_limit`; `SaveConfig`
+  emits the keys only when non-default (preserves pre-Wave-D byte
+  identity for fixtures).
+- `internal/gitutil/patch_id.go` — new file. Primitives `PatchID`,
+  `CommitPatchID`, `RevListInRange` wrap `git patch-id --stable` and
+  `git rev-list --no-merges`.
+- `internal/workflow/patch_id_detector.go` — new file. `runPatchIDDetector`
+  reads `upstream.lock`, computes our patch-id, walks the range, applies
+  PRD §5.3 multi-match policy (earliest match wins), enforces the
+  scan-limit cap (PRD §5.2), fails soft on tooling errors (PRD §5.1).
+- `internal/workflow/reconcile.go` — fast-path slotted between phase 1
+  (reverse-apply) and phase 2 (operation-level). Gated on
+  `cfg.PatchIDDetectorEnabled`; on match sets `Outcome=ReconcileUpstreamed`,
+  `Phase="phase-1.5-patch-id-match"`, `UpstreamCommit = matched SHA`,
+  `PatchIDMatch = audit payload`, skips phases 2/3/4.
+- `internal/workflow/patch_id_detector_test.go` — new file. Coverage:
+  default-OFF no-op, primitive match, primitive no-match, missing-lock
+  Skip, empty-baseline Skip, empty-range no-match, scan-limit Skip,
+  flag-on integration match (provider=nil) with `status.json`
+  persistence assertion, flag-on no-match falls through, config
+  parser round-trip for the new keys.
+- `CHANGELOG.md` — Wave D entry under v0.8.0 in-development; explicitly
+  flags default-OFF gating and lists deferred CLI surfaces.
+
+### PRD acceptance criteria — what shipped and what deferred
+
+Shipped: PRD §3.1 (phase-1.5 default behaviour), §3.4 JSON
+`patch_id_match` block, §4 schema additions, §5.1 fail-soft semantics,
+§5.2 scan-limit cap, §5.3 multi-match policy, §5.6 heuristic-fallback
+friendliness, §6 default-OFF rollout, §9 validation plan items 1-4 and
+7-9.
+
+Deferred to follow-up backlog (not in this commit, called out in
+CHANGELOG): PRD §3.2 `--check-applied-only` CLI verb/flag, PRD §3.3
+`--auto-drop-merged` CLI flag, PRD §3.3 hotfix-kind auto-drop default
+gating. Rationale: the deterministic primitive + reconcile fast-path
+is the load-bearing M17 Wave D contract; the user-facing flags layer
+on top and can ship in v0.8.1+ without invalidating the core. Brief
+permits this scoping ("if you add a CLI flag, ..."). No skill files
+were touched (no new CLI flag → parity guard unaffected).
+
+### Verification
+
+- `gofmt -l .` clean.
+- `go build ./cmd/tpatch` clean.
+- `go test ./...` green across all packages.
+- New `TestPatchIDDetector_*` suite (9 tests) passes; new
+  `TestConfigParserRoundTripsPatchIDKeys` passes.
+- Skill parity guard test (`go test ./assets`) still cached/green —
+  no CLI flag changes, no skill asset changes.
+
+### Default-OFF preservation — explicit confirmation
+
+`TestPatchIDDetector_DefaultOffNoOp` asserts that a freshly-init
+config keeps `PatchIDDetectorEnabled` false and that reconcile does
+*not* enter phase 1.5 nor populate `PatchIDMatch`. All pre-existing
+reconcile tests (`TestReconcilePhase1_*`, `TestReconcilePhase4_*`,
+labels tests, etc.) continue to pass without modification — none of
+them enable the flag, so the new fast-path is silently skipped and
+the original phase ladder runs unchanged.
 
 ## Wave Status
 
@@ -15,7 +87,7 @@
 | A2 | `impl-reconcile-lock-guard` | PRD-reconcile-lock-guard | ✅ shipped (`8fc2e4e`) | — |
 | **B** | `impl-record-collision-detection` | PRD-record-collision-detection | 🟡 **implemented, awaiting review** | A1 (recovery hints reference `--auto`) |
 | C | `impl-tpatch-land` | PRD-tpatch-land | ⬜ blocked on A1+A2+B | A1, A2, B |
-| **D** | `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | ⬜ **ready to dispatch** | independent (default-OFF) |
+| **D** | `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | 🟡 **implemented, awaiting review** (default-OFF) | independent (default-OFF) |
 
 **Coordination notes for parallel B + D dispatch**:
 - Same checkout, same working tree — same risk pattern as Wave A's parallel dispatch.

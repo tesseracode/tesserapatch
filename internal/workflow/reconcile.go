@@ -41,6 +41,13 @@ type ReconcileResult struct {
 	// fixtures.
 	Labels []store.ReconcileLabel `json:"labels,omitempty"`
 
+	// PatchIDMatch is the M17 Wave D / PRD-patch-already-upstream-detector
+	// audit payload for the phase-1.5 deterministic sweep. Populated only
+	// when Config.PatchIDDetectorEnabled is true AND the sweep produced a
+	// match. `omitempty` is load-bearing for default-OFF byte-identity
+	// vs pre-M17-Wave-D fixtures.
+	PatchIDMatch *store.PatchIDMatch `json:"patch_id_match,omitempty"`
+
 	// attemptedAt is the timestamp shared between saveReconcileArtifacts
 	// (which feeds it to composeLabelsAt as the staleness baseline) and
 	// updateFeatureState (which writes it as ReconcileSummary.AttemptedAt
@@ -181,6 +188,38 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		saveReconcileArtifacts(s, slug, result)
 		updateFeatureState(s, slug, result)
 		return result, nil
+	}
+
+	// Phase 1.5 (M17 Wave D / PRD-patch-already-upstream-detector):
+	// deterministic `git patch-id --stable` sweep against the upstream-
+	// since-lock range. Default-OFF — flag-gated on
+	// Config.PatchIDDetectorEnabled so pre-M17 reconcile behaviour is
+	// byte-identical when the operator has not opted in.
+	if storeCfg, cerr := s.LoadConfig(); cerr == nil && storeCfg.PatchIDDetectorEnabled {
+		det := runPatchIDDetector(s, patch, upstreamCommit, storeCfg.PatchIDScanLimit)
+		switch {
+		case det.Match != nil:
+			result.Outcome = store.ReconcileUpstreamed
+			result.Phase = "phase-1.5-patch-id-match"
+			// PRD §3.1 step 6: UpstreamCommit becomes the matching SHA
+			// (the commit that absorbed the patch), not the upstream tip.
+			result.UpstreamCommit = det.Match.MatchedUpstreamSHA
+			result.PatchIDMatch = det.Match
+			note := fmt.Sprintf("Patch-id sweep matched upstream commit %s (scanned %d in %s)",
+				truncateCommit(det.Match.MatchedUpstreamSHA), det.Match.ScannedCount, det.Match.ScannedRange)
+			if len(det.Match.AdditionalMatches) > 0 {
+				note += fmt.Sprintf("; %d additional match(es)", len(det.Match.AdditionalMatches))
+			}
+			result.Notes = append(result.Notes, note)
+			saveReconcileArtifacts(s, slug, result)
+			updateFeatureState(s, slug, result)
+			return result, nil
+		case det.Skipped:
+			// Fail-soft (PRD §5.1): never treat tooling failure as a
+			// no-match verdict. Surface a single audit note and fall
+			// through to phase 2.
+			result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
+		}
 	}
 
 	// Phase 2: Operation-level evaluation (if apply-recipe.json exists)
@@ -561,6 +600,10 @@ func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
 		// M14.3: persist the DAG-derived labels alongside the intrinsic
 		// outcome. `omitempty` guarantees flag-off byte-identity.
 		Labels: result.Labels,
+		// M17 Wave D: persist the patch-id sweep audit payload alongside
+		// the verdict. `omitempty` on the field is load-bearing for
+		// default-OFF byte-identity.
+		PatchIDMatch: result.PatchIDMatch,
 	}
 	status.LastCommand = "reconcile"
 	status.UpdatedAt = result.attemptedAt

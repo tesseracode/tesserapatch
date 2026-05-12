@@ -493,6 +493,16 @@ features_dependencies: %s
 		initiatorLine, mergeStrat,
 		maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand),
 		featuresDeps)
+	// M17 Wave D: only emit the patch-id detector keys when non-default,
+	// so v0.6.x → v0.8.0 fixtures round-trip byte-identical until the
+	// operator explicitly opts in.
+	if cfg.PatchIDDetectorEnabled {
+		content += "\n# Phase-1.5 patch-id detector (PRD-patch-already-upstream-detector).\n"
+		content += "patch_id_detector_enabled: true\n"
+	}
+	if cfg.PatchIDScanLimit > 0 {
+		content += fmt.Sprintf("patch_id_scan_limit: %d\n", cfg.PatchIDScanLimit)
+	}
 	return writeFile(s.configPath(), content)
 }
 
@@ -677,6 +687,18 @@ func parseYAMLConfig(content string) Config {
 		cfg.FeaturesDependencies = v != "false"
 	} else {
 		cfg.FeaturesDependencies = true
+	}
+	if v := extractYAMLValue(content, "patch_id_detector_enabled"); v != "" {
+		// Default false until v0.7.x (PRD-patch-already-upstream-detector
+		// §6). The key is absent in pre-M17-Wave-D config.yaml, which
+		// must continue to behave byte-identically.
+		cfg.PatchIDDetectorEnabled = v == "true"
+	}
+	if v := extractYAMLValue(content, "patch_id_scan_limit"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.PatchIDScanLimit = n
+		}
 	}
 	return cfg
 }

@@ -4,6 +4,37 @@ All notable changes to tpatch are recorded here.
 
 ## v0.8.0 (in development) — M17 boundary-capture cluster
 
+### Wave D
+
+- **Phase-1.5 deterministic patch-already-upstream detector
+  (default-OFF)** — `tpatch reconcile` gained a new fast-path slotted
+  between phase 1 (reverse-apply) and phase 2 (operation-level)
+  evaluation. When enabled, it computes `git patch-id --stable` for the
+  feature's `post-apply.patch` and walks the `(upstream.lock.commit,
+  upstream-tip]` range looking for a matching upstream commit. On match,
+  the verdict short-circuits to `ReconcileUpstreamed` with
+  `Phase="phase-1.5-patch-id-match"`, the matching SHA replaces
+  `UpstreamCommit`, and phases 2/3/4 are skipped — including any
+  provider semantic call. Conservative by design: phase 1.5 never
+  *flips* a non-merged verdict to merged and never overrides phases
+  2-4 on no-match; tooling failures are surfaced as a one-line note
+  and the reconcile continues. **Gated behind
+  `Config.PatchIDDetectorEnabled` (default `false`).** When the flag
+  is off (the v0.8.0 default), reconcile behaviour is byte-identical
+  to pre-Wave-D: phase 1.5 is silently skipped, `PatchIDMatch` never
+  populates, and `reconcile-session.json` round-trips unchanged. New
+  flat YAML config keys: `patch_id_detector_enabled: true|false`
+  (default false) and `patch_id_scan_limit: <int>` (default 5000,
+  PRD §5.2). New types: `store.PatchIDMatch`,
+  `store.ReconcileSummary.PatchIDMatch` (`omitempty`). New primitives:
+  `gitutil.PatchID`, `gitutil.CommitPatchID`, `gitutil.RevListInRange`.
+  Workflow: `internal/workflow/patch_id_detector.go`. PRD acceptance
+  criteria not implemented in this wave: the optional CLI surfaces
+  `--check-applied-only` (PRD §3.2) and `--auto-drop-merged` (PRD §3.3)
+  remain on the backlog — the deterministic primitive ships first so
+  the user-facing flag work can build on stable foundations. PRD:
+  `docs/prds/PRD-patch-already-upstream-detector.md`.
+
 ### Wave B
 
 - **Record-time canonical patch collision detection** — `tpatch record`

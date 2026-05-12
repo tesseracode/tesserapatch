@@ -262,6 +262,14 @@ type ReconcileSummary struct {
 	// pre-M14.3 fixtures: when the flag is off the field must round-trip
 	// to the empty/absent form.
 	Labels []ReconcileLabel `json:"labels,omitempty"`
+
+	// PatchIDMatch records the phase-1.5 deterministic patch-id sweep
+	// result that drove an `upstreamed` verdict (PRD-patch-already-
+	// upstream-detector §4, M17 Wave D). Empty when the verdict came
+	// from another phase or the detector did not fire. Persisted only
+	// when Config.PatchIDDetectorEnabled is true. `omitempty` is
+	// load-bearing for back-compat against pre-M17 Wave D fixtures.
+	PatchIDMatch *PatchIDMatch `json:"patch_id_match,omitempty"`
 }
 
 // EffectiveOutcome returns the compound presentation of (Outcome, Labels)
@@ -321,6 +329,42 @@ type Config struct {
 	// `features_dependencies: true|false` (the existing parser does not
 	// support nested maps without a rewrite).
 	FeaturesDependencies bool `json:"features_dependencies,omitempty"`
+
+	// PatchIDDetectorEnabled gates the phase-1.5 deterministic
+	// patch-already-upstream detector (PRD-patch-already-upstream-detector,
+	// M17 Wave D). Default **false** until v0.7.x; when false, reconcile
+	// behaviour is byte-identical to pre-M17 Wave D. When true, reconcile
+	// inserts a `git patch-id --stable` sweep between phase 1
+	// (reverse-apply) and phase 2 (operation-level). On match the verdict
+	// short-circuits to ReconcileUpstreamed with Phase
+	// "phase-1.5-patch-id-match" and skips phases 2/3/4. Wired via flat
+	// YAML key `patch_id_detector_enabled: true|false`.
+	PatchIDDetectorEnabled bool `json:"patch_id_detector_enabled,omitempty"`
+
+	// PatchIDScanLimit caps the number of upstream commits walked by the
+	// phase-1.5 detector (PRD §5.2). When the rev-list count exceeds the
+	// cap, phase 1.5 is skipped silently and a hint is logged. Zero or
+	// negative means use DefaultPatchIDScanLimit. Wired via flat YAML
+	// key `patch_id_scan_limit: <int>`.
+	PatchIDScanLimit int `json:"patch_id_scan_limit,omitempty"`
+}
+
+// DefaultPatchIDScanLimit caps the number of upstream commits walked by
+// the phase-1.5 patch-id detector (PRD §5.2). 5000 is the PRD's
+// suggested default. Operators can override via Config.PatchIDScanLimit.
+const DefaultPatchIDScanLimit = 5000
+
+// PatchIDMatch records the result of a successful phase-1.5 patch-id
+// sweep (PRD-patch-already-upstream-detector §4). Persisted on
+// ReconcileSummary only when Config.PatchIDDetectorEnabled is true AND
+// the sweep produced a match. `omitempty` is load-bearing for byte-
+// identity round-trips against pre-M17 Wave D fixtures.
+type PatchIDMatch struct {
+	OurPatchID         string   `json:"our_patch_id"`
+	MatchedUpstreamSHA string   `json:"matched_upstream_sha"`
+	AdditionalMatches  []string `json:"additional_matches,omitempty"`
+	ScannedRange       string   `json:"scanned_range"`
+	ScannedCount       int      `json:"scanned_count"`
 }
 
 // DAGEnabled reports whether feature-dependency DAG behaviour is active for
