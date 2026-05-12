@@ -136,3 +136,68 @@ These are research outputs only, not queued roadmap work:
 ## Blockers
 
 None. Ready to dispatch Wave A1 + A2 implementers in parallel.
+
+
+## Wave A1 Implementation — pending-commit — 2026-05-11
+
+**Status**: Implementation complete locally; commit SHA appended on commit.
+
+**Scope delivered** (PRD-record-auto-base):
+
+- **`tpatch record <slug> --auto`** flag with full PRD §3.2 baseline-inference algorithm: upstream.lock.commit (direct ancestor wins), merge-base fallback against lock.commit, lock remote/branch resolution, default-remote-HEAD discovery (`refs/remotes/upstream/HEAD` → `refs/remotes/origin/HEAD` → conventional `*/main`/`*/master` only when exactly one resolves), strict refusal on multi-commit merge-base fallback (§3.2 safety gate), dirty-tree refusal, mutex with `--from` / `--commit-range`.
+- **`internal/store/upstream_lock.go`** — shared zero-dep parser primitive (`LoadUpstreamLock`, `ParseUpstreamLock`, `Store.UpstreamLockPath`) using the same flat-scalar extraction pattern as `parseYAMLConfig`. Wave A2 is expected to import this verbatim; if A2 lands first the reviewer will request a rebase to drop the duplicate.
+- **`gitutil.SymbolicRef`** (default-branch discovery) and **`gitutil.CommitCountInRange`** (`rev-list --count`) helpers.
+- **`status.apply.base_commit` correction** — for all committed-range modes (`--auto`, `--from`, `--commit-range`) the persisted base now matches the canonical patch's lower bound (PRD §3.3). Working-tree capture continues to store `HEAD`.
+- **Empty-clean-tree refusal** — diagnostic now leads with `tpatch record <slug> --auto` and falls back to `--from <base>`.
+- **`record.md` provenance** — added Capture mode / Base commit / Upper bound / Pathspecs lines.
+- **6 skill formats** — all updated to recommend `tpatch record <slug> --auto` as the first recovery path when feature work has been committed. Parity guard passes.
+- **`CHANGELOG.md`** — opened `v0.8.0 (in development)` with `### Added` and `### Changed` subsections.
+
+### Tests
+
+- `internal/store/upstream_lock_test.go` — 7 cases: empty, all-fields, missing-fields, malformed, trailing-whitespace, missing-file, round-trip.
+- `internal/cli/record_auto_test.go` — 5 cases: happy path (lock-ancestor + status.json base, byte-stream parity with `--from <base>`), ambiguous merge-base refusal (2-commit divergence → reject + `git log --oneline` recipe), dirty-tree refusal, mutex flags (`--auto+--from`, `--auto+--commit-range`).
+- `go test ./...` clean. `go test ./assets -run TestSkillParityGuard -count=1` clean.
+
+### Live repro (excerpts)
+
+Happy path:
+
+```text
+record --auto selected base 4341c497 from upstream.lock commit 4341c497 (upstream.lock)
+  equivalent: tpatch record happy-path-auto --from 4341c497
+  range: 4341c497..HEAD (2 commits ahead)
+  warning: 2 commits in the inferred range — if unrelated feature commits are present, narrow with --files or --to.
+  Saved patch: patches/001-record.patch
+Recorded patch for happy-path-auto (228 bytes, 2 files)
+```
+
+Ambiguous merge-base refusal (exit 1):
+
+```text
+record --auto inferred merge-base e4af5a74 against upstream.lock commit 44b84261, but the range contains 2 commits.
+This is too broad to trust automatically; it may include multiple feature commits.
+Inspect with:
+  git log --oneline e4af5a74..HEAD
+Then rerun with one of:
+  tpatch record <slug> --from <precise-base> --to <feature-tip>
+  tpatch record <slug> --from e4af5a74 --to <feature-tip> --files <feature-paths>
+```
+
+### Files changed (A1 only)
+
+- Implementation: `internal/cli/cobra.go`, `internal/cli/record_auto.go` (new), `internal/store/upstream_lock.go` (new, shared with A2), `internal/gitutil/gitutil.go` (+`SymbolicRef`, +`CommitCountInRange`).
+- Tests: `internal/cli/record_auto_test.go` (new), `internal/store/upstream_lock_test.go` (new).
+- Skills: `assets/skills/claude/...`, `assets/skills/copilot/...`, `assets/prompts/copilot/...`, `assets/skills/cursor/...`, `assets/skills/windsurf/...`, `assets/workflows/...` (one-line update each).
+- Docs: `CHANGELOG.md`, `docs/handoff/CURRENT.md` (this append).
+
+### Coordination note for reviewer
+
+This branch **does** ship `internal/store/upstream_lock.go`. Wave A2 also depends on this parser primitive (PRD-reconcile-lock-guard §5). If A2 has not yet landed on `main` at review time, no action is needed — A2's reviewer will request a rebase to import this version. If A2 landed first, please rebase this branch onto A2's head and drop the duplicate file; the parser API (`LoadUpstreamLock` returning `UpstreamLock, error` + `ParseUpstreamLock` returning `UpstreamLock`) and the `Store.UpstreamLockPath` accessor are stable per the PRD coordination point.
+
+### Deviations from PRD
+
+None of substance. Notable design decisions:
+
+- Dirty-tree check uses `git status --porcelain --untracked-files=no` (tracked-only) rather than `gitutil.IsWorkingTreeDirty` (which also flags untracked paths). The PRD §3.2 dirty-tree refusal is about tracked drift that `--auto` would silently ignore; untracked `.tpatch/` artifacts in fresh repos must not falsely trip the gate. Rationale documented in `record_auto.go::isTrackedTreeDirty`.
+

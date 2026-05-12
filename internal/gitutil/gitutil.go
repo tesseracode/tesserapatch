@@ -104,6 +104,15 @@ type ReconcilePreflight struct {
 	// LeftoverFiles lists *.orig and *.rej files — the classic "I
 	// aborted a merge but forgot to clean up" footprint.
 	LeftoverFiles []string
+	// LockState classifies `.tpatch/upstream.lock` for the reconcile
+	// command. Populated only by PreflightReconcileWithOverride;
+	// PreflightReconcile leaves it at LockStateUnknown.
+	// See PRD-reconcile-lock-guard §3.1.
+	LockState LockState
+	// LockDiagnostic carries the fields needed to format a stale-lock
+	// refusal block or a skipped/empty/missing note. Zero-valued when
+	// LockState is Valid, Unknown, or otherwise has nothing to report.
+	LockDiagnostic LockDiagnostic
 }
 
 // Clean reports whether the preflight found zero violations.
@@ -962,6 +971,45 @@ func DeriveIncrementalPatch(repoRoot, baseCommit, prevCumulativePatch, currentCu
 		trimmed += "\n"
 	}
 	return trimmed, nil
+}
+
+// SymbolicRef returns the symbolic target of `ref`, e.g. given
+// "refs/remotes/origin/HEAD" it returns "refs/remotes/origin/main".
+// Returns ("", nil) when the ref is missing or not symbolic (exit 1
+// from `git symbolic-ref --quiet`), and a wrapped error on real
+// failure. Used by record --auto to discover the default branch of a
+// remote without guessing `main` vs `master`.
+func SymbolicRef(repoRoot, ref string) (string, error) {
+	cmd := exec.Command("git", "symbolic-ref", "--quiet", ref)
+	cmd.Dir = repoRoot
+	out, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		if exitErr.ExitCode() == 1 {
+			return "", nil
+		}
+		return "", fmt.Errorf("git symbolic-ref %s: %s", ref, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return "", err
+}
+
+// CommitCountInRange returns the number of commits in `<base>..<tip>`
+// via `git rev-list --count`. Used by record --auto to count how many
+// commits are ahead of the resolved baseline so the decision line can
+// surface it and so the merge-base safety gate can refuse multi-commit
+// fallback ranges.
+func CommitCountInRange(repoRoot, base, tip string) (int, error) {
+	out, err := runGit(repoRoot, "rev-list", "--count", base+".."+tip)
+	if err != nil {
+		return 0, err
+	}
+	var n int
+	if _, err := fmt.Sscanf(strings.TrimSpace(out), "%d", &n); err != nil {
+		return 0, fmt.Errorf("parse rev-list --count: %v", err)
+	}
+	return n, nil
 }
 
 func runGit(dir string, args ...string) (string, error) {

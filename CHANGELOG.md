@@ -2,6 +2,108 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.8.0 (in development) — M17 boundary-capture cluster
+
+### Added
+
+- **`tpatch record <slug> --auto`** — opt-in baseline inference for the
+  committed-range capture mode. Resolves the lower bound from
+  `.tpatch/upstream.lock` (direct ancestor wins), falls back to
+  `git merge-base` when the lock commit is on a divergent branch, and
+  discovers a default upstream candidate (`refs/remotes/upstream/HEAD`,
+  then `refs/remotes/origin/HEAD`, then conventional
+  `upstream/main` / `origin/master` only when exactly one resolves) when
+  the lock is empty. Prints the chosen base, source label, ahead count,
+  and the equivalent `--from` command, then captures
+  `<base>..HEAD` (capped by `--to` if given). Refuses ambiguous merge-base
+  fallbacks (>1 commit), ambiguous multi-candidate discovery, dirty
+  trees, and `--auto` + `--from` / `--auto` + `--commit-range`
+  combinations. Persists the resolved lower bound in
+  `status.apply.base_commit` for all committed-range modes (PRD-record-auto-base).
+- **Shared `internal/store/upstream_lock.go` parser** (`LoadUpstreamLock` /
+  `ParseUpstreamLock`) — zero-dep YAML-extraction primitive consumed by
+  `record --auto` (Wave A1) and, when Wave A2 lands, the reconcile lock
+  guard. Mirrors the flat-scalar pattern used by `parseYAMLConfig` for
+  `.tpatch/config.yaml`.
+- **`gitutil.SymbolicRef`** and **`gitutil.CommitCountInRange`** —
+  thin git wrappers used by the auto-base inference.
+- **6 skill surfaces** updated: the "before you run anything" preflight
+  now recommends `tpatch record <slug> --auto` as the first-choice
+  recovery path when feature edits have already been committed; explicit
+  `--from <base>` remains documented as the fallback when `--auto`
+  refuses (ambiguous merge-base or empty lock).
+
+### Changed
+
+- `record` now persists `status.apply.base_commit` as the resolved
+  lower bound for **all** committed-range modes (`--auto`, `--from`,
+  `--commit-range`), aligning persisted metadata with the canonical
+  `artifacts/post-apply.patch` per `docs/feature-layout.md`. Working-tree
+  capture continues to store `HEAD` (PRD §3.3).
+- The empty-clean-tree refusal diagnostic now points at `tpatch record
+  <slug> --auto` as the preferred recovery path, with `--from <base>`
+  as the explicit fallback.
+- `record.md` provenance grew **Capture mode**, **Base commit**, **Upper
+  bound**, and **Pathspecs** lines (PRD §3.3 example).
+
+### Wave A2 — reconcile upstream-lock validation guard
+
+#### Added
+
+- **`tpatch reconcile` upstream-lock validation guard** (PRD-reconcile-lock-guard).
+  Every reconcile invocation now classifies `.tpatch/upstream.lock` into
+  one of five states (Valid, Empty, Missing, Stale, Skipped) and applies
+  an independent policy from the existing dirty-tree gate:
+  - **Valid** → silent.
+  - **Empty / Missing** → one-line warning, then proceed (the v0.6 init
+    scaffold default is Empty; refusing first-reconcile on every fresh
+    repo would be hostile).
+  - **Stale** (recorded `commit:` is not an ancestor of
+    `<remote>/<branch>` HEAD, or does not resolve at all, or the lock is
+    partial) → block-style refusal with `STALE-COMMIT` / `STALE-RESOLVE`
+    / `STALE-REF` sub-cause and a three-option recovery hint
+    (`git fetch <remote>` / `--allow-stale-lock` override / different
+    `--upstream-ref`).
+  - **Skipped** (`--upstream-ref` resolves to a different symbolic
+    ref-name than the lock keys on, compared via
+    `git rev-parse --symbolic-full-name` rather than SHA equality so two
+    branches at the same commit still classify as different keys) →
+    informational note, proceed.
+- **`--allow-stale-lock` flag** on `tpatch reconcile`. Bypasses the new
+  lock-guard for one invocation only — no persistent suppression.
+  Mirrors `--allow-dirty` in shape but composes independently; neither
+  flag implies the other (clean tree + stale lock requires only
+  `--allow-stale-lock`; dirty tree + valid lock requires only
+  `--allow-dirty`).
+- **Legacy lock read-side tolerance**: locks written by the pre-v0.7
+  `updateUpstreamLock` (with `branch: upstream/main`) are read as if
+  they had been written correctly (`branch: main`) so v0.6 repos do not
+  refuse on day one. The next successful reconcile overwrites the file
+  in the v0.7 normalized shape, eliminating the legacy case after one
+  reconcile cycle per repo.
+- **`gitutil.SplitUpstreamRef`** helper plus extension fields
+  (`LockState`, `LockDiagnostic`) on `gitutil.ReconcilePreflight`. The
+  existing `gitutil.PreflightReconcile(repoRoot)` single-arg signature
+  is preserved verbatim; new callers use the sibling
+  `gitutil.PreflightReconcileWithOverride(repoRoot, upstreamRefOverride)`
+  to thread `--upstream-ref` into the classifier.
+
+#### Fixed
+
+- **`updateUpstreamLock` writer normalization** (PRD-reconcile-lock-guard
+  §5.3; bundled with the guard as a precondition for it to function).
+  The pre-v0.7 writer at `internal/workflow/reconcile.go:599-604`
+  hard-coded `remote: upstream` regardless of the operator's real
+  remote and interpolated `branch: %s` with the full upstream ref
+  (e.g. `branch: upstream/main`). The lock-guard's ancestry check would
+  have reassembled `<lock.remote>/<lock.branch>` as
+  `upstream/upstream/main` — a ref that does not resolve — and refused
+  every populated lock on day one. The writer now splits the upstream
+  ref into the correct `(remote, branch)` pair, populates the
+  decorative `url:` from `git remote get-url`, and refuses to clobber
+  the lock with malformed input (zero or more-than-one slash) so a
+  bad ref leaves the previous lock untouched.
+
 ## v0.7.0 — 2026-05-10 — feat-amend-dependent-warning
 
 Continuation of M15 W3 freshness overlay. Adds detection + warning for the

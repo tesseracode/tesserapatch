@@ -856,15 +856,18 @@ func recordCmd() *cobra.Command {
 		Long: `Capture changes as a patch.
 
 Modes:
-  committed range (--from):   tpatch record <slug> --from <base> [--to <ref>] [--files <paths>]
-  committed range (explicit): tpatch record <slug> --commit-range <a>..<b> [--files <paths>]
-  working tree (default):     tpatch record <slug> [--files <paths>]
+  auto-inferred range (--auto):  tpatch record <slug> --auto [--to <ref>] [--files <paths>]
+  committed range (--from):      tpatch record <slug> --from <base> [--to <ref>] [--files <paths>]
+  committed range (explicit):    tpatch record <slug> --commit-range <a>..<b> [--files <paths>]
+  working tree (default):        tpatch record <slug> [--files <paths>]
 
-Use the committed-range form when feature edits have already been committed
-(e.g. multiple features interleaved on the same branch — the headline use
-case for scoping with --files). --files scopes the capture to specific paths
-in any mode. Committed-range captures never include untracked working-tree
-files — only the committed snapshots at the endpoints contribute to the diff.`,
+Use --auto when the feature is already committed and the branch tracks an
+upstream — record infers the baseline from .tpatch/upstream.lock and Git
+merge-base information. Use the explicit --from / --commit-range forms when
+features are interleaved on the same branch (the headline scoping case for
+--files). --files scopes the capture to specific paths in any mode.
+Committed-range captures never include untracked working-tree files — only
+the committed snapshots at the endpoints contribute to the diff.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slug := args[0]
@@ -896,6 +899,7 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 			fromRef, _ := cmd.Flags().GetString("from")
 			toRef, _ := cmd.Flags().GetString("to")
 			commitRange, _ := cmd.Flags().GetString("commit-range")
+			autoBase, _ := cmd.Flags().GetBool("auto")
 			filesFlag, _ := cmd.Flags().GetString("files")
 			var pathspecs []string
 			if strings.TrimSpace(filesFlag) != "" {
@@ -904,6 +908,53 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 						pathspecs = append(pathspecs, p)
 					}
 				}
+			}
+
+			if autoBase {
+				if fromRef != "" {
+					return fmt.Errorf("--auto is mutually exclusive with --from")
+				}
+				if commitRange != "" {
+					return fmt.Errorf("--auto is mutually exclusive with --commit-range")
+				}
+				if isTrackedTreeDirty(s.Root) {
+					return fmt.Errorf("--auto refuses a dirty working tree.\n" +
+						"  Commit or stash your changes, then rerun `tpatch record <slug> --auto`,\n" +
+						"  or record the working tree without --auto: `tpatch record <slug>`.")
+				}
+				resolved, err := resolveAutoBase(s, toRef)
+				if err != nil {
+					return err
+				}
+				// Print the decision line (PRD §3.1).
+				autoLabel := resolved.ToLabel
+				if autoLabel == "" {
+					autoLabel = "HEAD"
+				}
+				equiv := fmt.Sprintf("tpatch record %s --from %s", slug, resolved.BaseShort)
+				if filesFlag != "" {
+					equiv += " --files " + filesFlag
+				}
+				if autoLabel != "HEAD" {
+					equiv += " --to " + autoLabel
+				}
+				fmt.Fprintf(cmd.OutOrStdout(),
+					"record --auto selected base %s from %s (%s)\n",
+					resolved.BaseShort, resolved.SourceRef, string(resolved.Source))
+				fmt.Fprintf(cmd.OutOrStdout(), "  equivalent: %s\n", equiv)
+				commitWord := "commits"
+				if resolved.AheadCount == 1 {
+					commitWord = "commit"
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "  range: %s..%s (%d %s ahead)\n",
+					resolved.BaseShort, autoLabel, resolved.AheadCount, commitWord)
+				if !resolved.FromFallback && resolved.AheadCount > 1 {
+					fmt.Fprintf(cmd.ErrOrStderr(),
+						"  warning: %d commits in the inferred range — if unrelated feature commits are present, narrow with --files or --to.\n",
+						resolved.AheadCount)
+				}
+				fromRef = resolved.Base
+				toRef = autoLabel
 			}
 
 			if commitRange != "" {
@@ -959,7 +1010,9 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 				if gitutil.IsWorkingTreeDirty(s.Root) {
 					fmt.Fprintln(w, "  (working tree is dirty, but no textual diff was produced — possibly mode-only or binary changes)")
 				} else {
-					fmt.Fprintln(w, "  If you already committed your feature edits, rerun with --from <base>:")
+					fmt.Fprintln(w, "  If you already committed your feature edits and this branch tracks upstream, try:")
+					fmt.Fprintln(w, "    tpatch record "+slug+" --auto")
+					fmt.Fprintln(w, "  Otherwise rerun with --from <base>:")
 					fmt.Fprintln(w, "    tpatch record "+slug+" --from <base-commit-or-ref>")
 					commits := gitutil.RecentCommits(s.Root, 10)
 					if len(commits) > 0 {
@@ -1017,14 +1070,37 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 
 			// GAP 3: Generate record.md
 			filesChanged := countPatchFiles(patch)
-			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef)
+			captureMode := "working tree"
+			if autoBase {
+				captureMode = "auto committed range"
+			} else if commitRange != "" {
+				captureMode = "explicit committed range"
+			} else if rangeMode {
+				captureMode = "committed range"
+			}
+			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag)
 			s.WriteFeatureFile(slug, "record.md", recordMD)
 
 			status, _ := s.LoadFeatureStatus(slug)
 			status.Apply.HasPatch = true
-			commit, _ := gitutil.HeadCommit(s.Root)
-			if commit != "" {
-				status.Apply.BaseCommit = commit
+			if rangeMode {
+				// PRD §3.3 — for committed-range modes (including
+				// --auto, which sets rangeMode via fromRef above),
+				// the persisted base_commit is the resolved lower
+				// bound, NOT HEAD. This aligns with
+				// docs/feature-layout.md: the canonical
+				// post-apply.patch is the full diff against
+				// status.apply.base_commit.
+				if resolved, err := gitutil.ResolveRef(s.Root, fromRef); err == nil && resolved != "" {
+					status.Apply.BaseCommit = resolved
+				} else {
+					status.Apply.BaseCommit = fromRef
+				}
+			} else {
+				commit, _ := gitutil.HeadCommit(s.Root)
+				if commit != "" {
+					status.Apply.BaseCommit = commit
+				}
 			}
 			s.SaveFeatureStatus(status)
 
@@ -1072,6 +1148,7 @@ files — only the committed snapshots at the endpoints contribute to the diff.`
 		},
 	}
 	cmd.Flags().String("from", "", "Base commit to diff from (captures committed diff instead of working tree)")
+	cmd.Flags().Bool("auto", false, "Infer the committed-range base from .tpatch/upstream.lock and merge-base; mutually exclusive with --from/--commit-range")
 	cmd.Flags().String("to", "", "Upper bound ref for committed-range capture (defaults to HEAD; requires --from)")
 	cmd.Flags().String("commit-range", "", "Explicit committed range as <a>..<b>; mutually exclusive with --from/--to")
 	cmd.Flags().Bool("lenient", false, "Skip reverse-apply round-trip validation (use for whitespace-sensitive files)")
@@ -1155,12 +1232,27 @@ func countPatchFiles(patch string) int {
 	return count
 }
 
-func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromRef string) string {
+func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromRef, toRef, captureMode, filesFlag string) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("# Implementation Record: %s\n\n", slug))
 	b.WriteString(fmt.Sprintf("**Recorded**: %s\n", time.Now().UTC().Format(time.RFC3339)))
 	b.WriteString(fmt.Sprintf("**Files changed**: %d\n", filesChanged))
-	b.WriteString(fmt.Sprintf("**Patch size**: %d bytes\n\n", patchBytes))
+	b.WriteString(fmt.Sprintf("**Patch size**: %d bytes\n", patchBytes))
+	if captureMode != "" {
+		b.WriteString(fmt.Sprintf("**Capture mode**: %s\n", captureMode))
+	}
+	if fromRef != "" {
+		b.WriteString(fmt.Sprintf("**Base commit**: %s\n", fromRef))
+	}
+	if toRef != "" && toRef != "HEAD" {
+		b.WriteString(fmt.Sprintf("**Upper bound**: %s\n", toRef))
+	} else if fromRef != "" {
+		b.WriteString("**Upper bound**: HEAD\n")
+	}
+	if filesFlag != "" {
+		b.WriteString(fmt.Sprintf("**Pathspecs**: %s\n", filesFlag))
+	}
+	b.WriteString("\n")
 
 	if diffStat != "" {
 		b.WriteString("## Change Summary\n\n```\n")
