@@ -4,6 +4,33 @@ All notable changes to tpatch are recorded here.
 
 ## v0.8.0 (in development) — M17 boundary-capture cluster
 
+### Wave C
+
+- **`tpatch land <slug>`** — new flagship verb that composes
+  `record` (unless `--no-record`) with safe path-set staging and a
+  single Git commit carrying the locked four-trailer block:
+  `Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`,
+  `Tpatch-Base-Commit`, followed by the repo `Co-authored-by:` trailer.
+  The path set is computed deterministically from
+  `git apply --numstat post-apply.patch` plus any dirty paths under
+  `.tpatch/features/<slug>/` and dirty `.tpatch/upstream.lock` /
+  `.tpatch/FEATURES.md`. Any other dirty path is an "extra" and the
+  command refuses unless `--allow-extra-paths` is passed (warn + stage).
+  Preflight (PRD §3.2) refuses on conflict markers, `*.orig`/`*.rej`
+  leftovers, mid-merge state, or hard-parent mismatch. The new HEAD's
+  SHA is intentionally NOT written back to `apply.base_commit`
+  (PRD F2 / ADR-019); `Tpatch-Feature` is the sole feature↔commit
+  binding. Subject derivation precedence: `--message` >
+  `spec.md` H1 > first non-empty `request.md` line > fallback
+  `tpatch land: <slug>`. New flags: `--message`, `--no-record`,
+  `--auto`, `--from`, `--allow-extra-paths`, `--allow-soft-parent`,
+  `--dry-run`. The `--dry-run` contract (PRD §3.5) is non-mutating
+  and prints the would-be subject, trailers, path set, and extras
+  classification computed from existing artifacts. Pre-commit hook
+  failures surface `git`'s diagnostics verbatim and the recovery hint
+  `re-run with --no-record after fixing the hook`. PRD:
+  `docs/prds/PRD-tpatch-land.md`. ADR: `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`.
+
 ### Wave D
 
 - **Phase-1.5 deterministic patch-already-upstream detector

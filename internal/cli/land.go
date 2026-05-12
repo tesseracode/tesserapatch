@@ -480,7 +480,6 @@ func sha256Hex(b []byte) string {
 
 // (abbrevSHA already provided by status_dag.go — reused here.)
 
-
 // runGit shadows gitutil.runGit (which is unexported). It runs `git`
 // in repoRoot with combined output and returns stdout on success.
 func runGit(repoRoot string, args ...string) (string, error) {

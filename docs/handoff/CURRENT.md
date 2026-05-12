@@ -2,10 +2,80 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-d-rev1-canonical-patch-fix` — M17 Wave D rev-1 surgical fix (PRD §5.1)
+- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` implementation (PRD-tpatch-land)
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Wave A shipped. Wave B implemented (awaiting review). **Wave D rev-1 implemented (awaiting re-review)**. Wave C still blocked on B.
-- **Assigned**: 2026-05-12 (rev-1 dispatched after external supervisor finding)
+- **Status**: Wave A shipped. Wave B + Wave D rev-1 implemented (awaiting review). **Wave C implemented (awaiting review)**.
+- **Assigned**: 2026-05-13
+
+## Wave C — Just Implemented (2026-05-13)
+
+**Status**: Implementation complete on a working branch / staged commits, awaiting sub-agent reviewer + external supervisor.
+
+**Summary**: New `tpatch land <slug>` flagship verb that composes (record → safe path-set staging → one Git commit) with the locked four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) followed by the repo `Co-authored-by:` trailer. Per `docs/prds/PRD-tpatch-land.md` and `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`.
+
+**Files changed**:
+- `internal/cli/land.go` — new (~530 lines). `landCmd()`, `runLand()`, `runLandDryRun()`, `landPreflight()` (PRD §3.2 refusals: conflict markers, `*.orig`/`*.rej` leftovers, mid-merge state, hard-parent gate), `embedRecord()` (re-executes a fresh `buildRootCmd()` with `record` args — preserves all record semantics including Wave A1 auto-base and Wave B collision detection, verbatim diagnostics), `computePathSet()` + `dirtyPaths()` (uses `git status --porcelain --untracked-files=all` to expand untracked dirs) + `classifyExtras()`, `stagePathSet()` (`git add --intent-to-add` then `git add`), `deriveSubject()` (precedence: `--message` > spec.md H1 > first non-empty request.md line > fallback), trailer hashing helpers.
+- `internal/cli/cobra.go` — registered `landCmd()` in `buildRootCmd()` between `recordCmd()` and `reconcileCmd()`. **No other change.** Wave A1/A2/B/D regions untouched.
+- `internal/cli/land_test.go` — new (~22KB, 19 tests). One test per PRD §6 acceptance row plus subject-derivation, trailer-SHA accuracy, re-record round-trip, pre-commit hook recovery hint, and cross-feature collision refusal (consumes `setupRecordRangeFixture` from `record_range_scoped_test.go`).
+- `assets/skills/{claude,copilot,cursor,windsurf}/...`, `assets/workflows/tessera-patch-generic.md`, `assets/prompts/copilot/tessera-patch-apply.prompt.md` — appended a one-sentence pointer to rule-4 ("Or run `tpatch land <slug>` to compose record + safe-stage + one Git commit (with a `Tpatch-Feature: <slug>` trailer block — see docs/land.md) in a single verb.") and added `tpatch land` to each per-file command list (markdown table row for claude; bullet for the others). The rule-4 anchor `tpatch record <slug> BEFORE git commit` is preserved verbatim.
+- `assets/assets_test.go` — added `"tpatch land"` to `requiredCommands`. Parity guard now enforces presence of the new verb in all six skill assets.
+- `CHANGELOG.md` — `### Wave C` subheading under `## v0.8.0 (in development)`, inserted above `### Wave D`.
+- `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md` — fleshed out from placeholder to Accepted. Documents the four-trailer schema, the `Tpatch-CVE` reservation for hotfix, the no-overwrite rule for `apply.base_commit`, and four rejected alternatives.
+
+**Test results** (last run, this session):
+
+```
+ok  	github.com/tesseracode/tesserapatch/assets	0.535s
+?   	github.com/tesseracode/tesserapatch/cmd/tpatch	[no test files]
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/cli	30.069s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/provider	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/safety	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/store	(cached)
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	(cached)
+```
+
+All 19 `TestLand_*` tests pass. Parity guard green. `gofmt` and `go build ./cmd/tpatch` clean.
+
+### Notable / drift notes
+
+- **PRD §3.4 vs §6 ac.3 trailer-order mismatch**: §3.4 explicitly orders Feature → Patch-SHA → Recipe-SHA → Base-Commit. §6 ac.3 reorders them in prose ("Patch-SHA, Recipe-SHA, Base-Commit, Feature") but is internally inconsistent. Implementation followed §3.4 literally; ADR-019 locks that ordering.
+- **`apply.base_commit` ownership (PRD F2)**: `land` writes `status.notes = "landed at <ts>"` BEFORE staging (so the change rides in the commit and the post-condition "working tree clean" holds). It does NOT overwrite `apply.base_commit` — that field stays owned by `record` / auto-base. The feature↔commit binding lives only in the `Tpatch-Feature` trailer (chicken-and-egg: a commit cannot embed its own SHA in tracked content). ADR-019 documents this.
+- **Untracked-directory expansion in path set**: `git status --porcelain` collapses an untracked directory to a single `?? path/` entry. The first iteration of `dirtyPaths` saw `?? .tpatch/features/` and incorrectly classified it as an extra (because the strict prefix check requires `.tpatch/features/<slug>/`). Fixed by passing `--untracked-files=all` to expand into individual files.
+- **`embedRecord` strategy**: Builds a fresh `buildRootCmd()` and calls `Execute()` with `["record", "--path", repoRoot, slug, ...]`. This is the most surgical way to compose without duplicating record's collision/auto-base logic. Re-parses the persistent `--path` flag cleanly.
+- **`abbrevSHA` collision**: `internal/cli/status_dag.go:539` already exports `abbrevSHA(sha string) string` returning 7 chars; reused (initial draft had a duplicate definition that broke the build).
+
+### What was NOT touched (per brief DO-NOT list)
+
+- `internal/cli/record_collision*.go` and the collision wiring in `recordCmd` — Wave B, untouched. `embedRecord` invokes record via cobra `Execute()`, never reaching into its internals.
+- `internal/cli/record_auto.go`, `internal/cli/record_range_scoped.go` — Wave A1, read-only references in tests.
+- `internal/workflow/reconcile.go` lock-guard region (~lines 560-700) — Wave A2, untouched.
+- `internal/workflow/patch_id_detector*.go` and the phase-1.5 block in `reconcile.go` (~lines 196-236) — Wave D, untouched. `Config.PatchIDDetectorEnabled` default still `false`.
+- `docs/state-of-the-art/` (untracked user research) — preserved.
+- "Side Research" section below — preserved verbatim.
+
+### PRD §6 acceptance criteria → test mapping
+
+| PRD §6 ac | Test name |
+|-----------|-----------|
+| ac.1 success / one commit | `TestLand_Success_OneCommit_FourTrailers` |
+| ac.2 dry-run no mutation | `TestLand_DryRun_NoMutation` |
+| ac.3 four-trailer block | `TestLand_Success_OneCommit_FourTrailers` + `TestLand_TrailerSHAs_DeterministicAndAccurate` |
+| ac.4 (preflight refusals) | `TestLand_Refuses_*` (conflict markers, orig-rej, mid-merge, hard-parent) |
+| ac.5 base-commit not overwritten | `TestLand_BaseCommitUnchanged` |
+| ac.6 working tree clean | `TestLand_Success_OneCommit_FourTrailers` (asserts clean) |
+| ac.7 status notes | `TestLand_StatusNotesUpdated` |
+| ac.8 extras strict | `TestLand_Refuses_ExtrasStrict` / `TestLand_AllowsExtras_WithFlag` |
+| ac.9 dirty/untracked in-scope OK | `TestLand_AcceptsInScopeDirty` |
+| ac.10 subject derivation | `TestLand_SubjectFromMessage` / `TestLand_SubjectFromSpecH1` / `TestLand_SubjectFallback` |
+| ac.11 --no-record requires patch | `TestLand_NoRecord_RequiresPatch` |
+| ac.12 --auto/--from mutex | `TestLand_AutoFromMutex` |
+| ac.13 re-record round-trip | `TestLand_ReRecord_Roundtrip` |
+| ac.14 pre-commit hook | `TestLand_PreCommitHookRecovery` |
+| ac.15 --no-record retry | `TestLand_NoRecord_RetriesStagedIndex` |
+| ac.16 help mentions contract | `TestLand_HelpMentionsContract` |
+| ac.17 cross-feature collision | `TestLand_Refuses_CrossFeatureCollision` |
 
 ## Wave D rev-1 fix (2026-05-12)
 
@@ -164,7 +234,7 @@ the original phase ladder runs unchanged.
 | A1 | `impl-record-auto-base` | PRD-record-auto-base | ✅ shipped (`1d6179c` + rev-1 `4484e04`) | — |
 | A2 | `impl-reconcile-lock-guard` | PRD-reconcile-lock-guard | ✅ shipped (`8fc2e4e`) | — |
 | **B** | `impl-record-collision-detection` | PRD-record-collision-detection | 🟡 **implemented, awaiting review** | A1 (recovery hints reference `--auto`) |
-| C | `impl-tpatch-land` | PRD-tpatch-land | ⬜ blocked on A1+A2+B | A1, A2, B |
+| **C** | `impl-tpatch-land` | PRD-tpatch-land | 🟡 **implemented, awaiting review** | A1, A2, B |
 | **D** | `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | 🟡 **implemented, awaiting review** (default-OFF) | independent (default-OFF) |
 
 **Coordination notes for parallel B + D dispatch**:
