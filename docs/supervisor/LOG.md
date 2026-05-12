@@ -1,3 +1,56 @@
+## Review — M17 Wave B + Wave D (commits b0a434a + c07e4e2) — 2026-05-11
+
+**Reviewers**: two parallel copilot-cli sub-agents (one per slice)
+**Task**: Independent reviews of Wave B (`impl-record-collision-detection`) and Wave D (`impl-patch-already-upstream-detector`); slices are functionally independent and reviewed against their respective PRDs.
+
+### Wave B — `b0a434a` (impl-record-collision-detection)
+
+#### Checklist
+- [x] Compiles standalone (checked out detached at `b0a434a`, full test suite green)
+- [x] `gofmt -l .` clean
+- [x] `go test ./...` green; `go test ./assets -run TestSkillParityGuard` green
+- [x] PRD §8 acceptance map: all 11 rows have a corresponding test in `internal/cli/record_collision_test.go`
+- [x] Scan order verified: empty-patch handling → collision scan → `WriteArtifact` (refusal exits before any artifact write)
+- [x] `--allow-collision` requires non-empty trimmed reason; reason persists to `record.md`
+- [x] Pre-existing test edits minimal: only `TestRecordAuto_AutoEqualsFromExplicit` (deliberate byte-equivalence assertion now annotated with `--allow-collision`)
+- [x] No skill churn (flag-only addition; parity guard green)
+- [x] Live repro: byte-identical patches across two slugs → second `record` refused; with `--allow-collision "<reason>"` → recorded + reason in record.md; empty/whitespace reason refused
+
+#### Verdict: **APPROVED**
+
+#### Notes
+Three INFO-level observations, none blocking:
+- ≥3-collider escalation rendered inside refusal diagnostic instead of a separate flow (PRD §5 wording was aspirational; behavior is correct).
+- Override warning prints one stderr line per collider (PRD §3.1 didn't mandate format; symmetric with refusal output).
+- Scan is O(N features) with per-feature I/O; acceptable for current scale per PRD §4 ("no index required for v1").
+
+### Wave D — `c07e4e2` (impl-patch-already-upstream-detector, default-OFF)
+
+#### Checklist
+- [x] Compiles, `gofmt -l .` clean, `go test ./...` green, parity guard green
+- [x] **Default-OFF preservation (CRITICAL)**: `Config.PatchIDDetectorEnabled = false` by default; phase-1.5 gated by `if storeCfg.PatchIDDetectorEnabled` at `internal/workflow/reconcile.go:198`; `TestPatchIDDetector_DefaultOffNoOp` asserts `Phase != "phase-1.5"` and `PatchIDMatch == nil` when flag off
+- [x] **Schema back-compat (CRITICAL)**: `SaveConfig` only emits `patch_id_detector_enabled` when `true` and `patch_id_scan_limit` when `> 0`; `PatchIDMatch` uses `omitempty` on both `ReconcileResult` and `ReconcileSummary`; pre-Wave-D fixtures round-trip byte-identical
+- [x] **Wave A2 lock-guard regression (CRITICAL)**: `git diff 8fc2e4e c07e4e2 -- internal/workflow/reconcile.go` shows 3 hunks (field add, phase-1.5 insert, summary persistence) — none in lock-guard region (~560-700) or `updateUpstreamLock` writer (~596-613)
+- [x] Insertion point: phase-1.5 sits strictly between phase 1 (line 189) and phase 2 (line 224)
+- [x] Fail-soft semantics: every `runPatchIDDetector` error returns `Skipped: true` with reason; reconcile falls through to legacy phase 2; per-commit errors continue the sweep
+- [x] Multi-match policy: `rev-list --no-merges` (newest-first), code takes `matches[len(matches)-1]` → earliest-wins per PRD §5.3
+- [x] Scan-limit semantics: refuses (skips with reason) rather than truncates per PRD §5.2
+- [x] Edge cases: empty patch, missing/empty/unreadable upstream.lock, unreachable baseline, merge-only ranges all handled gracefully
+
+#### Verdict: **APPROVED**
+
+#### Notes
+Two non-blocking observations:
+- PRD §3.2 (`--check-applied-only`) and §3.3 (`--auto-drop-merged`) CLI flags + hotfix auto-drop defaulting were deliberately deferred to v0.8.1+. Implementer's brief made CLI surface optional; CHANGELOG and CURRENT.md document the deferral. Reviewer judgment: acceptable scope-trimming — the deterministic primitive + reconcile fast-path is the load-bearing contract; UX sugar can layer on later without invalidating it.
+- Live repro not performed by reviewer (out of scope for unit-level code review); recommend external supervisor smoke-test before tag.
+
+### Combined Verdict: **APPROVED** (both slices)
+
+### Action Taken
+- Both Wave B and Wave D landed cleanly on `main` (`b0a434a` + `c07e4e2`) on top of Wave A ship stack.
+- Verdicts logged here; awaiting external supervisor review before tracking close.
+- Wave C (`impl-tpatch-land`) remains queued; depends on A1+A2+B (now satisfied) — can be dispatched once external review approves Waves B+D.
+
 ## Review — m17-wave-a1-rev1-impl (commit 4484e04) — 2026-05-11
 
 **Reviewer**: copilot-cli sub-agent (layered discovery review)
