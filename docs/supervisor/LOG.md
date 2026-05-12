@@ -1,3 +1,31 @@
+## Review — m17-wave-c-rev1-impl (commit 32ad3a5) — 2026-05-11
+
+**Reviewer**: copilot-cli sub-agent (layered discovery review)
+**Task**: Verify Wave C rev-1 fixes for the three sub-agent findings on the original Wave C ship (`fb5e6ff` + `73a81ed` + `266dfb4`): ADR ref typo (LOW), missing `TestLand_Refuses_HardParent` (MEDIUM, PRD ac.15), missing `docs/land.md` (MEDIUM, PRD ac.16).
+
+### Checklist
+- [x] Scope verified: 7 files (`internal/cli/land.go`, `land_test.go`, new `docs/land.md`, cross-link edits in `docs/record.md` + `docs/reconcile.md` + `docs/feature-layout.md`, `docs/handoff/CURRENT.md`). NO changes to record_collision/record_auto/reconcile/patch_id_detector/store/assets.
+- [x] `gofmt -l .`, `go build ./cmd/tpatch`, `go test ./...`, `TestSkillParityGuard` all green.
+- [x] **Finding 1 (LOW) ADR ref**: `internal/cli/land.go:10` now cites correct `docs/adrs/ADR-019-tpatch-load-trailer-block-schema.md`; no `ADR-002` exists.
+- [x] **Finding 2 (MEDIUM) hard-parent test**: `TestLand_Refuses_HardParent` at `land_test.go:648-729` sets up parent in `StateAnalyzed` (blocking) + child with hard dep; asserts exit non-zero, HEAD unchanged, working tree unchanged, error contains gate-specific diagnostic strings ("hard parent dependency not applied", parent slug, "unsatisfied hard dependency"), `status.notes` does NOT contain "landed at".
+- [x] **Sanity replication of Finding 2**: temporarily commented out the `workflow.CheckDependencyGate` call (lines 112-115); test FAILED with extras-refusal diagnostic instead — confirms the test isolates the gate path. Restored.
+- [x] **Finding 3 (MEDIUM) docs/land.md**: 227 lines mapping 1-to-1 with PRD-tpatch-land §3.1–§5 (command surface, all 7 pre-flight refusals, safe staging, trailer block with ADR-019 cite, dry-run, post-conditions, error recovery, Patterns A+B, boundary with cycle). Tone/structure mirrors `docs/record.md` + `docs/reconcile.md` peers.
+- [x] **Cross-links verified**: `docs/record.md:21` → mentions `tpatch land` as composed alternative; `docs/reconcile.md:18` → names `tpatch land` as producer for Pattern A & B; `docs/feature-layout.md:90-94` → new "Feature ↔ commit binding" section citing ADR-019 + docs/land.md.
+- [x] **CURRENT.md mapping corrected**: ac.4 → staging-scope tests; ac.15 → `TestLand_Refuses_HardParent`. Side Research section preserved verbatim.
+- [x] **Cross-wave non-regression**: empty diffs against `internal/workflow/`, `record_collision.go`, `record_auto.go`, `internal/store/`, `assets/`.
+- [x] **Original Wave C non-regression**: all 22 land tests pass (~10.3s); trailer schema unchanged (matches ADR-019 order); `embedRecord` composition logic unchanged (only the file-header ADR comment was edited).
+
+### Findings
+**None.** All three sub-agent findings surgically addressed. No scope expansion. No new issues.
+
+### Verdict: **APPROVED**
+
+### Rationale
+Rev-1 is a tight, focused close-out of the three reviewer findings. Hard-parent test isolates the dep-gate path (sanity-replicated). `docs/land.md` mirrors peer docs in tone and structure with full PRD §3.1–§5 coverage. Cross-links land in the right sections. ADR ref corrected. No collateral damage to any other slice.
+
+### Action Taken
+Verdict logged. Awaiting external supervisor review of the Wave C ship stack (`fb5e6ff` + `73a81ed` + `266dfb4` + `32ad3a5`) before tracking close + v0.8.0 tag.
+
 ## Review — m17-wave-d-rev1-impl (commit 1d4a89f) — 2026-05-11
 
 **Reviewer**: copilot-cli sub-agent (layered discovery review)
