@@ -593,13 +593,21 @@ func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
 }
 
 func updateUpstreamLock(s *store.Store, ref, commit string) {
+	remote, branch, ok := gitutil.SplitUpstreamRef(ref)
+	if !ok {
+		fmt.Fprintf(os.Stderr,
+			"warning: tpatch reconcile could not update upstream.lock: malformed upstream ref %q (expected <remote>/<branch>)\n",
+			ref)
+		return
+	}
+	url, _ := gitutil.GitRemoteURL(s.Root, remote)
 	content := fmt.Sprintf(`# Upstream Lock
 # Updated by tpatch reconcile at %s
-remote: upstream
-branch: %s
-commit: %s
-url: ""
-`, time.Now().UTC().Format(time.RFC3339), ref, commit)
+remote: %q
+branch: %q
+commit: %q
+url: %q
+`, time.Now().UTC().Format(time.RFC3339), remote, branch, commit, url)
 	lockPath := filepath.Join(s.TpatchDir(), "upstream.lock")
 	os.WriteFile(lockPath, []byte(content), 0o644)
 }

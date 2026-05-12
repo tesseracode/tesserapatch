@@ -1315,13 +1315,35 @@ func reconcileCmd() *cobra.Command {
 			// lingering conflict markers. See docs/reconcile.md for
 			// the rationale — silent corruption beats loud failure.
 			allowDirty, _ := cmd.Flags().GetBool("allow-dirty")
-			preflight, pfErr := gitutil.PreflightReconcile(s.Root)
+			allowStaleLock, _ := cmd.Flags().GetBool("allow-stale-lock")
+			upstreamRef, _ := cmd.Flags().GetString("upstream-ref")
+			preflight, pfErr := gitutil.PreflightReconcileWithOverride(s.Root, upstreamRef)
 			if pfErr != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: reconcile preflight failed: %v\n", pfErr)
 			} else if !preflight.Clean() {
 				printReconcilePreflight(cmd.ErrOrStderr(), preflight, allowDirty)
 				if !allowDirty {
 					return fmt.Errorf("reconcile refused — see preflight diagnostic above")
+				}
+			}
+			// Lock-guard (PRD-reconcile-lock-guard §3, §7.3).
+			// Independent of the working-tree gate — separate
+			// override flag.
+			if pfErr == nil {
+				switch preflight.LockState {
+				case gitutil.LockStateValid, gitutil.LockStateUnknown:
+				case gitutil.LockStateEmpty:
+					printEmptyLockWarning(cmd.ErrOrStderr())
+				case gitutil.LockStateMissing:
+					printMissingLockWarning(cmd.ErrOrStderr())
+				case gitutil.LockStateSkipped:
+					printSkippedLockNote(cmd.ErrOrStderr(), preflight.LockDiagnostic)
+				case gitutil.LockStateStale:
+					if !allowStaleLock {
+						fmt.Fprintln(cmd.ErrOrStderr(), formatStaleLockRefusal(preflight.LockDiagnostic))
+						return fmt.Errorf("reconcile refused — upstream.lock is stale (pass --allow-stale-lock to override)")
+					}
+					printStaleLockOverrideWarning(cmd.ErrOrStderr(), preflight.LockDiagnostic)
 				}
 			}
 			preflightOnly, _ := cmd.Flags().GetBool("preflight")
@@ -1332,7 +1354,6 @@ func reconcileCmd() *cobra.Command {
 				return nil
 			}
 
-			upstreamRef, _ := cmd.Flags().GetString("upstream-ref")
 			timeout, _ := cmd.Flags().GetDuration("timeout")
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
@@ -1382,6 +1403,7 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().Duration("timeout", 120*time.Second, "Reconciliation timeout")
 	cmd.Flags().Bool("preflight", false, "Only run the preflight checks and exit (does not reconcile)")
 	cmd.Flags().Bool("allow-dirty", false, "Bypass the clean-tree requirement (verdicts may be wrong — not recommended)")
+	cmd.Flags().Bool("allow-stale-lock", false, "Bypass the upstream.lock validation guard (verdicts may be computed against a baseline that no longer exists in upstream)")
 	// M12 / ADR-010 phase-3.5 flags.
 	cmd.Flags().Bool("resolve", false, "Enable provider-assisted conflict resolution (phase 3.5) on 3-way conflicts")
 	cmd.Flags().Bool("apply", false, "With --resolve, auto-copy the shadow worktree onto the real tree on full success (skips human review)")

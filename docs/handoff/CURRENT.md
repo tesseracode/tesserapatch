@@ -201,3 +201,76 @@ None of substance. Notable design decisions:
 
 - Dirty-tree check uses `git status --porcelain --untracked-files=no` (tracked-only) rather than `gitutil.IsWorkingTreeDirty` (which also flags untracked paths). The PRD §3.2 dirty-tree refusal is about tracked drift that `--auto` would silently ignore; untracked `.tpatch/` artifacts in fresh repos must not falsely trip the gate. Rationale documented in `record_auto.go::isTrackedTreeDirty`.
 
+
+
+## Wave A2 Implementation — pending-commit — 2026-05-12
+
+### Active Task
+- **Task ID**: M17 Wave A2 — `impl-reconcile-lock-guard`
+- **Spec**: `docs/prds/PRD-reconcile-lock-guard.md` (685 lines)
+- **Status**: Implementation complete; tests green; live repro verified.
+
+### Session Summary
+- Added the 5-state upstream-lock validation guard to `tpatch reconcile`
+  (Valid / Empty / Missing / Stale / Skipped per PRD §3.1).
+- Added `--allow-stale-lock` flag (PRD §3.2) — independent of `--allow-dirty`.
+- Fixed the v0.8 writer-normalization bug bundled in the PRD §5.3: the
+  pre-fix `updateUpstreamLock` hard-coded `remote: upstream` and stored
+  the full ref inside `branch:`, which would cause the lock-guard to
+  reassemble `upstream/upstream/main` and refuse every populated lock.
+  Writer now uses `gitutil.SplitUpstreamRef` + `gitutil.GitRemoteURL`.
+- Read-side legacy normalization: if `branch:` starts with `<remote>/`,
+  the prefix is stripped before reassembly (covers locks written by
+  pre-v0.8 reconciles).
+
+### Files Changed
+- New: `internal/gitutil/lock_guard.go` — `LockState`/`LockDiagnostic`
+  types, `PreflightReconcileWithOverride`, `classifyUpstreamLock`,
+  `SymbolicFullRefName`, `SplitUpstreamRef`, `GitRemoteURL`, inline
+  `scanUpstreamLockBytes`.
+- New: `internal/gitutil/lock_guard_test.go` — 13 cases covering all 5
+  states, 3 stale sub-causes, legacy-branch normalization,
+  override-equals-lock (acceptance #18), single-arg form preservation
+  (acceptance #19), `SplitUpstreamRef` table.
+- New: `internal/cli/lock_guard_diag.go` — refusal block + warning
+  formatters.
+- New: `internal/workflow/upstream_lock_writer_test.go` — 3 regression
+  tests for the writer fix.
+- Modified: `internal/workflow/reconcile.go` — rewrote
+  `updateUpstreamLock` per PRD §5.3.
+- Already in HEAD (landed with Wave A1 commit `1d6179c`):
+  `internal/gitutil/gitutil.go` extension of `ReconcilePreflight` with
+  `LockState`/`LockDiagnostic`; `CHANGELOG.md` `### Wave A2` subsection.
+- Modified: `internal/cli/cobra.go` — reconcile command: switch to
+  `PreflightReconcileWithOverride`, add lock-state switch, add
+  `--allow-stale-lock` flag.
+
+### Test Results
+- `go build ./...` ✓
+- `go test ./... -count=1` ✓ all packages green
+- `gofmt -l .` clean
+
+### Deviations from PRD
+1. **§5 parser sharing**: `gitutil` cannot import `internal/store`
+   (store already imports gitutil — see `store/validation.go`,
+   `store/dependents.go`). The lock classifier therefore has an inline
+   `scanUpstreamLockBytes` mirroring `store.ParseUpstreamLock`. A
+   future cleanup PRD should promote the parser to a leaf package.
+2. **§7.1 classifier location**: PRD wanted classification inside the
+   single-arg `PreflightReconcile`. We kept that signature unchanged
+   (LockState defaults to `LockStateUnknown`) and added the new
+   `PreflightReconcileWithOverride` so existing CI gates that call
+   `PreflightReconcile(repoRoot)` for working-tree state only are not
+   forced to think about lock state. Acceptance #19 covers this.
+3. **Malformed lock → Empty (not "Missing-with-parse-error")**:
+   `store.ParseUpstreamLock` is lenient (no parse-state enum surfaced),
+   so an unparseable lock degrades to Empty. Both Empty and Missing
+   warn-and-proceed, so user-visible behavior matches acceptance #4.
+
+### Next Steps
+- Reviewer: run the PRD §8 acceptance criteria checklist.
+- Supervisor: archive this CURRENT.md section to HISTORY.md upon
+  approval and queue Wave A3 / the parser-promotion cleanup PRD.
+
+### Blockers
+None.
