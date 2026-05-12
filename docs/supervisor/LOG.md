@@ -1,3 +1,34 @@
+## Review — M17 Wave C rev-3 (commit 876c584) — 2026-05-13
+
+**Reviewer**: copilot-cli sub-agent (m17-wave-c-rev3-rev)
+**Task**: rev-3 contract revision (PRD + ADR-021) for Option B carve-out on global metadata drift. Responds to the external supervisor's NEEDS REVISION verdict on rev-2 (`c6f4402`), which found F2 fully resolved but F1 sitting in a contract gap (rev-2 code note-and-continued on operator-drifted globals; PRD §3.6 still promised strict clean tree). Supervisor decided Option B: amend the PRD to match the rev-2 code; carve out exactly two named global metadata files (`.tpatch/upstream.lock`, `.tpatch/FEATURES.md`) which MAY retain unrelated operator drift after a successful land, with a one-line stderr note per file.
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test -timeout 180s ./...` — all packages green)
+- [x] Formatted (`gofmt -l .` clean)
+- [x] Contract coherence — every "working tree clean" reference in `docs/prds/PRD-tpatch-land.md` (§1, §3.3, §3.5, §3.6, §6 ac.6) is now qualified consistently with "with respect to feature scope"; no leftover unqualified clean-tree promise
+- [x] Carve-out scope bounded — PRD wording explicitly limits the carve-out to the two named files; not framed as a general metadata loosening
+- [x] Note string aligned across code/PRD/test: `note: leaving <path> dirty (operator drift outside feature scope; not staged)` byte-identical at `internal/cli/land.go:188`, `internal/cli/land_test.go:763`, PRD §3.3 step 3, PRD §3.5 sample
+- [x] Test pin verifies the note string — `TestLand_DoesNotStageUnrelatedDirtyMetadata` hardcodes the canonical string; would fail on any wording change
+- [x] Skipped-test rationale validated — `SaveFeatureStatus` unconditionally calls `RefreshFeaturesIndex` (`internal/store/store.go:369`), which regenerates `FEATURES.md` from scratch (lines 528-548), so any drift sentinel on FEATURES.md is overwritten during the embedded `record` step. The single-file test plus the canonical-string pin is sufficient to lock the contract.
+- [x] ADR-021 well-formed — Accepted, dated, follows standard template, explicitly considers and rejects Options A (strict refuse re-introduces F1 via `--allow-extra-paths`) and C (new flag's only purpose would be to silence the note, wrong incentive); references PRD sections by number and the LOG entry on `c6f4402`
+- [x] `docs/land.md` operator-facing — frames the carve-out as an exception ("documented reality of shared worktrees"), not a feature; tells operators what to do with the dirty file
+- [x] CHANGELOG entry tight and accurate
+- [x] Frozen-code compliance — `record_auto*.go`, `record_collision*.go`, `reconcile.go` Wave A2/D regions, `patch_id_detector*.go`, ADR-019, state-of-the-art docs, Side Research section: 0 diff vs. `c6f4402`; `Config.PatchIDDetectorEnabled` default still `false`
+- [x] Manual repro matches new contract — drifted `.tpatch/upstream.lock` + `.tpatch/FEATURES.md` → `tpatch land` exit 0, exact canonical notes on stderr, neither file in `git diff-tree HEAD`, both remain dirty in `git status --porcelain` post-land
+- [x] Handoff accurate — Active Task block reflects rev-3 scope; "Side Research" section byte-identical; skipped-test rationale recorded
+
+### Verdict: APPROVED
+
+### Notes
+Behavioral code is essentially unchanged from rev-2; rev-3 is a contract revision that aligns the PRD with the operationally correct rev-2 behavior. The single code-side change is the stderr note message wording alignment to the canonical string at `internal/cli/land.go:188`. The carve-out is bounded (two named files), audit-visible (mandatory stderr note pinned by test), and well-documented (PRD §3.3 step 3 + ADR-021). No findings.
+
+### Action Taken
+Verdict logged. Stack pushed to `origin/main` for external supervisor review of `876c584` on top of the previously-approved Wave C ship stack.
+
+---
+
 ## Review — M17 Wave C rev-2 (commit c6f4402) — 2026-05-11
 
 **Reviewer**: copilot-cli sub-agent (m17-wave-c-rev2-rev)
