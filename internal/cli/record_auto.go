@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os/exec"
 	"strings"
@@ -43,7 +44,10 @@ type autoBaseResolution struct {
 // `toRef` is taken verbatim from the operator (defaults to "HEAD"). The
 // function returns a fully-populated resolution or an error already
 // formatted for the user (no further wrapping needed by callers).
-func resolveAutoBase(s *store.Store, toRef string) (*autoBaseResolution, error) {
+//
+// `errOut` receives one-line warnings (e.g. when the lock is populated
+// but unusable and we fall back to discovery). May be nil.
+func resolveAutoBase(s *store.Store, toRef string, errOut io.Writer) (*autoBaseResolution, error) {
 	repo := s.Root
 	if toRef == "" {
 		toRef = "HEAD"
@@ -61,10 +65,18 @@ func resolveAutoBase(s *store.Store, toRef string) (*autoBaseResolution, error) 
 		return nil, fmt.Errorf("cannot read .tpatch/upstream.lock: %v", lockErr)
 	}
 
+	// Track why the lock did not yield a resolution. If non-empty
+	// after exhausting steps 2-4 we fall back to discovery (PRD
+	// §3.2 step 5 says lock that is "empty or unusable" → discover)
+	// rather than hard-refusing.
+	var lockReason string
+
 	// Step 2 / 3: lock.Commit present.
 	if haveLock && strings.TrimSpace(lock.Commit) != "" {
 		lockCommit, rerr := gitutil.ResolveRef(repo, lock.Commit)
-		if rerr == nil && lockCommit != "" {
+		if rerr != nil || lockCommit == "" {
+			lockReason = fmt.Sprintf("lock.commit %q does not resolve in this repo", lock.Commit)
+		} else {
 			anc, _ := gitutil.IsAncestor(repo, lockCommit, toCommit)
 			if anc {
 				return buildResolution(repo, lockCommit, toCommit, toRef,
@@ -76,13 +88,19 @@ func resolveAutoBase(s *store.Store, toRef string) (*autoBaseResolution, error) 
 				return buildResolutionWithGate(repo, mb, toCommit, toRef,
 					srcMergeBaseFromLock, "upstream.lock commit "+abbrev(lockCommit))
 			}
+			lockReason = fmt.Sprintf("lock.commit %s is not reachable from %s", abbrev(lockCommit), toRef)
 		}
 	}
 
 	// Step 4: lock has remote/branch.
 	if haveLock && lock.Remote != "" && lock.Branch != "" {
 		ref := lock.Remote + "/" + lock.Branch
-		if commit, rerr := gitutil.ResolveRef(repo, ref); rerr == nil && commit != "" {
+		commit, rerr := gitutil.ResolveRef(repo, ref)
+		if rerr != nil || commit == "" {
+			if lockReason == "" {
+				lockReason = fmt.Sprintf("lock ref %s does not exist locally", ref)
+			}
+		} else {
 			anc, _ := gitutil.IsAncestor(repo, commit, toCommit)
 			if anc {
 				return buildResolution(repo, commit, toCommit, toRef,
@@ -93,13 +111,38 @@ func resolveAutoBase(s *store.Store, toRef string) (*autoBaseResolution, error) 
 				return buildResolutionWithGate(repo, mb, toCommit, toRef,
 					srcMergeBaseLockRemote, ref)
 			}
+			if lockReason == "" {
+				lockReason = fmt.Sprintf("lock ref %s is not reachable from %s", ref, toRef)
+			}
 		}
 	}
 
-	// Step 5: discover a default upstream candidate (lock empty / unusable).
-	if !haveLock || (strings.TrimSpace(lock.Commit) == "" &&
+	// Step 5: discover a default upstream candidate. PRD §3.2 step 5
+	// says we discover when the lock is "empty or unusable" — that
+	// includes the case where the lock has fields but none of them
+	// resolved to a usable base above (lockReason != "").
+	if !haveLock || lockReason != "" || (strings.TrimSpace(lock.Commit) == "" &&
 		(lock.Remote == "" || lock.Branch == "")) {
-		return resolveAutoBaseDiscovery(repo, toCommit, toRef)
+		if haveLock && lockReason != "" && errOut != nil {
+			fmt.Fprintf(errOut,
+				"record --auto: upstream.lock unusable (%s); falling back to discovery\n",
+				lockReason)
+		}
+		res, derr := resolveAutoBaseDiscovery(repo, toCommit, toRef)
+		if derr == nil {
+			return res, nil
+		}
+		// Discovery failed too. If the lock was populated, give the
+		// historical "populated but no field resolves" diagnostic so
+		// operators understand both inputs were exhausted; otherwise
+		// surface the discovery error verbatim.
+		if haveLock && lockReason != "" {
+			return nil, autoBaseRefuse(
+				fmt.Sprintf("record --auto: .tpatch/upstream.lock is populated but no field resolves to a commit reachable from %s, and no upstream candidate could be discovered (%s).",
+					toRef, lockReason),
+				toRef)
+		}
+		return nil, derr
 	}
 
 	// Step 7: no candidate resolved.

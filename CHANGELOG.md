@@ -4,6 +4,30 @@ All notable changes to tpatch are recorded here.
 
 ## v0.8.0 (in development) — M17 boundary-capture cluster
 
+### Fixed (Wave A1 revision-1)
+
+- **`record --auto` empty-capture false-green** — when a `--files`
+  pathspec filtered the auto-inferred range down to zero textual diff,
+  the command previously printed "No changes to record in the specified
+  range" and exited 0, silently advancing the feature to applied state
+  with an empty patch. Now refuses with a diagnostic naming the
+  inferred range, ahead-count, the pathspec used, and a recovery hint
+  (drop `--files`, widen the pathspec, or supply explicit
+  `--from`/`--to`). Explicit `--from`/`--to` empty ranges keep the
+  legacy success semantic so harness scripts probing ranges are not
+  broken.
+- **`record --auto` lock-fallback policy** — a populated-but-bogus
+  `.tpatch/upstream.lock` (e.g. `remote: bogus`, `branch: missing`,
+  empty commit) previously hard-refused with "populated but no field
+  resolves to a commit reachable from HEAD". Per PRD-record-auto-base
+  §3.2 step 5, "empty or unusable" lock content must trigger discovery
+  of `refs/remotes/upstream/HEAD` / `refs/remotes/origin/HEAD` /
+  conventional refs. The fallback predicate now treats unresolvable
+  lock fields as unusable, emits a one-line warning
+  (`record --auto: upstream.lock unusable (<reason>); falling back to
+  discovery`), and only re-raises the populated-but-no-field-resolves
+  refusal if discovery itself also fails.
+
 ### Added
 
 - **`tpatch record <slug> --auto`** — opt-in baseline inference for the

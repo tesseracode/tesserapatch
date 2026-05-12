@@ -910,6 +910,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				}
 			}
 
+			var autoResolved *autoBaseResolution
 			if autoBase {
 				if fromRef != "" {
 					return fmt.Errorf("--auto is mutually exclusive with --from")
@@ -922,10 +923,11 @@ the committed snapshots at the endpoints contribute to the diff.`,
 						"  Commit or stash your changes, then rerun `tpatch record <slug> --auto`,\n" +
 						"  or record the working tree without --auto: `tpatch record <slug>`.")
 				}
-				resolved, err := resolveAutoBase(s, toRef)
+				resolved, err := resolveAutoBase(s, toRef, cmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
+				autoResolved = resolved
 				// Print the decision line (PRD §3.1).
 				autoLabel := resolved.ToLabel
 				if autoLabel == "" {
@@ -998,10 +1000,41 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				// then clean and CapturePatch (diff HEAD) returns "".
 				// Refuse the empty capture and surface --from candidates.
 				if rangeMode {
-					// User explicitly chose a committed range and it
-					// produced no diff. That is a legitimate "nothing
-					// changed in that range" — keep the old success
-					// semantic so harness scripts are not broken.
+					if autoResolved != nil {
+						// PRD-record-auto-base.md: refuse when an
+						// --auto-inferred committed range yields zero
+						// textual diff after pathspec filtering. Unlike
+						// an explicit --from/--to range (where "no
+						// changes" is a legitimate outcome), --auto
+						// promised the operator a feature capture; an
+						// empty patch silently advancing to applied is
+						// a footgun.
+						w := cmd.ErrOrStderr()
+						commitWord := "commits"
+						if autoResolved.AheadCount == 1 {
+							commitWord = "commit"
+						}
+						fmt.Fprintf(w,
+							"record --auto: inferred range %s..%s (%d %s ahead) yields zero textual diff",
+							autoResolved.BaseShort, autoResolved.ToLabel,
+							autoResolved.AheadCount, commitWord)
+						if filesFlag != "" {
+							fmt.Fprintf(w, " after filtering by --files %q", filesFlag)
+						}
+						fmt.Fprintln(w, ".")
+						fmt.Fprintln(w, "  Recover with one of:")
+						if filesFlag != "" {
+							fmt.Fprintln(w, "    - drop --files to capture the full inferred range")
+							fmt.Fprintln(w, "    - widen the pathspec to a path actually touched in the range")
+						}
+						fmt.Fprintf(w, "    - use an explicit base: tpatch record %s --from <base> --to %s\n",
+							slug, autoResolved.ToLabel)
+						return fmt.Errorf("record --auto: empty capture from inferred range %s..%s",
+							autoResolved.BaseShort, autoResolved.ToLabel)
+					}
+					// Explicit --from/--to with no diff in the range —
+					// preserve the legacy success semantic so harness
+					// scripts and human users can probe ranges safely.
 					fmt.Fprintln(cmd.OutOrStdout(), "No changes to record in the specified range")
 					return nil
 				}

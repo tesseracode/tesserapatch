@@ -2,9 +2,9 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-a-parallel-dispatch` — M17 Wave A1 + A2 (v0.8.0 boundary-capture cluster, first wave)
+- **Task ID**: `m17-wave-a-parallel-dispatch` — M17 Wave A1 Revision-1 (NEEDS REVISION addressed) + A2 (APPROVED, untouched)
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Ready to dispatch — both Wave A slices are independent and ship in parallel as separate background implementer sub-agents.
+- **Status**: A1 rev-1 commit landed on top of `6d67b41`; A2 (`8fc2e4e`) approved and untouched. Awaiting supervisor re-review.
 - **Assigned**: 2026-05-11 (immediately after v0.7.0 ship)
 
 ## Wave A — Parallel Slices
@@ -274,3 +274,79 @@ None of substance. Notable design decisions:
 
 ### Blockers
 None.
+
+## Wave A1 Revision-1 Implementation — pending-commit — 2026-05-11
+
+### Active Task
+- Address external supervisor's NEEDS REVISION verdict on Wave A1 (`1d6179c`).
+  Two findings; A2 (`8fc2e4e`) untouched.
+
+### Findings addressed
+
+**Finding 1 (Medium) — Zero-diff false-green under `--auto`.**
+`record --auto --files <unrelated>` previously printed the decision line,
+then "No changes to record in the specified range", and exited 0 — a
+silent advance to applied state with an empty patch. Per
+`docs/prds/PRD-record-auto-base.md`, an `--auto`-inferred range whose
+pathspec filter empties the diff must refuse.
+
+Fix: in `internal/cli/cobra.go` the `record` command now hoists the
+auto resolution into an outer `autoResolved *autoBaseResolution`. The
+empty-patch branch distinguishes `autoResolved != nil` (refuse with a
+diagnostic naming the inferred range, ahead-count, pathspec, and a
+recovery hint) from explicit `--from`/`--to` (preserves the legacy
+"No changes to record in the specified range" success). Exit code is
+non-zero only on the `--auto` path.
+
+**Finding 2 (Low) — Lock-fallback policy mismatch.**
+A populated-but-bogus `upstream.lock` (`remote: bogus`, `branch: missing`,
+empty commit) caused `record --auto` to hard-refuse with "populated but
+no field resolves" instead of falling back to discovery. PRD §3.2 step 5
+treats "empty or unusable" as the discovery trigger.
+
+Fix: in `internal/cli/record_auto.go`, `resolveAutoBase` now tracks why
+the lock failed (`lockReason`) across steps 2-4. If steps 2-4 produce no
+direct/merge-base resolution, we enter discovery and emit a one-line
+warning to stderr (`record --auto: upstream.lock unusable (<reason>);
+falling back to discovery`). The historical "populated but no field
+resolves" diagnostic is now the LAST resort — emitted only when
+discovery itself also fails. Signature change: `resolveAutoBase` now
+takes `errOut io.Writer` for the warn-and-fallback line; cobra.go
+passes `cmd.ErrOrStderr()`.
+
+### Files changed (rev-1)
+- `internal/cli/record_auto.go` — broaden lock-fallback predicate;
+  warn-and-fallback to discovery when steps 2-4 do not resolve;
+  preserve hard-refuse only as final fallback after discovery fails.
+- `internal/cli/cobra.go` — hoist `autoResolved`; refuse empty
+  capture under `--auto` with structured diagnostic; preserve legacy
+  success for explicit `--from`/`--to` empty ranges.
+- `internal/cli/record_auto_test.go` — two new tests:
+  `TestRecordAuto_EmptyCapture_AutoRefuses` (Finding 1, also asserts
+  the legacy explicit-range success path still works) and
+  `TestRecordAuto_BogusLock_FallsBackToDiscovery` (Finding 2).
+
+### Test Results (rev-1)
+- `gofmt -l .` — clean.
+- `go build ./cmd/tpatch` — ok.
+- `go test ./internal/cli -run 'TestRecordAuto' -count=1 -v` — 7/7
+  pass (5 prior + 2 new).
+- `go test ./...` — all packages pass.
+- Live repros (binary built from `go install ./cmd/tpatch`):
+  - Finding 1 repro: `--auto --files docs/not-touched.md` → exit 1
+    with "yields zero textual diff after filtering by --files
+    \"docs/not-touched.md\"" + recovery hint.
+  - Finding 2 repro: bogus lock + valid `origin/HEAD` → exit 0 with
+    `record --auto: upstream.lock unusable (lock ref bogus/missing
+    does not exist locally); falling back to discovery` warning, then
+    chooses the discovered `origin/main` base.
+
+### Out of scope (preserved)
+- A2 territory untouched: `internal/gitutil/lock_guard.go`,
+  `internal/cli/lock_guard_diag.go`, `internal/workflow/reconcile.go`,
+  `internal/workflow/upstream_lock_writer_test.go`, and the reconcile
+  path / `--allow-stale-lock` flag wiring in `internal/cli/cobra.go`.
+- `internal/store/upstream_lock.go` parser unchanged.
+- The 5 existing `record_auto_test.go` cases unchanged.
+- Skill assets unchanged (parity guard still passes; this fix is
+  diagnostics + control flow only).

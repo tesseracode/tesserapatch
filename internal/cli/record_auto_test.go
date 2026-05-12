@@ -210,3 +210,87 @@ func mustRunGit(t *testing.T, dir string, args ...string) {
 		t.Fatalf("git %v: %s: %v", args, out, err)
 	}
 }
+
+// TestRecordAuto_EmptyCapture_AutoRefuses — Wave A1 rev-1 finding 1.
+// When --auto resolves a non-empty committed range but the --files
+// pathspec filters it down to zero textual diff, --auto must refuse
+// (exit non-zero with a recovery diagnostic) rather than silently
+// succeeding the way an explicit --from/--to range does.
+func TestRecordAuto_EmptyCapture_AutoRefuses(t *testing.T) {
+	tmpDir, baseSha, _, _ := setupRecordRangeFixture(t)
+	runCmd("init", "--path", tmpDir)
+	writeUpstreamLock(t, tmpDir, "origin", "main", baseSha)
+	runCmd("add", "--path", tmpDir, "Auto empty capture")
+
+	// `docs/not-touched.md` does not exist anywhere in the
+	// baseSha..HEAD range, so the pathspec filter empties the diff.
+	_, stderr, code := runCmdWithError("record", "--path", tmpDir, "auto-empty-capture",
+		"--auto", "--files", "docs/not-touched.md", "--lenient")
+	if code == 0 {
+		t.Fatalf("record --auto with empty pathspec filter should refuse; stderr=%q", stderr)
+	}
+	if !strings.Contains(stderr, "yields zero textual diff") {
+		t.Errorf("refusal should name the empty-diff condition: %q", stderr)
+	}
+	if !strings.Contains(stderr, baseSha[:8]) {
+		t.Errorf("refusal should name the inferred base sha: %q", stderr)
+	}
+	if !strings.Contains(stderr, "docs/not-touched.md") {
+		t.Errorf("refusal should echo the pathspec used: %q", stderr)
+	}
+	if !strings.Contains(stderr, "Recover with") {
+		t.Errorf("refusal should include a recovery hint: %q", stderr)
+	}
+
+	// Sanity: an explicit --from/--to with the same empty pathspec
+	// MUST still succeed (legacy behavior preserved).
+	runCmd("add", "--path", tmpDir, "Explicit empty range")
+	stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, "explicit-empty-range",
+		"--from", baseSha, "--to", "HEAD", "--files", "docs/not-touched.md", "--lenient")
+	if code != 0 {
+		t.Fatalf("explicit --from/--to with empty pathspec must keep legacy success: stderr=%q", stderr)
+	}
+	if !strings.Contains(stdout, "No changes to record in the specified range") {
+		t.Errorf("explicit empty range should print legacy diagnostic: %q", stdout)
+	}
+}
+
+// TestRecordAuto_BogusLock_FallsBackToDiscovery — Wave A1 rev-1 finding 2.
+// PRD §3.2 step 5 says a lock that is "empty or unusable" must fall
+// back to discovery. A populated-but-unresolvable lock counts as
+// unusable, so origin/HEAD discovery should be chosen rather than a
+// hard refusal.
+func TestRecordAuto_BogusLock_FallsBackToDiscovery(t *testing.T) {
+	tmpDir, baseSha, _, _ := setupRecordRangeFixture(t)
+	runCmd("init", "--path", tmpDir)
+
+	// Set up a synthetic origin/main pointing at baseSha and the
+	// origin/HEAD symref pointing at it. We do this entirely with
+	// local refs to avoid network I/O.
+	mustRunGit(t, tmpDir, "update-ref", "refs/remotes/origin/main", baseSha)
+	mustRunGit(t, tmpDir, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+	// Populated but unresolvable lock: bogus remote/branch + empty commit.
+	writeUpstreamLock(t, tmpDir, "bogus", "missing", "")
+
+	runCmd("add", "--path", tmpDir, "Auto bogus lock")
+	stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, "auto-bogus-lock",
+		"--auto", "--lenient")
+	if code != 0 {
+		t.Fatalf("record --auto should fall back to discovery; stderr=%q", stderr)
+	}
+	// Decision line must name the discovery source, not the bogus lock.
+	if !strings.Contains(stdout, "origin/main") {
+		t.Errorf("decision line should pick the origin/main fallback: %q", stdout)
+	}
+	if !strings.Contains(stdout, "record --auto selected base "+baseSha[:8]) {
+		t.Errorf("base should be the discovered ancestor sha: %q", stdout)
+	}
+	// Warning describing the lock fallback should hit stderr.
+	if !strings.Contains(stderr, "upstream.lock unusable") {
+		t.Errorf("expected stderr to warn about the unusable lock: %q", stderr)
+	}
+	if !strings.Contains(stderr, "falling back to discovery") {
+		t.Errorf("expected stderr to mention discovery fallback: %q", stderr)
+	}
+}
