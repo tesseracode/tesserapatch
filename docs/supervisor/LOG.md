@@ -1,3 +1,33 @@
+## Review — M17 Wave C rev-2 (commit c6f4402) — 2026-05-11
+
+**Reviewer**: copilot-cli sub-agent (m17-wave-c-rev2-rev)
+**Task**: Verify Wave C rev-2 fixes for the two Medium external findings on the Wave C ship stack (`fb5e6ff` + `73a81ed` + `266dfb4` + `32ad3a5`): F1 global metadata over-staging (PRD §3.3 step 3) and F2 `--no-record` leaves `status.json` dirty (PRD §3.6).
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test -timeout 180s ./...` — all packages green)
+- [x] Formatted (`gofmt -l .` clean)
+- [x] PRD §3.3 step 3 metadata gate correct (SHA256 snapshot pre/post `embedRecord`; all five state transitions handled correctly; dry-run `nil` arg degrades safely)
+- [x] PRD §3.6 working-tree-clean invariant holds on both with-record and `--no-record` paths
+- [x] Operator-drift `note:` line on stderr, distinct from `--allow-extra-paths` message, no silent absorption
+- [x] New tests fail pre-fix (verified by checking out `32ad3a5 -- internal/cli/land.go`), pass post-fix
+- [x] Frozen-code compliance: `record_auto*.go`, `record_collision*.go`, `reconcile.go` Wave A2/D regions, `patch_id_detector*.go` byte-identical to `32ad3a5`; `Config.PatchIDDetectorEnabled` default still `false`; `docs/state-of-the-art/**` and "Side Research" section in `CURRENT.md` preserved verbatim
+- [x] Handoff accurate (Active Task block reflects rev-2 scope; resolution sections list correct line anchors)
+
+### Verdict: APPROVED
+
+### Notes
+F1 fix: `snapshotMetadataFiles` (~L401) and `metadataChangedSet` (~L426) helpers; `runLand` snapshots at L122 (pre) and L144-145 (post); `computePathSet` (~L366) gates `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` arms on `metaChanged[p]`; `runLand` L181-191 filters operator-drifted globals out of the dirty/extras set with a `note:` line. F2 fix: reorder so `status.Notes` mutation + `SaveFeatureStatus` (L160-165) runs BEFORE `computePathSet` (L170); duplicate save block removed.
+
+Tests added at `internal/cli/land_test.go`: `TestLand_DoesNotStageUnrelatedDirtyMetadata` (asserts dirty `.tpatch/upstream.lock` sentinel is NOT in `git diff-tree HEAD`, `src/feature.txt` IS in commit, sentinel remains in working tree post-commit, and the operator-drift note is emitted) and `TestLand_NoRecord_LeavesCleanWorkingTree` (asserts `git status --porcelain` is empty after a successful `land --no-record` retry; uses `time.Sleep(1100ms)` between lands so the RFC3339-second timestamp differs — documented inline; pre-fix this is what masked the bug because identical content meant `SaveFeatureStatus` produced no dirty diff).
+
+Both Medium findings from the prior external pass are resolved. Wave A1+A2 / B / D code is byte-identical to `32ad3a5`. No new findings. Surfaced for external review.
+
+### Action Taken
+Verdict logged. Stack pushed to `origin/main` for external supervisor review of `c6f4402` on top of the previously-approved Wave C ship stack.
+
+---
+
 ## Review - Skill Doc Strategy PRD + ADR-020 - 2026-05-11
 
 **Reviewer**: external reviewer (broker-provided)
