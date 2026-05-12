@@ -13,7 +13,7 @@
 |-------|---------|-----|--------|---------|
 | A1 | `impl-record-auto-base` | PRD-record-auto-base | ✅ shipped (`1d6179c` + rev-1 `4484e04`) | — |
 | A2 | `impl-reconcile-lock-guard` | PRD-reconcile-lock-guard | ✅ shipped (`8fc2e4e`) | — |
-| **B** | `impl-record-collision-detection` | PRD-record-collision-detection | ⬜ **ready to dispatch** | A1 (recovery hints need `--auto`) |
+| **B** | `impl-record-collision-detection` | PRD-record-collision-detection | 🟡 **implemented, awaiting review** | A1 (recovery hints reference `--auto`) |
 | C | `impl-tpatch-land` | PRD-tpatch-land | ⬜ blocked on A1+A2+B | A1, A2, B |
 | **D** | `impl-patch-already-upstream-detector` | PRD-patch-already-upstream-detector | ⬜ **ready to dispatch** | independent (default-OFF) |
 
@@ -26,6 +26,42 @@
 ## Just Shipped — M17 Wave A
 
 **M17 Wave A (A1 + A2)** — APPROVED WITH NOTES, archived to HISTORY 2026-05-11. Ship stack: `1d6179c` (A1 v0) + `8fc2e4e` (A2) + `6d67b41` (verdicts) + `4484e04` (A1 rev-1) + `63a0373` (rev-1 verdict). External one revision on A1 (zero-diff false-green + lock-fallback policy); both addressed in `4484e04`. A2 clean. One non-blocking external follow-up captured as backlog `m17-wave-a1-followup-ambig-discovery-diag`. Cross-commit binding (A1 ↔ A2) accepted; HISTORY notes the revert must move both as a unit.
+
+## Wave B — Just Implemented (2026-05-11)
+
+**Status**: Implementation complete on `main`, awaiting sub-agent reviewer + external supervisor.
+
+**Summary**: Cross-feature byte-identical canonical patch collision detection at `tpatch record` time, per `docs/prds/PRD-record-collision-detection.md`. Refuses by default, overridable with `--allow-collision "<reason>"`. Same-feature re-record with unchanged bytes is treated as deduplication (numbered audit snapshot skipped, canonical artifact rewritten in place).
+
+**Files changed**:
+- `internal/gitutil/collision.go` — new `PatchSignature(patch) (sha256Hex, bytes)` primitive. Tiny stdlib-only helper. Reusable by future `tpatch patches --collisions` (PRD §7).
+- `internal/gitutil/collision_test.go` — deterministic / distinct-bytes / empty-string coverage for the primitive.
+- `internal/cli/record_collision.go` — `scanCanonicalPatchCollisions(store, slug, patch)` enumerates `.tpatch/features/*/artifacts/post-apply.patch`, applies the length → SHA-256 → byte-for-byte ladder (PRD §4), splits matches into same-feature vs cross-feature buckets. `printCollisionRefusal` writes the PRD §3.1 diagnostic and tailors recovery hints per capture mode (PRD §5).
+- `internal/cli/cobra.go` — wired the scan into `recordCmd` AFTER empty-patch handling and BEFORE `WriteArtifact`; added `--allow-collision` flag; same-feature dedup skips `WritePatch`; `generateRecordMD` extended to persist the override reason under a "Collision Override" section.
+- `internal/cli/record_collision_test.go` — 9 acceptance tests covering each PRD §8 row (cross-feature refusal, allow-collision override, same-feature dedup, changed-bytes appends, ≥3 colliders recommendation, missing artifact ignored, empty capture skips scan, working-tree + from-mode recovery hints).
+- `internal/cli/record_auto_test.go` — existing `TestRecordAuto_AutoEqualsFromExplicit` updated to use `--allow-collision` for its deliberate byte-equivalence assertion (the test records the same bytes under two slugs to verify `--auto` == `--from`; collision detection would otherwise refuse it).
+- `CHANGELOG.md` — `### Wave B` subheading under unreleased v0.8.0.
+- `docs/record.md` — "Cross-feature collision detection (v0.8.0)" section with the refusal example and dedup semantics.
+
+**Test results**:
+- `gofmt -l .` clean
+- `go build ./cmd/tpatch` clean
+- `go test ./...` all green (full suite)
+- `go test ./assets -run TestSkillParityGuard` green (no CLI command surface changes; flag-only addition does not require skill updates — the parity guard inspects `requiredCommands` and `requiredAnchors`, none of which mention `--allow-collision`)
+
+**Notable**:
+- The collision diagnostic is printed directly to `cmd.ErrOrStderr()`, then a short error is returned. Same pattern as the rest of `recordCmd` (`Execute()` in `cobra.go` will additionally print `error: <err>` from `os.Stderr`). The user sees the long diagnostic once and the short error once.
+- `--allow-collision <reason>` requires a non-empty trimmed reason. Empty / whitespace-only reasons fail the override and the refusal stands. This matches the PRD §3.1 contract ("the reason is required to proceed").
+- The scan helper lives in `internal/cli/` (not `internal/gitutil/`) because it depends on `store.Store` for feature enumeration. The brief allowed either layer; only the byte signature primitive landed in gitutil to satisfy the "collision-signature primitive" line of the brief.
+- One pre-existing test (`TestRecordAuto_AutoEqualsFromExplicit`) deliberately records the same patch bytes under two slugs. It was updated to pass `--allow-collision` with a self-describing reason rather than restructure the assertion — the test still validates byte equality, which is the PRD §6 row 6 acceptance for Wave A1.
+- No changes to `internal/workflow/reconcile.go`, no changes to `Config.PatchIDDetectorEnabled` — Wave D territory left untouched.
+- `internal/cli/record_auto.go` not modified.
+
+**For the reviewer (start here)**:
+1. `internal/cli/cobra.go` recordCmd block from `// Determine capture mode once` through the WritePatch/dedup branch — that is the wiring. Confirm refusal happens before `WriteArtifact` (it does: scan runs immediately after `empty capture` handling and before any artifact write).
+2. `internal/cli/record_collision.go` — verify PRD §4 algorithm (length → SHA-256 → bytes), missing-file skip, and the recovery-hint switch per capture mode (PRD §5).
+3. `internal/cli/record_collision_test.go` — each PRD §8 acceptance row has a named test.
+4. The two diagnostic paths: refusal (no artifact write) vs override (stderr warn + record.md persist).
 
 ## Tagging Decision (Open)
 

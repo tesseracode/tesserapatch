@@ -901,6 +901,8 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			commitRange, _ := cmd.Flags().GetString("commit-range")
 			autoBase, _ := cmd.Flags().GetBool("auto")
 			filesFlag, _ := cmd.Flags().GetString("files")
+			allowCollisionReason, _ := cmd.Flags().GetString("allow-collision")
+			allowCollisionReason = strings.TrimSpace(allowCollisionReason)
 			var pathspecs []string
 			if strings.TrimSpace(filesFlag) != "" {
 				for _, p := range strings.Split(filesFlag, ",") {
@@ -1058,21 +1060,79 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				return fmt.Errorf("empty capture — see diagnostic above")
 			}
 
+			// Determine capture mode once — used both by the collision
+			// diagnostic (PRD-record-collision-detection §5) and by
+			// generateRecordMD below.
+			captureMode := "working tree"
+			if autoBase {
+				captureMode = "auto committed range"
+			} else if commitRange != "" {
+				captureMode = "explicit committed range"
+			} else if rangeMode {
+				captureMode = "committed range"
+			}
+
+			// PRD-record-collision-detection §4: scan canonical
+			// post-apply.patch files across feature directories for
+			// byte-identical collisions BEFORE writing this feature's
+			// canonical patch. The scan runs after empty-patch handling
+			// (PRD §4 step 0: empty patches skip scanning) and before
+			// any artifact write so a cross-feature refusal leaves the
+			// store untouched (PRD §8 acceptance: "refuses before
+			// writing any artifact for the current feature").
+			collision, cerr := scanCanonicalPatchCollisions(s, slug, patch)
+			if cerr != nil {
+				return fmt.Errorf("collision scan failed: %w", cerr)
+			}
+			sameFeatureDup := collision.SameFeature && len(collision.CrossFeature) == 0
+			if len(collision.CrossFeature) > 0 {
+				if allowCollisionReason == "" {
+					printCollisionRefusal(cmd.ErrOrStderr(), slug, collision.CrossFeature, captureMode, filesFlag)
+					return fmt.Errorf("record refuses: cross-feature canonical patch collision (use --allow-collision \"<reason>\" to override)")
+				}
+				// Override path (PRD §3.1): warn loudly on stderr and
+				// proceed. The reason is also threaded into record.md
+				// below so audit traces survive the session.
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"warning: --allow-collision: writing byte-identical canonical patch despite %d existing collision(s); reason: %s\n",
+					len(collision.CrossFeature), allowCollisionReason)
+				for _, m := range collision.CrossFeature {
+					short := m.SHA256
+					if len(short) > 12 {
+						short = short[:12]
+					}
+					fmt.Fprintf(cmd.ErrOrStderr(),
+						"  collides with: %s sha256=%s... bytes=%d files=%d\n",
+						m.Slug, short, m.Bytes, m.Files)
+				}
+			}
+
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 				return err
 			}
-			patchName, _ := s.WritePatch(slug, "record", patch)
-			if patchName != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Saved patch: patches/%s\n", patchName)
-				// A9 doc-patches-vs-artifacts: patches/ is append-only
-				// audit trail; surface a one-liner once the directory
-				// gets crowded so users know cleanup is an option (not
-				// a silent footgun). NextPatchNumber is cheap (ReadDir).
-				if nextN := s.NextPatchNumber(slug); nextN > 6 {
-					fmt.Fprintf(cmd.OutOrStdout(),
-						"  note: %d patches accumulated under .tpatch/features/%s/patches/ — patches/NNN-*.patch is historical audit only; for replay use artifacts/post-apply.patch.\n",
-						nextN-1, slug)
+			if sameFeatureDup {
+				// PRD §3.2: re-recording the same feature with
+				// unchanged canonical patch bytes skips the numbered
+				// audit snapshot. The canonical artifact above is
+				// rewritten with identical bytes (no semantic change),
+				// matching PRD §3.2's "no-op when bytes are identical"
+				// guidance.
+				fmt.Fprintln(cmd.OutOrStdout(),
+					"  record: no content change since current artifacts/post-apply.patch; skipping numbered audit snapshot")
+			} else {
+				patchName, _ := s.WritePatch(slug, "record", patch)
+				if patchName != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "  Saved patch: patches/%s\n", patchName)
+					// A9 doc-patches-vs-artifacts: patches/ is append-only
+					// audit trail; surface a one-liner once the directory
+					// gets crowded so users know cleanup is an option (not
+					// a silent footgun). NextPatchNumber is cheap (ReadDir).
+					if nextN := s.NextPatchNumber(slug); nextN > 6 {
+						fmt.Fprintf(cmd.OutOrStdout(),
+							"  note: %d patches accumulated under .tpatch/features/%s/patches/ — patches/NNN-*.patch is historical audit only; for replay use artifacts/post-apply.patch.\n",
+							nextN-1, slug)
+					}
 				}
 			}
 
@@ -1103,15 +1163,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 
 			// GAP 3: Generate record.md
 			filesChanged := countPatchFiles(patch)
-			captureMode := "working tree"
-			if autoBase {
-				captureMode = "auto committed range"
-			} else if commitRange != "" {
-				captureMode = "explicit committed range"
-			} else if rangeMode {
-				captureMode = "committed range"
-			}
-			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag)
+			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason, collision.CrossFeature)
 			s.WriteFeatureFile(slug, "record.md", recordMD)
 
 			status, _ := s.LoadFeatureStatus(slug)
@@ -1188,6 +1240,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 	cmd.Flags().Bool("no-recipe-autogen", false, "Disable deriving apply-recipe.json from the captured patch when none exists")
 	cmd.Flags().Bool("regenerate-recipe", false, "Overwrite an existing apply-recipe.json with one derived from the captured patch")
 	cmd.Flags().String("files", "", "Comma-separated git pathspecs to scope the capture to (e.g. 'src/auth/,docs/auth.md'); default captures the full working tree")
+	cmd.Flags().String("allow-collision", "", "Permit a byte-identical cross-feature canonical patch collision; the reason is recorded in record.md and printed to stderr")
 	cmd.Flags().Bool("force-amend", false, "Bypass the dependent-orphan gate when recording on top of an amended commit (you take responsibility for re-recording downstream features)")
 	return cmd
 }
@@ -1265,7 +1318,7 @@ func countPatchFiles(patch string) int {
 	return count
 }
 
-func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromRef, toRef, captureMode, filesFlag string) string {
+func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason string, collisionMatches []collisionMatch) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("# Implementation Record: %s\n\n", slug))
 	b.WriteString(fmt.Sprintf("**Recorded**: %s\n", time.Now().UTC().Format(time.RFC3339)))
@@ -1286,6 +1339,23 @@ func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromR
 		b.WriteString(fmt.Sprintf("**Pathspecs**: %s\n", filesFlag))
 	}
 	b.WriteString("\n")
+
+	// PRD-record-collision-detection §3.1: when --allow-collision is
+	// used, the operator-supplied reason is persisted to record.md so
+	// the override survives the session as an audit trace.
+	if allowCollisionReason != "" && len(collisionMatches) > 0 {
+		b.WriteString("## Collision Override\n\n")
+		b.WriteString(fmt.Sprintf("**Reason**: %s\n\n", allowCollisionReason))
+		b.WriteString("This patch is byte-identical to the canonical post-apply.patch of:\n\n")
+		for _, m := range collisionMatches {
+			short := m.SHA256
+			if len(short) > 12 {
+				short = short[:12]
+			}
+			b.WriteString(fmt.Sprintf("- `%s` — sha256=%s... bytes=%d files=%d\n", m.Slug, short, m.Bytes, m.Files))
+		}
+		b.WriteString("\n")
+	}
 
 	if diffStat != "" {
 		b.WriteString("## Change Summary\n\n```\n")

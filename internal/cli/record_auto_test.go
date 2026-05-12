@@ -186,10 +186,15 @@ func TestRecordAuto_AutoEqualsFromExplicit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Record again with explicit --from.
+	// Record again with explicit --from. The bytes ARE expected to
+	// equal the --auto-derived patch, so collision detection
+	// (PRD-record-collision-detection) would refuse — this test
+	// deliberately asks for the duplicate via --allow-collision to
+	// preserve its byte-equivalence assertion.
 	runCmd("add", "--path", tmpDir, "Explicit path")
 	if _, stderr, code := runCmdWithError("record", "--path", tmpDir, "explicit-path",
-		"--from", baseSha, "--files", "src/b.txt", "--lenient"); code != 0 {
+		"--from", baseSha, "--files", "src/b.txt", "--lenient",
+		"--allow-collision", "test asserts --auto vs --from byte parity"); code != 0 {
 		t.Fatalf("record --from failed: %s", stderr)
 	}
 	fromPatch, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", "explicit-path", "artifacts", "post-apply.patch"))

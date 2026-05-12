@@ -4,6 +4,32 @@ All notable changes to tpatch are recorded here.
 
 ## v0.8.0 (in development) — M17 boundary-capture cluster
 
+### Wave B
+
+- **Record-time canonical patch collision detection** — `tpatch record`
+  now scans every existing feature's `artifacts/post-apply.patch`
+  before persisting the new canonical patch. Byte-identical
+  cross-feature matches are refused by default with a diagnostic that
+  lists each colliding slug, hash prefix, byte count, and file count;
+  recovery hints are tailored to the capture mode (working-tree, `--from`,
+  `--commit-range`, `--auto`) and point at `--files` and either
+  `--from` or `--auto` as appropriate. The refusal happens before any
+  artifact is written, so the colliding feature directory stays clean.
+  Override the refusal with `--allow-collision "<reason>"` — the
+  reason is mirrored to stderr and persisted in `record.md` under a
+  "Collision Override" section. Same-feature re-records with identical
+  bytes are treated as deduplication: the canonical artifact is
+  rewritten in place and the numbered `patches/NNN-record.patch`
+  audit snapshot is skipped with a one-line note. Same-feature
+  re-records with changed bytes continue to append numbered snapshots
+  as today. Empty captures skip the scan entirely (PRD §4 step 0).
+  Numbered audit snapshots under `patches/` are intentionally not
+  scanned — only the canonical `artifacts/post-apply.patch`
+  participates (PRD §7). New CLI flag: `--allow-collision <reason>`.
+  New primitive: `gitutil.PatchSignature(patch) (sha256Hex, bytes)`,
+  reusable by future `tpatch patches --collisions`. PRD:
+  `docs/prds/PRD-record-collision-detection.md`.
+
 ### Fixed (Wave A1 revision-1)
 
 - **`record --auto` empty-capture false-green** — when a `--files`

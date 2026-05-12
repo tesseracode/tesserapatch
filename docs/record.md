@@ -64,3 +64,25 @@ Previously this produced a 0-byte patch, advanced the feature state to `applied`
 - `docs/reconcile.md` — what happens to patches when upstream changes under you.
 - `SPEC.md` — authoritative CLI surface.
 - The skill files (`assets/skills/**`) carry a one-liner version of this rule for agents.
+
+## Cross-feature collision detection (v0.8.0)
+
+`tpatch record` refuses by default when the new canonical patch is byte-identical to another feature's `artifacts/post-apply.patch`. Almost always this means the record range is too broad — multiple features are being collapsed into one patch.
+
+```
+Error: recorded patch for "dynamic-models" is byte-identical to existing feature patch(es):
+  - copilot-cli-provider  sha256=ab12cd34abcd... bytes=42118 files=12
+
+This usually means the record range is too broad.
+Try one of:
+  tpatch record dynamic-models --auto --files <feature-paths>
+  tpatch record dynamic-models --from <feature-base> --files <feature-paths>
+  tpatch record dynamic-models --from <feature-base> --to <feature-tip>
+
+To accept an intentional duplicate, rerun with:
+  tpatch record dynamic-models --allow-collision "<reason>"
+```
+
+Re-recording the *same* feature with unchanged patch bytes is treated as a deduplication: the canonical artifact is rewritten in place and the numbered `patches/NNN-record.patch` audit snapshot is skipped (`record: no content change since current artifacts/post-apply.patch; skipping numbered audit snapshot`). A changed re-record appends the next numbered snapshot as before.
+
+Use `--allow-collision "<reason>"` only for legitimate duplicates (test fixtures, demonstrations, staged migrations). The reason is mirrored to stderr and persisted in `record.md` under a "Collision Override" section.
