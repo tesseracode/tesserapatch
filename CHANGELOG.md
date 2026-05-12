@@ -13,8 +13,11 @@ All notable changes to tpatch are recorded here.
   `Tpatch-Base-Commit`, followed by the repo `Co-authored-by:` trailer.
   The path set is computed deterministically from
   `git apply --numstat post-apply.patch` plus any dirty paths under
-  `.tpatch/features/<slug>/` and dirty `.tpatch/upstream.lock` /
-  `.tpatch/FEATURES.md`. Any other dirty path is an "extra" and the
+  `.tpatch/features/<slug>/`, plus the two named global metadata files
+  (`.tpatch/upstream.lock`, `.tpatch/FEATURES.md`) **only when the
+  embedded `record` step modified them**; operator-drifted globals are
+  carved out (left dirty + stderr note — see Wave C rev-3 entry below).
+  Any other dirty path is an "extra" and the
   command refuses unless `--allow-extra-paths` is passed (warn + stage).
   Preflight (PRD §3.2) refuses on conflict markers, `*.orig`/`*.rej`
   leftovers, mid-merge state, or hard-parent mismatch. The new HEAD's
@@ -23,8 +26,9 @@ All notable changes to tpatch are recorded here.
   binding. Subject derivation precedence: `--message` >
   `spec.md` H1 > first non-empty `request.md` line > fallback
   `tpatch land: <slug>`. New flags: `--message`, `--no-record`,
-  `--auto`, `--from`, `--allow-extra-paths`, `--allow-soft-parent`,
-  `--dry-run`. The `--dry-run` contract (PRD §3.5) is non-mutating
+  `--auto`, `--from`, `--allow-extra-paths`, `--dry-run` (and
+  `--files` / `--allow-collision` forwarded to the embedded `record`
+  step via `embedRecord`). The `--dry-run` contract (PRD §3.5) is non-mutating
   and prints the would-be subject, trailers, path set, and extras
   classification computed from existing artifacts. Pre-commit hook
   failures surface `git`'s diagnostics verbatim and the recovery hint

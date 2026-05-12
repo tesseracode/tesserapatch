@@ -110,7 +110,7 @@ tpatch land extra-button
   → record (or re-record) the feature's post-apply.patch
   → stage feature-touched files + .tpatch/features/extra-button/
   → git commit -m "<subject>" with Tpatch-Feature: extra-button trailer
-  → working tree clean w.r.t. feature scope; status.json reflects the new HEAD
+  → working tree clean w.r.t. feature scope; status.json:notes records the landed-at timestamp (apply.base_commit unchanged — see §3.6 / §6 ac.5)
   (the two global metadata files .tpatch/upstream.lock and .tpatch/FEATURES.md
    MAY retain unrelated operator drift — see §3.3 step 3 / §3.6)
 ```

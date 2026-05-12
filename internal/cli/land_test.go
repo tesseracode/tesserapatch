@@ -800,6 +800,80 @@ func TestLand_DoesNotStageUnrelatedDirtyMetadata(t *testing.T) {
 	}
 }
 
+// TestLand_DryRun_CarvesOutGlobalMetadata — Wave C rev-4 Finding 1.
+// PRD §3.5 + §3.6: the dry-run surface must classify drifted global
+// metadata under the "Carved-out global metadata" section, NOT under
+// "Outside path set", and the post-condition footer must be qualified
+// to feature scope. Pre-fix, runLandDryRun called classifyExtras
+// directly on the raw dirty set so drifted globals printed under the
+// extras-refusal block and the footer promised an unqualified clean
+// tree.
+func TestLand_DryRun_CarvesOutGlobalMetadata(t *testing.T) {
+	tmpDir, slug, _ := setupLandFixture(t)
+
+	// Run an initial land so artifacts (post-apply.patch,
+	// status.json) exist and the dry-run path-set computation has
+	// something to enumerate. Mirrors TestLand_DryRun_NoMutation.
+	if _, stderr, code := runCmdWithError("land", "--path", tmpDir, slug); code != 0 {
+		t.Fatalf("initial land failed: %s", stderr)
+	}
+
+	// Drift .tpatch/upstream.lock with a sentinel.
+	lockPath := filepath.Join(tmpDir, ".tpatch", "upstream.lock")
+	pre, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("reading upstream.lock: %v", err)
+	}
+	sentinel := append([]byte{}, pre...)
+	sentinel = append(sentinel, []byte("sentinel-dryrun-lock-drift\n")...)
+	if err := os.WriteFile(lockPath, sentinel, 0o644); err != nil {
+		t.Fatalf("writing sentinel: %v", err)
+	}
+
+	stdout, _, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record", "--dry-run")
+	if code != 0 {
+		t.Fatalf("dry-run should exit 0, got %d; stdout=%q", code, stdout)
+	}
+
+	// New section heading present.
+	carveHeading := "Carved-out global metadata (left dirty in working tree, NOT staged):"
+	if !strings.Contains(stdout, carveHeading) {
+		t.Errorf("dry-run output missing carve-out section heading %q; got=%q", carveHeading, stdout)
+	}
+
+	// Drifted .tpatch/upstream.lock must appear UNDER the carve-out
+	// section, NOT under the extras-refusal section.
+	extrasHeading := "Outside path set (would refuse without --allow-extra-paths):"
+	carveIdx := strings.Index(stdout, carveHeading)
+	extrasIdx := strings.Index(stdout, extrasHeading)
+	lockIdx := strings.Index(stdout, ".tpatch/upstream.lock")
+	if carveIdx < 0 || lockIdx < 0 {
+		t.Fatalf("expected carve-out section + upstream.lock listing in dry-run; carveIdx=%d lockIdx=%d", carveIdx, lockIdx)
+	}
+	// If the extras section is present at all, upstream.lock must
+	// not be listed under it. Detect by checking whether the
+	// upstream.lock substring falls in the extras window.
+	if extrasIdx >= 0 && extrasIdx < lockIdx && lockIdx < carveIdx {
+		t.Errorf("upstream.lock listed under extras instead of carve-out; stdout=%q", stdout)
+	}
+
+	// Postcondition footer is qualified to feature scope and the
+	// unqualified version is gone.
+	wantFooter := "Working tree will be clean w.r.t. feature scope."
+	if !strings.Contains(stdout, wantFooter) {
+		t.Errorf("dry-run output must contain qualified post-condition %q; got=%q", wantFooter, stdout)
+	}
+	if strings.Contains(stdout, "Working tree will be clean.\n") {
+		t.Errorf("dry-run output must NOT contain unqualified post-condition; got=%q", stdout)
+	}
+
+	// Carve-out qualifier line about <N> global metadata file(s).
+	wantQualifier := "global metadata file(s) will remain dirty with a stderr note"
+	if !strings.Contains(stdout, wantQualifier) {
+		t.Errorf("dry-run output must contain carve-out qualifier %q; got=%q", wantQualifier, stdout)
+	}
+}
+
 // TestLand_NoRecord_LeavesCleanWorkingTree — Wave C rev-2 Finding 2.
 // PRD §3.6 + §6 ac: after a successful land (with-record OR --no-record)
 // the working tree must be clean. The bug was that on the --no-record

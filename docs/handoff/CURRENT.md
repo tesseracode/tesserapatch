@@ -2,10 +2,102 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` (PRD-tpatch-land), **rev-3**
+- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` (PRD-tpatch-land), **rev-4**
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Wave C rev-3 — contract revision (PRD + ADR-021) addressing external rev-2 NEEDS REVISION on the working-tree-clean post-condition gap. Behavioral code unchanged from rev-2 except for the canonical note string.
-- **Assigned**: 2026-05-13
+- **Status**: Wave C rev-4 — dry-run carve-out alignment + stale wording cleanup, addressing external rev-3 NEEDS REVISION (one Medium + one Low). Behavioral land path unchanged; only the dry-run surface and two doc strings.
+- **Assigned**: 2026-05-14
+
+## Wave C rev-4 — Implementation Summary
+
+External supervisor reviewed rev-3 (`876c584` + verdict `a94e5e7`) and
+returned **NEEDS REVISION** on two findings, both narrow cleanup of work
+rev-3 left half-done.
+
+### Finding 1 (Medium) — dry-run surface still uses old contract
+
+`runLandDryRun` in `internal/cli/land.go` was still calling
+`classifyExtras(dirty, pathSet)` on the raw dirty set, so drifted
+`.tpatch/upstream.lock` / `.tpatch/FEATURES.md` printed under "Outside
+path set (would refuse without --allow-extra-paths)" and the footer
+promised an unqualified clean tree — both now in conflict with PRD
+§3.5 / §3.6 after the rev-3 contract amendment.
+
+Resolution: dry-run now performs the same three-way split the live
+land path performs — pathSet (would be staged), carved-out globals
+(left dirty + stderr note per ADR-021), extras (would refuse without
+`--allow-extra-paths`). Added a new "Carved-out global metadata (left
+dirty in working tree, NOT staged):" section matching the PRD §3.5
+sample (heading text byte-identical). Footer changed to "Working tree
+will be clean w.r.t. feature scope." plus a conditional carve-out
+qualifier line "(carve-out: <N> global metadata file(s) will remain
+dirty with a stderr note — see §3.3 step 3)" when at least one
+carved-out global is present. `--allow-extra-paths` semantics
+unchanged: extras still refuse without it; carve-out globals are
+NEITHER refused NOR staged regardless of the flag.
+
+New test `TestLand_DryRun_CarvesOutGlobalMetadata` in
+`internal/cli/land_test.go`: drifts `.tpatch/upstream.lock`, runs
+`land --no-record --dry-run`, asserts the new section heading is
+present, that `.tpatch/upstream.lock` appears under it (not under the
+extras-refusal section), that the qualified post-condition footer is
+present, that the unqualified `"Working tree will be clean."` is
+absent, and that the `<N> global metadata file(s)` qualifier is
+present. The existing `TestLand_DryRun_NoMutation` still passes (its
+assertions are loose section-marker checks).
+
+### Finding 2 (Low) — stale documentation wording
+
+- **2a — PRD line 113**: stale ASCII-walkthrough line
+  `→ working tree clean w.r.t. feature scope; status.json reflects the new HEAD`
+  was wrong (PRD F2: `apply.base_commit` is unchanged, only
+  `status.json:notes` records the landed-at timestamp). Replaced with
+  `→ working tree clean w.r.t. feature scope; status.json:notes records the landed-at timestamp (apply.base_commit unchanged — see §3.6 / §6 ac.5)`.
+- **2b — CHANGELOG.md Wave C entry**: (i) the path-set sentence
+  contradicted the rev-3 carve-out (claimed any dirty
+  `.tpatch/upstream.lock` / `.tpatch/FEATURES.md` is in the path set);
+  amended to "...plus the two named global metadata files only when
+  the embedded `record` step modified them; operator-drifted globals
+  are carved out (left dirty + stderr note — see Wave C rev-3 entry
+  below)". (ii) flag list contained `--allow-soft-parent`, which does
+  not exist on `landCmd`. Removed it; added a clarifying note that
+  `--files` / `--allow-collision` are forwarded to the embedded
+  `record` step via `embedRecord`. `grep -rn allow-soft-parent docs/
+  internal/ assets/ CHANGELOG.md` confirmed the flag was only
+  referenced from this single CHANGELOG line; no other doc cleanup
+  needed.
+
+### Files changed
+
+- `internal/cli/land.go` — `runLandDryRun` three-way split + footer.
+- `internal/cli/land_test.go` — added
+  `TestLand_DryRun_CarvesOutGlobalMetadata`.
+- `docs/prds/PRD-tpatch-land.md` — line 113 amended (Finding 2a).
+- `CHANGELOG.md` — Wave C entry path-set sentence + flag list amended
+  (Finding 2b).
+- `docs/handoff/CURRENT.md` — this section.
+
+### Verification gate results
+
+| Gate | Result |
+|------|--------|
+| `gofmt -l .` | clean |
+| `go test ./internal/cli -run 'TestLand_' -count=1` | PASS (~22s) |
+| `go test ./internal/cli -run 'TestLand_DryRun' -count=1 -v` | PASS (NoMutation + CarvesOutGlobalMetadata) |
+| `go test ./assets -run TestSkillParityGuard -count=1` | PASS |
+| `go build ./cmd/tpatch` | OK |
+| `go test -timeout 180s ./...` | all packages PASS |
+| Manual dry-run repro (drift `.tpatch/upstream.lock` + `land --no-record --dry-run`) | upstream.lock listed under the carve-out section (not extras); footer "Working tree will be clean w.r.t. feature scope." + carve-out qualifier present |
+
+### Hands-off compliance
+
+- `internal/cli/record_auto*.go` (Wave A1) — untouched.
+- `internal/cli/record_collision*.go` (Wave B) — untouched.
+- `internal/workflow/reconcile.go` (Wave A2 / D) — untouched.
+- `internal/workflow/patch_id_detector*.go` (Wave D) — untouched.
+- `Config.PatchIDDetectorEnabled` default — still `false`.
+- ADR-019 trailer schema — untouched.
+- `docs/state-of-the-art/**` — untouched.
+- "Side Research — State-of-the-art middle pass" section below — preserved byte-identical.
 
 ## Wave C rev-3 — Implementation Summary (PRD carve-out + ADR-021)
 

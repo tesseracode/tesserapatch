@@ -665,7 +665,32 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	// `.tpatch/FEATURES.md` alone (PRD §3.3 step 3).
 	pathSet := computePathSet(s, slug, patch, nil)
 	dirty, _ := dirtyPaths(s.Root)
-	extras := classifyExtras(dirty, pathSet)
+	// Three-way split (PRD §3.5): dirty paths fall into pathSet
+	// (would be staged), carved-out globals (left dirty + stderr
+	// note per ADR-021), or extras (would refuse without
+	// --allow-extra-paths). The carve-out applies only to the two
+	// named global metadata files, and only when they are NOT
+	// already in the path set (i.e., the embedded record step did
+	// not modify them — which in dry-run is always, since record
+	// is not executed).
+	covered := make(map[string]struct{}, len(pathSet))
+	for _, p := range pathSet {
+		covered[filepath.ToSlash(p)] = struct{}{}
+	}
+	var carvedGlobals, extras []string
+	for _, p := range dirty {
+		if _, ok := covered[p]; ok {
+			continue
+		}
+		if p == ".tpatch/upstream.lock" || p == ".tpatch/FEATURES.md" {
+			carvedGlobals = append(carvedGlobals, p)
+			continue
+		}
+		extras = append(extras, p)
+	}
+	sort.Strings(carvedGlobals)
+	sort.Strings(extras)
+
 	fmt.Fprintln(out, "Staging (path set):")
 	if len(pathSet) == 0 {
 		fmt.Fprintln(out, "  (no current path set; rerun without --dry-run for a fresh capture)")
@@ -678,6 +703,18 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 		fmt.Fprintln(out, "Outside path set (would refuse without --allow-extra-paths):")
 		for _, p := range extras {
 			fmt.Fprintf(out, "   M %s\n", p)
+		}
+		fmt.Fprintln(out)
+	}
+	if len(carvedGlobals) > 0 {
+		// PRD §3.5 Carved-out global metadata block. These files
+		// are NEITHER staged NOR refused: `land` will leave them
+		// dirty and emit a one-line stderr note per file
+		// (ADR-021). --allow-extra-paths does NOT widen this.
+		fmt.Fprintln(out, "Carved-out global metadata (left dirty in working tree, NOT staged):")
+		for _, p := range carvedGlobals {
+			fmt.Fprintf(out, "   M %s         (operator drift; record did not modify)\n", p)
+			fmt.Fprintf(out, "     → stderr: note: leaving %s dirty (operator drift outside feature scope; not staged)\n", p)
 		}
 		fmt.Fprintln(out)
 	}
@@ -702,7 +739,10 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	headSHA, _ := gitutil.HeadCommit(s.Root)
 	fmt.Fprintln(out, "Post-conditions if you re-run without --dry-run:")
 	fmt.Fprintf(out, "  HEAD will move from %s to a new commit.\n", abbrevSHA(headSHA))
-	fmt.Fprintln(out, "  Working tree will be clean.")
+	fmt.Fprintln(out, "  Working tree will be clean w.r.t. feature scope.")
+	if len(carvedGlobals) > 0 {
+		fmt.Fprintf(out, "  (carve-out: %d global metadata file(s) will remain dirty with a stderr note — see §3.3 step 3)\n", len(carvedGlobals))
+	}
 	fmt.Fprintf(out, "  Feature → commit binding: git log --grep '^Tpatch-Feature: %s$'\n", slug)
 	fmt.Fprintln(out, "  status.json:apply.base_commit unchanged (owned by record/auto-base).")
 	return nil
