@@ -47,7 +47,7 @@ If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA i
 1. `tpatch status <slug>` — see current state and last command.
 2. `tpatch next <slug>` — get the exact next command (add `--format harness-json` for structured output).
 3. Only then proceed. Do not guess the next phase from file presence.
-4. Run tpatch record <slug> BEFORE git commit. If you already committed, prefer tpatch record <slug> --auto (infers base from .tpatch/upstream.lock + merge-base); fall back to tpatch record <slug> --from <base> when --auto refuses (ambiguous merge-base or empty lock). A clean working tree without --auto/--from is refused.
+4. Run tpatch record <slug> BEFORE git commit. If you already committed, prefer tpatch record <slug> --auto (infers base from .tpatch/upstream.lock + merge-base); fall back to tpatch record <slug> --from <base> when --auto refuses (ambiguous merge-base or empty lock). A clean working tree without --auto/--from is refused. Or run `tpatch land <slug>` to compose record + safe-stage + one Git commit (with a `Tpatch-Feature: <slug>` trailer block — see docs/land.md) in a single verb.
 5. Run tpatch reconcile only on a CLEAN working tree at the target upstream state. Commit or stash first; reconcile refuses dirty trees, conflict markers, and .orig/.rej leftovers. See docs/reconcile.md for the workflow patterns.
 
 ## Steps
@@ -70,7 +70,7 @@ If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA i
 
 ## Available Commands
 
-`tpatch init`, `tpatch add`, `tpatch status`, `tpatch analyze`, `tpatch define`, `tpatch explore`, `tpatch implement`, `tpatch apply`, `tpatch record`, `tpatch reconcile`, `tpatch provider check`, `tpatch config show|set`, `tpatch cycle`, `tpatch test`, `tpatch verify` (EXPERIMENTAL — Slice A: V0/V1/V2 only), `tpatch next`
+`tpatch init`, `tpatch add`, `tpatch status`, `tpatch analyze`, `tpatch define`, `tpatch explore`, `tpatch implement`, `tpatch apply`, `tpatch record`, `tpatch land`, `tpatch reconcile`, `tpatch provider check`, `tpatch config show|set`, `tpatch cycle`, `tpatch test`, `tpatch verify` (EXPERIMENTAL — Slice A: V0/V1/V2 only), `tpatch next`
 
 ## You Are the Provider
 

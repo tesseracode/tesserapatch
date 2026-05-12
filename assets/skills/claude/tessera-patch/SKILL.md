@@ -65,7 +65,7 @@ If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA i
 1. `tpatch status <slug>` — see current state and last command.
 2. `tpatch next <slug>` — get the exact next command (add `--format harness-json` for structured output).
 3. Only then proceed. Do not guess the next phase from file presence.
-4. Run tpatch record <slug> BEFORE git commit. If you already committed, prefer tpatch record <slug> --auto (infers base from .tpatch/upstream.lock + merge-base); fall back to tpatch record <slug> --from <base> when --auto refuses (ambiguous merge-base or empty lock). A clean working tree without --auto/--from is refused.
+4. Run tpatch record <slug> BEFORE git commit. If you already committed, prefer tpatch record <slug> --auto (infers base from .tpatch/upstream.lock + merge-base); fall back to tpatch record <slug> --from <base> when --auto refuses (ambiguous merge-base or empty lock). A clean working tree without --auto/--from is refused. Or run `tpatch land <slug>` to compose record + safe-stage + one Git commit (with a `Tpatch-Feature: <slug>` trailer block — see docs/land.md) in a single verb.
 5. Run tpatch reconcile only on a CLEAN working tree at the target upstream state. Commit or stash first; reconcile refuses dirty trees, conflict markers, and .orig/.rej leftovers. See docs/reconcile.md for the workflow patterns.
 
 ## Phases — Path A and Path B
@@ -302,6 +302,7 @@ When they disagree — e.g. the recipe's `replace-in-file` can no longer find it
 | `tpatch implement <slug>` | Generate deterministic apply recipe (add `--manual` for Path B) |
 | `tpatch apply <slug>` | Execute apply recipe or record an interactive session |
 | `tpatch record <slug>` | Capture patches (tracked + untracked files) |
+| `tpatch land <slug>` | Project a feature into Git history (one commit + Tpatch-Feature trailer block) |
 | `tpatch reconcile [slug...]` | Reconcile features against upstream |
 | `tpatch provider check` | Validate LLM provider endpoint |
 | `tpatch config show\|set` | Manage configuration |
