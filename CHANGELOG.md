@@ -35,6 +35,23 @@ All notable changes to tpatch are recorded here.
   the user-facing flag work can build on stable foundations. PRD:
   `docs/prds/PRD-patch-already-upstream-detector.md`.
 
+- **Rev-1 fix: phase-1.5 now reads the canonical `post-apply.patch`
+  directly (PRD §5.1)**. The initial Wave D landing reused the legacy
+  `patch` variable in `internal/workflow/reconcile.go`, which prefers
+  `incremental.patch` for multi-feature derivation (GAP 4). On a
+  feature with both artifacts where upstream absorbs only the
+  incremental subset, this caused phase-1.5 to false-positive a
+  `[upstreamed]` retire path. The detector now loads
+  `artifacts/post-apply.patch` separately for the patch-id sweep; if
+  the canonical artifact is missing or empty, phase-1.5 fail-soft
+  skips with a one-line note and reconcile falls through to phase 2.
+  The legacy `patch` variable used by phases 2/3/4 is unchanged.
+  Regression coverage: `TestPatchIDDetector_PrefersCanonicalOverIncremental`
+  (negative — incremental subset matches upstream but canonical does
+  not) and `TestPatchIDDetector_CanonicalMatchesEvenWhenIncrementalDiffers`
+  (positive — canonical matches even when an unrelated incremental is
+  present). Default-OFF behaviour is unchanged.
+
 ### Wave B
 
 - **Record-time canonical patch collision detection** — `tpatch record`

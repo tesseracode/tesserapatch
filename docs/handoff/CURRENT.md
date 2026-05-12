@@ -2,12 +2,90 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-bd-parallel-dispatch` — M17 Wave B + Wave D (v0.8.0 boundary-capture cluster, second + third waves; can ship in parallel)
+- **Task ID**: `m17-wave-d-rev1-canonical-patch-fix` — M17 Wave D rev-1 surgical fix (PRD §5.1)
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Wave A shipped. Wave B implemented (awaiting review). **Wave D implemented (awaiting review)**. Wave C still blocked on B.
-- **Assigned**: 2026-05-11 (immediately after Wave A external approval)
+- **Status**: Wave A shipped. Wave B implemented (awaiting review). **Wave D rev-1 implemented (awaiting re-review)**. Wave C still blocked on B.
+- **Assigned**: 2026-05-12 (rev-1 dispatched after external supervisor finding)
 
-## Wave D summary (2026-05-11)
+## Wave D rev-1 fix (2026-05-12)
+
+External supervisor flagged a Medium false-positive: phase-1.5 was
+fed the wrong patch artifact. The legacy reconcile loader at
+`internal/workflow/reconcile.go:166-169` reads `incremental.patch`
+first and only falls back to `post-apply.patch` (correct for
+phases 2/3/4 / GAP 4 multi-feature derivation). That same `patch`
+variable was being passed to `runPatchIDDetector`, violating
+PRD-patch-already-upstream-detector §5.1 which mandates the
+canonical `post-apply.patch` for the patch-id sweep.
+
+### Reproducer
+Feature with canonical `post-apply.patch` adding two files
+(extra.txt + greeting.txt) and `incremental.patch` adding only
+greeting.txt. Upstream absorbs only greeting.txt. With the flag on,
+pre-fix code wrongly emitted `[upstreamed] (phase-1.5-patch-id-match)`
+and persisted `patch_id_match` because phase-1.5 saw the incremental
+form.
+
+### Fix scope (surgical)
+
+- `internal/workflow/reconcile.go` — phase-1.5 block now loads
+  `artifacts/post-apply.patch` separately via `s.ReadFeatureFile` and
+  passes that to `runPatchIDDetector`. If the canonical artifact is
+  missing or whitespace-only, phase-1.5 fail-soft skips with a
+  one-line note (`"phase 1.5 skipped: no canonical post-apply.patch
+  artifact"`) and reconcile falls through to phase 2. The legacy
+  `patch` variable used by phases 2/3/4 is unchanged. Wave A2
+  lock-guard region (~lines 560-700) untouched.
+- `internal/workflow/patch_id_detector_test.go` — added two regression
+  tests:
+  - `TestPatchIDDetector_PrefersCanonicalOverIncremental`: dual-artifact
+    divergence (canonical=multi-file, incremental=subset matching
+    upstream). Asserts `Outcome != ReconcileUpstreamed`,
+    `Phase != "phase-1.5-patch-id-match"`, `PatchIDMatch == nil`,
+    persisted `status.Reconcile.PatchIDMatch == nil`. Verified to
+    FAIL on pre-fix code, PASS after.
+  - `TestPatchIDDetector_CanonicalMatchesEvenWhenIncrementalDiffers`:
+    positive companion — canonical matches upstream while
+    incremental is unrelated. Asserts phase-1.5 still fires correctly
+    (guards against an over-correction that would skip phase-1.5
+    whenever incremental.patch exists). Verified to FAIL pre-fix
+    (would reach phase 4) and PASS after.
+- `CHANGELOG.md` — added "Rev-1 fix" bullet under `### Wave D`.
+- `docs/handoff/CURRENT.md` — this update.
+
+### What was NOT touched (per brief DO-NOT list)
+
+- `docs/state-of-the-art/` (untracked user research) — preserved.
+- "Side Research" section below — preserved verbatim.
+- Wave A2 lock-guard region of `reconcile.go` (~lines 560-700) and
+  `internal/gitutil/lock_guard.go` — untouched.
+- Wave B record path (`internal/cli/record_collision*.go`,
+  collision wiring in `cobra.go`) — untouched.
+- `Config.PatchIDDetectorEnabled` default — still `false`.
+- Phase ordering — phase-1.5 stays strictly between phase 1 and
+  phase 2.
+- Deferred CLI flags (`--check-applied-only`, `--auto-drop-merged`)
+  — still deferred, out of scope for rev-1.
+
+### Verification (rev-1)
+
+- `gofmt -l .` clean.
+- `go build ./cmd/tpatch` clean.
+- `go vet ./...` clean.
+- `go test ./internal/workflow -run TestPatchIDDetector_ -count=1 -v`:
+  all 11 tests PASS (9 pre-existing + 2 new regression).
+- Pre-fix sanity check: with the reconcile.go fix stashed, both new
+  regression tests FAIL as designed; restored after.
+- `go test ./assets -run TestSkillParityGuard -count=1 -v`: PASS
+  (no skill changes).
+- `go test ./...`: all packages green (workflow ~46s, cli ~40s).
+- Default-OFF preservation: `TestPatchIDDetector_DefaultOffNoOp`
+  still passes — no behaviour change when
+  `PatchIDDetectorEnabled=false`.
+
+---
+
+## Wave D summary (2026-05-11) — original landing, superseded by rev-1 above
 
 Phase-1.5 deterministic patch-already-upstream detector landed,
 default-OFF behind `Config.PatchIDDetectorEnabled` (PRD §6). Files

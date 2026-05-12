@@ -196,29 +196,42 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	// Config.PatchIDDetectorEnabled so pre-M17 reconcile behaviour is
 	// byte-identical when the operator has not opted in.
 	if storeCfg, cerr := s.LoadConfig(); cerr == nil && storeCfg.PatchIDDetectorEnabled {
-		det := runPatchIDDetector(s, patch, upstreamCommit, storeCfg.PatchIDScanLimit)
+		// Rev-1 (M17 Wave D): the detector MUST run against the
+		// canonical post-apply.patch (PRD-patch-already-upstream-detector
+		// §5.1). The legacy `patch` variable above prefers
+		// incremental.patch for multi-feature derivation (GAP 4); the
+		// incremental form may match a partial absorption that isn't a
+		// real merge, producing a false-positive retire path. Load
+		// canonical separately and fail-soft skip if it's missing.
+		canonical, canonErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 		switch {
-		case det.Match != nil:
-			result.Outcome = store.ReconcileUpstreamed
-			result.Phase = "phase-1.5-patch-id-match"
-			// PRD §3.1 step 6: UpstreamCommit becomes the matching SHA
-			// (the commit that absorbed the patch), not the upstream tip.
-			result.UpstreamCommit = det.Match.MatchedUpstreamSHA
-			result.PatchIDMatch = det.Match
-			note := fmt.Sprintf("Patch-id sweep matched upstream commit %s (scanned %d in %s)",
-				truncateCommit(det.Match.MatchedUpstreamSHA), det.Match.ScannedCount, det.Match.ScannedRange)
-			if len(det.Match.AdditionalMatches) > 0 {
-				note += fmt.Sprintf("; %d additional match(es)", len(det.Match.AdditionalMatches))
+		case canonErr != nil || strings.TrimSpace(canonical) == "":
+			result.Notes = append(result.Notes, "phase 1.5 skipped: no canonical post-apply.patch artifact")
+		default:
+			det := runPatchIDDetector(s, canonical, upstreamCommit, storeCfg.PatchIDScanLimit)
+			switch {
+			case det.Match != nil:
+				result.Outcome = store.ReconcileUpstreamed
+				result.Phase = "phase-1.5-patch-id-match"
+				// PRD §3.1 step 6: UpstreamCommit becomes the matching SHA
+				// (the commit that absorbed the patch), not the upstream tip.
+				result.UpstreamCommit = det.Match.MatchedUpstreamSHA
+				result.PatchIDMatch = det.Match
+				note := fmt.Sprintf("Patch-id sweep matched upstream commit %s (scanned %d in %s)",
+					truncateCommit(det.Match.MatchedUpstreamSHA), det.Match.ScannedCount, det.Match.ScannedRange)
+				if len(det.Match.AdditionalMatches) > 0 {
+					note += fmt.Sprintf("; %d additional match(es)", len(det.Match.AdditionalMatches))
+				}
+				result.Notes = append(result.Notes, note)
+				saveReconcileArtifacts(s, slug, result)
+				updateFeatureState(s, slug, result)
+				return result, nil
+			case det.Skipped:
+				// Fail-soft (PRD §5.1): never treat tooling failure as a
+				// no-match verdict. Surface a single audit note and fall
+				// through to phase 2.
+				result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
 			}
-			result.Notes = append(result.Notes, note)
-			saveReconcileArtifacts(s, slug, result)
-			updateFeatureState(s, slug, result)
-			return result, nil
-		case det.Skipped:
-			// Fail-soft (PRD §5.1): never treat tooling failure as a
-			// no-match verdict. Surface a single audit note and fall
-			// through to phase 2.
-			result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
 		}
 	}
 

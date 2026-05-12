@@ -469,6 +469,192 @@ index 0000000..abc1234
 	}
 }
 
+// TestPatchIDDetector_PrefersCanonicalOverIncremental is the rev-1
+// regression for M17 Wave D. Per PRD-patch-already-upstream-detector
+// §5.1: when both `post-apply.patch` and `incremental.patch` exist,
+// phase-1.5 MUST run against the canonical post-apply form. The
+// incremental form may match a partial absorption that isn't a real
+// merge — passing it to the detector causes a false-positive retire.
+//
+// Fixture: feature has post-apply.patch (extra.txt + greeting.txt) and
+// incremental.patch (greeting.txt only). Upstream absorbs greeting.txt
+// only. Pre-fix, phase-1.5 would see incremental and match. Post-fix,
+// phase-1.5 sees canonical (multi-file), does NOT match, and falls
+// through to phase 2.
+func TestPatchIDDetector_PrefersCanonicalOverIncremental(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+
+	baseline := git(t, tmpDir, "rev-parse", "HEAD")
+
+	// Upstream absorbs greeting.txt only (matches incremental, NOT canonical).
+	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+	gitAdd(t, tmpDir, "greeting.txt")
+	gitCommit(t, tmpDir, "upstream absorbs greeting (partial)")
+	_ = git(t, tmpDir, "rev-parse", "HEAD") // upstream tip of the partial-absorb commit; matched by incremental but NOT canonical
+
+	// Then upstream removes greeting.txt so phase-1 reverse-apply on
+	// the incremental form cannot trivially succeed via the working tree.
+	os.Remove(filepath.Join(tmpDir, "greeting.txt"))
+	git(t, tmpDir, "add", "-A")
+	gitCommit(t, tmpDir, "upstream later removed greeting")
+	tip := git(t, tmpDir, "rev-parse", "HEAD")
+
+	writeLock(t, tmpDir, "origin", "main", baseline)
+
+	s.AddFeature(store.AddFeatureInput{Title: "Add greeting and extra", Request: "Add two files"})
+	s.MarkFeatureState("add-greeting-and-extra", store.StateApplied, "apply", "")
+
+	// Canonical post-apply.patch: TWO files (extra.txt + greeting.txt).
+	canonical := `diff --git a/extra.txt b/extra.txt
+new file mode 100644
+index 0000000..d00491f
+--- /dev/null
++++ b/extra.txt
+@@ -0,0 +1 @@
++extra
+diff --git a/greeting.txt b/greeting.txt
+new file mode 100644
+index 0000000..557db03
+--- /dev/null
++++ b/greeting.txt
+@@ -0,0 +1 @@
++Hello World
+`
+	// Incremental.patch: greeting.txt only — IDENTICAL to upstream's
+	// absorbing commit. Pre-fix this is what the detector saw → match.
+	incremental := `diff --git a/greeting.txt b/greeting.txt
+new file mode 100644
+index 0000000..557db03
+--- /dev/null
++++ b/greeting.txt
+@@ -0,0 +1 @@
++Hello World
+`
+	s.WriteArtifact("add-greeting-and-extra", "post-apply.patch", canonical)
+	s.WriteArtifact("add-greeting-and-extra", "incremental.patch", incremental)
+
+	// Sanity: the two artifacts have different SHA-256s — i.e. this
+	// is genuinely the divergence case the PRD warns about.
+	if canonical == incremental {
+		t.Fatal("test fixture invariant: canonical and incremental must differ")
+	}
+
+	results, err := RunReconcile(context.Background(), s, []string{"add-greeting-and-extra"}, tip, nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatalf("RunReconcile: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	got := results[0]
+
+	// The load-bearing assertion: phase-1.5 must NOT fire here.
+	if got.Outcome == store.ReconcileUpstreamed && got.Phase == "phase-1.5-patch-id-match" {
+		t.Fatalf("regression: phase-1.5 matched the incremental subset; canonical detector contract broken (PRD §5.1). got=%+v", got)
+	}
+	if strings.HasPrefix(got.Phase, "phase-1.5") {
+		t.Fatalf("phase-1.5 should not produce a verdict; got phase=%s", got.Phase)
+	}
+	if got.PatchIDMatch != nil {
+		t.Fatalf("PatchIDMatch must be nil when canonical does not match; got %+v", got.PatchIDMatch)
+	}
+
+	// Persisted status must NOT carry a phase-1.5 PatchIDMatch.
+	status, err := s.LoadFeatureStatus("add-greeting-and-extra")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Reconcile.PatchIDMatch != nil {
+		t.Fatalf("status.Reconcile.PatchIDMatch must not be persisted on canonical-no-match path; got %+v", status.Reconcile.PatchIDMatch)
+	}
+}
+
+// TestPatchIDDetector_CanonicalMatchesEvenWhenIncrementalDiffers is the
+// positive companion to the rev-1 regression: when the canonical
+// post-apply.patch itself matches an upstream commit, phase-1.5 still
+// fires correctly even if a divergent incremental.patch is also present.
+// This guards against an over-correction that would skip phase-1.5
+// whenever incremental.patch exists.
+func TestPatchIDDetector_CanonicalMatchesEvenWhenIncrementalDiffers(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+
+	baseline := git(t, tmpDir, "rev-parse", "HEAD")
+
+	// Upstream absorbs greeting.txt — matches the canonical patch below.
+	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+	gitAdd(t, tmpDir, "greeting.txt")
+	gitCommit(t, tmpDir, "upstream absorbed greeting")
+	upstreamTip := git(t, tmpDir, "rev-parse", "HEAD")
+
+	// Upstream removes greeting.txt so phase-1 can't trivially succeed.
+	os.Remove(filepath.Join(tmpDir, "greeting.txt"))
+	git(t, tmpDir, "add", "-A")
+	gitCommit(t, tmpDir, "upstream later removed greeting")
+	tip := git(t, tmpDir, "rev-parse", "HEAD")
+
+	writeLock(t, tmpDir, "origin", "main", baseline)
+
+	s.AddFeature(store.AddFeatureInput{Title: "Add greeting", Request: "Add greeting"})
+	s.MarkFeatureState("add-greeting", store.StateApplied, "apply", "")
+
+	canonical := `diff --git a/greeting.txt b/greeting.txt
+new file mode 100644
+index 0000000..557db03
+--- /dev/null
++++ b/greeting.txt
+@@ -0,0 +1 @@
++Hello World
+`
+	// Divergent incremental — content the detector MUST NOT use.
+	incremental := `diff --git a/unrelated.txt b/unrelated.txt
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/unrelated.txt
+@@ -0,0 +1 @@
++other
+`
+	s.WriteArtifact("add-greeting", "post-apply.patch", canonical)
+	s.WriteArtifact("add-greeting", "incremental.patch", incremental)
+
+	results, err := RunReconcile(context.Background(), s, []string{"add-greeting"}, tip, nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatalf("RunReconcile: %v", err)
+	}
+	got := results[0]
+	if got.Phase != "phase-1.5-patch-id-match" {
+		t.Fatalf("expected phase-1.5-patch-id-match using canonical patch, got %s; notes=%v", got.Phase, got.Notes)
+	}
+	if got.Outcome != store.ReconcileUpstreamed {
+		t.Fatalf("expected ReconcileUpstreamed, got %s", got.Outcome)
+	}
+	if got.PatchIDMatch == nil || got.PatchIDMatch.MatchedUpstreamSHA != upstreamTip {
+		t.Fatalf("expected PatchIDMatch on upstreamTip %s; got %+v", upstreamTip, got.PatchIDMatch)
+	}
+}
+
 // TestConfigParserRoundTripsPatchIDKeys is a minimal byte-identity guard
 // for the new flat YAML keys. Default values (false / 0) must NOT be
 // emitted by SaveConfig so pre-Wave-D fixtures round-trip identically.
