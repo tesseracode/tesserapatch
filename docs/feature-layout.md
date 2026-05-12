@@ -87,8 +87,16 @@ These are written once or twice per feature, by named phases:
 - `artifacts/raw-*-response-*.txt` — one file per LLM call. Inspect when an agent did something surprising; these are what `tpatch implement` hands back to `JSONObjectValidator`.
 - `artifacts/post-apply-diff.txt` — `git diff --stat` output for quick eyeballing.
 
+## Feature ↔ commit binding (`Tpatch-Feature` trailer)
+
+When a feature is landed via [`tpatch land <slug>`](./land.md), the resulting Git commit carries a four-trailer block whose first line is `Tpatch-Feature: <slug>`. That trailer is the **sole** feature↔commit binding in tracked Git state — `git log --grep '^Tpatch-Feature: <slug>$'` enumerates every commit that lands `<slug>`. Notably, `status.json:apply.base_commit` is **not** rewritten with the new HEAD; that field stays owned by `record` / auto-base resolution (a commit cannot embed its own SHA in tracked content).
+
+The full schema (four trailers, ordering, and the additive `Tpatch-CVE` reservation for hotfix) is locked in [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](./adrs/ADR-019-tpatch-land-trailer-block-schema.md). See [`docs/land.md`](./land.md) for the operator-facing contract.
+
 ## Related
 
 - [Recording Patches](./record.md) — when and how to run `tpatch record` (plus the anti-pattern refusal).
+- [Landing Features as Git Commits](./land.md) — `tpatch land`, the trailer-block producer.
+- [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](./adrs/ADR-019-tpatch-land-trailer-block-schema.md) — locks the four-trailer schema.
 - `SPEC.md` — authoritative CLI surface and state machine.
 - `AGENTS.md` — file ownership matrix for the implementation team.

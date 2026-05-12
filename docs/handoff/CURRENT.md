@@ -2,12 +2,90 @@
 
 ## Active Task
 
-- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` implementation (PRD-tpatch-land)
+- **Task ID**: `m17-wave-c-tpatch-land` — M17 Wave C `tpatch land` implementation (PRD-tpatch-land), rev-1
 - **Milestone**: M17 — boundary-capture cluster, v0.8.0
-- **Status**: Wave A shipped. Wave B + Wave D rev-1 implemented (awaiting review). **Wave C implemented (awaiting review)**.
+- **Status**: Wave A shipped. Wave B + Wave D rev-1 implemented (awaiting review). **Wave C rev-1 implemented** (sub-agent reviewer flagged 3 fixes, all addressed; awaiting re-review).
 - **Assigned**: 2026-05-13
 
-## Wave C — Just Implemented (2026-05-13)
+## Wave C rev-1 (2026-05-13) — addressing sub-agent reviewer findings
+
+Three findings from the sub-agent reviewer were addressed in rev-1.
+All surgical, no scope expansion.
+
+1. **LOW — ADR reference typo** (`internal/cli/land.go:10`). Comment cited
+   `ADR-002-land-trailer-schema.md`; the actual file is
+   `docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`. Updated.
+2. **MEDIUM — Missing hard-parent gate test**. PRD §6 ac.15 / §3.2 #7
+   require an explicit test for `workflow.CheckDependencyGate` when
+   fired from `land`. Added `TestLand_Refuses_HardParent` to
+   `internal/cli/land_test.go`. Mirrors
+   `TestApplyExecute_BlockedByHardDep_FlagOn`: enables
+   `features_dependencies`, plants a `parent-feature` in `analyzed`,
+   gives `extra-button` a hard dep on it, runs land, asserts: non-zero
+   exit, refusal contains the gate's canonical wrapper string
+   (`"hard parent dependency not applied"`), refusal names the parent
+   slug, refusal mentions `unsatisfied hard dependency`,
+   `git rev-parse HEAD` unchanged, no `Tpatch-Feature` commit exists,
+   tracked file content unchanged, `status.notes` does NOT contain
+   `landed at` (gate fires before notes mutation in land.go:112 vs 169).
+   Sanity-check: temporarily replaced the gate call with a no-op; the
+   test failed as designed (a *different* refusal — extras — kicked in
+   instead, proving the test isolates the gate); restored.
+3. **MEDIUM — Missing `docs/land.md`**. PRD §6 ac.16 explicitly requires
+   it. Created `docs/land.md` mirroring the structure/tone of
+   `docs/record.md` and `docs/reconcile.md`: command surface (§3.1),
+   pre-flight refusals (all 7 from §3.2), safe staging algorithm (§3.3),
+   trailer block (§3.4 with ADR-019 reference), dry-run contract (§3.5),
+   post-conditions (§3.6), error recovery (§3.7), composition with
+   reconcile patterns A/B (§4), boundary with `cycle` (§5). Cross-links
+   added FROM `docs/record.md` (Pattern A composed-alternative note +
+   Related), `docs/reconcile.md` (Pattern A/B intro + Related), and
+   `docs/feature-layout.md` (new "Feature ↔ commit binding" section
+   citing ADR-019 + Related) TO `docs/land.md`.
+
+### Files changed (rev-1 only)
+
+- `internal/cli/land.go` — ADR reference typo (line 10).
+- `internal/cli/land_test.go` — added `TestLand_Refuses_HardParent`
+  (`store` import added).
+- `docs/land.md` — **new** file (full command contract).
+- `docs/record.md` — composed-alternative note in §A; Related list updated.
+- `docs/reconcile.md` — Two-supported-patterns intro mentions land;
+  Related list updated.
+- `docs/feature-layout.md` — new "Feature ↔ commit binding (`Tpatch-Feature`
+  trailer)" section citing ADR-019 + `docs/land.md`; Related list updated.
+- `docs/handoff/CURRENT.md` — this update + corrected ac.4 / ac.15 mapping
+  (see table below).
+
+### Verification (rev-1)
+
+- `gofmt -l .` clean.
+- `go build ./cmd/tpatch` clean.
+- `go test ./internal/cli -run TestLand_ -count=1 -v` — all 20 land
+  tests PASS (19 original + new `TestLand_Refuses_HardParent`).
+- Pre-fix sanity: with the gate call replaced by a no-op, the new test
+  FAILS (a different refusal fires, confirming the test exercises the
+  intended path). Restored.
+- `go test ./assets -run TestSkillParityGuard -count=1 -v` PASS.
+- `go test ./...` all packages green.
+
+### What was NOT touched (rev-1)
+
+- `docs/state-of-the-art/` (untracked user research) — preserved.
+- "Side Research" section below — preserved verbatim.
+- Wave A2 lock-guard region of `reconcile.go` (~lines 560-700) — untouched.
+- Wave D phase-1.5 region in `reconcile.go` (~lines 196-236) and all
+  `patch_id_detector*.go` — untouched.
+- Wave B `internal/cli/record_collision*.go` — untouched.
+- Wave A1 `internal/cli/record_auto*.go` — untouched.
+- Wave C trailer-block schema, command surface, `embedRecord`
+  composition — untouched (already approved; only the ADR ref typo).
+- Skill assets (`assets/skills/**`, `assets/workflows/**`,
+  `assets/prompts/**`, `assets/assets_test.go`) — untouched in rev-1.
+
+---
+
+## Wave C — Original Implementation (2026-05-13)
 
 **Status**: Implementation complete on a working branch / staged commits, awaiting sub-agent reviewer + external supervisor.
 
@@ -62,7 +140,7 @@ All 19 `TestLand_*` tests pass. Parity guard green. `gofmt` and `go build ./cmd/
 | ac.1 success / one commit | `TestLand_Success_OneCommit_FourTrailers` |
 | ac.2 dry-run no mutation | `TestLand_DryRun_NoMutation` |
 | ac.3 four-trailer block | `TestLand_Success_OneCommit_FourTrailers` + `TestLand_TrailerSHAs_DeterministicAndAccurate` |
-| ac.4 (preflight refusals) | `TestLand_Refuses_*` (conflict markers, orig-rej, mid-merge, hard-parent) |
+| ac.4 staging scope (extras strict / allow) | `TestLand_RefusesExtras_StrictByDefault` + `TestLand_AllowExtraPaths_Stages` |
 | ac.5 base-commit not overwritten | `TestLand_BaseCommitUnchanged` |
 | ac.6 working tree clean | `TestLand_Success_OneCommit_FourTrailers` (asserts clean) |
 | ac.7 status notes | `TestLand_StatusNotesUpdated` |
@@ -73,7 +151,7 @@ All 19 `TestLand_*` tests pass. Parity guard green. `gofmt` and `go build ./cmd/
 | ac.12 --auto/--from mutex | `TestLand_AutoFromMutex` |
 | ac.13 re-record round-trip | `TestLand_ReRecord_Roundtrip` |
 | ac.14 pre-commit hook | `TestLand_PreCommitHookRecovery` |
-| ac.15 --no-record retry | `TestLand_NoRecord_RetriesStagedIndex` |
+| ac.15 hard-parent dep gate | `TestLand_Refuses_HardParent` (added in rev-1) |
 | ac.16 help mentions contract | `TestLand_HelpMentionsContract` |
 | ac.17 cross-feature collision | `TestLand_Refuses_CrossFeatureCollision` |
 

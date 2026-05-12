@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 // gitCommitOnly stages and commits the current working-tree edits with
@@ -632,5 +634,96 @@ func TestLand_Refuses_CrossFeatureCollision(t *testing.T) {
 	out, _ := c.CombinedOutput()
 	if strings.TrimSpace(string(out)) != "" {
 		t.Errorf("no commit should have landed on collision; out=%q", out)
+	}
+}
+
+// TestLand_Refuses_HardParent — PRD §6 ac.15 / §3.2 refusal #7. With
+// the features_dependencies flag on and an unsatisfied hard parent,
+// `tpatch land <child>` must refuse with the same diagnostic the
+// apply-time gate emits (workflow.CheckDependencyGate /
+// internal/workflow/dependency_gate.go), exit non-zero, create no
+// commit, and leave the working tree (HEAD + tracked content) at the
+// pre-land state. Mirrors TestApplyExecute_BlockedByHardDep_FlagOn but
+// fired through `land`.
+func TestLand_Refuses_HardParent(t *testing.T) {
+	tmpDir, childSlug, baseHead := setupLandFixture(t)
+
+	// Add a sibling parent feature; child gets a hard dep on it.
+	// The parent is left in StateAnalyzed — the gate (ADR-011 D4 /
+	// docs/dependencies.md:96-112) requires applied / upstream_merged.
+	if _, _, code := runCmd("add", "--path", tmpDir, "Parent feature"); code != 0 {
+		t.Fatal("add parent failed")
+	}
+	parentSlug := "parent-feature"
+
+	s, err := store.Open(tmpDir)
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.FeaturesDependencies = true
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	parent, _ := s.LoadFeatureStatus(parentSlug)
+	parent.State = store.StateAnalyzed
+	if err := s.SaveFeatureStatus(parent); err != nil {
+		t.Fatalf("SaveFeatureStatus parent: %v", err)
+	}
+	child, _ := s.LoadFeatureStatus(childSlug)
+	child.DependsOn = []store.Dependency{
+		{Slug: parentSlug, Kind: store.DependencyKindHard},
+	}
+	if err := s.SaveFeatureStatus(child); err != nil {
+		t.Fatalf("SaveFeatureStatus child: %v", err)
+	}
+
+	// Snapshot HEAD + tracked file content before invoking land.
+	preHead := gitHead(t, tmpDir)
+	if preHead != baseHead {
+		t.Fatalf("setup invariant: preHead %q != baseHead %q", preHead, baseHead)
+	}
+	preTracked, _ := os.ReadFile(filepath.Join(tmpDir, "src", "tracked.txt"))
+
+	_, stderr, code := runCmdWithError("land", "--path", tmpDir, childSlug)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit when hard parent blocks land; stderr=%q", stderr)
+	}
+
+	// Same diagnostic as the apply-time gate (verbatim from
+	// workflow.CheckDependencyGate). The error message must name the
+	// blocking parent slug and use the canonical wrapper string.
+	if !strings.Contains(stderr, "hard parent dependency not applied") {
+		t.Errorf("refusal must use the gate's canonical wrapper string; stderr=%q", stderr)
+	}
+	if !strings.Contains(stderr, parentSlug) {
+		t.Errorf("refusal must name blocking parent %q; stderr=%q", parentSlug, stderr)
+	}
+	if !strings.Contains(stderr, "unsatisfied hard dependency") {
+		t.Errorf("refusal must explain unsatisfied hard dependency; stderr=%q", stderr)
+	}
+
+	// No commit was created — git rev-parse HEAD unchanged.
+	if got := gitHead(t, tmpDir); got != preHead {
+		t.Errorf("HEAD must be unchanged after refusal; pre=%s post=%s", preHead, got)
+	}
+	g := exec.Command("git", "log", "--grep", "^Tpatch-Feature: "+childSlug+"$", "--pretty=%H")
+	g.Dir = tmpDir
+	out, _ := g.CombinedOutput()
+	if strings.TrimSpace(string(out)) != "" {
+		t.Errorf("no Tpatch-Feature commit should exist after refusal; out=%q", out)
+	}
+
+	// Working tree unchanged — the gate fires before staging /
+	// status.notes mutation in land.go (PRD §3.2 #7 + §3.7).
+	gotTracked, _ := os.ReadFile(filepath.Join(tmpDir, "src", "tracked.txt"))
+	if string(gotTracked) != string(preTracked) {
+		t.Errorf("tracked file mutated despite refusal; pre=%q post=%q", preTracked, gotTracked)
+	}
+	// status.notes must NOT have been written (gate runs at line
+	// 112; notes mutation is at line 169 in land.go).
+	afterChild, _ := s.LoadFeatureStatus(childSlug)
+	if strings.Contains(afterChild.Notes, "landed at ") {
+		t.Errorf("status.notes must not record 'landed at' on a refusal; got=%q", afterChild.Notes)
 	}
 }

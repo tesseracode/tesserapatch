@@ -18,6 +18,8 @@ git add -A && git commit -m "feat: fix model translation"
 
 `record` captures unstaged modifications plus untracked files (via `git add --intent-to-add`, so untracked files appear in the diff). This is the common path and matches the default cycle.
 
+> **Composed alternative**: `tpatch land <slug>` does (record → safe path-set staging → one Git commit) in a single verb and writes the four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) for you. See [`docs/land.md`](./land.md). Prefer `land` when you would otherwise immediately follow `record` with `git add` + `git commit`.
+
 ### B. Record from commits after the fact
 
 If you already ran `git commit` before realising you needed `record`, pass `--from <base>`:
@@ -62,6 +64,7 @@ Previously this produced a 0-byte patch, advanced the feature state to `applied`
 ## Related
 
 - `docs/reconcile.md` — what happens to patches when upstream changes under you.
+- [`docs/land.md`](./land.md) — `tpatch land`, the composed alternative for `record + git add + git commit`.
 - `SPEC.md` — authoritative CLI surface.
 - The skill files (`assets/skills/**`) carry a one-liner version of this rule for agents.
 

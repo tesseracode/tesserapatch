@@ -15,6 +15,8 @@ The verdict is written to each feature's `status.json` and surfaced in the termi
 
 ## Two supported patterns
 
+Both patterns assume each feature has a well-formed feature commit (or an explicit "feature-as-patch" record). [`tpatch land <slug>`](./land.md) is the recommended producer of those well-formed commits for **both** patterns: it composes (record → safe path-set staging → one Git commit) and writes the locked four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) so reconcile and downstream audit tooling have a stable feature↔commit binding to grep for.
+
 ### Pattern A — Pristine main, features as patches
 
 - `main` branch is a pure mirror of upstream.
@@ -103,5 +105,6 @@ Reconcile prints this hint when `.tpatch/` is absent from `git ls-files`. Your f
 ## Related
 
 - [Recording Patches](./record.md) — covers the sibling `tpatch record` command.
+- [Landing Features as Git Commits](./land.md) — `tpatch land`, producer of well-formed feature commits for both Pattern A (feature-branch mode) and Pattern B (default mode).
 - [Feature Layout](./feature-layout.md) — which files reconcile reads (and which it ignores).
 - `SPEC.md` — authoritative CLI surface.

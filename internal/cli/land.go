@@ -7,7 +7,7 @@
 // Tpatch-Recipe-SHA, Tpatch-Base-Commit).
 //
 // PRD: docs/prds/PRD-tpatch-land.md
-// ADR: docs/adrs/ADR-002-land-trailer-schema.md
+// ADR: docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md
 package cli
 
 import (
