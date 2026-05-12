@@ -1,3 +1,31 @@
+## Review — m17-wave-d-rev1-impl (commit 1d4a89f) — 2026-05-11
+
+**Reviewer**: copilot-cli sub-agent (layered discovery review)
+**Task**: Verify Wave D rev-1 fix for the external supervisor's Medium finding on `c07e4e2` — phase-1.5 detector was receiving the legacy reconcile patch (which prefers `incremental.patch`) instead of canonical `post-apply.patch` per PRD-patch-already-upstream-detector.md §5.1.
+
+### Checklist
+- [x] Scope verified: 5 files (`reconcile.go` phase-1.5 region only, new tests in `patch_id_detector_test.go`, CHANGELOG, CURRENT, LOG). No record-side, lock-guard, store, or skill changes.
+- [x] `gofmt -l .`, `go build ./cmd/tpatch`, `go test ./...`, `TestSkillParityGuard` all green
+- [x] Pre-fix sanity: both new tests verified load-bearing — would FAIL on pre-fix `c07e4e2` code path; PASS on `1d4a89f`
+- [x] **Default-OFF preservation (CRITICAL)**: canonical load at `reconcile.go:206` is strictly inside `if storeCfg.PatchIDDetectorEnabled` gate; no extra I/O when flag false; `TestPatchIDDetector_DefaultOffNoOp` still passes
+- [x] **Phases 2/3/4 unchanged (CRITICAL)**: legacy `patch` variable at lines 166-169 unchanged; still consumed at lines 265, 267, 289 (incremental-first intentional for GAP 4 multi-feature derivation)
+- [x] **Fail-soft on missing/empty canonical**: line 208 handles `canonErr != nil || strings.TrimSpace(canonical) == ""` → skip with reason `"phase 1.5 skipped: no canonical post-apply.patch artifact"` → falls through to phase 2; **no fallback to incremental** (grep confirms zero "incremental" references in lines 206-235)
+- [x] **Wave A2 lock-guard non-regression (CRITICAL)**: single hunk in phase-1.5 region (~lines 196-236); lock-guard region (~651-669) and `updateUpstreamLock` writer byte-identical; no `internal/gitutil/` changes
+- [x] Regression test quality: negative test (`TestPatchIDDetector_PrefersCanonicalOverIncremental`) replicates external supervisor's reproducer (canonical 2 files vs incremental 1 file matching upstream); positive test (`TestPatchIDDetector_CanonicalMatchesEvenWhenIncrementalDiffers`) guards against over-correction; both use realistic git histories with absorption + later removal to prevent phase-1 reverse-apply trivial success
+- [x] Edge cases probed: empty `post-apply.patch`, missing artifact, malformed patch (caught by `runPatchIDDetector` line 62-64), I/O errors — all fail-soft handled
+- [x] Schema back-compat: `PatchIDMatch *PatchIDMatch` `omitempty` unchanged; no `internal/store/` changes
+
+### Findings
+**None.** Surgical, correct fix. PRD §5.1 contract precisely implemented.
+
+### Verdict: **APPROVED**
+
+### Rationale
+Rev-1 is a surgical correction of the canonical-vs-incremental artifact selection bug. All critical invariants preserved (default-OFF, phase 2/3/4 behavior, Wave A2 lock-guard, schema back-compat). Both regression tests are load-bearing and explicitly cover the external supervisor's reproducer scenario. Code quality excellent; zero collateral damage.
+
+### Action Taken
+Verdict logged. Awaiting external supervisor re-verification of the reproducer scenario before tracking close. Wave C remains unblocked (depends on A1+A2+B; not blocked by D).
+
 ## Review — M17 Wave B + Wave D (commits b0a434a + c07e4e2) — 2026-05-11
 
 **Reviewers**: two parallel copilot-cli sub-agents (one per slice)
