@@ -1,3 +1,33 @@
+## Review — m17-wave-a1-rev1-impl (commit 4484e04) — 2026-05-11
+
+**Reviewer**: copilot-cli sub-agent (layered discovery review)
+**Task**: Verify A1 rev-1 fixes for the two external-supervisor findings on 1d6179c
+
+### Checklist
+- [x] Layer 1 — Implementation gates (gofmt clean, build ok, full suite green; `TestRecordAuto*` 7/7 — 5 prior + 2 new; skill parity guard 6/6)
+- [x] Layer 2 — Finding 1 fix (zero-diff refusal): `cobra.go:913` hoists `autoResolved`, `cobra.go:1003-1032` refuses on `autoResolved != nil` with structured diagnostic; explicit-range path preserved at `cobra.go:1037`
+- [x] Layer 3 — Finding 2 fix (lock-fallback policy): `record_auto.go:65-128` tracks `lockReason` across steps 2-4; `record_auto.go:130-148` falls back to discovery + warns; hard-refuse only after discovery also fails
+- [x] Layer 4 — Tests are real assertions: both new tests (`record_auto_test.go:218-296`) use real git fixtures, assert exit codes, stderr substrings, and the discovered base SHA
+- [x] Layer 5 — Independent live repros (both findings reproduced — Finding 1 exits 1 with full diagnostic; Finding 2 exits 0, base from `origin/main`, warn line on stderr)
+- [x] Layer 6 — Regression: explicit-range path still exits 0 on empty (covered by `cobra.go:1037` else-branch and by the second half of `TestRecordAuto_EmptyCapture_AutoRefuses`)
+- [x] Layer 7 — Hands-off scope (only 5 files touched: CHANGELOG.md, docs/handoff/CURRENT.md, internal/cli/cobra.go, internal/cli/record_auto.go, internal/cli/record_auto_test.go — A2 territory, parser, PRDs/ADRs, ROADMAP/LOG/HISTORY all untouched; "Side Research" section preserved verbatim)
+- [x] Layer 8 — Tracking (CURRENT.md Active Task block updated; "Wave A1 Revision-1 Implementation" section appended; CHANGELOG v0.8.0 has `### Fixed (Wave A1 revision-1)` naming both findings transparently)
+- [x] Layer 9 — Deviation review (deviation #1: single `resolveAutoBase` call site at `cobra.go:926` updated; deviation #2: extended text at `record_auto.go:141` only on post-discovery-fail path, original Step 7 wording preserved verbatim at `record_auto.go:150`)
+
+### Verdict: APPROVED
+
+### Notes
+- Finding 1: `cobra.go:1003-1032` correctly partitions the `rangeMode` empty-patch branch on `autoResolved != nil`; the `--auto` arm emits a 3-bullet recovery hint and the diagnostic correctly pluralizes commits, names the inferred range, and echoes the pathspec. Live repro: exit 1 with promised structure.
+- Finding 2: `record_auto.go:65-148` broadens the unusable-lock predicate to cover absent OR empty-commit OR ref-doesn't-resolve OR resolved-commit-unreachable; warn-and-fallback line lands on `cmd.ErrOrStderr()` (deviation #1 made this assertable). Live repro: warn on stderr, decision line picks `origin/main`, base SHA equals discovery candidate (NOT bogus lock fields).
+- Explicit-range path did NOT regress: `cobra.go:1037` reached only when `autoResolved == nil`, asserted by code-read AND by the `--from baseSha --to HEAD --files docs/not-touched.md` arm in `TestRecordAuto_EmptyCapture_AutoRefuses` (lines 248-256).
+- A2 territory verifiably untouched: `git show --stat 4484e04` lists only the 5 in-scope files; the 5 prior `TestRecordAuto_*` cases are unmodified.
+- Both deviations are scope-appropriate; deviation #1 is a clean testability win (capturable warn writer); deviation #2 correctly extends only the new path.
+
+### Action Taken
+None — sub-agent review only. Awaiting external supervisor re-review on `4484e04` before push and v0.8.0-alpha tagging decision.
+
+---
+
 ## Review — M17 Wave A (commits 1d6179c + 8fc2e4e, reviewed as one change) — 2026-05-11
 
 **Reviewer**: copilot-cli sub-agents (two parallel layered discovery reviews)
