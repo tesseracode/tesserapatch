@@ -65,6 +65,7 @@ func buildRootCmd() *cobra.Command {
 		implementCmd(),
 		applyCmd(),
 		recordCmd(),
+		landCmd(),
 		reconcileCmd(),
 		providerCmd(),
 		configCmd(),
