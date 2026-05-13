@@ -19,14 +19,20 @@ import (
 // opt-in for `--check-applied-only`; the persisted default stays OFF.
 //
 // Returns the populated ReconcileResult exactly as RunReconcile would have
-// returned it for phases 1 / 1.5. Phase-1 reverse-apply success is itself
-// upstream-merged evidence: it sets Outcome=ReconcileUpstreamed and
-// Phase="phase-1-reverse-apply". Phase 1.5 is then run regardless and may
-// UPGRADE the verdict to the more specific Phase="phase-1.5-patch-id-match"
-// with the matched upstream SHA in UpstreamCommit / PatchIDMatch. If phase
-// 1.5 does not match (or is skipped), a prior phase-1 hit still stands as
-// the verdict. The caller distinguishes match vs no-match by Outcome, not
-// by Phase.
+// returned it for phases 1 / 1.5. Under --check-applied-only the normal
+// reconcile preflight (lock-guard + clean-tree-at-upstream baseline) is
+// skipped by design, so phase-1 reverse-apply reads the LIVE working tree
+// rather than a verified upstream state — which means phase-1 success is
+// NOT upstream-scoped evidence here (the user may simply be sitting on
+// their feature branch with the patch already applied). Phase 1.5
+// patch-id sweep is therefore the SOLE authoritative upstream-merged
+// signal under this command: it owns Outcome and Phase. Phase-1 success
+// is recorded only as a diagnostic note for operator visibility.
+//
+// In the NORMAL reconcile pipeline (internal/workflow/reconcile.go),
+// phase-1 success is legitimately upstream-merged evidence because the
+// preflight has already guaranteed tree state — that behaviour is
+// unchanged.
 func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bool) (*ReconcileResult, error) {
 	upstreamCommit, err := gitutil.ResolveRef(s.Root, upstreamRef)
 	if err != nil {
@@ -53,34 +59,32 @@ func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bo
 		UpstreamCommit: upstreamCommit,
 	}
 
-	phase1Hit := false
+	// Phase 1: live-tree reverse-apply check. Under --check-applied-only
+	// the preflight is skipped, so reverse-apply against the working
+	// tree is NOT upstream-scoped evidence — it only tells us the
+	// patched content is already in the tree (which may be the user's
+	// feature branch). Phase 1.5 patch-id sweep is the authoritative
+	// upstream-merged signal here. We still record a phase-1 success
+	// as a diagnostic note for operator visibility, but it does NOT
+	// contribute to Outcome or Phase.
 	if reverseOK, _ := gitutil.ReverseApplyCheck(s.Root, patch); reverseOK {
-		result.Outcome = store.ReconcileUpstreamed
-		result.Phase = "phase-1-reverse-apply"
-		result.Notes = append(result.Notes, "Patch is already present in upstream (reverse-apply succeeded)")
-		phase1Hit = true
+		result.Notes = append(result.Notes,
+			"phase 1 reverse-apply: working tree already contains the patched content (not an upstream-merged signal under --check-applied-only; see phase 1.5)")
 	}
 
 	cfg, _ := s.LoadConfig()
 	detectorOn := cfg.PatchIDDetectorEnabled || forceDetector
 	if !detectorOn {
-		if !phase1Hit {
-			result.Outcome = store.ReconcileStillNeeded
-			result.Phase = "phase-1.5-skipped-detector-disabled"
-			result.Notes = append(result.Notes,
-				"phase 1.5 not run: patch_id_detector_enabled=false and --check-applied-only invoked without override semantics")
-		} else {
-			result.Notes = append(result.Notes,
-				"phase 1.5 not run: patch_id_detector_enabled=false (phase 1 already matched)")
-		}
+		result.Outcome = store.ReconcileStillNeeded
+		result.Phase = "phase-1.5-skipped-detector-disabled"
+		result.Notes = append(result.Notes,
+			"phase 1.5 not run: patch_id_detector_enabled=false and --check-applied-only invoked without override semantics")
 		return result, nil
 	}
 
 	if strings.TrimSpace(patch) == "" {
-		if !phase1Hit {
-			result.Outcome = store.ReconcileStillNeeded
-			result.Phase = "phase-1.5-skipped-no-patch"
-		}
+		result.Outcome = store.ReconcileStillNeeded
+		result.Phase = "phase-1.5-skipped-no-patch"
 		result.Notes = append(result.Notes, "phase 1.5 skipped: empty post-apply.patch")
 		return result, nil
 	}
@@ -88,8 +92,6 @@ func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bo
 	det := runPatchIDDetector(s, patch, upstreamCommit, cfg.PatchIDScanLimit)
 	switch {
 	case det.Match != nil:
-		// Phase-1.5 match upgrades the verdict to the more specific
-		// phase string and pins the matched upstream SHA.
 		result.Outcome = store.ReconcileUpstreamed
 		result.Phase = "phase-1.5-patch-id-match"
 		result.UpstreamCommit = det.Match.MatchedUpstreamSHA
@@ -97,16 +99,12 @@ func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bo
 		result.Notes = append(result.Notes,
 			"Patch-id sweep matched upstream commit "+truncateCommit(det.Match.MatchedUpstreamSHA))
 	case det.Skipped:
-		if !phase1Hit {
-			result.Outcome = store.ReconcileStillNeeded
-			result.Phase = "phase-1.5-skipped"
-		}
+		result.Outcome = store.ReconcileStillNeeded
+		result.Phase = "phase-1.5-skipped"
 		result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
 	default:
-		if !phase1Hit {
-			result.Outcome = store.ReconcileStillNeeded
-			result.Phase = "phase-1.5-no-match"
-		}
+		result.Outcome = store.ReconcileStillNeeded
+		result.Phase = "phase-1.5-no-match"
 		result.Notes = append(result.Notes, "phase 1.5 found no upstream commit with a matching patch-id")
 	}
 	return result, nil

@@ -386,14 +386,15 @@ index 0000000..abc1234
 	}
 }
 
-// TestReconcileCheckAppliedOnly_Phase1HitExitsZero — regression for
-// external review F2 end-to-end: the working tree already contains the
-// patched file (so phase-1 reverse-apply succeeds) and the patch-id
-// sweep does not match any upstream commit. Before the fix, the CLI
-// returned ExitCodeError{Code:2} with "no phase-1.5 patch-id match"
-// even though stdout printed the [upstreamed] verdict. After the fix,
-// exit code 0 because Outcome == ReconcileUpstreamed.
-func TestReconcileCheckAppliedOnly_Phase1HitExitsZero(t *testing.T) {
+// TestReconcileCheckAppliedOnly_Phase1HitAlonePhase15NoMatchExitsTwo —
+// regression for external review F3 (rev-2): the working tree already
+// contains the patched file (so phase-1 reverse-apply succeeds) and
+// the patch-id sweep does not match any upstream commit. Under
+// --check-applied-only the preflight is skipped, so phase-1 is NOT
+// upstream-scoped evidence — phase-1.5 owns the verdict. The CLI must
+// therefore exit 2, and stdout must still surface the phase-1
+// diagnostic note for operator visibility.
+func TestReconcileCheckAppliedOnly_Phase1HitAlonePhase15NoMatchExitsTwo(t *testing.T) {
 	slug := "add-greeting"
 	tmpDir := t.TempDir()
 	gitInitTestRepo(t, tmpDir)
@@ -439,15 +440,93 @@ index 0000000..557db03
 	root.SetOut(&out)
 	root.SetErr(&errBuf)
 	root.SetArgs([]string{"reconcile", "--path", tmpDir, "--upstream-ref", tip, "--check-applied-only", slug})
-	if err := root.Execute(); err != nil {
-		t.Fatalf("expected nil error on phase-1 reverse-apply hit (exit 0); got %v\nstdout=%s\nstderr=%s",
-			err, out.String(), errBuf.String())
+	err = root.Execute()
+	if err == nil {
+		t.Fatalf("expected non-nil error (exit 2) when phase-1.5 finds no upstream match; stdout=%s", out.String())
 	}
-	if !strings.Contains(out.String(), "[upstreamed]") {
-		t.Errorf("expected [upstreamed] verdict in stdout; got:\n%s", out.String())
+	ec := asExitCodeError(err)
+	if ec == nil {
+		t.Fatalf("expected *ExitCodeError, got %T: %v", err, err)
 	}
-	if !strings.Contains(out.String(), "phase-1-reverse-apply") {
-		t.Errorf("expected phase-1-reverse-apply in stdout; got:\n%s", out.String())
+	if ec.Code != 2 {
+		t.Errorf("expected exit code 2, got %d", ec.Code)
+	}
+	if !strings.Contains(out.String(), "working tree already contains the patched content") {
+		t.Errorf("expected phase-1 diagnostic note in stdout for operator visibility; got:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "phase-1.5-no-match") {
+		t.Errorf("expected phase-1.5-no-match in stdout; got:\n%s", out.String())
+	}
+}
+
+// TestReconcileCheckAppliedOnly_LocalOnlyPatchAbsentUpstreamExitsTwo —
+// external review F3 (rev-2) repro. The upstream ref history contains
+// only unrelated changes (no patched file, no patch-id match), but the
+// patched file is present in the live working tree (user is sitting on
+// their feature branch). Before the rev-2 fix the command exited 0
+// with [upstreamed] because phase-1 reverse-apply against the live
+// working tree succeeded — even though the upstream ref clearly did
+// not contain the patch. After rev-2, phase-1.5 owns the verdict and
+// the command exits 2.
+func TestReconcileCheckAppliedOnly_LocalOnlyPatchAbsentUpstreamExitsTwo(t *testing.T) {
+	slug := "add-greeting"
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	baseline := gitHead(t, tmpDir)
+
+	// Upstream history contains only an unrelated commit — no
+	// greeting.txt, no patch-id match.
+	os.WriteFile(filepath.Join(tmpDir, "unrelated.txt"), []byte("unrelated\n"), 0o644)
+	runGitInTest(t, tmpDir, "add", "unrelated.txt")
+	runGitInTest(t, tmpDir, "commit", "-m", "unrelated upstream change")
+	tip := gitHead(t, tmpDir)
+
+	// Live working tree has the patched file (typical state: user is
+	// on their feature branch with the patch already applied).
+	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("store.Init: %v", err)
+	}
+	lockBody := []byte("remote: \"origin\"\nbranch: \"main\"\ncommit: \"" + baseline + "\"\nurl: \"\"\n")
+	os.WriteFile(filepath.Join(tmpDir, ".tpatch", "upstream.lock"), lockBody, 0o644)
+
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "Add greeting", Request: "Add greeting", Slug: slug}); err != nil {
+		t.Fatalf("AddFeature: %v", err)
+	}
+	s.MarkFeatureState(slug, store.StateApplied, "apply", "")
+	patch := `diff --git a/greeting.txt b/greeting.txt
+new file mode 100644
+index 0000000..557db03
+--- /dev/null
++++ b/greeting.txt
+@@ -0,0 +1 @@
++Hello World
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+		t.Fatalf("WriteArtifact: %v", err)
+	}
+
+	root := buildRootCmd()
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errBuf)
+	root.SetArgs([]string{"reconcile", "--path", tmpDir, "--upstream-ref", tip, "--check-applied-only", slug})
+	err = root.Execute()
+	if err == nil {
+		t.Fatalf("F3 repro: expected non-nil error (exit 2) when upstream lacks the patch; stdout=%s\nstderr=%s",
+			out.String(), errBuf.String())
+	}
+	ec := asExitCodeError(err)
+	if ec == nil {
+		t.Fatalf("expected *ExitCodeError, got %T: %v", err, err)
+	}
+	if ec.Code != 2 {
+		t.Errorf("expected exit code 2, got %d", ec.Code)
+	}
+	if !strings.Contains(out.String(), "phase 1.5 found no upstream commit with a matching patch-id") {
+		t.Errorf("expected phase-1.5 no-match note in stdout; got:\n%s", out.String())
 	}
 }
 

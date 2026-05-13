@@ -23,9 +23,15 @@ import (
 // per ADR-022 deferral track).
 //
 // Exit codes:
-//   - 0 — Outcome == ReconcileUpstreamed (phase-1 reverse-apply hit
-//     OR phase-1.5 patch-id match, or both)
+//   - 0 — Outcome == ReconcileUpstreamed (phase-1.5 patch-id sweep
+//     matched an upstream commit)
 //   - 2 — Outcome == ReconcileStillNeeded (no upstream evidence)
+//
+// Phase-1 reverse-apply produces a diagnostic note but does NOT
+// influence the exit code under this command, because
+// `--check-applied-only` skips the normal reconcile preflight and
+// therefore cannot trust the working tree as a proxy for upstream
+// state. Only phase-1.5 sets Outcome=ReconcileUpstreamed here.
 //
 // Other failures (unreadable patch, missing slug, git plumbing errors)
 // surface as ordinary CLI errors and collapse to exit 1 via the

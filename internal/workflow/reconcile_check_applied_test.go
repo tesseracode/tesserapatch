@@ -248,8 +248,8 @@ func TestCheckAppliedOnly_Phase1Hit_AlsoPhase15Match(t *testing.T) {
 		t.Fatalf("expected PatchIDMatch populated on phase-1.5 upgrade")
 	}
 	joined := strings.Join(res.Notes, "\n")
-	if !strings.Contains(joined, "reverse-apply succeeded") {
-		t.Errorf("expected phase-1 note in result.Notes:\n%s", joined)
+	if !strings.Contains(joined, "working tree already contains the patched content") {
+		t.Errorf("expected phase-1 diagnostic note in result.Notes:\n%s", joined)
 	}
 	if !strings.Contains(joined, "Patch-id sweep matched") {
 		t.Errorf("expected phase-1.5 match note in result.Notes:\n%s", joined)
@@ -257,10 +257,12 @@ func TestCheckAppliedOnly_Phase1Hit_AlsoPhase15Match(t *testing.T) {
 }
 
 // TestCheckAppliedOnly_Phase1Hit_Phase15NoMatch — regression for
-// external review F2: phase-1 reverse-apply hits, detector is on, but
-// phase-1.5 finds no patch-id match. The phase-1 evidence stands;
-// Outcome must remain Upstreamed and Phase must remain
-// "phase-1-reverse-apply" (NOT downgraded to "phase-1.5-no-match").
+// external review F3 (rev-2): phase-1 reverse-apply hits, detector is
+// on, but phase-1.5 finds no patch-id match. Under --check-applied-only
+// the preflight is skipped, so phase-1 success is NOT upstream-scoped
+// evidence — phase-1.5 owns the verdict. Outcome must be
+// ReconcileStillNeeded and Phase must be "phase-1.5-no-match". The
+// phase-1 diagnostic note still appears for operator visibility.
 func TestCheckAppliedOnly_Phase1Hit_Phase15NoMatch(t *testing.T) {
 	tmpDir, slug, tip := setupPhase1HitFixture(t, false /* alsoPhase15Match */)
 
@@ -275,21 +277,27 @@ func TestCheckAppliedOnly_Phase1Hit_Phase15NoMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CheckAppliedOnly: %v", err)
 	}
-	if res.Outcome != store.ReconcileUpstreamed {
-		t.Fatalf("phase-1 hit must keep Outcome=Upstreamed; got %s notes=%v", res.Outcome, res.Notes)
+	if res.Outcome != store.ReconcileStillNeeded {
+		t.Fatalf("phase-1.5 no-match under --check-applied-only must yield ReconcileStillNeeded; got %s notes=%v", res.Outcome, res.Notes)
 	}
-	if res.Phase != "phase-1-reverse-apply" {
-		t.Fatalf("phase-1.5 no-match must NOT downgrade phase-1 verdict; phase=%s notes=%v", res.Phase, res.Notes)
+	if res.Phase != "phase-1.5-no-match" {
+		t.Fatalf("expected Phase=phase-1.5-no-match; got %s notes=%v", res.Phase, res.Notes)
 	}
 	if res.PatchIDMatch != nil {
 		t.Fatalf("PatchIDMatch must be nil when phase-1.5 did not match; got %+v", res.PatchIDMatch)
 	}
+	joined := strings.Join(res.Notes, "\n")
+	if !strings.Contains(joined, "working tree already contains the patched content") {
+		t.Errorf("expected phase-1 diagnostic note still present for operator visibility; notes=\n%s", joined)
+	}
 }
 
 // TestCheckAppliedOnly_Phase1Hit_DetectorOff — regression for external
-// review F2: phase-1 reverse-apply hits, detector is OFF on disk, and
-// forceDetector=false. The phase-1 verdict stands; phase must NOT be
-// the "skipped-detector-disabled" downgrade.
+// review F3 (rev-2): phase-1 reverse-apply hits, detector is OFF on
+// disk, and forceDetector=false. Phase 1.5 is the sole upstream-scoped
+// signal, so when it's not run the result must be ReconcileStillNeeded
+// with Phase="phase-1.5-skipped-detector-disabled". The phase-1
+// diagnostic note still appears.
 func TestCheckAppliedOnly_Phase1Hit_DetectorOff(t *testing.T) {
 	tmpDir, slug, tip := setupPhase1HitFixture(t, true)
 
@@ -305,10 +313,14 @@ func TestCheckAppliedOnly_Phase1Hit_DetectorOff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CheckAppliedOnly: %v", err)
 	}
-	if res.Outcome != store.ReconcileUpstreamed {
-		t.Fatalf("phase-1 hit must keep Outcome=Upstreamed; got %s", res.Outcome)
+	if res.Outcome != store.ReconcileStillNeeded {
+		t.Fatalf("detector-off under --check-applied-only must yield ReconcileStillNeeded; got %s", res.Outcome)
 	}
-	if res.Phase != "phase-1-reverse-apply" {
-		t.Fatalf("detector-off with phase-1 hit must keep Phase=phase-1-reverse-apply; got %s notes=%v", res.Phase, res.Notes)
+	if res.Phase != "phase-1.5-skipped-detector-disabled" {
+		t.Fatalf("expected Phase=phase-1.5-skipped-detector-disabled; got %s notes=%v", res.Phase, res.Notes)
+	}
+	joined := strings.Join(res.Notes, "\n")
+	if !strings.Contains(joined, "working tree already contains the patched content") {
+		t.Errorf("expected phase-1 diagnostic note still present for operator visibility; notes=\n%s", joined)
 	}
 }

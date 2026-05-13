@@ -5,7 +5,7 @@
 - **Task ID**: `v0.8.1-wave-d-deferrals` (kickoff)
 - **Milestone**: v0.8.1 marquee — Wave D detector tails
 - **Description**: Land four post-detector deferrals: (1) `tpatch reconcile --check-applied-only` flag (PRD §3.2), (2) `tpatch reconcile --auto-drop-merged` flag (PRD §3.3), (3) ADR-022 documenting the **deferral** of `Config.PatchIDDetectorEnabled` default-on flip, (4) ADR-023 documenting the **deferral** of hotfix-kind auto-drop default. Items 1+2 are CLI/code; items 3+4 are docs-only. Process rule (user-confirmed): ADR only when flipping a default OR changing lifecycle automation; pure CLI surface adds ship without ADR. ADRs use Status: **Accepted** with the decision being "defer to ≥v0.9 pending criteria below" — not "Proposed/undecided".
-- **Status**: rev-1 fix complete — awaiting external review. (Items 3+4 ADRs still owned by supervisor track.)
+- **Status**: rev-2 fix complete — awaiting external review. (Items 3+4 ADRs still owned by supervisor track.)
 - **Assigned**: 2026-05-14.
 
 ## Session Summary
@@ -108,6 +108,65 @@ Opening the v0.8.1 marquee. Latest finalized stack before this kickoff: tracking
 ## Blockers
 
 None.
+
+## Findings addressed (rev-2)
+
+- **F3 (MEDIUM) — false-positive `--check-applied-only` success on local-only
+  patch**: rev-1 baselined `Outcome=ReconcileUpstreamed` whenever phase-1
+  reverse-apply succeeded. But `--check-applied-only` deliberately skips the
+  normal reconcile preflight (lock-guard + clean-tree-at-upstream baseline),
+  so phase-1 reverse-apply reads the LIVE working tree, not a verified
+  upstream state — meaning a user sitting on their feature branch with the
+  patch already applied trivially passed phase-1 while the upstream ref did
+  not contain the patch at all. Result: exit 0 + `[upstreamed]` on
+  local-only patches. Fix: under `CheckAppliedOnly`, phase-1 reverse-apply
+  now emits a diagnostic note only; phase-1.5 patch-id sweep is the sole
+  authoritative upstream-merged signal and owns both Outcome and Phase.
+  Normal reconcile pipeline (`internal/workflow/reconcile.go`) is
+  unchanged — its preflight still legitimizes phase-1 as upstream-merged
+  evidence in that context.
+
+## Files Changed (rev-2)
+
+- `internal/workflow/reconcile_check_applied.go` — phase-1 reverse-apply
+  emits a diagnostic note only under `CheckAppliedOnly`; phase-1.5 owns
+  Outcome/Phase. Function doc comment rewritten.
+- `internal/workflow/reconcile_check_applied_test.go` — three rev-1 tests
+  updated for new Outcome/Phase under check-applied semantics
+  (`Phase1Hit_AlsoPhase15Match` retains its assertion shape but expects the
+  new phase-1 diagnostic note text; `Phase1Hit_Phase15NoMatch` now expects
+  `ReconcileStillNeeded` + `phase-1.5-no-match`; `Phase1Hit_DetectorOff`
+  now expects `ReconcileStillNeeded` + `phase-1.5-skipped-detector-disabled`).
+- `internal/cli/reconcile_check_applied.go` — doc comment rewritten:
+  exit-code 0 is now phase-1.5-only; phase-1 note is diagnostic only.
+  Outcome-based exit predicate unchanged (correct under the new contract
+  since only phase-1.5 sets Upstreamed).
+- `internal/cli/reconcile_check_applied_test.go` — `…_Phase1HitExitsZero`
+  renamed to `…_Phase1HitAlonePhase15NoMatchExitsTwo` and inverted to
+  assert `*ExitCodeError{Code:2}`. NEW `…_LocalOnlyPatchAbsentUpstreamExitsTwo`
+  reproduces the supervisor's exact F3 case (upstream ref contains only
+  unrelated commits; patched file present in live working tree; expects
+  exit 2).
+- `docs/handoff/CURRENT.md` — this file (status flip + rev-2 sections).
+
+## Test Results (rev-2)
+
+- `gofmt -l .` → empty.
+- `go vet ./...` → clean.
+- `go build ./cmd/tpatch` → clean.
+- `go test ./... -race -count=1` → all packages PASS:
+  - `assets` 3.382s
+  - `internal/buildinfo` 3.040s
+  - `internal/cli` 58.287s
+  - `internal/gitutil` 14.960s
+  - `internal/provider` 14.982s
+  - `internal/safety` 5.088s
+  - `internal/store` 6.676s
+  - `internal/workflow` 40.719s
+- Targeted verification: both new/inverted CLI regression tests
+  (`…_Phase1HitAlonePhase15NoMatchExitsTwo`, `…_LocalOnlyPatchAbsentUpstreamExitsTwo`)
+  FAIL against parent `891e7ef` (both report exit-0 + `[upstreamed]` on
+  local-only patches) and PASS against this rev-2 commit.
 
 ## Context for Next Agent
 
