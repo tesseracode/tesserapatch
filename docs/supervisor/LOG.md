@@ -1,3 +1,37 @@
+## Review — feat-skill-doc-references-user-visible (commit ea5c954) — 2026-05-14
+
+**Reviewer**: copilot-cli sub-agent (skill-doc-refs-rev)
+**Task**: Implement PRD-skill-doc-strategy / ADR-020 (Accepted 2026-05-11). Remove all repo-relative `docs/land.md` and `docs/reconcile.md` references from the six shipped skill surfaces (PRD §5.1: Claude L68-69, Copilot L43-44, Copilot Prompt L50-51, Cursor L40-41, Windsurf L34-35, Generic L38-39); replace with concise inline action snippets (PRD ac.3); add `TestSkillDocReferencesAreSelfContained` parity guard scanning the same `skillFiles` table as `TestSkillParityGuard` (PRD §6 / ac.4).
+
+### Checklist
+
+- [x] ac.1 — six surfaces no longer contain `docs/land.md` / `docs/reconcile.md` (grep `docs/[A-Za-z0-9_./-]*\.md` in `assets/` excluding `_test.go` → 0 hits)
+- [x] ac.2 — no surface introduces `docs/record.md` or any other repo-relative `docs/*.md` reference; new guard enforces going forward
+- [x] ac.3 — inline snippets cover (a) `land`: composes record + safe-stage + one Git commit with the locked four-trailer block, mentions `--dry-run` / `--allow-extra-paths`; (b) `reconcile`: requires clean working tree at target upstream state, refuses dirty trees / conflict markers / mid-merge / `*.orig` / `*.rej` leftovers. ~364 bytes added per surface; option (b) "inline full content" correctly rejected
+- [x] ac.4 — `TestSkillDocReferencesAreSelfContained` at `assets/assets_test.go:175` (regex L166: `(?:^|[^A-Za-z0-9_/:])(docs/[A-Za-z0-9_./-]+\.md)\b`); URL-prefixed refs (`http://`, `https://`, `file://`) exempted via `:` exclusion; failure message names file + offending substring + cites ADR-020 / PRD; runs against the same `skillFiles` table as `TestSkillParityGuard`
+- [x] ac.5 — existing parity / anchor / recipe-schema tests still pass: `go test ./assets -count=1` PASS (0.632s); `TestSkillParityGuard`, `TestAllSkillFilesExist`, `TestSkillRecipeSchemaMatchesCLI` green
+- [x] ac.6 — offline rendering of each surface produces no broken local doc references (verified via grep)
+- [x] ac.7 — documentation update discipline noted in `docs/handoff/CURRENT.md` ("when long-form `docs/*.md` content changes command-critical guidance ... corresponding inline snippet in each of the six `skillFiles` MUST be reviewed in the same change")
+- [x] ac.8 — no `.tpatch/` migration code; no `internal/cli/cobra.go` changes; no new commands or flags
+- [x] ac.9 — Wave C / M17 closure unaffected; exactly 8 files touched (6 surfaces + `assets_test.go` + `CURRENT.md`); Side Research section in CURRENT.md untouched; no edits to long-form `docs/*.md`, supervisor-owned tracking docs, or M17 frozen-code regions
+- [x] gofmt clean; `go build ./cmd/tpatch` OK; `go test ./... -count=1 -timeout 300s` all packages PASS
+
+### Scope-expansion judgment — ADR-010 reference drop
+
+Implementer also dropped pre-existing `Full design: docs/adrs/ADR-010-provider-conflict-resolver.md` "see also" pointers from all six surfaces (caught by the parity-guard regex). Reviewer evaluation: (a) **decision-text consistent** — ADR-020 line 22 prohibits `docs/*.md` blanket, no carve-out for `docs/adrs/` or `docs/prds/`; (b) **no command-critical guidance lost** — dropped sentence is pure cross-reference; "shadow worktree", "real working tree never touched until accept", and all command flags (`--resolve`, `--apply`, `--max-conflicts`, `--model`, `--accept`, `--reject`, `--shadow-diff`) plus the inline `no heuristic fallback — ADR-010 D9` flag note remain intact in all six surfaces; (c) **regex scope correct** — narrowing to exclude `docs/adrs/` would defeat ADR-020's "self-contained skills" principle; future ADR/PRD content needing operator visibility should be inlined as snippets, not exempted from the guard. Recommendation: accept as-is; no follow-up.
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Action Taken
+
+Awaiting external supervisor review. On approval: tracking close (single commit flipping handoff status to Complete + CHANGELOG v0.8.1 entry) and push.
+
+---
+
 ## Review — M17 Wave C rev-4 (commit 19a335e) — 2026-05-14
 
 **Reviewer**: copilot-cli sub-agent (m17-wave-c-rev4-rev)
