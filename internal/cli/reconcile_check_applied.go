@@ -23,10 +23,9 @@ import (
 // per ADR-022 deferral track).
 //
 // Exit codes:
-//   - 0 — phase-1.5 patch-id sweep matched
-//     (Phase == "phase-1.5-patch-id-match")
-//   - 2 — no phase-1.5 match (any other terminal phase, including
-//     phase-1 reverse-apply hits or detector skips)
+//   - 0 — Outcome == ReconcileUpstreamed (phase-1 reverse-apply hit
+//     OR phase-1.5 patch-id match, or both)
+//   - 2 — Outcome == ReconcileStillNeeded (no upstream evidence)
 //
 // Other failures (unreadable patch, missing slug, git plumbing errors)
 // surface as ordinary CLI errors and collapse to exit 1 via the
@@ -57,8 +56,8 @@ func runReconcileCheckAppliedOnly(cmd *cobra.Command, s *store.Store, slugs []st
 		fmt.Fprintf(out, "    scanned-count:        %d\n", result.PatchIDMatch.ScannedCount)
 	}
 
-	if result.Phase == "phase-1.5-patch-id-match" {
+	if result.Outcome == store.ReconcileUpstreamed {
 		return nil
 	}
-	return &ExitCodeError{Code: 2, Message: "no phase-1.5 patch-id match"}
+	return &ExitCodeError{Code: 2, Message: "patch not detected in upstream"}
 }

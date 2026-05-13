@@ -19,11 +19,14 @@ import (
 // opt-in for `--check-applied-only`; the persisted default stays OFF.
 //
 // Returns the populated ReconcileResult exactly as RunReconcile would have
-// returned it for phases 1 / 1.5. The caller decides exit codes: a phase-1.5
-// match (Phase == "phase-1.5-patch-id-match") is the only "match" verdict;
-// phase-1 reverse-apply is intentionally NOT treated as an upstream-merged
-// match for this command (the PRD scopes the read-only check to the patch-id
-// sweep).
+// returned it for phases 1 / 1.5. Phase-1 reverse-apply success is itself
+// upstream-merged evidence: it sets Outcome=ReconcileUpstreamed and
+// Phase="phase-1-reverse-apply". Phase 1.5 is then run regardless and may
+// UPGRADE the verdict to the more specific Phase="phase-1.5-patch-id-match"
+// with the matched upstream SHA in UpstreamCommit / PatchIDMatch. If phase
+// 1.5 does not match (or is skipped), a prior phase-1 hit still stands as
+// the verdict. The caller distinguishes match vs no-match by Outcome, not
+// by Phase.
 func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bool) (*ReconcileResult, error) {
 	upstreamCommit, err := gitutil.ResolveRef(s.Root, upstreamRef)
 	if err != nil {
@@ -50,26 +53,34 @@ func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bo
 		UpstreamCommit: upstreamCommit,
 	}
 
+	phase1Hit := false
 	if reverseOK, _ := gitutil.ReverseApplyCheck(s.Root, patch); reverseOK {
 		result.Outcome = store.ReconcileUpstreamed
 		result.Phase = "phase-1-reverse-apply"
 		result.Notes = append(result.Notes, "Patch is already present in upstream (reverse-apply succeeded)")
-		return result, nil
+		phase1Hit = true
 	}
 
 	cfg, _ := s.LoadConfig()
 	detectorOn := cfg.PatchIDDetectorEnabled || forceDetector
 	if !detectorOn {
-		result.Outcome = store.ReconcileStillNeeded
-		result.Phase = "phase-1.5-skipped-detector-disabled"
-		result.Notes = append(result.Notes,
-			"phase 1.5 not run: patch_id_detector_enabled=false and --check-applied-only invoked without override semantics")
+		if !phase1Hit {
+			result.Outcome = store.ReconcileStillNeeded
+			result.Phase = "phase-1.5-skipped-detector-disabled"
+			result.Notes = append(result.Notes,
+				"phase 1.5 not run: patch_id_detector_enabled=false and --check-applied-only invoked without override semantics")
+		} else {
+			result.Notes = append(result.Notes,
+				"phase 1.5 not run: patch_id_detector_enabled=false (phase 1 already matched)")
+		}
 		return result, nil
 	}
 
 	if strings.TrimSpace(patch) == "" {
-		result.Outcome = store.ReconcileStillNeeded
-		result.Phase = "phase-1.5-skipped-no-patch"
+		if !phase1Hit {
+			result.Outcome = store.ReconcileStillNeeded
+			result.Phase = "phase-1.5-skipped-no-patch"
+		}
 		result.Notes = append(result.Notes, "phase 1.5 skipped: empty post-apply.patch")
 		return result, nil
 	}
@@ -77,6 +88,8 @@ func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bo
 	det := runPatchIDDetector(s, patch, upstreamCommit, cfg.PatchIDScanLimit)
 	switch {
 	case det.Match != nil:
+		// Phase-1.5 match upgrades the verdict to the more specific
+		// phase string and pins the matched upstream SHA.
 		result.Outcome = store.ReconcileUpstreamed
 		result.Phase = "phase-1.5-patch-id-match"
 		result.UpstreamCommit = det.Match.MatchedUpstreamSHA
@@ -84,12 +97,16 @@ func CheckAppliedOnly(s *store.Store, slug, upstreamRef string, forceDetector bo
 		result.Notes = append(result.Notes,
 			"Patch-id sweep matched upstream commit "+truncateCommit(det.Match.MatchedUpstreamSHA))
 	case det.Skipped:
-		result.Outcome = store.ReconcileStillNeeded
-		result.Phase = "phase-1.5-skipped"
+		if !phase1Hit {
+			result.Outcome = store.ReconcileStillNeeded
+			result.Phase = "phase-1.5-skipped"
+		}
 		result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
 	default:
-		result.Outcome = store.ReconcileStillNeeded
-		result.Phase = "phase-1.5-no-match"
+		if !phase1Hit {
+			result.Outcome = store.ReconcileStillNeeded
+			result.Phase = "phase-1.5-no-match"
+		}
 		result.Notes = append(result.Notes, "phase 1.5 found no upstream commit with a matching patch-id")
 	}
 	return result, nil

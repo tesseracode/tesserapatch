@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -71,11 +72,18 @@ func reconcileAutoDropMerged(cmd *cobra.Command, s *store.Store, results []resul
 			continue
 		}
 
-		// Stage every change RemoveFeature produced: the deleted
-		// .tpatch/features/<slug>/ tree plus the rewritten
-		// .tpatch/FEATURES.md. `git add -A` on those two paths is
-		// the smallest stage that covers both.
-		stageArgs := []string{"add", "-A", ".tpatch/features", ".tpatch/FEATURES.md"}
+		// Stage only the dropped feature's tree (its deletion) plus
+		// the rewritten .tpatch/FEATURES.md. We intentionally do NOT
+		// sweep all of .tpatch/features: in a multi-slug batch the
+		// normal reconcile pipeline writes incremental.patch /
+		// reconcile-session.json / status.json / reconcile.md into
+		// OTHER slugs' artifact dirs before this auto-drop fires, and
+		// a broad `git add -A .tpatch/features` would absorb those
+		// unrelated artifacts into the removal commit.
+		stageArgs := []string{"add", "-A",
+			filepath.Join(".tpatch", "features", r.Slug),
+			filepath.Join(".tpatch", "FEATURES.md"),
+		}
 		if stageOut, stageErr := runGitCapture(s.Root, stageArgs...); stageErr != nil {
 			fmt.Fprintf(errOut, "auto-drop-merged: stage %s: %v\n%s", r.Slug, stageErr, stageOut)
 			errs = append(errs, fmt.Sprintf("%s: stage: %v", r.Slug, stageErr))

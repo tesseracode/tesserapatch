@@ -185,3 +185,130 @@ func assertNoArtifactsWritten(t *testing.T, s *store.Store, slug string) {
 		t.Fatalf("--check-applied-only must not write status.Reconcile; got outcome=%q", st.Reconcile.Outcome)
 	}
 }
+
+// setupPhase1HitFixture builds a git repo where the working tree
+// contains greeting.txt with the same content the feature patch adds,
+// so phase-1 `git apply -R --check` succeeds. The flag picks whether
+// the absorbing upstream commit's patch-id ALSO matches the feature
+// patch (phase 1.5 match) or not.
+//
+// Returns: tmpDir, slug, upstream tip SHA.
+func setupPhase1HitFixture(t *testing.T, alsoPhase15Match bool) (string, string, string) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	baseline := git(t, tmpDir, "rev-parse", "HEAD")
+
+	if alsoPhase15Match {
+		// Single-file commit whose patch-id equals the feature patch-id.
+		os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+		gitAdd(t, tmpDir, "greeting.txt")
+		gitCommit(t, tmpDir, "upstream absorbs greeting")
+	} else {
+		// Multi-file commit — same greeting.txt content (so reverse-apply
+		// still succeeds) but a different patch-id (extra noise.txt
+		// content in the same commit).
+		os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+		os.WriteFile(filepath.Join(tmpDir, "noise.txt"), []byte("noise\n"), 0o644)
+		gitAdd(t, tmpDir, "greeting.txt")
+		gitAdd(t, tmpDir, "noise.txt")
+		gitCommit(t, tmpDir, "upstream absorbs greeting bundled with noise")
+	}
+	tip := git(t, tmpDir, "rev-parse", "HEAD")
+	_ = baseline
+	return tmpDir, "add-greeting", tip
+}
+
+// TestCheckAppliedOnly_Phase1Hit_AlsoPhase15Match — regression for
+// external review F2: when phase-1 reverse-apply hits AND the detector
+// is on AND phase-1.5 also matches, the result is Upstreamed with the
+// MORE SPECIFIC phase-1.5 phase string and a populated PatchIDMatch.
+// Notes carry both the phase-1 and phase-1.5 signals.
+func TestCheckAppliedOnly_Phase1Hit_AlsoPhase15Match(t *testing.T) {
+	tmpDir, slug, tip := setupPhase1HitFixture(t, true /* alsoPhase15Match */)
+
+	s, _ := store.Init(tmpDir)
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	s.SaveConfig(cfg)
+	mustWriteAppliedFeature(t, s, slug)
+	writeLockForCheck(t, tmpDir)
+
+	res, err := CheckAppliedOnly(s, slug, tip, false)
+	if err != nil {
+		t.Fatalf("CheckAppliedOnly: %v", err)
+	}
+	if res.Outcome != store.ReconcileUpstreamed {
+		t.Fatalf("outcome=%s notes=%v", res.Outcome, res.Notes)
+	}
+	if res.Phase != "phase-1.5-patch-id-match" {
+		t.Fatalf("expected phase-1.5 upgrade; phase=%s notes=%v", res.Phase, res.Notes)
+	}
+	if res.PatchIDMatch == nil {
+		t.Fatalf("expected PatchIDMatch populated on phase-1.5 upgrade")
+	}
+	joined := strings.Join(res.Notes, "\n")
+	if !strings.Contains(joined, "reverse-apply succeeded") {
+		t.Errorf("expected phase-1 note in result.Notes:\n%s", joined)
+	}
+	if !strings.Contains(joined, "Patch-id sweep matched") {
+		t.Errorf("expected phase-1.5 match note in result.Notes:\n%s", joined)
+	}
+}
+
+// TestCheckAppliedOnly_Phase1Hit_Phase15NoMatch — regression for
+// external review F2: phase-1 reverse-apply hits, detector is on, but
+// phase-1.5 finds no patch-id match. The phase-1 evidence stands;
+// Outcome must remain Upstreamed and Phase must remain
+// "phase-1-reverse-apply" (NOT downgraded to "phase-1.5-no-match").
+func TestCheckAppliedOnly_Phase1Hit_Phase15NoMatch(t *testing.T) {
+	tmpDir, slug, tip := setupPhase1HitFixture(t, false /* alsoPhase15Match */)
+
+	s, _ := store.Init(tmpDir)
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	s.SaveConfig(cfg)
+	mustWriteAppliedFeature(t, s, slug)
+	writeLockForCheck(t, tmpDir)
+
+	res, err := CheckAppliedOnly(s, slug, tip, false)
+	if err != nil {
+		t.Fatalf("CheckAppliedOnly: %v", err)
+	}
+	if res.Outcome != store.ReconcileUpstreamed {
+		t.Fatalf("phase-1 hit must keep Outcome=Upstreamed; got %s notes=%v", res.Outcome, res.Notes)
+	}
+	if res.Phase != "phase-1-reverse-apply" {
+		t.Fatalf("phase-1.5 no-match must NOT downgrade phase-1 verdict; phase=%s notes=%v", res.Phase, res.Notes)
+	}
+	if res.PatchIDMatch != nil {
+		t.Fatalf("PatchIDMatch must be nil when phase-1.5 did not match; got %+v", res.PatchIDMatch)
+	}
+}
+
+// TestCheckAppliedOnly_Phase1Hit_DetectorOff — regression for external
+// review F2: phase-1 reverse-apply hits, detector is OFF on disk, and
+// forceDetector=false. The phase-1 verdict stands; phase must NOT be
+// the "skipped-detector-disabled" downgrade.
+func TestCheckAppliedOnly_Phase1Hit_DetectorOff(t *testing.T) {
+	tmpDir, slug, tip := setupPhase1HitFixture(t, true)
+
+	s, _ := store.Init(tmpDir)
+	cfg, _ := s.LoadConfig()
+	if cfg.PatchIDDetectorEnabled {
+		t.Fatalf("test invariant: detector default must be off")
+	}
+	mustWriteAppliedFeature(t, s, slug)
+	writeLockForCheck(t, tmpDir)
+
+	res, err := CheckAppliedOnly(s, slug, tip, false /* forceDetector */)
+	if err != nil {
+		t.Fatalf("CheckAppliedOnly: %v", err)
+	}
+	if res.Outcome != store.ReconcileUpstreamed {
+		t.Fatalf("phase-1 hit must keep Outcome=Upstreamed; got %s", res.Outcome)
+	}
+	if res.Phase != "phase-1-reverse-apply" {
+		t.Fatalf("detector-off with phase-1 hit must keep Phase=phase-1-reverse-apply; got %s notes=%v", res.Phase, res.Notes)
+	}
+}

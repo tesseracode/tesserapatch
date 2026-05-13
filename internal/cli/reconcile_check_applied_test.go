@@ -385,3 +385,198 @@ index 0000000..abc1234
 		t.Errorf("expected exit code 2 on no-match, got %d", ec.Code)
 	}
 }
+
+// TestReconcileCheckAppliedOnly_Phase1HitExitsZero — regression for
+// external review F2 end-to-end: the working tree already contains the
+// patched file (so phase-1 reverse-apply succeeds) and the patch-id
+// sweep does not match any upstream commit. Before the fix, the CLI
+// returned ExitCodeError{Code:2} with "no phase-1.5 patch-id match"
+// even though stdout printed the [upstreamed] verdict. After the fix,
+// exit code 0 because Outcome == ReconcileUpstreamed.
+func TestReconcileCheckAppliedOnly_Phase1HitExitsZero(t *testing.T) {
+	slug := "add-greeting"
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	baseline := gitHead(t, tmpDir)
+	// Upstream absorbs greeting.txt AND keeps it. Tree retains the
+	// patched content, so `git apply -R --check` of the feature patch
+	// succeeds (phase-1 hit). The absorbing commit is bundled with
+	// noise.txt so its patch-id differs from the single-file feature
+	// patch — phase-1.5 finds no match.
+	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+	os.WriteFile(filepath.Join(tmpDir, "noise.txt"), []byte("noise\n"), 0o644)
+	runGitInTest(t, tmpDir, "add", "-A")
+	runGitInTest(t, tmpDir, "commit", "-m", "upstream absorbs greeting bundled with noise")
+	tip := gitHead(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("store.Init: %v", err)
+	}
+	// Detector left OFF on disk; the --check-applied-only flag forces
+	// it on for the invocation. The phase-1.5 sweep will NOT match here.
+	lockBody := []byte("remote: \"origin\"\nbranch: \"main\"\ncommit: \"" + baseline + "\"\nurl: \"\"\n")
+	os.WriteFile(filepath.Join(tmpDir, ".tpatch", "upstream.lock"), lockBody, 0o644)
+
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "Add greeting", Request: "Add greeting", Slug: slug}); err != nil {
+		t.Fatalf("AddFeature: %v", err)
+	}
+	s.MarkFeatureState(slug, store.StateApplied, "apply", "")
+	patch := `diff --git a/greeting.txt b/greeting.txt
+new file mode 100644
+index 0000000..557db03
+--- /dev/null
++++ b/greeting.txt
+@@ -0,0 +1 @@
++Hello World
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+		t.Fatalf("WriteArtifact: %v", err)
+	}
+
+	root := buildRootCmd()
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errBuf)
+	root.SetArgs([]string{"reconcile", "--path", tmpDir, "--upstream-ref", tip, "--check-applied-only", slug})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("expected nil error on phase-1 reverse-apply hit (exit 0); got %v\nstdout=%s\nstderr=%s",
+			err, out.String(), errBuf.String())
+	}
+	if !strings.Contains(out.String(), "[upstreamed]") {
+		t.Errorf("expected [upstreamed] verdict in stdout; got:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "phase-1-reverse-apply") {
+		t.Errorf("expected phase-1-reverse-apply in stdout; got:\n%s", out.String())
+	}
+}
+
+// TestReconcileAutoDropMerged_BatchScopesStaging — regression for
+// external review F1. A multi-slug --auto-drop-merged batch where the
+// first slug (add-greeting) hits phase-1.5 and the second slug
+// (add-models) does NOT must produce a removal commit that touches ONLY
+// the dropped slug's directory plus .tpatch/FEATURES.md. Before the
+// fix, the broad `git add -A .tpatch/features` stage swept the
+// reconcile artifacts of add-models (incremental.patch, status.json,
+// reconcile-session.json, etc.) into the add-greeting removal commit.
+func TestReconcileAutoDropMerged_BatchScopesStaging(t *testing.T) {
+	greetSlug := "add-greeting"
+	modelsSlug := "add-models"
+
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	baseline := gitHead(t, tmpDir)
+
+	// Upstream absorbs greeting.txt (matches by patch-id), then removes
+	// it. Independently, an unrelated file lands and is left in place.
+	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hello World\n"), 0o644)
+	runGitInTest(t, tmpDir, "add", "greeting.txt")
+	runGitInTest(t, tmpDir, "commit", "-m", "upstream absorbs greeting")
+	os.Remove(filepath.Join(tmpDir, "greeting.txt"))
+	runGitInTest(t, tmpDir, "add", "-A")
+	runGitInTest(t, tmpDir, "commit", "-m", "upstream removes greeting")
+	os.WriteFile(filepath.Join(tmpDir, "unrelated.txt"), []byte("unrelated\n"), 0o644)
+	runGitInTest(t, tmpDir, "add", "unrelated.txt")
+	runGitInTest(t, tmpDir, "commit", "-m", "unrelated upstream churn")
+	tip := gitHead(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("store.Init: %v", err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	s.SaveConfig(cfg)
+	lockBody := []byte("remote: \"origin\"\nbranch: \"main\"\ncommit: \"" + baseline + "\"\nurl: \"\"\n")
+	os.WriteFile(filepath.Join(tmpDir, ".tpatch", "upstream.lock"), lockBody, 0o644)
+
+	// Feature 1: add-greeting (will phase-1.5 match → auto-drop).
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "Add greeting", Request: "Add greeting", Slug: greetSlug}); err != nil {
+		t.Fatalf("AddFeature greet: %v", err)
+	}
+	s.MarkFeatureState(greetSlug, store.StateApplied, "apply", "")
+	greetPatch := `diff --git a/greeting.txt b/greeting.txt
+new file mode 100644
+index 0000000..557db03
+--- /dev/null
++++ b/greeting.txt
+@@ -0,0 +1 @@
++Hello World
+`
+	s.WriteArtifact(greetSlug, "post-apply.patch", greetPatch)
+
+	// Feature 2: add-models (will NOT match → normal reconcile path
+	// writes artifacts under .tpatch/features/add-models/...).
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "Add models", Request: "models.txt", Slug: modelsSlug}); err != nil {
+		t.Fatalf("AddFeature models: %v", err)
+	}
+	s.MarkFeatureState(modelsSlug, store.StateApplied, "apply", "")
+	modelsPatch := `diff --git a/models.txt b/models.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/models.txt
+@@ -0,0 +1 @@
++gpt-4o
+`
+	s.WriteArtifact(modelsSlug, "post-apply.patch", modelsPatch)
+
+	// Pre-commit the scaffolded .tpatch tree so the auto-drop's removal
+	// commit only carries the post-scaffold changes.
+	runGitInTest(t, tmpDir, "add", "-A")
+	runGitInTest(t, tmpDir, "commit", "-m", "scaffold .tpatch")
+
+	root := buildRootCmd()
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errBuf)
+	root.SetArgs([]string{
+		"reconcile", "--path", tmpDir, "--upstream-ref", tip,
+		"--allow-stale-lock", "--auto-drop-merged",
+		greetSlug, modelsSlug,
+	})
+	_ = root.Execute() // reconcile may emit a nonzero verdict for add-models; auto-drop for greet must still scope correctly
+
+	// add-greeting must be removed.
+	if _, statErr := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", greetSlug)); statErr == nil {
+		t.Fatalf("auto-drop must remove .tpatch/features/%s", greetSlug)
+	}
+	// add-models must remain.
+	if _, statErr := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", modelsSlug)); statErr != nil {
+		t.Fatalf("auto-drop must NOT remove .tpatch/features/%s; got %v", modelsSlug, statErr)
+	}
+
+	// HEAD must be the removal commit. Inspect its file list.
+	c := exec.Command("git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+	c.Dir = tmpDir
+	diffOut, err := c.Output()
+	if err != nil {
+		t.Fatalf("git diff-tree: %v", err)
+	}
+	paths := strings.Split(strings.TrimSpace(string(diffOut)), "\n")
+
+	sawGreetDeletion := false
+	sawFeaturesMD := false
+	for _, p := range paths {
+		if p == "" {
+			continue
+		}
+		if strings.HasPrefix(p, ".tpatch/features/"+modelsSlug+"/") {
+			t.Errorf("removal commit must NOT touch .tpatch/features/%s/* (auto-drop staging leak); offending path: %s\nfull list:\n%s",
+				modelsSlug, p, string(diffOut))
+		}
+		if strings.HasPrefix(p, ".tpatch/features/"+greetSlug+"/") {
+			sawGreetDeletion = true
+		}
+		if p == ".tpatch/FEATURES.md" {
+			sawFeaturesMD = true
+		}
+	}
+	if !sawGreetDeletion {
+		t.Errorf("expected removal commit to contain .tpatch/features/%s/* deletions; got:\n%s", greetSlug, string(diffOut))
+	}
+	if !sawFeaturesMD {
+		t.Errorf("expected removal commit to update .tpatch/FEATURES.md; got:\n%s", string(diffOut))
+	}
+	_ = errBuf
+}
