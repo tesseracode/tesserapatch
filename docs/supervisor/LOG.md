@@ -1,3 +1,35 @@
+## Review — feat-skill-doc-references-user-visible rev-1 (commit dd6506a) — 2026-05-14
+
+**Reviewer**: copilot-cli sub-agent (skill-doc-refs-rev1-rev)
+**Task**: Rev-1 fix addressing three external NEEDS REVISION findings on `ea5c954`: F1 (Medium) — false "read-only" claim about reconcile across all six shipped surfaces (contradicted by `internal/workflow/reconcile.go` `ReconcileReapplied` outcome and `internal/workflow/accept.go` shadow→tree copy on accept); F2 (Low) — `TestSkillDocReferencesAreSelfContained` regex missed `./docs/`, `../docs/`, `/docs/` path variants; F3 (Low) — `docs/ROADMAP.md:263` still said "(awaiting tag at `34815e8`)" after v0.8.0 was tagged at `29a6732`.
+
+### Checklist
+
+- [x] **F1**: `rg -n 'Reconcile is read-only' assets/skills assets/prompts assets/workflows` → 0 hits. All six surfaces (Claude L69, Copilot L44, Copilot Prompt L51, Cursor L41, Windsurf L35, Generic L39) now read identically: "Reconcile is a mutating operation (it can replay patches and update `.tpatch/` artifacts), so re-run `tpatch record` afterwards to capture any changes." Clean-tree preflight content (dirty trees / conflict markers / mid-merge / `*.orig` / `*.rej` refusal) preserved byte-identical. Pre-existing `verify` "read-only" sentences (factually correct) remain intact and untouched.
+- [x] **F2**: New regex `[a-z][a-z0-9+.-]*://\S+|(?:^|[^A-Za-z0-9_])((?:\.{0,2}/)?docs/[A-Za-z0-9_./-]+\.md)\b` uses two-branch alternation (URL token consumed harmlessly OR captured docs ref). Extracted `findRepoRelativeDocsRefs` helper. `go test ./assets -run TestSkillDocReferencesAreSelfContained -count=1 -v` → 14 PASS sub-tests: 8 probes (`bare`, `dot-slash`, `dot-dot-slash`, `leading-slash`, `parens` all caught; `https-url`, `http-url`, `file-url` all allowed) + 6 surface scans. Manual injection (`./docs/land.md`) confirmed caught with proper failure message. Failure-message format unchanged (file alias + offending substring + ADR-020/PRD citation).
+- [x] **F3**: `docs/ROADMAP.md:263` flipped from "(awaiting tag at `34815e8`)" to "(shipped 2026-05-12 as v0.8.0; tag at `29a6732`, M17 cluster ship-stack tip at `34815e8`)". Line 279 also flipped from "shipped 2026-05-11, unreleased — bundled into v0.8.0" to "shipped 2026-05-11, released as part of v0.8.0". `git rev-parse v0.8.0^{commit}` confirms tag points at `29a6732`. No gratuitous content changes to Wave A/B/C/D rows.
+- [x] Out-of-scope guardrails: 9 expected files only (6 surfaces + `assets_test.go` + `ROADMAP.md` + `CURRENT.md`); no edits to `HISTORY.md` / `LOG.md` / `CHANGELOG.md` / `internal/cli/**`; `git log origin/main..HEAD` shows 1 unpushed commit (`dd6506a`); M17 frozen-code regions untouched; Side Research section untouched; no `docs/*.md` references re-introduced anywhere.
+- [x] gofmt clean; `go build ./cmd/tpatch` OK; `go test ./... -count=1 -timeout 300s` all packages PASS (cli 78.1s, workflow 51.9s, gitutil 21.2s, provider 14.7s, store 9.6s, assets 2.7s).
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Notes
+
+- F1 wording is grounded in actual implementation (`ReconcileReapplied` flag + shadow→tree copy on accept); "re-run `tpatch record` afterwards" is operationally sound.
+- F2 two-branch alternation is the correct solution for Go's regexp (no lookbehind support); `(?:\.{0,2}/)?` prefix elegantly handles `./` / `../` / `/` variants.
+- F3 ship-stack tip `34815e8` is factually correct and historically useful; tag SHA `29a6732` verified.
+- Scope discipline excellent — exactly the files needed, no creep.
+
+### Action Taken
+
+Awaiting external supervisor review of the rev-1 commit. On approval: tracking close + push.
+
+---
+
 ## Review — feat-skill-doc-references-user-visible (commit ea5c954) — 2026-05-14
 
 **Reviewer**: copilot-cli sub-agent (skill-doc-refs-rev)
