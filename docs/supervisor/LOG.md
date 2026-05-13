@@ -1,3 +1,136 @@
+## Review — Capture-and-Metadata Foundation Cluster (4 PRDs) — 2026-05-13
+
+**Reviewer**: CO47 (broker-routed; T55 authored + revised; CO47 cross-reviewed)
+**Task**: Paper-design acceptance for the four-PRD capture-and-metadata foundation cluster.
+**Authored by**: T55 (new agent ID, introduced this session)
+
+### Cluster
+
+1. `PRD-feature-file-claims.md` — feature claim manifest (v1 advisory-only).
+2. `PRD-record-capture-modes.md` — explicit `record` capture modes (`--all`/`--staged`/`--unstaged`/`--claimed-only`).
+3. `PRD-feature-patch-identity-metadata.md` — append-only patch generation manifest.
+4. `PRD-feature-patch-amend.md` — first-class patch amendment semantics (refresh/fixup/metadata-only).
+
+Each PRD declares cluster position (1/4 … 4/4), depends-on relationships, and cross-context to WP-001 + M17 boundary-capture outcomes.
+
+### Checklist (paper review)
+- [x] All four PRDs cite WP-001 boundary-capture findings and the v0.7 M17 cluster outcomes.
+- [x] Claims-audit tables present in each PRD; spot-checked cites land in current code (`internal/store/types.go:221,233,191`, `internal/cli/cobra.go:888-896,1245`, `docs/feature-layout.md`, `docs/state-of-the-art/`).
+- [x] No new data-model objects displace `status.json` as current truth; `patch-generations.json` is explicitly append-only audit, not lifecycle state.
+- [x] Cross-PRD dependencies explicit (claims → capture-modes → identity-metadata → patch-amend).
+- [x] All four PRDs reviewed by at least one peer (CO47 cross-reviewed in revision pass).
+- [x] No edits to closed WP-001, the three exploratory PRDs, v0.7 cluster PRDs, or shipped skill files.
+- [x] State-of-the-art research dir cited (patch-capture prior-art, identity-metadata research, middle-pass synthesis).
+
+### Verdict: **APPROVED**
+
+### PRDs accepted
+
+| PRD | Author | State | Cross-reviewed by | Required ADR |
+|---|---|---|---|---|
+| `PRD-feature-file-claims.md` | T55 | Accepted | CO47 (F-A1 through F-A4 → addressed in revision) | `ADR-021` (only if v2 persists `--reason` / context) |
+| `PRD-record-capture-modes.md` | T55 | Accepted | CO47 (F-B1 through F-B4 → addressed in revision) | None (no separate ADR; behavior locked in PRD §3) |
+| `PRD-feature-patch-identity-metadata.md` | T55 | Accepted | CO47 (F-C1 through F-C4 → addressed in revision) | `ADR-022-patch-generation-manifest-boundary` |
+| `PRD-feature-patch-amend.md` | T55 | Accepted | CO47 (F-D1 through F-D4 → addressed in revision) | `ADR-023-patch-amendment-policy` |
+
+### Findings worth noting
+
+**MEDIUM — CLI namespace decisions locked by broker (2026-05-13).**
+
+1. **Claims namespace**: `tpatch feature claim <verb>` — mirrors the shipped `tpatch feature deps <verb>` precedent (`docs/dependencies.md:52`). Rejected alternatives: `tpatch feature claims` (plural), `tpatch claim` (top-level). Decision locks in T55's current PRD draft.
+
+2. **Patch amendment CLI surface**: `tpatch feature patch refresh|fixup <slug> [--reason "..."]` — new verb namespace under `tpatch feature patch ...`. Rejected: `tpatch record <slug> --amend-kind refresh|fixup`. Rationale: `record` is already heavy with capture-mode flags after the cluster's PRD #2; the v2 fork/fold commands already use `tpatch feature patch fork|fold`; amendment intent becomes semantically visible in command vocabulary. **PRD-feature-patch-amend §4 must be updated** to reflect the new surface; T55 should ship that update before implementation begins.
+
+**MEDIUM — Three ADR slots assigned, blocking implementation.**
+
+Per the `PRD-feature-dependencies` precedent (architecture decisions locked in ADR before code), implementation requires three ADRs:
+
+| ADR | Locks in | Required before |
+|---|---|---|
+| `ADR-021-capture-context-privacy-boundary` | Whether `--reason` and free-text context can be persisted to tracked metadata | v2 claims work that introduces `--reason`; **not required for v1** (PRD §3 defers to `metadata-only` advisory writes) |
+| `ADR-022-patch-generation-manifest-boundary` | `patch-generations.json` schema, append-only semantics, content-addressed vs monotonic identity, `git patch-id --stable` algorithm choice, no-timestamps determinism, no-backfill default | `PRD-feature-patch-identity-metadata` implementation |
+| `ADR-023-patch-amendment-policy` | `refresh` vs `fixup` policy defaults, dependent-staleness behavior, verify-freshness invalidation rules, command-namespace surface | `PRD-feature-patch-amend` implementation |
+
+Each PRD's implementer drafts the corresponding ADR before code lands. ADR-021 may remain unwritten until v2 file-claims work; ADR-022 and ADR-023 must precede their respective implementation slices.
+
+**MEDIUM — Dependency-chain implementation sequencing.**
+
+Implementation must respect the cluster dependency chain:
+
+```
+PRD-feature-file-claims ──┐
+                          ├── PRD-record-capture-modes ──┐
+                          │                              ├── PRD-feature-patch-identity-metadata ── PRD-feature-patch-amend
+                          └──────────────────────────────┘
+```
+
+Suggested waves (assign milestone numbering at routing time):
+
+- **Wave α** (parallel): `PRD-feature-file-claims` (v1 advisory-only; ship without ADR-021) + `PRD-record-capture-modes` (no ADR required).
+- **Wave β** (depends on Wave α + ADR-022): `PRD-feature-patch-identity-metadata`.
+- **Wave γ** (depends on Wave β + ADR-023): `PRD-feature-patch-amend`.
+
+Fork/fold deferred to a future PRD, not part of this cluster.
+
+**LOW — Open question still in T55's PRDs (not blocking).**
+
+`PRD-feature-patch-amend §9 Q1` asks "Should plain changed `record <slug>` require an amend reason once a generation manifest exists?" T55 already chose No in §3.2 and §7 implementation notes, so the open question can be removed during the §4 surface-update edit. Cosmetic.
+
+### Cross-cluster non-interference
+
+| Interaction | Status |
+|---|---|
+| `PRD-tpatch-land §3.4` four-trailer block | Untouched — patch-generation manifest doesn't alter trailer schema. |
+| `PRD-record-collision-detection §3.2` same-feature dedup | Explicitly aligned in T55's identity PRD §5.1 (skip generation entry when patch bytes unchanged, matching collision-PRD's skip-numbered-snapshot behavior). |
+| `PRD-record-auto-base §3.3` `apply.base_commit` ownership | Preserved — identity manifest's `base_commit` field reads from `apply.base_commit`, doesn't overwrite. |
+| `PRD-reconcile-lock-guard` lock-state taxonomy | Untouched. |
+| `PRD-patch-already-upstream-detector §5.1` patch-id usage | Aligned: detector may use stored `git_patch_id` as cache when `patch_sha256` matches live bytes (identity PRD §5.4). |
+| `PRD-tpatch-hotfix §3.4` `Tpatch-CVE` additive trailer | Untouched. |
+
+No regressions against the accepted v0.7 cluster (ADR-016 through ADR-019).
+
+### Action Taken
+
+1. Mark all four cluster PRDs as APPROVED FOR IMPLEMENTATION in this entry.
+2. Reserve ADR slots 021–023; assign to implementers of their respective PRDs.
+3. T55 to update `PRD-feature-patch-amend §4` to use `tpatch feature patch refresh|fixup <slug>` surface (broker's decision 2 above) before any implementation routing.
+4. Supervisor to slug the cluster into a milestone (suggested: M18 or next available after M17) with Wave α/β/γ rows per the dependency chain above.
+5. Implementation owner assignment pending; not blocked by this acceptance entry.
+
+---
+
+## Review — v0.8.1-wave-d-deferrals items 1+2 rev-1 (commit 0a83f66) — 2026-05-14
+
+**Reviewer**: copilot-cli sub-agent (`v0-8-1-flags-rev1-review`)
+**Task**: Rev-1 fix addressing two external NEEDS REVISION findings on `d5f0ccf`: F1 (MEDIUM) — `reconcileAutoDropMerged` staged the entire `.tpatch/features` tree, absorbing per-slug reconcile artifacts (`incremental.patch`, `reconcile-session.json`, `reconcile.md`, `status.json`) from other slugs in a multi-slug batch into the removal commit; F2 (MEDIUM) — `CheckAppliedOnly` returned early on phase-1 reverse-apply, never running phase 1.5, and CLI exit predicate was the phase-1.5-specific Phase string, so phase-1 matches printed `[upstreamed]` but exited 2 with "no phase-1.5 patch-id match".
+
+### Checklist
+
+- [x] **F1 stage scope**: `internal/cli/reconcile_auto_drop.go:83-86` now stages `filepath.Join(".tpatch","features",r.Slug)` + `.tpatch/FEATURES.md` only. `filepath.Join` for platform portability. `TestReconcileAutoDropMerged_BatchScopesStaging` (CLI L454-582) runs the supervisor's two-slug repro and asserts via `git diff-tree --no-commit-id --name-only -r HEAD` that the removal commit contains zero paths under the non-dropped slug's directory. Implementer-verified: this test FAILS against parent `8368a84` and PASSES against `0a83f66`.
+- [x] **F2 workflow fix**: `internal/workflow/reconcile_check_applied.go` — phase-1 path no longer returns early (no `return result, nil` after reverse-apply hit); sets `Outcome=ReconcileUpstreamed`, `Phase="phase-1-reverse-apply"`, captures `phase1Hit := true`, falls through to phase 1.5. Phase 1.5 match upgrades `Phase` to `"phase-1.5-patch-id-match"` and populates `PatchIDMatch`+`UpstreamCommit` (L90-98). Phase 1.5 skip / no-match / detector-off paths all guard with `if !phase1Hit { ... }` before touching Outcome/Phase (L67, L80, L100, L106), so phase-1 evidence is never downgraded.
+- [x] **F2 CLI fix**: `internal/cli/reconcile_check_applied.go:59` exit predicate flipped from `Phase == "phase-1.5-patch-id-match"` to `Outcome == store.ReconcileUpstreamed`. Doc comment updated. `TestReconcileCheckAppliedOnly_Phase1HitExitsZero` (CLI L389-452) reproduces the supervisor's locally-present-patch case, calls `root.Execute()`, asserts `err == nil` AND stdout contains `[upstreamed]` + `phase-1-reverse-apply`. Implementer-verified failing-against-parent / passing-against-rev-1.
+- [x] **Workflow tests cover the F2 matrix** (3 new tests in `internal/workflow/reconcile_check_applied_test.go`): phase-1+detector-ON+phase-1.5-match (upgrade, both notes present), phase-1+detector-ON+phase-1.5-no-match (verdict stands, `PatchIDMatch==nil`), phase-1+detector-OFF+forceDetector=false (verdict stands, NOT "skipped-detector-disabled").
+- [x] **High-signal probes**: note dedup intact (both phase-1 and phase-1.5 notes joined into result.Notes when both match); phase non-downgrade when phase-1 hits but phase-1.5 skips (guards verified); CLI test asserts exit code at `Execute()` boundary not just stdout.
+- [x] **Frozen-region audit clean**: `git diff 8368a84 0a83f66 -- internal/workflow/patch_id_detector.go internal/workflow/reconcile.go` returns empty for phase-1.5 slot; `Config.PatchIDDetectorEnabled` still `bool` (Go zero-value `false`) at `internal/store/types.go:342`; no edits to Wave A/B record code, Side Research section, or `docs/state-of-the-art/**`.
+- [x] **Out-of-scope guardrails**: 6 expected files only (2 workflow, 2 CLI, 1 handoff, [test files inside CLI/workflow already counted]); no edits to LOG / HISTORY / CHANGELOG / ADRs / kickoff scope. Pre-existing dirty PRD/research files left out (implementer reset after an initial mis-scoped commit; final commit is rev-1-only).
+- [x] gofmt clean; `go vet ./...` clean; `go build ./cmd/tpatch` OK; `go test ./... -race -count=1` all packages PASS (cli 86.8s, workflow 59.2s, gitutil 31.7s, provider 20.1s, store 13.8s, safety 10.0s, buildinfo 3.9s, assets 3.3s).
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Notes
+
+The rev-1 fix shape is clean: F1 is a one-line stage-scope tightening with platform-portable `filepath.Join`; F2 is a control-flow refactor that preserves all existing phase-1.5 skip-reason notes while letting phase-1 stand as an independent upstreamed-evidence path. The `phase1Hit` guard pattern is explicit at every skip site rather than relying on early-return, which keeps the Outcome-stands invariant locally readable.
+
+### Action Taken
+
+Verdict logged. Stack ready for external supervisor re-review: kickoff `c18abb4` + impl v0 `d5f0ccf` + sub-agent v0 verdict `8368a84` + rev-1 `0a83f66` + this LOG update.
+
+---
+
 ## Review — v0.8.1-wave-d-deferrals items 1+2 (commit d5f0ccf) — 2026-05-14
 
 **Reviewer**: copilot-cli sub-agent (`v0-8-1-flags-review`)
