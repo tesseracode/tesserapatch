@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.8.0 (in development) — M17 boundary-capture cluster
+## v0.8.0 — 2026-05-14 — M17 boundary-capture cluster
 
 ### Wave C
 
