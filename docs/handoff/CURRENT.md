@@ -18,7 +18,7 @@ v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on t
 
 ## Current State
 
-- `main` at `29a6732` (release-flip commit). Tag `v0.8.0` pushed to `origin`.
+- `main` at `097e1e4` (sub-agent rev-1 verdict log) — pushed; rev-1 implementation at `dd6506a`. Tag `v0.8.0` at `29a6732` pushed to `origin`.
 - Worktree clean. Untracked: `.dbg/` (local artifacts).
 - All M17 work landed; no in-flight code regions.
 - Ready surfaces for this slice (12 references total — see PRD §5.1 table):

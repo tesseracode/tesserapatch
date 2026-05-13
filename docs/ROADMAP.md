@@ -265,16 +265,16 @@ the data-bug fix immediately rather than wait for Slice 3.
 Multi-agent paper-design cluster accepted in `docs/supervisor/LOG.md` →
 "Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard) —
 **2026-05-10**". Sliced into Wave A / Wave B / Wave C / Wave D mirroring
-the sequencing recorded in that entry. Owners deliberately left **TBD** —
-implementation owner assignment is a backlog task (see
-`backlog-assign-m17-owners` in SQL todos); a fresh implementer sub-agent
-will be dispatched per Wave when ready.
+the sequencing recorded in that entry. All four waves shipped as v0.8.0
+(see per-Wave ship commits below); the cluster archive lives in
+`docs/handoff/HISTORY.md`.
 
-**Ships as v0.8.0** (supervisor decision 2026-05-10). v0.7.0 is reserved
-for `feat-amend-dependent-warning` — the M15 W3 freshness continuation —
-which lands first to keep the freshness work contiguous. The cluster name
-"v0.7 cluster" is preserved in the LOG entry's title for historical
-fidelity, but the implementation milestone is v0.8.0.
+**Shipped as v0.8.0** (supervisor decision 2026-05-10; tagged 2026-05-12).
+v0.7.0 was reserved for `feat-amend-dependent-warning` — the M15 W3
+freshness continuation — which landed first to keep the freshness work
+contiguous. The cluster name "v0.7 cluster" is preserved in the LOG
+entry's title for historical fidelity, but the implementation milestone
+is v0.8.0.
 
 - **Wave A — independent, parallel** ✅ (shipped 2026-05-11, released as part of v0.8.0)
   - **Slice A1 — `impl-record-auto-base`** ✅
