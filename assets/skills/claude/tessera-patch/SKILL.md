@@ -65,8 +65,8 @@ If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA i
 1. `tpatch status <slug>` — see current state and last command.
 2. `tpatch next <slug>` — get the exact next command (add `--format harness-json` for structured output).
 3. Only then proceed. Do not guess the next phase from file presence.
-4. Run tpatch record <slug> BEFORE git commit. If you already committed, prefer tpatch record <slug> --auto (infers base from .tpatch/upstream.lock + merge-base); fall back to tpatch record <slug> --from <base> when --auto refuses (ambiguous merge-base or empty lock). A clean working tree without --auto/--from is refused. Or run `tpatch land <slug>` to compose record + safe-stage + one Git commit (with a `Tpatch-Feature: <slug>` trailer block — see docs/land.md) in a single verb.
-5. Run tpatch reconcile only on a CLEAN working tree at the target upstream state. Commit or stash first; reconcile refuses dirty trees, conflict markers, and .orig/.rej leftovers. See docs/reconcile.md for the workflow patterns.
+4. Run tpatch record <slug> BEFORE git commit. If you already committed, prefer tpatch record <slug> --auto (infers base from .tpatch/upstream.lock + merge-base); fall back to tpatch record <slug> --from <base> when --auto refuses (ambiguous merge-base or empty lock). A clean working tree without --auto/--from is refused. Or run `tpatch land <slug>` to compose record + safe-stage (limits the index to the feature's apply path set plus `.tpatch/features/<slug>/`) + one Git commit carrying the locked four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) plus the repo `Co-authored-by:` trailer. Use `--dry-run` to preview without mutating; use `--allow-extra-paths` to opt into staging dirty paths outside the feature scope.
+5. Run tpatch reconcile only on a CLEAN working tree at the target upstream state. Commit or stash first; reconcile refuses dirty trees, conflict markers, mid-merge state, and `*.orig` / `*.rej` leftovers. Reconcile is read-only for the rest of the workflow but will refuse if these preflight checks fail.
 
 ## Phases — Path A and Path B
 
@@ -209,7 +209,7 @@ Toggle the whole feature with `features_dependencies: true|false` in `.tpatch/co
 
 ## Reconcile Phase 3.5 — Provider-assisted conflict resolution (v0.5.0)
 
-On 3-way conflict, `tpatch reconcile --resolve` asks the provider to merge each conflicted file inside a **shadow worktree** (`.tpatch/shadow/<slug>-<ts>/`). The real working tree is never touched until you accept. See `docs/adrs/ADR-010-provider-conflict-resolver.md` for the full decision table.
+On 3-way conflict, `tpatch reconcile --resolve` asks the provider to merge each conflicted file inside a **shadow worktree** (`.tpatch/shadow/<slug>-<ts>/`). The real working tree is never touched until you accept.
 
 ### Flags
 

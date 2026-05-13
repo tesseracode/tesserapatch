@@ -154,6 +154,45 @@ func TestSkillParityGuard(t *testing.T) {
 	}
 }
 
+// repoRelativeDocsRef matches repo-relative `docs/...md` references
+// such as `docs/land.md` or `docs/adrs/ADR-010-foo.md`. Fully
+// qualified URLs (`http://.../docs/foo.md`,
+// `https://.../docs/foo.md`) are explicitly allowed by skipping
+// matches preceded by `://`. The PRD §10 question 4 leaves URL
+// policy open; for v1 the guard forbids only bare repo-relative
+// paths.
+var repoRelativeDocsRef = regexp.MustCompile(`(?:^|[^A-Za-z0-9_/:])(docs/[A-Za-z0-9_./-]+\.md)\b`)
+
+// TestSkillDocReferencesAreSelfContained enforces ADR-020 / PRD
+// `feat-skill-doc-references-user-visible`: shipped skill surfaces
+// must not point end users at development-repo docs (e.g.
+// `docs/land.md`, `docs/reconcile.md`) that are not installed by
+// `tpatch init`. Any command-critical guidance must be inlined as
+// a concise snippet in each surface so installed skills work
+// offline. URL-prefixed references (`https://.../docs/foo.md`) are
+// allowed for now (PRD §10 q4 left open); only bare repo-relative
+// paths fail.
+func TestSkillDocReferencesAreSelfContained(t *testing.T) {
+	for _, sf := range skillFiles {
+		t.Run(sf.name, func(t *testing.T) {
+			data, err := Skills.ReadFile(sf.path)
+			if err != nil {
+				t.Fatalf("cannot read %s: %v", sf.path, err)
+			}
+			content := string(data)
+			matches := repoRelativeDocsRef.FindAllStringSubmatch(content, -1)
+			for _, m := range matches {
+				// m[0] is the full match including the leading
+				// non-identifier byte; m[1] is the captured
+				// `docs/...md` path. Report the captured path so
+				// future contributors can locate it instantly.
+				t.Errorf("%s (%s) contains forbidden repo-relative docs reference: %q — inline the guidance instead (ADR-020 / PRD-skill-doc-strategy)",
+					sf.name, sf.path, m[1])
+			}
+		})
+	}
+}
+
 func TestAllSkillFilesExist(t *testing.T) {
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {

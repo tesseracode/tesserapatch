@@ -5,7 +5,7 @@
 - **Task ID**: `feat-skill-doc-references-user-visible`
 - **Milestone**: post-v0.8.0 / pre-v0.8.1
 - **Description**: Implement PRD-skill-doc-strategy / ADR-020. Remove all `docs/land.md` and `docs/reconcile.md` repo-relative references from the six shipped skill surfaces and replace them with concise inline action snippets per ac.3. Add `TestSkillDocReferencesAreSelfContained` parity guard per ac.4. No `.tpatch/` migration; no new CLI flags.
-- **Status**: In Progress (implementer dispatched)
+- **Status**: Implementation complete — awaiting review
 - **Assigned**: 2026-05-14
 
 ## Session Summary
@@ -26,14 +26,30 @@ v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on t
   - `assets/workflows/tessera-patch-generic.md` (lines 38-39)
 - Parity guard target: `assets/assets_test.go` (existing `skillFiles` table at lines 12-30).
 
-## Files Changed (this slice — planned)
+## Files Changed (this slice — landed)
 
-- 6 shipped skill surfaces above.
-- `assets/assets_test.go` — new `TestSkillDocReferencesAreSelfContained` (negative regex check on the same `skillFiles` table).
+- `assets/skills/claude/tessera-patch/SKILL.md` — lines 68-69 land/reconcile snippets inlined; line 212 dropped `docs/adrs/ADR-010-...md` pointer.
+- `assets/skills/copilot/tessera-patch/SKILL.md` — lines 43-44 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — lines 50-51 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/skills/cursor/tessera-patch.mdc` — lines 40-41 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/skills/windsurf/windsurfrules` — lines 34-35 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/workflows/tessera-patch-generic.md` — lines 38-39 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/assets_test.go` — new `TestSkillDocReferencesAreSelfContained` (regex `(?:^|[^A-Za-z0-9_/:])(docs/[A-Za-z0-9_./-]+\.md)\b` on the same `skillFiles` table; URL-prefixed refs allowed via the `/:` exclusion class).
+
+### Unexpected scope expansion (flagged for reviewer)
+
+The PRD §5.1 enumerates only the `docs/land.md` / `docs/reconcile.md` lines, but the PRD §6 / ac.4 regex (`\bdocs/[A-Za-z0-9_./-]+\.md\b`) also matches the pre-existing `Full design: \`docs/adrs/ADR-010-provider-conflict-resolver.md\`.` pointer line that ships in all six surfaces (and the equivalent inline sentence in the Claude SKILL.md "Reconcile Phase 3.5" section). With the new test enabled, those references would have failed the suite, violating ac.5. They are non-command-critical "see further" pointers, so I dropped them rather than inlining the ADR contents. If the supervisor would prefer the ADR design summary inlined instead of removed, that is a follow-up edit to the same six lines.
+
+### Documentation update discipline (ac.7)
+
+The implementation handoff (this section) explicitly records the rule for future contributors: when long-form `docs/*.md` content changes command-critical guidance for `land`, `reconcile`, or any other surface mentioned in the six shipped skills, the corresponding inline snippet in each of the six `skillFiles` MUST be reviewed in the same change. The `TestSkillDocReferencesAreSelfContained` parity guard prevents reintroducing repo-relative `docs/*.md` references; it does not detect drift in the inline content itself, so reviewer discipline remains required.
 
 ## Test Results
 
-- v0.8.0 tag baseline: `go test ./assets -run TestSkillParityGuard` PASS (0.916s); `go build ./cmd/tpatch` OK; `gofmt -l .` clean.
+- `gofmt -l .` → empty (clean).
+- `go build ./cmd/tpatch` → OK.
+- `go test ./assets -count=1` → ok (2.338s); `TestSkillDocReferencesAreSelfContained` PASS for all six surfaces; `TestSkillParityGuard`, `TestAllSkillFilesExist`, `TestSkillRecipeSchemaMatchesCLI` continue to pass.
+- `go test ./... -count=1` → all packages PASS (assets 2.338s, internal/cli 56.182s, internal/gitutil 17.978s, internal/provider 14.844s, internal/safety 5.663s, internal/store 5.119s, internal/workflow 47.549s, internal/buildinfo 1.425s).
 
 ## Next Steps
 
