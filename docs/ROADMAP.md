@@ -260,7 +260,7 @@ the data-bug fix immediately rather than wait for Slice 3.
   surfaces and tightened anchor to a regex; external pass
   2026-05-10).
 
-## M17 — boundary-capture cluster (v0.8.0) ✅ (awaiting tag at `34815e8`)
+## M17 — boundary-capture cluster (v0.8.0) ✅ (shipped 2026-05-12 as v0.8.0; tag at `29a6732`, M17 cluster ship-stack tip at `34815e8`)
 
 Multi-agent paper-design cluster accepted in `docs/supervisor/LOG.md` →
 "Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard) —
@@ -276,7 +276,7 @@ which lands first to keep the freshness work contiguous. The cluster name
 "v0.7 cluster" is preserved in the LOG entry's title for historical
 fidelity, but the implementation milestone is v0.8.0.
 
-- **Wave A — independent, parallel** ✅ (shipped 2026-05-11, unreleased — bundled into v0.8.0)
+- **Wave A — independent, parallel** ✅ (shipped 2026-05-11, released as part of v0.8.0)
   - **Slice A1 — `impl-record-auto-base`** ✅
     - PRD: [`docs/prds/PRD-record-auto-base.md`](prds/PRD-record-auto-base.md)
     - ADR placeholder: [ADR-016](adrs/ADR-016-record-auto-base-resolution.md)

@@ -5,12 +5,16 @@
 - **Task ID**: `feat-skill-doc-references-user-visible`
 - **Milestone**: post-v0.8.0 / pre-v0.8.1
 - **Description**: Implement PRD-skill-doc-strategy / ADR-020. Remove all `docs/land.md` and `docs/reconcile.md` repo-relative references from the six shipped skill surfaces and replace them with concise inline action snippets per ac.3. Add `TestSkillDocReferencesAreSelfContained` parity guard per ac.4. No `.tpatch/` migration; no new CLI flags.
-- **Status**: Implementation complete — awaiting review
-- **Assigned**: 2026-05-14
+- **Status**: rev-1 complete — awaiting review
+- **Assigned**: 2026-05-14 (rev-1 2026-05-14)
 
 ## Session Summary
 
-v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on top of tracking-close `e79c7d9`). Pushed to `origin`. M17 cluster archive landed in HISTORY at `e79c7d9`. Now starting the skill-doc-references slice with PRD/ADR-020 already approved at `2e0b791`.
+v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on top of tracking-close `e79c7d9`). Pushed to `origin`. M17 cluster archive landed in HISTORY at `e79c7d9`. Skill-doc-references slice landed at `ea5c954`; rev-1 follows up on three external findings:
+
+- **F1 (Medium)** — Reconcile snippet across all six surfaces falsely claimed reconcile is "read-only for the rest of the workflow". Replaced with a mutating-operation wording that grounds in `internal/workflow/reconcile.go` (`ReconcileReapplied`) and `internal/workflow/accept.go` (shadow→tree copy on accept), and tells the user to re-run `tpatch record` afterwards.
+- **F2 (Low)** — Parity guard regex `(?:^|[^A-Za-z0-9_/:])(docs/...)` missed `./docs/...md`, `../docs/...md`, `/docs/...md`. Restructured into a two-branch regex `[a-z][a-z0-9+.-]*://\S+|(?:^|[^A-Za-z0-9_])((?:\.{0,2}/)?docs/[A-Za-z0-9_./-]+\.md)\b` extracted behind a `findRepoRelativeDocsRefs` helper. Added 8 synthetic probe sub-tests (4 must-fail + 1 already-failing parens + 3 must-pass URLs).
+- **F3 (Low)** — Roadmap M17 header still said "awaiting tag at `34815e8`" and Wave A row said "unreleased — bundled into v0.8.0". Both flipped to released wording referencing the actual tag SHA `29a6732` plus the cluster ship-stack tip `34815e8`.
 
 ## Current State
 
@@ -28,13 +32,21 @@ v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on t
 
 ## Files Changed (this slice — landed)
 
+### v0 (`ea5c954`)
+
 - `assets/skills/claude/tessera-patch/SKILL.md` — lines 68-69 land/reconcile snippets inlined; line 212 dropped `docs/adrs/ADR-010-...md` pointer.
 - `assets/skills/copilot/tessera-patch/SKILL.md` — lines 43-44 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
 - `assets/prompts/copilot/tessera-patch-apply.prompt.md` — lines 50-51 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
 - `assets/skills/cursor/tessera-patch.mdc` — lines 40-41 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
 - `assets/skills/windsurf/windsurfrules` — lines 34-35 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
 - `assets/workflows/tessera-patch-generic.md` — lines 38-39 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
-- `assets/assets_test.go` — new `TestSkillDocReferencesAreSelfContained` (regex `(?:^|[^A-Za-z0-9_/:])(docs/[A-Za-z0-9_./-]+\.md)\b` on the same `skillFiles` table; URL-prefixed refs allowed via the `/:` exclusion class).
+- `assets/assets_test.go` — `TestSkillDocReferencesAreSelfContained` added.
+
+### rev-1 (this commit)
+
+- All six surfaces: reconcile bullet `5.` rewritten to drop the false "read-only" claim; new wording calls out reconcile as a mutating operation and instructs `tpatch record` after.
+- `assets/assets_test.go` — regex tightened to also catch `./`, `../`, `/` prefixed `docs/...md` paths via a two-branch URL-vs-bare alternation; `reflect` import added; `findRepoRelativeDocsRefs` helper extracted; 8 probe sub-tests added inside `TestSkillDocReferencesAreSelfContained`.
+- `docs/ROADMAP.md` line 263 (M17 header) + line 279 (Wave A row) flipped from "awaiting tag" / "unreleased" to released-state wording.
 
 ### Unexpected scope expansion (flagged for reviewer)
 
@@ -46,10 +58,22 @@ The implementation handoff (this section) explicitly records the rule for future
 
 ## Test Results
 
+### v0 (`ea5c954`)
+
 - `gofmt -l .` → empty (clean).
 - `go build ./cmd/tpatch` → OK.
 - `go test ./assets -count=1` → ok (2.338s); `TestSkillDocReferencesAreSelfContained` PASS for all six surfaces; `TestSkillParityGuard`, `TestAllSkillFilesExist`, `TestSkillRecipeSchemaMatchesCLI` continue to pass.
 - `go test ./... -count=1` → all packages PASS (assets 2.338s, internal/cli 56.182s, internal/gitutil 17.978s, internal/provider 14.844s, internal/safety 5.663s, internal/store 5.119s, internal/workflow 47.549s, internal/buildinfo 1.425s).
+
+### rev-1
+
+- `gofmt -l .` → empty.
+- `go build ./cmd/tpatch` → OK.
+- `go test ./assets -run TestSkillDocReferencesAreSelfContained -count=1 -v` → PASS; 14 sub-tests (8 probes + 6 surfaces) all green; total 0.829s.
+- `go test ./assets -count=1` → ok (0.848s).
+- `go test ./... -count=1 -timeout 300s` → all packages PASS (assets 1.387s, buildinfo 2.103s, cli 51.590s, gitutil 14.372s, provider 15.008s, safety 4.186s, store 6.950s, workflow 40.429s; wall 55.077s).
+- `rg -n 'docs/[A-Za-z0-9_./-]+\.md' assets --glob '!assets/assets_test.go'` → 0 hits.
+- `rg -n 'Reconcile is read-only' assets/skills assets/prompts assets/workflows` → 0 hits. Remaining `read-only` matches all describe `tpatch verify` correctly and predate this slice.
 
 ## Next Steps
 

@@ -2,6 +2,7 @@ package assets
 
 import (
 	"encoding/json"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -154,14 +155,32 @@ func TestSkillParityGuard(t *testing.T) {
 	}
 }
 
-// repoRelativeDocsRef matches repo-relative `docs/...md` references
-// such as `docs/land.md` or `docs/adrs/ADR-010-foo.md`. Fully
-// qualified URLs (`http://.../docs/foo.md`,
-// `https://.../docs/foo.md`) are explicitly allowed by skipping
-// matches preceded by `://`. The PRD §10 question 4 leaves URL
-// policy open; for v1 the guard forbids only bare repo-relative
-// paths.
-var repoRelativeDocsRef = regexp.MustCompile(`(?:^|[^A-Za-z0-9_/:])(docs/[A-Za-z0-9_./-]+\.md)\b`)
+// docsRefCandidateRe matches, in a single pass, EITHER a fully
+// qualified URL token (consumed harmlessly so it cannot be
+// reinterpreted as a docs reference) OR a candidate repo-relative
+// `docs/...md` reference, including the variants `./docs/...md`,
+// `../docs/...md`, and `/docs/...md`. Go's regexp has no
+// lookbehind, so a single-pattern "preceded by `://`" exclusion
+// isn't expressible; instead we list the URL alternative first
+// and only treat the second branch (capture group 1) as a
+// failure. The PRD §10 question 4 leaves URL policy open; for v1
+// the guard forbids only bare repo-relative paths.
+var docsRefCandidateRe = regexp.MustCompile(`[a-z][a-z0-9+.-]*://\S+|(?:^|[^A-Za-z0-9_])((?:\.{0,2}/)?docs/[A-Za-z0-9_./-]+\.md)\b`)
+
+// findRepoRelativeDocsRefs returns every bare repo-relative
+// `docs/...md` reference (including `./`, `../`, `/` prefixed
+// variants) in `content`. URL-embedded paths are skipped because
+// the URL alternative of `docsRefCandidateRe` consumes them
+// without producing a capture in group 1.
+func findRepoRelativeDocsRefs(content string) []string {
+	var out []string
+	for _, m := range docsRefCandidateRe.FindAllStringSubmatch(content, -1) {
+		if len(m) > 1 && m[1] != "" {
+			out = append(out, m[1])
+		}
+	}
+	return out
+}
 
 // TestSkillDocReferencesAreSelfContained enforces ADR-020 / PRD
 // `feat-skill-doc-references-user-visible`: shipped skill surfaces
@@ -171,23 +190,43 @@ var repoRelativeDocsRef = regexp.MustCompile(`(?:^|[^A-Za-z0-9_/:])(docs/[A-Za-z
 // a concise snippet in each surface so installed skills work
 // offline. URL-prefixed references (`https://.../docs/foo.md`) are
 // allowed for now (PRD §10 q4 left open); only bare repo-relative
-// paths fail.
+// paths (and their `./`, `../`, `/` prefixed siblings) fail.
 func TestSkillDocReferencesAreSelfContained(t *testing.T) {
+	// Probe table — synthetic strings exercising every variant we
+	// expect the guard to (dis)allow. Kept inside the test so a
+	// future change to the regex must continue to satisfy them.
+	probes := []struct {
+		name      string
+		content   string
+		wantFails []string // expected captured docs paths
+	}{
+		{name: "bare", content: "See docs/land.md", wantFails: []string{"docs/land.md"}},
+		{name: "dot-slash", content: "See ./docs/land.md", wantFails: []string{"./docs/land.md"}},
+		{name: "dot-dot-slash", content: "See ../docs/land.md", wantFails: []string{"../docs/land.md"}},
+		{name: "leading-slash", content: "See /docs/land.md", wantFails: []string{"/docs/land.md"}},
+		{name: "parens", content: "(docs/land.md)", wantFails: []string{"docs/land.md"}},
+		{name: "https-url", content: "See https://example.com/docs/land.md", wantFails: nil},
+		{name: "http-url", content: "See http://example.com/docs/land.md", wantFails: nil},
+		{name: "file-url", content: "See file:///home/user/docs/land.md", wantFails: nil},
+	}
+	for _, p := range probes {
+		t.Run("probe/"+p.name, func(t *testing.T) {
+			got := findRepoRelativeDocsRefs(p.content)
+			if !reflect.DeepEqual(got, p.wantFails) {
+				t.Fatalf("probe %q: got %#v, want %#v", p.name, got, p.wantFails)
+			}
+		})
+	}
+
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
 			data, err := Skills.ReadFile(sf.path)
 			if err != nil {
 				t.Fatalf("cannot read %s: %v", sf.path, err)
 			}
-			content := string(data)
-			matches := repoRelativeDocsRef.FindAllStringSubmatch(content, -1)
-			for _, m := range matches {
-				// m[0] is the full match including the leading
-				// non-identifier byte; m[1] is the captured
-				// `docs/...md` path. Report the captured path so
-				// future contributors can locate it instantly.
+			for _, ref := range findRepoRelativeDocsRefs(string(data)) {
 				t.Errorf("%s (%s) contains forbidden repo-relative docs reference: %q — inline the guidance instead (ADR-020 / PRD-skill-doc-strategy)",
-					sf.name, sf.path, m[1])
+					sf.name, sf.path, ref)
 			}
 		})
 	}
