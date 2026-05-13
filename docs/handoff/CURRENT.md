@@ -2,46 +2,44 @@
 
 ## Active Task
 
-- **Task ID**: `v0.8.0-tag-and-backlog`
-- **Milestone**: post-M17 / pre-v0.8.1
-- **Description**: M17 boundary-capture cluster complete and externally approved end-to-end (Waves A1+A2, B, C+rev1+2+3+4, D+rev1). Next operator action: tag v0.8.0 at `origin/main` HEAD (`34815e8`), then pick from the M17-deferred backlog (see below) or move to the next milestone.
-- **Status**: Ready for tag
-- **Assigned**: 2026-05-12
+- **Task ID**: `feat-skill-doc-references-user-visible`
+- **Milestone**: post-v0.8.0 / pre-v0.8.1
+- **Description**: Implement PRD-skill-doc-strategy / ADR-020. Remove all `docs/land.md` and `docs/reconcile.md` repo-relative references from the six shipped skill surfaces and replace them with concise inline action snippets per ac.3. Add `TestSkillDocReferencesAreSelfContained` parity guard per ac.4. No `.tpatch/` migration; no new CLI flags.
+- **Status**: In Progress (implementer dispatched)
+- **Assigned**: 2026-05-14
 
 ## Session Summary
 
-M17 cluster archived to `docs/handoff/HISTORY.md` (single dated entry covering Waves B, C revs 0-4, and D + rev-1 with full review history). ROADMAP M17 cluster header + Wave B / C / D rows flipped to ✅ with externally-approved-2026-05-12 annotations. SQL todos for the in-progress Wave C revisions marked done.
-
-This is a tracking-only commit — NO code changes.
+v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on top of tracking-close `e79c7d9`). Pushed to `origin`. M17 cluster archive landed in HISTORY at `e79c7d9`. Now starting the skill-doc-references slice with PRD/ADR-020 already approved at `2e0b791`.
 
 ## Current State
 
-- Worktree clean. Last commit on `main`: `34815e8` (Wave C rev-4 sub-agent verdict log) — externally approved.
-- v0.8.0 NOT yet tagged. Awaiting supervisor tag dispatch.
-- All M17 PRDs marked complete in their respective files; ADR-019, ADR-020, ADR-021 all Accepted.
-- Untracked: `.dbg/` (local artifacts; gitignored / safe to leave).
+- `main` at `29a6732` (release-flip commit). Tag `v0.8.0` pushed to `origin`.
+- Worktree clean. Untracked: `.dbg/` (local artifacts).
+- All M17 work landed; no in-flight code regions.
+- Ready surfaces for this slice (12 references total — see PRD §5.1 table):
+  - `assets/skills/claude/tessera-patch/SKILL.md` (lines 68-69)
+  - `assets/skills/copilot/tessera-patch/SKILL.md` (lines 43-44)
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md` (lines 50-51)
+  - `assets/skills/cursor/tessera-patch.mdc` (lines 40-41)
+  - `assets/skills/windsurf/windsurfrules` (lines 34-35)
+  - `assets/workflows/tessera-patch-generic.md` (lines 38-39)
+- Parity guard target: `assets/assets_test.go` (existing `skillFiles` table at lines 12-30).
 
-## Files Changed (this commit)
+## Files Changed (this slice — planned)
 
-- `docs/handoff/CURRENT.md` — reset for post-M17 (this file)
-- `docs/handoff/HISTORY.md` — prepended M17 final archive entry (Waves B + C + D + revs)
-- `docs/ROADMAP.md` — Waves B / C / D ✅; M17 cluster header ✅; v0.8.0 milestone marked awaiting tag
-- (No code changes.)
+- 6 shipped skill surfaces above.
+- `assets/assets_test.go` — new `TestSkillDocReferencesAreSelfContained` (negative regex check on the same `skillFiles` table).
 
 ## Test Results
 
-- Last full suite run on `34815e8`: `go test -timeout 180s ./...` passed end-to-end (cli ≈37s, workflow ≈30s, gitutil ≈14s, …).
-- Race-detector run on `34815e8`: passed.
+- v0.8.0 tag baseline: `go test ./assets -run TestSkillParityGuard` PASS (0.916s); `go build ./cmd/tpatch` OK; `gofmt -l .` clean.
 
 ## Next Steps
 
-1. Tag v0.8.0 at `34815e8` (supervisor decision; expected next action).
-2. Push tag.
-3. Pick from the M17-deferred backlog or next milestone:
-   - `m17-wave-a1-followup-ambig-discovery-diag` (LOW) — surface candidate refs when ambiguous discovery refuses post-unusable-lock fallback.
-   - `m17-wave-a-parser-deduplication` (refactor; pair with the `store → gitutil` import-cycle break).
-   - `feat-skill-doc-references-user-visible` (PRD-skill-doc-strategy + ADR-020 now approved at `2e0b791`).
-   - PRD-patch-already-upstream-detector §3.2 `--check-applied-only` / §3.3 `--auto-drop-merged` CLI flags + hotfix-kind auto-drop default (Wave D deferrals → v0.8.1+).
+1. Implementer landed → sub-agent reviewer → external supervisor review.
+2. On approval, tracking close + push.
+3. Pick next backlog item (Wave D deferrals to v0.8.1 / parser dedup / a1-followup).
 
 ## Blockers
 
