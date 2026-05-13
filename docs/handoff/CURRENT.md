@@ -2,95 +2,37 @@
 
 ## Active Task
 
-- **Task ID**: `feat-skill-doc-references-user-visible`
+- **Task ID**: post-`feat-skill-doc-references-user-visible` / pre-v0.8.1 backlog selection
 - **Milestone**: post-v0.8.0 / pre-v0.8.1
-- **Description**: Implement PRD-skill-doc-strategy / ADR-020. Remove all `docs/land.md` and `docs/reconcile.md` repo-relative references from the six shipped skill surfaces and replace them with concise inline action snippets per ac.3. Add `TestSkillDocReferencesAreSelfContained` parity guard per ac.4. No `.tpatch/` migration; no new CLI flags.
-- **Status**: rev-3 complete — awaiting external review (handoff sync to advance from rev-2 to rev-3; doc-only)
-- **Assigned**: 2026-05-14 (rev-1 2026-05-14, rev-2 2026-05-14, rev-3 2026-05-14)
+- **Description**: Slice `feat-skill-doc-references-user-visible` shipped and archived to `docs/handoff/HISTORY.md`. Next: supervisor selects from the M17-deferred backlog — `m17-wave-a1-followup-ambig-discovery-diag` (LOW), `m17-wave-a-parser-deduplication` (refactor), or the Wave D deferrals (`--check-applied-only`, `--auto-drop-merged`, hotfix-kind auto-drop default) — and optionally opens v0.8.1 around one of those.
+- **Status**: Awaiting selection.
+- **Assigned**: 2026-05-14 (tracking-close).
 
 ## Session Summary
 
-v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on top of tracking-close `e79c7d9`). Pushed to `origin`. M17 cluster archive landed in HISTORY at `e79c7d9`. Skill-doc-references slice landed at `ea5c954`; rev-1 (`dd6506a`) followed up on three external findings; rev-2 (`f7366df`) closed a final external finding by cleaning two stale tracking-doc lines that still read like pre-dispatch planning prose; rev-3 (this commit) syncs CURRENT.md so the handoff state advances past rev-2 instead of claiming `f7366df` is `main` after a newer commit lands.
-
-- **F1 (Medium)** — Reconcile snippet across all six surfaces falsely claimed reconcile is "read-only for the rest of the workflow". Replaced with a mutating-operation wording that grounds in `internal/workflow/reconcile.go` (`ReconcileReapplied`) and `internal/workflow/accept.go` (shadow→tree copy on accept), and tells the user to re-run `tpatch record` afterwards.
-- **F2 (Low)** — Parity guard regex `(?:^|[^A-Za-z0-9_/:])(docs/...)` missed `./docs/...md`, `../docs/...md`, `/docs/...md`. Restructured into a two-branch regex `[a-z][a-z0-9+.-]*://\S+|(?:^|[^A-Za-z0-9_])((?:\.{0,2}/)?docs/[A-Za-z0-9_./-]+\.md)\b` extracted behind a `findRepoRelativeDocsRefs` helper. Added 8 synthetic probe sub-tests (4 must-fail + 1 already-failing parens + 3 must-pass URLs).
-- **F3 (Low)** — Roadmap M17 header still said "awaiting tag at `34815e8`" and Wave A row said "unreleased — bundled into v0.8.0". Both flipped to released wording referencing the actual tag SHA `29a6732` plus the cluster ship-stack tip `34815e8`.
+Tracking-only commit closing the skill-doc-references slice. Previous stack tip: rev-3 `47e2888` (CURRENT.md handoff sync, doc-only). This commit (tracking-close) is doc-only on top of that stack: prepends the slice archive entry to `docs/handoff/HISTORY.md`, resets `docs/handoff/CURRENT.md` to a clean post-slice state, and opens the `v0.8.1 (in development)` section in `CHANGELOG.md`. No code, no tests, no `.tpatch/` artifact changes.
 
 ## Current State
 
-- Latest finalized stack before this handoff sync: rev-2 `f7366df` (ROADMAP cleanup), rev-1 impl `dd6506a`, sub-agent rev-1 verdict `097e1e4`, v0 impl `ea5c954`, v0 sub-agent verdict `ab17939`, handoff start `c78240d`, v0.8.0 release-flip `29a6732` (tag `v0.8.0`), tracking-close `e79c7d9`. This commit (rev-3) is a doc-only sync of CURRENT.md on top of that stack; no code or test changes.
-- Worktree clean. Untracked: `.dbg/` (local artifacts).
-- All M17 work landed; no in-flight code regions.
-- Ready surfaces for this slice (12 references total — see PRD §5.1 table):
-  - `assets/skills/claude/tessera-patch/SKILL.md` (lines 68-69)
-  - `assets/skills/copilot/tessera-patch/SKILL.md` (lines 43-44)
-  - `assets/prompts/copilot/tessera-patch-apply.prompt.md` (lines 50-51)
-  - `assets/skills/cursor/tessera-patch.mdc` (lines 40-41)
-  - `assets/skills/windsurf/windsurfrules` (lines 34-35)
-  - `assets/workflows/tessera-patch-generic.md` (lines 38-39)
-- Parity guard target: `assets/assets_test.go` (existing `skillFiles` table at lines 12-30).
+- Previous stack tip before this commit: rev-3 `47e2888`. v0.8.0 tagged at `29a6732`. No in-flight code regions; worktree expected clean after this commit (only doc files touched).
+- All M17 work shipped under v0.8.0. The skill-doc-references slice ships as the first item under v0.8.1.
 
-## Files Changed (this slice — landed)
+## Files Changed (this commit)
 
-### v0 (`ea5c954`)
-
-- `assets/skills/claude/tessera-patch/SKILL.md` — lines 68-69 land/reconcile snippets inlined; line 212 dropped `docs/adrs/ADR-010-...md` pointer.
-- `assets/skills/copilot/tessera-patch/SKILL.md` — lines 43-44 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
-- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — lines 50-51 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
-- `assets/skills/cursor/tessera-patch.mdc` — lines 40-41 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
-- `assets/skills/windsurf/windsurfrules` — lines 34-35 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
-- `assets/workflows/tessera-patch-generic.md` — lines 38-39 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
-- `assets/assets_test.go` — `TestSkillDocReferencesAreSelfContained` added.
-
-### rev-1 (`dd6506a`)
-
-- All six surfaces: reconcile bullet `5.` rewritten to drop the false "read-only" claim; new wording calls out reconcile as a mutating operation and instructs `tpatch record` after.
-- `assets/assets_test.go` — regex tightened to also catch `./`, `../`, `/` prefixed `docs/...md` paths via a two-branch URL-vs-bare alternation; `reflect` import added; `findRepoRelativeDocsRefs` helper extracted; 8 probe sub-tests added inside `TestSkillDocReferencesAreSelfContained`.
-- `docs/ROADMAP.md` line 263 (M17 header) + line 279 (Wave A row) flipped from "awaiting tag" / "unreleased" to released-state wording.
-
-### rev-2 (`f7366df`) — final tracking-doc cleanup
-
-- `docs/ROADMAP.md` lines 268-277: M17 cluster body rewritten from pre-dispatch planning prose ("Owners deliberately left **TBD**", "will be dispatched per Wave when ready", "**Ships as v0.8.0**") to past-tense shipped-state pointing at the per-Wave ship commits below + the HISTORY.md archive entry. "**Shipped as v0.8.0**" line now records "tagged 2026-05-12".
-- `docs/handoff/CURRENT.md` Current State block: pointed `main` at the actual stack tip rather than the v0.8.0 release-flip commit.
-- No code changes.
-
-### rev-3 (this commit) — handoff sync only
-
-- `docs/handoff/CURRENT.md` Status / Session Summary / Current State / Files Changed: advanced from rev-2 wording to rev-3 wording. The "Current State" `main` line now uses non-self-referential phrasing ("latest finalized stack before this handoff sync: ...") to avoid the chicken-and-egg problem of a commit naming its own SHA.
-- No other files touched; no code; no tests.
-
-### Unexpected scope expansion (flagged for reviewer)
-
-The PRD §5.1 enumerates only the `docs/land.md` / `docs/reconcile.md` lines, but the PRD §6 / ac.4 regex (`\bdocs/[A-Za-z0-9_./-]+\.md\b`) also matches the pre-existing `Full design: \`docs/adrs/ADR-010-provider-conflict-resolver.md\`.` pointer line that ships in all six surfaces (and the equivalent inline sentence in the Claude SKILL.md "Reconcile Phase 3.5" section). With the new test enabled, those references would have failed the suite, violating ac.5. They are non-command-critical "see further" pointers, so I dropped them rather than inlining the ADR contents. If the supervisor would prefer the ADR design summary inlined instead of removed, that is a follow-up edit to the same six lines.
-
-### Documentation update discipline (ac.7)
-
-The implementation handoff (this section) explicitly records the rule for future contributors: when long-form `docs/*.md` content changes command-critical guidance for `land`, `reconcile`, or any other surface mentioned in the six shipped skills, the corresponding inline snippet in each of the six `skillFiles` MUST be reviewed in the same change. The `TestSkillDocReferencesAreSelfContained` parity guard prevents reintroducing repo-relative `docs/*.md` references; it does not detect drift in the inline content itself, so reviewer discipline remains required.
+- `docs/handoff/HISTORY.md` — prepended slice archive entry `# 2026-05-14 — feat-skill-doc-references-user-visible — APPROVED` covering scope, ship-stack table, 4-cycle review history, code anchors, files touched, test results, frozen-code respect, deferred-backlog status.
+- `docs/handoff/CURRENT.md` — Active Task / Session Summary / Current State / Files Changed / Test Results / Next Steps / Blockers / Context blocks reset to clean post-slice state. The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved byte-identical from rev-3.
+- `CHANGELOG.md` — new `## v0.8.1 (in development)` section opened above the v0.8.0 header with the skill-doc-references entry under `### Skill assets`.
+- SQL `todos` row `feat-skill-doc-references-user-visible` flipped from `pending` → `done`.
 
 ## Test Results
 
-### v0 (`ea5c954`)
-
-- `gofmt -l .` → empty (clean).
-- `go build ./cmd/tpatch` → OK.
-- `go test ./assets -count=1` → ok (2.338s); `TestSkillDocReferencesAreSelfContained` PASS for all six surfaces; `TestSkillParityGuard`, `TestAllSkillFilesExist`, `TestSkillRecipeSchemaMatchesCLI` continue to pass.
-- `go test ./... -count=1` → all packages PASS (assets 2.338s, internal/cli 56.182s, internal/gitutil 17.978s, internal/provider 14.844s, internal/safety 5.663s, internal/store 5.119s, internal/workflow 47.549s, internal/buildinfo 1.425s).
-
-### rev-1
-
-- `gofmt -l .` → empty.
-- `go build ./cmd/tpatch` → OK.
-- `go test ./assets -run TestSkillDocReferencesAreSelfContained -count=1 -v` → PASS; 14 sub-tests (8 probes + 6 surfaces) all green; total 0.829s.
-- `go test ./assets -count=1` → ok (0.848s).
-- `go test ./... -count=1 -timeout 300s` → all packages PASS (assets 1.387s, buildinfo 2.103s, cli 51.590s, gitutil 14.372s, provider 15.008s, safety 4.186s, store 6.950s, workflow 40.429s; wall 55.077s).
-- `rg -n 'docs/[A-Za-z0-9_./-]+\.md' assets --glob '!assets/assets_test.go'` → 0 hits.
-- `rg -n 'Reconcile is read-only' assets/skills assets/prompts assets/workflows` → 0 hits. Remaining `read-only` matches all describe `tpatch verify` correctly and predate this slice.
+Doc-only commit; no tests run beyond smoke gates. Pre-commit gates green: `gofmt -l .` empty; `go build ./cmd/tpatch` OK; `go test ./assets -run TestSkillDocReferencesAreSelfContained -count=1 -v` → 14 sub-tests PASS (8 probes + 6 surfaces). Full `./...` baseline covered by the rev-1 race-clean run (55.077s wall).
 
 ## Next Steps
 
-1. Implementer landed → sub-agent reviewer → external supervisor review.
-2. On approval, tracking close + push.
-3. Pick next backlog item (Wave D deferrals to v0.8.1 / parser dedup / a1-followup).
+1. Supervisor selects the next backlog item from `m17-wave-a1-followup-ambig-discovery-diag`, `m17-wave-a-parser-deduplication`, or the Wave D deferrals.
+2. On selection, supervisor dispatches a new implementer cycle (rewriting Active Task / Session Summary / Current State here, leaving the Side Research section below untouched).
+3. Push + (optional) tag are supervisor-owned for the v0.8.0 → v0.8.1 transition; this tracking-close commit is intentionally local.
 
 ## Blockers
 
@@ -98,16 +40,17 @@ None.
 
 ## Context for Next Agent
 
-- v0.8.0 covers all of M17 (Waves A1+A2, B, C+rev1-4, D+rev1) plus the v0.7.0-superset Wave A landed on top of the v0.7.0 baseline.
-- **Wave A1+A2 are CROSS-COMMIT BOUND** (`1d6179c` ↔ `8fc2e4e`); they must be reverted as a unit if needed (`internal/gitutil/gitutil.go:111-115` references `LockState`/`LockDiagnostic` field declarations defined in A2).
+- v0.8.0 tag SHA: `29a6732` (annotated; pushed). Last code commit on `main` before this tracking-close: rev-3 `47e2888` (doc-only sync; rev-1 `dd6506a` is the last code-touching commit).
 - **Frozen-code regions** remain (touch only with an explicit revision brief):
-  - `internal/cli/record_auto*.go` (Wave A1)
-  - `internal/cli/record_collision*.go` (Wave B)
-  - `internal/workflow/reconcile.go` lines ~196-236 (Wave D phase-1.5) and ~560-700 (Wave A2 lock guard)
-  - `internal/workflow/patch_id_detector*.go` (Wave D)
-  - `Config.PatchIDDetectorEnabled` default — `false`
-  - ADR-019 trailer schema, ADR-021 carve-out scope
-- The "Side Research — State-of-the-art middle pass" section below is preserved verbatim from before this commit; it is living research notes and stays in `CURRENT.md` across handoff resets.
+  - `internal/cli/record_auto*.go` (Wave A1).
+  - `internal/cli/record_collision*.go` (Wave B).
+  - `internal/workflow/reconcile.go` lines ~196-236 (Wave D phase-1.5) and ~560-700 (Wave A2 lock guard).
+  - `internal/workflow/patch_id_detector*.go` (Wave D).
+  - `Config.PatchIDDetectorEnabled` default — `false`.
+  - ADR-019 trailer schema, ADR-020 inline-minimal skill-doc policy, ADR-021 carve-out scope.
+- **Wave A1+A2 are CROSS-COMMIT BOUND** (`1d6179c` ↔ `8fc2e4e`); revert as a unit if needed (`internal/gitutil/gitutil.go:111-115` references `LockState`/`LockDiagnostic` field declarations defined in A2).
+- The `TestSkillDocReferencesAreSelfContained` parity guard now pins the inline-minimal policy; do NOT reintroduce any repo-relative `docs/*.md` reference in `assets/`. URL-prefixed forms (`https://`, `http://`, `file://`) are allowed.
+- The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved verbatim from rev-3; it is living research notes and stays in `CURRENT.md` across handoff resets.
 
 ---
 

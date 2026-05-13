@@ -2,6 +2,25 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.8.1 (in development)
+
+### Skill assets
+
+- **Skill-doc references are self-contained** — the six shipped skill
+  surfaces (Claude, Copilot, Copilot Prompt, Cursor, Windsurf, Generic
+  workflow) no longer reference repo-relative `docs/*.md` paths. The
+  `docs/land.md` and `docs/reconcile.md` "see further" pointers (and
+  the equivalent `docs/adrs/ADR-010-...md` pointer) have been replaced
+  with concise inline action snippets covering the land flow's record +
+  safe-stage + four-trailer commit composition and the reconcile flow's
+  clean-tree preflight + mutating-operation note (re-run `tpatch record`
+  after). A new `TestSkillDocReferencesAreSelfContained` parity guard
+  with 8 probe sub-tests prevents reintroduction of repo-relative
+  `docs/*.md` references (matching bare, `./`, `../`, and `/` prefixed
+  forms; URL-prefixed references like `https://`, `http://`, `file://`
+  are allowed). PRD: `docs/prds/PRD-skill-doc-strategy.md`. ADR:
+  `docs/adrs/ADR-020-skill-doc-references.md`.
+
 ## v0.8.0 — 2026-05-14 — M17 boundary-capture cluster
 
 ### Wave C

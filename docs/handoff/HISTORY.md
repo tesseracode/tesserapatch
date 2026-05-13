@@ -1,3 +1,73 @@
+# 2026-05-14 — feat-skill-doc-references-user-visible — APPROVED
+
+**Outcome**: Skill-doc references slice (PRD-skill-doc-strategy / ADR-020 — inline-minimal policy) shipped and externally approved end-to-end. All six shipped skill surfaces are now self-contained with respect to repo-relative `docs/*.md` references; a new parity guard (`TestSkillDocReferencesAreSelfContained` with 8 synthetic probe sub-tests) prevents regression. Tagged target: v0.8.1 (in development).
+
+Ship stack on `main` (in chronological order, on top of v0.8.0 tag `29a6732`):
+
+| Commit | Role |
+|---|---|
+| `c78240d` | handoff start |
+| `ea5c954` | v0 — six surfaces inlined snippets + `TestSkillDocReferencesAreSelfContained` + ADR-010 pointer drop |
+| `ab17939` | v0 sub-agent APPROVED verdict log |
+| `dd6506a` | rev-1 — F1 reconcile "read-only" wording + F2 regex tightening (8 probe sub-tests) + F3 ROADMAP L263/L279 flips |
+| `097e1e4` | rev-1 sub-agent APPROVED verdict log |
+| `f7366df` | rev-2 — ROADMAP tracking-doc cleanup (doc-only) |
+| `47e2888` | rev-3 amended — CURRENT.md handoff sync (doc-only) |
+
+## Scope
+
+PRD-skill-doc-strategy / ADR-020 picked the **inline-minimal** policy: skills shipped in `assets/` MUST NOT reference repo-relative `docs/*.md` files because those paths only resolve inside the tesserapatch repo itself — a user installing the skill into their own repo cannot follow them. The slice replaced the two `docs/land.md` + `docs/reconcile.md` "see further" pointers in each of the six shipped surfaces with concise inline action snippets (land flow: record + safe-stage + four-trailer commit composition; reconcile flow: clean-tree preflight + mutating-operation note instructing `tpatch record` after). The pre-existing `docs/adrs/ADR-010-provider-conflict-resolver.md` "see also" pointer was also dropped under ADR-020's blanket `docs/*.md` prohibition rather than inlining the ADR design summary.
+
+## External review history (4 cycles)
+
+1. **v0 (`ea5c954`)** — NEEDS REVISION with 3 findings.
+   - F1 (Medium): reconcile snippet across all six surfaces falsely claimed reconcile is "read-only for the rest of the workflow" — wrong; reconcile mutates the shadow tree (`internal/workflow/reconcile.go` `ReconcileReapplied`) and `accept` copies shadow→tree (`internal/workflow/accept.go`).
+   - F2 (Low): parity guard regex `(?:^|[^A-Za-z0-9_/:])(docs/...)` missed `./docs/...md`, `../docs/...md`, `/docs/...md` variants.
+   - F3 (Low): ROADMAP M17 header still said "awaiting tag at `34815e8`" + Wave A row said "unreleased — bundled into v0.8.0".
+2. **rev-1 (`dd6506a`)** — NEEDS REVISION with 1 Low finding: ROADMAP M17 body still carried pre-dispatch planning prose ("Owners deliberately left **TBD**", "will be dispatched per Wave when ready", "**Ships as v0.8.0**") + CURRENT.md `main at` line was stale.
+3. **rev-2 (`f7366df`)** — NEEDS REVISION with 1 Low finding: CURRENT.md still pinned to rev-1 / `097e1e4` with "this commit" wording on the rev-1 section, making it stale immediately after rev-2 landed.
+4. **rev-3 (`47e2888`, amended from `41d58fe`)** — APPROVED. Final approved tip; uses non-self-referential SHA language to avoid the chicken-and-egg problem of a handoff-sync commit naming its own SHA.
+
+**Final external verdict**: APPROVED on rev-3 `47e2888` (2026-05-14).
+
+## Code anchors
+
+- `assets/skills/claude/tessera-patch/SKILL.md` — lines 68-69 land/reconcile snippets inlined; line 212 dropped `docs/adrs/ADR-010-...md` pointer.
+- `assets/skills/copilot/tessera-patch/SKILL.md` — lines 43-44 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md` — lines 50-51 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/skills/cursor/tessera-patch.mdc` — lines 40-41 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/skills/windsurf/windsurfrules` — lines 34-35 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/workflows/tessera-patch-generic.md` — lines 38-39 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
+- `assets/assets_test.go` — new `TestSkillDocReferencesAreSelfContained` parity guard with 8 probe sub-tests (4 must-fail bare/`./`/`../`/`/`, 1 must-fail parens, 3 must-pass URL forms `https://`, `http://`, `file://`). Two-branch regex `[a-z][a-z0-9+.-]*://\S+|(?:^|[^A-Za-z0-9_])((?:\.{0,2}/)?docs/[A-Za-z0-9_./-]+\.md)\b` extracted behind a `findRepoRelativeDocsRefs` helper.
+
+## Files touched (cumulative across the four code/doc commits)
+
+- 6 shipped surfaces (the `assets/...` files listed above).
+- `assets/assets_test.go`.
+- `docs/handoff/CURRENT.md`.
+- `docs/ROADMAP.md`.
+
+**No `internal/cli/**` edits. No `.tpatch/` migration. No new commands or flags.**
+
+## Test results
+
+- **rev-1 (`dd6506a`)**: `go test ./... -count=1 -timeout 300s` → all packages PASS (assets 1.387s, buildinfo 2.103s, cli 51.590s, gitutil 14.372s, provider 15.008s, safety 4.186s, store 6.950s, workflow 40.429s; wall 55.077s). `gofmt -l .` empty. `go build ./cmd/tpatch` OK. `rg -n 'docs/[A-Za-z0-9_./-]+\.md' assets --glob '!assets/assets_test.go'` → 0 hits. `TestSkillDocReferencesAreSelfContained -v` → 14 sub-tests all green (8 probes + 6 surfaces).
+- **rev-2 (`f7366df`)** and **rev-3 (`47e2888`)**: doc-only; tests not re-run (rev-1 race-clean baseline covers).
+
+## Frozen-code / hands-off respect
+
+Confirmed across all four commits in the ship stack: no edits to M17 frozen regions (`internal/cli/record_auto*.go`, `internal/cli/record_collision*.go`, `internal/workflow/reconcile.go` phase-1.5 + lock-guard blocks, `internal/workflow/patch_id_detector*.go`); no edits to the CURRENT.md "Side Research — State-of-the-art middle pass" section; no edits to `internal/cli/**`.
+
+## M17-deferred backlog status
+
+Unchanged. Still queued for selection: `m17-wave-a1-followup-ambig-discovery-diag` (LOW), `m17-wave-a-parser-deduplication` (refactor), and Wave D deferrals (`--check-applied-only`, `--auto-drop-merged`, hotfix-kind auto-drop default).
+
+## Documentation update discipline (carried forward)
+
+When long-form `docs/*.md` content changes command-critical guidance for `land`, `reconcile`, or any other surface mentioned in the six shipped skills, the corresponding inline snippet in each of the six `skillFiles` MUST be reviewed in the same change. The parity guard prevents reintroducing repo-relative `docs/*.md` references but does NOT detect drift in inline content — reviewer discipline remains required.
+
+---
+
 # 2026-05-12 — M17 Waves B + C + D — APPROVED end-to-end, M17 cluster complete (unreleased; bundled into v0.8.0)
 
 **Outcome**: All three remaining M17 waves shipped and externally approved on top of Wave A. M17 boundary-capture cluster is feature-complete; ready for v0.8.0 tag at `34815e8`.
