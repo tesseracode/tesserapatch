@@ -1,3 +1,69 @@
+# 2026-05-13 — v0.8.1-wave-d-deferrals — APPROVED
+
+**Outcome**: v0.8.1 Wave D detector-tail deferrals shipped end-to-end and externally approved. Two new CLI surface flags on `tpatch reconcile` (`--check-applied-only`, `--auto-drop-merged`) consuming the phase-1.5 patch-id detector landed in v0.8.0, plus two ADRs documenting the deliberate deferral of the detector-default-on flip (ADR-022) and the hotfix-kind auto-drop default (ADR-023). Released as **v0.8.1** (tag at the tracking-close tip).
+
+Ship stack on `main` (in chronological order, on top of v0.8.0 tag `29a6732` and the skill-doc-references slice tip `2f8f681`):
+
+| Commit | Role |
+|---|---|
+| `c18abb4` | kickoff — CURRENT.md scoping + ADR-022 + ADR-023 |
+| `d5f0ccf` | v0 — items 1+2 implementation (5 new files + CHANGELOG + handoff) |
+| `8368a84` | v0 sub-agent APPROVED verdict log |
+| `0a83f66` | rev-1 — F1 auto-drop staging scope + F2 phase-1.5-always-runs |
+| `891e7ef` | rev-1 sub-agent APPROVED verdict log |
+| `667ecda` | rev-2 — F3 scope `--check-applied-only` success to phase-1.5 only |
+| `59948ee` | rev-2 sub-agent APPROVED verdict log |
+
+## Scope
+
+Two items shipped as CLI surface adds (items 1+2), two items shipped as Accepted deferral ADRs (items 3+4). Process rule: ADR required when flipping a default or changing lifecycle automation; pure CLI surface adds ship without ADR. Items 3+4 = default decisions, ADRs; items 1+2 = surface adds, no ADR.
+
+- **Item 1 — `tpatch reconcile --check-applied-only <slug>`** (PRD-patch-already-upstream-detector §3.2). Read-only patch-id sweep. Exit 0 on upstream match, 2 on no match. Forces phase 1.5 even when `Config.PatchIDDetectorEnabled` is false (per-invocation override; persisted default unchanged). Skips the normal reconcile preflight (read-only contract). No artifact writes / status mutation.
+- **Item 2 — `tpatch reconcile --auto-drop-merged <slug>...`** (PRD §3.3). Opt-in post-pass. On phase-1.5 match, removes the feature from the DAG (ADR-011 cascade rules) and preserves `Tpatch-CVE` (slug-derived via `(?i)\bcve[- ]?(\d{4})[- ](\d{4,})\b`) and `Tpatch-Slug` trailers in the removal-commit message. Refuses on dependents (matches `tpatch feature remove` default); other slugs in the batch continue processing.
+- **Item 3 — ADR-022 (detector default-on flip deferral)**. Status: **Accepted**. Decision: defer past v0.8.x. Re-evaluation criteria: real-world false-positive evidence, scan-limit telemetry, possible warn-mode interim.
+- **Item 4 — ADR-023 (hotfix-kind auto-drop default deferral)**. Status: **Accepted**. Decision: defer. Transitively gated on ADR-022 trust **and** `tpatch hotfix` verb shipping (currently paper-only; `Manifest.Kind == "hotfix"` value exists at `internal/store/types.go:223` but no producing verb).
+
+## External review history (3 cycles)
+
+1. **v0 (`d5f0ccf`)** — NEEDS REVISION with 2 Medium findings.
+   - F1 (Medium): `reconcileAutoDropMerged` stage step was `git add -A .tpatch/features .tpatch/FEATURES.md`, which absorbed the reconcile artifacts of every OTHER slug in a multi-slug batch into the removal commit.
+   - F2 (Medium): `CheckAppliedOnly` returned early after a phase-1 reverse-apply hit and the CLI gated exit code 0 on the phase-1.5-specific Phase string — so a legitimate phase-1 match printed `[upstreamed]` and then exited 2 with "no phase-1.5 patch-id match".
+2. **rev-1 (`0a83f66`)** — NEEDS REVISION with 1 Medium finding (new).
+   - F3 (Medium): rev-1's "phase-1 evidence baselines `Outcome=ReconcileUpstreamed`" overcorrected. Because `--check-applied-only` deliberately skips the normal reconcile preflight (lock-guard + clean-tree-at-upstream baseline), phase-1 reverse-apply reads the LIVE working tree, not a verified upstream state — meaning a user sitting on their feature branch with the patch already applied trivially passed phase-1 while the upstream ref did not contain the patch at all. Result: exit 0 + `[upstreamed]` on local-only patches.
+3. **rev-2 (`667ecda`)** — APPROVED. Final approved tip.
+
+**Final external verdict**: APPROVED on rev-2 `667ecda` (2026-05-13).
+
+## Code anchors
+
+- `internal/workflow/reconcile_check_applied.go` — `CheckAppliedOnly` helper. Under check-applied semantics, phase-1 reverse-apply emits a diagnostic note only; phase-1.5 patch-id sweep is the sole authoritative upstream-merged signal and exclusively owns `Outcome=ReconcileUpstreamed` and `Phase=phase-1.5-patch-id-match`. Function doc comment explicitly contrasts with the normal reconcile pipeline.
+- `internal/workflow/reconcile.go` — UNCHANGED. The normal reconcile pipeline's preflight (lines ~560-700) continues to legitimize phase-1 reverse-apply as upstream-merged evidence in that context.
+- `internal/cli/reconcile_check_applied.go` — CLI adapter. Exit predicate keys off `result.Outcome == store.ReconcileUpstreamed` (rev-1, unchanged through rev-2). Doc comment in rev-2 says exit 0 is now phase-1.5-only because only phase-1.5 sets that outcome under `CheckAppliedOnly`.
+- `internal/cli/reconcile_auto_drop.go` — `reconcileAutoDropMerged` post-pass. F1 fix at lines 83-86: stage scope is `filepath.Join(".tpatch","features",r.Slug)` + `.tpatch/FEATURES.md`. Trailer builder + `cveSlugPattern` at L125+. Cascade refusal via existing `checkRemoveDependents`.
+- `internal/cli/cobra.go` — `--check-applied-only` and `--auto-drop-merged` flag registration on `reconcileCmd`; dispatch wiring.
+- `internal/cli/reconcile_check_applied_test.go` — end-to-end CLI tests; key entries: `TestReconcileAutoDropMerged_BatchScopesStaging` (F1 regression, multi-slug `git diff-tree` assertion), `TestReconcileCheckAppliedOnly_Phase1HitAlonePhase15NoMatchExitsTwo` (rev-2 renamed+inverted), `TestReconcileCheckAppliedOnly_LocalOnlyPatchAbsentUpstreamExitsTwo` (F3 regression, supervisor's exact repro; verified failing-against-`891e7ef` / passing-against-`667ecda`).
+- `internal/workflow/reconcile_check_applied_test.go` — workflow-level tests covering phase-1+phase-1.5 match upgrade path, phase-1+no-phase-1.5 match, detector-off case (rev-2 expects `ReconcileStillNeeded` whenever phase 1.5 doesn't match, regardless of phase-1 hit).
+- `docs/adrs/ADR-022-detector-default-deferral.md` — Status: Accepted. Decision: defer `Config.PatchIDDetectorEnabled` default-on flip past v0.8.x.
+- `docs/adrs/ADR-023-hotfix-auto-drop-deferral.md` — Status: Accepted. Decision: defer hotfix-kind auto-drop default. Transitively gated on ADR-022 trust + `tpatch hotfix` verb shipping.
+
+## Files touched (cumulative across the seven commits)
+
+- `internal/workflow/reconcile_check_applied.go` (new).
+- `internal/workflow/reconcile_check_applied_test.go` (new).
+- `internal/cli/reconcile_check_applied.go` (new).
+- `internal/cli/reconcile_auto_drop.go` (new).
+- `internal/cli/reconcile_check_applied_test.go` (new).
+- `internal/cli/cobra.go`.
+- `docs/adrs/ADR-022-detector-default-deferral.md` (new).
+- `docs/adrs/ADR-023-hotfix-auto-drop-deferral.md` (new).
+- `CHANGELOG.md`.
+- `docs/handoff/CURRENT.md`.
+- `docs/supervisor/LOG.md`.
+
+**No edits to frozen-code regions.** No detector-default flip. No hotfix-kind auto-drop default. `internal/workflow/reconcile.go`, `internal/workflow/patch_id_detector.go`, and `Config.PatchIDDetectorEnabled` default are all untouched.
+
+---
+
 # 2026-05-14 — feat-skill-doc-references-user-visible — APPROVED
 
 **Outcome**: Skill-doc references slice (PRD-skill-doc-strategy / ADR-020 — inline-minimal policy) shipped and externally approved end-to-end. All six shipped skill surfaces are now self-contained with respect to repo-relative `docs/*.md` references; a new parity guard (`TestSkillDocReferencesAreSelfContained` with 8 synthetic probe sub-tests) prevents regression. Tagged target: v0.8.1 (in development).

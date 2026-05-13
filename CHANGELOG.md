@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.8.1 (in development)
+## v0.8.1 — 2026-05-13 — Wave D detector tails
 
 ### Reconcile
 
