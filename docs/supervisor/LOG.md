@@ -1,3 +1,38 @@
+## Review — v0.8.1-wave-d-deferrals items 1+2 (commit d5f0ccf) — 2026-05-14
+
+**Reviewer**: copilot-cli sub-agent (`v0-8-1-flags-review`)
+**Task**: Sub-agent code review of `d5f0ccf` (v0.8.1 items 1+2: `tpatch reconcile --check-applied-only` and `tpatch reconcile --auto-drop-merged`). Implementer-reported deviations from brief: (1) `Tpatch-CVE` derived from slug regex (no manifest field exists), (2) auto-drop refuses on dependents (matches `feature remove` default + ADR-011), (3) `--check-applied-only` skips upstream-lock preflight (read-only contract), (4) exit code 2 via `*ExitCodeError` (matches `tpatch verify` precedent).
+
+### Checklist
+
+- [x] **Brief conformance — `--check-applied-only`**: read-only verified (no `status.json` / `reconcile-session.json` writes), forces detector ON per-invocation regardless of `Config.PatchIDDetectorEnabled`, exits 0 on phase-1.5 match / 2 on no-match via `*ExitCodeError{Code:2}` flowing through `Execute()`.
+- [x] **Brief conformance — `--auto-drop-merged`**: opt-in default OFF for all kinds (no kind-conditional shipped, per ADR-023); no-op when detector OFF or phase 1.5 doesn't fire; checks BOTH `Phase=="phase-1.5-patch-id-match"` AND `Outcome==ReconcileUpstreamed` before acting (defensive double-gate); preserves `Tpatch-Slug` always and `Tpatch-CVE` when slug matches `(?i)\bcve[- ]?(\d{4})[- ](\d{4,})\b`; `Co-authored-by: Copilot <...>` last; cascade via existing `checkRemoveDependents` (ADR-011); dependents refusal surfaces `tpatch remove --cascade` hint; batch continuation preserved.
+- [x] **Mutex gate**: `--check-applied-only` + `--auto-drop-merged` combination returns clear error, tested.
+- [x] **Frozen regions untouched**: `internal/workflow/patch_id_detector.go`, `internal/workflow/reconcile.go` ~196-236, `Config.PatchIDDetectorEnabled` default (still `false`), Wave A/B record collision code, Side Research section in CURRENT.md, `docs/state-of-the-art/**`.
+- [x] **Deviation 1 (slug-derived CVE)**: regex sound, case/locale-safe, absence yields no `Tpatch-CVE` trailer (no malformed output), three test cases cover plain / `cve-` prefixed / `CVE-` uppercase.
+- [x] **Deviation 2 (refuse on dependents)**: matches ADR-011 cascade default; actionable hint; other slugs continue; `TestReconcileAutoDropMerged_RefusesOnDependents` covers it.
+- [x] **Deviation 3 (skip lock preflight on check-applied)**: read-only contract preserved; helper dispatched before lock-guard check; no-match exit-2 test uses fresh-pinned lock without `--allow-stale-lock`.
+- [x] **Deviation 4 (`*ExitCodeError`)**: propagates through standard `Execute()` path, no special-case `os.Exit`, matches `tpatch verify` precedent.
+- [x] **Test coverage matrix**: detector ON+match, detector ON+no-match, detector OFF+`--check-applied-only` (forces run), detector OFF+`--auto-drop-merged` (silent no-op), match+dependents (refuse), match+no-dependents (drop with trailers), exit codes 0/2, mutex violation, CVE-trailer 3-case derivation. 15 tests across new files.
+- [x] **CHANGELOG**: two bullets under `### Reconcile` in `## v0.8.1 (in development)`, wording matches brief verbatim.
+- [x] `go build ./...`, `go vet ./...`, `go test ./... -race -count=1` all green (cli 70.1s, workflow 52.8s, gitutil 18.6s, provider 15.3s, store 5.5s, safety 7.3s, assets 2.4s, buildinfo 2.1s); `gofmt -l .` empty.
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Notes
+
+Two minor non-issues surfaced: (1) PRD §3.4 mentions `tpatch reconcile --json` but there is no `--json` flag on `reconcile` today — the PRD is referring to the `reconcile-session.json` artifact, which already carries `PatchIDMatch` with correct JSON tags; `--check-applied-only` writes no artifacts so the interaction is N/A. (2) An internal helper error message at `internal/workflow/reconcile_check_applied.go:66` ("invoked without override semantics") is slightly awkward for the test-only path; from CLI `forceDetector` is always `true` so users never see it. Neither is bug-shaped; left as-is.
+
+### Action Taken
+
+Verdict logged. Stack ready for external supervisor review: kickoff `c18abb4` (handoff + ADR-022 + ADR-023) + impl `d5f0ccf` + this LOG update.
+
+---
+
 ## Review — feat-skill-doc-references-user-visible rev-1 (commit dd6506a) — 2026-05-14
 
 **Reviewer**: copilot-cli sub-agent (skill-doc-refs-rev1-rev)
