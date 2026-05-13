@@ -2,37 +2,39 @@
 
 ## Active Task
 
-- **Task ID**: post-`feat-skill-doc-references-user-visible` / pre-v0.8.1 backlog selection
-- **Milestone**: post-v0.8.0 / pre-v0.8.1
-- **Description**: Slice `feat-skill-doc-references-user-visible` shipped and archived to `docs/handoff/HISTORY.md`. Next: supervisor selects from the M17-deferred backlog — `m17-wave-a1-followup-ambig-discovery-diag` (LOW), `m17-wave-a-parser-deduplication` (refactor), or the Wave D deferrals (`--check-applied-only`, `--auto-drop-merged`, hotfix-kind auto-drop default) — and optionally opens v0.8.1 around one of those.
-- **Status**: Awaiting selection.
-- **Assigned**: 2026-05-14 (tracking-close).
+- **Task ID**: `v0.8.1-wave-d-deferrals` (kickoff)
+- **Milestone**: v0.8.1 marquee — Wave D detector tails
+- **Description**: Land four post-detector deferrals: (1) `tpatch reconcile --check-applied-only` flag (PRD §3.2), (2) `tpatch reconcile --auto-drop-merged` flag (PRD §3.3), (3) ADR-022 documenting the **deferral** of `Config.PatchIDDetectorEnabled` default-on flip, (4) ADR-023 documenting the **deferral** of hotfix-kind auto-drop default. Items 1+2 are CLI/code; items 3+4 are docs-only. Process rule (user-confirmed): ADR only when flipping a default OR changing lifecycle automation; pure CLI surface adds ship without ADR. ADRs use Status: **Accepted** with the decision being "defer to ≥v0.9 pending criteria below" — not "Proposed/undecided".
+- **Status**: In progress (implementer for items 1+2 dispatched; ADRs 3+4 drafted in parallel by supervisor).
+- **Assigned**: 2026-05-14.
 
 ## Session Summary
 
-Tracking-only commit closing the skill-doc-references slice. Previous stack tip: rev-3 `47e2888` (CURRENT.md handoff sync, doc-only). This commit (tracking-close) is doc-only on top of that stack: prepends the slice archive entry to `docs/handoff/HISTORY.md`, resets `docs/handoff/CURRENT.md` to a clean post-slice state, and opens the `v0.8.1 (in development)` section in `CHANGELOG.md`. No code, no tests, no `.tpatch/` artifact changes.
+Opening the v0.8.1 marquee. Latest finalized stack before this kickoff: tracking-close `2f8f681` (skill-doc-refs archive + v0.8.1 changelog opened), rev-3 `47e2888` (handoff sync), rev-1 impl `dd6506a`, v0.8.0 tag at `29a6732`. This handoff write is doc-only and does not advance code; it scopes the slice for the implementer + ADR-writer tracks.
 
 ## Current State
 
-- Previous stack tip before this commit: rev-3 `47e2888`. v0.8.0 tagged at `29a6732`. No in-flight code regions; worktree expected clean after this commit (only doc files touched).
-- All M17 work shipped under v0.8.0. The skill-doc-references slice ships as the first item under v0.8.1.
+- Worktree clean at the tracking-close tip; v0.8.1 CHANGELOG section open with one entry (skill-doc-refs).
+- Phase 1.5 detector primitives shipped in v0.8.0 (frozen): `Config.PatchIDDetectorEnabled` default `false`, `Config.PatchIDScanLimit` default 5000, `store.PatchIDMatch` struct, `gitutil.PatchID` / `CommitPatchID` / `RevListInRange`, `internal/workflow/patch_id_detector.go`, reconcile slot at `internal/workflow/reconcile.go` ~196-236.
+- Items 1+2 are pure CLI surface adds that **consume** existing `ReconcileSummary.PatchIDMatch` outputs without modifying frozen regions.
+- Items 3+4 ADRs are deferral documents; defaults stay where they are (detector off, auto-drop opt-in, hotfix-kind value not yet shipped anywhere).
 
-## Files Changed (this commit)
+## Files Changed (this commit — handoff scope only)
 
-- `docs/handoff/HISTORY.md` — prepended slice archive entry `# 2026-05-14 — feat-skill-doc-references-user-visible — APPROVED` covering scope, ship-stack table, 4-cycle review history, code anchors, files touched, test results, frozen-code respect, deferred-backlog status.
-- `docs/handoff/CURRENT.md` — Active Task / Session Summary / Current State / Files Changed / Test Results / Next Steps / Blockers / Context blocks reset to clean post-slice state. The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved byte-identical from rev-3.
-- `CHANGELOG.md` — new `## v0.8.1 (in development)` section opened above the v0.8.0 header with the skill-doc-references entry under `### Skill assets`.
-- SQL `todos` row `feat-skill-doc-references-user-visible` flipped from `pending` → `done`.
+- `docs/handoff/CURRENT.md` — Active Task / Session Summary / Current State / Next Steps / Context blocks rewritten for the new slice. Side Research section preserved byte-identical.
+- SQL: `v0.8.1-wave-d-deferrals` flipped `pending` → `in_progress`; sub-todos inserted for items 1+2 implementer track and items 3+4 ADR track.
 
 ## Test Results
 
-Doc-only commit; no tests run beyond smoke gates. Pre-commit gates green: `gofmt -l .` empty; `go build ./cmd/tpatch` OK; `go test ./assets -run TestSkillDocReferencesAreSelfContained -count=1 -v` → 14 sub-tests PASS (8 probes + 6 surfaces). Full `./...` baseline covered by the rev-1 race-clean run (55.077s wall).
+Handoff-only commit; no test gates needed. The implementer commit lands with `gofmt -l .`, `go build ./cmd/tpatch`, and the full `go test ./...` race-clean suite.
 
 ## Next Steps
 
-1. Supervisor selects the next backlog item from `m17-wave-a1-followup-ambig-discovery-diag`, `m17-wave-a-parser-deduplication`, or the Wave D deferrals.
-2. On selection, supervisor dispatches a new implementer cycle (rewriting Active Task / Session Summary / Current State here, leaving the Side Research section below untouched).
-3. Push + (optional) tag are supervisor-owned for the v0.8.0 → v0.8.1 transition; this tracking-close commit is intentionally local.
+1. Implementer (background) lands items 1+2: cobra flags on `tpatch reconcile`, plumbing into existing reconcile orchestrator without touching frozen detector code, exit-code semantics (0=match, 2=no-match for `--check-applied-only`), `--auto-drop-merged` removal-commit path with trailer preservation, tests for opt-in/opt-out/no-detector matrices, CHANGELOG bullet.
+2. Supervisor drafts ADR-022 (detector default-on deferral) and ADR-023 (hotfix auto-drop deferral) in parallel.
+3. Sub-agent code-review on items 1+2 commit.
+4. External supervisor review on the combined stack.
+5. Tracking-close + push + (eventually) v0.8.1 tag once the marquee scope wraps.
 
 ## Blockers
 
@@ -124,9 +126,24 @@ Files:
     rewrites. tpatch likely needs canonical-current patch plus append-only
     generations, with explicit amend/fixup/fold/fork semantics.
 
+### PRD drafts promoted from research (2026-05-13)
+
+The first capture/metadata foundation PRDs were drafted as paper-only planning
+docs:
+
+- `docs/prds/PRD-feature-file-claims.md`
+- `docs/prds/PRD-record-capture-modes.md`
+- `docs/prds/PRD-feature-patch-identity-metadata.md`
+- `docs/prds/PRD-feature-patch-amend.md`
+
+`docs/state-of-the-art/research-roadmap.md` is updated to point at these drafts.
+The remaining gate before implementation is review/acceptance of the queued
+capture privacy and amendment-policy ADRs plus PRD review.
+
 ### Candidate follow-up names
 
-These are research outputs only, not queued roadmap work:
+These are research outputs only, not queued roadmap work. Four items below now
+have draft PRDs as noted above.
 
 - `PRD-structural-patch-fingerprints`
 - `PRD-feature-patch-identity-metadata`
@@ -149,5 +166,4 @@ These are research outputs only, not queued roadmap work:
 - `ADR-capture-context-privacy-boundary`
 - `ADR-capture-metadata-branch`
 - `PRD-record-context-summary`
-
 
