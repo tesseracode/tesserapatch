@@ -1,3 +1,104 @@
+# 2026-05-12 — M17 Waves B + C + D — APPROVED end-to-end, M17 cluster complete (unreleased; bundled into v0.8.0)
+
+**Outcome**: All three remaining M17 waves shipped and externally approved on top of Wave A. M17 boundary-capture cluster is feature-complete; ready for v0.8.0 tag at `34815e8`.
+
+Ship stack on `main` (in chronological order, on top of the previously-archived Wave A stack):
+- `b0a434a` — Wave B: cross-feature canonical patch collision detection
+- `c07e4e2` — Wave D v0: phase-1.5 patch-already-upstream detector (default-OFF)
+- `8287bce` — Wave B + Wave D consolidated sub-agent verdicts
+- `1d4a89f` — Wave D rev-1: phase-1.5 reads canonical post-apply.patch (PRD §5.1)
+- `5d4369a` — Wave D rev-1 sub-agent verdict
+- `fb5e6ff` — Wave C core: `tpatch land` compose record + safe-stage + commit
+- `73a81ed` — Wave C: surface `tpatch land` in skill assets + parity guard
+- `266dfb4` — Wave C docs: ADR-019 accepted, CHANGELOG, handoff
+- `32ad3a5` — Wave C rev-1: ADR ref typo + hard-parent test + docs/land.md
+- `6bc669a` — Wave C rev-1 sub-agent verdict
+- `c6f4402` — Wave C rev-2: scope global metadata staging + clean tree on --no-record
+- `f98a789` — Wave C rev-2 sub-agent verdict
+- `876c584` — Wave C rev-3: PRD carve-out for global metadata drift + ADR-021
+- `a94e5e7` — Wave C rev-3 sub-agent verdict
+- `19a335e` — Wave C rev-4: dry-run carve-out alignment + stale wording cleanup
+- `34815e8` — Wave C rev-4 sub-agent verdict
+
+## Wave B — `feat-record-cross-feature-collision`
+
+**Scope**: Cross-feature canonical-patch collision detection in `tpatch record`. Scans existing features at scan time (post-capture, pre-`WriteArtifact`) and refuses (exit 1) when the candidate canonical patch is byte-identical to another feature's canonical patch. New `--allow-collision "<reason>"` escape hatch requires a non-empty trimmed reason which is persisted into `record.md` for audit. Recovery hints reference `--auto` (Wave A1 dependency).
+
+**Code anchors**:
+- `internal/cli/record_collision.go` — collision scan + signature comparison.
+- `internal/cli/record_collision_test.go` — full PRD §8 acceptance map (11 rows; 11 tests).
+- `internal/cli/cobra.go` — flag wiring + scan order (empty-patch handling → collision scan → `WriteArtifact`).
+- One pre-existing test edit: `TestRecordAuto_AutoEqualsFromExplicit` annotated with `--allow-collision` to preserve its byte-equivalence assertion.
+
+**Review history**:
+- Rev-0 (`b0a434a`): sub-agent APPROVED with three INFO observations (≥3-collider escalation rendered inside refusal diagnostic; per-collider stderr line on override; O(N features) per-feature I/O scan acceptable for v1).
+- External supervisor APPROVED (covered in the consolidated Wave B + D external pass).
+
+**No follow-up work captured.** Behaviour matches PRD; INFO observations are intentional v1 simplifications.
+
+## Wave D — `impl-patch-already-upstream-detector`
+
+**Scope**: Deterministic phase-1.5 patch-already-upstream detector slotted between phase 1 (reverse-apply) and phase 2 (operation-level) in `internal/workflow/reconcile.go`, gated by `Config.PatchIDDetectorEnabled` (default `false` per PRD §6). New `internal/workflow/patch_id_detector.go` + `internal/gitutil/patch_id.go` primitives (`PatchID`, `CommitPatchID`, `RevListInRange`, wrapping `git patch-id --stable` + `git rev-list --no-merges`). PRD §5.3 multi-match policy (earliest match wins), §5.2 scan-limit cap (`DefaultPatchIDScanLimit = 5000`), §5.1 fail-soft on tooling errors, §3.4 JSON `patch_id_match` audit block surfaced via `ReconcileSummary.PatchIDMatch *PatchIDMatch` (`omitempty`).
+
+**Code anchors**:
+- `internal/workflow/reconcile.go` — phase-1.5 block at ~lines 196-236 (frozen region).
+- `internal/workflow/patch_id_detector.go` — detector entry point (`runPatchIDDetector`).
+- `internal/workflow/patch_id_detector_test.go` — 11 tests (9 v0 + 2 rev-1 regression).
+- `internal/gitutil/patch_id.go` — primitives.
+- `internal/store/types.go` — `Config.PatchIDDetectorEnabled`, `Config.PatchIDScanLimit`, `PatchIDMatch` struct.
+- `internal/store/store.go` — flat YAML parser + `SaveConfig` non-default-only emission (preserves pre-Wave-D byte identity for fixtures).
+
+**Review history**:
+- Rev-0 (`c07e4e2`): sub-agent APPROVED. External supervisor NEEDS REVISION on one Medium finding: phase-1.5 was being fed the legacy `patch` variable from the reconcile loader at `reconcile.go:166-169`, which reads `incremental.patch` first and falls back to `post-apply.patch` (correct for phases 2/3/4 / GAP 4 multi-feature derivation). PRD §5.1 mandates the canonical `post-apply.patch` for the phase-1.5 patch-id sweep. Reproducer: feature with canonical `post-apply.patch` adding two files vs `incremental.patch` adding only one; upstream absorbs only the one → pre-fix code wrongly emitted `[upstreamed] (phase-1.5-patch-id-match)` and persisted `patch_id_match`.
+- Rev-1 (`1d4a89f`): surgical fix — phase-1.5 block now loads `artifacts/post-apply.patch` separately via `s.ReadFeatureFile` and passes that to `runPatchIDDetector`. Fail-soft skip with one-line note (`"phase 1.5 skipped: no canonical post-apply.patch artifact"`) when canonical missing/whitespace-only; reconcile falls through to phase 2. Two regression tests added (`TestPatchIDDetector_PrefersCanonicalOverIncremental`, `TestPatchIDDetector_CanonicalMatchesEvenWhenIncrementalDiffers`); both verified to FAIL pre-fix and PASS after.
+- Sub-agent rev-1 reviewer APPROVED. External supervisor APPROVED rev-1.
+
+**Default-OFF preservation verified at every revision**: `TestPatchIDDetector_DefaultOffNoOp` plus all pre-existing reconcile tests (`TestReconcilePhase1_*`, `TestReconcilePhase4_*`, labels tests) pass without modification — no side effects when `PatchIDDetectorEnabled=false`.
+
+**Deferred to v0.8.1+** (called out in CHANGELOG, not blocking v0.8.0):
+- PRD §3.2 `--check-applied-only` CLI verb/flag.
+- PRD §3.3 `--auto-drop-merged` CLI flag.
+- PRD §3.3 hotfix-kind auto-drop default gating.
+
+Rationale: the deterministic primitive + reconcile fast-path is the load-bearing M17 Wave D contract; user-facing flags layer on top and can ship incrementally without invalidating the core.
+
+## Wave C — `impl-tpatch-land`
+
+**Scope**: New `tpatch land <slug>` flagship verb that composes (record → safe path-set staging → one Git commit) with the locked four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) followed by the repo `Co-authored-by:` trailer. ADR-019 locks the trailer schema; ADR-021 locks the rev-3 carve-out for global metadata drift on `.tpatch/upstream.lock` and `.tpatch/FEATURES.md`.
+
+**Code anchors**:
+- `internal/cli/land.go` — `landCmd()`, `runLand()`, `runLandDryRun()`, `landPreflight()` (PRD §3.2 refusals: conflict markers, `*.orig`/`*.rej` leftovers, mid-merge state, hard-parent gate via `workflow.CheckDependencyGate`), `embedRecord()` (cobra-re-entry pattern: builds a fresh `buildRootCmd()` and `Execute()`s with `["record", "--path", repoRoot, slug, ...]` — preserves all record semantics including Wave A1 auto-base and Wave B collision detection, verbatim diagnostics, no internal-API coupling), `computePathSet()` + `dirtyPaths()` (uses `git status --porcelain --untracked-files=all` to expand untracked dirs), `classifyExtras()`, `stagePathSet()` (`git add --intent-to-add` then `git add`), `deriveSubject()` (precedence: `--message` > spec.md H1 > first non-empty request.md line > fallback), `snapshotMetadataFiles` / `metadataChangedSet` helpers (rev-2 pre/post `embedRecord` SHA256 snapshot to gate `.tpatch/upstream.lock` / `.tpatch/FEATURES.md` staging on actual record-driven change).
+- `internal/cli/land_test.go` — 24 tests at final state covering all PRD §6 acceptance rows.
+- `internal/cli/cobra.go` — `landCmd()` registered between `recordCmd()` and `reconcileCmd()` (single-line addition).
+- All 6 skill surfaces updated with one-sentence `tpatch land` pointer + per-file command list entry; `assets/assets_test.go` parity guard extended with `"tpatch land"` in `requiredCommands`.
+- `docs/land.md` — full operator-facing command contract (added in rev-1).
+- ADR-019 (Accepted) — four-trailer schema, `Tpatch-CVE` reservation for hotfix, no-overwrite rule for `apply.base_commit`, four rejected alternatives.
+- ADR-021 (Accepted, rev-3) — global-metadata carve-out: `.tpatch/upstream.lock` and `.tpatch/FEATURES.md` may retain unrelated operator drift after a successful land with a one-line stderr note per file. Rejects Option A (strict refuse + `--allow-extra-paths` re-introduces F1) and Option C (`--allow-dirty-globals` flag whose only purpose is to silence the visibility note).
+
+**Feature ↔ commit binding**: `Tpatch-Feature: <slug>` trailer is the only authoritative link between a feature and its commit (`apply.base_commit` is NEVER overwritten by `land` — chicken-and-egg: a commit cannot embed its own SHA in tracked content). Documented in ADR-019 and `docs/feature-layout.md` ("Feature ↔ commit binding" section).
+
+**Canonical operator-drift note** (locked across code + PRD + tests in rev-3): `note: leaving <path> dirty (operator drift outside feature scope; not staged)` — byte-identical at `internal/cli/land.go:188`, `internal/cli/land_test.go:763`, PRD §3.3 step 3, PRD §3.5 sample. Pinned by `TestLand_DoesNotStageUnrelatedDirtyMetadata` against any wording change.
+
+**Review history (5 revisions, contract sharpened from rev-0 through rev-4)**:
+- Rev-0 (`fb5e6ff` + `73a81ed` + `266dfb4`): sub-agent reviewed and returned three findings (LOW ADR ref typo, MEDIUM missing hard-parent gate test, MEDIUM missing `docs/land.md`).
+- Rev-1 (`32ad3a5`): all three findings addressed surgically — ADR ref fixed at `internal/cli/land.go:10`; `TestLand_Refuses_HardParent` added with sanity-replication (gate call temporarily no-op'd; test failed as designed; restored); `docs/land.md` (227 lines) created mirroring `docs/record.md` / `docs/reconcile.md` structure with full PRD §3.1–§5 coverage; cross-links added FROM `docs/record.md`, `docs/reconcile.md`, `docs/feature-layout.md` TO `docs/land.md`. Sub-agent APPROVED (`6bc669a`). External supervisor NEEDS REVISION on two Mediums (F1: global metadata over-staging; F2: `--no-record` left `status.json` dirty).
+- Rev-2 (`c6f4402`): F1 fixed via `snapshotMetadataFiles` (~L401) / `metadataChangedSet` (~L426) + pre/post `embedRecord` SHA256 snapshots — globals are staged ONLY if `record` actually modified them; operator-drifted globals get a one-line `note:` on stderr instead of being absorbed or refusing. F2 fixed by reordering so `status.Notes` mutation + `SaveFeatureStatus` runs BEFORE `computePathSet` — slug-prefix branch picks up freshly-dirty `status.json` on both with-record and `--no-record` paths. Two regression tests added (`TestLand_DoesNotStageUnrelatedDirtyMetadata`, `TestLand_NoRecord_LeavesCleanWorkingTree`); both verified to FAIL pre-fix and PASS after. Sub-agent APPROVED (`f98a789`). External supervisor verdict: F2 fully resolved; F1 sat in a contract gap (rev-2 code note-and-continued on operator-drifted globals; PRD §3.6 still promised strict clean tree).
+- Rev-3 (`876c584`): contract revision — supervisor decided **Option B**: amend the PRD to match the rev-2 code (note-and-continue is now the contract), carve out exactly two named global metadata files. PRD §1, §3.3 step 3, §3.5 dry-run sample, §3.6 post-conditions, §6 ac.6, §8 Risks all amended; ADR-021 authored documenting the decision; `docs/land.md` got a "Carve-out for global metadata drift" section; canonical note string aligned at `internal/cli/land.go:188`; `TestLand_DoesNotStageUnrelatedDirtyMetadata` strengthened to pin the exact canonical string. Sub-agent APPROVED (`a94e5e7`). External supervisor NEEDS REVISION on one Medium + one Low (dry-run code path still used pre-rev-2 contract; PRD line 113 + CHANGELOG path-set sentence stale; non-existent `--allow-soft-parent` referenced in CHANGELOG).
+- Rev-4 (`19a335e`): dry-run alignment + wording cleanup. `runLandDryRun` now performs the same three-way split the live land path performs (pathSet would-be-staged / carved-out globals left-dirty-with-note / extras refuse-without-flag); new "Carved-out global metadata" section heading byte-identical to PRD §3.5 sample; footer changed to "Working tree will be clean w.r.t. feature scope." plus conditional carve-out qualifier line when at least one carved-out global is present. New `TestLand_DryRun_CarvesOutGlobalMetadata` test pin. PRD line 113 corrected (apply.base_commit unchanged language). CHANGELOG path-set sentence amended; `--allow-soft-parent` removed (`grep` confirmed sole reference). Sub-agent APPROVED (`34815e8`). External supervisor APPROVED end-to-end on rev-4 — Wave C closed.
+
+**Embedded `record` re-entry pattern** (notable for future composers): `embedRecord` builds a fresh `buildRootCmd()` and calls `Execute()` rather than reaching into record's internals. This is the most surgical way to compose without duplicating Wave A1 auto-base or Wave B collision logic. Re-parses the persistent `--path` flag cleanly.
+
+**Skipped-test rationale (rev-3, intentional)**: a second `TestLand_DoesNotStageUnrelatedDirtyMetadata` covering both globals was considered but skipped because `record` regenerates `FEATURES.md` via `SaveFeatureStatus → RefreshFeaturesIndex` in the test fixture (`internal/store/store.go:369`), so a drifted-FEATURES.md case lands on the "changed by record" arm rather than the carve-out arm. Building a fixture that suppresses that refresh expanded scope beyond rev-3; the single-file test plus the canonical-string pin is sufficient to lock the contract.
+
+## Backlog captured during M17 (not blocking v0.8.0)
+
+- **`m17-wave-a1-followup-ambig-discovery-diag`** (LOW) — ambiguous-discovery refusal currently drops the candidate refs list when the fallback path runs after an unusable lock. PRD-record-auto-base §3.4/§3.5 say candidates should be surfaced. Captured in Wave A archive entry.
+- **`m17-wave-a-parser-deduplication`** (refactor) — `internal/store/upstream_lock.go` and `internal/gitutil/lock_guard.go` parsers are line-for-line equivalent on the three shared keys due to the verified `store → gitutil` import cycle (`internal/store/validation.go:9` and `internal/store/dependents.go:4`). Pair with breaking the cycle in a future leaf-package refactor.
+- **`feat-skill-doc-references-user-visible`** (UX) — PRD-skill-doc-strategy + ADR-020 now approved (commit `2e0b791` from the user-side stack); ready to implement post-v0.8.0.
+- **Wave D PRD §3.2 `--check-applied-only` and §3.3 `--auto-drop-merged` CLI flags + hotfix-kind auto-drop default** — deferred to v0.8.1+ (called out in CHANGELOG).
+
+---
+
 # 2026-05-11 — M17 Wave A (A1 + A2) — APPROVED WITH NOTES, shipped (unreleased; bundled into v0.8.0)
 
 **Outcome**: Both Wave A slices shipped. Pair held as one v0.8.0 increment (Waves B/C/D still pending before v0.8.0 tags). Ship stack on `main`:

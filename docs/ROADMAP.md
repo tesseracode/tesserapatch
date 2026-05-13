@@ -260,7 +260,7 @@ the data-bug fix immediately rather than wait for Slice 3.
   surfaces and tightened anchor to a regex; external pass
   2026-05-10).
 
-## M17 — boundary-capture cluster (v0.8.0) ⬜
+## M17 — boundary-capture cluster (v0.8.0) ✅ (awaiting tag at `34815e8`)
 
 Multi-agent paper-design cluster accepted in `docs/supervisor/LOG.md` →
 "Review — v0.7 Cluster PRDs (land + auto-base + collision + lock-guard) —
@@ -289,34 +289,51 @@ fidelity, but the implementation milestone is v0.8.0.
     - Ship commit: `8fc2e4e`
     - Bundled the HIGH-severity writer-normalization fix at `internal/workflow/reconcile.go:596-613` (`updateUpstreamLock()`) per `PRD-reconcile-lock-guard §5.3`.
     - Second parser at `internal/gitutil/lock_guard.go` due to verified `store → gitutil` import cycle (parsers line-for-line equivalent on shared keys; no drift risk). Follow-up cleanup PRD captured in CURRENT.md.
-- **Wave B — depends on Wave A (auto-base)** ⬜
-  - **Slice B — `impl-record-collision-detection`** ⬜
+- **Wave B — depends on Wave A (auto-base)** ✅ (shipped 2026-05-11, externally approved 2026-05-12)
+  - **Slice B — `impl-record-collision-detection`** ✅
     - PRD: [`docs/prds/PRD-record-collision-detection.md`](prds/PRD-record-collision-detection.md)
-    - ADR placeholder: [ADR-018](adrs/ADR-018-record-collision-detection-signature.md)
-    - Owner: TBD (backlog: `backlog-assign-m17-owners`)
-    - Recovery hints depend on `record --auto` being available, hence
-      Wave B placement after Wave A.
-- **Wave C — depends on Wave A + Wave B** ⬜
-  - **Slice C — `impl-tpatch-land`** ⬜
+    - ADR: [ADR-018](adrs/ADR-018-record-collision-detection-signature.md)
+    - Ship commit: `b0a434a`
+    - Cross-feature canonical-patch collision detection in `tpatch
+      record`; refusal exit 1 with `--allow-collision "<reason>"`
+      escape hatch persisted into `record.md`. PRD §8 acceptance map:
+      11/11 tests in `internal/cli/record_collision_test.go`.
+- **Wave C — depends on Wave A + Wave B** ✅ (shipped 2026-05-11..14, externally approved 2026-05-12)
+  - **Slice C — `impl-tpatch-land`** ✅
     - PRD: [`docs/prds/PRD-tpatch-land.md`](prds/PRD-tpatch-land.md)
-    - ADR placeholder: [ADR-019](adrs/ADR-019-tpatch-land-trailer-block-schema.md)
-    - Owner: TBD (backlog: `backlog-assign-m17-owners`)
-    - Gated on both Wave A guardrails shipping per
-      `PRD-tpatch-land §0.1`.
-- **Wave D — independent reconcile fast-path (default-OFF)** ⬜
-  - **Slice D — `impl-patch-already-upstream-detector`** ⬜
+    - ADRs: [ADR-019](adrs/ADR-019-tpatch-land-trailer-block-schema.md) (Accepted) + [ADR-021](adrs/ADR-021-tpatch-land-global-metadata-carve-out.md) (Accepted, rev-3)
+    - Ship stack: `fb5e6ff` (core) + `73a81ed` (skill assets + parity
+      guard) + `266dfb4` (ADR + CHANGELOG + handoff) + `32ad3a5`
+      (rev-1: ADR ref typo + hard-parent test + `docs/land.md`) +
+      `c6f4402` (rev-2: scope global metadata staging + clean tree
+      on `--no-record`) + `876c584` (rev-3: PRD carve-out + ADR-021)
+      + `19a335e` (rev-4: dry-run carve-out alignment + stale
+      wording cleanup).
+    - 5-revision history: contract sharpened from rev-0 through
+      rev-4; final external supervisor verdict APPROVED end-to-end
+      on rev-4.
+    - New `tpatch land <slug>` flagship verb composing record →
+      safe path-set staging → one Git commit, with the locked
+      four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`,
+      `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) + repo
+      `Co-authored-by:` trailer. Documented in `docs/land.md`.
+- **Wave D — independent reconcile fast-path (default-OFF)** ✅ (shipped 2026-05-11, externally approved 2026-05-12)
+  - **Slice D — `impl-patch-already-upstream-detector`** ✅
     - PRD: [`docs/prds/PRD-patch-already-upstream-detector.md`](prds/PRD-patch-already-upstream-detector.md)
-    - ADR: not yet opened (placeholder deferred until owner picks the
-      slice up; PRD §6 keeps the feature behind
+    - ADR: still not opened (PRD §6 keeps the feature behind
       `Config.PatchIDDetectorEnabled` default-`false` until the
-      v0.8.x line decides to flip it on)
-    - Owner: TBD (backlog: `backlog-assign-m17-owners`)
-    - Sibling exploratory PRD authored 2026-05-10; supervisor accepted
-      as accepted-exploratory and slotted here so the reconcile
-      fast-path infrastructure ships in the same milestone as the rest
-      of the boundary-capture work, with the user-visible flag flipped
-      separately on a later v0.8.x point release. Independent of Waves
-      A–C; can ship in parallel with any of them.
+      v0.8.x line decides to flip it on; ADR can be authored when
+      the flag flips).
+    - Ship stack: `c07e4e2` (v0) + `1d4a89f` (rev-1: phase-1.5
+      reads canonical `post-apply.patch` per PRD §5.1).
+    - Phase-1.5 deterministic patch-already-upstream detector
+      slotted between phase 1 (reverse-apply) and phase 2
+      (operation-level) in `internal/workflow/reconcile.go`,
+      gated by `Config.PatchIDDetectorEnabled` (default `false`).
+    - **Deferred to v0.8.1+** (called out in CHANGELOG):
+      PRD §3.2 `--check-applied-only` CLI verb/flag, PRD §3.3
+      `--auto-drop-merged` CLI flag, PRD §3.3 hotfix-kind
+      auto-drop default gating.
 
 ## v0.7.0 — `feat-amend-dependent-warning` ✅
 
