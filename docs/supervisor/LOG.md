@@ -99,6 +99,40 @@ No regressions against the accepted v0.7 cluster (ADR-016 through ADR-019).
 
 ---
 
+## Review — v0.8.1-wave-d-deferrals items 1+2 rev-2 (commit 667ecda) — 2026-05-14
+
+**Reviewer**: copilot-cli sub-agent (`v0-8-1-flags-rev2-review`)
+**Task**: Rev-2 fix addressing external NEEDS REVISION finding F3 (MEDIUM) on `0a83f66`/`891e7ef`. Rev-1 baselined `Outcome=ReconcileUpstreamed` whenever phase-1 reverse-apply succeeded inside `CheckAppliedOnly`, but `--check-applied-only` deliberately skips the normal reconcile preflight, so phase-1 reads the live working tree (which may be the user's feature branch with the patch applied) rather than verified upstream state. Reproduced exit 0 + `[upstreamed]` even when the upstream ref did not contain the patch.
+
+### Checklist
+
+- [x] **F3 workflow fix**: `internal/workflow/reconcile_check_applied.go` — phase-1 reverse-apply path now writes ONLY a `result.Notes` diagnostic entry ("working tree already contains the patched content (not an upstream-merged signal under --check-applied-only; see phase 1.5)"). Does NOT set `Outcome`, does NOT set `Phase`, does NOT short-circuit. Phase 1.5 still always runs. ONLY phase-1.5 match sets `Outcome=ReconcileUpstreamed` + `Phase="phase-1.5-patch-id-match"` + `PatchIDMatch`/`UpstreamCommit`. Phase-1.5 skip / no-match / detector-off paths set `Outcome=ReconcileStillNeeded` unconditionally — zero `if !phase1Hit { ... }` guards remain (the implementer removed `phase1Hit` entirely per brief allowance).
+- [x] **F3 CLI fix**: `internal/cli/reconcile_check_applied.go` exit predicate `result.Outcome == store.ReconcileUpstreamed` (unchanged from rev-1, correct now that only phase-1.5 sets Upstreamed). Doc comment rewritten: exit 0 only on phase-1.5 match; phase-1 is diagnostic only.
+- [x] **Test updates**: three rev-1 workflow tests updated for new check-applied contract (`Phase1Hit_Phase15NoMatch`: `Outcome=ReconcileStillNeeded`, `Phase="phase-1.5-no-match"`; `Phase1Hit_DetectorOff`: `Outcome=ReconcileStillNeeded`, `Phase="phase-1.5-skipped-detector-disabled"`; `Phase1Hit_AlsoPhase15Match` unchanged — phase 1.5 already owned that outcome). One rev-1 CLI test renamed `…_Phase1HitExitsZero` → `…_Phase1HitAlonePhase15NoMatchExitsTwo` with inverted assertion (exit 2 via `*ExitCodeError{Code:2}`; phase-1 diagnostic note still in stdout).
+- [x] **New regression test** `TestReconcileCheckAppliedOnly_LocalOnlyPatchAbsentUpstreamExitsTwo`: builds the supervisor's exact F3 repro (upstream ref points at history with only an unrelated commit; patched file present in live tree; `post-apply.patch` matches the local file). Asserts exit 2 + stdout contains "phase 1.5 found no upstream commit with a matching patch-id". Implementer-verified: this test (and the inverted CLI test) FAIL against parent `891e7ef` and PASS against `667ecda`.
+- [x] **F1 non-regression**: `internal/cli/reconcile_auto_drop.go` stage scope still `filepath.Join(".tpatch","features",r.Slug)` + `.tpatch/FEATURES.md`. `TestReconcileAutoDropMerged_BatchScopesStaging` still green.
+- [x] **F2 mechanic non-regression**: phase-1 still no longer returns early; phase 1.5 still always runs. The change is purely whether phase-1 contributes to Outcome (no longer does under `--check-applied-only`).
+- [x] **Normal reconcile pipeline untouched**: `git diff 891e7ef 667ecda -- internal/workflow/reconcile.go internal/workflow/patch_id_detector.go` empty. The normal pipeline's preflight still legitimizes phase-1 as upstream-merged evidence; the rev-2 scope-narrowing applies only to `CheckAppliedOnly`.
+- [x] **Frozen regions intact**: `Config.PatchIDDetectorEnabled` still `false` at `internal/store/types.go:342`. No edits to Wave A/B record code, Side Research section, `docs/state-of-the-art/**`, PRD, ADRs, CHANGELOG, or supervisor LOG.
+- [x] **Out-of-scope guardrails**: 5 expected files only (2 workflow, 2 CLI, 1 handoff); 225 insertions / 71 deletions match handoff Files Changed (rev-2) section.
+- [x] gofmt clean; `go vet ./...` clean; `go build ./cmd/tpatch` OK; `go test ./... -race -count=1` all packages PASS (cli 60.9s, workflow 49.4s, gitutil 15.0s, provider 15.0s, store 6.7s, safety 5.1s, buildinfo 3.0s, assets 3.4s).
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Notes
+
+Clean narrowing of `--check-applied-only` success semantics to phase-1.5 patch-id sweep only. The diagnostic note wording is the right call — phase-1 reverse-apply success on a feature branch IS useful operator information (it confirms the patch is locally applied), but the note honestly disclaims its upstream-scoped meaning and points at phase-1.5 as authoritative. The contract divergence between `CheckAppliedOnly` and the normal reconcile pipeline (where phase-1 still implies upstream-merged because preflight enforces tree state) is documented in both function doc comments.
+
+### Action Taken
+
+Verdict logged. Stack ready for external supervisor re-review: kickoff `c18abb4` + impl v0 `d5f0ccf` + v0 verdict `8368a84` + rev-1 `0a83f66` + rev-1 verdict `891e7ef` + rev-2 `667ecda` + this LOG update.
+
+---
+
 ## Review — v0.8.1-wave-d-deferrals items 1+2 rev-1 (commit 0a83f66) — 2026-05-14
 
 **Reviewer**: copilot-cli sub-agent (`v0-8-1-flags-rev1-review`)
