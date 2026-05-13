@@ -5,12 +5,12 @@
 - **Task ID**: `feat-skill-doc-references-user-visible`
 - **Milestone**: post-v0.8.0 / pre-v0.8.1
 - **Description**: Implement PRD-skill-doc-strategy / ADR-020. Remove all `docs/land.md` and `docs/reconcile.md` repo-relative references from the six shipped skill surfaces and replace them with concise inline action snippets per ac.3. Add `TestSkillDocReferencesAreSelfContained` parity guard per ac.4. No `.tpatch/` migration; no new CLI flags.
-- **Status**: rev-1 complete — awaiting review
-- **Assigned**: 2026-05-14 (rev-1 2026-05-14)
+- **Status**: rev-3 complete — awaiting external review (handoff sync to advance from rev-2 to rev-3; doc-only)
+- **Assigned**: 2026-05-14 (rev-1 2026-05-14, rev-2 2026-05-14, rev-3 2026-05-14)
 
 ## Session Summary
 
-v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on top of tracking-close `e79c7d9`). Pushed to `origin`. M17 cluster archive landed in HISTORY at `e79c7d9`. Skill-doc-references slice landed at `ea5c954`; rev-1 follows up on three external findings:
+v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on top of tracking-close `e79c7d9`). Pushed to `origin`. M17 cluster archive landed in HISTORY at `e79c7d9`. Skill-doc-references slice landed at `ea5c954`; rev-1 (`dd6506a`) followed up on three external findings; rev-2 (`f7366df`) closed a final external finding by cleaning two stale tracking-doc lines that still read like pre-dispatch planning prose; rev-3 (this commit) syncs CURRENT.md so the handoff state advances past rev-2 instead of claiming `f7366df` is `main` after a newer commit lands.
 
 - **F1 (Medium)** — Reconcile snippet across all six surfaces falsely claimed reconcile is "read-only for the rest of the workflow". Replaced with a mutating-operation wording that grounds in `internal/workflow/reconcile.go` (`ReconcileReapplied`) and `internal/workflow/accept.go` (shadow→tree copy on accept), and tells the user to re-run `tpatch record` afterwards.
 - **F2 (Low)** — Parity guard regex `(?:^|[^A-Za-z0-9_/:])(docs/...)` missed `./docs/...md`, `../docs/...md`, `/docs/...md`. Restructured into a two-branch regex `[a-z][a-z0-9+.-]*://\S+|(?:^|[^A-Za-z0-9_])((?:\.{0,2}/)?docs/[A-Za-z0-9_./-]+\.md)\b` extracted behind a `findRepoRelativeDocsRefs` helper. Added 8 synthetic probe sub-tests (4 must-fail + 1 already-failing parens + 3 must-pass URLs).
@@ -18,7 +18,7 @@ v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on t
 
 ## Current State
 
-- `main` at `097e1e4` (sub-agent rev-1 verdict log) — pushed; rev-1 implementation at `dd6506a`. Tag `v0.8.0` at `29a6732` pushed to `origin`.
+- Latest finalized stack before this handoff sync: rev-2 `f7366df` (ROADMAP cleanup), rev-1 impl `dd6506a`, sub-agent rev-1 verdict `097e1e4`, v0 impl `ea5c954`, v0 sub-agent verdict `ab17939`, handoff start `c78240d`, v0.8.0 release-flip `29a6732` (tag `v0.8.0`), tracking-close `e79c7d9`. This commit (rev-3) is a doc-only sync of CURRENT.md on top of that stack; no code or test changes.
 - Worktree clean. Untracked: `.dbg/` (local artifacts).
 - All M17 work landed; no in-flight code regions.
 - Ready surfaces for this slice (12 references total — see PRD §5.1 table):
@@ -42,11 +42,22 @@ v0.8.0 shipped: tag `v0.8.0` annotated at `29a6732` (CHANGELOG release-flip on t
 - `assets/workflows/tessera-patch-generic.md` — lines 38-39 land/reconcile snippets inlined; trailing `docs/adrs/ADR-010-...md` pointer dropped.
 - `assets/assets_test.go` — `TestSkillDocReferencesAreSelfContained` added.
 
-### rev-1 (this commit)
+### rev-1 (`dd6506a`)
 
 - All six surfaces: reconcile bullet `5.` rewritten to drop the false "read-only" claim; new wording calls out reconcile as a mutating operation and instructs `tpatch record` after.
 - `assets/assets_test.go` — regex tightened to also catch `./`, `../`, `/` prefixed `docs/...md` paths via a two-branch URL-vs-bare alternation; `reflect` import added; `findRepoRelativeDocsRefs` helper extracted; 8 probe sub-tests added inside `TestSkillDocReferencesAreSelfContained`.
 - `docs/ROADMAP.md` line 263 (M17 header) + line 279 (Wave A row) flipped from "awaiting tag" / "unreleased" to released-state wording.
+
+### rev-2 (`f7366df`) — final tracking-doc cleanup
+
+- `docs/ROADMAP.md` lines 268-277: M17 cluster body rewritten from pre-dispatch planning prose ("Owners deliberately left **TBD**", "will be dispatched per Wave when ready", "**Ships as v0.8.0**") to past-tense shipped-state pointing at the per-Wave ship commits below + the HISTORY.md archive entry. "**Shipped as v0.8.0**" line now records "tagged 2026-05-12".
+- `docs/handoff/CURRENT.md` Current State block: pointed `main` at the actual stack tip rather than the v0.8.0 release-flip commit.
+- No code changes.
+
+### rev-3 (this commit) — handoff sync only
+
+- `docs/handoff/CURRENT.md` Status / Session Summary / Current State / Files Changed: advanced from rev-2 wording to rev-3 wording. The "Current State" `main` line now uses non-self-referential phrasing ("latest finalized stack before this handoff sync: ...") to avoid the chicken-and-egg problem of a commit naming its own SHA.
+- No other files touched; no code; no tests.
 
 ### Unexpected scope expansion (flagged for reviewer)
 
