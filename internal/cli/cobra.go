@@ -1395,9 +1395,14 @@ func reconcileCmd() *cobra.Command {
 			apply, _ := cmd.Flags().GetBool("apply")
 			maxConflicts, _ := cmd.Flags().GetInt("max-conflicts")
 			modelOverride, _ := cmd.Flags().GetString("model")
+			checkApplied, _ := cmd.Flags().GetBool("check-applied-only")
+			autoDrop, _ := cmd.Flags().GetBool("auto-drop-merged")
 
 			if err := validateReconcileFlags(acceptSlug, rejectSlug, shadowDiffSlug, resolve, apply); err != nil {
 				return err
+			}
+			if checkApplied && autoDrop {
+				return fmt.Errorf("reconcile: --check-applied-only and --auto-drop-merged are mutually exclusive")
 			}
 
 			s, err := openStoreFromCmd(cmd)
@@ -1413,6 +1418,11 @@ func reconcileCmd() *cobra.Command {
 			}
 			if shadowDiffSlug != "" {
 				return runReconcileShadowDiff(cmd, s, shadowDiffSlug)
+			}
+
+			if checkApplied {
+				upstreamRef, _ := cmd.Flags().GetString("upstream-ref")
+				return runReconcileCheckAppliedOnly(cmd, s, args, upstreamRef)
 			}
 
 			// A10 doc-reconcile-workflow: hard-refuse dirty trees /
@@ -1495,6 +1505,29 @@ func reconcileCmd() *cobra.Command {
 				}
 			}
 
+			// PRD-patch-already-upstream-detector §3.3: opt-in
+			// post-pass that converts a phase-1.5 verdict into an
+			// actual feature drop + audit-preserving removal commit.
+			// No-op when --auto-drop-merged was not passed, or when
+			// no result reached the phase-1.5 short-circuit (e.g.
+			// the detector is off via Config.PatchIDDetectorEnabled,
+			// in which case phase 1.5 cannot fire and this is a
+			// silent no-op per the brief).
+			if autoDrop {
+				targets := make([]resultDropTarget, 0, len(results))
+				for _, r := range results {
+					targets = append(targets, resultDropTarget{
+						Slug:           r.Slug,
+						Phase:          r.Phase,
+						Outcome:        r.Outcome,
+						UpstreamCommit: r.UpstreamCommit,
+					})
+				}
+				if dropErr := reconcileAutoDropMerged(cmd, s, targets); dropErr != nil {
+					return dropErr
+				}
+			}
+
 			// Tip: if .tpatch/ is untracked the user's feature state will
 			// not travel with their branch. Cheap to check post-run.
 			if isTpatchUntracked(s.Root) {
@@ -1516,6 +1549,9 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().String("accept", "", "Accept a shadow worktree: copy resolved files onto the real tree and transition state → applied")
 	cmd.Flags().String("reject", "", "Reject a shadow worktree: prune it and roll feature state back to applied")
 	cmd.Flags().String("shadow-diff", "", "Emit a unified diff between shadow and real tree for a feature (review without accepting)")
+	// PRD-patch-already-upstream-detector §3.2 / §3.3 (v0.8.1).
+	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
+	cmd.Flags().Bool("auto-drop-merged", false, "On a phase-1.5 patch-id match, remove the feature from the DAG (ADR-011 cascade rules) and create a removal commit that preserves Tpatch-CVE / Tpatch-Slug trailers. Off by default. No-op when phase 1.5 does not fire (including when patch_id_detector_enabled=false). Mutually exclusive with --check-applied-only.")
 	return cmd
 }
 

@@ -4,6 +4,11 @@ All notable changes to tpatch are recorded here.
 
 ## v0.8.1 (in development)
 
+### Reconcile
+
+- `tpatch reconcile --check-applied-only <slug>` — read-only patch-id sweep; exit 0 on upstream match, 2 on no match. Forces phase 1.5 even when `patch_id_detector_enabled` is false.
+- `tpatch reconcile --auto-drop-merged <slug>` — opt-in; on phase-1.5 match, removes the feature from the DAG (ADR-011 cascade) and preserves `Tpatch-CVE` / `Tpatch-Slug` trailers in the removal-commit message.
+
 ### Skill assets
 
 - **Skill-doc references are self-contained** — the six shipped skill

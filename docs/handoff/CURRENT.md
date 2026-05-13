@@ -5,12 +5,12 @@
 - **Task ID**: `v0.8.1-wave-d-deferrals` (kickoff)
 - **Milestone**: v0.8.1 marquee — Wave D detector tails
 - **Description**: Land four post-detector deferrals: (1) `tpatch reconcile --check-applied-only` flag (PRD §3.2), (2) `tpatch reconcile --auto-drop-merged` flag (PRD §3.3), (3) ADR-022 documenting the **deferral** of `Config.PatchIDDetectorEnabled` default-on flip, (4) ADR-023 documenting the **deferral** of hotfix-kind auto-drop default. Items 1+2 are CLI/code; items 3+4 are docs-only. Process rule (user-confirmed): ADR only when flipping a default OR changing lifecycle automation; pure CLI surface adds ship without ADR. ADRs use Status: **Accepted** with the decision being "defer to ≥v0.9 pending criteria below" — not "Proposed/undecided".
-- **Status**: In progress (implementer for items 1+2 dispatched; ADRs 3+4 drafted in parallel by supervisor).
+- **Status**: items 1+2 implementation complete — awaiting sub-agent review. (Items 3+4 ADRs still owned by supervisor track.)
 - **Assigned**: 2026-05-14.
 
 ## Session Summary
 
-Opening the v0.8.1 marquee. Latest finalized stack before this kickoff: tracking-close `2f8f681` (skill-doc-refs archive + v0.8.1 changelog opened), rev-3 `47e2888` (handoff sync), rev-1 impl `dd6506a`, v0.8.0 tag at `29a6732`. This handoff write is doc-only and does not advance code; it scopes the slice for the implementer + ADR-writer tracks.
+Opening the v0.8.1 marquee. Latest finalized stack before this kickoff: tracking-close `2f8f681` (skill-doc-refs archive + v0.8.1 changelog opened), rev-3 `47e2888` (handoff sync), rev-1 impl `dd6506a`, v0.8.0 tag at `29a6732`. Implementer landed items 1+2 in one atomic commit (CLI surface adds only; frozen detector regions untouched).
 
 ## Current State
 
@@ -19,22 +19,38 @@ Opening the v0.8.1 marquee. Latest finalized stack before this kickoff: tracking
 - Items 1+2 are pure CLI surface adds that **consume** existing `ReconcileSummary.PatchIDMatch` outputs without modifying frozen regions.
 - Items 3+4 ADRs are deferral documents; defaults stay where they are (detector off, auto-drop opt-in, hotfix-kind value not yet shipped anywhere).
 
-## Files Changed (this commit — handoff scope only)
+## Files Changed (items 1+2 implementation)
 
-- `docs/handoff/CURRENT.md` — Active Task / Session Summary / Current State / Next Steps / Context blocks rewritten for the new slice. Side Research section preserved byte-identical.
-- SQL: `v0.8.1-wave-d-deferrals` flipped `pending` → `in_progress`; sub-todos inserted for items 1+2 implementer track and items 3+4 ADR track.
+- `internal/workflow/reconcile_check_applied.go` — new `CheckAppliedOnly` helper: read-only phases 1 + 1.5, optional `forceDetector` override, no artifact writes / status mutation.
+- `internal/workflow/reconcile_check_applied_test.go` — match / no-match / force-detector unit tests for the helper.
+- `internal/cli/reconcile_check_applied.go` — `runReconcileCheckAppliedOnly` cobra-side adapter, returns `*ExitCodeError{Code:2}` on no-match.
+- `internal/cli/reconcile_auto_drop.go` — `reconcileAutoDropMerged` post-pass, trailer-block builder (`Tpatch-Slug` always, `Tpatch-CVE` when slug encodes CVE), cascade-rule guard via existing `checkRemoveDependents`.
+- `internal/cli/reconcile_check_applied_test.go` — CLI mutex test, trailer-derivation cases, end-to-end auto-drop match / no-op / detector-off / dependents-refusal tests, exit-code 0/2 tests for `--check-applied-only`.
+- `internal/cli/cobra.go` — register the two new flags on `reconcileCmd`, wire their dispatch.
+- `CHANGELOG.md` — appended `### Reconcile` subsection under `## v0.8.1 (in development)`.
+- `docs/handoff/CURRENT.md` — this file (Status / Files Changed / Test Results blocks).
 
 ## Test Results
 
-Handoff-only commit; no test gates needed. The implementer commit lands with `gofmt -l .`, `go build ./cmd/tpatch`, and the full `go test ./...` race-clean suite.
+- `gofmt -l .` → empty.
+- `go build ./...` → clean.
+- `go vet ./...` → clean.
+- `go test ./... -race -count=1` → all packages PASS:
+  - `internal/cli` 70.131s
+  - `internal/workflow` 52.782s
+  - `internal/gitutil` 18.646s
+  - `internal/provider` 15.251s
+  - `internal/safety` 7.297s
+  - `internal/store` 5.536s
+  - `assets` 2.387s
+  - `internal/buildinfo` 2.074s
 
 ## Next Steps
 
-1. Implementer (background) lands items 1+2: cobra flags on `tpatch reconcile`, plumbing into existing reconcile orchestrator without touching frozen detector code, exit-code semantics (0=match, 2=no-match for `--check-applied-only`), `--auto-drop-merged` removal-commit path with trailer preservation, tests for opt-in/opt-out/no-detector matrices, CHANGELOG bullet.
-2. Supervisor drafts ADR-022 (detector default-on deferral) and ADR-023 (hotfix auto-drop deferral) in parallel.
-3. Sub-agent code-review on items 1+2 commit.
-4. External supervisor review on the combined stack.
-5. Tracking-close + push + (eventually) v0.8.1 tag once the marquee scope wraps.
+1. Sub-agent code-review on items 1+2 commit.
+2. Supervisor finalises ADR-022 / ADR-023 in parallel.
+3. External supervisor review on the combined stack.
+4. Tracking-close + push + (eventually) v0.8.1 tag once the marquee scope wraps.
 
 ## Blockers
 
