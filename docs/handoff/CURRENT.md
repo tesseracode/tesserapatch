@@ -5,14 +5,14 @@
 - **Task ID**: `v0.9.0-alpha-2-capture-modes`
 - **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 2 of 2)
 - **Description**: Implement `PRD-record-capture-modes` v1 on `tpatch record` — add explicit `--all`, `--staged`, `--unstaged`, and `--claimed-only` flags with mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance written to `record.md`. Default `record` behavior preserved verbatim.
-- **Status**: Kickoff — awaiting implementer.
+- **Status**: Implementation complete — awaiting external review.
 - **Assigned**: 2026-05-14.
 
 ## Session Summary
 
 Wave alpha slice 1 (`PRD-feature-file-claims` v1) shipped 2026-05-14. External supervisor APPROVED rev-1 fix at `9d7435b` + verdict at `788438b`. Pure CLI surface add: `tpatch feature claim <add|list|remove|clear>` with deterministic `.tpatch/features/<slug>/claims.json` manifest, atomic writes, claim_id-derived stable sort, advisory mode only. Rev-1 closed the F1 path-normalization gap by factoring `NormalizeClaimPathShape` out of `NormalizeClaimPath` so the matcher can soft-normalize remove operands without re-running the safety/reservation rejects from add-time.
 
-Wave alpha slice 2 (THIS) = `PRD-record-capture-modes` v1. The PRD is fully drafted at `docs/prds/PRD-record-capture-modes.md` and the contract is binding. This slice is the second pure CLI surface add — no ADR required (default behavior preserved, all new behavior gated on explicit flags). After this lands and approves, the two slices ship together under the v0.9.0 tag.
+Wave alpha slice 2 (THIS) = `PRD-record-capture-modes` v1 — implementation landed. New flags on `tpatch record`: `--all`, `--staged`, `--unstaged`, `--claimed-only`. PRD §3.7 mutex matrix enforced before patch capture (legacy diagnostic shapes preserved for the four pre-existing pairs; new pairs use a uniform "X is mutually exclusive with Y" message). New gitutil helpers: `CaptureStagedPatch` (HEAD→index), `CaptureUnstagedPatch` (index→worktree + intent-to-add untracked), `StagedUnstagedOverlap` (set arithmetic on `git diff --name-only` outputs + untracked), `ValidateStagedPatch` (temp-index-from-HEAD `git apply --cached --check`, with live-index fallback). The CLI dispatch refuses on staged/unstaged overlap before capture and emits a note-line on unrelated edits in the "other" tier. `--claimed-only` loads the alpha-1 manifest via `store.LoadClaims`, refuses on empty claims, and intersects with `--files` when both are present. `record.md` gets a new `## Capture Provenance` section listing `capture_mode`, `pathspecs`, `claim_ids`, `base_commit`, `upper_commit`, and (for staged/unstaged) a one-line `dirty_state` summary — human-readable only, machine metadata stays the domain of the next PRD. Default `record <slug>` produces byte-identical patch bytes — pinned by `TestRecordModes_AllEqualsDefault`.
 
 ## Settled Design Choices
 
@@ -136,6 +136,43 @@ The implementer must satisfy every bullet:
 - The new staged/unstaged path-overlap refusal tests must verify both the exit code (non-zero) AND the diagnostic message shape.
 - The `record --all == default record` equivalence test must compare patch bytes verbatim from a fresh repo state.
 - `--claimed-only` tests must depend on a pre-populated `claims.json` (use the alpha-1 `feature claim add` CLI to populate, do not write the JSON directly — exercise the integration).
+
+## Files Changed
+
+- `internal/gitutil/capture_modes.go` (new, ~430 lines) — `CaptureStagedPatch`, `CaptureUnstagedPatch`, `StagedUnstagedOverlap`, `ValidateStagedPatch`, `FilterPathsByClaimedDirs`, `PathspecsForClaims`, `IntersectPathspecs`, plus `runGitEnv` / `runGitEnvStdin` / `runGitStdin` helpers for the temp-index handshake. Reuses the same exclude-pathspec list as `CapturePatchScoped`.
+- `internal/gitutil/capture_modes_test.go` (new, ~140 lines) — unit tests for the staged capture / overlap / validate helpers.
+- `internal/cli/record_capture_modes.go` (new, ~190 lines) — `validateRecordCaptureMode` (mutex matrix with legacy-message preservation), `resolveClaimedOnly` (claims load + intersection), `intersectExplicitAndClaims`, `recordCaptureMode` enum.
+- `internal/cli/record_modes_test.go` (new, ~470 lines) — end-to-end tests for every PRD §7 acceptance bullet.
+- `internal/cli/cobra.go` (modified) — new flags `--all`, `--staged`, `--unstaged`, `--claimed-only` on `recordCmd`; mutex validation wired in before capture; per-mode dispatch with overlap/note diagnostics; staged-patch round-trip swapped to temp-index validation; `generateRecordMD` extended with a `captureProvenance` struct producing the `## Capture Provenance` Markdown section; normalized PRD §4 capture-mode strings (`working-tree-all`, `staged-index`, `unstaged-worktree`, `auto-committed-range`, `committed-range`, `explicit-committed-range`).
+
+## Test Results
+
+- `gofmt -l .` → empty
+- `go vet ./...` → clean
+- `go build ./cmd/tpatch` → OK
+- `go test ./... -count=1 -race` → all packages pass (cli 51.8s, gitutil 12.1s, workflow 30.5s, etc.)
+- New tests added (16 top-level, all PASS):
+  - PRD §7 bullet 1: `TestRecordModes_AllEqualsDefault` (byte-identical regression pin)
+  - PRD §7 bullet 2: `TestRecordModes_StagedHappyPath`, `TestRecordModes_StagedTwoFilesIsolation`
+  - PRD §7 bullet 3: `TestRecordModes_StagedRefusesOnOverlap`
+  - PRD §7 bullet 4: `TestRecordModes_StagedNewFileGating`
+  - PRD §3.3 empty refusal: `TestRecordModes_StagedRefusesEmpty`
+  - PRD §7 bullet 5: `TestRecordModes_UnstagedHappyPath`
+  - PRD §7 bullet 6: `TestRecordModes_UnstagedRefusesOnOverlap`
+  - PRD §7 bullet 7: `TestRecordModes_UnstagedIncludesUntracked`
+  - PRD §7 bullet 8: `TestRecordModes_ClaimedOnlyRefusesNoClaims`
+  - PRD §7 bullet 9: `TestRecordModes_ClaimedOnlyFiltersToClaimedPaths`, `TestRecordModes_ClaimedOnlyDirectoryClaim`
+  - PRD §7 bullet 10: `TestRecordModes_AutoClaimedOnlyIntersection`
+  - PRD §7 bullet 11: `TestRecordModes_FilesAndClaimedOnlyEmptyIntersection`
+  - PRD §7 bullet 12: `TestRecordModes_MutexMatrix` (12 sub-cases — every disallowed pair from PRD §3.7)
+  - PRD §7 bullet 13: `TestRecordModes_ProvenanceWrittenForEachMode` (4 sub-cases: default/all/staged/unstaged)
+  - gitutil unit: `TestCaptureStagedPatch_OnlyStaged`, `TestStagedUnstagedOverlap_DetectsOverlap`, `TestValidateStagedPatch_HappyPath`
+- PRD §7 bullet 14: existing record / auto-base / collision / dependent-amend / land / land-test suites — all still green.
+
+## Next Steps
+
+1. External review against PRD §7 acceptance criteria.
+2. On APPROVE: archive this handoff to HISTORY, flip ROADMAP status for both alpha slices, tag `v0.9.0`.
 
 ## Blockers
 

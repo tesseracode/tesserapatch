@@ -901,6 +901,10 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			toRef, _ := cmd.Flags().GetString("to")
 			commitRange, _ := cmd.Flags().GetString("commit-range")
 			autoBase, _ := cmd.Flags().GetBool("auto")
+			allFlag, _ := cmd.Flags().GetBool("all")
+			stagedFlag, _ := cmd.Flags().GetBool("staged")
+			unstagedFlag, _ := cmd.Flags().GetBool("unstaged")
+			claimedOnly, _ := cmd.Flags().GetBool("claimed-only")
 			filesFlag, _ := cmd.Flags().GetString("files")
 			allowCollisionReason, _ := cmd.Flags().GetString("allow-collision")
 			allowCollisionReason = strings.TrimSpace(allowCollisionReason)
@@ -911,6 +915,36 @@ the committed snapshots at the endpoints contribute to the diff.`,
 						pathspecs = append(pathspecs, p)
 					}
 				}
+			}
+
+			// PRD-record-capture-modes §3.7: mutex validation must run
+			// BEFORE any patch capture so refusals leave the working
+			// tree, index, and store untouched.
+			if err := validateRecordCaptureMode(recordCaptureFlags{
+				All:         allFlag,
+				Staged:      stagedFlag,
+				Unstaged:    unstagedFlag,
+				Auto:        autoBase,
+				From:        fromRef,
+				To:          toRef,
+				CommitRange: commitRange,
+				ClaimedOnly: claimedOnly,
+			}); err != nil {
+				return err
+			}
+
+			// PRD §3.5: --claimed-only resolves its pathspec set up
+			// front. It refuses when no claims exist OR when the
+			// intersection with --files is empty; in both cases we
+			// must refuse BEFORE patch capture.
+			var activeClaimIDs []string
+			if claimedOnly {
+				resolved, ids, err := resolveClaimedOnly(s, slug, pathspecs)
+				if err != nil {
+					return err
+				}
+				pathspecs = resolved
+				activeClaimIDs = ids
 			}
 
 			var autoResolved *autoBaseResolution
@@ -986,15 +1020,67 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			}
 
 			var patch string
-			if rangeMode {
+			var stagedSummary gitutil.StagedDirtySummary
+			var unstagedSummary gitutil.UnstagedDirtySummary
+			switch {
+			case stagedFlag:
+				// PRD §3.3: refuse on overlap before capture; emit a
+				// note line for unrelated unstaged paths.
+				overlap, _, unrelatedUnstaged, oerr := gitutil.StagedUnstagedOverlap(s.Root, pathspecs)
+				if oerr != nil {
+					return fmt.Errorf("cannot inspect staged/unstaged paths: %w", oerr)
+				}
+				if len(overlap) > 0 {
+					return fmt.Errorf("record --staged refuses: staged and unstaged edits both touch %s. Commit, stash, or split the unstaged edits, then rerun", strings.Join(overlap, ", "))
+				}
+				patch, stagedSummary, err = gitutil.CaptureStagedPatch(s.Root, pathspecs)
+				if err != nil {
+					return fmt.Errorf("cannot capture staged patch: %w", err)
+				}
+				if len(unrelatedUnstaged) > 0 {
+					fmt.Fprintf(cmd.ErrOrStderr(),
+						"note: record --staged ignored %d unrelated unstaged path(s): %s\n",
+						len(unrelatedUnstaged), strings.Join(unrelatedUnstaged, ", "))
+				}
+			case unstagedFlag:
+				overlap, unrelatedStaged, _, oerr := gitutil.StagedUnstagedOverlap(s.Root, pathspecs)
+				if oerr != nil {
+					return fmt.Errorf("cannot inspect staged/unstaged paths: %w", oerr)
+				}
+				if len(overlap) > 0 {
+					return fmt.Errorf("record --unstaged refuses: staged and unstaged edits both touch %s. Commit, stash, or split the staged edits, then rerun", strings.Join(overlap, ", "))
+				}
+				patch, unstagedSummary, err = gitutil.CaptureUnstagedPatch(s.Root, pathspecs)
+				if err != nil {
+					return fmt.Errorf("cannot capture unstaged patch: %w", err)
+				}
+				if len(unrelatedStaged) > 0 {
+					fmt.Fprintf(cmd.ErrOrStderr(),
+						"note: record --unstaged ignored %d unrelated staged path(s): %s\n",
+						len(unrelatedStaged), strings.Join(unrelatedStaged, ", "))
+				}
+			case rangeMode:
 				patch, err = gitutil.CapturePatchFromCommitsScoped(s.Root, fromRef, toRef, pathspecs)
-			} else {
+			default:
+				// `--all` is byte-equivalent to the historical default
+				// working-tree capture (PRD §3.1). Both paths land
+				// here; the only difference is provenance below.
 				patch, err = gitutil.CapturePatchScoped(s.Root, pathspecs)
 			}
 			if err != nil {
 				return fmt.Errorf("cannot capture patch: %w", err)
 			}
 			if patch == "" {
+				// PRD §3.3 / §3.4: --staged and --unstaged refuse on
+				// empty capture with a targeted diagnostic (not the
+				// auto-base / --from candidate listing that the
+				// historical working-tree path produces).
+				if stagedFlag {
+					return fmt.Errorf("record --staged refuses: nothing staged for capture (run `git add -p` or `git add <path>` first)")
+				}
+				if unstagedFlag {
+					return fmt.Errorf("record --unstaged refuses: no unstaged worktree edits to capture")
+				}
 				// bug / footgun A8 doc-record-timing: previously we
 				// wrote a no-op patch and reported success, letting
 				// the feature advance to state=applied with zero
@@ -1063,14 +1149,30 @@ the committed snapshots at the endpoints contribute to the diff.`,
 
 			// Determine capture mode once — used both by the collision
 			// diagnostic (PRD-record-collision-detection §5) and by
-			// generateRecordMD below.
-			captureMode := "working tree"
+			// generateRecordMD below. Strings are the normalized PRD
+			// §4 forms; future patch-identity-metadata work consumes
+			// the same labels.
+			captureMode := string(captureModeWorkingTreeAll)
 			if autoBase {
-				captureMode = "auto committed range"
+				captureMode = string(captureModeAutoCommittedRange)
 			} else if commitRange != "" {
-				captureMode = "explicit committed range"
+				captureMode = string(captureModeExplicitCommittedRange)
 			} else if rangeMode {
-				captureMode = "committed range"
+				captureMode = string(captureModeCommittedRange)
+			} else if stagedFlag {
+				captureMode = string(captureModeStagedIndex)
+			} else if unstagedFlag {
+				captureMode = string(captureModeUnstagedWorktree)
+			}
+
+			// PRD §3.3: validate the staged patch against a temp
+			// index seeded from HEAD before any writes. Run BEFORE
+			// the collision scan so a malformed staged patch refuses
+			// without consuming collision-scan side effects.
+			if stagedFlag {
+				if verr := gitutil.ValidateStagedPatch(s.Root, patch); verr != nil {
+					return fmt.Errorf("record --staged refuses: %w", verr)
+				}
 			}
 
 			// PRD-record-collision-detection §4: scan canonical
@@ -1148,6 +1250,15 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			lenient, _ := cmd.Flags().GetBool("lenient")
 			if lenient {
 				fmt.Fprintln(cmd.ErrOrStderr(), "warning: --lenient: skipping patch round-trip validation")
+			} else if stagedFlag {
+				// Staged-only patches reference HEAD→index content,
+				// not the live working tree, so the worktree
+				// reverse-apply check is the wrong validation for
+				// this mode. ValidateStagedPatch already ran the
+				// temp-index --cached --check above; that IS the
+				// staged validation. Print a parallel success line so
+				// the user gets confirmation either way.
+				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: applies cleanly against temp index seeded from HEAD\n")
 			} else if valErr := gitutil.ValidatePatchReverse(s.Root, patch); valErr != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", valErr)
 				fmt.Fprintf(cmd.ErrOrStderr(), "  The recorded patch may not represent the on-disk changes accurately.\n")
@@ -1163,8 +1274,34 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			}
 
 			// GAP 3: Generate record.md
+			// PRD-record-capture-modes §4: provenance fields are
+			// human-readable in this slice (machine-readable metadata
+			// is the next PRD's domain).
+			prov := captureProvenance{
+				CaptureMode: captureMode,
+				Pathspecs:   pathspecs,
+				ClaimIDs:    activeClaimIDs,
+				BaseCommit:  fromRef,
+				UpperCommit: toRef,
+				DirtyState:  "",
+			}
+			if !rangeMode {
+				prov.UpperCommit = "working-tree"
+				if head, herr := gitutil.HeadCommit(s.Root); herr == nil && head != "" {
+					prov.BaseCommit = head
+				} else {
+					prov.BaseCommit = "HEAD"
+				}
+			}
+			if stagedFlag {
+				prov.DirtyState = fmt.Sprintf("%d staged paths, %d unrelated unstaged paths",
+					stagedSummary.StagedPaths, stagedSummary.UnrelatedUnstagedPaths)
+			} else if unstagedFlag {
+				prov.DirtyState = fmt.Sprintf("%d unstaged paths, %d unrelated staged paths",
+					unstagedSummary.UnstagedPaths, unstagedSummary.UnrelatedStagedPaths)
+			}
 			filesChanged := countPatchFiles(patch)
-			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason, collision.CrossFeature)
+			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason, collision.CrossFeature, prov)
 			s.WriteFeatureFile(slug, "record.md", recordMD)
 
 			status, _ := s.LoadFeatureStatus(slug)
@@ -1243,6 +1380,10 @@ the committed snapshots at the endpoints contribute to the diff.`,
 	cmd.Flags().String("files", "", "Comma-separated git pathspecs to scope the capture to (e.g. 'src/auth/,docs/auth.md'); default captures the full working tree")
 	cmd.Flags().String("allow-collision", "", "Permit a byte-identical cross-feature canonical patch collision; the reason is recorded in record.md and printed to stderr")
 	cmd.Flags().Bool("force-amend", false, "Bypass the dependent-orphan gate when recording on top of an amended commit (you take responsibility for re-recording downstream features)")
+	cmd.Flags().Bool("all", false, "Explicit alias for the default working-tree capture (records `working-tree-all` provenance)")
+	cmd.Flags().Bool("staged", false, "Capture only staged changes (HEAD → index); refuses when staged paths also have unstaged edits")
+	cmd.Flags().Bool("unstaged", false, "Capture only unstaged changes (index → worktree); refuses when staged and unstaged edits overlap")
+	cmd.Flags().Bool("claimed-only", false, "Intersect the capture with the feature's active claims; refuses when no claims exist")
 	return cmd
 }
 
@@ -1319,7 +1460,20 @@ func countPatchFiles(patch string) int {
 	return count
 }
 
-func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason string, collisionMatches []collisionMatch) string {
+// captureProvenance is the human-readable provenance block written to
+// record.md by `tpatch record` (PRD-record-capture-modes §4). Machine
+// metadata is explicitly out of scope; this struct only carries the
+// fields rendered into the per-feature record.md.
+type captureProvenance struct {
+	CaptureMode string
+	Pathspecs   []string
+	ClaimIDs    []string
+	BaseCommit  string
+	UpperCommit string
+	DirtyState  string
+}
+
+func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason string, collisionMatches []collisionMatch, prov captureProvenance) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("# Implementation Record: %s\n\n", slug))
 	b.WriteString(fmt.Sprintf("**Recorded**: %s\n", time.Now().UTC().Format(time.RFC3339)))
@@ -1362,6 +1516,38 @@ func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromR
 		b.WriteString("## Change Summary\n\n```\n")
 		b.WriteString(diffStat)
 		b.WriteString("```\n\n")
+	}
+
+	// PRD-record-capture-modes §4: emit a structured (Markdown
+	// key/value list) capture-provenance section so humans (and the
+	// upcoming patch-identity-metadata PRD work) can see the
+	// normalized capture mode, pathspec filter, active claim ids,
+	// base/upper bounds, and a one-line dirty_state summary. The
+	// `**Capture mode**:` field above is the legacy single-line
+	// pointer; this section is the canonical block.
+	if prov.CaptureMode != "" {
+		b.WriteString("## Capture Provenance\n\n")
+		b.WriteString(fmt.Sprintf("- **capture_mode**: `%s`\n", prov.CaptureMode))
+		if len(prov.Pathspecs) > 0 {
+			b.WriteString(fmt.Sprintf("- **pathspecs**: %s\n", strings.Join(prov.Pathspecs, ", ")))
+		} else {
+			b.WriteString("- **pathspecs**: (none)\n")
+		}
+		if len(prov.ClaimIDs) > 0 {
+			b.WriteString(fmt.Sprintf("- **claim_ids**: %s\n", strings.Join(prov.ClaimIDs, ", ")))
+		} else {
+			b.WriteString("- **claim_ids**: (none)\n")
+		}
+		if prov.BaseCommit != "" {
+			b.WriteString(fmt.Sprintf("- **base_commit**: `%s`\n", prov.BaseCommit))
+		}
+		if prov.UpperCommit != "" {
+			b.WriteString(fmt.Sprintf("- **upper_commit**: `%s`\n", prov.UpperCommit))
+		}
+		if prov.DirtyState != "" {
+			b.WriteString(fmt.Sprintf("- **dirty_state**: %s\n", prov.DirtyState))
+		}
+		b.WriteString("\n")
 	}
 
 	b.WriteString("## Replay Instructions\n\n")
