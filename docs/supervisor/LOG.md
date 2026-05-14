@@ -29,7 +29,7 @@ Verdict committed; stack ready for external supervisor re-review.
 
 ---
 
-
+## Review — v0.9.0-alpha-2-capture-modes — 2026-05-14
 
 **Reviewer**: sub-agent code-review
 **Task**: implement PRD-record-capture-modes v1 (record --all|--staged|--unstaged|--claimed-only with mutex matrix, mode-aware untracked policy, refuse-on-overlap diagnostics, capture-mode provenance)
@@ -63,7 +63,7 @@ Verdict committed; stack ready for external supervisor re-review.
 
 ---
 
-
+## Review — v0.9.0-alpha-1-file-claims (rev-1 F1 fix) — 2026-05-13
 
 **Reviewer**: sub-agent code-review
 **Task**: rev-1 fix for external supervisor finding F1 (MEDIUM) — `feature claim remove` did not normalize path operands before matching, breaking PRD §3.3 (remove accepts the same pathspec form as add).
