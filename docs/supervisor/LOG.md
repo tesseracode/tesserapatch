@@ -1,4 +1,35 @@
-## Review — v0.9.0-alpha-2-capture-modes — 2026-05-14
+## Review — v0.9.0-alpha-2-capture-modes (rev-1 F1 fix) — 2026-05-14
+
+**Reviewer**: sub-agent code-review
+**Task**: rev-1 fix for external supervisor finding F1 (MEDIUM) — `claim_ids` provenance listed all path-kind claim IDs when `--claimed-only --files` narrowed the intersection, breaking PRD §4 (`claim_ids` = "active claim IDs used by `--claimed-only`").
+**Commit**: 5d154cd
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test ./... -count=1 -race` — cli 85.2s, gitutil 29.4s, all 10 packages green)
+- [x] Formatted (`gofmt -l .` empty)
+- [x] Artifacts deterministic (sortDedupe applied; multi-overlap test re-runs capture and compares provenance line bytes)
+- [x] Secrets safe
+- [x] Matches PRD-record-capture-modes §4 (claim_ids is now the actually-contributing subset)
+- [x] Handoff accurate; Side Research section md5 `b385fe622db9926f48861105239f113e` preserved inline in CURRENT.md (reviewer searched for a non-existent separate file; the section lives inline, verified preserved)
+
+### Verdict: APPROVED
+
+### Notes
+- Refactor: `intersectExplicitAndClaims(explicit, claims []string) []string` deleted; replaced with `intersectExplicitAndClaimsWithIDs(explicit []string, claims []store.Claim) (paths, ids []string)`. Old helper had zero callers post-refactor so deletion prevents drift — sound deviation from the literal brief.
+- All three matching branches now record contributing claim IDs: file-claim exact, dir-claim prefix coverage, and converse (dir-shape explicit covers file-claim). The `matched` flag prevents duplicate path entries while allowing multiple IDs to accumulate for the multi-overlap case (both `src/` AND `src/a.go` claimed → both IDs).
+- `resolveClaimedOnly` no-`--files` branch unchanged (correct: every claim in scope without explicit narrowing).
+- `sortDedupe` applied for deterministic output; multi-overlap test asserts both ordered position via `strings.Index` AND byte-identical re-run.
+- 5 new tests: headline (supervisor repro) + 3 e2e edge cases + 1 unit test with 6 sub-cases. Headline test confirmed by code-reading to fail against `ab98813` (asserts `dropID` absent from provenance; old code returned all IDs).
+- Existing `TestRecordModes_ClaimedOnly*` tests still green — refactor touched only ID tracking, path resolution semantics unchanged.
+- Frozen regions untouched: claims.go, feature_claim.go, Wave D reconcile, provider/{errors,responses,router}.go.
+
+### Action Taken
+Verdict committed; stack ready for external supervisor re-review.
+
+---
+
+
 
 **Reviewer**: sub-agent code-review
 **Task**: implement PRD-record-capture-modes v1 (record --all|--staged|--unstaged|--claimed-only with mutex matrix, mode-aware untracked policy, refuse-on-overlap diagnostics, capture-mode provenance)
