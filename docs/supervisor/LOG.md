@@ -1,4 +1,38 @@
-## Review — v0.9.0-alpha-1-file-claims (rev-1 F1 fix) — 2026-05-13
+## Review — v0.9.0-alpha-2-capture-modes — 2026-05-14
+
+**Reviewer**: sub-agent code-review
+**Task**: implement PRD-record-capture-modes v1 (record --all|--staged|--unstaged|--claimed-only with mutex matrix, mode-aware untracked policy, refuse-on-overlap diagnostics, capture-mode provenance)
+**Commit**: ab98813
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test ./... -count=1 -race` — gitutil 9.8s, cli 44.0s, all 9 packages green)
+- [x] Formatted (`gofmt -l .` empty)
+- [x] Artifacts deterministic (stable-sorted claim_ids, sorted overlap/unrelated paths, no wall-clock timestamps in provenance)
+- [x] Secrets safe
+- [x] Matches SPEC + PRD-record-capture-modes §3, §4, §7 (all 15 acceptance criteria verified by named tests)
+- [x] Handoff accurate (CURRENT.md Session Summary, Files Changed, Test Results updated; Side Research md5 `b385fe622db9926f48861105239f113e` preserved)
+
+### Verdict: APPROVED WITH NOTES
+
+### Notes
+- **Default-record byte-identicality** confirmed: `TestRecordModes_AllEqualsDefault` uses two independent temp repos and compares `artifacts/post-apply.patch` byte-for-byte. Both default and `--all` dispatch through the same `CapturePatchScoped` path; provenance differs as intended (default → `working-tree-all` provenance written either way).
+- **Mutex matrix completeness** (PRD §3.7) verified: `TestRecordModes_MutexMatrix` covers all 12 disallowed pairs. `--to` requires `--from` or `--auto` (rejected pre-capture). New-pair diagnostics use uniform "X is mutually exclusive with Y" message; legacy pre-existing pair diagnostics preserved verbatim.
+- **`--staged` correctness**: overlap refused (`record --staged refuses: ...`), empty-patch refused, new files only via `git diff --cached HEAD` (index-only by construction), `ValidateStagedPatch` uses temp index via `GIT_INDEX_FILE` env + `git read-tree HEAD` with `defer os.Remove` cleanup, falls back to live-index `git apply --cached --check` only when temp-index setup fails (never silently downgrades to worktree validation — PRD §3.3 compliant).
+- **`--unstaged` correctness**: overlap refused, unrelated staged paths produce a single note line without refusing, untracked file inclusion via `git add --intent-to-add` (then reset) with cleanup on both success and error paths.
+- **`--claimed-only` correctness**: refuses no-claims, uses `store.LoadClaims` (alpha-1 read-only contract honored), directory claims match recursively via `FilterPathsByClaimedDirs`, `--files` intersection with refuse-on-empty, composable with all capture modes via upfront `resolveClaimedOnly` call before mode dispatch.
+- **Provenance**: `## Capture Provenance` section in `record.md` with all 6 PRD §4 fields. Capture-mode strings match PRD table exactly. `dirty_state` is one-line summary (e.g., "2 staged paths, 1 unrelated unstaged paths"), never raw diff content.
+- **Frozen regions**: claims.go, feature_claim.go, Wave D reconcile files, provider/{errors,responses,router}.go all untouched per `git diff --name-only`.
+- **No new external deps**: `go.mod` unchanged.
+- **Informational (non-blocking)**: helper signatures use `string` patch instead of `[]byte` to match existing `CapturePatchScoped` API consistency; legacy `--auto` dirty-tree refusal preserved (not relaxed for `--auto --claimed-only`, correct per PRD); empty-patch diagnostics for staged/unstaged modes are mode-targeted (don't suggest `--from/--auto` candidates, which only apply in default worktree mode).
+- 16 new top-level tests + 12 mutex sub-cases mapping to PRD §7 bullets 1–13; bullet 14 (existing record/auto/collision/dependent-amend/land suites) and bullet 15 (docs/skills not touched unless behavior change) honored.
+
+### Action Taken
+Verdict committed; stack ready for external supervisor re-review.
+
+---
+
+
 
 **Reviewer**: sub-agent code-review
 **Task**: rev-1 fix for external supervisor finding F1 (MEDIUM) — `feature claim remove` did not normalize path operands before matching, breaking PRD §3.3 (remove accepts the same pathspec form as add).
