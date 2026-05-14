@@ -2,34 +2,73 @@
 
 ## Active Task
 
-- **Task ID**: (none — awaiting next pick)
+- **Task ID**: provider-model-routing-audit
 - **Milestone**: post v0.8.1
-- **Description**: v0.8.1 marquee (Wave D detector tails) shipped. Awaiting supervisor pick from `docs/ROADMAP.md` backlog.
-- **Status**: idle.
-- **Assigned**: —.
+- **Description**: Verify live copilot-api model routing against `localhost:4141`, preserve a curl-based matrix suite, and document which endpoint/body shape tpatch should use per model family.
+- **Status**: Complete.
+- **Assigned**: 2026-05-13.
 
 ## Session Summary
 
-No active task. Last shipped slice: `v0.8.1-wave-d-deferrals` — `tpatch reconcile --check-applied-only` and `--auto-drop-merged` flags + ADR-022 / ADR-023 deferral records. Released as **v0.8.1** (tag at the tracking-close tip). See `docs/handoff/HISTORY.md` for the archived slice entry.
+Live curl audit against `http://localhost:4141` completed for the current
+copilot-api model catalog. The proxy returned 43 models, including 22
+user-pickable chat models. All 22 succeeded through the same default route
+tpatch uses today:
+
+- Claude models advertising `/v1/messages` -> `/v1/messages` with Anthropic
+  Messages payloads.
+- All other chat models, including GPT-5.2/5.4/5.5 and Gemini, ->
+  `/v1/chat/completions` with OpenAI Chat Completions payloads.
+
+Important live finding: several GPT-5.x models advertise `/responses`, but the
+local proxy returns `404 Not Found` for both `/responses` and `/v1/responses`.
+Keeping `TPATCH_ENABLE_RESPONSES_PROVIDER` unset is therefore the correct
+default; GPT-5.x works through chat completions on this proxy.
 
 ## Current State
 
-- Worktree clean at the v0.8.1 tag.
-- v0.8.1 = v0.8.0 ship + skill-doc-references slice + Wave D detector tail flags + two deferral ADRs.
-- All frozen-code regions from v0.8.0 remain intact. No detector-default flip. No hotfix-kind auto-drop default.
+- v0.8.1 shipped; this handoff now records a post-release provider audit.
+- `tests/scripts/model-routing-matrix.sh` is the durable curl suite for
+  re-running the local proxy matrix. It discovers `/models`, prints catalog
+  metadata, tests tpatch default routes, and can optionally probe advertised
+  endpoint variants, payload combinations, and SSE.
+- `docs/MODEL-ROUTING.md` captures the observed proxy contract and the current
+  guidance: route Claude to `/v1/messages`, route GPT/Gemini chat models to
+  `/v1/chat/completions`, and keep the experimental responses provider gated
+  until the proxy serves `/responses`.
 
 ## Files Changed
 
-None this handoff cycle.
+- `tests/scripts/model-routing-matrix.sh`
+- `docs/MODEL-ROUTING.md`
+- `tests/integration/provider_model_matrix_test.go`
+- `internal/provider/router.go`
+- `internal/provider/responses.go`
+- `internal/provider/errors.go`
+- `docs/handoff/CURRENT.md`
 
 ## Test Results
 
-n/a — no in-flight code change.
+- `tests/scripts/model-routing-matrix.sh --stream --combos` -> all 22
+  user-pickable chat models returned 200 with extracted text on the tpatch
+  default route; Claude SSE and GPT chat SSE returned valid event streams;
+  `/responses` SSE returned 404.
+- `tests/scripts/model-routing-matrix.sh --full` -> advertised `/responses`
+  and `/v1/responses` routes returned 404 for GPT-5.x models; advertised/chat
+  and messages routes returned 200.
+- `go test ./internal/provider ./tests/integration` -> pass.
+- `TPATCH_LIVE_PROVIDER=1 go test ./tests/integration -run TestLiveLocalProxy -v`
+  -> pass; live `PickProvider(...).Generate(...)` smoke returned `TPATCH_OK`
+  for `claude-sonnet-4.6`, `gpt-5.5`, `gpt-5.4`, `gpt-5-mini`,
+  `gemini-2.5-pro`, `gpt-4.1`, and `gpt-4o`.
+- `go test ./...` -> pass.
+- `go build ./cmd/tpatch` -> pass.
 
 ## Next Steps
 
-1. Supervisor picks the next slice from `docs/ROADMAP.md` (open backlog items include `m17-wave-a1-followup-ambig-discovery-diag` LOW, `m17-wave-a-parser-deduplication` refactor, plus the queued PRD drafts under `docs/prds/` if any are promoted to implementation).
-2. Update this file's Active Task block when dispatching.
+1. Keep `TPATCH_ENABLE_RESPONSES_PROVIDER` unset for the copilot-api proxy until a live rerun shows `/responses` (or `/v1/responses`) returning usable text.
+2. If the proxy starts serving `/responses`, rerun `tests/scripts/model-routing-matrix.sh --full --stream --combos` before flipping the provider gate.
+3. Supervisor picks the next slice from `docs/ROADMAP.md` after this audit is reviewed/archived.
 
 ## Blockers
 
@@ -38,6 +77,10 @@ None.
 ## Context for Next Agent
 
 - v0.8.1 tag SHA: see `git show v0.8.1`. v0.8.0 tag SHA: `29a6732`.
+- Provider audit finding: current localhost:4141 advertises `/responses` for
+  GPT-5.x but returns 404 for both `/responses` and `/v1/responses`; chat
+  completions works for `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.3-codex`,
+  `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.5`, and `gpt-5-mini`.
 - **Frozen-code regions** (touch only with an explicit revision brief):
   - `internal/cli/record_auto*.go` (Wave A1).
   - `internal/cli/record_collision*.go` (Wave B).
@@ -163,4 +206,3 @@ have draft PRDs as noted above.
 - `ADR-capture-context-privacy-boundary`
 - `ADR-capture-metadata-branch`
 - `PRD-record-context-summary`
-

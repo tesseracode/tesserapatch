@@ -21,11 +21,10 @@ import (
 //     provider (hits /v1/messages directly) when the model advertises
 //     /v1/messages support.
 //
-//  2. A /responses-only model (e.g. gpt-5.5) reaches the proper
-//     /responses upstream, but the upstream connection is aborted
-//     anyway. Pending an upstream proxy fix, the only client-side
-//     mitigation is a clear error so the user can pick a model that
-//     supports /chat/completions or /v1/messages.
+//  2. The experimental ResponsesProvider is enabled against a proxy
+//     build that advertises /responses but does not reliably serve it.
+//     Pending an upstream proxy fix, keep the responses provider gate
+//     off so GPT-5.x models fall back to /v1/chat/completions.
 //
 // CLI callers may use IsProxyUpstreamAborted to detect this case and
 // print a richer remediation prompt; the multi-line Error() string is
@@ -49,9 +48,10 @@ func (e *ProxyUpstreamAbortedError) Error() string {
 			"      version that's missing the /v1/messages dispatch branch.\n"+
 			"      Workaround: `tpatch provider set --type anthropic ...`,\n"+
 			"      or upgrade the local copilot-api proxy.\n"+
-			"    • /responses-only model (e.g. gpt-5.x) — upstream Copilot\n"+
-			"      is aborting; pick a /chat/completions or /v1/messages\n"+
-			"      capable model until the upstream proxy fix lands.",
+			"    • experimental /responses routing is enabled against a\n"+
+			"      proxy build that advertises /responses but does not\n"+
+			"      reliably serve it. Unset TPATCH_ENABLE_RESPONSES_PROVIDER\n"+
+			"      so GPT-5.x models use /v1/chat/completions.",
 		e.Model, e.Endpoint,
 	)
 }

@@ -20,12 +20,12 @@ import (
 // proxy/src/services/copilot/create-responses.ts (interface
 // ResponsesPayload + ResponsesResponse).
 //
-// As of writing, the upstream Copilot /responses fetch aborts before
-// sending a usable response (~230ms 500 with "This operation was
-// aborted"), so this provider is feature-gated behind
-// TPATCH_ENABLE_RESPONSES_PROVIDER=1. When the upstream proxy fix
-// lands, flip the gate in PickProvider; the wire code below is
-// already correct.
+// As of writing, live copilot-api proxies may advertise /responses in
+// /models while returning 404 for both /responses and /v1/responses.
+// GPT-5.x models work through /v1/chat/completions on those builds, so
+// this provider remains feature-gated behind
+// TPATCH_ENABLE_RESPONSES_PROVIDER=1. When the upstream proxy serves a
+// stable responses route, flip the gate in PickProvider.
 //
 // Non-streaming only. The minimal Generate path used by tpatch's
 // workflow phases doesn't need streaming today.
@@ -40,7 +40,7 @@ func NewResponses() *ResponsesProvider {
 
 // responsesProviderEnabled reports whether the experimental
 // /responses provider has been turned on. Off by default while the
-// upstream proxy aborts upstream calls; on by setting
+// upstream proxy does not reliably serve /responses; on by setting
 // TPATCH_ENABLE_RESPONSES_PROVIDER=1.
 func responsesProviderEnabled() bool {
 	v := strings.TrimSpace(os.Getenv("TPATCH_ENABLE_RESPONSES_PROVIDER"))

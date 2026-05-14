@@ -37,8 +37,8 @@ This file does **not** authorize implementation.
 | Structural middle pass | Snapshot complete | `patch-theory-and-commutation.md`, `patch-identity-and-structural-fingerprints.md`, `search-based-patch-application.md`, `tpatch-middle-pass-synthesis.md` | PRD/ADR queue when ready. |
 | RAG/vector retrieval | Snapshot complete | `patch-identity-and-structural-fingerprints.md`, `tpatch-middle-pass-synthesis.md` | `PRD-patch-vector-index` after privacy boundary. |
 | Experiment guide | Snapshot complete | `experiment-guide-structural-middle-pass.md` | First case study under `case-studies/<study-id>/`. |
-| First-party metadata | Snapshot complete | `tpatch-metadata-for-patch-identity.md` | `PRD-feature-patch-identity-metadata` + boundary ADR. |
-| Patch capture/context | In progress | `patch-capture-context-research-brief.md`, `patch-capture-prior-art-and-hooks.md` | Capture privacy ADR, file-claims PRD, capture-modes PRD. |
+| First-party metadata | Foundation PRD drafted | `tpatch-metadata-for-patch-identity.md` | Review identity metadata PRD; patch-generation boundary ADR next. |
+| Patch capture/context | Foundation PRDs drafted | `patch-capture-context-research-brief.md`, `patch-capture-prior-art-and-hooks.md` | Review/accept capture privacy ADR, amendment ADR, and drafted PRDs before implementation. |
 
 ## 2. Recommended PRD/ADR sequence
 
@@ -46,9 +46,9 @@ This file does **not** authorize implementation.
 
 1. `ADR-capture-context-privacy-boundary`
 2. `ADR-patch-amendment-policy`
-3. `PRD-feature-file-claims`
-4. `PRD-record-capture-modes`
-5. `PRD-feature-patch-amend`
+3. [`PRD-feature-file-claims`](../prds/PRD-feature-file-claims.md) - drafted
+4. [`PRD-record-capture-modes`](../prds/PRD-record-capture-modes.md) - drafted
+5. [`PRD-feature-patch-amend`](../prds/PRD-feature-patch-amend.md) - drafted
 6. `PRD-active-feature-session`
 7. `PRD-record-context-summary`
 8. `PRD-agent-event-log`
@@ -57,7 +57,7 @@ This file does **not** authorize implementation.
 
 ### Foundation: patch identity metadata
 
-1. `PRD-feature-patch-identity-metadata`
+1. [`PRD-feature-patch-identity-metadata`](../prds/PRD-feature-patch-identity-metadata.md) - drafted
 2. `ADR-patch-generation-manifest-boundary`
 3. `PRD-dependency-version-snapshots`
 4. `PRD-recipe-operation-identity`
@@ -81,15 +81,17 @@ This file does **not** authorize implementation.
    - Decide when corrections rewrite the canonical patch, append fixups, fork,
      fold/squash, or only amend metadata.
    - Define how amendments affect dependent features and patch generations.
-3. Write `PRD-feature-file-claims`.
-   - Model Quilt-style explicit path/symbol claims.
-   - Define advisory vs strict behavior.
-4. Write `PRD-record-capture-modes`.
-   - Define `--staged`, `--unstaged`, `--all`, `--claimed-only`, and
-     combinations with `--from`.
-5. Write `PRD-feature-patch-identity-metadata`.
-   - Add capture-mode and claim/context IDs to patch generations.
-6. Only after those, design agent/IDE/Git hook capture.
+3. Review [`PRD-feature-file-claims`](../prds/PRD-feature-file-claims.md).
+   - Confirms Quilt-style explicit path claims and advisory vs strict behavior.
+4. Review [`PRD-record-capture-modes`](../prds/PRD-record-capture-modes.md).
+   - Confirms `--staged`, `--unstaged`, `--all`, `--claimed-only`, and
+     combinations with committed-range modes.
+5. Review [`PRD-feature-patch-identity-metadata`](../prds/PRD-feature-patch-identity-metadata.md).
+   - Confirms patch-generation metadata, capture-mode provenance, claim IDs,
+     dependency snapshots, and future anchor/vector slots.
+6. Review [`PRD-feature-patch-amend`](../prds/PRD-feature-patch-amend.md).
+   - Confirms refresh/fixup/fork/fold vocabulary after the amendment ADR.
+7. Only after those, design agent/IDE/Git hook capture.
 
 Rationale: privacy, amendment semantics, and explicit scope should be settled
 before tpatch starts capturing richer agent context.
@@ -109,9 +111,12 @@ before tpatch starts capturing richer agent context.
 ### Start PRD drafting
 
 > Read `docs/state-of-the-art/research-roadmap.md` and the referenced research
-> docs. Draft the next PRD/ADR only; do not implement code. Preferred first doc:
-> `ADR-capture-context-privacy-boundary`, followed by
-> `ADR-patch-amendment-policy`, then `PRD-feature-file-claims`.
+> docs. Draft or review the next PRD/ADR only; do not implement code. The first
+> PRD set now exists: `PRD-feature-file-claims`,
+> `PRD-record-capture-modes`, `PRD-feature-patch-identity-metadata`, and
+> `PRD-feature-patch-amend`. Preferred next docs are
+> `ADR-capture-context-privacy-boundary` and `ADR-patch-amendment-policy`, or
+> review/acceptance updates for the four drafted PRDs.
 
 ### Run the structural experiment
 

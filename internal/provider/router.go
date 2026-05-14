@@ -31,12 +31,11 @@ package provider
 // missing branch in `routes/chat-completions/handler.ts` that aborts
 // when a Claude model resolves to /v1/messages.
 //
-// /responses-only models (e.g. gpt-5.5) are NOT yet special-cased:
-// the proxy currently aborts upstream regardless of which entry route
-// we use, so client-side routing can't help. The error path in
-// Generate surfaces a helpful hint instead. Once the
-// ResponsesProvider scaffold (todo: responses-provider-scaffold) is
-// flipped on, the second branch below should return that provider.
+// /responses-only models (e.g. gpt-5.5) are NOT special-cased by
+// default: live proxy builds have advertised /responses while not
+// serving that route, and accept those models through
+// /v1/chat/completions instead. Once the proxy serves /responses
+// reliably, the second branch below can be enabled.
 func PickProvider(cfg Config, health *Health) Provider {
 	if !IsCopilotProxyEndpoint(cfg) || health == nil {
 		return NewFromConfig(cfg)
@@ -51,19 +50,16 @@ func PickProvider(cfg Config, health *Health) Provider {
 		return NewAnthropic()
 	}
 	if hasEndpoint(supported, "/responses") && responsesProviderEnabled() {
-		// Off by default: the upstream Copilot /responses fetch is
-		// currently aborted by the proxy regardless of route. Once
-		// the upstream fix ships, flip
+		// Off by default: live proxies have advertised /responses
+		// while returning 404 for the route. Once the upstream fix ships, flip
 		// TPATCH_ENABLE_RESPONSES_PROVIDER=1 (or remove the gate).
 		// See ADR-014 + responses.go for details.
 		return NewResponses()
 	}
 	// /responses (gated off) and /chat/completions both flow through
-	// the default OpenAICompatible provider today. The proxy's
-	// chat-completions handler routes /responses internally;
-	// OpenAICompatible just posts the OpenAI-format payload — when
-	// the model is /responses-only the request will surface a
-	// ProxyUpstreamAbortedError with a remediation hint.
+	// the default OpenAICompatible provider today. Live curl probes
+	// against localhost:4141 confirm GPT-5.x models that advertise
+	// /responses are accepted by the chat-completions route.
 	return NewFromConfig(cfg)
 }
 
