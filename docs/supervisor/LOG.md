@@ -1,3 +1,34 @@
+## Review — v0.9.0-alpha-1-file-claims (rev-1 F1 fix) — 2026-05-13
+
+**Reviewer**: sub-agent code-review
+**Task**: rev-1 fix for external supervisor finding F1 (MEDIUM) — `feature claim remove` did not normalize path operands before matching, breaking PRD §3.3 (remove accepts the same pathspec form as add).
+**Commit**: 9d7435b
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] Tests pass (`go test ./... -count=1 -race`)
+- [x] Formatted (`gofmt -l .` empty)
+- [x] Artifacts deterministic (no behavioral artifact changes; manifest schema untouched)
+- [x] Secrets safe
+- [x] Matches SPEC + PRD-feature-file-claims §3.3
+- [x] Handoff accurate (CURRENT.md reflects rev-1 landed; Side Research md5 preserved)
+
+### Verdict: APPROVED
+
+### Notes
+- Fix factored `NormalizeClaimPathShape(repoRoot, input) (string, bool)` out of `NormalizeClaimPath` — performs Clean + ToSlash + stat-based trailing-slash + structural reject only; no reserved-area / installed-skill rejection (correct: the claim was already accepted at add-time).
+- `NormalizeClaimPath` layered safety/reservation guards on top; externally-observable error strings byte-identical (`TestNormalizeClaimPath_Unchanged` covers).
+- `MatchClaim` gained leading `repoRoot` parameter; tries normalized-arg compare between literal compare and hex-prefix branch, only when normalization actually changed the arg (preserves the hex-digest guard against short hex-looking paths).
+- 7 new tests: `TestMatchClaim_NormalizedDirectoryArg`, `TestMatchClaim_NormalizedDotPrefix`, `TestMatchClaim_CleanTraversal`, `TestMatchClaim_NoFalsePositive`, `TestMatchClaim_ClaimIDPrefixStillWorks`, `TestNormalizeClaimPath_Unchanged`, and `TestFeatureClaim_RemoveByUnnormalizedDirectoryPath` (end-to-end matching the supervisor's exact repro).
+- Reviewer verified `TestFeatureClaim_RemoveByUnnormalizedDirectoryPath` would fail against dcd9bf0 by reading both sources.
+- Pre-existing edge case surfaced (not a regression, not in rev-1 scope): if the claimed directory is deleted between add and remove, normalization produces a non-trailing-slash result that doesn't match the stored trailing-slash value. Workarounds: remove by claim_id or with explicit trailing slash. Same behavior exists at dcd9bf0.
+- Side Research md5 preserved (`b385fe622db9926f48861105239f113e`). Frozen regions untouched.
+
+### Action Taken
+Verdict committed; stack ready for external re-review.
+
+---
+
 ## Review — v0.9.0-alpha-1-file-claims — 2026-05-13
 
 **Reviewer**: sub-agent code-review
