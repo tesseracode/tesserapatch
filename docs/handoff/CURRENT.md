@@ -2,11 +2,30 @@
 
 ## Active Task
 
-- **Task ID**: `v0.9.0-alpha-1-file-claims` (kickoff)
+- **Task ID**: `v0.9.0-alpha-1-file-claims` (rev-1)
 - **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 1 of 2)
-- **Description**: Implement `PRD-feature-file-claims` v1: `tpatch feature claim <add|list|remove|clear>` subcommands writing a deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add — no ADR required per codified process rule (no defaults flipped, no lifecycle automation changes).
-- **Status**: Implementation complete — awaiting sub-agent code review.
+- **Description**: Implement `PRD-feature-file-claims` v1: `tpatch feature claim <add|list|remove|clear>` subcommands writing a deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add — no ADR required per codified process rule.
+- **Status**: rev-1 dispatched — fixing external supervisor finding F1 (remove-path normalization gap).
 - **Assigned**: 2026-05-13.
+
+## Findings to address (rev-1)
+
+- **F1 (MEDIUM) — `feature claim remove` does not normalize path operands before matching**.
+  - Source: external supervisor review of `dcd9bf0`.
+  - Repro: `feature claim add model-picker src/models` (with `src/models/` existing as a directory on disk) → stored value is `src/models/` (trailing slash applied by `NormalizeClaimPath` because `os.Stat` says directory). Then `feature claim remove model-picker src/models` → exit 0 with `no such claim: src/models`. The PRD contract (§3.3) defines remove as accepting the same pathspec form used at add-time. The implementer's `MatchClaim` (`internal/store/claims.go:344`) only does literal `c.Value == arg` comparison before falling back to claim_id prefix.
+  - Same gap affects inputs like `./README.md` (Clean normalizes to `README.md`) and `src/foo/../bar` (Clean → `src/bar`).
+  - **Fix shape**: in `MatchClaim`, try normalized arg against stored values BEFORE the claim_id-prefix branch. The normalization used must mirror the path-shape transformations done at add-time (Clean + ToSlash + trailing-slash-when-stat-says-directory) WITHOUT the safety/reservation rejects (the claim was already accepted at add-time, so re-rejecting on remove is wrong).
+  - **Implementation approach**: factor a `normalizeClaimPathShape(repoRoot, input) (string, ok)` helper out of `NormalizeClaimPath`. It does Clean + ToSlash + on-disk-dir trailing-slash + reject only the structural failures (empty, absolute, `..` escape). It does NOT enforce reserved-area rejection (because we're matching, not adding). Then `MatchClaim` calls it as a soft normalization step.
+  - Signature consequence: `MatchClaim` needs `repoRoot` access. Either thread it through (cleanest) or have the caller normalize the input list before calling MatchClaim.
+  - **Tests required**:
+    - Regression: `add src/models` (with dir present) → `remove src/models` succeeds and removes the claim. Verify the claim is gone from the manifest. This MUST fail against `dcd9bf0` and pass against rev-1.
+    - `add src/models/` → `remove src/models` (no trailing slash) succeeds. Symmetry check.
+    - `add ./README.md` → `remove README.md` succeeds (and vice versa).
+    - `add src/models` followed by `remove src/foo/../models` succeeds (Clean normalization).
+    - Non-existent path with normalization still produces the `no such claim` no-op (no false positive).
+    - Existing claim_id prefix matching still works after the new normalization step (and does not collide with paths that happen to look hex-like and short — guard remains).
+  - **Out of scope for rev-1**: do not change the `add` path. Do not introduce new flags. Do not change other verbs.
+  - **Constraints**: must not break any existing `internal/store/claims_test.go` or `internal/cli/feature_claim_test.go` assertion. Side Research section in CURRENT.md byte-identical.
 
 ## Session Summary
 
