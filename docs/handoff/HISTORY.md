@@ -1,3 +1,35 @@
+# 2026-05-14 — v0.9.0 alpha-1 file-claims — COMPLETE
+
+**Outcome**: Wave alpha slice 1 of 2 shipped. `PRD-feature-file-claims` v1 implemented as `tpatch feature claim <add|list|remove|clear>` — deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add (no ADR required: no defaults flipped, advisory-only).
+
+**Implementation stack** (all on `main`, pushed):
+- `a36cc18` — alpha-1 kickoff + archive of provider-routing-audit slice
+- `dcd9bf0` — alpha-1 implementation (11 files, +2721/-2): claims store, CLI subcommands, 26 unit + 27-scenario e2e tests, PRD bundled
+- `8066e3a` — sub-agent verdict (APPROVED, no findings)
+- `4d74ff0` — rev-1 kickoff (F1 brief)
+- `9d7435b` — **rev-1 fix**: `MatchClaim` now normalizes path operands before matching. Factored `NormalizeClaimPathShape(repoRoot, input)` helper out of `NormalizeClaimPath` — does Clean + ToSlash + stat-based trailing-slash + structural reject only, no reserved-area / installed-skill rejection (the claim was already accepted at add-time). `NormalizeClaimPath` layers safety guards on top, externally-observable behavior byte-identical. `MatchClaim` gained `repoRoot` parameter; tries normalized form as second match step (between literal compare and hex-prefix branch) only when normalization actually changes the arg, preserving the hex-digest guard for short args. Seven new tests including the end-to-end regression mirroring the external supervisor's exact F1 repro.
+- `788438b` — sub-agent rev-1 verdict (APPROVED, no findings)
+
+**External verdict**: APPROVED. External supervisor verified rev-1 fix manually — `add src/models` (with dir on disk) → `remove src/models` now reports "removed claim ... src/models/" followed by empty-claims list. 26 focused tests green. Deleted-directory edge case flagged as pre-existing limitation (not a rev-1 regression; workarounds: remove by claim_id or explicit trailing slash).
+
+**v1 Contract (shipped)**:
+- Commands: `tpatch feature claim <add|list|remove|clear>` under existing `feature` parent
+- Manifest schema: `{version:1, feature, claims:[{claim_id, kind, value, mode, source}]}` at `.tpatch/features/<slug>/claims.json`
+- `claim_id` = first 12 hex of `SHA-256(feature ‖ \x00 ‖ kind ‖ \x00 ‖ normalized_value ‖ \x00 ‖ mode)`
+- v1 only writes `kind=path`, `mode=advisory`, `source=manual`; reserved values rejected at input boundary, tolerated on read for forward compatibility
+- Atomic write: `.tmp` + fsync + rename
+- Stable sort by claim_id; no wall-clock timestamps
+- Directories preserved with trailing `/`
+- Path rejection: absolute, `..` escape, `.tpatch/`, installed skill surfaces (`.windsurfrules`, `.claude/skills/`, `.github/prompts`, `.cursor/rules`, etc.), empty normalized
+- Silent overlap: claims are scope metadata, not ownership locks
+- Removal accepts the same pathspec form used at add (post rev-1)
+
+**Open question for v2** (not blocking): deleted-claimed-directory edge case — if a claimed directory is removed from disk between add and remove, `MatchClaim` cannot reconstruct the trailing-slash. Workarounds exist (claim_id, explicit trailing slash). Could be addressed when the matcher gets an "unconditional trailing-slash variants" probe.
+
+**Wave alpha continues**: alpha-2 next = `PRD-record-capture-modes` v1.
+
+---
+
 # 2026-05-13 — provider-model-routing-audit — COMPLETE
 
 **Outcome**: Empirical curl audit of live copilot-api proxy at `localhost:4141` against the current advertised model catalog (43 models, 22 user-pickable chat). All 22 chat models succeeded through tpatch's default routes:
