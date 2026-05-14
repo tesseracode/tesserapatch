@@ -2,73 +2,130 @@
 
 ## Active Task
 
-- **Task ID**: provider-model-routing-audit
-- **Milestone**: post v0.8.1
-- **Description**: Verify live copilot-api model routing against `localhost:4141`, preserve a curl-based matrix suite, and document which endpoint/body shape tpatch should use per model family.
-- **Status**: Complete.
+- **Task ID**: `v0.9.0-alpha-1-file-claims` (kickoff)
+- **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 1 of 2)
+- **Description**: Implement `PRD-feature-file-claims` v1: `tpatch feature claim <add|list|remove|clear>` subcommands writing a deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add — no ADR required per codified process rule (no defaults flipped, no lifecycle automation changes).
+- **Status**: Not started — awaiting implementer dispatch.
 - **Assigned**: 2026-05-13.
 
 ## Session Summary
 
-Live curl audit against `http://localhost:4141` completed for the current
-copilot-api model catalog. The proxy returned 43 models, including 22
-user-pickable chat models. All 22 succeeded through the same default route
-tpatch uses today:
+Opening v0.9.0 Wave alpha. v0.8.1 shipped 2026-05-13 (Wave D detector tails: `--check-applied-only` + `--auto-drop-merged` flags + ADR-022/023 deferral records). Followed by a small `provider-model-routing-audit` slice (`18fd668`) that refreshed `internal/provider/` comments to match empirical localhost:4141 findings and added `docs/MODEL-ROUTING.md` + `tests/scripts/model-routing-matrix.sh` + `tests/integration/provider_model_matrix_test.go` — zero behavior change, no external review needed. Now picking up the drafted foundation PRDs.
 
-- Claude models advertising `/v1/messages` -> `/v1/messages` with Anthropic
-  Messages payloads.
-- All other chat models, including GPT-5.2/5.4/5.5 and Gemini, ->
-  `/v1/chat/completions` with OpenAI Chat Completions payloads.
+Wave alpha = two slices, both pure CLI surface adds:
+1. **alpha-1** (THIS): `PRD-feature-file-claims` v1 — advisory-only claim manifest.
+2. **alpha-2** (next): `PRD-record-capture-modes` v1 — `--all`/`--staged`/`--unstaged`/`--claimed-only` flags on `record`.
 
-Important live finding: several GPT-5.x models advertise `/responses`, but the
-local proxy returns `404 Not Found` for both `/responses` and `/v1/responses`.
-Keeping `TPATCH_ENABLE_RESPONSES_PROVIDER` unset is therefore the correct
-default; GPT-5.x works through chat completions on this proxy.
+Both ship under the **v0.9.0** tag once the cluster completes.
 
-## Current State
+## Settled Design Choices (user input this session)
 
-- v0.8.1 shipped; this handoff now records a post-release provider audit.
-- `tests/scripts/model-routing-matrix.sh` is the durable curl suite for
-  re-running the local proxy matrix. It discovers `/models`, prints catalog
-  metadata, tests tpatch default routes, and can optionally probe advertised
-  endpoint variants, payload combinations, and SSE.
-- `docs/MODEL-ROUTING.md` captures the observed proxy contract and the current
-  guidance: route Claude to `/v1/messages`, route GPT/Gemini chat models to
-  `/v1/chat/completions`, and keep the experimental responses provider gated
-  until the proxy serves `/responses`.
+- **Command namespace**: `tpatch feature claim` (singular; nested under existing `feature` subcommand). Matches PRD examples.
+- **Pathspec syntax**: literal paths + directory-recursive only in v1. Full Git pathspec syntax (`:(glob)`, `:(top)`, `:!exclude`) deferred to a future ADR/PRD.
+- **Overlap policy**: silent in v1. `feature claim add` does NOT warn at add-time when another feature already claims the same normalized path. Overlap is expected and normal; claims are scope metadata, not ownership locks.
+- **Sequencing vs ADRs**: ship as pure CLI surface; defer `ADR-024-capture-context-privacy-boundary` until file-claims v2 needs it (when `--reason` / context fields land). Matches codified rule.
 
-## Files Changed
+## v1 Contract (binding for implementer)
 
-- `tests/scripts/model-routing-matrix.sh`
-- `docs/MODEL-ROUTING.md`
-- `tests/integration/provider_model_matrix_test.go`
-- `internal/provider/router.go`
-- `internal/provider/responses.go`
-- `internal/provider/errors.go`
-- `docs/handoff/CURRENT.md`
+### Commands (under existing `feature` cobra subcommand)
+
+```
+tpatch feature claim add <slug> <path...>
+tpatch feature claim list <slug> [--json]
+tpatch feature claim remove <slug> <claim-id-or-path...>
+tpatch feature claim clear <slug>
+```
+
+### Manifest
+
+- Path: `.tpatch/features/<slug>/claims.json`
+- Schema: `{ version: 1, feature: <slug>, claims: [ { claim_id, kind, value, mode, source } ] }`
+- `kind` accepted in v1: only `"path"`. (`"glob"`, `"symbol"`, `"anchor"` are RESERVED schema values — do NOT accept them as input; reject with a clear error in v1.)
+- `mode` written in v1: only `"advisory"`. (`"strict"` is RESERVED — do NOT accept it as input; reject with "strict mode is deferred; see PRD-feature-file-claims §3.4".)
+- `source` written in v1: always `"manual"`. (`"agent"`, `"imported"`, `"generated"` are RESERVED — not user-settable in v1.)
+- `claim_id`: deterministic hex digest derived from `feature || "\x00" || kind || "\x00" || normalized_value || "\x00" || mode`. Recommend SHA-256, truncated to 12 hex chars (matches PRD example `8f31c0a19b2d`).
+- Claims are **stable-sorted** by `claim_id` in both the file and `list` output.
+- **No wall-clock timestamps in v1.** No raw prompts/transcripts/source-snippets.
+
+### Path normalization & rejection rules
+
+- Reuse existing safe-repo-path helpers (e.g. `EnsureSafeRepoPath` / equivalent from `internal/safety/` or wherever `record`/`land` validate today).
+- Reject: absolute paths, paths escaping the repo via `..`, paths under `.tpatch/`, paths matching installed skill surface roots, paths whose normalized form is empty.
+- Directories: store the normalized path WITH a trailing `/` if and only if the input was a directory (or had a trailing `/`). Directory claims match all descendants when later consumed.
+- Duplicate add (same normalized `value` + `kind` + `mode` for the same feature): IDEMPOTENT — no-op on the manifest, but print "already claimed" to stdout.
+
+### `list` output
+
+- Human (default): table-ish, e.g. `<claim_id>  advisory  path  <value>` one per line, prefaced by `Claims for <slug>:`. Empty case prints `Claims for <slug>: (none)`.
+- `--json`: emits the full manifest JSON object, stable-sorted by `claim_id`. Pretty-printed (two-space indent) is fine for v1.
+
+### `remove`
+
+- Accepts EITHER a claim_id (any unambiguous prefix ≥ 7 chars matches; ambiguous prefix errors) OR a normalized path value.
+- Removing a non-existent claim is a no-op with a "no such claim" note (exit 0). (Optional: gate with `--strict` if you want exit-2 on miss — but v1 acceptance does NOT require it; default no-op is fine.)
+- Multiple arguments in one invocation: process each; print one line per claim removed.
+
+### `clear`
+
+- Removes all claims; writes a manifest with empty `claims: []` (still version 1, still keyed to the feature). Does NOT delete the file.
+
+### Cross-cutting
+
+- Slug must reference an existing feature (use the same lookup `record`/`land` use). Unknown slug → exit 1 with "no such feature".
+- Manifest write must be ATOMIC (write to `claims.json.tmp` + rename) to avoid corruption on interrupted operations.
+- Run `gofmt -l .`, `go vet ./...`, `go build ./cmd/tpatch`, `go test ./... -race -count=1` after impl.
+- Update `CHANGELOG.md`: open `## v0.9.0 (in development)` section with a `### Feature claims` subsection listing the new commands.
+- No changes to skill assets in this slice (claims aren't user-facing through skills yet). Parity guard must stay green.
+
+## Acceptance Criteria (from PRD §8, restated for the implementer)
+
+- `feature claim add <slug> <path...>` writes `.tpatch/features/<slug>/claims.json`.
+- Adding the same normalized claim twice is idempotent.
+- `feature claim list` prints stable human output and `--json` emits stable JSON.
+- `feature claim remove` accepts either claim IDs or normalized path values.
+- `feature claim clear` removes all active claims for the feature.
+- Invalid paths outside the repo are rejected.
+- `.tpatch/` and installed skill surfaces cannot be claimed.
+- Existing `record`, `reconcile`, `apply`, and `land` behavior is unchanged when no claim-aware flag is used. (Verify no test regressions.)
+- Claims are stable-sorted and contain no timestamps.
+- Tests cover: add, list (human + JSON), remove (by id and by path), clear, duplicate add (idempotent), invalid path rejection (.tpatch, outside repo, absolute, skill surfaces), unknown slug rejection, empty manifest behavior, strict-mode-input rejection, reserved-kind rejection, atomic-write behavior.
+
+## Frozen Regions (do NOT touch in this slice)
+
+- `internal/cli/record_auto*.go` (Wave A1).
+- `internal/cli/record_collision*.go` (Wave B).
+- `internal/workflow/reconcile.go` lines ~196-236 (phase 1.5) and ~560-700 (lock guard).
+- `internal/workflow/patch_id_detector*.go`.
+- `internal/workflow/reconcile_check_applied.go` (Wave D rev-2 contract).
+- `internal/cli/reconcile_check_applied.go` / `internal/cli/reconcile_auto_drop.go` (Wave D).
+- `Config.PatchIDDetectorEnabled` default = `false` (ADR-022).
+- `Manifest.Kind == "hotfix"` auto-drop default = deferred (ADR-023).
+- ADR-019 trailer schema, ADR-020 inline-minimal skill-doc policy, ADR-021 carve-out scope.
+- `internal/provider/{errors,responses,router}.go` (audit slice `18fd668` just refreshed these).
+- The `## Side Research` section in this CURRENT.md (preserve byte-identical across handoff resets).
+
+## Files Expected to Change (implementer guidance)
+
+- `internal/cli/feature_claim*.go` (new) — cobra subcommand handlers.
+- `internal/cli/cobra.go` — wire the new `feature claim` subtree onto the existing `feature` command.
+- `internal/store/claims*.go` (new) — manifest type + read/write/sort + claim_id derivation. Place it in `internal/store/` since other manifests (FEATURES.md, status.json, config.yaml) already live there.
+- `internal/store/claims_test.go` (new) — unit tests for the store layer.
+- `internal/cli/feature_claim_test.go` (new) — end-to-end CLI tests using the existing test harness pattern from `internal/cli/reconcile_check_applied_test.go` or similar.
+- `CHANGELOG.md` — open `## v0.9.0 (in development)` with `### Feature claims` subsection.
+- `docs/handoff/CURRENT.md` — implementer updates Status / Files Changed / Test Results blocks on completion.
 
 ## Test Results
 
-- `tests/scripts/model-routing-matrix.sh --stream --combos` -> all 22
-  user-pickable chat models returned 200 with extracted text on the tpatch
-  default route; Claude SSE and GPT chat SSE returned valid event streams;
-  `/responses` SSE returned 404.
-- `tests/scripts/model-routing-matrix.sh --full` -> advertised `/responses`
-  and `/v1/responses` routes returned 404 for GPT-5.x models; advertised/chat
-  and messages routes returned 200.
-- `go test ./internal/provider ./tests/integration` -> pass.
-- `TPATCH_LIVE_PROVIDER=1 go test ./tests/integration -run TestLiveLocalProxy -v`
-  -> pass; live `PickProvider(...).Generate(...)` smoke returned `TPATCH_OK`
-  for `claude-sonnet-4.6`, `gpt-5.5`, `gpt-5.4`, `gpt-5-mini`,
-  `gemini-2.5-pro`, `gpt-4.1`, and `gpt-4o`.
-- `go test ./...` -> pass.
-- `go build ./cmd/tpatch` -> pass.
+n/a — implementation not yet started.
 
 ## Next Steps
 
-1. Keep `TPATCH_ENABLE_RESPONSES_PROVIDER` unset for the copilot-api proxy until a live rerun shows `/responses` (or `/v1/responses`) returning usable text.
-2. If the proxy starts serving `/responses`, rerun `tests/scripts/model-routing-matrix.sh --full --stream --combos` before flipping the provider gate.
-3. Supervisor picks the next slice from `docs/ROADMAP.md` after this audit is reviewed/archived.
+1. Implementer (general-purpose, background) implements per this contract.
+2. Sub-agent code-review on the resulting commit.
+3. Supervisor (me) reviews verdict + commits LOG entry.
+4. External supervisor review.
+5. On approval: tracking-close kickoff for alpha-2 (`PRD-record-capture-modes`).
+6. After alpha-2 ships and approves: cluster tracking-close + `v0.9.0` tag.
 
 ## Blockers
 
@@ -76,23 +133,16 @@ None.
 
 ## Context for Next Agent
 
-- v0.8.1 tag SHA: see `git show v0.8.1`. v0.8.0 tag SHA: `29a6732`.
-- Provider audit finding: current localhost:4141 advertises `/responses` for
-  GPT-5.x but returns 404 for both `/responses` and `/v1/responses`; chat
-  completions works for `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.3-codex`,
-  `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.5`, and `gpt-5-mini`.
-- **Frozen-code regions** (touch only with an explicit revision brief):
-  - `internal/cli/record_auto*.go` (Wave A1).
-  - `internal/cli/record_collision*.go` (Wave B).
-  - `internal/workflow/reconcile.go` lines ~196-236 (Wave D phase-1.5) and ~560-700 (Wave A2 lock guard).
-  - `internal/workflow/patch_id_detector*.go` (Wave D).
-  - `Config.PatchIDDetectorEnabled` default — `false` (deferral documented in ADR-022).
-  - `Manifest.Kind == "hotfix"` auto-drop default — deferred (ADR-023).
-  - ADR-019 trailer schema, ADR-020 inline-minimal skill-doc policy, ADR-021 carve-out scope.
-- **Wave A1+A2 are CROSS-COMMIT BOUND** (`1d6179c` ↔ `8fc2e4e`); revert as a unit if needed.
-- The `TestSkillDocReferencesAreSelfContained` parity guard pins the inline-minimal policy; do NOT reintroduce any repo-relative `docs/*.md` reference in `assets/`. URL-prefixed forms (`https://`, `http://`, `file://`) are allowed.
-- v0.8.1 `--check-applied-only` exit-success is now **phase-1.5-only** under `CheckAppliedOnly` (`internal/workflow/reconcile_check_applied.go`); phase-1 reverse-apply is diagnostic-only because that command skips the normal reconcile preflight. The normal reconcile pipeline (`internal/workflow/reconcile.go`) is unchanged — its preflight still legitimizes phase-1 as upstream-merged evidence in that context.
-- The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved verbatim across handoff resets; it is living research notes.
+- Recent tip: `18fd668` (provider-model-routing audit). Tag: `v0.8.1` at `e0b7ee9`.
+- The four foundation PRDs in `docs/prds/` are draft status:
+  - `PRD-feature-file-claims.md` ← THIS slice. Authoritative contract.
+  - `PRD-record-capture-modes.md` ← alpha-2.
+  - `PRD-feature-patch-identity-metadata.md` ← beta (deferred; depends on ADR-026 patch-generation-manifest-boundary).
+  - `PRD-feature-patch-amend.md` ← gamma (deferred; depends on ADR-025 patch-amendment-policy).
+- Reserved future ADR slots: ADR-024 (capture-context-privacy-boundary), ADR-025 (patch-amendment-policy), ADR-026 (patch-generation-manifest-boundary), later ADR-027 (capture-metadata-branch), ADR-028 (structural-middle-pass-boundary). None are blocking Wave alpha.
+- The keypoint/structural-fingerprint experiment runs in parallel; it does NOT gate Wave alpha. Outputs feed later waves only.
+- Cobra command tree: existing `feature` parent subcommand is in `internal/cli/cobra.go` (look for `featureCmd` or similar). Add the `claim` subtree under it. Follow the existing pattern of subcommand registration (see `record`, `apply`, `reconcile`, `land`).
+- The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved verbatim across handoff resets.
 
 ---
 

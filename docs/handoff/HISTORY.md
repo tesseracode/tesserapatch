@@ -1,3 +1,60 @@
+# 2026-05-13 — provider-model-routing-audit — COMPLETE
+
+**Outcome**: Empirical curl audit of live copilot-api proxy at `localhost:4141` against the current advertised model catalog (43 models, 22 user-pickable chat). All 22 chat models succeeded through tpatch's default routes:
+
+- Claude models advertising `/v1/messages` → `/v1/messages` with Anthropic Messages payloads.
+- All other chat models (GPT-5.2/5.4/5.5, Gemini, etc.) → `/v1/chat/completions` with OpenAI Chat Completions payloads.
+
+**Key empirical finding**: several GPT-5.x models advertise `/responses` in `/v1/models` but the local proxy returns `404 Not Found` for both `/responses` and `/v1/responses`. Keeping `TPATCH_ENABLE_RESPONSES_PROVIDER` unset is therefore the correct default; GPT-5.x works through chat completions on this proxy.
+
+Ship commit (single, no external review needed — doc/test only):
+
+| Commit | Role |
+|---|---|
+| `18fd668` | provider model routing audit (3 prod-comment refreshes + new MODEL-ROUTING.md + new curl harness + new integration test) |
+
+## Scope
+
+- **Zero behavior change** in prod code. The three `internal/provider/{errors,responses,router}.go` edits are pure comment/doc-comment refresh plus one user-facing `ProxyUpstreamAbortedError.Error()` string tightening (remediation now says "unset TPATCH_ENABLE_RESPONSES_PROVIDER" instead of the older "pick another model"). `PickProvider` control flow, `responsesProviderEnabled()` gate semantics, error types, and defaults are all unchanged.
+- New artifacts:
+  - `docs/MODEL-ROUTING.md` — empirical proxy-contract reference (185 lines).
+  - `tests/scripts/model-routing-matrix.sh` — durable curl-based live matrix harness (540 lines). Discovers `/models`, prints catalog metadata, tests tpatch default routes, optionally probes advertised endpoint variants, payload combinations, and SSE.
+  - `tests/integration/provider_model_matrix_test.go` — routing parser tests (338 lines). Uses `httptest` mocks to verify `supported_endpoints` parsing and routing decisions.
+- Doc cross-link updates in `docs/prds/README.md` and `docs/state-of-the-art/research-roadmap.md`.
+
+## Verification
+
+- `gofmt -l .` → clean.
+- `go build ./cmd/tpatch` → clean.
+- `go vet ./internal/provider` → clean.
+- `go test ./internal/provider` → PASS (12.4s).
+- `go test ./tests/integration` → PASS (0.9s).
+
+## Code anchors
+
+- `internal/provider/router.go` — `PickProvider` comments updated; `/responses`-gated branch comment now reflects the 404 observation.
+- `internal/provider/responses.go` — package doc comment refresh; `responsesProviderEnabled()` doc comment refresh.
+- `internal/provider/errors.go` — `ProxyUpstreamAbortedError.Error()` remediation string updated.
+- `docs/MODEL-ROUTING.md` — observed proxy contract: Claude → `/v1/messages`, GPT/Gemini chat → `/v1/chat/completions`, `/responses` gated until proxy serves it.
+- `tests/scripts/model-routing-matrix.sh` — re-runnable curl matrix for re-validation against future proxy builds.
+- `tests/integration/provider_model_matrix_test.go` — guards routing parser logic against regression.
+
+## Files touched
+
+- `internal/provider/errors.go` (M).
+- `internal/provider/responses.go` (M).
+- `internal/provider/router.go` (M).
+- `docs/MODEL-ROUTING.md` (A).
+- `tests/scripts/model-routing-matrix.sh` (A).
+- `tests/integration/provider_model_matrix_test.go` (A).
+- `docs/prds/README.md` (M).
+- `docs/state-of-the-art/research-roadmap.md` (M).
+- `docs/handoff/CURRENT.md` (M).
+
+**No external review run**. Supervisor review: doc/test only; low-risk per-file inspection confirmed zero behavior change before commit.
+
+---
+
 # 2026-05-13 — v0.8.1-wave-d-deferrals — APPROVED
 
 **Outcome**: v0.8.1 Wave D detector-tail deferrals shipped end-to-end and externally approved. Two new CLI surface flags on `tpatch reconcile` (`--check-applied-only`, `--auto-drop-merged`) consuming the phase-1.5 patch-id detector landed in v0.8.0, plus two ADRs documenting the deliberate deferral of the detector-default-on flip (ADR-022) and the hotfix-kind auto-drop default (ADR-023). Released as **v0.8.1** (tag at the tracking-close tip).
