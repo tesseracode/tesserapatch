@@ -1,3 +1,48 @@
+## Review — v0.9.0-alpha-1-file-claims — 2026-05-13
+
+**Reviewer**: sub-agent code-review
+**Task**: implement PRD-feature-file-claims v1 (advisory-only)
+**Commit**: dcd9bf0
+
+### Checklist
+- [x] Compiles (`go build ./cmd/tpatch`)
+- [x] `go vet ./...` clean
+- [x] `gofmt -l .` clean
+- [x] `go test ./... -race -count=1` PASS (9 packages: assets 6.760s, buildinfo 3.143s, cli 94.407s, gitutil 31.581s, provider 25.696s, safety 10.429s, store 17.587s, workflow 74.425s, tests/integration 19.519s)
+- [x] PRD §8 acceptance criteria all covered by tests (21 tests: 12 unit + 9 end-to-end)
+- [x] Manifest schema matches PRD §4 exactly (no extra fields, no timestamps)
+- [x] `claim_id` derivation matches contract — verified `SHA-256("test-id\0path\0src/test.go\0advisory")[:12] = "9191af5ef51e"` by hand
+- [x] Stable sort verified — add order z/a/m vs m/a/z produces byte-identical manifests
+- [x] Atomic write verified — `.tmp` + fsync + rename; no `.tmp` left after success
+- [x] Reserved-value rejection at input boundary — `glob`/`symbol`/`anchor` kinds, `strict` mode, `agent`/`imported`/`generated` sources all rejected
+- [x] Path rejection rules — absolute (`/etc/passwd`), `..` escape (`../escape`), `.tpatch/` (`.tpatch/foo`), skill surface (`.windsurfrules`, `.claude/skills/foo.md`), empty all rejected with specific error messages
+- [x] No frozen regions touched (verified file list against frozen-region guard)
+- [x] Side Research section byte-identical (md5: `b385fe622db9926f48861105239f113e`)
+- [x] Manual end-to-end repro succeeds (27 scenarios across add/list/remove/clear/error paths)
+
+### Verdict: APPROVED
+
+### Findings
+
+None. The implementation is complete, correct, and fully conformant with the binding contract. No deviations.
+
+### Notes
+
+- 11 files changed, +2721/-2 insertions. Core code: `internal/store/claims.go` (+402) + `claims_test.go` (+299), `internal/cli/feature_claim.go` (+207) + `feature_claim_test.go` (+310), `internal/cli/feature_deps.go` (+1, registering `featureClaimCmd()` on the existing `featureCmd()`).
+- New helper `FeatureExists` in `internal/store/`; reuses existing primitives, not reinvented.
+- The 4 foundation PRDs (file-claims/capture-modes/identity-metadata/amend) were untracked drafts in worktree at kickoff; implementer bundled them into this commit. Reasonable — file-claims is the source PRD for this slice; the other three are reference docs for future Wave alpha-2 / beta / gamma slices.
+- Manifest example from manual repro (md5 stable across runs):
+  ```json
+  { "version": 1, "feature": "add-greeting", "claims": [
+    { "claim_id": "87a4f4994f2d", "kind": "path", "value": "src/models/", "mode": "advisory", "source": "manual" },
+    { "claim_id": "e298e679f7ef", "kind": "path", "value": "docs/models.md", "mode": "advisory", "source": "manual" }
+  ] }
+  ```
+
+### Action Taken
+
+Verdict logged. Pushing `dcd9bf0` + this log commit for external supervisor re-review.
+
 ## Review — Capture-and-Metadata Foundation Cluster (4 PRDs) — 2026-05-13
 
 **Reviewer**: CO47 (broker-routed; T55 authored + revised; CO47 cross-reviewed)
