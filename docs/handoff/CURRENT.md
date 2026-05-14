@@ -5,7 +5,7 @@
 - **Task ID**: `v0.9.0-alpha-1-file-claims` (kickoff)
 - **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 1 of 2)
 - **Description**: Implement `PRD-feature-file-claims` v1: `tpatch feature claim <add|list|remove|clear>` subcommands writing a deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add — no ADR required per codified process rule (no defaults flipped, no lifecycle automation changes).
-- **Status**: Not started — awaiting implementer dispatch.
+- **Status**: Implementation complete — awaiting sub-agent code review.
 - **Assigned**: 2026-05-13.
 
 ## Session Summary
@@ -116,7 +116,74 @@ tpatch feature claim clear <slug>
 
 ## Test Results
 
-n/a — implementation not yet started.
+```
+ok  	github.com/tesseracode/tesserapatch/assets	3.626s
+?   	github.com/tesseracode/tesserapatch/cmd/tpatch	[no test files]
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	2.410s
+ok  	github.com/tesseracode/tesserapatch/internal/cli	114.098s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	21.910s
+ok  	github.com/tesseracode/tesserapatch/internal/provider	14.510s
+ok  	github.com/tesseracode/tesserapatch/internal/safety	6.194s
+ok  	github.com/tesseracode/tesserapatch/internal/store	5.946s
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	71.710s
+ok  	github.com/tesseracode/tesserapatch/tests/integration	12.356s
+```
+
+`gofmt -l .` clean, `go vet ./...` clean, `go build ./cmd/tpatch` clean.
+
+## Files Changed
+
+- `internal/store/claims.go` (new) — `Claim`, `ClaimsManifest` types,
+  `ComputeClaimID` (SHA-256 truncated to 12 hex), `NormalizeClaimPath`
+  (rejects absolute, `..`-escape, `.tpatch/`, installed skill surfaces,
+  empty), `LoadClaims`/`SaveClaims` (atomic `.tmp` + fsync + rename,
+  stable sort by `claim_id`), `AddClaim`/`MatchClaim`/`RemoveClaim`,
+  reserved-kind/mode/source guards, `FeatureExists`, `ClaimsPath`.
+- `internal/store/claims_test.go` (new) — 12 unit tests covering ID
+  determinism + 12-hex shape, normalization happy + reject cases,
+  reserved kind/mode rejection, save→load roundtrip with stable sort,
+  no-`.tmp`-leak verification, duplicate-add idempotence, prefix
+  matching with ambiguity error, missing-file empty manifest,
+  unsupported-version rejection, feature-slug-mismatch rejection.
+- `internal/cli/feature_claim.go` (new) — cobra wiring for
+  `add`/`list`/`remove`/`clear`. Validates slug via `FeatureExists`
+  before any manifest I/O; emits one human-readable line per op; `list
+  --json` pretty-prints the manifest.
+- `internal/cli/feature_claim_test.go` (new) — 9 end-to-end tests
+  using `buildRootCmd()` + `--path` so each test runs in its own
+  `t.TempDir()`. Covers add (incl. directory trailing-slash forcing),
+  duplicate idempotence (byte-identical manifest on re-add), list
+  (empty + populated + JSON-stable-across-insert-order + no-timestamp
+  assertion), remove by full id and by path value (incl. empty
+  manifest aftermath), missing-claim no-op, clear (keeps file with
+  `claims: []`), bad-path rejection (absolute / `..` / `.tpatch/` /
+  `.claude/skills/` / `.windsurfrules`), unknown-slug rejection
+  across all four verbs.
+- `internal/cli/feature_deps.go` — single-line addition: wires
+  `featureClaimCmd()` onto `featureCmd()` alongside `featureDepsCmd()`.
+- `CHANGELOG.md` — opened `## v0.9.0 (in development)` with `### Feature
+  claims` subsection documenting the new commands, schema, and
+  reserved values.
+- `docs/handoff/CURRENT.md` — this update (status flip + Files
+  Changed + Test Results).
+
+## Implementation Notes for Reviewer
+
+- The installed-skill-surface block list lives in `claims.go` as
+  `installedSkillPathPrefixes` + `installedSkillExactFiles`. Mirrors
+  `installSkills()` in `internal/cli/cobra.go` exactly. A constant
+  could be hoisted in a follow-up; left as a duplicate for now because
+  the installer writes to absolute paths and a single shared source
+  would force a small refactor outside scope.
+- `MatchClaim` only treats an argument as a claim_id prefix when it
+  looks like a hex digest of length ≥ 7. This prevents a path like
+  `src/a` from being mis-parsed as a (failing) prefix lookup.
+- `LoadClaims` tolerates a missing file as an empty manifest so the
+  add/list/clear/remove verbs all work on a feature that's never had
+  claims. It rejects unknown schema versions (forward-compat) and
+  feature-slug mismatch (paranoia against cross-feature file copies).
+- No `assets/` changes — skills don't expose claims yet; parity guard
+  remains green.
 
 ## Next Steps
 

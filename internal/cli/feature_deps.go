@@ -44,6 +44,7 @@ func featureCmd() *cobra.Command {
 		Short: "Per-feature management commands",
 	}
 	cmd.AddCommand(featureDepsCmd())
+	cmd.AddCommand(featureClaimCmd())
 	return cmd
 }
 

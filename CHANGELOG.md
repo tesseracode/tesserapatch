@@ -2,6 +2,35 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.9.0 (in development)
+
+### Feature claims
+
+- `tpatch feature claim add <slug> <path...>` — declare advisory path
+  claims for a feature; writes `.tpatch/features/<slug>/claims.json`
+  (atomic `.tmp` + rename). Duplicate adds are idempotent and print
+  `already claimed`. Reserved kinds (`glob`, `symbol`, `anchor`) and
+  reserved mode `strict` are rejected with clear errors; v1 only writes
+  `kind=path`, `mode=advisory`, `source=manual`. Paths under `.tpatch/`,
+  installed skill surfaces (`.claude/skills/`, `.github/skills/`,
+  `.github/prompts/`, `.cursor/rules/`, `.windsurfrules`), absolute
+  paths, and `..`-escapes are all refused at the input boundary.
+- `tpatch feature claim list <slug> [--json]` — list claims in a
+  deterministic, stable-sorted order (by `claim_id`). `--json` emits
+  the full manifest pretty-printed with two-space indent. Empty case
+  prints `Claims for <slug>: (none)`.
+- `tpatch feature claim remove <slug> <claim-id-or-path...>` — remove
+  by full claim_id, by claim_id prefix of ≥ 7 hex chars (ambiguous
+  prefixes error), or by exact normalized path value. Missing claims
+  are a no-op with a `no such claim:` note (exit 0).
+- `tpatch feature claim clear <slug>` — empties the manifest while
+  keeping the file (`claims: []`, `version: 1`, `feature: <slug>`).
+- Manifest schema: `{ version: 1, feature, claims: [ { claim_id, kind,
+  value, mode, source } ] }`. `claim_id` is the first 12 hex chars of
+  `SHA-256(feature ⧺ \x00 ⧺ kind ⧺ \x00 ⧺ value ⧺ \x00 ⧺ mode)`; no
+  wall-clock timestamps anywhere on disk. PRD:
+  `docs/prds/PRD-feature-file-claims.md`.
+
 ## v0.8.1 — 2026-05-13 — Wave D detector tails
 
 ### Reconcile
