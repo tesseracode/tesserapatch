@@ -2,11 +2,33 @@
 
 ## Active Task
 
-- **Task ID**: `v0.9.0-alpha-2-capture-modes`
+- **Task ID**: `v0.9.0-alpha-2-capture-modes` (rev-1)
 - **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 2 of 2)
 - **Description**: Implement `PRD-record-capture-modes` v1 on `tpatch record` — add explicit `--all`, `--staged`, `--unstaged`, and `--claimed-only` flags with mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance written to `record.md`. Default `record` behavior preserved verbatim.
-- **Status**: Implementation complete — awaiting external review.
+- **Status**: rev-1 dispatched — fixing external supervisor finding F1 (`claim_ids` provenance subset).
 - **Assigned**: 2026-05-14.
+
+## Findings to address (rev-1)
+
+- **F1 (MEDIUM) — `claim_ids` provenance reports all path-kind claims instead of the actually-used subset when `--claimed-only` is combined with `--files`**.
+  - Source: external supervisor review of `ab98813`.
+  - Repro: feature with two claims (`src/keep.go`, `src/drop.go`). Run `record --claimed-only --files src/keep.go --lenient`. Capture is correctly narrowed to `src/keep.go` (only that path appears in `artifacts/post-apply.patch`), but `record.md`'s `## Capture Provenance` block lists BOTH claim IDs. The audit trail is wrong for exactly the case alpha-2 adds.
+  - Root cause: `resolveClaimedOnly` (`internal/cli/record_capture_modes.go:178-183`) explicitly punted on tracking the contributing subset ("We can't trivially tell which subset of claim_ids actually contributed (a claim like `src/` covers any `src/...` file); list all path-kind claims as a conservative witness set.") and returns the full ID slice. PRD §4 is unambiguous: `claim_ids` is "active claim IDs used by `--claimed-only`" — not "all claim IDs declared on the feature."
+  - Test gap: `record_modes_test.go` only checks `strings.Contains(md, "claim_ids")`, never asserts on the specific subset.
+  - **Fix shape**: refactor `intersectExplicitAndClaims` (or add a sibling helper) to return both the intersected pathspecs AND the set of contributing claim IDs. Each time a `fileSet` hit or `dirClaims` prefix-match occurs in the explicit-iteration loop, record the matching claim's ID. Keep the existing structure of pure-pathspec output for capture invocation; just add the ID-tracking alongside. Then `resolveClaimedOnly` returns this narrowed ID set instead of the full `ids` slice in the `len(explicit) > 0` branch. Stable sort + dedupe the final IDs.
+  - Edge cases the fix must handle correctly:
+    - File-claim exact match (`src/keep.go` claim, `--files src/keep.go`) → that claim's ID, only.
+    - Dir-claim covers explicit file (`src/` claim, `--files src/keep.go`) → the dir-claim's ID.
+    - Dir-shape explicit covering file-claim (`src/keep.go` claim, `--files src/`) → the file-claim's ID (converse branch at line 219).
+    - Single explicit path matched by multiple claims (`src/` and `src/keep.go` both claimed, `--files src/keep.go`) → BOTH IDs.
+    - Multiple explicits each matched by different claims → union of contributing IDs.
+  - **Tests required**:
+    - Regression: external supervisor's exact repro. Two file claims (`src/keep.go`, `src/drop.go`); `record --claimed-only --files src/keep.go --lenient`; assert `record.md` provenance contains the keep claim's ID and NOT the drop claim's ID. This MUST fail against `ab98813` and pass against rev-1.
+    - Dir-claim coverage: one dir claim `src/`; explicit `--files src/a.go`; provenance lists the dir-claim's ID only.
+    - Multi-overlap: dir-claim `src/` AND file-claim `src/a.go`; `--files src/a.go`; provenance lists BOTH IDs (deterministic order).
+    - No-`--files` case still passes the original assertion (full path-kind ID set returned when `len(explicit) == 0`).
+  - **Out of scope for rev-1**: do not change `--claimed-only` without `--files` semantics. Do not change `intersectExplicitAndClaims`'s pathspec return type (only add a parallel ID-tracking return). Do not touch the mutex matrix, capture helpers, or any non-provenance code path.
+  - **Constraints**: must not break any existing `internal/cli/record_modes_test.go` or `internal/gitutil/capture_modes_test.go` assertion. Side Research section md5 (`b385fe622db9926f48861105239f113e`) byte-identical.
 
 ## Session Summary
 
