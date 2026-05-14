@@ -36,6 +36,8 @@ Wave alpha slice 1 (`PRD-feature-file-claims` v1) shipped 2026-05-14. External s
 
 Wave alpha slice 2 (THIS) = `PRD-record-capture-modes` v1 — implementation landed. New flags on `tpatch record`: `--all`, `--staged`, `--unstaged`, `--claimed-only`. PRD §3.7 mutex matrix enforced before patch capture (legacy diagnostic shapes preserved for the four pre-existing pairs; new pairs use a uniform "X is mutually exclusive with Y" message). New gitutil helpers: `CaptureStagedPatch` (HEAD→index), `CaptureUnstagedPatch` (index→worktree + intent-to-add untracked), `StagedUnstagedOverlap` (set arithmetic on `git diff --name-only` outputs + untracked), `ValidateStagedPatch` (temp-index-from-HEAD `git apply --cached --check`, with live-index fallback). The CLI dispatch refuses on staged/unstaged overlap before capture and emits a note-line on unrelated edits in the "other" tier. `--claimed-only` loads the alpha-1 manifest via `store.LoadClaims`, refuses on empty claims, and intersects with `--files` when both are present. `record.md` gets a new `## Capture Provenance` section listing `capture_mode`, `pathspecs`, `claim_ids`, `base_commit`, `upper_commit`, and (for staged/unstaged) a one-line `dirty_state` summary — human-readable only, machine metadata stays the domain of the next PRD. Default `record <slug>` produces byte-identical patch bytes — pinned by `TestRecordModes_AllEqualsDefault`.
 
+**rev-1 (F1 fix)**: External supervisor flagged that `resolveClaimedOnly` reported the full path-kind claim ID slice as `claim_ids` provenance even when `--files` narrowed the capture. Replaced `intersectExplicitAndClaims` with `intersectExplicitAndClaimsWithIDs(explicit []string, claims []store.Claim) (paths, ids []string)` which iterates path-kind `store.Claim` structs directly and records each contributing claim's ID in all three match branches (file-claim exact, dir-claim coverage, converse dir-shape explicit). `resolveClaimedOnly` keeps the existing `len(explicit)==0` semantics (full path-kind set) and uses the new helper's narrowed IDs (sort+dedupe via a new `sortDedupe`) in the `len(explicit)>0` branch. Added five edge-case tests in `record_modes_test.go` plus a pure unit `TestIntersectExplicitAndClaimsWithIDs` exercising all six brief-listed shapes. The headline `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` is the external supervisor's exact repro and fails against `ab98813` (which returns the full `ids` slice at line 183) — confirmed by code-reading.
+
 ## Settled Design Choices
 
 - **No ADR for this slice**: same rationale as alpha-1 — defaults preserved, new behavior is fully opt-in via flags. ADR-024 (capture-context-privacy-boundary) remains deferred until a future PRD needs structured context capture or `--reason`-style fields.
@@ -163,8 +165,8 @@ The implementer must satisfy every bullet:
 
 - `internal/gitutil/capture_modes.go` (new, ~430 lines) — `CaptureStagedPatch`, `CaptureUnstagedPatch`, `StagedUnstagedOverlap`, `ValidateStagedPatch`, `FilterPathsByClaimedDirs`, `PathspecsForClaims`, `IntersectPathspecs`, plus `runGitEnv` / `runGitEnvStdin` / `runGitStdin` helpers for the temp-index handshake. Reuses the same exclude-pathspec list as `CapturePatchScoped`.
 - `internal/gitutil/capture_modes_test.go` (new, ~140 lines) — unit tests for the staged capture / overlap / validate helpers.
-- `internal/cli/record_capture_modes.go` (new, ~190 lines) — `validateRecordCaptureMode` (mutex matrix with legacy-message preservation), `resolveClaimedOnly` (claims load + intersection), `intersectExplicitAndClaims`, `recordCaptureMode` enum.
-- `internal/cli/record_modes_test.go` (new, ~470 lines) — end-to-end tests for every PRD §7 acceptance bullet.
+- `internal/cli/record_capture_modes.go` (new in alpha-2; rev-1 swapped `intersectExplicitAndClaims` for `intersectExplicitAndClaimsWithIDs` operating on `[]store.Claim`, added `sortDedupe`, and routed `resolveClaimedOnly` through the new helper to return only contributing claim IDs in the `--files` branch). `validateRecordCaptureMode` (mutex matrix with legacy-message preservation), `resolveClaimedOnly` (claims load + intersection), `recordCaptureMode` enum unchanged.
+- `internal/cli/record_modes_test.go` (rev-1 added `loadClaimIDs` helper, `provenanceClaimIDsLine` helper, five rev-1 F1 tests — `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` (headline, external supervisor repro), `TestRecordModes_ClaimedOnlyFilesProvenance_DirClaim`, `TestRecordModes_ClaimedOnlyFilesProvenance_Converse`, `TestRecordModes_ClaimedOnlyFilesProvenance_MultiOverlap` (includes determinism re-run check), plus `TestIntersectExplicitAndClaimsWithIDs` (pure unit, 6 sub-cases)). Original alpha-2 e2e tests for every PRD §7 acceptance bullet preserved verbatim.
 - `internal/cli/cobra.go` (modified) — new flags `--all`, `--staged`, `--unstaged`, `--claimed-only` on `recordCmd`; mutex validation wired in before capture; per-mode dispatch with overlap/note diagnostics; staged-patch round-trip swapped to temp-index validation; `generateRecordMD` extended with a `captureProvenance` struct producing the `## Capture Provenance` Markdown section; normalized PRD §4 capture-mode strings (`working-tree-all`, `staged-index`, `unstaged-worktree`, `auto-committed-range`, `committed-range`, `explicit-committed-range`).
 
 ## Test Results
@@ -172,7 +174,8 @@ The implementer must satisfy every bullet:
 - `gofmt -l .` → empty
 - `go vet ./...` → clean
 - `go build ./cmd/tpatch` → OK
-- `go test ./... -count=1 -race` → all packages pass (cli 51.8s, gitutil 12.1s, workflow 30.5s, etc.)
+- `go test ./internal/cli/... ./internal/gitutil/... -count=1 -race` (rev-1) → all pass (cli 84.7s, gitutil 18.6s)
+- `go test ./... -count=1` (rev-1) → all packages pass (cli 96.3s, gitutil 22.4s, workflow 58.5s, store 21.1s, provider 19.7s, safety 16.3s, integration 21.9s, assets 5.2s, buildinfo 2.8s)
 - New tests added (16 top-level, all PASS):
   - PRD §7 bullet 1: `TestRecordModes_AllEqualsDefault` (byte-identical regression pin)
   - PRD §7 bullet 2: `TestRecordModes_StagedHappyPath`, `TestRecordModes_StagedTwoFilesIsolation`
@@ -189,6 +192,7 @@ The implementer must satisfy every bullet:
   - PRD §7 bullet 12: `TestRecordModes_MutexMatrix` (12 sub-cases — every disallowed pair from PRD §3.7)
   - PRD §7 bullet 13: `TestRecordModes_ProvenanceWrittenForEachMode` (4 sub-cases: default/all/staged/unstaged)
   - gitutil unit: `TestCaptureStagedPatch_OnlyStaged`, `TestStagedUnstagedOverlap_DetectsOverlap`, `TestValidateStagedPatch_HappyPath`
+  - rev-1 F1 (`claim_ids` provenance subset): `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` (headline, external supervisor repro — fails against `ab98813`, passes rev-1), `TestRecordModes_ClaimedOnlyFilesProvenance_DirClaim`, `TestRecordModes_ClaimedOnlyFilesProvenance_Converse`, `TestRecordModes_ClaimedOnlyFilesProvenance_MultiOverlap` (includes determinism re-run), `TestIntersectExplicitAndClaimsWithIDs` (pure unit, 6 sub-cases).
 - PRD §7 bullet 14: existing record / auto-base / collision / dependent-amend / land / land-test suites — all still green.
 
 ## Next Steps

@@ -153,12 +153,14 @@ func resolveClaimedOnly(s *store.Store, slug string, explicit []string) ([]strin
 		return nil, nil, fmt.Errorf("record --claimed-only refuses: feature %q has no active claims (run `tpatch feature claim add %s <path>...` first)", slug, slug)
 	}
 
+	var pathClaims []store.Claim
 	var values []string
 	var ids []string
 	for _, c := range manifest.Claims {
 		if c.Kind != store.ClaimKindPath {
 			continue
 		}
+		pathClaims = append(pathClaims, c)
 		values = append(values, c.Value)
 		ids = append(ids, c.ClaimID)
 	}
@@ -171,59 +173,103 @@ func resolveClaimedOnly(s *store.Store, slug string, explicit []string) ([]strin
 		return values, ids, nil
 	}
 
-	intersection := intersectExplicitAndClaims(explicit, values)
+	intersection, contribIDs := intersectExplicitAndClaimsWithIDs(explicit, pathClaims)
 	if len(intersection) == 0 {
 		return nil, nil, fmt.Errorf("record --claimed-only refuses: --files %v has empty intersection with claims %v", explicit, values)
 	}
-	// We can't trivially tell which subset of claim_ids actually
-	// contributed to the intersection (a claim like `src/` covers any
-	// `src/...` file); list all path-kind claims as a conservative
-	// witness set.
-	sort.Strings(ids)
-	return intersection, ids, nil
+	contribIDs = sortDedupe(contribIDs)
+	return intersection, contribIDs, nil
 }
 
-func intersectExplicitAndClaims(explicit, claims []string) []string {
-	var fileClaims []string
-	var dirClaims []string
+// sortDedupe returns a stably sorted copy of in with duplicate
+// entries removed. Returns nil when in is empty so callers see a
+// zero-length slice that JSON/Markdown formatters treat as "none".
+func sortDedupe(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	cp := make([]string, len(in))
+	copy(cp, in)
+	sort.Strings(cp)
+	out := cp[:0]
+	var prev string
+	for i, s := range cp {
+		if i == 0 || s != prev {
+			out = append(out, s)
+			prev = s
+		}
+	}
+	return out
+}
+
+// intersectExplicitAndClaimsWithIDs returns the intersection of
+// explicit pathspecs and claim values, plus the claim_id slice of
+// claims that actually contributed to the match. Order in the
+// returned IDs is the observation order in the explicit-iteration
+// loop; the caller is expected to sort and dedupe.
+//
+// Match shapes mirror the alpha-2 PRD §3.5 semantics:
+//  1. File-claim exact match — explicit pathspec equals a file claim.
+//  2. Dir-claim coverage — a dir claim (trailing-slash) covers the
+//     explicit pathspec (explicit may be a file or a dir under the
+//     claim).
+//  3. Converse — a dir-shape explicit covers a file claim.
+//
+// Each branch records the contributing claim's ID so the provenance
+// block lists only the subset that actually scoped the capture.
+func intersectExplicitAndClaimsWithIDs(explicit []string, claims []store.Claim) (paths []string, ids []string) {
+	var fileClaims []store.Claim
+	var dirClaims []store.Claim
 	for _, c := range claims {
-		if strings.HasSuffix(c, "/") {
+		if strings.HasSuffix(c.Value, "/") {
 			dirClaims = append(dirClaims, c)
 		} else {
 			fileClaims = append(fileClaims, c)
 		}
 	}
-	fileSet := map[string]bool{}
-	for _, f := range fileClaims {
-		fileSet[f] = true
+	fileClaimsByValue := map[string]store.Claim{}
+	for _, fc := range fileClaims {
+		fileClaimsByValue[fc.Value] = fc
 	}
-	var out []string
 	for _, raw := range explicit {
 		bare := strings.TrimSuffix(raw, "/")
-		if fileSet[bare] {
-			out = append(out, raw)
-			continue
-		}
 		matched := false
+		// Branch 1: file-claim exact match.
+		if fc, ok := fileClaimsByValue[bare]; ok {
+			paths = append(paths, raw)
+			ids = append(ids, fc.ClaimID)
+			matched = true
+		}
+		// Branch 2: dir-claim coverage of the explicit pathspec.
+		// Iterate every dir claim so multi-overlap (e.g. `src/` AND
+		// `src/a.go` both claimed with `--files src/a.go`) records
+		// both contributing IDs.
 		for _, d := range dirClaims {
-			if bare == strings.TrimSuffix(d, "/") || strings.HasPrefix(bare+"/", d) {
-				out = append(out, raw)
-				matched = true
-				break
+			if bare == strings.TrimSuffix(d.Value, "/") || strings.HasPrefix(bare+"/", d.Value) {
+				if !matched {
+					paths = append(paths, raw)
+					matched = true
+				}
+				ids = append(ids, d.ClaimID)
 			}
 		}
 		if matched {
 			continue
 		}
-		// converse: explicit is a dir-shape that contains a file claim.
+		// Branch 3 (converse): dir-shape explicit covering a file
+		// claim. Only reached when neither file-claim exact match
+		// nor dir-claim coverage hit.
 		if strings.HasSuffix(raw, "/") {
 			for _, fc := range fileClaims {
-				if strings.HasPrefix(fc, bare+"/") {
-					out = append(out, raw)
-					break
+				if strings.HasPrefix(fc.Value, bare+"/") {
+					if !matched {
+						paths = append(paths, raw)
+						matched = true
+					}
+					ids = append(ids, fc.ClaimID)
 				}
 			}
 		}
 	}
-	return out
+	return paths, ids
 }

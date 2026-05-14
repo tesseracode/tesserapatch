@@ -2,11 +2,35 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
+
+// loadClaimIDs reads the on-disk claims.json for a feature and returns
+// a map from claim value (path) to claim_id. Tests use this to assert
+// on the exact subset of IDs written into record.md's provenance.
+func loadClaimIDs(t *testing.T, tmp, slug string) map[string]string {
+	t.Helper()
+	p := filepath.Join(tmp, ".tpatch", "features", slug, "claims.json")
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatalf("read claims.json: %v", err)
+	}
+	var m store.ClaimsManifest
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("unmarshal claims.json: %v", err)
+	}
+	out := map[string]string{}
+	for _, c := range m.Claims {
+		out[c.Value] = c.ClaimID
+	}
+	return out
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -545,4 +569,270 @@ func TestRecordModes_ProvenanceWrittenForEachMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ─── rev-1 F1: claim_ids provenance is the contributing subset ─────────────
+//
+// PRD-record-capture-modes §4 defines `claim_ids` as "active claim
+// IDs used by `--claimed-only`". When `--claimed-only` is combined
+// with `--files`, the provenance MUST list only the claims that
+// actually contributed to the captured pathspec set — not every
+// path-kind claim declared on the feature. These tests pin that
+// contract.
+
+// provenanceClaimIDsLine returns the rendered "claim_ids" Markdown
+// line from record.md (without trailing newline) so tests can assert
+// on exact content rather than just substring presence.
+func provenanceClaimIDsLine(t *testing.T, md string) string {
+	t.Helper()
+	for _, line := range strings.Split(md, "\n") {
+		if strings.HasPrefix(line, "- **claim_ids**:") {
+			return line
+		}
+	}
+	t.Fatalf("record.md has no claim_ids provenance line:\n%s", md)
+	return ""
+}
+
+// TestRecordModes_ClaimedOnlyFilesProvenanceSubset is the rev-1 F1
+// headline regression — external supervisor's exact repro. Two file
+// claims (src/keep.go, src/drop.go); `record --claimed-only --files
+// src/keep.go --lenient`; provenance MUST contain the keep claim ID
+// and MUST NOT contain the drop claim ID. This test fails against
+// ab98813 (which returns the full path-kind ID slice) and passes
+// against rev-1.
+func TestRecordModes_ClaimedOnlyFilesProvenanceSubset(t *testing.T) {
+	tmp := modesFixture(t, "subset")
+	modesWriteFile(t, tmp, "src/keep.go", "keep\n")
+	modesWriteFile(t, tmp, "src/drop.go", "drop\n")
+
+	if _, _, code := runRecord(t, "feature", "claim", "add", "--path", tmp, "subset", "src/keep.go"); code != 0 {
+		t.Fatalf("claim add keep failed")
+	}
+	if _, _, code := runRecord(t, "feature", "claim", "add", "--path", tmp, "subset", "src/drop.go"); code != 0 {
+		t.Fatalf("claim add drop failed")
+	}
+	ids := loadClaimIDs(t, tmp, "subset")
+	keepID, dropID := ids["src/keep.go"], ids["src/drop.go"]
+	if keepID == "" || dropID == "" || keepID == dropID {
+		t.Fatalf("unexpected claim_ids: %#v", ids)
+	}
+
+	if _, stderr, code := runRecord(t, "record", "--path", tmp, "subset", "--claimed-only", "--files", "src/keep.go", "--lenient"); code != 0 {
+		t.Fatalf("record failed: %s", stderr)
+	}
+	patch := readRecordedPatch(t, tmp, "subset")
+	if !strings.Contains(patch, "src/keep.go") {
+		t.Errorf("patch must contain src/keep.go:\n%s", patch)
+	}
+	if strings.Contains(patch, "src/drop.go") {
+		t.Errorf("patch must NOT contain src/drop.go:\n%s", patch)
+	}
+	md := readRecordMD(t, tmp, "subset")
+	line := provenanceClaimIDsLine(t, md)
+	if !strings.Contains(line, keepID) {
+		t.Errorf("claim_ids line must contain keep claim ID %s: %q", keepID, line)
+	}
+	if strings.Contains(line, dropID) {
+		t.Errorf("claim_ids line must NOT contain drop claim ID %s: %q", dropID, line)
+	}
+}
+
+// TestRecordModes_ClaimedOnlyFilesProvenance_DirClaim covers dir-claim
+// coverage of an explicit file: claim `src/`, --files src/a.go →
+// provenance lists the dir-claim ID only.
+func TestRecordModes_ClaimedOnlyFilesProvenance_DirClaim(t *testing.T) {
+	tmp := modesFixture(t, "dirclaim")
+	if err := os.MkdirAll(filepath.Join(tmp, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	modesWriteFile(t, tmp, "src/a.go", "a\n")
+	modesWriteFile(t, tmp, "src/b.go", "b\n")
+
+	if _, _, code := runRecord(t, "feature", "claim", "add", "--path", tmp, "dirclaim", "src/"); code != 0 {
+		t.Fatalf("claim add src/ failed")
+	}
+	ids := loadClaimIDs(t, tmp, "dirclaim")
+	dirID := ids["src/"]
+	if dirID == "" {
+		t.Fatalf("missing src/ claim_id in %#v", ids)
+	}
+
+	if _, stderr, code := runRecord(t, "record", "--path", tmp, "dirclaim", "--claimed-only", "--files", "src/a.go", "--lenient"); code != 0 {
+		t.Fatalf("record failed: %s", stderr)
+	}
+	patch := readRecordedPatch(t, tmp, "dirclaim")
+	if !strings.Contains(patch, "src/a.go") {
+		t.Errorf("patch must contain src/a.go:\n%s", patch)
+	}
+	if strings.Contains(patch, "src/b.go") {
+		t.Errorf("patch must NOT contain src/b.go:\n%s", patch)
+	}
+	md := readRecordMD(t, tmp, "dirclaim")
+	line := provenanceClaimIDsLine(t, md)
+	if !strings.Contains(line, dirID) {
+		t.Errorf("claim_ids must contain dir claim ID %s: %q", dirID, line)
+	}
+}
+
+// TestRecordModes_ClaimedOnlyFilesProvenance_Converse covers the
+// converse branch: file-claim `src/keep.go`, --files src/ → the
+// dir-shape explicit covers the file claim; provenance lists the
+// file-claim ID.
+func TestRecordModes_ClaimedOnlyFilesProvenance_Converse(t *testing.T) {
+	tmp := modesFixture(t, "converse")
+	modesWriteFile(t, tmp, "src/keep.go", "keep\n")
+	modesWriteFile(t, tmp, "other/x.go", "x\n")
+
+	if _, _, code := runRecord(t, "feature", "claim", "add", "--path", tmp, "converse", "src/keep.go"); code != 0 {
+		t.Fatalf("claim add failed")
+	}
+	ids := loadClaimIDs(t, tmp, "converse")
+	keepID := ids["src/keep.go"]
+	if keepID == "" {
+		t.Fatalf("missing keep claim_id in %#v", ids)
+	}
+
+	if _, stderr, code := runRecord(t, "record", "--path", tmp, "converse", "--claimed-only", "--files", "src/", "--lenient"); code != 0 {
+		t.Fatalf("record failed: %s", stderr)
+	}
+	md := readRecordMD(t, tmp, "converse")
+	line := provenanceClaimIDsLine(t, md)
+	if !strings.Contains(line, keepID) {
+		t.Errorf("claim_ids must contain keep claim ID %s (converse): %q", keepID, line)
+	}
+}
+
+// TestRecordModes_ClaimedOnlyFilesProvenance_MultiOverlap covers the
+// case where the same explicit pathspec is matched by BOTH a dir
+// claim AND a file claim. Both contributing claim IDs must appear in
+// the provenance, in deterministic (sorted) order.
+func TestRecordModes_ClaimedOnlyFilesProvenance_MultiOverlap(t *testing.T) {
+	tmp := modesFixture(t, "multi")
+	modesWriteFile(t, tmp, "src/a.go", "a\n")
+
+	if _, _, code := runRecord(t, "feature", "claim", "add", "--path", tmp, "multi", "src/"); code != 0 {
+		t.Fatalf("claim add src/ failed")
+	}
+	if _, _, code := runRecord(t, "feature", "claim", "add", "--path", tmp, "multi", "src/a.go"); code != 0 {
+		t.Fatalf("claim add src/a.go failed")
+	}
+	ids := loadClaimIDs(t, tmp, "multi")
+	dirID, fileID := ids["src/"], ids["src/a.go"]
+	if dirID == "" || fileID == "" || dirID == fileID {
+		t.Fatalf("unexpected claim_ids: %#v", ids)
+	}
+
+	if _, stderr, code := runRecord(t, "record", "--path", tmp, "multi", "--claimed-only", "--files", "src/a.go", "--lenient"); code != 0 {
+		t.Fatalf("record failed: %s", stderr)
+	}
+	md := readRecordMD(t, tmp, "multi")
+	line := provenanceClaimIDsLine(t, md)
+	if !strings.Contains(line, dirID) {
+		t.Errorf("claim_ids must contain dir ID %s: %q", dirID, line)
+	}
+	if !strings.Contains(line, fileID) {
+		t.Errorf("claim_ids must contain file ID %s: %q", fileID, line)
+	}
+	// Determinism: sorted order. Compare positions of the two IDs.
+	wantFirst, wantSecond := dirID, fileID
+	if fileID < dirID {
+		wantFirst, wantSecond = fileID, dirID
+	}
+	if strings.Index(line, wantFirst) > strings.Index(line, wantSecond) {
+		t.Errorf("claim_ids must be sorted (want %s before %s): %q", wantFirst, wantSecond, line)
+	}
+
+	// Re-run capture and confirm the provenance bytes are stable.
+	if _, stderr, code := runRecord(t, "record", "--path", tmp, "multi", "--claimed-only", "--files", "src/a.go", "--lenient"); code != 0 {
+		t.Fatalf("record (re-run) failed: %s", stderr)
+	}
+	if got := provenanceClaimIDsLine(t, readRecordMD(t, tmp, "multi")); got != line {
+		t.Errorf("provenance claim_ids line not deterministic: first=%q second=%q", line, got)
+	}
+}
+
+// ─── rev-1 F1: unit-level coverage on intersectExplicitAndClaimsWithIDs ────
+
+// TestIntersectExplicitAndClaimsWithIDs exercises the pure helper for
+// the edge cases listed in the rev-1 brief. Pure unit testing lets us
+// pin matching shape without spinning up a git repo per case.
+func TestIntersectExplicitAndClaimsWithIDs(t *testing.T) {
+	mk := func(id, value string) store.Claim {
+		return store.Claim{ClaimID: id, Kind: store.ClaimKindPath, Value: value}
+	}
+	cases := []struct {
+		name     string
+		explicit []string
+		claims   []store.Claim
+		wantPath []string
+		wantIDs  []string
+	}{
+		{
+			name:     "file-claim exact",
+			explicit: []string{"src/keep.go"},
+			claims:   []store.Claim{mk("idA", "src/keep.go"), mk("idB", "src/drop.go")},
+			wantPath: []string{"src/keep.go"},
+			wantIDs:  []string{"idA"},
+		},
+		{
+			name:     "dir-claim coverage",
+			explicit: []string{"src/a.go"},
+			claims:   []store.Claim{mk("idDIR", "src/")},
+			wantPath: []string{"src/a.go"},
+			wantIDs:  []string{"idDIR"},
+		},
+		{
+			name:     "converse dir-shape explicit",
+			explicit: []string{"src/"},
+			claims:   []store.Claim{mk("idF", "src/keep.go")},
+			wantPath: []string{"src/"},
+			wantIDs:  []string{"idF"},
+		},
+		{
+			name:     "multi-overlap both contribute",
+			explicit: []string{"src/a.go"},
+			claims:   []store.Claim{mk("idDIR", "src/"), mk("idFILE", "src/a.go")},
+			wantPath: []string{"src/a.go"},
+			wantIDs:  []string{"idDIR", "idFILE"},
+		},
+		{
+			name:     "multiple explicits each match",
+			explicit: []string{"src/a.go", "src/b.go"},
+			claims:   []store.Claim{mk("idA", "src/a.go"), mk("idB", "src/b.go")},
+			wantPath: []string{"src/a.go", "src/b.go"},
+			wantIDs:  []string{"idA", "idB"},
+		},
+		{
+			name:     "subset explicit narrows",
+			explicit: []string{"src/a.go"},
+			claims:   []store.Claim{mk("idA", "src/a.go"), mk("idB", "src/b.go")},
+			wantPath: []string{"src/a.go"},
+			wantIDs:  []string{"idA"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gotPath, gotIDs := intersectExplicitAndClaimsWithIDs(c.explicit, c.claims)
+			gotIDs = sortDedupe(gotIDs)
+			if !stringSliceEqual(gotPath, c.wantPath) {
+				t.Errorf("paths: got %v want %v", gotPath, c.wantPath)
+			}
+			if !stringSliceEqual(gotIDs, c.wantIDs) {
+				t.Errorf("ids: got %v want %v", gotIDs, c.wantIDs)
+			}
+		})
+	}
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
