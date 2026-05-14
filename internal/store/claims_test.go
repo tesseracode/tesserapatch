@@ -201,13 +201,13 @@ func TestMatchClaimByPrefixAndPath(t *testing.T) {
 	first := m.Claims[0]
 
 	// Exact path
-	got, ok, err := MatchClaim(&m, first.Value)
+	got, ok, err := MatchClaim("", &m, first.Value)
 	if err != nil || !ok || got.ClaimID != first.ClaimID {
 		t.Fatalf("path match failed: %+v ok=%v err=%v", got, ok, err)
 	}
 
 	// Full claim_id
-	got, ok, err = MatchClaim(&m, first.ClaimID)
+	got, ok, err = MatchClaim("", &m, first.ClaimID)
 	if err != nil || !ok || got.ClaimID != first.ClaimID {
 		t.Fatalf("full-id match failed: %+v ok=%v err=%v", got, ok, err)
 	}
@@ -223,19 +223,19 @@ func TestMatchClaimByPrefixAndPath(t *testing.T) {
 		}
 	}
 	if hits == 1 {
-		got, ok, err = MatchClaim(&m, prefix)
+		got, ok, err = MatchClaim("", &m, prefix)
 		if err != nil || !ok || got.ClaimID != first.ClaimID {
 			t.Fatalf("prefix match failed: %+v ok=%v err=%v", got, ok, err)
 		}
 	}
 
 	// Too-short prefix should not match by id.
-	if _, ok, _ := MatchClaim(&m, "ab"); ok {
+	if _, ok, _ := MatchClaim("", &m, "ab"); ok {
 		t.Error("short prefix should not match")
 	}
 
 	// Missing path → not found, not error.
-	if _, ok, err := MatchClaim(&m, "no/such/path"); err != nil || ok {
+	if _, ok, err := MatchClaim("", &m, "no/such/path"); err != nil || ok {
 		t.Errorf("missing path should return ok=false nil err, got ok=%v err=%v", ok, err)
 	}
 }
@@ -250,7 +250,7 @@ func TestMatchClaimAmbiguousPrefix(t *testing.T) {
 			{ClaimID: "abcdef0124cd", Kind: "path", Value: "b", Mode: "advisory", Source: "manual"},
 		},
 	}
-	if _, ok, err := MatchClaim(&m, "abcdef0"); err == nil {
+	if _, ok, err := MatchClaim("", &m, "abcdef0"); err == nil {
 		t.Errorf("expected ambiguity error; ok=%v", ok)
 	} else if !strings.Contains(err.Error(), "ambiguous") {
 		t.Errorf("error should mention 'ambiguous': %v", err)
@@ -295,5 +295,136 @@ func TestLoadClaimsRejectsFeatureMismatch(t *testing.T) {
 	os.WriteFile(s.ClaimsPath("feat-mm"), data, 0o644)
 	if _, err := LoadClaims(s, "feat-mm"); err == nil {
 		t.Error("expected error on feature-slug mismatch")
+	}
+}
+
+// rev-1 F1: the user-facing pathspec at remove-time must round-trip
+// through the same shape normalization that add-time uses.
+func TestMatchClaim_NormalizedDirectoryArg(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "src", "models"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m := ClaimsManifest{Version: ClaimsManifestVersion, Feature: "feat"}
+	AddClaim(&m, "src/models/")
+
+	got, ok, err := MatchClaim(root, &m, "src/models")
+	if err != nil || !ok {
+		t.Fatalf("expected match for unnormalized dir arg, got ok=%v err=%v", ok, err)
+	}
+	if got.Value != "src/models/" {
+		t.Errorf("matched wrong claim: %+v", got)
+	}
+}
+
+// rev-1 F1: `./README.md` must match a stored `README.md`.
+func TestMatchClaim_NormalizedDotPrefix(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, "README.md"), []byte("x"), 0o644)
+	m := ClaimsManifest{Version: ClaimsManifestVersion, Feature: "feat"}
+	AddClaim(&m, "README.md")
+
+	got, ok, err := MatchClaim(root, &m, "./README.md")
+	if err != nil || !ok {
+		t.Fatalf("expected match for ./README.md, got ok=%v err=%v", ok, err)
+	}
+	if got.Value != "README.md" {
+		t.Errorf("matched wrong claim: %+v", got)
+	}
+}
+
+// rev-1 F1: `src/foo/../bar` must Clean to `src/bar` and match.
+func TestMatchClaim_CleanTraversal(t *testing.T) {
+	root := t.TempDir()
+	m := ClaimsManifest{Version: ClaimsManifestVersion, Feature: "feat"}
+	AddClaim(&m, "src/bar")
+
+	got, ok, err := MatchClaim(root, &m, "src/foo/../bar")
+	if err != nil || !ok {
+		t.Fatalf("expected match after Clean traversal, got ok=%v err=%v", ok, err)
+	}
+	if got.Value != "src/bar" {
+		t.Errorf("matched wrong claim: %+v", got)
+	}
+}
+
+// rev-1 F1 regression: shape normalization must not produce false
+// positives — querying a sibling path must still miss.
+func TestMatchClaim_NoFalsePositive(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "src", "models"), 0o755)
+	m := ClaimsManifest{Version: ClaimsManifestVersion, Feature: "feat"}
+	AddClaim(&m, "src/models/")
+
+	if _, ok, err := MatchClaim(root, &m, "src/other"); err != nil || ok {
+		t.Errorf("unrelated path should not match, got ok=%v err=%v", ok, err)
+	}
+}
+
+// rev-1 F1: the new path-shape branch must not regress claim_id
+// prefix matching — the hex-digest guard still applies.
+func TestMatchClaim_ClaimIDPrefixStillWorks(t *testing.T) {
+	m := ClaimsManifest{
+		Version: ClaimsManifestVersion,
+		Feature: "feat",
+		Claims: []Claim{
+			{ClaimID: "abcdef012345", Kind: "path", Value: "src/a", Mode: "advisory", Source: "manual"},
+			{ClaimID: "fedcba543210", Kind: "path", Value: "src/b", Mode: "advisory", Source: "manual"},
+		},
+	}
+	got, ok, err := MatchClaim("", &m, "abcdef0")
+	if err != nil || !ok || got.ClaimID != "abcdef012345" {
+		t.Fatalf("hex prefix match broke: %+v ok=%v err=%v", got, ok, err)
+	}
+	// Full id still works too.
+	if got, ok, _ := MatchClaim("", &m, "fedcba543210"); !ok || got.ClaimID != "fedcba543210" {
+		t.Fatalf("full id match broke: %+v ok=%v", got, ok)
+	}
+}
+
+// rev-1 F1 refactor regression: NormalizeClaimPath's externally-
+// observable behavior must be unchanged. Spot-check the key shape and
+// reject branches that callers depend on.
+func TestNormalizeClaimPath_Unchanged(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "src", "models"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(root, "README.md"), []byte("x"), 0o644)
+
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"src/models", "src/models/"}, // stat detects directory
+		{"src/models/", "src/models/"},
+		{"./README.md", "README.md"},
+		{"docs/new.md", "docs/new.md"}, // not on disk → no trailing slash
+		{"src/foo/../bar", "src/bar"},
+	}
+	for _, tc := range cases {
+		got, err := NormalizeClaimPath(root, tc.in)
+		if err != nil {
+			t.Errorf("NormalizeClaimPath(%q) unexpected error: %v", tc.in, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("NormalizeClaimPath(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+
+	rejects := []string{
+		"",
+		"/abs/path",
+		"..",
+		"../escape",
+		".tpatch/foo",
+		".claude/skills/x",
+		".windsurfrules",
+	}
+	for _, in := range rejects {
+		if _, err := NormalizeClaimPath(root, in); err == nil {
+			t.Errorf("NormalizeClaimPath(%q) should have rejected", in)
+		}
 	}
 }

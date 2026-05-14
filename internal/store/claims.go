@@ -127,6 +127,49 @@ var installedSkillExactFiles = []string{
 	".windsurfrules",
 }
 
+// NormalizeClaimPathShape returns the path-shape normalization that
+// add-time uses (Clean + ToSlash + trailing-slash-when-stat-says-dir)
+// WITHOUT the reserved-area / installed-skill-surface rejection. It
+// still reports structural failures (empty, absolute, ".." escape) by
+// returning ok=false, since those could never have produced a stored
+// claim in the first place. Use this from the matcher to look up a
+// previously-added claim by its user-facing pathspec (rev-1 F1):
+// `add src/models` with that directory on disk stores `src/models/`,
+// and `remove src/models` must find it via this same transformation.
+func NormalizeClaimPathShape(repoRoot, input string) (string, bool) {
+	raw := strings.TrimSpace(input)
+	if raw == "" {
+		return "", false
+	}
+	if filepath.IsAbs(raw) {
+		return "", false
+	}
+	wantTrailingSlash := strings.HasSuffix(raw, "/") || strings.HasSuffix(raw, string(filepath.Separator))
+
+	cleaned := filepath.ToSlash(filepath.Clean(raw))
+	if cleaned == "." || cleaned == "" {
+		return "", false
+	}
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", false
+	}
+
+	// If the path exists on disk and is a directory, force trailing slash.
+	// Skip the stat if repoRoot is empty (callers using the matcher on
+	// in-memory manifests in tests pass "").
+	if repoRoot != "" {
+		resolved := filepath.Join(repoRoot, cleaned)
+		if info, err := os.Stat(resolved); err == nil && info.IsDir() {
+			wantTrailingSlash = true
+		}
+	}
+
+	if wantTrailingSlash && !strings.HasSuffix(cleaned, "/") {
+		cleaned += "/"
+	}
+	return cleaned, true
+}
+
 // NormalizeClaimPath validates and canonicalizes a user-supplied path
 // for a `path`-kind claim. Returns the cleaned, repo-relative,
 // forward-slash form. Trailing-slash semantics: if the caller's input
@@ -141,16 +184,21 @@ func NormalizeClaimPath(repoRoot, input string) (string, error) {
 	if filepath.IsAbs(raw) {
 		return "", fmt.Errorf("claim path %q must be repo-relative (no absolute paths)", input)
 	}
-	wantTrailingSlash := strings.HasSuffix(raw, "/") || strings.HasSuffix(raw, string(filepath.Separator))
 
-	// Use filepath.Clean for normalization; reject ".." escapes.
-	cleaned := filepath.Clean(raw)
-	cleaned = filepath.ToSlash(cleaned)
-	if cleaned == "." || cleaned == "" {
+	preCheck := filepath.ToSlash(filepath.Clean(raw))
+	if preCheck == "." || preCheck == "" {
 		return "", fmt.Errorf("claim path %q normalizes to empty", input)
 	}
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+	if preCheck == ".." || strings.HasPrefix(preCheck, "../") {
 		return "", fmt.Errorf("claim path %q escapes the repository root", input)
+	}
+
+	cleaned, ok := NormalizeClaimPathShape(repoRoot, input)
+	if !ok {
+		// Should be unreachable: the structural checks above cover all
+		// shape-helper failure modes. Guard anyway so callers never see
+		// a silent empty string.
+		return "", fmt.Errorf("claim path %q could not be normalized", input)
 	}
 
 	// Path-safety check (defense in depth): resolve against repoRoot
@@ -161,30 +209,23 @@ func NormalizeClaimPath(repoRoot, input string) (string, error) {
 		return "", fmt.Errorf("claim path %q: %w", input, err)
 	}
 
-	// If the path exists on disk and is a directory, force trailing slash.
-	if info, err := os.Stat(resolved); err == nil && info.IsDir() {
-		wantTrailingSlash = true
-	}
-
-	// Reject .tpatch/ and installed skill surfaces.
-	probe := cleaned
-	if wantTrailingSlash && !strings.HasSuffix(probe, "/") {
-		probe += "/"
-	}
+	// Reject .tpatch/ and installed skill surfaces. Use `cleaned`
+	// directly (which already encodes the trailing-slash decision made
+	// by the shape helper) so we preserve the pre-rev-1 behavior of
+	// only treating a path as a directory match when the input itself
+	// was directory-shaped.
+	bare := strings.TrimSuffix(cleaned, "/")
 	for _, exact := range installedSkillExactFiles {
-		if cleaned == exact {
+		if bare == exact {
 			return "", fmt.Errorf("claim path %q is an installed skill surface and cannot be claimed", input)
 		}
 	}
 	for _, prefix := range installedSkillPathPrefixes {
-		if probe == prefix || strings.HasPrefix(probe, prefix) {
+		if cleaned == prefix || strings.HasPrefix(cleaned, prefix) {
 			return "", fmt.Errorf("claim path %q is under a reserved area (%s) and cannot be claimed", input, prefix)
 		}
 	}
 
-	if wantTrailingSlash && !strings.HasSuffix(cleaned, "/") {
-		cleaned += "/"
-	}
 	return cleaned, nil
 }
 
@@ -341,12 +382,29 @@ func AddClaim(m *ClaimsManifest, normalizedValue string) (Claim, bool) {
 // (Claim{}, false, err) on ambiguity.
 const ClaimIDPrefixMin = 7
 
-func MatchClaim(m *ClaimsManifest, arg string) (Claim, bool, error) {
+func MatchClaim(repoRoot string, m *ClaimsManifest, arg string) (Claim, bool, error) {
 	// Exact path-value match wins first so users can remove by the
 	// same string they used to add.
 	for _, c := range m.Claims {
 		if c.Value == arg {
 			return c, true, nil
+		}
+	}
+	// rev-1 F1: try the add-time path-shape normalization. If the user
+	// typed `src/models` for a directory that was stored as
+	// `src/models/`, or `./README.md` for `README.md`, or
+	// `src/foo/../bar` for `src/bar`, the literal compare above misses
+	// even though PRD §3.3 promises symmetric pathspecs across add and
+	// remove. We only attempt this when the shape transformation
+	// actually changes the argument, to keep the claim_id-prefix path
+	// reachable for short hex args. Reserved-area / skill-surface
+	// rejection is intentionally NOT applied here: the claim was
+	// accepted at add-time, so re-rejecting on remove would be wrong.
+	if normalized, ok := NormalizeClaimPathShape(repoRoot, arg); ok && normalized != arg {
+		for _, c := range m.Claims {
+			if c.Value == normalized {
+				return c, true, nil
+			}
 		}
 	}
 	// claim_id (full or prefix). Only treat as a prefix when the arg

@@ -157,7 +157,7 @@ func featureClaimRemoveCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			changed := false
 			for _, t := range targets {
-				match, ok, err := store.MatchClaim(&manifest, t)
+				match, ok, err := store.MatchClaim(s.Root, &manifest, t)
 				if err != nil {
 					return err
 				}

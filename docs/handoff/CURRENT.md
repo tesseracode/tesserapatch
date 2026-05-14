@@ -5,7 +5,7 @@
 - **Task ID**: `v0.9.0-alpha-1-file-claims` (rev-1)
 - **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 1 of 2)
 - **Description**: Implement `PRD-feature-file-claims` v1: `tpatch feature claim <add|list|remove|clear>` subcommands writing a deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add — no ADR required per codified process rule.
-- **Status**: rev-1 dispatched — fixing external supervisor finding F1 (remove-path normalization gap).
+- **Status**: rev-1 landed — F1 (remove-path normalization gap) fixed in `MatchClaim`; all targeted and full test suites green.
 - **Assigned**: 2026-05-13.
 
 ## Findings to address (rev-1)
@@ -30,6 +30,8 @@
 ## Session Summary
 
 Opening v0.9.0 Wave alpha. v0.8.1 shipped 2026-05-13 (Wave D detector tails: `--check-applied-only` + `--auto-drop-merged` flags + ADR-022/023 deferral records). Followed by a small `provider-model-routing-audit` slice (`18fd668`) that refreshed `internal/provider/` comments to match empirical localhost:4141 findings and added `docs/MODEL-ROUTING.md` + `tests/scripts/model-routing-matrix.sh` + `tests/integration/provider_model_matrix_test.go` — zero behavior change, no external review needed. Now picking up the drafted foundation PRDs.
+
+**rev-1 update (F1)**: external supervisor returned NEEDS REVISION on `dcd9bf0` with one MEDIUM finding — `feature claim remove` did literal `c.Value == arg` matching, so an `add src/models` followed by `remove src/models` (when `src/models/` exists on disk) failed because the stored value was `src/models/`. Fix: factored a new `NormalizeClaimPathShape(repoRoot, input) (string, bool)` helper out of `NormalizeClaimPath` that does only the path-shape transformations (Clean + ToSlash + stat-based trailing-slash) WITHOUT the reserved-area / installed-skill rejection. `NormalizeClaimPath` now layers its safety / rejection guards on top of the shape helper, so its externally-observable behavior is unchanged. `MatchClaim` gained a `repoRoot` parameter and now tries the normalized form as a second match step (between the literal compare and the claim_id-prefix branch) only when normalization actually changes the argument, preserving the hex-digest guard for short args. The only caller (`featureClaimRemoveCmd`) threads `s.Root` through.
 
 Wave alpha = two slices, both pure CLI surface adds:
 1. **alpha-1** (THIS): `PRD-feature-file-claims` v1 — advisory-only claim manifest.
@@ -135,22 +137,53 @@ tpatch feature claim clear <slug>
 
 ## Test Results
 
+rev-1 (this commit):
+
 ```
-ok  	github.com/tesseracode/tesserapatch/assets	3.626s
+ok  	github.com/tesseracode/tesserapatch/assets	4.804s
 ?   	github.com/tesseracode/tesserapatch/cmd/tpatch	[no test files]
-ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	2.410s
-ok  	github.com/tesseracode/tesserapatch/internal/cli	114.098s
-ok  	github.com/tesseracode/tesserapatch/internal/gitutil	21.910s
-ok  	github.com/tesseracode/tesserapatch/internal/provider	14.510s
-ok  	github.com/tesseracode/tesserapatch/internal/safety	6.194s
-ok  	github.com/tesseracode/tesserapatch/internal/store	5.946s
-ok  	github.com/tesseracode/tesserapatch/internal/workflow	71.710s
-ok  	github.com/tesseracode/tesserapatch/tests/integration	12.356s
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	2.459s
+ok  	github.com/tesseracode/tesserapatch/internal/cli	87.231s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	20.923s
+ok  	github.com/tesseracode/tesserapatch/internal/provider	12.857s
+ok  	github.com/tesseracode/tesserapatch/internal/safety	13.010s
+ok  	github.com/tesseracode/tesserapatch/internal/store	9.588s
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	57.756s
+ok  	github.com/tesseracode/tesserapatch/tests/integration	2.396s
 ```
 
 `gofmt -l .` clean, `go vet ./...` clean, `go build ./cmd/tpatch` clean.
+`-race` targeted run (`./internal/store/... ./internal/cli/...`) also green.
 
 ## Files Changed
+
+**rev-1 (this commit)**:
+
+- `internal/store/claims.go` — factored `NormalizeClaimPathShape` out of
+  `NormalizeClaimPath` (path-shape normalization without reserved-area
+  rejection, returns `(string, bool)`). `NormalizeClaimPath` now layers
+  its safety/rejection guards on top of the shape helper; externally
+  observable behavior unchanged. `MatchClaim` gained a leading
+  `repoRoot string` parameter and a new normalized-arg match step
+  between the literal compare and the claim_id-prefix branch.
+- `internal/store/claims_test.go` — call-site updates for the new
+  `MatchClaim` signature (existing tests pass `""` since they operate
+  on in-memory manifests), plus new tests:
+  `TestMatchClaim_NormalizedDirectoryArg`,
+  `TestMatchClaim_NormalizedDotPrefix`,
+  `TestMatchClaim_CleanTraversal`,
+  `TestMatchClaim_NoFalsePositive`,
+  `TestMatchClaim_ClaimIDPrefixStillWorks`,
+  `TestNormalizeClaimPath_Unchanged`.
+- `internal/cli/feature_claim.go` — single-line update: pass `s.Root`
+  to `MatchClaim` in `featureClaimRemoveCmd`.
+- `internal/cli/feature_claim_test.go` — new end-to-end test
+  `TestFeatureClaim_RemoveByUnnormalizedDirectoryPath` (the exact
+  external-supervisor F1 repro; would fail against `dcd9bf0`).
+- `docs/handoff/CURRENT.md` — rev-1 status flip + Session Summary +
+  Files Changed + Test Results.
+
+**Original `dcd9bf0` (preserved for context)**:
 
 - `internal/store/claims.go` (new) — `Claim`, `ClaimsManifest` types,
   `ComputeClaimID` (SHA-256 truncated to 12 hex), `NormalizeClaimPath`

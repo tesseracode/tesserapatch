@@ -308,3 +308,58 @@ func TestFeatureClaimListJSONIsValidAndContainsHeader(t *testing.T) {
 		}
 	}
 }
+
+// TestFeatureClaim_RemoveByUnnormalizedDirectoryPath is the exact
+// external-supervisor repro for rev-1 F1: `add src/models` (with
+// `src/models/` existing as a real directory) stores `src/models/` and
+// must round-trip through `remove src/models` (no trailing slash).
+// This test MUST fail against commit dcd9bf0 (where MatchClaim did a
+// literal compare of c.Value == arg) and pass against rev-1.
+func TestFeatureClaim_RemoveByUnnormalizedDirectoryPath(t *testing.T) {
+	dir, slug := claimFixture(t, "model-picker")
+	if err := os.MkdirAll(filepath.Join(dir, "src", "models"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := runClaim(t, dir, "feature", "claim", "add", slug, "src/models"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	// Sanity: the stored value carries the trailing slash because the
+	// dir exists on disk. Without rev-1, removing by the unnormalized
+	// form below would print "no such claim".
+	data, err := os.ReadFile(filepath.Join(dir, ".tpatch", "features", slug, "claims.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	var m store.ClaimsManifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(m.Claims) != 1 || m.Claims[0].Value != "src/models/" {
+		t.Fatalf("setup precondition failed; expected one claim with value src/models/, got %+v", m.Claims)
+	}
+
+	out, _, err := runClaim(t, dir, "feature", "claim", "remove", slug, "src/models")
+	if err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if !strings.Contains(out, "removed claim ") {
+		t.Errorf("expected 'removed claim' in stdout; got: %q", out)
+	}
+	if strings.Contains(out, "no such claim") {
+		t.Errorf("rev-1 F1 regression: remove printed 'no such claim'; got: %q", out)
+	}
+
+	data, err = os.ReadFile(filepath.Join(dir, ".tpatch", "features", slug, "claims.json"))
+	if err != nil {
+		t.Fatalf("re-read manifest: %v", err)
+	}
+	var after store.ClaimsManifest
+	if err := json.Unmarshal(data, &after); err != nil {
+		t.Fatalf("unmarshal after remove: %v", err)
+	}
+	if len(after.Claims) != 0 {
+		t.Errorf("claim should be gone from manifest after remove, still have: %+v", after.Claims)
+	}
+}
