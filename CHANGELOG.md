@@ -2,7 +2,39 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.9.0 (in development)
+## v0.9.0 — 2026-05-14 — Wave alpha (file-claims + capture-modes)
+
+### Record capture modes
+
+- `tpatch record --all` — explicit alias for the historical default
+  (working-tree-all). Default `record` behavior is preserved
+  byte-identical and pinned by regression test.
+- `tpatch record --staged` — captures the diff from `HEAD` to the index
+  using a temp index seeded with `GIT_INDEX_FILE` from `HEAD`. Refuses
+  on empty index diff. Validation falls back to live-index
+  `git apply --cached --check` only when temp-index setup fails (never
+  silently downgrades to worktree validation).
+- `tpatch record --unstaged` — captures index→worktree changes;
+  untracked files are included via `git add --intent-to-add`. Refuses
+  on empty unstaged diff.
+- `tpatch record --claimed-only` — intersects the capture pathspecs
+  with `claims.json` from the alpha-1 manifest. Refuses when the
+  feature has no claims; composes with `--all`/`--staged`/`--unstaged`
+  and with explicit `--files`. Empty intersection refuses.
+- PRD §3.7 mutex matrix enforced pre-capture: explicit modes are
+  mutually exclusive with each other, with `--from`/`--to`/`--range`,
+  and with `--auto`. Pre-existing flag-pair diagnostics are preserved
+  for backward compatibility; new pairs use a uniform "X is mutually
+  exclusive with Y" message.
+- `--staged` and `--unstaged` refuse on path overlap with the other
+  layer (with refusal diagnostics) and emit a single note line for
+  unrelated edits in the other layer (does not mutate the patch).
+- New `## Capture Provenance` section in `record.md` with six PRD §4
+  fields: `capture_mode`, `pathspecs`, `claim_ids` (the actually
+  contributing subset when `--claimed-only` narrows with `--files`),
+  `base_commit`, `upper_commit`, and `dirty_state` (one-line summary,
+  never raw diff). Untracked-file policy varies by mode and is
+  reflected in provenance. PRD: `docs/prds/PRD-record-capture-modes.md`.
 
 ### Feature claims
 

@@ -1,3 +1,30 @@
+# 2026-05-14 — v0.9.0 alpha-2 record-capture-modes — COMPLETE
+
+**Outcome**: Wave alpha slice 2 of 2 shipped. `PRD-record-capture-modes` v1 implemented as new `tpatch record` flags `--all`, `--staged`, `--unstaged`, `--claimed-only` plus the PRD §3.7 mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance written to `record.md`. Default `record` behavior preserved byte-identical (pinned by `TestRecordModes_AllEqualsDefault`). Pure CLI surface add — no ADR required.
+
+**Implementation stack** (all on `main`, pushed):
+- `d79f5ff` — alpha-2 kickoff + archive of alpha-1 slice
+- `ab98813` — alpha-2 implementation (5 files: 4 new, 1 modified): `internal/gitutil/capture_modes.go` + tests, `internal/cli/record_capture_modes.go` + tests, `internal/cli/cobra.go` record dispatch + `generateRecordMD` provenance section. 16 new top-level tests + 12-sub-case mutex matrix.
+- `2f37815` — sub-agent verdict (APPROVED WITH NOTES, all notes informational)
+- `5248f8f` — rev-1 kickoff (F1 brief)
+- `5d154cd` — **rev-1 fix**: `claim_ids` provenance subset for `--claimed-only --files`. Replaced `intersectExplicitAndClaims(explicit, claims []string) []string` with `intersectExplicitAndClaimsWithIDs(explicit []string, claims []store.Claim) (paths, ids []string)` — operates directly on `store.Claim` structs so all three matching branches (file-claim exact, dir-claim prefix coverage, converse dir-shape explicit) record contributing claim IDs. `resolveClaimedOnly` returns the contributing-subset IDs in the `len(explicit) > 0` branch (no-`--files` branch unchanged: every claim in scope). `sortDedupe` for deterministic output. 5 new tests including the headline `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` mirroring the supervisor's exact two-claim repro + `TestIntersectExplicitAndClaimsWithIDs` with 6 sub-cases.
+- `771d82a` — sub-agent rev-1 verdict (APPROVED, no findings)
+- `4e959a3` — LOG.md cleanup (restored two orphaned `## Review` headers eaten by earlier prepend edits)
+
+**External verdict**: APPROVED. External supervisor verified rev-1 fix manually with the exact two-claim repro: `add src/keep.go` + `add src/drop.go` claims, then `record --claimed-only --files src/keep.go --lenient`. Patch contains only `src/keep.go`, provenance `claim_ids` line lists only the keep claim's ID. F1 closed.
+
+**v1 Contract (shipped)**:
+- New flags on `tpatch record`: `--all` (explicit alias for current default), `--staged` (HEAD→index), `--unstaged` (index→worktree, untracked via intent-to-add), `--claimed-only` (intersect with `claims.json` from alpha-1)
+- PRD §3.7 mutex matrix enforced pre-capture (legacy diagnostic shapes preserved for pre-existing pairs; new pairs use uniform "X is mutually exclusive with Y" message)
+- `--staged` validation via `GIT_INDEX_FILE`-seeded temp index from `HEAD`, falls back to live-index `git apply --cached --check` only on temp-index setup failure (never silently downgrades to worktree validation, per PRD §3.3)
+- `--staged` and `--unstaged` refuse on path overlap; emit single note line for unrelated edits in the other layer; refuse on empty patch
+- `--claimed-only` refuses no-claims; intersects with `--files` (refuse-empty); composable with all capture modes via upfront `resolveClaimedOnly`
+- `## Capture Provenance` section in `record.md` with 6 fields per PRD §4: `capture_mode`, `pathspecs`, `claim_ids` (post rev-1: actually-contributing subset), `base_commit`, `upper_commit`, `dirty_state` (one-line summary, never raw diff)
+
+**Wave alpha cluster**: COMPLETE. Both alpha-1 (file-claims) and alpha-2 (capture-modes) shipped. Tagging as v0.9.0.
+
+---
+
 # 2026-05-14 — v0.9.0 alpha-1 file-claims — COMPLETE
 
 **Outcome**: Wave alpha slice 1 of 2 shipped. `PRD-feature-file-claims` v1 implemented as `tpatch feature claim <add|list|remove|clear>` — deterministic, advisory-only `.tpatch/features/<slug>/claims.json` manifest. Pure CLI surface add (no ADR required: no defaults flipped, advisory-only).

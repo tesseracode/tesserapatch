@@ -2,213 +2,52 @@
 
 ## Active Task
 
-- **Task ID**: `v0.9.0-alpha-2-capture-modes` (rev-1)
-- **Milestone**: v0.9.0 Wave alpha — capture & metadata foundation (slice 2 of 2)
-- **Description**: Implement `PRD-record-capture-modes` v1 on `tpatch record` — add explicit `--all`, `--staged`, `--unstaged`, and `--claimed-only` flags with mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance written to `record.md`. Default `record` behavior preserved verbatim.
-- **Status**: rev-1 dispatched — fixing external supervisor finding F1 (`claim_ids` provenance subset).
+- **Task ID**: _idle_ — between slices.
+- **Milestone**: v0.9.0 Wave alpha shipped 2026-05-14. Awaiting next user direction for the v0.10.0 (or higher) cycle.
+- **Description**: No active implementation task. Next candidates from the research-roadmap include the keypoint-dependent PRDs (now unblocked or still pending the marker/keypoint experiment), `PRD-feature-patch-identity-metadata` (needs ADR-022), `PRD-feature-patch-amend` (needs ADR-023), or other items the supervisor selects.
+- **Status**: Idle — supervisor will populate this block when the next slice kicks off.
 - **Assigned**: 2026-05-14.
-
-## Findings to address (rev-1)
-
-- **F1 (MEDIUM) — `claim_ids` provenance reports all path-kind claims instead of the actually-used subset when `--claimed-only` is combined with `--files`**.
-  - Source: external supervisor review of `ab98813`.
-  - Repro: feature with two claims (`src/keep.go`, `src/drop.go`). Run `record --claimed-only --files src/keep.go --lenient`. Capture is correctly narrowed to `src/keep.go` (only that path appears in `artifacts/post-apply.patch`), but `record.md`'s `## Capture Provenance` block lists BOTH claim IDs. The audit trail is wrong for exactly the case alpha-2 adds.
-  - Root cause: `resolveClaimedOnly` (`internal/cli/record_capture_modes.go:178-183`) explicitly punted on tracking the contributing subset ("We can't trivially tell which subset of claim_ids actually contributed (a claim like `src/` covers any `src/...` file); list all path-kind claims as a conservative witness set.") and returns the full ID slice. PRD §4 is unambiguous: `claim_ids` is "active claim IDs used by `--claimed-only`" — not "all claim IDs declared on the feature."
-  - Test gap: `record_modes_test.go` only checks `strings.Contains(md, "claim_ids")`, never asserts on the specific subset.
-  - **Fix shape**: refactor `intersectExplicitAndClaims` (or add a sibling helper) to return both the intersected pathspecs AND the set of contributing claim IDs. Each time a `fileSet` hit or `dirClaims` prefix-match occurs in the explicit-iteration loop, record the matching claim's ID. Keep the existing structure of pure-pathspec output for capture invocation; just add the ID-tracking alongside. Then `resolveClaimedOnly` returns this narrowed ID set instead of the full `ids` slice in the `len(explicit) > 0` branch. Stable sort + dedupe the final IDs.
-  - Edge cases the fix must handle correctly:
-    - File-claim exact match (`src/keep.go` claim, `--files src/keep.go`) → that claim's ID, only.
-    - Dir-claim covers explicit file (`src/` claim, `--files src/keep.go`) → the dir-claim's ID.
-    - Dir-shape explicit covering file-claim (`src/keep.go` claim, `--files src/`) → the file-claim's ID (converse branch at line 219).
-    - Single explicit path matched by multiple claims (`src/` and `src/keep.go` both claimed, `--files src/keep.go`) → BOTH IDs.
-    - Multiple explicits each matched by different claims → union of contributing IDs.
-  - **Tests required**:
-    - Regression: external supervisor's exact repro. Two file claims (`src/keep.go`, `src/drop.go`); `record --claimed-only --files src/keep.go --lenient`; assert `record.md` provenance contains the keep claim's ID and NOT the drop claim's ID. This MUST fail against `ab98813` and pass against rev-1.
-    - Dir-claim coverage: one dir claim `src/`; explicit `--files src/a.go`; provenance lists the dir-claim's ID only.
-    - Multi-overlap: dir-claim `src/` AND file-claim `src/a.go`; `--files src/a.go`; provenance lists BOTH IDs (deterministic order).
-    - No-`--files` case still passes the original assertion (full path-kind ID set returned when `len(explicit) == 0`).
-  - **Out of scope for rev-1**: do not change `--claimed-only` without `--files` semantics. Do not change `intersectExplicitAndClaims`'s pathspec return type (only add a parallel ID-tracking return). Do not touch the mutex matrix, capture helpers, or any non-provenance code path.
-  - **Constraints**: must not break any existing `internal/cli/record_modes_test.go` or `internal/gitutil/capture_modes_test.go` assertion. Side Research section md5 (`b385fe622db9926f48861105239f113e`) byte-identical.
 
 ## Session Summary
 
-Wave alpha slice 1 (`PRD-feature-file-claims` v1) shipped 2026-05-14. External supervisor APPROVED rev-1 fix at `9d7435b` + verdict at `788438b`. Pure CLI surface add: `tpatch feature claim <add|list|remove|clear>` with deterministic `.tpatch/features/<slug>/claims.json` manifest, atomic writes, claim_id-derived stable sort, advisory mode only. Rev-1 closed the F1 path-normalization gap by factoring `NormalizeClaimPathShape` out of `NormalizeClaimPath` so the matcher can soft-normalize remove operands without re-running the safety/reservation rejects from add-time.
+v0.9.0 Wave alpha shipped 2026-05-14. The cluster delivered the two-slice capture-and-metadata foundation:
 
-Wave alpha slice 2 (THIS) = `PRD-record-capture-modes` v1 — implementation landed. New flags on `tpatch record`: `--all`, `--staged`, `--unstaged`, `--claimed-only`. PRD §3.7 mutex matrix enforced before patch capture (legacy diagnostic shapes preserved for the four pre-existing pairs; new pairs use a uniform "X is mutually exclusive with Y" message). New gitutil helpers: `CaptureStagedPatch` (HEAD→index), `CaptureUnstagedPatch` (index→worktree + intent-to-add untracked), `StagedUnstagedOverlap` (set arithmetic on `git diff --name-only` outputs + untracked), `ValidateStagedPatch` (temp-index-from-HEAD `git apply --cached --check`, with live-index fallback). The CLI dispatch refuses on staged/unstaged overlap before capture and emits a note-line on unrelated edits in the "other" tier. `--claimed-only` loads the alpha-1 manifest via `store.LoadClaims`, refuses on empty claims, and intersects with `--files` when both are present. `record.md` gets a new `## Capture Provenance` section listing `capture_mode`, `pathspecs`, `claim_ids`, `base_commit`, `upper_commit`, and (for staged/unstaged) a one-line `dirty_state` summary — human-readable only, machine metadata stays the domain of the next PRD. Default `record <slug>` produces byte-identical patch bytes — pinned by `TestRecordModes_AllEqualsDefault`.
+1. **alpha-1** (`PRD-feature-file-claims` v1) — `tpatch feature claim <add|list|remove|clear>` with deterministic `.tpatch/features/<slug>/claims.json` manifest, atomic writes, claim_id-derived stable sort, advisory-only mode. Rev-1 fixed F1 (path-normalization gap in `MatchClaim` for `remove`). External APPROVED at `9d7435b`.
+2. **alpha-2** (`PRD-record-capture-modes` v1) — `tpatch record` flags `--all`, `--staged`, `--unstaged`, `--claimed-only` with PRD §3.7 mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance in `record.md`. Default `record` behavior byte-identical (pinned regression). Rev-1 fixed F1 (`claim_ids` provenance subset for `--claimed-only --files`). External APPROVED at `5d154cd`.
 
-**rev-1 (F1 fix)**: External supervisor flagged that `resolveClaimedOnly` reported the full path-kind claim ID slice as `claim_ids` provenance even when `--files` narrowed the capture. Replaced `intersectExplicitAndClaims` with `intersectExplicitAndClaimsWithIDs(explicit []string, claims []store.Claim) (paths, ids []string)` which iterates path-kind `store.Claim` structs directly and records each contributing claim's ID in all three match branches (file-claim exact, dir-claim coverage, converse dir-shape explicit). `resolveClaimedOnly` keeps the existing `len(explicit)==0` semantics (full path-kind set) and uses the new helper's narrowed IDs (sort+dedupe via a new `sortDedupe`) in the `len(explicit)>0` branch. Added five edge-case tests in `record_modes_test.go` plus a pure unit `TestIntersectExplicitAndClaimsWithIDs` exercising all six brief-listed shapes. The headline `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` is the external supervisor's exact repro and fails against `ab98813` (which returns the full `ids` slice at line 183) — confirmed by code-reading.
+Both archived to `docs/handoff/HISTORY.md`. `v0.9.0` annotated tag pushed.
 
-## Settled Design Choices
+## Open Threads (informational, not blocking)
 
-- **No ADR for this slice**: same rationale as alpha-1 — defaults preserved, new behavior is fully opt-in via flags. ADR-024 (capture-context-privacy-boundary) remains deferred until a future PRD needs structured context capture or `--reason`-style fields.
-- **Provenance scope for v1**: write capture-mode provenance into the human-readable `record.md` only (capture mode, pathspecs, claim_ids, base_commit, upper_commit, dirty_state summary). Machine-readable persisted metadata is explicitly the domain of `PRD-feature-patch-identity-metadata` (the third PRD in the cluster, not in scope here).
-- **Validation strategy for `--staged`**: prefer temporary-index validation seeded from `HEAD`; fall back to `git apply --cached --check` if the temp-index path proves impractical. Do NOT silently downgrade to live-working-tree validation.
-- **`--claimed-only` is a filter, not a mode**: it can combine with any capture mode (worktree-all, staged, unstaged, auto, from, commit-range). It refuses if no claims exist.
+- **Wave alpha pre-existing edge case (alpha-1)**: if a claimed directory is removed from disk between `add` and `remove`, `MatchClaim` cannot reconstruct the trailing-slash and `remove <path>` won't match. Workarounds: remove by claim_id or with explicit trailing slash. Could be addressed when the matcher gains "unconditional trailing-slash variants" probing — not currently scoped to any milestone.
+- **Cluster continuation**: `PRD-feature-patch-identity-metadata` (slice 3) and `PRD-feature-patch-amend` (slice 4) remain on the roadmap but require ADR-022 (patch-generation-manifest-boundary) and ADR-023 (patch-amendment-policy) respectively. Those ADR slots are reserved.
+- **Keypoint experiment**: structural/RAG/search-layer PRDs (`PRD-structural-patch-fingerprints`, `PRD-structural-anchor-manifest`, `PRD-reconcile-commutation-graph`, `PRD-patch-vector-index`, search planner PRDs) deferred until the marker/keypoint experiment produces results.
+- **Provider-routing audit** (committed `18fd668` 2026-05-13): empirical findings on `localhost:4141` documented in `docs/MODEL-ROUTING.md`. `TPATCH_ENABLE_RESPONSES_PROVIDER` should remain unset by default.
 
-## v1 Contract (binding for implementer)
-
-The contract is `docs/prds/PRD-record-capture-modes.md` in its entirety. Highlights the implementer must honor exactly:
-
-### Commands and flag matrix
-
-```
-tpatch record <slug>                              # current default (unchanged) → working-tree-all
-tpatch record <slug> --all                        # explicit alias for default  → working-tree-all
-tpatch record <slug> --staged                     # index-only                  → staged-index
-tpatch record <slug> --unstaged                   # unstaged worktree           → unstaged-worktree
-tpatch record <slug> --auto                       # existing                    → auto-committed-range
-tpatch record <slug> --from <base>                # existing                    → committed-range
-tpatch record <slug> --commit-range <a>..<b>      # existing                    → explicit-committed-range
-```
-
-Layered filters (combinable with any mode unless noted):
-
-```
---files <pathspecs>     # existing pathspec filter
---claimed-only          # intersect capture with active claims; refuse if no claims
-```
-
-### Mutex matrix (PRD §3.7)
-
-`--all`, `--staged`, `--unstaged`, `--auto`, `--from`, `--commit-range` are pairwise mutually exclusive among the new+existing capture modes. `--to` requires `--from` or `--auto`. `--files` and `--claimed-only` combine with any mode. All mutex violations must error out *before* patch capture with a clear message.
-
-### Untracked file policy (PRD §3.2)
-
-| Mode | Untracked files |
-|---|---|
-| default / `--all` | Included (current working-tree capture behavior; index state must be preserved during the dance) |
-| `--staged` | Only when represented in the index (i.e., already `git add`-ed) |
-| `--unstaged` | Included when not represented in the index and passing filters |
-| `--auto`, `--from`, `--commit-range` | Excluded (committed-range reads commits, not worktree) |
-
-### `--staged` rules (PRD §3.3)
-
-- Generate patch from `HEAD` to the index.
-- Include staged additions/modifications/deletions/renames to the extent existing machinery supports them.
-- Include new files only when represented in the index.
-- **Refuse** if any path included in the staged patch also has unstaged edits (ambiguous reverse-apply).
-- **Warn but do not refuse** if unrelated unstaged edits exist on other paths.
-- **Refuse** when the staged patch is empty.
-- Validate with temp-index-seeded-from-HEAD if feasible; else `git apply --cached --check`. Never downgrade silently to live-tree validation.
-
-### `--unstaged` rules (PRD §3.4)
-
-- **Refuse** if any path has both staged and unstaged changes.
-- **Warn (note line)** if unrelated staged paths exist; do not capture them.
-- Include plain untracked files when not in index and pass filters.
-- **Refuse** when the unstaged patch is empty.
-
-### `--claimed-only` rules (PRD §3.5)
-
-- **Refuse** if feature has no active claims.
-- With `--files`: intersect explicit pathspecs with claims.
-- If intersection is empty: refuse with diagnostic listing both the claims and the explicit paths.
-- Reads from the alpha-1 `.tpatch/features/<slug>/claims.json` manifest. Strict-mode claims are reserved by the alpha-1 PRD; all current v1 claims are advisory and eligible.
-
-### Capture-mode provenance (PRD §4)
-
-Every successful record writes provenance into `record.md` (the per-feature human-readable record file):
-
-- `capture_mode`: one of `working-tree-all`, `staged-index`, `unstaged-worktree`, `auto-committed-range`, `committed-range`, `explicit-committed-range`
-- `pathspecs`: normalized explicit `--files` if any
-- `claim_ids`: active claim IDs used by `--claimed-only` if any (NOT all claims, just the ones that were active during capture)
-- `base_commit`: lower bound for the canonical patch
-- `upper_commit`: `HEAD`, resolved `--to`, or the literal string `working-tree`
-- `dirty_state`: summary string for staged/unstaged modes (NOT raw diff content; one-line summary like "3 staged paths, 1 unstaged note")
-
-Provenance is human-readable in this slice. Machine-readable metadata is out of scope (next PRD).
-
-## Acceptance Criteria (PRD §7, restated)
-
-The implementer must satisfy every bullet:
-
-1. `record --all` produces byte-identical patch as default `record` in same repo state, records `working-tree-all` provenance explicitly.
-2. `record --staged` captures staged changes; ignores unrelated unstaged paths with a one-line note.
-3. `record --staged` refuses when captured staged paths also have unstaged edits.
-4. `record --staged` includes new files only when represented in the index.
-5. `record --unstaged` captures unstaged changes; ignores unrelated staged paths with a note.
-6. `record --unstaged` refuses when staged and unstaged edits overlap on a path.
-7. `record --unstaged` includes plain untracked files that pass filters.
-8. `record --claimed-only` refuses when no claims exist.
-9. `record --claimed-only` captures only claimed paths in default worktree mode.
-10. `record --auto --claimed-only` intersects auto committed-range capture with active claims.
-11. `--files` and `--claimed-only` combine as an intersection; refuse when intersection is empty.
-12. All mode mutexes return clear errors *before* patch capture.
-13. Successful records include capture-mode provenance in `record.md`.
-14. Existing record tests, auto-base tests, collision tests, and dependent-amend tests stay green.
-15. Docs and skill assets update only if user-facing recommendation changes (PRD permits not updating these unless necessary).
-
-## Frozen Regions (do NOT touch in this slice)
+## Frozen Regions (in effect across slices)
 
 - Wave D reconcile files: `internal/workflow/reconcile_check_applied.go`, `internal/workflow/reconcile_auto_drop.go`, `internal/cli/reconcile_check_applied.go`, `internal/cli/reconcile_auto_drop.go`
 - Provider audit files: `internal/provider/{errors,responses,router}.go`
-- Alpha-1 surface: `internal/store/claims.go`, `internal/cli/feature_claim.go` (you may *read* `claims.go` to integrate `--claimed-only`, but do not modify it)
+- Wave alpha alpha-1 surface: `internal/store/claims.go`, `internal/cli/feature_claim.go`
+- Wave alpha alpha-2 surface: `internal/cli/record_capture_modes.go`, `internal/gitutil/capture_modes.go`
 - The `## Side Research` section in this CURRENT.md (preserve byte-identical across handoff resets; md5 `b385fe622db9926f48861105239f113e`)
-
-## Files Expected to Change (implementer guidance — not exhaustive)
-
-- `internal/cli/cobra.go` (or wherever the `record` command is wired) — add flags + mutex validation
-- New `internal/gitutil/` helpers — `CaptureStagedPatch(...)`, `CaptureUnstagedPatch(...)`, path-overlap detection (staged ∩ unstaged), index-only untracked-file enumeration
-- `internal/cli/record.go` or equivalent — mode dispatch, refusal diagnostics, provenance assembly
-- New file `internal/cli/record_modes_test.go` (or extend existing record tests) with end-to-end coverage of every PRD §7 acceptance bullet
-- New gitutil unit tests for staged/unstaged capture helpers
-- `record.md` template / writer — add capture-mode provenance section
-
-## Test Discipline
-
-- Race-clean: `go test ./... -count=1 -race` must be green.
-- The new staged/unstaged path-overlap refusal tests must verify both the exit code (non-zero) AND the diagnostic message shape.
-- The `record --all == default record` equivalence test must compare patch bytes verbatim from a fresh repo state.
-- `--claimed-only` tests must depend on a pre-populated `claims.json` (use the alpha-1 `feature claim add` CLI to populate, do not write the JSON directly — exercise the integration).
-
-## Files Changed
-
-- `internal/gitutil/capture_modes.go` (new, ~430 lines) — `CaptureStagedPatch`, `CaptureUnstagedPatch`, `StagedUnstagedOverlap`, `ValidateStagedPatch`, `FilterPathsByClaimedDirs`, `PathspecsForClaims`, `IntersectPathspecs`, plus `runGitEnv` / `runGitEnvStdin` / `runGitStdin` helpers for the temp-index handshake. Reuses the same exclude-pathspec list as `CapturePatchScoped`.
-- `internal/gitutil/capture_modes_test.go` (new, ~140 lines) — unit tests for the staged capture / overlap / validate helpers.
-- `internal/cli/record_capture_modes.go` (new in alpha-2; rev-1 swapped `intersectExplicitAndClaims` for `intersectExplicitAndClaimsWithIDs` operating on `[]store.Claim`, added `sortDedupe`, and routed `resolveClaimedOnly` through the new helper to return only contributing claim IDs in the `--files` branch). `validateRecordCaptureMode` (mutex matrix with legacy-message preservation), `resolveClaimedOnly` (claims load + intersection), `recordCaptureMode` enum unchanged.
-- `internal/cli/record_modes_test.go` (rev-1 added `loadClaimIDs` helper, `provenanceClaimIDsLine` helper, five rev-1 F1 tests — `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` (headline, external supervisor repro), `TestRecordModes_ClaimedOnlyFilesProvenance_DirClaim`, `TestRecordModes_ClaimedOnlyFilesProvenance_Converse`, `TestRecordModes_ClaimedOnlyFilesProvenance_MultiOverlap` (includes determinism re-run check), plus `TestIntersectExplicitAndClaimsWithIDs` (pure unit, 6 sub-cases)). Original alpha-2 e2e tests for every PRD §7 acceptance bullet preserved verbatim.
-- `internal/cli/cobra.go` (modified) — new flags `--all`, `--staged`, `--unstaged`, `--claimed-only` on `recordCmd`; mutex validation wired in before capture; per-mode dispatch with overlap/note diagnostics; staged-patch round-trip swapped to temp-index validation; `generateRecordMD` extended with a `captureProvenance` struct producing the `## Capture Provenance` Markdown section; normalized PRD §4 capture-mode strings (`working-tree-all`, `staged-index`, `unstaged-worktree`, `auto-committed-range`, `committed-range`, `explicit-committed-range`).
 
 ## Test Results
 
-- `gofmt -l .` → empty
+`v0.9.0` tag verification:
+- `gofmt -l . | grep -v vendor` → empty
 - `go vet ./...` → clean
-- `go build ./cmd/tpatch` → OK
-- `go test ./internal/cli/... ./internal/gitutil/... -count=1 -race` (rev-1) → all pass (cli 84.7s, gitutil 18.6s)
-- `go test ./... -count=1` (rev-1) → all packages pass (cli 96.3s, gitutil 22.4s, workflow 58.5s, store 21.1s, provider 19.7s, safety 16.3s, integration 21.9s, assets 5.2s, buildinfo 2.8s)
-- New tests added (16 top-level, all PASS):
-  - PRD §7 bullet 1: `TestRecordModes_AllEqualsDefault` (byte-identical regression pin)
-  - PRD §7 bullet 2: `TestRecordModes_StagedHappyPath`, `TestRecordModes_StagedTwoFilesIsolation`
-  - PRD §7 bullet 3: `TestRecordModes_StagedRefusesOnOverlap`
-  - PRD §7 bullet 4: `TestRecordModes_StagedNewFileGating`
-  - PRD §3.3 empty refusal: `TestRecordModes_StagedRefusesEmpty`
-  - PRD §7 bullet 5: `TestRecordModes_UnstagedHappyPath`
-  - PRD §7 bullet 6: `TestRecordModes_UnstagedRefusesOnOverlap`
-  - PRD §7 bullet 7: `TestRecordModes_UnstagedIncludesUntracked`
-  - PRD §7 bullet 8: `TestRecordModes_ClaimedOnlyRefusesNoClaims`
-  - PRD §7 bullet 9: `TestRecordModes_ClaimedOnlyFiltersToClaimedPaths`, `TestRecordModes_ClaimedOnlyDirectoryClaim`
-  - PRD §7 bullet 10: `TestRecordModes_AutoClaimedOnlyIntersection`
-  - PRD §7 bullet 11: `TestRecordModes_FilesAndClaimedOnlyEmptyIntersection`
-  - PRD §7 bullet 12: `TestRecordModes_MutexMatrix` (12 sub-cases — every disallowed pair from PRD §3.7)
-  - PRD §7 bullet 13: `TestRecordModes_ProvenanceWrittenForEachMode` (4 sub-cases: default/all/staged/unstaged)
-  - gitutil unit: `TestCaptureStagedPatch_OnlyStaged`, `TestStagedUnstagedOverlap_DetectsOverlap`, `TestValidateStagedPatch_HappyPath`
-  - rev-1 F1 (`claim_ids` provenance subset): `TestRecordModes_ClaimedOnlyFilesProvenanceSubset` (headline, external supervisor repro — fails against `ab98813`, passes rev-1), `TestRecordModes_ClaimedOnlyFilesProvenance_DirClaim`, `TestRecordModes_ClaimedOnlyFilesProvenance_Converse`, `TestRecordModes_ClaimedOnlyFilesProvenance_MultiOverlap` (includes determinism re-run), `TestIntersectExplicitAndClaimsWithIDs` (pure unit, 6 sub-cases).
-- PRD §7 bullet 14: existing record / auto-base / collision / dependent-amend / land / land-test suites — all still green.
-
-## Next Steps
-
-1. External review against PRD §7 acceptance criteria.
-2. On APPROVE: archive this handoff to HISTORY, flip ROADMAP status for both alpha slices, tag `v0.9.0`.
+- `go build ./cmd/tpatch` → succeeds
+- `go test ./... -count=1 -race` → all 10 packages green at HEAD
 
 ## Blockers
 
-None. Alpha-1 (`9d7435b` + verdict `788438b`) is the only structural prerequisite (`--claimed-only` reads its manifest) and is fully landed.
+None.
 
 ## Context for Next Agent
 
-- This is the second of two Wave alpha slices. After this lands and external review approves, both slices ship together under the `v0.9.0` annotated tag.
-- The PRD is binding and complete. Do not introduce new flags or new modes beyond what §3 specifies.
-- `--all` is intentionally a no-op alias today (byte-equivalent to default), but it MUST record `working-tree-all` provenance explicitly so future patch-identity-metadata work has the signal. Don't skip the provenance write.
+- The repository is at the freshly-tagged `v0.9.0` baseline. Pick the next slice from the supervisor's queue.
+- Process patterns: every commit needs the `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer; use `git -c commit.gpgsign=false commit`; push via `GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' push origin main`; updates to tracking docs (CURRENT.md, HISTORY.md, LOG.md, ROADMAP.md, CHANGELOG.md) at every phase transition per `AGENTS.md` "Context Preservation Rules".
 - The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved verbatim across handoff resets.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
