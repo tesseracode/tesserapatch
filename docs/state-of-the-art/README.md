@@ -33,6 +33,7 @@ The motivating question is:
 | Research roadmap | Durable tracker for exploratory fronts and candidate PRD/ADR sequencing independent of implementation handoff. | Living; refresh when research is added or promoted. |
 | Search/planning notes | Algorithms for choosing application order and candidate relocations without asking an LLM. | Living; refresh when a candidate planner PRD is opened. |
 | Experiment guides | Collection protocols for case studies that can validate or falsify the research. | Snapshot per experiment design; refresh when the data schema changes. |
+| Case-study datasets | Recorded reconcile experiments that test the structural middle-pass hypotheses against real upstream transitions. | Living index; append one folder per study. |
 | Synthesis notes | tpatch-specific bridge from the research into possible future PRDs/ADRs. | Snapshot per research pass, then superseded by PRDs/ADRs. |
 
 ## What does not go here
@@ -69,4 +70,5 @@ The motivating question is:
 | [research-roadmap.md](research-roadmap.md) | Living tracker | Durable research front and recommended PRD/ADR sequencing independent of `docs/handoff/CURRENT.md`. |
 | [search-based-patch-application.md](search-based-patch-application.md) | Snapshot research | Non-LLM search/planning strategies for patch ordering and relocation. |
 | [experiment-guide-structural-middle-pass.md](experiment-guide-structural-middle-pass.md) | Snapshot guide | Case-study protocol for collecting keypoints, k-grams, AST/vector data, apply outcomes, and evaluation metrics. |
+| [case-studies/](case-studies/) | Living dataset index | Recorded structural middle-pass case studies and imported experiment artifacts. |
 | [tpatch-middle-pass-synthesis.md](tpatch-middle-pass-synthesis.md) | Snapshot synthesis | A possible future "structural/search planner" seam for tpatch. |

@@ -1,3 +1,116 @@
+## Review — Reconcile Safety & Middle-pass Cluster (9 PRDs) — 2026-05-16
+
+**Reviewer**: CO47 (broker-routed multi-agent cross-review; T56 authored + revised; CO47 cross-reviewed)
+**Task**: Paper-design acceptance for the nine-PRD reconcile safety and middle-pass foundation cluster.
+**Authored by**: T56
+**Whitepaper**: `docs/whitepapers/WP-003-reconcile-safety-and-middle-pass.md`
+
+### Cluster
+
+Dependency tree (not flat):
+
+```
+1 (verdict-evidence) ──┬── 2 (upstreamed-confirmation-gate) ── 4 (retirement-state-audit)
+                       ├── 3 (revision-pass-log) ── 5 (study-validation)
+                       └── 6 (file-novelty-classifier) ── 7 (hunk-overlap-detector) ── 8 (blocked-verdict-taxonomy) ── 9 (path-restructure-detector)
+```
+
+| # | PRD | Wave |
+|---|---|---|
+| 1 | `PRD-reconcile-verdict-evidence` | α |
+| 2 | `PRD-upstreamed-confirmation-gate` | β |
+| 3 | `PRD-reconcile-revision-pass-log` | β |
+| 4 | `PRD-reconcile-retirement-state-audit` | γ |
+| 5 | `PRD-reconcile-study-validation` | γ |
+| 6 | `PRD-reconcile-file-novelty-classifier` | α |
+| 7 | `PRD-reconcile-hunk-overlap-detector` | β |
+| 8 | `PRD-reconcile-blocked-verdict-taxonomy` | γ |
+| 9 | `PRD-reconcile-path-restructure-detector` | γ |
+
+### Checklist (paper review)
+- [x] All 9 PRDs cite WP-001 and the t3code v0.0.23 case study; all 9 ground claims in real research artifacts.
+- [x] All 9 PRDs `Status: Approved` (flipped from Draft after revision pass).
+- [x] All 9 PRDs cite `ADR-024-reconcile-evidence-and-revision-schema` in their `Depends on` header.
+- [x] Cluster dependency tree present in each PRD's Cluster Position section (identical shape across all 9).
+- [x] WP-003 §6 wave shape (α: 1+6, β: 2+3+7, γ: 4+5+8+9) matches `docs/CLUSTERS.md`.
+- [x] Cross-cluster prerequisite documented: WP-002 Wave β acceptance must precede WP-003 PRD 1 implementation (WP-003 §3 + PRD 1 §3).
+- [x] Privacy posture aligned with WP-002 — no raw source bodies, no transcripts, no vectors, no embeddings.
+- [x] No new lifecycle states; `status.json` remains current-truth across all 9 PRDs.
+- [x] Claims-audit tables spot-checked against `internal/store/types.go` (ReconcileSummary, PatchIDMatch, StateUpstreamMerged, ReconcileUpstreamed, LabelDependentBroken, Dependency.SatisfiedBy) — all cites match the tree.
+- [x] No edits to closed WP-001, WP-002, v0.7 cluster PRDs, T55 cluster PRDs, supervisor LOG predecessors, or shipped skill files.
+
+### Verdict: **APPROVED**
+
+### Findings worth noting
+
+**MEDIUM — Single cluster ADR locked.**
+
+Per the broker's 2026-05-16 decision (vs one-ADR-per-PRD), the cluster ships under a single ADR: **`ADR-024-reconcile-evidence-and-revision-schema`**. The ADR locks:
+
+- `reconcile-evidence.jsonl` schema (PRD 1) — append-only per-attempt JSONL with stable key order, content-derived `attempt_id`, evidence-kind enum, phase enum, confidence enum, no source bodies/transcripts/vectors.
+- `reconcile-revisions.jsonl` schema (PRD 3) — append-only per-correction JSONL with `review_verdict` enum (confirmed / false-positive / false-negative / inconclusive / deferred) and `action_taken` enum (none / confirmed-retired / reapplied / reapplied-and-recorded / implemented / deferred / skipped / cleanup-needed).
+- Confirmation-gate state semantics (PRD 2) — `review_verdict` as new field on `ReconcileSummary`; `final_feature_state` reuses existing `status.json:state`.
+- Auto-confirm default for patch-id matches when `matched_upstream_sha` is reachable (matches v0.8.1 `--auto-drop-merged` precedent).
+- Privacy boundary — same anchor as WP-002's `ADR-capture-context-privacy-boundary` (deferred).
+
+Implementer of Wave α drafts `ADR-024` before code lands. Single-ADR approach matches the cluster's narrower surface (versus the v0.7 cluster, which had 4 ADRs for 4 PRDs because each PRD changed independent CLI surfaces).
+
+**MEDIUM — Cross-cluster gate before PRD 1 implementation.**
+
+WP-003 PRD 1 (`reconcile-verdict-evidence`) defines `reconcile-evidence.jsonl`. WP-002 PRD 3 (`feature-patch-identity-metadata`) defines `patch-generations.json`. Both are per-feature append-only evidence artifacts. **WP-002 Wave β acceptance must precede WP-003 Wave α implementation** so the two schemas align (and possibly share a future `refs:` cross-link field).
+
+The paper acceptance for both clusters can proceed in parallel; the gate is at implementation, not at paper review.
+
+**MEDIUM — Drift fix: `.jsonl` not `.json`.**
+
+T56's revision pass caught a CO47-review drift: PRD 1's artifact should be **`reconcile-evidence.jsonl`** (append-friendly), not `reconcile-evidence.json` (single-document). The shorthand in the review used `.json`; T56 corrected it across WP-003, PRD 1, and `CLUSTERS.md`. Cite in PRD 1 §3.
+
+**LOW — Pending follow-up: structural/search backlog.**
+
+WP-003 §6 explicitly defers six future PRDs/ADRs until at least one more upstream-transition reconcile case study exists: `PRD-structural-patch-fingerprints`, `PRD-reconcile-commutation-graph`, `ADR-structural-middle-pass-boundary`, `PRD-reconcile-search-planner`, `PRD-reconcile-planner-audit-artifacts`, `PRD-patch-vector-index`. Not part of this cluster; tracked in WP-003 §6 for the next research wave.
+
+### Open ADR requirement
+
+`ADR-024-reconcile-evidence-and-revision-schema` — pending. Implementer of Wave α drafts.
+
+ADRs 021, 022, 023 are **already taken** by unrelated work (`tpatch-land-global-metadata-carve-out`, `detector-default-deferral`, `hotfix-auto-drop-deferral`). 024 is the next available numbered slot. Confirmed against `ls docs/adrs/`.
+
+### Implementation sequencing
+
+- **Wave α** (parallel after `ADR-024` + WP-002 Wave β acceptance):
+  - PRD 1 `reconcile-verdict-evidence` (cluster keystone)
+  - PRD 6 `reconcile-file-novelty-classifier`
+- **Wave β** (depends on Wave α):
+  - PRD 2 `upstreamed-confirmation-gate`
+  - PRD 3 `reconcile-revision-pass-log`
+  - PRD 7 `reconcile-hunk-overlap-detector`
+- **Wave γ** (depends on Wave β):
+  - PRD 4 `reconcile-retirement-state-audit`
+  - PRD 5 `reconcile-study-validation`
+  - PRD 8 `reconcile-blocked-verdict-taxonomy`
+  - PRD 9 `reconcile-path-restructure-detector`
+
+### Cross-cluster non-interference
+
+| Interaction | Status |
+|---|---|
+| `WP-002 PRD-feature-patch-identity-metadata` schema | Coordinated; both clusters' artifacts agree to align via `ADR-024` and the WP-002 cluster ADR. |
+| v0.7 cluster PRDs (`PRD-tpatch-land`, `PRD-record-auto-base`, `PRD-record-collision-detection`, `PRD-reconcile-lock-guard`) | Untouched. WP-003 builds on these; doesn't modify. |
+| `PRD-patch-already-upstream-detector` (shipped as M17 Wave D) | WP-003 PRD 2 (`upstreamed-confirmation-gate`) extends this detector's semantics: detector produces candidate, confirmation gate decides retirement. |
+| `PRD-tpatch-hotfix` `Tpatch-CVE` trailer | Untouched. WP-003 doesn't modify trailer schema. |
+| SPEC.md §7 4-phase reconcile decision tree | Untouched. WP-003 PRDs slot **before** phase 1 (verdict evidence) or **as** classifiers within existing phases; no new phase added. |
+
+### Action Taken
+
+1. Mark all 9 WP-003 PRDs as APPROVED FOR IMPLEMENTATION in this entry.
+2. Reserve ADR slot `ADR-024-reconcile-evidence-and-revision-schema`; assign to Wave α implementer.
+3. Confirm cross-cluster gate: WP-002 Wave β acceptance must precede WP-003 Wave α implementation start. `docs/CLUSTERS.md` reflects this gate.
+4. Supervisor to slug the cluster into a milestone (suggested: M19 or next available after M18) with Wave α/β/γ rows.
+5. Implementation owner assignment pending; not blocked by this acceptance entry.
+6. `docs/CLUSTERS.md` already updated by T56 to mark WP-003 Accepted with all 9 PRDs Approved.
+
+---
+
 ## Review — v0.9.0-alpha-2-capture-modes (rev-1 F1 fix) — 2026-05-14
 
 **Reviewer**: sub-agent code-review

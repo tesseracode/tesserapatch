@@ -34,13 +34,61 @@ This file does **not** authorize implementation.
 
 | Front | Status | Primary docs | Next output |
 |---|---|---|---|
-| Structural middle pass | Snapshot complete | `patch-theory-and-commutation.md`, `patch-identity-and-structural-fingerprints.md`, `search-based-patch-application.md`, `tpatch-middle-pass-synthesis.md` | PRD/ADR queue when ready. |
+| Structural middle pass | Narrow PRDs approved | `patch-theory-and-commutation.md`, `patch-identity-and-structural-fingerprints.md`, `search-based-patch-application.md`, `tpatch-middle-pass-synthesis.md`, `case-studies/README.md` | Keep broad structural/search work in backlog pending more studies. |
 | RAG/vector retrieval | Snapshot complete | `patch-identity-and-structural-fingerprints.md`, `tpatch-middle-pass-synthesis.md` | `PRD-patch-vector-index` after privacy boundary. |
-| Experiment guide | Snapshot complete | `experiment-guide-structural-middle-pass.md` | First case study under `case-studies/<study-id>/`. |
+| Experiment guide | First study promoted | `experiment-guide-structural-middle-pass.md`, `case-studies/README.md` | Run at least one more upstream-transition study before broad structural/search PRDs. |
+| Reconcile safety/tracking | Foundation PRDs approved | `case-studies/t3code-upstream-v0.0.23-2026-05/local-notes.md`, `../whitepapers/WP-003-reconcile-safety-and-middle-pass.md` | Draft ADR-024 before implementation; WP-002 Wave beta gates PRD 1. |
 | First-party metadata | Foundation PRD drafted | `tpatch-metadata-for-patch-identity.md` | Review identity metadata PRD; patch-generation boundary ADR next. |
 | Patch capture/context | Foundation PRDs drafted | `patch-capture-context-research-brief.md`, `patch-capture-prior-art-and-hooks.md` | Review/accept capture privacy ADR, amendment ADR, and drafted PRDs before implementation. |
 
-## 2. Recommended PRD/ADR sequence
+## 2. Recorded case-study signal
+
+The first recorded study is
+[`t3code-upstream-v0.0.23-2026-05`](case-studies/t3code-upstream-v0.0.23-2026-05/),
+imported under [`case-studies/`](case-studies/). It covers a private fork of
+public upstream `pingdotgg/t3code` moving from a `v0.0.21` lock to `v0.0.23`
+across 25 feature records and 53 hunks.
+
+The strongest signal is that current `blocked` verdicts are overly
+conservative: 13 of 15 blocked features were false positives. Nine reapplied
+cleanly, four needed insertion-point relocation, and only two were true
+conflicts caused by upstream directory restructure. The post-review revision
+adds a higher-severity signal: both `upstreamed` verdicts in this reconcile were
+false positives, which would have silently dropped or skipped local feature work
+if trusted. A follow-up reviewer further clarified that `session-search` was
+working in the pre-reconcile fork, then was dropped by an incorrect
+`upstream_merged` transition and re-applied later.
+
+The study supports a narrow middle-pass queue before heavier AST/vector work:
+
+1. Evidence bundles and confirmation gates for `upstreamed` verdicts.
+2. Structured revision-pass logs that preserve raw reconcile verdict, review
+   verdict, final state, evidence, action taken, and validation refs.
+3. Pre/post reconcile retirement audits to catch dropped working fork code.
+4. Dependency/status cleanup checks after confirmed upstream absorption.
+5. File-level novelty classification for additive/new-file patches.
+6. Hunk-level overlap detection between upstream diff hunks and feature hunks.
+7. Better blocked-verdict taxonomy: clean-additive, shifted-context,
+   target-deleted, and structural-conflict.
+8. Path-prefix restructure detection to identify likely true conflicts early.
+
+See the study's
+[`local-notes.md`](case-studies/t3code-upstream-v0.0.23-2026-05/local-notes.md)
+for tpatch-side recommendations on reconciliation tracking and revision passes.
+
+The promoted PRD cluster is now approved on paper:
+
+1. [PRD-reconcile-verdict-evidence](../prds/PRD-reconcile-verdict-evidence.md)
+2. [PRD-upstreamed-confirmation-gate](../prds/PRD-upstreamed-confirmation-gate.md)
+3. [PRD-reconcile-revision-pass-log](../prds/PRD-reconcile-revision-pass-log.md)
+4. [PRD-reconcile-retirement-state-audit](../prds/PRD-reconcile-retirement-state-audit.md)
+5. [PRD-reconcile-study-validation](../prds/PRD-reconcile-study-validation.md)
+6. [PRD-reconcile-file-novelty-classifier](../prds/PRD-reconcile-file-novelty-classifier.md)
+7. [PRD-reconcile-hunk-overlap-detector](../prds/PRD-reconcile-hunk-overlap-detector.md)
+8. [PRD-reconcile-blocked-verdict-taxonomy](../prds/PRD-reconcile-blocked-verdict-taxonomy.md)
+9. [PRD-reconcile-path-restructure-detector](../prds/PRD-reconcile-path-restructure-detector.md)
+
+## 3. Recommended PRD/ADR sequence
 
 ### Foundation: capture and privacy
 
@@ -63,7 +111,19 @@ This file does **not** authorize implementation.
 4. `PRD-recipe-operation-identity`
 5. `PRD-structural-anchor-manifest`
 
-### Middle-pass algorithms
+### Reconcile safety and narrow middle-pass PRDs
+
+1. [`PRD-reconcile-verdict-evidence`](../prds/PRD-reconcile-verdict-evidence.md) - approved
+2. [`PRD-upstreamed-confirmation-gate`](../prds/PRD-upstreamed-confirmation-gate.md) - approved
+3. [`PRD-reconcile-revision-pass-log`](../prds/PRD-reconcile-revision-pass-log.md) - approved
+4. [`PRD-reconcile-retirement-state-audit`](../prds/PRD-reconcile-retirement-state-audit.md) - approved
+5. [`PRD-reconcile-study-validation`](../prds/PRD-reconcile-study-validation.md) - approved
+6. [`PRD-reconcile-file-novelty-classifier`](../prds/PRD-reconcile-file-novelty-classifier.md) - approved
+7. [`PRD-reconcile-hunk-overlap-detector`](../prds/PRD-reconcile-hunk-overlap-detector.md) - approved
+8. [`PRD-reconcile-blocked-verdict-taxonomy`](../prds/PRD-reconcile-blocked-verdict-taxonomy.md) - approved
+9. [`PRD-reconcile-path-restructure-detector`](../prds/PRD-reconcile-path-restructure-detector.md) - approved
+
+### Deferred broad structural/search backlog
 
 1. `PRD-structural-patch-fingerprints`
 2. `PRD-reconcile-commutation-graph`
@@ -72,7 +132,13 @@ This file does **not** authorize implementation.
 5. `PRD-reconcile-planner-audit-artifacts`
 6. `PRD-patch-vector-index`
 
-## 3. Recommended immediate path
+Backlog gate: wait for at least one more upstream-transition reconcile case
+study before drafting these. The current t3code study is enough for safety
+tracking, file novelty, hunk overlap, blocked taxonomy, and path restructure
+detection, but not enough to lock broader fingerprint/vector/search planner
+architecture.
+
+## 4. Recommended immediate path
 
 1. Write `ADR-capture-context-privacy-boundary`.
    - Decide raw transcripts vs summaries vs hashes/references.
@@ -96,7 +162,7 @@ This file does **not** authorize implementation.
 Rationale: privacy, amendment semantics, and explicit scope should be settled
 before tpatch starts capturing richer agent context.
 
-## 4. Research prompts
+## 5. Research prompts
 
 ### Continue patch-capture research
 
