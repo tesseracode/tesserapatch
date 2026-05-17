@@ -5,7 +5,7 @@
 **Owner**: Core
 **Byline**: T56
 **Milestone**: Reconcile safety and middle-pass foundation. Not yet roadmap-committed.
-**Depends on**: Implementation requires `ADR-024-reconcile-evidence-and-revision-schema`. WP-002 Wave beta must reach acceptance before implementation.
+**Depends on**: Implementation requires `ADR-025-reconcile-evidence-and-revision-schema`. WP-002 Wave beta must reach acceptance before implementation.
 
 ## Related
 

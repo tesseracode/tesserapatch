@@ -79,7 +79,7 @@ recording boundaries, not splitting content.
 **Status**: **Accepted** (T56 revision complete; supervisor LOG entry pending)
 **Whitepaper**: [`docs/whitepapers/WP-003-reconcile-safety-and-middle-pass.md`](./whitepapers/WP-003-reconcile-safety-and-middle-pass.md)
 **Origin**: t3code v0.0.23 case study (first structural middle-pass study, false-positive `upstreamed` verdicts on `session-search` and `copilot-skill-controls`).
-**Cluster ADR plan**: single cluster ADR — `ADR-024-reconcile-evidence-and-revision-schema` (covers PRDs 1, 2, 3; PRDs 4–9 ship under the same ADR).
+**Cluster ADR plan**: single cluster ADR — `ADR-025-reconcile-evidence-and-revision-schema` (covers PRDs 1, 2, 3; PRDs 4–9 ship under the same ADR).
 
 ### Cross-cluster prerequisite
 
@@ -100,19 +100,19 @@ must not drift.
 
 | # | PRD | Wave (proposed) | State |
 |---|---|---|---|
-| 1 | [`PRD-reconcile-verdict-evidence`](./prds/PRD-reconcile-verdict-evidence.md) | α | Approved (cluster keystone; blocked on ADR-024 + WP-002 Wave β acceptance) |
+| 1 | [`PRD-reconcile-verdict-evidence`](./prds/PRD-reconcile-verdict-evidence.md) | α | Approved (cluster keystone; blocked on ADR-025 + WP-002 Wave β acceptance) |
 | 2 | [`PRD-upstreamed-confirmation-gate`](./prds/PRD-upstreamed-confirmation-gate.md) | β | Approved |
 | 3 | [`PRD-reconcile-revision-pass-log`](./prds/PRD-reconcile-revision-pass-log.md) | β | Approved |
 | 4 | [`PRD-reconcile-retirement-state-audit`](./prds/PRD-reconcile-retirement-state-audit.md) | γ | Approved |
 | 5 | [`PRD-reconcile-study-validation`](./prds/PRD-reconcile-study-validation.md) | γ | Approved |
-| 6 | [`PRD-reconcile-file-novelty-classifier`](./prds/PRD-reconcile-file-novelty-classifier.md) | α | Approved (blocked on ADR-024) |
+| 6 | [`PRD-reconcile-file-novelty-classifier`](./prds/PRD-reconcile-file-novelty-classifier.md) | α | Approved (blocked on ADR-025) |
 | 7 | [`PRD-reconcile-hunk-overlap-detector`](./prds/PRD-reconcile-hunk-overlap-detector.md) | β | Approved |
 | 8 | [`PRD-reconcile-blocked-verdict-taxonomy`](./prds/PRD-reconcile-blocked-verdict-taxonomy.md) | γ | Approved |
 | 9 | [`PRD-reconcile-path-restructure-detector`](./prds/PRD-reconcile-path-restructure-detector.md) | γ | Approved |
 
 ### Blockers
-- `ADR-024` unwritten — blocks Wave α start.
-- WP-002 Wave β unwritten — blocks PRD 1 implementation even if `ADR-024` ships first.
+- `ADR-025` unwritten — blocks Wave α start.
+- WP-002 Wave β unwritten — blocks PRD 1 implementation even if `ADR-025` ships first.
 
 ---
 
@@ -144,7 +144,7 @@ These remain in place as historical exploration; WP-001 is listed in their
 | `ADR-capture-context-privacy-boundary` | WP-002 (deferred to v2) | Free-text reason persistence, agent-context retention | Implementer of v2 claims work; not currently blocking |
 | `ADR-patch-generation-manifest-boundary` | WP-002 Wave β | `PRD-feature-patch-identity-metadata` implementation | Implementer of Wave β |
 | `ADR-patch-amendment-policy` | WP-002 Wave γ | `PRD-feature-patch-amend` implementation | Implementer of Wave γ |
-| `ADR-024-reconcile-evidence-and-revision-schema` | WP-003 (entire cluster) | All 9 WP-003 PRDs (Wave α onward) | Implementer of Wave α |
+| `ADR-025-reconcile-evidence-and-revision-schema` | WP-003 (entire cluster) | All 9 WP-003 PRDs (Wave α onward) | Implementer of Wave α |
 
 ADRs 021, 022, 023 are **already used** by unrelated work (land global
 metadata carve-out, detector default deferral, hotfix auto-drop deferral).

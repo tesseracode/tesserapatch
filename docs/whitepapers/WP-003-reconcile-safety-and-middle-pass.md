@@ -69,13 +69,13 @@ implementation so both clusters can align artifact boundaries before code lands.
 Implementation requires one cluster ADR:
 
 ```text
-ADR-024-reconcile-evidence-and-revision-schema
+ADR-025-reconcile-evidence-and-revision-schema
 ```
 
 The ADR covers PRDs 1, 2, and 3 directly: verdict evidence,
 upstreamed-confirmation storage, and revision-pass log semantics. PRDs 4-9 ship
 under the same ADR because they write or consume the same evidence and revision
-records. The Wave alpha implementer drafts ADR-024 before PRD 1 implementation.
+records. The Wave alpha implementer drafts ADR-025 before PRD 1 implementation.
 
 ## 5. Privacy anchor
 
@@ -92,12 +92,12 @@ same no-source-bodies / no-transcripts / no-vectors default.
 
 ## 6. Waves / implementation order
 
-Wave alpha is foundational and parallel-safe after ADR-024 exists and WP-002
+Wave alpha is foundational and parallel-safe after ADR-025 exists and WP-002
 Wave beta has reached acceptance:
 
 | Wave | PRDs | Gate |
 |---|---|---|
-| alpha | PRD 1 `reconcile-verdict-evidence`; PRD 6 `reconcile-file-novelty-classifier` | ADR-024 + WP-002 Wave beta acceptance |
+| alpha | PRD 1 `reconcile-verdict-evidence`; PRD 6 `reconcile-file-novelty-classifier` | ADR-025 + WP-002 Wave beta acceptance |
 | beta | PRD 2 `upstreamed-confirmation-gate`; PRD 3 `reconcile-revision-pass-log`; PRD 7 `reconcile-hunk-overlap-detector` | Wave alpha |
 | gamma | PRD 4 `reconcile-retirement-state-audit`; PRD 5 `reconcile-study-validation`; PRD 8 `reconcile-blocked-verdict-taxonomy`; PRD 9 `reconcile-path-restructure-detector` | Wave beta |
 

@@ -5,7 +5,7 @@
 **Owner**: Core
 **Byline**: T56
 **Milestone**: Reconcile safety and middle-pass foundation. Not yet roadmap-committed.
-**Depends on**: [PRD-reconcile-verdict-evidence](./PRD-reconcile-verdict-evidence.md). Implementation requires `ADR-024-reconcile-evidence-and-revision-schema`.
+**Depends on**: [PRD-reconcile-verdict-evidence](./PRD-reconcile-verdict-evidence.md). Implementation requires `ADR-025-reconcile-evidence-and-revision-schema`.
 
 ## Related
 
@@ -130,7 +130,7 @@ V1 should distinguish:
 V1 storage:
 
 - `review_verdict` becomes a new field on `status.json:reconcile`
-  (`ReconcileSummary`) under ADR-024.
+  (`ReconcileSummary`) under ADR-025.
 - `final_feature_state` reuses existing `status.json:state`; no parallel final
   state field is introduced.
 - The revision-pass log stores the correction event that explains why

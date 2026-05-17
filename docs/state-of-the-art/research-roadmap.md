@@ -37,7 +37,7 @@ This file does **not** authorize implementation.
 | Structural middle pass | Narrow PRDs approved | `patch-theory-and-commutation.md`, `patch-identity-and-structural-fingerprints.md`, `search-based-patch-application.md`, `tpatch-middle-pass-synthesis.md`, `case-studies/README.md` | Keep broad structural/search work in backlog pending more studies. |
 | RAG/vector retrieval | Snapshot complete | `patch-identity-and-structural-fingerprints.md`, `tpatch-middle-pass-synthesis.md` | `PRD-patch-vector-index` after privacy boundary. |
 | Experiment guide | First study promoted | `experiment-guide-structural-middle-pass.md`, `case-studies/README.md` | Run at least one more upstream-transition study before broad structural/search PRDs. |
-| Reconcile safety/tracking | Foundation PRDs approved | `case-studies/t3code-upstream-v0.0.23-2026-05/local-notes.md`, `../whitepapers/WP-003-reconcile-safety-and-middle-pass.md` | Draft ADR-024 before implementation; WP-002 Wave beta gates PRD 1. |
+| Reconcile safety/tracking | Foundation PRDs approved | `case-studies/t3code-upstream-v0.0.23-2026-05/local-notes.md`, `../whitepapers/WP-003-reconcile-safety-and-middle-pass.md` | Draft ADR-025 before implementation; WP-002 Wave beta gates PRD 1. |
 | First-party metadata | Foundation PRD drafted | `tpatch-metadata-for-patch-identity.md` | Review identity metadata PRD; patch-generation boundary ADR next. |
 | Patch capture/context | Foundation PRDs drafted | `patch-capture-context-research-brief.md`, `patch-capture-prior-art-and-hooks.md` | Review/accept capture privacy ADR, amendment ADR, and drafted PRDs before implementation. |
 

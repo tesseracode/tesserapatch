@@ -35,7 +35,7 @@ Both archived to `docs/handoff/HISTORY.md`. `v0.9.0` annotated tag pushed.
 ## Open Threads (informational, not blocking)
 
 - **Wave alpha pre-existing edge case (alpha-1)**: if a claimed directory is removed from disk between `add` and `remove`, `MatchClaim` cannot reconstruct the trailing-slash and `remove <path>` won't match. Workarounds: remove by claim_id or with explicit trailing slash. Could be addressed when the matcher gains "unconditional trailing-slash variants" probing — not currently scoped to any milestone.
-- **Cluster continuation**: `PRD-feature-patch-identity-metadata` (slice 3) and `PRD-feature-patch-amend` (slice 4) remain on the roadmap but require ADR-022 (patch-generation-manifest-boundary) and ADR-023 (patch-amendment-policy) respectively. Those ADR slots are reserved.
+- **Cluster continuation**: `PRD-feature-patch-identity-metadata` (slice 3, Wave beta) is gated on `ADR-024-patch-generation-manifest-boundary` (shipped 2026-05-16, pending external review). `PRD-feature-patch-amend` (slice 4, Wave gamma) is gated on a future patch-amendment-policy ADR that will draw the next available ADR slot after ADR-025 (reserved by WP-003 reconcile cluster).
 - **Keypoint experiment**: structural/RAG/search-layer PRDs (`PRD-structural-patch-fingerprints`, `PRD-structural-anchor-manifest`, `PRD-reconcile-commutation-graph`, `PRD-patch-vector-index`, search planner PRDs) deferred until the marker/keypoint experiment produces results.
 - **Provider-routing audit** (committed `18fd668` 2026-05-13): empirical findings on `localhost:4141` documented in `docs/MODEL-ROUTING.md`. `TPATCH_ENABLE_RESPONSES_PROVIDER` should remain unset by default.
 

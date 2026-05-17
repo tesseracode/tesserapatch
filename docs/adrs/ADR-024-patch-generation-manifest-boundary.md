@@ -2,6 +2,14 @@
 
 **Status**: Accepted
 **Date**: 2026-05-16
+
+> **Note**: this ADR-024 covers the WP-002 cluster's patch-generation manifest
+> boundary (`PRD-feature-patch-identity-metadata`). It is distinct from
+> `ADR-025-reconcile-evidence-and-revision-schema`, which covers the WP-003
+> reconcile-cluster's evidence/revision schema. The two ADRs are unrelated
+> but adjacent in number for historical reasons (see broker's 2026-05-16
+> supervisor LOG renumbering decision).
+
 **Source PRD**: [PRD-feature-patch-identity-metadata.md](../prds/PRD-feature-patch-identity-metadata.md) §"Implementation Gate" (lines 41-51), §3, §4, §5, §6, §7, §9
 **Related ADRs**: ADR-011 (feature dependency DAG — dependency-snapshot field set inherits from this), ADR-013 (verify freshness overlay — parent-snapshot precedent), ADR-018 (record collision detection — same-bytes-skip semantics), ADR-019 (`tpatch land` trailer schema — patch SHA / recipe SHA relationship to commit trailers)
 
@@ -21,7 +29,8 @@ Blast radius is wide. The manifest sits next to `status.json`
 (`internal/store/claims.go:290`); its boundary against both must be
 explicit. It borrows identity primitives already produced ad-hoc by
 `verify` (`internal/store/types.go:191` `VerifyRecord`) and the
-phase-1.5 detector (ADR-022). The dependency-snapshot field set extends
+the phase-1.5 detector (`PRD-patch-already-upstream-detector` /
+`internal/workflow/patch_id_detector.go` + `internal/gitutil/patch_id.go`). The dependency-snapshot field set extends
 the ADR-011 `Dependency` struct (`internal/store/types.go:221`) with
 parent-version fields that today are not persisted anywhere. And
 `tpatch land` trailers (ADR-019) already commit-bind patch/recipe SHAs,
@@ -186,10 +195,12 @@ in v1.
 
 **Decision drivers**.
 
-- **The phase-1.5 detector already commits to `--stable`** (ADR-022 /
-  `PRD-patch-already-upstream-detector`). A manifest value that could
-  be either mode would silently disagree with the detector cache
-  (PRD §5.4).
+- **The phase-1.5 detector already commits to `--stable`**
+  (`PRD-patch-already-upstream-detector`; implementation in
+  `internal/workflow/patch_id_detector.go` and
+  `internal/gitutil/patch_id.go` invokes `git patch-id --stable`
+  directly). A manifest value that could be either mode would silently
+  disagree with the detector cache (PRD §5.4).
 - **The algorithm marker future-proofs the schema** — a future
   structural-fingerprint ID adds a *new* field; the marker keeps v1
   stable distinguishable from later variants without re-parsing.
@@ -197,7 +208,8 @@ in v1.
 **Alternatives considered**. (a) Persist patch-id without the marker —
 rejected: the marker is one string per generation. (b) Define a
 tpatch-custom patch-id — rejected: duplicates Git tooling and
-disagrees with ADR-022 without compensating gain.
+disagrees with the detector implementation
+(`internal/gitutil/patch_id.go`) without compensating gain.
 
 **Consequence**. Implementers reuse the existing `git patch-id --stable`
 helper (or centralize one; PRD §7) and reject any manifest whose marker
@@ -355,7 +367,9 @@ history (PRD §5.2); a repair surface for malformed manifests.
 - ADR-013 (`VerifyRecord` parent-snapshot pattern extended by D5)
 - ADR-018 (refuse-with-override pattern referenced by D7)
 - ADR-019 (`tpatch land` four-trailer schema coexisting with D6)
-- ADR-022 (`git patch-id --stable` algorithm commitment referenced by D6)
+- [PRD-patch-already-upstream-detector.md](../prds/PRD-patch-already-upstream-detector.md) (locked `git patch-id --stable` as the project-wide patch-id algorithm; cited by D6)
+- `internal/workflow/patch_id_detector.go` (phase-1.5 detector using `git patch-id --stable`; D6 manifest value must match this implementation)
+- `internal/gitutil/patch_id.go` (`git patch-id --stable` helper invocation; D6 reuse target)
 - `internal/store/types.go:174,191` (`Verify *VerifyRecord` / `VerifyRecord`; hash and parent-snapshot precedents for D2/D5/D6)
 - `internal/store/types.go:221` (`Dependency` struct extended by D5)
 - `internal/store/types.go:234` (`ApplySummary`; D1 boundary against `status.json`)

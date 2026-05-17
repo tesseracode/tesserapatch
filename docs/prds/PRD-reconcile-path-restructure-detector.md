@@ -5,7 +5,7 @@
 **Owner**: Core
 **Byline**: T56
 **Milestone**: Reconcile safety and middle-pass foundation. Not yet roadmap-committed.
-**Depends on**: [PRD-reconcile-blocked-verdict-taxonomy](./PRD-reconcile-blocked-verdict-taxonomy.md). Implementation requires `ADR-024-reconcile-evidence-and-revision-schema`.
+**Depends on**: [PRD-reconcile-blocked-verdict-taxonomy](./PRD-reconcile-blocked-verdict-taxonomy.md). Implementation requires `ADR-025-reconcile-evidence-and-revision-schema`.
 
 ## Related
 

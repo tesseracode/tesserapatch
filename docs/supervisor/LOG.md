@@ -1,3 +1,52 @@
+## Renumber — ADR-024 collision resolution — 2026-05-16
+
+**Reviewer**: supervisor (mechanical doc-only correction)
+**Task**: Resolve external review F1 (ADR-024 number collision) and F2 (D6 citation error) on commit `7cab12a`.
+
+### Verdict: APPROVED-CORRECTION
+
+### Findings
+
+- **F1 — ADR-024 number collision (resolved)**: At ADR-024 commit time (`902c012`), `ADR-024` was already reserved by the WP-003 reconcile cluster as `ADR-024-reconcile-evidence-and-revision-schema` across WP-003 + 9 reconcile PRDs + `CLUSTERS.md` + `state-of-the-art/research-roadmap.md` + this LOG's 2026-05-16 cluster acceptance entry. The newly shipped ADR file used the same number for a different (WP-002 cluster) purpose. Per broker's locked decision, the shipped `ADR-024-patch-generation-manifest-boundary` keeps its committed number; the unwritten WP-003 cluster reservation moves to `ADR-025-reconcile-evidence-and-revision-schema`. ~14 doc files updated.
+- **F2 — D6 cited wrong ADR (resolved)**: ADR-024 §D6 cited ADR-022 as the source of `git patch-id --stable` algorithm. ADR-022 is the detector default-deferral record (no algorithm content). Citations corrected to the actual authorities: `PRD-patch-already-upstream-detector.md` (algorithm decision) and `internal/workflow/patch_id_detector.go` + `internal/gitutil/patch_id.go` (implementation invoking `git patch-id --stable`). Three sites updated in the ADR body; ADR-022 fully removed from the Related ADRs / References blocks.
+- A clarifying note added at the top of ADR-024 (after the Status line) disambiguates the two adjacent ADR numbers for future readers.
+- CURRENT.md "Open Threads" was internally inconsistent (active task scoped to ADR-024 while a later note still claimed slice 3 required ADR-022). Reconciled to point at the shipped `ADR-024-patch-generation-manifest-boundary` and noted that slice 4 (Wave gamma) needs a future patch-amendment-policy ADR drawing the next slot after ADR-025.
+
+### Files touched (13)
+
+ADR + body fixes:
+- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` (Step 4 note + D6 citation rewrite, 3 sites + References cleanup)
+
+WP-003 cluster renumber (`ADR-024-reconcile-evidence-and-revision-schema` → `ADR-025-…`; bare `ADR-024` → `ADR-025` where the context is the WP-003 cluster):
+- `docs/whitepapers/WP-003-reconcile-safety-and-middle-pass.md`
+- `docs/CLUSTERS.md`
+- `docs/state-of-the-art/research-roadmap.md`
+- `docs/prds/PRD-reconcile-blocked-verdict-taxonomy.md`
+- `docs/prds/PRD-reconcile-file-novelty-classifier.md`
+- `docs/prds/PRD-reconcile-hunk-overlap-detector.md`
+- `docs/prds/PRD-reconcile-path-restructure-detector.md`
+- `docs/prds/PRD-reconcile-retirement-state-audit.md`
+- `docs/prds/PRD-reconcile-revision-pass-log.md`
+- `docs/prds/PRD-reconcile-study-validation.md`
+- `docs/prds/PRD-reconcile-verdict-evidence.md`
+- `docs/prds/PRD-upstreamed-confirmation-gate.md`
+
+Tracking:
+- `docs/handoff/CURRENT.md` (Open Threads cluster-continuation reconciled)
+- `docs/supervisor/LOG.md` (this entry + body cites on lines 92/116/133 updated; line 1 ADR-024 review entry preserved)
+
+### Reference count
+
+- Removed: ~20 references to `ADR-024-reconcile-evidence-and-revision-schema` / WP-003-context bare `ADR-024`.
+- Added: same count of `ADR-025-reconcile-evidence-and-revision-schema` / WP-003-context bare `ADR-025`.
+- The shipped `ADR-024-patch-generation-manifest-boundary` (WP-002) is untouched in number; only D6 citation trail was corrected.
+
+### Action Taken
+
+ADR-024 nine decisions (D1–D9) NOT reopened. WP-003 cluster ADR is unwritten — no new ADR file created; only the reserved-slot references move. Broker dispatches external reviewer after this commit.
+
+---
+
 ## Review — ADR-024-patch-generation-manifest-boundary — 2026-05-16
 
 **Reviewer**: sub-agent code-review
@@ -66,7 +115,7 @@ Dependency tree (not flat):
 ### Checklist (paper review)
 - [x] All 9 PRDs cite WP-001 and the t3code v0.0.23 case study; all 9 ground claims in real research artifacts.
 - [x] All 9 PRDs `Status: Approved` (flipped from Draft after revision pass).
-- [x] All 9 PRDs cite `ADR-024-reconcile-evidence-and-revision-schema` in their `Depends on` header.
+- [x] All 9 PRDs cite `ADR-025-reconcile-evidence-and-revision-schema` in their `Depends on` header.
 - [x] Cluster dependency tree present in each PRD's Cluster Position section (identical shape across all 9).
 - [x] WP-003 §6 wave shape (α: 1+6, β: 2+3+7, γ: 4+5+8+9) matches `docs/CLUSTERS.md`.
 - [x] Cross-cluster prerequisite documented: WP-002 Wave β acceptance must precede WP-003 PRD 1 implementation (WP-003 §3 + PRD 1 §3).
@@ -81,7 +130,7 @@ Dependency tree (not flat):
 
 **MEDIUM — Single cluster ADR locked.**
 
-Per the broker's 2026-05-16 decision (vs one-ADR-per-PRD), the cluster ships under a single ADR: **`ADR-024-reconcile-evidence-and-revision-schema`**. The ADR locks:
+Per the broker's 2026-05-16 decision (vs one-ADR-per-PRD), the cluster ships under a single ADR: **`ADR-025-reconcile-evidence-and-revision-schema`**. The ADR locks:
 
 - `reconcile-evidence.jsonl` schema (PRD 1) — append-only per-attempt JSONL with stable key order, content-derived `attempt_id`, evidence-kind enum, phase enum, confidence enum, no source bodies/transcripts/vectors.
 - `reconcile-revisions.jsonl` schema (PRD 3) — append-only per-correction JSONL with `review_verdict` enum (confirmed / false-positive / false-negative / inconclusive / deferred) and `action_taken` enum (none / confirmed-retired / reapplied / reapplied-and-recorded / implemented / deferred / skipped / cleanup-needed).
@@ -89,7 +138,7 @@ Per the broker's 2026-05-16 decision (vs one-ADR-per-PRD), the cluster ships und
 - Auto-confirm default for patch-id matches when `matched_upstream_sha` is reachable (matches v0.8.1 `--auto-drop-merged` precedent).
 - Privacy boundary — same anchor as WP-002's `ADR-capture-context-privacy-boundary` (deferred).
 
-Implementer of Wave α drafts `ADR-024` before code lands. Single-ADR approach matches the cluster's narrower surface (versus the v0.7 cluster, which had 4 ADRs for 4 PRDs because each PRD changed independent CLI surfaces).
+Implementer of Wave α drafts `ADR-025` before code lands. Single-ADR approach matches the cluster's narrower surface (versus the v0.7 cluster, which had 4 ADRs for 4 PRDs because each PRD changed independent CLI surfaces).
 
 **MEDIUM — Cross-cluster gate before PRD 1 implementation.**
 
@@ -107,13 +156,13 @@ WP-003 §6 explicitly defers six future PRDs/ADRs until at least one more upstre
 
 ### Open ADR requirement
 
-`ADR-024-reconcile-evidence-and-revision-schema` — pending. Implementer of Wave α drafts.
+`ADR-025-reconcile-evidence-and-revision-schema` — pending. Implementer of Wave α drafts.
 
 ADRs 021, 022, 023 are **already taken** by unrelated work (`tpatch-land-global-metadata-carve-out`, `detector-default-deferral`, `hotfix-auto-drop-deferral`). 024 is the next available numbered slot. Confirmed against `ls docs/adrs/`.
 
 ### Implementation sequencing
 
-- **Wave α** (parallel after `ADR-024` + WP-002 Wave β acceptance):
+- **Wave α** (parallel after `ADR-025` + WP-002 Wave β acceptance):
   - PRD 1 `reconcile-verdict-evidence` (cluster keystone)
   - PRD 6 `reconcile-file-novelty-classifier`
 - **Wave β** (depends on Wave α):
@@ -130,7 +179,7 @@ ADRs 021, 022, 023 are **already taken** by unrelated work (`tpatch-land-global-
 
 | Interaction | Status |
 |---|---|
-| `WP-002 PRD-feature-patch-identity-metadata` schema | Coordinated; both clusters' artifacts agree to align via `ADR-024` and the WP-002 cluster ADR. |
+| `WP-002 PRD-feature-patch-identity-metadata` schema | Coordinated; both clusters' artifacts agree to align via `ADR-025` and the WP-002 cluster ADR (`ADR-024-patch-generation-manifest-boundary`). |
 | v0.7 cluster PRDs (`PRD-tpatch-land`, `PRD-record-auto-base`, `PRD-record-collision-detection`, `PRD-reconcile-lock-guard`) | Untouched. WP-003 builds on these; doesn't modify. |
 | `PRD-patch-already-upstream-detector` (shipped as M17 Wave D) | WP-003 PRD 2 (`upstreamed-confirmation-gate`) extends this detector's semantics: detector produces candidate, confirmation gate decides retirement. |
 | `PRD-tpatch-hotfix` `Tpatch-CVE` trailer | Untouched. WP-003 doesn't modify trailer schema. |
@@ -139,7 +188,7 @@ ADRs 021, 022, 023 are **already taken** by unrelated work (`tpatch-land-global-
 ### Action Taken
 
 1. Mark all 9 WP-003 PRDs as APPROVED FOR IMPLEMENTATION in this entry.
-2. Reserve ADR slot `ADR-024-reconcile-evidence-and-revision-schema`; assign to Wave α implementer.
+2. Reserve ADR slot `ADR-025-reconcile-evidence-and-revision-schema`; assign to Wave α implementer.
 3. Confirm cross-cluster gate: WP-002 Wave β acceptance must precede WP-003 Wave α implementation start. `docs/CLUSTERS.md` reflects this gate.
 4. Supervisor to slug the cluster into a milestone (suggested: M19 or next available after M18) with Wave α/β/γ rows.
 5. Implementation owner assignment pending; not blocked by this acceptance entry.
