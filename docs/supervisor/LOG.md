@@ -12,7 +12,7 @@
 - A clarifying note added at the top of ADR-024 (after the Status line) disambiguates the two adjacent ADR numbers for future readers.
 - CURRENT.md "Open Threads" was internally inconsistent (active task scoped to ADR-024 while a later note still claimed slice 3 required ADR-022). Reconciled to point at the shipped `ADR-024-patch-generation-manifest-boundary` and noted that slice 4 (Wave gamma) needs a future patch-amendment-policy ADR drawing the next slot after ADR-025.
 
-### Files touched (13)
+### Files touched (15)
 
 ADR + body fixes:
 - `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` (Step 4 note + D6 citation rewrite, 3 sites + References cleanup)
