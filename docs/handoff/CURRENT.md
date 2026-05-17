@@ -2,11 +2,11 @@
 
 ## Active Task
 
-- **Task ID**: _idle_ — between slices.
-- **Milestone**: v0.9.0 Wave alpha shipped 2026-05-14. Awaiting next user direction for the v0.10.0 (or higher) cycle.
-- **Description**: No active implementation task. Next candidates from the research-roadmap include the keypoint-dependent PRDs (now unblocked or still pending the marker/keypoint experiment), `PRD-feature-patch-identity-metadata` (needs ADR-022), `PRD-feature-patch-amend` (needs ADR-023), or other items the supervisor selects.
-- **Status**: Idle — supervisor will populate this block when the next slice kicks off.
-- **Assigned**: 2026-05-14.
+- **Task ID**: `ADR-024-patch-generation-manifest-boundary`.
+- **Milestone**: v0.10.0 Wave beta gate. The ADR must be externally APPROVED before the code implementer for `PRD-feature-patch-identity-metadata` (slice 3 of 4 in the capture-and-metadata foundation cluster) can dispatch.
+- **Description**: Author ADR-024 to accept (or revise with rationale) the six Implementation-Gate decisions from `PRD-feature-patch-identity-metadata` §"Implementation Gate" (lines 41-51): (1) append-only generation manifest outside `status.json`; (2) monotonic `generation` integer plus content-addressed `generation_id`; (3) no wall-clock timestamps in the artifact; (4) no historical backfill from `patches/NNN-*.patch` in v1; (5) dependency snapshots by parent generation/hash; (6) `git patch-id --stable` as the only persisted patch-id algorithm. Each decision must include alternatives considered and an explicit consequence statement. The ADR is documentation-only — NO code or test changes in this slice.
+- **Status**: In progress — implementer dispatched.
+- **Assigned**: 2026-05-16.
 
 ## Session Summary
 
