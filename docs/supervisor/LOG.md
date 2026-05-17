@@ -1,3 +1,39 @@
+## Review — ADR-024-patch-generation-manifest-boundary — 2026-05-16
+
+**Reviewer**: sub-agent code-review
+**Task**: Author Wave beta gate ADR for `PRD-feature-patch-identity-metadata`.
+
+### Checklist
+- [x] All six PRD §"Implementation Gate" decisions addressed
+- [x] Both §9 Open Questions resolved
+- [x] Alternatives + consequences for each decision
+- [x] No silent revision of PRD
+- [x] Citations verified (10 spot checks)
+- [x] `kind` enum scope settled (v1 writes only `record` + `reconcile`; 4 reserved)
+- [x] `refs` block treatment settled (empty strings in v1)
+- [x] Schema versioning policy stated (`version: 1`, strict-on-unknown)
+- [x] `generation_id` derivation specified (SHA-256, 11 input fields, `pg_` prefix, 12 hex)
+- [x] Atomic-write style mentioned (reuse claims.json `.tmp` + rename + fsync)
+- [x] Status `Accepted`, Date `2026-05-16`, ADR-022/023 style followed
+- [x] No code/tests/PRDs/assets touched
+- [x] gofmt/vet clean
+- [x] Side Research md5 unchanged (`b385fe622db9926f48861105239f113e`)
+- [x] Commit subject + co-author trailer
+
+### Verdict: APPROVED (no findings)
+
+### Notes
+
+- ADR ships 9 decisions (D1-D9): 6 from PRD §"Implementation Gate" + D7 (malformed-manifest policy split per command) + D8 (`kind` enum closure for v1) + D9 (schema versioning strict-on-unknown + atomic-write reuse). All decisions include alternatives considered and consequence statements.
+- One stylistic deviation: 363 lines vs. typical ADR-022/023 length (~150 lines). Cause is structural — 9 decisions to settle vs. 1 in the precedent ADRs. Content depth was prioritized; reviewer confirmed no padding/repetition.
+- D7 picks the conservative half of PRD §6's flexible language: `record` *refuses* on malformed manifest (no `--force` escape in v1); status warns; reconcile distrusts identity fields without blocking the reconcile itself.
+- D8 pins v1 writable `kind` set to `record` + `reconcile`. The `amend-refresh`, `amend-fixup`, `import`, `manual-metadata` values from PRD §4.1 are reserved-but-unused, owned by future PRDs (Wave gamma `PRD-feature-patch-amend` for `amend-*`).
+- D9 picks **refuse** for unknown schema fields (PRD §7 offered "ignore under versioned extension policy OR refuse" — v1 picks refuse; lenient mode is a future ADR if needed).
+
+### Action Taken
+
+Verdict prepended to LOG.md; commit `902c012` pushed to `origin/main` for external supervisor review. SQL todo `adr-024-patch-generation-manifest-boundary` remains `in_progress` until external verdict arrives.
+
 ## Review — Reconcile Safety & Middle-pass Cluster (9 PRDs) — 2026-05-16
 
 **Reviewer**: CO47 (broker-routed multi-agent cross-review; T56 authored + revised; CO47 cross-reviewed)
