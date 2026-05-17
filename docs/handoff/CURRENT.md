@@ -5,10 +5,25 @@
 - **Task ID**: `ADR-024-patch-generation-manifest-boundary`.
 - **Milestone**: v0.10.0 Wave beta gate. The ADR must be externally APPROVED before the code implementer for `PRD-feature-patch-identity-metadata` (slice 3 of 4 in the capture-and-metadata foundation cluster) can dispatch.
 - **Description**: Author ADR-024 to accept (or revise with rationale) the six Implementation-Gate decisions from `PRD-feature-patch-identity-metadata` §"Implementation Gate" (lines 41-51): (1) append-only generation manifest outside `status.json`; (2) monotonic `generation` integer plus content-addressed `generation_id`; (3) no wall-clock timestamps in the artifact; (4) no historical backfill from `patches/NNN-*.patch` in v1; (5) dependency snapshots by parent generation/hash; (6) `git patch-id --stable` as the only persisted patch-id algorithm. Each decision must include alternatives considered and an explicit consequence statement. The ADR is documentation-only — NO code or test changes in this slice.
-- **Status**: In progress — implementer dispatched.
+- **Status**: Implementation drafted — awaiting external review.
 - **Assigned**: 2026-05-16.
 
 ## Session Summary
+
+ADR-024 (`docs/adrs/ADR-024-patch-generation-manifest-boundary.md`) authored as the Wave beta gate for `PRD-feature-patch-identity-metadata`. The ADR is documentation-only (no Go, asset, or PRD changes). All six PRD §"Implementation Gate" decisions are accepted as written:
+
+- D1 append-only `artifacts/patch-generations.json` separate from `status.json`;
+- D2 monotonic `generation` integer plus 12-hex-prefix content-addressed `generation_id` over a pinned field set;
+- D3 no wall-clock timestamps;
+- D4 no historical backfill from `patches/NNN-*.patch` in v1;
+- D5 dependency snapshots pin parent generation/patch_sha256/recipe_sha256;
+- D6 `git patch-id --stable` as the sole persisted patch-id algorithm with required `git_patch_id_algorithm` marker.
+
+Both PRD §9 open questions are resolved: D4 closes "should historical numbered patches be backfilled?" (no in v1); D7 closes "should malformed manifests refuse `record` by default?" (yes — `record` refuses, read-only commands warn, reconcile distrusts identity fields but proceeds). D8 closes the `kind` enum to two writable values in v1 (`record`, `reconcile`); the remaining four (`amend-refresh`, `amend-fixup`, `import`, `manual-metadata`) are reserved-but-unused. D9 locks strict-schema reads, `refs` block empty in v1, and clarifies the manifest tracks canonical patch byte changes only.
+
+The ADR also pins reuse of the `claims.json`-style atomic `.tmp` + rename + fsync pattern (`internal/store/claims.go:290`), so no new I/O abstraction is required in Wave beta implementation.
+
+### Prior session context
 
 v0.9.0 Wave alpha shipped 2026-05-14. The cluster delivered the two-slice capture-and-metadata foundation:
 
@@ -34,7 +49,18 @@ Both archived to `docs/handoff/HISTORY.md`. `v0.9.0` annotated tag pushed.
 
 ## Test Results
 
-`v0.9.0` tag verification:
+ADR-024 authored slice (documentation-only):
+- `gofmt -l . | grep -v vendor` → empty
+- `go vet ./...` → clean
+- ADR-024 file present: `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` (363 lines, 14+ concrete file:line citations).
+- No code, test, asset, or PRD changes.
+
+## Files Changed
+
+- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` (new)
+- `docs/handoff/CURRENT.md` (this file — Session Summary, Test Results, Files Changed, Status updated; `## Side Research` section preserved byte-identical, md5 `b385fe622db9926f48861105239f113e`)
+
+`v0.9.0` tag verification (carried from prior session):
 - `gofmt -l . | grep -v vendor` → empty
 - `go vet ./...` → clean
 - `go build ./cmd/tpatch` → succeeds
