@@ -5,66 +5,70 @@
 - **Task ID**: `v0.10.0-beta-patch-identity-metadata`.
 - **Milestone**: v0.10.0 Wave beta. Slice 3 of 4 in the capture-and-metadata foundation cluster. Gated on **ADR-024-patch-generation-manifest-boundary** (externally APPROVED 2026-05-16 at `dfffe70`).
 - **Description**: Implement `PRD-feature-patch-identity-metadata` v1 — the append-only `.tpatch/features/<slug>/artifacts/patch-generations.json` manifest, per ADR-024 D1–D9. New code in `internal/store/` (manifest types, schema-v1 strict parse, atomic IO, `generation_id` derivation) and `internal/cli/cobra.go` (append from `record`, `reconcile`; malformed-manifest policy per D7). Reuse `internal/gitutil/patch_id.go` `PatchID` for the `git_patch_id` field (D6). Snapshot dependencies from `store.Dependency` at child record time (D5). No CHANGELOG ship yet — that comes at v0.10.0 cluster closeout.
-- **Status**: Implementation dispatched.
+- **Status**: Review.
 - **Assigned**: 2026-05-17.
 
 ## Session Summary
 
-ADR-024 (`docs/adrs/ADR-024-patch-generation-manifest-boundary.md`) authored as the Wave beta gate for `PRD-feature-patch-identity-metadata`. The ADR is documentation-only (no Go, asset, or PRD changes). All six PRD §"Implementation Gate" decisions are accepted as written:
+Wave beta implementation is complete and ready for reviewer pass.
 
-- D1 append-only `artifacts/patch-generations.json` separate from `status.json`;
-- D2 monotonic `generation` integer plus 12-hex-prefix content-addressed `generation_id` over a pinned field set;
-- D3 no wall-clock timestamps;
-- D4 no historical backfill from `patches/NNN-*.patch` in v1;
-- D5 dependency snapshots pin parent generation/patch_sha256/recipe_sha256;
-- D6 `git patch-id --stable` as the sole persisted patch-id algorithm with required `git_patch_id_algorithm` marker.
+Implemented the ADR-024 / PRD-feature-patch-identity-metadata v1 manifest at `artifacts/patch-generations.json`:
 
-Both PRD §9 open questions are resolved: D4 closes "should historical numbered patches be backfilled?" (no in v1); D7 closes "should malformed manifests refuse `record` by default?" (yes — `record` refuses, read-only commands warn, reconcile distrusts identity fields but proceeds). D8 closes the `kind` enum to two writable values in v1 (`record`, `reconcile`); the remaining four (`amend-refresh`, `amend-fixup`, `import`, `manual-metadata`) are reserved-but-unused. D9 locks strict-schema reads, `refs` block empty in v1, and clarifies the manifest tracks canonical patch byte changes only.
+- strict schema-version-1 load/validate with unknown-field refusal;
+- deterministic append-only `generation` plus `pg_<12hex>` `generation_id` hashing over the ADR-024 D2 field set with sorted pathspecs / claim IDs;
+- atomic `.tmp` + fsync + rename + parent-dir fsync writes;
+- required `git_patch_id_algorithm: "git-patch-id-stable"` and `gitutil.PatchID` population;
+- no wall-clock timestamp fields;
+- latest-only `canonical_patch` pointer (prior entries are cleared on append);
+- dependency snapshots from live `status.depends_on` plus parent manifest latest generation/hash when present;
+- empty v1 `refs` block.
 
-The ADR also pins reuse of the `claims.json`-style atomic `.tmp` + rename + fsync pattern (`internal/store/claims.go:290`), so no new I/O abstraction is required in Wave beta implementation.
+Record integration now refuses malformed current-feature manifests before artifact writes, appends after successful canonical-byte changes, skips same-latest-byte / recipe-only generations, mirrors alpha-2 provenance values for capture mode/pathspecs/claim IDs, and keeps same-feature audit-snapshot dedup behavior. Status emits a non-fatal one-line warning for malformed manifests.
 
-### Prior session context
+Reconcile integration appends `kind: "reconcile"` generations from the shadow-accept derived-artifact refresh path when refreshed canonical bytes differ, but ignores malformed manifests so reconcile itself is not blocked (ADR-024 D7 distrust policy).
 
-v0.9.0 Wave alpha shipped 2026-05-14. The cluster delivered the two-slice capture-and-metadata foundation:
+## Current State
 
-1. **alpha-1** (`PRD-feature-file-claims` v1) — `tpatch feature claim <add|list|remove|clear>` with deterministic `.tpatch/features/<slug>/claims.json` manifest, atomic writes, claim_id-derived stable sort, advisory-only mode. Rev-1 fixed F1 (path-normalization gap in `MatchClaim` for `remove`). External APPROVED at `9d7435b`.
-2. **alpha-2** (`PRD-record-capture-modes` v1) — `tpatch record` flags `--all`, `--staged`, `--unstaged`, `--claimed-only` with PRD §3.7 mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance in `record.md`. Default `record` behavior byte-identical (pinned regression). Rev-1 fixed F1 (`claim_ids` provenance subset for `--claimed-only --files`). External APPROVED at `5d154cd`.
-
-Both archived to `docs/handoff/HISTORY.md`. `v0.9.0` annotated tag pushed.
-
-## Open Threads (informational, not blocking)
-
-- **Wave alpha pre-existing edge case (alpha-1)**: if a claimed directory is removed from disk between `add` and `remove`, `MatchClaim` cannot reconstruct the trailing-slash and `remove <path>` won't match. Workarounds: remove by claim_id or with explicit trailing slash. Could be addressed when the matcher gains "unconditional trailing-slash variants" probing — not currently scoped to any milestone.
-- **Cluster continuation**: `PRD-feature-patch-identity-metadata` (slice 3, Wave beta) is gated on `ADR-024-patch-generation-manifest-boundary` (shipped 2026-05-16, pending external review). `PRD-feature-patch-amend` (slice 4, Wave gamma) is gated on a future patch-amendment-policy ADR that will draw the next available ADR slot after ADR-025 (reserved by WP-003 reconcile cluster).
-- **Keypoint experiment**: structural/RAG/search-layer PRDs (`PRD-structural-patch-fingerprints`, `PRD-structural-anchor-manifest`, `PRD-reconcile-commutation-graph`, `PRD-patch-vector-index`, search planner PRDs) deferred until the marker/keypoint experiment produces results.
-- **Provider-routing audit** (committed `18fd668` 2026-05-13): empirical findings on `localhost:4141` documented in `docs/MODEL-ROUTING.md`. `TPATCH_ENABLE_RESPONSES_PROVIDER` should remain unset by default.
-
-## Frozen Regions (in effect across slices)
-
-- Wave D reconcile files: `internal/workflow/reconcile_check_applied.go`, `internal/workflow/reconcile_auto_drop.go`, `internal/cli/reconcile_check_applied.go`, `internal/cli/reconcile_auto_drop.go`
-- Provider audit files: `internal/provider/{errors,responses,router}.go`
-- Wave alpha alpha-1 surface: `internal/store/claims.go`, `internal/cli/feature_claim.go`
-- Wave alpha alpha-2 surface: `internal/cli/record_capture_modes.go`, `internal/gitutil/capture_modes.go`
-- The `## Side Research` section in this CURRENT.md (preserve byte-identical across handoff resets; md5 `b385fe622db9926f48861105239f113e`)
-
-## Test Results
-
-ADR-024 authored slice (documentation-only):
-- `gofmt -l . | grep -v vendor` → empty
-- `go vet ./...` → clean
-- ADR-024 file present: `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` (363 lines, 14+ concrete file:line citations).
-- No code, test, asset, or PRD changes.
+All ADR-024 D1–D9 decisions are represented in code. Existing repositories with no manifest create generation 1 on the next non-empty record without scanning historical `patches/NNN-*.patch` files. Reserved writer kinds remain refused by the append helper; reserved read kinds remain accepted by schema validation.
 
 ## Files Changed
 
-- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` (new)
-- `docs/handoff/CURRENT.md` (this file — Session Summary, Test Results, Files Changed, Status updated; `## Side Research` section preserved byte-identical, md5 `b385fe622db9926f48861105239f113e`)
+- `internal/store/patch_generations.go` (new, 312 lines) — manifest types, strict load/save, validation, generation-id hashing, append semantics, SHA helpers.
+- `internal/store/patch_generations_test.go` (new, 139 lines) — store round-trip, strict schema, algorithm marker, generation-id determinism/collision tests.
+- `internal/workflow/patch_generations.go` (new, 130 lines) — shared record/reconcile generation builder and dependency snapshot logic.
+- `internal/workflow/refresh.go` (modified, 93 lines) — reconcile refresh appends `kind: reconcile` when canonical bytes change.
+- `internal/workflow/refresh_test.go` (modified, 258 lines) — reconcile refresh asserts generation append.
+- `internal/cli/cobra.go` (modified, 2497 lines) — record/status wiring and record upper-bound mapping.
+- `internal/cli/patch_generations_test.go` (new, 240 lines) — CLI coverage for first record, changed re-record, claim IDs, dependencies, same-bytes skip, recipe-only skip, malformed refusal, no-manifest compatibility, and record→reconcile→record smoke.
+- `docs/handoff/CURRENT.md` (this update; `## Side Research` preserved byte-identical).
 
-`v0.9.0` tag verification (carried from prior session):
+## Test Results
+
+Required validation completed:
+
 - `gofmt -l . | grep -v vendor` → empty
 - `go vet ./...` → clean
 - `go build ./cmd/tpatch` → succeeds
-- `go test ./... -count=1 -race` → all 10 packages green at HEAD
+- `go test ./... -count=1 -race` → all packages green:
+  - `assets` ok
+  - `cmd/tpatch` no test files
+  - `internal/buildinfo` ok
+  - `internal/cli` ok
+  - `internal/gitutil` ok
+  - `internal/provider` ok
+  - `internal/safety` ok
+  - `internal/store` ok
+  - `internal/workflow` ok
+  - `tests/integration` ok
+
+Test count after this slice: 608 `func Test...` declarations. Net new patch-generation coverage: 18 new test functions plus one augmented reconcile-refresh test.
+
+Side Research md5 verified before handoff edit: `b385fe622db9926f48861105239f113e`. Re-verify after edit before commit.
+
+## Next Steps
+
+1. Reviewer sub-agent should inspect the implementation against ADR-024 D1–D9 and PRD §8.
+2. If approved, supervisor archives this handoff and advances to Wave gamma / patch amendment policy work.
 
 ## Blockers
 
@@ -72,9 +76,10 @@ None.
 
 ## Context for Next Agent
 
-- The repository is at the freshly-tagged `v0.9.0` baseline. Pick the next slice from the supervisor's queue.
-- Process patterns: every commit needs the `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer; use `git -c commit.gpgsign=false commit`; push via `GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' push origin main`; updates to tracking docs (CURRENT.md, HISTORY.md, LOG.md, ROADMAP.md, CHANGELOG.md) at every phase transition per `AGENTS.md` "Context Preservation Rules".
-- The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below is preserved verbatim across handoff resets.
+- `record` appends after recipe autogen so `recipe_sha256` reflects an apply recipe generated or regenerated by the same record run.
+- Same-byte duplicate records still skip numbered `patches/NNN-record.patch`; if no manifest exists yet, the first post-PRD same-byte record creates generation 1 with empty `audit_patch` because there is no current generation to compare against.
+- Reconcile append currently lives in `workflow.RefreshAfterAccept`, the path that rewrites `artifacts/post-apply.patch` and writes `patches/NNN-reconcile.patch` after shadow accept / auto-apply. Pure upstream-merged verdict paths do not rewrite canonical bytes and do not append.
+- The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below must remain byte-identical; expected md5 is `b385fe622db9926f48861105239f113e`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

@@ -238,6 +238,7 @@ func statusCmd() *cobra.Command {
 			// below. A nil/empty map means no dependent reference is
 			// currently broken.
 			brokenByFeature, _ := store.CollectBrokenRefs(s)
+			warnMalformedPatchGenerations(cmd, s, features)
 
 			// --dag short-circuits the dashboard render and emits the tree
 			// (or JSON) view directly.
@@ -410,6 +411,14 @@ func statusCmd() *cobra.Command {
 	cmd.Flags().String("feature", "", "Show detail for one feature")
 	wireStatusDagFlag(cmd)
 	return cmd
+}
+
+func warnMalformedPatchGenerations(cmd *cobra.Command, s *store.Store, features []store.FeatureStatus) {
+	for _, f := range features {
+		if _, err := store.LoadPatchGenerations(s, f.Slug); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", s.PatchGenerationsPath(f.Slug), err)
+		}
+	}
 }
 
 // ─── analyze ─────────────────────────────────────────────────────────────────
@@ -1183,6 +1192,10 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// any artifact write so a cross-feature refusal leaves the
 			// store untouched (PRD §8 acceptance: "refuses before
 			// writing any artifact for the current feature").
+			if _, err := store.LoadPatchGenerations(s, slug); err != nil {
+				return fmt.Errorf("record refuses: %w", err)
+			}
+
 			collision, cerr := scanCanonicalPatchCollisions(s, slug, patch)
 			if cerr != nil {
 				return fmt.Errorf("collision scan failed: %w", cerr)
@@ -1214,6 +1227,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 				return err
 			}
+			patchName := ""
 			if sameFeatureDup {
 				// PRD §3.2: re-recording the same feature with
 				// unchanged canonical patch bytes skips the numbered
@@ -1224,7 +1238,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				fmt.Fprintln(cmd.OutOrStdout(),
 					"  record: no content change since current artifacts/post-apply.patch; skipping numbered audit snapshot")
 			} else {
-				patchName, _ := s.WritePatch(slug, "record", patch)
+				patchName, _ = s.WritePatch(slug, "record", patch)
 				if patchName != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "  Saved patch: patches/%s\n", patchName)
 					// A9 doc-patches-vs-artifacts: patches/ is append-only
@@ -1366,6 +1380,25 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				}
 			}
 
+			auditPatch := ""
+			if patchName != "" {
+				auditPatch = "patches/" + patchName
+			}
+			if _, err := workflow.AppendPatchGenerationForFeature(s, slug, workflow.PatchGenerationInput{
+				Kind:       "record",
+				Patch:      patch,
+				AuditPatch: auditPatch,
+				BaseCommit: prov.BaseCommit,
+				Upper:      recordGenerationUpper(s.Root, captureMode, toRef),
+				Capture: store.GenerationCapture{
+					Mode:      prov.CaptureMode,
+					Pathspecs: prov.Pathspecs,
+					ClaimIDs:  prov.ClaimIDs,
+				},
+			}); err != nil {
+				return fmt.Errorf("record patch generation: %w", err)
+			}
+
 			fmt.Fprintf(cmd.OutOrStdout(), "Recorded patch for %s (%d bytes, %d files)\n", slug, len(patch), filesChanged)
 			return nil
 		},
@@ -1458,6 +1491,29 @@ func countPatchFiles(patch string) int {
 		}
 	}
 	return count
+}
+
+func recordGenerationUpper(repoRoot, captureMode, toRef string) store.GenerationUpper {
+	switch captureMode {
+	case string(captureModeStagedIndex):
+		return store.GenerationUpper{Kind: "index", Ref: "index", Commit: ""}
+	case string(captureModeCommittedRange), string(captureModeAutoCommittedRange), string(captureModeExplicitCommittedRange):
+		ref := toRef
+		if ref == "" {
+			ref = "HEAD"
+		}
+		commit := ""
+		if resolved, err := gitutil.ResolveRef(repoRoot, ref); err == nil {
+			commit = resolved
+		}
+		kind := "commit"
+		if captureMode == string(captureModeExplicitCommittedRange) {
+			kind = "range"
+		}
+		return store.GenerationUpper{Kind: kind, Ref: ref, Commit: commit}
+	default:
+		return store.GenerationUpper{Kind: "working-tree", Ref: "working-tree", Commit: ""}
+	}
 }
 
 // captureProvenance is the human-readable provenance block written to

@@ -126,6 +126,14 @@ diff --git a/README.md b/README.md
 	if !found {
 		t.Errorf("expected a patches/NNN-reconcile.patch snapshot; got %v", entries)
 	}
+
+	manifest, err := store.LoadPatchGenerations(s, slug)
+	if err != nil {
+		t.Fatalf("LoadPatchGenerations: %v", err)
+	}
+	if len(manifest.Generations) != 1 || manifest.Generations[0].Kind != "reconcile" || manifest.Generations[0].AuditPatch != "patches/001-reconcile.patch" {
+		t.Fatalf("expected reconcile generation append, got %+v", manifest)
+	}
 }
 
 // TestRefreshAfterAcceptLeavesIndexClean guards the v0.5.2 fix for

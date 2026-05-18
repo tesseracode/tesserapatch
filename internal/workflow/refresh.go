@@ -56,8 +56,37 @@ func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch stri
 
 	// Audit snapshot into patches/. The label "reconcile" matches the
 	// ADR-010 design doc so future tooling can filter by it.
-	if _, err := s.WritePatch(slug, "reconcile", newPatch); err != nil {
+	patchName, err := s.WritePatch(slug, "reconcile", newPatch)
+	if err != nil {
 		return fmt.Errorf("refresh: write numbered reconcile patch: %w", err)
+	}
+
+	if newPatch != originalPatch {
+		baseCommit := ""
+		if st, serr := s.LoadFeatureStatus(slug); serr == nil {
+			baseCommit = st.Apply.BaseCommit
+		}
+		auditPatch := ""
+		if patchName != "" {
+			auditPatch = "patches/" + patchName
+		}
+		_, _ = AppendPatchGenerationForFeature(s, slug, PatchGenerationInput{
+			Kind:       "reconcile",
+			Patch:      newPatch,
+			AuditPatch: auditPatch,
+			BaseCommit: baseCommit,
+			Upper: store.GenerationUpper{
+				Kind:   "reconcile-result",
+				Ref:    upstreamCommit,
+				Commit: upstreamCommit,
+			},
+			Capture: store.GenerationCapture{
+				Mode:      "reconcile",
+				Pathspecs: gitutil.FilesInPatch(originalPatch),
+				ClaimIDs:  []string{},
+			},
+			AllowMalformedManifest: true,
+		})
 	}
 
 	return nil
