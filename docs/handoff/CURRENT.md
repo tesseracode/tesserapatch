@@ -2,11 +2,11 @@
 
 ## Active Task
 
-- **Task ID**: `ADR-024-patch-generation-manifest-boundary`.
-- **Milestone**: v0.10.0 Wave beta gate. The ADR must be externally APPROVED before the code implementer for `PRD-feature-patch-identity-metadata` (slice 3 of 4 in the capture-and-metadata foundation cluster) can dispatch.
-- **Description**: Author ADR-024 to accept (or revise with rationale) the six Implementation-Gate decisions from `PRD-feature-patch-identity-metadata` §"Implementation Gate" (lines 41-51): (1) append-only generation manifest outside `status.json`; (2) monotonic `generation` integer plus content-addressed `generation_id`; (3) no wall-clock timestamps in the artifact; (4) no historical backfill from `patches/NNN-*.patch` in v1; (5) dependency snapshots by parent generation/hash; (6) `git patch-id --stable` as the only persisted patch-id algorithm. Each decision must include alternatives considered and an explicit consequence statement. The ADR is documentation-only — NO code or test changes in this slice.
-- **Status**: Implementation drafted — awaiting external review.
-- **Assigned**: 2026-05-16.
+- **Task ID**: `v0.10.0-beta-patch-identity-metadata`.
+- **Milestone**: v0.10.0 Wave beta. Slice 3 of 4 in the capture-and-metadata foundation cluster. Gated on **ADR-024-patch-generation-manifest-boundary** (externally APPROVED 2026-05-16 at `dfffe70`).
+- **Description**: Implement `PRD-feature-patch-identity-metadata` v1 — the append-only `.tpatch/features/<slug>/artifacts/patch-generations.json` manifest, per ADR-024 D1–D9. New code in `internal/store/` (manifest types, schema-v1 strict parse, atomic IO, `generation_id` derivation) and `internal/cli/cobra.go` (append from `record`, `reconcile`; malformed-manifest policy per D7). Reuse `internal/gitutil/patch_id.go` `PatchID` for the `git_patch_id` field (D6). Snapshot dependencies from `store.Dependency` at child record time (D5). No CHANGELOG ship yet — that comes at v0.10.0 cluster closeout.
+- **Status**: Implementation dispatched.
+- **Assigned**: 2026-05-17.
 
 ## Session Summary
 
