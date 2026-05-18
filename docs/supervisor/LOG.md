@@ -1,3 +1,52 @@
+## Review — v0.10.0-beta-patch-identity-metadata — 2026-05-17
+
+**Reviewer**: sub-agent code-review
+**Task**: Implement PRD-feature-patch-identity-metadata v1 under ADR-024 (Wave beta) — commit `916ee39`.
+
+### Checklist
+- [x] D1 manifest path + boundary against status.json (`.tpatch/features/<slug>/artifacts/patch-generations.json`, no status.json coupling)
+- [x] D2 generation_id derivation (pg_ + first 12 hex SHA-256 over 11 fields, pathspecs+claim_ids pre-sorted) + monotonic generation (1..N contiguous, collision-refused)
+- [x] D3 no wall-clock timestamps (grep of new code: zero hits)
+- [x] D4 no backfill from `patches/NNN-*.patch`; first post-PRD record on empty manifest → generation 1
+- [x] D5 dependency snapshot incl. parent-without-manifest case (`parent_generation: 0`, empty SHAs, no refuse)
+- [x] D6 `git_patch_id` via `gitutil.PatchID`; algorithm marker literal `"git-patch-id-stable"`; read refuses other values
+- [x] D7 malformed-manifest policy: `record` refuses before artifact writes (cobra.go:1195-1197); `status` warns non-fatal (cobra.go:416-421); reconcile sets `AllowMalformedManifest: true` so it distrusts identity but proceeds (refresh.go:88)
+- [x] D8 `kind` enum: write subset = {record, reconcile} only; read accepts all six (forward-compat)
+- [x] D9 strict schema: `version: 1` checked, `DisallowUnknownFields` on top-level + per-generation, `refs` block all four keys present and empty
+- [x] Same-bytes skip; recipe-only skip; reconcile no-byte-change (upstream_merged-only) skip
+- [x] Reconcile byte-change append covers all paths — `RefreshAfterAccept` hook fires from `workflow/accept.go:110`, which is the single canonical-bytes-changing path (manual `reconcile --accept` + auto-accept leg of `reconcile --resolve --apply`); classical `ReconcileReapplied` is preview-only and does not write post-apply.patch
+- [x] Field population correct: `patch_sha256` over bytes, `recipe_sha256` empty when recipe absent, `canonical_patch`/`audit_patch` per PRD §4.1, `capture.{mode,pathspecs,claim_ids}` mirrors alpha-2 provenance, `touched_paths` sorted, `upper.commit=""` for working-tree-all
+- [x] PRD §8 acceptance criteria covered (25 new tests: 18 CLI + 7 store)
+- [x] gofmt clean, `go vet ./...` clean, `go build ./cmd/tpatch` succeeds, `go test ./... -count=1 -race` green across all 10 packages (~183s)
+- [x] CURRENT.md Side Research md5 unchanged (`b385fe622db9926f48861105239f113e`)
+- [x] CHANGELOG.md not modified (Wave beta is mid-cluster, not a release)
+- [x] No new external Go deps in `go.mod`; atomic write style mirrors `SaveClaims` (`.tmp` + fsync + rename + parent-dir sync)
+- [x] Co-author trailer present on commit
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Validation performed
+
+- Read full diff at `916ee39` (8 files, +964/-45).
+- Read `internal/store/patch_generations.go` end-to-end against ADR-024 D1–D9.
+- Read `internal/workflow/patch_generations.go` against the append-semantics + dependency-snapshot decisions.
+- Confirmed `RefreshAfterAccept` is the single canonical-bytes-changing reconcile call site by tracing `workflow/accept.go:110` callers (manual accept + auto-accept resolve-apply leg).
+- Grepped new code for `time.Now|Now()|created_at|timestamp|recorded_at` — zero hits (D3 holds).
+- Ran the full race-enabled suite: 10 packages green, ~183s.
+- Spot-checked atomic write style at `patch_generations.go:189-222` against `claims.go:290`.
+- Confirmed CURRENT.md Side Research md5 unchanged via inline md5 check.
+- Confirmed `git diff 916ee39^..916ee39 -- go.mod CHANGELOG.md` empty.
+
+### Action recommended
+
+Push and surface for external review. Implementation is production-ready.
+
+---
+
 ## Renumber — ADR-024 collision resolution — 2026-05-16
 
 **Reviewer**: supervisor (mechanical doc-only correction)
