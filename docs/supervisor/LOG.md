@@ -369,8 +369,8 @@ Each PRD declares cluster position (1/4 … 4/4), depends-on relationships, and 
 |---|---|---|---|---|
 | `PRD-feature-file-claims.md` | T55 | Accepted | CO47 (F-A1 through F-A4 → addressed in revision) | `ADR-021` (only if v2 persists `--reason` / context) |
 | `PRD-record-capture-modes.md` | T55 | Accepted | CO47 (F-B1 through F-B4 → addressed in revision) | None (no separate ADR; behavior locked in PRD §3) |
-| `PRD-feature-patch-identity-metadata.md` | T55 | Accepted | CO47 (F-C1 through F-C4 → addressed in revision) | `ADR-022-patch-generation-manifest-boundary` |
-| `PRD-feature-patch-amend.md` | T55 | Accepted | CO47 (F-D1 through F-D4 → addressed in revision) | `ADR-023-patch-amendment-policy` |
+| `PRD-feature-patch-identity-metadata.md` | T55 | Accepted | CO47 (F-C1 through F-C4 → addressed in revision) | `ADR-024-patch-generation-manifest-boundary` (renumbered from ADR-022 on 2026-05-16; see top-of-LOG renumber entry) |
+| `PRD-feature-patch-amend.md` | T55 | Accepted | CO47 (F-D1 through F-D4 → addressed in revision) | future patch-amendment-policy ADR (slot drawn after ADR-025; renumbered from ADR-023 on 2026-05-16) |
 
 ### Findings worth noting
 
@@ -387,10 +387,10 @@ Per the `PRD-feature-dependencies` precedent (architecture decisions locked in A
 | ADR | Locks in | Required before |
 |---|---|---|
 | `ADR-021-capture-context-privacy-boundary` | Whether `--reason` and free-text context can be persisted to tracked metadata | v2 claims work that introduces `--reason`; **not required for v1** (PRD §3 defers to `metadata-only` advisory writes) |
-| `ADR-022-patch-generation-manifest-boundary` | `patch-generations.json` schema, append-only semantics, content-addressed vs monotonic identity, `git patch-id --stable` algorithm choice, no-timestamps determinism, no-backfill default | `PRD-feature-patch-identity-metadata` implementation |
-| `ADR-023-patch-amendment-policy` | `refresh` vs `fixup` policy defaults, dependent-staleness behavior, verify-freshness invalidation rules, command-namespace surface | `PRD-feature-patch-amend` implementation |
+| `ADR-024-patch-generation-manifest-boundary` | `patch-generations.json` schema, append-only semantics, content-addressed vs monotonic identity, `git patch-id --stable` algorithm choice, no-timestamps determinism, no-backfill default | `PRD-feature-patch-identity-metadata` implementation (renumbered from ADR-022 on 2026-05-16) |
+| future patch-amendment-policy ADR | `refresh` vs `fixup` policy defaults, dependent-staleness behavior, verify-freshness invalidation rules, command-namespace surface | `PRD-feature-patch-amend` implementation (slot to be drawn after ADR-025; previously held ADR-023) |
 
-Each PRD's implementer drafts the corresponding ADR before code lands. ADR-021 may remain unwritten until v2 file-claims work; ADR-022 and ADR-023 must precede their respective implementation slices.
+Each PRD's implementer drafts the corresponding ADR before code lands. ADR-021 may remain unwritten until v2 file-claims work; ADR-024 (formerly ADR-022) shipped 2026-05-16 and the patch-amendment-policy ADR (formerly ADR-023; renumbered post-WP-003 cluster) must precede its respective implementation slice.
 
 **MEDIUM — Dependency-chain implementation sequencing.**
 
@@ -406,8 +406,8 @@ PRD-feature-file-claims ──┐
 Suggested waves (assign milestone numbering at routing time):
 
 - **Wave α** (parallel): `PRD-feature-file-claims` (v1 advisory-only; ship without ADR-021) + `PRD-record-capture-modes` (no ADR required).
-- **Wave β** (depends on Wave α + ADR-022): `PRD-feature-patch-identity-metadata`.
-- **Wave γ** (depends on Wave β + ADR-023): `PRD-feature-patch-amend`.
+- **Wave β** (depends on Wave α + ADR-024-patch-generation-manifest-boundary): `PRD-feature-patch-identity-metadata`.
+- **Wave γ** (depends on Wave β + future patch-amendment-policy ADR drawn after ADR-025): `PRD-feature-patch-amend`.
 
 Fork/fold deferred to a future PRD, not part of this cluster.
 
