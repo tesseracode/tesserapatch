@@ -1,6 +1,43 @@
 # Current Handoff
 
-## Active Task
+## Active Task — Wave beta rev-1
+
+External review of `916ee39` returned NEEDS REVISION with two MEDIUM findings:
+
+**F1 — Reconcile refresh silently drops `AppendPatchGenerationForFeature` errors.** In `internal/workflow/refresh.go:73`, the call site uses `_, _ = AppendPatchGenerationForFeature(...)`. The `AllowMalformedManifest: true` flag inside the append helper correctly narrows the malformed-manifest-load case to a no-op (ADR-024 D7), but ALL other errors — recipe SHA read failure, `git patch-id` failure, `SavePatchGenerations` write failure — are discarded too. Repro: making `apply-recipe.json` unreadable causes `RefreshAfterAccept` to return success and write `post-apply.patch`, but NO `patch-generations.json` entry is produced. Reconcile-generated canonical bytes end up without the ADR-024 history entry that downstream tooling depends on.
+
+**F2 — Strict v1 reader does not enforce presence of the `refs` block.** `internal/store/patch_generations.go:92` uses `DisallowUnknownFields`, and `validatePatchGeneration` at line 164 only checks that decoded `refs` values are empty. A generation that omits the `refs` key entirely decodes to zero-value `GenerationRefs{}`, passes the "must be empty" check, and is accepted. Repro: `LoadPatchGenerations` successfully loaded a manifest missing `refs` on every generation. This violates ADR-024 D9 which requires every generation in v1 to carry the four-key `refs` block (with all four values being empty strings).
+
+### Scope
+
+Doc + code revision targeting only these two surfaces. Do NOT:
+- Re-open ADR-024 decisions (D1–D9 are binding).
+- Modify the manifest schema, `generation_id` derivation, or any append-skip semantics.
+- Touch CHANGELOG (Wave beta is mid-cluster).
+- Edit Side Research in CURRENT.md (md5 `b385fe622db9926f48861105239f113e`).
+
+### Fix sketch (implementer chooses final shape)
+
+**For F1** — propagate the error from `AppendPatchGenerationForFeature` out of `RefreshAfterAccept`, OR emit a clear `fmt.Fprintln(os.Stderr, "warning: ...")` line that names the error (mirroring the malformed-manifest warning pattern already used in `cobra.go` for `status`). Since `post-apply.patch` has already been written and reconcile-accept must not be broken by a metadata-only failure, a non-fatal stderr warning is acceptable; a silent drop is not. The malformed-manifest-load case (which `AllowMalformedManifest: true` legitimately swallows inside the helper) must remain a silent no-op per D7 — only OTHER errors need to surface.
+
+**For F2** — make `LoadPatchGenerations` reject any generation whose `refs` key is absent. Approaches the implementer may choose from:
+- Re-decode the `generations` field as `[]map[string]json.RawMessage` to assert key presence per generation before structural decode.
+- Switch `Refs` to `*GenerationRefs` and require non-nil during validation.
+- Add a custom `UnmarshalJSON` on `PatchGeneration` that records whether `refs` was present.
+Whichever path is taken, the error message must name the missing field and the generation index, and a new test must assert this rejection.
+
+### Required tests
+
+1. New `internal/store/patch_generations_test.go` case: manifest with a generation missing the `refs` key on read → returns an error whose message names `refs` and the generation index.
+2. New `internal/workflow/refresh_test.go` case: forced `AppendPatchGenerationForFeature` failure (e.g., unreadable `apply-recipe.json` or a corrupted manifest with `AllowMalformedManifest: false`) → either the error propagates out of `RefreshAfterAccept` OR a clearly-formatted stderr warning is produced; in either case, the test asserts the failure was surfaced, not silently dropped.
+
+### Quality gates
+
+`gofmt`, `go vet ./...`, `go build ./cmd/tpatch`, `go test ./... -count=1 -race` — all must be green. Side Research md5 unchanged.
+
+### History of prior section (superseded)
+
+
 
 - **Task ID**: `v0.10.0-beta-patch-identity-metadata`.
 - **Milestone**: v0.10.0 Wave beta. Slice 3 of 4 in the capture-and-metadata foundation cluster. Gated on **ADR-024-patch-generation-manifest-boundary** (externally APPROVED 2026-05-16 at `dfffe70`).
