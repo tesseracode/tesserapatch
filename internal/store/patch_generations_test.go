@@ -117,6 +117,22 @@ func TestPatchGenerations_PinsAlgorithmMarker(t *testing.T) {
 	}
 }
 
+func TestLoadPatchGenerations_RejectsMissingRefs(t *testing.T) {
+	s := &Store{Root: t.TempDir()}
+	path := s.PatchGenerationsPath("demo")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"version":1,"feature":"demo","current_generation":1,"generations":[{"generation":1,"generation_id":"pg_abc123def456","kind":"record","patch_sha256":"p","git_patch_id":"g","git_patch_id_algorithm":"git-patch-id-stable","recipe_sha256":"r","canonical_patch":"artifacts/post-apply.patch","audit_patch":"patches/001-record.patch","base_commit":"b","upper":{"kind":"working-tree","ref":"working-tree","commit":""},"capture":{"mode":"working-tree-all","pathspecs":[],"claim_ids":[]},"touched_paths":[],"dependencies":[]}]}`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadPatchGenerations(s, "demo")
+	if err == nil || !strings.Contains(err.Error(), "refs") || !strings.Contains(err.Error(), "generations[0]") {
+		t.Fatalf("expected missing refs error with generation index, got %v", err)
+	}
+}
+
 func sampleGeneration(feature string, n int) PatchGeneration {
 	g := PatchGeneration{
 		Generation:          n,
@@ -132,7 +148,7 @@ func sampleGeneration(feature string, n int) PatchGeneration {
 		Capture:             GenerationCapture{Mode: "working-tree-all", Pathspecs: []string{}, ClaimIDs: []string{}},
 		TouchedPaths:        []string{"README.md"},
 		Dependencies:        []GenerationDependency{},
-		Refs:                GenerationRefs{},
+		Refs:                &GenerationRefs{},
 	}
 	g.GenerationID = ComputeGenerationID(feature, n, g.PatchSHA256, g.RecipeSHA256, g.BaseCommit, g.Upper, g.Capture)
 	return g

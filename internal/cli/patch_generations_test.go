@@ -214,7 +214,7 @@ func TestPatchGenerations_RecordReconcileRecordSmoke(t *testing.T) {
 	if m.Version != 1 || m.Feature != slug || m.CurrentGeneration != 2 || len(m.Generations) != 2 {
 		t.Fatalf("unexpected final manifest shape: %+v", m)
 	}
-	if m.Generations[0].Generation != 1 || m.Generations[1].Generation != 2 || m.Generations[1].Refs != (store.GenerationRefs{}) {
+	if m.Generations[0].Generation != 1 || m.Generations[1].Generation != 2 || m.Generations[1].Refs == nil || *m.Generations[1].Refs != (store.GenerationRefs{}) {
 		t.Fatalf("unexpected generation sequence/refs: %+v", m.Generations)
 	}
 }

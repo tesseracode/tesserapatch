@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -133,6 +134,77 @@ diff --git a/README.md b/README.md
 	}
 	if len(manifest.Generations) != 1 || manifest.Generations[0].Kind != "reconcile" || manifest.Generations[0].AuditPatch != "patches/001-reconcile.patch" {
 		t.Fatalf("expected reconcile generation append, got %+v", manifest)
+	}
+}
+
+func TestRefreshAfterAccept_WarnsOnAppendFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nupdated line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ # Test
++old line
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+	recipePath := filepath.Join(tmpDir, ".tpatch", "features", slug, "artifacts", "apply-recipe.json")
+	if err := os.WriteFile(recipePath, []byte(`{"operations":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(recipePath, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(recipePath, 0o644)
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	err = RefreshAfterAccept(s, slug, upstream, originalPatch)
+	_ = w.Close()
+	os.Stderr = oldStderr
+	stderrBytes, readErr := io.ReadAll(r)
+	_ = r.Close()
+	if readErr != nil {
+		t.Fatalf("read stderr: %v", readErr)
+	}
+	if err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+
+	newPatch, err := s.ReadFeatureFile(slug, "artifacts/post-apply.patch")
+	if err != nil {
+		t.Fatalf("read new patch: %v", err)
+	}
+	if newPatch == originalPatch || !strings.Contains(newPatch, "updated line") {
+		t.Fatalf("post-apply.patch was not refreshed:\n%s", newPatch)
+	}
+	if _, err := os.Stat(s.PatchGenerationsPath(slug)); !os.IsNotExist(err) {
+		t.Fatalf("patch-generations.json should not exist after append failure, err=%v", err)
+	}
+	stderr := string(stderrBytes)
+	if !strings.Contains(stderr, "warning") || !strings.Contains(stderr, "patch-generations.json") {
+		t.Fatalf("expected patch-generations warning on stderr, got %q", stderr)
 	}
 }
 

@@ -68,7 +68,7 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 		},
 		TouchedPaths: touched,
 		Dependencies: deps,
-		Refs:         store.GenerationRefs{},
+		Refs:         &store.GenerationRefs{},
 	}
 	changed, err := store.AppendPatchGeneration(&manifest, g)
 	if err != nil || !changed {

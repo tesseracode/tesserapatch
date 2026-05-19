@@ -27,6 +27,7 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
@@ -70,7 +71,7 @@ func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch stri
 		if patchName != "" {
 			auditPatch = "patches/" + patchName
 		}
-		_, _ = AppendPatchGenerationForFeature(s, slug, PatchGenerationInput{
+		if _, err := AppendPatchGenerationForFeature(s, slug, PatchGenerationInput{
 			Kind:       "reconcile",
 			Patch:      newPatch,
 			AuditPatch: auditPatch,
@@ -86,7 +87,9 @@ func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch stri
 				ClaimIDs:  []string{},
 			},
 			AllowMalformedManifest: true,
-		})
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: patch-generations.json append after reconcile failed: %v\n", err)
+		}
 	}
 
 	return nil

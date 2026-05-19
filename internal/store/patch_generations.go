@@ -43,7 +43,7 @@ type PatchGeneration struct {
 	Capture             GenerationCapture      `json:"capture"`
 	TouchedPaths        []string               `json:"touched_paths"`
 	Dependencies        []GenerationDependency `json:"dependencies"`
-	Refs                GenerationRefs         `json:"refs"`
+	Refs                *GenerationRefs        `json:"refs"`
 }
 
 type GenerationUpper struct {
@@ -161,6 +161,9 @@ func validatePatchGeneration(g PatchGeneration) error {
 	default:
 		return fmt.Errorf("upper.kind %q is not recognized", g.Upper.Kind)
 	}
+	if g.Refs == nil {
+		return fmt.Errorf("refs block is required in schema version 1 (all four keys present with empty strings)")
+	}
 	if g.Refs.Anchors != "" || g.Refs.Fingerprints != "" || g.Refs.Relations != "" || g.Refs.VectorManifest != "" {
 		return fmt.Errorf("refs must be empty strings in schema version 1")
 	}
@@ -179,6 +182,11 @@ func SavePatchGenerations(s *Store, m PatchGenerationsManifest) error {
 	}
 	if m.Generations == nil {
 		m.Generations = []PatchGeneration{}
+	}
+	for i := range m.Generations {
+		if m.Generations[i].Refs == nil {
+			m.Generations[i].Refs = &GenerationRefs{}
+		}
 	}
 	if err := ValidatePatchGenerations(m.Feature, m); err != nil {
 		return err
@@ -270,6 +278,9 @@ func AppendPatchGeneration(m *PatchGenerationsManifest, g PatchGeneration) (bool
 	}
 	if g.GitPatchIDAlgorithm == "" {
 		g.GitPatchIDAlgorithm = PatchIDAlgorithmStable
+	}
+	if g.Refs == nil {
+		g.Refs = &GenerationRefs{}
 	}
 	for _, existing := range m.Generations {
 		if existing.GenerationID == g.GenerationID {
