@@ -28,7 +28,7 @@ type PatchGenerationInput struct {
 func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenerationInput) (bool, error) {
 	manifest, err := store.LoadPatchGenerations(s, slug)
 	if err != nil {
-		if in.AllowMalformedManifest {
+		if in.AllowMalformedManifest && errors.Is(err, store.ErrMalformedManifest) {
 			return false, nil
 		}
 		return false, err

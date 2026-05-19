@@ -46,6 +46,16 @@ Also add a small store-level test that `errors.Is(err, store.ErrMalformedManifes
 - The append-skip semantics, generation_id derivation, kind enum, version check, dependency snapshot, refs presence enforcement, or any unrelated logic.
 - The `status` command's malformed-manifest warning path unless it explicitly fails.
 
+### Session Summary — rev-2
+
+- Rev-2 F3 fix implemented: `AllowMalformedManifest` now swallows only `store.ErrMalformedManifest` errors; I/O/environment failures escape to the rev-1 warning path.
+- Commit SHA: pending until commit creation; final SHA is reported by the implementation agent.
+- Files changed: `internal/store/patch_generations.go`, `internal/store/patch_generations_test.go`, `internal/workflow/patch_generations.go`, `internal/workflow/refresh_test.go`, `docs/handoff/CURRENT.md`.
+- Test count delta: 610 → 612 `func Test...` declarations; JSON run-count delta 742 → 747 (+5 including 3 subtests).
+- Gates green: `gofmt -l . | grep -v vendor` empty; `go vet ./...` exit 0; `go build ./cmd/tpatch` exit 0; `go test ./... -count=1 -race` green.
+- Side Research md5 remained `b385fe622db9926f48861105239f113e`.
+- Remaining issues/blockers: none.
+
 ### History of prior section (superseded)
 
 

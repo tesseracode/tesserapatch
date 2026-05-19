@@ -208,12 +208,100 @@ func TestRefreshAfterAccept_WarnsOnAppendFailure(t *testing.T) {
 	}
 }
 
+func TestRefreshAfterAccept_WarnsOnUnreadableManifest(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nupdated line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ # Test
++old line
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+	patchSHA := store.SHA256HexString(originalPatch)
+	gen := store.PatchGeneration{
+		Generation:          1,
+		Kind:                "record",
+		PatchSHA256:         patchSHA,
+		GitPatchID:          strings.Repeat("b", 40),
+		GitPatchIDAlgorithm: store.PatchIDAlgorithmStable,
+		RecipeSHA256:        "",
+		CanonicalPatch:      "artifacts/post-apply.patch",
+		AuditPatch:          "patches/001-record.patch",
+		BaseCommit:          upstream,
+		Upper:               store.GenerationUpper{Kind: "working-tree", Ref: "working-tree", Commit: ""},
+		Capture:             store.GenerationCapture{Mode: "working-tree-all", Pathspecs: []string{"README.md"}, ClaimIDs: []string{}},
+		TouchedPaths:        []string{"README.md"},
+		Dependencies:        []store.GenerationDependency{},
+		Refs:                &store.GenerationRefs{},
+	}
+	gen.GenerationID = store.ComputeGenerationID(slug, gen.Generation, gen.PatchSHA256, gen.RecipeSHA256, gen.BaseCommit, gen.Upper, gen.Capture)
+	manifest := store.PatchGenerationsManifest{Version: store.PatchGenerationsManifestVersion, Feature: slug, CurrentGeneration: 1, Generations: []store.PatchGeneration{gen}}
+	if err := store.SavePatchGenerations(s, manifest); err != nil {
+		t.Fatalf("SavePatchGenerations: %v", err)
+	}
+	manifestPath := s.PatchGenerationsPath(slug)
+	if err := os.Chmod(manifestPath, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(manifestPath, 0o644)
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	err = RefreshAfterAccept(s, slug, upstream, originalPatch)
+	_ = w.Close()
+	os.Stderr = oldStderr
+	stderrBytes, readErr := io.ReadAll(r)
+	_ = r.Close()
+	if readErr != nil {
+		t.Fatalf("read stderr: %v", readErr)
+	}
+	if err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+
+	newPatch, err := s.ReadFeatureFile(slug, "artifacts/post-apply.patch")
+	if err != nil {
+		t.Fatalf("read new patch: %v", err)
+	}
+	if newPatch == originalPatch || !strings.Contains(newPatch, "updated line") {
+		t.Fatalf("post-apply.patch was not refreshed:\n%s", newPatch)
+	}
+	stderr := string(stderrBytes)
+	if !strings.Contains(stderr, "warning") || !strings.Contains(stderr, "patch-generations.json") {
+		t.Fatalf("expected patch-generations warning on stderr, got %q", stderr)
+	}
+}
+
 // TestRefreshAfterAcceptLeavesIndexClean guards the v0.5.2 fix for
 // finding #2: DiffFromCommitForPaths (used by RefreshAfterAccept) used
 // to run `git add -N` against the REAL .git/index, leaving intent-to-add
 // entries in the user's working state after reconcile --accept. The
 // fix routes intent-to-add through GIT_INDEX_FILE to a throwaway index.
 // `git status --porcelain` must be byte-identical before and after.
+
 func TestRefreshAfterAcceptLeavesIndexClean(t *testing.T) {
 	tmpDir := t.TempDir()
 	setupGitRepo(t, tmpDir)

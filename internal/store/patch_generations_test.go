@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -131,6 +132,59 @@ func TestLoadPatchGenerations_RejectsMissingRefs(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "refs") || !strings.Contains(err.Error(), "generations[0]") {
 		t.Fatalf("expected missing refs error with generation index, got %v", err)
 	}
+}
+
+func TestErrMalformedManifest_Classification(t *testing.T) {
+	t.Run("json syntax", func(t *testing.T) {
+		s := &Store{Root: t.TempDir()}
+		path := s.PatchGenerationsPath("demo")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(`{"version":1,"feature":"demo","current_generation":0,"generations":[,]}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadPatchGenerations(s, "demo")
+		if !errors.Is(err, ErrMalformedManifest) {
+			t.Fatalf("expected ErrMalformedManifest for JSON syntax error, got %v", err)
+		}
+	})
+
+	t.Run("schema validation", func(t *testing.T) {
+		s := &Store{Root: t.TempDir()}
+		path := s.PatchGenerationsPath("demo")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(`{"version":2,"feature":"demo","current_generation":0,"generations":[]}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadPatchGenerations(s, "demo")
+		if !errors.Is(err, ErrMalformedManifest) {
+			t.Fatalf("expected ErrMalformedManifest for validation error, got %v", err)
+		}
+	})
+
+	t.Run("io error", func(t *testing.T) {
+		s := &Store{Root: t.TempDir()}
+		m := PatchGenerationsManifest{Version: PatchGenerationsManifestVersion, Feature: "demo", Generations: []PatchGeneration{sampleGeneration("demo", 1)}}
+		m.CurrentGeneration = 1
+		if err := SavePatchGenerations(s, m); err != nil {
+			t.Fatalf("SavePatchGenerations: %v", err)
+		}
+		path := s.PatchGenerationsPath("demo")
+		if err := os.Chmod(path, 0); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(path, 0o644)
+		_, err := LoadPatchGenerations(s, "demo")
+		if err == nil {
+			t.Fatal("expected unreadable manifest error, got nil")
+		}
+		if errors.Is(err, ErrMalformedManifest) {
+			t.Fatalf("I/O error must not classify as ErrMalformedManifest: %v", err)
+		}
+	})
 }
 
 func sampleGeneration(feature string, n int) PatchGeneration {

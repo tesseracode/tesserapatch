@@ -21,6 +21,12 @@ const (
 
 const patchGenerationsFileName = "patch-generations.json"
 
+// ErrMalformedManifest signals that patch-generations.json failed schema or
+// structural validation. Callers (e.g., reconcile refresh under ADR-024 D7)
+// may opt to swallow this error class while still surfacing I/O or other
+// environmental failures.
+var ErrMalformedManifest = errors.New("patch-generations.json: malformed manifest")
+
 type PatchGenerationsManifest struct {
 	Version           int               `json:"version"`
 	Feature           string            `json:"feature"`
@@ -92,10 +98,10 @@ func LoadPatchGenerations(s *Store, slug string) (PatchGenerationsManifest, erro
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&m); err != nil {
-		return PatchGenerationsManifest{}, fmt.Errorf("patch-generations.json: %w", err)
+		return PatchGenerationsManifest{}, fmt.Errorf("%w: %v", ErrMalformedManifest, err)
 	}
 	if err := ValidatePatchGenerations(slug, m); err != nil {
-		return PatchGenerationsManifest{}, err
+		return PatchGenerationsManifest{}, fmt.Errorf("%w: %w", ErrMalformedManifest, err)
 	}
 	return m, nil
 }
