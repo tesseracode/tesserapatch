@@ -1,3 +1,46 @@
+## Review — v0.10.0-beta-patch-identity-metadata (rev-1 F1+F2 fixes) — 2026-05-17
+
+**Reviewer**: sub-agent code-review
+**Task**: Address external review findings on `916ee39` — commit `e7be5e8`.
+
+### Checklist
+- [x] F1 stderr warning fires on non-malformed-manifest errors; malformed load still silent (refresh.go:74-90; helper at workflow/patch_generations.go:31-32 still returns `(false, nil)` for `AllowMalformedManifest`)
+- [x] F1 `RefreshAfterAccept` return signature unchanged
+- [x] F1 new test `TestRefreshAfterAccept_WarnsOnAppendFailure` (refresh_test.go:140-209) asserts nil return + refreshed post-apply.patch + missing patch-generations.json + stderr contains "warning" + "patch-generations.json"
+- [x] F2 `PatchGeneration.Refs` switched to `*GenerationRefs` (patch_generations.go:46); JSON decode distinguishes missing-key (nil) from present-empty (non-nil zero values)
+- [x] F2 `validatePatchGeneration` nil-Refs rejection at lines 164-166 with error message naming `refs` and the generation index via wrapper at line 131
+- [x] F2 four-empty-strings check preserved at lines 167-169 (D9 invariant)
+- [x] F2 all construction sites updated (workflow/patch_generations.go:71, store + cli tests)
+- [x] F2 save-side defaults nil Refs to `&GenerationRefs{}` at patch_generations.go:186-189
+- [x] F2 new test `TestLoadPatchGenerations_RejectsMissingRefs` (patch_generations_test.go:120-134) asserts both `"refs"` and `"generations[0]"` in error
+- [x] Scope discipline: 6 files only, all within `internal/{store,workflow,cli}`; no ADR/PRD/CHANGELOG edits
+- [x] CURRENT.md Side Research md5 still `b385fe622db9926f48861105239f113e`
+- [x] Append-skip semantics, generation_id derivation, kind enum, version check, dependency snapshot untouched
+- [x] gofmt clean; `go vet ./...` clean; `go build ./cmd/tpatch` succeeds; `go test ./... -count=1 -race` green across all 10 packages (~115.6s)
+- [x] Commit subject contains "rev-1"; co-author trailer present
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Validation performed
+
+- Inspected `git show --stat e7be5e8` (6 files, +108/-6).
+- Read both new tests end-to-end and traced failure-mode plumbing: `chmod recipe 0` → `os.ReadFile` permission error → not `os.ErrNotExist` → not malformed manifest → non-nil error from `recipeSHA256` → propagates to `AppendPatchGenerationForFeature` → caught at refresh.go:74 → stderr warning emitted.
+- Spot-verified that `AllowMalformedManifest: true` continues to swallow only manifest-load errors (D7) — other helper error paths (recipe SHA, git patch-id, save) now surface.
+- Verified pointer approach actually distinguishes absence: missing `refs` key → `Refs == nil`; present `"refs": {...}` → `Refs != nil` even with empty strings. Validation order preserves the D9 four-empty-strings check.
+- Confirmed all `Refs:` literal construction sites updated; no `Refs: store.GenerationRefs{}` or `Refs: GenerationRefs{}` left in the tree.
+- Ran the full race-enabled suite: 10 packages green.
+- Confirmed Side Research md5 invariant via `awk 'NR>=121' docs/handoff/CURRENT.md | md5sum`.
+
+### Action recommended
+
+Push and surface for external re-review.
+
+---
+
 ## Review — v0.10.0-beta-patch-identity-metadata — 2026-05-17
 
 **Reviewer**: sub-agent code-review
