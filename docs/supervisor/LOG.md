@@ -1,3 +1,51 @@
+## Review — v0.10.0-beta-patch-identity-metadata (rev-2 F3 narrow swallow) — 2026-05-19
+
+**Reviewer**: sub-agent code-review
+**Task**: Address external review F3 on rev-1 — commit `7e5dea6`.
+
+### Checklist
+- [x] `store.ErrMalformedManifest` defined as package-level `var` (errors.Is compatible)
+- [x] `LoadPatchGenerations`: `os.ReadFile` non-`ErrNotExist` errors returned unwrapped (I/O stays I/O)
+- [x] `LoadPatchGenerations`: JSON-decode wrapped with `%w` so `errors.Is(err, ErrMalformedManifest)` is true
+- [x] `LoadPatchGenerations`: validation failure wrapped with double-`%w` so `errors.Is(err, ErrMalformedManifest)` is true
+- [x] Workflow swallow narrowed: `if in.AllowMalformedManifest && errors.Is(err, store.ErrMalformedManifest) { return false, nil }`
+- [x] `errors` imported in workflow package
+- [x] rev-1 stderr warning in `refresh.go` unchanged; I/O errors now escape `AppendPatchGenerationForFeature` and trigger it
+- [x] No other caller of `AllowMalformedManifest: true` (grep confirms refresh.go is sole site)
+- [x] `status` command malformed-manifest path unaffected (no `ErrMalformedManifest`/`AllowMalformedManifest` use in cobra.go)
+- [x] `TestErrMalformedManifest_Classification` covers all three classes (syntax error, schema validation, I/O permission)
+- [x] `TestRefreshAfterAccept_WarnsOnUnreadableManifest` asserts nil return + refreshed post-apply.patch + stderr warning on chmod-0 manifest
+- [x] Cleanup `defer os.Chmod(path, 0o644)` present in both tests
+- [x] Scope: only `internal/store/`, `internal/workflow/`, `docs/handoff/CURRENT.md` touched
+- [x] Side Research md5 invariant `b385fe622db9926f48861105239f113e` held
+- [x] rev-1 tests `TestRefreshAfterAccept_WarnsOnAppendFailure` + `TestLoadPatchGenerations_RejectsMissingRefs` still present and unchanged
+- [x] Append-skip semantics, `generation_id` derivation, refs presence check, kind enum, dependency snapshot untouched
+- [x] gofmt clean; `go vet ./...` clean; `go build ./cmd/tpatch` succeeds; `go test ./... -count=1 -race` green across all 10 packages
+- [x] Commit subject contains "rev-2"; co-author trailer present
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Validation performed
+
+- Inspected `git show --stat 7e5dea6` (5 files, +161/-3).
+- Read `LoadPatchGenerations` end-to-end and verified the three error classes wrap differently (I/O unwrapped, decode `%w`-wrapped, validation `%w`-wrapped).
+- Verified workflow swallow gate now requires BOTH `AllowMalformedManifest: true` AND `errors.Is(..., ErrMalformedManifest)` — I/O errors propagate.
+- Traced refresh.go warning path: rev-1 code unchanged; the F3 fix is upstream of the warning so warnings now fire for I/O errors too.
+- Read both new tests; classification test exercises all three sub-cases including a chmod-0 read, and the refresh test follows the rev-1 test pattern with chmod-0 of the manifest file.
+- Ran full race-enabled suite: 10 packages green; new tests pass in isolation and in suite.
+- Confirmed Side Research md5 invariant via `awk` from the shifted line (Side Research now at line 169).
+- Confirmed rev-1 tests are still present at their original line ranges.
+
+### Action recommended
+
+Push and surface for external re-review.
+
+---
+
 ## Review — v0.10.0-beta-patch-identity-metadata (rev-1 F1+F2 fixes) — 2026-05-17
 
 **Reviewer**: sub-agent code-review
