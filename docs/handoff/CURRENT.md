@@ -1,6 +1,54 @@
 # Current Handoff
 
-## Active Task — Wave beta rev-1
+## Active Task — Wave beta rev-2
+
+External re-review of rev-1 (`e7be5e8`) confirms F2 (missing-refs read rejection) fully fixed and the F1 warning path works for non-load errors. But it flagged a **third MEDIUM finding** carved out of the rev-1 fix surface: the `AllowMalformedManifest: true` branch is too broad.
+
+**F3 — `AllowMalformedManifest` swallows I/O errors, not just malformed-manifest errors.** In `internal/workflow/patch_generations.go:30-35`, ANY error returned from `store.LoadPatchGenerations` is treated as ignorable when the flag is set. `LoadPatchGenerations` at `internal/store/patch_generations.go:84-99` returns I/O errors (permission denied on the manifest file, EIO, etc.) the same way it returns JSON-decode and schema-validation errors. So a chmod-0 existing manifest during `RefreshAfterAccept` returns nil with no stderr warning — the rev-1 warning path never fires because the error gets swallowed inside the helper instead of escaping to refresh.go.
+
+ADR-024 D7 says reconcile "distrusts identity fields but proceeds" for a **malformed** manifest. A permission/I/O error is not malformed-ness; it is an environment failure that the warning path should surface (parallel to the rev-1 F1 contract).
+
+### Fix plan
+
+1. Introduce a sentinel `ErrMalformedManifest` in `internal/store/patch_generations.go`:
+   ```go
+   var ErrMalformedManifest = errors.New("patch-generations.json: malformed manifest")
+   ```
+2. In `LoadPatchGenerations`, wrap **only** the JSON-decode failure and the `ValidatePatchGenerations` failure with `ErrMalformedManifest`. Use `fmt.Errorf("...%w...", ErrMalformedManifest)` or `errors.Join(ErrMalformedManifest, decodeErr)` so callers can use `errors.Is(err, ErrMalformedManifest)`. The raw `os.ReadFile` error path stays unwrapped.
+3. In `internal/workflow/patch_generations.go:30-35`, narrow the swallow:
+   ```go
+   if in.AllowMalformedManifest && errors.Is(err, store.ErrMalformedManifest) {
+       return false, nil
+   }
+   return false, err
+   ```
+4. Existing call sites that currently expect the broad swallow continue to work for the malformed case; I/O errors now escape and trigger the rev-1 warning path in `refresh.go`. For `status` (`internal/cli/cobra.go` malformed-manifest warning), confirm it still gracefully handles malformed; if it relies on a different path, no change needed.
+
+### Required test
+
+Add to `internal/workflow/refresh_test.go`: `TestRefreshAfterAccept_WarnsOnUnreadableManifest`:
+- Set up a feature with a base commit and an initial `post-apply.patch`.
+- Use `SavePatchGenerations` to write a valid existing manifest, then `os.Chmod(manifestPath, 0)` to make it unreadable.
+- Capture stderr; call `RefreshAfterAccept` with `newPatch != originalPatch`.
+- Assert: returned error is nil, post-apply.patch refreshed, stderr contains "warning" + "patch-generations.json", and the manifest is still at its prior contents after we `os.Chmod` it back to 0644 for cleanup (i.e., the call did not somehow write through).
+- Mirror the stderr capture pattern from `TestRefreshAfterAccept_WarnsOnAppendFailure`.
+
+Also add a small store-level test that `errors.Is(err, store.ErrMalformedManifest)` returns true for a JSON-decode failure and a schema-validation failure, and false for a permission-denied read. This locks the sentinel contract.
+
+### Quality gates
+
+`gofmt`, `go vet ./...`, `go build ./cmd/tpatch`, `go test ./... -count=1 -race` — all must be green. Side Research md5 unchanged (`b385fe622db9926f48861105239f113e`).
+
+### Scope discipline (do NOT touch)
+
+- ADR-024 body, any PRD/whitepaper/CHANGELOG.
+- Anything outside `internal/store/`, `internal/workflow/`, and the new test file.
+- The append-skip semantics, generation_id derivation, kind enum, version check, dependency snapshot, refs presence enforcement, or any unrelated logic.
+- The `status` command's malformed-manifest warning path unless it explicitly fails.
+
+### History of prior section (superseded)
+
+
 
 External review of `916ee39` returned NEEDS REVISION with two MEDIUM findings:
 
@@ -34,6 +82,16 @@ Whichever path is taken, the error message must name the missing field and the g
 ### Quality gates
 
 `gofmt`, `go vet ./...`, `go build ./cmd/tpatch`, `go test ./... -count=1 -race` — all must be green. Side Research md5 unchanged.
+
+### Session Summary — rev-1
+
+- Landed commit `e7be5e8baf8455dbdeb77d84fd7edc89cc08ca45` (`fix(patch-generations): rev-1 F1 reconcile refresh warning + F2 enforce refs presence`).
+- Fixed F1 by making `RefreshAfterAccept` emit a non-fatal stderr warning when patch-generation append fails for non-malformed-manifest reasons.
+- Fixed F2 by making `PatchGeneration.refs` presence detectable on read and rejecting missing refs with `generations[N]` context; write paths defensively default nil refs to an empty v1 block.
+- Files changed in commit: `internal/store/patch_generations.go` (+12/-1), `internal/store/patch_generations_test.go` (+17/-1), `internal/workflow/patch_generations.go` (+1/-1), `internal/workflow/refresh.go` (+5/-2), `internal/workflow/refresh_test.go` (+72), `internal/cli/patch_generations_test.go` (+1/-1).
+- Test count delta: 608 → 610 (`TestLoadPatchGenerations_RejectsMissingRefs`, `TestRefreshAfterAccept_WarnsOnAppendFailure`).
+- Gates green: `gofmt -l . | grep -v vendor` empty; `go vet ./...` exit 0; `go build ./cmd/tpatch` exit 0; `go test ./... -count=1 -race` green.
+- Side Research md5 remained `b385fe622db9926f48861105239f113e`.
 
 ### History of prior section (superseded)
 
@@ -82,7 +140,6 @@ All ADR-024 D1–D9 decisions are represented in code. Existing repositories wit
 ## Test Results
 
 Required validation completed:
-
 - `gofmt -l . | grep -v vendor` → empty
 - `go vet ./...` → clean
 - `go build ./cmd/tpatch` → succeeds
@@ -97,27 +154,18 @@ Required validation completed:
   - `internal/store` ok
   - `internal/workflow` ok
   - `tests/integration` ok
-
 Test count after this slice: 608 `func Test...` declarations. Net new patch-generation coverage: 18 new test functions plus one augmented reconcile-refresh test.
-
 Side Research md5 verified before handoff edit: `b385fe622db9926f48861105239f113e`. Re-verify after edit before commit.
-
 ## Next Steps
-
 1. Reviewer sub-agent should inspect the implementation against ADR-024 D1–D9 and PRD §8.
 2. If approved, supervisor archives this handoff and advances to Wave gamma / patch amendment policy work.
-
 ## Blockers
-
 None.
-
 ## Context for Next Agent
-
 - `record` appends after recipe autogen so `recipe_sha256` reflects an apply recipe generated or regenerated by the same record run.
 - Same-byte duplicate records still skip numbered `patches/NNN-record.patch`; if no manifest exists yet, the first post-PRD same-byte record creates generation 1 with empty `audit_patch` because there is no current generation to compare against.
 - Reconcile append currently lives in `workflow.RefreshAfterAccept`, the path that rewrites `artifacts/post-apply.patch` and writes `patches/NNN-reconcile.patch` after shadow accept / auto-apply. Pure upstream-merged verdict paths do not rewrite canonical bytes and do not append.
 - The `## Side Research — State-of-the-art middle pass (2026-05-10)` section below must remain byte-identical; expected md5 is `b385fe622db9926f48861105239f113e`.
-
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
 Paper-only exploratory pass completed for a non-LLM middle layer between
