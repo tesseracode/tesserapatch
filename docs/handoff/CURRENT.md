@@ -5,7 +5,7 @@
 - **Task ID**: `adr-026-patch-amendment-policy`
 - **Milestone**: v0.10.0 Wave γ prep (WP-002 cluster slice-4 gate). Per user standing direction, draft this ADR before any `PRD-feature-patch-amend` implementation work.
 - **Description**: Draft `ADR-026-patch-amendment-policy.md`. Locks the policy gaps left open by `PRD-feature-patch-amend` and called out by WP-002 §4 row 3: refresh/fixup defaults, dependent-staleness surface shape, verify-freshness invalidation rules, command-namespace constraints, `--reason` flag policy, fork/fold v2 deferral. Same flow as ADR-024: implementation sub-agent drafts → reviewer sub-agent verifies → external review.
-- **Status**: In Progress (implementer being dispatched).
+- **Status**: Review (ADR drafted and committed; awaiting reviewer).
 - **Assigned**: 2026-05-19.
 
 ### Scope
@@ -45,6 +45,22 @@ Docs-only. Sole deliverable is `docs/adrs/ADR-026-patch-amendment-policy.md`. No
 ### Quality gates
 
 Docs-only — no code build/test required. Implementer must ensure markdown lints clean (no orphaned references, internal links resolve).
+
+### Session Summary — ADR-026 draft
+
+- Commit: `77f7182` (`docs: draft ADR-026 patch-amendment-policy (Wave γ gate)`).
+- New ADR line count: 348 lines (`docs/adrs/ADR-026-patch-amendment-policy.md`).
+- D1: First generation stays `record`; subsequent bytes-changing plain `record` writes `amend-refresh`.
+- D2: `--reason` persists as per-generation `reason`; mandatory for fixup, optional for refresh.
+- D3: No-byte refresh exits 0, prints skip note, appends no generation.
+- D4: Fixups use optional v1 `fixup_of_generation` string `generation_id`, mandatory for `amend-fixup`.
+- D5: Dependent staleness surfaces as `parent-generation-stale` overlay in `status` / `status --json`.
+- D6: Verify freshness invalidates only on ADR-013 patch SHA, recipe SHA, or existing base/parent drift inputs.
+- D7: V1 namespace locked to `tpatch feature patch refresh|fixup`; no aliases; fork/fold deferred.
+- D8: `record --force-amend` remains Git-rewrite dependent-orphan bypass only.
+- D9: Metadata-only amend appends no patch-generation in v1; audit stays in metadata artifacts.
+- D10: `amend-refresh` and `amend-fixup` transition from ADR-024 reserved values to writable; no Wave β schema change required.
+- Verification: internal markdown links resolved; Side Research md5 preserved as `b385fe622db9926f48861105239f113e`.
 
 ### History of prior section (superseded)
 
