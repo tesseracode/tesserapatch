@@ -1,3 +1,23 @@
+# 2026-05-19 — v0.10.0 Wave beta patch-identity-metadata — COMPLETE
+
+**Outcome**: Wave beta (slice 3 of 4 in the v0.10.0 capture-and-metadata foundation cluster) shipped. `PRD-feature-patch-identity-metadata` v1 implemented per ADR-024 D1–D9 — append-only `.tpatch/features/<slug>/artifacts/patch-generations.json` with `pg_<12hex>` content-addressed `generation_id`, monotonic `generation`, zero wall-clock timestamps, `git_patch_id` via `gitutil.PatchID`, dependency snapshots, strict v1 schema with refs-presence enforcement, and narrowed malformed-vs-I/O error classification via `store.ErrMalformedManifest` sentinel.
+
+**Implementation stack** (all on `main`, pushed):
+
+- `916ee39` — initial Wave beta implementation (8 files, +964/-45, 18 new tests, 608 total).
+- `e7be5e8` — rev-1 F1+F2 fixes (5 files, +108/-6, +2 tests, 610 total): non-fatal stderr warning when `RefreshAfterAccept` patch-generation append fails for non-malformed reasons; `PatchGeneration.Refs` switched to `*GenerationRefs` so `LoadPatchGenerations` rejects manifests omitting the `refs` key.
+- `7e5dea6` — rev-2 F3 fix (5 files, +161/-3, +2 tests, 612 total): `store.ErrMalformedManifest` sentinel; `LoadPatchGenerations` wraps JSON-decode + schema-validation failures with `%w` and leaves I/O errors unwrapped; workflow `AllowMalformedManifest` swallow narrowed to `errors.Is(..., ErrMalformedManifest)` so I/O errors now escape to the rev-1 warning path.
+
+**Verdicts**: sub-agent code-review APPROVED at each rev (`7cab12a`, `6ea2a11`, `89083fc`). External reviewer NEEDS-REVISION on `916ee39` (F1+F2), NEEDS-REVISION on `e7be5e8` (F3), APPROVED on `7e5dea6`.
+
+**Tests**: 590 → 612 `func Test...` declarations across three revs. All ten packages green under `go test ./... -count=1 -race` at each rev. `gofmt`, `go vet`, `go build ./cmd/tpatch` clean.
+
+**Invariants held**: CHANGELOG untouched (Wave beta is mid-cluster, ships at v0.10.0 closeout); Side Research md5 `b385fe622db9926f48861105239f113e` byte-identical across all CURRENT.md resets; frozen regions (alpha-1 surface, alpha-2 surface, ADR-024 body) untouched after their respective ships.
+
+**v0.10.0 cluster status**: Wave alpha (file-claims + capture-modes) and Wave beta (patch-identity-metadata) complete. Wave gamma (`PRD-feature-patch-amend`) remaining; gated on `ADR-patch-amendment-policy` (next ADR slot after ADR-025).
+
+---
+
 # 2026-05-14 — v0.9.0 alpha-2 record-capture-modes — COMPLETE
 
 **Outcome**: Wave alpha slice 2 of 2 shipped. `PRD-record-capture-modes` v1 implemented as new `tpatch record` flags `--all`, `--staged`, `--unstaged`, `--claimed-only` plus the PRD §3.7 mutex matrix, mode-aware untracked-file policy, refuse-on-overlap diagnostics, and capture-mode provenance written to `record.md`. Default `record` behavior preserved byte-identical (pinned by `TestRecordModes_AllEqualsDefault`). Pure CLI surface add — no ADR required.
