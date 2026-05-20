@@ -2,6 +2,54 @@
 
 ## Active Task
 
+- **Task ID**: `adr-026-patch-amendment-policy`
+- **Milestone**: v0.10.0 Wave γ prep (WP-002 cluster slice-4 gate). Per user standing direction, draft this ADR before any `PRD-feature-patch-amend` implementation work.
+- **Description**: Draft `ADR-026-patch-amendment-policy.md`. Locks the policy gaps left open by `PRD-feature-patch-amend` and called out by WP-002 §4 row 3: refresh/fixup defaults, dependent-staleness surface shape, verify-freshness invalidation rules, command-namespace constraints, `--reason` flag policy, fork/fold v2 deferral. Same flow as ADR-024: implementation sub-agent drafts → reviewer sub-agent verifies → external review.
+- **Status**: In Progress (implementer being dispatched).
+- **Assigned**: 2026-05-19.
+
+### Scope
+
+Docs-only. Sole deliverable is `docs/adrs/ADR-026-patch-amendment-policy.md`. No code, no test, no PRD body changes. Implementer must enumerate the open decisions, evaluate alternatives where alternatives exist, and lock one option per decision with a binding `## Decision` block per ADR convention.
+
+### Open decisions the ADR must lock
+
+1. **Plain `record <slug>` byte change classification (D1)**: PRD §3.2 says plain changed-bytes `record` defaults to `kind: amend-refresh` for backward-compat. ADR locks: is this `amend-refresh` or stays at `record` (Wave β D8 enum)? Conflict — Wave β D8 currently writes only `record` or `reconcile`. ADR must reconcile.
+2. **`--reason` persistence (D2)**: PRD §4.2 requires `--reason` for fixup. Where does the reason text live — `record.md` body, a new `amendments[].reason` array, or generation `metadata` field? Privacy: PRD §3 cross-refs `ADR-capture-context-privacy-boundary` (deferred). ADR must say "advisory-only, no privacy gate in v1" or defer to that ADR.
+3. **No-byte-change refresh semantics (D3)**: PRD §4.1 step 3 says no-byte-change refresh prints a note and does NOT append a generation. ADR locks: silent skip, exit 0 success, or exit code signaling no-op? Mirror Wave β append-skip semantics for consistency.
+4. **`fixup_of_generation` field (D4)**: New per-generation field. Confirm placement (`generations[].fixup_of_generation`), type (`generation_id` string), and whether v1 schema bumps to v2 or stays v1 (Wave β D9 strict-on-unknown). Likely add as optional field present only for `kind: amend-fixup`; schema stays v1 because adding optional fields is backward-compatible under D9 ONLY IF the field is registered up front. ADR must lock the field shape and whether schema version increments.
+5. **Dependent-staleness surface shape (D5)**: PRD §5.1 mandates "one visible dependent-staleness surface" but defers the name (`parent-generation-stale` is suggested). ADR locks the canonical surface — overlay/label on `status`, separate `status --stale` output, or a new manifest field? PRD §5.1 also says "label/overlay, not lifecycle state."
+6. **Verify-freshness invalidation rules (D6)**: PRD §5.2 says patch-content amendments invalidate freshness "because either patch hash or recipe hash changed." ADR cross-references ADR-013 verify freshness overlay and confirms which exact hash inputs trigger invalidation. Metadata-only amend should not invalidate unless touching ADR-013-named inputs.
+7. **Command-namespace finality (D7)**: Broker locked `tpatch feature patch refresh|fixup <slug>`. ADR records the locked surface, confirms no aliases, and confirms `fork`/`fold` are v2-deferred (PRD §4.4–4.5). ADR also locks that plain `record <slug>` does NOT require the new namespace for backward-compat (PRD §3.2).
+8. **`record --force-amend` boundary (D8)**: PRD §6 promises this stays unchanged. ADR locks: `--force-amend` is for Git-rewrite orphan detection, NOT a fixup/refresh shortcut. Cross-reference ADR-014 or wherever `--force-amend` is currently locked.
+9. **Metadata-only amend manifest revisions (D9)**: PRD §9 Open Question — "Should metadata-only amendments have their own manifest revision number?" ADR must answer yes or no. Cost of yes: schema growth, new write path, ambiguity with patch-bytes generations. Cost of no: metadata-only audit story lives outside the manifest (claims.json, status diffs). Recommendation in ADR will be NO for v1; defer to v2 if needed.
+10. **Wave β D8 enum forward-compat (D10)**: Wave β D8 reserves `amend-refresh` and `amend-fixup` as forward-compat read kinds. ADR confirms Wave γ now writes them — no Wave β schema change needed, but ADR explicitly transitions D8 from "reserved" to "writable for `tpatch feature patch refresh|fixup`."
+
+### Out of scope for THIS ADR
+
+- Fork/fold v2 commands (deferred — call out).
+- `ADR-capture-context-privacy-boundary` decisions (deferred — call out).
+- WP-003 reconcile cluster work.
+- Any code or test.
+- CHANGELOG (Wave γ is mid-cluster).
+
+### ADR header constraints
+
+- File: `docs/adrs/ADR-026-patch-amendment-policy.md`.
+- Status: Accepted.
+- Date: 2026-05-19.
+- Use the same structural shape as ADR-024: header (Status/Date/Context), `## Decision` per D1–D10, `## Alternatives Considered` where alternatives exist, `## Consequences`, `## References`.
+- References section MUST cite: `PRD-feature-patch-amend`, `WP-002-capture-and-metadata-foundation` §4, ADR-024 (Wave β contract), ADR-013 (verify freshness), ADR-011 (feature dependencies), and any code anchors for `--force-amend`.
+- Disambiguation note at top noting ADR-025 is the WP-003 reconcile cluster's slot (unwritten, reserved) — this ADR-026 is the WP-002 cluster slice-4 gate.
+
+### Quality gates
+
+Docs-only — no code build/test required. Implementer must ensure markdown lints clean (no orphaned references, internal links resolve).
+
+### History of prior section (superseded)
+
+
+
 - **Task ID**: TBD (awaiting next-slice decision)
 - **Milestone**: v0.10.0 capture-and-metadata foundation cluster (Wave alpha + beta complete; Wave gamma pending)
 - **Description**: Wave beta (`PRD-feature-patch-identity-metadata`) shipped 2026-05-19 (commits `916ee39`, `e7be5e8`, `7e5dea6`; external APPROVED on rev-2). Next slice options awaiting user direction:
