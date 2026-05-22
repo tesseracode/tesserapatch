@@ -1,3 +1,48 @@
+## Review — ADR-026-patch-amendment-policy — 2026-05-19
+
+**Reviewer**: sub-agent code-review
+**Task**: Draft Wave γ amendment-policy ADR — commit `77f7182`.
+
+### Checklist
+- [x] All 10 decisions D1–D10 present with binding declarative lock
+- [x] D1 record-kind reconciliation with ADR-024 D8 (hybrid: first gen = `record`, subsequent bytes-changing plain `record` = `amend-refresh`)
+- [x] D2 `--reason` per-generation `reason` string field; mandatory for fixup, optional for refresh; privacy deferred to `ADR-capture-context-privacy-boundary`
+- [x] D3 no-byte-change refresh: exit 0, stderr note, no append — mirrors Wave β same-bytes skip
+- [x] D4 `fixup_of_generation` is `generation_id` string; schema stays v1 because field is now a registered known field (ADR-024 D9 strict-on-unknown holds)
+- [x] D5 staleness surface label `parent-generation-stale`; algorithm cites Wave β field names (`current_generation`, `patch_sha256`, `dependencies[].parent_generation`, `dependencies[].parent_patch_sha256`); hard/soft per ADR-011 D4
+- [x] D6 verify-freshness inputs: `post-apply.patch` SHA-256, `apply-recipe.json` SHA-256; non-inputs explicitly listed; ADR-013 cited by line range
+- [x] D7 v1 subverbs `{refresh, fixup}` locked; fork/fold v2-deferred; no aliases; plain `record` BC preserved
+- [x] D8 `--force-amend` boundary cited at `internal/cli/cobra.go:889-907` and `:1415`; NOT a refresh/fixup shortcut
+- [x] D9 metadata-only manifest revisions answered NO for v1; rationale ties to ADR-024 D1 boundary
+- [x] D10 enum transition: `amend-refresh`/`amend-fixup` become writable; `import`/`manual-metadata` stay reserved; "No Wave β schema change required" explicit
+- [x] All `[...](...)` links resolve
+- [x] ADR-024/025 disambiguation note correct at top
+- [x] No silent overrule of prior ADRs (D10 makes the transition explicit)
+- [x] No code/test/PRD edits in commit `77f7182` (348 lines, sole new file)
+- [x] Side Research md5 unchanged (`b385fe622db9926f48861105239f113e`)
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Validation performed
+
+- Read ADR-026 end-to-end alongside the 10 decisions enumerated in CURRENT.md "Active Task" block.
+- Cross-referenced D1, D4, D10 against ADR-024 D8/D9 to confirm the hybrid kind classification + schema-extension story is internally consistent.
+- Confirmed D6 line-range citations into ADR-013 land within ±5 lines of named sections.
+- Confirmed D8 file:line citations into `internal/cli/cobra.go` correspond to actual `--force-amend` code.
+- Grepped markdown links — all resolve to existing files.
+- Confirmed `git show --stat 77f7182` shows only the new ADR file (no code/test/PRD edits).
+- Confirmed Side Research md5 via `awk` from current line position.
+
+### Action recommended
+
+Push and surface for external review.
+
+---
+
 ## Review — v0.10.0-beta-patch-identity-metadata (rev-2 F3 narrow swallow) — 2026-05-19
 
 **Reviewer**: sub-agent code-review
