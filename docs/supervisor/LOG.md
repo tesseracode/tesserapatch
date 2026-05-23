@@ -1,3 +1,33 @@
+## Review — ADR-026-patch-amendment-policy IC1–IC6 appendix — 2026-05-22
+
+**Reviewer**: external
+**Task**: Re-review the post-approval "Wave γ Implementation Contract" appendix added at commit `24951bf`.
+
+### Verdict: APPROVED WITH NOTES
+
+### Findings
+
+1. **LOW — IC4 frozen-region bullets named loosely.** The appendix asserts the implementer brief must cite frozen regions by file:line, but two IC4 bullets ("`internal/store/claims.json` writer", "`internal/gitutil/` capture modes (Wave α)") were folder/symbolic labels rather than concrete source anchors. Did not break the ADR, but blunted the main value of the appendix (turning drift-mitigation into objective reviewer-checkable items).
+
+### Action Taken — addressed in commit `aee9fb5`
+
+Replaced the two vague IC4 bullets with concrete source anchors:
+
+- `internal/store/claims.go:263` (`LoadClaims`) + `internal/store/claims.go:294` (`SaveClaims`).
+- `internal/gitutil/capture_modes.go:137` (`CaptureStagedPatch`), `:182` (`CaptureUnstagedPatch`), `:328` (`ValidateStagedPatch`).
+
+Also tightened the other IC4 bullets while in the area:
+
+- `internal/store/patch_generations.go:24-28` + `:101-104` (the `ErrMalformedManifest` definition + wrap sites).
+- `internal/cli/cobra.go:897-905` (the orphan-detection branch — previous `889-907` range was slightly wider than the actual branch).
+- `internal/workflow/patch_generations.go:31` (Wave β rev-2 narrow swallow).
+
+CURRENT.md IC4 mirror updated symmetrically. Side Research md5 invariant preserved (`b385fe622db9926f48861105239f113e`).
+
+D1–D10 untouched. No new findings beyond IC4 specificity. Other IC sections (IC1, IC2, IC3, IC5, IC6) were directionally affirmed by the reviewer and not modified.
+
+---
+
 ## Review — ADR-026-patch-amendment-policy — 2026-05-19
 
 **Reviewer**: sub-agent code-review

@@ -414,12 +414,22 @@ confirm none were edited outside the explicit extensions listed above:
   extends `PatchGeneration` fields per IC1 step 1 but MUST NOT bump the
   `version` constant, MUST NOT relax `DisallowUnknownFields`, and MUST
   NOT alter the `ErrMalformedManifest` classification path (Wave β rev-2
-  contract).
-- `internal/store/claims.json` writer — file-claims (Wave α) is not on
-  the amendment path. No edits.
-- `internal/cli/cobra.go:889-907` and `:1415` — `record --force-amend`
-  Git-rewrite orphan-detection branch. D8 binds: no behavior change.
-- `internal/gitutil/` capture modes (Wave α) — no edits.
+  contract anchored at `internal/store/patch_generations.go:24-28` and
+  `internal/store/patch_generations.go:101-104`).
+- `internal/store/claims.go` — Wave α file-claims reader/writer at
+  `internal/store/claims.go:263` (`LoadClaims`) and
+  `internal/store/claims.go:294` (`SaveClaims`). Not on the amendment
+  path. No edits.
+- `internal/cli/cobra.go:897-905` (`--force-amend` orphan-detection
+  branch) and `internal/cli/cobra.go:1415` (`--force-amend` flag
+  registration). D8 binds: no behavior change.
+- `internal/gitutil/capture_modes.go` — Wave α capture entry points at
+  `internal/gitutil/capture_modes.go:137` (`CaptureStagedPatch`),
+  `internal/gitutil/capture_modes.go:182` (`CaptureUnstagedPatch`), and
+  `internal/gitutil/capture_modes.go:328` (`ValidateStagedPatch`). No
+  edits.
+- `internal/workflow/patch_generations.go:31` — Wave β rev-2 narrow
+  swallow keyed on `store.ErrMalformedManifest`. No edits.
 
 ### IC5 — Skill-asset parity
 

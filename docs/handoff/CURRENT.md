@@ -30,11 +30,11 @@ The reviewer checklist will verify the commit sequence matches IC1. Out-of-order
 
 The following surfaces are frozen for Wave γ. The implementer MUST NOT edit them outside the explicit extension points listed in the landing order:
 
-- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ extends `PatchGeneration` per IC1 step 1 but MUST NOT bump the `version` constant, relax `DisallowUnknownFields`, or alter the `ErrMalformedManifest` classification path.
-- `internal/store/` claims writer — Wave α file-claims is not on the amendment path. No edits.
-- `internal/cli/cobra.go:889-907` and `:1415` — `record --force-amend` Git-rewrite orphan-detection branch. D8 binds: no behavior change.
-- `internal/gitutil/` capture modes (Wave α) — no edits.
-- Wave β's `store.ErrMalformedManifest` sentinel and the narrow swallow at `internal/workflow/patch_generations.go` (rev-2 contract) — no edits.
+- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ extends `PatchGeneration` per IC1 step 1 but MUST NOT bump the `version` constant, relax `DisallowUnknownFields`, or alter the `ErrMalformedManifest` classification path (`internal/store/patch_generations.go:24-28` + `:101-104`).
+- `internal/store/claims.go` — Wave α file-claims reader/writer at `LoadClaims` (`internal/store/claims.go:263`) and `SaveClaims` (`internal/store/claims.go:294`). Not on the amendment path. No edits.
+- `internal/cli/cobra.go:897-905` (`--force-amend` orphan-detection branch) and `internal/cli/cobra.go:1415` (`--force-amend` flag registration). D8 binds: no behavior change.
+- `internal/gitutil/capture_modes.go` — Wave α capture entry points at `CaptureStagedPatch` (`:137`), `CaptureUnstagedPatch` (`:182`), and `ValidateStagedPatch` (`:328`). No edits.
+- `internal/workflow/patch_generations.go:31` — Wave β rev-2 narrow swallow keyed on `store.ErrMalformedManifest`. No edits.
 
 ### Out of scope for Wave γ
 
