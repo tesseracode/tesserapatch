@@ -1,3 +1,56 @@
+## Review — Wave γ patch amend rev-1 — 2026-05-22
+
+**Reviewer**: sub-agent code-review
+**Task**: Internal review of rev-1 stack `5ea7a01..cf02c05` addressing external F1+F2 findings on rev-0.
+
+### IC6 / Standard Checklist
+
+**F1 — `fixup` CLI surface matches ADR-026 D4 + D7**:
+- [x] `--target` flag removed from `feature patch fixup` (`internal/cli/feature_patch.go:63`).
+- [x] `fixup_of_generation` auto-derived via `currentPatchGenerationID(manifest)` (`internal/cli/feature_patch.go:75-80`).
+- [x] `--reason` remains mandatory (`internal/cli/feature_patch.go:52-55`).
+- [x] Fixup on zero prior generations refuses with clear diagnostic (`internal/cli/feature_patch.go:78-79`).
+- [x] Test coverage: existing tests updated to drop `--target`; new tests `TestFeaturePatchFixupRejectsTargetFlag` and `TestFeaturePatchFixupRefusesWithoutPriorGenerations` added.
+- [x] Manual repro 1: fixup without `--target` succeeded; `fixup_of_generation = pg_e1665da55263` (the previously-current generation_id).
+- [x] Manual repro 2: fixup with `--target <id>` → `error: unknown flag: --target`.
+- [x] Manual repro 3: fixup on feature with no record → `error: feature patch fixup: no prior generations to fix up; record first`.
+
+**F2 — `parent-generation-stale` gates apply/reconcile per ADR-011 hard/soft**:
+- [x] `apply` consults `ParentGenerationStaleDependencies` via `checkParentGenerationStaleGate` (`internal/cli/cobra.go:712,812`).
+- [x] `reconcile` consults via `checkParentGenerationStaleForReconcile` (`internal/cli/cobra.go:1735`).
+- [x] Hard deps refuse with diagnostic naming stale parent slug, snapshot `parent_generation`, current `generation_id`, and remediation (`internal/cli/cobra.go:855-877`).
+- [x] Soft deps warn to stderr and `continue` (`internal/cli/cobra.go:862-865`).
+- [x] Test coverage for all four combinations: `TestApplyHardParentGenerationStaleRefuses`, `TestApplySoftParentGenerationStaleWarnsAndProceeds`, `TestReconcileHardParentGenerationStaleRefuses`, `TestReconcileSoftParentGenerationStaleWarnsAndProceeds`.
+
+**IC4 frozen regions preserved**:
+- [x] `internal/store/patch_generations.go` — `git diff 7a1326c..cf02c05` zero.
+- [x] `internal/store/claims.go` — zero.
+- [x] `internal/cli/cobra.go:897-905` + `:1415` (`--force-amend`) — unchanged (new code added elsewhere).
+- [x] `internal/gitutil/capture_modes.go` — zero.
+- [x] `internal/workflow/patch_generations.go:31` — zero.
+
+**Standard gates**:
+- [x] `go build ./cmd/tpatch` — exit 0.
+- [x] `gofmt -l .` — zero output (run DIRECTLY, not piped through grep).
+- [x] `go vet ./...` — clean.
+- [x] `go test ./... -count=1` — all 10 packages green.
+- [x] `go test ./assets/...` — parity guard green.
+- [x] Test count: 624 → 630 `func Test...` declarations.
+- [x] Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
+- [x] Handoff `docs/handoff/CURRENT.md` updated with rev-1 commit SHAs and F1/F2 satisfaction evidence.
+
+### Verdict: APPROVED
+
+### Findings
+
+No findings.
+
+### Action Recommended
+
+Push and surface for external review.
+
+---
+
 ## Review — Wave γ patch amend (rev-0 external) — 2026-05-22
 
 **Reviewer**: external
