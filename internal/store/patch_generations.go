@@ -282,7 +282,7 @@ func AppendPatchGeneration(m *PatchGenerationsManifest, g PatchGeneration) (bool
 	if m.Generations == nil {
 		m.Generations = []PatchGeneration{}
 	}
-	if g.Kind != "record" && g.Kind != "reconcile" {
+	if !IsWritablePatchGenerationKind(g.Kind) {
 		return false, fmt.Errorf("patch-generations.json: kind %q is reserved and not writable in v1", g.Kind)
 	}
 	if g.Generation == 0 {
