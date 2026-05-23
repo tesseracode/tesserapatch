@@ -2,102 +2,109 @@
 
 ## Active Task
 
-- **Task ID**: `adr-026-patch-amendment-policy`
-- **Milestone**: v0.10.0 Wave γ prep (WP-002 cluster slice-4 gate). Per user standing direction, draft this ADR before any `PRD-feature-patch-amend` implementation work.
-- **Description**: Draft `ADR-026-patch-amendment-policy.md`. Locks the policy gaps left open by `PRD-feature-patch-amend` and called out by WP-002 §4 row 3: refresh/fixup defaults, dependent-staleness surface shape, verify-freshness invalidation rules, command-namespace constraints, `--reason` flag policy, fork/fold v2 deferral. Same flow as ADR-024: implementation sub-agent drafts → reviewer sub-agent verifies → external review.
-- **Status**: Review (ADR drafted and committed; awaiting reviewer).
-- **Assigned**: 2026-05-19.
+- **Task ID**: `wave-gamma-patch-amend-impl`
+- **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` implementation (WP-002 cluster slice 4 of 4).
+- **Description**: Implement `tpatch feature patch refresh` and `tpatch feature patch fixup` per the binding contract in `docs/adrs/ADR-026-patch-amendment-policy.md` (D1–D10 + the new "Wave γ Implementation Contract" appendix IC1–IC6). This is the implementation phase of Wave γ; ADR-026 is APPROVED both internally and externally.
+- **Status**: Ready to dispatch.
+- **Assigned**: 2026-05-22.
 
-### Scope
+### Binding contract
 
-Docs-only. Sole deliverable is `docs/adrs/ADR-026-patch-amendment-policy.md`. No code, no test, no PRD body changes. Implementer must enumerate the open decisions, evaluate alternatives where alternatives exist, and lock one option per decision with a binding `## Decision` block per ADR convention.
+- `docs/adrs/ADR-026-patch-amendment-policy.md` — D1–D10 are not re-openable. The Wave γ Implementation Contract appendix (IC1–IC6) is also binding.
+- `docs/prds/PRD-feature-patch-amend.md` — product surface and acceptance criteria.
+- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` — Wave β manifest contract (D1–D9). Frozen for Wave γ except for the D10 transition (`amend-refresh`/`amend-fixup` become writable).
+- `docs/adrs/ADR-013-verify-freshness-overlay.md` — verify-cache invalidation inputs (cited by ADR-026 D6).
+- `docs/adrs/ADR-011-feature-dependencies.md` — hard/soft dependency policy (cited by ADR-026 D5).
 
-### Open decisions the ADR must lock
+### Landing order (binding, per IC1)
 
-1. **Plain `record <slug>` byte change classification (D1)**: PRD §3.2 says plain changed-bytes `record` defaults to `kind: amend-refresh` for backward-compat. ADR locks: is this `amend-refresh` or stays at `record` (Wave β D8 enum)? Conflict — Wave β D8 currently writes only `record` or `reconcile`. ADR must reconcile.
-2. **`--reason` persistence (D2)**: PRD §4.2 requires `--reason` for fixup. Where does the reason text live — `record.md` body, a new `amendments[].reason` array, or generation `metadata` field? Privacy: PRD §3 cross-refs `ADR-capture-context-privacy-boundary` (deferred). ADR must say "advisory-only, no privacy gate in v1" or defer to that ADR.
-3. **No-byte-change refresh semantics (D3)**: PRD §4.1 step 3 says no-byte-change refresh prints a note and does NOT append a generation. ADR locks: silent skip, exit 0 success, or exit code signaling no-op? Mirror Wave β append-skip semantics for consistency.
-4. **`fixup_of_generation` field (D4)**: New per-generation field. Confirm placement (`generations[].fixup_of_generation`), type (`generation_id` string), and whether v1 schema bumps to v2 or stays v1 (Wave β D9 strict-on-unknown). Likely add as optional field present only for `kind: amend-fixup`; schema stays v1 because adding optional fields is backward-compatible under D9 ONLY IF the field is registered up front. ADR must lock the field shape and whether schema version increments.
-5. **Dependent-staleness surface shape (D5)**: PRD §5.1 mandates "one visible dependent-staleness surface" but defers the name (`parent-generation-stale` is suggested). ADR locks the canonical surface — overlay/label on `status`, separate `status --stale` output, or a new manifest field? PRD §5.1 also says "label/overlay, not lifecycle state."
-6. **Verify-freshness invalidation rules (D6)**: PRD §5.2 says patch-content amendments invalidate freshness "because either patch hash or recipe hash changed." ADR cross-references ADR-013 verify freshness overlay and confirms which exact hash inputs trigger invalidation. Metadata-only amend should not invalidate unless touching ADR-013-named inputs.
-7. **Command-namespace finality (D7)**: Broker locked `tpatch feature patch refresh|fixup <slug>`. ADR records the locked surface, confirms no aliases, and confirms `fork`/`fold` are v2-deferred (PRD §4.4–4.5). ADR also locks that plain `record <slug>` does NOT require the new namespace for backward-compat (PRD §3.2).
-8. **`record --force-amend` boundary (D8)**: PRD §6 promises this stays unchanged. ADR locks: `--force-amend` is for Git-rewrite orphan detection, NOT a fixup/refresh shortcut. Cross-reference ADR-014 or wherever `--force-amend` is currently locked.
-9. **Metadata-only amend manifest revisions (D9)**: PRD §9 Open Question — "Should metadata-only amendments have their own manifest revision number?" ADR must answer yes or no. Cost of yes: schema growth, new write path, ambiguity with patch-bytes generations. Cost of no: metadata-only audit story lives outside the manifest (claims.json, status diffs). Recommendation in ADR will be NO for v1; defer to v2 if needed.
-10. **Wave β D8 enum forward-compat (D10)**: Wave β D8 reserves `amend-refresh` and `amend-fixup` as forward-compat read kinds. ADR confirms Wave γ now writes them — no Wave β schema change needed, but ADR explicitly transitions D8 from "reserved" to "writable for `tpatch feature patch refresh|fixup`."
+Wave γ MUST land as a sequence of commits in this exact order. Each step ships with its own tests before the next step starts:
 
-### Out of scope for THIS ADR
+1. **Schema-extension commit** — Extend `PatchGeneration` with `reason` (D2) and `fixup_of_generation` (D4). Register both as known fields in the strict v1 reader. Add `internal/store/patch_generations_wavegamma_test.go` (IC2) covering all five tripwire assertions. **NO writer changes.** Existing manifests still load byte-identically.
+2. **Kind-enum commit** — Flip `amend-refresh` and `amend-fixup` from reserved to writable in the kind enum (D10). Add `ClassifyPlainRecordKind` (IC3) with its table-driven test. **NO CLI surface.**
+3. **CLI surface commit(s)** — Add `tpatch feature patch refresh` and `tpatch feature patch fixup` subverbs (D7). Wire `parent-generation-stale` overlay surface (D5) into `status`/`status --json`. Wire verify-freshness invalidation per D6. Update shipped skill assets per IC5 so the parity guard passes.
 
-- Fork/fold v2 commands (deferred — call out).
-- `ADR-capture-context-privacy-boundary` decisions (deferred — call out).
-- WP-003 reconcile cluster work.
-- Any code or test.
-- CHANGELOG (Wave γ is mid-cluster).
+The reviewer checklist will verify the commit sequence matches IC1. Out-of-order landing is grounds for rejection on its own.
 
-### ADR header constraints
+### Frozen regions (per IC4)
 
-- File: `docs/adrs/ADR-026-patch-amendment-policy.md`.
-- Status: Accepted.
-- Date: 2026-05-19.
-- Use the same structural shape as ADR-024: header (Status/Date/Context), `## Decision` per D1–D10, `## Alternatives Considered` where alternatives exist, `## Consequences`, `## References`.
-- References section MUST cite: `PRD-feature-patch-amend`, `WP-002-capture-and-metadata-foundation` §4, ADR-024 (Wave β contract), ADR-013 (verify freshness), ADR-011 (feature dependencies), and any code anchors for `--force-amend`.
-- Disambiguation note at top noting ADR-025 is the WP-003 reconcile cluster's slot (unwritten, reserved) — this ADR-026 is the WP-002 cluster slice-4 gate.
+The following surfaces are frozen for Wave γ. The implementer MUST NOT edit them outside the explicit extension points listed in the landing order:
+
+- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ extends `PatchGeneration` per IC1 step 1 but MUST NOT bump the `version` constant, relax `DisallowUnknownFields`, or alter the `ErrMalformedManifest` classification path.
+- `internal/store/` claims writer — Wave α file-claims is not on the amendment path. No edits.
+- `internal/cli/cobra.go:889-907` and `:1415` — `record --force-amend` Git-rewrite orphan-detection branch. D8 binds: no behavior change.
+- `internal/gitutil/` capture modes (Wave α) — no edits.
+- Wave β's `store.ErrMalformedManifest` sentinel and the narrow swallow at `internal/workflow/patch_generations.go` (rev-2 contract) — no edits.
+
+### Out of scope for Wave γ
+
+- `fork` / `fold` subverbs (PRD §4.4–4.5; deferred to v2 per ADR-026 D7).
+- Metadata-only amend manifest revisions (ADR-026 D9 answers NO for v1).
+- WP-003 reconcile cluster work (ADR-025 reserved-but-unwritten).
+- Privacy gating on `--reason` (deferred to `ADR-capture-context-privacy-boundary`; ADR-026 D2 is advisory-only).
+- Schema version bump (D4 keeps v1).
 
 ### Quality gates
 
-Docs-only — no code build/test required. Implementer must ensure markdown lints clean (no orphaned references, internal links resolve).
+Before claiming completion, the implementer MUST:
 
-### Session Summary — ADR-026 draft
+1. Run `gofmt -l .` and confirm zero output.
+2. Run `go vet ./...` and confirm clean.
+3. Run `go build ./cmd/tpatch` and confirm success.
+4. Run `go test ./... -count=1 -race` and confirm all green.
+5. Run `go test ./assets/...` and confirm parity guard passes (IC5).
+6. Confirm the Wave γ contract test (`patch_generations_wavegamma_test.go`) exists and passes.
+7. Confirm Wave β fixtures load byte-identically (IC6 no-migration assertion).
+8. Update `docs/handoff/CURRENT.md` Session Summary block with: commit shas per IC1 step, files changed, test counts, and explicit confirmation that IC1–IC6 are satisfied.
 
-- Commit: `77f7182` (`docs: draft ADR-026 patch-amendment-policy (Wave γ gate)`).
-- New ADR line count: 348 lines (`docs/adrs/ADR-026-patch-amendment-policy.md`).
-- D1: First generation stays `record`; subsequent bytes-changing plain `record` writes `amend-refresh`.
-- D2: `--reason` persists as per-generation `reason`; mandatory for fixup, optional for refresh.
-- D3: No-byte refresh exits 0, prints skip note, appends no generation.
-- D4: Fixups use optional v1 `fixup_of_generation` string `generation_id`, mandatory for `amend-fixup`.
-- D5: Dependent staleness surfaces as `parent-generation-stale` overlay in `status` / `status --json`.
-- D6: Verify freshness invalidates only on ADR-013 patch SHA, recipe SHA, or existing base/parent drift inputs.
-- D7: V1 namespace locked to `tpatch feature patch refresh|fixup`; no aliases; fork/fold deferred.
-- D8: `record --force-amend` remains Git-rewrite dependent-orphan bypass only.
-- D9: Metadata-only amend appends no patch-generation in v1; audit stays in metadata artifacts.
-- D10: `amend-refresh` and `amend-fixup` transition from ADR-024 reserved values to writable; no Wave β schema change required.
-- Verification: internal markdown links resolved; Side Research md5 preserved as `b385fe622db9926f48861105239f113e`.
+### Reviewer checklist additions (per IC6)
 
-### History of prior section (superseded)
+In addition to the standard `AGENTS.md` checklist, the reviewer MUST verify:
 
+- [ ] Commit sequence matches IC1 (schema → enum → CLI).
+- [ ] `patch_generations_wavegamma_test.go` exists and covers all five IC2 assertions.
+- [ ] `ClassifyPlainRecordKind` (or equivalent named helper) is the only call site classifying `record` vs `amend-refresh` for plain `record <slug>` writes.
+- [ ] IC4 frozen regions are unedited outside the IC1-listed extension points.
+- [ ] `go test ./assets/...` passes (IC5).
+- [ ] Existing Wave β manifests on disk still load byte-identically — no migration required (IC6).
+- [ ] Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
 
+### Drift-mitigation rationale (background, not binding)
 
-- **Task ID**: TBD (awaiting next-slice decision)
-- **Milestone**: v0.10.0 capture-and-metadata foundation cluster (Wave alpha + beta complete; Wave gamma pending)
-- **Description**: Wave beta (`PRD-feature-patch-identity-metadata`) shipped 2026-05-19 (commits `916ee39`, `e7be5e8`, `7e5dea6`; external APPROVED on rev-2). Next slice options awaiting user direction:
-  - **Option A — Wave gamma ADR prep**: Draft `ADR-patch-amendment-policy` (gates `PRD-feature-patch-amend`). Next ADR slot after the WP-003-reserved `ADR-025-reconcile-evidence-and-revision-schema`. Per user standing direction, hold gamma implementation until this ADR exists.
-  - **Option B — v0.10.0 cluster closeout**: Ship Wave alpha + beta as a release (defer Wave gamma to v0.11.0). Would need CHANGELOG entry, version bump, tag.
-  - **Option C — WP-003 reconcile cluster work** or other pending todos.
-- **Status**: Idle — awaiting supervisor dispatch.
-- **Assigned**: 2026-05-19.
+The external reviewer for ADR-026 flagged that the principal Wave γ risk is reader/writer drift on the strict v1 manifest. The IC1–IC6 appendix exists specifically to convert that implicit risk into reviewable artifacts:
+
+- IC1 (landing order) forces the strict reader to know `reason` and `fixup_of_generation` before any writer emits them.
+- IC2 (golden fixture tripwire) breaks first on any reader/writer skew.
+- IC3 (single-source classifier) prevents silent corruption of the D1 hybrid-kind audit trail.
+- IC4 (frozen regions) names the Wave α + Wave β surfaces that are NOT on the amendment path.
+- IC5 (skill-asset parity) catches doc-skew at build time.
+- IC6 (reviewer checklist additions) operationalizes IC1–IC5 at review time.
 
 ## Session Summary
 
-Wave beta closed. See `docs/handoff/HISTORY.md` top entry for the full stack and ADR-024 D1–D9 conformance summary.
+ADR-026 internal + external review cycle complete (commit `b40b042` records the external APPROVED verdict). Drafted "Wave γ Implementation Contract" appendix (IC1–IC6) on top of the approved ADR to convert the reviewer's residual drift risk into binding, reviewable artifacts. Prepared this Wave γ kickoff brief embedding IC1–IC6 as the implementer's binding contract.
 
 ## Current State
 
-- v0.10.0 cluster: Wave alpha shipped (v0.9.0 tag at `9267026`), Wave beta complete (on `main`, not yet released).
-- WP-002 (capture-and-metadata foundation) at 3/4 slices. WP-003 (reconcile safety & middle-pass) unstarted.
-- ADRs: ADR-024 shipped; ADR-025 reserved-but-unwritten (WP-003 Wave α implementer drafts when that work begins); `ADR-patch-amendment-policy` (next slot = ADR-026) pending for Wave gamma.
+- v0.10.0 cluster: Wave α shipped (v0.9.0 at `9267026`), Wave β complete (on `main`, no release tag yet), Wave γ ready to dispatch with full ADR + IC contract in place.
+- ADR-026 status: Accepted, APPROVED internally and externally; appendix IC1–IC6 added post-approval as binding implementation guardrails (no D1–D10 changes).
 
 ## Files Changed
 
-None in this transition (archival only).
+- `docs/adrs/ADR-026-patch-amendment-policy.md` — appended "Wave γ Implementation Contract" appendix (IC1–IC6) between `## Consequences` and `## References`.
+- `docs/handoff/CURRENT.md` — this rewrite (Wave γ kickoff brief).
 
 ## Test Results
 
-Baseline: 612 `func Test...` declarations, all ten packages green under `go test ./... -count=1 -race`.
+Docs-only edits; baseline holds at 612 `func Test...` declarations across ten packages green under `go test ./... -count=1 -race`.
 
 ## Next Steps
 
-1. Supervisor presents next-slice options to user.
-2. User picks A / B / C.
-3. Dispatch implementer with full brief.
+1. Commit ADR-026 appendix + CURRENT.md rewrite.
+2. Push to origin.
+3. Dispatch Wave γ implementer with reference to this CURRENT.md (binding contract embedded).
+4. After implementer lands all three IC1 commits, dispatch sub-agent reviewer (using IC6 checklist additions).
+5. On internal APPROVED, push and surface for external review.
 
 ## Blockers
 
@@ -105,9 +112,11 @@ None.
 
 ## Context for Next Agent
 
-- ADR-024 is binding for any future patch-generation code: D1–D9 are not reopenable without a follow-up ADR.
-- `store.ErrMalformedManifest` is the canonical sentinel for malformed-manifest classification (rev-2). I/O errors are unwrapped; JSON-decode + schema-validation failures are `%w`-wrapped with it.
-- Wave gamma scope (`PRD-feature-patch-amend`) explicitly depends on Wave beta's patch-generations.json — generation_id provides the stable amendment-target anchor.
+- ADR-026 D1–D10 are immutable; IC1–IC6 are the binding implementation guardrails layered on top.
+- The reviewer's "Wave γ contract test" (IC2) is the single most important tripwire — it MUST land in the schema-extension commit, not later.
+- IC3's `ClassifyPlainRecordKind` is the single source of truth for D1's hybrid kind rule. Multiple call sites classifying `record` vs `amend-refresh` is a review-blocker.
+- IC4 frozen regions include the Wave β rev-2 `ErrMalformedManifest` sentinel; do not touch the classification path or the narrow swallow.
+- Side Research section is preserved byte-identical; verify via md5 `b385fe622db9926f48861105239f113e` after any CURRENT.md edit.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

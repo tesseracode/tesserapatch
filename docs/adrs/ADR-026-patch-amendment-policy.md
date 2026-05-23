@@ -335,6 +335,116 @@ emit them.
 - `record --force-amend` remains separate from patch amendment and continues to
   mean only Git-rewrite dependent-orphan bypass.
 
+## Wave γ Implementation Contract
+
+This appendix narrows implementation freedom to minimize reader/writer drift
+when Wave γ lands. It is binding on the Wave γ implementer; it does not
+re-open any D1–D10 decision.
+
+### IC1 — Landing order (reader before writer)
+
+Wave γ must land in this commit order, and each step must include its own
+tests before the next step starts:
+
+1. **Schema-extension commit**: Extend the `PatchGeneration` struct with the
+   `reason` string field (D2) and `fixup_of_generation` string field (D4).
+   Register both as known fields in the strict v1 reader. Land the
+   "Wave γ contract test" (see IC2) at the same commit. **No writer changes
+   in this commit.** Existing manifests must still load byte-identically.
+2. **Kind-enum commit**: Make `amend-refresh` and `amend-fixup` writable in
+   the kind enum (D10). Add the `classifyRecordKind` helper (see IC3). **No
+   CLI surface in this commit.**
+3. **CLI surface commit(s)**: Add `tpatch feature patch refresh` and
+   `tpatch feature patch fixup` subverbs (D7). Wire dependent-staleness
+   overlay surface (D5) and verify-freshness invalidation inputs (D6).
+
+Any out-of-order landing — for example, a CLI surface commit before the
+schema extension — is grounds for review rejection on its own. The
+reviewer checklist must verify the commit sequence matches IC1.
+
+### IC2 — Wave γ contract test (golden fixture tripwire)
+
+The schema-extension commit MUST add `internal/store/patch_generations_wavegamma_test.go`
+covering, at minimum:
+
+1. A golden v1 manifest fixture containing one `record` generation, one
+   `amend-refresh` generation with a populated `reason`, and one
+   `amend-fixup` generation with both `reason` and `fixup_of_generation`
+   populated, pointing at a real prior `generation_id`.
+2. Round-trip assertion: load → re-serialize → byte-identical to fixture.
+3. Strict-on-unknown assertion: a copy of the fixture with one unknown
+   field added must fail to load under ADR-024 D9.
+4. Reason-mandatory assertion: an `amend-fixup` generation with missing or
+   empty `reason` must fail to load (D2 makes `reason` mandatory for
+   fixup).
+5. Fixup-target assertion: an `amend-fixup` generation whose
+   `fixup_of_generation` does not resolve to a prior `generation_id` in
+   the same manifest must fail validation.
+
+This test is the canonical tripwire for reader/writer skew. Any future
+schema change that would invalidate it must update the fixture and the
+strict-field list in the same commit.
+
+### IC3 — Single-source classifier for D1
+
+D1's hybrid rule (first generation = `record`; subsequent bytes-changing
+plain `record <slug>` = `amend-refresh`) MUST live in exactly one function
+in `internal/store` (suggested name: `ClassifyPlainRecordKind`). All
+writers — plain `record`, `feature patch refresh`, `feature patch fixup` —
+that emit `record`/`amend-refresh`/`amend-fixup` MUST route through that
+helper or its sibling for explicit refresh/fixup paths. The helper MUST
+have a table-driven test enumerating every transition:
+
+- No prior generations → `record`
+- Prior generations, identical patch bytes → no append (D3 no-op)
+- Prior generations, changed patch bytes, plain `record` → `amend-refresh`
+- Prior generations, explicit refresh path → `amend-refresh`
+- Prior generations, explicit fixup path → `amend-fixup`
+
+The classifier is the audit-trail's single point of truth. Drift here
+silently corrupts replay.
+
+### IC4 — Frozen regions
+
+The following Wave α and Wave β surfaces are frozen for Wave γ. The
+implementer brief must cite them by file:line and the reviewer must
+confirm none were edited outside the explicit extensions listed above:
+
+- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ
+  extends `PatchGeneration` fields per IC1 step 1 but MUST NOT bump the
+  `version` constant, MUST NOT relax `DisallowUnknownFields`, and MUST
+  NOT alter the `ErrMalformedManifest` classification path (Wave β rev-2
+  contract).
+- `internal/store/claims.json` writer — file-claims (Wave α) is not on
+  the amendment path. No edits.
+- `internal/cli/cobra.go:889-907` and `:1415` — `record --force-amend`
+  Git-rewrite orphan-detection branch. D8 binds: no behavior change.
+- `internal/gitutil/` capture modes (Wave α) — no edits.
+
+### IC5 — Skill-asset parity
+
+The shipped skill prompts must reference `tpatch feature patch refresh`
+and `tpatch feature patch fixup` at the same commit those subverbs ship
+(IC1 step 3). The existing `assets/assets_test.go` parity guard catches
+omissions if the skill prompts and the CLI register surface drift. The
+Wave γ implementer brief must require running `go test ./assets/...`
+before claiming completion.
+
+### IC6 — Reviewer checklist additions
+
+In addition to the standard checklist, the Wave γ reviewer must verify:
+
+- [ ] Commit sequence matches IC1 (reader → enum → CLI).
+- [ ] `patch_generations_wavegamma_test.go` exists and covers all five
+  IC2 assertions.
+- [ ] `ClassifyPlainRecordKind` (or equivalent) is the only call site
+  classifying `record` vs `amend-refresh` for plain `record <slug>`.
+- [ ] IC4 frozen regions are unedited outside the IC1-listed extension
+  points.
+- [ ] `go test ./assets/...` passes (IC5 parity guard).
+- [ ] Existing manifests on disk (Wave β fixtures) still load
+  byte-identically — no migration required.
+
 ## References
 
 - `docs/prds/PRD-feature-patch-amend.md` — Wave γ product contract.
