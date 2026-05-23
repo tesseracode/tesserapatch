@@ -4,8 +4,8 @@
 
 - **Task ID**: `wave-gamma-patch-amend-impl`
 - **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` implementation (WP-002 cluster slice 4 of 4).
-- **Description**: Implement `tpatch feature patch refresh` and `tpatch feature patch fixup` per the binding contract in `docs/adrs/ADR-026-patch-amendment-policy.md` (D1–D10 + the new "Wave γ Implementation Contract" appendix IC1–IC6). This is the implementation phase of Wave γ; ADR-026 is APPROVED both internally and externally.
-- **Status**: Ready to dispatch.
+- **Description**: Implement `tpatch feature patch refresh` and `tpatch feature patch fixup` per the binding contract in `docs/adrs/ADR-026-patch-amendment-policy.md` (D1–D10 + the "Wave γ Implementation Contract" appendix IC1–IC6).
+- **Status**: Review (awaiting reviewer).
 - **Assigned**: 2026-05-22.
 
 ### Binding contract
@@ -18,23 +18,21 @@
 
 ### Landing order (binding, per IC1)
 
-Wave γ MUST land as a sequence of commits in this exact order. Each step ships with its own tests before the next step starts:
+Wave γ landed in the required IC1 order:
 
-1. **Schema-extension commit** — Extend `PatchGeneration` with `reason` (D2) and `fixup_of_generation` (D4). Register both as known fields in the strict v1 reader. Add `internal/store/patch_generations_wavegamma_test.go` (IC2) covering all five tripwire assertions. **NO writer changes.** Existing manifests still load byte-identically.
-2. **Kind-enum commit** — Flip `amend-refresh` and `amend-fixup` from reserved to writable in the kind enum (D10). Add `ClassifyPlainRecordKind` (IC3) with its table-driven test. **NO CLI surface.**
-3. **CLI surface commit(s)** — Add `tpatch feature patch refresh` and `tpatch feature patch fixup` subverbs (D7). Wire `parent-generation-stale` overlay surface (D5) into `status`/`status --json`. Wire verify-freshness invalidation per D6. Update shipped skill assets per IC5 so the parity guard passes.
-
-The reviewer checklist will verify the commit sequence matches IC1. Out-of-order landing is grounds for rejection on its own.
+1. **Schema-extension commit** — `df35ab7bf2d1f2490b4d7d204a2cbb9249d34050`
+2. **Kind-enum commit** — `2de7242f4aa9a3b593912f87565f317fcbf0ab8e`
+3. **CLI surface commit** — `b125b0b40d52a0daee9cc53439475d9dce840e07`
 
 ### Frozen regions (per IC4)
 
-The following surfaces are frozen for Wave γ. The implementer MUST NOT edit them outside the explicit extension points listed in the landing order:
+The following surfaces were preserved for Wave γ except for the explicit extension points:
 
-- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ extends `PatchGeneration` per IC1 step 1 but MUST NOT bump the `version` constant, relax `DisallowUnknownFields`, or alter the `ErrMalformedManifest` classification path (`internal/store/patch_generations.go:24-28` + `:101-104`).
-- `internal/store/claims.go` — Wave α file-claims reader/writer at `LoadClaims` (`internal/store/claims.go:263`) and `SaveClaims` (`internal/store/claims.go:294`). Not on the amendment path. No edits.
-- `internal/cli/cobra.go:897-905` (`--force-amend` orphan-detection branch) and `internal/cli/cobra.go:1415` (`--force-amend` flag registration). D8 binds: no behavior change.
-- `internal/gitutil/capture_modes.go` — Wave α capture entry points at `CaptureStagedPatch` (`:137`), `CaptureUnstagedPatch` (`:182`), and `ValidateStagedPatch` (`:328`). No edits.
-- `internal/workflow/patch_generations.go:31` — Wave β rev-2 narrow swallow keyed on `store.ErrMalformedManifest`. No edits.
+- `internal/store/patch_generations.go` — only schema fields, validation for those fields, and writable-kind hook/classification call were touched. Version stayed v1; `DisallowUnknownFields` and `ErrMalformedManifest` classification path were not relaxed.
+- `internal/store/claims.go` — not edited.
+- `internal/cli/cobra.go:897-905` and `internal/cli/cobra.go:1415` — `--force-amend` behavior/flag were not edited.
+- `internal/gitutil/capture_modes.go` — not edited.
+- `internal/workflow/patch_generations.go:31` — malformed-manifest swallow path not edited.
 
 ### Out of scope for Wave γ
 
@@ -46,65 +44,94 @@ The following surfaces are frozen for Wave γ. The implementer MUST NOT edit the
 
 ### Quality gates
 
-Before claiming completion, the implementer MUST:
+All required gates passed after the three commits:
 
-1. Run `gofmt -l .` and confirm zero output.
-2. Run `go vet ./...` and confirm clean.
-3. Run `go build ./cmd/tpatch` and confirm success.
-4. Run `go test ./... -count=1 -race` and confirm all green.
-5. Run `go test ./assets/...` and confirm parity guard passes (IC5).
-6. Confirm the Wave γ contract test (`patch_generations_wavegamma_test.go`) exists and passes.
-7. Confirm Wave β fixtures load byte-identically (IC6 no-migration assertion).
-8. Update `docs/handoff/CURRENT.md` Session Summary block with: commit shas per IC1 step, files changed, test counts, and explicit confirmation that IC1–IC6 are satisfied.
-
-### Reviewer checklist additions (per IC6)
-
-In addition to the standard `AGENTS.md` checklist, the reviewer MUST verify:
-
-- [ ] Commit sequence matches IC1 (schema → enum → CLI).
-- [ ] `patch_generations_wavegamma_test.go` exists and covers all five IC2 assertions.
-- [ ] `ClassifyPlainRecordKind` (or equivalent named helper) is the only call site classifying `record` vs `amend-refresh` for plain `record <slug>` writes.
-- [ ] IC4 frozen regions are unedited outside the IC1-listed extension points.
-- [ ] `go test ./assets/...` passes (IC5).
-- [ ] Existing Wave β manifests on disk still load byte-identically — no migration required (IC6).
-- [ ] Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
-
-### Drift-mitigation rationale (background, not binding)
-
-The external reviewer for ADR-026 flagged that the principal Wave γ risk is reader/writer drift on the strict v1 manifest. The IC1–IC6 appendix exists specifically to convert that implicit risk into reviewable artifacts:
-
-- IC1 (landing order) forces the strict reader to know `reason` and `fixup_of_generation` before any writer emits them.
-- IC2 (golden fixture tripwire) breaks first on any reader/writer skew.
-- IC3 (single-source classifier) prevents silent corruption of the D1 hybrid-kind audit trail.
-- IC4 (frozen regions) names the Wave α + Wave β surfaces that are NOT on the amendment path.
-- IC5 (skill-asset parity) catches doc-skew at build time.
-- IC6 (reviewer checklist additions) operationalizes IC1–IC5 at review time.
+1. `gofmt -l .` — zero output.
+2. `go vet ./...` — clean.
+3. `go build ./cmd/tpatch` — success.
+4. `go test ./... -count=1 -race` — all packages green.
+5. `go test ./assets/...` — parity guard green.
+6. `go test ./internal/store -run 'TestPatchGenerations' -count=1` — Wave γ contract test and existing Wave β patch-generation fixtures green.
+7. Test declaration count: 612 before Wave γ, 624 after Wave γ.
 
 ## Session Summary
 
-ADR-026 internal + external review cycle complete (commit `b40b042` records the external APPROVED verdict). Drafted "Wave γ Implementation Contract" appendix (IC1–IC6) on top of the approved ADR to convert the reviewer's residual drift risk into binding, reviewable artifacts. Prepared this Wave γ kickoff brief embedding IC1–IC6 as the implementer's binding contract.
+Wave γ implementation complete and ready for review. Three commits landed in IC1 order:
+
+1. `df35ab7bf2d1f2490b4d7d204a2cbb9249d34050` — schema-extension commit.
+   - Files: `internal/store/patch_generations.go`, `internal/store/patch_generations_wavegamma_test.go`.
+   - Added `reason` and `fixup_of_generation` as strict v1 known fields with validation for fixup reason and prior-generation target resolution.
+   - Added golden Wave γ fixture round-trip, strict unknown-field, missing/empty reason, missing target, and Wave β no-migration round-trip tests.
+2. `2de7242f4aa9a3b593912f87565f317fcbf0ab8e` — kind-enum/classifier commit.
+   - Files: `internal/store/patch_generation_kinds.go`, `internal/store/patch_generation_kinds_test.go`, `internal/store/patch_generations.go`.
+   - Made `amend-refresh` and `amend-fixup` writable while keeping `import` and `manual-metadata` read-only.
+   - Added `ClassifyPlainRecordKind` / `ClassifyPatchGenerationKind` and table tests for no-prior record, same-byte no-op, changed plain record → refresh, explicit refresh, and explicit fixup.
+3. `b125b0b40d52a0daee9cc53439475d9dce840e07` — CLI/status/assets commit.
+   - Files: `internal/cli/feature_patch.go`, `internal/cli/feature_patch_test.go`, `internal/cli/feature_deps.go`, `internal/cli/cobra.go`, `internal/cli/status_dag.go`, `internal/cli/patch_generations_test.go`, `internal/workflow/patch_generations.go`, `internal/workflow/parent_generation_stale.go`, `internal/store/types.go`, and all six shipped skill assets plus `assets/assets_test.go`.
+   - Added `tpatch feature patch refresh <slug> [--reason]` and `tpatch feature patch fixup <slug> --target <generation_id> --reason`.
+   - Routed plain `record <slug>` through the classifier so later byte-changing records append `kind: amend-refresh`.
+   - Added `parent-generation-stale` status/status-JSON overlay and hash-input verify freshness staleness coverage.
+
+IC satisfaction proof:
+
+- **IC1**: Commit order is schema (`df35ab7`) → enum/classifier (`2de7242`) → CLI/status/assets (`b125b0b`).
+- **IC2**: `internal/store/patch_generations_wavegamma_test.go` covers all five required contract assertions, including Wave β byte-identical round-trip.
+- **IC3**: `internal/store/patch_generation_kinds.go` is the single classification source; `internal/workflow/patch_generations.go` routes record/refresh/fixup writes through it.
+- **IC4**: Frozen regions were left untouched outside allowed extension points; no edits to `claims.go`, `capture_modes.go`, or the Wave β malformed-manifest swallow path.
+- **IC5**: All six skill assets mention `tpatch feature patch refresh`, `tpatch feature patch fixup`, and `parent-generation-stale`; `go test ./assets/...` passed.
+- **IC6**: Reviewer checklist inputs are present here; commit sequence, tests, classifier, frozen-region statement, asset test, and Wave β fixture no-migration result are documented.
 
 ## Current State
 
-- v0.10.0 cluster: Wave α shipped (v0.9.0 at `9267026`), Wave β complete (on `main`, no release tag yet), Wave γ ready to dispatch with full ADR + IC contract in place.
-- ADR-026 status: Accepted, APPROVED internally and externally; appendix IC1–IC6 added post-approval as binding implementation guardrails (no D1–D10 changes).
+- Wave γ implementation is complete on local `main` and awaiting reviewer dispatch.
+- Existing unrelated working-tree edits under `docs/state-of-the-art/` were present before this task and were not included in the Wave γ commits.
+- No blockers are known.
 
 ## Files Changed
 
-- `docs/adrs/ADR-026-patch-amendment-policy.md` — appended "Wave γ Implementation Contract" appendix (IC1–IC6) between `## Consequences` and `## References`.
-- `docs/handoff/CURRENT.md` — this rewrite (Wave γ kickoff brief).
+Committed Wave γ files:
+
+- `internal/store/patch_generations.go`
+- `internal/store/patch_generations_wavegamma_test.go`
+- `internal/store/patch_generation_kinds.go`
+- `internal/store/patch_generation_kinds_test.go`
+- `internal/store/types.go`
+- `internal/workflow/patch_generations.go`
+- `internal/workflow/parent_generation_stale.go`
+- `internal/cli/feature_patch.go`
+- `internal/cli/feature_patch_test.go`
+- `internal/cli/feature_deps.go`
+- `internal/cli/cobra.go`
+- `internal/cli/status_dag.go`
+- `internal/cli/patch_generations_test.go`
+- `assets/assets_test.go`
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/windsurf/windsurfrules`
+- `assets/workflows/tessera-patch-generic.md`
 
 ## Test Results
 
-Docs-only edits; baseline holds at 612 `func Test...` declarations across ten packages green under `go test ./... -count=1 -race`.
+- Pre-Wave γ baseline count: 612 `func Test...` declarations.
+- Post-Wave γ count: 624 `func Test...` declarations.
+- `go test ./internal/store -count=1` after commit 1: passed.
+- `go test ./internal/store -count=1` after commit 2: passed.
+- `go test ./... -count=1` before commit 3: passed.
+- Final quality gates:
+  - `gofmt -l .` — zero output.
+  - `go vet ./...` — clean.
+  - `go build ./cmd/tpatch` — success.
+  - `go test ./assets/...` — passed.
+  - `go test ./internal/store -run 'TestPatchGenerations' -count=1` — passed.
+  - `go test ./... -count=1 -race` — passed.
 
 ## Next Steps
 
-1. Commit ADR-026 appendix + CURRENT.md rewrite.
-2. Push to origin.
-3. Dispatch Wave γ implementer with reference to this CURRENT.md (binding contract embedded).
-4. After implementer lands all three IC1 commits, dispatch sub-agent reviewer (using IC6 checklist additions).
-5. On internal APPROVED, push and surface for external review.
+1. Dispatch Wave γ reviewer with the IC6 checklist.
+2. Reviewer should verify the three-commit sequence and frozen-region boundaries.
+3. On approval, supervisor can push local `main` for external review.
 
 ## Blockers
 
@@ -112,10 +139,9 @@ None.
 
 ## Context for Next Agent
 
-- ADR-026 D1–D10 are immutable; IC1–IC6 are the binding implementation guardrails layered on top.
-- The reviewer's "Wave γ contract test" (IC2) is the single most important tripwire — it MUST land in the schema-extension commit, not later.
-- IC3's `ClassifyPlainRecordKind` is the single source of truth for D1's hybrid kind rule. Multiple call sites classifying `record` vs `amend-refresh` is a review-blocker.
-- IC4 frozen regions include the Wave β rev-2 `ErrMalformedManifest` sentinel; do not touch the classification path or the narrow swallow.
+- The three Wave γ commits are local on `main`; do not reorder or squash them before IC6 review.
+- `record --force-amend` remains Git-rewrite orphan-only; it was not used as a refresh/fixup shortcut.
+- `parent-generation-stale` is status-rendered/advisory and derived from latest child dependency snapshots versus current parent patch generation metadata.
 - Side Research section is preserved byte-identical; verify via md5 `b385fe622db9926f48861105239f113e` after any CURRENT.md edit.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
