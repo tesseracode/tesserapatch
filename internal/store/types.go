@@ -117,6 +117,12 @@ const (
 	// or rebase rewrote the commit history). Composes with the four
 	// freshness labels above per ADR-013.
 	LabelDependentBroken ReconcileLabel = "dependent-broken"
+
+	// LabelParentGenerationStale — Wave γ patch-amend overlay (ADR-026 D5).
+	// Derived at status-render time from a child's latest generation dependency
+	// snapshots versus each parent's current patch generation. It is advisory,
+	// not a lifecycle state, and is not persisted to status.json.
+	LabelParentGenerationStale ReconcileLabel = "parent-generation-stale"
 )
 
 // DefaultMaxTokensImplement is the fallback budget for the implement-phase

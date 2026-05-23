@@ -56,6 +56,8 @@ Run `tpatch verify --all` to walk every tracked feature in topological order; pr
 
 If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA is no longer reachable — re-record affected features on the new base or run `tpatch reconcile`.
 
+If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --target <generation_id> --reason "..."` for an explicit fixup generation. Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
+
 ## Quick Start
 
 ```bash

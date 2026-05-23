@@ -27,6 +27,8 @@ var requiredCommands = []string{
 	"tpatch config",
 	"tpatch cycle",
 	"tpatch test",
+	"tpatch feature patch refresh",
+	"tpatch feature patch fixup",
 	"tpatch next",
 }
 
@@ -72,6 +74,9 @@ var requiredAnchors = []struct {
 	// sufficient — the string is unique to this troubleshooting
 	// bullet across all six surfaces.
 	{"dependent-broken/troubleshoot-line", "dependent-broken"},
+	{"patch-amend/refresh", "tpatch feature patch refresh <slug>"},
+	{"patch-amend/fixup", "tpatch feature patch fixup <slug>"},
+	{"patch-amend/stale-label", "parent-generation-stale"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching

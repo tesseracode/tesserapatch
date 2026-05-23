@@ -60,6 +60,9 @@ func TestPatchGenerations_ChangedRerecordAppends(t *testing.T) {
 	if m.CurrentGeneration != 2 || len(m.Generations) != 2 || m.Generations[1].Generation != 2 {
 		t.Fatalf("expected two monotonic generations, got %+v", m)
 	}
+	if m.Generations[1].Kind != store.PatchGenerationKindAmendRefresh {
+		t.Fatalf("changed plain re-record should be amend-refresh, got %+v", m.Generations[1])
+	}
 	if m.Generations[0].CanonicalPatch != "" || m.Generations[1].CanonicalPatch != "artifacts/post-apply.patch" {
 		t.Fatalf("canonical path should move to latest: %+v", m.Generations)
 	}

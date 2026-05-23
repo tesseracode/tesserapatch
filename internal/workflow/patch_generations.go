@@ -14,6 +14,9 @@ import (
 
 type PatchGenerationInput struct {
 	Kind                   string
+	Intent                 string
+	Reason                 string
+	FixupOfGeneration      string
 	Patch                  string
 	AuditPatch             string
 	BaseCommit             string
@@ -34,7 +37,28 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 		return false, err
 	}
 	patchSHA := store.SHA256HexString(in.Patch)
-	if latest, ok := store.LatestPatchGeneration(manifest); ok && latest.PatchSHA256 == patchSHA {
+	kind := in.Kind
+	intent := in.Intent
+	if intent == "" {
+		switch in.Kind {
+		case store.PatchGenerationKindRecord:
+			intent = store.PatchGenerationIntentPlainRecord
+		case store.PatchGenerationKindAmendRefresh:
+			intent = store.PatchGenerationIntentRefresh
+		case store.PatchGenerationKindAmendFixup:
+			intent = store.PatchGenerationIntentFixup
+		}
+	}
+	if intent != "" {
+		classification, err := store.ClassifyPatchGenerationKind(manifest.Generations, patchSHA, intent)
+		if err != nil {
+			return false, err
+		}
+		if !classification.Append {
+			return false, nil
+		}
+		kind = classification.Kind
+	} else if latest, ok := store.LatestPatchGeneration(manifest); ok && latest.PatchSHA256 == patchSHA {
 		return false, nil
 	}
 	recipeSHA, err := recipeSHA256(s, slug)
@@ -53,7 +77,9 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 	sort.Strings(touched)
 	deps := snapshotGenerationDependencies(s, slug)
 	g := store.PatchGeneration{
-		Kind:                in.Kind,
+		Kind:                kind,
+		Reason:              in.Reason,
+		FixupOfGeneration:   in.FixupOfGeneration,
 		PatchSHA256:         patchSHA,
 		GitPatchID:          gitPatchID,
 		GitPatchIDAlgorithm: store.PatchIDAlgorithmStable,

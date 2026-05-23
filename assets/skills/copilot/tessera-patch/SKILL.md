@@ -62,6 +62,8 @@ Never skip a phase. Never go backwards without `tpatch reconcile`.
 - `tpatch test <slug>` — Run the configured `test_command` and record the outcome
 - `tpatch verify <slug>` — Run integrity checks against a feature's recipe and dependencies (EXPERIMENTAL — Slice A: V0/V1/V2 only; full check set in later slices)
 - `tpatch next <slug>` — Emit the next action for a feature (`--format harness-json` for structured consumption)
+- `tpatch feature patch refresh <slug>` — Refresh the current feature patch; optional `--reason` is stored in patch-generations.json.
+- `tpatch feature patch fixup <slug> --target <generation_id> --reason "..."` — Append an explicit fixup generation.
 
 ## Lifecycle
 
@@ -74,6 +76,8 @@ analyse → define → explore → implement → test → record → reconcile
 Run `tpatch verify --all` to walk every tracked feature in topological order; pre-apply features are reported with a `skipped: pre-apply` row at their topo position. Non-zero exit if any feature failed.
 
 If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA is no longer reachable — re-record affected features on the new base or run `tpatch reconcile`.
+
+If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --target <generation_id> --reason "..."` for an explicit fixup generation. Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
 
 ## Data Model
 

@@ -265,15 +265,20 @@ func statusCmd() *cobra.Command {
 				}
 				type featureWithFreshness struct {
 					store.FeatureStatus
-					FreshnessLabel  store.ReconcileLabel   `json:"freshness_label,omitempty"`
-					RenderedLabels  []store.ReconcileLabel `json:"labels_rendered,omitempty"`
-					DependentBroken bool                   `json:"dependent_broken,omitempty"`
-					BrokenRefs      []brokenRefJSON        `json:"broken_refs,omitempty"`
+					FreshnessLabel        store.ReconcileLabel   `json:"freshness_label,omitempty"`
+					RenderedLabels        []store.ReconcileLabel `json:"labels_rendered,omitempty"`
+					DependentBroken       bool                   `json:"dependent_broken,omitempty"`
+					ParentGenerationStale bool                   `json:"parent_generation_stale,omitempty"`
+					BrokenRefs            []brokenRefJSON        `json:"broken_refs,omitempty"`
 				}
 				rendered := make([]featureWithFreshness, len(features))
 				for i, f := range features {
 					fl := workflow.DeriveFreshnessLabel(s, f)
 					labels := mergedLabels(f, fl)
+					parentStale := workflow.ParentGenerationStale(s, f.Slug)
+					if parentStale {
+						labels = appendLabel(labels, store.LabelParentGenerationStale)
+					}
 					var brokenJSON []brokenRefJSON
 					if refs, ok := brokenByFeature[f.Slug]; ok && len(refs) > 0 {
 						labels = appendLabel(labels, store.LabelDependentBroken)
@@ -283,11 +288,12 @@ func statusCmd() *cobra.Command {
 						}
 					}
 					rendered[i] = featureWithFreshness{
-						FeatureStatus:   f,
-						FreshnessLabel:  fl,
-						RenderedLabels:  labels,
-						DependentBroken: len(brokenJSON) > 0,
-						BrokenRefs:      brokenJSON,
+						FeatureStatus:         f,
+						FreshnessLabel:        fl,
+						RenderedLabels:        labels,
+						DependentBroken:       len(brokenJSON) > 0,
+						ParentGenerationStale: parentStale,
+						BrokenRefs:            brokenJSON,
 					}
 				}
 				payload := map[string]any{
@@ -323,6 +329,9 @@ func statusCmd() *cobra.Command {
 			for _, f := range features {
 				freshness := workflow.DeriveFreshnessLabel(s, f)
 				labels := mergedLabels(f, freshness)
+				if workflow.ParentGenerationStale(s, f.Slug) {
+					labels = appendLabel(labels, store.LabelParentGenerationStale)
+				}
 				if refs, ok := brokenByFeature[f.Slug]; ok && len(refs) > 0 {
 					labels = appendLabel(labels, store.LabelDependentBroken)
 				}

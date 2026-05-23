@@ -39,17 +39,18 @@ import (
 // Field names, casing, and `omitempty` semantics are intentionally
 // identical so a consumer can union-parse either payload.
 type dagJSONNode struct {
-	Slug            string                 `json:"slug"`
-	State           store.FeatureState     `json:"state"`
-	Outcome         string                 `json:"outcome,omitempty"`
-	Effective       string                 `json:"effective_outcome,omitempty"`
-	Labels          []store.ReconcileLabel `json:"labels,omitempty"`
-	FreshnessLabel  store.ReconcileLabel   `json:"freshness_label,omitempty"`
-	Verify          *store.VerifyRecord    `json:"verify,omitempty"`
-	DependsOn       []dagJSONEdge          `json:"depends_on,omitempty"`
-	Dependents      []dagJSONEdge          `json:"dependents,omitempty"`
-	DependentBroken bool                   `json:"dependent_broken,omitempty"`
-	BrokenRefs      []dagJSONBrokenRef     `json:"broken_refs,omitempty"`
+	Slug                  string                 `json:"slug"`
+	State                 store.FeatureState     `json:"state"`
+	Outcome               string                 `json:"outcome,omitempty"`
+	Effective             string                 `json:"effective_outcome,omitempty"`
+	Labels                []store.ReconcileLabel `json:"labels,omitempty"`
+	FreshnessLabel        store.ReconcileLabel   `json:"freshness_label,omitempty"`
+	Verify                *store.VerifyRecord    `json:"verify,omitempty"`
+	DependsOn             []dagJSONEdge          `json:"depends_on,omitempty"`
+	Dependents            []dagJSONEdge          `json:"dependents,omitempty"`
+	DependentBroken       bool                   `json:"dependent_broken,omitempty"`
+	ParentGenerationStale bool                   `json:"parent_generation_stale,omitempty"`
+	BrokenRefs            []dagJSONBrokenRef     `json:"broken_refs,omitempty"`
 }
 
 // dagJSONBrokenRef mirrors the per-ref record in the non-DAG `--json`
@@ -360,10 +361,12 @@ func walkTree(
 // (feat-amend-dependent-warning rev-1).
 func renderNodeLine(s *store.Store, st store.FeatureStatus, brokenRefs []store.FeatureRef) string {
 	var freshness store.ReconcileLabel
+	parentStale := false
 	if s != nil {
 		freshness = workflow.DeriveFreshnessLabel(s, st)
+		parentStale = workflow.ParentGenerationStale(s, st.Slug)
 	}
-	return renderNodeLineWithFreshness(st, freshness, brokenRefs)
+	return renderNodeLineWithFreshness(st, freshness, parentStale, brokenRefs)
 }
 
 // renderNodeLineWithFreshness is the freshness-aware variant. Callers
@@ -372,12 +375,15 @@ func renderNodeLine(s *store.Store, st store.FeatureStatus, brokenRefs []store.F
 //
 // `brokenRefs` overlays the dependent-broken label when non-empty
 // (feat-amend-dependent-warning rev-1). nil is safe.
-func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.ReconcileLabel, brokenRefs []store.FeatureRef) string {
+func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.ReconcileLabel, parentStale bool, brokenRefs []store.FeatureRef) string {
 	out := fmt.Sprintf("%s [%s]", st.Slug, st.State)
 	if eff := st.Reconcile.EffectiveOutcome(); eff != "" {
 		out += " " + eff
 	}
 	labels := mergedLabels(st, freshness)
+	if parentStale {
+		labels = appendLabel(labels, store.LabelParentGenerationStale)
+	}
 	if len(brokenRefs) > 0 {
 		labels = appendLabel(labels, store.LabelDependentBroken)
 	}
@@ -461,6 +467,10 @@ func writeDAGJSON(
 		// Reconcile.Labels carries only M14.3 entries.
 		freshness := workflow.DeriveFreshnessLabel(s, f)
 		labels := mergedLabels(f, freshness)
+		parentStale := workflow.ParentGenerationStale(s, f.Slug)
+		if parentStale {
+			labels = appendLabel(labels, store.LabelParentGenerationStale)
+		}
 		var brokenJSON []dagJSONBrokenRef
 		if refs := brokenByFeature[f.Slug]; len(refs) > 0 {
 			labels = appendLabel(labels, store.LabelDependentBroken)
@@ -470,15 +480,16 @@ func writeDAGJSON(
 			}
 		}
 		node := dagJSONNode{
-			Slug:            f.Slug,
-			State:           f.State,
-			Outcome:         string(f.Reconcile.Outcome),
-			Effective:       f.Reconcile.EffectiveOutcome(),
-			Labels:          labels,
-			FreshnessLabel:  freshness,
-			Verify:          f.Verify,
-			DependentBroken: len(brokenJSON) > 0,
-			BrokenRefs:      brokenJSON,
+			Slug:                  f.Slug,
+			State:                 f.State,
+			Outcome:               string(f.Reconcile.Outcome),
+			Effective:             f.Reconcile.EffectiveOutcome(),
+			Labels:                labels,
+			FreshnessLabel:        freshness,
+			Verify:                f.Verify,
+			DependentBroken:       len(brokenJSON) > 0,
+			ParentGenerationStale: parentStale,
+			BrokenRefs:            brokenJSON,
 		}
 		for _, d := range f.DependsOn {
 			node.DependsOn = append(node.DependsOn, dagJSONEdge{
