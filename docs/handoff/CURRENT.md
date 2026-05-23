@@ -2,84 +2,128 @@
 
 ## Active Task
 
-- **Task ID**: `wave-gamma-patch-amend-impl`
-- **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` implementation (WP-002 cluster slice 4 of 4).
-- **Description**: Implement `tpatch feature patch refresh` and `tpatch feature patch fixup` per the binding contract in `docs/adrs/ADR-026-patch-amendment-policy.md` (D1–D10 + the "Wave γ Implementation Contract" appendix IC1–IC6).
-- **Status**: Review (awaiting reviewer).
+- **Task ID**: `wave-gamma-patch-amend-impl-rev1`
+- **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` rev-1 revision after external NEEDS REVISION verdict on rev-0 stack `df35ab7..7a1326c`.
+- **Description**: Address external reviewer's two findings (F1 HIGH `fixup --target` off-contract; F2 MEDIUM `parent-generation-stale` not enforced on apply/reconcile for hard dependents). Both are real ADR-026 violations — the rev-0 implementation matched the supervisor's kickoff brief but the brief drifted from ADR-026 D4 on F1. ADR is binding; rev-1 must match ADR-026 verbatim.
+- **Status**: Ready to dispatch.
 - **Assigned**: 2026-05-22.
 
-### Binding contract
+### Findings to address (both BINDING per ADR-026)
 
-- `docs/adrs/ADR-026-patch-amendment-policy.md` — D1–D10 are not re-openable. The Wave γ Implementation Contract appendix (IC1–IC6) is also binding.
+**F1 — HIGH — `fixup` CLI surface contradicts ADR-026 D4 + D7**
+
+ADR-026 D4 (`docs/adrs/ADR-026-patch-amendment-policy.md:93-94`): `fixup_of_generation` value is "the previously current generation at fixup capture time."
+ADR-026 D7: subverbs are `{refresh, fixup}` with `--reason` mandatory for fixup; no `--target` flag is part of the locked surface.
+PRD §4.2 (`docs/prds/PRD-feature-patch-amend.md:171-190`): same binding semantics — auto-target the previously-current generation.
+
+**rev-0 implementation drift**:
+- `internal/cli/feature_patch.go` registers `--target` and makes it mandatory.
+- The handler writes whatever `generation_id` the user supplied (only validates the ID exists in the manifest).
+- `internal/cli/feature_patch_test.go` encodes the off-contract surface.
+
+**rev-1 fix**:
+1. Remove the `--target` flag from `feature patch fixup`.
+2. Derive `fixup_of_generation` automatically: it MUST equal the manifest's `current_generation` at fixup capture time (the generation_id of the entry whose `generation` integer matches `current_generation`).
+3. Refuse fixup when the manifest has no prior generations (clear diagnostic; mirrors D3 semantics).
+4. `--reason <text>` remains MANDATORY for fixup per D2.
+5. Update `internal/cli/feature_patch_test.go`:
+   - Drop tests asserting `--target` mandatory behavior.
+   - Add a test that fixup with no `--target` flag succeeds and sets `fixup_of_generation` to the previously-current generation.
+   - Add a test confirming `--target` is no longer a registered flag (or that passing it errors).
+   - Add a test that fixup on a feature with no prior generations refuses with a clear diagnostic.
+
+**F2 — MEDIUM — `parent-generation-stale` not enforced on apply/reconcile for hard dependents**
+
+ADR-026 D5 (`docs/adrs/ADR-026-patch-amendment-policy.md:122-126`): "Soft-dependency dependents warn. Hard-dependency dependents block on apply and reconcile according to ADR-011's hard/soft policy."
+ADR-011 (`docs/adrs/ADR-011-feature-dependencies.md:47-56`): hard/soft dependency policy.
+
+**rev-0 implementation drift**: `internal/workflow/parent_generation_stale.go` exists and the overlay surfaces in `status`/`status --json`. But apply and reconcile do NOT consult the helper. Hard stale dependents proceed silently.
+
+**rev-1 fix**:
+1. Thread `ParentGenerationStale` detection into `apply` and `reconcile` paths.
+2. For **hard** dependencies: when a dependent feature is `parent-generation-stale` against a hard parent, `apply` and `reconcile` MUST refuse with a clear diagnostic naming the stale parent generation_id and current parent generation_id. Suggest `tpatch feature patch refresh <parent>` or `tpatch reconcile <child>` as remediation.
+3. For **soft** dependencies: warn only, do not refuse. Existing soft-dep warning patterns in the codebase are the model — match the warning style.
+4. Tests: add explicit coverage for both hard-blocks-with-diagnostic and soft-warns-with-message in `internal/cli/feature_patch_test.go` or a new `apply_stale_dep_test.go` / `reconcile_stale_dep_test.go` as appropriate. Both `apply` and `reconcile` need coverage.
+
+### Binding contract (UNCHANGED from rev-0)
+
+- `docs/adrs/ADR-026-patch-amendment-policy.md` — D1–D10 + IC1–IC6 appendix.
 - `docs/prds/PRD-feature-patch-amend.md` — product surface and acceptance criteria.
-- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` — Wave β manifest contract (D1–D9). Frozen for Wave γ except for the D10 transition (`amend-refresh`/`amend-fixup` become writable).
-- `docs/adrs/ADR-013-verify-freshness-overlay.md` — verify-cache invalidation inputs (cited by ADR-026 D6).
-- `docs/adrs/ADR-011-feature-dependencies.md` — hard/soft dependency policy (cited by ADR-026 D5).
+- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` — Wave β manifest contract; D1–D9 frozen.
+- `docs/adrs/ADR-013-verify-freshness-overlay.md` — verify-cache invalidation inputs (D6).
+- `docs/adrs/ADR-011-feature-dependencies.md` — hard/soft dependency policy (D5).
 
-### Landing order (binding, per IC1)
+### Frozen regions (IC4) — STILL FROZEN
 
-Wave γ landed in the required IC1 order:
+All IC4 frozen regions from rev-0 remain frozen for rev-1:
 
-1. **Schema-extension commit** — `df35ab7bf2d1f2490b4d7d204a2cbb9249d34050`
-2. **Kind-enum commit** — `2de7242f4aa9a3b593912f87565f317fcbf0ab8e`
-3. **CLI surface commit** — `b125b0b40d52a0daee9cc53439475d9dce840e07`
+- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ extensions from rev-0 are accepted; no further version/strict-on-unknown/`ErrMalformedManifest` edits.
+- `internal/store/claims.go:263` + `:294`.
+- `internal/cli/cobra.go:897-905` + `:1415` (`--force-amend`).
+- `internal/gitutil/capture_modes.go:137/:182/:328`.
+- `internal/workflow/patch_generations.go:31`.
 
-### Frozen regions (per IC4)
+### Out of scope for rev-1
 
-The following surfaces were preserved for Wave γ except for the explicit extension points:
+- Any change to D1, D2, D3, D6, D8, D9, or D10 implementations from rev-0.
+- Schema version bump (still v1).
+- New CLI surfaces beyond removing `--target` from fixup.
+- CHANGELOG entry.
 
-- `internal/store/patch_generations.go` — only schema fields, validation for those fields, and writable-kind hook/classification call were touched. Version stayed v1; `DisallowUnknownFields` and `ErrMalformedManifest` classification path were not relaxed.
-- `internal/store/claims.go` — not edited.
-- `internal/cli/cobra.go:897-905` and `internal/cli/cobra.go:1415` — `--force-amend` behavior/flag were not edited.
-- `internal/gitutil/capture_modes.go` — not edited.
-- `internal/workflow/patch_generations.go:31` — malformed-manifest swallow path not edited.
+### Quality gates (UNCHANGED)
 
-### Out of scope for Wave γ
+Before claiming completion:
 
-- `fork` / `fold` subverbs (PRD §4.4–4.5; deferred to v2 per ADR-026 D7).
-- Metadata-only amend manifest revisions (ADR-026 D9 answers NO for v1).
-- WP-003 reconcile cluster work (ADR-025 reserved-but-unwritten).
-- Privacy gating on `--reason` (deferred to `ADR-capture-context-privacy-boundary`; ADR-026 D2 is advisory-only).
-- Schema version bump (D4 keeps v1).
-
-### Quality gates
-
-All required gates passed after the three commits:
-
-1. `gofmt -l .` — zero output.
+1. `gofmt -l .` — zero output (run gofmt directly, NOT piped through `grep -v '^$'`).
 2. `go vet ./...` — clean.
-3. `go build ./cmd/tpatch` — success.
-4. `go test ./... -count=1 -race` — all packages green.
-5. `go test ./assets/...` — parity guard green.
-6. `go test ./internal/store -run 'TestPatchGenerations' -count=1` — Wave γ contract test and existing Wave β patch-generation fixtures green.
-7. Test declaration count: 612 before Wave γ, 624 after Wave γ.
+3. `go build ./cmd/tpatch` — succeeds.
+4. `go test ./... -count=1 -race` — all green.
+5. `go test ./assets/...` — parity guard passes.
+6. Existing Wave β fixtures still load byte-identically.
+7. Manual CLI verification:
+   - `tpatch feature patch fixup <slug> --reason 'why'` succeeds (no `--target` needed) and writes `fixup_of_generation` equal to previously-current generation_id.
+   - `tpatch feature patch fixup <slug> --target <id>` is rejected (flag not registered) OR `--target` accepted no-op for BC if desired (NOT desired — drop it).
+   - `tpatch apply <child>` refuses when child is `parent-generation-stale` and the dep is hard; warns and proceeds when dep is soft.
+   - `tpatch reconcile <child>` same.
+
+### Reviewer checklist additions for rev-1
+
+In addition to the standard `AGENTS.md` checklist:
+
+- [ ] F1: `--target` flag removed from `feature patch fixup`; `fixup_of_generation` auto-derived from manifest `current_generation`.
+- [ ] F1: Tests assert auto-target behavior and absence of `--target` flag.
+- [ ] F1: Fixup on a feature with no prior generations refuses cleanly.
+- [ ] F2: `apply` consults `ParentGenerationStale` helper; hard-stale dependents refuse with diagnostic; soft-stale warns.
+- [ ] F2: `reconcile` same hard/soft split.
+- [ ] F2: Explicit test coverage for both hard-refuse and soft-warn on both `apply` and `reconcile`.
+- [ ] IC4 frozen regions unedited (no regression).
+- [ ] Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
+
+### Session Summary — rev-0 (for context, not new work)
+
+The rev-0 stack is on `main` at `df35ab7..7a1326c`:
+
+- `df35ab7` — schema extension + tripwire test (IC1 step 1, IC2)
+- `2de7242` — kind enum + `ClassifyPatchGenerationKind` (IC1 step 2, IC3)
+- `b125b0b` — CLI + stale overlay + skill assets (IC1 step 3, IC5)
+- `7a1326c` — implementer handoff
+
+rev-1 must NOT amend, rebase, or rewrite these commits. It must land as **new commits on top** of `7a1326c`, additive in the same conventional-commit style. Suggested commit shape:
+
+1. `fix(cli): drop --target from feature patch fixup; auto-derive fixup_of_generation (rev-1 F1)`
+2. `feat(cli): enforce parent-generation-stale on apply/reconcile per hard/soft policy (rev-1 F2)`
+
+Optionally one combined commit if cleanly atomic, but two separate commits per finding are preferred for review clarity.
+
+### History of prior section (superseded)
+
+[previous rev-0 dispatch brief archived implicitly; see Session Summary]
 
 ## Session Summary
 
-Wave γ implementation complete and ready for review. Three commits landed in IC1 order:
+External NEEDS REVISION verdict received. Both findings confirmed against ADR-026 verbatim. F1 root cause was a supervisor-brief drift (kickoff prompt said `fixup --target` contradicting D4). Logged verdict to LOG.md. Ready to dispatch rev-1 implementer.
 
-1. `df35ab7bf2d1f2490b4d7d204a2cbb9249d34050` — schema-extension commit.
-   - Files: `internal/store/patch_generations.go`, `internal/store/patch_generations_wavegamma_test.go`.
-   - Added `reason` and `fixup_of_generation` as strict v1 known fields with validation for fixup reason and prior-generation target resolution.
-   - Added golden Wave γ fixture round-trip, strict unknown-field, missing/empty reason, missing target, and Wave β no-migration round-trip tests.
-2. `2de7242f4aa9a3b593912f87565f317fcbf0ab8e` — kind-enum/classifier commit.
-   - Files: `internal/store/patch_generation_kinds.go`, `internal/store/patch_generation_kinds_test.go`, `internal/store/patch_generations.go`.
-   - Made `amend-refresh` and `amend-fixup` writable while keeping `import` and `manual-metadata` read-only.
-   - Added `ClassifyPlainRecordKind` / `ClassifyPatchGenerationKind` and table tests for no-prior record, same-byte no-op, changed plain record → refresh, explicit refresh, and explicit fixup.
-3. `b125b0b40d52a0daee9cc53439475d9dce840e07` — CLI/status/assets commit.
-   - Files: `internal/cli/feature_patch.go`, `internal/cli/feature_patch_test.go`, `internal/cli/feature_deps.go`, `internal/cli/cobra.go`, `internal/cli/status_dag.go`, `internal/cli/patch_generations_test.go`, `internal/workflow/patch_generations.go`, `internal/workflow/parent_generation_stale.go`, `internal/store/types.go`, and all six shipped skill assets plus `assets/assets_test.go`.
-   - Added `tpatch feature patch refresh <slug> [--reason]` and `tpatch feature patch fixup <slug> --target <generation_id> --reason`.
-   - Routed plain `record <slug>` through the classifier so later byte-changing records append `kind: amend-refresh`.
-   - Added `parent-generation-stale` status/status-JSON overlay and hash-input verify freshness staleness coverage.
-
-IC satisfaction proof:
-
-- **IC1**: Commit order is schema (`df35ab7`) → enum/classifier (`2de7242`) → CLI/status/assets (`b125b0b`).
-- **IC2**: `internal/store/patch_generations_wavegamma_test.go` covers all five required contract assertions, including Wave β byte-identical round-trip.
-- **IC3**: `internal/store/patch_generation_kinds.go` is the single classification source; `internal/workflow/patch_generations.go` routes record/refresh/fixup writes through it.
-- **IC4**: Frozen regions were left untouched outside allowed extension points; no edits to `claims.go`, `capture_modes.go`, or the Wave β malformed-manifest swallow path.
-- **IC5**: All six skill assets mention `tpatch feature patch refresh`, `tpatch feature patch fixup`, and `parent-generation-stale`; `go test ./assets/...` passed.
-- **IC6**: Reviewer checklist inputs are present here; commit sequence, tests, classifier, frozen-region statement, asset test, and Wave β fixture no-migration result are documented.
+rev-0 stack (`df35ab7..7a1326c`) remains on `main`; rev-1 lands additive commits on top — no amend/rewrite.
 
 ## Current State
 

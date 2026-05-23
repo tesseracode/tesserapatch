@@ -1,3 +1,55 @@
+## Review — Wave γ patch amend (rev-0 external) — 2026-05-22
+
+**Reviewer**: external
+**Task**: External review of Wave γ implementation stack `df35ab7..7a1326c`.
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+**F1 — HIGH — `fixup` CLI surface drifts from ADR-026 D4 + D7 and allows off-contract targets.**
+
+ADR-026 D4 (`docs/adrs/ADR-026-patch-amendment-policy.md:93-94`) binds `fixup_of_generation` to "the previously current generation at fixup capture time". D7 locks the subverb surface to `{refresh, fixup}` (no `--target` flag). PRD §4.2 (`docs/prds/PRD-feature-patch-amend.md:171-190`) lists `Store fixup_of_generation as the previously current generation` as the binding semantics.
+
+Implementation drift:
+- `internal/cli/feature_patch.go` makes `--target` mandatory and refuses fixup without it.
+- The same file only validates that the supplied `generation_id` exists somewhere in the manifest, then writes whatever the user passed as `fixup_of_generation`.
+- `internal/cli/feature_patch_test.go` encodes the off-contract surface.
+- Reproduced externally: `fixup` without `--target` refused; after `refresh`, `fixup --target <gen-1>` accepted even though gen-2 was the previously current generation.
+
+**Root cause attribution**: supervisor's Wave γ kickoff brief (sent at agent dispatch) told the implementer "`fixup --target <generation_id>: --reason mandatory`". The implementer faithfully implemented what the brief said, but the brief contradicted ADR-026 D4. ADR is binding; brief is not. Fix is on the implementation side.
+
+**F2 — MEDIUM — `parent-generation-stale` is render-only; apply/reconcile do NOT block hard dependents as ADR-026 D5 mandates.**
+
+ADR-026 D5 (`docs/adrs/ADR-026-patch-amendment-policy.md:122-126`): "Soft-dependency dependents warn. Hard-dependency dependents block on apply and reconcile according to ADR-011's hard/soft policy."
+
+Implementation drift:
+- `internal/workflow/parent_generation_stale.go` exposes the detection helper.
+- Only callers are status renderers in `internal/cli/cobra.go` and `internal/cli/status_dag.go`.
+- No `apply` or `reconcile` path consults the helper. Hard stale dependents proceed silently in shipped pass.
+- Only test coverage is the status JSON surface in `feature_patch_test.go`.
+
+### Validation performed
+
+- Read ADR-026 D4, D5, D7 verbatim; read PRD §4.2 verbatim; both confirm the binding contract.
+- Read `internal/cli/feature_patch.go`, `internal/store/patch_generations.go`, `internal/workflow/parent_generation_stale.go` end-to-end.
+- Manual CLI repro #1: `feature patch fixup <slug> --reason 'why'` — refused with "requires --target".
+- Manual CLI repro #2: after `refresh` to gen-2, `feature patch fixup <slug> --target <gen-1> --reason 'why'` — accepted, writing gen-1 as `fixup_of_generation`.
+- Grep audit: no apply/reconcile path consults `ParentGenerationStale` helper.
+- Targeted Wave γ tests: 56/56 passed (but tests encode the off-contract behavior, so green tests do not absolve the drift).
+- `go build ./cmd/tpatch` succeeded.
+
+### Action Required
+
+1. **F1 fix**: Remove `--target` from `feature patch fixup`. Derive `fixup_of_generation` automatically from the current manifest's previously-current generation at fixup capture time. Update `feature_patch_test.go` to assert the auto-target behavior and the absence of `--target`.
+2. **F2 fix**: Thread `parent-generation-stale` into apply and reconcile hard-dependent gates per ADR-011 hard/soft policy. Soft dependents continue to warn only. Add explicit tests for both behaviors (hard blocks, soft warns).
+
+### Action Taken
+
+Pending revision dispatch (rev-1).
+
+---
+
 ## Review — Wave γ patch amend (IC1–IC6) — 2026-05-22
 
 **Reviewer**: sub-agent code-review (supervisor-reclassified — see Findings)
