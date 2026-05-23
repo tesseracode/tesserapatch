@@ -64,8 +64,8 @@ func TestFeaturePatchRefreshAndFixupWriteAmendGenerations(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmpDir, "src", "a.txt"), []byte("a fixup\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	target := m.Generations[1].GenerationID
-	if _, stderr, code := runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--target", target, "--reason", "cover empty response"); code != 0 {
+	previouslyCurrent := m.Generations[1].GenerationID
+	if _, stderr, code := runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--reason", "cover empty response"); code != 0 {
 		t.Fatalf("feature patch fixup failed: %s", stderr)
 	}
 	m = loadPatchGenerationsForTest(t, tmpDir, slug)
@@ -73,7 +73,7 @@ func TestFeaturePatchRefreshAndFixupWriteAmendGenerations(t *testing.T) {
 		t.Fatalf("expected three generations: %+v", m)
 	}
 	fixup := m.Generations[2]
-	if fixup.Kind != store.PatchGenerationKindAmendFixup || fixup.Reason != "cover empty response" || fixup.FixupOfGeneration != target {
+	if fixup.Kind != store.PatchGenerationKindAmendFixup || fixup.Reason != "cover empty response" || fixup.FixupOfGeneration != previouslyCurrent {
 		t.Fatalf("fixup generation mismatch: %+v", fixup)
 	}
 }
@@ -88,7 +88,7 @@ func featureArtifactHash(t *testing.T, root, slug, name string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func TestFeaturePatchFixupRequiresReasonAndTargetBeforeCapture(t *testing.T) {
+func TestFeaturePatchFixupRequiresReasonBeforeCapture(t *testing.T) {
 	tmpDir, baseSha, _, _ := setupRecordRangeFixture(t)
 	runCmd("init", "--path", tmpDir)
 	runCmd("add", "--path", tmpDir, "Fixup validation")
@@ -101,21 +101,62 @@ func TestFeaturePatchFixupRequiresReasonAndTargetBeforeCapture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, stderr, code := runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--target", before.Generations[0].GenerationID)
+	_, stderr, code := runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug)
 	if code == 0 || !strings.Contains(stderr, "requires --reason") {
 		t.Fatalf("expected missing reason refusal, code=%d stderr=%q", code, stderr)
 	}
-	_, stderr, code = runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--reason", "why")
-	if code == 0 || !strings.Contains(stderr, "requires --target") {
-		t.Fatalf("expected missing target refusal, code=%d stderr=%q", code, stderr)
+	after := loadPatchGenerationsForTest(t, tmpDir, slug)
+	if len(after.Generations) != len(before.Generations) {
+		t.Fatalf("fixup refusal must not append generations: before=%+v after=%+v", before, after)
 	}
-	_, stderr, code = runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--target", "pg_missing", "--reason", "why")
-	if code == 0 || !strings.Contains(stderr, "does not exist") {
-		t.Fatalf("expected missing target refusal, code=%d stderr=%q", code, stderr)
+}
+
+func TestFeaturePatchFixupRejectsTargetFlag(t *testing.T) {
+	tmpDir, baseSha, _, _ := setupRecordRangeFixture(t)
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Fixup target removed")
+	slug := "fixup-target-removed"
+	if _, stderr, code := recordSameContent(t, tmpDir, slug, baseSha); code != 0 {
+		t.Fatalf("first record failed: %s", stderr)
+	}
+	before := loadPatchGenerationsForTest(t, tmpDir, slug)
+	if err := os.WriteFile(filepath.Join(tmpDir, "src", "a.txt"), []byte("a fixup\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, code := runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--target", before.Generations[0].GenerationID, "--reason", "why")
+	if code == 0 || !strings.Contains(stderr, "unknown flag: --target") {
+		t.Fatalf("expected unknown --target refusal, code=%d stderr=%q", code, stderr)
 	}
 	after := loadPatchGenerationsForTest(t, tmpDir, slug)
 	if len(after.Generations) != len(before.Generations) {
-		t.Fatalf("fixup refusals must not append generations: before=%+v after=%+v", before, after)
+		t.Fatalf("unknown flag refusal must not append generations: before=%+v after=%+v", before, after)
+	}
+}
+
+func TestFeaturePatchFixupRefusesWithoutPriorGenerations(t *testing.T) {
+	tmpDir, _, _, _ := setupRecordRangeFixture(t)
+	runCmd("init", "--path", tmpDir)
+	runCmd("add", "--path", tmpDir, "Empty fixup")
+	slug := "empty-fixup"
+	if err := os.WriteFile(filepath.Join(tmpDir, "src", "a.txt"), []byte("a fixup\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, code := runCmdWithError("feature", "patch", "fixup", "--path", tmpDir, slug, "--reason", "why")
+	if code == 0 || !strings.Contains(stderr, "no prior generations to fix up; record first") {
+		t.Fatalf("expected no-prior-generations refusal, code=%d stderr=%q", code, stderr)
+	}
+	s, err := store.Open(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := store.LoadPatchGenerations(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.Generations) != 0 {
+		t.Fatalf("no-prior-generations refusal must not append generations: %+v", after)
 	}
 }
 

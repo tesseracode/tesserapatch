@@ -49,24 +49,18 @@ func featurePatchFixupCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reason, _ := cmd.Flags().GetString("reason")
-			target, _ := cmd.Flags().GetString("target")
 			reason = strings.TrimSpace(reason)
-			target = strings.TrimSpace(target)
 			if reason == "" {
 				return fmt.Errorf("feature patch fixup requires --reason")
-			}
-			if target == "" {
-				return fmt.Errorf("feature patch fixup requires --target <generation_id>")
 			}
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
 			}
-			return runFeaturePatchAmend(cmd, s, args[0], store.PatchGenerationIntentFixup, reason, target)
+			return runFeaturePatchAmend(cmd, s, args[0], store.PatchGenerationIntentFixup, reason, "")
 		},
 	}
 	cmd.Flags().String("reason", "", "Required fixup reason stored on patch-generations.json")
-	cmd.Flags().String("target", "", "Generation ID this fixup amends")
 	return cmd
 }
 
@@ -78,8 +72,12 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	if err != nil {
 		return err
 	}
-	if intent == store.PatchGenerationIntentFixup && !manifestHasGenerationID(manifest, target) {
-		return fmt.Errorf("feature patch fixup target %q does not exist in patch-generations.json", target)
+	if intent == store.PatchGenerationIntentFixup {
+		var ok bool
+		target, ok = currentPatchGenerationID(manifest)
+		if !ok {
+			return fmt.Errorf("feature patch fixup: no prior generations to fix up; record first")
+		}
 	}
 
 	patch, err := gitutil.CapturePatchScoped(s.Root, nil)
@@ -161,11 +159,14 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	return nil
 }
 
-func manifestHasGenerationID(m store.PatchGenerationsManifest, id string) bool {
+func currentPatchGenerationID(m store.PatchGenerationsManifest) (string, bool) {
+	if m.CurrentGeneration == 0 {
+		return "", false
+	}
 	for _, g := range m.Generations {
-		if g.GenerationID == id {
-			return true
+		if g.Generation == m.CurrentGeneration {
+			return g.GenerationID, g.GenerationID != ""
 		}
 	}
-	return false
+	return "", false
 }
