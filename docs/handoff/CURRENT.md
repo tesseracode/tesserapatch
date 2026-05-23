@@ -5,7 +5,7 @@
 - **Task ID**: `wave-gamma-patch-amend-impl-rev1`
 - **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` rev-1 revision after external NEEDS REVISION verdict on rev-0 stack `df35ab7..7a1326c`.
 - **Description**: Address external reviewer's two findings (F1 HIGH `fixup --target` off-contract; F2 MEDIUM `parent-generation-stale` not enforced on apply/reconcile for hard dependents). Both are real ADR-026 violations — the rev-0 implementation matched the supervisor's kickoff brief but the brief drifted from ADR-026 D4 on F1. ADR is binding; rev-1 must match ADR-026 verbatim.
-- **Status**: Ready to dispatch.
+- **Status**: Review (awaiting reviewer).
 - **Assigned**: 2026-05-22.
 
 ### Findings to address (both BINDING per ADR-026)
@@ -121,60 +121,60 @@ Optionally one combined commit if cleanly atomic, but two separate commits per f
 
 ## Session Summary
 
-External NEEDS REVISION verdict received. Both findings confirmed against ADR-026 verbatim. F1 root cause was a supervisor-brief drift (kickoff prompt said `fixup --target` contradicting D4). Logged verdict to LOG.md. Ready to dispatch rev-1 implementer.
+Rev-1 implementation is complete in two additive commits on top of `8eaef18`:
 
-rev-0 stack (`df35ab7..7a1326c`) remains on `main`; rev-1 lands additive commits on top — no amend/rewrite.
+1. `5ea7a01` — `fix(cli): drop --target from feature patch fixup`
+   - Files: `internal/cli/feature_patch.go`, `internal/cli/feature_patch_test.go`.
+   - F1 addressed: `feature patch fixup` has no `--target` flag, keeps `--reason` mandatory, auto-derives `fixup_of_generation` from the manifest entry whose `generation` equals `current_generation`, and refuses empty manifests with `no prior generations to fix up; record first`.
+2. `85f4abe` — `feat(cli): gate apply/reconcile on parent-generation-stale`
+   - Files: `internal/workflow/parent_generation_stale.go`, `internal/cli/cobra.go`, `internal/cli/apply_reconcile_stale_dep_test.go`.
+   - F2 addressed: apply/reconcile now inspect stale parent-generation snapshots; hard deps refuse with parent slug, current `generation_id`, snapshot `parent_generation`, and remediation; soft deps warn to stderr and proceed.
+
+Manual CLI repro evidence:
+
+- `tpatch feature patch fixup patch-amend --reason why` succeeded without `--target`; `fixup_of_generation=pg_b4cd3a0e5faa` matched the previously-current generation id.
+- `tpatch feature patch fixup patch-amend --target pg_b4cd3a0e5faa --reason why` failed: `unknown flag: --target`.
+- `tpatch feature patch fixup empty-fixup --reason why` failed: `feature patch fixup: no prior generations to fix up; record first`.
+- Hard-stale child: `tpatch apply child --mode execute` and `tpatch reconcile child` both refused with `parent-generation-stale`, parent `parent`, snapshot `parent_generation=1`, current parent `generation_id=pg_c85ae4f7e09b`, and refresh/reconcile remediation.
+- Soft-stale child: `tpatch apply child --mode execute` warned and wrote `manual-child.txt`; `tpatch reconcile --preflight --allow-dirty child` warned and exited 0. A full non-preflight soft reconcile also passed the stale gate and proceeded until the local provider probe failed (`localhost:4141` unavailable), which is unrelated to F2.
+
+Test count: rev-0 had 624 `func Test...` declarations; rev-1 has 630 (`+6`: two F1 tests net-new plus four F2 apply/reconcile hard/soft tests).
 
 ## Current State
 
-- Wave γ implementation is complete on local `main` and awaiting reviewer dispatch.
-- Existing unrelated working-tree edits under `docs/state-of-the-art/` were present before this task and were not included in the Wave γ commits.
+- Wave γ rev-1 implementation is complete on local `main` and awaiting reviewer dispatch.
+- rev-0 stack (`df35ab7..7a1326c`) remains unchanged; rev-1 landed as additive commits `5ea7a01` and `85f4abe`.
+- Existing unrelated working-tree edits under `docs/state-of-the-art/` were present before this task and were not included in the rev-1 commits.
 - No blockers are known.
 
 ## Files Changed
 
-Committed Wave γ files:
+Rev-1 committed files:
 
-- `internal/store/patch_generations.go`
-- `internal/store/patch_generations_wavegamma_test.go`
-- `internal/store/patch_generation_kinds.go`
-- `internal/store/patch_generation_kinds_test.go`
-- `internal/store/types.go`
-- `internal/workflow/patch_generations.go`
-- `internal/workflow/parent_generation_stale.go`
 - `internal/cli/feature_patch.go`
 - `internal/cli/feature_patch_test.go`
-- `internal/cli/feature_deps.go`
+- `internal/workflow/parent_generation_stale.go`
 - `internal/cli/cobra.go`
-- `internal/cli/status_dag.go`
-- `internal/cli/patch_generations_test.go`
-- `assets/assets_test.go`
-- `assets/skills/claude/tessera-patch/SKILL.md`
-- `assets/skills/copilot/tessera-patch/SKILL.md`
-- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
-- `assets/skills/cursor/tessera-patch.mdc`
-- `assets/skills/windsurf/windsurfrules`
-- `assets/workflows/tessera-patch-generic.md`
+- `internal/cli/apply_reconcile_stale_dep_test.go`
 
 ## Test Results
 
-- Pre-Wave γ baseline count: 612 `func Test...` declarations.
-- Post-Wave γ count: 624 `func Test...` declarations.
-- `go test ./internal/store -count=1` after commit 1: passed.
-- `go test ./internal/store -count=1` after commit 2: passed.
-- `go test ./... -count=1` before commit 3: passed.
+- Before rev-1 count: 624 `func Test...` declarations.
+- After rev-1 count: 630 `func Test...` declarations.
+- Targeted tests: `go test ./internal/cli -run 'TestFeaturePatch|TestApply.*ParentGenerationStale|TestReconcile.*ParentGenerationStale' -count=1` — passed.
+- F2 targeted tests: `go test ./internal/cli -run 'TestApply.*ParentGenerationStale|TestReconcile.*ParentGenerationStale' -count=1` — passed.
+- Wave β byte-identical fixture guard: `go test ./internal/store -run TestPatchGenerationsWaveGammaExistingWaveBetaManifestRoundTrip -count=1` — passed.
 - Final quality gates:
   - `gofmt -l .` — zero output.
   - `go vet ./...` — clean.
   - `go build ./cmd/tpatch` — success.
   - `go test ./assets/...` — passed.
-  - `go test ./internal/store -run 'TestPatchGenerations' -count=1` — passed.
   - `go test ./... -count=1 -race` — passed.
 
 ## Next Steps
 
-1. Dispatch Wave γ reviewer with the IC6 checklist.
-2. Reviewer should verify the three-commit sequence and frozen-region boundaries.
+1. Dispatch Wave γ rev-1 reviewer with the F1/F2 checklist.
+2. Reviewer should verify the two additive commits and IC4 frozen-region boundaries.
 3. On approval, supervisor can push local `main` for external review.
 
 ## Blockers
@@ -183,9 +183,9 @@ None.
 
 ## Context for Next Agent
 
-- The three Wave γ commits are local on `main`; do not reorder or squash them before IC6 review.
+- The two Wave γ rev-1 commits are local on `main`; do not reorder or squash them before review.
 - `record --force-amend` remains Git-rewrite orphan-only; it was not used as a refresh/fixup shortcut.
-- `parent-generation-stale` is status-rendered/advisory and derived from latest child dependency snapshots versus current parent patch generation metadata.
+- `parent-generation-stale` remains a derived overlay; rev-1 only adds hard/soft enforcement/warnings at apply and reconcile entry points.
 - Side Research section is preserved byte-identical; verify via md5 `b385fe622db9926f48861105239f113e` after any CURRENT.md edit.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
