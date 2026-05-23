@@ -38,6 +38,8 @@ type PatchGeneration struct {
 	Generation          int                    `json:"generation"`
 	GenerationID        string                 `json:"generation_id"`
 	Kind                string                 `json:"kind"`
+	Reason              string                 `json:"reason,omitempty"`
+	FixupOfGeneration   string                 `json:"fixup_of_generation,omitempty"`
 	PatchSHA256         string                 `json:"patch_sha256"`
 	GitPatchID          string                 `json:"git_patch_id"`
 	GitPatchIDAlgorithm string                 `json:"git_patch_id_algorithm"`
@@ -135,6 +137,16 @@ func ValidatePatchGenerations(slug string, m PatchGenerationsManifest) error {
 		seenGen[g.Generation] = struct{}{}
 		if err := validatePatchGeneration(g); err != nil {
 			return fmt.Errorf("patch-generations.json: generations[%d]: %w", i, err)
+		}
+		if g.Kind == "amend-fixup" {
+			if strings.TrimSpace(g.Reason) == "" {
+				return fmt.Errorf("patch-generations.json: generations[%d]: reason is required for amend-fixup", i)
+			}
+			if _, ok := seenID[g.FixupOfGeneration]; !ok {
+				return fmt.Errorf("patch-generations.json: generations[%d]: fixup_of_generation %q does not reference a prior generation_id", i, g.FixupOfGeneration)
+			}
+		} else if g.FixupOfGeneration != "" {
+			return fmt.Errorf("patch-generations.json: generations[%d]: fixup_of_generation is only valid for amend-fixup", i)
 		}
 		if prev, ok := seenID[g.GenerationID]; ok {
 			if !patchGenerationPayloadEqual(prev, g) {
