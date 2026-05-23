@@ -696,6 +696,10 @@ func runApplyStarted(cmd *cobra.Command, s *store.Store, slug string) error {
 // operations, and returns the execution result. The result is returned
 // so auto-mode can roll it into a final summary without re-running.
 func runApplyExecute(cmd *cobra.Command, s *store.Store, slug string) (workflow.RecipeExecResult, error) {
+	return runApplyExecuteChecked(cmd, s, slug, true)
+}
+
+func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, checkParentGenerationStale bool) (workflow.RecipeExecResult, error) {
 	out := cmd.OutOrStdout()
 	// ADR-011 D4: when features_dependencies is on, hard-dependency parents
 	// must be applied or upstream_merged before the child can execute. The
@@ -703,6 +707,12 @@ func runApplyExecute(cmd *cobra.Command, s *store.Store, slug string) (workflow.
 	if err := workflow.CheckDependencyGate(s, slug); err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
 		return workflow.RecipeExecResult{}, err
+	}
+	if checkParentGenerationStale {
+		if err := checkParentGenerationStaleGate(cmd.ErrOrStderr(), s, slug, "apply"); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
+			return workflow.RecipeExecResult{}, err
+		}
 	}
 	recipe, err := workflow.LoadRecipe(s, slug)
 	if err != nil {
@@ -799,10 +809,14 @@ func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
 		return err
 	}
+	if err := checkParentGenerationStaleGate(cmd.ErrOrStderr(), s, slug, "apply"); err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
+		return err
+	}
 	if err := runApplyPrepare(cmd, s, slug); err != nil {
 		return err
 	}
-	execResult, err := runApplyExecute(cmd, s, slug)
+	execResult, err := runApplyExecuteChecked(cmd, s, slug, false)
 	if err != nil {
 		return err
 	}
@@ -814,6 +828,53 @@ func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
 		"Feature %s: prepared → executed → recorded (%d ops, %d bytes patch)\n",
 		slug, execResult.Operations, patchBytes)
 	return nil
+}
+
+func checkParentGenerationStaleForReconcile(cmd *cobra.Command, s *store.Store, args []string) error {
+	slugs := append([]string(nil), args...)
+	if len(slugs) == 0 {
+		features, err := s.ListFeatures()
+		if err != nil {
+			return err
+		}
+		for _, f := range features {
+			if f.State == store.StateApplied || f.State == store.StateActive {
+				slugs = append(slugs, f.Slug)
+			}
+		}
+	}
+	for _, slug := range slugs {
+		if err := checkParentGenerationStaleGate(cmd.ErrOrStderr(), s, slug, "reconcile"); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func checkParentGenerationStaleGate(w io.Writer, s *store.Store, slug, action string) error {
+	stale := workflow.ParentGenerationStaleDependencies(s, slug)
+	if len(stale) == 0 {
+		return nil
+	}
+	var blockers []workflow.ParentGenerationStaleDependency
+	for _, dep := range stale {
+		if dep.Kind == store.DependencyKindSoft {
+			fmt.Fprintf(w, "warning: parent-generation-stale: feature %q has stale soft parent %q (snapshot parent_generation=%d, current generation_id=%s); run `tpatch feature patch refresh %s` or `tpatch reconcile %s` to refresh the dependency snapshot.\n", slug, dep.Slug, dep.SnapshotParentGeneration, dep.CurrentGenerationID, dep.Slug, slug)
+			continue
+		}
+		blockers = append(blockers, dep)
+	}
+	if len(blockers) == 0 {
+		return nil
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "parent-generation-stale: %s refused for feature %q because %d hard parent generation snapshot(s) are stale:", action, slug, len(blockers))
+	for _, dep := range blockers {
+		fmt.Fprintf(&b, "\n  - %s (snapshot parent_generation=%d, current generation_id=%s)", dep.Slug, dep.SnapshotParentGeneration, dep.CurrentGenerationID)
+	}
+	fmt.Fprintf(&b, "\nRun `tpatch feature patch refresh <parent>` for the stale parent or `tpatch reconcile %s` to refresh the child dependency snapshot.", slug)
+	return fmt.Errorf("%s", b.String())
 }
 
 // warnRecipeStale prints a stderr warning when the recipe-provenance
@@ -1669,6 +1730,10 @@ func reconcileCmd() *cobra.Command {
 			}
 			if shadowDiffSlug != "" {
 				return runReconcileShadowDiff(cmd, s, shadowDiffSlug)
+			}
+
+			if err := checkParentGenerationStaleForReconcile(cmd, s, args); err != nil {
+				return err
 			}
 
 			if checkApplied {
