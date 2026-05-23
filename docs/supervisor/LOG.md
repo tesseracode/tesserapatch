@@ -1,3 +1,65 @@
+## Review — Wave γ patch amend (IC1–IC6) — 2026-05-22
+
+**Reviewer**: sub-agent code-review (supervisor-reclassified — see Findings)
+**Task**: Internal review of Wave γ `PRD-feature-patch-amend` implementation. Commits `df35ab7` (IC1 step 1 schema), `2de7242` (IC1 step 2 + IC3 classifier), `b125b0b` (IC1 step 3 CLI + IC5 skill assets), `7a1326c` (handoff).
+
+### IC6 Binding Checklist
+
+- [x] **IC1 — Commit sequence**: `git log --oneline df35ab7~1..b125b0b` confirms schema → enum/classifier → CLI in that order. Commit 1 contains no writer changes for new kinds; Commit 2 contains no CLI surface; Commit 3 contains CLI + skill assets.
+- [x] **IC2 — Wave γ contract test**: `internal/store/patch_generations_wavegamma_test.go` landed in `df35ab7`. All five mandatory assertions present (round-trip, strict-on-unknown, reason-mandatory-for-fixup, fixup-target-resolves, Wave β byte-identical load).
+- [x] **IC3 — Single-source classifier**: `ClassifyPatchGenerationKind` in `internal/store/patch_generation_kinds.go` is the only classification entry point. Call sites: `internal/workflow/patch_generations.go:53` and `internal/cli/feature_patch.go:98`. Table-driven test enumerates every transition.
+- [x] **IC4 — Frozen regions unedited**:
+  - `internal/store/patch_generations.go`: `version` constant unchanged (`= 1`), `DisallowUnknownFields` unchanged, `ErrMalformedManifest` classification path unchanged at `:24-28` + `:101-104`. Allowed extensions only: new struct fields + writable-kind hook at `:285`.
+  - `internal/store/claims.go`: zero diffs.
+  - `internal/cli/cobra.go:897-905` + `:1415` (`--force-amend`): unchanged.
+  - `internal/gitutil/capture_modes.go:137/:182/:328`: zero diffs.
+  - `internal/workflow/patch_generations.go:31` (rev-2 narrow swallow): unchanged.
+- [x] **IC5 — Skill-asset parity**: `go test ./assets/...` green. All six skill formats reference `tpatch feature patch refresh|fixup` and the `parent-generation-stale` overlay.
+- [x] **IC6 — Wave β byte-identical**: `TestPatchGenerationsWaveGammaExistingWaveBetaManifestRoundTrip` passes; no migration required.
+
+### Standard Checklist
+
+- [x] `go build ./cmd/tpatch` succeeds
+- [x] `go test ./... -count=1` all green (10 packages, 100.9s)
+- [x] `gofmt -l .` produces zero output (see Findings — reviewer's false positive)
+- [x] `go vet ./...` clean
+- [x] D1 hybrid-kind verified
+- [x] D2 `reason` mandatory-for-fixup verified
+- [x] D3 no-byte-change refresh exits 0 with skip note, no append
+- [x] D4 `fixup_of_generation` string `generation_id`, schema v1 preserved
+- [x] D5 `parent-generation-stale` overlay in `status`/`status --json` (`cobra.go:273,276,332`)
+- [x] D6 verify-freshness inputs preserved per ADR-013
+- [x] D7 refresh|fixup subverbs registered at `feature_patch.go:14-25`; no aliases; fork/fold not added
+- [x] D8 `--force-amend` unchanged
+- [x] D9 metadata-only amend does NOT append to patch-generations.json
+- [x] D10 `amend-refresh`/`amend-fixup` writable at `patch_generation_kinds.go:28`; no version bump
+- [x] Handoff `docs/handoff/CURRENT.md` accurate with 3 commit SHAs + IC1–IC6 satisfaction proof
+- [x] Side Research md5 preserved: `b385fe622db9926f48861105239f113e`
+
+### Verdict: APPROVED
+
+### Findings
+
+**Reviewer flagged 1 HIGH finding (gofmt) that was a false positive.** Reviewer ran `gofmt -l . 2>&1 | grep -v '^$'` and reported the pipeline exit code 1 as a gofmt failure. The exit 1 came from `grep` (no lines matched the negated empty-line filter), not from `gofmt`. Supervisor re-ran `gofmt -l .` directly — clean, exit 0, zero output. No formatting issues exist. Verdict reclassified from "NEEDS REVISION" to "APPROVED, no findings".
+
+### Validation performed
+
+- `go build ./cmd/tpatch` — succeeds
+- `gofmt -l .` — clean (direct invocation, exit 0)
+- `go vet ./...` — clean
+- `go test ./... -count=1` — all 10 packages green
+- `go test ./assets/...` — parity guard green
+- Wave γ tripwire test (`patch_generations_wavegamma_test.go`) — present, all 5 assertions covered
+- Side Research md5 from current line — `b385fe622db9926f48861105239f113e` (held)
+- Sub-agent diff inspections of all IC4 frozen regions — zero edits outside IC1 extension points
+- Test count growth: 612 → 624 (`func Test...` declarations)
+
+### Action Taken
+
+Internal cycle complete. Ready to push and surface for external review.
+
+---
+
 ## Review — ADR-026-patch-amendment-policy IC1–IC6 appendix — 2026-05-22
 
 **Reviewer**: external
