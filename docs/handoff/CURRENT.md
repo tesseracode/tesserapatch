@@ -2,150 +2,135 @@
 
 ## Active Task
 
-- **Task ID**: `wave-gamma-patch-amend-impl-rev1`
-- **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` rev-1 revision after external NEEDS REVISION verdict on rev-0 stack `df35ab7..7a1326c`.
-- **Description**: Address external reviewer's two findings (F1 HIGH `fixup --target` off-contract; F2 MEDIUM `parent-generation-stale` not enforced on apply/reconcile for hard dependents). Both are real ADR-026 violations — the rev-0 implementation matched the supervisor's kickoff brief but the brief drifted from ADR-026 D4 on F1. ADR is binding; rev-1 must match ADR-026 verbatim.
-- **Status**: Review (awaiting reviewer).
-- **Assigned**: 2026-05-22.
+- **Task ID**: `wave-gamma-patch-amend-impl-rev2`
+- **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` rev-2 revision after external NEEDS REVISION verdict on rev-1 stack `5ea7a01..cf02c05`.
+- **Description**: Address external reviewer's F3 finding (MEDIUM regression introduced by rev-1: the new `parent-generation-stale` gate ignores the existing `features_dependencies` config opt-out, breaking the documented flag-off rollout contract). F1 and F2 fixes from rev-1 remain accepted and unchanged.
+- **Status**: Ready to dispatch.
+- **Assigned**: 2026-05-23.
 
-### Findings to address (both BINDING per ADR-026)
+### Finding to address (F3 — MEDIUM, BINDING)
 
-**F1 — HIGH — `fixup` CLI surface contradicts ADR-026 D4 + D7**
+**F3 — `parent-generation-stale` gate ignores `features_dependencies` config opt-out**
 
-ADR-026 D4 (`docs/adrs/ADR-026-patch-amendment-policy.md:93-94`): `fixup_of_generation` value is "the previously current generation at fixup capture time."
-ADR-026 D7: subverbs are `{refresh, fixup}` with `--reason` mandatory for fixup; no `--target` flag is part of the locked surface.
-PRD §4.2 (`docs/prds/PRD-feature-patch-amend.md:171-190`): same binding semantics — auto-target the previously-current generation.
+**Contract**: The original ADR-011 dependency gate is flag-guarded. `internal/workflow/recipe.go:34` documents the contract: "When Config.FeaturesDependencies is false the gate is a no-op". Locked by existing flag-off regression tests:
 
-**rev-0 implementation drift**:
-- `internal/cli/feature_patch.go` registers `--target` and makes it mandatory.
-- The handler writes whatever `generation_id` the user supplied (only validates the ID exists in the manifest).
-- `internal/cli/feature_patch_test.go` encodes the off-contract surface.
+- `TestApplyExecute_FlagOff_BypassesDependencyGate` (`internal/cli/dependency_gate_apply_test.go:103-106`)
+- `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent` (`internal/workflow/dependency_gate_test.go:21`)
 
-**rev-1 fix**:
-1. Remove the `--target` flag from `feature patch fixup`.
-2. Derive `fixup_of_generation` automatically: it MUST equal the manifest's `current_generation` at fixup capture time (the generation_id of the entry whose `generation` integer matches `current_generation`).
-3. Refuse fixup when the manifest has no prior generations (clear diagnostic; mirrors D3 semantics).
-4. `--reason <text>` remains MANDATORY for fixup per D2.
-5. Update `internal/cli/feature_patch_test.go`:
-   - Drop tests asserting `--target` mandatory behavior.
-   - Add a test that fixup with no `--target` flag succeeds and sets `fixup_of_generation` to the previously-current generation.
-   - Add a test confirming `--target` is no longer a registered flag (or that passing it errors).
-   - Add a test that fixup on a feature with no prior generations refuses with a clear diagnostic.
+The `features_dependencies` flag is the user-controllable rollout switch for dependency enforcement. Any new dependency-related gate MUST honor it.
 
-**F2 — MEDIUM — `parent-generation-stale` not enforced on apply/reconcile for hard dependents**
+**rev-1 drift**:
+- `checkParentGenerationStaleGate` (`internal/cli/cobra.go:855`) does NOT consult config.
+- Called unconditionally at `internal/cli/cobra.go:712` and `:812` (both apply paths), immediately after the flag-gated `CheckDependencyGate` calls at `:707` and `:808`.
+- Called unconditionally at `internal/cli/cobra.go:847` (reconcile path, via `checkParentGenerationStaleForReconcile`).
+- Helper in `internal/workflow/parent_generation_stale.go` never inspects config.
+- New tests in `internal/cli/apply_reconcile_stale_dep_test.go` set `cfg.FeaturesDependencies = true` (line 28). Flag-off path uncovered.
 
-ADR-026 D5 (`docs/adrs/ADR-026-patch-amendment-policy.md:122-126`): "Soft-dependency dependents warn. Hard-dependency dependents block on apply and reconcile according to ADR-011's hard/soft policy."
-ADR-011 (`docs/adrs/ADR-011-feature-dependencies.md:47-56`): hard/soft dependency policy.
+**External reviewer's manual repro**: With `cfg.FeaturesDependencies = false` and a child holding a stale hard-parent snapshot, `apply child` still refused with `parent-generation-stale: apply refused...` and did not execute the recipe. Per the existing flag-off contract this should have been a no-op gate; apply should have proceeded.
 
-**rev-0 implementation drift**: `internal/workflow/parent_generation_stale.go` exists and the overlay surfaces in `status`/`status --json`. But apply and reconcile do NOT consult the helper. Hard stale dependents proceed silently.
+### rev-2 required fix
 
-**rev-1 fix**:
-1. Thread `ParentGenerationStale` detection into `apply` and `reconcile` paths.
-2. For **hard** dependencies: when a dependent feature is `parent-generation-stale` against a hard parent, `apply` and `reconcile` MUST refuse with a clear diagnostic naming the stale parent generation_id and current parent generation_id. Suggest `tpatch feature patch refresh <parent>` or `tpatch reconcile <child>` as remediation.
-3. For **soft** dependencies: warn only, do not refuse. Existing soft-dep warning patterns in the codebase are the model — match the warning style.
-4. Tests: add explicit coverage for both hard-blocks-with-diagnostic and soft-warns-with-message in `internal/cli/feature_patch_test.go` or a new `apply_stale_dep_test.go` / `reconcile_stale_dep_test.go` as appropriate. Both `apply` and `reconcile` need coverage.
+**Implementation**:
+1. Gate `parent-generation-stale` enforcement behind `cfg.FeaturesDependencies` for both apply and reconcile. Match the existing `CheckDependencyGate` pattern (early-return no-op when flag is false).
+2. **Cleanest location**: inside `checkParentGenerationStaleGate` itself (`internal/cli/cobra.go:855`). Load config at the top of the function; if `!cfg.FeaturesDependencies`, return nil immediately. Both apply and reconcile call sites inherit the gate without duplication.
+3. Do NOT silently drop the warning. If the flag is off, the gate is a true no-op (no warning, no refusal) — matching the `CheckDependencyGate` semantics.
 
-### Binding contract (UNCHANGED from rev-0)
+**Tests**:
+1. Add `TestApplyParentGenerationStaleFlagOffBypassesGate` (or matching test name pattern) alongside `internal/cli/apply_reconcile_stale_dep_test.go`. Setup: `cfg.FeaturesDependencies = false`, child with stale hard parent. Assert: apply executes successfully and writes the recipe output (the regression repro the external reviewer ran).
+2. Add `TestReconcileParentGenerationStaleFlagOffBypassesGate` with same setup for reconcile.
+3. Both tests must NOT depend on stderr being empty if some other path emits warnings — focus the assertion on "apply/reconcile proceeded and recipe ran" / "reconcile completed cleanly".
 
-- `docs/adrs/ADR-026-patch-amendment-policy.md` — D1–D10 + IC1–IC6 appendix.
-- `docs/prds/PRD-feature-patch-amend.md` — product surface and acceptance criteria.
-- `docs/adrs/ADR-024-patch-generation-manifest-boundary.md` — Wave β manifest contract; D1–D9 frozen.
-- `docs/adrs/ADR-013-verify-freshness-overlay.md` — verify-cache invalidation inputs (D6).
-- `docs/adrs/ADR-011-feature-dependencies.md` — hard/soft dependency policy (D5).
+### F1 + F2 frozen (no changes from rev-1)
 
-### Frozen regions (IC4) — STILL FROZEN
+The rev-1 fixes for F1 and F2 are accepted and must NOT regress:
 
-All IC4 frozen regions from rev-0 remain frozen for rev-1:
+- `feature patch fixup` keeps no `--target`, auto-derives `fixup_of_generation`, mandatory `--reason`, refuses empty manifests.
+- `parent-generation-stale` enforcement for hard deps still refuses apply/reconcile with the same diagnostic.
+- Soft-dep warning behavior unchanged.
 
-- `internal/store/patch_generations.go` — manifest v1 schema. Wave γ extensions from rev-0 are accepted; no further version/strict-on-unknown/`ErrMalformedManifest` edits.
-- `internal/store/claims.go:263` + `:294`.
+The only change in behavior is: when `features_dependencies = false`, the gate becomes a no-op (matching `CheckDependencyGate`).
+
+### IC4 frozen regions (unchanged from rev-0/rev-1)
+
+All previously frozen regions remain frozen:
+
+- `internal/store/patch_generations.go` — no version/strict-on-unknown/`ErrMalformedManifest` edits.
+- `internal/store/claims.go:263` (`LoadClaims`) + `:294` (`SaveClaims`).
 - `internal/cli/cobra.go:897-905` + `:1415` (`--force-amend`).
 - `internal/gitutil/capture_modes.go:137/:182/:328`.
 - `internal/workflow/patch_generations.go:31`.
 
-### Out of scope for rev-1
+### Out of scope for rev-2
 
-- Any change to D1, D2, D3, D6, D8, D9, or D10 implementations from rev-0.
-- Schema version bump (still v1).
-- New CLI surfaces beyond removing `--target` from fixup.
+- Any change to F1 or F2 behavior beyond the flag-gating.
+- Any change to D1–D10 implementation.
+- Schema version bump.
 - CHANGELOG entry.
 
-### Quality gates (UNCHANGED)
+### Quality gates
 
-Before claiming completion:
-
-1. `gofmt -l .` — zero output (run gofmt directly, NOT piped through `grep -v '^$'`).
+1. `gofmt -l .` — zero output (run DIRECTLY).
 2. `go vet ./...` — clean.
 3. `go build ./cmd/tpatch` — succeeds.
 4. `go test ./... -count=1 -race` — all green.
 5. `go test ./assets/...` — parity guard passes.
-6. Existing Wave β fixtures still load byte-identically.
-7. Manual CLI verification:
-   - `tpatch feature patch fixup <slug> --reason 'why'` succeeds (no `--target` needed) and writes `fixup_of_generation` equal to previously-current generation_id.
-   - `tpatch feature patch fixup <slug> --target <id>` is rejected (flag not registered) OR `--target` accepted no-op for BC if desired (NOT desired — drop it).
-   - `tpatch apply <child>` refuses when child is `parent-generation-stale` and the dep is hard; warns and proceeds when dep is soft.
-   - `tpatch reconcile <child>` same.
+6. Existing flag-off tests (`TestApplyExecute_FlagOff_BypassesDependencyGate`, `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent`) still pass — confirms behavioral consistency with the existing dependency gate.
+7. Existing rev-1 hard/soft tests still pass — confirms no regression to flag-on path.
 
-### Reviewer checklist additions for rev-1
+### Manual CLI verification
 
-In addition to the standard `AGENTS.md` checklist:
+Reproduce the external reviewer's regression and confirm it's fixed:
 
-- [ ] F1: `--target` flag removed from `feature patch fixup`; `fixup_of_generation` auto-derived from manifest `current_generation`.
-- [ ] F1: Tests assert auto-target behavior and absence of `--target` flag.
-- [ ] F1: Fixup on a feature with no prior generations refuses cleanly.
-- [ ] F2: `apply` consults `ParentGenerationStale` helper; hard-stale dependents refuse with diagnostic; soft-stale warns.
-- [ ] F2: `reconcile` same hard/soft split.
-- [ ] F2: Explicit test coverage for both hard-refuse and soft-warn on both `apply` and `reconcile`.
-- [ ] IC4 frozen regions unedited (no regression).
-- [ ] Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
+```bash
+# Setup: child with stale hard parent + features_dependencies=false
+# Action: tpatch apply child --mode execute
+# Expected before rev-2: refused with "parent-generation-stale: apply refused"
+# Expected after rev-2: succeeds, recipe runs
 
-### Session Summary — rev-0 (for context, not new work)
+# Same for reconcile
+```
 
-The rev-0 stack is on `main` at `df35ab7..7a1326c`:
+Also confirm flag-on behavior still refuses (rev-1 contract):
 
-- `df35ab7` — schema extension + tripwire test (IC1 step 1, IC2)
-- `2de7242` — kind enum + `ClassifyPatchGenerationKind` (IC1 step 2, IC3)
-- `b125b0b` — CLI + stale overlay + skill assets (IC1 step 3, IC5)
-- `7a1326c` — implementer handoff
+```bash
+# Setup: child with stale hard parent + features_dependencies=true
+# Expected: apply/reconcile refuse with parent-generation-stale diagnostic
+```
 
-rev-1 must NOT amend, rebase, or rewrite these commits. It must land as **new commits on top** of `7a1326c`, additive in the same conventional-commit style. Suggested commit shape:
+### Reviewer checklist additions for rev-2
 
-1. `fix(cli): drop --target from feature patch fixup; auto-derive fixup_of_generation (rev-1 F1)`
-2. `feat(cli): enforce parent-generation-stale on apply/reconcile per hard/soft policy (rev-1 F2)`
+- [ ] `checkParentGenerationStaleGate` consults `cfg.FeaturesDependencies` and returns no-op when false.
+- [ ] Two new tests cover flag-off bypass for apply and reconcile.
+- [ ] Existing flag-off tests (`TestApplyExecute_FlagOff_BypassesDependencyGate`, `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent`) still green.
+- [ ] Existing rev-1 hard/soft tests still green.
+- [ ] IC4 frozen regions unedited.
+- [ ] Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
 
-Optionally one combined commit if cleanly atomic, but two separate commits per finding are preferred for review clarity.
+### Commit shape
 
-### History of prior section (superseded)
+DO NOT amend/rebase rev-0 or rev-1 commits. Land rev-2 as a single additive commit on top of `3bb76a8`:
 
-[previous rev-0 dispatch brief archived implicitly; see Session Summary]
+`fix(cli): gate parent-generation-stale enforcement behind features_dependencies (Wave γ rev-2 F3)`
+
+Or split into two if cleaner: one for the gate, one for the tests. Single commit preferred for an atomic regression fix.
+
+### Session Summary — rev-1 (for context)
+
+rev-1 stack on `main`: `5ea7a01` (F1) → `85f4abe` (F2) → `cf02c05` (handoff). External APPROVED F1, accepted F2 hard/soft enforcement, flagged F3 as a new regression introduced by F2's unconditional gate. Internal reviewer for rev-1 missed F3 — they verified the flag-on path but didn't check flag-off semantics.
+
+### Session Summary — rev-0 (for context, archived)
+
+rev-0 stack on `main`: `df35ab7..7a1326c`. External flagged F1 + F2. Both fixed in rev-1.
 
 ## Session Summary
 
-Rev-1 implementation is complete in two additive commits on top of `8eaef18`:
-
-1. `5ea7a01` — `fix(cli): drop --target from feature patch fixup`
-   - Files: `internal/cli/feature_patch.go`, `internal/cli/feature_patch_test.go`.
-   - F1 addressed: `feature patch fixup` has no `--target` flag, keeps `--reason` mandatory, auto-derives `fixup_of_generation` from the manifest entry whose `generation` equals `current_generation`, and refuses empty manifests with `no prior generations to fix up; record first`.
-2. `85f4abe` — `feat(cli): gate apply/reconcile on parent-generation-stale`
-   - Files: `internal/workflow/parent_generation_stale.go`, `internal/cli/cobra.go`, `internal/cli/apply_reconcile_stale_dep_test.go`.
-   - F2 addressed: apply/reconcile now inspect stale parent-generation snapshots; hard deps refuse with parent slug, current `generation_id`, snapshot `parent_generation`, and remediation; soft deps warn to stderr and proceed.
-
-Manual CLI repro evidence:
-
-- `tpatch feature patch fixup patch-amend --reason why` succeeded without `--target`; `fixup_of_generation=pg_b4cd3a0e5faa` matched the previously-current generation id.
-- `tpatch feature patch fixup patch-amend --target pg_b4cd3a0e5faa --reason why` failed: `unknown flag: --target`.
-- `tpatch feature patch fixup empty-fixup --reason why` failed: `feature patch fixup: no prior generations to fix up; record first`.
-- Hard-stale child: `tpatch apply child --mode execute` and `tpatch reconcile child` both refused with `parent-generation-stale`, parent `parent`, snapshot `parent_generation=1`, current parent `generation_id=pg_c85ae4f7e09b`, and refresh/reconcile remediation.
-- Soft-stale child: `tpatch apply child --mode execute` warned and wrote `manual-child.txt`; `tpatch reconcile --preflight --allow-dirty child` warned and exited 0. A full non-preflight soft reconcile also passed the stale gate and proceeded until the local provider probe failed (`localhost:4141` unavailable), which is unrelated to F2.
-
-Test count: rev-0 had 624 `func Test...` declarations; rev-1 has 630 (`+6`: two F1 tests net-new plus four F2 apply/reconcile hard/soft tests).
+External NEEDS REVISION on rev-1: one new finding (F3 MEDIUM, regression introduced by rev-1's F2 fix). Verdict logged to LOG.md. rev-2 dispatch brief in place. rev-1 commits stay on `main`; rev-2 lands additive.
 
 ## Current State
 
-- Wave γ rev-1 implementation is complete on local `main` and awaiting reviewer dispatch.
-- rev-0 stack (`df35ab7..7a1326c`) remains unchanged; rev-1 landed as additive commits `5ea7a01` and `85f4abe`.
-- Existing unrelated working-tree edits under `docs/state-of-the-art/` were present before this task and were not included in the rev-1 commits.
-- No blockers are known.
+- rev-1 stack (`5ea7a01..cf02c05`) on `main`. F1 + F2 fixes accepted by external reviewer.
+- F3 regression: `parent-generation-stale` gate ignores `features_dependencies` config. rev-2 brief dispatched above.
+- No blockers.
 
 ## Files Changed
 

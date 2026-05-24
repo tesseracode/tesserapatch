@@ -1,3 +1,39 @@
+## Review — Wave γ patch amend rev-1 (external) — 2026-05-23
+
+**Reviewer**: external
+**Task**: External review of rev-1 stack `5ea7a01..cf02c05`.
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+**F1 rev-0 fix — VERIFIED**: The `feature patch fixup` surface now matches ADR-026 D4 + D7. `--target` flag removed; `fixup_of_generation` auto-derived via `currentPatchGenerationID` (`internal/cli/feature_patch.go:75-80`); tests updated. External reviewer manually confirmed fixup without `--target` succeeds and writes the previously-current `generation_id`.
+
+**F3 — MEDIUM — NEW regression introduced by rev-1**: The new `parent-generation-stale` gate ignores the existing `features_dependencies` config opt-out, blocking apply/reconcile even when dependency gating is explicitly disabled.
+
+**Contract evidence**: The original ADR-011 dependency gate is flag-guarded — `internal/workflow/recipe.go:34` documents "When Config.FeaturesDependencies is false the gate is a no-op". This is the explicit user-controllable rollout switch. Existing flag-off tests `TestApplyExecute_FlagOff_BypassesDependencyGate` (`internal/cli/dependency_gate_apply_test.go:103-106`) and `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent` (`internal/workflow/dependency_gate_test.go:21`) lock the opt-out semantics.
+
+**rev-1 drift**:
+- `checkParentGenerationStaleGate` (`internal/cli/cobra.go:855`) does not consult config.
+- Called unconditionally at `internal/cli/cobra.go:712` and `:812` (apply paths) right after the flag-gated `CheckDependencyGate` call at `:707` and `:808`.
+- Called unconditionally at `internal/cli/cobra.go:847` (reconcile path, via `checkParentGenerationStaleForReconcile`).
+- New tests at `internal/cli/apply_reconcile_stale_dep_test.go` set `cfg.FeaturesDependencies = true` (line 28); flag-off path uncovered.
+
+**External reviewer's manual repro**: With `cfg.FeaturesDependencies = false` and a child holding a stale hard-parent snapshot, `apply child` still refused with `parent-generation-stale: apply refused...` and did not execute the recipe. Per the existing flag-off contract, this should have been a no-op gate and the apply should have proceeded.
+
+**Validation performed by external reviewer**: targeted CLI tests passed, F1 manually confirmed, F3 manually repro'd, `go build ./cmd/tpatch` succeeded. Did not rerun full `-race` suite.
+
+### Action Required
+
+1. **F3 fix**: Gate `parent-generation-stale` behind `cfg.FeaturesDependencies` for both apply and reconcile. Match the existing `CheckDependencyGate` pattern (early-return no-op when flag is false). Cleanest location: inside `checkParentGenerationStaleGate` itself so both apply and reconcile paths inherit the gate.
+2. **F3 test coverage**: Add flag-off regression coverage alongside `internal/cli/apply_reconcile_stale_dep_test.go`. At minimum: `TestApplyParentGenerationStaleFlagOffBypassesGate` and `TestReconcileParentGenerationStaleFlagOffBypassesGate`. Both should set `cfg.FeaturesDependencies = false`, construct a child with a stale hard parent, and assert the action proceeds successfully.
+
+### Action Taken
+
+Pending rev-2 dispatch.
+
+---
+
 ## Review — Wave γ patch amend rev-1 — 2026-05-22
 
 **Reviewer**: sub-agent code-review
