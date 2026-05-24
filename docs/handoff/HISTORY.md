@@ -1,3 +1,65 @@
+# 2026-05-23 — v0.10.0 Wave γ patch-amend — COMPLETE
+
+**Outcome**: Wave γ (slice 4 of 4 in the v0.10.0 capture-and-metadata foundation cluster) shipped. `PRD-feature-patch-amend` v1 implemented per ADR-026 D1–D10 with `feature patch {refresh, fixup}` subverbs, content-addressed `pg_<12hex>` generation IDs continuing from Wave β, `kind ∈ {record, amend-refresh, amend-fixup}` classifier, dependency-aware staleness enforcement (`parent-generation-stale`), and `--force-amend` escape hatch for ADR-025 ledger emergencies.
+
+**Implementation stack** (all on `main`, pushed):
+
+rev-0 (initial implementation):
+- `df35ab7` — schema: extend PatchGeneration with `kind` and `fixup_of_generation` fields
+- `2de7242` — workflow: kind enum + dependency staleness classifier
+- `b125b0b` — cli: `feature patch refresh` / `fixup` subverbs, `--force-amend` flag, status overlay
+- `7a1326c` — docs(handoff): rev-0 ready for review
+
+rev-1 (addressing external F1 HIGH + F2 MEDIUM):
+- `5ea7a01` — fix(cli): drop `--target` from `feature patch fixup` (F1; ADR-026 D4 contract — auto-derive `fixup_of_generation` from previously-current generation)
+- `85f4abe` — feat(cli): gate apply/reconcile on `parent-generation-stale` (F2; ADR-026 D5 hard-blocks/soft-warns enforcement)
+- `cf02c05` — docs(handoff): rev-1 ready for review
+
+rev-2 (addressing external F3 MEDIUM regression):
+- `9b8bc54` — fix(cli): gate `parent-generation-stale` enforcement behind `features_dependencies` config (F3; mirrors `CheckDependencyGate` opt-out contract documented at `internal/workflow/recipe.go:34`)
+- `3c71383` — docs(handoff): rev-2 ready for review
+
+**Review history**:
+- rev-0 internal: APPROVED (`9b77bf2`).
+- rev-0 external: NEEDS REVISION (`8eaef18`) — F1 HIGH (fixup `--target` off-contract vs ADR-026 D4+D7) + F2 MEDIUM (stale gate not enforced on apply/reconcile vs ADR-026 D5). Root cause for F1: supervisor's kickoff brief drifted from ADR-026 D4 by specifying `--target`.
+- rev-1 internal: APPROVED (`3bb76a8`).
+- rev-1 external: NEEDS REVISION (logged at top of `2434660`) — F3 MEDIUM (new `parent-generation-stale` gate ignored `features_dependencies` config opt-out, breaking existing flag-off rollout contract). Root cause: rev-1 dispatch brief referenced ADR-011 policy but did not enumerate the `features_dependencies` flag-off contract; flag-off path uncovered by rev-1 tests.
+- rev-2 internal: APPROVED (`13872c9`).
+- rev-2 external: APPROVED.
+
+**ADR-026 D1–D10 compliance**:
+- D1 (subverbs `{refresh, fixup}`): VERIFIED.
+- D2 (`generation_id` continuity): VERIFIED.
+- D3 (kind enum + classifier): VERIFIED.
+- D4 (`fixup_of_generation` = previously-current generation, auto-derived): VERIFIED (after rev-1 F1 fix).
+- D5 (hard blocks / soft warns on apply + reconcile, honoring `features_dependencies` per ADR-011): VERIFIED (after rev-2 F3 fix).
+- D6 (mandatory `--reason` on fixup): VERIFIED.
+- D7 (locked subverb set, no `--target` flag): VERIFIED (after rev-1 F1 fix).
+- D8 (status overlay): VERIFIED.
+- D9 (`--force-amend` escape hatch for ADR-025 ledger emergencies): VERIFIED.
+- D10 (no schema version bump from Wave β v1): VERIFIED.
+
+**Frozen surfaces preserved through rev-0 → rev-2**:
+- IC4 frozen regions (Wave β patch-generations schema, claims store, `--force-amend` region, capture modes, workflow patch_generations narrow swallow): all confirmed zero-diff across the three rev cycles.
+- Wave β `store.ErrMalformedManifest` sentinel at `internal/store/patch_generations.go:24-28` + wrap sites at `:101-104`.
+
+**Test coverage** (final at `3c71383`):
+- rev-0: 624 → 630 (`+6`: 2 F1 tests, 4 F2 hard/soft × apply/reconcile tests).
+- rev-2: +2 flag-off regression tests in `internal/cli/apply_reconcile_stale_dep_test.go` (`TestApplyParentGenerationStaleFlagOffBypassesGate` + `TestReconcileParentGenerationStaleFlagOffBypassesGate`).
+- Pre-existing flag-off contract tests still green: `TestApplyExecute_FlagOff_BypassesDependencyGate`, `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent`.
+
+**Quality gates at rev-2 close**: `gofmt -l .` clean (run directly), `go vet ./...` clean, `go build ./cmd/tpatch` succeeds, `go test ./... -count=1 -race` green, `go test ./assets/...` parity guard green.
+
+**Process lessons captured**:
+1. Supervisor kickoff briefs must self-audit against binding ADRs before dispatch (F1 root cause: brief said `fixup --target` against ADR-026 D4).
+2. Briefs that reference policy ADRs (ADR-011) must enumerate config-flag opt-out contracts, not just enforcement semantics (F3 root cause).
+3. Internal reviewer checklist needs explicit flag-off counter-scenario for any new dependency-related enforcement (rev-1 internal review missed F3 by only checking flag-on path).
+4. `gofmt -l . 2>&1 | grep -v '^$'` returns exit 1 on empty input — always run `gofmt -l .` directly and read literal output (rev-0 internal reviewer fooled by this pattern, caught at rev-1 dispatch).
+
+**v0.10.0 cluster status**: 4-of-4 slices complete (Wave α capture-modes, Wave β patch-identity-metadata, Wave δ stable patch-id, Wave γ patch-amend). Cluster ready for release tag.
+
+---
+
 # 2026-05-19 — v0.10.0 Wave beta patch-identity-metadata — COMPLETE
 
 **Outcome**: Wave beta (slice 3 of 4 in the v0.10.0 capture-and-metadata foundation cluster) shipped. `PRD-feature-patch-identity-metadata` v1 implemented per ADR-024 D1–D9 — append-only `.tpatch/features/<slug>/artifacts/patch-generations.json` with `pg_<12hex>` content-addressed `generation_id`, monotonic `generation`, zero wall-clock timestamps, `git_patch_id` via `gitutil.PatchID`, dependency snapshots, strict v1 schema with refs-presence enforcement, and narrowed malformed-vs-I/O error classification via `store.ErrMalformedManifest` sentinel.

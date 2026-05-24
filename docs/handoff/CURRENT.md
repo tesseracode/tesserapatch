@@ -2,174 +2,67 @@
 
 ## Active Task
 
-- **Task ID**: `wave-gamma-patch-amend-impl-rev2`
-- **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` rev-2 revision after external NEEDS REVISION verdict on rev-1 stack `5ea7a01..cf02c05`.
-- **Description**: Address external reviewer's F3 finding (MEDIUM regression introduced by rev-1: the new `parent-generation-stale` gate ignores the existing `features_dependencies` config opt-out, breaking the documented flag-off rollout contract). F1 and F2 fixes from rev-1 remain accepted and unchanged.
-- **Status**: Review (awaiting reviewer).
+- **Task ID**: `v0.10.0-release-decision`
+- **Milestone**: v0.10.0 capture-and-metadata foundation cluster — **4-of-4 slices complete, ready for release tag**.
+- **Description**: Cluster shipped. Awaiting user decision on release shape (tag, CHANGELOG entry, version bump).
+- **Status**: Awaiting user decision.
 - **Assigned**: 2026-05-23.
 
-### Finding to address (F3 — MEDIUM, BINDING)
+### Cluster summary
 
-**F3 — `parent-generation-stale` gate ignores `features_dependencies` config opt-out**
+The v0.10.0 cluster (capture-and-metadata foundation) is complete. Four PRD slices landed cleanly through the implementation → internal review → external review cycle:
 
-**Contract**: The original ADR-011 dependency gate is flag-guarded. `internal/workflow/recipe.go:34` documents the contract: "When Config.FeaturesDependencies is false the gate is a no-op". Locked by existing flag-off regression tests:
+| Wave | PRD | ADR | Final commit | Closed |
+|------|-----|-----|--------------|--------|
+| α | `PRD-feature-capture-modes` | ADR-022 | (in `main`) | earlier in cluster |
+| β | `PRD-feature-patch-identity-metadata` | ADR-024 | (in `main`) | 2026-05-19 |
+| δ | `PRD-stable-patch-id` | ADR-025 | (in `main`) | earlier in cluster |
+| γ | `PRD-feature-patch-amend` | ADR-026 | `3c71383` | 2026-05-23 |
 
-- `TestApplyExecute_FlagOff_BypassesDependencyGate` (`internal/cli/dependency_gate_apply_test.go:103-106`)
-- `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent` (`internal/workflow/dependency_gate_test.go:21`)
+Full Wave γ rev-0 → rev-2 stack and review history archived in `docs/handoff/HISTORY.md`. Wave β archive remains the canonical reference for the patch-generations schema invariants Wave γ built on.
 
-The `features_dependencies` flag is the user-controllable rollout switch for dependency enforcement. Any new dependency-related gate MUST honor it.
+### Next user-facing decision
 
-**rev-1 drift**:
-- `checkParentGenerationStaleGate` (`internal/cli/cobra.go:855`) does NOT consult config.
-- Called unconditionally at `internal/cli/cobra.go:712` and `:812` (both apply paths), immediately after the flag-gated `CheckDependencyGate` calls at `:707` and `:808`.
-- Called unconditionally at `internal/cli/cobra.go:847` (reconcile path, via `checkParentGenerationStaleForReconcile`).
-- Helper in `internal/workflow/parent_generation_stale.go` never inspects config.
-- New tests in `internal/cli/apply_reconcile_stale_dep_test.go` set `cfg.FeaturesDependencies = true` (line 28). Flag-off path uncovered.
+1. **Release tag**: tag `v0.10.0` at `main` HEAD (currently `13872c9`)? Or wait for additional waves?
+2. **CHANGELOG entry**: draft a v0.10.0 entry covering all four slices? (no CHANGELOG entries are added per-slice during a cluster cycle; aggregated at cluster close.)
+3. **Next cluster**: pick from `docs/ROADMAP.md` pending work, or start a new exploratory PRD.
 
-**External reviewer's manual repro**: With `cfg.FeaturesDependencies = false` and a child holding a stale hard-parent snapshot, `apply child` still refused with `parent-generation-stale: apply refused...` and did not execute the recipe. Per the existing flag-off contract this should have been a no-op gate; apply should have proceeded.
+### Closed work pointer
 
-### rev-2 required fix
+- Wave γ archive: `docs/handoff/HISTORY.md` top entry (`2026-05-23 — v0.10.0 Wave γ patch-amend — COMPLETE`).
+- Wave γ external APPROVED verdict: `docs/supervisor/LOG.md` top entry (`Wave γ patch amend rev-2 (external) — 2026-05-23`).
+- Wave γ commit stack on `main`: `df35ab7..3c71383` (rev-0 + rev-1 + rev-2 + handoff/log commits).
 
-**Implementation**:
-1. Gate `parent-generation-stale` enforcement behind `cfg.FeaturesDependencies` for both apply and reconcile. Match the existing `CheckDependencyGate` pattern (early-return no-op when flag is false).
-2. **Cleanest location**: inside `checkParentGenerationStaleGate` itself (`internal/cli/cobra.go:855`). Load config at the top of the function; if `!cfg.FeaturesDependencies`, return nil immediately. Both apply and reconcile call sites inherit the gate without duplication.
-3. Do NOT silently drop the warning. If the flag is off, the gate is a true no-op (no warning, no refusal) — matching the `CheckDependencyGate` semantics.
+### Process lessons from Wave γ (carry-forward)
 
-**Tests**:
-1. Add `TestApplyParentGenerationStaleFlagOffBypassesGate` (or matching test name pattern) alongside `internal/cli/apply_reconcile_stale_dep_test.go`. Setup: `cfg.FeaturesDependencies = false`, child with stale hard parent. Assert: apply executes successfully and writes the recipe output (the regression repro the external reviewer ran).
-2. Add `TestReconcileParentGenerationStaleFlagOffBypassesGate` with same setup for reconcile.
-3. Both tests must NOT depend on stderr being empty if some other path emits warnings — focus the assertion on "apply/reconcile proceeded and recipe ran" / "reconcile completed cleanly".
-
-### F1 + F2 frozen (no changes from rev-1)
-
-The rev-1 fixes for F1 and F2 are accepted and must NOT regress:
-
-- `feature patch fixup` keeps no `--target`, auto-derives `fixup_of_generation`, mandatory `--reason`, refuses empty manifests.
-- `parent-generation-stale` enforcement for hard deps still refuses apply/reconcile with the same diagnostic.
-- Soft-dep warning behavior unchanged.
-
-The only change in behavior is: when `features_dependencies = false`, the gate becomes a no-op (matching `CheckDependencyGate`).
-
-### IC4 frozen regions (unchanged from rev-0/rev-1)
-
-All previously frozen regions remain frozen:
-
-- `internal/store/patch_generations.go` — no version/strict-on-unknown/`ErrMalformedManifest` edits.
-- `internal/store/claims.go:263` (`LoadClaims`) + `:294` (`SaveClaims`).
-- `internal/cli/cobra.go:897-905` + `:1415` (`--force-amend`).
-- `internal/gitutil/capture_modes.go:137/:182/:328`.
-- `internal/workflow/patch_generations.go:31`.
-
-### Out of scope for rev-2
-
-- Any change to F1 or F2 behavior beyond the flag-gating.
-- Any change to D1–D10 implementation.
-- Schema version bump.
-- CHANGELOG entry.
-
-### Quality gates
-
-1. `gofmt -l .` — zero output (run DIRECTLY).
-2. `go vet ./...` — clean.
-3. `go build ./cmd/tpatch` — succeeds.
-4. `go test ./... -count=1 -race` — all green.
-5. `go test ./assets/...` — parity guard passes.
-6. Existing flag-off tests (`TestApplyExecute_FlagOff_BypassesDependencyGate`, `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent`) still pass — confirms behavioral consistency with the existing dependency gate.
-7. Existing rev-1 hard/soft tests still pass — confirms no regression to flag-on path.
-
-### Manual CLI verification
-
-Reproduce the external reviewer's regression and confirm it's fixed:
-
-```bash
-# Setup: child with stale hard parent + features_dependencies=false
-# Action: tpatch apply child --mode execute
-# Expected before rev-2: refused with "parent-generation-stale: apply refused"
-# Expected after rev-2: succeeds, recipe runs
-
-# Same for reconcile
-```
-
-Also confirm flag-on behavior still refuses (rev-1 contract):
-
-```bash
-# Setup: child with stale hard parent + features_dependencies=true
-# Expected: apply/reconcile refuse with parent-generation-stale diagnostic
-```
-
-### Reviewer checklist additions for rev-2
-
-- [ ] `checkParentGenerationStaleGate` consults `cfg.FeaturesDependencies` and returns no-op when false.
-- [ ] Two new tests cover flag-off bypass for apply and reconcile.
-- [ ] Existing flag-off tests (`TestApplyExecute_FlagOff_BypassesDependencyGate`, `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent`) still green.
-- [ ] Existing rev-1 hard/soft tests still green.
-- [ ] IC4 frozen regions unedited.
-- [ ] Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
-
-### Commit shape
-
-DO NOT amend/rebase rev-0 or rev-1 commits. Land rev-2 as a single additive commit on top of `3bb76a8`:
-
-`fix(cli): gate parent-generation-stale enforcement behind features_dependencies (Wave γ rev-2 F3)`
-
-Or split into two if cleaner: one for the gate, one for the tests. Single commit preferred for an atomic regression fix.
-
-### Session Summary — rev-1 (for context)
-
-rev-1 stack on `main`: `5ea7a01` (F1) → `85f4abe` (F2) → `cf02c05` (handoff). External APPROVED F1, accepted F2 hard/soft enforcement, flagged F3 as a new regression introduced by F2's unconditional gate. Internal reviewer for rev-1 missed F3 — they verified the flag-on path but didn't check flag-off semantics.
-
-### Session Summary — rev-0 (for context, archived)
-
-rev-0 stack on `main`: `df35ab7..7a1326c`. External flagged F1 + F2. Both fixed in rev-1.
+1. Supervisor kickoff briefs MUST self-audit against binding ADRs before dispatch. F1 (rev-0) shipped because the brief said `fixup --target` against ADR-026 D4.
+2. Briefs that reference policy ADRs (ADR-011 for dependency enforcement, etc.) MUST enumerate config-flag opt-out contracts explicitly, not just enforcement semantics. F3 (rev-1) shipped because the brief named ADR-011 but did not flag the `features_dependencies` opt-out.
+3. Internal reviewer checklist must include explicit flag-off counter-scenarios for any new dependency-related enforcement. rev-1 internal reviewer verified flag-on but missed flag-off.
+4. `gofmt` gotcha: `gofmt -l . 2>&1 | grep -v '^$'` returns exit 1 on empty input. Always run `gofmt -l .` directly and read literal output. Brief this in every dispatch.
 
 ## Session Summary
 
-Wave γ rev-2 F3 implementation complete. `checkParentGenerationStaleGate` now loads repo config and returns nil immediately when `features_dependencies` is false, so both apply and reconcile inherit the existing dependency-gate opt-out centrally. Added flag-off regression tests for apply execute and reconcile preflight using stale hard parent-generation snapshots.
+Wave γ rev-2 external APPROVED. v0.10.0 cluster is complete. Awaiting user decision on release shape (tag, CHANGELOG, next work).
 
 ## Current State
 
-- Implementation commit landed locally: `9b8bc54`.
-- F1 and F2 rev-1 behavior left frozen; only F3 flag-off behavior changed.
-- Ready for reviewer validation; no blockers.
+- v0.10.0 cluster 4-of-4 complete.
+- No active implementation work.
+- No blockers.
+- `docs/state-of-the-art/` working-tree modifications remain untouched (pre-existing, not from this cluster).
 
 ## Files Changed
 
-Rev-2 implementation commit:
-
-- `internal/cli/cobra.go`
-- `internal/cli/apply_reconcile_stale_dep_test.go`
-
-Rev-2 handoff commit:
-
-- `docs/handoff/CURRENT.md`
-
-Pre-existing user/worktree changes left untouched:
-
-- `docs/state-of-the-art/` edits
-- `reviewtmp.GCgjHq/`
+None this turn beyond LOG.md (external verdict) and HISTORY.md/CURRENT.md (archive + reset).
 
 ## Test Results
 
-- Targeted CLI regression set: `go test ./internal/cli -run 'TestApply.*ParentGenerationStale|TestReconcile.*ParentGenerationStale|TestApplyExecute_FlagOff_BypassesDependencyGate' -count=1` — passed.
-- Targeted workflow flag-off guard: `go test ./internal/workflow -run TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent -count=1` — passed.
-- `gofmt -l .` — zero output.
-- `go vet ./...` — clean.
-- `go build ./cmd/tpatch` — success.
-- `go test ./... -count=1 -race` — passed:
-  - `ok   github.com/tesseracode/tesserapatch/assets 1.682s`
-  - `ok   github.com/tesseracode/tesserapatch/internal/cli 63.544s`
-  - `ok   github.com/tesseracode/tesserapatch/internal/workflow 32.377s`
-  - all other packages green / no test files.
-- `go test ./assets/...` — `ok   github.com/tesseracode/tesserapatch/assets (cached)`.
-- Side Research md5 after edits: `b385fe622db9926f48861105239f113e`.
-- Manual repro: not run separately; the two new regression tests exercise the reviewer repro shape for apply and reconcile.
+Full suite green at `3c71383` (rev-2 final): `gofmt -l .` clean, `go vet ./...` clean, `go build ./cmd/tpatch` succeeds, `go test ./... -count=1 -race` green, `go test ./assets/...` green.
 
 ## Next Steps
 
-1. Reviewer should inspect the two rev-2 commits and validate F3 only.
-2. Confirm `features_dependencies=false` bypasses `parent-generation-stale` without warnings/refusals.
-3. Confirm flag-on hard/soft semantics from rev-1 still pass.
-4. Confirm IC4 frozen regions and Side Research md5 are unchanged.
+1. Await user decision on v0.10.0 release tag + CHANGELOG.
+2. After release decision, pick next milestone from `docs/ROADMAP.md` or new exploratory work.
 
 ## Blockers
 
@@ -177,9 +70,10 @@ None.
 
 ## Context for Next Agent
 
-- Rev-2 intentionally centralizes the opt-out in `checkParentGenerationStaleGate`; do not duplicate checks at apply/reconcile call sites.
-- The new flag-off tests set up stale snapshots first, then flip `features_dependencies=false`, matching the external regression surface.
-- Side Research section remains byte-identical; verify with md5 `b385fe622db9926f48861105239f113e` if editing this file again.
+- v0.10.0 cluster ships the capture-and-metadata foundation: capture modes (α), patch-generations manifest with content-addressed `pg_<12hex>` IDs (β), stable git patch-id (δ), and amendment semantics with dependency-aware staleness (γ). Together these are the substrate for future identity, replay, and amendment-tracking features.
+- ADR-026 D1–D10 + IC1–IC6 + IC4 frozen regions remain the binding contract for any future amendment work.
+- `features_dependencies` config flag is the user-controllable opt-out for ALL dependency-related enforcement (ADR-011 base + ADR-026 D5 stale-parent). Any new dependency gate MUST honor it — see `internal/cli/cobra.go:856-862` and `internal/workflow/dependency_gate.go` for the pattern.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Always verify after editing CURRENT.md.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

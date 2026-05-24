@@ -1,4 +1,30 @@
-## Review — Wave γ patch amend rev-2 — 2026-05-23
+## Review — Wave γ patch amend rev-2 (external) — 2026-05-23
+
+**Reviewer**: external
+**Task**: External re-review of rev-2 stack `9b8bc54..3c71383` addressing F3 regression introduced by rev-1.
+
+### Verdict: APPROVED
+
+### Findings
+
+None.
+
+### Evidence
+
+- **F3 fix landed cleanly**: `checkParentGenerationStaleGate` (`internal/cli/cobra.go:856-862`) now loads config and returns nil when `cfg.FeaturesDependencies == false`, matching the pre-existing opt-out contract locked by `internal/cli/dependency_gate_apply_test.go::TestApplyExecute_FlagOff_BypassesDependencyGate` and `internal/workflow/dependency_gate_test.go::TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent`.
+- **New flag-off tests** at `internal/cli/apply_reconcile_stale_dep_test.go::TestApplyParentGenerationStaleFlagOffBypassesGate` and `TestReconcileParentGenerationStaleFlagOffBypassesGate` cover the missing apply and reconcile paths.
+- **rev-1 fixup behavior intact**: `internal/cli/feature_patch.go` `currentPatchGenerationID` auto-derivation unchanged; rev-1 F1 tests still pass.
+- **Manual flag-off repro**: with `cfg.FeaturesDependencies = false` and a child holding a stale hard parent snapshot, `tpatch apply child --mode execute` now proceeds, writes the recipe output, and emits no `parent-generation-stale` diagnostic — exact opposite of the rev-1 regression shape.
+- **Manual flag-on sanity repro**: with the flag on, hard-stale apply still refuses with the `parent-generation-stale` diagnostic — fix did not blunt the rev-1 enforcement path.
+- **Targeted re-run**: 23 focused tests passed (CLI flag-off + rev-1 flag-on + rev-1 fixup); `go build ./cmd/tpatch` succeeded. Full `-race` suite trusted from internal validation record.
+
+### Action Taken
+
+Wave γ closed. v0.10.0 capture-and-metadata foundation cluster is now 4-of-4 complete (Wave α + β + δ + γ).
+
+---
+
+
 
 **Reviewer**: sub-agent code-review (internal)
 **Task**: Internal review of rev-2 stack `2434660..3c71383` addressing external F3 finding from rev-1.
