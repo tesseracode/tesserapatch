@@ -5,7 +5,7 @@
 - **Task ID**: `wave-gamma-patch-amend-impl-rev2`
 - **Milestone**: v0.10.0 Wave γ — `PRD-feature-patch-amend` rev-2 revision after external NEEDS REVISION verdict on rev-1 stack `5ea7a01..cf02c05`.
 - **Description**: Address external reviewer's F3 finding (MEDIUM regression introduced by rev-1: the new `parent-generation-stale` gate ignores the existing `features_dependencies` config opt-out, breaking the documented flag-off rollout contract). F1 and F2 fixes from rev-1 remain accepted and unchanged.
-- **Status**: Ready to dispatch.
+- **Status**: Review (awaiting reviewer).
 - **Assigned**: 2026-05-23.
 
 ### Finding to address (F3 — MEDIUM, BINDING)
@@ -124,43 +124,52 @@ rev-0 stack on `main`: `df35ab7..7a1326c`. External flagged F1 + F2. Both fixed 
 
 ## Session Summary
 
-External NEEDS REVISION on rev-1: one new finding (F3 MEDIUM, regression introduced by rev-1's F2 fix). Verdict logged to LOG.md. rev-2 dispatch brief in place. rev-1 commits stay on `main`; rev-2 lands additive.
+Wave γ rev-2 F3 implementation complete. `checkParentGenerationStaleGate` now loads repo config and returns nil immediately when `features_dependencies` is false, so both apply and reconcile inherit the existing dependency-gate opt-out centrally. Added flag-off regression tests for apply execute and reconcile preflight using stale hard parent-generation snapshots.
 
 ## Current State
 
-- rev-1 stack (`5ea7a01..cf02c05`) on `main`. F1 + F2 fixes accepted by external reviewer.
-- F3 regression: `parent-generation-stale` gate ignores `features_dependencies` config. rev-2 brief dispatched above.
-- No blockers.
+- Implementation commit landed locally: `9b8bc54`.
+- F1 and F2 rev-1 behavior left frozen; only F3 flag-off behavior changed.
+- Ready for reviewer validation; no blockers.
 
 ## Files Changed
 
-Rev-1 committed files:
+Rev-2 implementation commit:
 
-- `internal/cli/feature_patch.go`
-- `internal/cli/feature_patch_test.go`
-- `internal/workflow/parent_generation_stale.go`
 - `internal/cli/cobra.go`
 - `internal/cli/apply_reconcile_stale_dep_test.go`
 
+Rev-2 handoff commit:
+
+- `docs/handoff/CURRENT.md`
+
+Pre-existing user/worktree changes left untouched:
+
+- `docs/state-of-the-art/` edits
+- `reviewtmp.GCgjHq/`
+
 ## Test Results
 
-- Before rev-1 count: 624 `func Test...` declarations.
-- After rev-1 count: 630 `func Test...` declarations.
-- Targeted tests: `go test ./internal/cli -run 'TestFeaturePatch|TestApply.*ParentGenerationStale|TestReconcile.*ParentGenerationStale' -count=1` — passed.
-- F2 targeted tests: `go test ./internal/cli -run 'TestApply.*ParentGenerationStale|TestReconcile.*ParentGenerationStale' -count=1` — passed.
-- Wave β byte-identical fixture guard: `go test ./internal/store -run TestPatchGenerationsWaveGammaExistingWaveBetaManifestRoundTrip -count=1` — passed.
-- Final quality gates:
-  - `gofmt -l .` — zero output.
-  - `go vet ./...` — clean.
-  - `go build ./cmd/tpatch` — success.
-  - `go test ./assets/...` — passed.
-  - `go test ./... -count=1 -race` — passed.
+- Targeted CLI regression set: `go test ./internal/cli -run 'TestApply.*ParentGenerationStale|TestReconcile.*ParentGenerationStale|TestApplyExecute_FlagOff_BypassesDependencyGate' -count=1` — passed.
+- Targeted workflow flag-off guard: `go test ./internal/workflow -run TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent -count=1` — passed.
+- `gofmt -l .` — zero output.
+- `go vet ./...` — clean.
+- `go build ./cmd/tpatch` — success.
+- `go test ./... -count=1 -race` — passed:
+  - `ok   github.com/tesseracode/tesserapatch/assets 1.682s`
+  - `ok   github.com/tesseracode/tesserapatch/internal/cli 63.544s`
+  - `ok   github.com/tesseracode/tesserapatch/internal/workflow 32.377s`
+  - all other packages green / no test files.
+- `go test ./assets/...` — `ok   github.com/tesseracode/tesserapatch/assets (cached)`.
+- Side Research md5 after edits: `b385fe622db9926f48861105239f113e`.
+- Manual repro: not run separately; the two new regression tests exercise the reviewer repro shape for apply and reconcile.
 
 ## Next Steps
 
-1. Dispatch Wave γ rev-1 reviewer with the F1/F2 checklist.
-2. Reviewer should verify the two additive commits and IC4 frozen-region boundaries.
-3. On approval, supervisor can push local `main` for external review.
+1. Reviewer should inspect the two rev-2 commits and validate F3 only.
+2. Confirm `features_dependencies=false` bypasses `parent-generation-stale` without warnings/refusals.
+3. Confirm flag-on hard/soft semantics from rev-1 still pass.
+4. Confirm IC4 frozen regions and Side Research md5 are unchanged.
 
 ## Blockers
 
@@ -168,10 +177,9 @@ None.
 
 ## Context for Next Agent
 
-- The two Wave γ rev-1 commits are local on `main`; do not reorder or squash them before review.
-- `record --force-amend` remains Git-rewrite orphan-only; it was not used as a refresh/fixup shortcut.
-- `parent-generation-stale` remains a derived overlay; rev-1 only adds hard/soft enforcement/warnings at apply and reconcile entry points.
-- Side Research section is preserved byte-identical; verify via md5 `b385fe622db9926f48861105239f113e` after any CURRENT.md edit.
+- Rev-2 intentionally centralizes the opt-out in `checkParentGenerationStaleGate`; do not duplicate checks at apply/reconcile call sites.
+- The new flag-off tests set up stale snapshots first, then flip `features_dependencies=false`, matching the external regression surface.
+- Side Research section remains byte-identical; verify with md5 `b385fe622db9926f48861105239f113e` if editing this file again.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
