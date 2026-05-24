@@ -113,6 +113,28 @@ func TestApplySoftParentGenerationStaleWarnsAndProceeds(t *testing.T) {
 	}
 }
 
+func TestApplyParentGenerationStaleFlagOffBypassesGate(t *testing.T) {
+	tmpDir, _, childSlug, _ := setupParentGenerationStaleFixture(t, store.DependencyKindHard)
+	writeStaleDepApplyRecipe(t, tmpDir, childSlug, "flag-off-should-exist.txt")
+	s, err := store.Open(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.FeaturesDependencies = false
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, code := runCmdWithError("apply", "--path", tmpDir, childSlug, "--mode", "execute")
+	if code != 0 {
+		t.Fatalf("expected flag-off stale apply to proceed; stderr=%q", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, "flag-off-should-exist.txt")); err != nil {
+		t.Fatalf("expected flag-off apply to execute recipe and write file: %v", err)
+	}
+}
+
 func TestReconcileHardParentGenerationStaleRefuses(t *testing.T) {
 	tmpDir, parentSlug, childSlug, currentParentGenerationID := setupParentGenerationStaleFixture(t, store.DependencyKindHard)
 
@@ -131,4 +153,25 @@ func TestReconcileSoftParentGenerationStaleWarnsAndProceeds(t *testing.T) {
 		t.Fatalf("expected soft stale reconcile preflight to proceed; stderr=%q", stderr)
 	}
 	assertStaleDepDiagnostic(t, stderr, parentSlug, currentParentGenerationID)
+}
+
+func TestReconcileParentGenerationStaleFlagOffBypassesGate(t *testing.T) {
+	tmpDir, _, childSlug, _ := setupParentGenerationStaleFixture(t, store.DependencyKindHard)
+	s, err := store.Open(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.FeaturesDependencies = false
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, code := runCmdWithError("reconcile", "--path", tmpDir, "--preflight", "--allow-dirty", childSlug)
+	if code != 0 {
+		t.Fatalf("expected flag-off stale reconcile preflight to proceed; stderr=%q", stderr)
+	}
+	if strings.Contains(stderr, "parent-generation-stale") {
+		t.Fatalf("expected flag-off reconcile to bypass parent-generation-stale gate; stderr=%q", stderr)
+	}
 }

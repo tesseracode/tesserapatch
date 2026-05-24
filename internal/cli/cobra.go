@@ -853,6 +853,13 @@ func checkParentGenerationStaleForReconcile(cmd *cobra.Command, s *store.Store, 
 }
 
 func checkParentGenerationStaleGate(w io.Writer, s *store.Store, slug, action string) error {
+	cfg, err := s.LoadConfig()
+	if err != nil {
+		return err
+	}
+	if !cfg.FeaturesDependencies {
+		return nil
+	}
 	stale := workflow.ParentGenerationStaleDependencies(s, slug)
 	if len(stale) == 0 {
 		return nil
