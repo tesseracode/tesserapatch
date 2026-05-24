@@ -1,3 +1,63 @@
+## Review — Wave γ patch amend rev-2 — 2026-05-23
+
+**Reviewer**: sub-agent code-review (internal)
+**Task**: Internal review of rev-2 stack `2434660..3c71383` addressing external F3 finding from rev-1.
+
+### Verdict: APPROVED
+
+### Checklist
+
+**F3 fix implementation**:
+- [x] `checkParentGenerationStaleGate` (`internal/cli/cobra.go:855-862`) now loads config and returns `nil` when `cfg.FeaturesDependencies == false`. **VERIFIED**: Lines 856-862 load config, check flag, early-return nil. Mirrors the `CheckDependencyGate` pattern exactly.
+- [x] No additional changes at call sites (`:712`, `:812`, `:847`) beyond what rev-1 already had. **VERIFIED**: `git diff 2434660..HEAD -- internal/cli/cobra.go` shows changes only to `checkParentGenerationStaleGate` helper, not call sites. Gating is centralized in the helper.
+- [x] Two new tests in `internal/cli/apply_reconcile_stale_dep_test.go`: **VERIFIED**:
+  - `TestApplyParentGenerationStaleFlagOffBypassesGate` (lines 116-136): Sets `cfg.FeaturesDependencies = false`, constructs child with stale hard parent, asserts apply succeeds and writes file.
+  - `TestReconcileParentGenerationStaleFlagOffBypassesGate` (lines 158-177): Sets `cfg.FeaturesDependencies = false`, constructs child with stale hard parent, asserts reconcile succeeds without `parent-generation-stale` diagnostic.
+
+**IC4 frozen regions UNEDITED** (verified via `git diff 2434660..HEAD -- <path>`):
+- [x] `internal/store/patch_generations.go` — zero diff.
+- [x] `internal/store/claims.go` — zero diff.
+- [x] `internal/cli/cobra.go:897-905` (recipe-provenance region) — unchanged.
+- [x] `internal/cli/cobra.go:1415` (--force-amend region) — unchanged.
+- [x] `internal/gitutil/capture_modes.go` — zero diff.
+- [x] `internal/workflow/patch_generations.go` — zero diff.
+
+**F1 + F2 behavior preserved**:
+- [x] No edits to `internal/cli/feature_patch.go`. **VERIFIED**: zero diff.
+- [x] No changes to existing rev-1 hard/soft flag-on tests. **VERIFIED**: Lines 88-156 in `apply_reconcile_stale_dep_test.go` unchanged (flag-on hard/soft tests), only flag-off tests added.
+
+**Quality gates**:
+- [x] Side Research md5 preserved: `b385fe622db9926f48861105239f113e`. **VERIFIED**: Computed via `md5 <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` matches exactly.
+- [x] `gofmt -l .` — zero output (run DIRECTLY). **VERIFIED**: Empty output.
+- [x] `go vet ./...` — clean. **VERIFIED**: Exit 0, no warnings.
+- [x] `go build ./cmd/tpatch` — succeeds. **VERIFIED**: Exit 0.
+- [x] `go test ./... -count=1 -race` — all green. **VERIFIED**: All 10 packages passed in 170.45s total.
+  - Confirmed `TestApplyExecute_FlagOff_BypassesDependencyGate` (existing flag-off guard) PASS.
+  - Confirmed `TestDependencyGate_FlagOff_PassesEvenWithUnappliedHardParent` (existing workflow flag-off guard) PASS.
+  - Confirmed all four rev-1 hard/soft tests PASS: `TestApplyHardParentGenerationStaleRefuses`, `TestApplySoftParentGenerationStaleWarnsAndProceeds`, `TestReconcileHardParentGenerationStaleRefuses`, `TestReconcileSoftParentGenerationStaleWarnsAndProceeds`.
+  - Confirmed two new flag-off tests PASS: `TestApplyParentGenerationStaleFlagOffBypassesGate`, `TestReconcileParentGenerationStaleFlagOffBypassesGate`.
+- [x] `go test ./assets/...` — parity guard green. **VERIFIED**: Exit 0.
+- [x] CURRENT.md Active Task status updated to "Review (awaiting reviewer)". **VERIFIED**: Line 8.
+- [x] CURRENT.md Session Summary / Files Changed / Test Results reflect rev-2 work. **VERIFIED**: Lines 125-165.
+- [x] No edits outside `tpatch/`. **VERIFIED**: `git status` shows only worktree changes (`docs/state-of-the-art/`, `reviewtmp.GCgjHq/`) predating rev-2.
+- [x] No pushes attempted. **VERIFIED**: `origin/main` still at `2434660`.
+
+### Findings
+
+No findings. The rev-2 implementation correctly addresses F3 by centralizing the `features_dependencies` flag check inside `checkParentGenerationStaleGate`, so both apply and reconcile paths inherit the opt-out without duplication. The two new flag-off tests cover the exact external repro scenario (hard stale parent with flag off → should bypass gate). All existing flag-on tests still pass, confirming F1+F2 semantics from rev-1 are preserved.
+
+### Notes
+
+- The implementer correctly chose to load config inside `checkParentGenerationStaleGate` rather than passing the flag as a parameter. This matches the `CheckDependencyGate` pattern and keeps call sites clean.
+- Flag-off tests verify both success (apply writes file, reconcile exits 0) and absence of the `parent-generation-stale` diagnostic, covering the external regression fully.
+- Manual repro was not run separately because the new tests exercise the exact scenario (stale hard parent + flag off → action proceeds).
+
+### Action Recommended
+
+APPROVED. Supervisor can push commits `9b8bc54` and `3c71383` to `origin/main` for external review.
+
+---
+
 ## Review — Wave γ patch amend rev-1 (external) — 2026-05-23
 
 **Reviewer**: external
