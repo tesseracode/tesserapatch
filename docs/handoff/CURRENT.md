@@ -3,21 +3,20 @@
 ## Active Task
 
 - **Task ID**: `v0.10.0-release-decision`
-- **Milestone**: v0.10.0 capture-and-metadata foundation cluster — **4-of-4 slices complete, ready for release tag**.
+- **Milestone**: v0.10.0 capture-and-metadata foundation cluster — **3-of-3 slices complete, ready for release tag**. Wave α shipped as v0.9.0; v0.10.0 bundles Wave β + Wave γ.
 - **Description**: Cluster shipped. Awaiting user decision on release shape (tag, CHANGELOG entry, version bump).
 - **Status**: Awaiting user decision.
 - **Assigned**: 2026-05-23.
 
 ### Cluster summary
 
-The v0.10.0 cluster (capture-and-metadata foundation) is complete. Four PRD slices landed cleanly through the implementation → internal review → external review cycle:
+The v0.10.0 cluster (capture-and-metadata foundation per WP-002) is complete. Three PRD slices landed cleanly through the implementation → internal review → external review cycle. Wave α shipped earlier as v0.9.0; v0.10.0 release bundles Wave β + Wave γ:
 
-| Wave | PRD | ADR | Final commit | Closed |
-|------|-----|-----|--------------|--------|
-| α | `PRD-feature-capture-modes` | ADR-022 | (in `main`) | earlier in cluster |
-| β | `PRD-feature-patch-identity-metadata` | ADR-024 | (in `main`) | 2026-05-19 |
-| δ | `PRD-stable-patch-id` | ADR-025 | (in `main`) | earlier in cluster |
-| γ | `PRD-feature-patch-amend` | ADR-026 | `3c71383` | 2026-05-23 |
+| Wave | PRD | ADR | Release | Closed |
+|------|-----|-----|---------|--------|
+| α | `PRD-record-capture-modes` + `PRD-feature-file-claims` | (none — pure CLI surface) | v0.9.0 | 2026-05-14 |
+| β | `PRD-feature-patch-identity-metadata` | ADR-024 | v0.10.0 (this tag) | 2026-05-19 |
+| γ | `PRD-feature-patch-amend` | ADR-026 | v0.10.0 (this tag) | 2026-05-23 |
 
 Full Wave γ rev-0 → rev-2 stack and review history archived in `docs/handoff/HISTORY.md`. Wave β archive remains the canonical reference for the patch-generations schema invariants Wave γ built on.
 
@@ -46,7 +45,7 @@ Wave γ rev-2 external APPROVED. v0.10.0 cluster is complete. Awaiting user deci
 
 ## Current State
 
-- v0.10.0 cluster 4-of-4 complete.
+- v0.10.0 cluster 3-of-3 complete (Wave α already shipped as v0.9.0; Wave β + Wave γ bundled into v0.10.0).
 - No active implementation work.
 - No blockers.
 - `docs/state-of-the-art/` working-tree modifications remain untouched (pre-existing, not from this cluster).

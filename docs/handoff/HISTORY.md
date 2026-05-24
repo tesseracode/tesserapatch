@@ -1,6 +1,15 @@
+---
+
+# 2026-05-23 — v0.10.0 — Wave β + Wave γ — RELEASED
+
+**Tag**: `v0.10.0` at `<release-commit>` (post-CHANGELOG entry).
+**Scope**: bundles Wave β (`PRD-feature-patch-identity-metadata`, ADR-024) and Wave γ (`PRD-feature-patch-amend`, ADR-026) into a single release. Wave α (file-claims + record-capture-modes) shipped earlier as v0.9.0. Together these complete the WP-002 capture-and-metadata foundation cluster.
+
+---
+
 # 2026-05-23 — v0.10.0 Wave γ patch-amend — COMPLETE
 
-**Outcome**: Wave γ (slice 4 of 4 in the v0.10.0 capture-and-metadata foundation cluster) shipped. `PRD-feature-patch-amend` v1 implemented per ADR-026 D1–D10 with `feature patch {refresh, fixup}` subverbs, content-addressed `pg_<12hex>` generation IDs continuing from Wave β, `kind ∈ {record, amend-refresh, amend-fixup}` classifier, dependency-aware staleness enforcement (`parent-generation-stale`), and `--force-amend` escape hatch for ADR-025 ledger emergencies.
+**Outcome**: Wave γ (slice 3 of 3 in the v0.10.0 capture-and-metadata foundation cluster, per WP-002) shipped. `PRD-feature-patch-amend` v1 implemented per ADR-026 D1–D10 with `feature patch {refresh, fixup}` subverbs, content-addressed `pg_<12hex>` generation IDs continuing from Wave β, `kind ∈ {record, amend-refresh, amend-fixup}` classifier, dependency-aware staleness enforcement (`parent-generation-stale`), and `record --force-amend` retained as Git-rewrite orphan-only escape hatch (NOT a refresh/fixup shortcut, per D8).
 
 **Implementation stack** (all on `main`, pushed):
 
@@ -28,16 +37,16 @@ rev-2 (addressing external F3 MEDIUM regression):
 - rev-2 external: APPROVED.
 
 **ADR-026 D1–D10 compliance**:
-- D1 (subverbs `{refresh, fixup}`): VERIFIED.
-- D2 (`generation_id` continuity): VERIFIED.
-- D3 (kind enum + classifier): VERIFIED.
-- D4 (`fixup_of_generation` = previously-current generation, auto-derived): VERIFIED (after rev-1 F1 fix).
-- D5 (hard blocks / soft warns on apply + reconcile, honoring `features_dependencies` per ADR-011): VERIFIED (after rev-2 F3 fix).
-- D6 (mandatory `--reason` on fixup): VERIFIED.
-- D7 (locked subverb set, no `--target` flag): VERIFIED (after rev-1 F1 fix).
-- D8 (status overlay): VERIFIED.
-- D9 (`--force-amend` escape hatch for ADR-025 ledger emergencies): VERIFIED.
-- D10 (no schema version bump from Wave β v1): VERIFIED.
+- D1 (plain `record <slug>` byte-change hybrid classification — record vs amend-refresh vs amend-fixup): VERIFIED.
+- D2 (`--reason` persisted on the generation entry, mandatory for fixup): VERIFIED.
+- D3 (no-byte-change refresh exits 0 and appends nothing): VERIFIED.
+- D4 (`fixup_of_generation` references a prior `generation_id`, auto-derived from previously-current): VERIFIED (after rev-1 F1 fix).
+- D5 (dependent staleness is a status overlay label; hard blocks apply+reconcile, soft warns, honoring `features_dependencies` per ADR-011): VERIFIED (after rev-2 F3 fix).
+- D6 (patch-content amendments invalidate verify-freshness by hash inputs): VERIFIED.
+- D7 (command namespace `feature patch {refresh, fixup}` locked for v1 — no `--target` flag): VERIFIED (after rev-1 F1 fix).
+- D8 (`record --force-amend` stays Git-rewrite orphan-only; not a refresh/fixup shortcut): VERIFIED.
+- D9 (metadata-only amend does not append patch generations in v1): VERIFIED.
+- D10 (Wave β D8 transitions `amend-refresh` and `amend-fixup` to writable kinds): VERIFIED.
 
 **Frozen surfaces preserved through rev-0 → rev-2**:
 - IC4 frozen regions (Wave β patch-generations schema, claims store, `--force-amend` region, capture modes, workflow patch_generations narrow swallow): all confirmed zero-diff across the three rev cycles.
@@ -56,7 +65,7 @@ rev-2 (addressing external F3 MEDIUM regression):
 3. Internal reviewer checklist needs explicit flag-off counter-scenario for any new dependency-related enforcement (rev-1 internal review missed F3 by only checking flag-on path).
 4. `gofmt -l . 2>&1 | grep -v '^$'` returns exit 1 on empty input — always run `gofmt -l .` directly and read literal output (rev-0 internal reviewer fooled by this pattern, caught at rev-1 dispatch).
 
-**v0.10.0 cluster status**: 4-of-4 slices complete (Wave α capture-modes, Wave β patch-identity-metadata, Wave δ stable patch-id, Wave γ patch-amend). Cluster ready for release tag.
+**v0.10.0 cluster status**: 3-of-3 slices complete (Wave α capture-modes shipped as v0.9.0; Wave β patch-identity-metadata in `main`; Wave γ patch-amend just shipped). v0.10.0 release bundles Wave β + Wave γ. Cluster ready for release tag.
 
 ---
 

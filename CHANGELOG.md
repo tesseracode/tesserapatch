@@ -2,6 +2,90 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.10.0 — 2026-05-23 — Wave β + Wave γ (patch-identity-metadata + patch-amend)
+
+Bundles two slices of the WP-002 capture-and-metadata foundation cluster.
+Wave α (file-claims + record-capture-modes) shipped earlier as v0.9.0.
+
+### Patch-generations manifest (Wave β — ADR-024)
+
+- New append-only `.tpatch/features/<slug>/artifacts/patch-generations.json`
+  schema (`version: 1`) recording every patch capture per feature as a
+  content-addressed `generation_id` of the form `pg_<12hex>` derived from
+  patch bytes, base commit, capture mode, and pathspecs. `current_generation`
+  is a monotonic integer; `generation_id` is stable across reorders.
+- Zero wall-clock timestamps in the manifest — IDs are reproducible across
+  machines and times.
+- `git_patch_id` recorded via `gitutil.PatchID` with the `stable` algorithm
+  for cross-rewrite stability.
+- `refs` block is mandatory in v1 (strict-on-unknown plus refs-presence
+  enforcement at load time). `PatchGeneration.Refs` is `*GenerationRefs`
+  so omitted `refs` keys produce a load-time refusal rather than silent
+  defaults.
+- Dependency snapshots persisted per generation: each entry records the
+  parent slug, kind, and the parent's `generation_id` + `git_patch_id`
+  at the moment of capture.
+- `record` and reconcile-driven refresh paths append a new generation
+  entry. `RefreshAfterAccept` non-fatally warns to stderr (rather than
+  failing the operation) when append fails for non-malformed reasons.
+- `store.ErrMalformedManifest` sentinel narrows malformed-vs-I/O error
+  classification: `LoadPatchGenerations` wraps JSON-decode and schema
+  validation failures with `%w` and leaves I/O errors unwrapped. Workflow
+  `AllowMalformedManifest` swallow is narrowed to
+  `errors.Is(..., ErrMalformedManifest)` so I/O errors escape to the
+  warning path.
+
+### Patch amendment (Wave γ — ADR-026)
+
+- New `tpatch feature patch refresh <slug>` — re-runs capture for the
+  current feature and appends a generation with
+  `kind: amend-refresh`. Exit 0 with no append on no-byte-change.
+- New `tpatch feature patch fixup <slug> --reason "..."` — appends a
+  generation with `kind: amend-fixup` referencing the previously-current
+  generation via `fixup_of_generation` (auto-derived from the manifest;
+  no `--target` flag). `--reason` is mandatory and persists on the entry.
+- `tpatch record <slug>` (plain) classifies the resulting generation
+  hybrid: `record` if no prior generation exists; otherwise
+  `amend-refresh` (byte-changed re-record) or no-op (byte-identical).
+- `kind ∈ {record, amend-refresh, amend-fixup}` enum landed; Wave β D8
+  reservations transition to writable for `amend-refresh` and `amend-fixup`.
+- Dependent-staleness gate: when a dependency's parent generation
+  drifts from the snapshot captured at the child's last generation,
+  `tpatch status` surfaces a `parent-generation-stale` overlay; `tpatch
+  apply <slug>` and `tpatch reconcile <slug>` refuse for hard dependents
+  and warn for soft dependents.
+- The new gate honors the existing `features_dependencies` config
+  opt-out — when the flag is `false`, dependency enforcement (both the
+  existing ADR-011 gate and the new ADR-026 stale-parent gate) is a
+  true no-op. Matches `internal/workflow/recipe.go:34` contract.
+- `record --force-amend` remains Git-rewrite orphan-only per D8 —
+  it is NOT a refresh shortcut, NOT a fixup shortcut, and continues
+  to require unbroken downstream dependents.
+- Metadata-only amend (D9) does not append patch generations in v1 —
+  manifest identity is patch-byte boundary.
+- Verify-freshness invalidation (D6): patch-content amendments
+  invalidate cached verify state by hash inputs.
+
+### Notes
+
+- No schema version bump from v1 introduced in Wave β.
+- Six skill surfaces updated by the parity guard for both Waves.
+- Test count grew from 590 (pre-cluster) to 632 (post-Wave γ rev-2).
+- `gofmt`, `go vet`, `go build ./cmd/tpatch`, `go test ./... -race`,
+  and `go test ./assets/...` all clean at release.
+
+### Process notes (carry-forward)
+
+- Supervisor kickoff briefs must self-audit against binding ADRs
+  before dispatch. Wave γ rev-0 briefly drifted from ADR-026 D4/D7
+  on the `fixup --target` surface (fixed in rev-1).
+- Briefs that reference policy ADRs (ADR-011, ADR-026) must
+  enumerate config-flag opt-out contracts, not just enforcement
+  semantics. Wave γ rev-1 missed the `features_dependencies`
+  opt-out path for the new stale-parent gate (fixed in rev-2).
+- Internal-reviewer checklist must cover explicit flag-off
+  counter-scenarios for any new dependency-related enforcement.
+
 ## v0.9.0 — 2026-05-14 — Wave alpha (file-claims + capture-modes)
 
 ### Record capture modes
