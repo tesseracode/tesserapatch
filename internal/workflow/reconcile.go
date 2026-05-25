@@ -558,6 +558,7 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	// Save reconcile-session.json
 	data, _ := json.MarshalIndent(result, "", "  ")
 	s.WriteArtifact(slug, "reconcile-session.json", string(data)+"\n")
+	persistReconcileEvidence(s, slug, result)
 
 	// Save reconcile.md
 	var b strings.Builder
@@ -587,6 +588,92 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	// Save per-version log
 	commitRange := fmt.Sprintf("%s-to-%s", truncateCommit(result.UpstreamCommit), "HEAD")
 	s.WriteFeatureFile(slug, filepath.Join("reconciliation", commitRange+".md"), b.String())
+}
+
+func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult) {
+	if result == nil || result.Outcome == "" {
+		return
+	}
+	phase, kind := evidencePhaseAndKind(result)
+	if phase == "" {
+		return
+	}
+	status, _ := s.LoadFeatureStatus(slug)
+	baseCommit := status.Apply.BaseCommit
+	if baseCommit == "" {
+		baseCommit = "unknown"
+	}
+	confidence := store.EvidenceConfidenceMedium
+	matchOrigin := store.EvidenceMatchOriginUnknown
+	presence := store.EvidencePresenceNotChecked
+	requiresConfirmation := true
+	upstreamCommitRefs := []string{}
+	switch kind {
+	case store.EvidenceKindPatchIDMatch:
+		confidence = store.EvidenceConfidenceHigh
+		matchOrigin = store.EvidenceMatchOriginUpstream
+		presence = store.EvidencePresencePresent
+		requiresConfirmation = false
+		if result.PatchIDMatch != nil && result.PatchIDMatch.MatchedUpstreamSHA != "" {
+			upstreamCommitRefs = []string{result.PatchIDMatch.MatchedUpstreamSHA}
+		}
+	case store.EvidenceKindReverseApply:
+		confidence = store.EvidenceConfidenceHigh
+		matchOrigin = store.EvidenceMatchOriginUpstream
+		presence = store.EvidencePresencePresent
+	case store.EvidenceKindRecipeOperationMatch:
+		confidence = store.EvidenceConfidenceLow
+		presence = store.EvidencePresencePresent
+	case store.EvidenceKindForwardApply:
+		if result.Outcome == store.ReconcileBlocked {
+			confidence = store.EvidenceConfidenceLow
+		}
+	}
+	entry := store.ReconcileEvidence{
+		SchemaVersion:        store.ReconcileEvidenceSchemaVersion,
+		FeatureSlug:          slug,
+		UpstreamRef:          result.UpstreamRef,
+		UpstreamCommit:       result.UpstreamCommit,
+		BaseCommit:           baseCommit,
+		RawReconcileVerdict:  string(result.Outcome),
+		Phase:                phase,
+		EvidenceKind:         kind,
+		Confidence:           confidence,
+		MatchedPaths:         append([]string(nil), result.Conflicts...),
+		MatchedOperations:    []string{},
+		MatchOrigin:          matchOrigin,
+		UpstreamCommitRefs:   upstreamCommitRefs,
+		PreReconcilePresence: presence,
+		RequiresConfirmation: requiresConfirmation,
+		ReasonCode:           result.Phase,
+	}
+	if entry.MatchedPaths == nil {
+		entry.MatchedPaths = []string{}
+	}
+	if result.PatchIDMatch != nil && kind == store.EvidenceKindPatchIDMatch {
+		entry = store.PatchIDMatchEvidenceFields(entry, *result.PatchIDMatch)
+	}
+	entry.AttemptID = store.ComputeAttemptID(entry)
+	_ = store.AppendReconcileEvidence(s, slug, entry)
+}
+
+func evidencePhaseAndKind(result *ReconcileResult) (store.ReconcileEvidencePhase, store.ReconcileEvidenceKind) {
+	switch {
+	case strings.HasPrefix(result.Phase, "phase-1.5"):
+		return store.EvidencePhase15, store.EvidenceKindPatchIDMatch
+	case strings.HasPrefix(result.Phase, "phase-1"):
+		return store.EvidencePhase1, store.EvidenceKindReverseApply
+	case strings.HasPrefix(result.Phase, "phase-2"):
+		return store.EvidencePhase2, store.EvidenceKindRecipeOperationMatch
+	case strings.HasPrefix(result.Phase, "phase-3.5"):
+		return store.EvidencePhase35, store.EvidenceKindProviderSemantic
+	case strings.HasPrefix(result.Phase, "phase-3"):
+		return store.EvidencePhase3, store.EvidenceKindProviderSemantic
+	case strings.HasPrefix(result.Phase, "phase-4"):
+		return store.EvidencePhase4, store.EvidenceKindForwardApply
+	default:
+		return "", store.EvidenceKindUnknown
+	}
 }
 
 // Update feature state based on reconciliation outcome
