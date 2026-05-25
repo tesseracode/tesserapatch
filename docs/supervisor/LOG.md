@@ -1,3 +1,65 @@
+## Review — ADR-025 reconcile-evidence and revision schema (internal) — 2026-05-24
+
+**Reviewer**: sub-agent code-review (internal)
+**Task**: Internal paper review of ADR-025 commits `06b013e..9b1fc1f` (WP-003 cluster gate).
+
+### Verdict: APPROVED
+
+### Findings
+
+None.
+
+### Checklist
+
+#### Contract coverage (BINDING from 2026-05-16 LOG)
+- VERIFIED — `reconcile-evidence.jsonl` schema covered by D1/D2/D3/D4/D10 (path, append-only, `re_<12hex>`, closed enums, privacy).
+- VERIFIED — `reconcile-revisions.jsonl` schema covered by D6/D7 with enums matching LOG:640-641 character-for-character (`review_verdict` = {confirmed, false-positive, false-negative, inconclusive, deferred}; `action_taken` = {none, confirmed-retired, reapplied, reapplied-and-recorded, implemented, deferred, skipped, cleanup-needed}).
+- VERIFIED — Confirmation-gate state semantics (PRD 2): D8 adds `review_verdict` to `ReconcileSummary`; `final_feature_state` reuses `status.json:state`; no new lifecycle state introduced.
+- VERIFIED — Auto-confirm default: D9 specifies reachable `matched_upstream_sha` patch-id matches auto-confirm; unreachable require manual. Cites v0.8.1 `--auto-drop-merged` precedent per LOG:642.
+- VERIFIED — Privacy anchor: D10 inherits WP-002 boundary; forbids source bodies, transcripts, prompt text, vectors, embeddings.
+- VERIFIED — `.jsonl` (not `.json`) extension locked in D1.
+- VERIFIED — PRDs 4–9 scope: D13 explicit single-ADR cluster justification.
+- VERIFIED — Malformed handling: D11 mirrors ADR-024 D7 writer-refuses/reader-warns with `errors.Is` sentinel.
+- VERIFIED — Schema versioning: D2 per-line `schema_version: 1`, strict-on-unknown.
+- VERIFIED — `refs` block: D12 optional but shape-strict (mirrors ADR-024 D9 reservation).
+
+#### Cross-cluster non-drift vs ADR-024
+- VERIFIED — Sibling path `.tpatch/features/<slug>/artifacts/`.
+- VERIFIED — `git_patch_id` + `git-patch-id-stable` algorithm marker byte-identical to ADR-024 D6.
+- VERIFIED — Content-addressing `re_<12hex>` / `rr_<12hex>` follows ADR-024 `pg_<12hex>` pattern without prefix collision.
+- VERIFIED — Malformed sentinel philosophy mirrors `store.ErrMalformedManifest`.
+- VERIFIED — No contradiction with frozen ADR-024 surface (cross-checked D1-D13 vs ADR-024 D1-D9).
+
+#### Out-of-scope discipline
+- VERIFIED — WP-003 §6 deferred items explicitly enumerated in "Open questions deferred" (lines 384-395): structural fingerprints, commutation graph, structural middle-pass boundary, search planner, planner audit, patch vector index, LLM/transcripts, `--reason` text, v2 migration, repo-wide aggregates.
+- VERIFIED — No new lifecycle states; current FeatureState enum unchanged.
+- VERIFIED — No new external Go dependencies (paper-only).
+
+#### ADR craftsmanship
+- VERIFIED — Header block matches ADR-024 precedent (Status, Date, Source PRDs, Related ADRs).
+- VERIFIED — Each D-decision has Statement + Rationale + Alternatives Considered.
+- VERIFIED — Code cites accurate within ±3 lines: ReconcileSummary `types.go:249-279`, PatchIDMatch `:363-374`, FeatureState `:5-19`, ErrMalformedManifest `patch_generations.go:24-28,90-107`, SPEC.md`:133-153`.
+- VERIFIED — Consequences section enumerates concrete Wave α implementer impact.
+- VERIFIED — References cite PRDs (with sections), ADR-024 (with decisions), ADR-022, SPEC, reconcile docs, internal/store files (with line ranges).
+
+#### Handoff state
+- VERIFIED — `docs/handoff/CURRENT.md` Active Task reflects ADR-025 review.
+- VERIFIED — Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+- VERIFIED — No edits outside `tpatch/`; pre-existing `docs/state-of-the-art/` working-tree mods predate session.
+- VERIFIED — No pushes attempted; `origin/main` at `fda5631`, local `main` at `9b1fc1f` (2 ahead).
+
+### Notes
+
+Alignment quality is exceptional. Every binding contract from 2026-05-16 supervisor LOG is addressed by a numbered decision with rationale + evidence cites. Enum sets in D4 and D7 match LOG specification character-for-character. Cross-cluster coordination with ADR-024 shares five design patterns (append-only per-feature artifacts, content-addressed 12-hex IDs, strict schema versioning, reserved `refs` slots, writer-refuses/reader-warns malformed handling) with zero drift. Out-of-scope discipline is rigorous — six WP-003 §6 deferred items enumerated; none leak into D1-D13. D12 resolves a PRD-1 ambiguity by making `refs` optional but shape-strict, preventing line bloat while reserving the middle-pass cross-artifact boundary.
+
+Single-ADR cluster approach (vs one-ADR-per-PRD) is justified by D13: PRDs 4-9 write/consume the same JSONL records, adding enum values without new artifacts or lifecycle states.
+
+### Action Taken
+
+Supervisor to commit this verdict and push `06b013e..HEAD` to `origin/main` for external review.
+
+---
+
 ## Review — Wave γ patch amend rev-2 (external) — 2026-05-23
 
 **Reviewer**: external
