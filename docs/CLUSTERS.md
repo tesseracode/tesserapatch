@@ -42,41 +42,39 @@ recording boundaries, not splitting content.
 
 ## WP-002 — Capture & metadata foundation *(T55 cluster)*
 
-**Status**: **Implementing** (Wave α shipping; Waves β/γ blocked on ADRs)
-**Whitepaper**: **PENDING** — to be authored by a fresh agent (cluster summary lift from supervisor LOG entry)
+**Status**: **Shipped** — Wave α (v0.9.0, 2026-05-14), Wave β + Wave γ bundled into **v0.10.0** (2026-05-23). All three waves shipped + externally APPROVED.
+**Whitepaper**: [`docs/whitepapers/WP-002-capture-and-metadata-foundation.md`](./whitepapers/WP-002-capture-and-metadata-foundation.md)
 **Supervisor acceptance**: 2026-05-13 (see `docs/supervisor/LOG.md`)
-**Cluster ADR plan**: three slugged ADRs (numbered when implementer drafts):
-  - `ADR-capture-context-privacy-boundary` (deferred; only required for v2 `--reason` / context-persistence work)
-  - `ADR-patch-generation-manifest-boundary` (**pending**; required before Wave β)
-  - `ADR-patch-amendment-policy` (**pending**; required before Wave γ)
+**Cluster ADRs (final)**:
+  - `ADR-capture-context-privacy-boundary` — deferred (v2 work only; not blocking)
+  - [`ADR-024-patch-generation-manifest-boundary`](./adrs/ADR-024-patch-generation-manifest-boundary.md) — **shipped** (Wave β gate)
+  - [`ADR-026-patch-amendment-policy`](./adrs/ADR-026-patch-amendment-policy.md) — **shipped** (Wave γ gate)
 
 ### PRDs
 
 | # | PRD | Wave | State |
 |---|---|---|---|
-| 1 | [`PRD-feature-file-claims`](./prds/PRD-feature-file-claims.md) | α | **Shipping** — v0.9.0-alpha-1 shipped 2026-05-13 + rev-1 fix 2026-05-13 |
-| 2 | [`PRD-record-capture-modes`](./prds/PRD-record-capture-modes.md) | α | **Shipping** — v0.9.0-alpha-2 shipped 2026-05-14 + rev-1 fix 2026-05-14 |
-| 3 | [`PRD-feature-patch-identity-metadata`](./prds/PRD-feature-patch-identity-metadata.md) | β | **Blocked** on `ADR-patch-generation-manifest-boundary` |
-| 4 | [`PRD-feature-patch-amend`](./prds/PRD-feature-patch-amend.md) | γ | **Blocked** on Wave β + `ADR-patch-amendment-policy` |
+| 1 | [`PRD-feature-file-claims`](./prds/PRD-feature-file-claims.md) | α | **Shipped** — v0.9.0-alpha-1 (2026-05-13) |
+| 2 | [`PRD-record-capture-modes`](./prds/PRD-record-capture-modes.md) | α | **Shipped** — v0.9.0-alpha-2 (2026-05-14) |
+| 3 | [`PRD-feature-patch-identity-metadata`](./prds/PRD-feature-patch-identity-metadata.md) | β | **Shipped** — v0.10.0 (2026-05-23) |
+| 4 | [`PRD-feature-patch-amend`](./prds/PRD-feature-patch-amend.md) | γ | **Shipped** — v0.10.0 (2026-05-23) |
 
-### Implementation order
-- **Wave α** (parallel, no internal deps): PRDs 1 + 2. **Both shipping** as v0.9.0 alpha tags.
-- **Wave β** (depends on Wave α + ADR): PRD 3 (`patch-generations.json`).
-- **Wave γ** (depends on Wave β + ADR): PRD 4 (refresh/fixup/metadata-only).
+### Implementation order (final)
+- **Wave α** (parallel, no internal deps): PRDs 1 + 2 — v0.9.0.
+- **Wave β** (depends on Wave α + ADR-024): PRD 3 — v0.10.0.
+- **Wave γ** (depends on Wave β + ADR-026): PRD 4 — v0.10.0.
 
 ### Cross-cluster relationships
-- Downstream consumer: WP-003 PRD 1 (reconcile-evidence) coordinates artifact schema with PRD 3 (`patch-generations.json`) to prevent drift.
-- ADR-021/022/023 slot numbers were **not** taken by this cluster (used by unrelated work); T55 cluster uses **named** slugs.
+- Downstream consumer: WP-003 PRD 1 (reconcile-evidence) coordinates artifact schema with PRD 3 (`patch-generations.json`) to prevent drift. **WP-002 Wave β acceptance prerequisite for WP-003 is now satisfied.**
 
 ### Blockers
-- ADR-patch-generation-manifest-boundary unwritten — blocks Wave β start.
-- ADR-patch-amendment-policy unwritten — blocks Wave γ start.
+None. Cluster closed.
 
 ---
 
 ## WP-003 — Reconcile safety & middle-pass *(T56 cluster)*
 
-**Status**: **Accepted** (T56 revision complete; supervisor LOG entry pending)
+**Status**: **Accepted** (paper-level APPROVED 2026-05-16 — see `docs/supervisor/LOG.md` "Review — Reconcile Safety & Middle-pass Cluster (9 PRDs) — 2026-05-16"). Implementation not yet started — gated on ADR-025.
 **Whitepaper**: [`docs/whitepapers/WP-003-reconcile-safety-and-middle-pass.md`](./whitepapers/WP-003-reconcile-safety-and-middle-pass.md)
 **Origin**: t3code v0.0.23 case study (first structural middle-pass study, false-positive `upstreamed` verdicts on `session-search` and `copilot-skill-controls`).
 **Cluster ADR plan**: single cluster ADR — `ADR-025-reconcile-evidence-and-revision-schema` (covers PRDs 1, 2, 3; PRDs 4–9 ship under the same ADR).
@@ -112,7 +110,7 @@ must not drift.
 
 ### Blockers
 - `ADR-025` unwritten — blocks Wave α start.
-- WP-002 Wave β unwritten — blocks PRD 1 implementation even if `ADR-025` ships first.
+- ~~WP-002 Wave β unwritten — blocks PRD 1 implementation even if `ADR-025` ships first.~~ **Cleared 2026-05-23 (v0.10.0 release).**
 
 ---
 
