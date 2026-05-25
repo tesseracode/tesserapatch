@@ -2,76 +2,53 @@
 
 ## Active Task
 
-- **Task ID**: `v0.10.0-release-decision`
-- **Milestone**: v0.10.0 capture-and-metadata foundation cluster — **3-of-3 slices complete, ready for release tag**. Wave α shipped as v0.9.0; v0.10.0 bundles Wave β + Wave γ.
-- **Description**: Cluster shipped. Awaiting user decision on release shape (tag, CHANGELOG entry, version bump).
-- **Status**: Awaiting user decision.
-- **Assigned**: 2026-05-23.
-
-### Cluster summary
-
-The v0.10.0 cluster (capture-and-metadata foundation per WP-002) is complete. Three PRD slices landed cleanly through the implementation → internal review → external review cycle. Wave α shipped earlier as v0.9.0; v0.10.0 release bundles Wave β + Wave γ:
-
-| Wave | PRD | ADR | Release | Closed |
-|------|-----|-----|---------|--------|
-| α | `PRD-record-capture-modes` + `PRD-feature-file-claims` | (none — pure CLI surface) | v0.9.0 | 2026-05-14 |
-| β | `PRD-feature-patch-identity-metadata` | ADR-024 | v0.10.0 (this tag) | 2026-05-19 |
-| γ | `PRD-feature-patch-amend` | ADR-026 | v0.10.0 (this tag) | 2026-05-23 |
-
-Full Wave γ rev-0 → rev-2 stack and review history archived in `docs/handoff/HISTORY.md`. Wave β archive remains the canonical reference for the patch-generations schema invariants Wave γ built on.
-
-### Next user-facing decision
-
-1. **Release tag**: tag `v0.10.0` at `main` HEAD (currently `13872c9`)? Or wait for additional waves?
-2. **CHANGELOG entry**: draft a v0.10.0 entry covering all four slices? (no CHANGELOG entries are added per-slice during a cluster cycle; aggregated at cluster close.)
-3. **Next cluster**: pick from `docs/ROADMAP.md` pending work, or start a new exploratory PRD.
-
-### Closed work pointer
-
-- Wave γ archive: `docs/handoff/HISTORY.md` top entry (`2026-05-23 — v0.10.0 Wave γ patch-amend — COMPLETE`).
-- Wave γ external APPROVED verdict: `docs/supervisor/LOG.md` top entry (`Wave γ patch amend rev-2 (external) — 2026-05-23`).
-- Wave γ commit stack on `main`: `df35ab7..3c71383` (rev-0 + rev-1 + rev-2 + handoff/log commits).
-
-### Process lessons from Wave γ (carry-forward)
-
-1. Supervisor kickoff briefs MUST self-audit against binding ADRs before dispatch. F1 (rev-0) shipped because the brief said `fixup --target` against ADR-026 D4.
-2. Briefs that reference policy ADRs (ADR-011 for dependency enforcement, etc.) MUST enumerate config-flag opt-out contracts explicitly, not just enforcement semantics. F3 (rev-1) shipped because the brief named ADR-011 but did not flag the `features_dependencies` opt-out.
-3. Internal reviewer checklist must include explicit flag-off counter-scenarios for any new dependency-related enforcement. rev-1 internal reviewer verified flag-on but missed flag-off.
-4. `gofmt` gotcha: `gofmt -l . 2>&1 | grep -v '^$'` returns exit 1 on empty input. Always run `gofmt -l .` directly and read literal output. Brief this in every dispatch.
+- **Task ID**: `adr-025-author`
+- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster)
+- **Description**: Author `ADR-025-reconcile-evidence-and-revision-schema` as the single cluster ADR gating WP-003 Wave α implementation.
+- **Status**: Review (awaiting reviewer).
+- **Assigned**: 2026-05-24.
 
 ## Session Summary
 
-Wave γ rev-2 external APPROVED. v0.10.0 cluster is complete. Awaiting user decision on release shape (tag, CHANGELOG, next work).
+Created the paper-only ADR-025 gate for WP-003. The ADR locks the v1 schemas and semantic contracts for `reconcile-evidence.jsonl`, `reconcile-revisions.jsonl`, confirmation-gate state, patch-id auto-confirm behavior, privacy constraints, malformed-file handling, versioning, and cross-artifact `refs` compatibility with ADR-024.
+
+No code, CLI behavior, existing PRDs, CLUSTERS.md, or supervisor LOG entries were changed.
 
 ## Current State
 
-- v0.10.0 cluster 3-of-3 complete (Wave α already shipped as v0.9.0; Wave β + Wave γ bundled into v0.10.0).
-- No active implementation work.
-- No blockers.
-- `docs/state-of-the-art/` working-tree modifications remain untouched (pre-existing, not from this cluster).
+- ADR-025 is authored and committed, ready for review.
+- WP-003 remains implementation-blocked until reviewer/supervisor acceptance of ADR-025.
+- Pre-existing `docs/state-of-the-art/` working-tree modifications were left untouched.
 
 ## Files Changed
 
-None this turn beyond LOG.md (external verdict) and HISTORY.md/CURRENT.md (archive + reset).
+- `docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` — new ADR file.
+- `docs/handoff/CURRENT.md` — handoff updated to mark ADR-025 ready for review.
 
 ## Test Results
 
-Full suite green at `3c71383` (rev-2 final): `gofmt -l .` clean, `go vet ./...` clean, `go build ./cmd/tpatch` succeeds, `go test ./... -count=1 -race` green, `go test ./assets/...` green.
+Paper-only documentation task; no Go code, assets, CLI behavior, or tests changed.
+
+Validation performed:
+
+- `git diff --check -- docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` — passed before ADR commit.
+- `wc -l docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` — 413 lines, within requested 250–500 line target.
 
 ## Next Steps
 
-1. Await user decision on v0.10.0 release tag + CHANGELOG.
-2. After release decision, pick next milestone from `docs/ROADMAP.md` or new exploratory work.
+1. Reviewer reads ADR-025 against WP-003, PRDs 1–3, ADR-024, and the 2026-05-16 supervisor LOG acceptance entry.
+2. If approved, supervisor records verdict in `docs/supervisor/LOG.md` and clears the WP-003 ADR gate.
+3. After acceptance, Wave α implementation can start for PRD 1 (`reconcile-verdict-evidence`) and PRD 6 (`reconcile-file-novelty-classifier`).
 
 ## Blockers
 
-None.
+None for review. Implementation remains intentionally blocked until ADR-025 is accepted.
 
 ## Context for Next Agent
 
-- v0.10.0 cluster ships the capture-and-metadata foundation: capture modes (α), patch-generations manifest with content-addressed `pg_<12hex>` IDs (β), stable git patch-id (δ), and amendment semantics with dependency-aware staleness (γ). Together these are the substrate for future identity, replay, and amendment-tracking features.
-- ADR-026 D1–D10 + IC1–IC6 + IC4 frozen regions remain the binding contract for any future amendment work.
-- `features_dependencies` config flag is the user-controllable opt-out for ALL dependency-related enforcement (ADR-011 base + ADR-026 D5 stale-parent). Any new dependency gate MUST honor it — see `internal/cli/cobra.go:856-862` and `internal/workflow/dependency_gate.go` for the pattern.
+- This was a paper-only task. Do not infer any implemented schema or CLI behavior from the ADR until the follow-up implementation commits exist.
+- Commit 1 adds only the ADR file. Commit 2 updates only this handoff.
+- The ADR deliberately defers structural patch fingerprints, commutation graph, structural middle-pass boundary, reconcile search planner/planner audit artifacts, patch vector index, LLM/transcript persistence, and free-text `--reason`/richer agent context persistence.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Always verify after editing CURRENT.md.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
