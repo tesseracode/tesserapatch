@@ -5,33 +5,54 @@
 - **Task ID**: `wp003-wave-alpha-prd1-prd6-impl`
 - **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α
 - **Description**: Implement PRD 1 (`reconcile-verdict-evidence`) and PRD 6 (`reconcile-file-novelty-classifier`) in parallel under ADR-025 D1–D13. Add `reconcile-evidence.jsonl` writer + reader, `file-novelty` evidence_kind classifier, atomic write/round-trip, malformed-handling sentinel, and privacy assertion tests.
-- **Status**: In Progress (implementer dispatched).
+- **Status**: Review (awaiting reviewer).
 - **Assigned**: 2026-05-25.
 
 ## Session Summary
 
-ADR-025 cleared internal + external review with zero findings (commits `06b013e..7b76c01`). WP-003 cluster gate locked. Dispatched Wave α implementer with parallel scope: PRD 1 (evidence schema writer/reader, foundation) + PRD 6 (file-novelty classifier, consumer of the schema).
+Wave α implementation is complete and validated. PRD 1 added strict, deterministic `reconcile-evidence.jsonl` storage with `re_<12hex>` content-addressed attempts, ADR-025 enum validation, malformed sentinel handling, atomic append, refs support, patch-id helper, and required privacy/determinism tests. PRD 6 added a patch-header file-novelty classifier, evidence helper, and boundary tests. A reconcile hook now writes evidence when reconcile writes a verdict, without changing verdict semantics.
+
+Commits landed from `d265a08..HEAD`:
+
+1. `76530a0` — Add reconcile evidence store
+2. `a7da04f` — Test reconcile evidence store
+3. `31f4d89` — Add file novelty classifier
+4. `871a703` — Test file novelty classifier
+5. `ccbc217` — Write reconcile evidence during reconcile
+6. (this commit) — Update WP-003 wave alpha handoff
 
 ## Current State
 
-- ADR-025 is the locked cluster gate; Wave α implementation can begin.
-- No code changes yet for Wave α.
-- Pre-existing `docs/state-of-the-art/` working-tree modifications remain untouched.
+- ADR-025 D1–D13 implemented for Wave α scope with no intentional deviations.
+- ADR-024 sibling patterns preserved: `re_<12hex>` content IDs, `git-patch-id-stable`, strict malformed sentinel, artifact under `.tpatch/features/<slug>/artifacts/`.
+- No new `FeatureState` lifecycle states added.
+- No new config flag or evidence-write opt-out added.
+- File-novelty reconcile integration choice: evidence write hook landed in Wave α; classifier verdict semantics are not used to change outcomes.
+- Pre-existing `docs/state-of-the-art/` working-tree modifications remain untouched and uncommitted by this task.
 
 ## Files Changed
 
-(none yet for Wave α — implementer will populate)
+- `internal/store/reconcile_evidence.go`
+- `internal/store/reconcile_evidence_test.go`
+- `internal/workflow/file_novelty.go`
+- `internal/workflow/file_novelty_test.go`
+- `internal/workflow/reconcile.go`
+- `docs/handoff/CURRENT.md`
 
 ## Test Results
 
-(pending Wave α implementation)
+- `gofmt -l .` — no output (clean).
+- `go build ./cmd/tpatch` — passed.
+- `go test ./...` — passed; summary included `ok github.com/tesseracode/tesserapatch/internal/store (cached)`, `ok github.com/tesseracode/tesserapatch/internal/workflow (cached)`, and all other packages passed.
+- `go vet ./...` — passed with no output.
+- Privacy assertion: `TestReconcileEvidencePrivacyNoSourceLeak` passes and asserts `SECRET_SOURCE_BODY_DO_NOT_LEAK` is absent from `reconcile-evidence.jsonl`.
+- Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Implementer writes evidence writer/reader in `internal/store/` honoring ADR-025 D1–D5, D10, D11, D12.
-2. Implementer wires file-novelty classifier in `internal/workflow/` honoring PRD 6 §3.
-3. Implementer adds round-trip, byte-identical determinism, privacy assertion, and malformed-handling tests.
-4. Internal reviewer applies schema-drift checklist vs ADR-024 sibling and privacy hard-assertion check.
+1. Reviewer should run the ADR-025 D1–D13 schema-drift checklist.
+2. Reviewer should spot-check `reconcile-evidence.jsonl` strict reader/writer behavior against ADR-024 malformed-manifest precedent.
+3. Wave β can consume file-novelty evidence for confirmation/hunk-overlap logic; no blocker from Wave α.
 
 ## Blockers
 
@@ -39,10 +60,9 @@ None.
 
 ## Context for Next Agent
 
-- ADR-025 is paper-locked. All schema/enum decisions must come from D1–D13 verbatim.
-- Cross-cluster non-drift vs ADR-024 is a HARD requirement: same path layout, same `git-patch-id-stable` algorithm marker, same content-addressing convention (12-hex), same writer-refuses/reader-warns malformed pattern with `errors.Is`-compatible sentinel.
-- PRD 6 is a CONSUMER of PRD 1's writer. The implementer can land PRD 1 first, then PRD 6, even though waves are "parallel" — they share a foundation.
-- Privacy boundary (D10) is a HARD constraint with a dedicated test obligation: no source bodies, no transcripts, no prompts, no vectors, no embeddings in the JSONL artifact.
+- Evidence storage intentionally uses ADR-025's required/optional field set only. File-novelty details are represented through `evidence_kind=file-novelty`, sorted `matched_paths`, `reason_code=<classification>`, confidence, and pre-reconcile presence rather than adding non-ADR top-level fields.
+- Reconcile evidence append errors are swallowed in the existing `saveReconcileArtifacts` void-return path to avoid changing reconcile verdict semantics; malformed artifacts still refuse appends through `AppendReconcileEvidence` and are covered by tests.
+- Pre-existing `docs/state-of-the-art/` modifications are not part of Wave α.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Always verify after editing CURRENT.md.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
