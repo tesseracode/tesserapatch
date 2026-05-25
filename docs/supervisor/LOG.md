@@ -1,3 +1,93 @@
+## Review — ADR-025 reconcile-evidence and revision schema (external) — 2026-05-24
+
+**Reviewer**: external
+**Task**: External paper review of ADR-025 commits `fda5631..4299d7e` (WP-003 cluster gate). Independent of internal verdict.
+
+### Verdict: APPROVED
+
+### Findings
+
+None.
+
+### Checklist
+
+#### Contract coverage (BINDING from 2026-05-16 LOG)
+- VERIFIED — `reconcile-evidence.jsonl` schema: D1 (path `.tpatch/features/<slug>/artifacts/reconcile-evidence.jsonl`), D1 (append-only JSONL), D1 (`.jsonl` extension), D3 (`re_<12hex>` content-derived attempt_id). All elements present.
+- VERIFIED — `reconcile-revisions.jsonl` schema: D6 (path, one-correction-per-line JSONL with `rr_<12hex>` entry_id, evidence link).
+- VERIFIED — EXACT enum match `review_verdict`: D7 enumerates `{confirmed, false-positive, false-negative, inconclusive, deferred}` character-for-character matching LOG:702.
+- VERIFIED — EXACT enum match `action_taken`: D7 enumerates `{none, confirmed-retired, reapplied, reapplied-and-recorded, implemented, deferred, skipped, cleanup-needed}` character-for-character matching LOG:702.
+- VERIFIED — Confirmation-gate state semantics: D8 adds `review_verdict` to `ReconcileSummary`; `final_feature_state` reuses `status.json:state`; explicit statement "No new lifecycle states are introduced" at line 233.
+- VERIFIED — Auto-confirm default: D9 reachable `matched_upstream_sha` patch-id matches auto-confirm; unreachable require manual; cites v0.8.1 `--auto-drop-merged` precedent at lines 259-265.
+- VERIFIED — Privacy boundary: D10 forbids source bodies, transcripts, prompts, vectors, embeddings (lines 274-291). Inherits WP-002 boundary.
+- VERIFIED — `.jsonl` extension: D1 line 72 explicit "`.jsonl`, not `.json`" lock; supervisor LOG:715-717 drift fix honored.
+- VERIFIED — PRDs 4-9 scope: D13 explicit single-ADR cluster justification (lines 339-356).
+- VERIFIED — Malformed-file handling: D11 mirrors ADR-024 D7 writer-refuses/reader-warns pattern (lines 293-316); cites `ErrMalformedManifest` precedent.
+
+#### Cross-cluster non-drift vs ADR-024
+- VERIFIED — Sibling path: D1 `.tpatch/features/<slug>/artifacts/` matches ADR-024 D1 (ADR-024:73).
+- VERIFIED — `git_patch_id` algorithm: D5 locks `git-patch-id-stable` marker (lines 163-179), byte-identical to ADR-024 D6 (ADR-024:189-216).
+- VERIFIED — Content-addressing: D3 `re_<12hex>` / D6 `rr_<12hex>` follows ADR-024 `pg_<12hex>` pattern without prefix collision (ADR-024:77-105).
+- VERIFIED — Malformed sentinel: D11 mirrors `store.ErrMalformedManifest` philosophy (ADR-024:218-251).
+- VERIFIED — `refs` block: D12 optional strict `refs` compatible with ADR-024 D9 reservation (lines 318-337 vs ADR-024:279-315). Six keys match: `patch_generation_id` (ADR-025-specific), `patch_generations_path` (ADR-025-specific), plus shared `anchors`, `fingerprints`, `relations`, `vector_manifest`.
+- VERIFIED — No contradictions with ADR-024 frozen surface.
+
+#### Out-of-scope discipline
+- VERIFIED — WP-003 §6 deferred items explicitly enumerated in ADR-025 "Open questions deferred" section (lines 384-395): structural fingerprints, commutation graph, middle-pass boundary, search planner, planner audit, patch vector index, LLM/transcripts, `--reason` text, v2 migration, repo-wide aggregates. All 10 deferred items present.
+- VERIFIED — No new lifecycle states: D8 line 233 explicit; current `FeatureState` enum at `types.go:5-19` unchanged.
+- VERIFIED — No deferred item leaked into D1-D13 as v1 decision.
+
+#### ADR craftsmanship
+- VERIFIED — Header block matches ADR-024 precedent: Status (line 3), Date (line 4), Source PRDs (lines 13-16), Related ADRs (lines 18-21).
+- VERIFIED — Each D-decision has Statement + Rationale + Alternatives Considered structure (D1-D13 all conformant).
+- VERIFIED — Code cites accurate within ±3 lines (see Independent claim audit below).
+- VERIFIED — Consequences section enumerates concrete Wave α implementer impact (lines 359-381).
+- VERIFIED — References section lists PRDs (with sections), ADR-024 (with decisions), SPEC, source code (lines 396-414).
+
+#### Handoff state
+- VERIFIED — `docs/handoff/CURRENT.md` Active Task reflects ADR-025 review (line 5-9: task `adr-025-author`, Status: Review).
+- VERIFIED — Side Research md5 invariant: `b385fe622db9926f48861105239f113e` confirmed.
+- VERIFIED — No edits outside `tpatch/`: pre-existing `docs/state-of-the-art/` mods predated session per git status.
+
+### Independent claim audit
+
+Spot-checked 6 load-bearing file:line anchors in ADR-025:
+
+1. **ReconcileSummary structure (ADR-025:43-44 → `internal/store/types.go:249-279`)**: ACCURATE. `ReconcileSummary` struct at lines 249-279 contains `AttemptedAt`, `UpstreamRef`, `UpstreamCommit`, `Outcome`, resolver fields, `Labels`, `PatchIDMatch`. No `review_verdict` field present (confirming D8's addition is new). Cite lands exactly on target.
+
+2. **PatchIDMatch structure (ADR-025:46-49 → `internal/store/types.go:363-374`)**: ACCURATE. `PatchIDMatch` struct at lines 363-374 contains `OurPatchID`, `MatchedUpstreamSHA`, `AdditionalMatches`, `ScannedRange`, `ScannedCount` exactly as ADR-025 claims. Cite lands exactly on target.
+
+3. **FeatureState enum (ADR-025:46 → `internal/store/types.go:5-19`)**: ACCURATE. Lines 5-19 define `FeatureState` as string type with consts including `StateUpstreamMerged` at line 18. Confirms ADR-025's claim about lifecycle truth. Cite lands exactly on target.
+
+4. **ErrMalformedManifest sentinel (ADR-025:306-307 → `internal/store/patch_generations.go:24-28`)**: ACCURATE. Lines 24-28 define `ErrMalformedManifest = errors.New("patch-generations.json: malformed manifest")`. Confirms ADR-024 D7 precedent cited by ADR-025 D11.
+
+5. **Malformed manifest handling in LoadPatchGenerations (ADR-025:307 → `internal/store/patch_generations.go:90-107`)**: ACCURATE. Lines 90-107 show `LoadPatchGenerations` wrapping JSON decode errors with `fmt.Errorf("%w: %v", ErrMalformedManifest, err)` and using `DisallowUnknownFields()` (line 101). Confirms writer-refuses pattern.
+
+6. **SPEC four-phase reconcile (ADR-025:48-50 → `SPEC.md:133-153`)**: ACCURATE. Lines 133-153 show "7. Reconciliation — 4-Phase Decision Tree" with Phase 1 (Reverse-Apply), Phase 2 (Operation-Level), Phase 3 (Provider-Assisted), Phase 4 (Forward-Apply). Confirms ADR-025's claim about classical phases; ADR-025 D4 adds phase-1.5 and phase-3.5 without changing SPEC (appropriate for paper-only gate).
+
+7. **`--auto-drop-merged` flag help (ADR-025:263-265 → `internal/cli/cobra.go:1876-1877`)**: ACCURATE. Line 1877 shows `--auto-drop-merged` flag with "Off by default" and "No-op when phase 1.5 does not fire" text. Confirms ADR-025 D9's claim about conservative v0.8.1 precedent.
+
+All 7 spot-checked cites land within ±2 lines of target. Code cite quality is exceptional.
+
+### Notes
+
+Independent verification confirms the internal reviewer's assessment. ADR-025 is a high-quality cluster gate with zero contract gaps.
+
+Every binding contract from supervisor LOG:700-706 is addressed by a numbered decision with rationale and alternatives. Enum sets in D4 and D7 match the LOG specification character-for-character (verified by string comparison against LOG:702). The privacy boundary (D10) correctly inherits WP-002's deferred `ADR-capture-context-privacy-boundary` anchor and explicitly forbids the same four categories (source bodies, transcripts, prompts/vectors, embeddings).
+
+Cross-cluster coordination with ADR-024 is meticulous. Five shared design patterns (append-only per-feature artifacts, content-addressed 12-hex IDs, strict schema versioning with per-line `schema_version: 1`, reserved `refs` slots, writer-refuses/reader-warns malformed handling) are applied consistently without drift. The `refs` block (D12) resolves a cross-artifact ambiguity by making the field optional but shape-strict, preventing JSONL line bloat while reserving the middle-pass boundary. The `git_patch_id_algorithm: "git-patch-id-stable"` marker is byte-identical to ADR-024 D6.
+
+Out-of-scope discipline is rigorous. WP-003 §6 defers 10 items to future research waves (structural fingerprints, commutation graph, structural middle-pass boundary, search planner, planner audit, patch vector index, LLM/transcripts, `--reason` text, v2 migration, repo-wide aggregates). ADR-025 enumerates all 10 in the "Open questions deferred" section; none leak into D1-D13 as v1 decisions. D8 explicitly states "No new lifecycle states are introduced" (line 233), honoring the LOG:689 cluster requirement.
+
+The single-ADR cluster approach (vs one-ADR-per-PRD) is justified by D13: PRDs 4-9 write/consume the same JSONL records, adding enum values without new artifacts, lifecycle states, or schema files. This is structurally distinct from the v0.7 cluster (which had 4 ADRs for 4 PRDs because each changed independent CLI surfaces).
+
+Craftsmanship: 413 lines (within requested 250-500 target); header block matches ADR-024 precedent; each decision has Statement + Rationale + Alternatives Considered; Consequences section enumerates concrete implementer impact; References cite PRDs (with sections), ADR-024 (with decisions), SPEC, source code (with line ranges).
+
+### Action Taken
+
+Pending supervisor processing.
+
+---
+
 ## Review — ADR-025 reconcile-evidence and revision schema (internal) — 2026-05-24
 
 **Reviewer**: sub-agent code-review (internal)
