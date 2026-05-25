@@ -2,53 +2,47 @@
 
 ## Active Task
 
-- **Task ID**: `adr-025-author`
-- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster)
-- **Description**: Author `ADR-025-reconcile-evidence-and-revision-schema` as the single cluster ADR gating WP-003 Wave α implementation.
-- **Status**: Review (awaiting reviewer).
-- **Assigned**: 2026-05-24.
+- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl`
+- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α
+- **Description**: Implement PRD 1 (`reconcile-verdict-evidence`) and PRD 6 (`reconcile-file-novelty-classifier`) in parallel under ADR-025 D1–D13. Add `reconcile-evidence.jsonl` writer + reader, `file-novelty` evidence_kind classifier, atomic write/round-trip, malformed-handling sentinel, and privacy assertion tests.
+- **Status**: In Progress (implementer dispatched).
+- **Assigned**: 2026-05-25.
 
 ## Session Summary
 
-Created the paper-only ADR-025 gate for WP-003. The ADR locks the v1 schemas and semantic contracts for `reconcile-evidence.jsonl`, `reconcile-revisions.jsonl`, confirmation-gate state, patch-id auto-confirm behavior, privacy constraints, malformed-file handling, versioning, and cross-artifact `refs` compatibility with ADR-024.
-
-No code, CLI behavior, existing PRDs, CLUSTERS.md, or supervisor LOG entries were changed.
+ADR-025 cleared internal + external review with zero findings (commits `06b013e..7b76c01`). WP-003 cluster gate locked. Dispatched Wave α implementer with parallel scope: PRD 1 (evidence schema writer/reader, foundation) + PRD 6 (file-novelty classifier, consumer of the schema).
 
 ## Current State
 
-- ADR-025 is authored and committed, ready for review.
-- WP-003 remains implementation-blocked until reviewer/supervisor acceptance of ADR-025.
-- Pre-existing `docs/state-of-the-art/` working-tree modifications were left untouched.
+- ADR-025 is the locked cluster gate; Wave α implementation can begin.
+- No code changes yet for Wave α.
+- Pre-existing `docs/state-of-the-art/` working-tree modifications remain untouched.
 
 ## Files Changed
 
-- `docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` — new ADR file.
-- `docs/handoff/CURRENT.md` — handoff updated to mark ADR-025 ready for review.
+(none yet for Wave α — implementer will populate)
 
 ## Test Results
 
-Paper-only documentation task; no Go code, assets, CLI behavior, or tests changed.
-
-Validation performed:
-
-- `git diff --check -- docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` — passed before ADR commit.
-- `wc -l docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` — 413 lines, within requested 250–500 line target.
+(pending Wave α implementation)
 
 ## Next Steps
 
-1. Reviewer reads ADR-025 against WP-003, PRDs 1–3, ADR-024, and the 2026-05-16 supervisor LOG acceptance entry.
-2. If approved, supervisor records verdict in `docs/supervisor/LOG.md` and clears the WP-003 ADR gate.
-3. After acceptance, Wave α implementation can start for PRD 1 (`reconcile-verdict-evidence`) and PRD 6 (`reconcile-file-novelty-classifier`).
+1. Implementer writes evidence writer/reader in `internal/store/` honoring ADR-025 D1–D5, D10, D11, D12.
+2. Implementer wires file-novelty classifier in `internal/workflow/` honoring PRD 6 §3.
+3. Implementer adds round-trip, byte-identical determinism, privacy assertion, and malformed-handling tests.
+4. Internal reviewer applies schema-drift checklist vs ADR-024 sibling and privacy hard-assertion check.
 
 ## Blockers
 
-None for review. Implementation remains intentionally blocked until ADR-025 is accepted.
+None.
 
 ## Context for Next Agent
 
-- This was a paper-only task. Do not infer any implemented schema or CLI behavior from the ADR until the follow-up implementation commits exist.
-- Commit 1 adds only the ADR file. Commit 2 updates only this handoff.
-- The ADR deliberately defers structural patch fingerprints, commutation graph, structural middle-pass boundary, reconcile search planner/planner audit artifacts, patch vector index, LLM/transcript persistence, and free-text `--reason`/richer agent context persistence.
+- ADR-025 is paper-locked. All schema/enum decisions must come from D1–D13 verbatim.
+- Cross-cluster non-drift vs ADR-024 is a HARD requirement: same path layout, same `git-patch-id-stable` algorithm marker, same content-addressing convention (12-hex), same writer-refuses/reader-warns malformed pattern with `errors.Is`-compatible sentinel.
+- PRD 6 is a CONSUMER of PRD 1's writer. The implementer can land PRD 1 first, then PRD 6, even though waves are "parallel" — they share a foundation.
+- Privacy boundary (D10) is a HARD constraint with a dedicated test obligation: no source bodies, no transcripts, no prompts, no vectors, no embeddings in the JSONL artifact.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Always verify after editing CURRENT.md.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
