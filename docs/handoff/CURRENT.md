@@ -5,55 +5,56 @@
 - **Task ID**: `wp003-wave-alpha-prd1-prd6-impl-rev1`
 - **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α revision 1
 - **Description**: Address two NEEDS REVISION findings from concurrent external reviews. F1: wire `ClassifyFileNovelty` into the production reconcile path so PRD 6 §6.1/§6.3 are actually met. F2: stop swallowing `AppendReconcileEvidence` errors at `reconcile.go`; surface a warning when evidence writing fails, while preserving verdict semantics (PRD 1 §6.6).
-- **Status**: In Progress (rev-1 implementer dispatched).
+- **Status**: Review (awaiting reviewer).
 - **Assigned**: 2026-05-26.
 - **Prior rev-0**: Internal APPROVED but both externals NEEDS REVISION (commits `d265a08..d6878a4`). Root cause: rev-0 dispatch brief contained a loose escape hatch ("if integration is risky, defer to Wave β") that overrode PRD 6 acceptance. Carry-forward: dispatch briefs must reference PRD acceptance criteria verbatim and forbid implementer-side deferral.
 
 ## Session Summary
 
-Wave α implementation is complete and validated. PRD 1 added strict, deterministic `reconcile-evidence.jsonl` storage with `re_<12hex>` content-addressed attempts, ADR-025 enum validation, malformed sentinel handling, atomic append, refs support, patch-id helper, and required privacy/determinism tests. PRD 6 added a patch-header file-novelty classifier, evidence helper, and boundary tests. A reconcile hook now writes evidence when reconcile writes a verdict, without changing verdict semantics.
+Rev-1 implementation is complete, committed, and validated. Both external findings are addressed surgically without changing ADR-025 schema/enums, lifecycle states, `ReconcileSummary`, config flags, or verdict semantics.
 
-Commits landed from `d265a08..HEAD`:
+Rev-1 commits from `4fa1394..HEAD`:
 
-1. `76530a0` — Add reconcile evidence store
-2. `a7da04f` — Test reconcile evidence store
-3. `31f4d89` — Add file novelty classifier
-4. `871a703` — Test file novelty classifier
-5. `ccbc217` — Write reconcile evidence during reconcile
-6. (this commit) — Update WP-003 wave alpha handoff
+1. `a1dcaf2` — Address reconcile evidence review findings
+2. (this commit) — Update WP-003 Wave α rev-1 handoff for re-review
+
+Finding resolution:
+
+- **F1 fixed**: `saveReconcileArtifacts` now calls file-novelty evidence persistence after the phase evidence write (`internal/workflow/reconcile.go:518`, `internal/workflow/reconcile.go:560-563`). `persistFileNoveltyEvidence` reads canonical `post-apply.patch`, requires upstream/base commit anchors, calls `ClassifyFileNovelty`, builds `FileNoveltyEvidence`, recomputes `ComputeAttemptID`, and appends an independent `evidence_kind: "file-novelty"` JSONL line (`internal/workflow/reconcile.go:668-692`). Integration tests read `reconcile-evidence.jsonl` from disk and assert `mixed-additive` plus `all-new-files` classifications (`internal/workflow/reconcile_evidence_integration_test.go:18`, `internal/workflow/reconcile_evidence_integration_test.go:41`).
+- **F2 fixed**: phase evidence append errors are captured (`internal/workflow/reconcile.go:663-665`), file-novelty append errors are captured (`internal/workflow/reconcile.go:690-692`), and `warnReconcileEvidenceAppendError` emits an explicit malformed-artifact warning mentioning the slug when `errors.Is(err, store.ErrMalformedEvidence)` (`internal/workflow/reconcile.go:695-701`). `TestReconcileWarnsOnMalformedEvidenceArtifact` verifies non-error verdict semantics, warning emission, slug mention, and writer refusal preserving the malformed file (`internal/workflow/reconcile_evidence_integration_test.go:64`).
 
 ## Current State
 
-- ADR-025 D1–D13 implemented for Wave α scope with no intentional deviations.
-- ADR-024 sibling patterns preserved: `re_<12hex>` content IDs, `git-patch-id-stable`, strict malformed sentinel, artifact under `.tpatch/features/<slug>/artifacts/`.
+- ADR-025 D1–D13 schema/enum surface is unchanged.
 - No new `FeatureState` lifecycle states added.
+- No `ReviewVerdict` field added to `ReconcileSummary`.
 - No new config flag or evidence-write opt-out added.
-- File-novelty reconcile integration choice: evidence write hook landed in Wave α; classifier verdict semantics are not used to change outcomes.
+- File-novelty evidence remains diagnostic only and does not change reconcile verdict semantics.
+- Evidence warnings are privacy-safe: warning text includes the slug/error class only, not source bodies, prompts, transcripts, vectors, or embeddings.
 - Pre-existing `docs/state-of-the-art/` working-tree modifications remain untouched and uncommitted by this task.
 
 ## Files Changed
 
-- `internal/store/reconcile_evidence.go`
-- `internal/store/reconcile_evidence_test.go`
-- `internal/workflow/file_novelty.go`
-- `internal/workflow/file_novelty_test.go`
 - `internal/workflow/reconcile.go`
+- `internal/workflow/reconcile_evidence_integration_test.go`
 - `docs/handoff/CURRENT.md`
 
 ## Test Results
 
+Required validation run directly:
+
 - `gofmt -l .` — no output (clean).
+- `go vet ./...` — no output (passed).
 - `go build ./cmd/tpatch` — passed.
-- `go test ./...` — passed; summary included `ok github.com/tesseracode/tesserapatch/internal/store (cached)`, `ok github.com/tesseracode/tesserapatch/internal/workflow (cached)`, and all other packages passed.
-- `go vet ./...` — passed with no output.
-- Privacy assertion: `TestReconcileEvidencePrivacyNoSourceLeak` passes and asserts `SECRET_SOURCE_BODY_DO_NOT_LEAK` is absent from `reconcile-evidence.jsonl`.
+- `go test ./...` — passed; captured summary/final line: `ok  github.com/tesseracode/tesserapatch/tests/integration  (cached)`.
+- Targeted integration tests also passed: `go test ./internal/workflow -run 'TestReconcileWritesFileNoveltyEvidence|TestReconcileWarnsOnMalformedEvidenceArtifact'`.
 - Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Reviewer should run the ADR-025 D1–D13 schema-drift checklist.
-2. Reviewer should spot-check `reconcile-evidence.jsonl` strict reader/writer behavior against ADR-024 malformed-manifest precedent.
-3. Wave β can consume file-novelty evidence for confirmation/hunk-overlap logic; no blocker from Wave α.
+1. Reviewer should re-run the required validation commands and inspect `internal/workflow/reconcile.go` for F1/F2 closure.
+2. Reviewer should confirm file-novelty evidence remains a separate JSONL entry and does not alter reconcile outcome semantics.
+3. Supervisor can push after review approval; this implementer did not push.
 
 ## Blockers
 
@@ -61,8 +62,8 @@ None.
 
 ## Context for Next Agent
 
-- Evidence storage intentionally uses ADR-025's required/optional field set only. File-novelty details are represented through `evidence_kind=file-novelty`, sorted `matched_paths`, `reason_code=<classification>`, confidence, and pre-reconcile presence rather than adding non-ADR top-level fields.
-- Reconcile evidence append errors are swallowed in the existing `saveReconcileArtifacts` void-return path to avoid changing reconcile verdict semantics; malformed artifacts still refuse appends through `AppendReconcileEvidence` and are covered by tests.
+- `persistFileNoveltyEvidence` intentionally skips silently when canonical patch or commit anchors are unavailable because PRD 6 file novelty is diagnostic evidence, not a verdict gate.
+- The new warning indirection is intentionally minimal and test-only swappable; production default writes to stderr, matching existing reconcile warning style.
 - Pre-existing `docs/state-of-the-art/` modifications are not part of Wave α.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Always verify after editing CURRENT.md.
 
