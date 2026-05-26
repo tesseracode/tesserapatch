@@ -1,3 +1,357 @@
+## Review — WP-003 Wave α (PRDs 1+6) — external (user-dispatched, parallel) — 2026-05-26
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external code review of Wave α commits `d265a08..d6878a4`. Run in parallel with the supervisor-dispatched external reviewer to get two independent opinions on the wave.
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+**F1 (HIGH)** — Wave α does not actually integrate the PRD 6 file-novelty classifier into reconcile, so the shipped code does not meet the wave's second promised slice.
+
+- PRD 6 §3 requires novelty to affect reconcile diagnostics and evidence (`docs/prds/PRD-reconcile-file-novelty-classifier.md:120-129`).
+- PRD 6 §6.1/§6.3 require reconcile to report novelty categories and expose file-novelty evidence in JSON output (`docs/prds/PRD-reconcile-file-novelty-classifier.md:140-148`).
+- Helper library landed at `internal/workflow/file_novelty.go` (`ClassifyFileNovelty` :49, `FileNoveltyEvidence` :78) with helper-only coverage in `internal/workflow/file_novelty_test.go`.
+- The only production evidence hook is `persistReconcileEvidence` at `internal/workflow/reconcile.go:593-647`. Its kind mapping `evidencePhaseAndKind` at `:649-666` never emits `file-novelty`.
+- Searched the production tree (`rg "FileNoveltyEvidence|ClassifyFileNovelty|persistReconcileEvidence\(|AppendReconcileEvidence\(" internal`): no reconcile call site invokes the novelty classifier or novelty evidence helper outside tests.
+- In practice, Wave α ships a classifier library, not the PRD 6 behavior.
+
+**F2 (MEDIUM)** — Malformed evidence append failures are silently dropped during reconcile, breaking the explicit warning/error contract for corrupt evidence artifacts.
+
+- PRD 1 §6.6 requires corrupt evidence artifacts to surface an explicit warning/error while not blocking current state loading (`docs/prds/PRD-reconcile-verdict-evidence.md:211-212`).
+- Store layer is correct: sentinel `ErrMalformedEvidence` defined at `internal/store/reconcile_evidence.go`, writer refuses malformed appends, loader returns sentinel.
+- Coverage in `internal/store/reconcile_evidence_test.go` (`TestReconcileEvidenceMalformedLineAndWriterRefusal`).
+- BUT the reconcile integration discards the append result outright at `internal/workflow/reconcile.go`: `_ = store.AppendReconcileEvidence(s, slug, entry)`.
+- Reproduced directly: pre-seeded a malformed existing `reconcile-evidence.jsonl`, ran reconcile against it via `workflow.RunReconcile`. Reconcile returned an upstreamed result successfully; the artifact remained malformed and unchanged; no evidence warning was surfaced anywhere.
+- Current state stays readable, but the audit trail can fail silently — exactly the class of failure PRD 1 §6.6 said should be explicit.
+
+### Independent test run
+
+- Targeted store and workflow tests passed: 28 of 28 across `reconcile_evidence_test.go` and `file_novelty_test.go`.
+- `tpatch` builds cleanly (`go build ./cmd/tpatch`).
+- Full repository test suite NOT independently rerun (deferred to internal validation record).
+
+### Required fixes
+
+1. Wire the file-novelty classifier into the production reconcile path. Add end-to-end tests proving file-novelty evidence is actually written and exposed where PRD 6 requires it.
+2. Stop swallowing evidence append failures in `reconcile.go`. Preserve reconcile verdict semantics, but emit an explicit warning or error when evidence writing fails. Add an integration test for a malformed existing `reconcile-evidence.jsonl` artifact.
+
+### Action Taken
+
+Verdict captured for supervisor processing. Both external reviewers (supervisor-dispatched + user-dispatched parallel) converge on NEEDS REVISION. Implementer rev-1 dispatch required.
+
+---
+
+## Review — WP-003 Wave α (PRDs 1+6) — external — 2026-05-26
+
+**Reviewer**: external
+**Task**: External code review of Wave α commits `d265a08..d6878a4`. Independent of internal verdict.
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+**F1 (BLOCKING)**: File novelty classifier NOT integrated into reconcile workflow — PRD 6 §6.1 and §6.3 acceptance criteria FAILED.
+
+**Evidence**:
+- PRD 6 §6.1 requires "Reconcile can report file novelty categories for a feature patch."
+- PRD 6 §6.3 requires "File novelty evidence is available in JSON output."
+- PRD 6 §5 states "The classifier should run before expensive provider phases when data is available."
+- `internal/workflow/reconcile.go` does NOT call `ClassifyFileNovelty()` (verified via `grep -rn "ClassifyFileNovelty" internal/workflow/reconcile.go` → exit 1).
+- `internal/workflow/reconcile.go` does NOT reference file-novelty evidence kind (verified via `grep -n "EvidenceKindFileNovelty" internal/workflow/reconcile.go` → exit 1).
+- Function `evidencePhaseAndKind()` at `reconcile.go:660-677` maps only 6 existing phases to evidence kinds: `reverse-apply`, `patch-id-match`, `recipe-operation-match`, `provider-semantic` (phases 3 and 3.5), `forward-apply`, and `unknown`. NO mapping to `EvidenceKindFileNovelty`.
+- Helper `FileNoveltyEvidence()` exists at `file_novelty.go:78` but is NEVER CALLED from `reconcile.go`.
+- Result: File novelty evidence can NEVER be written by reconcile. The classifier exists but is dead code.
+
+**Why internal review missed this**:
+- Internal reviewer verified at LOG.md:44 that "evidence write hook" exists and "NO changes to `ReconcileOutcome`" (correct).
+- BUT internal reviewer did NOT verify that file-novelty evidence is actually written (incorrect assumption).
+- Handoff at CURRENT.md:30 claims "File-novelty reconcile integration choice: evidence write hook landed in Wave α" — INCORRECT.
+- Tests pass because `file_novelty_test.go` tests the classifier in isolation, NOT the reconcile integration.
+
+**Required fix**: Add file-novelty classifier invocation in `reconcileFeature()` (e.g., after phase 4 verdict is determined but before `saveReconcileArtifacts`), call `ClassifyFileNovelty()`, build evidence via `FileNoveltyEvidence()`, and append via `store.AppendReconcileEvidence()`. Update `evidencePhaseAndKind()` if using a dedicated phase, or write evidence independently of the phase-based hook.
+
+### Checklist
+
+#### A. ADR-025 D1–D13 verbatim conformance
+
+- **D1 (Path + JSONL)**: VERIFIED — `reconcile-evidence.jsonl` literal at `internal/store/reconcile_evidence.go:17`, path via `s.ReconcileEvidencePath(slug)` → `s.featureArtifactsDir(slug)` → `.tpatch/features/<slug>/artifacts/`, extension `.jsonl` explicit, JSONL one-object-per-line at `:220-253`, no array wrapper.
+- **D2 (Schema + strict reads)**: VERIFIED — `schema_version: 1` at `:16,90`, required field enforcement at `:290-294` (17 fields: schema_version, feature_slug, attempt_id, upstream_ref, upstream_commit, base_commit, raw_reconcile_verdict, phase, evidence_kind, confidence, matched_paths, matched_operations, match_origin, upstream_commit_refs, pre_reconcile_presence, requires_confirmation, reason_code), optional fields at `:97-113` (git_patch_id, git_patch_id_algorithm, matched_upstream_sha, scanned_range, scanned_count, additional_matches, refs), unknown field rejection at `:272-288` via `DisallowUnknownFields()`.
+- **D3 (Attempt ID content-addressed)**: VERIFIED — prefix `"re_"` at `:125`, 12 lowercase hex from SHA-256, hash input at `:348-396` excludes `attempt_id` itself (`:350`), includes all specified identity fields, sorted arrays via `sortedStrings()` at `:260-263`, duplicate-ID-with-identical-payload no-op at `:166-170`, duplicate-ID-with-different-payload malformed at `:171`.
+- **D4 (Enums — CHARACTER COUNT)**: VERIFIED — `phase` enum at `:27-34` EXACTLY 6 values (`phase-1`, `phase-1.5`, `phase-2`, `phase-3`, `phase-3.5`, `phase-4`) validated at `:444-450`. `evidence_kind` at `:38-50` EXACTLY 11 values (`reverse-apply`, `patch-id-match`, `recipe-operation-match`, `provider-semantic`, `forward-apply`, `file-novelty`, `hunk-overlap`, `blocked-classification`, `path-restructure`, `manual-review`, `unknown`) validated at `:453-459`. `confidence` at `:54-59` EXACTLY 4 values validated at `:462-468`. `match_origin` at `:63-69` EXACTLY 5 values validated at `:471-477`. `pre_reconcile_presence` at `:73-78` EXACTLY 4 values validated at `:480-486`.
+- **D5 (git-patch-id-stable literal)**: VERIFIED — `PatchIDAlgorithmStable` at `patch_generations.go:19` is `"git-patch-id-stable"`, assigned at `reconcile_evidence.go:131`, validated at `:336` requiring exact match for `evidence_kind=patch-id-match`.
+- **D10 (Privacy — HARD)**: VERIFIED — test `TestReconcileEvidencePrivacyNoSourceLeak` at `reconcile_evidence_test.go:247-266` independently run and PASSED. Synthetic `SECRET_SOURCE_BODY_DO_NOT_LEAK` string does NOT appear in written JSONL. No raw source/transcript/vector fields in schema.
+- **D11 (Malformed sentinel)**: VERIFIED — `ErrMalformedEvidence` at `:20-23` is `errors.Is`-compatible, writer refusal at `:141-142,164`, reader sentinel return at `:225,233,237,241,246` with line-number diagnostics.
+- **D12 (Refs omit-when-empty, strict shape)**: VERIFIED — `EvidenceRefs` struct at `:80-87` has EXACTLY 6 keys (patch_generation_id, patch_generations_path, anchors, fingerprints, relations, vector_manifest), omit-when-empty at `:264-266,392-393,421-423`, strict enforcement via struct definition. Test `TestReconcileEvidenceRefsOmitAndPreserve` at `:220-245` verifies empty omission and non-empty preservation.
+
+#### B. Cross-cluster non-drift vs ADR-024
+
+- **Sentinel pattern**: VERIFIED — `ErrMalformedEvidence` mirrors `ErrMalformedManifest` at `patch_generations.go:24-28`, both `errors.Is`-compatible.
+- **Content-addressing**: VERIFIED — `re_<12hex>` at `:125`, lowercase, SHA-256, 12 chars (NOT `pg_`, NOT `sha256:`), matches ADR-024 D2 pattern.
+- **git_patch_id_algorithm**: VERIFIED — byte-identical `"git-patch-id-stable"` at `patch_generations.go:19`, reused at `reconcile_evidence.go:131`.
+- **Artifact path layout**: VERIFIED — `.tpatch/features/<slug>/artifacts/` via `s.featureArtifactsDir(slug)` at `store.go:560-562` matches ADR-024 D1.
+
+#### C. PRD 6 file-novelty classifier
+
+- **Implementation**: VERIFIED classifier exists at `internal/workflow/file_novelty.go` — `FileNoveltyResult` at `:38-41`, `PathNovelty` at `:43-47`, `ClassifyFileNovelty()` at `:49-76`, `FileNoveltyEvidence()` helper at `:78-128`.
+- **Classifications**: VERIFIED EXACTLY 5 at `:15-20` — `all-new-files`, `mixed-additive`, `modifies-existing-files`, `deletes-or-renames`, `unknown`.
+- **feature_action**: VERIFIED EXACTLY 4 at `:25-29` — `create`, `modify`, `delete`, `rename`.
+- **upstream_state**: VERIFIED EXACTLY 2 at `:34-36` — `absent`, `present`.
+- **Path sorting**: VERIFIED at `:69-74` — deterministic sort by path then action.
+- **Boundary cases**: create+modify → `mixed-additive` (test `:31-55`), rename → `deletes-or-renames` (test `:76-93`), delete → `deletes-or-renames` (test `:95-112`), binary patch action-based (test `:114-130`).
+- **PRD 6 §4 conservative posture**: VERIFIED — classifier writes evidence ONLY (no verdict/state mutations in `file_novelty.go`).
+- **PRD 6 §6.1 acceptance criterion 1 "Reconcile can report file novelty categories"**: **FAILED (F1)** — `internal/workflow/reconcile.go` does NOT call `ClassifyFileNovelty()`. Evidence is never written. Dead code.
+- **PRD 6 §6.3 acceptance criterion 3 "File novelty evidence is available in JSON output"**: **FAILED (F1)** — Cannot be available if never written.
+
+#### D. Hard constraints
+
+- **No new lifecycle states**: VERIFIED — `git diff d265a08..d6878a4 -- internal/store/types.go` returned empty.
+- **ReconcileSummary unchanged in Wave α**: VERIFIED — no `ReviewVerdict` field added (correct per ADR-025 D8 deferral to Wave β).
+- **No new config flag**: VERIFIED — no changes to `internal/store/config.go` (does not exist as file).
+- **Byte-identical re-run**: VERIFIED — test `TestReconcileEvidenceDeterminismSameLogicalInput` at `:33-56` asserts reordered `MatchedPaths` produce byte-identical files.
+
+#### E. Test obligations — independently RUN
+
+**gofmt, vet, build, test suite**:
+```
+gofmt -l . → (no output, PASSED)
+go vet ./... → (no output, PASSED)
+go build ./cmd/tpatch → (exit 0, PASSED)
+go test ./... → all packages ok (cached), PASSED
+```
+
+**Privacy test (CRITICAL independently run)**:
+```
+go test -run TestReconcileEvidencePrivacyNoSourceLeak ./internal/store/ -v
+=== RUN   TestReconcileEvidencePrivacyNoSourceLeak
+--- PASS: TestReconcileEvidencePrivacyNoSourceLeak (0.05s)
+PASS
+ok  github.com/tesseracode/tesserapatch/internal/store0.458s
+```
+
+#### F. Spot-checked test code (5+ required)
+
+1. **Privacy test `TestReconcileEvidencePrivacyNoSourceLeak` (`:247-266`)**: VERIFIED — defines `secret := "SECRET_SOURCE_BODY_DO_NOT_LEAK"`, appends evidence, reads file, asserts `!strings.Contains(string(data), secret)`. Real assertion, not just run-check.
+2. **Determinism test `TestReconcileEvidenceDeterminismSameLogicalInput` (`:33-56`)**: VERIFIED — appends entry with `MatchedPaths: []string{"z.go", "a.go"}`, reads file into `first`, appends same entry with reversed order `MatchedPaths: []string{"a.go", "z.go"}`, reads into `second`, asserts `bytes.Equal(first, second)`. Real byte comparison.
+3. **Sorted arrays test `TestReconcileEvidenceSortedArrays` (`:82-98`)**: VERIFIED — appends entry with unsorted `MatchedPaths: []string{"z", "a"}`, `MatchedOperations: []string{"op-9", "op-1"}`, `UpstreamCommitRefs: []string{"c", "b"}`, loads, asserts `reflect.DeepEqual(got[0].MatchedPaths, []string{"a", "z"})` and same for operations/refs. Real order check.
+4. **Malformed sentinel test `TestReconcileEvidenceMalformedLineAndWriterRefusal` (`:119-137`)**: VERIFIED — writes good line + truncated `{"schema_version":` (no close), calls `LoadReconcileEvidence`, asserts `errors.Is(err, ErrMalformedEvidence)` and `strings.Contains(err.Error(), "line 2")`. Then appends new entry, asserts writer also returns `errors.Is(err, ErrMalformedEvidence)`. Real sentinel check.
+5. **refs omit-when-empty test `TestReconcileEvidenceRefsOmitAndPreserve` (`:220-245`)**: VERIFIED — appends entry with `Refs: &EvidenceRefs{}` (all empty), reads file, asserts `!strings.Contains(string(data), "refs")` (field absent from JSONL). Second half appends with non-empty refs, loads, asserts `got[0].Refs.PatchGenerationID != ""`. Real omit/preserve check.
+6. **File-novelty create+modify mix test `TestClassifyFileNoveltyCreateModifyMix` (`file_novelty_test.go:31-55`)**: VERIFIED — patch with new file + modified README, calls `ClassifyFileNovelty()`, asserts `result.Classification == FileNoveltyMixedAdditive`. Real classification check.
+
+#### G. Handoff state
+
+- **Active Task**: VERIFIED — `docs/handoff/CURRENT.md:5-9` reflects Wave α, Status: Review.
+- **Side Research md5**: VERIFIED — `md5 <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` → `b385fe622db9926f48861105239f113e` (matches required invariant).
+- **No edits outside `tpatch/`**: VERIFIED — pre-existing `docs/state-of-the-art/` mods predate session per handoff note at `:31`.
+
+### Independent test run
+
+**Full suite output**:
+```
+ok  github.com/tesseracode/tesserapatch/assets(cached)
+?   github.com/tesseracode/tesserapatch/cmd/tpatch[no test files]
+ok  github.com/tesseracode/tesserapatch/internal/buildinfo(cached)
+ok  github.com/tesseracode/tesserapatch/internal/cli(cached)
+ok  github.com/tesseracode/tesserapatch/internal/gitutil(cached)
+ok  github.com/tesseracode/tesserapatch/internal/provider(cached)
+ok  github.com/tesseracode/tesserapatch/internal/safety(cached)
+ok  github.com/tesseracode/tesserapatch/internal/store(cached)
+ok  github.com/tesseracode/tesserapatch/internal/workflow(cached)
+ok  github.com/tesseracode/tesserapatch/tests/integration(cached)
+```
+
+**Privacy test result (independently observed)**:
+```
+=== RUN   TestReconcileEvidencePrivacyNoSourceLeak
+--- PASS: TestReconcileEvidencePrivacyNoSourceLeak (0.05s)
+PASS
+ok  github.com/tesseracode/tesserapatch/internal/store0.458s
+```
+
+### Spot-checked test code
+
+See checklist F above — 6 tests verified to assert claimed behavior (not just run).
+
+### Notes
+
+**Quality observations**:
+1. **ADR-025 schema conformance**: D1–D12 implemented correctly. Enums character-for-character exact. Strict unknown-field rejection. Atomic write with fsync. Malformed sentinel matches ADR-024 precedent. Privacy hard boundary enforced.
+2. **Determinism**: Sorted keys, sorted arrays, no wall-clock fields, byte-identical re-runs. Test coverage strong.
+3. **File-novelty classifier quality**: Implementation is clean, tests comprehensive, boundary cases covered, evidence helper correct. **BUT integration is MISSING** (F1).
+4. **Cross-cluster alignment**: `re_<12hex>` matches `pg_<12hex>` pattern, `git-patch-id-stable` byte-identical to ADR-024, artifact path layout consistent, `refs` keys compatible. Zero drift.
+
+**F1 severity justification**:
+- PRD 6 is a keystone for Wave β (hunk-overlap) and Wave γ (blocked-taxonomy per PRDs 7–9).
+- File-novelty evidence is required input for middle-pass classifiers (per WP-003 dependency tree).
+- Internal reviewer approved without verifying acceptance criteria §6.1 and §6.3 actually work.
+- Handoff incorrectly claims integration landed; supervisor would accept based on that false claim.
+- This is the type of F1 regression the external review process exists to catch.
+
+**Fix estimate**: 10-20 lines. Add `ClassifyFileNovelty()` call in `reconcileFeature()`, invoke `FileNoveltyEvidence()`, append via `store.AppendReconcileEvidence()`. Extend `evidencePhaseAndKind()` to handle file-novelty or write independently of the phase-based hook.
+
+**md5 invariant confirmation**: `b385fe622db9926f48861105239f113e` verified.
+
+### Action Taken
+
+Verdict written to `docs/supervisor/LOG.md` (prepended above internal verdict). Did NOT commit per instructions. Supervisor will commit after Wave α revision cycle completes.
+
+---
+
+## Review — WP-003 Wave α (PRDs 1+6) — external — 2026-05-26
+
+**Reviewer**: external
+**Task**: External code review of Wave α commits `d265a08..d6878a4`. Independent of internal verdict.
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+**F1 (BLOCKING)**: File novelty classifier NOT integrated into reconcile workflow — PRD 6 §6.1 and §6.3 acceptance criteria FAILED.
+
+**Evidence**:
+- PRD 6 §6.1 requires "Reconcile can report file novelty categories for a feature patch."
+- PRD 6 §6.3 requires "File novelty evidence is available in JSON output."
+- PRD 6 §5 states "The classifier should run before expensive provider phases when data is available."
+- `internal/workflow/reconcile.go` does NOT call `ClassifyFileNovelty()` (verified via `grep -rn "ClassifyFileNovelty" internal/workflow/reconcile.go` → exit 1).
+- `internal/workflow/reconcile.go` does NOT reference file-novelty evidence kind (verified via `grep -n "EvidenceKindFileNovelty" internal/workflow/reconcile.go` → exit 1).
+- Function `evidencePhaseAndKind()` at `reconcile.go:660-677` maps only 6 existing phases to evidence kinds: `reverse-apply`, `patch-id-match`, `recipe-operation-match`, `provider-semantic` (phases 3 and 3.5), `forward-apply`, and `unknown`. NO mapping to `EvidenceKindFileNovelty`.
+- Helper `FileNoveltyEvidence()` exists at `file_novelty.go:78` but is NEVER CALLED from `reconcile.go`.
+- Result: File novelty evidence can NEVER be written by reconcile. The classifier exists but is dead code.
+
+**Why internal review missed this**:
+- Internal reviewer verified at LOG.md:44 that "evidence write hook" exists and "NO changes to `ReconcileOutcome`" (correct).
+- BUT internal reviewer did NOT verify that file-novelty evidence is actually written (incorrect assumption).
+- Handoff at CURRENT.md:30 claims "File-novelty reconcile integration choice: evidence write hook landed in Wave α" — INCORRECT.
+- Tests pass because `file_novelty_test.go` tests the classifier in isolation, NOT the reconcile integration.
+
+**Required fix**: Add file-novelty classifier invocation in `reconcileFeature()` (e.g., after phase 4 verdict is determined but before `saveReconcileArtifacts`), call `ClassifyFileNovelty()`, build evidence via `FileNoveltyEvidence()`, and append via `store.AppendReconcileEvidence()`. Update `evidencePhaseAndKind()` if using a dedicated phase, or write evidence independently of the phase-based hook.
+
+### Checklist
+
+#### A. ADR-025 D1–D13 verbatim conformance
+
+- **D1 (Path + JSONL)**: VERIFIED — `reconcile-evidence.jsonl` literal at `internal/store/reconcile_evidence.go:17`, path via `s.ReconcileEvidencePath(slug)` → `s.featureArtifactsDir(slug)` → `.tpatch/features/<slug>/artifacts/`, extension `.jsonl` explicit, JSONL one-object-per-line at `:220-253`, no array wrapper.
+- **D2 (Schema + strict reads)**: VERIFIED — `schema_version: 1` at `:16,90`, required field enforcement at `:290-294` (17 fields: schema_version, feature_slug, attempt_id, upstream_ref, upstream_commit, base_commit, raw_reconcile_verdict, phase, evidence_kind, confidence, matched_paths, matched_operations, match_origin, upstream_commit_refs, pre_reconcile_presence, requires_confirmation, reason_code), optional fields at `:97-113` (git_patch_id, git_patch_id_algorithm, matched_upstream_sha, scanned_range, scanned_count, additional_matches, refs), unknown field rejection at `:272-288` via `DisallowUnknownFields()`.
+- **D3 (Attempt ID content-addressed)**: VERIFIED — prefix `"re_"` at `:125`, 12 lowercase hex from SHA-256, hash input at `:348-396` excludes `attempt_id` itself (`:350`), includes all specified identity fields, sorted arrays via `sortedStrings()` at `:260-263`, duplicate-ID-with-identical-payload no-op at `:166-170`, duplicate-ID-with-different-payload malformed at `:171`.
+- **D4 (Enums — CHARACTER COUNT)**: VERIFIED — `phase` enum at `:27-34` EXACTLY 6 values (`phase-1`, `phase-1.5`, `phase-2`, `phase-3`, `phase-3.5`, `phase-4`) validated at `:444-450`. `evidence_kind` at `:38-50` EXACTLY 11 values (`reverse-apply`, `patch-id-match`, `recipe-operation-match`, `provider-semantic`, `forward-apply`, `file-novelty`, `hunk-overlap`, `blocked-classification`, `path-restructure`, `manual-review`, `unknown`) validated at `:453-459`. `confidence` at `:54-59` EXACTLY 4 values validated at `:462-468`. `match_origin` at `:63-69` EXACTLY 5 values validated at `:471-477`. `pre_reconcile_presence` at `:73-78` EXACTLY 4 values validated at `:480-486`.
+- **D5 (git-patch-id-stable literal)**: VERIFIED — `PatchIDAlgorithmStable` at `patch_generations.go:19` is `"git-patch-id-stable"`, assigned at `reconcile_evidence.go:131`, validated at `:336` requiring exact match for `evidence_kind=patch-id-match`.
+- **D10 (Privacy — HARD)**: VERIFIED — test `TestReconcileEvidencePrivacyNoSourceLeak` at `reconcile_evidence_test.go:247-266` independently run and PASSED. Synthetic `SECRET_SOURCE_BODY_DO_NOT_LEAK` string does NOT appear in written JSONL. No raw source/transcript/vector fields in schema.
+- **D11 (Malformed sentinel)**: VERIFIED — `ErrMalformedEvidence` at `:20-23` is `errors.Is`-compatible, writer refusal at `:141-142,164`, reader sentinel return at `:225,233,237,241,246` with line-number diagnostics.
+- **D12 (Refs omit-when-empty, strict shape)**: VERIFIED — `EvidenceRefs` struct at `:80-87` has EXACTLY 6 keys (patch_generation_id, patch_generations_path, anchors, fingerprints, relations, vector_manifest), omit-when-empty at `:264-266,392-393,421-423`, strict enforcement via struct definition. Test `TestReconcileEvidenceRefsOmitAndPreserve` at `:220-245` verifies empty omission and non-empty preservation.
+
+#### B. Cross-cluster non-drift vs ADR-024
+
+- **Sentinel pattern**: VERIFIED — `ErrMalformedEvidence` mirrors `ErrMalformedManifest` at `patch_generations.go:24-28`, both `errors.Is`-compatible.
+- **Content-addressing**: VERIFIED — `re_<12hex>` at `:125`, lowercase, SHA-256, 12 chars (NOT `pg_`, NOT `sha256:`), matches ADR-024 D2 pattern.
+- **git_patch_id_algorithm**: VERIFIED — byte-identical `"git-patch-id-stable"` at `patch_generations.go:19`, reused at `reconcile_evidence.go:131`.
+- **Artifact path layout**: VERIFIED — `.tpatch/features/<slug>/artifacts/` via `s.featureArtifactsDir(slug)` at `store.go:560-562` matches ADR-024 D1.
+
+#### C. PRD 6 file-novelty classifier
+
+- **Implementation**: VERIFIED classifier exists at `internal/workflow/file_novelty.go` — `FileNoveltyResult` at `:38-41`, `PathNovelty` at `:43-47`, `ClassifyFileNovelty()` at `:49-76`, `FileNoveltyEvidence()` helper at `:78-128`.
+- **Classifications**: VERIFIED EXACTLY 5 at `:15-20` — `all-new-files`, `mixed-additive`, `modifies-existing-files`, `deletes-or-renames`, `unknown`.
+- **feature_action**: VERIFIED EXACTLY 4 at `:25-29` — `create`, `modify`, `delete`, `rename`.
+- **upstream_state**: VERIFIED EXACTLY 2 at `:34-36` — `absent`, `present`.
+- **Path sorting**: VERIFIED at `:69-74` — deterministic sort by path then action.
+- **Boundary cases**: create+modify → `mixed-additive` (test `:31-55`), rename → `deletes-or-renames` (test `:76-93`), delete → `deletes-or-renames` (test `:95-112`), binary patch action-based (test `:114-130`).
+- **PRD 6 §4 conservative posture**: VERIFIED — classifier writes evidence ONLY (no verdict/state mutations in `file_novelty.go`).
+- **PRD 6 §6.1 acceptance criterion 1 "Reconcile can report file novelty categories"**: **FAILED (F1)** — `internal/workflow/reconcile.go` does NOT call `ClassifyFileNovelty()`. Evidence is never written. Dead code.
+- **PRD 6 §6.3 acceptance criterion 3 "File novelty evidence is available in JSON output"**: **FAILED (F1)** — Cannot be available if never written.
+
+#### D. Hard constraints
+
+- **No new lifecycle states**: VERIFIED — `git diff d265a08..d6878a4 -- internal/store/types.go` returned empty.
+- **ReconcileSummary unchanged in Wave α**: VERIFIED — no `ReviewVerdict` field added (correct per ADR-025 D8 deferral to Wave β).
+- **No new config flag**: VERIFIED — no changes to `internal/store/config.go` (does not exist as file).
+- **Byte-identical re-run**: VERIFIED — test `TestReconcileEvidenceDeterminismSameLogicalInput` at `:33-56` asserts reordered `MatchedPaths` produce byte-identical files.
+
+#### E. Test obligations — independently RUN
+
+**gofmt, vet, build, test suite**:
+```
+gofmt -l . → (no output, PASSED)
+go vet ./... → (no output, PASSED)
+go build ./cmd/tpatch → (exit 0, PASSED)
+go test ./... → all packages ok (cached), PASSED
+```
+
+**Privacy test (CRITICAL independently run)**:
+```
+go test -run TestReconcileEvidencePrivacyNoSourceLeak ./internal/store/ -v
+=== RUN   TestReconcileEvidencePrivacyNoSourceLeak
+--- PASS: TestReconcileEvidencePrivacyNoSourceLeak (0.05s)
+PASS
+ok  github.com/tesseracode/tesserapatch/internal/store0.458s
+```
+
+#### F. Spot-checked test code (5+ required)
+
+1. **Privacy test `TestReconcileEvidencePrivacyNoSourceLeak` (`:247-266`)**: VERIFIED — defines `secret := "SECRET_SOURCE_BODY_DO_NOT_LEAK"`, appends evidence, reads file, asserts `!strings.Contains(string(data), secret)`. Real assertion, not just run-check.
+2. **Determinism test `TestReconcileEvidenceDeterminismSameLogicalInput` (`:33-56`)**: VERIFIED — appends entry with `MatchedPaths: []string{"z.go", "a.go"}`, reads file into `first`, appends same entry with reversed order `MatchedPaths: []string{"a.go", "z.go"}`, reads into `second`, asserts `bytes.Equal(first, second)`. Real byte comparison.
+3. **Sorted arrays test `TestReconcileEvidenceSortedArrays` (`:82-98`)**: VERIFIED — appends entry with unsorted `MatchedPaths: []string{"z", "a"}`, `MatchedOperations: []string{"op-9", "op-1"}`, `UpstreamCommitRefs: []string{"c", "b"}`, loads, asserts `reflect.DeepEqual(got[0].MatchedPaths, []string{"a", "z"})` and same for operations/refs. Real order check.
+4. **Malformed sentinel test `TestReconcileEvidenceMalformedLineAndWriterRefusal` (`:119-137`)**: VERIFIED — writes good line + truncated `{"schema_version":` (no close), calls `LoadReconcileEvidence`, asserts `errors.Is(err, ErrMalformedEvidence)` and `strings.Contains(err.Error(), "line 2")`. Then appends new entry, asserts writer also returns `errors.Is(err, ErrMalformedEvidence)`. Real sentinel check.
+5. **refs omit-when-empty test `TestReconcileEvidenceRefsOmitAndPreserve` (`:220-245`)**: VERIFIED — appends entry with `Refs: &EvidenceRefs{}` (all empty), reads file, asserts `!strings.Contains(string(data), "refs")` (field absent from JSONL). Second half appends with non-empty refs, loads, asserts `got[0].Refs.PatchGenerationID != ""`. Real omit/preserve check.
+6. **File-novelty create+modify mix test `TestClassifyFileNoveltyCreateModifyMix` (`file_novelty_test.go:31-55`)**: VERIFIED — patch with new file + modified README, calls `ClassifyFileNovelty()`, asserts `result.Classification == FileNoveltyMixedAdditive`. Real classification check.
+
+#### G. Handoff state
+
+- **Active Task**: VERIFIED — `docs/handoff/CURRENT.md:5-9` reflects Wave α, Status: Review.
+- **Side Research md5**: VERIFIED — `md5 <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` → `b385fe622db9926f48861105239f113e` (matches required invariant).
+- **No edits outside `tpatch/`**: VERIFIED — pre-existing `docs/state-of-the-art/` mods predate session per handoff note at `:31`.
+
+### Independent test run
+
+**Full suite output**:
+```
+ok  github.com/tesseracode/tesserapatch/assets(cached)
+?   github.com/tesseracode/tesserapatch/cmd/tpatch[no test files]
+ok  github.com/tesseracode/tesserapatch/internal/buildinfo(cached)
+ok  github.com/tesseracode/tesserapatch/internal/cli(cached)
+ok  github.com/tesseracode/tesserapatch/internal/gitutil(cached)
+ok  github.com/tesseracode/tesserapatch/internal/provider(cached)
+ok  github.com/tesseracode/tesserapatch/internal/safety(cached)
+ok  github.com/tesseracode/tesserapatch/internal/store(cached)
+ok  github.com/tesseracode/tesserapatch/internal/workflow(cached)
+ok  github.com/tesseracode/tesserapatch/tests/integration(cached)
+```
+
+**Privacy test result (independently observed)**:
+```
+=== RUN   TestReconcileEvidencePrivacyNoSourceLeak
+--- PASS: TestReconcileEvidencePrivacyNoSourceLeak (0.05s)
+PASS
+ok  github.com/tesseracode/tesserapatch/internal/store0.458s
+```
+
+### Spot-checked test code
+
+See checklist F above — 6 tests verified to assert claimed behavior (not just run).
+
+### Notes
+
+**Quality observations**:
+1. **ADR-025 schema conformance**: D1–D12 implemented correctly. Enums character-for-character exact. Strict unknown-field rejection. Atomic write with fsync. Malformed sentinel matches ADR-024 precedent. Privacy hard boundary enforced.
+2. **Determinism**: Sorted keys, sorted arrays, no wall-clock fields, byte-identical re-runs. Test coverage strong.
+3. **File-novelty classifier quality**: Implementation is clean, tests comprehensive, boundary cases covered, evidence helper correct. **BUT integration is MISSING** (F1).
+4. **Cross-cluster alignment**: `re_<12hex>` matches `pg_<12hex>` pattern, `git-patch-id-stable` byte-identical to ADR-024, artifact path layout consistent, `refs` keys compatible. Zero drift.
+
+**F1 severity justification**:
+- PRD 6 is a keystone for Wave β (hunk-overlap) and Wave γ (blocked-taxonomy per PRDs 7–9).
+- File-novelty evidence is required input for middle-pass classifiers (per WP-003 dependency tree).
+- Internal reviewer approved without verifying acceptance criteria §6.1 and §6.3 actually work.
+- Handoff incorrectly claims integration landed; supervisor would accept based on that false claim.
+- This is the type of F1 regression the external review process exists to catch.
+
+**Fix estimate**: 10-20 lines. Add `ClassifyFileNovelty()` call in `reconcileFeature()`, invoke `FileNoveltyEvidence()`, append via `store.AppendReconcileEvidence()`. Extend `evidencePhaseAndKind()` to handle file-novelty or write independently of the phase-based hook.
+
+**md5 invariant confirmation**: `b385fe622db9926f48861105239f113e` verified.
+
+### Action Taken
+
+Verdict written to `docs/supervisor/LOG.md` (prepended above internal verdict). Did NOT commit per instructions. Supervisor will commit after Wave α revision cycle completes.
+
+---
+
 ## Review — WP-003 Wave α (PRDs 1+6) — internal — 2026-05-25
 
 **Reviewer**: sub-agent code-review (internal)

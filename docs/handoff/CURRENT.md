@@ -2,11 +2,12 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl`
-- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α
-- **Description**: Implement PRD 1 (`reconcile-verdict-evidence`) and PRD 6 (`reconcile-file-novelty-classifier`) in parallel under ADR-025 D1–D13. Add `reconcile-evidence.jsonl` writer + reader, `file-novelty` evidence_kind classifier, atomic write/round-trip, malformed-handling sentinel, and privacy assertion tests.
-- **Status**: Review (awaiting reviewer).
-- **Assigned**: 2026-05-25.
+- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl-rev1`
+- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α revision 1
+- **Description**: Address two NEEDS REVISION findings from concurrent external reviews. F1: wire `ClassifyFileNovelty` into the production reconcile path so PRD 6 §6.1/§6.3 are actually met. F2: stop swallowing `AppendReconcileEvidence` errors at `reconcile.go`; surface a warning when evidence writing fails, while preserving verdict semantics (PRD 1 §6.6).
+- **Status**: In Progress (rev-1 implementer dispatched).
+- **Assigned**: 2026-05-26.
+- **Prior rev-0**: Internal APPROVED but both externals NEEDS REVISION (commits `d265a08..d6878a4`). Root cause: rev-0 dispatch brief contained a loose escape hatch ("if integration is risky, defer to Wave β") that overrode PRD 6 acceptance. Carry-forward: dispatch briefs must reference PRD acceptance criteria verbatim and forbid implementer-side deferral.
 
 ## Session Summary
 
