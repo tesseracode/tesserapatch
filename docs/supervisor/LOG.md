@@ -1,3 +1,150 @@
+## Review — WP-003 Wave α (PRDs 1+6) — internal — 2026-05-25
+
+**Reviewer**: sub-agent code-review (internal)
+**Task**: Internal review of Wave α commits `d265a08..4f9277e` for ADR-025 D1–D13 conformance and PRD 1/6 acceptance.
+
+### Verdict: APPROVED
+
+### Findings
+
+None.
+
+### Checklist
+
+#### A. ADR-025 D1–D13 verbatim conformance
+
+- **D1 (Path + JSONL)**: VERIFIED at `internal/store/reconcile_evidence.go:17` — literal `"reconcile-evidence.jsonl"` in const, path composition at `:116-118` via `featureArtifactsDir(slug)`, extension `.jsonl` explicit, JSONL one-object-per-line at `:220-253`.
+- **D2 (Schema versioning + strict reads)**: VERIFIED — `schema_version: 1` at `:16,90`, required field list enforced at `:290-294` (17 required fields), optional fields at `:97-113`, unknown field rejection at `:272-288` via `DisallowUnknownFields()`.
+- **D3 (Attempt ID)**: VERIFIED at `:120-126` — prefix literal `"re_"` at `:125`, 12 lowercase hex from SHA-256, hash input at `:348-396` includes all specified fields (schema_version, feature_slug, upstream_ref, upstream_commit, base_commit, raw_reconcile_verdict, phase, evidence_kind, confidence, match_origin, pre_reconcile_presence, requires_confirmation, reason_code, sorted arrays, optional patch-id/refs), excludes `attempt_id` itself at `:350`, sorted-array invariance via `sortedStrings()` at `:260-263,425-435`.
+- **D4 (Enums — CRITICAL)**: VERIFIED character-for-character — `phase` enum at `:27-34` has EXACTLY 6 values (`phase-1`, `phase-1.5`, `phase-2`, `phase-3`, `phase-3.5`, `phase-4`) validated at `:444-450`. `evidence_kind` enum at `:38-50` has EXACTLY 11 values (`reverse-apply`, `patch-id-match`, `recipe-operation-match`, `provider-semantic`, `forward-apply`, `file-novelty`, `hunk-overlap`, `blocked-classification`, `path-restructure`, `manual-review`, `unknown`) validated at `:453-459`. `confidence` at `:54-59` EXACTLY 4 values validated at `:462-468`. `match_origin` at `:63-69` EXACTLY 5 values validated at `:471-477`. `pre_reconcile_presence` at `:73-78` EXACTLY 4 values validated at `:480-486`.
+- **D5 (Patch-id algorithm)**: VERIFIED at `:131` — literal `PatchIDAlgorithmStable` assigned, defined at `internal/store/patch_generations.go:19` as `"git-patch-id-stable"`, validation enforced at `reconcile_evidence.go:336` requiring exact match.
+- **D10 (Privacy — HARD)**: VERIFIED — test `TestReconcileEvidencePrivacyNoSourceLeak` at `reconcile_evidence_test.go:247-266` asserts synthetic `SECRET_SOURCE_BODY_DO_NOT_LEAK` does NOT appear in JSONL, test independently run and PASSED. No raw source/transcript/vector persistence in schema.
+- **D11 (Malformed sentinel)**: VERIFIED — `ErrMalformedEvidence` at `:20-23` is `errors.Is`-compatible, writer refusal at `:141-142,164`, reader sentinel return at `:225,233,237,241,246`, line-number diagnostic at `:225,237,241,246`.
+- **D12 (Refs)**: VERIFIED — `EvidenceRefs` struct at `:80-87` has EXACTLY 6 keys (patch_generation_id, patch_generations_path, anchors, fingerprints, relations, vector_manifest), omit-when-empty at `:264-266,392-393,421-423`, strict shape enforcement at `:80-87` via struct definition.
+
+#### B. Cross-cluster non-drift vs ADR-024
+
+- **Sentinel pattern**: VERIFIED — `ErrMalformedEvidence` at `reconcile_evidence.go:20-23` mirrors `ErrMalformedManifest` at `patch_generations.go:24-28`, both use `errors.Is` compatibility.
+- **Content-addressing**: VERIFIED — `re_<12hex>` at `:125`, lowercase, SHA-256, 12 chars (NOT `pg_`, NOT `sha256:`), matches ADR-024 D2 pattern.
+- **git_patch_id_algorithm**: VERIFIED — byte-identical `"git-patch-id-stable"` at `patch_generations.go:19`, reused at `reconcile_evidence.go:131`.
+- **Artifact path layout**: VERIFIED — `.tpatch/features/<slug>/artifacts/` at `:116-118` via `s.featureArtifactsDir(slug)` matches ADR-024 D1.
+
+#### C. PRD 6 file-novelty classifier
+
+- **Implementation**: VERIFIED at `internal/workflow/file_novelty.go` — `FileNoveltyResult` at `:38-41`, `PathNovelty` at `:43-47`.
+- **Classifications**: VERIFIED EXACTLY 5 at `:15-20` — `all-new-files`, `mixed-additive`, `modifies-existing-files`, `deletes-or-renames`, `unknown`.
+- **feature_action**: VERIFIED EXACTLY 4 at `:25-29` — `create`, `modify`, `delete`, `rename`.
+- **upstream_state**: VERIFIED EXACTLY 2 at `:34-36` — `absent`, `present`.
+- **Path sorting**: VERIFIED at `:69-74` — deterministic sort by path then action.
+- **Boundary cases**:
+  - create+modify → `mixed-additive`: VERIFIED test at `file_novelty_test.go:31-55` (`TestClassifyFileNoveltyCreateModifyMix`).
+  - any rename → `deletes-or-renames`: VERIFIED test at `:76-93` (`TestClassifyFileNoveltyAnyRename`).
+  - any delete → `deletes-or-renames`: VERIFIED test at `:95-112` (`TestClassifyFileNoveltyAnyDelete`).
+  - binary patch action-based: VERIFIED test at `:114-130` (`TestClassifyFileNoveltyBinaryPatchUsesActionRules`).
+- **PRD 6 §4 no verdict mutation**: VERIFIED — `internal/workflow/reconcile.go` diff shows evidence write at `:593-678` hook `persistReconcileEvidence()` but NO changes to `ReconcileOutcome` assignment or `FeatureState` transitions at `:711-733`.
+
+#### D. HARD constraints
+
+- **No new lifecycle states**: VERIFIED — `internal/store/types.go:5-19` unchanged (checked via `git diff d265a08..HEAD -- internal/store/types.go` returned empty).
+- **ReconcileSummary unchanged in Wave α**: VERIFIED — `internal/store/types.go:250` struct unchanged, no `ReviewVerdict` field added (correct per ADR-025 D8 deferral to Wave β/PRD 2).
+- **No new config flag**: VERIFIED — no `internal/store/config.go` file exists (checked and got "No such file or directory"), no `EvidenceEnabled` or `features_evidence` keys added anywhere.
+- **Byte-identical re-run**: VERIFIED — test `TestReconcileEvidenceDeterminismSameLogicalInput` at `reconcile_evidence_test.go:33-56` asserts two appends with reordered `MatchedPaths` produce byte-identical files.
+
+#### E. Test obligations (PRD 1 §6)
+
+All 15 required tests present and passing:
+
+1. Round-trip: `TestReconcileEvidenceRoundTrip` (`:15-31`).
+2. Determinism: `TestReconcileEvidenceDeterminismSameLogicalInput` (`:33-56`).
+3. Sorted keys: `TestReconcileEvidenceSortedKeys` (`:58-80`).
+4. Sorted arrays: `TestReconcileEvidenceSortedArrays` (`:82-98`).
+5. Content-addressed stability: `TestComputeAttemptIDContentAddressedDeterministic` (`:100-117`).
+6. Malformed line → sentinel: `TestReconcileEvidenceMalformedLineAndWriterRefusal` (`:119-137`).
+7. Writer refusal: same test covers writer refusal at `:134-136`.
+8. Strict enums: `TestReconcileEvidenceStrictEnums` (`:139-158`).
+9. Unknown schema_version: `TestReconcileEvidenceUnknownSchemaVersion` (`:160-174`).
+10. Unknown field: `TestReconcileEvidenceUnknownField` (`:176-190`).
+11. Duplicate ID handling: `TestReconcileEvidenceDuplicateIDHandling` (`:192-218`).
+12. refs omit/preserve: `TestReconcileEvidenceRefsOmitAndPreserve` (`:220-245`).
+13. **Privacy (CRITICAL)**: `TestReconcileEvidencePrivacyNoSourceLeak` (`:247-266`) — INDEPENDENTLY RUN AND PASSED.
+14. Patch-id helper: `TestPatchIDMatchEvidenceFields` (`:268-277`).
+15. Atomic write: `TestReconcileEvidenceAtomicWriteNoTempOnSuccess` (`:279-291`).
+
+File-novelty tests (PRD 6 §6) — all 7 present:
+
+1. all-new-files: `TestClassifyFileNoveltyAllNewFiles` (`:10-29`).
+2. mixed-additive: `TestClassifyFileNoveltyCreateModifyMix` (`:31-55`).
+3. modifies-existing-files: `TestClassifyFileNoveltyModifyOnly` (`:57-74`).
+4. deletes-or-renames (rename): `TestClassifyFileNoveltyAnyRename` (`:76-93`).
+5. deletes-or-renames (delete): `TestClassifyFileNoveltyAnyDelete` (`:95-112`).
+6. binary patch: `TestClassifyFileNoveltyBinaryPatchUsesActionRules` (`:114-130`).
+7. deterministic sort: `TestClassifyFileNoveltyPathsSortedDeterministically` (`:132-151`).
+
+#### F. Code quality + repo hygiene
+
+- `gofmt -l .` — PASSED (no output).
+- `go vet ./...` — PASSED (no output).
+- `go build ./cmd/tpatch` — PASSED (exit 0).
+- `go test ./...` — PASSED; independent run summary:
+  ```
+  ok  github.com/tesseracode/tesserapatch/assets(cached)
+  ?   github.com/tesseracode/tesserapatch/cmd/tpatch[no test files]
+  ok  github.com/tesseracode/tesserapatch/internal/buildinfo(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/cli(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/gitutil(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/provider(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/safety(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/store(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/workflow(cached)
+  ok  github.com/tesseracode/tesserapatch/tests/integration(cached)
+  ```
+
+#### G. Handoff state
+
+- `docs/handoff/CURRENT.md` Active Task: VERIFIED — line 5-9 reflects Wave α implementation complete and ready for review.
+- Side Research md5 invariant: VERIFIED — `b385fe622db9926f48861105239f113e` preserved (independently checked with `md5 <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`).
+- No edits outside `tpatch/`: VERIFIED — pre-existing `docs/state-of-the-art/` working-tree mods predate session per handoff note.
+
+### Independent test run
+
+**Privacy test (CRITICAL independently run)**:
+```
+=== RUN   TestReconcileEvidencePrivacyNoSourceLeak
+--- PASS: TestReconcileEvidencePrivacyNoSourceLeak (0.05s)
+PASS
+ok  github.com/tesseracode/tesserapatch/internal/store0.591s
+```
+
+**Full suite summary line**: `ok  github.com/tesseracode/tesserapatch/internal/store(cached)` — all packages passed, no failures.
+
+### Notes
+
+**Quality observations**:
+
+1. **Enum discipline**: ADR-025 D4 specifies EXACTLY 6 phase values, 11 evidence_kind values, 4 confidence, 5 match_origin, 4 pre_reconcile_presence. Implementation matches character-for-character. Validation functions enforce closed sets. Zero enum drift.
+
+2. **Hash input stability**: ADR-025 D3 specifies which fields enter `attempt_id` hash. Implementation at `:348-396` includes all specified fields and excludes `attempt_id` itself. Optional fields (patch-id, refs) correctly included when present. Sorted arrays preserve determinism under reorder.
+
+3. **Malformed handling**: ADR-024 precedent followed precisely — `ErrMalformedEvidence` is `errors.Is`-compatible, writer refuses to append, reader warns but continues to load `status.json`, line-number diagnostics present.
+
+4. **File-novelty integration choice**: PRD 6 §4 forbids verdict semantic changes in Wave α. Implementation landed the evidence-write hook but classifier results do NOT change `ReconcileOutcome` or `FeatureState` — correct conservative choice.
+
+5. **Cross-cluster alignment**: `git-patch-id-stable` literal byte-identical to ADR-024, `re_<12hex>` follows `pg_<12hex>` pattern, artifact path matches sibling, `refs` keys compatible. Zero drift.
+
+6. **Privacy test**: `TestReconcileEvidencePrivacyNoSourceLeak` independently run and passed. Asserts synthetic `SECRET_SOURCE_BODY_DO_NOT_LEAK` string does NOT appear in written JSONL. Hard boundary enforced.
+
+**Wave β setup observations**:
+
+- ADR-025 D8 adds `review_verdict` to `ReconcileSummary` in Wave β/PRD 2. Wave α correctly omitted this field.
+- `reconcile-revisions.jsonl` (D6) deferred to Wave β — correct per cluster dependency tree.
+- File-novelty classifier ready for Phase 3.5 blocked-taxonomy integration (PRD 8, Wave γ).
+
+### Action Taken
+
+Pending supervisor commit and external dispatch.
+
+---
+
 ## Review — ADR-025 reconcile-evidence and revision schema (external) — 2026-05-24
 
 **Reviewer**: external
