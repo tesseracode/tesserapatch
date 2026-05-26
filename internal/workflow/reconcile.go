@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -559,6 +560,7 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	data, _ := json.MarshalIndent(result, "", "  ")
 	s.WriteArtifact(slug, "reconcile-session.json", string(data)+"\n")
 	persistReconcileEvidence(s, slug, result)
+	persistFileNoveltyEvidence(s, slug, result)
 
 	// Save reconcile.md
 	var b strings.Builder
@@ -588,6 +590,10 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	// Save per-version log
 	commitRange := fmt.Sprintf("%s-to-%s", truncateCommit(result.UpstreamCommit), "HEAD")
 	s.WriteFeatureFile(slug, filepath.Join("reconciliation", commitRange+".md"), b.String())
+}
+
+var warnReconcileEvidence = func(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult) {
@@ -654,7 +660,44 @@ func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResu
 		entry = store.PatchIDMatchEvidenceFields(entry, *result.PatchIDMatch)
 	}
 	entry.AttemptID = store.ComputeAttemptID(entry)
-	_ = store.AppendReconcileEvidence(s, slug, entry)
+	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+	}
+}
+
+func persistFileNoveltyEvidence(s *store.Store, slug string, result *ReconcileResult) {
+	if result == nil || result.Outcome == "" || result.UpstreamCommit == "" {
+		return
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil || status.Apply.BaseCommit == "" {
+		// File novelty is diagnostic evidence only; skip silently until the
+		// canonical post-apply patch and commit anchors are all available.
+		return
+	}
+	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil || strings.TrimSpace(patch) == "" {
+		// File novelty is diagnostic evidence only; skip silently when the
+		// canonical post-apply patch is unavailable.
+		return
+	}
+	novelty, err := ClassifyFileNovelty(patch, result.UpstreamCommit, status.Apply.BaseCommit, s.Root)
+	if err != nil {
+		return
+	}
+	entry := FileNoveltyEvidence(slug, result.UpstreamRef, result.UpstreamCommit, status.Apply.BaseCommit, string(result.Outcome), novelty)
+	entry.AttemptID = store.ComputeAttemptID(entry)
+	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+	}
+}
+
+func warnReconcileEvidenceAppendError(slug string, err error) {
+	if errors.Is(err, store.ErrMalformedEvidence) {
+		warnReconcileEvidence("warning: tpatch reconcile evidence artifact malformed for feature %q: %v\n", slug, err)
+		return
+	}
+	warnReconcileEvidence("warning: tpatch reconcile could not write evidence for feature %q: %v\n", slug, err)
 }
 
 func evidencePhaseAndKind(result *ReconcileResult) (store.ReconcileEvidencePhase, store.ReconcileEvidenceKind) {
