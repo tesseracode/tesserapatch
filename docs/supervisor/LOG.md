@@ -1,3 +1,54 @@
+## Review — WP-003 Wave α rev-2 (PRDs 1+6) — internal — 2026-05-26
+
+**Reviewer**: internal (supervisor-dispatched code-review agent)
+**Task**: Verify rev-2 addresses F3 (reader-side CLI surface) for PRD 1 §4 + PRD 6 §6.3. Range `6a8deba..8d4665f` (3 commits).
+
+### Verdict: APPROVED
+
+### Validation gates
+- `gofmt -l .` clean (direct run, not piped).
+- `go vet ./...` clean.
+- `go build ./cmd/tpatch` clean.
+- `go test ./...` green across all packages.
+- Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
+
+### Substantive verification
+
+**PRD 1 §4 JSON surface — MET**: `ReconcileResult.Evidence []store.ReconcileEvidence` at `internal/workflow/reconcile.go:55` with `json:"evidence,omitempty"`. Populated inline at `:564-565` from successful writes during `saveReconcileArtifacts`. Option A (inline, no hot-path disk reads).
+
+**PRD 1 §4 human surface — MET**: hint lines at `internal/cli/cobra.go:1849-1851`, format `evidence: {phase} {kind}` and `evidence: {kind} {reason}`. Deduplication at `:1714-1726`.
+
+**PRD 6 §6.3 — MET**: file-novelty evidence asserted present in both JSON output (`TestReconcileResultJSONExposesEvidence`) and human output (`TestReconcileHumanOutputEvidenceHint`).
+
+**Status JSON artifact reference — MET**: `evidenceArtifactRef` at `cobra.go:1701-1707` calls production `store.LoadReconcileEvidence` (first non-test, non-writer-internal call site). Surfaced via runtime `featureWithFreshness.EvidenceArtifact` at `:273,298` — runtime CLI payload only, persisted `ReconcileSummary` / `status.json` schema unchanged (`internal/store/types.go:249-279` identical between `6a8deba..8d4665f`).
+
+### Hard constraints — all preserved
+- No ADR-025 D1–D13 schema/enum drift.
+- No new `FeatureState` lifecycle states.
+- No new config flags.
+- Verdict semantics unchanged (zero new `Outcome` assignments).
+- `omitempty` byte-identity verified by `TestReconcileResultJSONOmitsEvidenceWhenNoArtifactWritten`.
+- D10 privacy verified by two grep-clean tests (workflow + CLI).
+- `docs/state-of-the-art/` untouched.
+
+### Test coverage
+6 new tests added, all passing:
+- Workflow: `TestReconcileResultJSONExposesEvidence`, `TestReconcileResultJSONOmitsEvidenceWhenNoArtifactWritten`, `TestReconcileEvidenceReaderOutputPrivacyNoSourceLeak`.
+- CLI: `TestReconcileHumanOutputEvidenceHint`, `TestStatusJSONIncludesEvidenceArtifact`, `TestReconcileCLIEvidenceOutputPrivacyNoSourceLeak`.
+
+### Process compliance
+- Co-authored-by trailer on all 3 commits (`2c20450`, `d4411d2`, `8d4665f`).
+- Handoff updated to Review status with files, tests, no deferrals.
+- Side Research section byte-identical.
+
+### Carry-forward
+The Option A / Option B choice pattern in the rev-2 brief (inline-populated vs disk-artifact-reference) worked well: implementer chose A, delivered cleanly, documented the choice. Preserve this pattern for future PRDs with multiple valid implementation paths.
+
+### Action Taken
+Verdict captured for supervisor processing. Ready for external review pair (supervisor-dispatched + user parallel).
+
+---
+
 ## Review — WP-003 Wave α rev-1 (PRDs 1+6) — external (user-dispatched, parallel) — 2026-05-26
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
