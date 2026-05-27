@@ -2,59 +2,84 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl-rev1`
-- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α revision 1
-- **Description**: Address two NEEDS REVISION findings from concurrent external reviews. F1: wire `ClassifyFileNovelty` into the production reconcile path so PRD 6 §6.1/§6.3 are actually met. F2: stop swallowing `AppendReconcileEvidence` errors at `reconcile.go`; surface a warning when evidence writing fails, while preserving verdict semantics (PRD 1 §6.6).
-- **Status**: Review (awaiting reviewer).
+- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl-rev2`
+- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α revision 2
+- **Description**: Address rev-1 external NEEDS REVISION finding F3. Add the reader-side CLI surface for reconcile evidence so PRD 1 §4 ("JSON output includes the latest evidence bundle or a reference to the artifact"; "default human output gains a short evidence hint") and PRD 6 §6.3 ("File novelty evidence is available in JSON output") are actually met. Rev-0 and rev-1 only landed the writer + warning paths; the CLI never surfaces evidence.
+- **Status**: Not Started (rev-2 implementer pending dispatch).
 - **Assigned**: 2026-05-26.
-- **Prior rev-0**: Internal APPROVED but both externals NEEDS REVISION (commits `d265a08..d6878a4`). Root cause: rev-0 dispatch brief contained a loose escape hatch ("if integration is risky, defer to Wave β") that overrode PRD 6 acceptance. Carry-forward: dispatch briefs must reference PRD acceptance criteria verbatim and forbid implementer-side deferral.
+- **Prior rev-1**: Internal APPROVED + supervisor-external APPROVED, but user's parallel external NEEDS REVISION on F3 (commits `4fa1394..7c72323`). F1 (production novelty integration) and F2 (malformed-evidence warning) are fully fixed and independently verified. Root cause of rev-1 miss: supervisor-external brief was scoped to verifying F1+F2, not sweeping ALL PRD §6 acceptance criteria. Carry-forward: external reviewer briefs MUST include a "scan all PRD §6 acceptance criteria, not just the rev's stated findings" sweep.
 
 ## Session Summary
 
-Rev-1 implementation is complete, committed, and validated. Both external findings are addressed surgically without changing ADR-025 schema/enums, lifecycle states, `ReconcileSummary`, config flags, or verdict semantics.
+Rev-1 shipped at `7c72323` and the supervisor reconciled both Wave α rev-1 verdicts:
 
-Rev-1 commits from `4fa1394..HEAD`:
+- Supervisor-external (mine) — APPROVED zero findings (verified F1+F2 only).
+- User's parallel external — NEEDS REVISION on F3 (HIGH, NEW).
 
-1. `a1dcaf2` — Address reconcile evidence review findings
-2. (this commit) — Update WP-003 Wave α rev-1 handoff for re-review
+F3 verification (independently confirmed by supervisor before dispatching rev-2):
 
-Finding resolution:
+- PRD 1 §4 literal text in `docs/prds/PRD-reconcile-verdict-evidence.md:175-186` requires both human evidence hint + JSON evidence bundle/reference.
+- PRD 6 §6.3 in `docs/prds/PRD-reconcile-file-novelty-classifier.md:140-148` requires file novelty evidence in JSON output.
+- `grep -rn "LoadReconcileEvidence" --include='*.go' .` shows ZERO non-test, non-writer-internal usages. The only call sites are the function definition (`internal/store/reconcile_evidence.go:212`) and the writer's malformed-precheck (`internal/store/reconcile_evidence.go:141`).
+- `grep -rn "evidence\|Evidence" internal/cli/*.go` shows only an unrelated comment in `reconcile_check_applied.go:28`. No CLI command reads or surfaces evidence.
 
-- **F1 fixed**: `saveReconcileArtifacts` now calls file-novelty evidence persistence after the phase evidence write (`internal/workflow/reconcile.go:518`, `internal/workflow/reconcile.go:560-563`). `persistFileNoveltyEvidence` reads canonical `post-apply.patch`, requires upstream/base commit anchors, calls `ClassifyFileNovelty`, builds `FileNoveltyEvidence`, recomputes `ComputeAttemptID`, and appends an independent `evidence_kind: "file-novelty"` JSONL line (`internal/workflow/reconcile.go:668-692`). Integration tests read `reconcile-evidence.jsonl` from disk and assert `mixed-additive` plus `all-new-files` classifications (`internal/workflow/reconcile_evidence_integration_test.go:18`, `internal/workflow/reconcile_evidence_integration_test.go:41`).
-- **F2 fixed**: phase evidence append errors are captured (`internal/workflow/reconcile.go:663-665`), file-novelty append errors are captured (`internal/workflow/reconcile.go:690-692`), and `warnReconcileEvidenceAppendError` emits an explicit malformed-artifact warning mentioning the slug when `errors.Is(err, store.ErrMalformedEvidence)` (`internal/workflow/reconcile.go:695-701`). `TestReconcileWarnsOnMalformedEvidenceArtifact` verifies non-error verdict semantics, warning emission, slug mention, and writer refusal preserving the malformed file (`internal/workflow/reconcile_evidence_integration_test.go:64`).
+Both reader-side requirements are still unmet at HEAD.
 
 ## Current State
 
-- ADR-025 D1–D13 schema/enum surface is unchanged.
-- No new `FeatureState` lifecycle states added.
-- No `ReviewVerdict` field added to `ReconcileSummary`.
-- No new config flag or evidence-write opt-out added.
-- File-novelty evidence remains diagnostic only and does not change reconcile verdict semantics.
-- Evidence warnings are privacy-safe: warning text includes the slug/error class only, not source bodies, prompts, transcripts, vectors, or embeddings.
-- Pre-existing `docs/state-of-the-art/` working-tree modifications remain untouched and uncommitted by this task.
+- Writer surface: complete and validated (rev-0 + rev-1).
+- Reader surface: completely missing (this rev's scope).
+- ADR-025 D1–D13 schema unchanged.
+- No lifecycle states added.
+- No config flags added.
+- Verdict semantics unchanged.
 
 ## Files Changed
 
-- `internal/workflow/reconcile.go`
-- `internal/workflow/reconcile_evidence_integration_test.go`
-- `docs/handoff/CURRENT.md`
+(rev-2 not yet started; expected touch points listed in Next Steps.)
 
 ## Test Results
 
-Required validation run directly:
+Rev-1 baseline (still green at HEAD `7c72323`):
 
-- `gofmt -l .` — no output (clean).
-- `go vet ./...` — no output (passed).
-- `go build ./cmd/tpatch` — passed.
-- `go test ./...` — passed; captured summary/final line: `ok  github.com/tesseracode/tesserapatch/tests/integration  (cached)`.
-- Targeted integration tests also passed: `go test ./internal/workflow -run 'TestReconcileWritesFileNoveltyEvidence|TestReconcileWarnsOnMalformedEvidenceArtifact'`.
-- Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
+- `go build ./cmd/tpatch`: clean.
+- `go test ./internal/workflow/... ./internal/store/...`: 31/31 targeted tests pass (including rev-1 integration tests for malformed-evidence warning and file-novelty disk writes).
+- `gofmt -l .`: clean.
 
 ## Next Steps
 
-1. Reviewer should re-run the required validation commands and inspect `internal/workflow/reconcile.go` for F1/F2 closure.
-2. Reviewer should confirm file-novelty evidence remains a separate JSONL entry and does not alter reconcile outcome semantics.
-3. Supervisor can push after review approval; this implementer did not push.
+Rev-2 implementer scope (binding):
+
+1. **JSON surface (PRD 1 §4 + PRD 6 §6.3)**: extend `ReconcileResult` in `internal/workflow/reconcile.go:19` with an evidence-bundle field. Two acceptable shapes:
+   - **Option A (preferred)**: inline the just-written attempts as `Evidence []store.ReconcileEvidence \`json:"evidence,omitempty"\`` populated immediately after `saveReconcileArtifacts` runs, restricted to the entries written in THIS reconcile invocation.
+   - **Option B (fallback)**: a single `EvidenceArtifact string \`json:"evidence_artifact,omitempty"\`` containing the repo-relative path to `reconcile-evidence.jsonl`.
+   - The field MUST be `omitempty` for byte-identity vs pre-rev-2 fixtures when no evidence was written.
+2. **Human surface (PRD 1 §4)**: add a short evidence hint to the human reconcile output. Format must match the PRD 1 §4 example pattern (e.g., `evidence: phase-2 recipe-operation-match` for phase evidence; `evidence: file-novelty mixed-additive` for novelty evidence). Hint must appear in `tpatch reconcile` default output, after the verdict line, when evidence was just written.
+3. **Reader integration**: add at least one production (non-test, non-writer-internal) call to `store.LoadReconcileEvidence` OR populate the inline field directly from the writer return value if Option A. Either way the production tree must have a real reader-side dependency on the evidence artifact.
+4. **CLI command target**: investigate `internal/cli/cobra.go` reconcile command output path (`reconcileCmd()` around `:1701`) and any `--format json` handling. The `tpatch status` command JSON SHOULD also include the latest evidence artifact path (`evidence_artifact` field reference) so operators can locate the audit trail. Confirm whether status JSON should embed entries inline — PRD 1 §5 says `status.json` remains current-truth, so a path reference is the safer minimum.
+5. **Privacy (D10)**: any new user-facing output (human or JSON) must NOT contain source bodies, prompts, transcripts, vectors, or embeddings. Evidence entries themselves already enforce this at write time; rev-2 must preserve it at read time.
+6. **Tests required**:
+   - End-to-end test running a real reconcile, then asserting:
+     - The `ReconcileResult` JSON includes phase evidence + file-novelty entries (or artifact-path reference).
+     - The human output contains an `evidence:` hint line.
+     - A `status` JSON snapshot includes `evidence_artifact` (or equivalent) when evidence exists.
+   - Negative test: when no evidence was written (e.g., reconcile early-exits before `saveReconcileArtifacts`), evidence field is `omitempty`'d out — byte-identical to pre-rev-2 fixtures.
+   - Privacy assertion: the rendered human + JSON output is grep-clean for source content (mirror the D10 assertion style from existing rev-1 tests).
+7. **HARD constraints** (no drift):
+   - No ADR-025 schema/enum drift.
+   - No new lifecycle state.
+   - No new config flag.
+   - Verdict semantics unchanged; evidence is diagnostic only.
+   - `--format json` byte-identity preserved when evidence is absent.
+
+Validation gates before declaring done:
+
+- `gofmt -l .` (direct, not piped — see standing process note 4).
+- `go vet ./...`.
+- `go build ./cmd/tpatch`.
+- `go test ./...` (full suite).
+
+Commit cadence: 3-4 commits. Mandatory `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer on each.
 
 ## Blockers
 
@@ -62,10 +87,10 @@ None.
 
 ## Context for Next Agent
 
-- `persistFileNoveltyEvidence` intentionally skips silently when canonical patch or commit anchors are unavailable because PRD 6 file novelty is diagnostic evidence, not a verdict gate.
-- The new warning indirection is intentionally minimal and test-only swappable; production default writes to stderr, matching existing reconcile warning style.
-- Pre-existing `docs/state-of-the-art/` modifications are not part of Wave α.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Always verify after editing CURRENT.md.
+- Two-opinion external review protocol has caught regressions in EVERY Wave α revision. User's parallel external is dispatched in addition to supervisor's. Plan accordingly: rev-2 will be reviewed twice externally after internal review.
+- The rev-1 integration tests in `internal/workflow/reconcile_evidence_integration_test.go` are excellent templates for end-to-end coverage. Reuse the harness pattern; do not retest the writer side from CLI tests.
+- `ReconcileResult` already has multiple `omitempty` fields with byte-identity contracts (`Labels` is documented at `:43` as load-bearing for flag-off byte-identity). Follow that pattern.
+- Do NOT modify `status.json` schema or `ReconcileSummary` — adding `evidence_artifact` to the runtime CLI JSON payload for `tpatch status` is OK; modifying the persisted `ReconcileSummary` is not (ADR-025 schema lock).
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
