@@ -2,62 +2,62 @@
 
 ## Active Task
 
-- **Task ID**: (none — between tasks)
-- **Milestone**: WP-003 Wave β eligible (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`). Wave α (PRDs 1 + 6) shipped 2026-05-26.
-- **Description**: Awaiting supervisor selection of next task. Candidates:
-  1. **WP-003 Wave β kickoff** (PRDs 2 + 3 + 7) — Wave α prerequisite is satisfied; ADR-025 already covers β PRDs.
-  2. **Wave α test-coverage carry-forwards** (F1/F2/F3 from rev-2 supervisor-external) — small focused hotfix to add absent-evidence load test, malformed-evidence load test, and stronger privacy-vector tests.
-  3. Other backlog item per `docs/CLUSTERS.md`.
-- **Status**: Not Started.
+- **Task ID**: `wp003-wave-beta-prd2-prd3-prd7-impl`
+- **Milestone**: WP-003 Wave β (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`).
+- **Description**: Implement Wave β under ADR-025 (cluster ADR already covers β PRDs). Wave α (PRDs 1+6) shipped at HEAD `bb5c23a` with all carry-forwards closed. ADR-025 D1–D13 schema lock binding; ADR-024 capture/metadata non-drift binding; D10 privacy binding.
+- **Status**: In Progress (implementer dispatched).
+- **Assigned**: 2026-05-26.
+
+## Prior Wave α reference
+
+- Writer: `internal/store/reconcile_evidence.go`, `internal/workflow/file_novelty.go`, `internal/workflow/reconcile.go` persistence helpers (`persistReconcileEvidence`, `persistFileNoveltyEvidence`, `warnReconcileEvidenceAppendError`).
+- Reader: `ReconcileResult.Evidence` inline field; `evidenceArtifactRef` in `internal/cli/cobra.go:1701-1707`; status JSON `evidence_artifact` runtime field; human `evidence:` hint at `cobra.go:1849-1851`; deduplication at `:1714-1726`.
+- Test patterns: `internal/workflow/reconcile_evidence_integration_test.go`, `internal/cli/reconcile_evidence_cli_test.go`, `internal/cli/reconcile_evidence_carryforward_test.go`. Reuse `cliEvidenceFixture` harness.
+
+## Wave β scope (binding for implementer)
+
+Read PRDs in order:
+1. `docs/prds/PRD-upstreamed-confirmation-gate.md` — PRD 2. Adds a confirmation gate before issuing `upstreamed` verdict; uses evidence artifact (Wave α surface).
+2. `docs/prds/PRD-reconcile-revision-pass-log.md` — PRD 3. Adds per-attempt revision log via the evidence schema (uses ADR-025 D3-D5 revision shape).
+3. `docs/prds/PRD-reconcile-hunk-overlap-detector.md` — PRD 7. Hunk-overlap detector — depends on PRD 6 file-novelty (Wave α).
+
+ADR-025 binding contracts (no drift):
+- D1–D5: evidence schema.
+- D6–D9: revision shape and attempt-id semantics.
+- D10: privacy (no source bodies/transcripts/prompts/vectors).
+- D11: malformed-artifact handling.
+- D12–D13: byte-identity contracts.
+
+Cross-cluster: ADR-024 capture/metadata is binding. No drift in `patch-generations.json` schema vs `reconcile-evidence.jsonl`.
+
+## Carry-forward dispatch rules (do not strip from briefs)
+
+1. Briefs MUST reference PRD acceptance criteria verbatim. No escape hatches like "defer to next wave" or "if integration is risky, skip" — escape hatches cause regressions (rev-0 Wave α F1 root cause).
+2. Briefs MUST enumerate any policy-ADR opt-out contracts in scope.
+3. External reviewer briefs MUST sweep ALL PRD §6 acceptance criteria, not just the rev's stated findings (rev-1 Wave α F3 root cause).
+4. Internal reviewer checklist MUST include flag-off counter-scenarios for any new enforcement.
+5. `gofmt -l .` MUST be run directly, never piped (returns exit 1 on empty input through grep).
+6. Two-opinion external review protocol (supervisor + user-parallel) confirmed for every rev — caught real regressions in EVERY Wave α revision.
 
 ## Session Summary
 
-WP-003 Wave α (PRDs 1 + 6) shipped at HEAD `a5faf91`:
-
-- **rev-0** (`d265a08..d6878a4`) — writer side: evidence store, file-novelty classifier, reconcile persistence hook. Helper tests passed but reader/integration shipped weak.
-- **rev-1** (`4fa1394..7c72323`) — F1 (production novelty integration) + F2 (malformed-evidence warning) fixed after both externals returned NEEDS REVISION on rev-0.
-- **rev-2** (`6a8deba..8d4665f`) — reader-side CLI surface (Option A inline `Evidence` field on `ReconcileResult`, `evidence_artifact` reference on status JSON, human `evidence:` hint) after user's parallel external caught F3 reader-side gap that supervisor's rev-1 external missed.
-- **Close-out** (`a5faf91`) — internal APPROVED + both externals' verdicts (mine NEEDS REVISION → APPROVED WITH NOTES, user's APPROVED) recorded.
-
-Final supervisor decision: APPROVED WITH NOTES — Wave α ships; three test-coverage findings carried forward as future cleanup (production code is correct by design, tests don't prove all PRD §6 criteria).
-
-## Current State
-
-- Wave α PRDs 1 + 6: shipped.
-- Wave β prerequisite cleared.
-- ADR-025 D1–D13 schema lock preserved through all 3 revs.
-- D10 privacy preserved.
-
-## Carry-forward test-coverage items (from rev-2 supervisor-external)
-
-These are NOT rev-3 blockers. They are tracked here so a future hotfix or Wave β prep can pick them up:
-
-- **F1 (HIGH)** — Add test: feature with `ReconcileSummary` in `status.json` but NO `reconcile-evidence.jsonl` → `LoadFeatureStatus` succeeds + `tpatch status --json` works. Verifies PRD 1 §6 lines 208-209.
-- **F2 (MEDIUM)** — Extend `TestReconcileWarnsOnMalformedEvidenceArtifact` (or add sibling) to call `LoadFeatureStatus` + `tpatch status --json` after seeding malformed artifact. Verifies PRD 1 §6 lines 211-212.
-- **F3 (LOW)** — Strengthen privacy tests by seeding secrets into plausible leak vectors (file path containing secret string; feature title with embedded secret); assert evidence fields don't surface them. Current tests seed secrets into file content, which is not a plausible leak vector.
-
-Production code is correct (`store.go:345` `LoadFeatureStatus` does not depend on `LoadReconcileEvidence`; `cobra.go:1701-1707` `evidenceArtifactRef` returns empty string on error). Tests just don't prove it.
+(rev-0 not yet started; implementer dispatched.)
 
 ## Files Changed
 
-(this handoff transition only — see `docs/handoff/HISTORY.md` for Wave α file deltas.)
-
-- `docs/supervisor/LOG.md` — both rev-2 external verdicts + supervisor decision recorded.
-- `docs/CLUSTERS.md` — PRDs 1 + 6 marked Shipped; WP-003 status flipped to Wave α SHIPPED.
-- `docs/handoff/HISTORY.md` — Wave α rev-2 archived.
-- `docs/handoff/CURRENT.md` — reset for next task.
+(rev-0 not yet started.)
 
 ## Test Results
 
-Wave α final state (HEAD `a5faf91`): all gates green.
+Pre-Wave-β baseline at HEAD `bb5c23a`:
 - `gofmt -l .` clean.
 - `go vet ./...` clean.
 - `go build ./cmd/tpatch` clean.
-- `go test ./...` green.
+- `go test ./...` green (full suite, including new F1/F2/F3 carry-forward tests).
 
 ## Next Steps
 
-Supervisor to pick next task from CLUSTERS.md. See "Active Task" candidates above.
+Implementer to land Wave β rev-0; then internal review → external review pair (supervisor + user-parallel) → supervisor decision.
 
 ## Blockers
 
@@ -65,10 +65,10 @@ None.
 
 ## Context for Next Agent
 
-- Two-opinion external review protocol (supervisor + user-parallel) has caught a real regression in every Wave α revision. Continue this pattern for Wave β.
-- External review briefs MUST require a sweep of ALL PRD §6 acceptance criteria — not just the rev's stated findings. This lesson is from rev-1 (supervisor external missed F3 because it scoped to F1+F2). Rev-2's brief baked the lesson in and it worked.
-- Dispatch briefs MUST NOT contain escape hatches that override PRD acceptance criteria. (Rev-0 lesson: "if integration is risky, defer to Wave β" allowed implementer to ship the classifier as dead library code.)
-- ADR-025 schema lock is binding for all 9 PRDs in WP-003. Any β/γ PRD touching evidence schema must check D1–D13 first.
+- All Wave α infrastructure is available for reuse. The evidence writer/reader is stable; Wave β just adds new evidence kinds, revision-log behavior, and the hunk-overlap detector.
+- Do NOT change `ReconcileSummary` persisted schema (ADR-025 lock). Runtime CLI fields are OK.
+- Do NOT drift from existing evidence schema versions; if a new schema_version is required, document it in the implementer's notes.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Verify after every CURRENT.md edit.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
