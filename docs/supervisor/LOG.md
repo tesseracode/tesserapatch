@@ -1,3 +1,93 @@
+## Review — WP-003 Wave β rev-0 (PRDs 2+3+7) — internal — 2026-05-26
+
+**Reviewer**: internal (supervisor-dispatched code-review agent)
+**Task**: Independent verification of rev-0 (`2e7dd06..d8774a7`, 4 commits) with full per-PRD §6 acceptance sweep.
+
+### Verdict: NEEDS REVISION
+
+### Validation gates — all pass
+- `gofmt -l .` clean (direct run).
+- `go vet ./...` clean.
+- `go build ./cmd/tpatch` clean.
+- `go test ./...` green.
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+### Hard constraints — all met
+- No new `FeatureState` lifecycle states.
+- No new top-level config flags.
+- `ReconcileSummary` schema addition limited to ADR-025 D8 `ReviewVerdict` (legitimate, spec'd).
+- `--format json` byte-identity verified by `TestReconcileResultJSONOmitsWaveBetaFieldsWhenNoGateRevisionOrOverlap` (excellent test).
+- `docs/state-of-the-art/` untouched.
+- ADR-024 / `patch-generations.json` untouched.
+- ADR-025 D1–D13 satisfied at the schema/store layer.
+
+### Findings
+
+**F1 (HIGH, BLOCKING)** — PRD 2 §6.1 user-facing contract violation.
+
+PRD 2 §6.1 (`docs/prds/PRD-upstreamed-confirmation-gate.md:154`): *"A non-confirmed `upstreamed` verdict is displayed as `upstreamed-candidate`."*
+
+Implementation: rejected candidates are downgraded to `store.ReconcileBlocked` at `internal/workflow/reconcile.go:804` (correct internal state). But the human display at `internal/cli/cobra.go:1868` prints `result.Outcome` directly: `fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, result.Outcome, result.Phase, result.Title)`. There is no branch on `result.ReviewVerdict == "rejected-upstreamed"`. Rejected candidates render as `[blocked]`, not `[upstreamed-candidate]`. Independently verified at `cobra.go:1868`. Operators cannot distinguish a confirmation-rejected `upstreamed` candidate from a genuine blocked feature.
+
+Required fix (rev-1): branch on `result.ReviewVerdict` in the human-output rendering; render `[upstreamed-candidate]` (or similar PRD-aligned phrasing) when `ReviewVerdict == "rejected-upstreamed"`. Confirm tests.
+
+**F2 (MEDIUM)** — PRD 7 §6.5 unverified.
+
+PRD 7 §6.5 (`docs/prds/PRD-reconcile-hunk-overlap-detector.md:140`): *"The default nearby window is +/- 3 lines and appears in JSON output."*
+
+Production code encodes the nearby window at `internal/workflow/hunk_overlap.go:117` (`fmt.Sprintf("nearby-window=%d", ...)`), but no test asserts the value appears in JSON-marshaled evidence. `grep -rn "nearby" internal/ --include="*test.go"` returns zero matched assertions for the window value.
+
+Required fix (rev-1): assertion in PRD 7 hunk-overlap test that `"nearby-window=3"` appears in marshaled evidence.
+
+**F3 (MEDIUM)** — PRD 3 privacy test weak (Wave α F3 repeat).
+
+PRD 3 §6 + ADR-025 D10. `TestReconcileRevisionPrivacyNoSourceLeak` seeds `"SECRET_REVISION_DO_NOT_LEAK"` into file *content* (`buildReverseApplyConfirmationFixture:450`). File content is not a plausible leak vector for revision logs. Same anti-pattern caught at Wave α F3.
+
+Good counter-example in the same rev-0: `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` seeds the secret into the feature *Title* — that IS a plausible vector. Mirror that pattern for the PRD 3 privacy test.
+
+Required fix (rev-1): re-seed PRD 3 privacy secret into title/slug/path metadata.
+
+**F4 (LOW)** — PRD 3 §6.5 partially unverified.
+
+PRD 3 §6.5 (`docs/prds/PRD-reconcile-revision-pass-log.md:176-177`): *"Corrupt JSONL entries are reported without losing valid entries before or after the corrupt line."*
+
+`TestReconcileRevisionMalformedLineAndWriterRefusal` covers writer refusal but does not verify line-number reporting or that valid entries before/after the corrupt line are preserved.
+
+Required fix (rev-1): extend the malformed test to seed valid entries on both sides of the corrupt line and assert preservation + line-number-in-message.
+
+**F5 (LOW)** — PRD 2 §6.5 carry-forward from Wave α F1.
+
+PRD 2 §6.5 (`docs/prds/PRD-upstreamed-confirmation-gate.md:160`): *"Existing repositories without evidence artifacts remain readable."*
+
+Wave α F1 carry-forward (now landed at `bb5c23a`) covered the analogous PRD 1 case. PRD 2 needs its own coverage: a feature with `ReviewVerdict` empty and no `reconcile-evidence.jsonl` must load cleanly and render normally.
+
+Required fix (rev-1): test mirroring `TestStatusLoadsWhenEvidenceArtifactAbsent` against PRD 2's surface.
+
+### PRD acceptance sweep summary
+
+- PRD 2: 6/8 MET, 1 UNMET (F1 blocker), 1 UNVERIFIED (F5).
+- PRD 3: 5/7 MET, 0 UNMET, 2 UNVERIFIED/WEAK (F3, F4).
+- PRD 7: 4/5 MET, 0 UNMET, 1 UNVERIFIED (F2).
+
+### Test count
+11 new tests in `internal/workflow/reconcile_evidence_integration_test.go` and `internal/cli/reconcile_evidence_cli_test.go`. 8 strong. 3 weak (PRD 3 privacy + PRD 7 nearby-window absence + PRD 3 malformed-edge absence).
+
+### Process compliance — all met
+- Co-authored-by trailer on all 4 commits.
+- Handoff at Review status.
+- Side Research byte-identical.
+- No silent deferrals.
+
+### Carry-forward for Wave γ briefs
+1. "Appears in JSON/human output" PRD clauses MUST be enumerated as explicit test requirements in dispatch briefs.
+2. Privacy test anti-pattern documented: seed in metadata (title/slug/path), NOT file content. Cite `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` as the good template.
+3. Internal display contracts (`[outcome]` rendering) must be enumerated when a PRD §6 line specifies a display name. F1's `upstreamed-candidate` was missed because the brief said "no new lifecycle state" but didn't say "verify human-output rendering matches §6.1 display names."
+
+### Action Taken
+Verdict captured. Externals (supervisor + user-parallel) to be dispatched next; rev-1 will pool any external findings with F1–F5 for a single rev-1 implementer dispatch.
+
+---
+
 ## Review — WP-003 Wave α rev-2 (PRDs 1+6) — external (user-dispatched, parallel) — 2026-05-26
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
