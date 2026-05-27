@@ -5,7 +5,7 @@
 - **Task ID**: `wp003-wave-beta-prd2-prd3-prd7-impl`
 - **Milestone**: WP-003 Wave β (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`).
 - **Description**: Implement Wave β under ADR-025 (cluster ADR already covers β PRDs). Wave α (PRDs 1+6) shipped at HEAD `bb5c23a` with all carry-forwards closed. ADR-025 D1–D13 schema lock binding; ADR-024 capture/metadata non-drift binding; D10 privacy binding.
-- **Status**: In Progress (implementer dispatched).
+- **Status**: Review (awaiting reviewer).
 - **Assigned**: 2026-05-26.
 
 ## Prior Wave α reference
@@ -41,23 +41,51 @@ Cross-cluster: ADR-024 capture/metadata is binding. No drift in `patch-generatio
 
 ## Session Summary
 
-(rev-0 not yet started; implementer dispatched.)
+Wave β rev-0 implemented in three commits:
+
+1. `e45ccdc` — added ADR-025 `reconcile-revisions.jsonl` store schema, strict reader/writer, deterministic `rr_<12hex>` IDs, malformed sentinel, and `ReconcileSummary.review_verdict`.
+2. `34b2bba` — added workflow confirmation gate, revision-pass persistence for gate decisions, hunk-overlap detector after file-novelty, and workflow tests for PRDs 2/3/7.
+3. `1e99a9f` — added `tpatch reconcile --format json`, human evidence hints for gate/hunk overlap, `tpatch reconcile review add/list`, and CLI tests.
+
+## Current State
+
+- PRD 2: upstreamed candidates now pass through a confirmation gate. High-confidence reverse-apply / patch-id evidence stays `upstreamed` with `review_verdict=confirmed-upstreamed`; unconfirmed operation/provider candidates downgrade to `blocked` with recorded gate evidence and revision entry.
+- PRD 3: `reconcile-revisions.jsonl` is append-only, deterministic, strict on malformed input, and surfaced through `ReconcileResult.Revisions` plus `tpatch reconcile review add/list`.
+- PRD 7: modified/mixed-additive files run a deterministic line-range hunk-overlap pass after file-novelty. Evidence uses existing ADR-025 fields (`evidence_kind=hunk-overlap`, classification in `reason_code`, sanitized hunk IDs in `matched_operations`).
+- No `schema_version` bump. No `FeatureState` additions. No config flags. No `patch-generations.json` / ADR-024 changes.
 
 ## Files Changed
 
-(rev-0 not yet started.)
+- `internal/store/types.go`
+- `internal/store/reconcile_revision.go`
+- `internal/store/reconcile_revision_test.go`
+- `internal/workflow/reconcile.go`
+- `internal/workflow/hunk_overlap.go`
+- `internal/workflow/reconcile_evidence_integration_test.go`
+- `internal/workflow/reconcile_test.go`
+- `internal/cli/cobra.go`
+- `internal/cli/reconcile_evidence_cli_test.go`
 
 ## Test Results
 
-Pre-Wave-β baseline at HEAD `bb5c23a`:
-- `gofmt -l .` clean.
-- `go vet ./...` clean.
-- `go build ./cmd/tpatch` clean.
-- `go test ./...` green (full suite, including new F1/F2/F3 carry-forward tests).
+Validation gates (all green, run directly):
+
+- `gofmt -l .` — clean (empty output).
+- `go vet ./...` — clean.
+- `go build ./cmd/tpatch` — clean.
+- `go test ./...` — green across all packages.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
+
+New / updated targeted coverage:
+
+- PRD 2: `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply`, `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch`, updated `TestReconcilePhase3_ProviderAssistedUpstreamed`, `TestReconcileJSONSurfacesConfirmationGateAndRevision`.
+- PRD 3: `TestReconcileRevisionRoundTripAndStableID`, `TestReconcileRevisionMalformedLineAndWriterRefusal`, `TestReconcileRevisionPrivacyNoSourceLeak`, `TestRevisionPassLogAppendedForConfirmationGate`, `TestReconcileReviewAddListJSON`.
+- PRD 7: `TestHunkOverlapEvidenceForModifiedPath`, `TestHunkOverlapSkippedForAllNewFiles`, `TestReconcileHumanOutputHunkOverlapHint`.
+- Byte/privacy/carry-forward: `TestReconcileResultJSONOmitsWaveBetaFieldsWhenNoGateRevisionOrOverlap` plus existing Wave α absent/malformed evidence status tests remain green.
 
 ## Next Steps
 
-Implementer to land Wave β rev-0; then internal review → external review pair (supervisor + user-parallel) → supervisor decision.
+1. Wave β internal review pending.
 
 ## Blockers
 
@@ -65,10 +93,10 @@ None.
 
 ## Context for Next Agent
 
-- All Wave α infrastructure is available for reuse. The evidence writer/reader is stable; Wave β just adds new evidence kinds, revision-log behavior, and the hunk-overlap detector.
-- Do NOT change `ReconcileSummary` persisted schema (ADR-025 lock). Runtime CLI fields are OK.
-- Do NOT drift from existing evidence schema versions; if a new schema_version is required, document it in the implementer's notes.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Verify after every CURRENT.md edit.
+- Confirmation gate evidence is encoded as `evidence_kind=manual-review` with `matched_operations=["confirmation-gate"]` and reason codes `confirmed-upstreamed` / `missing-upstream-commit-ref`. This intentionally avoids adding a new `confirmation-gate` evidence kind because ADR-025 D4 closes the v1 evidence-kind enum.
+- Hunk-overlap evidence does not add new JSONL fields; it preserves ADR-025 D2 by storing classification in `reason_code`, paths in `matched_paths`, the default window as `nearby-window=3`, and hunk range IDs in `matched_operations` (no source bodies).
+- Revision entries are written for confirmation-gate decisions and by `tpatch reconcile review add`. General non-gate reconcile attempts do not emit revision entries, preserving `omitempty` byte-identity for no-review/no-gate scenarios.
+- No PRD acceptance criteria intentionally deferred.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
