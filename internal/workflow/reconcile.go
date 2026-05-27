@@ -49,6 +49,11 @@ type ReconcileResult struct {
 	// vs pre-M17-Wave-D fixtures.
 	PatchIDMatch *store.PatchIDMatch `json:"patch_id_match,omitempty"`
 
+	// Evidence exposes the reconcile evidence entries successfully appended
+	// during this RunReconcile invocation. `omitempty` is load-bearing for
+	// byte-identity when no evidence artifact was written.
+	Evidence []store.ReconcileEvidence `json:"evidence,omitempty"`
+
 	// attemptedAt is the timestamp shared between saveReconcileArtifacts
 	// (which feeds it to composeLabelsAt as the staleness baseline) and
 	// updateFeatureState (which writes it as ReconcileSummary.AttemptedAt
@@ -556,11 +561,12 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 		}
 	}
 
+	result.Evidence = append(result.Evidence, persistReconcileEvidence(s, slug, result)...)
+	result.Evidence = append(result.Evidence, persistFileNoveltyEvidence(s, slug, result)...)
+
 	// Save reconcile-session.json
 	data, _ := json.MarshalIndent(result, "", "  ")
 	s.WriteArtifact(slug, "reconcile-session.json", string(data)+"\n")
-	persistReconcileEvidence(s, slug, result)
-	persistFileNoveltyEvidence(s, slug, result)
 
 	// Save reconcile.md
 	var b strings.Builder
@@ -596,13 +602,13 @@ var warnReconcileEvidence = func(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult) {
+func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
 	if result == nil || result.Outcome == "" {
-		return
+		return nil
 	}
 	phase, kind := evidencePhaseAndKind(result)
 	if phase == "" {
-		return
+		return nil
 	}
 	status, _ := s.LoadFeatureStatus(slug)
 	baseCommit := status.Apply.BaseCommit
@@ -662,34 +668,38 @@ func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResu
 	entry.AttemptID = store.ComputeAttemptID(entry)
 	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
 		warnReconcileEvidenceAppendError(slug, err)
+		return nil
 	}
+	return []store.ReconcileEvidence{entry}
 }
 
-func persistFileNoveltyEvidence(s *store.Store, slug string, result *ReconcileResult) {
+func persistFileNoveltyEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
 	if result == nil || result.Outcome == "" || result.UpstreamCommit == "" {
-		return
+		return nil
 	}
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil || status.Apply.BaseCommit == "" {
 		// File novelty is diagnostic evidence only; skip silently until the
 		// canonical post-apply patch and commit anchors are all available.
-		return
+		return nil
 	}
 	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 	if err != nil || strings.TrimSpace(patch) == "" {
 		// File novelty is diagnostic evidence only; skip silently when the
 		// canonical post-apply patch is unavailable.
-		return
+		return nil
 	}
 	novelty, err := ClassifyFileNovelty(patch, result.UpstreamCommit, status.Apply.BaseCommit, s.Root)
 	if err != nil {
-		return
+		return nil
 	}
 	entry := FileNoveltyEvidence(slug, result.UpstreamRef, result.UpstreamCommit, status.Apply.BaseCommit, string(result.Outcome), novelty)
 	entry.AttemptID = store.ComputeAttemptID(entry)
 	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
 		warnReconcileEvidenceAppendError(slug, err)
+		return nil
 	}
+	return []store.ReconcileEvidence{entry}
 }
 
 func warnReconcileEvidenceAppendError(slug string, err error) {

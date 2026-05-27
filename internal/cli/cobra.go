@@ -270,6 +270,7 @@ func statusCmd() *cobra.Command {
 					DependentBroken       bool                   `json:"dependent_broken,omitempty"`
 					ParentGenerationStale bool                   `json:"parent_generation_stale,omitempty"`
 					BrokenRefs            []brokenRefJSON        `json:"broken_refs,omitempty"`
+					EvidenceArtifact      string                 `json:"evidence_artifact,omitempty"`
 				}
 				rendered := make([]featureWithFreshness, len(features))
 				for i, f := range features {
@@ -294,6 +295,7 @@ func statusCmd() *cobra.Command {
 						DependentBroken:       len(brokenJSON) > 0,
 						ParentGenerationStale: parentStale,
 						BrokenRefs:            brokenJSON,
+						EvidenceArtifact:      evidenceArtifactRef(s, f.Slug),
 					}
 				}
 				payload := map[string]any{
@@ -1696,6 +1698,36 @@ func generateRecordMD(slug string, filesChanged, patchBytes int, diffStat, fromR
 	return b.String()
 }
 
+func evidenceArtifactRef(s *store.Store, slug string) string {
+	entries, err := store.LoadReconcileEvidence(s, slug)
+	if err != nil || len(entries) == 0 {
+		return ""
+	}
+	return filepath.ToSlash(filepath.Join(".tpatch", "features", slug, "artifacts", "reconcile-evidence.jsonl"))
+}
+
+func reconcileEvidenceHints(entries []store.ReconcileEvidence) []string {
+	if len(entries) == 0 {
+		return nil
+	}
+	hints := make([]string, 0, len(entries))
+	seen := map[string]bool{}
+	for _, entry := range entries {
+		var hint string
+		if entry.EvidenceKind == store.EvidenceKindFileNovelty {
+			hint = fmt.Sprintf("%s %s", entry.EvidenceKind, entry.ReasonCode)
+		} else {
+			hint = fmt.Sprintf("%s %s", entry.Phase, entry.EvidenceKind)
+		}
+		if hint == " " || seen[hint] {
+			continue
+		}
+		seen[hint] = true
+		hints = append(hints, hint)
+	}
+	return hints
+}
+
 // ─── reconcile ───────────────────────────────────────────────────────────────
 
 func reconcileCmd() *cobra.Command {
@@ -1814,6 +1846,9 @@ func reconcileCmd() *cobra.Command {
 			fmt.Fprintf(out, "Reconciled %d feature(s) against %s\n", len(results), upstreamRef)
 			for _, result := range results {
 				fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, result.Outcome, result.Phase, result.Title)
+				for _, hint := range reconcileEvidenceHints(result.Evidence) {
+					fmt.Fprintf(out, "    evidence: %s\n", hint)
+				}
 				for _, note := range result.Notes {
 					fmt.Fprintf(out, "    %s\n", note)
 				}
