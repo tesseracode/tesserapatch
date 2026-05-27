@@ -54,6 +54,13 @@ type ReconcileResult struct {
 	// byte-identity when no evidence artifact was written.
 	Evidence []store.ReconcileEvidence `json:"evidence,omitempty"`
 
+	// ReviewVerdict records the confirmation gate decision for upstreamed
+	// candidates. Empty means no confirmation gate ran.
+	ReviewVerdict string `json:"review_verdict,omitempty"`
+
+	// Revisions exposes revision-pass entries appended during this invocation.
+	Revisions []store.ReconcileRevision `json:"revisions,omitempty"`
+
 	// attemptedAt is the timestamp shared between saveReconcileArtifacts
 	// (which feeds it to composeLabelsAt as the staleness baseline) and
 	// updateFeatureState (which writes it as ReconcileSummary.AttemptedAt
@@ -563,6 +570,9 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 
 	result.Evidence = append(result.Evidence, persistReconcileEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistFileNoveltyEvidence(s, slug, result)...)
+	result.Evidence = append(result.Evidence, persistHunkOverlapEvidence(s, slug, result)...)
+	result.Evidence = append(result.Evidence, applyUpstreamedConfirmationGate(s, slug, result)...)
+	result.Revisions = append(result.Revisions, persistRevisionPassLog(s, slug, result)...)
 
 	// Save reconcile-session.json
 	data, _ := json.MarshalIndent(result, "", "  ")
@@ -702,12 +712,160 @@ func persistFileNoveltyEvidence(s *store.Store, slug string, result *ReconcileRe
 	return []store.ReconcileEvidence{entry}
 }
 
+func persistHunkOverlapEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
+	if result == nil || result.Outcome == "" || result.UpstreamCommit == "" {
+		return nil
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil || status.Apply.BaseCommit == "" {
+		return nil
+	}
+	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil || strings.TrimSpace(patch) == "" {
+		return nil
+	}
+	novelty, err := ClassifyFileNovelty(patch, result.UpstreamCommit, status.Apply.BaseCommit, s.Root)
+	if err != nil {
+		return nil
+	}
+	if novelty.Classification != FileNoveltyModifiesExistingFiles && novelty.Classification != FileNoveltyMixedAdditive {
+		return nil
+	}
+	overlap, err := DetectHunkOverlap(s.Root, patch, status.Apply.BaseCommit, result.UpstreamCommit, novelty)
+	if err != nil || len(overlap.Hunks) == 0 || overlap.Classification == HunkOverlapNone {
+		return nil
+	}
+	entry := HunkOverlapEvidence(slug, result.UpstreamRef, result.UpstreamCommit, status.Apply.BaseCommit, string(result.Outcome), overlap)
+	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+		return nil
+	}
+	return []store.ReconcileEvidence{entry}
+}
+
+func applyUpstreamedConfirmationGate(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
+	if result == nil || result.Outcome != store.ReconcileUpstreamed {
+		return nil
+	}
+	status, _ := s.LoadFeatureStatus(slug)
+	baseCommit := status.Apply.BaseCommit
+	if baseCommit == "" {
+		baseCommit = "unknown"
+	}
+	confirmed := false
+	reason := "missing-upstream-commit-ref"
+	confidence := store.EvidenceConfidenceLow
+	matchOrigin := store.EvidenceMatchOriginUnknown
+	refs := []string{}
+	for _, entry := range result.Evidence {
+		if entry.EvidenceKind == store.EvidenceKindPatchIDMatch && entry.MatchedUpstreamSHA != "" {
+			confirmed = true
+			reason = "confirmed-upstreamed"
+			confidence = store.EvidenceConfidenceHigh
+			matchOrigin = store.EvidenceMatchOriginUpstream
+			refs = []string{entry.MatchedUpstreamSHA}
+			break
+		}
+		if entry.EvidenceKind == store.EvidenceKindReverseApply && entry.Confidence == store.EvidenceConfidenceHigh {
+			confirmed = true
+			reason = "confirmed-upstreamed"
+			confidence = store.EvidenceConfidenceHigh
+			matchOrigin = store.EvidenceMatchOriginUpstream
+		}
+	}
+	entry := store.ReconcileEvidence{
+		SchemaVersion:        store.ReconcileEvidenceSchemaVersion,
+		FeatureSlug:          slug,
+		UpstreamRef:          result.UpstreamRef,
+		UpstreamCommit:       result.UpstreamCommit,
+		BaseCommit:           baseCommit,
+		RawReconcileVerdict:  string(store.ReconcileUpstreamed),
+		Phase:                store.EvidencePhase35,
+		EvidenceKind:         store.EvidenceKindManualReview,
+		Confidence:           confidence,
+		MatchedPaths:         []string{},
+		MatchedOperations:    []string{"confirmation-gate"},
+		MatchOrigin:          matchOrigin,
+		UpstreamCommitRefs:   refs,
+		PreReconcilePresence: store.EvidencePresenceNotChecked,
+		RequiresConfirmation: !confirmed,
+		ReasonCode:           reason,
+	}
+	entry.AttemptID = store.ComputeAttemptID(entry)
+	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+		return nil
+	}
+	if confirmed {
+		result.ReviewVerdict = "confirmed-upstreamed"
+		result.Notes = append(result.Notes, "confirmation gate: upstreamed verdict confirmed")
+	} else {
+		result.ReviewVerdict = "rejected-upstreamed"
+		result.Outcome = store.ReconcileBlocked
+		result.Notes = append(result.Notes, "confirmation gate: upstreamed candidate blocked pending confirmation (missing upstream commit evidence)")
+	}
+	return []store.ReconcileEvidence{entry}
+}
+
+func persistRevisionPassLog(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileRevision {
+	if result == nil || result.Outcome == "" || result.ReviewVerdict == "" {
+		return nil
+	}
+	status, _ := s.LoadFeatureStatus(slug)
+	finalState := store.StateBlocked
+	review := store.ReviewVerdictFalsePositive
+	action := store.ReconcileActionNone
+	reason := "missing-upstream-commit-ref"
+	if result.ReviewVerdict == "confirmed-upstreamed" {
+		finalState = store.StateUpstreamMerged
+		review = store.ReviewVerdictConfirmed
+		action = store.ReconcileActionConfirmedRetired
+		reason = "confirmed-upstreamed"
+	} else if status.State != "" {
+		finalState = store.StateBlocked
+	}
+	evidenceAttempt := ""
+	for i := len(result.Evidence) - 1; i >= 0; i-- {
+		if result.Evidence[i].EvidenceKind == store.EvidenceKindManualReview && containsString(result.Evidence[i].MatchedOperations, "confirmation-gate") {
+			evidenceAttempt = result.Evidence[i].AttemptID
+			reason = result.Evidence[i].ReasonCode
+			break
+		}
+	}
+	entry := store.ReconcileRevision{
+		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
+		FeatureSlug:         slug,
+		EvidenceAttemptID:   evidenceAttempt,
+		RawReconcileVerdict: string(store.ReconcileUpstreamed),
+		ReviewVerdict:       review,
+		FinalFeatureState:   finalState,
+		ActionTaken:         action,
+		ReasonCode:          reason,
+		ValidationRefs:      []store.ValidationRef{},
+	}
+	entry.EntryID = store.ComputeRevisionID(entry)
+	if err := store.AppendReconcileRevision(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+		return nil
+	}
+	return []store.ReconcileRevision{entry}
+}
+
 func warnReconcileEvidenceAppendError(slug string, err error) {
-	if errors.Is(err, store.ErrMalformedEvidence) {
+	if errors.Is(err, store.ErrMalformedEvidence) || errors.Is(err, store.ErrMalformedRevision) {
 		warnReconcileEvidence("warning: tpatch reconcile evidence artifact malformed for feature %q: %v\n", slug, err)
 		return
 	}
 	warnReconcileEvidence("warning: tpatch reconcile could not write evidence for feature %q: %v\n", slug, err)
+}
+
+func containsString(values []string, want string) bool {
+	for _, v := range values {
+		if v == want {
+			return true
+		}
+	}
+	return false
 }
 
 func evidencePhaseAndKind(result *ReconcileResult) (store.ReconcileEvidencePhase, store.ReconcileEvidenceKind) {
@@ -745,6 +903,7 @@ func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
 		UpstreamRef:    result.UpstreamRef,
 		UpstreamCommit: result.UpstreamCommit,
 		Outcome:        result.Outcome,
+		ReviewVerdict:  result.ReviewVerdict,
 		ShadowPath:     result.ShadowPath,
 		ResolveSession: result.ResolveSession,
 		ResolvedFiles:  len(result.ResolvedFiles),

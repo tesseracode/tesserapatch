@@ -351,8 +351,11 @@ func TestReconcilePhase3_ProviderAssistedUpstreamed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if results[0].Outcome != store.ReconcileUpstreamed {
-		t.Fatalf("expected upstreamed, got %s", results[0].Outcome)
+	if results[0].Outcome != store.ReconcileBlocked {
+		t.Fatalf("expected unconfirmed provider upstreamed candidate to be blocked, got %s", results[0].Outcome)
+	}
+	if results[0].ReviewVerdict != "rejected-upstreamed" {
+		t.Fatalf("expected rejected-upstreamed review verdict, got %q", results[0].ReviewVerdict)
 	}
 	if results[0].Phase != "phase-3-provider-semantic" {
 		t.Fatalf("expected phase-3, got %s", results[0].Phase)
