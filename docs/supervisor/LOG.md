@@ -1,3 +1,153 @@
+## Review — WP-003 Wave α rev-1 (PRDs 1+6) — internal — 2026-05-26
+
+**Reviewer**: sub-agent code-review (internal)
+**Task**: Internal review of Wave α rev-1 commits `4fa1394..d1b466d` addressing F1 + F2.
+
+### Verdict: APPROVED
+
+### Findings
+
+None.
+
+### F1 verification
+
+**Finding F1**: Wave α did not actually integrate the PRD 6 file-novelty classifier into reconcile.
+
+**Fix confirmed**:
+- `ClassifyFileNovelty` is now called at `internal/workflow/reconcile.go:684` within the production path `persistFileNoveltyEvidence`.
+- `persistFileNoveltyEvidence` is invoked from `saveReconcileArtifacts` at `reconcile.go:563` — this runs as part of every reconcile that produces a non-empty outcome.
+- When the call succeeds, `FileNoveltyEvidence` helper is invoked at `:688` AND `store.AppendReconcileEvidence` is invoked at `:690` with `evidence_kind: "file-novelty"`.
+- When inputs are missing (no `post-apply.patch` at `:678-682`, no base commit at `:673-676`), the code skips silently via early return — NOT panic, NOT error. This is correct per PRD 6 §5 "diagnostic evidence only."
+- Verdict semantics UNCHANGED: verified via `git diff 4fa1394..d1b466d -- internal/workflow/reconcile.go | grep -E "^\+.*Outcome|^\+.*State"` — shows only READ operations (`result.Outcome`, `string(result.Outcome)`), no assignments.
+- Integration tests exist and read evidence from disk:
+  - `TestReconcileWritesFileNoveltyEvidenceMixedAdditive` at `reconcile_evidence_integration_test.go:18` runs reconcile end-to-end, reads `reconcile-evidence.jsonl` via `readFileNoveltyEvidenceFromDisk` (`:152-169`), asserts `entry.EvidenceKind == store.EvidenceKindFileNovelty` (`:163`) and `entry.ReasonCode == FileNoveltyMixedAdditive` (`:34`).
+  - `TestReconcileWritesFileNoveltyEvidenceAllNewFiles` at `:41` asserts `all-new-files` classification and `absent` pre-reconcile presence.
+  - Tests PASSED in independent run.
+
+**PRD 6 §6.1 acceptance criterion 1**: "Reconcile can report file novelty categories for a feature patch." ✅ VERIFIED — reconcile now writes file-novelty evidence to JSONL.
+
+**PRD 6 §6.3 acceptance criterion 3**: "File novelty evidence is available in JSON output." ✅ VERIFIED — evidence written to `reconcile-evidence.jsonl`, observable via disk read in tests.
+
+### F2 verification
+
+**Finding F2**: Malformed evidence append failures are silently dropped during reconcile (originally `_ = store.AppendReconcileEvidence`).
+
+**Fix confirmed**:
+- `grep -n "_ = store.AppendReconcileEvidence" internal/workflow/reconcile.go` returned exit 1 — the underscore-discard pattern is GONE.
+- At both call sites, the returned error is captured:
+  - Phase evidence append at `reconcile.go:663-665`: `if err := store.AppendReconcileEvidence(s, slug, entry); err != nil { warnReconcileEvidenceAppendError(slug, err) }`
+  - File-novelty evidence append at `:690-692`: same pattern.
+- When the error is non-nil, `warnReconcileEvidenceAppendError` (`:695-701`) emits a warning that a test can observe (via swappable `warnReconcileEvidence` function variable at `:595-597`).
+- When `errors.Is(err, store.ErrMalformedEvidence)` is true at `:696`, the warning text at `:697` mentions "malformed" and the feature slug.
+- Verdict semantics preserved: the integration test `TestReconcileWarnsOnMalformedEvidenceArtifact` at `:64-102` verifies reconcile returns a verdict successfully at `:83-88` even when evidence write fails.
+- Integration test confirms:
+  - Pre-seeds a malformed JSONL (truncated `{"schema_version":`) at `:68-74`.
+  - Runs reconcile at `:83`.
+  - Captures warning via test-swapped `warnReconcileEvidence` at `:76-81`.
+  - Asserts warning text contains "malformed" and slug at `:92-93`.
+  - Asserts malformed artifact is NOT silently rewritten at `:95-101`.
+  - Test PASSED in independent run.
+- No source bodies / transcripts / prompts in warning text: `warnReconcileEvidenceAppendError` only includes slug and error; error object from store layer does not contain raw source per ADR-025 D10.
+
+**PRD 1 §6.6 acceptance criterion 6**: "Corrupt evidence artifacts fail with an explicit warning/error and do not prevent `status.json` from loading." ✅ VERIFIED — warning is now explicit, verdict semantics preserved.
+
+### Rev-0 surface regression check
+
+Verified no drift to protected surfaces:
+
+```
+git diff 4fa1394..d1b466d -- internal/store/reconcile_evidence.go
+  (empty — rev-1 did not touch the store layer)
+
+git diff 4fa1394..d1b466d -- internal/workflow/file_novelty.go
+  (empty — rev-1 reused the existing classifier without redesign)
+
+git diff 4fa1394..d1b466d -- internal/store/types.go
+  (empty — no new lifecycle states, no ReconcileSummary changes)
+
+git diff 4fa1394..d1b466d -- internal/store/config.go
+  (empty — no new config flag)
+
+git diff 4fa1394..d1b466d --name-only | grep "^internal/(store|workflow)"
+  internal/workflow/reconcile.go
+  internal/workflow/reconcile_evidence_integration_test.go
+  (only two files changed in internal/, both in workflow/ — store/ untouched)
+```
+
+All rev-0 tests still pass: verified via independent `go test ./...` run.
+
+### Independent test run
+
+**Executed directly**:
+
+```
+gofmt -l .
+  (no output — PASSED)
+
+go vet ./...
+  (no output — PASSED)
+
+go build ./cmd/tpatch
+  (exit 0 — PASSED)
+
+go test ./...
+  ok  github.com/tesseracode/tesserapatch/assets(cached)
+  ?   github.com/tesseracode/tesserapatch/cmd/tpatch[no test files]
+  ok  github.com/tesseracode/tesserapatch/internal/buildinfo(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/cli(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/gitutil(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/provider(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/safety(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/store(cached)
+  ok  github.com/tesseracode/tesserapatch/internal/workflow(cached)
+  ok  github.com/tesseracode/tesserapatch/tests/integration(cached)
+
+go test -run 'TestReconcileWritesFileNoveltyEvidence|TestReconcileWarnsOnMalformed' ./internal/workflow/... -v
+  === RUN   TestReconcileWritesFileNoveltyEvidenceMixedAdditive
+  --- PASS: TestReconcileWritesFileNoveltyEvidenceMixedAdditive (0.35s)
+  === RUN   TestReconcileWritesFileNoveltyEvidenceAllNewFiles
+  --- PASS: TestReconcileWritesFileNoveltyEvidenceAllNewFiles (0.35s)
+  === RUN   TestReconcileWarnsOnMalformedEvidenceArtifact
+  --- PASS: TestReconcileWarnsOnMalformedEvidenceArtifact (0.24s)
+  PASS
+  ok  github.com/tesseracode/tesserapatch/internal/workflow1.334s
+```
+
+**Handoff state**:
+- `docs/handoff/CURRENT.md` Active Task reflects rev-1 complete and ready for re-review (Status: Review).
+- Side Research md5: `b385fe622db9926f48861105239f113e` — VERIFIED via `md5 <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
+- No edits outside `tpatch/`: VERIFIED — only `internal/workflow/` and `docs/handoff/` changed.
+
+### Notes
+
+**Quality observations**:
+
+1. **F1 and F2 both comprehensively addressed**: The implementer did not take shortcuts. Both fixes include production code changes AND end-to-end integration tests that read on-disk artifacts and assert observable behavior.
+2. **Surgical changes**: Rev-1 added 45 lines to `reconcile.go` and 194 lines of new test file. No changes to store layer, no schema drift, no lifecycle state additions. This is exactly the minimal fix required.
+3. **Test quality**: The integration tests are real end-to-end tests, not just "does it compile" checks. They create a git repo, run reconcile, read the JSONL from disk, parse it, and assert on specific fields. The malformed-evidence test verifies the artifact is preserved unchanged.
+4. **Privacy preserved**: Warning text includes only slug and error class, no source bodies/transcripts/prompts per ADR-025 D10.
+5. **Verdict semantics preserved**: Both fixes maintain that reconcile returns a successful verdict even when evidence writing fails. This is correct per PRD 1 §6.6 "do not prevent status.json from loading."
+
+**Contrast with rev-0 internal review**:
+
+The rev-0 external reviews caught what rev-0 internal review missed:
+- Rev-0 internal reviewer verified "evidence write hook exists" but did not verify file-novelty evidence was actually written.
+- Rev-0 internal reviewer missed the `_ = store.AppendReconcileEvidence` discard.
+
+Rev-1 addresses both oversights with independently verifiable fixes:
+- F1: `ClassifyFileNovelty` is called at a specific line in production code, evidence is appended, integration tests read JSONL from disk.
+- F2: Error discard is gone, warnings are emitted, integration test captures warnings.
+
+This review independently verified every claim.
+
+**No residual concerns**.
+
+### Action Taken
+
+Review verdict written to `docs/supervisor/LOG.md` (prepended above existing entries). Did NOT commit per instructions. Supervisor will commit after final approval and external dispatch.
+
+---
+
 ## Review — WP-003 Wave α (PRDs 1+6) — external (user-dispatched, parallel) — 2026-05-26
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
