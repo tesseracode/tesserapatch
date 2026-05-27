@@ -74,7 +74,7 @@ None. Cluster closed.
 
 ## WP-003 — Reconcile safety & middle-pass *(T56 cluster)*
 
-**Status**: **Accepted** (paper-level APPROVED 2026-05-16 — see `docs/supervisor/LOG.md` "Review — Reconcile Safety & Middle-pass Cluster (9 PRDs) — 2026-05-16"). Implementation not yet started — gated on ADR-025.
+**Status**: **Wave α SHIPPED** (2026-05-26 — PRDs 1 + 6 landed at commits `4f9277e..8d4665f`; APPROVED by user's parallel external; APPROVED WITH NOTES by supervisor-external — three test-coverage carry-forwards documented in `docs/supervisor/LOG.md`). Wave β is now unblocked.
 **Whitepaper**: [`docs/whitepapers/WP-003-reconcile-safety-and-middle-pass.md`](./whitepapers/WP-003-reconcile-safety-and-middle-pass.md)
 **Origin**: t3code v0.0.23 case study (first structural middle-pass study, false-positive `upstreamed` verdicts on `session-search` and `copilot-skill-controls`).
 **Cluster ADR plan**: single cluster ADR — `ADR-025-reconcile-evidence-and-revision-schema` (covers PRDs 1, 2, 3; PRDs 4–9 ship under the same ADR).
@@ -98,12 +98,12 @@ must not drift.
 
 | # | PRD | Wave (proposed) | State |
 |---|---|---|---|
-| 1 | [`PRD-reconcile-verdict-evidence`](./prds/PRD-reconcile-verdict-evidence.md) | α | Approved (cluster keystone; blocked on ADR-025 + WP-002 Wave β acceptance) |
+| 1 | [`PRD-reconcile-verdict-evidence`](./prds/PRD-reconcile-verdict-evidence.md) | α | **Shipped** — Wave α (2026-05-26, commits `4f9277e..8d4665f`; APPROVED WITH NOTES — F1/F2/F3 test-coverage carry-forwards in LOG) |
 | 2 | [`PRD-upstreamed-confirmation-gate`](./prds/PRD-upstreamed-confirmation-gate.md) | β | Approved |
 | 3 | [`PRD-reconcile-revision-pass-log`](./prds/PRD-reconcile-revision-pass-log.md) | β | Approved |
 | 4 | [`PRD-reconcile-retirement-state-audit`](./prds/PRD-reconcile-retirement-state-audit.md) | γ | Approved |
 | 5 | [`PRD-reconcile-study-validation`](./prds/PRD-reconcile-study-validation.md) | γ | Approved |
-| 6 | [`PRD-reconcile-file-novelty-classifier`](./prds/PRD-reconcile-file-novelty-classifier.md) | α | Approved (blocked on ADR-025) |
+| 6 | [`PRD-reconcile-file-novelty-classifier`](./prds/PRD-reconcile-file-novelty-classifier.md) | α | **Shipped** — Wave α (2026-05-26, commits `4f9277e..8d4665f`) |
 | 7 | [`PRD-reconcile-hunk-overlap-detector`](./prds/PRD-reconcile-hunk-overlap-detector.md) | β | Approved |
 | 8 | [`PRD-reconcile-blocked-verdict-taxonomy`](./prds/PRD-reconcile-blocked-verdict-taxonomy.md) | γ | Approved |
 | 9 | [`PRD-reconcile-path-restructure-detector`](./prds/PRD-reconcile-path-restructure-detector.md) | γ | Approved |

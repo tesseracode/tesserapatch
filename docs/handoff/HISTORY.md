@@ -1,3 +1,87 @@
+# 2026-05-26 — WP-003 Wave α — PRDs 1 + 6 — SHIPPED
+
+**Range**: rev-0 (`d265a08..d6878a4`) → rev-1 (`4fa1394..7c72323`) → rev-2 (`6a8deba..8d4665f`) → log close-out (`a5faf91..`).
+**Final HEAD covering shipped Wave α code**: `8d4665f`.
+**Outcome**: PRD 1 (reconcile-verdict-evidence) + PRD 6 (reconcile-file-novelty-classifier) shipped under ADR-025. Reader-side CLI surface (JSON `evidence` field + `evidence_artifact` reference + human `evidence:` hint) lives in `internal/cli/cobra.go` and `internal/workflow/reconcile.go`. Writer side in `internal/store/reconcile_evidence.go` + `internal/workflow/file_novelty.go` + `reconcile.go` persistence helpers.
+**Review pair (rev-2)**:
+- User's parallel external: APPROVED.
+- Supervisor's external: NEEDS REVISION → APPROVED WITH NOTES (3 test-coverage carry-forwards: F1 absent-evidence load path, F2 malformed-evidence load path, F3 stronger privacy vectors). See `docs/supervisor/LOG.md`.
+**Wave β** is now unblocked (PRDs 2, 3, 7).
+
+### Final rev-2 handoff state
+
+# Current Handoff
+
+## Active Task
+
+- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl-rev2`
+- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α revision 2
+- **Description**: Address rev-1 external NEEDS REVISION finding F3 by adding the reader-side CLI surface for reconcile evidence. PRD 1 §4 now has human evidence hints and JSON evidence exposure; PRD 6 §6.3 file-novelty evidence is available in JSON output.
+- **Status**: Review (awaiting reviewer).
+- **Assigned**: 2026-05-26.
+- **Prior rev-1**: Internal APPROVED + supervisor-external APPROVED, but user's parallel external NEEDS REVISION on F3 (commits `4fa1394..7c72323`). F1 (production novelty integration) and F2 (malformed-evidence warning) remain fixed and independently verified.
+
+## Session Summary
+
+Rev-2 completed the reader-side evidence surface with Option A (inline evidence bundle):
+
+- `2c20450` — Added `ReconcileResult.Evidence []store.ReconcileEvidence` with `omitempty`; populated it from the evidence entries successfully appended during `saveReconcileArtifacts`; rendered PRD-aligned human `evidence:` hints after each reconcile verdict line; added a production `store.LoadReconcileEvidence` reader in `tpatch status --json` to emit `evidence_artifact` when evidence exists.
+- `d4411d2` — Added workflow + CLI tests for JSON evidence exposure, human evidence hints, empty-case `omitempty`, D10 privacy, and status JSON artifact exposure.
+
+## Current State
+
+- Writer surface: complete and validated (rev-0 + rev-1).
+- Reader surface: implemented and validated in rev-2.
+- Option A chosen: reconcile JSON surfaces the latest evidence bundle inline via `ReconcileResult.Evidence`, limited to entries successfully appended during this reconcile invocation.
+- `tpatch status --json` additionally surfaces an `evidence_artifact` repo-relative reference when `reconcile-evidence.jsonl` exists and loads successfully.
+- ADR-025 D1–D13 schema/enums unchanged; no new evidence kinds, phases, lifecycle states, config flags, or evidence write opt-outs.
+- Verdict semantics unchanged; evidence remains diagnostic only.
+- `status.json` / `ReconcileSummary` persisted schema unchanged.
+
+## Files Changed
+
+- `internal/workflow/reconcile.go`
+- `internal/workflow/reconcile_evidence_integration_test.go`
+- `internal/cli/cobra.go`
+- `internal/cli/reconcile_evidence_cli_test.go`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+Targeted tests added/updated (6/6 pass):
+
+- `TestReconcileResultJSONExposesEvidence` — pass.
+- `TestReconcileResultJSONOmitsEvidenceWhenNoArtifactWritten` — pass.
+- `TestReconcileEvidenceReaderOutputPrivacyNoSourceLeak` — pass.
+- `TestReconcileHumanOutputEvidenceHint` — pass.
+- `TestStatusJSONIncludesEvidenceArtifact` — pass.
+- `TestReconcileCLIEvidenceOutputPrivacyNoSourceLeak` — pass.
+
+Validation gates:
+
+- `gofmt -l .` — clean (empty output).
+- `go vet ./...` — clean.
+- `go build ./cmd/tpatch` — clean.
+- `go test ./...` — green across all packages.
+- Side Research md5 invariant — `b385fe622db9926f48861105239f113e`.
+
+## Next Steps
+
+1. rev-2 internal review pending.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- Option A was implemented: inline `ReconcileResult.Evidence` is the primary reconcile JSON reader surface. The field is `omitempty`, preserving byte identity when no evidence is written.
+- No scope deferrals: status JSON exposure was also wired via a production `store.LoadReconcileEvidence` reader and emits only `evidence_artifact`, not inline history.
+- Human reconcile output deduplicates hints by rendered text and uses PRD-aligned lines such as `evidence: phase-4 forward-apply` and `evidence: file-novelty mixed-additive`.
+- D10 privacy assertions cover both human and JSON reader outputs; no source bodies, prompts, transcripts, vectors, or embeddings are surfaced.
+
+---
+
 ---
 
 # 2026-05-23 — v0.10.0 — Wave β + Wave γ — RELEASED

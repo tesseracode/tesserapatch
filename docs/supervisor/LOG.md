@@ -1,3 +1,39 @@
+## Review — WP-003 Wave α rev-2 (PRDs 1+6) — external (user-dispatched, parallel) — 2026-05-26
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of rev-2 (`6a8deba..8d4665f`) with full PRD §6 acceptance sweep.
+
+### Verdict: APPROVED
+
+All PRD §4–§6 acceptance criteria verified end-to-end; all hard constraints honored; ADR-025 D1–D13 preserved; validation gates green; manual repros confirmed reader-side surface works as specified.
+
+### Action Taken
+Verdict captured for supervisor processing.
+
+---
+
+## Review — WP-003 Wave α rev-2 (PRDs 1+6) — external (supervisor-dispatched) — 2026-05-26
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of rev-2 with full PRD §4–§6 acceptance sweep (lesson from rev-1: external briefs must sweep ALL §6 criteria, not just stated findings).
+
+### Verdict: NEEDS REVISION → SUPERVISOR DECISION: APPROVED WITH NOTES
+
+The sweep returned three findings, all test-coverage gaps. Production code is correct by design (verified: `LoadFeatureStatus` at `internal/store/store.go:345` does NOT depend on `LoadReconcileEvidence`; `evidenceArtifactRef` at `internal/cli/cobra.go:1701-1707` returns empty string on error). The findings prove PRD acceptance criteria are unverified, not broken. User's parallel external returned APPROVED, accepting rev-2.
+
+### Findings (carry-forward as test-coverage follow-ups, not rev-3 blockers)
+
+**F1 (HIGH)** — No test proves `LoadFeatureStatus` succeeds when `reconcile-evidence.jsonl` is absent. PRD 1 §6 acceptance lines 208-209 ("Existing status round-trips remain backward-compatible when the feature has no evidence artifact") is satisfied by design but unverified. Production code path: `store.go:345` does not read evidence. Carry-forward: add a test that creates a feature with `ReconcileSummary` in `status.json`, never creates `artifacts/reconcile-evidence.jsonl`, then asserts `LoadFeatureStatus` succeeds and `tpatch status --json` works.
+
+**F2 (MEDIUM)** — No test proves status loads when `reconcile-evidence.jsonl` is malformed. PRD 1 §6 lines 211-212 ("Corrupt evidence artifacts fail with an explicit warning/error and do not prevent `status.json` from loading"). Rev-1's `TestReconcileWarnsOnMalformedEvidenceArtifact` only asserts the warning, not the status-load contract. Carry-forward: extend that test (or add a sibling) to call `LoadFeatureStatus` + `tpatch status --json` after seeding the malformed artifact.
+
+**F3 (LOW)** — Privacy tests seed secrets into file *content*, which is not a plausible leak vector since evidence records paths/kinds/reason codes, not file bodies. Tests can't fail on real bugs (e.g., a future regression that logs a path containing a secret into `reason_code`). Carry-forward: strengthen privacy tests by seeding secrets into plausible metadata vectors (file path containing secret string; feature title with embedded secret; assert evidence fields don't surface it).
+
+### Action Taken
+Both external verdicts captured. Supervisor decision: APPROVED WITH NOTES. F1/F2/F3 enrolled as Wave α test-coverage follow-ups (not rev-3 blockers); user's APPROVED carries the wave to completion. Wave α (PRDs 1 + 6) is shipped at commits `4fa1394..8d4665f` (rev-1+rev-2 stack).
+
+---
+
 ## Review — WP-003 Wave α rev-2 (PRDs 1+6) — internal — 2026-05-26
 
 **Reviewer**: internal (supervisor-dispatched code-review agent)

@@ -2,60 +2,62 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-alpha-prd1-prd6-impl-rev2`
-- **Milestone**: WP-003 — Reconcile safety & middle-pass (T56 cluster), Wave α revision 2
-- **Description**: Address rev-1 external NEEDS REVISION finding F3 by adding the reader-side CLI surface for reconcile evidence. PRD 1 §4 now has human evidence hints and JSON evidence exposure; PRD 6 §6.3 file-novelty evidence is available in JSON output.
-- **Status**: Review (awaiting reviewer).
-- **Assigned**: 2026-05-26.
-- **Prior rev-1**: Internal APPROVED + supervisor-external APPROVED, but user's parallel external NEEDS REVISION on F3 (commits `4fa1394..7c72323`). F1 (production novelty integration) and F2 (malformed-evidence warning) remain fixed and independently verified.
+- **Task ID**: (none — between tasks)
+- **Milestone**: WP-003 Wave β eligible (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`). Wave α (PRDs 1 + 6) shipped 2026-05-26.
+- **Description**: Awaiting supervisor selection of next task. Candidates:
+  1. **WP-003 Wave β kickoff** (PRDs 2 + 3 + 7) — Wave α prerequisite is satisfied; ADR-025 already covers β PRDs.
+  2. **Wave α test-coverage carry-forwards** (F1/F2/F3 from rev-2 supervisor-external) — small focused hotfix to add absent-evidence load test, malformed-evidence load test, and stronger privacy-vector tests.
+  3. Other backlog item per `docs/CLUSTERS.md`.
+- **Status**: Not Started.
 
 ## Session Summary
 
-Rev-2 completed the reader-side evidence surface with Option A (inline evidence bundle):
+WP-003 Wave α (PRDs 1 + 6) shipped at HEAD `a5faf91`:
 
-- `2c20450` — Added `ReconcileResult.Evidence []store.ReconcileEvidence` with `omitempty`; populated it from the evidence entries successfully appended during `saveReconcileArtifacts`; rendered PRD-aligned human `evidence:` hints after each reconcile verdict line; added a production `store.LoadReconcileEvidence` reader in `tpatch status --json` to emit `evidence_artifact` when evidence exists.
-- `d4411d2` — Added workflow + CLI tests for JSON evidence exposure, human evidence hints, empty-case `omitempty`, D10 privacy, and status JSON artifact exposure.
+- **rev-0** (`d265a08..d6878a4`) — writer side: evidence store, file-novelty classifier, reconcile persistence hook. Helper tests passed but reader/integration shipped weak.
+- **rev-1** (`4fa1394..7c72323`) — F1 (production novelty integration) + F2 (malformed-evidence warning) fixed after both externals returned NEEDS REVISION on rev-0.
+- **rev-2** (`6a8deba..8d4665f`) — reader-side CLI surface (Option A inline `Evidence` field on `ReconcileResult`, `evidence_artifact` reference on status JSON, human `evidence:` hint) after user's parallel external caught F3 reader-side gap that supervisor's rev-1 external missed.
+- **Close-out** (`a5faf91`) — internal APPROVED + both externals' verdicts (mine NEEDS REVISION → APPROVED WITH NOTES, user's APPROVED) recorded.
+
+Final supervisor decision: APPROVED WITH NOTES — Wave α ships; three test-coverage findings carried forward as future cleanup (production code is correct by design, tests don't prove all PRD §6 criteria).
 
 ## Current State
 
-- Writer surface: complete and validated (rev-0 + rev-1).
-- Reader surface: implemented and validated in rev-2.
-- Option A chosen: reconcile JSON surfaces the latest evidence bundle inline via `ReconcileResult.Evidence`, limited to entries successfully appended during this reconcile invocation.
-- `tpatch status --json` additionally surfaces an `evidence_artifact` repo-relative reference when `reconcile-evidence.jsonl` exists and loads successfully.
-- ADR-025 D1–D13 schema/enums unchanged; no new evidence kinds, phases, lifecycle states, config flags, or evidence write opt-outs.
-- Verdict semantics unchanged; evidence remains diagnostic only.
-- `status.json` / `ReconcileSummary` persisted schema unchanged.
+- Wave α PRDs 1 + 6: shipped.
+- Wave β prerequisite cleared.
+- ADR-025 D1–D13 schema lock preserved through all 3 revs.
+- D10 privacy preserved.
+
+## Carry-forward test-coverage items (from rev-2 supervisor-external)
+
+These are NOT rev-3 blockers. They are tracked here so a future hotfix or Wave β prep can pick them up:
+
+- **F1 (HIGH)** — Add test: feature with `ReconcileSummary` in `status.json` but NO `reconcile-evidence.jsonl` → `LoadFeatureStatus` succeeds + `tpatch status --json` works. Verifies PRD 1 §6 lines 208-209.
+- **F2 (MEDIUM)** — Extend `TestReconcileWarnsOnMalformedEvidenceArtifact` (or add sibling) to call `LoadFeatureStatus` + `tpatch status --json` after seeding malformed artifact. Verifies PRD 1 §6 lines 211-212.
+- **F3 (LOW)** — Strengthen privacy tests by seeding secrets into plausible leak vectors (file path containing secret string; feature title with embedded secret); assert evidence fields don't surface them. Current tests seed secrets into file content, which is not a plausible leak vector.
+
+Production code is correct (`store.go:345` `LoadFeatureStatus` does not depend on `LoadReconcileEvidence`; `cobra.go:1701-1707` `evidenceArtifactRef` returns empty string on error). Tests just don't prove it.
 
 ## Files Changed
 
-- `internal/workflow/reconcile.go`
-- `internal/workflow/reconcile_evidence_integration_test.go`
-- `internal/cli/cobra.go`
-- `internal/cli/reconcile_evidence_cli_test.go`
-- `docs/handoff/CURRENT.md`
+(this handoff transition only — see `docs/handoff/HISTORY.md` for Wave α file deltas.)
+
+- `docs/supervisor/LOG.md` — both rev-2 external verdicts + supervisor decision recorded.
+- `docs/CLUSTERS.md` — PRDs 1 + 6 marked Shipped; WP-003 status flipped to Wave α SHIPPED.
+- `docs/handoff/HISTORY.md` — Wave α rev-2 archived.
+- `docs/handoff/CURRENT.md` — reset for next task.
 
 ## Test Results
 
-Targeted tests added/updated (6/6 pass):
-
-- `TestReconcileResultJSONExposesEvidence` — pass.
-- `TestReconcileResultJSONOmitsEvidenceWhenNoArtifactWritten` — pass.
-- `TestReconcileEvidenceReaderOutputPrivacyNoSourceLeak` — pass.
-- `TestReconcileHumanOutputEvidenceHint` — pass.
-- `TestStatusJSONIncludesEvidenceArtifact` — pass.
-- `TestReconcileCLIEvidenceOutputPrivacyNoSourceLeak` — pass.
-
-Validation gates:
-
-- `gofmt -l .` — clean (empty output).
-- `go vet ./...` — clean.
-- `go build ./cmd/tpatch` — clean.
-- `go test ./...` — green across all packages.
-- Side Research md5 invariant — `b385fe622db9926f48861105239f113e`.
+Wave α final state (HEAD `a5faf91`): all gates green.
+- `gofmt -l .` clean.
+- `go vet ./...` clean.
+- `go build ./cmd/tpatch` clean.
+- `go test ./...` green.
 
 ## Next Steps
 
-1. rev-2 internal review pending.
+Supervisor to pick next task from CLUSTERS.md. See "Active Task" candidates above.
 
 ## Blockers
 
@@ -63,11 +65,10 @@ None.
 
 ## Context for Next Agent
 
-- Option A was implemented: inline `ReconcileResult.Evidence` is the primary reconcile JSON reader surface. The field is `omitempty`, preserving byte identity when no evidence is written.
-- No scope deferrals: status JSON exposure was also wired via a production `store.LoadReconcileEvidence` reader and emits only `evidence_artifact`, not inline history.
-- Human reconcile output deduplicates hints by rendered text and uses PRD-aligned lines such as `evidence: phase-4 forward-apply` and `evidence: file-novelty mixed-additive`.
-- D10 privacy assertions cover both human and JSON reader outputs; no source bodies, prompts, transcripts, vectors, or embeddings are surfaced.
-- Do NOT modify `docs/supervisor/LOG.md`; reviewer owns the next log entry.
+- Two-opinion external review protocol (supervisor + user-parallel) has caught a real regression in every Wave α revision. Continue this pattern for Wave β.
+- External review briefs MUST require a sweep of ALL PRD §6 acceptance criteria — not just the rev's stated findings. This lesson is from rev-1 (supervisor external missed F3 because it scoped to F1+F2). Rev-2's brief baked the lesson in and it worked.
+- Dispatch briefs MUST NOT contain escape hatches that override PRD acceptance criteria. (Rev-0 lesson: "if integration is risky, defer to Wave β" allowed implementer to ship the classifier as dead library code.)
+- ADR-025 schema lock is binding for all 9 PRDs in WP-003. Any β/γ PRD touching evidence schema must check D1–D13 first.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
