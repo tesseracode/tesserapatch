@@ -18,6 +18,15 @@ const (
 	StateUpstreamMerged    FeatureState = "upstream_merged"
 )
 
+func ValidFeatureState(state FeatureState) bool {
+	switch state {
+	case StateRequested, StateAnalyzed, StateDefined, StateImplementing, StateApplied, StateActive, StateReconciling, StateReconcilingShadow, StateBlocked, StateUpstreamMerged:
+		return true
+	default:
+		return false
+	}
+}
+
 // CompatibilityStatus describes how compatible a feature is with the base project.
 type CompatibilityStatus string
 
@@ -252,6 +261,7 @@ type ReconcileSummary struct {
 	UpstreamRef    string           `json:"upstream_ref,omitempty"`
 	UpstreamCommit string           `json:"upstream_commit,omitempty"`
 	Outcome        ReconcileOutcome `json:"outcome,omitempty"`
+	ReviewVerdict  string           `json:"review_verdict,omitempty"`
 
 	// Phase-3.5 (M12 / ADR-010) fields. Populated only when the
 	// resolver runs; remain zero on the classical phases 1-4 paths.
