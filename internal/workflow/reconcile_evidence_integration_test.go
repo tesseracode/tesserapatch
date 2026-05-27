@@ -192,3 +192,95 @@ func gitRun(t *testing.T, dir string, args ...string) {
 		t.Fatalf("git %v: %s: %v", args, out, err)
 	}
 }
+
+func TestReconcileResultJSONExposesEvidence(t *testing.T) {
+	s, slug := buildFileNoveltyFixture(t, "json evidence", map[string]string{
+		"existing.txt": "base\nfeature\n",
+		"new.txt":      "brand new\n",
+	})
+
+	results, err := RunReconcile(context.Background(), s, []string{slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected one result, got %d", len(results))
+	}
+	data, err := json.Marshal(results[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(data, []byte(`"evidence"`)) {
+		t.Fatalf("expected evidence field in result JSON: %s", data)
+	}
+	if !bytes.Contains(data, []byte(`"evidence_kind":"forward-apply"`)) {
+		t.Fatalf("expected phase evidence in result JSON: %s", data)
+	}
+	if !bytes.Contains(data, []byte(`"evidence_kind":"file-novelty"`)) {
+		t.Fatalf("expected file-novelty evidence in result JSON: %s", data)
+	}
+}
+
+func TestReconcileResultJSONOmitsEvidenceWhenNoArtifactWritten(t *testing.T) {
+	dir := t.TempDir()
+	setupGitRepo(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "missing patch", Request: "no patch artifact"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkFeatureState(feature.Slug, store.StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := RunReconcile(context.Background(), s, []string{feature.Slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Outcome != store.ReconcileBlocked || results[0].Phase != "error" {
+		t.Fatalf("expected caught pre-artifact error result, got %#v", results)
+	}
+	data, err := json.Marshal(results[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(`"evidence"`)) || bytes.Contains(data, []byte(`"evidence_artifact"`)) {
+		t.Fatalf("expected no evidence fields when saveReconcileArtifacts did not run: %s", data)
+	}
+}
+
+func TestReconcileEvidenceReaderOutputPrivacyNoSourceLeak(t *testing.T) {
+	secretSource := "SECRET_SOURCE_BODY_DO_NOT_LEAK"
+	s, slug := buildFileNoveltyFixture(t, "privacy evidence", map[string]string{
+		"new.txt": secretSource + "\n",
+	})
+
+	results, err := RunReconcile(context.Background(), s, []string{slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected one result, got %d", len(results))
+	}
+	data, err := json.Marshal(results[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(secretSource)) {
+		t.Fatalf("result JSON leaked source body: %s", data)
+	}
+	var human strings.Builder
+	for _, entry := range results[0].Evidence {
+		if entry.EvidenceKind == store.EvidenceKindFileNovelty {
+			fmt.Fprintf(&human, "evidence: %s %s\n", entry.EvidenceKind, entry.ReasonCode)
+		} else {
+			fmt.Fprintf(&human, "evidence: %s %s\n", entry.Phase, entry.EvidenceKind)
+		}
+	}
+	if strings.Contains(human.String(), secretSource) {
+		t.Fatalf("human evidence hints leaked source body: %s", human.String())
+	}
+}
