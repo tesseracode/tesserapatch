@@ -1706,6 +1706,15 @@ func evidenceArtifactRef(s *store.Store, slug string) string {
 	return filepath.ToSlash(filepath.Join(".tpatch", "features", slug, "artifacts", "reconcile-evidence.jsonl"))
 }
 
+func containsString(values []string, want string) bool {
+	for _, v := range values {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
 func reconcileEvidenceHints(entries []store.ReconcileEvidence) []string {
 	if len(entries) == 0 {
 		return nil
@@ -1714,8 +1723,10 @@ func reconcileEvidenceHints(entries []store.ReconcileEvidence) []string {
 	seen := map[string]bool{}
 	for _, entry := range entries {
 		var hint string
-		if entry.EvidenceKind == store.EvidenceKindFileNovelty {
+		if entry.EvidenceKind == store.EvidenceKindFileNovelty || entry.EvidenceKind == store.EvidenceKindHunkOverlap {
 			hint = fmt.Sprintf("%s %s", entry.EvidenceKind, entry.ReasonCode)
+		} else if entry.EvidenceKind == store.EvidenceKindManualReview && containsString(entry.MatchedOperations, "confirmation-gate") {
+			hint = fmt.Sprintf("confirmation-gate %s", entry.ReasonCode)
 		} else {
 			hint = fmt.Sprintf("%s %s", entry.Phase, entry.EvidenceKind)
 		}
@@ -1748,12 +1759,16 @@ func reconcileCmd() *cobra.Command {
 			modelOverride, _ := cmd.Flags().GetString("model")
 			checkApplied, _ := cmd.Flags().GetBool("check-applied-only")
 			autoDrop, _ := cmd.Flags().GetBool("auto-drop-merged")
+			format, _ := cmd.Flags().GetString("format")
 
 			if err := validateReconcileFlags(acceptSlug, rejectSlug, shadowDiffSlug, resolve, apply); err != nil {
 				return err
 			}
 			if checkApplied && autoDrop {
 				return fmt.Errorf("reconcile: --check-applied-only and --auto-drop-merged are mutually exclusive")
+			}
+			if format != "human" && format != "json" {
+				return fmt.Errorf("reconcile: unsupported --format %q (expected human or json)", format)
 			}
 
 			s, err := openStoreFromCmd(cmd)
@@ -1843,6 +1858,11 @@ func reconcileCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
+			if format == "json" {
+				data, _ := json.MarshalIndent(results, "", "  ")
+				fmt.Fprintf(out, "%s\n", data)
+				return nil
+			}
 			fmt.Fprintf(out, "Reconciled %d feature(s) against %s\n", len(results), upstreamRef)
 			for _, result := range results {
 				fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, result.Outcome, result.Phase, result.Title)
@@ -1910,7 +1930,127 @@ func reconcileCmd() *cobra.Command {
 	// PRD-patch-already-upstream-detector §3.2 / §3.3 (v0.8.1).
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
 	cmd.Flags().Bool("auto-drop-merged", false, "On a phase-1.5 patch-id match, remove the feature from the DAG (ADR-011 cascade rules) and create a removal commit that preserves Tpatch-CVE / Tpatch-Slug trailers. Off by default. No-op when phase 1.5 does not fire (including when patch_id_detector_enabled=false). Mutually exclusive with --check-applied-only.")
+	cmd.Flags().String("format", "human", "Output format: human or json")
+	cmd.AddCommand(reconcileReviewCmd())
 	return cmd
+}
+
+func reconcileReviewCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "review", Short: "Record or list reconcile revision-pass entries"}
+	add := &cobra.Command{
+		Use:   "add <slug>",
+		Short: "Append a reconcile revision-pass entry",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := openStoreFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			slug := args[0]
+			raw, _ := cmd.Flags().GetString("raw-verdict")
+			review, _ := cmd.Flags().GetString("verdict")
+			action, _ := cmd.Flags().GetString("action")
+			reason, _ := cmd.Flags().GetString("reason-code")
+			finalState, _ := cmd.Flags().GetString("final-state")
+			evidence, _ := cmd.Flags().GetString("evidence")
+			if review == "" || action == "" || reason == "" {
+				return fmt.Errorf("reconcile review add: --verdict, --action, and --reason-code are required")
+			}
+			status, err := s.LoadFeatureStatus(slug)
+			if err != nil {
+				return err
+			}
+			if raw == "" {
+				raw = string(status.Reconcile.Outcome)
+			}
+			if finalState == "" {
+				finalState = string(status.State)
+			}
+			entry := store.ReconcileRevision{
+				SchemaVersion:       store.ReconcileRevisionSchemaVersion,
+				FeatureSlug:         slug,
+				EvidenceAttemptID:   evidence,
+				RawReconcileVerdict: raw,
+				ReviewVerdict:       store.ReconcileReviewVerdict(review),
+				FinalFeatureState:   store.FeatureState(finalState),
+				ActionTaken:         store.ReconcileActionTaken(action),
+				ReasonCode:          reason,
+				ValidationRefs:      []store.ValidationRef{},
+			}
+			entry.EntryID = store.ComputeRevisionID(entry)
+			if err := store.AppendReconcileRevision(s, slug, entry); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "recorded revision %s for %s\n", entry.EntryID, slug)
+			return nil
+		},
+	}
+	add.Flags().String("raw-verdict", "", "Raw reconcile verdict being reviewed (defaults to status.json outcome)")
+	add.Flags().String("verdict", "", "Review verdict: confirmed, false-positive, false-negative, inconclusive, deferred")
+	add.Flags().String("action", "", "Action taken: none, confirmed-retired, reapplied, reapplied-and-recorded, implemented, deferred, skipped, cleanup-needed")
+	add.Flags().String("reason-code", "", "Enumerated reason code")
+	add.Flags().String("final-state", "", "Final feature state (defaults to current status.json state)")
+	add.Flags().String("evidence", "", "Evidence attempt ID this revision reviews")
+	list := &cobra.Command{
+		Use:   "list <slug>",
+		Short: "List reconcile revision-pass entries",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := openStoreFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			entries, err := store.LoadReconcileRevisions(s, args[0])
+			if err != nil {
+				return err
+			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			all, _ := cmd.Flags().GetBool("all")
+			if !all {
+				entries = latestRevisionEntries(entries)
+			}
+			if asJSON {
+				data, _ := json.MarshalIndent(map[string]any{"feature": args[0], "revisions": entries}, "", "  ")
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", data)
+				return nil
+			}
+			for _, e := range entries {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s: raw=%s review=%s action=%s final=%s reason=%s evidence=%s\n", e.EntryID, e.RawReconcileVerdict, e.ReviewVerdict, e.ActionTaken, e.FinalFeatureState, e.ReasonCode, e.EvidenceAttemptID)
+			}
+			return nil
+		},
+	}
+	list.Flags().Bool("json", false, "Emit JSON")
+	list.Flags().Bool("all", false, "Include superseded entries")
+	cmd.AddCommand(add, list)
+	return cmd
+}
+
+func latestRevisionEntries(entries []store.ReconcileRevision) []store.ReconcileRevision {
+	superseded := map[string]bool{}
+	for _, e := range entries {
+		if e.SupersedesEntryID != "" {
+			superseded[e.SupersedesEntryID] = true
+		}
+	}
+	out := make([]store.ReconcileRevision, 0, len(entries))
+	seen := map[string]int{}
+	for _, e := range entries {
+		key := e.FeatureSlug + "\x00" + e.EvidenceAttemptID + "\x00" + string(e.ReviewVerdict) + "\x00" + string(e.ActionTaken)
+		if idx, ok := seen[key]; ok {
+			out[idx] = e
+			continue
+		}
+		seen[key] = len(out)
+		out = append(out, e)
+	}
+	filtered := out[:0]
+	for _, e := range out {
+		if !superseded[e.EntryID] {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
 }
 
 // validateReconcileFlags refuses nonsensical combinations of the phase-3.5
