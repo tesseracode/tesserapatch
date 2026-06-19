@@ -2,11 +2,41 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-beta-prd2-prd3-prd7-impl`
-- **Milestone**: WP-003 Wave β (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`).
-- **Description**: Implement Wave β under ADR-025 (cluster ADR already covers β PRDs). Wave α (PRDs 1+6) shipped at HEAD `bb5c23a` with all carry-forwards closed. ADR-025 D1–D13 schema lock binding; ADR-024 capture/metadata non-drift binding; D10 privacy binding.
-- **Status**: Review (awaiting reviewer).
-- **Assigned**: 2026-05-26.
+- **Task ID**: `wp003-wave-beta-prd2-prd3-prd7-impl-rev1`
+- **Milestone**: WP-003 Wave β rev-1 (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`).
+- **Description**: Rev-1 fix-pass over rev-0 (HEAD `d8774a7`). Three independent reviews returned NEEDS REVISION. Implementer must close 7 consolidated findings (F1–F7 below) without reopening any ADR-025 D1–D13 schema lock, ADR-024 capture/metadata non-drift, or D10 privacy invariants. No new lifecycle states. No new config flags. Keep `Outcome`, `ReviewVerdict`, and persisted schema additions strictly within ADR-025 D8.
+- **Status**: In Progress (rev-1).
+- **Assigned**: 2026-05-30.
+
+## Rev-1 findings (binding scope — close all 7)
+
+**F1 (HIGH BLOCKING)** — PRD 2 §6.1 display contract. `internal/cli/cobra.go:1868` prints `result.Outcome` directly. When `ReviewVerdict == "rejected-upstreamed"` (set at `internal/workflow/reconcile.go:825`), human output MUST render `[upstreamed-candidate]` (or PRD-exact phrasing) instead of `[blocked]`. JSON output may keep `outcome=blocked` + `review_verdict=rejected-upstreamed` (operators reconstruct from those two fields). Add CLI test asserting `[upstreamed-candidate]` appears in human output for the rejected-gate case AND that JSON keeps both fields intact (byte-identity template at `reconcile_evidence_integration_test.go:513-529`).
+
+**F2 (HIGH BLOCKING)** — PRD 3 §5 (lines 159-161) corrupt_entries contract on `tpatch reconcile review list` surface. Current `internal/cli/cobra.go` (review list path) calls strict `LoadReconcileRevisions` at `internal/store/reconcile_revision.go:27-43` which aborts on first malformed line. PRD verbatim: "A bad JSONL line in the middle of the file is reported with line number. Human output skips unreadable trailing summaries; `--json` returns a structured `corrupt_entries` array and exits non-zero." Required:
+  - Add a lenient loader (e.g. `LoadReconcileRevisionsLenient`) that returns `(valid []ReconcileRevision, corrupt []CorruptEntry{Line int, Error string}, err error)` — does NOT abort on first malformed line, accumulates corrupt-line metadata, returns ALL valid entries (before AND after the corrupt line).
+  - Update `review list` CLI path to use the lenient loader.
+  - Human output: print valid entries, then a `corrupted entries: line N: <error>` summary; skip unreadable trailing summaries.
+  - JSON output: emit `{ "revisions": [...], "corrupt_entries": [{"line": N, "error": "..."}] }` envelope and exit non-zero when corrupt_entries is non-empty.
+  - Keep strict `AppendReconcileRevision` writer semantics unchanged (writer refuses on malformed pre-existing file — that's a separate concern).
+  - Tests: malformed JSONL with valid entries on both sides → list returns ALL valid entries + structured corrupt_entries + non-zero exit (JSON mode).
+
+**F3 (MEDIUM)** — PRD 3 privacy test re-seed. `internal/store/reconcile_revision_test.go:54-71` (`TestReconcileRevisionPrivacyNoSourceLeak`) and `internal/workflow/reconcile_evidence_integration_test.go:200,450` seed secrets into file CONTENT, but D10 privacy is about persisted-artifact content. Re-seed plausible secret-leak vectors into feature title, slug, and path metadata (mirror gate test at `:245`). Assert revision JSONL + evidence artifact do not contain the seeded secret string from any of those vectors.
+
+**F4 (MEDIUM)** — PRD 7 §6.5: hunk-overlap evidence default `nearby-window=3` (encoded at `internal/workflow/hunk_overlap.go:117`) must be asserted in marshaled JSON output. Extend a hunk-overlap test in `reconcile_evidence_integration_test.go` and/or `internal/cli/reconcile_evidence_cli_test.go` to assert the string `nearby-window=3` (or canonical encoding) appears in evidence-line JSON for the default-window case.
+
+**F5 (LOW)** — PRD 2 §6.5 backward-compat. Mirror Wave α carry-forward template `TestStatusLoadsWhenEvidenceArtifactAbsent` (`internal/cli/reconcile_evidence_carryforward_test.go`). Add tests asserting: (a) reading a `ReconcileSummary` with empty `ReviewVerdict` works; (b) reconcile run with no pre-existing `reconcile-evidence.jsonl` and no `reconcile-revisions.jsonl` succeeds and creates files lazily.
+
+**F6 (MEDIUM)** — PRD 2 §6.2 state non-mutation. Extend `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` (`reconcile_evidence_integration_test.go:435`): after reconcile, reload `status.json` from disk (not via in-memory `result`), assert persisted `State` is NOT `upstream_merged`. The workflow code at `internal/workflow/reconcile.go:825` does `finalState = StateBlocked`, but no disk-reload assertion exists.
+
+**F7 (LOW)** — PRD 2 §6.3 revision-log linkage. Extend `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply` (or analogous): load `reconcile-revisions.jsonl` from disk, assert the persisted revision entry includes the evidence attempt ID (non-empty) AND the upstream commit ref. Linkage logic lives at `internal/workflow/reconcile.go:827-833` and `:810-846` (`persistRevisionPassLog`).
+
+## Carry-forward dispatch rules (binding for rev-1 brief)
+
+11. Distinguish "behavior implemented" from "behavior tested". Reviewers MUST read the production code path first ("does this acceptance criterion actually have a code path?"), THEN check tests. F8/F2-user lesson: my supervisor-external accepted F4 as a test gap; user-external read the production code and discovered there's no `corrupt_entries` envelope at all. Same PRD line, different severity.
+12. PRD §6 lines like "displayed as X" or "appears in JSON output" or "returns a structured X array and exits non-zero" are binding test contracts AND production-behavior contracts. Brief them as both.
+13. Privacy tests MUST seed secrets into plausible exfiltration vectors (title, slug, path metadata) — NOT just file content.
+14. State-mutation contracts MUST be verified by reloading from disk (`store.LoadStatus`), not by checking runtime fields on the `result` value.
+15. ReconcileSummary persisted schema is governed by ADR-025 D8. Brief should say "no persisted-schema additions outside what ADR-025 explicitly authorizes" — NOT "schema LOCKED" (rev-0 wording was over-broad; D8 already authorized `ReviewVerdict`).
 
 ## Prior Wave α reference
 

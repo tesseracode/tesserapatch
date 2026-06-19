@@ -1,3 +1,76 @@
+## Review — WP-003 Wave β rev-0 (PRDs 2+3+7) — external (user-dispatched, parallel) — 2026-05-30
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of rev-0 (`2e7dd06..d8774a7`).
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+**F1 (HIGH, BLOCKING)** — Confirmed PRD 2 §6.1 display contract violation. PRD-upstreamed-confirmation-gate.md requires non-confirmed `upstreamed` verdict to display as `upstreamed-candidate`. `internal/cli/cobra.go:1868` prints `result.Outcome` directly. `grep` for `upstreamed-candidate` in Go source returns zero matches. Operators cannot distinguish gate-rejected upstreamed candidates from generic blocked features.
+
+**F2 (HIGH, BLOCKING, NEW STRONGER FRAMING)** — PRD 3 §5 corrupt-entry contract violation on `review list --json` surface. PRD-reconcile-revision-pass-log.md:159-161 literally requires: *"A bad JSONL line in the middle of the file is reported with line number. Human output skips unreadable trailing summaries; `--json` returns a structured `corrupt_entries` array and exits non-zero."* Implementation uses strict load at `internal/cli/cobra.go` (review list path) which aborts on first malformed line via `LoadReconcileRevisions` at `internal/store/reconcile_revision.go`. There is no `corrupt_entries` JSON envelope, no non-zero-exit-with-valid-entries path, no human-output graceful-skip. A single malformed line blocks all review history visibility. This was previously framed as F4 LOW ("preservation"); user's external sweep correctly elevates it to HIGH BLOCKING by reading PRD §5 verbatim.
+
+**F3 (LOW)** — Confirms supervisor's F4 (now F4 in consolidated list): PRD 7 nearby-window=3 default exists in production code at `internal/workflow/hunk_overlap.go` but no test asserts it appears in JSON output.
+
+### Action Taken
+Verdict captured. Two-opinion external pair confirms NEEDS REVISION; user's external strengthens internal F4 to HIGH BLOCKING via verbatim PRD §5 reading. Supervisor consolidates all findings (internal F1–F5 + supervisor-external F6–F7 + user external F2 reframing) for single rev-1 implementer dispatch.
+
+---
+
+## Review — WP-003 Wave β rev-0 (PRDs 2+3+7) — external (supervisor-dispatched) — 2026-05-30
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review with full per-PRD §6 sweep + cross-check of internal F1–F5.
+
+### Verdict: NEEDS REVISION
+
+Confirms internal F1, F2 (PRD 7 nearby-window), F3 (privacy weak), F4 (malformed line-number), F5 (backward-compat). Adds two new findings:
+
+**F6 (MEDIUM, NEW)** — PRD 2 §6.2: no test verifies that rejected upstreamed candidates leave `status.json:state` unchanged (do NOT mutate to `upstream_merged`). Workflow code at `internal/workflow/reconcile.go:825` correctly sets `finalState = StateBlocked`, but `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` checks runtime `result.Outcome` and `result.ReviewVerdict` only — does not reload `status.json` from disk to assert the persisted state field.
+
+**F7 (LOW, NEW)** — PRD 2 §6.3: no test verifies the revision-pass log entry contains the evidence attempt ID and upstream commit ref. The code at `internal/workflow/reconcile.go:827-833` extracts `evidenceAttempt` from the gate evidence, but no test asserts the linkage works end-to-end.
+
+### Per-PRD §6 acceptance sweep summary
+- PRD 2: 5/8 MET, 1 UNMET (F1 blocker), 3 UNVERIFIED (F5, F6, F7).
+- PRD 3: 6/7 MET (with F2 elevation from user external becoming UNMET), 0 originally-UNMET, 1 WEAK (F3).
+- PRD 7: 4/5 MET, 0 UNMET, 1 UNVERIFIED (F4/orig-F2).
+
+### Hard constraints + ADR-025 D1–D13 — all met
+ReconcileSummary additions limited to spec'd `ReviewVerdict` (D8). No new lifecycle states. No new flags. Byte-identity test exists. ADR-024 / patch-generations.json untouched. Side Research md5 preserved.
+
+### Validation gates — all pass
+gofmt, vet, build, full test suite green.
+
+### Action Taken
+Both externals dispatched; verdicts pooled for rev-1 brief.
+
+---
+
+## Decision — WP-003 Wave β rev-0 — supervisor — 2026-05-30
+
+**Decision**: NEEDS REVISION (consolidated from internal + both externals).
+
+### Consolidated finding list for rev-1
+
+- **F1 (HIGH, BLOCKING)** — All 3 reviewers: PRD 2 §6.1 display contract. Render `[upstreamed-candidate]` when `ReviewVerdict == "rejected-upstreamed"`.
+- **F2 (HIGH, BLOCKING)** — User-external upgrade: PRD 3 §5 `corrupt_entries` JSON envelope + line number + valid-entry preservation + non-zero exit. Add a lenient-load path for the `review list` surface; strict-write semantics at `AppendReconcileRevisions` stay.
+- **F3 (MEDIUM)** — Internal + supervisor-external: PRD 3 privacy test re-seed into title/slug/path metadata (mirror `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` template).
+- **F4 (MEDIUM)** — Internal + supervisor-external + user-external: PRD 7 §6.5 assert `nearby-window=3` appears in JSON output.
+- **F5 (LOW)** — Internal + supervisor-external: PRD 2 §6.5 backward-compat test for `ReviewVerdict`-empty + missing `reconcile-evidence.jsonl`.
+- **F6 (MEDIUM)** — Supervisor-external NEW: PRD 2 §6.2 reload `status.json` from disk and assert `state != upstream_merged` for rejected candidates.
+- **F7 (LOW)** — Supervisor-external NEW: PRD 2 §6.3 assert revision log entry carries evidence attempt ID + upstream commit ref.
+
+Carry-forward to Wave γ briefs:
+- PRD §6 lines that say "displayed as X" or "appears in JSON output" must be enumerated as binding test contracts.
+- Privacy tests must seed into plausible metadata vectors (title/slug/path), not file content.
+- State-mutation contracts must be verified by reloading from disk, not by checking runtime fields.
+
+### Action Taken
+rev-1 implementer dispatch pending.
+
+---
+
 ## Review — WP-003 Wave β rev-0 (PRDs 2+3+7) — internal — 2026-05-26
 
 **Reviewer**: internal (supervisor-dispatched code-review agent)
