@@ -1,3 +1,111 @@
+## Review — WP-003 Wave β rev-1 (PRDs 2+3+7) — internal — 2024-12-20
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of rev-1 fixes (`1918b42..bd5bf22`) closing F1–F7.
+
+### Verdict: APPROVED
+
+### Per-finding verification
+
+**F1 [CLOSED]** — PRD 2 §6.1 display contract. 
+- Fix: `internal/cli/cobra.go:1939-1944` introduces `reconcileDisplayOutcome()` which branches on `ReviewVerdict == "rejected-upstreamed"` to return `"upstreamed-candidate"`.
+- Used at: `cobra.go:1868` in human output formatting.
+- Test: `internal/cli/reconcile_evidence_cli_test.go:58-76` (`TestReconcileJSONSurfacesConfirmationGateAndRevision`) asserts JSON preserves both `outcome=blocked` AND `review_verdict=rejected-upstreamed` with byte-identity check for no invented `outcome=upstreamed-candidate`.
+- Test: `internal/cli/reconcile_evidence_cli_test.go:78-91` (`TestReconcileHumanOutputDisplaysUpstreamedCandidate`) asserts human output contains `[upstreamed-candidate]` and does NOT contain `[blocked]`.
+- Adversarial check: When `ReviewVerdict = "rejected-upstreamed"`, `Outcome` is ALWAYS set to `ReconcileBlocked` on the same line (`internal/workflow/reconcile.go:804`). Confirmed-upstreamed case would have `Outcome = ReconcileUpstreamed`, so the display function would return the outcome as-is, not trigger the special case. Logic is sound.
+
+**F2 [CLOSED]** — PRD 3 §5 corrupt_entries contract.
+- Fix: `internal/store/reconcile_revision.go:168-233` introduces `LoadReconcileRevisionsLenient()` which accumulates ALL valid entries before AND after corrupt lines, returns `(valid []ReconcileRevision, corrupt []CorruptEntry, err error)`.
+- CorruptEntry defined at `reconcile_revision.go:66-69` as transient return type (NOT in persisted types.go).
+- CLI human output: `internal/cli/cobra.go:2031-2036` prints valid entries, then `"corrupted entries: line N: <error>"` summary.
+- CLI JSON output: `cobra.go:2020-2029` emits `{"revisions": [...], "corrupt_entries": [...]}` envelope and exits non-zero via `fmt.Errorf` when `len(corrupt) > 0`.
+- Strict writer unchanged: `AppendReconcileRevision()` still calls strict `LoadReconcileRevisions()` at preflight, refuses on malformed file (line 107-109).
+- Test: `internal/store/reconcile_revision_test.go:34-67` seeds malformed JSON between two valid entries, asserts strict loader fails with line number, lenient loader returns both valid entries + line-2 corrupt metadata, and writer refuses.
+- Test: `internal/cli/reconcile_evidence_cli_test.go:112-165` seeds corrupt JSONL, asserts both JSON and human output preserve valid entries, JSON includes `corrupt_entries` with line number, and CLI exits non-zero for both modes.
+- Adversarial check: Tested parse error vs schema error distinction. `decodeReconcileRevisionLine` catches JSON parse errors (line 203), `validateReconcileRevision` catches schema violations (line 212). Both paths are handled.
+
+**F3 [CLOSED]** — PRD 3 privacy re-seed.
+- Test: `internal/store/reconcile_revision_test.go:69-91` seeds secret `SECRET_REVISION_METADATA_DO_NOT_LEAK` into repository ROOT path and SLUG (line 71, 76). Asserts persisted revision JSONL does NOT contain the secret (line 88-90).
+- Test: `internal/workflow/reconcile_evidence_integration_test.go:196-233` seeds secret into repo root path and feature TITLE (line 198, 213). Asserts neither revision nor evidence artifacts contain the secret (lines 509-514).
+- Test: `internal/workflow/reconcile_evidence_integration_test.go:490-515` continuation asserts secret metadata not leaked.
+- Coverage: Secret seeded into path component (root), slug (from title transformation), and title. All three vectors tested. No file-content-only trap (rev-0 root cause).
+
+**F4 [CLOSED]** — PRD 7 §6.5 nearby-window=3 default JSON encoding.
+- Production encoding: `internal/workflow/hunk_overlap.go:117` emits `fmt.Sprintf("nearby-window=%d", result.NearbyWindow)` where `NearbyWindow` defaults to `hunkOverlapNearbyWindow` constant (value 3).
+- Test: `internal/workflow/reconcile_evidence_integration_test.go:517-551` runs reconcile with hunk-overlap fixture, marshals evidence to JSON, asserts `bytes.Contains(hunkJSON, []byte("nearby-window=3"))` (line 545-547).
+- Coverage: Test asserts the canonical production encoding (exact string) appears in marshaled JSON. Default case tested (no override).
+
+**F5 [CLOSED]** — PRD 2 §6.5 backward-compat.
+- Test (a): `internal/cli/reconcile_evidence_carryforward_test.go:56-86` creates status with `ReviewVerdict = ""` (empty, pre-v0.10.1 shape), saves, reloads via `LoadFeatureStatus`, asserts empty string preserved (line 76-78). Asserts JSON output omits the field for back-compat (line 83-85).
+- Test (b): `internal/cli/reconcile_evidence_carryforward_test.go:88-119` runs reconcile on fixture with NO pre-existing `reconcile-evidence.jsonl` or `reconcile-revisions.jsonl` (lines 94-100), asserts reconcile succeeds and creates both artifacts lazily (lines 101-119).
+- Coverage: Both PRD requirements met with explicit disk checks.
+
+**F6 [CLOSED]** — PRD 2 §6.2 state non-mutation disk reload.
+- Test: `internal/workflow/reconcile_evidence_integration_test.go:459-485` extends `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch`.
+- After reconcile, reloads `status.json` via `s.LoadFeatureStatus(slug)` (line 476-478), NOT from in-memory `results[0]`.
+- Asserts persisted `State` is NOT `StateUpstreamMerged` AND equals `StateBlocked` (line 480-482).
+- Coverage: Disk-reload requirement satisfied. Workflow code at `internal/workflow/reconcile.go:825` sets `finalState = StateBlocked` for rejected candidates.
+
+**F7 [CLOSED]** — PRD 2 §6.3 revision log linkage.
+- Test: `internal/workflow/reconcile_evidence_integration_test.go:413-457` extends `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply`.
+- Loads `reconcile-revisions.jsonl` via `store.LoadReconcileRevisions(s, slug)` (line 437-440).
+- Asserts revision entry `EvidenceAttemptID` matches gate evidence `AttemptID` (line 441-443).
+- Asserts revision entry includes upstream commit ref in `ValidationRefs` with `kind=upstream-commit`, `value=<HEAD SHA>`, `result=referenced` (lines 444-456).
+- Coverage: End-to-end linkage verified from disk artifacts. Production code at `internal/workflow/reconcile.go:827-833` extracts evidence attempt ID, `:836-838` records upstream commit validation ref.
+
+### Hard-constraint sweep
+
+- [x] NO new lifecycle states added. Git diff on `internal/store/types.go` shows no new `State*` constants.
+- [x] NO new config flags. Git diff on `internal/cli/cobra.go` shows no new flag registrations in rev-1 commits.
+- [x] NO changes to `patch-generations.json` / ADR-024 surface. No such file exists in repo; no commits touch it.
+- [x] `corrupt_entries` is TRANSIENT CLI output envelope only. Defined in `internal/store/reconcile_revision.go:66-69` as return type, NOT in `types.go`. Appears only in CLI JSON marshaling (`cobra.go:2024`) and test assertions. Never persisted to any artifact.
+- [x] D10 privacy: no source bodies, transcripts, prompts, vectors in persisted artifacts. Tests seed secrets into metadata vectors (path/slug/title) and assert no leaks in revision/evidence JSONL. Production code at `internal/workflow/hunk_overlap.go`, `reconcile.go` emits only paths, hashes, operation IDs, refs, counts per ADR-025 D10.
+- [x] ADR-025 D1–D13 schema unchanged beyond D8. Only `ReviewVerdict` added to `ReconcileSummary` per D8 authorization. `CorruptEntry` is not persisted schema. No new evidence kinds, no new revision fields beyond D6-D8 scope.
+- [x] Side Research md5 verified: `b385fe622db9926f48861105239f113e` matches expected.
+- [x] Commit trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` present on all three commits: `56791b5`, `5280f5d`, `bd5bf22`.
+
+### Validation gates
+
+- **gofmt**: clean (empty output, direct run)
+- **go vet**: clean (`./...`)
+- **go build**: clean (`./cmd/tpatch`)
+- **go test**: green (`./...` — all packages cached/pass)
+
+### Adversarial extras
+
+1. **Persisted-schema drift check**: Reviewed all changes to `internal/store/types.go`. No additions beyond what handoff declared. `ReviewVerdict` is the ONLY new persisted field, authorized by ADR-025 D8. `CorruptEntry` lives in `reconcile_revision.go` as transient return type.
+
+2. **New lifecycle states**: Searched git diff for `State[A-Z]` additions. None found. Existing `StateBlocked`, `StateUpstreamMerged` reused per PRD 2 §6.2 and ADR-025 D8.
+
+3. **PRD §6 sweep**:
+   - PRD 2: All 8 acceptance criteria met. F1 closes §6.1, F6 closes §6.2, F7 closes §6.3, implementation satisfies §6.4 (rejection records review verdict), F5 closes §6.5 (back-compat), §6.6 met (rejected candidates write `review_verdict=rejected-upstreamed` and do not mutate state — confirmed by F6 test), §6.7 met (rejection requires reason code — confirmed in production code at `reconcile.go:831`), §6.8 met (reachable patch-id auto-confirm logic exists at `reconcile.go:799-806`).
+   - PRD 3: All 7 acceptance criteria met. §6.1 met (revision recording exists), §6.2 met (privacy tests F3), §6.3 met (JSON output exists), §6.4 deferred per PRD text, F2 closes §6.5 (corrupt entries reported), §6.6 met (superseded handling via `latestRevisionEntries` at `cobra.go:2049`), §6.7 met (enumerated reason codes, no free-text).
+   - PRD 7: All 5 acceptance criteria met. §6.1 met (hunk evidence exists), §6.2 met (non-overlapping vs true overlap distinguished in production code), §6.3 met (detector explains blocked features), §6.4 met (privacy test F3/F4), F4 closes §6.5 (nearby-window=3 in JSON).
+
+4. **ADR-025 D1–D13 drift check**: 
+   - D1: Evidence lives in `.jsonl` at declared path — unchanged.
+   - D2: Schema version and canonical JSON — unchanged.
+   - D3: Attempt ID `re_<12hex>` — unchanged.
+   - D4: Evidence enums closed for v1 — unchanged.
+   - D5: Patch-id evidence uses ADR-024 fields — unchanged.
+   - D6: Revision corrections in `.jsonl` — unchanged.
+   - D7: Revision verdict/action enums — unchanged.
+   - D8: Confirmation adds `ReviewVerdict` to `ReconcileSummary` — USED CORRECTLY. No new lifecycle states.
+   - D9: Reachable patch-id matches auto-confirm — logic exists at `reconcile.go:799-806`.
+   - D10: Privacy boundary — tests verify (F3).
+   - D11: Malformed JSONL handling — F2 implements writer-refuses / reader-warns split.
+   - D12: Evidence byte-identity — existing test remains.
+   - D13: Revision byte-identity — test at `reconcile_revision_test.go:20-32`.
+
+5. **Flag-off counter-scenarios**: No new enforcement flags introduced. Existing `--auto-drop-merged` remains opt-in per ADR-022. Confirmation gate is always-on per PRD 2 design (no opt-out exists, by design).
+
+### New findings
+
+None. All F1–F7 are closed with production fixes and tests that satisfy PRD acceptance criteria verbatim.
+
+### Action Taken
+
+Writing APPROVED verdict to `docs/supervisor/LOG.md` and committing with required trailer.
 ## Review — WP-003 Wave β rev-0 (PRDs 2+3+7) — external (user-dispatched, parallel) — 2026-05-30
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
