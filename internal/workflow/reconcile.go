@@ -832,6 +832,10 @@ func persistRevisionPassLog(s *store.Store, slug string, result *ReconcileResult
 			break
 		}
 	}
+	validationRefs := []store.ValidationRef{}
+	if result.UpstreamCommit != "" && result.UpstreamCommit != "unknown" {
+		validationRefs = append(validationRefs, store.ValidationRef{Kind: "upstream-commit", Value: result.UpstreamCommit, Result: "referenced"})
+	}
 	entry := store.ReconcileRevision{
 		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
 		FeatureSlug:         slug,
@@ -841,7 +845,7 @@ func persistRevisionPassLog(s *store.Store, slug string, result *ReconcileResult
 		FinalFeatureState:   finalState,
 		ActionTaken:         action,
 		ReasonCode:          reason,
-		ValidationRefs:      []store.ValidationRef{},
+		ValidationRefs:      validationRefs,
 	}
 	entry.EntryID = store.ComputeRevisionID(entry)
 	if err := store.AppendReconcileRevision(s, slug, entry); err != nil {

@@ -195,9 +195,13 @@ func gitRun(t *testing.T, dir string, args ...string) {
 
 func buildReverseApplyConfirmationFixture(t *testing.T) (*store.Store, string) {
 	t.Helper()
-	dir := t.TempDir()
+	secret := "SECRET_REVISION_METADATA_DO_NOT_LEAK"
+	dir := filepath.Join(t.TempDir(), secret+"-repo-root")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	setupGitRepo(t, dir)
-	if err := os.WriteFile(filepath.Join(dir, "feature.txt"), []byte("SECRET_REVISION_DO_NOT_LEAK\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "feature.txt"), []byte("feature body\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	gitAdd(t, dir, "feature.txt")
@@ -206,7 +210,7 @@ func buildReverseApplyConfirmationFixture(t *testing.T) (*store.Store, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	feature, err := s.AddFeature(store.AddFeatureInput{Title: "reverse apply confirmation", Request: "confirm upstreamed"})
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: secret + " reverse apply confirmation", Request: "confirm upstreamed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -420,8 +424,35 @@ func TestUpstreamedConfirmationGateKeepsConfirmedReverseApply(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasEvidenceKindReason(entries, store.EvidenceKindManualReview, "confirmed-upstreamed") {
+	var gateEvidence store.ReconcileEvidence
+	for _, entry := range entries {
+		if entry.EvidenceKind == store.EvidenceKindManualReview && entry.ReasonCode == "confirmed-upstreamed" {
+			gateEvidence = entry
+			break
+		}
+	}
+	if gateEvidence.AttemptID == "" {
 		t.Fatalf("confirmation gate evidence not found: %+v", entries)
+	}
+	revisions, err := store.LoadReconcileRevisions(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revisions) != 1 || revisions[0].EvidenceAttemptID != gateEvidence.AttemptID {
+		t.Fatalf("revision entry does not link to gate evidence attempt %q: %+v", gateEvidence.AttemptID, revisions)
+	}
+	wantUpstreamCommit := gitRevParse(t, s.Root, "HEAD")
+	if gateEvidence.UpstreamCommit != wantUpstreamCommit {
+		t.Fatalf("gate evidence upstream commit %q does not match HEAD", gateEvidence.UpstreamCommit)
+	}
+	foundUpstreamRef := false
+	for _, ref := range revisions[0].ValidationRefs {
+		if ref.Kind == "upstream-commit" && ref.Value == wantUpstreamCommit && ref.Result == "referenced" {
+			foundUpstreamRef = true
+		}
+	}
+	if !foundUpstreamRef {
+		t.Fatalf("revision entry does not include upstream commit ref %q: %+v", wantUpstreamCommit, revisions[0].ValidationRefs)
 	}
 }
 
@@ -441,6 +472,13 @@ func TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch(t *testing.T)
 	}
 	if !hasEvidenceKindReason(entries, store.EvidenceKindManualReview, "missing-upstream-commit-ref") {
 		t.Fatalf("confirmation gate rejection evidence not found: %+v", entries)
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.State == store.StateUpstreamMerged || status.State != store.StateBlocked {
+		t.Fatalf("rejected upstreamed candidate must persist blocked state, got %q", status.State)
 	}
 	if strings.Contains(mustReadFile(t, s.ReconcileEvidencePath(slug)), "SECRET_GATE_DO_NOT_LEAK") {
 		t.Fatal("confirmation gate evidence leaked secret metadata")
@@ -467,8 +505,12 @@ func TestRevisionPassLogAppendedForConfirmationGate(t *testing.T) {
 	if got := store.ComputeRevisionID(revisions[0]); got != revisions[0].EntryID {
 		t.Fatalf("revision entry_id not stable: got %s want %s", got, revisions[0].EntryID)
 	}
-	if strings.Contains(mustReadFile(t, s.ReconcileRevisionsPath(slug)), "SECRET_REVISION_DO_NOT_LEAK") {
+	secret := "SECRET_REVISION_METADATA_DO_NOT_LEAK"
+	if strings.Contains(mustReadFile(t, s.ReconcileRevisionsPath(slug)), secret) {
 		t.Fatal("revision entry leaked secret metadata")
+	}
+	if strings.Contains(mustReadFile(t, s.ReconcileEvidencePath(slug)), secret) {
+		t.Fatal("evidence entry leaked secret metadata")
 	}
 }
 
@@ -486,8 +528,22 @@ func TestHunkOverlapEvidenceForModifiedPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasEvidenceKindReason(entries, store.EvidenceKindHunkOverlap, string(HunkOverlapEditOverlap)) {
+	var hunkEvidence store.ReconcileEvidence
+	for _, entry := range entries {
+		if entry.EvidenceKind == store.EvidenceKindHunkOverlap && entry.ReasonCode == string(HunkOverlapEditOverlap) {
+			hunkEvidence = entry
+			break
+		}
+	}
+	if hunkEvidence.AttemptID == "" {
 		t.Fatalf("hunk-overlap edit-overlap evidence not found: %+v", entries)
+	}
+	hunkJSON, err := json.Marshal(hunkEvidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(hunkJSON, []byte("nearby-window=3")) {
+		t.Fatalf("expected default nearby-window=3 in hunk-overlap JSON: %s", hunkJSON)
 	}
 	if strings.Contains(mustReadFile(t, s.ReconcileEvidencePath(slug)), "SECRET_OVERLAP_DO_NOT_LEAK") {
 		t.Fatal("hunk-overlap evidence leaked source body")
