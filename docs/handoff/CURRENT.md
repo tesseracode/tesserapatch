@@ -4,8 +4,8 @@
 
 - **Task ID**: `wp003-wave-beta-prd2-prd3-prd7-impl-rev1`
 - **Milestone**: WP-003 Wave β rev-1 (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`).
-- **Description**: Rev-1 fix-pass over rev-0 (HEAD `d8774a7`). Three independent reviews returned NEEDS REVISION. Implementer must close 7 consolidated findings (F1–F7 below) without reopening any ADR-025 D1–D13 schema lock, ADR-024 capture/metadata non-drift, or D10 privacy invariants. No new lifecycle states. No new config flags. Keep `Outcome`, `ReviewVerdict`, and persisted schema additions strictly within ADR-025 D8.
-- **Status**: In Progress (rev-1).
+- **Description**: Rev-1 fix-pass over rev-0 (HEAD `d8774a7`). Three independent reviews returned NEEDS REVISION. Implementer closed the 7 consolidated findings (F1–F7 below) without reopening ADR-025 D1–D13, ADR-024 capture/metadata, or D10 privacy invariants. No new lifecycle states. No new config flags. `Outcome`, `ReviewVerdict`, and persisted schema additions remain within ADR-025 D8 / existing ADR-025 fields.
+- **Status**: Review.
 - **Assigned**: 2026-05-30.
 
 ## Rev-1 findings (binding scope — close all 7)
@@ -29,6 +29,16 @@
 **F6 (MEDIUM)** — PRD 2 §6.2 state non-mutation. Extend `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` (`reconcile_evidence_integration_test.go:435`): after reconcile, reload `status.json` from disk (not via in-memory `result`), assert persisted `State` is NOT `upstream_merged`. The workflow code at `internal/workflow/reconcile.go:825` does `finalState = StateBlocked`, but no disk-reload assertion exists.
 
 **F7 (LOW)** — PRD 2 §6.3 revision-log linkage. Extend `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply` (or analogous): load `reconcile-revisions.jsonl` from disk, assert the persisted revision entry includes the evidence attempt ID (non-empty) AND the upstream commit ref. Linkage logic lives at `internal/workflow/reconcile.go:827-833` and `:810-846` (`persistRevisionPassLog`).
+
+## Rev-1 closure summary
+
+- **F1** — Closed in `56791b5`. Fix: `internal/cli/cobra.go:1868`, `internal/cli/cobra.go:1939`. Tests: `internal/cli/reconcile_evidence_cli_test.go:58`, `internal/cli/reconcile_evidence_cli_test.go:78` assert JSON remains `outcome=blocked` and human output displays `[upstreamed-candidate]`.
+- **F2** — Closed in `56791b5`. Fix: `internal/store/reconcile_revision.go:168`, `internal/cli/cobra.go:2011`, `internal/cli/cobra.go:2024`. Tests: `internal/store/reconcile_revision_test.go:34`, `internal/cli/reconcile_evidence_cli_test.go:112` assert valid entries around a corrupt line, `corrupt_entries`, and non-zero CLI exit.
+- **F3** — Closed in `56791b5` + `5280f5d`. Tests: `internal/store/reconcile_revision_test.go:69`, `internal/workflow/reconcile_evidence_integration_test.go:196`, `internal/workflow/reconcile_evidence_integration_test.go:494` seed exact metadata secrets into slug/title/path vectors and assert revision/evidence artifacts do not contain them.
+- **F4** — Closed in `5280f5d`. Production encoding remains `internal/workflow/hunk_overlap.go:117`; test `internal/workflow/reconcile_evidence_integration_test.go:517` marshals hunk evidence and asserts `nearby-window=3`.
+- **F5** — Closed in `56791b5`. Tests: `internal/cli/reconcile_evidence_carryforward_test.go:56`, `internal/cli/reconcile_evidence_carryforward_test.go:88` cover empty `ReviewVerdict` load and lazy creation of both JSONL artifacts.
+- **F6** — Closed in `5280f5d`. Test: `internal/workflow/reconcile_evidence_integration_test.go:459` reloads `status.json` via `LoadFeatureStatus` and asserts rejected candidates persist `StateBlocked`, not `StateUpstreamMerged`.
+- **F7** — Closed in `5280f5d`. Fix: `internal/workflow/reconcile.go:837` records an `upstream-commit` validation ref using existing revision schema. Test: `internal/workflow/reconcile_evidence_integration_test.go:413` asserts revision evidence-attempt linkage and upstream commit ref match the evidence/HEAD.
 
 ## Carry-forward dispatch rules (binding for rev-1 brief)
 
@@ -71,30 +81,28 @@ Cross-cluster: ADR-024 capture/metadata is binding. No drift in `patch-generatio
 
 ## Session Summary
 
-Wave β rev-0 implemented in three commits:
+Wave β rev-1 implemented in two code commits:
 
-1. `e45ccdc` — added ADR-025 `reconcile-revisions.jsonl` store schema, strict reader/writer, deterministic `rr_<12hex>` IDs, malformed sentinel, and `ReconcileSummary.review_verdict`.
-2. `34b2bba` — added workflow confirmation gate, revision-pass persistence for gate decisions, hunk-overlap detector after file-novelty, and workflow tests for PRDs 2/3/7.
-3. `1e99a9f` — added `tpatch reconcile --format json`, human evidence hints for gate/hunk overlap, `tpatch reconcile review add/list`, and CLI tests.
+1. `56791b5` — fixed human display for rejected upstreamed candidates, added lenient revision-log loading and transient `corrupt_entries` CLI envelope, and added F1/F2/F5 tests.
+2. `5280f5d` — strengthened workflow/revision evidence coverage for privacy metadata vectors, hunk `nearby-window=3`, persisted blocked state, and revision linkage to evidence/upstream commit refs.
 
 ## Current State
 
-- PRD 2: upstreamed candidates now pass through a confirmation gate. High-confidence reverse-apply / patch-id evidence stays `upstreamed` with `review_verdict=confirmed-upstreamed`; unconfirmed operation/provider candidates downgrade to `blocked` with recorded gate evidence and revision entry.
-- PRD 3: `reconcile-revisions.jsonl` is append-only, deterministic, strict on malformed input, and surfaced through `ReconcileResult.Revisions` plus `tpatch reconcile review add/list`.
-- PRD 7: modified/mixed-additive files run a deterministic line-range hunk-overlap pass after file-novelty. Evidence uses existing ADR-025 fields (`evidence_kind=hunk-overlap`, classification in `reason_code`, sanitized hunk IDs in `matched_operations`).
-- No `schema_version` bump. No `FeatureState` additions. No config flags. No `patch-generations.json` / ADR-024 changes.
+- PRD 2: rejected upstreamed candidates now render as `[upstreamed-candidate]` for humans while JSON/persisted status still uses `outcome=blocked` + `review_verdict=rejected-upstreamed`. Confirmed/rejected gate decisions remain in existing status/revision fields.
+- PRD 3: strict writer semantics are unchanged; `review list` now uses a lenient reader that preserves valid entries around corrupt JSONL lines, reports line-numbered corruption, emits transient `corrupt_entries` in JSON, and exits non-zero on corruption.
+- PRD 7: hunk-overlap evidence still uses existing ADR-025 fields and now has JSON coverage for the default `nearby-window=3` encoding.
+- No `schema_version` bump. No `FeatureState` additions. No config flags. No `patch-generations.json` / ADR-024 changes. `corrupt_entries` is CLI output only and is not persisted.
 
 ## Files Changed
 
-- `internal/store/types.go`
 - `internal/store/reconcile_revision.go`
 - `internal/store/reconcile_revision_test.go`
 - `internal/workflow/reconcile.go`
-- `internal/workflow/hunk_overlap.go`
 - `internal/workflow/reconcile_evidence_integration_test.go`
-- `internal/workflow/reconcile_test.go`
 - `internal/cli/cobra.go`
 - `internal/cli/reconcile_evidence_cli_test.go`
+- `internal/cli/reconcile_evidence_carryforward_test.go`
+- `docs/handoff/CURRENT.md`
 
 ## Test Results
 
@@ -104,18 +112,18 @@ Validation gates (all green, run directly):
 - `go vet ./...` — clean.
 - `go build ./cmd/tpatch` — clean.
 - `go test ./...` — green across all packages.
+- Targeted post-commit tests: `go test ./internal/store ./internal/cli` after `56791b5`; `go test ./internal/workflow` after `5280f5d`.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 New / updated targeted coverage:
 
-- PRD 2: `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply`, `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch`, updated `TestReconcilePhase3_ProviderAssistedUpstreamed`, `TestReconcileJSONSurfacesConfirmationGateAndRevision`.
-- PRD 3: `TestReconcileRevisionRoundTripAndStableID`, `TestReconcileRevisionMalformedLineAndWriterRefusal`, `TestReconcileRevisionPrivacyNoSourceLeak`, `TestRevisionPassLogAppendedForConfirmationGate`, `TestReconcileReviewAddListJSON`.
-- PRD 7: `TestHunkOverlapEvidenceForModifiedPath`, `TestHunkOverlapSkippedForAllNewFiles`, `TestReconcileHumanOutputHunkOverlapHint`.
-- Byte/privacy/carry-forward: `TestReconcileResultJSONOmitsWaveBetaFieldsWhenNoGateRevisionOrOverlap` plus existing Wave α absent/malformed evidence status tests remain green.
+- PRD 2: `TestReconcileHumanOutputDisplaysUpstreamedCandidate`, `TestReconcileJSONSurfacesConfirmationGateAndRevision`, `TestStatusLoadsWithEmptyReviewVerdict`, `TestReconcileLazilyCreatesEvidenceAndRevisionArtifacts`, `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch`, `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply`.
+- PRD 3: `TestReconcileRevisionMalformedLineAndWriterRefusal`, `TestReconcileRevisionPrivacyNoSourceLeak`, `TestReconcileReviewListReportsCorruptEntries`, `TestReconcileReviewAddListJSON`.
+- PRD 7: `TestHunkOverlapEvidenceForModifiedPath`.
 
 ## Next Steps
 
-1. Wave β internal review pending.
+1. Supervisor to dispatch Wave β rev-1 review.
 
 ## Blockers
 
@@ -123,9 +131,10 @@ None.
 
 ## Context for Next Agent
 
-- Confirmation gate evidence is encoded as `evidence_kind=manual-review` with `matched_operations=["confirmation-gate"]` and reason codes `confirmed-upstreamed` / `missing-upstream-commit-ref`. This intentionally avoids adding a new `confirmation-gate` evidence kind because ADR-025 D4 closes the v1 evidence-kind enum.
-- Hunk-overlap evidence does not add new JSONL fields; it preserves ADR-025 D2 by storing classification in `reason_code`, paths in `matched_paths`, the default window as `nearby-window=3`, and hunk range IDs in `matched_operations` (no source bodies).
-- Revision entries are written for confirmation-gate decisions and by `tpatch reconcile review add`. General non-gate reconcile attempts do not emit revision entries, preserving `omitempty` byte-identity for no-review/no-gate scenarios.
+- `LoadReconcileRevisions` remains strict and is still used by writer preflight; `LoadReconcileRevisionsLenient(path)` is only for reader/list surfaces that must preserve valid entries around corrupt JSONL lines.
+- `corrupt_entries` is a transient CLI JSON envelope field only; it is never written to `status.json`, `reconcile-evidence.jsonl`, or `reconcile-revisions.jsonl`.
+- Rejected upstreamed candidates deliberately keep persisted `Outcome=blocked`; `[upstreamed-candidate]` is a human display string derived from `ReviewVerdict == "rejected-upstreamed"`.
+- The revision upstream commit reference uses existing `validation_refs` shape (`kind=upstream-commit`, `result=referenced`) to avoid adding persisted schema fields outside ADR-025.
 - No PRD acceptance criteria intentionally deferred.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
