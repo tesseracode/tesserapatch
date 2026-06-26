@@ -37,8 +37,13 @@ func TestReconcileRevisionMalformedLineAndWriterRefusal(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	line, _ := marshalReconcileRevisionLine(sampleRevision("demo"))
-	body := string(line) + "\n" + `{"schema_version":` + "\n"
+	first := sampleRevision("demo")
+	second := sampleRevision("demo")
+	second.EvidenceAttemptID = "re_123456abcdef"
+	second.EntryID = ComputeRevisionID(second)
+	firstLine, _ := marshalReconcileRevisionLine(first)
+	secondLine, _ := marshalReconcileRevisionLine(second)
+	body := string(firstLine) + "\n" + `{"schema_version":` + "\n" + string(secondLine) + "\n"
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -46,27 +51,42 @@ func TestReconcileRevisionMalformedLineAndWriterRefusal(t *testing.T) {
 	if !errors.Is(err, ErrMalformedRevision) || !strings.Contains(err.Error(), "line 2") {
 		t.Fatalf("expected malformed revision with line number, got %v", err)
 	}
+	valid, corrupt, err := LoadReconcileRevisionsLenient(path)
+	if err != nil {
+		t.Fatalf("LoadReconcileRevisionsLenient returned I/O error: %v", err)
+	}
+	if len(valid) != 2 || len(corrupt) != 1 || corrupt[0].Line != 2 {
+		t.Fatalf("expected 2 valid entries and line-2 corrupt entry, got valid=%+v corrupt=%+v", valid, corrupt)
+	}
+	if valid[0].EntryID != first.EntryID || valid[1].EntryID != second.EntryID {
+		t.Fatalf("valid entries were not preserved around corrupt line: %+v", valid)
+	}
 	if err := AppendReconcileRevision(s, "demo", sampleRevision("demo")); !errors.Is(err, ErrMalformedRevision) {
 		t.Fatalf("writer must refuse corrupt revision file, got %v", err)
 	}
 }
 
 func TestReconcileRevisionPrivacyNoSourceLeak(t *testing.T) {
-	s := &Store{Root: t.TempDir()}
-	secret := "SECRET_REVISION_SOURCE_DO_NOT_LEAK"
-	entry := sampleRevision("demo")
-	if strings.Contains(string(mustRevisionLine(t, entry)), secret) {
-		t.Fatal("fixture unexpectedly contains secret")
-	}
-	if err := AppendReconcileRevision(s, "demo", entry); err != nil {
+	secret := "SECRET_REVISION_METADATA_DO_NOT_LEAK"
+	root := filepath.Join(t.TempDir(), secret+"-repo-root")
+	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(s.ReconcileRevisionsPath("demo"))
+	s := &Store{Root: root}
+	slug := "secret-revision-metadata-do-not-leak"
+	entry := sampleRevision(slug)
+	if strings.Contains(string(mustRevisionLine(t, entry)), secret) {
+		t.Fatal("fixture unexpectedly contains exact secret")
+	}
+	if err := AppendReconcileRevision(s, slug, entry); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(s.ReconcileRevisionsPath(slug))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bytes.Contains(data, []byte(secret)) {
-		t.Fatalf("revision artifact leaked source body: %s", data)
+		t.Fatalf("revision artifact leaked secret metadata vector: %s", data)
 	}
 }
 

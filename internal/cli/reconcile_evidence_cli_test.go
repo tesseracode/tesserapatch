@@ -62,13 +62,31 @@ func TestReconcileJSONSurfacesConfirmationGateAndRevision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reconcile failed: %v\nstderr=%s\nstdout=%s", err, errOut, out)
 	}
-	for _, want := range []string{`"review_verdict": "rejected-upstreamed"`, `"evidence_kind": "manual-review"`, `"confirmation-gate"`, `"revisions"`} {
+	for _, want := range []string{`"outcome": "blocked"`, `"review_verdict": "rejected-upstreamed"`, `"evidence_kind": "manual-review"`, `"confirmation-gate"`, `"revisions"`} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("expected %s in JSON output:\n%s", want, out)
 		}
 	}
+	if strings.Contains(out, `"outcome": "upstreamed-candidate"`) {
+		t.Fatalf("JSON output must preserve outcome=blocked and not invent a persisted outcome:\n%s", out)
+	}
 	if strings.Contains(out, "SECRET_CLI_GATE_DO_NOT_LEAK") {
 		t.Fatalf("confirmation gate JSON leaked metadata secret:\n%s", out)
+	}
+}
+
+func TestReconcileHumanOutputDisplaysUpstreamedCandidate(t *testing.T) {
+	dir, slug := cliOperationUpstreamedCandidateFixture(t)
+
+	out, errOut, err := runCLIForEvidence("reconcile", "--path", dir, "--allow-dirty", "--upstream-ref", "HEAD", slug)
+	if err != nil {
+		t.Fatalf("reconcile failed: %v\nstderr=%s\nstdout=%s", err, errOut, out)
+	}
+	if !strings.Contains(out, "[upstreamed-candidate]") {
+		t.Fatalf("expected human output to display upstreamed-candidate for rejected gate:\n%s", out)
+	}
+	if strings.Contains(out, "[blocked]") {
+		t.Fatalf("human output should not collapse rejected upstreamed candidate to generic blocked:\n%s", out)
 	}
 }
 
@@ -85,6 +103,64 @@ func TestReconcileReviewAddListJSON(t *testing.T) {
 	}
 	if !strings.Contains(listOut, `"review_verdict": "false-negative"`) || !strings.Contains(listOut, `"reason_code": "false-negative-blocked"`) {
 		t.Fatalf("expected revision in list JSON:\n%s", listOut)
+	}
+	if !strings.Contains(listOut, `"corrupt_entries": []`) {
+		t.Fatalf("expected JSON envelope with empty corrupt_entries:\n%s", listOut)
+	}
+}
+
+func TestReconcileReviewListReportsCorruptEntries(t *testing.T) {
+	dir, slug, s := cliEvidenceFixture(t, "review corrupt", map[string]string{"new.txt": "brand new\n"})
+	first := cliSampleRevision(slug, "re_111111111111")
+	second := cliSampleRevision(slug, "re_222222222222")
+	if err := store.AppendReconcileRevision(s, slug, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AppendReconcileRevision(s, slug, second); err != nil {
+		t.Fatal(err)
+	}
+	path := s.ReconcileRevisionsPath(slug)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected two seed revision lines, got %d: %s", len(lines), data)
+	}
+	corruptBody := lines[0] + "\n" + `{"schema_version":` + "\n" + lines[1] + "\n"
+	if err := os.WriteFile(path, []byte(corruptBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	jsonOut, jsonErr, err := runCLIForEvidence("reconcile", "review", "list", "--path", dir, "--json", slug)
+	if err == nil {
+		t.Fatalf("review list --json should exit non-zero for corrupt entries; stderr=%s stdout=%s", jsonErr, jsonOut)
+	}
+	for _, want := range []string{`"corrupt_entries"`, `"line": 2`, first.EntryID, second.EntryID} {
+		if !strings.Contains(jsonOut, want) {
+			t.Fatalf("expected %s in corrupt JSON envelope:\n%s", want, jsonOut)
+		}
+	}
+	var payload struct {
+		Revisions      []store.ReconcileRevision `json:"revisions"`
+		CorruptEntries []store.CorruptEntry      `json:"corrupt_entries"`
+	}
+	if err := json.Unmarshal([]byte(jsonOut), &payload); err != nil {
+		t.Fatalf("review list corrupt output is not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if len(payload.Revisions) != 2 || len(payload.CorruptEntries) != 1 || payload.CorruptEntries[0].Line != 2 {
+		t.Fatalf("unexpected corrupt JSON payload: %+v", payload)
+	}
+
+	humanOut, humanErr, err := runCLIForEvidence("reconcile", "review", "list", "--path", dir, slug)
+	if err == nil {
+		t.Fatalf("review list human should exit non-zero for corrupt entries; stderr=%s stdout=%s", humanErr, humanOut)
+	}
+	for _, want := range []string{first.EntryID, second.EntryID, "corrupted entries: line 2:"} {
+		if !strings.Contains(humanOut, want) {
+			t.Fatalf("expected %s in corrupt human output:\n%s", want, humanOut)
+		}
 	}
 }
 
@@ -270,4 +346,20 @@ func cliEvidenceFixture(t *testing.T, title string, files map[string]string) (st
 		t.Fatal(err)
 	}
 	return dir, feature.Slug, s
+}
+
+func cliSampleRevision(slug, evidence string) store.ReconcileRevision {
+	entry := store.ReconcileRevision{
+		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
+		FeatureSlug:         slug,
+		EvidenceAttemptID:   evidence,
+		RawReconcileVerdict: string(store.ReconcileBlocked),
+		ReviewVerdict:       store.ReviewVerdictFalseNegative,
+		FinalFeatureState:   store.StateApplied,
+		ActionTaken:         store.ReconcileActionReapplied,
+		ReasonCode:          "false-negative-blocked",
+		ValidationRefs:      []store.ValidationRef{},
+	}
+	entry.EntryID = store.ComputeRevisionID(entry)
+	return entry
 }

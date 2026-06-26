@@ -53,6 +53,73 @@ func TestStatusLoadsWhenEvidenceArtifactAbsent(t *testing.T) {
 	}
 }
 
+func TestStatusLoadsWithEmptyReviewVerdict(t *testing.T) {
+	dir, slug, s := cliEvidenceFixture(t, "empty review verdict", map[string]string{
+		"new.txt": "brand new\n",
+	})
+
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatalf("LoadFeatureStatus failed for fixture: %v", err)
+	}
+	status.Reconcile.Outcome = store.ReconcileBlocked
+	status.Reconcile.UpstreamRef = "HEAD"
+	status.Reconcile.ReviewVerdict = ""
+	if err := s.SaveFeatureStatus(status); err != nil {
+		t.Fatalf("SaveFeatureStatus failed: %v", err)
+	}
+
+	loaded, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatalf("LoadFeatureStatus failed with empty ReviewVerdict: %v", err)
+	}
+	if loaded.Reconcile.ReviewVerdict != "" || loaded.Reconcile.Outcome != store.ReconcileBlocked {
+		t.Fatalf("unexpected reconcile summary after empty-review load: %+v", loaded.Reconcile)
+	}
+	statusOut, statusErr, err := runCLIForEvidence("status", "--path", dir, "--json")
+	if err != nil {
+		t.Fatalf("status --json failed with empty ReviewVerdict: %v\nstderr=%s\nstdout=%s", err, statusErr, statusOut)
+	}
+	if strings.Contains(statusOut, `"review_verdict"`) {
+		t.Fatalf("empty review_verdict should remain omitted for back-compat:\n%s", statusOut)
+	}
+}
+
+func TestReconcileLazilyCreatesEvidenceAndRevisionArtifacts(t *testing.T) {
+	dir, slug := cliOperationUpstreamedCandidateFixture(t)
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidencePath := s.ReconcileEvidencePath(slug)
+	revisionsPath := s.ReconcileRevisionsPath(slug)
+	for _, path := range []string{evidencePath, revisionsPath} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected artifact to be absent before reconcile at %s, err=%v", path, err)
+		}
+	}
+
+	out, errOut, err := runCLIForEvidence("reconcile", "--path", dir, "--allow-dirty", "--upstream-ref", "HEAD", slug)
+	if err != nil {
+		t.Fatalf("reconcile failed without pre-existing evidence/revision artifacts: %v\nstderr=%s\nstdout=%s", err, errOut, out)
+	}
+	for _, path := range []string{evidencePath, revisionsPath} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("expected artifact to be lazily created at %s: %v", path, err)
+		}
+		trimmed := strings.TrimSpace(string(data))
+		if trimmed == "" {
+			t.Fatalf("artifact is empty at %s", path)
+		}
+		for _, line := range strings.Split(trimmed, "\n") {
+			if !json.Valid([]byte(line)) {
+				t.Fatalf("artifact contains invalid JSONL at %s:\n%s", path, data)
+			}
+		}
+	}
+}
+
 // TestStatusLoadsWhenEvidenceArtifactMalformed verifies PRD 1 §6 acceptance
 // ("Corrupt evidence artifacts fail with an explicit warning/error and do not
 // prevent status.json from loading"). A feature with a malformed

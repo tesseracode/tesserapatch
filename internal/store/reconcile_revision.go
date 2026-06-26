@@ -63,6 +63,11 @@ type ReconcileRevision struct {
 	Refs                *EvidenceRefs          `json:"refs,omitempty"`
 }
 
+type CorruptEntry struct {
+	Line  int    `json:"line"`
+	Error string `json:"error"`
+}
+
 func (s *Store) ReconcileRevisionsPath(slug string) string {
 	return filepath.Join(s.featureArtifactsDir(slug), reconcileRevisionsFileName)
 }
@@ -149,47 +154,82 @@ func AppendReconcileRevision(s *Store, slug string, entry ReconcileRevision) err
 }
 
 func LoadReconcileRevisions(s *Store, slug string) ([]ReconcileRevision, error) {
-	path := s.ReconcileRevisionsPath(slug)
+	entries, corrupt, err := loadReconcileRevisionsFromPath(s.ReconcileRevisionsPath(slug), slug, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(corrupt) > 0 {
+		first := corrupt[0]
+		return nil, fmt.Errorf("%w: line %d: %s", ErrMalformedRevision, first.Line, first.Error)
+	}
+	return entries, nil
+}
+
+func LoadReconcileRevisionsLenient(path string) (valid []ReconcileRevision, corrupt []CorruptEntry, err error) {
+	slug := filepath.Base(filepath.Dir(filepath.Dir(path)))
+	return loadReconcileRevisionsFromPath(path, slug, true)
+}
+
+func loadReconcileRevisionsFromPath(path, slug string, lenient bool) ([]ReconcileRevision, []CorruptEntry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return []ReconcileRevision{}, nil
+			return []ReconcileRevision{}, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	if len(data) == 0 {
-		return []ReconcileRevision{}, nil
+		return []ReconcileRevision{}, nil, nil
 	}
-	if data[len(data)-1] != '\n' {
-		return nil, fmt.Errorf("%w: line %d: final object is not newline-terminated", ErrMalformedRevision, bytes.Count(data, []byte("\n"))+1)
+	if !lenient && data[len(data)-1] != '\n' {
+		return nil, []CorruptEntry{{Line: bytes.Count(data, []byte("\n")) + 1, Error: "final object is not newline-terminated"}}, nil
 	}
-	lines := bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n"))
+	lines := bytes.Split(data, []byte("\n"))
+	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
+		lines = lines[:len(lines)-1]
+	}
 	entries := make([]ReconcileRevision, 0, len(lines))
+	var corrupt []CorruptEntry
 	seen := map[string][]byte{}
 	for i, line := range lines {
 		lineNo := i + 1
 		if len(bytes.TrimSpace(line)) == 0 {
-			return nil, fmt.Errorf("%w: line %d: empty line", ErrMalformedRevision, lineNo)
+			corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: "empty line"})
+			if !lenient {
+				break
+			}
+			continue
 		}
 		entry, err := decodeReconcileRevisionLine(line)
 		if err != nil {
-			return nil, fmt.Errorf("%w: line %d: %v", ErrMalformedRevision, lineNo, err)
+			corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: err.Error()})
+			if !lenient {
+				break
+			}
+			continue
 		}
 		entry = normalizeReconcileRevision(entry)
 		if err := validateReconcileRevision(slug, entry); err != nil {
-			return nil, fmt.Errorf("%w: line %d: %w", ErrMalformedRevision, lineNo, err)
+			corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: err.Error()})
+			if !lenient {
+				break
+			}
+			continue
 		}
 		canon, _ := marshalReconcileRevisionLine(entry)
 		if prev, ok := seen[entry.EntryID]; ok {
 			if !bytes.Equal(prev, canon) {
-				return nil, fmt.Errorf("%w: line %d: duplicate entry_id %q has differing payload", ErrMalformedRevision, lineNo, entry.EntryID)
+				corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: fmt.Sprintf("duplicate entry_id %q has differing payload", entry.EntryID)})
+				if !lenient {
+					break
+				}
 			}
 			continue
 		}
 		seen[entry.EntryID] = canon
 		entries = append(entries, entry)
 	}
-	return entries, nil
+	return entries, corrupt, nil
 }
 
 func normalizeReconcileRevision(entry ReconcileRevision) ReconcileRevision {

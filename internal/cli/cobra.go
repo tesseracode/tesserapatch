@@ -1865,7 +1865,8 @@ func reconcileCmd() *cobra.Command {
 			}
 			fmt.Fprintf(out, "Reconciled %d feature(s) against %s\n", len(results), upstreamRef)
 			for _, result := range results {
-				fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, result.Outcome, result.Phase, result.Title)
+				displayOutcome := reconcileDisplayOutcome(result)
+				fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, displayOutcome, result.Phase, result.Title)
 				for _, hint := range reconcileEvidenceHints(result.Evidence) {
 					fmt.Fprintf(out, "    evidence: %s\n", hint)
 				}
@@ -1935,6 +1936,13 @@ func reconcileCmd() *cobra.Command {
 	return cmd
 }
 
+func reconcileDisplayOutcome(result workflow.ReconcileResult) string {
+	if result.ReviewVerdict == "rejected-upstreamed" {
+		return "upstreamed-candidate"
+	}
+	return string(result.Outcome)
+}
+
 func reconcileReviewCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "review", Short: "Record or list reconcile revision-pass entries"}
 	add := &cobra.Command{
@@ -2000,7 +2008,7 @@ func reconcileReviewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			entries, err := store.LoadReconcileRevisions(s, args[0])
+			entries, corrupt, err := store.LoadReconcileRevisionsLenient(s.ReconcileRevisionsPath(args[0]))
 			if err != nil {
 				return err
 			}
@@ -2010,12 +2018,24 @@ func reconcileReviewCmd() *cobra.Command {
 				entries = latestRevisionEntries(entries)
 			}
 			if asJSON {
-				data, _ := json.MarshalIndent(map[string]any{"feature": args[0], "revisions": entries}, "", "  ")
+				if corrupt == nil {
+					corrupt = []store.CorruptEntry{}
+				}
+				data, _ := json.MarshalIndent(map[string]any{"revisions": entries, "corrupt_entries": corrupt}, "", "  ")
 				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", data)
+				if len(corrupt) > 0 {
+					return fmt.Errorf("reconcile review list: corrupt revision entries")
+				}
 				return nil
 			}
 			for _, e := range entries {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s: raw=%s review=%s action=%s final=%s reason=%s evidence=%s\n", e.EntryID, e.RawReconcileVerdict, e.ReviewVerdict, e.ActionTaken, e.FinalFeatureState, e.ReasonCode, e.EvidenceAttemptID)
+			}
+			for _, c := range corrupt {
+				fmt.Fprintf(cmd.OutOrStdout(), "corrupted entries: line %d: %s\n", c.Line, c.Error)
+			}
+			if len(corrupt) > 0 {
+				return fmt.Errorf("reconcile review list: corrupt revision entries")
 			}
 			return nil
 		},
