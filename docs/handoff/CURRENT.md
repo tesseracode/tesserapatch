@@ -2,128 +2,78 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-beta-prd2-prd3-prd7-impl-rev1`
-- **Milestone**: WP-003 Wave β rev-1 (PRDs 2 `upstreamed-confirmation-gate`, 3 `reconcile-revision-pass-log`, 7 `reconcile-hunk-overlap-detector`).
-- **Description**: Rev-1 fix-pass over rev-0 (HEAD `d8774a7`). Three independent reviews returned NEEDS REVISION. Implementer closed the 7 consolidated findings (F1–F7 below) without reopening ADR-025 D1–D13, ADR-024 capture/metadata, or D10 privacy invariants. No new lifecycle states. No new config flags. `Outcome`, `ReviewVerdict`, and persisted schema additions remain within ADR-025 D8 / existing ADR-025 fields.
-- **Status**: Review.
-- **Assigned**: 2026-05-30.
+- **Task ID**: `wp003-wave-beta-closure` → next: `wp003-wave-gamma-or-release-decision`
+- **Milestone**: WP-003 Wave β complete (PRDs 2+3+7). Awaiting supervisor decision on next move: kick off Wave γ (PRDs 4+5+8+9) OR ship interim release (v0.10.1) bundling Wave α + Wave β before continuing.
+- **Description**: Wave β rev-1 closed all F1–F7 with three-way unanimous APPROVED. ADR-025 D1–D13 preserved. ADR-024 untouched. D10 privacy enforced. No new lifecycle states, no new config flags. Wave β snapshot archived to `docs/handoff/HISTORY.md` (2026-06-28).
+- **Status**: Awaiting next-phase dispatch (no active implementer).
+- **Assigned**: 2026-06-28.
 
-## Rev-1 findings (binding scope — close all 7)
+## Wave β closure summary (for reference)
 
-**F1 (HIGH BLOCKING)** — PRD 2 §6.1 display contract. `internal/cli/cobra.go:1868` prints `result.Outcome` directly. When `ReviewVerdict == "rejected-upstreamed"` (set at `internal/workflow/reconcile.go:825`), human output MUST render `[upstreamed-candidate]` (or PRD-exact phrasing) instead of `[blocked]`. JSON output may keep `outcome=blocked` + `review_verdict=rejected-upstreamed` (operators reconstruct from those two fields). Add CLI test asserting `[upstreamed-candidate]` appears in human output for the rejected-gate case AND that JSON keeps both fields intact (byte-identity template at `reconcile_evidence_integration_test.go:513-529`).
+- **Three-way reviewers APPROVED**: internal (`f25dd83`), supervisor-external (`cc19bff`), user-external (parallel, 2026-06-28).
+- **Findings closed**: F1 (display contract) HIGH BLOCKING; F2 (corrupt_entries envelope) HIGH BLOCKING; F3 (privacy seeding); F4 (nearby-window=3 JSON); F5 (backward-compat); F6 (status disk reload); F7 (revision evidence linkage).
+- **Per-PRD §6**: PRD 2 8/8 · PRD 3 7/7 · PRD 7 5/5 MET.
+- **Ship stack on `origin/main`**: `e45ccdc` `34b2bba` `1e99a9f` `d8774a7` `56791b5` `5280f5d` `bd5bf22`.
+- **Process lessons recorded** in `docs/supervisor/LOG.md` under "Decision — WP-003 Wave β rev-1 — supervisor — 2026-06-28" (7 lessons, all binding for Wave γ briefs).
 
-**F2 (HIGH BLOCKING)** — PRD 3 §5 (lines 159-161) corrupt_entries contract on `tpatch reconcile review list` surface. Current `internal/cli/cobra.go` (review list path) calls strict `LoadReconcileRevisions` at `internal/store/reconcile_revision.go:27-43` which aborts on first malformed line. PRD verbatim: "A bad JSONL line in the middle of the file is reported with line number. Human output skips unreadable trailing summaries; `--json` returns a structured `corrupt_entries` array and exits non-zero." Required:
-  - Add a lenient loader (e.g. `LoadReconcileRevisionsLenient`) that returns `(valid []ReconcileRevision, corrupt []CorruptEntry{Line int, Error string}, err error)` — does NOT abort on first malformed line, accumulates corrupt-line metadata, returns ALL valid entries (before AND after the corrupt line).
-  - Update `review list` CLI path to use the lenient loader.
-  - Human output: print valid entries, then a `corrupted entries: line N: <error>` summary; skip unreadable trailing summaries.
-  - JSON output: emit `{ "revisions": [...], "corrupt_entries": [{"line": N, "error": "..."}] }` envelope and exit non-zero when corrupt_entries is non-empty.
-  - Keep strict `AppendReconcileRevision` writer semantics unchanged (writer refuses on malformed pre-existing file — that's a separate concern).
-  - Tests: malformed JSONL with valid entries on both sides → list returns ALL valid entries + structured corrupt_entries + non-zero exit (JSON mode).
+## Wave γ unlocked (next implementation block, per WP-003 §6)
 
-**F3 (MEDIUM)** — PRD 3 privacy test re-seed. `internal/store/reconcile_revision_test.go:54-71` (`TestReconcileRevisionPrivacyNoSourceLeak`) and `internal/workflow/reconcile_evidence_integration_test.go:200,450` seed secrets into file CONTENT, but D10 privacy is about persisted-artifact content. Re-seed plausible secret-leak vectors into feature title, slug, and path metadata (mirror gate test at `:245`). Assert revision JSONL + evidence artifact do not contain the seeded secret string from any of those vectors.
+PRDs gated on Wave β acceptance — all four are now unblocked:
 
-**F4 (MEDIUM)** — PRD 7 §6.5: hunk-overlap evidence default `nearby-window=3` (encoded at `internal/workflow/hunk_overlap.go:117`) must be asserted in marshaled JSON output. Extend a hunk-overlap test in `reconcile_evidence_integration_test.go` and/or `internal/cli/reconcile_evidence_cli_test.go` to assert the string `nearby-window=3` (or canonical encoding) appears in evidence-line JSON for the default-window case.
+1. `docs/prds/PRD-reconcile-retirement-state-audit.md` — PRD 4 (depends on PRD 2).
+2. `docs/prds/PRD-reconcile-study-validation.md` — PRD 5 (depends on PRD 3).
+3. `docs/prds/PRD-reconcile-blocked-verdict-taxonomy.md` — PRD 8 (depends on PRD 7).
+4. `docs/prds/PRD-reconcile-path-restructure-detector.md` — PRD 9 (depends on PRD 8).
 
-**F5 (LOW)** — PRD 2 §6.5 backward-compat. Mirror Wave α carry-forward template `TestStatusLoadsWhenEvidenceArtifactAbsent` (`internal/cli/reconcile_evidence_carryforward_test.go`). Add tests asserting: (a) reading a `ReconcileSummary` with empty `ReviewVerdict` works; (b) reconcile run with no pre-existing `reconcile-evidence.jsonl` and no `reconcile-revisions.jsonl` succeeds and creates files lazily.
+Per WP-003 §6 the wave is parallel-safe after Wave β acceptance. Note PRD 9 has an intra-wave dependency on PRD 8 — sequence those two within Wave γ.
 
-**F6 (MEDIUM)** — PRD 2 §6.2 state non-mutation. Extend `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` (`reconcile_evidence_integration_test.go:435`): after reconcile, reload `status.json` from disk (not via in-memory `result`), assert persisted `State` is NOT `upstream_merged`. The workflow code at `internal/workflow/reconcile.go:825` does `finalState = StateBlocked`, but no disk-reload assertion exists.
+ADR-025 already covers the entire reconcile-evidence/revision cluster — no new cluster ADR required for Wave γ unless a structural surface (e.g., new persisted artifact) is introduced.
 
-**F7 (LOW)** — PRD 2 §6.3 revision-log linkage. Extend `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply` (or analogous): load `reconcile-revisions.jsonl` from disk, assert the persisted revision entry includes the evidence attempt ID (non-empty) AND the upstream commit ref. Linkage logic lives at `internal/workflow/reconcile.go:827-833` and `:810-846` (`persistRevisionPassLog`).
+## Open decision for supervisor
 
-## Rev-1 closure summary
+Pick one before dispatching implementer:
 
-- **F1** — Closed in `56791b5`. Fix: `internal/cli/cobra.go:1868`, `internal/cli/cobra.go:1939`. Tests: `internal/cli/reconcile_evidence_cli_test.go:58`, `internal/cli/reconcile_evidence_cli_test.go:78` assert JSON remains `outcome=blocked` and human output displays `[upstreamed-candidate]`.
-- **F2** — Closed in `56791b5`. Fix: `internal/store/reconcile_revision.go:168`, `internal/cli/cobra.go:2011`, `internal/cli/cobra.go:2024`. Tests: `internal/store/reconcile_revision_test.go:34`, `internal/cli/reconcile_evidence_cli_test.go:112` assert valid entries around a corrupt line, `corrupt_entries`, and non-zero CLI exit.
-- **F3** — Closed in `56791b5` + `5280f5d`. Tests: `internal/store/reconcile_revision_test.go:69`, `internal/workflow/reconcile_evidence_integration_test.go:196`, `internal/workflow/reconcile_evidence_integration_test.go:494` seed exact metadata secrets into slug/title/path vectors and assert revision/evidence artifacts do not contain them.
-- **F4** — Closed in `5280f5d`. Production encoding remains `internal/workflow/hunk_overlap.go:117`; test `internal/workflow/reconcile_evidence_integration_test.go:517` marshals hunk evidence and asserts `nearby-window=3`.
-- **F5** — Closed in `56791b5`. Tests: `internal/cli/reconcile_evidence_carryforward_test.go:56`, `internal/cli/reconcile_evidence_carryforward_test.go:88` cover empty `ReviewVerdict` load and lazy creation of both JSONL artifacts.
-- **F6** — Closed in `5280f5d`. Test: `internal/workflow/reconcile_evidence_integration_test.go:459` reloads `status.json` via `LoadFeatureStatus` and asserts rejected candidates persist `StateBlocked`, not `StateUpstreamMerged`.
-- **F7** — Closed in `5280f5d`. Fix: `internal/workflow/reconcile.go:837` records an `upstream-commit` validation ref using existing revision schema. Test: `internal/workflow/reconcile_evidence_integration_test.go:413` asserts revision evidence-attempt linkage and upstream commit ref match the evidence/HEAD.
+**Option A** — Ship interim release v0.10.1 bundling WP-003 Wave α + Wave β. Pros: clean release boundary, CHANGELOG hygiene before Wave γ scope grows. Cons: extra release cycle.
 
-## Carry-forward dispatch rules (binding for rev-1 brief)
+**Option B** — Continue directly to Wave γ implementation; release v0.10.1 (or v0.11.0) when Wave γ acceptance lands. Pros: faster forward progress on the WP-003 cluster. Cons: bigger release surface, more for one CHANGELOG entry to cover.
 
-11. Distinguish "behavior implemented" from "behavior tested". Reviewers MUST read the production code path first ("does this acceptance criterion actually have a code path?"), THEN check tests. F8/F2-user lesson: my supervisor-external accepted F4 as a test gap; user-external read the production code and discovered there's no `corrupt_entries` envelope at all. Same PRD line, different severity.
-12. PRD §6 lines like "displayed as X" or "appears in JSON output" or "returns a structured X array and exits non-zero" are binding test contracts AND production-behavior contracts. Brief them as both.
-13. Privacy tests MUST seed secrets into plausible exfiltration vectors (title, slug, path metadata) — NOT just file content.
-14. State-mutation contracts MUST be verified by reloading from disk (`store.LoadStatus`), not by checking runtime fields on the `result` value.
-15. ReconcileSummary persisted schema is governed by ADR-025 D8. Brief should say "no persisted-schema additions outside what ADR-025 explicitly authorizes" — NOT "schema LOCKED" (rev-0 wording was over-broad; D8 already authorized `ReviewVerdict`).
+## Carry-forward dispatch rules (binding for all Wave γ briefs)
 
-## Prior Wave α reference
-
-- Writer: `internal/store/reconcile_evidence.go`, `internal/workflow/file_novelty.go`, `internal/workflow/reconcile.go` persistence helpers (`persistReconcileEvidence`, `persistFileNoveltyEvidence`, `warnReconcileEvidenceAppendError`).
-- Reader: `ReconcileResult.Evidence` inline field; `evidenceArtifactRef` in `internal/cli/cobra.go:1701-1707`; status JSON `evidence_artifact` runtime field; human `evidence:` hint at `cobra.go:1849-1851`; deduplication at `:1714-1726`.
-- Test patterns: `internal/workflow/reconcile_evidence_integration_test.go`, `internal/cli/reconcile_evidence_cli_test.go`, `internal/cli/reconcile_evidence_carryforward_test.go`. Reuse `cliEvidenceFixture` harness.
-
-## Wave β scope (binding for implementer)
-
-Read PRDs in order:
-1. `docs/prds/PRD-upstreamed-confirmation-gate.md` — PRD 2. Adds a confirmation gate before issuing `upstreamed` verdict; uses evidence artifact (Wave α surface).
-2. `docs/prds/PRD-reconcile-revision-pass-log.md` — PRD 3. Adds per-attempt revision log via the evidence schema (uses ADR-025 D3-D5 revision shape).
-3. `docs/prds/PRD-reconcile-hunk-overlap-detector.md` — PRD 7. Hunk-overlap detector — depends on PRD 6 file-novelty (Wave α).
-
-ADR-025 binding contracts (no drift):
-- D1–D5: evidence schema.
-- D6–D9: revision shape and attempt-id semantics.
-- D10: privacy (no source bodies/transcripts/prompts/vectors).
-- D11: malformed-artifact handling.
-- D12–D13: byte-identity contracts.
-
-Cross-cluster: ADR-024 capture/metadata is binding. No drift in `patch-generations.json` schema vs `reconcile-evidence.jsonl`.
-
-## Carry-forward dispatch rules (do not strip from briefs)
-
-1. Briefs MUST reference PRD acceptance criteria verbatim. No escape hatches like "defer to next wave" or "if integration is risky, skip" — escape hatches cause regressions (rev-0 Wave α F1 root cause).
-2. Briefs MUST enumerate any policy-ADR opt-out contracts in scope.
-3. External reviewer briefs MUST sweep ALL PRD §6 acceptance criteria, not just the rev's stated findings (rev-1 Wave α F3 root cause).
-4. Internal reviewer checklist MUST include flag-off counter-scenarios for any new enforcement.
-5. `gofmt -l .` MUST be run directly, never piped (returns exit 1 on empty input through grep).
-6. Two-opinion external review protocol (supervisor + user-parallel) confirmed for every rev — caught real regressions in EVERY Wave α revision.
+1. (Wave α) Briefs MUST self-audit against binding ADRs.
+2. (Wave α) Briefs naming policy ADRs MUST enumerate config-flag opt-out contracts.
+3. (Wave α) Internal reviewer checklist MUST include flag-off counter-scenarios.
+4. (Wave α) `gofmt -l .` MUST be run directly, never piped through grep (returns exit 1 on empty input).
+5. (Wave α) Drift self-audit during release prep.
+6. (Wave α rev-0) Briefs MUST NOT contain escape hatches that override PRD acceptance.
+7. (Wave α rev-1) External reviewer briefs MUST sweep ALL PRD §6 acceptance criteria.
+8. (Wave β F1) Briefs MUST enumerate per-PRD §6 display-name contracts as binding production-behavior + test contracts.
+9. (Wave β F2) Reviewer briefs MUST distinguish "behavior implemented" from "behavior tested". Read production code FIRST, then verify tests, asking "does this acceptance criterion actually have a code path?" Severity must reflect production-gap vs test-gap.
+10. (Wave β F6) State-mutation contracts MUST be verified by reloading from disk (`store.LoadStatus` / `LoadFeatureStatus`), not by inspecting runtime `result` values.
+11. (Wave β F7) Cross-artifact linkage contracts MUST be verified by loading the persisted JSONL/JSON, not by inspecting runtime structs.
+12. (Wave β F3) Privacy tests MUST seed secrets into plausible exfiltration vectors (title / slug / path metadata) — NOT just file content. Recurring anti-pattern from Wave α F3 and Wave β F3 — internal reviewer checklist must include explicit privacy-vector audit.
+13. (Wave β schema-lock) Briefs MUST say "no persisted-schema additions outside what binding ADRs explicitly authorize" + list which fields/clauses are pre-authorized — NOT "schema LOCKED" (over-broad in Wave β rev-0).
+14. Two-opinion external review protocol (supervisor + user-parallel) remains MANDATORY. Caught HIGH BLOCKER findings missed by single review in Wave α rev-0/rev-1 and Wave β rev-0. Confirmed concurrence in Wave β rev-1 — protocol earned its keep four times.
 
 ## Session Summary
 
-Wave β rev-1 implemented in two code commits:
+Wave β rev-1 dispatch → review → close cycle completed 2026-06-28. Three reviews unanimous APPROVED. Wave β archived. Wave γ unblocked.
 
-1. `56791b5` — fixed human display for rejected upstreamed candidates, added lenient revision-log loading and transient `corrupt_entries` CLI envelope, and added F1/F2/F5 tests.
-2. `5280f5d` — strengthened workflow/revision evidence coverage for privacy metadata vectors, hunk `nearby-window=3`, persisted blocked state, and revision linkage to evidence/upstream commit refs.
+## Files Changed (Wave β rev-1)
 
-## Current State
+See ship stack above. Archive entry in `docs/handoff/HISTORY.md` retains the full rev-1 file list.
 
-- PRD 2: rejected upstreamed candidates now render as `[upstreamed-candidate]` for humans while JSON/persisted status still uses `outcome=blocked` + `review_verdict=rejected-upstreamed`. Confirmed/rejected gate decisions remain in existing status/revision fields.
-- PRD 3: strict writer semantics are unchanged; `review list` now uses a lenient reader that preserves valid entries around corrupt JSONL lines, reports line-numbered corruption, emits transient `corrupt_entries` in JSON, and exits non-zero on corruption.
-- PRD 7: hunk-overlap evidence still uses existing ADR-025 fields and now has JSON coverage for the default `nearby-window=3` encoding.
-- No `schema_version` bump. No `FeatureState` additions. No config flags. No `patch-generations.json` / ADR-024 changes. `corrupt_entries` is CLI output only and is not persisted.
+## Test Results (Wave β rev-1 final)
 
-## Files Changed
-
-- `internal/store/reconcile_revision.go`
-- `internal/store/reconcile_revision_test.go`
-- `internal/workflow/reconcile.go`
-- `internal/workflow/reconcile_evidence_integration_test.go`
-- `internal/cli/cobra.go`
-- `internal/cli/reconcile_evidence_cli_test.go`
-- `internal/cli/reconcile_evidence_carryforward_test.go`
-- `docs/handoff/CURRENT.md`
-
-## Test Results
-
-Validation gates (all green, run directly):
-
-- `gofmt -l .` — clean (empty output).
-- `go vet ./...` — clean.
-- `go build ./cmd/tpatch` — clean.
-- `go test ./...` — green across all packages.
-- Targeted post-commit tests: `go test ./internal/store ./internal/cli` after `56791b5`; `go test ./internal/workflow` after `5280f5d`.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
-
-New / updated targeted coverage:
-
-- PRD 2: `TestReconcileHumanOutputDisplaysUpstreamedCandidate`, `TestReconcileJSONSurfacesConfirmationGateAndRevision`, `TestStatusLoadsWithEmptyReviewVerdict`, `TestReconcileLazilyCreatesEvidenceAndRevisionArtifacts`, `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch`, `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply`.
-- PRD 3: `TestReconcileRevisionMalformedLineAndWriterRefusal`, `TestReconcileRevisionPrivacyNoSourceLeak`, `TestReconcileReviewListReportsCorruptEntries`, `TestReconcileReviewAddListJSON`.
-- PRD 7: `TestHunkOverlapEvidenceForModifiedPath`.
+- `gofmt -l .` — clean
+- `go vet ./...` — clean
+- `go build ./cmd/tpatch` — clean
+- `go test ./...` — green
 
 ## Next Steps
 
-1. Supervisor to dispatch Wave β rev-1 review.
+1. Supervisor: pick Option A or Option B above.
+2. If Option A: write CHANGELOG v0.10.1 entry covering Wave α + Wave β; tag; push tag; archive this CURRENT and open Wave γ kickoff handoff.
+3. If Option B: open Wave γ kickoff handoff directly. Decide PRD-pair groupings (4+8 parallel, 5 parallel, 9 sequenced after 8) and dispatch first slice.
 
 ## Blockers
 
@@ -131,11 +81,10 @@ None.
 
 ## Context for Next Agent
 
-- `LoadReconcileRevisions` remains strict and is still used by writer preflight; `LoadReconcileRevisionsLenient(path)` is only for reader/list surfaces that must preserve valid entries around corrupt JSONL lines.
-- `corrupt_entries` is a transient CLI JSON envelope field only; it is never written to `status.json`, `reconcile-evidence.jsonl`, or `reconcile-revisions.jsonl`.
-- Rejected upstreamed candidates deliberately keep persisted `Outcome=blocked`; `[upstreamed-candidate]` is a human display string derived from `ReviewVerdict == "rejected-upstreamed"`.
-- The revision upstream commit reference uses existing `validation_refs` shape (`kind=upstream-commit`, `result=referenced`) to avoid adding persisted schema fields outside ADR-025.
-- No PRD acceptance criteria intentionally deferred.
+- All review verdicts and process lessons live in `docs/supervisor/LOG.md` (top entries).
+- Wave β snapshot lives in `docs/handoff/HISTORY.md` (Archived 2026-06-28 section).
+- ADR-025 governs Wave γ persisted-schema additions; expect no new cluster ADRs unless Wave γ introduces a new artifact type.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Verify before/after any CURRENT.md edits: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

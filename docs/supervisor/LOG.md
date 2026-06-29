@@ -1,3 +1,75 @@
+## Review — WP-003 Wave β rev-1 (PRDs 2+3+7) — external (user-dispatched, parallel) — 2026-06-28
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of rev-1 fixes (`1918b42..bd5bf22`).
+
+### Verdict: APPROVED
+
+### Per-finding verification (independent of internal + supervisor-external)
+
+- F1 closed: human reconcile output maps `rejected-upstreamed` to `upstreamed-candidate` via display helper in `cobra.go`, used at reconcile rendering site.
+- F2 closed: lenient loader added in `reconcile_revision.go`; CLI `review list` emits `revisions` + `corrupt_entries` envelope and exits non-zero on corruption. Production path now satisfies PRD 3 §5 verbatim.
+- F3 closed: metadata-vector privacy seeding (title/slug/path) present in `reconcile_revision_test.go` + workflow integration test.
+- F4 closed: explicit `nearby-window=3` JSON assertion in `reconcile_evidence_integration_test.go`.
+- F5 closed: empty-`ReviewVerdict` load + lazy artifact creation tests in `reconcile_evidence_carryforward_test.go`.
+- F6 closed: blocked state reloaded from disk in workflow integration test (`store.LoadFeatureStatus`).
+- F7 closed: upstream commit validation ref now written in `reconcile.go`; linkage assertion in integration test.
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean | targeted tests: 28/28 pass
+
+### Note
+Reviewer did not independently reproduce the Side Research md5 (target hashing call site not explicit in code/docs); supervisor verifies separately each cycle.
+
+### Concurrence with internal + supervisor-external
+YES on both.
+
+### Action Taken
+Verdict captured. Three-way unanimous APPROVED — rev-1 closes all F1–F7 with no new findings across all three reviews.
+
+---
+
+## Decision — WP-003 Wave β rev-1 — supervisor — 2026-06-28
+
+**Decision**: APPROVED.
+
+Three independent reviews (internal, supervisor-external, user-external) concur. All 7 findings closed in production code paths (not just tests). Per-PRD §6 sweeps:
+- PRD 2 (upstreamed-confirmation-gate): 8/8 MET
+- PRD 3 (reconcile-revision-pass-log): 7/7 MET
+- PRD 7 (reconcile-hunk-overlap-detector): 5/5 MET
+
+Hard constraints (no new lifecycle states / no new config flags / no ADR-024 drift / D10 privacy / ADR-025 D1–D13 / Side Research md5 / Co-authored-by trailer) all preserved.
+
+### Wave β closure stack
+- `e45ccdc` — rev-0 store schema + revision JSONL loader/writer
+- `34b2bba` — rev-0 workflow confirmation gate + hunk-overlap detector
+- `1e99a9f` — rev-0 CLI surface
+- `d8774a7` — rev-0 handoff
+- `2e7dd06` (handoff kickoff for β), `4e15ecf` (internal rev-0 verdict), `1918b42` (rev-0 NEEDS REVISION + rev-1 brief)
+- `56791b5` — rev-1 F1/F2/F5 CLI + store
+- `5280f5d` — rev-1 F3/F4/F6/F7 workflow tests + linkage
+- `bd5bf22` — rev-1 handoff closure summary
+- `f25dd83` — internal rev-1 APPROVED
+- `cc19bff` — supervisor-external rev-1 APPROVED
+
+### Process lessons earned (carry-forward for Wave γ briefs)
+
+1. **Behavior-implemented vs behavior-tested distinction is binding for reviewer briefs.** Rev-0 F4 was framed by internal+supervisor-external as a LOW test-coverage gap; user-external read the production code path first and discovered the `corrupt_entries` JSON envelope did not exist at all → escalated to HIGH BLOCKING. Reviewer briefs MUST require: read production code FIRST, then verify tests, asking "does this acceptance criterion actually have a code path?" before "is it tested?"
+2. **PRD §6 verbatim binding for display/JSON/exit-code contracts.** PRD lines that say "displayed as X" / "appears in JSON output" / "exits non-zero" are production-behavior contracts. Briefs must enumerate every such line explicitly per PRD.
+3. **State-mutation tests reload from disk.** Tests asserting persisted state contracts must use `store.LoadStatus` / `store.LoadFeatureStatus`, not the in-memory `result` value (F6 root cause).
+4. **Linkage tests load the artifact.** Cross-artifact linkages (e.g., revision entry → evidence attempt ID + upstream commit ref) must be verified by loading the persisted JSONL, not by inspecting runtime structs (F7 root cause).
+5. **Privacy tests seed metadata vectors.** Secrets must be seeded into title / slug / path components — not just file content (F3 root cause; recurring anti-pattern from Wave α).
+6. **Schema-lock briefs must reference ADR boundaries explicitly.** "ReconcileSummary schema is LOCKED" was over-broad in rev-0; ADR-025 D8 already authorized `ReviewVerdict`. Future briefs: "no persisted-schema additions outside what binding ADRs explicitly authorize" + list which fields are allowed by which ADR clause.
+7. **Two-opinion external review protocol earned its keep again.** Rev-0: user-external uniquely caught F8 (`corrupt_entries` production gap) that internal+supervisor missed. Rev-1: both externals concur, validating the protocol's confirmation pass. Maintain for Wave γ.
+
+### Action Taken
+- Archived Wave β handoff to `docs/handoff/HISTORY.md`.
+- Reset `docs/handoff/CURRENT.md` to post-Wave-β decision state (Wave γ kickoff or interim release pending user direction).
+- SQL todo `wp003-wave-beta-prd2-prd3-prd7-impl` marked `done`.
+- Wave γ unlocked: PRDs 4 (`reconcile-retirement-state-audit`), 5 (`reconcile-study-validation`), 8 (`reconcile-blocked-verdict-taxonomy`), 9 (`reconcile-path-restructure-detector`).
+
+---
+
 ## Review — WP-003 Wave β rev-1 (PRDs 2+3+7) — external (supervisor-dispatched) — 2024-12-20
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
