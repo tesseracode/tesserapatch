@@ -1866,12 +1866,32 @@ func reconcileCmd() *cobra.Command {
 			fmt.Fprintf(out, "Reconciled %d feature(s) against %s\n", len(results), upstreamRef)
 			for _, result := range results {
 				displayOutcome := reconcileDisplayOutcome(result)
-				fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, displayOutcome, result.Phase, result.Title)
+				if result.Outcome == store.ReconcileBlocked && result.BlockedCategory != "" {
+					fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, displayOutcome, result.Phase, result.Title)
+					fmt.Fprintf(out, "    %s: blocked (%s)\n", result.Slug, result.BlockedCategory)
+					for _, ev := range result.BlockedEvidence {
+						fmt.Fprintf(out, "    evidence: %s\n", ev)
+					}
+					fmt.Fprintf(out, "    next: %s\n", result.RecommendedAction)
+				} else {
+					fmt.Fprintf(out, "  - %s [%s] (%s) %s\n", result.Slug, displayOutcome, result.Phase, result.Title)
+				}
 				for _, hint := range reconcileEvidenceHints(result.Evidence) {
 					fmt.Fprintf(out, "    evidence: %s\n", hint)
 				}
 				for _, note := range result.Notes {
 					fmt.Fprintf(out, "    %s\n", note)
+				}
+				if result.ReviewVerdict == "confirmed-upstreamed" {
+					report, auditErr := workflow.AuditRetirement(s, result.Slug)
+					if auditErr == nil && len(report.Findings) > 0 {
+						for _, line := range workflow.RetirementAuditLines(report) {
+							fmt.Fprintf(out, "    %s\n", line)
+						}
+						if _, err := workflow.AppendRetirementCleanupRevisions(s, report); err != nil {
+							return err
+						}
+					}
 				}
 				if result.ShadowPath != "" {
 					fmt.Fprintf(out, "    shadow:   %s\n", result.ShadowPath)
@@ -1932,7 +1952,7 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
 	cmd.Flags().Bool("auto-drop-merged", false, "On a phase-1.5 patch-id match, remove the feature from the DAG (ADR-011 cascade rules) and create a removal commit that preserves Tpatch-CVE / Tpatch-Slug trailers. Off by default. No-op when phase 1.5 does not fire (including when patch_id_detector_enabled=false). Mutually exclusive with --check-applied-only.")
 	cmd.Flags().String("format", "human", "Output format: human or json")
-	cmd.AddCommand(reconcileReviewCmd())
+	cmd.AddCommand(reconcileReviewCmd(), reconcileAuditRetirementCmd())
 	return cmd
 }
 
@@ -1941,6 +1961,36 @@ func reconcileDisplayOutcome(result workflow.ReconcileResult) string {
 		return "upstreamed-candidate"
 	}
 	return string(result.Outcome)
+}
+
+func reconcileAuditRetirementCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "audit-retirement <slug>",
+		Short: "Read-only audit of retired feature dependency metadata",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := openStoreFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			report, err := workflow.AuditRetirement(s, args[0])
+			if err != nil {
+				return err
+			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				data, _ := json.MarshalIndent(report, "", "  ")
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", data)
+				return nil
+			}
+			for _, line := range workflow.RetirementAuditLines(report) {
+				fmt.Fprintln(cmd.OutOrStdout(), line)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "Emit JSON")
+	return cmd
 }
 
 func reconcileReviewCmd() *cobra.Command {

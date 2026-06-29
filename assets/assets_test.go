@@ -23,6 +23,7 @@ var requiredCommands = []string{
 	"tpatch record",
 	"tpatch land",
 	"tpatch reconcile",
+	"tpatch reconcile audit-retirement",
 	"tpatch provider",
 	"tpatch config",
 	"tpatch cycle",

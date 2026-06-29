@@ -5,7 +5,7 @@
 - **Task ID**: `wp003-wave-gamma-1-prd4-prd5-prd8-impl`
 - **Milestone**: WP-003 Wave γ slice 1 — PRDs 4 (`reconcile-retirement-state-audit`), 5 (`reconcile-study-validation`), 8 (`reconcile-blocked-verdict-taxonomy`). PRD 9 (`reconcile-path-restructure-detector`) sequenced separately in γ-2 (depends on PRD 8).
 - **Description**: Wave γ-1 ships three independent surfaces under ADR-025's existing evidence schema (no new cluster ADR). PRD 4: read-only `tpatch reconcile audit-retirement <slug>` + auto-run after `confirm-upstreamed`. PRD 5: dev-only `internal/tools/` case-study validator (stdlib-only, no public CLI surface). PRD 8: blocked-category enrichment via evidence metadata (no new lifecycle state, no new persisted enum). Wave β acceptance is the gate — all three γ-1 PRDs depend on Wave β surfaces.
-- **Status**: In Progress (γ-1 implementer dispatched 2026-06-28).
+- **Status**: Review (γ-1 implementation complete; gates clean 2026-06-29).
 - **Assigned**: 2026-06-28.
 
 ## γ-1 binding scope per PRD
@@ -118,24 +118,57 @@ Pick one before dispatching implementer:
 
 ## Session Summary
 
-Wave β rev-1 dispatch → review → close cycle completed 2026-06-28. Three reviews unanimous APPROVED. Wave β archived. Wave γ unblocked.
+WP-003 Wave γ-1 implementation completed for PRDs 4, 5, and 8.
 
-## Files Changed (Wave β rev-1)
+### γ-1 closure summary — PRD 4 (`reconcile-retirement-state-audit`)
 
-See ship stack above. Archive entry in `docs/handoff/HISTORY.md` retains the full rev-1 file list.
+1. Stale `satisfied_by` / base SHA reporting: `internal/workflow/retirement_audit.go` (`AuditRetirement` reachable-SHA checks); tests `internal/workflow/retirement_audit_test.go`.
+2. Child features affected by retired parent: `AuditRetirement` scans `DependsOn`; tests `retirement_audit_test.go` and `internal/cli/audit_retirement_test.go`.
+3. Read-only audit: `AuditRetirement` only loads status/list/revisions; CLI test reloads status from disk in `audit_retirement_test.go`.
+4. Stable JSON: `tpatch reconcile audit-retirement <slug> --json` marshals `RetirementAuditReport`; covered by `audit_retirement_test.go`.
+5. Auto-run after `confirm-upstreamed`: `internal/cli/cobra.go` invokes audit and prints findings; cleanup entries appended via `AppendRetirementCleanupRevisions`; covered by `audit_retirement_test.go`.
+6. No v1 fixer/mutation path: no dependency/status mutation in audit; auto-run appends only ADR-025 revision-pass entries.
 
-## Test Results (Wave β rev-1 final)
+### γ-1 closure summary — PRD 5 (`reconcile-study-validation`)
+
+1. Malformed JSON/JSONL filename + 1-indexed line: `internal/tools/studyvalidator/validator.go`; test `validator_test.go`.
+2. Aggregate mismatch detection: metrics/study/count checks in validator; test `validator_test.go`.
+3. Raw/post-review/final distinction: phase warnings and post-review handling in validator; test `validator_test.go`.
+4. t3code study fixture coverage: `TestValidateRunsOnT3CodeStudyArtifacts`.
+5. Dev-only surface: package/binary under `internal/tools/studyvalidator`; no `cmd/tpatch`, `SPEC.md`, or skill asset registration.
+6. Missing `local-notes.md`: old-study warning / new-study error in validator; test `validator_test.go`.
+
+### γ-1 closure summary — PRD 8 (`reconcile-blocked-verdict-taxonomy`)
+
+1. Deterministic blocked enrichment: `internal/workflow/blocked_taxonomy.go`; CLI rendering in `internal/cli/cobra.go`; tests `blocked_taxonomy_test.go`, `blocked_taxonomy_cli_test.go`.
+2. Unknown fallback: `unknown-blocked` classifier branch; unit test coverage.
+3. JSON output: runtime-only `ReconcileResult.BlockedCategory` / `RecommendedAction`; JSON test in `blocked_taxonomy_cli_test.go` keeps raw `outcome=blocked`.
+4. Backward compatibility: no `ReconcileSummary` schema field added; `internal/store/reconcile_backward_compat_test.go` roundtrips old blocked status.
+5. Precedence + secondary evidence: classifier precedence list and sorted secondary evidence; unit test coverage.
+
+## Files Changed (γ-1 implementation)
+
+- `internal/workflow/blocked_taxonomy.go`, `internal/workflow/blocked_taxonomy_test.go`
+- `internal/workflow/retirement_audit.go`, `internal/workflow/retirement_audit_test.go`
+- `internal/workflow/reconcile.go`
+- `internal/cli/cobra.go`, `internal/cli/audit_retirement_test.go`, `internal/cli/blocked_taxonomy_cli_test.go`
+- `internal/store/reconcile_backward_compat_test.go`
+- `internal/tools/studyvalidator/validator.go`, `internal/tools/studyvalidator/validator_test.go`, `internal/tools/studyvalidator/cmd/studyvalidate/main.go`
+- `assets/assets_test.go` plus six shipped skill/prompt/workflow surfaces for `tpatch reconcile audit-retirement` guidance
+
+## Test Results (γ-1 final)
 
 - `gofmt -l .` — clean
 - `go vet ./...` — clean
 - `go build ./cmd/tpatch` — clean
 - `go test ./...` — green
+- Side Research md5 — `b385fe622db9926f48861105239f113e`
 
 ## Next Steps
 
-1. Supervisor: pick Option A or Option B above.
-2. If Option A: write CHANGELOG v0.10.1 entry covering Wave α + Wave β; tag; push tag; archive this CURRENT and open Wave γ kickoff handoff.
-3. If Option B: open Wave γ kickoff handoff directly. Decide PRD-pair groupings (4+8 parallel, 5 parallel, 9 sequenced after 8) and dispatch first slice.
+1. Supervisor: dispatch internal + external reviewers for WP-003 Wave γ-1.
+2. Reviewers: sweep all 17 PRD §6 criteria using the closure summary above and the binding hard constraints.
+3. Supervisor: after approval, archive this handoff and sequence PRD 9 / Wave γ-2.
 
 ## Blockers
 
@@ -143,9 +176,9 @@ None.
 
 ## Context for Next Agent
 
-- All review verdicts and process lessons live in `docs/supervisor/LOG.md` (top entries).
-- Wave β snapshot lives in `docs/handoff/HISTORY.md` (Archived 2026-06-28 section).
-- ADR-025 governs Wave γ persisted-schema additions; expect no new cluster ADRs unless Wave γ introduces a new artifact type.
+- PRD 8 uses ADR-025-authorized evidence metadata (`reason_code`, `matched_operations`) and runtime-only result fields; no persisted `ReconcileSummary` category field was added.
+- PRD 4 audit is read-only; only the auto-run path appends `cleanup-needed` revision-pass entries through `AppendReconcileRevision`.
+- PRD 5 remains dev-only under `internal/tools/`; the maintainer binary is not registered as a public `tpatch` subcommand.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Verify before/after any CURRENT.md edits: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

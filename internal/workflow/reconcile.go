@@ -61,6 +61,12 @@ type ReconcileResult struct {
 	// Revisions exposes revision-pass entries appended during this invocation.
 	Revisions []store.ReconcileRevision `json:"revisions,omitempty"`
 
+	// BlockedCategory and RecommendedAction enrich blocked verdict presentation.
+	// They are runtime/display fields only; lifecycle truth remains Outcome.
+	BlockedCategory   string   `json:"blocked_category,omitempty"`
+	RecommendedAction string   `json:"recommended_action,omitempty"`
+	BlockedEvidence   []string `json:"blocked_evidence,omitempty"`
+
 	// attemptedAt is the timestamp shared between saveReconcileArtifacts
 	// (which feeds it to composeLabelsAt as the staleness baseline) and
 	// updateFeatureState (which writes it as ReconcileSummary.AttemptedAt
@@ -571,6 +577,7 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	result.Evidence = append(result.Evidence, persistReconcileEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistFileNoveltyEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistHunkOverlapEvidence(s, slug, result)...)
+	result.Evidence = append(result.Evidence, persistBlockedClassificationEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, applyUpstreamedConfirmationGate(s, slug, result)...)
 	result.Revisions = append(result.Revisions, persistRevisionPassLog(s, slug, result)...)
 
@@ -736,6 +743,41 @@ func persistHunkOverlapEvidence(s *store.Store, slug string, result *ReconcileRe
 		return nil
 	}
 	entry := HunkOverlapEvidence(slug, result.UpstreamRef, result.UpstreamCommit, status.Apply.BaseCommit, string(result.Outcome), overlap)
+	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+		return nil
+	}
+	return []store.ReconcileEvidence{entry}
+}
+
+func persistBlockedClassificationEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
+	if result == nil || (result.Outcome != store.ReconcileBlocked && result.Outcome != store.ReconcileBlockedRequiresHuman && result.Outcome != store.ReconcileBlockedTooManyConflicts) {
+		return nil
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return nil
+	}
+	baseCommit := status.Apply.BaseCommit
+	if baseCommit == "" {
+		baseCommit = "unknown"
+	}
+	cls := ClassifyBlockedVerdict(BlockedClassificationInput{
+		Outcome:      result.Outcome,
+		Phase:        result.Phase,
+		Labels:       result.Labels,
+		Evidence:     result.Evidence,
+		FailedFiles:  result.FailedFiles,
+		SkippedFiles: result.SkippedFiles,
+		Notes:        result.Notes,
+	})
+	if cls.Category == "" {
+		return nil
+	}
+	result.BlockedCategory = string(cls.Category)
+	result.RecommendedAction = cls.RecommendedAction
+	result.BlockedEvidence = append([]string(nil), cls.Evidence...)
+	entry := blockedClassificationEvidence(slug, result.UpstreamRef, result.UpstreamCommit, baseCommit, cls)
 	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
 		warnReconcileEvidenceAppendError(slug, err)
 		return nil

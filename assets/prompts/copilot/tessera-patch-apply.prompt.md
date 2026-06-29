@@ -33,6 +33,8 @@ active       → tpatch reconcile  → active | upstream_merged | blocked
 ```
 
 Never skip a phase. Never go backwards without `tpatch reconcile`.
+Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile audit-retirement <slug> [--json]` reports stale dependency/base metadata and cleanup-needed follow-ups without mutating feature state.
+
 
 ## Verify (freshness overlay)
 
