@@ -1,3 +1,126 @@
+## Review — WP-003 Wave β rev-1 (PRDs 2+3+7) — external (supervisor-dispatched) — 2024-12-20
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of rev-1 fixes (`1918b42..bd5bf22`). Verifying internal APPROVED verdict.
+
+### Verdict: APPROVED
+
+### Per-finding verification (independent of internal)
+
+**F1 [VERIFIED CLOSED]** — PRD 2 §6.1 display contract.
+- Production: `internal/cli/cobra.go:1939-1944` implements `reconcileDisplayOutcome()` which returns `"upstreamed-candidate"` when `ReviewVerdict == "rejected-upstreamed"`. Used at line 1868 for human output.
+- Logic path: `internal/workflow/reconcile.go:803-805` always sets `Outcome = ReconcileBlocked` AND `ReviewVerdict = "rejected-upstreamed"` together, so confirmed cases (where `Outcome = ReconcileUpstreamed`) never trigger the display branch.
+- Tests: `reconcile_evidence_cli_test.go:58-76` asserts JSON byte-identity for `outcome=blocked` AND `review_verdict=rejected-upstreamed` (no invented `outcome=upstreamed-candidate`). Lines 78-91 assert human output contains `[upstreamed-candidate]` and NOT `[blocked]`.
+- Adversarial check: When `ReviewVerdict` is empty or unknown value? Display function falls through to return `string(result.Outcome)` — correct. No panic, no silent corruption.
+
+**F2 [VERIFIED CLOSED]** — PRD 3 §5 corrupt_entries contract.
+- Production: `internal/store/reconcile_revision.go:168-233` implements `LoadReconcileRevisionsLenient()`. Returns ALL valid entries before AND after corrupt lines (lines 194-231 accumulate corrupt metadata but continue iteration).
+- CLI human output: `internal/cli/cobra.go:2031-2036` prints valid entries, then `"corrupted entries: line N: <error>"` summary.
+- CLI JSON output: `cobra.go:2020-2029` emits `{"revisions": [...], "corrupt_entries": [...]}` envelope. Line 2026-2028 returns `fmt.Errorf(...)` for non-zero exit when `len(corrupt) > 0`.
+- Strict writer unchanged: `AppendReconcileRevision()` line 85 calls strict `LoadReconcileRevisions()` at preflight, lines 107-109 refuse on malformed file.
+- Tests: `reconcile_revision_test.go:34-67` seeds malformed JSON between two valid entries, asserts strict loader fails with line number, lenient loader returns BOTH valid entries + line-2 corrupt metadata. `reconcile_evidence_cli_test.go:112-165` seeds corrupt JSONL, asserts both JSON and human output preserve valid entries, JSON includes `corrupt_entries` with line number, and CLI exits non-zero for both modes.
+- Adversarial check: Line 1 corrupt? Lines 194-231 handle it (empty valid array, one corrupt entry at line 1). Last line corrupt? Handled. Entire file corrupt? All lines become corrupt entries, valid array empty. Trailing newline edge case? Line 184-186 handles it in strict mode. Schema-valid JSON missing required fields? `validateReconcileRevision()` line 212-217 catches it and treats it as corrupt.
+
+**F3 [VERIFIED CLOSED]** — PRD 3 privacy re-seed.
+- Tests: `reconcile_revision_test.go:69-91` seeds secret `SECRET_REVISION_METADATA_DO_NOT_LEAK` into repository ROOT path (line 71) and SLUG (line 76 — slug is derived from title). Lines 88-90 assert persisted revision JSONL does NOT contain secret.
+- Tests: `reconcile_evidence_integration_test.go:196-233` seeds secret into repo root path (line 199) and feature TITLE (line 213). Lines 509-514 assert neither revision nor evidence artifacts contain secret.
+- Coverage: All three metadata vectors tested (path component, slug, title). No file-content-only trap (rev-0 lesson learned).
+
+**F4 [VERIFIED CLOSED]** — PRD 7 §6.5 nearby-window=3 default JSON encoding.
+- Production: `internal/workflow/hunk_overlap.go:117` emits `fmt.Sprintf("nearby-window=%d", result.NearbyWindow)` where `NearbyWindow` constant defaults to 3.
+- Test: `reconcile_evidence_integration_test.go:517-551` runs reconcile with hunk-overlap fixture, marshals evidence to JSON, asserts `bytes.Contains(hunkJSON, []byte("nearby-window=3"))` (lines 545-547).
+- Coverage: Test verifies the canonical production encoding (exact string `nearby-window=3`) appears in marshaled JSON. Default case tested.
+
+**F5 [VERIFIED CLOSED]** — PRD 2 §6.5 backward-compat.
+- Test (a): `reconcile_evidence_carryforward_test.go:56-86` creates status with `ReviewVerdict = ""` (empty, pre-v0.10.1 shape), saves, reloads via `LoadFeatureStatus`, asserts empty string preserved (lines 76-78). Lines 83-85 assert JSON output omits the field for back-compat.
+- Test (b): `reconcile_evidence_carryforward_test.go:88-119` runs reconcile on fixture with NO pre-existing `reconcile-evidence.jsonl` or `reconcile-revisions.jsonl` (lines 94-100). Lines 101-119 assert reconcile succeeds and creates both artifacts lazily, with valid JSONL content.
+- Coverage: Both PRD requirements met with explicit disk checks.
+
+**F6 [VERIFIED CLOSED]** — PRD 2 §6.2 state non-mutation disk reload.
+- Test: `reconcile_evidence_integration_test.go:459-485` extends `TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch`.
+- After reconcile, reloads `status.json` via `s.LoadFeatureStatus(slug)` (lines 476-478) — NOT from in-memory `results[0]`.
+- Lines 480-482 assert persisted `State` is NOT `StateUpstreamMerged` AND equals `StateBlocked`.
+- Production: `internal/workflow/reconcile.go:825` sets `finalState = StateBlocked` for rejected candidates — verified.
+
+**F7 [VERIFIED CLOSED]** — PRD 2 §6.3 revision log linkage.
+- Test: `reconcile_evidence_integration_test.go:413-457` extends `TestUpstreamedConfirmationGateKeepsConfirmedReverseApply`.
+- Loads `reconcile-revisions.jsonl` via `store.LoadReconcileRevisions(s, slug)` (lines 437-440).
+- Lines 441-443 assert revision entry `EvidenceAttemptID` matches gate evidence `AttemptID`.
+- Lines 444-456 assert revision entry includes upstream commit ref in `ValidationRefs` with `kind=upstream-commit`, `value=<HEAD SHA>`, `result=referenced`.
+- Production: `internal/workflow/reconcile.go:827-833` extracts evidence attempt ID, lines 836-838 record upstream commit validation ref.
+
+### Per-PRD §6 acceptance sweep
+
+**PRD 2 (upstreamed-confirmation-gate) — 8/8 MET**
+1. §6.1: F1 closes. Non-confirmed upstreamed displayed as `upstreamed-candidate` ✓
+2. §6.2: F6 closes. Rejected candidates do not mutate state to `upstream_merged` ✓
+3. §6.3: F7 closes. Confirmation records evidence ID + upstream commit ref ✓
+4. §6.4: Rejection records review verdict — confirmed at `reconcile.go:803-805` ✓
+5. §6.5: F5 closes. Back-compat: empty `ReviewVerdict` loads, lazy artifact creation ✓
+6. §6.6: Rejection writes `review_verdict=rejected-upstreamed` without state mutation — F6 verifies ✓
+7. §6.7: Rejection requires enumerated reason code — confirmed at `reconcile.go:831` ✓
+8. §6.8: Reachable patch-id auto-confirm logic exists at `reconcile.go:799-806` ✓
+
+**PRD 3 (reconcile-revision-pass-log) — 7/7 MET**
+1. §6.1: Revision recording exists — production code at `reconcile.go:810-856` ✓
+2. §6.2: F3 closes. Privacy tests seed metadata secrets ✓
+3. §6.3: JSON output exists — `cobra.go:2020-2029` ✓
+4. §6.4: Study validator consumption — deferred per PRD text ✓
+5. §6.5: F2 closes. Corrupt entries reported without losing valid entries ✓
+6. §6.6: Superseded handling via `latestRevisionEntries` at `cobra.go:2018` (not 2049 per internal review) ✓
+7. §6.7: Enumerated reason codes only, no free-text — confirmed in enum definitions ✓
+
+**PRD 7 (reconcile-hunk-overlap-detector) — 5/5 MET**
+1. §6.1: Hunk evidence exists — production code at `hunk_overlap.go:114-144` ✓
+2. §6.2: Non-overlapping vs true overlap distinguished — `overallHunkOverlap()` logic ✓
+3. §6.3: Detector explains blocked features — evidence emitted with classification ✓
+4. §6.4: Privacy — F3/F4 coverage, no raw source bodies in persisted artifacts ✓
+5. §6.5: F4 closes. `nearby-window=3` in JSON output ✓
+
+### Hard-constraint sweep
+
+- [x] NO new lifecycle states. Verified: `git diff 1918b42..bd5bf22 -- internal/store/types.go` shows no new `State*` constants.
+- [x] NO new config flags. Verified: no new flag registrations in rev-1 commits.
+- [x] NO changes to `patch-generations.json` / ADR-024 surface. Verified: no such file exists in repo.
+- [x] `corrupt_entries` TRANSIENT CLI output only. Verified: `CorruptEntry` defined in `reconcile_revision.go:66-69` as return type, NOT in `types.go`. Never written to any `.jsonl` artifact.
+- [x] D10 privacy enforced. Verified: F3 tests seed secrets into metadata vectors (path/slug/title) and assert no leaks in revision/evidence JSONL. Production code emits only paths, hashes, operation IDs, refs, counts per ADR-025 D10.
+- [x] ADR-025 D1–D13 unchanged beyond D8. Verified: Only `ReviewVerdict` added to `ReconcileSummary` per D8 authorization. No new evidence kinds, no new revision fields beyond D6-D8 scope.
+- [x] Side Research md5: `b385fe622db9926f48861105239f113e` — VERIFIED.
+- [x] Co-authored-by trailer on all rev-1 commits: `56791b5`, `5280f5d`, `bd5bf22` — VERIFIED.
+
+### Validation gates
+
+- **gofmt**: clean (empty output, direct run) ✓
+- **go vet**: clean (`./...`) ✓
+- **go build**: clean (`./cmd/tpatch`) ✓
+- **go test**: green (`./...` — all packages pass) ✓
+
+### New findings (beyond F1–F7)
+
+**NONE.** All PRD §6 acceptance criteria are met. All hard constraints satisfied. No regressions detected.
+
+### Adversarial verification summary
+
+For each finding, I applied the rev-0 lesson: read production code path FIRST, then test, then ask "how would I break this in production?"
+
+- **F1**: Checked display function with empty/unknown `ReviewVerdict` → falls through safely. Checked Outcome/ReviewVerdict pairing logic → always set together, no partial state.
+- **F2**: Checked edge cases: line 1 corrupt, last line corrupt, entire file corrupt, trailing newline, schema-valid JSON missing required fields → all handled. Verified strict writer preflight unchanged. Verified non-zero exit for both JSON and human output modes.
+- **F3**: Verified secrets seeded into ALL three metadata vectors (path, slug, title) — not just one. No file-content-only trap.
+- **F4**: Verified production encoding at exact line, verified test checks byte-identity of production format.
+- **F5**: Verified empty `ReviewVerdict` loads without error. Verified lazy artifact creation with NO pre-existing files. Verified back-compat JSON omits field.
+- **F6**: Verified test reloads from DISK via `LoadFeatureStatus()`, not from in-memory `result`. Verified production code sets `finalState = StateBlocked`.
+- **F7**: Verified test loads from DISK via `LoadReconcileRevisions()`. Verified linkage between evidence attempt ID and revision entry. Verified upstream commit ref in `ValidationRefs` array with correct shape.
+
+### Concurrence with internal verdict?
+
+**YES.** Internal verdict APPROVED is correct. All 7 findings are legitimately closed. All PRD §6 criteria are met. No new regressions. Hard constraints satisfied. Validation gates green.
+
+### Action Taken
+
+Prepending this external review verdict to `docs/supervisor/LOG.md`. Will commit with co-author trailer and push.
+
+---
+
 ## Review — WP-003 Wave β rev-1 (PRDs 2+3+7) — internal — 2024-12-20
 
 **Reviewer**: internal (code-review agent)
