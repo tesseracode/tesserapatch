@@ -2,11 +2,73 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-beta-closure` → next: `wp003-wave-gamma-or-release-decision`
-- **Milestone**: WP-003 Wave β complete (PRDs 2+3+7). Awaiting supervisor decision on next move: kick off Wave γ (PRDs 4+5+8+9) OR ship interim release (v0.10.1) bundling Wave α + Wave β before continuing.
-- **Description**: Wave β rev-1 closed all F1–F7 with three-way unanimous APPROVED. ADR-025 D1–D13 preserved. ADR-024 untouched. D10 privacy enforced. No new lifecycle states, no new config flags. Wave β snapshot archived to `docs/handoff/HISTORY.md` (2026-06-28).
-- **Status**: Awaiting next-phase dispatch (no active implementer).
+- **Task ID**: `wp003-wave-gamma-1-prd4-prd5-prd8-impl`
+- **Milestone**: WP-003 Wave γ slice 1 — PRDs 4 (`reconcile-retirement-state-audit`), 5 (`reconcile-study-validation`), 8 (`reconcile-blocked-verdict-taxonomy`). PRD 9 (`reconcile-path-restructure-detector`) sequenced separately in γ-2 (depends on PRD 8).
+- **Description**: Wave γ-1 ships three independent surfaces under ADR-025's existing evidence schema (no new cluster ADR). PRD 4: read-only `tpatch reconcile audit-retirement <slug>` + auto-run after `confirm-upstreamed`. PRD 5: dev-only `internal/tools/` case-study validator (stdlib-only, no public CLI surface). PRD 8: blocked-category enrichment via evidence metadata (no new lifecycle state, no new persisted enum). Wave β acceptance is the gate — all three γ-1 PRDs depend on Wave β surfaces.
+- **Status**: In Progress (γ-1 implementer dispatched 2026-06-28).
 - **Assigned**: 2026-06-28.
+
+## γ-1 binding scope per PRD
+
+### PRD 4 — `reconcile-retirement-state-audit` (`docs/prds/PRD-reconcile-retirement-state-audit.md`)
+
+- New command: `tpatch reconcile audit-retirement <slug> [--json]` — read-only, no mutation.
+- Audit checks (§4, 1–5):
+  1. Feature state + raw/review evidence agree retirement was confirmed.
+  2. `Dependency.SatisfiedBy` SHAs reachable from current HEAD.
+  3. Child features derive expected labels after parent retirement.
+  4. `dependent-broken` labels justified or clearable by current state.
+  5. Feature has revision-pass log entry for retirement action.
+- Auto-run after `confirm-upstreamed`: prints findings + appends `cleanup-needed` revision-pass entries (via ADR-025 revision schema) but never mutates dependency or status metadata.
+- §6 acceptance (6 criteria): stale SHA reporting, child identification, no mutation, stable JSON, auto-run, no v1 fixer.
+- §5: reuse existing label composition; do NOT persist new label fields.
+
+### PRD 5 — `reconcile-study-validation` (`docs/prds/PRD-reconcile-study-validation.md`)
+
+- Dev-only `internal/tools/` package (e.g., `internal/tools/studyvalidator/`). NOT in `SPEC.md`. Optional maintainer-only command is acceptable but is not part of the public CLI surface.
+- Validates a case-study folder containing `study.json`, `features.jsonl`, `hunks.jsonl`, `patches.jsonl`, `metrics.json`, `summary.md`.
+- §4 validation rules (1–6):
+  1. Every JSON/JSONL record parses.
+  2. `study_id` consistent across all files.
+  3. Feature counts in `study.json` match `features.jsonl` rows.
+  4. Aggregate ground-truth counts in `metrics.json` match record-level `ground_truth` values.
+  5. Every false-positive/false-negative has revision-pass entry OR documented `local-notes.md` reference.
+  6. Raw verdict counts not compared directly to final state counts unless phase declared.
+- §5: stdlib-only; no target-repo access required; warnings for prose-only discrepancies; parse failures + count contradictions are errors.
+- §6 acceptance (6 criteria): filename+line on malformed records; count mismatch detection; raw/post-review/final distinction; runs on t3code study; dev-only path; `local-notes.md` warn-for-old / error-for-new.
+
+### PRD 8 — `reconcile-blocked-verdict-taxonomy` (`docs/prds/PRD-reconcile-blocked-verdict-taxonomy.md`)
+
+- 8 categories with deterministic precedence: `dependency-blocked > validation-blocked > target-deleted > structural-conflict > edit-overlap > shifted-context > clean-additive > unknown-blocked`.
+- §5 implementation: store category as **evidence metadata, NOT as a new lifecycle state**. Programmatic decisions read raw outcome + labels separately. Deterministic + sorted when multiple apply; v1 exposes primary category + secondary evidence.
+- Human output: `<slug>: blocked (<category>)\n  evidence: ...\n  next: <recommended_action>`.
+- JSON: `{"outcome": "blocked", "blocked_category": "...", "recommended_action": "..."}` — raw `outcome` MUST remain `blocked` (backward-compat).
+- §6 acceptance (5 criteria): enriched output when evidence exists; `unknown-blocked` for insufficient evidence; JSON exposes raw outcome + category + recommended action; existing status files remain readable without category evidence; multi-category precedence with secondary evidence.
+
+## γ-1 hard constraints (binding)
+
+1. **No new lifecycle states** (no `FeatureState` additions). PRD 8 explicitly says blocked category is evidence metadata, not a state.
+2. **No new persisted-schema fields outside ADR-025 authorizations**. PRD 8 category goes into existing evidence record fields (`reason_code`, `matched_operations`, or similar) — NOT a new top-level column on `ReconcileSummary` or `ReconcileEvidence` unless an ADR clause already authorizes it. If a new field is genuinely needed, draft a minor ADR-025 amendment first; do not silently extend the schema.
+3. **No new public CLI surface for PRD 5**. Dev-only `internal/tools/` only. Maintainer command allowed but must NOT appear in `assets/skills/` parity guard or `SPEC.md`.
+4. **PRD 4 audit is read-only**. No mutation paths. Auto-run after `confirm-upstreamed` appends revision-pass `cleanup-needed` entries via the existing ADR-025 revision writer — do NOT introduce a new persisted artifact.
+5. **PRD 8 backward-compat**: existing status.json files with `outcome=blocked` and no `blocked_category` field MUST continue to load and roundtrip. Add a backward-compat test (Wave β F5 lesson template).
+6. **D10 privacy**: no source bodies / transcripts / prompts / vectors in persisted artifacts (evidence, revision, audit findings). Privacy tests MUST seed secrets into title/slug/path metadata, NOT just file content (Wave β F3 lesson).
+7. **D11 malformed handling**: PRD 5 validator's malformed-record reporting must use line-number + filename pattern (mirror Wave β F2 lenient-loader UX).
+8. **ADR-024 / `patch-generations.json` UNTOUCHED**.
+9. **Side Research md5 preserved**: `b385fe622db9926f48861105239f113e`.
+10. **Commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` on every commit.
+
+## γ-1 reviewer-brief preparation (carry-forward 8, 9, 10, 11, 12)
+
+Reviewers (internal + both externals) will be briefed with these binding sweep rules:
+
+- (Carry-forward 8) Per-PRD §6 display contracts are binding test contracts AND production-behavior contracts. PRD 4 example output line "`feature state: upstream_merged`" and PRD 8 example "`blocked (structural-conflict)`" are display-string contracts.
+- (Carry-forward 9) Behavior-implemented vs behavior-tested distinction. Reviewers MUST read production code FIRST. Sweep every PRD §6 line for "does the production code path exist?" before "is it tested?"
+- (Carry-forward 10) State-mutation tests reload from disk. PRD 4 explicitly says no mutation — reviewer brief must confirm `LoadFeatureStatus` reload after `audit-retirement` shows zero state delta.
+- (Carry-forward 11) Cross-artifact linkages (audit findings → revision-pass log) must be verified by loading the persisted JSONL.
+- (Carry-forward 12) Privacy tests seed metadata vectors (title/slug/path).
+
+## Process
 
 ## Wave β closure summary (for reference)
 
