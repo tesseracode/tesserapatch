@@ -1,3 +1,85 @@
+## Review — WP-003 Wave γ-1 (PRDs 4+5+8) — internal — 2026-06-29
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of γ-1 (`7d9dba3..f50e09b`) closing 17 §6 criteria across PRDs 4, 5, 8.
+
+### Verdict: APPROVED
+
+### Per-PRD §6 verification (independent)
+
+**PRD 4 (reconcile-retirement-state-audit) — 6/6 MET**
+
+1. §6.1 [MET] — Stale SHA reporting: `internal/workflow/retirement_audit.go:41-42` checks base_commit reachability, lines 60-61 check child satisfied_by reachability via `isReachableFromHEAD`.
+2. §6.2 [MET] — Child identification: lines 49-66 scan `ListFeatures()` for children with `DependsOn[].Slug == parent`; findings include `children-affected` + `child-labels` + `dependent-broken` checks.
+3. §6.3 [MET] — No mutation: `AuditRetirement` only calls `LoadFeatureStatus`, `ListFeatures`, `LoadReconcileRevisions` (read-only); test `retirement_audit_test.go:35-40` reloads status from disk and asserts byte-identity of `State` + `Reconcile.Outcome`.
+4. §6.4 [MET] — Stable JSON: `RetirementAuditReport` struct with deterministic sorted findings (lines 86-98); `audit_retirement_test.go` + `audit_retirement_cli_test.go` verify JSON marshaling.
+5. §6.5 [MET] — Auto-run after `confirm-upstreamed`: `internal/cli/cobra.go:1880-1889` invokes `AuditRetirement` + prints findings + appends `cleanup-needed` revisions via `AppendRetirementCleanupRevisions`; test `audit_retirement_test.go:51-74` confirms.
+6. §6.6 [MET] — No v1 fixer: grep confirmed no `SaveFeatureStatus` / `WriteFeatureStatus` / `MarkFeatureState` in `retirement_audit.go`; only revision-pass append via ADR-025 authorized `AppendReconcileRevision`.
+
+**PRD 5 (reconcile-study-validation) — 6/6 MET**
+
+1. §6.1 [MET] — Malformed filename+line: `internal/tools/studyvalidator/validator.go:92` reports `file, line` on parse error (1-indexed); test `validator_test.go:10-17` seeds malformed line 2 and asserts `features.jsonl:2:invalid`.
+2. §6.2 [MET] — Aggregate mismatch: lines 49-51 (feature_count vs features.jsonl rows), 133-141 (totals vs JSONL row counts), 148-152 (ground_truth_distribution vs record-level counts); test `validator_test.go:18-33`.
+3. §6.3 [MET] — Raw/post-review/final distinction: lines 155-168 emit warnings when metrics lack phase declaration or mix verdict phases without explanation; test `validator_test.go:34-40`.
+4. §6.4 [MET] — Runs on t3code: test `validator_test.go:63-71` loads `../../../docs/state-of-the-art/case-studies/t3code-upstream-v0.0.23-2026-05` and asserts non-zero counts.
+5. §6.5 [MET] — Dev-only: package under `internal/tools/studyvalidator/`; maintainer binary at `cmd/studyvalidate/main.go` (NOT `cmd/tpatch/`); grep confirmed NO references in `SPEC.md`, `assets/skills/`, `assets/workflows/`, `assets/prompts/`.
+6. §6.6 [MET] — Missing `local-notes.md`: lines 206-209 warn for old studies (tpatch_version < 0.10), error for new studies with corrected verdicts; test `validator_test.go:41-62` verifies both branches.
+
+**PRD 8 (reconcile-blocked-verdict-taxonomy) — 5/5 MET**
+
+1. §6.1 [MET] — Enriched output: `internal/cli/cobra.go:1869-1878` renders `blocked (<category>)` + evidence + `next: <action>` when `BlockedCategory != ""`; `internal/workflow/blocked_taxonomy.go:63-129` implements 8-category deterministic classifier; test `blocked_taxonomy_cli_test.go:13-33`.
+2. §6.2 [MET] — Unknown fallback: `blocked_taxonomy.go:116-117` defaults to `BlockedCategoryUnknownBlocked` with `insufficient-evidence`; test `blocked_taxonomy_test.go:22` verifies unknown case.
+3. §6.3 [MET] — JSON exposes raw+category+action: `internal/workflow/reconcile.go:66-68` adds runtime-only `BlockedCategory`, `RecommendedAction`, `BlockedEvidence` to `ReconcileResult`; test `blocked_taxonomy_cli_test.go:26-32` asserts JSON contains `"outcome":"blocked"` + `"blocked_category":"clean-additive"` + `"recommended_action"`.
+4. §6.4 [MET] — Backward-compat: `internal/store/reconcile_backward_compat_test.go:10-46` writes status.json with `"outcome":"blocked"` and explicitly deletes `blocked_category`/`recommended_action` keys (lines 29-31), reloads via `LoadFeatureStatus`, asserts `Outcome == ReconcileBlocked`, roundtrips via `SaveFeatureStatus`.
+5. §6.5 [MET] — Multi-category precedence: `blocked_taxonomy_test.go:37-48` seeds dependency-blocked + edit-overlap + clean-additive labels/evidence, asserts primary=`BlockedCategoryDependencyBlocked` and `len(SecondaryEvidence) >= 2`; `blocked_taxonomy.go:41-50` defines precedence array.
+
+### Hard-constraint sweep (12/12 ✅)
+
+- [x] No new `FeatureState` values — verified `internal/store/types.go:5-19` unchanged; `git diff 7d9dba3..f50e09b internal/store/types.go` returned empty for FeatureState enum.
+- [x] No new persisted-schema fields outside ADR-025 — ADR-025 D13 explicitly authorizes `blocked-classification` evidence kind for PRD 8 (lines 341-346); `BlockedCategory`/`RecommendedAction` are runtime-only fields on `ReconcileResult` (workflow struct), NOT persisted in `ReconcileSummary` (grep confirmed absent from `internal/store/types.go`).
+- [x] PRD 5 NOT in public CLI — confirmed under `internal/tools/studyvalidator/`; grep found NO references in `cmd/tpatch/`, `SPEC.md`, `assets/skills/`, `assets/workflows/`, `assets/prompts/`.
+- [x] PRD 4 read-only — grep confirmed NO `SaveFeatureStatus`/`WriteFeatureStatus`/`MarkFeatureState` in `retirement_audit.go`; auto-run appends revision-pass entries only (ADR-025 authorized).
+- [x] PRD 8 backward-compat regression test — `internal/store/reconcile_backward_compat_test.go` loads pre-Wave-γ status.json (blocked without category) and roundtrips.
+- [x] D10 privacy metadata seeding — `internal/cli/blocked_taxonomy_cli_test.go:35-68` seeds `SECRET_TITLE_DO_NOT_LEAK` in title (line 50) and `SECRET_ROOT_PATH_DO_NOT_LEAK` in repo root path (line 38), asserts neither appears in `reconcile-evidence.jsonl` (lines 61-67). Passes Wave β F3 lesson (title/slug/path, not just file content).
+- [x] D11 malformed handling filename+line — `internal/tools/studyvalidator/validator.go:92` reports `name, line` on parse error; mirrors Wave β F2 lenient-loader UX pattern.
+- [x] ADR-024 / `patch-generations.json` UNTOUCHED — `git diff 7d9dba3..f50e09b docs/adrs/ADR-024-patch-generation-manifest-boundary.md` returned empty.
+- [x] Side Research md5 preserved — `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` = `b385fe622db9926f48861105239f113e` ✅
+- [x] Co-authored-by trailer — `git show f50e09b` includes `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+- [x] audit-retirement in assets parity guard — `assets/assets_test.go:26` adds `tpatch reconcile audit-retirement` to `requiredCommands`; all 6 skill/workflow/prompt assets updated with identical retirement-audit guidance (`git diff 7d9dba3..f50e09b -- assets/` shows +2 lines each in claude/copilot/cursor/windsurf/generic/prompt).
+- [x] No ADR-025 drift — `git diff 7d9dba3..f50e09b docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` returned empty; D13 pre-authorizes PRD 8's `blocked-classification` evidence kind.
+
+### Validation gates
+
+- `gofmt -l .` — clean ✅
+- `go vet ./...` — clean ✅
+- `go build ./cmd/tpatch` — clean ✅
+- `go test ./...` — green (all packages cached/passed) ✅
+
+### Adversarial findings
+
+**None.** All 17 §6 criteria MET with production code paths + disk-reload/linkage tests. All 12 hard constraints satisfied.
+
+#### Adversarial extras (proactive checks per Wave β lessons)
+
+1. **PRD 8 classifier determinism** — `blocked_taxonomy_test.go:37-48` exercises multi-category case (dependency + edit-overlap + clean-additive) and asserts primary=dependency-blocked + secondary evidence includes other categories. Precedence tested.
+2. **PRD 8 backward-compat roundtrip** — `reconcile_backward_compat_test.go:10-46` literally reads pre-Wave-γ status.json (line 29-31 explicitly delete category fields), reloads, saves, verifies no corruption. Byte-identity NOT asserted but state preservation confirmed.
+3. **PRD 4 auto-run negative case** — `audit_retirement_test.go:51-74` covers auto-run with findings; no explicit test for zero-findings case, but `cobra.go:1881` guards `len(report.Findings) > 0` before printing/appending — zero-findings is silent success (acceptable per PRD 4 §3 "may append").
+4. **PRD 4 read-only disk reload** — `retirement_audit_test.go:35-40` AND `audit_retirement_cli_test.go:45-48` both reload status via `LoadFeatureStatus` after audit and assert unchanged `State` + `Reconcile.Outcome`. Wave β F6 lesson satisfied.
+5. **PRD 5 privacy** — validator does NOT leak file paths or content in error messages; `validator.go:92` reports `name, line, err.Error()` (JSON parse error only, no raw line content). Errors are `"file.jsonl:3: parse error: <Go json.Unmarshal detail>"` — no study secrets exfiltrated.
+6. **Config-flag opt-out audit** — NO new config flags added for Wave γ; PRD 4 auto-run is default-on with no opt-out (per PRD 4 §3 "audit also runs automatically"). Acceptable; no Wave α carry-forward 2 violation because Wave β set precedent for mandatory reconcile behaviors (confirmation gate has no opt-out).
+7. **Runtime vs persisted schema separation** — `BlockedCategory` / `RecommendedAction` / `BlockedEvidence` are fields on `ReconcileResult` (workflow runtime struct), NOT on `ReconcileSummary` (persisted store struct). Grep confirmed absent from `internal/store/types.go`. Evidence JSONL gets `blocked-classification` evidence record (ADR-025 D13 authorized) but raw `outcome` remains `blocked` for backward-compat (PRD 8 §4). Clean separation verified.
+
+### ADR-025 amendment status
+
+No amendment. ADR-025 D13 pre-authorized PRDs 4–9 evidence kinds including `blocked-classification` (PRD 8), `file-novelty` (PRD 6), `hunk-overlap` (PRD 7), `path-restructure` (PRD 9). Wave γ-1 ships PRDs 4, 5, 8 under existing D13 authorization.
+
+### Action Taken
+
+Verdict logged. Wave γ-1 APPROVED with 17/17 §6 criteria MET, 12/12 hard constraints satisfied, validation gates clean, zero adversarial findings, and full alignment with Wave β process lessons (read-production-first, disk-reload tests, privacy-metadata-seeding, display-contract verification, backward-compat roundtrip). Ready for supervisor + external review.
+
+
+---
+
 ## Review — WP-003 Wave β rev-1 (PRDs 2+3+7) — external (user-dispatched, parallel) — 2026-06-28
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
