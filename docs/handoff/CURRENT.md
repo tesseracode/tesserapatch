@@ -2,11 +2,56 @@
 
 ## Active Task
 
-- **Task ID**: `wp003-wave-gamma-1-prd4-prd5-prd8-impl`
-- **Milestone**: WP-003 Wave γ slice 1 — PRDs 4 (`reconcile-retirement-state-audit`), 5 (`reconcile-study-validation`), 8 (`reconcile-blocked-verdict-taxonomy`). PRD 9 (`reconcile-path-restructure-detector`) sequenced separately in γ-2 (depends on PRD 8).
-- **Description**: Wave γ-1 ships three independent surfaces under ADR-025's existing evidence schema (no new cluster ADR). PRD 4: read-only `tpatch reconcile audit-retirement <slug>` + auto-run after `confirm-upstreamed`. PRD 5: dev-only `internal/tools/` case-study validator (stdlib-only, no public CLI surface). PRD 8: blocked-category enrichment via evidence metadata (no new lifecycle state, no new persisted enum). Wave β acceptance is the gate — all three γ-1 PRDs depend on Wave β surfaces.
-- **Status**: Review (γ-1 implementation complete; gates clean 2026-06-29).
-- **Assigned**: 2026-06-28.
+- **Task ID**: `wp003-wave-gamma-1-prd4-prd5-prd8-impl-rev1`
+- **Milestone**: WP-003 Wave γ-1 rev-1 — PRDs 4 + 5 (5+8 already approved by all 3 reviewers, no rework needed on PRD 8).
+- **Description**: Rev-1 fix-pass over γ-1 rev-0 (`f50e09b`). Internal APPROVED (`971b251`), supervisor-external APPROVED WITH NOTES (`eb066ac`, F1 MEDIUM), user-external NEEDS REVISION (upgraded F1 to HIGH + added F2 MEDIUM BLOCKING). Two production-behavior gaps (Wave β F8 pattern repeats). Rev-1 closes F1 (PRD 4 auto-run wired to wrong trigger + missing JSON path) and F2 (PRD 5 §4.5 per-correction linkage not enforced).
+- **Status**: In Progress (rev-1).
+- **Assigned**: 2026-07-05.
+
+## Rev-1 findings (binding scope — close both)
+
+**F1 (HIGH BLOCKING)** — PRD 4 §6.5 auto-run trigger contract violation.
+
+- PRD 4 §3 (line 101) verbatim: "The audit also runs automatically after `confirm-upstreamed`."
+- PRD 4 §6.5 (line 128) verbatim: "`confirm-upstreamed` runs the audit automatically after confirmation and prints any cleanup-needed findings."
+- Current implementation wires auto-run to `review_verdict == confirmed-upstreamed` in the reconcile HUMAN render loop at `internal/cli/cobra.go:1880-1895`. This is a completed-outcome check on `ReconcileResult`, NOT a `confirm-upstreamed` command/event trigger.
+- No `confirm-upstreamed` subcommand exists in production code (grep across `internal/`, `cmd/`, `assets/`, `SPEC.md` returns zero source matches).
+- Additionally, `--format json` branch at `cobra.go:1861-1864` returns early — auto-run is skipped entirely for JSON callers.
+- **Required fix (implementer decides one of these paths, document choice in rev-1 handoff)**:
+  - **Path A**: Introduce the `confirm-upstreamed` command as PRD-named. This means adding a new subcommand `tpatch reconcile confirm-upstreamed <slug>` (or equivalent) that (a) takes a feature already in the "upstreamed" state, (b) confirms the confirmation gate outcome, and (c) auto-runs the retirement audit. Update assets/skills 6 formats + parity guard. Update PRD 4 verbatim if the shape needs slight refinement (but preserve §6.5 semantics).
+  - **Path B**: If Path A introduces too much surface area for γ-1 rev-1 scope, draft a minor PRD 4 amendment inside `docs/prds/PRD-reconcile-retirement-state-audit.md` §3/§6.5 that: (i) clarifies the trigger is any code path where `review_verdict` transitions to `confirmed-upstreamed`, (ii) explicitly extends auto-run to BOTH human AND JSON reconcile output paths, (iii) adds a note that a future `confirm-upstreamed` subcommand may replace this trigger. Get the PRD amendment reviewed as part of rev-1 (reviewer briefs will treat the amended §3/§6.5 as binding).
+- **Regardless of path**: fix `cobra.go:1861-1864` so JSON reconcile output also invokes `AuditRetirement` + `AppendRetirementCleanupRevisions`. Add JSON-path integration test asserting audit findings persist + `cleanup-needed` revisions land on disk in JSON mode.
+
+**F2 (MEDIUM BLOCKING)** — PRD 5 §4.5 per-correction linkage not enforced.
+
+- PRD 5 §4.5 (lines 112-113) verbatim: "Every false-positive or false-negative ground-truth label has either a revision-pass entry or a documented notes reference."
+- Current implementation at `internal/tools/studyvalidator/validator.go:171-210` (`checkCorrections`):
+  - Counts corrected verdicts (lines 176-191).
+  - Then checks `hasRevisionReference(dir) || hasNotes` at line 195 — both are FILE-EXISTENCE checks, not per-corrected-verdict linkage.
+  - `hasRevisionReference` at `validator.go:211-219` only checks file presence.
+- The word "every" in PRD §4.5 is binding. Presence check does not satisfy per-correction linkage. A study with 10 corrected verdicts and one unrelated revision-log file passes.
+- **Required fix**:
+  - Replace file-existence check with per-corrected-verdict linkage. For each row in `features.jsonl` with `ground_truth` in {`false_positive`, `false_negative`}:
+    - Look up matching revision-pass entry by feature slug (or verdict-id if PRD 3 revision schema exposes one) in the study's `reconcile-revisions.jsonl` OR `revision-pass.jsonl` if present.
+    - Alternatively, look up a notes reference block in `local-notes.md` that names the feature slug (a simple substring or heading match keyed on slug is acceptable; document the matching contract in a code comment).
+    - If neither is found: emit an error with the specific feature slug and its `ground_truth` value.
+  - Tests must exercise:
+    - Positive case: study with 3 corrected verdicts, all 3 have matching revision entries → validator passes.
+    - Positive case: study with 3 corrected verdicts, 2 matched by revision entries + 1 matched by `local-notes.md` reference → passes.
+    - Negative case: study with 3 corrected verdicts + only 1 has a matching entry → validator emits 2 errors naming the unlinked slugs.
+    - Edge case: study with 0 corrected verdicts + no notes/revisions → no error (nothing to link).
+
+## Rev-1 hard constraints
+
+All 12 γ-1 rev-0 hard constraints still bind (see prior CURRENT.md snapshot in HISTORY.md when archived). Plus:
+
+13. If Path A chosen for F1: `confirm-upstreamed` becomes a new public CLI subcommand — MUST land in assets/skills 6 formats + parity guard AND `SPEC.md` MUST be updated to document the new command.
+14. If Path B chosen for F1: PRD 4 amendment MUST be minimal and preserve §6 acceptance semantics. Reviewer briefs will apply the amended text.
+15. F2 fix MUST NOT change PRD 5's dev-only surface constraint (§6.5 — no public CLI addition).
+
+## Carry-forward dispatch rules (add rule 15)
+
+15. (γ-1 F1) When PRD names a command/event as trigger, verify the command/event actually exists in production code BEFORE wiring implementation. Implementer briefs must resolve "does this trigger exist?" as first step. Reviewer briefs must grep for the trigger name. Wave β F8 pattern repeated in γ-1 F1 — read PRD verbatim, THEN read production code, ask "is this trigger real?"
 
 ## γ-1 binding scope per PRD
 

@@ -1,3 +1,75 @@
+## Review — WP-003 Wave γ-1 (PRDs 4+5+8) — external (user-dispatched, parallel) — 2026-07-05
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of γ-1 (`7d9dba3..f50e09b`).
+
+### Verdict: NEEDS REVISION
+
+### New findings (upgrading + augmenting supervisor-external)
+
+**F1 (HIGH BLOCKING)** — PRD 4 §6.5 auto-run contract violation.
+
+- PRD 4 §3 verbatim (line 101): "The audit also runs automatically after `confirm-upstreamed`." §6.5 (line 128): "`confirm-upstreamed` runs the audit automatically after confirmation and prints any cleanup-needed findings."
+- Implementation ties auto-run to `review_verdict == confirmed-upstreamed` inside the reconcile HUMAN render loop at `internal/cli/cobra.go:1880-1895`. This is a completed-outcome check on `ReconcileResult`, NOT a `confirm-upstreamed` command/event trigger.
+- No `confirm-upstreamed` subcommand exists in the CLI. Grep across `internal/`, `cmd/`, `assets/`, `SPEC.md` returns zero matches for `confirm-upstreamed` in source. The trigger the PRD names does not exist.
+- Additionally, the `--format json` branch at `cobra.go:1861-1864` returns early — even the outcome-based auto-run is skipped for JSON callers. (This subsumes supervisor-external's F1 MEDIUM finding.)
+- Consequence: acceptance criterion §6.5 is UNMET on both the human path (wrong trigger) and JSON path (skipped entirely). Auto-run test at `audit_retirement_test.go:51-74` only exercises the human path with the wrong trigger.
+
+**F2 (MEDIUM BLOCKING, NEW)** — PRD 5 §4.5 per-correction linkage not enforced.
+
+- PRD 5 §4.5 verbatim (lines 112-113): "Every false-positive or false-negative ground-truth label has either a revision-pass entry or a documented notes reference."
+- Implementation at `internal/tools/studyvalidator/validator.go:171-210` (`checkCorrections`):
+  - Counts corrected verdicts (lines 176-191).
+  - Then checks `hasRevisionReference(dir) || hasNotes` (line 195) — both are FILE-EXISTENCE checks, not per-corrected-verdict linkage.
+  - `hasRevisionReference` at `validator.go:211-219` only checks file presence for `reconcile-revisions.jsonl` or `revision-pass.jsonl`.
+- Consequence: a study with 10 corrected verdicts and one unrelated revision-log file OR one generic notes file passes validation. The word "every" in PRD §4.5 is binding — presence check does not satisfy per-correction linkage. Test coverage at `validator_test.go` only exercises old/new local-notes severity, not per-correction linkage.
+
+### Per-PRD §6 sweep (independent)
+
+- PRD 4: 5/6 MET (§6.5 UNMET per F1).
+- PRD 5: 5/6 MET (§4.5-derived §6 criterion 5 UNMET per F2 — PRD §4 rules feed §6 criteria; "distinguishes raw verdicts from post-review" partially met but per-correction enforcement missing).
+- PRD 8: 5/5 MET (concurs with internal + supervisor-external).
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean | targeted tests: green
+Side Research md5: `b385fe622db9926f48861105239f113e` verified.
+
+### Concurrence with prior verdicts
+- Concurs with internal APPROVED on 12/12 hard constraints, ADR-025 D13 pre-authorization, PRD 8 5/5.
+- Concurs with supervisor-external's F1 direction but UPGRADES severity: the wrong-trigger issue is more severe than the JSON-path-only gap. Both externals see the same underlying wiring bug from different angles.
+- Uniquely surfaces F2 (per-correction linkage). Wave β F8 pattern repeats: same PRD verbatim reading catches production gap that presence-based tests hide.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — WP-003 Wave γ-1 — supervisor — 2026-07-05
+
+**Decision**: NEEDS REVISION (consolidated from internal APPROVED + supervisor-external APPROVED WITH NOTES + user-external NEEDS REVISION).
+
+### Consolidated finding list for rev-1
+
+- **F1 (HIGH BLOCKING)** — PRD 4 §6.5 auto-run wired to wrong trigger + missing JSON path. Fix must: (a) identify or introduce the `confirm-upstreamed` command/event as the PRD names it, OR update PRD 4 §3/§6.5 verbatim if the implementer's semantic interpretation (auto-run when reconcile outcome is `upstreamed`) was intentional and the PRD wording is loose. Default assumption: implementer implements the PRD as written. Also fix the JSON-path skip in `cobra.go:1861-1864`.
+- **F2 (MEDIUM BLOCKING)** — PRD 5 §4.5 per-correction linkage enforcement. Fix must replace file-existence check at `validator.go:195` with per-corrected-verdict linkage: for each `false_positive`/`false_negative` row in `features.jsonl`, verify a corresponding revision-pass entry (matching feature slug or verdict-id) OR a notes-reference block exists.
+
+Both findings are production-behavior gaps (not test-coverage gaps), same Wave β F8 lesson pattern:
+- Supervisor-external saw a SUBSET (JSON-path skip);
+- User-external read the PRD §3/§6.5 verbatim and discovered the primary trigger is entirely wrong;
+- Wave β F8: user-external read PRD 3 §5 verbatim and discovered `corrupt_entries` envelope missing entirely.
+
+### Process lesson (new, add to carry-forward rules)
+
+**15. When PRD names a command/event as trigger, verify the command/event actually exists in production code.** Reviewer briefs must include a grep-for-trigger-name check. Implementer briefs must explicitly resolve "does this command/event exist?" BEFORE wiring — if it doesn't, either (a) introduce it, (b) escalate to supervisor for PRD-vs-code reconciliation, or (c) draft a minor PRD amendment. NEVER silently rewire to a different trigger name (γ-1 F1 root cause).
+
+### Action Taken
+- Both externals' verdicts logged.
+- γ-1 rev-0 archived to HISTORY.md deferred until rev-1 lands (single-archive at final APPROVED).
+- CURRENT.md updated with F1+F2 rev-1 brief.
+- rev-1 implementer dispatch pending.
+
+---
+
 ## Review — WP-003 Wave γ-1 (PRDs 4+5+8) — external (supervisor-dispatched) — 2026-07-05
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
