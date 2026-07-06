@@ -62,6 +62,8 @@ requested → analyzed → defined → implementing → applied → active
 | `tpatch apply <slug> [--mode prepare\|started\|done] [--path]` | Execute recipe or record session |
 | `tpatch record <slug> [--path]` | Capture patches (tracked + untracked files) |
 | `tpatch reconcile [--upstream-ref] [slug...] [--path]` | Reconcile features against upstream |
+| `tpatch reconcile audit-retirement <slug> [--json] [--path]` | Read-only audit of retired feature dependency metadata |
+| `tpatch reconcile confirm-upstreamed <slug> [--json\|--format json] [--path]` | Confirm an upstreamed reconcile outcome and auto-run retirement cleanup audit |
 | `tpatch provider check [--path]` | Validate provider endpoint |
 | `tpatch config show\|set [--path]` | Manage configuration |
 

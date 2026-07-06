@@ -61,6 +61,10 @@ type ReconcileResult struct {
 	// Revisions exposes revision-pass entries appended during this invocation.
 	Revisions []store.ReconcileRevision `json:"revisions,omitempty"`
 
+	// RetirementAudit exposes the cleanup audit triggered after upstreamed
+	// confirmation. Runtime/display only; status.json remains lifecycle truth.
+	RetirementAudit *RetirementAuditReport `json:"retirement_audit,omitempty"`
+
 	// BlockedCategory and RecommendedAction enrich blocked verdict presentation.
 	// They are runtime/display fields only; lifecycle truth remains Outcome.
 	BlockedCategory   string   `json:"blocked_category,omitempty"`

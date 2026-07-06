@@ -33,7 +33,7 @@ active       → tpatch reconcile  → active | upstream_merged | blocked
 ```
 
 Never skip a phase. Never go backwards without `tpatch reconcile`.
-Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile audit-retirement <slug> [--json]` reports stale dependency/base metadata and cleanup-needed follow-ups without mutating feature state.
+Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile confirm-upstreamed <slug> [--json|--format json]` confirms the upstreamed outcome, runs the retirement audit, and appends cleanup-needed follow-ups; `tpatch reconcile audit-retirement <slug> [--json]` reports stale dependency/base metadata without mutating feature state.
 
 
 ## Verify (freshness overlay)
@@ -74,7 +74,7 @@ If you need to correct an already-recorded feature patch, use `tpatch feature pa
 
 ## Available Commands
 
-`tpatch init`, `tpatch add`, `tpatch status`, `tpatch analyze`, `tpatch define`, `tpatch explore`, `tpatch implement`, `tpatch apply`, `tpatch record`, `tpatch land`, `tpatch reconcile`, `tpatch provider check`, `tpatch config show|set`, `tpatch cycle`, `tpatch test`, `tpatch verify` (EXPERIMENTAL — Slice A: V0/V1/V2 only), `tpatch feature patch refresh`, `tpatch feature patch fixup`, `tpatch next`
+`tpatch init`, `tpatch add`, `tpatch status`, `tpatch analyze`, `tpatch define`, `tpatch explore`, `tpatch implement`, `tpatch apply`, `tpatch record`, `tpatch land`, `tpatch reconcile`, `tpatch reconcile confirm-upstreamed`, `tpatch reconcile audit-retirement`, `tpatch provider check`, `tpatch config show|set`, `tpatch cycle`, `tpatch test`, `tpatch verify` (EXPERIMENTAL — Slice A: V0/V1/V2 only), `tpatch feature patch refresh`, `tpatch feature patch fixup`, `tpatch next`
 
 ## You Are the Provider
 

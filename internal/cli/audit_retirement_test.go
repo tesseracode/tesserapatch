@@ -73,6 +73,115 @@ func TestReconcileConfirmedUpstreamedRunsRetirementAudit(t *testing.T) {
 	}
 }
 
+func TestReconcileConfirmedUpstreamedJSONRunsRetirementAudit(t *testing.T) {
+	dir, slug := cliConfirmedUpstreamedFixture(t)
+	out, errOut, err := runCLIForEvidence("reconcile", "--path", dir, "--allow-dirty", "--upstream-ref", "HEAD", "--format", "json", slug)
+	if err != nil {
+		t.Fatalf("json reconcile failed: %v\nstderr=%s\nstdout=%s", err, errOut, out)
+	}
+	var results []struct {
+		Slug            string `json:"slug"`
+		ReviewVerdict   string `json:"review_verdict"`
+		RetirementAudit struct {
+			Findings []any `json:"findings"`
+		} `json:"retirement_audit"`
+		Revisions []struct {
+			ActionTaken string `json:"action_taken"`
+		} `json:"revisions"`
+	}
+	if err := json.Unmarshal([]byte(out), &results); err != nil {
+		t.Fatalf("bad json: %v\n%s", err, out)
+	}
+	if len(results) != 1 || results[0].Slug != slug || results[0].ReviewVerdict != "confirmed-upstreamed" {
+		t.Fatalf("bad result envelope: %#v", results)
+	}
+	if len(results[0].RetirementAudit.Findings) == 0 {
+		t.Fatalf("expected retirement audit findings in json output: %#v", results[0])
+	}
+	foundRuntimeRevision := false
+	for _, rev := range results[0].Revisions {
+		if rev.ActionTaken == string(store.ReconcileActionCleanupNeeded) {
+			foundRuntimeRevision = true
+		}
+	}
+	if !foundRuntimeRevision {
+		t.Fatalf("expected cleanup-needed runtime revision in json output: %#v", results[0].Revisions)
+	}
+	s, _ := store.Open(dir)
+	revs, err := store.LoadReconcileRevisions(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundPersistedRevision := false
+	for _, r := range revs {
+		if r.ActionTaken == store.ReconcileActionCleanupNeeded {
+			foundPersistedRevision = true
+		}
+	}
+	if !foundPersistedRevision {
+		t.Fatalf("expected persisted cleanup-needed revision, got %#v", revs)
+	}
+}
+
+func TestConfirmUpstreamedRunsRetirementAudit(t *testing.T) {
+	dir := t.TempDir()
+	setupCLIGit(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, _ := s.AddFeature(store.AddFeatureInput{Title: "parent", Slug: "parent", Request: "parent"})
+	f.State = store.StateUpstreamMerged
+	f.Reconcile.Outcome = store.ReconcileUpstreamed
+	f.Reconcile.ReviewVerdict = "confirmed-upstreamed"
+	if err := s.SaveFeatureStatus(f); err != nil {
+		t.Fatal(err)
+	}
+	out, errOut, err := runCLIForEvidence("reconcile", "confirm-upstreamed", "--path", dir, "--format", "json", "parent")
+	if err != nil {
+		t.Fatalf("confirm-upstreamed failed: %v\nstderr=%s\nstdout=%s", err, errOut, out)
+	}
+	var result struct {
+		Slug            string `json:"slug"`
+		ReviewVerdict   string `json:"review_verdict"`
+		RetirementAudit struct {
+			Findings []any `json:"findings"`
+		} `json:"retirement_audit"`
+		Revisions []struct {
+			ActionTaken string `json:"action_taken"`
+		} `json:"revisions"`
+	}
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("bad json: %v\n%s", err, out)
+	}
+	if result.Slug != "parent" || result.ReviewVerdict != "confirmed-upstreamed" || len(result.RetirementAudit.Findings) == 0 {
+		t.Fatalf("bad confirm-upstreamed result: %#v", result)
+	}
+	if len(result.Revisions) == 0 || result.Revisions[0].ActionTaken != string(store.ReconcileActionCleanupNeeded) {
+		t.Fatalf("expected cleanup-needed revision in result: %#v", result.Revisions)
+	}
+	jsonAliasOut, errOut, err := runCLIForEvidence("reconcile", "confirm-upstreamed", "--path", dir, "--json", "parent")
+	if err != nil {
+		t.Fatalf("confirm-upstreamed --json failed: %v\nstderr=%s\nstdout=%s", err, errOut, jsonAliasOut)
+	}
+	if !strings.Contains(jsonAliasOut, `"retirement_audit"`) {
+		t.Fatalf("expected --json alias to emit audit payload:\n%s", jsonAliasOut)
+	}
+	revs, err := store.LoadReconcileRevisions(s, "parent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, r := range revs {
+		if r.ActionTaken == store.ReconcileActionCleanupNeeded {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected persisted cleanup-needed revision, got %#v", revs)
+	}
+}
+
 func cliConfirmedUpstreamedFixture(t *testing.T) (string, string) {
 	t.Helper()
 	dir := t.TempDir()

@@ -1858,6 +1858,11 @@ func reconcileCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
+			for i := range results {
+				if err := runConfirmedUpstreamedRetirementAudit(s, &results[i]); err != nil {
+					return err
+				}
+			}
 			if format == "json" {
 				data, _ := json.MarshalIndent(results, "", "  ")
 				fmt.Fprintf(out, "%s\n", data)
@@ -1882,15 +1887,9 @@ func reconcileCmd() *cobra.Command {
 				for _, note := range result.Notes {
 					fmt.Fprintf(out, "    %s\n", note)
 				}
-				if result.ReviewVerdict == "confirmed-upstreamed" {
-					report, auditErr := workflow.AuditRetirement(s, result.Slug)
-					if auditErr == nil && len(report.Findings) > 0 {
-						for _, line := range workflow.RetirementAuditLines(report) {
-							fmt.Fprintf(out, "    %s\n", line)
-						}
-						if _, err := workflow.AppendRetirementCleanupRevisions(s, report); err != nil {
-							return err
-						}
+				if result.RetirementAudit != nil && len(result.RetirementAudit.Findings) > 0 {
+					for _, line := range workflow.RetirementAuditLines(*result.RetirementAudit) {
+						fmt.Fprintf(out, "    %s\n", line)
 					}
 				}
 				if result.ShadowPath != "" {
@@ -1952,7 +1951,7 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
 	cmd.Flags().Bool("auto-drop-merged", false, "On a phase-1.5 patch-id match, remove the feature from the DAG (ADR-011 cascade rules) and create a removal commit that preserves Tpatch-CVE / Tpatch-Slug trailers. Off by default. No-op when phase 1.5 does not fire (including when patch_id_detector_enabled=false). Mutually exclusive with --check-applied-only.")
 	cmd.Flags().String("format", "human", "Output format: human or json")
-	cmd.AddCommand(reconcileReviewCmd(), reconcileAuditRetirementCmd())
+	cmd.AddCommand(reconcileReviewCmd(), reconcileAuditRetirementCmd(), reconcileConfirmUpstreamedCmd())
 	return cmd
 }
 
@@ -1991,6 +1990,81 @@ func reconcileAuditRetirementCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("json", false, "Emit JSON")
 	return cmd
+}
+
+func reconcileConfirmUpstreamedCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "confirm-upstreamed <slug>",
+		Short: "Confirm an upstreamed feature and run retirement cleanup audit",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := openStoreFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			slug := args[0]
+			status, err := s.LoadFeatureStatus(slug)
+			if err != nil {
+				return err
+			}
+			if status.Reconcile.Outcome != store.ReconcileUpstreamed && status.Reconcile.ReviewVerdict != "confirmed-upstreamed" {
+				return fmt.Errorf("confirm-upstreamed requires reconcile outcome %q or review_verdict %q for %s", store.ReconcileUpstreamed, "confirmed-upstreamed", slug)
+			}
+			result := workflow.ReconcileResult{Slug: slug, Outcome: status.Reconcile.Outcome, ReviewVerdict: status.Reconcile.ReviewVerdict}
+			if result.ReviewVerdict == "" && result.Outcome == store.ReconcileUpstreamed {
+				result.ReviewVerdict = "confirmed-upstreamed"
+			}
+			if err := runConfirmedUpstreamedRetirementAudit(s, &result); err != nil {
+				return err
+			}
+			format, _ := cmd.Flags().GetString("format")
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				format = "json"
+			}
+			if format != "human" && format != "json" {
+				return fmt.Errorf("confirm-upstreamed: unsupported --format %q (expected human or json)", format)
+			}
+			if format == "json" {
+				data, _ := json.MarshalIndent(result, "", "  ")
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", data)
+				return nil
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "confirmed upstreamed: %s\n", slug)
+			if result.RetirementAudit != nil {
+				for _, line := range workflow.RetirementAuditLines(*result.RetirementAudit) {
+					fmt.Fprintln(cmd.OutOrStdout(), line)
+				}
+			}
+			if len(result.Revisions) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "cleanup-needed revisions: %d\n", len(result.Revisions))
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Bool("json", false, "Emit JSON")
+	cmd.Flags().String("format", "human", "Output format: human or json")
+	return cmd
+}
+
+func runConfirmedUpstreamedRetirementAudit(s *store.Store, result *workflow.ReconcileResult) error {
+	if result == nil || result.ReviewVerdict != "confirmed-upstreamed" {
+		return nil
+	}
+	report, err := workflow.AuditRetirement(s, result.Slug)
+	if err != nil {
+		return err
+	}
+	result.RetirementAudit = &report
+	if len(report.Findings) == 0 {
+		return nil
+	}
+	revisions, err := workflow.AppendRetirementCleanupRevisions(s, report)
+	if err != nil {
+		return err
+	}
+	result.Revisions = append(result.Revisions, revisions...)
+	return nil
 }
 
 func reconcileReviewCmd() *cobra.Command {
