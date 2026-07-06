@@ -1,3 +1,87 @@
+## Review — WP-003 Wave γ-1 (PRDs 4+5+8) — external (supervisor-dispatched) — 2026-07-05
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of γ-1 (`7d9dba3..f50e09b`). Verifying internal APPROVED verdict at `971b251`.
+
+### Verdict: APPROVED WITH NOTES
+
+### Per-PRD §6 sweep (independent of internal)
+
+**PRD 4 (reconcile-retirement-state-audit) — 6/6 MET (with 1 caveat on §6.5)**
+
+1. §6.1 [MET] — Stale SHA reporting uses `IsAncestor` (not presence): `internal/workflow/retirement_audit.go:41` guards `status.Apply.BaseCommit != ""` and calls `isReachableFromHEAD`, which routes to `gitutil.IsAncestor` at `retirement_audit.go:115-118` → `internal/gitutil/gitutil.go:736-753` (`git merge-base --is-ancestor`). Child `SatisfiedBy` reachability checked at `retirement_audit.go:60`. NOT a mere presence check.
+2. §6.2 [MET] — Children scan: `retirement_audit.go:49-66` iterates `s.ListFeatures()` and emits `children-affected`, `child-labels`, `dependent-broken`; `broken` map (`retirement_audit.go:68-74`) surfaces dependent-broken via `store.CollectBrokenRefs`.
+3. §6.3 [MET] — No mutation: verified via `grep -n "SaveFeatureStatus\|WriteFeatureStatus\|MarkFeatureState" internal/workflow/retirement_audit.go internal/cli/audit_retirement*.go` — zero hits inside audit code. `internal/cli/audit_retirement_test.go:26,45-48` literally captures `LoadFeatureStatus(before)` then reruns audit and `LoadFeatureStatus(after)`, asserting `State`, `Reconcile.Outcome`, `Reconcile.ReviewVerdict` are byte-identical. `retirement_audit_test.go:35-40` mirrors the reload-and-compare.
+4. §6.4 [MET] — Stable JSON: `RetirementAuditReport` struct at `retirement_audit.go:21-27` marshals via `MarshalIndent`; findings sorted at `retirement_audit.go:86-98`. CLI JSON path at `cobra.go:1980-1984`.
+5. §6.5 [MET — with caveat, see F1] — Auto-run after confirmation gate confirms upstreamed: `cobra.go:1885-1894` invokes `workflow.AuditRetirement` then `workflow.AppendRetirementCleanupRevisions`. `AppendRetirementCleanupRevisions` at `retirement_audit.go:154-156` writes via ADR-025-authorized `store.AppendReconcileRevision`. Test `audit_retirement_test.go:51-74` reloads revisions from disk and asserts a `cleanup-needed` entry is present. **Caveat**: only fires on the human-output branch (see F1 below).
+6. §6.6 [MET] — No v1 fixer: read-only path confirmed; only revision-pass append occurs, which is metadata (not feature-state or dependency) mutation.
+
+**PRD 5 (reconcile-study-validation) — 6/6 MET**
+
+1. §6.1 [MET] — Malformed filename+line: `internal/tools/studyvalidator/validator.go:82-96` increments `line` before parse and emits `r.err(name, line, err.Error())` at line 92, then `continue`s past malformed. Test `validator_test.go:10-17` appends `{bad\n` as line 2 to a fixture with 1 valid line and asserts `hasIssue(r.Errors, "features.jsonl", 2, "invalid")`. This is a MID-FILE malformed (not line 1) with the correct 1-indexed report AND continuation past it.
+2. §6.2 [MET] — Aggregate mismatch: `validator.go:49-51` (feature_count vs rows), `validator.go:131-141` (totals.{features,hunks,patches}_total), `validator.go:148-153` (ground_truth_distribution).
+3. §6.3 [MET] — Raw/post-review/final distinction: `validator.go:155-168` emits warnings when `verdicts` present without `verdicts_phase`; also warns on `features_upstreamed/applied/skipped_blocked` when phase not declared. Test at `validator_test.go:34-40`.
+4. §6.4 [MET] — t3code fixture: `validator_test.go:63-71` loads `docs/state-of-the-art/case-studies/t3code-upstream-v0.0.23-2026-05` and asserts non-zero counts.
+5. §6.5 [MET] — Dev-only: `grep -rn "studyvalidat\|study-validat\|case-study" internal/cli/cobra.go cmd/tpatch/ SPEC.md assets/skills/ assets/workflows/ assets/prompts/` returned empty. Package at `internal/tools/studyvalidator/` and binary at `internal/tools/studyvalidator/cmd/studyvalidate/main.go` — neither is a `tpatch` subcommand nor advertised in any user-facing skill surface. Package name confirmed absent from parity guard's `requiredCommands` at `assets/assets_test.go:14-34`.
+6. §6.6 [MET] — Missing local-notes.md: `validator.go:201-209` warns for old studies (`legacyStudyVersion` returns true for `0.0`..`0.9`, false for `0.10+`), errors for new. Test `validator_test.go:41-62` exercises both branches.
+
+**PRD 8 (reconcile-blocked-verdict-taxonomy) — 5/5 MET**
+
+1. §6.1 [MET] — Enriched output: `cobra.go:1869-1878` renders `<slug>: blocked (<category>)` + `evidence: ...` + `next: <action>` when `BlockedCategory != ""`; 8-category classifier at `internal/workflow/blocked_taxonomy.go:11-129`.
+2. §6.2 [MET] — Unknown fallback: `blocked_taxonomy.go:109-118` defaults to `BlockedCategoryUnknownBlocked` with evidence `insufficient-evidence` when no candidate matches. Confidence downgraded to `unknown` in the persisted evidence record at `blocked_taxonomy.go:175-177`. Test `blocked_taxonomy_test.go:22`.
+3. §6.3 [MET] — JSON envelope: literally verified via `internal/cli/blocked_taxonomy_cli_test.go:22-32` — `json.Unmarshal` on the CLI's `--format json` output produces a map with `outcome=="blocked"` (raw, not enriched), `blocked_category=="clean-additive"`, `recommended_action != ""`. Backing runtime fields are `ReconcileResult.BlockedCategory/RecommendedAction/BlockedEvidence` at `internal/workflow/reconcile.go:64-68` — all tagged `json:"...,omitempty"`, all runtime-only (not in `ReconcileSummary`).
+4. §6.4 [MET] — Backward-compat: `internal/store/reconcile_backward_compat_test.go:10-46` seeds a status.json with `reconcile.outcome=blocked`, explicitly deletes `blocked_category` and `recommended_action` keys from the raw map (lines 30-31), rewrites the file, loads via `LoadFeatureStatus`, asserts `Outcome == ReconcileBlocked`, and roundtrips via `SaveFeatureStatus`. Structurally the fields can never appear in the persisted output because `ReconcileSummary` (`internal/store/types.go:258-289`) has no such fields — verified via `grep BlockedCategory internal/store/types.go` = empty.
+5. §6.5 [MET] — Precedence array at `blocked_taxonomy.go:41-50` matches the PRD-documented order EXACTLY: `dependency-blocked > validation-blocked > target-deleted > structural-conflict > edit-overlap > shifted-context > clean-additive > unknown-blocked`. Multi-category test at `blocked_taxonomy_test.go:37-48` seeds dependency+edit-overlap+clean-additive and asserts primary=`dependency-blocked` with `len(SecondaryEvidence) >= 2`.
+
+### Hard-constraint sweep
+
+- [x] No new `FeatureState` values — `git diff 7d9dba3..f50e09b -- internal/store/types.go` returned empty. Enum at `types.go:8-19` unchanged.
+- [x] No new persisted-schema fields outside ADR-025 — `internal/store/types.go` unchanged. Runtime-only fields `BlockedCategory`/`RecommendedAction`/`BlockedEvidence` on `ReconcileResult` (workflow layer) live at `internal/workflow/reconcile.go:64-68`, NOT on `ReconcileSummary`. ADR-025 D13 (`ADR-025-reconcile-evidence-and-revision-schema.md:339-346`) explicitly names `blocked-classification` as PRD 8's evidence kind pre-authorization under this ADR; D4 (`ADR-025:141`) lists `blocked-classification` in the closed v1 `evidence_kind` enum. Pre-authorization verified verbatim.
+- [x] PRD 5 stays out of public CLI — `grep -rn "studyvalidat\|study-validat\|case-study" internal/cli/cobra.go cmd/tpatch/ SPEC.md assets/skills/ assets/workflows/ assets/prompts/` returned empty. Only dev-tools path used.
+- [x] PRD 4 read-only in audit function itself — `grep -n "SaveFeatureStatus\|WriteFeatureStatus\|MarkFeatureState" internal/workflow/retirement_audit.go` = 0 hits. The auto-run APPENDS revision-pass entries (which is metadata, not lifecycle/dependency mutation, and is ADR-025 D6-authorized).
+- [x] PRD 8 backward-compat test present + deletes keys before roundtrip — `internal/store/reconcile_backward_compat_test.go:30-31` explicitly deletes `blocked_category` and `recommended_action` from the raw map before `WriteFile` and reload.
+- [x] D10 privacy — `internal/cli/blocked_taxonomy_cli_test.go:35-68` seeds `SECRET_TITLE_DO_NOT_LEAK` into feature Title (line 50) AND `SECRET_ROOT_PATH_DO_NOT_LEAK` into the repo root path (line 38), then asserts neither appears in `reconcile-evidence.jsonl` (lines 65-67). TITLE + PATH metadata vectors seeded, not merely file content. Wave β F3 lesson satisfied.
+- [x] D11 malformed handling for PRD 5 — `internal/tools/studyvalidator/validator.go:82-96` reports filename + 1-indexed line and continues past the malformed record.
+- [x] ADR-024 / `patch-generations.json` UNTOUCHED — `git diff 7d9dba3..f50e09b -- docs/adrs/ADR-024-patch-generation-manifest-boundary.md 'internal/store/patch_generations*' '*patch-generations*'` returned empty.
+- [x] Side Research md5 preserved — `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` returned `b385fe622db9926f48861105239f113e` ✅.
+- [x] Co-authored-by trailer on `f50e09b` — `git show f50e09b` shows `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+- [x] `assets/skills/` 6 formats + parity guard passes for `audit-retirement` — `grep -rn "audit-retirement" assets/` shows the line in claude/copilot/copilot-prompt/cursor/windsurf/generic (6 surfaces) plus the parity requirement in `assets/assets_test.go:26`. `TestSkillParityGuard` is green.
+- [x] No ADR-025 drift — `git diff 7d9dba3..f50e09b -- docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md` returned empty.
+
+### Validation gates
+
+- `gofmt -l .` — clean ✅ (empty output)
+- `go vet ./...` — clean ✅
+- `go build ./cmd/tpatch` — clean ✅
+- `go test ./...` — green ✅ (all packages ok, including `internal/cli 64.925s`, `internal/tools/studyvalidator`, `assets`, `internal/workflow`, `internal/store`, `tests/integration`)
+
+### New findings (beyond 17 §6 already scoped)
+
+**F1 — Auto-audit + cleanup-revision append is skipped in `--format json` mode**
+- **Severity**: Medium (persistence divergence across output formats)
+- **File**: `internal/cli/cobra.go:1861-1895`
+- **Problem**: The `reconcile` command's JSON output branch (lines 1861-1864) marshals `results` and returns before reaching the retirement-audit auto-run block (lines 1885-1895). Consequence: when a user runs `tpatch reconcile --format json ... <slug>` and the confirmation gate flips `ReviewVerdict` to `confirmed-upstreamed`, the code path:
+  1. Does NOT invoke `workflow.AuditRetirement` — no audit findings surface in the JSON payload (and the `ReconcileResult` struct has no field for them either).
+  2. Does NOT invoke `workflow.AppendRetirementCleanupRevisions` — no `cleanup-needed` entries land in `reconcile-revisions.jsonl`.
+- **Evidence**: `grep -n "AuditRetirement\|AppendRetirementCleanupRevisions" internal/cli/cobra.go internal/workflow/reconcile.go` shows the only invocation is inside the human-format loop at `cobra.go:1886,1891`. The only auto-run integration test (`internal/cli/audit_retirement_test.go:51-74`) exercises the human path (no `--format json` flag), so the JSON path is neither exercised nor asserted. PRD 4 §3 ("The audit also runs automatically after `confirm-upstreamed`") and §6.5 ("`confirm-upstreamed` runs the audit automatically after confirmation") state no output-format qualifier — automation callers using `--format json` therefore observe a persistence gap that violates the auto-run contract. This is not a bug in the audit itself (§6.3 read-only + §6.6 no-fixer are unaffected) but a wiring gap in the CLI dispatch.
+- **Suggested fix (do not implement)**: Move the audit+append block above the `format == "json"` branch, or attach the audit report to `ReconcileResult` before marshaling so JSON callers get both the report and the persistence side effect. Add a JSON-mode auto-run test mirroring `TestReconcileConfirmedUpstreamedRunsRetirementAudit`.
+- **Impact vs verdict**: PRD 4 §6.5 is technically met in human mode; the JSON gap is a real behavioral discrepancy but does not falsify the internal verdict for the human-output contract. Downgraded from "NEEDS REVISION" because (a) `--format json` on `reconcile` is a secondary surface (primary is human), (b) the standalone `tpatch reconcile audit-retirement <slug> [--json]` command is unaffected and gives JSON callers full audit output on demand, (c) the persistence gap can be closed with a small dispatch reorder without a schema/PRD change.
+
+### Concurrence with internal verdict?
+
+**PARTIAL** — I concur with all 17/17 §6 criteria being MET as verified by the internal review, and with all 12 hard constraints. I concur that no ADR-025 amendment is needed (D13 pre-authorization for `blocked-classification` is verbatim). I diverge on the internal claim of "zero adversarial findings": F1 above is a real production-vs-PRD gap the internal review's adversarial extras missed (its "Adversarial extras" §3 explicitly considered zero-findings case and auto-run in human mode, but did not exercise the JSON output path where the auto-run+append is guarded away). Verdict downgraded to APPROVED WITH NOTES rather than NEEDS REVISION because F1 is a discrete wiring gap, not a lifecycle/schema/privacy violation.
+
+### ADR-025 amendment status
+
+Confirmed no amendment needed. D13 (`ADR-025-reconcile-evidence-and-revision-schema.md:339-346`) explicitly names `blocked-classification` under PRDs 4-9's pre-authorization for shipping under this ADR without new cluster ADRs; D4 (`ADR-025:141`) lists `blocked-classification` in the closed v1 `evidence_kind` enum. `blockedClassificationEvidence` (`internal/workflow/blocked_taxonomy.go:169-180`) writes exactly this evidence kind and no new fields — pre-authorization verbatim.
+
+### Action Taken
+
+Verdict logged. Wave γ-1 APPROVED WITH NOTES: 17/17 §6 criteria MET in the human/primary paths, 12/12 hard constraints satisfied, all validation gates clean. One new finding (F1: JSON-mode auto-audit/append gap in PRD 4 §6.5) surfaces a persistence divergence between `--format human` and `--format json` that the internal review did not exercise. Not a blocking finding — schema/privacy/read-only invariants are intact and the standalone `tpatch reconcile audit-retirement` command is unaffected — but should be closed before Wave γ-2 to keep persistence deterministic across output formats.
+
+
+---
+
 ## Review — WP-003 Wave γ-1 (PRDs 4+5+8) — internal — 2026-06-29
 
 **Reviewer**: internal (code-review agent)
