@@ -50,7 +50,7 @@ func Validate(path string) (*Report, error) {
 		r.err("study.json", 0, fmt.Sprintf("feature_count=%d does not match features.jsonl rows=%d", int(want), len(features)))
 	}
 	checkMetrics(r, metrics, features, hunks, patches)
-	checkCorrections(r, path, study, metrics, features)
+	checkCorrections(r, path, study, features)
 	return r, nil
 }
 
@@ -168,54 +168,140 @@ func checkMetrics(r *Report, metrics map[string]any, features, hunks, patches []
 	}
 }
 
-func checkCorrections(r *Report, dir string, study, metrics map[string]any, features []map[string]any) {
-	hasNotes := false
-	if _, err := os.Stat(filepath.Join(dir, "local-notes.md")); err == nil {
-		hasNotes = true
-	}
-	corrected := 0
-	for _, f := range features {
-		rowText := fmt.Sprint(f)
-		if gt, _ := f["ground_truth"].(string); strings.Contains(gt, "false_positive") || strings.Contains(gt, "false_negative") || strings.Contains(rowText, "false_positive") || strings.Contains(rowText, "false_negative") {
-			corrected++
-		}
-	}
-	if v, ok := metrics["verdict_post_review"].(map[string]any); ok {
-		for k, val := range v {
-			if strings.Contains(k, "false_positive") || strings.Contains(k, "false_negative") {
-				if n, ok := number(val); ok {
-					corrected += int(n)
-				}
-			}
-		}
-	}
-	if corrected == 0 && hasNotes {
+func checkCorrections(r *Report, dir string, study map[string]any, features []map[string]any) {
+	corrected := correctedVerdicts(features)
+	if len(corrected) == 0 {
 		return
 	}
-	if hasRevisionReference(dir) || hasNotes {
-		if !hasNotes {
-			r.warn("local-notes.md", 0, "missing local-notes.md; relying on revision-pass references")
-		}
-		return
-	}
+	references := loadRevisionReferences(r, dir)
+	notes, hasNotes := readLocalNotes(dir)
 	old := false
 	if tv, ok := study["tpatch_version"].(string); ok {
 		old = legacyStudyVersion(tv)
 	}
-	if old {
-		r.warn("local-notes.md", 0, "missing local-notes.md for old study with corrected verdicts")
-	} else {
-		r.err("local-notes.md", 0, "missing local-notes.md for study with corrected verdicts")
-	}
-}
-func hasRevisionReference(dir string) bool {
-	names := []string{"reconcile-revisions.jsonl", "revision-pass.jsonl"}
-	for _, n := range names {
-		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
-			return true
+	allLinkedByRevisions := true
+	for _, c := range corrected {
+		if references.matches(c) {
+			continue
+		}
+		allLinkedByRevisions = false
+		if hasNotes && notesReferenceForSlug(notes, c.slug) {
+			continue
+		}
+		msg := fmt.Sprintf("corrected verdict slug=%s ground_truth=%s has no matching revision-pass entry or local-notes.md slug reference", c.slug, c.groundTruth)
+		if old && !hasNotes {
+			r.warn("local-notes.md", 0, "old study "+msg)
+		} else {
+			r.err("local-notes.md", 0, msg)
 		}
 	}
-	return false
+	if !hasNotes && allLinkedByRevisions {
+		r.warn("local-notes.md", 0, "missing local-notes.md; relying on revision-pass references")
+	}
+}
+
+type correctedVerdict struct {
+	slug        string
+	groundTruth string
+	verdictID   string
+}
+
+func correctedVerdicts(features []map[string]any) []correctedVerdict {
+	out := []correctedVerdict{}
+	for _, f := range features {
+		gt, _ := f["ground_truth"].(string)
+		if !isCorrectedGroundTruth(gt) {
+			continue
+		}
+		slug := firstString(f, "slug", "feature_slug")
+		verdictID := firstString(f, "verdict_id", "evidence_attempt_id", "entry_id")
+		out = append(out, correctedVerdict{slug: slug, groundTruth: gt, verdictID: verdictID})
+	}
+	return out
+}
+
+func isCorrectedGroundTruth(value string) bool {
+	value = strings.ReplaceAll(strings.ToLower(value), "-", "_")
+	return value == "false_positive" || value == "false_negative" || strings.Contains(value, "false_positive") || strings.Contains(value, "false_negative")
+}
+
+func firstString(m map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := m[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+type revisionReferences struct {
+	features map[string]bool
+	verdicts map[string]bool
+}
+
+func (refs revisionReferences) matches(c correctedVerdict) bool {
+	if c.slug != "" && refs.features[c.slug] {
+		return true
+	}
+	return c.verdictID != "" && refs.verdicts[c.verdictID]
+}
+
+func loadRevisionReferences(r *Report, dir string) revisionReferences {
+	refs := revisionReferences{features: map[string]bool{}, verdicts: map[string]bool{}}
+	for _, name := range []string{"reconcile-revisions.jsonl", "revision-pass.jsonl"} {
+		f, err := os.Open(filepath.Join(dir, name))
+		if err != nil {
+			continue
+		}
+		func() {
+			defer f.Close()
+			sc := bufio.NewScanner(f)
+			line := 0
+			for sc.Scan() {
+				line++
+				txt := strings.TrimSpace(sc.Text())
+				if txt == "" {
+					continue
+				}
+				var row map[string]any
+				if err := json.Unmarshal([]byte(txt), &row); err != nil {
+					r.err(name, line, err.Error())
+					continue
+				}
+				for _, key := range []string{"feature_slug", "slug"} {
+					if value, ok := row[key].(string); ok && value != "" {
+						refs.features[value] = true
+					}
+				}
+				for _, key := range []string{"verdict_id", "evidence_attempt_id", "entry_id"} {
+					if value, ok := row[key].(string); ok && value != "" {
+						refs.verdicts[value] = true
+					}
+				}
+			}
+			if err := sc.Err(); err != nil {
+				r.err(name, line, err.Error())
+			}
+		}()
+	}
+	return refs
+}
+
+func readLocalNotes(dir string) (string, bool) {
+	data, err := os.ReadFile(filepath.Join(dir, "local-notes.md"))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+func notesReferenceForSlug(notes, slug string) bool {
+	if slug == "" {
+		return false
+	}
+	// A documented notes reference is a literal feature-slug mention anywhere
+	// in local-notes.md; headings and prose blocks are both accepted.
+	return strings.Contains(notes, slug)
 }
 
 func (r *Report) OK() bool { return len(r.Errors) == 0 }
