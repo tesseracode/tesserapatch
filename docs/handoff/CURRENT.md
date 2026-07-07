@@ -3,9 +3,9 @@
 ## Active Task
 
 - **Task ID**: `wp003-wave-gamma-1-prd4-prd5-prd8-impl-rev1`
-- **Milestone**: WP-003 Wave γ-1 rev-1 — PRDs 4 + 5 (5+8 already approved by all 3 reviewers, no rework needed on PRD 8).
+- **Milestone**: WP-003 Wave γ-1 rev-1 — PRDs 4 + 5 (PRD 8 already approved by all 3 reviewers, no rework needed on PRD 8).
 - **Description**: Rev-1 fix-pass over γ-1 rev-0 (`f50e09b`). Internal APPROVED (`971b251`), supervisor-external APPROVED WITH NOTES (`eb066ac`, F1 MEDIUM), user-external NEEDS REVISION (upgraded F1 to HIGH + added F2 MEDIUM BLOCKING). Two production-behavior gaps (Wave β F8 pattern repeats). Rev-1 closes F1 (PRD 4 auto-run wired to wrong trigger + missing JSON path) and F2 (PRD 5 §4.5 per-correction linkage not enforced).
-- **Status**: In Progress (rev-1).
+- **Status**: Review (rev-1).
 - **Assigned**: 2026-07-05.
 
 ## Rev-1 findings (binding scope — close both)
@@ -163,6 +163,15 @@ Pick one before dispatching implementer:
 
 ## Session Summary
 
+### γ-1 rev-1 closure summary
+
+Rev-1 closes both binding findings on top of rev-0 without touching PRD 8 paths.
+
+1. **F1 — PRD 4 auto-run trigger + JSON path**: chose **Path A**. Rationale: the PRD named `confirm-upstreamed`, and the existing audit/revision primitives made the new surface bounded; this fully closes the named trigger instead of amending acceptance wording. Implemented `tpatch reconcile confirm-upstreamed <slug>` with `--json` and `--format json`, requiring an upstreamed outcome or `review_verdict=confirmed-upstreamed`; it treats the current outcome as authoritative and runs the existing retirement audit/revision append. Kept the reconcile outcome-based auto-run as a backup, but moved it before the JSON branch so human and JSON reconcile paths both invoke `AuditRetirement` and append `cleanup-needed` revision-pass entries. Fix sites: `internal/cli/cobra.go:1861-1869`, `internal/cli/cobra.go:1890-1894`, `internal/cli/cobra.go:1995-2068`, `internal/workflow/reconcile.go:64-66`; SPEC/assets parity updated in `SPEC.md` and all six shipped skill/workflow/prompt surfaces. Test sites: `internal/cli/audit_retirement_test.go:76-181` covers JSON reconcile audit output, persisted cleanup revisions, and the new subcommand/`--json` alias; `assets/assets_test.go` parity includes `tpatch reconcile confirm-upstreamed`.
+2. **F2 — PRD 5 per-correction linkage**: replaced the file-existence check with per-feature linkage over every `features.jsonl` row whose `ground_truth` contains `false_positive` or `false_negative`. Revision logs match by `feature_slug`/`slug` or verdict/evidence IDs; `local-notes.md` matches by literal feature-slug substring in any heading or prose block, documented in code. Unlinked corrected verdicts now emit one issue per slug naming the slug and `ground_truth`. Fix sites: `internal/tools/studyvalidator/validator.go:171-201`, `internal/tools/studyvalidator/validator.go:209-306`. Test sites: `internal/tools/studyvalidator/validator_test.go:64-112` covers all-revision, mixed revision+notes, two-unlinked negative, and zero-corrected edge cases.
+3. **Rev-1 commits**: `cb61032` (F1), `98b3256` (F2). Both commits include the required Co-authored-by trailer.
+4. **Validation**: after each logical commit and final pass, `gofmt -l .` clean, `go vet ./...` clean, `go build ./cmd/tpatch` clean, `go test ./...` green.
+
 WP-003 Wave γ-1 implementation completed for PRDs 4, 5, and 8.
 
 ### γ-1 closure summary — PRD 4 (`reconcile-retirement-state-audit`)
@@ -191,7 +200,19 @@ WP-003 Wave γ-1 implementation completed for PRDs 4, 5, and 8.
 4. Backward compatibility: no `ReconcileSummary` schema field added; `internal/store/reconcile_backward_compat_test.go` roundtrips old blocked status.
 5. Precedence + secondary evidence: classifier precedence list and sorted secondary evidence; unit test coverage.
 
-## Files Changed (γ-1 implementation)
+## Files Changed
+
+### γ-1 rev-1
+
+- `internal/cli/cobra.go`, `internal/cli/audit_retirement_test.go`
+- `internal/workflow/reconcile.go`
+- `internal/tools/studyvalidator/validator.go`, `internal/tools/studyvalidator/validator_test.go`
+- `SPEC.md`
+- `assets/assets_test.go`
+- `assets/skills/claude/tessera-patch/SKILL.md`, `assets/skills/copilot/tessera-patch/SKILL.md`, `assets/skills/cursor/tessera-patch.mdc`, `assets/skills/windsurf/windsurfrules`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`, `assets/workflows/tessera-patch-generic.md`
+
+### γ-1 rev-0 implementation
 
 - `internal/workflow/blocked_taxonomy.go`, `internal/workflow/blocked_taxonomy_test.go`
 - `internal/workflow/retirement_audit.go`, `internal/workflow/retirement_audit_test.go`
@@ -201,7 +222,17 @@ WP-003 Wave γ-1 implementation completed for PRDs 4, 5, and 8.
 - `internal/tools/studyvalidator/validator.go`, `internal/tools/studyvalidator/validator_test.go`, `internal/tools/studyvalidator/cmd/studyvalidate/main.go`
 - `assets/assets_test.go` plus six shipped skill/prompt/workflow surfaces for `tpatch reconcile audit-retirement` guidance
 
-## Test Results (γ-1 final)
+## Test Results
+
+### γ-1 rev-1 final
+
+- `gofmt -l .` — clean
+- `go vet ./...` — clean
+- `go build ./cmd/tpatch` — clean
+- `go test ./...` — green
+- Side Research md5 — `b385fe622db9926f48861105239f113e`
+
+### γ-1 rev-0 final
 
 - `gofmt -l .` — clean
 - `go vet ./...` — clean
@@ -211,8 +242,8 @@ WP-003 Wave γ-1 implementation completed for PRDs 4, 5, and 8.
 
 ## Next Steps
 
-1. Supervisor: dispatch internal + external reviewers for WP-003 Wave γ-1.
-2. Reviewers: sweep all 17 PRD §6 criteria using the closure summary above and the binding hard constraints.
+1. Supervisor: dispatch internal + external reviewers for WP-003 Wave γ-1 rev-1.
+2. Reviewers: verify F1+F2 closure using the rev-1 closure summary above and re-sweep binding hard constraints.
 3. Supervisor: after approval, archive this handoff and sequence PRD 9 / Wave γ-2.
 
 ## Blockers
