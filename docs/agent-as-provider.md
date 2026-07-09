@@ -2,6 +2,9 @@
 
 > Companion to the shipped skill files. Read this once, then rely on
 > the per-format skills for day-to-day invocation.
+>
+> For field-tested operator defaults and examples, see
+> [`docs/path-b-operator-guide.md`](./path-b-operator-guide.md).
 
 Tessera Patch has two equally-supported execution paths for every LLM
 phase (`analyze`, `define`, `explore`, `implement`):
