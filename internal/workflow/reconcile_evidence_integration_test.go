@@ -616,3 +616,154 @@ func TestReconcileEvidenceReaderOutputPrivacyNoSourceLeak(t *testing.T) {
 		t.Fatalf("human evidence hints leaked source body: %s", human.String())
 	}
 }
+
+func TestReconcileWritesPathRestructureEvidenceAndBlockedCategory(t *testing.T) {
+	s, slug, sourceSecret := buildPathRestructureFixture(t, nil)
+
+	results, err := RunReconcile(context.Background(), s, []string{slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected one result, got %d", len(results))
+	}
+	if results[0].Outcome != store.ReconcileBlocked || results[0].BlockedCategory != string(BlockedCategoryStructuralConflict) {
+		t.Fatalf("expected structural blocked result, got outcome=%s category=%q result=%+v", results[0].Outcome, results[0].BlockedCategory, results[0])
+	}
+
+	entries, err := store.LoadReconcileEvidence(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pathEvidence store.ReconcileEvidence
+	for _, entry := range entries {
+		if entry.EvidenceKind == store.EvidenceKindPathRestructure {
+			pathEvidence = entry
+			break
+		}
+	}
+	if pathEvidence.AttemptID == "" {
+		t.Fatalf("path-restructure evidence not found: %+v", entries)
+	}
+	if pathEvidence.ReasonCode != string(PathRestructurePrefixSplit) || pathEvidence.Confidence != store.EvidenceConfidenceHigh {
+		t.Fatalf("unexpected path-restructure evidence: %+v", pathEvidence)
+	}
+	ops := strings.Join(pathEvidence.MatchedOperations, "\n")
+	for _, want := range []string{"old_prefix=src/", "candidate_prefixes=app/|backend/", "prefix_split_min_files=3", "prefix_split_min_prefixes=2", "prefix_move_min_files=5"} {
+		if !strings.Contains(ops, want) {
+			t.Fatalf("path-restructure operations missing %q: %s", want, ops)
+		}
+	}
+	if got := strings.Join(pathEvidence.MatchedPaths, ","); got != "src/SECRET_PATH_COMPONENT_ALLOWED/feature.go" {
+		t.Fatalf("affected paths got %q", got)
+	}
+	if !hasEvidenceKindReason(entries, store.EvidenceKindBlockedClassification, string(BlockedCategoryStructuralConflict)) {
+		t.Fatalf("blocked-classification did not consume path-restructure evidence: %+v", entries)
+	}
+	if strings.Contains(mustReadFile(t, s.ReconcileEvidencePath(slug)), sourceSecret) {
+		t.Fatal("path-restructure evidence leaked source content")
+	}
+}
+
+func TestReconcilePathRestructureThresholdOverrideSuppressesEvidence(t *testing.T) {
+	s, slug, _ := buildPathRestructureFixture(t, func(cfg *store.Config) {
+		cfg.PathRestructurePrefixSplitMinFiles = 4
+		cfg.PathRestructurePrefixSplitMinPrefixes = 2
+		cfg.PathRestructurePrefixMoveMinFiles = 5
+	})
+
+	results, err := RunReconcile(context.Background(), s, []string{slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected one result, got %d", len(results))
+	}
+	if hasEvidenceKind(results[0].Evidence, store.EvidenceKindPathRestructure) {
+		t.Fatalf("path-restructure evidence should respect config threshold override: %+v", results[0].Evidence)
+	}
+	entries, err := store.LoadReconcileEvidence(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasEvidenceKind(entries, store.EvidenceKindPathRestructure) {
+		t.Fatalf("persisted path-restructure evidence should be suppressed by threshold override: %+v", entries)
+	}
+}
+
+func buildPathRestructureFixture(t *testing.T, configure func(*store.Config)) (*store.Store, string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	setupGitRepo(t, dir)
+	baseFiles := map[string]string{
+		"src/SECRET_PATH_COMPONENT_ALLOWED/feature.go": "package feature\n\nconst Value = \"base\"\n",
+		"src/a.go": "package feature\n\nconst A = \"a\"\n",
+		"src/b.go": "package feature\n\nconst B = \"b\"\n",
+	}
+	for path, content := range baseFiles {
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitAdd(t, dir, path)
+	}
+	gitCommit(t, dir, "base source tree")
+	baseCommit := gitRevParse(t, dir, "HEAD")
+
+	sourceSecret := "SECRET_PATH_RESTRUCTURE_SOURCE_DO_NOT_LEAK"
+	featurePath := filepath.Join(dir, "src/SECRET_PATH_COMPONENT_ALLOWED/feature.go")
+	if err := os.WriteFile(featurePath, []byte("package feature\n\nconst Value = \""+sourceSecret+"\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	patch := gitOutput(t, dir, "diff", "--no-color", "HEAD")
+
+	gitRun(t, dir, "reset", "--hard", "HEAD")
+	if err := os.MkdirAll(filepath.Join(dir, "app/SECRET_PATH_COMPONENT_ALLOWED"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "backend"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, dir, "mv", "src/SECRET_PATH_COMPONENT_ALLOWED/feature.go", "app/SECRET_PATH_COMPONENT_ALLOWED/feature.go")
+	gitRun(t, dir, "mv", "src/a.go", "app/a.go")
+	gitRun(t, dir, "mv", "src/b.go", "backend/b.go")
+	gitCommit(t, dir, "split source tree")
+
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if configure != nil {
+		cfg, err := s.LoadConfig()
+		if err != nil {
+			t.Fatal(err)
+		}
+		configure(&cfg)
+		if err := s.SaveConfig(cfg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "path restructure", Request: "detect path restructure"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkFeatureState(feature.Slug, store.StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+	status, err := s.LoadFeatureStatus(feature.Slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status.Apply.BaseCommit = baseCommit
+	status.Apply.HasPatch = true
+	if err := s.SaveFeatureStatus(status); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+	return s, feature.Slug, sourceSecret
+}

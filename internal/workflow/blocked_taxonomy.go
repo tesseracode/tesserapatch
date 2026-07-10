@@ -85,7 +85,12 @@ func ClassifyBlockedVerdict(input BlockedClassificationInput) BlockedClassificat
 	for _, ev := range input.Evidence {
 		switch ev.EvidenceKind {
 		case store.EvidenceKindPathRestructure:
-			add(BlockedCategoryStructuralConflict, evidenceSummary(ev))
+			switch ev.ReasonCode {
+			case string(PathRestructurePrefixMove), string(PathRestructurePrefixSplit), string(PathRestructureMixed):
+				add(BlockedCategoryStructuralConflict, evidenceSummary(ev))
+			case string(PathRestructureTargetDeleted):
+				add(BlockedCategoryTargetDeleted, evidenceSummary(ev))
+			}
 		case store.EvidenceKindFileNovelty:
 			switch ev.ReasonCode {
 			case string(FileNoveltyAllNewFiles), string(FileNoveltyMixedAdditive):

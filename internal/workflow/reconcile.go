@@ -581,6 +581,7 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 	result.Evidence = append(result.Evidence, persistReconcileEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistFileNoveltyEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistHunkOverlapEvidence(s, slug, result)...)
+	result.Evidence = append(result.Evidence, persistPathRestructureEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistBlockedClassificationEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, applyUpstreamedConfirmationGate(s, slug, result)...)
 	result.Revisions = append(result.Revisions, persistRevisionPassLog(s, slug, result)...)
@@ -752,6 +753,60 @@ func persistHunkOverlapEvidence(s *store.Store, slug string, result *ReconcileRe
 		return nil
 	}
 	return []store.ReconcileEvidence{entry}
+}
+
+func persistPathRestructureEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
+	if result == nil || result.UpstreamCommit == "" {
+		return nil
+	}
+	if result.Outcome != store.ReconcileBlocked && result.Outcome != store.ReconcileBlockedRequiresHuman && result.Outcome != store.ReconcileBlockedTooManyConflicts {
+		return nil
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil || status.Apply.BaseCommit == "" {
+		return nil
+	}
+	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil || strings.TrimSpace(patch) == "" {
+		return nil
+	}
+	featurePaths := featurePathsFromPatch(patch)
+	if len(featurePaths) == 0 {
+		return nil
+	}
+	storeCfg, _ := s.LoadConfig()
+	detected, err := DetectPathRestructure(PathRestructureInput{
+		RepoRoot:     s.Root,
+		BaseCommit:   status.Apply.BaseCommit,
+		TargetCommit: result.UpstreamCommit,
+		FeaturePaths: featurePaths,
+		Thresholds:   PathRestructureThresholdsFromConfig(storeCfg),
+	})
+	if err != nil || detected == nil {
+		return nil
+	}
+	switch detected.Classification {
+	case PathRestructurePrefixMove, PathRestructurePrefixSplit, PathRestructureTargetDeleted, PathRestructureMixed:
+	default:
+		return nil
+	}
+	entry := PathRestructureReconcileEvidence(slug, result.UpstreamRef, result.UpstreamCommit, status.Apply.BaseCommit, string(result.Outcome), *detected)
+	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+		warnReconcileEvidenceAppendError(slug, err)
+		return nil
+	}
+	return []store.ReconcileEvidence{entry}
+}
+
+func featurePathsFromPatch(patch string) []string {
+	paths := parsePatchNoveltyPaths(patch)
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if p.Path != "" {
+			out = append(out, p.Path)
+		}
+	}
+	return out
 }
 
 func persistBlockedClassificationEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
