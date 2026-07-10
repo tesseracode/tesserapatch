@@ -4,8 +4,8 @@
 
 - **Task ID**: `wp003-wave-gamma-2-prd9-impl`
 - **Milestone**: WP-003 Wave γ-2 — PRD 9 `reconcile-path-restructure-detector`. Final PRD in WP-003; γ-2 closes out the entire reconcile safety cluster.
-- **Description**: Ship path-restructure detector as a new evidence pass under ADR-025 (`evidence_kind=path-restructure`, likely under D13's blocked-classification family or a new evidence kind if D13 doesn't cover — verify FIRST). Detector reads Git name-status between base and target upstream, applies prefix-split / prefix-move thresholds, emits candidate prefixes + affected paths. Integrates with PRD 8 blocked-taxonomy: prefix restructure evidence upgrades generic `blocked` to `structural-conflict` or `target-deleted` category. No provider integration required.
-- **Status**: In Progress (γ-2 implementer dispatch pending).
+- **Description**: Ship path-restructure detector as a new evidence pass under ADR-025 (`evidence_kind=path-restructure`, pre-authorized by D13). Detector reads Git name-status between base and target upstream, applies prefix-split / prefix-move thresholds, emits candidate prefixes + affected paths, and feeds PRD 8 blocked taxonomy. No provider integration required.
+- **Status**: Review.
 - **Assigned**: 2026-07-10.
 
 ## Wave γ-1 closure summary (for reference)
@@ -93,24 +93,51 @@ Read `docs/prds/PRD-reconcile-path-restructure-detector.md` verbatim. Key contra
 
 ## Session Summary
 
-γ-1 rev-1 archived 2026-07-10. γ-2 (PRD 9, final WP-003 slice) unblocks.
+Implemented γ-2 PRD 9 on top of `0e3ca4a` + detector commits. ADR-025 D13 was verified as pre-authorizing `path-restructure`, so no D14 amendment was needed. The detector now writes ADR-025-compatible evidence, config-driven thresholds are documented in `config.yaml`, blocked taxonomy consumes path-restructure evidence, CLI human/JSON output surfaces it, and tests cover the full §6 contract.
+
+## γ-2 closure summary
+
+1. **§6.1 detector reports renamed/split prefixes — CLOSED.** Fix: `internal/workflow/path_restructure.go:10`, `internal/workflow/path_restructure_support.go:89`. Tests: `internal/workflow/path_restructure_test.go:11`, `internal/workflow/reconcile_evidence_integration_test.go:620`.
+2. **§6.2 blocked taxonomy consumes evidence — CLOSED.** Fix: `internal/workflow/blocked_taxonomy.go:87`, `internal/workflow/reconcile.go:758`. Tests: `internal/workflow/blocked_taxonomy_test.go:18`, `internal/workflow/blocked_taxonomy_test.go:53`, `internal/workflow/reconcile_evidence_integration_test.go:660`.
+3. **§6.3 output includes old prefix, candidates, affected paths, confidence — CLOSED.** Fix: `internal/workflow/path_restructure.go:94`, `internal/cli/cobra.go:1728`. Tests: `internal/workflow/path_restructure_test.go:181`, `internal/cli/reconcile_evidence_cli_test.go:39`, `internal/workflow/reconcile_evidence_integration_test.go:648`.
+4. **§6.4 no parser/provider dependency — CLOSED.** Fix: `internal/workflow/path_restructure_support.go:89` (`git diff --name-status --find-renames --find-copies` only), `internal/workflow/reconcile.go:758` (no provider calls). Tests: `internal/workflow/path_restructure_test.go:11`, `internal/workflow/reconcile_evidence_integration_test.go:623` (nil provider).
+5. **§6.5 deterministic candidate cap/sort — CLOSED.** Fix: `internal/workflow/path_restructure_support.go:196`, `internal/workflow/path_restructure.go:161`. Test: `internal/workflow/path_restructure_test.go:150`.
+6. **§6.6 documented defaults + explicit config override — CLOSED.** Fix: `internal/store/types.go:367`, `internal/store/store.go:91`, `internal/store/store.go:727`, `internal/workflow/path_restructure_support.go:73`. Tests: `internal/store/store_test.go:204`, `internal/workflow/path_restructure_test.go:124`, `internal/workflow/reconcile_evidence_integration_test.go:668`.
+
+## Current State
+
+- `path-restructure` evidence remains within ADR-025 D1-D13: no new JSONL fields; `reason_code` carries classification, `matched_paths` carries affected feature paths, and `matched_operations` carries old prefix, candidate prefixes/support, moved/deleted counts, and thresholds.
+- D10 privacy preserved: persisted evidence stores paths/counts/enums only; integration privacy coverage asserts source content does not leak.
+- PRD 8 precedence preserved: dependency-blocked and validation-blocked still outrank path-restructure; path `target-deleted` outranks edit overlap.
+- ADR-024 / `patch-generations.json` untouched.
+
+## Files Changed
+
+- `internal/workflow/path_restructure.go`
+- `internal/workflow/path_restructure_support.go`
+- `internal/workflow/path_restructure_test.go`
+- `internal/workflow/reconcile.go`
+- `internal/workflow/blocked_taxonomy.go`
+- `internal/workflow/blocked_taxonomy_test.go`
+- `internal/workflow/reconcile_evidence_integration_test.go`
+- `internal/store/types.go`
+- `internal/store/store.go`
+- `internal/store/global.go`
+- `internal/store/store_test.go`
+- `internal/cli/cobra.go`
+- `internal/cli/reconcile_evidence_cli_test.go`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+- After commits `6a1ac79`, `b3bf617`, and `8bf42ce`: `gofmt -l .` clean; `go vet ./...` clean; `go build ./cmd/tpatch` clean; `go test ./...` green.
+- Final validation after handoff update: `gofmt -l .` clean; `go vet ./...` clean; `go build ./cmd/tpatch` clean; `go test ./...` green.
+- Side Research md5 before/after handoff edits: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. γ-2 implementer dispatch — single implementer, no wave slicing (single PRD).
-2. Suggested layout:
-   - `internal/workflow/path_restructure.go` — detector pass (Git name-status → classification + candidate prefixes).
-   - `internal/workflow/blocked_taxonomy.go` — extend classifier to consume path-restructure evidence and upgrade `blocked` → `structural-conflict` / `target-deleted`.
-   - `internal/store/config.go` / `config.yaml` — expose thresholds.
-   - `internal/workflow/reconcile.go` — wire detector into reconcile flow (likely alongside file-novelty / hunk-overlap passes).
-3. Tests:
-   - Unit tests per classification (`prefix-move`, `prefix-split`, `target-deleted`, `mixed`, `none`, `unknown`).
-   - Threshold boundary tests (2 files → not split; 3 files 2 prefixes → split).
-   - Candidate cap + sort determinism test.
-   - PRD 8 integration test: path-restructure evidence upgrades blocked category correctly.
-   - PRD 8 precedence test: multi-category scenario including path-restructure still respects PRD 8's precedence order.
-   - D10 privacy test: seed secret into path component; assert evidence artifact does not contain source content.
-4. After γ-2 lands + three-way APPROVED: WP-003 cluster complete. Plan v0.11.0 release bundling Wave α + Wave β + Wave γ.
+1. Supervisor/reviewer review γ-2 implementation against PRD 9 §6 and hard constraints.
+2. If approved, archive this handoff to HISTORY, update supervisor LOG/ROADMAP as appropriate, and prepare WP-003 cluster release planning.
 
 ## Blockers
 
@@ -118,11 +145,11 @@ None.
 
 ## Context for Next Agent
 
-- WP-003 §6 lists 9 PRDs. 8 shipped. PRD 9 is the final slice.
-- ADR-025 D13 should pre-authorize `path-restructure` evidence kind — verify FIRST before scaffolding schema.
-- PRD 8 classifier (`internal/workflow/blocked_taxonomy.go`) already accepts secondary evidence — integration point is well-defined.
-- Reviewer briefs for γ-2 MUST include the "does the PRD trigger/name/event exist in production?" grep (rule 15) — γ-1 F1 root cause.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Verify before/after any CURRENT.md edits.
+- ADR-025 D13 explicitly pre-authorized `path-restructure`; no ADR amendment was made.
+- Candidate prefixes are hints only and are capped/sorted before persistence.
+- Threshold config keys are `prefix_split_min_files`, `prefix_split_min_prefixes`, and `prefix_move_min_files`.
+- The repository had unrelated pre-existing dirty/untracked state under `docs/state-of-the-art/`, `docs/whitepapers/`, and `docs/prds/`; γ-2 commits intentionally did not stage those files.
+- Side Research md5 invariant remains `b385fe622db9926f48861105239f113e`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
