@@ -36,6 +36,26 @@ func TestReconcileHumanOutputEvidenceHint(t *testing.T) {
 	}
 }
 
+func TestReconcileEvidenceHintsPathRestructure(t *testing.T) {
+	hints := reconcileEvidenceHints([]store.ReconcileEvidence{{
+		EvidenceKind: store.EvidenceKindPathRestructure,
+		ReasonCode:   "prefix-split",
+		Confidence:   store.EvidenceConfidenceHigh,
+		MatchedOperations: []string{
+			"old_prefix=src/",
+			"candidate_prefixes=app/|backend/",
+		},
+	}})
+	if len(hints) != 1 {
+		t.Fatalf("expected one hint, got %#v", hints)
+	}
+	for _, want := range []string{"path-restructure prefix-split", "old_prefix=src/", "candidate_prefixes=app/|backend/", "confidence=high"} {
+		if !strings.Contains(hints[0], want) {
+			t.Fatalf("path-restructure hint missing %q: %#v", want, hints)
+		}
+	}
+}
+
 func TestStatusJSONIncludesEvidenceArtifact(t *testing.T) {
 	dir, slug, _ := cliEvidenceFixture(t, "status evidence", map[string]string{
 		"new.txt": "brand new\n",

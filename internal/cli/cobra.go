@@ -1725,6 +1725,17 @@ func reconcileEvidenceHints(entries []store.ReconcileEvidence) []string {
 		var hint string
 		if entry.EvidenceKind == store.EvidenceKindFileNovelty || entry.EvidenceKind == store.EvidenceKindHunkOverlap {
 			hint = fmt.Sprintf("%s %s", entry.EvidenceKind, entry.ReasonCode)
+		} else if entry.EvidenceKind == store.EvidenceKindPathRestructure {
+			hint = fmt.Sprintf("%s %s", entry.EvidenceKind, entry.ReasonCode)
+			if oldPrefix := evidenceOperationValue(entry.MatchedOperations, "old_prefix"); oldPrefix != "" {
+				hint += " old_prefix=" + oldPrefix
+			}
+			if candidates := evidenceOperationValue(entry.MatchedOperations, "candidate_prefixes"); candidates != "" {
+				hint += " candidate_prefixes=" + candidates
+			}
+			if entry.Confidence != "" {
+				hint += " confidence=" + string(entry.Confidence)
+			}
 		} else if entry.EvidenceKind == store.EvidenceKindManualReview && containsString(entry.MatchedOperations, "confirmation-gate") {
 			hint = fmt.Sprintf("confirmation-gate %s", entry.ReasonCode)
 		} else {
@@ -1737,6 +1748,16 @@ func reconcileEvidenceHints(entries []store.ReconcileEvidence) []string {
 		hints = append(hints, hint)
 	}
 	return hints
+}
+
+func evidenceOperationValue(ops []string, key string) string {
+	prefix := key + "="
+	for _, op := range ops {
+		if strings.HasPrefix(op, prefix) {
+			return strings.TrimPrefix(op, prefix)
+		}
+	}
+	return ""
 }
 
 // ─── reconcile ───────────────────────────────────────────────────────────────
@@ -2714,10 +2735,28 @@ func configSetCmd() *cobra.Command {
 					return fmt.Errorf("invalid max_retries %q (must be non-negative integer)", value)
 				}
 				cfg.MaxRetries = n
+			case "prefix_split_min_files":
+				n, err := parsePositiveConfigInt(key, value)
+				if err != nil {
+					return err
+				}
+				cfg.PathRestructurePrefixSplitMinFiles = n
+			case "prefix_split_min_prefixes":
+				n, err := parsePositiveConfigInt(key, value)
+				if err != nil {
+					return err
+				}
+				cfg.PathRestructurePrefixSplitMinPrefixes = n
+			case "prefix_move_min_files":
+				n, err := parsePositiveConfigInt(key, value)
+				if err != nil {
+					return err
+				}
+				cfg.PathRestructurePrefixMoveMinFiles = n
 			case "test_command":
 				cfg.TestCommand = value
 			default:
-				return fmt.Errorf("unknown config key %q (valid: provider.type, provider.base_url, provider.model, provider.auth_env, provider.initiator, provider.copilot_native_optin, merge_strategy, max_retries, test_command)", key)
+				return fmt.Errorf("unknown config key %q (valid: provider.type, provider.base_url, provider.model, provider.auth_env, provider.initiator, provider.copilot_native_optin, merge_strategy, max_retries, prefix_split_min_files, prefix_split_min_prefixes, prefix_move_min_files, test_command)", key)
 			}
 			if err := s.SaveConfig(cfg); err != nil {
 				return err
@@ -2726,6 +2765,14 @@ func configSetCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func parsePositiveConfigInt(key, value string) (int, error) {
+	var n int
+	if _, err := fmt.Sscanf(value, "%d", &n); err != nil || n <= 0 {
+		return 0, fmt.Errorf("invalid %s %q (must be positive integer)", key, value)
+	}
+	return n, nil
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
