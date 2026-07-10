@@ -1,3 +1,73 @@
+## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — external (supervisor-dispatched) — 2026-07-10
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of rev-1 fixes (`a408e58..c409bcd`). Verifying internal APPROVED verdict at `dc476c8`.
+
+### Verdict: APPROVED
+
+### Per-finding verification (independent of internal)
+
+- **F1 [closed]** — Path A fully wired end-to-end.
+  - `tpatch reconcile confirm-upstreamed <slug>` subcommand exists: registered at `internal/cli/cobra.go:1954` (`cmd.AddCommand(..., reconcileConfirmUpstreamedCmd())`); constructor at `internal/cli/cobra.go:1995-2048`. Verified via `go run ./cmd/tpatch reconcile --help` → prints `confirm-upstreamed Confirm an upstreamed feature and run retirement cleanup audit`. `go run ./cmd/tpatch reconcile confirm-upstreamed --help` returns valid help text with `--json` and `--format` flags.
+  - State gating: `internal/cli/cobra.go:2010-2012` refuses with `confirm-upstreamed requires reconcile outcome "upstreamed" or review_verdict "confirmed-upstreamed" for <slug>` when neither condition holds; verified live against a freshly-init'd store with a non-existent slug → exit 1 with `open .../status.json: no such file or directory` (clean error, no panic).
+  - Auto-run wiring: `runConfirmedUpstreamedRetirementAudit` at `cobra.go:2050-2068` calls `workflow.AuditRetirement` then `workflow.AppendRetirementCleanupRevisions` (only when findings > 0). JSON output at `cobra.go:2028-2032` marshals full `ReconcileResult` including the new `RetirementAudit *RetirementAuditReport` field (`internal/workflow/reconcile.go:64-66`, `omitempty`).
+  - JSON-path skip fix in `reconcile --format json`: the pre-loop at `cobra.go:1861-1865` invokes `runConfirmedUpstreamedRetirementAudit` for every result BEFORE the JSON return branch at `cobra.go:1866-1870`, so the audit runs exactly once per result across both output formats. `TestReconcileConfirmedUpstreamedJSONRunsRetirementAudit` at `internal/cli/audit_retirement_test.go:76-124` runs `reconcile --format json`, unmarshals the payload, asserts `RetirementAudit.Findings` populated, asserts runtime `Revisions[]` includes `cleanup-needed`, AND loads `reconcile-revisions.jsonl` via `store.LoadReconcileRevisions` to confirm the cleanup entry persisted on disk. Cross-artifact linkage per carry-forward rule 11.
+  - Asset parity: all 6 shipped surfaces mention `confirm-upstreamed` (`SPEC.md:66`, `assets/skills/claude/tessera-patch/SKILL.md:54`, `assets/skills/copilot/tessera-patch/SKILL.md:37`, `assets/skills/cursor/tessera-patch.mdc:34`, `assets/skills/windsurf/windsurfrules:28`, `assets/workflows/tessera-patch-generic.md:32`, `assets/prompts/copilot/tessera-patch-apply.prompt.md:36+77`). `assets/assets_test.go:27` adds `"tpatch reconcile confirm-upstreamed"` to `requiredCommands`; `TestSkillParityGuard` passes.
+  - Dual-trigger idempotency: `reconcile` (which triggers auto-audit via the pre-loop) followed by `confirm-upstreamed <slug>` both funnel through `runConfirmedUpstreamedRetirementAudit` → `AppendRetirementCleanupRevisions`. `AppendReconcileRevision` at `internal/store/reconcile_revision.go:105-116` dedupes by `EntryID`: if a matching `EntryID` exists AND the marshaled payload is byte-identical to the existing line, it returns nil (no append); if `EntryID` matches but payload differs it errors with `entry_id %q has differing payload`. `ComputeRevisionID` at `reconcile_revision.go:75-81` hashes `canonicalRevisionIdentityJSON`, which strips `entry_id` (line 315-319) and includes no timestamps in `revisionOrderedMap` (line 321-341). Deterministic identity → dedup is real, not just deterministic IDs. Additionally, `AuditRetirement:76-82` treats `ReconcileActionCleanupNeeded` as satisfying the retirement revision-log check, so the `revision-log` finding self-clears on the second audit — findings list itself is stable across repeated invocations.
+  - Behavior change note (informational, not raised): rev-0's human-path auto-run silently swallowed `AuditRetirement` errors (`if auditErr == nil`); rev-1's `runConfirmedUpstreamedRetirementAudit` propagates them. In practice `AuditRetirement` only errors on `LoadFeatureStatus(slug)` failure, which would also fail earlier reconcile steps, so this is not a meaningful behavioral regression.
+
+- **F2 [closed]** — Per-correction linkage enforced per PRD §4.5 "every".
+  - `checkCorrections` at `internal/tools/studyvalidator/validator.go:171-201` replaces the rev-0 file-existence check with a per-corrected-verdict loop over `correctedVerdicts(features)` (line 209-221), which enumerates every `features.jsonl` row whose `ground_truth` satisfies `isCorrectedGroundTruth` (line 223-226 — matches `false_positive`, `false_negative`, and compound variants like `false_positive_upstreamed`).
+  - Matching contract documented in code (line 302-304): revision-pass entries match by `feature_slug`/`slug` OR by `verdict_id`/`evidence_attempt_id`/`entry_id` (`loadRevisionReferences` line 271-280, scanned across BOTH `reconcile-revisions.jsonl` AND `revision-pass.jsonl`, line 251). Notes matching via `strings.Contains(notes, slug)` in any heading or prose block.
+  - Error emission: line 191-196 emits `r.err` per unlinked slug with message naming both the slug and `ground_truth` value. Old/no-notes studies emit `r.warn` (line 192-193); new studies emit `r.err`.
+  - Test coverage (all 4 required cases):
+    - `TestValidateCorrectionLinksAllRevisions` (`validator_test.go:64-74`) — 3 corrections all linked by revisions → passes.
+    - `TestValidateCorrectionLinksRevisionsAndNotes` (`validator_test.go:76-84`) — 2 by revisions + 1 by notes → passes.
+    - `TestValidateCorrectionLinksReportsEachUnlinkedFeature` (`validator_test.go:86-102`) — 3 corrections, only alpha linked, asserts `len(r.Errors) == 2` AND both `slug=beta`+`false_negative` and `slug=gamma`+`false_positive` messages present.
+    - `TestValidateCorrectionLinksZeroCorrectedNoNotesNoError` (`validator_test.go:104-113`) — 0 corrections + no notes → zero errors.
+  - Break-attempt sweep:
+    - 100 corrections + 1 unrelated revision entry: map lookups return false → 99 or 100 errors emitted (verified by inspection of `checkCorrections` loop, no early exit).
+    - Empty slug guarded at `validator.go:299-301` (`if slug == "" { return false }`).
+    - Notes substring collision (`foo` matched by presence of `foobar`): real semantic hole in `strings.Contains` matching. Internal reviewer explicitly acknowledged and documented this as design choice for dev-only tooling; PRD §4.5 doesn't dictate exact-match semantics. Not raised.
+    - `metrics.json verdict_post_review` reporting corrections without matching `features.jsonl` rows: rev-1 correctly aligns with PRD §4.5's per-row "ground-truth label" semantics (rev-0 counted metrics too; that was arguably an over-reach). Cross-check would still fire via `ground_truth_distribution` if metrics uses that key. Not a regression worth flagging.
+
+### Regression checks
+- **PRD 4 rev-0 acceptance not regressed**: confirmed. `internal/workflow/retirement_audit.go` empty diff `a408e58..c409bcd`; audit remains read-only (no `SaveFeatureStatus`/`MarkFeatureState` calls added). §6.1-4 + §6.6 all still MET.
+- **PRD 5 rev-0 acceptance not regressed**: confirmed. `readJSONL` (`validator.go:74-101`) malformed reporting + `checkMetrics` count checks unchanged. `TestValidateRunsOnT3CodeStudyArtifacts` unchanged. Dev-only surface preserved (no `studyvalidat|study-validat` matches under `internal/cli/`, `cmd/tpatch/`, `SPEC.md`, `assets/`).
+- **PRD 8 5/5 not regressed**: confirmed. `git diff a408e58..c409bcd -- 'internal/workflow/blocked_taxonomy*' internal/store/reconcile_backward_compat_test.go` returns empty.
+
+### Hard-constraint sweep
+- [x] No new `FeatureState` values (`internal/store/types.go` empty diff).
+- [x] No new persisted-schema fields outside ADR-025 D1-D13 (`internal/store/` empty diff; `RetirementAudit *RetirementAuditReport` at `internal/workflow/reconcile.go:64-66` is runtime-only on `ReconcileResult`, `omitempty`).
+- [x] PRD 5 stays out of public CLI (grep of `internal/cli/`, `cmd/tpatch/`, `SPEC.md`, `assets/` for `studyvalidat|study-validat` returns empty).
+- [x] PRD 4 audit still read-only (no `SaveFeatureStatus`/`WriteFeatureStatus`/`MarkFeatureState` in audit code; `runConfirmedUpstreamedRetirementAudit` only appends revision-pass entries via ADR-025-D6-authorized `AppendReconcileRevision`).
+- [x] PRD 8 backward-compat NOT regressed (blocked_taxonomy + reconcile_backward_compat_test empty diff).
+- [x] D10 privacy: rev-1 introduces no privacy-sensitive persistence; new tests use benign slugs (`parent`, `child`, `confirmed-upstreamed`, `alpha`, `beta`, `gamma`).
+- [x] D11 malformed handling preserved: `readJSONL` (`validator.go:82-96`) and `loadRevisionReferences` (`validator.go:266-269`) both report filename + 1-indexed line on malformed JSONL.
+- [x] ADR-024 / `patch-generations.json` UNTOUCHED (`git diff a408e58..c409bcd -- docs/adrs/ADR-024-*.md 'internal/store/patch_generations*' '*patch-generations*'` empty).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified via `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`).
+- [x] Co-authored-by trailers on all 3 rev-1 commits (`cb61032`, `98b3256`, `c409bcd` all include `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` — verified via `git log --format='%B'`).
+- [x] Path A: assets/skills 6 formats + parity guard + SPEC.md updated (see F1 evidence above).
+- [x] ADR-025 UNTOUCHED (`git diff a408e58..c409bcd -- docs/adrs/ADR-025-*.md` empty).
+- [x] PRDs 4 + 5 verbatim text UNTOUCHED (`git diff a408e58..c409bcd -- docs/prds/PRD-reconcile-retirement-state-audit.md docs/prds/PRD-reconcile-study-validation.md` empty — Path A introduced the command in code without amending the PRD).
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean | test: `go test -count=1 ./internal/cli/ ./internal/tools/studyvalidator/ ./assets/` green (cli 67.1s, studyvalidator 0.9s, assets 1.3s); `go test ./...` full-repo green (all packages cached ok, no failures).
+
+### New findings (beyond F1+F2)
+
+None. Sweep of the full rev-1 diff surfaced no new production behavior beyond the two brief-authorized changes (F1 wiring + F2 linkage) and their necessary asset/SPEC parity updates. The only rev-1 additions outside cli/studyvalidator are `RetirementAudit *RetirementAuditReport` on `ReconcileResult` (runtime-only, `omitempty`) and 4 lines wiring it in the reconcile pre-loop.
+
+### Concurrence with internal verdict?
+
+**YES**. Independent verification confirms the internal APPROVED verdict at `dc476c8` is accurate on all points: F1 Path A fully closed (subcommand registered, state-gated, both `--json` and `--format json` supported, JSON-path skip resolved, asset parity + SPEC.md updated, dual-trigger idempotency via `EntryID` dedup + `AuditRetirement` self-clearing revision-log check), F2 per-correction linkage enforced with all 4 test cases green, all 12+1 hard constraints satisfied, all validation gates clean. Wave β F8 + γ-1 F1 lesson pattern successfully applied: implementer read the PRD verbatim, chose Path A rather than amending §3/§6.5, and shipped the trigger command the PRD actually named.
+
+### Action Taken
+
+Verdict recorded. Ready for supervisor consolidation.
+
+---
+
 ## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — internal — 2026-07-06
 
 **Reviewer**: internal (code-review agent)
