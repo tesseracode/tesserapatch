@@ -363,12 +363,26 @@ type Config struct {
 	// negative means use DefaultPatchIDScanLimit. Wired via flat YAML
 	// key `patch_id_scan_limit: <int>`.
 	PatchIDScanLimit int `json:"patch_id_scan_limit,omitempty"`
+
+	// Path restructure detector thresholds (WP-003 PRD 9). Zero or
+	// negative values use the documented defaults below. Wired via flat
+	// YAML keys `prefix_split_min_files`, `prefix_split_min_prefixes`,
+	// and `prefix_move_min_files`.
+	PathRestructurePrefixSplitMinFiles    int `json:"prefix_split_min_files,omitempty"`
+	PathRestructurePrefixSplitMinPrefixes int `json:"prefix_split_min_prefixes,omitempty"`
+	PathRestructurePrefixMoveMinFiles     int `json:"prefix_move_min_files,omitempty"`
 }
 
 // DefaultPatchIDScanLimit caps the number of upstream commits walked by
 // the phase-1.5 patch-id detector (PRD §5.2). 5000 is the PRD's
 // suggested default. Operators can override via Config.PatchIDScanLimit.
 const DefaultPatchIDScanLimit = 5000
+
+const (
+	DefaultPathRestructurePrefixSplitMinFiles    = 3
+	DefaultPathRestructurePrefixSplitMinPrefixes = 2
+	DefaultPathRestructurePrefixMoveMinFiles     = 5
+)
 
 // PatchIDMatch records the result of a successful phase-1.5 patch-id
 // sweep (PRD-patch-already-upstream-detector §4). Persisted on

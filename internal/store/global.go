@@ -154,6 +154,15 @@ func mergeConfig(global, repo Config) Config {
 	if repo.FeaturesDependencies {
 		out.FeaturesDependencies = true
 	}
+	if repo.PathRestructurePrefixSplitMinFiles > 0 {
+		out.PathRestructurePrefixSplitMinFiles = repo.PathRestructurePrefixSplitMinFiles
+	}
+	if repo.PathRestructurePrefixSplitMinPrefixes > 0 {
+		out.PathRestructurePrefixSplitMinPrefixes = repo.PathRestructurePrefixSplitMinPrefixes
+	}
+	if repo.PathRestructurePrefixMoveMinFiles > 0 {
+		out.PathRestructurePrefixMoveMinFiles = repo.PathRestructurePrefixMoveMinFiles
+	}
 	return out
 }
 
@@ -180,6 +189,18 @@ func renderGlobalYAML(cfg Config) string {
 	featuresDeps := "false"
 	if cfg.FeaturesDependencies {
 		featuresDeps = "true"
+	}
+	prefixSplitMinFiles := cfg.PathRestructurePrefixSplitMinFiles
+	if prefixSplitMinFiles <= 0 {
+		prefixSplitMinFiles = DefaultPathRestructurePrefixSplitMinFiles
+	}
+	prefixSplitMinPrefixes := cfg.PathRestructurePrefixSplitMinPrefixes
+	if prefixSplitMinPrefixes <= 0 {
+		prefixSplitMinPrefixes = DefaultPathRestructurePrefixSplitMinPrefixes
+	}
+	prefixMoveMinFiles := cfg.PathRestructurePrefixMoveMinFiles
+	if prefixMoveMinFiles <= 0 {
+		prefixMoveMinFiles = DefaultPathRestructurePrefixMoveMinFiles
 	}
 	initiatorLine := ""
 	if cfg.Provider.Initiator != "" {
@@ -211,6 +232,12 @@ copilot_native_optin_at: %s
 
 # Feature dependency DAG (ADR-011). Default false until v0.6.0.
 features_dependencies: %s
+
+# Path restructure detector thresholds (WP-003 PRD 9).
+# Defaults: prefix-split >=3 files across >=2 prefixes; prefix-move >=5 files.
+prefix_split_min_files: %d
+prefix_split_min_prefixes: %d
+prefix_move_min_files: %d
 `,
 		yamlQuote(cfg.Provider.Type), yamlQuote(cfg.Provider.BaseURL),
 		yamlQuote(cfg.Provider.Model), yamlQuote(cfg.Provider.AuthEnv),
@@ -219,6 +246,7 @@ features_dependencies: %s
 		yamlQuote(cfg.CopilotAUPAckAt),
 		optIn, yamlQuote(cfg.CopilotNativeOptInAt),
 		featuresDeps,
+		prefixSplitMinFiles, prefixSplitMinPrefixes, prefixMoveMinFiles,
 	)
 }
 

@@ -72,10 +72,18 @@ type pathPrefixAggregate struct {
 
 func DefaultPathRestructureThresholds() PathRestructureThresholds {
 	return PathRestructureThresholds{
-		PrefixSplitMinFiles:    3,
-		PrefixSplitMinPrefixes: 2,
-		PrefixMoveMinFiles:     5,
+		PrefixSplitMinFiles:    store.DefaultPathRestructurePrefixSplitMinFiles,
+		PrefixSplitMinPrefixes: store.DefaultPathRestructurePrefixSplitMinPrefixes,
+		PrefixMoveMinFiles:     store.DefaultPathRestructurePrefixMoveMinFiles,
 	}
+}
+
+func PathRestructureThresholdsFromConfig(cfg store.Config) PathRestructureThresholds {
+	return normalizePathRestructureThresholds(PathRestructureThresholds{
+		PrefixSplitMinFiles:    cfg.PathRestructurePrefixSplitMinFiles,
+		PrefixSplitMinPrefixes: cfg.PathRestructurePrefixSplitMinPrefixes,
+		PrefixMoveMinFiles:     cfg.PathRestructurePrefixMoveMinFiles,
+	})
 }
 
 func gitDiffNameStatus(repoRoot, baseCommit, targetCommit string) (string, error) {

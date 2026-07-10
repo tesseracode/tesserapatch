@@ -199,6 +199,37 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 }
 
+func TestConfigPathRestructureThresholdDefaultsAndRoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	s, _ := Init(tmpDir)
+
+	cfg, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PathRestructurePrefixSplitMinFiles != DefaultPathRestructurePrefixSplitMinFiles ||
+		cfg.PathRestructurePrefixSplitMinPrefixes != DefaultPathRestructurePrefixSplitMinPrefixes ||
+		cfg.PathRestructurePrefixMoveMinFiles != DefaultPathRestructurePrefixMoveMinFiles {
+		t.Fatalf("default path restructure thresholds not loaded: %+v", cfg)
+	}
+
+	cfg.PathRestructurePrefixSplitMinFiles = 2
+	cfg.PathRestructurePrefixSplitMinPrefixes = 2
+	cfg.PathRestructurePrefixMoveMinFiles = 4
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PathRestructurePrefixSplitMinFiles != 2 ||
+		got.PathRestructurePrefixSplitMinPrefixes != 2 ||
+		got.PathRestructurePrefixMoveMinFiles != 4 {
+		t.Fatalf("path restructure thresholds did not round-trip: %+v", got)
+	}
+}
+
 func TestMarkFeatureState(t *testing.T) {
 	tmpDir := t.TempDir()
 	s, _ := Init(tmpDir)

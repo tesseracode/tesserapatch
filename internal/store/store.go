@@ -87,6 +87,12 @@ test_command: ""
 # Feature dependency DAG (ADR-011). Default true from v0.6.0.
 # Set to false to opt back into v0.5.x byte-identity behaviour.
 features_dependencies: true
+
+# Path restructure detector thresholds (WP-003 PRD 9).
+# Defaults: prefix-split >=3 files across >=2 prefixes; prefix-move >=5 files.
+prefix_split_min_files: 3
+prefix_split_min_prefixes: 2
+prefix_move_min_files: 5
 `
 	if err := writeFile(store.configPath(), configContent); err != nil {
 		return nil, err
@@ -462,6 +468,18 @@ func (s *Store) SaveConfig(cfg Config) error {
 	if cfg.FeaturesDependencies {
 		featuresDeps = "true"
 	}
+	prefixSplitMinFiles := cfg.PathRestructurePrefixSplitMinFiles
+	if prefixSplitMinFiles <= 0 {
+		prefixSplitMinFiles = DefaultPathRestructurePrefixSplitMinFiles
+	}
+	prefixSplitMinPrefixes := cfg.PathRestructurePrefixSplitMinPrefixes
+	if prefixSplitMinPrefixes <= 0 {
+		prefixSplitMinPrefixes = DefaultPathRestructurePrefixSplitMinPrefixes
+	}
+	prefixMoveMinFiles := cfg.PathRestructurePrefixMoveMinFiles
+	if prefixMoveMinFiles <= 0 {
+		prefixMoveMinFiles = DefaultPathRestructurePrefixMoveMinFiles
+	}
 	initiatorLine := ""
 	if cfg.Provider.Initiator != "" {
 		initiatorLine = fmt.Sprintf("  initiator: %s\n", yamlQuote(cfg.Provider.Initiator))
@@ -488,11 +506,17 @@ test_command: %s
 
 # Feature dependency DAG (ADR-011). Default false until v0.6.0.
 features_dependencies: %s
+
+# Path restructure detector thresholds (WP-003 PRD 9).
+# Defaults: prefix-split >=3 files across >=2 prefixes; prefix-move >=5 files.
+prefix_split_min_files: %d
+prefix_split_min_prefixes: %d
+prefix_move_min_files: %d
 `, yamlQuote(cfg.Provider.Type), yamlQuote(cfg.Provider.BaseURL),
 		yamlQuote(cfg.Provider.Model), yamlQuote(cfg.Provider.AuthEnv),
 		initiatorLine, mergeStrat,
 		maxRetries, maxTokensImplement, yamlQuote(cfg.TestCommand),
-		featuresDeps)
+		featuresDeps, prefixSplitMinFiles, prefixSplitMinPrefixes, prefixMoveMinFiles)
 	// M17 Wave D: only emit the patch-id detector keys when non-default,
 	// so v0.6.x → v0.8.0 fixtures round-trip byte-identical until the
 	// operator explicitly opts in.
@@ -698,6 +722,24 @@ func parseYAMLConfig(content string) Config {
 		var n int
 		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
 			cfg.PatchIDScanLimit = n
+		}
+	}
+	if v := extractYAMLValue(content, "prefix_split_min_files"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.PathRestructurePrefixSplitMinFiles = n
+		}
+	}
+	if v := extractYAMLValue(content, "prefix_split_min_prefixes"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.PathRestructurePrefixSplitMinPrefixes = n
+		}
+	}
+	if v := extractYAMLValue(content, "prefix_move_min_files"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.PathRestructurePrefixMoveMinFiles = n
 		}
 	}
 	return cfg

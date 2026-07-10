@@ -121,6 +121,32 @@ func TestDetectPathRestructureThresholdBoundaries(t *testing.T) {
 	}
 }
 
+func TestDetectPathRestructureThresholdOverrideFromConfig(t *testing.T) {
+	status := strings.Join([]string{
+		"R100\tsrc/a.go\tapp/a.go",
+		"R100\tsrc/b.go\tbackend/b.go",
+	}, "\n")
+	thresholds := PathRestructureThresholdsFromConfig(store.Config{
+		PathRestructurePrefixSplitMinFiles:    2,
+		PathRestructurePrefixSplitMinPrefixes: 2,
+		PathRestructurePrefixMoveMinFiles:     9,
+	})
+	got, err := DetectPathRestructure(PathRestructureInput{
+		FeaturePaths:         []string{"src/feature.go"},
+		RenameCopyNameStatus: status,
+		Thresholds:           thresholds,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Classification != PathRestructurePrefixSplit {
+		t.Fatalf("config override should lower split threshold: %+v", got)
+	}
+	if got.Thresholds.PrefixSplitMinFiles != 2 || got.Thresholds.PrefixMoveMinFiles != 9 {
+		t.Fatalf("override thresholds not exposed: %+v", got.Thresholds)
+	}
+}
+
 func TestDetectPathRestructureCandidateSortAndCap(t *testing.T) {
 	status := strings.Join([]string{
 		"R100\tsrc/a1.go\tz/a1.go",
