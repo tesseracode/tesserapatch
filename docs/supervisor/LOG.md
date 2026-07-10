@@ -1,3 +1,60 @@
+## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — internal — 2026-07-06
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of rev-1 fixes (`a408e58..c409bcd`) closing F1+F2.
+
+### Verdict: APPROVED
+
+### Per-finding verification
+
+- **F1 [closed]** — Path A implemented cleanly.
+  - New subcommand: `internal/cli/cobra.go:1995-2048` (`reconcileConfirmUpstreamedCmd`). Gates on `status.Reconcile.Outcome == store.ReconcileUpstreamed` OR `status.Reconcile.ReviewVerdict == "confirmed-upstreamed"`; refuses otherwise with a specific error (line 2010-2012). Feature-not-found propagates through `s.LoadFeatureStatus` naturally. Registered in the reconcile parent via `AddCommand` at `cobra.go:1954`.
+  - Reconcile JSON-path gap CLOSED: audit auto-run now runs in a `results` pre-loop at `cobra.go:1861-1865`, BEFORE the JSON return branch at `cobra.go:1866-1870`. Human render loop at `cobra.go:1890-1894` only displays the pre-computed `result.RetirementAudit`, so audit runs exactly once per result across both paths.
+  - Both `--json` and `--format json` accepted (line 2020-2024); alias covered by `TestConfirmUpstreamedRunsRetirementAudit` at `audit_retirement_test.go:163-169`.
+  - `SPEC.md:66` documents the new command. All 6 shipped surfaces mention `confirm-upstreamed`: `assets/skills/claude/tessera-patch/SKILL.md:54`, `assets/skills/copilot/tessera-patch/SKILL.md:37`, `assets/skills/cursor/tessera-patch.mdc:34`, `assets/skills/windsurf/windsurfrules:28`, `assets/workflows/tessera-patch-generic.md:32`, `assets/prompts/copilot/tessera-patch-apply.prompt.md:36`. Parity guard `assets/assets_test.go:27` (`requiredCommands`) includes it — `TestSkillParityGuard` passes.
+  - Idempotency: `runConfirmedUpstreamedRetirementAudit` at `cobra.go:2050-2068` early-returns if `ReviewVerdict != "confirmed-upstreamed"`, and `AppendReconcileRevision` (`internal/store/reconcile_revision.go:83-117`) dedupes on `EntryID` computed from a canonical identity JSON (`canonicalRevisionIdentityJSON` at line 315 strips `entry_id` before hashing; no timestamps in the identity map — verified via `revisionOrderedMap` at line 321-341). Running reconcile then `confirm-upstreamed` produces no duplicate revisions. Additionally, `AuditRetirement` line 78 counts `ReconcileActionCleanupNeeded` as a retirement revision, so the "revision-log" finding self-clears on the second audit — findings list itself is stable.
+  - Integration test at `audit_retirement_test.go:76-124` asserts (a) audit findings in JSON reconcile output, (b) runtime `Revisions[]` populated with `cleanup-needed`, and (c) persisted `reconcile-revisions.jsonl` on disk contains the cleanup entry via `store.LoadReconcileRevisions`. Cross-artifact linkage verified per carry-forward rule 11.
+
+- **F2 [closed]** — Per-correction linkage replaces file-existence check.
+  - `checkCorrections` at `internal/tools/studyvalidator/validator.go:171-201` now enumerates every `features.jsonl` row with `ground_truth` in `{false_positive, false_negative, ...}` via `correctedVerdicts` (line 209-221). For each, `revisionReferences.matches` (line 242-247) checks exact slug/verdict-id set membership across `reconcile-revisions.jsonl` AND `revision-pass.jsonl` (line 251 iterates both filenames). Fallback to `notesReferenceForSlug` (line 298-305, documented `strings.Contains` substring match). Unlinked verdicts emit one error per slug naming both slug + ground_truth (line 191).
+  - Empty slug guarded at line 299-301. Regex-special characters harmless (no regex used — literal `strings.Contains` and exact map lookups).
+  - Tests cover all 4 required cases: `TestValidateCorrectionLinksAllRevisions` (all-linked-by-revisions, no notes), `TestValidateCorrectionLinksRevisionsAndNotes` (mixed), `TestValidateCorrectionLinksReportsEachUnlinkedFeature` (2 unlinked, asserts `len(r.Errors) == 2` and each slug named), `TestValidateCorrectionLinksZeroCorrectedNoNotesNoError` (zero-corrections passes silently). Verified at `validator_test.go:64-113`.
+  - PRD 5 §6.5 dev-only surface preserved: `studyvalidator` remains under `internal/tools/`; no cobra registration; no assets/skills entries; no SPEC.md mention.
+
+### Regression checks
+- **PRD 4 rev-0 §6.1-4, §6.6**: still MET. `internal/workflow/retirement_audit.go` untouched between `a408e58..c409bcd` (verified by empty diff). Read-only invariant preserved.
+- **PRD 5 rev-0 §6.1-4, §6.6**: still MET. Malformed-record file+line reporting (`validator.go:74-100`) unchanged; count-mismatch checks (`checkMetrics` line 131-169) unchanged; t3code fixture test (`TestValidateRunsOnT3CodeStudyArtifacts` line 115-123) unchanged; dev-only surface preserved.
+- **PRD 8 5/5**: still MET. `internal/workflow/blocked_taxonomy.go`, `internal/workflow/blocked_taxonomy_test.go`, `internal/cli/blocked_taxonomy_cli_test.go`, `internal/store/reconcile_backward_compat_test.go` all zero-touch in rev-1 (verified by empty diff).
+
+### Hard-constraint sweep
+- [x] No new `FeatureState` values (`internal/store/types.go` untouched).
+- [x] No new persisted-schema fields outside ADR-025 D1-D13 (`internal/store/` untouched in rev-1; `RetirementAudit` is runtime-only on `ReconcileResult` — `internal/workflow/reconcile.go:64-66` adds `*RetirementAuditReport` with `omitempty`, not a persisted store type).
+- [x] PRD 5 stays out of public CLI (grep for `studyvalidator` / `study-validation` in `cmd/`, `SPEC.md`, `assets/` returns no user-facing registration).
+- [x] PRD 4 audit still read-only (`AuditRetirement` at `retirement_audit.go:29-100` only calls `LoadFeatureStatus`/`ListFeatures`/`LoadReconcileRevisions`/`CollectBrokenRefs`; auto-run appends only revision-pass entries via `AppendReconcileRevision`; no `SaveFeatureStatus`, no `MarkFeatureState`).
+- [x] PRD 8 backward-compat NOT regressed (zero-touch to `blocked_taxonomy*` and `reconcile_backward_compat_test.go`).
+- [x] D10 privacy: rev-1 introduces no privacy-sensitive persistence; audit tests use benign slugs (`parent`, `confirmed-upstreamed`, `child`); no source bodies/transcripts/vectors in new artifacts.
+- [x] D11 malformed handling preserved (`readJSONL` at `validator.go:74-101` and `loadRevisionReferences` at `validator.go:249-288` both report filename + 1-indexed line on malformed JSONL).
+- [x] ADR-024 / `patch-generations.json` UNTOUCHED (no diff hits under `internal/store/` for patch-generations).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` matches).
+- [x] Co-authored-by trailers on all 3 rev-1 commits (`cb61032`, `98b3256`, `c409bcd` — verified via `git log --format=fuller`).
+- [x] Path A: assets/skills 6 formats + parity guard + SPEC.md — all present (see F1 evidence above).
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean | test: `go test -count=1 ./...` green (cli 58.5s, studyvalidator 2.1s, assets 0.4s; full suite pass cached)
+
+### Adversarial findings (if any)
+
+None blocking. Investigated but did not flag:
+
+- **Notes substring collision (informational, not raised)** — `notesReferenceForSlug` at `validator.go:298-305` uses `strings.Contains(notes, slug)`, so a correction on slug `foo` would be considered "linked" by any notes mention of longer unrelated slug `foobar`. Asymmetric: short slugs vulnerable to false-positive linkage; long slugs safe. The matching contract is documented in a code comment (line 302-304); PRD 5 §4.5 does not dictate exact-match semantics; dev-only tooling. Design choice, not a bug — noted for future refinement (e.g., word-boundary match) if a study surfaces a real collision.
+- **`confirm-upstreamed` silent no-op edge case** — if `outcome == upstreamed` and `review_verdict` is non-empty and non-`confirmed-upstreamed`, the gate passes but `runConfirmedUpstreamedRetirementAudit` returns early (verdict check at `cobra.go:2051`) and the command prints "confirmed upstreamed: <slug>" without running the audit. This state is unreachable through the normal reconcile pipeline — `internal/workflow/reconcile.go:846-850` only sets `ReviewVerdict` to `confirmed-upstreamed` (with `outcome=upstreamed`) or `rejected-upstreamed` (with `outcome=blocked`). Would require manual status.json corruption; not raised.
+- **Dual-trigger double-append** — `reconcile <slug>` (auto-runs audit on `confirmed-upstreamed` results) + `reconcile confirm-upstreamed <slug>` both call `runConfirmedUpstreamedRetirementAudit`. Idempotent via `ComputeRevisionID` canonical hash and `AppendReconcileRevision` dedup (`reconcile_revision.go:102-117`); also self-limiting because `AuditRetirement:78` counts existing `cleanup-needed` revisions as retirement revisions, clearing the `revision-log` finding on subsequent runs. Verified by tracing; no test explicitly covers double-invocation but the dedup mechanism is well-tested elsewhere (`internal/store/reconcile_revision_test.go`).
+
+### Action Taken
+Verdict recorded. Ready for supervisor consolidation with external reviews.
+
+---
+
 ## Review — WP-003 Wave γ-1 (PRDs 4+5+8) — external (user-dispatched, parallel) — 2026-07-05
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
