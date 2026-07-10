@@ -1,3 +1,110 @@
+## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — external (user-dispatched, parallel) — 2026-07-10
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of rev-1 fixes (`a408e58..c409bcd`).
+
+### Verdict: APPROVED
+
+### Per-finding verification (independent of internal + supervisor-external)
+
+**F1 closed** — PRD 4 §6.5 `confirm-upstreamed` trigger contract now met with PRD-named trigger:
+- Command `tpatch reconcile confirm-upstreamed <slug>` at `internal/cli/cobra.go`.
+- Registered under `reconcile` command group at `cobra.go`; visible in `tpatch reconcile --help` output.
+- JSON reconcile path also invokes retirement audit before JSON return at `cobra.go` — supersedes rev-0's early return.
+- Runtime audit payload on `ReconcileResult` at `internal/workflow/reconcile.go`.
+
+**F2 closed** — PRD 5 §4.5 per-correction linkage enforced:
+- Main enforcement loop in `internal/tools/studyvalidator/validator.go` resolves per-row corrected verdicts.
+- Matches against revision references loaded from `reconcile-revisions.jsonl` / `revision-pass.jsonl`.
+- Emits one error per unlinked corrected slug.
+- Test coverage in `validator_test.go` covers all 4 required cases.
+
+### Regression checks
+No regressions. Coverage strong across CLI, workflow, studyvalidator, store, assets:
+- `audit_retirement_test.go` — CLI/audit paths.
+- `validator_test.go` — study validator linkage.
+- `assets_test.go` — parity guard including `confirm-upstreamed` + `audit-retirement`.
+
+### Validation gates (independent run)
+- Targeted tests: 50 passed, 0 failed.
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- CLI `tpatch reconcile --help` exposes both `audit-retirement` and `confirm-upstreamed`.
+- Side Research md5: `b385fe622db9926f48861105239f113e` (verified).
+
+### Concurrence with internal + supervisor-external
+YES on both.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — WP-003 Wave γ-1 rev-1 — supervisor — 2026-07-10
+
+**Decision**: APPROVED.
+
+Three independent reviews (internal `dc476c8`, supervisor-external `56c0320`, user-external 2026-07-10) unanimously concur. F1 (Path A — new PRD-named `confirm-upstreamed` subcommand + JSON-path fix + dual-trigger idempotency) and F2 (per-correction linkage enforcement) closed cleanly. Zero regressions to PRD 8 5/5, PRD 4 §6.1-4/§6.6, or PRD 5 §6.1-4/§6.6. All 13 hard constraints preserved. All validation gates green across all three review passes.
+
+### Wave γ-1 closure stack
+
+- rev-0 (2026-06-29): `f50e09b` (single commit — three PRDs). Internal APPROVED, supervisor-external APPROVED WITH NOTES (F1 MEDIUM), user-external NEEDS REVISION (F1 HIGH + F2 MEDIUM).
+- rev-1 (2026-07-05): `cb61032` (F1 Path A + JSON fix + SPEC/assets) + `98b3256` (F2 per-correction linkage) + `c409bcd` (handoff closure). All three reviewers APPROVED.
+
+### Wave β + γ-1 process lessons earned (15 carry-forward rules total)
+
+Rules 1-14 from prior waves. New rule 15 from γ-1 F1:
+
+**15. When PRD names a command/event as trigger, verify the command/event actually exists in production code BEFORE wiring implementation.** Implementer briefs must resolve "does this trigger exist?" as first step. Reviewer briefs must grep for the trigger name. Wave β F8 pattern repeated in γ-1 F1 — read PRD verbatim, THEN read production code, ask "is this trigger real?"
+
+### Two-opinion external review protocol — 5th consecutive win
+
+Wave α rev-0/rev-1/rev-2 + Wave β rev-0/rev-1 + Wave γ-1 rev-0/rev-1: two-opinion protocol has caught HIGH BLOCKER findings that single-review passes missed. γ-1 rev-0: user-external uniquely upgraded F1 severity + added F2 that supervisor-external missed. γ-1 rev-1: concurrence confirms fix is complete.
+
+### Wave γ-2 unlocked
+
+PRD 9 (`reconcile-path-restructure-detector`) — depends on PRD 8 (approved in γ-1). Only remaining PRD in WP-003. Wave γ-2 is a single-PRD slice.
+
+### Action Taken
+
+- Archived γ-1 rev-0 + rev-1 snapshot to `docs/handoff/HISTORY.md`.
+- Reset `docs/handoff/CURRENT.md` for γ-2 kickoff.
+- SQL todo `wp003-wave-gamma-1-prd4-prd5-prd8-impl` marked `done`.
+- Wave γ-2 (PRD 9) implementer dispatch pending user go-ahead.
+
+---
+
+## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — external (user-dispatched, parallel) — 2026-07-10
+
+**Reviewer**: external (user-dispatched, parallel)
+**Task**: Independent external review of rev-1 fixes (`a408e58..c409bcd`).
+
+### Verdict: APPROVED
+
+### Findings
+
+None blocking.
+
+### Why approved
+
+- F1 closed in production: `confirm-upstreamed` command exists and is wired (`internal/cli/cobra.go:1954`, `internal/cli/cobra.go:1995`), and retirement audit now runs before the `--format json` return path (`internal/cli/cobra.go:1861`).
+- F2 closed in production: per-correction linkage is enforced per corrected `features.jsonl` row with revision/notes matching and per-slug error emission (`internal/tools/studyvalidator/validator.go:171`, `internal/tools/studyvalidator/validator.go:209`, `internal/tools/studyvalidator/validator.go:249`).
+- Coverage present for both fixes: `internal/cli/audit_retirement_test.go` (JSON path + `confirm-upstreamed`), `internal/tools/studyvalidator/validator_test.go` (all-revision, mixed notes+revision, per-unlinked negative, zero-corrected).
+
+### Validation gates
+
+- Targeted tests passed: `runTests` summary `passed=50 failed=0` over rev-1 surfaces (`internal/cli/audit_retirement_test.go`, `internal/tools/studyvalidator/validator_test.go`, `assets/assets_test.go`).
+- `gofmt -l .`: clean (`GOFMT_OK`).
+- `go vet ./...`: clean (`GOVET_OK`).
+- `go build ./cmd/tpatch`: clean (`GOBUILD_OK`).
+- Reconcile help includes both required commands (`audit-retirement`, `confirm-upstreamed`).
+- Side Research invariant preserved: `b385fe622db9926f48861105239f113e`.
+
+### Action Taken
+
+Verdict recorded. Ready for supervisor consolidation.
+
 ## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — external (supervisor-dispatched) — 2026-07-10
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
