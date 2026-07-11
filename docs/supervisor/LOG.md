@@ -1,3 +1,69 @@
+## Review — WP-003 Wave γ-2 (PRD 9) — internal — 2026-07-10
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of γ-2 (`0e3ca4a..3117189`, 7 commits `fc91c4a e92223d 6cb8ae6 6a1ac79 b3bf617 8bf42ce 3117189`) closing PRD 9 §6 6 criteria. Final WP-003 PRD. Read production code FIRST per Wave β/γ-1 Rule 9; verified all six PRD-named classification strings appear verbatim in production per Rule 15.
+
+### Verdict: APPROVED
+
+### Per-§6 criterion verification (independent)
+
+- **§6.1 detector reports upstream-renamed/split prefix affecting feature paths — MET.** `DetectPathRestructure` at `internal/workflow/path_restructure.go:10` reads git name-status via `gitDiffNameStatus` at `internal/workflow/path_restructure_support.go:89`, and only creates a per-prefix aggregate when a feature path actually falls under it (`anyPathHasPrefix` gate at `path_restructure.go:57`). Prefix aggregation loops through `pathDirectoryPrefixes(entry.oldPath)` so the deepest feature-owning prefix wins the aggregate scoring in `betterPathRestructureEvidence` at `path_restructure.go:201`. Tests: `TestDetectPathRestructureClassifications` at `path_restructure_test.go:11` exercises all six classifications; integration test at `reconcile_evidence_integration_test.go:620` end-to-end verifies feature paths are marked affected under `src/` when git moves the feature file to `app/`.
+- **§6.2 blocked taxonomy (PRD 8) consumes restructure evidence — MET.** `blocked_taxonomy.go:87-93` reads `EvidenceKindPathRestructure` and upgrades to `structural-conflict` for `prefix-move`/`prefix-split`/`mixed` and `target-deleted` for `target-deleted`. `persistPathRestructureEvidence` at `internal/workflow/reconcile.go:758-799` writes the evidence BEFORE `persistBlockedClassificationEvidence` (ordering at `reconcile.go:584-585`), so the classifier sees the in-memory append. Integration test at `reconcile_evidence_integration_test.go:660` asserts blocked-classification consumes path-restructure and `results[0].BlockedCategory` equals `structural-conflict`. Unit precedence test at `blocked_taxonomy_test.go:53` confirms path `target-deleted` outranks hunk `edit-overlap` while dependency labels still outrank path `target-deleted` (PRD 8 backward-compat preserved).
+- **§6.3 output includes old prefix, candidate prefixes, affected paths, confidence — MET.** In persisted `store.ReconcileEvidence`:
+  - `old_prefix` → `matched_operations[0] = "old_prefix=..."` at `path_restructure.go:96`.
+  - `candidate_prefixes` → `matched_operations` entry `candidate_prefixes=A|B|C` at `path_restructure.go:104`.
+  - `affected_feature_paths` → native `MatchedPaths` field at `path_restructure.go:121`.
+  - `confidence` → native `Confidence` field driven by `pathRestructureConfidence` at `path_restructure.go:236-247`.
+  Test `TestPathRestructureReconcileEvidenceEncodesContractWithoutSchemaFields` at `path_restructure_test.go:181` asserts all four appear in a persisted entry; CLI hint test at `internal/cli/reconcile_evidence_cli_test.go:39` asserts the same four surface in human output.
+- **§6.4 detector runs without language parsers or a provider — MET.** `path_restructure.go` and `path_restructure_support.go` imports are `fmt`, `strings`, `os/exec`, `sort`, and the internal `store` package. No AST library, no `provider.*` calls, no LLM invocations (grep confirmed zero matches for `provider|ast|parser` in either file). Integration test at `reconcile_evidence_integration_test.go:623` invokes `RunReconcile(..., nil, provider.Config{}, ...)` — nil provider — and path-restructure evidence still writes.
+- **§6.5 candidate prefix output capped at 5 + deterministic sort — MET.** Cap in `evidenceForPathPrefixAggregate` at `path_restructure.go:161-164` (`pathRestructureCandidateLimit = 5` at `support.go:12`). Sort at `sortedPathRestructureCandidates` at `support.go:209-214` uses `Support >` desc primary and `Prefix <` asc tiebreak. Since all prefixes in a map are unique, the comparator is a strict total order and `sort.Slice` is therefore deterministic. Test `TestDetectPathRestructureCandidateSortAndCap` at `path_restructure_test.go:150` seeds 12 prefixes with mixed support counts (two tied at 3, one at 2, four tied at 1) and asserts exactly `["a/","z/","m/","b/","c/"]` — proves support-desc + path-asc tie-break and the 5-entry cap.
+- **§6.6 documented defaults + explicit config override — MET.** Defaults constants at `internal/store/types.go:381-385` (3/2/5 — matches PRD §3 verbatim). Config fields at `types.go:371-373` wired via flat YAML keys `prefix_split_min_files`, `prefix_split_min_prefixes`, `prefix_move_min_files`. Repo config write path at `store.go:471-482` + `store.go:512-514`, load path at `store.go:727-744`, initial `.tpatch/config.yaml` seeded with defaults at `store.go:91-95`. Global config parity at `global.go:157-165` + `global.go:193-204` + `global.go:236-240`. `DefaultPathRestructureThresholds()` at `support.go:73-79` and `PathRestructureThresholdsFromConfig(cfg)` at `support.go:81-87` are the sole entry points for the detector. `configSetCmd` at `cobra.go:2738-2757` accepts the three keys and validates positive-int via `parsePositiveConfigInt` at `cobra.go:2770-2776`. Tests: threshold round-trip at `internal/store/store_test.go:202`, override reduces threshold at `path_restructure_test.go:124`, and integration test at `reconcile_evidence_integration_test.go:668` demonstrates that raising `PathRestructurePrefixSplitMinFiles` to 4 suppresses persisted evidence.
+
+### Hard-constraint sweep
+
+- [x] **No new FeatureState values.** `git diff 0e3ca4a..3117189 -- internal/store/types.go` shows only `Config` additions (three int fields + three default constants). No lifecycle enum growth.
+- [x] **ADR-025 D13 pre-authorization verified verbatim.** D4 at `docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md:141` lists `path-restructure` as a v1 `evidence_kind`; D13 at `:343` explicitly names PRD 9 `path-restructure`. No D14 amendment needed.
+- [x] **D10 privacy.** Detector reads only git name-status paths (no file bodies). Persisted `matched_operations` are paths/counts/enums; `matched_paths` are feature paths. Integration test `TestReconcileWritesPathRestructureEvidenceAndBlockedCategory` at `reconcile_evidence_integration_test.go:663` seeds `SECRET_PATH_RESTRUCTURE_SOURCE_DO_NOT_LEAK` in file content and `SECRET_PATH_COMPONENT_ALLOWED` in the path (Wave β F3 lesson honored) and asserts the source secret does not leak into the persisted JSONL.
+- [x] **PRD 8 backward-compat.** `TestClassifyBlockedVerdictPathRestructurePrecedence` at `blocked_taxonomy_test.go:53` confirms dependency label still beats path `target-deleted`; the pre-existing `TestClassifyBlockedVerdictCategories` cases still pass. `path-none-ignored` case (`blocked_taxonomy_test.go:23`) confirms a `PathRestructureNone` reason code drops through to `unknown-blocked` rather than silently upgrading.
+- [x] **ADR-025 D11 malformed handling.** `parseNameStatusEntries` at `support.go:99-140` sets a malformed flag on any short/empty line and the detector short-circuits to `unknown` (`path_restructure.go:31-33`), which the caller filters out at `reconcile.go:788-792` — so a malformed git output never writes a bad evidence line. The evidence writer itself continues to use the pre-existing `ErrMalformedEvidence` sentinel path via `store.AppendReconcileEvidence` / `warnReconcileEvidenceAppendError` (`reconcile.go:794-796`).
+- [x] **Thresholds config-driven.** See §6.6 above.
+- [x] **No provider integration.** Confirmed by grep and by nil-provider integration test.
+- [x] **Deterministic sort tested.** `TestDetectPathRestructureCandidateSortAndCap` covers both support-desc primary and path-asc tie-break, plus the 5-entry cap.
+- [x] **ADR-024 / `patch-generations.json` untouched.** `git diff 0e3ca4a..3117189 -- internal/store/patch_generations.go internal/store/patch_generations_test.go` returns empty. `internal/store/reconcile_evidence.go` also untouched — persisted schema surface unchanged; γ-2 reuses existing `matched_paths`, `matched_operations`, `confidence`, `reason_code`, and phase-3.5.
+- [x] **Side Research md5 == `b385fe622db9926f48861105239f113e`.** Verified with `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
+- [x] **Co-authored-by trailers on all 7 rev-0 commits.** `git log --format='%b' 0e3ca4a..3117189` shows `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` on every commit.
+- [x] **Assets/skills parity guard N/A.** γ-2 adds no new CLI subcommand; it only extends `config set` with three keys and threads a new evidence writer into the existing reconcile pipeline. Skills grep for `path-restructure`/`prefix_split`/`prefix_move` returns zero across `assets/skills/{claude,copilot,cursor,windsurf}/*` — consistent with prior evidence kinds (`file-novelty`, `hunk-overlap`, `blocked-classification`) which are also not enumerated in skill docs.
+- [x] **All six PRD 9 classification strings present in production.** `PathRestructureNone`/`PrefixMove`/`PrefixSplit`/`TargetDeleted`/`Mixed`/`Unknown` at `path_restructure_support.go:17-22` map 1:1 to PRD §3 enum `none`, `prefix-move`, `prefix-split`, `target-deleted`, `mixed`, `unknown` — Rule 15 satisfied.
+
+### Validation gates
+
+- `gofmt -l .`: clean (direct invocation, unpiped).
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- `go test ./...` (fresh `-count=1` on touched packages): `internal/workflow` 62.3s ok, `internal/store` 2.7s ok, `internal/cli` 161.5s ok; full-repo run all packages ok.
+
+### Adversarial findings
+
+None material. Adversarial probes and their outcomes:
+
+1. **Split-vs-move classification precedence under overridden thresholds.** Only reachable when a user sets `prefix_split_min_prefixes = 1`. Switch statement at `path_restructure.go:187-198` deterministically picks `prefix-split` before `prefix-move`; PRD 8 taxonomy result is the same (`structural-conflict`) either way. No ambiguity to surface.
+2. **Empty feature paths.** `DetectPathRestructure` short-circuits at `path_restructure.go:13-15` to `unknown` and the caller drops `unknown` before persisting (`reconcile.go:788-792`). Safe, no panic.
+3. **Missing git diff / bad base commit.** `gitDiffNameStatus` returns the git error; `DetectPathRestructure` returns `nil, err`; `persistPathRestructureEvidence` treats `err != nil` as a no-op. Safe.
+4. **Tied support counts + cap.** `sortedPathRestructureCandidates` uses a strict total order (path asc tie-break) over unique prefixes, so `sort.Slice` output is deterministic; explicitly tested with four prefixes tied at support=1.
+5. **PRD 8 precedence with coexisting evidence.** `blocked_taxonomy_test.go:39-65` covers three-way coexistence (edit-overlap + file-novelty + path-restructure + dependency label) and asserts dependency > structural > edit-overlap ordering.
+6. **Config default validation.** `parsePositiveConfigInt` at `cobra.go:2770-2776` rejects zero/negative from CLI. YAML loader ignores non-positive via `n > 0`. `normalizePathRestructureThresholds` falls back to defaults for any non-positive input. No silent bad state.
+7. **Runtime vs persisted schema separation.** Runtime helper struct `PathRestructureEvidence` (`support.go:41-52`) is used only by the detector; the persisted record is a plain `store.ReconcileEvidence` with pre-existing ADR-025 D2 fields (no new JSONL keys, no new required or optional field additions in `store/reconcile_evidence.go`).
+
+### ADR-025 status
+
+No amendment needed — D4 (`:141`) and D13 (`:343`) verbatim pre-authorize the `path-restructure` evidence kind, and the implementation reuses D2's required-field set without extension. γ-2 closes PRD 9 within the existing schema envelope.
+
+### Action Taken
+
+APPROVED. Verdict captured; ready for supervisor consolidation and, if concurred, cluster release planning per γ-2 handoff §Next Steps.
+
+---
+
 ## Review — WP-003 Wave γ-1 rev-1 (PRDs 4+5) — external (user-dispatched, parallel) — 2026-07-10
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
