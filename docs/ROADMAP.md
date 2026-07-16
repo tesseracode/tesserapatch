@@ -355,6 +355,57 @@ verdict), tracking commit + tag `v0.7.0`. External supervisor required
 one revision (DAG renderers were missing the overlay; plain-text emitted
 one line per ref instead of per feature) — both addressed in `6e78eac`.
 
+## WP-003 — Reconcile Safety and Middle-Pass Foundation ✅
+
+Nine-PRD cluster shipping the reconcile evidence/revision schema (ADR-025)
+plus middle-pass detectors, classifiers, audits, and dev-only study
+validation. Governed end-to-end by ADR-025. Zero new lifecycle states.
+Zero schema drift across four waves. All approved via three-way review
+(internal + supervisor-external + user-external).
+
+- **Wave α — reconcile-verdict-evidence + file-novelty** ✅ (approved 2026-05-26)
+  - PRDs: [PRD-reconcile-verdict-evidence](prds/PRD-reconcile-verdict-evidence.md), [PRD-reconcile-file-novelty-classifier](prds/PRD-reconcile-file-novelty-classifier.md)
+  - ADR: [ADR-025](adrs/ADR-025-reconcile-evidence-and-revision-schema.md)
+  - Adds append-only `reconcile-evidence.jsonl`, `file_novelty` classifier
+    (`clean-additive` / `overlap-suspect` / `unknown-novelty`), evidence
+    artifact reference in status JSON + human evidence hints.
+
+- **Wave β — confirmation-gate + revision-pass-log + hunk-overlap** ✅ (approved 2026-06-28)
+  - PRDs: [PRD-upstreamed-confirmation-gate](prds/PRD-upstreamed-confirmation-gate.md), [PRD-reconcile-revision-pass-log](prds/PRD-reconcile-revision-pass-log.md), [PRD-reconcile-hunk-overlap-detector](prds/PRD-reconcile-hunk-overlap-detector.md)
+  - Adds confirmation gate before `upstreamed` verdict (evidence-derived
+    downgrade to `blocked` with `review_verdict=rejected-upstreamed` and
+    human display `[upstreamed-candidate]`); append-only
+    `reconcile-revisions.jsonl` with lenient loader + `corrupt_entries`
+    JSON envelope; deterministic hunk-overlap pass after file-novelty
+    with default `nearby-window=3`.
+
+- **Wave γ-1 — retirement-audit + study-validation + blocked-taxonomy** ✅ (approved 2026-07-10)
+  - PRDs: [PRD-reconcile-retirement-state-audit](prds/PRD-reconcile-retirement-state-audit.md), [PRD-reconcile-study-validation](prds/PRD-reconcile-study-validation.md), [PRD-reconcile-blocked-verdict-taxonomy](prds/PRD-reconcile-blocked-verdict-taxonomy.md)
+  - Read-only `tpatch reconcile audit-retirement <slug>` + new PRD-named
+    `tpatch reconcile confirm-upstreamed <slug>` trigger for auto-audit
+    (Path A per γ-1 rev-1 F1). Dev-only case-study validator at
+    `internal/tools/studyvalidator/` (not in public CLI, stdlib-only,
+    per-corrected-verdict linkage enforcement). 8-category blocked
+    taxonomy with deterministic precedence (`dependency-blocked >
+    validation-blocked > target-deleted > structural-conflict >
+    edit-overlap > shifted-context > clean-additive > unknown-blocked`).
+
+- **Wave γ-2 — path-restructure-detector** ✅ (approved 2026-07-16)
+  - PRD: [PRD-reconcile-path-restructure-detector](prds/PRD-reconcile-path-restructure-detector.md)
+  - Detector emits `path-restructure` evidence
+    (`prefix-move`/`prefix-split`/`target-deleted`/`mixed`/`none`/`unknown`)
+    consumed by PRD 8 blocked-taxonomy to upgrade generic `blocked` to
+    `structural-conflict` or `target-deleted`. Thresholds config-driven
+    (prefix-split ≥3 files ≥2 prefixes; prefix-move ≥5 files).
+    Candidate prefixes capped at 5, sorted support-desc + path-asc.
+    No provider integration.
+
+**Process artifacts**: 15 carry-forward dispatch rules codified.
+Two-opinion external review protocol (supervisor + user-parallel)
+caught HIGH BLOCKERs in α rev-0, β rev-0, γ-1 rev-0; confirmed fixes
+in β rev-1, γ-1 rev-1, γ-2 rev-0. Full per-wave snapshots archived
+to [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
+
 ## M18+ — Future
 
 - Cost tracking and token budgeting

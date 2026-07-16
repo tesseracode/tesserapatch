@@ -1,3 +1,78 @@
+## Review — WP-003 Wave γ-2 (PRD 9) — external (user-dispatched, parallel) — 2026-07-16
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of γ-2 (`0e3ca4a..3117189`).
+
+### Verdict: APPROVED
+
+### Per-§6 sweep (independent)
+All 6 criteria confirmed MET. No new blocking or medium findings.
+
+### D13 pre-authorization (independent verification)
+- D4 (`docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md:141`) lists `path-restructure` as v1 evidence_kind.
+- D13 (`:343`) explicitly names PRD 9 for `path-restructure`.
+- Confirmed verbatim at both cited lines. No amendment needed.
+
+### Regression checks
+- No `FeatureState` drift.
+- No persisted-schema drift.
+- Handoff scope aligns with logged γ-2 review context at `CURRENT.md`.
+
+### Validation gates (independent run)
+- Focused tests: 66 passed, 0 failed (workflow path-restructure, reconcile integration, blocked taxonomy, CLI evidence, store config).
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+
+### Concurrence with internal + supervisor-external
+YES on both. No contradicting evidence to the concurrence at `9ccb06f`.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — WP-003 Wave γ-2 rev-0 — supervisor — 2026-07-16
+
+**Decision**: APPROVED.
+
+Three independent reviews (internal `7e8070b`, supervisor-external `9ccb06f`, user-external 2026-07-16) unanimously concur. All 6 PRD 9 §6 acceptance criteria MET. All 13 hard constraints preserved. D13 pre-authorization verified verbatim at both D4:141 and D13:343 — no ADR amendment needed. Six adversarial probes across two external reviews cleared (split-vs-move precedence, `--find-copies` de-dupe, in-place same-directory rename inflation, target-deleted sibling inclusion, C-quoted path unicode, runtime/persisted struct separation, threshold config edge-cases).
+
+### Wave γ-2 closure stack
+- rev-0 ship (2026-07-10): `fc91c4a`, `e92223d`, `6cb8ae6`, `6a1ac79`, `b3bf617`, `8bf42ce`, `3117189` (7 commits).
+- Review LOG updates: `7e8070b` (internal), `9ccb06f` (supervisor-external).
+
+### WP-003 CLUSTER COMPLETE
+
+Nine PRDs shipped across four waves:
+- **Wave α** (2026-05-26 approved): PRD 1 `reconcile-verdict-evidence`, PRD 6 `reconcile-file-novelty-classifier`.
+- **Wave β** (2026-06-28 approved): PRD 2 `upstreamed-confirmation-gate`, PRD 3 `reconcile-revision-pass-log`, PRD 7 `reconcile-hunk-overlap-detector`.
+- **Wave γ-1** (2026-07-10 approved): PRD 4 `reconcile-retirement-state-audit`, PRD 5 `reconcile-study-validation`, PRD 8 `reconcile-blocked-verdict-taxonomy`.
+- **Wave γ-2** (2026-07-16 approved): PRD 9 `reconcile-path-restructure-detector`.
+
+All under ADR-025 (`reconcile-evidence-and-revision-schema`). No schema drift. Zero new lifecycle states. Zero new config flags for enforcement (thresholds config-driven per PRD).
+
+### Process protocol scoreboard
+
+**Two-opinion external review protocol**: 6/6 wave-rev cycles caught HIGH BLOCKERs that single-review passes would have missed:
+- Wave α rev-0: user-external caught F1 (evidence artifact not persisted).
+- Wave α rev-1: user-external caught F3 (reader-side gap).
+- Wave α rev-2: both APPROVED, supervisor-external caught carry-forward gaps (approved with notes).
+- Wave β rev-0: user-external uniquely upgraded F4 test-gap to F8 HIGH BLOCKING production gap (`corrupt_entries` envelope missing entirely).
+- Wave γ-1 rev-0: user-external uniquely upgraded F1 to HIGH + added F2 (per-correction linkage).
+- Wave β rev-1, γ-1 rev-1, γ-2 rev-0: three-way concurrence confirms fixes complete.
+
+**15 carry-forward dispatch rules** codified across the cluster. All apply forward to WP-004, WP-005, and any future implementation waves.
+
+### Action Taken
+- Archived γ-2 snapshot to `docs/handoff/HISTORY.md`.
+- Updated `docs/ROADMAP.md` to mark WP-003 cluster complete (✅).
+- Reset `docs/handoff/CURRENT.md` to post-WP-003 decision state.
+- SQL todo `wp003-wave-gamma-2-prd9-impl` marked `done`.
+- Next: user decides between v0.11.0 release prep, WP-004 kickoff, WP-005 kickoff, or research roadmap continuation.
+
+---
+
 ## Review — WP-003 Wave γ-2 (PRD 9) — external (supervisor-dispatched) — 2026-07-10
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
