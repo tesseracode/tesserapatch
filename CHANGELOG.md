@@ -2,6 +2,147 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.11.0 — 2026-07-16 — WP-003 Reconcile Safety and Middle-Pass Foundation
+
+Ships the complete WP-003 cluster: nine PRDs across four waves, all
+governed by [ADR-025](docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md).
+Zero schema drift, zero new lifecycle states, zero new user-facing
+enforcement flags. Adds one new public CLI subcommand
+(`tpatch reconcile confirm-upstreamed <slug>`) and one dev-only tool
+(`internal/tools/studyvalidator/`, not in public CLI).
+
+### Reconcile evidence + revision schema (Wave α — ADR-025 D1–D13)
+
+- New append-only `.tpatch/features/<slug>/artifacts/reconcile-evidence.jsonl`
+  recording every reconcile pass with content-addressed `attempt_id`
+  (`ra_<12hex>`), deterministic across re-runs. Zero wall-clock
+  timestamps in persisted artifacts.
+- New `reconcile-revisions.jsonl` (append-only) for revision-pass entries
+  with content-addressed `rr_<12hex>` IDs and deterministic hash-based
+  dedup via `ComputeRevisionID` (strips `entry_id` + drops timestamps
+  from canonical hash input).
+- Strict writers refuse on malformed pre-existing artifact; lenient
+  loaders (`LoadReconcileEvidenceLenient`, `LoadReconcileRevisionsLenient`)
+  return valid entries + `corrupt_entries` metadata (1-indexed line
+  numbers) without aborting on first malformed line.
+- Evidence artifact reference (`evidence_artifact`) surfaced in
+  `status.json` runtime field and human `evidence:` hint at the reconcile
+  render line. Deduplication of evidence hints across passes.
+
+### File novelty classifier (Wave α — PRD 6)
+
+- New `internal/workflow/file_novelty.go` classifier emitting
+  `file_novelty` evidence with categories `clean-additive`,
+  `overlap-suspect`, `unknown-novelty`. Runs alongside reconcile
+  passes; consumed by blocked-taxonomy classifier (PRD 8).
+
+### Upstreamed confirmation gate (Wave β — PRD 2)
+
+- Adds a confirmation gate before issuing the `upstreamed` verdict.
+  Reverse-apply + patch-id evidence stays `upstreamed` with
+  `review_verdict=confirmed-upstreamed`; unconfirmed
+  operation/provider candidates downgrade to `blocked` with
+  `review_verdict=rejected-upstreamed`, recorded gate evidence,
+  and a revision-pass entry.
+- Human reconcile output distinguishes rejected candidates via
+  `[upstreamed-candidate]` label; JSON preserves raw
+  `outcome=blocked` + `review_verdict=rejected-upstreamed` for
+  programmatic consumption.
+- `ReviewVerdict` field added to `ReconcileSummary` (ADR-025 D8
+  pre-authorized).
+
+### Revision-pass log (Wave β — PRD 3)
+
+- Per-attempt revision log with schema version, deterministic IDs, and
+  strict-write / lenient-read semantics as above. `--json` mode on the
+  `review list` surface returns a structured `corrupt_entries` array
+  and exits non-zero when corruption is present (PRD §5 verbatim).
+- New human commands: `tpatch reconcile review add`,
+  `tpatch reconcile review list [--json]`.
+
+### Hunk-overlap detector (Wave β — PRD 7)
+
+- Deterministic line-range hunk-overlap pass runs after file-novelty
+  on modified/mixed-additive files. Evidence uses existing ADR-025
+  fields (`evidence_kind=hunk-overlap`, classification in `reason_code`,
+  sanitized hunk IDs in `matched_operations`). Default `nearby-window=3`
+  encoded in evidence output.
+
+### Retirement-state audit (Wave γ-1 — PRD 4)
+
+- New `tpatch reconcile audit-retirement <slug> [--json]` — read-only
+  audit reporting stale `satisfied_by` / base SHAs, affected child
+  features, `dependent-broken` label justification, and revision-pass
+  linkage for retirement action. No mutation of status or dependency
+  metadata.
+- New `tpatch reconcile confirm-upstreamed <slug> [--json]` — the
+  PRD-named trigger for auto-audit. Loads feature status, requires
+  `confirmed-upstreamed` gate outcome, runs the retirement audit, and
+  appends `cleanup-needed` revision-pass entries via existing
+  `AppendReconcileRevision` writer. Present in both human and JSON
+  reconcile output paths. All 6 skill formats + `SPEC.md` updated
+  (parity guard enforced).
+
+### Study validator (Wave γ-1 — PRD 5, dev-only)
+
+- New `internal/tools/studyvalidator/` package (stdlib-only) validates
+  reconcile case-study folders (`study.json`, `features.jsonl`,
+  `hunks.jsonl`, `patches.jsonl`, `metrics.json`, `summary.md`).
+  Enforces per-corrected-verdict linkage: for each
+  `false_positive`/`false_negative` row in `features.jsonl`, requires a
+  matching revision-pass entry (slug / verdict-id) OR a
+  `local-notes.md` slug reference.
+- Reports malformed JSON/JSONL with filename + 1-indexed line number.
+- Not in the public `tpatch` CLI surface; optional maintainer binary at
+  `internal/tools/studyvalidator/cmd/studyvalidate/`.
+
+### Blocked-verdict taxonomy (Wave γ-1 — PRD 8)
+
+- 8-category classifier with deterministic precedence:
+  `dependency-blocked > validation-blocked > target-deleted >
+  structural-conflict > edit-overlap > shifted-context > clean-additive
+  > unknown-blocked`. Multi-category cases surface a primary category
+  plus secondary evidence.
+- Category is evidence metadata, NOT a persisted enum on
+  `ReconcileSummary`. Runtime-only `BlockedCategory` +
+  `RecommendedAction` fields on `ReconcileResult` (workflow struct)
+  surface in JSON output alongside the unchanged raw `outcome=blocked`.
+  Existing status files without category evidence continue to load and
+  roundtrip.
+
+### Path-restructure detector (Wave γ-2 — PRD 9)
+
+- New `internal/workflow/path_restructure.go` detector emitting
+  `path-restructure` evidence (`evidence_kind=path-restructure`,
+  authorized in ADR-025 D4 + D13). Classifies upstream diffs as
+  `prefix-move`, `prefix-split`, `target-deleted`, `mixed`, `none`, or
+  `unknown` using Git name-status output.
+- Threshold defaults per PRD 9 §3: prefix-split (≥3 files moved to ≥2
+  distinct new prefixes); prefix-move (≥5 files moved to one new
+  prefix). Config-driven via `config.yaml`; defaults documented.
+- Candidate prefix output capped at 5 entries, sorted by support count
+  descending then path ascending (deterministic total order).
+- Integrates with PRD 8 blocked-taxonomy: `prefix-move` /
+  `prefix-split` / `mixed` upgrade generic `blocked` to
+  `structural-conflict`; `target-deleted` classification upgrades to
+  `target-deleted` category. Runs without language parsers or provider
+  integration.
+
+### Privacy invariants (ADR-025 D10)
+
+- Zero source bodies, transcripts, prompts, or vector artifacts in
+  persisted `reconcile-evidence.jsonl`, `reconcile-revisions.jsonl`, or
+  path-restructure evidence. Tests seed secrets into title / slug /
+  path metadata across all waves.
+
+### Process artifacts (non-shipping)
+
+- Three-way review protocol (internal + supervisor-external +
+  user-external) caught HIGH BLOCKERs in Wave α rev-0, Wave β rev-0,
+  and Wave γ-1 rev-0 that single-review passes would have missed.
+- 15 dispatch-brief carry-forward rules codified for future clusters
+  (see `docs/handoff/CURRENT.md` and `docs/handoff/HISTORY.md`).
+
 ## v0.10.0 — 2026-05-23 — Wave β + Wave γ (patch-identity-metadata + patch-amend)
 
 Bundles two slices of the WP-002 capture-and-metadata foundation cluster.
