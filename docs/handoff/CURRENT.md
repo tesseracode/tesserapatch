@@ -2,11 +2,27 @@
 
 ## Active Task
 
-- **Task ID**: `post-wp003-decision`
-- **Milestone**: WP-003 (`reconcile-safety-and-middle-pass-foundation`) COMPLETE. All 9 PRDs shipped. Cluster archived to HISTORY.md 2026-07-16.
-- **Description**: Awaiting supervisor decision on next work block. Three options primary: (A) ship v0.11.0 release bundling all of WP-003 (Wave α + β + γ), (B) kick off WP-004 (auto-feature-dependencies), (C) kick off WP-005 (spec-driven-workflows). Research roadmap continuation is also available.
+- **Task ID**: `post-v0.11.0-decision`
+- **Milestone**: v0.11.0 released 2026-07-16 (WP-003 cluster complete). Awaiting supervisor decision on next work block: WP-004, WP-005, or research roadmap continuation.
+- **Description**: v0.11.0 shipped at `1c63d1d` with tag `v0.11.0` pushed to `origin/v0.11.0`. CHANGELOG.md updated with full WP-003 cluster summary. Now open for next cluster kickoff. WP-004 (`auto-feature-dependencies`) and WP-005 (`spec-driven-workflows`) both have drafted whitepapers ready for PRD ordering + wave structure decisions.
 - **Status**: Awaiting next-phase dispatch (no active implementer).
 - **Assigned**: 2026-07-16.
+
+## v0.11.0 release notes
+
+- **Tag**: `v0.11.0` on `origin/main` at commit `1c63d1d`.
+- **Scope**: 59 commits since v0.10.0, ~10,183 insertions.
+- **CHANGELOG**: Full WP-003 cluster summary (all 9 PRDs, 4 waves).
+- **Public CLI additions**:
+  - `tpatch reconcile audit-retirement <slug> [--json]`
+  - `tpatch reconcile confirm-upstreamed <slug> [--json]`
+  - `tpatch reconcile review add`
+  - `tpatch reconcile review list [--json]`
+- **Dev-only tool**: `internal/tools/studyvalidator/` (not in public CLI).
+- **New persisted artifacts** (under ADR-025 D1-D13):
+  - `.tpatch/features/<slug>/artifacts/reconcile-evidence.jsonl`
+  - `.tpatch/features/<slug>/artifacts/reconcile-revisions.jsonl`
+- **Zero** schema drift, new lifecycle states, or new user-facing enforcement config flags.
 
 ## WP-003 cluster closure summary
 
@@ -32,17 +48,15 @@ All 9 WP-003 PRDs + WP-002 Wave β/γ (already in v0.10.0 CHANGELOG) landed afte
 
 ## Open decision for supervisor
 
-Pick one before dispatching next work block:
+v0.11.0 shipped. Pick next work block:
 
-**Option A — Ship v0.11.0 release**. Bundles all of WP-003 + any tracking-only commits since v0.10.0. Pros: clean release boundary before new WP starts; CHANGELOG discipline; user-facing signal that reconcile safety is production-ready. Cons: extra release cycle before new implementation.
+**Option A — Kick off WP-004 (`auto-feature-dependencies`)**. Existing draft at `docs/whitepapers/WP-004-auto-feature-dependencies.md`. Continues the WP-002 → WP-003 sequence into dependency automation.
 
-**Option B — Kick off WP-004 (`auto-feature-dependencies`)**. Existing draft at `docs/whitepapers/WP-004-auto-feature-dependencies.md`. Pros: continues implementation momentum. Cons: v0.11.0 release scope grows larger; harder CHANGELOG later.
+**Option B — Kick off WP-005 (`spec-driven-workflows`)**. Existing draft at `docs/whitepapers/WP-005-spec-driven-workflows.md`. Opens spec-workflow surface (potentially higher user-visible impact).
 
-**Option C — Kick off WP-005 (`spec-driven-workflows`)**. Existing draft at `docs/whitepapers/WP-005-spec-driven-workflows.md`. Pros: opens spec-workflow surface (potentially higher user-visible impact). Cons: same as B re: release scope.
+**Option C — Research roadmap continuation**. Return to `docs/state-of-the-art/research-roadmap.md` for exploratory items (structural fingerprints, commutation graph, search planner, vector index). Feeds future PRDs but no immediate user-facing shipment.
 
-**Option D — Research roadmap continuation**. Return to `docs/state-of-the-art/research-roadmap.md` for exploratory items (structural fingerprints, commutation graph, search planner, vector index). Pros: unblocks future PRDs. Cons: no immediate user-facing shipment.
-
-Supervisor default recommendation: **Option A** (v0.11.0 release first). Clean release boundary before new work; reconcile safety improvements deserve their own version tag. Then Option B or C in next cycle.
+**Option D — Small quality/UX work**. Address any deferred v0.11.x follow-ups (e.g., PatchIDDetectorEnabled flag flip decision, WP-004 blockers, or a v0.11.1 patch release for any post-release issues discovered).
 
 ## Carry-forward dispatch rules (all 15 binding for any future implementation)
 
