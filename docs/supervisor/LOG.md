@@ -1,3 +1,96 @@
+## Review — ADR-027 capture-context-privacy-boundary — external (supervisor-dispatched) — 2026-07-16
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of ADR-027 draft + F1 amend (`2618e55..f1c7f65`). Verifying internal APPROVED WITH NOTES at `7dbf6f4`. Adversarial verbatim read of the ADR first, then cross-checked against research roadmap §3.1/§4, `patch-capture-context-research-brief.md`, `patch-capture-prior-art-and-hooks.md`, ADR-024/025/026, and drafted capture PRDs (`PRD-feature-file-claims`, `PRD-record-capture-modes`). Internal verdict not consulted until after independent D-clause sweep.
+
+### Verdict: APPROVED WITH NOTES
+
+Documentation-only ADR. Range `2618e55..f1c7f65` touches only `docs/adrs/ADR-027-capture-context-privacy-boundary.md` (+512) and `docs/adrs/README.md` (+1). No PRD, code, asset, `docs/handoff/CURRENT.md`, or supervisor-log body change. `git log -- docs/handoff/CURRENT.md` shows last touch at `2618e55`, untouched by `a7186d3` / `f1c7f65`. F1 (MEDIUM) is resolved verbatim by the amend; F2 (LOW) and F3 (LOW) remain valid coordination/softness notes but do not block acceptance.
+
+### D-clause sweep (13, independent)
+
+- **D1 storage boundary [locked, minor softness]**: Two lanes explicitly defined at `ADR-027-capture-context-privacy-boundary.md:88-103`. Committed lane anchored under `.tpatch/features/<slug>/artifacts/` (consistent with ADR-024 D1 at `docs/adrs/ADR-024-patch-generation-manifest-boundary.md:73` and ADR-025 D6 artifact tree). Per-surface table at lines 107-113 locks commit policy for all five capture surfaces. Metadata branches, Git notes, external object stores, and checkpoint services deferred verbatim to `ADR-capture-metadata-branch` at line 115-117. Softness on local-buffer path choice — see F3.
+- **D2 content shape [locked]**: Positive whitelist at lines 124-133 (summaries, normalized paths, IDs, hashes, opaque refs, enum reason codes, command/test names + exit classifications). Negative blanket ban at lines 135-140 covers "IDE buffer contents, editor selections, tool inputs, raw tool outputs, raw environment dumps, unredacted diagnostics, or source snippets outside the canonical patch artifacts that already own source bytes". Consistent with ADR-025 D10 at `docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md:273-291`; strict superset (extends JSONL-only ban to a repo-wide capture-artifact contract).
+- **D3 redaction contract [locked]**: Write precondition (line 146) with enumerated scrub classes at lines 153-166 (API keys, PATs, OAuth tokens, session cookies, JWTs, SSH/private keys, cloud credentials, DB URLs, passwords, bearer/basic headers, env vars, PII, prompt/response text, tool-call args, cmd stdout/stderr, stack traces, LSP payloads, embeddings/vectors). Redaction failure = hard failure for committed summaries at line 168. Local buffers restricted to redacted/hashed form at line 169. Both lanes must run the redaction contract before persist (line 148).
+- **D4 reader/writer authority [locked]**: Writer authority scoped per surface at lines 176-186; reader authority scoped per sensitivity at lines 190-200. Reconcile explicitly ring-fenced (line 184-186): "writes only reconcile-owned artifacts governed by ADR-025 and patch-generation artifacts governed by ADR-024/ADR-026. It does not become a capture-context writer under this ADR." Line 199-200 sets the provider-assisted reconcile permission that D10's amend now formally authorizes.
+- **D5 retention [locked]**: Committed = append-only-while-present (line 208), local = purgeable with bounded retention (lines 221-224). Purge is a first-class exception at lines 214-219 with hard post-purge rendering rule ("render the context as `purged` or `unavailable`, not reconstruct it from hashes, transcripts, Git history, shell history, provider logs, or other side-channels"). No local buffer may be required for deterministic replay (line 222).
+- **D6 determinism [locked]**: Reserves `ctx_<12hex>`, `cs_<12hex>`, `ce_<12hex>` at lines 231-235; distinct prefix namespace from `pg_` (ADR-024) / `re_` / `rr_` (ADR-025). Hash-input rule at lines 237-244 excludes ID field itself, non-identity redacted content hashes, and local-only ordering fields. Wall-clock ban mirrors ADR-024 D3 at line 246-251. Local-adapter timestamps allowed only as untrusted, non-promotable diagnostic fields — dropped on promotion.
+- **D7 default-off [locked]**: New surfaces default-off at lines 253-259; existing `record`, file claims, capture-mode provenance, patch-generation metadata, and reconcile evidence keep current defaults (BC preserved). Raw transcript / raw IDE buffer / external upload are "unauthorized until a future ADR explicitly accepts them" at lines 268-270 — stronger than default-off. Line 266-267 sets the provider-assisted precondition that D10's amend anchors to.
+- **D8 CLI consent [locked]**: Reserves `--capture-context=off|summary|local-events`, `--context-summary <text-or-file>`, `--include-local-context`, `--no-context`, `tpatch hooks install --capture-guards`, `tpatch context purge [<slug>|--all]` at lines 278-285. Default `off` at line 289. Fail-closed reserved `--capture-raw` at lines 295-296. Naming flexibility bounded by "equivalent names may be accepted only if the PRD preserves the same semantics" — semantics locked, not open TBD.
+- **D9 cross-feature isolation [locked]**: Feature-scoped capture at line 302-305; cross-references only via existing dependency/claim/patch-generation/reconcile IDs or explicit user-selected cross-references. Unassigned local events not auto-promoted (line 308-309). Repo-wide / vector / RAG search over context out of scope at lines 311-313.
+- **D10 machine boundary [locked, post-amend]**: Local-first mandate at lines 317-321. F1 amend at lines 323-333 adds explicit provider-assisted carve-out; see next section for verification. Secrets by env-var / keychain / provider-profile-name at lines 335-339. Metadata branches / private remotes / Git notes / object stores / checkpoint services deferred verbatim to `ADR-capture-metadata-branch` at lines 341-343.
+- **D11 malformed handling [locked]**: Mirrors ADR-024 D7 and ADR-025 D11 asymmetric blast-radius at lines 353-357 (writers refuse; readers warn + continue with context disabled; reconcile distrusts identity but proceeds from canonical patch bytes; no silent truncate / repair / redact-in-place / reserialize). Explicit cross-citation at lines 362-363.
+- **D12 backward compat [locked]**: Pre-ADR feature dirs = "no captured context declared" at line 368. No backfill scan of `patches/`, provider logs, IDE histories, shell histories, Git reflogs, or previous conversations at line 369-370. Committed files without ADR-027 schema version + redaction marker are untrusted at lines 376-378. Mirrors ADR-024 D4 no-backfill precedent (cited at line 371-372).
+- **D13 non-scope [locked]**: Enumerates 9 deferred concerns at lines 384-398 (JSONL schemas, metadata-branch storage, hook install details, raw archives, vectors/embeddings/RAG, provider prompt templates, concurrency/locking, retention durations, legal/compliance). Escape hatch bounded at lines 400-401: "Future PRDs may fill these gaps only inside the D1-D12 privacy boundary or by explicitly superseding this ADR." No open "TBD" / "may decide later" clauses.
+
+All 13 clauses atomic, single-decision, sourced to research/precedent, and forward-actionable. No internal contradictions post-amend (see next section for the F1 contradiction check).
+
+### F1 amend verification (D10 provider carve-out)
+
+**Contradiction resolved.** Verbatim verification against F1's four required conditions:
+
+- **(a) User selection cites D7**: Amend line 327 reads "the user has explicitly selected a provider path (per D7)". D7 line 266-267 reads "provider-assisted commands MUST NOT receive capture summaries unless the user already selected a provider path". Text-to-text match. ✅
+- **(b) Committed-only + redaction cite D3/D4**: Amend line 328-329 reads "the payload is a committed summary that has already passed the D3 redaction contract". D4 line 199-200 reads "Provider-assisted reconcile may receive only redacted committed summaries". Redaction contract at D3 lines 146-170 defines the required scrub. Full triangle closed. ✅
+- **(c) No local raw / IDE buffer / transcript-ref dereference cites D4**: Amend line 329-330 reads "no local private buffer, raw transcript, IDE buffer, or transcript-ref dereference is included (per D4)". D4 line 196-200 reads "MUST NOT read local private buffers, raw event logs, IDE buffers, transcript refs that require dereferencing, or cross-feature context by default". Match. ✅
+- **(d) No auto-dereference of symbolic external refs**: Amend line 331 reads "no automatic dereference of symbolic external references occurs". Anchored to D10 lines 319-321 unchanged clause "provided the reference does not dereference automatically during normal reads". Match. ✅
+
+**Narrowing vs reopening**: The amend narrows the ban rather than reopens it. Line 331-333 reads "Provider endpoints are the only external channel this ADR authorizes; all other external uploads remain banned." The final paragraph of D10 (unchanged by amend, lines 341-343) still defers metadata branches, private remotes, Git notes, object stores, and checkpoint services to `ADR-capture-metadata-branch`. The amend does not reintroduce upload paths that D10 forbids elsewhere; it only names the D4/D7-authorized channel that would otherwise contradict the blanket ban.
+
+**Residual ambiguity for a downstream PRD author reading D4 + D7 + D10 together**: None. The three clauses now form a consistent triangle: D7 sets the user-consent precondition; D3+D4 set the payload shape (committed, redacted, no local raw); D10 identifies provider endpoints as the sole authorized external channel and enumerates the four conditions verbatim. A drafter of `PRD-record-context-summary` or a future provider-assisted-reconcile PRD reads the same rule from all three.
+
+Minor observation (not a finding): D10 amend line 326 reads "provider-assisted `tpatch reconcile` or equivalent command". "Or equivalent command" is intentionally permissive so the ADR does not need re-amendment when future provider-assisted verbs land (e.g., a hypothetical `tpatch feature summarize --provider ...`). Every such command still has to pass conditions (a)-(d), so the permissiveness does not widen the privacy perimeter.
+
+### Cross-reference sweep
+
+- [x] `docs/adrs/README.md` line 18 lists "ADR-027: Capture Context Privacy Boundary — Proposed". Pre-existing gap for ADR-016..ADR-026 index entries is not introduced by this range and is out of scope for this review.
+- [x] Status at ADR line 3 = `Proposed (Accepted only after supervisor review + external review pair)`. Not `Accepted`.
+- [x] `Blocks:` header at ADR line 10 lists six downstream artifacts. Five roadmap-consistent; one naming gap — see F2.
+- [x] No PRD / code / asset / handoff changes in `a7186d3` or `f1c7f65` (`git show --stat` reports only the two ADR files across the range).
+- [x] `docs/handoff/CURRENT.md` unchanged. `git log --oneline -- docs/handoff/CURRENT.md` shows last touch at `2618e55` (before `a7186d3`); reviewed content is v0.11.0 post-release decision state, not capture-context.
+
+### Non-contradiction with precedents
+
+- **ADR-024 (patch-generation manifest boundary)**: no contradiction. ADR-027 leaves the patch-generations schema untouched (D4 line 184-186 explicitly excludes patch-generation writer authority from ADR-027 scope). D6's `ctx_`/`cs_`/`ce_` prefixes are namespace-disjoint from ADR-024's `pg_` prefix. D11 mirrors ADR-024 D7 asymmetric blast-radius. D12 mirrors ADR-024 D4 no-backfill and cites it verbatim at lines 371-372. Wall-clock ban mirrors ADR-024 D3.
+- **ADR-025 D10 (reconcile evidence privacy)**: ADR-027 is a strict superset. ADR-025 D10 forbids raw source bodies / transcripts / prompts / vectors / embeddings in reconcile JSONL artifacts; ADR-027 D2 extends the same content ban to all capture-context artifacts across the repository. ADR-027 D4 additionally forbids `reconcile` from reading local raw context or dereferencing transcript refs, tightening (not weakening) ADR-025's stance. No invariant is loosened.
+- **ADR-026 (patch amendment policy)**: silent by design. ADR-027 D4 line 184-186 explicitly excludes patch-generation writer authority. ADR-026's `reason` field on `patch-generations.json` (`docs/adrs/ADR-026-patch-amendment-policy.md:55-73`) is not brought under ADR-027 D3 redaction — this is deliberate scope separation, not a coherence gap. Amendment metadata privacy is ADR-026's concern (out of ADR-027 scope per D13's "amendment metadata capture" not being enumerated as a decision).
+- **PRD-feature-file-claims**: no contradiction. Line 298-299 defers "Do not persist claim reasons in v1. A future privacy ADR must decide whether reasons are tracked text, local-only notes, or omitted." ADR-027 D2 answers this by permitting enum reason codes and "short result summaries" — claim reasons may become either an enum or a redacted summary. Follow-up sequence in ADR-027 line 491-492 explicitly names this PRD as the first review target after ADR-027 acceptance.
+- **PRD-record-capture-modes**: no contradiction. Non-goal "No raw agent-context capture" at line 126 aligns with ADR-027 D2 + D7. Non-goal "No provider-assisted capture selection" at line 122 is about capture-time file selection, not the D10 amend's post-capture provider-assisted reconcile (different scope). Capture-mode provenance fields (`pathspecs`, `claim_ids`, `base_commit`, `upper_commit`, `dirty_state` at `PRD-record-capture-modes.md:283-289`) fit inside ADR-027 D2's positive whitelist. `--staged`, `--unstaged`, `--all`, `--claimed-only` semantics are orthogonal to ADR-027's persistence perimeter.
+
+### Forward-actionability check (6 blocked artifacts)
+
+- **PRD-active-feature-session**: drafter can build v1 spec inside D1 local-private lane, using D6 ID reservation (`cs_<12hex>`), D5 purge semantics, and D7 default-off. Unblocked. Minor coordination need on local-buffer path (F3).
+- **PRD-record-context-summary**: drafter can build the committed-summary schema against D1 committed lane, D2 content shape, D3 redaction contract, D6 `ctx_<12hex>` reservation, and D10 amend's authorized provider channel. Follow-up sequence (line 496) positions this PRD as the first committed-summary-lane schema — clear ownership. Unblocked.
+- **PRD-agent-event-log**: drafter can build local-buffer schema under D1 local lane, D2 event-hash / prompt-ref / tool-ref content shape (per row 2 of the D1 table at line 110), D3 redaction, and D6 `ce_<12hex>` reservation. Unblocked.
+- **PRD-ide-capture-hooks**: drafter can build local-buffer + committed-summary schema under D1 IDE row (line 111) constraints. However, the roadmap §3.1 sequence at `docs/state-of-the-art/research-roadmap.md:101-112` does not name this PRD — see F2. Coordination gap, not an ADR gap; drafter can proceed and the roadmap can be reconciled in follow-up.
+- **PRD-git-hook-capture-guards**: drafter can build under D1 hook row (line 112), D4 hook writer authority (line 182-183), D7 opt-in / visible / reversible install requirement (per D8 hook UX line 297-298). Unblocked.
+- **ADR-capture-metadata-branch**: drafter has explicit scope handoff from D10 line 341-343: "Separate metadata branches, private metadata remotes, Git notes, object stores, and checkpoint services require `ADR-capture-metadata-branch` or a successor ADR. That future ADR must preserve D2-D9 unless it explicitly supersedes them." Unblocked, with a clear preserve-or-supersede contract.
+
+All six drafters can proceed against ADR-027 without needing to reopen any D-clause. F2 is a follow-up roadmap edit, not a re-opening.
+
+### New findings (beyond internal F1/F2/F3)
+
+None warranting a report. Independent adversarial pass covered:
+
+- D2's phrase "unless that output has been redacted and summarized" at line 133 (permitting redacted stdout/stderr) — consistent with D3, not an escape hatch.
+- D2 blanket ban vs D1 IDE surface row — reconciled: D2 forbids raw persistence in either lane; D1 IDE row's "never committed" is the strong committed-lane statement, and local-lane content is still governed by D2's blanket ban and D3's redacted-or-hashed-form rule. Not contradictory.
+- D3 phrasing "Redaction failure is a hard failure for committed summaries" (silent on local) — reconciled: D3's opening sentence at line 148 already establishes "either lane" as MUST-redact, so the committed-specific hard-failure emphasis does not soften the local rule.
+- D10 amend's "or equivalent command" — intentionally permissive; every command still has to satisfy (a)-(d).
+- D6 identity-hash rule "excluding... redacted content hashes that are not part of identity" — schema-level decision deferred to downstream PRDs per D13; acceptable.
+- Amendment metadata privacy (ADR-026 `reason` field) — deliberately out of ADR-027 scope per D4 line 184-186; not a coherence gap.
+- Redaction primitive ownership — Consequences at line 473 flags "Redaction becomes a required shared primitive before any capture writer ships." Downstream drafters (esp. `PRD-record-context-summary`) can own the primitive; ADR does not need to pre-select the owner.
+
+### Concurrence with internal verdict?
+
+**YES.** APPROVED WITH NOTES matches independent sweep. F1 amend at `f1c7f65` resolves the D10-vs-D4/D7 contradiction cleanly, verbatim-cited to D3/D4/D7 with narrowing (not reopening) language. F2 (LOW) and F3 (LOW) remain valid coordination/softness notes that do not block acceptance and can be handled in follow-up commits. No new findings that internal missed.
+
+Recommendation: ADR-027 is ready for supervisor Accepted transition on next dispatch, contingent on the supervisor deciding whether F2 (roadmap sync) and F3 (local-buffer path lock or explicit deferral) should be handled pre- or post-Accepted.
+
+### Action Taken
+
+Independent external verdict captured for supervisor consolidation. LOG.md commit hash recorded on push.
+
+---
+
 ## Review — ADR-027 capture-context-privacy-boundary — internal — 2026-07-16
 
 **Reviewer**: internal (code-review agent)
