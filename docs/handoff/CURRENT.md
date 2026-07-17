@@ -78,20 +78,36 @@ v0.11.0 shipped. Pick next work block:
 
 ## Session Summary
 
-WP-003 cluster closure recorded. γ-2 rev-0 archived 2026-07-16. Awaiting next-block decision (release vs new WP).
+WP-003 cluster closure recorded. v0.11.0 shipped (tag `1c63d1d`). ADR-027 (`capture-context-privacy-boundary`) drafted `a7186d3` + F1 amend `f1c7f65`. Internal APPROVED WITH NOTES `7dbf6f4`. Supervisor-external APPROVED WITH NOTES `a363ed2`. Awaiting user-parallel external before flipping ADR-027 status to Accepted.
+
+v0.11.1 stabilization cluster queued (see Next Steps).
 
 ## Next Steps
 
-1. Supervisor: pick Option A, B, C, or D above.
-2. If Option A (v0.11.0):
-   - Audit `git log v0.10.0..HEAD` for full release scope.
-   - Draft CHANGELOG v0.11.0 entry covering all WP-003 waves.
-   - Tag `v0.11.0`, push tag.
-   - Archive CURRENT.md, open next-wave kickoff.
-3. If Option B or C:
-   - Read the WP draft.
-   - Ask (as WP-003 did) for PRD ordering + wave structure.
-   - Dispatch first implementer slice.
+**Currently in flight** — ADR-027 acceptance:
+
+1. Await user-parallel external verdict on ADR-027 (`f1c7f65`).
+2. If three-way APPROVED (WITH NOTES acceptable): amend ADR-027 status from `Proposed` to `Accepted`. Append supervisor decision + user-external entry to LOG.md. Update `docs/adrs/README.md` status.
+
+**Queued next — v0.11.1 stabilization cluster** (approved 2026-07-16; SQL todos `v0.11.1-stab-slice-*` all `pending` with deps on `adr-027-capture-privacy`):
+
+All 6 findings from external review team + reviewer agent independently verified against actual repo state at HEAD.
+
+- **Slice 1 — Asset/CLI parity fixes** (immediate; HIGH+MEDIUM). Three findings:
+  - Skills recipe schema drift: docs teach `{"version": 1, "operations": [...]}` (missing required `feature` field); actual `ApplyRecipe` struct at `internal/workflow/implement.go:42` requires `{Feature, Operations}` with no `version` field. Fix across all 6 skill formats.
+  - `feature patch fixup --target` documented in skills but `TestFeaturePatchFixupRejectsTargetFlag` in `internal/cli/feature_patch_test.go` asserts CLI refuses it with `unknown flag: --target`. Remove `--target` from all 6 skill docs.
+  - `internal/cli/verify.go:22,50` help text says V3–V9 are stubs; they execute. Update help text.
+  - Full implement→internal→external-pair review cycle. Parity guard MUST pass.
+
+- **Slice 2 — Reconcile docs refresh** (MEDIUM). `docs/reconcile.md` last touched 2026-05-11 (pre-Wave-α); zero matches for evidence/revision/confirmation-gate/hunk-overlap/blocked_category/path-restructure. Rewrite for v0.11 evidence system covering ADR-025 D1–D13 + all 9 WP-003 PRDs. Cross-link ADR-025 clauses. Docs-only, full review cycle.
+
+- **Slice 3 — Release ops cleanup** (LOW-MEDIUM). Latest GH Release is `v0.7.0` despite `v0.8.0`, `v0.8.1`, `v0.9.0`, `v0.10.0`, `v0.11.0` all tagged and pushed. Publish 5 missing GH Releases using CHANGELOG entries as release notes. Add `RELEASING.md` (or update existing checklist) so tag+release don't drift again. Supervisor-direct execution; no full review cycle.
+
+- **Slice 4 — `PRD-tpatch-doctor` draft** (product gap; paper-only). Draft `docs/prds/PRD-tpatch-doctor-metadata-migration.md`. Scope: `tpatch doctor` / `tpatch migrate` detecting schema-version drift on features, missing `patch-generations.json`, stale skill assets in-repo, old lock formats, missing evidence artifacts. Dry-run + backup + idempotent semantics. PRD-only, no code. Full review cycle mirroring ADR-027 model.
+
+**Carry-forward rules apply** (all 15 binding). Notably: rule 8 (display-string contracts, applies to Slice 1 finding 3), rule 9 (behavior-implemented-vs-tested, applies to Slice 1 finding 2 — CLI contract is guarded but skills drifted anyway), rule 14 (two-opinion externals for slices 1 + 2 + 4).
+
+**Cluster naming discrepancy** — external team's writeup referenced ADR-027 as "feature unapply lifecycle/state boundary". Our ADR-027 is `capture-context-privacy-boundary`. Findings are substantively independent of what ADR-027 is about, so cluster stands as-is.
 
 ## Blockers
 
