@@ -320,6 +320,18 @@ metadata branches to an external service. It may store symbolic references to
 external systems that already exist outside tpatch, provided the reference does
 not dereference automatically during normal reads.
 
+**Provider-assisted carve-out (D4 + D7 sole authorized channel)**: the ban above
+does NOT apply to redacted committed summaries transmitted to a user-selected
+provider endpoint (`OpenAICompatible`, `Anthropic`, or future providers) as part
+of a provider-assisted `tpatch reconcile` or equivalent command. That channel is
+authorized only when ALL of the following hold: (a) the user has explicitly
+selected a provider path (per D7), (b) the payload is a committed summary that
+has already passed the D3 redaction contract, (c) no local private buffer, raw
+transcript, IDE buffer, or transcript-ref dereference is included (per D4), and
+(d) no automatic dereference of symbolic external references occurs. Provider
+endpoints are the only external channel this ADR authorizes; all other external
+uploads remain banned.
+
 Secrets live outside `.tpatch/` and outside committed artifacts. If a future
 integration needs credentials, the committed artifact stores only an environment
 variable name, keychain reference, or provider profile name. OS keychains may be
