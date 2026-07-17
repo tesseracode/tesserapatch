@@ -69,6 +69,7 @@ The motivating question is:
 | [patch-capture-prior-art-and-hooks.md](patch-capture-prior-art-and-hooks.md) | Snapshot research | Quilt, StGit, Git hooks/trailers, Entire checkpoints, Aider Git workflow, and tpatch capture implications. |
 | [research-roadmap.md](research-roadmap.md) | Living tracker | Durable research front and recommended PRD/ADR sequencing independent of `docs/handoff/CURRENT.md`. |
 | [search-based-patch-application.md](search-based-patch-application.md) | Snapshot research | Non-LLM search/planning strategies for patch ordering and relocation. |
+| [storage-substrate-and-versioned-data.md](storage-substrate-and-versioned-data.md) | Snapshot research | Storage substrate and versioned-data prior art; concludes authoritative tpatch state should remain tracked files, with indexes/caches as derived projections only. |
 | [experiment-guide-structural-middle-pass.md](experiment-guide-structural-middle-pass.md) | Snapshot guide | Case-study protocol for collecting keypoints, k-grams, AST/vector data, apply outcomes, and evaluation metrics. |
 | [case-studies/](case-studies/) | Living dataset index | Recorded structural middle-pass case studies and imported experiment artifacts. |
 | [tpatch-middle-pass-synthesis.md](tpatch-middle-pass-synthesis.md) | Snapshot synthesis | A possible future "structural/search planner" seam for tpatch. |
