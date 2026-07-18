@@ -1,6 +1,6 @@
 # ADR-027: Capture Context Privacy Boundary
 
-**Status**: Proposed (Accepted only after supervisor review + external review pair)
+**Status**: Accepted (three-way review 2026-07-17: internal `7dbf6f4`, supervisor-external `a363ed2`, user-external in LOG.md)
 **Date**: 2026-07-16
 **Owner**: Core
 **Cluster**: Capture and metadata foundation (roadmap §3.1)

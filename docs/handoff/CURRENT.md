@@ -78,20 +78,15 @@ v0.11.0 shipped. Pick next work block:
 
 ## Session Summary
 
-WP-003 cluster closure recorded. v0.11.0 shipped (tag `1c63d1d`). ADR-027 (`capture-context-privacy-boundary`) drafted `a7186d3` + F1 amend `f1c7f65`. Internal APPROVED WITH NOTES `7dbf6f4`. Supervisor-external APPROVED WITH NOTES `a363ed2`. Awaiting user-parallel external before flipping ADR-027 status to Accepted.
+WP-003 cluster closure recorded. v0.11.0 shipped (tag `1c63d1d`). ADR-027 (`capture-context-privacy-boundary`) drafted `a7186d3` + F1 amend `f1c7f65`. Three-way APPROVED WITH NOTES: internal `7dbf6f4`, supervisor-external `a363ed2`, user-external 2026-07-17. Status flipped from `Proposed` to `Accepted` in ADR file + README index.
 
-v0.11.1 stabilization cluster queued (see Next Steps).
+v0.11.1 stabilization cluster now unblocked (SQL deps on `adr-027-capture-privacy` resolved). Awaiting go-ahead on Slice 1.
 
 ## Next Steps
 
-**Currently in flight** — ADR-027 acceptance:
+**ADR-027 landed 2026-07-17**. Unlocks: PRD-active-feature-session, PRD-record-context-summary, PRD-agent-event-log, PRD-ide-capture-hooks (rename TBD per F2), PRD-git-hook-capture-guards, ADR-capture-metadata-branch. Non-blocking ADR-027 follow-ups: F2 (roadmap naming coord — can fold into v0.11.1 Slice 2 or handle standalone) + F3 (D1 path softness — downstream PRD will lock).
 
-1. Await user-parallel external verdict on ADR-027 (`f1c7f65`).
-2. If three-way APPROVED (WITH NOTES acceptable): amend ADR-027 status from `Proposed` to `Accepted`. Append supervisor decision + user-external entry to LOG.md. Update `docs/adrs/README.md` status.
-
-**Queued next — v0.11.1 stabilization cluster** (approved 2026-07-16; SQL todos `v0.11.1-stab-slice-*` all `pending` with deps on `adr-027-capture-privacy`):
-
-All 6 findings from external review team + reviewer agent independently verified against actual repo state at HEAD.
+**Ready to dispatch — v0.11.1 stabilization cluster** (all 4 slices `pending` in SQL, deps resolved):
 
 - **Slice 1 — Asset/CLI parity fixes** (immediate; HIGH+MEDIUM). Three findings:
   - Skills recipe schema drift: docs teach `{"version": 1, "operations": [...]}` (missing required `feature` field); actual `ApplyRecipe` struct at `internal/workflow/implement.go:42` requires `{Feature, Operations}` with no `version` field. Fix across all 6 skill formats.
@@ -99,15 +94,15 @@ All 6 findings from external review team + reviewer agent independently verified
   - `internal/cli/verify.go:22,50` help text says V3–V9 are stubs; they execute. Update help text.
   - Full implement→internal→external-pair review cycle. Parity guard MUST pass.
 
-- **Slice 2 — Reconcile docs refresh** (MEDIUM). `docs/reconcile.md` last touched 2026-05-11 (pre-Wave-α); zero matches for evidence/revision/confirmation-gate/hunk-overlap/blocked_category/path-restructure. Rewrite for v0.11 evidence system covering ADR-025 D1–D13 + all 9 WP-003 PRDs. Cross-link ADR-025 clauses. Docs-only, full review cycle.
+- **Slice 2 — Reconcile docs refresh** (MEDIUM). `docs/reconcile.md` last touched 2026-05-11 (pre-Wave-α); zero matches for evidence/revision/confirmation-gate/hunk-overlap/blocked_category/path-restructure. Rewrite for v0.11 evidence system covering ADR-025 D1–D13 + all 9 WP-003 PRDs. Cross-link ADR-025 clauses. Docs-only, full review cycle. Optionally roll in ADR-027 F2 (roadmap naming coord).
 
 - **Slice 3 — Release ops cleanup** (LOW-MEDIUM). Latest GH Release is `v0.7.0` despite `v0.8.0`, `v0.8.1`, `v0.9.0`, `v0.10.0`, `v0.11.0` all tagged and pushed. Publish 5 missing GH Releases using CHANGELOG entries as release notes. Add `RELEASING.md` (or update existing checklist) so tag+release don't drift again. Supervisor-direct execution; no full review cycle.
 
 - **Slice 4 — `PRD-tpatch-doctor` draft** (product gap; paper-only). Draft `docs/prds/PRD-tpatch-doctor-metadata-migration.md`. Scope: `tpatch doctor` / `tpatch migrate` detecting schema-version drift on features, missing `patch-generations.json`, stale skill assets in-repo, old lock formats, missing evidence artifacts. Dry-run + backup + idempotent semantics. PRD-only, no code. Full review cycle mirroring ADR-027 model.
 
-**Carry-forward rules apply** (all 15 binding). Notably: rule 8 (display-string contracts, applies to Slice 1 finding 3), rule 9 (behavior-implemented-vs-tested, applies to Slice 1 finding 2 — CLI contract is guarded but skills drifted anyway), rule 14 (two-opinion externals for slices 1 + 2 + 4).
+**Carry-forward rules apply** (all 15 binding). Notably: rule 8 (display-string contracts), rule 9 (behavior-implemented-vs-tested — Slice 1 finding 2's contract is CLI-guarded but skills drifted anyway), rule 14 (two-opinion externals for slices 1 + 2 + 4).
 
-**Cluster naming discrepancy** — external team's writeup referenced ADR-027 as "feature unapply lifecycle/state boundary". Our ADR-027 is `capture-context-privacy-boundary`. Findings are substantively independent of what ADR-027 is about, so cluster stands as-is.
+**Cluster naming discrepancy** — external team's writeup referenced ADR-027 as "feature unapply lifecycle/state boundary". Our ADR-027 is `capture-context-privacy-boundary`. Findings substantively independent, cluster stands.
 
 ## Blockers
 

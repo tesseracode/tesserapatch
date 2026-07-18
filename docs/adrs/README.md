@@ -15,7 +15,7 @@
 - [ADR-013: Verify Freshness Overlay](ADR-013-verify-freshness-overlay.md) — Accepted
 - [ADR-014: Smart Endpoint Routing for the copilot-api Proxy](ADR-014-smart-endpoint-routing.md) — Accepted
 - [ADR-015: Prior-Art Mapping for Identity Duality, Operation Log, and Stack Primitives](ADR-015-prior-art-identity-mapping.md) — Accepted (research framework)
-- [ADR-027: Capture Context Privacy Boundary](ADR-027-capture-context-privacy-boundary.md) — Proposed
+- [ADR-027: Capture Context Privacy Boundary](ADR-027-capture-context-privacy-boundary.md) — Accepted
 
 ## Locked-In Decisions (from review process)
 

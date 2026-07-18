@@ -1,3 +1,79 @@
+## Review — ADR-027 capture-context-privacy-boundary — external (user-dispatched, parallel) — 2026-07-17
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of ADR-027 draft + F1 amend (`2618e55..f1c7f65`).
+
+### Verdict: APPROVED WITH NOTES
+
+### D-clause sweep (13)
+All 13 D-clauses verified locked, sourced, non-contradictory, and forward-actionable for downstream PRD authors.
+
+### F1 amend verification (D10 provider carve-out)
+Contradiction resolved. D10 now explicitly permits only provider-assisted transmission of already-redacted committed summaries under D3, D4, D7 constraints. Consistent triangle for downstream PRD authors reading D4 + D7 + D10 together.
+
+### Cross-reference sweep
+- README.md index updated with ADR-027 entry.
+- Status remains `Proposed` (pending supervisor decision to promote to Accepted after three-way review).
+- Blocks header lists downstream PRDs.
+- No PRD/code changes in the commit stack.
+- `docs/handoff/CURRENT.md` unchanged (Side Research md5 preserved).
+
+### Non-contradiction with precedents
+- ADR-024 patch-generations boundary: confirmed untouched.
+- ADR-025 D10 reconcile privacy: ADR-027 is a strict superset; no weakening.
+- ADR-026 amendment policy: confirmed no scope collision.
+- Drafted capture PRDs (file-claims + record-capture-modes): confirmed D1/D2/D7 do not contradict `--staged`/`--claimed-only` semantics.
+
+### Forward-actionability
+All 6 blocked artifacts (PRD-active-feature-session, PRD-record-context-summary, PRD-agent-event-log, PRD-ide-capture-hooks, PRD-git-hook-capture-guards, ADR-capture-metadata-branch) can be drafted against ADR-027 without reopening any D-clause.
+
+### New findings (beyond internal + supervisor-external)
+None. Prior LOW/coordination notes (F2 PRD-ide-capture-hooks naming in Blocks header vs research-roadmap.md; F3 D1 local-buffer path softness) remain valid follow-ups but do not block acceptance.
+
+### Concurrence with internal + supervisor-external
+YES on both.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — ADR-027 capture-context-privacy-boundary — supervisor — 2026-07-17
+
+**Decision**: APPROVED WITH NOTES. ADR-027 promoted from `Proposed` to `Accepted`.
+
+Three independent reviews (internal `7dbf6f4`, supervisor-external `a363ed2`, user-external 2026-07-17) unanimously APPROVED WITH NOTES. F1 (MEDIUM, D10 provider-assisted external channel contradiction) resolved by amend at `f1c7f65`. F2 (LOW, roadmap naming coordination) and F3 (LOW, D1 local-buffer path softness) are non-blocking follow-ups.
+
+### ADR-027 closure stack
+- `a7186d3` — initial draft (13 D-clauses locked)
+- `7dbf6f4` — internal APPROVED WITH NOTES (F1 MEDIUM, F2 LOW, F3 LOW)
+- `f1c7f65` — F1 amend (D10 provider-assisted carve-out with 4 conditions)
+- `a363ed2` — supervisor-external APPROVED WITH NOTES (F1 resolved; F2/F3 acknowledged)
+- (LOG entry above) — user-external APPROVED WITH NOTES (F1 resolved; concurrence YES)
+
+### Unlocks (Blocks header items now ready for PRD/ADR drafting)
+- `PRD-active-feature-session`
+- `PRD-record-context-summary`
+- `PRD-agent-event-log`
+- `PRD-ide-capture-hooks` (rename target — see F2)
+- `PRD-git-hook-capture-guards`
+- `ADR-capture-metadata-branch`
+
+### Non-blocking follow-ups (deferred, do not gate acceptance)
+- **F2**: Reconcile Blocks-header PRD name `PRD-ide-capture-hooks` with `research-roadmap.md` §3.1 naming. Small docs edit; can fold into v0.11.1 Slice 2 (reconcile docs refresh) or handle standalone.
+- **F3**: D1 local-buffer path choice (`.git/tpatch/capture/` vs OS user-cache vs `.tpatch/local/capture/`). Downstream `PRD-active-feature-session` will lock the primary path.
+
+### Two-opinion protocol scoreboard update
+7 consecutive rev cycles pass with three-way concurrence: WP-003 Wave α rev-0/1/2, Wave β rev-0/1, Wave γ-1 rev-0/1, Wave γ-2 rev-0, and now ADR-027 rev-0 (with F1 amend). Protocol earning its keep consistently across code + doc-only reviews.
+
+### Action Taken
+- ADR-027 status flipped from `Proposed` to `Accepted` in ADR file + `docs/adrs/README.md`.
+- SQL todo `adr-027-capture-privacy` marked `done`.
+- v0.11.1 stabilization cluster slices unblocked (deps on `adr-027-capture-privacy` resolved).
+- Awaiting user go-ahead to dispatch v0.11.1 Slice 1 (asset/CLI parity fixes).
+
+---
+
 ## Review — ADR-027 capture-context-privacy-boundary — external (supervisor-dispatched) — 2026-07-16
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
