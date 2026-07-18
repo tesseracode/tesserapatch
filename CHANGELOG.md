@@ -2,6 +2,17 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.11.1 (unreleased) — Stabilization
+
+- Aligned all six shipped skill/prompt/workflow apply-recipe examples with
+  the canonical `ApplyRecipe` schema: top-level `feature` plus
+  `operations`, with no unsupported `version` field.
+- Removed the unsupported `--target <generation_id>` fixup flag from all
+  shipped skill/prompt/workflow guidance; fixup targets are auto-derived
+  from the current patch-generation manifest.
+- Refreshed `tpatch verify` help/comment text and shipped skill summaries
+  so V0-V9 are described as real checks rather than deferred Slice C stubs.
+
 ## v0.11.0 — 2026-07-16 — WP-003 Reconcile Safety and Middle-Pass Foundation
 
 Ships the complete WP-003 cluster: nine PRDs across four waves, all

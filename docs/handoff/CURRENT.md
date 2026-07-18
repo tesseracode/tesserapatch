@@ -2,61 +2,102 @@
 
 ## Active Task
 
-- **Task ID**: `post-v0.11.0-decision`
-- **Milestone**: v0.11.0 released 2026-07-16 (WP-003 cluster complete). Awaiting supervisor decision on next work block: WP-004, WP-005, or research roadmap continuation.
-- **Description**: v0.11.0 shipped at `1c63d1d` with tag `v0.11.0` pushed to `origin/v0.11.0`. CHANGELOG.md updated with full WP-003 cluster summary. Now open for next cluster kickoff. WP-004 (`auto-feature-dependencies`) and WP-005 (`spec-driven-workflows`) both have drafted whitepapers ready for PRD ordering + wave structure decisions.
-- **Status**: Awaiting next-phase dispatch (no active implementer).
-- **Assigned**: 2026-07-16.
+- **Task ID**: `v0.11.1-slice-1-asset-cli-parity`
+- **Milestone**: v0.11.1 stabilization — Slice 1
+- **Description**: Close asset/CLI parity findings: apply-recipe schema drift in shipped skills, unsupported fixup `--target` guidance, and stale `verify` V3-V9 help text.
+- **Status**: Review (implementation complete; awaiting supervisor review)
+- **Assigned**: 2026-07-17.
 
-## v0.11.0 release notes
+## Session Summary
 
-- **Tag**: `v0.11.0` on `origin/main` at commit `1c63d1d`.
-- **Scope**: 59 commits since v0.10.0, ~10,183 insertions.
-- **CHANGELOG**: Full WP-003 cluster summary (all 9 PRDs, 4 waves).
-- **Public CLI additions**:
-  - `tpatch reconcile audit-retirement <slug> [--json]`
-  - `tpatch reconcile confirm-upstreamed <slug> [--json]`
-  - `tpatch reconcile review add`
-  - `tpatch reconcile review list [--json]`
-- **Dev-only tool**: `internal/tools/studyvalidator/` (not in public CLI).
-- **New persisted artifacts** (under ADR-025 D1-D13):
-  - `.tpatch/features/<slug>/artifacts/reconcile-evidence.jsonl`
-  - `.tpatch/features/<slug>/artifacts/reconcile-revisions.jsonl`
-- **Zero** schema drift, new lifecycle states, or new user-facing enforcement config flags.
+v0.11.1 Slice 1 implemented on top of `430aab6`. All six shipped skill/prompt/workflow surfaces now show the canonical `ApplyRecipe` JSON shape, no longer document the rejected `feature patch fixup --target` flag, and describe `tpatch verify` as running V0-V9 real checks. `internal/cli/verify.go` help/comment text now reflects post-Slice-C behavior without changing verify execution logic. `CHANGELOG.md` has a v0.11.1 unreleased stabilization entry.
 
-## WP-003 cluster closure summary
+The asset recipe parity guard was updated to decode examples into `workflow.ApplyRecipe` and require top-level `feature`, so the guard now enforces the same schema as `internal/workflow/implement.go:42`.
 
-### Ship totals (on `origin/main`)
-- **9 PRDs** across 4 waves:
-  - **Wave α** (v0.9.0 alpha-2 approved 2026-05-26): PRD 1 `reconcile-verdict-evidence`, PRD 6 `reconcile-file-novelty-classifier`.
-  - **Wave β** (approved 2026-06-28): PRD 2 `upstreamed-confirmation-gate`, PRD 3 `reconcile-revision-pass-log`, PRD 7 `reconcile-hunk-overlap-detector`.
-  - **Wave γ-1** (approved 2026-07-10): PRD 4 `reconcile-retirement-state-audit`, PRD 5 `reconcile-study-validation`, PRD 8 `reconcile-blocked-verdict-taxonomy`.
-  - **Wave γ-2** (approved 2026-07-16): PRD 9 `reconcile-path-restructure-detector`.
-- **ADR-025** (`reconcile-evidence-and-revision-schema`) governs entire cluster. Zero schema drift.
-- **Zero** new lifecycle states across 9 PRDs (evidence-metadata pattern preferred over persisted enum).
-- **Two-opinion external review protocol** validated: caught HIGH BLOCKERs in α rev-0, β rev-0, γ-1 rev-0.
-- **15 process rules** codified in dispatch-brief carry-forwards.
+## Current State
 
-### Deltas since v0.10.0 (unreleased)
-All 9 WP-003 PRDs + WP-002 Wave β/γ (already in v0.10.0 CHANGELOG) landed after v0.10.0 tag. v0.11.0 would bundle:
-- WP-003 Wave α: reconcile evidence artifact + revision-pass writer + file-novelty classifier.
-- WP-003 Wave β: upstreamed confirmation gate + revision-pass log + hunk-overlap detector.
-- WP-003 Wave γ-1: retirement-state-audit + study-validator (dev-only tool) + blocked-verdict-taxonomy.
-- WP-003 Wave γ-2: path-restructure detector.
-- New CLI subcommand: `tpatch reconcile confirm-upstreamed <slug>` (Wave γ-1 rev-1 Path A).
-- New internal tool: `internal/tools/studyvalidator/` (dev-only, not in public CLI).
+Slice 1 code/docs are ready for review. No `docs/reconcile.md`, release-ops, draft doctor PRD, or ADR-027 follow-up work was touched. Pre-existing unrelated uncommitted research/whitepaper docs remain in the worktree and were intentionally left unstaged/out of scope.
 
-## Open decision for supervisor
+## Slice 1 closure summary
 
-v0.11.0 shipped. Pick next work block:
+### Finding 1 — HIGH — apply-recipe schema drift closed
 
-**Option A — Kick off WP-004 (`auto-feature-dependencies`)**. Existing draft at `docs/whitepapers/WP-004-auto-feature-dependencies.md`. Continues the WP-002 → WP-003 sequence into dependency automation.
+- Fixed all six recipe examples to remove unsupported `version` and add required top-level `feature`:
+  - `assets/workflows/tessera-patch-generic.md:128`
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:101`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:116`
+  - `assets/skills/cursor/tessera-patch.mdc:111`
+  - `assets/skills/claude/tessera-patch/SKILL.md:139`
+  - `assets/skills/windsurf/windsurfrules:105`
+- Guard aligned with ground truth: `assets/assets_test.go:255`, `assets/assets_test.go:277`, `assets/assets_test.go:286`.
+- Test result: `go test ./assets/...` PASS (`ok github.com/tesseracode/tesserapatch/assets 2.326s`).
 
-**Option B — Kick off WP-005 (`spec-driven-workflows`)**. Existing draft at `docs/whitepapers/WP-005-spec-driven-workflows.md`. Opens spec-workflow surface (potentially higher user-visible impact).
+### Finding 2 — HIGH — unsupported fixup `--target` guidance removed
 
-**Option C — Research roadmap continuation**. Return to `docs/state-of-the-art/research-roadmap.md` for exploratory items (structural fingerprints, commutation graph, search planner, vector index). Feeds future PRDs but no immediate user-facing shipment.
+- Removed `--target <generation_id>` and documented manifest-derived target selection at all six surfaces:
+  - `assets/workflows/tessera-patch-generic.md:61`
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:47`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:68`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:82`
+  - `assets/skills/cursor/tessera-patch.mdc:57`
+  - `assets/skills/claude/tessera-patch/SKILL.md:65`
+  - `assets/skills/windsurf/windsurfrules:51`
+- CLI behavior unchanged: `internal/cli/feature_patch.go:45` defines only `--reason`; `internal/cli/feature_patch_test.go:114` still asserts `--target` is rejected.
+- Test result: full `go test ./...` PASS, including `internal/cli` (`115.216s`).
 
-**Option D — Small quality/UX work**. Address any deferred v0.11.x follow-ups (e.g., PatchIDDetectorEnabled flag flip decision, WP-004 blockers, or a v0.11.1 patch release for any post-release issues discovered).
+### Finding 3 — MEDIUM — `verify` help/comment staleness closed
+
+- Updated CLI comment/help text to state all V0-V9 checks execute as real checks, with documented precondition skips where applicable:
+  - `internal/cli/verify.go:20`
+  - `internal/cli/verify.go:52`
+- Shipped skill command summaries also now say `tpatch verify` runs V0-V9 checks:
+  - `assets/workflows/tessera-patch-generic.md:94`
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:77`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:65`
+  - `assets/skills/cursor/tessera-patch.mdc:76`
+  - `assets/skills/claude/tessera-patch/SKILL.md:315`
+  - `assets/skills/windsurf/windsurfrules:70`
+- Evidence read before edit: `internal/workflow/verify_slice_c_test.go:3` covers V3-V6/V9; `internal/workflow/verify_closure_replay_test.go:3` covers V7/V8.
+- Test result: full `go test ./...` PASS.
+
+## Files Changed
+
+- `CHANGELOG.md`
+- `assets/assets_test.go`
+- `assets/workflows/tessera-patch-generic.md`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/windsurf/windsurfrules`
+- `internal/cli/verify.go`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+- `go test ./assets/...` — PASS (`ok github.com/tesseracode/tesserapatch/assets 2.326s`).
+- `gofmt -l .` — PASS (no output).
+- `go vet ./...` — PASS (no output).
+- `go build ./cmd/tpatch` — PASS.
+- `go test ./...` — PASS (`internal/cli` 115.216s; all other packages ok/cached or no test files).
+
+## Next Steps
+
+1. Supervisor dispatches internal review for v0.11.1 Slice 1.
+2. If approved, archive this handoff and proceed to Slice 2 — reconcile docs refresh.
+3. Keep Slice 3 release-ops cleanup and Slice 4 `PRD-tpatch-doctor` draft deferred until supervisor dispatch.
+4. Do not take ADR-027 F2/F3 follow-ups in this slice.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- Side Research md5 invariant remains `b385fe622db9926f48861105239f113e`; verify after any future edit with `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
+- Pre-existing unrelated uncommitted docs/research/whitepaper files are present in the worktree from before Slice 1. Do not stage them with Slice 1 commits.
+- The parity guard now rejects stale `version` recipe examples because it decodes into `workflow.ApplyRecipe` with `DisallowUnknownFields`.
+- `feature patch fixup` target selection remains implementation-derived from the current patch-generation manifest; no CLI `--target` flag should be reintroduced without a new tested contract.
 
 ## Carry-forward dispatch rules (all 15 binding for any future implementation)
 
@@ -73,47 +114,8 @@ v0.11.0 shipped. Pick next work block:
 11. (Wave β F7) Cross-artifact linkage contracts MUST be verified by loading persisted JSONL.
 12. (Wave β F3) Privacy tests seed secrets into title/slug/path metadata, NOT file content.
 13. (Wave β schema-lock) Briefs say "no persisted-schema additions outside what binding ADRs explicitly authorize" — enumerate which fields/clauses.
-14. Two-opinion external review protocol (supervisor + user-parallel) MANDATORY. 6/6 rev cycles has caught HIGH BLOCKERs or confirmed fixes.
+14. Two-opinion external review protocol (supervisor + user-parallel) MANDATORY. 7/7 rev cycles has caught HIGH BLOCKERs or confirmed fixes.
 15. (γ-1 F1) When PRD names a command/event as trigger, verify the command/event actually exists in production code BEFORE wiring implementation.
-
-## Session Summary
-
-WP-003 cluster closure recorded. v0.11.0 shipped (tag `1c63d1d`). ADR-027 (`capture-context-privacy-boundary`) drafted `a7186d3` + F1 amend `f1c7f65`. Three-way APPROVED WITH NOTES: internal `7dbf6f4`, supervisor-external `a363ed2`, user-external 2026-07-17. Status flipped from `Proposed` to `Accepted` in ADR file + README index.
-
-v0.11.1 stabilization cluster now unblocked (SQL deps on `adr-027-capture-privacy` resolved). Awaiting go-ahead on Slice 1.
-
-## Next Steps
-
-**ADR-027 landed 2026-07-17**. Unlocks: PRD-active-feature-session, PRD-record-context-summary, PRD-agent-event-log, PRD-ide-capture-hooks (rename TBD per F2), PRD-git-hook-capture-guards, ADR-capture-metadata-branch. Non-blocking ADR-027 follow-ups: F2 (roadmap naming coord — can fold into v0.11.1 Slice 2 or handle standalone) + F3 (D1 path softness — downstream PRD will lock).
-
-**Ready to dispatch — v0.11.1 stabilization cluster** (all 4 slices `pending` in SQL, deps resolved):
-
-- **Slice 1 — Asset/CLI parity fixes** (immediate; HIGH+MEDIUM). Three findings:
-  - Skills recipe schema drift: docs teach `{"version": 1, "operations": [...]}` (missing required `feature` field); actual `ApplyRecipe` struct at `internal/workflow/implement.go:42` requires `{Feature, Operations}` with no `version` field. Fix across all 6 skill formats.
-  - `feature patch fixup --target` documented in skills but `TestFeaturePatchFixupRejectsTargetFlag` in `internal/cli/feature_patch_test.go` asserts CLI refuses it with `unknown flag: --target`. Remove `--target` from all 6 skill docs.
-  - `internal/cli/verify.go:22,50` help text says V3–V9 are stubs; they execute. Update help text.
-  - Full implement→internal→external-pair review cycle. Parity guard MUST pass.
-
-- **Slice 2 — Reconcile docs refresh** (MEDIUM). `docs/reconcile.md` last touched 2026-05-11 (pre-Wave-α); zero matches for evidence/revision/confirmation-gate/hunk-overlap/blocked_category/path-restructure. Rewrite for v0.11 evidence system covering ADR-025 D1–D13 + all 9 WP-003 PRDs. Cross-link ADR-025 clauses. Docs-only, full review cycle. Optionally roll in ADR-027 F2 (roadmap naming coord).
-
-- **Slice 3 — Release ops cleanup** (LOW-MEDIUM). Latest GH Release is `v0.7.0` despite `v0.8.0`, `v0.8.1`, `v0.9.0`, `v0.10.0`, `v0.11.0` all tagged and pushed. Publish 5 missing GH Releases using CHANGELOG entries as release notes. Add `RELEASING.md` (or update existing checklist) so tag+release don't drift again. Supervisor-direct execution; no full review cycle.
-
-- **Slice 4 — `PRD-tpatch-doctor` draft** (product gap; paper-only). Draft `docs/prds/PRD-tpatch-doctor-metadata-migration.md`. Scope: `tpatch doctor` / `tpatch migrate` detecting schema-version drift on features, missing `patch-generations.json`, stale skill assets in-repo, old lock formats, missing evidence artifacts. Dry-run + backup + idempotent semantics. PRD-only, no code. Full review cycle mirroring ADR-027 model.
-
-**Carry-forward rules apply** (all 15 binding). Notably: rule 8 (display-string contracts), rule 9 (behavior-implemented-vs-tested — Slice 1 finding 2's contract is CLI-guarded but skills drifted anyway), rule 14 (two-opinion externals for slices 1 + 2 + 4).
-
-**Cluster naming discrepancy** — external team's writeup referenced ADR-027 as "feature unapply lifecycle/state boundary". Our ADR-027 is `capture-context-privacy-boundary`. Findings substantively independent, cluster stands.
-
-## Blockers
-
-None.
-
-## Context for Next Agent
-
-- WP-003 was a 9-PRD, 4-wave cluster with a strict ADR-025 schema lock. That template (single cluster ADR + wave-sliced implementation + two-opinion external review) worked well and should be the default for future multi-PRD clusters.
-- `docs/handoff/HISTORY.md` contains full per-wave snapshots for WP-002 β/γ, WP-003 α, β, γ-1, γ-2. Reference these for pattern reuse.
-- 15 carry-forward dispatch rules live above. Every future implementer/reviewer brief must incorporate applicable rules.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`. Verify before/after any CURRENT.md edits.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
