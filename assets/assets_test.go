@@ -252,9 +252,9 @@ func TestAllSkillFilesExist(t *testing.T) {
 
 // TestSkillRecipeSchemaMatchesCLI extracts each ```json ... ``` block
 // from every skill file, looks for a top-level `"operations"` array,
-// and unmarshals it into the authoritative workflow.RecipeOperation
-// struct. Any field the skill documents that the CLI does not accept
-// (e.g. `op` instead of `type`, `contents` instead of `content`,
+// and unmarshals it into the authoritative workflow.ApplyRecipe schema.
+// Any field the skill documents that the CLI does not accept (e.g.
+// `version`, `op` instead of `type`, `contents` instead of `content`,
 // `occurrences` — bug-skill-recipe-schema-mismatch, v0.4.3) fails here.
 // Prevents the skill docs from drifting out of sync with the code
 // agents actually run.
@@ -274,16 +274,16 @@ func TestSkillRecipeSchemaMatchesCLI(t *testing.T) {
 				if !strings.Contains(block, "\"operations\"") {
 					continue
 				}
-				var recipe struct {
-					Version    int                        `json:"version"`
-					Operations []workflow.RecipeOperation `json:"operations"`
-					Extra      map[string]json.RawMessage `json:"-"`
-				}
+				var recipe workflow.ApplyRecipe
 				dec := json.NewDecoder(strings.NewReader(block))
 				dec.DisallowUnknownFields()
 				if err := dec.Decode(&recipe); err != nil {
-					t.Errorf("%s: recipe JSON block does not match workflow.RecipeOperation schema: %v\nBlock:\n%s",
+					t.Errorf("%s: recipe JSON block does not match workflow.ApplyRecipe schema: %v\nBlock:\n%s",
 						sf.path, err, block)
+					continue
+				}
+				if strings.TrimSpace(recipe.Feature) == "" {
+					t.Errorf("%s: recipe JSON block missing top-level `feature` field", sf.path)
 					continue
 				}
 				if len(recipe.Operations) == 0 {

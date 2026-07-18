@@ -62,10 +62,10 @@ Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile con
 - `tpatch config show|set` — Manage config
 - `tpatch cycle <slug>` — Run analyze→define→explore→implement→apply→record in sequence (batch or `--interactive`)
 - `tpatch test <slug>` — Run the configured `test_command` and record the outcome
-- `tpatch verify <slug>` — Run integrity checks against a feature's recipe and dependencies (EXPERIMENTAL — Slice A: V0/V1/V2 only; full check set in later slices)
+- `tpatch verify <slug>` — Run V0-V9 integrity checks against a feature's recipe and dependencies (freshness overlay)
 - `tpatch next <slug>` — Emit the next action for a feature (`--format harness-json` for structured consumption)
 - `tpatch feature patch refresh <slug>` — Refresh the current feature patch; optional `--reason` is stored in patch-generations.json.
-- `tpatch feature patch fixup <slug> --target <generation_id> --reason "..."` — Append an explicit fixup generation.
+- `tpatch feature patch fixup <slug> --reason "..."` — Append an explicit fixup generation; the target generation is auto-derived from the manifest.
 
 ## Lifecycle
 
@@ -79,7 +79,7 @@ Run `tpatch verify --all` to walk every tracked feature in topological order; pr
 
 If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA is no longer reachable — re-record affected features on the new base or run `tpatch reconcile`.
 
-If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --target <generation_id> --reason "..."` for an explicit fixup generation. Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
+If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --reason "..."` for an explicit fixup generation (the target generation is auto-derived from the manifest). Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
 
 ## Data Model
 
@@ -113,7 +113,7 @@ Phase → artifact → state contract (the `--manual` flag validates this):
 
 ```json
 {
-  "version": 1,
+  "feature": "<slug>",
   "operations": [
     { "type": "ensure-directory", "path": "src/feature/" },
     { "type": "write-file", "path": "src/a.ts", "content": "export const x = 1;\n" },
