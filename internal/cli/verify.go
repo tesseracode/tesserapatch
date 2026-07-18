@@ -10,18 +10,21 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
-// verifyCmd implements `tpatch verify <slug>` — Slice A surface of the
-// freshness-overlay design (ADR-013 / PRD-verify-freshness §4.1 + §9).
+// verifyCmd implements `tpatch verify <slug>` — the freshness-overlay
+// design (ADR-013 / PRD-verify-freshness §4.1 + §9).
 //
-// Slice A flags only: <slug>, --json, --quiet, --no-write, --path. The
-// `--all` and `--shadow` flags ship in Slice D / are explicitly rejected
-// by the design.
+// Flags: <slug>, --json, --quiet, --no-write, --path, and --all. The
+// `--shadow` flag remains explicitly rejected by the design.
 //
 // Behaviour:
-//   - Runs V0 / V1 / V2 as real checks. V2 is `recipe_parses` only;
-//     `recipe_op_targets_resolve` (V3) and V4–V9 are stubs that emit
-//     `passed: true, skipped: true, reason: "not yet implemented (Slice C)"`
-//     so the 10-check report shape is reviewable in this slice.
+//   - Runs all ten checks (V0-V9) as real checks: status_loaded,
+//     intent_files_present, recipe_parses, recipe_op_targets_resolve,
+//     dep_metadata_valid, satisfied_by_reachable,
+//     dependency_gate_satisfied, recipe_replay_clean,
+//     post_apply_patch_replay_clean, and reconcile_outcome_consistent.
+//     Individual checks may still report skipped when their documented
+//     preconditions are absent. Slice A shipped V0-V2 first; Slice C
+//     added V3-V9.
 //   - On `--json`, emits the full report (all 10 checks) on stdout. The
 //     persisted `Verify` record carries only the trimmed field set
 //     (Reviewer Note 1, M15-W3 APPROVED WITH NOTES at 3c122aa).
@@ -44,12 +47,13 @@ func verifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify <slug>",
 		Short: "Run integrity checks against a feature's recipe and dependencies (EXPERIMENTAL)",
-		Long: `tpatch verify runs static and apply-simulation checks against a
-feature and writes a freshness-overlay record to status.json. Slice A
-ships V0/V1/V2 as real checks (status_loaded, intent_files_present,
-recipe_parses); V3 (recipe_op_targets_resolve) and V4–V9 are stubs
-deferred to Slice C. The lifecycle state is never mutated — verify is
-a freshness overlay, not a state transition (ADR-013 D1).`,
+		Long: `tpatch verify runs static dependency checks and dynamic
+recipe/patch replay checks against a feature, then writes a
+freshness-overlay record to status.json. V0-V9 all execute as real checks
+(status_loaded through reconcile_outcome_consistent); individual checks
+may still report skipped when their documented preconditions are absent.
+The lifecycle state is never mutated — verify is a freshness overlay, not
+a state transition (ADR-013 D1).`,
 		// Args validated inside RunE — `--all` flips the slug from
 		// required to forbidden. Cobra cannot express that natively.
 		Args: cobra.ArbitraryArgs,
