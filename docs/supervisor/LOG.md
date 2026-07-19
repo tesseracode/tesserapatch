@@ -1,3 +1,53 @@
+## Review — v0.11.1 Slice 1 (asset/CLI parity fixes) — internal — 2026-07-17
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Slice 1 (`430aab6..67ee41a`) closing 3 findings.
+
+### Verdict: APPROVED WITH NOTES
+
+### Per-finding verification
+
+- **F1 [closed] — apply-recipe schema**: All 6 asset JSON recipe blocks verified. `"version": 1` removed and top-level `"feature": "<slug>"` added at first position for:
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:101`
+  - `assets/skills/claude/tessera-patch/SKILL.md:139`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:116`
+  - `assets/skills/cursor/tessera-patch.mdc:111`
+  - `assets/skills/windsurf/windsurfrules:105`
+  - `assets/workflows/tessera-patch-generic.md:128`
+  Parity guard `TestSkillRecipeSchemaMatchesCLI` extended to (a) unmarshal into `workflow.ApplyRecipe` directly and (b) require non-empty `Feature`; all six sub-tests PASS. Guard now enforces the same ground truth as `internal/workflow/implement.go:42-45`. Verified no lingering `"version"` string in any of the six asset files.
+
+- **F2 [closed] — `--target` flag removal**: Grep for `--target` across `assets/` returns zero matches. `--reason` preserved in all cases. Both occurrence sites in copilot `SKILL.md` (`:68` in command reference list and `:82` in the "correct an already-recorded feature patch" paragraph) are updated. Post-removal sentences read cleanly ("`--reason "..."` for an explicit fixup generation (the target generation is auto-derived from the manifest)"). CLI ground truth `internal/cli/feature_patch.go:45-64` defines only `--reason`. Anti-drift guard `TestFeaturePatchFixupRejectsTargetFlag` re-run and PASS.
+
+- **F3 [closed] — verify help text**: `internal/cli/verify.go` comment block (:13-45) and `Long` field (:50-56) no longer describe V3-V9 as stubs. New text accurately reflects post-Slice-C reality — cross-checked against `internal/workflow/verify.go:560,621,642,690,754` and the V7/V8 implementations, all of which are real functions (not stubs). No V0-V9 execution logic changed (docs-only edit; only lines 13-27 and 50-56 modified). `go run ./cmd/tpatch verify --help` output confirmed clean, no stale phrasing.
+
+### Hard-constraint sweep
+
+- [x] All 6 skill format files updated consistently (grep-verified).
+- [x] `TestSkillParityGuard` (a.k.a. `TestSkillRecipeSchemaMatchesCLI`) PASSES all 6 sub-tests.
+- [x] No code behavior change — `internal/cli/verify.go` diff is comments + `Long` string only; no changes to `RunE`, flag defs, or V0-V9 logic.
+- [x] No new files created beyond Slice 1 scope.
+- [x] CHANGELOG.md updated with `## v0.11.1 (unreleased) — Stabilization` entry (line 5).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified with `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`).
+- [x] Co-authored-by trailers present on all 3 commits (`359cd6a`, `fbd8244`, `67ee41a`).
+- [x] No touching of Slice 2 (`docs/reconcile.md`), Slice 3 (release-ops), or Slice 4 (doctor PRD) files. `git diff --name-only 430aab6..67ee41a` covers only 10 in-scope files.
+- [x] No touching of ADR-027 F2/F3 follow-ups.
+
+### Validation gates
+
+gofmt: PASS (no output) | vet: PASS (no output) | build `./cmd/tpatch`: PASS | assets test (parity guard): PASS (6/6 sub-tests) | full `go test ./...`: PASS (all packages ok/cached).
+
+### Adversarial findings
+
+- **N1 (LOW, cosmetic) — `Short` field EXPERIMENTAL label**: `internal/cli/verify.go:49` still reads `"Run integrity checks against a feature's recipe and dependencies (EXPERIMENTAL)"` while the six shipped skill/prompt/workflow summaries were updated to drop `EXPERIMENTAL` and say `V0-V9 integrity checks ... (freshness overlay)`. A user running `tpatch --help` sees `EXPERIMENTAL`; an agent reading a skill sees `V0-V9 (freshness overlay)`. Not a bug; not in the finding 3 stated scope (which targeted the "stubs" claim). Flagged for the supervisor's information — either drop `(EXPERIMENTAL)` from the Short to match the skills, or accept the divergence if verify is still considered experimental in the pre-1.0 sense. Non-blocking.
+
+- **N2 (INFORMATIONAL) — internal `verify.go` docs drift left in place**: `internal/workflow/verify.go:3-13`, `:171`, and `:356-358` still carry Slice-A-era comments describing V3-V9 as stubs and referring to a deleted `stubRecipeOpTargetsResolve` function. This is documentation drift internal to the workflow package (not user-visible) and outside the stated scope of Slice 1 (Finding 3 named `internal/cli/verify.go` only). Non-blocking. Worth queueing for a future docs-only sweep.
+
+### Action Taken
+
+APPROVED WITH NOTES. All three findings are substantively closed with tests and grep evidence backing the closure. The two adversarial notes above are non-blocking observations for supervisor consideration; neither introduces user-facing incorrectness beyond what already existed pre-slice.
+
+---
+
 ## Review — ADR-027 capture-context-privacy-boundary — external (user-dispatched, parallel) — 2026-07-17
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
