@@ -46,7 +46,7 @@ import (
 func verifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify <slug>",
-		Short: "Run integrity checks against a feature's recipe and dependencies (EXPERIMENTAL)",
+		Short: "Run integrity checks against a feature's recipe and dependencies (freshness overlay)",
 		Long: `tpatch verify runs static dependency checks and dynamic
 recipe/patch replay checks against a feature, then writes a
 freshness-overlay record to status.json. V0-V9 all execute as real checks

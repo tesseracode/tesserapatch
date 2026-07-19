@@ -1,22 +1,29 @@
 package workflow
 
-// Slice A of the freshness-overlay design (PRD-verify-freshness §9, ADR-013).
+// Freshness-overlay verify pipeline (PRD-verify-freshness, ADR-013).
 //
-// Scope:
+// Slice A shipped V0-V2 as the initial real checks; Slice C completed
+// V3-V9 as real implementations. Current state:
+//
 //   - `tpatch verify <slug>` cobra shell wires through `RunVerify`.
-//   - V0 (status_loaded), V1 (intent_files_present), V2 (recipe_parses)
-//     are the only real implementations in Slice A.
-//   - V3 (recipe_op_targets_resolve) and V4–V9 are stubs that return
-//     passed: true, skipped: true with a reason naming the slice that
-//     will land them (Slice C for V3–V9). The full 10-check array is
-//     emitted on `--json` stdout so the report shape is reviewable in
-//     Slice A.
+//   - V0-V9 all execute as real checks (status_loaded, intent_files_present,
+//     recipe_parses, recipe_op_targets_resolve, dep_metadata_valid,
+//     satisfied_by_reachable, dependency_gate_satisfied, closure_replay
+//     hard-parent closure, closure_replay patch-replay, and
+//     reconcile_outcome_consistent). Individual checks may still report
+//     `passed: true, skipped: true` when their documented preconditions
+//     are absent (e.g., V8 when no `post-apply.patch` exists on disk).
 //   - The persisted `Verify` record carries only `verified_at`, `passed`,
 //     `recipe_hash_at_verify`, `patch_hash_at_verify`, `parent_snapshot`
 //     (Reviewer Note 1, M15-W3 APPROVED WITH NOTES at 3c122aa). The full
-//     check array is built in-memory only.
-//   - V7/V8 closure-replay and the freshness-derivation `ComposeLabels`
-//     hook are deliberately deferred to Slices C / B respectively.
+//     check array is built in-memory and emitted on `--json` stdout so
+//     the report shape stays byte-stable for harness consumers.
+//   - When V0 (status_loaded) aborts, `stubChecksAfterAbort` populates
+//     the remaining nine entries with `passed: true, skipped: true` so
+//     the JSON report shape remains stable even without a status.json.
+//     This is an abort-path shape helper, not a stub of a real check.
+//   - `ComposeLabels` freshness-derivation lives in the freshness overlay
+//     surface (Slice B).
 
 import (
 	"bytes"
@@ -168,7 +175,8 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 			Passed:      false,
 			Remediation: fmt.Sprintf("could not load status.json: %v", err),
 		})
-		// Append the remaining nine stubs so the JSON shape is stable.
+		// Append the remaining nine abort-path shape entries so the JSON
+		// report stays byte-stable when V0 aborts.
 		for _, c := range stubChecksAfterAbort() {
 			report.Checks = append(report.Checks, c)
 		}
@@ -353,9 +361,9 @@ func checkIntentFilesPresent(s *store.Store, slug string) store.VerifyCheckResul
 // `passed: true, skipped: true` (Reviewer Note 2). Returns the parsed
 // recipe and its raw bytes for hashing on the persisted record.
 //
-// PRD's V3 (`recipe_op_targets_resolve`) is OUT OF SCOPE for Slice A
-// (see PRD §9 — depends on Slice C `created_by` semantics). V3 is
-// emitted separately as a Slice C stub by `stubRecipeOpTargetsResolve`.
+// PRD's V3 (`recipe_op_targets_resolve`) is a real check on its own
+// (see `checkRecipeOpTargetsResolve`) — it runs immediately after V2
+// once a recipe successfully parses.
 func checkRecipeParses(s *store.Store, slug string) (parse store.VerifyCheckResult, recipe ApplyRecipe, raw []byte) {
 	recipePath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "apply-recipe.json")
 	data, err := os.ReadFile(recipePath)
