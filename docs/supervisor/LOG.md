@@ -1,3 +1,72 @@
+## Review — v0.11.1 Slice 1 (asset/CLI parity fixes) — external (supervisor-dispatched) — 2026-07-19
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Slice 1 including N1+N2 amend (`430aab6..dd2d12b`). Verifying internal APPROVED WITH NOTES at `3207834`. Adversarial verbatim read of the four in-scope commits (`359cd6a`, `fbd8244`, `67ee41a`, `dd2d12b`), then cross-checked against `internal/workflow/implement.go:42` (`ApplyRecipe` ground truth), `internal/cli/feature_patch.go:45-64`, `TestFeaturePatchFixupRejectsTargetFlag`, `TestSkillRecipeSchemaMatchesCLI`, and repo-wide symbol/asset sweeps. Internal verdict re-read only after independent pass.
+
+### Verdict: APPROVED
+
+Slice 1 is a docs/help-text stabilization pass. Zero V0-V9 execution code changed. All three findings substantively closed; N1 and N2 verified fixed by the `dd2d12b` amend on adjacent verify surfaces. Full validation matrix green.
+
+### Per-finding verification (independent)
+
+- **F1 [closed] — apply-recipe schema (HIGH)**: All 6 asset recipe blocks independently decoded with Python `json.loads` — each yields exactly `keys=['feature', 'operations']`, `feature='<slug>'`, `ops=4`. Repo-wide `grep -rn '"version"' assets/` returns zero hits. Repo-wide `grep -rn '"feature":' assets/` returns exactly the 6 expected files:
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:101`
+  - `assets/skills/claude/tessera-patch/SKILL.md:139`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:116`
+  - `assets/skills/cursor/tessera-patch.mdc:111`
+  - `assets/skills/windsurf/windsurfrules:105`
+  - `assets/workflows/tessera-patch-generic.md:128`
+  Guard `TestSkillRecipeSchemaMatchesCLI` extended at `assets/assets_test.go:277-288` to decode directly into `workflow.ApplyRecipe` (canonical struct — `Feature string` + `Operations []RecipeOperation` — verified at `internal/workflow/implement.go:42-45`) with `DisallowUnknownFields` and require non-empty `Feature`. Re-run PASS 6/6 sub-tests (Claude, Copilot, Copilot Prompt, Cursor, Windsurf, Generic). No lingering `version` key in any asset file. Every documented op type is in the ApplyRecipe-accepted set (`write-file`, `replace-in-file`, `append-file`, `ensure-directory`).
+
+- **F2 [closed] — fixup `--target` flag (HIGH)**: `grep -rn -- '--target' assets/` returns zero matches. Broader `grep -rn 'target' assets/` returns only unrelated uses ("target upstream state", "target generation", "symlink target outside repo") — no `--target-*` near-misses. Both known copilot SKILL sites updated: `:68` (command list) and `:82` (correction paragraph). Post-removal sentences are grammatically clean (verified verbatim at every 6 surface). CLI ground truth at `internal/cli/feature_patch.go:45-64` defines only `--reason`; `runFeaturePatchAmend` at line 75-81 auto-derives the target via `currentPatchGenerationID(manifest)`. Anti-drift guard `TestFeaturePatchFixupRejectsTargetFlag` at `internal/cli/feature_patch_test.go:114-135` still asserts stderr contains "unknown flag: --target" AND that no generation is appended on refusal — re-run PASS.
+
+- **F3 [closed] — cli/verify.go help text (MEDIUM)**: Comment block `internal/cli/verify.go:13-45` and `Long` field `:50-56` rewritten to describe V0-V9 as real checks with per-check preconditions. Enumerated check IDs in the comment (`status_loaded, intent_files_present, recipe_parses, recipe_op_targets_resolve, dep_metadata_valid, satisfied_by_reachable, dependency_gate_satisfied, recipe_replay_clean, post_apply_patch_replay_clean, reconcile_outcome_consistent`) match the canonical constants at `internal/workflow/verify.go:49-60` exactly, in the same order. `./tpatch verify --help` output is clean, no stale "Slice A: V0/V1/V2 only" phrasing. Diff is 100% docs — no changes to `RunE`, flag definitions, `runVerifyAll`, or `countFailedBlockers`.
+
+- **N1 amend [closed] — Short field**: `internal/cli/verify.go:49` now reads `"Run integrity checks against a feature's recipe and dependencies (freshness overlay)"`. Verified by running `./tpatch --help | grep -i verify` — output matches the six skill format summaries verbatim on the `(freshness overlay)` suffix. `EXPERIMENTAL` no longer appears in the built binary help.
+
+- **N2 amend [closed] — workflow/verify.go docs drift**: 
+  - Header comment `internal/workflow/verify.go:1-26` rewritten to describe V0-V9 as real checks; `stubChecksAfterAbort` explicitly reframed as an "abort-path shape helper, not a stub of a real check" at line 24.
+  - `checkRecipeParses` doc-comment at `:364-366` no longer references the deleted `stubRecipeOpTargetsResolve` symbol; now points at the real `checkRecipeOpTargetsResolve` function (verified at `:568`).
+  - Line 178-179 comment previously "Append the remaining nine stubs" now reads "Append the remaining nine abort-path shape entries so the JSON report stays byte-stable when V0 aborts" — accurate description of what `stubChecksAfterAbort` at `:412-458` actually does.
+  - Function `stubChecksAfterAbort` itself untouched — `grep -rn 'stubChecksAfterAbort' internal/` shows the same 3 call sites/definition/mention as expected (`verify.go:21`, `:180`, `:412`).
+  - **Repo-wide dead-symbol sweep**: `grep -rn 'stubRecipeOpTargetsResolve' .` returns hits only in `docs/handoff/HISTORY.md` (historical logs, out of scope), `docs/supervisor/LOG.md:43` (the very note the amend addressed) and `docs/supervisor/LOG.md:5227,5718` (older log entries). Zero references remain in `.go` files or active documentation. Deleted symbol is fully purged from live code.
+
+### Hard-constraint sweep
+
+- [x] All 6 skill format files updated consistently — Python JSON validation + grep both confirm parity.
+- [x] `TestSkillRecipeSchemaMatchesCLI` PASSES all 6 sub-tests; `TestSkillParityGuard` co-passes.
+- [x] No V0-V9 execution logic changed — `git diff 430aab6..dd2d12b -- internal/cli/verify.go internal/workflow/verify.go` is 100% comment/`Long`-string edits; zero function body changes.
+- [x] No new files created beyond what Slice 1 requires — `git diff --name-only 430aab6..dd2d12b` covers exactly 12 in-scope files (CHANGELOG, 6 assets + `assets_test.go`, 2 verify files, CURRENT.md, LOG.md).
+- [x] `CHANGELOG.md:5-14` has `## v0.11.1 (unreleased) — Stabilization` entry with 3 bullets that accurately describe what shipped (no overclaim; no undelivered items).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` — verified: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` returns `b385fe622db9926f48861105239f113e`.
+- [x] `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailers present on all 4 in-scope commits (`359cd6a`, `fbd8244`, `67ee41a`, `dd2d12b`) — verified via `git log 430aab6..dd2d12b --format='%H%n%b'`.
+- [x] No Slice 2/3/4 touches — `docs/reconcile.md` unchanged (`git diff 430aab6..dd2d12b -- docs/reconcile.md` empty); `docs/prds/PRD-tpatch-doctor.md` does not exist; no release-ops files touched.
+- [x] No ADR-027 F2/F3 follow-up touches — `git diff --name-only 430aab6..dd2d12b -- docs/adrs/` empty.
+
+### Validation gates
+
+gofmt: PASS (no output) | vet: PASS (no output) | build `./cmd/tpatch`: PASS | assets test (`-count=1`): PASS (6/6 parity sub-tests) | full `go test -count=1 ./...`: PASS (`internal/cli` 83.124s; `internal/workflow` 51.712s; all packages ok).
+
+### New findings (beyond F1/F2/F3/N1/N2)
+
+**None warranting a report.** Adversarial pass covered:
+
+- Repo-wide search for `stubRecipeOpTargetsResolve` — zero live-code references (only historical log entries).
+- Repo-wide search for `--target` in assets — zero matches; no near-misses like `--target-generation`.
+- Cross-package check-ID consistency: the enumerated list in `internal/cli/verify.go:20-25` uses the canonical check-ID constants verbatim. The header block in `internal/workflow/verify.go:9-13` uses the informal semantic grouping "closure_replay hard-parent closure, closure_replay patch-replay" for V7/V8 rather than the constant names (`recipe_replay_clean`, `post_apply_patch_replay_clean`). This is consistent with existing terminology across the file (e.g., `verify.go:238` `// V7 + V8 — closure replay`, section header `verify.go:789` `── V7 + V8 — hard-parent topological closure replay ──`, `verify_closure_replay_test.go` filename, CHANGELOG v0.11.0 line 740 "Hard-parent topological closure replay (V7/V8)"). Not a drift — the "closure replay" phrase is the codebase's semantic grouping for V7/V8 and is used consistently. Recording here for supervisor context rather than as a finding.
+- Test fixtures using `"version":1` in `.go` files (`internal/cli/reconcile_evidence_cli_test.go:272`, `internal/workflow/verify_test.go:340`, `internal/workflow/recipe_createdby_test.go:87`, etc.) intentionally test invalid-schema rejection paths and are not asset-parity concerns.
+- The `stubChecksAfterAbort` function retains its identifier and the file's `// ── Stubs ──` section divider at `:410`. The N2 amend reframed the function's purpose in prose (header + call-site comment) without renaming the identifier — deliberate scope containment, no drift.
+
+### Concurrence with internal verdict?
+
+**YES.** All three findings substantively closed; both N1 and N2 non-blocking notes resolved by the `dd2d12b` amend on the same/adjacent verify surface. Two-opinion protocol scoreboard: 8 consecutive rev cycles with three-way concurrence (WP-003 α/β/γ waves + ADR-027 + v0.11.1 Slice 1).
+
+### Action Taken
+
+APPROVED. External second opinion aligns with internal APPROVED WITH NOTES verdict at `3207834`; the N1+N2 amend at `dd2d12b` fully resolves both non-blocking notes. Ready for supervisor consolidation and Slice 2 dispatch.
+
+---
+
 ## Review — v0.11.1 Slice 1 (asset/CLI parity fixes) — internal — 2026-07-17
 
 **Reviewer**: internal (code-review agent)
