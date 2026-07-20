@@ -1,110 +1,142 @@
 # Reconcile Workflow
 
-`tpatch reconcile` replays your recorded feature patches onto a new upstream baseline. This doc covers when to run it, the three workflow patterns it supports, the one anti-pattern it refuses, and the preflight contract added in v0.4.2.
+`tpatch reconcile` maintains a feature's applied state as the upstream tree changes: it re-evaluates the recorded patch, records the machine verdict, appends evidence to explain that verdict, and writes revision entries when a confirmation or review pass changes how humans should interpret the result (ADR-025 D1-D13; PRD-reconcile-verdict-evidence §1, §3, §6; PRD-reconcile-revision-pass-log §1, §3, §6).
 
-## What reconcile does (and does not do)
+## Pipeline overview
 
-Reconcile is **not** a git merge driver. It does not run `git merge`, `git rebase`, or `git pull`. It assumes your working tree is already at the target upstream state and then walks each active feature through four verdict phases:
+Reconcile has two layers: the classical verdict engine decides a raw outcome, then the v0.11 evidence/revision pipeline records why that outcome is trustworthy, suspicious, or blocked (ADR-025 D4, D13; PRD-reconcile-verdict-evidence §3.1, §6).
 
-1. **Reverse-apply** — is the recorded patch still *present* in the tree? (Clean fork case.)
-2. **Operation-level** — for each recipe operation, does the target still match? (Partial drift.)
-3. **Provider-semantic** — ask the LLM whether the feature's *intent* is already satisfied. (Upstream may have merged a semantically equivalent change.)
-4. **Forward-apply** — try `git apply --3way`; classify as strict / 3-way-clean / conflicts / blocked via `PreviewForwardApply` in an isolated `git worktree`.
-
-The verdict is written to each feature's `status.json` and surfaced in the terminal output.
-
-## Two supported patterns
-
-Both patterns assume each feature has a well-formed feature commit (or an explicit "feature-as-patch" record). [`tpatch land <slug>`](./land.md) is the recommended producer of those well-formed commits for **both** patterns: it composes (record → safe path-set staging → one Git commit) and writes the locked four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) so reconcile and downstream audit tooling have a stable feature↔commit binding to grep for.
-
-### Pattern A — Pristine main, features as patches
-
-- `main` branch is a pure mirror of upstream.
-- Features live only as `.tpatch/features/<slug>/artifacts/post-apply.patch` (and optional `apply-recipe.json`).
-- `.tpatch/` is committed to the branch so feature state travels with it.
-
-```
-git fetch upstream
-git merge --ff-only upstream/main
-tpatch reconcile
+```text
+raw verdict engine
+  reverse-apply / patch-id / operation-level / provider-semantic / forward-apply
+        |
+        v
+evidence + review pipeline
+  verdict evidence
+  -> file-novelty
+  -> hunk-overlap
+  -> path-restructure
+  -> blocked taxonomy
+  -> upstreamed confirmation gate
+  -> revision-pass writer
 ```
 
-Recommended for fast-moving upstreams where you want clean history and reconcile does the heavy lifting.
+| Order | Pass | What it records |
+|---:|---|---|
+| 1 | Reverse-apply detection | Phase-1 evidence that the recorded patch is already present; phase-1.5 patch-id evidence is the high-confidence upstream match path (ADR-025 D4-D5, D9; PRD-reconcile-verdict-evidence §3.1, §6). |
+| 2 | File-novelty classifier | `file-novelty` evidence for whether patch paths are all new, mixed additive, existing-file modifications, delete/rename cases, or unknown (ADR-025 D4, D13; PRD-reconcile-file-novelty-classifier §3, §6). |
+| 3 | Hunk-overlap detector | `hunk-overlap` evidence for line-range overlap on modified paths, including `nearby-window=3` (ADR-025 D4, D13; PRD-reconcile-hunk-overlap-detector §3-§4, §6). |
+| 4 | Path-restructure detector | `path-restructure` evidence for prefix moves, splits, deletions, mixed cases, none, or unknown (ADR-025 D4, D13; PRD-reconcile-path-restructure-detector §3, §6). |
+| 5 | Blocked-verdict taxonomy | A deterministic blocked category and recommended action derived from dependency labels plus file, hunk, and path evidence (ADR-025 D13; PRD-reconcile-blocked-verdict-taxonomy §3-§4, §6). |
+| 6 | Confirmation gate | Converts raw `upstreamed` candidates into `confirmed-upstreamed` or `rejected-upstreamed` review verdicts before retirement (ADR-025 D8-D9; PRD-upstreamed-confirmation-gate §3-§6). |
+| 7 | Revision-pass writer | Appends review/correction entries that link back to evidence attempts and explain confirmation, rejection, cleanup, or later human action (ADR-025 D6-D7; PRD-reconcile-revision-pass-log §3-§6). |
 
-### Pattern B — Features as commits, `.tpatch/` as audit trail
+## Evidence and revision artifacts
 
-- Feature edits live as normal git commits on `main`.
-- `.tpatch/` is committed alongside them for auditability.
+### `reconcile-evidence.jsonl`
 
-```
-git fetch upstream
-git rebase upstream/main
-tpatch reconcile    # now mostly an audit tool
-```
+Evidence attempts live at `.tpatch/features/<slug>/artifacts/reconcile-evidence.jsonl`; the file is append-only JSONL, one newline-terminated object per attempt, with per-line `schema_version: 1` and strict v1 fields/enums (ADR-025 D1-D2, D4). Each evidence entry uses content-addressed `attempt_id` values shaped as `re_<12hex>`; the hash excludes `attempt_id` itself and includes the normalized identity fields and sorted arrays (ADR-025 D3). Evidence entries are audit detail; `status.json` remains current state, and status JSON can expose an `evidence_artifact` reference when valid evidence exists (PRD-reconcile-verdict-evidence §4-§6; ADR-025 D1).
 
-Rebase resolves the merge; reconcile's verdicts tell you whether any feature's *intent* drifted despite the mechanical rebase succeeding.
+Synthetic evidence entry (not copied from any repository):
 
-## The anti-pattern (refused as of v0.4.2)
-
-**Do not** run `tpatch reconcile` on a dirty working tree, a tree containing conflict markers, or a tree with `.orig` / `.rej` merge leftovers. Verdicts become unreliable because `git apply --check` reads file bytes, not git trees — a lingering `<<<<<<<` line looks like any other context line. Observed live: agents called `git stash --include-untracked`, which swept `.tpatch/` out of the tree entirely, leaving reconcile with nothing to replay.
-
-As of v0.4.2, `tpatch reconcile` refuses these trees unconditionally and prints:
-
-```
-error: reconcile requires a clean working tree. Detected:
-  modified:         M  apps/server/src/foo.ts
-  untracked:        bar.txt
-  merge markers:    apps/server/src/router.ts
-  merge leftover:   apps/server/src/router.ts.orig
-
-To recover:
-  - If these changes belong to an active feature, commit them first.
-  - If they are a half-applied merge or stash, resolve or abort first:
-      git merge --abort         (if mid-merge)
-      git reset --hard HEAD     (to discard — destructive!)
-      git stash                 (to set aside)
-  - If you understand the risks and want to proceed anyway, pass
-    `--allow-dirty` (not recommended; verdicts may be wrong).
-```
-
-The preflight checks four conditions; any non-empty result blocks the run:
-
-1. `git status --porcelain` is non-empty (unstaged or untracked files).
-2. Any tracked file contains a `<<<<<<< `, `=======`, or `>>>>>>> ` line.
-3. Any `*.orig` or `*.rej` file exists anywhere in the tree (except `.git/`).
-
-## Flags
-
-| Flag | Effect |
-|---|---|
-| `--preflight` | Run only the preflight checks and exit. 0 = clean, non-zero = violations printed to stderr. Good for CI gating. |
-| `--allow-dirty` | Bypass the preflight. Prints a one-line warning and proceeds. Verdicts may be wrong — **use only when you know why you're overriding**. |
-| `--upstream-ref <ref>` | Upstream ref to reconcile against (default `upstream/main`). |
-| `--timeout <dur>` | Overall reconcile timeout (default 2m). |
-
-## Troubleshooting
-
-### "I already ran `git stash` and `.tpatch/` is gone"
-
-Recover the state from the stash before reconciling:
-
-```
-git checkout stash@{0} -- .tpatch/
-tpatch reconcile
-git stash pop    # or `git stash drop` if you already have the edits back
+```json
+{
+  "schema_version": 1,
+  "feature_slug": "demo-feature",
+  "attempt_id": "re_e6a802d2a675",
+  "upstream_ref": "upstream/main",
+  "upstream_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "base_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "raw_reconcile_verdict": "blocked",
+  "phase": "phase-3.5",
+  "evidence_kind": "hunk-overlap",
+  "confidence": "medium",
+  "matched_paths": ["src/example.go"],
+  "matched_operations": [
+    "nearby-window=3",
+    "src/example.go:hunk_4d2a9c:context-only:nearby=1"
+  ],
+  "match_origin": "unknown",
+  "upstream_commit_refs": [],
+  "pre_reconcile_presence": "present",
+  "requires_confirmation": false,
+  "reason_code": "context-only"
+}
 ```
 
-### "reconcile says blocked but `git apply --3way` works manually"
+### `reconcile-revisions.jsonl`
 
-Check for merge-marker pollution. `PreviewForwardApply` classifies as blocked when the 3-way apply succeeds but leaves conflict markers in the result. The conflict files are listed in the feature's `status.json:reconciliation.conflicts`. Resolve them manually, `record` the resolved feature, then reconcile again.
+Revision corrections live at `.tpatch/features/<slug>/artifacts/reconcile-revisions.jsonl`; the file is append-only JSONL, one newline-terminated object per correction, with `entry_id`, `feature_slug`, `evidence_attempt_id`, raw verdict, review verdict, final feature state, action, reason code, validation refs, optional supersedure, and optional `refs` (ADR-025 D6, D12; PRD-reconcile-revision-pass-log §3, §6). Revision entries use content-addressed `rr_<12hex>` IDs and closed v1 enums for `review_verdict` and `action_taken` (ADR-025 D6-D7).
 
-### "tip: .tpatch/ is not tracked"
+Synthetic revision entry (not copied from any repository):
 
-Reconcile prints this hint when `.tpatch/` is absent from `git ls-files`. Your feature state won't travel when a collaborator clones the branch. Run `git add .tpatch/ && git commit -m "chore: commit tpatch state"` to fix it.
+```json
+{
+  "schema_version": 1,
+  "entry_id": "rr_fe613be10f5b",
+  "feature_slug": "demo-feature",
+  "evidence_attempt_id": "re_e6a802d2a675",
+  "raw_reconcile_verdict": "blocked",
+  "review_verdict": "false-negative",
+  "final_feature_state": "applied",
+  "action_taken": "reapplied-and-recorded",
+  "reason_code": "false-negative-blocked",
+  "validation_refs": [
+    {
+      "kind": "test-command",
+      "value": "go test ./...",
+      "result": "pass"
+    }
+  ]
+}
+```
 
-## Related
+### Strict writers, lenient readers, and privacy
 
-- [Recording Patches](./record.md) — covers the sibling `tpatch record` command.
-- [Landing Features as Git Commits](./land.md) — `tpatch land`, producer of well-formed feature commits for both Pattern A (feature-branch mode) and Pattern B (default mode).
-- [Feature Layout](./feature-layout.md) — which files reconcile reads (and which it ignores).
-- `SPEC.md` — authoritative CLI surface.
+Writers refuse to append when pre-existing JSONL is malformed; read-only status/list surfaces keep loading `status.json` current truth and report artifact problems rather than silently repairing or truncating audit files (ADR-025 D11; PRD-reconcile-verdict-evidence §5-§6; PRD-reconcile-revision-pass-log §5-§6). `tpatch reconcile review list <slug> --json` emits a JSON envelope with `revisions` plus `corrupt_entries`; if corrupt lines exist, valid entries remain in the payload and the command exits non-zero (PRD-reconcile-revision-pass-log §5-§6). Neither JSONL artifact may persist source bodies, provider transcripts, prompt text, vectors, or embeddings; v1 is limited to paths, hashes, operation IDs, enum codes, verdicts, refs/commits, counts, validation references, and cross-artifact IDs (ADR-025 D10; PRD-reconcile-verdict-evidence §2, §6; PRD-reconcile-revision-pass-log §2, §6).
+
+## Verdict, label, and category surfaces
+
+- Human reconcile output renders an unconfirmed raw `upstreamed` as `[upstreamed-candidate]`; JSON keeps the programmatic truth as `outcome: "blocked"` with `review_verdict: "rejected-upstreamed"` so automation can reconstruct the gate decision without inventing a new outcome (ADR-025 D8; PRD-upstreamed-confirmation-gate §3-§6).
+- Reachable patch-id evidence can auto-confirm an upstreamed verdict; low-confidence operation/provider candidates require confirmation and can be rejected by the gate (ADR-025 D9; PRD-upstreamed-confirmation-gate §5-§6).
+- Blocked taxonomy has deterministic precedence: `dependency-blocked > validation-blocked > target-deleted > structural-conflict > edit-overlap > shifted-context > clean-additive > unknown-blocked` (PRD-reconcile-blocked-verdict-taxonomy §3, §6). The category is evidence/runtime metadata and display JSON (`blocked_category`, `recommended_action`), not a new persisted lifecycle state or `ReconcileOutcome` enum (ADR-025 D8, D13; PRD-reconcile-blocked-verdict-taxonomy §4-§6).
+- File novelty persists PRD 6 evidence classifications as `reason_code` values `all-new-files`, `mixed-additive`, `modifies-existing-files`, `deletes-or-renames`, or `unknown`; the blocked taxonomy may map all-new or mixed-additive evidence into the user-facing `clean-additive` blocked category (ADR-025 D4, D13; PRD-reconcile-file-novelty-classifier §3-§6; PRD-reconcile-blocked-verdict-taxonomy §3).
+- Hunk overlap persists `reason_code` values `none`, `context-only`, `edit-overlap`, `target-deleted`, `path-moved`, or `unknown`; the default nearby window is three lines and is included in evidence as `nearby-window=3` (ADR-025 D4, D13; PRD-reconcile-hunk-overlap-detector §3-§6).
+- Path restructure persists `reason_code` values `prefix-move`, `prefix-split`, `target-deleted`, `mixed`, `none`, or `unknown`; default thresholds are config-driven with `prefix-split` at at least 3 moved files to at least 2 prefixes, and `prefix-move` at at least 5 moved files to one prefix (ADR-025 D4, D13; PRD-reconcile-path-restructure-detector §3-§6).
+
+## v0.11 reconcile subcommands
+
+The command strings below are the production CLI surface; only the flags shown here are supported for these v0.11 subcommands (PRD-upstreamed-confirmation-gate §3-§6; PRD-reconcile-revision-pass-log §4-§6; PRD-reconcile-retirement-state-audit §3, §6).
+
+| Command | Flags | Behavior |
+|---|---|---|
+| `tpatch reconcile audit-retirement <slug>` | `--json` | Read-only audit of retired-feature dependency/status metadata; reports stale `satisfied_by` or base SHAs, affected child features, and cleanup-needed findings without mutating dependency or status metadata (PRD-reconcile-retirement-state-audit §3-§6). |
+| `tpatch reconcile confirm-upstreamed <slug>` | `--json`, `--format human\|json` | PRD-named trigger for the confirmation/retirement path: requires the feature's latest reconcile state to be `upstreamed` or `review_verdict=confirmed-upstreamed`, runs the retirement audit, and may append `cleanup-needed` revision entries (ADR-025 D8-D9; PRD-upstreamed-confirmation-gate §3-§6; PRD-reconcile-retirement-state-audit §3, §6). |
+| `tpatch reconcile review add <slug>` | Required: `--verdict`, `--action`, `--reason-code`. Optional: `--raw-verdict`, `--final-state`, `--evidence`. | Appends one revision-pass entry; it records review metadata only and does not perform a repair (ADR-025 D6-D7; PRD-reconcile-revision-pass-log §3-§6). |
+| `tpatch reconcile review list <slug>` | `--json`, `--all` | Lists latest revision entries by default; `--all` includes superseded entries. JSON output is `{ "revisions": [...], "corrupt_entries": [...] }` and exits non-zero when corrupt entries are present (ADR-025 D6-D7, D11; PRD-reconcile-revision-pass-log §4-§6). |
+
+`review add` accepts review verdicts `confirmed`, `false-positive`, `false-negative`, `inconclusive`, and `deferred`; it accepts actions `none`, `confirmed-retired`, `reapplied`, `reapplied-and-recorded`, `implemented`, `deferred`, `skipped`, and `cleanup-needed` (ADR-025 D7; PRD-reconcile-revision-pass-log §3, §6).
+
+## Dev-only study validator
+
+`internal/tools/studyvalidator/` is a stdlib-only maintainer helper for validating reconcile case-study folders; it is not part of the public `tpatch` binary or `SPEC.md` CLI surface (PRD-reconcile-study-validation §3, §6). The validator checks JSON/JSONL parse errors with filename and line number, cross-file study/metric consistency, raw-vs-reviewed-vs-final-state counts, and per-corrected-verdict linkage to revision entries or `local-notes.md` references (PRD-reconcile-study-validation §4-§6).
+
+## Operational reminders
+
+- Run reconcile from a clean target upstream tree; dirty files, merge markers, and `.orig`/`.rej` leftovers can make patch application verdicts unreliable. Use `tpatch reconcile --preflight` for the read-only clean-tree check, and reserve `--allow-dirty` for deliberate overrides.
+- `.tpatch/` should be tracked if feature state needs to travel with a branch; evidence and revision JSONL files live under each feature's `artifacts/` directory (ADR-025 D1, D6; PRD-reconcile-verdict-evidence §3; PRD-reconcile-revision-pass-log §3).
+
+## Cross-references
+
+- [ADR-025 — Reconcile evidence and revision schema](./adrs/ADR-025-reconcile-evidence-and-revision-schema.md)
+- [PRD-reconcile-verdict-evidence](./prds/PRD-reconcile-verdict-evidence.md)
+- [PRD-upstreamed-confirmation-gate](./prds/PRD-upstreamed-confirmation-gate.md)
+- [PRD-reconcile-revision-pass-log](./prds/PRD-reconcile-revision-pass-log.md)
+- [PRD-reconcile-retirement-state-audit](./prds/PRD-reconcile-retirement-state-audit.md)
+- [PRD-reconcile-study-validation](./prds/PRD-reconcile-study-validation.md)
+- [PRD-reconcile-file-novelty-classifier](./prds/PRD-reconcile-file-novelty-classifier.md)
+- [PRD-reconcile-hunk-overlap-detector](./prds/PRD-reconcile-hunk-overlap-detector.md)
+- [PRD-reconcile-blocked-verdict-taxonomy](./prds/PRD-reconcile-blocked-verdict-taxonomy.md)
+- [PRD-reconcile-path-restructure-detector](./prds/PRD-reconcile-path-restructure-detector.md)
+- [Feature Layout](./feature-layout.md)
+- [SPEC](../SPEC.md)
