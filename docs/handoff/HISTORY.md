@@ -4971,3 +4971,137 @@ None.
 - The repository had unrelated pre-existing dirty/untracked state under `docs/state-of-the-art/`, `docs/whitepapers/`, and `docs/prds/`; γ-2 commits intentionally did not stage those files.
 - Side Research md5 invariant remains `b385fe622db9926f48861105239f113e`.
 
+
+---
+
+## Archived 2026-07-19 — v0.11.1 Slice 1 (asset/CLI parity fixes) closure
+
+Slice 1 of v0.11.1 stabilization: closed 3 asset↔CLI drift findings identified by external team + reviewer agent. Three-way APPROVED (internal `3207834`, supervisor-external `91f2968`, user-external 2026-07-19). All 3 findings + N1/N2 amend closed. Zero adversarial findings across all three passes.
+
+**Ship stack**: `359cd6a` (F1+F2 across 6 assets) → `fbd8244` (F3 verify help) → `67ee41a` (handoff closure) → `dd2d12b` (N1+N2 amend post-internal-review).
+
+**Anti-drift bonus**: implementer extended `assets/assets_test.go` with `TestSkillRecipeSchemaMatchesCLI` that decodes each of the 6 skill recipe examples into `workflow.ApplyRecipe` directly with `DisallowUnknownFields`. Durable guard against future schema drift.
+
+**Two-opinion protocol scoreboard**: 8 consecutive rev cycles with three-way concurrence.
+
+Snapshot of Slice 1 CURRENT.md at archive:
+
+# Current Handoff
+
+## Active Task
+
+- **Task ID**: `v0.11.1-slice-1-asset-cli-parity`
+- **Milestone**: v0.11.1 stabilization — Slice 1
+- **Description**: Close asset/CLI parity findings: apply-recipe schema drift in shipped skills, unsupported fixup `--target` guidance, and stale `verify` V3-V9 help text.
+- **Status**: Review (implementation complete; awaiting supervisor review)
+- **Assigned**: 2026-07-17.
+
+## Session Summary
+
+v0.11.1 Slice 1 implemented on top of `430aab6`. All six shipped skill/prompt/workflow surfaces now show the canonical `ApplyRecipe` JSON shape, no longer document the rejected `feature patch fixup --target` flag, and describe `tpatch verify` as running V0-V9 real checks. `internal/cli/verify.go` help/comment text now reflects post-Slice-C behavior without changing verify execution logic. `CHANGELOG.md` has a v0.11.1 unreleased stabilization entry.
+
+The asset recipe parity guard was updated to decode examples into `workflow.ApplyRecipe` and require top-level `feature`, so the guard now enforces the same schema as `internal/workflow/implement.go:42`.
+
+## Current State
+
+Slice 1 code/docs are ready for review. No `docs/reconcile.md`, release-ops, draft doctor PRD, or ADR-027 follow-up work was touched. Pre-existing unrelated uncommitted research/whitepaper docs remain in the worktree and were intentionally left unstaged/out of scope.
+
+## Slice 1 closure summary
+
+### Finding 1 — HIGH — apply-recipe schema drift closed
+
+- Fixed all six recipe examples to remove unsupported `version` and add required top-level `feature`:
+  - `assets/workflows/tessera-patch-generic.md:128`
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:101`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:116`
+  - `assets/skills/cursor/tessera-patch.mdc:111`
+  - `assets/skills/claude/tessera-patch/SKILL.md:139`
+  - `assets/skills/windsurf/windsurfrules:105`
+- Guard aligned with ground truth: `assets/assets_test.go:255`, `assets/assets_test.go:277`, `assets/assets_test.go:286`.
+- Test result: `go test ./assets/...` PASS (`ok github.com/tesseracode/tesserapatch/assets 2.326s`).
+
+### Finding 2 — HIGH — unsupported fixup `--target` guidance removed
+
+- Removed `--target <generation_id>` and documented manifest-derived target selection at all six surfaces:
+  - `assets/workflows/tessera-patch-generic.md:61`
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:47`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:68`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:82`
+  - `assets/skills/cursor/tessera-patch.mdc:57`
+  - `assets/skills/claude/tessera-patch/SKILL.md:65`
+  - `assets/skills/windsurf/windsurfrules:51`
+- CLI behavior unchanged: `internal/cli/feature_patch.go:45` defines only `--reason`; `internal/cli/feature_patch_test.go:114` still asserts `--target` is rejected.
+- Test result: full `go test ./...` PASS, including `internal/cli` (`115.216s`).
+
+### Finding 3 — MEDIUM — `verify` help/comment staleness closed
+
+- Updated CLI comment/help text to state all V0-V9 checks execute as real checks, with documented precondition skips where applicable:
+  - `internal/cli/verify.go:20`
+  - `internal/cli/verify.go:52`
+- Shipped skill command summaries also now say `tpatch verify` runs V0-V9 checks:
+  - `assets/workflows/tessera-patch-generic.md:94`
+  - `assets/prompts/copilot/tessera-patch-apply.prompt.md:77`
+  - `assets/skills/copilot/tessera-patch/SKILL.md:65`
+  - `assets/skills/cursor/tessera-patch.mdc:76`
+  - `assets/skills/claude/tessera-patch/SKILL.md:315`
+  - `assets/skills/windsurf/windsurfrules:70`
+- Evidence read before edit: `internal/workflow/verify_slice_c_test.go:3` covers V3-V6/V9; `internal/workflow/verify_closure_replay_test.go:3` covers V7/V8.
+- Test result: full `go test ./...` PASS.
+
+## Files Changed
+
+- `CHANGELOG.md`
+- `assets/assets_test.go`
+- `assets/workflows/tessera-patch-generic.md`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/windsurf/windsurfrules`
+- `internal/cli/verify.go`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+- `go test ./assets/...` — PASS (`ok github.com/tesseracode/tesserapatch/assets 2.326s`).
+- `gofmt -l .` — PASS (no output).
+- `go vet ./...` — PASS (no output).
+- `go build ./cmd/tpatch` — PASS.
+- `go test ./...` — PASS (`internal/cli` 115.216s; all other packages ok/cached or no test files).
+
+## Next Steps
+
+1. Supervisor dispatches internal review for v0.11.1 Slice 1.
+2. If approved, archive this handoff and proceed to Slice 2 — reconcile docs refresh.
+3. Keep Slice 3 release-ops cleanup and Slice 4 `PRD-tpatch-doctor` draft deferred until supervisor dispatch.
+4. Do not take ADR-027 F2/F3 follow-ups in this slice.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- Side Research md5 invariant remains `b385fe622db9926f48861105239f113e`; verify after any future edit with `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
+- Pre-existing unrelated uncommitted docs/research/whitepaper files are present in the worktree from before Slice 1. Do not stage them with Slice 1 commits.
+- The parity guard now rejects stale `version` recipe examples because it decodes into `workflow.ApplyRecipe` with `DisallowUnknownFields`.
+- `feature patch fixup` target selection remains implementation-derived from the current patch-generation manifest; no CLI `--target` flag should be reintroduced without a new tested contract.
+
+## Carry-forward dispatch rules (all 15 binding for any future implementation)
+
+1. (Wave α) Briefs MUST self-audit against binding ADRs.
+2. (Wave α) Briefs naming policy ADRs MUST enumerate config-flag opt-out contracts.
+3. (Wave α) Internal reviewer checklist MUST include flag-off counter-scenarios.
+4. (Wave α) `gofmt -l .` direct — never piped.
+5. (Wave α) Drift self-audit during release prep.
+6. (Wave α rev-0) Briefs MUST NOT contain escape hatches that override PRD acceptance.
+7. (Wave α rev-1) External reviewer briefs MUST sweep ALL PRD §6 acceptance criteria.
+8. (Wave β F1) Briefs MUST enumerate per-PRD §6 display-name contracts as binding production + test contracts.
+9. (Wave β F2) Reviewer briefs MUST distinguish "behavior implemented" from "behavior tested". Read production code FIRST.
+10. (Wave β F6) State-mutation contracts MUST be verified by reloading from disk.
+11. (Wave β F7) Cross-artifact linkage contracts MUST be verified by loading persisted JSONL.
+12. (Wave β F3) Privacy tests seed secrets into title/slug/path metadata, NOT file content.
+13. (Wave β schema-lock) Briefs say "no persisted-schema additions outside what binding ADRs explicitly authorize" — enumerate which fields/clauses.
+14. Two-opinion external review protocol (supervisor + user-parallel) MANDATORY. 7/7 rev cycles has caught HIGH BLOCKERs or confirmed fixes.
+15. (γ-1 F1) When PRD names a command/event as trigger, verify the command/event actually exists in production code BEFORE wiring implementation.
+

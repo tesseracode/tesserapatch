@@ -1,3 +1,69 @@
+## Review — v0.11.1 Slice 1 (asset/CLI parity fixes) — external (user-dispatched, parallel) — 2026-07-19
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of Slice 1 (`430aab6..dd2d12b`).
+
+### Verdict: APPROVED
+
+### Range validation
+- Both SHAs exist; `430aab6` is ancestor of `dd2d12b`.
+- 5 commits: `359cd6a`, `fbd8244`, `67ee41a`, `3207834`, `dd2d12b`.
+
+### Per-finding verification (independent)
+- F1 apply-recipe schema: closed. Top-level `feature` field added, `version` field removed across all 6 assets.
+- F2 `--target` flag: closed. Zero matches in `assets/`; anti-drift guard preserved.
+- F3 verify help text: closed. `cli/verify.go` + `workflow/verify.go` describe post-Slice-C reality (V0-V9 all real).
+- N1 amend (Short field): `(freshness overlay)` matches skills.
+- N2 amend (workflow header + deleted symbol): dead `stubRecipeOpTargetsResolve` reference cleared repo-wide.
+
+### Validation gates (independent run)
+- `gofmt -l .`: clean.
+- `go build ./cmd/tpatch`: clean.
+- `go test ./...`: 600 passed, 0 failed (235 skipped).
+
+### Residual risk note
+Slice is contract/documentation/parity alignment plus verify-surface wording; runtime risk is low. Biggest practical risk is future docs↔CLI drift, mitigated by the strengthened parity test in `assets/assets_test.go` (`TestSkillRecipeSchemaMatchesCLI` now decodes into `workflow.ApplyRecipe` directly).
+
+### Concurrence with internal + supervisor-external
+YES on both.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — v0.11.1 Slice 1 — supervisor — 2026-07-19
+
+**Decision**: APPROVED.
+
+Three independent reviews (internal `3207834`, supervisor-external `91f2968`, user-external 2026-07-19) unanimously concur. All 3 findings + both amend notes cleanly closed. Zero adversarial findings across all three passes. All 9 hard constraints preserved. All validation gates green (600 passed, 235 skipped, 0 failed on full-repo test).
+
+### Slice 1 closure stack
+- `359cd6a` — assets: align skill parity with CLI schema (F1 + F2 across 6 formats)
+- `fbd8244` — cli: refresh verify help text (F3)
+- `67ee41a` — docs: record v0.11.1 slice 1 closure
+- `3207834` — review: internal APPROVED WITH NOTES (N1 LOW + N2 INFORMATIONAL)
+- `dd2d12b` — cli/workflow(verify): resolve N1 + N2 on adjacent verify surface
+- `91f2968` — review: supervisor-external APPROVED
+
+### Two-opinion protocol scoreboard update
+8 consecutive rev cycles with three-way concurrence (WP-003 α rev-0/1/2, β rev-0/1, γ-1 rev-0/1, γ-2 rev-0, ADR-027 rev-0, v0.11.1 Slice 1 rev-0). Protocol continues to earn its keep.
+
+### Anti-drift bonus
+Implementer proactively extended `assets/assets_test.go` with `TestSkillRecipeSchemaMatchesCLI` that decodes each of the 6 skill recipe examples into `workflow.ApplyRecipe` directly. This is a durable anti-drift guard against future recurrence of Finding 1's schema drift class — the anti-drift equivalent of what `TestFeaturePatchFixupRejectsTargetFlag` does for Finding 2.
+
+### Next steps
+- Slice 1 SQL todo `v0.11.1-stab-slice-1-asset-cli-parity` marked `done`.
+- Slice 2 (reconcile docs refresh) becomes highest-priority next slice. Also consider optionally folding ADR-027 F2 (roadmap naming coord) into Slice 2 scope since both touch adjacent docs surfaces.
+- Slice 3 (release ops) and Slice 4 (doctor PRD) remain queued.
+
+### Action Taken
+- Slice 1 closure recorded in LOG.md.
+- SQL todo flipped `done`.
+- Awaiting user go-ahead on Slice 2 dispatch.
+
+---
+
 ## Review — v0.11.1 Slice 1 (asset/CLI parity fixes) — external (supervisor-dispatched) — 2026-07-19
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
