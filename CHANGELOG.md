@@ -12,6 +12,9 @@ All notable changes to tpatch are recorded here.
   from the current patch-generation manifest.
 - Refreshed `tpatch verify` help/comment text and shipped skill summaries
   so V0-V9 are described as real checks rather than deferred Slice C stubs.
+- Rewrote `docs/reconcile.md` for the v0.11 evidence/revision system,
+  including ADR-025 JSONL schemas, WP-003 pipeline passes, confirmation
+  gate semantics, blocked taxonomy, v0.11 subcommands, and privacy limits.
 
 ## v0.11.0 — 2026-07-16 — WP-003 Reconcile Safety and Middle-Pass Foundation
 

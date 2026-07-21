@@ -5,7 +5,7 @@
 - **Task ID**: `v0.11.1-slice-2-reconcile-docs`
 - **Milestone**: v0.11.1 stabilization — Slice 2
 - **Description**: Rewrite `docs/reconcile.md` (last touched 2026-05-11, pre-Wave-α, zero v0.11 evidence-system keyword matches) to cover the entire WP-003 cluster (all 9 PRDs + ADR-025 D1-D13). Docs-only; full review cycle. Optionally roll in ADR-027 F2 (roadmap naming coordination for `PRD-ide-capture-hooks`).
-- **Status**: Awaiting implementer dispatch.
+- **Status**: Review.
 - **Assigned**: 2026-07-19.
 
 ## v0.11.1 cluster progress
@@ -27,10 +27,10 @@
 
 Rewrite `docs/reconcile.md` to describe v0.11 reconcile end-to-end:
 
-1. **Evidence + revision schema (ADR-025 D1-D13)** — persisted artifacts (`reconcile-evidence.jsonl`, `reconcile-revisions.jsonl`), content-addressed IDs (`ra_<12hex>`, `rr_<12hex>`), lenient reader / strict writer semantics, `corrupt_entries` JSON envelope, malformed-artifact handling.
+1. **Evidence + revision schema (ADR-025 D1-D13)** — persisted artifacts (`reconcile-evidence.jsonl`, `reconcile-revisions.jsonl`), content-addressed IDs (`re_<12hex>`, `rr_<12hex>`), lenient reader / strict writer semantics, `corrupt_entries` JSON envelope, malformed-artifact handling.
 2. **Wave α surfaces**:
    - **PRD 1 reconcile-verdict-evidence**: every reconcile pass writes an attempt row; evidence artifact reference (`evidence_artifact`) surfaces in `status.json` runtime field + human `evidence:` hint.
-   - **PRD 6 file-novelty**: `clean-additive` / `overlap-suspect` / `unknown-novelty` classifier runs alongside reconcile.
+   - **PRD 6 file-novelty**: persisted `file-novelty` evidence uses `all-new-files` / `mixed-additive` / `modifies-existing-files` / `deletes-or-renames` / `unknown`; PRD 8 maps additive evidence into the `clean-additive` blocked category.
 3. **Wave β surfaces**:
    - **PRD 2 confirmation gate**: `upstreamed` verdicts pass through a gate; unconfirmed candidates downgrade to `blocked` with `review_verdict=rejected-upstreamed` + display `[upstreamed-candidate]`. New `tpatch reconcile confirm-upstreamed <slug> [--json]` triggers audit + revision-pass append.
    - **PRD 3 revision-pass log**: `tpatch reconcile review add` + `tpatch reconcile review list [--json]`; `--json` emits `corrupt_entries` array on malformed lines and exits non-zero.
@@ -83,12 +83,41 @@ ADR-027's Blocks header references `PRD-ide-capture-hooks` but `research-roadmap
 
 ## Session Summary
 
-v0.11.1 Slice 1 archived 2026-07-19. Slice 2 kickoff handoff ready. Awaiting implementer dispatch.
+Slice 2 implementation complete and ready for review.
+
+### Slice 2 closure summary
+
+- `docs/reconcile.md` rewritten around the v0.11 evidence/revision model: purpose paragraph, ordered raw-verdict + evidence pipeline diagram/table, ADR-025 evidence/revision schema section, synthetic JSON examples, strict-writer/lenient-reader handling, `corrupt_entries` envelope, privacy boundary, verdict/label surfaces, all four v0.11 reconcile subcommand groups, dev-only study validator sidebar, and ADR/PRD cross-reference footer.
+- CLI strings and flags were grep-verified against `internal/cli/cobra.go`: `audit-retirement <slug> --json`, `confirm-upstreamed <slug> --json/--format`, `review add <slug>` required/optional flags, and `review list <slug> --json/--all`. No unsupported confirmation/rejection surfaces were documented.
+- JSON examples were parsed locally and shaped against `internal/store/reconcile_evidence.go` + `internal/store/reconcile_revision.go`; examples are synthetic and use the code/ADR-025 evidence ID prefix `re_<12hex>`.
+- File-novelty wording follows the implemented PRD 6 artifact reason codes (`all-new-files`, `mixed-additive`, `modifies-existing-files`, `deletes-or-renames`, `unknown`) and explains that `clean-additive` is the PRD 8 blocked-taxonomy category.
+- ADR-027 F2 naming roll-in deferred: `docs/state-of-the-art/research-roadmap.md` already had unrelated unstaged edits at dispatch time, so Slice 2 avoided optional file touches and left F2 for a small separate docs edit.
+- CHANGELOG v0.11.1 unreleased entry now includes a Slice 2 bullet.
+
+## Current State
+
+- Main docs rewrite committed as `8a2c632` (`docs(reconcile): rewrite for v0.11 evidence system`).
+- Tracking/closure edits are pending in the final Slice 2 handoff/changelog commit.
+- Worktree had pre-existing unrelated unstaged/untracked docs changes before Slice 2; this slice touched only `docs/reconcile.md`, `CHANGELOG.md`, and `docs/handoff/CURRENT.md`.
+
+## Files Changed
+
+- `docs/reconcile.md`
+- `CHANGELOG.md`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+- `gofmt -l .` — PASS (no output)
+- `go vet ./...` — PASS (no output)
+- `go build ./cmd/tpatch` — PASS
+- `go test ./...` — PASS (final run cached; earlier uncached `internal/cli` 65.818s)
+- `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` — preserved after handoff update (expected `b385fe622db9926f48861105239f113e`)
 
 ## Next Steps
 
-1. Supervisor: dispatch Slice 2 implementer with above binding scope.
-2. Optional: roll in ADR-027 F2 (roadmap naming coord) if implementer scopes it tight.
+1. Supervisor: dispatch Slice 2 reviewers; do not dispatch reviewers from this implementer session.
+2. Optional follow-up: handle ADR-027 F2 naming coordination in a separate small docs edit after resolving/isolating the pre-existing `research-roadmap.md` worktree changes.
 3. After Slice 2 three-way APPROVED: archive to HISTORY, move to Slice 3 (release ops) or Slice 4 (doctor PRD).
 4. Consider promoting rule 16 (parity-guard-on-drift-fix) from candidate to binding after Slice 2 reviewer feedback.
 
@@ -98,7 +127,7 @@ None.
 
 ## Context for Next Agent
 
-- Slice 1 shipped 6 commits into `origin/main`; HEAD at time of Slice 2 kickoff: `91f2968` + LOG updates. Verify latest via `git log --oneline -n 5`.
+- Slice 1 shipped 6 commits into `origin/main`; HEAD at time of Slice 2 kickoff: `f340cd8`. Slice 2 main docs commit is `8a2c632`.
 - Slice 1 anti-drift template lives in `assets/assets_test.go` (`TestSkillRecipeSchemaMatchesCLI` extension). Slice 2 doesn't have a natural parity-guard test target (docs prose vs code) but reviewer briefs can enforce CLI-string + PRD-citation checks.
 - All shipped v0.11 reconcile artifacts to cite are enumerated above.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
