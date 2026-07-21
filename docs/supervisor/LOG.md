@@ -1,3 +1,59 @@
+## Review — v0.11.1 Slice 2 (reconcile docs refresh) — internal — 2026-07-20
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Slice 2 (`f340cd8..ac00905`) rewriting `docs/reconcile.md` for the v0.11 evidence/revision system.
+
+### Verdict: APPROVED
+
+### Section coverage
+- Section 1 Purpose (line 3): OK — single paragraph accurately describes v0.11 reconcile (re-evaluates recorded patch, records machine verdict, appends evidence, writes revision entries); cites ADR-025 D1-D13 + PRD 1 + PRD 3.
+- Section 2 Pipeline (lines 5-32): OK — ASCII diagram + 7-row table match `internal/workflow/reconcile.go:581-587` order exactly (`persistReconcileEvidence` → `persistFileNoveltyEvidence` → `persistHunkOverlapEvidence` → `persistPathRestructureEvidence` → `persistBlockedClassificationEvidence` → `applyUpstreamedConfirmationGate` → `persistRevisionPassLog`).
+- Section 3 Evidence + revision schema (lines 34-96): OK — `re_<12hex>` (ADR-025 D3) + `rr_<12hex>` (ADR-025 D6) prefixes correct; content-addressing rule cited; strict-writer/lenient-reader semantics + `corrupt_entries` envelope cited (ADR-025 D11 + PRD 3 §5-§6); privacy invariant cited (ADR-025 D10); both synthetic JSON examples decode into `store.ReconcileEvidence` / `store.ReconcileRevision` with all required fields + valid enum values (verified against `internal/store/reconcile_evidence.go:89-114` and `internal/store/reconcile_revision.go:51-64`).
+- Section 4 Verdict/label surfaces (lines 98-105): OK — `[upstreamed-candidate]` bracket-wrapped display verified at `internal/cli/cobra.go:1896,1903,1979-1983`; `outcome: "blocked"` + `review_verdict: "rejected-upstreamed"` correct; PRD 8 blocked precedence verbatim (`dependency-blocked > validation-blocked > target-deleted > structural-conflict > edit-overlap > shifted-context > clean-additive > unknown-blocked`); PRD 6 file-novelty enum `all-new-files/mixed-additive/modifies-existing-files/deletes-or-renames/unknown` matches `internal/workflow/file_novelty.go:15-19`; PRD 7 hunk-overlap enum + `nearby-window=3` matches `internal/workflow/hunk_overlap.go:13,18-23`; PRD 9 path-restructure enum + thresholds (≥3 files ≥2 prefixes for split; ≥5 files for move) verbatim from PRD §3.
+- Section 5 New CLI subcommands (lines 107-118): OK — grep-verified against `internal/cli/cobra.go`: `audit-retirement <slug> [--json]` (`:1988,2012`), `confirm-upstreamed <slug> [--json] [--format human|json]` (`:2018,2066-2067`), `review add <slug>` with required `--verdict/--action/--reason-code` + optional `--raw-verdict/--final-state/--evidence` (`:2094,2141-2146`), `review list <slug> [--json] [--all]` (`:2148,2188-2189`); JSON envelope `{"revisions":[...], "corrupt_entries":[...]}` matches `:2169`; non-zero exit on corrupt entries matches `:2171-2172,2182-2183`; the PRD-2-proposed `--upstream-commit`/`--evidence` flags on `confirm-upstreamed` are correctly NOT documented (they aren't implemented on the shipped command); the PRD-2-proposed `reject-upstreamed` command is correctly NOT documented (not implemented).
+- Section 6 Dev-only tool (lines 120-122): OK — `internal/tools/studyvalidator/` exists (`validator.go`, `validator_test.go`, `cmd/studyvalidate/`); PRD 5 §3 explicitly says dev-only under `internal/tools/`, not part of `SPEC.md`; docs match.
+- Section 7 Cross-references (lines 129-141): OK — links to ADR-025 and all 9 PRDs present; also links `feature-layout.md` + `SPEC`.
+
+### Citation density
+- `PRD-` references: 35
+- `ADR-025` references: 24
+- Unsourced claims: none of substance. Only the "Operational reminders" section (lines 124-127) contains general CLI hygiene tips (clean-tree, `.orig/.rej`, `.tpatch/` tracking) without per-clause citation, but they are not v0.11-behavior claims and the `.tpatch/` tracking bullet does cite ADR-025 D1, D6.
+
+### CLI + JSON accuracy
+- All command strings match `internal/cli/cobra.go`: confirmed.
+- All JSON field names match persisted `store.ReconcileEvidence` / `store.ReconcileRevision`: confirmed. Synthetic evidence example uses valid enums (`phase-3.5`, `hunk-overlap`, `medium`, `unknown`, `present`, `false`), valid `matched_operations` format (`nearby-window=3` + `path:hunk:overlap:nearby=N` matches `internal/workflow/hunk_overlap.go:117,120`), and 12-hex `re_e6a802d2a675` / `rr_fe613be10f5b` IDs.
+
+### Anti-drift regression (Slice 1 findings)
+- No re-introduction of `--target` on fixup: confirmed. `grep` returns no live prose mentioning `--target` fixup in `docs/reconcile.md`; only historical CHANGELOG mentions unchanged.
+- No re-introduction of `"version": 1` recipe schema: confirmed. The two `schema_version: 1` occurrences in `docs/reconcile.md:44,75` refer to the ADR-025 evidence/revision schema (D2), not the deprecated `ApplyRecipe` top-level `version` field.
+
+### Hard-constraint sweep
+- [x] Docs-only — `git diff f340cd8..ac00905 --stat`: `CHANGELOG.md +3`, `docs/handoff/CURRENT.md +43/-4`, `docs/reconcile.md +129/-97`. No `internal/`, `cmd/`, `assets/` touches.
+- [x] PRD verbatim citations — density above.
+- [x] CLI accuracy — grep-verified.
+- [x] JSON schema accuracy — decoder-verified.
+- [x] Privacy — synthetic examples only (`demo-feature`, `aaaa…`/`bbbb…` placeholder SHAs).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` — verified via `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
+- [x] Co-authored-by trailers on both commits — `8a2c632` and `ac00905` each carry `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+- [x] No Slice 3 / Slice 4 file touches — no `RELEASING.md`, no `PRD-tpatch-doctor.md`.
+- [x] No ADR-027 F3 touches — no changes to `PRD-ide-capture-hooks.md` / D1 local-buffer paths; F2 legitimately deferred (see below).
+- [x] CHANGELOG bullet added under existing v0.11.1 (unreleased) header — verified via `git diff -- CHANGELOG.md`: three lines inserted under the existing `## v0.11.1 (unreleased)` header, no new header.
+
+### Validation gates
+gofmt: PASS (no output) | vet: PASS (no output) | build: PASS | test: PASS (all packages, cached)
+
+### Adversarial findings
+None. Slice 2 is a clean, faithful docs refresh. Every subcommand string, flag, JSON key, enum value, threshold, and precedence order in the doc was cross-verified against production code + PRD/ADR ground truth and matches.
+
+### Out-of-scope observation (do NOT block Slice 2)
+The pre-existing v0.11.0 CHANGELOG entry (`CHANGELOG.md:32`) still says the evidence ID prefix is `ra_<12hex>`, but the actual code (`internal/store/reconcile_evidence.go:125`) and ADR-025 D3 both lock `re_<12hex>`. Slice 2's rewrite of `docs/reconcile.md` correctly uses `re_<12hex>`, so this slice does not add any drift. The stale CHANGELOG line is untouched by `f340cd8..ac00905` and is not in Slice 2's scope; flagging for a possible follow-up docs cleanup slice.
+
+### ADR-027 F2 deferral
+Clean defer. Implementer's closure summary in `docs/handoff/CURRENT.md:94` records: "ADR-027 F2 naming roll-in deferred: `docs/state-of-the-art/research-roadmap.md` already had unrelated unstaged edits at dispatch time, so Slice 2 avoided optional file touches and left F2 for a small separate docs edit." `git status` confirms `research-roadmap.md` is currently unstaged/modified; deferring the optional roll-in was the correct choice under hard constraint 1 (docs-only, scope-tight).
+
+### Action Taken
+Prepended this internal review to `docs/supervisor/LOG.md` and committed with the mandated `Co-authored-by` trailer.
+
 ## Review — v0.11.1 Slice 1 (asset/CLI parity fixes) — external (user-dispatched, parallel) — 2026-07-19
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
