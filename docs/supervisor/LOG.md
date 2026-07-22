@@ -1,3 +1,82 @@
+## Review — v0.11.1 Slice 2 (reconcile docs refresh) — external (user-dispatched, parallel) — 2026-07-22
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of Slice 2 (`f340cd8..8890081`).
+
+### Verdict: NEEDS REVISION
+
+### Range validation
+- Slice 2 base `f340cd8`, main implementation `8a2c632`, closure/review through `8890081`. Confirmed.
+- Changed files: `docs/reconcile.md`, `CHANGELOG.md`, `docs/handoff/CURRENT.md`, `docs/supervisor/LOG.md`.
+
+### Findings
+
+**F1 (MEDIUM BLOCKING, NEW)** — CLI flag-surface overclaim contradicts production code.
+
+`docs/reconcile.md:109` states: "The command strings below are the production CLI surface; only the flags shown here are supported for these v0.11 subcommands (PRD-upstreamed-confirmation-gate §3-§6; PRD-reconcile-revision-pass-log §4-§6; PRD-reconcile-retirement-state-audit §3, §6)."
+
+This is factually wrong. `internal/cli/cobra.go:55` defines `--path` as a persistent root flag: `root.PersistentFlags().String("path", "", "Target repository path (default: current directory)")`. Cobra persistent flags are inherited by all subcommands, so `--path` (and any other root-level persistent flags) IS supported on `tpatch reconcile audit-retirement`, `confirm-upstreamed`, `review add`, and `review list` — just not listed in the per-subcommand table.
+
+For a docs-only stabilization slice whose binding constraint is CLI accuracy, this contradicts the very PRD claim it cites and creates a false ceiling on the supported surface. Users following the doc literally would believe `--path` is rejected on these subcommands; it is not.
+
+**Fix options** (implementer chooses):
+- **Option A**: Reword line 109 to describe subcommand-specific flags only (something like "The subcommand-specific flags for these v0.11 commands are shown below; standard root flags such as `--path` also apply per cobra's persistent-flag inheritance.").
+- **Option B**: Add a global-flags note above or below the table (single sentence + bullet listing `--path`).
+- **Option C**: Extend each row's Flags column to include `--path` explicitly.
+
+Option A is smallest-surface; Option B is most operator-friendly; Option C is most defensive against future drift.
+
+### Regression checks
+No other regressions. Anti-drift (Slice 1) still clean: no `--target`, no `"version": 1`, no `apply-recipe` re-introduction.
+
+### Validation gates (independent run)
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- `go test ./...`: 490 passed, 0 failed, 330 skipped.
+- Side Research md5 invariant: matches `b385fe622db9926f48861105239f113e`.
+
+### Concurrence with internal + supervisor-external
+Partial: concurs that most of the rewrite is materially better than the pre-v0.11 doc; concurrence on section 1-4 and 6-7 coverage. Diverges on section 5 (v0.11 reconcile subcommands) — line 109 flag-surface claim is a contract error internal + supervisor-external both missed because both accepted "grep-verifies each command signature" without also verifying the "only" quantifier against the persistent-flag model.
+
+### Action Taken
+Verdict captured for supervisor consolidation. Two-opinion protocol earns its keep again: user-external caught a production-behavior contract error (not test-gap; not scope-gap) that both prior passes missed by reading the doc verbatim against cobra's flag inheritance model.
+
+---
+
+## Decision — v0.11.1 Slice 2 rev-0 — supervisor — 2026-07-22
+
+**Decision**: NEEDS REVISION (consolidated from internal APPROVED + supervisor-external APPROVED + user-external NEEDS REVISION F1 MEDIUM BLOCKING).
+
+Two-opinion protocol scoreboard: 9 consecutive rev cycles; user-external uniquely caught F1 that both prior passes missed. Same pattern as Wave β rev-0 F8 (user-external upgraded a test-gap framing to a production-behavior gap) and γ-1 rev-0 F1 (user-external upgraded a supervisor-external MEDIUM to a HIGH BLOCKING trigger contract).
+
+Also folding two non-blocking notes from prior passes into rev-1 scope for efficiency:
+- **N1 (LOW, supervisor-external)**: `docs/reconcile.md` describes `evidence_artifact` machine reference but not the human-terminal `evidence:` hint line (PRD-reconcile-verdict-evidence §4 format `  evidence: phase-2 recipe-operation-match`). Explicitly listed in Slice 2 scope binding text but omitted.
+- **Out-of-scope observation (LOW, internal)**: `CHANGELOG.md:34` (v0.11.0 body, unchanged by Slice 2) contains stale `ra_<12hex>` while actual code + ADR-025 lock `re_<12hex>`. Since Slice 2 rev-1 is already opening for F1, this cleanup can bundle.
+
+### Rev-1 scope (bundled)
+
+**F1 (HIGH — treat as MEDIUM BLOCKING)**: Fix the flag-surface overclaim at `docs/reconcile.md:109`. Implementer chooses Option A / B / C above; recommend Option B (single-line note above the table + short bullet) as best UX for operators.
+
+**N1 (LOW)**: Add a short paragraph or bullet in §3 or §4 describing the human `evidence:` hint line (format from PRD-reconcile-verdict-evidence §4).
+
+**CHANGELOG cleanup (LOW)**: In `CHANGELOG.md` v0.11.0 body, replace `ra_<12hex>` with `re_<12hex>` to match actual code + ADR-025 D3. Do NOT edit any other v0.11.0 line.
+
+### Rev-1 hard constraints
+Same 10 as rev-0 (docs-only, PRD citations, CLI accuracy, JSON schema accuracy, privacy, md5, trailer, gates, no Slice 3/4 touches, no ADR-027 F3 touches). Plus:
+11. **Flag-surface accuracy**: any statement about "supported flags" MUST account for persistent root flags. Enumerate them or explicitly note their inheritance.
+
+### Rev-1 reviewer-brief additions
+Add explicit check: "For every 'only X is supported' claim, verify against the CLI persistent-flag model (root `PersistentFlags` + parent-command `PersistentFlags`). Persistent flags are inherited by children."
+
+### Action Taken
+- User-external verdict recorded.
+- Supervisor decision NEEDS REVISION recorded.
+- CURRENT.md updated with rev-1 brief.
+- Rev-1 implementer dispatch pending user go-ahead.
+
+---
+
 ## Review — v0.11.1 Slice 2 (reconcile docs refresh) — external (supervisor-dispatched) — 2026-07-19
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)

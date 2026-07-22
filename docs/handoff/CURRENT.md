@@ -2,11 +2,74 @@
 
 ## Active Task
 
-- **Task ID**: `v0.11.1-slice-2-reconcile-docs`
-- **Milestone**: v0.11.1 stabilization — Slice 2
-- **Description**: Rewrite `docs/reconcile.md` (last touched 2026-05-11, pre-Wave-α, zero v0.11 evidence-system keyword matches) to cover the entire WP-003 cluster (all 9 PRDs + ADR-025 D1-D13). Docs-only; full review cycle. Optionally roll in ADR-027 F2 (roadmap naming coordination for `PRD-ide-capture-hooks`).
-- **Status**: Review.
-- **Assigned**: 2026-07-19.
+- **Task ID**: `v0.11.1-slice-2-reconcile-docs-rev1`
+- **Milestone**: v0.11.1 stabilization — Slice 2 rev-1
+- **Description**: Rev-1 fix-pass over Slice 2 rev-0 (`f340cd8..8890081`). Internal + supervisor-external APPROVED; user-external NEEDS REVISION on F1 (CLI flag-surface overclaim contradicting cobra persistent-flag inheritance model). Bundling supervisor-external N1 (missing `evidence:` hint line description) + internal out-of-scope observation (CHANGELOG.md:34 `ra_<12hex>` → `re_<12hex>` cleanup) into rev-1 for efficiency.
+- **Status**: In Progress (rev-1).
+- **Assigned**: 2026-07-22.
+
+## Rev-1 findings (binding scope)
+
+### F1 (MEDIUM BLOCKING) — CLI flag-surface overclaim
+
+`docs/reconcile.md:109` says "The command strings below are the production CLI surface; only the flags shown here are supported for these v0.11 subcommands..." but `internal/cli/cobra.go:55` defines `--path` as a **persistent** root flag: `root.PersistentFlags().String("path", "", "Target repository path (default: current directory)")`. Cobra persistent flags are inherited by ALL subcommands, so `--path` IS supported on `audit-retirement`, `confirm-upstreamed`, `review add`, and `review list` — the doc's "only" quantifier is factually wrong.
+
+**Fix**: Rewrite line 109 with proper flag-surface accuracy. **Recommended: Option B** — replace the sentence with a global-flags note above (or immediately after) the table:
+
+> The subcommand-specific flags for these v0.11 commands are shown below. Standard root flags such as `--path <dir>` (target repository path) are also supported via cobra's persistent-flag inheritance.
+
+Then leave the table as-is. Do NOT add `--path` to every row — that duplicates the note without adding information.
+
+Grep `internal/cli/cobra.go` for `PersistentFlags()` to verify there are no OTHER root-level persistent flags beyond `--path`. If any exist (e.g., `--quiet`, `--json`, `--verbose`), enumerate them in the note. Read the current state before writing the fix.
+
+### N1 (LOW, folded in from supervisor-external) — missing human `evidence:` hint description
+
+`docs/reconcile.md` describes the machine-readable `evidence_artifact` reference on `status.json` (around line 38) but does NOT describe the human-terminal `evidence:` hint line documented in `docs/prds/PRD-reconcile-verdict-evidence.md:177-183`:
+
+```
+  evidence: phase-2 recipe-operation-match
+```
+
+Slice 2's rev-0 binding scope explicitly listed both surfaces ("`evidence_artifact` in status.json runtime field + human `evidence:` hint"). Fix: add one sentence + one code block showing the human-hint format, in either §3 or §4 (implementer chooses whichever fits the narrative better). Cite PRD-reconcile-verdict-evidence §4.
+
+### CHANGELOG.md cleanup (LOW, folded in from internal out-of-scope)
+
+`CHANGELOG.md:34` (inside the v0.11.0 body, unchanged by Slice 2 rev-0) says `ra_<12hex>` but actual code (`internal/store/reconcile_evidence.go:125`) + ADR-025 D3 lock the prefix as `re_<12hex>`. Simple string replace on that one line. Do NOT touch any other v0.11.0 line — this is a surgical cleanup, not a rewrite.
+
+## Rev-1 hard constraints (binding)
+
+All 10 rev-0 constraints still bind (docs-only, PRD citations, CLI accuracy, JSON schema accuracy, privacy, md5, trailer, gates, no Slice 3/4 touches, no ADR-027 F3 touches). Plus:
+
+11. **Flag-surface accuracy**: any statement about "supported flags" MUST account for persistent root flags. Enumerate them or explicitly note their inheritance.
+
+## Rev-1 reviewer-brief additions
+
+Rev-1 reviewer briefs (internal + externals) MUST include: "For every 'only X is supported' claim in docs, verify against the CLI persistent-flag model (root `PersistentFlags` + parent-command `PersistentFlags`). Persistent flags are inherited by children."
+
+## Rev-1 suggested commit split
+
+Single commit is fine — all three fixes are surgical:
+- 1 line reworded / paragraph added at `docs/reconcile.md:109` (F1)
+- 1-2 sentences + code block added to `docs/reconcile.md` §3 or §4 (N1)
+- 1 line in `CHANGELOG.md:34` (out-of-scope cleanup)
+
+If implementer prefers cleaner commits: split into (a) `docs(reconcile): fix flag-surface accuracy + add evidence hint description`, (b) `changelog(v0.11.0): correct evidence-ID prefix ra_→re_`.
+
+## Process for implementer
+
+1. Read this section verbatim.
+2. Read `docs/supervisor/LOG.md` top 3 entries: user-external NEEDS REVISION with F1 detail; supervisor decision; supervisor-external + internal APPROVED for context.
+3. Read `docs/reconcile.md` §5 (v0.11 reconcile subcommands, lines ~107-121) + §3 or §4 (wherever the evidence hint description goes).
+4. Grep `internal/cli/cobra.go` for `PersistentFlags()` — confirm the full persistent-flag surface before writing the note.
+5. Apply F1 fix (Option B recommended; A or C acceptable with rationale).
+6. Apply N1 fix (evidence hint description with code block).
+7. Apply CHANGELOG cleanup (single-line ra_→re_ replacement).
+8. Run gates: `gofmt -l .`, `go vet ./...`, `go build ./cmd/tpatch`, `go test ./...`. All must be green.
+9. Update this handoff:
+   - Flip Status to Review.
+   - Add "Slice 2 rev-1 closure summary" subsection mirroring rev-0 format with per-fix file:line.
+   - Preserve Side Research md5.
+10. Commit + push. Return commit hashes.
 
 ## v0.11.1 cluster progress
 
