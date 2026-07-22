@@ -29,7 +29,7 @@ enforcement flags. Adds one new public CLI subcommand
 
 - New append-only `.tpatch/features/<slug>/artifacts/reconcile-evidence.jsonl`
   recording every reconcile pass with content-addressed `attempt_id`
-  (`ra_<12hex>`), deterministic across re-runs. Zero wall-clock
+  (`re_<12hex>`), deterministic across re-runs. Zero wall-clock
   timestamps in persisted artifacts.
 - New `reconcile-revisions.jsonl` (append-only) for revision-pass entries
   with content-addressed `rr_<12hex>` IDs and deterministic hash-based

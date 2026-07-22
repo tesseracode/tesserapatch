@@ -98,6 +98,14 @@ Writers refuse to append when pre-existing JSONL is malformed; read-only status/
 ## Verdict, label, and category surfaces
 
 - Human reconcile output renders an unconfirmed raw `upstreamed` as `[upstreamed-candidate]`; JSON keeps the programmatic truth as `outcome: "blocked"` with `review_verdict: "rejected-upstreamed"` so automation can reconstruct the gate decision without inventing a new outcome (ADR-025 D8; PRD-upstreamed-confirmation-gate §3-§6).
+- When a reconcile pass emits evidence, default human output gains a short evidence hint in this format (PRD-reconcile-verdict-evidence §4):
+
+  ```text
+  session-search: upstreamed-candidate (low confidence)
+    evidence: phase-2 recipe-operation-match
+    review: confirmation required before retirement
+  ```
+
 - Reachable patch-id evidence can auto-confirm an upstreamed verdict; low-confidence operation/provider candidates require confirmation and can be rejected by the gate (ADR-025 D9; PRD-upstreamed-confirmation-gate §5-§6).
 - Blocked taxonomy has deterministic precedence: `dependency-blocked > validation-blocked > target-deleted > structural-conflict > edit-overlap > shifted-context > clean-additive > unknown-blocked` (PRD-reconcile-blocked-verdict-taxonomy §3, §6). The category is evidence/runtime metadata and display JSON (`blocked_category`, `recommended_action`), not a new persisted lifecycle state or `ReconcileOutcome` enum (ADR-025 D8, D13; PRD-reconcile-blocked-verdict-taxonomy §4-§6).
 - File novelty persists PRD 6 evidence classifications as `reason_code` values `all-new-files`, `mixed-additive`, `modifies-existing-files`, `deletes-or-renames`, or `unknown`; the blocked taxonomy may map all-new or mixed-additive evidence into the user-facing `clean-additive` blocked category (ADR-025 D4, D13; PRD-reconcile-file-novelty-classifier §3-§6; PRD-reconcile-blocked-verdict-taxonomy §3).
@@ -106,7 +114,7 @@ Writers refuse to append when pre-existing JSONL is malformed; read-only status/
 
 ## v0.11 reconcile subcommands
 
-The command strings below are the production CLI surface; only the flags shown here are supported for these v0.11 subcommands (PRD-upstreamed-confirmation-gate §3-§6; PRD-reconcile-revision-pass-log §4-§6; PRD-reconcile-retirement-state-audit §3, §6).
+The subcommand-specific flags for these v0.11 commands are shown below (PRD-upstreamed-confirmation-gate §3-§6; PRD-reconcile-revision-pass-log §4-§6; PRD-reconcile-retirement-state-audit §3, §6). The root persistent flag `--path <dir>` (target repository path) is also supported on these subcommands via cobra's persistent-flag inheritance; see `tpatch --help`.
 
 | Command | Flags | Behavior |
 |---|---|---|

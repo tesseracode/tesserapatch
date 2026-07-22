@@ -5,7 +5,7 @@
 - **Task ID**: `v0.11.1-slice-2-reconcile-docs-rev1`
 - **Milestone**: v0.11.1 stabilization — Slice 2 rev-1
 - **Description**: Rev-1 fix-pass over Slice 2 rev-0 (`f340cd8..8890081`). Internal + supervisor-external APPROVED; user-external NEEDS REVISION on F1 (CLI flag-surface overclaim contradicting cobra persistent-flag inheritance model). Bundling supervisor-external N1 (missing `evidence:` hint line description) + internal out-of-scope observation (CHANGELOG.md:34 `ra_<12hex>` → `re_<12hex>` cleanup) into rev-1 for efficiency.
-- **Status**: In Progress (rev-1).
+- **Status**: Review (rev-1).
 - **Assigned**: 2026-07-22.
 
 ## Rev-1 findings (binding scope)
@@ -146,7 +146,7 @@ ADR-027's Blocks header references `PRD-ide-capture-hooks` but `research-roadmap
 
 ## Session Summary
 
-Slice 2 implementation complete and ready for review.
+Slice 2 rev-1 implementation complete and ready for review.
 
 ### Slice 2 closure summary
 
@@ -157,11 +157,17 @@ Slice 2 implementation complete and ready for review.
 - ADR-027 F2 naming roll-in deferred: `docs/state-of-the-art/research-roadmap.md` already had unrelated unstaged edits at dispatch time, so Slice 2 avoided optional file touches and left F2 for a small separate docs edit.
 - CHANGELOG v0.11.1 unreleased entry now includes a Slice 2 bullet.
 
+### Slice 2 rev-1 closure summary
+
+- `docs/reconcile.md:117` closes F1 with Option B: the table is explicitly subcommand-specific, and a global note documents cobra persistent-flag inheritance. `grep -n "PersistentFlags(" internal/cli/cobra.go` found only `root.PersistentFlags().String("path", "", ...)` at `internal/cli/cobra.go:55`, so the note names only `--path <dir>` and avoids duplicating it in every row.
+- `docs/reconcile.md:101-107` closes N1 by adding the human `evidence:` hint block using the exact default-output format from `docs/prds/PRD-reconcile-verdict-evidence.md:177-183` / PRD-reconcile-verdict-evidence §4.
+- `CHANGELOG.md:32` corrects the v0.11.0 evidence `attempt_id` prefix from `ra_<12hex>` to `re_<12hex>`, matching `internal/store/reconcile_evidence.go:125` and ADR-025 D3. No other v0.11.0 changelog line changed.
+
 ## Current State
 
-- Main docs rewrite committed as `8a2c632` (`docs(reconcile): rewrite for v0.11 evidence system`).
-- Tracking/closure edits are pending in the final Slice 2 handoff/changelog commit.
-- Worktree had pre-existing unrelated unstaged/untracked docs changes before Slice 2; this slice touched only `docs/reconcile.md`, `CHANGELOG.md`, and `docs/handoff/CURRENT.md`.
+- Main docs rewrite committed as `8a2c632` (`docs(reconcile): rewrite for v0.11 evidence system`); rev-0 decision baseline is `065eb2f`.
+- Rev-1 fixes are applied on top of `065eb2f` and this handoff marks them ready for review.
+- Worktree had pre-existing unrelated unstaged/untracked docs changes before Slice 2 rev-1; this rev-1 pass touched only `docs/reconcile.md`, `CHANGELOG.md`, and `docs/handoff/CURRENT.md`.
 
 ## Files Changed
 
@@ -175,11 +181,16 @@ Slice 2 implementation complete and ready for review.
 - `go vet ./...` — PASS (no output)
 - `go build ./cmd/tpatch` — PASS
 - `go test ./...` — PASS (final run cached; earlier uncached `internal/cli` 65.818s)
+- Rev-1 gates (2026-07-22) — PASS:
+  - `gofmt -l .` — no output
+  - `go vet ./...` — no output
+  - `go build ./cmd/tpatch` — success
+  - `go test ./...` — all packages pass (cached)
 - `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` — preserved after handoff update (expected `b385fe622db9926f48861105239f113e`)
 
 ## Next Steps
 
-1. Supervisor: dispatch Slice 2 reviewers; do not dispatch reviewers from this implementer session.
+1. Supervisor: dispatch Slice 2 rev-1 reviewers; do not dispatch reviewers from this implementer session.
 2. Optional follow-up: handle ADR-027 F2 naming coordination in a separate small docs edit after resolving/isolating the pre-existing `research-roadmap.md` worktree changes.
 3. After Slice 2 three-way APPROVED: archive to HISTORY, move to Slice 3 (release ops) or Slice 4 (doctor PRD).
 4. Consider promoting rule 16 (parity-guard-on-drift-fix) from candidate to binding after Slice 2 reviewer feedback.
