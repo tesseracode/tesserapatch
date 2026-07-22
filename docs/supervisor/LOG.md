@@ -1,3 +1,56 @@
+## Review — v0.11.1 Slice 2 (reconcile docs refresh) — external (supervisor-dispatched) — 2026-07-19
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Slice 2 (`f340cd8..ac00905`). Verifying internal APPROVED at `adb3c05`.
+
+### Verdict: APPROVED
+
+### Section coverage (independent)
+- §1 Purpose (line 3): OK — single paragraph correctly frames v0.11 reconcile as verdict + evidence + revision; cites ADR-025 D1-D13 + PRD 1 §1,§3,§6 + PRD 3 §1,§3,§6.
+- §2 Pipeline (lines 5-32): OK — raw-verdict list matches `internal/workflow/reconcile.go:205,216,261,282,306`; 7-row post-verdict table matches `reconcile.go:582-585` + `applyUpstreamedConfirmationGate:847` + `persistRevisionPassLog:911`.
+- §3 Evidence + revision schema (lines 34-96): OK — `re_<12hex>` (`reconcile_evidence.go:125`) and `rr_<12hex>` (`reconcile_revision.go:80`) prefixes verified; strict-writer / lenient-reader + `corrupt_entries` envelope (`cobra.go:2169`); ADR-025 D10 privacy verbatim; both synthetic JSON entries decode cleanly against `store.ReconcileEvidence` / `store.ReconcileRevision`.
+- §4 Verdict/label surfaces (lines 98-105): OK — `[upstreamed-candidate]` at `cobra.go:1979-1983` + test `reconcile_evidence_cli_test.go:105`; `outcome:"blocked"` + `review_verdict:"rejected-upstreamed"` invariant verified; 8-category precedence + PRD 6/7/9 enums + thresholds verbatim.
+- §5 CLI subcommands (lines 107-118): OK — audit-retirement (`cobra.go:1988,2012`), confirm-upstreamed (`:2018,2066-2067`), review add (`:2094,2141-2146`), review list (`:2148,2188-2189`) all grep-verified.
+- §6 Dev-only tool (lines 120-122): OK — `internal/tools/studyvalidator/` correctly framed dev-only.
+- §7 Cross-references (lines 129-141): OK — ADR-025 + all 9 PRDs.
+
+### Evidence-ID prefix verification
+- Actual: `re_<12hex>` (`reconcile_evidence.go:125`) and `rr_<12hex>` (`reconcile_revision.go:80`). Doc uses correct prefixes (`re_e6a802d2a675` line 46, `rr_fe613be10f5b` line 76). Reviewer-brief `ra_<12hex>` phrasing was brief drift; internal caught same correction.
+
+### Anti-drift regression (Slice 1)
+- No `--target` re-introduction: confirmed.
+- No `"version": 1` recipe schema drift: confirmed. Two `schema_version: 1` occurrences (lines 44, 75) are ADR-025 D2 evidence/revision versions, not deprecated `ApplyRecipe.version`.
+- No `apply-recipe` reference: confirmed.
+
+### PRD verbatim contract checks
+All 6 verified: PRD 2 bracket display; PRD 3 corrupt_entries envelope; PRD 6 5 reason codes; PRD 7 nearby-window=3; PRD 8 8-category precedence exact order; PRD 9 6 classifications + thresholds.
+
+### CLI accuracy
+All 4 new subcommands + flag surfaces grep-verified. No drift.
+
+### Hard-constraint sweep
+- [x] Docs-only — no internal/cmd/assets touches. `git diff --stat` limited to `CHANGELOG.md +3`, `docs/handoff/CURRENT.md +43/-4`, `docs/reconcile.md +129/-97`.
+- [x] Citation density — 27 `ADR-025` + 38 in-body `PRD-*` mentions covering all 9 PRDs by name.
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e`.
+- [x] Co-authored-by trailers on both commits.
+- [x] No Slice 3/4 touches. ADR-027 F2 deferral clean.
+- [x] CHANGELOG bullet under existing `## v0.11.1 (unreleased)` header (no duplicate).
+
+### Validation gates
+gofmt: PASS | vet: PASS | build: PASS | test: PASS (all packages)
+
+### New findings (beyond internal)
+
+**N1 (LOW, non-blocking)** — `docs/reconcile.md` describes the machine-readable `evidence_artifact` reference on `status.json` (line 38) but does not describe the human-terminal `evidence:` hint line documented in `PRD-reconcile-verdict-evidence §4` (`docs/prds/PRD-reconcile-verdict-evidence.md:177-183`, format `  evidence: phase-2 recipe-operation-match`). Slice 2's scope in `docs/handoff/CURRENT.md:32` explicitly enumerates both surfaces. Not a doc-vs-code accuracy defect — the doc does not misrepresent behavior; just omits one visible UX surface a new-user-first rewrite could reasonably cover. Optional follow-up: bundle with the OUT-OF-SCOPE CHANGELOG `ra_<12hex>` → `re_<12hex>` cleanup that internal already flagged for a future small docs slice.
+
+### Concurrence with internal verdict?
+YES. Internal's APPROVED at `adb3c05` stands. Zero adversarial findings across both reviews.
+
+### Action Taken
+Verdict captured. External returned findings as text due to read-only tool constraint; supervisor prepended + committed.
+
+---
+
 ## Review — v0.11.1 Slice 2 (reconcile docs refresh) — internal — 2026-07-20
 
 **Reviewer**: internal (code-review agent)
