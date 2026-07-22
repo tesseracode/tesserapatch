@@ -1,3 +1,49 @@
+## Review — v0.11.1 Slice 2 rev-1 (reconcile docs refresh) — internal — 2026-07-22
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of rev-1 fixes (`065eb2f..3c8fec5`) closing F1 + N1 + CHANGELOG cleanup.
+
+### Verdict: APPROVED
+
+### Per-fix verification
+- F1 [closed]: `docs/reconcile.md:117` now reads "The subcommand-specific flags for these v0.11 commands are shown below (…). The root persistent flag `--path <dir>` (target repository path) is also supported on these subcommands via cobra's persistent-flag inheritance; see `tpatch --help`." The old "only the flags shown here are supported" quantifier is removed. Wording matches rev-1 brief Option B, names exactly the flag that is actually persistent, and defers to `tpatch --help` as authoritative surface — no new drift risk if additional persistent flags are added later (the reader is pointed at ground truth).
+- N1 [closed]: `docs/reconcile.md:101-107` adds a new bullet under "Verdict, label, and category surfaces" with a fenced `text` block containing exactly the PRD-reconcile-verdict-evidence §4 default-output example (`docs/prds/PRD-reconcile-verdict-evidence.md:177-183`) — byte-for-byte match on all three lines including the two-space indentation on `evidence:` and `review:` sub-lines. Citation `PRD-reconcile-verdict-evidence §4` is included on the introducing sentence.
+- CHANGELOG cleanup [closed]: `git diff 065eb2f..3c8fec5 -- CHANGELOG.md` shows exactly one changed line inside the v0.11.0 body: `ra_<12hex>` → `re_<12hex>` at what is now `CHANGELOG.md:32`. Zero other v0.11.0 lines touched, zero whitespace-only edits nearby. Prefix now agrees with `internal/store/reconcile_evidence.go:125` (`return "re_" + hex.EncodeToString(sum[:])[:12]`) and ADR-025 D3.
+
+### Persistent-flag surface enumeration
+- Full persistent-flag surface in repo: `grep -rn "PersistentFlags\|Persistent(" --include="*.go" .` → single hit `internal/cli/cobra.go:55` `root.PersistentFlags().String("path", "", "Target repository path (default: current directory)")`. No parent-command persistent flags anywhere (verified across `internal/cli/` and repo-wide).
+- Implementer's enumeration matches: confirmed. `--path <dir>` is the only user-defined persistent flag; the doc's note names exactly this flag and no other, and does not misname the flag type.
+
+### Anti-drift regression
+- No `--target` re-introduction in `docs/reconcile.md` or `CHANGELOG.md` (Slice-1 guard intact; only live references are in `docs/handoff/HISTORY.md` and `docs/supervisor/LOG.md`, which are historical/tracking surfaces).
+- No `"version": 1` recipe-schema drift in `docs/reconcile.md`; the surviving `schema_version: 1` occurrences are ADR-025 D2 evidence/revision versions, not the deprecated `ApplyRecipe.version`.
+- No lingering "only the flags shown here" quantifier: `grep -n "only " docs/reconcile.md` shows only ordinary adjectival uses (append-only, read-only, records review metadata only, stdlib-only), not the removed contract phrase.
+- No lingering `ra_<12hex>` **code contract** references anywhere in the tree; remaining matches are all in `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`, and `docs/supervisor/LOG.md`, which are meta-references documenting the fix itself (intentional).
+
+### Hard-constraint sweep
+- [x] Docs-only — `git diff --stat 065eb2f..3c8fec5` touches only `CHANGELOG.md`, `docs/handoff/CURRENT.md`, `docs/reconcile.md`.
+- [x] PRD citations preserved and accurate — `PRD-reconcile-verdict-evidence §4` correctly attached to the new evidence-hint bullet; existing citations on line 115→117 (`PRD-upstreamed-confirmation-gate §3-§6; PRD-reconcile-revision-pass-log §4-§6; PRD-reconcile-retirement-state-audit §3, §6`) preserved verbatim.
+- [x] CLI accuracy — only flag named in new prose is `--path <dir>`, verified against `internal/cli/cobra.go:55`. `tpatch --help` reference is a live command, not a fabricated one.
+- [x] JSON schema accuracy — no new/modified JSON examples in this diff.
+- [x] Synthetic examples only — the added `text` block is the synthetic PRD example verbatim; no real slugs or paths.
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (independently recomputed).
+- [x] Co-authored-by trailer on `3c8fec5` — present: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+- [x] Gates green (see below).
+- [x] No Slice 3/4 touches — no `docs/release` / doctor PRD edits.
+- [x] No ADR-027 F3 touches — no `research-roadmap.md` edits.
+- [x] **NEW rule 11: Flag-surface accuracy** — statement about supported flags now correctly enumerates the single persistent flag AND documents cobra's inheritance model, satisfying rule 11.
+
+### Validation gates
+gofmt: PASS (no output) | vet: PASS (no output) | build: PASS (`go build ./cmd/tpatch` clean) | test: PASS (`go test ./...` all packages ok, cached).
+
+### Adversarial findings (if any)
+None. Fix is surgical, minimal, correctly-scoped, and defers to `tpatch --help` for future flag additions — dampening the drift risk the previous "only" quantifier introduced.
+
+### Action Taken
+Verdict APPROVED. LOG.md prepended. Awaiting supervisor consolidation with external reviewers.
+
+---
+
 ## Review — v0.11.1 Slice 2 (reconcile docs refresh) — external (user-dispatched, parallel) — 2026-07-22
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
