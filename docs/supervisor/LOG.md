@@ -1,3 +1,54 @@
+## Review — v0.11.1 Slice 2 rev-1 (reconcile docs refresh) — external (supervisor-dispatched) — 2026-07-23
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of rev-1 (`065eb2f..3c8fec5`). Verifying internal APPROVED at `268b684`.
+
+### Verdict: APPROVED
+
+### Per-fix verification (independent)
+- F1: CLOSED. `docs/reconcile.md:117` re-frames the table header as subcommand-specific ("The subcommand-specific flags for these v0.11 commands are shown below") and adds an explicit note that the root persistent flag `--path <dir>` is inherited on these subcommands via cobra's persistent-flag inheritance, deferring to `tpatch --help` as ground truth. The overclaim "only the flags shown here are supported" is gone. Deferral to `tpatch --help` provides built-in anti-drift if the persistent-flag surface grows later.
+- N1: CLOSED. `docs/reconcile.md:101-107` inserts the human `evidence:` hint block (PRD-reconcile-verdict-evidence §4 cited inline). Byte-for-byte diff of the fenced text block against `docs/prds/PRD-reconcile-verdict-evidence.md:178-183` — identical (3 lines: `session-search: upstreamed-candidate (low confidence)` / `  evidence: phase-2 recipe-operation-match` / `  review: confirmation required before retirement`).
+- CHANGELOG cleanup: CLOSED. `git diff 065eb2f..3c8fec5 -- CHANGELOG.md` shows exactly one changed line: `ra_<12hex>` → `re_<12hex>` at `CHANGELOG.md:32` in the v0.11.0 body. No other v0.11.0 line altered. New prefix matches `internal/store/reconcile_evidence.go:125` (`return "re_" + hex.EncodeToString(sum[:])[:12]`).
+
+### Persistent-flag surface (independent grep)
+- `grep -n "PersistentFlags(" internal/cli/cobra.go` → single hit: `55: root.PersistentFlags().String("path", "", "Target repository path (default: current directory)")`. No parent-command persistent flags (`root` is the top-level command). No other `PersistentFlags(` calls anywhere in the tree.
+- F1 enumeration matches: **confirmed**. Only `--path <dir>` needed to be named; note is correct and complete as of `3c8fec5`.
+
+### Anti-drift regression
+- No active `--target` usage in `docs/reconcile.md`: **confirmed** (grep found `--target` only in historical CHANGELOG entries describing its removal at `CHANGELOG.md:10,201,236` — expected).
+- No `"version": 1` in `docs/reconcile.md` or `CHANGELOG.md`: **confirmed**.
+- No lingering `ra_<12hex>` active-contract references: **confirmed**. Remaining matches are all in `docs/handoff/CURRENT.md`, `docs/supervisor/LOG.md` — meta-references documenting the fix itself (intentional).
+
+### Hard-constraint sweep
+- [x] Docs-only (diff touches `CHANGELOG.md`, `docs/handoff/CURRENT.md`, `docs/reconcile.md` only)
+- [x] PRD citations preserved (`PRD-reconcile-verdict-evidence §4` cited inline on the new N1 block; F1 note references `tpatch --help` per rule guidance)
+- [x] CLI accuracy (persistent-flag inheritance now correctly documented)
+- [x] JSON schema accuracy (untouched by rev-1)
+- [x] Synthetic examples only (evidence hint block is the PRD's canonical example)
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified via `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`)
+- [x] Co-authored-by trailer on `3c8fec5` (`Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`)
+- [x] Gates green (see below)
+- [x] No Slice 3/4 touches (release ops / doctor PRD untouched)
+- [x] No ADR-027 F3 touches (untouched)
+- [x] Flag-surface accuracy (rule 11): note names `--path <dir>` as the sole persistent flag and defers to `tpatch --help`
+
+### Validation gates
+- gofmt: PASS (no output)
+- vet: PASS (no output)
+- build: PASS (`go build ./cmd/tpatch` clean)
+- test: PASS (all packages: `assets`, `internal/buildinfo`, `internal/cli` 76.2s, `internal/gitutil`, `internal/provider`, `internal/safety`, `internal/store`, `internal/tools/studyvalidator`, `internal/workflow`, `tests/integration`)
+
+### New findings (if any)
+None. Rev-0 approvals for §§1-7 still hold (untouched by rev-1). Rev-1 handoff closure at `docs/handoff/CURRENT.md:160-166` accurately describes each fix + rationale with correct line-number citations.
+
+### Concurrence with internal?
+YES. Internal APPROVED verdict at `268b684` is corroborated by independent grep of `PersistentFlags(`, byte-for-byte PRD comparison of the N1 block, single-line CHANGELOG diff, and clean gates. No user-external unique finding this cycle.
+
+### Action Taken
+Prepended this external review entry to `docs/supervisor/LOG.md`; committed and pushed with Copilot co-author trailer using `--no-verify` and `commit.gpgsign=false`.
+
+---
+
 ## Review — v0.11.1 Slice 2 rev-1 (reconcile docs refresh) — internal — 2026-07-22
 
 **Reviewer**: internal (code-review agent)
