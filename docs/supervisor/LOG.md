@@ -1,3 +1,71 @@
+## Review — v0.11.1 Slice 2 rev-1 (reconcile docs refresh) — external (user-dispatched, parallel) — 2026-07-23
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of rev-1 (`065eb2f..3c8fec5`).
+
+### Verdict: APPROVED
+
+### Per-fix verification (independent)
+- F1 closed: `docs/reconcile.md` reworded to scope table to subcommand-specific flags and explicitly note inherited root `--path`.
+- N1 closed: evidence hint output note added, matches PRD guidance.
+- CHANGELOG cleanup closed: `ra_<12hex>` → `re_<12hex>` correction in `CHANGELOG.md`.
+- Handoff status/context advanced appropriately in `CURRENT.md`.
+
+### Validation gates (independent run)
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- `go test ./...`: passing (no failure indications; targeted `internal/cli internal/workflow internal/store tests/integration` confirmed).
+- Worktree clean (`git status --short` empty).
+
+### Concurrence with internal + supervisor-external
+YES on both. Zero adversarial findings across all three passes.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — v0.11.1 Slice 2 rev-1 — supervisor — 2026-07-23
+
+**Decision**: APPROVED.
+
+Three independent reviews (internal `268b684`, supervisor-external `8189982`, user-external 2026-07-23) unanimously concur on rev-1. Zero adversarial findings on the fix commit; all 3 targets (F1 flag-surface overclaim, N1 human `evidence:` hint description, CHANGELOG `ra_<12hex>` → `re_<12hex>` cleanup) cleanly closed with byte-for-byte PRD-match verification on N1 and independent grep verification on F1's persistent-flag surface.
+
+### Slice 2 closure stack
+
+- **rev-0** (2026-07-19): `8a2c632` (main rewrite) + `ac00905` (handoff/CHANGELOG)
+  - Internal APPROVED `adb3c05`
+  - Supervisor-external APPROVED `8890081` (N1 LOW note)
+  - User-external NEEDS REVISION 2026-07-22 (F1 MEDIUM BLOCKING — flag-surface overclaim contradicting cobra persistent-flag inheritance)
+- **rev-1** (2026-07-22): `3c8fec5` (single commit closing F1 + N1 + CHANGELOG cleanup)
+  - Internal APPROVED `268b684`
+  - Supervisor-external APPROVED `8189982`
+  - User-external APPROVED 2026-07-23
+
+### Two-opinion protocol scoreboard update
+
+10 consecutive rev cycles with three-way concurrence at final acceptance. User-external uniquely caught blockers in **5 of 10 rev cycles at rev-0**: WP-003 α rev-0 F1 (evidence artifact not persisted); β rev-0 F8 (`corrupt_entries` production gap); γ-1 rev-0 F1 (`confirm-upstreamed` PRD-named trigger missing); Slice 2 rev-0 F1 (flag-surface overclaim contradicting cobra persistent-flag inheritance). Protocol continues to be the primary defense against docs-vs-production drift.
+
+### Process lesson update (candidate carry-forward rule 17)
+
+Slice 2 rev-0 F1 demonstrates the same pattern as rules 8, 9, 15: docs claims about "supported X" must be verified against the production runtime model (cobra persistent-flag inheritance, in this case), not just against the enumerated docs-level surface. Rule 11 (added at rev-1) covers this specific case; a broader phrasing may generalize:
+
+**Candidate rule 17**: When docs make a totality claim ("only X is supported", "the full list is Y", "no more than Z"), reviewers MUST verify the claim against ALL layers of the production model (root flags, inherited flags, cobra command groups, etc.), not just the enumerated docs list. Promote to binding after Slice 3/4 reviewer feedback confirms broader applicability.
+
+### Next steps
+- Slice 2 SQL todo `v0.11.1-stab-slice-2-reconcile-docs` marked `done`.
+- Slice 3 (release ops cleanup) becomes next candidate. Supervisor-direct execution acceptable — no full review cycle required per rev-0 cluster plan.
+- Slice 4 (`PRD-tpatch-doctor` paper-only PRD draft) remains queued after Slice 3.
+- ADR-027 F2 (roadmap naming coord) still deferred — can bundle with any future small docs slice.
+
+### Action Taken
+- Slice 2 rev-0 + rev-1 archived to HISTORY.md.
+- CURRENT.md reset for Slice 3 kickoff (or next-block decision).
+- SQL todo flipped `done`.
+
+---
+
 ## Review — v0.11.1 Slice 2 rev-1 (reconcile docs refresh) — external (supervisor-dispatched) — 2026-07-23
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
