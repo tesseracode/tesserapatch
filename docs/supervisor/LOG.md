@@ -1,3 +1,48 @@
+## Decision — v0.11.1 Slice 3 (release ops cleanup) — supervisor-direct execution — 2026-07-23
+
+**Decision**: Complete (supervisor-direct execution; no full review cycle per rev-0 cluster plan).
+
+Rev-0 cluster plan specified supervisor-direct execution for Slice 3 (release ops) because it is transactional metadata publication + one small docs file without production-behavior contracts. This entry records the direct execution.
+
+### GH Releases published (5, backfill for tags v0.8.0-v0.11.0)
+
+All 5 published in a single supervisor session with `gh release create --notes-file /tmp/release-notes/vX.Y.Z.md --verify-tag`:
+
+- v0.8.0 — "M17 boundary-capture cluster"
+- v0.8.1 — "Wave D detector tails"
+- v0.9.0 — "Wave alpha (file-claims + capture-modes)"
+- v0.10.0 — "Wave β + Wave γ (patch-identity-metadata + patch-amend)"
+- v0.11.0 — "WP-003 Reconcile Safety and Middle-Pass Foundation" (marked `--latest`)
+
+Titles match CHANGELOG headings verbatim. Notes extracted via `awk '/^## vX\.Y\.Z —/,/^## v/' CHANGELOG.md | sed '$d'`.
+
+Post-execution verification: `gh release list --limit 12` shows all 5 releases with correct titles + timestamps + `v0.11.0` marked Latest.
+
+### `RELEASING.md` added
+
+New 179-line docs file documenting the release process (CHANGELOG → tag → GH Release lock-step). Covers heading format for `awk` extraction, `gh release create` flags, anti-drift guardrails, version-derivation reminder, historical cadence.
+
+### Gates
+gofmt: clean | vet: clean | build: clean | test: unchanged (docs + ops only, no code touches).
+
+### Anti-drift guard queued
+`RELEASING.md` includes a candidate CI check (pre-tag script verifying tag has matching CHANGELOG entry + GH Release within 24h). Not implemented in Slice 3; queued for Slice 4 as a `tpatch doctor` candidate check.
+
+### Concurrence with cluster plan
+Cluster plan explicitly said "supervisor-direct execution; no full review cycle" for release ops. This execution respects that.
+
+### Optional user spot-check
+User may verify published releases at https://github.com/tesseracode/tesserapatch/releases before Slice 3 archive.
+
+### Action Taken
+- 5 GH Releases published.
+- `RELEASING.md` added.
+- CURRENT.md updated with Slice 3 closure summary (Status: Complete).
+- SQL todo `v0.11.1-stab-slice-3-release-ops` marked `done`.
+- Slice 4 (`PRD-tpatch-doctor` paper-only draft) becomes next candidate.
+
+---
+
 ## Review — v0.11.1 Slice 2 rev-1 (reconcile docs refresh) — external (user-dispatched, parallel) — 2026-07-23
 
 **Reviewer**: external (parallel second opinion, user-dispatched)

@@ -5,8 +5,45 @@
 - **Task ID**: `v0.11.1-slice-3-release-ops`
 - **Milestone**: v0.11.1 stabilization — Slice 3
 - **Description**: Publish GH Releases for the 5 missing tags (v0.8.0, v0.8.1, v0.9.0, v0.10.0, v0.11.0) using existing `CHANGELOG.md` entries as release notes. Add `RELEASING.md` documenting the release process so tag+release don't drift again. Supervisor-direct execution; no full implement→review cycle required per cluster plan.
-- **Status**: Ready to execute.
+- **Status**: Complete (supervisor-direct execution 2026-07-23; awaiting Slice 4 dispatch).
 - **Assigned**: 2026-07-23.
+
+## Slice 3 closure summary
+
+### GH Releases published (5)
+
+- v0.8.0 — "M17 boundary-capture cluster" — https://github.com/tesseracode/tesserapatch/releases/tag/v0.8.0
+- v0.8.1 — "Wave D detector tails" — https://github.com/tesseracode/tesserapatch/releases/tag/v0.8.1
+- v0.9.0 — "Wave alpha (file-claims + capture-modes)" — https://github.com/tesseracode/tesserapatch/releases/tag/v0.9.0
+- v0.10.0 — "Wave β + Wave γ (patch-identity-metadata + patch-amend)" — https://github.com/tesseracode/tesserapatch/releases/tag/v0.10.0
+- v0.11.0 — "WP-003 Reconcile Safety and Middle-Pass Foundation" — https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.0 (marked as `Latest`)
+
+All 5 releases used `--notes-file` with CHANGELOG entries extracted via `awk '/^## vX\.Y\.Z —/,/^## v/' CHANGELOG.md | sed '$d'`. Titles match CHANGELOG headings verbatim.
+
+### `RELEASING.md` added (179 lines)
+
+Sections:
+- Overview (3-artifact release: CHANGELOG entry → tag → GH Release, must stay in lock-step).
+- Prerequisites (clean tree, `gh` auth, full gates green).
+- Step 1 — Write CHANGELOG entry (with heading-format contract for `awk` extraction).
+- Step 2 — Tag with annotated tag pointing at release commit.
+- Step 3 — Publish GH Release with `--verify-tag`, `--latest`, `--notes-file`.
+- Optional post-release checks (list verification, handoff/roadmap updates).
+- Anti-drift guardrails (never tag without publishing; CHANGELOG as single source of truth; sanity-check; CI-check candidate queued under Slice 4 doctor scope).
+- Version-derivation reminder (no source constant; `internal/buildinfo` resolves from ldflags/git tags).
+- Historical release cadence (v0.8.0 through v0.11.0 aligned with WP clusters).
+
+### Gates
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- No code touches; `go test ./...` invariant preserved.
+
+### Anti-drift observation
+Slice 3's `RELEASING.md` includes a candidate CI check (pre-tag script verifying tag has matching CHANGELOG entry + GH Release within 24h). Not implemented in this slice; explicitly queued for Slice 4 as a doctor-command candidate.
+
+### Out-of-scope observations
+None. CHANGELOG.md v0.8.0 through v0.11.0 entries left untouched per hard constraint 2.
 
 ## v0.11.1 cluster progress
 
