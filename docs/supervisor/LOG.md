@@ -1,3 +1,70 @@
+## Review — v0.11.1 Slice 4 (PRD-tpatch-doctor draft) — internal — 2026-07-23
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Slice 4 draft (`19b9969..e1ed73e`) — paper-only PRD for tpatch doctor.
+
+### Verdict: APPROVED WITH NOTES
+
+Two soft findings on display-string / example-path accuracy (F1 concrete-example remediation names a nonexistent flag; F2 D3 human-output example paths do not match actual `tpatch init` install destinations). Neither blocks the Proposed status of a paper-only PRD, but both should be corrected before the implementation slice ships so downstream code doesn't copy the invented strings verbatim.
+
+### D-clause sweep (D1-D8)
+- D1 (feature metadata drift): locked. Correctly notes current `status.json` has no top-level schema version and scopes v1 to field-level diffs + `ValidFeatureState`. Read-only in v1, no invented migration.
+- D2 (patch-generations): locked. Cites ADR-024 D4/D7 correctly; scope matches `PatchGenerationsManifestVersion = 1` + `git-patch-id-stable` in `internal/store/patch_generations.go:18-19`. Remediation string is inaccurate — see F1.
+- D3 (skill assets): locked in intent. References the 6-format `skillFiles` table + Slice 1 parity guard. Example paths in prose are inaccurate — see F2.
+- D4 (locks): locked. Enumerates concrete conditions (`missing/empty/malformed/old-format/stale-ref/unreachable-commit/override-divergence`); `--fix` is scoped to format-preserving rewrites and explicitly refuses fetch / branch guessing / commit advance.
+- D5 (evidence): locked. Correctly cites ADR-025 D11 malformed-JSONL semantics and ADR-025 for schema/enum/duplicate-`attempt_id` validation; matches `ReconcileEvidenceSchemaVersion = 1` / `re_<12hex>` in `internal/store/reconcile_evidence.go:15-18,120-126` and `ReconcileRevisionSchemaVersion = 1` / `rr_<12hex>` in `internal/store/reconcile_revision.go:15-20`.
+- D6 (release drift): locked. Faithfully mirrors `RELEASING.md:139-157` anti-drift candidate: tag vs `## vX.Y.Z` CHANGELOG heading vs GH Release. Correctly keeps GH Release verification offline via caller-supplied `--release-metadata` snapshot; reports `unknown` when absent (no silent pass, no auth prompt).
+- D7 (recipe schema): locked. Matches `TestSkillRecipeSchemaMatchesCLI` semantics at `assets/assets_test.go:253-312` (decode into `workflow.ApplyRecipe` with `DisallowUnknownFields`, reject `version` / `op` / `contents`). `ApplyRecipe` confirmed at `internal/workflow/implement.go:42`.
+- D8 (hard invariants): locked. Correctly isolates whole-run aborts (missing workspace, path traversal, backup collision) from per-check errors; enumerates what CANNOT be fixed at the process level (no network, no auth, no source transforms) via §2.2 + §8.
+
+### §6 acceptance criteria sweep (spot-check)
+- Idempotence: present (§6.3).
+- Dry-run default: present (§6.1).
+- --fix explicit opt-in: present (§6.1, §4.1 rejects `--dry-run --fix` combo).
+- Backups mandatory: present (§6.2, §5.5 backup semantics).
+- JSON output: present (§6.23, §4.3 concrete example, §6.28 determinism).
+- Exit codes: present (§6.24 — 0/1/2; §4.4 with reserved codes note).
+- Per-check failure isolation: present (§6.20; hard-invariant abort carved out in §6.21).
+
+### Cross-reference sweep
+- ADR-024 D1-D9 citation accuracy: confirmed (D4 backfill ban, D7 malformed handling explicitly reused).
+- ADR-025 D1-D13 citation accuracy: confirmed (D10 privacy, D11 malformed, D12 refs all present in ADR).
+- ADR-027 D1-D5 citation accuracy: confirmed (D2 raw-context prohibition mirrored in §2.2 non-goal 6 + §5.8).
+- RELEASING.md anti-drift match: confirmed (`RELEASING.md:139-157` is the anti-drift block; D6 semantics match).
+- Slice 1 `TestSkillRecipeSchemaMatchesCLI` reference: present (§0.2 audit + §9 sources cite `assets/assets_test.go:253-312`).
+
+### Hard-constraint sweep
+- [x] PRD only — `git --no-pager diff --stat 19b9969..e1ed73e` shows exactly `docs/prds/PRD-tpatch-doctor.md` + `docs/handoff/CURRENT.md`.
+- [x] No CHANGELOG additions in Slice 4 (verified: no `CHANGELOG.md` touch in diffstat).
+- [x] Status is `Proposed` (line 3).
+- [x] Non-scope explicit for network / auth / GH-Release publishing / source transformations (§2.2 items 1-4 + §8 items 1-4).
+- [x] Safety defaults present (`--dry-run` default, `--fix` opt-in, backups mandatory) — §6.1/§6.2/§5.5.
+- [x] Idempotence acceptance present — §6.3.
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified via `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`).
+- [x] Co-authored-by trailer on `e1ed73e` (`Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`).
+- [x] No Slice 1/2/3 file touches (diff limited to new PRD + handoff).
+- [x] No ADR-027 F2/F3 touches. No other PRD edits.
+- [x] Rule 11 flag-surface: `--path` PersistentFlag at `internal/cli/cobra.go:56` is inherited automatically and IS listed in §4.1 command shape.
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean (`go build ./cmd/tpatch` succeeds) | test: `go test ./...` all packages `ok` (cached).
+
+### Adversarial findings
+
+**F1 — Medium — D2 §6.6 / §4.2 / §4.3 — remediation string names a nonexistent flag.**
+- Evidence: PRD prescribes `tpatch record --refresh <slug>` as the concrete remediation for D2 findings — hedged in prose at lines 141 and 157 ("or the then-current record/amend command"), but hard-coded without hedge in the human output example (`docs/prds/PRD-tpatch-doctor.md:298`) and the JSON output example (`docs/prds/PRD-tpatch-doctor.md:335`, `"remediation": "run tpatch record --refresh session-search"`).
+- Ground truth: `tpatch record` has no `--refresh` flag. Its full flag surface is registered at `internal/cli/cobra.go:545-558` (`--from`, `--to`, `--auto`, `--commit-range`, `--lenient`, `--no-recipe-autogen`, `--regenerate-recipe`, `--files`, `--allow-collision`, `--force-amend`, `--all`, `--staged`, `--unstaged`, `--claimed-only`). The actual patch-refresh command is `tpatch feature patch refresh <slug>` (`internal/cli/feature_patch.go:29`).
+- Rule impact: Rule 8 (display-string contracts) — the JSON example fixes a binding output string that a downstream implementer will emit verbatim. Rule 15 (γ-1 F1) — PRD names a command/flag as a trigger for user action that does not exist in production code.
+- Suggested fix (no code changes now): in §4.2 / §4.3 examples, replace `tpatch record --refresh <slug>` with `tpatch feature patch refresh <slug>` (or another verified command), and update the §3 D1/D2 prose lines 141/157 to name the real command. If the intent is a *new* refresh alias on `tpatch record`, then §3.D2 should say so explicitly and add an acceptance criterion for the flag surface.
+
+**F2 — Low/Medium — D3 §3 / §4.2 — example install paths do not match `tpatch init` output.**
+- Evidence: PRD line 170-171 lists "common agent locations such as `.copilot/instructions.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `.windsurf/`, and copied `SKILL.md` directories". The human output example at line 300 uses `path=.copilot/instructions.md`.
+- Ground truth: `installSkills` in `internal/cli/cobra.go:2780-2801` writes exactly six paths — `.claude/skills/tessera-patch/SKILL.md`, `.github/skills/tessera-patch/SKILL.md` (this is the Copilot install), `.github/prompts/tessera-patch-apply.prompt.md`, `.cursor/rules/tessera-patch.mdc`, `.windsurfrules` (a top-level file, not a `.windsurf/` directory), and `.tpatch/workflows/tessera-patch-generic.md`. `.copilot/instructions.md` and `.github/copilot-instructions.md` are never written or touched by tpatch anywhere in the codebase (`grep -rn "\.copilot/instructions\|copilot-instructions" internal/ assets/` returns nothing).
+- Rule impact: Rule 8 (display-string contracts) — the human-output example gives implementers a concrete but wrong target. More importantly, D3 `--fix` mutates the file — if the doctor scans `.copilot/instructions.md` and replaces it with bundled skill-asset bytes (which are unrelated content), it would clobber an unrelated user file. §3.D3's guard ("If the file contains non-tpatch user edits outside the known asset body, report `manual-merge-required`") depends on a `tpatch marker` inside the file — but §7.3 flags that as an *open question* not yet answered, so the guard is not yet operational.
+- Suggested fix (no code changes now): tighten §3.D3 to say v1 D3 only scans the six paths from `installSkills` in `internal/cli/cobra.go` (or a symmetric constant); move `.copilot/instructions.md` etc. under §7 open questions (heuristic mode) rather than the D3 main scope; replace the `path=.copilot/instructions.md` example with a real `tpatch init` destination such as `.github/skills/tessera-patch/SKILL.md` or `.cursor/rules/tessera-patch.mdc`.
+
+### Action Taken
+Prepending this review entry to `docs/supervisor/LOG.md`. Verdict is APPROVED WITH NOTES: paper-only PRD may proceed to external review; F1 and F2 should be resolved in the same rev before Slice 4 archive, since both concern binding display strings (rule 8) that downstream implementers will copy.
 ## Decision — v0.11.1 Slice 3 (release ops cleanup) — supervisor-direct execution — 2026-07-23
 
 **Decision**: Complete (supervisor-direct execution; no full review cycle per rev-0 cluster plan).
