@@ -138,8 +138,8 @@ subrecords whose current reader would reject them.
 **Read-only or mutating.** Read-only in v1.
 
 **Safe auto-fix.** None in v1. Schema migration requires a future PRD that names
-exact field mappings. Doctor may print `run tpatch record --refresh` or a future
-migration command when a dedicated mapper exists.
+exact field mappings. Doctor may print `run tpatch feature patch refresh <slug>`
+or a future migration command when a dedicated mapper exists.
 
 **Failure mode.** Unreadable or malformed feature metadata yields a D1 finding for
 that file and does not abort other feature checks unless `.tpatch/` itself cannot
@@ -154,10 +154,10 @@ true but no `artifacts/patch-generations.json`; manifests with unsupported
 
 **Read-only or mutating.** Read-only in v1.
 
-**Safe auto-fix.** None in v1. The recommended path is `tpatch record --refresh`
-(or the then-current record/amend command) because only the record write path can
-capture current patch, recipe, base, upper, capture, and dependency snapshots
-without violating ADR-024 D4.
+**Safe auto-fix.** None in v1. The recommended path is
+`tpatch feature patch refresh <slug>` (or the then-current record/amend command)
+because only the record/refresh write path can capture current patch, recipe,
+base, upper, capture, and dependency snapshots without violating ADR-024 D4.
 
 **Failure mode.** Malformed manifests mirror ADR-024 D7: report the malformed
 file, distrust identity fields for downstream checks, and continue.
@@ -166,10 +166,16 @@ file, distrust identity fields for downstream checks, and continue.
 
 **Detects.** Installed repository copies of any bundled skill surface that no
 longer match the running binary's embedded asset bytes or normalized recipe-schema
-examples. Candidate paths include the paths written by `tpatch init` and common
-agent locations such as `.copilot/instructions.md`, `.github/copilot-instructions.md`,
-`.cursor/rules/`, `.windsurf/`, and copied `SKILL.md` directories when the asset
-contains a tpatch marker.
+examples. The bundled surfaces installed by `tpatch init` are exactly the six
+paths written by `installSkills` (`internal/cli/cobra.go:2780-2801`):
+`.claude/skills/tessera-patch/SKILL.md`, `.github/skills/tessera-patch/SKILL.md`,
+`.github/prompts/tessera-patch-apply.prompt.md`, `.cursor/rules/tessera-patch.mdc`,
+`.windsurfrules` (a single file, not a directory), and
+`.tpatch/workflows/tessera-patch-generic.md`. Doctor detects drift only for those
+six paths in v1. Other agent locations (e.g., hand-copied `SKILL.md` files under
+custom directories) are out of scope for v1 auto-detection; downstream PRDs may
+extend the detection surface once a marker-based identification contract exists
+(§7.3).
 
 **Read-only or mutating.** Detection is read-only. `--fix` may mutate only files
 that doctor can positively identify as installed tpatch asset copies.
@@ -295,11 +301,11 @@ tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--path <dir>] [--rele
 $ tpatch doctor
 DRIFT  D2 patch-generations-missing  feature=session-search
        .tpatch/features/session-search/artifacts/patch-generations.json missing
-       remediation: run tpatch record --refresh session-search
+       remediation: run tpatch feature patch refresh session-search
 
-DRIFT  D3 stale-skill-asset  path=.copilot/instructions.md
+DRIFT  D3 stale-skill-asset  path=.claude/skills/tessera-patch/SKILL.md
        bundled sha256=0e7a... installed sha256=9b1d...
-       fix: tpatch doctor --fix --check D3 (backup: .copilot/instructions.md.orig)
+       fix: tpatch doctor --fix --check D3 (backup: .claude/skills/tessera-patch/SKILL.md.orig)
 
 WARN   D6 release-missing-gh-release  tag=v0.12.0
        CHANGELOG entry and tag exist; GitHub Release status unknown/offline
@@ -332,17 +338,17 @@ exit: 1
       "path": ".tpatch/features/session-search/artifacts/patch-generations.json",
       "message": "patch-generations.json missing for feature with captured patch",
       "fixable": false,
-      "remediation": "run tpatch record --refresh session-search"
+      "remediation": "run tpatch feature patch refresh session-search"
     },
     {
       "check_id": "D3",
       "code": "stale-skill-asset",
       "severity": "drift",
-      "path": ".copilot/instructions.md",
+      "path": ".claude/skills/tessera-patch/SKILL.md",
       "expected_sha256": "0e7a...",
       "actual_sha256": "9b1d...",
       "fixable": true,
-      "backup_path": ".copilot/instructions.md.orig"
+      "backup_path": ".claude/skills/tessera-patch/SKILL.md.orig"
     }
   ]
 }
