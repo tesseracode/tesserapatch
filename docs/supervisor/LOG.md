@@ -1,3 +1,84 @@
+## Review — tpatch doctor Wave α (scaffold + D1 + D2 + D8) — external (supervisor-dispatched) — 2026-07-24
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Wave α single commit (`8a70e7b..6319c0b`). Verifying internal APPROVED at `e424fe0`.
+
+### Verdict: APPROVED WITH NOTES
+
+One hard-constraint violation found that internal missed: the `Co-authored-by` trailer on `6319c0b` is NOT a valid git trailer. The commit body was written with literal `\n\n` escape sequences instead of real newlines between the description and the trailer line, so `git interpret-trailers --parse` returns empty and `%(trailers)` produces no output. GitHub will not attribute co-authorship. This is a metadata violation only — the code, tests, and gates are all clean, so Wave α scope is otherwise fully satisfied. Non-blocking for merge (Wave α content is correct); worth fixing on the next commit or noting for the release-tag process.
+
+### Per-§6 verification (independent, 17 in-scope criteria)
+- §6.1: MET — `RunDoctor` coerces `DryRun=true` when `--fix` is absent (`internal/workflow/doctor.go:104-106`); CLI test `TestDoctorCLIDryRunDefaultNoBackupsAndIdempotentFixNoop` (`internal/cli/doctor_test.go:67-76`) confirms default run creates no backups; D1 test asserts bytes unchanged (`internal/workflow/doctor_test.go:44-50`).
+- §6.2: MET (scaffold) — `EnsureDoctorBackup` reserves `<path>.orig` with a pre-existence guard (`internal/workflow/doctor.go:208-219`). Wave α has no overwrite class; first exercised in Wave β D3.
+- §6.3: MET — Second `--fix` run asserts zero `.orig` backups exist (`internal/cli/doctor_test.go:84-89`), i.e. count-based assertion, not merely no-error.
+- §6.4: MET — D1 report contains CheckID + slug + path + field + JSON line (`internal/workflow/doctor_d1.go:14-146`).
+- §6.5: MET — D1 findings are `Fixable:false`; the D1 malformed-status test verifies bytes unchanged after run.
+- §6.6: MET — D2 emits exact string `"run tpatch feature patch refresh <slug>"` (`internal/workflow/doctor_d2.go:12,32`); test asserts exact literal at `internal/workflow/doctor_test.go:78-80`. Remediation command exists at `internal/cli/feature_patch.go:29` (Rule 15 satisfied).
+- §6.7: MET — D2 delegates to production `store.LoadPatchGenerations` (`internal/workflow/doctor_d2.go:39`) and classifies via `store.ErrMalformedManifest`.
+- §6.20: MET — Runner isolates each check with `defer recover` (`internal/workflow/doctor.go:135-148`); test `TestDoctorPerCheckErrorsDoNotAbortOtherChecks` asserts D1 + D2 findings both emitted when one feature is broken.
+- §6.21: MET — `validateDoctorWorkspace` runs before any registered check and returns `DoctorHardInvariantError` (`internal/workflow/doctor.go:114-117, 255-304`); test `TestDoctorHardInvariantMissingWorkspace` verifies with `errors.As`.
+- §6.22: MET — human summary format at `internal/workflow/doctor.go:190-191`; CLI test asserts exact `"1 drift findings, 0 warnings, 0 fixed, 0 errors"`.
+- §6.23: MET — Schema-versioned DTO (`schema_version:1`), stable code strings, severity, per-finding `fixable`/`remediation`/`backup_path`; JSON round-trips through `DisallowUnknownFields` (`internal/workflow/doctor_test.go:154-161`) — provides parity guard against DTO drift (Rule 16 satisfied).
+- §6.24: MET — `DoctorExitCode` returns 0/1/2 (`internal/workflow/doctor.go:194-202`); `TestDoctorExitCodes` covers all three paths.
+- §6.25: MET — `ValidateDoctorCheckIDs` runs in CLI RunE BEFORE `openStoreFromCmd` (`internal/cli/doctor.go:28-30`) and again in `RunDoctor` before workspace validation; `TestDoctorCLIUnknownCheckFailsBeforeRun` asserts no report emitted.
+- §6.26: MET — grep confirms no `os.ReadFile`/`os.Open` on transcript/agent-event/`.env`/capture-buffer paths in `internal/workflow/doctor*.go` or `internal/cli/doctor*.go`. Only touched paths: `.tpatch/features/<slug>/status.json`, `feature.yaml`, `artifacts/post-apply.patch`, `artifacts/patch-generations.json`.
+- §6.27: MET — no source-file writes anywhere in Wave α; D8 runner is a no-op comment (`internal/workflow/doctor_d8.go:14-17`).
+- §6.28: MET — `sortDoctorReport` sorts findings + checks by stable composite key (`internal/workflow/doctor.go:326-336`); DTO has no time fields; `TestDoctorJSONDeterministicAndDecodesDTO` asserts two consecutive writes are byte-identical and checks the string contains no `"2026-"` or `"T22:"`.
+- §6.29: MET for Wave α — D1 fixture (`doctor_test.go:15-51`), D2 fixture (`:53-85`), D8 hard-invariant fixture (`:112-122`), idempotence fixture (`internal/cli/doctor_test.go:78-89`). D3-D7 vacuously deferred (no fixable classes in scope).
+
+### Wave-boundary check (independent)
+Grep of new doctor code and diff for `D3|D4|D5|D6|D7|upstream.lock|reconcile-evidence|release-metadata|apply-recipe|Skills.ReadFile|DisallowUnknownFields.*Recipe` returned zero hits.
+- D3 (skill-asset drift): not implemented ✓
+- D4 (lock format): not implemented ✓
+- D5 (evidence artifact): not implemented ✓
+- D6 (release drift / `--release-metadata`): not implemented ✓
+- D7 (recipe schema drift): not implemented ✓
+
+### Hard-constraint sweep (14)
+- [x] No new `FeatureState` values (`internal/store/status.go` untouched in this commit).
+- [x] No new persisted schemas outside doctor JSON output — `internal/store/` not modified.
+- [x] ADR-025 D11 pattern honored — D2 malformed-manifest classified via `store.ErrMalformedManifest` (drift) vs unreadable (error); ADR-027 D2+D10 privacy: no raw context reads.
+- [x] No `--release-metadata` in Wave α.
+- [x] CHANGELOG `## v0.11.2 (unreleased) — tpatch doctor Wave α` present at top of CHANGELOG.md.
+- [x] Assets/skills 6 formats updated + `assets/assets_test.go` requires `"tpatch doctor"` (line 34). `TestSkillParityGuard` passes under `go test ./assets`.
+- [x] Side Research md5 = `b385fe622db9926f48861105239f113e` — verified by `awk '/^## Side Research/{flag=1} flag{print}' docs/handoff/CURRENT.md | md5`.
+- [ ] **Co-authored-by trailer on `6319c0b`** — VIOLATION. The trailer text is present as literal characters, but the commit body uses literal `\n\n` sequences instead of real newlines separating body from trailer. `git interpret-trailers --parse` on the message returns empty; `%(trailers)` yields nothing. Not a valid git trailer.
+- [x] Gates green: `gofmt -l .` (empty), `go vet ./...` (empty), `go build ./cmd/tpatch` (empty), `go test ./...` (all `ok`).
+- [x] Rule 11 (persistent-flag accuracy) — doctor `Long` at `internal/cli/doctor.go:22` explicitly states `--path` is a root persistent flag inherited by doctor.
+- [x] Rule 17 (no totality claims) — no `"only"`/`"full list"`/`"all checks"` claims in doctor `Long` or `--help` output.
+- [x] Rule 16 (parity guard on drift-fix) — `TestDoctorJSONDeterministicAndDecodesDTO` decodes with `DisallowUnknownFields`, catching future DTO/JSON drift.
+
+### Validation gates
+gofmt: PASS (no output) | vet: PASS (no output) | build: PASS | test: PASS (all packages `ok`).
+
+### Anti-drift regression
+- No `--target`: confirmed (grep of new doctor code for `"--target"` returns nothing).
+- No `"version": 1` recipe: confirmed (only recipe reference is in a D2 fixture manifest with `"version": 99` for negative test).
+- No `ra_<12hex>` active refs: confirmed.
+- No stale symbol refs (`stubRecipeOpTargetsResolve` etc.): confirmed.
+
+### Verification of internal observations
+- **ExitCode==1 vs 2 case**: Independently verified — `internal/workflow/doctor.go:194-202`. When `--fix` runs with `Findings>0` but `Errors==0`, exit is 1. Internal claimed this was "currently unreachable in Wave α (no fixers)"; in fact the CLI test `TestDoctorCLIDryRunDefaultNoBackupsAndIdempotentFixNoop:78-79` explicitly asserts `--fix` returns exit 1 on read-only Wave α drift — so the path IS reachable in Wave α. However, the behavior is defensible under PRD §6.24 ("2 --fix partial failure"): "partial failure" implies fix-time errors (`Errors>0`), and reporting remaining drift as exit 1 is consistent. Not a latent bug; internal's characterization ("unreachable") is slightly inaccurate but the code is correct.
+- **`--check` case-insensitivity**: Verified at `internal/workflow/doctor.go:241` (`strings.ToUpper(strings.TrimSpace(raw))`). PRD §6.25 does not mandate case-sensitivity either way. Low risk — the canonical IDs `D1/D2/D8` are unambiguous and the ToUpper is idempotent. No test asserts this behavior. Intentional and safe.
+
+### New findings (if any beyond internal)
+
+**F-EXT-1 — Co-authored-by trailer on `6319c0b` is malformed (Medium)**
+File: commit message body of `6319c0b`
+Evidence: `git log -1 --format=%B 6319c0b | od -c` shows the sequence `. \n \\ n \\ n C o - a u t h o r e d - b y :` — the body contains literal backslash-n characters where real newlines belong. Confirmed via `git log -1 --format='%(trailers)'` (empty) and `git interpret-trailers --parse` (empty).
+Impact: GitHub will not credit `Copilot <223556219+Copilot@users.noreply.github.com>` as co-author of `6319c0b`. Fails the Wave α hard-constraint checklist item "Co-authored-by trailer on `6319c0b`".
+Suggested fix (do NOT apply here): amend the commit before pushing further, or add a follow-up commit with a properly-formatted trailer noting the intended co-authorship, or accept the miss and correct process for Waves β/γ/δ.
+
+No other findings beyond internal's two non-blocking observations.
+
+### Concurrence with internal verdict?
+PARTIAL. I concur with internal's per-§6 MET calls and internal's two non-blocking observations (exit-code semantics, --check case-insensitivity). I do NOT concur with the unconditional APPROVED verdict: internal missed the malformed Co-authored-by trailer, which is an explicit hard-constraint item on the Wave α checklist. Downgrading to APPROVED WITH NOTES.
+
+### Action Taken
+Recorded external review to LOG.md. No source changes.
+
+---
+
 ## Review — tpatch doctor Wave α (scaffold + D1 + D2 + D8) — internal — 2026-07-24
 
 **Reviewer**: internal (code-review agent)
