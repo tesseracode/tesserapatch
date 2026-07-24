@@ -2,19 +2,88 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.11.1 (unreleased) — Stabilization
+## v0.11.1 — 2026-07-23 — Stabilization
+
+Post-v0.11.0 stabilization cluster addressing release-quality inconsistencies
+flagged by external teams and reviewer agents. Four slices shipped
+2026-07-19..2026-07-23; two-opinion review protocol continued (11 consecutive
+rev cycles with three-way concurrence at final acceptance).
+
+### Slice 1 — Asset/CLI parity fixes
 
 - Aligned all six shipped skill/prompt/workflow apply-recipe examples with
   the canonical `ApplyRecipe` schema: top-level `feature` plus
-  `operations`, with no unsupported `version` field.
+  `operations`, with no unsupported `version` field. Extended
+  `TestSkillRecipeSchemaMatchesCLI` to decode each example into
+  `workflow.ApplyRecipe` with `DisallowUnknownFields` as a durable
+  anti-drift guard.
 - Removed the unsupported `--target <generation_id>` fixup flag from all
   shipped skill/prompt/workflow guidance; fixup targets are auto-derived
   from the current patch-generation manifest.
 - Refreshed `tpatch verify` help/comment text and shipped skill summaries
   so V0-V9 are described as real checks rather than deferred Slice C stubs.
-- Rewrote `docs/reconcile.md` for the v0.11 evidence/revision system,
-  including ADR-025 JSONL schemas, WP-003 pipeline passes, confirmation
-  gate semantics, blocked taxonomy, v0.11 subcommands, and privacy limits.
+  Aligned `Short` field to `(freshness overlay)` matching shipped skills.
+
+### Slice 2 — Reconcile docs refresh
+
+- Rewrote [`docs/reconcile.md`](docs/reconcile.md) for the v0.11 evidence /
+  revision system, covering ADR-025 D1-D13 (evidence + revision JSONL
+  schemas with `re_<12hex>` / `rr_<12hex>` content-addressed IDs) and all
+  9 WP-003 PRDs (reconcile pipeline pass order, blocked-verdict taxonomy
+  precedence, confirmation-gate `[upstreamed-candidate]` display contract,
+  `corrupt_entries` JSON envelope, path-restructure thresholds).
+- Added human `evidence:` hint line description matching
+  `PRD-reconcile-verdict-evidence §4` byte-for-byte.
+- Corrected v0.11.0 CHANGELOG evidence-ID prefix (`ra_<12hex>` →
+  `re_<12hex>`) to match production code and ADR-025 D3.
+- Documented cobra persistent-flag inheritance on the reconcile subcommand
+  table so operators know root flags like `--path` are available.
+
+### Slice 3 — Release ops cleanup
+
+- Published GitHub Releases for the five previously missing tags
+  ([v0.8.0](https://github.com/tesseracode/tesserapatch/releases/tag/v0.8.0),
+  [v0.8.1](https://github.com/tesseracode/tesserapatch/releases/tag/v0.8.1),
+  [v0.9.0](https://github.com/tesseracode/tesserapatch/releases/tag/v0.9.0),
+  [v0.10.0](https://github.com/tesseracode/tesserapatch/releases/tag/v0.10.0),
+  [v0.11.0](https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.0))
+  using existing CHANGELOG entries as release notes.
+- Added [`RELEASING.md`](RELEASING.md) documenting the three-artifact
+  release lock-step (CHANGELOG entry → annotated tag → `gh release create
+  --verify-tag --notes-file --latest`) with anti-drift guardrails,
+  version-derivation reminder for `internal/buildinfo`, and historical
+  release cadence notes.
+
+### Slice 4 — `PRD-tpatch-doctor` paper-only draft
+
+- Drafted [`docs/prds/PRD-tpatch-doctor.md`](docs/prds/PRD-tpatch-doctor.md)
+  at `Proposed` status with D1-D8 detection clauses (feature metadata drift,
+  `patch-generations.json` presence, in-tree skill assets, lock formats,
+  evidence artifacts, release drift, recipe schema, hard invariants) and 29
+  acceptance criteria. Safety defaults: `--dry-run` by default, `--fix`
+  requires explicit opt-in, mandatory backups, idempotence, per-check
+  failure isolation. Future implementation slice will ship the actual
+  `tpatch doctor` command.
+
+### ADR-027 — Capture context privacy boundary (Accepted)
+
+- Accepted [`ADR-027`](docs/adrs/ADR-027-capture-context-privacy-boundary.md)
+  establishing the strict privacy boundary for future capture-context
+  features. D1 two-lane storage (committed redacted summaries + local
+  private buffers), D3 mandatory pre-write redaction, D6 content-addressed
+  IDs, D7 default-off high-risk capture, D10 local-first with narrow
+  provider-assisted carve-out. Unlocks six blocked downstream capture
+  PRDs and ADRs.
+
+### Process artifacts (non-shipping)
+
+- 17 dispatch-brief carry-forward rules codified (up from 15 at cluster
+  start; rules 11 flag-surface accuracy and 17 totality-claim verification
+  added after real user-external catches).
+- Storage-substrate state-of-the-art research doc added at
+  `docs/state-of-the-art/storage-substrate-and-versioned-data.md`.
+- Full per-slice snapshots archived to
+  [`docs/handoff/HISTORY.md`](docs/handoff/HISTORY.md).
 
 ## v0.11.0 — 2026-07-16 — WP-003 Reconcile Safety and Middle-Pass Foundation
 
