@@ -2,11 +2,71 @@
 
 ## Active Task
 
-- **Task ID**: `post-v0.11.1-decision`
-- **Milestone**: v0.11.1 stabilization cluster COMPLETE. All 4 slices closed 2026-07-19..2026-07-23. Cluster archived to HISTORY.md.
-- **Description**: Awaiting supervisor decision on next work block. Primary options: (A) ship v0.11.1 release (bundle Slices 1+2 code/docs fixes under new tag; Slices 3+4 don't add code but Slice 3 already published prior releases + added RELEASING.md), (B) kick off `tpatch doctor` implementation slice using the freshly-drafted PRD-tpatch-doctor, (C) kick off WP-004 (auto-feature-dependencies) or WP-005 (spec-driven-workflows), (D) research roadmap continuation.
+- **Task ID**: `post-v0.11.1-release-decision`
+- **Milestone**: v0.11.1 SHIPPED 2026-07-23 (tag `v0.11.1` at commit `0b9485f`; GH Release marked `Latest`). RELEASING.md validated end-to-end on this release.
+- **Description**: v0.11.1 stabilization cluster shipped as a versioned release using the fresh `RELEASING.md` process. Cluster + release closed; awaiting supervisor decision on next work block.
 - **Status**: Awaiting next-phase dispatch (no active implementer).
 - **Assigned**: 2026-07-23.
+
+## v0.11.1 release summary
+
+- **Tag**: `v0.11.1` on `origin/v0.11.1` at release commit `0b9485f`.
+- **GH Release**: https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.1 (marked `Latest`).
+- **Scope**: 30 commits since v0.11.0, ~4230 insertions across 21 files.
+- **CHANGELOG**: `## v0.11.1 — 2026-07-23 — Stabilization` graduated from `(unreleased)` header. 4 slice subsections + ADR-027 + process-artifacts note.
+- **`RELEASING.md` validated**: 3-artifact lock-step (CHANGELOG entry → annotated tag → `gh release create --verify-tag --notes-file --latest`) worked end-to-end. Minor doc improvement: awk end-of-range must reference the PREVIOUS release header explicitly (not a generic `/^## v/`) because em-dash + greedy range matching returns zero lines otherwise. Fix committed in `RELEASING.md` alongside the release.
+
+## Open decision for supervisor
+
+Pick next work block (v0.11.1 shipped; cluster + release both closed):
+
+**Option B — Kick off `tpatch doctor` implementation slice**. Uses the just-shipped PRD-tpatch-doctor draft. Would ship the actual doctor command implementing D1-D8 checks. Pros: closes the loop on Slice 4; delivers a real anti-drift tool for users. Cons: larger scope; needs its own wave slicing (likely D1-D3 first, then D4-D6, then D7-D8).
+
+**Option C — Kick off WP-004 (`auto-feature-dependencies`)**. Existing draft at `docs/whitepapers/WP-004-auto-feature-dependencies.md`. Pros: continues the WP-002 → WP-003 sequence.
+
+**Option D — Kick off WP-005 (`spec-driven-workflows`)**. Existing draft at `docs/whitepapers/WP-005-spec-driven-workflows.md`. Pros: opens spec-workflow surface.
+
+**Option E — Research roadmap continuation**. Return to `docs/state-of-the-art/research-roadmap.md`. Six blocked capture PRDs unlocked by ADR-027 acceptance: PRD-active-feature-session (recommended first — will lock ADR-027 D1 local-buffer path softness / F3), PRD-record-context-summary, PRD-agent-event-log, PRD-ide-capture-hooks, PRD-git-hook-capture-guards, ADR-capture-metadata-branch.
+
+Supervisor default recommendation: **Option B** (doctor implementation) as the natural next step after shipping v0.11.1 — closes the loop between the PRD draft and users.
+
+## Non-blocking follow-ups (deferred from prior clusters)
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks Blocks-header naming coord with research-roadmap.md. Still deferred.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness. Still deferred to downstream capture PRD (likely PRD-active-feature-session).
+
+## Carry-forward dispatch rules (17 binding)
+
+All 17 rules from post-v0.11.1 cluster still binding. See prior CURRENT.md snapshots in HISTORY.md for full text.
+
+## Session Summary
+
+v0.11.1 stabilization cluster SHIPPED 2026-07-23 via `RELEASING.md` process. Awaiting next-block decision.
+
+## Next Steps
+
+1. Supervisor: pick Option B, C, D, or E.
+2. If Option B (doctor implementation):
+   - Read `docs/prds/PRD-tpatch-doctor.md` at `Proposed` status.
+   - Ask for PRD sub-slicing (all D1-D8 in one wave, or split by check severity/complexity).
+   - Dispatch first implementer.
+3. If Option C/D:
+   - Read the WP draft.
+   - Ask for PRD ordering + wave structure.
+   - Dispatch first slice.
+4. If Option E:
+   - Recommend `PRD-active-feature-session` first (locks ADR-027 D1 F3 follow-up).
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- v0.11.1 is the current `Latest` GH Release; v0.11.0 remains published but demoted.
+- `RELEASING.md` fix landed in the release commit (awk end-of-range guidance).
+- 17 carry-forward rules live above.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## v0.11.1 cluster closure summary
 

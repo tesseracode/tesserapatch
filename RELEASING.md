@@ -93,12 +93,18 @@ commits.
 Extract the CHANGELOG entry as release notes:
 
 ```bash
-awk '/^## vX\.Y\.Z —/,/^## v/' CHANGELOG.md | sed '$d' > /tmp/release-notes.md
+# Replace vX.Y.Z below with your actual version, escaping the dots:
+awk '/^## v0\.11\.1 —/,/^## v0\.11\.0 —/' CHANGELOG.md | sed '$d' > /tmp/release-notes.md
 ```
 
-The `sed '$d'` drops the trailing `## v` header line that `awk` picked up as
-the range terminator. Verify the notes file starts with the expected `## vX.Y.Z`
-header and ends immediately before the next release section.
+The end-of-range regex must reference the PREVIOUS release header (not a
+generic `/^## v/`) because the em-dash in `— YYYY-MM-DD` combined with
+awk's greedy range matching can otherwise return zero lines. Verify the
+notes file starts with the expected `## vX.Y.Z` header and ends immediately
+before the previous release section.
+
+The `sed '$d'` drops the trailing previous-release header line that `awk`
+picked up as the range terminator.
 
 Create the GitHub Release:
 
