@@ -2,11 +2,60 @@
 
 ## Active Task
 
-- **Task ID**: `v0.11.1-slice-3-release-ops`
-- **Milestone**: v0.11.1 stabilization — Slice 3
-- **Description**: Publish GH Releases for the 5 missing tags (v0.8.0, v0.8.1, v0.9.0, v0.10.0, v0.11.0) using existing `CHANGELOG.md` entries as release notes. Add `RELEASING.md` documenting the release process so tag+release don't drift again. Supervisor-direct execution; no full implement→review cycle required per cluster plan.
-- **Status**: Complete (supervisor-direct execution 2026-07-23; awaiting Slice 4 dispatch).
+- **Task ID**: `v0.11.1-slice-4-prd-tpatch-doctor`
+- **Milestone**: v0.11.1 stabilization — Slice 4
+- **Description**: Draft a paper-only Proposed PRD for `tpatch doctor`, covering drift detection and safe opt-in fixes for tpatch workspace metadata, installed skill assets, release metadata, lock files, reconcile evidence, and recipe schema. No code changes and no CHANGELOG additions in this slice.
+- **Status**: Review
 - **Assigned**: 2026-07-23.
+
+## Slice 4 closure summary
+
+### PRD drafted
+
+- `docs/prds/PRD-tpatch-doctor.md` (496 lines), status **Proposed**.
+- Scope is paper-only: no code, assets, CHANGELOG, or release-process mutations.
+
+### Sections included
+
+- §0 Meta and claims audit.
+- §1 Problem statement.
+- §2 Goals / Non-goals.
+- §3 Detection checks D1-D8.
+- §4 User-facing contract (`tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]`).
+- §5 Implementation notes.
+- §6 Acceptance criteria (§6.1-§6.29).
+- §7 Open questions.
+- §8 Out of scope.
+- §9 Sources.
+
+### Precedents cited
+
+- ADR-024 for `patch-generations.json` boundary, no historical backfill, strict schema, and malformed-manifest handling.
+- ADR-025 for `reconcile-evidence.jsonl` / `reconcile-revisions.jsonl`, D10 privacy, D11 malformed JSONL handling, and D12 refs.
+- ADR-027 for committed-summary vs local-private-buffer privacy and least-privilege reads.
+- Slice 3 `RELEASING.md` anti-drift candidate for tag / CHANGELOG / GH Release checks.
+- Slice 1 `TestSkillRecipeSchemaMatchesCLI` parity-guard pattern for runtime recipe-schema drift.
+
+### Decisions locked for review
+
+- Default is dry-run; `--fix` is explicit opt-in.
+- Every mutation must create a backup before overwrite.
+- `--fix` is idempotent; second run on a clean workspace is a no-op.
+- v1 fixable classes are intentionally narrow: installed tpatch skill assets and equivalent lock-format normalization only.
+- Feature metadata, patch-generation, reconcile-evidence, release, and feature recipe drift are report-only in v1.
+- Non-scope explicitly rules out network calls by default, auth, GH-Release publishing, source-file transformations, cross-repo migration, raw context reads, and a public `tpatch migrate` alias in v1.
+
+### Acceptance criteria
+
+- 29 atomic criteria (§6.1-§6.29), including D1-D7 fixtures, JSON report determinism, exit codes, idempotence, backup semantics, privacy, no source transformations, and per-check failure continuation.
+
+### Validation gates
+
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- `go test ./...`: green across all packages.
+- Side Research md5 invariant preserved: `b385fe622db9926f48861105239f113e`.
 
 ## Slice 3 closure summary
 
@@ -49,8 +98,8 @@ None. CHANGELOG.md v0.8.0 through v0.11.0 entries left untouched per hard constr
 
 - **Slice 1** ✅ CLOSED 2026-07-19 (three-way APPROVED). `TestSkillRecipeSchemaMatchesCLI` anti-drift bonus.
 - **Slice 2** ✅ CLOSED 2026-07-23 rev-1 (three-way APPROVED after rev-0 F1 blocker caught by user-external). New rule 11 (flag-surface accuracy); candidate rule 17 (totality claims verification).
-- **Slice 3** ← this handoff (release ops).
-- **Slice 4** — `PRD-tpatch-doctor` paper-only PRD draft; full review cycle mirroring ADR-027 model.
+- **Slice 3** ✅ CLOSED 2026-07-23 (supervisor-direct release ops; GH Releases backfilled + `RELEASING.md`).
+- **Slice 4** ← this handoff (`PRD-tpatch-doctor` paper-only PRD draft; review cycle mirroring ADR-027 model).
 
 ## Slice 3 binding scope
 
@@ -110,16 +159,14 @@ Per rev-0 cluster plan (`v0.11.1 Slice 3` bullet in HISTORY): "Supervisor-direct
 
 ## Session Summary
 
-v0.11.1 Slice 2 archived 2026-07-23 (three-way APPROVED after rev-1 close of F1 blocker). Slice 3 kickoff ready for supervisor-direct execution.
+v0.11.1 Slice 4 paper-only draft complete and ready for review. `docs/prds/PRD-tpatch-doctor.md` proposes `tpatch doctor` drift checks D1-D8 and acceptance criteria §6.1-§6.29. Slice 3 release ops remain recorded below as closed context.
 
 ## Next Steps
 
-1. Supervisor: extract per-tag release-note bodies from `CHANGELOG.md`.
-2. Supervisor: run `gh release create` for each of the 5 tags with `--notes-file <extracted>` + appropriate `--title`.
-3. Supervisor: draft `RELEASING.md` documenting the process.
-4. Supervisor: commit `RELEASING.md` with the mandatory trailer.
-5. Optional: user spot-check published releases on GH.
-6. Archive Slice 3 + move to Slice 4 (doctor PRD).
+1. Supervisor dispatches internal review for `docs/prds/PRD-tpatch-doctor.md`.
+2. Supervisor dispatches external review per the v0.11.1 paper-doc protocol.
+3. If approved, archive Slice 4 handoff and decide whether a future implementation slice is roadmap-committed.
+4. Do not add a CHANGELOG entry until a future implementation slice ships code.
 
 ## Blockers
 
@@ -127,6 +174,7 @@ None.
 
 ## Context for Next Agent
 
+- HEAD at Slice 4 draft completion includes the new `docs/prds/PRD-tpatch-doctor.md` commit once pushed.
 - HEAD at Slice 3 kickoff: `8189982` (Slice 2 rev-1 supervisor-external APPROVED).
 - Slice 2 anti-drift template: `TestSkillRecipeSchemaMatchesCLI` in `assets/assets_test.go` — Slice 3 doesn't have a natural analog since it's ops.
 - CHANGELOG entries to extract for release notes:
