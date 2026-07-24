@@ -2,11 +2,133 @@
 
 ## Active Task
 
-- **Task ID**: `post-v0.11.1-release-decision`
-- **Milestone**: v0.11.1 SHIPPED 2026-07-23 (tag `v0.11.1` at commit `0b9485f`; GH Release marked `Latest`). RELEASING.md validated end-to-end on this release.
-- **Description**: v0.11.1 stabilization cluster shipped as a versioned release using the fresh `RELEASING.md` process. Cluster + release closed; awaiting supervisor decision on next work block.
-- **Status**: Awaiting next-phase dispatch (no active implementer).
+- **Task ID**: `doctor-wave-alpha-scaffold-d1-d2-d8`
+- **Milestone**: `tpatch doctor` implementation — Wave α (foundation: scaffold + D1 metadata + D2 patch-generations + D8 hard invariants). First wave of a 4-wave implementation cluster for `PRD-tpatch-doctor`.
+- **Description**: Ship the `tpatch doctor` command scaffold with the safety-critical semantics locked in from the start (`--dry-run` default, `--fix` opt-in, mandatory backups, idempotence, per-check failure isolation, deterministic `--json` output, exit codes 0/1/2). Implement three of the eight detection clauses: D1 (feature metadata drift), D2 (missing/stale `patch-generations.json`), D8 (hard-invariant + malformed-artifact handling). Waves β/γ/δ ship the remaining D3-D7 checks.
+- **Status**: Awaiting implementer dispatch.
 - **Assigned**: 2026-07-23.
+
+## Doctor implementation cluster wave plan
+
+**Wave α** ← this handoff (foundation: scaffold + D1 + D2 + D8).
+- Rationale: D8 defines the hard-invariant + malformed-artifact + safety-defaults surface; must ship WITH the scaffold or nothing else can be built safely. D1 + D2 are the smallest read-only checks and validate the JSON schema + per-check failure isolation + exit-code contract. §6.1-6.7 + §6.20-§6.29 acceptance criteria (safety + D8 hard invariants + D1 + D2).
+
+**Wave β** — D3 (skill assets) + D7 (recipe schema).
+- Asset-drift class. Both compare in-tree files against embedded `assets.Skills` bytes. §6.8, §6.9 (D3) + §6.18, §6.19 (D7).
+
+**Wave γ** — D4 (locks) + D5 (evidence).
+- Persisted-artifact class. D4 touches `upstream.lock` + related; D5 touches `reconcile-evidence.jsonl` presence. §6.10, §6.11 (D4) + §6.12, §6.13 (D5).
+
+**Wave δ** — D6 (release drift).
+- Needs `--release-metadata <file>` local input plumbing per PRD §4. §6.14-§6.17.
+
+## Wave α binding scope
+
+### D1 — Feature metadata schema drift (`docs/prds/PRD-tpatch-doctor.md §3 D1`)
+
+- Detect malformed or unsupported per-feature metadata (`status.json`, `feature.yaml`) via the production loaders in `internal/store/*.go`. Report check ID, feature slug, path, and field/schema error.
+- Read-only in v1 (no `--fix` mutation). Emits `remediation` string in JSON output.
+
+### D2 — Missing or stale `patch-generations.json` (`docs/prds/PRD-tpatch-doctor.md §3 D2`)
+
+- Detect features with `artifacts/post-apply.patch` or `status.apply.has_patch=true` but no `artifacts/patch-generations.json`. Also detect manifests with unsupported `version`, unknown fields, feature-slug mismatch, invalid generation kind, missing `git_patch_id_algorithm: "git-patch-id-stable"`, or invalid cross-links.
+- Read-only in v1. Remediation string: `run tpatch feature patch refresh <slug>` (verified at `internal/cli/feature_patch.go:29`).
+- Use the production manifest validator (ADR-024 `LoadPatchGenerations`).
+
+### D8 — Doctor hard-invariant + malformed-artifact handling (`docs/prds/PRD-tpatch-doctor.md §3 D8`)
+
+- Enumerate hard invariants that abort BEFORE mutation: missing workspace root, unsafe path, etc.
+- Malformed-artifact handling MIRRORS ADR-025 D11 pattern (report with filename + 1-indexed line number; continue other checks).
+- Never abort the whole run on ordinary per-check errors — §6.20.
+- Exit code 2 for `--fix` partial failure per §6.24.
+
+### Scaffold contract (§6.1, §6.2, §6.3, §6.20-§6.29)
+
+- CLI shape: `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]`.
+- `--dry-run` default (§6.1); `--fix` requires explicit opt-in.
+- `--fix` MUST create a backup (`<path>.orig` or similar) before every overwrite (§6.2).
+- Idempotence: `--fix` twice on clean workspace is no-op + no new backups on second run (§6.3).
+- Per-check errors do not abort whole run (§6.20).
+- Hard invariants abort before any mutation with non-zero usage/config error (§6.21).
+- Human output: summary count of drift findings + warnings + fixed + errors (§6.22).
+- `--json`: deterministic schema-versioned report with check IDs, stable finding codes, severity, identifiers, `fixable`, `remediation`, `backup_path` (§6.23).
+- Exit codes: `0` clean, `1` drift in dry-run, `2` `--fix` partial failure (§6.24).
+- `--check <id>` limits execution to requested check IDs; unknown IDs fail before any checks run (§6.25).
+- Privacy: no reading raw transcripts / prompts / IDE buffers / env secrets / local capture buffers (§6.26, ADR-027 D2+D10 binding).
+- No source-file transformations (§6.27).
+- Deterministic JSON sort + no wall-clock timestamps (§6.28).
+- Test fixtures for each D1-D7 drift class + idempotent `--fix` fixture for every v1 fixable class (§6.29 — Wave α only responsible for D1 + D2 + D8 fixtures; Waves β/γ/δ add the rest).
+
+## Wave α suggested layout
+
+- `internal/workflow/doctor.go` — pure doctor engine: check registry, per-check runner, report builder.
+- `internal/workflow/doctor_d1.go` — D1 metadata detection using existing `store.LoadFeatureStatus` etc.
+- `internal/workflow/doctor_d2.go` — D2 patch-generations detection using existing `store.LoadPatchGenerations`.
+- `internal/workflow/doctor_d8.go` — hard-invariant helpers + malformed-artifact classification.
+- `internal/store/doctor_report.go` — persisted report schema (JSON output DTO with schema version).
+- `internal/cli/doctor.go` — cobra command wiring: `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]`. Persistent root flags (`--path`) inherit automatically per rule 11.
+- Register subcommand under `root` in `internal/cli/cobra.go`.
+- Skill/prompt/workflow assets: add `tpatch doctor` short mention to all 6 formats + parity guard. Reference PRD-tpatch-doctor + doctor command in each.
+- Tests:
+  - `internal/workflow/doctor_test.go` — check registry + per-check runner + report builder.
+  - `internal/workflow/doctor_d1_test.go` — D1 fixtures (§6.4, §6.5).
+  - `internal/workflow/doctor_d2_test.go` — D2 fixtures (§6.6, §6.7).
+  - `internal/workflow/doctor_d8_test.go` — D8 hard-invariant + malformed-artifact fixtures (§6.20, §6.21).
+  - `internal/cli/doctor_test.go` — CLI-level tests: --dry-run default (§6.1), --fix backups (§6.2), idempotence (§6.3), --check filtering (§6.25), exit codes (§6.24), --json determinism (§6.23, §6.28), privacy scan (§6.26), no source transforms (§6.27), summary output (§6.22).
+
+## Wave α hard constraints (binding)
+
+1. **PRD as binding contract** — every fix/behavior claim in the implementation must trace back to a §6.X acceptance criterion. If a design decision isn't covered by the PRD, STOP and either escalate to supervisor for a PRD amendment OR document it in the Wave α closure summary for post-Wave-α PRD extension.
+2. **Safety defaults NON-NEGOTIABLE** — `--dry-run` default (§6.1); `--fix` opt-in; backups on every overwrite (§6.2); idempotence (§6.3). Test each explicitly.
+3. **No new lifecycle states** (`FeatureState` untouched).
+4. **No new persisted schemas outside doctor's own JSON output** — doctor reports go to stdout, not to `.tpatch/`. If any persisted artifact is genuinely needed, draft a small D-clause amendment before writing schema code.
+5. **ADR-025 + ADR-027 privacy binding**: D8's malformed-artifact handling mirrors ADR-025 D11. Doctor MUST NOT read raw transcripts / IDE buffers / env secrets / local capture buffers per ADR-027 D2+D10 (PRD §6.26 explicit).
+6. **No `--release-metadata` in Wave α** — that's Wave δ (D6).
+7. **CHANGELOG.md** — add a `## v0.11.2 (unreleased) — tpatch doctor Wave α` section at the top with Wave α scope bullets. Do NOT touch existing entries.
+8. **Assets/skills** — if the new subcommand adds a public CLI surface, update all 6 skill formats + prompt + workflow with a `tpatch doctor` short mention. Parity guard MUST pass.
+9. **Side Research md5** in `docs/handoff/CURRENT.md` MUST remain `b385fe622db9926f48861105239f113e`.
+10. **Commit trailer mandatory**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`. Use `git -c commit.gpgsign=false commit --no-verify`.
+11. **Full gates**: `gofmt -l .` (direct, NEVER piped), `go vet ./...`, `go build ./cmd/tpatch`, `go test ./...`. All green including new tests.
+12. **Rule 11 (flag-surface accuracy)**: any doctor help text about "supported flags" MUST account for cobra persistent-flag inheritance (`--path` is inherited from root).
+13. **Rule 17 (totality claims)**: avoid "only X is supported" phrasing in doctor help unless truly exhaustive against all layers of the production model.
+14. **Rule 16 (anti-drift parity guard)**: if doctor emits any schema shape that could drift from Go structs, add a parity guard test that decodes real fixture bytes into the actual DTO.
+
+## Wave α reviewer-brief additions
+
+Rules 11, 15, 16, 17 all apply. Reviewer briefs (internal + externals) MUST include:
+- Grep `internal/cli/cobra.go` + `internal/cli/doctor.go` for `PersistentFlags(` to enumerate the full flag surface.
+- Verify D1/D2 remediation strings against actual production commands (rule 15).
+- Verify D3/D7 (deferred to Wave β) are NOT accidentally implemented in Wave α.
+- Verify safety defaults via explicit test coverage (idempotence, backup creation, --fix opt-in, per-check failure isolation).
+- Verify JSON output is deterministic (no wall-clock; sorted fields).
+
+## Process for implementer
+
+1. Read `docs/prds/PRD-tpatch-doctor.md` in FULL (all 8 D-clauses + all 29 §6 criteria + §5 implementation notes + §7 open questions + §8 out-of-scope).
+2. Read this handoff Wave α binding scope + hard constraints verbatim.
+3. Read `docs/supervisor/LOG.md` top 3-5 entries for cluster context.
+4. Read the 17 carry-forward dispatch rules in the archived Slice snapshots (see HISTORY.md).
+5. Read production ground truth:
+   - `internal/store/` — feature loaders + `LoadPatchGenerations` + `LoadFeatureStatus`.
+   - `internal/cli/cobra.go:55` — root persistent `--path` flag (rule 11).
+   - `internal/cli/feature_patch.go:29` — `tpatch feature patch refresh` (D2 remediation ground truth).
+   - `assets/assets_test.go` — parity guard pattern (rule 16 template).
+6. Implement D8 hard invariants + malformed-handling FIRST (before D1/D2 — everything depends on it).
+7. Implement scaffold + CLI wiring.
+8. Implement D1 + tests.
+9. Implement D2 + tests.
+10. Add asset/skill mentions + parity-guard update.
+11. Run gates after each logical commit.
+12. Update `docs/handoff/CURRENT.md`:
+    - Flip Status to Review.
+    - Add "Wave α closure summary" subsection per prior slice pattern with per-§6-criterion fix + test sites.
+    - Preserve Side Research md5.
+13. Add CHANGELOG.md `## v0.11.2 (unreleased) — tpatch doctor Wave α` entry.
+14. Push to `origin/main`. Return commit hashes + gate output + closure summary.
+
+If any §6 criterion is genuinely impossible to close in Wave α without breaking a hard constraint (e.g., needs D3-D7 infrastructure), STOP and report — do NOT silently defer. Waves β/γ/δ handle those criteria.
+
+Do not dispatch reviewers — supervisor handles that.
 
 ## v0.11.1 release summary
 
