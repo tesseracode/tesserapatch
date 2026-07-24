@@ -63,6 +63,7 @@ Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile con
 - `tpatch cycle <slug>` — Run analyze→define→explore→implement→apply→record in sequence (batch or `--interactive`)
 - `tpatch test <slug>` — Run the configured `test_command` and record the outcome
 - `tpatch verify <slug>` — Run V0-V9 integrity checks against a feature's recipe and dependencies (freshness overlay)
+- `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` — Diagnose tpatch metadata drift (D1 metadata, D2 patch-generations, D8 workspace invariants)
 - `tpatch next <slug>` — Emit the next action for a feature (`--format harness-json` for structured consumption)
 - `tpatch feature patch refresh <slug>` — Refresh the current feature patch; optional `--reason` is stored in patch-generations.json.
 - `tpatch feature patch fixup <slug> --reason "..."` — Append an explicit fixup generation; the target generation is auto-derived from the manifest.
@@ -80,6 +81,8 @@ Run `tpatch verify --all` to walk every tracked feature in topological order; pr
 If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA is no longer reachable — re-record affected features on the new base or run `tpatch reconcile`.
 
 If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --reason "..."` for an explicit fixup generation (the target generation is auto-derived from the manifest). Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
+
+Run `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` to diagnose tpatch metadata drift before reconcile or cleanup; Wave alpha reports feature metadata, patch-generations manifests, and workspace invariants.
 
 ## Data Model
 

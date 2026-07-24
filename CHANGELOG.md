@@ -2,6 +2,20 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.11.2 (unreleased) — tpatch doctor Wave α
+
+- Added `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` scaffold
+  with dry-run default, explicit fix mode, deterministic JSON reports, check
+  filtering, summary counts, and exit codes for clean / drift / partial-failure
+  outcomes.
+- Implemented Wave α D1 and D2 read-only checks for feature metadata drift and
+  missing or malformed `patch-generations.json`, using production store loaders
+  and the `tpatch feature patch refresh <slug>` remediation string.
+- Implemented D8 hard-invariant handling for invalid workspaces and per-check
+  malformed-artifact isolation with path and line reporting where available.
+- Added Wave α doctor coverage in workflow/CLI tests and mentioned the new
+  command across all six shipped skill/prompt/workflow asset formats.
+
 ## v0.11.1 — 2026-07-23 — Stabilization
 
 Post-v0.11.0 stabilization cluster addressing release-quality inconsistencies

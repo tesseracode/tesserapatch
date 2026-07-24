@@ -60,6 +60,8 @@ If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA i
 
 If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --reason "..."` for an explicit fixup generation (the target generation is auto-derived from the manifest). Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
 
+Run `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` to diagnose tpatch metadata drift before reconcile or cleanup; Wave alpha reports feature metadata, patch-generations manifests, and workspace invariants.
+
 ## Quick Start
 
 ```bash
@@ -92,6 +94,7 @@ tpatch status
 - `tpatch cycle <slug>` — Full lifecycle in one command (add `--interactive` for prompts)
 - `tpatch test <slug>` — Run the configured `test_command` and record the result
 - `tpatch verify <slug>` — Run V0-V9 integrity checks against a feature's recipe and dependencies (freshness overlay)
+- `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` — Diagnose tpatch metadata drift (D1 metadata, D2 patch-generations, D8 workspace invariants)
 - `tpatch next <slug>` — Emit the next action (use `--format harness-json` for structured output)
 
 ## Reconciliation

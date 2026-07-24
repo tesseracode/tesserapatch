@@ -77,6 +77,7 @@ func buildRootCmd() *cobra.Command {
 		removeCmd(),
 		featureCmd(),
 		verifyCmd(),
+		doctorCmd(),
 	)
 
 	return root

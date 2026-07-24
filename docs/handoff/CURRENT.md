@@ -5,7 +5,7 @@
 - **Task ID**: `doctor-wave-alpha-scaffold-d1-d2-d8`
 - **Milestone**: `tpatch doctor` implementation — Wave α (foundation: scaffold + D1 metadata + D2 patch-generations + D8 hard invariants). First wave of a 4-wave implementation cluster for `PRD-tpatch-doctor`.
 - **Description**: Ship the `tpatch doctor` command scaffold with the safety-critical semantics locked in from the start (`--dry-run` default, `--fix` opt-in, mandatory backups, idempotence, per-check failure isolation, deterministic `--json` output, exit codes 0/1/2). Implement three of the eight detection clauses: D1 (feature metadata drift), D2 (missing/stale `patch-generations.json`), D8 (hard-invariant + malformed-artifact handling). Waves β/γ/δ ship the remaining D3-D7 checks.
-- **Status**: Awaiting implementer dispatch.
+- **Status**: Review.
 - **Assigned**: 2026-07-23.
 
 ## Doctor implementation cluster wave plan
@@ -129,6 +129,49 @@ Rules 11, 15, 16, 17 all apply. Reviewer briefs (internal + externals) MUST incl
 If any §6 criterion is genuinely impossible to close in Wave α without breaking a hard constraint (e.g., needs D3-D7 infrastructure), STOP and report — do NOT silently defer. Waves β/γ/δ handle those criteria.
 
 Do not dispatch reviewers — supervisor handles that.
+
+## Wave α closure summary
+
+Wave α is ready for review. Scope shipped: scaffold + D1 + D2 + D8 only; D3-D7 remain deferred to Waves β/γ/δ per the wave plan above.
+
+### Per-§6 closure map
+
+| Criterion | Fix site | Test site | Status |
+|---|---|---|---|
+| §6.1 dry-run default / no writes without `--fix` | `internal/workflow/doctor.go:103-108`; `internal/cli/doctor.go:53-54` | `internal/cli/doctor_test.go:54-89`; `internal/workflow/doctor_test.go:44-50` | Closed for Wave α. |
+| §6.2 backup before overwrite | Scaffold helper `internal/workflow/doctor.go:204-218` reserves `<path>.orig` and refuses backup collision; no Wave α check overwrites files. | `internal/cli/doctor_test.go:74-89` verifies dry-run/`--fix` create no backups for read-only Wave α classes. Full overwrite fixture deferred to Wave β D3, the first fixable class. | Closed for scaffold; no Wave α overwrite class exists. |
+| §6.3 idempotent `--fix` | Read-only checks never mutate; backup helper refuses existing `<path>.orig`. | `internal/cli/doctor_test.go:78-89` runs `--fix` twice and verifies no backups. | Closed for Wave α read-only classes; future fixable classes must add overwrite fixtures. |
+| §6.4 D1 metadata drift report | `internal/workflow/doctor_d1.go:14-146` reports status/feature.yaml path, feature slug, field/schema errors, and line where available. | `internal/workflow/doctor_test.go:15-51`; CLI JSON coverage `internal/cli/doctor_test.go:15-52`. | Closed. |
+| §6.5 no D1 migrations | D1 findings are `Fixable:false`; no write path in `internal/workflow/doctor_d1.go:14-146`. | `internal/workflow/doctor_test.go:44-50` asserts malformed status bytes unchanged. | Closed. |
+| §6.6 D2 missing manifest + refresh remediation | `internal/workflow/doctor_d2.go:14-33` detects post-apply/status patch signals and emits `run tpatch feature patch refresh <slug>`. | `internal/workflow/doctor_test.go:53-85`. | Closed. |
+| §6.7 D2 stale/unsupported manifest via production validator | `internal/workflow/doctor_d2.go:39-56` calls `store.LoadPatchGenerations`; validator ground truth remains `internal/store/patch_generations.go:90-107`. | `internal/workflow/doctor_test.go:68-84`. | Closed. |
+| §6.8-§6.19 D3-D7 | Not implemented in Wave α by binding scope. | Deferred to Wave β/γ/δ fixture obligations. | Explicitly deferred, not silently skipped. |
+| §6.20 per-check errors do not abort | Runner isolates check panics/errors in `internal/workflow/doctor.go:133-154`; D1/D2 malformed findings accumulate via `addFinding` at `internal/workflow/doctor.go:306-324`. | `internal/workflow/doctor_test.go:87-110`. | Closed. |
+| §6.21 hard invariants abort before mutation | Workspace root, features-dir listing, and safe paths are validated before checks in `internal/workflow/doctor.go:110-116` and `:250-299`; D8 registered at `internal/workflow/doctor.go:221-225` / `doctor_d8.go:14-17`. | `internal/workflow/doctor_test.go:112-122`. | Closed. |
+| §6.22 human summary counts | `internal/workflow/doctor.go:167-191`. | `internal/cli/doctor_test.go:67-73`. | Closed. |
+| §6.23 deterministic schema-versioned JSON | DTO and fields at `internal/workflow/doctor.go:17-61`; JSON writer at `:155-159`; finding fields include check IDs, code, severity, identifiers, fixable, remediation, backup path. | `internal/workflow/doctor_test.go:124-162`; `internal/cli/doctor_test.go:45-51`. | Closed. |
+| §6.24 exit codes 0/1/2 | `internal/workflow/doctor.go:194-202`; CLI wraps nonzero with `ExitCodeError` at `internal/cli/doctor.go:47-49`. | `internal/workflow/doctor_test.go:164-177`; `internal/cli/doctor_test.go:42-43`, `:67-89`. | Closed. |
+| §6.25 `--check` filtering / unknown IDs | Selection validation `internal/workflow/doctor.go:229-252`; flag wiring `internal/cli/doctor.go:55-56`. | `internal/cli/doctor_test.go:37-51`, `:92-112`. | Closed. |
+| §6.26 privacy boundary | Wave α readers touch only `.tpatch/features/<slug>/status.json`, optional `feature.yaml`, `artifacts/post-apply.patch`, and `artifacts/patch-generations.json` in `internal/workflow/doctor_d1.go` + `doctor_d2.go`; no transcript/IDE/env/capture-buffer reads. | Covered by code review scope; no raw-context paths are referenced in new doctor code. | Closed for Wave α. |
+| §6.27 no source-file transformations | D1/D2 are read-only; CLI `--fix` has no Wave α writer. | `internal/cli/doctor_test.go:74-89`; `internal/workflow/doctor_test.go:44-50`. | Closed for Wave α. |
+| §6.28 JSON sorted/no wall-clock | Sorting at `internal/workflow/doctor.go:156`, `:321-330`; DTO has no time fields. | `internal/workflow/doctor_test.go:124-162`. | Closed. |
+| §6.29 fixtures | D1 fixture `internal/workflow/doctor_test.go:15-51`; D2 fixture `:53-85`; D8 fixture `:112-122`; idempotent `--fix` no-op `internal/cli/doctor_test.go:78-89`. | Same. | Closed for Wave α classes; D3-D7 fixtures deferred to their waves. |
+
+### Files changed by Wave α
+
+- `internal/workflow/doctor.go`, `doctor_d1.go`, `doctor_d2.go`, `doctor_d8.go`, `doctor_test.go`
+- `internal/cli/doctor.go`, `internal/cli/doctor_test.go`, `internal/cli/cobra.go`
+- `assets/assets_test.go` and all 6 shipped skill/prompt/workflow asset files
+- `CHANGELOG.md`, `docs/handoff/CURRENT.md`
+
+### Test results
+
+Final gates passed after handoff update: `gofmt -l .` (no output), `go vet ./...` (no output), `go build ./cmd/tpatch` (no output), `go test ./...` (all packages ok). Targeted checks also passed: `go test ./internal/workflow ./internal/cli ./assets`.
+
+### Remaining issues / deferred scope
+
+- D3-D7 intentionally not implemented in Wave α.
+- First true overwrite/back-up fixture belongs to Wave β D3 because D1/D2/D8 are read-only in v1.
 
 ## v0.11.1 release summary
 

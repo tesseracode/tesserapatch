@@ -31,6 +31,7 @@ var requiredCommands = []string{
 	"tpatch test",
 	"tpatch feature patch refresh",
 	"tpatch feature patch fixup",
+	"tpatch doctor",
 	"tpatch next",
 }
 
