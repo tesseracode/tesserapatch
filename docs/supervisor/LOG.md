@@ -1,3 +1,74 @@
+## Review — tpatch doctor Wave α (scaffold + D1 + D2 + D8) — internal — 2026-07-24
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Wave α single commit (`8a70e7b..6319c0b`) closing scaffold + D1 + D2 + D8 (§6.1-§6.7 + §6.20-§6.29).
+
+### Verdict: APPROVED
+
+### Per-§6 verification
+- §6.1: MET — `RunDoctor` forces `DryRun=true` unless `--fix` set (`internal/workflow/doctor.go:103-105`); CLI `--dry-run` flag default `false` but engine coerces; CLI-level test `TestDoctorCLIDryRunDefaultNoBackupsAndIdempotentFixNoop` (`internal/cli/doctor_test.go:54-89`) asserts default has no backups and D1 test asserts bytes unchanged (`internal/workflow/doctor_test.go:44-50`).
+- §6.2: MET (scaffold-only) — `EnsureDoctorBackup` reserves `<path>.orig` and refuses if backup already exists (`internal/workflow/doctor.go:207-218`); Wave α checks are all read-only so no overwrite path is exercised. Correctly deferred to first fixable class (Wave β D3).
+- §6.3: MET — read-only Wave α checks are trivially idempotent; test runs `--fix` twice and asserts zero backups on either run (`internal/cli/doctor_test.go:78-89`).
+- §6.4: MET — D1 emits check ID + slug + path + field + JSON line for malformed status.json, unknown fields, slug mismatch, invalid state, legacy `feature.yaml` (`internal/workflow/doctor_d1.go:14-146`); test `TestDoctorD1ReportsMalformedUnsupportedMetadata`.
+- §6.5: MET — D1 findings have `Fixable:false`; test asserts status.json bytes unchanged after dry-run.
+- §6.6: MET — D2 detects `artifacts/post-apply.patch` or `Status.Apply.HasPatch` without manifest and emits remediation `run tpatch feature patch refresh <slug>` (`internal/workflow/doctor_d2.go:14-33`); test asserts exact string.
+- §6.7: MET — D2 delegates strict validation to production `store.LoadPatchGenerations` (`internal/workflow/doctor_d2.go:41`); no re-implemented validator.
+- §6.20: MET — per-check runner uses recover+addFinding (`internal/workflow/doctor.go:133-153`); test `TestDoctorPerCheckErrorsDoNotAbortOtherChecks` mixes broken status.json + missing manifest and asserts both D1 and D2 findings emitted.
+- §6.21: MET — `validateDoctorWorkspace` runs before any check and wraps failure in `DoctorHardInvariantError` (`internal/workflow/doctor.go:111-116`, `:250-299`); test `TestDoctorHardInvariantMissingWorkspace`.
+- §6.22: MET — human summary line at `internal/workflow/doctor.go:189-191`; test asserts exact "1 drift findings, 0 warnings, 0 fixed, 0 errors" text.
+- §6.23: MET — `DoctorReport` includes schema_version, check IDs, code, severity, feature/path/line/field identifiers, `fixable`, `remediation`, `backup_path` (`internal/workflow/doctor.go:24-58`); parity guard `TestDoctorJSONDeterministicAndDecodesDTO` decodes with `DisallowUnknownFields` (rule 16 compliant).
+- §6.24: MET — `DoctorExitCode` returns 0/1/2 (`internal/workflow/doctor.go:194-202`); `TestDoctorExitCodes` covers all three; CLI wraps via `ExitCodeError`.
+- §6.25: MET — CLI validates check IDs (`internal/cli/doctor.go:29-31`) AND engine re-validates before workspace/checks (`internal/workflow/doctor.go:107-110`, `:229-252`); test `TestDoctorCLIUnknownCheckFailsBeforeRun` asserts no report emitted and error mentions "unknown doctor check".
+- §6.26: MET — doctor code touches only `.tpatch/features/<slug>/status.json`, `feature.yaml`, `artifacts/post-apply.patch`, `artifacts/patch-generations.json`; grep for transcript/agent-event/capture returns zero hits in `internal/workflow/doctor*.go` + `internal/cli/doctor*.go`.
+- §6.27: MET — no writes in D1/D2/D8; test asserts status.json bytes preserved.
+- §6.28: MET — `sortDoctorReport` sorts findings + checks by stable composite key (`internal/workflow/doctor.go:301-311`); DTO has no time fields; test `TestDoctorJSONDeterministicAndDecodesDTO` asserts two consecutive writes are byte-identical and no wall-clock substring appears.
+- §6.29: MET (Wave α scope) — D1/D2/D8 fixtures at `internal/workflow/doctor_test.go:15-122`; idempotent `--fix` no-op fixture at `internal/cli/doctor_test.go:54-89`. D3-D7 fixtures explicitly deferred.
+
+### Wave-boundary check
+- D3 not implemented in α: confirmed (no skill-asset comparison in diff; only handoff/CHANGELOG mentions).
+- D4 not implemented: confirmed (no lock-format detection).
+- D5 not implemented: confirmed (no evidence-artifact detection).
+- D6 not implemented: confirmed (no release-drift / `--release-metadata`).
+- D7 not implemented: confirmed (no recipe-schema drift).
+
+### Hard-constraint sweep (14)
+- [x] PRD binding contract — every finding code maps to §6.4/§6.6/§6.7/§6.20.
+- [x] Safety defaults tested — dry-run default, --fix opt-in, backup helper collision refusal, idempotence all explicitly covered.
+- [x] No new `FeatureState` values — `internal/store/types.go` unchanged in diff.
+- [x] No new persisted schemas outside doctor JSON output — doctor writes only to stdout.
+- [x] ADR-025 D11 pattern + ADR-027 privacy — malformed handling emits filename + 1-indexed line and continues; no transcript/IDE/env/capture paths read.
+- [x] No `--release-metadata` in Wave α — grep clean.
+- [x] CHANGELOG top has `## v0.11.2 (unreleased) — tpatch doctor Wave α` with Wave α bullets.
+- [x] Assets/skills 6-format update present; `TestSkillParityGuard` passes as part of `assets` package test.
+- [x] Side Research md5 = `b385fe622db9926f48861105239f113e` — verified.
+- [x] Co-authored-by trailer on `6319c0b` — verified via `git show`.
+- [x] Full gates green — gofmt (no output), vet (no output), build (ok), test (all packages ok).
+- [x] Rule 11 flag-surface accuracy — doctor long help notes local flags AND explicitly states "root persistent flags such as --path are inherited" (`internal/cli/doctor.go:21-22`).
+- [x] Rule 17 totality claims — no "only X is supported" phrasing; help lists "Supported local flags are ..." with the inheritance disclaimer.
+- [x] Rule 16 parity guard on drift-fix — `TestDoctorJSONDeterministicAndDecodesDTO` decodes fixture bytes into `DoctorReport` with `DisallowUnknownFields`.
+
+### Validation gates
+gofmt: clean | vet: clean | build: ok | test: all packages ok (workflow, cli, assets, store, integration)
+
+### Anti-drift regression (prior clusters)
+- No `--target`: confirmed
+- No `"version": 1` recipe: confirmed
+- No `ra_<12hex>` active refs: confirmed
+- No stale symbol refs: confirmed
+
+### Adversarial findings (if any)
+None material. Minor observations (non-blocking, do NOT need action in Wave α):
+- `DoctorExitCode` returns `1` (not `2`) when `--fix` runs with unfixable-but-no-error findings (Errors==0, Findings>0). In Wave α no fixers exist, so this can't be exercised; may deserve revisit once the first fixable class (Wave β D3) lands to confirm the PRD §6.24 "partial failure" semantics match reader expectations.
+- `--check` matching is case-insensitive (`strings.ToUpper` at `internal/workflow/doctor.go:239`); not tested. Not a bug; noting only.
+
+### Action Taken
+- Verified all §6.1-§6.7 + §6.20-§6.29 acceptance criteria against production code and tests.
+- Ran full gate suite (gofmt, vet, build, test) — all green.
+- Confirmed Wave-boundary discipline: no D3-D7 detection code in production sources.
+- Confirmed privacy boundary: no transcript/IDE/env/capture-buffer reads.
+- Confirmed parity guard on doctor JSON DTO (rule 16).
+- Verdict: APPROVED — Wave α is ready to hand off to Wave β.
+
 ## Review — v0.11.1 Slice 4 (PRD-tpatch-doctor draft) — external (user-dispatched, parallel) — 2026-07-23
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
