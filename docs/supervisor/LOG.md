@@ -1,3 +1,93 @@
+## Review — v0.11.1 Slice 4 (PRD-tpatch-doctor draft) — external (user-dispatched, parallel) — 2026-07-23
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external re-review of Slice 4 draft + F1/F2 amend (`19b9969..878f4ef` full span; `e1ed73e..4523cb8` functional PRD span).
+
+### Verdict: APPROVED
+
+### Range validation
+- Full Slice 4 lifecycle: `19b9969..878f4ef` (4 commits): `e1ed73e` draft → `d5ef6f8` internal LOG → `4523cb8` F1/F2 amend → `878f4ef` supervisor-external LOG.
+- Functional PRD content: `e1ed73e..4523cb8`.
+- Paper-only: 3 docs files changed (PRD + CURRENT.md + LOG.md).
+
+### F1/F2 amend verification
+- F1 (nonexistent flag): resolved. All refresh command references now say `tpatch feature patch refresh <slug>` matching `internal/cli/cobra.go` usage.
+- F2 (wrong install paths): resolved. D3 references the six actual install targets from `installSkills` at `internal/cli/cobra.go:2780-2801`; matches parity list in `assets/assets_test.go`.
+
+### D-clause sweep
+D1-D8 all locked; no adversarial findings on any clause. Acceptance criteria §6.1-§6.29 all testable.
+
+### Validation gates (independent run)
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- Targeted test run: 36/36 passed.
+- Side Research md5 invariant preserved.
+
+### Concurrence with internal + supervisor-external
+YES on both. Zero adversarial findings across all three passes (post-amend).
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — v0.11.1 Slice 4 — supervisor — 2026-07-23
+
+**Decision**: APPROVED. Slice 4 archived. **v0.11.1 stabilization cluster CLOSED.**
+
+Three independent reviews (internal `d5ef6f8` APPROVED WITH NOTES → amend `4523cb8` → supervisor-external `878f4ef` APPROVED → user-external 2026-07-23 APPROVED) unanimously concur post-amend. F1 (nonexistent `record --refresh` flag) and F2 (invented install paths) both closed surgically at `4523cb8`. Zero adversarial findings across all three passes on the amended PRD.
+
+### Slice 4 closure stack
+
+- `e1ed73e` — docs: draft tpatch doctor PRD (D1-D8, §6.1-§6.29)
+- `d5ef6f8` — internal APPROVED WITH NOTES (F1 MEDIUM + F2 LOW/MEDIUM)
+- `4523cb8` — prd(tpatch-doctor): resolve internal review F1 + F2
+- `878f4ef` — supervisor-external APPROVED (concurrence YES post-amend)
+- (LOG entry above) — user-external APPROVED (concurrence YES on both)
+
+### v0.11.1 stabilization cluster — CLOSED
+
+All 4 slices shipped:
+- **Slice 1** ✅ CLOSED 2026-07-19 (three-way APPROVED). Asset/CLI parity fixes across 6 skill formats. Anti-drift bonus: `TestSkillRecipeSchemaMatchesCLI`.
+- **Slice 2** ✅ CLOSED 2026-07-23 rev-1 (three-way APPROVED after rev-0 F1 blocker caught by user-external). Reconcile docs refresh; new rule 11 (flag-surface accuracy).
+- **Slice 3** ✅ CLOSED 2026-07-23 (supervisor-direct execution per rev-0 cluster plan). 5 GH Releases backfilled + `RELEASING.md` added.
+- **Slice 4** ✅ CLOSED 2026-07-23 (three-way APPROVED post-amend). `PRD-tpatch-doctor.md` drafted at `Proposed` status.
+
+### Two-opinion protocol scoreboard update
+
+**11 consecutive rev cycles with three-way concurrence at final acceptance** (WP-003 α rev-0/1/2, β rev-0/1, γ-1 rev-0/1, γ-2 rev-0, ADR-027 rev-0, Slice 1 rev-0, Slice 2 rev-0/1, Slice 4 rev-0). User-external uniquely blocked at rev-0 in **5 of 11 cycles**: WP-003 α rev-0 F1 (evidence artifact not persisted); α rev-1 F3 (reader-side gap); β rev-0 F8 (`corrupt_entries` production gap); γ-1 rev-0 F1 (`confirm-upstreamed` PRD-named trigger missing); Slice 2 rev-0 F1 (flag-surface overclaim contradicting cobra persistent-flag inheritance). Slice 4 internal uniquely caught F1/F2 (nonexistent flag + wrong install paths) that would have poisoned downstream implementation.
+
+### Carry-forward rules (16 binding, rule 17 candidate)
+
+Rules 1-16 all binding. Candidate rule 17 (totality-claim verification, generalization of rule 11 from Slice 2 F1) has been validated across Slice 3 (release-ops, no scope for it) and Slice 4 (Slice 4 F1/F2 also demonstrated the totality-claim pattern — nonexistent `record --refresh` was a specific-claim drift, not a totality drift, so rule 17 doesn't directly apply, but rules 8+15 caught it via display-string + trigger-name verification). **Promote rule 17 to binding** — even if it didn't directly trigger in Slice 4, the underlying lesson is that ALL flag-surface / command-surface claims in docs and PRDs MUST be verified against `internal/cli/cobra.go` and parent-persistent-flag inheritance.
+
+### Rule 17 (promoted to binding)
+
+**When docs make a totality claim ("only X is supported", "the full list is Y", "no more than Z"), reviewers MUST verify the claim against ALL layers of the production model** (root persistent flags, parent-command persistent flags, cobra command groups, embedded asset paths, etc.), not just the enumerated docs list.
+
+### Non-blocking follow-ups (deferred, do not gate cluster closure)
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks Blocks-header naming coord with research-roadmap.md. Still deferred; can bundle with any future small docs slice or leave for downstream capture PRD.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness. Still deferred to downstream capture PRD (likely PRD-active-feature-session).
+
+### Next steps
+- Slice 4 SQL todo marked `done`.
+- v0.11.1 stabilization cluster archived to `HISTORY.md` (Slice 1-4 snapshots).
+- CURRENT.md reset to post-v0.11.1 decision state.
+- Decision options: (A) ship v0.11.1 release (bundle 4 slices under new tag), (B) kick off doctor implementation slice (uses PRD-tpatch-doctor draft), (C) kick off WP-004 / WP-005 / research roadmap continuation.
+
+### Action Taken
+
+- Slice 4 archived.
+- v0.11.1 cluster archived (all 4 slices).
+- CURRENT.md reset with post-v0.11.1 kickoff.
+- Rule 17 promoted to binding (17 total carry-forward rules).
+- SQL todo `v0.11.1-stab-slice-4-doctor-prd` flipped `done`.
+- ROADMAP.md updated to reflect v0.11.1 cluster completion.
+
+---
+
 ## Review — v0.11.1 Slice 4 (PRD-tpatch-doctor draft) — external (supervisor-dispatched) — 2026-07-23
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)

@@ -406,6 +406,61 @@ caught HIGH BLOCKERs in α rev-0, β rev-0, γ-1 rev-0; confirmed fixes
 in β rev-1, γ-1 rev-1, γ-2 rev-0. Full per-wave snapshots archived
 to [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
 
+## v0.11.1 — Stabilization cluster ✅
+
+Post-v0.11.0 stabilization slice addressing release-quality
+inconsistencies flagged by external teams + reviewer agents. Four
+slices shipped 2026-07-19..2026-07-23. Two-opinion review protocol
+continued: 11 consecutive rev cycles with three-way concurrence at
+final acceptance; user-external uniquely blocked in 5 of 11.
+
+- **Slice 1 — Asset/CLI parity fixes** ✅ (three-way APPROVED 2026-07-19)
+  - Ship stack: `359cd6a`, `fbd8244`, `67ee41a`, `dd2d12b`.
+  - Fixed skills recipe schema drift (missing `feature` field / phantom
+    `version: 1`), removed nonexistent `feature patch fixup --target`
+    flag from all 6 skill formats, and updated `verify --help` text
+    for post-Slice-C reality.
+  - Anti-drift bonus: `TestSkillRecipeSchemaMatchesCLI` extended to
+    decode skill recipe examples into `workflow.ApplyRecipe` directly
+    with `DisallowUnknownFields`.
+
+- **Slice 2 — Reconcile docs refresh** ✅ (three-way APPROVED 2026-07-23
+  after rev-1 fix of user-external F1 blocker)
+  - Ship stack: rev-0 `8a2c632`, `ac00905`; rev-1 `3c8fec5`.
+  - Rewrote `docs/reconcile.md` for the v0.11 evidence system covering
+    ADR-025 D1-D13 and all 9 WP-003 PRDs. User-external caught F1
+    (flag-surface overclaim contradicting cobra persistent-flag
+    inheritance); rev-1 added an explicit inheritance note plus the
+    human `evidence:` hint description and a CHANGELOG prefix fix.
+  - New carry-forward rule 11 (flag-surface accuracy) binding.
+
+- **Slice 3 — Release ops cleanup** ✅ (supervisor-direct 2026-07-23)
+  - Ship commit: `19b9969`.
+  - Published GH Releases for the 5 missing tags: v0.8.0, v0.8.1,
+    v0.9.0, v0.10.0, v0.11.0 (marked `Latest`). Notes extracted from
+    CHANGELOG.md via `awk … | sed '$d'`.
+  - Added [`RELEASING.md`](../RELEASING.md) documenting the 3-artifact
+    release lock-step (CHANGELOG → tag → `gh release create --verify-tag
+    --notes-file --latest`) with anti-drift guardrails and a
+    doctor-command candidate for pre-tag CI verification.
+
+- **Slice 4 — `PRD-tpatch-doctor` paper-only draft** ✅ (three-way APPROVED
+  2026-07-23 post-amend)
+  - Ship stack: `e1ed73e` + `4523cb8` (F1/F2 amend).
+  - Drafted [`docs/prds/PRD-tpatch-doctor.md`](prds/PRD-tpatch-doctor.md)
+    with D1-D8 detection clauses (metadata drift, `patch-generations.json`
+    presence, in-tree skill assets, lock formats, evidence artifacts,
+    release drift, recipe schema, and hard invariants) and 29 acceptance
+    criteria. Status: `Proposed`. Future implementation slice will ship
+    the actual `tpatch doctor` command.
+  - New carry-forward rule 17 (totality-claim verification) binding.
+
+**Cluster process artifacts** (non-shipping):
+- 17 dispatch-brief carry-forward rules codified (up from 15+1 at
+  cluster start; rules 11 and 17 added).
+- Full per-slice snapshots archived to
+  [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
+
 ## M18+ — Future
 
 - Cost tracking and token budgeting
