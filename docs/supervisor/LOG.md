@@ -1,3 +1,78 @@
+## Review — v0.11.1 Slice 4 (PRD-tpatch-doctor draft) — external (supervisor-dispatched) — 2026-07-23
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Slice 4 + F1/F2 amend (`19b9969..4523cb8`). Verifying internal APPROVED WITH NOTES at `d5ef6f8`.
+
+### Verdict: APPROVED
+
+Paper-only PRD, Proposed status, F1 + F2 fully resolved with no collateral drift. All D-clauses locked and sourced against production code and ADR ground truth. Anti-drift regression sweep clean (no `--target`, no `"version": 1` recipe, no `ra_<12hex>`, no `record --refresh`, no `.copilot/instructions`, no `.windsurf/`). Gates green.
+
+### F1/F2 amend verification
+- F1 (nonexistent flag `record --refresh`): **resolved**. `grep 'record --refresh' PRD` → 0 matches. All 4 amend sites (D2 prose L141, D2 remediation L157-158, human example L304, JSON example L341) now say `tpatch feature patch refresh <slug>`. Command verified real at `internal/cli/feature_patch.go:27-42` (`featurePatchRefreshCmd()` with `Use: "refresh <slug>"`).
+- F2 (wrong install paths): **resolved**. `grep '.copilot/instructions' PRD` → 0 matches; `grep '.windsurf/' PRD` → 0 matches. D3 prose L169-178 lists exactly the six actual `installSkills` paths verbatim; human example (L306, L308) and JSON example (L347, L351) use `.claude/skills/tessera-patch/SKILL.md` as representative. All six paths match `internal/cli/cobra.go:2780-2801` bytewise including `.windsurfrules` explicitly documented as "a single file, not a directory".
+
+### D-clause sweep (independent)
+- **D1** (feature metadata drift): locked. Correctly notes `status.json` has no top-level schema version; scopes v1 to field-level diffs + `ValidFeatureState` (verified at `internal/store/types.go:21`). Read-only, no invented migration path.
+- **D2** (patch-generations): locked. `PatchGenerationsManifestVersion = 1` and `PatchIDAlgorithmStable = "git-patch-id-stable"` verified at `internal/store/patch_generations.go:18-19`. Correctly cites ADR-024 D4 (no historical backfill) and ADR-024 D7 (malformed → distrust identity, continue). Remediation now names real command.
+- **D3** (skill assets): locked. Six install paths verified byte-for-byte against `installSkills`. Explicit v1-out-of-scope for hand-copied locations with §7.3 pointer for future marker contract — surgical, honest scoping.
+- **D4** (locks): locked. Concrete condition enum (`missing/empty/malformed/old-format/stale-ref/unreachable-commit/override-divergence`); `--fix` explicitly refuses fetch, branch guessing, and commit advance.
+- **D5** (evidence): locked. `ReconcileEvidenceSchemaVersion = 1` verified at `internal/store/reconcile_evidence.go:16`; `ReconcileRevisionSchemaVersion = 1` at `internal/store/reconcile_revision.go:16`. Correctly delegates malformed-JSONL semantics to ADR-025 D11. `attempt_id` duplicate check + closed enums + optional `refs` shape all named. Never fabricates evidence (§2.2 #7, §8 #7).
+- **D6** (release drift): locked. Mirrors `RELEASING.md:139-157` anti-drift candidate verbatim (tag ↔ `## vX.Y.Z` CHANGELOG ↔ GH Release within 24h). Offline-first via `--release-metadata` snapshot; reports `unknown` when absent — no silent pass, no auth, no fetch.
+- **D7** (recipe schema): locked. Matches `TestSkillRecipeSchemaMatchesCLI` semantics — decode into `workflow.ApplyRecipe` with `DisallowUnknownFields`; rejects deprecated `version`/`op`/`contents`. Feature recipe drift explicitly read-only (rewrites deferred to `tpatch record --regenerate-recipe`, verified real at `internal/cli/cobra.go:1491`).
+- **D8** (hard invariants): locked. Cleanly isolates whole-run aborts (missing `.tpatch/`, path traversal, backup collision) from per-check errors. Backup-collision path explicit (§5.5 + D8) — no silent overwrite.
+
+### §6 spot-check
+- Idempotence: **present** (§6.3 — `--fix` twice on clean workspace is no-op, no additional backups).
+- Dry-run default: **present** (§6.1, §4.1).
+- --fix opt-in: **present** (§6.1; §4.1 also rejects `--dry-run --fix` combo).
+- Backups mandatory: **present** (§6.2, §5.5, D8 backup-collision guard).
+- JSON determinism: **present** (§6.23 stable schema; §6.28 sorted, no wall-clock).
+- Exit codes 0/1/2: **present** (§6.24, §4.4; other codes reserved).
+- Per-check failure isolation: **present** (§6.20; hard-invariant abort carved out in §6.21).
+
+### Cross-reference + anti-drift
+- ADR-024/025/027 citations accurate: **confirmed**. ADR-024 has D1-D9, PRD cites D1-D9 (§9). ADR-025 has D1-D13, PRD cites D1-D13 (§0.2, §9). ADR-027 has D1-D13, PRD cites D2-D4 (§0.2) and D1-D5 (§9). No fabricated clauses (no "ADR-025 D14" etc.).
+- RELEASING.md anti-drift match: **confirmed**. `RELEASING.md:139-157` describes the exact three-way tag/CHANGELOG/GH-Release check with 24h window; D6 mirrors this without embellishment.
+- No `--target` re-introduction: **confirmed** (0 matches).
+- No `"version": 1` recipe re-introduction: **confirmed** (0 matches). PRD only uses `"schema_version": 1` (doctor's own report envelope) and references manifest `version` field for `patch-generations.json` correctly.
+- No lingering `ra_<12hex>` active-contract references: **confirmed** (0 matches).
+
+### Hard-constraint sweep
+- [x] PRD only — `git diff 19b9969..4523cb8 --stat` shows only `docs/prds/PRD-tpatch-doctor.md`, `docs/handoff/CURRENT.md`, `docs/supervisor/LOG.md`. No code touched, no Slice 1/2/3 files, no other PRD, no ADR-027 F2/F3.
+- [x] Status = `Proposed` (L3).
+- [x] Non-scope explicit (§2.2 + §8, 9 items).
+- [x] Safety defaults: dry-run default (§4.1, §6.1), `--fix` opt-in (§4.1 rejects combo), backups mandatory (§5.5, §6.2).
+- [x] Idempotence acceptance criterion present (§6.3).
+- [x] Side Research md5 = `b385fe622db9926f48861105239f113e` — **verified**.
+- [x] Co-authored-by trailers on both `e1ed73e` and `4523cb8` — **verified**.
+- [x] No Slice 1/2/3 file touches — verified via name-only diff.
+- [x] No ADR-027 F2/F3 touches, no other PRD edits — verified.
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean (`./cmd/tpatch`) | test: all packages ok (assets, buildinfo, cli, gitutil, provider, safety, store, studyvalidator, workflow, tests/integration).
+
+### Adversarial extras — findings
+1. Every `tpatch <cmd>` in the PRD verified against production: `tpatch doctor` (this PRD's subject, forward reference), `tpatch feature patch refresh <slug>` (`feature_patch.go:29`), `tpatch record --regenerate-recipe` (`cobra.go:1491`), `tpatch init` (referenced descriptively). No invented commands remain.
+2. No fabricated ADR clause numbers.
+3. No safety-bypass flag hidden in `--check`/`--path`/`--release-metadata`; `--fix` remains the sole mutation gate and rejects combination with `--dry-run`.
+4. D6 semantics match `RELEASING.md:139-157` (tag ↔ `## vX.Y.Z` ↔ GH Release / 24h) with the addition that GH Release verification is fed only by a caller-supplied local snapshot — a strict tightening, not a divergence.
+5. D7 recipe check matches Slice 1 parity guard: `workflow.ApplyRecipe` + `DisallowUnknownFields`, rejecting `version`/`op`/`contents`.
+6. ADR-027 privacy: §2.2 #6, §5.8, §6.26, §8 #8 all explicitly forbid raw transcripts / prompts / IDE buffers / `.git/tpatch/capture/` private buffers / secrets. Committed metadata only.
+7. Partial-fix corner case: §6.20 (per-check errors don't abort) + §4.4 exit code 2 = "`--fix` attempted at least one mutation and one or more fixes failed or only partially completed" — explicitly reports partial and continues.
+8. Backup collision corner case: §5.5 "must not overwrite an existing backup. If `<file>.orig` exists, use a deterministic next suffix or refuse with a clear finding; implementation chooses one and tests it"; D8 lists "a backup target that would overwrite an existing backup" as a hard invariant. Explicit and locked.
+9. No lingering `--target` / `ra_<12hex>` references (regression-clean).
+
+### New findings (beyond F1/F2)
+None. No new blockers, mediums, or lows. The paper-only PRD is internally consistent, code-verified end-to-end, and free of the drift-class errors it exists to catch.
+
+### Concurrence with internal verdict?
+**YES.** Internal APPROVED WITH NOTES at `d5ef6f8` correctly identified F1 + F2, and the amend at `4523cb8` resolves both surgically without side effects. Independent verification confirms every claim in the internal review. Upgrading from APPROVED WITH NOTES to plain APPROVED is appropriate given the amend, matching the intent of the F1/F2 fix commit.
+
+### Action Taken
+Prepended this external review to `docs/supervisor/LOG.md`. No other files touched.
+
+---
+
 ## Review — v0.11.1 Slice 4 (PRD-tpatch-doctor draft) — internal — 2026-07-23
 
 **Reviewer**: internal (code-review agent)
