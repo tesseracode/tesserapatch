@@ -1,3 +1,78 @@
+## Review — tpatch doctor Wave α (scaffold + D1 + D2 + D8) — external (user-dispatched, parallel) — 2026-07-27
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of F-EXT-1 fix revision (`056329c..a3b9fe3`) on top of Wave α (`8a70e7b..6319c0b`).
+
+### Verdict: APPROVED WITH NOTES
+
+### Fix verification
+- `a3b9fe3` exists and is a follow-up attribution-only commit (empty diff by design).
+- `6319c0b` still contains the malformed literal `\n\n` in its message body (as previously reported by supervisor-external at `056329c`).
+- `a3b9fe3` adds a properly formatted `Co-authored-by:` trailer (parseable by `git interpret-trailers`) and explicitly cites `6319c0b` in the body as remediation context.
+- Tracking context in `LOG.md` reflects F-EXT-1 and the expected remediation path.
+
+### Non-blocking note
+The fix is process-correct for forward attribution and audit trail, but it cannot retroactively make `6319c0b`'s trailer parseable without history rewrite. The malformed trailer remains on `6319c0b` in-place; GitHub credit for that specific commit is not restorable without force-push (rejected as an option by supervisor). This is documented explicitly in `a3b9fe3` body and accepted as the trade-off cost of preserving the review-chain history.
+
+### Concurrence
+YES with internal APPROVED at `e424fe0` (§6.1-§6.7 + §6.20-§6.29 all MET, wave-boundary clean) + supervisor-external APPROVED WITH NOTES at `056329c` (F-EXT-1 detected; fix at `a3b9fe3` is process-correct).
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — tpatch doctor Wave α — supervisor — 2026-07-27
+
+**Decision**: APPROVED WITH NOTES.
+
+Three independent reviews concur post-F-EXT-1 fix:
+- internal (`e424fe0`): APPROVED. All 17 in-scope §6 criteria MET. Two non-blocking observations (exit-code semantics for `--fix` with `Findings>0/Errors==0`; `--check` case-insensitivity) queued for Wave β verification.
+- supervisor-external (`056329c`): APPROVED WITH NOTES. F-EXT-1 MEDIUM (malformed `Co-authored-by` trailer on `6319c0b`) caught + attributed to internal reviewer's text-presence-only check.
+- user-external (2026-07-27): APPROVED WITH NOTES. Confirmed fix at `a3b9fe3` is process-correct + notes the retroactivity limitation.
+
+F-EXT-1 fix (`a3b9fe3`) is a deliberate empty-commit forward attribution. Body cites `6319c0b` + carries a properly-formatted trailer. Chosen over force-push to preserve review-chain history + hash integrity of internal/supervisor-external LOG entries. Accepted trade-off: `6319c0b`'s in-place trailer remains malformed on the immutable git commit; forward attribution correctness restored via `a3b9fe3`.
+
+### Wave α closure stack
+
+- `6319c0b` — feat(doctor): ship wave alpha scaffold (with malformed trailer that F-EXT-1 caught)
+- `e424fe0` — internal APPROVED (missed F-EXT-1 because text-grep passed)
+- `056329c` — supervisor-external APPROVED WITH NOTES (F-EXT-1 caught via `git interpret-trailers --parse`)
+- `a3b9fe3` — chore(attribution): restore Co-authored-by trailer lost on 6319c0b (empty commit forward fix)
+- (LOG entry above) — user-external APPROVED WITH NOTES (concurrence + retroactivity note)
+
+### New process rule 18 (promoted to binding)
+
+**Internal reviewer checklists MUST include structural trailer verification** (`git interpret-trailers --parse` returns non-empty) or equivalent runtime-parser check, not just a text-grep for the trailer string. Same lesson class as rule 9 (behavior-implemented-vs-tested): a text grep passes but the actual runtime parser fails.
+
+Anti-drift note for future implementers: use tools/scripts that write commit messages via files or literal newlines, NOT shell string literals with `\n\n` escape sequences that don't expand in single-quoted contexts.
+
+### Two-opinion protocol scoreboard update
+
+**12 consecutive rev cycles with three-way concurrence at final acceptance** (WP-003 α rev-0/1/2, β rev-0/1, γ-1 rev-0/1, γ-2 rev-0, ADR-027 rev-0, v0.11.1 Slice 1 rev-0, Slice 2 rev-0/1, Slice 4 rev-0, doctor Wave α rev-0). Supervisor-external uniquely caught F-EXT-1 that internal missed via text-only trailer check.
+
+### Wave β unlocked
+
+Next: **Wave β** (D3 skill assets + D7 recipe schema — asset-drift class). Rev-0 cluster plan documented in CURRENT.md at cluster kickoff. Wave β + doctor waves γ/δ remain queued.
+
+Internal's non-blocking observations to fold into Wave β brief:
+- Verify `DoctorExitCode` returns 2 (not 1) for the `--fix` + `Findings>0` + `Errors==0` path once D3 fixers exist.
+- Add `--check` case-insensitivity test coverage (or make case-sensitive per §6.25 verbatim).
+
+### Non-blocking follow-ups deferred
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks Blocks-header naming coord — still deferred.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness — deferred to downstream capture PRD.
+
+### Action Taken
+- Doctor Wave α archived to `HISTORY.md`.
+- CURRENT.md reset for Wave β kickoff.
+- SQL todo `doctor-wave-alpha-scaffold-d1-d2-d8` flipped `done`.
+- Rule 18 promoted to binding (18 total carry-forward rules).
+- Awaiting user go-ahead on Wave β dispatch.
+
+---
+
 ## Review — tpatch doctor Wave α (scaffold + D1 + D2 + D8) — external (supervisor-dispatched) — 2026-07-24
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
