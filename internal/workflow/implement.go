@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -72,6 +73,35 @@ type RecipeOperation struct {
 	// Reading rule (ADR-010 D5): for reconcile-result decisions, callers
 	// must read status.Reconcile.Outcome — never artifacts/reconcile-session.json.
 	CreatedBy string `json:"created_by,omitempty"`
+}
+
+// DecodeApplyRecipeStrict decodes the authoritative apply-recipe.json schema
+// with unknown fields rejected, then checks the required fields and operation
+// type enum used by the CLI.
+func DecodeApplyRecipeStrict(data []byte) (ApplyRecipe, error) {
+	var recipe ApplyRecipe
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&recipe); err != nil {
+		return ApplyRecipe{}, err
+	}
+	if recipe.Feature == "" {
+		return ApplyRecipe{}, fmt.Errorf("missing top-level feature field")
+	}
+	if len(recipe.Operations) == 0 {
+		return ApplyRecipe{}, fmt.Errorf("missing operations")
+	}
+	for i, op := range recipe.Operations {
+		if op.Type == "" {
+			return ApplyRecipe{}, fmt.Errorf("operation %d missing type field", i)
+		}
+		switch op.Type {
+		case "write-file", "replace-in-file", "append-file", "ensure-directory":
+		default:
+			return ApplyRecipe{}, fmt.Errorf("operation %d has unknown type %q", i, op.Type)
+		}
+	}
+	return recipe, nil
 }
 
 // RunImplement generates a deterministic apply recipe for a feature.

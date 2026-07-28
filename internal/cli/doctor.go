@@ -18,7 +18,8 @@ func doctorCmd() *cobra.Command {
 		Use:   "doctor",
 		Short: "Diagnose tpatch workspace metadata drift",
 		Long: "Diagnose tpatch workspace metadata drift.\n\n" +
-			"Wave alpha checks feature metadata (D1), patch-generations manifests (D2), and workspace invariants (D8).\n" +
+			"Checks feature metadata (D1), patch-generations manifests (D2), installed skill assets at the six init-managed paths (D3), recipe schemas (D7), and workspace invariants (D8).\n" +
+			"Hand-copied skill assets outside the init-managed paths are intentionally out of scope for this doctor wave.\n" +
 			"Supported local flags are --dry-run, --fix, --json, and repeated --check; root persistent flags such as --path are inherited.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,6 +57,6 @@ func doctorCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview findings without writing changes (default)")
 	cmd.Flags().BoolVar(&fix, "fix", false, "Apply safe doctor fixes with backups before overwrites")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit deterministic schema-versioned JSON report")
-	cmd.Flags().StringArrayVar(&checks, "check", nil, "Limit execution to a doctor check ID (repeatable: D1, D2, D8)")
+	cmd.Flags().StringArrayVar(&checks, "check", nil, "Limit execution to a doctor check ID (repeatable: D1, D2, D3, D7, D8)")
 	return cmd
 }

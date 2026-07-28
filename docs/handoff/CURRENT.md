@@ -5,7 +5,7 @@
 - **Task ID**: `doctor-wave-beta-d3-d7`
 - **Milestone**: `tpatch doctor` implementation — Wave β (D3 skill assets + D7 recipe schema). Second wave of the 4-wave cluster.
 - **Description**: Extend the doctor scaffold (shipped in Wave α at `a3b9fe3`) with two asset-drift detection classes: D3 (stale in-tree skill assets — compare installed bytes to embedded `assets.Skills` bytes across the 6 shipped install paths) and D7 (recipe schema drift — decode `apply-recipe.json` files against `workflow.ApplyRecipe` with `DisallowUnknownFields`). Both classes are candidates for `--fix`, so Wave β is the FIRST slice to exercise the mutating half of the scaffold: backup semantics, idempotence, and exit-code 2 for partial-failure-on-fix.
-- **Status**: Awaiting implementer dispatch.
+- **Status**: Review.
 - **Assigned**: 2026-07-27.
 
 ## Doctor implementation cluster wave plan
@@ -114,12 +114,47 @@ Do not dispatch reviewers — supervisor handles that.
 
 ## Session Summary
 
-Doctor Wave α closed 2026-07-27 (three-way APPROVED WITH NOTES). F-EXT-1 malformed-trailer finding caught by supervisor-external + fixed via forward attribution at `a3b9fe3`. Rule 18 (structural trailer verification) promoted to binding (18 total rules). Wave β kickoff ready.
+Doctor Wave β implementation is complete and ready for review. D3 stale in-tree skill asset detection/fix and D7 recipe schema drift detection were added on top of Wave α, with the first mutating `--fix` path now covered end-to-end. `--check` IDs are now case-sensitive (canonical uppercase D-IDs only).
+
+### Wave β closure summary
+
+- §6.8 / §6.9 D3: `internal/workflow/doctor_d3.go:34` compares installed bytes at the six `tpatch init` skill paths to embedded `assets.Skills` bytes. `internal/workflow/doctor_d3.go:80` refuses unrecognized user content; `internal/workflow/doctor_d3.go:109` and `:163` implement `.orig` backup/idempotence/collision semantics; `:153` records successful fixes as `fixed` findings so all-fixed `--fix` exits 0.
+- D3 positive-identification contract: byte match = clean; byte mismatch is fixable only when the first ~256 bytes / first line contain `tessera-patch` or `tpatch`, or the bundled opening heading matches. No installed file is parsed as tpatch DSL; unrecognized findings report only truncated SHA-256 hashes.
+- §6.18 / §6.19 D7: `internal/workflow/implement.go:81` defines shared strict `workflow.ApplyRecipe` decoding (`DisallowUnknownFields`, required `feature`, non-empty operations, known op types). `internal/workflow/doctor_d7.go:20` checks per-feature `artifacts/apply-recipe.json`; `:67` checks installed tpatch skill recipe examples when present. D7 is read-only and remediates via hand-fix + `tpatch verify <slug>` or regeneration with `tpatch implement <slug>`.
+- Rule 15: exact grep for `tpatch implement` in `internal/cli/cobra.go` returned no literal match, but `internal/cli/cobra.go:561-588` defines the real `implement <slug>` command; D7 remediation uses `tpatch implement <slug>`.
+- Rule 11: no new persistent flags were added; `internal/cli/doctor.go` still exposes only local `--dry-run`, `--fix`, `--json`, and repeated `--check`.
+- §6.24 exit semantics: D3 successful `--fix` has `Findings=0, Fixed>0, Errors=0` and exits 0; D3 refusals are `Severity:error`, so partial-failure `--fix` exits 2 via existing `DoctorExitCode` (`internal/workflow/doctor.go:194`).
+- §6.25 convention chosen: Option A, case-sensitive check IDs. `internal/workflow/doctor.go:231` now trims but does not uppercase IDs; lowercase `d3` is rejected.
+- Tests: D3 fixtures in `internal/workflow/doctor_d3_test.go:13` (clean/all-six stale), `:50` (fix + backup + idempotence), `:90` (unrecognized refusal), `:119` (backup collision), `:143` (matching backup). D7 fixtures in `internal/workflow/doctor_d7_test.go:11`, `:33`, `:85`. CLI coverage in `internal/cli/doctor_test.go:115`, `:129`, `:179`.
+
+Files changed by this implementation:
+
+- `assets/assets_test.go`
+- `CHANGELOG.md`
+- `docs/handoff/CURRENT.md`
+- `internal/cli/doctor.go`
+- `internal/cli/doctor_test.go`
+- `internal/workflow/doctor.go`
+- `internal/workflow/doctor_d3.go`
+- `internal/workflow/doctor_d3_test.go`
+- `internal/workflow/doctor_d7.go`
+- `internal/workflow/doctor_d7_test.go`
+- `internal/workflow/implement.go`
+
+Targeted validation so far:
+
+- `gofmt -w ...` — completed.
+- `go test ./internal/workflow ./internal/cli ./assets` — PASS.
+- `gofmt -l .` — clean (empty output).
+- `go test ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
 
 ## Next Steps
 
-1. Supervisor: dispatch Wave β implementer.
-2. After Wave β three-way APPROVED: archive to HISTORY, move to Wave γ.
+1. Run full gates: `gofmt -l .`, `go test ./...`, `go build ./cmd/tpatch`.
+2. Commit Wave β implementation/docs with structural trailer verification.
+3. Push to `origin/main`.
+4. Supervisor: dispatch Wave β review.
 
 ## Blockers
 
@@ -132,6 +167,7 @@ None.
 - 18 carry-forward rules now binding. Rule 18 is the newest; sanity-check commit trailers structurally, not just via text-grep.
 - Slice 1's `TestSkillRecipeSchemaMatchesCLI` is D7's build-time analog; Wave β's D7 is the runtime version.
 - Slice 4 F2 amend documented the six `installSkills` paths for D3.
+- Wave β chose case-sensitive `--check` IDs. Use canonical uppercase IDs (`D1`, `D2`, `D3`, `D7`, `D8`) in docs/tests.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

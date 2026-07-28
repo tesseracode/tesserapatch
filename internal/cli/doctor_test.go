@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/assets"
 	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
@@ -108,6 +109,91 @@ func TestDoctorCLIUnknownCheckFailsBeforeRun(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Fatalf("unknown check should not emit report: %s", out.String())
+	}
+}
+
+func TestDoctorCLICheckIDsAreCaseSensitive(t *testing.T) {
+	rootDir := t.TempDir()
+	if _, err := store.Init(rootDir); err != nil {
+		t.Fatal(err)
+	}
+	_, err := runDoctorCLI(t, rootDir, "doctor", "--check", "d3")
+	if err == nil {
+		t.Fatal("expected lowercase check ID to be rejected")
+	}
+	if !strings.Contains(err.Error(), "unknown doctor check") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDoctorCLID3FixEndToEndAndExitCodes(t *testing.T) {
+	rootDir := t.TempDir()
+	if _, err := store.Init(rootDir); err != nil {
+		t.Fatal(err)
+	}
+	src := "skills/claude/tessera-patch/SKILL.md"
+	dst := filepath.Join(rootDir, ".claude", "skills", "tessera-patch", "SKILL.md")
+	bundled, err := assets.Skills.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drifted := append([]byte("# tpatch drift\n"), bundled...)
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, drifted, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runDoctorCLI(t, rootDir, "doctor", "--check", "D3")
+	if err == nil || asExitCodeError(err).ExitCode() != 1 {
+		t.Fatalf("D3 dry-run exit = %v stdout=%s", err, out)
+	}
+	if backups := findOrigBackups(t, rootDir); len(backups) != 0 {
+		t.Fatalf("dry-run created backups: %#v", backups)
+	}
+
+	out, err = runDoctorCLI(t, rootDir, "doctor", "--fix", "--check", "D3")
+	if err != nil {
+		t.Fatalf("D3 --fix should exit 0: %v stdout=%s", err, out)
+	}
+	if !strings.Contains(out, "summary: 0 drift findings, 0 warnings, 1 fixed, 0 errors") {
+		t.Fatalf("missing fixed summary: %s", out)
+	}
+	if got, err := os.ReadFile(dst); err != nil || !bytes.Equal(got, bundled) {
+		t.Fatalf("installed asset not replaced: err=%v", err)
+	}
+	if got, err := os.ReadFile(dst + ".orig"); err != nil || !bytes.Equal(got, drifted) {
+		t.Fatalf("backup not written: err=%v", err)
+	}
+
+	out, err = runDoctorCLI(t, rootDir, "doctor", "--fix", "--check", "D3")
+	if err != nil {
+		t.Fatalf("second D3 --fix should be clean: %v stdout=%s", err, out)
+	}
+	if backups := findOrigBackups(t, rootDir); len(backups) != 1 {
+		t.Fatalf("second --fix created extra backups: %#v", backups)
+	}
+}
+
+func TestDoctorCLID3FixRefusalExitCode2(t *testing.T) {
+	rootDir := t.TempDir()
+	if _, err := store.Init(rootDir); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(rootDir, ".github", "skills", "tessera-patch", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("personal notes without marker\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runDoctorCLI(t, rootDir, "doctor", "--fix", "--check", "D3")
+	if err == nil || asExitCodeError(err).ExitCode() != 2 {
+		t.Fatalf("D3 refused --fix exit = %v stdout=%s", err, out)
+	}
+	if !strings.Contains(out, "skill-asset-unrecognized") || !strings.Contains(out, "summary: 0 drift findings, 0 warnings, 0 fixed, 1 errors") {
+		t.Fatalf("missing refusal output: %s", out)
 	}
 }
 

@@ -1,12 +1,12 @@
-package assets
+package assets_test
 
 import (
-	"encoding/json"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/assets"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
@@ -136,7 +136,7 @@ var skillFiles = []struct {
 func TestSkillParityGuard(t *testing.T) {
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
-			data, err := Skills.ReadFile(sf.path)
+			data, err := assets.Skills.ReadFile(sf.path)
 			if err != nil {
 				t.Fatalf("cannot read %s: %v", sf.path, err)
 			}
@@ -228,7 +228,7 @@ func TestSkillDocReferencesAreSelfContained(t *testing.T) {
 
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
-			data, err := Skills.ReadFile(sf.path)
+			data, err := assets.Skills.ReadFile(sf.path)
 			if err != nil {
 				t.Fatalf("cannot read %s: %v", sf.path, err)
 			}
@@ -243,7 +243,7 @@ func TestSkillDocReferencesAreSelfContained(t *testing.T) {
 func TestAllSkillFilesExist(t *testing.T) {
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
-			_, err := Skills.ReadFile(sf.path)
+			_, err := assets.Skills.ReadFile(sf.path)
 			if err != nil {
 				t.Fatalf("skill file %s (%s) not found: %v", sf.name, sf.path, err)
 			}
@@ -263,7 +263,7 @@ func TestSkillRecipeSchemaMatchesCLI(t *testing.T) {
 	codeBlock := regexp.MustCompile("(?s)```json\\s*\\n(.*?)\\n```")
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
-			data, err := Skills.ReadFile(sf.path)
+			data, err := assets.Skills.ReadFile(sf.path)
 			if err != nil {
 				t.Fatalf("cannot read %s: %v", sf.path, err)
 			}
@@ -275,33 +275,14 @@ func TestSkillRecipeSchemaMatchesCLI(t *testing.T) {
 				if !strings.Contains(block, "\"operations\"") {
 					continue
 				}
-				var recipe workflow.ApplyRecipe
-				dec := json.NewDecoder(strings.NewReader(block))
-				dec.DisallowUnknownFields()
-				if err := dec.Decode(&recipe); err != nil {
+				recipe, err := workflow.DecodeApplyRecipeStrict([]byte(block))
+				if err != nil {
 					t.Errorf("%s: recipe JSON block does not match workflow.ApplyRecipe schema: %v\nBlock:\n%s",
 						sf.path, err, block)
 					continue
 				}
 				if strings.TrimSpace(recipe.Feature) == "" {
 					t.Errorf("%s: recipe JSON block missing top-level `feature` field", sf.path)
-					continue
-				}
-				if len(recipe.Operations) == 0 {
-					t.Errorf("%s: recipe JSON block has zero operations", sf.path)
-					continue
-				}
-				for i, op := range recipe.Operations {
-					if op.Type == "" {
-						t.Errorf("%s: operation %d missing `type` field — schema drift (likely using `op` instead)", sf.path, i)
-					}
-					switch op.Type {
-					case "write-file", "replace-in-file", "append-file", "ensure-directory":
-						// ok — known op types supported by the CLI
-					default:
-						t.Errorf("%s: operation %d has unknown type %q — CLI supports write-file, replace-in-file, append-file, ensure-directory only",
-							sf.path, i, op.Type)
-					}
 				}
 				checked++
 			}

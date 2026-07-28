@@ -222,6 +222,8 @@ func doctorRegistry() []doctorCheck {
 	return []doctorCheck{
 		{id: "D1", run: runDoctorD1},
 		{id: "D2", run: runDoctorD2},
+		{id: "D3", run: runDoctorD3},
+		{id: "D7", run: runDoctorD7},
 		{id: "D8", run: runDoctorD8},
 	}
 }
@@ -238,7 +240,7 @@ func selectDoctorChecks(ids []string) ([]doctorCheck, error) {
 	seen := map[string]bool{}
 	var selected []doctorCheck
 	for _, raw := range ids {
-		id := strings.ToUpper(strings.TrimSpace(raw))
+		id := strings.TrimSpace(raw)
 		check, ok := byID[id]
 		if !ok {
 			return nil, fmt.Errorf("unknown doctor check %q (known: %s)", raw, strings.Join(DoctorCheckIDs(), ", "))

@@ -2,7 +2,9 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.11.2 (unreleased) — tpatch doctor Wave α
+## v0.11.2 (unreleased) — tpatch doctor Waves α/β
+
+### Wave α
 
 - Added `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` scaffold
   with dry-run default, explicit fix mode, deterministic JSON reports, check
@@ -15,6 +17,18 @@ All notable changes to tpatch are recorded here.
   malformed-artifact isolation with path and line reporting where available.
 - Added Wave α doctor coverage in workflow/CLI tests and mentioned the new
   command across all six shipped skill/prompt/workflow asset formats.
+
+### Wave β
+
+- Added D3 stale in-tree skill asset detection across the six `tpatch init`
+  install paths, with byte-level bundled asset comparison, explicit `--fix`,
+  `.orig` backups, idempotent reruns, and refusal for unrecognized user content
+  or backup collisions.
+- Added D7 recipe schema drift detection for feature `apply-recipe.json` files
+  and installed skill recipe examples using the strict `workflow.ApplyRecipe`
+  decoder shared with the asset parity guard.
+- Made `--check` IDs case-sensitive and covered D3 `--fix` success/refusal exit
+  semantics, including exit code 2 for partial fix failure.
 
 ## v0.11.1 — 2026-07-23 — Stabilization
 
