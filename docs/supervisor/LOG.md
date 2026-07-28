@@ -1,3 +1,115 @@
+## Review — tpatch doctor Wave δ rev-1 (F2 close, final gate to v0.11.2) — external (supervisor-dispatched) — 2026-07-28
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of rev-1 (`8c108de..0107928`). Verifying internal APPROVED at `d86d5a6`. First external application of Rule 20 candidate (empirical user-workspace reproduction).
+
+### Verdict: APPROVED
+
+### F2 deliverable verification (independent)
+- **F2-1** gating (`isTpatchStyleReleaseContext` at `internal/workflow/doctor_d6.go:211-222`): independently traced; guards both drift loops at `doctor_d6.go:88-123`. Regex `doctorTpatchChangelogReleaseRe = ^## v[0-9]+\.[0-9]+\.[0-9]+ —` (line 26) requires em-dash `—` (U+2014); ASCII hyphen `-` would not match — consistent with tpatch RELEASING.md CHANGELOG convention. Tag regex `^v[0-9]+\.[0-9]+\.[0-9]+$` correctly rejects `v0.11.1-rc1` prerelease at boundary; drift-loop filter (line 91) skips non-semver tags. `(unreleased)` guard already present in `doctorD6ChangelogReleases` (line 200). Missing CHANGELOG severity downgraded via `errors.Is(err, os.ErrNotExist)` (line 74) — correct sentinel.
+- **F2-2** grep `RELEASING.md` in `internal/workflow/doctor_d6.go` = **0 hits**. Extended grep for `docs/`, `CONTRIBUTING.md`, `README.md`, `.md` in remediation strings = **0 hits** beyond the const `doctorD6ChangelogPath = "CHANGELOG.md"` (which is a target path, not a doc reference). Remediation strings inline-minimal per ADR-020.
+- **F2-3** three new tests read; each asserts F2 fix invariant.
+  - `TestDoctorD6SkipsUpstreamNonTpatchContext` (line 57) iterates all findings via range loop and additionally asserts `report.Summary.Findings == 0`.
+  - `TestDoctorD6MissingChangelogIsWarning` (line 75) asserts severity == "warning".
+  - `TestDoctorD6RemediationHasNoRepoDocRefs` (line 88) iterates ALL findings via `for _, f := range report.Findings` — durable anti-drift guard; not just first finding.
+
+### Rule 20 candidate (INDEPENDENT empirical reproduction)
+Binary built at `/tmp/tpatch_ext_verify` from HEAD `0107928`.
+
+- **Scenario 1** (upstream repo, non-tpatch CHANGELOG `## 1.2.0 (2024-01-01)`, tags v1.0.0/v1.2.0):
+  ```
+  WARNING D6 release-gh-release-unknown tag=v1.0.0
+  WARNING D6 release-gh-release-unknown tag=v1.2.0
+  summary: 0 drift findings, 2 warnings, 0 fixed, 0 errors
+  ```
+  ✅ Expected AFTER: 0 drift, unknown warnings OK. **MATCHES.**
+
+- **Scenario 2** (no CHANGELOG, tag v1.0.0):
+  ```
+  WARNING D6 release-changelog-unreadable path=CHANGELOG.md
+    cannot read CHANGELOG.md release headings: open .../CHANGELOG.md: no such file or directory
+    remediation: Create CHANGELOG.md with release sections like "## vX.Y.Z — YYYY-MM-DD — <scope>".
+  WARNING D6 release-gh-release-unknown tag=v1.0.0
+  summary: 0 drift findings, 2 warnings, 0 fixed, 0 errors
+  ```
+  ✅ Expected AFTER: warning severity, not error. **MATCHES** (severity=warning, remediation inline).
+
+- **Scenario 3** (mixed CHANGELOG — tpatch `## v0.11.1 —` + upstream `## 1.2.0 (…)`; tags v0.11.1, v1.2.0):
+  ```
+  WARNING D6 release-gh-release-unknown tag=v0.11.1
+  WARNING D6 release-gh-release-unknown tag=v1.2.0
+  DRIFT   D6 release-tag-missing-changelog tag=v1.2.0
+    remediation: Add a section "## v1.2.0 — YYYY-MM-DD — <scope>" to your CHANGELOG.md.
+  summary: 1 drift findings, 2 warnings, 0 fixed, 0 errors
+  ```
+  ⚠ v1.2.0 IS reported as drift because tpatch-context is activated by v0.11.1 heading and v1.2.0 is a valid semver tag with no `## v1.2.0 — ` heading. Per prompt boundary hint, this is "TOO PERMISSIVE" behavior. **Design observation** (not a blocker): once a repo declares tpatch-style intent by having any `## vX.Y.Z —` heading, ALL semver tags are checked. This is arguably correct-per-model (a tpatch-maintained repo shouldn't have untracked semver tags) and PRD §6.14-§6.17 is silent on mixed CHANGELOG semantics. Flagged for supervisor awareness; internal reviewer noted same in their Option-A analysis.
+
+- **Scenario 4** (prerelease tag v0.11.1-rc1 with matching `## v0.11.1-rc1 —` heading):
+  ```
+  WARNING D6 release-gh-release-unknown tag=v0.11.1-rc1
+  summary: 0 drift findings, 1 warnings, 0 fixed, 0 errors
+  ```
+  ✅ Expected AFTER: no drift for prerelease. **MATCHES** — `doctorReleaseTagRe` correctly rejects `-rc1` suffix; `isTpatchStyleReleaseContext` also does not detect (regex requires `\.[0-9]+ —` immediately). Both mechanisms independently prevent drift emission — good defense in depth.
+  ℹ Minor observation: `release-gh-release-unknown` warning branch (`doctor_d6.go:124-136`) does NOT regex-filter prerelease tags, so `v0.11.1-rc1` produces an `unknown` warning even though drift branches skip it. Warning-level only (not drift), does not block ship. Note only.
+
+### Rule 19 (binding) trace
+```
+$ git diff 8c108de..0107928 --name-only -- internal/store/
+(empty)
+```
+✅ Zero store loader diffs.
+
+### Regression (Waves α+β+γ+δ rev-0 preserved)
+- `go test ./internal/workflow/ -run TestDoctorD6 -v` → 8/8 PASS including 3 new F2-3 tests + `TestDoctorD6ReportsTagChangelogAndGHReleaseDrift` (positive-drift regression: tpatch-style workspace with real drift STILL emits findings — over-gating negative case covered implicitly).
+- `go test ./...` → all packages PASS (assets, buildinfo, cli, gitutil, provider, safety, store, studyvalidator, workflow, integration).
+- F1-1 test untouched: verified via `git diff 8c108de..0107928 -- internal/workflow/doctor_d6_test.go` shows only additions (lines 57-104) plus `"strings"` import; existing tests unchanged.
+
+### Hard-constraint sweep (17 + Rule 20)
+- [x] All 17 binding hard constraints (per supervisor rev-1 brief).
+- [x] Rule 18 (structural trailer): `git log -1 --format='%(trailers)' 0107928` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` (non-empty).
+- [x] Rule 19 (store loader diff): empty.
+- [x] Rule 20 candidate: all 4 scenarios independently reproduced; AFTER matches expected (S3 flagged as design observation only).
+
+### Validation gates
+- `gofmt -l .` → clean
+- `go vet ./...` → clean
+- `go build ./cmd/tpatch` → success
+- `go test ./...` → all PASS
+
+### Trailer verification (Rule 18)
+```
+git log -1 --format='%(trailers)' 0107928
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+```
+
+### Anti-drift regression
+- No `--target`: confirmed (grep of doctor_d6.go clean).
+- No `"version": 1` recipe: confirmed.
+- No `ra_<12hex>` active refs: confirmed.
+- No stale symbol refs (`doctorD6ChangelogRemediate`, `doctorD6TagRemediate`, `doctorD6GHReleaseRemediate` all removed cleanly): confirmed.
+
+### v0.11.2 ship readiness
+**Ready.** No blockers. S3 mixed-CHANGELOG behavior is a design boundary worth documenting post-ship in ADR/PRD but does not block v0.11.2.
+
+### New findings (if any beyond internal)
+1. **S3 mixed-CHANGELOG "too permissive" boundary** (severity: Low/design; `doctor_d6.go:88-105`): tpatch-context activation is repo-scoped, not per-tag. A repo with even one tpatch-style heading treats every semver git tag as requiring a matching CHANGELOG entry. This may over-report drift when maintainers mirror upstream semver tags without tpatch headings. Not covered by PRD §6.14-§6.17. **Suggested fix (post-v0.11.2)**: document the semantics in ADR-020 or extend gating to per-tag matching. Not a ship blocker.
+2. **Prerelease `unknown` warning inconsistency** (severity: Low/noise; `doctor_d6.go:124-136`): the `release-gh-release-unknown` branch iterates ALL tags (including prereleases like `v0.11.1-rc1`) without the `doctorReleaseTagRe.MatchString` guard used by drift branches. Emits warning (not drift), does not block ship. **Suggested fix (post-v0.11.2)**: add the same regex guard for consistency.
+
+Neither finding blocks v0.11.2.
+
+### Concurrence with internal verdict?
+**YES.** Internal APPROVED at `d86d5a6` is corroborated by independent external review. Rule 20 empirical repro (scenarios 1, 2, 4) confirms AFTER matches expected. Scenario 3 exposes a design boundary the internal reviewer already acknowledged in their Option-A rationale — not a rev-1 regression.
+
+### Action Taken
+- Independent external review completed.
+- All F2 deliverables independently verified.
+- Rule 20 empirical repro executed (4 scenarios); output pasted above.
+- Rule 19 store loader trace independently confirmed empty.
+- Two new low-severity boundary observations flagged for post-v0.11.2 follow-up; neither blocks ship.
+- LOG.md updated with external review verdict.
+
+---
+
 ## Review — tpatch doctor Wave δ rev-1 (F2 close, final gate to v0.11.2) — internal — 2026-07-28
 
 **Reviewer**: internal (code-review agent)
