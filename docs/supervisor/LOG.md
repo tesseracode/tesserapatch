@@ -1,3 +1,75 @@
+## Review — tpatch doctor Wave γ (D4 locks + D5 evidence) — external (supervisor-dispatched) — 2026-07-28
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Wave γ (`b799902..f6f3e64`). Verifying internal APPROVED at `f4c459f`.
+
+### Verdict: APPROVED
+
+### Per-§6 verification (Wave γ scope, independent)
+- §6.10 (D4 detection): MET. All seven classes present and localized: unknown field (`doctor_d4.go:132`), wrong scalar type (`:140`), malformed line (`:143`), malformed SHA (`:203`), missing required field (`:192`), legacy old-format (`:161`, detection via `strings.HasPrefix(Branch, Remote+"/")`), stale local ref (`reportDoctorD4Reachability:308`), unreachable-in-object-store (`:312`), unreachable-from-refs (`:323`). All git shell-outs go through `runDoctorD4Git` (`:330`) and are read-only local: `rev-parse --verify`, `cat-file -e`, `for-each-ref`, `merge-base --is-ancestor`. Independent grep for `fetch|ls-remote|pull|clone|remote update|net/http|go-github` in `doctor_d4.go` + `doctor_d5.go` returns only the negative-assertion regression test at `doctor_d4_test.go:129`.
+- §6.11 (D4 --fix): MET. `fixDoctorD4Canonical` (`doctor_d4.go:247`) uses only `parsed.lock` values that came from the on-disk parse (no external inference); refuses when `!canonicalOK` (any of remote/branch/commit empty) at `:250`; independently refuses on malformed SHA at `:254`; missing-field detection at `reportDoctorD4SchemaFindings:192` short-circuits `--fix` upstream via `reportDoctorD4SchemaFindings` returning `hasError=true` before old-format / canonical-drift branches ever run. `.orig` collision guard via `prepareDoctorD4Backup` (`:277`): reuses existing `.orig` only if content-equal (idempotent), errors on differing content. `TestDoctorD4FixRefusesCommitAdvanceOrBranchGuess` proves refusal preserves original bytes and creates no backup; `TestDoctorD4FixNormalizesLegacyBranchAndIsIdempotent` proves idempotence + backup equals pre-fix bytes. Production loader `store.LoadUpstreamLock` used at `:64` (rule 16).
+- §6.12 (D5 detection): MET. `doctorD5RelevantState` (`doctor_d5.go:113`) includes Applied/Active/Reconciling/ReconcilingShadow/Blocked/UpstreamMerged. Modern-attempt heuristic `doctorD5ModernReconcileAttempt` (`:122`) reads eleven `status.Reconcile.*` fields (AttemptedAt, Outcome, ReviewVerdict, PatchIDMatch, ShadowPath, ResolveSession, ResolvedFiles/FailedFiles/SkippedFiles, UpstreamRef, UpstreamCommit). Modern-signal path → `severity=drift`, code `reconcile-evidence-missing`; state-only path → `severity=warning`, code `reconcile-evidence-missing-pre-adr025` (grace applied). Verified in `TestDoctorD5CleanEvidenceAndMissingEvidenceClasses`.
+- §6.13 (D5 malformed JSONL): MET. Uses production-lenient loaders `store.LoadReconcileEvidenceLenient` (`reconcile_evidence.go:225`) and `store.LoadReconcileRevisionsLenient` (`reconcile_revision.go:168`), both of which construct `CorruptEntry{Line: lineNo, Error: ...}` with `lineNo := i + 1` (1-indexed). Doctor reports both `reconcile-evidence-malformed` (`doctor_d5.go:52`) and `reconcile-revisions-malformed` (`:96`). Continuation past malformed proven by `TestDoctorD5MalformedJSONLLineNumbersAndContinuation` (asserts `f.Line == 2` and full-content non-leakage).
+
+### Safety-critical adversarial (independent)
+- No remote git calls: confirmed. Only `exec.Command("git", ...)` occurrence in Wave γ prod code is `doctor_d4.go:330` (`runDoctorD4Git`), called with `rev-parse --verify`, `cat-file -e`, `for-each-ref`, `merge-base --is-ancestor` (all local read-only).
+- D4 --fix cannot advance commit: confirmed. `canonicalDoctorUpstreamLock` (`doctor_d4.go:301`) is a pure format function of `lock.Commit` as parsed from disk; `fixDoctorD4Canonical` refuses if commit is empty or fails the `^[0-9a-f]{40}$` regex; no code path assigns a *new* commit into the lock struct.
+- D4 --fix cannot guess branch: confirmed. Legacy-format transform at `:162` only strips a `<remote>/` prefix that is already present on disk (no lookup, no `git branch --contains`, no ref inference). Test `TestDoctorD4FixRefusesCommitAdvanceOrBranchGuess/missing-branch` proves refusal on empty branch.
+- D5 no full-content logging: confirmed. `DoctorFinding.Message` for malformed lines contains only line number + `CorruptEntry.Error` (decoder/schema error text produced by `decodeReconcileEvidenceLine` / `validateReconcileEvidence` — structural errors, not raw payload). Test at `doctor_d5_test.go:84` asserts message does not contain either of the two good-line payloads.
+
+### Wave-boundary check
+- D6 not implemented: confirmed. `doctorRegistry` (`doctor.go:223-231`) has D1/D2/D3/D4/D5/D7/D8 only. Full diff grep for `--release-metadata` / `gh release` / CHANGELOG scan / GH API returns zero hits in prod code (single mention of `--release-metadata` in `docs/handoff/CURRENT.md` is the Wave δ forward-plan note, not implementation).
+
+### Regression (Waves α + β preserved)
+- Wave α §6 all MET: D1/D2/D8 files untouched; `BackupPathForOverwrite` / `EnsureDoctorBackup` unchanged and reused by D4.
+- Wave β §6 all MET: D3/D7 files untouched. `DecodeApplyRecipeStrict` untouched (grep clean). `TestDoctorCLID3FixRefusalExitCode2` and `TestDoctorCLICheckIDsAreCaseSensitive` pass in fresh `-count=1` run.
+- `--dry-run` default preserved (`doctor.go:56` cli default remains `false` per Wave β).
+- `--check` case-sensitivity preserved (no lowercase normalization added).
+
+### Hard-constraint sweep (15)
+- [x] No new `FeatureState` values (diff clean of `store.State*` additions).
+- [x] No new persisted schemas (D4 only rewrites lock in equivalent canonical form; D5 read-only).
+- [x] ADR-025 D11 mirrored for D5: reader-warns via drift, line-numbered, valid entries preserved.
+- [x] Rule 12 privacy: no remote git, no full-content logging (verified by test).
+- [x] Rule 15: D5 remediation `run tpatch reconcile <slug>` matches real command in `internal/cli/cobra.go:1766` (`reconcileCmd`, `Use: "reconcile [slug...]"`).
+- [x] Rule 11: no new persistent flags (`doctor.go` only extends `--check` help enumeration).
+- [x] Rule 17: D4 wording ("commands that need an upstream baseline may warn or refuse until reconcile repopulates it") does not claim upstream.lock is the sole source of truth.
+- [x] Rule 16: reuses `store.LoadUpstreamLock`, `store.LoadReconcileEvidenceLenient`, `store.LoadReconcileRevisionsLenient` (production loaders).
+- [x] Rule 18: both commits' trailers parse structurally (see below).
+- [x] CHANGELOG `## v0.11.2 (unreleased)` header extended with `### Wave γ` subsection (CHANGELOG.md:33).
+- [x] Assets/skills parity guard PASS (`go test ./assets/... -count=1` → ok).
+- [x] Side Research md5 = `b385fe622db9926f48861105239f113e` (verified via `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`).
+- [x] Co-authored-by trailer on both commits (see below).
+- [x] Gates green (gofmt/vet/build/test all clean).
+- [x] Wave-boundary: D6 not implemented.
+
+### Validation gates
+gofmt: clean | vet: clean | build: clean | test: `go test ./...` PASS across all packages; `go test ./internal/workflow/ -run 'TestDoctorD4|TestDoctorD5' -count=1` → ok 9.084s; `go test ./internal/cli/ -run 'TestDoctorCLID3FixRefusalExitCode2|TestDoctorCLICheckIDsAreCaseSensitive' -count=1` → ok 0.470s.
+
+### Trailer verification (Rule 18)
+`git log -1 --format='%(trailers)' cffeabd` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+`git log -1 --format='%(trailers)' f6f3e64` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+Both parse structurally with `%(trailers)` (empty output would mean malformed / non-trailer-formatted).
+
+### Anti-drift regression
+- No `--target`: confirmed (grep clean in Wave γ diff).
+- No `"version": 1` recipe: confirmed.
+- No `ra_<12hex>` active refs: confirmed.
+- No `stubRecipeOpTargetsResolve` / `DecodeApplyRecipeStrict` disturbance: confirmed.
+
+### New findings (beyond internal)
+None. The following notes were considered and rejected as non-blocking:
+- `internal/store/reconcile_revision.go:184-198` has a mildly redundant double check for `data[len(data)-1] != '\n'`: the first block uses `corrupt :=` (shadowed local, so the lenient branch is a functional no-op) and a second block later re-appends into the outer `corrupt`. Behavior is correct (strict returns early; lenient records exactly one entry) and both branches are exercised by existing store tests. Not a bug, just stylistically awkward.
+- `Line` field placement in `DoctorFinding.stableKey` (`doctor.go:339`) uses zero-padded 9-digit encoding, so D5 findings with `Line=0` (missing-evidence) sort before line-N findings deterministically. Correct.
+
+### Concurrence with internal verdict?
+YES. Internal APPROVED at `f4c459f` is corroborated. All four §6 criteria (§6.10-§6.13) MET, all four safety-critical adversarial checks pass (no remote git, no commit advance, no branch guess, no content leak), wave boundary respected (no D6), all 15 hard constraints satisfied, gates green, no regressions to Wave α/β approvals.
+
+### Action Taken
+Prepended this external supervisor-dispatched review to `docs/supervisor/LOG.md`. No production code, tests, or handoff docs modified. Committing LOG-only change with `Co-authored-by: Copilot`.
+
+---
+
 ## Review — tpatch doctor Wave γ (D4 locks + D5 evidence) — internal — 2026-07-28
 
 **Reviewer**: internal (code-review agent)
