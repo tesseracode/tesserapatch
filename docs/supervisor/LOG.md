@@ -1,3 +1,68 @@
+## Review — tpatch doctor Wave β (D3 skill assets + D7 recipe schema) — internal — 2026-07-27
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Wave β single commit (`44b1b78..daf2e6f`) closing D3 + D7 (§6.8, §6.9, §6.18, §6.19) plus Wave α observation folds (exit code 2, --check case).
+
+### Verdict: APPROVED
+
+### Per-§6 verification (Wave β scope)
+- §6.8 (D3 detection): MET — `internal/workflow/doctor_d3.go:34` iterates all six install paths from `doctorSkillAssets` matching `cobra.go:2780-2801`; byte-level compare against `assets.Skills`. Six-finding assertion at `internal/workflow/doctor_d3_test.go:30`.
+- §6.9 (D3 --fix): MET — positive-ID contract at `doctor_d3.go:80` (marker check → unrecognized refusal), `:109` (`.orig` backup), `:163` `prepareDoctorD3Backup` (idempotence + collision refusal). Fix path replaces bundled at `:153` and records `severity:fixed`. All four required cases covered (`doctor_d3_test.go:50`, `:90`, `:119`, `:143`).
+- §6.18 (D7 detection): MET — `doctor_d7.go:20` decodes per-feature `apply-recipe.json` via shared `workflow.DecodeApplyRecipeStrict` (`implement.go:81`) with `DisallowUnknownFields`. Filename + 1-indexed line reported (`doctor_d7.go:124`; ADR-025 D11 parity confirmed against `doctor_d1.go:82`).
+- §6.19 (D7 read-only): MET — all findings emitted with `Fixable:false`; no write paths in `doctor_d7.go`.
+
+### Wave α observation folds
+- Exit code 2 for --fix partial failure: confirmed — `TestDoctorCLID3FixRefusalExitCode2` at `internal/cli/doctor_test.go:179` asserts `ExitCode()==2` on unrecognized-content refusal.
+- --check case convention chosen: SENSITIVE + tested — `doctor.go:243` drops `strings.ToUpper`; `TestDoctorCLICheckIDsAreCaseSensitive` at `doctor_test.go:115` rejects `d3`. Handoff notes canonical uppercase IDs.
+
+### Wave-boundary check
+- D4 not implemented: confirmed — registry (`doctor.go:222-228`) has only D1/D2/D3/D7/D8; no `upstream.lock` references in diff.
+- D5 not implemented: confirmed — no `reconcile-evidence.jsonl` references in diff.
+- D6 not implemented: confirmed — no CHANGELOG scanner / release-metadata plumbing in diff.
+
+### Regression (Wave α approvals preserved)
+- §6.1–§6.7 still MET: `RunDoctor` (`doctor.go:103-108`) preserves dry-run default + `--fix` opt-in; backup semantics reuse `EnsureDoctorBackup` / `BackupPathForOverwrite`; idempotence covered by second-run test.
+- §6.20–§6.29 still MET: registry deterministic; JSON schema unchanged; --check filtering + unknown-ID pre-flight preserved (`TestDoctorCLIUnknownCheckFailsBeforeRun` still passes).
+- Slice 4 F2 framing preserved: CLI Long help at `internal/cli/doctor.go:21-22` explicitly says "Hand-copied skill assets outside the init-managed paths are intentionally out of scope" — no totality claim.
+
+### Hard-constraint sweep (15)
+- [x] No new `FeatureState` values (no `internal/store/` diff).
+- [x] No new persisted schemas outside doctor JSON output.
+- [x] ADR-025 D11 malformed pattern for D7 (`doctor_d7.go:124` shares helper with D1).
+- [x] Privacy (Rule 12): D3 emits only truncated 12-char sha256 (`doctor_d3.go:82`); no DSL parse of installed files; unrecognized-content finding logs no content.
+- [x] Rule 15: `tpatch implement <slug>` verified at `internal/cli/cobra.go:561-588`; `tpatch verify <slug>` also present. D7 remediation string uses both.
+- [x] Rule 11: no new persistent flags (`internal/cli/doctor.go:60` unchanged flag surface).
+- [x] Rule 17: no totality claim; CLI Long explicitly documents non-scope.
+- [x] Rule 16: parity guard `TestSkillRecipeSchemaMatchesCLI` now delegates to `DecodeApplyRecipeStrict` (`assets/assets_test.go:278`), so build-time and runtime share the same decoder.
+- [x] Rule 18: `git log -1 --format='%(trailers)' daf2e6f` returns `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` (non-empty, structurally valid).
+- [x] CHANGELOG.md: existing `## v0.11.2 (unreleased)` header extended to `Waves α/β` with `### Wave β` subsection; no duplicate `(unreleased)` header.
+- [x] Assets/skills 6-format parity: `TestSkillParityGuard` PASS in full `go test ./...` run.
+- [x] Side Research md5 = `b385fe622db9926f48861105239f113e` (verified).
+- [x] Co-authored-by trailer on `daf2e6f`: structural + textual.
+- [x] Gates green: gofmt clean, vet clean, build ok, `go test ./...` PASS.
+- [x] Wave-boundary: D4/D5/D6 NOT implemented.
+
+### Validation gates
+gofmt: clean | vet: clean | build: ok | test: PASS (all packages)
+
+### Trailer verification (Rule 18)
+git log -1 --format='%(trailers)' daf2e6f = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Anti-drift regression
+- No --target: confirmed
+- No "version": 1 recipe in production code: confirmed (the two `"version": 1` diff hits are adversarial fixtures in `doctor_d7_test.go` that assert the unknown-field detection DOES fire)
+- No ra_<12hex> active refs: confirmed
+- No stubRecipeOpTargetsResolve refs: confirmed
+
+### Adversarial findings (if any)
+No high-confidence findings.
+
+Notes considered and rejected as review-blocking:
+- **Symlink safety on `--fix`**: `safety.EnsureSafeRepoPath` is string-based; if an install path is a symlink pointing outside the repo, `os.WriteFile` follows it. This is a pre-existing safety-model characteristic shared with `tpatch init`'s `installSkills` (Wave α scaffold + earlier), not introduced by Wave β. Not scope for this review; may warrant a separate hardening pass.
+- **`.windsurfrules` marker looseness**: `looksLikeTpatchSkillAsset` accepts any first-256-byte occurrence of `tessera-patch` or `tpatch`. A user-authored `.windsurfrules` mentioning tpatch by name would pass the marker check and be replaced on `--fix` (with `.orig` backup preserved). This is the intended design per §6.9's marker heuristic + backup safety net, and the `.orig` backup preserves user content; not a bug.
+
+### Action Taken
+LOG entry only; no code modifications.
 ## Review — tpatch doctor Wave α (scaffold + D1 + D2 + D8) — external (user-dispatched, parallel) — 2026-07-27
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
