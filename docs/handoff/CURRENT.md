@@ -2,11 +2,128 @@
 
 ## Active Task
 
-- **Task ID**: `doctor-wave-delta-d6-plus-f1`
-- **Milestone**: `tpatch doctor` implementation — Wave δ (D6 release drift + Wave γ F1 fold-in). FINAL wave of the 4-wave cluster.
-- **Description**: Ship D6 (CHANGELOG entry ↔ tag ↔ GitHub Release drift detection; needs `--release-metadata <file>` local input plumbing per PRD §4) + close Wave γ F1 (undisclosed behavior change to shipped `tpatch reconcile review list` surface — add test, CHANGELOG bullet, handoff correction). Wave δ closes §6.14-§6.17 for D6 plus the three F1 deliverables. After Wave δ APPROVED, the doctor implementation cluster is complete and v0.11.2 is ready to ship.
-- **Status**: Review.
+- **Task ID**: `doctor-wave-delta-rev1-f2-close`
+- **Milestone**: `tpatch doctor` implementation — Wave δ rev-1 (D6 F2 close). FINAL rev on the FINAL wave of the 4-wave cluster.
+- **Description**: Rev-1 fix-pass over Wave δ rev-0 (`8b7e969..faf8db1`). Internal + supervisor-external APPROVED (29/29 §6 confirmed); user-external APPROVED WITH NOTES with F2 MEDIUM caught (D6 user-workspace false-positive drift + `RELEASING.md`-in-runtime-output docs-reference defect, ADR-020 class). F2 must be closed before v0.11.2 ships. Three deliverables: F2-1 gate D6 tag-vs-CHANGELOG comparison to tpatch-authored release context; F2-2 self-contain D6 remediation strings per ADR-020 inline-minimal principle; F2-3 test coverage replicating user-workspace scenarios.
+- **Status**: In Progress (rev-1).
 - **Assigned**: 2026-07-28.
+
+## Rev-1 findings (binding scope)
+
+### F2 (MEDIUM) — D6 user-workspace false-positive drift + docs-reference defect
+
+**Reproduced empirically** by user-external in 3 scenarios:
+
+1. **Upstream repo with own tags + conventional changelog** (`## 1.2.0 (2024-01-01)` format): D6 flags EVERY upstream tag as `release-tag-missing-changelog` drift. `summary: 2 drift findings, 2 warnings` for a 2-tag repo.
+2. **Repo with no CHANGELOG.md**: D6 emits `release-changelog-unreadable` at `error` severity.
+3. **Docs-reference defect**: remediation strings say "follow RELEASING.md Step 1/2/3". `RELEASING.md` is a tpatch-repo-root doc — NOT installed to user workspaces via `tpatch init`. Same class ADR-020 already locked for shipped SKILL asset docs; parity guard structurally cannot cover runtime CLI output.
+
+**Practical impact**: `tpatch doctor` — whose PRD goal is "suitable for CI, release checks, and pre-reconcile hygiene" — degrades the §6.24 CI-gate exit contract in most real user workspaces.
+
+## Rev-1 deliverables (all three binding)
+
+### F2-1: Gate D6 tag-vs-CHANGELOG comparison to tpatch-authored release context
+
+Implementer chooses among three options + documents choice in closure summary:
+
+**Option A (recommended)**: auto-detect via pattern matching.
+- Only flag tags whose format matches `^v\d+\.\d+\.\d+$` (semver-with-v-prefix).
+- Additionally require `CHANGELOG.md` to contain at least one `## v\d+\.\d+\.\d+ —` heading (i.e., detect tpatch-style CHANGELOG format).
+- When either pattern doesn't match: skip D6 tag-vs-CHANGELOG comparison entirely; emit no findings for those tags. `unknown` GH-Release warnings still allowed but do NOT count as drift.
+- Downgrade missing-`CHANGELOG.md` from `error` to `warning` (a missing CHANGELOG is a common state for many workspaces).
+
+**Option B**: opt-in via `--release-metadata` OR a new local sentinel file (e.g., `.tpatch/release-drift-enabled`). Default behavior emits only `unknown` warnings. Safer but adds friction.
+
+**Option C**: signature-gated via presence of `RELEASING.md` OR `.tpatch/tesserapatch-signature` in workspace. Skip D6 entirely when signature absent.
+
+Option A is recommended because it matches tpatch's zero-config philosophy and doesn't require sentinel files or explicit opt-in.
+
+### F2-2: Self-contain D6 remediation strings per ADR-020 inline-minimal principle
+
+Replace ALL `RELEASING.md` references in `internal/workflow/doctor_d6.go` with inline actionable guidance. Recommended replacements (adjust wording as needed):
+
+- **Missing CHANGELOG entry** for tag `vX.Y.Z`: "Add a section `## vX.Y.Z — YYYY-MM-DD — <scope>` to your `CHANGELOG.md` for tag `vX.Y.Z`."
+- **Missing tag** for CHANGELOG heading `vX.Y.Z`: "Create annotated tag matching the CHANGELOG heading: `git tag -a vX.Y.Z -m 'vX.Y.Z — <scope>'`."
+- **Missing GH Release** for tag `vX.Y.Z`: "Publish via: `gh release create vX.Y.Z --notes-file <extracted-notes> --verify-tag`."
+
+Consistent with `docs/adrs/ADR-020-skill-doc-references.md` inline-minimal principle. Reviewer briefs will grep D6 code for `RELEASING.md` — must be ZERO hits in production code (test files + comments citing ADR-020 rationale acceptable).
+
+### F2-3: Test coverage replicating user-workspace scenarios
+
+Add regression tests to `internal/workflow/doctor_d6_test.go`:
+
+1. **`TestDoctorD6SkipsUpstreamNonSemverTags`** (Option A) OR equivalent for Options B/C: replicate user-external Reproduction 1 — upstream repo with non-tpatch tag format (e.g., `1.2.0` without `v-` prefix, or upstream `v1.0.0` alongside `## 1.2.0 (2024-01-01)` heading). Assert D6 emits NO drift findings on tag-vs-CHANGELOG axis. `unknown` warnings still allowed but do NOT count as drift.
+2. **`TestDoctorD6MissingChangelogIsWarning`**: replicate Reproduction 2 — repo with no `CHANGELOG.md`. Assert D6 emits WARNING severity (not error).
+3. **`TestDoctorD6RemediationNoRepoRefs`**: assert D6 remediation strings do NOT contain the substring `RELEASING.md` (ADR-020 class regression guard).
+
+## Rev-1 hard constraints (17 binding — Rule 19 promoted; Rule 20 candidate)
+
+Same 16 as Wave δ rev-0 CURRENT.md + Rule 19 promotion:
+
+1-15. Same as rev-0 (see prior handoff snapshot in HISTORY.md — Rule 18 structural trailer; etc.).
+16. **Rule 19 (loader-caller-tracing) PROMOTED to binding**: reviewers MUST trace exported loader callers via grep before accepting store/workflow/cli diffs as internal refactor. If any caller is a shipped CLI surface, the diff carries a behavior-change contract that MUST have a §6 criterion, CHANGELOG bullet, and test. Applied successfully in Wave δ rev-0.
+17. **Rule 20 CANDIDATE (post-rev-1 promotion)** — Reviewer briefs for user-facing CLI checks (D-clause detection code) MUST include an "empirically reproduce in a user-workspace scenario" step: build the binary, initialize a NON-tpatch repo, run the check, verify output is actionable and not noisy. Rule 9 generalization for user-workspace correctness. Rev-1 reviewer briefs MUST apply this candidate rule; promote to binding after rev-1 confirms broader applicability.
+
+## Rev-1 process for implementer
+
+1. Read the F2 deliverables above in FULL.
+2. Read `docs/supervisor/LOG.md` top entry — user-external Wave δ APPROVED WITH NOTES with F2 detail + supervisor decision.
+3. Read `docs/adrs/ADR-020-skill-doc-references.md` for the inline-minimal principle (F2-2 rationale).
+4. Read `internal/workflow/doctor_d6.go` at HEAD — the code you're modifying.
+5. Read `internal/workflow/doctor_d6_test.go` — existing fixtures + test patterns.
+6. **REPRODUCE F2 EMPIRICALLY BEFORE FIXING** (Rule 20 candidate first application by implementer):
+   - Build: `go build -o /tmp/tpatch_verify ./cmd/tpatch`
+   - Scenario 1: `mkdir /tmp/user_workspace && cd /tmp/user_workspace && git init && printf '# Changelog\n\n## 1.2.0 (2024-01-01)\n\n- upstream\n' > CHANGELOG.md && git add . && git commit -m init && git tag v1.0.0 && /tmp/tpatch_verify init && /tmp/tpatch_verify doctor --check D6`
+   - Confirm: current behavior emits drift findings (2 drifts, 2 warnings summary).
+   - Document reproduction in closure summary.
+7. Choose Option A/B/C for F2-1 + document rationale.
+8. Implement F2-1 gating logic.
+9. Implement F2-2 remediation rewrites.
+10. Implement F2-3 tests.
+11. **REPRODUCE F2 EMPIRICALLY AFTER FIXING** — same command; expect 0 drift findings, 0 errors (2 unknown warnings still allowed).
+12. Update `CHANGELOG.md` `### Wave δ` subsection with a `- **F2 fix**` bullet describing the gating + remediation-self-containment.
+13. Update `docs/handoff/CURRENT.md`:
+    - Flip Status to Review.
+    - Add "Wave δ rev-1 closure summary" subsection: F2-1 option chosen + rationale; F2-2 rewrites cited by function; F2-3 test names + assertions.
+    - Add "Rule 20 first application" subsection: implementer's empirical-reproduction commands + expected output for the review to reproduce.
+    - Preserve Side Research md5.
+14. Verify trailers structurally after each commit: `git log -1 --format='%(trailers)'`.
+15. Push to `origin/main`. Return commit hashes + gate output + trailer verification + Rule 20 empirical-repro commands.
+
+If any deliverable is impossible without breaking a hard constraint: STOP and report.
+
+Do not dispatch reviewers — supervisor handles that.
+
+## Doctor implementation cluster wave plan
+
+- **Wave α** ✅ CLOSED 2026-07-27 (three-way APPROVED WITH NOTES). Scaffold + D1 + D2 + D8.
+- **Wave β** ✅ CLOSED 2026-07-28 (three-way APPROVED, zero findings). D3 + D7.
+- **Wave γ** ✅ CLOSED 2026-07-28 (three-way APPROVED WITH NOTES, F1 folded to Wave δ). D4 + D5.
+- **Wave δ rev-0** ✅ CLOSED 2026-07-28 (D6 + F1 fold-in accepted; F2 in rev-1).
+- **Wave δ rev-1** ← this handoff (F2 close — final gate to v0.11.2 ship).
+
+## Session Summary
+
+Doctor Wave δ rev-0 APPROVED WITH NOTES (three-way). Full-cluster acceptance sweep 29/29 §6 MET. F1 fold-in exemplary. F2 caught by user-external via empirical user-workspace reproduction. Rev-1 close scope: three deliverables (F2-1 gating + F2-2 remediation self-containment + F2-3 tests). Rule 19 promoted to binding after successful Wave δ rev-0 first application. Rule 20 candidate proposed for post-rev-1 promotion.
+
+## Next Steps
+
+1. Supervisor: dispatch rev-1 implementer with above scope.
+2. After rev-1 three-way APPROVED: archive Wave δ (rev-0 + rev-1) to HISTORY.md; close doctor implementation cluster; ship v0.11.2 following `RELEASING.md`.
+3. Consider promoting rule 20 to binding based on rev-1 review feedback.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- HEAD at rev-1 kickoff: `faf8db1` + user-external LOG entry pending commit.
+- Doctor cluster ships under `v0.11.2 (unreleased)` — no released-surface break for the F1 or F2 changes.
+- 19 binding + 1 candidate carry-forward rules.
+- Two-opinion protocol: 14/14 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 14 at rev-0 (F2 is the seventh).
+- F2 pattern is the same class ADR-020 already locked for shipped SKILL asset docs; ADR-020's parity guard structurally cannot cover runtime CLI output. Consider extending ADR-020 to name runtime output as a covered surface after rev-1.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## Doctor implementation cluster wave plan
 

@@ -1,3 +1,167 @@
+## Review — tpatch doctor Wave δ (D6 release drift + F1 fold-in, FINAL wave) — external (user-dispatched, parallel) — 2026-07-28
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of Wave δ (`8b7e969..faf8db1`, functional impl `a3cfe29..9680051`) + full-cluster acceptance sweep §6.1-§6.29.
+
+### Verdict: APPROVED WITH NOTES
+
+The F1 fold-in is exemplary — test, disclosure, archive-safe correction, and Rule 19 first application all landed correctly. D6 faithfully implements §6.14–§6.17 as written. F2 (below) is a PRD-level assumption issue, not implementation failure, but ships to real users the moment v0.11.2 tags.
+
+### F1 fold-in verification (all three deliverables closed)
+
+- **F1-1** MET — `TestReconcileReviewListReportsNonNewlineTerminatedFinalRevision` at `internal/cli/reconcile_evidence_cli_test.go` asserts non-zero exit, exactly one `corrupt_entries` row at line 2 with exact error string, and that preceding valid revision survives. Genuine regression test.
+- **F1-2** MET — `### Wave δ` **Behavior change** bullet in `CHANGELOG.md` discloses the change, names `cffeabd` as origin, gives ADR-025 D11 rationale.
+- **F1-3** MET — Option B taken. Wave γ HISTORY snapshot byte-intact (verified via `git diff 8b7e969..faf8db1 -- docs/handoff/HISTORY.md` empty). Correction recorded in Wave δ closure. Correct call for archive integrity.
+
+### Rule 19 first application (independently verified)
+
+Three `LoadReconcileRevisionsLenient` callers confirmed via independent grep. Wave δ modified NO exported store loaders. Trace list accurate.
+
+### F2 (MEDIUM) — D6 produces false-positive drift and unactionable remediation in real user workspaces
+
+D6 assumes the workspace *is* the tpatch repo. That assumption doesn't hold for the primary use case — a user patching an upstream project — and every D6 fixture in `doctor_d6_test.go` builds a tpatch-shaped repo, so nothing caught it. Reproduced empirically against a built binary:
+
+**Reproduction 1** (upstream repo with its own tags + conventional changelog):
+```
+git init && printf '# Changelog\n\n## 1.2.0 (2024-01-01)\n\n- upstream feature\n' > CHANGELOG.md
+git add . && git commit -m init && git tag v1.0.0 && git tag v1.2.0
+tpatch init && tpatch doctor --check D6
+```
+Result: BOTH upstream tags flagged as `release-tag-missing-changelog` drift + `release-gh-release-unknown` warnings. Summary: 2 drift findings, 2 warnings.
+
+**Reproduction 2** (repo with no `CHANGELOG.md`): D6 emits `release-changelog-unreadable` at `error` severity.
+
+**Reproduction 3** (docs-reference defect): remediation strings say "follow RELEASING.md Step 1/2/3". `RELEASING.md` is a tpatch-repo-root doc and is **not** installed into user workspaces (confirmed absent after `tpatch init`).
+
+**Same class as ADR-020 already locked**: `docs/adrs/ADR-020-skill-doc-references.md` states repo-relative doc references "only resolve inside the tesserapatch repo itself — a user installing the skill into their own repo cannot follow them." ADR-020's parity guard only scans shipped skill assets, so it structurally cannot catch the same mistake in runtime CLI output.
+
+**Practical impact**: `tpatch doctor` — whose PRD goal is to be "suitable for CI, release checks, and pre-reconcile hygiene" — degrades the §6.24 exit contract as a CI gate in most real user workspaces.
+
+**Mitigating factors** (keeps this at MEDIUM not HIGH): D6 is strictly read-only with no `--fix`. Warning-only path (consistent tag + CHANGELOG, no snapshot) correctly exits 0 — `unknown` warnings alone don't break clean exit.
+
+**Suggested resolution** (three options for rev-1 implementer):
+- **Option A — Pattern-gated auto-detect**: only flag tags whose format matches `^v\d+\.\d+\.\d+$` semver AND CHANGELOG contains at least one `## v\d+\.\d+\.\d+ —` heading (auto-detects tpatch-style release context). Skip D6 tag-vs-CHANGELOG comparison when pattern doesn't match. Downgrade missing-CHANGELOG from `error` to `warning`.
+- **Option B — Opt-in**: require `--release-metadata` OR a new local sentinel file (e.g., `.tpatch/release-drift-enabled`) to activate tag-vs-CHANGELOG comparison. Default behavior emits only `unknown` warnings for tags. Safer but adds friction.
+- **Option C — Signature-gated**: detect tpatch-authored context via presence of `RELEASING.md` OR `.tpatch/tesserapatch-signature` OR similar. Skip D6 entirely when signature absent.
+
+Regardless of option chosen, **self-contain remediation strings** per ADR-020 inline-minimal principle. Inline the guidance rather than referencing `RELEASING.md` which isn't installed. Example rewrites:
+- Missing CHANGELOG entry: "Add a section `## vX.Y.Z — YYYY-MM-DD — <scope>` to your CHANGELOG.md for tag vX.Y.Z."
+- Missing tag: "Create annotated tag matching the CHANGELOG heading: `git tag -a vX.Y.Z -m 'vX.Y.Z — <scope>'`."
+- Missing GH Release: "Publish via: `gh release create vX.Y.Z --notes-file <extracted-notes> --verify-tag`."
+
+Option A recommended (auto-detect, no user friction, matches tpatch's zero-config philosophy).
+
+### What else passed verification
+
+1. Rule 12 privacy: D6's only shell-out is `exec.Command("git", "tag", "-l")`; zero GitHub API clients, HTTP calls, or auth prompts. `--release-metadata` local-file input only.
+2. Rule 11 flag surface: `--release-metadata` is doctor-local; help text correctly notes `--path` persistent inheritance.
+3. Rule 17: help text states the GH-API-off scope AND the hand-copied-asset non-scope.
+4. Rule 16: `TestDoctorD6ParsesGHReleaseListJSONShape` guards the `gh release list --json` shape; both array and `{"releases":[...]}` forms decode.
+5. Determinism: new `Tag` field added to finding sort key in `doctor.go`, preserving §6.28.
+6. Assets: all six shipped formats updated for the new flag; parity guard passes.
+7. Rule 18: all four Wave δ commits return parseable `Co-authored-by` trailers (`a3cfe29`, `9680051`, `997c1ea`, `faf8db1`).
+8. Gates: gofmt clean, vet clean, build OK; 99/99 tests pass; Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
+9. Full-cluster acceptance sweep §6.1-§6.29: 29/29 MET (concurrence with internal and supervisor-external).
+
+### Concurrence with internal + supervisor-external
+Partial: full concurrence on D4/D5 correctness (Wave γ scope), D6 §6.14-§6.17 implementation, F1 fold-in three deliverables, Rule 19 first application, full-cluster §6 sweep. Diverges on cluster-close-ship-ready assessment: internal + supervisor-external both said "v0.11.2 ready to ship"; user-external says F2 should be resolved OR explicitly accepted before ship rather than after.
+
+Same lesson class as Wave γ F1: internal + supervisor-external both verified D6 against tpatch-shaped fixtures. User-external asked "does the assumption hold in a user workspace?" and reproduced empirically. This is the seventh time in 14 rev cycles the user-external caught a real production-behavior finding at rev-0 that prior passes missed.
+
+### Action Taken
+Verdict captured for supervisor consolidation. Recommend rev-1 fix for F2 before v0.11.2 ship.
+
+---
+
+## Decision — tpatch doctor Wave δ — supervisor — 2026-07-28
+
+**Decision**: APPROVED WITH NOTES (D6 + F1 fold-in accepted; F2 requires rev-1 pre-ship fix before v0.11.2 tags).
+
+Three independent reviews:
+- internal `997c1ea`: APPROVED (29/29 §6 MET; missed F2 because fixtures are tpatch-shaped)
+- supervisor-external `faf8db1`: APPROVED (concurrence YES; missed F2 same reason)
+- user-external 2026-07-28: APPROVED WITH NOTES (F2 MEDIUM caught via empirical reproduction in user-workspace scenarios)
+
+Full-cluster acceptance sweep 29/29 §6 MET confirmed by all three passes. F1 fold-in three deliverables closed cleanly. Rule 19 first application successful.
+
+F2 is a **PRD-level assumption + docs-reference defect** matching the class ADR-020 already locked. ADR-020 protected shipped SKILL asset docs; F2 exposes the same defect surfaces in runtime CLI output (remediation strings) that ADR-020's parity guard structurally cannot cover. Practical impact: `tpatch doctor` exits noisily in real user workspaces, degrading the §6.24 CI-gate contract.
+
+### Wave δ rev-1 scope (binding, before v0.11.2 ships)
+
+Close F2 with three deliverables:
+
+**F2-1: Gate D6 tag-vs-CHANGELOG comparison to tpatch-authored release context**
+- Implementer chooses among Options A / B / C from the user-external review:
+  - **Option A (recommended)**: auto-detect via `^v\d+\.\d+\.\d+$` tag format + CHANGELOG contains at least one `## v\d+\.\d+\.\d+ —` heading. Skip when pattern doesn't match. Documents choice in closure summary.
+  - **Option B**: opt-in via `--release-metadata` or a new local sentinel file.
+  - **Option C**: signature-gated via presence of `RELEASING.md` or `.tpatch/tesserapatch-signature`.
+- Downgrade missing-`CHANGELOG.md` from `error` to `warning` in all options (a missing CHANGELOG is a common state).
+
+**F2-2: Self-contain D6 remediation strings per ADR-020 inline-minimal principle**
+- Replace `RELEASING.md` references with inline guidance in `internal/workflow/doctor_d6.go`.
+- Recommended replacements (adjust wording as needed):
+  - Missing CHANGELOG entry: "Add a section `## vX.Y.Z — YYYY-MM-DD — <scope>` to your CHANGELOG.md for tag vX.Y.Z."
+  - Missing tag: "Create annotated tag matching the CHANGELOG heading: `git tag -a vX.Y.Z -m 'vX.Y.Z — <scope>'`."
+  - Missing GH Release: "Publish via: `gh release create vX.Y.Z --notes-file <extracted-notes> --verify-tag`."
+- Consistent with ADR-020's docs-reference lockdown.
+
+**F2-3: Test coverage for the fix**
+- Add regression test replicating user-external's Reproduction 1 (upstream repo with non-semver-formatted tags and conventional changelog): D6 emits NO drift findings on the tag-vs-CHANGELOG axis. `unknown` warnings still OK.
+- Add regression test replicating Reproduction 2 (repo with no CHANGELOG.md): D6 emits warning-severity finding, not error.
+- Add test asserting remediation strings do NOT contain the substring `RELEASING.md`.
+
+### Wave δ closure stack (post-rev-1)
+
+- `a3cfe29` — D6 + F1 test + assets + CHANGELOG (rev-0)
+- `9680051` — handoff closure (rev-0)
+- `997c1ea` — internal APPROVED (missed F2)
+- `faf8db1` — supervisor-external APPROVED (missed F2)
+- (LOG entry above) — user-external APPROVED WITH NOTES (F2 caught)
+- (pending rev-1) — F2 close: F2-1 gating + F2-2 remediation self-containment + F2-3 test
+- (pending rev-1 reviews) — three-way review of rev-1
+
+### Two-opinion protocol scoreboard update
+
+**14 consecutive rev cycles with three-way concurrence at final acceptance**. User-external uniquely blocked or caught real production-behavior findings in **7 of 14 rev cycles** at rev-0:
+- WP-003 α rev-0 F1 (evidence artifact not persisted)
+- α rev-1 F3 (reader-side gap)
+- β rev-0 F8 (`corrupt_entries` production gap)
+- γ-1 rev-0 F1 (`confirm-upstreamed` PRD-named trigger missing)
+- Slice 2 rev-0 F1 (flag-surface overclaim contradicting cobra persistent-flag inheritance)
+- Doctor Wave γ F1 (undisclosed behavior change to shipped `reconcile review list` surface)
+- **Doctor Wave δ F2** (user-workspace false-positive drift + ADR-020-class docs-reference defect) — this cycle.
+
+Same lesson each time: tpatch-repo-shaped fixtures pass; real-user-workspace scenarios not reproduced. Rules 9 (behavior-implemented-vs-tested), 15 (trigger-name grep), 17 (totality claims), and now candidate rule 19 (loader-caller-tracing) captured this generically for different variants.
+
+### Candidate rule 20 (post-rev-1 promotion candidate)
+
+**Reviewer briefs for user-facing CLI checks (D-clause detection code) MUST include an "empirically reproduce in a user-workspace scenario" step — build the binary, initialize a NON-tpatch repo, run the check, verify the output is actionable and not noisy.** Rule 9 generalization for user-workspace correctness.
+
+Same pattern as candidate rule 19 (loader-caller-tracing) which applied to shipped store-surface changes; rule 20 would apply to shipped CLI-check output. Promote after rev-1 confirms broader applicability.
+
+Also carry-forward: **cross-ADR docs-reference check** — Wave δ F2's `RELEASING.md`-reference-in-runtime-output was the exact class ADR-020 locked for shipped SKILL asset docs. Reviewer briefs must add ADR-020's inline-minimal principle as an explicit check when reviewing new CLI output strings that reference docs paths.
+
+### Candidate rule 19 promotion status
+
+Rule 19 (loader-caller-tracing) applied successfully in Wave δ. Implementer's trace matched independent grep by both prior reviewers. **PROMOTE to binding** — 19 total rules now binding (with rule 20 as new candidate).
+
+### Non-blocking follow-ups deferred
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks naming coord — still deferred.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness — deferred to downstream capture PRD.
+
+### Action Taken
+- Doctor Wave δ rev-0 APPROVED WITH NOTES.
+- F2 fold into rev-1 scope with three deliverables (F2-1, F2-2, F2-3).
+- Rule 19 promoted to binding.
+- Candidate rule 20 (empirical user-workspace reproduction) queued for post-rev-1 promotion.
+- CURRENT.md updated with rev-1 binding scope.
+- SQL todo `doctor-wave-delta-d6-plus-f1` remains `in_progress` pending rev-1.
+- Awaiting user go-ahead on rev-1 implementer dispatch.
+- v0.11.2 ship deferred until Wave δ rev-1 three-way APPROVED.
+
+---
+
 ## Review — tpatch doctor Wave δ (D6 release drift + F1 fold-in, FINAL wave) — external (supervisor-dispatched) — 2026-07-28
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
