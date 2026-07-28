@@ -2,111 +2,117 @@
 
 ## Active Task
 
-- **Task ID**: `doctor-wave-beta-d3-d7`
-- **Milestone**: `tpatch doctor` implementation — Wave β (D3 skill assets + D7 recipe schema). Second wave of the 4-wave cluster.
-- **Description**: Extend the doctor scaffold (shipped in Wave α at `a3b9fe3`) with two asset-drift detection classes: D3 (stale in-tree skill assets — compare installed bytes to embedded `assets.Skills` bytes across the 6 shipped install paths) and D7 (recipe schema drift — decode `apply-recipe.json` files against `workflow.ApplyRecipe` with `DisallowUnknownFields`). Both classes are candidates for `--fix`, so Wave β is the FIRST slice to exercise the mutating half of the scaffold: backup semantics, idempotence, and exit-code 2 for partial-failure-on-fix.
-- **Status**: Review.
-- **Assigned**: 2026-07-27.
+- **Task ID**: `doctor-wave-gamma-d4-d5`
+- **Milestone**: `tpatch doctor` implementation — Wave γ (D4 locks + D5 evidence). Third wave of the 4-wave cluster.
+- **Description**: Extend the doctor scaffold (Wave α at `a3b9fe3`) + D3/D7 checks (Wave β at `daf2e6f`) with two persisted-artifact detection classes: D4 (old or malformed `upstream.lock` / related lock formats — read-only + safe format normalization if applicable) and D5 (missing `reconcile-evidence.jsonl` for applied/reconciled features + malformed JSONL line reporting). Wave γ closes §6.10-§6.13.
+- **Status**: Awaiting implementer dispatch.
+- **Assigned**: 2026-07-28.
 
 ## Doctor implementation cluster wave plan
 
-- **Wave α** ✅ CLOSED 2026-07-27 (three-way APPROVED WITH NOTES). Scaffold + D1 + D2 + D8. §6.1-§6.7 + §6.20-§6.29 MET. Snapshot in HISTORY.md.
-- **Wave β** ← this handoff (D3 skill assets + D7 recipe schema; §6.8-§6.9 + §6.18-§6.19). FIRST wave with fixers.
-- **Wave γ** — D4 (locks) + D5 (evidence). §6.10-§6.13.
-- **Wave δ** — D6 (release drift). Needs `--release-metadata <file>` plumbing. §6.14-§6.17.
+- **Wave α** ✅ CLOSED 2026-07-27 (three-way APPROVED WITH NOTES). Scaffold + D1 + D2 + D8. §6.1-§6.7 + §6.20-§6.29 MET.
+- **Wave β** ✅ CLOSED 2026-07-28 (three-way APPROVED, zero findings). D3 + D7. §6.8, §6.9, §6.18, §6.19 MET. Rule 18 self-applied successfully.
+- **Wave γ** ← this handoff (D4 locks + D5 evidence). §6.10-§6.13.
+- **Wave δ** — D6 release drift. Needs `--release-metadata <file>` plumbing. §6.14-§6.17.
 
-## Wave β binding scope
+## Wave γ binding scope
 
-### D3 — Stale in-tree skill assets (§6.8, §6.9)
+### D4 — Old or malformed lock formats (§6.10, §6.11)
 
-- **Detect** (§6.8): stale installed tpatch skill assets across all six shipped formats when installed bytes differ from bundled `assets.Skills` bytes. The six install paths (verified against `internal/cli/cobra.go:2780-2801` at Slice 4 F2 amend):
-  - `.claude/skills/tessera-patch/SKILL.md`
-  - `.github/skills/tessera-patch/SKILL.md`
-  - `.github/prompts/tessera-patch-apply.prompt.md`
-  - `.cursor/rules/tessera-patch.mdc`
-  - `.windsurfrules` (single file, NOT a directory)
-  - `.tpatch/workflows/tessera-patch-generic.md`
-- **`--fix` (§6.9)**: replaces only positively-identified tpatch asset copies. REFUSES candidate files with unrecognized user content (i.e., a file at a doctor-managed install path that doesn't look like a tpatch asset must NOT be overwritten — refuse with a specific finding + remediation asking user to move or delete the file manually).
-- Positive-identification contract: the file at the install path must decode/parse plausibly as the same asset class the bundled version writes. Suggested identification rules (implementer chooses + documents):
-  - Byte-level sha256 comparison against bundled bytes → exact match = clean; mismatch = drift.
-  - If mismatch: read the installed file's first ~256 bytes and check for a tpatch marker (e.g., first line contains `tessera-patch` OR `tpatch` OR a bundled asset's opening heading). If no marker: refuse `--fix` with `unrecognized user content` finding.
-  - Do NOT parse the installed bytes as tpatch DSL — a bad DSL parse should not cause `--fix` to overwrite; refuse instead.
-- Backup semantics: before overwrite, write `<path>.orig`. If `<path>.orig` already exists AND matches installed bytes: skip backup (idempotence). If `<path>.orig` exists AND differs from installed bytes: **refuse** the `--fix` for that file with a specific finding — do NOT clobber the prior backup.
+- **Detect** (§6.10): report malformed, old-format, stale-ref, and unreachable-commit lock conditions WITHOUT fetching from remotes.
+- **`--fix` (§6.11)**: perform ONLY equivalent lock-format normalization. NEVER advance the locked commit. NEVER guess a branch.
+- Lock files to inspect:
+  - `upstream.lock` (canonical WP-002 lock format per ADR-011 / ADR-017).
+  - Any other lock files under `.tpatch/` that the current schema requires (grep production loaders + PRD refs).
+- Malformed classes to detect (implementer verifies list against PRD + production loader):
+  - Missing required fields.
+  - Unknown fields.
+  - Wrong type.
+  - Malformed SHA (not a valid hex string of expected length).
+  - Old-format markers (e.g., pre-schema-version files).
+  - Stale ref: `upstream.lock` names a ref that no longer exists in the local repo.
+  - Unreachable commit: locked SHA is not reachable from any local ref.
+- **Read-only in v1** for anything beyond format normalization. NEVER touch commit SHAs or refs. NEVER call `git fetch` or `git ls-remote`.
+- Rule 12 privacy binding — D4 must NOT read remote git state.
 
-### D7 — Recipe schema drift (§6.18, §6.19)
+### D5 — Missing reconcile evidence artifacts (§6.12, §6.13)
 
-- **Detect** (§6.18): decode each per-feature `.tpatch/features/<slug>/artifacts/apply-recipe.json` (and any bundled skill-asset apply-recipe examples if in-tree copies exist per D3) against `workflow.ApplyRecipe` with `DisallowUnknownFields`. Rejection = drift finding.
-- **Read-only in v1 (§6.19)**: doctor reports recipe schema drift but does NOT rewrite feature recipes. Remediation string: point at Slice 1's `TestSkillRecipeSchemaMatchesCLI` pattern and the canonical schema — implementer must fix by hand OR regenerate via `tpatch implement <slug>` (verify command exists first per rule 15).
-- Anti-drift reuse: this check is the runtime analog of `assets/assets_test.go` `TestSkillRecipeSchemaMatchesCLI`. Implementation SHOULD share a decoder helper if practical.
+- **Detect missing evidence** (§6.12): for features whose `status.json` indicates a modern reconcile attempt (i.e., a reconcile that would have written evidence under ADR-025), report missing `reconcile-evidence.jsonl`.
+- **Detect malformed JSONL** (§6.13): report malformed lines with filename + 1-indexed line number. Continue inspecting other entries and features (rule 5, ADR-025 D11 pattern — malformed-artifact handling).
+- Also inspect `reconcile-revisions.jsonl` for the same malformed-JSONL class (ADR-025 D11 applies to both artifacts).
+- Read-only in v1.
+- Remediation string for missing evidence: `run tpatch reconcile <slug>` (verify command exists via rule 15 grep of `internal/cli/cobra.go`).
 
-### Non-blocking observations to fold in (from Wave α reviews)
+## Wave γ hard constraints (binding, 15)
 
-- **Exit-code semantics for `--fix` + `Findings>0` + `Errors==0`**: Wave α internal noted `DoctorExitCode` returns 1 (not 2) in this case. Wave α had no fixers so the path was unreachable. Wave β has D3 fixers — verify §6.24 (exit 2 = `--fix` partial failure) fires correctly when D3 finds drift AND `--fix` refuses due to unrecognized user content OR pre-existing backup collision.
-- **`--check` case-insensitivity**: Wave α internal noted `--check` is case-insensitive but untested. Wave β adds new check IDs (D3, D7); pick one convention (case-sensitive per rule 8 display-string contract, OR document case-insensitivity + add coverage) and enforce.
-
-## Wave β hard constraints (binding, 15)
+Same 15 as Wave β with the following emphasis:
 
 1. **PRD as binding contract** — every fix traces to §6.X or STOP.
-2. **Safety defaults NON-NEGOTIABLE** — Wave α's scaffold semantics extend to D3 `--fix`. Verify: `--dry-run` default; `--fix` opt-in; backup on every overwrite (§6.2); idempotence (§6.3).
+2. **Safety defaults NON-NEGOTIABLE** — extend Wave α scaffold; D4 `--fix` MUST refuse if the fix would advance the locked commit or guess a branch.
 3. **No new lifecycle states** (`FeatureState` untouched).
 4. **No new persisted schemas outside doctor's JSON output**.
-5. **Rule 5 (ADR-025 D11 pattern)** — malformed recipe JSON reports filename + 1-indexed line number where practical; continues other checks.
-6. **Rule 12 privacy** — D3 must NOT read user files at doctor-managed install paths beyond the byte-comparison + first-256-byte marker check. Specifically: doctor MUST NOT parse installed files as tpatch DSL and MUST NOT hash/log the content of unrecognized user files beyond a truncated hash for the finding evidence. ADR-027 D2+D10 binding.
-7. **Rule 15 (trigger-name grep)** — verify `tpatch implement <slug>` (D7 remediation candidate) exists via `internal/cli/cobra.go` grep. If it doesn't, pick a real command or drop the remediation.
-8. **Rule 11 (flag-surface accuracy)** — no new persistent flags. `--fix` remains local to `doctor` subcommand.
-9. **Rule 17 (totality claims)** — D3 detection MUST NOT teach "only these six paths are managed" without noting the intentional non-scope of hand-copied assets (per PRD §7.3 open question). Match Slice 4 F2 amend framing.
-10. **Rule 16 (anti-drift parity guard)** — if D7 introduces a shared decoder helper with `TestSkillRecipeSchemaMatchesCLI`, extend the parity test to also cover per-feature apply-recipe files (or add a doctor-side unit test that decodes fixtures and asserts against `workflow.ApplyRecipe`).
-11. **Rule 18 (structural trailer verification, NEW)** — every commit's trailer must pass `git interpret-trailers --parse` structural check, not just text-grep. Implementer should sanity-check trailer parse before pushing.
-12. **CHANGELOG.md** — extend the existing `## v0.11.2 (unreleased) — tpatch doctor Wave α` header to cover Wave β. Add Wave β bullets under a `### Wave β` subsection OR promote the header to a broader scope; do NOT create a separate `(unreleased)` entry.
-13. **Assets/skills** — Wave α added the `tpatch doctor` scaffold mention to 6 formats. Wave β should not need new asset mentions unless a new user-facing flag lands. Verify parity guard still passes.
+5. **ADR-025 D11 pattern** — D5 malformed JSONL reports filename + 1-indexed line number; D4 malformed lock reports filename + specific field/error.
+6. **Rule 12 privacy** — D4 MUST NOT read remote git state (no `git fetch`, `git ls-remote`, or equivalent). D5 MUST NOT log full content of evidence entries in doctor output; report only line number + class of error + truncated hash if needed.
+7. **Rule 15 (trigger-name grep)** — verify `tpatch reconcile <slug>` command exists via `internal/cli/cobra.go` grep. If it doesn't, pick the real command name (likely `tpatch reconcile <slug>` — check).
+8. **Rule 11 (flag-surface accuracy)** — no new persistent flags.
+9. **Rule 17 (totality claims)** — D4 detection MUST NOT teach "only `upstream.lock` is checked" without enumerating any other lock files the current schema requires. Match Slice 4 F2 framing style.
+10. **Rule 16 (anti-drift parity guard)** — if D4 shares a lock loader with production `internal/store/*.go`, use the production loader (do NOT re-implement). If a new lock schema field is needed, draft a small D-clause amendment BEFORE writing schema code (per Wave α hard constraint 4).
+11. **Rule 18 (structural trailer verification)** — sanity-check `git log --format='%(trailers)' <sha>` for every commit before pushing.
+12. **CHANGELOG.md** — extend the existing `## v0.11.2 (unreleased) — tpatch doctor Wave α` header with a `### Wave γ` subsection alongside the existing `### Wave β`. Do NOT create a separate `(unreleased)` entry.
+13. **Assets/skills** — no new asset mentions expected. Parity guard MUST still pass.
 14. **Side Research md5** == `b385fe622db9926f48861105239f113e`.
-15. **Full gates** + Co-authored-by trailer.
+15. **Full gates** + Co-authored-by trailer (structural verify).
 
-## Wave β suggested layout
+## Wave γ suggested layout
 
-- `internal/workflow/doctor_d3.go` — new: D3 detection + optional fix (byte comparison + marker check + refuse-on-unrecognized).
-- `internal/workflow/doctor_d7.go` — new: D7 detection (recipe schema decode with DisallowUnknownFields).
-- Extend `internal/workflow/doctor.go` — register D3 + D7 in the check registry from Wave α.
-- Extend `internal/cli/doctor.go` — no new CLI shape; --fix path exercises D3 for the first time.
+- `internal/workflow/doctor_d4.go` — new: D4 detection + optional format normalization.
+- `internal/workflow/doctor_d5.go` — new: D5 detection (evidence artifact presence + malformed JSONL).
+- Extend `internal/workflow/doctor.go` — register D4 + D5 in check registry from Wave α scaffold.
+- Extend `internal/cli/doctor.go` — no new CLI shape; --fix path exercises D4 for the first (limited) lock-format normalization case.
 - Tests:
-  - `internal/workflow/doctor_d3_test.go` — fixtures: clean, drift-then-fix, unrecognized-user-content-refused, pre-existing-backup-collision-refused, idempotence (§6.8, §6.9).
-  - `internal/workflow/doctor_d7_test.go` — fixtures: clean recipe, missing feature field, unknown field, disallowed field type (§6.18, §6.19).
-  - `internal/cli/doctor_test.go` — extend for D3 `--fix` end-to-end: dry-run reports drift; `--fix` writes backup + replaces; second `--fix` is no-op; exit code 2 when `--fix` refuses.
-- No new asset mentions expected. Parity guard should stay clean.
+  - `internal/workflow/doctor_d4_test.go` — fixtures: clean lock, malformed field, wrong type, malformed SHA, old-format, stale-ref, unreachable-commit, --fix normalization idempotence, --fix refuses advancing SHA, --fix refuses guessing branch.
+  - `internal/workflow/doctor_d5_test.go` — fixtures: clean evidence, missing evidence for reconciled feature, malformed JSONL line (with correct 1-indexed line number reported), continuation-past-malformed-line, revisions.jsonl malformed line.
+  - Extend `internal/cli/doctor_test.go` for D4/D5 end-to-end (no new safety-defaults tests expected — Wave α + β covered those).
 
-## Reviewer-brief additions (Wave β specific)
+## Wave γ reviewer-brief additions (folded from Wave β process)
 
-- Rule 18 (structural trailer verification) MUST be in every reviewer brief now. Include: "Run `git log --format='%(trailers)' <sha>` on every commit in the review range; empty output for any commit is a MEDIUM finding unless it's a merge or fixup that intentionally omits authorship."
-- Rule 15: verify D7 remediation string names a real command.
-- Rule 17: verify D3 doesn't teach a totality claim about install paths.
-- Backup semantics (§6.2 + §6.3 + collision case): reviewer briefs must verify test coverage for:
-  1. Backup created on first `--fix` when target has drift.
-  2. NO second backup on idempotent re-run.
-  3. `--fix` REFUSES when `.orig` already exists AND differs from installed bytes.
-  4. `--fix` REFUSES when installed file lacks a tpatch marker (unrecognized user content).
+- Rule 18 continues (all Wave β reviewers self-applied successfully).
+- Rule 15 (trigger-name grep) for D5 remediation string.
+- Rule 12 (privacy) specifically for:
+  - D4: no remote git calls.
+  - D5: no full content logging of evidence entries beyond line number + error class.
+- Rule 5 (ADR-025 D11) for both D4 malformed lock reporting AND D5 malformed JSONL.
+
+Reviewer briefs MUST verify:
+1. Grep new doctor code for any `exec.Command("git", "fetch"...)` or `exec.Command("git", "ls-remote"...)` — must be ZERO.
+2. Grep new doctor code for `Body` / `Content` / `Message` / `RawJSON` field access on evidence entries — flag any full-content logging.
+3. Verify D4 `--fix` refuses commit-advancement + branch-guessing via explicit test coverage.
+4. Verify D5 malformed-JSONL 1-indexed line number correctness.
 
 ## Process for implementer
 
-1. Read `docs/prds/PRD-tpatch-doctor.md` in FULL. Focus on §3 D3 + §3 D7 + §4 user-facing contract + §5 implementation notes + §6.8, §6.9, §6.18, §6.19 + §7 open questions.
-2. Read this handoff Wave β binding scope + hard constraints verbatim.
-3. Read `docs/supervisor/LOG.md` top 5 entries: user-external Wave α APPROVED WITH NOTES + supervisor decision + supervisor-external F-EXT-1 + internal Wave α + Wave α ship commit.
+1. Read `docs/prds/PRD-tpatch-doctor.md` in FULL. Focus on §3 D4, §3 D5, §5 implementation notes, §6.10-§6.13, §7 open questions.
+2. Read this handoff Wave γ binding scope + hard constraints verbatim.
+3. Read `docs/supervisor/LOG.md` top 3 entries: user-external Wave β + supervisor Wave β decision + supervisor-external Wave β.
 4. Read production ground truth:
-   - `internal/cli/cobra.go:2780-2801` — `installSkills` six install paths (D3 ground truth).
-   - `assets/assets_test.go` — `TestSkillRecipeSchemaMatchesCLI` (D7 pattern reference).
-   - `assets/skills/` — bundled bytes (D3 comparison target).
-   - `internal/workflow/implement.go:42` — `ApplyRecipe` struct (D7 decode target).
-   - `internal/workflow/doctor.go` (added at `6319c0b`) — Wave α scaffold + check registry.
-5. Verify `tpatch implement <slug>` command exists in `internal/cli/cobra.go` before using it in D7 remediation string.
-6. Implement D3 first (mutating; exercises scaffold `--fix` semantics for the first time). Then D7 (read-only decode, simpler).
-7. Verify exit-code semantics for `--fix` + `Findings>0` + `Errors==0` case now that D3 fixers exist (§6.24). Fix the Wave α observation if it manifests.
-8. Verify `--check` case-sensitivity intent (pick one convention + document + test).
-9. Update `docs/handoff/CURRENT.md`:
+   - `internal/store/*.go` — lock loaders (grep for `upstream.lock` + `LoadUpstreamLock` or equivalent).
+   - `internal/store/reconcile_evidence.go` — evidence JSONL structure + `LoadReconcileEvidence` (lenient variant if it exists).
+   - `internal/store/reconcile_revision.go` — revision JSONL + `LoadReconcileRevisions`.
+   - `internal/cli/cobra.go` — grep for `tpatch reconcile` command shape (rule 15).
+   - `internal/workflow/doctor.go` — Wave α + β scaffold + check registry pattern.
+   - `internal/workflow/doctor_d3.go` / `doctor_d7.go` — Wave β patterns to mirror.
+5. Implement D4 first (lock format is the more constrained + safety-critical of the two). Then D5.
+6. Fold Wave β lessons:
+   - Reuse production loaders (do NOT re-implement schema).
+   - Report format errors with filename + specific error (D4) or filename + 1-indexed line (D5).
+   - `--fix` MUST refuse anything beyond format normalization for D4.
+7. Update `docs/handoff/CURRENT.md`:
    - Flip Status to Review.
-   - Add "Wave β closure summary" subsection: per-§6-criterion + file:line.
+   - Add "Wave γ closure summary" subsection: per-§6-criterion + file:line + specific normalization semantics chosen for D4.
    - Preserve Side Research md5.
-10. Extend CHANGELOG.md `## v0.11.2 (unreleased) — tpatch doctor Wave α` header to cover Wave β (add a `### Wave β` subsection with new bullets).
-11. Push to `origin/main`. Sanity-check `git log --format='%(trailers)' <sha>` for every new commit before pushing (rule 18).
-12. Return commit hashes + gate output + closure summary.
+8. Extend CHANGELOG.md `## v0.11.2 (unreleased)` header with `### Wave γ` subsection (do NOT touch existing `### Wave α` and `### Wave β` subsections beyond adding the new one).
+9. Push to `origin/main`. Sanity-check `git log --format='%(trailers)' <sha>` for every new commit before pushing.
+10. Return commit hashes + gate output + trailer structural verification of all new commits.
 
 If any §6 criterion is impossible without breaking a hard constraint: STOP and report.
 
@@ -114,47 +120,12 @@ Do not dispatch reviewers — supervisor handles that.
 
 ## Session Summary
 
-Doctor Wave β implementation is complete and ready for review. D3 stale in-tree skill asset detection/fix and D7 recipe schema drift detection were added on top of Wave α, with the first mutating `--fix` path now covered end-to-end. `--check` IDs are now case-sensitive (canonical uppercase D-IDs only).
-
-### Wave β closure summary
-
-- §6.8 / §6.9 D3: `internal/workflow/doctor_d3.go:34` compares installed bytes at the six `tpatch init` skill paths to embedded `assets.Skills` bytes. `internal/workflow/doctor_d3.go:80` refuses unrecognized user content; `internal/workflow/doctor_d3.go:109` and `:163` implement `.orig` backup/idempotence/collision semantics; `:153` records successful fixes as `fixed` findings so all-fixed `--fix` exits 0.
-- D3 positive-identification contract: byte match = clean; byte mismatch is fixable only when the first ~256 bytes / first line contain `tessera-patch` or `tpatch`, or the bundled opening heading matches. No installed file is parsed as tpatch DSL; unrecognized findings report only truncated SHA-256 hashes.
-- §6.18 / §6.19 D7: `internal/workflow/implement.go:81` defines shared strict `workflow.ApplyRecipe` decoding (`DisallowUnknownFields`, required `feature`, non-empty operations, known op types). `internal/workflow/doctor_d7.go:20` checks per-feature `artifacts/apply-recipe.json`; `:67` checks installed tpatch skill recipe examples when present. D7 is read-only and remediates via hand-fix + `tpatch verify <slug>` or regeneration with `tpatch implement <slug>`.
-- Rule 15: exact grep for `tpatch implement` in `internal/cli/cobra.go` returned no literal match, but `internal/cli/cobra.go:561-588` defines the real `implement <slug>` command; D7 remediation uses `tpatch implement <slug>`.
-- Rule 11: no new persistent flags were added; `internal/cli/doctor.go` still exposes only local `--dry-run`, `--fix`, `--json`, and repeated `--check`.
-- §6.24 exit semantics: D3 successful `--fix` has `Findings=0, Fixed>0, Errors=0` and exits 0; D3 refusals are `Severity:error`, so partial-failure `--fix` exits 2 via existing `DoctorExitCode` (`internal/workflow/doctor.go:194`).
-- §6.25 convention chosen: Option A, case-sensitive check IDs. `internal/workflow/doctor.go:231` now trims but does not uppercase IDs; lowercase `d3` is rejected.
-- Tests: D3 fixtures in `internal/workflow/doctor_d3_test.go:13` (clean/all-six stale), `:50` (fix + backup + idempotence), `:90` (unrecognized refusal), `:119` (backup collision), `:143` (matching backup). D7 fixtures in `internal/workflow/doctor_d7_test.go:11`, `:33`, `:85`. CLI coverage in `internal/cli/doctor_test.go:115`, `:129`, `:179`.
-
-Files changed by this implementation:
-
-- `assets/assets_test.go`
-- `CHANGELOG.md`
-- `docs/handoff/CURRENT.md`
-- `internal/cli/doctor.go`
-- `internal/cli/doctor_test.go`
-- `internal/workflow/doctor.go`
-- `internal/workflow/doctor_d3.go`
-- `internal/workflow/doctor_d3_test.go`
-- `internal/workflow/doctor_d7.go`
-- `internal/workflow/doctor_d7_test.go`
-- `internal/workflow/implement.go`
-
-Targeted validation so far:
-
-- `gofmt -w ...` — completed.
-- `go test ./internal/workflow ./internal/cli ./assets` — PASS.
-- `gofmt -l .` — clean (empty output).
-- `go test ./...` — PASS.
-- `go build ./cmd/tpatch` — PASS.
+Doctor Wave β closed 2026-07-28 (three-way APPROVED, zero adversarial findings). First wave with fixers validated end-to-end. Rule 18 self-applied by all reviewers. Wave γ kickoff ready.
 
 ## Next Steps
 
-1. Run full gates: `gofmt -l .`, `go test ./...`, `go build ./cmd/tpatch`.
-2. Commit Wave β implementation/docs with structural trailer verification.
-3. Push to `origin/main`.
-4. Supervisor: dispatch Wave β review.
+1. Supervisor: dispatch Wave γ implementer.
+2. After Wave γ three-way APPROVED: archive to HISTORY, move to Wave δ (D6 release drift, requires `--release-metadata` plumbing).
 
 ## Blockers
 
@@ -162,12 +133,11 @@ None.
 
 ## Context for Next Agent
 
-- HEAD at Wave β kickoff: `a3b9fe3` + review LOGs. Verify latest via `git log --oneline -n 5`.
-- Wave α ship at `6319c0b` (malformed trailer, not restorable in-place — see F-EXT-1 note in `a3b9fe3` body).
-- 18 carry-forward rules now binding. Rule 18 is the newest; sanity-check commit trailers structurally, not just via text-grep.
-- Slice 1's `TestSkillRecipeSchemaMatchesCLI` is D7's build-time analog; Wave β's D7 is the runtime version.
-- Slice 4 F2 amend documented the six `installSkills` paths for D3.
-- Wave β chose case-sensitive `--check` IDs. Use canonical uppercase IDs (`D1`, `D2`, `D3`, `D7`, `D8`) in docs/tests.
+- HEAD at Wave γ kickoff: `7ebd9de` + review LOGs. Verify latest via `git log --oneline -n 5`.
+- Doctor waves α + β are unreleased; Wave γ still ships under `v0.11.2 (unreleased)`. Version tag `v0.11.2` deferred until all 4 waves close.
+- 18 carry-forward rules binding. Rule 18 (structural trailer verification) proved out in Wave β — implementer + all reviewers self-applied without regression.
+- D5 remediation string candidate: `run tpatch reconcile <slug>`. Rule 15: verify actual command name before use.
+- Slice 4 F2 framing (six-paths totality avoidance) is the pattern for D4 lock-file scope description.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

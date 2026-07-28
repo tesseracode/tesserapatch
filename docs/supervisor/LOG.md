@@ -1,3 +1,103 @@
+## Review — tpatch doctor Wave β (D3 skill assets + D7 recipe schema) — external (user-dispatched, parallel) — 2026-07-28
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of Wave β (`44b1b78..7ebd9de`, functional impl `daf2e6f`).
+
+### Verdict: APPROVED
+
+### Per-§6 verification (Wave β scope, independent)
+- §6.8 D3 detection: MET — covers all six init-managed install paths at `internal/workflow/doctor_d3.go`.
+- §6.9 D3 --fix refusal contract: MET — unrecognized user content AND `.orig` backup collision both REFUSE rather than overwrite; backup-matching-installed correctly skips re-backup for idempotence.
+- §6.18 D7 detection: MET — read-only recipe drift for per-feature recipes AND installed skill recipe examples.
+- §6.19 D7 read-only: MET — no D7 fixer.
+
+### Wave α observation folds
+- Exit code 2 for --fix partial failure: verified via `TestDoctorCLID3FixRefusalExitCode2`. Dry-run drift exits 1; fully successful --fix exits 0; refusal-on-fix exits 2. Wave α "unreachable path" observation now genuinely closed.
+- --check case-sensitivity change (Wave α → Wave β): case-INSENSITIVE → case-SENSITIVE per brief; covered by `TestDoctorCLICheckIDsAreCaseSensitive`. Technically a behavior change relative to Wave α but doctor ships under `v0.11.2 (unreleased)` so no released-surface break.
+
+### Independent verifications
+- **Parity guard NOT weakened**: assertions removed from `assets/assets_test.go` (zero-operations, missing `type`, unknown op type) were consolidated into shared `DecodeApplyRecipeStrict` at `internal/workflow/implement.go` and are still enforced through it. Rule 16 satisfied; D7 now shares the same ground truth.
+- **Rule 17 (totality claims)**: help text explicitly states hand-copied assets outside init-managed paths are out of scope, matching Slice 4 F2 framing.
+- **Rule 18 (structural trailers)**: all three Wave β commits (`daf2e6f`, `791e77c`, `7ebd9de`) return a parseable `Co-authored-by` trailer via `%(trailers:key=...)`. F-EXT-1 class did not recur.
+- **Privacy (rule 12 / ADR-027 D2+D10)**: D3 only byte-compares + marker-checks; reports truncated hashes. D7 only parses files already positively identified as tpatch assets.
+
+### Wave-boundary check
+D4/D5/D6 all NOT implemented in Wave β. Registry stops at D3/D7/D8. No `upstream.lock`, `reconcile-evidence.jsonl`, CHANGELOG scans, or `--release-metadata` touchpoints in the diff.
+
+### Regression (Wave α approvals preserved)
+- §6.1-§6.7 + §6.20-§6.29 all still MET.
+- `--dry-run` default preserved.
+- Slice 4 F2 framing (six paths only) preserved.
+
+### Validation gates (independent run)
+- `gofmt -l .`: clean.
+- `go vet ./...`: clean.
+- `go build ./cmd/tpatch`: clean.
+- Targeted tests: 50 passed, 0 failed.
+
+### Findings (informational, no action needed)
+Low (informational): --check case-INSENSITIVE → case-SENSITIVE behavior change relative to Wave α. Deliberate convention choice per brief; covered by dedicated test. No released-surface break because doctor ships unreleased under `v0.11.2 (unreleased)`.
+
+### Concurrence with internal + supervisor-external
+YES on both. Zero adversarial findings across all three passes.
+
+### Action Taken
+Verdict captured for supervisor consolidation.
+
+---
+
+## Decision — tpatch doctor Wave β — supervisor — 2026-07-28
+
+**Decision**: APPROVED.
+
+Three independent reviews (internal `791e77c`, supervisor-external `7ebd9de`, user-external 2026-07-28) unanimously concur. Zero adversarial findings across all three passes on Wave β's mutating scaffold path.
+
+### Wave β accomplishments
+
+- **First wave with fixers**: D3 exercises the mutating `--fix` scaffold end-to-end.
+- **Wave α non-blocking observations both closed**:
+  - Exit code 2 semantics genuinely verified with fixer test coverage.
+  - --check case convention chosen (case-sensitive) + tested.
+- **Shared decoder helper** `DecodeApplyRecipeStrict` at `internal/workflow/implement.go` consolidates D7 + `TestSkillRecipeSchemaMatchesCLI` around a single ground truth. Rule 16 (anti-drift parity guard) genuinely durable.
+- **Rule 18 (structural trailer verification)** applied and self-verified by all three reviewers + implementer. F-EXT-1 class did not recur.
+- **Slice 4 F2 framing preserved**: D3 detection scoped to SIX init-managed paths only; hand-copied assets explicitly out of scope.
+
+### Wave β closure stack
+
+- `daf2e6f` — feat(doctor): ship wave beta D3 D7 checks
+- `791e77c` — internal APPROVED (zero findings)
+- `7ebd9de` — supervisor-external APPROVED (concurrence YES, zero new findings)
+- (LOG entry above) — user-external APPROVED (concurrence YES, zero new findings)
+
+### Two-opinion protocol scoreboard update
+
+**13 consecutive rev cycles with three-way concurrence at final acceptance**. Wave β was a clean rev-0 pass — all three reviewers converged on APPROVED with zero blocking findings on the FIRST wave to exercise mutating fixer semantics. Rule 18 applied successfully to prevent F-EXT-1 class recurrence.
+
+### Wave γ unlocked
+
+Next: **Wave γ** (D4 locks + D5 evidence — persisted-artifact class). §6.10-§6.13. Cluster plan documented in Wave α CURRENT.md snapshot (HISTORY.md).
+
+Wave β new-scope findings folded into Wave γ brief:
+- None (Wave β had zero adversarial findings).
+
+Standing carry-forward from prior clusters that Wave γ should re-emphasize:
+- Rule 18 (structural trailer verification) continues.
+- Rule 15 (trigger-name grep) — any command mentioned in D4/D5 remediation strings.
+- Rule 5 (ADR-025 D11 pattern) — D5 evidence artifact malformed handling MUST mirror D11 exactly.
+
+### Non-blocking follow-ups deferred
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks Blocks-header naming coord — still deferred.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness — deferred to downstream capture PRD.
+
+### Action Taken
+- Doctor Wave β archived to `HISTORY.md`.
+- CURRENT.md reset for Wave γ kickoff.
+- SQL todo `doctor-wave-beta-d3-d7` flipped `done`.
+- Awaiting user go-ahead on Wave γ dispatch.
+
+---
+
 ## Review — tpatch doctor Wave β (D3 skill assets + D7 recipe schema) — external (supervisor-dispatched) — 2026-07-27
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
