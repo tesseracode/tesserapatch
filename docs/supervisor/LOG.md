@@ -1,3 +1,113 @@
+## Review — tpatch doctor Wave γ (D4 locks + D5 evidence) — external (user-dispatched, parallel) — 2026-07-28
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of Wave γ (`b799902..a1c1864`, functional impl `cffeabd..f6f3e64`).
+
+### Verdict: APPROVED WITH NOTES
+
+D4 and D5 themselves are correct, well-scoped, and safety-conscious. All four §6 criteria (§6.10–§6.13) MET. All four safety-critical checks (no remote git, no commit-advance, no branch-guess, no full-content logging) confirmed independently. Rule 18 self-applied on all four Wave γ commits.
+
+### F1 (MEDIUM) — Undisclosed behavior change to shipped `tpatch reconcile review list` surface
+
+`internal/store/reconcile_revision.go` changed the lenient loader's newline check from `if !lenient && data[len(data)-1] != '\n'` to unconditional handling that appends a `corrupt_entries` row in lenient mode too.
+
+**Blast radius**: `LoadReconcileRevisionsLenient` backs the shipped v0.11 command at `internal/cli/cobra.go:2157`, which exits non-zero whenever `corrupt` is non-empty (lines 2173 and 2184).
+
+**Net effect**: a `reconcile-revisions.jsonl` whose final line lacks a trailing newline previously listed entries with empty `corrupt_entries` and exit 0; it now emits a corrupt row with message `final object is not newline-terminated` and exits non-zero. Reproduced empirically via test harness.
+
+**Why it's a MEDIUM finding** (per PRD binding hard-constraint 1 + carry-forward rule 9):
+1. Outside Wave γ binding scope (D4+D5, §6.10–§6.13) — traces to no §6.X criterion.
+2. Misdescribed in the handoff closure summary as "existing `internal/store/reconcile_revision.go:168` lenient loaders" — implying no change.
+3. Undisclosed in `CHANGELOG.md` Wave γ bullet.
+4. Untested — no test asserts newline-termination behavior for revisions in either mode.
+
+**Semantic assessment**: the new behavior is arguably MORE correct under ADR-025 D11. Reviewer does NOT recommend reverting. Recommended resolution: KEEP the behavior + fold three deliverables into Wave δ:
+- Add a §6.13-adjacent test asserting `tpatch reconcile review list --json` emits the corrupt row and exits non-zero for a non-newline-terminated file.
+- Add a CHANGELOG bullet under a new `### Wave δ` subsection describing the behavior change to the shipped command surface.
+- Correct the Wave γ handoff wording in HISTORY.md snapshot with a supersession footnote (or in the Wave δ closure summary, whichever preserves history integrity).
+
+### Low observations (informational, no blocking action)
+
+1. Redundant newline check in `reconcile_revision.go`: the early `corrupt := []CorruptEntry{...}` block is discarded in the lenient path and immediately recomputed below. Behavior correct (exactly one row) but easy to misread. Wave δ can tidy if convenient.
+2. Strict loaders now format inner errors with `%s` instead of `%w` (`reconcile_evidence.go`). Verified harmless: the only production consumer, `internal/workflow/reconcile.go`, matches the `ErrMalformedEvidence`/`ErrMalformedRevision` sentinels which are still wrapped with `%w`.
+
+### What passed verification
+
+1. Rule 12 privacy / no remote git: D4's only shell-out is `runDoctorD4Git` restricted to `rev-parse`, `cat-file`, `for-each-ref`, `merge-base`. Zero `fetch`/`ls-remote`/`remote update`. D5 shells out not at all.
+2. §6.11 fix safety: normalization is format-only (key order, quoting, LF, legacy `branch` split); refuses on missing commit/branch, malformed SHA, unknown fields, wrong types.
+3. §6.13 malformed reporting: evidence and revision corrupt entries carry filename + 1-indexed line; continue past bad lines; no full evidence content logged.
+4. Rule 16: D4 reuses production `store.LoadUpstreamLock` rather than re-implementing; no new persisted schema.
+5. Rule 18: all four Wave γ commits parse `Co-authored-by` trailer via `%(trailers:key=...)`.
+6. Gates: `gofmt -l .`, `go vet ./...`, `go build ./cmd/tpatch` all clean; full test run 71 passed / 0 failed.
+
+### Concurrence with internal + supervisor-external
+Partial: concurs on D4/D5 correctness + safety-critical checks + wave-boundary + Rule 18 self-application. Diverges on F1 — internal + supervisor-external both accepted the `store/reconcile_revision.go` diff as internal-only, missing that `LoadReconcileRevisionsLenient` backs a shipped v0.11 command surface. Same lesson class as Wave β F8, γ-1 F1, Slice 2 F1: reviewer read production consumer paths + reproduced empirically; prior passes accepted the diff at face value.
+
+### Action Taken
+Verdict captured for supervisor consolidation. Recommend folding F1 deliverables into Wave δ per reviewer's non-blocking recommendation.
+
+---
+
+## Decision — tpatch doctor Wave γ — supervisor — 2026-07-28
+
+**Decision**: APPROVED WITH NOTES (D4+D5 accepted; F1 folded into Wave δ scope per user-external recommendation).
+
+Three-way concurrence on the D4+D5 implementation itself:
+- internal `f4c459f`: APPROVED (missed F1 because diff was reviewed as internal-only)
+- supervisor-external `a1c1864`: APPROVED (missed F1 same reason)
+- user-external 2026-07-28: APPROVED WITH NOTES (F1 MEDIUM caught via reading production consumer paths + empirical reproduction)
+
+F1 is a **behavior-implemented vs behavior-disclosed** finding — exactly the class rule 9 exists to catch. Both prior passes accepted the store-layer diff as an internal refactor; user-external traced `LoadReconcileRevisionsLenient` to the shipped `tpatch reconcile review list` command at `internal/cli/cobra.go:2157` and reproduced the exit-code change. The new semantics are more correct under ADR-025 D11 — no revert — but the change rode along undisclosed in a doctor wave without a §6 criterion, changelog line, test, or accurate handoff description.
+
+### Wave γ closure stack
+
+- `cffeabd` — D4/D5 checks (also silently changed lenient loaders — F1)
+- `f6f3e64` — changelog/handoff closure (misdescribed lenient loader change)
+- `f4c459f` — internal APPROVED (missed F1)
+- `a1c1864` — supervisor-external APPROVED (missed F1)
+- (LOG entry above) — user-external APPROVED WITH NOTES (F1 caught)
+
+### F1 deliverables folded into Wave δ scope
+
+Per user-external's non-blocking recommendation, Wave δ MUST close F1 with three deliverables:
+1. Add a test in `internal/cli/reconcile_evidence_cli_test.go` (or equivalent) asserting `tpatch reconcile review list --json` emits `corrupt_entries[0]={Line:1, Error:"final object is not newline-terminated"}` AND exits non-zero for a JSONL file whose final line lacks a trailing newline. Assert exit code non-zero explicitly.
+2. Add a CHANGELOG bullet under Wave δ (or amend Wave γ subsection if implementer prefers) documenting the behavior change to `tpatch reconcile review list`. Recommended phrasing: "`tpatch reconcile review list` now reports a non-newline-terminated final line as a `corrupt_entries` row (exit non-zero) instead of silently accepting it (exit zero), aligning with ADR-025 D11 malformed-artifact semantics."
+3. Correct the Wave γ HISTORY.md snapshot with a supersession footnote OR document the correction in the Wave δ closure summary. Whichever preserves history integrity — do NOT rewrite the archived Wave γ snapshot in place.
+
+### Two-opinion protocol scoreboard update
+
+**14 consecutive rev cycles with three-way concurrence at final acceptance** (some as APPROVED WITH NOTES). User-external uniquely blocked or caught real production-behavior findings in **6 of 14 rev cycles** at rev-0:
+- WP-003 α rev-0 F1 (evidence artifact not persisted)
+- α rev-1 F3 (reader-side gap)
+- β rev-0 F8 (`corrupt_entries` production gap)
+- γ-1 rev-0 F1 (`confirm-upstreamed` PRD-named trigger missing)
+- Slice 2 rev-0 F1 (flag-surface overclaim contradicting cobra persistent-flag inheritance)
+- **Doctor Wave γ F1 (undisclosed behavior change to shipped `reconcile review list` surface)** — this cycle.
+
+Same pattern each time: text-grep / structural check passes, production consumer paths not traced. Rule 9 (behavior-implemented-vs-tested) captured this generically; rule 15 (trigger-name grep) captured the command-existence variant; rule 17 (totality claims) captured the docs variant. F1 warrants **candidate rule 19** — see below.
+
+### Candidate rule 19 (post-Wave-δ promotion candidate)
+
+**When a doctor wave (or ANY wave) touches persisted-artifact loaders in production `internal/store/`, `internal/workflow/`, or `internal/cli/` — reviewers MUST trace EVERY exported loader function's callers via grep before accepting the diff as "internal refactor". If any caller is a shipped CLI surface, the diff carries a behavior-change contract that MUST have a §6 criterion, CHANGELOG bullet, and test.**
+
+Promote to binding after Wave δ reviewer feedback confirms broader applicability. This is the rule-9 generalization for loader-surface changes specifically.
+
+### Non-blocking follow-ups deferred
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks Blocks-header naming coord — still deferred.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness — deferred to downstream capture PRD.
+- **Wave β `--check` case-INSENSITIVE → case-SENSITIVE** behavior change: still under `v0.11.2 (unreleased)`; not a released-surface break. No action.
+
+### Action Taken
+- Doctor Wave γ archived to `HISTORY.md` with F1 flagged in the snapshot header for downstream Wave δ reference.
+- CURRENT.md reset for Wave δ kickoff.
+- F1 deliverables folded into Wave δ binding scope (three items above).
+- SQL todo `doctor-wave-gamma-d4-d5` flipped `done`.
+- Candidate rule 19 (loader-caller-tracing) queued for promotion after Wave δ review confirms broader applicability.
+- Awaiting user go-ahead on Wave δ dispatch.
+
+---
+
 ## Review — tpatch doctor Wave γ (D4 locks + D5 evidence) — external (supervisor-dispatched) — 2026-07-28
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
