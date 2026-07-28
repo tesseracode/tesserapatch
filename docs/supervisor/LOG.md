@@ -1,3 +1,86 @@
+## Review — tpatch doctor Wave β (D3 skill assets + D7 recipe schema) — external (supervisor-dispatched) — 2026-07-27
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Wave β single commit (`44b1b78..daf2e6f`). Verifying internal APPROVED at `791e77c`.
+
+### Verdict: APPROVED
+
+### Per-§6 verification (Wave β scope, independent)
+- §6.8 (D3 detection): MET — `internal/workflow/doctor_d3.go:22` `doctorSkillAssets` enumerates six pairs; independent grep-compare confirms 1:1 with `internal/cli/cobra.go:2785-2790`. All-six-drift assertion at `internal/workflow/doctor_d3_test.go:30` (`Findings == 6`). Byte-exact compare against `assets.Skills` at `doctor_d3.go:74`.
+- §6.9 (D3 --fix): MET — four required cases all covered independently:
+  1. Clean workspace no findings: `doctor_d3_test.go:20` `clean.Summary.Findings != 0` fatal.
+  2. Drift → `--fix` writes backup + replaces: `doctor_d3_test.go:60-73`.
+  3. Idempotent second `--fix`: `doctor_d3_test.go:75-84` (second run summary == `{ChecksRun:1}`, backup unchanged).
+  4. Unrecognized user content REFUSED: `doctor_d3_test.go:87-113` — severity `error`, `Fixable:false`, `os.Stat` on `.orig` returns `IsNotExist`, dst byte-equal to userContent.
+  Backup collision (existing `.orig` with different bytes): `doctor_d3_test.go:115-138` returns `skill-asset-backup-collision`, dst untouched. Matching-backup allowance: `doctor_d3_test.go:140-158`.
+- §6.18 (D7 detection): MET — `doctor_d7.go:23-49` decodes via `DecodeApplyRecipeStrict` (`implement.go:81` — `DisallowUnknownFields` at :84). Malformed JSON reports filename + 1-indexed line (`doctor_d7_test.go:70-83` covers `recipe-missing-feature`, `recipe-unknown-field` line 3, `recipe-field-type-invalid` line 3, `recipe-parse-error` line 3 for truncated input).
+- §6.19 (D7 read-only): MET — grep of `doctor_d7.go` shows no `os.WriteFile` / `os.Rename` mutating calls; all findings emitted with `Fixable: false`. No D7 fixer function exists.
+
+### Wave α observation folds
+- Exit code 2 for --fix partial failure: verified — `TestDoctorCLID3FixRefusalExitCode2` at `internal/cli/doctor_test.go:179-197` explicitly asserts `asExitCodeError(err).ExitCode() != 2` (rejects any non-2). Code path in `DoctorExitCode` (`doctor.go:194-201`): `Fix && Errors>0 → 2`, confirmed reached because unrecognized-in-Fix path sets `severity:"error"` (`doctor_d3.go:82`).
+- --check case convention: verified — `doctor.go:243` removed `strings.ToUpper`; only `TrimSpace` remains. `TestDoctorCLICheckIDsAreCaseSensitive` at `doctor_test.go:115-125` asserts lowercase `d3` returns `unknown doctor check` error.
+
+### Wave-boundary check (independent)
+- D4 not implemented: confirmed — no `upstream.lock` references in diff.
+- D5 not implemented: confirmed — no `reconcile-evidence.jsonl` references in diff.
+- D6 not implemented: confirmed — no CHANGELOG scans, no `--release-metadata` flag, no GH release checks.
+- Registry (`doctor.go:220-228`) enumerates exactly D1/D2/D3/D7/D8.
+
+### Regression (Wave α approvals preserved)
+- §6.1-§6.7 still MET: diff on `doctor.go` is +2 registry entries + 1-line `ToUpper` removal; `doctor_d1.go`, `doctor_d2.go`, `doctor_d8.go` untouched (`git diff --stat` confirms).
+- §6.20-§6.29 still MET: `RunDoctor` dry-run default preserved (`doctor.go:104-106`); `--check` unknown-ID pre-flight preserved (`TestDoctorCLIUnknownCheckFailsBeforeRun` at `doctor_test.go:87-107` still asserts `out.Len() != 0` failure before any check runs).
+- Slice 4 F2 framing (six paths only): CLI Long help at `internal/cli/doctor.go:22` — "Hand-copied skill assets outside the init-managed paths are intentionally out of scope for this doctor wave." No totality drift.
+- No new persistent flags (rule 11): `doctorCmd()` still `--dry-run`, `--fix`, `--json`, `--check` (all local, no `PersistentFlags()`).
+
+### Hard-constraint sweep (15)
+- [x] No new `FeatureState` values — no `internal/store/` diff.
+- [x] No new persisted schemas outside doctor JSON output.
+- [x] ADR-025 D11 for D7 malformed JSON — `doctor_d7.go:124` reuses `lineForJSONErrorBytes` from Wave α (`doctor_d8.go:30`); 1-indexed via `strings.Count(..., "\n") + 1` in `bytesLineNumber` (`doctor_d7.go:156`).
+- [x] Privacy (rule 12): D3 does NOT parse installed files as tpatch DSL — only first-256-byte marker + byte-eq compare (`doctor_d3.go:174-188`). Findings log sha256 prefixes + asset name; unrecognized-file finding does NOT log content bytes (`doctor_d3.go:87`).
+- [x] Rule 15: D7 remediation string references REAL commands — `tpatch verify` and `tpatch implement` grep-verified in `internal/cli/cobra.go`; D3 remediation `tpatch doctor --fix --check D3` is the registered CLI form.
+- [x] Rule 11: no new persistent flags.
+- [x] Rule 17: no invented totality claims — `doctor.go:21-22` Long help explicitly scopes to init-managed paths.
+- [x] Rule 16: D7 shares `DecodeApplyRecipeStrict` with `TestSkillRecipeSchemaMatchesCLI` (`assets/assets_test.go:242`) — parity test now decodes through the promoted symbol.
+- [x] **Rule 18**: `git log -1 --format='%(trailers)' daf2e6f` returned `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` (non-empty, structural). F-EXT-1 class not repeated.
+- [x] CHANGELOG `## v0.11.2 (unreleased)` header extended with `### Wave β` subsection at `CHANGELOG.md:20`; no duplicate top-level header.
+- [x] Assets/skills 6 formats + parity guard PASS (`assets/assets_test.go` PASS via `go test ./...`).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` — verified via `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
+- [x] Co-authored-by trailer on `daf2e6f` (structural AND textual, see Rule 18 above).
+- [x] Gates green: `gofmt -l .` empty; `go vet ./...` clean; `go build ./cmd/tpatch` OK; `go test ./...` all packages OK.
+- [x] Wave-boundary: D4/D5/D6 NOT implemented (see Wave-boundary section).
+
+### Validation gates
+gofmt: clean (empty) | vet: clean | build: OK | test: PASS (all packages)
+
+### Trailer verification (Rule 18)
+git log -1 --format='%(trailers)' daf2e6f = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Anti-drift regression
+- No --target: confirmed (no matches in diff).
+- No "version": 1 recipe: confirmed (only appears in test fixtures asserting rejection).
+- No ra_<12hex> active refs: confirmed.
+- No stubRecipeOpTargetsResolve refs: confirmed.
+
+### Adversarial extras — additional checks performed
+1. Backup path safety: `.windsurfrules.orig` at repo root — `safety.EnsureSafeRepoPath` accepts (path inside root). Runtime confirmed by `TestDoctorD3CleanAndDetectsAllSixStaleSkillAssets` reporting 6 findings including the windsurf slot.
+2. Symlink handling: D3 does not add new symlink writes vs. Wave α model; `os.WriteFile` follows target, but `asset.Dst` is always `filepath.Join(root, ...)` and `safety.EnsureSafeRepoPath` gates on textual containment (pre-existing risk model, not β regression).
+3. Marker check strictness: `looksLikeTpatchSkillAsset` (`doctor_d3.go:174`) requires first 256 bytes to contain `tpatch` or `tessera-patch` (case-insensitive), OR first-line byte-equal to bundled. User's `.claude/skills/tessera-patch/SKILL.md` containing `tpatch` in first 256 bytes WOULD trigger positive-ID → overwrite with `.orig` backup. Internal disclosed + accepted risk; `.orig` backup is the safety net. No hidden bug.
+4. D7 line-number extraction: 1-indexed via `strings.Count(data[:offset], "\n") + 1`; graceful degradation to line 1 when no info available (`doctor_d7.go:135`). Truncated-JSON fallback returns `strings.Count(data, "\n")` (see `doctor_d7.go:130`).
+5. --check case-sensitivity: verified above — no silent lowercasing/normalization.
+6. Exit code 2: explicit `ExitCode() != 2` fatal in `TestDoctorCLID3FixRefusalExitCode2`.
+7. Wave α observation completeness: reviewed Wave α LOG entries; the two folded observations account for the outstanding items. No orphaned third observation surfaced.
+8. --check unknown-ID handling: `TestDoctorCLIUnknownCheckFailsBeforeRun` at `doctor_test.go:87-107` asserts `out.Len() != 0` failure BEFORE any check runs (via `ValidateDoctorCheckIDs` at `doctor.go:29`).
+9. Rule 18 self-application: post-commit verification appended below.
+
+### New findings (if any beyond internal)
+None. Independent walk of §6.8/§6.9/§6.18/§6.19 + all 15 hard constraints + adversarial extras produced no additional bugs, security issues, race conditions, or regressions. All gates green. The `looksLikeTpatchSkillAsset` marker permissiveness is an acknowledged design choice with `.orig` backup as safety net (internal disclosed, PRD §7.3 open question).
+
+### Concurrence with internal verdict?
+YES — independent verification arrived at the same APPROVED verdict. All internal claims spot-checked (six paths, four required D3 cases, D7 line numbers 3/3/3, exit code 2, case sensitivity, trailer, Side Research md5) reproduce.
+
+### Action Taken
+Prepend this external APPROVED entry to `docs/supervisor/LOG.md`. Commit and push with `Co-authored-by: Copilot` trailer. No production code touched.
+
 ## Review — tpatch doctor Wave β (D3 skill assets + D7 recipe schema) — internal — 2026-07-27
 
 **Reviewer**: internal (code-review agent)
