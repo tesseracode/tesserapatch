@@ -1,3 +1,95 @@
+## Review — tpatch doctor Wave δ (D6 release drift + F1 fold-in, FINAL wave) — external (supervisor-dispatched) — 2026-07-28
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Wave δ (`8b7e969..9680051`) + full-cluster acceptance sweep §6.1-§6.29. Verifying internal APPROVED at `997c1ea`.
+
+### Verdict: APPROVED
+
+Zero findings after independent adversarial re-run. Concurrence with internal `997c1ea`.
+
+### Per-§6 verification (Wave δ scope)
+- §6.14 (local tag missing CHANGELOG entry): MET — reproduced by `TestDoctorD6ReportsTagChangelogAndGHReleaseDrift` (`internal/workflow/doctor_d6_test.go:34`), code path at `doctor_d6.go:85-98` emits `release-tag-missing-changelog` with `RELEASING.md` Step 1 remediation.
+- §6.15 (CHANGELOG heading missing local tag): MET — same test asserts `release-changelog-missing-tag` for `v1.2.0`; code at `doctor_d6.go:99-112` with Step 2 remediation.
+- §6.16 (GH Release presence via `--release-metadata`): MET — same test uses wrapped `{"releases":[...]}` shape and asserts `release-missing-gh-release`; second test `TestDoctorD6ParsesGHReleaseListJSONShape` covers verbatim `gh release list --json tagName,url,publishedAt` array shape.
+- §6.17 (`unknown` when no `--release-metadata`): MET — `TestDoctorD6ReportsGHReleaseUnknownWithoutMetadata` asserts `release-gh-release-unknown` at severity `warning`, and `report.Summary.Warnings==1 && Findings==0`. Code at `doctor_d6.go:113-126` returns before any snapshot load. Independently grepped `internal/workflow/doctor_d6.go`, `internal/workflow/doctor.go`, `internal/cli/doctor.go` for `net/http`, `http.Get`, `http.Post`, `http.Client`, `api.github.com`, `go-github`, `oauth` — **zero hits**. NO GitHub API calls, NO auth prompts.
+
+### F1 fold-in verification (independent)
+- F1-1: `TestReconcileReviewListReportsNonNewlineTerminatedFinalRevision` at `internal/cli/reconcile_evidence_cli_test.go:187-229` seeds two valid entries via `AppendReconcileRevision`, strips only the trailing `\n`, runs `reconcile review list --json`, asserts non-zero exit (via `err == nil` → `t.Fatalf`), asserts exactly one `corrupt_entries` row with `Line==2` and `Error=="final object is not newline-terminated"`, and asserts both preceding valid revisions survive in `payload.Revisions`. Trace matched against `internal/store/reconcile_revision.go:184-198` where the "final object is not newline-terminated" sentinel is now emitted. Test empirically PASSES against current tree; would have PASSED trivially before `cffeabd` only if the loader silently accepted (i.e., it would have failed the `err == nil` gate) — assertion contract correctly reproduces the shipped-surface change. Ran locally: **PASS**.
+- F1-2: CHANGELOG bullet at `CHANGELOG.md:55-61` under the correct `### Wave δ` subsection of `## v0.11.2 (unreleased)`. Bullet accurately describes pre-change (silent accept + exit zero), post-change (`corrupt_entries` + exit non-zero), cites `cffeabd`, references `internal/store/reconcile_revision.go`, cites ADR-025 D11 semantic anchor. Not misplaced under Wave α/β/γ.
+- F1-3: Option B taken. `git diff 8b7e969..9680051 -- docs/handoff/HISTORY.md` is empty — HISTORY.md byte-untouched. Correction recorded in `docs/handoff/CURRENT.md:184-190` (F1 fold-in closure) preserving history integrity.
+
+### Full-cluster acceptance sweep (§6.1-§6.29)
+- Wave α (§6.1-§6.7, §6.20-§6.29): MET — scaffold + D1 + D2 + D8 + hard-invariant handling + JSON determinism + fixtures; verified in `internal/workflow/doctor_test.go`, `internal/cli/doctor_test.go` (35 lines added Wave δ), skill asset parity via `assets/assets_test.go` (all 6 formats PASS).
+- Wave β (§6.8, §6.9, §6.18, §6.19): MET — D3 + D7 with `--fix`, `.orig` backups, exit-2 partial fix semantics; `TestSkillRecipeSchemaMatchesCLI` PASS.
+- Wave γ (§6.10-§6.13): MET — D4 lock diagnostics + `--fix` normalization; D5 lenient JSONL evidence/revision checks; both tests present.
+- Wave δ (§6.14-§6.17): MET — see per-§6 above.
+- **Total: 29/29 MET**.
+
+### Rule 19 first application (independent trace)
+- `LoadReconcileRevisionsLenient` callers (independent grep matches implementer's list):
+  - `internal/cli/cobra.go:2157` — `tpatch reconcile review list` (F1 shipped surface).
+  - `internal/workflow/doctor_d5.go:80` — doctor D5 (Wave γ).
+  - `internal/store/reconcile_revision_test.go:54` — unit test.
+- `LoadReconcileEvidenceLenient` callers:
+  - `internal/workflow/doctor_d5.go:37` — doctor D5 (Wave γ).
+- Wave δ adds NO new callers of either lenient loader and NO new modifications to `internal/store/reconcile_revision.go` in the reviewed range. No additional shipped-surface changes: **confirmed**.
+
+### Safety-critical adversarial
+- No GH API calls in D6: **confirmed** (grep for `net/http|http\.(Get|Post|Client)|api\.github\.com|go-github|oauth` on D6 sources → zero hits).
+- No auth prompts: **confirmed** (no `os.Stdin` reads, no terminal reads, no credential lookups anywhere in `doctor_d6.go` or `doctor.go` reviewed range).
+- `--release-metadata` local input only: **confirmed** — `os.ReadFile` guarded by `safety.EnsureSafeRepoPath(ctx.root, path)` at `doctor_d6.go:201`; path-traversal blocked; unsafe-path emits `release-metadata-unsafe-path` error finding.
+- `RELEASING.md` section citations verified: Step 1 (line 35), Step 2 (line 78), Step 3 (line 91) all present. Rule 15 satisfied.
+- `tpatch reconcile review list` command exists at `internal/cli/cobra.go:2148-2192`. Rule 15 satisfied.
+
+### Hard-constraint sweep (16)
+- [x] No new `FeatureState` values.
+- [x] No new persisted schemas outside doctor JSON output.
+- [x] ADR-025 D11 malformed-artifact pattern (line+field reporting via `lineForJSONErrorBytes`).
+- [x] Rule 12 privacy — NO GH API, NO auth prompts.
+- [x] Rule 15 — `RELEASING.md` sections + `tpatch` commands verified present.
+- [x] Rule 11 — `--release-metadata` is a local flag on `doctorCmd` (`internal/cli/doctor.go:63`), not a root persistent flag.
+- [x] Rule 17 — no totality claims (D6 explicitly narrows to local metadata only).
+- [x] Rule 16 — 6-format skill parity guard PASS.
+- [x] Rule 18 — BOTH `a3cfe29` and `9680051` trailers parse structurally (see below).
+- [x] CHANGELOG `## v0.11.2 (unreleased)` extended with `### Wave δ` subsection.
+- [x] Assets/skills 6 formats + parity guard PASS.
+- [x] Side Research md5 — file is not in the reviewed diff; invariant preserved trivially (no touch).
+- [x] Co-authored-by trailer on both commits.
+- [x] Gates green (see below).
+- [x] Wave-boundary — no scope creep detected (files changed match declared surface).
+- [x] Rule 19 — implementer traced both lenient loaders and documented at CURRENT.md:192-202; independently confirmed.
+
+### Validation gates
+- `gofmt -l .` → clean (no output).
+- `go vet ./...` → clean.
+- `go build ./cmd/tpatch` → OK.
+- `go test ./...` → PASS (all packages).
+
+### Trailer verification (Rule 18)
+- `git log -1 --format='%(trailers)' a3cfe29` → `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+- `git log -1 --format='%(trailers)' 9680051` → `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Anti-drift regression
+- No `--target`: confirmed (grep on Wave δ files).
+- No `"version": 1` recipe drift: confirmed.
+- No `ra_<12hex>` active refs: confirmed.
+- No `stubRecipeOpTargetsResolve` refs: confirmed.
+
+### Cluster-close health check
+- All 4 waves ready for v0.11.2 release: **confirmed**. 29/29 §6 MET; no lingering hard-constraint violation across any wave; gates green; asset parity PASS; F1 fold-in fully closed.
+
+### New findings (if any beyond internal)
+**None.** Zero net-new findings beyond internal `997c1ea`.
+
+### Concurrence with internal verdict?
+**YES.** Internal APPROVED at `997c1ea` is corroborated by independent trace: D6 privacy verified via source grep, F1-1 test contract verified line-by-line and empirically PASSES, F1-3 Option B verified by empty HISTORY.md diff, Rule 19 caller trace independently reproduced and matches, all four validation gates independently green.
+
+### Action Taken
+- Read `docs/handoff/CURRENT.md`, `docs/supervisor/LOG.md` head, `internal/workflow/doctor_d6.go`, `internal/workflow/doctor_d6_test.go`, `internal/store/reconcile_revision.go`, `internal/cli/reconcile_evidence_cli_test.go`, `internal/cli/cobra.go` (reconcile review list block), `internal/cli/doctor.go`, `internal/workflow/doctor.go`, `internal/workflow/doctor_d5.go`.
+- Ran gofmt, go vet, go build, go test ./..., targeted D6 and F1 tests, assets parity — all green.
+- Grep-verified D6 has no HTTP/GH/auth code, RELEASING.md Steps 1/2/3 exist, Rule 19 loader caller list matches, HISTORY.md byte-untouched.
+- Prepended this entry to LOG.md and pushed with structural Co-authored-by trailer.
+
 ## Review — tpatch doctor Wave δ (D6 release drift + F1 fold-in, FINAL wave) — internal — 2026-07-28
 
 **Reviewer**: internal (code-review agent)
