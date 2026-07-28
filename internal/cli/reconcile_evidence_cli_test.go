@@ -184,6 +184,50 @@ func TestReconcileReviewListReportsCorruptEntries(t *testing.T) {
 	}
 }
 
+func TestReconcileReviewListReportsNonNewlineTerminatedFinalRevision(t *testing.T) {
+	dir, slug, s := cliEvidenceFixture(t, "review non newline", map[string]string{"new.txt": "brand new\n"})
+	first := cliSampleRevision(slug, "re_111111111111")
+	second := cliSampleRevision(slug, "re_222222222222")
+	if err := store.AppendReconcileRevision(s, slug, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AppendReconcileRevision(s, slug, second); err != nil {
+		t.Fatal(err)
+	}
+	path := s.ReconcileRevisionsPath(slug)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasSuffix(data, []byte("\n")) {
+		t.Fatalf("seed revisions should be newline-terminated: %q", data)
+	}
+	if err := os.WriteFile(path, bytes.TrimSuffix(data, []byte("\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	jsonOut, jsonErr, err := runCLIForEvidence("reconcile", "review", "list", "--path", dir, "--json", slug)
+	if err == nil {
+		t.Fatalf("review list --json should exit non-zero for non-newline-terminated final line; stderr=%s stdout=%s", jsonErr, jsonOut)
+	}
+	var payload struct {
+		Revisions      []store.ReconcileRevision `json:"revisions"`
+		CorruptEntries []store.CorruptEntry      `json:"corrupt_entries"`
+	}
+	if err := json.Unmarshal([]byte(jsonOut), &payload); err != nil {
+		t.Fatalf("review list non-newline output is not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if len(payload.CorruptEntries) != 1 {
+		t.Fatalf("expected exactly one corrupt entry, got %+v", payload.CorruptEntries)
+	}
+	if got := payload.CorruptEntries[0]; got.Line != 2 || got.Error != "final object is not newline-terminated" {
+		t.Fatalf("unexpected corrupt entry: %+v", got)
+	}
+	if len(payload.Revisions) != 2 || payload.Revisions[0].EntryID != first.EntryID {
+		t.Fatalf("valid preceding revision was not preserved: %+v", payload.Revisions)
+	}
+}
+
 func TestReconcileHumanOutputHunkOverlapHint(t *testing.T) {
 	dir, slug := cliHunkOverlapFixture(t)
 

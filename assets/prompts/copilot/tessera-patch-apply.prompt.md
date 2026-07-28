@@ -46,7 +46,7 @@ If `tpatch status` reports `dependent-broken`, a downstream feature's base SHA i
 
 If you need to correct an already-recorded feature patch, use `tpatch feature patch refresh <slug> [--reason "..."]` for the same logical patch or `tpatch feature patch fixup <slug> --reason "..."` for an explicit fixup generation (the target generation is auto-derived from the manifest). Plain `tpatch record <slug>` remains compatible; later byte-changing records are tracked as refreshes. If `tpatch status` reports `parent-generation-stale`, refresh or reconcile downstream features against the parent's current generation.
 
-Run `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>]` to diagnose tpatch metadata drift before reconcile or cleanup; Wave alpha reports feature metadata, patch-generations manifests, and workspace invariants.
+Run `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]` to diagnose tpatch metadata drift before reconcile or cleanup; Doctor reports feature metadata, patch-generations manifests, installed skill assets, lock/evidence artifacts, release drift (D6 via local --release-metadata snapshots), recipe schemas, and workspace invariants.
 
 ## Before You Run Anything
 

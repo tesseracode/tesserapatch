@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.11.2 (unreleased) — tpatch doctor Waves α/β/γ
+## v0.11.2 (unreleased) — tpatch doctor Waves α/β/γ/δ
 
 ### Wave α
 
@@ -41,6 +41,24 @@ All notable changes to tpatch are recorded here.
 - Added D5 reconcile evidence/revision artifact checks for missing modern
   evidence, pre-ADR-025 warning grace, and malformed JSONL line reporting via
   lenient loaders that preserve valid entries around corrupt lines.
+
+### Wave δ
+
+- Added D6 release drift detection for local git tags missing CHANGELOG entries,
+  CHANGELOG release headings missing local tags, GitHub Release presence from a
+  local `--release-metadata` snapshot, and explicit unknown GH Release status
+  when no snapshot is provided. D6 is read-only and follows `RELEASING.md`
+  Step 1 / Step 2 / Step 3 remediation guidance without GitHub API calls or
+  auth prompts.
+- Added the doctor-local `--release-metadata <file>` flag and documented it
+  across all six shipped skill/prompt/workflow formats.
+- **Behavior change** — `tpatch reconcile review list` now reports a
+  non-newline-terminated final line as a `corrupt_entries` row (exits
+  non-zero) instead of silently accepting it (exit zero). Aligns the lenient
+  loader with ADR-025 D11 malformed-artifact semantics. The change was
+  introduced alongside doctor D5 (`internal/store/reconcile_revision.go` at
+  `cffeabd`) but was not documented at Wave γ ship time; documented here for
+  release-note completeness.
 
 ## v0.11.1 — 2026-07-23 — Stabilization
 

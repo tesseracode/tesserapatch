@@ -233,6 +233,41 @@ func TestDoctorCLID4D5EndToEnd(t *testing.T) {
 	}
 }
 
+func TestDoctorCLID6ReleaseMetadataEndToEndAndFlagScope(t *testing.T) {
+	rootDir := t.TempDir()
+	gitInitTestRepo(t, rootDir)
+	gitRun(t, rootDir, "tag", "v9.9.9")
+	if _, err := store.Init(rootDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "CHANGELOG.md"), []byte("# Changelog\n\n## v9.9.9 — 2026-07-28 — Test\n\n- Test.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "release-metadata.json"), []byte(`[]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := buildRootCmd()
+	if root.PersistentFlags().Lookup("release-metadata") != nil {
+		t.Fatal("--release-metadata must not be a root persistent flag")
+	}
+	doctor, _, err := root.Find([]string{"doctor"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doctor.Flags().Lookup("release-metadata") == nil {
+		t.Fatal("--release-metadata must be local to the doctor subcommand")
+	}
+
+	out, err := runDoctorCLI(t, rootDir, "doctor", "--check", "D6", "--release-metadata", "release-metadata.json", "--json")
+	if err == nil || asExitCodeError(err).ExitCode() != 1 {
+		t.Fatalf("D6 missing GH release exit = %v stdout=%s", err, out)
+	}
+	if !strings.Contains(out, `"code": "release-missing-gh-release"`) || !strings.Contains(out, `"tag": "v9.9.9"`) {
+		t.Fatalf("missing D6 JSON finding: %s", out)
+	}
+}
+
 func runDoctorCLI(t *testing.T, rootDir string, args ...string) (string, error) {
 	t.Helper()
 	var out, errOut bytes.Buffer

@@ -17,9 +17,10 @@ import (
 const DoctorReportSchemaVersion = 1
 
 type DoctorOptions struct {
-	DryRun bool
-	Fix    bool
-	Checks []string
+	DryRun          bool
+	Fix             bool
+	Checks          []string
+	ReleaseMetadata string
 }
 
 type DoctorReport struct {
@@ -45,6 +46,7 @@ type DoctorFinding struct {
 	Code        string `json:"code"`
 	Severity    string `json:"severity"`
 	Feature     string `json:"feature,omitempty"`
+	Tag         string `json:"tag,omitempty"`
 	Path        string `json:"path,omitempty"`
 	Line        int    `json:"line,omitempty"`
 	Field       string `json:"field,omitempty"`
@@ -172,6 +174,9 @@ func WriteDoctorHuman(w io.Writer, report DoctorReport) {
 		if f.Feature != "" {
 			fmt.Fprintf(w, "  feature=%s", f.Feature)
 		}
+		if f.Tag != "" {
+			fmt.Fprintf(w, "  tag=%s", f.Tag)
+		}
 		if f.Path != "" {
 			fmt.Fprintf(w, "  path=%s", f.Path)
 		}
@@ -225,6 +230,7 @@ func doctorRegistry() []doctorCheck {
 		{id: "D3", run: runDoctorD3},
 		{id: "D4", run: runDoctorD4},
 		{id: "D5", run: runDoctorD5},
+		{id: "D6", run: runDoctorD6},
 		{id: "D7", run: runDoctorD7},
 		{id: "D8", run: runDoctorD8},
 	}
@@ -336,7 +342,7 @@ func sortDoctorReport(report *DoctorReport) {
 }
 
 func doctorFindingSortKey(f DoctorFinding) string {
-	return strings.Join([]string{f.CheckID, f.Feature, f.Path, fmt.Sprintf("%09d", f.Line), f.Code, f.Message}, "\x00")
+	return strings.Join([]string{f.CheckID, f.Feature, f.Tag, f.Path, fmt.Sprintf("%09d", f.Line), f.Code, f.Message}, "\x00")
 }
 
 func relOrAbs(root, path string) string {
