@@ -5,7 +5,7 @@
 - **Task ID**: `doctor-wave-delta-d6-plus-f1`
 - **Milestone**: `tpatch doctor` implementation — Wave δ (D6 release drift + Wave γ F1 fold-in). FINAL wave of the 4-wave cluster.
 - **Description**: Ship D6 (CHANGELOG entry ↔ tag ↔ GitHub Release drift detection; needs `--release-metadata <file>` local input plumbing per PRD §4) + close Wave γ F1 (undisclosed behavior change to shipped `tpatch reconcile review list` surface — add test, CHANGELOG bullet, handoff correction). Wave δ closes §6.14-§6.17 for D6 plus the three F1 deliverables. After Wave δ APPROVED, the doctor implementation cluster is complete and v0.11.2 is ready to ship.
-- **Status**: Awaiting implementer dispatch.
+- **Status**: Review.
 - **Assigned**: 2026-07-28.
 
 ## Doctor implementation cluster wave plan
@@ -168,10 +168,67 @@ Doctor Wave γ closed 2026-07-28 (three-way APPROVED WITH NOTES; F1 caught by us
 
 Wave δ closes the 4-wave doctor implementation cluster. After Wave δ APPROVED, v0.11.2 (unreleased) is ready to ship.
 
+
+## Wave δ closure summary
+
+Wave δ implementation is complete and ready for review. D6 now runs as a registered doctor check with local-only release drift detection: local release tags missing CHANGELOG headings, CHANGELOG release headings missing local tags, GitHub Release presence from a caller-provided local `--release-metadata` JSON snapshot, and explicit `unknown` GH Release warnings when no snapshot is provided. D6 remediation strings reference verified `RELEASING.md` Step 1 / Step 2 / Step 3 headings, and the implementation does not call the GitHub API or prompt for auth.
+
+Files changed for Wave δ: `internal/workflow/doctor.go`, `internal/workflow/doctor_d6.go`, `internal/workflow/doctor_d6_test.go`, `internal/cli/doctor.go`, `internal/cli/doctor_test.go`, all six shipped skill/prompt/workflow asset formats, and `CHANGELOG.md`. The doctor-local `--release-metadata <file>` flag is scoped to the `doctor` subcommand; root persistent flags such as `--path` remain inherited.
+
+Validation after implementation commit `a3cfe29`:
+- `gofmt -l .` — clean
+- `go test ./...` — PASS
+- `go build ./cmd/tpatch` — PASS
+- Targeted pre-commit coverage also passed: `go test ./internal/workflow ./internal/cli ./assets -run 'TestDoctorD6|TestDoctorCLI|TestReconcileReviewListReportsNonNewline|TestSkillParityGuard' -count=1`
+
+## F1 fold-in closure
+
+F1-1 is closed by `TestReconcileReviewListReportsNonNewlineTerminatedFinalRevision` in `internal/cli/reconcile_evidence_cli_test.go`. The test creates a `reconcile-revisions.jsonl` whose final valid object lacks a trailing newline, runs `tpatch reconcile review list --json <slug>`, asserts non-zero exit, asserts exactly one `corrupt_entries` row at line 2 with `error="final object is not newline-terminated"`, and verifies the preceding valid revision remains in the `revisions` array.
+
+F1-2 is closed by the new `CHANGELOG.md` `### Wave δ` subsection documenting the `tpatch reconcile review list` behavior change and its ADR-025 D11 rationale.
+
+F1-3 uses Option B from the handoff: the Wave γ HISTORY snapshot is left untouched for history integrity, and this Wave δ closure summary records the correction. Rationale: the archived Wave γ snapshot remains a verbatim historical artifact while the next HISTORY archive will naturally preserve this superseding correction.
+
+## Rule 19 application
+
+Exporter/caller trace run before writing F1-1 and re-run at closure:
+- `LoadReconcileRevisionsLenient` callers:
+  - `internal/cli/cobra.go:2157` — shipped `tpatch reconcile review list` surface; F1 is the only shipped-surface behavior change and is now tested + documented.
+  - `internal/workflow/doctor_d5.go:80` — doctor D5 read-only malformed revision reporting.
+  - `internal/store/reconcile_revision_test.go:54` — store unit test.
+- `LoadReconcileEvidenceLenient` callers:
+  - `internal/workflow/doctor_d5.go:37` — doctor D5 read-only malformed evidence reporting.
+
+Wave δ did not modify exported store loaders. The only shipped-surface behavior change carried from Wave γ is the already-implemented `tpatch reconcile review list` non-newline-terminated final-line behavior; Wave δ adds no additional loader behavior changes.
+
+## Files Changed
+
+- `internal/workflow/doctor.go`
+- `internal/workflow/doctor_d6.go`
+- `internal/workflow/doctor_d6_test.go`
+- `internal/cli/doctor.go`
+- `internal/cli/doctor_test.go`
+- `internal/cli/reconcile_evidence_cli_test.go`
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/windsurf/windsurfrules`
+- `assets/workflows/tessera-patch-generic.md`
+- `CHANGELOG.md`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+- `gofmt -l .` — clean
+- `go test ./...` — PASS
+- `go build ./cmd/tpatch` — PASS
+- `git log -1 --format='%(trailers)' a3cfe29` — `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
 ## Next Steps
 
-1. Supervisor: dispatch Wave δ implementer.
-2. After Wave δ three-way APPROVED: consider promoting candidate rule 19 (loader-caller-tracing) to binding.
+1. Supervisor: dispatch Wave δ reviewers.
+2. Reviewers: verify D6, F1 closure, Rule 19 trace, skill parity, and full gates.
 3. After Wave δ three-way APPROVED: archive to HISTORY, close doctor cluster, decide on v0.11.2 release timing.
 
 ## Blockers
