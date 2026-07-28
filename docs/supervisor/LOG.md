@@ -1,3 +1,77 @@
+## Review — tpatch doctor Wave δ rev-1 (F2 close, final gate to v0.11.2) — internal — 2026-07-28
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of rev-1 (`8c108de..0107928`) closing F2 (MEDIUM) from Wave δ rev-0. First application of Rule 20 (candidate) empirical user-workspace reproduction.
+
+### Verdict: APPROVED
+
+### F2 deliverable verification
+- F2-1 gating (Option chosen: **A — auto-detect via `## vX.Y.Z —` em-dash signature**): `isTpatchStyleReleaseContext` at `internal/workflow/doctor_d6.go:211-222` guards both drift loops (lines 91-123). Regex `doctorTpatchChangelogReleaseRe = ^## v[0-9]+\.[0-9]+\.[0-9]+ —` at line 26 requires the tpatch em-dash signature. Missing CHANGELOG downgraded to `warning` at lines 73-76 with early-continue via empty map (line 89).
+- F2-2 remediation self-containment: `grep RELEASING.md internal/workflow/doctor_d6.go` = **0 hits**. Remediation strings at lines 224-234 are fully inline (add section / `git tag -a` / `gh release create`). ADR-020 inline-minimal principle honored.
+- F2-3 test coverage: three new tests present and asserting correctly.
+  - `TestDoctorD6SkipsUpstreamNonTpatchContext` (line 57) asserts NO `release-tag-missing-changelog` / `release-changelog-missing-tag` findings in upstream context.
+  - `TestDoctorD6MissingChangelogIsWarning` (line 75) asserts severity `warning`.
+  - `TestDoctorD6RemediationHasNoRepoDocRefs` (line 88) iterates **all** findings (`for _, f := range report.Findings`, line 100) — durable anti-drift substring guard.
+
+### Rule 20 candidate (INDEPENDENT empirical reproduction)
+- Scenario 1 (upstream repo, non-tpatch CHANGELOG, tags v1.0.0+v1.2.0): actual output — 0 drift findings, 2 `release-gh-release-unknown` warnings. **Matches expected AFTER.**
+- Scenario 2 (repo with no CHANGELOG, tag v1.0.0): actual output — `release-changelog-unreadable` severity=**warning**, 1 `release-gh-release-unknown` warning, 0 errors, exit 0. **Matches expected AFTER.**
+- Adversarial mixed scenario (v0.11.1 tpatch heading + `1.2.0 (2024-01-01)` upstream heading; tags v0.11.1, v0.11.1-rc1, v0.11.2, v1.2.0): tpatch-style correctly auto-detected; v0.11.1-rc1 correctly rejected by strict `^v[0-9]+\.[0-9]+\.[0-9]+$` regex; v0.11.2 correctly flagged as tag-missing-changelog; v1.2.0 flagged (non-`v`-prefixed heading not matched by `doctorChangelogReleaseRe`, which is intentional in tpatch-style context).
+
+### Rule 19 (binding) verification
+- `git diff 8c108de..0107928 --name-only -- internal/store/` = **empty**. Confirmed.
+
+### Regression (Waves α+β+γ+δ rev-0 preserved)
+- `go test ./...` — all packages PASS (workflow, cli, store, gitutil, provider, safety, assets, integration).
+- Registry intact: `internal/workflow/doctor.go:233` still `{id: "D6", run: runDoctorD6}`.
+- `internal/cli/doctor.go` untouched (not in diff).
+- F1-1 test file `internal/cli/reconcile_evidence_cli_test.go` untouched (not in diff); cli package tests still cached-pass.
+- Diff scope: only 4 files (CHANGELOG, CURRENT.md, doctor_d6.go, doctor_d6_test.go). No scope creep.
+
+### Hard-constraint sweep (17 + Rule 20)
+- [x] PRD §6.14-§6.17 preserved (drift semantics for tpatch-style unchanged; gate only skips non-tpatch upstream contexts).
+- [x] Safety defaults non-negotiable — no new opt-outs.
+- [x] No new `FeatureState` values.
+- [x] No new persisted schemas.
+- [x] ADR-025 D11 pattern preserved.
+- [x] Rule 12 privacy: no GH API; no auth prompts (line 131 message reiterates).
+- [x] Rule 15: remediation self-contained; no external doc references (grep=0).
+- [x] Rule 11: `--release-metadata` local scope preserved (still gated by `filepath.IsAbs`+`safety.EnsureSafeRepoPath`).
+- [x] Rule 17: no invented totality claims.
+- [x] Rule 16: F2-3 substring assertion is the parity guard.
+- [x] Rule 18: rev-1 commit trailer parses (`Co-authored-by: Copilot <...>`).
+- [x] CHANGELOG `### Wave δ` extended with F2 fix bullet (line 54).
+- [x] Assets/skills untouched (no diff) → parity preserved.
+- [x] Side Research md5 preserved — no file under `docs/state-of-the-art/` in diff.
+- [x] Co-authored-by trailer on rev-1 commit.
+- [x] Gates green.
+- [x] Wave-boundary: only F2-related changes.
+- [x] **Rule 19 (binding)**: no exported store loaders modified — confirmed empty diff on `internal/store/`.
+- [x] **Rule 20 (candidate)**: empirical reproduction independently confirmed for S1, S2, and mixed adversarial scenario.
+
+### Validation gates
+gofmt: clean (no output) | vet: clean | build: OK | test: OK (all packages pass)
+
+### Trailer verification (Rule 18)
+`git log -1 --format='%(trailers)' 0107928` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` — non-empty, structurally parses.
+
+### Anti-drift regression
+- No `--target`: [confirmed] (no target flag introduced in diff)
+- No `"version": 1` recipe: [confirmed] (no recipe schema changes)
+- No `ra_<12hex>` active refs: [confirmed]
+- No stale symbol refs: [confirmed] (all symbols in doctor_d6.go resolve; build clean)
+
+### v0.11.2 ship readiness
+**Ready.** F2 (MEDIUM) closed. F1 fold-in preserved. 29/29 §6 acceptance still MET. No lingering blockers. Wave δ rev-1 is the final gate — cleared.
+
+### Adversarial findings
+None. Boundary conditions (mixed headings, rc-suffixed tag, absent CHANGELOG) all behave correctly.
+
+### Action Taken
+LOG.md entry prepended and committed with Co-authored-by trailer. v0.11.2 cleared to ship on this rev.
+
+---
+
 ## Review — tpatch doctor Wave δ (D6 release drift + F1 fold-in, FINAL wave) — external (user-dispatched, parallel) — 2026-07-28
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
