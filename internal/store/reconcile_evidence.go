@@ -211,46 +211,85 @@ func AppendReconcileEvidence(s *Store, slug string, entry ReconcileEvidence) err
 
 func LoadReconcileEvidence(s *Store, slug string) ([]ReconcileEvidence, error) {
 	path := s.ReconcileEvidencePath(slug)
+	entries, corrupt, err := loadReconcileEvidenceFromPath(path, slug, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(corrupt) > 0 {
+		first := corrupt[0]
+		return nil, fmt.Errorf("%w: line %d: %s", ErrMalformedEvidence, first.Line, first.Error)
+	}
+	return entries, nil
+}
+
+func LoadReconcileEvidenceLenient(path string) (valid []ReconcileEvidence, corrupt []CorruptEntry, err error) {
+	slug := filepath.Base(filepath.Dir(filepath.Dir(path)))
+	return loadReconcileEvidenceFromPath(path, slug, true)
+}
+
+func loadReconcileEvidenceFromPath(path, slug string, lenient bool) ([]ReconcileEvidence, []CorruptEntry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return []ReconcileEvidence{}, nil
+			return []ReconcileEvidence{}, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	if len(data) == 0 {
-		return []ReconcileEvidence{}, nil
+		return []ReconcileEvidence{}, nil, nil
 	}
+	var corrupt []CorruptEntry
 	if data[len(data)-1] != '\n' {
-		return nil, fmt.Errorf("%w: line %d: final object is not newline-terminated", ErrMalformedEvidence, bytes.Count(data, []byte("\n"))+1)
+		corrupt = append(corrupt, CorruptEntry{Line: bytes.Count(data, []byte("\n")) + 1, Error: "final object is not newline-terminated"})
+		if !lenient {
+			return nil, corrupt, nil
+		}
 	}
-	lines := bytes.Split(bytes.TrimSuffix(data, []byte("\n")), []byte("\n"))
+	lines := bytes.Split(data, []byte("\n"))
+	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
+		lines = lines[:len(lines)-1]
+	}
 	entries := make([]ReconcileEvidence, 0, len(lines))
 	seen := map[string][]byte{}
 	for i, line := range lines {
 		lineNo := i + 1
 		if len(bytes.TrimSpace(line)) == 0 {
-			return nil, fmt.Errorf("%w: line %d: empty line", ErrMalformedEvidence, lineNo)
+			corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: "empty line"})
+			if !lenient {
+				break
+			}
+			continue
 		}
 		entry, err := decodeReconcileEvidenceLine(line)
 		if err != nil {
-			return nil, fmt.Errorf("%w: line %d: %v", ErrMalformedEvidence, lineNo, err)
+			corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: err.Error()})
+			if !lenient {
+				break
+			}
+			continue
 		}
 		entry = normalizeReconcileEvidence(entry)
 		if err := validateReconcileEvidence(slug, entry); err != nil {
-			return nil, fmt.Errorf("%w: line %d: %w", ErrMalformedEvidence, lineNo, err)
+			corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: err.Error()})
+			if !lenient {
+				break
+			}
+			continue
 		}
 		canon, _ := marshalReconcileEvidenceLine(entry)
 		if prev, ok := seen[entry.AttemptID]; ok {
 			if !bytes.Equal(prev, canon) {
-				return nil, fmt.Errorf("%w: line %d: duplicate attempt_id %q has differing payload", ErrMalformedEvidence, lineNo, entry.AttemptID)
+				corrupt = append(corrupt, CorruptEntry{Line: lineNo, Error: fmt.Sprintf("duplicate attempt_id %q has differing payload", entry.AttemptID)})
+				if !lenient {
+					break
+				}
 			}
 			continue
 		}
 		seen[entry.AttemptID] = canon
 		entries = append(entries, entry)
 	}
-	return entries, nil
+	return entries, corrupt, nil
 }
 
 func normalizeReconcileEvidence(entry ReconcileEvidence) ReconcileEvidence {

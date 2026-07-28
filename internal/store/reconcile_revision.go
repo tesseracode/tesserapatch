@@ -181,8 +181,11 @@ func loadReconcileRevisionsFromPath(path, slug string, lenient bool) ([]Reconcil
 	if len(data) == 0 {
 		return []ReconcileRevision{}, nil, nil
 	}
-	if !lenient && data[len(data)-1] != '\n' {
-		return nil, []CorruptEntry{{Line: bytes.Count(data, []byte("\n")) + 1, Error: "final object is not newline-terminated"}}, nil
+	if data[len(data)-1] != '\n' {
+		corrupt := []CorruptEntry{{Line: bytes.Count(data, []byte("\n")) + 1, Error: "final object is not newline-terminated"}}
+		if !lenient {
+			return nil, corrupt, nil
+		}
 	}
 	lines := bytes.Split(data, []byte("\n"))
 	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
@@ -190,6 +193,9 @@ func loadReconcileRevisionsFromPath(path, slug string, lenient bool) ([]Reconcil
 	}
 	entries := make([]ReconcileRevision, 0, len(lines))
 	var corrupt []CorruptEntry
+	if data[len(data)-1] != '\n' {
+		corrupt = append(corrupt, CorruptEntry{Line: bytes.Count(data, []byte("\n")) + 1, Error: "final object is not newline-terminated"})
+	}
 	seen := map[string][]byte{}
 	for i, line := range lines {
 		lineNo := i + 1

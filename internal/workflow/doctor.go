@@ -223,6 +223,8 @@ func doctorRegistry() []doctorCheck {
 		{id: "D1", run: runDoctorD1},
 		{id: "D2", run: runDoctorD2},
 		{id: "D3", run: runDoctorD3},
+		{id: "D4", run: runDoctorD4},
+		{id: "D5", run: runDoctorD5},
 		{id: "D7", run: runDoctorD7},
 		{id: "D8", run: runDoctorD8},
 	}

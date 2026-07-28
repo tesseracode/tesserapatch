@@ -69,7 +69,7 @@ func TestDoctorCLIDryRunDefaultNoBackupsAndIdempotentFixNoop(t *testing.T) {
 	if err == nil || asExitCodeError(err).ExitCode() != 1 {
 		t.Fatalf("doctor dry-run exit = %v, stdout=%s", err, out)
 	}
-	if !strings.Contains(out, "summary: 1 drift findings, 0 warnings, 0 fixed, 0 errors") {
+	if !strings.Contains(out, "summary: 1 drift findings, 1 warnings, 0 fixed, 0 errors") {
 		t.Fatalf("missing summary counts: %s", out)
 	}
 	if backups := findOrigBackups(t, rootDir); len(backups) != 0 {
@@ -194,6 +194,42 @@ func TestDoctorCLID3FixRefusalExitCode2(t *testing.T) {
 	}
 	if !strings.Contains(out, "skill-asset-unrecognized") || !strings.Contains(out, "summary: 0 drift findings, 0 warnings, 0 fixed, 1 errors") {
 		t.Fatalf("missing refusal output: %s", out)
+	}
+}
+
+func TestDoctorCLID4D5EndToEnd(t *testing.T) {
+	rootDir := t.TempDir()
+	s, err := store.Init(rootDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.UpstreamLockPath(), []byte("remote: origin\nbranch: main\ncommit: abc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runDoctorCLI(t, rootDir, "doctor", "--check", "D4")
+	if err == nil || asExitCodeError(err).ExitCode() != 1 {
+		t.Fatalf("D4 dry-run exit = %v stdout=%s", err, out)
+	}
+	if !strings.Contains(out, "D4 lock-malformed-sha") {
+		t.Fatalf("missing D4 malformed lock output: %s", out)
+	}
+
+	st, err := s.AddFeature(store.AddFeatureInput{Title: "Needs Evidence", Slug: "needs-evidence"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.State = store.StateApplied
+	st.Reconcile.AttemptedAt = "2026-07-28T00:00:00Z"
+	st.Reconcile.Outcome = store.ReconcileReapplied
+	if err := s.SaveFeatureStatus(st); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runDoctorCLI(t, rootDir, "doctor", "--check", "D5")
+	if err == nil || asExitCodeError(err).ExitCode() != 1 {
+		t.Fatalf("D5 dry-run exit = %v stdout=%s", err, out)
+	}
+	if !strings.Contains(out, "D5 reconcile-evidence-missing") || !strings.Contains(out, "run tpatch reconcile needs-evidence") {
+		t.Fatalf("missing D5 evidence output/remediation: %s", out)
 	}
 }
 
