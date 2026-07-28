@@ -1,3 +1,70 @@
+## Review — tpatch doctor Wave γ (D4 locks + D5 evidence) — internal — 2026-07-28
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Wave γ (`b799902..f6f3e64`) closing D4 + D5 (§6.10-§6.13).
+
+### Verdict: APPROVED
+
+### Per-§6 verification
+- §6.10 (D4 detection): MET — malformed (`doctor_d4.go:119`), unknown field (`:130`), wrong scalar type (`:138`), malformed SHA (`:201`), legacy old-format (`:159`), stale local ref (`:308`), unreachable local commit (`:312`, `:322-326`); zero remote git calls (only `rev-parse`, `cat-file -e`, `for-each-ref`, `merge-base --is-ancestor`, all local-only).
+- §6.11 (D4 --fix normalization + refusals): MET — `fixDoctorD4Canonical` writes only the canonical form derived from on-disk `remote/branch/commit/url`; refuses when any of remote/branch/commit missing (`:198`, `:252`, `:256`); refuses on malformed SHA (`:255`); `.orig` backup + collision-refuse via `prepareDoctorD4Backup` (`:277-294`); refusal tested at `doctor_d4_test.go:98-125` including "does not rewrite refused lock" + "no backup created on refusal".
+- §6.12 (D5 detection): MET — modern-reconcile heuristic at `doctor_d5.go:120-133` reads `status.Reconcile.AttemptedAt/Outcome/…`; drift severity when modern, pre-ADR-025 warning grace when only state-based signal (`:16-24`).
+- §6.13 (D5 malformed JSONL): MET — uses `LoadReconcileEvidenceLenient` / `LoadReconcileRevisionsLenient` (production loaders), reports `Line: entry.Line` (1-indexed from `lineNo := i + 1` in `reconcile_evidence.go:229` and `reconcile_revision.go:201`); continuation past malformed verified by `TestDoctorD5MalformedJSONLLineNumbersAndContinuation` (asserts line=2 + no leakage of good-line content).
+
+### Safety-critical adversarial checks
+- No remote git calls in Wave γ code: confirmed. Grep of full diff shows the only `fetch|ls-remote|remote update` hit is the negative-assertion test at `doctor_d4_test.go:129`. All prod git invocations (`doctor_d4.go:308,312,316,322`) are read-only local ref/object operations.
+- D4 --fix cannot advance commit: confirmed. `canonicalDoctorUpstreamLock` reads `lock.Commit` from parsed on-disk value; the only mutation to `parsed.lock` is `Branch = TrimPrefix(Branch, Remote+"/")` at `doctor_d4.go:161`. `fixDoctorD4Canonical` short-circuits at `:255` if commit fails the 40-hex regex. Test `TestDoctorD4FixRefusesCommitAdvanceOrBranchGuess` confirms refusal preserves original bytes.
+- D4 --fix cannot guess branch: confirmed. Same test proves missing-branch case is refused with severity=error, no backup, no rewrite. Legacy old-format normalization only strips a REDUNDANT `<remote>/` prefix that is already present on disk — no external branch source consulted.
+- D5 no full-content logging: confirmed. `DoctorFinding.Message` only contains `Line` number + error string from the loader (which is decoder error text, not entry payload). Test explicitly asserts `!strings.Contains(f.Message, good1) && !strings.Contains(f.Message, good2)` at `doctor_d5_test.go:84`.
+
+### Wave-boundary check
+- D6 not implemented: confirmed. `doctorRegistry()` at `doctor.go:221-231` lists D1/D2/D3/D4/D5/D7/D8 (no D6). Full diff contains no `--release-metadata`, `gh release`, CHANGELOG scan, or GH API references (single mention of `--release-metadata` in handoff CURRENT.md is the Wave δ forward-plan note).
+
+### Regression (Waves α + β approvals preserved)
+- Wave α §6.1-§6.7 + §6.20-§6.29: all still MET; no changes to D1/D2/D8, backup helpers `BackupPathForOverwrite` / `EnsureDoctorBackup` intact and reused.
+- Wave β §6.8, §6.9, §6.18, §6.19: all still MET; D3/D7 files untouched. `TestDoctorCLID3FixRefusalExitCode2` and `TestDoctorCLICheckIDsAreCaseSensitive` present and pass in cached test run.
+- No `--target`, no `"version": 1` schema, no `ra_<12hex>` refs, no `stubRecipeOpTargetsResolve` refs (grep clean).
+
+### Hard-constraint sweep (15)
+- [x] No new `FeatureState` values (diff clean of `store.State*` additions).
+- [x] No new persisted schemas (only lenient loader added; JSONL format unchanged).
+- [x] ADR-025 D11 pattern for D5 malformed JSONL (line-indexed, continues past corrupt).
+- [x] Rule 12 privacy: no remote git; no full content logging.
+- [x] Rule 15: D5 remediation `run tpatch reconcile <slug>` matches `cobra.go:1768` (`Use: "reconcile [slug...]"`).
+- [x] Rule 11: no new persistent flags (only D4/D5 added to `--check` whitelist string).
+- [x] Rule 17: D4 wording notes "current required lock file" (acknowledges scope).
+- [x] Rule 16: reuses `store.LoadUpstreamLock`, `LoadReconcileEvidenceLenient`, `LoadReconcileRevisionsLenient`.
+- [x] Rule 18 structural trailer verification (see below).
+- [x] CHANGELOG `## v0.11.2 (unreleased)` single header, extended with `### Wave γ` subsection.
+- [x] Assets/skills parity guard PASS (`go test ./assets/...` ok).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified).
+- [x] Co-authored-by trailer on both commits (structural AND textual).
+- [x] Gates green.
+- [x] Wave-boundary: D6 NOT implemented.
+
+### Validation gates
+gofmt: clean | vet: clean | build: ok | test: all packages ok
+
+### Trailer verification (Rule 18)
+- `git log -1 --format='%(trailers)' cffeabd` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+- `git log -1 --format='%(trailers)' f6f3e64` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Anti-drift regression
+- No --target: confirmed
+- No "version": 1 recipe: confirmed
+- No ra_<12hex> active refs: confirmed
+- No stubRecipeOpTargetsResolve refs: confirmed
+
+### Adversarial findings
+None. Two minor style observations examined and dismissed as non-issues:
+1. `reconcile_revision.go:184-198` declares `corrupt` twice (once inside the newline-check `if` block for the non-lenient short-circuit, once at outer scope for the lenient accumulation). Verified this compiles (the inner `corrupt` is used inside the `if !lenient { return }` branch) and produces correct behavior in both modes. Not a bug.
+2. `reconcile_evidence.go` lenient path with missing final newline can accept a valid last line AS an entry AND report line N as "final object not newline-terminated". This dual-status is intentional (the format complaint is about the file, the entry itself parses); doctor reports both as separate findings, no data loss.
+
+### Action Taken
+Reviewed diff `b799902..f6f3e64`, ran full validation gates locally, verified trailers structurally on both commits and rule-15 remediation string against `internal/cli/cobra.go`, verified side-research md5. Verdict: APPROVED. Prepending this entry to LOG.md.
+
+---
+
 ## Review — tpatch doctor Wave β (D3 skill assets + D7 recipe schema) — external (user-dispatched, parallel) — 2026-07-28
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
