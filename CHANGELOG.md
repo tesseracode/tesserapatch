@@ -47,11 +47,14 @@ All notable changes to tpatch are recorded here.
 - Added D6 release drift detection for local git tags missing CHANGELOG entries,
   CHANGELOG release headings missing local tags, GitHub Release presence from a
   local `--release-metadata` snapshot, and explicit unknown GH Release status
-  when no snapshot is provided. D6 is read-only and follows `RELEASING.md`
-  Step 1 / Step 2 / Step 3 remediation guidance without GitHub API calls or
-  auth prompts.
+  when no snapshot is provided. D6 is read-only and provides inline remediation
+  guidance without GitHub API calls or auth prompts.
 - Added the doctor-local `--release-metadata <file>` flag and documented it
   across all six shipped skill/prompt/workflow formats.
+- **F2 fix** — D6 now gates tag-vs-CHANGELOG drift to tpatch-style release
+  contexts (`## vX.Y.Z — ...`) while preserving GH Release `unknown` warnings,
+  downgrades missing `CHANGELOG.md` to warning severity, and removes runtime
+  remediation references to repo-local docs not installed in user workspaces.
 - **Behavior change** — `tpatch reconcile review list` now reports a
   non-newline-terminated final line as a `corrupt_entries` row (exits
   non-zero) instead of silently accepting it (exit zero). Aligns the lenient

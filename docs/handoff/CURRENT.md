@@ -5,7 +5,7 @@
 - **Task ID**: `doctor-wave-delta-rev1-f2-close`
 - **Milestone**: `tpatch doctor` implementation — Wave δ rev-1 (D6 F2 close). FINAL rev on the FINAL wave of the 4-wave cluster.
 - **Description**: Rev-1 fix-pass over Wave δ rev-0 (`8b7e969..faf8db1`). Internal + supervisor-external APPROVED (29/29 §6 confirmed); user-external APPROVED WITH NOTES with F2 MEDIUM caught (D6 user-workspace false-positive drift + `RELEASING.md`-in-runtime-output docs-reference defect, ADR-020 class). F2 must be closed before v0.11.2 ships. Three deliverables: F2-1 gate D6 tag-vs-CHANGELOG comparison to tpatch-authored release context; F2-2 self-contain D6 remediation strings per ADR-020 inline-minimal principle; F2-3 test coverage replicating user-workspace scenarios.
-- **Status**: In Progress (rev-1).
+- **Status**: Review (rev-1).
 - **Assigned**: 2026-07-28.
 
 ## Rev-1 findings (binding scope)
@@ -106,11 +106,75 @@ Do not dispatch reviewers — supervisor handles that.
 
 Doctor Wave δ rev-0 APPROVED WITH NOTES (three-way). Full-cluster acceptance sweep 29/29 §6 MET. F1 fold-in exemplary. F2 caught by user-external via empirical user-workspace reproduction. Rev-1 close scope: three deliverables (F2-1 gating + F2-2 remediation self-containment + F2-3 tests). Rule 19 promoted to binding after successful Wave δ rev-0 first application. Rule 20 candidate proposed for post-rev-1 promotion.
 
+
+## Wave δ rev-1 closure summary
+
+F2-1 is closed with Option A (pattern-gated auto-detect). D6 now only runs tag-vs-CHANGELOG drift comparison when `CHANGELOG.md` contains a tpatch-style heading matching `^## v\d+\.\d+\.\d+ —`; the per-tag drift comparison is also gated to `^v\d+\.\d+\.\d+$`. Rationale: it preserves zero-config behavior for tpatch-authored release contexts while avoiding false-positive drift in upstream workspaces with conventional changelogs. Missing `CHANGELOG.md` is warning severity and GH Release `unknown` warnings remain warning-only.
+
+F2-2 is closed in `internal/workflow/doctor_d6.go`: `doctorD6MissingChangelogRemediation`, `doctorD6MissingTagRemediation`, and `doctorD6MissingGHReleaseRemediation` inline actionable commands/text instead of pointing to repo-local `RELEASING.md`; missing-CHANGELOG remediation is likewise self-contained. `grep -n "RELEASING.md" internal/workflow/doctor_d6.go` returns zero hits.
+
+F2-3 is closed by:
+- `TestDoctorD6SkipsUpstreamNonTpatchContext`: conventional upstream `## 1.2.0 (2024-01-01)` changelog plus `v1.0.0`/`v1.2.0` tags produces no tag-vs-CHANGELOG drift.
+- `TestDoctorD6MissingChangelogIsWarning`: absent `CHANGELOG.md` yields `release-changelog-unreadable` at warning severity.
+- `TestDoctorD6RemediationHasNoRepoDocRefs`: all D6 remediations in a drift fixture contain no `RELEASING.md`.
+
+## Rule 20 first application
+
+Empirical repro used repo-local scratch paths because this environment forbids `/tmp` writes. Equivalent commands built `.doctor-f2-verify/tpatch_verify`, initialized non-tpatch nested git workspaces, ran `tpatch init`, then `tpatch doctor --check D6`.
+
+BEFORE output:
+```text
+WARNING  D6 release-gh-release-unknown  tag=v1.0.0
+       GitHub Release status for v1.0.0 is unknown because no --release-metadata local snapshot was provided; doctor does not contact the GitHub API or prompt for auth
+       remediation: provide a local release snapshot from: gh release list --json tagName,url,publishedAt
+DRIFT  D6 release-tag-missing-changelog  tag=v1.0.0  path=CHANGELOG.md
+       local release tag v1.0.0 has no matching CHANGELOG.md release heading
+       remediation: follow RELEASING.md Step 1 — Write the CHANGELOG.md entry
+WARNING  D6 release-gh-release-unknown  tag=v1.2.0
+       GitHub Release status for v1.2.0 is unknown because no --release-metadata local snapshot was provided; doctor does not contact the GitHub API or prompt for auth
+       remediation: provide a local release snapshot from: gh release list --json tagName,url,publishedAt
+DRIFT  D6 release-tag-missing-changelog  tag=v1.2.0  path=CHANGELOG.md
+       local release tag v1.2.0 has no matching CHANGELOG.md release heading
+       remediation: follow RELEASING.md Step 1 — Write the CHANGELOG.md entry
+summary: 2 drift findings, 2 warnings, 0 fixed, 0 errors
+error: doctor found 2 drift findings, 2 warnings, 0 errors
+ERROR  D6 release-changelog-unreadable  path=CHANGELOG.md
+       cannot read CHANGELOG.md release headings: open .../.doctor-f2-verify/f2_scenario2/CHANGELOG.md: no such file or directory
+       remediation: follow RELEASING.md Step 1 — Write the CHANGELOG.md entry
+summary: 0 drift findings, 0 warnings, 0 fixed, 1 errors
+error: doctor found 0 drift findings, 0 warnings, 1 errors
+RELEASING.md NOT installed (F2 point 3 confirmed)
+```
+
+AFTER output:
+```text
+WARNING  D6 release-gh-release-unknown  tag=v1.0.0
+       GitHub Release status for v1.0.0 is unknown because no --release-metadata local snapshot was provided; doctor does not contact the GitHub API or prompt for auth
+       remediation: provide a local release snapshot from: gh release list --json tagName,url,publishedAt
+WARNING  D6 release-gh-release-unknown  tag=v1.2.0
+       GitHub Release status for v1.2.0 is unknown because no --release-metadata local snapshot was provided; doctor does not contact the GitHub API or prompt for auth
+       remediation: provide a local release snapshot from: gh release list --json tagName,url,publishedAt
+summary: 0 drift findings, 2 warnings, 0 fixed, 0 errors
+WARNING  D6 release-changelog-unreadable  path=CHANGELOG.md
+       cannot read CHANGELOG.md release headings: open .../.doctor-f2-verify/f2_scenario2/CHANGELOG.md: no such file or directory
+       remediation: Create CHANGELOG.md with release sections like "## vX.Y.Z — YYYY-MM-DD — <scope>".
+WARNING  D6 release-gh-release-unknown  tag=v1.0.0
+       GitHub Release status for v1.0.0 is unknown because no --release-metadata local snapshot was provided; doctor does not contact the GitHub API or prompt for auth
+       remediation: provide a local release snapshot from: gh release list --json tagName,url,publishedAt
+summary: 0 drift findings, 2 warnings, 0 fixed, 0 errors
+RELEASING.md NOT installed (F2 point 3 confirmed)
+```
+
+## Rule 19 verification
+
+Rev-1 modified no exported store loaders and no files under `internal/store/`. Verification: `git --no-pager diff --name-only HEAD -- internal/store` produced no output.
+
 ## Next Steps
 
-1. Supervisor: dispatch rev-1 implementer with above scope.
-2. After rev-1 three-way APPROVED: archive Wave δ (rev-0 + rev-1) to HISTORY.md; close doctor implementation cluster; ship v0.11.2 following `RELEASING.md`.
-3. Consider promoting rule 20 to binding based on rev-1 review feedback.
+1. Supervisor: dispatch Wave δ rev-1 reviewers.
+2. Reviewers: verify F2-1/F2-2/F2-3, Rule 20 empirical before/after output, Rule 19 no-store-loader trace, trailers, and gates.
+3. After rev-1 three-way APPROVED: archive Wave δ (rev-0 + rev-1) to HISTORY.md; close doctor implementation cluster; ship v0.11.2 following release procedure.
+4. Consider promoting rule 20 to binding based on rev-1 review feedback.
 
 ## Blockers
 
@@ -288,7 +352,7 @@ Wave δ closes the 4-wave doctor implementation cluster. After Wave δ APPROVED,
 
 ## Wave δ closure summary
 
-Wave δ implementation is complete and ready for review. D6 now runs as a registered doctor check with local-only release drift detection: local release tags missing CHANGELOG headings, CHANGELOG release headings missing local tags, GitHub Release presence from a caller-provided local `--release-metadata` JSON snapshot, and explicit `unknown` GH Release warnings when no snapshot is provided. D6 remediation strings reference verified `RELEASING.md` Step 1 / Step 2 / Step 3 headings, and the implementation does not call the GitHub API or prompt for auth.
+Wave δ rev-0 implemented D6 as a registered doctor check with local-only release drift detection: local release tags missing CHANGELOG headings, CHANGELOG release headings missing local tags, GitHub Release presence from a caller-provided local `--release-metadata` JSON snapshot, and explicit `unknown` GH Release warnings when no snapshot is provided. Wave δ rev-1 supersedes the original D6 remediation wording: runtime remediation is now self-contained (no `RELEASING.md` references), and tag-vs-CHANGELOG drift is gated to tpatch-style release contexts to avoid upstream-workspace false positives. D6 still does not call the GitHub API or prompt for auth.
 
 Files changed for Wave δ: `internal/workflow/doctor.go`, `internal/workflow/doctor_d6.go`, `internal/workflow/doctor_d6_test.go`, `internal/cli/doctor.go`, `internal/cli/doctor_test.go`, all six shipped skill/prompt/workflow asset formats, and `CHANGELOG.md`. The doctor-local `--release-metadata <file>` flag is scoped to the `doctor` subcommand; root persistent flags such as `--path` remain inherited.
 
@@ -340,7 +404,12 @@ Wave δ did not modify exported store loaders. The only shipped-surface behavior
 - `gofmt -l .` — clean
 - `go test ./...` — PASS
 - `go build ./cmd/tpatch` — PASS
+- `go vet ./...` — PASS (rev-1)
+- `go build ./cmd/tpatch` — PASS (rev-1)
+- `go test ./...` — PASS (rev-1)
+- `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` — `b385fe622db9926f48861105239f113e`
 - `git log -1 --format='%(trailers)' a3cfe29` — `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+- Rev-1 trailer verification pending commit.
 
 ## Next Steps
 
@@ -354,11 +423,11 @@ None.
 
 ## Context for Next Agent
 
-- HEAD at Wave δ kickoff: `a1c1864` + review LOGs. Verify latest via `git log --oneline -n 5`.
+- HEAD at rev-1 kickoff: `8c108de`; rev-1 implementation commit pending/present above this handoff update. Verify latest via `git log --oneline -n 5`.
 - Doctor waves α+β+γ are unreleased; Wave δ still ships under `v0.11.2 (unreleased)`.
-- 18 carry-forward rules binding. Rule 19 candidate proposed (loader-caller-tracing) — first application in Wave δ.
-- F1 fold-in has three deliverables (test + CHANGELOG bullet + handoff correction) — all binding for Wave δ closure.
-- Two-opinion protocol scoreboard: 14/14 cycles at final concurrence; user-external uniquely blocked/caught in 6 of 14 at rev-0. Continues to be the primary defense.
+- 19 binding rules plus Rule 20 candidate apply; rev-1 verified no `internal/store/` loader diffs.
+- F1 fold-in remains preserved; F2 rev-1 close adds D6 gating, self-contained remediations, and user-workspace regression tests.
+- Two-opinion protocol scoreboard: 14/14 cycles at final concurrence; user-external uniquely blocked/caught in 7 of 14 at rev-0 after F2.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

@@ -3,6 +3,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
@@ -50,6 +51,56 @@ func TestDoctorD6ReportsGHReleaseUnknownWithoutMetadata(t *testing.T) {
 	}
 	if report.Summary.Warnings != 1 || report.Summary.Findings != 0 {
 		t.Fatalf("unexpected summary for unknown metadata: %#v", report.Summary)
+	}
+}
+
+func TestDoctorD6SkipsUpstreamNonTpatchContext(t *testing.T) {
+	root, s := doctorD6Fixture(t, "v1.0.0", "v1.2.0")
+	writeDoctorD6Changelog(t, root, "## 1.2.0 (2024-01-01)\n\n- upstream feature\n")
+
+	report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D6"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range report.Findings {
+		if f.Code == "release-tag-missing-changelog" || f.Code == "release-changelog-missing-tag" {
+			t.Fatalf("unexpected tag/CHANGELOG drift in non-tpatch context: %#v", report.Findings)
+		}
+	}
+	if report.Summary.Findings != 0 {
+		t.Fatalf("non-tpatch context produced drift findings: %#v", report.Summary)
+	}
+}
+
+func TestDoctorD6MissingChangelogIsWarning(t *testing.T) {
+	_, s := doctorD6Fixture(t, "v1.0.0")
+
+	report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D6"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := assertDoctorD6Finding(t, report, "release-changelog-unreadable", "")
+	if f.Severity != "warning" {
+		t.Fatalf("missing CHANGELOG severity = %q, want warning", f.Severity)
+	}
+}
+
+func TestDoctorD6RemediationHasNoRepoDocRefs(t *testing.T) {
+	root, s := doctorD6Fixture(t, "v1.0.0", "v1.1.0")
+	writeDoctorD6Changelog(t, root, "## v1.0.0 — 2026-07-28 — One\n\n- One.\n\n## v1.2.0 — 2026-07-28 — Two\n\n- Two.\n")
+	writeDoctorD6ReleaseMetadata(t, root, `{"releases":[{"tag":"v1.0.0","url":"https://example.invalid/v1.0.0","published_at":"2026-07-28T00:00:00Z"}]}`)
+
+	report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D6"}, ReleaseMetadata: "release-metadata.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Findings) == 0 {
+		t.Fatal("expected D6 findings for remediation guard")
+	}
+	for _, f := range report.Findings {
+		if strings.Contains(f.Remediation, "RELEASING.md") {
+			t.Fatalf("remediation references repo doc: %#v", f)
+		}
 	}
 }
 

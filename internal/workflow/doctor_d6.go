@@ -3,6 +3,7 @@ package workflow
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,16 +16,14 @@ import (
 )
 
 const (
-	doctorD6ChangelogPath      = "CHANGELOG.md"
-	doctorD6ChangelogRemediate = "follow RELEASING.md Step 1 — Write the CHANGELOG.md entry"
-	doctorD6TagRemediate       = "follow RELEASING.md Step 2 — Tag the release commit"
-	doctorD6GHReleaseRemediate = "follow RELEASING.md Step 3 — Publish the GitHub Release"
-	doctorD6MetadataRemediate  = "provide a local release snapshot from: gh release list --json tagName,url,publishedAt"
+	doctorD6ChangelogPath     = "CHANGELOG.md"
+	doctorD6MetadataRemediate = "provide a local release snapshot from: gh release list --json tagName,url,publishedAt"
 )
 
 var (
-	doctorReleaseTagRe       = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
-	doctorChangelogReleaseRe = regexp.MustCompile(`^## (v[0-9]+\.[0-9]+\.[0-9]+)(?:\s|$)`)
+	doctorReleaseTagRe             = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
+	doctorChangelogReleaseRe       = regexp.MustCompile(`^## (v[0-9]+\.[0-9]+\.[0-9]+)(?:\s|$)`)
+	doctorTpatchChangelogReleaseRe = regexp.MustCompile(`^## v[0-9]+\.[0-9]+\.[0-9]+ —`)
 )
 
 type doctorReleaseSnapshot struct {
@@ -71,43 +70,55 @@ func runDoctorD6(ctx *doctorContext) {
 	changelogPath := filepath.Join(ctx.root, doctorD6ChangelogPath)
 	changelogReleases, err := doctorD6ChangelogReleases(changelogPath)
 	if err != nil {
+		severity := "error"
+		if errors.Is(err, os.ErrNotExist) {
+			severity = "warning"
+		}
 		ctx.addFinding(DoctorFinding{
 			CheckID:     "D6",
 			Code:        "release-changelog-unreadable",
-			Severity:    "error",
+			Severity:    severity,
 			Path:        doctorD6ChangelogPath,
 			Message:     fmt.Sprintf("cannot read CHANGELOG.md release headings: %v", err),
 			Fixable:     false,
-			Remediation: doctorD6ChangelogRemediate,
+			Remediation: "Create CHANGELOG.md with release sections like \"## vX.Y.Z — YYYY-MM-DD — <scope>\".",
 		})
-		return
-	}
-	for _, tag := range sortedKeys(tags) {
-		if !changelogReleases[tag] {
-			ctx.addFinding(DoctorFinding{
-				CheckID:     "D6",
-				Code:        "release-tag-missing-changelog",
-				Severity:    "drift",
-				Tag:         tag,
-				Path:        doctorD6ChangelogPath,
-				Message:     fmt.Sprintf("local release tag %s has no matching CHANGELOG.md release heading", tag),
-				Fixable:     false,
-				Remediation: doctorD6ChangelogRemediate,
-			})
+		if severity == "error" {
+			return
 		}
+		changelogReleases = map[string]bool{}
 	}
-	for _, tag := range sortedKeys(changelogReleases) {
-		if !tags[tag] {
-			ctx.addFinding(DoctorFinding{
-				CheckID:     "D6",
-				Code:        "release-changelog-missing-tag",
-				Severity:    "drift",
-				Tag:         tag,
-				Path:        doctorD6ChangelogPath,
-				Message:     fmt.Sprintf("CHANGELOG.md release heading %s has no matching local git tag", tag),
-				Fixable:     false,
-				Remediation: doctorD6TagRemediate,
-			})
+	if isTpatchStyleReleaseContext(ctx.root) {
+		for _, tag := range sortedKeys(tags) {
+			if !doctorReleaseTagRe.MatchString(tag) {
+				continue
+			}
+			if !changelogReleases[tag] {
+				ctx.addFinding(DoctorFinding{
+					CheckID:     "D6",
+					Code:        "release-tag-missing-changelog",
+					Severity:    "drift",
+					Tag:         tag,
+					Path:        doctorD6ChangelogPath,
+					Message:     fmt.Sprintf("local release tag %s has no matching CHANGELOG.md release heading", tag),
+					Fixable:     false,
+					Remediation: doctorD6MissingChangelogRemediation(tag),
+				})
+			}
+		}
+		for _, tag := range sortedKeys(changelogReleases) {
+			if !tags[tag] {
+				ctx.addFinding(DoctorFinding{
+					CheckID:     "D6",
+					Code:        "release-changelog-missing-tag",
+					Severity:    "drift",
+					Tag:         tag,
+					Path:        doctorD6ChangelogPath,
+					Message:     fmt.Sprintf("CHANGELOG.md release heading %s has no matching local git tag", tag),
+					Fixable:     false,
+					Remediation: doctorD6MissingTagRemediation(tag),
+				})
+			}
 		}
 	}
 	if strings.TrimSpace(ctx.options.ReleaseMetadata) == "" {
@@ -129,6 +140,9 @@ func runDoctorD6(ctx *doctorContext) {
 		return
 	}
 	for _, tag := range sortedKeys(tags) {
+		if !doctorReleaseTagRe.MatchString(tag) {
+			continue
+		}
 		if !snapshot.Tags[tag] {
 			ctx.addFinding(DoctorFinding{
 				CheckID:     "D6",
@@ -138,7 +152,7 @@ func runDoctorD6(ctx *doctorContext) {
 				Path:        relOrAbs(ctx.root, metadataPath),
 				Message:     fmt.Sprintf("local release tag %s is absent from the provided --release-metadata snapshot", tag),
 				Fixable:     false,
-				Remediation: doctorD6GHReleaseRemediate,
+				Remediation: doctorD6MissingGHReleaseRemediation(tag),
 			})
 		}
 	}
@@ -152,7 +166,7 @@ func runDoctorD6(ctx *doctorContext) {
 				Path:        relOrAbs(ctx.root, metadataPath),
 				Message:     fmt.Sprintf("--release-metadata snapshot contains %s but no matching local git tag exists", tag),
 				Fixable:     false,
-				Remediation: doctorD6TagRemediate,
+				Remediation: doctorD6MissingTagRemediation(tag),
 			})
 		}
 	}
@@ -168,7 +182,7 @@ func doctorD6LocalReleaseTags(root string) (map[string]bool, error) {
 	tags := map[string]bool{}
 	for _, line := range strings.Split(string(out), "\n") {
 		tag := strings.TrimSpace(line)
-		if doctorReleaseTagRe.MatchString(tag) {
+		if tag != "" {
 			tags[tag] = true
 		}
 	}
@@ -180,6 +194,7 @@ func doctorD6ChangelogReleases(path string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	releases := map[string]bool{}
 	for _, line := range strings.Split(string(data), "\n") {
 		if !strings.HasPrefix(line, "## ") || strings.Contains(line, "(unreleased)") {
@@ -191,6 +206,31 @@ func doctorD6ChangelogReleases(path string) (map[string]bool, error) {
 		}
 	}
 	return releases, nil
+}
+
+func isTpatchStyleReleaseContext(root string) bool {
+	data, err := os.ReadFile(filepath.Join(root, doctorD6ChangelogPath))
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if doctorTpatchChangelogReleaseRe.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
+
+func doctorD6MissingChangelogRemediation(tag string) string {
+	return fmt.Sprintf("Add a section \"## %s — YYYY-MM-DD — <scope>\" to your CHANGELOG.md.", tag)
+}
+
+func doctorD6MissingTagRemediation(tag string) string {
+	return fmt.Sprintf("Create annotated tag: git tag -a %s -m \"%s — <scope>\".", tag, tag)
+}
+
+func doctorD6MissingGHReleaseRemediation(tag string) string {
+	return fmt.Sprintf("Publish via: gh release create %s --notes-file <extracted-notes> --verify-tag.", tag)
 }
 
 func doctorD6LoadReleaseSnapshot(ctx *doctorContext) (doctorReleaseSnapshot, string, bool) {
