@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.11.2 (unreleased) — tpatch doctor Waves α/β
+## v0.11.2 (unreleased) — tpatch doctor Waves α/β/γ
 
 ### Wave α
 
@@ -29,6 +29,18 @@ All notable changes to tpatch are recorded here.
   decoder shared with the asset parity guard.
 - Made `--check` IDs case-sensitive and covered D3 `--fix` success/refusal exit
   semantics, including exit code 2 for partial fix failure.
+
+### Wave γ
+
+- Added D4 `upstream.lock` diagnostics for malformed fields, unknown fields,
+  wrong scalar types, malformed SHAs, legacy branch format, stale local refs,
+  and unreachable local commits without remote git state reads.
+- Added D4 `--fix` normalization limited to equivalent lock formatting:
+  canonical key order, quoting, line endings, and legacy `branch:
+  <remote>/<branch>` separation with `.orig` backups and idempotent reruns.
+- Added D5 reconcile evidence/revision artifact checks for missing modern
+  evidence, pre-ADR-025 warning grace, and malformed JSONL line reporting via
+  lenient loaders that preserve valid entries around corrupt lines.
 
 ## v0.11.1 — 2026-07-23 — Stabilization
 

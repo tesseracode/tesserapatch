@@ -5,7 +5,7 @@
 - **Task ID**: `doctor-wave-gamma-d4-d5`
 - **Milestone**: `tpatch doctor` implementation — Wave γ (D4 locks + D5 evidence). Third wave of the 4-wave cluster.
 - **Description**: Extend the doctor scaffold (Wave α at `a3b9fe3`) + D3/D7 checks (Wave β at `daf2e6f`) with two persisted-artifact detection classes: D4 (old or malformed `upstream.lock` / related lock formats — read-only + safe format normalization if applicable) and D5 (missing `reconcile-evidence.jsonl` for applied/reconciled features + malformed JSONL line reporting). Wave γ closes §6.10-§6.13.
-- **Status**: Awaiting implementer dispatch.
+- **Status**: Review.
 - **Assigned**: 2026-07-28.
 
 ## Doctor implementation cluster wave plan
@@ -120,11 +120,45 @@ Do not dispatch reviewers — supervisor handles that.
 
 ## Session Summary
 
-Doctor Wave β closed 2026-07-28 (three-way APPROVED, zero adversarial findings). First wave with fixers validated end-to-end. Rule 18 self-applied by all reviewers. Wave γ kickoff ready.
+Doctor Wave γ implementation landed at `cffeabd` and is ready for reviewer dispatch. D4 and D5 are registered in `tpatch doctor`, covered by workflow/CLI tests, and validated with full gates.
+
+### Wave γ closure summary
+
+- **§6.10 D4 detection**: MET at `internal/workflow/doctor_d4.go:30`, `:170`, `:306`. D4 reuses production `store.LoadUpstreamLock` before strict doctor diagnostics, reports missing/empty/malformed/unknown/wrong-type/malformed-SHA/old-format/stale-ref/unreachable-commit findings, and uses only local git commands (`rev-parse`, `cat-file`, `for-each-ref`, `merge-base`) with no `fetch`, `ls-remote`, or remote update.
+- **§6.11 D4 safe fix**: MET at `internal/workflow/doctor_d4.go:250`, `:296`. Normalization semantics chosen: canonical key order, double-quoted scalar values, LF endings, deterministic doctor comment, and legacy `branch: "<remote>/<branch>"` rewritten to `branch: "<branch>"` only when `remote`, `branch`, and `commit` are all unambiguous. `--fix` refuses missing commit/branch, malformed SHA, unknown fields, wrong types, and malformed lines rather than advancing commits or guessing branches.
+- **§6.12 D5 missing evidence**: MET at `internal/workflow/doctor_d5.go:12`, `:120`. Modern reconcile heuristic: `status.json` in an applied/active/reconciling/reconciling-shadow/blocked/upstream_merged state plus any reconcile signal (`attempted_at`, `outcome`, upstream fields, review verdict, patch-id match, or resolver fields) requires `artifacts/reconcile-evidence.jsonl`; same states with no reconcile signal get a WARN grace as likely pre-ADR-025.
+- **§6.13 D5 malformed JSONL**: MET at `internal/workflow/doctor_d5.go:37`, `:80`, backed by `internal/store/reconcile_evidence.go:225` and existing `internal/store/reconcile_revision.go:168` lenient loaders. D5 reports filename + 1-indexed line for evidence and revision corrupt entries and continues across later lines/features without logging full evidence content.
+- **Rule 15**: verified `internal/cli/cobra.go` exposes `Use: "reconcile [slug...]"`; D5 remediation uses `run tpatch reconcile <slug>`.
+- **Rule 11 / flags**: no new persistent or local doctor flags; `internal/cli/doctor.go` only updates help/check ID text.
+- **Rule 18**: `git log -1 --format='%(trailers)' cffeabd` returned `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+
+## Current State
+
+D4/D5 implementation is complete and awaiting review. `tpatch doctor` now runs D1/D2/D3/D4/D5/D7/D8 by default. Fresh `tpatch init` workspaces may report a D4 warning for scaffolded empty `upstream.lock`, while populated locks are checked against local-only git state.
+
+## Files Changed
+
+- `internal/workflow/doctor_d4.go`
+- `internal/workflow/doctor_d4_test.go`
+- `internal/workflow/doctor_d5.go`
+- `internal/workflow/doctor_d5_test.go`
+- `internal/workflow/doctor.go`
+- `internal/cli/doctor.go`
+- `internal/cli/doctor_test.go`
+- `internal/store/reconcile_evidence.go`
+- `internal/store/reconcile_revision.go`
+- `CHANGELOG.md`
+- `docs/handoff/CURRENT.md`
+
+## Test Results
+
+- Rule 15 trigger-name grep: `grep -n 'reconcile' internal/cli/cobra.go | head -20` showed `Use: "reconcile [slug...]"`.
+- Side Research md5 before docs edit: `b385fe622db9926f48861105239f113e`.
+- After code commit `cffeabd`: `gofmt -l .` clean; `go vet ./...` clean; `go build ./cmd/tpatch` OK; `go test ./...` PASS.
 
 ## Next Steps
 
-1. Supervisor: dispatch Wave γ implementer.
+1. Supervisor: dispatch Wave γ reviewers.
 2. After Wave γ three-way APPROVED: archive to HISTORY, move to Wave δ (D6 release drift, requires `--release-metadata` plumbing).
 
 ## Blockers
