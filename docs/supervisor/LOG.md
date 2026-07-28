@@ -1,3 +1,90 @@
+## Review — tpatch doctor Wave δ (D6 release drift + F1 fold-in, FINAL wave) — internal — 2026-07-28
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Wave δ (`8b7e969..9680051`) closing D6 (§6.14-§6.17) + F1 fold-in from Wave γ. Also: full-cluster acceptance sweep §6.1-§6.29.
+
+### Verdict: APPROVED
+
+### Per-§6 verification (Wave δ scope)
+- §6.14 (D6 tag missing CHANGELOG): MET — `internal/workflow/doctor_d6.go:85-98` emits `release-tag-missing-changelog` drift; covered by `TestDoctorD6ReportsTagChangelogAndGHReleaseDrift` (`internal/workflow/doctor_d6_test.go:34`).
+- §6.15 (D6 CHANGELOG missing tag): MET — `internal/workflow/doctor_d6.go:99-112` emits `release-changelog-missing-tag`; covered by same test (`:35`).
+- §6.16 (D6 --release-metadata): MET — `internal/workflow/doctor_d6.go:127-158` loads snapshot and emits `release-missing-gh-release`; covered by `:36` and CLI end-to-end `TestDoctorCLID6ReleaseMetadataEndToEndAndFlagScope` (`internal/cli/doctor_test.go:236`).
+- §6.17 (D6 status unknown): MET — `internal/workflow/doctor_d6.go:113-126` emits `release-gh-release-unknown` severity `warning` when no snapshot provided; no GH API/auth in code. `TestDoctorD6ReportsGHReleaseUnknownWithoutMetadata` asserts warning summary.
+
+### F1 fold-in verification
+- F1-1 (test): MET — `TestReconcileReviewListReportsNonNewlineTerminatedFinalRevision` (`internal/cli/reconcile_evidence_cli_test.go:187`) seeds a two-revision JSONL, strips trailing newline, asserts non-zero exit (`if err == nil`), asserts exactly one `corrupt_entries` row at line 2, and asserts preceding valid revision is preserved. Reproduced empirically via `go test ./internal/cli -run TestReconcileReviewListReportsNonNewline -count=1` PASS.
+- F1-2 (CHANGELOG bullet): MET — `CHANGELOG.md:53-60` under existing `## v0.11.2 (unreleased)` / `### Wave δ`, accurately describes the shipped-surface behavior change and correctly attributes to commit `cffeabd` (verified `git log --oneline cffeabd -1` = "feat(doctor): add D4 D5 artifact checks", the Wave γ commit that introduced the lenient loader).
+- F1-3 (handoff correction, Option B): MET — implementer chose Option B; correction is documented in the "F1 fold-in closure" subsection of `docs/handoff/CURRENT.md:184-190`; Wave γ HISTORY snapshot left untouched (history-integrity rationale documented).
+
+### Full-cluster acceptance sweep (§6.1-§6.29 across all 4 waves)
+- Wave α scaffold + D1 + D2 + D8 (§6.1-§6.7 + §6.20-§6.29): MET (regression preserved; sort key extended with `Tag` field without breaking prior ordering).
+- Wave β D3 + D7 (§6.8, §6.9, §6.18, §6.19): MET (`TestSkillParityGuard` + D7 tests pass; skill assets updated with `--release-metadata` in all 6 formats).
+- Wave γ D4 + D5 (§6.10-§6.13): MET (D5 lenient-loader callers unchanged; F1 shipped-surface behavior now tested + documented).
+- Wave δ D6 (§6.14-§6.17): MET (see per-criterion above).
+- Total: 29/29 MET.
+
+### Rule 19 first application (loader-caller-tracing)
+- Loaders traced: `LoadReconcileRevisionsLenient`, `LoadReconcileEvidenceLenient`.
+- Callers independently grep-verified:
+  - `internal/cli/cobra.go:2157` (shipped `tpatch reconcile review list`)
+  - `internal/workflow/doctor_d5.go:80` (revisions), `:37` (evidence) — read-only D5
+  - `internal/store/reconcile_revision_test.go:54` (store unit test)
+- Matches implementer's claim in handoff closure verbatim.
+- No additional shipped-surface behavior changes: confirmed (Wave δ adds no new caller and does not modify either loader's body).
+
+### Safety-critical adversarial
+- No GH API calls in D6: confirmed. `grep -n "go-github|api.github.com|net/http|http.Client|http.Get|http.Post" internal/workflow/doctor_d6.go internal/cli/doctor.go` returns empty. D6 uses only `os.ReadFile`, `exec.Command("git", "tag", "-l")`, and `encoding/json` on caller-provided local snapshot.
+- No auth prompts: confirmed. No `oauth`, `token`, `stdin` prompt code paths in D6.
+- `--release-metadata` local input only: confirmed. Loader is `os.ReadFile` gated by `safety.EnsureSafeRepoPath`.
+
+### Wave-boundary check
+- No scope creep beyond D6 + F1: confirmed. Diff touches only D6-scoped files, doctor dispatcher plumbing, CLI flag, the F1 test file, CHANGELOG, handoff, and the 6 shipped skill/prompt/workflow formats for flag documentation.
+
+### Regression (Waves α + β + γ preserved)
+- Full `go test ./...` PASS; targeted `TestDoctor|TestReconcileReviewListReports|TestSkillParityGuard` re-run with `-count=1` PASS.
+- `--dry-run` default preserved (`internal/cli/doctor.go:59`).
+- `--check` case sensitivity preserved (no change to `ValidateDoctorCheckIDs`).
+- D3/D4 refusal exit-code tests still pass (in full suite run).
+
+### Hard-constraint sweep (16)
+- [x] No new `FeatureState` values.
+- [x] No new persisted schemas outside doctor JSON output (D6 output uses existing `DoctorFinding` extended with omitempty `Tag`).
+- [x] ADR-025 D11 alignment: doctor D6 malformed metadata reports line via existing `lineForJSONErrorBytes`, matching D11 convention.
+- [x] Rule 12 privacy: NO GH API calls; NO auth prompts (verified above).
+- [x] Rule 15: `RELEASING.md` "Step 1 — Write the CHANGELOG.md entry", "Step 2 — Tag the release commit", "Step 3 — Publish the GitHub Release" all exist (lines 35/78/91). `gh release list --json tagName,url,publishedAt` is a `gh` CLI command (not a tpatch command) so Rule 15 tpatch-command check is n/a.
+- [x] Rule 11: `--release-metadata` local to doctor subcommand. Explicitly asserted by `TestDoctorCLID6ReleaseMetadataEndToEndAndFlagScope` which checks `root.PersistentFlags().Lookup("release-metadata") == nil` and `doctor.Flags().Lookup("release-metadata") != nil`.
+- [x] Rule 17: no totality claims; unknown-status finding message explicitly names the local-snapshot precondition.
+- [x] Rule 16: file shape parity — decoder accepts both `gh release list --json tagName,url,publishedAt` array and `{"releases":[...]}` wrapper (with `tag`/`tagName` aliases and both `publishedAt`/`published_at`). `TestDoctorD6ParsesGHReleaseListJSONShape` covers the primary shape.
+- [x] Rule 18: BOTH commits carry `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer parsable via `git log -1 --format='%(trailers)'`.
+- [x] CHANGELOG `## v0.11.2 (unreleased)` header extended with `### Wave δ` subsection; no duplicate header (single match at `CHANGELOG.md:5`, single `### Wave δ` at `:45`).
+- [x] Assets/skills 6 formats updated (Claude SKILL.md, Copilot SKILL.md + prompt, Cursor .mdc, Windsurf, generic workflow); `TestSkillParityGuard` PASS.
+- [x] Side Research md5 = `b385fe622db9926f48861105239f113e` — verified.
+- [x] Co-authored-by trailer on both commits.
+- [x] Gates green (see below).
+- [x] Wave-boundary respected.
+- [x] Rule 19 first application: implementer traced exported loaders and documented in "Rule 19 application" subsection (`CURRENT.md:192-201`); independently verified.
+
+### Validation gates
+gofmt: clean | vet: clean | build: PASS | test: PASS (`go test ./...` all packages OK; re-run with `-count=1` for D6/F1/skill-parity targets PASS).
+
+### Trailer verification (Rule 18)
+`git log -1 --format='%(trailers)' a3cfe29` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+`git log -1 --format='%(trailers)' 9680051` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Anti-drift regression
+- No new `--target` symbol references in Wave δ diff: confirmed.
+- No new `"version": 1` recipe schema strings in Wave δ diff: confirmed.
+- No `ra_<12hex>` active refs in Wave δ diff: confirmed.
+- No stale symbol refs (`stubRecipeOpTargetsResolve` etc.) in Wave δ diff: confirmed.
+
+### Adversarial findings
+None. Wave δ shipped D6 with tight Rule 12/15/17 compliance, closed F1 with a test that empirically reproduces the shipped-surface behavior change, documented it in CHANGELOG under the existing unreleased header, and applied Rule 19 verifiably. The 4-wave doctor cluster (§6.1-§6.29, all 29 criteria) is complete.
+
+### Action Taken
+Verdict APPROVED (internal). Doctor implementation cluster complete pending external Wave δ opinion and supervisor decision. LOG entry committed.
+
+---
+
 ## Review — tpatch doctor Wave γ (D4 locks + D5 evidence) — external (user-dispatched, parallel) — 2026-07-28
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
