@@ -5,8 +5,50 @@
 - **Task ID**: `v0.12.0-wave-alpha-supersession-implementation`
 - **Milestone**: v0.12.0 Wave α — implement `PRD-feature-supersession` + `ADR-028-supersession-edge-model`.
 - **Description**: First wave of the v0.12.0 3-wave implementation cluster (supervisor picked Option A 2026-07-29). Implements the third-kind `depends_on[].kind: "supersedes"` edge on the ADR-011 dependency graph, 4 new composable labels, and reconcile suppression of superseded features. Extends (does NOT fork) the ADR-011 D1 storage lane.
-- **Status**: Dispatched — implementer in flight.
+- **Status**: Rev-1 dispatched — 4 findings fold-in (2 HIGH, 2 MEDIUM).
 - **Assigned**: 2026-07-29.
+
+## Rev-1 fold-in (from Wave α rev-0 dual review)
+
+Wave α rev-0 landed at `480f90a` (Slices 1–5 + handoff). Internal review APPROVED WITH NOTES at `0aa6b81`; supervisor-external NEEDS REVISION at `4dc6c5d`. Four findings must land before rev-1 acceptance:
+
+**F-SEXT-1 (HIGH) — missing `<slug>` suffix on `superseded-by` label**.
+PRD §4.1:154-159 + §4.3:178 + ADR-028 D4:58 all lock the render format `superseded-by <slug>`. Current code emits bare `superseded-by` in both text (`internal/cli/status_dag.go:398-400`) and JSON (`internal/cli/status_dag.go:494-497`). The docstring at `internal/store/types.go:157` even acknowledges the render layer is supposed to add the slug — the code just doesn't.
+**Fix**: extend `DeriveSupersessionLabels` (or the render sites) to emit `superseded-by <slug>` where `<slug>` is the active superseder slug. When multiple healthy superseders exist AFTER F-SEXT-3 rejection lands, this becomes moot (validation refuses). During the transition, pick the first healthy superseder deterministically (sorted slug) to keep tests stable.
+**Test**: add regression test emitting text + JSON status for a superseded feature and asserting the slug is present.
+
+**F-SEXT-2 (HIGH) — label render order alphabetical, not PRD-locked severity order**.
+PRD §4.3:184-188 + ADR-028 D4:63-67 lock the order `[stale-superseder] [orphan-superseder] [superseded-by <slug>] [active-superseder]`. Current code (`internal/workflow/labels.go:546`) sorts alphabetically, producing `active-superseder, orphan-superseder, stale-superseder` (inverted for two of four positions).
+**Fix**: replace the alphabetical sort with an explicit severity-ordered emit. Suggest a small ordered slice of the 4 labels (stale, orphan, superseded-by, active) and emit in that order when present. Preserve alphabetical sort for OTHER label families if they exist — only supersession labels need the fixed order.
+**Test**: regression test asserting exact label order in text output.
+
+**F-SEXT-3 / Internal F2 (MEDIUM) — multi-active-superseder not detected (AC-4 / ADR-028 D5)**.
+`isFeatureSupersededIn` (`internal/workflow/labels.go:419-436`) returns first-healthy-wins; `composeSupersessionLabels` set-dedupes to a single `superseded-by`; validation has no fan-in scan. Two healthy superseders + one target currently produces zero errors/warnings/conflict labels. PRD AC-4 + ADR-028 D5 require REJECTION at write-time.
+**Fix**: add a write-time validation pass that scans `depends_on[]` fan-in for each feature — if more than one healthy (non-stale, non-orphan) superseder points at the same target, `Save`/`Accept` MUST reject with an actionable error naming both superseders. This is a validation-layer rejection, not a label-composition change.
+**Test**: regression test constructing two healthy superseders → one target and asserting `Accept` (or the write path) errors with the AC-4/D5 message.
+
+**Internal F1 (MEDIUM) — stale-superseder docs↔runtime contradiction**.
+`composeSupersessionLabels` docstring (`internal/workflow/labels.go:456-458`) + PRD §4.5.3 both claim "stale → historical stays excluded". But `isFeatureSupersededIn` returns `false` for stale, so `RunReconcile` default-set filter + V7 `runClosureReplay` supersession-skip both KEEP the historical target IN the effective set. Two tests currently LOCK the contradictory runtime: `TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale` + `TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent`.
+**Decision — runtime flip, not paper reconciliation**. PRD §4.5.3 is `Accepted`; the ADR-028 lock chain is a stronger contract than the current runtime, and the docstring already agrees with the PRD. Flip runtime: for stale superseders, treat historical target as EXCLUDED from default-set replay (matching docstring + PRD). Update the two locking tests to assert the new (correct) behavior. Add a positive regression test for the flipped semantics.
+**Rule 19 note**: `RunReconcile` and V7 are shipped exported surface — cite PRD §4.5.3 + ADR-028 D-clause in the commit.
+
+## Rev-1 slice plan
+
+1. **Slice R1 — F-SEXT-1 slug suffix** (labels + status render + regression test). Smallest, most contained.
+2. **Slice R2 — F-SEXT-2 severity order** (labels emit + regression test).
+3. **Slice R3 — F-SEXT-3 multi-active-superseder rejection** (validation-layer + regression test). Adds new error path — ensure error message is actionable per ADR-020 inline-remediation style.
+4. **Slice R4 — Internal F1 runtime flip** (labels + reconcile + verify V7; UPDATE two existing locking tests; ADD positive regression test).
+5. **Slice R5 — CHANGELOG amendment + handoff update**. Amend `## v0.12.0 — TBD` entry to reflect rev-1 corrections. Cite ADR-011 D1–D4 non-invalidation preserved (no fork).
+
+## Rev-1 validation gates
+
+Same as rev-0 (gofmt, vet, build, full test suite). PLUS:
+
+- After Slice R3, expect the two rev-0 locking tests for stale supersession to be UPDATED (not deleted). They must assert the corrected behavior.
+- After Slice R4, expect at least 2 new regression tests for stale-supersession positive path.
+- Full test count MUST be >= rev-0 count + 4-6 (F-SEXT-1 + F-SEXT-2 + F-SEXT-3 + 2 stale positive).
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+- Rule 18 trailer on every commit (structural parse via `git interpret-trailers`).
 
 ## Wave α scope (locked)
 
