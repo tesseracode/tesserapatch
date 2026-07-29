@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -295,9 +296,17 @@ func IsFreshnessLabel(l store.ReconcileLabel) bool {
 // IsSupersessionLabel reports whether l is one of the four v0.12.0
 // Wave α supersession overlay labels (ADR-028 D4). Mirror of
 // IsFreshnessLabel — provided for symmetric strip / render logic.
+//
+// v0.12.0 rev-1 (F-SEXT-1): the `superseded-by` label is rendered as
+// the composite `superseded-by <slug>` per PRD-feature-supersession §4.1
+// binding label-value contract. The prefix check recognizes the
+// composite so persistence strip and read-time diagnostics stay sound
+// regardless of which superseder slug is appended.
 func IsSupersessionLabel(l store.ReconcileLabel) bool {
-	_, ok := supersessionLabelSet[l]
-	return ok
+	if _, ok := supersessionLabelSet[l]; ok {
+		return true
+	}
+	return strings.HasPrefix(string(l), string(store.LabelSupersededBy)+" ")
 }
 
 // StripFreshnessLabels returns a copy of `in` with every freshness
@@ -492,6 +501,15 @@ func composeSupersessionLabels(s *store.Store, child store.FeatureStatus, set ma
 	}
 
 	// Target side — reverse scan for peers that supersede child.
+	// v0.12.0 rev-1 (F-SEXT-1, PRD §4.1 binding label-value contract):
+	// the `superseded-by` label carries the healthy superseder slug as
+	// a composite `superseded-by <slug>` token. When multiple healthy
+	// superseders exist (a corruption path that Slice R3 rejects at
+	// write time), pick the first by sorted slug for determinism. The
+	// stale-path (unhealthy superseder) keeps emitting the bare
+	// `stale-superseder` label — no slug suffix, matches PRD §4.3.
+	var healthyPeers []string
+	stalePeerSeen := false
 	for _, peer := range all {
 		if peer.Slug == child.Slug {
 			continue
@@ -506,11 +524,18 @@ func composeSupersessionLabels(s *store.Store, child store.FeatureStatus, set ma
 			// peer supersedes child. Healthy vs stale determines
 			// which label lands on the target.
 			if supersederIsHealthy(peer) {
-				set[store.LabelSupersededBy] = struct{}{}
+				healthyPeers = append(healthyPeers, peer.Slug)
 			} else {
-				set[store.LabelStaleSuperseder] = struct{}{}
+				stalePeerSeen = true
 			}
 		}
+	}
+	if len(healthyPeers) > 0 {
+		sort.Strings(healthyPeers)
+		set[store.ReconcileLabel(string(store.LabelSupersededBy)+" "+healthyPeers[0])] = struct{}{}
+	}
+	if stalePeerSeen {
+		set[store.LabelStaleSuperseder] = struct{}{}
 	}
 }
 

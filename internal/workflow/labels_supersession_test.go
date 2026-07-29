@@ -24,6 +24,35 @@ func hasLabelInSlice(labels []store.ReconcileLabel, want store.ReconcileLabel) b
 	return false
 }
 
+// hasSupersededByFor returns true when labels contain the composite
+// `superseded-by <superseder>` token per PRD §4.1 binding contract
+// (v0.12.0 rev-1 F-SEXT-1).
+func hasSupersededByFor(labels []store.ReconcileLabel, superseder string) bool {
+	want := string(store.LabelSupersededBy) + " " + superseder
+	for _, l := range labels {
+		if string(l) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAnySupersededBy returns true when labels contain any
+// `superseded-by …` token (bare or composite).
+func hasAnySupersededBy(labels []store.ReconcileLabel) bool {
+	prefix := string(store.LabelSupersededBy)
+	for _, l := range labels {
+		s := string(l)
+		if s == prefix {
+			return true
+		}
+		if len(s) > len(prefix)+1 && s[:len(prefix)+1] == prefix+" " {
+			return true
+		}
+	}
+	return false
+}
+
 func labelSlice(t *testing.T, s *store.Store, slug string) []store.ReconcileLabel {
 	t.Helper()
 	got, err := ComposeLabels(s, slug)
@@ -61,11 +90,36 @@ func TestComposeLabels_ActiveSuperseder(t *testing.T) {
 	}
 
 	older := labelSlice(t, s, "older")
-	if !hasLabelInSlice(older, store.LabelSupersededBy) {
-		t.Fatalf("older must carry superseded-by, got %v", older)
+	if !hasSupersededByFor(older, "newer") {
+		t.Fatalf("older must carry composite `superseded-by newer` (PRD §4.1 / F-SEXT-1), got %v", older)
 	}
 	if hasLabelInSlice(older, store.LabelStaleSuperseder) {
 		t.Fatalf("newer is healthy — older must not carry stale-superseder, got %v", older)
+	}
+}
+
+// TestComposeLabels_SupersededByCarriesSlug — v0.12.0 rev-1 F-SEXT-1:
+// the `superseded-by` label must render as the composite
+// `superseded-by <slug>` per PRD-feature-supersession §4.1 binding
+// label-value contract + ADR-028 D4:58. The historical target of a
+// healthy superseder carries the composite token with the superseder's
+// slug appended, not the bare literal.
+func TestComposeLabels_SupersededByCarriesSlug(t *testing.T) {
+	s := planTestEnv(t, true)
+	addPlanFeature(t, s, "target", nil)
+	addPlanFeature(t, s, "replacer", []store.Dependency{
+		{Slug: "target", Kind: store.DependencyKindSupersedes},
+	})
+	setParentState(t, s, "target", store.StateApplied, "", "")
+	setParentState(t, s, "replacer", store.StateApplied, "", "")
+
+	got := labelSlice(t, s, "target")
+	want := store.ReconcileLabel("superseded-by replacer")
+	if !hasLabelInSlice(got, want) {
+		t.Fatalf("target must carry composite %q (F-SEXT-1), got %v", want, got)
+	}
+	if hasLabelInSlice(got, store.LabelSupersededBy) {
+		t.Fatalf("bare literal `superseded-by` must not be emitted alongside the composite; got %v", got)
 	}
 }
 
@@ -117,7 +171,7 @@ func TestComposeLabels_StaleSuperseder(t *testing.T) {
 	if !hasLabelInSlice(older, store.LabelStaleSuperseder) {
 		t.Fatalf("target of unhealthy superseder must carry stale-superseder, got %v", older)
 	}
-	if hasLabelInSlice(older, store.LabelSupersededBy) {
+	if hasAnySupersededBy(older) {
 		t.Fatalf("target of unhealthy superseder must not carry superseded-by, got %v", older)
 	}
 }
