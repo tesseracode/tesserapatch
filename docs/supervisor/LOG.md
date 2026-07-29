@@ -1,3 +1,69 @@
+## Review — Stream B PRD-pair (supersession + write-file safety, GH #1) — internal — 2026-07-29
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Stream B (`b58f560..40b2140`) — paper-only PRD-pair + ADR-028/029 closing GH #1.
+
+### Verdict: APPROVED
+
+### PRD 1 (supersession) cluster verification
+- Cluster 1 (edge model, Option A): locked at §3.1 with A/B/C options and rationale citing ADR-011 D1/D2/D3.
+- Cluster 2 (semantics): all six issue semantics addressed (preserve histories §2.1.1, exclude from replay §3.3, surface in status/next/reconcile/indexes §4.4, conflict/cycle/multi detection §3.4/§6.1-4, effective vs historical query §3.5).
+- Cluster 3 (labels): four labels defined §4.3 with locked severity-first rendering order; composes with ADR-011 D3 labels.
+- Cluster 4 (reconcile interaction): §4.5 explicitly locks "downgrade-to-warning for superseded historical drift"; cross-refs PRD 2.
+- Cluster 5 (non-scope): auto-detection §2.2.1, UI polish §2.2.2, reverse-supersedes §2.2.3, multi-replacement forbidden §2.2.4 — all deferred/decided.
+- Acceptance criteria: 12 — confirmed.
+
+### PRD 2 (write-file safety) cluster verification
+- Cluster 1 (preimage hash): §3.1 locks `preimage_hash: "sha256:<64 lowercase hex>"`; empty string = new-file precondition; ADR-029 D1/D2 mirror.
+- Cluster 2 (later-touch): §3.2/§4.2 warn at record/reconcile, verify escalates to failure for effective features.
+- Cluster 3 (PRD 1 interaction): §4.3 explicitly couples severity to supersession effective/historical set.
+- Cluster 4 (non-scope): §0.3 defers Safeguards 1/4/5 with per-safeguard rationale; §2.2 covers auto-regen and cross-feature proof.
+- Acceptance criteria: 13 — confirmed.
+
+### ADR-028 + ADR-029 verification
+- ADR-028: locked. D1-D8 cover edge kind, cycle detection, Kahn traversal, labels, single-superseder, history preservation, hard/soft invariance, historical drift severity.
+- ADR-029: locked. D1-D8 cover preimage schema, byte-exact hash input, all-or-nothing precheck, legacy warn, later-touch mandatory, record-warn/apply-refuse split, supersession severity, no source in diagnostics.
+- docs/adrs/README.md line-append only: confirmed (diff shows 2 lines added at end of chronological block, no existing entries reordered).
+
+### Cross-reference sweep
+- PRD 1 ↔ PRD 2: PRD 1 header Blocks + §4.5; PRD 2 header Blocks + §4.3. Bidirectional.
+- ADR-011 D1-D4 preserved: PRD 1 §0.3 quotes all four; ADR-028 D2/D3/D7 explicitly preserve.
+- ADR-024/025 content-addressed pattern: PRD 2 §3.1 justifies using raw `sha256:<hex>` (byte precondition, not record identity like `pg_<12hex>`). Consistent with the precedent's spirit and explicitly distinguished.
+- Retrospective cited by reference (PRD 1 §Related line 13, PRD 2 §Related line 13, ADR-028 §References, ADR-029 §References) — no bulk content copied.
+
+### Rule 8 + 15 grep
+- Schema field names locked: `depends_on`, `kind`, `supersedes`, `preimage_hash`, and label literals `superseded-by <slug>`, `active-superseder`, `stale-superseder`, `orphan-superseder`.
+- `tpatch` commands referenced: `status`, `next`, `record`, `reconcile`, `apply`, `verify`. All present in `./tpatch --help` output. Confirmed.
+
+### Hard-constraint sweep (14)
+- [x] Paper-only (diff: 5 new docs + 2-line README + CURRENT.md append; no code/asset/CHANGELOG change).
+- [x] All four documents Status = Proposed.
+- [x] ADR-011 D1-D4 preserved and quoted.
+- [x] PRD 1 ↔ PRD 2 cross-references present.
+- [x] Rules 8/15/17/18 satisfied.
+- [x] Side Research md5 == b385fe622db9926f48861105239f113e (verified).
+- [x] Co-authored-by trailer on both commits (structural %(trailers) parse non-empty).
+- [x] No CHANGELOG entry.
+- [x] No scope creep into Stream A file `docs/prds/PRD-active-feature-session.md`.
+- [x] Empirical retrospective cited by reference only.
+- [x] `docs/adrs/README.md` line-append only.
+- [x] Adversarial extras (cycle across mixed edges, cross-feature defer, backward-compat lock, DisallowUnknownFields flagged) all addressed.
+- [x] Both PRDs identify safeguard/decision split explicitly.
+- [x] Locked decisions in CURRENT.md closure summary match PRD/ADR text.
+
+### Validation gates
+gofmt: clean | vet: clean | build: passed | test: passed (all cached green).
+
+### Trailer verification (Rule 18)
+git log -1 --format='%(trailers)' 372ece6 = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+git log -1 --format='%(trailers)' 40b2140 = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+
+### Adversarial findings
+None. No genuine bugs, contradictions, drift, or Rule-8/15/17/18 violations found. PRD/ADR pair is internally consistent, preserves ADR-011, and correctly cross-references the second PRD/ADR for severity coupling.
+
+### Action Taken
+Approved for supervisor consolidation. No revisions requested.
+
 ## Review — v0.11.3 Stream C (verify V8 double-apply fix, GH #2) — external (user-dispatched, parallel) — 2026-07-29
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
