@@ -107,3 +107,97 @@ func TestStatusDag_SupersededByCarriesSlugJSON(t *testing.T) {
 		t.Fatalf("JSON payload missing composite `superseded-by new-replacer`; labels=%v", targetLabels)
 	}
 }
+
+// TestStatusDag_SupersessionLabelsSeverityOrder — v0.12.0 rev-1
+// F-SEXT-2 + PRD §4.3:184-188 + ADR-028 D4:63-67: within the
+// supersession label group, render order MUST be severity-first
+// `[stale-superseder] [orphan-superseder] [superseded-by <slug>] [active-superseder]`.
+//
+// Construct a `combo` node that carries all four labels simultaneously
+// and verify the text output preserves the locked positional order.
+// A single label group in this order is a sufficient regression guard
+// because both text and JSON render paths share the
+// DeriveSupersessionLabels ordering + appendLabelPreserveOrder path.
+func TestStatusDag_SupersessionLabelsSeverityOrder(t *testing.T) {
+	tmp, s := newDAGTestRepo(t)
+	runCmd("add", "--path", tmp, "--slug", "target-healthy", "target-healthy")
+	runCmd("add", "--path", tmp, "--slug", "combo", "combo")
+	runCmd("add", "--path", tmp, "--slug", "peer", "peer")
+
+	// target-healthy applied → active-superseder fires for combo.
+	th, _ := s.LoadFeatureStatus("target-healthy")
+	th.State = store.StateApplied
+	if err := s.SaveFeatureStatus(th); err != nil {
+		t.Fatal(err)
+	}
+	// combo: leave draft → its supersedes edges make it a superseder
+	// but it is not healthy → stale-superseder on itself. Wire two
+	// supersedes edges: one to target-healthy (active), one to a
+	// ghost slug (orphan).
+	combo, _ := s.LoadFeatureStatus("combo")
+	combo.DependsOn = []store.Dependency{
+		{Slug: "target-healthy", Kind: store.DependencyKindSupersedes},
+		{Slug: "ghost-target", Kind: store.DependencyKindSupersedes},
+	}
+	if err := s.SaveFeatureStatus(combo); err != nil {
+		t.Fatal(err)
+	}
+	// peer: healthy superseder of combo → superseded-by peer on combo.
+	peer, _ := s.LoadFeatureStatus("peer")
+	peer.State = store.StateApplied
+	peer.DependsOn = []store.Dependency{
+		{Slug: "combo", Kind: store.DependencyKindSupersedes},
+	}
+	if err := s.SaveFeatureStatus(peer); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, code := runCmd("status", "--dag", "--path", tmp)
+	if code != 0 {
+		t.Fatalf("exit %d, out=%q", code, out)
+	}
+	// Isolate the combo node's label parenthetical.
+	var comboLabels string
+	for _, line := range strings.Split(out, "\n") {
+		if !strings.Contains(line, "combo") {
+			continue
+		}
+		lp := strings.Index(line, "(")
+		rp := strings.LastIndex(line, ")")
+		if lp == -1 || rp == -1 || rp < lp {
+			continue
+		}
+		comboLabels = line[lp+1 : rp]
+		break
+	}
+	if comboLabels == "" {
+		t.Fatalf("could not locate combo label parenthetical in output:\n%s", out)
+	}
+	// Extract just the supersession labels while preserving output
+	// order (drop non-supersession labels like never-verified for the
+	// order comparison).
+	var supersession []string
+	for _, tok := range strings.Split(comboLabels, ", ") {
+		switch {
+		case tok == "stale-superseder",
+			tok == "orphan-superseder",
+			strings.HasPrefix(tok, "superseded-by "),
+			tok == "active-superseder":
+			supersession = append(supersession, tok)
+		}
+	}
+	want := []string{
+		"stale-superseder",
+		"orphan-superseder",
+		"superseded-by peer",
+		"active-superseder",
+	}
+	if len(supersession) != len(want) {
+		t.Fatalf("expected 4 supersession labels in output, got %v (combo=%q)", supersession, comboLabels)
+	}
+	for i, tok := range want {
+		if supersession[i] != tok {
+			t.Fatalf("severity-order violation at position %d (F-SEXT-2 / PRD §4.3):\n got: %v\nwant: %v", i, supersession, want)
+		}
+	}
+}

@@ -201,6 +201,54 @@ func TestComposeLabels_NoSupersessionEdges_NoSupersessionLabels(t *testing.T) {
 	}
 }
 
+// TestDeriveSupersessionLabels_SeverityOrder — v0.12.0 rev-1 F-SEXT-2:
+// PRD §4.3:184-188 + ADR-028 D4:63-67 lock the supersession-group
+// render order as severity-first
+// `[stale-superseder] [orphan-superseder] [superseded-by <slug>] [active-superseder]`.
+// This test constructs a graph where all four labels are active on one
+// superseder feature and asserts the exact positional order returned
+// by DeriveSupersessionLabels.
+func TestDeriveSupersessionLabels_SeverityOrder(t *testing.T) {
+	s := planTestEnv(t, true)
+	// `target-healthy` — exists so `active-superseder` fires on the
+	// combo node.
+	addPlanFeature(t, s, "target-healthy", nil)
+	setParentState(t, s, "target-healthy", store.StateApplied, "", "")
+
+	// `combo` — the node under test. It supersedes the healthy target
+	// (yields active-superseder) AND supersedes a ghost target (yields
+	// orphan-superseder). Its OWN state is draft so it is unhealthy →
+	// stale-superseder on itself. A peer `peer` supersedes `combo`
+	// (target side of the graph) — peer is applied → yields
+	// composite `superseded-by peer`.
+	addPlanFeature(t, s, "combo", []store.Dependency{
+		{Slug: "target-healthy", Kind: store.DependencyKindSupersedes},
+		{Slug: "ghost", Kind: store.DependencyKindSupersedes},
+	})
+	// Do not mark combo applied → superseder unhealthy → stale.
+
+	addPlanFeature(t, s, "peer", []store.Dependency{
+		{Slug: "combo", Kind: store.DependencyKindSupersedes},
+	})
+	setParentState(t, s, "peer", store.StateApplied, "", "")
+
+	comboStatus, err := s.LoadFeatureStatus("combo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := DeriveSupersessionLabels(s, comboStatus)
+
+	want := []store.ReconcileLabel{
+		store.LabelStaleSuperseder,
+		store.LabelOrphanSuperseder,
+		store.ReconcileLabel("superseded-by peer"),
+		store.LabelActiveSuperseder,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("severity-first order violation (F-SEXT-2 / PRD §4.3):\n got: %v\nwant: %v", got, want)
+	}
+}
+
 // TestStripSupersessionLabels_RemovesOnlyFour verifies the strip
 // helper's scope is exactly the four Wave α labels.
 func TestStripSupersessionLabels_RemovesOnlyFour(t *testing.T) {

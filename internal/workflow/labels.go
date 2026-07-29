@@ -558,17 +558,44 @@ func DeriveFreshnessLabel(s *store.Store, child store.FeatureStatus) store.Recon
 // See ADR-028 D4 for the four label semantics. Purity guarantee mirrors
 // `composeSupersessionLabels`: reads only status.json via
 // s.LoadFeatureStatus / s.ListFeatures.
+//
+// v0.12.0 rev-1 (F-SEXT-2): the returned slice preserves the locked
+// severity-first order from PRD §4.3:184-188 + ADR-028 D4:63-67:
+//
+//	[stale-superseder] [orphan-superseder] [superseded-by <slug>] [active-superseder]
+//
+// Callers (status text + JSON render) MUST NOT re-sort — a plain
+// alphabetical sort would invert `active-superseder` and
+// `stale-superseder` and violate the binding order contract.
 func DeriveSupersessionLabels(s *store.Store, child store.FeatureStatus) []store.ReconcileLabel {
 	set := make(map[store.ReconcileLabel]struct{})
 	composeSupersessionLabels(s, child, set)
 	if len(set) == 0 {
 		return nil
 	}
+	// Severity-first emit. `superseded-by` is a composite token
+	// (`superseded-by <slug>` per F-SEXT-1) so we search the set for
+	// any entry starting with `superseded-by ` in addition to the
+	// bare literal for defensive compatibility.
 	out := make([]store.ReconcileLabel, 0, len(set))
-	for l := range set {
-		out = append(out, l)
+	if _, ok := set[store.LabelStaleSuperseder]; ok {
+		out = append(out, store.LabelStaleSuperseder)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	if _, ok := set[store.LabelOrphanSuperseder]; ok {
+		out = append(out, store.LabelOrphanSuperseder)
+	}
+	// superseded-by: emit the composite token if present, else the
+	// bare literal (defensive — production compose always sets the
+	// composite when a healthy superseder exists).
+	for l := range set {
+		if l == store.LabelSupersededBy || strings.HasPrefix(string(l), string(store.LabelSupersededBy)+" ") {
+			out = append(out, l)
+			break
+		}
+	}
+	if _, ok := set[store.LabelActiveSuperseder]; ok {
+		out = append(out, store.LabelActiveSuperseder)
+	}
 	return out
 }
 

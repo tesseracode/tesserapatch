@@ -395,8 +395,14 @@ func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.Reconci
 	if len(brokenRefs) > 0 {
 		labels = appendLabel(labels, store.LabelDependentBroken)
 	}
+	// v0.12.0 rev-1 (F-SEXT-2): supersession labels arrive from
+	// DeriveSupersessionLabels already in the PRD §4.3 / ADR-028 D4
+	// locked severity order (`stale-superseder`, `orphan-superseder`,
+	// `superseded-by <slug>`, `active-superseder`). Appending via the
+	// alpha-sorting `appendLabel` here would violate the locked
+	// contract, so preserve the input order and dedupe manually.
 	for _, l := range supersession {
-		labels = appendLabel(labels, l)
+		labels = appendLabelPreserveOrder(labels, l)
 	}
 	if len(labels) > 0 {
 		strs := make([]string, len(labels))
@@ -494,8 +500,13 @@ func writeDAGJSON(
 		// labels at render time and merge them into the labels array.
 		// Same discipline as freshness — never persisted, always
 		// recomputed from the current graph.
+		//
+		// v0.12.0 rev-1 (F-SEXT-2): DeriveSupersessionLabels already
+		// returns the locked severity-first order per PRD §4.3 / ADR-028
+		// D4. Use appendLabelPreserveOrder to keep the sequence instead
+		// of re-sorting alphabetically.
 		for _, l := range workflow.DeriveSupersessionLabels(s, f) {
-			labels = appendLabel(labels, l)
+			labels = appendLabelPreserveOrder(labels, l)
 		}
 		node := dagJSONNode{
 			Slug:                  f.Slug,
@@ -555,6 +566,20 @@ func appendLabel(labels []store.ReconcileLabel, label store.ReconcileLabel) []st
 	out := append(labels, label)
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
+}
+
+// appendLabelPreserveOrder is the sibling of appendLabel that dedupes
+// but does NOT re-sort. Used for label groups whose emit order is
+// externally locked — currently the supersession overlay (PRD §4.3 /
+// ADR-028 D4 severity order, v0.12.0 rev-1 F-SEXT-2). Appended labels
+// land at the end of the slice in the order they are supplied.
+func appendLabelPreserveOrder(labels []store.ReconcileLabel, label store.ReconcileLabel) []store.ReconcileLabel {
+	for _, l := range labels {
+		if l == label {
+			return labels
+		}
+	}
+	return append(labels, label)
 }
 
 // sortStringsAsc sorts in place. Wrapper kept local so the dependent-
