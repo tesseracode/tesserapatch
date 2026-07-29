@@ -95,13 +95,145 @@ Same 20 rules as v0.11.3 close. See prior CURRENT.md snapshots in HISTORY.md for
 
 v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B closed at three-way APPROVED 2026-07-29 (paper-only PRD/ADR drafts). Supervisor picked Option A 2026-07-29 — v0.12.0 3-wave sequential cluster kicked off with Wave α (supersession) implementer dispatched.
 
+**Wave α implementation session — 2026-07-29 → 2026-07-30 (5 slices landed)**
+
+- **Slice 1 (`48399f4`)** — schema + parity guards. Added
+  `store.DependencyKindSupersedes = "supersedes"` constant and four new
+  `ReconcileLabel` constants (`LabelSupersededBy`, `LabelActiveSuperseder`,
+  `LabelStaleSuperseder`, `LabelOrphanSuperseder`) in `internal/store/types.go`.
+  Broadened `ValidateDependencies` + `ValidateAllFeatures` kind allow-lists in
+  `internal/store/validation.go`. Broadened `parseDepSpec` in
+  `internal/cli/feature_deps.go` to accept `<parent>:supersedes` shorthand.
+  Updated all six shipped skill assets (Claude, Copilot, Copilot Prompt,
+  Cursor, Windsurf, Generic) with a third `supersedes` bullet under
+  "Edge kinds". Parity guards pass in the same commit (Slice 1
+  anti-drift lesson honored).
+- **Slice 2 (`f8f7766`)** — cycle detection extension. Confirmed ADR-011
+  D2 `DetectCycles` is edge-kind-agnostic by construction (uses `dep.Slug`
+  without inspecting `Kind`), so ZERO code change to the DFS primitive.
+  Added `internal/store/supersedes_test.go` with 9 regression tests
+  covering AC-1 (reciprocal cycle), AC-2 (mixed hard/soft/supersedes
+  cycle), AC-3 (self-supersession), AC-8 (unknown-kind rejection),
+  kind-conflict guard, linear chain happy path, and direct DFS primitive
+  properties.
+- **Slice 3 (`195921a`)** — four composable derived labels via ADR-011
+  D3. Added `composeSupersessionLabels`, `IsSupersessionLabel`,
+  `StripSupersessionLabels`, `stripDerivedLabels`, `supersederIsHealthy`,
+  and exported render helper `DeriveSupersessionLabels` to
+  `internal/workflow/labels.go`. Wired supersession-strip into 3
+  persistence call sites (`accept.go:160`, `reconcile.go:376`,
+  `reconcile.go:574`) via the `stripDerivedLabels` chain so freshness
+  + supersession labels stay out of persisted `Reconcile.Labels`.
+  Updated `renderNodeLine` / `renderNodeLineWithFreshness` /
+  `writeDAGJSON` in `internal/cli/status_dag.go` to merge supersession
+  labels into text + JSON output. Added
+  `internal/workflow/labels_supersession_test.go` with 6 unit tests.
+  **Rule 20 empirical verification**: scratch repo with
+  `add-newer-feature supersedes add-older-feature` correctly rendered
+  `superseded-by`, `active-superseder`, `orphan-superseder`, and
+  `stale-superseder` in `tpatch status` output.
+- **Slice 4 (`3f49c36`)** — reconcile suppression. Added
+  `IsFeatureSuperseded` (exported) + `isFeatureSupersededIn` (pre-loaded
+  features variant) helpers to `internal/workflow/labels.go`.
+  `RunReconcile` now filters superseded-by-healthy features from the
+  default effective replay set (empty slug input); when an explicit
+  slug names a superseded feature, it is reconciled for audit/repair
+  but a historical-feature warning note is prepended to the
+  `ReconcileResult` (PRD §3.3). V7 `runClosureReplay` in
+  `internal/workflow/verify.go` pre-loads all features once and skips
+  superseded parents from the BFS closure — their recipes are not
+  replayed in the shadow. Added 3 reconcile regression tests
+  (`internal/workflow/reconcile_supersession_test.go`) and 2 V7
+  regression tests (`internal/workflow/verify_supersession_test.go`)
+  covering both happy-path suppression and the ADR-028 D8 stale
+  superseder must-not-mask contract.
+- **Slice 5 (`4d4bb60`)** — CHANGELOG + docs. Added
+  `## v0.12.0 — TBD — feature supersession (Wave α)` header (em-dash
+  U+2014) to `CHANGELOG.md` with Wave α entry describing schema,
+  labels, and reconcile suppression, citing
+  `PRD-feature-supersession` and `ADR-028-supersession-edge-model`.
+  Flipped both PRD-feature-supersession.md and
+  ADR-028-supersession-edge-model.md status from `Proposed` →
+  `Accepted`. Added a `v0.12.0 — feature supersession Wave α
+  implementation landed 🚧 in-flight` section to `docs/ROADMAP.md`
+  above the existing planning-artifacts entry, describing Wave α
+  results and the Wave β + Wave γ deferrals. Flipped ADR-028 status
+  column in `docs/adrs/README.md` from `Proposed` → `Accepted`.
+
+## Files Changed
+
+**New source files**:
+- `internal/store/supersedes_test.go` (Slice 2)
+- `internal/workflow/labels_supersession_test.go` (Slice 3)
+- `internal/workflow/reconcile_supersession_test.go` (Slice 4)
+- `internal/workflow/verify_supersession_test.go` (Slice 4)
+
+**Modified source files**:
+- `internal/store/types.go` — `DependencyKindSupersedes` constant + 4
+  `ReconcileLabel` constants.
+- `internal/store/validation.go` — kind allow-list broadened, error
+  message updated.
+- `internal/cli/feature_deps.go` — `parseDepSpec` accepts `:supersedes`.
+- `internal/workflow/labels.go` — supersession label derivation,
+  strip helpers, `IsFeatureSuperseded`/`isFeatureSupersededIn`.
+- `internal/workflow/accept.go` — persist path uses `stripDerivedLabels`.
+- `internal/workflow/reconcile.go` — default-set filter + explicit-slug
+  historical warning; persist paths use `stripDerivedLabels`.
+- `internal/workflow/verify.go` — V7 `runClosureReplay` skips
+  superseded parents from the BFS closure.
+- `internal/cli/status_dag.go` — supersession labels merged into
+  DAG text + JSON output.
+
+**Modified skill assets** (Slice 1):
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/windsurf/windsurfrules`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/workflows/tessera-patch-generic.md`
+
+**Modified docs** (Slice 5):
+- `CHANGELOG.md`
+- `docs/prds/PRD-feature-supersession.md` (Proposed → Accepted)
+- `docs/adrs/ADR-028-supersession-edge-model.md` (Proposed → Accepted)
+- `docs/ROADMAP.md`
+- `docs/adrs/README.md`
+
+## Test Results
+
+Final gate output (2026-07-30):
+
+```
+$ gofmt -l .
+$ go vet ./...
+$ go build ./cmd/tpatch
+$ go test -count=1 ./...
+ok  	github.com/tesseracode/tesserapatch/assets	0.987s
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	2.307s
+ok  	github.com/tesseracode/tesserapatch/internal/cli	88.000s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	16.199s
+ok  	github.com/tesseracode/tesserapatch/internal/provider	16.574s
+ok  	github.com/tesseracode/tesserapatch/internal/safety	5.384s
+ok  	github.com/tesseracode/tesserapatch/internal/store	5.672s
+ok  	github.com/tesseracode/tesserapatch/internal/tools/studyvalidator	4.537s
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	52.171s
+ok  	github.com/tesseracode/tesserapatch/tests/integration	4.769s
+```
+
+All packages pass; no diagnostics from `gofmt` or `go vet`.
+
+Commits landing (5, all with valid Co-authored-by trailer):
+- `48399f4` slice 1: schema + parity guards
+- `f8f7766` slice 2: supersedes cycle detection tests
+- `195921a` slice 3: 4 composable labels + rendering
+- `3f49c36` slice 4: reconcile suppression + V7 supersession-skip
+- `4d4bb60` slice 5: CHANGELOG + status flips
+
 ## Next Steps
 
-1. Wave α implementer executes Slices 1–5 (schema/parity → cycle detection → labels → reconcile suppression → CHANGELOG/docs).
-2. Wave α implementer updates this handoff at each phase transition (Rule 8 cadence, see AGENTS.md).
-3. Supervisor dispatches internal reviewer + supervisor-external reviewer in parallel.
-4. User's parallel external pass on rev-0.
-5. On three-way APPROVED: archive Wave α to HISTORY.md, dispatch Wave β (write-file safety).
+1. Dispatch internal reviewer + supervisor-external reviewer in parallel for Wave α rev-0.
+2. On three-way APPROVED: archive Wave α to `docs/handoff/HISTORY.md`, dispatch Wave β (`PRD-write-file-recipe-safety` + ADR-029).
+3. Wave γ (`PRD-active-feature-session`) dispatch may proceed in parallel with Wave β if capacity allows (independent code surfaces).
 
 ## Blockers
 
@@ -109,13 +241,69 @@ None.
 
 ## Context for Next Agent
 
-- HEAD at v0.12.0 kickoff: `442fd4f` + supervisor decision LOG entry pending commit.
-- Doctor cluster + v0.11.2 shipped; v0.11.3 shipped 2026-07-29 (Stream C).
-- Streams A + B closed at three-way APPROVED 2026-07-29 (paper-only).
-- 20 binding carry-forward rules. Rule 20 rigor extension pattern optional.
-- Two-opinion protocol scoreboard: 17/17 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 17 at rev-0 + one process-level F1 (handoff-stale) this consolidation.
-- All 5 PRDs/ADRs from Streams A+B are `Proposed` and ready for implementation cluster.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
+- HEAD after Wave α implementation: `4d4bb60` (5 commits atop kickoff HEAD `7081c62`).
+- **Rule 19 exported-surface citations landed**: Slice 1 (store schema + CLI parser), Slice 3 (workflow label helpers, exported `DeriveSupersessionLabels`, `IsSupersessionLabel`, `StripSupersessionLabels`, `IsFeatureSuperseded`), Slice 4 (workflow reconcile + verify V7 wire-in). Each commit message names the PRD AC + ADR D-clause.
+- **Design decision — RunReconcile explicit-slug treatment (PRD §3.3, AC-11)**:
+  when the caller directly names a superseded feature on the CLI, we
+  DO reconcile it (audit/repair path) but PREPEND a historical-feature
+  warning note to the `ReconcileResult.Notes` slice. Alternative
+  interpretations considered but rejected: (a) silently skip the
+  explicit slug (would violate the "audit/repair path always available"
+  clause); (b) hard-error on the explicit slug (would require a CLI
+  flag override). Warning-note path is the least surprising and
+  matches the ADR-028 D6 default-vs-explicit distinction.
+- **Design decision — V7 supersession skip semantics (ADR-028 D6, D8)**:
+  in `runClosureReplay`, the BFS loop pre-loads all features once
+  (`allFeatures`) and calls `isFeatureSupersededIn(all, curr)` per
+  candidate parent. When true, the parent is skipped AND its own
+  hard-parent chain is NOT enqueued — the ancestor chain is only
+  relevant because of the excluded parent, so its transitive parents
+  should not be replayed either. If some independent hard-dep path
+  re-queues the same ancestor, it will be picked up via that path.
+  Stale supersession (superseder unhealthy) does NOT skip — the
+  historical target remains in the closure so V7's replay-fail
+  remediation surfaces normally (ADR-028 D8 warning-class severity).
+- **Design decision — ADR-011 D2 cycle detection**: verified
+  `DetectCycles` in `internal/store/dag.go` is edge-kind-agnostic
+  (walks `dep.Slug` without branching on `dep.Kind`). Zero code
+  change was required; Slice 2 is a regression-test-only commit
+  locking this property. If a future wave adds edge-kind-specific
+  cycle rules (e.g. soft edges skipping the cycle check), the DAG
+  primitive would need a rework — currently NONE do.
+- **Design decision — persist-side label strip pattern**: introduced
+  internal helper `stripDerivedLabels(labels)` that chains
+  `StripFreshnessLabels` → `StripSupersessionLabels` and is called
+  at all three persist sites (`accept.go`, `reconcile.go` two
+  places). This keeps `Reconcile.Labels` on disk free of derived
+  labels, matching the ADR-011 D3 contract that derived labels
+  are ALWAYS re-composed at read time.
+- **Skill asset parity guard** (`assets/assets_test.go`): my additive
+  `supersedes` bullet does not touch any required-anchor list, so
+  `TestSkillParityGuard`, `TestSkillRecipeSchemaMatchesCLI`, and
+  `TestSkillDocReferencesAreSelfContained` all pass unchanged.
+- **CLI dep parser** (`internal/cli/feature_deps.go:parseDepSpec`):
+  now accepts `<parent>:supersedes` shorthand. Verified empirically
+  via `tpatch feature deps <slug> add <parent>:supersedes` end-to-end
+  during Slice 3 Rule 20 verification.
+- **Slice 5 status flip**: only ADR-028 was flipped in
+  `docs/adrs/README.md`. ADR-011 remained Accepted (unchanged).
+  PRD-feature-supersession and ADR-028 both went Proposed →
+  Accepted.
+- **Wave β (`PRD-write-file-recipe-safety`) prep**: its
+  `§PRD-1-interaction` clause says superseded features suppress
+  or downgrade `write-file` drift on the parent verify path. The
+  Wave α hooks are in place — the `isFeatureSupersededIn` helper
+  in `internal/workflow/labels.go` is the natural extension point.
+- **Side Research md5 invariant preserved**:
+  `b385fe622db9926f48861105239f113e` — verified after every edit to
+  this file.
+- **Untouched pre-existing dirty tree** (belongs to supervisor, not
+  Wave α): `docs/CLUSTERS.md`, `docs/state-of-the-art/*`,
+  `docs/whitepapers/README.md`, and several untracked whitepaper /
+  PRD drafts (`WP-004`..`WP-007`, `PRD-feature-unapply`,
+  `PRD-recurring-patches`). These predate the task dispatch.
+- Status field intentionally left as `Dispatched` per handoff protocol —
+  supervisor flips to `Review` at consolidation.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
