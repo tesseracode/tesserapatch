@@ -1,3 +1,232 @@
+## Review — Wave α (v0.12.0 supersession) — supervisor-external (rev-1) — 2026-07-29
+
+**Reviewer**: supervisor-external (Copilot CLI code-review pass, single-pass sync, IN PARALLEL with internal rev-1)
+**Range reviewed**: `d21b4b4..e5e0091` (5 commits: R1 `5e6515d`, R2 `84c873a`, R3 `a7f0222`, R4 `4a7ea4f`, R5 `e5e0091`), 11 files, +1031/-78.
+**Contract**: [`PRD-feature-supersession`](../prds/PRD-feature-supersession.md) §4.1:154-159, §4.3:178, §4.3:184-188, §4.5.3 clause 3, AC-4; [`ADR-028`](../adrs/ADR-028-supersession-edge-model.md) D4:58, D4:63-67, D5, D6:77-79, D8:85-87; non-invalidation of [`ADR-011`](../adrs/ADR-011-feature-dependencies.md) D1-D4.
+
+### Gates
+
+- `gofmt -l .` — clean.
+- `go vet ./...` — clean.
+- `go build ./cmd/tpatch` — clean.
+- `go test -count=1 ./...` — all 12 packages PASS. Top-level `--- PASS` count **783** (matches implementer's reported baseline of 783; delta +10 vs. rev-0's 773). No `--- FAIL`.
+- Rule 18 (Co-authored-by trailer parse via `git interpret-trailers --parse`):
+  ```
+  5e6515d: 1     84c873a: 1     a7f0222: 1     4a7ea4f: 1     e5e0091: 1
+  ```
+- Side Research md5 (`md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`) = `b385fe622db9926f48861105239f113e` — **preserved**.
+- `docs/prds/PRD-feature-supersession.md` + `docs/adrs/ADR-028-supersession-edge-model.md`: `git diff d21b4b4..HEAD` returns 0 bytes. Accepted PRD/ADR **byte-identical** (no rev-1 content drift).
+
+### Rev-0 findings closure
+
+| # | Finding | Fix commit | File:line evidence | Verdict |
+|---|---------|-----------|--------------------|---------|
+| F-SEXT-1 | `superseded-by` missing `<slug>` (PRD §4.1:154-159) | `5e6515d` | `internal/workflow/labels.go:558-560` composes `store.ReconcileLabel(string(store.LabelSupersededBy)+" "+healthyPeers[0])`; `internal/workflow/labels.go:305-310` `IsSupersessionLabel` recognises the composite via prefix so persist strip stays sound; empirical `status --dag` on a target with a healthy peer named `newer` emits `superseded-by newer` (both text and `--dag --json`) | **CLOSED** |
+| F-SEXT-2 | Supersession labels alpha-sorted instead of severity-first (PRD §4.3:184-188 + ADR-028 D4:63-67) | `84c873a` | `internal/workflow/labels.go:595-624` `DeriveSupersessionLabels` emits the fixed order [stale, orphan, superseded-by, active]; `internal/cli/status_dag.go:404-406` + `508-510` funnel through new `appendLabelPreserveOrder` at 576-583 that dedupes without re-sorting; the existing `appendLabel` at 560-569 still alpha-sorts everything else (freshness / ADR-011 / dependent-broken) — narrow surgical carve-out, no accidental reorder of other families | **CLOSED** |
+| F-SEXT-3 | Multiple healthy superseders not rejected at write time (AC-4 / ADR-028 D5) | `a7f0222` | `internal/store/validation.go:50-56` new sentinel `ErrMultipleActiveSuperseders`; `170-208` `ValidateDependencies` fan-in scan rejects with actionable message naming both slugs + the resolution path per ADR-020; `274-311` `ValidateAllFeatures` bulk scan sorts and lists ALL conflicting peers (deterministic); `internal/store/validation.go:65-94` `supersederIsHealthyForValidation` mirrors workflow-side health check byte-for-byte with an inline comment nailing the byte-identity contract | **CLOSED** |
+| Internal F1 | Stale supersession did not exclude historical (PRD §4.5.3 clause 3) | `4a7ea4f` | `internal/workflow/labels.go:444-471` `isFeatureSupersededIn` returns `true` for stale as well as healthy (prefers first healthy for determinism, falls back to first stale); `internal/workflow/verify.go:836-849` comment refresh (logic already called the flipped helper — surgical minimal change); reconcile.go untouched (transparent pickup at `154`) | **CLOSED** |
+
+### Sanity checks and edge cases
+
+- **F-SEXT-1** — sole-stale-superseder case: when the ONLY peer is a stale (unhealthy) superseder, `composeSupersessionLabels` emits bare `stale-superseder` on the historical target with NO slug suffix and NO `superseded-by`. This matches PRD §4.3:178 where `superseded-by <slug>` is defined only for "active/effective feature <slug> replaces this feature"; stale means no active replacement, so the bare label is correct. Empirically confirmed on a scratch dir with (target, stale-newer=draft superseding target): `hist [applied] clean (never-verified, stale-superseder)` — no slug appears.
+- **F-SEXT-2** — cross-family bleed: the severity-first order applies ONLY to supersession labels via `appendLabelPreserveOrder`. Every other pipeline path (freshness overlay, dependent-broken, parent-generation-stale, M14.3 hard-parent set) still routes through `appendLabel` and `mergedLabels` (alpha sort). Verified empirically: `mid [draft] clean (never-verified, stale-superseder, orphan-superseder, superseded-by newer, active-superseder)` — the freshness label `never-verified` is alpha-sorted first, then the supersession block emits in the locked order.
+- **F-SEXT-3** — edge cases exercised in scratch dir:
+  - (a) 1 healthy + 1 stale peer supersede `target` → **NOT** flagged. `status --dag` shows `target [applied] clean (never-verified, stale-superseder, superseded-by existing)` with no `warning:` line, consistent with `ValidateDependencies:190` `if !supersederIsHealthyForValidation(other) { continue }`.
+  - (b) 3 healthy peers supersede `target` → bulk validator emits `warning: multiple active superseders for the same target: target target is superseded by 3 healthy features [existing, newcomer, third]; ADR-028 D5 permits at most one.` — names all 3 in sorted order.
+  - Actionability: both write-time and bulk messages carry inline resolution guidance per ADR-020 (`Resolution: remove the extra supersedes edge(s)…`).
+- **Internal F1** — orphan non-participation: `TestReconcileDefaultSet_OrphanSupersederDoesNotExcludeUnrelated` locks that a healthy superseder pointing at a ghost target does NOT cascade into excluding an unrelated bystander. `isFeatureSupersededIn` scans peers of the queried slug for `supersedes -> slug`; a peer pointing at a MISSING slug cannot appear in the scan by definition.
+- **Internal F1** — locking-test rename discipline: `git log --diff-filter=D` returns empty across `d21b4b4..HEAD` (**no test files deleted**). `git show 4a7ea4f` confirms `TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale` → `TestReconcileDefaultSet_ExcludesFeatureWhenSupersederStale` (renamed + assertion inverted, bystander applied feature added so the "empty default set" guard does not fire) and `TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent` → `TestRunVerify_ClosureReplay_StaleSupersederSkipsParent` (renamed + assertion inverted: V7 must now PASS with parent skipped, `FailedAt` must NOT be `parent-replay`). **Preserves the review contract that locking tests get updated in place rather than silently deleted.**
+
+### Fresh-eyes checks
+
+1. **Semantic drift outside the 4-finding scope**: `git diff --stat d21b4b4..HEAD` touches exactly 11 files; every one is scoped to F-SEXT-1/2/3, Internal F1, or the R5 documentation slice. `internal/workflow/reconcile.go` is **untouched** (F1 pickup is transparent via `isFeatureSupersededIn`). No hidden touches to hard/soft gates, DFS/Kahn, ADR-011 D1 storage lane, or the M14.3 label composition path.
+2. **Rule 19 new exported surface (`store.ErrMultipleActiveSuperseders`)**: stable identifier (`errors.New("multiple active superseders for the same target")`, matchable via `errors.Is`), commit body cites PRD AC-4 + ADR-028 D5 explicitly, no caller-side changes required — existing store consumers ignore the new sentinel unless they opt into matching it. Consistent with the sentinel-error family already exported by validation.go.
+3. **CHANGELOG amendment discipline (slice R5)**: em-dash U+2014 header `## v0.12.0 — TBD — feature supersession (Wave α)` **preserved byte-for-byte**. The first three rev-0 bullets (schema extension, cycle detection, four composable labels) are intact. The rev-0 "Reconcile suppression" bullet was substantively **rewritten** to reflect the F1 runtime flip — this is correct and necessary (the rev-0 language "Stale supersession does NOT mask the historical target" is now false; leaving it would ship an inconsistent CHANGELOG at tag). All four rev-1 corrections are documented under a new "Rev-1 corrections (post-review fold-in)" sub-block describing user-facing behavior (label slug, order, validation error, stale exclusion).
+4. **Test count sanity**: rev-1 run yields `--- PASS: 783` (v `go test -count=1 -v ./...`), rev-0 baseline per internal LOG was 773. Delta **+10** matches the implementer's report exactly, and matches the observed new tests: `TestComposeLabels_SupersededByCarriesSlug`, `TestStatusDag_SupersededByCarriesSlugText`, `TestStatusDag_SupersededByCarriesSlugJSON`, `TestDeriveSupersessionLabels_SeverityOrder`, `TestStatusDag_SupersessionLabelsSeverityOrder`, `TestValidateDependencies_MultipleActiveSupersedersRejected`, `TestValidateDependencies_MultipleSupersedersOneStale`, `TestValidateAllFeatures_MultipleActiveSupersedersFlagged`, `TestReconcileDefaultSet_OrphanSupersederDoesNotExcludeUnrelated`, `TestIsFeatureSuperseded_StaleSupersederReturnsTrue` — exactly 10 additions, plus two renames-in-place (net zero from renames). No silent deletions.
+
+### Rule 20 empirical evidence
+
+**Rule 20 non-vacuous probe (F-SEXT-3)**: copied the shape of the new regression test into a detached worktree at `d21b4b4` (pre-rev-1) as `internal/store/rule20_probe_test.go` referencing `ErrMultipleActiveSuperseders`. `go test ./internal/store/... -run Rule20Probe`:
+
+```
+# github.com/tesseracode/tesserapatch/internal/store [github.com/tesseracode/tesserapatch/internal/store.test]
+internal/store/rule20_probe_test.go:31:21: undefined: ErrMultipleActiveSuperseders
+FAIL	github.com/tesseracode/tesserapatch/internal/store [build failed]
+```
+
+Fails to compile at rev-0 (missing symbol) → the F-SEXT-3 regression is non-vacuous. Worktree removed; probe file not committed.
+
+**Rule 20 empirical (F-SEXT-1 + F-SEXT-2) end-to-end via `/tmp/tpatch-r1 status --dag`** — scratch dir with `mid` [draft] simultaneously (i) target of a healthy superseder `newer`, (ii) target of a stale superseder `stale-newer`, (iii) superseder of `older`, (iv) orphan superseder pointing at ghost `ghost`. Text output:
+
+```
+older [applied] clean (never-verified, stale-superseder)
+  └─► mid [draft] clean (never-verified, stale-superseder, orphan-superseder, superseded-by newer, active-superseder)
+  │ ├─► newer [applied] clean (never-verified, active-superseder)
+    └─► stale-newer [draft] clean (never-verified, stale-superseder, active-superseder)
+```
+
+`--dag --json` labels for `mid`: `["never-verified", "stale-superseder", "orphan-superseder", "superseded-by newer", "active-superseder"]` — exact PRD §4.3:184-188 severity order confirmed on all 4 supersession labels simultaneously, with the slug suffix present.
+
+**Rule 20 empirical (F-SEXT-3) end-to-end**: scratch dir with `existing`, `newcomer`, `third` all applied and all supersedes -> `target`:
+
+```
+warning: multiple active superseders for the same target: target target is superseded by 3 healthy features [existing, newcomer, third]; ADR-028 D5 permits at most one. Resolution: remove the extra supersedes edge(s) so exactly one healthy superseder remains.
+```
+
+Names all 3 peers in sorted order + resolution hint. The 1-healthy + 1-stale case (existing=applied, third=draft) emits NO conflict warning — validator correctly ignores stale peers.
+
+### New findings introduced by rev-1
+
+**None.** No new blocking or high-severity defects surfaced by the fold-in. Cosmetic/observational only:
+
+- (nit, well below reporting threshold) The bulk error format string produces "…for the same target: target %s…" (sentinel + slug-name context), which reads as "target target is superseded…" when the target slug is literally `target`. Message is still actionable, names all peers, ships resolution hint. Below the "$20 bill" bar; not a finding.
+
+### Concurrence disposition
+
+Internal rev-1 review has **not yet landed** in `docs/supervisor/LOG.md` as of this writing (LOG.md still ends with the two rev-0 entries followed by unrelated older waves). Writing this verdict against the code alone. Concurrence with internal rev-1 is **pending internal LOG.md commit**; supervisor to reconcile the two verdicts once internal lands. If internal reaches a materially different conclusion, escalate before three-way approval.
+
+### Verdict: **APPROVED** (rev-0 four findings CLOSED, no new blocking defects, gates green, Rule 20 non-vacuous, Rule 18 trailers clean, PRD/ADR/Side-Research invariants preserved)
+
+Wave α rev-1 is ready for three-way concurrence pending internal rev-1 landing and user-external independent pass. Recommend supervisor accept rev-1 as landed and treat the parenthetical nit above as backlog polish, not a re-fold.
+
+---
+
+## Review — Wave α (v0.12.0 supersession) — internal (rev-1) — 2026-07-29
+
+**Reviewer**: internal (Copilot CLI code-review pass, single-pass sync, fresh-eyes)
+**Task**: Read-only fresh-eyes verification of the rev-1 fold-in `d21b4b4..e5e0091` (5 commits, 11 files, +1031/-78) against the 4 findings raised at `0aa6b81` (internal rev-0 — F1 MEDIUM stale-supersession, F2 LOW multi-superseder) and `4dc6c5d` (supervisor-external rev-0 — F-SEXT-1 HIGH slug-missing, F-SEXT-2 HIGH severity-order, F-SEXT-3 MEDIUM multi-active). Contract: [`PRD-feature-supersession`](../prds/PRD-feature-supersession.md) §4.1 / §4.3 / §4.5.3 + AC-4/AC-7 + [`ADR-028`](../adrs/ADR-028-supersession-edge-model.md) D4/D5/D6/D8, [`ADR-011`](../adrs/ADR-011-feature-dependencies.md) D1–D4 non-invalidation, all 20 binding rules.
+
+### Verdict: APPROVED
+
+All 4 rev-0 findings are MET with matching code + tests + user-facing empirical confirmation. Gates green (`gofmt -l .` empty; `go vet ./...` clean; `go build ./cmd/tpatch` clean; `go test -count=1 ./...` full-suite pass with **783** top-level `--- PASS` — matches implementer report and clears the ≥ 783 gate; delta from rev-0 baseline 773 = +10 tests, exceeds task minimum +4–6). No new findings introduced by rev-1. Wave α closure disposition: all 4 rev-0 findings closed.
+
+### Review checklist (AGENTS.md)
+
+- [x] Code compiles: `go build ./cmd/tpatch` — clean.
+- [x] Tests pass: `go test -count=1 ./...` — full suite green across `assets`, `internal/buildinfo`, `internal/cli` (83.5s), `internal/gitutil`, `internal/provider`, `internal/safety`, `internal/store`, `internal/tools/studyvalidator`, `internal/workflow` (54.0s), `tests/integration`. Top-level `--- PASS` count = **783** via `grep -c "^--- PASS" .testout-v.log`.
+- [x] Code formatted: `gofmt -l .` — empty.
+- [x] `go vet ./...` — clean.
+- [x] `.tpatch/` artifact determinism preserved — no changes to persistence paths in rev-1; supersession labels still never persisted (`stripDerivedLabels` chain unchanged).
+- [x] Secrets: no credential material in the diff.
+- [x] CLI behavior tracks `SPEC.md` — no new top-level commands introduced by rev-1 (see Rule 15 below).
+- [x] Handoff `docs/handoff/CURRENT.md` was refreshed by `e5e0091` with rev-1 session summary, files-changed list, test results, and preserved Side Research md5 = `b385fe622db9926f48861105239f113e`.
+- [x] Assets parity guard: `TestSkillParityGuard` and `TestSkillRecipeSchemaMatchesCLI` pass (rev-1 touches no `assets/` files — schema unchanged).
+- [x] No regressions to previously passing functionality — the two rev-0 locking tests were RENAMED + INVERTED (not deleted); the flipped assertions now compile-lock the rev-1 semantics. All rev-0 positive tests still pass.
+
+### Rule sweep (all 20 apply)
+
+- **Rule 15 (referenced commands must exist or be declared NEW)**: swept `git diff d21b4b4..e5e0091 -- 'internal/cli/*.go' CHANGELOG.md docs/handoff/CURRENT.md`. Only pre-existing verb `tpatch status --dag` appears in new docs prose (CHANGELOG "surfaces the corruption via `tpatch status --dag`"); zero new `Use:`/`AddCommand` in `internal/cli/*.go`. ✓
+- **Rule 18 (Co-authored-by trailer)**: verified per commit via `git log -1 --format='%(trailers:key=Co-authored-by)'`. All 5 commits (`5e6515d`, `84c873a`, `a7f0222`, `4a7ea4f`, `e5e0091`) carry the parseable `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer. ✓
+- **Rule 19 (exported-surface changes cite PRD/ADR clauses)**:
+  - **R3 / F-SEXT-3** (new exported `store.ErrMultipleActiveSuperseders` + behavior change on `ValidateDependencies` + `ValidateAllFeatures`): commit `a7f0222` message cites PRD-feature-supersession §3.4 rule 3 + AC-4, ADR-028 D5:71-75, supervisor-external F-SEXT-3, internal LOG F2. ✓
+  - **R4 / Internal F1** (behavior flip on `RunReconcile` default-set filter + `runClosureReplay` V7): commit `4a7ea4f` message cites PRD-feature-supersession §4.5.3 clause 3, ADR-028 D6:77-79 + D8:85-87, internal LOG F1, and explicit ADR-011 D1–D4 non-invalidation statement. ✓
+  - R1/R2/R5 are widened surface (composite token acceptance in `IsSupersessionLabel`, tightened `DeriveSupersessionLabels` ordering contract, docs only) — all cited in their respective commit messages.
+- **Rule 20 (empirical reproduction of CLI-visible behavior)**: reproduced in scratch dir under `$HOME/.tpatch-review-scratch-*` (cleaned up after review). Evidence:
+  - `tpatch status --dag` on a repo with 5 wired features (`older` ← `newer` supersedes; `staleone-target` ← `staleone` [draft superseder → stale]; `orphanone` supersedes ghost) prints exactly:
+    ```
+    older [applied] (never-verified, superseded-by newer)
+      └─► newer [applied] (never-verified, active-superseder)
+    staleone-target [applied] (never-verified, stale-superseder)
+      └─► staleone [requested] (never-verified, stale-superseder, active-superseder)
+    Orphans (parents out of scope):
+      - orphanone [applied] (never-verified, orphan-superseder)
+    ```
+    → F-SEXT-1 slug composite `superseded-by newer` present, F-SEXT-2 severity order `stale-superseder, active-superseder` (stale BEFORE active — inverted from alphabetical) on `staleone`, all four label kinds render correctly.
+  - `tpatch status --dag --json` payload emits `"labels": ["never-verified", "superseded-by newer"]` on `older` (no bare `superseded-by`).
+  - After patching a second healthy superseder (`staleone-target` → `older`) directly on disk (bypassing validation), `tpatch status --dag` prints the bulk warning: `"target older is superseded by 2 healthy features [newer, staleone-target]; ADR-028 D5 permits at most one"` — bulk fan-in scan working.
+  - Via CLI (write path): `tpatch feature deps super2 add target:supersedes` on a repo where `super1` already healthy-supersedes `target` → exit 1 with the actionable error: `"target target is already superseded by healthy feature super1; refusing to add second superseder super2. Resolution: remove the existing supersedes edge on super1 or the new one on super2 before proceeding (PRD-feature-supersession AC-4 / ADR-028 D5)"` — write-time rejection working, names both superseders + target + resolution hint in one line.
+- **Side Research md5 invariant**: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` = `b385fe622db9926f48861105239f113e`. ✓
+- **CHANGELOG amendment**: rev-0 bullets (extended schema, cycle detection preservation, four labels, reconcile suppression) preserved verbatim; new "Rev-1 corrections (post-review fold-in):" nested list documents F-SEXT-1/2/3 + Internal F1 with PRD/ADR citations. Em-dash header `## v0.12.0 — TBD — feature supersession (Wave α)` unchanged. ✓
+
+### Fix verification — F-SEXT-1 (HIGH) — `superseded-by <slug>` composite
+
+**Verdict: MET.**
+
+- **Code**: `internal/workflow/labels.go:536-561` — `composeSupersessionLabels` target-side scan collects healthy peer slugs into `healthyPeers`, sorts with `sort.Strings`, then emits `set[store.ReconcileLabel(string(store.LabelSupersededBy)+" "+healthyPeers[0])] = struct{}{}`. Stale-peer path continues to emit the bare `stale-superseder` (per PRD §4.3). Emit-side at `internal/workflow/labels.go:612-620` searches the set for any entry starting with `superseded-by ` (defensive against a bare literal remaining somewhere), preserving the composite through to callers.
+- **PRD/ADR alignment**: PRD-feature-supersession §4.1:154-159 (binding label-value contract) + §4.3:178 + ADR-028 D4:58 all locked `superseded-by <slug>`.
+- **Tiebreak**: `sort.Strings(healthyPeers)` picks the first-sorted slug deterministically when multiple healthy peers exist (transitional mid-flight case). Slice R3 rejects the multi-healthy write-time case going forward; the tiebreak is a data-corruption-path fallback that keeps label rendering deterministic instead of iteration-order-dependent.
+- **Regression tests**: `internal/workflow/labels_supersession_test.go:107-124` (`TestComposeLabels_SupersededByCarriesSlug`) locks the composite emission at the derive layer; `internal/cli/status_dag_supersession_test.go:18-49` (`TestStatusDag_SupersededByCarriesSlugText`) locks text; `internal/cli/status_dag_supersession_test.go:54-109` (`TestStatusDag_SupersededByCarriesSlugJSON`) locks JSON — the JSON test also actively fails on a bare `superseded-by` in the labels array (line 102-104). Both text and JSON assertions cover the render surfaces flagged by F-SEXT-1.
+- **Empirical**: confirmed via Rule 20 scratch above.
+
+### Fix verification — F-SEXT-2 (HIGH) — severity-first render order
+
+**Verdict: MET.**
+
+- **Code**: `internal/workflow/labels.go:595-624` — `DeriveSupersessionLabels` replaces the alphabetical `sort.Slice` with an explicit ordered emit sequence:
+  1. `LabelStaleSuperseder` if present
+  2. `LabelOrphanSuperseder` if present
+  3. any `superseded-by …` entry (composite OR bare — defensive) — one range-over-set-with-break
+  4. `LabelActiveSuperseder` if present
+- **Render pipeline preservation**: `internal/cli/status_dag.go:576-583` adds `appendLabelPreserveOrder` (dedupe without re-sort). Text render at `internal/cli/status_dag.go:404-406` and JSON render at `internal/cli/status_dag.go:508-510` iterate the DeriveSupersessionLabels slice through the new helper. The pre-existing `appendLabel` (alpha-sort) is preserved for freshness / parent-generation-stale / dependent-broken families — **Rule 19 no-collateral-drift confirmed** by inspection: `grep -n "appendLabel\|appendLabelPreserveOrder" internal/cli/status_dag.go` shows `appendLabel` still guards lines 393, 396, 489, 493 (non-supersession families).
+- **PRD/ADR alignment**: PRD §4.3:184-188 + ADR-028 D4:63-67 lock `[stale-superseder] [orphan-superseder] [superseded-by <slug>] [active-superseder]`. Emit sequence in the code matches byte-for-byte.
+- **One rendered-context nuance (not a defect)**: within the final rendered label parenthetical, the supersession group appears AFTER the alpha-sorted M14.3 + freshness + parent-generation-stale + dependent-broken group (because `appendLabelPreserveOrder` appends to the tail). The PRD §4.3 severity order is preserved WITHIN the supersession group; the labels ARE grouped, which is what ADR-028 D4 locks. No spec deviation.
+- **Regression tests**: `internal/workflow/labels_supersession_test.go:211-250` (`TestDeriveSupersessionLabels_SeverityOrder`) does `reflect.DeepEqual` against the exact 4-entry expected slice at the derive layer; `internal/cli/status_dag_supersession_test.go:121-203` (`TestStatusDag_SupersessionLabelsSeverityOrder`) parses the rendered parenthetical, filters to the four supersession tokens, and asserts positional equality against the same slice — end-to-end lock.
+- **Empirical**: confirmed via Rule 20 scratch (`staleone` renders `stale-superseder, active-superseder`, inverting the alphabetical order that landed at rev-0).
+
+### Fix verification — F-SEXT-3 (MEDIUM) — multi-superseder write-time rejection
+
+**Verdict: MET.**
+
+- **New sentinel**: `internal/store/validation.go:50-56` — `ErrMultipleActiveSuperseders` with docstring citing PRD AC-4 + ADR-028 D5.
+- **Local healthy-check mirror**: `internal/store/validation.go:59-94` — `supersederValidationHealthyStates` + `supersederValidationBlockedOutcomes` + `supersederIsHealthyForValidation`. Comments at lines 61-64 and 73-74 explicitly call out the byte-identity contract with `workflow.supersederHealthyStates` / `workflow.blockedReconcileOutcomes` / `workflow.supersederIsHealthy` and cite the reason (avoid the `store` → `workflow` import cycle). I verified byte-identity by inspecting `internal/workflow/labels.go:375-395`: both maps contain the same three states and the same four blocked outcomes; the `IsHealthy` predicate has identical two-guard structure. ✓
+- **Write-time integration point**: `internal/store/validation.go:170-208` in `ValidateDependencies` — runs as Rule 6, AFTER Rule 4 (cycle detection at line 165-168). Positioning is correct: cycle detection short-circuits on structural corruption; only well-formed edges reach the fan-in check. When a proposed `d.Kind == DependencyKindSupersedes` edge is found, iterates every other feature in the store, skips non-healthy peers (line 190: `if !supersederIsHealthyForValidation(other) { continue }`), and rejects with a single-line error naming target + existing healthy superseder + new candidate + resolution hint (ADR-020 inline-remediation style). ✓
+- **Bulk read-time integration**: `internal/store/validation.go:274-310` in `ValidateAllFeatures` — deterministic (sorted target keys + sorted peer slugs); one error per conflicted target listing every healthy superseder. Called by `tpatch status --dag` bulk validation surface.
+- **Runs BEFORE persistence**: `ValidateDependencies` is the pre-write gate (`internal/cli/feature_deps.go` and other write paths call it before `SaveFeatureStatus`). Empirically verified below.
+- **Stale/orphan exclusion from tally**: `supersederIsHealthyForValidation` returns false for any state outside {applied, active, upstream_merged} AND for reconcile outcomes in {`ReconcileBlockedRequiresHuman`, `ReconcileBlockedTooManyConflicts`, `ReconcileBlocked`, `ReconcileShadowAwaiting`}. The stale/orphan peer cases are silently ignored, per PRD's "active/effective" language.
+- **Error message content**: contains BOTH superseder slugs + shared target (line 200-204). Verified in test at `internal/store/supersedes_test.go:212-215` (`TestValidateDependencies_MultipleActiveSupersedersRejected`). Empirically confirmed above: `"target target is already superseded by healthy feature super1; refusing to add second superseder super2"`.
+- **No bypass path**: the only "silent skip" would be `s.ListFeatures()` returning `err != nil` (line 181: `if ferr == nil`). This is defensive: if `ListFeatures` errors, the earlier Rule 4 cycle detection via `loadGraphWithOverride` (line 161) already returned an error before Rule 6 was reached — no exploitable bypass window.
+- **Regression tests**: three at `internal/store/supersedes_test.go` — `TestValidateDependencies_MultipleActiveSupersedersRejected:189` (write-time reject + message content), `TestValidateDependencies_MultipleSupersedersOneStale:223` (stale peer does NOT count toward conflict tally), `TestValidateAllFeatures_MultipleActiveSupersedersFlagged:249` (bulk surface).
+- **Empirical**: confirmed via Rule 20 scratch (both write-time and bulk surfaces printed the ADR-020-style actionable error).
+
+### Fix verification — Internal F1 (MEDIUM) — stale-supersession runtime flip
+
+**Verdict: MET.**
+
+- **Primitive helper**: `internal/workflow/labels.go:444-471` — `isFeatureSupersededIn` now returns `true` for both HEALTHY and STALE superseders. The healthy-peer branch (line 458) returns eagerly; stale peers are accumulated (line 461-464 with `firstStale` + `haveStale`) and returned as fallback (line 467-469) only when no healthy peer exists. Determinism: healthy wins; among stale-only, first-encountered in `ListFeatures` iteration order.
+  - **Nit noted but non-defective**: the primitive helper picks the first-encountered healthy peer (iteration order), while `composeSupersessionLabels` line 559 `sort.Strings(healthyPeers)` picks the alphabetically-first slug for the `superseded-by <slug>` label. In a valid (rev-1-post-R3) state there is at most one healthy peer, so both paths agree. In the transient data-corruption state (>1 healthy peer, which R3 rejects at write time going forward and `ValidateAllFeatures` flags via the bulk surface for pre-rev-1 corrupt stores), the two paths could name different superseders. Neither is used for structural decisions in that state (label render is a visible warning; `IsFeatureSuperseded` return is a warning-note argument only). Not a defect; not a finding.
+- **Docstring**: `internal/workflow/labels.go:406-420` documents the rev-1 flip: exclusion regardless of superseder health, `stale-superseder` remains the operator-visible warning, orphan cases explicitly do NOT participate in target-side exclusion because target-side scan requires the target to exist for a peer to name it. Aligns with PRD §4.5.3 clause 3 + ADR-028 D6/D8.
+- **Reconcile default-set filter**: `internal/workflow/reconcile.go:141-172` — call site at line 154 uses `isFeatureSupersededIn` and inherits the flipped semantics without local edits. Historical-feature warning path (line 155-162) still fires for explicit-slug direct reconcile.
+- **V7 hard-parent closure replay**: `internal/workflow/verify.go:830-865` — call site at line 857 uses `isFeatureSupersededIn`; comment block at line 840-846 explicitly documents the rev-1 runtime flip and cites PRD §4.5.3 + ADR-028 D6/D8.
+- **Test rename + inversion (NOT deletion)**:
+  - `TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale` → **`TestReconcileDefaultSet_ExcludesFeatureWhenSupersederStale`** at `internal/workflow/reconcile_supersession_test.go:150-203`. Assertion inverted: the historical target is now asserted EXCLUDED (line 195-198); a bystander applied feature (line 180-181) is added to bypass RunReconcile's "empty default set" guard so the sweep still has work to do after the filter fires. ✓
+  - `TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent` → **`TestRunVerify_ClosureReplay_StaleSupersederSkipsParent`** at `internal/workflow/verify_supersession_test.go:93-138`. Assertion inverted: V7 must PASS (`v7.Passed && !v7.Skipped`) and `report.FailedAt` must NOT be `"parent-replay"`. ✓
+  - Both renames present in `git log --diff-filter=R`-equivalent inspection via `git diff d21b4b4..e5e0091 -- internal/workflow/*_test.go`; docstrings on the flipped tests explicitly narrate the rev-0-to-rev-1 semantic transition.
+- **New positive regression tests**:
+  - `TestReconcileDefaultSet_OrphanSupersederDoesNotExcludeUnrelated` at `internal/workflow/reconcile_supersession_test.go:216-260` — locks the semantic difference between stale and orphan: an orphan superseder (superseder's `supersedes` names a missing target) does NOT cascade into excluding any unrelated bystander from the default replay set. Together with the flipped `_ExcludesFeatureWhenSupersederStale` test, the two positive fixtures cover the diagonal: STALE excludes, ORPHAN does not.
+  - `TestIsFeatureSuperseded_StaleSupersederReturnsTrue` at `internal/workflow/reconcile_supersession_test.go:266-301` — direct lock on the primitive helper's flipped semantics; complements the reconcile-level regression.
+- **Rule 19**: `RunReconcile` + `runClosureReplay` are shipped exported/documented surface. Commit `4a7ea4f` message cites PRD-feature-supersession §4.5.3 clause 3 + ADR-028 D6:77-79 + D8:85-87. ✓
+- **ADR-011 D1–D4 non-invalidation**: D1 storage lane (still `depends_on[]`, no parallel storage) unchanged; D2 DFS cycle detection (still `internal/store/dag.go:DetectCycles`, edge-kind-agnostic) unchanged; D3 Kahn topological order untouched; D4 hard/soft semantics untouched (the flip lives strictly inside `internal/workflow/labels.go:isFeatureSupersededIn` — a workflow-layer filter, not a storage/DAG primitive). ✓
+- **Empirical**: implicitly reproduced by the `staleone`-line supersession rendering in Rule 20 scratch (target-side of the stale-peer scan surfaces `stale-superseder` on the target; combined with the closure-skip behavior locked by the two flipped regression tests, this exercises both paths). Additional reconcile-level empirical repro judged unnecessary given the paired-test coverage.
+
+### Concurrence disposition — all 4 rev-0 findings CLOSED
+
+| Finding | Origin | Severity (rev-0) | Rev-1 slice | Disposition |
+|---|---|---|---|---|
+| F-SEXT-1 | supervisor-external | HIGH | R1 (`5e6515d`) | **CLOSED — MET** |
+| F-SEXT-2 | supervisor-external | HIGH | R2 (`84c873a`) | **CLOSED — MET** |
+| F-SEXT-3 | supervisor-external | MEDIUM | R3 (`a7f0222`) | **CLOSED — MET** (also closes internal F2 LOW multi-superseder) |
+| Internal F1 | internal (rev-0) | MEDIUM | R4 (`4a7ea4f`) | **CLOSED — MET** |
+
+### New findings introduced by rev-1
+
+**None.**
+
+No high-confidence bugs, security issues, race conditions, resource leaks, missing-error-handling defects, or breaking-API changes were surfaced by rev-1. The two minor observations noted in-line above (superseder-slug determinism between `isFeatureSupersededIn` iteration order vs. `composeSupersessionLabels`'s sorted-slug for the label; defensive `if ferr == nil` in Rule 6) are transient-corruption cases already covered by other guards (R3 write-time rejection prevents them from arising in fresh writes; `ValidateAllFeatures` surfaces them for pre-existing corrupt stores). Neither rises to the threshold of a reportable finding.
+
+### Non-invalidation of ADR-011 (Wave α total — rev-0 + rev-1)
+
+- **D1 storage lane preserved**: `depends_on[]` remains the single storage lane; no parallel storage introduced by rev-1. ✓
+- **D2 DFS as single cycle-detection path**: `DetectCycles` (edge-kind-agnostic by construction) still the only cycle checker. R3's fan-in scan is a validation-Rule-6 addition, NOT a cycle-detection replacement — it runs post-cycle-detection at line 170. ✓
+- **D3 composable-label pattern**: severity-order tightening in R2 refines the emit contract of `DeriveSupersessionLabels` but leaves `composeLabelsFromStatus`'s multi-family compose pattern intact. Non-supersession label families keep their alpha-sort. ✓
+- **D4 hard/soft semantics unamended**: `blockedReconcileOutcomes`, `filterHardDeps`, `created_by` gates all untouched by rev-1 (the R4 flip lives strictly inside `isFeatureSupersededIn`, a workflow-layer supersession filter). ✓
+
+### Notes and action taken
+
+- No supervisor decision required. Recommend archive of `docs/handoff/CURRENT.md` and marking v0.12.0 Wave α **complete**.
+- Follow-up scope for future waves is untouched by this review — Wave β (`PRD-write-file-recipe-safety`) and Wave γ (session model) remain deferred per ROADMAP.
+
+---
+
 ## Review — Wave α (v0.12.0 supersession) — internal (rev-0) — 2026-07-29
 
 **Reviewer**: internal (Copilot CLI code-review pass, single-pass sync)
