@@ -1,3 +1,70 @@
+## Review — v0.11.3 Stream C (verify V8 double-apply fix, GH #2) — internal — 2026-07-29
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Stream C (`849c883..be374a1`) closing GH issue #2 verify V8 double-apply.
+
+### Verdict: APPROVED
+
+### Fix verification
+- Option A shadow reset: correct. After parent replay, `snapshotShadowTree` runs `git add -A -f` + `git write-tree` to capture the closure-replayed baseline as a tree object; V7 runs against the shared shadow; `resetShadowToTree` (`git read-tree --reset -u <tree>` + `git clean -fdx`) restores the shadow to that snapshot before V8 iff `recipePresent`. `read-tree --reset -u` reverts tracked-file mutations and removes files deleted from the tree; `clean -fdx` removes untracked files V7 created (e.g., new files from `write-file`). This is the closure baseline, not `HEAD` (parents already applied).
+- V7 skip semantics preserved (PRD §5 line 524): confirmed. When recipe is absent, the `if recipePresent` guard on line 998 short-circuits the reset, and V8 runs against the untouched closure baseline (which had only parent replay). Preserved by existing `TestRunVerify_RecipeAbsent_PatchPresent_V8RunsAgainstClosureBaseline` which still passes.
+- No ADR-013 amendment needed: confirmed. PRD §3.4.3 wording of "single shadow allocated, closure-replayed baseline for V7 and V8" is honored; the fix is an internal reset primitive, not a semantic change. Comment above `runClosureReplay` updated to describe V8 correctly.
+
+### Regression test verification
+- Fixture matches reporter's Reproduction: `TestRunVerify_EquivalentRecipeAndPatchBothPass` writes a `write-file feature.ts content=export const x = 1;\n` recipe AND a `post-apply.patch` that adds the same `feature.ts` with the same content — equivalent to reporter's scenario.
+- Assertions: V7 passes AND not skipped, V8 passes AND not skipped, verdict `passed`, shadow pruned. Correct.
+- Test would have failed BEFORE fix: **confirmed independently**. I reverted `internal/workflow/verify.go` to `849c883` and ran the new test — it FAILED with `V8 must run and pass against the closure-replayed baseline; got {…Passed:false…Remediation:post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile equivalent-recipe-patch}` and verdict `failed`. Then restored to `be374a1` — passes. Genuine regression guard.
+
+### Rule 20 INDEPENDENT empirical reproduction
+- Command: `git checkout 849c883 -- internal/workflow/verify.go && go test ./internal/workflow -run TestRunVerify_EquivalentRecipeAndPatchBothPass -v` (BEFORE), then restore + rerun (AFTER).
+- Result BEFORE: FAIL (V8 Passed=false, verdict=failed) — reproduces GH #2 exactly.
+- Result AFTER: PASS. Fix verified independent of implementer's own repro.
+
+### Rule 19 (loader-caller-tracing)
+- No exported functions modified. New helpers `snapshotShadowTree`, `resetShadowToTree`, `runShadowGit` are unexported package-scoped. No changes to `store` or `gitutil` public surface. Confirmed via diff.
+
+### Downstream impact
+- V9 reads `status.Reconcile.Outcome`, not shadow state — unaffected.
+- Shadow pruned in `defer` regardless of pass/fail (ADR-013 D7) — lifecycle unchanged.
+- V7 fail path returns early before reset — no partial-state leak.
+- Boundary (mismatched content): if recipe writes A and patch expects B, V8 correctly fails against the closure baseline after reset. Not new behavior, but confirmed by design of the reset (baseline has no A content).
+
+### Regression (v0.11.2 preserved)
+- Full `go test ./...` PASS (11 packages, all ok).
+- All `TestRunVerify_*` PASS (16.2s), including V0-V9 coverage and `RecipeAbsent_PatchPresent_V8RunsAgainstClosureBaseline`.
+- Doctor cluster tests still cached-green under `internal/workflow`. Doctor code untouched (diff limited to verify.go).
+- Anti-drift: no `--target`, `"version": 1`, `ra_<12hex>`, `stubRecipeOpTargetsResolve`, or `RELEASING.md` reintroduced (diff scope confirms).
+
+### Hard-constraint sweep (20)
+- [x] Rule 9: verify.go behavior read verbatim; fix logic matches production V7/V8 flow.
+- [x] Rule 15: no invented `tpatch verify` command shapes.
+- [x] Rule 16: no schema change (code-only fix).
+- [x] Rule 18: all 3 commit trailers parse structurally (see below).
+- [x] Rule 19: no exported functions modified.
+- [x] Rule 20: BEFORE+AFTER empirical repro documented + independently confirmed.
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (4 occurrences in CURRENT.md).
+- [x] Co-authored-by trailer on all 3 commits.
+- [x] Gates green (gofmt, vet, build, test).
+- [x] No scope creep (4 files: verify.go, verify_closure_replay_test.go, CHANGELOG.md, CURRENT.md).
+- [x] ADR-013 amendment not needed — code comment updated in-place; PRD semantic unchanged.
+
+### Validation gates
+gofmt: clean (no output) | vet: clean | build: OK | test: `ok ./...` all packages.
+
+### Trailer verification (Rule 18)
+git log -1 --format='%(trailers)' 801db13 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+git log -1 --format='%(trailers)' 0a42641 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+git log -1 --format='%(trailers)' be374a1 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Adversarial findings
+None. Fix is minimal, correct, and directly targets the reported bug. `read-tree --reset -u` + `clean -fdx` combination correctly reverts both tracked mutations (revert-in-file / append) and untracked files V7 created (write-file of new path). Snapshot uses `-f` on `git add` to defeat any `.gitignore` interference. V7-skip path correctly bypasses the reset. No exported API surface changed.
+
+### v0.11.3 ship readiness
+Ready.
+
+### Action Taken
+Reviewed diff `849c883..be374a1`. Ran full test suite + verify-specific subset. Executed independent Rule 20 BEFORE/AFTER repro by reverting verify.go to pre-fix commit, confirming the new regression test fails BEFORE the fix and passes AFTER. Verified trailers on all 3 commits. Approved for v0.11.3 ship.
+
 ## Review — tpatch doctor Wave δ rev-1 (F2 close, final gate to v0.11.2) — external (user-dispatched, parallel) — 2026-07-29
 
 **Reviewer**: external (parallel second opinion, user-dispatched)
