@@ -1,3 +1,125 @@
+## Review — v0.11.3 Stream C (verify V8 double-apply fix, GH #2) — external (user-dispatched, parallel) — 2026-07-29
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of Stream C (`849c883..b1b197b`).
+
+### Verdict: APPROVED
+
+Zero findings — blocking, medium, or low. Cleanest stream in the entire post-v0.11.0 arc.
+
+### Regression-guard load-bearing verification (Rule 20 rigor extension)
+
+Reviewer created a detached worktree at pre-fix `849c883`, copied in the new test file, and ran the regression test:
+
+```
+--- FAIL: TestRunVerify_EquivalentRecipeAndPatchBothPass
+    V8 must run and pass against the closure-replayed baseline; got
+    {ID:post_apply_patch_replay_clean Passed:false Skipped:false
+     Remediation:post-apply.patch no longer applies to closure-replayed baseline...}
+    verdict must be passed; got "failed"
+```
+
+Test FAILS on pre-fix code with the exact GH #2 signature. PASSES on HEAD. Genuine regression guard, not vacuous. Independently corroborates implementer's Rule 20 BEFORE/AFTER evidence AND internal reviewer's revert-to-before-fix reproduction.
+
+### Safety review of destructive commands
+
+`git clean -fdx` deletes untracked AND ignored files. Reviewer scrutinized specifically because working directory comes from a variable:
+
+1. **`shadowPath` always valid at call site**: `gitutil.CreateShadow` returns early with V7 failure result on error, so empty path never reaches `cmd.Dir`.
+2. **Shadow index isolation proven empirically**: staged a file in a main repo, ran `git add -A -f` + `write-tree` + `clean -fdx` inside attached worktree, confirmed main repo's staged index and files untouched.
+3. **`.tpatch/` artifacts read from `s.Root`, not shadow**: `clean -fdx` cannot destroy feature state.
+4. **Shadow pruning preserved**: single existing `defer` (ADR-013 D7), new early-return paths inherit correctly.
+
+### Contract preservation verified
+
+- **V7-failure path**: returns early with `skipV8Because(...)`, so V8 skipped exactly as before and reset never runs on partially-replayed shadow.
+- **Recipe-absent path (PRD §5 line 524)**: V7 skipped, V8 runs against baseline. Reset gated on `recipePresent` — with no recipe, shadow already at baseline.
+
+### Rule 19 (loader-caller-tracing)
+
+No exported `store`/`workflow` function touched. Changes confined to unexported `runClosureReplay` internals + three new unexported helpers (`snapshotShadowTree`, `resetShadowToTree`, `runShadowGit`). No shipped-surface behavior contract rides along — the Wave γ F1 failure mode is genuinely absent here.
+
+### ADR-013 scope discipline
+
+ADR-013 D7 semantics unchanged. Optional amendment correctly judged unnecessary.
+
+### Validation gates (independent run)
+
+- `gofmt -l .`, `go vet ./...`, `go build ./cmd/tpatch`: all clean.
+- Full suite: 99 passed, 0 failed.
+- Side Research md5: `b385fe622db9926f48861105239f113e` preserved.
+- All FIVE commits (`801db13`, `0a42641`, `be374a1`, `311e25e`, `b1b197b`) carry parseable `Co-authored-by` trailers via `%(trailers:key=Co-authored-by)`.
+- Temporary worktrees cleaned up; repo state clean apart from pre-existing unstaged docs edits.
+
+### Informational nit (NOT a finding)
+
+`snapshotShadowTree` runs unconditionally even when no recipe is present — snapshot discarded in that path. Harmless and cheap.
+
+### Concurrence with internal + supervisor-external
+YES on both. Zero adversarial findings across all three passes.
+
+### Action Taken
+Verdict captured for supervisor consolidation. Stream C ready to ship as v0.11.3.
+
+---
+
+## Decision — v0.11.3 Stream C — supervisor — 2026-07-29
+
+**Decision**: APPROVED. v0.11.3 SHIPS via RELEASING.md third real-world validation.
+
+Three independent reviews:
+- internal `311e25e`: APPROVED (Rule 20 reproduced via revert-to-before-fix)
+- supervisor-external `b1b197b`: APPROVED (Rule 20 reproduced via targeted test; 4 adversarial boundary probes cleared)
+- user-external 2026-07-29: APPROVED (Rule 20 rigor extended — detached worktree at pre-fix + test copy + FAIL verification empirically confirms regression guard is load-bearing)
+
+**16 consecutive rev cycles with three-way concurrence at final acceptance**. Zero adversarial findings across all three passes on Stream C — the cleanest stream in the post-v0.11.0 arc per user-external.
+
+### Rule 20 promotion — rigor pattern extension
+
+User-external demonstrated a stronger Rule 20 application than the standard "reproduce BEFORE + AFTER via commands in main HEAD workspace". By creating a detached worktree AT the pre-fix commit and copying the new test into it, they empirically proved the regression test would FAIL on pre-fix code without polluting the main HEAD.
+
+This is a **strict superset** of prior Rule 20 applications. Documenting the pattern for future reviewer briefs:
+
+**Rule 20 rigor extension** (not a new rule; carry-forward observation): "For regression tests added as part of a fix, reviewers MAY create a detached worktree at the pre-fix commit, copy the new test file(s) into it, and run the test to prove it fails without the fix. This is stronger than reverting HEAD or running the test on HEAD alone."
+
+Rule 20 remains binding as-is; rigor extension is optional but recommended for safety-critical fixes.
+
+### v0.11.3 ship — next action
+
+Following `RELEASING.md` 3-step lock-step (third real-world validation):
+
+**Step 1**: graduate CHANGELOG `## v0.11.3 (unreleased) — verify V8 double-apply fix` → `## v0.11.3 — 2026-07-29 — verify V8 double-apply fix`. Commit + push.
+
+**Step 2**: annotated tag `v0.11.3`.
+
+**Step 3**: `gh release create v0.11.3 --notes-file (awk-extracted) --verify-tag --latest`.
+
+Post-release: archive Stream C to HISTORY.md, close cluster ROADMAP entry, dispatch Streams A + B in parallel (deps on Stream C now resolved).
+
+### Streams A + B dispatch (post-v0.11.3)
+
+Both paper-only PRD drafts. Runnable in parallel because:
+- Different files (`PRD-active-feature-session.md` vs `PRD-feature-supersession.md` + `PRD-write-file-recipe-safety.md`).
+- No code changes.
+- Independent design surfaces.
+
+Only shared touchpoint: `docs/handoff/CURRENT.md`. Supervisor consolidates when both land.
+
+### Non-blocking follow-ups deferred
+
+- ADR-027 F2 (LOW): PRD-ide-capture-hooks naming coord.
+- ADR-027 F3 (LOW): D1 local-buffer path softness — Stream A (PRD-active-feature-session) will lock this.
+- Doctor S3-boundary (LOW): mixed-CHANGELOG scope documentation.
+
+### Action Taken
+
+- User-external verdict recorded.
+- Two-opinion protocol scoreboard: 16/16 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 16 at rev-0.
+- Rule 20 rigor extension pattern documented (not a new rule; optional stronger application).
+- Awaiting v0.11.3 ship execution.
+
+---
+
 ## Review — v0.11.3 Stream C (verify V8 double-apply fix, GH #2) — external (supervisor-dispatched) — 2026-07-29
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)

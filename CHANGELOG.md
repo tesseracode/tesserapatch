@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.11.3 (unreleased) — verify V8 double-apply fix
+## v0.11.3 — 2026-07-29 — verify V8 double-apply fix
 
 - Fixed `tpatch verify` V8 (`post_apply_patch_replay_clean`) failing for
   correct recipe/patch pairs whose canonical `post-apply.patch` encodes
