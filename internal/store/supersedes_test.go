@@ -176,3 +176,105 @@ func TestDetectCycles_MixedKindsClean(t *testing.T) {
 		t.Fatalf("expected empty cycle path, got %v", cycle)
 	}
 }
+
+// v0.12.0 rev-1 F-SEXT-3 — PRD-feature-supersession AC-4 + ADR-028 D5:
+// a historical feature may have at most one active/effective superseder.
+// The write-time validator MUST reject a second `supersedes -> Y` edge
+// when Y already has a healthy peer superseder.
+//
+// Fixture: `target` is applied. `existing` (applied) already supersedes
+// `target`. Proposing that `newcomer` also supersede `target` must
+// error with ErrMultipleActiveSuperseders and name both superseder
+// slugs.
+func TestValidateDependencies_MultipleActiveSupersedersRejected(t *testing.T) {
+	s := newStoreWith(t, map[string]FeatureState{
+		"target":   StateApplied,
+		"existing": StateApplied,
+		"newcomer": StateApplied,
+	})
+	// Wire the existing supersedes edge on disk.
+	existing, err := s.LoadFeatureStatus("existing")
+	if err != nil {
+		t.Fatalf("load existing: %v", err)
+	}
+	existing.DependsOn = []Dependency{{Slug: "target", Kind: DependencyKindSupersedes}}
+	if err := s.SaveFeatureStatus(existing); err != nil {
+		t.Fatalf("save existing: %v", err)
+	}
+
+	// Propose the second supersedes edge.
+	err = ValidateDependencies(s, "newcomer", []Dependency{
+		{Slug: "target", Kind: DependencyKindSupersedes},
+	})
+	if !errors.Is(err, ErrMultipleActiveSuperseders) {
+		t.Fatalf("want ErrMultipleActiveSuperseders on second healthy superseder, got %v", err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "existing") || !strings.Contains(msg, "newcomer") || !strings.Contains(msg, "target") {
+		t.Fatalf("error message must name both superseders and the shared target; got %q", msg)
+	}
+}
+
+// TestValidateDependencies_MultipleSupersedersOneStale — when only ONE
+// of the two candidate superseders is healthy, the write validator
+// must accept the second edge. Stale peers do not participate in the
+// AC-4 / D5 conflict (they cannot displace the historical target on
+// their own).
+func TestValidateDependencies_MultipleSupersedersOneStale(t *testing.T) {
+	s := newStoreWith(t, map[string]FeatureState{
+		"target":         StateApplied,
+		"stale-existing": StateRequested, // draft → unhealthy
+		"newcomer":       StateApplied,
+	})
+	stale, err := s.LoadFeatureStatus("stale-existing")
+	if err != nil {
+		t.Fatalf("load stale-existing: %v", err)
+	}
+	stale.DependsOn = []Dependency{{Slug: "target", Kind: DependencyKindSupersedes}}
+	if err := s.SaveFeatureStatus(stale); err != nil {
+		t.Fatalf("save stale-existing: %v", err)
+	}
+
+	if err := ValidateDependencies(s, "newcomer", []Dependency{
+		{Slug: "target", Kind: DependencyKindSupersedes},
+	}); err != nil {
+		t.Fatalf("second superseder must be accepted when the existing peer is stale; got %v", err)
+	}
+}
+
+// TestValidateAllFeatures_MultipleActiveSupersedersFlagged — bulk
+// validation must flag on-disk corruption where two healthy features
+// point supersedes at the same target. Locks the read-time fan-in
+// scan behavior added in v0.12.0 rev-1.
+func TestValidateAllFeatures_MultipleActiveSupersedersFlagged(t *testing.T) {
+	s := newStoreWith(t, map[string]FeatureState{
+		"target": StateApplied,
+		"peer-a": StateApplied,
+		"peer-b": StateApplied,
+	})
+	for _, slug := range []string{"peer-a", "peer-b"} {
+		st, err := s.LoadFeatureStatus(slug)
+		if err != nil {
+			t.Fatalf("load %s: %v", slug, err)
+		}
+		st.DependsOn = []Dependency{{Slug: "target", Kind: DependencyKindSupersedes}}
+		if err := s.SaveFeatureStatus(st); err != nil {
+			t.Fatalf("save %s: %v", slug, err)
+		}
+	}
+	errs := ValidateAllFeatures(s)
+	found := false
+	for _, e := range errs {
+		if errors.Is(e, ErrMultipleActiveSuperseders) {
+			msg := e.Error()
+			if strings.Contains(msg, "peer-a") && strings.Contains(msg, "peer-b") && strings.Contains(msg, "target") {
+				found = true
+				break
+			}
+			t.Fatalf("ErrMultipleActiveSuperseders error must name all superseders and the target; got %q", msg)
+		}
+	}
+	if !found {
+		t.Fatalf("expected ErrMultipleActiveSuperseders in bulk errors; got %v", errs)
+	}
+}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
+	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
@@ -45,7 +47,51 @@ var (
 	// ErrInvalidDependencyKind is returned when kind is not one of
 	// "hard", "soft", or "supersedes" (ADR-011 D4 + ADR-028 D1).
 	ErrInvalidDependencyKind = errors.New("dependency kind must be \"hard\", \"soft\", or \"supersedes\"")
+	// ErrMultipleActiveSuperseders is returned when more than one
+	// healthy superseder targets the same historical feature. Enforces
+	// PRD-feature-supersession AC-4 + ADR-028 D5: "A historical
+	// feature may have at most one active/effective superseder."
+	// v0.12.0 rev-1 (F-SEXT-3): write-time rejection replaces the
+	// prior first-healthy-wins silent selection.
+	ErrMultipleActiveSuperseders = errors.New("multiple active superseders for the same target")
 )
+
+// supersederValidationHealthyStates lists the FeatureStates that
+// qualify a superseder as "active/effective" for AC-4 / ADR-028 D5
+// fan-in validation. Must stay byte-identical with
+// workflow.supersederHealthyStates so what validation rejects is
+// exactly what reconcile/verify would treat as an authoritative
+// exclusion. See internal/workflow/labels.go:supersederHealthyStates.
+var supersederValidationHealthyStates = map[FeatureState]struct{}{
+	StateApplied:        {},
+	StateActive:         {},
+	StateUpstreamMerged: {},
+}
+
+// supersederValidationBlockedOutcomes lists the ReconcileOutcomes that
+// disqualify a superseder from the "healthy" set even when its state is
+// applied/active/upstream_merged. Must stay byte-identical with
+// workflow.blockedReconcileOutcomes.
+var supersederValidationBlockedOutcomes = map[ReconcileOutcome]struct{}{
+	ReconcileBlockedRequiresHuman:    {},
+	ReconcileBlockedTooManyConflicts: {},
+	ReconcileBlocked:                 {},
+	ReconcileShadowAwaiting:          {},
+}
+
+// supersederIsHealthyForValidation mirrors workflow.supersederIsHealthy
+// so store-level fan-in validation and workflow-level reconcile
+// suppression treat the same superseder identically. See the F-SEXT-3
+// contract in PRD-feature-supersession AC-4 + ADR-028 D5.
+func supersederIsHealthyForValidation(f FeatureStatus) bool {
+	if _, ok := supersederValidationHealthyStates[f.State]; !ok {
+		return false
+	}
+	if _, blocked := supersederValidationBlockedOutcomes[f.Reconcile.Outcome]; blocked {
+		return false
+	}
+	return true
+}
 
 // isAncestor is a package-level hook so unit tests can stub the git
 // reachability check without standing up a real repo. Default wires
@@ -120,6 +166,46 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 		_ = cyc // path is already in the wrapped error message
 		return cerr
 	}
+
+	// Rule 6 (v0.12.0 rev-1 F-SEXT-3 — PRD-feature-supersession AC-4
+	// + ADR-028 D5): a historical feature may have at most one
+	// active/effective superseder. When the caller's proposed edges
+	// include `kind: supersedes -> T`, scan the store for any other
+	// feature that also declares `supersedes -> T` and is currently
+	// healthy. If found, reject the write with an actionable error
+	// naming both superseder slugs. `slug` (the caller) is treated as
+	// presumed-healthy for the purposes of this check: even a freshly
+	// authored draft edge is enough to make the second-superseder
+	// state ambiguous per D5.
+	feats, ferr := s.ListFeatures()
+	if ferr == nil {
+		for _, d := range deps {
+			if d.Kind != DependencyKindSupersedes {
+				continue
+			}
+			for _, other := range feats {
+				if other.Slug == slug {
+					continue
+				}
+				if !supersederIsHealthyForValidation(other) {
+					continue
+				}
+				for _, od := range other.DependsOn {
+					if od.Kind != DependencyKindSupersedes {
+						continue
+					}
+					if od.Slug != d.Slug {
+						continue
+					}
+					return fmt.Errorf(
+						"%w: target %s is already superseded by healthy feature %s; refusing to add second superseder %s. "+
+							"Resolution: remove the existing supersedes edge on %s or the new one on %s before proceeding (PRD-feature-supersession AC-4 / ADR-028 D5).",
+						ErrMultipleActiveSuperseders, d.Slug, other.Slug, slug, other.Slug, slug,
+					)
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -183,6 +269,44 @@ func ValidateAllFeatures(s *Store) []error {
 	// Single global cycle check — surface once, with the cycle path.
 	if _, cerr := DetectCycles(graph); cerr != nil {
 		out = append(out, cerr)
+	}
+
+	// v0.12.0 rev-1 F-SEXT-3 — PRD-feature-supersession AC-4 + ADR-028
+	// D5: bulk fan-in scan. For each target T, tally the healthy
+	// superseders pointing at it; more than one is a validation
+	// violation (a data-corruption path since ValidateDependencies now
+	// rejects the second edge at write time). Emit one error per
+	// conflicted target so `status --dag` surfaces every conflict.
+	// Sort the superseder slugs to keep the error message deterministic.
+	healthySupersedersByTarget := make(map[string][]string)
+	for _, f := range feats {
+		if !supersederIsHealthyForValidation(f) {
+			continue
+		}
+		for _, d := range f.DependsOn {
+			if d.Kind != DependencyKindSupersedes {
+				continue
+			}
+			healthySupersedersByTarget[d.Slug] = append(healthySupersedersByTarget[d.Slug], f.Slug)
+		}
+	}
+	// Sort target keys so output order is deterministic across runs.
+	targetKeys := make([]string, 0, len(healthySupersedersByTarget))
+	for t := range healthySupersedersByTarget {
+		targetKeys = append(targetKeys, t)
+	}
+	sort.Strings(targetKeys)
+	for _, t := range targetKeys {
+		peers := healthySupersedersByTarget[t]
+		if len(peers) < 2 {
+			continue
+		}
+		sort.Strings(peers)
+		out = append(out, fmt.Errorf(
+			"%w: target %s is superseded by %d healthy features [%s]; ADR-028 D5 permits at most one. "+
+				"Resolution: remove the extra supersedes edge(s) so exactly one healthy superseder remains.",
+			ErrMultipleActiveSuperseders, t, len(peers), strings.Join(peers, ", "),
+		))
 	}
 	return out
 }
