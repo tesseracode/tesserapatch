@@ -194,6 +194,7 @@ Edge kinds:
 
 - **hard** (default) — `tpatch apply <child>` is blocked until every hard parent reaches state `applied` or `upstream_merged`.
 - **soft** — ordering hint only; never gates apply.
+- **supersedes** — the newer feature declares `{slug: <older>, kind: "supersedes"}` to replace the older historical feature. The historical feature is preserved but excluded from default replay/reconcile/next when the superseder is active and healthy (ADR-028 D6).
 
 Composable reconcile labels overlay on `Reconcile.Outcome`:
 

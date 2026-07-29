@@ -121,8 +121,8 @@ func parseDepSpec(spec string) (slug string, kind string, err error) {
 	if slug == "" {
 		return "", "", fmt.Errorf("dependency spec %q has empty parent slug", spec)
 	}
-	if kind != store.DependencyKindHard && kind != store.DependencyKindSoft {
-		return "", "", fmt.Errorf("dependency spec %q has invalid kind %q (want hard|soft)", spec, kind)
+	if kind != store.DependencyKindHard && kind != store.DependencyKindSoft && kind != store.DependencyKindSupersedes {
+		return "", "", fmt.Errorf("dependency spec %q has invalid kind %q (want hard|soft|supersedes)", spec, kind)
 	}
 	return slug, kind, nil
 }

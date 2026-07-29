@@ -132,6 +132,50 @@ const (
 	// snapshots versus each parent's current patch generation. It is advisory,
 	// not a lifecycle state, and is not persisted to status.json.
 	LabelParentGenerationStale ReconcileLabel = "parent-generation-stale"
+
+	// v0.12.0 Wave α — supersession labels (ADR-028 D4,
+	// PRD-feature-supersession §4.3). Composable, derived overlays that
+	// describe the state of a supersession edge on the read-time
+	// dependency graph. They are NEVER persisted as Reconcile.Outcome
+	// enum values and never mutate FeatureStatus.State. Composition
+	// order within the supersession group (severity-first) is:
+	//
+	//   [stale-superseder] [orphan-superseder] [superseded-by <slug>]
+	//   [active-superseder]
+	//
+	// ADR-011 parent-derived labels always precede these when both
+	// apply.
+
+	// LabelSupersededBy — applied to a historical feature that at
+	// least one active/effective feature supersedes. The label value
+	// is stored as the bare literal `superseded-by`; the concrete
+	// superseder slug is surfaced by the render layer (status /
+	// status --json) alongside the label. Default replay/reconcile
+	// excludes the labelled feature.
+	LabelSupersededBy ReconcileLabel = "superseded-by"
+
+	// LabelActiveSuperseder — applied to a superseder feature (the
+	// newer side of one or more `supersedes` edges) whose targets
+	// exist and whose superseder itself is healthy. Purely
+	// informational — does NOT gate apply or reconcile.
+	LabelActiveSuperseder ReconcileLabel = "active-superseder"
+
+	// LabelStaleSuperseder — applied when a superseder exists but is
+	// not healthy for default replay (e.g. reconcile-blocked, or
+	// verify-failed). Distinguishes "we cannot fall back to the
+	// historical implementation because supersession excluded it" from
+	// "the replacement is fine". Under this label the effective-set
+	// filter still excludes the superseded feature (ADR-028 D6/D8):
+	// operators repair the superseder, remove the edge, or explicitly
+	// run historical replay through a future flag.
+	LabelStaleSuperseder ReconcileLabel = "stale-superseder"
+
+	// LabelOrphanSuperseder — applied to a superseder feature whose
+	// `supersedes` edge names a target that no longer exists in the
+	// store. Read-only surfaces surface the label; write paths
+	// (validation) refuse newly authored edges to missing targets
+	// (PRD §3.4 / AC-12).
+	LabelOrphanSuperseder ReconcileLabel = "orphan-superseder"
 )
 
 // DefaultMaxTokensImplement is the fallback budget for the implement-phase
@@ -239,10 +283,20 @@ type Dependency struct {
 	SatisfiedBy string `json:"satisfied_by,omitempty"`
 }
 
-// Dependency kind constants. See ADR-011 D4.
+// Dependency kind constants. See ADR-011 D4 and ADR-028 D1.
+//
+// `hard` and `soft` are the ADR-011 D4 prerequisite semantics.
+// `supersedes` (ADR-028 D1 / PRD-feature-supersession §3.1) is a
+// directed replacement edge: the newer feature declares
+// `{slug: <older>, kind: "supersedes"}` to record that it replaces
+// the older historical feature. `supersedes` never satisfies or
+// gates `hard`/`soft` — its effect is felt only through effective-set
+// filtering (default replay/reconcile suppression) and the four
+// derived supersession labels (see ADR-028 D4).
 const (
-	DependencyKindHard = "hard"
-	DependencyKindSoft = "soft"
+	DependencyKindHard       = "hard"
+	DependencyKindSoft       = "soft"
+	DependencyKindSupersedes = "supersedes"
 )
 
 // ApplySummary tracks apply session state.

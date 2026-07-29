@@ -42,8 +42,9 @@ var (
 	// upstream_merged. The provenance value must correspond to a commit we can
 	// actually see from the current branch tip.
 	ErrSatisfiedBySHANotReachable = errors.New("satisfied_by SHA not reachable from HEAD")
-	// ErrInvalidDependencyKind is returned when kind is neither "hard" nor "soft".
-	ErrInvalidDependencyKind = errors.New("dependency kind must be \"hard\" or \"soft\"")
+	// ErrInvalidDependencyKind is returned when kind is not one of
+	// "hard", "soft", or "supersedes" (ADR-011 D4 + ADR-028 D1).
+	ErrInvalidDependencyKind = errors.New("dependency kind must be \"hard\", \"soft\", or \"supersedes\"")
 )
 
 // isAncestor is a package-level hook so unit tests can stub the git
@@ -70,7 +71,7 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 		if d.Slug == slug {
 			return fmt.Errorf("%w: %s", ErrSelfDependency, slug)
 		}
-		if d.Kind != DependencyKindHard && d.Kind != DependencyKindSoft {
+		if d.Kind != DependencyKindHard && d.Kind != DependencyKindSoft && d.Kind != DependencyKindSupersedes {
 			return fmt.Errorf("%w: parent %s has kind %q", ErrInvalidDependencyKind, d.Slug, d.Kind)
 		}
 		// Rule 3: kind conflict on duplicate parent.
@@ -147,7 +148,7 @@ func ValidateAllFeatures(s *Store) []error {
 				out = append(out, fmt.Errorf("%w: %s", ErrSelfDependency, f.Slug))
 				continue
 			}
-			if d.Kind != DependencyKindHard && d.Kind != DependencyKindSoft {
+			if d.Kind != DependencyKindHard && d.Kind != DependencyKindSoft && d.Kind != DependencyKindSupersedes {
 				out = append(out, fmt.Errorf("%w: %s -> %s kind %q", ErrInvalidDependencyKind, f.Slug, d.Slug, d.Kind))
 				continue
 			}
