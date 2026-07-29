@@ -1,3 +1,128 @@
+## Review — Streams A + B (post-v0.11.3 paper-only PRD drafts) — external (user-dispatched, parallel) — 2026-07-29
+
+**Reviewer**: external (parallel second opinion, user-dispatched — combined single-pass review of BOTH streams)
+**Task**: Independent external review of Stream A (`ea95aaa..b58f560`) + Stream B (`b58f560..40b2140`). Range: `ea95aaa..442fd4f`.
+
+### Verdict: APPROVED
+
+Both streams well-scoped, properly cited, parallel dispatch worked exactly as designed — disjoint files, no collisions, clean index merge. **1,584 insertions, zero production code** (verified: no `internal`, `cmd`, or `assets` paths in the diff).
+
+### F1 (LOW) — handoff Status is stale
+
+`docs/handoff/CURRENT.md:8` still reads `**Status**: In Progress (two parallel streams).` — should have flipped to `Review` after both streams landed and completed internal + external review (`f362f6c`, `60d9406`, `412d95d`, `442fd4f`). Trivial one-line fix at supervisor consolidation. Non-blocking.
+
+Per process rule: "tracking must not be left stale." Supervisor closes at consolidation.
+
+### Substantive verification of Stream A's F3 lock
+
+The decision that most deserved scrutiny — locking the local-buffer path to `.tpatch/local/capture/` which is INSIDE the committed directory. ADR-027 D1 permits worktree paths ONLY if "the writer MUST verify that path is ignored before the first write and MUST refuse rather than risk accidental commit."
+
+PRD-active-feature-session §D6 honors this conditional in full — six mandates verified:
+1. Ignore rule for `.tpatch/local/` added at `init`.
+2. Refusal with exact rule printed if `.gitignore` can't be edited.
+3. Verification at `session start` of the concrete path.
+4. Refusal when Git unavailable or path isn't ignored.
+5. **Effective** ignore checking rather than textual line matching.
+6. Defined pre-PRD-workspace path.
+
+Also explicitly notes current `tpatch init` does neither, so implementation must amend it first. **Correct and unusually rigorous reading of the ADR precondition.**
+
+Flag for implementation slice (not a defect): this is the higher-risk of the three ADR-027 F3 options — single gitignore regression puts private capture buffers inside a tree users routinely `git add`. D6's refusal contract is the entire safety margin. Refusal paths deserve first-class test coverage; doctor Wave β D3 `--fix` refusal fixtures are the right template.
+
+### Rule 15 grep verification (`tpatch session`)
+
+`tpatch session` doesn't exist in production — normally a Rule 15 finding, but framed CORRECTLY. Claims-audit states "`tpatch session` is new"; D13 explicitly declares "This PRD proposes a new command group; it does not exist in production today." All other referenced verbs (`analyze`, `record`, `reconcile`, `apply`, `implement`, `init`, `next`, `status`, `verify`) exist.
+
+### Citation spot-checks (±5 lines convention)
+
+- Stream A cites `internal/cli/cobra.go:438-470` / `942-960` / `1766-1977` for analyze/record/reconcile → lines 438, 942, 1766 are exactly `analyzeCmd()`, `recordCmd()`, `reconcileCmd()`. Land exactly.
+- Stream B cites `ADR-011 D1 lines 22-28` → exactly "D1. Dependencies live in `status.json` only"; `D3 lines 39-45` → exactly the composable-derived-labels clause. Land exactly.
+
+### Non-invalidation of binding ADRs (Stream B)
+
+Stream B reuses ADR-011's existing `status.json.depends_on[]` storage rather than inventing a parallel graph, keeps hard/soft semantics unchanged, and correctly reasons that `supersedes` as a directed edge means `X supersedes Y` + `Y supersedes X` is caught by ADR-011 D2's existing DFS cycle detection — **extending the model rather than forking it**. The supersession↔write-file interaction is cross-referenced bidirectionally — the main coherence risk of splitting one issue into two PRDs is closed.
+
+### Process compliance
+
+- Both ADR-028 and ADR-029 at `Proposed`, indexed in `docs/adrs/README.md` lines 19-20. No index drift, no collision despite parallel streams appending to the same file.
+- All three PRDs at `Proposed`, not `Accepted`.
+- All 7 commits carry parseable `Co-authored-by` trailers (Rule 18).
+- Side Research md5 preserved at `b385fe622db9926f48861105239f113e`.
+- Gates clean (`gofmt`, `vet`, `build`) — confirms nothing leaked into code.
+
+### Concurrence with internal + supervisor-external
+YES on both streams. Zero net-new blockers beyond internal + supervisor-external findings.
+
+### Action Taken
+Verdict captured for supervisor consolidation. F1 (LOW) — supervisor flips handoff Status at consolidation.
+
+---
+
+## Decision — Streams A + B — supervisor — 2026-07-29
+
+**Decision**: APPROVED both streams. F1 closed at consolidation. Doctor cluster + v0.11.3 + Streams A + B all closed. Ready for v0.12.0 implementation kickoff.
+
+### Streams A + B closure stack
+
+**Stream A**: internal `60d9406` + supervisor-external `412d95d` + user-external 2026-07-29. Zero blocking findings across all three.
+
+**Stream B**: internal `f362f6c` + supervisor-external `442fd4f` + user-external 2026-07-29 (combined pass with Stream A). Zero blocking findings; one informational nit from supervisor-external (exact `TestSkillRecipeSchemaMatchesCLI` symbol not literalized but parity contract fully present).
+
+**F1 (LOW) fixed inline** by supervisor at consolidation: `docs/handoff/CURRENT.md:8` Status flipped to `Review` (this decision commit).
+
+### Two-opinion protocol scoreboard update
+
+**17 rev cycles at three-way concurrence at final acceptance** (Streams A + B counted as one combined external pass by user). User-external uniquely caught the one LOW handoff-stale finding — same "tracking must not be left stale" class as prior process discipline reminders. Rules 6, 8, 15, 17, 18 all satisfied.
+
+### Substantive praise carried forward (from user-external)
+
+Both prior externals + internal APPROVED; user-external's additional independent verification:
+- Line-exact citation spot-checks across both streams — all landed within ±5 lines.
+- ADR-011 D1/D3 non-invalidation independently verified against actual ADR text.
+- Rule 15 grep independently confirmed `tpatch session` correctly framed as NEW (not phantom command).
+- Substantive praise for Stream A §D6 rigor on ADR-027 D1 conditional — "correct and unusually rigorous reading."
+
+### Implementation guidance carry-forward (from user-external)
+
+**For downstream implementation of Stream A**: refusal-path test coverage is the entire safety margin for Option A. Doctor Wave β D3 `--fix` refusal fixtures are the recommended test template. Applies to `tpatch init` `.gitignore` amendment + `tpatch session start` gitignore-checked-refusal + all six D6 mandates.
+
+**For downstream implementation of Stream B**:
+- Preimage hash schema addition drifts skill assets' recipe examples; `TestSkillRecipeSchemaMatchesCLI` guard must be updated in the same commit (Slice 1 anti-drift lesson).
+- ADR-028 D1 preserves ADR-011 D1 storage; loader compatibility for pre-supersession status.json files is required.
+- ADR-029 raw `sha256:<hex>` distinguished from `pg_/re_/rr_<12hex>` — implementer must not confuse the two.
+
+### Streams A + B archive → v0.12.0 kickoff
+
+Both streams archived to HISTORY.md. CURRENT.md reset for v0.12.0 implementation kickoff.
+
+### Implementation sequencing (v0.12.0 target)
+
+Recommend:
+1. **v0.12.0 Wave α — Stream B supersession** (PRD-feature-supersession + ADR-028). Foundation for the graph model. Unlocks "which features replay" question.
+2. **v0.12.0 Wave β — Stream B write-file safety** (PRD-write-file-recipe-safety + ADR-029). Depends on Wave α (supersession suppresses write-file drift on superseded features).
+3. **v0.12.0 Wave γ — Stream A active-feature-session** (PRD-active-feature-session). Depends on nothing in v0.12.0 but ships alongside for cluster coherence. First wave to require `tpatch init` `.gitignore` amendment.
+4. **v0.12.0 Wave δ (optional)** — if enough deferred capture PRDs land after Wave γ (agent-event-log, record-context-summary, ide-capture-hooks, git-hook-capture-guards), consider bundling them here. Otherwise defer to v0.13.0.
+
+Alternative shape (supervisor open to user preference): dispatch all three PRDs as parallel implementation waves under a single v0.12.0 cluster (they touch disjoint code surfaces except Stream A's `tpatch init` amendment).
+
+### Non-blocking follow-ups deferred
+
+- ADR-027 F2 (LOW): PRD-ide-capture-hooks naming coord.
+- Doctor S3-boundary (LOW): mixed-CHANGELOG scope documentation.
+- Stream B ADR-029 informational nit: literalize `TestSkillRecipeSchemaMatchesCLI` symbol in the parity contract prose (post-v0.12.0 docs polish).
+
+### Action Taken
+
+- Streams A + B closed at three-way APPROVED.
+- F1 (LOW) fixed at consolidation.
+- Both streams archived to HISTORY.md.
+- CURRENT.md reset with v0.12.0 kickoff.
+- ROADMAP.md updated with Streams A + B PRD landing entry.
+- SQL: `stream-a-prd-active-feature-session` + `stream-b-issue1-prd-pair-supersession-writefile` → `done`.
+- v0.12.0 implementation cluster dispatch pending user sequencing decision.
+
+---
+
 ## Review — Stream B PRD-pair (supersession + write-file safety, GH #1) — external (supervisor-dispatched) — 2026-07-29
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)

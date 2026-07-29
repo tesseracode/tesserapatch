@@ -7101,3 +7101,271 @@ None.
 - v0.11.1 shipped via same RELEASING.md process — validated end-to-end (with awk em-dash fix landed alongside). v0.11.2 is the second real-world exercise.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
+
+---
+
+## Archived 2026-07-29 — Streams A + B (post-v0.11.3 paper-only PRD drafts)
+
+Post-v0.11.3 second and third parallel streams. Paper-only PRD/ADR drafting; no code changes. Three PRDs + two ADRs + ADR index update landed cleanly in parallel dispatch — disjoint files, no collisions.
+
+**Stream A ship stack**:
+- `b58f560` — docs: draft active feature session PRD (500 lines, locks ADR-027 F3 to Option A `.tpatch/local/capture/` with rigorous D6 ignore-before-write refusal contract)
+- Three-way APPROVED: internal `60d9406` + supervisor-external `412d95d` + user-external 2026-07-29. Zero adversarial findings across all three passes.
+
+**Stream B ship stack**:
+- `372ece6` — PRD pair + ADR-028/029 + ADR index (PRD-feature-supersession 259 lines + PRD-write-file-recipe-safety 233 lines + ADR-028 109 lines + ADR-029 108 lines)
+- `40b2140` — Stream B closure summary
+- Three-way APPROVED: internal `f362f6c` + supervisor-external `442fd4f` + user-external 2026-07-29 (combined pass). Zero blocking findings.
+
+**Summary insertions (per user-external's independent count)**: 1,584 across 7 commits. **Zero production code** (verified: no `internal`, `cmd`, or `assets` paths in the diff).
+
+### Substantive verifications
+
+**Stream A locks ADR-027 F3** to Option A `.tpatch/local/capture/` (worktree path). ADR-027 D1 permits this ONLY under strict refusal contract. PRD §D6 mandates all six precondition rules verbatim:
+1. Ignore rule for `.tpatch/local/` added at `init`.
+2. Refusal with exact rule printed if `.gitignore` can't be edited.
+3. Verification at `session start` of the concrete path.
+4. Refusal when Git unavailable or path isn't ignored.
+5. **Effective** ignore checking rather than textual line matching.
+6. Defined pre-PRD-workspace path.
+
+User-external independently verified D6 honors the ADR-027 D1 conditional in full — "correct and unusually rigorous reading of the ADR precondition."
+
+**Stream B extends ADR-011** (not fork) with `depends_on[].kind: "supersedes"` as a third edge kind. ADR-011 D1 storage preserved; D2 DFS cycle detection extends cleanly (X supersedes Y + Y supersedes X caught by existing algorithm); D3 composable label pattern extended (4 new labels: superseded-by, active-superseder, stale-superseder, orphan-superseder); D4 hard/soft semantics unchanged.
+
+**Stream B PRD 2** (write-file recipe safety) adds `preimage_hash: <sha256>` field to `write-file` operations (v1 mandatory) + later-touch detection at record/reconcile/verify (v1 mandatory). Safeguards 1/4/5 deferred to v1+. ADR-029 raw `sha256:<hex>` deliberately distinguished from record-identity `pg_/re_/rr_<12hex>` — precondition requires byte-exact match, not truncation.
+
+**Cross-PRD coherence**: PRD 1 § reconcile-interaction cites PRD 2; PRD 2 § PRD-1-interaction cites PRD 1. Bidirectional reference closed the main coherence risk of splitting one issue into two PRDs.
+
+### F1 (LOW) — handoff Status stale (fixed at consolidation)
+
+`docs/handoff/CURRENT.md:8` still read "In Progress (two parallel streams)" after both streams landed with completed review. Supervisor flipped to Review at consolidation. Trivial process discipline finding.
+
+### Two-opinion protocol scoreboard
+
+17 rev cycles at three-way concurrence at final acceptance. User-external uniquely blocked or caught real production-behavior findings in 7 of 17 rev cycles at rev-0 (plus F1 handoff-stale in this consolidated pass — a process finding, not production).
+
+### Implementation guidance for v0.12.0
+
+**Stream A implementation**:
+- Refusal-path test coverage is the entire safety margin for Option A.
+- Doctor Wave β D3 `--fix` refusal fixtures are the recommended test template.
+- Applies to `tpatch init` `.gitignore` amendment + `tpatch session start` gitignore-checked-refusal + all six D6 mandates.
+
+**Stream B implementation**:
+- Preimage hash schema addition drifts skill assets' recipe examples; `TestSkillRecipeSchemaMatchesCLI` guard must be updated in the same commit (Slice 1 anti-drift lesson).
+- ADR-028 D1 preserves ADR-011 D1 storage; loader compatibility for pre-supersession status.json required.
+- ADR-029 raw `sha256:<hex>` distinguished from `pg_/re_/rr_<12hex>` — implementer must not confuse the two.
+
+Snapshot of Streams A + B CURRENT.md at archive:
+
+# Current Handoff
+
+## Active Task
+
+- **Task ID**: `streams-a-and-b-parallel-paper-prds`
+- **Milestone**: Post-v0.11.3 parallel PRD-drafting streams. Streams A + B dispatched in parallel; supervisor consolidates on landing.
+- **Description**: v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B now unblocked; both are paper-only PRD drafts with no code changes. Runnable in parallel because they touch different files (Stream A: single new PRD; Stream B: two new PRDs) and no shared production code. Only shared touchpoint: this handoff file — supervisor consolidates when both land.
+- **Status**: In Progress (two parallel streams).
+- **Assigned**: 2026-07-29.
+
+## Stream A binding scope — `PRD-active-feature-session`
+
+**GH Reference**: user Option C. Unlocks ADR-027 F3 (D1 local-buffer path softness).
+
+**Deliverable**: `docs/prds/PRD-active-feature-session.md` at `Proposed` status.
+
+**Precedent shape**: ADR-027 draft model + Slice 4 doctor PRD draft model. Both paper-only, three-way review, no code implementation this slice.
+
+**What the PRD must decide**:
+
+The ADR-027 D-clauses established the privacy-restrictive boundary for future capture-context features but left three softness gaps for downstream PRDs:
+
+- **F3 (LOW, deferred)**: D1 local-buffer path is intentionally soft — implementer left the choice open between `.git/tpatch/capture/`, OS user-cache location, and `.tpatch/local/capture/`-style paths. PRD-active-feature-session locks this.
+- Adjacent: what constitutes an "active feature session" boundary — when does a session start, stop, and get promoted from local buffer to committed context summary?
+
+**Concrete scope** (implementer expands):
+1. Session lifecycle: start/stop triggers; per-feature vs per-tpatch-command scope.
+2. Local-buffer storage: canonical path for the D1 local lane (fold ADR-027 F3).
+3. Session-to-summary promotion: what triggers a `record` to consume a local buffer and produce a committed summary? What's the redaction contract on that boundary (mirror ADR-027 D3)?
+4. CLI surface: any new commands? Any new flags on `tpatch record` / `tpatch analyze` / etc.?
+5. Privacy invariants (mirror ADR-027 D2 + D10): what content can flow from active session → local buffer → committed summary? What's explicitly forbidden?
+6. Acceptance criteria (§6.1-§6.N): idempotence, dry-run defaults, per-check failure isolation.
+
+**Non-scope for this PRD**:
+- Actual agent event log implementation (deferred to `PRD-agent-event-log`).
+- IDE capture hooks (deferred to `PRD-ide-capture-hooks`).
+- Git hook capture guards (deferred to `PRD-git-hook-capture-guards`).
+- Metadata branch storage (deferred to `ADR-capture-metadata-branch`).
+
+**Structure suggestion** (adjust): §0 Meta → §1 Problem → §2 Goals/Non-goals → §3 User-facing contract → §4 Session lifecycle → §5 Implementation notes → §6 Acceptance criteria → §7 Open questions → §8 Out of scope → §9 Sources.
+
+**Hard constraints for Stream A** (subset of 20 binding rules):
+1. Paper-only: no code changes; no `internal/` / `cmd/` touches.
+2. ADR-027 D-clauses binding (no invalidation of D2/D10 privacy).
+3. Status = `Proposed` (not Accepted).
+4. Cite ADR-027 F3 verbatim and lock the D1 path.
+5. Explicit non-scope declaration for the five deferred capture PRDs.
+6. Rule 8 (display-string contracts): if the PRD specifies filenames, directory paths, or CLI flag names, those become contracts for the implementation slice.
+7. Rule 15 (trigger-name grep): any `tpatch <command>` referenced in the PRD must exist in `internal/cli/cobra.go`.
+8. Rule 17 (totality claims): avoid "only X is supported" totality claims without verification against ALL layers of the production model.
+9. Rule 18 (structural trailer verification): every commit's trailer passes structurally.
+10. Side Research md5 == `b385fe622db9926f48861105239f113e`.
+
+**Suggested target size**: 300-500 lines (comparable to ADR-027 or `PRD-tpatch-land`).
+
+## Stream B binding scope — Issue #1 PRD pair
+
+**GH Reference**: [Issue #1](https://github.com/tesseracode/tesserapatch/issues/1). Empirical evidence in `copilot-api/.tpatch/RETROSPECTIVE.md` Part 2.
+
+**Deliverables** (two PRDs, both at `Proposed` status):
+
+### PRD 1: `docs/prds/PRD-feature-supersession.md`
+
+**What it decides**:
+
+Extends the ADR-011 feature dependency graph with a third-kind edge: `supersedes` (currently only `hard` + `soft`).
+
+- Model: is `supersedes` a third edge kind on the same graph (ADR-011 D1 storage), a separate edge type, or a lifecycle-state mutation? Lock the choice.
+- Semantics per the issue: preserve both histories; exclude the superseded feature from replay by default when its replacement is active; surface in `status`, `next`, dependency validation, reconcile, generated indexes; detect conflicting states, cycles, multiple active superseders; allow queries for effective/current vs historical/superseded features.
+- Composable label semantics (mirror ADR-011 D3): `superseded-by`, `stale-superseder`, etc.
+- Interaction with reconcile: if the superseded feature has a stale recipe (see PRD 2), does supersession disable replay AT ALL, or downgrade drift severity?
+
+**Non-scope for PRD 1**:
+- Automatic supersession detection (deferred).
+- UI/display polish (deferred to a later slice).
+
+### PRD 2: `docs/prds/PRD-write-file-recipe-safety.md`
+
+**What it decides**:
+
+Adds safeguards for `write-file` operations to prevent silent-revert-of-later-fixes per issue's 5 requested safeguards:
+
+1. Prefer contextual operations: `write-file` reserved for created-by-feature files or explicitly declared whole-file ownership.
+2. Preimage hash preconditions: store expected preimage hash; refuse to overwrite when current file differs.
+3. Later-touch detection: during record/reconcile/validation, detect when a later feature touches a path owned by an older `write-file` op.
+4. Cross-feature recipe validation: validate the effective ordered feature stack, not each recipe independently.
+5. Regeneration guidance: actionable commands to regenerate stale recipes while preserving `post-apply.patch` as authoritative intent.
+
+**Decide** which are v1 mandatory (recommend: 2 preimage hash + 3 later-touch detection) vs v1+ deferred (recommend: 1 prefer-contextual is a policy decision needing more study; 4 cross-feature validation is heavier).
+
+**Interaction with PRD 1**: supersession disables replay for superseded features → write-file drift never fires for those. Cross-reference both PRDs.
+
+**Optional matching ADRs** (draft alongside if the decision surface warrants a separate lock):
+- **ADR-028** (`supersession-edge-model`): locks the graph-model decision from PRD 1.
+- **ADR-029** (`write-file-recipe-safety`): locks the schema decisions (preimage hash field, later-touch detection contract).
+
+Precedent: ADR-024 + ADR-026 pattern (PRD + adjacent ADR).
+
+**Hard constraints for Stream B**:
+1. Paper-only: no code changes.
+2. Two PRDs are separate files but MAY cross-reference.
+3. Status = `Proposed` for both.
+4. Cite ADR-011 D1/D3/D4 (dependency graph model) verbatim; do not invalidate.
+5. Cite the empirical retrospective in `copilot-api/.tpatch/RETROSPECTIVE.md` Part 2.
+6. Rules 8, 15, 17, 18 apply (same as Stream A).
+7. If drafting ADR-028 / ADR-029: same status = `Proposed`, cite PRD as motivation.
+8. Side Research md5 == `b385fe622db9926f48861105239f113e`.
+
+## Streams A + B collision avoidance
+
+- Stream A file: `docs/prds/PRD-active-feature-session.md` (new).
+- Stream B files: `docs/prds/PRD-feature-supersession.md` + `docs/prds/PRD-write-file-recipe-safety.md` (both new). Optional: `docs/adrs/ADR-028-supersession-edge-model.md` + `docs/adrs/ADR-029-write-file-recipe-safety.md`.
+- Shared handoff: `docs/handoff/CURRENT.md`. Both streams add closure summaries at the end; supervisor consolidates.
+- Shared parity: `docs/adrs/README.md` if ADR-028/029 land. Both would append. Supervisor merges if collision.
+
+## Combined roadmap sequencing (after Streams A + B)
+
+1. Streams A + B three-way review each.
+2. After A + B APPROVED: archive; kick off implementation.
+3. Implement supersession first (unlocks "which features to replay") + write-file safety second → target v0.12.0.
+4. After v0.12.0: Option A (WP-004 `auto-feature-dependencies`) as next major cluster.
+
+## Carry-forward dispatch rules (20 binding)
+
+Same 20 rules as v0.11.3 close. See prior CURRENT.md snapshots in HISTORY.md for full text. Rule 20 rigor extension pattern (detached-worktree-at-pre-fix + test-copy) documented as optional stronger application — not a new rule.
+
+## Non-blocking follow-ups deferred
+
+- ADR-027 F2 (LOW): PRD-ide-capture-hooks naming coord.
+- ADR-027 F3 (LOW): D1 local-buffer path softness — **Stream A locks this**.
+- Doctor S3-boundary (LOW): mixed-CHANGELOG scope documentation.
+
+## Session Summary
+
+v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B now dispatched in parallel for paper-only PRD drafting. After both APPROVED, implementation as v0.12.0.
+
+## Next Steps
+
+1. Supervisor: dispatch Streams A + B in parallel.
+2. After each stream three-way APPROVED: archive; consolidate handoff.
+3. Sequencing: implementation of Streams A + B PRDs targets v0.12.0.
+4. After v0.12.0: Option A (WP-004) as next major cluster.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- HEAD at Streams A + B kickoff: `84a2f88` (v0.11.3 release commit + LOG closure).
+- v0.11.3 tag on `origin/v0.11.3`; GH Release marked `Latest`; GH #2 closed.
+- 20 binding carry-forward rules; Rule 20 rigor extension pattern optional but recommended.
+- Two-opinion protocol scoreboard: 16/16 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 16 at rev-0.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
+
+
+## Stream A closure summary — PRD-active-feature-session — 2026-07-29
+
+- **PRD drafted**: `docs/prds/PRD-active-feature-session.md` at `Proposed` status; paper-only, no code/schema/asset/CHANGELOG changes.
+- **ADR-027 F3 locked**: chose Option A, `.tpatch/local/capture/`, with `.tpatch/local/` ignored-before-write as a hard precondition. Rationale: preserves the `.tpatch/` mental model, is easier than `.git/` for linked worktrees, avoids OS-cache platform/cache-sharing ambiguity, and remains allowed by ADR-027 D1 when effective Git ignore verification refuses unsafe writes.
+- **Cluster 1 — lifecycle**: explicit per-feature `tpatch session start <slug>`; no implicit `analyze`/agent/process start; explicit `session stop`; opt-in record-time close via `tpatch record <slug> --with-session`; content-addressed `cs_<12hex>` identity.
+- **Cluster 2 — storage**: local manifests under `.tpatch/local/capture/<slug>/<cs_id>/`; committed summaries under `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`; implementation must amend `tpatch init` and verify effective Git ignore status before any local-buffer write.
+- **Cluster 3 — promotion**: opt-in `record --with-session` or `session summarize`; default dry-run for summarize; committed summary writes require ADR-027 D3 redaction and use `ctx_<12hex>` IDs.
+- **Cluster 4 — CLI surface**: proposes new `tpatch session start|stop|list|summarize|purge` plus `record --with-session` / `--from-session`; cites Rule 8 display strings, Rule 15 trigger-name grep, and Rule 11 persistent `--path` inheritance.
+- **Cluster 5 — privacy**: v1 forbids raw transcripts, prompts, assistant responses, tool bodies, env dumps, IDE buffers/selections, source snippets, embeddings, and vectors in both local buffers and committed summaries; provider carve-out limited to ADR-027 D10's four conditions.
+- **Acceptance criteria count**: 25 atomic §8 criteria covering idempotence, dry-run defaults, per-session failure isolation, deterministic JSON, privacy enforcement, path-ignore refusal, and backward compatibility.
+- **Stream B collision check**: did not touch `docs/prds/PRD-feature-supersession.md`, `docs/prds/PRD-write-file-recipe-safety.md`, any optional Stream B ADRs, or `docs/adrs/README.md`.
+
+
+## Stream B closure summary — Issue #1 PRD pair — 2026-07-29
+
+**Status**: Drafting complete; ready for supervisor consolidation and review.
+
+**PRDs written**:
+- `docs/prds/PRD-feature-supersession.md` — Proposed.
+- `docs/prds/PRD-write-file-recipe-safety.md` — Proposed.
+
+**ADRs drafted**: Yes.
+- `docs/adrs/ADR-028-supersession-edge-model.md` — Proposed.
+- `docs/adrs/ADR-029-write-file-recipe-safety.md` — Proposed.
+- `docs/adrs/README.md` updated with line-appended index entries for ADR-028/029 only.
+
+**Locked decisions**:
+1. Supersession uses Option A: `depends_on[].kind: "supersedes"` as a third edge kind in the ADR-011 graph. Rationale: preserves ADR-011 D1 storage, reuses D2 DFS/Kahn graph machinery, and keeps D3 labels composable instead of adding lifecycle state.
+2. Multi-superseder fan-in is forbidden in v1 when multiple active/effective replacements target one historical feature.
+3. Superseded historical features are excluded from default effective replay; recipe drift on them is warning-class audit output, not an effective-stack failure.
+4. `write-file` safety v1 mandates Safeguard 2 (`preimage_hash`) and Safeguard 3 (later-touch detection). Safeguards 1, 4, and 5 are deferred.
+5. `preimage_hash` is a `write-file` operation precondition (`sha256:<64hex>` for existing files; empty string for new-file writes). Apply refuses mismatches before writing.
+6. Later-touch detection warns during `record` and `reconcile`; `verify` fails stale effective preimages and warns for superseded historical ones.
+
+**Cluster summaries**:
+- PRD 1 covers edge model, default replay filtering, conflict/cycle/fan-in detection, status/next/reconcile/index visibility, composable labels, supersession/write-file drift severity, and non-scope.
+- PRD 2 covers preimage schema, apply-time refusal matrix, record/reconcile/verify later-touch detection, legacy recipe compatibility, supersession severity coupling, and deferred safeguards.
+
+**Acceptance criteria counts**:
+- PRD-feature-supersession: 12 criteria.
+- PRD-write-file-recipe-safety: 13 criteria.
+
+**Validation gates**:
+- `gofmt -l .` — clean.
+- `go vet ./...` — passed.
+- `go build ./cmd/tpatch` — passed.
+- `go test ./...` — passed (all packages green/cached as reported by Go).
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+**Collision check**:
+- Did not touch Stream A file `docs/prds/PRD-active-feature-session.md`.
+- No production code, assets, CHANGELOG, or Stream A ADR follow-ups touched.
+
+

@@ -549,6 +549,58 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## v0.12.0 planning artifacts — paper-only PRD/ADR pair landed ✅
+
+Post-v0.11.3 parallel dispatch of three PRDs + two ADRs closing GH
+issues #1 and #2's follow-up planning gaps. All at `Proposed` status
+awaiting implementation cluster kickoff.
+
+- **Stream A — `PRD-active-feature-session`** ✅ (three-way APPROVED
+  2026-07-29, zero adversarial findings)
+  - Draft at [`docs/prds/PRD-active-feature-session.md`](prds/PRD-active-feature-session.md).
+  - Locks ADR-027 F3 (D1 local-buffer path softness) to Option A
+    `.tpatch/local/capture/` with six-mandate ignore-before-write
+    refusal contract in §D6 — user-external verified as "correct and
+    unusually rigorous reading of the ADR precondition."
+  - Defines session lifecycle, storage lane, promotion boundary with
+    D3 redaction gate, and a new `tpatch session {start,stop,list,
+    summarize,purge}` command group (explicitly declared NEW).
+  - 500 lines, 5 clusters as D1-D19, 25 acceptance criteria.
+  - Blocks: PRD-agent-event-log, PRD-record-context-summary,
+    PRD-ide-capture-hooks, PRD-git-hook-capture-guards,
+    ADR-capture-metadata-branch.
+
+- **Stream B — Issue #1 PRD-pair + ADR-pair** ✅ (three-way APPROVED
+  2026-07-29, zero adversarial findings)
+  - PRD 1: [`PRD-feature-supersession`](prds/PRD-feature-supersession.md)
+    (259 lines, 5 clusters, 12 acceptance criteria) — extends ADR-011
+    dependency graph with `depends_on[].kind: "supersedes"` third edge
+    kind. Preserves ADR-011 D1 storage, D2 cycle detection algorithm,
+    D3 composable label pattern, D4 hard/soft semantics.
+  - PRD 2: [`PRD-write-file-recipe-safety`](prds/PRD-write-file-recipe-safety.md)
+    (233 lines, 4 clusters, 13 acceptance criteria) — adds
+    `preimage_hash: <sha256>` field to `write-file` operations
+    (v1 mandatory) + later-touch detection (v1 mandatory). Safeguards
+    1/4/5 from GH #1 deferred to v1+.
+  - ADR-028: [`supersession-edge-model`](adrs/ADR-028-supersession-edge-model.md)
+    (D1-D8 lock).
+  - ADR-029: [`write-file-recipe-safety`](adrs/ADR-029-write-file-recipe-safety.md)
+    (D1-D8 lock; raw `sha256:<hex>` deliberately distinguished from
+    record-identity `pg_/re_/rr_<12hex>`).
+  - Cross-PRD bidirectional references close the main coherence risk
+    of splitting one GH issue into two PRDs.
+
+**Cluster process artifacts** (non-shipping):
+- Parallel dispatch of paper-only PRDs across disjoint files worked
+  cleanly — no collisions in `docs/handoff/CURRENT.md`, no reorder in
+  `docs/adrs/README.md`, no gate regressions. 1,584 insertions, zero
+  production code.
+- 20 dispatch-brief carry-forward rules still binding.
+- 17 consecutive rev cycles at three-way concurrence at final
+  acceptance.
+- Full per-stream snapshots archived to
+  [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
+
 ## M18+ — Future
 
 - Cost tracking and token budgeting
