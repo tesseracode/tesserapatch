@@ -202,6 +202,76 @@ v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B closed at thre
   results and the Wave β + Wave γ deferrals. Flipped ADR-028 status
   column in `docs/adrs/README.md` from `Proposed` → `Accepted`.
 
+**Wave α rev-1 fold-in session — 2026-07-29 (5 slices landed atop `d21b4b4`)**
+
+- **Slice R1 (`5e6515d`)** — F-SEXT-1 `superseded-by <slug>` composite.
+  `composeSupersessionLabels` target-side scan now collects the
+  healthy peer superseder slugs, sorts them, and emits the composite
+  `ReconcileLabel("superseded-by " + slugs[0])` per PRD-feature-
+  supersession §4.1 (binding label-value contract) + §4.3:178 +
+  ADR-028 D4:58. `IsSupersessionLabel` widened to prefix-match on
+  `"superseded-by "` so persistence strip (`StripSupersessionLabels`)
+  stays sound regardless of the appended slug. Existing tests
+  updated (`TestComposeLabels_ActiveSuperseder`,
+  `TestComposeLabels_StaleSuperseder`) via new
+  `hasSupersededByFor` / `hasAnySupersededBy` helpers. Three new
+  tests: `TestComposeLabels_SupersededByCarriesSlug` (workflow),
+  `TestStatusDag_SupersededByCarriesSlugText` (cli),
+  `TestStatusDag_SupersededByCarriesSlugJSON` (cli).
+- **Slice R2 (`84c873a`)** — F-SEXT-2 severity-first render order.
+  `DeriveSupersessionLabels` replaces the alphabetical `sort.Slice`
+  with an explicit severity-ordered emit — `[stale-superseder,
+  orphan-superseder, superseded-by <slug>, active-superseder]` —
+  per PRD §4.3:184-188 + ADR-028 D4:63-67. Added
+  `appendLabelPreserveOrder` helper in `internal/cli/status_dag.go`
+  so both `renderNodeLineWithFreshness` and `writeDAGJSON` merge
+  supersession labels while preserving the fixed order (other label
+  families keep their alphabetical sort via `appendLabel`). Two new
+  tests: `TestDeriveSupersessionLabels_SeverityOrder` (workflow),
+  `TestStatusDag_SupersessionLabelsSeverityOrder` (cli — asserts
+  positional order in the text output).
+- **Slice R3 (`a7f0222`)** — F-SEXT-3 multi-active-superseder
+  rejection. New sentinel `store.ErrMultipleActiveSuperseders`,
+  plus a helper `supersederIsHealthyForValidation` mirroring the
+  workflow-side `supersederIsHealthy` byte-identically (comments
+  note the byte-identity contract). `ValidateDependencies` now
+  scans the store for existing healthy peers pointing supersedes at
+  the same target and rejects the write with an ADR-020-style
+  actionable message naming both superseder slugs + the shared
+  target + a resolution hint. `ValidateAllFeatures` adds a bulk
+  fan-in pass (deterministic ordering) to surface on-disk
+  corruption via `tpatch status --dag`. Three new tests:
+  `TestValidateDependencies_MultipleActiveSupersedersRejected`,
+  `TestValidateDependencies_MultipleSupersedersOneStale`,
+  `TestValidateAllFeatures_MultipleActiveSupersedersFlagged`.
+- **Slice R4 (`4a7ea4f`)** — Internal F1 stale-supersession
+  runtime flip. `isFeatureSupersededIn` now returns true for both
+  healthy AND stale superseders per PRD §4.5.3 clause 3 + ADR-028
+  D6/D8; docstrings on `IsFeatureSuperseded` +
+  `isFeatureSupersededIn` + the V7 closure comment updated to
+  describe the flipped semantics. The two rev-0 locking tests are
+  RENAMED + assertion-inverted, NOT deleted:
+  `TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale` →
+  `..._ExcludesFeatureWhenSupersederStale` (adds a bystander
+  applied feature so the "empty default set" guard does not fire),
+  and `TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent`
+  → `..._StaleSupersederSkipsParent` (V7 now passes instead of
+  failing with FailedAt=parent-replay). Two new positive
+  regression tests: `TestReconcileDefaultSet_
+  OrphanSupersederDoesNotExcludeUnrelated` (differentiates orphan
+  from stale — orphan attaches only to the superseder side and
+  does NOT cascade into excluding a bystander) and
+  `TestIsFeatureSuperseded_StaleSupersederReturnsTrue` (locks the
+  primitive helper's flipped semantics directly). ADR-011 D1-D4
+  non-invalidation preserved (storage lane, DFS, Kahn, hard/soft
+  gates all untouched).
+- **Slice R5** — CHANGELOG amendment + handoff update. Amended
+  the `## v0.12.0 — TBD` block to describe the four rev-1
+  corrections (F-SEXT-1/2/3 + Internal F1) alongside the original
+  Wave α bullets, keeping the em-dash contract. This handoff
+  section refreshed with Session Summary + Files Changed + Test
+  Results + Next Steps. Side Research md5 preserved.
+
 ## Files Changed
 
 **New source files**:
@@ -241,39 +311,86 @@ v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B closed at thre
 - `docs/ROADMAP.md`
 - `docs/adrs/README.md`
 
+**Rev-1 fold-in — modified/new files** (Slices R1-R5, atop `d21b4b4`):
+
+- `internal/workflow/labels.go` — R1 composite `superseded-by <slug>`
+  emit + `IsSupersessionLabel` prefix match; R2 severity-first
+  emit in `DeriveSupersessionLabels`; R4 `isFeatureSupersededIn`
+  returns true for stale, docstrings updated. `strings` import added.
+- `internal/workflow/labels_supersession_test.go` — R1 helpers
+  (`hasSupersededByFor`, `hasAnySupersededBy`) + updated existing
+  tests; new tests `TestComposeLabels_SupersededByCarriesSlug` (R1)
+  and `TestDeriveSupersessionLabels_SeverityOrder` (R2).
+- `internal/cli/status_dag.go` — R2 `appendLabelPreserveOrder`
+  helper + both render sites use it for supersession labels.
+- `internal/cli/status_dag_supersession_test.go` (new) — R1 text +
+  JSON regression tests + R2 severity-order regression test.
+- `internal/store/validation.go` — R3 `ErrMultipleActiveSuperseders`
+  sentinel, `supersederIsHealthyForValidation` helper (byte-identical
+  with workflow), fan-in check in `ValidateDependencies` +
+  `ValidateAllFeatures`. `sort` + `strings` imports added.
+- `internal/store/supersedes_test.go` — R3 three new regression tests
+  appended.
+- `internal/workflow/verify.go` — R4 V7 closure comment revised.
+- `internal/workflow/reconcile_supersession_test.go` — R4 rename +
+  invert of the stale-supersession locking test; +1 orphan-vs-stale
+  positive test.
+- `internal/workflow/verify_supersession_test.go` — R4 rename +
+  invert of the V7 stale-supersession locking test.
+- `CHANGELOG.md` — R5 amended `## v0.12.0 — TBD` block with a new
+  "Rev-1 corrections" nested list documenting F-SEXT-1/2/3 +
+  Internal F1.
+- `docs/handoff/CURRENT.md` — R5 handoff refresh (this file).
+
 ## Test Results
 
-Final gate output (2026-07-30):
+Rev-1 final gate output (2026-07-29):
 
 ```
 $ gofmt -l .
 $ go vet ./...
 $ go build ./cmd/tpatch
 $ go test -count=1 ./...
-ok  	github.com/tesseracode/tesserapatch/assets	0.987s
-ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	2.307s
-ok  	github.com/tesseracode/tesserapatch/internal/cli	88.000s
-ok  	github.com/tesseracode/tesserapatch/internal/gitutil	16.199s
-ok  	github.com/tesseracode/tesserapatch/internal/provider	16.574s
-ok  	github.com/tesseracode/tesserapatch/internal/safety	5.384s
-ok  	github.com/tesseracode/tesserapatch/internal/store	5.672s
-ok  	github.com/tesseracode/tesserapatch/internal/tools/studyvalidator	4.537s
-ok  	github.com/tesseracode/tesserapatch/internal/workflow	52.171s
-ok  	github.com/tesseracode/tesserapatch/tests/integration	4.769s
+ok  	github.com/tesseracode/tesserapatch/assets	0.538s
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	0.656s
+ok  	github.com/tesseracode/tesserapatch/internal/cli	76.539s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	14.738s
+ok  	github.com/tesseracode/tesserapatch/internal/provider	15.541s
+ok  	github.com/tesseracode/tesserapatch/internal/safety	1.309s
+ok  	github.com/tesseracode/tesserapatch/internal/store	5.472s
+ok  	github.com/tesseracode/tesserapatch/internal/tools/studyvalidator	2.441s
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	51.450s
+ok  	github.com/tesseracode/tesserapatch/tests/integration	4.188s
 ```
 
 All packages pass; no diagnostics from `gofmt` or `go vet`.
 
-Commits landing (5, all with valid Co-authored-by trailer):
+Top-level `--- PASS` count via `go test -count=1 -v ./... | grep -c
+'^--- PASS'`: **783** (rev-0 baseline: 773 → delta +10 tests). New
+tests: R1 = 3 (one workflow, two CLI), R2 = 2 (one workflow, one
+CLI), R3 = 3 (all store), R4 = 2 positive (both workflow). The two
+rev-0 locking tests still exist under their inverted names and
+assertions (renamed, not deleted, per the rev-1 dispatch protocol):
+`TestReconcileDefaultSet_ExcludesFeatureWhenSupersederStale` and
+`TestRunVerify_ClosureReplay_StaleSupersederSkipsParent`.
+
+Rev-0 commits (5, all with valid Co-authored-by trailer):
 - `48399f4` slice 1: schema + parity guards
 - `f8f7766` slice 2: supersedes cycle detection tests
 - `195921a` slice 3: 4 composable labels + rendering
 - `3f49c36` slice 4: reconcile suppression + V7 supersession-skip
 - `4d4bb60` slice 5: CHANGELOG + status flips
 
+Rev-1 commits (5, all with valid Co-authored-by trailer):
+- `5e6515d` slice R1: F-SEXT-1 superseded-by label carries slug suffix
+- `84c873a` slice R2: F-SEXT-2 supersession labels render in severity-first order
+- `a7f0222` slice R3: F-SEXT-3 reject multiple healthy superseders at write time
+- `4a7ea4f` slice R4: Internal F1 stale-supersession runtime flip
+- (this commit) slice R5: CHANGELOG amendment + handoff update
+
 ## Next Steps
 
-1. Dispatch internal reviewer + supervisor-external reviewer in parallel for Wave α rev-0.
+1. Dispatch internal + supervisor-external rev-1 reviewers in parallel.
 2. On three-way APPROVED: archive Wave α to `docs/handoff/HISTORY.md`, dispatch Wave β (`PRD-write-file-recipe-safety` + ADR-029).
 3. Wave γ (`PRD-active-feature-session`) dispatch may proceed in parallel with Wave β if capacity allows (independent code surfaces).
 
@@ -283,8 +400,59 @@ None.
 
 ## Context for Next Agent
 
-- HEAD after Wave α implementation: `4d4bb60` (5 commits atop kickoff HEAD `7081c62`).
-- **Rule 19 exported-surface citations landed**: Slice 1 (store schema + CLI parser), Slice 3 (workflow label helpers, exported `DeriveSupersessionLabels`, `IsSupersessionLabel`, `StripSupersessionLabels`, `IsFeatureSuperseded`), Slice 4 (workflow reconcile + verify V7 wire-in). Each commit message names the PRD AC + ADR D-clause.
+- HEAD after Wave α rev-1 fold-in: (this commit) atop `4a7ea4f`
+  (which sits atop rev-0 tip `4d4bb60` → dispatch HEAD `d21b4b4`).
+  Rev-1 landed 5 sequential commits (R1-R5), one per slice.
+- **Rev-1 Rule 19 exported-surface citations landed**: R1
+  (composite `superseded-by <slug>` label value contract), R2
+  (`DeriveSupersessionLabels` render order), R3
+  (`store.ErrMultipleActiveSuperseders` sentinel + validation),
+  R4 (`isFeatureSupersededIn` / `IsFeatureSuperseded` behavior
+  flip touching `RunReconcile` + `runClosureReplay`). Each commit
+  message names the PRD AC + ADR D-clause.
+- **Design decision — first-sorted-slug determinism (R1)**: when a
+  superseded target has multiple healthy peers, the composite label
+  emit chose `slugs[0]` after `sort.Strings`. This case is only
+  transiently reachable because R3 rejects the multi-healthy write
+  path at `ValidateDependencies` time; it exists to keep the label
+  well-defined on pre-existing on-disk fan-in that predates R3.
+- **Design decision — presumed-healthy caller semantics (R3)**:
+  `ValidateDependencies` treats the caller feature `slug` as
+  presumed-healthy (its own reconcile state is not consulted).
+  A fresh draft `A supersedes X` write is rejected if any OTHER
+  healthy peer already supersedes `X`. This aligns with the
+  intent of AC-4/D5 — write-time prevention of ambiguity — and
+  avoids a chicken-and-egg where the caller must already be
+  applied+verified before validation can approve.
+- **Design decision — health-check duplication (R3)**: the
+  `internal/store` package cannot import `internal/workflow`
+  (cycle), so `supersederIsHealthyForValidation`,
+  `supersederValidationHealthyStates`, and
+  `supersederValidationBlockedOutcomes` are locally duplicated
+  in `internal/store/validation.go`. A comment marks the
+  byte-identity contract with `internal/workflow/labels.go`
+  `supersederIsHealthy` — any change to one MUST be mirrored in
+  the other. Long-term cleanup: promote to a shared
+  `internal/reconcilestate` package (not done here to keep the
+  fold-in surgical).
+- **Design decision — stale-supersession runtime flip rationale
+  (R4, PRD §4.5.3 clause 3, ADR-028 D6/D8)**: the rev-0
+  implementation returned `false` from `isFeatureSupersededIn`
+  for stale peers, so both `RunReconcile` default set and V7
+  closure REPLAYED the historical target. This contradicted the
+  docstring at `labels.go:456-458` ("stale → historical stays
+  excluded") + PRD §4.5.3 clause 3 (Accepted status). The
+  supervisor decision was RUNTIME FLIP (not paper reconciliation):
+  the flipped rule is that supersession excludes the historical
+  target regardless of whether the superseder is healthy OR
+  stale — the operator-visible signal is the `stale-superseder`
+  label that renders on the superseder side telling the operator
+  the replacement needs repair. Orphan superseders (dep points
+  to a nonexistent slug) are separate — they attach only to the
+  superseder side and do NOT cascade into target exclusion,
+  because there is no target relationship to honor. R4's new
+  `TestReconcileDefaultSet_OrphanSupersederDoesNotExcludeUnrelated`
+  locks that boundary.
 - **Design decision — RunReconcile explicit-slug treatment (PRD §3.3, AC-11)**:
   when the caller directly names a superseded feature on the CLI, we
   DO reconcile it (audit/repair path) but PREPEND a historical-feature
@@ -302,9 +470,9 @@ None.
   relevant because of the excluded parent, so its transitive parents
   should not be replayed either. If some independent hard-dep path
   re-queues the same ancestor, it will be picked up via that path.
-  Stale supersession (superseder unhealthy) does NOT skip — the
-  historical target remains in the closure so V7's replay-fail
-  remediation surfaces normally (ADR-028 D8 warning-class severity).
+  With the R4 runtime flip, this skip now fires for stale
+  supersession as well — operator sees `stale-superseder` on the
+  replacement, historical target's V7 replay is suppressed.
 - **Design decision — ADR-011 D2 cycle detection**: verified
   `DetectCycles` in `internal/store/dag.go` is edge-kind-agnostic
   (walks `dep.Slug` without branching on `dep.Kind`). Zero code

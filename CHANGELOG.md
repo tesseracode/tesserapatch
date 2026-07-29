@@ -24,16 +24,43 @@ All notable changes to tpatch are recorded here.
   missing target). Labels attach at render/status time and are stripped
   from persisted `Reconcile.Labels` via the shared `stripDerivedLabels`
   chain, mirroring freshness label persistence.
-- Reconcile suppression (ADR-028 D6, PRD §3.3, AC-5, AC-11):
-  `RunReconcile` filters superseded-by-healthy features from the
-  default effective replay set when called with no explicit slugs.
-  When the caller explicitly names a superseded feature, it is
-  reconciled for audit/repair and a historical-feature warning note is
-  prepended to the `ReconcileResult`. V7 (`runClosureReplay`) skips
-  superseded parents from the hard-parent closure so their recipes are
-  not replayed in the shadow. Stale supersession (ADR-028 D8) does NOT
-  mask the historical target — the underlying V7 replay failure
-  surfaces normally.
+- Reconcile suppression (ADR-028 D6, PRD §3.3, PRD §4.5.3, AC-5,
+  AC-11): `RunReconcile` filters superseded features from the default
+  effective replay set when called with no explicit slugs. Supersession
+  applies whether the superseder is healthy OR stale (rev-1 runtime
+  alignment with PRD §4.5.3 clause 3 + ADR-028 D6/D8). When the caller
+  explicitly names a superseded feature, it is reconciled for
+  audit/repair and a historical-feature warning note is prepended to
+  the `ReconcileResult`. V7 (`runClosureReplay`) skips superseded
+  parents from the hard-parent closure so their recipes are not
+  replayed in the shadow — historical drift stays warning-class per
+  ADR-028 D8, and `stale-superseder` renders as the operator-visible
+  signal that the replacement itself needs repair.
+- Rev-1 corrections (post-review fold-in):
+  - `superseded-by` label renders as the composite
+    `superseded-by <slug>` per PRD §4.1 binding label-value contract
+    (F-SEXT-1). Both text and `--dag --json` render paths carry the
+    healthy superseder's slug alongside the token.
+  - Supersession labels render in the PRD-locked severity-first order
+    `[stale-superseder] [orphan-superseder] [superseded-by <slug>]
+    [active-superseder]` per §4.3:184-188 + ADR-028 D4:63-67
+    (F-SEXT-2), replacing the prior alphabetical sort. A new
+    `appendLabelPreserveOrder` helper in `internal/cli/status_dag.go`
+    keeps the fixed order through the render pipeline while other
+    label families retain their alphabetical sort.
+  - `ValidateDependencies` + `ValidateAllFeatures` reject multiple
+    active superseders on the same target with a new sentinel
+    `store.ErrMultipleActiveSuperseders` (F-SEXT-3 / AC-4 / ADR-028
+    D5). Write-time (proposed edge) and bulk read-time
+    (data-corruption path) both surface the conflict with an
+    actionable message naming every conflicting superseder.
+  - Stale-supersession runtime aligned with PRD §4.5.3 clause 3:
+    `isFeatureSupersededIn` now returns true for stale as well as
+    healthy superseders, so both reconcile default-set replay and V7
+    hard-parent closure exclude the historical target regardless of
+    superseder health (Internal F1 flip). The `stale-superseder`
+    label continues to render as the operator-visible warning that
+    the replacement needs repair.
 - References: PRD-feature-supersession, ADR-028-supersession-edge-model.
 
 ## v0.11.3 — 2026-07-29 — verify V8 double-apply fix
