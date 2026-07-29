@@ -166,6 +166,48 @@ None.
 - **Acceptance criteria count**: 25 atomic §8 criteria covering idempotence, dry-run defaults, per-session failure isolation, deterministic JSON, privacy enforcement, path-ignore refusal, and backward compatibility.
 - **Stream B collision check**: did not touch `docs/prds/PRD-feature-supersession.md`, `docs/prds/PRD-write-file-recipe-safety.md`, any optional Stream B ADRs, or `docs/adrs/README.md`.
 
+
+## Stream B closure summary — Issue #1 PRD pair — 2026-07-29
+
+**Status**: Drafting complete; ready for supervisor consolidation and review.
+
+**PRDs written**:
+- `docs/prds/PRD-feature-supersession.md` — Proposed.
+- `docs/prds/PRD-write-file-recipe-safety.md` — Proposed.
+
+**ADRs drafted**: Yes.
+- `docs/adrs/ADR-028-supersession-edge-model.md` — Proposed.
+- `docs/adrs/ADR-029-write-file-recipe-safety.md` — Proposed.
+- `docs/adrs/README.md` updated with line-appended index entries for ADR-028/029 only.
+
+**Locked decisions**:
+1. Supersession uses Option A: `depends_on[].kind: "supersedes"` as a third edge kind in the ADR-011 graph. Rationale: preserves ADR-011 D1 storage, reuses D2 DFS/Kahn graph machinery, and keeps D3 labels composable instead of adding lifecycle state.
+2. Multi-superseder fan-in is forbidden in v1 when multiple active/effective replacements target one historical feature.
+3. Superseded historical features are excluded from default effective replay; recipe drift on them is warning-class audit output, not an effective-stack failure.
+4. `write-file` safety v1 mandates Safeguard 2 (`preimage_hash`) and Safeguard 3 (later-touch detection). Safeguards 1, 4, and 5 are deferred.
+5. `preimage_hash` is a `write-file` operation precondition (`sha256:<64hex>` for existing files; empty string for new-file writes). Apply refuses mismatches before writing.
+6. Later-touch detection warns during `record` and `reconcile`; `verify` fails stale effective preimages and warns for superseded historical ones.
+
+**Cluster summaries**:
+- PRD 1 covers edge model, default replay filtering, conflict/cycle/fan-in detection, status/next/reconcile/index visibility, composable labels, supersession/write-file drift severity, and non-scope.
+- PRD 2 covers preimage schema, apply-time refusal matrix, record/reconcile/verify later-touch detection, legacy recipe compatibility, supersession severity coupling, and deferred safeguards.
+
+**Acceptance criteria counts**:
+- PRD-feature-supersession: 12 criteria.
+- PRD-write-file-recipe-safety: 13 criteria.
+
+**Validation gates**:
+- `gofmt -l .` — clean.
+- `go vet ./...` — passed.
+- `go build ./cmd/tpatch` — passed.
+- `go test ./...` — passed (all packages green/cached as reported by Go).
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+**Collision check**:
+- Did not touch Stream A file `docs/prds/PRD-active-feature-session.md`.
+- No production code, assets, CHANGELOG, or Stream A ADR follow-ups touched.
+
+
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
 Paper-only exploratory pass completed for a non-LLM middle layer between
