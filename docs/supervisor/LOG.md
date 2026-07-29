@@ -1,3 +1,77 @@
+## Review — Stream A PRD-active-feature-session — internal — 2026-07-29
+
+**Reviewer**: internal (code-review agent)
+**Task**: Adversarial review of Stream A (`ea95aaa..b58f560`) — paper-only PRD draft locking ADR-027 F3 (D1 local-buffer path).
+
+### Verdict: APPROVED
+
+Zero findings. Paper-only PRD; all cluster locks, cross-references, non-scope declarations, Rule 8/15/17/18 grep contracts, and hard constraints verified against production ground truth and ADR-027.
+
+### Cluster verification (5 clusters)
+- Cluster 1 (lifecycle): LOCKED — §3 D1-D4. Explicit `tpatch session start <slug>` trigger (no implicit start from `analyze`, agent lifecycle, or process events); explicit `session stop` + opt-in `record --with-session` close; per-feature scope (not per-command); `cs_<12hex>` content-addressed IDs with SHA-256 identity inputs and no wall-clock. State machine {`active`, `closed`, `promoted`, `purged`} with enumerated transitions.
+- Cluster 2 (storage — F3 lock): LOCKED — §4 D5-D8. Option A confirmed: `.tpatch/local/capture/<slug>/<cs_id>/{session.json,observations.jsonl}` with ignore-before-write mandatory, `.git/tpatch/capture/` + OS user-cache explicitly rejected (D7) with rationale. ADR-027 D1 F3 verbatim block quoted at §0.2 lines 30-36.
+- Cluster 3 (promotion): LOCKED — §5 D9-D12. Triggers = `record --with-session` and `session summarize`; committed target `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`; ADR-027 D3 redaction preconditioned at D11; summarize defaults dry-run; promotion optional.
+- Cluster 4 (CLI surface): LOCKED — §6 D13-D15. New `tpatch session {start|stop|list|summarize|purge}` explicitly labeled new (§D13 line 302); new `record --with-session` / `--from-session <cs_id>` flags; Rule 11 persistent `--path` inheritance documented (§D13 rule 2 + §8.21).
+- Cluster 5 (privacy): LOCKED — §7 D16-D19. Enumerated allowed/forbidden content classes for both lanes; cross-feature isolation (D18); provider carve-out (D19) explicitly cites ADR-027 D10's four conditions.
+
+### Acceptance criteria
+- Count: 25 (claimed 25) — CONFIRMED via `grep -c "^[0-9]\+\. \*\*§8\." docs/prds/PRD-active-feature-session.md` = 25.
+- Atomic + testable: CONFIRMED — each §8.N names a concrete refusal, transition, invariant, or determinism property.
+- Idempotence (§8.3, §8.11) / dry-run defaults (§8.9, §8.10) / failure isolation (§8.16) / JSON determinism (§8.15) / backward compat (§8.18, §8.22): CONFIRMED.
+
+### Explicit non-scope
+- Five deferred capture PRDs named by name: CONFIRMED — §2.2 + §10 both enumerate `PRD-agent-event-log`, `PRD-ide-capture-hooks`, `PRD-git-hook-capture-guards`, `PRD-record-context-summary`, `ADR-capture-metadata-branch`; also `Cross-repo session sharing` (§10.6) and `Multi-user concurrent session merge` (§10.7).
+
+### Cross-reference
+- ADR-027 F3 verbatim citation: CONFIRMED — §0.2 lines 30-36 block-quote D1 local-lane text verbatim.
+- ADR-027 D1/D2/D3/D6/D7/D9/D10/D13 preserved: CONFIRMED — D1 two-lane preserved (D5 local + D10 committed); D2 content-shape preserved (D16/D17); D3 redaction preserved (D11); D6 IDs preserved (D3 identity); D7 default-off preserved (`session start` explicit trigger + `record --with-session` opt-in); D9 cross-feature isolation (D18); D10 provider (D19 four conditions); D13 territory unlocked as declared.
+- Sibling capture PRDs (file-claims, capture-modes) no contradiction: CONFIRMED — PRD references them at §11 and does not redefine claim IDs, capture modes, or record-time semantics.
+
+### Rule 8 + 15 grep
+- Filenames/paths in PRD:
+  - `.tpatch/local/capture/<slug>/<cs_id>/session.json` — new, ignored-before-write.
+  - `.tpatch/local/capture/<slug>/<cs_id>/observations.jsonl` — new.
+  - `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json` — new subdir under existing `featureArtifactsDir()` (`internal/store/store.go:584-586`); no collision.
+  - CONFIRMED — no drift with existing `.tpatch/` layout.
+- tpatch commands in PRD:
+  - `tpatch init` (cobra.go:90), `tpatch status` (198), `tpatch analyze` (440), `tpatch implement` (563), `tpatch record` (944), `tpatch reconcile` (1768), `tpatch verify` (verify.go:46), `tpatch doctor` (doctor.go:11) — ALL EXIST in production.
+  - `tpatch session {start|stop|list|summarize|purge}` — explicitly declared NEW at §D13 line 302.
+  - CONFIRMED — Rule 15 satisfied.
+- Flags: root `--path` (cobra.go:54-55) exists; `--with-session`, `--from-session`, `--capture-context`, `--label`, `--session`, `--dry-run`, `--write`, `--json`, `--yes`, `--all` all explicitly proposed new. CONFIRMED.
+
+### Hard-constraint sweep (12)
+- [x] Paper-only — `git diff ea95aaa..b58f560 --stat`: only `docs/handoff/CURRENT.md` (+13) and `docs/prds/PRD-active-feature-session.md` (+500). No `internal/`/`cmd/`/`assets/` touched.
+- [x] Status = `Proposed` — line 2.
+- [x] ADR-027 D-clauses preserved (see cross-reference sweep).
+- [x] Rule 8 — filenames/flags/paths/enums declared as binding at §0.2 line 46 + §D13 rule 3.
+- [x] Rule 15 — production commands verified in cobra.go; new commands explicitly proposed.
+- [x] Rule 17 — no unbounded totality; §D13 rule 4 explicitly limits claims to "v1 proposed active-session flags".
+- [x] Rule 18 — b58f560 trailer parses (see below).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` — no file under `docs/state-of-the-art/` in diff (`git diff --name-only ea95aaa..b58f560` = only 2 files).
+- [x] Co-authored-by trailer on b58f560.
+- [x] No CHANGELOG entry — not in diff.
+- [x] No scope creep into Stream B files — PRD-feature-supersession.md, PRD-write-file-recipe-safety.md, ADR-028/029, docs/adrs/README.md all absent from diff.
+- [x] `docs/adrs/README.md` untouched — absent from diff.
+
+### Validation gates
+gofmt: clean | vet: clean | build: ok | test: all packages ok (cached, unchanged as expected for paper-only).
+
+### Trailer verification (Rule 18)
+`git log -1 --format='%(trailers)' b58f560` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Adversarial findings
+None.
+
+### Adversarial extras
+1. Session identity format — `cs_<12hex>` content-addressed SHA-256 prefix; wall-clock, PIDs, adapter IDs, and sequence numbers explicitly excluded from identity inputs (§D3). CONFIRMED.
+2. `.gitignore` interaction — PRD requires `tpatch init` to add/preserve `.tpatch/local/` ignore rule and verifies against `internal/store/store.go:42-125` that current `tpatch init` does NOT touch `.gitignore` and does NOT create `.tpatch/local/`. PRD correctly flags this as required implementation work (§0.3 audit row + §D6 lines 219-221) rather than silently assuming existing behavior. CONFIRMED.
+3. Provider carve-out coherence — §D19 enumerates all four ADR-027 D10 conditions (user selection, D3 redaction, no local buffer / raw transcript / IDE buffer / transcript-ref dereference, no auto-dereference of symbolic external refs). CONFIRMED.
+4. Committed-lane path collision — `.tpatch/features/<slug>/artifacts/context/` is a new subdir under existing `featureArtifactsDir()` (store.go:584-586). No collision with existing patch/reconciliation/status layout. CONFIRMED.
+5. Rule 18 self-application — verified post-commit below.
+
+### Action Taken
+LOG.md entry prepended; commit signed off with Copilot co-author trailer.
+
 ## Review — Stream B PRD-pair (supersession + write-file safety, GH #1) — internal — 2026-07-29
 
 **Reviewer**: internal (code-review agent)
