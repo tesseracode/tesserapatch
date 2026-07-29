@@ -1,3 +1,94 @@
+## Review — Stream A PRD-active-feature-session — external (supervisor-dispatched) — 2026-07-29
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Stream A (`ea95aaa..b58f560`). Verifying internal APPROVED at `60d9406`. All findings derived by re-running Rule 8/15/17/18 grep, ADR-027 D1-D13 preservation, and hard-constraint sweep from scratch against production ground truth without consulting the internal entry's conclusions.
+
+### Verdict: APPROVED
+
+Zero new findings. Paper-only PRD; every cluster lock, every ADR-027 D-clause preservation claim, every filename/CLI/flag contract, and the .gitignore gap surface all verified against `internal/store/store.go`, `internal/cli/cobra.go`, and `docs/adrs/ADR-027-capture-context-privacy-boundary.md`.
+
+### Cluster verification (independent)
+- Cluster 1 lifecycle (§3 D1-D4): CONFIRMED. Start/stop are explicit and per-feature (D1/D2); idempotent double-start (D1 rule 5); `cs_<12hex>` content-addressed with wall-clock, PID, adapter-ID, and sequence-number explicitly excluded from identity inputs (D3 rules 3-4); state machine {active, closed, promoted, purged} with enumerated transitions (D4). Reopen + concurrent-merge deferred.
+- Cluster 2 storage F3 lock (§4 D5-D8): CONFIRMED. Option A `.tpatch/local/capture/<slug>/<cs_id>/{session.json,observations.jsonl}` locked (D5); ignore-before-write mandatory with effective-Git-ignore verification, not textual match (D6 rules 3+5); `.git/tpatch/capture/` and OS-cache locations explicitly rejected with rationale (D7); buffers non-authoritative + purgeable + no wall-clock filenames (D8). §0.2 lines 30-36 quote ADR-027 D1 F3 verbatim.
+- Cluster 3 promotion (§5 D9-D12): CONFIRMED. Explicit opt-in via `record --with-session` or `session summarize` (D9); committed target `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json` (D10); D3 redaction is precondition and failure is hard-refusal (D11); promotion optional (D12).
+- Cluster 4 CLI (§6 D13-D15): CONFIRMED. Five new subcommands under `tpatch session` explicitly declared new at line 302; new `record --with-session` / `--from-session <cs_id>` flags with `--from-session` requiring `--with-session` (D15 rule 3); Rule 11 root `--path` inheritance documented (D13 rule 2 + §8.21); Rule 17 explicit v1-scoping (D13 rule 4).
+- Cluster 5 privacy (§7 D16-D19): CONFIRMED. D16 enumerates allowed/forbidden local-buffer classes; D17 restricts committed summaries to ADR-027 D2 material with no forced dereference of `.tpatch/local/`; D18 cross-feature isolation; D19 provider carve-out cites all four ADR-027 D10 conditions (user-selected path, D3-redacted payload, no local-buffer/raw-transcript/IDE-buffer/transcript-ref inclusion, no auto-dereference).
+
+### Acceptance criteria (independent count)
+- Independently counted via `grep -c "^[0-9]\+\.\s\+\*\*§8\." docs/prds/PRD-active-feature-session.md` = 25. Confirms internal's 25.
+- Atomic + testable: CONFIRMED. Each criterion names a concrete refusal (§8.2, §8.7, §8.19), transition (§8.5), determinism property (§8.15), or backward-compat invariant (§8.18, §8.22). No aspirational "should"/"consider" phrasing.
+
+### Non-scope enumeration
+All 7 required items named in §10:
+- §10.1 `PRD-agent-event-log`; §10.2 `PRD-ide-capture-hooks`; §10.3 `PRD-git-hook-capture-guards`; §10.4 `PRD-record-context-summary`; §10.5 `ADR-capture-metadata-branch`; §10.6 cross-repo session sharing; §10.7 multi-user concurrent session merge. §2.2 mirrors the same list plus raw-transcript/embeddings/vectors non-goals.
+
+### ADR-027 D1-D13 preservation
+- D1 (two-lane storage): PRESERVED — D5 local lane + D10 committed lane match ADR-027 §D1 exactly; F3 verbatim block quoted §0.2.
+- D2 (content shape): PRESERVED — D16/D17 forbid raw transcripts/IDE buffers/tool bodies/prompts/CoT/embeddings/vectors.
+- D3 (redaction precondition): PRESERVED — D11 elevates to hard failure; §8.12 tests it.
+- D6 (content-addressed IDs, no wall-clock): PRESERVED — D3 rules 1-3 fix SHA-256 inputs and exclude wall-clock/PID/adapter/sequence identifiers.
+- D7 (default-off high-risk): PRESERVED — `session start` requires explicit trigger; `record --with-session` opt-in.
+- D9 (cross-feature isolation): PRESERVED — D18 rejects mismatched feature at hard-refusal severity.
+- D10 (machine boundary + provider carve-out): PRESERVED — D19 cites all four D10 conditions verbatim in intent (user selection, D3 redaction, no raw/IDE/transcript-ref, no auto-dereference).
+- D13 (non-scope items): PRESERVED — §10 does not reopen any D13 territory.
+
+### Rule 8 + 15 grep (INDEPENDENT)
+- Filenames/paths independently verified:
+  - `.tpatch/local/capture/<slug>/<cs_id>/{session.json,observations.jsonl}` — new; no collision (production `internal/store/store.go` writes nothing under `.tpatch/local/`).
+  - `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json` — new subdir under existing `featureArtifactsDir()` at `internal/store/store.go:584-586`; grep `artifacts/context` across `internal/` returns zero matches, so no collision with `post-apply.patch`, `apply-recipe.json`, `patch-generations.json`, `reconcile-evidence.jsonl`, or `reconcile-revisions.jsonl`.
+  - `.gitignore` — production `Init()` at `internal/store/store.go:42-125` writes `config.yaml`, `FEATURES.md`, `upstream.lock`, `local.md`, `upstream.md` but does NOT touch `.gitignore` nor create `.tpatch/local/`. PRD §0.3 claims audit matches ground truth; §D6 explicitly requires the amendment.
+- `tpatch <command>` independently verified in `internal/cli/cobra.go`:
+  - Existing (matched to `Use:` line): `init` (90), `add` (131), `status` (198), `analyze` (440), `define` (484), `explore` (524), `implement` (563), `apply` (606), `record` (944), `reconcile` (1768). All PRD references to these commands match production shapes.
+  - New (explicitly declared): `tpatch session start|stop|list|summarize|purge` at §D13. Independent `grep -n "\"session\"\|Use:.*session" internal/cli/cobra.go` returns 0 hits — correctly declared new.
+- Flags independently verified:
+  - Root `--path` at cobra.go:54-55 — Rule 11 inheritance holds.
+  - `--with-session`, `--from-session <cs_id>`, `--capture-context=summary|local-events`, `--label`, `--session`, `--dry-run`, `--write`, `--json`, `--yes`, `--all` — all explicitly proposed new; no drift.
+- ID prefix collision check: `pg_`, `rr_`, `re_` existing (per `internal/store/patch_generations.go:275`, `reconcile_revision.go:80`, `reconcile_evidence.go:125`); PRD reserves `cs_`, `ctx_`, `ce_` — no collision.
+
+### `.gitignore` gap handling
+- Production ground truth: `tpatch init` does not currently write any `.gitignore` entry. Confirmed by inspecting `internal/store/store.go:42-130`.
+- PRD proposes the amendment: §0.3 claims-audit row + §D6 rules 1-2 + §8.1 acceptance criterion + §4 storage rationale all require `tpatch init` to add or preserve effective ignore for `.tpatch/local/` before active-session writers ship, with writer-side refusal if Git-effective ignore verification fails. Race between init amendment and early `session start` is closed by D6 rule 3 (start verifies effective ignore before creating `<cs_id>` dir) and D6 rule 4 (writers refuse when Git unavailable or path not ignored). No open loose end.
+
+### Downstream implementability
+- Day-1 implementer path is well-scoped: (1) amend `tpatch init` in `internal/store/store.go` to write `.gitignore` entry for `.tpatch/local/`; (2) add new `session` cobra command group in `internal/cli/cobra.go` alongside `record` at line ~944; (3) add `--with-session` / `--from-session` to `recordCmd()` at cobra.go:942; (4) create local-buffer writer with effective-Git-ignore verification and content-addressed `cs_<12hex>` derivation; (5) create committed-summary writer under existing `featureArtifactsDir()`. Every path, flag, ID format, and refusal case is contractually specified. No decision left open that would block Day-1 implementation. Answer: YES.
+
+### Hard-constraint sweep (12)
+- [x] Paper-only — diff = only `docs/handoff/CURRENT.md` (+13) and `docs/prds/PRD-active-feature-session.md` (+500); no `internal/`, `cmd/`, `assets/`.
+- [x] Status = `Proposed` — PRD line 2.
+- [x] ADR-027 D1-D13 preserved — see D-clause sweep above.
+- [x] Rule 8 (binding strings declared) — §0.2 line 46 + §D13 rule 3.
+- [x] Rule 15 (production commands verified in cobra.go) — see grep above.
+- [x] Rule 17 (no unbounded totality) — §D13 rule 4 explicitly scopes to v1.
+- [x] Rule 18 (trailer parses) — verified below.
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` — `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` returns `b385fe622db9926f48861105239f113e`.
+- [x] Co-authored-by trailer on b58f560 — `git log -1 --format='%(trailers)' b58f560` returns `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+- [x] No CHANGELOG entry — CHANGELOG.md absent from diff.
+- [x] No scope creep into Stream B files — `git diff ea95aaa..b58f560 -- CHANGELOG.md docs/adrs/README.md docs/prds/PRD-feature-supersession.md docs/prds/PRD-write-file-recipe-safety.md docs/adrs/ADR-028-supersession-edge-model.md docs/adrs/ADR-029-write-file-recipe-safety.md` returns empty.
+- [x] `docs/adrs/README.md` untouched — absent from diff.
+
+### Validation gates
+gofmt: clean | vet: clean | build: ok (`go build ./cmd/tpatch`) | test: all packages ok (cached, unchanged; paper-only diff cannot affect Go compilation).
+
+### Trailer verification (Rule 18)
+`git log -1 --format='%(trailers)' b58f560` = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Adversarial extras (findings beyond internal)
+1. `cs_<12hex>` prefix collision — INDEPENDENTLY VERIFIED against `internal/store/`: existing prefixes are `pg_` (patch_generations.go:275), `rr_` (reconcile_revision.go:80), `re_` (reconcile_evidence.go:125). PRD's `cs_`, `ctx_`, `ce_` are collision-free. No finding.
+2. Ignore-before-write race — PRD D6 rule 3 requires start-time effective-ignore verification (not just init-time), plus D6 rule 4 writer refusal, plus D6 rule 6 explicit pre-PRD-workspace refuse-until-satisfied. Race window is closed. No finding.
+3. Provider carve-out coherence — §D19 recites four D10 conditions in intent-preserving form (user-selected path; D3-redacted committed summary; no local-buffer/raw-transcript/IDE-buffer/transcript-ref included; no symbolic-external-ref auto-dereference). Matches ADR-027 D10 §323-333 exactly in coverage. No implicit loosening.
+4. Committed-lane path collision — grep `artifacts/context\|artifacts.context` across `internal/store/` and `internal/workflow/` returns zero code hits (all matches are Go `"context"` package imports). No collision with existing `post-apply.patch`, `apply-recipe.json`, `patch-generations.json`, `reconcile-evidence.jsonl`, `reconcile-revisions.jsonl`. No finding.
+5. `session summarize` vs `record --with-session` semantic overlap — §D2 rule 2 defines `record --with-session` promotion as closing the session only after committed summary succeeds; §D9 rule 3 defines `session summarize --write` as the mutating single-purpose promotion path. `session summarize` does NOT close the session; `record --with-session` DOES. Distinct semantics, both documented. No implementer ambiguity.
+6. Rule 18 self-application — verified post-commit below.
+
+### New findings (if any beyond internal)
+None. All independent checks concur with internal APPROVED.
+
+### Concurrence with internal verdict?
+YES. Internal's APPROVED verdict at `60d9406` (5 clusters locked as D1-D19, 25 acceptance criteria, 12/12 hard constraints, .gitignore gap surfaced correctly) is confirmed by independent verification against production ground truth. No blocker missed by internal.
+
+### Action Taken
+LOG.md entry prepended; committed with Copilot co-author trailer and Rule 18 self-verification below.
+
 ## Review — Stream A PRD-active-feature-session — internal — 2026-07-29
 
 **Reviewer**: internal (code-review agent)
