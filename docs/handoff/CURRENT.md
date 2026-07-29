@@ -2,11 +2,69 @@
 
 ## Active Task
 
-- **Task ID**: `v0.11.2-release`
-- **Milestone**: v0.11.2 release ship — tpatch doctor implementation cluster CLOSED. Following `RELEASING.md` end-to-end (its second real-world validation).
-- **Description**: Doctor implementation cluster (Waves α+β+γ+δ) is CLOSED at three-way APPROVED. Full-cluster 29/29 §6 MET. Ready to ship v0.11.2 following the RELEASING.md three-artifact lock-step (CHANGELOG graduate → annotated tag → gh release create --verify-tag --notes-file --latest).
-- **Status**: In Progress (release ship).
+- **Task ID**: `post-v0.11.2-decision`
+- **Milestone**: v0.11.2 SHIPPED 2026-07-29 (tag `v0.11.2` at release commit `3267455`; GH Release marked `Latest` at https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.2). RELEASING.md validated end-to-end for the second time.
+- **Description**: Doctor implementation cluster COMPLETE + v0.11.2 shipped. Awaiting supervisor decision on next work block.
+- **Status**: Awaiting next-phase dispatch (no active implementer).
 - **Assigned**: 2026-07-29.
+
+## v0.11.2 release summary
+
+- **Tag**: `v0.11.2` on `origin/v0.11.2` at release commit `3267455`.
+- **GH Release**: https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.2 (marked `Latest`; v0.11.1 demoted).
+- **Scope**: ~30 commits since v0.11.1 covering 4 doctor waves + F1/F2/F3 folds + LOG updates.
+- **CHANGELOG**: `## v0.11.2 — 2026-07-29 — tpatch doctor implementation` graduated from `(unreleased)` header with Wave α/β/γ/δ subsections.
+- **RELEASING.md validated**: em-dash-anchored awk extraction worked on first try (validating the v0.11.1 doc fix). 3-artifact lock-step complete.
+- **Public CLI additions**: `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]`.
+- **Zero code regressions**: full-cluster acceptance sweep 29/29 §6 MET; all pre-cluster tests still pass.
+
+## Doctor cluster closure summary
+
+- **4 waves**, all three-way APPROVED at final acceptance.
+- **15 consecutive rev cycles** at three-way concurrence.
+- **20 binding carry-forward rules** (up from 17 at cluster kickoff).
+- Full snapshot archive in `docs/handoff/HISTORY.md`.
+
+## Open decision for supervisor
+
+Same options as post-v0.11.1 with one new option unlocked (doctor follow-ups):
+
+**Option A — WP-004** (`auto-feature-dependencies`). Draft at `docs/whitepapers/WP-004-auto-feature-dependencies.md`. Continues WP-002 → WP-003 sequence into dependency automation.
+
+**Option B — WP-005** (`spec-driven-workflows`). Draft at `docs/whitepapers/WP-005-spec-driven-workflows.md`. Opens spec-workflow surface.
+
+**Option C — Research roadmap continuation**. Six blocked capture PRDs unlocked by ADR-027. Recommendation: `PRD-active-feature-session` (locks ADR-027 F3 follow-up).
+
+**Option D — Doctor follow-ups** (optional cleanup, not urgent):
+- S3-boundary observation from Wave δ rev-1 supervisor-external: mixed-CHANGELOG scope (repo-scoped vs per-tag) — draft small ADR or PRD amendment if the boundary proves important in practice.
+- ADR-027 F2 (roadmap naming coord) and F3 (D1 local-buffer path softness) still deferred.
+
+## Carry-forward dispatch rules (20 binding)
+
+See prior CURRENT.md snapshots in HISTORY.md for full text. All 20 rules still binding.
+
+## Session Summary
+
+Doctor implementation cluster CLOSED 2026-07-29 across 4 waves (α+β+γ+δ). v0.11.2 SHIPPED via RELEASING.md's second real-world validation. All 4 SQL doctor todos flipped to `done`. Awaiting next-block decision.
+
+## Next Steps
+
+1. Supervisor: pick Option A, B, C, or D.
+2. If Option A/B (WP-004/WP-005): read the WP draft, ask for PRD ordering + wave structure, dispatch first slice.
+3. If Option C: recommend `PRD-active-feature-session` first (locks ADR-027 F3).
+4. If Option D: small doctor follow-up ADR/PRD amendment.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- v0.11.2 is the current `Latest` GH Release; v0.11.1 demoted; v0.11.0 further demoted.
+- 20 binding carry-forward rules — see HISTORY.md snapshots for full text and lineage.
+- Two-opinion protocol scoreboard: 15/15 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 15 at rev-0.
+- Doctor implementation cluster is the largest single-cluster (in commits) shipped so far — the 4-wave pattern proved scalable for D-clause-organized detection code with mixed read-only + `--fix` semantics.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## Doctor cluster closure summary
 
