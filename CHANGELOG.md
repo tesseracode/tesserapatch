@@ -2,6 +2,40 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.12.0 — TBD — feature supersession (Wave α)
+
+### Wave α — supersedes edge kind + reconcile suppression + composable labels
+
+- Extended `depends_on[].kind` with a third literal value `supersedes`
+  alongside the existing `hard` and `soft` (ADR-011 D1 single storage
+  lane preserved). Storage constant `store.DependencyKindSupersedes`,
+  validation allow-list, and CLI dep parser (`<parent>:supersedes`
+  shorthand) updated. All six shipped skill assets — Claude, Copilot,
+  Copilot Prompt, Cursor, Windsurf, Generic — mention the new kind
+  under the "Edge kinds" documentation block.
+- Preserved ADR-011 D2 cycle detection semantics: `DetectCycles` is
+  edge-kind-agnostic by construction, so mixed hard/soft/supersedes
+  cycles (X supersedes Y + Y hard-depends X, reciprocal supersession,
+  self-supersession) all fail validation with descriptive errors.
+- Added four new composable derived labels via the ADR-011 D3 pattern:
+  `superseded-by` (target with healthy superseder), `active-superseder`
+  (superseder with resolvable target), `stale-superseder` (superseder
+  itself unhealthy), `orphan-superseder` (superseder pointing at a
+  missing target). Labels attach at render/status time and are stripped
+  from persisted `Reconcile.Labels` via the shared `stripDerivedLabels`
+  chain, mirroring freshness label persistence.
+- Reconcile suppression (ADR-028 D6, PRD §3.3, AC-5, AC-11):
+  `RunReconcile` filters superseded-by-healthy features from the
+  default effective replay set when called with no explicit slugs.
+  When the caller explicitly names a superseded feature, it is
+  reconciled for audit/repair and a historical-feature warning note is
+  prepended to the `ReconcileResult`. V7 (`runClosureReplay`) skips
+  superseded parents from the hard-parent closure so their recipes are
+  not replayed in the shadow. Stale supersession (ADR-028 D8) does NOT
+  mask the historical target — the underlying V7 replay failure
+  surfaces normally.
+- References: PRD-feature-supersession, ADR-028-supersession-edge-model.
+
 ## v0.11.3 — 2026-07-29 — verify V8 double-apply fix
 
 - Fixed `tpatch verify` V8 (`post_apply_patch_replay_clean`) failing for

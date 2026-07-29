@@ -1,6 +1,6 @@
 # PRD - Feature Supersession - `feature-supersession`
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-07-29
 **Owner**: Core
 **Cluster**: Replay trustworthiness (GH #1)

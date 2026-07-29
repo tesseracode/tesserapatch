@@ -549,6 +549,49 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## v0.12.0 — feature supersession Wave α implementation landed 🚧 in-flight
+
+Post-planning implementation cluster for GH #1 supersession, executed
+as the Wave α slice (schema + labels + cycle detection + reconcile
+suppression). Wave β (`write-file` recipe safety per ADR-029) and
+Wave γ (active-feature-session per ADR-027) remain out of scope for
+Wave α and are separately tracked.
+
+- **Wave α — schema + labels + reconcile suppression** 🚧 (implementation
+  landed, awaiting three-way concurrence review)
+  - Added `store.DependencyKindSupersedes = "supersedes"` as a third
+    valid `depends_on[].kind` literal alongside `hard` and `soft`
+    (ADR-011 D1 preserved). Validation, CLI parser, and all six
+    shipped skill assets updated in the same commit (Slice 1 anti-drift).
+  - Confirmed ADR-011 D2 `DetectCycles` is edge-kind-agnostic by
+    construction; added regression tests covering mixed
+    hard/soft/supersedes cycles, self-supersession, and reciprocal
+    supersession (Slice 2).
+  - Added four composable derived labels via ADR-011 D3 pattern:
+    `superseded-by`, `active-superseder`, `stale-superseder`,
+    `orphan-superseder`. Labels render in `tpatch status` DAG output
+    (text + JSON) and are stripped from persisted `Reconcile.Labels`
+    via the shared `stripDerivedLabels` helper (Slice 3).
+  - Reconcile suppression (Slice 4): `RunReconcile` filters
+    superseded-by-healthy features from the default effective replay
+    set; explicit slug reconcile emits a historical-feature warning
+    note. V7 (`runClosureReplay`) skips superseded hard parents from
+    the closure. Stale supersession does NOT mask the historical
+    target (ADR-028 D8).
+  - Status flipped `Proposed` → `Accepted` on both
+    [`PRD-feature-supersession`](prds/PRD-feature-supersession.md) and
+    [`ADR-028-supersession-edge-model`](adrs/ADR-028-supersession-edge-model.md).
+
+- **Wave β — `write-file` recipe safety** ⬜ (deferred to post-Wave α)
+  - `preimage_hash` + later-touch per
+    [`PRD-write-file-recipe-safety`](prds/PRD-write-file-recipe-safety.md)
+    and [`ADR-029`](adrs/ADR-029-write-file-recipe-safety.md).
+
+- **Wave γ — active-feature-session** ⬜ (deferred to post-Wave α)
+  - `tpatch session` command group + `.tpatch/local/capture/` per
+    [`PRD-active-feature-session`](prds/PRD-active-feature-session.md)
+    and [`ADR-027`](adrs/ADR-027-active-feature-session.md).
+
 ## v0.12.0 planning artifacts — paper-only PRD/ADR pair landed ✅
 
 Post-v0.11.3 parallel dispatch of three PRDs + two ADRs closing GH
