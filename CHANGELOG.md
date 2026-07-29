@@ -2,6 +2,19 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.11.3 (unreleased) — verify V8 double-apply fix
+
+- Fixed `tpatch verify` V8 (`post_apply_patch_replay_clean`) failing for
+  correct recipe/patch pairs whose canonical `post-apply.patch` encodes
+  changes equivalent to the `apply-recipe.json`. V7 previously applied
+  the recipe to the shadow tree, leaving V8 to check the same-change
+  patch against an already-mutated tree; the fix snapshots the
+  closure-replayed baseline after parent replay and resets the shared
+  shadow back to that tree before V8, so V7 and V8 each validate against
+  the same closure-replayed baseline. Reproduces on v0.11.1 with a
+  feature whose recipe and patch describe the same file addition/
+  modification (GH #2).
+
 ## v0.11.2 — 2026-07-29 — tpatch doctor implementation
 
 ### Wave α

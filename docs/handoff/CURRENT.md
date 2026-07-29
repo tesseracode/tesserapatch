@@ -5,7 +5,7 @@
 - **Task ID**: `post-v0.11.2-parallel-streams`
 - **Milestone**: Post-v0.11.2 combined roadmap: v0.11.3 stabilization slot (fix issue #2 verify V8 double-apply) + Option C paper draft (`PRD-active-feature-session`) + issue #1 PRD-pair paper drafts (`PRD-feature-supersession` + `PRD-write-file-recipe-safety`). Three parallel streams; then implement issue #1 as v0.12.0, then WP-004.
 - **Description**: v0.11.2 shipped 2026-07-29. Two open GH issues classified by supervisor: #1 (supersession + write-file safety) → PRD-pair (two paper PRDs + ADR-028/029 on decision-lock); #2 (verify V8 double-applies) → BUG, v0.11.3 stabilization slot. Combined with user's Option C (PRD-active-feature-session, unlocks ADR-027 F3 downstream). Three parallel work streams share only handoff CURRENT.md; supervisor consolidates.
-- **Status**: In Progress (three streams).
+- **Status**: Review (Stream C implemented; awaiting three-way review).
 - **Assigned**: 2026-07-29.
 
 ## Three parallel work streams
@@ -93,9 +93,19 @@ Side Research md5 == `b385fe622db9926f48861105239f113e`.
 
 v0.11.2 shipped. Two GH issues triaged: #1 → PRD-pair (paper draft), #2 → bug fix (v0.11.3 stabilization slot). Combined with user's Option C (PRD-active-feature-session). Three parallel streams; Stream C dispatches first.
 
+### Stream C closure summary
+
+- **Fix option chosen**: Option A. `runClosureReplay` now snapshots the closure-replayed baseline after parent replay with `git add -A -f` + `git write-tree`, runs V7 against the shared shadow, then resets the shadow to that tree with `git read-tree --reset -u` + `git clean -fdx` before V8. Rationale: single shadow, no PRD semantic expansion, no ADR-013 amendment needed.
+- **BEFORE empirical reproduction (Rule 20)**: built `./.repro-gh2/tpatch-pre` from pre-fix HEAD and ran `tpatch verify gh2-equivalent --no-write --json` in `./.repro-gh2/ws` with an applied feature whose `apply-recipe.json` and `post-apply.patch` both add `feature.ts`. Output: `BEFORE_EXIT=2`, verdict `failed`, V7 `recipe_replay_clean passed=True skipped=False`, V8 `post_apply_patch_replay_clean passed=False skipped=False` with remediation `post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile gh2-equivalent`. Independent `git apply --check` of the patch against base exited `0`.
+- **AFTER empirical reproduction (Rule 20)**: rebuilt `./.repro-gh2/tpatch-after` after the fix and reran the same fixture in `./.repro-gh2/ws-after`. Output: `AFTER_EXIT=0`, verdict `passed`, V7 `passed=True skipped=False`, V8 `passed=True skipped=False`.
+- **Regression test**: `TestRunVerify_EquivalentRecipeAndPatchBothPass` asserts the equivalent recipe/patch fixture passes V7 and V8, neither check is skipped, the overall verdict is `passed`, and the shadow is pruned.
+- **Rule 19 trace**: no exported `store` or `workflow` function was touched. Changes are limited to unexported `runClosureReplay` internals plus new unexported helpers `snapshotShadowTree`, `resetShadowToTree`, and `runShadowGit`.
+- **Files changed**: `internal/workflow/verify.go`, `internal/workflow/verify_closure_replay_test.go`, `CHANGELOG.md`, `docs/handoff/CURRENT.md`.
+- **Validation**: `go test ./internal/workflow -run 'TestRunVerify_EquivalentRecipeAndPatchBothPass|TestRunVerify_ClosureReplay|TestRunVerify_RecipeAbsent|TestRunVerify_PatchZeroByte'` → pass; full gates `gofmt -l .`, `go vet ./...`, `go build ./cmd/tpatch`, `go test ./...` → pass.
+
 ## Next Steps
 
-1. Supervisor: dispatch Stream C (issue #2 fix implementer).
+1. Supervisor: run Stream C three-way review.
 2. After Stream C three-way APPROVED: ship v0.11.3.
 3. After v0.11.3 shipped: dispatch Streams A + B in parallel.
 4. Consolidate + archive after each stream lands.
