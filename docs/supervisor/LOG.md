@@ -1,3 +1,64 @@
+## Review — v0.11.3 Stream C (verify V8 double-apply fix, GH #2) — external (supervisor-dispatched) — 2026-07-29
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Stream C (`849c883..be374a1`). Verifying internal APPROVED at `311e25e`.
+
+### Verdict: APPROVED
+
+### Fix verification (independent)
+- `snapshotShadowTree`: `git add -A -f` (force-adds ignored + untracked) then `git write-tree`. Correctly captures the closure-replayed baseline including files added by parent recipe replay (which mutate the worktree only, not the index). Empty-tree guard present. Error surfaced with wrapped stderr.
+- `resetShadowToTree`: `git read-tree --reset -u <tree>` restores index+tracked files to snapshot; `git clean -fdx` scrubs untracked/ignored files V7 recipe may have added. Because snapshot used `add -A -f`, formerly-ignored/untracked files from closure replay are now tracked in the snapshot tree, so `-x` cannot delete them (`git clean` only removes untracked). Safe.
+- V7 skip preserved: line 965 `if recipePresent` gate unchanged; when absent, `v7SkipRecipeAbsent` is used and reset is guarded by the same `recipePresent` predicate at line 998, so the shadow is never reset for the recipe-absent case and V8 runs directly against the closure baseline.
+- PRD §5 line 524 semantics preserved: verbatim contract "Recipe absent → V2/V3/V7 skipped; V8 runs against the closure-replayed baseline if patch is present" holds — verified by tracing both branches.
+- Snapshot placement is AFTER the parent-replay loop (line 948) and BEFORE V7 recipe application (line 966). Correct definition of "closure-replayed baseline".
+- Error path for `write-tree` failure: V7 marked failed with clear remediation, V8 skipped with reason. No silent degradation.
+
+### Rule 20 INDEPENDENT empirical reproduction
+- Command: `go test -count=1 -run TestRunVerify_EquivalentRecipeAndPatchBothPass ./internal/workflow/ -v`
+- Result: `--- PASS: TestRunVerify_EquivalentRecipeAndPatchBothPass (0.30s)`. Test constructs a slug whose `apply-recipe.json` and `post-apply.patch` describe the same file addition (`feature.ts`); asserts V7 and V8 both `Passed && !Skipped`, verdict `passed`, shadow pruned. This is the exact GH #2 scenario. Full workflow suite (`go test -count=1 ./internal/workflow/`) also green in 40.2s.
+
+### Rule 19 (loader-caller-tracing)
+- Exported functions modified: confirmed zero. Diff `grep -E "^[+-]func "` shows only three new *unexported* helpers: `snapshotShadowTree`, `resetShadowToTree`, `runShadowGit`. `runClosureReplay` (unexported) internals mutated; no signature change.
+
+### Regression (v0.11.2 preserved)
+- Doctor 29/29 §6 still MET: full `go test -count=1 ./...` green (workflow 40.2s, integration 0.44s, all others cached-clean). No doctor/reconcile/apply test regressions.
+- Anti-drift regression clean: diff has zero occurrences of `--target`, `"version": 1`, `ra_<12hex>`, `stubRecipeOpTargetsResolve`, or `RELEASING.md`.
+
+### Hard-constraint sweep (20)
+- [x] Rule 9: verify.go V7/V8 shadow lifecycle read verbatim (lines 900–1010, helpers 1063–1099).
+- [x] Rule 15: no invented `tpatch verify` command shapes; fix is purely internal to `runClosureReplay`.
+- [x] Rule 16: no schema-drift-worthy changes (no store/artifact/JSON schema touched).
+- [x] Rule 18: all 3 commit trailers parse structurally with `Co-authored-by: Copilot <...>`.
+- [x] Rule 19: no exported store loaders modified.
+- [x] Rule 20: independent empirical reproduction confirmed via regression test (Option 1 per prompt).
+- [x] Side Research md5 invariant `b385fe622db9926f48861105239f113e` unchanged in CURRENT.md.
+- [x] Co-authored-by trailer on all 3 commits.
+- [x] Gates green (gofmt/vet/build/test).
+- [x] No scope creep beyond verify V8 fix (verify.go + one test + CHANGELOG + CURRENT.md handoff closure).
+- [x] ADR-013 amendment status: no amendment justified — behavior aligns with existing "one shadow for run" design; internal implementation detail only.
+
+### Validation gates
+gofmt: clean (no output) | vet: clean | build: OK | test: `./...` green, workflow 40.2s, integration 0.44s
+
+### Trailer verification (Rule 18)
+git log -1 --format='%(trailers)' 801db13 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+git log -1 --format='%(trailers)' 0a42641 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+git log -1 --format='%(trailers)' be374a1 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### v0.11.3 ship readiness
+Ready. No blockers. Stream C fully closes GH #2 with regression test coverage and preserves all v0.11.2 acceptance criteria.
+
+### New findings (if any beyond internal)
+None. Adversarial boundary probes (`-fdx` deleting ignored files, `write-tree` failure paths, V7-skip preserving PRD contract, nested untracked dir added by V7 recipe, post-V8 shadow read) all check out. `add -A -f` before `write-tree` correctly promotes any ignored/untracked files into the snapshot tree so `clean -fdx` after reset cannot destroy legitimate closure-replay artifacts. The snapshot is captured after parent replay and before V7 recipe application, matching the PRD "closure-replayed baseline" definition exactly.
+
+### Concurrence with internal verdict?
+YES. Internal APPROVED (`311e25e`) — zero findings. External independent review corroborates: fix is minimal, correct, well-scoped, regression-tested, and PRD-semantics-preserving.
+
+### Action Taken
+Reviewed diff `849c883..be374a1`; verified gates; ran regression test independently; probed boundary cases around `-fdx`, ignored files, V7 skip, and snapshot placement; confirmed no exported functions altered; confirmed all trailer + anti-drift constraints. Logging APPROVED external verdict; ready to ship v0.11.3.
+
+---
+
 ## Review — v0.11.3 Stream C (verify V8 double-apply fix, GH #2) — internal — 2026-07-29
 
 **Reviewer**: internal (code-review agent)
