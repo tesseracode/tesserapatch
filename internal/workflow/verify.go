@@ -836,10 +836,14 @@ func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, r
 	// superseder. Skipped parents are silently omitted from the
 	// closure — their historical recipes are excluded from the
 	// effective replay baseline (§3.3 default replay filtering).
-	// A parent whose superseder is stale (unhealthy) is NOT skipped
-	// here — the historical target remains in the closure so V7's
-	// remediation still fires per the ADR-028 D8 warning-class
-	// severity contract.
+	//
+	// v0.12.0 rev-1 Internal F1 runtime flip (PRD §4.5.3 + ADR-028
+	// D6/D8): supersession excludes the historical target whether
+	// the superseder is healthy OR stale. Both cases keep the
+	// exclusion; operators see `stale-superseder` on the graph as
+	// the signal that the replacement needs repair, matching the
+	// composeSupersessionLabels docstring and PRD §4.5.3 clause 3.
+	// Drift on the historical stays warning-class per ADR-028 D8.
 	allFeatures, _ := s.ListFeatures()
 	closure := map[string][]store.Dependency{}
 	closure[slug] = filterHardDeps(status.DependsOn)

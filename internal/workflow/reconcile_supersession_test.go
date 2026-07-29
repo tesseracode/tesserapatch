@@ -138,12 +138,16 @@ index 0000000..557db03
 	}
 }
 
-// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession AC-5):
-// when the superseder itself is unhealthy (blocked/removed), the
-// historical target should REMAIN in the default replay set — the
-// superseder is not authoritative enough to displace it. The
-// `stale-superseder` render label surfaces the anomaly separately.
-func TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale(t *testing.T) {
+// v0.12.0 rev-1 Internal F1 runtime flip (PRD §4.5.3 + ADR-028 D6/D8):
+// when the superseder is stale (unhealthy), the historical target
+// STAYS EXCLUDED from the default replay set. Previously this test
+// asserted the historical remained IN the set — that runtime behavior
+// contradicted PRD §4.5.3 clause 3 and the composeSupersessionLabels
+// docstring, both of which lock exclusion regardless of superseder
+// health. The rev-1 flip aligns the runtime with the accepted
+// PRD/ADR contract; the `stale-superseder` label continues to render
+// as the operator-visible signal that the replacement needs repair.
+func TestReconcileDefaultSet_ExcludesFeatureWhenSupersederStale(t *testing.T) {
 	tmpDir := t.TempDir()
 	setupGitRepo(t, tmpDir)
 
@@ -170,6 +174,12 @@ func TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A bystander applied feature keeps the default effective set
+	// non-empty so RunReconcile has something to sweep after the
+	// stale-supersession filter excludes the older target.
+	s.AddFeature(store.AddFeatureInput{Title: "Add bystander", Request: "bystander"})
+	s.MarkFeatureState("add-bystander", store.StateApplied, "apply", "")
+
 	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hi\n"), 0o644)
 	gitAdd(t, tmpDir, "greeting.txt")
 	gitCommit(t, tmpDir, "add greeting")
@@ -182,8 +192,110 @@ func TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale(t *testing.T) {
 	for _, r := range results {
 		seen[r.Slug] = true
 	}
-	// Stale superseder does NOT displace the historical target.
-	if !seen["add-older-greeting"] {
-		t.Errorf("stale superseder must NOT exclude historical target; got results=%v", results)
+	// Stale superseder STILL excludes the historical target — PRD §4.5.3.
+	if seen["add-older-greeting"] {
+		t.Errorf("stale superseder must exclude historical target from default replay (PRD §4.5.3 / ADR-028 D6); got results=%v", results)
+	}
+	// Bystander must remain — the filter is targeted.
+	if !seen["add-bystander"] {
+		t.Errorf("bystander applied feature must remain in default replay set; got results=%v", results)
+	}
+}
+
+// v0.12.0 rev-1 Internal F1 positive regression: an ORPHAN superseder
+// (the superseder's own supersedes edge names a missing target) must
+// NOT cause target-side exclusion because there is no target-side
+// participant to exclude. This test differentiates orphan from stale:
+// stale still excludes the historical target (previous test), orphan
+// does not participate in the target-side exclusion decision.
+//
+// PRD §4.5 clarifies orphan is a label on the SUPERSEDER (naming a
+// missing target); it does not put anything else into the effective
+// set. The check is that the ORPHAN's own existence + supersedes-to-
+// ghost does not cascade into excluding some unrelated feature.
+func TestReconcileDefaultSet_OrphanSupersederDoesNotExcludeUnrelated(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// unrelated: applied and NOT the target of any supersedes edge.
+	s.AddFeature(store.AddFeatureInput{Title: "unrelated", Request: "unrelated"})
+	s.MarkFeatureState("unrelated", store.StateApplied, "apply", "")
+
+	// orphan-newer: healthy superseder whose supersedes edge names a
+	// missing target `ghost-target`. Its orphan label attaches to the
+	// SUPERSEDER only — no exclusion effect on `unrelated`.
+	s.AddFeature(store.AddFeatureInput{Title: "orphan newer", Request: "orphan"})
+	s.MarkFeatureState("orphan-newer", store.StateApplied, "apply", "")
+	orphanSt, err := s.LoadFeatureStatus("orphan-newer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	orphanSt.DependsOn = []store.Dependency{
+		{Slug: "ghost-target", Kind: store.DependencyKindSupersedes},
+	}
+	if err := s.SaveFeatureStatus(orphanSt); err != nil {
+		t.Fatal(err)
+	}
+
+	os.WriteFile(filepath.Join(tmpDir, "greeting.txt"), []byte("Hi\n"), 0o644)
+	gitAdd(t, tmpDir, "greeting.txt")
+	gitCommit(t, tmpDir, "add greeting")
+
+	results, err := RunReconcile(context.Background(), s, nil, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatalf("RunReconcile: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, r := range results {
+		seen[r.Slug] = true
+	}
+	if !seen["unrelated"] {
+		t.Errorf("unrelated feature must remain in default replay set — orphan supersession does not exclude bystanders; got results=%v", results)
+	}
+}
+
+// v0.12.0 rev-1 Internal F1 positive regression: assert
+// IsFeatureSuperseded returns true for a STALE superseder now that the
+// runtime is aligned with PRD §4.5.3. Complements the reconcile-level
+// exclusion test by locking the primitive helper's flipped semantics.
+func TestIsFeatureSuperseded_StaleSupersederReturnsTrue(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// target: healthy applied historical feature.
+	s.AddFeature(store.AddFeatureInput{Title: "target", Request: "t"})
+	s.MarkFeatureState("target", store.StateApplied, "apply", "")
+
+	// stale-newer: unhealthy (draft state) superseder pointing at
+	// target. Per rev-1 runtime flip, IsFeatureSuperseded(s, target)
+	// must return true and name the superseder.
+	s.AddFeature(store.AddFeatureInput{Title: "stale newer", Request: "s"})
+	staleSt, err := s.LoadFeatureStatus("stale-newer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleSt.DependsOn = []store.Dependency{
+		{Slug: "target", Kind: store.DependencyKindSupersedes},
+	}
+	if err := s.SaveFeatureStatus(staleSt); err != nil {
+		t.Fatal(err)
+	}
+
+	superseder, superseded := IsFeatureSuperseded(s, "target")
+	if !superseded {
+		t.Fatalf("IsFeatureSuperseded(target) must return true for STALE superseder (rev-1 PRD §4.5.3 flip); got (%q, %v)", superseder, superseded)
+	}
+	if superseder != "stale-newer" {
+		t.Fatalf("IsFeatureSuperseded(target) must name the stale superseder; got %q", superseder)
 	}
 }

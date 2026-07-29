@@ -80,11 +80,17 @@ func TestRunVerify_ClosureReplay_SupersededParentSkipped(t *testing.T) {
 	}
 }
 
-// v0.12.0 Wave α (ADR-028 D8): when the superseder is STALE (unhealthy),
-// V7 must NOT skip the historical parent — the superseder isn't
-// authoritative enough to displace it. A stale superseder over a broken
-// mid should surface the underlying V7 replay failure, not mask it.
-func TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent(t *testing.T) {
+// v0.12.0 rev-1 Internal F1 runtime flip (PRD §4.5.3 + ADR-028 D6/D8):
+// V7's hard-parent closure replay skips a superseded parent whether
+// its superseder is healthy or STALE. Previously this test asserted
+// that a stale superseder must NOT mask a broken parent — that runtime
+// contradicted the composeSupersessionLabels docstring and PRD §4.5.3
+// clause 3, both of which lock exclusion regardless of superseder
+// health. The rev-1 flip aligns V7 with the paper contract; drift on
+// the historical stays warning-class per ADR-028 D8, and the
+// `stale-superseder` label continues to surface the replacement's
+// health separately.
+func TestRunVerify_ClosureReplay_StaleSupersederSkipsParent(t *testing.T) {
 	s := setupVerifyFeature(t, "scratch")
 
 	setApplied(t, s, "root", ApplyRecipe{Operations: []RecipeOperation{
@@ -99,7 +105,9 @@ func TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent(t *testing.T) 
 
 	// newer: STALE superseder — no MarkFeatureState → state=draft
 	// (not applied/active/upstream_merged), so supersederIsHealthy()
-	// returns false and the target is NOT skipped from V7.
+	// returns false. Per PRD §4.5.3 clause 3 (rev-1 runtime flip),
+	// V7 STILL skips the target — the historical drift becomes
+	// warning-class rather than a V7 failure.
 	if _, err := s.AddFeature(store.AddFeatureInput{Title: "newer", Slug: "newer", Request: "x"}); err != nil {
 		t.Fatalf("AddFeature newer: %v", err)
 	}
@@ -120,10 +128,11 @@ func TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent(t *testing.T) 
 		t.Fatalf("RunVerify: %v", err)
 	}
 	v7 := findCheck(t, report, CheckRecipeReplayClean)
-	if v7.Passed {
-		t.Errorf("V7 must FAIL — stale superseder must not mask broken hard parent; got %+v", v7)
+	if !v7.Passed || v7.Skipped {
+		t.Errorf("V7 should pass — stale superseder still excludes historical parent (rev-1 PRD §4.5.3); got %+v (FailedAt=%q ParentSlug=%q)",
+			v7, report.FailedAt, report.ParentSlug)
 	}
-	if report.FailedAt != "parent-replay" {
-		t.Errorf("FailedAt must be 'parent-replay' when broken hard parent surfaces; got %q", report.FailedAt)
+	if report.FailedAt == "parent-replay" {
+		t.Errorf("FailedAt must NOT be 'parent-replay' — superseded parent should be skipped whether the superseder is healthy or stale; got %q", report.FailedAt)
 	}
 }

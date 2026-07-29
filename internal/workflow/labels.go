@@ -394,23 +394,30 @@ func supersederIsHealthy(f store.FeatureStatus) bool {
 	return true
 }
 
-// IsFeatureSuperseded reports whether `slug` is the target of an
-// active/healthy `supersedes` edge somewhere else in the store. When
-// true, the returned superseder slug is the slug of the (single, per
-// ADR-028 D5) healthy superseder. Callers (reconcile default-set
-// filtering, verify V7 hard-parent closure) use this to exclude the
-// historical target from the effective replay set (ADR-028 D6).
+// IsFeatureSuperseded reports whether `slug` is the target of a
+// `supersedes` edge somewhere else in the store. When true, the
+// returned superseder slug is the slug of one such superseder (per
+// ADR-028 D5 there is at most one healthy candidate; when multiple
+// stale-only candidates exist, the first-encountered peer is
+// returned). Callers (reconcile default-set filtering, verify V7
+// hard-parent closure) use this to exclude the historical target from
+// the effective replay set (ADR-028 D6, PRD §4.5.3).
 //
-// A superseder that exists but is NOT healthy (state outside
-// {applied, active, upstream_merged} OR terminal-blocked reconcile
-// outcome) does NOT trigger exclusion — per ADR-028 D6/D8 the
-// historical target stays excluded but the exclusion is left to
-// `stale-superseder` labelling on the graph. `IsFeatureSuperseded`
-// returning `(_, false)` in that case is deliberate: it lets replay
-// still refuse to include an unhealthy superseder's work by keeping
-// the historical target out of the "healthy superseder overrides" fast
-// path. Reviewer note: this preserves ADR-028 D8's "warning-class"
-// severity contract for historical drift.
+// v0.12.0 rev-1 Internal F1 (runtime flip): supersession EXCLUDES the
+// historical target whether the superseder is healthy or stale. PRD
+// §4.5.3 clause 3 + the docstring on composeSupersessionLabels both
+// state the historical does NOT automatically re-enter the effective
+// set when the superseder is stale; the flip aligns the runtime with
+// the accepted PRD/ADR contract. Operators see `stale-superseder` on
+// the graph as the visible signal that the replacement needs repair;
+// the exclusion behavior itself matches the active-superseder case
+// so drift on the historical stays warning-class per ADR-028 D8.
+//
+// The ORPHAN case (superseder's supersedes edge names a missing
+// target) never surfaces here because the check scans peers claiming
+// to supersede `slug`; if a peer exists and names `slug`, `slug`
+// exists too. Orphan-superseder is a label on the SUPERSEDER (not the
+// target) and does not participate in the exclusion decision.
 //
 // Purity: reads status.json via s.ListFeatures. Never touches
 // artifacts/reconcile-session.json (ADR-010 D5). Never writes.
@@ -425,7 +432,18 @@ func IsFeatureSuperseded(s *store.Store, slug string) (string, bool) {
 // isFeatureSupersededIn is the pure form of IsFeatureSuperseded that
 // accepts a pre-loaded feature list. Used by hot loops (V7 closure
 // replay, default-set filtering) to avoid repeated ListFeatures scans.
+//
+// v0.12.0 rev-1 Internal F1: the function returns `true` for both
+// healthy AND stale superseders (see the IsFeatureSuperseded docstring
+// for the PRD §4.5.3 / ADR-028 D6-D8 flip rationale). To keep the
+// returned superseder slug deterministic when multiple candidates
+// exist (a case ValidateDependencies now rejects at write time when >1
+// is healthy, but stale peers can still stack), prefer the first
+// healthy peer if any exist; otherwise fall back to the first stale
+// peer encountered.
 func isFeatureSupersededIn(all []store.FeatureStatus, slug string) (string, bool) {
+	var firstStale string
+	haveStale := false
 	for _, f := range all {
 		if f.Slug == slug {
 			continue
@@ -440,7 +458,14 @@ func isFeatureSupersededIn(all []store.FeatureStatus, slug string) (string, bool
 			if supersederIsHealthy(f) {
 				return f.Slug, true
 			}
+			if !haveStale {
+				firstStale = f.Slug
+				haveStale = true
+			}
 		}
+	}
+	if haveStale {
+		return firstStale, true
 	}
 	return "", false
 }
