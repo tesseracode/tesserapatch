@@ -790,9 +790,10 @@ func checkReconcileOutcomeConsistent(status store.FeatureStatus) store.VerifyChe
 //
 // PRD §3.4.3 spec. ONE shadow is allocated for the run; V7 replays the
 // hard-parent closure into it (parents in topological order) and then
-// applies the target's recipe; V8 then `git apply --check`s the
-// target's `post-apply.patch` against the same shadow tree. Shadow is
-// pruned via deferred call regardless of pass/fail (ADR-013 D7).
+// applies the target's recipe. V8 independently `git apply --check`s the
+// target's `post-apply.patch` against the closure-replayed baseline by
+// resetting the shadow after V7. Shadow is pruned via deferred call
+// regardless of pass/fail (ADR-013 D7).
 //
 // The closure-replay primitive lives ONLY in this file (ADR-010 D2 +
 // ADR-013 §3.4.3 "Why this is verify-only"). Do not factor out into a
@@ -944,6 +945,18 @@ func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, r
 			}
 		}
 	}
+	closureBaselineTree, err := snapshotShadowTree(shadowPath)
+	if err != nil {
+		return closureReplayResult{
+			v7: store.VerifyCheckResult{
+				ID:          CheckRecipeReplayClean,
+				Severity:    SeverityBlock,
+				Passed:      false,
+				Remediation: fmt.Sprintf("cannot snapshot closure-replayed baseline: %v", err),
+			},
+			v8: skipV8Because("V7 (recipe_replay_clean) failed: closure baseline snapshot"),
+		}
+	}
 
 	// 5. V7 — apply target's recipe in the same shadow, OR skip if
 	// recipe is absent (PRD §5 line 524: V7 skipped when recipe absent
@@ -966,9 +979,10 @@ func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, r
 		v7 = v7SkipRecipeAbsent
 	}
 
-	// 6. V8 — git apply --check post-apply.patch against the shadow
-	// (which now contains the closure-replayed baseline, plus the
-	// target recipe if recipePresent). Skip if the patch is absent.
+	// 6. V8 — git apply --check post-apply.patch against the closure-
+	// replayed baseline. If V7 applied the target recipe, reset the
+	// shared shadow first so equivalent recipe/patch pairs are validated
+	// independently instead of double-applied. Skip if the patch is absent.
 	if !patchPresent {
 		return closureReplayResult{
 			v7: v7,
@@ -979,6 +993,19 @@ func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, r
 				Skipped:  true,
 				Reason:   "no post-apply.patch (precondition not met)",
 			},
+		}
+	}
+	if recipePresent {
+		if err := resetShadowToTree(shadowPath, closureBaselineTree); err != nil {
+			return closureReplayResult{
+				v7: v7,
+				v8: store.VerifyCheckResult{
+					ID:          CheckPostApplyPatchReplayClean,
+					Severity:    SeverityBlock,
+					Passed:      false,
+					Remediation: fmt.Sprintf("cannot reset shadow to closure-replayed baseline before V8: %v", err),
+				},
+			}
 		}
 	}
 	patchPath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "post-apply.patch")
@@ -1032,6 +1059,43 @@ func filterHardDeps(deps []store.Dependency) []store.Dependency {
 		}
 	}
 	return out
+}
+
+func snapshotShadowTree(shadowPath string) (string, error) {
+	if err := runShadowGit(shadowPath, "add", "-A", "-f"); err != nil {
+		return "", err
+	}
+	cmd := exec.Command("git", "write-tree")
+	cmd.Dir = shadowPath
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git write-tree: %v: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	tree := strings.TrimSpace(string(out))
+	if tree == "" {
+		return "", fmt.Errorf("git write-tree returned empty tree")
+	}
+	return tree, nil
+}
+
+func resetShadowToTree(shadowPath, tree string) error {
+	if err := runShadowGit(shadowPath, "read-tree", "--reset", "-u", tree); err != nil {
+		return err
+	}
+	return runShadowGit(shadowPath, "clean", "-fdx")
+}
+
+func runShadowGit(shadowPath string, args ...string) error {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = shadowPath
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
 }
 
 func depSlugsHard(deps []store.Dependency) []string {
