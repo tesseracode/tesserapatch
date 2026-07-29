@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.11.2 (unreleased) — tpatch doctor Waves α/β/γ/δ
+## v0.11.2 — 2026-07-29 — tpatch doctor implementation
 
 ### Wave α
 
