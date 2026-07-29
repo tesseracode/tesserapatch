@@ -1,3 +1,90 @@
+## Review — Stream B PRD-pair (supersession + write-file safety, GH #1) — external (supervisor-dispatched) — 2026-07-29
+
+**Reviewer**: external (supervisor-dispatched, code-review agent)
+**Task**: Independent external review of Stream B (`b58f560..40b2140`). Verifying internal APPROVED at `f362f6c`.
+
+### Verdict: APPROVED
+
+### PRD 1 verification (independent)
+- Cluster 1 edge model (Option A `depends_on[].kind: "supersedes"`): confirmed §3.1 lines 75-102; ADR-011 D1 storage preserved, D2 DFS extended, D3 label pattern extended.
+- Cluster 2 semantics (6 items): confirmed — histories preserved (§3.2 line 116), default replay exclusion (§3.3 line 119), status/next/reconcile/index surfacing (§4.4 lines 193-198), conflict/cycle/multi-superseder/orphan detection (§3.4 lines 124-131), effective vs historical query concept (§3.5 lines 135-140).
+- Cluster 3 labels (4 composable): confirmed §4.3 lines 176-181 with locked severity order line 186; ADR-011 label order preserved first.
+- Cluster 4 reconcile interaction: confirmed §4.5 lines 200-209, downgrade-to-warning for superseded historical drift.
+- Cluster 5 non-scope: confirmed §2.2 lines 66-71 + §8 lines 245-250 (auto-detection, UI polish, reverse-supersedes, multi-replacement, no new top-level command).
+- Acceptance N — confirmed 12 (grepped `^[0-9]+\. \*\*` in §6 = 12).
+
+### PRD 2 verification (independent)
+- Cluster 1 preimage hash schema: confirmed §3.1 lines 80-100 — field `preimage_hash: sha256:<64 lowercase hex>`, empty for new-file writes, `write-file` only; ADR-024/025 content-addressed pattern cited.
+- Cluster 2 later-touch: confirmed §4.2 lines 147-157 — record/reconcile/verify surfaces, path-level v1 detection.
+- Cluster 3 PRD 1 interaction: confirmed §4.3 lines 159-167 — supersession decides effective set, recipe safety decides may-execute; downgrade-to-warning matches PRD 1 §4.5.
+- Cluster 4 non-scope: confirmed §0.3 lines 42-48 (safeguards 1/4/5 deferred with rationale) + §8 lines 216-222.
+- Acceptance N — confirmed 13.
+
+### ADR-028 + ADR-029 verification
+- ADR-028 D1-D8: all present (D1 third kind, D2 cycle DFS across kinds, D3 Kahn traversal, D4 four derived labels + order, D5 one active superseder, D6 history preserved + default exclude, D7 hard/soft unchanged, D8 superseded drift warning-class).
+- ADR-029 D1-D8: all present (D1 field on `write-file`, D2 byte-exact SHA-256 with no normalization, D3 all-or-nothing prechecks with 4 refusal cases, D4 legacy warns, D5 later-touch mandatory path-level, D6 record warn vs apply refuse, D7 supersession severity, D8 no source bodies in diagnostics).
+- Both ADRs Status = Proposed (confirmed lines 3).
+- README line-append: confirmed — diff shows only 2 lines appended after ADR-027, prior entries unchanged; both marked Proposed.
+
+### Cross-reference sweep
+- PRD 1 ↔ PRD 2: bidirectional — PRD 1 lines 8, 16, 62, 233 cite PRD 2; PRD 2 lines 8, 14, 130, 233 cite PRD 1.
+- ADR-011 D1-D4 preserved: quoted verbatim in PRD 1 §0.3 lines 40-43; independently verified against `docs/adrs/ADR-011-feature-dependencies.md:22-55`.
+- ADR-024/025 content-addressed pattern: PRD 2 §3.1 line 100 explicitly distinguishes `preimage_hash` (byte-exact precondition, full `sha256:<hex>`) from record-identity IDs (`pg_<12hex>`, `re_<12hex>`, `rr_<12hex>`). Rationale documented — precondition strength must not be truncated.
+
+### `TestSkillRecipeSchemaMatchesCLI` acknowledgment
+- PRD 2 §4.1 line 143 requires updating "all strict decoders, skill examples, and parity tests in the code slice"; criterion 12 line 205 names `DecodeApplyRecipeStrict` schema-parity guarantee. ADR-029 Consequences line 87 restates. The exact test symbol name is not literalized in either doc, but the parity contract, `DisallowUnknownFields` implication (via ADR-029 D1 legacy path + PRD 2 §4.4), and shipping requirement to update skill examples in one change set are all present. Not a blocker: paper-only PRD names the guarantee; test symbol is a code-slice concern.
+
+### Rule 8 + 15 grep (INDEPENDENT)
+- Filenames/paths verified: `.tpatch/features/<slug>/status.json`, `apply-recipe.json`, `artifacts/post-apply.patch`, `internal/workflow/implement.go:42-108`, `internal/cli/cobra.go`, `internal/store/patch_generations.go`, ADR-011/024/025/026/028/029 links, PRD-feature-dependencies link — all resolve.
+- `tpatch` commands: `status`, `status --dag`, `next`, `record`, `reconcile`, `apply`, `verify` — all confirmed in `internal/cli/cobra.go` (status:198, apply:606, record:944, reconcile:1768) and `internal/cli/phase2.go:353` (next) and `internal/cli/verify.go:48`.
+- `--flags`: `--dag` (`cobra.go:217, 244`), `--mode execute` (`cobra.go:666` — enum includes `execute`), `--json` referenced abstractly (query concept in PRD 1 §3.5 without naming flag) — no drift.
+
+### Downstream implementability
+- Day-1 implementer buildable: Yes. Every schema surface, refusal matrix, warning class, and rendering order is locked with no open D-clauses. Open questions (§7) are UX/flag-spelling deferrals that do not block the core contract.
+
+### Hard-constraint sweep (14)
+- [x] Paper-only — 6 files, all doc-tree.
+- [x] Status = Proposed for both PRDs (line 3 each) and both ADRs (line 3 each).
+- [x] ADR-011 D1-D4 preserved (quoted PRD 1 §0.3, verified against source).
+- [x] PRD cross-references bidirectional.
+- [x] Rule 8/15 satisfied — every named file/command/flag resolves to production ground truth.
+- [x] Rule 17 — no invented "only X" totality claims (§3.1 line 96 correctly says "no separate `supersedes: []` list AND no new lifecycle state" — enumerated exclusion, not totality).
+- [x] Rule 18 — trailer parses on both commits (see below).
+- [x] Side Research md5 == `b385fe622db9926f48861105239f113e` (verified: `sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md | md5sum`).
+- [x] Co-authored-by trailer on both commits (structural + textual).
+- [x] No CHANGELOG entry (diff shows no CHANGELOG.md touch).
+- [x] No scope creep into Stream A file `docs/prds/PRD-active-feature-session.md`.
+- [x] Empirical retrospective cited BY REFERENCE — PRD 1 line 13, PRD 2 line 13, ADR-028 line 106, ADR-029 line 102: all say "cited by reference" and no copy of contents.
+- [x] `docs/adrs/README.md` line-append only — 2 lines added after ADR-027 entry; no reorder.
+- [x] Two new ADR entries marked Proposed in README index.
+
+### Validation gates
+gofmt: clean | vet: clean | build: OK | test: OK (all packages cached green).
+
+### Trailer verification (Rule 18)
+git log -1 --format='%(trailers)' 372ece6 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+git log -1 --format='%(trailers)' 40b2140 = `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+
+### Adversarial extras
+1. Multi-replacement decision: PRD 1 §2.2 #4 + ADR-028 D5 lock "one active superseder per historical feature". Explicit.
+2. Backward compat for status.json loaders: PRD 1 §4.1 line 161 explicitly states pre-supersession files with missing `depends_on` or only `hard`/`soft` entries load unchanged.
+3. `preimage_hash` newline canonicalization: ADR-029 D2 lines 37-41 explicitly refuse normalization (line endings, encodings, permissions, JSON escaping). Byte-exact.
+4. Empty preimage + existing file: PRD 2 §3.3 table row line 121 says refuse with recipe drift / new-file collision. Explicit.
+5. Skill asset drift: PRD 2 §4.1 line 143 + criterion 12 line 205 acknowledge Slice-1-lesson pattern (strict decoder + skill examples + parity tests must land together).
+6. Day-1 implementability: no reopenable D-clauses; §7 open questions are UX deferrals.
+7. Rule 18 self-application: applied to own commit (see final trailer output below).
+
+### New findings (if any beyond internal)
+None. Zero net-new findings beyond internal review.
+
+Minor observation (non-blocker, informational only): the test symbol `TestSkillRecipeSchemaMatchesCLI` is not literalized in PRD 2 or ADR-029, though the parity contract it enforces is fully described. Since the PRD-pair is paper-only and this is a code-slice concern, it does not warrant a finding.
+
+### Concurrence with internal verdict?
+YES. Independent verification reproduces the internal APPROVED verdict at `f362f6c`. All 5 PRD-1 clusters lock as described (12 criteria), all 4 PRD-2 clusters lock as described (13 criteria), ADR-028 D1-D8 + ADR-029 D1-D8 present and coherent, ADR-011 D1-D4 preserved verbatim, README line-append clean, both cross-references bidirectional, retrospective by-reference, validation gates green.
+
+### Action Taken
+Committed this LOG entry as external concurrence. Rule 18 self-verification pending in commit.
+
 ## Review — Stream A PRD-active-feature-session — external (supervisor-dispatched) — 2026-07-29
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)
