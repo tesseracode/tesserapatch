@@ -385,6 +385,57 @@ func supersederIsHealthy(f store.FeatureStatus) bool {
 	return true
 }
 
+// IsFeatureSuperseded reports whether `slug` is the target of an
+// active/healthy `supersedes` edge somewhere else in the store. When
+// true, the returned superseder slug is the slug of the (single, per
+// ADR-028 D5) healthy superseder. Callers (reconcile default-set
+// filtering, verify V7 hard-parent closure) use this to exclude the
+// historical target from the effective replay set (ADR-028 D6).
+//
+// A superseder that exists but is NOT healthy (state outside
+// {applied, active, upstream_merged} OR terminal-blocked reconcile
+// outcome) does NOT trigger exclusion — per ADR-028 D6/D8 the
+// historical target stays excluded but the exclusion is left to
+// `stale-superseder` labelling on the graph. `IsFeatureSuperseded`
+// returning `(_, false)` in that case is deliberate: it lets replay
+// still refuse to include an unhealthy superseder's work by keeping
+// the historical target out of the "healthy superseder overrides" fast
+// path. Reviewer note: this preserves ADR-028 D8's "warning-class"
+// severity contract for historical drift.
+//
+// Purity: reads status.json via s.ListFeatures. Never touches
+// artifacts/reconcile-session.json (ADR-010 D5). Never writes.
+func IsFeatureSuperseded(s *store.Store, slug string) (string, bool) {
+	all, err := s.ListFeatures()
+	if err != nil {
+		return "", false
+	}
+	return isFeatureSupersededIn(all, slug)
+}
+
+// isFeatureSupersededIn is the pure form of IsFeatureSuperseded that
+// accepts a pre-loaded feature list. Used by hot loops (V7 closure
+// replay, default-set filtering) to avoid repeated ListFeatures scans.
+func isFeatureSupersededIn(all []store.FeatureStatus, slug string) (string, bool) {
+	for _, f := range all {
+		if f.Slug == slug {
+			continue
+		}
+		for _, dep := range f.DependsOn {
+			if dep.Kind != store.DependencyKindSupersedes {
+				continue
+			}
+			if dep.Slug != slug {
+				continue
+			}
+			if supersederIsHealthy(f) {
+				return f.Slug, true
+			}
+		}
+	}
+	return "", false
+}
+
 // composeSupersessionLabels populates `set` with the four v0.12.0
 // Wave α supersession overlay labels for `child`, using ADR-028 D4's
 // direction-aware rules:

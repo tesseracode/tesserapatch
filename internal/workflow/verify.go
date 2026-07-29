@@ -829,6 +829,18 @@ func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, r
 	}
 
 	// 1. Compute hard-parent closure (BFS over DependencyKindHard).
+	//
+	// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession §5.1):
+	// pre-load all features once and use isFeatureSupersededIn to
+	// skip parents that are superseded by an active healthy
+	// superseder. Skipped parents are silently omitted from the
+	// closure — their historical recipes are excluded from the
+	// effective replay baseline (§3.3 default replay filtering).
+	// A parent whose superseder is stale (unhealthy) is NOT skipped
+	// here — the historical target remains in the closure so V7's
+	// remediation still fires per the ADR-028 D8 warning-class
+	// severity contract.
+	allFeatures, _ := s.ListFeatures()
 	closure := map[string][]store.Dependency{}
 	closure[slug] = filterHardDeps(status.DependsOn)
 	queue := append([]string(nil), depSlugsHard(status.DependsOn)...)
@@ -836,6 +848,15 @@ func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, r
 		curr := queue[0]
 		queue = queue[1:]
 		if _, seen := closure[curr]; seen {
+			continue
+		}
+		if _, superseded := isFeatureSupersededIn(allFeatures, curr); superseded {
+			// Skip the superseded historical parent AND stop
+			// walking its own hard-parent chain — its ancestors
+			// are only in the closure because of this excluded
+			// node. If any ancestor is legitimately needed via a
+			// different hard-dep path, it will be re-queued via
+			// that path.
 			continue
 		}
 		st, err := s.LoadFeatureStatus(curr)

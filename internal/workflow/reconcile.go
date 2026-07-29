@@ -115,6 +115,13 @@ type ReconcileOptions struct {
 // pre-M12 behavior, so existing callers that pass ReconcileOptions{}
 // see no change. Phase 3.5 is opt-in via Options.Resolve.
 func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamRef string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) ([]ReconcileResult, error) {
+	// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession §3.3):
+	// track which of the input slugs were explicitly named by the
+	// caller (so they receive a historical-feature warning if
+	// superseded) versus implicitly picked up by the default
+	// applied/active sweep (so they are silently filtered out).
+	callerNamedSlugs := len(slugs) > 0
+
 	// If no slugs specified, reconcile all applied/active features
 	if len(slugs) == 0 {
 		features, err := s.ListFeatures()
@@ -129,6 +136,39 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	}
 	if len(slugs) == 0 {
 		return nil, fmt.Errorf("no features to reconcile (no applied or active features found)")
+	}
+
+	// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession §3.3,
+	// AC-5): filter the default effective set so features that are
+	// superseded by an active, healthy superseder are silently
+	// excluded from default replay. When the caller explicitly
+	// named the slugs, we preserve them but attach a historical-
+	// feature warning note (§3.3: "Direct reconcile of a superseded
+	// feature is allowed for audit/repair but emits a historical-
+	// feature warning").
+	all, allErr := s.ListFeatures()
+	var supersededWarnings map[string]string
+	if allErr == nil {
+		filtered := make([]string, 0, len(slugs))
+		for _, sl := range slugs {
+			if superseder, superseded := isFeatureSupersededIn(all, sl); superseded {
+				if callerNamedSlugs {
+					// Explicit direct reconcile — warn but keep.
+					if supersededWarnings == nil {
+						supersededWarnings = map[string]string{}
+					}
+					supersededWarnings[sl] = superseder
+					filtered = append(filtered, sl)
+				}
+				// Implicit default set — silently drop.
+				continue
+			}
+			filtered = append(filtered, sl)
+		}
+		slugs = filtered
+	}
+	if len(slugs) == 0 {
+		return nil, fmt.Errorf("no features to reconcile (default effective set is empty after supersession filtering)")
 	}
 
 	// M14.3 / ADR-011 D9: when the dependency-DAG flag is enabled,
@@ -170,6 +210,13 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 				Notes:          []string{fmt.Sprintf("Error: %v", err)},
 			})
 			continue
+		}
+		// v0.12.0 Wave α: prepend a historical-feature warning note
+		// when the caller directly reconciled a superseded target.
+		if superseder, ok := supersededWarnings[slug]; ok && result != nil {
+			result.Notes = append([]string{
+				fmt.Sprintf("historical-feature warning: %s is superseded by %s (active superseder). Default replay excludes it; this run was requested explicitly for audit/repair (ADR-028 D6, PRD §3.3).", slug, superseder),
+			}, result.Notes...)
 		}
 		results = append(results, *result)
 	}
