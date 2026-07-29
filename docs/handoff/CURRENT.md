@@ -2,38 +2,84 @@
 
 ## Active Task
 
-- **Task ID**: `v0.12.0-implementation-kickoff-decision`
-- **Milestone**: All three post-v0.11.3 paper streams landed. Ready for v0.12.0 implementation cluster kickoff.
-- **Description**: Streams A + B closed at three-way APPROVED (2026-07-29). All planning artifacts for GH #1 (supersession + write-file safety) and ADR-027 F3 closure (active-feature-session) are drafted at `Proposed` status. Awaiting supervisor decision on v0.12.0 implementation cluster shape.
-- **Status**: Awaiting next-block decision.
+- **Task ID**: `v0.12.0-wave-alpha-supersession-implementation`
+- **Milestone**: v0.12.0 Wave α — implement `PRD-feature-supersession` + `ADR-028-supersession-edge-model`.
+- **Description**: First wave of the v0.12.0 3-wave implementation cluster (supervisor picked Option A 2026-07-29). Implements the third-kind `depends_on[].kind: "supersedes"` edge on the ADR-011 dependency graph, 4 new composable labels, and reconcile suppression of superseded features. Extends (does NOT fork) the ADR-011 D1 storage lane.
+- **Status**: Dispatched — implementer in flight.
 - **Assigned**: 2026-07-29.
 
-## Available planning artifacts for v0.12.0
+## Wave α scope (locked)
 
-Three PRDs + two ADRs at `Proposed` status, ready for implementation:
+**Read these first, in order**:
 
-- **`docs/prds/PRD-active-feature-session.md`** (Stream A, 500 lines, 25 acceptance criteria) — locks ADR-027 F3 to `.tpatch/local/capture/`; new `tpatch session {start,stop,list,summarize,purge}` command group; `tpatch init` `.gitignore` amendment; six-mandate refusal contract.
-- **`docs/prds/PRD-feature-supersession.md`** (Stream B, 259 lines, 12 acceptance criteria) — third-kind `depends_on[].kind: "supersedes"` edge; 4 new composable labels; reconcile suppression of superseded features.
-- **`docs/prds/PRD-write-file-recipe-safety.md`** (Stream B, 233 lines, 13 acceptance criteria) — `preimage_hash: <sha256>` field on `write-file` ops + later-touch detection.
-- **`docs/adrs/ADR-028-supersession-edge-model.md`** — locks Cluster 1 edge model with D1-D8.
-- **`docs/adrs/ADR-029-write-file-recipe-safety.md`** — locks preimage hash schema + later-touch detection contract with D1-D8.
+1. `docs/prds/PRD-feature-supersession.md` (259 lines, 12 acceptance criteria) — the spec.
+2. `docs/adrs/ADR-028-supersession-edge-model.md` (109 lines, D1–D8) — the locked model.
+3. `docs/adrs/ADR-011-feature-dependencies.md` (D1–D4) — what you are extending. D1 storage lane (`status.json.depends_on[]`) is authoritative. D2 DFS cycle detection extends cleanly to the third edge kind. D3 composable-derived-labels pattern is what the 4 new labels attach to. D4 hard/soft semantics unchanged.
 
-## v0.12.0 implementation cluster shape — supervisor decision needed
+**What ships**:
 
-Recommended sequencing (matches Doctor cluster's 4-wave pattern):
+- New third `kind: "supersedes"` value on `depends_on[]` entries, alongside existing `hard` and `soft`. Directed edge: `X supersedes Y` means X replaces Y.
+- Reconcile suppression: superseded features are excluded from replay by default (both hard-parent replay in verify V7 and the general reconcile pass).
+- 4 new composable labels on the ADR-011 D3 pattern: `superseded-by`, `active-superseder`, `stale-superseder`, `orphan-superseder`.
+- Cycle detection extends via ADR-011 D2's existing DFS (X supersedes Y + Y supersedes X = cycle).
+- `depends_on[].kind` schema addition ripples through skill assets — parity guards must update in the same commit.
 
-**Option A (Recommended) — Sequential 3-wave v0.12.0 cluster**:
-1. **Wave α — Supersession** (`PRD-feature-supersession` + `ADR-028`). Foundation for graph model; unlocks "which features replay" question. Extends ADR-011 D1 storage. Estimated ~4-6 commits + fixtures.
-2. **Wave β — Write-file safety** (`PRD-write-file-recipe-safety` + `ADR-029`). Depends on Wave α (supersession suppresses write-file drift on superseded features per PRD 2 §3). `preimage_hash` schema addition drifts skill assets; `TestSkillRecipeSchemaMatchesCLI` guard must update in same commit. Estimated ~4-6 commits + fixtures.
-3. **Wave γ — Active-feature-session** (`PRD-active-feature-session`). Independent of Waves α/β. First wave to require `tpatch init` `.gitignore` amendment. Refusal-path test coverage is the entire safety margin (doctor Wave β D3 refusal fixtures are the recommended template). Estimated ~6-8 commits + fixtures (larger surface: new command group + init amendment + storage lane).
+**What does NOT ship in Wave α**:
 
-**Option B — Parallel dispatch of Waves α+β+γ**: All three touch disjoint code surfaces except Stream A's `tpatch init` amendment (which doesn't collide with Stream B's `depends_on[].kind` addition or `preimage_hash` schema addition). Feasible but adds parallel-review complexity. Trade-off: faster wall-clock, more supervisor consolidation work.
+- `write-file` recipe safety (`preimage_hash`, later-touch detection) → Wave β.
+- Active feature session lane (`tpatch session` command group, `.tpatch/local/capture/`) → Wave γ.
 
-**Option C — Ship Waves α+β as v0.12.0, defer Wave γ**: Waves α+β close GH #1 completely. Wave γ (active-feature-session) unlocks the ADR-027 F3 F3 path but doesn't have downstream capture PRDs implemented yet (agent-event-log, record-context-summary, ide-capture-hooks, git-hook-capture-guards all still deferred). Consider deferring Wave γ to v0.13.0 with those downstream PRDs for cluster coherence.
+## Cross-wave coordination
 
-**Option D — WP-004 next** (user's original Option A): defer v0.12.0 implementation; kick off WP-004 (`auto-feature-dependencies`) as next major cluster. Streams A + B PRDs sit at `Proposed` until later.
+- **Wave β depends on Wave α**: `PRD-write-file-recipe-safety §PRD-1-interaction` says superseded features suppress/downgrade `write-file` drift on the parent verify path. Wave β cannot dispatch until Wave α acceptance.
+- **Wave γ is independent** of Waves α/β. It touches `internal/cli/init.go`, new `tpatch session` command group, and a new `.tpatch/local/capture/` storage lane.
 
-Supervisor default recommendation: **Option A** (sequential 3-wave). Matches doctor cluster's proven scaling pattern. If wall-clock matters more than protocol discipline, consider Option B.
+## Implementer directives (Wave α)
+
+**Approach**: sequential slices per PRD acceptance criteria groupings. Recommended shape:
+
+1. **Slice 1 — Schema + parity guards** (foundation, must land first):
+   - Add `kind: "supersedes"` as a third valid value on `depends_on[]` in `internal/store/status.go` (or wherever the type lives).
+   - Update `TestSkillRecipeSchemaMatchesCLI` / any dependency-schema parity guards in the SAME commit (Slice 1 anti-drift lesson from doctor Wave β).
+   - Update the 6 shipped skill assets (`assets/*/SKILL.md` + prompt/recipe templates) so any documentation of `depends_on[].kind` mentions the new value.
+2. **Slice 2 — Graph + cycle detection extension**:
+   - Extend ADR-011 D2 DFS cycle detection to include supersedes edges (X supersedes Y + Y supersedes X = cycle).
+   - Add unit tests for the mixed hard/soft/supersedes cycle cases.
+3. **Slice 3 — 4 composable labels**:
+   - Add `superseded-by`, `active-superseder`, `stale-superseder`, `orphan-superseder` to the ADR-011 D3 label composition pattern.
+   - `tpatch status` / label rendering must surface these.
+4. **Slice 4 — Reconcile suppression**:
+   - `internal/workflow/reconcile.go` and verify V7 (`runClosureReplay` in `internal/workflow/verify.go`) exclude superseded features from the hard-parent closure by default.
+   - Add regression tests for both paths.
+5. **Slice 5 — CHANGELOG + docs**:
+   - Add `## v0.12.0 — TBD` header + Wave α entry.
+   - Flip `PRD-feature-supersession.md` and `ADR-028` status from `Proposed` → `Accepted`.
+   - Update `docs/ROADMAP.md` v0.12.0 entry.
+
+**Binding carry-forward rules** (all 20):
+
+- **Rule 15**: any `tpatch` command referenced in docs must exist in `internal/cli/cobra.go`.
+- **Rule 18**: every commit MUST carry a parseable `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer (verify via `git log -1 --format='%(trailers)'`).
+- **Rule 19**: any diff touching exported `store`/`workflow`/`cli` surface MUST be justified by a PRD/ADR clause. Wave α touches store schema (kind value) + workflow (reconcile + verify) — both are PRD-scoped, but call out the exact clause in each commit message.
+- **Rule 20**: for any user-facing CLI behavior change (label rendering, reconcile output, verify remediation strings), reproduce empirically in a scratch repo before shipping. Rigor extension optional but recommended for the reconcile-suppression regression tests.
+- Full 20-rule list carry-forward from v0.11.3 close in HISTORY.md snapshots.
+
+**Validation gates** (must pass before handoff back for review):
+
+- `gofmt -l .` (empty output).
+- `go vet ./...` (clean).
+- `go build ./cmd/tpatch` (clean).
+- `go test ./...` (full suite pass; currently 99 tests as of v0.11.3).
+- Parity guard test (`assets_test.go` or `TestSkillRecipeSchemaMatchesCLI`) must pass with schema addition.
+- Side Research md5 preserved: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` = `b385fe622db9926f48861105239f113e`.
+
+## Wave sequencing plan (v0.12.0)
+
+1. **Wave α — Supersession** (this task): PRD-feature-supersession + ADR-028. Foundation for graph model.
+2. **Wave β — Write-file safety** (after α acceptance): PRD-write-file-recipe-safety + ADR-029. Depends on α for reconcile-suppression interaction.
+3. **Wave γ — Active-feature-session** (after β acceptance, OR parallel with β if capacity allows): PRD-active-feature-session. Independent code surface.
+
+Ship v0.12.0 when Waves α+β+γ all acceptance-approved. Doctor cluster's 4-wave pattern (v0.11.2) is the proven template.
 
 ## Non-blocking follow-ups deferred
 
@@ -47,15 +93,15 @@ Same 20 rules as v0.11.3 close. See prior CURRENT.md snapshots in HISTORY.md for
 
 ## Session Summary
 
-v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B closed at three-way APPROVED 2026-07-29 (paper-only PRD/ADR drafts). Ready for v0.12.0 implementation cluster kickoff — supervisor decision needed on Options A/B/C/D.
+v0.11.3 shipped 2026-07-29 (Stream C closed GH #2). Streams A + B closed at three-way APPROVED 2026-07-29 (paper-only PRD/ADR drafts). Supervisor picked Option A 2026-07-29 — v0.12.0 3-wave sequential cluster kicked off with Wave α (supersession) implementer dispatched.
 
 ## Next Steps
 
-1. Supervisor: pick Option A, B, C, or D.
-2. If Option A: dispatch Wave α (supersession) implementer.
-3. If Option B: dispatch Waves α+β+γ implementers in parallel background.
-4. If Option C: dispatch Wave α + Wave β sequentially; defer Wave γ to v0.13.0.
-5. If Option D: read WP-004 draft; ask for PRD ordering + wave structure; dispatch first slice.
+1. Wave α implementer executes Slices 1–5 (schema/parity → cycle detection → labels → reconcile suppression → CHANGELOG/docs).
+2. Wave α implementer updates this handoff at each phase transition (Rule 8 cadence, see AGENTS.md).
+3. Supervisor dispatches internal reviewer + supervisor-external reviewer in parallel.
+4. User's parallel external pass on rev-0.
+5. On three-way APPROVED: archive Wave α to HISTORY.md, dispatch Wave β (write-file safety).
 
 ## Blockers
 
