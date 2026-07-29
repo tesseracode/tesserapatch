@@ -517,6 +517,38 @@ Full-cluster acceptance sweep 29/29 §6 MET at cluster close 2026-07-29.
 - Full per-wave snapshots archived to
   [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
 
+## v0.11.3 — verify V8 double-apply fix ✅
+
+Stabilization slot fixing [GH #2](https://github.com/tesseracode/tesserapatch/issues/2):
+`tpatch verify` V7 (`recipe_replay_clean`) applied the target feature's
+`apply-recipe.json` into the shadow tree, then V8
+(`post_apply_patch_replay_clean`) checked the equivalent canonical
+`post-apply.patch` against that already-modified tree. For correct
+recipe/patch pairs whose two artifacts encoded the same change, V8
+was double-applying and failing.
+
+- Ship stack: `801db13` (fix) → `0a42641` (regression test) → `be374a1`
+  (CHANGELOG + handoff) → `311e25e` (internal review) → `b1b197b`
+  (supervisor-external) → `84a2f88` (release commit).
+- Tag: `v0.11.3` on `origin/v0.11.3`. GH Release marked `Latest` at
+  https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.3.
+- Fix (Option A): snapshot the closure-replayed baseline after parent
+  replay via `git add -A -f` + `git write-tree`, run V7, then — only
+  when a recipe was applied — reset the shadow back to that tree with
+  `git read-tree --reset -u` + `git clean -fdx` before V8. V7 and V8
+  now validate independently against the same baseline.
+- Three-way review APPROVED with zero adversarial findings across all
+  three passes (16 consecutive rev cycles at three-way concurrence).
+  User-external demonstrated a stronger Rule 20 application: detached
+  worktree at pre-fix commit + test-copy + FAIL verification — pattern
+  documented as an optional rigor extension.
+- Reporter: t3code `session-search` migration on v0.11.1. GH Issue #2
+  closed with fix reference.
+- No ADR-013 amendment needed. Three new unexported helpers
+  (`snapshotShadowTree`, `resetShadowToTree`, `runShadowGit`) added
+  in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
+  API surface change.
+
 ## M18+ — Future
 
 - Cost tracking and token budgeting
