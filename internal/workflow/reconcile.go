@@ -373,7 +373,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 				if hasLabel(labels, store.LabelBlockedByParent) {
 					result.Outcome = store.ReconcileBlockedRequiresHuman
 					result.Phase = "phase-3.5-skipped-blocked-by-parent"
-					result.Labels = StripFreshnessLabels(labels)
+					result.Labels = stripDerivedLabels(labels)
 					result.Conflicts = append(result.Conflicts, preview.ConflictFiles...)
 					result.Notes = append(result.Notes,
 						"phase 3.5 skipped: a hard parent is blocked — resolve the parent first, then retry `tpatch reconcile "+slug+"` (compound verdict: blocked-by-parent-and-needs-resolution)")
@@ -568,10 +568,11 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 			result.Labels = nil
 		} else if len(result.Labels) == 0 {
 			if labels, lerr := composeLabelsAt(s, slug, result.attemptedAt); lerr == nil {
-				// Slice B (ADR-013 D4): strip freshness labels before
-				// persisting. composeLabelsAt now returns the union of
-				// M14.3 + freshness; only M14.3 is persisted.
-				if persisted := StripFreshnessLabels(labels); len(persisted) > 0 {
+				// Slice B (ADR-013 D4) + Wave α (ADR-028 D4): strip
+				// freshness AND supersession labels before persisting.
+				// composeLabelsAt returns the union of M14.3 + freshness
+				// + supersession; only M14.3 is persisted.
+				if persisted := stripDerivedLabels(labels); len(persisted) > 0 {
 					result.Labels = persisted
 				}
 			}

@@ -150,7 +150,16 @@ var childRetiredOutcomes = map[store.ReconcileOutcome]struct{}{
 // `verified-fresh` / `verified-stale` / `verify-failed`) and merges it
 // into the returned set. This is read-time computation only — the
 // freshness labels are NEVER persisted (D4 byte-identity contract).
-// Callers that persist the result MUST first call StripFreshnessLabels.
+// Callers that persist the result MUST first call StripFreshnessLabels
+// (and StripSupersessionLabels for the Wave α overlay, see below).
+//
+// v0.12.0 Wave α (ADR-028 D4, PRD-feature-supersession §4.3): the
+// function ALSO derives up to four supersession overlay labels
+// (`superseded-by`, `active-superseder`, `stale-superseder`,
+// `orphan-superseder`) from the read-time graph. Like freshness, these
+// are NEVER persisted to `Reconcile.Labels` — persistence call sites
+// must strip them via StripSupersessionLabels alongside the freshness
+// strip. See composeSupersessionLabels for the direction-aware rules.
 //
 // PURITY (D5): no writes of any kind. The function reads only the
 // `Verify` sub-record on `child`, parent FeatureStatus via
@@ -173,6 +182,14 @@ func composeLabelsFromStatus(s *store.Store, child store.FeatureStatus) []store.
 	if len(child.DependsOn) > 0 {
 		composeM143Labels(s, child, set)
 	}
+
+	// v0.12.0 Wave α — supersession overlay (ADR-028 D4,
+	// PRD-feature-supersession §4.3). Composed independently of the
+	// M14.3 set so a feature that is BOTH a superseder AND a target
+	// (double role) surfaces both directional labels. Runs even when
+	// `child.DependsOn` is empty because a feature can be the passive
+	// target of someone else's `supersedes` edge.
+	composeSupersessionLabels(s, child, set)
 
 	// Slice B — freshness overlay. Exactly one freshness label is
 	// always derived for non-retired features; it composes
@@ -255,10 +272,31 @@ var freshnessLabelSet = map[store.ReconcileLabel]struct{}{
 	store.LabelVerifyFailed:  {},
 }
 
+// supersessionLabelSet lists the four v0.12.0 Wave α supersession
+// overlay labels (ADR-028 D4, PRD-feature-supersession §4.3). Like
+// freshness, these are derived at read time from the graph and MUST
+// NOT be persisted to `Reconcile.Labels` — they must be recomputed on
+// every render. Persistence call sites strip them via
+// StripSupersessionLabels alongside the freshness strip.
+var supersessionLabelSet = map[store.ReconcileLabel]struct{}{
+	store.LabelSupersededBy:     {},
+	store.LabelActiveSuperseder: {},
+	store.LabelStaleSuperseder:  {},
+	store.LabelOrphanSuperseder: {},
+}
+
 // IsFreshnessLabel reports whether l is one of the four Slice B
 // freshness labels (ADR-013 D5).
 func IsFreshnessLabel(l store.ReconcileLabel) bool {
 	_, ok := freshnessLabelSet[l]
+	return ok
+}
+
+// IsSupersessionLabel reports whether l is one of the four v0.12.0
+// Wave α supersession overlay labels (ADR-028 D4). Mirror of
+// IsFreshnessLabel — provided for symmetric strip / render logic.
+func IsSupersessionLabel(l store.ReconcileLabel) bool {
+	_, ok := supersessionLabelSet[l]
 	return ok
 }
 
@@ -286,12 +324,176 @@ func StripFreshnessLabels(in []store.ReconcileLabel) []store.ReconcileLabel {
 	return out
 }
 
+// StripSupersessionLabels returns a copy of `in` with every supersession
+// overlay label removed (ADR-028 D4). Persistence call sites MUST run
+// their composed label slice through this alongside StripFreshnessLabels
+// so `Reconcile.Labels` never carries the four supersession labels — they
+// are derived on every render from the graph.
+//
+// Returns nil when the result would be empty so `omitempty` keeps the
+// JSON output absent rather than `"labels": []`.
+func StripSupersessionLabels(in []store.ReconcileLabel) []store.ReconcileLabel {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]store.ReconcileLabel, 0, len(in))
+	for _, l := range in {
+		if IsSupersessionLabel(l) {
+			continue
+		}
+		out = append(out, l)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// stripDerivedLabels chains the two derived-label strips. Internal
+// helper used by persist call sites so a future third derived-label
+// group only needs one edit.
+func stripDerivedLabels(in []store.ReconcileLabel) []store.ReconcileLabel {
+	return StripSupersessionLabels(StripFreshnessLabels(in))
+}
+
+// supersederHealthyStates lists the FeatureStates that qualify a
+// superseder feature as "healthy for default replay" (ADR-028 §
+// Consequences, PRD §5). A superseder outside this set combined with a
+// non-blocked reconcile outcome still filters the historical target out
+// of the effective set, but surfaces `stale-superseder` so operators
+// see the replacement itself needs repair before the effective stack is
+// clean.
+var supersederHealthyStates = map[store.FeatureState]struct{}{
+	store.StateApplied:        {},
+	store.StateActive:         {},
+	store.StateUpstreamMerged: {},
+}
+
+// supersederIsHealthy reports whether the given feature is a valid
+// active superseder for default replay purposes. Healthy = state in
+// {applied, active, upstream_merged} AND reconcile outcome is NOT one
+// of the terminal-blocked verdicts. This mirrors the pattern used by
+// blockedReconcileOutcomes so a superseder that reconcile-blocks
+// automatically demotes to `stale-superseder` without extra plumbing.
+func supersederIsHealthy(f store.FeatureStatus) bool {
+	if _, ok := supersederHealthyStates[f.State]; !ok {
+		return false
+	}
+	if _, blocked := blockedReconcileOutcomes[f.Reconcile.Outcome]; blocked {
+		return false
+	}
+	return true
+}
+
+// composeSupersessionLabels populates `set` with the four v0.12.0
+// Wave α supersession overlay labels for `child`, using ADR-028 D4's
+// direction-aware rules:
+//
+//   - Superseder side (child owns one or more `supersedes` edges):
+//     `orphan-superseder` when any named target is missing from the
+//     store; `active-superseder` when at least one named target
+//     exists. Both may co-appear when child has mixed valid and
+//     dangling edges. `stale-superseder` is added when child itself
+//     is not healthy for default replay (state not in
+//     {applied, active, upstream_merged} OR reconcile outcome is
+//     terminally blocked).
+//
+//   - Target side (some OTHER feature declares
+//     `supersedes -> child.slug`): `superseded-by` when the
+//     superseder is healthy (default replay excludes child, and the
+//     replacement is trustworthy); `stale-superseder` when the
+//     superseder exists but is unhealthy (default replay still
+//     excludes child per ADR-028 D6/D8 — the historical feature
+//     does NOT automatically re-enter the effective set — but the
+//     replacement itself needs repair).
+//
+// Purity: reads status.json via s.LoadFeatureStatus and
+// s.ListFeatures. Never touches artifacts/reconcile-session.json
+// (ADR-010 D5). Never writes.
+//
+// Complexity: one full store scan via ListFeatures. Same order of
+// magnitude as the existing dependent/broken-refs render paths.
+func composeSupersessionLabels(s *store.Store, child store.FeatureStatus, set map[store.ReconcileLabel]struct{}) {
+	all, err := s.ListFeatures()
+	if err != nil {
+		return
+	}
+	index := make(map[string]store.FeatureStatus, len(all))
+	for _, f := range all {
+		index[f.Slug] = f
+	}
+
+	// Superseder side — child's own supersedes edges.
+	childIsSuperseder := false
+	for _, dep := range child.DependsOn {
+		if dep.Kind != store.DependencyKindSupersedes {
+			continue
+		}
+		childIsSuperseder = true
+		if _, exists := index[dep.Slug]; !exists {
+			set[store.LabelOrphanSuperseder] = struct{}{}
+			continue
+		}
+		set[store.LabelActiveSuperseder] = struct{}{}
+	}
+	if childIsSuperseder && !supersederIsHealthy(child) {
+		set[store.LabelStaleSuperseder] = struct{}{}
+	}
+
+	// Target side — reverse scan for peers that supersede child.
+	for _, peer := range all {
+		if peer.Slug == child.Slug {
+			continue
+		}
+		for _, dep := range peer.DependsOn {
+			if dep.Kind != store.DependencyKindSupersedes {
+				continue
+			}
+			if dep.Slug != child.Slug {
+				continue
+			}
+			// peer supersedes child. Healthy vs stale determines
+			// which label lands on the target.
+			if supersederIsHealthy(peer) {
+				set[store.LabelSupersededBy] = struct{}{}
+			} else {
+				set[store.LabelStaleSuperseder] = struct{}{}
+			}
+		}
+	}
+}
+
 // DeriveFreshnessLabel returns the single freshness label for `child`
 // per the §3.4.2 truth table. Exported wrapper around
 // `deriveFreshnessLabel` for render-layer callers (status / status --dag
 // / status --json) that want the freshness label without the M14.3 set.
 func DeriveFreshnessLabel(s *store.Store, child store.FeatureStatus) store.ReconcileLabel {
 	return deriveFreshnessLabel(s, child)
+}
+
+// DeriveSupersessionLabels returns the sorted list of supersession
+// overlay labels for `child` (0-4 entries). Exported wrapper around
+// `composeSupersessionLabels` for render-layer callers (status /
+// status --dag / status --json) that want to surface supersession
+// state without inheriting the entire ComposeLabels set (which also
+// carries the M14.3 hard-parent overlay + the freshness label — those
+// already have their own render-time hooks).
+//
+// See ADR-028 D4 for the four label semantics. Purity guarantee mirrors
+// `composeSupersessionLabels`: reads only status.json via
+// s.LoadFeatureStatus / s.ListFeatures.
+func DeriveSupersessionLabels(s *store.Store, child store.FeatureStatus) []store.ReconcileLabel {
+	set := make(map[store.ReconcileLabel]struct{})
+	composeSupersessionLabels(s, child, set)
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]store.ReconcileLabel, 0, len(set))
+	for l := range set {
+		out = append(out, l)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 // readArtifactBytesForFreshness is the file reader used by

@@ -1,0 +1,193 @@
+package workflow
+
+import (
+	"reflect"
+	"sort"
+	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/store"
+)
+
+// v0.12.0 Wave α — supersession label composition tests.
+//
+// Coverage matrix (PRD-feature-supersession AC-6, AC-7, AC-12; ADR-028
+// D4). Each test asserts the read-time overlay attaches on the correct
+// side of a supersedes edge (superseder vs target) and composes with
+// the existing M14.3 + freshness sets.
+
+func hasLabelInSlice(labels []store.ReconcileLabel, want store.ReconcileLabel) bool {
+	for _, l := range labels {
+		if l == want {
+			return true
+		}
+	}
+	return false
+}
+
+func labelSlice(t *testing.T, s *store.Store, slug string) []store.ReconcileLabel {
+	t.Helper()
+	got, err := ComposeLabels(s, slug)
+	if err != nil {
+		t.Fatalf("ComposeLabels(%s): %v", slug, err)
+	}
+	// Ensure caller sees a stable order regardless of set-iteration
+	// randomness.
+	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+	return got
+}
+
+// TestComposeLabels_ActiveSuperseder — a healthy superseder with a
+// valid target gets `active-superseder`; the target gets
+// `superseded-by`.
+func TestComposeLabels_ActiveSuperseder(t *testing.T) {
+	s := planTestEnv(t, true)
+	addPlanFeature(t, s, "older", nil)
+	addPlanFeature(t, s, "newer", []store.Dependency{
+		{Slug: "older", Kind: store.DependencyKindSupersedes},
+	})
+	// Both features healthy for default replay.
+	setParentState(t, s, "older", store.StateApplied, "", "")
+	setParentState(t, s, "newer", store.StateApplied, "", "")
+
+	newer := labelSlice(t, s, "newer")
+	if !hasLabelInSlice(newer, store.LabelActiveSuperseder) {
+		t.Fatalf("newer must carry active-superseder, got %v", newer)
+	}
+	if hasLabelInSlice(newer, store.LabelStaleSuperseder) {
+		t.Fatalf("newer is healthy — must not carry stale-superseder, got %v", newer)
+	}
+	if hasLabelInSlice(newer, store.LabelOrphanSuperseder) {
+		t.Fatalf("newer's target exists — must not carry orphan-superseder, got %v", newer)
+	}
+
+	older := labelSlice(t, s, "older")
+	if !hasLabelInSlice(older, store.LabelSupersededBy) {
+		t.Fatalf("older must carry superseded-by, got %v", older)
+	}
+	if hasLabelInSlice(older, store.LabelStaleSuperseder) {
+		t.Fatalf("newer is healthy — older must not carry stale-superseder, got %v", older)
+	}
+}
+
+// TestComposeLabels_OrphanSuperseder — a superseder pointing at a
+// missing target gets `orphan-superseder`. No `active-superseder`
+// because no target exists.
+func TestComposeLabels_OrphanSuperseder(t *testing.T) {
+	s := planTestEnv(t, true)
+	// Only `newer` exists; the `ghost` target is missing.
+	addPlanFeature(t, s, "newer", []store.Dependency{
+		{Slug: "ghost", Kind: store.DependencyKindSupersedes},
+	})
+	setParentState(t, s, "newer", store.StateApplied, "", "")
+
+	got := labelSlice(t, s, "newer")
+	if !hasLabelInSlice(got, store.LabelOrphanSuperseder) {
+		t.Fatalf("dangling supersedes target must yield orphan-superseder, got %v", got)
+	}
+	if hasLabelInSlice(got, store.LabelActiveSuperseder) {
+		t.Fatalf("no valid target — active-superseder must not appear, got %v", got)
+	}
+}
+
+// TestComposeLabels_StaleSuperseder — a superseder whose reconcile
+// outcome is terminally blocked gets `stale-superseder` (on itself);
+// the target ALSO gets `stale-superseder` (in place of superseded-by)
+// so operators see the replacement is broken but default replay still
+// excludes the historical feature per ADR-028 D6/D8.
+func TestComposeLabels_StaleSuperseder(t *testing.T) {
+	s := planTestEnv(t, true)
+	addPlanFeature(t, s, "older", nil)
+	addPlanFeature(t, s, "newer", []store.Dependency{
+		{Slug: "older", Kind: store.DependencyKindSupersedes},
+	})
+	setParentState(t, s, "older", store.StateApplied, "", "")
+	setParentState(t, s, "newer", store.StateApplied, store.ReconcileBlockedRequiresHuman, "")
+
+	newer := labelSlice(t, s, "newer")
+	if !hasLabelInSlice(newer, store.LabelStaleSuperseder) {
+		t.Fatalf("unhealthy newer must carry stale-superseder, got %v", newer)
+	}
+	// active-superseder still applies — the target exists — even
+	// though the superseder itself is unhealthy.
+	if !hasLabelInSlice(newer, store.LabelActiveSuperseder) {
+		t.Fatalf("newer has a real target — active-superseder should still apply, got %v", newer)
+	}
+
+	older := labelSlice(t, s, "older")
+	if !hasLabelInSlice(older, store.LabelStaleSuperseder) {
+		t.Fatalf("target of unhealthy superseder must carry stale-superseder, got %v", older)
+	}
+	if hasLabelInSlice(older, store.LabelSupersededBy) {
+		t.Fatalf("target of unhealthy superseder must not carry superseded-by, got %v", older)
+	}
+}
+
+// TestComposeLabels_NoSupersessionEdges_NoSupersessionLabels — a plain
+// feature graph with only hard/soft edges must not surface any of the
+// four supersession labels (regression guard for the M14.3 pre-Slice-3
+// contract).
+func TestComposeLabels_NoSupersessionEdges_NoSupersessionLabels(t *testing.T) {
+	s := planTestEnv(t, true)
+	addPlanFeature(t, s, "parent", nil)
+	addPlanFeature(t, s, "child", []store.Dependency{
+		{Slug: "parent", Kind: store.DependencyKindHard},
+	})
+	setParentState(t, s, "parent", store.StateApplied, "", "")
+
+	child := labelSlice(t, s, "child")
+	for _, l := range []store.ReconcileLabel{
+		store.LabelSupersededBy,
+		store.LabelActiveSuperseder,
+		store.LabelStaleSuperseder,
+		store.LabelOrphanSuperseder,
+	} {
+		if hasLabelInSlice(child, l) {
+			t.Fatalf("plain hard-dep graph must not carry %s, got %v", l, child)
+		}
+	}
+}
+
+// TestStripSupersessionLabels_RemovesOnlyFour verifies the strip
+// helper's scope is exactly the four Wave α labels.
+func TestStripSupersessionLabels_RemovesOnlyFour(t *testing.T) {
+	in := []store.ReconcileLabel{
+		store.LabelWaitingOnParent,
+		store.LabelSupersededBy,
+		store.LabelActiveSuperseder,
+		store.LabelStaleSuperseder,
+		store.LabelOrphanSuperseder,
+		store.LabelBlockedByParent,
+		store.LabelVerifiedFresh, // freshness label — should survive this strip
+	}
+	got := StripSupersessionLabels(in)
+	want := []store.ReconcileLabel{
+		store.LabelWaitingOnParent,
+		store.LabelBlockedByParent,
+		store.LabelVerifiedFresh,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("StripSupersessionLabels: got %v, want %v", got, want)
+	}
+}
+
+// TestComposeLabels_SupersessionLabelsNotPersisted — after RunReconcile
+// via stripDerivedLabels, none of the four supersession labels may
+// appear in the persisted `Reconcile.Labels` slice. Exercises the
+// contract that persistence sites always chain freshness+supersession
+// strips.
+func TestComposeLabels_SupersessionLabelsNotPersisted(t *testing.T) {
+	// Labels the compose function might return.
+	composed := []store.ReconcileLabel{
+		store.LabelWaitingOnParent,
+		store.LabelActiveSuperseder,
+		store.LabelStaleSuperseder,
+		store.LabelSupersededBy,
+		store.LabelOrphanSuperseder,
+		store.LabelVerifiedFresh,
+	}
+	got := stripDerivedLabels(composed)
+	want := []store.ReconcileLabel{store.LabelWaitingOnParent}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("stripDerivedLabels must remove freshness + supersession: got %v, want %v", got, want)
+	}
+}

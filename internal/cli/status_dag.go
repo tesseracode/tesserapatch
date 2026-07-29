@@ -352,8 +352,9 @@ func walkTree(
 
 // renderNodeLine formats one feature node: `slug [state] outcome (labels)`.
 // The `s` parameter is used to derive the read-time freshness label
-// (Slice B / ADR-013 D5). Pass nil to skip freshness derivation (e.g.
-// in tests that don't care about the freshness overlay).
+// (Slice B / ADR-013 D5) and the read-time supersession overlay labels
+// (v0.12.0 Wave α / ADR-028 D4). Pass nil to skip both derivations
+// (e.g. in tests that don't care about the read-time overlay).
 //
 // `brokenRefs` is the slice of broken FeatureRefs for this feature (or
 // nil/empty if none). When non-empty, the LabelDependentBroken overlay
@@ -361,21 +362,28 @@ func walkTree(
 // (feat-amend-dependent-warning rev-1).
 func renderNodeLine(s *store.Store, st store.FeatureStatus, brokenRefs []store.FeatureRef) string {
 	var freshness store.ReconcileLabel
+	var supersession []store.ReconcileLabel
 	parentStale := false
 	if s != nil {
 		freshness = workflow.DeriveFreshnessLabel(s, st)
 		parentStale = workflow.ParentGenerationStale(s, st.Slug)
+		supersession = workflow.DeriveSupersessionLabels(s, st)
 	}
-	return renderNodeLineWithFreshness(st, freshness, parentStale, brokenRefs)
+	return renderNodeLineWithFreshness(st, freshness, parentStale, brokenRefs, supersession)
 }
 
 // renderNodeLineWithFreshness is the freshness-aware variant. Callers
-// that have a *store.Store available pass the derived freshness label
-// in; callers without one pass "".
+// that have a *store.Store available pass the derived freshness label,
+// `parentStale` flag, and pre-computed supersession label slice in;
+// callers without one pass "", false, nil.
 //
 // `brokenRefs` overlays the dependent-broken label when non-empty
 // (feat-amend-dependent-warning rev-1). nil is safe.
-func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.ReconcileLabel, parentStale bool, brokenRefs []store.FeatureRef) string {
+//
+// `supersession` is the pre-computed set of read-time supersession
+// overlay labels from workflow.DeriveSupersessionLabels (ADR-028 D4).
+// nil is safe.
+func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.ReconcileLabel, parentStale bool, brokenRefs []store.FeatureRef, supersession []store.ReconcileLabel) string {
 	out := fmt.Sprintf("%s [%s]", st.Slug, st.State)
 	if eff := st.Reconcile.EffectiveOutcome(); eff != "" {
 		out += " " + eff
@@ -386,6 +394,9 @@ func renderNodeLineWithFreshness(st store.FeatureStatus, freshness store.Reconci
 	}
 	if len(brokenRefs) > 0 {
 		labels = appendLabel(labels, store.LabelDependentBroken)
+	}
+	for _, l := range supersession {
+		labels = appendLabel(labels, l)
 	}
 	if len(labels) > 0 {
 		strs := make([]string, len(labels))
@@ -478,6 +489,13 @@ func writeDAGJSON(
 			for j, r := range refs {
 				brokenJSON[j] = dagJSONBrokenRef{Kind: r.Kind, SHA: r.SHA, Feature: r.Feature}
 			}
+		}
+		// v0.12.0 Wave α (ADR-028 D4): derive supersession overlay
+		// labels at render time and merge them into the labels array.
+		// Same discipline as freshness — never persisted, always
+		// recomputed from the current graph.
+		for _, l := range workflow.DeriveSupersessionLabels(s, f) {
+			labels = appendLabel(labels, l)
 		}
 		node := dagJSONNode{
 			Slug:                  f.Slug,

@@ -155,9 +155,10 @@ func AcceptShadow(s *store.Store, slug string, files []string, upstreamCommit st
 	if cfg, cerr := s.LoadConfig(); cerr == nil && cfg.DAGEnabled() {
 		labels, lerr := ComposeLabels(s, slug)
 		if lerr == nil {
-			// Slice B (ADR-013 D4): strip freshness labels — they are
-			// read-time only and must never appear in Reconcile.Labels.
-			persisted := StripFreshnessLabels(labels)
+			// Slice B (ADR-013 D4) + Wave α (ADR-028 D4): strip both
+			// freshness AND supersession labels — both are derived at
+			// read time and must never appear in Reconcile.Labels.
+			persisted := stripDerivedLabels(labels)
 			if st, err := s.LoadFeatureStatus(slug); err == nil {
 				st.Reconcile.Labels = persisted
 				if serr := s.SaveFeatureStatus(st); serr != nil {
