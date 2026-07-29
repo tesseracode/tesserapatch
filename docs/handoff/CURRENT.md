@@ -153,6 +153,19 @@ None.
 - Two-opinion protocol scoreboard: 16/16 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 16 at rev-0.
 - Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
+
+## Stream A closure summary — PRD-active-feature-session — 2026-07-29
+
+- **PRD drafted**: `docs/prds/PRD-active-feature-session.md` at `Proposed` status; paper-only, no code/schema/asset/CHANGELOG changes.
+- **ADR-027 F3 locked**: chose Option A, `.tpatch/local/capture/`, with `.tpatch/local/` ignored-before-write as a hard precondition. Rationale: preserves the `.tpatch/` mental model, is easier than `.git/` for linked worktrees, avoids OS-cache platform/cache-sharing ambiguity, and remains allowed by ADR-027 D1 when effective Git ignore verification refuses unsafe writes.
+- **Cluster 1 — lifecycle**: explicit per-feature `tpatch session start <slug>`; no implicit `analyze`/agent/process start; explicit `session stop`; opt-in record-time close via `tpatch record <slug> --with-session`; content-addressed `cs_<12hex>` identity.
+- **Cluster 2 — storage**: local manifests under `.tpatch/local/capture/<slug>/<cs_id>/`; committed summaries under `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`; implementation must amend `tpatch init` and verify effective Git ignore status before any local-buffer write.
+- **Cluster 3 — promotion**: opt-in `record --with-session` or `session summarize`; default dry-run for summarize; committed summary writes require ADR-027 D3 redaction and use `ctx_<12hex>` IDs.
+- **Cluster 4 — CLI surface**: proposes new `tpatch session start|stop|list|summarize|purge` plus `record --with-session` / `--from-session`; cites Rule 8 display strings, Rule 15 trigger-name grep, and Rule 11 persistent `--path` inheritance.
+- **Cluster 5 — privacy**: v1 forbids raw transcripts, prompts, assistant responses, tool bodies, env dumps, IDE buffers/selections, source snippets, embeddings, and vectors in both local buffers and committed summaries; provider carve-out limited to ADR-027 D10's four conditions.
+- **Acceptance criteria count**: 25 atomic §8 criteria covering idempotence, dry-run defaults, per-session failure isolation, deterministic JSON, privacy enforcement, path-ignore refusal, and backward compatibility.
+- **Stream B collision check**: did not touch `docs/prds/PRD-feature-supersession.md`, `docs/prds/PRD-write-file-recipe-safety.md`, any optional Stream B ADRs, or `docs/adrs/README.md`.
+
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
 Paper-only exploratory pass completed for a non-LLM middle layer between
