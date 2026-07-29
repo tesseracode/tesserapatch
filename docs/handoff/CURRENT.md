@@ -2,11 +2,117 @@
 
 ## Active Task
 
-- **Task ID**: `post-v0.11.2-decision`
-- **Milestone**: v0.11.2 SHIPPED 2026-07-29 (tag `v0.11.2` at release commit `3267455`; GH Release marked `Latest` at https://github.com/tesseracode/tesserapatch/releases/tag/v0.11.2). RELEASING.md validated end-to-end for the second time.
-- **Description**: Doctor implementation cluster COMPLETE + v0.11.2 shipped. Awaiting supervisor decision on next work block.
-- **Status**: Awaiting next-phase dispatch (no active implementer).
+- **Task ID**: `post-v0.11.2-parallel-streams`
+- **Milestone**: Post-v0.11.2 combined roadmap: v0.11.3 stabilization slot (fix issue #2 verify V8 double-apply) + Option C paper draft (`PRD-active-feature-session`) + issue #1 PRD-pair paper drafts (`PRD-feature-supersession` + `PRD-write-file-recipe-safety`). Three parallel streams; then implement issue #1 as v0.12.0, then WP-004.
+- **Description**: v0.11.2 shipped 2026-07-29. Two open GH issues classified by supervisor: #1 (supersession + write-file safety) → PRD-pair (two paper PRDs + ADR-028/029 on decision-lock); #2 (verify V8 double-applies) → BUG, v0.11.3 stabilization slot. Combined with user's Option C (PRD-active-feature-session, unlocks ADR-027 F3 downstream). Three parallel work streams share only handoff CURRENT.md; supervisor consolidates.
+- **Status**: In Progress (three streams).
 - **Assigned**: 2026-07-29.
+
+## Three parallel work streams
+
+### Stream C — Issue #2 fix (v0.11.3 stabilization slot)
+
+**GH Issue**: [#2 verify V8 double-applies equivalent recipe and canonical patch](https://github.com/tesseracode/tesserapatch/issues/2).
+
+**Nature**: Localized bug in `internal/workflow/verify.go:948-985`. V7 applies recipe to shadow, then V8 checks canonical patch against ALREADY-MODIFIED shadow — for correct recipe/patch pairs (equivalent representations of the same change), V8 fails because it's double-applying. Reporter observed on v0.11.1 while migrating `session-search` in `t3code`.
+
+**Classification**: BUG (not PRD, not whitepaper, no new ADR unless fix changes V7/V8 semantics beyond a shadow reset — then small ADR-013 amendment).
+
+**Timing**: v0.11.3 stabilization slot. Ships alongside any other post-v0.11.2 small fixes that surface.
+
+**Fix options** (implementer picks in brief):
+- Option A (simplest): reset shadow between V7 and V8.
+- Option B: separate shadows for V7 and V8.
+- Option C: explicit idempotence/equivalence check contract.
+
+**Dispatch**: full implementer + two-opinion review cycle (rule 14 mandatory). Empirical reproduction required per rule 20.
+
+### Stream A — Option C paper draft (`PRD-active-feature-session`)
+
+**Nature**: Draft `docs/prds/PRD-active-feature-session.md` at `Proposed` status. Unlocks ADR-027 F3 (D1 local-buffer path softness) by pinning the primary local-buffer path.
+
+**Precedent shape**: ADR-027 draft model + Slice 4 doctor PRD draft model (paper-only, three-way review).
+
+**Timing**: Dispatch after Stream C's fix lands (so CURRENT.md handoff doesn't churn). Runs in parallel with Stream B after that.
+
+### Stream B — Issue #1 PRD-pair paper drafts
+
+**GH Issue**: [#1 Add supersession edges and guard write-file recipes against stale reverts](https://github.com/tesseracode/tesserapatch/issues/1).
+
+**Classification**: Two connected-but-distinct gaps → **two PRDs** (not whitepaper — fixes are largely independent):
+- `PRD-feature-supersession` + ADR-028 (`supersedes` edge model on ADR-011 graph).
+- `PRD-write-file-recipe-safety` + ADR-029 (preimage hash preconditions + later-touch detection).
+
+**Timing**: Dispatch after Stream C's fix lands. Runs in parallel with Stream A.
+
+**Implementation** (deferred): after Streams A+B PRDs three-way APPROVED, sequence supersession first (unlocks "which features to replay") then write-file safety. Target v0.12.0.
+
+## Combined roadmap sequencing
+
+1. **NOW**: Stream C (issue #2 fix) — dispatch first as v0.11.3 stabilization slot.
+2. **After Stream C three-way APPROVED**: Ship v0.11.3 following RELEASING.md.
+3. **After v0.11.3 shipped**: Dispatch Streams A + B in parallel (paper-only).
+4. **After Streams A + B three-way APPROVED**: Archive; kick off supersession implementation as v0.12.0.
+5. **After supersession + write-file safety land**: Kick off Option A (WP-004 `auto-feature-dependencies`) as the next major cluster.
+
+## Stream C binding scope (Issue #2 fix)
+
+### Detection + fix
+
+- Read `internal/workflow/verify.go:948-985` in full to understand current V7 + V8 shadow-shared logic.
+- Read `internal/workflow/verify_closure_replay_test.go` to understand the happy-path coverage that misses this matrix cell (V8 skipped when recipe present per issue).
+- Choose Option A / B / C. Recommend **Option A** (reset shadow between V7 and V8): simplest fix, doesn't change disk footprint or PRD semantics. Document choice in closure summary.
+
+### Test coverage
+
+- Add empirical reproduction test in `internal/workflow/verify_closure_replay_test.go` matching issue's Reproduction scenario:
+  - Fixture: applied feature with recipe + canonical post-apply.patch that produces equivalent changes, no hard parents, both replay cleanly against base independently.
+  - Assert: `tpatch verify <slug> --no-write` passes BOTH V7 (`recipe_replay_clean`) AND V8 (`post_apply_patch_replay_clean`).
+  - This test would have failed on v0.11.1 (per issue) → serves as durable regression guard.
+
+### Optional ADR-013 amendment
+
+- If the fix changes V7/V8 shadow semantics beyond "shadow reset between passes", draft a small D-clause amendment to `docs/adrs/ADR-013-verify-freshness-overlay.md`. Otherwise no ADR needed.
+
+### CHANGELOG
+
+- Add `## v0.11.3 (unreleased) — verify V8 double-apply fix` header at CHANGELOG top.
+- Bullet describing the fix.
+
+### Stream C hard constraints (20 binding + 2 v0.11.2-lineage)
+
+Same 20 rules as v0.11.2 doctor cluster close. Especially:
+- Rule 9 (behavior-implemented-vs-tested): read verify.go:948-985 verbatim first.
+- Rule 15 (trigger-name grep): any `tpatch verify` command mention in the fix must match the actual command shape.
+- Rule 18 (structural trailer verification): every commit's trailer passes `git log --format='%(trailers)' <sha>` non-empty.
+- Rule 20 (empirical user-workspace reproduction): reproduce the fix scenario BEFORE + AFTER in a synthetic tpatch workspace.
+
+Side Research md5 == `b385fe622db9926f48861105239f113e`.
+
+## Session Summary
+
+v0.11.2 shipped. Two GH issues triaged: #1 → PRD-pair (paper draft), #2 → bug fix (v0.11.3 stabilization slot). Combined with user's Option C (PRD-active-feature-session). Three parallel streams; Stream C dispatches first.
+
+## Next Steps
+
+1. Supervisor: dispatch Stream C (issue #2 fix implementer).
+2. After Stream C three-way APPROVED: ship v0.11.3.
+3. After v0.11.3 shipped: dispatch Streams A + B in parallel.
+4. Consolidate + archive after each stream lands.
+
+## Blockers
+
+None.
+
+## Context for Next Agent
+
+- HEAD at three-stream kickoff: `aec05e4` (v0.11.2 post-release tracking).
+- Two GH issues open at kickoff:
+  - #1: https://github.com/tesseracode/tesserapatch/issues/1 (supersession + write-file safety) → PRD-pair.
+  - #2: https://github.com/tesseracode/tesserapatch/issues/2 (verify V8 double-apply) → v0.11.3 fix.
+- 20 binding carry-forward rules.
+- Two-opinion protocol scoreboard: 15/15 rev cycles at final concurrence; user-external uniquely blocked/caught in 7 of 15 at rev-0.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
 
 ## v0.11.2 release summary
 
