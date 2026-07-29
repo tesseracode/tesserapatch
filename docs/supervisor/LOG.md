@@ -1,3 +1,151 @@
+## Review — Wave α (v0.12.0 supersession) — supervisor-external (rev-0) — 2026-07-29
+
+**Reviewer**: supervisor-external (fresh-eyes, code-review agent, parallel to internal)
+**Task**: Independent review of v0.12.0 Wave α feature-supersession implementation. Range `7081c62..480f90a` (6 commits, +1,395/-39 across 24 files). Verifies PRD-feature-supersession (12 ACs), ADR-028 (D1–D8), ADR-011 (D1–D4 preservation), and CURRENT.md Wave α scope.
+
+### Verdict: NEEDS REVISION
+
+Three substantive gaps against binding PRD/ADR clauses. Two are user-facing label-contract violations reproduced empirically; one is a missing conflict-detection clause required by AC-4 / ADR-028 D5. Infrastructure (schema, cycle detection, reconcile suppression, V7 skip) is well-executed and Rule 20 rigor confirms Slice 4 tests are non-vacuous. Concurrence with internal review is **pending** — no internal Wave α implementation entry present at the time of this review.
+
+### Concurrence disposition
+
+- Internal Wave α implementation review has NOT yet landed in `docs/supervisor/LOG.md` (grep `^## ` returns only pre-implementation PRD-review entries + prior-cycle decisions). This review is written against the code alone. If the internal reviewer surfaces the same three findings, concurrence is symmetric; if not, I DISSENT with the three findings below and request adjudication.
+
+### Gates verification
+
+- `gofmt -l .` → empty.
+- `go vet ./...` → clean.
+- `go build ./cmd/tpatch` → clean.
+- `go test -count=1 ./...` → all 12 packages pass (adds 15 supersession tests: 7 store, 6 workflow labels, 3 reconcile, 2 verify, split across the correct commits).
+- Side Research md5 = `b385fe622db9926f48861105239f113e` — preserved.
+- Rule 18 trailer parse (all 6 commits): every commit shows exactly `1` Co-authored-by trailer via `git interpret-trailers --parse` — pass.
+- Rule 15 grep sweep on new docs (`CHANGELOG.md`, `docs/prds/PRD-feature-supersession.md`, `docs/adrs/ADR-028-supersession-edge-model.md`, `docs/ROADMAP.md`): every `tpatch <verb>` referenced (`add`, `amend`, `apply`, `cycle`, `config`, `doctor`, `edit`, `feature`, `implement`, `init`, `land`, `next`, `provider`, `reconcile`, `record`, `remove`, `status`, `test`, `verify`) exists in `internal/cli/cobra.go`. `tpatch session` mentioned in ROADMAP references future Wave γ Stream A, flagged NEW in the corresponding PRD's D13 (consistent with prior Rule 15 disposition). No phantom `tpatch supersede` command referenced. Pass.
+
+### Findings
+
+#### F-SEXT-1 (HIGH) — `superseded-by` label rendered without the `<slug>` suffix (AC-7 / PRD §4.1 binding contract violation)
+
+**File**: `internal/store/types.go:157` (constant); `internal/cli/status_dag.go:398-400, 494-497` (both text and JSON render paths); `internal/workflow/labels.go:509` (composition).
+
+**Problem**: PRD §4.1 lines 154-159 enumerates "Binding field/value contracts" and lists `label values: `superseded-by <slug>`, `active-superseder`, `stale-superseder`, `orphan-superseder`` — the `<slug>` placeholder is part of the binding label value. PRD §4.3 lines 178, 186 and ADR-028 D4 lines 58, 66 repeat this contract. The implementer's `types.go:157` comment explicitly acknowledges the intent: "The label value is stored as the bare literal `superseded-by`; the concrete superseder slug is surfaced by the render layer (status / status --json) alongside the label." But NEITHER render path appends the slug. Both `renderNodeLineWithFreshness` (status_dag.go:398-400) and `writeDAGJSON` (status_dag.go:494-497) call `appendLabel(labels, l)` and later `strs[i] = string(l)` — the emitted token is the bare literal `superseded-by`.
+
+**Empirical evidence** (scratch repo `/tmp/tpatch-supersede-scratch`, two applied features `older-fix-old-feature` + `newer-fix-new-feature` with `newer-fix-new-feature`'s `depends_on` set to `[{slug: older-fix-old-feature, kind: supersedes}]`, both `state: applied`):
+
+```
+$ /tmp/tpatch-review status --dag
+DAG (all features)
+older-fix-old-feature [applied] (never-verified, superseded-by)
+│ ├─► newer-fix-new-feature [applied] (active-superseder, never-verified)
+
+$ /tmp/tpatch-review status --dag --json | jq '.features[] | select(.slug=="older-fix-old-feature") | .labels'
+[ "never-verified", "superseded-by" ]
+```
+
+The rendered token is `superseded-by`, not `superseded-by newer-fix-new-feature`. An operator scanning `tpatch status` cannot answer "who supersedes older-fix-old-feature?" from the label alone; the JSON `dependents[]` field discloses it but the LABEL value contract in §4.1 is violated in both surfaces.
+
+**Suggested fix**: append the (single healthy) superseder slug to the emitted label token — e.g. `superseded-by newer-fix-new-feature` — in both `renderNodeLineWithFreshness` and `writeDAGJSON`. Requires `composeSupersessionLabels` / `DeriveSupersessionLabels` to plumb the superseder slug (either by returning `map[LabelSupersededBy]string` or by post-processing at the render layer). Add tests asserting the slug suffix and its selection when multiple superseders exist (see F-SEXT-3).
+
+**Severity rationale**: user-facing binding label contract; both text and JSON surfaces; PRD §4.1 explicitly binds. HIGH.
+
+#### F-SEXT-2 (HIGH) — Supersession label rendering order is alphabetical, not the locked severity order (AC-7 / PRD §4.3 + ADR-028 D4)
+
+**File**: `internal/workflow/labels.go:546` (`sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })`), consumed unmodified by `internal/cli/status_dag.go:398-400, 494-497`.
+
+**Problem**: PRD §4.3 lines 184-188 and ADR-028 D4 lines 63-67 lock the render order within the supersession group as severity-first:
+
+```
+[stale-superseder] [orphan-superseder] [superseded-by <slug>] [active-superseder]
+```
+
+`DeriveSupersessionLabels` at labels.go:536-548 sorts alphabetically instead:
+
+```
+active-superseder < orphan-superseder < stale-superseder < superseded-by
+```
+
+`renderNodeLineWithFreshness` and `writeDAGJSON` iterate that already-sorted slice and append into the label list without re-ordering. The locked severity contract is inverted for two of the four positions (`active-superseder` first instead of last; `stale-superseder` last instead of first).
+
+**Empirical evidence** (scratch repo `/tmp/tpatch-supersede-scratch2`, `newer-n` with two supersedes edges — one valid `older-o`, one dangling `missing-ghost` — and `state: defined` to force `!supersederIsHealthy(newer-n)`):
+
+```
+$ /tmp/tpatch-review status --dag
+DAG (all features)
+older-o [applied] (never-verified, stale-superseder)
+  └─► newer-n [defined] (active-superseder, never-verified, orphan-superseder, stale-superseder)
+```
+
+Emitted order on `newer-n`: `active-superseder, …, orphan-superseder, stale-superseder`. Required order: `stale-superseder, orphan-superseder, …, active-superseder`.
+
+**Suggested fix**: replace the alphabetical sort in `DeriveSupersessionLabels` (labels.go:546) with a fixed severity index (`stale-superseder=0, orphan-superseder=1, superseded-by=2, active-superseder=3`). Add a `TestDeriveSupersessionLabels_SeverityOrder` regression test that constructs a graph triggering all four labels and asserts the exact index order.
+
+**Severity rationale**: user-facing binding order contract explicitly labelled "locked" in both PRD and ADR. HIGH.
+
+#### F-SEXT-3 (MEDIUM) — Multi-active-superseder conflict is silently accepted (AC-4 / ADR-028 D5 not implemented, no deferral)
+
+**File**: `internal/store/validation.go:65-124` (ValidateDependencies), `internal/store/validation.go:130-193` (ValidateAllFeatures), `internal/workflow/labels.go:419-436` (isFeatureSupersededIn — first-healthy-wins), `internal/workflow/labels.go:494-514` (composeSupersessionLabels — set-dedupes to one `superseded-by` regardless of count).
+
+**Problem**: PRD-feature-supersession AC-4 (line 227): "`X supersedes Y` plus `Z supersedes Y` reports a conflict when both `X` and `Z` are active/effective." ADR-028 D5 (lines 71-75): "A historical feature may have at most one active/effective superseder. Multiple active superseders for the same target are a validation conflict." Neither the write-time validator, nor label composition, nor reconcile detects this. `isFeatureSupersededIn` returns the FIRST healthy match and silently ignores subsequent healthy superseders. `composeSupersessionLabels` sets `LabelSupersededBy` at most once via set semantics — the second (healthy) superseder is invisible.
+
+CHANGELOG.md (lines 5-37), ROADMAP.md (lines 552-583), and `docs/handoff/CURRENT.md` Wave α scope block (lines 19-30) do NOT declare AC-4 deferred. The Slice 2 test file `internal/store/supersedes_test.go:11-13` claims coverage of "AC-1..AC-4" but contains no test asserting the multi-active-superseder conflict — the closest is `TestValidateDependencies_SupersedesLinearChainAllowed` which validates a linear chain, not fan-in.
+
+**Empirical evidence** (scratch repo `/tmp/tpatch-supersede-scratch`, three applied features with BOTH `newer-fix-new-feature` and `third-superseder-third-feature` declaring `{slug: older-fix-old-feature, kind: supersedes}`; all three `state: applied` so both superseders are healthy):
+
+```
+$ /tmp/tpatch-review status --dag
+DAG (all features)
+older-fix-old-feature [applied] (never-verified, superseded-by)
+│ ├─► newer-fix-new-feature [applied] (active-superseder, never-verified)
+  └─► third-superseder-third-feature [applied] (active-superseder, never-verified)
+
+$ /tmp/tpatch-review feature deps --validate-all
+(no errors)
+```
+
+Two healthy superseders of the same target produce no conflict, no error, no warning label — exactly the failure mode ADR-028 D5 codifies against.
+
+**Suggested fix**: add a write-time validation rule in `ValidateDependencies` / `ValidateAllFeatures` that scans the store for other features declaring `kind: supersedes` on the same target and, when at least one of them is healthy (`supersederIsHealthy`), rejects the new edge with a `MultiActiveSuperseder` error naming both candidates. At read time, either raise a distinct `LabelMultiActiveSuperseder` label on the target OR extend the payload so `status --json` surfaces the conflict. If the supervisor prefers to defer AC-4 to a later wave, CHANGELOG + ROADMAP + CURRENT.md must explicitly declare AC-4 out of scope for Wave α — the current handoff claims completion of the PRD's acceptance criteria.
+
+**Severity rationale**: single acceptance criterion; PRD and ADR both codify; empirically reproducible; but affects only the pathological two-superseders case an operator has to actively construct. MEDIUM.
+
+### Non-findings verified
+
+- **Cycle detection across all three kinds (AC-1, AC-2, AC-3, ADR-028 D2)**: `internal/store/dag.go` DFS is edge-kind-agnostic; `TestValidateDependencies_SupersedesReciprocalCycle`, `TestValidateDependencies_MixedKindCycle`, `TestValidateDependencies_SupersedesSelfEdgeRejected` cover the three sub-cases and each produces `ErrCycle` / `ErrSelfDependency` with an actionable path. Pass.
+- **Backward compatibility (AC-8) and hard/soft semantics unchanged (AC-9, ADR-011 D4)**: `internal/store/types.go` extends the kind constants additively; `internal/store/validation.go:71-124` only widens the allow-list; existing hard/soft branches in `internal/workflow/verify.go` (`filterHardDeps`, `depSlugsHard`) untouched — a supersedes edge never enters the hard-parent path. `TestValidateDependencies_UnknownKindRejected` guards the allow-list. Pass.
+- **Orphan detection (AC-12)**: read-time — `composeSupersessionLabels` (labels.go:484-486) sets `LabelOrphanSuperseder` when the target is missing from the index; write-time — `ValidateDependencies` (validation.go:86-90) refuses new orphan edges via `ErrDanglingDependency`. Empirically reproduced: `tpatch feature deps newer-n add missing-ghost:supersedes` → `error: dependency references unknown feature`. Pass.
+- **Reconcile suppression (AC-5, AC-11)**: `RunReconcile` in `internal/workflow/reconcile.go:118-176` splits default vs. explicit-slug behavior correctly; V7 closure BFS in `internal/workflow/verify.go:831-872` skips both the superseded node and its ancestors-via-that-path. TopologicalOrder (`internal/store/dag.go:128-130`) treats the skipped node as a dangling parent, so no cascade fault. Pass.
+- **Persistence discipline**: `stripDerivedLabels` (labels.go:355-357) chains freshness+supersession strip; called at `accept.go:160`, `reconcile.go:376`, `reconcile.go:574` — verified via `TestComposeLabels_SupersessionLabelsNotPersisted`. Pass.
+- **Rule 19 shipped-surface justification**: all touched exported symbols map to a PRD/ADR clause cited in the commit message. Pass.
+- **ADR-011 D1–D4 preserved**: `depends_on[]` storage unchanged (D1 line 24); DFS/Kahn primitives untouched (D2 line 33-37); labels composable-derived, no new state (D3 line 41); hard/soft gates untouched (D4 line 49-54). Pass.
+
+### Rule 20 empirical evidence
+
+**Scratch-dir CLI check** (F-SEXT-1, F-SEXT-2, F-SEXT-3): reproduced above; commands + outputs cited inline. Binary: `/tmp/tpatch-review` built from `480f90a`.
+
+**Rigor extension — Slice 4 tests fail at Slice 3**: created a worktree at `195921a` (Slice 3, pre-suppression), copied `internal/workflow/reconcile_supersession_test.go` and `internal/workflow/verify_supersession_test.go` into it, and ran `go test -run 'Supersed' ./internal/workflow/`:
+
+```
+--- FAIL: TestReconcileDefaultSet_ExcludesSupersededFeature (0.29s)
+    reconcile_supersession_test.go:65: default reconcile set should exclude superseded feature add-older-greeting; got results=[…add-older-greeting…add-newer-greeting…]
+--- FAIL: TestReconcileExplicitSlug_SupersededEmitsHistoricalWarning (0.50s)
+    reconcile_supersession_test.go:137: expected historical-feature warning note referencing superseder; got Notes=[Patch is already present in upstream…]
+--- FAIL: TestRunVerify_ClosureReplay_SupersededParentSkipped (0.40s)
+    verify_supersession_test.go:75: V7 should pass — superseded hard parent 'mid' must be skipped from closure replay
+    verify_supersession_test.go:79: FailedAt must NOT be 'parent-replay' — superseded parent should be silently skipped
+FAIL
+```
+
+Three of five Slice 4 tests fail at Slice 3 — confirms the reconcile-suppression + V7-skip regression tests are non-vacuous. The remaining two (`TestReconcileDefaultSet_KeepsFeatureWhenSupersederStale`, `TestRunVerify_ClosureReplay_StaleSupersederDoesNotSkipParent`) exercise the "do NOT filter" branch which was the pre-Slice-4 default, so their pre-suppression passage is expected and does not indicate vacuity.
+
+### Concurrence check pending
+
+Internal Wave α implementation review has not yet landed. If internal APPROVES without F-SEXT-1/2/3, this reviewer DISSENTS on the three findings; if internal ships a matching set, three-way concurrence proceeds pending user-external adjudication.
+
+### Verdict: NEEDS REVISION
+
+F-SEXT-1 and F-SEXT-2 must land before three-way approval — both are user-facing binding contracts explicitly labelled "locked" or "binding" in PRD §4.1 / §4.3 and ADR-028 D4. F-SEXT-3 must either land or be declared out-of-scope in CHANGELOG + ROADMAP + CURRENT.md before three-way approval.
+
+---
+
 ## Review — Streams A + B (post-v0.11.3 paper-only PRD drafts) — external (user-dispatched, parallel) — 2026-07-29
 
 **Reviewer**: external (parallel second opinion, user-dispatched — combined single-pass review of BOTH streams)
