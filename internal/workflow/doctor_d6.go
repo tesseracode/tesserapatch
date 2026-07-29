@@ -123,6 +123,9 @@ func runDoctorD6(ctx *doctorContext) {
 	}
 	if strings.TrimSpace(ctx.options.ReleaseMetadata) == "" {
 		for _, tag := range sortedKeys(tags) {
+			if !doctorReleaseTagRe.MatchString(tag) {
+				continue
+			}
 			ctx.addFinding(DoctorFinding{
 				CheckID:     "D6",
 				Code:        "release-gh-release-unknown",

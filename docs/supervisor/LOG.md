@@ -1,3 +1,118 @@
+## Review — tpatch doctor Wave δ rev-1 (F2 close, final gate to v0.11.2) — external (user-dispatched, parallel) — 2026-07-29
+
+**Reviewer**: external (parallel second opinion, user-dispatched)
+**Task**: Independent external review of rev-1 (`8c108de..b0a558e`, functional fix `0107928`). Third empirical Rule 20 candidate application.
+
+### Verdict: APPROVED
+
+### F2 verification (all three deliverables closed empirically)
+
+- **F2-1 (gating)**: Option A implemented via `isTpatchStyleReleaseContext` in `doctor_d6.go`. Requires `## vX.Y.Z —` heading (em-dash U+2014) before tag↔CHANGELOG comparison + per-tag semver filter. Missing `CHANGELOG.md` correctly downgraded from `error` to `warning` via `errors.Is(err, os.ErrNotExist)`.
+  - **Repro 1** (upstream repo, own tags, `## 1.2.0 (2024-01-01)` changelog): was `2 drift findings` / exit 1 → now `0 drift findings, 2 warnings` / exit 0.
+  - **Repro 2** (no CHANGELOG.md): was `1 error` / exit 1 → now `warning` / exit 0.
+- **F2-2 (ADR-020 inline-minimal)**: zero `RELEASING.md` hits in D6 production code. Remediations self-contained and actionable.
+- **F2-3 (tests)**: all three regression tests landed. `TestDoctorD6RemediationHasNoRepoDocRefs` is a durable ADR-020-class guard against re-introducing repo-relative doc refs.
+
+### No false negative
+
+Independent verification: in a tpatch-style repo with genuine drift (tag `v3.0.0` with no heading; heading `v2.0.0` with no tag), D6 still reports both drift classes and exits 1 with the new inline remediations. F2-1's gate did NOT neuter D6's actual purpose.
+
+### F3 (LOW, pre-ship folding candidate) — `release-gh-release-unknown` warning noise for non-semver tags
+
+`doctorD6LocalReleaseTags` was widened from semver-only to accepting every tag. The three comparison loops re-apply the semver filter, but the unknown-status loop at `doctor_d6.go:124-135` does not. Empirical verification: a repo with tags `1.2.0`, `nightly`, `release-2024` emits `unknown` warning for all three.
+
+- Not a correctness or exit-contract issue (warnings don't affect exit code; verified exit 0).
+- Default-output UX concern: repos with many upstream tags print one 4-line warning block per tag on every `tpatch doctor` run.
+- Fix is one line — add the same `if !doctorReleaseTagRe.MatchString(tag) { continue }` guard used by the other three loops.
+
+Same class as supervisor-external's "Prerelease unknown-warning" observation. Reviewer recommends folding into v0.11.2 pre-ship prep rather than a new rev cycle.
+
+### Validation gates (independent run)
+- gofmt, vet, build: clean.
+- Full suite: 99/99 passed.
+- Side Research md5: `b385fe622db9926f48861105239f113e` preserved.
+- Rule 18: all three rev-1 commits carry parseable `Co-authored-by` trailers.
+- Rule 20 (candidate) applied by implementer + internal + supervisor-external + this review — fix validated by rebuilding the binary and running real non-tpatch workspaces, not just by reading code.
+
+### Concurrence with internal + supervisor-external
+YES with both. F3 (LOW) matches supervisor-external's independently-caught prerelease-warning finding — same one-line fix. All three reviewers agree v0.11.2 ready to ship.
+
+### Action Taken
+Verdict captured for supervisor consolidation. F3 folded into supervisor pre-ship prep as a single-line + regression-test cleanup, not a rev cycle.
+
+---
+
+## Decision — tpatch doctor Wave δ rev-1 — supervisor — 2026-07-29
+
+**Decision**: APPROVED. F3 pre-ship fix landed as supervisor cleanup. Doctor implementation cluster CLOSED. v0.11.2 READY TO SHIP.
+
+Three independent reviews all APPROVED:
+- internal `d86d5a6`: APPROVED (Rule 20 candidate first application successful)
+- supervisor-external `b0a558e`: APPROVED (Rule 20 second application; caught prerelease-warning LOW)
+- user-external 2026-07-29: APPROVED (Rule 20 third application; caught F3 LOW — same class as supervisor-external's prerelease finding, one-line fix)
+
+Both LOW findings converge on the same fix. User-external explicitly recommended folding into v0.11.2 pre-ship prep rather than a new rev cycle. Fix applied.
+
+### F3 pre-ship fix (supervisor-direct)
+
+- **F3-1**: added `if !doctorReleaseTagRe.MatchString(tag) { continue }` guard to `internal/workflow/doctor_d6.go` at the unknown-warning loop (previously line 125-135). Symmetric with the three drift loops that already apply this filter.
+- **F3-2**: regression test `TestDoctorD6UnknownGHWarningSkipsNonSemverTags` added at `internal/workflow/doctor_d6_test.go`. Fixture has tags `v2.0.0`, `nightly`, `release-2024`, `1.2.0` + tpatch-style CHANGELOG heading. Asserts exactly ONE `release-gh-release-unknown` warning (v2.0.0 only) + zero drift findings for non-semver tags. Durable regression guard.
+
+Empirical verification (supervisor-direct):
+```
+$ /tmp/tpatch_f3_verify doctor --check D6  # in a repo with tags 1.2.0, nightly, release-2024
+WARNING  D6 release-changelog-unreadable  ...  # only the legitimate missing-CHANGELOG warning fires
+summary: 0 drift findings, 1 warnings, 0 fixed, 0 errors
+EXIT=0
+```
+
+Non-semver tags no longer emit `release-gh-release-unknown` warnings. Warning-only path exits 0. F3 CLOSED.
+
+### Doctor implementation cluster CLOSURE
+
+**4 waves, all APPROVED at final three-way concurrence**:
+- **Wave α** (scaffold + D1 + D2 + D8): three-way APPROVED WITH NOTES 2026-07-27.
+- **Wave β** (D3 + D7): three-way APPROVED, zero findings 2026-07-28.
+- **Wave γ** (D4 + D5): three-way APPROVED WITH NOTES 2026-07-28; F1 folded to Wave δ.
+- **Wave δ rev-0** (D6 + F1 fold-in): three-way APPROVED WITH NOTES 2026-07-28; F2 folded to rev-1.
+- **Wave δ rev-1** (F2 close): three-way APPROVED 2026-07-29.
+- **Wave δ F3 pre-ship** (supervisor-direct): 2026-07-29.
+
+**29/29 §6 criteria MET** confirmed at Wave δ rev-1 closure by all three reviewers.
+
+### Two-opinion protocol scoreboard update
+
+**15 consecutive rev cycles with three-way concurrence at final acceptance**. User-external uniquely blocked or caught real production-behavior findings in **7 of 15 rev cycles** at rev-0 (Wave δ F2 was #7). Supervisor-external caught F-EXT-1 (structural trailer malformed) in Wave α.
+
+### Candidate rule 20 (empirical user-workspace reproduction) — PROMOTE to binding
+
+Rule 20 candidate applied successfully across Wave δ rev-1 in FOUR independent applications:
+1. Implementer (rev-1 kickoff): documented BEFORE/AFTER commands in closure summary.
+2. Internal reviewer: reproduced 2 mandated scenarios + 1 adversarial extra (mixed CHANGELOG + `v0.11.1-rc1`).
+3. Supervisor-external: reproduced 4 scenarios (added Scenario 3 mixed CHANGELOG + Scenario 4 prerelease).
+4. User-external: reproduced all 3 original F2 scenarios + false-negative check + tag-shape noise probe → caught F3.
+
+Four independent reviewers all applied Rule 20 without confusion. Pattern proved out. **PROMOTE Rule 20 to binding**: 20 total binding carry-forward rules.
+
+### Non-blocking follow-ups (deferred)
+
+- **ADR-027 F2** (LOW): PRD-ide-capture-hooks naming coord — still deferred.
+- **ADR-027 F3** (LOW): D1 local-buffer path softness — deferred to downstream capture PRD.
+- **S3-boundary (LOW, supervisor-external Wave δ rev-1 note)**: mixed-CHANGELOG scope — tpatch-context is repo-scoped, not per-tag. Documentation candidate for post-v0.11.2 ADR/PRD if the boundary proves important in practice. Not blocking v0.11.2 ship.
+
+### Action Taken
+
+- User-external verdict recorded.
+- F3 pre-ship fix landed (F3-1 code + F3-2 regression test).
+- Empirical F3 fix verification (supervisor-direct) confirmed.
+- Full-cluster acceptance sweep 29/29 §6 confirmed final.
+- Rule 20 PROMOTED to binding (20 total rules).
+- Doctor implementation cluster CLOSED.
+- **v0.11.2 READY TO SHIP** following `RELEASING.md`.
+- Next steps: (1) archive Wave δ (rev-0 + rev-1 + F3 pre-ship) to HISTORY.md, (2) close doctor cluster, (3) ship v0.11.2 via `RELEASING.md` process.
+
+---
+
 ## Review — tpatch doctor Wave δ rev-1 (F2 close, final gate to v0.11.2) — external (supervisor-dispatched) — 2026-07-28
 
 **Reviewer**: external (supervisor-dispatched, code-review agent)

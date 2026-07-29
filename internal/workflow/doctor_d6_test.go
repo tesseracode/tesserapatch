@@ -54,6 +54,36 @@ func TestDoctorD6ReportsGHReleaseUnknownWithoutMetadata(t *testing.T) {
 	}
 }
 
+// TestDoctorD6UnknownGHWarningSkipsNonSemverTags guards against F3 (LOW,
+// pre-ship cleanup): the release-gh-release-unknown warning loop must apply
+// the same doctorReleaseTagRe.MatchString guard the drift loops use, or
+// non-semver tags like `nightly` and `1.2.0` emit `unknown` warning noise on
+// every doctor run in upstream/user workspaces. Symmetric with the three
+// drift loops at lines 88, 105, and 143 of doctor_d6.go.
+func TestDoctorD6UnknownGHWarningSkipsNonSemverTags(t *testing.T) {
+	// Include one valid semver tag alongside upstream noise: `nightly`,
+	// `release-2024`, and `1.2.0` (no v- prefix). Only v2.0.0 should
+	// produce the release-gh-release-unknown warning.
+	root, s := doctorD6Fixture(t, "v2.0.0", "nightly", "release-2024", "1.2.0")
+	writeDoctorD6Changelog(t, root, "## v2.0.0 — 2026-07-28 — Two\n\n- Two.\n")
+
+	report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D6"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Summary.Warnings != 1 {
+		t.Fatalf("expected exactly one release-gh-release-unknown warning (v2.0.0 only); got summary %#v", report.Summary)
+	}
+	if report.Summary.Findings != 0 {
+		t.Fatalf("non-semver tags must not produce drift findings; got %#v", report.Summary)
+	}
+	for _, f := range report.Findings {
+		if f.Code == "release-gh-release-unknown" && f.Tag != "v2.0.0" {
+			t.Fatalf("release-gh-release-unknown fired for non-semver tag %q; expected only v2.0.0", f.Tag)
+		}
+	}
+}
+
 func TestDoctorD6SkipsUpstreamNonTpatchContext(t *testing.T) {
 	root, s := doctorD6Fixture(t, "v1.0.0", "v1.2.0")
 	writeDoctorD6Changelog(t, root, "## 1.2.0 (2024-01-01)\n\n- upstream feature\n")
