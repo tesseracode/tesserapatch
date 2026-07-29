@@ -461,6 +461,62 @@ final acceptance; user-external uniquely blocked in 5 of 11.
 - Full per-slice snapshots archived to
   [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
 
+## v0.11.2 — `tpatch doctor` implementation cluster ✅
+
+Ships the `tpatch doctor` command implementing PRD-tpatch-doctor D1-D8
+in a 4-wave cluster (α/β/γ/δ). Read-only detection by default; opt-in
+`--fix` with mandatory backups + idempotence + refuse-on-collision;
+deterministic `--json` output; exit codes 0/1/2 per PRD §6.24.
+Full-cluster acceptance sweep 29/29 §6 MET at cluster close 2026-07-29.
+
+- **Wave α — Scaffold + D1 + D2 + D8** ✅ (three-way APPROVED WITH NOTES
+  2026-07-27, F-EXT-1 malformed-trailer caught by supervisor-external)
+  - Ships: doctor CLI shell (`--dry-run` default, `--fix` opt-in,
+    `--json`, `--check <id>`); D1 feature metadata drift; D2
+    `patch-generations.json` presence/schema; D8 hard-invariant +
+    malformed-artifact handling. §6.1-§6.7 + §6.20-§6.29.
+
+- **Wave β — D3 + D7** ✅ (three-way APPROVED zero findings 2026-07-28)
+  - Ships: D3 stale in-tree skill assets via byte comparison across
+    the six `installSkills` paths, marker-check + refuse-on-
+    unrecognized-user-content + refuse-on-backup-collision; D7 recipe
+    schema drift via shared `DecodeApplyRecipeStrict` decoder helper
+    (rule 16 anti-drift consolidation with `TestSkillRecipeSchemaMatchesCLI`).
+    §6.8, §6.9, §6.18, §6.19. First wave with mutating fixers.
+
+- **Wave γ — D4 + D5** ✅ (three-way APPROVED WITH NOTES 2026-07-28;
+  F1 folded to Wave δ)
+  - Ships: D4 lock format detection + safe format-only normalization
+    (refuses commit-advance + branch-guess; no remote fetches); D5
+    missing `reconcile-evidence.jsonl` detection + malformed JSONL
+    reporting on evidence + revisions. §6.10-§6.13.
+
+- **Wave δ — D6 + F1 fold-in + F2 close + F3 pre-ship** ✅
+  (three-way APPROVED 2026-07-29)
+  - Ships: D6 CHANGELOG/tag/GH-Release drift detection with local
+    `--release-metadata <file>` input (no GH API calls, no auth
+    prompts) — auto-gated to tpatch-authored release context via
+    `isTpatchStyleReleaseContext` + semver tag filter, remediations
+    self-contained per ADR-020 inline-minimal principle. §6.14-§6.17.
+  - Also: F1 fold-in from Wave γ (documented behavior change to
+    shipped `tpatch reconcile review list` per ADR-025 D11); F2
+    close (upstream-workspace false-positive drift + ADR-020-class
+    docs-reference defect); F3 pre-ship (semver guard on
+    `release-gh-release-unknown` warning loop).
+
+**Cluster process artifacts** (non-shipping):
+- 20 dispatch-brief carry-forward rules codified (up from 17 at
+  cluster start; rules 18 structural trailer verification, 19
+  loader-caller-tracing, and 20 empirical user-workspace
+  reproduction added).
+- Two-opinion protocol scoreboard: 15 consecutive rev cycles at
+  three-way concurrence at final acceptance; user-external uniquely
+  blocked or caught real production-behavior findings in 7 of 15
+  rev cycles at rev-0; supervisor-external uniquely caught F-EXT-1
+  in Wave α.
+- Full per-wave snapshots archived to
+  [`docs/handoff/HISTORY.md`](handoff/HISTORY.md).
+
 ## M18+ — Future
 
 - Cost tracking and token budgeting
