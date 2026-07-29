@@ -264,6 +264,44 @@ new file mode 100644
 +rev1
 `
 
+const equivalentRecipePatch = `diff --git a/feature.ts b/feature.ts
+new file mode 100644
+--- /dev/null
++++ b/feature.ts
+@@ -0,0 +1 @@
++export const x = 1;
+`
+
+func TestRunVerify_EquivalentRecipeAndPatchBothPass(t *testing.T) {
+	slug := "equivalent-recipe-patch"
+	s := setupVerifyFeature(t, slug)
+	writeIntent(t, s, slug)
+	writeVerifyRecipe(t, s, slug, ApplyRecipe{Feature: slug, Operations: []RecipeOperation{
+		{Type: "write-file", Path: "feature.ts", Content: "export const x = 1;\n"},
+	}})
+	if err := s.WriteArtifact(slug, "post-apply.patch", equivalentRecipePatch); err != nil {
+		t.Fatalf("write patch: %v", err)
+	}
+
+	report, err := RunVerify(s, slug, VerifyOptions{NoWrite: true})
+	if err != nil {
+		t.Fatalf("RunVerify: %v", err)
+	}
+
+	v7 := findCheck(t, report, CheckRecipeReplayClean)
+	if !v7.Passed || v7.Skipped {
+		t.Errorf("V7 must run and pass for equivalent recipe/patch pair; got %+v", v7)
+	}
+	v8 := findCheck(t, report, CheckPostApplyPatchReplayClean)
+	if !v8.Passed || v8.Skipped {
+		t.Errorf("V8 must run and pass against the closure-replayed baseline; got %+v", v8)
+	}
+	if report.Verdict != "passed" {
+		t.Errorf("verdict must be passed; got %q", report.Verdict)
+	}
+	assertNoShadowFor(t, s, slug)
+}
+
 // TestRunVerify_RecipeAbsent_PatchPresent_V8RunsAgainstClosureBaseline
 // is the happy-path matrix cell: no recipe, valid patch, no parents.
 // V7 must be skipped (recipe absent), V8 must pass (patch applies).
