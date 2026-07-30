@@ -149,6 +149,170 @@ None — supervisor owns the transition of `Active Task Status` and any follow-u
 
 ---
 
+## Review — Wave β (v0.12.0 write-file safety) — supervisor-external (rev-1) — 2026-07-29
+
+**Reviewer**: supervisor-external fresh-eyes pass, IN PARALLEL with internal rev-1 (both landed today). This is the 20th cycle in the two-opinion protocol.
+**Range reviewed**: `e8d351f..0072fb5` (6 commits: R1 `ec98499`, R2 `2b64176`, R3 `7597ddd`, R4 `d50a852`, R5 `4b5f8e5`, R6 `0072fb5`).
+**Contract**: ADR-029 D6 verbatim + PRD-write-file-recipe-safety §7.2 Q2 verbatim (supervisor-adjudicated internal reading at `e8d351f`); PRD §3.2 / §4.2 / §5:129-130 / AC-7/8/9; ADR-029 D3/D4/D5/D6/D7/D8; PRD-feature-supersession §4.5; 20 carry-forward rules.
+**Rev-0 self-critique**: I APPROVED at rev-0 (`fc261d1`) reading ADR-029 D6 in isolation as "silent on apply-time later-touch". I missed that PRD §7.2 Q2 answers the question verbatim (`v1 blocks only on preimage mismatch`) — silence in the ADR is not permission when the PRD is explicit. I also missed AC-7/8/9 non-implementation. Lesson applied on this pass: cross-referenced ADR-029 + PRD-write-file-recipe-safety verbatim text before every closure verdict below.
+
+### Gates
+
+- `gofmt -l .` — empty ✓
+- `go vet ./...` — clean ✓
+- `go build ./cmd/tpatch` — clean ✓
+- `go test -count=1 -v ./... | grep -c '^--- PASS'` → **826** (+20 vs rev-0 806; matches implementer report and internal rev-1 count exactly; clears +10-15 gate) ✓
+- Rule 18 trailer parse — all 6 rev-1 commits (`ec98499`, `2b64176`, `7597ddd`, `d50a852`, `4b5f8e5`, `0072fb5`) carry parseable `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` ✓
+- Side Research md5 — `md5(CURRENT.md[^## Side Research…EOF])` = `b385fe622db9926f48861105239f113e` ✓
+
+### CHANGELOG discipline (fresh-eyes priority #6)
+
+- `CHANGELOG.md:39-82` (rev-0 Wave β bullets) — byte-identical to `e8d351f`. The rev-0 sentinel-`errors.Is` claim at `:39` is no longer aspirational after R5 (verified below).
+- `CHANGELOG.md:83-141` — new `#### Wave β rev-1 amendments` sub-section appended AFTER the existing Wave β bullets and BEFORE `### Wave α`, per protocol.
+- Two byte-changes inside the rev-0 Wave β bullets (`:59`, `:66`) — these are the F-L2 anchor substitutions (`§PRD-1-interaction` → `PRD-feature-supersession §4.5`), documented in the F-L2 fix. Not a rewrite of the historical rev-0 wording; a scope-preserving anchor correction. ✓
+- Wave α bullets untouched.
+
+### PRD-feature-supersession §4.5 anchor exists (fresh-eyes priority #7)
+
+`grep -nE '^##+ 4\.5' docs/prds/PRD-feature-supersession.md` → line 200 `### 4.5 Reconcile interaction with write-file safety`. Anchor is real. F-L2 substitution now points to a live heading.
+
+### Wave α non-invalidation (fresh-eyes priority #5)
+
+- `git diff --stat e8d351f..HEAD -- internal/workflow/labels.go internal/store/validation.go` → 0 lines changed (owner files byte-identical).
+- `go test -count=1 -run 'Super|Reconcile' ./internal/workflow/...` → all PASS ✓
+- `store.ErrMultipleActiveSuperseders` still exported at `internal/store/validation.go:56`; still fired from `ValidateDependencies:203` + `ValidateAllFeatures:308`; Wave α rev-1 F-SEXT-3 non-invalidation intact ✓
+- `reconcile.go` + `verify.go` DID get rev-1 edits, but these are Wave β integrations (R3 later-touch Notes attach; R4 V10 append), not Wave α semantic edits — the Wave α ownership boundary is `labels.go` + `validation.go`, both untouched.
+
+### Rev-0 findings closure — verified independently
+
+| # | Fix commit | Contract clause | Independent verdict | Evidence |
+|---|-----------|-----------------|---------------------|----------|
+| F-B1 apply-time later-touch → warn | `ec98499` (R1) | ADR-029 D6 verbatim + PRD §7.2 Q2 verbatim | **CLOSED** | `writefile_safety.go:301-303` now routes through `appendLaterTouchWarn` (`:366-378`); `appendLaterTouchWarn` unconditionally appends to `Warnings`, never `Errors`. Detection primitive preserved (`loadLaterFeatureTouches:409`, `checkLaterTouch:489`, `patch-generations.touched_paths` union `:454-460`). Supersession-downgrade suffix preserved for the superseded branch (`:373-377`). Empirical below. |
+| F-B2 AC-7 record later-touch | `2b64176` (R2) | PRD §3.2 + §4.2 + AC-7 + ADR-029 D6 | **CLOSED** | `DetectRecordLaterTouchWarnings` (`writefile_safety.go:571-637`) wired into record CLI at `cobra.go:1498-1502`, positioned AFTER `AppendPatchGenerationForFeature` (`cobra.go:1475`) so `patch-generations.touched_paths` is fresh at detection time. `⚠` prefix on stderr. Determinism: sort by path (`:628`), alphabetical-first older per path (`:612-616`). |
+| F-B2 AC-8 reconcile later-touch | `7597ddd` (R3) | PRD §3.4 + §4.2 + AC-8 + ADR-029 D6 | **CLOSED** | `DetectReconcileLaterTouchWarningsByOwner` (`writefile_safety.go:681`) + flat variant (`:658`) share `detectReconcileLaterTouchByOwner` core (`:685-755`). Called ONCE before per-slug loop in `RunReconcile` (`reconcile.go:207`); warnings prepended to owner's `result.Notes` (`:233-234`). Reconcile CLI surfaces Notes at `cobra.go:1931-1933`. Detector reuses `writeFilePathsForFeature` + `collectFeatureTouchedPaths` — NO duplication of Slice 3/R1/R2 primitives. |
+| F-B2 AC-9 verify V10 | `d50a852` (R4) | PRD §5:130 + AC-9 + ADR-029 D6/D7/D8 | **CLOSED** | New frozen-vocabulary const `CheckWriteFilePreimageFresh = "write_file_preimage_fresh"` (`verify.go:70`) — does NOT collide with V1-V9 IDs (V0-V9 span `:50-59`; V10 is new tail). `RunVerify` appends V10 after V9 (`:283-285`). `checkWriteFilePreimageFresh:847-905` uses Wave α's `IsFeatureSuperseded` (`:862`) — does NOT reinvent supersession semantics. Effective+stale → SeverityBlock+Passed:false → verdict flips to `failed`; superseded+stale → SeverityWarn → verdict NOT flipped on V10 alone (D7 downgrade). `stubChecksAfterAbort` extended to 11 rows for shape stability. |
+| F-M1 sentinels via errors.Is | `4b5f8e5` (R5) | Rule 19 exported surface + CHANGELOG:39 promise | **CLOSED** | Twin fields `WrappedErrors []error` + `WrappedWarnings []error` added to `PreimagePrecheckResult` (`writefile_safety.go:199-219`) — clean backward-compat pattern; string `Errors`/`Warnings` unchanged. Wrapping via `fmt.Errorf("%w: %s", sentinel, msg)` at `:332,347,371,377`. Path-safety refusals intentionally NOT sentinel-tagged (documented `WrappedErrors ⊆ Errors` invariant). Both twin fields have PRD/ADR citations in docstring. |
+| F-L2 anchor fix | `0072fb5` (R6) | Doc anchor traceability | **CLOSED** | `grep -rn 'PRD-1-interaction' internal/ cmd/` → 0 hits (verified). Remaining hits confined to meta-quotation contexts (CHANGELOG:129, CURRENT.md:195/292, HISTORY.md) — documenting the anchor being replaced. PRD-feature-supersession.md:200 `### 4.5 Reconcile interaction with write-file safety` heading confirmed present. |
+
+### Empirical Rule 20 — all user-visible behaviors end-to-end via shipped CLI binary
+
+Fresh `go build ./cmd/tpatch` at HEAD (0072fb5); scratch dirs `/Users/jbencardino/tpatch-rev1-scratch`, `/Users/jbencardino/tpatch-fb1`, `/Users/jbencardino/tpatch-v10` (each: `git init`, `tpatch init`, hand-crafted status.json / apply-recipe.json fixtures under `.tpatch/features/`, state=applied on the participating features, RequestedAt seeded from Jan/Feb/Mar to establish older<mid<newer ordering).
+
+**F-B1 apply-time later-touch = warn-class (`tpatch apply older --mode execute`)**
+```
+[write-file] src.txt: OK
+⚠ recipe drift: [older] op 0 src.txt: later feature "newer" touched this path; replaying this write-file would silently revert "newer" — regenerate this recipe against the current tree, or run 'tpatch reconcile older' to plan the merge
+Recipe executed: 1/1 operations succeeded
+exit=0
+```
+File on disk overwritten to `older overwrite`. `⚠` prefix visible; culprit slug named. Matches ADR-029 D6 verbatim + PRD §7.2 verbatim. ✓
+
+**F-B1 supersession-downgrade preserved (added `newer supersedes older` edge, re-ran `apply older --mode execute`)**
+```
+[write-file] src.txt: OK
+⚠ recipe drift: [older] op 0 src.txt: later feature "newer" touched this path; replaying this write-file would silently revert "newer" — regenerate this recipe against the current tree, or run 'tpatch reconcile older' to plan the merge (downgraded: feature is superseded by "newer" per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)
+Recipe executed: 1/1 operations succeeded
+exit=0
+```
+Superseded branch adds the D7 downgrade suffix with `§4.5` anchor. Slice 4 routing intact. ✓
+
+**AC-7 record-time later-touch (`tpatch record newer --from HEAD~1`)** — older with `write-file src.txt` recorded as applied; newer records overlapping change:
+```
+Saved patch: patches/001-record.patch
+  Patch validated: round-trips cleanly against working tree
+  Recipe generated: artifacts/apply-recipe.json (1 ops)
+⚠ later-touch warning: [newer] touches src.txt which is whole-file-owned by older active feature "older"; this recipe may supersede or invalidate that older write-file (PRD-write-file-recipe-safety §4.2, ADR-029 D6)
+Recorded patch for newer (121 bytes, 1 files)
+```
+Warning names both features + shared path + PRD §4.2 + ADR-029 D6 citations. Exit 0. ✓
+
+**AC-7 determinism with 3+ features** — added `another` (RequestedAt between older and newer, state=applied, write-file src.txt). Recording newer with all three older-and-active candidates should tie-break to alphabetical-first (a < o):
+```
+⚠ later-touch warning: [newer] touches src.txt which is whole-file-owned by older active feature "another"; this recipe may supersede or invalidate that older write-file (PRD-write-file-recipe-safety §4.2, ADR-029 D6)
+```
+Picks `another` (a < o) as expected. PRD §5 note 4 determinism verified with 3-candidate case. ✓
+
+**AC-8 reconcile-time later-touch (`tpatch reconcile --upstream-ref upstream/main older newer`)** — same fixtures, added fabricated post-apply.patch so reconcileFeature reaches the Notes-attach path:
+```
+Reconciled 2 feature(s) against upstream/main
+  - newer [blocked] (phase-4-blocked) newer
+    …
+  - older [reapplied] (phase-4-forward-apply-strict) older
+    evidence: phase-4 forward-apply
+    later-touch warning: [older] owns write-file src.txt but later feature "newer" touched this path; replaying older's write-file would silently revert "newer" — plan the merge before executing (PRD-write-file-recipe-safety §4.2, ADR-029 D6)
+    …
+```
+Warning attached to OWNER (older) Notes (not to newer). Cited both features + PRD/ADR anchors. Reconcile continues (not blocked by later-touch). ✓
+
+**AC-9 V10 verify, three cases**:
+- Case A (effective + stale): `✗ [block] write_file_preimage_fresh — recipe drift: [effective] op 0 tgt.txt: expected preimage sha256:0000…, observed sha256:44a4…; regenerate the recipe against the current tree or reconcile before replay`. Verdict `failed`, exit 2. ✓
+- Case B (superseded by super-replacer + stale): `✗ [warn] write_file_preimage_fresh — recipe drift: […] (downgraded to warn: superseded by "super-replacer" per ADR-029 D7 + PRD-feature-supersession §4.5 "Reconcile interaction with write-file safety")`. Severity `warn`; V10 alone would NOT fail verdict. D7 downgrade cited with §4.5 anchor. ✓
+- Case C (matching preimage): `✓ [block] write_file_preimage_fresh`. V10 passes clean. ✓
+
+All 3 V10 cases empirically verified. Diagnostic bodies carry only paths + hashes + slug/op coords (ADR-029 D8, no source-body leakage).
+
+### Rule 20 rigor extension (non-vacuous verification)
+
+Copied `internal/workflow/writefile_verify_preimage_test.go` (R4's regression suite) from HEAD into detached worktree at `7689c39` (pre-rev-1 rev-0 sign-off), then `go test -count=1 -run 'TestSliceR4_' ./internal/workflow/`:
+```
+internal/workflow/writefile_verify_preimage_test.go:73:37: undefined: CheckWriteFilePreimageFresh
+internal/workflow/writefile_verify_preimage_test.go:107:37: undefined: CheckWriteFilePreimageFresh
+[... 3 more identical errors ...]
+FAIL	github.com/tesseracode/tesserapatch/internal/workflow [build failed]
+```
+Test suite fails to compile against pre-rev-1 code — the `CheckWriteFilePreimageFresh` symbol literally did not exist before R4. Non-vacuous. Worktree removed.
+
+### Fresh-eyes findings
+
+**Detector duplication check (priority #1)** — CLEAN. Three surfaces (apply / record / reconcile) share four primitives:
+- `writeFilePathsForFeature` (`writefile_safety.go:509`) — called from record (`:608`) + reconcile (`:705`).
+- `collectFeatureTouchedPaths` (`:449`) — called from apply-time (`:434`) + record (`:586`) + reconcile (`:725`).
+- `activeOrAppliedFeatures` (`:536`) — called from record (`:594`). Reconcile inherits filtering via the pre-filtered `slugs` input from `RunReconcile`.
+- `checkWriteFilePreimage` (`:108`) — called from apply-time (`:279`) + V10 verify (`:870`).
+
+The higher-level orchestration differs by DIRECTION (record: "does newer own paths older wrote?"; apply: "did later touch what I write?"; reconcile: "in the effective set, are there owner→later overlaps?"), but no primitive is reimplemented. Maintainability contract intact.
+
+**V10 severity discrimination correctness (priority #2)** — V10 uses Wave α's `IsFeatureSuperseded(s, slug)` verbatim (`verify.go:862`) — same helper Slice 4's writefile_safety uses (`writefile_safety.go:264`). V10 does NOT re-invent supersession semantics; it inherits Wave α R4's stale-superseder-returns-true behavior transparently. Confirmed empirically via Case B above.
+
+**Warning ordering determinism (priority #3)** — 3-candidate AC-7 case above proves alphabetical-first wins (a<o), not iteration-order dependent. Reconcile-time detector similarly sorts by owner slug then path (`writefile_safety.go:698,745`) — inspected internal-rev-1's `TestSliceR3_ReconcileSortedByOwnerThenPath` (`writefile_reconcile_later_touch_test.go:101-142`) which locks the 2-owner alphabetical order; passes on HEAD.
+
+**Rule 19 exposure (priority #4)** — every new exported symbol carries PRD/ADR citations in commit message + docstring:
+- `DetectRecordLaterTouchWarnings` (R2) — docstring cites PRD AC-7 + §4.2 + ADR-029 D6; commit body cites PRD AC-7 + §4.2 + ADR-029 D5/D6.
+- `DetectReconcileLaterTouchWarnings` + `DetectReconcileLaterTouchWarningsByOwner` (R3) — docstrings cite PRD AC-8 + §4.2 + ADR-029 D6; commit body cites PRD §4.2 + §7.2 Q2 + ADR-029 D6.
+- `CheckWriteFilePreimageFresh` (R4) — const docstring cites PRD AC-9 + §5:130 + ADR-029 D6/D7; commit body cites PRD AC-9 + §7.2 Q2 + ADR-029 D6/D7/D8. Frozen-vocabulary comment preserved on the const block.
+- `WrappedErrors`/`WrappedWarnings` (R5) — struct docstrings on `PreimagePrecheckResult` at `writefile_safety.go:199-219` name the wrap contract, the path-safety exemption, and the SUBSET invariant.
+
+### Concurrence disposition — with independent verification of F-INT-β-r1-1
+
+Internal rev-1 landed with verdict **APPROVED WITH NOTES** and one new LOW finding (F-INT-β-r1-1: `docs/ROADMAP.md:615-617` describes Slice 3 apply-time later-touch as "refusal-class (Wave β tightening over ADR-029 D6's warn baseline)", which is the reverted rev-0 shipped surface).
+
+**Independent verification of F-INT-β-r1-1**: read `docs/ROADMAP.md:610-624` at HEAD:
+```
+- Slice 3 — path-level later-touch detection using PRD §4.2's
+    preferred deterministic artifact (`patch-generations.json.
+    touched_paths`) with recipe-op-path fallback; apply-time
+    refusal-class (Wave β tightening over ADR-029 D6's warn baseline
+    per Wave β dispatch); deterministic slug ordering (PRD §5 note 4).
+  - Slice 4 — supersession coupling per PRD-feature-supersession §4.5 /
+    ADR-029 D7: superseded features downgrade drift severity ...
+```
+
+R6 correctly updated Slice 4's anchor at `:618` (`PRD-feature-supersession §4.5`) but skipped the sibling Slice 3 description at `:615-617`. The line still tells the reader that apply-time later-touch is refusal-class — the exact rev-0 semantics R1 reverted. Post-R1, this is stale doc surface. Not a code regression, not a Rule 19 violation, not a contract violation of R6's scope (F-L2 was scoped to the `§PRD-1-interaction` anchor substitution — a different fix). LOW / doc-only.
+
+**Disposition: CONCUR.** F-INT-β-r1-1 is a real doc-drift finding. I missed it in this pass on my first read (would have missed at rev-0 too — my rev-0 approval-with-info notes did not touch ROADMAP). Internal reviewer earns credit for catching it. Recommendation matches internal's: fix in a follow-up doc-only PR, not a blocker for rev-1 acceptance.
+
+Also cross-checked internal rev-1's Case A/B/C claims for V10 against my own empirical runs — bit-for-bit identical output shape, identical severity discrimination, identical D7 downgrade suffix carrying `§4.5` anchor. Independent triangulation.
+
+### Verdict: **APPROVE (WITH NOTES CONCURRING)**
+
+Rev-1 `e8d351f..0072fb5` closes all 5 rev-0 findings against the supervisor-adjudicated contract (ADR-029 D6 verbatim + PRD §7.2 Q2 verbatim + PRD-feature-supersession §4.5). All four gates pass (gofmt/vet/build/test); 826/0 top-level PASS matches implementer + internal-rev-1 count. Every user-visible behavior locked by real end-to-end regression tests AND independently reproduced empirically via the shipped CLI binary. Wave α owner files (`labels.go`, `validation.go`) byte-identical; `ErrMultipleActiveSuperseders` still fires. CHANGELOG discipline intact (rev-0 bullets preserved; rev-1 amendments appended); PRD-feature-supersession §4.5 heading exists.
+
+Concurring with internal rev-1's single new finding (F-INT-β-r1-1 LOW doc drift at `docs/ROADMAP.md:615-617`) — verified independently against HEAD. Consolidation ticket for this ROADMAP line is the only follow-up; not blocking for rev-1 acceptance.
+
+Rev-0 lesson applied: ADR silence + PRD explicit answer = combined answer. Verified all six closures against the *joined* ADR+PRD verbatim text before writing "CLOSED".
+
+---
+
 ## Review — Wave β (v0.12.0 write-file safety) — supervisor-external (rev-0) — 2026-07-29
 
 **Reviewer**: supervisor-external fresh-eyes pass (parallel with internal, 20th cycle in two-opinion protocol).
