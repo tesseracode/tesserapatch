@@ -1514,6 +1514,31 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				}
 			}
 
+			// v0.12.0 Wave γ Slice 4 (PRD-active-feature-session
+			// §6 D15 + §8.7 + §8.8): opt-in session promotion at
+			// record time. `--with-session` reads the same-feature
+			// local buffer and writes a redacted committed summary;
+			// `--from-session <cs_id>` disambiguates when multiple
+			// eligible sessions exist for the same feature.
+			// `--from-session` REQUIRES `--with-session`.
+			withSession, _ := cmd.Flags().GetBool("with-session")
+			fromSession, _ := cmd.Flags().GetString("from-session")
+			if fromSession != "" && !withSession {
+				return fmt.Errorf("record: --from-session requires --with-session (PRD §8.8)")
+			}
+			if withSession {
+				target, err := pickSessionForOp(s, slug, fromSession, sessionEligibleForSummarize)
+				if err != nil {
+					return fmt.Errorf("record --with-session: %w", err)
+				}
+				if err := runSessionSummarize(cmd.OutOrStdout(), s, target, sessionSummarizeOpts{
+					Write:   true,
+					Promote: true,
+				}); err != nil {
+					return fmt.Errorf("record --with-session: %w", err)
+				}
+			}
+
 			fmt.Fprintf(cmd.OutOrStdout(), "Recorded patch for %s (%d bytes, %d files)\n", slug, len(patch), filesChanged)
 			return nil
 		},
@@ -1532,6 +1557,8 @@ the committed snapshots at the endpoints contribute to the diff.`,
 	cmd.Flags().Bool("staged", false, "Capture only staged changes (HEAD → index); refuses when staged paths also have unstaged edits")
 	cmd.Flags().Bool("unstaged", false, "Capture only unstaged changes (index → worktree); refuses when staged and unstaged edits overlap")
 	cmd.Flags().Bool("claimed-only", false, "Intersect the capture with the feature's active claims; refuses when no claims exist")
+	cmd.Flags().Bool("with-session", false, "Opt-in: promote the same-feature active/closed session as a redacted committed summary (PRD-active-feature-session §6 D15)")
+	cmd.Flags().String("from-session", "", "Select a specific cs_<12hex> when multiple sessions are eligible; requires --with-session (PRD §6 D15 + §8.8)")
 	return cmd
 }
 
