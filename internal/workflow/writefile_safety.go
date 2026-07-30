@@ -3,6 +3,7 @@ package workflow
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -201,6 +202,17 @@ type PreimagePrecheckResult struct {
 // mutation. ADR-029 D3 mandates all-or-nothing: if any precondition
 // fails, no operation from the recipe is written.
 //
+// v0.12.0 Wave β Slice 3: the same pass also runs a path-level later-
+// touch scan (PRD-write-file-recipe-safety §4.2). If any later feature
+// (per RequestedAt ordering) has recorded a touch on the same path,
+// the op is refused with an actionable message naming the later
+// feature. This is a Wave β tightening over ADR-029 D6's "warn-only"
+// baseline: per the Wave β dispatch, apply-time later-touch is
+// refusal-class so silent-revert scenarios (GH #1) are blocked even
+// when the operator regenerated the preimage against a stale base.
+// Slice 4 downgrades both severities to warning-with-note when the
+// current feature is superseded (PRD §PRD-1-interaction, ADR-029 D7).
+//
 // Slice 4 will layer supersession-aware severity downgrade on top of
 // this (superseded features flip Errors → Warnings per PRD §PRD-1-
 // interaction / ADR-029 D7). The `superseded` bool is a parameter so
@@ -208,6 +220,7 @@ type PreimagePrecheckResult struct {
 func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePrecheckResult {
 	var out PreimagePrecheckResult
 	repoRoot := s.Root
+	laterIdx := loadLaterFeatureTouches(s, recipe.Feature)
 	for i, op := range recipe.Operations {
 		if op.Type != "write-file" {
 			continue
@@ -231,6 +244,133 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 				out.Errors = append(out.Errors, msg)
 			}
 		}
+		// Later-touch detection runs regardless of the preimage
+		// outcome so the operator sees BOTH classes of drift in one
+		// shot rather than needing multiple apply attempts.
+		if lt := checkLaterTouch(recipe.Feature, i, op, laterIdx); lt != "" {
+			out.Errors = append(out.Errors, lt)
+		}
 	}
 	return out
+}
+
+// laterTouchIndex maps a repo-relative path to the slug of the FIRST
+// later feature (per lexicographic slug order for determinism, with
+// ties broken by earliest RequestedAt) that touched that path. Missing
+// entries mean no later feature touched the path.
+//
+// Built once per precheck invocation to keep the write-file loop O(N)
+// in ops rather than O(N * F * paths_per_F) when a repo has many
+// features.
+type laterTouchIndex map[string]string
+
+// loadLaterFeatureTouches inventories every feature recorded LATER
+// than `currentSlug` (per RequestedAt) and returns a path→slug lookup
+// covering every path any such feature touched.
+//
+// "Touched" per PRD §4.2 v1 detection = path-level union of:
+//   - patch-generations.json.touched_paths (preferred: deterministic
+//     artifact recorded at capture time),
+//   - apply-recipe.json operation `path` values (fallback for features
+//     that lack a patch-generations manifest).
+//
+// If the current slug cannot be resolved OR carries no RequestedAt
+// timestamp, the index is empty — callers must not treat "cannot
+// determine order" as a failure (Slice 3 is best-effort against
+// available metadata; the primary defense is the preimage hash).
+//
+// Determinism (PRD §5 note 4 "Sort path warnings by path then feature
+// slug for deterministic output"): when multiple later features
+// touched the same path, the returned index carries the
+// alphabetically-first slug so error messages are stable across runs.
+func loadLaterFeatureTouches(s *store.Store, currentSlug string) laterTouchIndex {
+	features, err := s.ListFeatures()
+	if err != nil || len(features) == 0 {
+		return nil
+	}
+	var currentReq string
+	for _, f := range features {
+		if f.Slug == currentSlug {
+			currentReq = f.RequestedAt
+			break
+		}
+	}
+	if currentReq == "" {
+		return nil
+	}
+	// Collect candidate later features, sorted by slug for determinism
+	// (features already alphabetized by ListFeatures).
+	idx := laterTouchIndex{}
+	for _, f := range features {
+		if f.Slug == currentSlug {
+			continue
+		}
+		if f.RequestedAt == "" || f.RequestedAt <= currentReq {
+			continue
+		}
+		for _, p := range collectFeatureTouchedPaths(s, f.Slug) {
+			if _, seen := idx[p]; seen {
+				continue
+			}
+			idx[p] = f.Slug
+		}
+	}
+	return idx
+}
+
+// collectFeatureTouchedPaths returns the union of paths that `slug`
+// touched, drawn from patch-generations manifests + the feature's
+// apply-recipe. Best-effort: unreadable/missing artifacts yield no
+// contribution rather than an error (PRD §4.2 v1 detection is
+// deterministic-artifact-first with a recipe-scan fallback).
+func collectFeatureTouchedPaths(s *store.Store, slug string) []string {
+	seen := map[string]struct{}{}
+	// Primary source: patch-generations.json.touched_paths across all
+	// generations. Union covers both fresh records and later
+	// amendments/fixups.
+	if m, err := store.LoadPatchGenerations(s, slug); err == nil {
+		for _, g := range m.Generations {
+			for _, p := range g.TouchedPaths {
+				seen[p] = struct{}{}
+			}
+		}
+	}
+	// Fallback / augmentation: recipe op paths. Covers features that
+	// have no patch-generations yet (early-lifecycle features).
+	if data, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json")); err == nil {
+		var recipe ApplyRecipe
+		if uerr := json.Unmarshal([]byte(data), &recipe); uerr == nil {
+			for _, op := range recipe.Operations {
+				if op.Path != "" {
+					seen[op.Path] = struct{}{}
+				}
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(seen))
+	for p := range seen {
+		out = append(out, p)
+	}
+	return out
+}
+
+// checkLaterTouch returns an ADR-020-style refusal message if `op`'s
+// path was touched by a later feature per `idx`, or "" when no drift
+// is detected. Only `write-file` ops trigger a message — non-write
+// ops flow through without checking (Slice 3 targets the silent-
+// whole-file-revert class that PRD-write-file-recipe-safety §1
+// isolates).
+func checkLaterTouch(currentSlug string, opIndex int, op RecipeOperation, idx laterTouchIndex) string {
+	if op.Type != "write-file" || idx == nil {
+		return ""
+	}
+	laterSlug, ok := idx[op.Path]
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("recipe drift: [%s] op %d %s: later feature %q touched this path; replaying this write-file would silently revert %q — regenerate this recipe against the current tree, or run 'tpatch reconcile %s' to plan the merge",
+		currentSlug, opIndex, op.Path, laterSlug, laterSlug, currentSlug)
 }
