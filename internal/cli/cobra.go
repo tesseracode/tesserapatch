@@ -1487,6 +1487,20 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				return fmt.Errorf("record patch generation: %w", err)
 			}
 
+			// v0.12.0 Wave β rev-1 Slice R2 (PRD-write-file-recipe-
+			// safety AC-7 + §4.2 "During record", ADR-029 D6):
+			// scan older active/effective features for write-file
+			// operations that target any path the just-recorded
+			// feature touched. Emit warning-class advisories on
+			// stderr. Warning-class per D6 ("Record-time later-
+			// touch detection is warning-class in v1."); execution
+			// of `record` continues regardless.
+			if ltWarnings := workflow.DetectRecordLaterTouchWarnings(s, slug); len(ltWarnings) > 0 {
+				for _, w := range ltWarnings {
+					fmt.Fprintf(cmd.ErrOrStderr(), "⚠ %s\n", w)
+				}
+			}
+
 			fmt.Fprintf(cmd.OutOrStdout(), "Recorded patch for %s (%d bytes, %d files)\n", slug, len(patch), filesChanged)
 			return nil
 		},

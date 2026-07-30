@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/safety"
@@ -461,4 +462,241 @@ func checkLaterTouch(currentSlug string, opIndex int, op RecipeOperation, idx la
 	}
 	return fmt.Sprintf("recipe drift: [%s] op %d %s: later feature %q touched this path; replaying this write-file would silently revert %q — regenerate this recipe against the current tree, or run 'tpatch reconcile %s' to plan the merge",
 		currentSlug, opIndex, op.Path, laterSlug, laterSlug, currentSlug)
+}
+
+// writeFilePathsForFeature returns the union of paths where feature
+// `slug`'s apply-recipe has a `write-file` operation. Reads
+// artifacts/apply-recipe.json. Best-effort: unreadable/missing → nil.
+//
+// Shared by the record-time (AC-7) and reconcile-time (AC-8) later-
+// touch detectors — both need "does OLDER feature X own a whole-file
+// write at path P" separately from the general "touched-paths" set
+// that collectFeatureTouchedPaths returns.
+func writeFilePathsForFeature(s *store.Store, slug string) []string {
+	seen := map[string]struct{}{}
+	if data, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json")); err == nil {
+		var recipe ApplyRecipe
+		if uerr := json.Unmarshal([]byte(data), &recipe); uerr == nil {
+			for _, op := range recipe.Operations {
+				if op.Type == "write-file" && op.Path != "" {
+					seen[op.Path] = struct{}{}
+				}
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(seen))
+	for p := range seen {
+		out = append(out, p)
+	}
+	return out
+}
+
+// activeOrAppliedFeatures returns the subset of `features` in a state
+// that participates in the default effective replay set. Used by both
+// the record-time and reconcile-time later-touch detectors to filter
+// out draft/upstreamed features which cannot cause a silent-revert
+// scenario the way an applied/active feature can.
+func activeOrAppliedFeatures(features []store.FeatureStatus) map[string]bool {
+	out := map[string]bool{}
+	for _, f := range features {
+		if f.State == store.StateApplied || f.State == store.StateActive {
+			out[f.Slug] = true
+		}
+	}
+	return out
+}
+
+// DetectRecordLaterTouchWarnings implements PRD-write-file-recipe-safety
+// AC-7 + §4.2 "During record": when recording a feature `slug`, scan
+// OLDER active/effective features for `write-file` operations that
+// target any path in `slug`'s touched paths.
+//
+// The direction inverts apply-time later-touch: apply-time asks "did a
+// LATER feature touch what I am about to overwrite?" (protecting the
+// later feature). Record-time asks "does the NEWLY RECORDED feature
+// touch a path an OLDER feature owns via write-file?" (advising the
+// author that the new record may supersede or invalidate the older
+// whole-file recipe). Both directions surface the same class of silent
+// overwrite risk, from opposite sides of the timeline.
+//
+// Warning-class per ADR-029 D6 verbatim ("Record-time later-touch
+// detection is warning-class in v1.").
+//
+// Determinism (PRD §5 note 4): output is sorted first by path, then by
+// older-feature slug alphabetically. When multiple older features own
+// a write-file for the same path, only the alphabetically-first is
+// named (matches Slice 3's alphabetical tie-break for stable output).
+//
+// Returns nil when: `slug` cannot be resolved; `slug` has no
+// RequestedAt; `slug` has no touched paths yet; no overlap detected.
+// This is best-effort; callers surface the returned slice on stderr
+// but do NOT block record on it (D6 warn-class contract).
+func DetectRecordLaterTouchWarnings(s *store.Store, slug string) []string {
+	features, err := s.ListFeatures()
+	if err != nil || len(features) == 0 {
+		return nil
+	}
+	var curReq string
+	for _, f := range features {
+		if f.Slug == slug {
+			curReq = f.RequestedAt
+			break
+		}
+	}
+	if curReq == "" {
+		return nil
+	}
+	curPaths := collectFeatureTouchedPaths(s, slug)
+	if len(curPaths) == 0 {
+		return nil
+	}
+	curPathSet := map[string]bool{}
+	for _, p := range curPaths {
+		curPathSet[p] = true
+	}
+	active := activeOrAppliedFeatures(features)
+	// pathToOlderSlug picks the alphabetically-first older active slug
+	// per path so ties resolve deterministically per PRD §5 note 4.
+	pathToOlderSlug := map[string]string{}
+	for _, f := range features {
+		if f.Slug == slug {
+			continue
+		}
+		if !active[f.Slug] {
+			continue
+		}
+		if f.RequestedAt == "" || f.RequestedAt >= curReq {
+			continue
+		}
+		for _, p := range writeFilePathsForFeature(s, f.Slug) {
+			if !curPathSet[p] {
+				continue
+			}
+			if existing, seen := pathToOlderSlug[p]; seen {
+				if f.Slug < existing {
+					pathToOlderSlug[p] = f.Slug
+				}
+				continue
+			}
+			pathToOlderSlug[p] = f.Slug
+		}
+	}
+	if len(pathToOlderSlug) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(pathToOlderSlug))
+	for p := range pathToOlderSlug {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	warnings := make([]string, 0, len(paths))
+	for _, p := range paths {
+		older := pathToOlderSlug[p]
+		warnings = append(warnings,
+			fmt.Sprintf("later-touch warning: [%s] touches %s which is whole-file-owned by older active feature %q; this recipe may supersede or invalidate that older write-file (PRD-write-file-recipe-safety §4.2, ADR-029 D6)",
+				slug, p, older))
+	}
+	return warnings
+}
+
+// DetectReconcileLaterTouchWarnings implements PRD-write-file-recipe-
+// safety AC-8 + §4.2 "During reconcile": scan across an effective
+// replay set for (older, newer) pairs where an older active/effective
+// feature owns a `write-file` at path P and a newer active/effective
+// feature touched P.
+//
+// Warning-class per ADR-029 D6 (record- and reconcile-time both warn;
+// only apply-time preimage mismatch refuses per PRD §7.2).
+//
+// Determinism: output is grouped by owning (older) slug in alphabetical
+// order, then by path, then by newer slug. When multiple newer
+// features touched the same path, only the alphabetically-first is
+// named (matches Slice 3 tie-break).
+//
+// `slugs` is the effective replay set as computed by RunReconcile (the
+// applied/active default set after supersession filtering, or the
+// caller-provided explicit set). Returns nil on empty input or no
+// overlaps.
+func DetectReconcileLaterTouchWarnings(s *store.Store, slugs []string) []string {
+	if len(slugs) == 0 {
+		return nil
+	}
+	features, err := s.ListFeatures()
+	if err != nil || len(features) == 0 {
+		return nil
+	}
+	// Index features by slug for quick RequestedAt lookup.
+	feats := map[string]store.FeatureStatus{}
+	for _, f := range features {
+		feats[f.Slug] = f
+	}
+	set := map[string]bool{}
+	for _, sl := range slugs {
+		set[sl] = true
+	}
+	// Sort input slugs alphabetically so per-owner output order is
+	// stable regardless of the caller's slug order.
+	sortedSlugs := append([]string(nil), slugs...)
+	sort.Strings(sortedSlugs)
+	var warnings []string
+	for _, older := range sortedSlugs {
+		fo, ok := feats[older]
+		if !ok || fo.RequestedAt == "" {
+			continue
+		}
+		wf := writeFilePathsForFeature(s, older)
+		if len(wf) == 0 {
+			continue
+		}
+		wfSet := map[string]bool{}
+		for _, p := range wf {
+			wfSet[p] = true
+		}
+		// For each other feature in the effective set: if it is NEWER
+		// than `older` and touched any of older's write-file paths,
+		// record the overlap.
+		perPath := map[string]string{}
+		for _, newer := range sortedSlugs {
+			if newer == older {
+				continue
+			}
+			fn, ok := feats[newer]
+			if !ok || fn.RequestedAt == "" {
+				continue
+			}
+			if fn.RequestedAt <= fo.RequestedAt {
+				continue
+			}
+			for _, p := range collectFeatureTouchedPaths(s, newer) {
+				if !wfSet[p] {
+					continue
+				}
+				if existing, seen := perPath[p]; seen {
+					if newer < existing {
+						perPath[p] = newer
+					}
+					continue
+				}
+				perPath[p] = newer
+			}
+		}
+		if len(perPath) == 0 {
+			continue
+		}
+		paths := make([]string, 0, len(perPath))
+		for p := range perPath {
+			paths = append(paths, p)
+		}
+		sort.Strings(paths)
+		for _, p := range paths {
+			newer := perPath[p]
+			warnings = append(warnings,
+				fmt.Sprintf("later-touch warning: [%s] owns write-file %s but later feature %q touched this path; replaying %s's write-file would silently revert %q — plan the merge before executing (PRD-write-file-recipe-safety §4.2, ADR-029 D6)",
+					older, p, newer, older, newer))
+		}
+	}
+	return warnings
 }
