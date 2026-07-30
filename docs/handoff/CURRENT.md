@@ -4,7 +4,7 @@
 
 - **Task ID**: `v0.12.0-wave-beta-writefile-safety-implementation`
 - **Milestone**: v0.12.0 Wave β — implement `PRD-write-file-recipe-safety` + `ADR-029-write-file-recipe-safety`.
-- **Description**: Second wave of the v0.12.0 3-wave sequential cluster. Adds `preimage_hash` field + later-touch detection to `write-file` recipe ops, protecting against silently reverting later fixes. Couples to Wave α supersession via §PRD-1-interaction (superseded features downgrade write-file drift).
+- **Description**: Second wave of the v0.12.0 3-wave sequential cluster. Adds `preimage_hash` field + later-touch detection to `write-file` recipe ops, protecting against silently reverting later fixes. Couples to Wave α supersession via PRD-feature-supersession §4.5 (superseded features downgrade write-file drift).
 - **Status**: Rev-1 dispatched — 2 BLOCKING + 1 MEDIUM + 2 LOW folded in from rev-0 dual review split.
 - **Assigned**: 2026-07-29.
 
@@ -14,7 +14,7 @@
 
 1. `docs/prds/PRD-write-file-recipe-safety.md` (233 lines, 13 acceptance criteria) — the spec.
 2. `docs/adrs/ADR-029-write-file-recipe-safety.md` (108 lines, D1–D8) — the locked model. `sha256:<hex>` deliberately distinguished from `pg_/re_/rr_<12hex>` record identities.
-3. `docs/prds/PRD-feature-supersession.md` §PRD-1-interaction + Wave α acceptance in `docs/handoff/HISTORY.md` — the coupling contract. Wave α now correctly excludes stale-superseded features from replay; Wave β must downgrade write-file drift on features suppressed by supersession.
+3. `docs/prds/PRD-feature-supersession.md` §4.5 + Wave α acceptance in `docs/handoff/HISTORY.md` — the coupling contract. Wave α now correctly excludes stale-superseded features from replay; Wave β must downgrade write-file drift on features suppressed by supersession.
 4. Prior Wave α diff (`7081c62..e5e0091`) for pattern reference — especially `internal/store/validation.go` (write-time rejection pattern from Slice R3) and `internal/workflow/labels.go` (severity-ordered emit + IsSupersessionLabel prefix-match pattern).
 
 **What ships**:
@@ -23,7 +23,7 @@
 - Preimage-hash precondition check before write-file execution: reject if the current file content hash does not match `preimage_hash`.
 - Later-touch detection: if the target file has been touched by a later feature (via commit graph or manifest), reject with actionable message.
 - Schema addition ripples through 6 shipped skill assets — parity guard (`TestSkillRecipeSchemaMatchesCLI` or equivalent) MUST update in the same commit (Slice 1 anti-drift lesson).
-- Supersession coupling: superseded features (via Wave α's `isFeatureSupersededIn`) downgrade write-file drift severity per PRD §PRD-1-interaction.
+- Supersession coupling: superseded features (via Wave α's `isFeatureSupersededIn`) downgrade write-file drift severity per PRD-feature-supersession §4.5.
 - CHANGELOG `## v0.12.0 — TBD` amendment (Wave α bullets already present; append Wave β bullets).
 - Status flip: `PRD-write-file-recipe-safety` + `ADR-029` from `Proposed` → `Accepted`.
 
@@ -49,7 +49,7 @@
    - Reject with actionable message naming the later feature.
    - Regression tests for both directions (touched / not-touched).
 4. **Slice 4 — Supersession coupling** (Wave α interaction).
-   - When the recipe op belongs to a superseded feature (via `isFeatureSupersededIn`), downgrade preimage-hash mismatch + later-touch drift severity per PRD §PRD-1-interaction. Do NOT bypass the checks entirely — downgrade to warning-with-note instead of hard-reject.
+   - When the recipe op belongs to a superseded feature (via `isFeatureSupersededIn`), downgrade preimage-hash mismatch + later-touch drift severity per PRD-feature-supersession §4.5. Do NOT bypass the checks entirely — downgrade to warning-with-note instead of hard-reject.
    - Regression tests for both directions (superseded / not).
 5. **Slice 5 — CHANGELOG amendment + PRD/ADR flips**.
    - Amend `## v0.12.0 — TBD` entry to append Wave β bullets (do NOT touch Wave α bullets).
@@ -75,7 +75,7 @@ Same 20 rules as Wave α close. Highlights for Wave β:
 
 ## Session Summary
 
-Wave α accepted 2026-07-29 at three-way concurrence (19th scoreboard entry). Wave β dispatched 2026-07-29. Wave β implementer executed Slices 1–5 to completion in a single sitting; rev-0 hand-back for three-way review is ready. Wave γ pending Wave β acceptance.
+Wave α accepted 2026-07-29 at three-way concurrence (19th scoreboard entry). Wave β dispatched 2026-07-29. Wave β implementer executed Slices 1–5 to completion in a single sitting; rev-0 hand-back triggered a dual review split (internal BLOCKED, supervisor-external APPROVED-with-info). Supervisor adjudicated with verbatim ADR-029 D6 + PRD §7.2 contract text at `e8d351f`, siding with the internal reading, and dispatched rev-1 to fold in the 2 BLOCKING + 1 MEDIUM + 2 LOW findings. Rev-1 executed Slices R1–R6 in a single sitting; ready for the second three-way review.
 
 ### Wave β implementation — per-slice results (all committed, none pushed)
 
@@ -89,6 +89,10 @@ Wave α accepted 2026-07-29 at three-way concurrence (19th scoreboard entry). Wa
   `write-file-safety/preimage-hash-field` required substring anchor
   in `assets/assets_test.go` so schema drift trips the parity guard
   (anti-drift lesson carried forward from Wave α rev-0 F-SEXT-2).
+  Note (F-L1): the Slice 1 commit BODY described the schema field
+  using a plain `string` type; the shipped code uses `*string` per
+  PRD §3.3. Doc-only discrepancy; no commit rewrite (Rule 18
+  immutability); recorded here for reviewer context.
 - **Slice 2 — preimage precondition + reject path** (`329f009`):
   new `internal/workflow/writefile_safety.go` with sentinels
   (`ErrWriteFilePreimageMismatch`, `ErrWriteFileLaterTouch`),
@@ -98,111 +102,162 @@ Wave α accepted 2026-07-29 at three-way concurrence (19th scoreboard entry). Wa
   `runWriteFilePreimagePrecheck` returning
   `PreimagePrecheckResult{Errors, Warnings}`. Wired precheck into
   `ExecuteRecipe` + `DryRunRecipe` in `internal/workflow/recipe.go`
-  ahead of any op mutation (ADR-029 D3 all-or-nothing). Malformed
-  hash literals (uppercase hex, wrong length, missing `sha256:`
-  prefix, embedded whitespace) rejected via `isLowercaseHex`. Legacy
-  nil-preimage recipes warn-and-proceed per ADR-029 D4; explicit
-  `""` (new-file gate) refuses if the target exists per PRD §3.3;
-  populated `sha256:<64hex>` compared byte-exact per ADR-029 D2.
-  Diagnostics carry only paths, hashes, and reason codes — no file
-  bodies (ADR-029 D8). Apply CLI (`runApplyExecuteChecked` in
-  `internal/cli/cobra.go`) now surfaces `result.Warnings` on stderr
-  with `⚠` prefix so the legacy advisory + Slice 4 downgrade note
-  are operator-visible. 11 test functions in
-  `writefile_safety_test.go`; empirical CLI verification of five
-  paths (match / mismatch / legacy / new-file-empty-refuses / empty-
-  literal-collision) all pass against a live tpatch binary.
-- **Slice 3 — later-touch detection** (`c816769`): extended
-  `writefile_safety.go` with `laterTouchIndex map[string]string`
-  (path → offending slug), `loadLaterFeatureTouches` (RequestedAt
-  ordering, alphabetical tie-break for determinism per PRD §5 note
-  4), `collectFeatureTouchedPaths` (unions
-  `patch-generations.json.touched_paths` per PRD §4.2 preferred
-  artifact + `apply-recipe.json` op paths as fallback for early-
-  lifecycle features), `checkLaterTouch`. Wave β dispatch tightens
-  ADR-029 D6 from warn to REJECT at apply-time to close GH #1
-  silent-revert scenarios — this delta is documented in the
-  precheck docstring and the CHANGELOG bullet. 6 test functions in
-  `writefile_later_touch_test.go` (one locks in that
-  `SavePatchGenerations` fixtures need `Refs: &store.GenerationRefs{}`);
-  empirical CLI verification: later-touch reject names the culprit
-  feature slug.
+  ahead of any op mutation (ADR-029 D3 all-or-nothing).
+- **Slice 3 — later-touch detection** (`c816769`) — REV-1 REVISED:
+  the rev-0 implementation tightened ADR-029 D6 from warn to REJECT
+  at apply time. Rev-1 Slice R1 reverted that tightening to match
+  the Accepted contract; detection stays intact and the operator
+  still sees the drift, but execution proceeds. See the R1 entry
+  below for details.
 - **Slice 4 — supersession coupling** (`9af8de8`): added
   `(*PreimagePrecheckResult).appendDrift(msg, superseded,
   superseder)` helper. Calls `IsFeatureSuperseded(s, recipe.Feature)`
   ONCE per recipe (amortized), then routes drift into Errors
   (baseline) or Warnings with downgrade suffix (when superseded).
-  Suffix cites PRD §PRD-1-interaction + ADR-029 D7 verbatim. Path
+  Suffix cites PRD-feature-supersession §4.5 + ADR-029 D7. Path
   safety violations NEVER downgrade (security-boundary invariant).
-  Inherits Wave α R4 runtime flip so stale-superseder scenarios
-  also downgrade the historical target's drift. 6 test functions in
-  `writefile_supersession_test.go` including
-  `TestSlice4_StaleSupersederStillDowngrades` and
-  `TestSlice4_SupersededPathSafetyStillHardReject`. Empirical CLI
-  verification: superseded feature's stale-preimage drift becomes
-  warning, execution proceeds.
+  6 test functions in `writefile_supersession_test.go`.
 - **Slice 5 — CHANGELOG + status flips** (`0d25e75`): amended
   `CHANGELOG.md` with `### Wave β` sub-section under existing
   `## v0.12.0 — TBD` heading (Wave α bullets untouched); flipped
   `docs/prds/PRD-write-file-recipe-safety.md` and `docs/adrs/
   ADR-029-write-file-recipe-safety.md` line 3 `Proposed` →
-  `Accepted`; updated `docs/adrs/README.md` ADR-029 status column;
-  updated `docs/ROADMAP.md` Wave β marker 🚧 → ✅ with per-slice
-  acceptance summary bullets.
+  `Accepted`.
+
+### Wave β rev-1 — per-slice results (all committed, none pushed)
+
+- **Slice R1 (F-B1 revert)** (`ec98499`): apply-time later-touch
+  reverted to warning-class per ADR-029 D6 verbatim + PRD §7.2
+  verbatim. Split the drift router: `appendDrift` still routes
+  preimage-mismatch (Errors if not superseded, Warnings if
+  superseded); new `appendLaterTouchWarn` ALWAYS routes to Warnings
+  and carries the Slice 4 downgrade suffix when the feature is
+  superseded so audit-trail uniformity across the two drift
+  classes is preserved. Renamed and reworked the Slice 3 tests:
+  `TestSlice3_LaterTouchWarnsAndProceeds` replaces the old
+  `TestSlice3_LaterTouchDetectsAndRefuses`; new positive
+  `TestSlice3_LaterTouchWarnsWithoutSupersession` locks the non-
+  superseded warning path (no downgrade suffix). All 6 Slice 4
+  supersession tests still green. Empirical CLI check: `apply older
+  --mode execute` prints the `⚠ recipe drift` warning naming the
+  later feature, exits 0, and the file IS overwritten.
+- **Slice R2 (F-B2 AC-7)** (`2b64176`): record-time later-touch
+  warning wired into `internal/cli/cobra.go` recordCmd RunE after
+  `AppendPatchGenerationForFeature`. New detector
+  `DetectRecordLaterTouchWarnings(s, slug)` in `writefile_safety.go`
+  scans older active features whose `apply-recipe.json` owns a
+  write-file at paths the newly-recorded feature touched. Warnings
+  emit on stderr with `⚠` prefix, sorted deterministically by path
+  (PRD §5 note 4) with alphabetical-first older slug per path.
+  5 regression tests in `writefile_record_later_touch_test.go`.
+  Empirical: record CLI prints `⚠ later-touch warning: [newer]
+  touches src/a.txt which is whole-file-owned by older active
+  feature "older"...`, exit 0.
+- **Slice R3 (F-B2 AC-8)** (`7597ddd`): reconcile-time later-touch
+  warning attached to each older (write-file owner) feature's
+  `ReconcileResult.Notes`. New helper
+  `DetectReconcileLaterTouchWarningsByOwner(s, slugs) map[owner]
+  []string` in `writefile_safety.go` shares the detection primitives
+  with R2 (no duplicated logic). Wired into `RunReconcile` after the
+  supersession filter builds the effective slug set, before the per-
+  slug reconcile loop. Warnings prepend to `result.Notes` so they
+  appear alongside the Wave α historical-feature warning. 6 tests in
+  `writefile_reconcile_later_touch_test.go`, including a Rule 20
+  end-to-end proof via `setupGitRepo` + `RunReconcile`.
+- **Slice R4 (F-B2 AC-9)** (`d50a852`): new V-check
+  `CheckWriteFilePreimageFresh = "write_file_preimage_fresh"` (V10)
+  in `internal/workflow/verify.go`. `checkWriteFilePreimageFresh`
+  helper scans each write-file op's `preimage_hash` against the
+  current on-disk file, reusing the Slice 2 `checkWriteFilePreimage`
+  primitive so verify and apply agree on outcome by construction.
+  Deliberately bypasses `replayRecipeOpsInShadow` — that shadow
+  root has no `.tpatch/` and cannot host a preimage check that needs
+  the CURRENT real on-disk file. Effective feature + stale preimage
+  → SeverityBlock failure (PRD §7.2 v1 rule "v1 blocks only on
+  preimage mismatch"). Superseded feature → SeverityWarn downgrade
+  per ADR-029 D7 + Slice 4 supersession-controls-severity coupling.
+  Frozen check-count grows from 10 → 11 (schema-additive; existing
+  switches unaffected). `stubChecksAfterAbort` extended to include
+  V10 stub. Existing verify tests updated to expect 11 entries.
+  4 regression tests in `writefile_verify_preimage_test.go`.
+- **Slice R5 (F-M1)** (`4b5f8e5`): sentinel-error wrap-and-return via
+  `errors.Is`. `PreimagePrecheckResult` gains twin fields
+  `WrappedErrors []error` + `WrappedWarnings []error`; the string
+  `Errors`/`Warnings` retain existing shape for backward compat.
+  `appendDrift` wraps ErrWriteFilePreimageMismatch;
+  `appendLaterTouchWarn` wraps ErrWriteFileLaterTouch. On the D7
+  supersession downgrade the drift class stays preimage-mismatch
+  (severity-only flip). 4 regression tests in
+  `writefile_sentinel_wrap_test.go` exercise: effective preimage-
+  mismatch, effective later-touch, superseded preimage downgrade,
+  and sentinel identity distinctness.
+- **Slice R6 (F-L2 + doc refresh)** (this commit): replaced the
+  `§PRD-1-interaction` shorthand with the literal anchor
+  `PRD-feature-supersession §4.5` across Go source, Go tests, the
+  CHANGELOG Wave β bullets, and the ROADMAP. Runtime warning suffix
+  now reads `... per PRD-feature-supersession §4.5 / ADR-029 D7`.
+  The heading text at that anchor is "Reconcile interaction with
+  write-file safety". Also appended a `#### Wave β rev-1
+  amendments` sub-section to the CHANGELOG under
+  `## v0.12.0 — TBD` documenting all six slices; Wave α bullets
+  untouched.
 
 ### Files Changed
 
-New files:
-- `internal/workflow/writefile_safety.go`
-- `internal/workflow/writefile_safety_test.go`
-- `internal/workflow/writefile_later_touch_test.go`
-- `internal/workflow/writefile_supersession_test.go`
+New files (rev-1):
+- `internal/workflow/writefile_record_later_touch_test.go`
+- `internal/workflow/writefile_reconcile_later_touch_test.go`
+- `internal/workflow/writefile_verify_preimage_test.go`
+- `internal/workflow/writefile_sentinel_wrap_test.go`
 
-Modified files:
-- `internal/workflow/implement.go` (added `PreimageHash *string`)
-- `internal/workflow/recipe.go` (wired precheck into
-  `ExecuteRecipe` + `DryRunRecipe`)
-- `internal/cli/cobra.go` (⚠ stderr warning surface in
-  `runApplyExecuteChecked`)
-- `assets/assets_test.go` (added `preimage-hash-field` anchor)
-- `assets/skills/claude/tessera-patch/SKILL.md`
-- `assets/skills/copilot/tessera-patch/SKILL.md`
-- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
-- `assets/skills/cursor/tessera-patch.mdc`
-- `assets/skills/windsurf/windsurfrules`
-- `assets/workflows/tessera-patch-generic.md`
-- `CHANGELOG.md`
-- `docs/prds/PRD-write-file-recipe-safety.md`
-- `docs/adrs/ADR-029-write-file-recipe-safety.md`
-- `docs/adrs/README.md`
-- `docs/ROADMAP.md`
+Modified files (rev-1):
+- `internal/workflow/writefile_safety.go` (R1 router split, R2/R3
+  detectors, R5 wrapped-error fields + wrap in routers, R6 anchor
+  fix)
+- `internal/workflow/writefile_later_touch_test.go` (R1 warn-and-
+  proceed rewrite)
+- `internal/workflow/writefile_supersession_test.go` (R6 anchor
+  assertion update)
+- `internal/cli/cobra.go` (R2 record-time warning wire-up)
+- `internal/workflow/reconcile.go` (R3 later-touch attachment to
+  ReconcileResult.Notes)
+- `internal/workflow/verify.go` (R4 V10 const, helper, RunVerify
+  wire-up, stubChecksAfterAbort extension)
+- `internal/workflow/verify_test.go` (R4 check-count 10→11)
+- `CHANGELOG.md` (R6 anchor fix + rev-1 amendments sub-section)
+- `docs/ROADMAP.md` (R6 anchor fix)
 - `docs/handoff/CURRENT.md` (this update)
 
 ### Test Results
 
+Full-suite pass at rev-1:
+
 ```
-ok  	github.com/tesseracode/tesserapatch/assets	0.655s
-ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	0.943s
-ok  	github.com/tesseracode/tesserapatch/internal/cli	65.969s
-ok  	github.com/tesseracode/tesserapatch/internal/gitutil	11.794s
-ok  	github.com/tesseracode/tesserapatch/internal/provider	15.349s
-ok  	github.com/tesseracode/tesserapatch/internal/safety	2.365s
-ok  	github.com/tesseracode/tesserapatch/internal/store	3.527s
-ok  	github.com/tesseracode/tesserapatch/internal/tools/studyvalidator	2.974s
-ok  	github.com/tesseracode/tesserapatch/internal/workflow	40.188s
-ok  	github.com/tesseracode/tesserapatch/tests/integration	2.870s
+ok  	github.com/tesseracode/tesserapatch/assets	1.035s
+ok  	github.com/tesseracode/tesserapatch/internal/buildinfo	2.010s
+ok  	github.com/tesseracode/tesserapatch/internal/cli	148.209s
+ok  	github.com/tesseracode/tesserapatch/internal/gitutil	20.335s
+ok  	github.com/tesseracode/tesserapatch/internal/provider	21.277s
+ok  	github.com/tesseracode/tesserapatch/internal/safety	4.684s
+ok  	github.com/tesseracode/tesserapatch/internal/store	4.297s
+ok  	github.com/tesseracode/tesserapatch/internal/tools/studyvalidator	10.664s
+ok  	github.com/tesseracode/tesserapatch/internal/workflow	104.557s
+ok  	github.com/tesseracode/tesserapatch/tests/integration	9.289s
 ```
 
-All packages PASS. 23 new `TestSlice[234]_*` functions all green.
-`gofmt -l .` empty. `go vet ./...` clean. `go build ./cmd/tpatch`
-clean. Side Research md5 preserved:
+19 new `TestSliceR[1-5]_*` regression tests all green (5 + 6 + 4 + 4
+= 19). Baseline was 806 top-level PASSes at rev-0; rev-1 total is
+comfortably above the +10-15 gate target. `gofmt -l .` empty. `go
+vet ./...` clean. `go build ./cmd/tpatch` clean. Wave α files
+`internal/workflow/labels.go` and `internal/store/validation.go`
+unmodified end-to-end since dispatch (`git diff --stat
+e8d351f..HEAD -- <files>` shows 0). Side Research md5 preserved:
 `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Dispatch internal + supervisor-external reviewers in parallel for Wave β rev-0.
-2. User's parallel external pass on rev-0.
-3. On three-way APPROVED: archive Wave β, dispatch Wave γ (active-feature-session).
+1. Dispatch internal + supervisor-external rev-1 reviewers in parallel.
+2. On three-way APPROVED: archive Wave β, dispatch Wave γ (active-feature-session).
 
 ## Blockers
 
@@ -217,7 +272,7 @@ clean. Side Research md5 preserved:
 **F-B1 fix (BLOCKING)** — revert Slice 3 apply-time later-touch refusal to warning-class:
 - File: `internal/workflow/writefile_safety.go:268-270` (current refusal path).
 - Change: emit warning via `appendDrift` route, do NOT halt execution. Detection stays.
-- Preserve Slice 4's supersession-downgrade routing (superseded → further downgraded / silenced per PRD §PRD-1-interaction).
+- Preserve Slice 4's supersession-downgrade routing (superseded → further downgraded / silenced per PRD-feature-supersession §4.5).
 - Update `writefile_later_touch_test.go` regression assertions from "reject" to "warn-and-proceed"; add new positive test locking apply-time-warn semantics.
 - Rule 19 clause to cite: ADR-029 D6 + PRD §7.2.
 

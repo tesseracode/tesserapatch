@@ -615,7 +615,7 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     touched_paths`) with recipe-op-path fallback; apply-time
     refusal-class (Wave β tightening over ADR-029 D6's warn baseline
     per Wave β dispatch); deterministic slug ordering (PRD §5 note 4).
-  - Slice 4 — supersession coupling per PRD §PRD-1-interaction /
+  - Slice 4 — supersession coupling per PRD-feature-supersession §4.5 /
     ADR-029 D7: superseded features downgrade drift severity from
     Error to Warning-with-note while STILL reporting drift; inherits
     Wave α R4 runtime flip (stale-superseder still downgrades);

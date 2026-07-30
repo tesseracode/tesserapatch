@@ -41,7 +41,7 @@ func slice4SeedSupersession(t *testing.T, s *store.Store) {
 	}
 }
 
-// TestSlice4_SupersededPreimageMismatchDowngrades — PRD §PRD-1-interaction
+// TestSlice4_SupersededPreimageMismatchDowngrades — PRD-feature-supersession §4.5
 // clause 1: when the current feature is superseded by an active healthy
 // superseder, preimage mismatch drift downgrades from Error (Slice 2)
 // to Warning-with-note. Execution proceeds despite the drift.
@@ -73,8 +73,8 @@ func TestSlice4_SupersededPreimageMismatchDowngrades(t *testing.T) {
 	if !strings.Contains(joined, "superseded by \"newer\"") {
 		t.Errorf("warning should name the superseder; got: %s", joined)
 	}
-	if !strings.Contains(joined, "PRD-write-file-recipe-safety") {
-		t.Errorf("warning should cite PRD-write-file-recipe-safety § / ADR-029 D7 provenance; got: %s", joined)
+	if !strings.Contains(joined, "PRD-feature-supersession §4.5") {
+		t.Errorf("warning should cite PRD-feature-supersession §4.5 / ADR-029 D7 provenance; got: %s", joined)
 	}
 	// Execution DID proceed: file rewritten to historical's snapshot.
 	got, _ := os.ReadFile(filepath.Join(s.Root, "src/a.txt"))
@@ -83,7 +83,7 @@ func TestSlice4_SupersededPreimageMismatchDowngrades(t *testing.T) {
 	}
 }
 
-// TestSlice4_SupersededLaterTouchDowngrades — PRD §PRD-1-interaction
+// TestSlice4_SupersededLaterTouchDowngrades — PRD-feature-supersession §4.5
 // clause 1: later-touch drift on a superseded historical feature is
 // warning-class, not refusal. The check STILL RUNS (drift is reported),
 // only the severity flips.

@@ -56,7 +56,7 @@ All notable changes to tpatch are recorded here.
   "warn-only" baseline: at apply time later-touch is refusal-class,
   blocking silent-revert scenarios (GH #1) even when the operator
   regenerated the preimage against a stale base.
-- Supersession coupling (Slice 4, PRD AC-10, PRD §PRD-1-interaction,
+- Supersession coupling (Slice 4, PRD AC-10, PRD-feature-supersession §4.5,
   ADR-029 D7): when the current recipe's feature is superseded per
   Wave α's `IsFeatureSuperseded` (healthy OR stale per §4.5.3),
   BOTH preimage-mismatch and later-touch drift severities downgrade
@@ -64,7 +64,7 @@ All notable changes to tpatch are recorded here.
   the drift is still reported — the difference is severity class
   (Warnings not Errors, so execution proceeds). Warnings are
   suffixed with the superseder slug and cite PRD-write-file-recipe-
-  safety §PRD-1-interaction / ADR-029 D7 verbatim so the downgrade
+  safety / PRD-feature-supersession §4.5 / ADR-029 D7 verbatim so the downgrade
   is auditable. This inherits Wave α R4's runtime flip: even a
   stale-superseder scenario downgrades historical drift (the graph
   reports the stale-superseder problem separately via Wave α's
@@ -77,6 +77,69 @@ All notable changes to tpatch are recorded here.
   [`PRD-write-file-recipe-safety`](docs/prds/PRD-write-file-recipe-safety.md)
   and [`ADR-029-write-file-recipe-safety`](docs/adrs/ADR-029-write-file-recipe-safety.md).
 - References: PRD-write-file-recipe-safety, ADR-029-write-file-recipe-safety.
+
+#### Wave β rev-1 amendments
+
+Rev-1 folded in 2 BLOCKING + 1 MEDIUM + 2 LOW findings from the rev-0
+dual review split (internal reviewer BLOCKED, supervisor-external
+reviewer APPROVED-with-info; supervisor adjudicated with verbatim
+ADR-029 D6 + PRD §7.2 contract text at commit `e8d351f`, siding with
+the internal reading). Contract source of truth for the shipped
+surface: ADR-029 D6 verbatim "Record-time later-touch detection is
+warning-class in v1. Apply-time preimage mismatch is refusal-class."
++ PRD §7.2 answer to open Q2: "v1 blocks only on preimage mismatch."
+
+- **Slice R1 (F-B1 revert):** apply-time later-touch is now warning-
+  class, matching ADR-029 D6 + PRD §7.2. The rev-0 Slice 3 tightening
+  that made later-touch refuse execution at apply time is reverted;
+  detection stays intact and the operator still sees the drift, but
+  execution proceeds. Slice 4 supersession-downgrade routing is
+  preserved (superseded features carry the same downgrade suffix as
+  the preimage-mismatch path so audit-trail uniformity is uniform
+  across both drift classes). Rule 19 rationale: warn→refuse
+  tightening is scope beyond the Accepted PRD/ADR contract.
+- **Slice R2 (F-B2 AC-7):** record-time later-touch warning wired
+  into the record CLI (`internal/cli/cobra.go` recordCmd RunE, after
+  `AppendPatchGenerationForFeature`). Emits `⚠ later-touch warning`
+  on stderr, sorted deterministically by path with alphabetical-
+  first older slug per path (PRD §5 note 4).
+- **Slice R3 (F-B2 AC-8):** reconcile-time later-touch warning
+  attached to the OLDER (write-file owner) feature's
+  `ReconcileResult.Notes` in `RunReconcile`, via a new
+  `DetectReconcileLaterTouchWarningsByOwner` helper that shares the
+  Slice 3 detection primitives. Warning-class per D6; reconcile does
+  not refuse on later-touch (PRD §7.2).
+- **Slice R4 (F-B2 AC-9):** new V-check `write_file_preimage_fresh`
+  (V10) added to `RunVerify` (`internal/workflow/verify.go`) that
+  scans each write-file op's `preimage_hash` against the current
+  on-disk file. Effective features: SeverityBlock failure on stale
+  preimage. Superseded features (per Wave α's
+  `IsFeatureSuperseded`): SeverityWarn downgrade per ADR-029 D7 +
+  Slice 4 supersession-controls-severity coupling. The frozen-
+  vocabulary check-count grows from 10 to 11 (schema-additive);
+  harness consumers may now switch on `CheckWriteFilePreimageFresh`.
+- **Slice R5 (F-M1):** `ErrWriteFilePreimageMismatch` and
+  `ErrWriteFileLaterTouch` sentinels are now actually returned
+  (wrapped via `fmt.Errorf("%w: %s", …)`) at every drift-emitting
+  route. `PreimagePrecheckResult` gains `WrappedErrors []error` and
+  `WrappedWarnings []error` twin fields so `errors.Is` matches at
+  the callsite; the string `Errors`/`Warnings` fields are retained
+  for backward compat. The rev-0 sentinel export claim in the CHANGELOG
+  above is now true rather than aspirational.
+- **Slice R6 (F-L2):** the `§PRD-1-interaction` shorthand cited
+  across Go code + tests + CHANGELOG bullets is replaced with the
+  literal anchor `PRD-feature-supersession §4.5` (the shipped
+  heading is "Reconcile interaction with write-file safety"). The
+  runtime warning suffix in `appendDrift` / `appendLaterTouchWarn`
+  now reads `... per PRD-feature-supersession §4.5 / ADR-029 D7`.
+  A reader searching the code for the anchor now hits a real PRD
+  heading.
+- **F-L1 note:** the Slice 1 commit body describes the recipe
+  extension using a plain `string` type. The shipped code uses
+  `*string` (see the schema bullet above; the pointer is load-
+  bearing per PRD §3.3). No commit rewrite (Rule 18 immutability);
+  the discrepancy is doc-only and recorded here + in the handoff
+  session summary for reviewer context.
 
 ### Wave α — supersedes edge kind + reconcile suppression + composable labels
 

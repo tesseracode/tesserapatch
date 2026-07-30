@@ -259,7 +259,7 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 	// flip in labels.go:isFeatureSupersededIn); Wave β inherits that
 	// semantics so an operator repairing a stale-superseder scenario
 	// still sees the historical drift as warning-class (matches
-	// PRD §PRD-1-interaction clause 3 which says the graph reports
+	// PRD-feature-supersession §4.5 clause 3 which says the graph reports
 	// the stale-superseder problem separately).
 	superseder, superseded := IsFeatureSuperseded(s, recipe.Feature)
 
@@ -337,7 +337,7 @@ func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, supers
 	// The "superseded by" suffix mirrors the pattern used by Wave α's
 	// `superseded-by <slug>` derived label so operators recognize the
 	// signal as the supersession-coupling downgrade.
-	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
+	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)",
 		msg, superseder)
 	r.Warnings = append(r.Warnings, suffixed)
 	// R5 / F-M1: the drift class is still preimage-mismatch; only the
@@ -371,7 +371,7 @@ func (r *PreimagePrecheckResult) appendLaterTouchWarn(msg string, superseded boo
 		r.WrappedWarnings = append(r.WrappedWarnings, fmt.Errorf("%w: %s", ErrWriteFileLaterTouch, msg))
 		return
 	}
-	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
+	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)",
 		msg, superseder)
 	r.Warnings = append(r.Warnings, suffixed)
 	r.WrappedWarnings = append(r.WrappedWarnings, fmt.Errorf("%w: %s", ErrWriteFileLaterTouch, suffixed))
