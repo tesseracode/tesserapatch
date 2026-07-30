@@ -987,6 +987,20 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				return err
 			}
 
+			// v0.12.0 Wave γ rev-1 Slice R4 (F-EXT-γ-4 HIGH). Hoist
+			// the --from-session requires --with-session mutex check
+			// to fire IMMEDIATELY after flag parsing, BEFORE any
+			// capture / recipe generation / artifact write. Rev-0
+			// applied the check after `s.WritePatch` had already
+			// written `.tpatch/features/<slug>/patches/001-record.patch`
+			// and `artifacts/post-apply.patch`, so a bad invocation
+			// left partial artifacts on disk. Validate-before-mutate.
+			withSessionEarly, _ := cmd.Flags().GetBool("with-session")
+			fromSessionEarly, _ := cmd.Flags().GetString("from-session")
+			if fromSessionEarly != "" && !withSessionEarly {
+				return fmt.Errorf("record: --from-session requires --with-session (PRD §8.8)")
+			}
+
 			// feat-amend-dependent-warning (v0.7.0) — if the user is
 			// recording on top of an amended commit AND the rewritten
 			// SHA was referenced by a downstream feature
@@ -1520,12 +1534,14 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// local buffer and writes a redacted committed summary;
 			// `--from-session <cs_id>` disambiguates when multiple
 			// eligible sessions exist for the same feature.
-			// `--from-session` REQUIRES `--with-session`.
+			//
+			// v0.12.0 Wave γ rev-1 Slice R4 (F-EXT-γ-4 HIGH): the
+			// `--from-session requires --with-session` mutex is now
+			// enforced up-front at the top of RunE, before any
+			// capture / recipe / artifact write. This block only
+			// runs the summarize half.
 			withSession, _ := cmd.Flags().GetBool("with-session")
 			fromSession, _ := cmd.Flags().GetString("from-session")
-			if fromSession != "" && !withSession {
-				return fmt.Errorf("record: --from-session requires --with-session (PRD §8.8)")
-			}
 			if withSession {
 				target, err := pickSessionForOp(s, slug, fromSession, sessionEligibleForSummarize)
 				if err != nil {
