@@ -137,6 +137,32 @@ func sessionStartCmd() *cobra.Command {
 				WorkspaceDiscriminator: discriminator,
 			})
 
+			// v0.12.0 Wave γ rev-1 Slice R5 (F-EXT-γ-5 HIGH). PRD
+			// §3 D4 verbatim: "reopen is out of scope and valid
+			// transitions do not include `closed → active`." Content-
+			// addressing per D3 is intentional — the SAME identity
+			// inputs deterministically produce the SAME cs_ id. Rev-0
+			// only counted ACTIVE sessions above; if the user closed
+			// (or the summary was promoted, or the buffer was purged)
+			// and then re-ran `session start` at the same base commit
+			// + capture mode, the new session collided with the
+			// historical cs_ id and silently reopened the closed
+			// manifest. Rev-1 refuses instead.
+			if existingSess, err := s.LoadSession(slug, id); err == nil {
+				switch existingSess.State {
+				case store.SessionClosed, store.SessionPromoted, store.SessionPurged:
+					return fmt.Errorf("session start refuses: session %s already exists in state %q for feature %s. PRD §3 D4: \"reopen is out of scope and valid transitions do not include `closed → active`.\" Content-addressing per §3 D3 is intentional — closing then re-starting at the same base commit + capture mode would collide with the historical id", id, existingSess.State, slug)
+				case store.SessionActive:
+					// Handled above via the activeCount==1 branch;
+					// this arm is defensive for a corner where the
+					// slug-level count and the id-level probe
+					// disagree (e.g. malformed listings). Keep the
+					// idempotent behavior.
+					fmt.Fprintf(cmd.OutOrStdout(), "session %s already active for feature %s (idempotent, no new buffer written)\n", id, slug)
+					return nil
+				}
+			}
+
 			sess := store.Session{
 				SchemaVersion: store.SessionSchemaVersion,
 				ID:            id,
