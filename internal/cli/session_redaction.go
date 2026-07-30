@@ -108,6 +108,34 @@ func redactObservation(obs store.SessionObservation) (string, []string) {
 	return obs.Summary, nil
 }
 
+// RedactSessionLabelForStore applies the PRD §5 D11 forbidden-content
+// matchers to a `--label` value before it lands in a session manifest.
+// PRD §7 D16 + ADR-027 D3 forbid raw secret values / prompt-like
+// content in local buffers; the label field is a rare exception (local
+// display only), but rev-0 persisted it verbatim so a mistyped label
+// containing an API key was written to disk before any redaction ran.
+//
+// v0.12.0 Wave γ rev-1 Slice R3 (F-EXT-γ-3 HIGH). Reuses the same D11
+// forbidden-content classes runSessionSummarize applies to observations.
+// Returns the safe label (empty string when ANY finding matched, since
+// dropping the whole label is safer than a partially-scrubbed variant)
+// and the ordered finding-code list for user-facing diagnostics.
+func RedactSessionLabelForStore(label string) (safe string, findings []string) {
+	if label == "" {
+		return "", nil
+	}
+	var codes []string
+	for _, cls := range forbiddenContentClasses {
+		if cls.matcher(label) {
+			codes = append(codes, cls.code)
+		}
+	}
+	if len(codes) > 0 {
+		return "", codes
+	}
+	return label, nil
+}
+
 // ─── D11 matchers ────────────────────────────────────────────────────────────
 
 // PRD §5 D11 forbidden classes each have a matcher below. The matchers

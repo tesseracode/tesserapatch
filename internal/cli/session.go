@@ -146,6 +146,17 @@ func sessionStartCmd() *cobra.Command {
 				BaseCommit:    baseCommit,
 				Label:         label,
 			}
+			// v0.12.0 Wave γ rev-1 Slice R3 (F-EXT-γ-3 HIGH). Per
+			// ADR-027 D3 ("redaction before persistence") + PRD §7 D16
+			// (no raw secret values in local buffers), scrub the
+			// user-supplied --label through the D11 forbidden-content
+			// matchers BEFORE writing session.json. Rev-0 persisted the
+			// label verbatim, so `--label "sk-XXX debug run"` landed
+			// on disk raw.
+			if safeLabel, labelFindings := RedactSessionLabelForStore(sess.Label); len(labelFindings) > 0 {
+				fmt.Fprintf(cmd.ErrOrStderr(), "session start: --label scrubbed (findings: %v); persisting empty label per PRD §7 D16 + ADR-027 D3\n", labelFindings)
+				sess.Label = safeLabel
+			}
 			if err := s.SaveSession(sess); err != nil {
 				return fmt.Errorf("session start: %w", err)
 			}
