@@ -143,6 +143,7 @@ The `implement` phase produces a deterministic recipe that the `apply` phase con
     { "type": "ensure-directory", "path": "src/feature/" },
     { "type": "write-file",
       "path": "src/feature/new.ts",
+      "preimage_hash": "",
       "content": "export function greet(name: string) {\n  return `hello ${name}`;\n}\n"
     },
     { "type": "replace-in-file",
@@ -161,7 +162,7 @@ The `implement` phase produces a deterministic recipe that the `apply` phase con
 ### Operations
 
 - **`ensure-directory`** `{ path }` — create the directory if missing. No-op if present.
-- **`write-file`** `{ path, content }` — write the full file. Overwrites existing content.
+- **`write-file`** `{ path, content, preimage_hash }` — write the full file. Overwrites existing content. **`preimage_hash` (v0.12.0+, PRD-write-file-recipe-safety §3.1, ADR-029 D1)** is a precondition: `sha256:<64 lowercase hex>` over the exact bytes the target file held before the recipe was generated, `""` for new-file writes (target must not exist at apply time), or absent for legacy recipes (accepted with a warning in v1). Apply refuses execution when the current file hash does not match, or when a later feature has already touched the same path.
 - **`replace-in-file`** `{ path, search, replace }` — replace the first occurrence of `search` with `replace`. Errors if `search` is not found.
 - **`append-file`** `{ path, content }` — append to an existing file. Errors if the file does not exist.
 

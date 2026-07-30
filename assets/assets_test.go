@@ -80,6 +80,15 @@ var requiredAnchors = []struct {
 	{"patch-amend/refresh", "tpatch feature patch refresh <slug>"},
 	{"patch-amend/fixup", "tpatch feature patch fixup <slug>"},
 	{"patch-amend/stale-label", "parent-generation-stale"},
+	// Wave β (v0.12.0, PRD-write-file-recipe-safety §3.1 + ADR-029 D1):
+	// every shipped skill surface must mention the new `preimage_hash`
+	// field on `write-file` operations so harness agents learn the
+	// precondition contract at the same time the CLI enforces it.
+	// Substring match on the field name is sufficient — the string is
+	// unique to this schema addition across all six surfaces. Anti-drift
+	// lesson from Wave α rev-0 F-SEXT-2: the schema change and the
+	// parity anchor MUST land in the same commit.
+	{"write-file-safety/preimage-hash-field", "preimage_hash"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching

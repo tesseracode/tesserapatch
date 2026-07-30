@@ -73,6 +73,30 @@ type RecipeOperation struct {
 	// Reading rule (ADR-010 D5): for reconcile-result decisions, callers
 	// must read status.Reconcile.Outcome — never artifacts/reconcile-session.json.
 	CreatedBy string `json:"created_by,omitempty"`
+
+	// PreimageHash is the sha256-over-preimage-bytes precondition for a
+	// `write-file` operation (PRD-write-file-recipe-safety §3.1, ADR-029 D1).
+	// Format is `sha256:<64 lowercase hex>` for existing-file writes,
+	// `""` (empty pointer target) for new-file writes (target must not
+	// exist at apply time), or nil (absent) for legacy recipes (v1
+	// accepts with warning per ADR-029 D4).
+	//
+	// This field is a precondition, NOT a record identity — hence the raw
+	// `sha256:` prefix, distinguishing it from the truncated 12-hex record
+	// IDs (`pg_/re_/rr_`) used elsewhere (ADR-029 D1 rationale).
+	//
+	// The pointer type is load-bearing: PRD §3.3 requires distinguishing
+	// `preimage_hash: ""` (new-file gate: refuse if the target exists)
+	// from an omitted field (legacy path: apply with warning). A plain
+	// `string` would conflate the two at decode time. Callers that
+	// programmatically emit `write-file` ops with `""` must set a
+	// non-nil pointer.
+	//
+	// Applies to operation type `write-file` only; non-`write-file` operations
+	// ignore the field and should not emit it. `omitempty` is load-bearing so
+	// legacy recipes lacking the field round-trip byte-identical and so
+	// non-`write-file` ops do not carry a meaningless empty field.
+	PreimageHash *string `json:"preimage_hash,omitempty"`
 }
 
 // DecodeApplyRecipeStrict decodes the authoritative apply-recipe.json schema

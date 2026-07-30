@@ -131,7 +131,9 @@ Phase → artifact → state contract (the `--manual` flag validates this):
   "feature": "<slug>",
   "operations": [
     { "type": "ensure-directory", "path": "src/feature/" },
-    { "type": "write-file", "path": "src/a.ts", "content": "export const x = 1;\n" },
+    { "type": "write-file", "path": "src/a.ts",
+      "preimage_hash": "",
+      "content": "export const x = 1;\n" },
     { "type": "replace-in-file", "path": "src/b.ts",
       "search": "export * from \"./legacy\";\n",
       "replace": "export * from \"./legacy\";\nexport * from \"./feature/a\";\n" },
@@ -144,6 +146,7 @@ Phase → artifact → state contract (the `--manual` flag validates this):
 Semantics:
 
 - Ops: `ensure-directory`, `write-file { path, content }`, `replace-in-file { path, search, replace }`, `append-file { path, content }`. No `delete-file` / `rename-file` yet — use Path B + `git rm` for deletes.
+- **`write-file` safety (v0.12.0+)** — every `write-file` op carries a `preimage_hash` precondition (PRD-write-file-recipe-safety §3.1, ADR-029 D1). Value is `sha256:<64 lowercase hex>` over the exact bytes the target file held before the recipe was generated, `""` for new-file writes (target must not exist at apply time), or absent for legacy recipes (accepted with a warning in v1). Apply refuses execution when the current file hash does not match, or when a later feature has already touched the same path.
 - Optional `created_by` (string, parent feature slug) on any op — from v0.6.0 a **live apply-time gate**: `apply --mode execute` rejects ops whose `created_by` parent is missing from `depends_on` (hard-parent miss fails in execute, warns in `--dry-run`). Omit unless the recipe declares feature-DAG provenance.
 - `replace-in-file.search` is a **literal string match, not a regex**. Paste the exact text, include surrounding lines for uniqueness.
 - `replace-in-file` replaces exactly one occurrence per op. Emit multiple ops to replace several copies.
