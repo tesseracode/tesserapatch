@@ -5,7 +5,7 @@
 - **Task ID**: `v0.12.0-wave-beta-writefile-safety-implementation`
 - **Milestone**: v0.12.0 Wave β — implement `PRD-write-file-recipe-safety` + `ADR-029-write-file-recipe-safety`.
 - **Description**: Second wave of the v0.12.0 3-wave sequential cluster. Adds `preimage_hash` field + later-touch detection to `write-file` recipe ops, protecting against silently reverting later fixes. Couples to Wave α supersession via §PRD-1-interaction (superseded features downgrade write-file drift).
-- **Status**: Dispatched — implementer in flight.
+- **Status**: Rev-1 dispatched — 2 BLOCKING + 1 MEDIUM + 2 LOW folded in from rev-0 dual review split.
 - **Assigned**: 2026-07-29.
 
 ## Wave β scope (locked)
@@ -206,20 +206,55 @@ clean. Side Research md5 preserved:
 
 ## Blockers
 
-**Internal review rev-0 (2026-07-29) posted TWO BLOCKING findings against Wave β.** See `docs/supervisor/LOG.md` "Review — Wave β … internal (rev-0) — 2026-07-29" for detail:
+**RESOLVED — supervisor adjudication 2026-07-29: rev-1 dispatched.**
 
-- **F-B1 (Slice 3)** — apply-time later-touch is refusal-class in the shipped recipe-execute path (`internal/workflow/writefile_safety.go:268-270`), which contradicts ADR-029 D6 verbatim ("Apply-time preimage mismatch is refusal-class" — enumeration excludes later-touch) and PRD-write-file-recipe-safety §7.2 verbatim ("v1 blocks only on preimage mismatch"). Slice 5 flipped both PRD and ADR-029 `Proposed → Accepted` without amending D6/§7.2, so the Accepted body text now disagrees with the shipped code. Rule 19-class scope change beyond the accepted contract. (Note: supervisor-external rev-0 review disagrees on the interpretation — reads D6 as "silent on apply-time later-touch, therefore permitted by gap-filling" — see LOG.md for both readings. Three-way concurrence not yet achieved.)
-- **F-B2 (Slice 5)** — PRD ACs 7 (record-time later-touch warning), 8 (reconcile-time later-touch warning), 9 (verify stale-preimage check), and the verify-half of AC-11 are unimplemented (no `internal/workflow/record*.go` or `reconcile.go` integration; `verify.go:1148` `replayRecipeOpsInShadow` explicitly bypasses `ExecuteRecipe`). Slice 5 flipped the PRD to Accepted anyway. Documentation-vs-implementation mismatch on Accepted body text.
+**Supervisor decision on the D6/§7.2 split**: internal-reviewer reading is authoritative. External read ADR-029 D6 alone as silent on apply-time later-touch, but PRD §7.2 verbatim states "v1 blocks only on preimage mismatch" — the combined ADR+PRD contract is unambiguous. Slice 3's warn→reject tightening is Rule 19-class scope beyond Accepted contract.
 
-**Options for supervisor**:
+**Rev-1 chosen approach**: hybrid of internal Options 1 + 3, with F-B2 addressed by IMPLEMENTING the missing ACs (not scoping the PRD down). Rationale: AC-7/8/9 are v1 contract; skipping them would defer scope originally locked in Wave β.
 
-1. Roll Slice 3's apply-time later-touch back to warning-class before merging, retain Slice 5 flips.
-2. Amend ADR-029 D6 + PRD §7.2 in a rev-1 slice to explicitly authorize apply-time later-touch refusal (matching shipped behavior), and either implement the missing AC-7/8/9 surfaces OR scope the PRD flip to `Accepted (record/reconcile/verify integration deferred)`.
-3. Revert Slice 5 flips to keep PRD/ADR at Proposed, defer Accepted-flip to Wave β rev-1 that resolves both findings.
+### Rev-1 scope
 
-Wave α behavior non-invalidation: **confirmed no regression** (no Wave α files modified; `IsFeatureSuperseded` + `ErrMultipleActiveSuperseders` + supersession labels intact). Wave α review scoreboard (19/19) not affected.
+**F-B1 fix (BLOCKING)** — revert Slice 3 apply-time later-touch refusal to warning-class:
+- File: `internal/workflow/writefile_safety.go:268-270` (current refusal path).
+- Change: emit warning via `appendDrift` route, do NOT halt execution. Detection stays.
+- Preserve Slice 4's supersession-downgrade routing (superseded → further downgraded / silenced per PRD §PRD-1-interaction).
+- Update `writefile_later_touch_test.go` regression assertions from "reject" to "warn-and-proceed"; add new positive test locking apply-time-warn semantics.
+- Rule 19 clause to cite: ADR-029 D6 + PRD §7.2.
 
-Full-suite gates green (`gofmt -l .` empty, `go vet ./...` clean, `go build ./cmd/tpatch` clean, `go test -count=1 ./...` 806 top-level PASS = +23 vs Wave α baseline). Blockers are contract-mismatch class, not test-failure class.
+**F-B2 fix (BLOCKING)** — implement missing PRD ACs 7 + 8 + 9:
+- **AC-7 (record later-touch warning)**: extend `internal/workflow/record*.go` to detect when a newly-recorded feature's touched paths overlap an older active feature's `write-file` operation. Emit deterministic warning naming both features + shared path. Regression test.
+- **AC-8 (reconcile later-touch warning)**: extend `internal/workflow/reconcile.go` to report when a later active/effective feature touched a path owned by an older `write-file` op. Warning-class per PRD §5:129. Reuse Slice 3's detector where possible. Regression test.
+- **AC-9 (verify stale-preimage check)**: extend verify V-checks (`internal/workflow/verify.go`) to add a stale-preimage check on `write-file` ops. Effective-feature stale preimage = failure-class; superseded-feature stale preimage = warning-class (per D7 + Slice 4 pattern). The `replayRecipeOpsInShadow` bypass at `verify.go:1148` needs to route through `ExecuteRecipe` or use a dedicated stale-check helper. Regression tests for both severity classes.
+
+**F-M1 fix (MEDIUM)** — sentinel errors `ErrWriteFilePreimageMismatch` + `ErrWriteFileLaterTouch`:
+- Currently declared but never returned; `errors.Is` claim in docstring/CHANGELOG is false.
+- Choose: either (a) actually wrap returned errors so `errors.Is` works and add regression test; or (b) delete the sentinels and fix docstring/CHANGELOG claim.
+- Prefer (a) — sentinels are useful downstream for callers matching drift types.
+
+**F-L1 fix (LOW)** — Slice 1 commit-body signature vs shipped `*string`:
+- Doc-only fix, address at rev-1 handoff refresh.
+
+**F-L2 fix (LOW)** — `§PRD-1-interaction` shorthand:
+- Replace with real anchor `PRD-write-file-recipe-safety §5.7` (or the exact section title). Grep all Wave β commits + CHANGELOG + skill assets.
+
+### Rev-1 slice plan
+
+1. **Slice R1**: F-B1 revert apply-time later-touch to warn-class. Update regression tests. (Smallest, most contained.)
+2. **Slice R2**: F-B2 AC-7 record-command later-touch warning.
+3. **Slice R3**: F-B2 AC-8 reconcile-command later-touch warning.
+4. **Slice R4**: F-B2 AC-9 verify stale-preimage check.
+5. **Slice R5**: F-M1 sentinel-error wrap-and-return.
+6. **Slice R6**: CHANGELOG rev-1 amendment + F-L1/L2 doc corrections + handoff refresh. PRD + ADR remain at Accepted (rev-1 closes the contract-vs-code gap; no need to revert to Proposed).
+
+### Rev-1 validation gates
+
+- Full gate set (gofmt / vet / build / test suite).
+- Baseline 806 top-level PASS at rev-0. Rev-1 total MUST be ≥ 806 + 10-15 (F-B1 warn/positive + AC-7 + AC-8 + AC-9 effective/superseded + F-M1 errors.Is).
+- Parity guard test still passes (schema stable, no field changes in rev-1).
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+- Rule 18 trailer on every commit.
+
+Wave α behavior non-invalidation still confirmed (rev-0 did not touch Wave α files; rev-1 must not either).
 
 ## Context for Next Agent
 
