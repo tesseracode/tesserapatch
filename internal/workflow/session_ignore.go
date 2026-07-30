@@ -128,6 +128,13 @@ func (r *LocalIgnoreRefusal) Unwrap() error { return ErrLocalIgnoreRefusal }
 //
 // Mandates 1 and 2 belong to `tpatch init` (see EnsureLocalGitignoreRule)
 // and mandate 6 is the fallback string constant PrePRDWorkspaceFallbackPath.
+//
+// v0.12.0 Wave γ rev-1 (F-EXT-γ-1 fix, PRD §4 D6 mandate 4 verbatim
+// "Writers must refuse when Git is unavailable or the path is not
+// ignored."): this function is also registered at package init as
+// store.SessionIgnoreVerifier so EVERY caller of Store.SaveSession —
+// present and future — routes through the same bottleneck check. See
+// the init() below.
 func EnsureLocalIgnoreContract(repoRoot, resolvedPath string) error {
 	if !gitutil.IsGitAvailable(repoRoot) {
 		return &LocalIgnoreRefusal{
@@ -256,3 +263,19 @@ func EnsureLocalGitignoreRule(repoRoot string) error {
 // both talk about the same D5 path without needing to import store
 // from workflow-test code. Kept internal.
 func StoreLocalCaptureDir(s *store.Store) string { return s.LocalCaptureDir() }
+
+// init wires EnsureLocalIgnoreContract into store as the D6 bottleneck
+// verifier every session-state writer must satisfy. PRD-active-feature-
+// session §4 D6 mandate 4 verbatim: "Writers must refuse when Git is
+// unavailable or the path is not ignored." Plural, unqualified — every
+// present + future session-state writer routes through Store.SaveSession
+// which in turn calls this verifier. Rev-0 shipped a bug where the
+// mandate-3 check was only wired to `session start`; every later
+// writer (session stop, session summarize --promote, record
+// --with-session) bypassed it. Bottleneck enforcement fixes that by
+// construction.
+func init() {
+	store.SetSessionIgnoreVerifier(func(repoRoot, resolvedPath string) error {
+		return EnsureLocalIgnoreContract(repoRoot, resolvedPath)
+	})
+}

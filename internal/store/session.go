@@ -208,12 +208,59 @@ func (s *Store) FeatureContextSummaryPath(slug, ctxID string) string {
 	return filepath.Join(s.FeatureContextDir(slug), ctxID+".json")
 }
 
+// SessionIgnoreVerifier verifies the D6 effective-ignore contract for
+// a resolved local-capture path. Registered by internal/workflow at
+// package init (see workflow.EnsureLocalIgnoreContract) so store can
+// enforce the contract without a circular import.
+//
+// PRD-active-feature-session §4 D6 mandate 4 verbatim: "Writers must
+// refuse when Git is unavailable or the path is not ignored." Plural,
+// unqualified — the contract binds every present and future session-
+// state writer. Enforcing INSIDE SaveSession makes future writer
+// additions safe by construction (rev-0 shipped a bug where the
+// mandate-3 check was only wired to `session start`; every later
+// writer bypassed it).
+type SessionIgnoreVerifier func(repoRoot, resolvedPath string) error
+
+var sessionIgnoreVerifier SessionIgnoreVerifier
+
+// SetSessionIgnoreVerifier wires the D6 effective-ignore check into
+// the Session-writer bottleneck. Wired at internal/workflow package
+// init to avoid a circular import (workflow imports store).
+//
+// Tests that need to bypass the D6 check (e.g. internal/store unit
+// tests that never run git) register a permissive verifier. Production
+// binaries pull in internal/workflow via the CLI, which registers the
+// real EnsureLocalIgnoreContract.
+func SetSessionIgnoreVerifier(fn SessionIgnoreVerifier) {
+	sessionIgnoreVerifier = fn
+}
+
+// GetSessionIgnoreVerifier returns the currently registered verifier
+// (nil when none has been wired). Exported for tests + doctor forward-
+// integration.
+func GetSessionIgnoreVerifier() SessionIgnoreVerifier { return sessionIgnoreVerifier }
+
 // SaveSession writes the manifest to the on-disk location for its
-// (feature, ID) coordinates. The caller MUST have already verified
-// the ignore contract via IgnoreCheck (D6). The manifest is validated
-// via ValidateSession before write.
+// (feature, ID) coordinates. Enforces PRD §4 D6 mandate 4 verbatim
+// ("Writers must refuse when Git is unavailable or the path is not
+// ignored.") via the package-level SessionIgnoreVerifier hook so
+// EVERY Session-state writer — session start, session stop, session
+// summarize (--promote path), record --with-session, and any future
+// writer surface — routes through the same bottleneck check. The
+// manifest is validated via ValidateSession before the D6 check.
 func (s *Store) SaveSession(sess Session) error {
 	if err := ValidateSession(sess); err != nil {
+		return err
+	}
+	// PRD §4 D6 mandate 4 verbatim: "Writers must refuse when Git is
+	// unavailable or the path is not ignored." Bottleneck enforcement
+	// — a NEW writer surface is safe by construction because it must
+	// call SaveSession.
+	if sessionIgnoreVerifier == nil {
+		return fmt.Errorf("session write refuses: D6 ignore verifier not registered (internal error — import internal/workflow to wire EnsureLocalIgnoreContract)")
+	}
+	if err := sessionIgnoreVerifier(s.Root, s.LocalCaptureDir()); err != nil {
 		return err
 	}
 	dir := s.SessionDir(sess.Feature, sess.ID)
