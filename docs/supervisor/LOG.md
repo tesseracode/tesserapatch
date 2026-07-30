@@ -1,3 +1,79 @@
+## Review — Wave γ rev-1 (v0.12.0 active-feature-session) — supervisor-internal fresh-eyes — 2026-07-30
+
+**Reviewer**: supervisor-internal, rev-1 (fresh eyes on 10-finding fold-in).
+**Range reviewed**: `0cb5382..441428f` (7 code commits: `3936e99` R1, `e3b343f` R2, `4111b04` R3, `eafb732` R4, `3e39091` R5, `3b14a66` R6, `441428f` R7).
+**Contract**: PRD-active-feature-session D1-D19, ADR-027 D1/D3/D6, PRD §4 D6 mandate 4 verbatim ("Writers must refuse when Git is unavailable or the path is not ignored." — plural, unqualified).
+**Rev-0 lesson applied**: My rev-0 D6 audit stopped at `session start` — insufficient for the plural "Writers" clause. Rev-1 verification independently enumerates every `Store.SaveSession` call site (`grep SaveSession` under `internal/`) and confirms each is covered by the table-driven `TestD6_AllWritersRefuse` row.
+
+### Verdict: **APPROVED**
+
+### Gate scoreboard (independently reproduced)
+
+- `gofmt -l .` — empty (clean).
+- `go vet ./...` — clean.
+- `go build ./cmd/tpatch` — OK.
+- `go test -count=1 -v ./...` — 876 top-level `--- PASS` + 2 `--- SKIP` = 878 top-level tests. Target ≥ 875 met (baseline 865, +11 rev-1 regressions).
+- Wave α + Wave β non-invalidation — `git diff --stat 0cb5382..441428f -- internal/workflow/labels.go internal/store/validation.go internal/cli/status_dag.go internal/workflow/writefile_safety.go internal/workflow/verify.go` returns EMPTY output. All five files byte-identical to base.
+- Side Research md5 — `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` = `b385fe622db9926f48861105239f113e` ✓ (matches invariant).
+- Rule 18 trailer — all 7 commits carry the `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer.
+
+### Bottleneck architecture verification
+
+- `internal/store/session.go:252 SaveSession` unconditionally calls `sessionIgnoreVerifier(s.Root, s.LocalCaptureDir())` before any manifest write; returns explicit error when unregistered (`"D6 ignore verifier not registered"` — no silent fallback).
+- `internal/workflow/session_ignore.go:309 init()` wires `store.SetSessionIgnoreVerifier(EnsureLocalIgnoreContract)`. `internal/cli` imports `internal/workflow` (`cobra.go`, `doctor.go`), so every CLI-driven test and the production binary route through the real check.
+- `internal/store/session_verifier_bypass_test.go` is in `package store_test` (external test package) — its `init()` bypass ONLY affects the `internal/store` test binary, and this is documented explicitly.
+- Every production `SaveSession` call site enumerated: `session.go:200` (session start), `session.go:241` (session stop), `session_summarize.go:108` (session summarize --write, also the code path for `record --with-session` via `runSessionSummarize`). All three are covered by `TestD6_AllWritersRefuse` table rows.
+
+### Per-finding closure
+
+| Finding | Slice | Status | Evidence |
+|---|---|---|---|
+| **F-EXT-γ-1 CRITICAL** — D6 all-writers refusal | R1 `3936e99` | **CLOSED** | Bottleneck at `Store.SaveSession` via `SessionIgnoreVerifier` hook + `workflow.init()`. Table-driven `TestD6_AllWritersRefuse` covers session-start, session-stop, session-summarize-write, record-with-session. Adding any new `SaveSession` caller inherits the check by construction. Rule 20 empirical repro below. |
+| **F-EXT-γ-2 HIGH** — D11 hard failure returns sentinel | R2 `e3b343f` | **CLOSED** | `ErrSessionRedactionRefusal` defined at `session_summarize.go:24`; wrapped via `fmt.Errorf("%w: %s", ...)` at both JSON (:138) and text (:155) paths; `TestSessionSummarizeHardFailureReturnsSentinel` asserts `errors.Is`. Dry-run still exits 0 (`TestSessionSummarizeDryRunRefusalStillExitsZero`). |
+| **F-EXT-γ-3 HIGH** — `--label` D11 redaction-scrub | R3 `4111b04` | **CLOSED** | `RedactSessionLabelForStore` reuses the 10 D11 matchers; called at `session.go:196` BEFORE `SaveSession`. Drops entire label on any finding. `TestSessionStartLabelRedactsSecretShapedTokens` verifies the raw token is NOT present in persisted `session.json`. |
+| **F-EXT-γ-4 HIGH** — `record --from-session` early validation | R4 `eafb732` | **CLOSED** | Mutex check hoisted to `cobra.go:1015-1019`, IMMEDIATELY after `openStoreFromCmd`, BEFORE amend-orphan gate and every capture/write. `TestRecordFromSessionRefusalLeavesNoArtifacts` asserts `patches/*.patch` and `artifacts/post-apply.patch` are absent after refusal. |
+| **F-EXT-γ-5 HIGH** — refuse `closed→active` reopen | R5 `3e39091` | **CLOSED** | `session.go:165-176` probes `s.LoadSession(slug, id)` after ID computation; refuses on closed/promoted/purged with §3 D4 citation. Content-addressing intentionally preserved. Two regression tests (`TestSessionStartAfterCloseRefusesReopen`, `TestSessionStartAfterPromoteRefusesReopen`). |
+| **F-EXT-γ-6 MEDIUM** — `--promote` collapsed into `--write` | R6 `3b14a66` | **CLOSED** | `sessionSummarizeOpts.Promote` field removed; `--promote` flag removed from `session summarize`; `session_summarize.go:105-110` unconditionally transitions to `promoted` state when `wouldWrite`. `record --with-session` no longer passes `Promote: true`. Option (a) — no PRD amendment needed per §5 D9 rule 3 verbatim. |
+| **F-INT-γ-1 HIGH** — purge requires `--all` or `<slug>` | R6 `3b14a66` | **CLOSED** | `session.go:373-375` refuses when neither `--all` nor positional arg is present. `TestSessionPurgeRefusesNoSlugNoAll` asserts non-zero exit AND recursive size-hash of `.tpatch/` is byte-identical before/after (zero filesystem mutation). |
+| **F-INT-γ-2 LOW** — record ambiguity message | R6 `3b14a66` | **CLOSED** | `cobra.go:1573-1575` rewrites `--session` → `--from-session` at the record surface only. |
+| **F-INT-γ-3 LOW** — `RepositoryIdentity` distinct from `BaseCommit` | R6 `3b14a66` | **CLOSED** | `gitutil.FirstCommit` helper added (`git rev-list --max-parents=0 HEAD`); `session.go:135-138` uses it with `baseCommit` fallback for shallow/bare-init. Root commit stable across HEAD advancing and deterministic across clones. |
+| **F-INT-γ-4 LOW** — honest `tpatch init` gitignore verb | R6 `3b14a66` | **CLOSED** | `LocalIgnoreStatus` enum + `EnsureLocalGitignoreRuleStatus`; `cobra.go:138-150` switches on `AlreadyPresent`/`Appended`/`Created`. `TestInitReportsGitignoreStatusHonestly` (table-driven, all three cases). |
+
+### Rev-0 lesson audit (my own catch)
+
+`TestD6_AllWritersRefuse` at `internal/cli/session_d6_writers_rev1_test.go:124` is table-driven over EVERY Session-state-writing entry point in the CLI. I independently enumerated all `SaveSession` production call sites (`grep -n SaveSession internal/**/*.go`):
+- `store/session.go:252` — the sink (bottleneck).
+- `cli/session.go:200` — session start (table row `session-start`).
+- `cli/session.go:241` — session stop (table row `session-stop`).
+- `cli/session_summarize.go:108` — session summarize --write (table rows `session-summarize-write` AND `record-with-session`, since record routes through `runSessionSummarize` at `cobra.go:1577`).
+
+Test coverage = full production surface. Adding a NEW `SaveSession` caller anywhere inherits the D6 check by construction; adding a NEW writer surface bypassing `SaveSession` would silently escape the bottleneck (theoretically possible but requires a direct `os.WriteFile` to `session.json`, which would fail schema validation on load — a second architectural safety net).
+
+### Rule 20 empirical F-EXT-γ-1 reproduction (detached worktree)
+
+Fresh `mktemp` worktree, `git init` + first commit, `tpatch init`, `tpatch add bugfoo`, `tpatch session start bugfoo` (exit 0, cs_28c9df99ff46 created), `rm .gitignore`, then:
+
+```
+$ tpatch session stop bugfoo
+error: session stop: refusing to write local capture buffer: .tpatch/local/ ignore contract violated [path-not-ignored]
+  path: /Users/.../.tpatch/local/capture
+  detail: git check-ignore reports /Users/.../.tpatch/local/capture is not ignored
+[six-mandate enumeration, remediation, fallback path]
+exit=1
+```
+
+`session summarize --write` on the same empty-observation session refused via the D11 sentinel path (`ErrSessionRedactionRefusal`) — which fires BEFORE reaching the D6 bottleneck because there is nothing safe to promote. This is correct behavior (validate-before-mutate); the D6 bottleneck is proven live by the test rows that seed a safe observation. Both refusals exit non-zero.
+
+### New findings
+
+**None.** No high-confidence bugs, no security regressions, no concurrency issues, no missing error handling that could crash, no broken public API. The rev-1 architecture is genuinely stronger than rev-0: rev-0's per-command D6 audit is replaced by a package-level bottleneck plus a table-driven all-writers regression that will fail if a future contributor adds a new writer surface without routing through `Store.SaveSession`.
+
+### Non-blocking observation (not a note)
+
+`session.go:110-112` retains an explicit `workflow.EnsureLocalIgnoreContract` call before ID computation — redundant with the SaveSession bottleneck at `:200`. This is deliberate UX: surface the D6 refusal before the cs_ ID is even computed. Not a bug; not a regression.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
 ## Supervisor Decision — Wave γ rev-0 — 2026-07-30
 
 **Decision**: **BLOCKED — rev-1 dispatched with 10 findings folded.**
