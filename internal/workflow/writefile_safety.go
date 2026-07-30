@@ -202,24 +202,29 @@ type PreimagePrecheckResult struct {
 // mutation. ADR-029 D3 mandates all-or-nothing: if any precondition
 // fails, no operation from the recipe is written.
 //
-// v0.12.0 Wave β Slice 3: the same pass also runs a path-level later-
-// touch scan (PRD-write-file-recipe-safety §4.2). If any later feature
-// (per RequestedAt ordering) has recorded a touch on the same path,
-// the op is refused with an actionable message naming the later
-// feature. This is a Wave β tightening over ADR-029 D6's "warn-only"
-// baseline: per the Wave β dispatch, apply-time later-touch is
-// refusal-class so silent-revert scenarios (GH #1) are blocked even
-// when the operator regenerated the preimage against a stale base.
+// v0.12.0 Wave β Slice 3 + Rev-1 Slice R1: the same pass also runs a
+// path-level later-touch scan (PRD-write-file-recipe-safety §4.2). If
+// any later feature (per RequestedAt ordering) has recorded a touch on
+// the same path, the op is REPORTED AS A WARNING and execution
+// proceeds. This matches ADR-029 D6 verbatim ("Record-time later-touch
+// detection is warning-class in v1. Apply-time preimage mismatch is
+// refusal-class.") and PRD §7.2 open-question answer ("v1 blocks only
+// on preimage mismatch."). The Wave β rev-0 apply-time refusal path
+// was reverted in rev-1 (Slice R1) after the internal reviewer flagged
+// it as a Rule 19 shipped-surface change beyond the accepted contract;
+// see docs/supervisor/LOG.md Wave β internal (rev-0) F-B1.
 //
-// v0.12.0 Wave β Slice 4 (PRD-write-file-recipe-safety §3.4/§PRD-1-
-// interaction, ADR-029 D7): when the current feature is superseded
-// (per Wave α's isFeatureSupersededIn, healthy OR stale per §4.5.3),
-// BOTH the preimage-mismatch and later-touch drift severities
-// downgrade from hard-reject to warning-with-note. The checks still
-// run and the drift is still reported — the difference is severity
-// class: Warnings not Errors, so execution proceeds. This matches
-// PRD §PRD-1-interaction "downgrade-to-warning for superseded
-// historical drift, not total suppression".
+// v0.12.0 Wave β Slice 4 (PRD-write-file-recipe-safety §3.4 +
+// PRD-feature-supersession §4.5 "Reconcile interaction with write-file
+// safety", ADR-029 D7): when the current feature is superseded (per
+// Wave α's isFeatureSupersededIn, healthy OR stale per §4.5.3),
+// preimage-mismatch drift downgrades from hard-reject to warning-
+// with-note; later-touch drift already warns (per D6) and receives
+// the same downgrade suffix so its provenance stays auditable.
+// The checks still run and the drift is still reported — the
+// difference is severity class: Warnings not Errors, so execution
+// proceeds. This matches PRD-feature-supersession §4.5 "downgrade-to-
+// warning for superseded historical drift, not total suppression".
 func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePrecheckResult {
 	var out PreimagePrecheckResult
 	repoRoot := s.Root
@@ -265,23 +270,37 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 		// Later-touch detection runs regardless of the preimage
 		// outcome so the operator sees BOTH classes of drift in one
 		// shot rather than needing multiple apply attempts.
+		//
+		// Rev-1 Slice R1 (F-B1 fix): later-touch is warning-class at
+		// apply time per ADR-029 D6 verbatim + PRD §7.2 verbatim.
+		// Non-superseded → plain warning; superseded → warning with
+		// downgrade suffix so audit trail matches the preimage-
+		// mismatch superseded path (Slice 4 pattern).
 		if lt := checkLaterTouch(recipe.Feature, i, op, laterIdx); lt != "" {
-			out.appendDrift(lt, superseded, superseder)
+			out.appendLaterTouchWarn(lt, superseded, superseder)
 		}
 	}
 	return out
 }
 
-// appendDrift routes a drift-class message (preimage mismatch or
-// later-touch) into either Errors or Warnings based on the caller
-// feature's supersession status. When superseded, the drift is
-// suffixed with a "superseded by <slug>" note so operators (and
-// downstream audit tools) can trace the downgrade back to the
-// supersession edge without correlating separate logs.
+// appendDrift routes a preimage-mismatch drift-class message into
+// either Errors or Warnings based on the caller feature's supersession
+// status. When superseded, the drift is suffixed with a "superseded
+// by <slug>" note so operators (and downstream audit tools) can trace
+// the downgrade back to the supersession edge without correlating
+// separate logs.
 //
-// PRD §PRD-1-interaction: superseded historical features exhibit
-// "expected historical drift"; downgrade is severity-only, never a
-// bypass. ADR-029 D7 makes this concrete for write-file recipes.
+// PRD-feature-supersession §4.5 "Reconcile interaction with write-file
+// safety": superseded historical features exhibit "expected historical
+// drift"; downgrade is severity-only, never a bypass. ADR-029 D7 makes
+// this concrete for write-file recipes.
+//
+// Rev-1 Slice R1 (F-B1 fix): this router is used ONLY for preimage-
+// mismatch drift. Later-touch drift is warning-class at apply time
+// (ADR-029 D6 + PRD §7.2) and flows through `appendLaterTouchWarn`
+// instead — that keeps the D6/§7.2 contract intact while still
+// carrying the Slice 4 downgrade-suffix pattern when the feature is
+// superseded.
 func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, superseder string) {
 	if !superseded {
 		r.Errors = append(r.Errors, msg)
@@ -292,6 +311,32 @@ func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, supers
 	// The "superseded by" suffix mirrors the pattern used by Wave α's
 	// `superseded-by <slug>` derived label so operators recognize the
 	// signal as the supersession-coupling downgrade.
+	r.Warnings = append(r.Warnings,
+		fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
+			msg, superseder))
+}
+
+// appendLaterTouchWarn always routes later-touch drift into Warnings
+// per ADR-029 D6 verbatim ("Record-time later-touch detection is
+// warning-class in v1. Apply-time preimage mismatch is refusal-class.")
+// and PRD §7.2 verbatim ("v1 blocks only on preimage mismatch.").
+//
+// When the caller feature is superseded, the same downgrade suffix
+// used by appendDrift is attached so the audit trail is uniform
+// across the two drift classes (Slice 4 coupling contract). Even
+// though later-touch was never in Errors at rev-1, the "downgraded"
+// tag remains meaningful — a non-superseded later-touch is an
+// audit-warning of possible silent revert, while a superseded later-
+// touch is expected historical drift and can be treated as
+// informational.
+//
+// Introduced in rev-1 Slice R1 as part of the F-B1 revert of the
+// Wave β rev-0 apply-time later-touch refusal path.
+func (r *PreimagePrecheckResult) appendLaterTouchWarn(msg string, superseded bool, superseder string) {
+	if !superseded {
+		r.Warnings = append(r.Warnings, msg)
+		return
+	}
 	r.Warnings = append(r.Warnings,
 		fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
 			msg, superseder))
