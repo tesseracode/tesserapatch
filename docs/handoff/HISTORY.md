@@ -1,3 +1,74 @@
+# 2026-07-30 — v0.12.0 Wave β — write-file recipe safety — ACCEPTED
+
+**Range**: dispatch `a05a918` (Wave α consolidation) → rev-0 (`639efb2..0d25e75` 5 slices) → rev-0 handoff `7689c39` → rev-0 dual review (`9e8d2ba` internal BLOCKED, `fc261d1` supervisor-external APPROVE-with-INFO) → supervisor adjudication + rev-1 brief `e8d351f` → rev-1 (`ec98499..0072fb5` 6 slices R1–R6) → rev-1 dual review (`9eb2fcf` internal APPROVED WITH NOTES, `63d8650` supervisor-external APPROVE WITH NOTES CONCURRING) → user-external APPROVED WITH NOTES → consolidation (this HEAD).
+**Final HEAD covering shipped Wave β code**: `0072fb5`. LOG-only + consolidation on top.
+**Outcome**: Second of three v0.12.0 waves. Ships `preimage_hash: sha256:<64 lowercase hex>` field on `write-file` recipe ops + apply-time preimage precondition (refusal-class per ADR-029 D6) + later-touch detection (warn-class per ADR-029 D6 + PRD §7.2) at three sites — apply, record, reconcile — plus a new V10 verify check `write_file_preimage_fresh`. Couples to Wave α: superseded features downgrade drift severity from Error to Warning-with-note (PRD-feature-supersession §4.5 / ADR-029 D7). PRD-write-file-recipe-safety + ADR-029 flipped `Proposed → Accepted`.
+
+## Rev cycle summary
+
+**Rev-0** landed 6 commits (5 slices + handoff):
+- `639efb2` S1: `PreimageHash *string` on `RecipeOperation` (pointer distinguishes legacy nil from explicit new-file `""` per PRD §3.3); 6 shipped skill assets updated; `assets/assets_test.go` parity anchor added in the same commit (anti-drift lesson).
+- `329f009` S2: `internal/workflow/writefile_safety.go` with sentinels, canonical hash constants, `runWriteFilePreimagePrecheck` wired into `ExecuteRecipe` + `DryRunRecipe` (ADR-029 D3 all-or-nothing).
+- `c816769` S3: rev-0 tightened later-touch to REFUSE at apply time (rev-1 R1 later reverted).
+- `9af8de8` S4: `IsFeatureSuperseded` amortized-once-per-recipe supersession downgrade; path-safety NEVER downgrades (security invariant); 6 supersession tests.
+- `0d25e75` S5: CHANGELOG `## v0.12.0 — TBD` `### Wave β` subsection; PRD + ADR-029 flipped `Proposed → Accepted`.
+- `7689c39` handoff.
+
+**Rev-0 dual review SPLIT** (`9e8d2ba` internal BLOCKED, `fc261d1` supervisor-external APPROVE-with-INFO):
+- Internal caught 2 BLOCKING (F-B1 Slice 3 warn→refuse tightening beyond ADR-029 D6; F-B2 AC-7/8/9 unimplemented) + F-M1 MEDIUM (sentinels declared but never returned) + F-L1/L2 LOW.
+- Supervisor-external APPROVED, reading ADR-029 D6 as silent on apply-time later-touch.
+- **Supervisor adjudication** at `e8d351f`: internal reading authoritative. ADR-029 D6 says "Apply-time preimage mismatch is refusal-class" (silent on apply-time later-touch), BUT PRD §7.2 Q2 says verbatim "v1 blocks only on preimage mismatch." Combined ADR+PRD contract is unambiguous. External missed PRD §7.2's explicit answer. Lesson preserved: **cross-reference PRD before concluding ADR silence**.
+
+**Rev-1** landed 6 commits (Slices R1–R6):
+- `ec98499` R1: F-B1 CLOSED. `appendLaterTouchWarn` at `writefile_safety.go:366-378` unconditionally routes to Warnings; supersession-downgrade suffix preserved for Slice 4 audit-trail uniformity. Slice 3 tests renamed + inverted (`TestSlice3_LaterTouchWarnsAndProceeds` replaces `..._DetectsAndRefuses`).
+- `2b64176` R2: F-B2 AC-7 CLOSED. `DetectRecordLaterTouchWarnings` at `cobra.go:1498-1502` after `AppendPatchGenerationForFeature`; deterministic slug-sort; 5 regression tests.
+- `7597ddd` R3: F-B2 AC-8 CLOSED. `DetectReconcileLaterTouchWarningsByOwner` at `reconcile.go:200-234`; detector primitives shared with R2 (no duplication); attached to owner's `ReconcileResult.Notes`; 6 tests including Rule 20 end-to-end proof.
+- `d50a852` R4: F-B2 AC-9 CLOSED. New V10 const `CheckWriteFilePreimageFresh` at `verify.go:283-285, 847-905`; severity=block for effective, warn for superseded per ADR-029 D7; uses Wave α `IsFeatureSuperseded` helper. `stubChecksAfterAbort` extended to keep report shape stable (10 → 11 checks). 4 regression tests.
+- `4b5f8e5` R5: F-M1 CLOSED. Twin `WrappedErrors []error` + `WrappedWarnings []error` fields for backward compat; `appendDrift` + `appendLaterTouchWarn` wrap sentinels via `fmt.Errorf("%w: %s", ...)`; 4 regression tests exercise `errors.Is` matching.
+- `0072fb5` R6: F-L2 CLOSED. `§PRD-1-interaction` → `PRD-feature-supersession §4.5` across Go source, tests, CHANGELOG, and ROADMAP. Zero remaining in Go source. Also appended `#### Wave β rev-1 amendments` subsection to CHANGELOG.
+
+**Rev-1 dual review** — both APPROVED:
+- Internal `9eb2fcf`: APPROVED WITH NOTES. All 5 rev-0 findings CLOSED. New F-INT-β-r1-1 LOW: ROADMAP.md:615-617 Slice 3 description stale after R1 revert.
+- Supervisor-external `63d8650`: APPROVE WITH NOTES CONCURRING. All 5 CLOSED. Rule 20 rigor extension confirmed R4 test fails pre-rev-1 (`undefined: CheckWriteFilePreimageFresh`) via detached worktree. Independently confirmed F-INT-β-r1-1.
+
+**User-external** (rev-1, `a05a918..63d8650`): APPROVED WITH NOTES. New F1 MEDIUM (`tpatch verify` help stale V0-V9 claim — Rule 17 totality-claim violation + regression of the class fixed by v0.11.1 Slice 1) + F2 LOW (stale "remaining nine" comments in verify.go). Explicitly recommended fold-into-Wave-γ over rev-2 spin. Rule 20 empirical rigor: reproduced V10 report-shape consistency on both normal and V0-abort paths (11 checks each, ending in `write_file_preimage_fresh`).
+
+## Findings closure
+
+**5 rev-0 findings + 3 user-external consolidation findings = 8 total, all CLOSED**:
+- F-B1 (BLOCKING): CLOSED at R1 `ec98499`. Apply-time later-touch reverted to warn-class per ADR-029 D6 + PRD §7.2 verbatim.
+- F-B2 AC-7 (BLOCKING): CLOSED at R2 `2b64176`.
+- F-B2 AC-8 (BLOCKING): CLOSED at R3 `7597ddd`.
+- F-B2 AC-9 (BLOCKING): CLOSED at R4 `d50a852`.
+- F-M1 (MEDIUM): CLOSED at R5 `4b5f8e5`.
+- F-L1 (LOW): CLOSED at rev-1 handoff (docstring correction).
+- F-L2 (LOW): CLOSED at R6 `0072fb5`.
+- F1 (MEDIUM, user-external): CLOSED at consolidation — verify help + doc comments updated V0-V9 → V0-V10.
+- F2 (LOW, user-external): CLOSED at consolidation — "remaining nine" → "remaining ten" ×2.
+- F-INT-β-r1-1 (LOW, both rev-1 reviewers): CLOSED at consolidation — ROADMAP.md:615-617 reflects R1 warn-class revert with ADR-029 D6 + PRD §7.2 citation.
+
+## Diffstat
+
+Wave β total (`a05a918..HEAD`): 14 code files + docs, +1725 insertions -162 deletions. Wave α files (`labels.go`, `validation.go`, `status_dag.go`) BYTE-IDENTICAL end-to-end since dispatch — non-invalidation confirmed.
+
+## Test counts
+
+- Baseline (v0.11.3 → Wave α acceptance): 129 top-level PASS.
+- Wave β rev-0: 806 top-level PASS.
+- Wave β rev-1: 826 top-level PASS (+20 rev-1, satisfies +10-15 gate).
+
+## Two-opinion protocol scoreboard
+
+20th cycle at three-way concurrence. Wave β rev-0 was the FIRST supervisor-external miss in this session (external APPROVED where PRD §7.2 explicitly answered the question internal caught). Adjudication reinforced pattern: **cross-reference PRD before concluding ADR silence**.
+
+## Deferred / follow-up
+
+- AGENTS.md wave-close Status flip checklist addition (F1 LOW recurring pattern flagged across Streams A+B + Wave α + Wave β — systematic gap).
+- CHANGELOG `## v0.12.0 — TBD` graduation to dated header deferred to post-Wave γ ship.
+- ADR-027 F2, Doctor S3-boundary, ADR-029 nit deferrals unchanged.
+
+---
+
 # 2026-07-29 — v0.12.0 Wave α — feature supersession — ACCEPTED
 
 **Range**: dispatch `7081c62` → rev-0 (`48399f4..480f90a` 6 commits) → rev-0 dual review (`4dc6c5d` supervisor-external NEEDS REVISION, `0aa6b81` internal APPROVED WITH NOTES) → rev-1 brief (`d21b4b4`) → rev-1 (`5e6515d..e5e0091` 5 commits) → rev-1 dual review (`763b926`) → consolidation.

@@ -3,23 +3,24 @@ package workflow
 // Freshness-overlay verify pipeline (PRD-verify-freshness, ADR-013).
 //
 // Slice A shipped V0-V2 as the initial real checks; Slice C completed
-// V3-V9 as real implementations. Current state:
+// V3-V9 as real implementations; Wave β rev-1 added V10. Current state:
 //
 //   - `tpatch verify <slug>` cobra shell wires through `RunVerify`.
-//   - V0-V9 all execute as real checks (status_loaded, intent_files_present,
+//   - V0-V10 all execute as real checks (status_loaded, intent_files_present,
 //     recipe_parses, recipe_op_targets_resolve, dep_metadata_valid,
 //     satisfied_by_reachable, dependency_gate_satisfied, closure_replay
-//     hard-parent closure, closure_replay patch-replay, and
-//     reconcile_outcome_consistent). Individual checks may still report
-//     `passed: true, skipped: true` when their documented preconditions
-//     are absent (e.g., V8 when no `post-apply.patch` exists on disk).
+//     hard-parent closure, closure_replay patch-replay,
+//     reconcile_outcome_consistent, and write_file_preimage_fresh).
+//     Individual checks may still report `passed: true, skipped: true`
+//     when their documented preconditions are absent (e.g., V8 when no
+//     `post-apply.patch` exists on disk).
 //   - The persisted `Verify` record carries only `verified_at`, `passed`,
 //     `recipe_hash_at_verify`, `patch_hash_at_verify`, `parent_snapshot`
 //     (Reviewer Note 1, M15-W3 APPROVED WITH NOTES at 3c122aa). The full
 //     check array is built in-memory and emitted on `--json` stdout so
 //     the report shape stays byte-stable for harness consumers.
 //   - When V0 (status_loaded) aborts, `stubChecksAfterAbort` populates
-//     the remaining nine entries with `passed: true, skipped: true` so
+//     the remaining ten entries with `passed: true, skipped: true` so
 //     the JSON report shape remains stable even without a status.json.
 //     This is an abort-path shape helper, not a stub of a real check.
 //   - `ComposeLabels` freshness-derivation lives in the freshness overlay
@@ -186,7 +187,7 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 			Passed:      false,
 			Remediation: fmt.Sprintf("could not load status.json: %v", err),
 		})
-		// Append the remaining nine abort-path shape entries so the JSON
+		// Append the remaining ten abort-path shape entries so the JSON
 		// report stays byte-stable when V0 aborts.
 		for _, c := range stubChecksAfterAbort() {
 			report.Checks = append(report.Checks, c)

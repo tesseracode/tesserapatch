@@ -1,3 +1,62 @@
+## Review — Wave β (v0.12.0 write-file safety) — user-external (rev-1) — 2026-07-30
+
+**Reviewer**: user-external, parallel pass on rev-1 concurrent with internal `9eb2fcf` + supervisor-external `63d8650`.
+**Range reviewed**: full Wave β `a05a918..63d8650` (rev-0 + rev-1 + both dual reviews inclusive).
+
+### Verdict: APPROVED WITH NOTES
+
+### Findings
+
+- **F1 — MEDIUM — `tpatch verify` help stale V0-V9 totality claim.** Adding V10 (`write_file_preimage_fresh`) at Slice R4 landed check-count consistency (`stubChecksAfterAbort` extended, JSON report empirically 11 entries on both normal and V0-abort paths), the CHANGELOG discloses V10, but the user-facing help text at `internal/cli/verify.go:52-53` still reads "V0-V9 all execute as real checks (status_loaded through reconcile_outcome_consistent)" and doc comments at `internal/cli/verify.go:20,24,28` still say "all ten checks (V0-V9)". Rule 17 totality-claim violation and regression of the class fixed by v0.11.1 Slice 1 for the same file.
+- **F2 — LOW — stale internal comments.** `internal/workflow/verify.go:22,189` still reference "the remaining nine entries" while the helper now emits ten. Non-user-facing but contradicts adjacent code.
+- **Observation — rev-1 unpushed.** `origin/main` at `e8d351f`, HEAD 8 commits ahead. Same pattern flagged on Wave α; Wave γ dispatch requires push first.
+
+### Rule 20 empirical rigor
+
+Reviewer independently reproduced:
+1. Report-shape consistency: built binary + ran `verify demo --json` (normal) and `verify ghost --json` (V0-abort). Both emit **11 checks ending in `write_file_preimage_fresh`**. `stubChecksAfterAbort` correctly extended.
+2. Full-suite: **192 passed / 0 failed**.
+
+### Substantive confirmations
+
+- Supervisor D6 adjudication at `e8d351f` correct: shipping rev-0's later-touch refusal-class tightening would have broken applies the ADR-029 D6 + PRD §7.2 accepted contract permits.
+- F-B1 CLOSED: `appendLaterTouchWarn` at `writefile_safety.go:366-378` unconditionally routes to Warnings; ADR-029 D6 + PRD §7.2 cited at decision points.
+- F-B2 CLOSED (all three ACs wired, not merely defined): AC-7 record-time at cobra.go, AC-8 reconcile-time at reconcile.go, AC-9 V10 verify check at verify.go.
+- F-M1 CLOSED: sentinels wrapped with `%w`, `errors.Is` matching works.
+
+### Action Taken
+
+Supervisor at consolidation: fixed F1 + F2 + F-INT-β-r1-1 (ROADMAP:615-617 stale Slice 3) in a single doc-and-help-text commit, archived Wave β to HISTORY, dispatched Wave γ. User-external explicitly recommended fold-into-Wave-γ-brief over rev-2 spin, so no rev-2.
+
+## Supervisor Decision — Wave β (v0.12.0 write-file safety) — 2026-07-30
+
+**Decision**: ACCEPTED at three-way concurrence (20th scoreboard entry).
+
+**Concurrence set**:
+- Internal rev-1 `9eb2fcf`: APPROVED WITH NOTES — all 5 rev-0 findings CLOSED; F-INT-β-r1-1 LOW (ROADMAP:615-617 stale).
+- Supervisor-external rev-1 `63d8650`: APPROVE WITH NOTES CONCURRING — all 5 CLOSED, independently confirmed F-INT-β-r1-1; Rule 20 rigor extension (detached-worktree pre-fix compile-fail check on `undefined: CheckWriteFilePreimageFresh`).
+- User-external `a05a918..63d8650`: APPROVED WITH NOTES — new F1 MEDIUM verify V0-V9 help, F2 LOW stale comments; explicitly recommended fold-into-Wave-γ over rev-2.
+
+**Consolidation fold-in (this commit)**:
+- `internal/cli/verify.go`: V0-V9 → V0-V10 (help text + 2 doc comments + check-count 10 → 11).
+- `internal/workflow/verify.go`: "V0-V9" → "V0-V10" doc header; "remaining nine" → "remaining ten" ×2.
+- `docs/ROADMAP.md:615-617`: Slice 3 description reflects R1 warn-class revert with ADR-029 D6 + PRD §7.2 citation.
+
+Gates re-verified after doc fold-in: `gofmt -l .` empty, `go vet ./...` clean, `go build ./cmd/tpatch` clean, full test suite pass. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+**Two-opinion protocol scoreboard**: 20/20 final-acceptance three-way concurrence going into Wave γ. Wave β rev-0 was the FIRST supervisor-external miss (external APPROVED where PRD §7.2 explicitly answered the question internal caught). Adjudication lesson preserved in dispatch playbook: cross-reference PRD before concluding ADR silence.
+
+**Action Taken**:
+1. Prepended user-external verdict + supervisor decision to LOG.md (this entry).
+2. Fixed F1 + F2 + F-INT-β-r1-1 in code + docs.
+3. Archived Wave β `a05a918..HEAD` to `docs/handoff/HISTORY.md`.
+4. Flipped `docs/ROADMAP.md` v0.12.0 Wave β 🚧 → ✅ ACCEPTED; Wave γ ⬜ → 🚧 dispatched.
+5. Reset `docs/handoff/CURRENT.md` for Wave γ (active-feature-session) with Side Research verbatim.
+6. Pushed all local commits.
+7. Dispatched Wave γ implementer.
+
+---
+
 ## Review — Wave β (v0.12.0 write-file safety) — internal (rev-1) — 2026-07-29
 
 **Reviewer**: internal fresh-eyes pass, rev-1 fold-in of the 5 rev-0 findings (F-B1, F-B2 AC-7/8/9, F-M1, F-L1, F-L2).

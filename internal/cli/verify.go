@@ -17,15 +17,15 @@ import (
 // `--shadow` flag remains explicitly rejected by the design.
 //
 // Behaviour:
-//   - Runs all ten checks (V0-V9) as real checks: status_loaded,
+//   - Runs all eleven checks (V0-V10) as real checks: status_loaded,
 //     intent_files_present, recipe_parses, recipe_op_targets_resolve,
 //     dep_metadata_valid, satisfied_by_reachable,
 //     dependency_gate_satisfied, recipe_replay_clean,
-//     post_apply_patch_replay_clean, and reconcile_outcome_consistent.
-//     Individual checks may still report skipped when their documented
-//     preconditions are absent. Slice A shipped V0-V2 first; Slice C
-//     added V3-V9.
-//   - On `--json`, emits the full report (all 10 checks) on stdout. The
+//     post_apply_patch_replay_clean, reconcile_outcome_consistent, and
+//     write_file_preimage_fresh. Individual checks may still report
+//     skipped when their documented preconditions are absent. Slice A
+//     shipped V0-V2 first; Slice C added V3-V9; Wave β rev-1 added V10.
+//   - On `--json`, emits the full report (all 11 checks) on stdout. The
 //     persisted `Verify` record carries only the trimmed field set
 //     (Reviewer Note 1, M15-W3 APPROVED WITH NOTES at 3c122aa).
 //   - `--no-write` runs every check but does NOT persist. Useful for
@@ -49,8 +49,8 @@ func verifyCmd() *cobra.Command {
 		Short: "Run integrity checks against a feature's recipe and dependencies (freshness overlay)",
 		Long: `tpatch verify runs static dependency checks and dynamic
 recipe/patch replay checks against a feature, then writes a
-freshness-overlay record to status.json. V0-V9 all execute as real checks
-(status_loaded through reconcile_outcome_consistent); individual checks
+freshness-overlay record to status.json. V0-V10 all execute as real checks
+(status_loaded through write_file_preimage_fresh); individual checks
 may still report skipped when their documented preconditions are absent.
 The lifecycle state is never mutated — verify is a freshness overlay, not
 a state transition (ADR-013 D1).`,

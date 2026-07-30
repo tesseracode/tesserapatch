@@ -594,8 +594,15 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     `d21b4b4` → rev-1 `5e6515d..e5e0091` → rev-1 dual review `763b926`.
     Final code HEAD: `e5e0091`. Test count 129 (baseline 99 at v0.11.3).
 
-- **Wave β — `write-file` recipe safety** ✅ (implementer accepted 2026-07-29;
-  awaiting three-way reviewer concurrence)
+- **Wave β — `write-file` recipe safety** ✅ ACCEPTED (three-way concurrent
+  APPROVED rev-1 2026-07-30; rev-0 dual review split — internal BLOCKED
+  on F-B1/F-B2 vs supervisor-external APPROVED-with-INFO; supervisor
+  adjudicated with verbatim ADR-029 D6 + PRD §7.2 text and sided with
+  internal reading; rev-1 folded 2 BLOCKING + 1 MEDIUM + 2 LOW plus the
+  user-external Wave β verdict 3 additional doc corrections at
+  consolidation — F1 MEDIUM `tpatch verify` help stale V0-V9 claim,
+  F2 LOW stale "remaining nine" comments, F-INT-β-r1-1 LOW ROADMAP:615
+  Slice 3 description)
   - `preimage_hash` + later-touch per
     [`PRD-write-file-recipe-safety`](prds/PRD-write-file-recipe-safety.md)
     and [`ADR-029`](adrs/ADR-029-write-file-recipe-safety.md).
@@ -612,9 +619,10 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     stderr with `⚠` prefix.
   - Slice 3 — path-level later-touch detection using PRD §4.2's
     preferred deterministic artifact (`patch-generations.json.
-    touched_paths`) with recipe-op-path fallback; apply-time
-    refusal-class (Wave β tightening over ADR-029 D6's warn baseline
-    per Wave β dispatch); deterministic slug ordering (PRD §5 note 4).
+    touched_paths`) with recipe-op-path fallback; **apply-time
+    warn-class per ADR-029 D6 and PRD §7.2** (rev-1 R1 reverted the
+    rev-0 refusal-class tightening after supervisor adjudication);
+    deterministic slug ordering (PRD §5 note 4).
   - Slice 4 — supersession coupling per PRD-feature-supersession §4.5 /
     ADR-029 D7: superseded features downgrade drift severity from
     Error to Warning-with-note while STILL reporting drift; inherits
@@ -625,7 +633,7 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     Proposed→Accepted, ADR-029 Proposed→Accepted, ADR README
     status column update.
 
-- **Wave γ — active-feature-session** ⬜ (deferred to post-Wave β acceptance)
+- **Wave γ — active-feature-session** 🚧 (dispatched 2026-07-30 post-Wave β acceptance)
   - `tpatch session` command group + `.tpatch/local/capture/` per
     [`PRD-active-feature-session`](prds/PRD-active-feature-session.md)
     and [`ADR-027`](adrs/ADR-027-active-feature-session.md).
