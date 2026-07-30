@@ -611,16 +611,44 @@ func DetectRecordLaterTouchWarnings(s *store.Store, slug string) []string {
 // Warning-class per ADR-029 D6 (record- and reconcile-time both warn;
 // only apply-time preimage mismatch refuses per PRD §7.2).
 //
-// Determinism: output is grouped by owning (older) slug in alphabetical
-// order, then by path, then by newer slug. When multiple newer
-// features touched the same path, only the alphabetically-first is
-// named (matches Slice 3 tie-break).
+// Returns a flat slice of deterministic warning strings, one per
+// (owner, path, newer) triple. Group order: owner slug alphabetical,
+// then path alphabetical. When multiple newer features touched the
+// same owner path, only the alphabetically-first newer is named
+// (matches Slice 3 tie-break pattern).
 //
 // `slugs` is the effective replay set as computed by RunReconcile (the
 // applied/active default set after supersession filtering, or the
 // caller-provided explicit set). Returns nil on empty input or no
 // overlaps.
 func DetectReconcileLaterTouchWarnings(s *store.Store, slugs []string) []string {
+	byOwner := detectReconcileLaterTouchByOwner(s, slugs)
+	if len(byOwner) == 0 {
+		return nil
+	}
+	owners := make([]string, 0, len(byOwner))
+	for o := range byOwner {
+		owners = append(owners, o)
+	}
+	sort.Strings(owners)
+	var out []string
+	for _, o := range owners {
+		out = append(out, byOwner[o]...)
+	}
+	return out
+}
+
+// DetectReconcileLaterTouchWarningsByOwner returns the reconcile-time
+// (AC-8) later-touch warnings grouped by their owning (older) feature
+// slug, so callers can attach warnings to the correct per-feature
+// ReconcileResult.Notes without post-hoc parsing. Per-owner ordering
+// matches DetectReconcileLaterTouchWarnings (path alphabetical, then
+// alphabetically-first newer per path).
+func DetectReconcileLaterTouchWarningsByOwner(s *store.Store, slugs []string) map[string][]string {
+	return detectReconcileLaterTouchByOwner(s, slugs)
+}
+
+func detectReconcileLaterTouchByOwner(s *store.Store, slugs []string) map[string][]string {
 	if len(slugs) == 0 {
 		return nil
 	}
@@ -628,20 +656,13 @@ func DetectReconcileLaterTouchWarnings(s *store.Store, slugs []string) []string 
 	if err != nil || len(features) == 0 {
 		return nil
 	}
-	// Index features by slug for quick RequestedAt lookup.
 	feats := map[string]store.FeatureStatus{}
 	for _, f := range features {
 		feats[f.Slug] = f
 	}
-	set := map[string]bool{}
-	for _, sl := range slugs {
-		set[sl] = true
-	}
-	// Sort input slugs alphabetically so per-owner output order is
-	// stable regardless of the caller's slug order.
 	sortedSlugs := append([]string(nil), slugs...)
 	sort.Strings(sortedSlugs)
-	var warnings []string
+	out := map[string][]string{}
 	for _, older := range sortedSlugs {
 		fo, ok := feats[older]
 		if !ok || fo.RequestedAt == "" {
@@ -655,9 +676,6 @@ func DetectReconcileLaterTouchWarnings(s *store.Store, slugs []string) []string 
 		for _, p := range wf {
 			wfSet[p] = true
 		}
-		// For each other feature in the effective set: if it is NEWER
-		// than `older` and touched any of older's write-file paths,
-		// record the overlap.
 		perPath := map[string]string{}
 		for _, newer := range sortedSlugs {
 			if newer == older {
@@ -691,12 +709,14 @@ func DetectReconcileLaterTouchWarnings(s *store.Store, slugs []string) []string 
 			paths = append(paths, p)
 		}
 		sort.Strings(paths)
+		msgs := make([]string, 0, len(paths))
 		for _, p := range paths {
 			newer := perPath[p]
-			warnings = append(warnings,
+			msgs = append(msgs,
 				fmt.Sprintf("later-touch warning: [%s] owns write-file %s but later feature %q touched this path; replaying %s's write-file would silently revert %q — plan the merge before executing (PRD-write-file-recipe-safety §4.2, ADR-029 D6)",
 					older, p, newer, older, newer))
 		}
+		out[older] = msgs
 	}
-	return warnings
+	return out
 }

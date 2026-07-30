@@ -198,6 +198,14 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 		deriveIncrementalPatches(s, slugs, upstreamCommit)
 	}
 
+	// v0.12.0 Wave β rev-1 Slice R3 (PRD-write-file-recipe-safety
+	// AC-8 + §4.2 "During reconcile", ADR-029 D6): scan the
+	// effective replay set for later-touch overlaps and attach the
+	// resulting warnings to each owner's ReconcileResult.Notes.
+	// Warning-class per D6; reconcile does not refuse based on this
+	// signal (PRD §7.2 "v1 blocks only on preimage mismatch").
+	laterTouchByOwner := DetectReconcileLaterTouchWarningsByOwner(s, slugs)
+
 	for _, slug := range slugs {
 		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts)
 		if err != nil {
@@ -217,6 +225,13 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 			result.Notes = append([]string{
 				fmt.Sprintf("historical-feature warning: %s is superseded by %s (active superseder). Default replay excludes it; this run was requested explicitly for audit/repair (ADR-028 D6, PRD §3.3).", slug, superseder),
 			}, result.Notes...)
+		}
+		// v0.12.0 Wave β rev-1 Slice R3: attach later-touch warnings
+		// owned by this slug. Notes are prepended so they appear
+		// alongside the historical-feature warning at the top of the
+		// result rather than after phase-specific noise.
+		if lts, ok := laterTouchByOwner[slug]; ok && result != nil && len(lts) > 0 {
+			result.Notes = append(append([]string(nil), lts...), result.Notes...)
 		}
 		results = append(results, *result)
 	}
