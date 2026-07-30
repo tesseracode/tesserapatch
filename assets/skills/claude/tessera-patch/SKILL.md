@@ -316,9 +316,14 @@ When they disagree — e.g. the recipe's `replace-in-file` can no longer find it
 | `tpatch config show\|set` | Manage configuration |
 | `tpatch cycle <slug>` | Run analyze→define→explore→implement→apply→record in sequence. Add `--interactive` to pause between phases |
 | `tpatch test <slug>` | Run the configured `test_command` and record the pass/fail outcome |
-| `tpatch verify <slug>` | Run V0-V9 integrity checks against a feature's recipe and dependencies (freshness overlay) |
+| `tpatch verify <slug>` | Run V0-V10 integrity checks against a feature's recipe and dependencies (freshness overlay) |
 | `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]` | Diagnose tpatch metadata drift (D1-D8, including D6 release drift via local --release-metadata snapshots) |
 | `tpatch next <slug>` | Emit the next logical action. `--format harness-json` for structured JSON |
+| `tpatch session start <slug>` | Start an active session for a feature (writes to `.tpatch/local/capture/<slug>/<cs_id>/`) |
+| `tpatch session stop <slug>` | Close an active session (no committed writes) |
+| `tpatch session list [<slug>]` | List local sessions (add `--json` for deterministic output) |
+| `tpatch session summarize <slug>` | Preview/write a redacted committed summary (opt-in promotion via `--write --promote`) |
+| `tpatch session purge [<slug>]` | Delete local session buffers (dry-run by default; `--yes` to confirm) |
 
 ## .tpatch/ Structure
 
@@ -351,6 +356,31 @@ requested → analyzed → defined → implementing → applied → active
                                                      ↓ (with --resolve)
                                                reconciling-shadow → (accept) applied / (reject) active / blocked-requires-human
 ```
+
+## Local session buffers (v0.12.0)
+
+`tpatch session` manages **feature-scoped local capture buffers** for
+work-in-progress context. These buffers live in `.tpatch/local/capture/<slug>/<cs_id>/`
+(PRD-active-feature-session §4 D5, ADR-027 D1). The `.tpatch/local/` path is
+LOCAL private state — not a committed artifact — and `tpatch init` appends
+`.tpatch/local/` to `.gitignore` so buffers never accidentally land in a commit.
+
+Six-mandate refusal contract (PRD §4 D6):
+
+1. `tpatch init` installs the `.tpatch/local/` `.gitignore` rule.
+2. If `.gitignore` cannot be edited, init refuses and prints the exact rule.
+3. `tpatch session start` verifies the concrete path is effectively ignored before the first write.
+4. Refuse when Git is unavailable OR the path is not ignored.
+5. Verification uses `git check-ignore` (effective), NOT textual `.gitignore` matching.
+6. Pre-PRD workspaces: writers prompt/refuse until (1)-(5) hold; fallback path is `.git/tpatch/capture/`.
+
+Promotion of a redacted summary to the committed lane at
+`.tpatch/features/<slug>/artifacts/context/<ctx_id>.json` is EXPLICIT and
+OPT-IN (`tpatch session summarize --write --promote`, or
+`tpatch record <slug> --with-session`). Raw session bodies NEVER cross the
+local→committed boundary — only redacted summaries do (PRD §5 D11).
+Sessions are FEATURE-scoped: a session for feature A cannot observe feature
+B's buffer (PRD §7 D18).
 
 ## Safety
 

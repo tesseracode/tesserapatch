@@ -62,11 +62,36 @@ Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile con
 - `tpatch config show|set` — Manage config
 - `tpatch cycle <slug>` — Run analyze→define→explore→implement→apply→record in sequence (batch or `--interactive`)
 - `tpatch test <slug>` — Run the configured `test_command` and record the outcome
-- `tpatch verify <slug>` — Run V0-V9 integrity checks against a feature's recipe and dependencies (freshness overlay)
+- `tpatch verify <slug>` — Run V0-V10 integrity checks against a feature's recipe and dependencies (freshness overlay)
 - `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]` — Diagnose tpatch metadata drift (D1-D8, including D6 release drift via local --release-metadata snapshots)
 - `tpatch next <slug>` — Emit the next action for a feature (`--format harness-json` for structured consumption)
 - `tpatch feature patch refresh <slug>` — Refresh the current feature patch; optional `--reason` is stored in patch-generations.json.
 - `tpatch feature patch fixup <slug> --reason "..."` — Append an explicit fixup generation; the target generation is auto-derived from the manifest.
+- `tpatch session start <slug>` — Start a feature-scoped local session under `.tpatch/local/capture/<slug>/<cs_id>/` (PRD-active-feature-session §4 D5).
+- `tpatch session stop <slug>` — Close an active session (state `active` → `closed`; no committed writes).
+- `tpatch session list [<slug>]` — List local sessions; `--json` for deterministic output sorted by (feature, cs_id).
+- `tpatch session summarize <slug>` — Preview/write a redacted committed summary; add `--write --promote` to publish and mark the source session `promoted`.
+- `tpatch session purge [<slug>]` — Delete local session buffers; dry-run by default, requires `--yes` to confirm.
+
+## Local session buffers (v0.12.0)
+
+`tpatch session` manages feature-scoped local capture buffers.
+`.tpatch/local/capture/` is LOCAL private state — never committed. `tpatch init`
+appends `.tpatch/local/` to `.gitignore` per PRD-active-feature-session §4 D6
+mandate 1 + ADR-027 D1. Six-mandate refusal contract at PRD §4 D6:
+
+1. `tpatch init` installs the `.tpatch/local/` `.gitignore` rule.
+2. If `.gitignore` cannot be edited, init refuses and prints the rule.
+3. `session start` verifies the concrete path is effectively ignored before the first write.
+4. Refuse when Git is unavailable OR the path is not ignored.
+5. Verification uses `git check-ignore` (effective), NOT textual `.gitignore` matching.
+6. Pre-PRD workspaces: writers prompt/refuse until (1)-(5) hold; fallback path is `.git/tpatch/capture/`.
+
+Promotion (raw session → committed redacted summary at
+`.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`) is EXPLICIT and OPT-IN
+(PRD §5 D9). Raw session bodies NEVER cross the local→committed boundary — only
+redacted summaries (PRD §5 D11). Sessions are feature-scoped: a session for
+feature A cannot observe feature B's buffer (PRD §7 D18).
 
 ## Lifecycle
 

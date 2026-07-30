@@ -75,9 +75,34 @@ Run `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metada
 - `tpatch config show|set` — Manage configuration
 - `tpatch cycle <slug>` — Full lifecycle in one command (add `--interactive` for prompts)
 - `tpatch test <slug>` — Run the configured `test_command` and record the result
-- `tpatch verify <slug>` — Run V0-V9 integrity checks against a feature's recipe and dependencies (freshness overlay)
+- `tpatch verify <slug>` — Run V0-V10 integrity checks against a feature's recipe and dependencies (freshness overlay)
 - `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]` — Diagnose tpatch metadata drift (D1-D8, including D6 release drift via local --release-metadata snapshots)
 - `tpatch next <slug>` — Emit the next action (use `--format harness-json` for structured output)
+- `tpatch session start <slug>` — Start a feature-scoped local session under `.tpatch/local/capture/<slug>/<cs_id>/`
+- `tpatch session stop <slug>` — Close an active session (state `active` → `closed`; no committed writes)
+- `tpatch session list [<slug>]` — List local sessions (`--json` for deterministic output)
+- `tpatch session summarize <slug>` — Preview/write a redacted committed summary (`--write --promote` to publish)
+- `tpatch session purge [<slug>]` — Delete local session buffers (dry-run default; `--yes` to confirm)
+
+## Local session buffers (v0.12.0)
+
+`tpatch session` manages feature-scoped local capture buffers.
+`.tpatch/local/capture/` is LOCAL private state — never committed. `tpatch init`
+appends `.tpatch/local/` to `.gitignore` per PRD-active-feature-session §4 D6
+mandate 1 + ADR-027 D1. Six-mandate refusal contract at PRD §4 D6:
+
+1. `tpatch init` installs the `.tpatch/local/` `.gitignore` rule.
+2. If `.gitignore` cannot be edited, init refuses and prints the rule.
+3. `session start` verifies the concrete path is effectively ignored before writes.
+4. Refuse when Git is unavailable OR the path is not ignored.
+5. Verification uses `git check-ignore` (effective), NOT textual `.gitignore` matching.
+6. Pre-PRD workspaces: writers prompt/refuse until (1)-(5) hold; fallback path is `.git/tpatch/capture/`.
+
+Promotion (local raw session → committed redacted summary at
+`.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`) is EXPLICIT and OPT-IN
+per PRD §5 D9. Raw session bodies NEVER cross the local→committed boundary; only
+redacted summaries do (PRD §5 D11). Sessions are feature-scoped; a session for
+feature A cannot observe feature B's buffer (PRD §7 D18).
 
 ## Data Location
 

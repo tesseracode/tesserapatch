@@ -374,10 +374,16 @@ func (s *Store) PurgeSession(slug, sessionID string) error {
 		return err
 	}
 	// Evaluate symlinks on the resolved path — a nested symlink escape
-	// is caught here.
+	// is caught here. Resolve the base too so platforms where the temp
+	// tree lives under a symlink prefix (e.g. macOS `/var/folders` ->
+	// `/private/var/folders`) do not spuriously trip the escape guard.
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err == nil {
-		if err := safety.EnsureSafeRepoPath(s.LocalCaptureDir(), resolved); err != nil {
+		resolvedBase, baseErr := filepath.EvalSymlinks(s.LocalCaptureDir())
+		if baseErr != nil {
+			resolvedBase = s.LocalCaptureDir()
+		}
+		if err := safety.EnsureSafeRepoPath(resolvedBase, resolved); err != nil {
 			return fmt.Errorf("purge refuses symlink-escape path: %w", err)
 		}
 	}

@@ -33,6 +33,11 @@ var requiredCommands = []string{
 	"tpatch feature patch fixup",
 	"tpatch doctor",
 	"tpatch next",
+	"tpatch session start",
+	"tpatch session stop",
+	"tpatch session list",
+	"tpatch session summarize",
+	"tpatch session purge",
 }
 
 // Required anchor strings that must appear VERBATIM in every skill
@@ -88,7 +93,16 @@ var requiredAnchors = []struct {
 	// unique to this schema addition across all six surfaces. Anti-drift
 	// lesson from Wave α rev-0 F-SEXT-2: the schema change and the
 	// parity anchor MUST land in the same commit.
-	{"write-file-safety/preimage-hash-field", "preimage_hash"},
+	// Wave γ (v0.12.0, PRD-active-feature-session §4 D6 + ADR-027 D1):
+	// every shipped skill surface must mention the local-buffer
+	// storage lane `.tpatch/local/capture/` and the .gitignore rule
+	// `.tpatch/local/` so harness agents learn (a) sessions are
+	// FEATURE-scoped local buffers, (b) the buffer path MUST be
+	// gitignored before writes, and (c) `tpatch init` installs the
+	// rule. Substring match on each anchor is sufficient — both
+	// strings are unique to Wave γ across all six surfaces.
+	{"session-local-capture/root", ".tpatch/local/capture/"},
+	{"session-local-capture/gitignore-rule", ".tpatch/local/"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching

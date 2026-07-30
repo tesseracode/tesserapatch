@@ -76,7 +76,29 @@ Run `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metada
 
 ## Available Commands
 
-`tpatch init`, `tpatch add`, `tpatch status`, `tpatch analyze`, `tpatch define`, `tpatch explore`, `tpatch implement`, `tpatch apply`, `tpatch record`, `tpatch land`, `tpatch reconcile`, `tpatch reconcile confirm-upstreamed`, `tpatch reconcile audit-retirement`, `tpatch provider check`, `tpatch config show|set`, `tpatch cycle`, `tpatch test`, `tpatch verify` (freshness overlay: V0-V9 checks), `tpatch feature patch refresh`, `tpatch feature patch fixup`, `tpatch doctor`, `tpatch next`
+`tpatch init`, `tpatch add`, `tpatch status`, `tpatch analyze`, `tpatch define`, `tpatch explore`, `tpatch implement`, `tpatch apply`, `tpatch record`, `tpatch land`, `tpatch reconcile`, `tpatch reconcile confirm-upstreamed`, `tpatch reconcile audit-retirement`, `tpatch provider check`, `tpatch config show|set`, `tpatch cycle`, `tpatch test`, `tpatch verify` (freshness overlay: V0-V10 checks), `tpatch feature patch refresh`, `tpatch feature patch fixup`, `tpatch doctor`, `tpatch next`, `tpatch session start`, `tpatch session stop`, `tpatch session list`, `tpatch session summarize`, `tpatch session purge`
+
+## Local session buffers (v0.12.0)
+
+`tpatch session` manages feature-scoped local capture buffers under
+`.tpatch/local/capture/<slug>/<cs_id>/` (PRD-active-feature-session §4 D5,
+ADR-027 D1). `.tpatch/local/` is LOCAL private state — never committed.
+`tpatch init` appends `.tpatch/local/` to `.gitignore` per PRD §4 D6 mandate 1.
+
+Six-mandate refusal contract at PRD §4 D6:
+
+1. `tpatch init` installs the `.tpatch/local/` `.gitignore` rule.
+2. If `.gitignore` cannot be edited, init refuses and prints the rule.
+3. `session start` verifies the concrete path is effectively ignored before writes.
+4. Refuse when Git is unavailable OR the path is not ignored.
+5. Verification uses `git check-ignore` (effective), NOT textual `.gitignore` matching.
+6. Pre-PRD workspaces: writers prompt/refuse until (1)-(5) hold; fallback path is `.git/tpatch/capture/`.
+
+Promotion (local raw session → committed redacted summary at
+`.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`) is EXPLICIT and OPT-IN
+(PRD §5 D9). Raw session bodies NEVER cross the local→committed boundary; only
+redacted summaries do (PRD §5 D11). Sessions are feature-scoped; a session for
+feature A cannot observe feature B's buffer (PRD §7 D18).
 
 ## You Are the Provider
 
