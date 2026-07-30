@@ -39,8 +39,28 @@ type RecipeExecResult struct {
 // applied" rather than aborting the recipe). Execute-mode keeps the
 // hard error to abort apply. Recipe-shape validation errors (created_by
 // names a feature outside depends_on) remain hard errors in both modes.
+//
+// v0.12.0 Wave β (Slice 2, PRD-write-file-recipe-safety AC-2/3/4/5,
+// ADR-029 D3): a `write-file` preimage-precondition precheck runs
+// FIRST and short-circuits the whole recipe if any op fails
+// (all-or-nothing per D3). Legacy recipes lacking `preimage_hash`
+// route to a warning per ADR-029 D4.
 func DryRunRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 	result := RecipeExecResult{Operations: len(recipe.Operations)}
+
+	// v0.12.0 Wave β Slice 2 — write-file preimage precheck (PRD §3.3,
+	// ADR-029 D3 all-or-nothing). Slice 4 will feed a supersession-aware
+	// severity flag here; for now every recipe is treated as effective.
+	pre := runWriteFilePreimagePrecheck(s, recipe)
+	for _, w := range pre.Warnings {
+		result.Warnings = append(result.Warnings, w)
+	}
+	if len(pre.Errors) > 0 {
+		result.Errors = append(result.Errors, pre.Errors...)
+		result.Success = false
+		return result
+	}
+
 	for _, op := range recipe.Operations {
 		msg, warn, err := dryRunOperation(s, recipe.Feature, op)
 		if err != nil {
@@ -60,8 +80,26 @@ func DryRunRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 // ExecuteRecipe applies recipe operations to the codebase with path safety checks.
 //
 // See DryRunRecipe re: the created_by apply-time gate.
+//
+// v0.12.0 Wave β (Slice 2, PRD-write-file-recipe-safety AC-2/3/4/5/6,
+// ADR-029 D3): a `write-file` preimage-precondition precheck runs
+// BEFORE any file mutation. If any `write-file` op's precondition
+// fails, NO operation from the recipe is written (D3 all-or-nothing).
+// Legacy recipes lacking `preimage_hash` route to a warning per
+// ADR-029 D4 and execution proceeds.
 func ExecuteRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 	result := RecipeExecResult{Operations: len(recipe.Operations)}
+
+	pre := runWriteFilePreimagePrecheck(s, recipe)
+	for _, w := range pre.Warnings {
+		result.Warnings = append(result.Warnings, w)
+	}
+	if len(pre.Errors) > 0 {
+		result.Errors = append(result.Errors, pre.Errors...)
+		result.Success = false
+		return result
+	}
+
 	for _, op := range recipe.Operations {
 		if err := executeOperation(s, recipe.Feature, op); err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))

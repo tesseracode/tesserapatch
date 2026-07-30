@@ -729,6 +729,14 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 	for _, msg := range result.Messages {
 		fmt.Fprintf(out, "  %s\n", msg)
 	}
+	// v0.12.0 Wave β (Slice 2, PRD-write-file-recipe-safety AC-11 /
+	// ADR-029 D4): surface Warnings on stderr so the legacy-recipe
+	// advisory ("recipe lacks preimage_hash precondition") is visible
+	// to operators. Slice 4 will route supersession-downgrade notes
+	// through the same channel.
+	for _, w := range result.Warnings {
+		fmt.Fprintf(cmd.ErrOrStderr(), "  ⚠ %s\n", w)
+	}
 	for _, e := range result.Errors {
 		fmt.Fprintf(cmd.ErrOrStderr(), "  ERROR: %s\n", e)
 	}
