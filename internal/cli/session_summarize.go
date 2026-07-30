@@ -2,11 +2,26 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
+
+// ErrSessionRedactionRefusal fires when a session summarize --write
+// call cannot produce a safe committed body (every observation was
+// dropped by D11 redaction). PRD-active-feature-session §5 D11
+// verbatim: "Redaction failure is a hard failure." Callers use
+// errors.Is to distinguish the D11 refusal from unrelated I/O errors.
+//
+// v0.12.0 Wave γ rev-1 Slice R2 (F-EXT-γ-2 fix). Rev-0 emitted a
+// refusal payload but returned nil so the process exited 0. External
+// review flagged this as a contract-authority violation. The sentinel
+// wraps the human-visible refusal string so tests can key off ONE
+// error identity — mirrors the Wave β F-M1 sentinel-wrap pattern for
+// ErrWriteFilePreimageMismatch.
+var ErrSessionRedactionRefusal = errors.New("session summarize: redaction refused (PRD §5 D11 hard failure)")
 
 // sessionSummarizeOpts groups the flags for runSessionSummarize.
 type sessionSummarizeOpts struct {
@@ -105,6 +120,14 @@ func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, op
 			return err
 		}
 		fmt.Fprintln(out, string(data))
+		// PRD §5 D11 verbatim: "Redaction failure is a hard failure."
+		// Emit the JSON payload (so downstream parsers still see the
+		// full refusal record) and THEN return a wrapped sentinel so
+		// the process exits non-zero when the caller asked to write.
+		// Slice R2 (F-EXT-γ-2 fix).
+		if refusalReason != "" && opts.Write {
+			return fmt.Errorf("%w: %s", ErrSessionRedactionRefusal, refusalReason)
+		}
 		return nil
 	}
 
@@ -115,6 +138,13 @@ func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, op
 	}
 	if refusalReason != "" {
 		fmt.Fprintf(out, "  refused:   %s\n", refusalReason)
+		// PRD §5 D11 verbatim: "Redaction failure is a hard failure."
+		// Only convert to a hard failure when the caller asked to
+		// write; dry-run should still exit 0 with the refusal payload
+		// visible. See Slice R2 (F-EXT-γ-2 fix).
+		if opts.Write {
+			return fmt.Errorf("%w: %s", ErrSessionRedactionRefusal, refusalReason)
+		}
 		return nil
 	}
 	if wouldWrite {

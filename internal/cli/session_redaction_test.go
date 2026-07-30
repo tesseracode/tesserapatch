@@ -189,9 +189,15 @@ func TestSessionSummarizeRefusesWhenAllScrubbed(t *testing.T) {
 	}
 
 	// Attempt --write summarize and expect refusal.
-	out, _, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--json")
-	if code != 0 {
-		t.Fatalf("summarize command should exit 0 with refusal payload; got err. out=%q", out)
+	// v0.12.0 Wave γ rev-1 Slice R2 (F-EXT-γ-2 fix, PRD §5 D11 verbatim
+	// "Redaction failure is a hard failure."): the command now exits
+	// non-zero AND emits the JSON refusal payload. Rev-0 exited 0.
+	out, errMsg, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--json")
+	if code == 0 {
+		t.Fatalf("D11 hard failure must exit non-zero; got success. out=%q err=%q", out, errMsg)
+	}
+	if !strings.Contains(errMsg, ErrSessionRedactionRefusal.Error()) {
+		t.Fatalf("expected ErrSessionRedactionRefusal message in stderr; got %q", errMsg)
 	}
 	var payload SessionSummarizeJSON
 	if err := json.Unmarshal([]byte(out), &payload); err != nil {
@@ -337,9 +343,12 @@ func TestSessionSummarizeDoesNotOverwriteOnRefusal(t *testing.T) {
 	}
 
 	// Second write - refusal.
-	out, _, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--json")
-	if code != 0 {
-		t.Fatalf("second summarize errored: %s", out)
+	// v0.12.0 Wave γ rev-1 Slice R2 (F-EXT-γ-2 fix, PRD §5 D11): the
+	// refusal exits non-zero, but MUST still leave the prior committed
+	// summary byte-identical on disk (PRD §8.12).
+	out, errMsg, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--json")
+	if code == 0 {
+		t.Fatalf("D11 hard failure must exit non-zero; got success. out=%q err=%q", out, errMsg)
 	}
 	var second SessionSummarizeJSON
 	if err := json.Unmarshal([]byte(out), &second); err != nil {
