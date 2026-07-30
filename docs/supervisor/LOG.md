@@ -1,3 +1,92 @@
+## Supervisor Decision — Wave γ rev-0 — 2026-07-30
+
+**Decision**: **BLOCKED — rev-1 dispatched with 10 findings folded.**
+
+**Adjudication**: Genuine dual-review SPLIT with NON-OVERLAPPING finding sets — internal APPROVED WITH NOTES (1 HIGH + 3 LOW), supervisor-external BLOCK (1 Critical + 4 HIGH + 1 MEDIUM). Neither reviewer caught the other's findings; both are correct within their scope. Supervisor sided with **external's BLOCK** on contract authority.
+
+**Contract-authority reading** (PRD-active-feature-session verbatim):
+
+1. **PRD §4 D6 mandate 4**: "**Writers** must refuse when Git is unavailable or the path is not ignored." — plural, unqualified. Not scoped to `session start`. Internal verified only the start path; external verified ALL writer surfaces and reproduced `session stop` succeeding when `git check-ignore` exits 1 (path not ignored). External's Critical F-EXT-γ-1 is a genuine contract violation.
+2. **PRD §5 D11**: "Redaction failure is a hard failure." — external reproduced `session summarize --write --json` exiting 0 when redaction refuses. External F-EXT-γ-2 is a genuine D11 violation.
+3. **PRD §5 D9 rule 3**: "`session summarize` defaults to dry-run; `--write` is the mutating mode." — the extra `--promote` flag added by implementation is not in the D9 command shape. External F-EXT-γ-6 has PRD support.
+4. **PRD §3 D4**: "reopen is out of scope and valid transitions do not include `closed → active`." — external reproduced content-addressed same-ID collision overwriting a closed session. External F-EXT-γ-5 is a D4 violation.
+5. **PRD §7 D16 + ADR-027 D3**: local buffers forbid raw secret values / prompt-like content. `session start --label` persists label verbatim. External F-EXT-γ-3 is a D16/D3 violation.
+6. **PRD §6 D14**: `--all` and `<slug>` are mutually exclusive **AND one must be supplied** — the "mutually exclusive" clause implies "one of" semantics. Internal reproduced `purge --yes` with neither deleting ALL sessions. Internal F-INT-γ-1 is a genuine D14 safety violation.
+
+**Wave β lesson applied**: External correctly cross-referenced PRD before concluding ADR silence (D6 mandate 4 says "Writers" plural, not delegated to a specific command). Internal's D6 audit was a per-command-verified-refusal-once pass — sufficient for the letter of the six mandates but insufficient for the "all writers" scope. Both reviewers applied due diligence; the split reflects genuinely orthogonal scope-of-audit, not a rubber-stamp failure.
+
+**Two-opinion protocol scoreboard**: 20/21 at rev-1 dispatch. Wave γ rev-0 is the first genuine dual-BLOCK-caliber SPLIT in this session (Wave β rev-0 was a false-APPROVE by external, corrected via adjudication; Wave γ rev-0 is a true two-scope-catches situation where both reviewers add net signal).
+
+## Review — Wave γ (v0.12.0 active-feature-session) — supervisor-external (rev-0) — 2026-07-30
+
+**Reviewer**: supervisor-external, rev-0.
+**Range reviewed**: `561e6de..d842697` (5 commits: `7c77723`, `f52fcfa`, `1863733`, `84d18ff`, `d842697`).
+**Contract**: PRD-active-feature-session D1-D19; ADR-027 D1 F3 conditional (delegated to PRD §4 D6).
+**Two-opinion lesson applied**: Cross-referenced PRD before concluding ADR silence. ADR-027 D1 only states the conditional; PRD-active-feature-session §4 D6 expands it into six concrete mandates, including effective `git check-ignore` semantics AND the "Writers" plural clause at mandate 4. Reading both together exposed the later-writer D6 gap that internal missed.
+
+### Verdict: BLOCK
+
+### Rule 20 empirical reproduction
+
+Detached-worktree fixtures + happy-path binary drive:
+- Mandate 4 (`no git executable`): exit 1, six mandates printed ✓
+- Mandate 2 (`unwritable .gitignore` at init): exit 1, `.tpatch/local/` rule printed ✓
+- Mandate 5 (`effective ignore fails post-.gitignore removal`): `session start` refuses ✓
+- Compile-fail check: `internal/cli/session_lifecycle_test.go` copied to pre-Wave `561e6de` → compile fails with undefined `workflow.LocalIgnoreRule`, `SessionListJSON`, `store.SessionActive`, `ListSessions`, `LoadSession` ✓ (proves tests exercise new production surface, not vacuous).
+
+### Findings
+
+**F-EXT-γ-1 — CRITICAL — Later session writers bypass D6 ignore-before-write.**
+- File: `internal/cli/session.go:181` (`session stop` calls `s.SaveSession` without re-running `EnsureLocalIgnoreContract`); `runSessionSummarize` also writes without recheck.
+- Contract: PRD §4 D6 mandate 4 verbatim — "Writers must refuse when Git is unavailable or the path is not ignored." Plural, unqualified.
+- Empirical: start session → delete `.gitignore` → `git check-ignore` exits 1 → `tpatch session stop` exits 0 + writes state `closed`. Reviewer supervisor independently reproduced same result at HEAD=`d842697`.
+- Suggested fix: enforce D6 effective-ignore check before every `SaveSession` — ideally inside or adjacent to `Store.SaveSession` so it's impossible to bypass by adding a new caller.
+
+**F-EXT-γ-2 — HIGH — Redaction "hard failure" exits 0.**
+- File: `internal/cli/session_summarize.go:116`.
+- Contract: PRD §5 D11 verbatim — "Redaction failure is a hard failure."
+- Empirical: sensitive-marker-only session + `session summarize --write --json` → `would_write:false`, `promotion_refusal_reason` set, exit 0. Automation treats failed promotion as success.
+- Suggested fix: return non-nil error when `opts.Write` requested and redaction refuses.
+
+**F-EXT-γ-3 — HIGH — `session start --label` persists raw forbidden content into local buffers.**
+- File: `internal/cli/session.go:140` (label written verbatim into `session.json`).
+- Contract: ADR-027 D3 (redaction before persistence in either lane); PRD §7 D16 (forbid raw secret values / prompt-like content in local buffers).
+- Empirical: `session start --label "leaked sk-..."` → raw token-shaped label in `.tpatch/local/capture/.../session.json`.
+- Suggested fix: redact/validate labels before saving, OR reject labels containing secret-shaped tokens per D3 redaction rules, OR document that labels are provably-plaintext-safe with schema constraint.
+
+**F-EXT-γ-4 — HIGH — `record --from-session` mutates before refusing.**
+- File: `internal/cli/cobra.go:1524`.
+- Empirical: `record <slug> --from-session cs_deadbeef0011` without `--with-session` → exit 1 with correct error, but `artifacts/post-apply.patch` + `patches/001-record.patch` already written.
+- Suggested fix: validate `--from-session`/`--with-session` mutex immediately after flag parsing, before any capture or store mutation.
+
+**F-EXT-γ-5 — HIGH — Starting after close reopens and overwrites a closed session.**
+- File: `internal/cli/session.go:91` (only active sessions treated as existing).
+- Contract: PRD §3 D4 verbatim — "reopen is out of scope and valid transitions do not include `closed → active`."
+- Empirical: start → observe → stop → start again → same `cs_...` directory, state=active, observations gone.
+- Suggested fix: refuse start when a closed/promoted same-identity session exists, or ensure new-session identity inputs cannot collide with historical sessions.
+
+**F-EXT-γ-6 — MEDIUM — `session summarize --write` writes committed summary but leaves state active.**
+- File: `internal/cli/session_summarize.go:77`.
+- Contract: PRD §5 D9 rule 3 verbatim — "`session summarize` defaults to dry-run; `--write` is the mutating mode." Also D9 command listing shows `--write` (no `--promote`).
+- Empirical: `session summarize --write --json` writes committed summary but `session list --json` still shows state active.
+- Suggested fix: make `--write` perform PRD promotion transition, OR amend PRD/assets consistently before shipping (Rule 19 shipped-surface change).
+
+### Concurrence with internal review
+
+Independent verdict — arrived at before internal's LOG entry was visible. No concurrence to state.
+
+### Action Taken
+
+Verdict written by supervisor on external's behalf (external agent was read-only per protocol).
+
+---
+
+## Review — Wave γ (v0.12.0 active-feature-session) — internal (rev-0) — 2026-07-30
+
+Prepended by internal reviewer at commit `1ce37ff`. Summary: APPROVED WITH NOTES with 1 HIGH (F-INT-γ-1 — `session purge --yes` with no args deletes all sessions per D14 mutex-without-required-one violation) + 3 LOW (misleading `--session` vs `--from-session` flag name; `RepositoryIdentity == BaseCommit` duplicate identity input; `tpatch init` always prints `appended` even when rule was already present). D6 six-mandate audit passed for the start-path but did not test other writer surfaces — see supervisor adjudication above.
+
+---
+
 ## Review — Wave γ (v0.12.0 active-feature-session) — internal (rev-0) — 2026-07-30
 
 **Reviewer**: internal fresh-eyes pass, rev-0.
