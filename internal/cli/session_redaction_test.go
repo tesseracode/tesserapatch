@@ -252,9 +252,9 @@ func TestSessionSummarizePromoteWritesRedactedCopy(t *testing.T) {
 		t.Fatalf("save: %v", err)
 	}
 
-	out, _, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--promote", "--json")
+	out, _, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--json")
 	if code != 0 {
-		t.Fatalf("summarize --write --promote failed: %s", out)
+		t.Fatalf("summarize --write failed: %s", out)
 	}
 	var payload SessionSummarizeJSON
 	if err := json.Unmarshal([]byte(out), &payload); err != nil {
@@ -333,8 +333,17 @@ func TestSessionSummarizeDoesNotOverwriteOnRefusal(t *testing.T) {
 	}
 
 	// Poison the session so redaction refuses on the next summarize.
+	// v0.12.0 Wave γ rev-1 Slice R6 (F-EXT-γ-6): rev-0 needed a
+	// separate `--promote` flag so the first --write above left the
+	// source session `closed`; rev-1 collapses --write to also
+	// promote, which would make the next summarize refuse the source
+	// as ineligible before we ever reach redaction. Reset the state
+	// to Active explicitly so this regression proves what it says on
+	// the tin — the redaction contract, not the state machine.
 	entries2, _ := s.ListSessions(slug)
 	sess2 := *entries2[0].Session
+	sess2.State = store.SessionActive
+	sess2.PromotedCtxID = ""
 	sess2.Observations = []store.SessionObservation{
 		{Seq: 2, SymbolicRef: "poison-only", Summary: "leaked sk-poisonedxxxxxxxxxxxxxxxxxx into log"},
 	}

@@ -122,6 +122,20 @@ func sessionStartCmd() *cobra.Command {
 			if head, err := gitutil.HeadCommit(s.Root); err == nil {
 				baseCommit = strings.TrimSpace(head)
 			}
+			// v0.12.0 Wave γ rev-1 Slice R6 (F-INT-γ-3 LOW). Rev-0
+			// populated RepositoryIdentity with the same value as
+			// BaseCommit, so the "repository identity" dimension of
+			// the content-addressed hash contributed nothing. Rev-1
+			// derives it from the root (initial) commit — stable
+			// across HEAD advancing within the same clone, and
+			// deterministic across clones of the same repository.
+			// Fallback to baseCommit when the repo has no commits
+			// or is not a git repo, preserving the old behavior for
+			// the shallow / bare-init case.
+			repoIdentity := baseCommit
+			if root, err := gitutil.FirstCommit(s.Root); err == nil {
+				repoIdentity = strings.TrimSpace(root)
+			}
 			// A stable per-workspace discriminator makes clones/worktrees
 			// yield distinct cs_ IDs without leaking absolute paths into
 			// the manifest fields themselves. filepath.Base of Root keeps
@@ -130,7 +144,7 @@ func sessionStartCmd() *cobra.Command {
 			discriminator := filepath.Base(s.Root)
 			id := store.ComputeSessionID(store.SessionIdentityInputs{
 				SchemaVersion:          store.SessionSchemaVersion,
-				RepositoryIdentity:     baseCommit,
+				RepositoryIdentity:     repoIdentity,
 				Feature:                slug,
 				BaseCommit:             baseCommit,
 				CaptureMode:            string(mode),
@@ -349,6 +363,16 @@ func sessionPurgeCmd() *cobra.Command {
 			if all && len(args) > 0 {
 				return fmt.Errorf("session purge: --all and <slug> are mutually exclusive")
 			}
+			// v0.12.0 Wave γ rev-1 Slice R6 (F-INT-γ-1 HIGH). PRD §6
+			// D14 mutex on --all / <slug> implies "one of" semantics:
+			// the two must be paired as OPTIONS, not either-or-neither.
+			// Rev-0 permitted `session purge --yes` with neither, and
+			// the branch below would iterate every session under
+			// every feature. Rev-1 refuses; operators must be
+			// explicit about scope.
+			if !all && len(args) == 0 {
+				return fmt.Errorf("session purge refuses: pass a <slug> to scope, or --all to purge every feature's sessions (PRD §6 D14 mutex is `one of`, not `either or neither`)")
+			}
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
 				return err
@@ -470,7 +494,9 @@ func sessionExists(s *store.Store, slug, sessionID string) bool {
 // The full redaction-boundary promotion logic lands in Slice 3. Slice 2
 // wires the subcommand skeleton so the parity guard sees the command
 // name AND the cobra tree exposes it. --dry-run is the default per
-// PRD §6 D14; --write and --promote perform the mutating actions.
+// PRD §6 D14; --write is the single mutating trigger (PRD §5 D9
+// rule 3). Rev-1 (F-EXT-γ-6) collapsed the earlier separate --promote
+// flag into --write.
 
 // SessionSummarizeJSON is the deterministic --json shape returned by
 // `session summarize` per PRD §6 D14.
@@ -488,23 +514,28 @@ type SessionSummarizeJSON struct {
 
 // sessionSummarizeCmd wires the subcommand skeleton in Slice 2 and is
 // fleshed out in Slice 3 with the redaction contract (PRD §5 D11) and
-// the committed-summary write path (PRD §5 D10). Slice 2 lands the
-// dry-run/eligibility surface and the deterministic JSON shape so
-// parity guard + CLI-tree tests can be authored before the write path.
+// the committed-summary write path (PRD §5 D10).
+//
+// v0.12.0 Wave γ rev-1 Slice R6 (F-EXT-γ-6 MEDIUM). PRD §5 D9 rule 3
+// verbatim: "`--write` is the mutating mode." Rev-0 split the semantic
+// across `--write` (committed lane) and `--promote` (session state
+// transition). External review flagged this as a D9 semantic
+// mismatch. Rev-1 removes `--promote` and folds the state transition
+// into `--write` so operators have a single mutating trigger.
 func sessionSummarizeCmd() *cobra.Command {
 	var sessionID string
 	var dryRun bool
 	var write bool
 	var asJSON bool
-	var promote bool
 	cmd := &cobra.Command{
 		Use:   "summarize <slug>",
 		Short: "Preview / write a redacted committed summary for a session",
 		Long: "Summarize a session for eventual promotion to the committed lane.\n\n" +
-			"Defaults to --dry-run per PRD §6 D14. `--write` mutates by writing the\n" +
-			"redacted summary to .tpatch/features/<slug>/artifacts/context/<ctx_id>.json.\n" +
-			"--dry-run + --write is invalid. `--promote` transitions the source session\n" +
-			"state to `promoted` in the same call (opt-in per PRD §5 D9).\n\n" +
+			"Defaults to --dry-run per PRD §6 D14. `--write` is the SINGLE mutating\n" +
+			"trigger per PRD §5 D9 rule 3: it writes the redacted summary to\n" +
+			".tpatch/features/<slug>/artifacts/context/<ctx_id>.json AND transitions\n" +
+			"the source session state to `promoted` in the same call. --dry-run +\n" +
+			"--write is invalid.\n\n" +
 			"Redaction (PRD §5 D11) is enforced at this boundary. Raw session bodies\n" +
 			"NEVER cross into the committed lane. Redaction failure prevents the write\n" +
 			"and leaves existing committed summaries unchanged (PRD §8.12).",
@@ -524,17 +555,15 @@ func sessionSummarizeCmd() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			return runSessionSummarize(out, s, target, sessionSummarizeOpts{
-				Write:   write,
-				Promote: promote,
-				AsJSON:  asJSON,
+				Write:  write,
+				AsJSON: asJSON,
 			})
 		},
 	}
 	cmd.Flags().StringVar(&sessionID, "session", "", "Select a specific cs_<12hex> when multiple are eligible")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview only (default when neither --dry-run nor --write is set)")
-	cmd.Flags().BoolVar(&write, "write", false, "Write the redacted committed summary")
+	cmd.Flags().BoolVar(&write, "write", false, "Write the redacted committed summary AND transition the source session to `promoted` (PRD §5 D9 rule 3)")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Emit deterministic schema-versioned JSON")
-	cmd.Flags().BoolVar(&promote, "promote", false, "Also transition the source session to promoted state (PRD §5 D9 opt-in)")
 	return cmd
 }
 

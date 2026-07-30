@@ -107,7 +107,13 @@ func initCmd() *cobra.Command {
 			// (mandate 2), refuse — the error message enumerates all six
 			// mandates verbatim and prints the exact rule so the user can
 			// add it manually.
-			if err := workflow.EnsureLocalGitignoreRule(root); err != nil {
+			//
+			// v0.12.0 Wave γ rev-1 Slice R6 (F-INT-γ-4 LOW): the status
+			// distinguishes appended / already-present / created so the
+			// post-init summary can be honest instead of always printing
+			// `appended` even when nothing was written.
+			gitignoreStatus, err := workflow.EnsureLocalGitignoreRuleStatus(root)
+			if err != nil {
 				return err
 			}
 
@@ -129,8 +135,19 @@ func initCmd() *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "  config:    %s\n", filepath.Join(s.TpatchDir(), "config.yaml"))
 			fmt.Fprintf(cmd.OutOrStdout(), "  features:  %s\n", filepath.Join(s.TpatchDir(), "FEATURES.md"))
 			fmt.Fprintf(cmd.OutOrStdout(), "  steering:  %s\n", filepath.Join(s.TpatchDir(), "steering/"))
-			fmt.Fprintf(cmd.OutOrStdout(), "  gitignore: appended %q to %s (PRD-active-feature-session §4 D6)\n",
-				workflow.LocalIgnoreRule, filepath.Join(s.Root, ".gitignore"))
+			var gitignoreVerb string
+			switch gitignoreStatus {
+			case workflow.LocalIgnoreAlreadyPresent:
+				gitignoreVerb = "already present"
+			case workflow.LocalIgnoreAppended:
+				gitignoreVerb = "appended"
+			case workflow.LocalIgnoreCreated:
+				gitignoreVerb = "created"
+			default:
+				gitignoreVerb = "installed"
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "  gitignore: %s %q in %s (PRD-active-feature-session §4 D6)\n",
+				gitignoreVerb, workflow.LocalIgnoreRule, filepath.Join(s.Root, ".gitignore"))
 			return nil
 		},
 	}
@@ -1545,11 +1562,20 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			if withSession {
 				target, err := pickSessionForOp(s, slug, fromSession, sessionEligibleForSummarize)
 				if err != nil {
-					return fmt.Errorf("record --with-session: %w", err)
+					// v0.12.0 Wave γ rev-1 Slice R6 (F-INT-γ-2 LOW):
+					// pickSessionForOp's ambiguity refusal mentions
+					// `--session` (correct for `session stop` /
+					// `session summarize`) but at the record surface
+					// the disambiguator flag is `--from-session`.
+					// Rewrite the message so the operator's
+					// remediation hint matches the actual flag they
+					// need to pass.
+					msg := err.Error()
+					msg = strings.ReplaceAll(msg, "pass --session <cs_id>", "pass --from-session <cs_id>")
+					return fmt.Errorf("record --with-session: %s", msg)
 				}
 				if err := runSessionSummarize(cmd.OutOrStdout(), s, target, sessionSummarizeOpts{
-					Write:   true,
-					Promote: true,
+					Write: true,
 				}); err != nil {
 					return fmt.Errorf("record --with-session: %w", err)
 				}

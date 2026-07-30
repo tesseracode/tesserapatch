@@ -99,7 +99,7 @@ tpatch status
 - `tpatch session start <slug>` — Start a feature-scoped local session under `.tpatch/local/capture/<slug>/<cs_id>/`
 - `tpatch session stop <slug>` — Close an active session (state `active` → `closed`; no committed writes)
 - `tpatch session list [<slug>]` — List local sessions (`--json` for deterministic output)
-- `tpatch session summarize <slug>` — Preview/write a redacted committed summary (`--write --promote` to publish)
+- `tpatch session summarize <slug>` — Preview/write a redacted committed summary (`--write` to publish; also transitions source session to `promoted` per PRD §5 D9 rule 3)
 - `tpatch session purge [<slug>]` — Delete local session buffers (dry-run default; `--yes` to confirm)
 
 ## Local session buffers (v0.12.0)

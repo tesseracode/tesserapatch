@@ -365,13 +365,16 @@ func TestSessionSummarizeInvalidFlagPairs(t *testing.T) {
 	if !strings.Contains(stderr, "mutually exclusive") {
 		t.Fatalf("expected 'mutually exclusive' in stderr; got %q", stderr)
 	}
-	// --promote without --write must refuse.
+	// v0.12.0 Wave γ rev-1 Slice R6 (F-EXT-γ-6 MEDIUM). Rev-0 had a
+	// separate `--promote` flag; rev-1 collapsed it into `--write` per
+	// PRD §5 D9 rule 3 ("`--write` is the mutating mode"). Passing the
+	// removed flag now produces cobra's unknown-flag refusal.
 	_, stderr2, code2 := runSessionCmd("session", "summarize", "--path", tmp, slug, "--promote")
 	if code2 == 0 {
-		t.Fatalf("expected refusal for --promote without --write; got success")
+		t.Fatalf("expected refusal for removed --promote flag; got success")
 	}
-	if !strings.Contains(stderr2, "requires --write") {
-		t.Fatalf("expected 'requires --write' in stderr; got %q", stderr2)
+	if !strings.Contains(stderr2, "unknown flag") && !strings.Contains(stderr2, "unknown shorthand") {
+		t.Fatalf("expected 'unknown flag' in stderr for removed --promote; got %q", stderr2)
 	}
 }
 

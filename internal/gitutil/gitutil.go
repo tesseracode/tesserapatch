@@ -19,6 +19,29 @@ func HeadCommit(repoRoot string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+// FirstCommit returns the root (initial) commit hash on the current
+// branch, i.e. the earliest ancestor of HEAD. Used as a stable
+// repository-identity signal that survives HEAD advancing (unlike
+// HeadCommit) and is deterministic across clones (unlike remote
+// URLs or worktree paths). Returns an error on repos with no
+// commits.
+func FirstCommit(repoRoot string) (string, error) {
+	out, err := runGit(repoRoot, "rev-list", "--max-parents=0", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("git rev-list --max-parents=0 HEAD: %w", err)
+	}
+	// A repository can have multiple root commits (rare — orphan
+	// branch merges). Take the first line — deterministic across
+	// runs because git rev-list emits in newest-first order.
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line, nil
+		}
+	}
+	return "", fmt.Errorf("git rev-list --max-parents=0 HEAD: no root commit")
+}
+
 // RecentCommit is a one-line summary of a commit, used to suggest
 // candidate --from base refs when `tpatch record` captures an empty
 // diff (almost always because the user committed before recording).

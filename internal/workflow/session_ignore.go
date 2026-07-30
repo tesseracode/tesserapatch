@@ -193,6 +193,27 @@ func EnsureLocalIgnoreContract(repoRoot, resolvedPath string) error {
 	return nil
 }
 
+// LocalIgnoreStatus is the outcome of EnsureLocalGitignoreRuleStatus,
+// exposed so callers (notably `tpatch init`) can distinguish "we
+// created / amended `.gitignore`" from "the rule was already present
+// and preserved". Rev-0 of `tpatch init` always printed `appended`
+// regardless of whether it actually wrote anything, which lied to
+// operators re-running the command. v0.12.0 Wave γ rev-1 Slice R6
+// (F-INT-γ-4 LOW).
+type LocalIgnoreStatus int
+
+const (
+	// LocalIgnoreAlreadyPresent — an equivalent rule line was
+	// already in `.gitignore`; the file was left untouched.
+	LocalIgnoreAlreadyPresent LocalIgnoreStatus = iota
+	// LocalIgnoreAppended — `.gitignore` existed but was missing
+	// the rule; the rule was appended.
+	LocalIgnoreAppended
+	// LocalIgnoreCreated — `.gitignore` did not exist and was
+	// created containing the rule.
+	LocalIgnoreCreated
+)
+
 // EnsureLocalGitignoreRule is the D6 mandates 1+2 half of the contract.
 // Called by `tpatch init`. Behavior:
 //   - If `.gitignore` at repoRoot does not exist, create it with the
@@ -209,7 +230,18 @@ func EnsureLocalIgnoreContract(repoRoot, resolvedPath string) error {
 // and belongs to EnsureLocalIgnoreContract. `tpatch init` is the
 // one-shot amendment; ongoing verification is a session-start-time
 // concern.
+//
+// Kept for backward compatibility with existing tests / callers that
+// don't need the status distinction. New callers (see `tpatch init`)
+// should prefer EnsureLocalGitignoreRuleStatus.
 func EnsureLocalGitignoreRule(repoRoot string) error {
+	_, err := EnsureLocalGitignoreRuleStatus(repoRoot)
+	return err
+}
+
+// EnsureLocalGitignoreRuleStatus is the status-returning form. See
+// EnsureLocalGitignoreRule for the mandate-1+2 semantics.
+func EnsureLocalGitignoreRuleStatus(repoRoot string) (LocalIgnoreStatus, error) {
 	gitignorePath := filepath.Join(repoRoot, ".gitignore")
 	existing, err := os.ReadFile(gitignorePath)
 	switch {
@@ -218,12 +250,12 @@ func EnsureLocalGitignoreRule(repoRoot string) error {
 		lines := strings.Split(string(existing), "\n")
 		for _, line := range lines {
 			if strings.TrimSpace(line) == LocalIgnoreRule {
-				return nil
+				return LocalIgnoreAlreadyPresent, nil
 			}
 			if strings.TrimSpace(line) == strings.TrimSuffix(LocalIgnoreRule, "/") {
 				// A non-trailing-slash form (e.g. `.tpatch/local`) is
 				// also honored by git.
-				return nil
+				return LocalIgnoreAlreadyPresent, nil
 			}
 		}
 		out := string(existing)
@@ -233,25 +265,25 @@ func EnsureLocalGitignoreRule(repoRoot string) error {
 		out += "# tpatch: keep local capture buffers out of commits (PRD-active-feature-session §4 D6, ADR-027 D1)\n"
 		out += LocalIgnoreRule + "\n"
 		if writeErr := os.WriteFile(gitignorePath, []byte(out), 0o644); writeErr != nil {
-			return &LocalIgnoreRefusal{
+			return LocalIgnoreAlreadyPresent, &LocalIgnoreRefusal{
 				Reason: LocalIgnoreGitignoreUnwritable,
 				Path:   gitignorePath,
 				Detail: writeErr.Error(),
 			}
 		}
-		return nil
+		return LocalIgnoreAppended, nil
 	case os.IsNotExist(err):
 		content := "# tpatch: keep local capture buffers out of commits (PRD-active-feature-session §4 D6, ADR-027 D1)\n" + LocalIgnoreRule + "\n"
 		if writeErr := os.WriteFile(gitignorePath, []byte(content), 0o644); writeErr != nil {
-			return &LocalIgnoreRefusal{
+			return LocalIgnoreAlreadyPresent, &LocalIgnoreRefusal{
 				Reason: LocalIgnoreGitignoreUnwritable,
 				Path:   gitignorePath,
 				Detail: writeErr.Error(),
 			}
 		}
-		return nil
+		return LocalIgnoreCreated, nil
 	default:
-		return &LocalIgnoreRefusal{
+		return LocalIgnoreAlreadyPresent, &LocalIgnoreRefusal{
 			Reason: LocalIgnoreGitignoreUnwritable,
 			Path:   gitignorePath,
 			Detail: err.Error(),

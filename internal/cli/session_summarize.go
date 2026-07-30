@@ -26,11 +26,16 @@ var ErrSessionRedactionRefusal = errors.New("session summarize: redaction refuse
 // sessionSummarizeOpts groups the flags for runSessionSummarize.
 type sessionSummarizeOpts struct {
 	// Write, when true, writes the redacted committed summary to the
-	// per-feature artifact path. When false, the call is dry-run only.
+	// per-feature artifact path AND transitions the source session to
+	// `promoted` (PRD §5 D9 rule 3 verbatim: "`--write` is the
+	// mutating mode."). When false, the call is dry-run only.
+	//
+	// v0.12.0 Wave γ rev-1 Slice R6 (F-EXT-γ-6 MEDIUM): rev-0 split
+	// the write and the promote transition across two flags. External
+	// review flagged this as a D9 semantic mismatch — the PRD lists
+	// `--write` as the sole mutating trigger. Collapsing keeps
+	// intuition: `--write` writes and marks the source promoted.
 	Write bool
-	// Promote, when true, transitions the source session to `promoted`
-	// after a successful write. Requires Write.
-	Promote bool
 	// AsJSON toggles between deterministic JSON and human output.
 	AsJSON bool
 }
@@ -39,12 +44,15 @@ type sessionSummarizeOpts struct {
 // `tpatch session summarize` (this file) and by `tpatch record
 // --with-session` (Slice 4). It runs the D11 redaction contract
 // against the session buffer, computes the ctx_<12hex> ID, and either
-// dry-runs or writes the committed summary. Slice 3 adds the redaction
-// contract and the write path; Slice 2 landed the wiring stub.
+// dry-runs or writes the committed summary + promotes the source
+// session in ONE step.
+//
+// v0.12.0 Wave γ rev-1 Slice R6 (F-EXT-γ-6 fix). Rev-0 had two flags:
+// `--write` for the committed summary + a separate `--promote` for
+// the state transition. PRD §5 D9 rule 3 verbatim ("`--write` is the
+// mutating mode.") and the D9 command listing show `--write` as the
+// singular mutating trigger. Rev-1 collapses the two into `--write`.
 func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, opts sessionSummarizeOpts) error {
-	if opts.Promote && !opts.Write {
-		return fmt.Errorf("session summarize: --promote requires --write")
-	}
 	redacted, findings := redactSessionForCommit(target)
 	summaryBody := redacted.Summary
 	ctxID := store.ComputeContextSummaryID(store.ContextSummaryIDInputs{
@@ -89,15 +97,16 @@ func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, op
 		if err := s.SaveContextSummary(cs); err != nil {
 			return fmt.Errorf("session summarize: %w", err)
 		}
-		if opts.Promote {
-			// Transition the source session to promoted so future
-			// listings/audit see the boundary was crossed.
-			promoted := target
-			promoted.State = store.SessionPromoted
-			promoted.PromotedCtxID = ctxID
-			if err := s.SaveSession(promoted); err != nil {
-				return fmt.Errorf("session summarize: promote: %w", err)
-			}
+		// v0.12.0 Wave γ rev-1 Slice R6 (F-EXT-γ-6): `--write` is now
+		// the SINGLE mutating trigger per PRD §5 D9. Every successful
+		// committed-summary write also transitions the source session
+		// to `promoted` so audit + `session list` reflect the boundary
+		// crossing.
+		promoted := target
+		promoted.State = store.SessionPromoted
+		promoted.PromotedCtxID = ctxID
+		if err := s.SaveSession(promoted); err != nil {
+			return fmt.Errorf("session summarize: promote: %w", err)
 		}
 	}
 
@@ -149,9 +158,7 @@ func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, op
 	}
 	if wouldWrite {
 		fmt.Fprintf(out, "  wrote %s -> %s\n", ctxID, committedPath)
-		if opts.Promote {
-			fmt.Fprintf(out, "  session state -> promoted\n")
-		}
+		fmt.Fprintf(out, "  session state -> promoted\n")
 	} else {
 		fmt.Fprintf(out, "  would write %s -> %s (pass --write to commit)\n", ctxID, committedPath)
 	}

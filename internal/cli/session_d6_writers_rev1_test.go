@@ -97,9 +97,9 @@ func TestD6MandateWriter_SessionSummarizeRefusesWithoutGitignore(t *testing.T) {
 		t.Fatalf("save: %v", err)
 	}
 	removeGitignoreForD6(t, tmp)
-	_, stderr, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--promote")
+	_, stderr, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write")
 	if code == 0 {
-		t.Fatalf("expected session summarize --write --promote to refuse (D6 mandate 4); got success")
+		t.Fatalf("expected session summarize --write to refuse (D6 mandate 4); got success")
 	}
 	assertD6RefusalMessage(t, stderr)
 }
@@ -114,7 +114,9 @@ func TestD6MandateWriter_SessionSummarizeRefusesWithoutGitignore(t *testing.T) {
 // Enumerated writers (rev-1 audit):
 //   - session start        — new manifest at active state
 //   - session stop         — active → closed transition write
-//   - session summarize --write --promote — session state → promoted write
+//   - session summarize --write — session state → promoted write
+//     (rev-1 Slice R6 collapsed the rev-0 `--promote` flag; `--write`
+//     is now the singular mutating trigger per PRD §5 D9 rule 3)
 //   - record --with-session — same summarize-writer path (Slice 4)
 //
 // Every row prepares a fixture matching that writer's minimum
@@ -152,7 +154,7 @@ func TestD6_AllWritersRefuse(t *testing.T) {
 			},
 		},
 		{
-			name: "session-summarize-write-promote",
+			name: "session-summarize-write",
 			prepare: func(t *testing.T) (string, string) {
 				tmp, slug := setupSessionRepo(t, "D6 all writers summarize")
 				if _, stderr, code := runSessionCmd("session", "start", "--path", tmp, slug); code != 0 {
@@ -177,7 +179,7 @@ func TestD6_AllWritersRefuse(t *testing.T) {
 				return tmp, slug
 			},
 			args: func(tmp, slug string) []string {
-				return []string{"session", "summarize", "--path", tmp, slug, "--write", "--promote"}
+				return []string{"session", "summarize", "--path", tmp, slug, "--write"}
 			},
 		},
 		{

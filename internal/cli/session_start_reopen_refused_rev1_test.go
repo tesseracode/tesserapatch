@@ -63,7 +63,7 @@ func TestSessionStartAfterPromoteRefusesReopen(t *testing.T) {
 	if err := s.SaveSession(sess); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if out, stderr, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--promote"); code != 0 {
+	if out, stderr, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write"); code != 0 {
 		t.Fatalf("promote: out=%q err=%q", out, stderr)
 	}
 	// Re-start at the same content-addressed id → refusal.

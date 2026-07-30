@@ -70,7 +70,7 @@ Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile con
 - `tpatch session start <slug>` — Start a feature-scoped local session under `.tpatch/local/capture/<slug>/<cs_id>/` (PRD-active-feature-session §4 D5).
 - `tpatch session stop <slug>` — Close an active session (state `active` → `closed`; no committed writes).
 - `tpatch session list [<slug>]` — List local sessions; `--json` for deterministic output sorted by (feature, cs_id).
-- `tpatch session summarize <slug>` — Preview/write a redacted committed summary; add `--write --promote` to publish and mark the source session `promoted`.
+- `tpatch session summarize <slug>` — Preview/write a redacted committed summary; add `--write` to publish and mark the source session `promoted` (write is the singular mutating trigger per PRD §5 D9 rule 3).
 - `tpatch session purge [<slug>]` — Delete local session buffers; dry-run by default, requires `--yes` to confirm.
 
 ## Local session buffers (v0.12.0)

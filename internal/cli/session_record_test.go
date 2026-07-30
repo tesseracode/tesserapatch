@@ -231,11 +231,14 @@ func TestRecordWithSessionRefusesAmbiguousWithoutFromSession(t *testing.T) {
 	if !strings.Contains(errMsg, "multiple eligible sessions") {
 		t.Fatalf("expected 'multiple eligible sessions' in stderr; got %q", errMsg)
 	}
-	if !strings.Contains(errMsg, "--session") {
-		// pickSessionForOp mentions --session; record wraps it as
-		// --from-session. The wrapping message includes "record
-		// --with-session" so operators know where the refusal came
-		// from.
-		t.Fatalf("expected disambiguation hint in stderr; got %q", errMsg)
+	// v0.12.0 Wave γ rev-1 Slice R6 (F-INT-γ-2 LOW). The record surface
+	// disambiguates via `--from-session`, not `--session` — rewrite the
+	// helper's canonical hint so the operator's remediation matches
+	// the actual flag they need to pass.
+	if !strings.Contains(errMsg, "--from-session") {
+		t.Fatalf("expected '--from-session' remediation hint in stderr; got %q", errMsg)
+	}
+	if strings.Contains(errMsg, "pass --session <cs_id>") {
+		t.Fatalf("record ambiguity message must not surface the raw `--session <cs_id>` hint (that flag belongs to session subcommands, not record); got %q", errMsg)
 	}
 }

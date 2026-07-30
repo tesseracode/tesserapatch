@@ -322,7 +322,7 @@ When they disagree — e.g. the recipe's `replace-in-file` can no longer find it
 | `tpatch session start <slug>` | Start an active session for a feature (writes to `.tpatch/local/capture/<slug>/<cs_id>/`) |
 | `tpatch session stop <slug>` | Close an active session (no committed writes) |
 | `tpatch session list [<slug>]` | List local sessions (add `--json` for deterministic output) |
-| `tpatch session summarize <slug>` | Preview/write a redacted committed summary (opt-in promotion via `--write --promote`) |
+| `tpatch session summarize <slug>` | Preview/write a redacted committed summary (`--write` publishes and transitions source session to `promoted` per PRD §5 D9 rule 3) |
 | `tpatch session purge [<slug>]` | Delete local session buffers (dry-run by default; `--yes` to confirm) |
 
 ## .tpatch/ Structure
@@ -376,7 +376,7 @@ Six-mandate refusal contract (PRD §4 D6):
 
 Promotion of a redacted summary to the committed lane at
 `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json` is EXPLICIT and
-OPT-IN (`tpatch session summarize --write --promote`, or
+OPT-IN (`tpatch session summarize --write`, or
 `tpatch record <slug> --with-session`). Raw session bodies NEVER cross the
 local→committed boundary — only redacted summaries do (PRD §5 D11).
 Sessions are FEATURE-scoped: a session for feature A cannot observe feature
