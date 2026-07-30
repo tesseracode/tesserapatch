@@ -1,3 +1,154 @@
+## Review — Wave β (v0.12.0 write-file safety) — internal (rev-1) — 2026-07-29
+
+**Reviewer**: internal fresh-eyes pass, rev-1 fold-in of the 5 rev-0 findings (F-B1, F-B2 AC-7/8/9, F-M1, F-L1, F-L2).
+**Range reviewed**: `e8d351f..0072fb5` (6 commits: R1 `ec98499`, R2 `2b64176`, R3 `7597ddd`, R4 `d50a852`, R5 `4b5f8e5`, R6 `0072fb5`).
+**Contract**: PRD-write-file-recipe-safety §3.3/§4.2/§5:129-130/§7.2 Q2; ADR-029 D3/D4/D5/D6/D7/D8; PRD-feature-supersession §4.5; supervisor adjudication at `e8d351f` (internal reading authoritative — ADR-029 D6 verbatim + PRD §7.2 verbatim).
+
+### Checklist
+
+- [x] **Compiles** — `go build ./cmd/tpatch` clean.
+- [x] **Tests pass** — `go test -count=1 ./...` full-suite: **826 PASS / 1 SKIP / 0 FAIL** (matches ≥826 target; +20 vs rev-0 baseline 806, satisfies the +10-15 gate).
+- [x] **Formatted** — `gofmt -l .` empty.
+- [x] **Artifacts deterministic** — all detectors sort by path then alphabetically-first slug (`writefile_safety.go:628,667,700,745`; PRD §5 note 4). `go vet ./...` clean.
+- [x] **Secrets safe** — no source/body embedded in diagnostics (ADR-029 D8); only paths + hashes + slug/op coordinates surfaced (`verify.go:891-893`, `writefile_safety.go:497,633,750`).
+- [x] **Matches SPEC** — every claim below verified against ADR-029 D6/D7/D8 + PRD §7.2 verbatim + PRD-feature-supersession §4.5.
+- [x] **Handoff accurate** — `docs/handoff/CURRENT.md` refreshed; Side Research md5 preserved (see below).
+
+### Gates
+
+- `gofmt -l .` — empty ✓
+- `go vet ./...` — clean ✓
+- `go build ./cmd/tpatch` — clean ✓
+- `go test -count=1 -v ./... | grep -c '^--- PASS:'` → **826** (+20 vs rev-0 806; +10-15 gate exceeded) ✓
+- Rule 18 (Co-authored-by trailer) — all 6 rev-1 commits carry `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim ✓
+- Wave α non-invalidation — `git diff --stat e8d351f..HEAD -- internal/workflow/labels.go internal/store/validation.go internal/cli/status_dag.go` = empty ✓
+- Side Research md5 — `md5(CURRENT.md[## Side Research…EOF])` = `b385fe622db9926f48861105239f113e` ✓
+- CHANGELOG — `#### Wave β rev-1 amendments` sub-section appended at `CHANGELOG.md:81-141`, inside `## v0.12.0 — TBD` and BEFORE `### Wave α`; Wave α bullets byte-identical.
+- Rule 15 — no new `tpatch` command in the diff (grep of `+.*(cobra.Command|Use:|AddCommand)` on `internal/cli/cobra.go` diff = empty) ✓
+
+### Closure verification
+
+**F-B1 CLOSED — apply-time later-touch reverted to warn-class (R1 `ec98499`)**
+
+- Refusal path removed: `runWriteFilePreimagePrecheck` at `internal/workflow/writefile_safety.go:301-303` now routes later-touch through `appendLaterTouchWarn` instead of `appendDrift`.
+- `appendLaterTouchWarn` at `internal/workflow/writefile_safety.go:366-378` unconditionally lands in `Warnings` (never `Errors`) — matches ADR-029 D6 verbatim ("Record-time later-touch detection is warning-class in v1. Apply-time preimage mismatch is refusal-class.") + PRD §7.2 verbatim ("v1 blocks only on preimage mismatch.").
+- Detection preserved: `loadLaterFeatureTouches` (`writefile_safety.go:409`) + `checkLaterTouch` (`writefile_safety.go:489`) + `patch-generations.touched_paths` union (`writefile_safety.go:454-460`) all intact.
+- Warning routing via `Warnings` slice surfaces through `ExecuteRecipe` → `RecipeExecResult.Warnings` (`recipe.go:94-96,111`) → apply CLI stderr with `⚠` prefix (`cobra.go:737-738`). Execution proceeds unconditionally.
+- Test regressions locked: `writefile_later_touch_test.go`
+  - `TestSlice3_LaterTouchWarnsAndProceeds:68-120` — asserts `result.Success == true`, warning names `later feature`/`newer`/`silently revert`, file rewritten with older's bytes, `len(result.Errors) == 0`.
+  - `TestSlice3_LaterTouchWarnsWithoutSupersession:126-157` — explicitly locks the **non-superseded** warn-and-proceed contract AND asserts the plain warning does **NOT** carry the Slice 4 `downgraded` suffix.
+  - `TestSlice3_DeterministicSlugSelection:244-274` and `TestSlice3_UsesPatchGenerationsTouchedPaths:282-337` flipped from `Errors` → `Warnings` assertions and now `require result.Success == true`.
+- **Slice 4 supersession-downgrade routing preserved** — `appendLaterTouchWarn` at `writefile_safety.go:373-377` retains the same `(downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)` suffix used by `appendDrift`, so the audit trail is uniform across drift classes when the feature is superseded. `TestSlice4_SupersededLaterTouchDowngrades` still green (all 6/6 Slice 4 tests remain green).
+
+**F-B2 AC-7 CLOSED — record-time later-touch warning (R2 `2b64176`)**
+
+- Detector `DetectRecordLaterTouchWarnings` at `internal/workflow/writefile_safety.go:571-637`. Direction inversion documented (record-time asks "newer touches path older owns via write-file"; apply-time asks the opposite).
+- Called from record CLI entry at `internal/cli/cobra.go:1498-1502`, positioned **after** `AppendPatchGenerationForFeature` at `cobra.go:1475` so `patch-generations.json.touched_paths` (the PRD §4.2 preferred deterministic artifact) is fresh at detection time.
+- Stderr rendering with `⚠` prefix (`cobra.go:1500`); `tpatch record` exit-status unchanged (D6 warn-class, non-fatal).
+- Determinism (PRD §5 note 4): output sorted by path (`writefile_safety.go:628`); per-path tie-break to alphabetically-first older slug (`writefile_safety.go:612-616`).
+- Test regressions (`writefile_record_later_touch_test.go`, 5 fns):
+  - `TestSliceR2_RecordLaterTouchWarns:16-57` — positive; warning cites both features, shared path, PRD §4.2 + ADR-029 D6.
+  - `TestSliceR2_RecordDeterministicPerPath:64-94` — alphabetically-first older wins when two owners collide.
+  - `TestSliceR2_RecordSortedByPath:98-148` — `src/a.txt` warning precedes `src/z.txt`.
+  - `TestSliceR2_RecordNoOverlapNoWarning:153-174` — negative: unrelated paths → 0 warnings.
+  - `TestSliceR2_RecordDraftOlderIgnored:180-200` — draft older ignored (`activeOrAppliedFeatures` filter, `writefile_safety.go:536-544`).
+
+**F-B2 AC-8 CLOSED — reconcile later-touch warning attached to owner Notes (R3 `7597ddd`)**
+
+- Detectors `DetectReconcileLaterTouchWarnings` (`writefile_safety.go:658`) + `DetectReconcileLaterTouchWarningsByOwner` (`writefile_safety.go:681`) share the private `detectReconcileLaterTouchByOwner` core (`writefile_safety.go:685-755`) — no duplication of Slice 3 detection primitives; `writeFilePathsForFeature` and `collectFeatureTouchedPaths` shared with R2 and R1.
+- Attachment: `internal/workflow/reconcile.go:200-208` computes `laterTouchByOwner` ONCE before the per-slug loop; `reconcile.go:230-234` prepends the owner's warnings to `result.Notes` so they render at the top alongside the Wave α historical-feature warning.
+- User-visible Rule 20: reconcile CLI prints `result.Notes` at `cobra.go:1931-1933` under each per-slug summary; also written to `reconcile.md` artifact at `reconcile.go:665-671` (`## Notes` section) and JSON payload at `reconcile.go:894`.
+- Test regressions (`writefile_reconcile_later_touch_test.go`, 6 fns):
+  - `TestSliceR3_ReconcileLaterTouchWarns:21-62` — baseline; warning cites owner slug in brackets, newer in quotes, path, PRD §4.2 + ADR-029 D6.
+  - `TestSliceR3_ReconcileByOwnerRoutesToOlder:68-96` — by-owner map keyed by the WRITE-FILE OWNER (older), not the toucher.
+  - `TestSliceR3_ReconcileSortedByOwnerThenPath:101-142` — owner alpha-order.
+  - `TestSliceR3_ReconcileNoOverlapNoWarning:147-170` — negative.
+  - `TestSliceR3_ReconcileOlderNotInSetSkipped:175-200` — supersession-filtered older → 0 warnings.
+  - `TestSliceR3_ReconcileWireupAttachesWarningToOwnerNotes:216-311` — **Rule 20 end-to-end**: real git repo via `setupGitRepo`, real `RunReconcile` call, asserts (a) warning appears on OLDER's Notes, (b) NOT on newer's Notes, (c) outcome not blocked by the later-touch signal.
+
+**F-B2 AC-9 CLOSED — V10 `write_file_preimage_fresh` (R4 `d50a852`)**
+
+- V-check ID `CheckWriteFilePreimageFresh` at `internal/workflow/verify.go:67`; integrated into `RunVerify` at `verify.go:283-285` after V9.
+- Implementation `checkWriteFilePreimageFresh` at `verify.go:847-905`:
+  - Effective feature + stale preimage → `SeverityBlock` + `Passed:false` → report verdict flips to `failed` (matches PRD §7.2 "v1 blocks only on preimage mismatch").
+  - Superseded (per Wave α `IsFeatureSuperseded`, `verify.go:867-871`) → `severity` downgraded to `SeverityWarn`; remediation appended with `(downgraded to warn: superseded by %q per ADR-029 D7 + PRD-feature-supersession §4.5 …)` suffix at `verify.go:891-893`. Report verdict NOT flipped on V10 alone (Slice 4 supersession-controls-severity coupling).
+  - Legacy `preimage_hash == nil` (`preimageLegacyWarn`) silent per ADR-029 D4 (already warned at record/apply time; not re-warned at verify).
+  - V2 (`recipe_parses`) not-parsed → skips with matching reason (`verify.go:848-856`).
+- Rev-0 bypass at `verify.go:1148` (`replayRecipeOpsInShadow`) explicitly avoided in commit body and code comment (`verify.go:826-830`): that helper runs against a shadow root without a `.tpatch/`, so V10 dedicated helper reuses the same `checkWriteFilePreimage` primitive (`writefile_safety.go:108`) that the apply-time precheck (Slice 2) uses — same outcome for the same inputs by construction.
+- Frozen-vocabulary check-count stub-stability: `stubChecksAfterAbort` at `verify.go:434,478-488` extended to 11 rows; `verify_test.go` updated to assert 11-check arrays and V10 in the ordered ID list.
+- Test regressions (`writefile_verify_preimage_test.go`, 4 fns):
+  - `TestSliceR4_PreimageFreshPassesWhenMatching:58-80` — matching preimage → V10 pass, severity=block.
+  - `TestSliceR4_PreimageFreshBlocksOnMismatchForEffective:85-121` — effective + stale → V10 fail at block; `report.Verdict == "failed"`.
+  - `TestSliceR4_PreimageFreshDowngradesForSuperseded:127-181` — superseded + stale → V10 fail at warn; remediation cites superseder and `PRD-feature-supersession §4.5`; verdict NOT flipped to failed on V10 alone (guarded by `anyBlockFailedExcluding`).
+  - `TestSliceR4_PreimageFreshSkipsWhenRecipeAbsent:186-202` — no recipe → skip with V2-dependency reason.
+
+**F-M1 CLOSED — sentinel-error wrap-and-return (R5 `4b5f8e5`)**
+
+- Fix option (a) taken: exported sentinels retained; `PreimagePrecheckResult` gains twin fields `WrappedErrors []error` + `WrappedWarnings []error` (`writefile_safety.go:199-219`). Doc comment on the twin fields precisely names the wrap contract and calls out path-safety exemption (path-safety refusals appear only in string `Errors`; `WrappedErrors` documented as a SUBSET).
+- Wrapping via `fmt.Errorf("%w: %s", sentinel, msg)`:
+  - `appendDrift` at `writefile_safety.go:326-348`: effective preimage-mismatch → `WrappedErrors += wrap(ErrWriteFilePreimageMismatch)` (line 332); superseded downgrade → `WrappedWarnings += wrap(ErrWriteFilePreimageMismatch)` (line 347) — severity-only downgrade, class preserved.
+  - `appendLaterTouchWarn` at `writefile_safety.go:366-378`: effective + superseded both → `WrappedWarnings += wrap(ErrWriteFileLaterTouch)` (lines 371, 377).
+- Backward compat preserved: string `Errors`/`Warnings` fields untouched so harness tools reading them keep working.
+- Test regressions (`writefile_sentinel_wrap_test.go`, 4 fns):
+  - `TestSliceR5_PreimageMismatchWrappedForEffective:25-63` — `errors.Is(werr, ErrWriteFilePreimageMismatch)` matches; asserts it does NOT match `ErrWriteFileLaterTouch`.
+  - `TestSliceR5_LaterTouchWrappedForEffective:69-116` — `errors.Is(werr, ErrWriteFileLaterTouch)` matches; asserts NO Errors emitted (warn-class), NO cross-match to preimage sentinel.
+  - `TestSliceR5_SupersededPreimageDriftWrappedInWarnings:124-164` — D7 downgrade lands drift in Warnings + WrappedWarnings, sentinel remains `ErrWriteFilePreimageMismatch` (class preserved).
+  - `TestSliceR5_SentinelIdentityDistinctness:169-183` — bidirectional non-match + reflexive self-match.
+
+**F-L1 recorded (doc-only, no code change per Rule 18)**
+
+- Slice 1 commit body described the recipe extension as `string`; the shipped code is `*string` (verified: `RecipeOperation.PreimageHash *string` used throughout — e.g. `writefile_safety.go:114,121`, tests pass `ptr("")` and `ptr(hash)`). Rule 18 immutability holds — no commit rewrite. F-L1 recorded in `CHANGELOG.md:135-140` and in `docs/handoff/CURRENT.md` Session Summary Slice 1 entry.
+
+**F-L2 CLOSED — anchor fix (R6 `0072fb5`)**
+
+- `PRD-1-interaction` replaced with `PRD-feature-supersession §4.5` in all executable/normative surfaces:
+  - Runtime warning suffix in `appendDrift` (`writefile_safety.go:340`) and `appendLaterTouchWarn` (`writefile_safety.go:374`).
+  - V10 remediation suffix (`verify.go:892`).
+  - Docstrings/comments on `runWriteFilePreimagePrecheck`, `appendDrift`, `appendLaterTouchWarn` (lines 216, 240, 248, 262, 315).
+  - Test docstring headers on `TestSlice4_SupersededPreimageMismatchDowngrades` (line 44) + `TestSlice4_SupersededLaterTouchDowngrades` (line 86); test assertion body flipped from `PRD-write-file-recipe-safety` to `PRD-feature-supersession §4.5` (`writefile_supersession_test.go:76-77`).
+  - CHANGELOG bullet (line 59) + ROADMAP Slice 4 line (`ROADMAP.md:618`).
+- `grep -rn "PRD-1-interaction" internal/ cmd/` — **zero** occurrences ✓.
+- Remaining `PRD-1-interaction` mentions confined to meta-quotation contexts (describing the string being replaced): `CHANGELOG.md:129`, `docs/handoff/CURRENT.md:195,292`. Intentional and consistent with commit-body statement.
+
+### Cross-cutting
+
+- **Rule 19** — every commit body (R1–R5) cites PRD/ADR-029 clauses that authorize the shipped surface change (verified via `git log -1 --format='%B'`): R1 ADR-029 D6 + D7 + PRD §7.2 verbatim; R2 PRD §4.2 + ADR-029 D5/D6; R3 PRD §4.2 + §7.2 Q2 + ADR-029 D6; R4 PRD §5:130 + §7.2 Q2 + ADR-029 D6/D7/D8; R5 PRD §3.3 + §4.2 + §7.2 + ADR-029 D3/D6/D7/D8. R6 = doc-only closure.
+- **Rule 20 empirical checks** — user-visible behavior is locked by real end-to-end tests, not stubs:
+  - AC-7 record path: 5 tests driving `DetectRecordLaterTouchWarnings` end-to-end against a real `store.Store`.
+  - AC-8 reconcile path: `TestSliceR3_ReconcileWireupAttachesWarningToOwnerNotes` calls the real `RunReconcile` against a real git-backed store, asserting warning lands on OLDER's Notes and NOT on newer's.
+  - AC-9 verify path: all 4 R4 tests call the real `RunVerify` end-to-end through the full V-check pipeline and check `report.Verdict` for the block-vs-warn severity behavior.
+  - F-B1 apply-time warn-and-proceed: `TestSlice3_LaterTouchWarnsAndProceeds` calls real `ExecuteRecipe`, asserts file rewritten with older's bytes AND no Errors emitted.
+- **Wave α non-invalidation**: `git diff --stat e8d351f..HEAD -- internal/workflow/labels.go internal/store/validation.go internal/cli/status_dag.go` = empty (0 files changed). Slice 4 supersession tests all green.
+
+### New findings introduced by rev-1
+
+**F-INT-β-r1-1 — LOW — Doc drift: `docs/ROADMAP.md:615-617`**
+
+- **Where**: `docs/ROADMAP.md:615-617`.
+- **Text**: `Slice 3 — path-level later-touch detection ... apply-time refusal-class (Wave β tightening over ADR-029 D6's warn baseline per Wave β dispatch)`.
+- **Problem**: This description matches the rev-0 shipped surface that R1 (`ec98499`) reverted. After F-B1 closure, apply-time later-touch is warning-class, not refusal-class. The ROADMAP text now describes surface that is no longer shipped.
+- **Impact**: Doc-only staleness. Not a code regression; not a Rule 19 violation (behavior matches the ADR); not a contract violation of the F-L2 anchor scope. Downstream reviewers or roadmap consumers may be misled about the shipped Slice 3 contract if they read only the Roadmap section.
+- **Suggested (not required for approval)**: In a follow-up doc-only PR, rewrite Slice 3 line to reference the rev-1 R1 revert and cite ADR-029 D6 + PRD §7.2 verbatim. R6 successfully caught the sibling Slice 4 anchor at `ROADMAP.md:618` but missed the Slice 3 line one level up.
+- **Severity**: LOW / informational. Does NOT block acceptance.
+
+No other rev-1-introduced regressions found. All rev-0 working behavior preserved (Slice 1 schema, Slice 2 preimage precheck, Slice 4 supersession-downgrade routing including the 6/6 Slice 4 tests, Slice 5 CHANGELOG amendments); Wave α surface unchanged.
+
+### Verdict: **APPROVED WITH NOTES**
+
+Rev-1 correctly closes all 5 rev-0 findings against the supervisor-adjudicated contract (ADR-029 D6 verbatim + PRD §7.2 Q2 verbatim + PRD-feature-supersession §4.5). Every closure is backed by empirical Rule 20 tests against real workflow entry points, and all four gates (gofmt / vet / build / test) are green with 826 top-level PASS. The single new finding (F-INT-β-r1-1) is a LOW doc-only staleness in `ROADMAP.md:615-617` — informational only, does not block acceptance and does not require code changes.
+
+### Notes
+
+- The dual-review split from rev-0 (internal DISSENT + supervisor-external APPROVE) has been resolved on the internal reading per the supervisor adjudication commit `e8d351f`. Rev-1's R1 revert honors ADR-029 D6 verbatim + PRD §7.2 verbatim; rev-1's R2/R3/R4 fold-ins close the AC-7/8/9 coverage the internal reviewer flagged as never wired at rev-0.
+- F-M1 fix uses option (a) (twin fields, backward-compatible) rather than mutating `Errors`/`Warnings`. Path-safety refusals intentionally not sentinel-tagged per the sentinel-doc scope; documented as a `WrappedErrors ⊆ Errors` invariant. No live downstream caller of the sentinels exists in shipped code (Wave γ session gates are the intended consumer), so the SUBSET semantics are not a regression.
+- CHANGELOG rev-1 amendments are correctly placed **inside** `## v0.12.0 — TBD` between existing Wave β bullets and Wave α bullets. Wave α bullets are byte-identical to `e8d351f`.
+
+### Action Taken
+
+None — supervisor owns the transition of `Active Task Status` and any follow-up doc-only ROADMAP fix (F-INT-β-r1-1). This entry is written for supervisor review of the rev-1 dispatch.
+
+---
+
 ## Review — Wave β (v0.12.0 write-file safety) — supervisor-external (rev-0) — 2026-07-29
 
 **Reviewer**: supervisor-external fresh-eyes pass (parallel with internal, 20th cycle in two-opinion protocol).
