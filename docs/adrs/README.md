@@ -17,7 +17,7 @@
 - [ADR-015: Prior-Art Mapping for Identity Duality, Operation Log, and Stack Primitives](ADR-015-prior-art-identity-mapping.md) — Accepted (research framework)
 - [ADR-027: Capture Context Privacy Boundary](ADR-027-capture-context-privacy-boundary.md) — Accepted
 - [ADR-028: Supersession Edge Model](ADR-028-supersession-edge-model.md) — Accepted
-- [ADR-029: Write-file Recipe Safety](ADR-029-write-file-recipe-safety.md) — Proposed
+- [ADR-029: Write-file Recipe Safety](ADR-029-write-file-recipe-safety.md) — Accepted
 
 ## Locked-In Decisions (from review process)
 

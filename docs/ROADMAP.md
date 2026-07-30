@@ -549,7 +549,7 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
-## v0.12.0 — feature supersession + write-file safety + active-feature-session 🚧 in-flight (Wave α accepted 2026-07-29)
+## v0.12.0 — feature supersession + write-file safety + active-feature-session 🚧 in-flight (Wave α accepted 2026-07-29; Wave β implementer accepted 2026-07-29 — three-way review pending)
 
 Post-planning implementation cluster for GH #1 + ADR-027 F3, executed
 as three sequential waves. Wave α accepted 2026-07-29 at three-way
@@ -594,12 +594,36 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     `d21b4b4` → rev-1 `5e6515d..e5e0091` → rev-1 dual review `763b926`.
     Final code HEAD: `e5e0091`. Test count 129 (baseline 99 at v0.11.3).
 
-- **Wave β — `write-file` recipe safety** 🚧 (dispatched 2026-07-29,
-  depends on Wave α acceptance for stale-supersession suppression
-  coupling per PRD-write-file-recipe-safety §PRD-1-interaction)
+- **Wave β — `write-file` recipe safety** ✅ (implementer accepted 2026-07-29;
+  awaiting three-way reviewer concurrence)
   - `preimage_hash` + later-touch per
     [`PRD-write-file-recipe-safety`](prds/PRD-write-file-recipe-safety.md)
     and [`ADR-029`](adrs/ADR-029-write-file-recipe-safety.md).
+  - Slice 1 — schema field `PreimageHash *string` on `RecipeOperation`
+    + `preimage_hash` documented across all 6 shipped skill surfaces +
+    new parity anchor in `assets/assets_test.go` (schema + docs in one
+    commit; anti-drift lesson from Wave α rev-0 F-SEXT-2).
+  - Slice 2 — apply-time preimage precondition precheck with ADR-029
+    D3 all-or-nothing semantics; sentinel errors
+    `ErrWriteFilePreimageMismatch` + `ErrWriteFileLaterTouch`;
+    ADR-029 D1/D2 canonical `sha256:<64 lowercase hex>` byte hash;
+    ADR-029 D4 legacy nil-preimage warn-and-proceed; ADR-029 D8
+    no-source-body diagnostics; apply CLI surfaces warnings on
+    stderr with `⚠` prefix.
+  - Slice 3 — path-level later-touch detection using PRD §4.2's
+    preferred deterministic artifact (`patch-generations.json.
+    touched_paths`) with recipe-op-path fallback; apply-time
+    refusal-class (Wave β tightening over ADR-029 D6's warn baseline
+    per Wave β dispatch); deterministic slug ordering (PRD §5 note 4).
+  - Slice 4 — supersession coupling per PRD §PRD-1-interaction /
+    ADR-029 D7: superseded features downgrade drift severity from
+    Error to Warning-with-note while STILL reporting drift; inherits
+    Wave α R4 runtime flip (stale-superseder still downgrades);
+    active superseder itself remains hard-reject; path-safety never
+    downgraded.
+  - Slice 5 — CHANGELOG amendment, PRD-write-file-recipe-safety
+    Proposed→Accepted, ADR-029 Proposed→Accepted, ADR README
+    status column update.
 
 - **Wave γ — active-feature-session** ⬜ (deferred to post-Wave β acceptance)
   - `tpatch session` command group + `.tpatch/local/capture/` per

@@ -1,7 +1,7 @@
 # PRD - Write-file Recipe Safety - `write-file-recipe-safety`
 
-**Status**: Proposed
-**Date**: 2026-07-29
+**Status**: Accepted
+**Date**: 2026-07-29 (Proposed) / 2026-07-29 (Accepted — v0.12.0 Wave β implementation)
 **Owner**: Core
 **Cluster**: Replay trustworthiness (GH #1)
 **Depends on**: [ADR-024 — Patch generation manifest boundary](../adrs/ADR-024-patch-generation-manifest-boundary.md), [ADR-025 — Reconcile evidence and revision schema](../adrs/ADR-025-reconcile-evidence-and-revision-schema.md), [ADR-026 — Patch amendment policy](../adrs/ADR-026-patch-amendment-policy.md)

@@ -2,7 +2,81 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.12.0 — TBD — feature supersession (Wave α)
+## v0.12.0 — TBD — feature supersession (Wave α) + write-file recipe safety (Wave β)
+
+### Wave β — `write-file` preimage precondition + later-touch detection + supersession coupling
+
+- Extended the `RecipeOperation` schema with a new optional
+  `preimage_hash *string` field on `write-file` operations
+  (`internal/workflow/implement.go`). Display form is
+  `sha256:<64 lowercase hex>` for existing-file writes, `""` for
+  new-file writes (target must not exist at apply time), or omitted
+  for legacy pre-v0.12.0 recipes (accepted with a warning per
+  ADR-029 D4). The pointer type is load-bearing: PRD §3.3
+  distinguishes explicit `""` (new-file gate) from an omitted field
+  (legacy path), which a plain `string` cannot represent. All six
+  shipped skill assets — Claude, Copilot, Copilot Prompt, Cursor,
+  Windsurf, Generic — document the new field in the same commit as
+  the schema addition; a new `preimage_hash` parity anchor in
+  `assets/assets_test.go` locks the documentation contract at test
+  time (anti-drift lesson carried forward from Wave α rev-0
+  F-SEXT-2).
+- Apply-time preimage precondition (Slice 2, PRD AC-1/2/3/4/5/6/13,
+  ADR-029 D1/D2/D3/D4/D8): a new
+  `runWriteFilePreimagePrecheck` pass in `internal/workflow/
+  writefile_safety.go` runs BEFORE any recipe mutation. Every
+  `write-file` op is compared against its `preimage_hash`
+  precondition — matching hash proceeds, hash mismatch or missing-
+  file or empty-preimage-collision or malformed-hash all refuse with
+  ADR-020-style inline remediation. ADR-029 D3 all-or-nothing is
+  enforced: any single precondition failure short-circuits the
+  entire recipe so no operation is written on drift. Hash input is
+  exact file bytes (no normalization, ADR-029 D2). Diagnostics carry
+  only paths, hashes, and reason codes — no file bodies (ADR-029
+  D8). Legacy recipes lacking the field warn but still apply
+  (ADR-029 D4). Two exported sentinels
+  `ErrWriteFilePreimageMismatch` and `ErrWriteFileLaterTouch` let
+  callers key off drift class via `errors.Is`. The apply CLI
+  (`runApplyExecuteChecked` in `internal/cli/cobra.go`) now surfaces
+  `result.Warnings` on stderr with a `⚠` prefix so the legacy-recipe
+  advisory + Slice 4 supersession-downgrade note are visible.
+- Apply-time later-touch detection (Slice 3, PRD AC-8, PRD §4.2,
+  ADR-029 D5/D8): the same precheck pass runs a path-level scan
+  asking "has a feature recorded LATER than the current feature
+  (per RequestedAt ordering) touched this write-file's path?" When
+  yes, the op is refused with an actionable message naming the
+  culprit slug. Detection reads BOTH `patch-generations.json.
+  touched_paths` (preferred deterministic artifact per PRD §4.2)
+  AND `apply-recipe.json` op paths (fallback for early-lifecycle
+  features without a manifest), unioned. Ties broken by
+  alphabetical slug order for deterministic error output (PRD §5
+  note 4). Later-touch runs alongside — not gated by — the
+  preimage check so operators see BOTH classes of drift in one
+  apply attempt. This is a Wave β tightening over ADR-029 D6's
+  "warn-only" baseline: at apply time later-touch is refusal-class,
+  blocking silent-revert scenarios (GH #1) even when the operator
+  regenerated the preimage against a stale base.
+- Supersession coupling (Slice 4, PRD AC-10, PRD §PRD-1-interaction,
+  ADR-029 D7): when the current recipe's feature is superseded per
+  Wave α's `IsFeatureSuperseded` (healthy OR stale per §4.5.3),
+  BOTH preimage-mismatch and later-touch drift severities downgrade
+  from hard-reject to warning-with-note. The checks still run and
+  the drift is still reported — the difference is severity class
+  (Warnings not Errors, so execution proceeds). Warnings are
+  suffixed with the superseder slug and cite PRD-write-file-recipe-
+  safety §PRD-1-interaction / ADR-029 D7 verbatim so the downgrade
+  is auditable. This inherits Wave α R4's runtime flip: even a
+  stale-superseder scenario downgrades historical drift (the graph
+  reports the stale-superseder problem separately via Wave α's
+  derived label). The ACTIVE superseder is not superseded by
+  anyone — its own drift remains hard-reject per ADR-029 D7 "The
+  active superseder remains subject to normal refusal/failure
+  semantics." Path-safety violations are NEVER downgraded (security
+  boundary).
+- Status flipped `Proposed` → `Accepted` on both
+  [`PRD-write-file-recipe-safety`](docs/prds/PRD-write-file-recipe-safety.md)
+  and [`ADR-029-write-file-recipe-safety`](docs/adrs/ADR-029-write-file-recipe-safety.md).
+- References: PRD-write-file-recipe-safety, ADR-029-write-file-recipe-safety.
 
 ### Wave α — supersedes edge kind + reconcile suppression + composable labels
 

@@ -1,7 +1,7 @@
 # ADR-029 — Write-file Recipe Safety
 
-**Status**: Proposed
-**Date**: 2026-07-29
+**Status**: Accepted
+**Date**: 2026-07-29 (Proposed) / 2026-07-29 (Accepted — v0.12.0 Wave β implementation)
 **Owner**: Core
 **Cluster**: Replay trustworthiness (GH #1)
 **Supersedes**: none
