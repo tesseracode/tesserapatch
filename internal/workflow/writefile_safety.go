@@ -210,23 +210,41 @@ type PreimagePrecheckResult struct {
 // baseline: per the Wave β dispatch, apply-time later-touch is
 // refusal-class so silent-revert scenarios (GH #1) are blocked even
 // when the operator regenerated the preimage against a stale base.
-// Slice 4 downgrades both severities to warning-with-note when the
-// current feature is superseded (PRD §PRD-1-interaction, ADR-029 D7).
 //
-// Slice 4 will layer supersession-aware severity downgrade on top of
-// this (superseded features flip Errors → Warnings per PRD §PRD-1-
-// interaction / ADR-029 D7). The `superseded` bool is a parameter so
-// the caller controls the store lookup once per recipe.
+// v0.12.0 Wave β Slice 4 (PRD-write-file-recipe-safety §3.4/§PRD-1-
+// interaction, ADR-029 D7): when the current feature is superseded
+// (per Wave α's isFeatureSupersededIn, healthy OR stale per §4.5.3),
+// BOTH the preimage-mismatch and later-touch drift severities
+// downgrade from hard-reject to warning-with-note. The checks still
+// run and the drift is still reported — the difference is severity
+// class: Warnings not Errors, so execution proceeds. This matches
+// PRD §PRD-1-interaction "downgrade-to-warning for superseded
+// historical drift, not total suppression".
 func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePrecheckResult {
 	var out PreimagePrecheckResult
 	repoRoot := s.Root
 	laterIdx := loadLaterFeatureTouches(s, recipe.Feature)
+
+	// Slice 4 supersession coupling: decide once per recipe whether
+	// the current feature is superseded so per-op checks can be
+	// downgraded consistently. The IsFeatureSuperseded contract
+	// covers BOTH healthy and stale superseders (Wave α R4 runtime
+	// flip in labels.go:isFeatureSupersededIn); Wave β inherits that
+	// semantics so an operator repairing a stale-superseder scenario
+	// still sees the historical drift as warning-class (matches
+	// PRD §PRD-1-interaction clause 3 which says the graph reports
+	// the stale-superseder problem separately).
+	superseder, superseded := IsFeatureSuperseded(s, recipe.Feature)
+
 	for i, op := range recipe.Operations {
 		if op.Type != "write-file" {
 			continue
 		}
 		target := filepath.Join(repoRoot, op.Path)
 		if err := safety.EnsureSafeRepoPath(repoRoot, target); err != nil {
+			// Path-safety failures are NEVER downgraded — they are a
+			// hard safety-boundary violation regardless of
+			// supersession status. Feed as Error unconditionally.
 			out.Errors = append(out.Errors, fmt.Sprintf("recipe drift: [%s] op %d %s: path safety: %v",
 				recipe.Feature, i, op.Path, err))
 			continue
@@ -241,17 +259,42 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 			}
 		case preimageRejected:
 			if msg != "" {
-				out.Errors = append(out.Errors, msg)
+				out.appendDrift(msg, superseded, superseder)
 			}
 		}
 		// Later-touch detection runs regardless of the preimage
 		// outcome so the operator sees BOTH classes of drift in one
 		// shot rather than needing multiple apply attempts.
 		if lt := checkLaterTouch(recipe.Feature, i, op, laterIdx); lt != "" {
-			out.Errors = append(out.Errors, lt)
+			out.appendDrift(lt, superseded, superseder)
 		}
 	}
 	return out
+}
+
+// appendDrift routes a drift-class message (preimage mismatch or
+// later-touch) into either Errors or Warnings based on the caller
+// feature's supersession status. When superseded, the drift is
+// suffixed with a "superseded by <slug>" note so operators (and
+// downstream audit tools) can trace the downgrade back to the
+// supersession edge without correlating separate logs.
+//
+// PRD §PRD-1-interaction: superseded historical features exhibit
+// "expected historical drift"; downgrade is severity-only, never a
+// bypass. ADR-029 D7 makes this concrete for write-file recipes.
+func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, superseder string) {
+	if !superseded {
+		r.Errors = append(r.Errors, msg)
+		return
+	}
+	// v0.12.0 Wave β Slice 4: downgrade with visible provenance so the
+	// warning is not indistinguishable from a legacy-preimage warning.
+	// The "superseded by" suffix mirrors the pattern used by Wave α's
+	// `superseded-by <slug>` derived label so operators recognize the
+	// signal as the supersession-coupling downgrade.
+	r.Warnings = append(r.Warnings,
+		fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
+			msg, superseder))
 }
 
 // laterTouchIndex maps a repo-relative path to the slug of the FIRST
