@@ -100,6 +100,16 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
+			// Wave γ (PRD-active-feature-session §4 D6 mandate 1 + ADR-027 D1):
+			// install/preserve the effective .gitignore rule for the local
+			// buffer lane at `.tpatch/local/`. If the rule cannot be written
+			// (mandate 2), refuse — the error message enumerates all six
+			// mandates verbatim and prints the exact rule so the user can
+			// add it manually.
+			if err := workflow.EnsureLocalGitignoreRule(root); err != nil {
+				return err
+			}
+
 			installSkills(cmd, root)
 
 			// GAP 6: Auto-detect provider
@@ -118,6 +128,8 @@ func initCmd() *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "  config:    %s\n", filepath.Join(s.TpatchDir(), "config.yaml"))
 			fmt.Fprintf(cmd.OutOrStdout(), "  features:  %s\n", filepath.Join(s.TpatchDir(), "FEATURES.md"))
 			fmt.Fprintf(cmd.OutOrStdout(), "  steering:  %s\n", filepath.Join(s.TpatchDir(), "steering/"))
+			fmt.Fprintf(cmd.OutOrStdout(), "  gitignore: appended %q to %s (PRD-active-feature-session §4 D6)\n",
+				workflow.LocalIgnoreRule, filepath.Join(s.Root, ".gitignore"))
 			return nil
 		},
 	}
