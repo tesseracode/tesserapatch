@@ -1,3 +1,119 @@
+## Review — Wave γ (v0.12.0 active-feature-session) — internal (rev-0) — 2026-07-30
+
+**Reviewer**: internal fresh-eyes pass, rev-0.
+**Range reviewed**: `561e6de..d842697` (5 commits: `7c77723`, `f52fcfa`, `1863733`, `84d18ff`, `d842697`).
+**Contract**: PRD-active-feature-session D1-D19; ADR-027 D1 F3 conditional.
+
+### Checklist
+
+- [x] **Compiles** — `go build ./cmd/tpatch` clean.
+- [x] **Tests pass** — `go test -count=1 ./...` full-suite PASS across every package.
+- [x] **Formatted** — `gofmt -l .` empty.
+- [x] **Artifacts deterministic** — `SessionListJSON` sorted by (feature, session_id); `ContextSummaryRedaction.FindingCodes` sorted (`session_redaction.go:88`).
+- [x] **Secrets safe** — D11 boundary invariant test (`session_redaction_test.go:226-291`) proves raw `ghp_...` PAT never crosses into committed summary; empirically re-verified.
+- [x] **Matches SPEC** — every D-clause below checked against PRD-active-feature-session verbatim.
+- [x] **Handoff accurate** — `docs/handoff/CURRENT.md` refreshed; Side Research md5 `b385fe622db9926f48861105239f113e` preserved (independently verified).
+
+### Gates
+
+- `gofmt -l .` — empty ✓
+- `go vet ./...` — clean ✓
+- `go build ./cmd/tpatch` — clean ✓
+- `go test -count=1 ./...` — full-suite PASS ✓
+- Top-level test count (`go test -v ./... | grep -E '^=== RUN\s+[^/]+$' | wc -l`): **865** (matches implementer claim; baseline 827 → +38 Wave γ).
+- Side Research md5: `b385fe622db9926f48861105239f113e` — matches saved invariant ✓.
+- Rule 18 co-author trailer verified on all 5 commits (`7c77723`, `f52fcfa`, `1863733`, `84d18ff`, `d842697`) via `git log -1 --format='%(trailers:key=Co-authored-by)' <sha>`.
+- Non-invalidation of Wave α: `git diff --stat 561e6de..d842697 -- internal/workflow/labels.go internal/store/validation.go internal/cli/status_dag.go` empty ✓.
+
+### D6 six-mandate audit (BLOCKING if any missing)
+
+Every mandate has (a) production code path, (b) detached-worktree refusal fixture, (c) actionable message enumerating all six mandates.
+
+| Mandate | Production path | Fixture | Actionable-message enumeration |
+|---|---|---|---|
+| 1. `tpatch init` appends `.tpatch/local/` to `.gitignore` | `internal/workflow/session_ignore.go:205-253` (`EnsureLocalGitignoreRule`), wired at `internal/cli/cobra.go:110-112` immediately after `store.Init` | `session_ignore_test.go:TestD6MandateInitCreatesGitignore`, `TestD6MandateInitAppendsWithoutDuplication`, `TestD6MandateInitAppendsWhenMissing` (177-230) + CLI `session_lifecycle_test.go:TestSessionInitAppendsGitignore` (96-109) | `LocalIgnoreRefusal.Error()` at `session_ignore.go:85-108` — line 97 enumerates mandate 1 verbatim + prints rule; empirically reproduced |
+| 2. Refusal with rule printed if `.gitignore` unwritable | `EnsureLocalGitignoreRule` returns `LocalIgnoreRefusal{Reason: LocalIgnoreGitignoreUnwritable, …}` on write failure (`session_ignore.go:228-234, 238-244, 247-252`) | `TestD6MandateInitRefusesUnwritableGitignore` (235-254) — chmod 0o400 fixture + POSIX/root skip | Line 98 enumerates mandate 2 verbatim; mustBeRefusal asserts `strings.Contains(msg, workflow.LocalIgnoreRule)` |
+| 3. `session start`-time path verification before ANY write | `internal/cli/session.go:107-112` — `EnsureLocalIgnoreContract(s.Root, sessionRoot)` runs BEFORE `s.SaveSession` | `session_ignore_test.go:TestD6ContractHappyPath` (161-171); refusal branch at `TestSessionStartRefusesWithoutGitignore` (`session_lifecycle_test.go:115-135`) | Line 99 enumerates mandate 3 verbatim; empirically reproduced via `./tpatch --path <dir> session start f` after deleting `.gitignore` — full six-mandate block emitted |
+| 4. Refuse when Git unavailable OR path not ignored | `EnsureLocalIgnoreContract` (`session_ignore.go:132-138` git-unavailable branch; `179-185` not-ignored branch) | `TestD6MandateGitUnavailable_NotAWorkTree` (77-92, seeds `.git` sentinel to prevent ancestor walk); `TestD6MandateEffectiveIgnoreFails_NoGitignore` (101-108) | Line 100 enumerates mandate 4 verbatim; empirical reproduction on non-git-tree tmpdir returned `[git-unavailable]` reason as expected |
+| 5. EFFECTIVE ignore via `git check-ignore` (NOT textual match) | `internal/gitutil/ignore.go:59-78` — uses `git check-ignore -q --no-index --` with exit-code semantics (0=ignored, 1=not, others=err) | `TestD6MandateEffectiveIgnoreFails_NegationRule_DefeatsTextualMatch` (116-134) — negation rule case: textual match would say ignored, `check-ignore` says not-ignored; refusal fires as expected | Line 101 enumerates mandate 5 verbatim; negation-rule fixture explicitly proves NOT textual |
+| 6. Pre-PRD workspace fallback path defined | `internal/workflow/session_ignore.go:26` — `PrePRDWorkspaceFallbackPath = ".git/tpatch/capture/"` (display-only constant) | Fallback path is asserted present in every `mustBeRefusal` message (`session_ignore_test.go:66-68`) | Line 102 enumerates mandate 6 verbatim; `LocalIgnoreRefusal.Error()` at line 106 prints the fallback path |
+
+**Verdict on six mandates: PASSED.** All six mandates have production path, refusal-path fixture, and actionable message enumeration. Empirically reproduced three of the five failure modes (mandate 4 not-a-work-tree, mandate 5 no-gitignore, and idempotent happy path) via the built binary against ephemeral tmp directories.
+
+### D-clause audit
+
+- **D1 — Explicit-per-feature start**: `session.go:80-82` refuses unknown slug (`LoadFeatureStatus`); `session.go:114-117` idempotence covered by `TestSessionStartIdempotent` (`session_lifecycle_test.go:140-172`). Empirically re-verified idempotence — second start prints `already active` and writes no new buffer. **PASS.**
+- **D2 — Explicit stop + opt-in record-time close**: `sessionStopCmd` (`session.go:164-199`); `record --with-session` at `cobra.go:1524-1540` opts in per invocation. **PASS.**
+- **D3 — Content-addressed session ID**: `ComputeSessionID` at `store/session.go:124-135` — 12 hex prefix of SHA-256(canonical JSON). `TestComputeSessionIDDeterministic` (`session_test.go:13-36`) proves determinism + basic collision. Wall-clock is NOT in `SessionIdentityInputs` (line 111-118). **PASS.**  See Findings for a related quality note.
+- **D4 — State machine `idle/active/closed/promoted/purged`**: `SessionState` enum at `store/session.go:27-36`; `ValidSessionState` at 39-46. Transitions verified via `TestSessionStopTransitions` (`session_lifecycle_test.go:176-199`) and `TestSessionSummarizePromoteWritesRedactedCopy` (`session_redaction_test.go:226-291`). **PASS.**
+- **D5 — Canonical path `.tpatch/local/capture/<slug>/<cs_id>/`**: `LocalCaptureDir` at `store/session.go:175-177`; `SessionDir` at 189-191. **PASS.**
+- **D7 — Rejected paths**: `.git/tpatch/capture/` is display-only fallback (`PrePRDWorkspaceFallbackPath`), not a writer target. OS-cache lanes are not implemented. **PASS.**
+- **D8 — Purge semantics + non-authoritative**: `PurgeSession` at `store/session.go:357-391` — idempotent on missing dir, refuses symlink escape (with macOS-safe base resolution via `filepath.EvalSymlinks` on both sides). `TestPurgeSessionIdempotent`, `TestPurgeSessionRejectsBadID`, `TestPurgeSessionSymlinkRefusal` (session_test.go:160-209). **PASS.**
+- **D9 — Promotion is EXPLICIT and OPT-IN (not auto on stop)**: `sessionStopCmd` (`session.go:185-193`) transitions to `SessionClosed`, NOT `SessionPromoted`. Promotion only occurs via `session summarize --promote` or `record --with-session`. **PASS.**
+- **D10 — Promotion path `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json`**: `FeatureContextSummaryPath` at `store/session.go:207-209`. **PASS.**
+- **D11 — Redaction contract**: ten forbidden classes enumerated in `session_redaction.go:31-42`; `TestSessionSummarizePromoteWritesRedactedCopy` (`session_redaction_test.go:226-291`) proves raw `ghp_bogusabcdefghijklmnopqrstuvwxyz01` NEVER crosses into the committed summary. All 15 forbidden-class sub-tests present. **PASS.**
+- **D13 — new `tpatch session` command group**: registered at `sessionCmd()` in `session.go:31-55`. Empirically verified via `./tpatch session --help` and `--help` on each subcommand. **PASS.**
+- **D14 — command-specific contracts**: `summarize --dry-run` default, `--dry-run + --write` refused (`session.go:477-479` + `TestSessionSummarizeInvalidFlagPairs`), `--promote` requires `--write` (`session_summarize.go:30-32`). List `--json` deterministic (`TestSessionListJSONDeterministic`). **PASS with 1 finding — see F-INT-γ-1 below.**
+- **D15 — new `record` flags**: `--with-session` + `--from-session` at `cobra.go:1524-1540, 1560-1561`; `--from-session` requires `--with-session` (`§8.8`) enforced at line 1526-1528. `TestRecordFromSessionRequiresWithSession` covers refusal. **PASS.**
+- **D16–D19 — privacy invariants**: session→buffer (D16) enforced by `SessionObservation` schema (no raw fields); buffer→summary (D17) enforced by `redactSessionForCommit`; cross-feature isolation (D18) enforced at `LoadSession` slug/manifest mismatch refusal (`store/session.go:249-252`); provider carve-out (D19) not exercised by Wave γ code (deferred). **PASS.**
+
+### Rule audits
+
+- **Rule 15 (parity guard)**: `assets/assets_test.go:36-40` adds all 5 session subcommands to `requiredCommands`; `104-105` adds `.tpatch/local/capture/` and `.tpatch/local/` anchors. All 6 shipped assets verified to contain each subcommand and both anchors (empirical grep over each asset). **PASS.**
+- **Rule 17 (totality claims)**: `internal/cli/verify.go` was NOT amended in Wave γ, but a prior sweep (Wave β user-external F1 fold-in on `561e6de`) already brought it to `V0-V10`. Confirmed via `grep -n "V0-V10\|V0-V9" internal/cli/verify.go` — only `V0-V10` appears. Wave γ Slice 2 also folded stale `V0-V9` prose in Claude/Copilot/CopilotPrompt skill assets (per Slice 2 commit body). No new totality-claim regression introduced. **PASS.**
+- **Rule 18 (co-author trailer)**: verified on all 5 rev-0 commits (see Gates). **PASS.**
+- **Rule 19 (shipped-surface behavior amendment)**: Slice 1 commit body cites both PRD-active-feature-session §4 D6 mandates 1+2 AND ADR-027 D1 for the `tpatch init` amendment; in-source comment at `cobra.go:104-109` cites both. **PASS.**
+- **Rule 20 (empirical reproduction)**: Six-mandate refusal paths reproduced empirically via detached-worktree fixtures in the test suite (9 fixtures in `session_ignore_test.go`) AND independently by this reviewer via the built binary against ephemeral tmp directories (mandate 4 not-a-work-tree; mandate 5 no-gitignore; happy-path after init; idempotent second start; purge dry-run and --yes). **PASS.**
+
+### Findings
+
+- **F-INT-γ-1 — HIGH — `tpatch session purge --yes` with NO slug and NO `--all` implicitly deletes every session in the repository.**
+  - **File**: `internal/cli/session.go:296-363` (`sessionPurgeCmd`).
+  - **Evidence — empirical reproduction**:
+    ```
+    $ ./tpatch --path /tmp/tpatch-purge-check add "feature A" --slug fa
+    $ ./tpatch --path /tmp/tpatch-purge-check add "feature B" --slug fb
+    $ ./tpatch --path /tmp/tpatch-purge-check session start fa
+    $ ./tpatch --path /tmp/tpatch-purge-check session start fb
+    $ ./tpatch --path /tmp/tpatch-purge-check session purge --yes    # no slug, no --all
+    removed /tmp/tpatch-purge-check/.tpatch/local/capture/fa/cs_094eacd4ac3c
+    removed /tmp/tpatch-purge-check/.tpatch/local/capture/fb/cs_7224570a6bff
+    ```
+    Both feature-A and feature-B sessions were deleted despite the operator giving neither an explicit slug nor `--all`.
+  - **Root cause**: `sessionPurgeCmd` (line 312) enforces only the mutex `--all` + `<slug>`. When both are absent it computes `filter := ""` (line 319-322) and passes it to `s.ListSessions("")` which returns EVERY slug's sessions (per `store/session.go:304-352`). The purge loop then removes them all.
+  - **PRD anchor**: §6 D14 states "`--all` and `<slug>` are mutually exclusive." The natural reading — corroborated by the presence of an explicit `--all` opt-in — is that ONE of them must be supplied for a repo-wide destructive action. `--all` currently exists as a UI courtesy that provides zero additional safety over just omitting the slug. This defeats the intended safety design.
+  - **Severity rationale**: HIGH (not BLOCKING) because (a) `--yes` is still required so this is not a pure typo-to-destruction path, and (b) the destructive action is on LOCAL private buffers, not committed artifacts. But the invariant of "explicit-all-required for repo-wide destruction" is silently broken.
+  - **Suggested fix (do not implement per review contract)**: after the mutex check, refuse when `!all && len(args) == 0` with a message like `session purge: either <slug> or --all is required (PRD §6 D14)`. Add a regression fixture parallel to `TestSessionPurgeDryRunDefault` that asserts `session purge --yes` (no slug, no --all) refuses. Update the ambiguity-refusal test on `record --with-session` too if it relies on the "--session" flag name (see F-INT-γ-2).
+
+- **F-INT-γ-2 — LOW — record --with-session ambiguity-refusal message tells operators to pass `--session` but the record flag is `--from-session`.**
+  - **File**: `internal/cli/session.go:422` (`pickSessionForOp` error message: `"multiple eligible sessions for feature %s (%s); pass --session <cs_id>"`), invoked from `cobra.go:1530-1533`.
+  - **Evidence**: `pickSessionForOp` is shared between `session summarize` (whose flag IS `--session`) and `record --with-session` (whose flag is `--from-session`). When invoked from record, the wrapped error message reads `record --with-session: multiple eligible sessions for feature X (…); pass --session <cs_id>` — pointing operators at a flag that does not exist on `record`. The existing regression `TestRecordWithSessionRefusesAmbiguousWithoutFromSession` (`session_record_test.go:234-240`) even codifies the misleading string. Confirmed by inspection of `cobra.Flags()` at `cobra.go:1560-1561`: only `--from-session` exists, not `--session`.
+  - **Severity rationale**: LOW — misleading actionable message on an already-refused path. Not a data-integrity issue, but an operator following the message will hit "unknown flag".
+  - **Suggested fix (do not implement)**: parameterize the flag name in `pickSessionForOp` (or return a sentinel + let callers format the message with their flag name), and update the record-side regression to assert `--from-session` in the message.
+
+- **F-INT-γ-3 — LOW — `SessionIdentityInputs.RepositoryIdentity` is set to `baseCommit`, not a stable repo identifier.**
+  - **File**: `internal/cli/session.go:131-138`.
+  - **Evidence**: The struct exposes `RepositoryIdentity` and `BaseCommit` as distinct identity inputs (PRD §3 D3.2 lists them separately). The wiring passes `baseCommit` into both fields. Effect: on the same repo, if the user rebases and the HEAD SHA moves, both fields change together, so the "repository identity" input no longer distinguishes "same repo, different base" from "different repo, different base". In a fresh git repo (no HEAD), both fields are `""`. Session-ID uniqueness across repos is still workable in practice because `WorkspaceDiscriminator` (= `filepath.Base(s.Root)`) covers most path-level distinction; the direct data-corruption risk is nil.
+  - **Severity rationale**: LOW — determinism is preserved; the ID is still unique in practice for the local-only addressing D3 requires. But the field naming makes the intent read as "stable repo identity, e.g. origin URL", and the code does not match that. Cosmetic-ish but worth surfacing before D3 is treated as authoritative in downstream capture PRDs.
+
+- **F-INT-γ-4 — LOW — `tpatch init` always prints `gitignore: appended ".tpatch/local/" to <path>` even when the rule was already present and nothing was written.**
+  - **File**: `internal/cli/cobra.go:132-133`.
+  - **Evidence**: `EnsureLocalGitignoreRule` (`session_ignore.go:212-220`) short-circuits with `return nil` when an equivalent line already exists. The caller has no way to distinguish "wrote it" from "already there" and unconditionally prints `appended`. Minor operator-facing accuracy issue only.
+  - **Severity rationale**: LOW — cosmetic; no data effect. Flagged so the assertion set for the message doesn't calcify around the inaccurate wording.
+
+### Verdict: APPROVED WITH NOTES
+
+Six D6 mandates all present with production + fixture + message-enumeration coverage. All 25 acceptance criteria in PRD §8 have supporting fixtures. Full-suite tests green, gates clean, Rule 15 parity guard extended, Rule 18 trailer on all 5 commits, Rule 20 empirical reproduction independently confirmed for three D6 refusal paths. The one HIGH finding (F-INT-γ-1 implicit-all purge) is a safety-design regression, not a spec-vs-code miss on the six-mandate ignore contract, and can be folded into Wave γ consolidation without spinning rev-1.
+
+### Notes
+
+- **No cross-reference misses vs PRD §7 D18** — the internal `LoadSession` refusal at `store/session.go:249-252` and the tests at `TestSessionStartCrossFeatureIsolation` + `TestRecordWithSessionCrossFeatureIsolationRefused` cover D18 end-to-end. External review is not required to catch a §7.2-style delegation here because D18 is stated verbatim in PRD, not delegated to ADR-027.
+- **macOS `/var/folders` symlink handling in `PurgeSession`** — the base-side `EvalSymlinks` on `LocalCaptureDir()` (`store/session.go:381-385`) is a Wave γ Slice 2/3 fold-in and is not something a portable review will regress. Kept as-is.
+- **`session.go:427-430` `sessionExists` helper is unused by production code and not referenced by tests** — dead code, not a bug. Skip.
+- **Interaction with existing test `TestFeaturePatchRefreshNoByteChangeSkips`** — Slice 5's two-line `git add .gitignore + commit` folded into `internal/cli/feature_patch_test.go` is a valid fixture fix. The test previously assumed `tpatch init` left the working tree clean; the D6 mandate 1 amendment surfaces that assumption. No production-code effect.
+
+---
+
 ## Review — Wave β (v0.12.0 write-file safety) — user-external (rev-1) — 2026-07-30
 
 **Reviewer**: user-external, parallel pass on rev-1 concurrent with internal `9eb2fcf` + supervisor-external `63d8650`.
