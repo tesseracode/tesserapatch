@@ -1,3 +1,109 @@
+## Review — Wave β (v0.12.0 write-file safety) — supervisor-external (rev-0) — 2026-07-29
+
+**Reviewer**: supervisor-external fresh-eyes pass (parallel with internal, 20th cycle in two-opinion protocol).
+**Range reviewed**: `a05a918..7689c39` (6 commits: Slice 1–5 + implementer sign-off).
+**Contract**: PRD-write-file-recipe-safety §3.1/§3.3/§4.2/§4.5/§6 AC-1..AC-13; ADR-029 D1–D8; PRD-feature-supersession §4.5 + §PRD-1-interaction; handoff/CURRENT.md Wave β slice plan.
+**Concurrence disposition**: PENDING internal rev-0 (not yet landed at review time; latest LOG.md entries are Wave α close 2026-07-29 + user-external rev-1). Independent verdict below.
+
+### Slice 3 scope-tightening check — APPROVE with INFO note
+
+**ADR-029 D6 verbatim** (`docs/adrs/ADR-029-write-file-recipe-safety.md:68–72`):
+
+> ### D6 — Later-touch record behavior warns, not refuses
+>
+> Record-time later-touch detection is warning-class in v1. Apply-time preimage mismatch is refusal-class.
+>
+> **Rationale**. Some later touches are intentional replacements or pending supersession edges. Warning avoids blocking legitimate authoring while the preimage gate prevents unsafe execution.
+
+D6 pins record-time later-touch = warn and apply-time PREIMAGE MISMATCH = refuse. It is **silent on apply-time later-touch** — that class is genuinely unspecified by the accepted ADR. Slice 3 (`c816769`) fills the gap by making apply-time later-touch refusal-class and documents this in the commit message ("Wave β dispatch tightening over ADR-029 D6") and in `writefile_safety.go:203–210`. The tightening is explicitly authorized by handoff/CURRENT.md "What ships" bullet 3 ("if the target file has been touched by a later feature ... reject with actionable message") and is scoped to preserve Slice 4's downgrade path (the same later-touch call routes through `appendDrift`, which downgrades to warning when the caller feature is superseded — `writefile_safety.go:271–283`).
+
+**Verdict — Slice 3 tightening: APPROVE.** Documented, scoped, and does not preclude Slice 4. Not a Rule 19 violation (D6's silence on apply-time later-touch is a gap, not an authorization of warn-only). See F-SEXT-β-1 below for the residual PRD-text/implementation gap (informational only).
+
+### Gates
+
+- `gofmt -l .` — empty ✓
+- `go vet ./...` — clean ✓
+- `go build ./cmd/tpatch` — clean ✓
+- `go test -count=1 -v ./... | grep -c '^--- PASS'` → **806** (+23 vs Wave α 783). Matches implementer claim exactly. ✓
+- Side Research md5 preserved: `docs/handoff/CURRENT.md` lines 266–EOF hash = `b385fe622db9926f48861105239f113e` ✓
+- Trailer parse — all 6 commits (`639efb2`, `329f009`, `c816769`, `9af8de8`, `0d25e75`, `7689c39`) carry parseable `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` (Rule 18) ✓
+
+### Wave α non-invalidation
+
+- `go test -run 'Super' ./internal/workflow/...` → all PASS (10 super*, 6 Slice4). Wave α behaviors intact ✓
+- `go test -run 'Reconcile' ./internal/workflow/...` → all PASS (including `TestReconcileDefaultSet_ExcludesFeatureWhenSupersederStale`, the Wave α rev-1 F1 flip) ✓
+- `store.ErrMultipleActiveSuperseders` — still exported at `internal/store/validation.go:56`, still fired by `ValidateDependencies` at `:203`, `:308` (Wave α rev-1 F-SEXT-3 non-invalidation) ✓
+
+### Empirical Rule 20 — all 4 scenarios end-to-end via shipped CLI binary
+
+Scratch dir: `/Users/jbencardino/tpatch-r20-E9LK` (git init, `tpatch init`, feature slugs seeded via `tpatch add`, `state=implemented` hand-set on status.json, hand-crafted `apply-recipe.json`). Binary: fresh `go build ./cmd/tpatch` at HEAD.
+
+**Scenario 1 — preimage match → recipe executes** (`tpatch apply scenario-a-match --mode execute`):
+```
+[write-file] src.txt: OK
+Recipe executed: 1/1 operations succeeded
+```
+Exit 0. File on disk = "new content\n" (updated). ✓ AC-1.
+
+**Scenario 2 — preimage mismatch, non-superseded → hard reject** (`tpatch apply scenario-b-mismatch --mode execute`):
+```
+ERROR: recipe drift: [scenario-b-mismatch] op 0 src.txt: expected preimage sha256:aaaa...aaaa, observed sha256:f480ae8e2eb0b19e4e6beb2d86e340a7ec948f91ab026c5c383df7115d396777; regenerate the recipe against the current tree or reconcile before replay
+error: recipe execution failed: 1 error(s)
+```
+Exit 1. File on disk UNCHANGED ("actual bytes on disk"). Message names feature, op index, path, expected + observed hashes, remediation. ADR-029 D3 all-or-nothing + D8 no-source-bodies satisfied. ✓ AC-2 + AC-13.
+
+**Scenario 3 — preimage mismatch, superseded feature → downgrade to warning** (`tpatch apply old-hist --mode execute` where `new-super` depends_on `{slug: old-hist, kind: supersedes}` with new-super state=applied):
+```
+[write-file] src.txt: OK
+⚠ recipe drift: [old-hist] op 0 src.txt: expected preimage sha256:bbbb...bbbb, observed sha256:f0c15a...b9b144; regenerate the recipe against the current tree or reconcile before replay (downgraded: feature is superseded by "new-super" per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)
+Recipe executed: 1/1 operations succeeded
+```
+Exit 0. Warning IS emitted (⚠ prefix, superseder slug cited, PRD/ADR clauses named). Execution proceeds. File overwritten. ✓ AC-10 direction. See F-SEXT-β-1 below re: direct-apply scope.
+
+**Scenario 4 — missing preimage_hash (legacy) → soft-adoption + warning** (`tpatch apply scenario-d-legacy --mode execute` with recipe omitting the field entirely):
+```
+⚠ warning: [scenario-d-legacy] op 0 src.txt: recipe lacks preimage_hash precondition (legacy); regenerate via 'tpatch record scenario-d-legacy' to lock preimage safety
+[write-file] src.txt: OK
+Recipe executed: 1/1 operations succeeded
+```
+Exit 0. Warning cites the exact regeneration command. Execution proceeds. ✓ AC-11 + ADR-029 D4.
+
+### Rule 20 rigor extension — non-vacuous test verification
+
+Copied `internal/workflow/writefile_safety_test.go` from HEAD into a detached worktree at `a05a918` (pre-Slice-1). Result:
+```
+internal/workflow/writefile_safety_test.go:63:44: unknown field PreimageHash in struct literal of type RecipeOperation
+[... 10 similar errors ...]
+FAIL	github.com/tesseracode/tesserapatch/internal/workflow [build failed]
+```
+The regression suite cannot even compile against pre-Slice-1 code — the `PreimageHash` field literally does not exist. Non-vacuous: Slice 1 is the fix, not a rearrangement of pre-existing tests. Worktree removed after check.
+
+### Fresh-eyes sweep — no bugs found
+
+**Preimage hash on wire**: `PreimageHashPrefix = "sha256:"` + `PreimageHashHexLen = 64` (`writefile_safety.go:22, 26`). `computeFileSHA256` (`:82–89`) uses `crypto/sha256` + `hex.EncodeToString` (lowercase by contract). Format guard rejects uppercase hex via `isLowercaseHex` (`:184–196`) instead of `hex.DecodeString` — deliberate, so `hex.DecodeString`'s uppercase-tolerance does not let a non-canonical form through. No truncation anywhere: `grep sha256:` shows the full-hex form throughout skill assets, safety code, and diagnostics. `PreimageHash *string` (`implement.go:99`) uses pointer semantics so `""` (new-file gate) and absent (legacy) are distinguishable — PRD §3.3 requires this, and Scenario 4 empirically confirms both branches fire.
+
+**Later-touch detection is not a timestamp heuristic.** `loadLaterFeatureTouches` (`writefile_safety.go:326–360`) uses `RequestedAt` string ordering on statuses written exclusively by `nowStamp` (`internal/store/store.go:672–674` = `time.RFC3339` UTC → Z-terminated, so lexicographic == chronological). `collectFeatureTouchedPaths` (`:369–397`) unions `patch-generations.json.touched_paths` (PRD §4.2 preferred artifact) with `apply-recipe.json` op paths as a fallback. Not a stat/mtime scan; actual feature-graph traversal via `ListFeatures` + manifest reads.
+
+**Rule 19 (silent behavior changes) sweep.** Only three non-test Go files touched: `internal/cli/cobra.go` (+8 lines, `⚠` warnings emission — cited in comment), `internal/workflow/implement.go` (+24 lines, `PreimageHash` field), `internal/workflow/recipe.go` (+38 lines, precheck wiring in both `DryRunRecipe` and `ExecuteRecipe` — both blocks carry PRD/ADR citations). No silent extensions.
+
+**Parity guard covers new field non-vacuously.** `assets/assets_test.go:88` adds `{"write-file-safety/preimage-hash-field", "preimage_hash"}` to `requiredAnchors`, which the test at `:159–164` exercises across every entry in `skillFiles[]` (all 6 shipped surfaces at `:137–142`). `grep -c preimage_hash` shows each of the 6 files contains 2 occurrences (JSON example + prose bullet) — anchor is real, not vacuous.
+
+### Informational notes (not blocking)
+
+**F-SEXT-β-1 INFO — Slice 4 downgrade scope broader than PRD language.** ADR-029 D7 (`ADR-029.md:74–76`) says superseded-feature drift is "warning-class audit signals and do not fail default effective replay". PRD-feature-supersession §4.5 clause 1 (`PRD-feature-supersession.md:204`) confines the downgrade to "default replay [that] excludes the feature". PRD-feature-supersession §7 open Q2 (`:240`) explicitly leaves undecided: "Should direct `tpatch apply <superseded>` require an explicit override flag, or is a warning sufficient?" Slice 4 (`writefile_safety.go:237, 271–283`) applies the downgrade to every `ExecuteRecipe` invocation whose caller feature `IsFeatureSuperseded` returns true — including direct `tpatch apply <superseded>` (see Scenario 3 above: exit 0, file overwritten). This resolves §7 Q2 as "warning is sufficient" via implementation rather than a PRD update.
+
+Non-blocking because: (a) the warning IS very visible (⚠ prefix, superseder slug named, PRD §PRD-1-interaction + ADR-029 D7 cited in-line); (b) PRD-write-file-recipe-safety §1 permits "refuse OR warn"; (c) the operator explicitly invokes direct apply of a superseded slug — not a silent replay. Worth surfacing so consolidation can either close §7 Q2 in the PRD to match the shipped behavior, or add a future PRD to gate direct-apply of superseded features behind an override flag.
+
+**F-SEXT-β-2 INFO — `RecipeExecResult.Warnings` docstring is now stale.** `internal/workflow/recipe.go:23–27` reads "Execute-mode never populates this — the same condition aborts apply with `ErrPathCreatedByParent`". Slice 2 now populates `Warnings` in Execute-mode (`recipe.go:96–98`). Comment-only drift; no runtime impact. Optional cleanup at consolidation.
+
+### Concurrence disposition
+
+**Internal rev-0 not yet landed.** Latest LOG.md entries above are Wave α close (2026-07-29). This supervisor-external verdict is independent. Will CONCUR/DISSENT when internal's Wave β rev-0 entry lands. Two informational notes (F-SEXT-β-1/2) are pre-declared so a rev-1 (if requested) has clear scope.
+
+### Verdict: APPROVE
+
+Wave β `a05a918..7689c39` is a clean ship. 5-slice plan executed as dispatched. 806/0 top-level PASS. All 13 PRD AC exercised (5 empirically at the CLI end-to-end plus 24 test functions in the workflow package). Preimage hash format on wire is `sha256:<64 lowercase hex>` throughout — no truncation, no drift from ADR-029 D1. Later-touch detection is real graph traversal, not a mtime heuristic. Wave α tests all pass, `ErrMultipleActiveSuperseders` still exported and wired. Parity guard exercises the new field on all 6 shipped skill surfaces non-vacuously. No blocking findings; two informational notes for consolidation.
+
 ## Supervisor Decision — Wave α (v0.12.0 supersession) — 2026-07-29
 
 **Verdict: APPROVED (three-way).** Wave α rev-1 (`d21b4b4..e5e0091`) achieves three-way concurrence at rev-1:
