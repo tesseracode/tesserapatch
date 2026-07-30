@@ -206,7 +206,20 @@ clean. Side Research md5 preserved:
 
 ## Blockers
 
-None.
+**Internal review rev-0 (2026-07-29) posted TWO BLOCKING findings against Wave β.** See `docs/supervisor/LOG.md` "Review — Wave β … internal (rev-0) — 2026-07-29" for detail:
+
+- **F-B1 (Slice 3)** — apply-time later-touch is refusal-class in the shipped recipe-execute path (`internal/workflow/writefile_safety.go:268-270`), which contradicts ADR-029 D6 verbatim ("Apply-time preimage mismatch is refusal-class" — enumeration excludes later-touch) and PRD-write-file-recipe-safety §7.2 verbatim ("v1 blocks only on preimage mismatch"). Slice 5 flipped both PRD and ADR-029 `Proposed → Accepted` without amending D6/§7.2, so the Accepted body text now disagrees with the shipped code. Rule 19-class scope change beyond the accepted contract. (Note: supervisor-external rev-0 review disagrees on the interpretation — reads D6 as "silent on apply-time later-touch, therefore permitted by gap-filling" — see LOG.md for both readings. Three-way concurrence not yet achieved.)
+- **F-B2 (Slice 5)** — PRD ACs 7 (record-time later-touch warning), 8 (reconcile-time later-touch warning), 9 (verify stale-preimage check), and the verify-half of AC-11 are unimplemented (no `internal/workflow/record*.go` or `reconcile.go` integration; `verify.go:1148` `replayRecipeOpsInShadow` explicitly bypasses `ExecuteRecipe`). Slice 5 flipped the PRD to Accepted anyway. Documentation-vs-implementation mismatch on Accepted body text.
+
+**Options for supervisor**:
+
+1. Roll Slice 3's apply-time later-touch back to warning-class before merging, retain Slice 5 flips.
+2. Amend ADR-029 D6 + PRD §7.2 in a rev-1 slice to explicitly authorize apply-time later-touch refusal (matching shipped behavior), and either implement the missing AC-7/8/9 surfaces OR scope the PRD flip to `Accepted (record/reconcile/verify integration deferred)`.
+3. Revert Slice 5 flips to keep PRD/ADR at Proposed, defer Accepted-flip to Wave β rev-1 that resolves both findings.
+
+Wave α behavior non-invalidation: **confirmed no regression** (no Wave α files modified; `IsFeatureSuperseded` + `ErrMultipleActiveSuperseders` + supersession labels intact). Wave α review scoreboard (19/19) not affected.
+
+Full-suite gates green (`gofmt -l .` empty, `go vet ./...` clean, `go build ./cmd/tpatch` clean, `go test -count=1 ./...` 806 top-level PASS = +23 vs Wave α baseline). Blockers are contract-mismatch class, not test-failure class.
 
 ## Context for Next Agent
 

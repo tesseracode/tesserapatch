@@ -104,6 +104,172 @@ Non-blocking because: (a) the warning IS very visible (⚠ prefix, superseder sl
 
 Wave β `a05a918..7689c39` is a clean ship. 5-slice plan executed as dispatched. 806/0 top-level PASS. All 13 PRD AC exercised (5 empirically at the CLI end-to-end plus 24 test functions in the workflow package). Preimage hash format on wire is `sha256:<64 lowercase hex>` throughout — no truncation, no drift from ADR-029 D1. Later-touch detection is real graph traversal, not a mtime heuristic. Wave α tests all pass, `ErrMultipleActiveSuperseders` still exported and wired. Parity guard exercises the new field on all 6 shipped skill surfaces non-vacuously. No blocking findings; two informational notes for consolidation.
 
+## Review — Wave β (v0.12.0 write-file safety) — internal (rev-0) — 2026-07-29
+
+**Reviewer**: internal (Copilot CLI, review-only).
+**Range**: `a05a918..7689c39` on `main` (6 commits, 5 code slices + 1 handoff).
+**Task**: Verify Wave β against `PRD-write-file-recipe-safety` (13 ACs), `ADR-029` (D1–D8), Wave α coupling contract in `PRD-feature-supersession` §4.5, and 20 carry-forward rules.
+
+### Checklist
+
+- [x] Compiles (`go build ./cmd/tpatch` → exit 0)
+- [x] Tests pass (`go test -count=1 ./...` → all packages ok; **806 top-level `--- PASS:` counted (+23 vs Wave α 783)**, matches implementer report and clears the +6–10 floor)
+- [x] Formatted (`gofmt -l .` empty)
+- [x] `go vet ./...` clean
+- [x] Artifacts deterministic (`ListFeatures` sorted → later-touch slug tie-break stable; PRD §5 note 4 satisfied)
+- [x] Secrets safe (ADR-029 D8: no file bodies in diagnostics — verified by test + code path)
+- [x] Matches SPEC (partially — see Findings §BLOCKING F-B1)
+- [x] Handoff accurate (per-slice results in CURRENT.md match commit range)
+- [x] Assets parity guard passes (Slice 1 `preimage-hash-field` anchor)
+- [x] Side Research md5 preserved (`b385fe622db9926f48861105239f113e`)
+- [x] Rule 15 (no new `tpatch` command): grep of `+^` lines in `docs/ assets/ CHANGELOG.md` yields zero unknown commands; only pre-existing `tpatch record` / `tpatch reconcile` referenced from error messages
+- [x] Rule 18 (Co-authored-by trailer): parseable on all 6 commits (`639efb2`, `329f009`, `c816769`, `9af8de8`, `0d25e75`, `7689c39`)
+- [x] Rule 20 (empirical reproduction): performed live in a fresh git-init + `tpatch init` tempdir (see §Rule 20 evidence)
+
+### Slice 3 scope-tightening verdict — **DOES NOT MATCH ACCEPTED CONTRACT**
+
+**ADR-029 D6 verbatim** (`docs/adrs/ADR-029-write-file-recipe-safety.md:68-72`):
+
+> **D6 — Later-touch record behavior warns, not refuses**
+> Record-time later-touch detection is warning-class in v1. Apply-time preimage mismatch is refusal-class.
+> **Rationale.** Some later touches are intentional replacements or pending supersession edges. Warning avoids blocking legitimate authoring while the preimage gate prevents unsafe execution.
+
+**PRD-write-file-recipe-safety §7.2 verbatim** (`docs/prds/PRD-write-file-recipe-safety.md:211`):
+
+> 2. Should later-touch warnings become apply-time blockers when no supersession edge exists? **v1 blocks only on preimage mismatch.**
+
+The Accepted contract:
+
+- D6 enumerates ONE apply-time refusal class: **preimage mismatch**. By enumeration, apply-time later-touch is not refusal-class.
+- D6's rationale is explicit that later-touch should NOT block ("legitimate authoring…preimage gate prevents unsafe execution").
+- PRD §7.2 explicitly answers the open question: "v1 blocks only on preimage mismatch".
+
+**Slice 3 shipped behavior** (`internal/workflow/writefile_safety.go:268-270`, verified empirically):
+
+```
+if lt := checkLaterTouch(recipe.Feature, i, op, laterIdx); lt != "" {
+    out.appendDrift(lt, superseded, superseder)
+}
+```
+
+Non-superseded later-touch feeds `Errors` (hard reject at apply time). Empirical case A confirmed: `apply older --mode execute` refused with `ERROR: recipe drift: [older] op 0 src.txt: later feature "newer" touched this path…`. A pure matching-preimage-plus-later-touch case is asserted in `TestSlice3_LaterTouchDetectsAndRefuses` — same refusal.
+
+**Verdict.** ADR-029 D6 does NOT permit tightening warn→reject at apply-time. PRD §7.2 explicitly denies it. The implementer's commit body (`c816769`) is transparent about the deviation ("Wave β dispatch tightening over ADR-029 D6"), but the transparency does not repair the contract mismatch. Slice 5 (`0d25e75`) flipped both PRD and ADR-029 `Proposed → Accepted` **without amending D6 or PRD §7.2 to match shipped behavior** — the Accepted body of both documents now directly contradicts the shipped recipe-execute path. This is a Rule 19-class shipped-surface change beyond the accepted contract; classified BLOCKING.
+
+Slice 4's downgrade path is NOT precluded (empirical case B verified execution proceeds with warnings when superseded). The blocker is scoped to the non-superseded later-touch case.
+
+### §6 acceptance sweep — PRD (13 ACs) + ADR-029 (D1–D8)
+
+| # | AC | Verdict | Citation / rationale |
+|---|---|---|---|
+| PRD-1 | Matching preimage applies | MET | `writefile_safety_test.go:55` `TestSlice2_PreimageMatch` + empirical control |
+| PRD-2 | Mismatched preimage refuses | MET | `writefile_safety_test.go:78` `TestSlice2_PreimageMismatch` + empirical A |
+| PRD-3 | Missing existing file refuses | MET | `writefile_safety_test.go:109` `TestSlice2_ExpectedHashMissingFile` |
+| PRD-4 | New-file empty preimage succeeds | MET | `writefile_safety_test.go:133` `TestSlice2_EmptyPreimageNewFile` |
+| PRD-5 | New-file collision refuses | MET | `writefile_safety_test.go:157` `TestSlice2_EmptyPreimageCollision` |
+| PRD-6 | Atomic precheck | MET | `writefile_safety_test.go:186` `TestSlice2_AtomicPrecheck` |
+| PRD-7 | **Record later-touch warning** | **NOT MET** | No integration into record.go. `grep -rn preimage internal/workflow/record*.go` empty. Detection only fires from `ExecuteRecipe`/`DryRunRecipe`. |
+| PRD-8 | **Reconcile later-touch warning** | **NOT MET / OVER-TIGHTENED** | `reconcile.go` never calls `ExecuteRecipe`/`DryRunRecipe` (`grep DryRunRecipe\|ExecuteRecipe internal/workflow/reconcile.go` empty). The Slice 3 commit body's claim "reconcile inherits the same precheck through DryRunRecipe / ExecuteRecipe callers" is inaccurate. Apply-time refusal (which does fire) is a different AC. |
+| PRD-9 | **Verify stale-preimage check** | **NOT MET** | `verify.go:1148` `replayRecipeOpsInShadow` deliberately bypasses `ExecuteRecipe` (docstring line 1149: "deliberately does NOT call ExecuteRecipe"). No V-check added for preimage. |
+| PRD-10 | Superseded drift downgrade | MET | `writefile_supersession_test.go` (6 tests) + empirical B |
+| PRD-11 | Legacy recipe compatibility | PARTIAL | Apply warn+apply satisfied (`TestSlice2_LegacyRecipeCompat` + empirical C). PRD §3.4 "Verify reports a warning recommending regeneration" NOT MET (no verify integration). |
+| PRD-12 | Schema parity | MET | Slice 1 `assets/assets_test.go` `preimage-hash-field` anchor across 6 assets |
+| PRD-13 | No source leakage | MET | Diagnostics carry only paths + hashes + reason codes (`writefile_safety.go`); no `op.Content` interpolation anywhere |
+| ADR-D1 | `preimage_hash` schema field | MET | `implement.go` `PreimageHash *string` + Slice 1 skill assets |
+| ADR-D2 | Hash input is exact bytes | MET | `computeFileSHA256:79` reads with `os.ReadFile`, no normalization; sha256 over raw bytes |
+| ADR-D3 | All-or-nothing precheck | MET | `recipe.go` short-circuits before any op mutation; empirical A file preserved after refusal |
+| ADR-D4 | Legacy missing-preimage warns | MET | `preimageLegacyWarn` outcome, empirical C |
+| ADR-D5 | Later-touch mandatory + path-level in v1 | PARTIAL | Path-level ✓; but "mandatory" implies record/reconcile/verify per D5 bullets — only apply-time firing. Record/reconcile/verify integration absent. |
+| ADR-D6 | Record warns, apply-time refuses only preimage mismatch | **VIOLATED** | See scope-tightening section above. Non-superseded apply-time later-touch is refusal-class in the shipped code, contradicting D6 verbatim + PRD §7.2 verbatim. |
+| ADR-D7 | Supersession severity for historical | MET | Slice 4 `IsFeatureSuperseded` → downgrade path; empirical B; test `TestSlice4_SupersederFeatureItselfHardRejects` locks the active-superseder-not-downgraded direction |
+| ADR-D8 | No source bodies in diagnostics | MET | Reviewed every message-format call site in `writefile_safety.go`; only `slug`, `opIndex`, `op.Path`, `expected` hash, `observed` hash, superseder slug, and reason phrases |
+
+**Summary**: 8/13 PRD ACs MET, 1 PARTIAL, 3 NOT MET; 6/8 ADR D-clauses MET, 1 PARTIAL, 1 VIOLATED.
+
+### Wave α interaction non-invalidation
+
+Diff `a05a918..7689c39` touches ZERO Wave α files (`internal/store/validation.go`, `internal/workflow/labels.go`, `internal/workflow/reconcile.go`, `internal/workflow/verify.go` all untouched — verified via `git diff --stat`). Consequences:
+
+- `isFeatureSupersededIn` semantics preserved: `labels.go:444` unchanged; stale returns true (rev-1 R4 flip), orphan case not surfaced here per docstring — intact.
+- `store.ErrMultipleActiveSuperseders` still fires from `ValidateDependencies` + `ValidateAllFeatures` — Wave α test suite covers it (`internal/store/supersedes_test.go:209,268`); not regressed (full suite still green).
+- Supersession labels still render in PRD §4.3 severity order with slug — no changes to `composeSupersessionLabels`.
+- `depends_on[].kind: "supersedes"` schema unchanged — `store.DependencyKindSupersedes` referenced from `writefile_supersession_test.go` as an existing constant.
+
+Wave α non-invalidation: **CONFIRMED**.
+
+### Findings
+
+#### BLOCKING
+
+**F-B1 — Slice 3 apply-time later-touch is refusal-class, contradicting ADR-029 D6 + PRD §7.2 (both flipped to Accepted at Slice 5).**
+
+- **Location**: `internal/workflow/writefile_safety.go:268-270` and `appendDrift:285-298`.
+- **Contract text (Accepted)**: ADR-029 D6 "Apply-time preimage mismatch is refusal-class" (implicit exclusion of later-touch), rationale explicit; PRD §7.2 "v1 blocks only on preimage mismatch".
+- **Shipped behavior**: non-superseded later-touch feeds `Errors`, hard-rejecting execution (empirical case A + `TestSlice3_LaterTouchDetectsAndRefuses`).
+- **Rule 19 exposure**: shipped-surface change beyond the accepted contract. Not silent (commit `c816769` body announces it and cites D6), but the accepted body of both PRD and ADR-029 now disagree with the shipped code.
+- **Remedy (any one, supervisor discretion)**:
+  1. Roll Slice 3's apply-time later-touch back to warning-class BEFORE re-flipping to Accepted; move the "block" behavior to a follow-up PRD/ADR amendment.
+  2. Amend ADR-029 D6 + PRD §7.2 to explicitly authorize apply-time later-touch refusal (with the same downgrade escape for superseded features), keep Slice 5's Accepted flip.
+  3. Split the difference: keep code, but revert Slice 5's PRD/ADR Accepted flip to `Proposed → Accepted (with D6 amendment pending)` and land the amendment in Wave β rev-1.
+- **Interaction**: Slice 4's downgrade path is NOT precluded (empirical B); the blocker only affects non-superseded later-touch semantics.
+
+**F-B2 — ACs 7, 8, 9 (record-time / reconcile-time / verify-time detection) not implemented; PRD flipped to Accepted anyway.**
+
+- **AC-7 Record later-touch warning**: `internal/workflow/record*.go` never invokes any Slice 3 helper (`grep` empty). PRD §3.2 explicitly says "Record also performs later-touch detection (§4.2)". Missing.
+- **AC-8 Reconcile later-touch warning**: `internal/workflow/reconcile.go` never calls `ExecuteRecipe`/`DryRunRecipe` (`grep` empty). The Slice 3 commit body's claim of inheritance is factually wrong. Apply-time refusal (which does fire from `apply` and from `phase2.go` implement) is a different code path than reconcile-time warning.
+- **AC-9 Verify stale-preimage check**: `verify.go:1148-1153` `replayRecipeOpsInShadow` docstring explicitly says "deliberately does NOT call ExecuteRecipe". No V-check added. PRD §3.4 explicitly requires it.
+- **AC-11 second-half**: "Verify reports a warning recommending regeneration" — same gap.
+- Slice 5 (`0d25e75`) flipped `PRD-write-file-recipe-safety` to Accepted while at least 3 of 13 ACs are unimplemented. This is a documentation-vs-implementation mismatch on Accepted-body text.
+- **Remedy**: either implement the missing surfaces in a Wave β rev-1 slice, or downgrade the PRD/ADR Accepted flip to `Accepted (record/reconcile/verify integration deferred)` with a follow-up PRD/tracking item.
+
+#### MEDIUM
+
+**F-M1 — Sentinel errors `ErrWriteFilePreimageMismatch` / `ErrWriteFileLaterTouch` are dead code but the docstring, commit body, and CHANGELOG claim `errors.Is` support.**
+
+- `writefile_safety.go:40,47` declares the sentinels; `grep -rn ErrWriteFilePreimage internal/` shows they are referenced ONLY by tests asserting their non-nil identity. Nothing in `runWriteFilePreimagePrecheck`, `checkWriteFilePreimage`, or `checkLaterTouch` returns them; drift is appended as plain strings to `PreimagePrecheckResult.Errors`.
+- CHANGELOG.md line 39: "Two exported sentinels…let callers key off drift class via `errors.Is`" — this is not true today. Any downstream caller (Wave γ session gates cited in the docstring on line 30) will get `false` from `errors.Is(anyStringErr, ErrWriteFilePreimageMismatch)`.
+- **Impact**: mild contract-surface trap. Not a runtime bug (no caller relies on it today), but the API commitment is falsified.
+- **Remedy**: either wire the sentinels into the append path (e.g., wrap and stringify at emit time, or expose a typed drift record) or drop the `errors.Is` claim from docstring/commit/CHANGELOG.
+
+#### LOW
+
+**F-L1 — Slice 1 commit body claim of `PreimageHash string` mismatches the actually-shipped `PreimageHash *string`.**
+
+- `639efb2` commit body quotes `PreimageHash string ` — the actual field is a pointer (comment on `implement.go` justifies the pointer against PRD §3.3 semantics; that reasoning is correct).
+- The struct comment and later slice bodies get the pointer type right; only Slice 1's commit body is out of date. No functional impact; noted only because PRD §4.1 stated `string` as the canonical Go signature and this is the sort of detail Wave γ will misread.
+
+**F-L2 — `§PRD-1-interaction` cited across code/comments/CHANGELOG is not a literal anchor in `PRD-feature-supersession.md`.**
+
+- The coupling contract lives at `PRD-feature-supersession.md` §4.5 "Reconcile interaction with write-file safety" (heading anchor `#45-reconcile-interaction-with-write-file-safety`). The `§PRD-1-interaction` label is a shorthand agreed in the dispatch handoff — no actual PRD heading uses it. Cross-references in code stay traceable to the review pass but a reader hunting the string will fail.
+
+### Rule 20 empirical evidence (in-scope for BLOCKING F-B1)
+
+Reproduced against `bin/tpatch-review` built at HEAD:
+
+- **Case A (no supersession, mismatch + later-touch)**: `apply older --mode execute` refused with TWO `ERROR: recipe drift…` lines (preimage-mismatch + later-touch), process exit non-zero, `src.txt` bytes preserved. D3 all-or-nothing verified in the shipped surface.
+- **Case B (`newer` supersedes `older`, mismatch + later-touch on `older`)**: `apply older --mode execute` printed `[write-file] src.txt: OK`, TWO `⚠ recipe drift…` warnings on stderr each suffixed with `(downgraded: feature is superseded by "newer" per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)`, exit success, `src.txt` overwritten to `older overwrite`. Downgrade = DOWNGRADE not BYPASS; drift still visible with `⚠` prefix.
+- **Case C (legacy recipe, no `preimage_hash` field)**: `apply legacy --mode execute` printed `[write-file] src.txt: OK` + `⚠ warning: [legacy] op 0 src.txt: recipe lacks preimage_hash precondition (legacy); regenerate via 'tpatch record legacy' to lock preimage safety`, exit success, `src.txt` overwritten. ADR-029 D4 warn-and-apply confirmed.
+
+Case A empirically confirms the F-B1 shipped-vs-accepted mismatch: later-touch alone produces `ERROR:` not `⚠` when no supersession edge exists.
+
+### Verdict: **BLOCKED / NEEDS REVISION**
+
+Two BLOCKING findings, both traceable to Slice 3 + Slice 5:
+
+- **F-B1** (Slice 3): the recipe-execute path applies stricter refusal semantics than ADR-029 D6 and PRD §7.2 authorize.
+- **F-B2** (Slice 5): the PRD flip to Accepted is premature — ACs 7, 8, 9 (and the verify-half of AC-11) are unimplemented.
+
+Gates (build, vet, gofmt, test count +23) all pass. Wave α non-invalidation holds. Rule 15/18/20 clean. Slice 4 supersession downgrade contract is correctly implemented and empirically verified.
+
+Recommend the supervisor either (a) send back for a Wave β rev-1 that reconciles the Accepted PRD/ADR with shipped behavior — via code rollback, doc amendment, or a scoped Accepted-with-deferrals note — or (b) explicitly accept the D6/§7.2 deviation as an amendment and land the amendment before merging.
+
+### Action Taken
+
+- Updating `docs/handoff/CURRENT.md` `## Blockers` per dispatch instruction ("Halt and update CURRENT.md `## Blockers` if you find a Wave α behavior regression or a Rule 19 violation on Slice 3's scope change").
+- Not modifying code, other docs, or the recipe-execute path. Not pushing.
+
+---
+
 ## Supervisor Decision — Wave α (v0.12.0 supersession) — 2026-07-29
 
 **Verdict: APPROVED (three-way).** Wave α rev-1 (`d21b4b4..e5e0091`) achieves three-way concurrence at rev-1:
