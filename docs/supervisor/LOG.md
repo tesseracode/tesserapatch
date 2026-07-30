@@ -1,3 +1,84 @@
+## Supervisor Decision — Wave α (v0.12.0 supersession) — 2026-07-29
+
+**Verdict: APPROVED (three-way).** Wave α rev-1 (`d21b4b4..e5e0091`) achieves three-way concurrence at rev-1:
+
+- Internal (rev-1) `763b926` LOG lines 94–228: APPROVED, all 4 rev-0 findings CLOSED with matching code + tests + empirical CLI reproduction, 783 top-level PASS (+10 vs rev-0 baseline 773).
+- Supervisor-external (rev-1) `763b926` LOG lines 1–93: APPROVED, all 4 findings CLOSED, Rule 20 rigor extension confirmed F-SEXT-3 test fails at pre-fix (`undefined: ErrMultipleActiveSuperseders`).
+- User-external (rev-1) 2026-07-29: APPROVED. Empirical verification of BOTH HIGH display-contract fixes (F-SEXT-1 slug in text + JSON; F-SEXT-2 chained-fixture severity vs alphabetical disagreement). Traced F-SEXT-3 write-time enforcement through `ValidateDependencies` + `ValidateAllFeatures` production callers at `feature_deps.go`, `cobra.go`, `verify.go` — genuine wiring, not phantom fix. Confirmed Internal F1 tests renamed+inverted in place, not deleted.
+
+### User-external LOW findings (both administrative, address at consolidation)
+
+- **F1 LOW (recurring)**: `docs/handoff/CURRENT.md` Status still reads `Rev-1 dispatched` after rev-1 landed. Same class as Streams A+B F1 — the Status flip is a systematic gap at wave close. Adding to closure checklist below.
+- **Observation**: HEAD (`763b926`) was 6 commits ahead of `origin/main` at review time. Not a defect; supervisor step per rev-1 handoff protocol. Being pushed as part of this consolidation.
+
+### Two-opinion protocol scoreboard update
+
+**19/19 rev cycles at final three-way concurrence.** User-external uniquely blocked/caught in 7 of 19 at rev-0 (Streams A+B combined pass F1 process-level catch counted once). Supervisor-external uniquely caught F-SEXT-1/2/3 at rev-0 this cycle — 2 HIGHs against locked PRD display contracts (§4.1 slug format, §4.3 severity order). Rev-1 required 5 slices + 10 net-new tests to close.
+
+### Closure sequence
+
+1. Push HEAD `763b926` + this consolidation commit to `origin/main`.
+2. Update `docs/handoff/CURRENT.md`: reset Active Task from Wave α to Wave β (write-file recipe safety).
+3. Archive Wave α (rev-0 + rev-1 + all 6 LOG entries + user-external verdict) to `docs/handoff/HISTORY.md`.
+4. Update `docs/ROADMAP.md` v0.12.0 entry: Wave α ACCEPTED, Wave β dispatched, Wave γ pending Wave β close.
+5. Add wave-closure Status-flip checklist item to AGENTS.md follow-up (deferred; Post-Wave γ v0.12.0 ship).
+
+### Wave β dispatch decision
+
+Wave β (`PRD-write-file-recipe-safety` + `ADR-029`) is dispatched sequentially per Option A. Depends on Wave α acceptance because PRD-write-file-recipe-safety §PRD-1-interaction couples drift severity to supersession state (superseded features downgrade write-file drift). Wave α's `isFeatureSupersededIn` now returns true for stale-active-orphan taxonomy correctly, so the coupling contract is honorable.
+
+### Action Taken
+
+- SQL: `v0.12.0-wave-alpha-supersession` → `done`; `v0.12.0-wave-beta-writefile-safety` added `in_progress`.
+- Handoff reset for Wave β kickoff (this commit).
+- Wave β implementer dispatched (this commit).
+
+---
+
+## Review — Wave α (v0.12.0 supersession) — user-external (rev-1) — 2026-07-29
+
+**Reviewer**: user parallel external pass (independent single-pass review, 19th cycle in two-opinion protocol).
+**Range reviewed**: `d21b4b4..763b926` (6 commits: rev-1 R1–R5 + rev-1 dual review LOG entry).
+**Contract**: PRD-feature-supersession §4.1:154-159, §4.3:178, §4.3:184-188, §4.5.3; ADR-028 D4/D5; ADR-011 D1-D4 non-invalidation.
+
+### Findings — no blocking, no medium. One low, one observation.
+
+**F1 LOW** — `docs/handoff/CURRENT.md` Status stale (`Rev-1 dispatched` after rev-1 landed). Same class as Streams A+B F1. Systematic wave-close gap; add to closure checklist.
+
+**Observation** — HEAD 6 commits ahead of `origin/main` at review time (all of R1–R5 + rev-1 dual LOG + this consolidation exist only locally). Not a defect in the work; administrative — supervisor pushes at consolidation.
+
+### Independent verification highlights
+
+**F-SEXT-1 empirical (both surfaces).** Built binary, constructed superseded pair, rendered:
+```
+old-feat [applied] (never-verified, superseded-by new-feat)
+```
+JSON carries `"superseded-by new-feat"` too. Also verified `IsSupersessionLabel` prefix-matches the composite so persistence-strip logic stays sound with arbitrary slug appended — a detail easy to miss.
+
+**F-SEXT-2 empirical (adversarial fixture).** Built chained case (`feat-a` supersedes `feat-b` supersedes `feat-c`) specifically where severity order disagrees with alphabetical:
+```
+feat-b [applied] (never-verified, superseded-by feat-a, active-superseder)
+```
+`superseded-by` precedes `active-superseder` — PRD-locked severity order, inverse of alphabetical.
+
+**F-SEXT-3 wiring trace (genuine, not phantom).** `ErrMultipleActiveSuperseders` fires inside `ValidateDependencies` + `ValidateAllFeatures`; both have real production callers at `feature_deps.go` (add/remove), `cobra.go` (bulk surface), `verify.go` (V4). Write-time rejection enforced.
+
+**Internal F1 update discipline.** Old test names `KeepsFeatureWhenSupersederStale`, `StaleSupersederDoesNotSkipParent` fully gone (grep clean); new names `ExcludesFeatureWhenSupersederStale`, `StaleSupersederSkipsParent` with inverted assertions plus new positive `TestIsFeatureSuperseded_StaleSupersederReturnsTrue`. No stale contract survives.
+
+### Gates + rules
+
+- `gofmt` clean, `go vet` clean, `go build` clean.
+- Full suite: **129 top-level PASS / 0 FAIL** (up from 99 at v0.11.3 baseline, consistent with rev-1 net-new regression tests per finding).
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
+- All 6 rev-1 commits parseable Co-authored-by trailers (Rule 18).
+- Scratch workspaces cleaned; no stray tracked-code modifications.
+
+### Verdict: APPROVED
+
+Rev-1 is a clean close. All 4 findings — including both HIGHs that were display-contract violations — are fixed in production code, empirically confirmed in rendered output, and locked behind regression tests. Two flags to supervisor before Wave β dispatch: push local commits + flip handoff Status.
+
+---
+
 ## Review — Wave α (v0.12.0 supersession) — supervisor-external (rev-1) — 2026-07-29
 
 **Reviewer**: supervisor-external (Copilot CLI code-review pass, single-pass sync, IN PARALLEL with internal rev-1)

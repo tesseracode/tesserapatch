@@ -1,3 +1,71 @@
+# 2026-07-29 — v0.12.0 Wave α — feature supersession — ACCEPTED
+
+**Range**: dispatch `7081c62` → rev-0 (`48399f4..480f90a` 6 commits) → rev-0 dual review (`4dc6c5d` supervisor-external NEEDS REVISION, `0aa6b81` internal APPROVED WITH NOTES) → rev-1 brief (`d21b4b4`) → rev-1 (`5e6515d..e5e0091` 5 commits) → rev-1 dual review (`763b926`) → consolidation.
+**Final HEAD covering shipped Wave α code**: `e5e0091`. LOG-only landings at `4dc6c5d`, `0aa6b81`, `763b926`, `d21b4b4`.
+**Outcome**: First of three v0.12.0 waves. Ships `depends_on[].kind: "supersedes"` as third edge kind on ADR-011 graph, 4 composable labels (`superseded-by <slug>`, `active-superseder`, `stale-superseder`, `orphan-superseder`), reconcile suppression of superseded features in `RunReconcile` default-set + verify V7 `runClosureReplay`, and multi-active-superseder write-time rejection (`store.ErrMultipleActiveSuperseders`). Extends (does NOT fork) ADR-011 D1 storage lane; D2 DFS cycle detection extends cleanly to third edge kind; D3 composable-label pattern extended; D4 hard/soft semantics unchanged. PRD-feature-supersession + ADR-028 flipped `Proposed → Accepted`. CHANGELOG v0.12.0 — TBD entry appended with rev-0 + rev-1 bullets.
+
+## Rev cycle summary
+
+**Rev-0** landed 6 commits (5 slices + handoff):
+- `48399f4` S1: schema + validation + CLI parser + 6 skill assets (parity co-commit).
+- `f8f7766` S2: 9 cycle-detection regression tests.
+- `195921a` S3: 4 composable labels + status render.
+- `3f49c36` S4: reconcile suppression + V7 supersession-skip + 5 tests.
+- `4d4bb60` S5: CHANGELOG + PRD/ADR flips to Accepted.
+- `480f90a` handoff.
+
+**Rev-0 dual review**: internal APPROVED WITH NOTES (`0aa6b81`); supervisor-external NEEDS REVISION (`4dc6c5d`) with 3 findings.
+
+**Rev-1** landed 5 slices closing 4 findings:
+- `5e6515d` R1: F-SEXT-1 HIGH — `superseded-by <slug>` composite (missing slug suffix in text + JSON per PRD §4.1:154-159 / §4.3:178 / ADR-028 D4:58).
+- `84c873a` R2: F-SEXT-2 HIGH — severity-first render order via `supersessionLabelOrder` explicit emit + narrow `appendLabelPreserveOrder` carve-out (alphabetical sort was PRD §4.3:184-188 / ADR-028 D4:63-67 contract violation).
+- `a7f0222` R3: F-SEXT-3 MEDIUM — `store.ErrMultipleActiveSuperseders` write-time + bulk rejection with actionable ADR-020 messages naming all peers (AC-4 / ADR-028 D5).
+- `4a7ea4f` R4: Internal F1 MEDIUM — stale-superseder runtime flip; `isFeatureSupersededIn` returns true for stale (matches PRD §4.5.3 + docstring); orphan does NOT cascade; 2 rev-0 locking tests renamed+inverted in place (`KeepsFeatureWhenSupersederStale` → `ExcludesFeatureWhenSupersederStale`; `StaleSupersederDoesNotSkipParent` → `StaleSupersederSkipsParent`) + 2 new positive tests.
+- `e5e0091` R5: CHANGELOG rev-1 corrections nested list + handoff refresh.
+
+**Rev-1 dual review** (`763b926` combined LOG commit): internal APPROVED all 4 findings CLOSED, 783 top-level PASS (+10 vs rev-0 baseline 773); supervisor-external APPROVED all 4 CLOSED with Rule 20 rigor extension (F-SEXT-3 test fails at pre-fix with `undefined: ErrMultipleActiveSuperseders`).
+
+**User-external rev-1 (2026-07-29)**: APPROVED with 1 LOW + 1 observation.
+- F1 LOW: `docs/handoff/CURRENT.md` Status stale (`Rev-1 dispatched` after rev-1 landed). Same class as Streams A+B F1 — systematic wave-close gap.
+- Observation: HEAD 6 commits ahead of `origin/main`; not a defect, administrative supervisor step.
+- Empirical verification of BOTH HIGH display-contract fixes (F-SEXT-1 slug in text + JSON; F-SEXT-2 chained fixture where severity vs alphabetical disagree); F-SEXT-3 wiring traced through `ValidateDependencies`/`ValidateAllFeatures` production callers at `feature_deps.go`, `cobra.go`, `verify.go`; Internal F1 old test names grep-clean.
+
+## Two-opinion protocol scoreboard
+
+**19/19 rev cycles at final three-way concurrence.** User-external uniquely blocked/caught in 7 of 19 rev-0s (Streams A+B combined pass F1 counted once). Supervisor-external uniquely caught F-SEXT-1/2/3 at rev-0 this cycle — 2 HIGHs against locked PRD display contracts. Rev-1 required 5 slices + 10 net-new tests to close.
+
+## §6 acceptance sweep at close
+
+**PRD-feature-supersession**: 12 ACs — 10 MET at rev-0, 12 MET at rev-1 (rev-1 closed AC-4 + AC-10-partial via multi-superseder rejection + stale runtime flip).
+**ADR-028**: D1-D8 all honored at rev-1.
+**ADR-011 non-invalidation**: D1 storage lane preserved (single `depends_on[]`); D2 DFS single cycle-detection path; D3 composable-label pattern extended not replaced; D4 hard/soft semantics unchanged.
+
+## Rule sweep
+
+- Rule 15: no new `tpatch` command (Wave γ defers `tpatch session`).
+- Rule 18: all 12 rev-0 + rev-1 commits parseable Co-authored-by trailers.
+- Rule 19: R3 + R4 commit messages cite PRD §4.5.3 + ADR-028 D-clauses for exported-surface changes.
+- Rule 20: empirical CLI reproduction by all 3 rev-1 reviewers (labels render + reconcile suppression + write-time rejection). Rigor extension: supervisor-external + user-external both traced production wiring; supervisor-external ran detached-worktree pre-fix compile-fail check.
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+## Follow-ups deferred
+
+- **F1 LOW recurrence pattern**: wave-close Status flip is a systematic gap (also flagged on Streams A+B). Add to AGENTS.md closure checklist as a future task.
+- Post-Wave γ v0.12.0 CHANGELOG graduation (currently `## v0.12.0 — TBD`).
+
+---
+
+# 2026-07-29 — v0.11.3 Streams A + B — paper-only PRD/ADR drafts — ACCEPTED
+
+**Range**: `ea95aaa..442fd4f` (7 commits paper-only, 1584 insertions, ZERO production code).
+**Outcome**: Three PRDs + two ADRs at `Proposed` status covering GH #1 + ADR-027 F3 closure:
+- Stream A `b58f560`: PRD-active-feature-session (500 lines, 25 ACs) — locks ADR-027 F3 to `.tpatch/local/capture/` with six-mandate refusal contract in §D6.
+- Stream B `372ece6` + `40b2140`: PRD-feature-supersession (259 lines, 12 ACs) + PRD-write-file-recipe-safety (233 lines, 13 ACs) + ADR-028 + ADR-029.
+**Reviews**: Stream A internal `60d9406` APPROVED, supervisor-external `412d95d` APPROVED; Stream B internal `f362f6c` APPROVED, supervisor-external `442fd4f` APPROVED; user-external combined pass 2026-07-29 APPROVED with F1 LOW (handoff Status stale, addressed at consolidation).
+**Downstream**: Stream B PRDs implemented as v0.12.0 Wave α (supersession, this history entry above). Wave β + γ still pending. Stream A gated behind Wave γ.
+
+---
+
 # 2026-05-26 — WP-003 Wave α — PRDs 1 + 6 — SHIPPED
 
 **Range**: rev-0 (`d265a08..d6878a4`) → rev-1 (`4fa1394..7c72323`) → rev-2 (`6a8deba..8d4665f`) → log close-out (`a5faf91..`).

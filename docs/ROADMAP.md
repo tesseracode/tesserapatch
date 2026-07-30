@@ -549,16 +549,19 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
-## v0.12.0 — feature supersession Wave α implementation landed 🚧 in-flight
+## v0.12.0 — feature supersession + write-file safety + active-feature-session 🚧 in-flight (Wave α accepted 2026-07-29)
 
-Post-planning implementation cluster for GH #1 supersession, executed
-as the Wave α slice (schema + labels + cycle detection + reconcile
-suppression). Wave β (`write-file` recipe safety per ADR-029) and
-Wave γ (active-feature-session per ADR-027) remain out of scope for
-Wave α and are separately tracked.
+Post-planning implementation cluster for GH #1 + ADR-027 F3, executed
+as three sequential waves. Wave α accepted 2026-07-29 at three-way
+concurrence (19th protocol scoreboard entry). Wave β dispatched
+2026-07-29. Wave γ pending Wave β acceptance.
 
-- **Wave α — schema + labels + reconcile suppression** 🚧 (implementation
-  landed, awaiting three-way concurrence review)
+- **Wave α — schema + labels + reconcile suppression** ✅ (three-way
+  APPROVED rev-1 2026-07-29; rev-0 required rev-1 for 4 findings —
+  F-SEXT-1 HIGH missing `<slug>` on `superseded-by`, F-SEXT-2 HIGH
+  alphabetical vs PRD-locked severity order, F-SEXT-3 MEDIUM multi-
+  active-superseder not rejected, Internal F1 MEDIUM stale docs↔runtime
+  contradiction)
   - Added `store.DependencyKindSupersedes = "supersedes"` as a third
     valid `depends_on[].kind` literal alongside `hard` and `soft`
     (ADR-011 D1 preserved). Validation, CLI parser, and all six
@@ -568,26 +571,37 @@ Wave α and are separately tracked.
     hard/soft/supersedes cycles, self-supersession, and reciprocal
     supersession (Slice 2).
   - Added four composable derived labels via ADR-011 D3 pattern:
-    `superseded-by`, `active-superseder`, `stale-superseder`,
-    `orphan-superseder`. Labels render in `tpatch status` DAG output
-    (text + JSON) and are stripped from persisted `Reconcile.Labels`
-    via the shared `stripDerivedLabels` helper (Slice 3).
-  - Reconcile suppression (Slice 4): `RunReconcile` filters
-    superseded-by-healthy features from the default effective replay
-    set; explicit slug reconcile emits a historical-feature warning
-    note. V7 (`runClosureReplay`) skips superseded hard parents from
-    the closure. Stale supersession does NOT mask the historical
-    target (ADR-028 D8).
+    `superseded-by <slug>`, `active-superseder`, `stale-superseder`,
+    `orphan-superseder`. Labels render in PRD §4.3 severity order in
+    `tpatch status` DAG output (text + JSON) and are stripped from
+    persisted `Reconcile.Labels` via the shared `stripDerivedLabels`
+    helper (Slices 3 + R1 + R2).
+  - Reconcile suppression (Slice 4 + R4): `RunReconcile` filters
+    superseded-by-healthy-or-stale features from the default effective
+    replay set (stale runtime flip per PRD §4.5.3); explicit slug
+    reconcile emits a historical-feature warning note. V7
+    (`runClosureReplay`) skips superseded hard parents from the closure.
+    Orphan supersession does NOT mask the historical target.
+  - Multi-active-superseder rejection (Slice R3): `store.ErrMultipleActiveSuperseders`
+    fires from `ValidateDependencies` + `ValidateAllFeatures` with
+    actionable ADR-020-style messages naming all peer slugs. Real
+    production callers at `feature_deps.go` (add/remove), `cobra.go`
+    (bulk surface), `verify.go` (V4).
   - Status flipped `Proposed` → `Accepted` on both
     [`PRD-feature-supersession`](prds/PRD-feature-supersession.md) and
     [`ADR-028-supersession-edge-model`](adrs/ADR-028-supersession-edge-model.md).
+  - Range: dispatch `7081c62` → rev-0 `48399f4..480f90a` → rev-1 brief
+    `d21b4b4` → rev-1 `5e6515d..e5e0091` → rev-1 dual review `763b926`.
+    Final code HEAD: `e5e0091`. Test count 129 (baseline 99 at v0.11.3).
 
-- **Wave β — `write-file` recipe safety** ⬜ (deferred to post-Wave α)
+- **Wave β — `write-file` recipe safety** 🚧 (dispatched 2026-07-29,
+  depends on Wave α acceptance for stale-supersession suppression
+  coupling per PRD-write-file-recipe-safety §PRD-1-interaction)
   - `preimage_hash` + later-touch per
     [`PRD-write-file-recipe-safety`](prds/PRD-write-file-recipe-safety.md)
     and [`ADR-029`](adrs/ADR-029-write-file-recipe-safety.md).
 
-- **Wave γ — active-feature-session** ⬜ (deferred to post-Wave α)
+- **Wave γ — active-feature-session** ⬜ (deferred to post-Wave β acceptance)
   - `tpatch session` command group + `.tpatch/local/capture/` per
     [`PRD-active-feature-session`](prds/PRD-active-feature-session.md)
     and [`ADR-027`](adrs/ADR-027-active-feature-session.md).
