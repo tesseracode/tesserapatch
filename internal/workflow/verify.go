@@ -57,6 +57,17 @@ const (
 	CheckRecipeReplayClean          = "recipe_replay_clean"
 	CheckPostApplyPatchReplayClean  = "post_apply_patch_replay_clean"
 	CheckReconcileOutcomeConsistent = "reconcile_outcome_consistent"
+	// CheckWriteFilePreimageFresh — v0.12.0 Wave β rev-1 Slice R4 /
+	// PRD-write-file-recipe-safety AC-9 + §5:130 verify integration:
+	// each write-file operation in the feature's apply-recipe must
+	// carry a preimage_hash that still matches the current on-disk
+	// file. Severity is SeverityBlock for effective features and
+	// downgraded to SeverityWarn when the feature is superseded by an
+	// active superseder (D7 + Slice 4 supersession-controls-severity
+	// coupling). PRD §7.2 answer to open Q2 ("v1 blocks only on
+	// preimage mismatch") makes this the sole shipped-surface refusal
+	// signal at both apply-time and verify-time.
+	CheckWriteFilePreimageFresh = "write_file_preimage_fresh"
 )
 
 // Severity vocabulary (ADR-013 / PRD §3.2).
@@ -262,6 +273,16 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 	// status.Reconcile.Outcome ONLY (ADR-013 D6).
 	report.Checks = append(report.Checks, checkReconcileOutcomeConsistent(status))
 
+	// V10 — write_file_preimage_fresh (severity: block, downgraded to
+	// warn for superseded features). PRD-write-file-recipe-safety
+	// AC-9 + §5:130 + ADR-029 D6/D7. Scans each write-file operation
+	// in the parsed apply-recipe and compares its preimage_hash
+	// against the current on-disk file. Skipped when V2
+	// (recipe_parses) already skipped/failed — the check needs a
+	// parseable recipe to iterate.
+	report.Checks = append(report.Checks,
+		checkWriteFilePreimageFresh(s, slug, status, recipe, recipePresent))
+
 	// Hashes for the persisted record.
 	report.RecipeHashAtVerify = sha256Hex(recipeBytes)
 	report.PatchHashAtVerify = sha256Hex(readArtifactBytes(s, slug, "post-apply.patch"))
@@ -410,9 +431,9 @@ func checkRecipeParses(s *store.Store, slug string) (parse store.VerifyCheckResu
 // ── Stubs ────────────────────────────────────────────────────────────────
 
 func stubChecksAfterAbort() []store.VerifyCheckResult {
-	// Used when V0 fails: we still emit the remaining nine entries so
+	// Used when V0 fails: we still emit the remaining ten entries so
 	// the report shape is byte-stable for harness consumers.
-	out := make([]store.VerifyCheckResult, 0, 9)
+	out := make([]store.VerifyCheckResult, 0, 10)
 	for _, id := range []string{
 		CheckIntentFilesPresent,
 		CheckRecipeParses,
@@ -450,6 +471,16 @@ func stubChecksAfterAbort() []store.VerifyCheckResult {
 	out = append(out, store.VerifyCheckResult{
 		ID:       CheckReconcileOutcomeConsistent,
 		Severity: SeverityWarn,
+		Passed:   true,
+		Skipped:  true,
+		Reason:   "skipped: V0 (status_loaded) aborted the run",
+	})
+	// V10 — write_file_preimage_fresh (v0.12.0 Wave β rev-1 R4).
+	// SeverityBlock at the stub layer; per-feature supersession
+	// downgrade only applies when the check actually runs.
+	out = append(out, store.VerifyCheckResult{
+		ID:       CheckWriteFilePreimageFresh,
+		Severity: SeverityBlock,
 		Passed:   true,
 		Skipped:  true,
 		Reason:   "skipped: V0 (status_loaded) aborted the run",
@@ -783,6 +814,89 @@ func checkReconcileOutcomeConsistent(status store.FeatureStatus) store.VerifyChe
 		Severity:    SeverityWarn,
 		Passed:      false,
 		Remediation: fmt.Sprintf("reconcile outcome is %s; verify cannot vouch for reconcile health (warn-only)", outcome),
+	}
+}
+
+// checkWriteFilePreimageFresh — V10 (PRD-write-file-recipe-safety AC-9
+// + §5:130 verify integration, ADR-029 D6 + D7 + D8).
+//
+// Contract:
+//   - For every `write-file` operation in the parsed apply-recipe,
+//     recompute the current on-disk file's SHA-256 (via the shared
+//     `checkWriteFilePreimage` helper) and check whether the recipe's
+//     preimage_hash still matches.
+//   - Effective (non-superseded) feature: any preimage mismatch or
+//     missing-file drift is SeverityBlock and fails the check. This is
+//     PRD §7.2's authoritative v1 rule ("v1 blocks only on preimage
+//     mismatch"): verify surfaces the same signal that apply refuses on.
+//   - Superseded feature: the same mismatches are surfaced but the
+//     check's severity is downgraded to SeverityWarn per ADR-029 D7
+//     and Slice 4's supersession-controls-severity coupling — the
+//     superseder's recipe is the effective source of truth, so a stale
+//     preimage on the superseded feature is expected and must not
+//     block the report.
+//   - Legacy recipe path (op.PreimageHash == nil / preimageLegacyWarn)
+//     is treated as a non-failing pass — ADR-029 D4 already emitted the
+//     legacy-warn at record/apply time; V10 does not re-warn.
+//   - When V2 (recipe_parses) skipped or failed, V10 skips with a
+//     matching reason so the check row remains stable-shaped.
+//   - Non-write-file operations (preimageSkip) contribute nothing.
+//
+// Diagnostic bodies follow ADR-029 D8: only paths, hashes, and slug/op
+// coordinates appear. No file contents are embedded.
+func checkWriteFilePreimageFresh(s *store.Store, slug string, status store.FeatureStatus, recipe ApplyRecipe, recipePresent bool) store.VerifyCheckResult {
+	if !recipePresent {
+		return store.VerifyCheckResult{
+			ID:       CheckWriteFilePreimageFresh,
+			Severity: SeverityBlock,
+			Passed:   true,
+			Skipped:  true,
+			Reason:   "skipped: V2 (recipe_parses) skipped or failed",
+		}
+	}
+	// Supersession downgrade — parallel to Slice 4's writefile_safety
+	// appendDrift routing. When an active superseder claims this
+	// feature, block-severity failures land as warn-severity so
+	// verify does not veto a legitimately-superseded feature that
+	// still has an older stale preimage on record (D7).
+	superseder, superseded := IsFeatureSuperseded(s, slug)
+	severity := SeverityBlock
+	if superseded {
+		severity = SeverityWarn
+	}
+
+	var failures []string
+	for i, op := range recipe.Operations {
+		outcome, msg := checkWriteFilePreimage(s.Root, slug, i, op)
+		switch outcome {
+		case preimageRejected:
+			failures = append(failures, msg)
+		case preimageOK, preimageLegacyWarn, preimageSkip:
+			// preimageLegacyWarn: ADR-029 D4 already surfaces the
+			// legacy warning at record/apply time; V10 does not
+			// re-emit. preimageSkip: not a write-file. preimageOK:
+			// nothing to report.
+		}
+	}
+
+	if len(failures) == 0 {
+		return store.VerifyCheckResult{
+			ID:       CheckWriteFilePreimageFresh,
+			Severity: severity,
+			Passed:   true,
+		}
+	}
+
+	remediation := strings.Join(failures, "; ")
+	if superseded {
+		remediation = fmt.Sprintf("%s (downgraded to warn: superseded by %q per ADR-029 D7 + PRD-feature-supersession §4.5 \"Reconcile interaction with write-file safety\")",
+			remediation, superseder)
+	}
+	return store.VerifyCheckResult{
+		ID:          CheckWriteFilePreimageFresh,
+		Severity:    severity,
+		Passed:      false,
+		Remediation: remediation,
 	}
 }
 
