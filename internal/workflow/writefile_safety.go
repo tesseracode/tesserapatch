@@ -196,6 +196,27 @@ type PreimagePrecheckResult struct {
 	// Warnings are ADR-029 D4 legacy-recipe advisories emitted for
 	// operations that omit `preimage_hash`. Never block execution.
 	Warnings []string
+	// WrappedErrors carries the sentinel-typed twin of preimage-drift
+	// entries in Errors so callers can distinguish drift class via
+	// `errors.Is` (v0.12.0 Wave β rev-1 Slice R5 / F-M1 fix). Each
+	// entry wraps ErrWriteFilePreimageMismatch. Path-safety refusals
+	// (a non-preimage safety-boundary class, ADR-029 D3 last-row) are
+	// intentionally not sentinel-tagged and appear only in the string
+	// Errors slice — the two sentinels are scoped to preimage / later-
+	// touch drift, matching their docstrings and downstream match
+	// contract. WrappedErrors is therefore a SUBSET of Errors; callers
+	// that want per-op iteration should still walk Errors.
+	WrappedErrors []error
+	// WrappedWarnings carries the sentinel-typed twin of Warnings.
+	// Each entry that originated from a later-touch check wraps
+	// ErrWriteFileLaterTouch; each entry that originated from a
+	// superseded-preimage-drift downgrade wraps
+	// ErrWriteFilePreimageMismatch (the underlying drift signal is
+	// preimage-mismatch even though its surfaced severity is warn per
+	// PRD-feature-supersession §4.5 / ADR-029 D7). Legacy-recipe
+	// advisories (ADR-029 D4) are not sentinel-tagged and appear only
+	// in the string form.
+	WrappedWarnings []error
 }
 
 // runWriteFilePreimagePrecheck evaluates every `write-file` operation
@@ -305,6 +326,10 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, superseder string) {
 	if !superseded {
 		r.Errors = append(r.Errors, msg)
+		// R5 / F-M1: pair the string form with a sentinel-wrapped
+		// error so `errors.Is(err, ErrWriteFilePreimageMismatch)`
+		// matches on any drift-class refusal.
+		r.WrappedErrors = append(r.WrappedErrors, fmt.Errorf("%w: %s", ErrWriteFilePreimageMismatch, msg))
 		return
 	}
 	// v0.12.0 Wave β Slice 4: downgrade with visible provenance so the
@@ -312,9 +337,14 @@ func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, supers
 	// The "superseded by" suffix mirrors the pattern used by Wave α's
 	// `superseded-by <slug>` derived label so operators recognize the
 	// signal as the supersession-coupling downgrade.
-	r.Warnings = append(r.Warnings,
-		fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
-			msg, superseder))
+	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
+		msg, superseder)
+	r.Warnings = append(r.Warnings, suffixed)
+	// R5 / F-M1: the drift class is still preimage-mismatch; only the
+	// SURFACED severity is downgraded per D7. Wrapping with the
+	// preimage sentinel keeps `errors.Is` callers able to detect the
+	// underlying drift class even when it lands in Warnings.
+	r.WrappedWarnings = append(r.WrappedWarnings, fmt.Errorf("%w: %s", ErrWriteFilePreimageMismatch, suffixed))
 }
 
 // appendLaterTouchWarn always routes later-touch drift into Warnings
@@ -336,11 +366,15 @@ func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, supers
 func (r *PreimagePrecheckResult) appendLaterTouchWarn(msg string, superseded bool, superseder string) {
 	if !superseded {
 		r.Warnings = append(r.Warnings, msg)
+		// R5 / F-M1: sentinel-wrap the later-touch warning so
+		// `errors.Is(err, ErrWriteFileLaterTouch)` matches.
+		r.WrappedWarnings = append(r.WrappedWarnings, fmt.Errorf("%w: %s", ErrWriteFileLaterTouch, msg))
 		return
 	}
-	r.Warnings = append(r.Warnings,
-		fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
-			msg, superseder))
+	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-write-file-recipe-safety §PRD-1-interaction / ADR-029 D7)",
+		msg, superseder)
+	r.Warnings = append(r.Warnings, suffixed)
+	r.WrappedWarnings = append(r.WrappedWarnings, fmt.Errorf("%w: %s", ErrWriteFileLaterTouch, suffixed))
 }
 
 // laterTouchIndex maps a repo-relative path to the slug of the FIRST
