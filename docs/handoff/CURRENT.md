@@ -5,7 +5,7 @@
 - **Task ID**: `v0.12.0-wave-gamma-active-feature-session-rev1`
 - **Milestone**: v0.12.0 Wave γ — implement `PRD-active-feature-session` + honor `ADR-027` D1 F3 lock. Rev-1 fold-in of dual-review split findings.
 - **Description**: Rev-0 dual review returned a SPLIT: internal APPROVED WITH NOTES (1 HIGH + 3 LOW), supervisor-external BLOCK (1 Critical + 4 HIGH + 1 MEDIUM). Zero overlap; both correct within their scope. Supervisor adjudicated at 2026-07-30 siding with external's contract-authority reading (PRD §4 D6 mandate 4 "Writers" plural, PRD §5 D11 "hard failure" verbatim, PRD §5 D9 `--write` as mutating mode verbatim, PRD §3 D4 no `closed→active` verbatim). Rev-1 folds ALL 10 findings.
-- **Status**: Rev-1 dispatched 2026-07-30.
+- **Status**: Rev-1 landed 2026-07-30 — SHA range `0cb5382..HEAD` (7 code commits R1–R7). Awaiting dual review dispatch.
 - **Assigned**: 2026-07-30.
 
 ## Supervisor adjudication (verbatim contract text)
@@ -131,35 +131,58 @@ Expected touch set:
 
 Wave γ implementer rev-0 executed all 5 locked slices. SHA range `561e6de..d842697` (5 code commits + 1 LOG commit at `1ce37ff`). Full-suite PASS at 865 (baseline 827 + 38). All 5 commits carry parseable Rule 18 trailers. Wave α + β non-invalidation confirmed. Side Research md5 preserved. Rev-0 dual review dispatched in parallel; returned SPLIT: internal APPROVED WITH NOTES (1 HIGH F-INT-γ-1 + 3 LOW), external BLOCK (1 Critical F-EXT-γ-1 + 4 HIGH F-EXT-γ-2 to F-EXT-γ-5 + 1 MEDIUM F-EXT-γ-6). Supervisor adjudicated 2026-07-30 siding with external's BLOCK on contract authority. Rev-1 dispatched with all 10 findings folded.
 
+## Session Summary — rev-1
+
+Wave γ implementer rev-1 landed all 7 locked slices on top of `0cb5382`. Per-slice SHAs: R1 `3936e99` (F-EXT-γ-1 D6 bottleneck), R2 `e3b343f` (F-EXT-γ-2 D11 hard failure), R3 `4111b04` (F-EXT-γ-3 label redaction), R4 `eafb732` (F-EXT-γ-4 early-validation hoist), R5 `3e39091` (F-EXT-γ-5 refuse reopen), R6 `3b14a66` (F-EXT-γ-6 + F-INT-γ-1..γ-4), R7 (this commit). All 7 commits carry parseable Rule 18 trailers. Wave α + β non-invalidation confirmed by explicit `git diff --stat` on `internal/workflow/labels.go`, `internal/store/validation.go`, `internal/cli/status_dag.go`, `internal/workflow/writefile_safety.go`, `internal/workflow/verify.go` (empty diff). Side Research md5 preserved at `b385fe622db9926f48861105239f113e`. F-EXT-γ-6 chose option (a) — collapse `--promote` into `--write` — so no PRD amendment was needed. Ten of ten findings closed; each has an empirical CLI reproduction cited in its slice commit body.
+
 ## Files Changed — rev-0
 
 Per implementer report at commit `d842697` — see LOG entry `1ce37ff` for detailed enumeration. Highlights: `internal/workflow/session_ignore.go` (new), `internal/cli/session*.go` (new), `internal/store/session*.go` (new), 6 shipped skill assets, CHANGELOG amendment, PRD flip Proposed→Accepted.
+
+## Files Changed — rev-1
+
+R1: `internal/store/session.go` (SessionIgnoreVerifier hook + SaveSession enforcement), `internal/workflow/session_ignore.go` (init() wires verifier), `internal/store/session_verifier_bypass_test.go` (new — permissive verifier for store-only tests), `internal/cli/session_d6_writers_rev1_test.go` (new — 3 tests including table-driven all-writers proof).
+
+R2: `internal/cli/session_summarize.go` (ErrSessionRedactionRefusal sentinel + wrapped return), `internal/cli/session_redaction_test.go` (updated two existing tests to expect non-zero exit), `internal/cli/session_summarize_hard_failure_rev1_test.go` (new — sentinel errors.Is proof).
+
+R3: `internal/cli/session_redaction.go` (RedactSessionLabelForStore), `internal/cli/session.go` (label redaction wiring in sessionStartCmd), `internal/cli/session_start_label_rev1_test.go` (new — 3 tests).
+
+R4: `internal/cli/cobra.go` (hoisted --from-session mutex to top of recordCmd RunE; removed late duplicate), `internal/cli/session_record_no_partial_rev1_test.go` (new — no-partial-artifacts regression).
+
+R5: `internal/cli/session.go` (post-cs_id-compute LoadSession probe + §3 D4 refusal), `internal/cli/session_start_reopen_refused_rev1_test.go` (new — 2 tests).
+
+R6: `internal/cli/session_summarize.go` (Promote field removed; runSessionSummarize always promotes on --write), `internal/cli/session.go` (--promote flag removed; F-INT-γ-1 no-args refusal in sessionPurgeCmd; F-INT-γ-3 uses gitutil.FirstCommit for RepositoryIdentity), `internal/cli/cobra.go` (F-INT-γ-2 message rewrite; F-INT-γ-4 status-based verb; drop Promote from record --with-session), `internal/gitutil/gitutil.go` (new FirstCommit helper), `internal/workflow/session_ignore.go` (LocalIgnoreStatus + EnsureLocalGitignoreRuleStatus), `internal/cli/session_purge_refuse_noargs_rev1_test.go` (new), `internal/cli/init_gitignore_status_rev1_test.go` (new — table-driven honest-status), `internal/cli/session_record_test.go` (extended ambiguity test), `internal/cli/session_redaction_test.go` (drop --promote from happy-path test), `internal/cli/session_lifecycle_test.go` (updated invalid-flag-pairs test for removed --promote), `internal/cli/session_d6_writers_rev1_test.go` (drop --promote from summarize case), `internal/cli/session_start_reopen_refused_rev1_test.go` (drop --promote from setup), 5 shipped skill assets (Claude, Copilot, Cursor, Windsurf, generic workflow — collapsed `--write --promote` to `--write`).
+
+R7: `CHANGELOG.md` (`#### Wave γ rev-1 amendments` subsection appended; Wave α + Wave β subsections byte-identical), `docs/handoff/CURRENT.md` (this refresh; Side Research untouched).
 
 ## Test Results — rev-0
 
 Full-suite PASS at 865. Wave α non-invalidation confirmed (labels.go, validation.go, status_dag.go BYTE-IDENTICAL). Wave β non-invalidation confirmed. Side Research md5 preserved.
 
+## Test Results — rev-1
+
+Full-suite PASS at 876 top-level tests (baseline 865 + 11 new rev-1 regressions). `gofmt -l .` empty. `go vet ./...` clean. `go build ./cmd/tpatch` clean. Wave α + β non-invalidation confirmed: `git diff --stat 0cb5382..HEAD -- internal/workflow/labels.go internal/store/validation.go internal/cli/status_dag.go internal/workflow/writefile_safety.go internal/workflow/verify.go` empty. Side Research md5 preserved at `b385fe622db9926f48861105239f113e`.
+
 ## Next Steps
 
-1. Rev-1 implementer executes Slices R1–R7 per locked plan.
-2. Rev-1 dual review dispatched on rev-1 commit range.
-3. On three-way APPROVED → user-external pass → Wave γ consolidation → v0.12.0 ship.
+1. Supervisor dispatches rev-1 dual review (external + internal) on SHA range `0cb5382..HEAD`. Both reviewers should spot-check the D6 all-writers coverage in `TestD6_AllWritersRefuse` (the safety-margin proof).
+2. On three-way APPROVED → user-external pass → Wave γ consolidation → v0.12.0 ship.
 
 ## Blockers
 
-None on rev-1 dispatch. The 10 findings are all folded into the locked slice plan.
+None on rev-1 landing. All 10 findings are folded into the 7 landed slices with empirical CLI reproductions per Rule 20.
 
 ## Context for Next Agent
 
-- HEAD at rev-1 dispatch: `1ce37ff` (internal LOG entry landed on top of rev-0 code) + supervisor adjudication commit (this handoff commit) at HEAD.
-- Rev-0 code range `561e6de..d842697` is on `HEAD` but NOT pushed (per Wave β pattern; consolidation pushes at three-way concurrence).
+- HEAD at rev-1 landing: 7 commits on top of `0cb5382` (supervisor adjudication commit). Rev-0 code range `561e6de..d842697` is on `HEAD` but NOT pushed.
+- Rev-1 SHAs: R1 `3936e99`, R2 `e3b343f`, R3 `4111b04`, R4 `eafb732`, R5 `3e39091`, R6 `3b14a66`, R7 (this commit).
 - 20 binding carry-forward rules unchanged.
-- **Non-obvious decisions to know before implementing rev-1**:
-  - F-EXT-γ-1 fix architecture: prefer enforcing the D6 check INSIDE `Store.SaveSession` (or a `SaveSessionWithIgnoreContract` wrapper that all Session-state callers must use), NOT scattering `EnsureLocalIgnoreContract` calls at each write site. Scattered enforcement is the exact pattern that let this bug ship at rev-0; a bottleneck enforcement makes future writer additions safe by construction.
-  - F-EXT-γ-6 preferred option (a) — collapse `--promote` into `--write` per PRD D9 verbatim. Option (b) requires PRD amendment which is heavier (Rule 19 shipped-surface).
-  - F-EXT-γ-5 fix path: refuse-on-collision is preferred over adding entropy. Content-addressing per D3 is intentional and reflected in the parity anchor.
-  - PRD §4 D6's "Writers" plural clause is the source of authority — every present + FUTURE session-state writer must honor the ignore contract. Rev-1 test coverage should include a `TestD6_AllWritersRefuse` table-driven test that enumerates all Session-state-writing entry points, so adding a new writer surface later fails until it goes through the enforced path.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e`.
+- **Rev-1 design choices worth knowing**:
+  - F-EXT-γ-1: enforcement lives INSIDE `Store.SaveSession` via a package-level `store.SessionIgnoreVerifier` hook that `internal/workflow`'s `init()` populates with `EnsureLocalIgnoreContract`. Store cannot import workflow (cyclic), so the hook pattern is load-bearing. Store-only unit tests register a pass-through verifier in `session_verifier_bypass_test.go`. This is the D6 bottleneck.
+  - F-EXT-γ-6: chose option (a) — collapse `--promote` into `--write`. PRD §5 D9 rule 3 verbatim is honored without a PRD amendment. `record --with-session` and skill assets updated to match.
+  - F-INT-γ-3: `RepositoryIdentity` now derives from `gitutil.FirstCommit` (root commit SHA) instead of the same value as `BaseCommit`. Falls back to `baseCommit` when the repo has no commits.
+  - F-INT-γ-4: `workflow.EnsureLocalGitignoreRuleStatus` is the new status-returning form; `EnsureLocalGitignoreRule` is a thin wrapper preserved for existing tests.
+- Side Research md5 invariant: `b385fe622db9926f48861105239f113e` — preserved through rev-1. Verify with `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

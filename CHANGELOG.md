@@ -102,6 +102,94 @@ All notable changes to tpatch are recorded here.
   commit the init-installed `.gitignore` before recording (Wave γ
   init amendment surfaces this hidden test-fixture assumption).
 
+#### Wave γ rev-1 amendments
+
+Rev-0 dual review returned a genuine SPLIT (external BLOCK ×5,
+internal BLOCK ×5, one shared) with supervisor BLOCK
+adjudication. Rev-1 folds all 10 findings across 7 locked slices
+(R1–R7). All commits carry the Rule 18 co-author trailer; each
+finding cites its PRD clause verbatim in the commit body; every
+finding has an empirical CLI reproduction (Rule 20).
+
+- R1 — F-EXT-γ-1 CRITICAL (D6 later-writer bypass). PRD §4 D6
+  mandate 4 verbatim: "Writers must refuse when Git is unavailable
+  or the path is not ignored." Rev-0 enforced the mandate at
+  `session start` but silently skipped it at `session stop` and
+  future Session-state writers. Rev-1 hoists enforcement into
+  `Store.SaveSession` via a package-level
+  `store.SessionIgnoreVerifier` hook wired by `internal/workflow`.
+  Every Session-state writer now routes through the bottleneck.
+  New table-driven `TestD6_AllWritersRefuse` enumerates every
+  writer surface (session-start, session-stop,
+  session-summarize --write, record --with-session); adding a new
+  writer later fails the test until it goes through the enforced
+  path.
+
+- R2 — F-EXT-γ-2 HIGH (D11 hard failure). PRD §5 D11 verbatim:
+  "Redaction failure is a hard failure." Rev-0 emitted a refusal
+  payload but returned nil so the process exited 0. Rev-1 adds
+  `cli.ErrSessionRedactionRefusal` sentinel (matches Wave β F-M1
+  pattern) and wraps it via `fmt.Errorf("%w: %s", …)` when
+  `opts.Write && refusalReason != ""`. JSON payload still emitted
+  before the error return so downstream parsers see the record.
+
+- R3 — F-EXT-γ-3 HIGH (label redaction). ADR-027 D3 + PRD §7 D16.
+  Rev-0 persisted `--label` verbatim in `session.json`; a
+  secret-shaped label would cross the local→committed boundary.
+  Rev-1 adds `cli.RedactSessionLabelForStore` reusing the D11
+  `forbiddenContentClasses` matcher; labels with any finding are
+  dropped and a stderr notice enumerates the finding codes.
+
+- R4 — F-EXT-γ-4 HIGH (record --from-session early-validation
+  hoist). Rev-0 checked the `--from-session requires
+  --with-session` mutex late — after capture, recipe generation,
+  and artifact writes had already run. Rev-1 hoists the check to
+  the top of `recordCmd.RunE` immediately after
+  `openStoreFromCmd`; refusal leaves no partial artifacts.
+  Regression: `TestRecordFromSessionRefusalLeavesNoArtifacts`.
+
+- R5 — F-EXT-γ-5 HIGH (refuse reopen of closed/promoted session).
+  PRD §3 D4 verbatim: "reopen is out of scope and valid
+  transitions do not include `closed → active`." Rev-0 only
+  counted ACTIVE sessions at start; content-addressing collision
+  with a closed/promoted/purged session was ignored, so the
+  writer would resurrect the manifest at a new state. Rev-1
+  probes `LoadSession(cs_id)` after the content-addressed ID is
+  computed and refuses with a §3 D4-verbatim message when the
+  existing state is closed/promoted/purged.
+
+- R6 — F-EXT-γ-6 MEDIUM + F-INT-γ-1 HIGH + F-INT-γ-2/3/4 LOW.
+  F-EXT-γ-6: PRD §5 D9 rule 3 verbatim — "`--write` is the
+  mutating mode." Collapsed rev-0 `--promote` flag into `--write`;
+  every successful committed-summary write now also transitions
+  the source session to `promoted`. F-INT-γ-1: `session purge`
+  refuses when neither `--all` nor `<slug>` is given (PRD §6 D14
+  mutex is "one of", not "either or neither"). F-INT-γ-2: record
+  ambiguity message rewrites `--session` to `--from-session` to
+  match the actual record-surface flag. F-INT-γ-3:
+  `SessionIdentityInputs.RepositoryIdentity` now derives from
+  `gitutil.FirstCommit` (root commit) instead of the same value
+  as `BaseCommit`. F-INT-γ-4: `tpatch init` reports honest
+  `created` / `appended` / `already present` verbs based on
+  `workflow.LocalIgnoreStatus`, instead of always printing
+  `appended`.
+
+- R7 — paperwork (this changelog subsection, handoff refresh).
+  No PRD amendment; F-EXT-γ-6 chose option (a) — collapse into
+  `--write` — which requires no §5 D9 rewording.
+
+- Wave γ rev-1 scoreboard: 876 top-level tests (baseline 865
+  + 11 new rev-1 regressions covering the D6 all-writers safety-
+  margin proof, D11 sentinel-error assertion, label redaction
+  table, record no-partial-artifacts assertion, closed/promoted
+  reopen refusal, purge no-args refusal with fs-hash invariance,
+  init honest-status table, and updated existing tests that
+  referenced the removed `--promote` flag). Wave α and Wave β
+  surfaces (`internal/workflow/labels.go`,
+  `internal/store/validation.go`, `internal/cli/status_dag.go`,
+  `internal/workflow/writefile_safety.go`,
+  `internal/workflow/verify.go`) untouched.
+
 ### Wave β — `write-file` preimage precondition + later-touch detection + supersession coupling
 
 - Extended the `RecipeOperation` schema with a new optional
