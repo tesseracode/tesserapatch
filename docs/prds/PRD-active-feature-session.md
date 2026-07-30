@@ -1,5 +1,5 @@
 # PRD - Active Feature Session
-**Status**: Proposed (Accepted only after supervisor review + external review pair)
+**Status**: Accepted (v0.12.0 Wave γ landed; PRD flipped after implementer rev-0)
 **Date**: 2026-07-29
 **Owner**: Core
 **Cluster**: Capture and metadata foundation (research-roadmap §3.1)

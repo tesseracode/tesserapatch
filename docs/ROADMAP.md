@@ -633,10 +633,33 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     Proposed→Accepted, ADR-029 Proposed→Accepted, ADR README
     status column update.
 
-- **Wave γ — active-feature-session** 🚧 (dispatched 2026-07-30 post-Wave β acceptance)
-  - `tpatch session` command group + `.tpatch/local/capture/` per
+- **Wave γ — active-feature-session** 🚧 Rev-0 landed 2026-07-30, awaiting three-way review
+  - `tpatch session {start,stop,list,summarize,purge}` command group
+    + `.tpatch/local/capture/` local buffer lane per
     [`PRD-active-feature-session`](prds/PRD-active-feature-session.md)
-    and [`ADR-027`](adrs/ADR-027-active-feature-session.md).
+    and [`ADR-027`](adrs/ADR-027-capture-context-privacy-boundary.md).
+  - Slice 1 — storage lane + six-mandate refusal contract (PRD §4 D6)
+    with detached-worktree fixtures + `git check-ignore` effective
+    verification (mandate 5) + `LocalIgnoreRefusal` typed error.
+    `tpatch init` amendment adds `.tpatch/local/` to `.gitignore`
+    (mandate 1) or refuses with mandate 2 message.
+  - Slice 2 — session cobra group + lifecycle (D1/D2/D4/D13/D14) +
+    idempotent start (D1.5) + single-active invariant + deterministic
+    `session list --json` (D14 + §8.15) + all 6 shipped skill assets
+    updated in the same commit (Rule 15 parity guard).
+  - Slice 3 — D11 redaction contract (§5 D11 + §8.13): ten forbidden
+    content classes, boundary invariant proof (raw bodies never cross
+    local→committed), refusal on all-scrubbed (§8.12: prior committed
+    summary byte-identical).
+  - Slice 4 — record `--with-session` + `--from-session` opt-in
+    promotion (§6 D15 + §8.7 + §8.8) + cross-feature isolation
+    boundary via `store.LoadSession` slug/manifest agreement check
+    (§7 D18).
+  - Slice 5 — CHANGELOG amendment,
+    `PRD-active-feature-session.md` `Proposed`→`Accepted`, ROADMAP
+    status flip to Rev-0 landed.
+  - Range: dispatch `561e6de` → rev-0 `7c77723..HEAD`. Test count 865
+    (827 baseline at Wave β acceptance + 38 Wave γ additions).
 
 ## v0.12.0 planning artifacts — paper-only PRD/ADR pair landed ✅
 

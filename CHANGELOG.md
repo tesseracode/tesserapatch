@@ -2,7 +2,105 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.12.0 — TBD — feature supersession (Wave α) + write-file recipe safety (Wave β)
+## v0.12.0 — TBD — feature supersession (Wave α) + write-file recipe safety (Wave β) + active feature sessions (Wave γ)
+
+### Wave γ — `tpatch session` command group + `.tpatch/local/capture/` buffer + D11 redaction contract
+
+- New `tpatch session {start,stop,list,summarize,purge}` command group
+  (`internal/cli/session.go`, PRD-active-feature-session §6 D13/D14).
+  Sessions live in the LOCAL private buffer lane at
+  `.tpatch/local/capture/<slug>/<cs_id>/` — the D5-locked path INSIDE
+  the committed worktree, chosen so session state travels with the
+  branch (ADR-027 D1, higher-risk of the three options). Session IDs
+  are content-addressed `cs_<12hex>` per PRD §3 D3.2: sha256 over
+  canonical-JSON of `{schema_version, repository_identity, feature,
+  base_commit, capture_mode, workspace_discriminator}`, with wall-
+  clock timestamps, PIDs, adapter IDs, and local sequence numbers
+  deliberately EXCLUDED (PRD §3 D3.3). `session start` is idempotent
+  (PRD §3 D1.5): starting on a feature that already has one active
+  session reuses the existing `cs_<12hex>` and writes no new buffer.
+- Six-mandate refusal contract at PRD §4 D6 — the ENTIRE safety
+  margin for `.tpatch/local/capture/` living inside the committed
+  worktree. Enforced by
+  `internal/workflow/session_ignore.go`:
+  (1) `tpatch init` installs `.tpatch/local/` in `.gitignore`;
+  (2) refusal when `.gitignore` cannot be written, with the exact
+  rule and remediation printed verbatim;
+  (3) `session start` re-verifies the resolved concrete path at
+  write-time;
+  (4) refusal when Git is unavailable OR the path is not effectively
+  ignored;
+  (5) verification uses `git check-ignore -q --no-index` (exit-code
+  semantics), NOT textual `.gitignore` line matching — proven by the
+  negation-rule regression fixture that defeats the textual path;
+  (6) pre-PRD workspace fallback path `.git/tpatch/capture/` is
+  named in every refusal message. Sentinel `ErrLocalIgnoreRefusal`
+  wraps a typed `*LocalIgnoreRefusal{Reason, Path, Detail}` so
+  callers can key off drift class via `errors.Is` + `errors.As`.
+  Every refusal path is exercised by a detached-worktree regression
+  fixture per Wave β doctor D3 `--fix` refusal template.
+- `tpatch init` amendment (`internal/cli/cobra.go` initCmd,
+  Rule 19 + ADR-027 D1): after `store.Init`, calls
+  `EnsureLocalGitignoreRule` and emits a `gitignore:` line in the
+  init output. Refuses with mandate 2 message if `.gitignore`
+  cannot be edited. The rule text `.tpatch/local/` is captured in
+  the `LocalIgnoreRule` constant and printed verbatim in every
+  refusal so operators can add it manually as the last resort.
+- D11 redaction contract at the local→committed boundary
+  (`internal/cli/session_redaction.go`, PRD §5 D11 + §8.13):
+  ten forbidden content classes are checked against every
+  observation summary — `secret-like-string` (OpenAI, GitHub PAT,
+  AWS, Slack tokens, Bearer headers, `secret=`/`token=`/`api_key=`
+  assignments), `absolute-home-path` (`/Users/*`, `/home/*`,
+  `/root/*`, `C:\Users\*`), `prompt-text-marker`,
+  `tool-call-argument`, `command-output-marker`,
+  `stack-trace-marker`, `ide-buffer-marker`, `clipboard-marker`,
+  `vector-embedding-payload` (16+ float JSON arrays), and
+  `source-snippet-marker` (fenced ```<lang>``` blocks). Matched
+  observations are DROPPED from the committed body (raw content
+  NEVER crosses the boundary); the finding code is recorded in
+  `ContextSummaryRedaction.FindingCodes` for the audit trail.
+  Session labels are LOCAL-ONLY per PRD §6 D14 and scrubbed
+  unconditionally, with `label` recorded in `ScrubbedFields`. If
+  EVERY observation is dropped and no safe body survives, the
+  writer REFUSES with `promotion_refusal_reason` set — existing
+  committed summaries are left BYTE-IDENTICAL (PRD §8.12).
+- Explicit opt-in promotion (PRD §5 D9): `session summarize` and
+  the new `record --with-session` flag are the ONLY paths that
+  write a committed summary. Auto-promotion on session stop is
+  explicitly deferred to `PRD-record-context-summary`. The
+  committed summary lives at
+  `.tpatch/features/<slug>/artifacts/context/<ctx_id>.json` with a
+  `ctx_<12hex>` content-addressed ID (sha256 over
+  `{schema_version, feature, session_id, capture_mode,
+  summary_hash}`).
+- New `record` flags (PRD §6 D15 + §8.7 + §8.8):
+  `--with-session` opts in to same-feature session read + redacted
+  promotion after the recorded patch is written; `--from-session
+  <cs_id>` disambiguates when multiple eligible same-feature
+  sessions exist. `--from-session` REQUIRES `--with-session`; the
+  mismatch is refused with a PRD §8.8 citation BEFORE any session
+  lookup. Ambiguous selection without `--from-session` is refused
+  per PRD §8.7.
+- Cross-feature isolation (PRD §7 D18): a session for feature A
+  cannot be observed by feature B's read paths. Enforced at
+  `store.LoadSession(slug, cs_id)`: the manifest's `feature` field
+  MUST match the directory `slug`, or `LoadSession` refuses with a
+  PRD §7 D18 citation. `session list <slug-B>` returns zero rows
+  for a slug-A session; `record slug-B --with-session --from-session
+  cs_of_A` refuses at the load boundary. All six shipped skill
+  assets (Claude, Copilot, Copilot Prompt, Cursor, Windsurf,
+  Generic) document the isolation invariant, the six-mandate
+  contract, and the promotion boundary in the SAME commit as the
+  CLI wire-up (Rule 15, `assets/assets_test.go` parity guard now
+  has 5 new required commands and 2 new required anchors).
+- Wave γ scoreboard: 865 top-level tests (827 baseline + 38 new
+  Wave γ tests spanning D6 refusal fixtures, lifecycle transitions,
+  redaction matcher coverage, promotion boundary invariant, cross-
+  feature isolation, and record-flag guards). Non-Wave-γ tests
+  unchanged. `TestFeaturePatchRefreshNoByteChangeSkips` updated to
+  commit the init-installed `.gitignore` before recording (Wave γ
+  init amendment surfaces this hidden test-fixture assumption).
 
 ### Wave β — `write-file` preimage precondition + later-touch detection + supersession coupling
 

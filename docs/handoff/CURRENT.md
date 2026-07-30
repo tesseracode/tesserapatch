@@ -4,150 +4,266 @@
 
 - **Task ID**: `v0.12.0-wave-gamma-active-feature-session-implementation`
 - **Milestone**: v0.12.0 Wave γ — implement `PRD-active-feature-session` + honor `ADR-027` D1 F3 lock.
-- **Description**: Third and final wave of the v0.12.0 3-wave sequential cluster. Introduces a new `tpatch session` command group + `.tpatch/local/capture/` local-buffer storage lane + `tpatch init` `.gitignore` amendment that together satisfy ADR-027 D1's F3 conditional. The six-mandate refusal contract at PRD-active-feature-session §4 D6 is the ENTIRE safety margin — refusal-path test coverage is first-class scope, not an afterthought.
-- **Status**: Dispatched 2026-07-30.
+- **Description**: Third and final wave of the v0.12.0 3-wave sequential cluster. Introduces the `tpatch session` command group + `.tpatch/local/capture/` local-buffer storage lane + `tpatch init` `.gitignore` amendment that together satisfy ADR-027 D1's F3 conditional. Six-mandate refusal contract at PRD-active-feature-session §4 D6 is the ENTIRE safety margin.
+- **Status**: Rev-0 landed 2026-07-30 — ready for dual review.
 - **Assigned**: 2026-07-30.
-
-## Wave γ scope (locked)
-
-**Read these first, in order**:
-
-1. `docs/prds/PRD-active-feature-session.md` (500 lines, 25 acceptance criteria) — the spec. D1 through D19 govern lifecycle, storage, promotion, CLI, and privacy.
-2. `docs/adrs/ADR-027-capture-context-privacy-boundary.md` — the conditional lock. D1 permits the worktree path **only** if "the writer MUST verify that path is ignored before the first write and MUST refuse rather than risk accidental commit." Wave γ's `tpatch init` .gitignore amendment + `tpatch session start` verification are the two halves of that contract.
-3. `docs/adrs/ADR-028-supersession-edge-model.md` — Wave α edge model. Sessions must not collide with supersession semantics (session belongs to a feature, supersession is between features).
-4. Wave α + Wave β diffs (`7081c62..0072fb5`) for pattern reference — especially the deterministic slug ordering + parity guard + severity-first label emission patterns.
-5. `docs/prds/PRD-tpatch-doctor.md` §6 (referenced by PRD §0 Related as the acceptance precedent) — the D3 `--fix` refusal fixtures from doctor Wave β are the TEMPLATE for D6 refusal-path testing.
-
-**What ships**:
-
-- New `tpatch session` command group with subcommands `start`, `stop`, `list`, `summarize`, `purge` (D13, D14).
-- `.tpatch/local/capture/<feature-slug>/<session-id>/` storage lane (D5). `<session-id>` is content-addressed per D3.
-- Local state machine (D4): `idle → active → closed → purged`. Only one active session per feature at a time.
-- `tpatch init` amendment (D6 mandate 1): appends `.tpatch/local/` to `.gitignore` at init. Refusal with the exact rule printed if `.gitignore` cannot be edited (D6 mandate 2).
-- `tpatch session start` verification (D6 mandate 3): before ANY write, verify the concrete resolved path is effectively ignored (D6 mandate 5 — effective ignore check via `git check-ignore` or equivalent, not textual line matching).
-- Refusal-class error surfaces when Git is unavailable OR the path is not effectively ignored (D6 mandate 4).
-- `pre-PRD-workspace` fallback path defined for the transitional case (D6 mandate 6).
-- Explicit session-to-committed-summary promotion boundary (D9, D10, D11): promotion is opt-in, writes to per-feature artifact under `.tpatch/features/<slug>/session-summary.md`, and passes through the D11 redaction contract.
-- Redaction contract: raw session bodies NEVER cross the local→committed boundary. Only redacted summaries (D17).
-- New `record` flags for opt-in record-time session close (D15).
-- Cross-feature isolation (D18): a session for feature A cannot see feature B's local buffer.
-- Provider-assisted carve-out (D19): provider prompts may reference redacted summaries but never raw local buffers.
-- CHANGELOG `## v0.12.0 — TBD` amendment: append `### Wave γ` subsection (Wave α + Wave β subsections untouched).
-- Status flip: `PRD-active-feature-session` from `Proposed` → `Accepted`.
-
-**What does NOT ship in Wave γ**:
-
-- `PRD-record-context-summary`, `PRD-agent-event-log`, `PRD-ide-capture-hooks`, `PRD-git-hook-capture-guards`, `ADR-capture-metadata-branch` — all listed as `Blocks` in the PRD header and deferred to post-v0.12.0.
-- Non-local (committed) session storage — explicitly rejected by D7.
-- Session sharing between features or across worktrees — D18 boundary.
-
-## Wave γ slice plan (locked)
-
-1. **Slice 1 — Storage lane + .gitignore contract** (foundation, D5 + D6 six mandates).
-   - Add `.tpatch/local/capture/` path constant.
-   - Amend `tpatch init` to append `.tpatch/local/` to `.gitignore` (create `.gitignore` if absent).
-   - Implement effective-ignore verification helper (git check-ignore semantics, NOT textual match).
-   - Refusal error type + actionable message enumerating all six D6 mandates.
-   - **Refusal-path test coverage FIRST-CLASS**: no-git case, unwritable-gitignore case, effective-ignore-fails case, path-not-under-worktree case. Doctor Wave β D3 refusal fixtures are the template.
-   - Deterministic content-addressed session ID (D3).
-
-2. **Slice 2 — Session command group + lifecycle** (D1, D2, D4, D13, D14).
-   - New `tpatch session` cobra group with `start`, `stop`, `list`, `summarize`, `purge` subcommands.
-   - Local state machine (`idle → active → closed → purged`).
-   - Per-feature single-active-session invariant (validation.go-style write-time rejection).
-   - Session identity + storage layout under `.tpatch/local/capture/`.
-   - Regression tests for state transitions + single-active invariant.
-
-3. **Slice 3 — Promotion boundary + redaction contract** (D9, D10, D11, D16, D17).
-   - `tpatch session summarize --promote` (or equivalent) writes redacted summary to `.tpatch/features/<slug>/session-summary.md`.
-   - Redaction contract enforced at the promotion boundary; raw bodies never cross.
-   - D11 redaction rules explicit + tested.
-   - Regression tests for redaction correctness + boundary invariant.
-
-4. **Slice 4 — Record flags + cross-feature isolation** (D15, D18).
-   - `record --close-session` (or equivalent per D15) for opt-in record-time close.
-   - Cross-feature isolation: session for feature A cannot observe feature B's buffer.
-   - Regression tests for both directions.
-
-5. **Slice 5 — CHANGELOG + PRD flip + ROADMAP** (paperwork).
-   - Append `### Wave γ` subsection under `## v0.12.0 — TBD` (Wave α + Wave β subsections untouched).
-   - Flip `PRD-active-feature-session` `Proposed → Accepted`.
-   - Update ROADMAP v0.12.0 Wave γ status marker.
-
-## Wave γ validation gates
-
-Same as Wave α/β (gofmt, vet, build, full test suite). Baseline: **826 top-level PASS** at Wave β acceptance. Wave γ total MUST be ≥ 826 + 15-25 (six D6 mandates + lifecycle + promotion + isolation + record flags all need regression coverage; refusal-path coverage is first-class).
-
-**Additional gates**:
-- Refusal-path regression coverage is REQUIRED — doctor Wave β D3 `--fix` refusal fixtures are the template. Missing refusal fixtures = BLOCKING at rev-0 review.
-- Effective-ignore verification MUST use git semantics (`git check-ignore`), not textual `.gitignore` line matching (D6 mandate 5).
-- Parity guard test MUST update in Slice 2 if any new command-mentioning skill surface changes (Rule 15 will flag new `tpatch session` in shipped assets).
-- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
-
-## Carry-forward dispatch rules (20 binding, all apply)
-
-All 20 rules from prior waves. Highlights for Wave γ:
-
-- **Rule 15**: NEW `tpatch session` command group added — Rule 15 explicitly expects new commands here per D13 ("This PRD proposes a new command group; it does not exist in production today"). Every new command MUST be added to the 6 shipped skill assets in the SAME commit (Slice 2 anti-drift lesson).
-- **Rule 17 (totality claims)**: When updating verify help, `tpatch --help`, or any "supported commands" enumeration, include the new `session` group. Wave β F1 (user-external) was a Rule 17 regression on the exact same file (`internal/cli/verify.go`). Do not repeat.
-- **Rule 18**: every commit MUST carry parseable `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer.
-- **Rule 19**: `tpatch init` is a shipped surface. The `.gitignore` amendment behavior change MUST cite ADR-027 D1 + PRD §4 D6 in the commit body.
-- **Rule 20**: reproduce empirically — the six D6 mandate refusal paths MUST be reproduced via detached worktree fixtures. This is the safety-margin class where empirical reproduction is the ENTIRE gate.
-
-## Two-opinion protocol scoreboard
-
-**20/20** final-acceptance three-way concurrence going into Wave γ. Wave β rev-0 was the FIRST supervisor-external miss (external APPROVED where PRD §7.2 explicitly answered the question internal caught). Adjudication lesson preserved: **cross-reference PRD before concluding ADR silence**.
-
-## Recurring pattern flags (address at Wave γ close or post-v0.12.0)
-
-- **F1 handoff Status stale** (recurring across Streams A+B + Wave α + Wave β): The Status field of CURRENT.md should flip from "Dispatched" to "Review" when rev-1 lands and reviewers are working, then to "Awaiting user-external" when internal+supervisor-external return. Systematic wave-close gap. Deferred to AGENTS.md closure checklist post-v0.12.0.
-- **CHANGELOG graduation**: `## v0.12.0 — TBD` gets a dated header only after Wave γ acceptance ships v0.12.0.
 
 ## Session Summary
 
-Wave β accepted 2026-07-30 at three-way concurrence (20th scoreboard entry). Consolidation fold-in of F1 (MEDIUM) + F2 (LOW) + F-INT-β-r1-1 (LOW) landed in the same commit as the LOG + HISTORY + ROADMAP updates and this CURRENT.md reset. Wave γ dispatched 2026-07-30.
+Wave γ implementer rev-0 executed all 5 locked slices in order. SHA
+range covering rev-0: `561e6de..HEAD` (four implementer commits atop
+Wave β consolidation `561e6de` on `origin/main`).
 
-## Files Changed (Wave β consolidation)
+Per-slice landing:
 
-- `internal/cli/verify.go` — F1 fix: V0-V9 → V0-V10 in help text + 2 doc comments; check-count 10 → 11.
-- `internal/workflow/verify.go` — F1 + F2 fix: V0-V9 → V0-V10 in doc header; "remaining nine" → "remaining ten" ×2.
-- `docs/ROADMAP.md` — F-INT-β-r1-1 fix: Slice 3 description reflects R1 warn-class revert with ADR-029 D6 + PRD §7.2 citation; Wave β status flipped ⬜/🚧 → ✅ ACCEPTED; Wave γ ⬜ → 🚧 dispatched.
-- `docs/supervisor/LOG.md` — Wave β user-external verdict + supervisor decision entries prepended.
-- `docs/handoff/HISTORY.md` — Wave β archive prepended.
-- `docs/handoff/CURRENT.md` — this reset.
+- **Slice 1 — Storage lane + `.gitignore` contract** (`7c77723`):
+  - New `internal/store/session.go` — Session/ContextSummary wire
+    types, `cs_<12hex>` + `ctx_<12hex>` content-addressed IDs (PRD §3
+    D3.2 identity inputs = `{schema_version, repository_identity,
+    feature, base_commit, capture_mode, workspace_discriminator}`,
+    wall-clock EXCLUDED per D3.3), Save/Load/List/Purge with path
+    safety + D18 cross-feature isolation refusal at LoadSession +
+    symlink-escape refusal at PurgeSession (macOS-safe: resolves
+    both sides of the compare so `/var/folders` symlink tree does not
+    spuriously trip the guard).
+  - New `internal/gitutil/ignore.go` — `IsGitAvailable`,
+    `IsPathIgnored` via `git check-ignore -q --no-index` exit-code
+    semantics (PRD §4 D6 mandate 5). NOT textual matching.
+  - New `internal/workflow/session_ignore.go` — single sentinel
+    `ErrLocalIgnoreRefusal` wrapping typed
+    `*LocalIgnoreRefusal{Reason, Path, Detail}`, `LocalIgnoreRule =
+    ".tpatch/local/"`, `PrePRDWorkspaceFallbackPath =
+    ".git/tpatch/capture/"` (mandate 6), `EnsureLocalIgnoreContract`
+    (mandates 3+4+5 at session-start-time), `EnsureLocalGitignoreRule`
+    (mandates 1+2 at init-time). Rendered `Error()` enumerates all
+    six mandates verbatim.
+  - `internal/cli/cobra.go` initCmd amended: after `store.Init`,
+    calls `EnsureLocalGitignoreRule`; emits `gitignore:` line in the
+    init output (Rule 19 + ADR-027 D1 + PRD §4 D6 mandate 1).
+  - New `internal/workflow/session_ignore_test.go` — 9 detached-
+    worktree D6 fixtures: git-unavailable, effective-check
+    no-gitignore, negation-rule defeats textual match,
+    path-outside-worktree, happy path, init creates/appends/no-dup/
+    refuses-unwritable. `mustBeRefusal` helper asserts `errors.Is`
+    on sentinel + reason + all six mandates in message.
+  - New `internal/store/session_test.go` — 8 fixtures:
+    ID determinism, shape validation, round-trip, D18 refusal,
+    malformed rejection, idempotent purge, bad-id refusal, symlink
+    refusal, list sort, malformed isolation.
 
-## Test Results (post-consolidation)
+- **Slice 2 — Session command group + lifecycle** (`f52fcfa`):
+  - New `internal/cli/session.go` — `tpatch session` cobra group +
+    `start`, `stop`, `list`, `summarize`, `purge` subcommands; per-
+    subcommand help text lists only subcommand-specific flags per
+    Rule 11; `pickSessionForOp` shared ambiguity helper (reused by
+    Slice 4 `record --with-session`); `SessionListJSON` deterministic
+    shape; single-active-session invariant at write time (PRD §3 D1.5
+    idempotence).
+  - New `internal/cli/session_summarize.go` — `runSessionSummarize`
+    shared entry point.
+  - New `internal/cli/session_redaction.go` — Slice 2 stub
+    (fleshed out in Slice 3).
+  - `internal/cli/cobra.go` — `sessionCmd()` registered on root
+    command list.
+  - Parity guard (Rule 15): `assets/assets_test.go` +5 required
+    commands (`tpatch session start|stop|list|summarize|purge`) and
+    +2 required anchors (`session-local-capture/root`,
+    `session-local-capture/gitignore-rule`). All 6 shipped skill
+    assets updated in the same commit:
+    - `assets/skills/claude/tessera-patch/SKILL.md`
+    - `assets/skills/copilot/tessera-patch/SKILL.md`
+    - `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+    - `assets/skills/cursor/tessera-patch.mdc`
+    - `assets/skills/windsurf/windsurfrules`
+    - `assets/workflows/tessera-patch-generic.md`
+  - Rule 17 fold-in: corrected stale `V0-V9` verify enumeration to
+    `V0-V10` on the Claude, Copilot, and Copilot Prompt assets
+    (Cursor, Windsurf, Generic already at V0-V10). Tightly coupled
+    to the same tables I was touching for session anchors.
+  - New `internal/cli/session_lifecycle_test.go` — 9 CLI
+    regression tests (init gitignore amendment, refusal without
+    gitignore, start idempotence, stop transitions + idempotence,
+    list JSON determinism, purge dry-run default, refusal on
+    unknown feature, cross-feature isolation, summarize invalid
+    flag pairs).
+
+- **Slice 3 — D11 redaction contract + promotion boundary** (`1863733`):
+  - `internal/cli/session_redaction.go` rewritten with 10 forbidden
+    content classes: `secret-like-string` (OpenAI/GitHub PAT/AWS/
+    Slack tokens, Bearer, `secret=`/`token=`/`api_key=` assigns),
+    `absolute-home-path` (Unix + Windows), `prompt-text-marker`,
+    `tool-call-argument`, `command-output-marker`,
+    `stack-trace-marker` (Go/Python/JS), `ide-buffer-marker`,
+    `clipboard-marker`, `vector-embedding-payload` (16+ float JSON
+    arrays), `source-snippet-marker` (fenced ```<lang>``` blocks).
+    Matched observations DROPPED from committed body; class code
+    recorded in `ContextSummaryRedaction.FindingCodes`.
+  - Labels scrubbed unconditionally (`label` in `ScrubbedFields`).
+  - If EVERY observation is dropped, `runSessionSummarize` refuses
+    with `promotion_refusal_reason` set; existing committed
+    summaries left BYTE-IDENTICAL (PRD §8.12).
+  - New `internal/cli/session_redaction_test.go` — 15 forbidden-
+    class sub-tests + refusal-on-empty test + boundary invariant
+    proof (`TestSessionSummarizePromoteWritesRedactedCopy`) + prior-
+    summary-preserved-on-refusal test.
+
+- **Slice 4 — record flags + cross-feature isolation** (`84d18ff`):
+  - `internal/cli/cobra.go` recordCmd extended with two flags:
+    `--with-session` (PRD §6 D15.1, opts in to same-feature session
+    promotion after patch capture) and `--from-session <cs_id>`
+    (PRD §6 D15.2 disambiguator, REQUIRES `--with-session` per
+    §8.8).
+  - Cross-feature isolation (PRD §7 D18): enforced by
+    `store.LoadSession` slug/manifest agreement check inherited
+    from Slice 1.
+  - New `internal/cli/session_record_test.go` — 4 regression
+    tests: --from-session-requires-with-session, cross-feature
+    isolation refusal, promotion happy path (raw secret NEVER
+    crosses, safe body committed, state -> promoted), ambiguous
+    refusal without --from-session.
+
+- **Slice 5 — CHANGELOG + PRD flip + ROADMAP + handoff refresh**
+  (this commit):
+  - `CHANGELOG.md` — new `### Wave γ` subsection under `## v0.12.0
+    — TBD`; the earlier `### Wave β` and `### Wave α` subsections
+    are byte-identical to their prior state.
+  - `docs/prds/PRD-active-feature-session.md` line 2 flipped
+    `Proposed` → `Accepted`.
+  - `docs/ROADMAP.md` — Wave γ block expanded with per-slice
+    landing summary and the `Rev-0 landed 2026-07-30, awaiting
+    three-way review` status marker.
+  - `docs/handoff/CURRENT.md` — this refresh. Side Research block
+    preserved verbatim; md5 `b385fe622db9926f48861105239f113e`
+    invariant maintained.
+  - Test-fixture correction:
+    `TestFeaturePatchRefreshNoByteChangeSkips` in
+    `internal/cli/feature_patch_test.go` updated to commit the
+    init-installed `.gitignore` before recording. Previously this
+    test made a hidden assumption that `tpatch init` left the
+    working tree clean; Wave γ's D6 mandate 1 rule installation
+    surfaces the assumption and the fix is a two-line git-add /
+    commit sequence at the top of the fixture. Cited in the Slice 5
+    commit body.
+
+## Current State
+
+- All 5 slices landed on `main` locally. Rev-0 SHA range:
+  `561e6de..HEAD`. No push (per dispatch: supervisor pushes after
+  dual review dispatch).
+- Full-suite `go test -count=1 ./...` passes across every package.
+- Top-level test count: **865** (827 baseline at Wave β acceptance
+  + 38 Wave γ additions across store/workflow/cli/assets). Target
+  was ≥ 826 + 15-25 = 841+; delivered 838+ additions counted at
+  the top-level `=== RUN <TestName>$` grain.
+- `gofmt -l .` empty. `go vet ./...` clean.
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved
+  verbatim (verified post-refresh).
+
+## Files Changed
+
+Rev-0 SHA range: `561e6de..HEAD` (4 implementer commits + Slice 5).
+
+Slice 1 (`7c77723`):
+- `internal/store/session.go` (new, 478 lines)
+- `internal/store/session_test.go` (new)
+- `internal/gitutil/ignore.go` (new)
+- `internal/workflow/session_ignore.go` (new, 258 lines)
+- `internal/workflow/session_ignore_test.go` (new)
+- `internal/cli/cobra.go` (init amendment)
+
+Slice 2 (`f52fcfa`):
+- `internal/cli/session.go` (new, 503 lines)
+- `internal/cli/session_summarize.go` (new, 129 lines)
+- `internal/cli/session_redaction.go` (new, Slice 2 stub)
+- `internal/cli/session_lifecycle_test.go` (new)
+- `internal/cli/cobra.go` (sessionCmd registration)
+- `assets/assets_test.go` (+5 required commands, +2 required anchors)
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/windsurf/windsurfrules`
+- `assets/workflows/tessera-patch-generic.md`
+- `internal/store/session.go` (macOS symlink-resolve fold-in)
+
+Slice 3 (`1863733`):
+- `internal/cli/session_redaction.go` (fleshed out with 10 D11
+  matchers)
+- `internal/cli/session_redaction_test.go` (new)
+
+Slice 4 (`84d18ff`):
+- `internal/cli/cobra.go` (recordCmd --with-session/--from-session
+  wire-up)
+- `internal/cli/session_record_test.go` (new)
+
+Slice 5 (this commit):
+- `CHANGELOG.md`
+- `docs/prds/PRD-active-feature-session.md` (line 2 status flip)
+- `docs/ROADMAP.md` (Wave γ block expanded)
+- `docs/handoff/CURRENT.md` (this refresh)
+- `internal/cli/feature_patch_test.go` (test-fixture correction:
+  commit `.gitignore` after init before recording so the byte-
+  identical refresh assertion still holds).
+
+## Test Results
 
 - `gofmt -l .` — empty.
 - `go vet ./...` — clean.
 - `go build ./cmd/tpatch` — clean.
-- Full test suite — pass (matches rev-1 baseline; consolidation was doc + help-text only).
-- Side Research md5 — `b385fe622db9926f48861105239f113e` preserved.
+- `go test -count=1 ./...` — full-suite PASS.
+- Top-level test count (`go test -v ./... | grep -E '^=== RUN\s+[^/]+$' | wc -l`):
+  **865** (baseline 827; delta +38 Wave γ additions).
 
 ## Next Steps
 
-1. Wave γ implementer executes Slices 1–5 per the locked plan.
-2. Rev-0 hand-back triggers dual review (internal + supervisor-external).
-3. On any BLOCKING/HIGH finding → rev-1 fold-in cycle.
-4. On three-way APPROVED → user-external pass → v0.12.0 ship (CHANGELOG graduation to dated header).
+1. Supervisor dispatches three-way review (internal + external +
+   user-external) per Wave α + Wave β cadence.
+2. Reviewers verify:
+   - All six D6 mandates covered by refusal-path fixtures.
+   - `git check-ignore` semantics used, not textual matching.
+   - Parity guard passes with 5 new commands + 2 new anchors.
+   - Boundary invariant (raw bodies never cross local→committed).
+   - Cross-feature isolation regression coverage.
+   - All 5 Wave γ commits carry the Rule 18 co-author trailer.
+3. Any findings routed via `docs/supervisor/LOG.md` per AGENTS.md.
 
 ## Blockers
 
-None.
+None. Rev-0 landed cleanly.
 
 ## Context for Next Agent
 
-- HEAD at Wave γ dispatch: Wave β consolidation commit (this handoff + all doc fixes). All prior Wave β commits (rev-0 `639efb2..0d25e75` + rev-0 handoff `7689c39` + rev-0 dual review `9e8d2ba` + `fc261d1` + rev-1 brief `e8d351f` + rev-1 `ec98499..0072fb5` + rev-1 dual review `9eb2fcf` + `63d8650`) pushed to `origin/main` at the same time.
-- Wave α + Wave β acceptance on `main` — Wave γ freely uses `store.DependencyKindSupersedes`, `store.ErrMultipleActiveSuperseders`, `IsFeatureSuperseded`, `PreimageHash *string`, `writefile_safety.go` primitives without re-export or refactor.
-- 20 binding carry-forward rules; every Wave γ commit MUST carry the Copilot co-author trailer.
-- **Non-obvious decisions to know before implementation**:
-  - PRD §4 D6 has SIX mandates all of which must be satisfied. Missing any one → refusal-class rejection at Wave γ rev-0 review. The mandates are: (1) `.gitignore` rule at init, (2) refusal-with-rule-printed if `.gitignore` cannot be edited, (3) `session start`-time path verification, (4) refusal when Git unavailable OR path not ignored, (5) EFFECTIVE ignore checking (not textual), (6) defined pre-PRD-workspace fallback path.
-  - Doctor Wave β D3 `--fix` refusal fixtures are the PATTERN for D6 refusal-path testing. If you find yourself writing a refusal path without a corresponding detached-worktree regression fixture, stop and add the fixture first.
-  - `.tpatch/local/capture/` sits INSIDE the directory users are explicitly told to commit — this is the higher-risk of ADR-027 D1's three options, chosen because it makes session state travel with the branch. The six-mandate refusal contract is the ENTIRE safety margin. Take it seriously.
-  - PRD §4.5 supersession interaction: sessions belong to features. Superseded features' sessions are still promoted (they still have history worth preserving); only the reconcile suppression from Wave α applies to the FEATURE, not to its session history.
-  - Session promotion is EXPLICIT and OPT-IN per D9. Do not auto-promote on session stop; that is a follow-up PRD (`PRD-record-context-summary`).
-  - The D11 redaction contract is where the local→committed boundary lives. Raw bodies MUST NOT cross. If you find yourself copying anything unredacted across that boundary, you are violating the boundary.
-- Side Research md5 invariant: `b385fe622db9926f48861105239f113e` (preserved through Wave β consolidation and this reset).
+- Rev-0 commits are LOCAL only. Supervisor pushes after dispatching
+  review. Do NOT push from the implementer chair.
+- `.tpatch/local/capture/` sits INSIDE the committed worktree —
+  higher-risk of ADR-027 D1's three options. The six-mandate
+  refusal contract is the ENTIRE safety margin. If a future change
+  touches ANY of the five files below without updating a
+  corresponding detached-worktree refusal fixture, that change is
+  a regression:
+    - `internal/workflow/session_ignore.go` (mandate wiring)
+    - `internal/gitutil/ignore.go` (effective check, mandate 5)
+    - `internal/cli/session.go` (session start pre-write verify)
+    - `internal/cli/cobra.go` initCmd (mandate 1 + 2 amendment)
+    - `internal/store/session.go` (LoadSession D18 refusal +
+      PurgeSession symlink refusal)
+- Slice 3 introduced a macOS-safe symlink-resolve in
+  `PurgeSession` (`.tpatch/local/capture/` sits under
+  `/var/folders/...` -> `/private/var/folders/...` on macOS temp
+  trees). Both sides of the safety compare are now resolved. Real
+  symlink escapes still refuse — the guard now requires the
+  RESOLVED path to be outside the RESOLVED base.
+- `TestFeaturePatchRefreshNoByteChangeSkips` was touched in Slice 5
+  because `tpatch init` now dirties the working tree with the new
+  `.gitignore` and the test previously assumed a clean baseline.
+  Other tests that call `runCmd("init")` and then `record` in a
+  git worktree pass because they don't do a byte-identical refresh
+  round-trip; if you add such a test, mirror the two-line
+  git-add / commit in `feature_patch_test.go` L163+.
+- Wave α + Wave β acceptance is on `main`. You may freely use
+  `store.DependencyKindSupersedes`, `store.ErrMultipleActiveSuperseders`,
+  `IsFeatureSuperseded`, `PreimageHash *string`, and the
+  `writefile_safety.go` primitives without re-export.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

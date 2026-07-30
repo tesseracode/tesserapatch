@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -163,6 +164,21 @@ func TestFeaturePatchFixupRefusesWithoutPriorGenerations(t *testing.T) {
 func TestFeaturePatchRefreshNoByteChangeSkips(t *testing.T) {
 	tmpDir, baseSha, _, _ := setupRecordRangeFixture(t)
 	runCmd("init", "--path", tmpDir)
+	// Wave γ: `tpatch init` writes `.gitignore` per PRD-active-feature-session
+	// §4 D6 mandate 1. This test asserts a byte-identical refresh is a no-op,
+	// which requires the working tree be clean relative to HEAD. Commit the
+	// gitignore addition so a subsequent working-tree capture returns empty
+	// bytes and the "refresh skipped" branch fires.
+	for _, args := range [][]string{
+		{"git", "add", ".gitignore"},
+		{"git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "chore: gitignore"},
+	} {
+		c := exec.Command(args[0], args[1:]...)
+		c.Dir = tmpDir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s: %v", args, out, err)
+		}
+	}
 	runCmd("add", "--path", tmpDir, "No byte refresh")
 	slug := "no-byte-refresh"
 	if _, stderr, code := runCmdWithError("record", "--path", tmpDir, slug, "--from", baseSha, "--to", "HEAD", "--lenient"); code != 0 {
