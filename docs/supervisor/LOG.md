@@ -1,3 +1,61 @@
+## Supervisor Decision — Wave γ rev-1 — 2026-07-30
+
+**Decision**: **BLOCKED (partial) — rev-1.5 targeted amendment dispatched for F-EXT-γ-1 residual.**
+
+**Adjudication**: Another genuine SPLIT — internal APPROVED all 10 findings CLOSED; supervisor-external BLOCKED with 1 NEW CRITICAL (F-EXT-γ-1 residual). Zero overlap. Internal enumerated `SaveSession` call sites correctly but did not audit intra-function ordering; external's code-inspection caught that `runSessionSummarize` calls `SaveContextSummary` at line 96-99 BEFORE the D6-gated `SaveSession` at line 105-109. On D6 refusal, an orphaned `ctx_*.json` remains in `.tpatch/features/<slug>/artifacts/context/`.
+
+**Contract reading**:
+- PRD §4 D6 mandate 4 verbatim: "Writers must refuse when Git is unavailable or the path is not ignored." Strict reading: "the path" refers to `.tpatch/local/capture/<slug>/<cs_id>/` (rule 3's antecedent). `SaveContextSummary` writes to `.tpatch/features/<slug>/artifacts/context/` — the COMMITTED lane, not the local-buffer path. So this is arguably NOT a strict D6 violation.
+- BUT: partial-write bug is real regardless. On D6 refusal path, the committed lane retains an orphan context summary pointing to a session that never transitions to `promoted`. Automation reading `.tpatch/features/<slug>/artifacts/context/` sees an authoritative committed summary; `session list` shows the source session still `active`. Inconsistent visible state.
+- Conservative reading: treat as a Critical partial-write bug in the session→summary promotion pipeline, adjacent to F-EXT-γ-1's D6 scope.
+
+**Fix architecture (locked)**: Preflight the D6 check at the top of `runSessionSummarize` when `opts.Write` is true. If D6 refuses, exit BEFORE any `SaveContextSummary` call. Reuse `EnsureLocalIgnoreContract` via the same bottleneck registry Slice R1 established.
+
+**Rev-1.5 scope (single finding, minimal)**:
+- Preflight `EnsureLocalIgnoreContract` at top of `runSessionSummarize` when `opts.Write == true`.
+- Regression fixture: `TestSessionSummarize_D6RefusalLeavesNoOrphanCtxArtifact` — sensitive-content session + `rm .gitignore` + `summarize --write` → assert non-zero exit + assert `.tpatch/features/<slug>/artifacts/context/` remains empty.
+- Add row to `TestD6_AllWritersRefuse` table for `session summarize --write` context-summary writer surface (not just the SaveSession call).
+
+**Wave β lesson STILL applies**: external cross-referenced code ordering + PRD contract to find the ordering hole. Internal's audit stopped at call-site enumeration. Rev-0 lesson + rev-1 lesson both reinforce: enumerate → verify intra-function ordering → verify atomicity.
+
+**Two-opinion protocol scoreboard**: 20/22 at rev-1.5 dispatch. Wave γ has now produced TWO real BLOCK-caliber catches from external where internal APPROVED. The two-opinion protocol is doing genuinely load-bearing work here.
+
+## Review — Wave γ (v0.12.0) — supervisor-external (rev-1) — 2026-07-30
+
+**Reviewer**: supervisor-external, rev-1.
+**Range reviewed**: `0cb5382..441428f` (7 rev-1 commits).
+**Verdict**: BLOCK.
+
+### Findings
+
+**F-EXT-γ-1 residual — CRITICAL — `session summarize --write` leaves committed context artifact before D6 refusal.**
+- File: `/Users/jbencardino/Documents/Proyectos/tesserapatch/tpatch/internal/cli/session_summarize.go:96`
+- Contract: PRD §4 D6 mandate 4 verbatim ("Writers must refuse when Git is unavailable or the path is not ignored") + general validate-before-mutate hygiene + PRD §5 D9→D10 atomicity of promotion.
+- Evidence:
+  - Production ordering: `SaveContextSummary` at `session_summarize.go:96-99` writes BEFORE `SaveSession` at 105-109.
+  - D6 check lives inside `SaveSession`: `internal/store/session.go:260-264`.
+  - Regression test only asserts refusal, not zero side effects: `internal/cli/session_d6_writers_rev1_test.go:100-104`.
+  - Empirical: after `rm .gitignore`: `session stop` exits 1 with six mandates + persisted state remains `active` (correct); `session summarize --write --json` exits 1 with six mandates BUT `CONTEXT_FILES=1` (orphan).
+- Suggested fix: preflight the D6 ignore contract before any `session summarize --write` mutation, or make `SaveContextSummary` gate on the same registry.
+
+### Rev-1 findings CLOSED (9/10)
+
+F-EXT-γ-2, F-EXT-γ-3, F-EXT-γ-4, F-EXT-γ-5, F-EXT-γ-6, F-INT-γ-1, F-INT-γ-2, F-INT-γ-3, F-INT-γ-4 — all verified CLOSED with empirical CLI reproduction + Wave β rev-1 Rule 20 rigor pattern.
+
+### Verdict: BLOCK on the residual Critical only. All other findings CLEAN.
+
+External written by supervisor on external's behalf (external agent read-only per protocol).
+
+---
+
+## Review — Wave γ (v0.12.0) — internal (rev-1) — 2026-07-30
+
+Prepended by internal reviewer at commit `8eced6c`. Verdict: **APPROVED** — all 10 findings CLOSED with `SessionIgnoreVerifier` bottleneck architecture confirmed at `Store.SaveSession`; enumerated all 3 `SaveSession` call sites (session.go:200 start, session.go:241 stop, session_summarize.go:108 summarize+record); `TestD6_AllWritersRefuse` table covers all writer entry points; Rule 20 empirical confirmation of session stop refusal. New findings: NONE.
+
+Missed by internal: intra-function ordering of `runSessionSummarize` where `SaveContextSummary` (not gated) runs before `SaveSession` (gated). Call-site enumeration is necessary but insufficient — atomicity of the write cycle also matters. Not a blocker on internal's diligence; a scope-of-audit gap orthogonal to external's catch. Both reviewers add net signal.
+
+---
+
 ## Review — Wave γ rev-1 (v0.12.0 active-feature-session) — supervisor-internal fresh-eyes — 2026-07-30
 
 **Reviewer**: supervisor-internal, rev-1 (fresh eyes on 10-finding fold-in).
