@@ -1,5 +1,9 @@
 # Current Handoff
 
+## Status
+
+Wave γ **rev-1.5 dual APPROVED** (three-way concurrence) at `274fbb6`. F-EXT-γ-1 Critical residual (external's rev-1 catch — `SaveContextSummary` ordered before D6 bottleneck in `runSessionSummarize`) truly closed via preflight `EnsureLocalIgnoreContract` gated on `opts.Write`. Both reviewers independently reproduced the pre-fix failure and post-fix pass. All 9 rev-1 CLOSED findings non-invalidated. 877 top-level tests PASS. Awaiting user parallel external verdict before consolidation.
+
 ## Active Task
 
 - **Task ID**: `v0.12.0-wave-gamma-active-feature-session-rev1`

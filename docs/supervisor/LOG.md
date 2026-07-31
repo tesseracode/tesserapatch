@@ -1,3 +1,93 @@
+## Review — Wave γ rev-1.5 (v0.12.0 active-feature-session) — supervisor-external / fresh-eyes reviewer — 2026-07-31
+
+**Reviewer**: supervisor-external, rev-1.5 (targeted amendment fold-in on F-EXT-γ-1 residual — the same finding I raised at rev-1).
+**SHA under review**: `274fbb6` (single commit; range `c8b1b0c..274fbb6`, 3 files +215/-3).
+**Verdict**: **APPROVED**.
+
+### Gate scoreboard
+
+- `gofmt -l .` clean; `go vet ./...` clean; `go build ./...` clean; `go test ./...` 11/11 packages OK.
+- Wave α + β non-invalidation empty diff on 5 guarded files.
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
+- Rule 18 trailer parseable; Rule 19 PRD citation verbatim.
+
+### Per-item checklist
+
+1. **Exact ordering bug now impossible.** `EnsureLocalIgnoreContract(s.Root, s.LocalCaptureDir())` at session_summarize.go:73-77 is FIRST statement in function body when `opts.Write == true`. No path from entry to `SaveContextSummary` (line 120) with `opts.Write == true` bypasses the preflight. Dry-run correctly skips (reads only). ✓
+2. **Preflight vs. SaveSession bottleneck coherence.** Both surfaces call the SAME `workflow.EnsureLocalIgnoreContract(s.Root, s.LocalCaptureDir())`. Same `*LocalIgnoreRefusal` struct, same `ErrLocalIgnoreRefusal` sentinel via `errors.Is`. No divergence hazard. ✓
+3. **Adjacent writer surfaces on the committed lane.** `grep -rn SaveContextSummary internal/` → exactly ONE production caller (session_summarize.go:120). No adjacent unrouted writer to the committed context lane. Enumeration complete. ✓
+4. **Regression fixture rigor — independently verified pre-fix failure.** Reverted the preflight (removed lines 73-77 + unused import), rebuilt, re-ran. Both new tests failed at the load-bearing assertion with orphan artifacts:
+   ```
+   session_summarize_d6_preflight_test.go:93: expected empty committed context lane after D6 refusal; found 1 entries: [ctx_6ee3a0f40e61.json]
+   session_d6_writers_rev1_test.go:249: expected empty committed context lane after D6 refusal; found 1 entries: [ctx_bc57d708b144.json]
+   ```
+   Confirmed the pre-existing `TestD6_AllWritersRefuse/session-summarize-write` row STILL PASSES without the preflight — proving the new `session-summarize-write-ctx-lane` row is genuinely additive coverage, not duplicative of the SaveSession-bottleneck check. Restored preflight (byte-identical `git diff` = ∅); all-green re-confirmed. ✓
+5. **Contract citation verbatim** matches `docs/prds/PRD-active-feature-session.md:214` byte-for-byte. ✓
+6. **Rule 20 empirical reproduction** from `/tmp/wg15`: exit=1, empty context dir, session state `active`, six-mandate refusal message with atomicity citation. Matches implementer report exactly. ✓
+7. **Non-invalidation of Wave α + β + rev-1.** Adversarially verified against every rev-1 CLOSED finding:
+   - F-EXT-γ-2 sentinel wrapping: `TestSessionSummarizeHardFailureReturnsSentinel` + `TestSessionSummarizeDryRunRefusalStillExitsZero` PASS. No regression.
+   - F-EXT-γ-3, γ-4, γ-5, γ-6: orthogonal surfaces, untouched.
+   - F-INT-γ-1..γ-4: independent surfaces, untouched.
+   All 9 rev-1 CLOSED findings remain effective. ✓
+8. **Rule 18 trailer** on 274fbb6 parseable. ✓
+9. **Side Research md5** preserved. ✓
+10. **Gates all green.** ✓
+
+### Findings
+
+**None at HIGH/CRITICAL.** F-EXT-γ-1 residual fully closed.
+
+Two LOW nits for defer (do NOT block):
+- **LOW-γr15-N1** — `--json --write` D6 refusal emits plaintext, not JSON envelope. Pre-existing behavior (SaveSession bottleneck refusal also returned pre-JSON in rev-1). D11 refusal DOES emit JSON per F-EXT-γ-2. Reasonable to defer to a Wave δ JSON-error-envelope pass.
+- **LOW-γr15-N2** — Preflight wrapper prefix redundant with `LocalIgnoreRefusal` message. Cosmetic; the wrapper carries the D9→D10 atomicity citation the wrapped error does not. No action.
+
+### Verdict: **APPROVED**
+
+F-EXT-γ-1 (Critical, external rev-1) truly closed: (i) preflight architecturally FIRST-in-function, (ii) tests independently reproduce orphan-artifact class when preflight removed and pass when restored, (iii) Rule 20 CLI repro confirms exit=1 + zero committed-lane artifacts + source session stays `active`, (iv) both enforcement points share the SAME `EnsureLocalIgnoreContract` — no divergence hazard, (v) `SaveContextSummary` has exactly one production caller with no adjacent-writer hole. Wave α + β + rev-1 non-invalidation confirmed at both file-level and behavioral level. Fresh-eyes hunt for a new hole in the same class: negative. Single-finding scope honored.
+
+---
+
+## Review — Wave γ rev-1.5 (v0.12.0 active-feature-session) — internal reviewer — 2026-07-31
+
+**Reviewer**: internal, rev-1.5 (targeted amendment fold-in on F-EXT-γ-1 residual).
+**SHA under review**: `274fbb6` (single commit; range `c8b1b0c..274fbb6`).
+**Verdict**: **APPROVED**.
+
+### Gate scoreboard
+
+- `gofmt -l .` empty; `go vet ./...` clean; `go build ./cmd/tpatch` OK; `go test -count=1 ./...` — 877 top-level PASS (baseline 876 + 1 new `TestSessionSummarize_D6RefusalLeavesNoOrphanCtxArtifact`); 0 FAIL.
+- Wave α + Wave β non-invalidation empty diff on 5 guarded files.
+- Side Research md5 preserved.
+- Rule 18 trailer parseable; Rule 19 PRD citation verbatim.
+
+### Per-item checklist
+
+1. **F-EXT-γ-1 residual truly closed.** Preflight at session_summarize.go:73-77 is first executable statement, unconditional aside from `opts.Write` guard. Two production callers of `runSessionSummarize` (session.go:557, cobra.go:1577) both funnel through the same entry point. ✓
+2. **Preflight vs. bottleneck coherence.** Same `workflow.EnsureLocalIgnoreContract(s.Root, s.LocalCaptureDir())` primitive registered via `store.SetSessionIgnoreVerifier` and invoked with identical arguments at store/session.go:263. No divergent check. ✓
+3. **Dry-run correctness.** Preflight gated on `opts.Write`; downstream `wouldWrite` also false in dry-run — no false-refusal. ✓
+4. **Regression fixture strength.** `TestSessionSummarize_D6RefusalLeavesNoOrphanCtxArtifact` asserts non-zero exit, empty context dir OR ENOENT, and (via reopened store handle to defeat stale in-memory state) session state remains `SessionActive` + `PromotedCtxID == ""`. Real detached-worktree scenario, real `git check-ignore`, no mock. Load-bearing assertion is the empty-ctx-dir check — pre-fix would fail there since `SaveContextSummary` lands the orphan before `SaveSession` refuses. ✓
+5. **`TestD6_AllWritersRefuse` extension.** New `session-summarize-write-ctx-lane` row with `postAssert` hook asserting zero entries in committed context dir. Table driver wires postAssert at lines 302-304. Forcing function extended for future ctx-lane writers. ✓
+6. **Rule 18 trailer** ✓ 7. **Rule 19 PRD citation** ✓ 8. **Wave α + β non-invalidation** ✓ 9. **Side Research md5** ✓ 10. **Gates** ✓
+
+### Rule 20 empirical reproduction
+
+Fresh repo, `tpatch init`, `tpatch add empirical-rev15`, `tpatch session start empirical-rev15`, `rm .gitignore`, `tpatch session summarize empirical-rev15 --write --json`:
+- exit=1; stderr shows `error: session summarize: D6 preflight refused (PRD §4 D6 mandate 4 + PRD §5 D9→D10 atomicity — enforced upstream of SaveContextSummary): ...` + full six-mandate enumeration + remediation.
+- Context dir does not exist (empty by construction).
+- session.json shows `"state": "active"` (not promoted).
+
+Refusal error surfaces the citation visibly to the operator — cleaner UX than the raw SaveSession-wrapped form.
+
+### Findings
+
+None. F-EXT-γ-1 residual verified closed with fixture genuinely dependent on the fix.
+
+### Verdict: **APPROVED**
+
+Rev-1.5 residual close is tight: single-file production change, matching preflight primitive to the bottleneck, dedicated regression test AND table-row extension of forcing function, empirical repro reproduces implementer's four-property claim, no collateral to Wave α/β, all gates green.
+
+---
+
 ## Supervisor Decision — Wave γ rev-1 — 2026-07-30
 
 **Decision**: **BLOCKED (partial) — rev-1.5 targeted amendment dispatched for F-EXT-γ-1 residual.**
