@@ -54,7 +54,8 @@ These folders contain the three original prototypes. Read them for reference but
 6. Run `gofmt`, `go test ./...`, and `go build ./cmd/tpatch` after code changes.
 7. **Update `docs/handoff/CURRENT.md` at every phase transition** — not only before ending a session. See `AGENTS.md` → "Context Preservation Rules" for the full cadence.
 8. **Log to `docs/supervisor/LOG.md` on every review** and flip `docs/ROADMAP.md` status the moment a milestone ticks over.
-9. Keep shipped skill assets aligned with CLI contract. The `assets_test.go` parity guard must pass.
+9. **Run the Wave-Close Checklist at every wave close** (`AGENTS.md` → "Wave-Close Checklist"). Handoff `Status` flip + push to `origin/main` are NOT optional bookkeeping — the three-way review record is not durable until pushed.
+10. Keep shipped skill assets aligned with CLI contract. The `assets_test.go` parity guard must pass.
 
 ## Repository Shape
 

@@ -193,9 +193,10 @@ Each entry in `docs/supervisor/LOG.md`:
 3. **After each task completion**: Archive the old CURRENT.md entry to `docs/handoff/HISTORY.md` immediately. Do not batch.
 4. **After each review**: Append the verdict to `docs/supervisor/LOG.md` immediately. Do not batch.
 5. **After every milestone transition**: Update the milestone box in `docs/ROADMAP.md` (✅ / ⬜ / 🚧). If you touch a milestone, you touch the roadmap.
-6. **ADR on every architecture decision**: When you evaluate alternatives and pick one, write an ADR in `docs/adrs/`. "Decision by agent consensus" is not a valid answer — future agents need the reasoning.
-7. **Plan.md is session-local, tracking docs are repo-global**: Use `plan.md` (in `~/.copilot/session-state/...`) for scratch planning. The moment a decision is made, propagate it into `CURRENT.md`, `ROADMAP.md`, or an ADR — do not leave load-bearing context in session state.
-8. **Never leave tracking stale**: If you did work, update tracking *before* stopping. If you stopped because of a blocker, update tracking with the blocker *before* handing off.
+6. **Push after every wave close, not just at cluster ship**: A wave is not durably closed until its commits are on `origin/main`. See the Wave-Close Checklist below. Local-only "approved" work is a form of stale tracking — the three-way review record only becomes durable once pushed.
+7. **ADR on every architecture decision**: When you evaluate alternatives and pick one, write an ADR in `docs/adrs/`. "Decision by agent consensus" is not a valid answer — future agents need the reasoning.
+8. **Plan.md is session-local, tracking docs are repo-global**: Use `plan.md` (in `~/.copilot/session-state/...`) for scratch planning. The moment a decision is made, propagate it into `CURRENT.md`, `ROADMAP.md`, or an ADR — do not leave load-bearing context in session state.
+9. **Never leave tracking stale**: If you did work, update tracking *before* stopping. If you stopped because of a blocker, update tracking with the blocker *before* handing off.
 
 ### Cadence cheatsheet
 
@@ -209,6 +210,22 @@ Each entry in `docs/supervisor/LOG.md`:
 | Reviewer wrote a verdict | `LOG.md` entry + handoff transition |
 | Milestone done | `ROADMAP.md` status flip + milestone file closed |
 | Task done | `CURRENT.md` → `HISTORY.md` archive + new `CURRENT.md` for next task |
+| **Wave close (three-way APPROVED)** | Run the Wave-Close Checklist below **before dispatching the next wave** |
+
+### Wave-Close Checklist
+
+**Codified 2026-07-31 after v0.12.0 shipped.** Every wave in the Streams A+B, Wave α, Wave β, and Wave γ arc drew a recurring F1 LOW from the user-external verdict: either the handoff `Status` was still stale at close, or the wave's commits sat unpushed while the next wave dispatched against them. The compounding backlog case study is preserved in `docs/handoff/HISTORY.md` under the v0.12.0 wave archives. This checklist bakes the flip-and-push discipline into the protocol so the pattern stops recurring.
+
+Run this **as the last step of every wave close**, before dispatching the next wave or the cluster consolidation:
+
+- [ ] **Handoff `Status` flipped.** `docs/handoff/CURRENT.md` top-of-file `## Status` reflects the wave's terminal state (`APPROVED`, `SHIPPED`, `ACCEPTED`, `IDLE — next TBD`, etc.) — NOT the intermediate `rev-N dispatched` state that was accurate mid-cycle. If the wave is closed, the Status line MUST say so before the next agent reads it.
+- [ ] **Supervisor LOG entry prepended.** Every review verdict (internal + external) and every supervisor decision (adjudication, dispatch, close) appears in `docs/supervisor/LOG.md` before the next tool call operates against tracking docs. Do not batch.
+- [ ] **ROADMAP status flipped.** The wave's box in `docs/ROADMAP.md` reads ✅ ACCEPTED (or the terminal status for the cluster) with the terminal commit range recorded. Do not leave 🚧 in-flight rows after acceptance.
+- [ ] **HISTORY archive appended.** If the wave was the final wave of a cluster, the handoff body is copied to `docs/handoff/HISTORY.md` under a dated header **at consolidation**, not later. Include commit range, test count, review scoreboard, and the pattern-catch summary.
+- [ ] **Push to `origin/main` before the next wave dispatches.** `git push origin main` after the consolidation commit. **If the wave ships a tagged release**, run `git tag -a vX.Y.Z -m "..."` **before** pushing, then `git push origin vX.Y.Z` — a committed-and-pushed release without a tag is the same F1 failure class at the tag layer. The three-way review record is not durable until pushed. Compounding unpushed backlogs (see HISTORY.md for the v0.12.0 case study) hide the review scoreboard from every other machine — do not treat this as bookkeeping.
+- [ ] **Non-invalidation invariants confirmed.** Any invariants the cluster-lead declared at dispatch (Side Research md5, guarded-file empty-diff sets, Rule 18 trailer, Rule 20 CLI repro) verified one last time at the close commit, not just at the review commit.
+
+If any box is unchecked when the next wave is about to dispatch, **stop and finish the checklist first**. Dispatching against unpushed / stale-Status state is what generated the F1 pattern; the fix is protocol, not memory.
 
 ## PRD Authoring — Strongly Encouraged Conventions
 

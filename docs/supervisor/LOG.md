@@ -1,3 +1,38 @@
+## 2026-07-31 — Cluster A (v0.12.1 post-ship hygiene) — dual APPROVED — SHIPPED
+
+**Scope**: doc-only amendment to `AGENTS.md` + `CLAUDE.md` + handoff refresh. Codifies the F1 LOW recurring pattern from v0.12.0 Streams A+B / Wave α (6 commits ahead) / β (8) / γ (18) into an explicit Wave-Close Checklist.
+
+### Changes
+
+- **AGENTS.md → Context Preservation Rules**: new rule 6 (push discipline at wave close). Old rules 6-8 renumbered to 7-9.
+- **AGENTS.md → Cadence cheatsheet**: new row "Wave close (three-way APPROVED)" delegating to the checklist.
+- **AGENTS.md → new Wave-Close Checklist subsection**: 6-item explicit checklist (Status flip, LOG prepend, ROADMAP flip, HISTORY archive, push, non-invalidation invariants). Rationale narrative moved to a link toward HISTORY.md (fresh-eyes challenge #1 fold-in) rather than hardcoded α:6/β:8/γ:18 in the normative prose.
+- **AGENTS.md Push bullet**: extended to explicitly require `git tag -a` BEFORE `git push origin <tag>` on release waves — closes fresh-eyes challenge #3 (tag creation was a real gap in the same F1 failure class at the tag layer).
+- **CLAUDE.md → Working Rules**: new rule 9 references the checklist; old rule 9 → 10.
+- **docs/handoff/CURRENT.md**: Status + Active Task refreshed for Cluster A dispatch.
+
+### Reviews
+
+**Internal reviewer** — APPROVED. Checklist verified item-by-item:
+- Rule renumber 6→7, 7→8, 8→9 with no stale in-file back-references (Rule 18/20 mentions belong to the separate HISTORY carry-forward list, unaffected).
+- CLAUDE.md anchors resolve to both new AGENTS.md targets.
+- No contradiction with role/file-ownership matrix (new duties impose obligations, don't reassign ownership).
+- Cadence cheatsheet + Wave-Close Checklist complementary, not competing.
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+**Fresh-eyes / external reviewer** — APPROVED WITH NOTES. Three adversarial challenges:
+1. Historical numerics (α:6/β:8/γ:18) baked into normative prose → **folded in at commit time**: moved to a link toward HISTORY.md, keeping the checklist purely prescriptive.
+2. Enforcement is textual-only, no mechanical gate. Suggested a `make wave-close-check` guard as follow-up. **Captured for ROADMAP** — the current amendment is the placeholder, not the complete pattern-fix.
+3. Tag creation gap on release waves — same F1 class at the tag layer → **folded in at commit time**: Push bullet now explicitly names `git tag -a` before `git push origin <tag>`.
+
+### Follow-ups (from fresh-eyes)
+
+- **Mechanical gate for Wave-Close Checklist** (`make wave-close-check` or equivalent): checks `git rev-list @{u}..HEAD` empty + CURRENT.md Status not stale + ROADMAP not still 🚧 on HEAD's wave. Elevates from soft to hard enforcement. Candidate for a v0.13.x developer-ergonomics slice. Not blocking Cluster B.
+
+### Verdict
+
+**APPROVED. SHIPPED.** Amendment folded fresh-eyes challenges #1 and #3 in-place; #2 tracked as follow-up. Ready to consolidate + push.
+
 ## Review — Wave γ rev-1.5 (v0.12.0 active-feature-session) — supervisor-external / fresh-eyes reviewer — 2026-07-31
 
 **Reviewer**: supervisor-external, rev-1.5 (targeted amendment fold-in on F-EXT-γ-1 residual — the same finding I raised at rev-1).

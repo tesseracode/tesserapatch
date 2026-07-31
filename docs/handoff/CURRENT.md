@@ -2,13 +2,11 @@
 
 ## Status
 
-**v0.12.0 SHIPPED 2026-07-31.** Three-wave cluster (feature supersession + write-file recipe safety + active-feature-session) accepted at three-way concurrence across all three waves. Wave γ closed at rev-1.5 with user-external APPROVED.
-
-Awaiting next milestone selection. No active task.
+Cluster A — **AGENTS.md wave-close checklist amendment** — dual APPROVED and SHIPPED. Ready to dispatch Cluster B (v0.12.1 correctness fix pass — issues #3, #4, #5).
 
 ## Active Task
 
-**None.** v0.12.0 tagged, pushed. Next cluster TBD per ROADMAP milestone review.
+**Cluster A: DONE.** Amendment committed and pushed. Cluster B dispatch imminent — v0.12.1 correctness fix pass bundling GH #3 (multi-slug reconcile cumulative delta corruption), #4 (confirmed human review can't transition rejected-upstreamed → upstream_merged), #5 (record round-trip failure exits 0 + mutates metadata).
 
 ## Session Summary
 
