@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.12.0 — TBD — feature supersession (Wave α) + write-file recipe safety (Wave β) + active feature sessions (Wave γ)
+## v0.12.0 — 2026-07-31 — feature supersession (Wave α) + write-file recipe safety (Wave β) + active feature sessions (Wave γ)
 
 ### Wave γ — `tpatch session` command group + `.tpatch/local/capture/` buffer + D11 redaction contract
 
@@ -177,6 +177,42 @@ finding has an empirical CLI reproduction (Rule 20).
 - R7 — paperwork (this changelog subsection, handoff refresh).
   No PRD amendment; F-EXT-γ-6 chose option (a) — collapse into
   `--write` — which requires no §5 D9 rewording.
+
+#### Wave γ rev-1.5 amendment
+
+Rev-1 dual review returned a second SPLIT: internal APPROVED, but
+supervisor-external caught a NEW Critical residual on F-EXT-γ-1.
+The rev-1 architecture routed D6 through a `Store.SaveSession`
+bottleneck via `SessionIgnoreVerifier` — correctly covering every
+`SaveSession` call site. But `runSessionSummarize` in
+`internal/cli/session_summarize.go` called `SaveContextSummary`
+(committed-lane writer) at line 96 BEFORE `SaveSession` at line
+108. On D6 refusal, the orphan `ctx_*.json` was already on disk.
+
+Rev-1.5 preflights `workflow.EnsureLocalIgnoreContract` at the
+top of `runSessionSummarize` when `opts.Write == true`, ahead of
+any `SaveContextSummary` call. Both enforcement points (CLI-layer
+preflight + `Store.SaveSession` bottleneck) call the SAME
+primitive — no divergence hazard. Regression fixture
+`TestSessionSummarize_D6RefusalLeavesNoOrphanCtxArtifact` asserts
+non-zero exit + empty committed context directory + source
+session state remains `active` (not silently promoted).
+`TestD6_AllWritersRefuse` gains a `postAssert` hook and a new
+`session-summarize-write-ctx-lane` row that inspects the
+committed context dir specifically — so a future unrouted
+committed-lane writer would fail the forcing function until it
+goes through the preflight or bottleneck. Cites PRD §4 D6
+mandate 4 verbatim + PRD §5 D9→D10 promotion atomicity.
+
+Rev-1.5 dual review: three-way concurrence. Internal + external
+both independently reverted the preflight in a scratch worktree
+to confirm the load-bearing empty-ctx-dir assertion genuinely
+depends on the fix; both restored and re-confirmed all-green.
+
+Two-opinion protocol scoreboard for the v0.12.0 cluster: Wave γ
+produced TWO real BLOCK-caliber external catches where internal
+reviewers APPROVED. The protocol did load-bearing work on this
+wave.
 
 - Wave γ rev-1 scoreboard: 876 top-level tests (baseline 865
   + 11 new rev-1 regressions covering the D6 all-writers safety-

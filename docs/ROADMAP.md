@@ -549,12 +549,13 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
-## v0.12.0 — feature supersession + write-file safety + active-feature-session 🚧 in-flight (Wave α accepted 2026-07-29; Wave β implementer accepted 2026-07-29 — three-way review pending)
+## v0.12.0 — 2026-07-31 — feature supersession + write-file safety + active-feature-session ✅ SHIPPED
 
 Post-planning implementation cluster for GH #1 + ADR-027 F3, executed
-as three sequential waves. Wave α accepted 2026-07-29 at three-way
-concurrence (19th protocol scoreboard entry). Wave β dispatched
-2026-07-29. Wave γ pending Wave β acceptance.
+as three sequential waves through v0.12.0. Wave γ produced two real
+BLOCK-caliber external catches where internal reviewers APPROVED
+(rev-0 D6 writer-scope, rev-1 SaveContextSummary ordering) — the
+two-opinion protocol did load-bearing work on this cluster.
 
 - **Wave α — schema + labels + reconcile suppression** ✅ (three-way
   APPROVED rev-1 2026-07-29; rev-0 required rev-1 for 4 findings —
@@ -633,7 +634,7 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
     Proposed→Accepted, ADR-029 Proposed→Accepted, ADR README
     status column update.
 
-- **Wave γ — active-feature-session** 🚧 Rev-0 landed 2026-07-30, awaiting three-way review
+- **Wave γ — active-feature-session** ✅ ACCEPTED (three-way concurrent APPROVED rev-1.5 2026-07-31; rev-0 dual review split — external BLOCK ×5 Critical+HIGH+MEDIUM vs internal APPROVED-WITH-NOTES ×1 HIGH+3 LOW, zero overlap, supervisor sided external; rev-1 folded all 10 findings; rev-1 dual review split again with external Critical residual F-EXT-γ-1 on SaveContextSummary ordering; rev-1.5 preflighted `EnsureLocalIgnoreContract` at top of `runSessionSummarize` when `opts.Write == true`; user-external parallel verdict APPROVED with F1 LOW unpushed backlog)
   - `tpatch session {start,stop,list,summarize,purge}` command group
     + `.tpatch/local/capture/` local buffer lane per
     [`PRD-active-feature-session`](prds/PRD-active-feature-session.md)
@@ -658,8 +659,11 @@ concurrence (19th protocol scoreboard entry). Wave β dispatched
   - Slice 5 — CHANGELOG amendment,
     `PRD-active-feature-session.md` `Proposed`→`Accepted`, ROADMAP
     status flip to Rev-0 landed.
-  - Range: dispatch `561e6de` → rev-0 `7c77723..HEAD`. Test count 865
-    (827 baseline at Wave β acceptance + 38 Wave γ additions).
+  - Range: dispatch `561e6de` → rev-0 `7c77723..d842697` → rev-1 brief
+    `0cb5382` → rev-1 `3936e99..441428f` → rev-1 internal LOG `8eced6c`
+    → rev-1 adjudication `c8b1b0c` → rev-1.5 `274fbb6` → rev-1.5 dual
+    LOG `87648a6`. Test count 877 top-level PASS (rev-1.5, +12 net
+    over rev-0's 865; +2 net over rev-1's 875).
 
 ## v0.12.0 planning artifacts — paper-only PRD/ADR pair landed ✅
 
