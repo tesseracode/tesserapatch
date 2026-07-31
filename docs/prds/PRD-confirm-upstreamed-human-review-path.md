@@ -106,7 +106,8 @@ in the codebase that the fix could reuse.
 ### 3.1 Fields `reconcile review add` already persists
 
 Per `internal/cli/cobra.go:2227-2242`, a revision written today already
-carries:
+carries (attempt-id anchoring semantics per
+[PRD-reconcile-verdict-evidence](./PRD-reconcile-verdict-evidence.md)):
 
 | Field | Source flag | Reporter's step-4 value |
 |---|---|---|
@@ -159,7 +160,7 @@ change, not a schema change.
 ## 4. Design
 
 Three options were evaluated (all three from GH #4). Recommendation:
-**D2 with a `--upstream-commit` operational flag on `confirm-upstreamed`**.
+**D1**.
 
 ### D1 — Recommended: extend `confirm-upstreamed` to consume the latest non-superseded review revision
 
@@ -249,6 +250,14 @@ projection. `confirm-upstreamed` MUST use the exact same filter so
 `review list --all=false` and `confirm-upstreamed` agree on which entry
 would authorize the transition.
 
+**Tie-break (rev-1)**. When multiple non-superseded entries survive the
+dedupe and match the authorising tuple (this happens when two humans
+record reviews against *different* `evidence_attempt` ids, so the dedupe
+key differs and both survive), select the last-in-file-order entry
+(`RevisionLog.Entries[-1]`) — the same "newer entry wins" bias used by
+the dedupe itself. Operators who want a specific older entry must pass
+`--from-revision <entry-id>` to override.
+
 ### D5 — Error message shape
 
 The v0.11 gate error must **not** change verbatim (byte-identity for the
@@ -279,6 +288,18 @@ State transitions authorised by this PRD:
 The transition is one-way in v1: this PRD does NOT define a
 `revert-upstreamed` inverse. Operators wanting to undo must record a
 superseding revision manually and are handled by a future PRD.
+
+**Fast-path entry invariant (rev-1)**. The v0.11 fast path presumes
+`status.State == StateUpstreamMerged` on entry — the shipped code path
+that flips `Reconcile.Outcome` to `upstreamed` is `updateFeatureState`
+(`internal/workflow/reconcile.go:1091-1094`), which sets both fields
+atomically. If a future contract regression allows `Reconcile.Outcome ==
+upstreamed` (or `ReviewVerdict == confirmed-upstreamed`) with
+`status.State != StateUpstreamMerged` on entry, the fast path MUST refuse
+with a diagnostic naming the state mismatch rather than silently succeed
+and re-run the audit against inconsistent metadata. The review path is
+symmetric on exit: it *writes* `StateUpstreamMerged` (D1 step 7); it does
+not assume it on entry.
 
 ## 6. Acceptance Criteria
 
@@ -319,10 +340,17 @@ mandatory. The command refuses with an explicit error naming the flag.
 
 ### AC-5 — Upstream commit reachability enforced
 
-The supplied `<sha>` must satisfy `gitutil.IsAncestor(s.Root, sha,
-"HEAD")` (reusing the reachability primitive from
-`retirement_audit.go:115-118`). If not reachable, refuse with a diagnostic
-naming the sha. Test with a synthetic non-reachable sha.
+The supplied `<sha>` must satisfy the §7.1 preferred contract when an
+upstream ref is resolvable: `gitutil.IsAncestor(s.Root, sha,
+resolvedUpstreamRef)` where `resolvedUpstreamRef` is
+`status.Reconcile.UpstreamRef` if non-empty else `git rev-parse
+--symbolic-full-name @{upstream}`. If neither resolves, fall back to
+`gitutil.IsAncestor(s.Root, sha, "HEAD")` (existing primitive at
+`retirement_audit.go:115-118`) AND emit the §7.1 residual-risk warning.
+If not reachable under whichever check applies, refuse with a diagnostic
+naming both the sha and the ref against which reachability was checked.
+Test both the upstream-ref path (TS 9.11) and the HEAD-only fall-back
+with warning (TS 9.6), plus a synthetic non-reachable sha under both.
 
 ### AC-6 — Append-only chain: new revision supersedes consumed one
 
@@ -379,6 +407,18 @@ transition twice produces byte-identical revision content up to
 `ValidationRefs` ordering (which is already sorted by
 `normalizeReconcileRevision`).
 
+**Scope (rev-1)**. The byte-identity requirement applies only to the
+fields that determine `EntryID` and downstream audit correctness on the
+*transition* revision: `EntryID`, `FeatureSlug`, `EvidenceAttemptID`,
+`RawReconcileVerdict`, `ReviewVerdict`, `ActionTaken`, `FinalFeatureState`,
+`ReasonCode`, `ValidationRefs`, `SupersedesEntryID`, `SchemaVersion`. It
+explicitly **excludes** `RecordedAt` (wall-clock, expected to differ across
+replays) and the audit-cleanup revisions appended by
+`AppendRetirementCleanupRevisions` (which timestamp per invocation and
+carry findings that may vary as filesystem state evolves). Callers who
+need bytewise-identical audit revisions across replays must inject a
+frozen clock — that is out of scope for this PRD.
+
 ## 7. Safety Invariants
 
 The confirmation gate exists because the automated verdict was
@@ -387,14 +427,49 @@ gate protects.
 
 ### 7.1 Reachability of the operator-supplied upstream commit
 
-The `--upstream-commit <sha>` must be an ancestor of `HEAD` (or a
-documented alternate anchor — v1 only allows `HEAD`). Use
-`gitutil.IsAncestor(s.Root, sha, "HEAD")` (existing helper). If not
-reachable, refuse — do not silently record an unverifiable sha.
+`gitutil.IsAncestor(sha, HEAD)` proves the sha exists somewhere in the
+current branch's history — it does **not** prove that upstream absorbed
+the feature. An operator can cherry-pick, revert, or dev-branch any
+commit into HEAD's ancestry and pass a HEAD-only check while upstream
+never saw it. The reporter's original failure mode was literally
+`missing-upstream-commit-ref`, so this v1 contract must be stronger than
+"HEAD-only" whenever a real upstream anchor can be resolved automatically.
 
-Rationale: the reporter's failure mode was `missing-upstream-commit-ref`.
-The fix must actually attach a verifiable ref, not just accept any
-string.
+**Preferred contract**. Resolve an upstream ref in this order:
+
+1. `status.Reconcile.UpstreamRef` on the feature, if non-empty
+   (`internal/store/types.go:315` — the field is populated by the same
+   reconcile paths that already set `UpstreamCommit`).
+2. Otherwise `git rev-parse --symbolic-full-name @{upstream}` on the
+   current branch — the operator's declared upstream tracking ref.
+
+If either resolves to a ref R, require
+`gitutil.IsAncestor(s.Root, sha, R)`. If not reachable from R, refuse
+with a diagnostic naming both the sha and R.
+
+**Fall-back contract**. If neither source yields a ref (detached HEAD,
+unconfigured tracking, no `UpstreamRef` on the feature), fall back to
+`gitutil.IsAncestor(s.Root, sha, "HEAD")` (the pre-rev-1 shape). Because
+this is a strictly weaker check, the run MUST log a warning in the
+confirm-upstreamed output naming the residual risk, of the shape:
+
+> `warning: no upstream ref resolvable for %s; verified <sha> is reachable from HEAD only. Local operators can insert commits into HEAD's ancestry without upstream ever seeing them — audit before relying on this transition.`
+
+The warning is text-only; the transition still proceeds. Operators
+running under CI or in automation should set `UpstreamRef` on the
+feature during reconcile (existing capability) so the fall-back never
+fires in production.
+
+**Rationale**. The reporter's failure mode was `missing-upstream-commit-ref`.
+The fix must actually attach a verifiable ref, not just accept any string
+that happens to be in the local commit graph. Preferring the upstream ref
+when resolvable closes the primary gap; the fall-back keeps the command
+usable when no anchor is available and makes the residual risk explicit.
+
+**No new flags**. `--upstream-ref` on the CLI is deliberately NOT added
+— the upstream ref is resolved automatically from persisted feature
+metadata or the branch's tracking ref, matching the reporter's constraint
+that the fix should not multiply the flag surface.
 
 ### 7.2 Append-only evidence chain
 
@@ -424,15 +499,25 @@ the effective replay set. Two supersession cases must be considered:
 
 1. **The feature being confirmed is itself a superseder** (carries a
    `depends_on[]{kind: "supersedes"}` edge, per `internal/store/types.go:299`).
-   Confirming it as `upstream_merged` is safe — a superseded historical
-   feature stays excluded from effective replay whether its superseder is
-   `applied`, `active`, or `upstream_merged`. But the invariant "the
-   superseded target is not left in an inconsistent state" holds only if
-   the superseder was healthy at time of confirmation. **Refuse** (AC-11)
-   when the superseder is confirming while its target is still
-   `applied`/`active` and the superseder's role was to replace unshipped
-   local behavior — otherwise the fork loses the replacement without
-   auditing the target. Diagnostic must name the affected target.
+   Confirming it as `upstream_merged` is safe **only when the superseded
+   target is in a state that will not be left inconsistent by the
+   superseder's retirement**. The decision matrix, indexed by the
+   target's current `status.State` and the shape of its supersession
+   relation:
+
+   | Target state | Target relation shape | Confirm A? |
+   |---|---|---|
+   | `applied` (healthy) | Superseder A replaces unshipped local behavior in target B | **Refuse** — retiring A drops the replacement while B is still active; audit B first |
+   | `applied` (stale `satisfied_by`) | B claims A satisfies it but the linkage is stale (`satisfied_by` no longer resolves) | **Refuse** — same class as healthy `applied`; the supersession contract is not upheld until B's `satisfied_by` is refreshed or resolved |
+   | `promoted` (not yet closed) | B was promoted but has not yet reached a terminal state | **Refuse** — the promotion contract expects the superseder to remain available until B closes |
+   | `blocked` | B is blocked for reasons independent of A | **Refuse** — B needs its own resolution before A can retire; do not compound blockers |
+   | `upstream_merged` | B has already been confirmed as absorbed upstream | **Proceed** — B is already retired; A's retirement is symmetric |
+
+   The refusal diagnostic must name the target slug and its state.
+   Any target state not enumerated above (e.g. `unknown`, future states
+   introduced by later PRDs) is **out of scope for v1** and defaults to
+   refuse until the interaction is explicitly modelled.
+
 2. **The feature being confirmed is a superseded target** (i.e. some other
    active-superseder has a `supersedes` edge pointing at it). This case is
    benign: the feature was already excluded from effective replay by
@@ -528,6 +613,9 @@ Assert: refuse with explicit mention of `--upstream-commit`. — AC-4.
 Fixture: valid authorising revision; `<sha>` is a synthetic commit not in
 HEAD's ancestry (`git commit-tree` in a detached scratch worktree).
 Assert: refuse with reachability diagnostic; `status.json` unchanged.
+Cover both branches: (a) `status.Reconcile.UpstreamRef` non-empty and
+sha not reachable from that ref; (b) no upstream ref resolvable, sha not
+reachable from HEAD — same refusal shape.
 — AC-5, AC-9(c).
 
 ### 9.7 `--from-revision <entry-id>` overrides latest selection
@@ -558,6 +646,38 @@ Fixture: feature with `Reconcile.Outcome=blocked` and no revisions.
 Assert: error string exactly matches the v0.11 wording at
 `internal/cli/cobra.go:2137`. This test locks the fast-path failure to
 byte identity. — AC-9(a), AC-2 (partial).
+
+### 9.11 Upstream-ref preferred reachability
+
+Fixture: valid authorising revision; `status.Reconcile.UpstreamRef` is
+non-empty and points at a real ref R; `<sha>` is reachable from R (and
+also from HEAD, so the test isolates the preferred path). Synthetic
+sibling case: `<sha>` is reachable from HEAD but **not** from R (e.g.
+operator cherry-picked a commit into a dev branch that never landed on
+upstream).
+Assert: (a) reachable-from-R case succeeds and does NOT emit the §7.1
+residual-risk warning; (b) reachable-from-HEAD-only case refuses with a
+diagnostic naming both `<sha>` and R. — AC-5, §7.1 preferred contract.
+
+### 9.12 HEAD-only fall-back emits residual-risk warning
+
+Fixture: valid authorising revision; feature has no
+`status.Reconcile.UpstreamRef`; branch has no `@{upstream}` tracking ref
+(detached HEAD or unconfigured); `<sha>` is reachable from HEAD.
+Assert: the transition succeeds AND stdout/stderr contain the §7.1
+residual-risk warning naming the sha. — AC-5, §7.1 fall-back contract.
+
+### 9.13 D4 tie-break — two matching revisions, different evidence attempts
+
+Fixture: two review revisions on the same feature, both non-superseded,
+both with the authorising tuple `(confirmed, confirmed-retired,
+upstream_merged)`, but with *different* `EvidenceAttemptID` values (so
+the `latestRevisionEntries` dedupe key differs and both survive the
+filter). No `--from-revision` is passed.
+Run `confirm-upstreamed <slug> --upstream-commit <sha>`.
+Assert: the transition supersedes the last-in-file-order entry
+(`RevisionLog.Entries[-1]`) per §4 D4 tie-break; the older-in-file entry
+is untouched and still queryable via `review list --all`. — AC-6, §4 D4.
 
 ## 10. Open Questions
 

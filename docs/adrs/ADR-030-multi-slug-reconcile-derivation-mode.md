@@ -38,6 +38,8 @@ Operators who explicitly opted into the cumulative-recording pattern (record eve
 
 **Rationale**. Some pilots may already rely on the cumulative behavior. Deprecating it outright (Option C in the enumeration below) would break those workflows without a migration story. A named opt-in preserves the semantic while making its presence explicit and auditable.
 
+**Sunset**. `--cumulative-legacy` is a candidate for removal once (a) D8 metadata-driven auto-detect ships and (b) telemetry or pilot survey shows the flag is unused for one minor cycle. The flag stays a documented opt-in until both conditions hold; removal is a separate ADR revision.
+
 ### D3 — `.git/**` exclusion is enforced at the diff boundary
 
 `gitutil.DeriveIncrementalPatch` must exclude `.git/**` at the diff boundary. Preferred implementation: `git diff --no-index --binary -- ':(exclude,glob).git/**' ':(exclude,glob).git'` between the two temp worktrees. Fallback: `diff -ruN --exclude=.git prevDir currDir` plus a defensive filter that rejects any hunk header referencing `.git/`.

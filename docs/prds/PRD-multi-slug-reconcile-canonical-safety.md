@@ -29,6 +29,8 @@ This PRD is **Proposed**. It changes no code, schema, CLI behavior, shipped asse
 
 Every load-bearing claim below cites a `file:line` anchor at HEAD `5ac458d` or a doc anchor by section heading. Reviewers should spot-check that cites land within ±5 lines of current code.
 
+**HEAD-repro caveat (rev-1)**. The semantic C-cancels-B failure mode was **not** empirically re-reproduced on HEAD `5ac458d` during PRD drafting. The dispatch condition (`len(slugs) > 1` at `internal/workflow/reconcile.go:197`) and the `deriveIncrementalPatches` body (`reconcile.go:1145-1174`) are structurally unchanged from the v0.11.3 layout the reporter observed, so the bug's persistence on `main` is inferred from code identity rather than a fresh reproduction. The `.git/**` leak (§2.3) was reproduced empirically this session (row 7 of the table below). The implementation slice should reproduce the semantic failure empirically as a first step (TS-1) before the fix lands.
+
 | Claim | Evidence |
 |---|---|
 | `RunReconcile` unconditionally calls `deriveIncrementalPatches` whenever more than one slug is being reconciled. | `internal/workflow/reconcile.go:195-199` (`if len(slugs) > 1 { deriveIncrementalPatches(s, slugs, upstreamCommit) }`). GH #3 reports the dispatch at lines 155-159; v0.12.0 Wave α/β additions have shifted the block to 195-199 without changing its condition. |
@@ -158,7 +160,7 @@ Verdict: **strong independence signal but adoption is not universal** — claims
 
 ### 3.4 `patch-generations.json` `touched_paths`
 
-Sorted list of paths in the patch (`internal/workflow/patch_generations.go:84`). Enables the disjoint-touched-paths check that would prove two canonical patches cannot cumulatively contaminate each other. If A's touched paths and B's touched paths are disjoint, cumulative subtraction is a no-op **and** independent subtraction is a no-op — the two semantics collapse.
+Sorted list of paths in the patch (`internal/workflow/patch_generations.go:76-77` compute + sort, `:95` assign to `TouchedPaths`). Enables the disjoint-touched-paths check that would prove two canonical patches cannot cumulatively contaminate each other. If A's touched paths and B's touched paths are disjoint, cumulative subtraction is a no-op **and** independent subtraction is a no-op — the two semantics collapse.
 
 Verdict: **decisive when combined with base_commit**, present for every generation. This is the primitive that Option B (metadata-driven auto-detect) leans on.
 
@@ -219,6 +221,8 @@ The audit conclusion:
 **Rationale**. Independent canonical patches are the modern norm across every scoped and claimed capture mode (§3.1-§3.4). The historical cumulative case is rare, is not documented as a supported workflow (§3.9), and produces byte-corrupt artifacts when applied to independent patches (§2.2). Flipping the default matches the reporter's suggested remediation ("Until safely detectable, prefer canonical patches and require an explicit legacy/cumulative flag for GAP 4 derivation") and matches the ADR-030 semantic decision.
 
 **Alternatives considered**. See ADR-030 for the enumeration of Options A (default OFF, opt-in flag), B (metadata-driven auto-detect), and C (deprecate entirely). Option A is the ADR-030 outcome and the design binding for this PRD.
+
+**Sunset**. `--cumulative-legacy` is a candidate for removal once (a) D7 metadata-driven auto-detect ships and (b) telemetry or pilot survey shows the flag is unused for one minor cycle. Until then it stays as a documented opt-in.
 
 **Consequence**. A behavioral change for any user or automation that today implicitly benefits from `incremental.patch` derivation on cumulative recordings. The `--cumulative-legacy` opt-in preserves the historical semantic for those users while making it explicit.
 
@@ -296,9 +300,23 @@ Sketch:
 
 **Consequence**. Users on legacy cumulative workflows see reconcile output that matches their prior expectations. Users on modern independent workflows retain phase 1.5.
 
+### 4.10 D10 — Migration diagnostic when default-canonical trips over a legacy-recorded stack
+
+**Decision**. When the default multi-slug reconcile fails phase 1 (reverse-apply) on slug N, and `patch-generations.json` shows that any earlier slug in the run touched a subset of N's `touched_paths` (i.e. the earlier canonical patch overlaps N's canonical patch on N's own file set), the run must emit a diagnostic hint of the shape:
+
+> `hint: prior features may have been recorded cumulatively; retry with --cumulative-legacy (see ADR-030)`.
+
+The hint is advisory — the phase 1 failure surfaces normally with its own diagnostics, the run does not silently retry, and the exit code is unchanged relative to the phase 1 failure.
+
+**Rationale**. This is the biggest UX risk of flipping the default from cumulative to canonical: an operator with a legacy cumulative-recorded stack will see a new phase 1 failure with no obvious migration path. The overlap-on-touched-paths check is a cheap, high-precision signal (§3.4 `touched_paths` is already populated on every generation post-ADR-024), and it triggers only in the exact shape that legacy cumulative recording produces. False positives cost one line of stderr; false negatives leave the operator with the pre-remediation surprise.
+
+**Consequence**. The multi-slug default path grows one post-phase-1 diagnostic hook that consults `patch-generations.json` for each earlier slug and emits the hint when the overlap check fires. The hint is text-only and does not participate in evidence.
+
 ## 5. Safety invariants
 
 The following invariants are load-bearing across the design. They are stated as `INV-N` so the implementation slice can cite them in tests and code comments.
+
+**Ordering note (rev-1)**. INV-1 and INV-2 apply *after* the Wave β later-touch warning-attachment pass at `internal/workflow/reconcile.go:207` (`DetectReconcileLaterTouchWarningsByOwner`) and the ADR-029 write-file-recipe-safety warning attachment run. Wave β and ADR-029 attach warnings to `ReconcileResult` records based on canonical `post-apply.patch` content; the canonical-vs-cumulative invariants below govern which artifact is *read* for phases 1/2/3/3.5 after those warnings have already been composed. Implementations must not re-order the pipeline so that INV-1/INV-2 gate warning composition — the warnings run first, the derivation-mode invariant governs the phase inputs second.
 
 - **INV-1**. Canonical `post-apply.patch` for any feature is byte-identical between single-slug reconcile and default multi-slug reconcile. Any code path that reads a different artifact for the same feature under multi-slug default is a bug.
 - **INV-2**. `incremental.patch` is written only under `--cumulative-legacy`. Under any other invocation, the file is not created; if it exists on disk from a prior legacy run, it is not read by the default path (§4.1 D1 rewrite of `reconcileFeature`).
@@ -322,7 +340,8 @@ The following invariants are load-bearing across the design. They are stated as 
 - **AC-11**. Under `--cumulative-legacy`, the ADR-011 D9 dependency-DAG reorder is skipped (INV-5) and the input slug order is preserved verbatim.
 - **AC-12**. Under `--cumulative-legacy`, phase 1.5 patch-id detection is skipped and a note "phase 1.5 skipped: --cumulative-legacy" is attached to each ReconcileResult.
 - **AC-13**. Documentation for `tpatch reconcile` (`docs/reconcile.md`) explains that canonical patches are independent by default and that `--cumulative-legacy` is required for the historical cumulative-recording pattern.
-- **AC-14**. Existing single-slug reconcile tests, ADR-011 D9 DAG-order tests, ADR-025 evidence tests, ADR-028 supersession-filter tests, and M17 Wave D phase-1.5 detector tests stay green.
+- **AC-14**. Existing single-slug reconcile tests, ADR-011 D9 DAG-order tests, ADR-025 evidence tests, ADR-028 supersession-filter tests, ADR-029 / PRD-write-file-recipe-safety later-touch detector tests, and M17 Wave D phase-1.5 detector tests stay green.
+- **AC-15**. When default multi-slug reconcile fails phase 1 on slug N and `patch-generations.json` shows any prior slug in the invocation touched a subset of N's `touched_paths`, the run emits the D10 diagnostic `hint: prior features may have been recorded cumulatively; retry with --cumulative-legacy (see ADR-030)` to stderr. The hint is text-only, does not alter exit code, and does not silently retry.
 
 ## 7. Test scenarios
 
@@ -358,7 +377,7 @@ The implementation slice must include at least these scenarios. IDs are `TS-N`.
 2. Should the store-boundary `.git/**` guard (D5) also refuse patches whose `diff --git a/.git/…` line matches without a `+++`/`---` header, in case a future patch producer emits a mode-only or rename-only stanza? Recommendation: yes, add a coverage line for `diff --git` too, but the exact regex is implementation detail.
 3. Should the future auto-detect (D7) require the `depends_on` edge to also carry a `parent_generation` snapshot, or is any hard-parent edge sufficient? Deferred to the follow-up PRD that promotes D7 into a design element.
 4. Should `--cumulative-legacy` also disable ADR-028 supersession filtering, or should filtering still apply? Recommendation: filter still applies (§4.8 rationale is about derivation, not effective-set membership). Confirm at three-way review.
-5. Should legacy-mode invocations emit a top-of-run warning that recommends the workaround-then-migrate path? Recommendation: yes, one-line stderr note pointing at this PRD.
+5. ~~Should legacy-mode invocations emit a top-of-run warning that recommends the workaround-then-migrate path? Recommendation: yes, one-line stderr note pointing at this PRD.~~ **Resolved rev-1 by §4.10 D10 / AC-15**: the migration diagnostic is a numbered design decision. The hint fires from the *default* path after a phase 1 failure when overlap on `touched_paths` proves the earlier slug was recorded cumulatively — a stronger signal than the top-of-run advisory this OQ contemplated.
 
 ## 10. Sources
 
