@@ -119,13 +119,29 @@ func TestD6MandateWriter_SessionSummarizeRefusesWithoutGitignore(t *testing.T) {
 //     is now the singular mutating trigger per PRD §5 D9 rule 3)
 //   - record --with-session — same summarize-writer path (Slice 4)
 //
+// Enumerated writers (rev-1.5 amendment — F-EXT-γ-1 residual):
+//   - session summarize --write (context-summary writer surface) —
+//     SaveContextSummary runs BEFORE SaveSession inside
+//     runSessionSummarize. Rev-1's SaveSession bottleneck refused the
+//     promoted-manifest write, but the committed-lane ctx_<12hex>.json
+//     was already on disk — a D9→D10 atomicity violation. Rev-1.5
+//     adds a D6 preflight at the top of runSessionSummarize. This row
+//     asserts the invariant the preflight enforces: after refusal, the
+//     committed context lane holds zero artifacts. Adding a new
+//     committed-lane writer without routing it through the preflight
+//     (or through SaveSession) will fail here — the intended forcing
+//     function extended to the ctx artifact surface.
+//
 // Every row prepares a fixture matching that writer's minimum
 // arguments, invokes it with .gitignore removed, and asserts D6 refusal.
+// Rows may also declare a postAssert hook for surface-specific
+// invariants (e.g. no orphan committed-lane artifacts).
 func TestD6_AllWritersRefuse(t *testing.T) {
 	type writerCase struct {
-		name    string
-		prepare func(t *testing.T) (tmp, slug string)
-		args    func(tmp, slug string) []string
+		name       string
+		prepare    func(t *testing.T) (tmp, slug string)
+		args       func(tmp, slug string) []string
+		postAssert func(t *testing.T, tmp, slug string)
 	}
 	cases := []writerCase{
 		{
@@ -183,6 +199,58 @@ func TestD6_AllWritersRefuse(t *testing.T) {
 			},
 		},
 		{
+			// v0.12.0 Wave γ rev-1.5 (F-EXT-γ-1 residual): distinct
+			// row exercising the COMMITTED-LANE writer surface of
+			// `session summarize --write`. The row's postAssert
+			// verifies zero ctx_<12hex>.json artifacts land after
+			// refusal — the D9→D10 atomicity invariant the new
+			// runSessionSummarize preflight enforces.
+			name: "session-summarize-write-ctx-lane",
+			prepare: func(t *testing.T) (string, string) {
+				tmp, slug := setupSessionRepo(t, "D6 all writers summarize ctx lane")
+				if _, stderr, code := runSessionCmd("session", "start", "--path", tmp, slug); code != 0 {
+					t.Fatalf("start: %s", stderr)
+				}
+				s, err := store.Open(tmp)
+				if err != nil {
+					t.Fatalf("open: %v", err)
+				}
+				entries, err := s.ListSessions(slug)
+				if err != nil || len(entries) != 1 {
+					t.Fatalf("list: %v (n=%d)", err, len(entries))
+				}
+				sess := *entries[0].Session
+				sess.Observations = []store.SessionObservation{
+					{Seq: 1, SymbolicRef: "safe", Summary: "reviewed feature.yaml for ctx-lane"},
+				}
+				if err := s.SaveSession(sess); err != nil {
+					t.Fatalf("save: %v", err)
+				}
+				removeGitignoreForD6(t, tmp)
+				return tmp, slug
+			},
+			args: func(tmp, slug string) []string {
+				return []string{"session", "summarize", "--path", tmp, slug, "--write"}
+			},
+			postAssert: func(t *testing.T, tmp, slug string) {
+				ctxDir := filepath.Join(tmp, ".tpatch", "features", slug, "artifacts", "context")
+				ents, err := os.ReadDir(ctxDir)
+				if err != nil {
+					if os.IsNotExist(err) {
+						return
+					}
+					t.Fatalf("stat committed context dir: %v", err)
+				}
+				if len(ents) != 0 {
+					names := make([]string, 0, len(ents))
+					for _, e := range ents {
+						names = append(names, e.Name())
+					}
+					t.Fatalf("expected empty committed context lane after D6 refusal; found %d entries: %v", len(ents), names)
+				}
+			},
+		},
+		{
 			name: "record-with-session",
 			prepare: func(t *testing.T) (string, string) {
 				tmp, slug := setupSessionRepo(t, "D6 all writers record")
@@ -231,6 +299,9 @@ func TestD6_AllWritersRefuse(t *testing.T) {
 				if !strings.Contains(stderr, needle) {
 					t.Fatalf("[%s] refusal must enumerate mandate %d; got:\n%s", tc.name, i, stderr)
 				}
+			}
+			if tc.postAssert != nil {
+				tc.postAssert(t, tmp, slug)
 			}
 		})
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // ErrSessionRedactionRefusal fires when a session summarize --write
@@ -53,6 +54,28 @@ type sessionSummarizeOpts struct {
 // mutating mode.") and the D9 command listing show `--write` as the
 // singular mutating trigger. Rev-1 collapses the two into `--write`.
 func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, opts sessionSummarizeOpts) error {
+	// v0.12.0 Wave γ rev-1.5 (F-EXT-γ-1 residual): the D6 bottleneck
+	// inside Store.SaveSession covers the promoted-manifest write at
+	// the tail of this function, but SaveContextSummary below runs
+	// BEFORE SaveSession and would leave an orphan ctx_<12hex>.json in
+	// the COMMITTED lane (.tpatch/features/<slug>/artifacts/context/)
+	// when D6 is violated. Preflighting workflow.EnsureLocalIgnoreContract
+	// here — before any writer surface — enforces D9→D10 promotion
+	// atomicity: either both the ctx artifact AND the promoted manifest
+	// land, or neither. Dry-run (opts.Write == false) intentionally
+	// bypasses this preflight because it reads but never writes.
+	//
+	// PRD-active-feature-session §4 D6 mandate 4 verbatim: "Writers
+	// must refuse when Git is unavailable or the path is not ignored."
+	// PRD §5 D9→D10 mandates the promotion is a single atomic hop from
+	// the local buffer to the committed lane; a partial write breaks
+	// the atomicity contract.
+	if opts.Write {
+		if err := workflow.EnsureLocalIgnoreContract(s.Root, s.LocalCaptureDir()); err != nil {
+			return fmt.Errorf("session summarize: D6 preflight refused (PRD §4 D6 mandate 4 + PRD §5 D9→D10 atomicity — enforced upstream of SaveContextSummary): %w", err)
+		}
+	}
+
 	redacted, findings := redactSessionForCommit(target)
 	summaryBody := redacted.Summary
 	ctxID := store.ComputeContextSummaryID(store.ContextSummaryIDInputs{
