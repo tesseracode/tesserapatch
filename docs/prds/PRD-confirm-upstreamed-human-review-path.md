@@ -350,7 +350,8 @@ resolvedUpstreamRef)` where `resolvedUpstreamRef` is
 If not reachable under whichever check applies, refuse with a diagnostic
 naming both the sha and the ref against which reachability was checked.
 Test both the upstream-ref path (TS 9.11) and the HEAD-only fall-back
-with warning (TS 9.6), plus a synthetic non-reachable sha under both.
+with warning (TS 9.12) plus refusal (TS 9.6), including a synthetic
+non-reachable sha under both branches.
 
 ### AC-6 — Append-only chain: new revision supersedes consumed one
 

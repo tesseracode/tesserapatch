@@ -1,3 +1,43 @@
+## 2026-07-31 — Cluster B PRD-#3 + PRD-#4 dual-review rev-1 confirmed — THREE-WAY APPROVED (paper)
+
+**Scope**: parallel planning phase for v0.12.1 correctness fix pass. Drafted GH #3 (multi-slug reconcile canonical safety, PRD + ADR-030) and GH #4 (confirm-upstreamed human review path, PRD only) mirroring the Streams A+B rhythm.
+
+### Rev-0 dispatch → four parallel reviews
+
+**PRD-#3 (`ea81cd2`)**: `docs/prds/PRD-multi-slug-reconcile-canonical-safety.md` + `docs/adrs/ADR-030-multi-slug-reconcile-derivation-mode.md`. Recommended Option A (default OFF derivation + `--cumulative-legacy` opt-in). Alternatives B (metadata auto-detect) and C (deprecate cumulative entirely) enumerated with rationale. `.git/**` leak addressed as standalone invariant (INV-3/INV-6, D4/D5, AC-7/AC-8).
+
+**PRD-#4 (`db5d117`)**: `docs/prds/PRD-confirm-upstreamed-human-review-path.md`. Recommended D1 (extend `confirm-upstreamed` with `--upstream-commit` + `--from-revision`, consume review revision, mutate state, append superseding transition entry). Zero new schema, no ADR needed.
+
+**Four reviewers dispatched in parallel** (mirrors dual-review protocol):
+
+- **PRD-#3 internal (code-review)**: APPROVED WITH NOTES. 14/15 anchors resolve ±5; F1 anchor drift on `patch_generations.go:84`; F2 Wave β not enumerated in AC-14. Empirically confirmed `.git/**` leak on scratch clone pair.
+- **PRD-#3 external (rubber-duck)**: APPROVED WITH NOTES. Migration diagnostic under-specified (biggest UX risk); HEAD-repro not documented for the semantic bug (only .git/** leak was re-reproduced); `--cumulative-legacy` sunset criterion missing. Confirmed Wave β later-touch detector reads `patch-generations.json` + apply-recipe, not `incremental.patch` — Option A does not shift its inputs.
+- **PRD-#4 internal (code-review)**: APPROVED WITH NOTES. All 18 spot-checked cites within ±5. F1 (MED) §4 headline typo "Recommendation: D2" while D1 is the recommended design; F2 (LOW) `PRD-reconcile-verdict-evidence` in Related header but not cited by name in body. Verified: `ValidationRefs` hard-wired to `[]` at `cobra.go:2236`; `confirmUpstreamedCmd` never mutates `status.State`.
+- **PRD-#4 external (rubber-duck)**: APPROVED WITH NOTES. Five substantive challenges — the NEAR-BLOCKING one being `IsAncestor(sha, HEAD)` proves local presence, not upstream absorption (exactly the failure class the v0.11 gate exists to prevent). Also raised: `--from-revision` tie-break under-specification; §7.4 supersession matrix incomplete; fast-path/review-path fork is a permanent asymmetry; AC-12 determinism guardrail needed for `AppendRetirementCleanupRevisions` timestamps.
+
+### Rev-1 fold-in (`0f236f6`)
+
+Single amendment commit folded all 12 findings (5 PRD-#3 + 7 PRD-#4):
+
+**PRD-#3**: §3.4 anchor corrected to `patch_generations.go:76-77` + `:95`; AC-14 gains ADR-029 bullet + §5 gains INV-1/INV-2 ordering note; §4.10 D10 + AC-15 promotion of migration diagnostic; §0.2 HEAD-repro caveat (honest — semantic bug inferred from code identity, not re-reproduced); §4.2 D2 + ADR-030 D2 sunset criterion.
+
+**PRD-#4**: §4 headline `Recommendation: **D1**`; PRD-reconcile-verdict-evidence inline cite at §3.1; §7.1 two-tier reachability contract (preferred: `status.Reconcile.UpstreamRef` at `types.go:315` verified extant, else `git rev-parse @{upstream}`; fall-back: HEAD-ancestry with explicit residual-risk warning); §4 D4 tie-break rule (`RevisionLog.Entries[-1]`); §7.4 5-row state×relation matrix; §5 fast-path entry invariant (refuse when `State != StateUpstreamMerged`); AC-12 determinism scope carveout for `RecordedAt` + audit-cleanup revisions.
+
+### Rev-1 confirmation review (single reviewer)
+
+APPROVED WITH NOTES. All 12 rev-0 findings verified CLOSED with anchor-verification pass at HEAD `5ac458d`. One new LOW: PRD-#4 AC-5 mis-cited TS 9.6 for the warning scenario when TS 9.12 is the warning-emitting test. **Folded in-place** before push (implementer briefs would inherit the mis-cite otherwise).
+
+### Gates
+
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+- Rule 18 trailer on both `db5d117` and `ea81cd2` and `0f236f6`.
+- Both PRDs + ADR-030 remain `Status: Proposed` — flip on implementation acceptance.
+- Zero code changes. Docs-only planning phase.
+
+### Verdict: THREE-WAY APPROVED (paper)
+
+Cleared to dispatch implementers. #5 (record round-trip transactional invariant, no PRD needed) can go alongside PRD-#3 implementer since they don't touch the same code. PRD-#4 implementer sequences after #5 or #3 depending on parallelism appetite.
+
 ## 2026-07-31 — Cluster A (v0.12.1 post-ship hygiene) — dual APPROVED — SHIPPED
 
 **Scope**: doc-only amendment to `AGENTS.md` + `CLAUDE.md` + handoff refresh. Codifies the F1 LOW recurring pattern from v0.12.0 Streams A+B / Wave α (6 commits ahead) / β (8) / γ (18) into an explicit Wave-Close Checklist.

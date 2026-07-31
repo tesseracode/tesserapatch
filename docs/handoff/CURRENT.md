@@ -2,11 +2,15 @@
 
 ## Status
 
-Cluster A — **AGENTS.md wave-close checklist amendment** — dual APPROVED and SHIPPED. Ready to dispatch Cluster B (v0.12.1 correctness fix pass — issues #3, #4, #5).
+Cluster B (v0.12.1 correctness fix pass) — **planning phase THREE-WAY APPROVED**. PRD-#3 (multi-slug reconcile canonical safety, PRD + ADR-030) and PRD-#4 (confirm-upstreamed human review path) drafted, dual-reviewed in parallel (4 reviewers), rev-1 folded 12 findings, rev-1 confirmed with one in-place traceability nit fixed. Both remain `Proposed` — status flip on implementation acceptance. Ready to dispatch implementers.
 
 ## Active Task
 
-**Cluster A: DONE.** Amendment committed and pushed. Cluster B dispatch imminent — v0.12.1 correctness fix pass bundling GH #3 (multi-slug reconcile cumulative delta corruption), #4 (confirmed human review can't transition rejected-upstreamed → upstream_merged), #5 (record round-trip failure exits 0 + mutates metadata).
+**Cluster B — v0.12.1 correctness fix pass implementation** (dispatch imminent):
+
+- **PRD-#3 implementer**: multi-slug reconcile canonical safety. Option A (default OFF derivation + `--cumulative-legacy` opt-in) + `.git/**` diff/store boundary exclusion + migration diagnostic D10.
+- **PRD-#4 implementer**: `confirm-upstreamed` human review path. D1 (extend command with `--upstream-commit` + `--from-revision`, consume review revision, mutate state, append superseding transition). Two-tier reachability contract (`UpstreamRef` preferred, HEAD-ancestry fall-back with warning).
+- **GH #5 implementer**: record round-trip transactional invariant. No PRD — direct code fix. Failure exits non-zero + feature dir byte-identical + no success message.
 
 ## Session Summary
 
