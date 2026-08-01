@@ -46,6 +46,59 @@ All notable changes to tpatch are recorded here.
   - `TestRecordRoundTripFailure_LenientPreserved` guards the fix from
     over-tightening the `--lenient` escape hatch.
 
+### GH #3 — multi-slug reconcile: canonical `post-apply.patch` is authoritative by default; opt-in `--cumulative-legacy` for legacy stacks
+
+- Fix (`internal/workflow/reconcile.go`, dispatch region): multi-slug
+  reconcile no longer runs `deriveIncrementalPatches` by default. Each
+  slug is reconciled against its own `artifacts/post-apply.patch`
+  byte-for-byte, matching the single-slug path. Under
+  `--cumulative-legacy`, the pre-v0.12.1 derivation branch remains
+  available for backward-compat with feature stacks that were recorded
+  cumulatively (an earlier slug's canonical patch touches paths later
+  claimed by a follow-up slug). ADR-011 D9 DAG reorder and the M17 Wave
+  D phase 1.5 canonical-reload carve-out are both skipped under the
+  legacy flag (D6/D7 flag propagation); both continue to run in the
+  default path.
+- `.git/**` boundary hardening (INV-3 / INV-6):
+  - **D4 diff-boundary**: `gitutil.DeriveIncrementalPatch` invokes
+    `diff -ruN --exclude=.git` and post-filters any residual `.git/**`
+    stanza via `stripGitInternalFileStanzas`. A synthesized upstream
+    tree containing `.git/logs/HEAD` never leaks into a derived patch.
+  - **D5 store-boundary**: `store.WriteArtifact` refuses to persist
+    `.patch` bytes whose diff headers reference `.git`, `.git/**`,
+    `/.git`, or `/.git/**`. Defense-in-depth against any future
+    writer regressing the D4 exclusion.
+- **D10 migration diagnostic** (`internal/workflow/reconcile_derivation.go`):
+  when the default (non-legacy) run fails phase 1 on slug N and any
+  earlier slug in the run touched a subset of N's `touched_paths`,
+  the run emits the advisory hint
+  `hint: prior features may have been recorded cumulatively; retry
+  with --cumulative-legacy (see ADR-030)`. Fail-soft on missing
+  `patch-generations.json`.
+- CLI (`internal/cli/cobra.go`, `reconcileCmd`): new
+  `--cumulative-legacy` flag threads through into `ReconcileOptions`.
+- Shipped skill assets (all 6 formats) call out the flag in the
+  reconcile-clean-tree bullet; the `assets_test.go` parity guard is
+  updated in the same commit as the flag introduction.
+- Tests: five new AC/TS entries — AC-1 (reporter's ABC repro:
+  canonical byte-identity + no `incremental.patch` written), AC-4
+  (legacy flag re-enables derivation, stays `.git`-clean), AC-12
+  (phase 1.5 skipped under legacy with a note attached), AC-15
+  positive (D10 hint fires on `touched_paths` overlap), AC-15
+  negative (D10 hint quiet on disjoint touched_paths). D4 + D5 have
+  their own regression files
+  (`internal/gitutil/derive_git_exclusion_test.go`,
+  `internal/store/write_artifact_git_guard_test.go`).
+- Non-invalidation: Wave α (`labels.go`, `validation.go` supersession
+  sections, `status_dag.go`), Wave β (`writefile_safety.go` later-touch
+  detector), Wave γ (session code) all unchanged. INV-1/INV-2
+  (canonical authority, no incremental persisted) verified via AC-1;
+  ordering rule (Wave β warnings attached BEFORE INV-1/INV-2 verify)
+  preserved by placing the D10 hook AFTER the `laterTouchByOwner`
+  attach in the slug loop.
+- Related: PRD-multi-slug-reconcile-canonical-safety (Accepted),
+  ADR-030-multi-slug-reconcile-derivation-mode (Accepted).
+
 ## v0.12.0 — 2026-07-31 — feature supersession (Wave α) + write-file recipe safety (Wave β) + active feature sessions (Wave γ)
 
 ### Wave γ — `tpatch session` command group + `.tpatch/local/capture/` buffer + D11 redaction contract

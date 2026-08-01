@@ -1,6 +1,6 @@
 # PRD - Multi-slug Reconcile Canonical Safety - `multi-slug-reconcile-canonical-safety`
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-07-31
 **Owner**: Core
 **Cluster**: Replay trustworthiness (GH #3)

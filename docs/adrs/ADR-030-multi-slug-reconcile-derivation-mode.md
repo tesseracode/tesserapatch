@@ -1,6 +1,6 @@
 # ADR-030 — Multi-slug Reconcile Derivation Mode
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-07-31
 **Owner**: Core
 **Cluster**: Replay trustworthiness (GH #3)
