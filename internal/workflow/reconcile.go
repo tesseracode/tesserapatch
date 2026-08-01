@@ -230,7 +230,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	// signal (PRD §7.2 "v1 blocks only on preimage mismatch").
 	laterTouchByOwner := DetectReconcileLaterTouchWarningsByOwner(s, slugs)
 
-	for _, slug := range slugs {
+	for i, slug := range slugs {
 		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts)
 		if err != nil {
 			results = append(results, ReconcileResult{
@@ -256,6 +256,16 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 		// result rather than after phase-specific noise.
 		if lts, ok := laterTouchByOwner[slug]; ok && result != nil && len(lts) > 0 {
 			result.Notes = append(append([]string(nil), lts...), result.Notes...)
+		}
+		// v0.12.1 D10 migration diagnostic
+		// (PRD-multi-slug-reconcile-canonical-safety §4.10 / AC-15).
+		// When the default (non-legacy) path failed phase 1 on this
+		// slug AND some earlier slug in this run touched a subset of
+		// this slug's touched_paths, emit the hint pointing the
+		// operator at --cumulative-legacy. Fail-soft: missing
+		// patch-generations.json never fires the hint.
+		if !opts.CumulativeLegacy && result != nil && phaseIndicatesReverseApplyFailure(result.Phase) && i > 0 {
+			maybeEmitMigrationHint(s, slugs[:i], slug)
 		}
 		results = append(results, *result)
 	}
