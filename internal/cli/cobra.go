@@ -1883,6 +1883,7 @@ func reconcileCmd() *cobra.Command {
 			apply, _ := cmd.Flags().GetBool("apply")
 			maxConflicts, _ := cmd.Flags().GetInt("max-conflicts")
 			modelOverride, _ := cmd.Flags().GetString("model")
+			cumulativeLegacy, _ := cmd.Flags().GetBool("cumulative-legacy")
 			checkApplied, _ := cmd.Flags().GetBool("check-applied-only")
 			autoDrop, _ := cmd.Flags().GetBool("auto-drop-merged")
 			format, _ := cmd.Flags().GetString("format")
@@ -1973,10 +1974,11 @@ func reconcileCmd() *cobra.Command {
 			}
 
 			opts := workflow.ReconcileOptions{
-				Resolve:      resolve,
-				Apply:        apply,
-				Model:        modelOverride,
-				MaxConflicts: maxConflicts,
+				Resolve:          resolve,
+				Apply:            apply,
+				Model:            modelOverride,
+				MaxConflicts:     maxConflicts,
+				CumulativeLegacy: cumulativeLegacy,
 			}
 			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg, opts)
 			if err != nil {
@@ -2076,6 +2078,13 @@ func reconcileCmd() *cobra.Command {
 	// PRD-patch-already-upstream-detector §3.2 / §3.3 (v0.8.1).
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
 	cmd.Flags().Bool("auto-drop-merged", false, "On a phase-1.5 patch-id match, remove the feature from the DAG (ADR-011 cascade rules) and create a removal commit that preserves Tpatch-CVE / Tpatch-Slug trailers. Off by default. No-op when phase 1.5 does not fire (including when patch_id_detector_enabled=false). Mutually exclusive with --check-applied-only.")
+	// PRD-multi-slug-reconcile-canonical-safety §4.2 / ADR-030 D2 (v0.12.1).
+	// Opt-in flag re-enabling the pre-v0.12.1 cumulative-derivation branch
+	// (deriveIncrementalPatches). Default OFF: multi-slug reconcile uses each
+	// feature's canonical post-apply.patch as authoritative. When set, the
+	// ADR-011 D9 DAG-topological reorder is skipped (ADR-030 D6) and
+	// phase 1.5 patch-id detection is skipped (ADR-030 D7).
+	cmd.Flags().Bool("cumulative-legacy", false, "Opt in to pre-v0.12.1 cumulative delta derivation for multi-slug reconcile. Historical behavior for stacks recorded cumulatively (each canonical patch is a superset of the previous slug's). Skips the ADR-011 D9 DAG-topological reorder and phase 1.5 patch-id detection. See ADR-030.")
 	cmd.Flags().String("format", "human", "Output format: human or json")
 	cmd.AddCommand(reconcileReviewCmd(), reconcileAuditRetirementCmd(), reconcileConfirmUpstreamedCmd())
 	return cmd
@@ -2133,12 +2142,62 @@ func reconcileConfirmUpstreamedCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if status.Reconcile.Outcome != store.ReconcileUpstreamed && status.Reconcile.ReviewVerdict != "confirmed-upstreamed" {
-				return fmt.Errorf("confirm-upstreamed requires reconcile outcome %q or review_verdict %q for %s", store.ReconcileUpstreamed, "confirmed-upstreamed", slug)
+			upstreamCommit, _ := cmd.Flags().GetString("upstream-commit")
+			fromRevision, _ := cmd.Flags().GetString("from-revision")
+
+			fastPath := status.Reconcile.Outcome == store.ReconcileUpstreamed || status.Reconcile.ReviewVerdict == "confirmed-upstreamed"
+
+			var transitionInfo *confirmUpstreamedTransition
+			if fastPath {
+				// PRD §5 fast-path entry invariant: refuse when the
+				// shipped-path atomicity contract has been broken.
+				if status.State != store.StateUpstreamMerged {
+					return fmt.Errorf("confirm-upstreamed: fast path requires state %q for %s but found %q (Reconcile.Outcome=%q ReviewVerdict=%q); refusing to run audit against inconsistent metadata", store.StateUpstreamMerged, slug, status.State, status.Reconcile.Outcome, status.Reconcile.ReviewVerdict)
+				}
+			} else {
+				// Review path — v0.11 gate would refuse today. Look for
+				// an authorising human review revision.
+				if upstreamCommit == "" {
+					// Fall back to the v0.11 gate error verbatim when
+					// there is no signal at all that the reviewer path
+					// is being taken. This preserves byte-identical
+					// wording for the pre-existing failure mode.
+					if _, ok, ferr := findAuthorisingReviewRevision(s, slug, fromRevision); ferr == nil && !ok {
+						return fmt.Errorf("confirm-upstreamed requires reconcile outcome %q or review_verdict %q for %s", store.ReconcileUpstreamed, "confirmed-upstreamed", slug)
+					}
+					return fmt.Errorf("confirm-upstreamed: review path requires --upstream-commit <sha> for %s", slug)
+				}
+				consumed, ok, ferr := findAuthorisingReviewRevision(s, slug, fromRevision)
+				if ferr != nil {
+					return ferr
+				}
+				if !ok {
+					return fmt.Errorf("confirm-upstreamed: feature %q has review_verdict %q and no non-superseded revision authorises retirement. Record a review with:\n  tpatch reconcile review add %s --verdict confirmed --action confirmed-retired --final-state upstream_merged --reason-code manual-review [--evidence <id>]\nthen re-run confirm-upstreamed with --upstream-commit <sha>.", slug, status.Reconcile.ReviewVerdict, slug)
+				}
+				if err := checkConfirmUpstreamedSupersessionSafety(s, slug); err != nil {
+					return err
+				}
+				resolvedRef, err := verifyUpstreamCommitReachability(cmd, s, status, upstreamCommit)
+				if err != nil {
+					return err
+				}
+				transitionInfo = &confirmUpstreamedTransition{
+					ConsumedEntry:  consumed,
+					UpstreamCommit: upstreamCommit,
+					ResolvedRef:    resolvedRef,
+					PriorOutcome:   status.Reconcile.Outcome,
+				}
+				if err := applyConfirmUpstreamedTransition(s, &status, transitionInfo); err != nil {
+					return err
+				}
 			}
-			result := workflow.ReconcileResult{Slug: slug, Outcome: status.Reconcile.Outcome, ReviewVerdict: status.Reconcile.ReviewVerdict}
+
+			result := workflow.ReconcileResult{Slug: slug, Outcome: status.Reconcile.Outcome, ReviewVerdict: status.Reconcile.ReviewVerdict, UpstreamCommit: status.Reconcile.UpstreamCommit, UpstreamRef: status.Reconcile.UpstreamRef}
 			if result.ReviewVerdict == "" && result.Outcome == store.ReconcileUpstreamed {
 				result.ReviewVerdict = "confirmed-upstreamed"
+			}
+			if transitionInfo != nil {
+				result.Revisions = append(result.Revisions, transitionInfo.TransitionEntry)
 			}
 			if err := runConfirmedUpstreamedRetirementAudit(s, &result); err != nil {
 				return err
@@ -2152,25 +2211,245 @@ func reconcileConfirmUpstreamedCmd() *cobra.Command {
 				return fmt.Errorf("confirm-upstreamed: unsupported --format %q (expected human or json)", format)
 			}
 			if format == "json" {
-				data, _ := json.MarshalIndent(result, "", "  ")
+				payload := any(result)
+				if transitionInfo != nil {
+					m, _ := marshalReconcileResultMap(result)
+					m["source_revision_entry_id"] = transitionInfo.ConsumedEntry.EntryID
+					m["transition_revision_entry_id"] = transitionInfo.TransitionEntry.EntryID
+					m["upstream_commit"] = transitionInfo.UpstreamCommit
+					payload = m
+				}
+				data, _ := json.MarshalIndent(payload, "", "  ")
 				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", data)
 				return nil
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "confirmed upstreamed: %s\n", slug)
+			if transitionInfo != nil {
+				fmt.Fprintf(cmd.OutOrStdout(), "consumed review revision: %s\n", transitionInfo.ConsumedEntry.EntryID)
+				fmt.Fprintf(cmd.OutOrStdout(), "appended transition revision: %s\n", transitionInfo.TransitionEntry.EntryID)
+			}
 			if result.RetirementAudit != nil {
 				for _, line := range workflow.RetirementAuditLines(*result.RetirementAudit) {
 					fmt.Fprintln(cmd.OutOrStdout(), line)
 				}
 			}
 			if len(result.Revisions) > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "cleanup-needed revisions: %d\n", len(result.Revisions))
+				cleanup := 0
+				for _, r := range result.Revisions {
+					if r.ActionTaken == store.ReconcileActionCleanupNeeded {
+						cleanup++
+					}
+				}
+				if cleanup > 0 {
+					fmt.Fprintf(cmd.OutOrStdout(), "cleanup-needed revisions: %d\n", cleanup)
+				}
 			}
 			return nil
 		},
 	}
 	cmd.Flags().Bool("json", false, "Emit JSON")
 	cmd.Flags().String("format", "human", "Output format: human or json")
+	cmd.Flags().String("upstream-commit", "", "Upstream commit SHA that absorbed the feature (required on the review path)")
+	cmd.Flags().String("from-revision", "", "Consume a specific review revision entry id (defaults to latest non-superseded match)")
 	return cmd
+}
+
+// confirmUpstreamedTransition carries the review-path artifacts between
+// the reviewer selection step and the state-mutation step.
+type confirmUpstreamedTransition struct {
+	ConsumedEntry   store.ReconcileRevision
+	TransitionEntry store.ReconcileRevision
+	UpstreamCommit  string
+	// ResolvedRef is the upstream ref (or "HEAD") against which
+	// reachability was checked. Used for logging.
+	ResolvedRef  string
+	PriorOutcome store.ReconcileOutcome
+}
+
+// findAuthorisingReviewRevision returns the latest non-superseded
+// revision on the feature that matches the authorising tuple
+// (verdict=confirmed, action=confirmed-retired,
+// final_state=upstream_merged). When `fromRevision` is non-empty, that
+// specific entry is selected and validated against the tuple.
+//
+// PRD §4 D4: reuse the same latestRevisionEntries filter that
+// `reconcile review list --all=false` uses (dedupe + drop entries
+// pointed at by SupersedesEntryID), then tie-break surviving matches by
+// last-in-file-order (RevisionLog.Entries[-1]).
+func findAuthorisingReviewRevision(s *store.Store, slug, fromRevision string) (store.ReconcileRevision, bool, error) {
+	entries, err := store.LoadReconcileRevisions(s, slug)
+	if err != nil {
+		return store.ReconcileRevision{}, false, err
+	}
+	if fromRevision != "" {
+		for _, e := range entries {
+			if e.EntryID != fromRevision {
+				continue
+			}
+			if !isAuthorisingTuple(e) {
+				return store.ReconcileRevision{}, false, fmt.Errorf("confirm-upstreamed: --from-revision %q does not match required tuple (review_verdict=confirmed, action_taken=confirmed-retired, final_feature_state=upstream_merged); got (%s, %s, %s)", fromRevision, e.ReviewVerdict, e.ActionTaken, e.FinalFeatureState)
+			}
+			// Verify not superseded.
+			superseded := map[string]bool{}
+			for _, other := range entries {
+				if other.SupersedesEntryID != "" {
+					superseded[other.SupersedesEntryID] = true
+				}
+			}
+			if superseded[e.EntryID] {
+				return store.ReconcileRevision{}, false, fmt.Errorf("confirm-upstreamed: --from-revision %q is superseded by a later entry", fromRevision)
+			}
+			return e, true, nil
+		}
+		return store.ReconcileRevision{}, false, fmt.Errorf("confirm-upstreamed: --from-revision %q not found in reconcile-revisions.jsonl for %s", fromRevision, slug)
+	}
+	filtered := latestRevisionEntries(entries)
+	// Walk in reverse file order to grab the last-in-file-order match
+	// (PRD §4 D4 tie-break). latestRevisionEntries preserves file order.
+	for i := len(filtered) - 1; i >= 0; i-- {
+		if isAuthorisingTuple(filtered[i]) {
+			return filtered[i], true, nil
+		}
+	}
+	return store.ReconcileRevision{}, false, nil
+}
+
+func isAuthorisingTuple(e store.ReconcileRevision) bool {
+	return e.ReviewVerdict == store.ReviewVerdictConfirmed &&
+		e.ActionTaken == store.ReconcileActionConfirmedRetired &&
+		e.FinalFeatureState == store.StateUpstreamMerged
+}
+
+// checkConfirmUpstreamedSupersessionSafety enforces the PRD §7.4 five-row
+// matrix. When the feature being confirmed carries a `supersedes` edge
+// pointing at a target, that target's state gates whether retiring the
+// superseder is safe.
+func checkConfirmUpstreamedSupersessionSafety(s *store.Store, slug string) error {
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return err
+	}
+	for _, dep := range status.DependsOn {
+		if dep.Kind != store.DependencyKindSupersedes {
+			continue
+		}
+		target, err := s.LoadFeatureStatus(dep.Slug)
+		if err != nil {
+			return fmt.Errorf("confirm-upstreamed: cannot load supersedes-target %q for %s: %w", dep.Slug, slug, err)
+		}
+		switch target.State {
+		case store.StateUpstreamMerged:
+			// Row 5: proceed.
+			continue
+		case store.StateApplied:
+			// Rows 1-2 (healthy or stale satisfied_by — same class).
+			return fmt.Errorf("confirm-upstreamed: refusing to retire %s while supersedes-target %q is state %q; resolve the target first (§7.4 case 1)", slug, dep.Slug, target.State)
+		case store.FeatureState("promoted"):
+			return fmt.Errorf("confirm-upstreamed: refusing to retire %s while supersedes-target %q is state %q (not yet closed); the promotion contract expects the superseder to remain (§7.4 case 1)", slug, dep.Slug, target.State)
+		case store.StateBlocked:
+			return fmt.Errorf("confirm-upstreamed: refusing to retire %s while supersedes-target %q is state %q; resolve the target's blocker first (§7.4 case 1)", slug, dep.Slug, target.State)
+		default:
+			// Safe default: any state not enumerated in the matrix is
+			// out of scope for v1 and refuses.
+			return fmt.Errorf("confirm-upstreamed: refusing to retire %s while supersedes-target %q is state %q (not enumerated in §7.4 v1 matrix)", slug, dep.Slug, target.State)
+		}
+	}
+	return nil
+}
+
+// verifyUpstreamCommitReachability implements the PRD §7.1 two-tier
+// reachability contract. Returns the resolved ref against which
+// reachability was checked.
+func verifyUpstreamCommitReachability(cmd *cobra.Command, s *store.Store, status store.FeatureStatus, sha string) (string, error) {
+	// Tier 1 — preferred: status.Reconcile.UpstreamRef.
+	if ref := strings.TrimSpace(status.Reconcile.UpstreamRef); ref != "" {
+		ok, err := gitutil.IsAncestor(s.Root, sha, ref)
+		if err != nil {
+			return "", fmt.Errorf("confirm-upstreamed: reachability check against upstream ref %q failed: %w", ref, err)
+		}
+		if !ok {
+			return "", fmt.Errorf("confirm-upstreamed: --upstream-commit %s is not an ancestor of upstream ref %q for %s", sha, ref, status.Slug)
+		}
+		return ref, nil
+	}
+	// Tier 1 — preferred: fall through to git's @{upstream} tracking ref.
+	if resolved, err := gitutil.SymbolicFullRefName(s.Root, "@{upstream}"); err == nil {
+		resolved = strings.TrimSpace(resolved)
+		if resolved != "" {
+			ok, aerr := gitutil.IsAncestor(s.Root, sha, resolved)
+			if aerr != nil {
+				return "", fmt.Errorf("confirm-upstreamed: reachability check against upstream ref %q failed: %w", resolved, aerr)
+			}
+			if !ok {
+				return "", fmt.Errorf("confirm-upstreamed: --upstream-commit %s is not an ancestor of upstream ref %q for %s", sha, resolved, status.Slug)
+			}
+			return resolved, nil
+		}
+	}
+	// Tier 2 — fall-back: HEAD-only with residual-risk warning.
+	ok, err := gitutil.IsAncestor(s.Root, sha, "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("confirm-upstreamed: reachability check against HEAD failed: %w", err)
+	}
+	if !ok {
+		return "", fmt.Errorf("confirm-upstreamed: --upstream-commit %s is not an ancestor of HEAD for %s (no upstream ref resolvable)", sha, status.Slug)
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "warning: upstream ref not resolvable; validated %s against local HEAD ancestry only. Confirmation is weaker than upstream-ref anchoring — consider setting a tracking branch.\n", sha)
+	return "HEAD", nil
+}
+
+// applyConfirmUpstreamedTransition mutates status.json and appends the
+// superseding transition revision. The consumed revision is left
+// byte-identical in the file.
+func applyConfirmUpstreamedTransition(s *store.Store, status *store.FeatureStatus, info *confirmUpstreamedTransition) error {
+	priorOutcome := info.PriorOutcome
+	transition := store.ReconcileRevision{
+		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
+		FeatureSlug:         status.Slug,
+		EvidenceAttemptID:   info.ConsumedEntry.EvidenceAttemptID,
+		RawReconcileVerdict: string(priorOutcome),
+		ReviewVerdict:       store.ReviewVerdictConfirmed,
+		FinalFeatureState:   store.StateUpstreamMerged,
+		ActionTaken:         store.ReconcileActionConfirmedRetired,
+		ReasonCode:          "confirmed-via-review",
+		ValidationRefs: []store.ValidationRef{
+			{Kind: "upstream-commit", Value: info.UpstreamCommit, Result: "verified"},
+			{Kind: "source-revision", Value: info.ConsumedEntry.EntryID, Result: "consumed"},
+		},
+		SupersedesEntryID: info.ConsumedEntry.EntryID,
+	}
+	if transition.RawReconcileVerdict == "" {
+		transition.RawReconcileVerdict = string(store.ReconcileBlocked)
+	}
+	transition.EntryID = store.ComputeRevisionID(transition)
+	if err := store.AppendReconcileRevision(s, status.Slug, transition); err != nil {
+		return err
+	}
+	info.TransitionEntry = transition
+
+	status.Reconcile.Outcome = store.ReconcileUpstreamed
+	status.Reconcile.ReviewVerdict = "confirmed-upstreamed"
+	status.Reconcile.UpstreamCommit = info.UpstreamCommit
+	status.State = store.StateUpstreamMerged
+	status.LastCommand = "reconcile"
+	status.Notes = fmt.Sprintf("Feature adopted by upstream — confirmed via human review revision %s", info.ConsumedEntry.EntryID)
+	status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	return s.SaveFeatureStatus(*status)
+}
+
+// marshalReconcileResultMap round-trips a ReconcileResult through JSON
+// into a map so we can add review-path envelope fields without
+// widening the ReconcileResult struct.
+func marshalReconcileResultMap(result workflow.ReconcileResult) (map[string]any, error) {
+	data, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func runConfirmedUpstreamedRetirementAudit(s *store.Store, result *workflow.ReconcileResult) error {

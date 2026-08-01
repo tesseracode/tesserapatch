@@ -103,6 +103,14 @@ var requiredAnchors = []struct {
 	// strings are unique to Wave γ across all six surfaces.
 	{"session-local-capture/root", ".tpatch/local/capture/"},
 	{"session-local-capture/gitignore-rule", ".tpatch/local/"},
+	// PRD-multi-slug-reconcile-canonical-safety (v0.12.1, ADR-030):
+	// every shipped skill surface must mention `--cumulative-legacy`
+	// so harness agents learn (a) multi-slug reconcile uses each
+	// feature's canonical post-apply.patch by default, and (b) the
+	// pre-v0.12.1 cumulative-derivation branch is behind an explicit
+	// opt-in flag. Anti-drift lesson from Wave α rev-0 F-SEXT-2:
+	// schema/flag change and parity anchor land in the same commit.
+	{"multi-slug-reconcile/legacy-flag", "--cumulative-legacy"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching

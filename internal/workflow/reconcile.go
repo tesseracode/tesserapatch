@@ -107,6 +107,18 @@ type ReconcileOptions struct {
 	// MaxConflicts caps the number of conflicted files per feature.
 	// Zero uses workflow.DefaultMaxConflicts.
 	MaxConflicts int
+
+	// CumulativeLegacy opts into the pre-v0.12.1 cumulative-derivation
+	// path (ADR-030 D2 / PRD-multi-slug-reconcile-canonical-safety §4.2).
+	// When true, `deriveIncrementalPatches` runs on multi-slug
+	// invocations, `reconcileFeature` prefers `incremental.patch` over
+	// `post-apply.patch`, the ADR-011 D9 DAG-topological reorder is
+	// skipped (D8 / ADR-030 D6), and phase 1.5 patch-id detection is
+	// skipped with a note attached to each ReconcileResult (D9 /
+	// ADR-030 D7). When false (default), each feature's canonical
+	// `post-apply.patch` is authoritative and no `incremental.patch`
+	// artifact is written — matching INV-1/INV-2 of the PRD.
+	CumulativeLegacy bool
 }
 
 // RunReconcile reconciles features against the upstream ref.
@@ -176,12 +188,20 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	// (parents reconcile before children). When disabled, preserve the
 	// pre-M14.3 input order byte-for-byte. PlanReconcile rejects cycles
 	// and unknown slugs with descriptive errors.
-	if cfg, cerr := s.LoadConfig(); cerr == nil && cfg.DAGEnabled() {
-		ordered, perr := PlanReconcile(s, slugs)
-		if perr != nil {
-			return nil, fmt.Errorf("reconcile planning failed: %w", perr)
+	//
+	// PRD-multi-slug-reconcile-canonical-safety §4.8 D8 / ADR-030 D6:
+	// under --cumulative-legacy, the DAG-topological reorder is SKIPPED
+	// so `deriveIncrementalPatches` sees the caller's exact ordering
+	// (cumulative subtraction depends on `prevCumulative` being the
+	// previous slug in caller order, not an inferred hard-parent).
+	if !opts.CumulativeLegacy {
+		if cfg, cerr := s.LoadConfig(); cerr == nil && cfg.DAGEnabled() {
+			ordered, perr := PlanReconcile(s, slugs)
+			if perr != nil {
+				return nil, fmt.Errorf("reconcile planning failed: %w", perr)
+			}
+			slugs = ordered
 		}
-		slugs = ordered
 	}
 
 	// Resolve upstream commit
@@ -192,9 +212,13 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 
 	results := make([]ReconcileResult, 0, len(slugs))
 
-	// GAP 4: For multi-feature reconciliation, derive incremental patches.
-	// Each feature's patch should only contain ITS changes, not prior features'.
-	if len(slugs) > 1 {
+	// PRD-multi-slug-reconcile-canonical-safety §4.2 D2 / ADR-030 D1:
+	// cumulative delta derivation is default-OFF. Each feature's
+	// canonical `post-apply.patch` is authoritative in multi-slug
+	// reconcile (INV-1/INV-2). When --cumulative-legacy is set, the
+	// pre-v0.12.1 behavior is restored: derive per-slug incremental
+	// patches so reconcileFeature can consume `incremental.patch`.
+	if opts.CumulativeLegacy && len(slugs) > 1 {
 		deriveIncrementalPatches(s, slugs, upstreamCommit)
 	}
 
@@ -248,9 +272,24 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		return nil, err
 	}
 
-	// Load the recorded patch — prefer incremental patch if available (GAP 4)
-	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "incremental.patch"))
-	if err != nil {
+	// PRD-multi-slug-reconcile-canonical-safety §4.1 D1 / ADR-030 D1
+	// (INV-1/INV-2): canonical `post-apply.patch` is authoritative in
+	// the default multi-slug path — the incremental.patch sidecar is
+	// consulted ONLY when the operator opted into --cumulative-legacy.
+	// This makes single-slug and default-multi-slug reads
+	// byte-identical for the same feature.
+	var patch string
+	if opts.CumulativeLegacy {
+		// Legacy path: prefer incremental.patch (GAP 4 semantic).
+		patch, err = s.ReadFeatureFile(slug, filepath.Join("artifacts", "incremental.patch"))
+		if err != nil {
+			patch, err = s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+			if err != nil {
+				return nil, fmt.Errorf("no recorded patch for feature %q — run 'tpatch record' first", slug)
+			}
+		}
+	} else {
+		// Default path: canonical post-apply.patch is authoritative.
 		patch, err = s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 		if err != nil {
 			return nil, fmt.Errorf("no recorded patch for feature %q — run 'tpatch record' first", slug)
@@ -280,42 +319,54 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	// since-lock range. Default-OFF — flag-gated on
 	// Config.PatchIDDetectorEnabled so pre-M17 reconcile behaviour is
 	// byte-identical when the operator has not opted in.
-	if storeCfg, cerr := s.LoadConfig(); cerr == nil && storeCfg.PatchIDDetectorEnabled {
-		// Rev-1 (M17 Wave D): the detector MUST run against the
-		// canonical post-apply.patch (PRD-patch-already-upstream-detector
-		// §5.1). The legacy `patch` variable above prefers
-		// incremental.patch for multi-feature derivation (GAP 4); the
-		// incremental form may match a partial absorption that isn't a
-		// real merge, producing a false-positive retire path. Load
-		// canonical separately and fail-soft skip if it's missing.
-		canonical, canonErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
-		switch {
-		case canonErr != nil || strings.TrimSpace(canonical) == "":
-			result.Notes = append(result.Notes, "phase 1.5 skipped: no canonical post-apply.patch artifact")
-		default:
-			det := runPatchIDDetector(s, canonical, upstreamCommit, storeCfg.PatchIDScanLimit)
+	//
+	// PRD-multi-slug-reconcile-canonical-safety §4.9 D9 / ADR-030 D7:
+	// under --cumulative-legacy, phase 1.5 is skipped for the run and
+	// a note is attached to each ReconcileResult. The detector's
+	// canonical-load carve-out (rev-1 M17 Wave D) exists precisely
+	// because the derived incremental form produces false-positive
+	// retirements; under the legacy flag the whole pipeline is
+	// intentionally running on the derived form and mixing semantics
+	// is worse than skipping.
+	switch {
+	case opts.CumulativeLegacy:
+		result.Notes = append(result.Notes, "phase 1.5 skipped: --cumulative-legacy")
+	default:
+		if storeCfg, cerr := s.LoadConfig(); cerr == nil && storeCfg.PatchIDDetectorEnabled {
+			// The detector reads canonical `post-apply.patch` directly
+			// (PRD-patch-already-upstream-detector §5.1). In the
+			// default v0.12.1+ path, `patch` above is already canonical
+			// (INV-1), so this second read is a defense-in-depth
+			// invariant that survives future refactors.
+			canonical, canonErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 			switch {
-			case det.Match != nil:
-				result.Outcome = store.ReconcileUpstreamed
-				result.Phase = "phase-1.5-patch-id-match"
-				// PRD §3.1 step 6: UpstreamCommit becomes the matching SHA
-				// (the commit that absorbed the patch), not the upstream tip.
-				result.UpstreamCommit = det.Match.MatchedUpstreamSHA
-				result.PatchIDMatch = det.Match
-				note := fmt.Sprintf("Patch-id sweep matched upstream commit %s (scanned %d in %s)",
-					truncateCommit(det.Match.MatchedUpstreamSHA), det.Match.ScannedCount, det.Match.ScannedRange)
-				if len(det.Match.AdditionalMatches) > 0 {
-					note += fmt.Sprintf("; %d additional match(es)", len(det.Match.AdditionalMatches))
+			case canonErr != nil || strings.TrimSpace(canonical) == "":
+				result.Notes = append(result.Notes, "phase 1.5 skipped: no canonical post-apply.patch artifact")
+			default:
+				det := runPatchIDDetector(s, canonical, upstreamCommit, storeCfg.PatchIDScanLimit)
+				switch {
+				case det.Match != nil:
+					result.Outcome = store.ReconcileUpstreamed
+					result.Phase = "phase-1.5-patch-id-match"
+					// PRD §3.1 step 6: UpstreamCommit becomes the matching SHA
+					// (the commit that absorbed the patch), not the upstream tip.
+					result.UpstreamCommit = det.Match.MatchedUpstreamSHA
+					result.PatchIDMatch = det.Match
+					note := fmt.Sprintf("Patch-id sweep matched upstream commit %s (scanned %d in %s)",
+						truncateCommit(det.Match.MatchedUpstreamSHA), det.Match.ScannedCount, det.Match.ScannedRange)
+					if len(det.Match.AdditionalMatches) > 0 {
+						note += fmt.Sprintf("; %d additional match(es)", len(det.Match.AdditionalMatches))
+					}
+					result.Notes = append(result.Notes, note)
+					saveReconcileArtifacts(s, slug, result)
+					updateFeatureState(s, slug, result)
+					return result, nil
+				case det.Skipped:
+					// Fail-soft (PRD §5.1): never treat tooling failure as a
+					// no-match verdict. Surface a single audit note and fall
+					// through to phase 2.
+					result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
 				}
-				result.Notes = append(result.Notes, note)
-				saveReconcileArtifacts(s, slug, result)
-				updateFeatureState(s, slug, result)
-				return result, nil
-			case det.Skipped:
-				// Fail-soft (PRD §5.1): never treat tooling failure as a
-				// no-match verdict. Surface a single audit note and fall
-				// through to phase 2.
-				result.Notes = append(result.Notes, "phase 1.5 skipped: "+det.SkipReason)
 			}
 		}
 	}
