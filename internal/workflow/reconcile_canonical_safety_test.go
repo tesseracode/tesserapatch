@@ -303,6 +303,75 @@ func seedPatchGenerations(t *testing.T, s *store.Store, slug, patch string, touc
 	}
 }
 
+// TestMigrationHint_FiresOnOverlap_WhenReconcileFeatureErrors covers the
+// v0.12.1 rev-1 external N1 gap: when reconcileFeature returns
+// err != nil (e.g. missing post-apply.patch) instead of a *populated*
+// blocked ReconcileResult, the D10 diagnostic must still fire under
+// the same overlap-on-touched_paths condition. Prior to the N1 fix
+// the err branch skipped maybeEmitMigrationHint entirely and the
+// operator never saw the --cumulative-legacy suggestion despite the
+// upstream cumulative shape being obvious in the manifests.
+func TestMigrationHint_FiresOnOverlap_WhenReconcileFeatureErrors(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A: full canonical patch + applied. Touches foo.txt.
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "A", Request: "A"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkFeatureState("a", store.StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+	patchA := canonicalIndependentPatch("foo.txt", "hello-a")
+	if err := s.WriteArtifact("a", "post-apply.patch", patchA); err != nil {
+		t.Fatal(err)
+	}
+	seedPatchGenerations(t, s, "a", patchA, []string{"foo.txt"})
+
+	// B: applied state exists but NO post-apply.patch is written.
+	// reconcileFeature will return the "no recorded patch" error for
+	// this slug, exercising the err != nil branch. touched_paths in
+	// the manifest is a superset of A's (cumulative shape A ⊆ B).
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "B", Request: "B"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkFeatureState("b", store.StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+	// Seed a patch-generations.json for B using an arbitrary patch
+	// body (the D10 check only inspects touched_paths, not the patch
+	// contents). We intentionally do NOT WriteArtifact post-apply.patch.
+	patchBSeed := canonicalIndependentPatch("bar.txt", "hello-b")
+	seedPatchGenerations(t, s, "b", patchBSeed, []string{"bar.txt", "foo.txt"})
+
+	orig := migrationDiagHintWriter
+	buf := &bytes.Buffer{}
+	migrationDiagHintWriter = buf
+	t.Cleanup(func() { migrationDiagHintWriter = orig })
+
+	results, err := RunReconcile(context.Background(), s, []string{"a", "b"}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Sanity: b must land as a blocked "error" entry (the err branch).
+	var sawErrorB bool
+	for _, r := range results {
+		if r.Slug == "b" && r.Phase == "error" {
+			sawErrorB = true
+			break
+		}
+	}
+	if !sawErrorB {
+		t.Fatalf("expected slug b to surface as phase=error (err branch), got results=%+v", results)
+	}
+	if !strings.Contains(buf.String(), "hint: prior features may have been recorded cumulatively; retry with --cumulative-legacy (see ADR-030)") {
+		t.Errorf("N1 regression: expected D10 hint to fire on err branch when earlier slug touched a subset, got:\n%s", buf.String())
+	}
+}
+
 // Ensure io is used even when the file only references it via other
 // helpers indirectly (avoids the unused-import lint on some
 // go-test-invocation shapes). The bytes buffer above uses io.Writer.

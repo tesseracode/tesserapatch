@@ -241,6 +241,16 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 				UpstreamCommit: upstreamCommit,
 				Notes:          []string{fmt.Sprintf("Error: %v", err)},
 			})
+			// v0.12.1 rev-1 external N1: hard errors from
+			// reconcileFeature still count as a non-success phase-1
+			// outcome for D10 diagnosis. Emit the hint under the
+			// same overlap-on-touched_paths condition so operators
+			// see the --cumulative-legacy suggestion even when the
+			// per-slug failure surfaces as an error rather than a
+			// blocked ReconcileResult.
+			if !opts.CumulativeLegacy && i > 0 {
+				maybeEmitMigrationHint(s, slugs[:i], slug)
+			}
 			continue
 		}
 		// v0.12.0 Wave α: prepend a historical-feature warning note
