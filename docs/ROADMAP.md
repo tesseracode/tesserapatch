@@ -549,6 +549,27 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## v0.12.1 — 2026-07-31 — correctness fix pass (GH #3 + #4 + #5) ✅ SHIPPED
+
+Post-v0.12.0 bug-fix cluster bundling three independent correctness findings:
+
+- **GH #5 — `tpatch record` transactional round-trip validation.** Pre-fix, a round-trip failure printed a warning but exited 0 and mutated feature metadata. Fixed by hoisting `gitutil.ValidatePatchReverse` above the first `s.WriteArtifact`; on failure without `--lenient`, exit non-zero with a range-mode hint and no mutation. `--lenient` semantics unchanged. Regression: `TestRecordRoundTripFailure_Transactional` + `TestRecordRoundTripFailure_LenientPreserved` + `TestRecordRoundTripFailure_DefaultWorkingTree_Transactional` (rev-1 fold added the default-WT coverage).
+
+- **GH #3 — multi-slug reconcile canonical safety.** Pre-fix, `reconcile A B C` derived incremental patches by subtracting previous cumulative canonicals, which cross-contaminated later features when canonicals were independent (scoped/claims/`tpatch land` era). Fixed per [`PRD-multi-slug-reconcile-canonical-safety`](prds/PRD-multi-slug-reconcile-canonical-safety.md) + [`ADR-030-multi-slug-reconcile-derivation-mode`](adrs/ADR-030-multi-slug-reconcile-derivation-mode.md): default OFF cumulative derivation (each slug uses its canonical `post-apply.patch` as-is); `--cumulative-legacy` opt-in re-enables the legacy path with `--exclude=.git` + residual-stanza filter + store-boundary refusal. `.git/**` never enters a feature patch (D4 diff-boundary + D5 store-boundary, defense-in-depth). D6/D7 flag propagation: DAG reorder (ADR-011 D9) and phase 1.5 canonical-reload (M17 Wave D) both skipped under `--cumulative-legacy`. D10 migration diagnostic emits an actionable hint when the default path hits phase-1 failure with prior-slug `touched_paths` intersection (rev-1 extended to the `reconcileFeature` err-return branch).
+
+- **GH #4 — `tpatch reconcile confirm-upstreamed` gains a human-review path** per [`PRD-confirm-upstreamed-human-review-path`](prds/PRD-confirm-upstreamed-human-review-path.md). See CHANGELOG for the full contract; two-tier reachability (preferred `Reconcile.UpstreamRef` / `@{upstream}`, HEAD-ancestry fall-back with residual-risk warning), 5-row supersession safety matrix, superseding transition revision, retirement audit invocation preserved.
+
+**Cluster arc**: rev-0 dispatch → three parallel implementers → six-reviewer dual pass (2 per PRD/ticket) → seven rev-1 findings folded (1 HIGH paperwork, 1 MEDIUM byte-identity, 1 near-blocking wording, 1 real tie-break correctness bug, 3 LOW hardening) → rev-1 dual confirmation three-way APPROVED.
+
+**Two-opinion protocol scoreboard**: 30/32 across this cluster. Rev-0 external reviewers caught 4 findings internal missed (PRD-#4 F1 warning wording, PRD-#4 F2 tie-break bug, PRD-#3 external N1 D10 gap, GH #5 NB-1 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH trailer parse failure that external didn't. Protocol pulled its weight.
+
+**Cross-implementer entanglement postmortem**: parallel implementers on shared `internal/cli/cobra.go` produced commit `d930963` (labeled PRD-#3 Slice 1+2) that also captured PRD-#4's `reconcileConfirmUpstreamedCmd` changes via a `git commit -a` sweep. Reviewers were briefed to scope by function/helper name, not commit boundary. Deferred to Cluster A's follow-up: parallel implementers should stage via `git add <path>` per-PRD and never `git commit -a` when a worktree hosts multiple concurrent implementers.
+
+- **GH #3 — Wave A — canonical safety** ✅ ACCEPTED (three-way APPROVED rev-1 2026-07-31). Range: `d930963` (Slice 1+2 — cross-contaminated with PRD-#4) → `2bb3532` (Slice 3 `.git/**` guards) → `ba3b3b3` (Slice 4 D10, rewritten from `2934521` for trailer fix) → `84485c9` (Slice 5 status flips, rewritten from `6facb68`) → `9ea680a` (rev-1 N1).
+- **GH #4 — Wave B — confirm-upstreamed human review** ✅ ACCEPTED (three-way APPROVED rev-1 2026-07-31). Range: `d930963` production + `52f0f70` tests → `061acea` (rev-1 F-1 + F1 + F2 + F-2).
+- **GH #5 — Wave C — record transactional** ✅ ACCEPTED (three-way APPROVED rev-1 2026-07-31). Range: `cebc6b6` → `adb6ba3` (rev-1 NB-1 + NB-2).
+- Test count 907 top-level PASS (v0.12.0 baseline 877 + 30 across cluster).
+
 ## v0.12.0 — 2026-07-31 — feature supersession + write-file safety + active-feature-session ✅ SHIPPED
 
 Post-planning implementation cluster for GH #1 + ADR-027 F3, executed

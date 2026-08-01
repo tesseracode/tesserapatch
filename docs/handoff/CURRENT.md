@@ -2,47 +2,58 @@
 
 ## Status
 
-Cluster B (v0.12.1 correctness fix pass) — **planning phase THREE-WAY APPROVED**. PRD-#3 (multi-slug reconcile canonical safety, PRD + ADR-030) and PRD-#4 (confirm-upstreamed human review path) drafted, dual-reviewed in parallel (4 reviewers), rev-1 folded 12 findings, rev-1 confirmed with one in-place traceability nit fixed. Both remain `Proposed` — status flip on implementation acceptance. Ready to dispatch implementers.
+**v0.12.1 SHIPPED 2026-07-31.** Correctness fix pass (GH #3 + #4 + #5) three-way APPROVED at rev-1 across all three tickets. Cluster A (AGENTS.md wave-close checklist) shipped earlier same day. All work pushed to `origin/main`. v0.12.1 tag pushed.
+
+Awaiting next milestone selection.
 
 ## Active Task
 
-**Cluster B — v0.12.1 correctness fix pass implementation** (dispatch imminent):
-
-- **PRD-#3 implementer**: multi-slug reconcile canonical safety. Option A (default OFF derivation + `--cumulative-legacy` opt-in) + `.git/**` diff/store boundary exclusion + migration diagnostic D10.
-- **PRD-#4 implementer**: `confirm-upstreamed` human review path. D1 (extend command with `--upstream-commit` + `--from-revision`, consume review revision, mutate state, append superseding transition). Two-tier reachability contract (`UpstreamRef` preferred, HEAD-ancestry fall-back with warning).
-- **GH #5 implementer**: record round-trip transactional invariant. No PRD — direct code fix. Failure exits non-zero + feature dir byte-identical + no success message.
+**None.** v0.12.0 + Cluster A + v0.12.1 all shipped, tagged, and pushed. Next cluster TBD per user selection from the deferred backlog.
 
 ## Session Summary
 
-- Wave α (supersession): three-way APPROVED rev-1 at `e5e0091`, consolidated `a05a918`.
-- Wave β (write-file safety): three-way APPROVED rev-1 at `63d8650`, user-external fold-in (F1 MEDIUM V0-V9 stale, F2 LOW, F-INT-β-r1-1 LOW) at consolidation `561e6de`.
-- Wave γ (active-feature-session): rev-0 dual SPLIT (external BLOCK vs internal APPROVED-WITH-NOTES, zero overlap), supervisor sided external; rev-1 folded 10 findings, dual SPLIT AGAIN (external NEW Critical F-EXT-γ-1 residual on SaveContextSummary ordering); rev-1.5 targeted preflight amendment at `274fbb6`, three-way concurrent APPROVED at `87648a6`, user-external APPROVED with F1 LOW (unpushed backlog).
-- v0.12.0 CHANGELOG dated, ROADMAP flipped ✅, Wave γ archived to HISTORY, tagged and pushed.
+- **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped at `de7d573`, tagged `v0.12.0`.
+- **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`, single-turn implement + dual-review.
+- **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`, three-way APPROVED paper.
+- **v0.12.1 implementation** (GH #3 + #4 + #5 correctness fix pass) — rev-0 3 parallel implementers, 6-reviewer dual pass, rev-1 fold 7 findings, rev-1 dual confirmation three-way APPROVED at `adb6ba3`. Consolidation at HEAD.
 
-## Files Changed at Consolidation
+## Files Changed at v0.12.1 Consolidation
 
-- `CHANGELOG.md`: v0.12.0 header dated + Wave γ rev-1.5 amendment subsection.
-- `docs/ROADMAP.md`: v0.12.0 status ✅ SHIPPED; Wave γ status ✅ ACCEPTED with rev-1.5 close narrative + commit ranges.
-- `docs/handoff/HISTORY.md`: Wave γ archived (18 commits, ~5,600 lines, three-round arc).
+- `CHANGELOG.md`: v0.12.1 header dated 2026-07-31; GH #4 review-path subsection added; rev-1 fold-in subsection appended.
+- `docs/ROADMAP.md`: v0.12.1 ✅ SHIPPED section added above v0.12.0.
+- `docs/prds/PRD-confirm-upstreamed-human-review-path.md`: Status `Proposed` → `Accepted`.
+- `docs/handoff/HISTORY.md`: v0.12.1 archived under 2026-07-31 header.
 - `docs/handoff/CURRENT.md`: reset (this file).
 
 ## Test Results
 
 - `gofmt -l .` empty; `go vet ./...` clean; `go build ./cmd/tpatch` OK.
-- `go test ./...` 877 top-level PASS + 217 subtests (0 FAIL). Rev-1.5 baseline established.
-- Wave α + β non-invalidation: empty diff on 5 guarded files across the wave.
+- `go test ./...` 907 top-level PASS + subtests (0 FAIL).
+- Wave α + β + γ non-invalidation: empty diff on 5 guarded files at v0.12.1 consolidation.
 - Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. **Deferred to next cluster / post-v0.12.0**:
-   - AGENTS.md wave-close checklist amendment (Status flip + push discipline). F1 LOW recurring across Streams A+B + Wave α + β + γ.
-   - LOW-γr15-N1: `--json --write` D6 refusal plaintext → JSON envelope (Wave δ candidate).
-   - ADR-027 F2 (nit): capture-context privacy boundary language refinement.
-   - Doctor S3-boundary deferrals (from Wave β).
-   - ADR-029 nit deferrals.
+**Backlog (deferred from v0.12.1)**:
 
-2. **Next cluster selection**: Await user direction. Candidate roadmap items — reconcile safety WP-003 middle-pass, new feature per GH issues, or the AGENTS.md hygiene amendment cluster.
+Code / feature:
+- **GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger cluster, planning-first. Related to GH #4 (both terminal transitions with evidence contracts).
+- **PRD-#3 N2** — D10 fallback when `patch-generations.json` absent (pre-ADR-024 features): parse touched_paths from `post-apply.patch` header lines.
+- **PRD-#3 N3** — dedupe migration hint per multi-slug run (currently prints per-slug).
+- **PRD-#3 S1** — legacy mode stderr note when patch-id detector is silenced by `--cumulative-legacy`.
+- **PRD-#4 F-4** — crash-recovery idempotency guard for `applyConfirmUpstreamedTransition` (append-then-save asymmetry).
+- **PRD-#4 F-3 process fix** — parallel implementer git-add discipline (see Cluster A entanglement postmortem below).
+- **GH #5 fast-path follow-up** — the fast-path JSON now returns strictly less data than `status.json` for review-path-confirmed features (accepted tradeoff per AC-2). Consumer docs should call this out; consider a `--full` flag if operator friction surfaces.
+
+Process / hygiene:
+- **AGENTS.md parallel-implementer discipline addendum** — codify "stage via `git add <path>` per PRD; never `git commit -a` when a worktree hosts concurrent implementers." Cross-implementer entanglement caught 3 times in v0.12.1 (`d930963` conflating PRD-#3 + PRD-#4 code; GH #5 impl caught + split its own commit). Post-mortem candidate for a Cluster A follow-up amendment.
+- **Mechanical Wave-Close Checklist gate** — `make wave-close-check` guard from Cluster A fresh-eyes challenge #2 (still deferred; elevates the checklist from soft to hard enforcement).
+
+Documentation:
+- **LOW-γr15-N1** (from Wave γ rev-1.5): `--json --write` D6 refusal emits plaintext not JSON envelope.
+- **ADR-027 F2** (nit).
+- **Doctor S3-boundary deferrals** (from Wave β).
+- **ADR-029 nit deferrals**.
 
 ## Blockers
 
@@ -50,12 +61,12 @@ None.
 
 ## Context for Next Agent
 
-- **v0.12.0 SHIPPED** at HEAD after this consolidation. Do NOT re-open Wave α/β/γ scope.
-- **Two-opinion protocol proven load-bearing** — Wave γ produced two real BLOCK-caliber external catches (rev-0 D6 writer-scope, rev-1 SaveContextSummary ordering) where internal reviewers APPROVED. Continue the dual-review protocol for future clusters.
-- **Recurring F1 LOW pattern**: handoff Status flip + push discipline. Every wave user-external raised this. Amend AGENTS.md wave-close checklist as first post-v0.12.0 task.
-- **20 binding carry-forward rules** unchanged; extension pattern from Wave β rev-1 (detached-worktree pre-fix compile-fail check on new symbols) has been documented as Rule 20 extension in Wave γ rev-1.5 empirical confirmation record.
+- **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
+- **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
+- **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.
+- **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
-- **Commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim + `Copilot-Session: <session-id>` per session.
+- **Commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim + `Copilot-Session: <session-id>` per session. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body).
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

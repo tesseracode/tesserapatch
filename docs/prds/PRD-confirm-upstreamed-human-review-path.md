@@ -1,6 +1,6 @@
 # PRD - Confirm-Upstreamed Human Review Path
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-07-31
 **Owner**: Core
 **Byline**: GH #4 drafter (session `ded62f1e`)

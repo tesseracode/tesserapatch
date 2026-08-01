@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.12.1 — TBD — correctness fix pass
+## v0.12.1 — 2026-07-31 — correctness fix pass
 
 ### GH #5 — `tpatch record` is now transactional against round-trip validation failure
 
@@ -98,6 +98,76 @@ All notable changes to tpatch are recorded here.
   attach in the slug loop.
 - Related: PRD-multi-slug-reconcile-canonical-safety (Accepted),
   ADR-030-multi-slug-reconcile-derivation-mode (Accepted).
+
+### GH #4 — `tpatch reconcile confirm-upstreamed` gains a human-review path
+
+- `confirm-upstreamed` extended with `--upstream-commit <sha>` (required
+  on the review path) and optional `--from-revision <entry-id>`. The
+  v0.11 fast path (when `Reconcile.Outcome == ReconcileUpstreamed`) is
+  preserved byte-identically — the same JSON, human output, and exit
+  code as before. See PRD-confirm-upstreamed-human-review-path §4 D1 and
+  §5 state-table.
+- Human-review path resolves the latest non-superseded review revision
+  matching tuple `(verdict=confirmed, action=confirmed-retired,
+  final_state=upstream_merged)`, validates the supplied sha's
+  reachability under a two-tier contract (PRD §7.1):
+  (1) preferred — resolve `status.Reconcile.UpstreamRef` if set, else
+  `git rev-parse @{upstream}`; verify ancestry against the resolved ref;
+  (2) fall-back — HEAD-ancestry with a residual-risk warning naming the
+  threat model verbatim from the PRD exemplar: *"Local operators can
+  insert commits into HEAD's ancestry without upstream ever seeing them
+  — audit before relying on this transition."*
+- State mutation on the review path is atomic-in-memory then persisted:
+  sets `status.State = StateUpstreamMerged`, `Reconcile.Outcome =
+  ReconcileUpstreamed`, `ReviewVerdict = confirmed-upstreamed`,
+  `Reconcile.UpstreamCommit = <sha>`, and appends a superseding
+  transition revision with `SupersedesEntryID = <consumed-entry-ID>`.
+  `ValidationRefs` follows the `Kind: "upstream-commit"` precedent from
+  `internal/workflow/reconcile.go:1001-1003` and adds a
+  `Kind: "source-revision"` back-link to the consumed entry.
+- Fast-path entry invariant (PRD §5 rev-1): the fast path MUST refuse
+  with a clear error if `status.State != StateUpstreamMerged` on entry —
+  guards against a contract regression from a shipped path silently
+  bypassing the state check.
+- Supersession safety (PRD §7.4 5-row matrix): target `applied`+healthy,
+  `applied`+stale `satisfied_by`, `promoted`+not-closed, and `blocked`
+  all refuse. Only `upstream_merged` proceeds. Any state not enumerated
+  refuses (safe default).
+- Tie-break (PRD §4 D4 rev-1): when multiple non-superseded entries
+  survive dedup and match the authorising tuple with no `--from-revision`,
+  select the last-in-file-order entry (`RevisionLog.Entries[-1]`).
+  Implementation reverse-walks the original `entries` slice filtered by
+  a survivors set from `latestRevisionEntries` — closes the F2 tie-break
+  bug caught at rev-0 dual review where the in-place dedup would silently
+  return the wrong entry when two authorising entries had distinct
+  `EvidenceAttemptID`s.
+- Retirement audit runs on both paths (`AppendRetirementCleanupRevisions`
+  at `internal/workflow/retirement_audit.go:147`). Audit predicate
+  (`ActionTaken == confirmed-retired` at `retirement_audit.go:71-82`) is
+  satisfied by both the consumed and the transition revisions.
+- Related: PRD-confirm-upstreamed-human-review-path (Accepted).
+
+#### v0.12.1 rev-1 fold-in
+
+Rev-0 dual-reviews across three tickets (GH #5, PRD-#3, PRD-#4) folded
+nine findings at rev-1: GH #5 NB-1 (hint text mislabels `--auto`) +
+NB-2 (default working-tree regression gap); PRD-#3 F-INT-3-1 HIGH
+(Rule 18 trailer parse failed on Slice 4/5 due to `EOF)` heredoc leak
+— fixed via `git rebase -i` reword, preserving tree SHAs byte-
+identically) + external N1 (D10 hint skipped on `reconcileFeature` hard-
+error return, 3-line fix + regression); PRD-#4 F-1 MEDIUM (fast-path
+`ReconcileResult` JSON emitted `upstream_ref`/`upstream_commit` on
+populated features, breaking AC-2 byte-identity — reverted to pre-
+PRD-#4 shape, review path unaffected) + external F1 (HEAD-fallback
+warning wording softer than PRD §7.1 exemplar — rewritten to match
+verbatim) + external F2 real correctness bug (tie-break returned wrong
+entry due to `latestRevisionEntries` in-place dedup) + F-2 (transition
+determinism test was hash-of-self tautology — strengthened to cross-
+compare EntryIDs across two isolated fixtures). Deferred non-blocking:
+PRD-#3 N2/N3/S1/S2 (dedupe hint, sunset UX, pre-ADR-024 fallback,
+hint text opacity); PRD-#4 F-3 (cross-implementer entanglement,
+process feedback) + F-4 (crash-recovery idempotency). Rev-1 dual
+confirmation: three-way concurrence.
 
 ## v0.12.0 — 2026-07-31 — feature supersession (Wave α) + write-file recipe safety (Wave β) + active feature sessions (Wave γ)
 

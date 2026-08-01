@@ -1,3 +1,66 @@
+## 2026-07-31 — v0.12.1 correctness fix pass — THREE-WAY APPROVED — SHIPPED
+
+**Scope**: post-v0.12.0 correctness cluster bundling GH #3 (multi-slug reconcile canonical safety), GH #4 (confirm-upstreamed human-review path), GH #5 (record round-trip transactional invariant). Planning phase (Cluster B PRDs) shipped earlier same day at `4e673a8`.
+
+### Implementation dispatch (parallel, rev-0)
+
+Three implementers dispatched simultaneously per user selection. Result:
+- **GH #5** at `cebc6b6`: clean single-commit fix. Chose Pattern A (pre-validate then write) via `gitutil.ValidatePatchReverse` hoist above `s.WriteArtifact`. Regression + `--lenient` preservation tests.
+- **PRD-#3** at `d930963` (Slice 1+2 bundle) → `2bb3532` (Slice 3 `.git/**` boundaries) → `2934521` (Slice 4 D10 diagnostic) → `6facb68` (Slice 5 status flips). 4 commits.
+- **PRD-#4** at `52f0f70` (test-only). Production code CROSS-CONTAMINATED into `d930963` via a `git commit -a` sweep in shared cobra.go.
+
+**Cross-implementer entanglement postmortem**: parallel implementers on shared `internal/cli/cobra.go` produced a mixed commit. GH #5 implementer independently caught the same pattern and split via `git reset --soft`, but PRD-#4's changes couldn't be untangled after PRD-#3's commit already claimed the diff. Deferred to Cluster A follow-up amendment: mandate `git add <path>` per-PRD.
+
+### Rev-0 dual review (6 parallel reviewers)
+
+- **GH #5 internal**: APPROVED. Empirical repro confirms transactional invariant + `--lenient` preserved.
+- **GH #5 external**: APPROVED WITH NOTES. NB-1 (hint mislabels `--auto`) + NB-2 (default WT path lacks regression test).
+- **PRD-#3 internal**: APPROVED WITH NOTES. **F-INT-3-1 HIGH** — Slice 4 + Slice 5 commit bodies contain literal `EOF\n)` heredoc leak after `Co-authored-by:`, breaking `git log --format='%(trailers)'` parse. Rule 18 empirical failure. F-INT-3-2 (entanglement) noted non-blocking per brief.
+- **PRD-#3 external**: APPROVED WITH NOTES. N1 (D10 hint skipped on `reconcileFeature` hard-error return — the ADR-024-missing-manifest failure class is the exact one D10 would help). N2/N3/S1/S2 deferred.
+- **PRD-#4 internal**: APPROVED WITH NOTES. **F-1 MEDIUM** — fast-path `ReconcileResult` JSON emits `upstream_ref`/`upstream_commit` on populated features, breaking AC-2 byte-identity contract. F-2/F-3/F-4 LOW (test tautology, entanglement, crash-recovery observation).
+- **PRD-#4 external**: APPROVED WITH NOTES. **F1 near-blocking** — HEAD-fallback warning wording softer than PRD §7.1 exemplar (missing threat model + audit action). **F2 real correctness bug** — `latestRevisionEntries` in-place dedup breaks last-in-file-order tie-break rule silently; A(x1)/B(x2)/C(x1) authorising scenario returns B when PRD mandates C.
+
+Two-opinion protocol earned its cost: 4 external-only catches (PRD-#4 F1 wording + F2 tie-break bug, PRD-#3 N1 err-branch, GH #5 NB-1 mislabel); 1 internal-only catch (PRD-#3 F-INT-3-1 HIGH trailer parse).
+
+### Rev-1 fold-in (`9ea680a` + `061acea` + `adb6ba3`)
+
+Seven findings folded (7 in-scope): all rev-0 findings above except deferred low/observations. Two additional commit rewrites for the trailer HIGH: `2934521` → `ba3b3b3` and `6facb68` → `84485c9` via `git rebase -i` reword (tree SHAs byte-identical, only commit-message deltas).
+
+Fold decisions:
+- **F-1**: chose to REVERT fast-path struct init to pre-PRD-#4 shape (omit UpstreamRef/UpstreamCommit) preserving AC-2 byte-identity. Consumer tradeoff (fast path now returns less info than status.json contains) documented in CHANGELOG. Alternative — accept new fields, strengthen golden — rejected because AC-2 was explicit contract.
+- **F2 tie-break**: reselect by reverse-walking `entries` filtered by `survivors` set from `latestRevisionEntries`. All enumerated cases pass (0/1/many auth, same-key dedup, superseded, `--from-revision` override).
+- **F1 wording**: rewritten verbatim from PRD §7.1 exemplar (`"Local operators can insert commits into HEAD's ancestry without upstream ever seeing them — audit before relying on this transition."`).
+
+### Rev-1 confirmation dual review
+
+- **Internal**: APPROVED. All 7 findings CLOSED. Trailer parse passes on all 9 commits in `4e673a8..adb6ba3`. Gates green.
+- **External / fresh-eyes**: APPROVED WITH NOTES. All 6 adversarial challenges resolved in favor of the fold. Rebase-reword integrity verified: `git rev-parse 2934521^{tree} == ba3b3b3^{tree}` and `6facb68^{tree} == 84485c9^{tree}` (byte-identical trees, only commit-message deltas). One non-blocking design note: fast-path JSON now returns less info than `status.json` for review-path-confirmed features (accepted AC-2 tradeoff, documented in CHANGELOG).
+
+**Three-way concurrence achieved.**
+
+### Consolidation (this commit)
+
+- CHANGELOG: v0.12.1 dated 2026-07-31; new GH #4 review-path subsection added; rev-1 fold-in subsection appended below GH #3.
+- ROADMAP: v0.12.1 ✅ SHIPPED section added above v0.12.0.
+- PRD-confirm-upstreamed-human-review-path: Status `Proposed` → `Accepted`.
+- HISTORY: v0.12.1 archived under 2026-07-31 header.
+- CURRENT.md: reset to idle-post-ship state. Side Research md5 preserved.
+
+### Two-opinion protocol scoreboard (session-wide)
+
+30/32 across the full v0.12.0 + Cluster A + v0.12.1 arc. Every wave produced at least one real BLOCK-caliber external catch where internal APPROVED. Protocol paid its rent consistently. Wave γ (v0.12.0) and PRD-#4 (v0.12.1) both produced correctness bugs external caught that internal audits missed — the exact class the two-opinion protocol exists to detect.
+
+### Wave-Close Checklist (v0.12.1 close)
+
+- [x] Handoff Status flipped to SHIPPED.
+- [x] Supervisor LOG prepended (this entry).
+- [x] ROADMAP flipped ✅.
+- [x] HISTORY archive appended.
+- [x] Push + tag: `git tag -a v0.12.1` then `git push origin main && git push origin v0.12.1` (per Cluster A checklist).
+- [x] Non-invalidation confirmed empty at close commit.
+
+### Verdict: SHIPPED.
+
 ## 2026-07-31 — Cluster B PRD-#3 + PRD-#4 dual-review rev-1 confirmed — THREE-WAY APPROVED (paper)
 
 **Scope**: parallel planning phase for v0.12.1 correctness fix pass. Drafted GH #3 (multi-slug reconcile canonical safety, PRD + ADR-030) and GH #4 (confirm-upstreamed human review path, PRD only) mirroring the Streams A+B rhythm.
