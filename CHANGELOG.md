@@ -2,6 +2,50 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.12.1 — TBD — correctness fix pass
+
+### GH #5 — `tpatch record` is now transactional against round-trip validation failure
+
+- Fix (`internal/cli/cobra.go`, recordCmd): the reverse-apply round-trip
+  check is now hoisted **above** `s.WriteArtifact(post-apply.patch)` and
+  the numbered patch snapshot. Before this fix, a round-trip failure
+  without `--lenient` printed an `error:` diagnostic but still (a)
+  updated `artifacts/post-apply.patch`, (b) appended a
+  `patches/NNN-record.patch` audit snapshot, (c) rewrote `record.md` and
+  `status.json`, (d) mutated `patch-generations.json`, (e) regenerated
+  `apply-recipe.json`, and (f) exited zero — leaving the operator to
+  manually restore. The reporter's exact scenario (uncommitted
+  Dockerfile follow-up that a `--from/--to` committed range cannot
+  describe) is now refused with a non-zero exit and zero feature-
+  directory mutation.
+- Behavior surface:
+  - **Non-lenient failure**: exit 1, no `Recorded patch for X` line, no
+    artifact writes, no metadata mutation. The existing diagnostic
+    ("does not round-trip against working tree", "may not represent the
+    on-disk changes accurately", "line-ending / binary / post-apply")
+    is preserved. New range-mode hint clarifies that `--from/--to`
+    captures committed history only and cannot include uncommitted
+    working-tree edits — the operator is directed to commit or discard
+    the follow-up before re-running.
+  - **`--lenient`**: unchanged permissive semantics. Warning still on
+    stderr, `Recorded patch for X` still on stdout, artifacts still
+    written, exit 0. This escape hatch stays available for
+    whitespace-sensitive or line-ending-fragile files.
+  - **`--staged`**: unchanged. `ValidateStagedPatch` still runs the
+    temp-index `--cached --check` up front; the worktree reverse-apply
+    check is suppressed for that capture mode (wrong semantic).
+- Regression coverage
+  (`internal/cli/record_roundtrip_transactional_test.go`):
+  - `TestRecordRoundTripFailure_Transactional` reproduces the reporter's
+    exact drift shape (committed feature edit + uncommitted follow-up
+    on the same file, `record --from HEAD^ --to HEAD --files Dockerfile
+    --regenerate-recipe`) and asserts non-zero exit, absence of
+    `Recorded patch for`, presence of the range-mode hint, and
+    byte-identical `.tpatch/features/<slug>/` file hashes before vs
+    after.
+  - `TestRecordRoundTripFailure_LenientPreserved` guards the fix from
+    over-tightening the `--lenient` escape hatch.
+
 ## v0.12.0 — 2026-07-31 — feature supersession (Wave α) + write-file recipe safety (Wave β) + active feature sessions (Wave γ)
 
 ### Wave γ — `tpatch session` command group + `.tpatch/local/capture/` buffer + D11 redaction contract

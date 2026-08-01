@@ -1355,6 +1355,45 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				}
 			}
 
+			// GH #5 (v0.12.1): round-trip validation must run BEFORE
+			// any artifact write so a failure without --lenient leaves
+			// the feature directory byte-identical to its pre-command
+			// state. Historically this check ran AFTER post-apply.patch
+			// and patches/NNN-record.patch had already been written, so
+			// a failed round-trip printed a warning but still mutated
+			// record.md / status.json / patch-generations / recipe and
+			// exited zero. See PRD-record-roundtrip-transactional.
+			//
+			// Semantics:
+			//   --lenient  → warn on stderr, continue with writes
+			//               (unchanged from pre-fix behavior).
+			//   --staged   → ValidateStagedPatch already ran up top;
+			//               the worktree reverse-apply check is the
+			//               wrong validation for that capture mode.
+			//   default    → reverse-apply against the working tree;
+			//               refuse (exit non-zero, no writes) on
+			//               failure.
+			lenient, _ := cmd.Flags().GetBool("lenient")
+			switch {
+			case lenient:
+				fmt.Fprintln(cmd.ErrOrStderr(), "warning: --lenient: skipping patch round-trip validation")
+			case stagedFlag:
+				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: applies cleanly against temp index seeded from HEAD\n")
+			default:
+				if valErr := gitutil.ValidatePatchReverse(s.Root, patch); valErr != nil {
+					w := cmd.ErrOrStderr()
+					fmt.Fprintf(w, "error: %v\n", valErr)
+					fmt.Fprintf(w, "  The recorded patch may not represent the on-disk changes accurately.\n")
+					fmt.Fprintf(w, "  Common causes: line-ending differences, binary files without --binary, or post-apply edits.\n")
+					if rangeMode {
+						fmt.Fprintf(w, "  hint: --from/--to captures committed history only and cannot include uncommitted working-tree edits; commit the follow-up edits (or discard them) before re-running.\n")
+					}
+					fmt.Fprintf(w, "  To bypass this check (not recommended for source patches), rerun with --lenient.\n")
+					return fmt.Errorf("record refuses: patch does not round-trip against working tree without --lenient")
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: round-trips cleanly against working tree\n")
+			}
+
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 				return err
@@ -1385,34 +1424,12 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				}
 			}
 
-			// Automated patch validation. At record-time the working
-			// tree already contains the patch, so a forward `git apply
-			// --check` would always fail (cannot apply something that
-			// is already present). The correct semantic here is
-			// reverse-apply: prove the recorded patch round-trips
-			// against the tree we just captured it from. Forward
-			// validation against an upstream baseline happens at
-			// reconcile-time, not here.
-			lenient, _ := cmd.Flags().GetBool("lenient")
-			if lenient {
-				fmt.Fprintln(cmd.ErrOrStderr(), "warning: --lenient: skipping patch round-trip validation")
-			} else if stagedFlag {
-				// Staged-only patches reference HEAD→index content,
-				// not the live working tree, so the worktree
-				// reverse-apply check is the wrong validation for
-				// this mode. ValidateStagedPatch already ran the
-				// temp-index --cached --check above; that IS the
-				// staged validation. Print a parallel success line so
-				// the user gets confirmation either way.
-				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: applies cleanly against temp index seeded from HEAD\n")
-			} else if valErr := gitutil.ValidatePatchReverse(s.Root, patch); valErr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", valErr)
-				fmt.Fprintf(cmd.ErrOrStderr(), "  The recorded patch may not represent the on-disk changes accurately.\n")
-				fmt.Fprintf(cmd.ErrOrStderr(), "  Common causes: line-ending differences, binary files without --binary, or post-apply edits.\n")
-				fmt.Fprintf(cmd.ErrOrStderr(), "  To silence this check (e.g. for whitespace-sensitive markdown), rerun with --lenient.\n")
-			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: round-trips cleanly against working tree\n")
-			}
+			// GH #5 (v0.12.1): the round-trip validation has been
+			// hoisted above the artifact writes (search for
+			// "PRD-record-roundtrip-transactional" upstream). By the
+			// time execution reaches this point the patch has already
+			// round-tripped (or --lenient was passed), so we proceed
+			// directly to diff-stat capture.
 
 			diffStat, _ := gitutil.CaptureDiffStatScoped(s.Root, pathspecs)
 			if diffStat != "" {
