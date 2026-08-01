@@ -943,6 +943,23 @@ func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, er
 // prevCumulativePatch = everything up to (but not including) this feature.
 // currentCumulativePatch = everything up to and including this feature.
 // Returns only this feature's changes (the delta).
+//
+// PRD-multi-slug-reconcile-canonical-safety §4.4 D4 / ADR-030 D3
+// (v0.12.1): the delta-worktree pipeline MUST NOT emit `.git/**`
+// paths. Plain `diff -ruN prevDir currDir` on two independent
+// `git clone --no-checkout` clones deterministically diffs
+// `.git/logs/HEAD`, `.git/logs/refs/...`, and binary `.git/index`
+// because reflog writes and index bytes carry wall-clock timestamps
+// that differ between clones. Two enforcement layers:
+//
+//  1. Diff-boundary exclusion — `diff --exclude=.git` at the subprocess
+//     invocation. Portable across GNU/BSD diff on macOS and Linux.
+//  2. Post-diff `.git/**` filter — reject any hunk whose file header
+//     references `.git/`, `.git\`, or the exact path `.git`. Defense
+//     in depth against future GNU/BSD/busybox variance in
+//     `--exclude` semantics.
+//
+// INV-3/INV-6 of PRD §5.
 func DeriveIncrementalPatch(repoRoot, baseCommit, prevCumulativePatch, currentCumulativePatch string) (string, error) {
 	// Create temp dirs
 	tmpDir, err := os.MkdirTemp("", "tpatch-incremental-*")
@@ -980,8 +997,11 @@ func DeriveIncrementalPatch(repoRoot, baseCommit, prevCumulativePatch, currentCu
 		cmd.Run() // best-effort
 	}
 
-	// Diff the two: this gives only the incremental changes for this feature
-	cmd := exec.Command("diff", "-ruN", prevDir, currDir)
+	// Diff the two: this gives only the incremental changes for this
+	// feature. `--exclude=.git` fires the D4 diff-boundary exclusion
+	// so reflog entries, index bytes, and other repo-internals cannot
+	// enter the returned patch text (PRD §4.4 / ADR-030 D3).
+	cmd := exec.Command("diff", "-ruN", "--exclude=.git", prevDir, currDir)
 	out, _ := cmd.Output()
 	result := string(out)
 
@@ -989,11 +1009,186 @@ func DeriveIncrementalPatch(repoRoot, baseCommit, prevCumulativePatch, currentCu
 	result = strings.ReplaceAll(result, prevDir+"/", "a/")
 	result = strings.ReplaceAll(result, currDir+"/", "b/")
 
+	// Defense-in-depth post-filter: even with `--exclude=.git` at the
+	// diff invocation, drop any residual `.git/**` file stanzas so a
+	// GNU/BSD variance in exclusion semantics or a hostile future
+	// helper cannot leak repo internals downstream. Refer to PRD
+	// §4.4 D4 second-fallback for the exact contract.
+	result = stripGitInternalFileStanzas(result)
+
 	trimmed := strings.TrimSpace(result)
 	if trimmed != "" {
 		trimmed += "\n"
 	}
 	return trimmed, nil
+}
+
+// stripGitInternalFileStanzas removes any `Only in …/.git`, `diff -ruN`,
+// `Binary files`, or unified-diff stanza whose file path starts with
+// `.git/` or is exactly `.git`. Defensive post-filter for
+// DeriveIncrementalPatch (PRD-multi-slug-reconcile-canonical-safety
+// §4.4 D4 / ADR-030 D3 second layer).
+//
+// The parser is line-oriented: it walks the input a stanza at a time
+// where a stanza starts at `diff -`, `Only in `, `Binary files `,
+// `--- ` (after a blank line), or `diff --git ` and ends at the next
+// stanza boundary or EOF. If any header inside the stanza references
+// `.git/**` or `.git`, the whole stanza is dropped.
+func stripGitInternalFileStanzas(patch string) string {
+	if patch == "" {
+		return ""
+	}
+	// Fast path: no `.git` reference anywhere — return as-is.
+	if !strings.Contains(patch, ".git") {
+		return patch
+	}
+	lines := strings.Split(patch, "\n")
+	var out []string
+	i := 0
+	isStanzaStart := func(line string) bool {
+		switch {
+		case strings.HasPrefix(line, "diff --git "),
+			strings.HasPrefix(line, "diff -"),
+			strings.HasPrefix(line, "Only in "),
+			strings.HasPrefix(line, "Binary files "),
+			strings.HasPrefix(line, "--- "):
+			return true
+		}
+		return false
+	}
+	for i < len(lines) {
+		line := lines[i]
+		if !isStanzaStart(line) {
+			out = append(out, line)
+			i++
+			continue
+		}
+		// Collect the stanza: current line + all following lines
+		// until the next stanza boundary or EOF.
+		start := i
+		i++
+		for i < len(lines) && !isStanzaStart(lines[i]) {
+			i++
+		}
+		stanza := lines[start:i]
+		if stanzaReferencesGitInternal(stanza) {
+			continue
+		}
+		out = append(out, stanza...)
+	}
+	return strings.Join(out, "\n")
+}
+
+// stanzaReferencesGitInternal returns true when any header inside the
+// stanza mentions the on-disk `.git/` repo-internals path.
+func stanzaReferencesGitInternal(stanza []string) bool {
+	if len(stanza) == 0 {
+		return false
+	}
+	for _, line := range stanza {
+		if headerPathIsGitInternal(line) {
+			return true
+		}
+	}
+	return false
+}
+
+// headerPathIsGitInternal returns true iff `line` is a patch/diff
+// header that references `.git/**` or the exact path `.git`. It
+// recognises the four header shapes tpatch produces or consumes:
+//
+//	diff --git a/<path> b/<path>
+//	diff -ruN a/<path> b/<path>            (generic unified)
+//	--- a/<path>                            or /dev/null
+//	+++ b/<path>                            or /dev/null
+//	Only in <dir>: .git                     (GNU diff summary)
+//	Binary files a/<path> and b/<path> differ
+//
+// The path is extracted per shape and normalised (leading a/ or b/
+// stripped) before the `.git` check.
+func headerPathIsGitInternal(line string) bool {
+	switch {
+	case strings.HasPrefix(line, "diff --git "):
+		// diff --git a/foo b/foo
+		rest := strings.TrimPrefix(line, "diff --git ")
+		fields := strings.Fields(rest)
+		for _, f := range fields {
+			if pathIsGitInternal(stripABPrefix(f)) {
+				return true
+			}
+		}
+	case strings.HasPrefix(line, "diff -"):
+		// diff -ruN prevDir/foo currDir/foo  or  diff -ruN a/foo b/foo
+		fields := strings.Fields(line)
+		for _, f := range fields {
+			if pathIsGitInternal(stripABPrefix(f)) {
+				return true
+			}
+		}
+	case strings.HasPrefix(line, "--- "):
+		p := strings.TrimSpace(strings.TrimPrefix(line, "--- "))
+		p = strings.SplitN(p, "\t", 2)[0]
+		if p != "/dev/null" && pathIsGitInternal(stripABPrefix(p)) {
+			return true
+		}
+	case strings.HasPrefix(line, "+++ "):
+		p := strings.TrimSpace(strings.TrimPrefix(line, "+++ "))
+		p = strings.SplitN(p, "\t", 2)[0]
+		if p != "/dev/null" && pathIsGitInternal(stripABPrefix(p)) {
+			return true
+		}
+	case strings.HasPrefix(line, "Only in "):
+		// Only in /path/to/dir: .git   OR   Only in /path/to/dir/.git: HEAD
+		rest := strings.TrimPrefix(line, "Only in ")
+		if idx := strings.LastIndex(rest, ": "); idx >= 0 {
+			dir := rest[:idx]
+			leaf := strings.TrimSpace(rest[idx+2:])
+			if leaf == ".git" || strings.Contains(dir, "/.git") || strings.HasSuffix(dir, "/.git") || strings.Contains(dir, "/.git/") {
+				return true
+			}
+		}
+	case strings.HasPrefix(line, "Binary files "):
+		fields := strings.Fields(line)
+		for _, f := range fields {
+			if pathIsGitInternal(stripABPrefix(f)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func stripABPrefix(p string) string {
+	if strings.HasPrefix(p, "a/") {
+		return strings.TrimPrefix(p, "a/")
+	}
+	if strings.HasPrefix(p, "b/") {
+		return strings.TrimPrefix(p, "b/")
+	}
+	return p
+}
+
+// pathIsGitInternal returns true when `p` is exactly `.git`, or
+// starts with `.git/`, or contains `/.git/`, or ends with `/.git`.
+// Backslash variants are also recognised to defeat Windows-style
+// paths that may still hit the check on cross-platform hosts.
+func pathIsGitInternal(p string) bool {
+	if p == "" {
+		return false
+	}
+	if p == ".git" || p == ".git/" || p == ".git\\" {
+		return true
+	}
+	if strings.HasPrefix(p, ".git/") || strings.HasPrefix(p, ".git\\") {
+		return true
+	}
+	if strings.Contains(p, "/.git/") || strings.Contains(p, "\\.git\\") {
+		return true
+	}
+	if strings.HasSuffix(p, "/.git") || strings.HasSuffix(p, "\\.git") {
+		return true
+	}
+	return false
 }
 
 // SymbolicRef returns the symbolic target of `ref`, e.g. given

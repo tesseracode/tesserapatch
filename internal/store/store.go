@@ -430,12 +430,137 @@ func (s *Store) WriteFeatureFile(slug, name, content string) error {
 }
 
 // WriteArtifact writes a file to the feature's artifacts directory.
+//
+// PRD-multi-slug-reconcile-canonical-safety §4.5 D5 / ADR-030 D4
+// (v0.12.1): every `.patch`-suffixed artifact is inspected for
+// `.git/**` references before it lands on disk. Any header line
+// (`diff --git`, `--- `, `+++ `, `Only in`, `Binary files`, `diff -`)
+// pointing at `.git/`, `.git\`, or the exact path `.git` refuses
+// the write with a descriptive error. Defense-in-depth against a
+// future upstream patch producer regressing the D4 diff-boundary
+// exclusion. INV-3/INV-6 of the PRD.
 func (s *Store) WriteArtifact(slug, name, content string) error {
 	target := s.featureArtifactPath(slug, name)
 	if err := safety.EnsureSafeRepoPath(s.Root, target); err != nil {
 		return fmt.Errorf("unsafe path in WriteArtifact: %w", err)
 	}
+	if strings.HasSuffix(name, ".patch") {
+		if offending, ok := patchReferencesGitInternal(content); ok {
+			return fmt.Errorf("WriteArtifact refused: %s/%s references repository-internal path %q — canonical patches must not carry .git/** entries (PRD-multi-slug-reconcile-canonical-safety D5, ADR-030 D4)", slug, name, offending)
+		}
+	}
 	return writeFile(target, content)
+}
+
+// patchReferencesGitInternal scans `patch` for any header line that
+// points at `.git/**` or the exact path `.git`. Returns the offending
+// path and true on the first match; empty string and false when the
+// patch is clean. Header shapes recognised:
+//
+//	diff --git a/<path> b/<path>
+//	diff -<flags> <src> <dst>
+//	--- a/<path>   +++ b/<path>
+//	Only in <dir>: .git
+//	Binary files a/<path> and b/<path> differ
+func patchReferencesGitInternal(patch string) (string, bool) {
+	if patch == "" {
+		return "", false
+	}
+	if !strings.Contains(patch, ".git") {
+		return "", false
+	}
+	for _, line := range strings.Split(patch, "\n") {
+		if p, ok := headerReferencedGitPath(line); ok {
+			return p, true
+		}
+	}
+	return "", false
+}
+
+// headerReferencedGitPath extracts the file path from a diff/patch
+// header line and returns (path, true) when it references `.git`,
+// `.git/**`, `\.git\**`, `/.git`, or `/.git/**`. Kept in the store
+// package (not gitutil) so the boundary guard is enforced at the
+// write layer even when the calling code path is not gitutil-owned.
+func headerReferencedGitPath(line string) (string, bool) {
+	stripAB := func(p string) string {
+		if strings.HasPrefix(p, "a/") {
+			return strings.TrimPrefix(p, "a/")
+		}
+		if strings.HasPrefix(p, "b/") {
+			return strings.TrimPrefix(p, "b/")
+		}
+		return p
+	}
+	isGit := func(p string) bool {
+		if p == "" || p == "/dev/null" {
+			return false
+		}
+		if p == ".git" || p == ".git/" || p == ".git\\" {
+			return true
+		}
+		if strings.HasPrefix(p, ".git/") || strings.HasPrefix(p, ".git\\") {
+			return true
+		}
+		if strings.Contains(p, "/.git/") || strings.Contains(p, "\\.git\\") {
+			return true
+		}
+		if strings.HasSuffix(p, "/.git") || strings.HasSuffix(p, "\\.git") {
+			return true
+		}
+		return false
+	}
+	switch {
+	case strings.HasPrefix(line, "diff --git "):
+		rest := strings.TrimPrefix(line, "diff --git ")
+		for _, f := range strings.Fields(rest) {
+			p := stripAB(f)
+			if isGit(p) {
+				return p, true
+			}
+		}
+	case strings.HasPrefix(line, "diff -"):
+		for _, f := range strings.Fields(line) {
+			p := stripAB(f)
+			if isGit(p) {
+				return p, true
+			}
+		}
+	case strings.HasPrefix(line, "--- "):
+		p := strings.TrimSpace(strings.TrimPrefix(line, "--- "))
+		p = strings.SplitN(p, "\t", 2)[0]
+		p = stripAB(p)
+		if isGit(p) {
+			return p, true
+		}
+	case strings.HasPrefix(line, "+++ "):
+		p := strings.TrimSpace(strings.TrimPrefix(line, "+++ "))
+		p = strings.SplitN(p, "\t", 2)[0]
+		p = stripAB(p)
+		if isGit(p) {
+			return p, true
+		}
+	case strings.HasPrefix(line, "Only in "):
+		rest := strings.TrimPrefix(line, "Only in ")
+		if idx := strings.LastIndex(rest, ": "); idx >= 0 {
+			dir := rest[:idx]
+			leaf := strings.TrimSpace(rest[idx+2:])
+			if leaf == ".git" {
+				return dir + "/.git", true
+			}
+			if isGit(dir) || isGit(dir+"/"+leaf) {
+				return dir + "/" + leaf, true
+			}
+		}
+	case strings.HasPrefix(line, "Binary files "):
+		for _, f := range strings.Fields(line) {
+			p := stripAB(f)
+			if isGit(p) {
+				return p, true
+			}
+		}
+	}
+	return "", false
 }
 
 // LoadConfig reads the YAML config (parsed as simple key extraction for zero-dep).
