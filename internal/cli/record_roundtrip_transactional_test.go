@@ -141,8 +141,8 @@ func TestRecordRoundTripFailure_Transactional(t *testing.T) {
 	if !strings.Contains(stderr, "does not round-trip against working tree") {
 		t.Errorf("expected round-trip diagnostic in stderr; got stderr=%q", stderr)
 	}
-	if !strings.Contains(stderr, "--from/--to captures committed history only") {
-		t.Errorf("expected --from/--to guidance hint in stderr; got stderr=%q", stderr)
+	if !strings.Contains(stderr, "committed-range capture (--from/--to or --auto) covers committed history only") {
+		t.Errorf("expected committed-range guidance hint in stderr; got stderr=%q", stderr)
 	}
 	if !strings.Contains(stderr, "--lenient") {
 		t.Errorf("expected --lenient bypass hint in stderr; got stderr=%q", stderr)
@@ -151,6 +151,87 @@ func TestRecordRoundTripFailure_Transactional(t *testing.T) {
 	after := snapshotFeatureDir(t, tmpDir, slug)
 	if diffs := diffSnapshots(before, after); len(diffs) > 0 {
 		t.Errorf("feature directory mutated after refused record (GH #5):\n%s", strings.Join(diffs, "\n"))
+	}
+}
+
+// TestRecordRoundTripFailure_DefaultWorkingTree_Transactional is the
+// NB-2 companion to GH #5: the transactional guarantee must also
+// hold on the DEFAULT working-tree capture path (no --from, no --to,
+// no --auto). rangeMode is false; ValidatePatchReverse still runs.
+// Round-trip failure is triggered here with a binary file modification
+// — `git diff` on a modified binary emits "Binary files X and Y
+// differ" without index/content lines, so `git apply --reverse
+// --check` fails with "cannot apply binary patch to X without full
+// index line". This deliberately synthetic post-capture edit exercises
+// the same transactional path GH #5 fixed for --from/--to captures,
+// on the code path where rangeMode == false.
+func TestRecordRoundTripFailure_DefaultWorkingTree_Transactional(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	runCmd("init", "--path", tmpDir)
+	slug := "default-wt-binary-drift"
+	runCmd("add", "--path", tmpDir, slug)
+
+	// Baseline binary blob — commit so HEAD carries it.
+	binPath := filepath.Join(tmpDir, "assets", "logo.bin")
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	baseline := []byte{0x00, 0x01, 0x02, 0x03, 'B', 'A', 'S', 'E', 0x00, 0xff}
+	if err := os.WriteFile(binPath, baseline, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitCmdT(t, tmpDir, "add", "assets/logo.bin")
+	gitCmdT(t, tmpDir, "commit", "-m", "add baseline binary")
+
+	// Working-tree modification — no commit. Default WT capture will
+	// diff this against HEAD; the resulting patch is a binary marker
+	// without an index line (git diff without --binary emits
+	// "Binary files ... differ"). git apply --reverse --check will
+	// then refuse with "cannot apply binary patch ... without full
+	// index line", which is exactly the round-trip failure mode the
+	// GH #5 transactional guarantee must cover on the default path.
+	drifted := []byte{0x00, 0x01, 0x02, 0x03, 'D', 'R', 'I', 'F', 'T', 0xff, 0xff, 0xff}
+	if err := os.WriteFile(binPath, drifted, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Snapshot the feature dir after a successful non-refused prep
+	// step: the `runCmd("add", ...)` above created the .tpatch layout.
+	// The refused record must not mutate any file under
+	// .tpatch/features/<slug>/.
+	before := snapshotFeatureDir(t, tmpDir, slug)
+	if len(before) == 0 {
+		t.Fatalf("expected feature dir to exist after add; snapshot is empty")
+	}
+
+	// Default WT capture — NO --from / --to / --auto. rangeMode = false.
+	stdout, stderr, code := runCmd("record", "--path", tmpDir, slug)
+
+	if code == 0 {
+		t.Fatalf("expected non-zero exit on default-WT round-trip failure; got 0\n--- stdout ---\n%s\n--- stderr ---\n%s",
+			stdout, stderr)
+	}
+	if strings.Contains(stdout, "Recorded patch for") {
+		t.Errorf("expected NO 'Recorded patch for' on stdout after refusal; got stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "does not round-trip against working tree") {
+		t.Errorf("expected round-trip diagnostic in stderr; got stderr=%q", stderr)
+	}
+	// rangeMode is false → the committed-range hint MUST NOT fire on
+	// the default path (regression guard on the rangeMode conditional
+	// in cobra.go — otherwise we'd send the operator hunting a
+	// --from/--to that doesn't apply here).
+	if strings.Contains(stderr, "committed-range capture (--from/--to or --auto)") {
+		t.Errorf("default-WT path unexpectedly emitted committed-range hint; got stderr=%q", stderr)
+	}
+	if !strings.Contains(stderr, "--lenient") {
+		t.Errorf("expected --lenient bypass hint in stderr; got stderr=%q", stderr)
+	}
+
+	after := snapshotFeatureDir(t, tmpDir, slug)
+	if diffs := diffSnapshots(before, after); len(diffs) > 0 {
+		t.Errorf("feature directory mutated after refused default-WT record (GH #5 NB-2):\n%s", strings.Join(diffs, "\n"))
 	}
 }
 

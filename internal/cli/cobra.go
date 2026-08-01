@@ -1386,7 +1386,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 					fmt.Fprintf(w, "  The recorded patch may not represent the on-disk changes accurately.\n")
 					fmt.Fprintf(w, "  Common causes: line-ending differences, binary files without --binary, or post-apply edits.\n")
 					if rangeMode {
-						fmt.Fprintf(w, "  hint: --from/--to captures committed history only and cannot include uncommitted working-tree edits; commit the follow-up edits (or discard them) before re-running.\n")
+						fmt.Fprintf(w, "  hint: committed-range capture (--from/--to or --auto) covers committed history only; commit the follow-up edits (or discard them) before re-running.\n")
 					}
 					fmt.Fprintf(w, "  To bypass this check (not recommended for source patches), rerun with --lenient.\n")
 					return fmt.Errorf("record refuses: patch does not round-trip against working tree without --lenient")
