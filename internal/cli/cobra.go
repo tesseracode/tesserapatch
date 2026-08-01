@@ -2209,7 +2209,17 @@ func reconcileConfirmUpstreamedCmd() *cobra.Command {
 				}
 			}
 
-			result := workflow.ReconcileResult{Slug: slug, Outcome: status.Reconcile.Outcome, ReviewVerdict: status.Reconcile.ReviewVerdict, UpstreamCommit: status.Reconcile.UpstreamCommit, UpstreamRef: status.Reconcile.UpstreamRef}
+			// PRD-#4 rev-1 F-1 (AC-2 byte-identity): fast path emits the
+			// pre-PRD-#4 shape — Outcome + ReviewVerdict + Slug only.
+			// The review path carries UpstreamCommit + UpstreamRef in
+			// the JSON payload because they are new signals from the
+			// transition (status.json still records them via
+			// applyConfirmUpstreamedTransition regardless of path).
+			result := workflow.ReconcileResult{Slug: slug, Outcome: status.Reconcile.Outcome, ReviewVerdict: status.Reconcile.ReviewVerdict}
+			if transitionInfo != nil {
+				result.UpstreamCommit = status.Reconcile.UpstreamCommit
+				result.UpstreamRef = status.Reconcile.UpstreamRef
+			}
 			if result.ReviewVerdict == "" && result.Outcome == store.ReconcileUpstreamed {
 				result.ReviewVerdict = "confirmed-upstreamed"
 			}
@@ -2321,11 +2331,25 @@ func findAuthorisingReviewRevision(s *store.Store, slug, fromRevision string) (s
 		return store.ReconcileRevision{}, false, fmt.Errorf("confirm-upstreamed: --from-revision %q not found in reconcile-revisions.jsonl for %s", fromRevision, slug)
 	}
 	filtered := latestRevisionEntries(entries)
-	// Walk in reverse file order to grab the last-in-file-order match
-	// (PRD §4 D4 tie-break). latestRevisionEntries preserves file order.
-	for i := len(filtered) - 1; i >= 0; i-- {
-		if isAuthorisingTuple(filtered[i]) {
-			return filtered[i], true, nil
+	// PRD-#4 rev-1 F2 tie-break fix: latestRevisionEntries dedups
+	// in-place, preserving the earliest positional slot for a
+	// repeated key. That order does NOT match "last-in-file-order"
+	// when a later entry re-hits an earlier evidence key (A x1 / B
+	// x2 / C x1 → out=[C,B], reverse walk would return B). PRD §4
+	// D4 mandates the last-in-file-order match. Reselect by walking
+	// `entries` in reverse and returning the first authorising
+	// entry that also survived dedup+supersession filtering.
+	survivors := make(map[string]bool, len(filtered))
+	for _, e := range filtered {
+		survivors[e.EntryID] = true
+	}
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
+		if !survivors[e.EntryID] {
+			continue
+		}
+		if isAuthorisingTuple(e) {
+			return e, true, nil
 		}
 	}
 	return store.ReconcileRevision{}, false, nil
@@ -2411,7 +2435,7 @@ func verifyUpstreamCommitReachability(cmd *cobra.Command, s *store.Store, status
 	if !ok {
 		return "", fmt.Errorf("confirm-upstreamed: --upstream-commit %s is not an ancestor of HEAD for %s (no upstream ref resolvable)", sha, status.Slug)
 	}
-	fmt.Fprintf(cmd.ErrOrStderr(), "warning: upstream ref not resolvable; validated %s against local HEAD ancestry only. Confirmation is weaker than upstream-ref anchoring — consider setting a tracking branch.\n", sha)
+	fmt.Fprintf(cmd.ErrOrStderr(), "warning: no upstream ref resolvable for %s; verified %s is reachable from HEAD only. Local operators can insert commits into HEAD's ancestry without upstream ever seeing them — audit before relying on this transition.\n", status.Slug, sha)
 	return "HEAD", nil
 }
 

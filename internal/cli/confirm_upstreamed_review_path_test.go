@@ -97,6 +97,60 @@ func TestConfirmUpstreamed_FastPath_ByteIdenticalGolden(t *testing.T) {
 	}
 }
 
+// PRD-#4 rev-1 F-1 (AC-2 byte-identity): even when status.json carries
+// populated Reconcile.UpstreamRef + Reconcile.UpstreamCommit (which the
+// review path is expected to write for future transitions), the fast
+// path JSON output MUST match the pre-PRD-#4 shape — namely the
+// upstream_ref / upstream_commit fields are ABSENT from the CLI JSON.
+// This guards AC-2 byte-identity against the fast-path struct init
+// regressing to include the populated fields from status.json.
+func TestConfirmUpstreamed_FastPath_JSON_OmitsUpstreamFields_WhenStatusPopulated(t *testing.T) {
+	dir := t.TempDir()
+	setupCLIGit(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, _ := s.AddFeature(store.AddFeatureInput{Title: "parent", Slug: "parent", Request: "parent"})
+	f.State = store.StateUpstreamMerged
+	f.Reconcile.Outcome = store.ReconcileUpstreamed
+	f.Reconcile.ReviewVerdict = "confirmed-upstreamed"
+	// Simulate the case where status.json already carries populated
+	// upstream anchors from a prior transition or reconcile run.
+	f.Reconcile.UpstreamRef = "refs/remotes/origin/main"
+	f.Reconcile.UpstreamCommit = "0123456789abcdef0123456789abcdef01234567"
+	if err := s.SaveFeatureStatus(f); err != nil {
+		t.Fatal(err)
+	}
+	out, _, code := runCmdWithError("reconcile", "confirm-upstreamed", "--path", dir, "parent", "--json")
+	if code != 0 {
+		t.Fatalf("fast path (json) failed: %s", out)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(out), &payload); err != nil {
+		t.Fatalf("failed to parse fast-path JSON: %v\n%s", err, out)
+	}
+	// Pre-PRD-#4 behavior emitted empty-string values (or absence)
+	// for upstream_ref / upstream_commit on the fast path — the fields
+	// were left zero on the ReconcileResult and status.json values
+	// never leaked through. AC-2 byte-identity requires the fast path
+	// remain that shape even when status.Reconcile carries populated
+	// upstream anchors. If PRD-#4's struct init regresses and passes
+	// status.Reconcile.UpstreamCommit through, this test flips to red.
+	if v, ok := payload["upstream_ref"]; ok && v != "" {
+		t.Fatalf("PRD AC-2 byte-identity: fast-path JSON must not leak status.Reconcile.UpstreamRef, got upstream_ref=%v\n%s", v, out)
+	}
+	if v, ok := payload["upstream_commit"]; ok && v != "" {
+		t.Fatalf("PRD AC-2 byte-identity: fast-path JSON must not leak status.Reconcile.UpstreamCommit, got upstream_commit=%v\n%s", v, out)
+	}
+	// Sanity: envelope must not include review-path-only keys.
+	for _, key := range []string{"source_revision_entry_id", "transition_revision_entry_id"} {
+		if _, present := payload[key]; present {
+			t.Fatalf("PRD AC-2 byte-identity: fast-path JSON leaked review-path key %q:\n%s", key, out)
+		}
+	}
+}
+
 // AC-2: fast-path entry invariant — refuse when State != upstream_merged
 // even if Outcome/ReviewVerdict claim confirmed.
 func TestConfirmUpstreamed_FastPath_EntryInvariantRefuses(t *testing.T) {
@@ -157,11 +211,17 @@ func TestConfirmUpstreamed_ReviewPath_HEADFallbackWithWarning(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("review path failed: %s / %s", out, errOut)
 	}
-	if !strings.Contains(errOut, "warning: upstream ref not resolvable") {
-		t.Fatalf("expected residual-risk warning on stderr, got: %s", errOut)
+	if !strings.Contains(errOut, "warning: no upstream ref resolvable for "+slug) {
+		t.Fatalf("expected residual-risk warning naming the slug on stderr, got: %s", errOut)
 	}
-	if !strings.Contains(errOut, "consider setting a tracking branch") {
-		t.Fatalf("expected warning text to name mitigation, got: %s", errOut)
+	if !strings.Contains(errOut, "reachable from HEAD only") {
+		t.Fatalf("expected HEAD-only reachability phrasing, got: %s", errOut)
+	}
+	if !strings.Contains(errOut, "Local operators can insert commits into HEAD's ancestry") {
+		t.Fatalf("expected warning to name the local-insertion threat model, got: %s", errOut)
+	}
+	if !strings.Contains(errOut, "audit before relying on this transition") {
+		t.Fatalf("expected warning to instruct audit-before-relying action, got: %s", errOut)
 	}
 	if !strings.Contains(out, "consumed review revision: "+reviewID) {
 		t.Fatalf("expected consumed review revision line, got: %s", out)
@@ -233,7 +293,7 @@ func TestConfirmUpstreamed_ReviewPath_UpstreamRefResolvableNoWarning(t *testing.
 	if code != 0 {
 		t.Fatalf("preferred path failed: %s", errOut)
 	}
-	if strings.Contains(errOut, "warning: upstream ref not resolvable") {
+	if strings.Contains(errOut, "warning: no upstream ref resolvable") {
 		t.Fatalf("preferred path unexpectedly emitted residual-risk warning: %s", errOut)
 	}
 }
@@ -341,44 +401,78 @@ func TestConfirmUpstreamed_ReviewPath_TransitionDeterminism(t *testing.T) {
 	if reviewA != reviewB {
 		t.Fatalf("fixture drift: review IDs differ %s vs %s", reviewA, reviewB)
 	}
-	if shaA == shaB {
-		// Fixture SHAs differ because the git init timestamp differs.
-		// To exercise byte-identity we normalize the sha input:
-		// substitute reviewA's expected upstream commit for shaB.
-		// (In practice: rerun the review path with the same sha input
-		// on both fixtures — since Kind+Value+Result is the same, the
-		// hash matches.)
-	}
-	// Use the same synthetic upstream sha string across both fixtures
-	// to normalize inputs to ComputeRevisionID. We hijack shaA on both
-	// runs; the reachability check will still succeed against dirA's
-	// HEAD but fail against dirB's HEAD. So we must actually run with
-	// each fixture's own reachable sha, and instead compare hash
-	// derivation on the identity JSON directly.
+	// Fixture SHAs differ because the git init timestamp differs.
+	// Run each fixture with its own reachable sha; then normalise the
+	// UpstreamCommit field on the persisted transition entry to a
+	// shared synthetic SHA and cross-compare the recomputed EntryIDs.
 	_, _, codeA := runCmdWithError("reconcile", "confirm-upstreamed", "--path", dirA, slugA, "--upstream-commit", shaA)
 	_, _, codeB := runCmdWithError("reconcile", "confirm-upstreamed", "--path", dirB, slugB, "--upstream-commit", shaB)
 	if codeA != 0 || codeB != 0 {
 		t.Fatalf("both runs must succeed: codeA=%d codeB=%d", codeA, codeB)
 	}
-	// Assert that the transition entry's identity hash depends only on
-	// the ValidationRefs contents (Kind/Value/Result). Replay with the
-	// same sha input on the same fixture — the resulting hash must be
-	// stable.
 	sA, _ := store.Open(dirA)
+	sB, _ := store.Open(dirB)
 	revsA, _ := store.LoadReconcileRevisions(sA, slugA)
-	var transA *store.ReconcileRevision
+	revsB, _ := store.LoadReconcileRevisions(sB, slugB)
+	var transA, transB *store.ReconcileRevision
 	for i := range revsA {
 		if revsA[i].SupersedesEntryID == reviewA {
 			transA = &revsA[i]
 		}
 	}
+	for i := range revsB {
+		if revsB[i].SupersedesEntryID == reviewB {
+			transB = &revsB[i]
+		}
+	}
 	if transA == nil {
 		t.Fatalf("no transition revision found in dirA")
 	}
-	// Determinism: recompute EntryID from the persisted fields.
-	recomputed := store.ComputeRevisionID(*transA)
-	if recomputed != transA.EntryID {
-		t.Fatalf("transition EntryID not deterministic: recomputed %s vs persisted %s", recomputed, transA.EntryID)
+	if transB == nil {
+		t.Fatalf("no transition revision found in dirB")
+	}
+	// PRD-#4 rev-1 F-2: cross-fixture EntryID determinism. Fixture-
+	// specific data enters the transition entry only via
+	// ValidationRefs[Kind=upstream-commit].Value — the operator-
+	// supplied --upstream-commit SHA differs between fixtures because
+	// the two independent git-init timestamps produce different HEAD
+	// commits. Normalise that field to a shared synthetic SHA on both
+	// transitions and cross-compare the recomputed EntryIDs. This
+	// converts the previous recompute-of-self tautology into a real
+	// cross-fixture determinism check on the identity hash.
+	const syntheticSHA = "deadbeefcafebabe1234567890abcdef01234567"
+	normValidationRefs := func(refs []store.ValidationRef) []store.ValidationRef {
+		out := make([]store.ValidationRef, len(refs))
+		copy(out, refs)
+		for i := range out {
+			if out[i].Kind == "upstream-commit" {
+				out[i].Value = syntheticSHA
+			}
+		}
+		return out
+	}
+	normA := *transA
+	normA.ValidationRefs = normValidationRefs(transA.ValidationRefs)
+	normA.EntryID = ""
+	normB := *transB
+	normB.ValidationRefs = normValidationRefs(transB.ValidationRefs)
+	normB.EntryID = ""
+	idA := store.ComputeRevisionID(normA)
+	idB := store.ComputeRevisionID(normB)
+	if idA == "" {
+		t.Fatalf("ComputeRevisionID returned empty for normalised transA")
+	}
+	if idA != idB {
+		t.Fatalf("PRD F-2 cross-fixture determinism: normalised EntryIDs differ across identical fixtures\n  dirA %s\n  dirB %s", idA, idB)
+	}
+	// Recompute-of-self baseline (retained for regression on identity
+	// hash shape drift): both persisted EntryIDs are reproduced from
+	// their persisted fields.
+	if got := store.ComputeRevisionID(*transA); got != transA.EntryID {
+		t.Fatalf("recompute-of-self drift (dirA): got %s vs persisted %s", got, transA.EntryID)
+	}
+	if got := store.ComputeRevisionID(*transB); got != transB.EntryID {
+		t.Fatalf("recompute-of-self drift (dirB): got %s vs persisted %s", got, transB.EntryID)
 	}
 }
 
@@ -550,5 +644,91 @@ func TestConfirmUpstreamed_ReviewPath_TieBreakLastInFileOrder(t *testing.T) {
 	}
 	if !sawSupersedesNewer {
 		t.Fatalf("tie-break did not select last-in-file-order entry %s", newer.EntryID)
+	}
+}
+
+// TestConfirmUpstreamed_ReviewPath_TieBreak_ReuseEvidenceKey covers the
+// PRD-#4 rev-1 F-2 gap: three authorising, non-superseded revisions in
+// file order A(evidence=x1), B(evidence=x2), C(evidence=x1) — dedup
+// collapses A+C on the (slug, evidence, verdict, action) key. Before
+// the F-2 fix, latestRevisionEntries preserved A's earlier positional
+// slot for the collapsed key, so the reverse walk on the filtered
+// slice returned B (positionally last) rather than C (last-in-file-
+// order). PRD §4 D4 mandates C wins.
+func TestConfirmUpstreamed_ReviewPath_TieBreak_ReuseEvidenceKey(t *testing.T) {
+	dir, slug, sha, entryA := setupConfirmUpstreamedReviewFixture(t)
+	s, _ := store.Open(dir)
+	// setupConfirmUpstreamedReviewFixture already appended A with
+	// EvidenceAttemptID="re_1125ecf82225". Append B (different
+	// evidence, different reason_code so EntryID differs).
+	entryB := store.ReconcileRevision{
+		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
+		FeatureSlug:         slug,
+		EvidenceAttemptID:   "re_middle_x2",
+		RawReconcileVerdict: string(store.ReconcileUpstreamed),
+		ReviewVerdict:       store.ReviewVerdictConfirmed,
+		FinalFeatureState:   store.StateUpstreamMerged,
+		ActionTaken:         store.ReconcileActionConfirmedRetired,
+		ReasonCode:          "manual-review",
+		ValidationRefs:      []store.ValidationRef{},
+	}
+	entryB.EntryID = store.ComputeRevisionID(entryB)
+	if err := store.AppendReconcileRevision(s, slug, entryB); err != nil {
+		t.Fatal(err)
+	}
+	// Append C reusing A's EvidenceAttemptID so the dedup key
+	// (slug, evidence, verdict, action) collides with A. Differ on
+	// reason_code so the identity hash — and therefore EntryID —
+	// differs from A (otherwise AppendReconcileRevision would treat
+	// it as a duplicate rather than a distinct later entry).
+	entryC := store.ReconcileRevision{
+		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
+		FeatureSlug:         slug,
+		EvidenceAttemptID:   "re_1125ecf82225", // reuses A
+		RawReconcileVerdict: string(store.ReconcileUpstreamed),
+		ReviewVerdict:       store.ReviewVerdictConfirmed,
+		FinalFeatureState:   store.StateUpstreamMerged,
+		ActionTaken:         store.ReconcileActionConfirmedRetired,
+		ReasonCode:          "manual-review-recheck",
+		ValidationRefs:      []store.ValidationRef{},
+	}
+	entryC.EntryID = store.ComputeRevisionID(entryC)
+	if entryC.EntryID == entryA {
+		t.Fatalf("test setup drift: entryC.EntryID must differ from entryA to exercise the dedup collision (got %s)", entryC.EntryID)
+	}
+	if err := store.AppendReconcileRevision(s, slug, entryC); err != nil {
+		t.Fatal(err)
+	}
+	// Sanity: file order is [A, B, C] and none are superseded.
+	revs, _ := store.LoadReconcileRevisions(s, slug)
+	if len(revs) != 3 {
+		t.Fatalf("expected 3 revisions, got %d", len(revs))
+	}
+	if revs[0].EntryID != entryA || revs[1].EntryID != entryB.EntryID || revs[2].EntryID != entryC.EntryID {
+		t.Fatalf("unexpected file order: %s %s %s", revs[0].EntryID, revs[1].EntryID, revs[2].EntryID)
+	}
+	_, errOut, code := runCmdWithError("reconcile", "confirm-upstreamed", "--path", dir, slug, "--upstream-commit", sha)
+	if code != 0 {
+		t.Fatalf("tie-break run failed: %s", errOut)
+	}
+	// After the run: exactly one transition revision was appended,
+	// and its SupersedesEntryID must be C (last-in-file-order) — NOT
+	// B (positionally-last-in-filtered) or A (earlier match with the
+	// reused evidence key).
+	revs, _ = store.LoadReconcileRevisions(s, slug)
+	var transition *store.ReconcileRevision
+	for i := range revs {
+		if revs[i].SupersedesEntryID != "" {
+			if transition != nil {
+				t.Fatalf("expected exactly one transition entry, saw multiple")
+			}
+			transition = &revs[i]
+		}
+	}
+	if transition == nil {
+		t.Fatalf("expected one transition entry in %d revisions", len(revs))
+	}
+	if transition.SupersedesEntryID != entryC.EntryID {
+		t.Fatalf("PRD F-2 tie-break: transition must supersede last-in-file-order match %s (C), got %s (A=%s B=%s)", entryC.EntryID, transition.SupersedesEntryID, entryA, entryB.EntryID)
 	}
 }
