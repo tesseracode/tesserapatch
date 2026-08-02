@@ -254,7 +254,7 @@ func TestReconcileTerminalFlagsMutexViaCLI(t *testing.T) {
 func gitInitTestRepo(t *testing.T, dir string) {
 	t.Helper()
 	for _, args := range [][]string{
-		{"git", "init"},
+		{"git", "init", "-b", "main"},
 		{"git", "config", "user.email", "test@test.com"},
 		{"git", "config", "user.name", "Test"},
 	} {
