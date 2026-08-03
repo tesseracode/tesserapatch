@@ -24,6 +24,28 @@ import (
 // ErrWriteFilePreimageMismatch.
 var ErrSessionRedactionRefusal = errors.New("session summarize: redaction refused (PRD §5 D11 hard failure)")
 
+// ErrSessionD6IgnoreRuleViolation fires when a session summarize
+// --write call is refused by the D6 local-ignore-rule preflight
+// (workflow.EnsureLocalIgnoreContract). Callers use errors.Is to
+// distinguish this refusal from unrelated I/O errors.
+//
+// Wave γ LOW-γr15-N1 fix: in --json mode ALL output — including
+// refusals — must be a JSON envelope on stdout, not the plaintext
+// message that used to reach the caller only via the returned error
+// (and, in production, "error: %v\n" on stderr). Mirrors the D11
+// ErrSessionRedactionRefusal precedent below: emit the JSON payload
+// to stdout, then still return a wrapped sentinel so the process
+// exits non-zero.
+var ErrSessionD6IgnoreRuleViolation = errors.New("session summarize: D6 ignore-rule violation")
+
+// sessionSummarizeD6Envelope is the --json error envelope shape for a
+// D6 ignore-rule refusal (Wave γ LOW-γr15-N1).
+type sessionSummarizeD6Envelope struct {
+	Error    string `json:"error"`
+	Message  string `json:"message"`
+	Citation string `json:"citation"`
+}
+
 // sessionSummarizeOpts groups the flags for runSessionSummarize.
 type sessionSummarizeOpts struct {
 	// Write, when true, writes the redacted committed summary to the
@@ -72,7 +94,23 @@ func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, op
 	// the atomicity contract.
 	if opts.Write {
 		if err := workflow.EnsureLocalIgnoreContract(s.Root, s.LocalCaptureDir()); err != nil {
-			return fmt.Errorf("session summarize: D6 preflight refused (PRD §4 D6 mandate 4 + PRD §5 D9→D10 atomicity — enforced upstream of SaveContextSummary): %w", err)
+			wrapped := fmt.Errorf("session summarize: D6 preflight refused (PRD §4 D6 mandate 4 + PRD §5 D9→D10 atomicity — enforced upstream of SaveContextSummary): %w", err)
+			// Wave γ LOW-γr15-N1: --json mode must never fall through
+			// to a plaintext refusal. Emit the JSON envelope to stdout
+			// BEFORE returning the sentinel error (mirrors the D11
+			// ErrSessionRedactionRefusal precedent further below).
+			if opts.AsJSON {
+				envelope := sessionSummarizeD6Envelope{
+					Error:    "d6_ignore_rule_violation",
+					Message:  wrapped.Error(),
+					Citation: "PRD §7 D6 + ADR-027 D3",
+				}
+				if data, jerr := json.MarshalIndent(envelope, "", "  "); jerr == nil {
+					fmt.Fprintln(out, string(data))
+				}
+				return fmt.Errorf("%w: %s", ErrSessionD6IgnoreRuleViolation, err)
+			}
+			return wrapped
 		}
 	}
 

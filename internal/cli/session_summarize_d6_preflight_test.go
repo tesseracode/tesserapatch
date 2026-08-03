@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,5 +115,68 @@ func TestSessionSummarize_D6RefusalLeavesNoOrphanCtxArtifact(t *testing.T) {
 	}
 	if entries2[0].Session.PromotedCtxID != "" {
 		t.Fatalf("expected PromotedCtxID to remain empty after D6 refusal, got %q", entries2[0].Session.PromotedCtxID)
+	}
+}
+
+// TestSessionSummarize_D6RefusalEmitsJSONEnvelope is the Wave γ
+// LOW-γr15-N1 regression. Before this fix, `session summarize --json
+// --write` on a D6 ignore-rule violation printed the plaintext
+// six-mandate refusal message ONLY via the returned error (surfaced
+// as "error: ...\n" on real stderr by cli.Execute) -- stdout stayed
+// empty. In --json mode ALL output, including refusals, must be a
+// JSON envelope on stdout. This test asserts stdout is valid JSON
+// carrying an "error" field naming the violation, a "message" field
+// with the human-readable detail, a "citation" field, and that the
+// process exits non-zero.
+func TestSessionSummarize_D6RefusalEmitsJSONEnvelope(t *testing.T) {
+	tmp, slug := setupSessionRepo(t, "N1 D6 JSON envelope")
+
+	if _, stderr, code := runSessionCmd("session", "start", "--path", tmp, slug); code != 0 {
+		t.Fatalf("start: %s", stderr)
+	}
+
+	s, err := store.Open(tmp)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	entries, err := s.ListSessions(slug)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("list sessions: %v (n=%d)", err, len(entries))
+	}
+	sess := *entries[0].Session
+	sess.Observations = []store.SessionObservation{
+		{Seq: 1, SymbolicRef: "safe", Summary: "reviewed apply-recipe.json for D6 JSON envelope"},
+	}
+	if err := s.SaveSession(sess); err != nil {
+		t.Fatalf("save observation: %v", err)
+	}
+
+	// Break mandate 5 by removing .gitignore so `git check-ignore`
+	// reports the local capture path is not ignored.
+	if err := os.Remove(filepath.Join(tmp, ".gitignore")); err != nil {
+		t.Fatalf("rm .gitignore: %v", err)
+	}
+
+	stdout, _, code := runSessionCmd("session", "summarize", "--path", tmp, slug, "--write", "--json")
+	if code == 0 {
+		t.Fatalf("expected non-zero exit for D6 refusal under --json")
+	}
+
+	var envelope struct {
+		Error    string `json:"error"`
+		Message  string `json:"message"`
+		Citation string `json:"citation"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stdout)), &envelope); err != nil {
+		t.Fatalf("stdout must be valid JSON envelope, got parse error %v; stdout=%q", err, stdout)
+	}
+	if envelope.Error != "d6_ignore_rule_violation" {
+		t.Fatalf("expected error=%q, got %q", "d6_ignore_rule_violation", envelope.Error)
+	}
+	if !strings.Contains(envelope.Message, ".tpatch/local/") {
+		t.Fatalf("expected message to name .tpatch/local/, got %q", envelope.Message)
+	}
+	if envelope.Citation == "" {
+		t.Fatalf("expected non-empty citation field")
 	}
 }
