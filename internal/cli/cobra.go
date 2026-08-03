@@ -2164,11 +2164,13 @@ through the fast-path JSON. This is an accepted byte-identity tradeoff
 (AC-2), not a bug -- it keeps fast-path output stable across releases.
 The review path's JSON payload DOES carry the real upstream_commit/
 upstream_ref values, plus source_revision_entry_id and
-transition_revision_entry_id. Consumers that need the full record
-regardless of which path was taken should read
-"tpatch status --json <slug>" for the populated fields and the
-retirement audit detail instead of relying on this command's fast-path
-JSON alone.`,
+transition_revision_entry_id. Consumers that need the full status
+record (populated upstream_ref/upstream_commit) should read
+"tpatch status --json <slug>" instead of relying on this command's
+fast-path JSON alone. Retirement audit detail (retirement_audit) is
+emitted only in this reconcile command's own JSON payload when
+populated (its field tag carries omitempty, so it typically appears on
+the review path).`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStoreFromCmd(cmd)
