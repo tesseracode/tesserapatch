@@ -184,3 +184,39 @@ func phaseIndicatesReverseApplyFailure(phase string) bool {
 	}
 	return true
 }
+
+// legacyDetectorSilencedNoteWriter is the diagnostic sink for the
+// PRD-#3 S1 stderr note. Factored into a var (mirroring
+// migrationDiagHintWriter above) so tests can substitute a buffer.
+var legacyDetectorSilencedNoteWriter io.Writer = os.Stderr
+
+// legacyDetectorSilencedNote is the PRD-#3 S1 informational line.
+// Emitted at most once per RunReconcile invocation (never per slug):
+// --cumulative-legacy silences the phase 1.5 patch-id detector for
+// every feature in the run (§4.9 D9), and that per-feature silence
+// otherwise surfaces only as a "phase 1.5 skipped: --cumulative-legacy"
+// breadcrumb in each ReconcileResult.Notes — easy to miss when
+// scanning terminal output.
+const legacyDetectorSilencedNote = "note: --cumulative-legacy suppresses patch-id detector output (see PRD-#3 S1, docs/supervisor/LOG.md)"
+
+// maybeEmitLegacyDetectorSilencedNote writes the S1 note to stderr
+// when opts.CumulativeLegacy is set AND the patch-id detector is
+// actually configured on (Config.PatchIDDetectorEnabled). When the
+// detector was never going to fire anyway (the common case — the
+// detector is default-OFF), the note would be misleading noise, so
+// it is fail-soft: a config-load error or a disabled detector both
+// suppress the note rather than emit it speculatively.
+//
+// Returns true iff the note was emitted, so tests can assert both
+// the positive and negative case.
+func maybeEmitLegacyDetectorSilencedNote(s *store.Store, opts ReconcileOptions) bool {
+	if !opts.CumulativeLegacy {
+		return false
+	}
+	cfg, err := s.LoadConfig()
+	if err != nil || !cfg.PatchIDDetectorEnabled {
+		return false
+	}
+	fmt.Fprintln(legacyDetectorSilencedNoteWriter, legacyDetectorSilencedNote)
+	return true
+}

@@ -222,6 +222,16 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 		deriveIncrementalPatches(s, slugs, upstreamCommit)
 	}
 
+	// PRD-#3 S1: --cumulative-legacy silences the phase 1.5 patch-id
+	// detector for every feature in the run (D9). That per-feature
+	// silence is recorded only as a Notes-field breadcrumb
+	// ("phase 1.5 skipped: --cumulative-legacy"), which is easy to
+	// miss when scanning terminal output. Emit one informational
+	// stderr line for the whole invocation — not per slug — when the
+	// detector is actually configured on (otherwise it wouldn't have
+	// fired anyway and the note would be misleading noise).
+	maybeEmitLegacyDetectorSilencedNote(s, opts)
+
 	// v0.12.0 Wave β rev-1 Slice R3 (PRD-write-file-recipe-safety
 	// AC-8 + §4.2 "During reconcile", ADR-029 D6): scan the
 	// effective replay set for later-touch overlaps and attach the

@@ -229,3 +229,95 @@ func TestMigrationHint_FiresOnlyOnceAcrossMultiSlugRun(t *testing.T) {
 		t.Errorf("PRD-#3 N3: expected D10 hint exactly once across the run, got %d occurrences:\n%s", count, buf.String())
 	}
 }
+
+// TestLegacyDetectorSilencedNote_FiresWhenDetectorEnabled is the
+// PRD-#3 S1 positive case: --cumulative-legacy silences phase 1.5,
+// so when the detector is actually configured on, one informational
+// stderr line must be emitted for the whole run.
+func TestLegacyDetectorSilencedNote_FiresWhenDetectorEnabled(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	installIndependentFeature(t, s, "aaa")
+	installIndependentFeature(t, s, "bbb")
+
+	orig := legacyDetectorSilencedNoteWriter
+	buf := &bytes.Buffer{}
+	legacyDetectorSilencedNoteWriter = buf
+	t.Cleanup(func() { legacyDetectorSilencedNoteWriter = orig })
+
+	if _, err := RunReconcile(context.Background(), s, []string{"aaa", "bbb"}, "HEAD", nil, provider.Config{}, ReconcileOptions{CumulativeLegacy: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Count(buf.String(), legacyDetectorSilencedNote) != 1 {
+		t.Errorf("PRD-#3 S1: expected the legacy-detector-silenced note exactly once, got:\n%s", buf.String())
+	}
+}
+
+// TestLegacyDetectorSilencedNote_QuietWhenDetectorDisabled is the S1
+// negative case: when the patch-id detector was never configured on,
+// --cumulative-legacy silencing it is not news, so the note must NOT
+// fire (it would be misleading noise).
+func TestLegacyDetectorSilencedNote_QuietWhenDetectorDisabled(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	installIndependentFeature(t, s, "aaa")
+
+	orig := legacyDetectorSilencedNoteWriter
+	buf := &bytes.Buffer{}
+	legacyDetectorSilencedNoteWriter = buf
+	t.Cleanup(func() { legacyDetectorSilencedNoteWriter = orig })
+
+	if _, err := RunReconcile(context.Background(), s, []string{"aaa"}, "HEAD", nil, provider.Config{}, ReconcileOptions{CumulativeLegacy: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("PRD-#3 S1 negative: expected no legacy-detector-silenced note when detector disabled, got:\n%s", buf.String())
+	}
+}
+
+// TestLegacyDetectorSilencedNote_QuietWhenNotLegacy is a sanity check
+// that the S1 note never fires on the default (non-legacy) path even
+// if the detector is enabled — the note is specifically about the
+// --cumulative-legacy suppression, not a general detector-status log.
+func TestLegacyDetectorSilencedNote_QuietWhenNotLegacy(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.LoadConfig()
+	cfg.PatchIDDetectorEnabled = true
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	installIndependentFeature(t, s, "aaa")
+
+	orig := legacyDetectorSilencedNoteWriter
+	buf := &bytes.Buffer{}
+	legacyDetectorSilencedNoteWriter = buf
+	t.Cleanup(func() { legacyDetectorSilencedNoteWriter = orig })
+
+	if _, err := RunReconcile(context.Background(), s, []string{"aaa"}, "HEAD", nil, provider.Config{}, ReconcileOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("PRD-#3 S1 sanity: default path must never emit the legacy-only note, got:\n%s", buf.String())
+	}
+}
