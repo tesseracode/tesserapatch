@@ -103,7 +103,7 @@ func runSessionSummarize(out io.Writer, s *store.Store, target store.Session, op
 				envelope := sessionSummarizeD6Envelope{
 					Error:    "d6_ignore_rule_violation",
 					Message:  wrapped.Error(),
-					Citation: "PRD §7 D6 + ADR-027 D3",
+					Citation: "PRD §4 D6 + ADR-027 D3",
 				}
 				if data, jerr := json.MarshalIndent(envelope, "", "  "); jerr == nil {
 					fmt.Fprintln(out, string(data))
