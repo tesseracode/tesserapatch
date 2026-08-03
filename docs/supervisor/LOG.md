@@ -1,3 +1,41 @@
+## 2026-08-03 — Cluster D rev-2 external confirmation — NEEDS REVISION → rev-3 DISPATCHED
+
+**Scoreboard**:
+
+| Reviewer | Verdict | Findings |
+|----------|---------|----------|
+| External (Opus 4.8) | **NEEDS REVISION** | 1 MEDIUM (D-EXT-1: new Rule 17 residual on same clause) + 1 LOW (D-EXT-2: over-restriction, non-misdirecting) |
+
+**D-INT-3-R1 CLOSED**: the false "`status --json` for retirement audit detail" misdirection is gone; `status --json` empirically cannot emit `retirement_audit` (not on `FeatureStatus`).
+
+**D-EXT-1 MEDIUM — third occurrence of "rewording introduces new false claim" in Cluster D**:
+
+Rev-2 stated audit "typically appears on the review path (its field tag carries omitempty)". Empirically false:
+- Fast path force-sets `ReviewVerdict = "confirmed-upstreamed"` at `cobra.go:2246-2248` when `Outcome == upstreamed`.
+- Audit gate at `cobra.go:2579` is `ReviewVerdict == "confirmed-upstreamed"` — fires on both paths.
+- `result.RetirementAudit = &report` at `cobra.go:2586` runs on every successful confirm-upstreamed regardless of path.
+
+So `retirement_audit` is guaranteed on ANY successful confirm-upstreamed (fast or review), not "typically review path". The `omitempty → review path` causal link is also a non-sequitur — omitempty controls nil-suppression, not path association.
+
+**Pattern recurrence count in Cluster D**: rev-0 had "OMITS/ABSENT" false claim; rev-1 fix introduced "audit via status --json" false claim (D-INT-3-R1); rev-2 fix introduced "typically on review path" false claim (D-EXT-1). Three iterations. Each new wording pass touched the same clause and each introduced a new inaccuracy.
+
+**Corrective action**: rev-3 brief provides **verbatim final wording** rather than suggested tweaks. This has worked historically (v0.12.1 F-INT-3-1 trailer parse; Cluster C rev-3 shell fix) — when the same clause misfires repeatedly, prescriptive text short-circuits the iteration.
+
+### Adjudication (supervisor)
+
+Rev-3 FOLDS:
+- **D-EXT-1 MEDIUM** — replace the audit sentence with verbatim wording that:
+  - Names both `reconcile` AND `reconcile confirm-upstreamed` as emitting commands (folds D-EXT-2 too).
+  - States audit runs on both paths.
+  - Explicitly excludes `status --json`.
+  - Uses `omitempty` only to describe absence, not path association.
+
+Rev-3 protocol: **external-only confirmation** per Cluster C precedent (single-issue empirical follow-up within same wave).
+
+**Cluster state**: `REV-3 DISPATCHED`.
+
+---
+
 ## 2026-08-03 — Cluster D rev-1 dual review — NEEDS REVISION → rev-2 DISPATCHED
 
 **Scoreboard**:
