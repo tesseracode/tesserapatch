@@ -96,7 +96,7 @@
 
 Three implementers dispatched simultaneously per user selection. Result:
 - **GH #5** at `cebc6b6`: clean single-commit fix. Chose Pattern A (pre-validate then write) via `gitutil.ValidatePatchReverse` hoist above `s.WriteArtifact`. Regression + `--lenient` preservation tests.
-- **PRD-#3** at `d930963` (Slice 1+2 bundle) → `2bb3532` (Slice 3 `.git/**` boundaries) → `2934521` (Slice 4 D10 diagnostic) → `6facb68` (Slice 5 status flips). 4 commits.
+- **PRD-#3** at `d930963` (Slice 1+2 bundle) → `2bb3532` (Slice 3 `.git/**` boundaries) → `2934521` (Slice 4 D10 diagnostic) → `6facb68` (Slice 5 status flips). 4 commits. (SHAs `2934521`/`6facb68` rewritten in the "Rev-1 fold-in" rebase below — see mapping there.)
 - **PRD-#4** at `52f0f70` (test-only). Production code CROSS-CONTAMINATED into `d930963` via a `git commit -a` sweep in shared cobra.go.
 
 **Cross-implementer entanglement postmortem**: parallel implementers on shared `internal/cli/cobra.go` produced a mixed commit. GH #5 implementer independently caught the same pattern and split via `git reset --soft`, but PRD-#4's changes couldn't be untangled after PRD-#3's commit already claimed the diff. Deferred to Cluster A follow-up amendment: mandate `git add <path>` per-PRD.
