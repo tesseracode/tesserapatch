@@ -2148,7 +2148,27 @@ func reconcileConfirmUpstreamedCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "confirm-upstreamed <slug>",
 		Short: "Confirm an upstreamed feature and run retirement cleanup audit",
-		Args:  cobra.ExactArgs(1),
+		Long: `Confirm an upstreamed feature and run retirement cleanup audit.
+
+Two entry paths are supported (PRD-confirm-upstreamed-human-review-path
+§4-§5): the v0.11 "fast path" (status.Reconcile.Outcome already
+upstreamed or review_verdict already confirmed-upstreamed) and the
+human-review path (consumes a recorded "reconcile review add" revision
+plus --upstream-commit).
+
+Consumer note (GH #5 follow-up, PRD §AC-2): on the fast path, the
+--json/--format json payload deliberately returns the pre-v0.11 shape
+(slug, outcome, review_verdict only) and OMITS upstream_commit /
+upstream_ref even when status.json already has them populated for a
+previously-confirmed feature. This is an accepted byte-identity
+tradeoff (AC-2), not a bug -- it keeps fast-path output stable across
+releases. The review path's JSON payload DOES include
+upstream_commit/upstream_ref plus source_revision_entry_id and
+transition_revision_entry_id. Consumers that need the full picture
+regardless of which path was taken should read status.json (via
+"tpatch status --json") instead of relying on this command's fast-path
+JSON alone.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {

@@ -125,6 +125,8 @@ The subcommand-specific flags for these v0.11 commands are shown below (PRD-upst
 
 `review add` accepts review verdicts `confirmed`, `false-positive`, `false-negative`, `inconclusive`, and `deferred`; it accepts actions `none`, `confirmed-retired`, `reapplied`, `reapplied-and-recorded`, `implemented`, `deferred`, `skipped`, and `cleanup-needed` (ADR-025 D7; PRD-reconcile-revision-pass-log §3, §6).
 
+**Consumer note — fast-path JSON returns less than `status.json` (GH #5 follow-up):** when `confirm-upstreamed <slug>` takes the v0.11 "fast path" (feature already `upstreamed`/`confirmed-upstreamed` on entry), its `--json`/`--format json` payload deliberately omits `upstream_commit` and `upstream_ref` even when `status.json` already carries them from a prior confirmation, to preserve byte-identical output across releases (PRD-confirm-upstreamed-human-review-path §AC-2). Only the human-review path's JSON payload includes `upstream_commit`/`upstream_ref` (plus `source_revision_entry_id`/`transition_revision_entry_id`). Consumers that need the full record regardless of which path fired should read `tpatch status --json` instead of depending on `confirm-upstreamed`'s fast-path JSON shape.
+
 ## Dev-only study validator
 
 `internal/tools/studyvalidator/` is a stdlib-only maintainer helper for validating reconcile case-study folders; it is not part of the public `tpatch` binary or `SPEC.md` CLI surface (PRD-reconcile-study-validation §3, §6). The validator checks JSON/JSONL parse errors with filename and line number, cross-file study/metric consistency, raw-vs-reviewed-vs-final-state counts, and per-corrected-verdict linkage to revision entries or `local-notes.md` references (PRD-reconcile-study-validation §4-§6).
