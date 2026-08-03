@@ -1,3 +1,34 @@
+## 2026-08-03 — Cluster D rev-1 dual review — NEEDS REVISION → rev-2 DISPATCHED
+
+**Scoreboard**:
+
+| Reviewer | Verdict | Findings |
+|----------|---------|----------|
+| Internal (Sol) | **NEEDS REVISION** | 1 MEDIUM residual on D-INT-3 (rev-1 fold introduced NEW false claim) |
+| External (Opus 4.8) | **APPROVED** | No findings; deferrals validated (D-INT-2 legitimately out of PRD scope per lines 180/259) |
+
+**Rev-0 fold status confirmed by both**:
+- D-INT-1 CLOSED (external verified `FilesInPatch` matches manifest generator across 5 empirical scenarios: rename ± similarity, deletion, creation, copy)
+- D-INT-4 CLOSED (only stale `§7 D6` remaining is historical LOG entry, untouched by design)
+- Deferrals D-INT-2 and F-EXT-2 validated as scope-correct, not masked bugs
+
+**Rev-1 residual (D-INT-3-R1 MEDIUM)** — Internal-only catch:
+
+While reworking the help text to fix rev-0's "OMITS" false claim, rev-1 introduced a NEW false claim: `internal/cli/cobra.go:2168-2171` directs consumers who need retirement audit detail to `tpatch status --json <slug>`. Empirically verified this is wrong: `RetirementAudit *RetirementAuditReport` (`internal/workflow/reconcile.go:66`) is on `ReconcileResult` (runtime payload), NOT on `store.FeatureStatus`. `grep -n "RetirementAudit\|retirement_audit" internal/store/*.go` → zero matches. `status --json` cannot emit audit detail.
+
+This is the second-most-common Rule 17 failure mode we've catalogued: rewording to fix a totality claim introduces a new one. Cluster C rev-3/rev-4 was the same pattern (fixing gate false-pass introduced shell bug).
+
+### Adjudication (supervisor — sided with Internal on split)
+
+Rev-2 FOLDS:
+- **D-INT-3-R1 MEDIUM** — remove the "and the retirement audit detail" phrase from `internal/cli/cobra.go` Long help (retirement audit is not available via `status --json`). Correct guidance: `status --json` for populated status fields; retirement audit is emitted only in the reconcile command's own JSON payload when populated (review-path, per `omitempty` tag).
+
+Rev-2 protocol: **external-only confirmation** per Cluster C precedent (single-issue empirical follow-up within same wave, two-opinion architectural coverage already established at rev-0 + rev-1). Internal caught this rev-1 residual; external is the appropriate re-verifier.
+
+**Cluster state**: `REV-2 DISPATCHED`.
+
+---
+
 ## 2026-08-03 — Cluster D rev-0 dual review — NEEDS REVISION → rev-1 DISPATCHED
 
 **Scoreboard**:
