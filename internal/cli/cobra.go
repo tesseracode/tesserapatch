@@ -2439,10 +2439,54 @@ func verifyUpstreamCommitReachability(cmd *cobra.Command, s *store.Store, status
 	return "HEAD", nil
 }
 
+// confirmedViaReviewReasonCode is the ReasonCode applyConfirmUpstreamedTransition
+// stamps onto every transition it appends. It doubles as the crash-
+// recovery idempotency marker (see isConfirmedViaReviewTransition):
+// no other writer in the codebase uses this literal reason code, so
+// an entry bearing it plus a non-empty SupersedesEntryID is,
+// unambiguously, a transition record this function itself produced.
+const confirmedViaReviewReasonCode = "confirmed-via-review"
+
+// isConfirmedViaReviewTransition reports whether `e` is itself a
+// transition record previously appended by applyConfirmUpstreamedTransition
+// (as opposed to a human-authored review revision from
+// `tpatch reconcile review add`).
+//
+// PRD-#4 F-4 crash-recovery idempotency guard. applyConfirmUpstreamedTransition
+// appends the transition record THEN saves status.json — two separate
+// writes that are not atomic across a process crash. If the process
+// crashes after the append succeeds but before the save completes,
+// status.json still looks like retirement never happened, so a retry
+// re-enters the review-path branch. findAuthorisingReviewRevision
+// walks to the LATEST authorising, non-superseded entry — and since
+// the transition record this function just appended is ITSELF an
+// authorising tuple (ReviewVerdict=confirmed, ActionTaken=confirmed-
+// retired, FinalFeatureState=upstream_merged) that nothing has yet
+// superseded, the retry selects that transition record as
+// info.ConsumedEntry. Without this guard, the retry would append a
+// SECOND transition record chained on top of the first (superseding
+// the first transition instead of the original human review), and
+// every subsequent crash-recovery retry would extend the chain by
+// one more entry.
+func isConfirmedViaReviewTransition(e store.ReconcileRevision) bool {
+	return e.ReasonCode == confirmedViaReviewReasonCode && e.SupersedesEntryID != ""
+}
+
 // applyConfirmUpstreamedTransition mutates status.json and appends the
 // superseding transition revision. The consumed revision is left
 // byte-identical in the file.
 func applyConfirmUpstreamedTransition(s *store.Store, status *store.FeatureStatus, info *confirmUpstreamedTransition) error {
+	// Crash-recovery idempotency (PRD-#4 F-4): info.ConsumedEntry is
+	// already our own previously-appended transition record — skip
+	// the append (it already happened; appending again would chain a
+	// second transition) and reuse it verbatim as info.TransitionEntry,
+	// then fall straight through to the status.json repair that did
+	// not complete before the crash.
+	if isConfirmedViaReviewTransition(info.ConsumedEntry) {
+		info.TransitionEntry = info.ConsumedEntry
+		return saveConfirmUpstreamedStatus(s, status, info)
+	}
+
 	priorOutcome := info.PriorOutcome
 	transition := store.ReconcileRevision{
 		SchemaVersion:       store.ReconcileRevisionSchemaVersion,
@@ -2452,7 +2496,7 @@ func applyConfirmUpstreamedTransition(s *store.Store, status *store.FeatureStatu
 		ReviewVerdict:       store.ReviewVerdictConfirmed,
 		FinalFeatureState:   store.StateUpstreamMerged,
 		ActionTaken:         store.ReconcileActionConfirmedRetired,
-		ReasonCode:          "confirmed-via-review",
+		ReasonCode:          confirmedViaReviewReasonCode,
 		ValidationRefs: []store.ValidationRef{
 			{Kind: "upstream-commit", Value: info.UpstreamCommit, Result: "verified"},
 			{Kind: "source-revision", Value: info.ConsumedEntry.EntryID, Result: "consumed"},
@@ -2467,13 +2511,28 @@ func applyConfirmUpstreamedTransition(s *store.Store, status *store.FeatureStatu
 		return err
 	}
 	info.TransitionEntry = transition
+	return saveConfirmUpstreamedStatus(s, status, info)
+}
 
+// saveConfirmUpstreamedStatus repairs status.json to reflect a
+// confirmed-upstreamed transition. Factored out of
+// applyConfirmUpstreamedTransition so the crash-recovery idempotency
+// guard above can reach it without re-appending. info.TransitionEntry
+// must be populated (either freshly appended or reused from a prior
+// crashed run) before calling this. The Notes message references
+// info.TransitionEntry.SupersedesEntryID — the ORIGINAL human review
+// revision — rather than info.ConsumedEntry.EntryID directly, because
+// on the crash-recovery path info.ConsumedEntry IS the transition
+// record itself, not the original human review entry; on the fresh-
+// append path the two values are identical by construction
+// (transition.SupersedesEntryID == info.ConsumedEntry.EntryID).
+func saveConfirmUpstreamedStatus(s *store.Store, status *store.FeatureStatus, info *confirmUpstreamedTransition) error {
 	status.Reconcile.Outcome = store.ReconcileUpstreamed
 	status.Reconcile.ReviewVerdict = "confirmed-upstreamed"
 	status.Reconcile.UpstreamCommit = info.UpstreamCommit
 	status.State = store.StateUpstreamMerged
 	status.LastCommand = "reconcile"
-	status.Notes = fmt.Sprintf("Feature adopted by upstream — confirmed via human review revision %s", info.ConsumedEntry.EntryID)
+	status.Notes = fmt.Sprintf("Feature adopted by upstream — confirmed via human review revision %s", info.TransitionEntry.SupersedesEntryID)
 	status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	return s.SaveFeatureStatus(*status)
 }

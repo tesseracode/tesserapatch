@@ -732,3 +732,100 @@ func TestConfirmUpstreamed_ReviewPath_TieBreak_ReuseEvidenceKey(t *testing.T) {
 		t.Fatalf("PRD F-2 tie-break: transition must supersede last-in-file-order match %s (C), got %s (A=%s B=%s)", entryC.EntryID, transition.SupersedesEntryID, entryA, entryB.EntryID)
 	}
 }
+
+// TestConfirmUpstreamed_CrashRecovery_Idempotent is the PRD-#4 F-4
+// regression. applyConfirmUpstreamedTransition appends the transition
+// revision to reconcile-revisions.jsonl THEN saves status.json — two
+// separate, non-atomic writes. If the process crashes between them,
+// status.json still looks like retirement never happened, so a retry
+// re-enters the review path. Before the F-4 fix, findAuthorisingReviewRevision
+// would select the ALREADY-APPENDED transition record itself as the
+// "authorising" entry to consume (it satisfies isAuthorisingTuple and
+// nothing supersedes it yet), causing the retry to append a SECOND
+// transition chained on top of the first — a new entry every retry.
+//
+// This test simulates the crash window directly: run confirm-upstreamed
+// once (append + save both succeed), then revert ONLY status.json back
+// to its pre-transition shape (simulating a crash after the append
+// durably landed but before the save did), then retry the exact same
+// command. Assertions: (1) reconcile-revisions.jsonl still has exactly
+// 2 entries (the original human review + the one transition — no
+// second transition chained on), (2) status.json is correctly
+// repaired to the confirmed-upstreamed shape on the retry.
+func TestConfirmUpstreamed_CrashRecovery_Idempotent(t *testing.T) {
+	dir, slug, sha, reviewID := setupConfirmUpstreamedReviewFixture(t)
+
+	out, errOut, code := runCmdWithError("reconcile", "confirm-upstreamed", "--path", dir, slug, "--upstream-commit", sha)
+	if code != 0 {
+		t.Fatalf("first run must succeed: %s / %s", out, errOut)
+	}
+
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revsAfterFirst, err := store.LoadReconcileRevisions(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revsAfterFirst) != 2 {
+		t.Fatalf("sanity: expected 2 revisions after first run (review + transition), got %d", len(revsAfterFirst))
+	}
+
+	// Simulate the crash window: revert status.json to its
+	// pre-transition shape (as if the transition append durably
+	// landed on disk but the process died before SaveFeatureStatus
+	// ran). reconcile-revisions.jsonl is left untouched.
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.State = store.StateBlocked
+	st.Reconcile.Outcome = store.ReconcileBlocked
+	st.Reconcile.ReviewVerdict = "rejected-upstreamed"
+	st.Reconcile.UpstreamCommit = ""
+	if err := s.SaveFeatureStatus(st); err != nil {
+		t.Fatal(err)
+	}
+
+	// Retry the identical command — the crash-recovery path.
+	out2, errOut2, code2 := runCmdWithError("reconcile", "confirm-upstreamed", "--path", dir, slug, "--upstream-commit", sha)
+	if code2 != 0 {
+		t.Fatalf("crash-recovery retry must succeed: %s / %s", out2, errOut2)
+	}
+
+	revsAfterRetry, err := store.LoadReconcileRevisions(s, slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revsAfterRetry) != 2 {
+		t.Fatalf("PRD-#4 F-4: crash-recovery retry must NOT append a second transition; expected 2 revisions, got %d:\n%+v", len(revsAfterRetry), revsAfterRetry)
+	}
+	// The single transition entry must still supersede the ORIGINAL
+	// human review revision, not a chained transition-on-transition.
+	var transitionCount int
+	for _, r := range revsAfterRetry {
+		if r.SupersedesEntryID != "" {
+			transitionCount++
+			if r.SupersedesEntryID != reviewID {
+				t.Fatalf("PRD-#4 F-4: transition must supersede the original review %s, got %s", reviewID, r.SupersedesEntryID)
+			}
+		}
+	}
+	if transitionCount != 1 {
+		t.Fatalf("PRD-#4 F-4: expected exactly 1 transition entry after retry, got %d", transitionCount)
+	}
+
+	// status.json must be repaired by the retry (the write that did
+	// not complete before the simulated crash).
+	stFinal, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stFinal.State != store.StateUpstreamMerged {
+		t.Fatalf("PRD-#4 F-4: crash-recovery retry must repair state to %q, got %q", store.StateUpstreamMerged, stFinal.State)
+	}
+	if stFinal.Reconcile.Outcome != store.ReconcileUpstreamed || stFinal.Reconcile.ReviewVerdict != "confirmed-upstreamed" || stFinal.Reconcile.UpstreamCommit != sha {
+		t.Fatalf("PRD-#4 F-4: crash-recovery retry must repair Reconcile fields, got %+v", stFinal.Reconcile)
+	}
+}
