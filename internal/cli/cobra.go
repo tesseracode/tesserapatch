@@ -2168,9 +2168,11 @@ transition_revision_entry_id. Consumers that need the full status
 record (populated upstream_ref/upstream_commit) should read
 "tpatch status --json <slug>" instead of relying on this command's
 fast-path JSON alone. Retirement audit detail (retirement_audit) is
-emitted only in this reconcile command's own JSON payload when
-populated (its field tag carries omitempty, so it typically appears on
-the review path).`,
+emitted by the reconcile and reconcile confirm-upstreamed commands'
+JSON payloads whenever the confirmation audit runs -- this includes
+both the fast path and the review path of confirm-upstreamed. It is
+absent otherwise (the field carries omitempty, so nil suppresses it)
+and is not part of tpatch status --json.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStoreFromCmd(cmd)
