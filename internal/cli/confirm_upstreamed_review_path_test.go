@@ -101,9 +101,14 @@ func TestConfirmUpstreamed_FastPath_ByteIdenticalGolden(t *testing.T) {
 // populated Reconcile.UpstreamRef + Reconcile.UpstreamCommit (which the
 // review path is expected to write for future transitions), the fast
 // path JSON output MUST match the pre-PRD-#4 shape — namely the
-// upstream_ref / upstream_commit fields are ABSENT from the CLI JSON.
+// upstream_ref / upstream_commit fields are PRESENT (ReconcileResult's
+// JSON tags carry no `omitempty`) but forced to EMPTY STRINGS, never
+// the populated status.json values. (D-INT-3/F-EXT-1 rev-1 fix: this
+// comment previously said the fields were "ABSENT from the CLI JSON",
+// which does not match the `ok && v != ""` assertion below — the keys
+// are always present-as-empty-string, not omitted.)
 // This guards AC-2 byte-identity against the fast-path struct init
-// regressing to include the populated fields from status.json.
+// regressing to leak the populated fields from status.json.
 func TestConfirmUpstreamed_FastPath_JSON_OmitsUpstreamFields_WhenStatusPopulated(t *testing.T) {
 	dir := t.TempDir()
 	setupCLIGit(t, dir)
@@ -130,13 +135,15 @@ func TestConfirmUpstreamed_FastPath_JSON_OmitsUpstreamFields_WhenStatusPopulated
 	if err := json.Unmarshal([]byte(out), &payload); err != nil {
 		t.Fatalf("failed to parse fast-path JSON: %v\n%s", err, out)
 	}
-	// Pre-PRD-#4 behavior emitted empty-string values (or absence)
-	// for upstream_ref / upstream_commit on the fast path — the fields
-	// were left zero on the ReconcileResult and status.json values
-	// never leaked through. AC-2 byte-identity requires the fast path
-	// remain that shape even when status.Reconcile carries populated
-	// upstream anchors. If PRD-#4's struct init regresses and passes
-	// status.Reconcile.UpstreamCommit through, this test flips to red.
+	// Pre-PRD-#4 behavior emitted upstream_ref / upstream_commit as
+	// empty-string values on the fast path (ReconcileResult's JSON tags
+	// carry no `omitempty`, so the keys are always present) — the
+	// fields were left zero on the ReconcileResult and status.json's
+	// populated values never leaked through. AC-2 byte-identity
+	// requires the fast path remain that shape even when
+	// status.Reconcile carries populated upstream anchors. If PRD-#4's
+	// struct init regresses and passes status.Reconcile.UpstreamCommit
+	// through, this test flips to red.
 	if v, ok := payload["upstream_ref"]; ok && v != "" {
 		t.Fatalf("PRD AC-2 byte-identity: fast-path JSON must not leak status.Reconcile.UpstreamRef, got upstream_ref=%v\n%s", v, out)
 	}

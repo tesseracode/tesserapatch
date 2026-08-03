@@ -2157,16 +2157,17 @@ human-review path (consumes a recorded "reconcile review add" revision
 plus --upstream-commit).
 
 Consumer note (GH #5 follow-up, PRD §AC-2): on the fast path, the
---json/--format json payload deliberately returns the pre-v0.11 shape
-(slug, outcome, review_verdict only) and OMITS upstream_commit /
-upstream_ref even when status.json already has them populated for a
-previously-confirmed feature. This is an accepted byte-identity
-tradeoff (AC-2), not a bug -- it keeps fast-path output stable across
-releases. The review path's JSON payload DOES include
-upstream_commit/upstream_ref plus source_revision_entry_id and
-transition_revision_entry_id. Consumers that need the full picture
-regardless of which path was taken should read status.json (via
-"tpatch status --json") instead of relying on this command's fast-path
+--json/--format json payload emits the base ReconcileResult shape with
+upstream_ref/upstream_commit present but forced to EMPTY STRINGS -- the
+populated values already recorded in status.json are NOT propagated
+through the fast-path JSON. This is an accepted byte-identity tradeoff
+(AC-2), not a bug -- it keeps fast-path output stable across releases.
+The review path's JSON payload DOES carry the real upstream_commit/
+upstream_ref values, plus source_revision_entry_id and
+transition_revision_entry_id. Consumers that need the full record
+regardless of which path was taken should read
+"tpatch status --json <slug>" for the populated fields and the
+retirement audit detail instead of relying on this command's fast-path
 JSON alone.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
