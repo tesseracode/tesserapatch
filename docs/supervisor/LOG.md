@@ -1,3 +1,29 @@
+## 2026-08-03 — Cluster D correctness housekeeping — DISPATCHED (rev-0)
+
+**Scope (8 items, single implementer, sequential per Cluster C rule 5 same-file-overlap discipline)**:
+
+1. PRD-#3 N2 — D10 fallback for pre-ADR-024 features (parse touched_paths from `post-apply.patch` header when `patch-generations.json` absent).
+2. PRD-#3 N3 — dedupe migration hint across multi-slug run.
+3. PRD-#3 S1 — legacy mode stderr note when patch-id detector is silenced by `--cumulative-legacy`.
+4. PRD-#4 F-4 — crash-recovery idempotency for `applyConfirmUpstreamedTransition`.
+5. GH #5 fast-path follow-up — document strictly-less-data tradeoff of review-path-confirmed fast path.
+6. Wave γ LOW-γr15-N1 — `--json --write` D6 refusal must emit JSON envelope, not plaintext.
+7. **[fold]** Post-Cluster-C external F1 MEDIUM — extend `make wave-close-check` untracked sentinel glob to include `docs/whitepapers/*.md` and `docs/state-of-the-art/**`.
+8. **[fold]** Post-Cluster-C external F2 LOW carry-over — add pointer at `docs/supervisor/LOG.md:73` to the rewrite mapping (2934521→ba3b3b3, 6facb68→84485c9) documented at ~L91/L101, so fresh-clone readers can resolve dangling SHAs.
+
+**WAVE_BASE**: `4868f68` (recorded pre-dispatch per AGENTS.md WAVE_BASE recipe).
+
+**Post-Cluster-C external review verdict — APPROVED WITH NOTES.** Reviewer confirmed: gate PASSes against Cluster C's own consolidation commit; all 7 checks fire correctly; canonical `**Cluster state**: SHIPPED` parsed as terminal; Rule 18 trailers verified across the 8-commit range; `ahead_of_origin: 0` (durability discipline holding). Observations: CI hygiene fix `4619b55` bypassed review protocol but on inspection is correctly targeted (three other bare `git init` helpers checked — none branch-name dependent). F1 + F2 folded into Cluster D above.
+
+**Constraints** (per AGENTS.md at HEAD `4868f68`):
+- Explicit `git add <path>` per commit; `git commit -F <tempfile>` never inline heredoc.
+- Side Research md5 invariant `b385fe622db9926f48861105239f113e` MUST remain preserved.
+- Non-goals: GH #6 (v0.13.0), PRD-#3/#4 contract extensions, staging the 12 currently-untracked WP/PRD files.
+
+**Cluster state**: `REV-0 DISPATCHED`.
+
+---
+
 ## 2026-08-02 — Cluster C process housekeeping — SHIPPED (four review revs)
 
 **Scope**: docs+Makefile-only process cluster codifying two Cluster A follow-ups and the v0.12.1 parallel-implementer entanglement postmortem. No production Go code touched.
