@@ -1,3 +1,48 @@
+## 2026-08-03 — Cluster D correctness housekeeping — SHIPPED (four review revs)
+
+**Scope**: 6 backlog items (PRD-#3 N2/N3/S1 correctness, PRD-#4 F-4 idempotency, GH #5 fast-path docs, Wave γ LOW-γr15-N1 JSON envelope) + 2 review-fold items from external's post-Cluster-C review (F1 gate glob gap, F2 LOG SHA pointer). Single implementer, sequential per Cluster C rule 5 same-file-overlap discipline.
+
+**Commit range**: `4868f68..42f85d7` (13 commits: 8 rev-0 impl + 3 rev-1 folds + 1 rev-2 fold + 1 rev-3 fold + 4 tracking commits).
+
+### Review scoreboard (four revs — Rule 17 recurrence on same clause dominated)
+
+| Rev | Internal | External | Adjudication |
+|-----|----------|----------|--------------|
+| rev-0 (`5ece9f7..89ca69a`) | NEEDS REVISION (3 MEDIUM: rename semantics, --from-revision recovery, fast-path docs totality; 1 LOW §7→§4 citation) | APPROVED WITH NOTES (1 MEDIUM = internal's Item 5 doc finding, Rule 20 verified Item 4 idempotency empirically) | Sided with internal; internal caught 2 correctness gaps (D-INT-1 rename semantics, D-INT-2 recovery variants) external missed |
+| rev-1 (`8df240e..1dd4679`) | NEEDS REVISION (1 MEDIUM residual: rev-1's rewrite of fast-path help introduced NEW false claim about `status --json` audit detail) | APPROVED (deferrals D-INT-2/F-EXT-2 empirically validated as scope-correct via PRD lines 180/259) | Sided with internal; internal caught first "rewording introduces new Rule 17" iteration |
+| rev-2 (`60cf266..ca10693`) | *(external-only per Cluster C precedent — single-issue wording follow-up)* | NEEDS REVISION (1 MEDIUM D-EXT-1: rev-2's fix introduced ANOTHER false claim "typically appears on review path" — audit fires on both paths empirically) | Sided with external; second "rewording introduces new Rule 17" iteration |
+| rev-3 (`d5e0a14..42f85d7`) | *(external-only)* | **APPROVED** — verbatim prescriptive wording finally broke the recurrence | Wave close authorized |
+
+### Two-opinion protocol scoreboard for Cluster D
+
+- **Internal-only catches**: D-INT-1 (rename semantics divergence — real correctness gap), D-INT-3-R1 (rev-1's "status --json audit detail" false claim). Both were correctness bugs the external Rule-20 pass missed by not chasing the specific claim.
+- **External-only catches**: F-EXT-1 = internal's D-INT-3 (convergent), F-EXT-2 concurrency observation (out of scope), Rule 20 verification of Item 4 idempotency (proved test genuinely fails pre-fix with 3-chain regression), D-EXT-1 (rev-2's "typically review path" false claim). External carried the empirical-repro discipline on the fast-path help clause where three consecutive iterations each introduced a new false claim.
+- **Convergence**: Both correctly identified the rev-0 "OMITS/ABSENT" totality claim on the fast-path JSON docs.
+
+### Pattern documented: "rewording introduces new false claim" on the same clause
+
+Three consecutive iterations (rev-0 → rev-1 → rev-2) each introduced a fresh Rule 17 residual on the same fast-path retirement-audit help sentence, despite each fix genuinely closing the prior finding. Broken by supervisor-prescribed **verbatim wording** at rev-3 rather than allowing tweaks. Precedent: v0.12.1 F-INT-3-1 trailer parse fix used verbatim commit-body template; Cluster C rev-3 shell fix used verbatim shell recipe. When a clause misfires ≥ 2 times, prescriptive text short-circuits the iteration loop.
+
+### Deferrals (documented, no fold)
+
+- **D-INT-2** (`--from-revision <original>` post-crash "superseded" error): PRD-#4 lines 180/259 document flag as manual/CI/test override, not the crash-recovery path. Default retry works (external Rule 20 verified). Backlog if operator friction surfaces.
+- **F-EXT-2** (concurrency safety): pre-existing; concurrent invocation of same slug not a supported local-CLI scenario. Out of PRD-#4 F-4 scope.
+
+### Non-invalidation invariants (verified at consolidation)
+
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e` (all edits).
+- All 13 commits Rule 18-trailer-clean.
+- v0.12.0/α+β+γ guarded-file empty-diff sets preserved.
+- Test count delta: 907 → 916 (+9 from R1 rename-semantics regression tests + Item 6 JSON envelope test + Item 4 crash-recovery regression + Item 1 fallback tests).
+
+### Wave-Close Checklist status
+
+Ran `make wave-close-check WAVE_BASE=4868f68` at close commit — PASS (with expected untracked-source WARN for the 12 WIP whitepaper/PRD/case-study files enumerated in CURRENT.md backlog).
+
+**Cluster state**: `SHIPPED`.
+
+---
+
 ## 2026-08-03 — Cluster D rev-2 external confirmation — NEEDS REVISION → rev-3 DISPATCHED
 
 **Scoreboard**:

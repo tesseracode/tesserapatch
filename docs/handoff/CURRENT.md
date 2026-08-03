@@ -2,11 +2,13 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: SHIPPED
 
-**WAVE_BASE**: `4868f68` (recorded per AGENTS.md WAVE_BASE recipe at Cluster D dispatch, 2026-08-03).
+**WAVE_BASE**: `4868f68` (Cluster D range: `4868f68..42f85d7`).
 
-**2026-08-03 Cluster D DISPATCHED.** Correctness housekeeping — single implementer, sequential, small-scope items. Scope: 6 backlog items (PRD-#3 N2/N3/S1, PRD-#4 F-4, GH #5 docs, Wave γ LOW-γr15-N1) + 2 review-fold items from external's post-Cluster-C review (F1 MEDIUM: gate glob gap; F2 LOW carry-over: LOG SHA pointer). See "Active Task" below for full scope.
+**2026-08-03 Cluster D SHIPPED.** Correctness housekeeping — 8 items total, single implementer, sequential. Four review revs (rev-0 → rev-3). Two-opinion protocol scoreboard: rev-0 dual (internal NEEDS REVISION 3 MEDIUM + 1 LOW, external APPROVED WITH NOTES 1 MEDIUM overlap), rev-1 dual (internal NEEDS REVISION 1 MEDIUM residual, external APPROVED), rev-2 external-only (NEEDS REVISION 1 MEDIUM new Rule 17 residual), rev-3 external-only (APPROVED via prescriptive verbatim wording). **Notable pattern**: three consecutive iterations on the same fast-path help clause each introduced a new Rule 17 residual; broken by supervisor-prescribed verbatim text at rev-3. All 6 backlog items + 2 review-fold items landed. Deferred: D-INT-2 (--from-revision post-crash out of PRD-#4 F-4 scope), F-EXT-2 (concurrency out of local-CLI scope). Range: `4868f68..42f85d7` (13 commits: 8 rev-0 impl + 3 rev-1 folds + 1 rev-2 fold + 1 rev-3 fold, plus 4 tracking commits).
+
+**2026-08-03 Cluster D DISPATCHED.** Correctness housekeeping — single implementer, sequential, small-scope items. Scope: 6 backlog items (PRD-#3 N2/N3/S1, PRD-#4 F-4, GH #5 docs, Wave γ LOW-γr15-N1) + 2 review-fold items from external's post-Cluster-C review (F1 MEDIUM: gate glob gap; F2 LOW carry-over: LOG SHA pointer).
 
 **v0.12.1 SHIPPED 2026-07-31.** Correctness fix pass (GH #3 + #4 + #5) three-way APPROVED at rev-1 across all three tickets. Cluster A (AGENTS.md wave-close checklist) shipped earlier same day. All work pushed to `origin/main`. v0.12.1 tag pushed.
 
@@ -16,43 +18,17 @@
 
 ## Active Task
 
-**Cluster D — Correctness housekeeping.** Single implementer, sequential. WAVE_BASE `4868f68`. Dispatched 2026-08-03.
-
-### Scope (8 items)
-
-**From v0.12.1 backlog:**
-1. **PRD-#3 N2** — D10 fallback for pre-ADR-024 features (parse touched_paths from `post-apply.patch` header lines when `patch-generations.json` absent).
-2. **PRD-#3 N3** — dedupe migration hint text across multi-slug run (currently prints per-slug).
-3. **PRD-#3 S1** — legacy mode stderr note when patch-id detector is silenced by `--cumulative-legacy`.
-4. **PRD-#4 F-4** — crash-recovery idempotency guard for `applyConfirmUpstreamedTransition` (append-then-save asymmetry).
-5. **GH #5 fast-path follow-up** — document that fast-path JSON returns strictly less data than `status.json` for review-path-confirmed features (accepted tradeoff per AC-2). Update `docs/` and/or `--help` text.
-6. **Wave γ LOW-γr15-N1** — `--json --write` D6 refusal must emit JSON envelope, not plaintext.
-
-**From external's post-Cluster-C review (2026-08-03):**
-
-7. **F1 MEDIUM** — `make wave-close-check` untracked sentinel misses whitepapers + state-of-the-art. Add `'docs/whitepapers/*.md'` and `'docs/state-of-the-art/**'` to the glob list in Makefile check `[2/7]`. Verify by running the gate against the currently-untracked WP-004..WP-007 files.
-8. **F2 LOW carry-over** — `docs/supervisor/LOG.md:73` cites `2934521` and `6facb68` as PRD-#3 chain but both remain unreachable from `main`. Add a pointer at that line to the rewrite mapping documented later in the same entry (lines ~91 and ~101), so a fresh-clone reader can resolve the dangling SHAs.
-
-### Constraints (per AGENTS.md)
-
-- **Single implementer** — same-file overlap likely (reconcile.go, cobra.go) triggers Cluster C rule 5 hard-sequential.
-- **Staging discipline** — explicit `git add <path>` on every commit; NEVER `-a`, `.`, `-A`, or directory globs (Rule 1 of Parallel-Implementer Discipline, though single-implementer here).
-- **Trailer discipline** — `git commit -F <tempfile>` always; never inline heredoc (Rule 18).
-- **Non-invalidation invariants** — Side Research md5 `b385fe622db9926f48861105239f113e` MUST remain preserved on any CURRENT.md edit.
-- **Wave-close gate** — run `make wave-close-check WAVE_BASE=4868f68` before consolidation; must PASS.
-
-### Non-goals
-
-- Do NOT touch GH #6 (v0.13.0 first-class rejected state). Separate cluster.
-- Do NOT extend PRD-#3 or PRD-#4 contracts; these are housekeeping items *within* the accepted contracts.
-- Do NOT stage the 12 untracked whitepaper / PRD files (`WP-004..WP-007`, `PRD-feature-unapply.md`, `PRD-recurring-patches.md`, `.turns.md` siblings, case-study docs). Those are separate WIP; F1's fix will surface them at next wave close so an operator (not implementer) decides their disposition.
+**None.** Cluster D shipped 2026-08-03. Next: Cluster E (v0.13.0 GH #6 first-class rejected state) per backlog.
 
 ## Session Summary
 
-- **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped at `de7d573`, tagged `v0.12.0`.
-- **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`, single-turn implement + dual-review.
-- **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`, three-way APPROVED paper.
-- **v0.12.1 implementation** (GH #3 + #4 + #5 correctness fix pass) — rev-0 3 parallel implementers, 6-reviewer dual pass, rev-1 fold 7 findings, rev-1 dual confirmation three-way APPROVED at `adb6ba3`. Consolidation at HEAD.
+- **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
+- **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
+- **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
+- **v0.12.1 implementation** (GH #3 + #4 + #5 correctness fix pass) — shipped at `bb31872`, tagged `v0.12.1`.
+- **CI hygiene fix** — `4619b55` pinned `gitInitTestRepo` to `-b main`; CI back green 2026-08-02.
+- **Cluster C** (parallel-implementer discipline + `make wave-close-check` mechanical gate) — shipped at `4868f68` after 4 review revs.
+- **Cluster D** (correctness housekeeping — 6 backlog items + 2 review-fold items) — shipped 2026-08-03 after 4 review revs. Range `4868f68..42f85d7`.
 
 ## Files Changed at v0.12.1 Consolidation
 
@@ -71,23 +47,27 @@
 
 ## Next Steps
 
-**Backlog (deferred from v0.12.1)**:
+**Backlog after Cluster D**:
 
-Code / feature:
-- **GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger cluster, planning-first. Related to GH #4 (both terminal transitions with evidence contracts).
-- **PRD-#3 N2** — D10 fallback when `patch-generations.json` absent (pre-ADR-024 features): parse touched_paths from `post-apply.patch` header lines.
-- **PRD-#3 N3** — dedupe migration hint per multi-slug run (currently prints per-slug).
-- **PRD-#3 S1** — legacy mode stderr note when patch-id detector is silenced by `--cumulative-legacy`.
-- **PRD-#4 F-4** — crash-recovery idempotency guard for `applyConfirmUpstreamedTransition` (append-then-save asymmetry).
-- **PRD-#4 F-3 process fix** — parallel implementer git-add discipline (see Cluster A entanglement postmortem below).
-- **GH #5 fast-path follow-up** — the fast-path JSON now returns strictly less data than `status.json` for review-path-confirmed features (accepted tradeoff per AC-2). Consumer docs should call this out; consider a `--full` flag if operator friction surfaces.
+Feature / release:
+- **Cluster E — v0.13.0 GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger planning-first cluster. Only remaining open GH issue.
 
-Process / hygiene:
-- **AGENTS.md parallel-implementer discipline addendum** — codify "stage via `git add <path>` per PRD; never `git commit -a` when a worktree hosts concurrent implementers." Cross-implementer entanglement caught 3 times in v0.12.1 (`d930963` conflating PRD-#3 + PRD-#4 code; GH #5 impl caught + split its own commit). Post-mortem candidate for a Cluster A follow-up amendment.
-- **Mechanical Wave-Close Checklist gate** — `make wave-close-check` guard from Cluster A fresh-eyes challenge #2 (still deferred; elevates the checklist from soft to hard enforcement).
+Deferred from Cluster D adjudication (documented, no fold):
+- **D-INT-2** (`--from-revision <original>` post-crash "superseded" error) — PRD-#4 lines 180/259 document the flag as CI/test override, not the crash-recovery path. Default retry works (external Rule 20 verified). Backlog if operator friction surfaces.
+- **F-EXT-2** (concurrency safety of confirm-upstreamed) — pre-existing; concurrent invocation of same slug not a supported local-CLI scenario.
+
+Untracked WIP (surfaced by Cluster D Item 7 gate glob extension; NOT staged by Cluster D):
+- `docs/whitepapers/WP-004..WP-007.md` + `.turns.md` siblings (8 files).
+- `docs/prds/PRD-feature-unapply.md`, `docs/prds/PRD-recurring-patches.md`.
+- `docs/state-of-the-art/*case-study*` (2 files).
+- These require operator decision on disposition; not a defect.
+
+Process / hygiene (all shipped this session):
+- ✅ AGENTS.md parallel-implementer discipline addendum (Cluster C).
+- ✅ Mechanical wave-close-check gate (Cluster C).
+- ✅ Gate glob covers whitepapers + state-of-the-art (Cluster D fold F1).
 
 Documentation:
-- **LOW-γr15-N1** (from Wave γ rev-1.5): `--json --write` D6 refusal emits plaintext not JSON envelope.
 - **ADR-027 F2** (nit).
 - **Doctor S3-boundary deferrals** (from Wave β).
 - **ADR-029 nit deferrals**.

@@ -549,6 +549,31 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## Cluster D — 2026-08-03 — correctness housekeeping (8 items) ✅ SHIPPED
+
+Correctness-and-docs cluster clearing the v0.12.1 backlog + two external-review folds. Single implementer, sequential per Cluster C rule 5 same-file-overlap discipline. Four review revs.
+
+- **PRD-#3 N2 D10 fallback**: when `patch-generations.json` is absent (pre-ADR-024 features), derive touched_paths from `post-apply.patch` via canonical `gitutil.FilesInPatch` (aligns with manifest generator; rev-1 fix eliminated bespoke-parser divergence class on rename headers).
+- **PRD-#3 N3**: dedupe multi-slug D10 migration hint via `migrationHintFired` gate — prints exactly once per run.
+- **PRD-#3 S1**: legacy-mode stderr note when patch-id detector is silenced by `--cumulative-legacy`.
+- **PRD-#4 F-4**: crash-recovery idempotency guard for `applyConfirmUpstreamedTransition` (append-then-save asymmetry). External Rule 20 verified: reverting the fix produces 3-chain regression; fix produces clean 2-revision repair.
+- **GH #5 fast-path follow-up**: docs corrected across three revisions (rev-0 doc addition → rev-1 "present-empty not omitted" → rev-3 verbatim wording on retirement audit emitted by both `reconcile` and `reconcile confirm-upstreamed` payloads, both paths, absent via `omitempty`, not in `status --json`).
+- **Wave γ LOW-γr15-N1**: `session summarize --json --write` D6 refusal now emits JSON error envelope to stdout with exit 1; plaintext path preserved for non-`--json`.
+- **F1 fold** (post-Cluster-C external): `make wave-close-check` untracked-source glob extended to `docs/whitepapers/*.md` and `docs/state-of-the-art/**`. Surfaced 12 WIP files at close for operator disposition.
+- **F2 fold** (post-Cluster-C external): navigational pointer added at `docs/supervisor/LOG.md` cite of rewritten SHAs `2934521`/`6facb68` to the mapping subsection so fresh-clone readers can resolve dangling references.
+
+**Deferrals** (documented, no fold): D-INT-2 (`--from-revision <original>` post-crash "superseded" — PRD-#4 lines 180/259 document flag as CI/test override not recovery path); F-EXT-2 (concurrent invocation of same slug — not supported CLI scenario).
+
+**Commit range**: `4868f68..42f85d7` (13 commits).
+
+**Review protocol**: four revs — rev-0 (dual, split verdict, sided with internal), rev-1 (dual, internal caught first Rule 17 recurrence), rev-2 (external-only, caught second Rule 17 recurrence), rev-3 (external-only, verbatim prescriptive wording broke the pattern, APPROVED).
+
+**Pattern documented**: three consecutive iterations each introduced a fresh Rule 17 residual on the same fast-path help clause. Broken at rev-3 by supervisor-prescribed **verbatim wording** rather than allowing implementer tweaks — precedent for "when a clause misfires ≥ 2 times, ship prescriptive text". Cluster C rev-3 shell fix + v0.12.1 F-INT-3-1 trailer template were the earlier precedents.
+
+**Two-opinion protocol scoreboard**: Internal-only catches: D-INT-1 rename semantics divergence (real correctness gap), D-INT-3-R1 rev-1 audit-via-status false claim. External-only catches: Rule 20 verification of Item 4 idempotency, D-EXT-1 rev-2 "typically review path" false claim. Convergence: rev-0 "OMITS/ABSENT" totality on fast-path JSON. Protocol pulled its weight on both sides.
+
+**Test count**: 907 → 916 (+9 regression tests). Full suite green. Wave-Close Checklist gate PASS at close commit.
+
 ## Cluster C — 2026-08-02 — process housekeeping (AGENTS.md + Makefile) ✅ SHIPPED
 
 Docs-and-tooling-only cluster codifying two Cluster A follow-ups and the v0.12.1 parallel-implementer entanglement postmortem:

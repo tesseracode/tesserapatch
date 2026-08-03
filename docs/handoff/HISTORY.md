@@ -1,3 +1,38 @@
+# 2026-08-03 — Cluster D correctness housekeeping — SHIPPED
+
+**Range**: `4868f68..42f85d7` (13 commits: 8 rev-0 impl + 3 rev-1 folds + 1 rev-2 fold + 1 rev-3 fold + 4 tracking).
+
+**Scope**: 6 v0.12.1 backlog items (PRD-#3 N2/N3/S1, PRD-#4 F-4, GH #5 docs, Wave γ LOW-γr15-N1) + 2 review-fold items from external's post-Cluster-C review (F1 gate glob gap, F2 LOG SHA pointer). Single implementer, sequential per Cluster C rule 5 same-file-overlap discipline (reconcile.go + cobra.go both touched).
+
+**Review scoreboard (four revs)**:
+- rev-0 dual: internal NEEDS REVISION (3 MEDIUM + 1 LOW); external APPROVED WITH NOTES (1 MEDIUM overlap + Rule 20 empirical Item 4 verification). Sided with internal on split.
+- rev-1 dual: internal NEEDS REVISION (1 MEDIUM residual — rev-1 rewrite of fast-path help introduced NEW false claim about `status --json` audit detail); external APPROVED. Sided with internal.
+- rev-2 external-only: NEEDS REVISION (1 MEDIUM D-EXT-1 — rev-2 fix introduced ANOTHER false claim "typically appears on review path"). Second consecutive Rule 17 recurrence on same clause.
+- rev-3 external-only: APPROVED via supervisor-prescribed verbatim wording. Pattern broken.
+
+**Two-opinion protocol scoreboard**:
+- Internal-only catches: D-INT-1 rename semantics divergence (real correctness gap on rename patches; caller was fail-soft so no operational impact but semantic mismatch); D-INT-3-R1 (rev-1 audit-via-status false claim).
+- External-only catches: Rule 20 verification of Item 4 idempotency (empirically proved test genuinely fails pre-fix with 3-chain regression); F-EXT-2 concurrency observation (out-of-scope); D-EXT-1 (rev-2 "typically review path" false claim).
+- Convergence: rev-0 fast-path JSON "OMITS/ABSENT" totality claim caught by both.
+
+**Pattern documented — "rewording introduces new false claim" recurrence**: three consecutive iterations (rev-0 → rev-1 → rev-2) each introduced a fresh Rule 17 residual on the same fast-path retirement-audit help sentence, despite each genuinely closing the prior finding. Broken at rev-3 by supervisor-prescribed **verbatim wording** rather than allowing implementer paraphrase. Precedent: v0.12.1 F-INT-3-1 trailer template + Cluster C rev-3 shell recipe. Protocol addition: when a clause misfires ≥ 2 times, dispatch verbatim final text rather than "suggested rewording".
+
+**Deferrals (documented, no fold)**:
+- **D-INT-2** `--from-revision <original>` post-crash "superseded by later entry" error. PRD-#4 lines 180 ("useful for CI and tests") and 259 ("Operators who want a specific older entry must pass `--from-revision`") document flag as manual/CI/test override, not the crash-recovery path. Default retry works (external Rule 20 verified). Backlog if operator friction surfaces.
+- **F-EXT-2** concurrency safety of `confirm-upstreamed` idempotency guard. Pre-existing check-then-append with no file lock. Concurrent invocation of same slug's retirement is not a supported local-CLI scenario. Out of PRD-#4 F-4 scope.
+
+**Non-invalidation invariants preserved**:
+- Side Research md5: `b385fe622db9926f48861105239f113e` (all edits).
+- Rule 18 trailers: 13/13 commits.
+- v0.12.0 wave α+β+γ guarded-file empty-diff sets: preserved.
+- Test count delta: 907 → 916 (+9): R1 rename-semantics regressions, Item 4 crash-recovery idempotency, Item 6 JSON envelope, Item 1 fallback deletion/creation.
+
+**Wave-Close Checklist dogfooding**: ran `make wave-close-check WAVE_BASE=4868f68` at close — PASS with expected untracked-source WARN for 12 WIP files (WP-004..WP-007 + `.turns.md` siblings, PRD-feature-unapply, PRD-recurring-patches, 2 case-study docs). Gate correctly surfaces WIP for operator disposition; not a defect. This is the first cluster to prove the Cluster C gate glob extension (F1 fold) surfaces the intended file classes empirically.
+
+**Cluster protocol variant precedent extended**: rev-2 and rev-3 were external-only cycles. Justification per Cluster C precedent: single-issue empirical follow-ups where architectural re-review adds zero value, provided initial two-opinion architectural coverage was established (rev-0 + rev-1 dual). Documented as accepted pattern.
+
+---
+
 # 2026-08-02 — Cluster C process housekeeping — SHIPPED
 
 **Range**: `bb31872..870182d` (5 commits). Plus inline CI-hygiene commit `4619b55` outside cluster.
