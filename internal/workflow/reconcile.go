@@ -230,6 +230,17 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	// signal (PRD §7.2 "v1 blocks only on preimage mismatch").
 	laterTouchByOwner := DetectReconcileLaterTouchWarningsByOwner(s, slugs)
 
+	// PRD-#3 N3: the D10 migration hint is a per-RUN diagnostic, not
+	// per-slug — once an operator has been told "prior features may
+	// have been recorded cumulatively; retry with --cumulative-legacy"
+	// once, repeating it for every subsequent slug in the same
+	// invocation is just noise. migrationHintFired is scoped to this
+	// RunReconcile call (not a package-level sync.Once, which would
+	// wrongly suppress the hint across separate invocations) and is
+	// checked/set at both call sites below (the err-branch and the
+	// success-branch) since either can be the first slug to trip it.
+	migrationHintFired := false
+
 	for i, slug := range slugs {
 		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts)
 		if err != nil {
@@ -248,8 +259,10 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 			// see the --cumulative-legacy suggestion even when the
 			// per-slug failure surfaces as an error rather than a
 			// blocked ReconcileResult.
-			if !opts.CumulativeLegacy && i > 0 {
-				maybeEmitMigrationHint(s, slugs[:i], slug)
+			if !opts.CumulativeLegacy && i > 0 && !migrationHintFired {
+				if maybeEmitMigrationHint(s, slugs[:i], slug) {
+					migrationHintFired = true
+				}
 			}
 			continue
 		}
@@ -273,9 +286,12 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 		// slug AND some earlier slug in this run touched a subset of
 		// this slug's touched_paths, emit the hint pointing the
 		// operator at --cumulative-legacy. Fail-soft: missing
-		// patch-generations.json never fires the hint.
-		if !opts.CumulativeLegacy && result != nil && phaseIndicatesReverseApplyFailure(result.Phase) && i > 0 {
-			maybeEmitMigrationHint(s, slugs[:i], slug)
+		// patch-generations.json never fires the hint. PRD-#3 N3:
+		// fires at most once per run (migrationHintFired).
+		if !opts.CumulativeLegacy && result != nil && phaseIndicatesReverseApplyFailure(result.Phase) && i > 0 && !migrationHintFired {
+			if maybeEmitMigrationHint(s, slugs[:i], slug) {
+				migrationHintFired = true
+			}
 		}
 		results = append(results, *result)
 	}

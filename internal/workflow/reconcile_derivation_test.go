@@ -140,3 +140,92 @@ func TestLatestTouchedPaths_FallbackRecoversD10Hint(t *testing.T) {
 		t.Errorf("PRD-#3 N2: expected D10 hint recovered via post-apply.patch fallback (no patch-generations.json present), got:\n%s", buf.String())
 	}
 }
+
+// TestMigrationHint_FiresOnlyOnceAcrossMultiSlugRun is the PRD-#3 N3
+// regression: a three-slug run where BOTH slug B (overlaps A) and
+// slug C (overlaps A and/or B) would independently trip the D10
+// overlap condition must still print the hint exactly once for the
+// whole invocation, not once per triggering slug.
+func TestMigrationHint_FiresOnlyOnceAcrossMultiSlugRun(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"A", "B", "C"} {
+		if _, err := s.AddFeature(store.AddFeatureInput{Title: name, Request: name}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.MarkFeatureState(strings.ToLower(name), store.StateApplied, "apply", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	patchA := canonicalIndependentPatch("foo.txt", "hello-a")
+	patchB := "diff --git a/foo.txt b/foo.txt\n" +
+		"new file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- /dev/null\n" +
+		"+++ b/foo.txt\n" +
+		"@@ -0,0 +1 @@\n" +
+		"+hello-b\n" +
+		"diff --git a/bar.txt b/bar.txt\n" +
+		"new file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- /dev/null\n" +
+		"+++ b/bar.txt\n" +
+		"@@ -0,0 +1 @@\n" +
+		"+bar-only\n"
+	// C is cumulative over B: touches foo.txt, bar.txt AND baz.txt, so
+	// C also overlaps both A's and B's touched_paths independently.
+	patchC := "diff --git a/foo.txt b/foo.txt\n" +
+		"new file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- /dev/null\n" +
+		"+++ b/foo.txt\n" +
+		"@@ -0,0 +1 @@\n" +
+		"+hello-c\n" +
+		"diff --git a/bar.txt b/bar.txt\n" +
+		"new file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- /dev/null\n" +
+		"+++ b/bar.txt\n" +
+		"@@ -0,0 +1 @@\n" +
+		"+bar-c\n" +
+		"diff --git a/baz.txt b/baz.txt\n" +
+		"new file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- /dev/null\n" +
+		"+++ b/baz.txt\n" +
+		"@@ -0,0 +1 @@\n" +
+		"+baz-only\n"
+
+	if err := s.WriteArtifact("a", "post-apply.patch", patchA); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.WriteArtifact("b", "post-apply.patch", patchB); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.WriteArtifact("c", "post-apply.patch", patchC); err != nil {
+		t.Fatal(err)
+	}
+	seedPatchGenerations(t, s, "a", patchA, []string{"foo.txt"})
+	seedPatchGenerations(t, s, "b", patchB, []string{"bar.txt", "foo.txt"})
+	seedPatchGenerations(t, s, "c", patchC, []string{"bar.txt", "baz.txt", "foo.txt"})
+
+	orig := migrationDiagHintWriter
+	buf := &bytes.Buffer{}
+	migrationDiagHintWriter = buf
+	t.Cleanup(func() { migrationDiagHintWriter = orig })
+
+	if _, err := RunReconcile(context.Background(), s, []string{"a", "b", "c"}, "HEAD", nil, provider.Config{}, ReconcileOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	const hint = "hint: prior features may have been recorded cumulatively; retry with --cumulative-legacy (see ADR-030)"
+	count := strings.Count(buf.String(), hint)
+	if count != 1 {
+		t.Errorf("PRD-#3 N3: expected D10 hint exactly once across the run, got %d occurrences:\n%s", count, buf.String())
+	}
+}
