@@ -4,11 +4,13 @@
 
 **v0.12.1 SHIPPED 2026-07-31.** Correctness fix pass (GH #3 + #4 + #5) three-way APPROVED at rev-1 across all three tickets. Cluster A (AGENTS.md wave-close checklist) shipped earlier same day. All work pushed to `origin/main`. v0.12.1 tag pushed.
 
-Awaiting next milestone selection.
+**2026-08-02: CI back green on `main`.** Inline hygiene fix at `4619b55` — `gitInitTestRepo` pinned to `-b main` — resolved a persistent CI failure class (red on both runners since 2026-07-28). Root cause: bare `git init` inherited runner's unset `init.defaultBranch` → default branch was `master`, not `main`; local dev Macs had it set globally which masked the failure. Reproduced empirically under `HOME=/tmp/emptyhome`. Full LOG.md entry at top.
+
+**Housekeeping cluster dispatch pending** (this session's next action).
 
 ## Active Task
 
-**None.** v0.12.0 + Cluster A + v0.12.1 all shipped, tagged, and pushed. Next cluster TBD per user selection from the deferred backlog.
+**Housekeeping cluster kickoff** — dispatching PRD-drafting phase for the deferred-from-v0.12.1 backlog items below.
 
 ## Session Summary
 

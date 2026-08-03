@@ -1,3 +1,28 @@
+## 2026-08-02 — CI hygiene fix — `gitInitTestRepo` pinned to `-b main` — SHIPPED
+
+**Scope**: urgent single-line test-helper fix, outside the wave-review protocol.
+
+**Symptom**: GitHub Actions `CI` workflow red on `main` since 2026-07-28 (across Wave γ, v0.12.0, Cluster A, Cluster B planning, v0.12.1 — every push). Both `ubuntu-latest` and `macos-latest` jobs failed on the same test: `TestRecordAuto_AmbiguousMergeBase_Refuses` at `internal/cli/record_auto_test.go:92`, with `git [checkout -q main]: error: pathspec 'main' did not match any file(s)`.
+
+**Root cause**: `gitInitTestRepo` in `internal/cli/cobra_test.go:255` ran a bare `git init`. Bare `git init` honours the runner's global `init.defaultBranch` config. GitHub Actions runners have no `init.defaultBranch` set, so the initial branch was `master`, not `main`. Local dev Macs have `init.defaultBranch=main` set globally, which masked the failure — the full suite passed locally on every commit while CI was red on the same commit.
+
+**Only affected test**: `TestRecordAuto_AmbiguousMergeBase_Refuses` is the sole test in the tree that hardcodes `main` (it constructs a divergent-upstream scenario with `checkout -b upstream-main` then `checkout main`). All other users of `gitInitTestRepo` are branch-name-agnostic. The fix is scope-appropriate: pin the helper's initial branch to `main`, no test-body edits.
+
+**Verification**:
+- Empirical CI-equivalent repro: `HOME=/tmp/emptyhome` (no `init.defaultBranch` set globally) reproduced the failure without the fix and passed with it.
+- Full suite green under CI-equivalent env: `HOME=/tmp/emptyhome go test ./... -count=1` → 0 failures across all packages.
+- gofmt / go vet / go build clean.
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+- CI run against `4619b55` (30758422868): SUCCESS on both `ubuntu-latest` and `macos-latest`. First green run on `main` since 2026-07-28.
+
+**Protocol note**: this is an urgent hygiene commit outside the two-opinion wave-review protocol. Justification: the fix is a 1-line test-helper change with zero production-code impact, and CI being red on `main` blocks the durability guarantee that the Wave-Close Checklist depends on (`git push origin main` is not meaningful if CI never confirms the push). Fixing it inline was strictly better than waiting for the next protocol wave. Any future CI-hygiene commits following the same pattern (test-helper only, empirically reproduced under CI-equivalent env, full-suite green) should follow this precedent.
+
+**Commit**: `4619b55` on `origin/main`. Trailer parses cleanly (Rule 18).
+
+**Verdict**: SHIPPED — inline hygiene, no cluster bookkeeping.
+
+---
+
 ## 2026-07-31 — v0.12.1 correctness fix pass — THREE-WAY APPROVED — SHIPPED
 
 **Scope**: post-v0.12.0 correctness cluster bundling GH #3 (multi-slug reconcile canonical safety), GH #4 (confirm-upstreamed human-review path), GH #5 (record round-trip transactional invariant). Planning phase (Cluster B PRDs) shipped earlier same day at `4e673a8`.
