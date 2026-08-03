@@ -247,7 +247,7 @@ This addendum subsumes v0.12.1 PRD-#4 F-3 (the "parallel-implementer process fix
 
 **Codified 2026-08-02 after Cluster C rev-1 external F-EXT-2** empirically demonstrated that scanning the `## Status` section for terminal tokens false-passes whenever the section contains historical mentions of a prior shipped cluster. The current `## Status` in `docs/handoff/CURRENT.md` at Cluster C rev-1 contained both `v0.12.1 SHIPPED` (historical, correct) and `Housekeeping cluster dispatch pending` (current, mid-cycle), and the gate false-passed because `SHIPPED` matched the allowlist regardless of context.
 
-Fix: `docs/handoff/CURRENT.md` MUST contain a single canonical single-line field near the top of `## Status`:
+Fix: `docs/handoff/CURRENT.md` MUST contain **exactly one** canonical single-line field near the top of `## Status`:
 
 ```markdown
 **Cluster state**: <TOKEN>
@@ -255,7 +255,9 @@ Fix: `docs/handoff/CURRENT.md` MUST contain a single canonical single-line field
 
 Where `<TOKEN>` is one of the terminal-state allowlist tokens: `IDLE`, `SHIPPED`, `APPROVED`, `ACCEPTED`, or one of the mid-cycle tokens (denylist): `IN PROGRESS`, `REV-N DISPATCHED`, `AWAITING REVIEW`. The mechanical gate at `Makefile` `wave-close-check` parses **only this field** — it does not scan the rest of the Status section. At wave close, the token must be a terminal-state token; if it is mid-cycle, the gate FAILs. The narrative prose below the canonical field is human-readable context and does not affect the gate.
 
-Convention: the field lives on its own line at the top of `## Status`, above any historical context blocks. When a new cluster dispatches, the field flips to a mid-cycle token; at wave close it flips to a terminal token before the gate is run.
+Convention: the field lives on its own line at the top of `## Status`, above any historical context blocks. When a new cluster dispatches, the field is **replaced in place** with a mid-cycle token; at wave close it is **replaced in place** with a terminal token before the gate is run. **Never append a second field** — the gate rejects duplicates (Cluster C rev-2 external F-EXT-NEW-1 empirically demonstrated that `grep -m1` on multiple fields false-passes on the earliest match, so rev-3 tightened the parse to require exactly one).
+
+**Selecting `WAVE_BASE`** for the trailer-check range at `[4/7]`: the default `$(git describe --tags --abbrev=0)..HEAD` works when the wave is the first cluster after a tag. For subsequent waves in the same release cycle (e.g., Cluster D shipping between v0.12.1 and v0.13.0), the cluster lead should invoke the gate with `WAVE_BASE=<immediate-pre-cluster-ancestor>` — the commit SHA of `origin/main` at the moment the cluster's first implementer was dispatched. This scopes the trailer walk to exactly this cluster's commits and prevents pollution from prior waves already reviewed.
 
 ## PRD Authoring — Strongly Encouraged Conventions
 
