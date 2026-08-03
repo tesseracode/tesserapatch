@@ -227,6 +227,22 @@ Run this **as the last step of every wave close**, before dispatching the next w
 
 If any box is unchecked when the next wave is about to dispatch, **stop and finish the checklist first**. Dispatching against unpushed / stale-Status state is what generated the F1 pattern; the fix is protocol, not memory.
 
+**Mechanical gate**: `make wave-close-check` runs the subset of the checklist that can be verified programmatically (working tree clean, HEAD pushed, trailer parses, CURRENT.md Status line not stale, gofmt/vet/build clean). Human items (LOG prepended, ROADMAP flipped, HISTORY archived, non-invalidation invariants) remain manual — the target prints them as a reminder banner. Codified 2026-08-02 after Cluster A external challenge #2 flagged that the checklist above is protocol-only with no verifier.
+
+### Parallel-Implementer Discipline
+
+**Codified 2026-08-02 after the v0.12.1 cross-implementer entanglement postmortem** (`docs/handoff/HISTORY.md` → 2026-07-31 → v0.12.1 archive). During v0.12.1, three implementers ran in parallel against overlapping surfaces (all three touched `internal/cli/cobra.go`). One implementer (PRD-#3 Slice 1+2 at `d930963`) used `git commit -a` which swept in another implementer's uncommitted PRD-#4 production code, mis-attributing it. A second implementer (GH #5) independently caught it and split the commit — but the risk of undetected entanglement in a future parallel dispatch is unacceptable.
+
+**Rules for parallel implementers** (three or more implementers running against a shared file surface):
+
+1. **`git add <path>` mandatory, `git commit -a` forbidden.** Every implementer stages by explicit path. The paths must appear in the implementer's dispatch brief so the supervisor can verify at review time that no cross-implementer surface was touched.
+2. **Cluster lead declares the shared-surface set** at dispatch. If more than one implementer will touch `cobra.go`, `reconcile.go`, `verify.go`, etc., the brief for each implementer lists (a) the specific functions / helpers that implementer owns and (b) an explicit "do not touch" list of siblings.
+3. **Reviewers scope by function name, not commit boundary.** When entanglement is possible, reviewers verify each ticket's scope by identifying the specific new/modified functions in the diff — not by trusting the commit's labeled scope. This is the review-side counter-measure that caught the v0.12.1 case.
+4. **When entanglement is detected post-hoc**, the fix is `git rebase -i` reword or split, not a follow-up commit. The trailer + attribution must be correct on the archived commit; a "fix" commit that attributes later doesn't repair the historical record. See the v0.12.1 rebase-rewrite of `2934521`→`ba3b3b3` for the pattern.
+5. **Sequential fallback**: if the cluster lead can not confidently declare a non-overlapping surface partition at dispatch, the implementers run sequentially, not in parallel. Parallel speed is not worth silent attribution errors.
+
+This addendum subsumes v0.12.1 PRD-#4 F-3 (the "parallel-implementer process fix" follow-up finding).
+
 ## PRD Authoring — Strongly Encouraged Conventions
 
 These are **strongly encouraged but not enforced** (no automated guard). They graduated from `docs/whitepapers/WP-001-feature-slice-gap.md §3.5` after the v0.7 cluster review surfaced repeated cross-PRD blind spots that a self-audit would have caught.
