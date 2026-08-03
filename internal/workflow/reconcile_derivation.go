@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -101,7 +101,17 @@ func latestTouchedPaths(s *store.Store, slug string) ([]string, error) {
 
 // touchedPathsFromPostApplyPatch is the PRD-#3 N2 fallback: it reads
 // the feature's canonical `artifacts/post-apply.patch` and extracts
-// the touched paths from `diff --git a/<path> b/<path>` header lines.
+// the touched paths via gitutil.FilesInPatch — the SAME helper
+// internal/workflow/patch_generations.go:76 uses to populate
+// patch-generations.json's `touched_paths` in the first place. Reusing
+// it (rather than a bespoke parser) guarantees the fallback and the
+// canonical manifest agree on rename semantics: only the `b/<path>`
+// side of a `diff --git a/<old> b/<new>` header is kept, matching the
+// canonical generator (D-INT-1 fix — a bespoke parser here previously
+// emitted BOTH the `a/` and `b/` sides of a rename header, producing a
+// touched_paths set that was not directly comparable to a later
+// manifest's canonical set and could cause false-negative/false-
+// positive D10 hint suppression on rename-shaped patches).
 // A missing post-apply.patch (or an unreadable one) is reported as an
 // error so the caller's existing fail-soft "continue on error" handling
 // (maybeEmitMigrationHint) treats it the same as a missing manifest.
@@ -110,45 +120,7 @@ func touchedPathsFromPostApplyPatch(s *store.Store, slug string) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	return parseDiffGitHeaderPaths(patch), nil
-}
-
-// parseDiffGitHeaderPaths extracts the deduplicated set of paths named
-// in `diff --git a/<path> b/<path>` header lines of a unified diff.
-// The `diff --git` line (unlike `---`/`+++`) always names both sides
-// with real paths — even for new-file or deleted-file hunks, where the
-// body uses `/dev/null` — so it is the reliable source for touched
-// paths when no other metadata is available. Order is first-seen.
-func parseDiffGitHeaderPaths(patch string) []string {
-	var paths []string
-	seen := make(map[string]struct{})
-	add := func(p string) {
-		if p == "" {
-			return
-		}
-		if _, ok := seen[p]; ok {
-			return
-		}
-		seen[p] = struct{}{}
-		paths = append(paths, p)
-	}
-	for _, line := range strings.Split(patch, "\n") {
-		rest, ok := strings.CutPrefix(line, "diff --git ")
-		if !ok {
-			continue
-		}
-		aRest, ok := strings.CutPrefix(rest, "a/")
-		if !ok {
-			continue
-		}
-		sep := strings.Index(aRest, " b/")
-		if sep == -1 {
-			continue
-		}
-		add(aRest[:sep])
-		add(aRest[sep+len(" b/"):])
-	}
-	return paths
+	return gitutil.FilesInPatch(patch), nil
 }
 
 // isSubset returns true iff every element of `sub` is present in

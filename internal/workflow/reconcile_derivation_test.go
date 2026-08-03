@@ -321,3 +321,93 @@ func TestLegacyDetectorSilencedNote_QuietWhenNotLegacy(t *testing.T) {
 		t.Errorf("PRD-#3 S1 sanity: default path must never emit the legacy-only note, got:\n%s", buf.String())
 	}
 }
+
+// TestTouchedPathsFromPostApplyPatch_RenameHeaderUsesBSideOnly is the
+// D-INT-1 MEDIUM regression: a rename-shaped `diff --git a/OLD b/NEW`
+// header must contribute ONLY the `b/NEW` side to touched_paths,
+// matching gitutil.FilesInPatch (the canonical helper
+// internal/workflow/patch_generations.go:76 uses to populate
+// patch-generations.json). Before the fix, the fallback's bespoke
+// parser added BOTH `OLD` and `NEW`, producing a set that was not
+// directly comparable to the canonical manifest's set for the exact
+// same patch and could cause the D10 hint to fire or suppress
+// incorrectly on rename-shaped patches.
+func TestTouchedPathsFromPostApplyPatch_RenameHeaderUsesBSideOnly(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "rrr", Request: "rrr"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkFeatureState("rrr", store.StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+	renamePatch := "diff --git a/foo.go b/bar.go\n" +
+		"similarity index 100%\n" +
+		"rename from foo.go\n" +
+		"rename to bar.go\n"
+	if err := s.WriteArtifact("rrr", "post-apply.patch", renamePatch); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := touchedPathsFromPostApplyPatch(s, "rrr")
+	if err != nil {
+		t.Fatalf("touchedPathsFromPostApplyPatch: unexpected error: %v", err)
+	}
+	want := []string{"bar.go"}
+	if len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("rename header: got %v, want ONLY the b/ side %v (must not include the a/ side %q)", got, want, "foo.go")
+	}
+}
+
+// TestTouchedPathsFromPostApplyPatch_DeletionAndCreationHeaders locks
+// down the D-INT-1 fix's non-rename cases: pure creation
+// (`/dev/null` → `b/NEW`) still emits `NEW`, and pure deletion
+// (`a/OLD` → `/dev/null`) still emits `OLD`. Git's `diff --git` line
+// itself names the SAME path on both sides for create/delete (the
+// `/dev/null` marker only ever appears on the `---`/`+++` lines), so
+// taking the `b/` side (as gitutil.FilesInPatch does) recovers the
+// correct single path in both cases.
+func TestTouchedPathsFromPostApplyPatch_DeletionAndCreationHeaders(t *testing.T) {
+	tmp := t.TempDir()
+	setupGitRepo(t, tmp)
+	s, err := store.Init(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AddFeature(store.AddFeatureInput{Title: "ddd", Request: "ddd"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkFeatureState("ddd", store.StateApplied, "apply", ""); err != nil {
+		t.Fatal(err)
+	}
+	patch := "diff --git a/new.go b/new.go\n" +
+		"new file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- /dev/null\n" +
+		"+++ b/new.go\n" +
+		"@@ -0,0 +1 @@\n" +
+		"+created\n" +
+		"diff --git a/old.go b/old.go\n" +
+		"deleted file mode 100644\n" +
+		"index 0000000..0000000\n" +
+		"--- a/old.go\n" +
+		"+++ /dev/null\n" +
+		"@@ -1 +0,0 @@\n" +
+		"-deleted\n"
+	if err := s.WriteArtifact("ddd", "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := touchedPathsFromPostApplyPatch(s, "ddd")
+	if err != nil {
+		t.Fatalf("touchedPathsFromPostApplyPatch: unexpected error: %v", err)
+	}
+	want := []string{"new.go", "old.go"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("create+delete headers: got %v, want %v", got, want)
+	}
+}
