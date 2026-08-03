@@ -1,3 +1,42 @@
+## 2026-08-02 — Cluster C process housekeeping — SHIPPED (four review revs)
+
+**Scope**: docs+Makefile-only process cluster codifying two Cluster A follow-ups and the v0.12.1 parallel-implementer entanglement postmortem. No production Go code touched.
+
+**Changes**:
+1. `AGENTS.md` — Parallel-Implementer Discipline addendum (5 rules).
+2. `AGENTS.md` — Cluster State canonical field convention (`**Cluster state**: <TOKEN>`).
+3. `AGENTS.md` — WAVE_BASE selection recipe.
+4. `Makefile` — `make wave-close-check` mechanical gate (7 checks + manual-items banner).
+
+**Commit range**: `bb31872..870182d` (5 commits). Plus inline CI-hygiene commit `4619b55` outside cluster.
+
+### Review scoreboard (four revs — deep drilling driven entirely by external)
+
+| Rev | Internal | External | Adjudication |
+|-----|----------|----------|--------------|
+| rev-0 (`f92cd90`) | APPROVED WITH NOTES (2 MEDIUM: rule 1 scope, gate [1/6] untracked) | **BLOCKED** (1 BLOCKING unpushed + 3 HIGH: fetch fail-open, trailer HEAD-only, Status denylist + 2 MEDIUM) | Sided with external; unpushed HEAD violates the exact rule the cluster introduces |
+| rev-1 (`1bf7369`) | APPROVED (2 rev-0 findings CLOSED) | **NEEDS REVISION** (3 HIGH: invalid/empty range false-pass, historical SHIPPED false-pass, same-file `git add <path>`; 2 MEDIUM) | Sided with external; empirical false-passes on the actual repo |
+| rev-2 (`9c12c65`) | APPROVED (all rev-1 findings CLOSED) | **NEEDS REVISION** (1 HIGH: duplicate canonical fields false-pass via `grep -m1`) | Sided with external; grep-m1 fires on stale first-match |
+| rev-3 (`facca39`) | *(not dispatched — single-issue shell fix)* | **NEEDS REVISION** (1 BLOCKING: grep -c \|\| echo 0 produces multiline `0\n0` breaking `[: 0` integer comparison; 1 non-blocking WAVE_BASE recipe) | Sided with external; empirical shell bug |
+| rev-4 (`870182d`) | *(not dispatched — single-issue shell fix)* | **APPROVED WITH NOTES + wave-close authorized** (F-EXT-NEW-2 CLOSED, F-EXT-NEW-3 CLOSED, F-EXT-NEW-4 deferred as accepted risk) | Wave close authorized |
+
+**External-only catches every rev.** Internal's architectural review was correct at each layer, but external's adversarial empirical testing found regressions internal missed at rev-0, rev-1, rev-2, and rev-3 — the two-opinion protocol earned rent five times over on what looked like a "small" docs/tooling cluster. This is the strongest single-cluster evidence yet that the protocol's cost is justified.
+
+**Protocol variant note**: rev-3 and rev-4 were external-only cycles. Each addressed a single external-caught empirical bug (dupe-fields at rev-3, grep-c shell bug at rev-4) where architectural re-review would have added zero value. Cluster D onward may adopt this pattern for single-issue empirical-bug follow-ups within the same wave, provided the initial architectural pass had two-opinion coverage (Cluster C had it at rev-1 and rev-2).
+
+**Accepted deferrals**:
+- **F-EXT-NEW-4 (rev-3) Suggestion**: canonical-looking line inside a multiline HTML comment counts as a duplicate field. Low likelihood (agents rarely embed canonical lines in comments); structural parsing cost not justified against current threat model. Recorded as accepted risk. If it recurs empirically, promote to Cluster E/F fix.
+- **F-EXT-NEW-Q2 (rev-3)**: gate does not verify the canonical field lives inside `## Status`. Same rationale — structural-parsing cost vs. minimal false-pass surface.
+- **NIT (rev-4)**: unreadable-file (mode 000) case surfaces as "missing field" not "unreadable". No false-pass risk, only cosmetic. Deferred.
+
+**Dogfooding**: Cluster C's own gate PASSes on the final consolidation commit. The commit that ships the gate is thus verified by the gate. Bootstrap circularity resolved by the fact that the gate exists in the tree it verifies from `f92cd90` forward.
+
+**Validation**: gofmt / go vet / go build clean throughout; Side Research md5 = `b385fe622db9926f48861105239f113e` preserved on every commit; all 6 wave commits carry parseable Rule 18 trailers.
+
+**Verdict**: SHIPPED.
+
+---
+
 ## 2026-08-02 — CI hygiene fix — `gitInitTestRepo` pinned to `-b main` — SHIPPED
 
 **Scope**: urgent single-line test-helper fix, outside the wave-review protocol.

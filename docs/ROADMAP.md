@@ -549,6 +549,21 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## Cluster C — 2026-08-02 — process housekeeping (AGENTS.md + Makefile) ✅ SHIPPED
+
+Docs-and-tooling-only cluster codifying two Cluster A follow-ups and the v0.12.1 parallel-implementer entanglement postmortem:
+
+- **AGENTS.md Parallel-Implementer Discipline addendum**: five rules (glob-shaped stagers forbidden; cluster lead declares shared-surface set; reviewers scope by function name; post-hoc entanglement fixed via `git rebase -i`; **same-file overlap = hard trigger for sequential execution**, not parallel).
+- **AGENTS.md Cluster State canonical field**: `**Cluster state**: <TOKEN>` in `docs/handoff/CURRENT.md` with terminal allowlist (SHIPPED / APPROVED / ACCEPTED / IDLE) and mid-cycle denylist. Enables mechanical parseability of the wave-close state.
+- **AGENTS.md WAVE_BASE selection recipe**: `git fetch origin && git rev-parse origin/main` before dispatch, record SHA in dispatch brief and CURRENT.md.
+- **Makefile `make wave-close-check`**: seven-check mechanical gate (working tree clean, untracked-source WARN, HEAD pushed with fatal fetch-fail, per-commit trailer walk across `WAVE_BASE..HEAD` with invalid-range/empty-range detection, canonical Cluster state field with exactly-one enforcement, gofmt, vet+build). Prints manual-items reminder banner.
+
+Also shipped inline outside cluster (2026-08-02): **CI hygiene fix at `4619b55`** — `gitInitTestRepo` pinned to `-b main`, restoring CI green on `main` after five weeks of failing runs.
+
+**Commit range**: `bb31872..870182d` (5 commits + CI-hygiene commit `4619b55`).
+
+**Review protocol**: four revs — rev-0 (dispatch), rev-1 (external found 3 HIGH + 2 MEDIUM empirical false-passes), rev-2 (external found 1 HIGH duplicate-field parser bug), rev-3 (external found 1 BLOCKING grep-c shell bug), rev-4 (external APPROVED WITH NOTES + wave-close authorized). Internal APPROVED at rev-1 and rev-2; rev-3 and rev-4 were external-only cycles because each addressed a single external-caught empirical bug not benefiting from architectural re-review. Two-opinion protocol scoreboard: **external-only catches on every rev**, validating the adversarial pass earning rent even on a "small" docs/tooling cluster.
+
 ## v0.12.1 — 2026-07-31 — correctness fix pass (GH #3 + #4 + #5) ✅ SHIPPED
 
 Post-v0.12.0 bug-fix cluster bundling three independent correctness findings:

@@ -1,3 +1,38 @@
+# 2026-08-02 — Cluster C process housekeeping — SHIPPED
+
+**Range**: `bb31872..870182d` (5 commits). Plus inline CI-hygiene commit `4619b55` outside cluster.
+
+**Scope**: docs+Makefile-only process cluster codifying two Cluster A follow-ups and the v0.12.1 parallel-implementer entanglement postmortem.
+
+**Changes**:
+1. `AGENTS.md` — Parallel-Implementer Discipline addendum (5 rules; same-file overlap = hard trigger for sequential execution).
+2. `AGENTS.md` — Cluster State canonical field convention (`**Cluster state**: <TOKEN>`).
+3. `AGENTS.md` — WAVE_BASE selection recipe.
+4. `Makefile` — `make wave-close-check` mechanical gate (7 checks + manual-items banner).
+
+**Review scoreboard**: four revs. External-only catches on every rev. Internal APPROVED at rev-1 and rev-2 architecturally; rev-3 and rev-4 were external-only cycles for single-issue empirical fixes.
+
+- rev-0 → external BLOCKED (unpushed) + 3 HIGH + 2 MEDIUM
+- rev-1 → external NEEDS REVISION (3 HIGH empirical false-passes + 2 MEDIUM)
+- rev-2 → external NEEDS REVISION (1 HIGH duplicate-field parser)
+- rev-3 → external NEEDS REVISION (1 BLOCKING grep-c shell bug)
+- rev-4 → external APPROVED WITH NOTES + wave-close authorized
+
+**Two-opinion protocol earning**: five external-only catches on what looked like a "small" docs/tooling cluster. Strongest single-cluster protocol validation to date. External empirically induced every failure mode (invalid-range, historical-token false-pass, duplicate-field false-pass, shell integer-comparison error) that would have shipped without adversarial review.
+
+**Accepted deferrals**:
+- F-EXT-NEW-4 (multiline HTML comment as canonical field) — Suggestion, low likelihood.
+- F-EXT-NEW-Q2 (Status-section-scoped grep) — Suggestion, low likelihood.
+- NIT rev-4 (unreadable-file diagnostic imprecision) — cosmetic, no false-pass.
+
+**Dogfooding**: `make wave-close-check` runs clean on the consolidation commit.
+
+**Validation**: gofmt / vet / build clean; Rule 18 trailers on all 6 commits; Side Research md5 `b385fe622db9926f48861105239f113e` preserved throughout.
+
+**Follow-ups**: Cluster D (correctness housekeeping) is next per session plan.
+
+---
+
 # 2026-07-31 — v0.12.1 correctness fix pass — SHIPPED (three-way APPROVED)
 
 **Range**: `4e673a8..adb6ba3` (9 commits post-Cluster-A-planning).

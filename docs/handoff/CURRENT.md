@@ -2,17 +2,17 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: SHIPPED
 
 **v0.12.1 SHIPPED 2026-07-31.** Correctness fix pass (GH #3 + #4 + #5) three-way APPROVED at rev-1 across all three tickets. Cluster A (AGENTS.md wave-close checklist) shipped earlier same day. All work pushed to `origin/main`. v0.12.1 tag pushed.
 
-**2026-08-02: CI back green on `main`.** Inline hygiene fix at `4619b55` — `gitInitTestRepo` pinned to `-b main` — resolved a persistent CI failure class (red on both runners since 2026-07-28). Root cause: bare `git init` inherited runner's unset `init.defaultBranch` → default branch was `master`, not `main`; local dev Macs had it set globally which masked the failure. Reproduced empirically under `HOME=/tmp/emptyhome`. Full LOG.md entry at top.
+**2026-08-02 CI back green on `main`.** Inline hygiene fix at `4619b55` — `gitInitTestRepo` pinned to `-b main` — resolved a persistent CI failure class (red since 2026-07-28).
 
-**Housekeeping cluster dispatch pending** (this session's next action).
+**2026-08-02 Cluster C SHIPPED.** Process housekeeping — parallel-implementer discipline addendum + `make wave-close-check` mechanical gate. Four review revs total (rev-0 → rev-4). Two-opinion protocol scoreboard: **external-only catches** on rev-0 (BLOCKING unpushed), rev-1 (3 HIGH + 2 MEDIUM incl. empirical false-passes), rev-2 (1 HIGH duplicate-field), rev-3 (1 BLOCKING shell-bug + 1 non-blocking). Internal APPROVED at rev-1 and rev-2; rev-3 and rev-4 were external-only cycles for single-issue empirical fixes. Cluster C's own gate now dogfoods on every commit going forward. Range: `bb31872..870182d`.
 
 ## Active Task
 
-**Housekeeping cluster kickoff** — dispatching PRD-drafting phase for the deferred-from-v0.12.1 backlog items below.
+**None.** v0.12.0 + Cluster A + v0.12.1 + CI hygiene + Cluster C all shipped, pushed, dogfooded. Next: Cluster D (correctness housekeeping) per session plan.
 
 ## Session Summary
 
