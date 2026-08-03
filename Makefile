@@ -58,7 +58,7 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[2/7] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
-	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 2>/dev/null); \
+	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' 2>/dev/null); \
 	if [ -n "$$untracked_src" ]; then \
 		echo "  WARN: untracked source or design-doc files (may be forgotten adds):"; \
 		echo "$$untracked_src" | sed 's/^/    /'; \
@@ -94,32 +94,56 @@ wave-close-check:
 		fi; \
 	fi; \
 	echo "  range: $$range"; \
-	bad_trailer=""; \
-	for c in $$(git rev-list --no-merges $$range 2>/dev/null); do \
-		t=$$(git log -1 --format='%(trailers:key=Co-authored-by)' $$c | tr -d '\n'); \
-		if ! echo "$$t" | grep -q "Copilot <223556219+Copilot@users.noreply.github.com>"; then \
-			bad_trailer="$$bad_trailer $$c"; \
+	if ! commits=$$(git rev-list --no-merges $$range 2>/dev/null); then \
+		echo "  FAIL: git rev-list rejected range \`$$range\` (invalid endpoints?)"; \
+		echo "  Set WAVE_BASE=<ref> to an explicit boundary."; \
+		fail=1; \
+	elif [ -z "$$commits" ]; then \
+		echo "  FAIL: range \`$$range\` contains zero commits"; \
+		echo "  Empty ranges silently false-pass; require WAVE_BASE=<pre-cluster ref>."; \
+		fail=1; \
+	else \
+		bad_trailer=""; \
+		for c in $$commits; do \
+			t=$$(git log -1 --format='%(trailers:key=Co-authored-by)' $$c | tr -d '\n'); \
+			if ! echo "$$t" | grep -q "Copilot <223556219+Copilot@users.noreply.github.com>"; then \
+				bad_trailer="$$bad_trailer $$c"; \
+			fi; \
+		done; \
+		if [ -n "$$bad_trailer" ]; then \
+			echo "  FAIL: commits missing or malformed Co-authored-by: Copilot trailer:"; \
+			for c in $$bad_trailer; do echo "    $$c $$(git log -1 --format='%s' $$c)"; done; \
+			fail=1; \
+		else \
+			commit_count=$$(echo "$$commits" | wc -w | tr -d ' '); \
+			echo "  OK ($$commit_count commits)"; \
 		fi; \
-	done; \
-	if [ -n "$$bad_trailer" ]; then \
-		echo "  FAIL: commits missing or malformed Co-authored-by: Copilot trailer:"; \
-		for c in $$bad_trailer; do echo "    $$c $$(git log -1 --format='%s' $$c)"; done; \
-		fail=1; \
-	else \
-		echo "  OK"; \
 	fi; \
-	echo "[5/7] CURRENT.md Status contains terminal-token allowlist..."; \
-	status_line=$$(sed -n '/^## Status/,/^## /p' docs/handoff/CURRENT.md); \
-	if echo "$$status_line" | grep -qE 'rev-[0-9]+ dispatched|rev-[0-9]+ pending|IN PROGRESS|in progress|in review|awaiting review|dispatched \(rev|implementation complete \(pre-review'; then \
-		echo "  FAIL: CURRENT.md Status contains mid-cycle marker; flip before closing"; \
-		echo "$$status_line" | grep -E 'rev-[0-9]+ dispatched|rev-[0-9]+ pending|IN PROGRESS|in progress|in review|awaiting review|dispatched \(rev|implementation complete \(pre-review'; \
-		fail=1; \
-	elif ! echo "$$status_line" | grep -qE 'SHIPPED|APPROVED|ACCEPTED|IDLE|NEEDS REVISION|BLOCKED'; then \
-		echo "  FAIL: CURRENT.md Status must contain one terminal token:"; \
-		echo "    SHIPPED | APPROVED | ACCEPTED | IDLE | NEEDS REVISION | BLOCKED"; \
+	echo "[5/7] CURRENT.md \`**Cluster state**:\` canonical field is terminal..."; \
+	state_line=$$(grep -m1 -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md 2>/dev/null || true); \
+	if [ -z "$$state_line" ]; then \
+		echo "  FAIL: docs/handoff/CURRENT.md missing \`**Cluster state**: <TOKEN>\` field"; \
+		echo "  See AGENTS.md \"Cluster State — Canonical Field for Mechanical Gate\"."; \
 		fail=1; \
 	else \
-		echo "  OK"; \
+		state_token=$$(echo "$$state_line" | sed -E 's/^\*\*Cluster state\*\*:[[:space:]]*//;s/[[:space:]]*$$//' | tr '[:lower:]' '[:upper:]'); \
+		echo "  found: \`$$state_token\`"; \
+		case "$$state_token" in \
+			SHIPPED|APPROVED|ACCEPTED|IDLE) \
+				echo "  OK (terminal)"; \
+				;; \
+			"IN PROGRESS"|REV-*" DISPATCHED"|"AWAITING REVIEW"|"NEEDS REVISION"|BLOCKED) \
+				echo "  FAIL: mid-cycle or non-closed token; flip to a terminal token before closing"; \
+				echo "  Terminal allowlist: SHIPPED | APPROVED | ACCEPTED | IDLE"; \
+				fail=1; \
+				;; \
+			*) \
+				echo "  FAIL: token \`$$state_token\` is not on the recognized allowlist or denylist"; \
+				echo "  Terminal allowlist: SHIPPED | APPROVED | ACCEPTED | IDLE"; \
+				echo "  Mid-cycle denylist: IN PROGRESS | REV-N DISPATCHED | AWAITING REVIEW | NEEDS REVISION | BLOCKED"; \
+				fail=1; \
+				;; \
+		esac; \
 	fi; \
 	echo "[6/7] gofmt clean..."; \
 	unformatted=$$(gofmt -l .); \

@@ -239,9 +239,23 @@ If any box is unchecked when the next wave is about to dispatch, **stop and fini
 2. **Cluster lead declares the shared-surface set** at dispatch. If more than one implementer will touch `cobra.go`, `reconcile.go`, `verify.go`, etc., the brief for each implementer lists (a) the specific functions / helpers that implementer owns and (b) an explicit "do not touch" list of siblings.
 3. **Reviewers scope by function name, not commit boundary.** When entanglement is possible, reviewers verify each ticket's scope by identifying the specific new/modified functions in the diff — not by trusting the commit's labeled scope. This is the review-side counter-measure that caught the v0.12.1 case.
 4. **When entanglement is detected post-hoc**, the fix is `git rebase -i` reword or split, not a follow-up commit. The trailer + attribution must be correct on the archived commit; a "fix" commit that attributes later doesn't repair the historical record. See the v0.12.1 rebase-rewrite of `2934521`→`ba3b3b3` for the pattern.
-5. **Sequential fallback**: if the cluster lead can not confidently declare a non-overlapping surface partition at dispatch, the implementers run sequentially, not in parallel. Parallel speed is not worth silent attribution errors.
+5. **Sequential fallback**: if the cluster lead can not confidently declare a non-overlapping surface partition at dispatch, the implementers run sequentially, not in parallel. Parallel speed is not worth silent attribution errors. **Same-file overlap is a hard trigger for sequential execution** — F-EXT-3 (Cluster C rev-1 external, upgraded to rev-2) confirmed that even explicit-path `git add shared.go` stages *every* implementer's changes to that file, so a shared-worktree parallel dispatch where two implementers modify the same file is always unsafe. Partition must be non-overlapping at the **file** level, not just the function level. If two implementers need to touch `cobra.go`, they run sequentially — no exception.
 
 This addendum subsumes v0.12.1 PRD-#4 F-3 (the "parallel-implementer process fix" follow-up finding).
+
+## Cluster State — Canonical Field for Mechanical Gate
+
+**Codified 2026-08-02 after Cluster C rev-1 external F-EXT-2** empirically demonstrated that scanning the `## Status` section for terminal tokens false-passes whenever the section contains historical mentions of a prior shipped cluster. The current `## Status` in `docs/handoff/CURRENT.md` at Cluster C rev-1 contained both `v0.12.1 SHIPPED` (historical, correct) and `Housekeeping cluster dispatch pending` (current, mid-cycle), and the gate false-passed because `SHIPPED` matched the allowlist regardless of context.
+
+Fix: `docs/handoff/CURRENT.md` MUST contain a single canonical single-line field near the top of `## Status`:
+
+```markdown
+**Cluster state**: <TOKEN>
+```
+
+Where `<TOKEN>` is one of the terminal-state allowlist tokens: `IDLE`, `SHIPPED`, `APPROVED`, `ACCEPTED`, or one of the mid-cycle tokens (denylist): `IN PROGRESS`, `REV-N DISPATCHED`, `AWAITING REVIEW`. The mechanical gate at `Makefile` `wave-close-check` parses **only this field** — it does not scan the rest of the Status section. At wave close, the token must be a terminal-state token; if it is mid-cycle, the gate FAILs. The narrative prose below the canonical field is human-readable context and does not affect the gate.
+
+Convention: the field lives on its own line at the top of `## Status`, above any historical context blocks. When a new cluster dispatches, the field flips to a mid-cycle token; at wave close it flips to a terminal token before the gate is run.
 
 ## PRD Authoring — Strongly Encouraged Conventions
 
