@@ -1,3 +1,35 @@
+## 2026-08-03 — Cluster D rev-0 dual review — NEEDS REVISION → rev-1 DISPATCHED
+
+**Scoreboard**:
+
+| Reviewer | Verdict | Findings |
+|----------|---------|----------|
+| Internal (Sol) | **NEEDS REVISION** | 3 MEDIUM (D-INT-1 rename semantics, D-INT-2 recovery variants, D-INT-3 fast-path doc totality) + 1 LOW (D-INT-4 citation) |
+| External (Opus 4.8) | **APPROVED WITH NOTES** | 1 MEDIUM (F-EXT-1 = D-INT-3 same finding, fast-path doc totality) + 1 LOW obs (F-EXT-2 idempotency-not-concurrency-safe, out-of-scope) |
+
+**Convergence**: Both caught Item 5 fast-path JSON doc totality claim (`upstream_ref`/`upstream_commit` present-as-empty due to no `omitempty`, contradicting docs' "OMITS" / "only these three fields" wording).
+
+**External-only value-add**: Rule 20 empirical verification of Item 4 crash-recovery — reverted the fix in throwaway worktree, confirmed test genuinely fails pre-fix with 3-chain regression, passes post-fix with clean 2-revision repair. Confirms Item 4's happy-path idempotency contract is met.
+
+**Internal-only value-add**: D-INT-1 rename semantics divergence between fallback (adds both `a/OLD` and `b/NEW`) and manifest generator (uses only `b/NEW`). External noted the caller `maybeEmitMigrationHint` is fail-soft, but the mismatch produces a false-negative D10 hint suppression on rename patches. Real correctness gap.
+
+### Adjudication (supervisor — sided with Internal on split)
+
+Rev-1 FOLDS:
+- **D-INT-1 MEDIUM** — align fallback rename semantics with manifest (b/-side only); regression test on rename patch.
+- **D-INT-3 / F-EXT-1 MEDIUM (same finding)** — reword `docs/reconcile.md` and Long help to describe fast-path JSON as "present-but-empty for `upstream_ref`/`upstream_commit`", drop over-narrow "(slug, outcome, review_verdict only)" enumeration. Do NOT add `omitempty` (would break AC-2 byte-identity contract).
+- **D-INT-4 LOW** — change `PRD §7 D6` citation → `PRD §4 D6` in `internal/cli/session_summarize.go:106`.
+
+Rev-1 DEFERRALS (documented, no fold):
+- **D-INT-2 MEDIUM `--from-revision <original>` crash-recovery** — DEFERRED. PRD-#4 line 259 documents `--from-revision <entry-id>` as an override "useful for CI and tests", NOT as the crash-recovery path. Default retry (no `--from-revision`) is the documented recovery flow, and external empirically verified it works. Explicit `--from-revision <original>` after crash yielding "superseded by a later entry" is an operational trap worth a help-text note but not a correctness bug per accepted PRD-#4 F-4 scope ("append-then-save asymmetry"). Item added to backlog for future cluster if operator friction surfaces.
+- **F-EXT-2 LOW concurrency safety** — DEFERRED. Pre-existing behavior; no path in the CLI locks `reconcile-revisions.jsonl`; concurrent invocation of the same slug's retirement is not a supported local-CLI scenario. Out of PRD-#4 F-4 scope.
+
+**Rev-1 dispatched** to same implementer (single-implementer sequential continuity). WAVE_BASE unchanged at `4868f68`.
+
+**Cluster state**: `REV-1 DISPATCHED`.
+
+---
+
 ## 2026-08-03 — Cluster D correctness housekeeping — DISPATCHED (rev-0)
 
 **Scope (8 items, single implementer, sequential per Cluster C rule 5 same-file-overlap discipline)**:

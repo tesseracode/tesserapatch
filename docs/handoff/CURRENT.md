@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: REV-1 DISPATCHED
 
 **WAVE_BASE**: `4868f68` (recorded per AGENTS.md WAVE_BASE recipe at Cluster D dispatch, 2026-08-03).
 
