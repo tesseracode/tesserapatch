@@ -120,36 +120,42 @@ wave-close-check:
 		fi; \
 	fi; \
 	echo "[5/7] CURRENT.md \`**Cluster state**:\` canonical field is terminal..."; \
-	state_matches=$$(grep -c -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md 2>/dev/null || echo 0); \
-	if [ "$$state_matches" -eq 0 ]; then \
-		echo "  FAIL: docs/handoff/CURRENT.md missing \`**Cluster state**: <TOKEN>\` field"; \
-		echo "  See AGENTS.md \"Cluster State — Canonical Field for Mechanical Gate\"."; \
-		fail=1; \
-	elif [ "$$state_matches" -gt 1 ]; then \
-		echo "  FAIL: docs/handoff/CURRENT.md contains $$state_matches \`**Cluster state**:\` fields; exactly one required"; \
-		echo "  Duplicate fields false-pass on the earliest (possibly stale) token — replace, do not append."; \
-		grep -n -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md | sed 's/^/    /'; \
+	if [ ! -f docs/handoff/CURRENT.md ]; then \
+		echo "  FAIL: docs/handoff/CURRENT.md not found"; \
 		fail=1; \
 	else \
-		state_line=$$(grep -m1 -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md); \
-		state_token=$$(echo "$$state_line" | sed -E 's/^\*\*Cluster state\*\*:[[:space:]]*//;s/[[:space:]]*$$//' | tr '[:lower:]' '[:upper:]'); \
-		echo "  found: \`$$state_token\`"; \
-		case "$$state_token" in \
-			SHIPPED|APPROVED|ACCEPTED|IDLE) \
-				echo "  OK (terminal)"; \
-				;; \
-			"IN PROGRESS"|REV-*" DISPATCHED"|"AWAITING REVIEW"|"NEEDS REVISION"|BLOCKED) \
-				echo "  FAIL: mid-cycle or non-closed token; flip to a terminal token before closing"; \
-				echo "  Terminal allowlist: SHIPPED | APPROVED | ACCEPTED | IDLE"; \
-				fail=1; \
-				;; \
-			*) \
-				echo "  FAIL: token \`$$state_token\` is not on the recognized allowlist or denylist"; \
-				echo "  Terminal allowlist: SHIPPED | APPROVED | ACCEPTED | IDLE"; \
-				echo "  Mid-cycle denylist: IN PROGRESS | REV-N DISPATCHED | AWAITING REVIEW | NEEDS REVISION | BLOCKED"; \
-				fail=1; \
-				;; \
-		esac; \
+		state_matches=$$(grep -c -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md 2>/dev/null || true); \
+		state_matches=$${state_matches:-0}; \
+		if [ "$$state_matches" -eq 0 ]; then \
+			echo "  FAIL: docs/handoff/CURRENT.md missing \`**Cluster state**: <TOKEN>\` field"; \
+			echo "  See AGENTS.md \"Cluster State — Canonical Field for Mechanical Gate\"."; \
+			fail=1; \
+		elif [ "$$state_matches" -gt 1 ]; then \
+			echo "  FAIL: docs/handoff/CURRENT.md contains $$state_matches \`**Cluster state**:\` fields; exactly one required"; \
+			echo "  Duplicate fields false-pass on the earliest (possibly stale) token — replace, do not append."; \
+			grep -n -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md | sed 's/^/    /'; \
+			fail=1; \
+		else \
+			state_line=$$(grep -m1 -E '^\*\*Cluster state\*\*:' docs/handoff/CURRENT.md); \
+			state_token=$$(echo "$$state_line" | sed -E 's/^\*\*Cluster state\*\*:[[:space:]]*//;s/[[:space:]]*$$//' | tr '[:lower:]' '[:upper:]'); \
+			echo "  found: \`$$state_token\`"; \
+			case "$$state_token" in \
+				SHIPPED|APPROVED|ACCEPTED|IDLE) \
+					echo "  OK (terminal)"; \
+					;; \
+				"IN PROGRESS"|REV-*" DISPATCHED"|"AWAITING REVIEW"|"NEEDS REVISION"|BLOCKED) \
+					echo "  FAIL: mid-cycle or non-closed token; flip to a terminal token before closing"; \
+					echo "  Terminal allowlist: SHIPPED | APPROVED | ACCEPTED | IDLE"; \
+					fail=1; \
+					;; \
+				*) \
+					echo "  FAIL: token \`$$state_token\` is not on the recognized allowlist or denylist"; \
+					echo "  Terminal allowlist: SHIPPED | APPROVED | ACCEPTED | IDLE"; \
+					echo "  Mid-cycle denylist: IN PROGRESS | REV-N DISPATCHED | AWAITING REVIEW | NEEDS REVISION | BLOCKED"; \
+					fail=1; \
+					;; \
+			esac; \
+		fi; \
 	fi; \
 	echo "[6/7] gofmt clean..."; \
 	unformatted=$$(gofmt -l .); \

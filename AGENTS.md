@@ -257,7 +257,16 @@ Where `<TOKEN>` is one of the terminal-state allowlist tokens: `IDLE`, `SHIPPED`
 
 Convention: the field lives on its own line at the top of `## Status`, above any historical context blocks. When a new cluster dispatches, the field is **replaced in place** with a mid-cycle token; at wave close it is **replaced in place** with a terminal token before the gate is run. **Never append a second field** — the gate rejects duplicates (Cluster C rev-2 external F-EXT-NEW-1 empirically demonstrated that `grep -m1` on multiple fields false-passes on the earliest match, so rev-3 tightened the parse to require exactly one).
 
-**Selecting `WAVE_BASE`** for the trailer-check range at `[4/7]`: the default `$(git describe --tags --abbrev=0)..HEAD` works when the wave is the first cluster after a tag. For subsequent waves in the same release cycle (e.g., Cluster D shipping between v0.12.1 and v0.13.0), the cluster lead should invoke the gate with `WAVE_BASE=<immediate-pre-cluster-ancestor>` — the commit SHA of `origin/main` at the moment the cluster's first implementer was dispatched. This scopes the trailer walk to exactly this cluster's commits and prevents pollution from prior waves already reviewed.
+**Selecting `WAVE_BASE`** for the trailer-check range at `[4/7]`: the default `$(git describe --tags --abbrev=0)..HEAD` works when the wave is the first cluster after a tag. For subsequent waves in the same release cycle (e.g., Cluster D shipping between v0.12.1 and v0.13.0), the cluster lead should invoke the gate with `WAVE_BASE=<immediate-pre-cluster-ancestor>` — the commit SHA of `origin/main` at the moment the cluster's first implementer was dispatched.
+
+Concrete recipe (run **before** the first implementer dispatches, and record the SHA in the cluster's dispatch brief and in `CURRENT.md`):
+
+```sh
+git fetch origin
+git rev-parse origin/main   # record this SHA as WAVE_BASE
+```
+
+Then at wave close: `make wave-close-check WAVE_BASE=<sha>`. This scopes the trailer walk to exactly this cluster's commits and prevents pollution from prior waves already reviewed. Without recording the SHA pre-dispatch, `origin/main` may advance and the value cannot be derived reliably (Cluster C rev-3 external adjudication).
 
 ## PRD Authoring — Strongly Encouraged Conventions
 
