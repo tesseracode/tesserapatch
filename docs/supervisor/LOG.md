@@ -1,3 +1,53 @@
+## 2026-08-05 — Cluster F planning rev-1 dual review — ADJUDICATION → rev-2
+
+**Two-opinion outcomes**:
+- **Internal** (`cluster-f-planning-rev1-intern`, gpt-5.6-sol, high): **BLOCKED** — 1 BLOCKING (F-INT-1 still open: `artifacts/analysis.json` `apply-recipe.json` overwritten by workflow) + 3 HIGH (exit-code contradictions across 4 sites; confirm-upstreamed guard misplaced — reconcile-revision already appended before `saveConfirmUpstreamedStatus` is called; CLI shape omits `--actor`, marks `--note` optional) + 1 MEDIUM (D8 cites nonexistent `define --depends-on`; ValidateDependencies claims row wrong).
+- **External** (`cluster-f-planning-rev1-extern`, claude-opus-4.8, high): **NEEDS REVISION** — 1 HIGH (F-INT-1 still open: additionally identified `post-apply.patch` at `cobra.go:794,1398` `phase2.go:158` `refresh.go:54` as fixed-name overwrite; empirically cited `feature-layout.md:36` "overwriting the previous contents" contradicting ADR's own justification) + 1 HIGH (external-only: claims-audit says "exactly 5 rules" but `ValidateDependencies` has 6; citation range `113-160` truncates before Rule 6 at `169-207`) + 1 LOW (row count 23 vs stated 22).
+
+**Convergence on F-INT-1**: Both reviewers empirically caught the same class of flaw independently. Internal found `RunAnalyze` overwrite of `artifacts/analysis.json` at `workflow.go:90` and `RunImplement` overwrite of `artifacts/apply-recipe.json` at `implement.go:194-209`. External independently found `post-apply.patch` overwritten at 4 sites AND cited `feature-layout.md:36` explicitly stating post-apply.patch is "overwriting the previous contents" — directly contradicting the ADR's own "append-only-by-convention" justification for admitting all `artifacts/`. The rev-1 fold moved goalposts (path restriction from `.md` root files to feature-dir subdirs) without eliminating the root cause: any file that gets truncated + rewritten under a fixed name can silently diverge from history-referenced content.
+
+**Adjudication: side with the convergence.** Verdict is **NEEDS REVISION** — rev-2 must adopt content-hash snapshot approach for evidence integrity. This is the direction internal recommended at rev-0 (F-INT-1 suggested fix: "Store a content hash and immutable snapshot per rejection") and I overrode based on machinery-cost. Two rounds of review with the same empirical flaw pattern is the "override was wrong" signal — reverting.
+
+**Additional folds** (internal-only + external-only findings both bind):
+
+**F-INT-1 (rev-2) — REPLACE path-restriction approach with content hash**:
+- Every evidence element stored in history as `{"path": "<repo-relative>", "sha256": "<64-hex>"}` — not just a path string.
+- Hash computed at `tpatch reject` time from the resolved file's byte content (after path safety validation from F-INT-3).
+- On rejection: fail if any evidence file cannot be hashed (missing, non-regular, symlink escape).
+- On reopen: recompute hash for each historical entry's evidence path. If hash mismatches OR file missing, warn OR error (ADR must pick — recommend WARN + record `evidence_integrity: divergent` in the reopen history entry, since we cannot roll back the operator's file edit).
+- Applies to both `artifacts/` paths and git-tracked repo-root paths (git-tracked is not immune — operator can amend).
+- Redraft ADR D3 to make this the primary mechanism; drop the "append-only-by-convention" claim about `artifacts/`.
+- PRD §9 tests: reject → mutate evidence file → reopen → verify divergence detected + logged; reject → delete evidence file → reopen → verify missing-file handling.
+
+**F-INT-2 (rev-2) — guard placement**:
+- Rev-1 fold said "guard at `saveConfirmUpstreamedStatus` or its call site." Internal empirically found `cobra.go:2535-2539` appends the reconcile-revision entry BEFORE calling `saveConfirmUpstreamedStatus`. So a rejected-state feature that hits confirm-upstreamed gets a false audit revision appended before the guard fires.
+- Fix: guard MUST fire before ANY mutation — including reconcile-revision append. Correct guard location: entry to `applyConfirmUpstreamedTransition` (or wherever the sequence starts, verify empirically).
+- PRD §9 test 24 must additionally assert reconcile-revision log is unchanged after the refusal, not just `status.json`.
+
+**F-INT-4 (rev-2) — exit codes**:
+- Item 25 test mixes item-18 (validation errors: missing evidence, missing note) with exit 3. Missing evidence/note are validation → exit 2. Split into two test items.
+- ADR line 333 vs 348 for dependents-blocking: reconcile — is it validation or state-transition? Pick one and apply consistently.
+- ADR 352-354 says codes 2/3 scoped to reject/reopen only, but D8 requires exit 3 from dependency-editing commands. Remove the scope-limitation or adjust D8.
+- ADR 513-516 calls confirm-upstreamed-refusal a validation error but PRD item 25 assigns 3. Confirm-upstreamed-refusal-on-rejected is state-transition (wrong source state) → exit 3. Align ADR 513-516.
+- General principle: exit 2 = pre-mutation input validation; exit 3 = post-validation state-machine refusal. Apply consistently.
+
+**F-INT-CLI (rev-2) — CLI shape corrections**:
+- `tpatch reject <slug> --reason <enum> --note <string> [--evidence <path>...] [--actor <string>]` — `--note` required (already stated as mandatory), `--actor` shown explicitly.
+- Same shape adjustment for `tpatch reopen`: `--note` required.
+- Update PRD §4 CLI shape section accordingly.
+
+**F-INT-DEPS (rev-2)**:
+- D8 currently cites `define --depends-on` — DOES NOT EXIST. Real edge-editing surfaces per `internal/cli/feature_deps.go:3-18`: `feature deps add` + `amend --depends-on`. Correct D8 + all dependent PRD §7 refuse-list citations.
+- Claims-audit "ValidateDependencies has 5 rules" is wrong: has 6 (Rule 6 = `ErrMultipleActiveSuperseders` at `validation.go:169-207`). Function spans `113-210`, not `113-160`. Correct row and citation range.
+
+**F-EXT-3 (rev-2, LOW — defer or fold trivially)**: row count 23 not 22. Trivial fix, fold with the F-INT-DEPS claims-audit correction.
+
+**Cluster state**: `REV-2 DISPATCHED` (planning phase).
+
+**Precedent note**: two consecutive rev-cycles with the same F-INT-1 pattern (path-restriction insufficient) is a "listen to the reviewer's original suggested fix" signal. Rev-2 adopts content-hash — the fix originally suggested at rev-0 that I overrode. Future planning-cluster adjudications: when a BLOCKING finding suggests a specific mechanism and the review returns with the same architectural class caught again, adopt the original suggestion rather than iterating the workaround.
+
+---
+
 ## 2026-08-05 — Cluster F planning rev-0 dual review — ADJUDICATION → rev-1
 
 **Two-opinion outcomes**:
