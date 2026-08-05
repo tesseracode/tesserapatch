@@ -63,9 +63,9 @@ func reopenCmd() *cobra.Command {
 		Use:   "reopen <slug>",
 		Short: "Reopen a rejected feature (rejected → requested, append-only)",
 		Long: "Reopen a rejected feature, transitioning it back to `requested`.\n\n" +
-			"The prior rejection record is NEVER deleted: reopen is append-only, so the rejection\n" +
-			"reason, evidence, actor and timestamp all survive in the feature's rejection history.\n" +
-			"Reject/reopen cycles are unbounded.\n\n" +
+			"The prior rejection record is NEVER deleted: the live rejection is folded into an\n" +
+			"append-only history entry recording the completed reject→reopen cycle, so the reason,\n" +
+			"evidence, actor and timestamp all survive. Reject/reopen cycles are unbounded.\n\n" +
 			"`--note` is mandatory; `--evidence` is optional (attach it when new artifacts motivated\n" +
 			"the reopen). Regardless of whether new evidence is attached, EVERY historical evidence\n" +
 			"reference is re-verified against its recorded SHA-256. A divergence never blocks the\n" +
@@ -139,18 +139,28 @@ func runReopen(cmd *cobra.Command, slug string) error {
 
 	actor := store.ResolveActorIn(actorFlag, s.Root)
 	now := time.Now().UTC().Truncate(time.Second)
+	// One history entry per COMPLETED reject→reopen cycle (PRD §6,
+	// ADR-031 D5): the live Rejection record supplies the reject half,
+	// this call supplies the reopen half, and Rejection is cleared
+	// afterwards so the cycle is never double-counted.
+	rejected := status.Rejection
 	entry := store.RejectionHistoryEntry{
-		Action:            store.RejectionActionReopen,
-		Actor:             actor,
-		Timestamp:         now,
-		Note:              note,
-		Evidence:          newEvidence,
+		RejectedAt:        rejected.RejectedAt,
+		RejectedBy:        rejected.Actor,
+		Reason:            rejected.Reason,
+		RejectNote:        rejected.Note,
+		PriorState:        rejected.PriorState,
+		Related:           rejected.Related,
+		RejectEvidence:    rejected.Evidence,
+		ReopenedAt:        now,
+		ReopenedBy:        actor,
+		ReopenNote:        note,
+		ReopenEvidence:    newEvidence,
 		EvidenceIntegrity: integrity,
 		DivergenceDetail:  divergence,
 	}
-	status.Rejection.History = append(status.Rejection.History, entry)
-	// Append-only (ADR-031 D5): the rejection sub-object itself is
-	// deliberately NOT cleared.
+	status.RejectionHistory = append(status.RejectionHistory, entry)
+	status.Rejection = nil
 	status.State = store.StateRequested
 	status.LastCommand = "reopen"
 	status.UpdatedAt = now.Format(time.RFC3339)
@@ -165,7 +175,7 @@ func runReopen(cmd *cobra.Command, slug string) error {
 			"reopened_by":     actor,
 			"reopen_note":     note,
 			"reopen_evidence": nonNilEvidence(newEvidence),
-			"history_entries": len(status.Rejection.History),
+			"history_entries": len(status.RejectionHistory),
 		}
 		if integrity != "" {
 			payload["evidence_integrity"] = integrity
@@ -181,6 +191,6 @@ func runReopen(cmd *cobra.Command, slug string) error {
 			fmt.Fprintf(out, "    - %s: %s\n", d.Path, d.DivergentReason)
 		}
 	}
-	fmt.Fprintf(out, "History entries: %d (append-only; the prior rejection record is preserved)\n", len(status.Rejection.History))
+	fmt.Fprintf(out, "History entries: %d (append-only; the prior rejection record is preserved)\n", len(status.RejectionHistory))
 	return nil
 }

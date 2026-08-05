@@ -56,15 +56,6 @@ const (
 	DivergentReasonUnreadable = "unreadable"
 )
 
-// Rejection history actions (ADR-031 D5). The history array is
-// append-only and unbounded: every `reject` appends one entry with
-// action `reject`, every `reopen` appends one entry with action
-// `reopen`. No entry is ever overwritten or truncated.
-const (
-	RejectionActionReject = "reject"
-	RejectionActionReopen = "reopen"
-)
-
 // DivergenceDetail names one evidence element whose reopen-time
 // integrity re-check did not pass, together with its reason drawn from
 // the closed taxonomy above.
@@ -73,39 +64,51 @@ type DivergenceDetail struct {
 	DivergentReason string `json:"divergent_reason"`
 }
 
-// RejectionHistoryEntry is one append-only audit entry in
-// RejectionStatus.History. Reject entries carry `reason` (and the
-// `prior_state` the feature was rejected from); reopen entries carry the
-// historical-evidence verification verdict (`evidence_integrity` plus
-// `divergence_detail` when divergent). Both carry the operator's
-// mandatory `note`, the resolved `actor`, and the UTC `timestamp`.
+// RejectionHistoryEntry is one COMPLETED reject→reopen cycle
+// (PRD §6 `history`, ADR-031 D5). It is appended by `tpatch reopen` and
+// by nothing else: `tpatch reject` writes the live record to
+// FeatureStatus.Rejection instead, and the reopen that closes the cycle
+// snapshots those fields into the reject-half of this entry before
+// clearing Rejection.
+//
+// The consequence, and the invariant the CLI enforces:
+//
+//	after N reject→reopen cycles  len(FeatureStatus.RejectionHistory) == N
+//	while currently rejected      FeatureStatus.Rejection != nil
+//	after a reopen                FeatureStatus.Rejection == nil
+//
+// Appending one entry per *action* (as an earlier draft did) would
+// double-count every cycle and leave the live `Rejection` sub-object
+// duplicating the most recent history entry — see ADR-031 D5.
 type RejectionHistoryEntry struct {
-	Action    string    `json:"action"`
-	Actor     string    `json:"actor"`
-	Timestamp time.Time `json:"timestamp"`
-	Note      string    `json:"note"`
-
-	// Reason is set on `reject` entries only (closed enum, see
-	// rejection_reason.go).
-	Reason string `json:"reason,omitempty"`
-
-	// PriorState is set on `reject` entries only: the FeatureState the
-	// feature held immediately before the rejection.
+	// ─── reject half: snapshotted from FeatureStatus.Rejection at
+	// reopen time, so no rejection record is ever lost.
+	RejectedAt time.Time `json:"rejected_at"`
+	RejectedBy string    `json:"rejected_by"`
+	Reason     string    `json:"reason"`
+	RejectNote string    `json:"reject_note"`
+	// PriorState is the FeatureState the feature held immediately
+	// before the rejection that opened this cycle.
 	PriorState FeatureState `json:"prior_state,omitempty"`
+	// Related is the optional free-form `--related` reference recorded
+	// at reject time (a feature slug or a `GH#N` pointer). Not
+	// validated against the store.
+	Related        string        `json:"related,omitempty"`
+	RejectEvidence []EvidenceRef `json:"reject_evidence,omitempty"`
 
-	// Related is the optional free-form `--related` reference (a feature
-	// slug or a `GH#N` pointer). Not validated against the store.
-	Related string `json:"related,omitempty"`
+	// ─── reopen half: recorded by the reopen that closed the cycle.
+	ReopenedAt time.Time `json:"reopened_at"`
+	ReopenedBy string    `json:"reopened_by"`
+	ReopenNote string    `json:"reopen_note"`
+	// ReopenEvidence holds the optional `--evidence` list attached to
+	// the reopen, which may legitimately be empty — the
+	// REOPEN-EVIDENCE-OPTIONAL contract (PRD §5 rev-3).
+	ReopenEvidence []EvidenceRef `json:"reopen_evidence,omitempty"`
 
-	// Evidence holds the NEW evidence attached by this action: the
-	// mandatory `--evidence` list on `reject`, or the optional
-	// `--evidence` list on `reopen` (which may legitimately be empty —
-	// the REOPEN-EVIDENCE-OPTIONAL contract, PRD §5 rev-3).
-	Evidence []EvidenceRef `json:"evidence,omitempty"`
-
-	// EvidenceIntegrity is set on `reopen` entries only, and ONLY when
-	// the verdict is `divergent`. A clean verification omits the field
-	// entirely (ADR-031 D3 addendum).
+	// EvidenceIntegrity is the reopen-time verdict on the historical
+	// (reject-half) evidence, and is set ONLY when the verdict is
+	// `divergent`. A clean verification omits the field entirely
+	// (ADR-031 D3 addendum).
 	EvidenceIntegrity string `json:"evidence_integrity,omitempty"`
 
 	// DivergenceDetail enumerates the divergent historical evidence
@@ -113,22 +116,20 @@ type RejectionHistoryEntry struct {
 	DivergenceDetail []DivergenceDetail `json:"divergence_detail,omitempty"`
 }
 
-// RejectionStatus is the current rejection record for a feature plus its
-// full append-only history. It is written by `tpatch reject` and updated
-// (never cleared) by `tpatch reopen`.
-//
-// The top-level fields describe the MOST RECENT rejection; History is
-// the complete, unbounded audit log of every reject/reopen action ever
-// taken on this feature, oldest first.
+// RejectionStatus is the LIVE rejection record for a feature: it is
+// written by `tpatch reject` and cleared by `tpatch reopen`, which folds
+// it into a RejectionHistoryEntry first so nothing is lost. A non-nil
+// RejectionStatus therefore means "this feature is rejected right now";
+// the completed-cycle audit log lives in
+// FeatureStatus.RejectionHistory.
 type RejectionStatus struct {
-	Reason     string                  `json:"reason"`
-	Note       string                  `json:"note"`
-	Actor      string                  `json:"actor"`
-	Related    string                  `json:"related,omitempty"`
-	Evidence   []EvidenceRef           `json:"evidence,omitempty"`
-	RejectedAt time.Time               `json:"rejected_at"`
-	PriorState FeatureState            `json:"prior_state"`
-	History    []RejectionHistoryEntry `json:"history,omitempty"`
+	Reason     string        `json:"reason"`
+	Note       string        `json:"note"`
+	Actor      string        `json:"actor"`
+	Related    string        `json:"related,omitempty"`
+	Evidence   []EvidenceRef `json:"evidence,omitempty"`
+	RejectedAt time.Time     `json:"rejected_at"`
+	PriorState FeatureState  `json:"prior_state"`
 }
 
 // RejectableStates is the shared, single-source-of-truth set of source

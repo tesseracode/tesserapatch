@@ -244,20 +244,27 @@ type FeatureStatus struct {
 	// `amend` (recipe-touching) verbs may rewrite it (ADR-013 D3).
 	Verify *VerifyRecord `json:"verify,omitempty"`
 
-	// Rejection is the append-only rejection sub-record written by
-	// `tpatch reject` / `tpatch reopen` (v0.13.0 GH #6,
-	// PRD-rejected-feature-state §6, ADR-031 D1). It lives on
-	// FeatureStatus rather than in a sidecar file so `state` and its
-	// rejection metadata are read/written atomically by the same
-	// SaveFeatureStatus call (ADR-031 D1 Alternative 1).
+	// Rejection is the LIVE rejection record written by `tpatch reject`
+	// (v0.13.0 GH #6, PRD-rejected-feature-state §6, ADR-031 D1). It
+	// lives on FeatureStatus rather than in a sidecar file so `state`
+	// and its rejection metadata are read/written atomically by the
+	// same SaveFeatureStatus call (ADR-031 D1 Alternative 1).
 	//
 	// The pointer is `omitempty`-marshalled so every pre-v0.13.0
 	// fixture that never rejects round-trips byte-identical
-	// (ADR-031 D7). A non-nil Rejection does NOT imply
-	// `State == StateRejected`: `reopen` is append-only (ADR-031 D5)
-	// and deliberately leaves the record in place after transitioning
-	// the feature back to `requested`, so the audit trail survives.
+	// (ADR-031 D7). `tpatch reopen` folds this record into a completed
+	// RejectionHistory entry and then CLEARS it, so a non-nil Rejection
+	// means the feature is rejected right now; the append-only audit
+	// trail of past cycles lives in RejectionHistory.
 	Rejection *RejectionStatus `json:"rejection,omitempty"`
+
+	// RejectionHistory is the append-only log of COMPLETED reject→reopen
+	// cycles (PRD §6 `history`, ADR-031 D5). Exactly one entry is
+	// appended per reopen; `reject` appends nothing. It is a top-level
+	// field rather than a member of RejectionStatus precisely so reopen
+	// can clear Rejection without losing the audit trail. Unbounded:
+	// nothing is ever overwritten or truncated.
+	RejectionHistory []RejectionHistoryEntry `json:"rejection_history,omitempty"`
 }
 
 // VerifyRecord is the persisted freshness overlay produced by

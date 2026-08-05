@@ -488,10 +488,15 @@ func statusCmd() *cobra.Command {
 						for _, e := range r.Evidence {
 							fmt.Fprintf(out, "    Evidence:    %s (sha256=%s)\n", e.Path, e.SHA256)
 						}
-						fmt.Fprintf(out, "    History:     %d entr%s\n", len(r.History), pluralEntries(len(r.History)))
 						if st.State == store.StateRejected {
 							fmt.Fprintf(out, "    Next:        tpatch reopen %s --note \"<why this is being reconsidered>\"\n", st.Slug)
 						}
+					}
+					// One history entry per COMPLETED reject→reopen
+					// cycle (PRD §6, ADR-031 D5), rendered whether or
+					// not a live rejection is present.
+					if n := len(st.RejectionHistory); n > 0 {
+						fmt.Fprintf(out, "  Rejection history: %d completed cycle%s\n", n, pluralCycles(n))
 					}
 					if st.State == store.StateReconcilingShadow || st.Reconcile.ShadowPath != "" {
 						fmt.Fprintf(out, "  Shadow:        %s\n", st.Reconcile.ShadowPath)
@@ -518,12 +523,13 @@ func statusCmd() *cobra.Command {
 	return cmd
 }
 
-// pluralEntries renders the "entr(y|ies)" suffix for history counts.
-func pluralEntries(n int) string {
+// pluralCycles renders the plural suffix for completed reject→reopen
+// cycle counts in the status detail view.
+func pluralCycles(n int) string {
 	if n == 1 {
-		return "y"
+		return ""
 	}
-	return "ies"
+	return "s"
 }
 
 func warnMalformedPatchGenerations(cmd *cobra.Command, s *store.Store, features []store.FeatureStatus) {

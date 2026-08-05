@@ -317,21 +317,10 @@ func runReject(cmd *cobra.Command, slug string) error {
 	actor := store.ResolveActorIn(actorFlag, s.Root)
 	now := time.Now().UTC().Truncate(time.Second)
 
-	var history []store.RejectionHistoryEntry
-	if status.Rejection != nil {
-		history = append(history, status.Rejection.History...)
-	}
-	history = append(history, store.RejectionHistoryEntry{
-		Action:     store.RejectionActionReject,
-		Actor:      actor,
-		Timestamp:  now,
-		Note:       note,
-		Reason:     reason,
-		PriorState: priorState,
-		Related:    strings.TrimSpace(related),
-		Evidence:   evidence,
-	})
-
+	// `reject` appends NOTHING to RejectionHistory: a history entry
+	// records one COMPLETED reject→reopen cycle and is appended by the
+	// reopen that closes it (PRD §6, ADR-031 D5). The live record below
+	// is the rejection half until then.
 	status.Rejection = &store.RejectionStatus{
 		Reason:     reason,
 		Note:       note,
@@ -340,7 +329,6 @@ func runReject(cmd *cobra.Command, slug string) error {
 		Evidence:   evidence,
 		RejectedAt: now,
 		PriorState: priorState,
-		History:    history,
 	}
 	status.State = store.StateRejected
 	status.LastCommand = "reject"

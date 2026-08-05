@@ -96,20 +96,6 @@ func TestRejectionStatus_JSONRoundTrip(t *testing.T) {
 		Evidence:   []EvidenceRef{{Path: "analysis.md", SHA256: strings.Repeat("a", 64)}},
 		RejectedAt: ts,
 		PriorState: StateAnalyzed,
-		History: []RejectionHistoryEntry{
-			{
-				Action: RejectionActionReject, Actor: "dev@example.com", Timestamp: ts,
-				Note: "upstream already handles this", Reason: "premise-disproved",
-				PriorState: StateAnalyzed,
-				Evidence:   []EvidenceRef{{Path: "analysis.md", SHA256: strings.Repeat("a", 64)}},
-			},
-			{
-				Action: RejectionActionReopen, Actor: "other@example.com", Timestamp: ts.Add(time.Hour),
-				Note:              "upstream reverted it",
-				EvidenceIntegrity: EvidenceIntegrityDivergent,
-				DivergenceDetail:  []DivergenceDetail{{Path: "analysis.md", DivergentReason: DivergentReasonHashMismatch}},
-			},
-		},
 	}
 	data, err := json.Marshal(in)
 	if err != nil {
@@ -132,8 +118,68 @@ func TestRejectionStatus_JSONRoundTrip(t *testing.T) {
 	if out.PriorState != StateAnalyzed {
 		t.Fatalf("prior_state lost in round-trip: %q", out.PriorState)
 	}
-	if len(out.History) != 2 {
-		t.Fatalf("history len = %d, want 2", len(out.History))
+}
+
+// One history entry == one COMPLETED reject→reopen cycle (PRD §6,
+// ADR-031 D5). The entry carries both halves, and it round-trips
+// byte-identically through JSON.
+func TestRejectionHistoryEntry_CompletedCycleRoundTrip(t *testing.T) {
+	ts := time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC)
+	in := RejectionHistoryEntry{
+		RejectedAt:     ts,
+		RejectedBy:     "dev@example.com",
+		Reason:         "premise-disproved",
+		RejectNote:     "upstream already handles this",
+		PriorState:     StateAnalyzed,
+		Related:        "GH#41",
+		RejectEvidence: []EvidenceRef{{Path: "analysis.md", SHA256: strings.Repeat("a", 64)}},
+		ReopenedAt:     ts.Add(time.Hour),
+		ReopenedBy:     "other@example.com",
+		ReopenNote:     "upstream reverted it",
+		ReopenEvidence: []EvidenceRef{{Path: "artifacts/revert.md", SHA256: strings.Repeat("c", 64)}},
+
+		EvidenceIntegrity: EvidenceIntegrityDivergent,
+		DivergenceDetail:  []DivergenceDetail{{Path: "analysis.md", DivergentReason: DivergentReasonHashMismatch}},
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, key := range []string{
+		"rejected_at", "rejected_by", "reason", "reject_note", "prior_state", "related",
+		"reject_evidence", "reopened_at", "reopened_by", "reopen_note", "reopen_evidence",
+		"evidence_integrity", "divergence_detail",
+	} {
+		if !strings.Contains(string(data), "\""+key+"\"") {
+			t.Errorf("history entry missing %q: %s", key, data)
+		}
+	}
+	var out RejectionHistoryEntry
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	again, err := json.Marshal(out)
+	if err != nil {
+		t.Fatalf("re-marshal: %v", err)
+	}
+	if string(data) != string(again) {
+		t.Fatalf("round-trip is not byte-identical:\n%s\n%s", data, again)
+	}
+	if !out.RejectedAt.Equal(ts) || !out.ReopenedAt.Equal(ts.Add(time.Hour)) {
+		t.Fatalf("timestamps drifted: %+v", out)
+	}
+}
+
+// A feature that has never completed a cycle must omit
+// `rejection_history` entirely, so pre-v0.13.0 fixtures round-trip
+// byte-identical (ADR-031 D7).
+func TestFeatureStatus_RejectionHistoryOmittedWhenEmpty(t *testing.T) {
+	data, err := json.Marshal(FeatureStatus{Slug: "x", State: StateRequested})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), "rejection_history") {
+		t.Fatalf("empty history must be omitted, got %s", data)
 	}
 }
 
@@ -141,7 +187,8 @@ func TestRejectionStatus_JSONRoundTrip(t *testing.T) {
 // addendum) — the field must never serialize as "clean".
 func TestRejectionHistoryEntry_CleanIntegrityIsOmitted(t *testing.T) {
 	e := RejectionHistoryEntry{
-		Action: RejectionActionReopen, Actor: "a", Timestamp: time.Unix(0, 0).UTC(), Note: "n",
+		RejectedAt: time.Unix(0, 0).UTC(), RejectedBy: "a", Reason: "duplicate", RejectNote: "n",
+		ReopenedAt: time.Unix(1, 0).UTC(), ReopenedBy: "a", ReopenNote: "n",
 	}
 	data, err := json.Marshal(e)
 	if err != nil {
@@ -189,11 +236,12 @@ func TestFeatureStatus_RejectionPersistsThroughStore(t *testing.T) {
 		Evidence:   []EvidenceRef{{Path: "request.md", SHA256: strings.Repeat("b", 64)}},
 		RejectedAt: now,
 		PriorState: StateAnalyzed,
-		History: []RejectionHistoryEntry{{
-			Action: RejectionActionReject, Actor: "dev@example.com", Timestamp: now,
-			Note: "same as beta", Reason: "duplicate", PriorState: StateAnalyzed,
-		}},
 	}
+	st.RejectionHistory = []RejectionHistoryEntry{{
+		RejectedAt: now.Add(-time.Hour), RejectedBy: "dev@example.com", Reason: "obsolete",
+		RejectNote: "first cycle", PriorState: StateRequested,
+		ReopenedAt: now.Add(-time.Minute), ReopenedBy: "dev@example.com", ReopenNote: "back",
+	}}
 	if err := s.SaveFeatureStatus(st); err != nil {
 		t.Fatalf("SaveFeatureStatus: %v", err)
 	}
@@ -213,8 +261,11 @@ func TestFeatureStatus_RejectionPersistsThroughStore(t *testing.T) {
 	if !got.Rejection.RejectedAt.Equal(now) {
 		t.Fatalf("rejected_at drifted: %v", got.Rejection.RejectedAt)
 	}
-	if len(got.Rejection.History) != 1 || got.Rejection.History[0].Action != RejectionActionReject {
-		t.Fatalf("history lost: %+v", got.Rejection.History)
+	if len(got.RejectionHistory) != 1 || got.RejectionHistory[0].Reason != "obsolete" {
+		t.Fatalf("history lost: %+v", got.RejectionHistory)
+	}
+	if got.RejectionHistory[0].ReopenNote != "back" {
+		t.Fatalf("reopen half lost: %+v", got.RejectionHistory[0])
 	}
 }
 

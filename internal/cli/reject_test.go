@@ -143,12 +143,11 @@ func TestReject_HappyPathFromEveryEligibleState(t *testing.T) {
 			if want := sha256Of(t, "evidence for alpha\n"); r.Evidence[0].SHA256 != want {
 				t.Errorf("sha256 = %q, want %q", r.Evidence[0].SHA256, want)
 			}
-			if len(r.History) != 1 {
-				t.Fatalf("history len = %d, want 1", len(r.History))
-			}
-			h := r.History[0]
-			if h.Action != store.RejectionActionReject || h.Actor != "dev@example.com" || h.Reason != "out-of-scope" {
-				t.Errorf("history[0] = %+v", h)
+			// A history entry records one COMPLETED reject→reopen
+			// cycle and is appended by `reopen`, never by `reject`
+			// (PRD §6, ADR-031 D5).
+			if len(st.RejectionHistory) != 0 {
+				t.Fatalf("reject must append no history entry, got %d", len(st.RejectionHistory))
 			}
 			// Operator-facing output must hand over the reopen command.
 			if !strings.Contains(out, "tpatch reopen alpha") {
@@ -170,8 +169,14 @@ func TestReject_RelatedPointerRoundTrips(t *testing.T) {
 	if st.Rejection.Related != "GH#41" {
 		t.Fatalf("related = %q", st.Rejection.Related)
 	}
-	if st.Rejection.History[0].Related != "GH#41" {
-		t.Fatalf("history related = %q", st.Rejection.History[0].Related)
+	// The `related` pointer survives the reject→reopen fold onto the
+	// completed-cycle history entry.
+	if _, _, code := runRJ("reopen", "alpha", "--path", dir, "--note", "reconsidering"); code != 0 {
+		t.Fatalf("reopen exit %d", code)
+	}
+	st = mustLoad(t, s, "alpha")
+	if len(st.RejectionHistory) != 1 || st.RejectionHistory[0].Related != "GH#41" {
+		t.Fatalf("history related = %+v", st.RejectionHistory)
 	}
 }
 
@@ -264,8 +269,8 @@ func TestReject_RefusedWhenAlreadyRejected(t *testing.T) {
 	if after.Rejection.Reason != before.Rejection.Reason || after.Rejection.Note != before.Rejection.Note {
 		t.Fatalf("existing rejection record was overwritten: %+v", after.Rejection)
 	}
-	if len(after.Rejection.History) != 1 {
-		t.Fatalf("history grew on a refused reject: %d", len(after.Rejection.History))
+	if len(after.RejectionHistory) != 0 {
+		t.Fatalf("history grew on a refused reject: %d", len(after.RejectionHistory))
 	}
 	if !strings.Contains(errOut, "tpatch reopen alpha") {
 		t.Errorf("refusal should point at reopen: %s", errOut)
@@ -529,26 +534,34 @@ func TestReopen_TransitionsToRequestedAndAppends(t *testing.T) {
 	if st.State != store.StateRequested {
 		t.Fatalf("state = %q, want requested", st.State)
 	}
-	if st.Rejection == nil {
-		t.Fatal("append-only violated: the rejection record was cleared")
+	// The live rejection record is CLEARED — the completed cycle now
+	// lives in the append-only history, so retaining both would
+	// double-count it (PRD §6, ADR-031 D5).
+	if st.Rejection != nil {
+		t.Fatalf("live rejection record must be cleared on reopen: %+v", st.Rejection)
 	}
-	if st.Rejection.PriorState != store.StateDefined {
-		t.Errorf("prior_state must survive reopen for audit: %q", st.Rejection.PriorState)
+	if len(st.RejectionHistory) != 1 {
+		t.Fatalf("history len = %d, want 1 (one completed cycle)", len(st.RejectionHistory))
 	}
-	if st.Rejection.Reason != "premise-disproved" || st.Rejection.Note != "premise was wrong" {
-		t.Errorf("prior rejection fields lost: %+v", st.Rejection)
+	h := st.RejectionHistory[0]
+	// Reject half — snapshotted from the record that reopen cleared.
+	if h.PriorState != store.StateDefined {
+		t.Errorf("prior_state must survive reopen for audit: %q", h.PriorState)
 	}
-	if len(st.Rejection.History) != 2 {
-		t.Fatalf("history len = %d, want 2 (reject + reopen)", len(st.Rejection.History))
+	if h.Reason != "premise-disproved" || h.RejectNote != "premise was wrong" {
+		t.Errorf("reject half lost: %+v", h)
 	}
-	h := st.Rejection.History[1]
-	if h.Action != store.RejectionActionReopen {
-		t.Errorf("history[1].action = %q", h.Action)
+	if h.RejectedBy != "rejector@example.com" || h.RejectedAt.IsZero() {
+		t.Errorf("reject half provenance lost: %+v", h)
 	}
-	if h.Actor != "reopener@example.com" || h.Note != "new information landed" {
-		t.Errorf("history[1] = %+v", h)
+	if len(h.RejectEvidence) != 1 || h.RejectEvidence[0].Path != "analysis.md" {
+		t.Errorf("reject evidence lost: %+v", h.RejectEvidence)
 	}
-	if h.Timestamp.IsZero() {
+	// Reopen half.
+	if h.ReopenedBy != "reopener@example.com" || h.ReopenNote != "new information landed" {
+		t.Errorf("reopen half = %+v", h)
+	}
+	if h.ReopenedAt.IsZero() {
 		t.Error("reopen timestamp not set")
 	}
 }
@@ -585,9 +598,9 @@ func TestReopen_ValidationErrors(t *testing.T) {
 		t.Fatalf("exit %d, want 2; stderr=%s", code, errOut)
 	}
 	st := mustLoad(t, s, "alpha")
-	if st.State != store.StateRejected || len(st.Rejection.History) != 1 {
-		t.Fatalf("reopen validation failures must be pre-mutation: state=%q history=%d",
-			st.State, len(st.Rejection.History))
+	if st.State != store.StateRejected || st.Rejection == nil || len(st.RejectionHistory) != 0 {
+		t.Fatalf("reopen validation failures must be pre-mutation: state=%q rejection=%v history=%d",
+			st.State, st.Rejection != nil, len(st.RejectionHistory))
 	}
 }
 
@@ -630,7 +643,7 @@ func TestReopen_NoteOnly_CleanVerificationRuns(t *testing.T) {
 		t.Errorf("reopen_evidence must serialize as [] on a note-only reopen, got %v", env["reopen_evidence"])
 	}
 
-	h := mustLoad(t, s, "alpha").Rejection.History[1]
+	h := mustLoad(t, s, "alpha").RejectionHistory[0]
 	if h.EvidenceIntegrity != "" || len(h.DivergenceDetail) != 0 {
 		t.Errorf("clean verdict must not be persisted: %+v", h)
 	}
@@ -669,17 +682,21 @@ func TestReopen_NoteOnly_DivergentHistoricalEvidence(t *testing.T) {
 	if st.State != store.StateRequested {
 		t.Fatalf("state = %q, want requested", st.State)
 	}
-	h := st.Rejection.History[1]
+	if len(st.RejectionHistory) != 1 {
+		t.Fatalf("history len = %d, want 1", len(st.RejectionHistory))
+	}
+	h := st.RejectionHistory[0]
 	if h.EvidenceIntegrity != store.EvidenceIntegrityDivergent {
 		t.Fatalf("persisted integrity = %q", h.EvidenceIntegrity)
 	}
 	if len(h.DivergenceDetail) != 1 || h.DivergenceDetail[0].DivergentReason != store.DivergentReasonHashMismatch {
 		t.Fatalf("persisted divergence = %+v", h.DivergenceDetail)
 	}
-	// The ORIGINAL recorded hash is preserved — divergence detection
-	// must not overwrite the audit record.
-	if st.Rejection.Evidence[0].SHA256 != sha256Of(t, "evidence for alpha\n") {
-		t.Fatalf("recorded evidence hash was overwritten: %q", st.Rejection.Evidence[0].SHA256)
+	// The ORIGINAL recorded hash is preserved on the snapshotted
+	// reject half — divergence detection must not overwrite the audit
+	// record.
+	if h.RejectEvidence[0].SHA256 != sha256Of(t, "evidence for alpha\n") {
+		t.Fatalf("recorded evidence hash was overwritten: %q", h.RejectEvidence[0].SHA256)
 	}
 }
 
@@ -747,7 +764,7 @@ func TestReopen_DivergenceTaxonomy(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("divergence must not block reopen; exit %d %s", code, errOut)
 			}
-			h := mustLoad(t, s, "alpha").Rejection.History[1]
+			h := mustLoad(t, s, "alpha").RejectionHistory[0]
 			if h.EvidenceIntegrity != store.EvidenceIntegrityDivergent {
 				t.Fatalf("integrity = %q, want divergent", h.EvidenceIntegrity)
 			}
@@ -770,15 +787,17 @@ func TestReopen_NewEvidenceRecordedOnHistoryEntry(t *testing.T) {
 		t.Fatalf("exit %d %s", code, errOut)
 	}
 	st := mustLoad(t, s, "alpha")
-	h := st.Rejection.History[1]
-	if len(h.Evidence) != 1 || h.Evidence[0].Path != "upstream-revert.md" {
-		t.Fatalf("reopen evidence = %+v", h.Evidence)
+	h := st.RejectionHistory[0]
+	if len(h.ReopenEvidence) != 1 || h.ReopenEvidence[0].Path != "upstream-revert.md" {
+		t.Fatalf("reopen evidence = %+v", h.ReopenEvidence)
 	}
-	if h.Evidence[0].SHA256 != sha256Of(t, "upstream reverted it\n") {
-		t.Fatalf("reopen evidence hash = %q", h.Evidence[0].SHA256)
+	if h.ReopenEvidence[0].SHA256 != sha256Of(t, "upstream reverted it\n") {
+		t.Fatalf("reopen evidence hash = %q", h.ReopenEvidence[0].SHA256)
 	}
-	if len(st.Rejection.Evidence) != 1 || st.Rejection.Evidence[0].Path != "analysis.md" {
-		t.Fatalf("reopen must not rewrite the rejection's own evidence list: %+v", st.Rejection.Evidence)
+	// New reopen evidence is recorded on its own half of the entry —
+	// it is never merged into the rejection's evidence list.
+	if len(h.RejectEvidence) != 1 || h.RejectEvidence[0].Path != "analysis.md" {
+		t.Fatalf("reopen must not rewrite the rejection's own evidence list: %+v", h.RejectEvidence)
 	}
 }
 
@@ -800,23 +819,72 @@ func TestRejectReopenCycles_HistoryIsAppendOnlyAndUnbounded(t *testing.T) {
 	if st.State != store.StateRequested {
 		t.Fatalf("final state = %q", st.State)
 	}
-	if len(st.Rejection.History) != cycles*2 {
-		t.Fatalf("history len = %d, want %d (nothing may be truncated)", len(st.Rejection.History), cycles*2)
+	if st.Rejection != nil {
+		t.Fatalf("live rejection record must be cleared after the final reopen: %+v", st.Rejection)
 	}
-	for i, h := range st.Rejection.History {
-		want := store.RejectionActionReject
-		if i%2 == 1 {
-			want = store.RejectionActionReopen
+	// Exactly ONE entry per COMPLETED cycle (PRD §6, ADR-031 D5).
+	if len(st.RejectionHistory) != cycles {
+		t.Fatalf("history len = %d, want %d (one entry per completed cycle, nothing truncated)",
+			len(st.RejectionHistory), cycles)
+	}
+	for i, h := range st.RejectionHistory {
+		if h.RejectedAt.IsZero() || h.ReopenedAt.IsZero() {
+			t.Fatalf("history[%d] is not a complete cycle: %+v", i, h)
 		}
-		if h.Action != want {
-			t.Fatalf("history[%d].action = %q, want %q", i, h.Action, want)
+		if h.ReopenedAt.Before(h.RejectedAt) {
+			t.Fatalf("history[%d] reopened before it was rejected: %+v", i, h)
 		}
 	}
-	// Timestamps are non-decreasing — the log reads oldest-first.
-	for i := 1; i < len(st.Rejection.History); i++ {
-		if st.Rejection.History[i].Timestamp.Before(st.Rejection.History[i-1].Timestamp) {
+	// Entries are non-decreasing — the log reads oldest-first.
+	for i := 1; i < len(st.RejectionHistory); i++ {
+		if st.RejectionHistory[i].RejectedAt.Before(st.RejectionHistory[i-1].RejectedAt) {
 			t.Fatalf("history is not chronological at index %d", i)
 		}
+	}
+}
+
+// After a reopen the feature can be rejected again, and the second
+// cycle appends a SECOND entry rather than mutating the first.
+func TestRejectReopen_TwoCyclesYieldTwoHistoryEntries(t *testing.T) {
+	dir, s := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateRequested})
+
+	if _, _, code := runRJ("reject", "alpha", "--path", dir,
+		"--reason", "obsolete", "--note", "first", "--evidence", "analysis.md"); code != 0 {
+		t.Fatal("cycle 1 reject failed")
+	}
+	st := mustLoad(t, s, "alpha")
+	if st.Rejection == nil || len(st.RejectionHistory) != 0 {
+		t.Fatalf("after reject only: rejection=%v history=%d", st.Rejection != nil, len(st.RejectionHistory))
+	}
+	if _, _, code := runRJ("reopen", "alpha", "--path", dir, "--note", "back"); code != 0 {
+		t.Fatal("cycle 1 reopen failed")
+	}
+	st = mustLoad(t, s, "alpha")
+	if st.Rejection != nil || len(st.RejectionHistory) != 1 {
+		t.Fatalf("after cycle 1: rejection=%v history=%d", st.Rejection != nil, len(st.RejectionHistory))
+	}
+
+	if _, _, code := runRJ("reject", "alpha", "--path", dir,
+		"--reason", "duplicate", "--note", "second", "--evidence", "analysis.md"); code != 0 {
+		t.Fatal("cycle 2 reject failed")
+	}
+	st = mustLoad(t, s, "alpha")
+	if st.Rejection == nil || len(st.RejectionHistory) != 1 {
+		t.Fatalf("a reject must not append history: rejection=%v history=%d",
+			st.Rejection != nil, len(st.RejectionHistory))
+	}
+	if _, _, code := runRJ("reopen", "alpha", "--path", dir, "--note", "back again"); code != 0 {
+		t.Fatal("cycle 2 reopen failed")
+	}
+	st = mustLoad(t, s, "alpha")
+	if st.Rejection != nil || len(st.RejectionHistory) != 2 {
+		t.Fatalf("after cycle 2: rejection=%v history=%d", st.Rejection != nil, len(st.RejectionHistory))
+	}
+	if st.RejectionHistory[0].Reason != "obsolete" || st.RejectionHistory[1].Reason != "duplicate" {
+		t.Fatalf("cycle order or content lost: %+v", st.RejectionHistory)
+	}
+	if st.RejectionHistory[0].RejectNote != "first" || st.RejectionHistory[1].RejectNote != "second" {
+		t.Fatalf("the first cycle was mutated by the second: %+v", st.RejectionHistory)
 	}
 }
 
