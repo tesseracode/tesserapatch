@@ -79,6 +79,33 @@ Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `
 - **Cluster D** (correctness housekeeping — 6 backlog items + 2 review-fold items) — shipped 2026-08-03 after 4 review revs. Range `4868f68..42f85d7`.
 - **Cluster E** (process housekeeping — F1 gate `[8/8] go test` coverage + F2 macOS teardown race via `gc.auto=0` pin extracted to shared `internal/testutil` helper) — shipped 2026-08-04 after 1 rev-1 fold (E-EXT-1 cross-package pin). Range `1bc2a25..b294d8c`.
 - **Cluster E-prime** (post-Cluster-E review follow-up — Obs 1 `PinGitAutoGCOff` doc comment + Obs 2 `.wave-close-allowlist` mechanism for `[2/8]` gate step) — shipped 2026-08-05 external-only rev-0 APPROVED WITH NOTES. Range `2281309..aa34f3c`.
+- **Cluster F planning** (PRD-rejected-feature-state + ADR-031 pair, v0.13.0 GH #6) — shipped at `c6aaeb2` after 5 review revs (rev-5 = verb-collision amendment).
+- **Cluster F' rev-0** (v0.13.0 GH #6 implementation — first-class `rejected` feature lifecycle state) — implemented 2026-08-06, **awaiting review**. 10 commits, range `8cf3c1a..HEAD`. See "Ready for review — Cluster F' rev-0" below.
+
+## Files Changed — Cluster F' rev-0
+
+Source (new):
+- `internal/store/status.go` — `EvidenceRef`, `DivergenceDetail`, `RejectionHistoryEntry`, `RejectionStatus`, evidence-integrity + divergence-taxonomy + history-action constants, `RejectableStates`/`IsRejectableState`/`RejectableStateList`.
+- `internal/store/rejection_reason.go` — closed 7-value reason enum + `IsValidRejectionReason`, `RejectionReasonList`, `RejectionReasonsJoined`.
+- `internal/store/actor.go` — `ResolveActor` / `ResolveActorIn` 4-tier precedence chain + `gitConfigUserEmail` test seam.
+- `internal/cli/reject.go` — exit-code helpers, evidence normalization/resolution/hashing, `rejectCmd`/`runReject`, the two disambiguation golden strings, `refuseIfRejected`.
+- `internal/cli/reopen.go` — `verifyHistoricalEvidence`, `reopenCmd`/`runReopen`.
+
+Source (modified):
+- `internal/store/types.go` — `StateRejected` (11th value) + `ValidFeatureState` arm; `FeatureStatus.Rejection *RejectionStatus` (`omitempty`).
+- `internal/store/validation.go` — `ErrRejectedParent` sentinel, `rejectionReasonSuffix`, Rule 7 in `ValidateDependencies`.
+- `internal/store/store.go` — `RefreshFeaturesIndex` partitions active/rejected and renders a trailing `## Rejected` table; `singleLineCell` pipe-escaping helper.
+- `internal/cli/cobra.go` — `reject`/`reopen` registration; `status --include-rejected` + `rejected_hidden` + always-full detail view + `pluralEntries`; `apply` rejected guard; `reconcile` per-slug rejected filtering; `reconcile` Long description carrying the symmetric cross-reference; `applyConfirmUpstreamedTransition` rejected guard as first statement.
+- `internal/cli/phase2.go` — `nextAction` `case store.StateRejected` arm.
+
+Tests (new):
+- `internal/store/rejection_test.go` (32 assertions)
+- `internal/cli/reject_test.go` (67 assertions)
+
+Docs/assets:
+- `SPEC.md` — `rejected` state row + rationale; "Feature rejection" command subsection; `reject` ↔ `reconcile --reject` non-relationship; exit-code envelope table (stated as per-command, not global).
+- All 6 shipped skill surfaces + `assets/assets_test.go` — 2 new `requiredCommands`, 3 new parity anchors.
+- `docs/prds/PRD-rejected-feature-state.md` — §4.1 point 2 F2 residual wording fix.
 
 ## Files Changed at v0.12.1 Consolidation
 
@@ -88,12 +115,26 @@ Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `
 - `docs/handoff/HISTORY.md`: v0.12.1 archived under 2026-07-31 header.
 - `docs/handoff/CURRENT.md`: reset (this file).
 
-## Test Results
+## Test Results — Cluster F' rev-0
 
 - `gofmt -l .` empty; `go vet ./...` clean; `go build ./cmd/tpatch` OK.
-- `go test ./...` 907 top-level PASS + subtests (0 FAIL).
-- Wave α + β + γ non-invalidation: empty diff on 5 guarded files at v0.12.1 consolidation.
-- Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+- `go test -count=1 ./...` — **960 top-level PASS / 1237 including subtests, 0 FAIL** across all 9 test packages (up from 907 top-level pre-cluster; +99 new rejection assertions counting subtests).
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e` (verified post-implementation).
+
+### `make wave-close-check WAVE_BASE=c6aaeb2`
+
+| Step | Result |
+|------|--------|
+| `[1/8]` working tree clean | **OK** |
+| `[2/8]` untracked-source sentinel | **OK** (16 entries allowlisted; no WIP file staged) |
+| `[3/8]` HEAD pushed to `origin/main` | **OK after the rev-0 push** (FAILed pre-push by construction) |
+| `[4/8]` Rule 18 trailer on every wave commit | **OK** (12 commits in `c6aaeb2..HEAD`) |
+| `[5/8]` canonical `**Cluster state**:` terminal | **FAIL by design** — reads `REV-0 DISPATCHED`. This is a mid-cycle implementation handoff awaiting review, and the dispatch brief explicitly forbids the implementer touching the canonical field. **The supervisor flips it to a terminal token at wave close.** |
+| `[6/8]` gofmt clean | **OK** |
+| `[7/8]` go vet + go build clean | **OK** |
+| `[8/8]` `go test -count=1 ./...` clean | **OK** |
+
+Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive, tag.
 
 ## Next Steps
 
@@ -137,6 +178,60 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim + `Copilot-Session: <session-id>` per session. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body).
+
+## Ready for review — Cluster F' rev-0
+
+**Scope delivered**: v0.13.0 GH #6 first-class `rejected` feature lifecycle state, complete per PRD-rejected-feature-state + ADR-031 (D1-D10 treated as binding). Commit range `8cf3c1a..HEAD` (10 commits).
+
+### Commit map
+
+| # | Commit | Scope |
+|---|--------|-------|
+| 1 | `f688a70` | store: `StateRejected` + `RejectionStatus` data model |
+| 2 | `8bb5ce8` | store: Rule 7 dependency guard |
+| 3 | `026c179` | store: actor resolution + closed reason enum |
+| 4 | `7dfe160` | cli: `tpatch reject` |
+| 5 | `8d46631` | cli: `tpatch reopen` + historical evidence verification |
+| 6 | `71a73b0` | cli,store: status/next/FEATURES.md + apply/reconcile/confirm-upstreamed guards |
+| 7 | `588a957` | spec,assets: `rejected` documentation + parity anchors |
+| 8 | `20f1590` | test: PRD §9 matrix (2 files, 99 assertions) |
+| 9 | `b06571d` | docs: F2 residual — PRD §4.1 point 2 wording fix |
+| 10 | (this) | docs: CURRENT.md session summary |
+
+### F2 residual — CONFIRMED FOLDED
+
+PRD §4.1 point 2 now reads "fires only when a shadow worktree is registered (pruning it; rolling state back to `applied` only from `reconciling-shadow`)", replacing the imprecise "fires only when a feature is in `reconciling-shadow`". The non-overlap conclusion the point supports is unchanged. Commit `b06571d`.
+
+### Adjudication requests for the reviewer
+
+Four points where the **dispatch brief** and the **binding planning baseline** disagreed. In every case the implementer followed the PRD/ADR, on the grounds that `AGENTS.md` and this handoff both state "All 10 decision points D1-D10 binding" / "Do NOT re-open planning decisions", and the brief itself defers to the PRD for the reason enum. Flagging all four explicitly so the reviewer can overrule.
+
+| # | Brief said | Implemented (PRD/ADR) | Anchor |
+|---|-----------|----------------------|--------|
+| 1 | Reject-eligible from `requested, analyzed, defined, implementing, blocked` | **`requested, analyzed, defined` only.** `implementing` and `blocked` refuse with exit 3. | PRD §5; ADR-031 D4 Consequences ("the reject-eligible state set (requested, analyzed, defined) as a shared symbol in `internal/store`"); D6 puts post-implementation retirement out of scope |
+| 2 | 8 reason codes incl. `wont-fix`, `design-rejected`, `deferred`, `replaced-by` | **PRD §6's 7 codes**: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded` | PRD §6; brief itself says "Read PRD §6 for the exact authoritative list" |
+| 3 | `reject --evidence` optional | **Required, ≥1 entry.** Exit 2 with `evidence required: at least one --evidence path must be supplied` | PRD §3.2, §6, §8 |
+| 4 | `reopen` transitions to `Rejection.PriorState` | **Always → `requested`.** `PriorState` is retained purely for audit. | PRD §3.8, §5 ("rejected → requested only"), §8 envelope |
+
+**One deliberate deviation from a PRD illustrative example** (not from a binding decision): history appends on **both** `reject` and `reopen`. ADR D1's narrative suggests history grows only on reopen, and PRD §8's illustrative reopen envelope shows `history_entries: 1`; this implementation emits `2` after one reject+reopen. Rationale: the `action` discriminator field (`"reject"` | `"reopen"`) that the brief and PRD §6 both specify is meaningless unless reject also appends, and D5's binding requirement (append-only, unbounded, nothing ever truncated) is fully satisfied either way. If the reviewer prefers the literal §8 number, the change is a one-line delete in `runReject` plus two test expectations.
+
+**One exit-code judgement call**: "slug not found" maps to exit **2** (unresolvable input), not 3. PRD §9 item 5 says only "error" without specifying a code. This matches `tpatch verify`'s missing-slug precedent.
+
+### Verification highlights the reviewer may want to re-run
+
+- **Evidence path safety is checked on the symlink-RESOLVED path before any byte is read.** `TestReject_EvidenceSymlinkEscapeRefusedWithoutHashing` proves it through the `evidenceHashFn` seam. Both sides of the containment comparison are `EvalSymlinks`-resolved, which is required on macOS where `t.TempDir()` lives under `/var` → `/private/var`.
+- **Reopen-time historical verification is unconditional.** `TestReopen_NoteOnly_CleanVerificationRuns` and `TestReopen_NoteOnly_DivergentHistoricalEvidence` (PRD §9 items 26 and 26b) assert it fires with zero `--evidence`, and that divergence never blocks (exit 0).
+- **`confirm-upstreamed` guard precedes the audit append.** `TestConfirmUpstreamed_RefusedOnRejectedFeature` asserts both status.json AND the reconcile-revisions log are unchanged after the exit-3 refusal.
+- **Dependency-order symmetry both directions × 3 edge kinds**: `TestReject_RefusedWhenDependentsExist` (reject-with-dependents) and `TestRejectDependencySymmetry_EdgeOntoRejectedParentRefused` (edge-onto-rejected-parent), plus `TestValidateDependencies_Rule7_RejectedParentRefused` at the store layer.
+- **Test 27 golden strings**: `TestHelp_RejectAndReconcileCrossReference` asserts both `tpatch reject --help` and `tpatch reconcile --help` render their respective cross-reference constants verbatim.
+
+### Non-invalidation invariants
+
+- Side Research md5 `b385fe622db9926f48861105239f113e` — **preserved**, verified post-implementation.
+- Canonical `**Cluster state**:` field — **untouched** (still `REV-0 DISPATCHED`; supervisor flips at close).
+- `internal/workflow/reconcile.go` and `retirement_audit.go` — **untouched** (ADR D6).
+- No file from `.wave-close-allowlist` staged; all 10 commits used explicit `git add <path>` and `git commit -F <file>`.
+- Every commit carries the Rule 18 trailer + `Copilot-Session` trailer (`[4/8]` verified 12/12 in range).
 
 ## Backlog (post-v0.13.0 candidates, not for Cluster F prime)
 
