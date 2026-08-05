@@ -159,7 +159,7 @@ choice open.
 
 > 8. Support an explicit evidence-linked reopen transition back to `requested` if circumstances change.
 
-- `tpatch reopen <slug> --evidence <path> --note <text>` transitions `rejected → requested`. The
+- `tpatch reopen <slug> --note <string> [--evidence <path>...]` transitions `rejected → requested`. The
   reopen call is itself evidence-linked and audited (§6 `history[]`), matching the rejection's own
   evidentiary bar rather than being a bare state flip.
 
@@ -187,15 +187,37 @@ choice open.
   > untracked draft in this repository) — may address it; this PRD makes no claim about which mechanism,
   > if any, eventually does. See ADR-031 D6 for the full rationale and the defense-in-depth guard added
   > to `confirm-upstreamed` itself as a result.
+  >
+  > **Rev-2 correction (F-INT-2 BLOCKING, guard placement)**: rev-1's guard was specified at
+  > `saveConfirmUpstreamedStatus`. Rev-2 dual review traced the call chain and found
+  > `applyConfirmUpstreamedTransition` (`internal/cli/cobra.go:2503-2552`) appends a `ReconcileRevision`
+  > entry (`internal/store/store.go` via `AppendReconcileRevision`, called at `cobra.go:2535`) **before**
+  > calling `saveConfirmUpstreamedStatus` (`cobra.go:2554-2562`). A guard placed only in the callee would
+  > let a false audit revision get appended to a `rejected` feature before the guard ever fires. The
+  > guard therefore moves to the **first statement of `applyConfirmUpstreamedTransition`**
+  > (`cobra.go:2503`), ahead of both the append and the crash-recovery idempotency branch
+  > (`isConfirmedViaReviewTransition` at `cobra.go:2511`, which also reaches
+  > `saveConfirmUpstreamedStatus` directly). See ADR-031 D6 for the corrected call-chain trace.
 
 ## 4. CLI Shape
 
 Two candidate forms were evaluated:
 
-- **(a)** `tpatch reject <slug> --reason <code> --evidence <path> [--note <text>] [--related <ref>]`
+- **(a)** `tpatch reject <slug> --reason <code> --note <string> [--evidence <path>...] [--actor <string>]`
 - **(b)** `tpatch feature state <slug> rejected --reason <code> ...`
 
 **Chosen: form (a).**
+
+> **Rev-2 correction (F-INT-CLI)**: the flag list above is corrected from rev-1's
+> `--reason <code> --evidence <path> [--note <text>] [--related <ref>]`, which listed `--note` as
+> optional. §6 requires `note` non-empty (validation error if missing), so `--note` is a **required**
+> flag, not bracketed as optional; `--actor` is added explicitly (optional, §6's actor-precedence
+> subsection) since it is a real, named flag in the precedence chain, not merely an implementation
+> detail. `--related` remains available as an optional flag (omitted from the headline signature here
+> for brevity, consistent with §6's field table, which is the authoritative field list) but was
+> previously the *only* optional flag shown — rev-2 fixes the signature to show the flags that actually
+> matter to invocation correctness: required `--reason`/`--note`, repeatable optional `--evidence`,
+> optional `--actor`.
 
 Rationale:
 
@@ -220,11 +242,13 @@ Rationale:
 Reverse transition:
 
 ```bash
-tpatch reopen <slug> --evidence <path> --note <text>
+tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>]
 ```
 
 `reopen` is a sibling top-level verb, symmetric with `reject`, following the same registration
-convention.
+convention. `--note` is required here too (all lifecycle mutations this PRD introduces get an operator
+note, per GH #6's append-only-audit requirement — a reopen with no stated rationale would be exactly as
+under-audited as a rejection with no stated rationale).
 
 ## 5. State Machine
 
@@ -326,7 +350,8 @@ for silently proceeding should be at least as high. Options 2 and 3 are recorded
 The above answers "can a rejected feature keep its existing dependents?" (no). Internal review found the
 reverse direction was left open in rev-0: **can a *new* dependency edge be created pointing at a parent
 that is already `rejected`?** Verified empirically that `ValidateDependencies`
-(`internal/store/validation.go:113-160`) has no rule today that would prevent this for any of the three
+(`internal/store/validation.go:113-210`, 6 existing rules, rev-2 correction of rev-1's "5 rules"/
+`113-160` citation) has no rule today that would prevent this for any of the three
 edge kinds (`hard`, `soft`, `supersedes`).
 
 This PRD adds the symmetric invariant: **edge creation is refused if the proposed parent's `state` is
@@ -346,15 +371,30 @@ eleventh value added to the existing ten-value `FeatureState` enum, `internal/st
 |---|---|---|
 | `state` | `FeatureState` enum, top-level | Must be `"rejected"`. Existing `ValidFeatureState` switch (`internal/store/types.go:21-27`) gains this arm. |
 | `reason` | closed enum string | One of: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded`. Any other value is a validation error, exit code `2` (see ADR-031 D2 for closed-vs-open rationale; ADR-031 D4 addendum for the exit-code lock-in). |
-| `evidence` | `[]string` (list of paths), normalized + deduplicated + sorted | At least one entry required. Each path must resolve to an **admissible** location and pass **path-safety** checks (both new, rev-1 fold, F-INT-1 BLOCKING + F-INT-3 HIGH — see below); a path failing either check is a validation error, exit code `2`. |
+| `evidence` | `[]EvidenceRef{path, sha256}` (list of hash-verified objects), normalized + deduplicated + sorted by `path` | At least one entry required. Each path must pass **path-safety** checks and be readable as a regular file so its content can be hashed (new, rev-2 fold, F-INT-1 BLOCKING + F-INT-3 HIGH — see below); a path failing either check is a validation error, exit code `2`. |
 | `note` | `string` | Required, non-empty after trim. Free-form rationale. Missing or empty (after trim) is a validation error, exit code `2`. |
 | `rejected_at` | `string` (RFC3339) | Set by the CLI at write time; not operator-supplied. |
 | `rejected_by` | `string` (actor) | Resolved via a precedence chain, not operator-supplied ad hoc (rev-1 fold, F-INT-6 HIGH — see below). |
 | `prior_state` | `FeatureState` enum | Captured automatically as whatever `state` was immediately before this `reject` call. |
 | `related` | `string`, optional | Free-form: a feature slug or a `GH#N` reference. Not validated against the store (a related feature may not exist in this repo, e.g. a cross-repo GH issue). |
-| `history` | `[]HistoryEntry`, append-only | Populated on `reopen` (and on every subsequent `reject`/`reopen` cycle). Each entry snapshots the fields above (`reason`, `evidence`, `note`, `rejected_at`, `rejected_by`, `prior_state`, `related`, plus the reopen's own `reopened_at`/`reopened_by`/`reopen_note`/`reopen_evidence`) so no rejection record is ever overwritten — only appended past. Matches GH #6 §7's "append-only" requirement (§8 acceptance criteria: "Reopen is explicit and append-only"). Reopen/reject cycles are unbounded (ADR-031 D5). |
+| `history` | `[]HistoryEntry`, append-only | Populated on `reopen` (and on every subsequent `reject`/`reopen` cycle). Each entry snapshots the fields above (`reason`, `evidence`, `note`, `rejected_at`, `rejected_by`, `prior_state`, `related`, plus the reopen's own `reopened_at`/`reopened_by`/`reopen_note`/`reopen_evidence`, and an `evidence_integrity` field — see below) so no rejection record is ever overwritten — only appended past. Matches GH #6 §7's "append-only" requirement (§8 acceptance criteria: "Reopen is explicit and append-only"). Reopen/reject cycles are unbounded (ADR-031 D5). |
 
-### Evidence admissibility and path safety *(new, rev-1 fold, F-INT-1 BLOCKING + F-INT-3 HIGH)*
+### Evidence integrity via content-hash snapshot *(rev-2 fold, F-INT-1 BLOCKING — replaces rev-1's path-restriction approach)*
+
+> **Retraction notice**: rev-1's PRD text here restricted evidence to `.tpatch/features/<slug>/artifacts/`
+> files, other non-forbidden feature-dir files, and git-tracked repo-root files, on the premise that
+> `analysis.md`/`spec.md`/`exploration.md`/`implementation.md` were the *only* mutable files an operator
+> could accidentally cite, and that `artifacts/` files were safe because "no phase command overwrites an
+> existing artifact under a fixed name." **That premise is false.** Rev-2 dual review found
+> `artifacts/analysis.json` (`internal/workflow/workflow.go:90`), `artifacts/apply-recipe.json`
+> (`internal/workflow/implement.go:194,209`), and `artifacts/post-apply.patch`
+> (`internal/cli/cobra.go:794,1398`, `internal/cli/phase2.go:158`, and the reconcile-refresh path) are
+> all rewritten via `s.WriteArtifact` → `os.WriteFile`, a truncating write
+> (`internal/store/store.go:442-453,785-790`). `docs/feature-layout.md:36` states this outright for
+> `post-apply.patch`: "`tpatch record` writes this file on every invocation, **overwriting the previous
+> contents**." Restricting evidence to "the artifacts directory" does not achieve immutability — it
+> relocates the same hazard. This subsection is rewritten to verify evidence integrity via content
+> hashing instead of assuming it from path location.
 
 Internal review found rev-0's evidence-resolution rule permitted `analysis.md`, `spec.md`, and
 `exploration.md` as evidence paths — but those exact files are **overwritten in place** on every
@@ -363,37 +403,48 @@ subsequent `tpatch analyze`/`define`/`explore` re-run (`internal/workflow/workfl
 `s.WriteFeatureFile`). If a feature is rejected citing `analysis.md` as evidence, then later reopened and
 re-analyzed, the historical rejection record would silently point at content that no longer reflects what
 was actually reviewed at rejection time — violating GH #6 §1's "append-only audit history" guarantee at
-the evidence layer, even though the `history[]` array itself is append-only at the *field* layer.
+the evidence layer, even though the `history[]` array itself is append-only at the *field* layer. Rev-2
+resolves this by *detecting* drift rather than *forbidding* the paths where it can occur.
 
-**Admissibility rule**: an evidence path must resolve to one of:
-1. A file under `.tpatch/features/<slug>/artifacts/` (a new, dedicated sub-directory this PRD
-   introduces for exactly this purpose — never written by `analyze`/`define`/`explore`/`implement`).
-2. Any other custom-named file directly under the feature directory `.tpatch/features/<slug>/` —
-   **except** the four mutable workflow artifacts `analysis.md`, `spec.md`, `exploration.md`, and
-   `implementation.md`, which are always rejected as evidence regardless of path form.
-3. A repo-root-relative path that is **git-tracked** (i.e. present in the git index/HEAD tree at
-   evaluation time) — committed content is immutable via the git object store even if the working-tree
-   file is later edited, satisfying the same non-mutability guarantee as (1)/(2) by a different means.
+**Content-hash rule**:
+- Each `evidence` entry is stored as `{path, sha256}`, not a bare path string.
+- The CLI computes `sha256` at `tpatch reject` time from the resolved file's raw byte content — **after**
+  path-safety validation below has passed.
+- This rule applies **uniformly to every evidence path** — feature-directory files (including
+  `analysis.md`/`spec.md`/`exploration.md`/`implementation.md`, now admissible), `artifacts/` files
+  (including `analysis.json`/`apply-recipe.json`/`post-apply.patch`, now admissible), and git-tracked
+  repo-root files alike. **There is no forbidden-filename list and no path-class exemption in rev-2** —
+  every file's mutability risk is handled identically, by hashing it, not by an allowlist/denylist of
+  filenames.
+- `reject` fails (validation error, exit code `2`) if any evidence file cannot be hashed: the path does
+  not exist, is not a regular file, is a symlink resolving outside the repository root, or is unreadable.
 
-A path resolving to none of the above, or explicitly matching one of the four forbidden filenames, is a
-validation error (exit code `2`): `evidence path "<path>" resolves to a mutable workflow artifact and
-cannot be used as rejection evidence; copy the relevant content to artifacts/ or a git-tracked path
-instead`.
-
-**Path-safety rule** (independent of admissibility, applies to every evidence path regardless of which
-of the three admissible forms it takes):
+**Path-safety rule** (unchanged from rev-1, enforced *before* hashing):
 - Absolute paths are rejected.
 - Paths containing a `..` traversal segment (post-`filepath.Clean`) are rejected.
 - Symlinks that resolve outside the repository root are rejected.
 - Non-regular files (directories, sockets, devices, etc.) are rejected.
 - All accepted paths are normalized (`filepath.Clean`, forward-slash separators) before being written to
-  `status.json`, deduplicated after normalization, and sorted (`sort.Strings`) for stable, deterministic
-  serialization (CLAUDE.md rule 4).
+  `status.json`, deduplicated after normalization, and sorted by `path` (`sort.Strings` semantics) for
+  stable, deterministic serialization (CLAUDE.md rule 4).
 
-A deferred alternative — snapshotting a content hash of each evidence file at rejection time, so even a
-git-tracked file's later amendment would be detectable — was considered and rejected as more machinery
-than the admissibility restriction requires for this release; ADR-031 D3 addendum records it as a future
-option if operator friction with the restriction surfaces.
+**Reopen-time integrity check**: on `reopen`, the CLI recomputes the SHA-256 of every historical
+`evidence` entry's `path` and compares it against the hash recorded at rejection time.
+- If every hash matches (or the file is unreadable/missing — see below — resolving identically): the new
+  `history[]` entry the reopen creates omits `evidence_integrity` (equivalent to `"verified"`).
+- If any hash differs, or the path can no longer be read/hashed at all (deleted, permission changed): the
+  reopen **still proceeds** (non-blocking) and the new `history[]` entry records
+  `evidence_integrity: "divergent"`. A file that was deleted and later recreated with byte-identical
+  content naturally re-verifies via the hash comparison — no separate "was it deleted" tracking is
+  needed. This is a deliberate choice (ADR-031 D3 addendum discusses two stricter alternatives — blocking
+  the reopen outright, or requiring a `--force`/acknowledgment flag — and explains why both were
+  rejected in favor of the non-blocking warn-and-record approach): the operator's past file edit cannot
+  be undone by refusing the reopen, and the persistent `evidence_integrity` record is itself the durable
+  audit signal a stricter block would not add much beyond.
+
+A deferred alternative — restricting evidence to a fixed set of "safe" locations (rev-1's approach) —
+was tried and retracted (see the retraction notice above); ADR-031 D3 addendum records the full
+rev-1-vs-rev-2 comparison for future-agent readability.
 
 ### Actor resolution precedence *(new, rev-1 fold, F-INT-6 HIGH)*
 
@@ -422,8 +473,8 @@ citation was false and is removed. See ADR-031 D9 for the full alternatives anal
   feature returned by `s.ListFeatures()` (`internal/cli/cobra.go:236`) is printed in both the text loop
   (`internal/cli/cobra.go:362`) and the JSON `rendered` slice (`internal/cli/cobra.go:308-334`); this PRD
   is the first time `status` gains a state-based exclusion. The JSON envelope gains
-  `rejection: {reason, evidence, note, rejected_at, rejected_by, prior_state, related}` (omitted/absent
-  for non-rejected features) alongside the existing per-feature fields.
+  `rejection: {reason, evidence: [{path, sha256}, ...], note, rejected_at, rejected_by, prior_state,
+  related}` (omitted/absent for non-rejected features) alongside the existing per-feature fields.
 - **`tpatch next`**: for a `rejected` slug, prints the rejection reason, evidence list, and the exact
   `tpatch reopen <slug> ...` command — it does NOT propose `tpatch analyze` or any other forward-phase
   action. This is a new terminal case added to the `nextAction` state switch
@@ -446,21 +497,27 @@ citation was false and is removed. See ADR-031 D9 for the full alternatives anal
   `RefreshFeaturesIndex` — no new store call. Rejected rows are also removed from the main table's
   default view (mirroring the `status` default-exclusion above) and only appear in the new section.
 - **`tpatch apply` / `tpatch reconcile`**: both refuse by default on a `rejected` feature with a clear
-  error (e.g. `feature "<slug>" is rejected (reason=<code>); run` `tpatch reopen <slug>` `to resume, or
-  see` `<evidence>` `for rationale`). Today neither `applyCmd` (`internal/cli/cobra.go:634-693`) nor the
+  error and exit code `3` (state-transition refusal, per ADR-031 D4's exit-code principle) (e.g.
+  `feature "<slug>" is rejected (reason=<code>); run` `tpatch reopen <slug>` `to resume, or see`
+  `<evidence>` `for rationale`). Today neither `applyCmd` (`internal/cli/cobra.go:634-693`) nor the
   reconcile entrypoint checks `status.State` against a terminal/refused list before proceeding — this
   PRD adds that check as a new precondition, matching the fail-fast style. Any future escape-hatch
   behavior for either command is explicitly deferred to ADR-031 §D6 and is NOT specified by this PRD.
-- **`tpatch reconcile confirm-upstreamed` mutating-reconcile guard** *(new, rev-1 fold, F-INT-2
-  BLOCKING)*: independent of the general `apply`/`reconcile` refusal above, `confirm-upstreamed`
-  specifically — and any future retirement-family reconcile variant — MUST guard against a `rejected`
-  source state before mutating `status.State`. Verified empirically that `saveConfirmUpstreamedStatus`
-  (`internal/cli/cobra.go:2554-2562`) today sets `status.State = store.StateUpstreamMerged`
-  unconditionally, with no check of the feature's prior state at all — meaning, absent this guard, a
-  `rejected` feature could theoretically be flipped to `upstream_merged` via a confirming revision,
-  silently destroying its rejection record. This is a Cluster F' **implementation task** (adding a
+- **`tpatch reconcile confirm-upstreamed` mutating-reconcile guard** *(rev-2 fold, F-INT-2 BLOCKING —
+  guard placement corrected)*: independent of the general `apply`/`reconcile` refusal above,
+  `confirm-upstreamed` specifically — and any future retirement-family reconcile variant — MUST guard
+  against a `rejected` source state before mutating `status.State`, and the guard must run before **any**
+  mutation, not just the final state write. Verified empirically that `applyConfirmUpstreamedTransition`
+  (`internal/cli/cobra.go:2503-2552`) appends a `ReconcileRevision` entry (`cobra.go:2535`) **before**
+  calling `saveConfirmUpstreamedStatus` (`cobra.go:2554-2562`, which today sets
+  `status.State = store.StateUpstreamMerged` unconditionally with no prior-state check at all). A guard
+  placed only in `saveConfirmUpstreamedStatus` (rev-1's placement) would let the false audit-revision
+  append happen first. The guard therefore belongs at the **first statement of
+  `applyConfirmUpstreamedTransition`** — ahead of both the append and the crash-recovery idempotency
+  branch (`isConfirmedViaReviewTransition`, `cobra.go:2511`) — and must return a state-transition error
+  (exit code `3`) before either mutation occurs. This is a Cluster F' **implementation task** (adding a
   precondition check at that call site), not new PRD-level design scope; see ADR-031 D6 for the full
-  rationale.
+  rationale and call-chain trace.
 - **`tpatch remove`**: `removeCmd` (`internal/cli/c1.go:341-395`) does not inspect `status.State` at all
   today — it removes a feature in *any* state (subject only to the dependents gate,
   `internal/cli/feature_deps.go:430-447`, and the `--cascade`/confirmation flow). This PRD does **not**
@@ -477,6 +534,15 @@ citation was false and is removed. See ADR-031 D9 for the full alternatives anal
 > (validation vs. state-transition). Every example below now uses the locked exit-code scheme from
 > ADR-031's D4 addendum: `0` success, `1` unexpected internal error, `2` validation error, `3`
 > state-transition error.
+>
+> **Rev-2 correction (F-INT-1 BLOCKING + F-INT-4 HIGH)**: two residual issues from rev-1 are fixed here.
+> First, every `evidence`/`reopen_evidence` array below now shows `{path, sha256}` objects, not bare
+> path strings, matching §6's content-hash redraft; the rev-1 "forbidden mutable artifact" error example
+> is replaced with an "evidence cannot be hashed" example, since the admissibility restriction it
+> illustrated is retracted. Second, the dependents-exist and `confirm-upstreamed`-refusal examples are
+> corrected to exit code `3` (state-transition) — ADR-031 D4's general principle classifies both as
+> post-validation checks against current store/graph state, not pre-mutation input validation, so
+> labeling them "validation" in rev-1 was itself the contradiction rev-2 review caught.
 
 `tpatch reject --json` success (exit code `0`):
 
@@ -486,7 +552,9 @@ citation was false and is removed. See ADR-031 D9 for the full alternatives anal
   "state": "rejected",
   "prior_state": "requested",
   "reason": "premise-disproved",
-  "evidence": ["artifacts/live-role-probe.md"],
+  "evidence": [
+    {"path": "artifacts/live-role-probe.md", "sha256": "3b1c...e4f2"}
+  ],
   "note": "Claude Chat already preserves developer instructions",
   "rejected_at": "2026-08-05T00:00:00Z",
   "rejected_by": "operator",
@@ -526,12 +594,13 @@ per F-INT-8):
 }
 ```
 
-`tpatch reject --json` error — evidence resolves to a forbidden mutable workflow artifact (validation
-error, exit code `2`, new example per F-INT-1 BLOCKING):
+`tpatch reject --json` error — evidence cannot be hashed (validation error, exit code `2`, rev-2 fold,
+F-INT-1 BLOCKING — replaces rev-1's "forbidden mutable artifact" example, which is retracted along with
+the admissibility restriction; see §6 above):
 
 ```jsonc
 {
-  "error": "evidence path \"analysis.md\" resolves to a mutable workflow artifact and cannot be used as rejection evidence; copy the relevant content to artifacts/ or a git-tracked path instead",
+  "error": "evidence path \"artifacts/missing-probe.md\" could not be read: no such file or directory",
   "slug": "claude-developer-instruction-preservation",
   "exit_code": 2
 }
@@ -549,7 +618,8 @@ error, exit code `2`, new example per F-INT-1 BLOCKING):
 ```
 
 `tpatch reject --json` error — dependents exist (state-transition error, exit code `3`, new example per
-F-INT-8):
+F-INT-8; rev-2 confirms this is exit `3` — a store/graph-state check, not input validation — per
+ADR-031 D4's general principle):
 
 ```jsonc
 {
@@ -568,7 +638,9 @@ F-INT-8):
   "state": "rejected",
   "rejection": {
     "reason": "premise-disproved",
-    "evidence": ["artifacts/live-role-probe.md"],
+    "evidence": [
+      {"path": "artifacts/live-role-probe.md", "sha256": "3b1c...e4f2"}
+    ],
     "note": "Claude Chat already preserves developer instructions",
     "rejected_at": "2026-08-05T00:00:00Z",
     "rejected_by": "operator",
@@ -578,7 +650,7 @@ F-INT-8):
 }
 ```
 
-`tpatch reopen --json` success (exit code `0`):
+`tpatch reopen --json` success, no evidence divergence (exit code `0`):
 
 ```jsonc
 {
@@ -587,15 +659,37 @@ F-INT-8):
   "reopened_at": "2026-08-06T00:00:00Z",
   "reopened_by": "operator",
   "reopen_note": "Upstream converter regained a caller in v1.4; re-evaluating.",
-  "reopen_evidence": ["artifacts/upstream-v1.4-caller-diff.md"],
+  "reopen_evidence": [
+    {"path": "artifacts/upstream-v1.4-caller-diff.md", "sha256": "9a02...c771"}
+  ],
   "history_entries": 1,
+  "exit_code": 0
+}
+```
+
+`tpatch reopen --json` success, evidence divergence detected (exit code `0` — non-blocking per D3's
+Alternative 1, rev-2 fold, F-INT-1 BLOCKING):
+
+```jsonc
+{
+  "slug": "claude-developer-instruction-preservation",
+  "state": "requested",
+  "reopened_at": "2026-08-06T00:00:00Z",
+  "reopened_by": "operator",
+  "reopen_note": "Re-evaluating after the linked artifact was edited post-rejection.",
+  "reopen_evidence": [
+    {"path": "artifacts/upstream-v1.4-caller-diff.md", "sha256": "9a02...c771"}
+  ],
+  "history_entries": 1,
+  "evidence_integrity": "divergent",
   "exit_code": 0
 }
 ```
 
 `tpatch reject --json` error — new dependency edge created onto a `rejected` parent (state-transition
 error, exit code `3`, new example per F-INT-5 HIGH; this error is emitted by whichever command creates
-the edge, e.g. `define --depends-on`, not by `reject` itself):
+the edge — `tpatch feature deps <slug> add <parent>` or `tpatch amend <slug> --depends-on <parent>`,
+rev-2 correction: not `define --depends-on`, which does not exist — see ADR-031 D8):
 
 ```jsonc
 {
@@ -603,6 +697,19 @@ the edge, e.g. `define --depends-on`, not by `reject` itself):
   "slug": "y",
   "parent": "claude-developer-instruction-preservation",
   "kind": "hard",
+  "exit_code": 3
+}
+```
+
+`tpatch reconcile confirm-upstreamed --json` error — refused on a `rejected` feature (state-transition
+error, exit code `3`, rev-2 fold, F-INT-2 BLOCKING + F-INT-4 HIGH — rev-1 mislabeled this a "validation"
+case; it is a wrong-source-state refusal per ADR-031 D4's general principle):
+
+```jsonc
+{
+  "error": "cannot confirm-upstreamed feature \"claude-developer-instruction-preservation\": feature is rejected (reason=premise-disproved); run `tpatch reopen claude-developer-instruction-preservation` first if this is no longer accurate",
+  "slug": "claude-developer-instruction-preservation",
+  "state": "rejected",
   "exit_code": 3
 }
 ```
@@ -649,6 +756,11 @@ The implementation cluster (Cluster F') must write, at minimum:
 18. Reopen validation failures: reopen with missing evidence file → error, no state change; reopen with
     empty/missing `--note` → error; reopen from a non-`rejected` state (covered by item 10, expanded here
     to assert exit code `3` explicitly and that no `history[]` entry is appended on failure).
+    > **Rev-2 split (F-INT-4 HIGH)**: item 18's sub-cases are not all the same exit-code class. "Missing
+    > evidence file" and "empty/missing `--note`" are pre-mutation input validation → exit code `2`.
+    > "Reopen from a non-`rejected` state" is a post-validation state-machine refusal → exit code `3`.
+    > Item 25 below is corrected to reflect this split; rev-1's item 25 incorrectly folded all of item 18
+    > into the exit-`3` bucket.
 19. Multiple reopen cycles: reject → reopen → reject → reopen (at least 3 full cycles) → verify
     `history[]` grows by exactly one entry per cycle, unbounded, with no entry ever overwritten or
     truncated (ADR-031 D5 chooses unbounded).
@@ -657,12 +769,23 @@ The implementation cluster (Cluster F') must write, at minimum:
     path instead of a regular file (error), two evidence paths that normalize to the same path after
     `filepath.Clean` (deduplicated to one entry, no error), evidence paths supplied out of sorted order
     (persisted in sorted order regardless of input order).
-21. Evidence admissibility (F-INT-1 BLOCKING): reject citing `analysis.md`/`spec.md`/`exploration.md`/
-    `implementation.md` directly as evidence → error, exit code `2`, no state change; reject citing an
-    `artifacts/`-relative file → success; reject citing a git-tracked repo-root file → success; **and**
-    the specific regression test named in F-INT-1's finding: reject citing an `artifacts/` file → reopen
-    → re-run `tpatch analyze` → verify the historical evidence file's content/hash is unchanged from what
-    it was at rejection time (since `artifacts/` is never touched by `analyze`/`define`/`explore`).
+21. Evidence integrity via content-hash (rev-2 fold, F-INT-1 BLOCKING — **replaces rev-1's admissibility
+    tests**, which asserted `analysis.md`/`spec.md`/`exploration.md`/`implementation.md` were forbidden;
+    that restriction is retracted in rev-2, see §6):
+    - Reject citing `artifacts/apply-recipe.json` (previously forbidden under rev-1's restriction) as
+      evidence → success; `sha256` recorded matches the file's content at reject time.
+    - Reject with evidence → mutate the evidence file's content → reopen → verify the reopen succeeds
+      (non-blocking) and the new `history[]` entry records `evidence_integrity: "divergent"`.
+    - Reject with evidence → delete the evidence file → reopen → verify the reopen succeeds and the new
+      `history[]` entry records `evidence_integrity: "divergent"` (missing-file and hash-mismatch share
+      one code path per §6).
+    - Reject with evidence → no change to the file → reopen → verify the new `history[]` entry omits
+      `evidence_integrity` (or records it as absent/`"verified"`), i.e. no false-positive divergence.
+    - Reject with evidence → delete the evidence file → recreate it with byte-identical content → reopen
+      → verify no divergence is recorded (the hash comparison subsumes the delete-then-recreate-identical
+      case, per §6's design).
+    - Reject citing an evidence file that cannot be hashed (missing, non-regular, symlink escaping the
+      repo root, unreadable) → error, exit code `2`, no state change.
 22. Dependency-order symmetry (F-INT-5 HIGH), both orders × all three edge kinds (`hard`, `soft`,
     `supersedes`): (a) reject parent P, then attempt to create a new edge from Q onto P → error, exit
     code `3`, no edge created; (b) create an edge from Q onto P first, then attempt to reject P → error,
@@ -674,10 +797,25 @@ The implementation cluster (Cluster F') must write, at minimum:
     asserting flag beats env beats git-config beats fallback when more than one is present
     simultaneously.
 24. Direct `tpatch reconcile confirm-upstreamed <rejected-slug>` invocation (F-INT-2 BLOCKING defense-in-
-    depth guard) → error, `status.State` remains `rejected`, rejection record fields unchanged.
-25. Exit-code assertions per validation class, exhaustively: every scenario in items 3, 4, 17, 20, 21
-    above asserts exit code `2`; every scenario in items 6, 7, 8, 10, 18, 22, 24 above asserts exit code
-    `3`; the happy-path scenarios (1, 2, 9, 11-13, 19) assert exit code `0`.
+    depth guard) → error, `status.State` remains `rejected`, rejection record fields unchanged, exit
+    code `3`.
+    > **Rev-2 addition**: also assert the feature's `ReconcileRevision` log
+    > (`internal/store/reconcile_revision.go`) is unchanged after the refusal — not just `status.json`.
+    > This closes the gap rev-2 review found: the append happens before the state check in rev-1's guard
+    > placement, so a test that only checks `status.json` would miss a false revision entry sneaking in.
+25. Exit-code assertions per validation class, exhaustively:
+    - Exit code `2` (pre-mutation input validation): every scenario in items 3, 4, 17, 20, and the final
+      sub-bullet of item 21 (evidence cannot be hashed), plus item 18's "missing evidence file" /
+      "empty-or-missing `--note`" sub-cases.
+    - Exit code `3` (post-validation state-machine refusal): every scenario in items 6, 7, 8, 10, 22, 24,
+      plus item 18's "reopen from a non-`rejected` state" sub-case.
+    - Exit code `0` (success, including non-blocking divergence): the happy-path scenarios (1, 2, 9,
+      11-13, 19, 21's mutate/delete/no-change/recreate-identical sub-bullets).
+    > **Rev-2 correction (F-INT-4 HIGH)**: rev-1's item 25 assigned exit `3` to every item-18 case
+    > uniformly. That was wrong — item 18 mixes a validation class (missing evidence/note) with a
+    > state-transition class (wrong source state for reopen). This item is split accordingly, matching
+    > item 18's rev-2 correction note above and ADR-031 D4's general principle (exit `2` = determinable
+    > without consulting current store state; exit `3` = requires consulting it).
 
 ## 10. Distinction from Related Concepts
 
@@ -726,7 +864,7 @@ Per-concept confirmation of no scope overlap:
   they continue to round-trip byte-identical (same pattern as every prior additive field —
   `internal/store/types.go:207-215` documents this exact contract for `DependsOn`).
 - Existing features with `state: requested` (or `analyzed`/`defined`) that an operator now wants to mark
-  rejected: the operator runs `tpatch reject <slug> --reason <code> --evidence <path> --note <text>`
+  rejected: the operator runs `tpatch reject <slug> --reason <code> --note <string> --evidence <path>`
   exactly as they would for a newly-discovered rejection. No bulk/batch migration command is proposed.
 - No auto-migration of any kind. No existing feature is silently reclassified as `rejected` by this
   change; the state transition is always an explicit, operator-invoked `reject` call.
@@ -778,10 +916,14 @@ both commits.
 | `RetirementAudit` (the post-implementation retirement mechanism GH #6 §9 alludes to) is a field on `workflow.ReconcileResult`, a runtime reconcile output — not a field on the persistent `store.FeatureStatus`. Verbatim comment: "RetirementAudit exposes the cleanup audit triggered after upstreamed confirmation. Runtime/display only; status.json remains lifecycle truth." | `internal/workflow/reconcile.go:19,64-65` | `8574ff3` |
 | `SaveFeatureStatus` is documented as the single writer that both persists `status.json` and refreshes `FEATURES.md`, the pattern this PRD's `reject`/`reopen` reuse. | `internal/store/store.go:363` | `8574ff3` |
 | The `omitempty`/byte-identity contract for additive `FeatureStatus` fields (used here as migration precedent, §11) is explicitly documented for the `DependsOn` field. | `internal/store/types.go:207-215` | `8574ff3` |
-| `analyze`/`define`/`explore` overwrite `analysis.md`/`spec.md`/`exploration.md` in place on every re-run via `s.WriteFeatureFile`, making them unsafe as immutable rejection evidence (F-INT-1 BLOCKING). | `internal/workflow/workflow.go:90-97,151-155,196-200` | `8574ff3` |
-| `saveConfirmUpstreamedStatus` sets `status.State = store.StateUpstreamMerged` unconditionally, with no check of the feature's prior state, confirming it is not a safe post-implementation escape hatch for `reject` without a new guard (F-INT-2 BLOCKING). | `internal/cli/cobra.go:2554-2562` | `8574ff3` |
+| `analyze`/`define`/`explore` overwrite `analysis.md`/`spec.md`/`exploration.md` in place on every re-run via `s.WriteFeatureFile`, making path-location alone an unreliable immutability signal for rejection evidence (F-INT-1 BLOCKING). | `internal/workflow/workflow.go:90-97,151-155,196-200` | `8574ff3` |
+| `WriteArtifact` writes every `artifacts/*` file (including `analysis.json`, `apply-recipe.json`, `post-apply.patch`) via `writeFile`, which calls the truncating `os.WriteFile` — proving rev-1's "artifacts/ is safe by directory location" premise false and motivating the rev-2 content-hash redesign (F-INT-1 BLOCKING). | `internal/store/store.go:442-453,785-790` | `8574ff3` |
+| `docs/feature-layout.md` documents that `tpatch record` overwrites `post-apply.patch` on every invocation, corroborating the `WriteArtifact` truncation finding from the doc side. | `docs/feature-layout.md:36` | `8574ff3` |
+| `applyConfirmUpstreamedTransition` appends a `ReconcileRevision` (via `store.AppendReconcileRevision`) before calling `saveConfirmUpstreamedStatus`, so a guard placed only in the callee would let a false audit revision get appended to a `rejected` feature first (F-INT-2 BLOCKING, guard-placement correction). | `internal/cli/cobra.go:2503,2510,2535,2554-2562` | `8574ff3` |
 | `dependentEdges` returns a slug's dependents regardless of the dependent's own current state (no state filter), proving "reject the dependent too" is not a well-formed general remediation (F-INT-5 HIGH). | `internal/cli/feature_deps.go:170-186` | `8574ff3` |
-| `ValidateDependencies` implements exactly 5 rules (self-dep, dangling ref, kind conflict, cycle detection, `satisfied_by`-requires-`upstream_merged`) and has no rule today preventing edge creation onto a `rejected` parent (F-INT-5 HIGH, motivates new D8 rule). | `internal/store/validation.go:113-160` | `8574ff3` |
+| `ValidateDependencies` implements exactly 6 rules (self-dep, dangling ref, kind conflict, cycle detection, `satisfied_by`-requires-`upstream_merged`, and Rule 6 `ErrMultipleActiveSuperseders`) and has no rule today preventing edge creation onto a `rejected` parent (F-INT-5 HIGH, motivates new 7th D8 rule). | `internal/store/validation.go:113-210` (Rule 6 at `169-207`) | `8574ff3` |
+| The real edge-creation CLI surfaces are `tpatch feature deps <slug> add <parent>[:kind]` and `tpatch amend <slug> --depends-on <parent>[:kind]` — `define --depends-on` does not exist as a flag anywhere in the codebase (F-INT-DEPS, rev-2 correction of a rev-1 fabricated citation). | `internal/cli/feature_deps.go:1-19,57-69` | `8574ff3` |
 | `ReconcileRevision` has no actor field and no timestamp field at all, so it is **not** a valid actor-attribution precedent (rev-0's citation of it was false, corrected per F-INT-6 HIGH). | `internal/store/reconcile_revision.go:47-61` | `8574ff3` |
 
-22 claims audited (≥8 required).
+26 claims audited (≥8 required).
+
