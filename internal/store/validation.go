@@ -54,6 +54,16 @@ var (
 	// v0.12.0 rev-1 (F-SEXT-3): write-time rejection replaces the
 	// prior first-healthy-wins silent selection.
 	ErrMultipleActiveSuperseders = errors.New("multiple active superseders for the same target")
+	// ErrRejectedParent is returned when a proposed dependency edge
+	// points at a parent feature whose state is `rejected` (Rule 7,
+	// v0.13.0 GH #6 — ADR-031 D8 / PRD-rejected-feature-state §5
+	// "Symmetric invariant"). Applies to all three edge kinds
+	// (hard/soft/supersedes) with no per-kind carve-out, so that
+	// whichever order an operator performs the two independent
+	// operations (reject the parent then add the edge, or add the
+	// edge then reject the parent) the same outcome results: a
+	// rejected feature never has live dependents.
+	ErrRejectedParent = errors.New("dependency parent is rejected")
 )
 
 // supersederValidationHealthyStates lists the FeatureStates that
@@ -98,14 +108,29 @@ func supersederIsHealthyForValidation(f FeatureStatus) bool {
 // straight to gitutil.IsAncestor.
 var isAncestor = gitutil.IsAncestor
 
+// rejectionReasonSuffix renders ` (reason=<code>)` when the feature
+// carries a rejection record with a reason, and the empty string
+// otherwise. Keeps Rule 7's message actionable without exploding when a
+// hand-edited status.json sets `state: rejected` with no sub-record.
+func rejectionReasonSuffix(f FeatureStatus) string {
+	if f.Rejection == nil || f.Rejection.Reason == "" {
+		return ""
+	}
+	return " (reason=" + f.Rejection.Reason + ")"
+}
+
 // ValidateDependencies checks the proposed dependency list for `slug`
-// against the live store, applying the 5 rules from PRD §3.3:
+// against the live store, applying the 7 rules from PRD §3.3 (rules 1-5),
+// PRD-feature-supersession AC-4 (rule 6) and
+// PRD-rejected-feature-state §5 (rule 7):
 //
 //  1. No self-dependency.
 //  2. No dangling refs (every parent must exist in the store).
 //  3. No kind conflict (same parent declared twice with different kinds).
 //  4. No cycles (global graph including the proposed change).
 //  5. satisfied_by is only valid when the parent's state is upstream_merged.
+//  6. At most one active/effective superseder per target.
+//  7. No edge — hard, soft, or supersedes — onto a `rejected` parent.
 //
 // Returns the first violation as a wrapped sentinel error so callers can
 // errors.Is-match. To get *all* violations across all features at once,
@@ -135,6 +160,20 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 				return fmt.Errorf("%w: %s -> %s", ErrDanglingDependency, slug, d.Slug)
 			}
 			return fmt.Errorf("load parent %s: %w", d.Slug, err)
+		}
+		// Rule 7 (v0.13.0 GH #6 — ADR-031 D8 / PRD-rejected-feature-state
+		// §5 "Symmetric invariant"): refuse edge creation onto a parent
+		// that is currently `rejected`, for every edge kind. The
+		// remediation is to reopen the parent — NOT to silently drop the
+		// dependency. Classified as a state-machine refusal (exit code 3
+		// at the CLI layer, ADR-031 D4 addendum): the input is well
+		// formed, but the current state of the store makes the edge
+		// invalid right now.
+		if parent.State == StateRejected {
+			return fmt.Errorf(
+				"%w: parent feature %q is rejected%s; run `tpatch reopen %s` to restore it before adding dependents",
+				ErrRejectedParent, d.Slug, rejectionReasonSuffix(parent), d.Slug,
+			)
 		}
 		if d.SatisfiedBy != "" && parent.State != StateUpstreamMerged {
 			return fmt.Errorf("%w: parent %s state is %q (need upstream_merged)", ErrSatisfiedByRequiresUpstream, d.Slug, parent.State)
