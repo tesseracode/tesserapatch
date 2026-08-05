@@ -1,3 +1,42 @@
+## 2026-08-05 — Cluster F planning rev-4 internal-only confirmation — APPROVED — CONSOLIDATED
+
+**Reviewer**: `cluster-f-planning-rev4-intern` (gpt-5.6-sol, high). External rev-3 clearance carries.
+
+**Verdict**: **APPROVED** (three-way for Cluster F planning at `377d103`).
+
+**Confirmations**:
+- **F1 CLOSED**: PRD test 26 mandates unconditional historical-evidence verification; 26b asserts `divergent_reason: "hash-mismatch"` for note-only reopen over mutated historical evidence. Historical-evidence verification is orthogonal to new-evidence attachment — locked in.
+- **F2 CLOSED**: ADR test-matrix count corrected 16 → 26.
+- **Residual items**: none.
+- **Empirical validation**: `gofmt -l .`, `go vet ./...`, `go build ./cmd/tpatch` all exit 0.
+
+**Consolidation**: Cluster F planning SHIPPED at `377d103`. Range `8574ff3..377d103` (10 commits). Archived to HISTORY.md under 2026-08-05 header. ROADMAP.md updated.
+
+**Precedent — internal-only confirmation for internal-finding-driven micro-fold** (added): when a micro-fold targets an internal reviewer's own prior MEDIUM/HIGH finding AND external's prior clearance stands unambiguously, dispatch internal-only confirmation. Inverts Cluster D external-only single-issue pattern. Rev-4 turnaround: 87 seconds. Proportionate protocol for narrow completeness folds on architecturally-cleared baselines.
+
+**Convergence pattern** — reviewer finding-count arc over 4 rev cycles:
+- Internal: 8 → 5 → 3 → 1 → 0 (clean descent).
+- External: 2 → 3 → 2 → 1 → clearance-carries.
+- Rev-1 external spike (3) is the empirical-convergence signal with internal's F-INT-1 — supervisor's cue to reverse the rev-0 adjudication and adopt content-hash. Rev descent thereafter monotonic.
+
+**Cluster F' implementation cluster dispatch** — planning-first cluster shape complete; F' begins from planning baseline `377d103`.
+
+## 2026-08-05 — Cluster F planning consolidation — SHIPPED at 377d103
+
+**Cluster state**: SHIPPED (planning phase).
+
+**Range**: `8574ff3..377d103` (10 commits, ~2000 lines net across PRD + ADR).
+
+**Wave-close checklist**:
+- [x] Handoff Status flipped → SHIPPED (planning phase).
+- [x] Supervisor LOG entries prepended (rev-4 APPROVED + consolidation).
+- [x] ROADMAP status flipped ✅ SHIPPED (Cluster F planning).
+- [x] HISTORY archive appended (2026-08-05 Cluster F planning header).
+- [ ] Push to `origin/main` — pending atomic consolidation commit.
+- [x] Non-invalidation invariants confirmed: Side Research md5 preserved, no code changes, no `**Cluster state**` field drift outside supervisor management.
+
+---
+
 ## 2026-08-05 — Cluster F planning rev-3 dual review — ADJUDICATION → rev-4 (2-item micro-fold)
 
 **Two-opinion outcomes**:

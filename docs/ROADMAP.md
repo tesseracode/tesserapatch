@@ -549,6 +549,31 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
+
+Planning-phase cluster for v0.13.0 GH #6. Data-model extension (not just CLI addition), so planning phase separated from implementation phase. Docs-only. Dual review at rev-0/1/2/3; internal-only confirmation at rev-4. **4 review revs, 8 review turns, 10 commits**.
+
+**Deliverables**:
+- `docs/prds/PRD-rejected-feature-state.md` (~1000 lines).
+- `docs/adrs/ADR-031-rejected-feature-state-data-model.md` (~1050 lines).
+
+**Two-opinion protocol scoreboard**:
+- rev-0 dual: internal BLOCKED (8 findings — architectural traversal caught append-only-audit + confirm-upstreamed-escape-hatch design flaws), external APPROVED WITH NOTES (2 doc-accuracy). Supervisor: NEEDS REVISION.
+- rev-1 dual: internal BLOCKED (5), external NEEDS REVISION (3 — empirical convergence with internal on F-INT-1 `post-apply.patch` overwrite + rules-count 5→6). Convergent architectural finding → supervisor reversed rev-0 adjudication, adopted content-hash mechanism.
+- rev-2 dual: external APPROVED WITH NOTES (2 LOW "not required for ship", explicit clearance), internal BLOCKED (3 — split-adjudicated: sided with external on F-INT-R2-1 LOW convention, folded 2 completeness gaps).
+- rev-3 dual: external APPROVED WITH NOTES (1 LOW cosmetic, reaffirmed clearance), internal NEEDS REVISION (1 MEDIUM — test 26 note-only reopen wording).
+- rev-4 internal-only confirmation: APPROVED (test 26/26b locked orthogonal integrity paths; ADR test-count fixed).
+
+**Finding-count convergence**: internal 8→5→3→1→0; external 2→3→2→1→carry.
+
+**Key architectural decisions locked-in**: content-hash evidence (`{path, sha256}` lowercase-hex); post-implementation reject OUT OF SCOPE (deferred to future `PRD-feature-unapply`); exit-code envelope 0/1/2/3 (principle: 2 = pre-mutation validation, 3 = state-machine refusal); CLI shape with mandatory `--note` + optional `--evidence` + explicit `--actor`; actor precedence `--actor` > `TPATCH_ACTOR` > `git config user.email` > `"unknown"`; symmetric dependency invariant (both reject-blocks-if-dependents AND edge-creation-blocks-if-parent-rejected); reopen unbounded append-only with historical-evidence verification on every reopen.
+
+**Range**: `8574ff3..377d103`.
+
+**Precedents set**: reviewer-strictness split (internal BLOCKING vs external LOW-convention → supervisor sides with external + folds cheaply); micro-fold amortization (1 substantive + 1 cosmetic = single-commit fold); external-clearance-vs-internal-BLOCKED at architectural-stability (external's clearance is ship signal, internal residuals become fold-cheaply); reviewer-methodology fix propagation (explicit `git fetch` step in every brief eliminated stale-tree failure mode); internal-only confirmation for internal-finding-driven micro-fold (inverts Cluster D external-only pattern); adjudicator reversal on convergent empirical findings (two independent reviewers reaching same architectural class = reverse prior adjudication, don't iterate the workaround).
+
+**Next**: Cluster F' implementation cluster from planning baseline `377d103`. Touches state enum, status fields, validation (Rule 7), CLI (reject/reopen/status filtering + confirm-upstreamed guard), assets, SPEC.md, 27 tests. Does NOT touch `internal/workflow/reconcile.go` (orthogonal per ADR D6).
+
 ## Cluster E-prime — 2026-08-05 — post-Cluster-E hygiene follow-up (Obs 1 doc + Obs 2 ALLOWLIST) ✅ SHIPPED
 
 Tiny process-hygiene follow-up cluster closing two LOW observations from external's post-Cluster-E review. Single implementer, external-only rev-0 confirmation (proportionate protocol for cross-wave doc/config refinement on already-shipped mechanism).

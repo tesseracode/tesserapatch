@@ -1,3 +1,50 @@
+# 2026-08-05 — Cluster F planning — v0.13.0 GH #6 first-class rejected feature state — SHIPPED
+
+**Range**: `8574ff3..377d103` (10 commits: 2 rev-0 impl + 2 rev-1 impl + 2 rev-2 impl + 1 rev-3 impl + 1 rev-4 impl + 5 supervisor tracking).
+
+**Scope**: PRD + ADR planning pair for v0.13.0 GH #6 first-class `rejected` feature lifecycle state per GH #6 §Expected semantics 1-9. Data-model extension (not just CLI addition), so planning phase separated from implementation phase. Docs-only cluster.
+
+**Deliverables shipped**:
+- `docs/prds/PRD-rejected-feature-state.md` (~1000 lines) — user-facing behavior spec. 9 §Expected-semantics items verbatim, 26+1b tests-to-write, exit-code envelope (0/1/2/3), CLI shape, JSON envelopes, distinctions from related concepts.
+- `docs/adrs/ADR-031-rejected-feature-state-data-model.md` (~1050 lines) — data-model choice + rationale. D1-D9 decision points, ≥3 alternatives per decision, orthogonality with PRD-#4 (`RetirementAudit` on `workflow.ReconcileResult`, not on `store.FeatureStatus`), migration path, implementation notes for F' cluster.
+
+**Two-opinion protocol scoreboard** (4 review revs, 8 review turns):
+- **rev-0 dual**: internal BLOCKED (2 BLOCKING + 4 HIGH + 2 MEDIUM — architectural traversal caught append-only-audit-integrity + confirm-upstreamed-wrong-escape-hatch design flaws), external APPROVED WITH NOTES (1 HIGH enum-count 9→10 + 1 LOW fabricated code-comment). Supervisor sided with internal — verdict NEEDS REVISION.
+- **rev-1 dual**: internal BLOCKED (F-INT-1 still open: `artifacts/analysis.json` `apply-recipe.json` overwritten by workflow), external NEEDS REVISION (empirical confirmation: `post-apply.patch` overwritten at 4 sites; cited `feature-layout.md:36` "overwriting the previous contents" contradicting ADR's own justification; also caught rules-count 5→6 with truncated citation). Convergent architectural finding: path-restriction approach fundamentally insufficient. Supervisor reversed rev-0 adjudication → adopt content-hash mechanism (internal's rev-0 original recommendation).
+- **rev-2 dual**: external APPROVED WITH NOTES (2 LOW, self-classified "not required for ship", explicit clearance to consolidate), internal BLOCKED (F-INT-R2-1 same D3 layering issue external classified LOW convention + F-INT-R2-2 reopen path-safety for file-kind change + F-INT-R2-3 evidence-required-vs-optional). Supervisor split-adjudicated: sided with external on F-INT-R2-1 (LOW convention), folded F-INT-R2-2 and F-INT-R2-3 as narrow completeness gaps.
+- **rev-3 dual**: external APPROVED WITH NOTES (1 LOW cosmetic, reaffirms clearance), internal NEEDS REVISION (1 MEDIUM only: test 26 zero-evidence reopen wording would cause implementation regression — historical evidence must still be verified on note-only reopens). Substantive catch.
+- **rev-4 internal-only confirmation**: APPROVED (test 26/26b properly locks historical-evidence verification orthogonal to new-evidence attachment; ADR test-count 16→26). External rev-3 clearance carries.
+
+**Finding-count convergence arc**:
+- Internal: rev-0 8 → rev-1 5 → rev-2 3 → rev-3 1 → rev-4 0. Clean descent.
+- External: rev-0 2 → rev-1 3 → rev-2 2 → rev-3 1 → (skipped rev-4). Descent with rev-1 spike (F-INT-1 empirical convergence with internal).
+
+**Key architectural decisions locked-in at planning**:
+1. **Content-hash evidence integrity**: `evidence []EvidenceRef{Path, SHA256 string}` (SHA-256 lowercase-hex, regex `^[0-9a-f]{64}$`). Hash at reject; recompute on reopen with divergent-reason taxonomy (`hash-mismatch`/`missing`/`non-regular`/`path-safety-failed-at-reopen`/`unreadable`). Non-blocking reopen; divergence recorded per element.
+2. **Post-implementation rejection OUT OF SCOPE for Cluster F**: reject only allowed from `requested`/`analyzed`/`defined`/`explored`. Post-impl retirement deferred to future ADR (potentially `PRD-feature-unapply`). Defense-in-depth guard on `saveConfirmUpstreamedStatus` (and its earlier reconcile-revision append point) is required in F' implementation.
+3. **Exit-code envelope**: 0 success / 1 unexpected error / 2 pre-mutation validation / 3 post-validation state-machine refusal. Principle: exit 2 = determinable without consulting current store; exit 3 = requires consulting it.
+4. **CLI shape**: `tpatch reject <slug> --reason <enum> --note <string> [--evidence <path>...] [--actor <string>]`; `tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>]`. `--note` mandatory both; `--evidence` optional both.
+5. **Actor precedence**: `--actor` flag > `TPATCH_ACTOR` env > `git config user.email` > `"unknown"`. No OS-username derivation (privacy).
+6. **Symmetric dependency invariant**: reject-refused-if-dependents-exist AND edge-creation-refused-if-parent-rejected (`hard`/`soft`/`supersedes` all). Enforced at `ValidateDependencies` extension.
+7. **Reopen contract**: append-only history, unbounded reopen cycles, `--note` required, `--evidence` optional, historical-evidence verification runs on every reopen regardless of new attachment.
+8. **Feature state enum**: `rejected` becomes the 11th value (10 existing per `internal/store/types.go:9-19`).
+
+**Claims-audit accuracy**: 26 rows, all resolving at `137f23e` (rev-3 baseline) within ±5 lines. Corrected during arc: enum count 9→10 (rev-1), rules count 5→6 with citation range `113-160`→`113-210` (rev-2), row count self-reference 22→26 (rev-3).
+
+**Precedents set**:
+- **Reviewer-strictness split** (rev-2 F-INT-R2-1): when internal calls a textual pattern BLOCKING and external classifies identical pattern LOW+"not required for ship" citing established convention, supervisor downgrades internal severity and folds cheaply if amortized with other findings.
+- **Micro-fold amortization** (rev-3→rev-4): 1 substantive + 1 cosmetic finding = single-commit micro-fold when neither would block implementation-cluster start.
+- **External-clearance-vs-internal-BLOCKED at planning shape** (rev-2 adjudication): once architectural stability is established, external's clearance is the ship signal; internal's residual completeness findings become fold-cheaply-then-ship input.
+- **Reviewer methodology fix propagation** (all revs): explicit `git fetch origin && git log <baseline>..origin/main` step in every reviewer brief eliminated the stale-tree failure mode observed in post-E-prime review.
+- **Internal-only confirmation for internal-finding-driven fold** (rev-4): inverted Cluster D single-issue precedent — since rev-4's substantive fold was internal's rev-3 MEDIUM, internal is the confirmation gate; external's rev-3 clearance carries.
+- **Adjudicator reversal on convergent empirical findings** (rev-1→rev-2): when internal and external converge empirically on the same architectural class after separate methodologies, supervisor reverses prior adjudication rather than iterating the workaround. Rev-1's F-INT-1 fold was rev-0's adjudication side-effect; two independent reviewers finding the same "path-restriction insufficient" empirically = "adopt original suggestion" signal.
+
+**Non-invalidation invariants preserved**: Side Research md5 `b385fe622db9926f48861105239f113e` unchanged across all 10 commits. No code changes (docs-only cluster). No canonical `**Cluster state**` field drift (supervisor-managed).
+
+**Next**: Cluster F' implementation cluster dispatched from this planning baseline. Touches `internal/store/types.go` (state enum), `internal/store/status.go` (fields), `internal/store/validation.go` (Rule 7 = edge-onto-rejected refusal), `internal/cli/cobra.go` (reject/reopen commands + status filtering + confirm-upstreamed guard), `assets/` (state enum doc/template), `SPEC.md`, tests (27 items per PRD §9). Does NOT touch `internal/workflow/reconcile.go` (confirm-upstreamed territory orthogonal).
+
+---
+
 # 2026-08-05 — Cluster E-prime post-Cluster-E hygiene follow-up — SHIPPED
 
 **Range**: `2281309..aa34f3c` (3 commits: 2 impl + 1 supervisor dispatch tracking).
