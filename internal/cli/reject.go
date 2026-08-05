@@ -122,6 +122,14 @@ func normalizeEvidencePath(raw string) (string, error) {
 // root. The returned reason is "" when the path resolved to a readable
 // regular file inside the repository root.
 func resolveEvidence(root, slug, normalized string) (abs string, reason string) {
+	// The repository root itself may sit under a symlinked prefix
+	// (macOS `/var` → `/private/var` is the common case), so both sides
+	// of the containment check must be symlink-resolved or every
+	// evidence path would look like an escape.
+	safeRoot := root
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		safeRoot = r
+	}
 	candidates := []string{
 		filepath.Join(root, ".tpatch", "features", slug, filepath.FromSlash(normalized)),
 		filepath.Join(root, filepath.FromSlash(normalized)),
@@ -136,7 +144,7 @@ func resolveEvidence(root, slug, normalized string) (abs string, reason string) 
 		if err != nil {
 			continue
 		}
-		if safety.EnsureSafeRepoPath(root, resolved) != nil {
+		if safety.EnsureSafeRepoPath(safeRoot, resolved) != nil {
 			return "", store.DivergentReasonPathSafetyFailed
 		}
 		info, err := os.Stat(resolved)

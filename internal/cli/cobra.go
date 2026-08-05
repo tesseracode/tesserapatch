@@ -1966,6 +1966,11 @@ func reconcileCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reconcile [slug...]",
 		Short: "Reconcile features against upstream",
+		Long: "Reconcile features against upstream.\n\n" +
+			"The `--reject <slug>` flag below acts on a SHADOW WORKTREE: it prunes the worktree\n" +
+			"and rolls the feature's state back to `applied`. It is a transient, reversible action\n" +
+			"on a resource.\n\n" +
+			reconcileRejectDisambiguation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Phase-3.5 (M12) terminal operations. These act on the
 			// shadow state left behind by a prior `reconcile --resolve`
@@ -2194,7 +2199,7 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().Int("max-conflicts", 0, "With --resolve, cap the number of conflicted files per feature (0 = workflow default)")
 	cmd.Flags().String("model", "", "With --resolve, override the provider model for phase-3.5 calls only")
 	cmd.Flags().String("accept", "", "Accept a shadow worktree: copy resolved files onto the real tree and transition state → applied")
-	cmd.Flags().String("reject", "", "Reject a shadow worktree: prune it and roll feature state back to applied. "+reconcileRejectDisambiguation)
+	cmd.Flags().String("reject", "", "Reject a shadow worktree: prune it and roll feature state back to applied. Not to be confused with the top-level 'tpatch reject' command — see the reconcile command description above")
 	cmd.Flags().String("shadow-diff", "", "Emit a unified diff between shadow and real tree for a feature (review without accepting)")
 	// PRD-patch-already-upstream-detector §3.2 / §3.3 (v0.8.1).
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
