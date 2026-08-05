@@ -1,3 +1,35 @@
+## 2026-08-05 — Cluster E-prime post-ship amendment — sentinel self-guard (E'-N2 fold)
+
+**Post-Cluster-E-prime external review** (user-external, 2026-08-05 01:44 CT) — **NEEDS REVISION** verdict, but the review was authored against the reviewer's stale local pre-fetch working tree. Actual state at review time (verified independently):
+- E-prime IS shipped and pushed at `c47cb3c` (4 commits since `2281309` on `origin/main`).
+- `.wave-close-allowlist` IS tracked (`git ls-files --error-unmatch` succeeds).
+- `docs/adrs/scratch.md` does NOT exist in the tesseracode/tesserapatch tree (reviewer's own negative-case demo residue in their working tree).
+
+**Reviewer's F1 HIGH** ("entire implementation uncommitted, cannot close"): FALSE against actual origin/main state. `git log 2281309..HEAD` on origin returns the 4 commits (`0398cff` dispatch, `4ac4743` Obs 1, `aa34f3c` Obs 2, `c47cb3c` consolidation). Reviewer had not fetched.
+
+**Reviewer's F2 MEDIUM part-1** ("doesn't travel — allowlist untracked"): FALSE against actual state (file is tracked at `aa34f3c`).
+
+**Reviewer's F2 MEDIUM part-2** ("sentinel can't catch its own config"): **VALID and folded**. This finding is state-independent — even with the allowlist committed, `[2/8]`'s glob list did not include `.wave-close-allowlist`, so if a future author accidentally deleted or re-created it without staging, the sentinel would silently return to pre-fix behavior. Classified as **E'-N2 LOW/hardening** and folded in a single-line amendment.
+
+**Reviewer's F3 LOW** (`docs/adrs/scratch.md` needs disposition): N/A — reviewer's own local negative-case residue, not present in the tesseracode tree.
+
+**Reviewer's own zsh-vs-sh self-correction**: reviewer's first mechanism check ran under zsh and reported "16 residual (all files not silenced)" — they identified their own harness bug (zsh doesn't word-split unquoted expansions; make runs under `sh`). Re-run under `sh` confirmed correct behavior: `expanded=16, residual_count=1 (docs/adrs/scratch.md only)`. Recorded as reviewer methodology note; no impact on cluster.
+
+**Reviewer's outstanding "couldn't complete full-suite verification"** (across two sessions): closed by supervisor. Two fresh `go test -count=1 ./...` runs (2026-08-05 00:04 CT at HEAD `2281309`, and 2026-08-05 post-amendment at HEAD `189f5d6`) both completed green: `assets 2.3s, buildinfo 0.9s, cli 129s, gitutil 16.5s, provider 15.4s, safety 8.1s, store 8.8s, studyvalidator 9.7s, workflow 80.0s, tests/integration 10.8s` — all `ok`, 0 FAIL. F2 fix is now verified by construction, coverage, AND repeated observation. Reviewer's construction-only caveat is fully closed.
+
+**E'-N2 fold** (`189f5d6`): extended Makefile `[2/8]` untracked-source glob list to include `.wave-close-allowlist`. Empirical verification: `git rm --cached .wave-close-allowlist` (simulating untracked state without deleting the file on disk) causes `[2/8]` to correctly WARN with `1 untracked files not in allowlist (16 allowlisted): .wave-close-allowlist`. Post-restore via `git reset HEAD .wave-close-allowlist`, `[2/8]` returns to `OK (16 entries allowlisted)`. Sentinel is now self-protecting.
+
+**Amendment protocol**: single-line Makefile hardening committed as a post-ship amendment. Did NOT re-open Cluster E-prime's SHIPPED state (E-prime SHIPPED record at `c47cb3c` stands; this is a follow-on hardening, not a revision of shipped work). Precedent: analogous to the 2026-08-02 CI hygiene fix (`4619b55`) that shipped as a bypass-review one-line correctness pin — small, obviously-correct, self-verified hardening does not require a new review cycle. Reviewer-review protocol adjustment worth noting: when a post-ship review identifies a state-independent latent hardening (as opposed to a defect in shipped mechanism), a single-commit amendment with LOG entry is proportionate.
+
+**Final gate at HEAD `189f5d6`**: `make wave-close-check` PASS — all 8/8 mechanical checks green including `[2/8] OK (16 entries allowlisted)` and `[8/8] go test ./... clean`. Ready for Cluster F.
+
+**Backlog update**:
+- **E'-N1 LOW** (allowlist stale-entry bitrot silent) — unchanged, remains backlog.
+- **E'-N2 LOW** (sentinel self-guard) — **CLOSED** at `189f5d6`.
+- Reviewer-methodology note: local pre-fetch review baseline is a recurring failure mode. Next reviewer brief should include explicit `git fetch && git log ORIGIN_BASE..origin/main` step to catch this class before findings are written.
+
+---
+
 ## 2026-08-05 — Cluster E-prime post-Cluster-E hygiene follow-up — SHIPPED (external-only rev-0)
 
 **Range**: `2281309..aa34f3c` (3 commits: 2 impl + 1 supervisor dispatch tracking).
