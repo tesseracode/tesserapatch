@@ -50,6 +50,12 @@ all: fmt lint test build
 # suite, so it could report PASS on a red suite (demonstrated
 # empirically at Cluster D HEAD `1bc2a25`). `-count=1` disables the
 # Go build cache so the check is deterministic across gate runs.
+# Cluster E-prime Obs 2 (2026-08-05): [2/8] now reads
+# `.wave-close-allowlist` (repo root) and subtracts matching entries
+# from the untracked-source WARN list before reporting. Three
+# consecutive clusters (C, D, E) surfaced the same known WIP files
+# as WARN every run, training reviewers to skim past the sentinel.
+# Residual (non-allowlisted) untracked files still WARN as before.
 WAVE_BASE ?=
 wave-close-check:
 	@echo "=== Wave-Close Checklist (mechanical gate) ==="
@@ -65,9 +71,33 @@ wave-close-check:
 	echo "[2/8] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
 	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' 2>/dev/null); \
 	if [ -n "$$untracked_src" ]; then \
-		echo "  WARN: untracked source or design-doc files (may be forgotten adds):"; \
-		echo "$$untracked_src" | sed 's/^/    /'; \
-		warn=1; \
+		allowlist_file=".wave-close-allowlist"; \
+		allow_patterns=""; \
+		if [ -f "$$allowlist_file" ]; then \
+			allow_patterns=$$(sed -e 's/#.*//' -e 's/[[:space:]]*$$//' "$$allowlist_file" | sed -e '/^[[:space:]]*$$/d'); \
+		fi; \
+		allow_expanded=""; \
+		if [ -n "$$allow_patterns" ]; then \
+			allow_expanded=$$(git ls-files --others --exclude-standard -- $$allow_patterns 2>/dev/null); \
+		fi; \
+		if [ -n "$$allow_expanded" ]; then \
+			allow_tmp=$$(mktemp); \
+			printf '%s\n' "$$allow_expanded" > "$$allow_tmp"; \
+			residual=$$(printf '%s\n' "$$untracked_src" | grep -Fxvf "$$allow_tmp") || true; \
+			allowed_count=$$(printf '%s\n' "$$untracked_src" | grep -Fxf "$$allow_tmp" | wc -l | tr -d ' '); \
+			rm -f "$$allow_tmp"; \
+		else \
+			residual="$$untracked_src"; \
+			allowed_count=0; \
+		fi; \
+		if [ -z "$$residual" ]; then \
+			echo "  OK ($$allowed_count entries allowlisted)"; \
+		else \
+			residual_count=$$(printf '%s\n' "$$residual" | wc -l | tr -d ' '); \
+			echo "  WARN: $$residual_count untracked files not in allowlist ($$allowed_count allowlisted):"; \
+			printf '%s\n' "$$residual" | sed 's/^/    /'; \
+			warn=1; \
+		fi; \
 	else \
 		echo "  OK"; \
 	fi; \

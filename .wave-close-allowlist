@@ -1,0 +1,35 @@
+# .wave-close-allowlist — known untracked WIP files exempted from the
+# `[2/8]` untracked-source-code sentinel in `make wave-close-check`.
+#
+# One glob or literal path per line. `#` starts a comment (rest of
+# line ignored); blank lines are ignored. Entries are matched against
+# `git ls-files --others --exclude-standard` output, so glob patterns
+# (`*`, `?`, `[...]`) are expanded the same way git pathspecs are.
+#
+# Growth of this file is a reviewer scope-check item (AGENTS.md ->
+# Wave-Close Checklist): each entry should have an operator
+# disposition tracked in docs/handoff/CURRENT.md or HISTORY.md.
+# Unbounded growth here defeats the sentinel's forgotten-`git add`
+# purpose — do not add entries casually.
+
+# Whitepapers WIP (drafts pending operator review)
+docs/whitepapers/WP-004-auto-feature-dependencies.md
+docs/whitepapers/WP-004-auto-feature-dependencies.turns.md
+docs/whitepapers/WP-005-spec-driven-workflows.md
+docs/whitepapers/WP-005-spec-driven-workflows.turns.md
+docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md
+docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.turns.md
+docs/whitepapers/WP-007-decision-tickets-and-ticket-tracking.md
+docs/whitepapers/WP-007-decision-tickets-and-ticket-tracking.turns.md
+
+# PRDs WIP
+docs/prds/PRD-feature-unapply.md
+docs/prds/PRD-recurring-patches.md
+
+# State-of-the-art case studies WIP
+docs/state-of-the-art/case-studies/t3code-upstream-v0.0.23-2026-05/dependency-analysis.md
+docs/state-of-the-art/case-studies/tws-dev-2026-05/dependency-analysis.md
+docs/state-of-the-art/case-studies/tws-dev-2026-05/local-notes.md
+docs/state-of-the-art/case-studies/tws-dev-2026-05/metrics.json
+docs/state-of-the-art/case-studies/tws-dev-2026-05/study.json
+docs/state-of-the-art/case-studies/tws-dev-2026-05/summary.md
