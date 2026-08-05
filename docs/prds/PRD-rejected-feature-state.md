@@ -882,12 +882,34 @@ The implementation cluster (Cluster F') must write, at minimum:
     > item 18's rev-2 correction note above and ADR-031 D4's general principle (exit `2` = determinable
     > without consulting current store state; exit `3` = requires consulting it).
 
-**Additional test, rev-3 fold (F-INT-R2-3 HIGH)**:
+**Additional tests, rev-3 fold (F-INT-R2-3 HIGH); test 26 wording corrected + 26b added, rev-4 fold (F1
+internal MEDIUM)**:
 
-26. Reopen with zero `--evidence` supplied, only `--note` — verify success (exit code `0`), the new
-    `history[]` entry has an empty/absent `reopen_evidence` list, no `evidence_integrity` field is
-    emitted (nothing to diverge against), and `reopen_note` is recorded exactly as supplied. Confirms the
-    REOPEN-EVIDENCE-OPTIONAL contract (§3.9, §5): only `--note` is mandatory for `reopen`.
+26. Reopen with zero `--evidence` supplied, only `--note` — verify success (exit code `0`); the new
+    `history[]` entry has an empty/absent `reopen_evidence` list and `reopen_note` recorded exactly as
+    supplied; **and**, critically, the *historical* evidence from the original rejection (which always
+    exists — `reject` requires at least one evidence entry per §6, and the history entry retains its
+    `{path, sha256}` refs) is still recomputed and verified per §6's reopen-time integrity check. In the
+    clean case (historical evidence unmutated), verification passes silently and no `evidence_integrity`
+    field is emitted. Confirms the REOPEN-EVIDENCE-OPTIONAL contract (§3.9, §5): only `--note` is
+    mandatory for `reopen` — but historical-evidence verification is unconditional and runs regardless of
+    whether new `--evidence` is attached.
+    > **Rev-4 correction (F-INT internal MEDIUM)**: rev-3's wording here said "no `evidence_integrity`
+    > required because nothing to diverge against," which was substantively wrong — historical evidence
+    > from the original rejection always exists and is always re-verified on reopen, independent of
+    > whether the operator attaches *new* evidence. The corrected wording above states plainly that the
+    > absence of `evidence_integrity` in this scenario reflects a clean *verification result* against the
+    > historical entry, not the absence of anything to verify. Test 26b immediately below locks in the
+    > distinguishing case (historical evidence diverges but no new evidence was attached) so the two
+    > integrity paths — "did the historical evidence hold up?" vs. "was new evidence attached?" — are
+    > never conflated.
+26b. Note-only reopen with mutated historical evidence (new, rev-4 fold, F1). Setup: `reject` citing
+    evidence file `X`; mutate `X`'s content on disk; `reopen` with `--note "context revised"` and **no**
+    `--evidence`. Verify: the reopen still succeeds (non-blocking, exit code `0`); the new `history[]`
+    entry records `evidence_integrity: "divergent"` with `divergence_detail: [{path: X,
+    divergent_reason: "hash-mismatch"}]` — even though zero new `--evidence` paths were supplied. This
+    proves historical-evidence verification runs unconditionally on every reopen, orthogonal to whether
+    the operator attaches new evidence in the same call.
 
 ## 10. Distinction from Related Concepts
 

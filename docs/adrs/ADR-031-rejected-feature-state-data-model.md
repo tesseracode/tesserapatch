@@ -996,7 +996,7 @@ not two views of the same mechanism.
 
 **Negative**:
 - New CLI surface (`reject`, `reopen`) and new JSON envelope fields (`rejection` sub-object on `status
-  --json`, plus `reject --json`/`reopen --json` shapes) mean a new test matrix (PRD §9, 16 items) and a
+  --json`, plus `reject --json`/`reopen --json` shapes) mean a new test matrix (PRD §9, 26 items) and a
   new documentation surface (`SPEC.md` state table, `docs/feature-layout.md` field list,
   `docs/dependencies.md` — if a rejected feature is ever a dependency parent, see open question below).
 - `FeatureStatus` grows by 8 fields (7 top-level + `history[]`), all `omitempty`, so the common case
