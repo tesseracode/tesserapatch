@@ -1,3 +1,52 @@
+## 2026-08-05 — Cluster F planning rev-2 dual review — ADJUDICATION → rev-3 (small fold)
+
+**Two-opinion outcomes**:
+- **External** (`cluster-f-planning-rev2-extern`, claude-opus-4.8, high): **APPROVED WITH NOTES** — 2 LOW, both explicitly self-classified "not required for ship." Explicit clearance: "The supervisor has unambiguous clearance to consolidate the planning cluster and proceed to Cluster F' implementation; L1 and L2 can be folded opportunistically during F' or left as-is." Every empirical spot-check passed (5 claims-audit rows verified verbatim). Content-hash mechanism confirmed to close F-INT-1 at root, not move goalposts.
+- **Internal** (`cluster-f-planning-rev2-intern`, gpt-5.6-sol, high): **BLOCKED** — 2 BLOCKING + 1 HIGH. F-INT-R2-1 same textual pattern external saw and classified LOW (D3 main body `evidence []string` + addendum `[]EvidenceRef` layering). F-INT-R2-2 genuinely new spec gap (reopen-time path-safety for directory/external-symlink replacement not defined). F-INT-R2-3 CLI shape vs §5 evidence-required contradiction.
+
+**Reviewer strictness split analysis** — precedent-setting:
+- F-INT-R2-1 vs external L1: **identical text, different severity**. External explicitly reasoned "the addendum sits immediately below and *explicitly* retracts the []string, following this doc set's established main+addendum layering (identical to D4)." External reads the pattern as convention. Internal reads it as contradictory contract. This is exactly the class of "internal strictness vs external pragmatism" that supervisor adjudicates on: when established convention is at stake AND external self-classifies "not required for ship" AND no JSON envelope or downstream section is affected, side with external. But fold cheaply — a one-line pointer clarifies without moving conventions.
+- F-INT-R2-2 and F-INT-R2-3: no external counterpart. Real spec-completeness gaps external didn't check. Internal is right on both.
+
+**Adjudication**: **NEEDS REVISION → rev-3 (small fold)**. Not because rev-2 is broken — external's clearance stands substantively — but because folding 4 narrow items now costs less than deferring to F-prime post-planning-ship. Cluster F' implementation cluster needs the spec to be self-consistent to avoid ambiguity-driven implementation regressions.
+
+**Rev-3 folds (all narrow scope)**:
+
+**F1 — L1 (external) + F-INT-R2-1 (internal, downgraded to LOW per external's convention analysis)**:
+- ADR D3 main-body "Consequences" line 222 says `evidence []string`. Add a one-clause pointer: "— superseded by the D3 addendum below; the shipped contract is `[]EvidenceRef{Path, SHA256}`." OR strike the stale line. Either fix acceptable.
+
+**F2 — F-INT-R2-2 (internal BLOCKING → HIGH)**:
+- ADR D3 addendum currently defines reopen behavior for hash-mismatch and missing-file, but not for the case where the historical evidence path resolves to a NEW file kind (regular → directory, regular → symlink escaping the repo, regular → device, etc.) between reject-time and reopen-time.
+- Fix: extend the reopen hash-recompute path to first re-run path safety (F-INT-3 rules) on each historical evidence path. If path safety fails at reopen (was safe at reject, unsafe now), classify as `divergent` non-blocking with a distinct `divergent_reason: "path-safety-failed-at-reopen"` (or similar taxonomy). Do NOT attempt to hash a path that would escape the repo.
+- Also handle: missing-file case, non-regular-file case (was regular, now directory), unreadable-file case — all classify as `divergent` non-blocking with distinguishable reasons.
+- Add PRD §9 tests: reject with regular file, replace with symlink escaping repo, reopen → verify `divergent` recorded, no hash-attempt outside repo.
+- Also remove the PRD lines 431-437 parenthetical internal flagged as compounding the ambiguity.
+
+**F3 — F-INT-R2-3 (internal HIGH)**:
+- PRD §5 says reopen "requires its own --evidence/--note pair" but CLI signatures (lines 162-163, 245-250) show `--evidence` as optional.
+- Fix: pick one contract:
+  - **Recommend REOPEN-EVIDENCE-OPTIONAL**: `--note` is required (matches F-INT-CLI rev-2 fold); `--evidence` remains optional. Rationale: reopening because "new information came in" doesn't always require attaching a file — a note explaining the reopen is sufficient. If evidence is provided, it gets content-hashed like at reject.
+  - Update §5 language: change "requires its own --evidence/--note pair" → "requires its own --note (mandatory) and may include additional --evidence (optional, content-hashed)."
+- Alternative REOPEN-EVIDENCE-REQUIRED discussed and rejected: it stiffens the operator workflow with limited audit benefit; the reopen note is already mandatory.
+- Update §9 tests to include an explicit zero-`--evidence` reopen success test.
+
+**F4 — L2 (external) — SHA-256 encoding pin**:
+- Add one sentence to PRD §6 / ADR D3 addendum: "`sha256` field is the lowercase-hex ASCII encoding of the raw SHA-256 digest (regex `^[0-9a-f]{64}$`)."
+
+**Cluster state**: `REV-3 DISPATCHED` (planning phase).
+
+**Precedent — reviewer-strictness split**:
+When internal calls a textual pattern BLOCKING and external calls the identical pattern LOW+"not required for ship", and external's reasoning cites established doc-set convention (main+addendum layering, matching prior accepted precedent):
+- Downgrade internal's severity to match external's classification.
+- Fold cheaply if fold cost is < deferral cost (small edit that improves clarity without changing convention).
+- Do NOT dispatch a full rev-cycle solely for this class of finding.
+- DO dispatch if bundled with other real findings (F-INT-R2-2, F-INT-R2-3 in this case), which makes the rev-cycle amortize.
+
+**Precedent — external clearance vs internal BLOCKED at planning-cluster shape**:
+External's "unambiguous clearance to consolidate" carries weight because external's methodology is doc-fidelity + empirical citation validation, which is the primary risk class at planning phase. Internal's architectural-traversal contributions have been decisive at rev-0 and rev-1 (caught real design flaws external missed) but rev-2 traversal converged on completeness residuals not architectural class. When the review-arc has produced architectural stability (rev-2), external's clearance is the ship signal; internal's residual completeness findings become fold-cheaply-then-ship input.
+
+---
+
 ## 2026-08-05 — Cluster F planning rev-1 dual review — ADJUDICATION → rev-2
 
 **Two-opinion outcomes**:
