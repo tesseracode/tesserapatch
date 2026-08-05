@@ -39,6 +39,9 @@ pre-v0.13.0 `status.json` files is guaranteed.
 - **D6**: Post-implementation escape hatch (does `reject` on `applied` state ever succeed? If yes, via
   what mechanism?)
 - **D7**: Backward compatibility for pre-v0.13.0 `status.json`
+- **D8** *(rev-1 fold, F-INT-5)*: Dependency edge creation guard against rejected parents — can a new
+  `depends_on` edge (`hard`/`soft`/`supersedes`) be created pointing at an already-`rejected` parent?
+- **D9** *(rev-1 fold, F-INT-6)*: Actor provenance mechanism for `rejected_by`/`reopened_by`
 
 ## 3. Decisions
 
@@ -220,6 +223,60 @@ into the feature directory.
 `--evidence` cobra flag on both `reject` and `reopen`, and a path-resolution helper shared by both
 commands' validation step.
 
+#### D3 addendum — evidence admissibility hardening (rev-1 fold, F-INT-1 BLOCKING + F-INT-3 HIGH)
+
+Rev-0 internal review found a real integrity flaw the original D3 text did not address: nothing stopped
+an operator from citing `analysis.md`, `spec.md`, or `exploration.md` as evidence. Those three files are
+**overwritten in place** by later phase re-runs — `RunAnalyze` rewrites `analysis.md` via
+`s.WriteFeatureFile(slug, "analysis.md", analysisMD)` (`internal/workflow/workflow.go:90-97`),
+`RunDefine` rewrites `spec.md` via `s.WriteFeatureFile(slug, "spec.md", specContent)`
+(`internal/workflow/workflow.go:151-155`), and `RunExplore` rewrites `exploration.md` via
+`s.WriteFeatureFile(slug, "exploration.md", explorationContent)`
+(`internal/workflow/workflow.go:196-200`). If a feature is `reopen`ed and its phases re-run, a historical
+rejection entry's `evidence` path would silently resolve to *different content* than it did at rejection
+time — a direct violation of GH #6 §1 ("Preserve the complete feature directory and **append-only audit
+history**"). This is corrected here rather than deferred, because it is a data-integrity defect in D3's
+original scope, not a new decision area.
+
+**Evidence admissibility rule** (new validation, both `reject` and `reopen`):
+
+- Evidence paths MUST NOT resolve to the mutable workflow artifacts at the feature directory root:
+  `analysis.md`, `spec.md`, `exploration.md`, `implementation.md`. These files are rewritten by
+  `analyze`/`define`/`explore`/`implement` re-runs and therefore cannot serve as immutable evidence.
+- Evidence MUST resolve to one of: (a) a file under
+  `.tpatch/features/<slug>/artifacts/` (append-only-by-convention, per
+  `docs/feature-layout.md`'s "Lifecycle files" / "State & debug files" sections — no phase command
+  overwrites an existing artifact under a fixed name the way `analysis.md`/`spec.md`/`exploration.md`
+  are overwritten), (b) any other custom-named file under the feature directory that is not one of the
+  four forbidden names above, or (c) a repo-root-relative path that is tracked by git (`git ls-files
+  --error-unmatch <path>` succeeds) — a committed file is immutable at the commit the rejection was
+  recorded against, giving it the same durability guarantee as an artifact file.
+- **Path safety** (F-INT-3): evidence paths are rejected outright (validation error, before any write)
+  if they are absolute, contain a `..` traversal segment, resolve (after symlink evaluation) to a
+  location outside the repository root, or resolve to a non-regular file (directory, device, socket,
+  etc.). This mirrors the existing `ensureSafeRepoPath()` discipline this codebase already applies to
+  every other file write outside `.tpatch/` (`SPEC.md` §9 item 1).
+- **Normalization**: every evidence path is normalized via `filepath.Clean` semantics with forward-slash
+  separators before comparison, storage, or the forbidden-file check above (so `./artifacts/../analysis.md`
+  is caught as `analysis.md`, not silently admitted). Duplicate paths (identical after normalization) are
+  deduplicated. The stored `evidence` list is sorted (`sort.Strings`) after normalization/dedup so
+  `status.json` serializes deterministically regardless of the order `--evidence` flags were supplied on
+  the command line — consistent with CLAUDE.md rule 4's determinism requirement for `.tpatch/` artifacts.
+
+**Alternative considered and deferred**: a content-hash snapshot taken per rejection (store a SHA-256 of
+each evidence file's bytes at `reject`/`reopen` time, so drift is *detected* rather than *prevented*).
+This is strictly more machinery than the path-restriction rule above (a new hash field per evidence
+entry, a verification pass to compare against current file bytes, and a decision about what to do when a
+mismatch is found) for a problem the restriction rule already prevents outright. Deferred to a future
+ADR if operators report friction with the restricted evidence set (e.g. a genuine need to cite a
+still-in-flux `spec.md` as an evidence path).
+
+**Consequences (addendum)**: Cluster F' implements the forbidden-filename check and the path-safety /
+normalization / dedup / sort pipeline as one shared validation helper used by both `reject` and
+`reopen`. PRD §9 gains a test asserting that citing `analysis.md`/`spec.md`/`exploration.md`/
+`implementation.md` as evidence is a validation error, and a reopen→analyze→re-inspect test confirming a
+*valid* (artifacts-based) evidence file's content is unchanged after the phase re-run.
+
 ### D4: State machine formalization
 
 **Alternative 1**: No new formal transition table — `reject`/`reopen` each hard-code their own
@@ -256,8 +313,8 @@ mechanism.
 Cons: massive scope increase — every existing phase command (`analyze`, `define`, `explore`, `implement`,
 `apply`) would need to be retrofitted onto the new engine to make it non-redundant, which is explicitly
 out of scope for this PRD/ADR pair (planning-only, no code) and unrelated to GH #6's actual ask; the
-existing codebase has never used a generic state-machine abstraction for its 9 existing states and
-introducing one now, solely to add a 10th, is disproportionate.
+existing codebase has never used a generic state-machine abstraction for its 10 existing states and
+introducing one now, solely to add an 11th, is disproportionate.
 
 **Chosen**: **Alternative 2** (small formal transition table + reused `ExitCodeError` convention).
 
@@ -273,9 +330,32 @@ would introduce once more than one call site needs to ask "is this feature rejec
 **Consequences**: Cluster F' defines the reject-eligible state set (`requested`, `analyzed`, `defined`)
 as a shared symbol in `internal/store`, uses it from both `reject`'s validation and (if needed) a future
 `tpatch verify`/lint check, and returns a distinct `ExitCodeError` code for "wrong source state" versus
-plain `error` for "validation failure" (missing evidence / invalid reason / dependents blocking) —
-exact code numbers to be assigned at implementation time, documented in `SPEC.md` alongside the existing
-exit-code contract for `verify`.
+plain `error` for "validation failure" (missing evidence / invalid reason / dependents blocking).
+
+#### D4 addendum — exit codes locked (rev-1 fold, F-INT-4 HIGH)
+
+Rev-0 left the exact exit-code values as "to be assigned at implementation time," which internal review
+correctly flagged as a PRD/ADR contradiction risk: PRD §8's JSON envelope examples all used a bare
+`"exit_code": 1` for every error class, which would collapse the very distinction this decision exists to
+make. This ADR now locks the codes so the PRD's envelope examples (§8) and Cluster F' implementation
+cannot drift apart:
+
+| Code | Meaning | Example triggers |
+|---|---|---|
+| `0` | Success | `reject`/`reopen` completed and wrote `status.json`. |
+| `1` | Unexpected internal error | Filesystem I/O failure, unhandled panic recovery, store load failure unrelated to the slug itself. Matches the existing legacy generic-error convention every other command already uses. |
+| `2` | Validation error | Missing evidence path, invalid `--reason` enum value, missing/empty `--note`, evidence resolving to a forbidden mutable workflow artifact (D3 addendum), evidence path-safety violation (D3 addendum: absolute path, `..` traversal, symlink escape, non-regular file). |
+| `3` | State-transition error | Wrong source state (rejecting from `implementing` or later — D6), rejecting a non-existent slug's dependents check finding live dependents (PRD §5), rejecting an already-`rejected` feature, reopening a non-`rejected` feature, creating a dependency edge onto a `rejected` parent (D8). |
+
+This reuses the `ExitCodeError` convention (`internal/cli/exit_error.go:1-34`) exactly as Alternative 2
+proposed; codes `2` and `3` are new, command-specific values distinct from `tpatch verify`'s existing
+exit `2` contract in the sense that they are scoped to `reject`/`reopen` only — `ExitCodeError` already
+supports per-command code assignment (it is a plain `{Code int; Message string}` pair,
+`internal/cli/exit_error.go:11-14`), so no collision with `verify`'s own exit-2 usage is possible; the
+two commands' exit-2 values simply mean different things to their own callers, same as any other Unix
+tool's per-command exit-code contract. `SPEC.md`'s exit-code documentation (Cluster F' scope) should
+state this scoping explicitly to avoid an operator assuming a single global exit-code enum across all
+`tpatch` subcommands.
 
 ### D5: Reopen mechanism
 
@@ -335,75 +415,120 @@ ADR.
 
 ### D6: Post-implementation escape hatch
 
+> **Rev-1 rewrite (F-INT-2 BLOCKING)**: rev-0's D6 proposed `tpatch reconcile confirm-upstreamed` /
+> `tpatch reconcile audit-retirement` as the "separate post-implementation retirement semantics" this
+> decision defers to. Internal review correctly identified two independent problems with that framing:
+> (1) it is **semantically backwards** — `confirm-upstreamed` asserts "an implementation of this feature
+> already exists upstream," the exact opposite verdict from `rejected`'s "this should never have been
+> implemented at all"; routing a rejection through it would misrecord *why* the feature has no local
+> patch. (2) it is **empirically unguarded** — `saveConfirmUpstreamedStatus`
+> (`internal/cli/cobra.go:2554-2562`) unconditionally sets `status.State = store.StateUpstreamMerged`
+> with no check of the feature's prior state at all:
+> ```go
+> // internal/cli/cobra.go:2554-2562
+> func saveConfirmUpstreamedStatus(s *store.Store, status *store.FeatureStatus, info *confirmUpstreamedTransition) error {
+>     status.Reconcile.Outcome = store.ReconcileUpstreamed
+>     status.Reconcile.ReviewVerdict = "confirmed-upstreamed"
+>     status.Reconcile.UpstreamCommit = info.UpstreamCommit
+>     status.State = store.StateUpstreamMerged
+>     ...
+> }
+> ```
+> A `rejected` feature that somehow acquired a confirming revision (e.g. operator error, or a future
+> automation bug) could be silently flipped to `upstream_merged` — permanently erasing the rejection
+> record's meaning with no source-state guard in the way. Both problems are corrected below by **removing
+> the escape-hatch proposal entirely** rather than patching it, since GH #6 itself explicitly allows this
+> resolution (see Alternative 1 and Chosen, unchanged in spirit from rev-0 but now correctly scoped).
+
 **Alternative 1**: No escape hatch — `reject` is refused unconditionally from `implementing` onward
 (`implementing`, `applied`, `active`, `reconciling`, `reconciling-shadow`, `blocked`,
-`upstream_merged`), full stop. Post-implementation retirement remains exclusively the domain of
-`tpatch reconcile confirm-upstreamed` / `tpatch reconcile audit-retirement`.
+`upstream_merged`), full stop. Post-implementation retirement of an already-shipped feature is **out of
+scope for Cluster F entirely** — neither `reject` nor any existing command is asked to solve it here.
 
 Pros: keeps `reject`'s scope tight and unambiguous — it is a **pre-implementation** lifecycle terminal,
 full stop, matching GH #6's own framing that this issue is "related to, but distinct from, #4" and that
 #4 "concerns a rejected/confirmed **upstreamed reconciliation candidate**," not a general lifecycle
-outcome. No new interaction surface between `reject` and the retirement-audit machinery
-(`internal/workflow/retirement_audit.go`) needs to be designed, tested, or maintained.
+outcome. No new interaction surface between `reject` and any reconcile-family machinery
+(`internal/workflow/reconcile.go`, `internal/workflow/retirement_audit.go`) needs to be designed, tested,
+or maintained. Crucially, this alternative also does **not** claim `confirm-upstreamed` is a valid
+substitute path — it makes no claim about *any* existing command being the answer, closing the semantic
+mismatch F-INT-2 identified.
 
 Cons: an operator who discovers post-implementation that a feature should never have been applied (e.g.
-an already-`applied`-but-never-`active` feature whose premise collapses) has no single-command path;
-they must go through whatever the *existing* recovery path already is (manual revert / `remove` /
-future retirement tooling), which this ADR does not change or improve.
+an already-`applied`-but-never-`active` feature whose premise collapses) has no single-command path in
+this release; they must go through whatever the *existing* recovery path already is (manual revert /
+`remove` / a future dedicated command), which this ADR does not change or improve.
 
 **Alternative 2**: `reject` gains a `--force-post-implementation` (or similarly gated) flag that, when
-set on an `implementing`/`applied`/`active` feature, also triggers the same retirement-audit path
+set on an `implementing`/`applied`/`active` feature, also triggers the retirement-audit path
 `confirm-upstreamed` uses (`AuditRetirement`, `internal/workflow/retirement_audit.go:29`), effectively
 merging `reject` and post-implementation retirement into one command with two modes.
 
 Pros: a single command surface (`reject`) for the operator to remember regardless of feature state.
 
-Cons: **directly reproduces the exact conflation GH #6 explicitly asks to avoid.** GH #6's own
-§Distinction-from-related-concepts section draws the line precisely at "rejected-upstreamed (#4): review
-verdict about an upstreamed reconciliation candidate, not a general feature lifecycle outcome" — merging
-that verdict-producing machinery into `reject`'s own flag set would make `reject` simultaneously a
-pre-implementation lifecycle terminal AND a reconciliation-verdict command, the very ambiguity §4 of
-this ADR is written to foreclose. It would also require `reject` to understand
-`ReconcileSummary.{Outcome,ReviewVerdict}` state (today read only by `reconcile`-family commands,
-`internal/cli/cobra.go:2107-2138`), doubling its blast radius for a use case GH #6 itself frames as
+Cons: **directly reproduces the exact conflation GH #6 explicitly asks to avoid, and additionally
+asserts the wrong verdict.** GH #6's own §Distinction-from-related-concepts section draws the line
+precisely at "rejected-upstreamed (#4): review verdict about an upstreamed reconciliation candidate, not
+a general feature lifecycle outcome" — merging that verdict-producing machinery into `reject`'s own flag
+set would make `reject` simultaneously claim "do not implement this" (its own verdict) AND "an
+implementation already exists upstream" (`AuditRetirement`'s precondition, `retirement_audit.go:38`
+requires `Reconcile.Outcome == store.ReconcileUpstreamed`) — two verdicts that cannot both be true of the
+same feature. It would also require `reject` to read/write `ReconcileSummary` fields (today touched only
+by `reconcile`-family commands), doubling its blast radius for a use case GH #6 itself frames as
 belonging to a different issue.
 
-**Alternative 3**: A separate, new command (e.g. `tpatch retire <slug>` or an extension to
-`confirm-upstreamed`'s sibling command set) handles "mark an implemented/applied feature as
+**Alternative 3**: A separate, new command (e.g. `tpatch retire <slug>`, or the scope currently sketched
+by the untracked WIP `docs/prds/PRD-feature-unapply.md`) handles "mark an implemented/applied feature as
 should-never-have-shipped," entirely independent of `reject`. `reject` itself stays exactly as
 Alternative 1 describes (refused unconditionally past `implementing`).
 
 Pros: preserves `reject`'s narrow pre-implementation scope (like Alternative 1) while still leaving a
 door open for a future, explicitly-scoped post-implementation "this shouldn't have shipped" command,
-without polluting `reject`'s own flag surface.
+without polluting `reject`'s own flag surface or reusing a semantically-mismatched existing verb.
 
 Cons: that command does not exist today and is not requested by GH #6 (which only asks that
 `reject` "refuse rejection from states where source changes are already applied **unless the command
 also performs a safe retirement/audit, or provide separate pre-implementation and post-implementation
 retirement semantics**" — GH #6 itself offers the "separate semantics" branch as an explicitly
-acceptable resolution, which is exactly Alternative 1). Designing a whole new command is out of scope
-for this PRD/ADR pair and would be premature without a concrete driving use case.
+acceptable resolution, which is exactly Alternative 1's no-escape-hatch shape). Designing a whole new
+command is out of scope for this PRD/ADR pair and would be premature without that command's own PRD/ADR
+pair settling its own data model.
 
-**Chosen**: **Alternative 1** (no escape hatch; `reject` is refused unconditionally past `implementing`).
+**Chosen**: **Alternative 1** (no escape hatch; `reject` is refused unconditionally past `implementing`;
+post-implementation retirement is explicitly out of scope for Cluster F).
 
 **Rationale**: This is the "separate pre-implementation and post-implementation retirement semantics"
 branch GH #6 §Expected-semantics item 9 itself offers as an acceptable resolution
 (verbatim: "...or provide separate pre-implementation and post-implementation retirement semantics").
-Post-implementation retirement is not a gap tpatch has — it already exists and was purpose-built by
-PRD-confirm-upstreamed-human-review-path: `tpatch reconcile confirm-upstreamed` mutates
-`status.Reconcile.{Outcome,ReviewVerdict,UpstreamCommit}` and `status.State` "under the same guardrails
-as automated confirmation" and "runs the retirement audit established by
-PRD-reconcile-retirement-state-audit" (`docs/prds/PRD-confirm-upstreamed-human-review-path.md` §Summary,
-2nd paragraph). Extending `reject` to also drive that same audit (Alternative 2) would create two
-command surfaces that both claim ownership of retiring an implemented feature, contradicting the
-single-writer discipline this codebase already enforces elsewhere (e.g. "Only the `verify` and `amend`
-(recipe-touching) verbs may rewrite [`Verify`]" — `internal/store/types.go:220-230`). See §4 below for
-the full orthogonality argument this decision rests on.
+Rev-0's error was treating `confirm-upstreamed` as if it were that "separate semantics" — it is not: it
+answers a different question ("did upstream already absorb this?") than rejection's question ("should
+this ever be implemented?"). Rev-1 corrects this by making **no claim at all** about which mechanism (if
+any) eventually serves post-implementation "should never have shipped" retirement — that is deferred, in
+full, to future work. A future PRD — potentially `PRD-feature-unapply.md` (currently untracked WIP in
+this repository, not yet scoped or accepted) — may address retirement of already-implemented features,
+but doing so is explicitly **not** this ADR's decision to make, and Cluster F' must not build toward it
+implicitly. See §4 below for the full orthogonality argument this decision rests on, now reinforced by a
+concrete defense-in-depth requirement (see the mutating-reconcile guard below).
+
+**Defense-in-depth guard (new, F-INT-2 fix #3)**: independent of `reject`'s own scope, every *existing*
+mutating reconcile command that can transition a feature toward `upstream_merged` — today
+`tpatch reconcile confirm-upstreamed`, and any future retirement variant — MUST refuse to operate on a
+feature whose `status.State == store.StateRejected`, returning a validation error before any mutation.
+This is not new PRD-level design scope (it does not add a decision to make); it is a Cluster F'
+**implementation task**: `saveConfirmUpstreamedStatus`'s call site
+(`internal/cli/cobra.go:2554-2562`) gains a precondition check alongside its existing
+`confirmUpstreamedTransition` validation, mirroring the existing guard style already present in
+`AuditRetirement`'s own precondition check (`internal/workflow/retirement_audit.go:38`). Concretely: if
+`saveConfirmUpstreamedStatus` (or its caller) is ever invoked against a `rejected` feature — which should
+never happen through the normal `reconcile` flow, since a `rejected` feature has no recipe/patch to
+reconcile — it must fail loudly rather than silently overwrite the rejection record, closing the exact
+hole F-INT-2 found in `saveConfirmUpstreamedStatus`'s current unconditional `status.State` assignment.
 
 **Consequences**: Cluster F' implements `reject`'s state check as an unconditional refusal for every
-state at or past `implementing` — no flag, no exception. If a genuine future need for a
-post-implementation "should never have shipped" command emerges, it is Alternative 3's separate command,
-decided by a future, dedicated ADR — explicitly **not** this one.
+state at or past `implementing` — no flag, no exception — AND adds the defense-in-depth guard above to
+`confirm-upstreamed`'s save path. If a genuine future need for a post-implementation "should never have
+shipped" command emerges, it is Alternative 3's separate command, decided by its own future, dedicated
+PRD/ADR pair — explicitly **not** this one.
 
 ### D7: Backward compatibility for pre-v0.13.0 `status.json`
 
@@ -468,6 +593,142 @@ test asserting a pre-v0.13.0 `status.json` (no rejection fields) parses and re-s
 (matching the existing round-trip test pattern in `internal/store/roundtrip_test.go`), and introduces no
 new config flag.
 
+### D8: Dependency edge creation guard against rejected parents *(rev-1 fold, F-INT-5 HIGH)*
+
+> Internal review found an asymmetry: rev-0 correctly refused to *reject* a feature that other features
+> already depend on (PRD §5, kept), but said nothing about the reverse direction — creating a *new*
+> dependency edge whose parent is already `rejected`. Verified empirically:
+> `internal/store/validation.go`'s `ValidateDependencies` (lines 113-160) implements exactly 5 rules
+> (self-dependency, dangling ref, kind conflict, cycle detection, `satisfied_by`-requires-
+> `upstream_merged`) and has no rule today that inspects a parent's state for anything other than the
+> `satisfied_by` case. A `depends_on` edge can be freely created today pointing at a feature in *any*
+> state, rejected or not. Rev-0's PRD also suggested, as remediation, "reject the dependent too" — internal
+> review proved this unsound: `dependentEdges` (`internal/cli/feature_deps.go:170-186`) returns dependents
+> regardless of the dependent's own current state, so a "dependent" a rejected-parent's rejection would
+> supposedly cascade to could itself already be `rejected`, `applied`, or anything else — "reject it too"
+> is not a well-formed operation in general.
+
+**Alternative 1**: Refuse edge creation for all three dependency kinds (`hard`, `soft`, `supersedes`)
+whenever the proposed parent's `State == StateRejected`, as a new rule in `ValidateDependencies`.
+
+Pros: fully symmetric with the existing reject-refused-if-dependents-exist rule (PRD §5) — a `rejected`
+feature can neither gain new dependents nor be created *as* a dependent's parent after the fact. Single
+enforcement point (`ValidateDependencies`), reused by every command that calls it today (`define`'s
+`--depends-on` flag path and any future dependency-editing surface).
+
+Cons: an operator wanting to record "this is soft-ordered after that (now rejected) work, for historical
+sequencing only, no functional gate" has no way to express that relationship at all.
+
+**Alternative 2**: Refuse only for `hard` and `supersedes` kinds; permit `soft` edges onto a rejected
+parent, since `soft` dependencies are documented as ordering-only hints with no apply-time gate
+(`docs/dependencies.md`'s distinction between hard "conditions to satisfy" and soft "ordering only, no
+gate at apply time").
+
+Pros: preserves a narrow escape valve for the "historical sequencing only" use case Alternative 1's Con
+identifies, without weakening the functional gates (`hard`, `supersedes`) that actually block `apply`/
+reconcile behavior.
+
+Cons: introduces a state-dependent branch in `ValidateDependencies` keyed on both `Kind` and the parent's
+`State` simultaneously — more surface area to test and explain than a flat rule; also, semantically odd:
+why would an operator want to *order after* a rejected feature at all, since ordering existed to satisfy
+constraints implied by that feature's own progress, which no longer applies once it is rejected?
+
+**Alternative 3**: Warn-only (print a warning, do not refuse) for all three kinds, mirroring a
+"soft guardrail" philosophy some CLIs use for likely-but-not-certain mistakes.
+
+Pros: never blocks an operator's workflow, even in edge cases this ADR's authors haven't anticipated.
+
+Cons: contradicts the "fail loudly" default this PRD/ADR pair chooses everywhere else (PRD §5's
+dependents-exist-on-reject default, D1's determinism framing) — a warning is trivially missed in scripted/
+CI invocations, and GH #6's own §Acceptance-criteria language ("append-only audit history," "explicit and
+deliberate") reads as favoring hard gates over advisory-only warnings for state-machine-adjacent
+decisions.
+
+**Chosen**: **Alternative 1** (refuse edge creation for all three kinds — `hard`, `soft`, `supersedes` —
+whenever the parent is `rejected`).
+
+**Rationale**: Symmetry with the PRD §5 reject-refused-if-dependents-exist rule is the load-bearing
+argument: if a `rejected` feature cannot exist *with* existing dependents, it should not be possible to
+*create* a new dependent after the fact either — both directions protect the same invariant ("a
+`rejected` feature has no live dependency relationships, full stop"), and enforcing only one direction
+would leave the other as a silent gap an operator could stumble into by re-ordering their two CLI calls
+(reject first vs. add-edge first) and getting a different, order-dependent outcome. This matches this
+ADR's own fail-loudly default (D6, D2) rather than introducing Alternative 2's per-kind carve-out, which
+this ADR judges unmotivated absent a concrete operator need surfacing post-implementation.
+
+**Consequences**: Cluster F' adds a 6th rule to `ValidateDependencies`
+(`internal/store/validation.go:113-160`) — "no dependency edge (`hard`/`soft`/`supersedes`) may be
+created pointing at a parent whose `State == StateRejected`" — returning the same wrapped-sentinel-error
+convention the existing 5 rules use, mapped to exit code `3` (D4 addendum) at the CLI layer regardless of
+which command (`define`, or any future edge-editing command) triggers it. PRD §9 gains explicit
+both-order tests (reject-then-add-edge, add-edge-then-reject-parent) crossed with all three edge kinds.
+
+### D9: Actor provenance mechanism for `rejected_by`/`reopened_by` *(rev-1 fold, F-INT-6 HIGH)*
+
+> Rev-0's PRD cited `internal/store/reconcile_revision.go`'s `ReconcileRevision` struct as an "existing
+> actor-attribution precedent" this ADR could follow. Internal review verified this citation is false:
+> `ReconcileRevision` (`internal/store/reconcile_revision.go:47-61`) has fields for revision sequencing
+> and commit metadata but **no actor field and no timestamp field at all** — there is no existing
+> precedent in this codebase for attributing a `FeatureStatus` mutation to a specific human or automation
+> identity. D9 makes that decision from scratch.
+
+**Alternative 1**: Precedence chain — `--actor <string>` CLI flag, else `TPATCH_ACTOR` environment
+variable, else `git config user.email` (read from the target repo, matching how this codebase already
+shells out to `git` for other metadata, e.g. `gitutil.IsAncestor`), else the literal string `"unknown"`
+if none of the above resolve.
+
+Pros: works identically in interactive and CI/scripted invocations (the flag/env-var forms need no git
+identity configured at all); degrades gracefully to a clearly-labeled `"unknown"` rather than silently
+guessing; consistent with this codebase's existing "explicit flag beats implicit environment beats
+config-file default" pattern used elsewhere for provider configuration
+(`docs/dependencies.md`'s `features_dependencies` config-then-flag-override shape is a loose precedent
+for layered configuration resolution, even though it is not itself an actor-attribution case).
+
+Cons: `git config user.email` can be stale, shared (a CI runner's bot email), or simply wrong for the
+actual human triggering the action if they never configured it locally.
+
+**Alternative 2**: Derive the actor from the git commit committer identity of the commit that introduces
+the `reject`/`reopen` change (e.g. read `git var GIT_COMMITTER_IDENT` at commit time and back-fill it
+after the fact).
+
+Pros: ties the actor field to an identity that is cryptographically/structurally tied to an actual commit,
+similar in spirit to how Rule 18's trailer convention ties authorship to a commit trailer.
+
+Cons: **conflates two different mechanisms.** Rule 18's `Co-authored-by`/`Copilot-Session` trailers
+(`CLAUDE.md`, `AGENTS.md`) attribute a *commit*, not a *feature-state mutation* — `reject`/`reopen` write
+`status.json` at invocation time, before any commit necessarily exists (an operator may run `tpatch
+reject` and not commit for hours, or never commit directly, letting a separate process do so). There is
+no reliable way for the CLI, at the moment it runs, to know what commit (if any) will eventually carry
+this change, making this alternative operationally unworkable as the *primary* mechanism, though it may
+be a reasonable secondary correlation someone builds later by joining commit trailers to `rejected_at`
+timestamps — that joining logic is out of scope here.
+
+**Alternative 3**: Auto-derive from the OS username (`os/user.Current()`) or hostname
+(`os.Hostname()`) if no flag/env var is set, skipping the `git config` lookup entirely.
+
+Pros: works even in environments with no git identity configured at all (e.g. a bare checkout with no
+`user.email` set).
+
+Cons: privacy/accuracy concerns — an OS username or hostname is frequently an autogenerated CI runner
+name (`runner-abc123`) or a shared account name with no relationship to the actual human/agent making the
+decision, and leaking local OS usernames into a tracked, committed `status.json` file is a mild but
+avoidable information-disclosure smell this ADR should not introduce without a concrete need.
+
+**Chosen**: **Alternative 1** (precedence chain: `--actor` flag > `TPATCH_ACTOR` env var >
+`git config user.email` > `"unknown"` literal fallback).
+
+**Rationale**: This is the only alternative that (a) has a well-defined value at the exact moment
+`reject`/`reopen` execute (no dependency on a future, not-yet-created commit, unlike Alternative 2), and
+(b) never silently fabricates an identity from ambient OS state (unlike Alternative 3) — it either
+resolves to something the operator explicitly provided/configured, or honestly reports `"unknown"`.
+Explicitly out of scope: deriving from git commit committer identity (Alternative 2, orthogonal to Rule
+18's trailer convention, which attributes commits, not status mutations) and auto-derivation from OS
+username/hostname (Alternative 3, privacy concern).
+
+**Consequences**: Cluster F' implements a single shared actor-resolution helper used identically by both
+`reject` (`rejected_by`) and `reopen` (appended as the `history[]` entry's actor field, D5), with unit
+tests for each precedence tier and the final `"unknown"` fallback (PRD §9).
+
 ## 4. Orthogonality with PRD-#4 (confirm-upstreamed)
 
 This is the section GH #6, the PRD, and the Cluster F dispatch brief all treat as load-bearing: `rejected`
@@ -481,12 +742,20 @@ not two views of the same mechanism.
   // internal/workflow/reconcile.go:19
   type ReconcileResult struct {
       ...
-      // internal/workflow/reconcile.go:64-66
+      // internal/workflow/reconcile.go:64-65
       // RetirementAudit exposes the cleanup audit triggered after upstreamed
-      // confirmation, when the retirement audit ran as part of this call.
+      // confirmation. Runtime/display only; status.json remains lifecycle truth.
       RetirementAudit *RetirementAuditReport `json:"retirement_audit,omitempty"`
   }
   ```
+
+  > **Rev-1 correction (F-EXT-2 LOW)**: rev-0 quoted a fabricated second comment line ("...when the
+  > retirement audit ran as part of this call."). The verbatim comment at
+  > `internal/workflow/reconcile.go:64-65` is quoted above; its actual second line — "Runtime/display
+  > only; status.json remains lifecycle truth." — is itself independent, additional evidence for this
+  > section's own orthogonality argument: the Go source comment states in its own words that
+  > `RetirementAudit` is not persisted and that `status.json` (i.e. `store.FeatureStatus`) is the
+  > lifecycle source of truth, exactly the distinction this ADR draws between the two mechanisms.
 
   `ReconcileResult` is the in-memory return value of one `RunReconcile`/`confirm-upstreamed` invocation —
   it is not itself persisted to `status.json`. The *effects* of a retirement audit (cleanup revisions)
@@ -523,6 +792,15 @@ not two views of the same mechanism.
   mechanism that keeps this orthogonality real rather than aspirational: `reject` never touches
   `Reconcile.*`, and `confirm-upstreamed`/`AuditRetirement` never touch the new rejection fields.
 
+- **Orthogonality-by-construction needs an explicit guard, not just an absence of shared fields**
+  (rev-1 addition, F-INT-2). Internal review found that `saveConfirmUpstreamedStatus`
+  (`internal/cli/cobra.go:2554-2562`) sets `status.State = store.StateUpstreamMerged`
+  unconditionally, with no check of the feature's prior state — meaning that, absent D6's new
+  defense-in-depth guard, a `rejected` feature that somehow acquired a confirming revision could have its
+  rejection silently overwritten, collapsing the very orthogonality this section claims. The two data
+  shapes not sharing fields is necessary but not sufficient; D6's guard on `confirm-upstreamed`'s own
+  call site is what makes the orthogonality enforced rather than merely descriptive.
+
 - **If future work wants to unify these two mechanisms** (e.g. a shared "why did this feature not ship"
   query surface spanning both `rejected` features and `upstream_merged`-with-retirement-audit features),
   **that is a separate ADR** — not this one. This ADR's scope is limited to making `rejected` a correct,
@@ -532,8 +810,8 @@ not two views of the same mechanism.
 ## 5. Migration Path
 
 - **Pre-v0.13.0 `status.json` files**: no `rejected`-related field is present. They are treated exactly
-  as they are today — `state` is one of the existing 9 values, and `ValidFeatureState` continues to
-  accept them unchanged (this ADR only *adds* a 10th valid value; it removes none). No auto-migration
+  as they are today — `state` is one of the existing 10 values, and `ValidFeatureState` continues to
+  accept them unchanged (this ADR only *adds* an 11th valid value; it removes none). No auto-migration
   runs.
 - **Post-v0.13.0 CLI reading pre-v0.13.0 files**: silent OK, no warning printed. This matches D7's
   Alternative 1 choice and the codebase's established `omitempty` backward-compat convention (see D7
@@ -567,17 +845,16 @@ not two views of the same mechanism.
   count and documentation burden increases.
 
 **Open questions to defer** (to the implementation cluster or a future ADR, not this one):
-- Exact `rejected_by` actor-derivation mechanism (environment variable? git config user.name? a new
-  `--actor` flag echoing existing conventions elsewhere?) — D6/PRD §6 leaves this to Cluster F'
-  implementation detail, since no existing tpatch command has a strong precedent for actor attribution
-  beyond timestamps.
-- Whether a `rejected` parent feature should be allowed as a *soft* dependency parent for ordering-only
-  purposes (the PRD's chosen "fail loudly" default in §5 covers *any* dependent, hard or soft — this ADR
-  does not revisit that PRD-level choice, but a future refinement distinguishing hard-vs-soft dependents'
-  treatment of a rejected parent is left open).
-- Exact numeric exit codes for `reject`/`reopen` refusals (D4) — this ADR mandates *that* a distinct
-  `ExitCodeError` is used, not the specific integer value(s); Cluster F' should pick values that don't
-  collide with `tpatch verify`'s existing exit-2 contract and document them in `SPEC.md`.
+- Whether a future retirement command for already-implemented features (Alternative 3 of D6, possibly
+  `PRD-feature-unapply.md`) should share any data-model fields with `rejected`'s — deferred entirely to
+  that future PRD/ADR pair, not decided here.
+- Whether the `--force-post-implementation`-style override rejected in D6 Alternative 2 should ever be
+  reconsidered once a dedicated post-implementation retirement command exists and its own semantics are
+  settled — explicitly not this ADR's call.
+
+(The rev-0 draft of this section left the `rejected_by` actor-derivation mechanism, the exact `reject`/
+`reopen` exit-code integers, and the rejected-parent-as-dependency question open; those are now resolved
+by D9, the D4 addendum, and D8 respectively, and are no longer open questions.)
 
 ## 7. Implementation Notes (for the F' cluster)
 
@@ -588,6 +865,9 @@ not two views of the same mechanism.
 - `internal/store/status.go` (or wherever `LoadFeatureStatus`/`SaveFeatureStatus` load/save the struct —
   currently `internal/store/store.go`) — no structural change expected beyond what the `FeatureStatus`
   field additions already cover, since (D1) the save path is reused unchanged.
+- `internal/store/validation.go` — extend `ValidateDependencies` (`internal/store/validation.go:113-160`)
+  with the new D8 rule refusing edge creation onto a `rejected` parent, for all three edge kinds (`hard`,
+  `soft`, `supersedes`).
 - `internal/cli/cobra.go` (or a new dedicated `internal/cli/reject.go` file, matching this codebase's
   convention of one file per medium-sized command cluster, e.g. `feature_deps.go`, `land.go`,
   `reconcile_check_applied.go`) — add `rejectCmd()`/`reopenCmd()`, register both on `buildRootCmd`
@@ -596,7 +876,13 @@ not two views of the same mechanism.
   with a `case store.StateRejected:` arm; add the dependents-fail-loudly check (reusing/adapting
   `checkRemoveDependents`'s pattern, `internal/cli/feature_deps.go:430-447`); add the `rejected`-state
   precondition check to `applyCmd` (`internal/cli/cobra.go:634-693`) and the reconcile entrypoint
-  (`internal/cli/cobra.go:1887`, `reconcileCmd`).
+  (`internal/cli/cobra.go:1887`, `reconcileCmd`); add the D6 defense-in-depth guard to
+  `saveConfirmUpstreamedStatus`'s call site (`internal/cli/cobra.go:2554-2562`) refusing to mutate a
+  `rejected` feature.
+- `internal/cli/` — new shared helper(s) for evidence-path admissibility/safety validation (D3 addendum:
+  forbidden-mutable-filename check, path-safety checks, normalization/dedup/sort) and for actor
+  resolution precedence (D9: `--actor` flag / `TPATCH_ACTOR` env / `git config user.email` / `"unknown"`
+  fallback chain) — both reused identically by `reject` and `reopen`.
 - `internal/store/store.go` — extend `RefreshFeaturesIndex` (`internal/store/store.go:677-695`) with the
   distinct "Rejected" trailing section and default-exclusion from the main table.
 - `assets/` — no skill-text change is anticipated to be strictly required for the parity guard
@@ -604,16 +890,24 @@ not two views of the same mechanism.
   need explicit mention is an implementation-time call, but if any skill enumerates the full command
   list by name, it must be updated in lockstep or the parity guard will fail).
 - `SPEC.md` — add `rejected` to the Feature States table (§3), add `reject`/`reopen` to the CLI Commands
-  table (§4), document the new exit-code contract (D4) alongside the existing `verify` exit-2 precedent.
+  table (§4), document the locked exit-code contract (D4 addendum) alongside the existing `verify`
+  exit-2 precedent, and note that `reconcile confirm-upstreamed` refuses `rejected` sources (D6 guard).
 - `docs/feature-layout.md` — document the 8 new `status.json` fields under "State & debug files".
-- `docs/dependencies.md` — cross-reference the "fail loudly on rejected parent" behavior (PRD §5) if it
-  materially changes any documented dependents-gate example.
+- `docs/dependencies.md` — cross-reference the "fail loudly on rejected parent" behavior (PRD §5) and
+  the new D8 edge-creation guard if it materially changes any documented dependents-gate example.
 
-**Test files** (from PRD §9): new `internal/cli/reject_test.go` (or similarly named) covering all 16
-enumerated scenarios; a new `internal/store` round-trip fixture test for pre-v0.13.0 byte-identity (D7);
-extensions to existing `internal/cli` status/next/FEATURES.md render tests for the inclusion/exclusion
-behavior.
+**Test files** (from PRD §9, now expanded per F-INT-8): new `internal/cli/reject_test.go` (or similarly
+named) covering all enumerated scenarios (happy paths, validation errors with exit code 2, state-
+transition errors with exit code 3, dependency-order symmetry both directions × 3 edge kinds, evidence
+containment/canonicalization, actor precedence, multiple/unbounded reopen cycles, direct
+`confirm-upstreamed`-on-`rejected` refusal); a new `internal/store` round-trip fixture test for
+pre-v0.13.0 byte-identity (D7); a new `internal/store/validation_test.go` case for the D8 rejected-parent
+edge-creation guard; extensions to existing `internal/cli` status/next/FEATURES.md render tests for the
+inclusion/exclusion behavior.
 
-**Do NOT touch**: `internal/workflow/reconcile.go`, `internal/workflow/retirement_audit.go` — those are
-confirm-upstreamed's (PRD-#4's) territory, orthogonal per §4 above. `reject`/`reopen` must not read or
-write `ReconcileSummary` in any form.
+**Do NOT touch**: `internal/workflow/reconcile.go`, `internal/workflow/retirement_audit.go` — those
+remain confirm-upstreamed's (PRD-#4's) territory, orthogonal per §4 above. `reject`/`reopen` must not
+read or write `ReconcileSummary` in any form. The one narrow exception is the D6 defense-in-depth guard
+itself, which lives in `internal/cli/cobra.go` at `confirm-upstreamed`'s own call site (a precondition
+check on the *existing* command), not inside `reconcile.go`/`retirement_audit.go`'s internals — it does
+not change what those files do, only gates one of their callers.
