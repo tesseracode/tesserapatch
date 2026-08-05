@@ -1,3 +1,27 @@
+## 2026-08-05 — Cluster E-prime post-Cluster-E follow-up — DISPATCHED (rev-0)
+
+**Post-Cluster-E external review verdict** — **APPROVED WITH NOTES**. Reviewer confirmed both prior post-Cluster-D findings (F1 gate `[8/8] go test`, F2 gc.auto pin) empirically CLOSED — F2 called out as "genuinely good root-cause diagnosis" (identified `git maintenance --auto --detach` fork rather than papering over the ENOTEMPTY symptom). E-EXT-1 rev-1 fold verified complete: reviewer independently confirmed all three git-spawning packages (`cli`, `gitutil`, `workflow`) have the pin, `store` has it defensively, and `tests/integration` doesn't spawn git.
+
+**Reviewer suite-run caveat** — reviewer's terminal wedged during `[8/8]` execution; couldn't independently confirm the full suite passes under load. Closed by supervisor at HEAD `2281309`: `go test -count=1 ./...` completed green across all packages (`cli` 132s, `gitutil` 18.8s, `provider` 14.7s, `safety` 6.1s, `store` 7.5s, `studyvalidator` 7.0s, `workflow` 80.2s, `tests/integration` 8.9s, `assets` 1.8s, `buildinfo` 0.8s — all `ok`). F2 fix is now verified by construction, coverage, AND observation.
+
+**Two non-blocking observations → Cluster E-prime scope**:
+
+1. **Obs 1 LOW — `PinGitAutoGCOff` idempotency doc gap.** Helper's doc comment says "Idempotent and safe to call multiple times" — true re: repeated self-calls, but the helper unconditionally sets `GIT_CONFIG_COUNT=1`, which silently clobbers any pre-existing `GIT_CONFIG_*` entries. Harmless today (nothing else sets it), but a latent trap if a future test needs a second env-config key. Fix: one-line clarification comment. Do NOT upgrade to read-and-append (overkill until a real second-key need materializes).
+
+2. **Obs 2 LOW — `[2/8]` untracked sentinel becoming background noise.** Three consecutive clusters (C, D, E) surfaced the same 16 untracked WIP files as WARN. Perpetual warning trains reviewers to skim past — defeating the forgotten-`git add` sentinel purpose. Fix: add `.wave-close-allowlist` at repo root, gate subtracts allowlisted entries from WARN list, prints OK when residual is empty. Reviewer discipline note: allowlist growth is a manual-checklist scope-check item.
+
+**Grouping decision (supervisor + user)**: dispatched as tiny process-hygiene follow-up cluster ("E-prime") **before** Cluster F (v0.13.0 GH #6). Rationale mirrors the Cluster C → v0.12.1 and Cluster E → Cluster F process-first pattern: clear gate-hygiene notes BEFORE feature waves generate high-throughput close cycles. Both observations are LOW-severity and small — proportionate to a mini-cluster, not deferrable-to-backlog (the ALLOWLIST design decision needs a landing point before it accumulates further).
+
+**WAVE_BASE**: `2281309` (Cluster E consolidation HEAD; recorded pre-dispatch per AGENTS.md).
+
+**Protocol**: single implementer, sequential. External-only rev-0 confirmation (single-issue empirical follow-up shape, per Cluster D rev-2/rev-3 and Cluster E rev-1 precedent) — Cluster E already established two-opinion architectural coverage on the underlying `[8/8]` gate + `PinGitAutoGCOff` helper; E-prime is doc-comment + gate-hygiene refinement on top of that foundation.
+
+**Constraints unchanged**: explicit `git add <path>`, `git commit -F` never inline heredoc, Side Research md5 preserved, canonical Cluster state field touched only by supervisor at wave transitions.
+
+**Cluster state**: `REV-0 DISPATCHED`.
+
+---
+
 ## 2026-08-04 — Cluster E process housekeeping — SHIPPED (one review rev + rev-1 fold)
 
 **Range**: `1bc2a25..b294d8c` (6 commits: 2 rev-0 impl + 2 rev-1 impl + 2 supervisor tracking).
