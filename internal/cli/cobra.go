@@ -322,6 +322,13 @@ func statusCmd() *cobra.Command {
 				}
 				type featureWithFreshness struct {
 					store.FeatureStatus
+					// Rejection SHADOWS the embedded
+					// FeatureStatus.Rejection (depth 0 wins in
+					// encoding/json) so the wire form is the dedicated
+					// PRD §8 DTO rather than the internal struct's own
+					// field names — `rejected_by`, not `actor`
+					// (Cluster F' rev-1, F-INT-2).
+					Rejection             *rejectionStatusView   `json:"rejection,omitempty"`
 					FreshnessLabel        store.ReconcileLabel   `json:"freshness_label,omitempty"`
 					RenderedLabels        []store.ReconcileLabel `json:"labels_rendered,omitempty"`
 					DependentBroken       bool                   `json:"dependent_broken,omitempty"`
@@ -347,6 +354,7 @@ func statusCmd() *cobra.Command {
 					}
 					rendered[i] = featureWithFreshness{
 						FeatureStatus:         f,
+						Rejection:             newRejectionStatusView(f),
 						FreshnessLabel:        fl,
 						RenderedLabels:        labels,
 						DependentBroken:       len(brokenJSON) > 0,

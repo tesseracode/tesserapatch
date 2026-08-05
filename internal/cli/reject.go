@@ -359,6 +359,62 @@ func runReject(cmd *cobra.Command, slug string) error {
 	return nil
 }
 
+// ─── status --json DTO (PRD §8) ──────────────────────────────────────────────
+//
+// `tpatch status --json` must not marshal store.RejectionStatus
+// directly: its Go-side field names (`actor`, `note`) are internal and
+// do not match the wire contract PRD §8 fixes (`rejected_by`, `note`).
+// These view types are the sole renderer of the `rejection` object, and
+// they are deliberately decoupled from the store struct so a future
+// internal rename cannot silently break the envelope (Cluster F' rev-1,
+// F-INT-2).
+
+// evidenceRefView is the PRD §8 wire form of one evidence element.
+type evidenceRefView struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+
+// rejectionStatusView is the PRD §8 `rejection` object. Field order and
+// names are taken verbatim from the §8 `tpatch status --json` example.
+type rejectionStatusView struct {
+	Reason     string             `json:"reason"`
+	Evidence   []evidenceRefView  `json:"evidence,omitempty"`
+	Note       string             `json:"note"`
+	RejectedAt time.Time          `json:"rejected_at"`
+	RejectedBy string             `json:"rejected_by"`
+	PriorState store.FeatureState `json:"prior_state"`
+	Related    any                `json:"related"`
+}
+
+// newRejectionStatusView renders the `rejection` object for a feature,
+// or nil when it must be omitted. PRD §8: the object is present ONLY
+// when `state == "rejected"`. After a reopen the live record is cleared
+// and the feature is back on its own lifecycle, so no `rejection`
+// object is emitted — the completed cycle is in `rejection_history`.
+func newRejectionStatusView(f store.FeatureStatus) *rejectionStatusView {
+	if f.State != store.StateRejected || f.Rejection == nil {
+		return nil
+	}
+	r := f.Rejection
+	ev := make([]evidenceRefView, 0, len(r.Evidence))
+	for _, e := range r.Evidence {
+		ev = append(ev, evidenceRefView{Path: e.Path, SHA256: e.SHA256})
+	}
+	if len(ev) == 0 {
+		ev = nil
+	}
+	return &rejectionStatusView{
+		Reason:     r.Reason,
+		Evidence:   ev,
+		Note:       r.Note,
+		RejectedAt: r.RejectedAt,
+		RejectedBy: r.Actor,
+		PriorState: r.PriorState,
+		Related:    nullableString(r.Related),
+	}
+}
+
 // ─── shared helpers ──────────────────────────────────────────────────────────
 
 // exitCodeOf maps an error to the JSON envelope's `exit_code` field.

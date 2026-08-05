@@ -1063,6 +1063,116 @@ func TestStatusJSON_RejectedHiddenCount(t *testing.T) {
 	}
 }
 
+// `status --json --include-rejected` renders the `rejection` object via
+// the dedicated PRD §8 DTO — NOT by marshalling store.RejectionStatus,
+// whose internal field names (`actor`) differ from the wire contract
+// (`rejected_by`). Cluster F' rev-1, F-INT-2.
+func TestStatusJSON_RejectionDTOMatchesSpecFieldNames(t *testing.T) {
+	dir, _ := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateAnalyzed})
+	rejectAlpha(t, dir, "--related", "GH#41")
+
+	out, _, code := runRJ("status", "--path", dir, "--json", "--include-rejected")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("bad JSON: %v\n%s", err, out)
+	}
+	feats, _ := env["features"].([]any)
+	var alpha map[string]any
+	for _, f := range feats {
+		if m, ok := f.(map[string]any); ok && m["slug"] == "alpha" {
+			alpha = m
+		}
+	}
+	if alpha == nil {
+		t.Fatalf("alpha missing from --include-rejected listing:\n%s", out)
+	}
+	rej, ok := alpha["rejection"].(map[string]any)
+	if !ok {
+		t.Fatalf("rejection object missing: %v", alpha["rejection"])
+	}
+	// Exactly the PRD §8 key set — no more, no less.
+	wantKeys := map[string]bool{
+		"reason": true, "evidence": true, "note": true,
+		"rejected_at": true, "rejected_by": true, "prior_state": true, "related": true,
+	}
+	for k := range rej {
+		if !wantKeys[k] {
+			t.Errorf("rejection object carries non-spec key %q: %v", k, rej)
+		}
+	}
+	for k := range wantKeys {
+		if _, present := rej[k]; !present {
+			t.Errorf("rejection object missing spec key %q: %v", k, rej)
+		}
+	}
+	// The internal field name must never leak.
+	if _, leaked := rej["actor"]; leaked {
+		t.Errorf("internal field name `actor` leaked into the envelope: %v", rej)
+	}
+	if rej["rejected_by"] != "rejector@example.com" {
+		t.Errorf("rejected_by = %v", rej["rejected_by"])
+	}
+	if rej["reason"] != "premise-disproved" || rej["prior_state"] != "analyzed" {
+		t.Errorf("rejection = %v", rej)
+	}
+	if rej["related"] != "GH#41" {
+		t.Errorf("related = %v", rej["related"])
+	}
+	ev, ok := rej["evidence"].([]any)
+	if !ok || len(ev) != 1 {
+		t.Fatalf("evidence = %v", rej["evidence"])
+	}
+	e0 := ev[0].(map[string]any)
+	if e0["path"] != "analysis.md" || e0["sha256"] != sha256Of(t, "evidence for alpha\n") {
+		t.Errorf("evidence[0] = %v", e0)
+	}
+}
+
+// Post-reopen there is no live rejection, so the envelope carries NO
+// `rejection` object — only the completed-cycle `rejection_history`.
+func TestStatusJSON_NoRejectionObjectAfterReopen(t *testing.T) {
+	dir, _ := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateAnalyzed})
+	rejectAlpha(t, dir)
+	if _, _, code := runRJ("reopen", "alpha", "--path", dir, "--note", "back"); code != 0 {
+		t.Fatal("reopen failed")
+	}
+
+	out, _, code := runRJ("status", "--path", dir, "--json")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("bad JSON: %v\n%s", err, out)
+	}
+	feats, _ := env["features"].([]any)
+	var alpha map[string]any
+	for _, f := range feats {
+		if m, ok := f.(map[string]any); ok && m["slug"] == "alpha" {
+			alpha = m
+		}
+	}
+	if alpha == nil {
+		t.Fatalf("a reopened feature must be back in the default listing:\n%s", out)
+	}
+	if _, present := alpha["rejection"]; present {
+		t.Errorf("no `rejection` object may be emitted for a non-rejected feature: %v", alpha["rejection"])
+	}
+	hist, ok := alpha["rejection_history"].([]any)
+	if !ok || len(hist) != 1 {
+		t.Fatalf("rejection_history = %v", alpha["rejection_history"])
+	}
+	h0 := hist[0].(map[string]any)
+	for _, k := range []string{"rejected_at", "rejected_by", "reason", "reject_note", "reopened_at", "reopened_by", "reopen_note"} {
+		if _, present := h0[k]; !present {
+			t.Errorf("history entry missing %q: %v", k, h0)
+		}
+	}
+}
+
 // The per-feature detail view is never filtered (PRD §3.7).
 func TestStatus_FeatureDetailAlwaysShowsRejection(t *testing.T) {
 	dir, _ := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateAnalyzed})
