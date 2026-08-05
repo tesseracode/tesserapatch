@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: REV-1 DISPATCHED
 
 **WAVE_BASE**: `1bc2a25` (Cluster E process housekeeping dispatch, 2026-08-04).
 

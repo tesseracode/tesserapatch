@@ -1,3 +1,44 @@
+## 2026-08-04 — Cluster E rev-0 dual review — ADJUDICATION → rev-1
+
+**Two-opinion outcomes**:
+- **Internal** (`cluster-e-rev0-internal`, gpt-5.6-sol, high): **APPROVED** — no significant issues.
+- **External** (`cluster-e-rev0-external`, claude-opus-4.8, high): **APPROVED WITH NOTES** — 1 MEDIUM finding + 2 non-blocking notes.
+
+**Internal + external empirical validation** (converging):
+- F1 gate `[8/8] go test -count=1 ./...` runs correctly, semantics correct (`fail=1` non-short-circuit, `tail -40` on failure, not `-short`), renumbering complete across Makefile + AGENTS.md, no stale `[N/7]` in live docs (only in HISTORY/LOG archives quoting pre-fix state — correct), no Rule 17 totality residual introduced.
+- F2 root cause verified via `GIT_TRACE2_EVENT=1`: unpinned `git commit` (git 2.55) forks `maintenance --auto --detach` background writer that races `t.TempDir()` teardown. Pin `gc.auto=0` completely suppresses the fork (0 trace lines across pinned commits). `GIT_CONFIG_*` env inheritance to `exec.Cmd` children confirmed. `os.Setenv` in `TestMain` before `m.Run()` is process-wide.
+- Rule 18 trailers × 2 commits = 4 ✓. Pushed (`origin/main..HEAD` = 0) ✓. Side Research md5 preserved ✓. Cluster state untouched by implementer ✓.
+- External stress: 7 clean full-suite runs. Gate total 2m30s (< 5min threshold).
+
+**External-only finding** — **E-EXT-1 MEDIUM**: F2 fix is package-scoped to `internal/cli/TestMain`. `internal/gitutil`, `internal/workflow`, `internal/store` all run `git commit` under `t.TempDir()` with **no** `gc.auto=0` pin and no `TestMain`. Each test binary is its own process, so `internal/cli`'s pin does not cover them. F1's new `[8/8]` gates on all packages under cross-package `-p` contention — a teardown flake in any sibling package would spuriously FAIL the gate, reintroducing gate unreliability (the exact goal F2 was meant to close). Fail-safe (spurious FAIL, not false PASS) and unreproduced on external's hardware, so not a rev-0 blocker — but concrete gap that should fold before wave close.
+
+Empirical evidence (external's grep):
+```
+$ grep -rn "func TestMain\|GIT_CONFIG\|gc.auto" internal/gitutil internal/workflow internal/store
+(no output — none pinned)
+$ grep -rln '"commit"' internal/gitutil/*_test.go   # 5 files
+$ grep -rln '"commit"' internal/workflow/*_test.go  # 5 files
+$ grep -rln '"commit"' internal/store/*_test.go     # 2 files
+```
+
+**Adjudication**: Side with external. Race fixes are the class most often incompletely scoped, and F2's stated goal ("reliable gate signal") is not met if F1 gates on packages where the race is unpinned. Fold via **shared `internal/testutil` helper** — durable answer that also covers any future git-using test package. This is the same shape as Cluster D rev-1 R1 (bespoke parser → canonical helper): eliminate divergence class, not just add points-of-use pins.
+
+**External non-blocking notes** (recorded, not folded):
+- **N1**: External could not reproduce pre-fix flake on their macOS hardware — 8/8 clean pre-fix. `GIT_TRACE2` mechanism proof is sufficient evidence the pin removes the race window. Recorded as timing/hardware sensitivity, not fix invalidation.
+- **N2**: Gate timing went from near-instant to ~2m30s. Under threshold; operational note only.
+
+**Rev-1 brief**:
+1. Create `internal/testutil/gitpin.go` exposing `PinGitAutoGCOff()` — sets the three `GIT_CONFIG_*` env vars process-wide via `os.Setenv`.
+2. Add `TestMain(m *testing.M)` to `internal/gitutil`, `internal/workflow`, `internal/store` that calls `testutil.PinGitAutoGCOff()` before `m.Run()`.
+3. Refactor `internal/cli/TestMain` to call the shared helper (keeping XDG_CONFIG_HOME setup as-is).
+4. Empirical validation: stress `go test -count=1 -p 8 -parallel 8 ./...` × 5 clean; `make wave-close-check WAVE_BASE=1bc2a25` still 8/8 semantics correct (Cluster state check will still fail mid-cycle — expected).
+5. Non-goals: no functional test changes; no new tests unless helper needs one; no Skip.
+6. Discipline invariants (unchanged): Rule 18 trailers, `git commit -F <tempfile>`, explicit `git add <path>`, no touching canonical Cluster state field, Side Research md5 preserved.
+
+**Cluster state**: `REV-1 DISPATCHED`.
+
+---
+
 ## 2026-08-04 — Cluster E process housekeeping — DISPATCHED (rev-0)
 
 **Post-Cluster-D external review verdict — APPROVED WITH NOTES.** Reviewer validated both prior post-Cluster-C findings CLOSED empirically:
