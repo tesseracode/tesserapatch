@@ -1,3 +1,35 @@
+## 2026-08-05 — Cluster E-prime post-Cluster-E hygiene follow-up — SHIPPED (external-only rev-0)
+
+**Range**: `2281309..aa34f3c` (3 commits: 2 impl + 1 supervisor dispatch tracking).
+
+**Protocol**: external-only rev-0 confirmation. Precedent: single-issue empirical follow-up shape when the underlying architecture has already had two-opinion coverage (Cluster D rev-2/rev-3, Cluster E rev-1). Cluster E rev-0/rev-1 established dual coverage of `[8/8] go test` gate step and `PinGitAutoGCOff` helper; E-prime is doc-comment + gate-hygiene refinement on top of that foundation.
+
+**External review** (`cluster-eprime-rev0-external`, claude-opus-4.8, high): **APPROVED WITH NOTES** — 1 LOW (E'-N1) deferred to backlog per reviewer's explicit "not required for this rev to ship" assessment.
+
+**Landed**:
+- **Obs 1** (`4ac4743`) — `internal/testutil/gitpin.go` comment clarifies that `PinGitAutoGCOff` unconditionally sets `GIT_CONFIG_COUNT=1`, discarding any pre-existing `GIT_CONFIG_KEY_N/VALUE_N` entries; forward-compat guidance included (read-and-append extension if a real second-key need materializes). Mechanism unchanged. External Rule 17 check: no new totality claim; `grep GIT_CONFIG_KEY` outside gitpin.go returns nothing (verified assumption still holds).
+- **Obs 2** (`aa34f3c`) — `.wave-close-allowlist` at repo root with 16 initial-seed entries (8 whitepapers + 2 PRDs + 5 case-study files + 1 dependency-analysis; grouped by category with `#` header comments). Makefile `[2/8]` step subtracts allowlisted entries from WARN list via `git ls-files --others -- $allow_patterns` + `grep -Fxf` fixed-string whole-line match; prints `OK (N entries allowlisted)` when residual empty, `WARN: M untracked files not in allowlist (N allowlisted)` otherwise. AGENTS.md Wave-Close Checklist sync: new bullet on allowlist growth as manual-review scope-check + Mechanical-gate paragraph updated to describe the subtraction semantics.
+
+**Empirical validation** (all confirmed by external independently):
+- Baseline: `[2/8] OK (16 entries allowlisted)`.
+- Negative-case dogfood: `touch docs/adrs/scratch.md` → `WARN: 1 untracked files not in allowlist (16 allowlisted): docs/adrs/scratch.md`; `rm docs/adrs/scratch.md` → `OK`.
+- Glob-vs-literal: reviewer added `docs/adrs/scratch.md` to allowlist, verified `scratch.md.longer.md` and `scratchXmd.md` still surfaced in residual — no regex/glob accident.
+- Full suite green (`[8/8]` self-dogfood): 0 FAIL across `assets`, `buildinfo`, `cli`, `gitutil`, `provider`, `safety`, `store`, `studyvalidator`, `workflow`, `tests/integration`.
+- Rule 18 trailers × 2 impl commits = 4 ✓. Pushed (`origin/main..HEAD` = 0) ✓. Side Research md5 `b385fe622db9926f48861105239f113e` preserved ✓. Cluster state canonical field touched only by supervisor at wave transitions ✓.
+
+**Deferred to backlog — E'-N1 LOW** (reviewer's explicit assessment: "Not required for this rev to ship"):
+- `.wave-close-allowlist` stale-entry bitrot is silent. Entries whose files land (via `git add`) or delete are silently ignored by the gate — no active flagging, no protocol coverage for pruning in AGENTS.md. Passive signal only via `(N entries allowlisted)` count trend. Mitigation options: (a) active stale-entry sub-check reporting patterns matching zero untracked files; (b) extend AGENTS.md checklist to require pruning when a file lands/deletes. Fold into Cluster F pre-flight or next hygiene cluster if allowlist grows beyond the initial 16-entry seed. Rationale for deferral: reviewer explicitly framed E'-N1 as a "latent maintainability gap the reviewer asked to be assessed", not a functional defect; Cluster E-prime was explicitly a small hygiene cluster to close nag-noise — folding every LOW-severity reviewer suggestion into rev-1 would re-create the perpetual-hygiene-loop pattern the cluster set out to close.
+
+**Structural upshot**: `[2/8]` untracked sentinel is no longer background noise. Real forgotten-`git add` mistakes now stand out cleanly against a documented allowlist of accepted WIP. The gate's forgotten-add sentinel purpose is restored. Combined with Cluster E's `[8/8] go test` and cross-package `gc.auto=0` pin, the wave-close gate is now genuinely signal-rich.
+
+**Precedent extensions**:
+- **External-only rev-0 confirmation validated for hygiene-scope clusters** — proportionate protocol when the underlying architectural coverage was established in a prior wave (Cluster E) and the follow-up is doc/config refinement on top. Prior precedent (Cluster D rev-2/rev-3) was intra-wave; E-prime extends the shape to cross-wave hygiene follow-ups.
+- **Reviewer's "not required to ship" self-classification honored as supervisor deferral signal** — reviewers can explicitly flag findings as "assess but not required" and supervisor treats that as valid deferral rationale. Prevents Cluster D's "3 iterations on the same clause" pattern from being re-invoked by LOW-severity documentation notes.
+
+**Cluster state**: `SHIPPED`.
+
+---
+
 ## 2026-08-05 — Cluster E-prime post-Cluster-E follow-up — DISPATCHED (rev-0)
 
 **Post-Cluster-E external review verdict** — **APPROVED WITH NOTES**. Reviewer confirmed both prior post-Cluster-D findings (F1 gate `[8/8] go test`, F2 gc.auto pin) empirically CLOSED — F2 called out as "genuinely good root-cause diagnosis" (identified `git maintenance --auto --detach` fork rather than papering over the ENOTEMPTY symptom). E-EXT-1 rev-1 fold verified complete: reviewer independently confirmed all three git-spawning packages (`cli`, `gitutil`, `workflow`) have the pin, `store` has it defensively, and `tests/integration` doesn't spawn git.

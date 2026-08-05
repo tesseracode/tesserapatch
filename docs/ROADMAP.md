@@ -549,6 +549,21 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## Cluster E-prime — 2026-08-05 — post-Cluster-E hygiene follow-up (Obs 1 doc + Obs 2 ALLOWLIST) ✅ SHIPPED
+
+Tiny process-hygiene follow-up cluster closing two LOW observations from external's post-Cluster-E review. Single implementer, external-only rev-0 confirmation (proportionate protocol for cross-wave doc/config refinement on already-shipped mechanism).
+
+- **Obs 1 LOW** (`4ac4743`) — `internal/testutil/gitpin.go` doc comment clarifies that `PinGitAutoGCOff` unconditionally sets `GIT_CONFIG_COUNT=1`, silently discarding any pre-existing `GIT_CONFIG_KEY_N/VALUE_N` env entries. Forward-compat guidance included. Mechanism unchanged.
+- **Obs 2 LOW** (`aa34f3c`) — `.wave-close-allowlist` at repo root, 16 initial-seed entries covering current WIP whitepapers/PRDs/case studies. Makefile `[2/8]` gate step subtracts allowlisted entries from WARN list; prints `OK (N entries allowlisted)` when residual empty, `WARN: M untracked files not in allowlist` otherwise. AGENTS.md Wave-Close Checklist synced.
+
+**Deferrals** (backlog, no fold): **E'-N1 LOW** — allowlist stale-entry bitrot is silent. Reviewer explicitly framed as "not required for this rev to ship". Two mitigation options recorded (active sub-check OR AGENTS.md pruning discipline). Fold when allowlist grows beyond initial 16-entry seed.
+
+**Range**: `2281309..aa34f3c` (3 commits).
+
+**Precedent extensions**: (a) external-only rev-0 confirmation validated for **cross-wave** hygiene-scope clusters (prior precedent was intra-wave only); (b) reviewer's "not required to ship" self-classification is now a recognized supervisor deferral signal, preventing the Cluster D "3-iteration on same clause" pattern from being re-invoked by LOW-severity docs on already-shipped mechanisms.
+
+**Structural upshot**: `[2/8]` sentinel is no longer background noise; combined with Cluster E's `[8/8] go test` + cross-package `gc.auto=0` pin, wave-close gate signal is now genuinely actionable — every WARN or FAIL means something. Sets clean floor for Cluster F.
+
 ## Cluster E — 2026-08-04 — process housekeeping (F1 gate go test + F2 gc.auto pin) ✅ SHIPPED
 
 Process housekeeping wave before Cluster F (v0.13.0 GH #6) generates high-throughput feature-close cycles. Two findings from external's post-Cluster-D review + 1 rev-1 fold. Single implementer, sequential. **1 review rev + rev-1 fold**.

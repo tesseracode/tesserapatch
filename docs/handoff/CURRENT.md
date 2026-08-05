@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: SHIPPED
 
-**WAVE_BASE**: `2281309` (Cluster E-prime post-review follow-up dispatch, 2026-08-05).
+**WAVE_BASE**: none (idle — next TBD Cluster F = v0.13.0 GH #6).
 
-**2026-08-05 Cluster E-prime DISPATCHED (post-Cluster-E review follow-up).** Two non-blocking observations from external's post-Cluster-E review folded into a small process-hygiene cluster before Cluster F. Scope: Obs 1 (`PinGitAutoGCOff` doc comment — clarify that it unconditionally sets `GIT_CONFIG_COUNT=1`, clobbering any pre-existing env-config entries; "idempotent" wording is accurate only re: repeated self-calls); Obs 2 (`[2/8]` untracked sentinel becoming background noise — 3 clusters of same 16-file WARN; add explicit ALLOWLIST mechanism so unresolved WIP is documented rather than perpetually warned). Reviewer suite-run caveat closed independently by supervisor: `go test -count=1 ./...` at HEAD `2281309` completed green across all packages.
+**2026-08-05 Cluster E-prime SHIPPED (post-Cluster-E hygiene follow-up).** Two LOW observations from external's post-Cluster-E review folded. Scope: Obs 1 (`PinGitAutoGCOff` doc comment clarifying unconditional `GIT_CONFIG_COUNT=1` clobber semantics; mechanism unchanged); Obs 2 (`.wave-close-allowlist` at repo root — Makefile `[2/8]` subtracts allowlisted entries from WARN list; prints `OK (N entries allowlisted)` when residual is empty; residual still WARNs). Two-opinion scoreboard: external-only rev-0 confirmation (APPROVED WITH NOTES — 1 LOW E'-N1: stale-entry bitrot silent, deferred to backlog per reviewer's "not required for this rev to ship" explicit assessment). Reviewer confirmed suite green + gate self-dogfood + negative-case + glob-vs-literal + AGENTS.md sync all empirically valid. Range `2281309..aa34f3c`.
 
 **2026-08-04 Cluster E SHIPPED (process housekeeping).** Two findings from external's post-Cluster-D review + 1 rev-1 fold. Scope: F1 MEDIUM (`make wave-close-check` never ran `go test` — gate PASSed with red suite empirically demonstrated at Cluster D HEAD; fixed by adding `[8/8] go test -count=1 ./...`), F2 LOW (`t.TempDir()` teardown race on macOS from unpinned `git commit` forking `gc --auto --detach`; fixed by `gc.auto=0` env pin), E-EXT-1 MEDIUM rev-1 fold (F2 pin was `internal/cli`-only; extracted `internal/testutil.PinGitAutoGCOff()` and applied to `internal/gitutil`, `internal/workflow`, `internal/store`). Two-opinion scoreboard: rev-0 dual (internal APPROVED, external APPROVED WITH NOTES 1 MEDIUM), rev-1 external-only confirmation (APPROVED WITH NOTES — 2 non-functional commit-message accuracy notes, no code defects). Range `1bc2a25..b294d8c`.
 
@@ -22,38 +22,7 @@
 
 ## Active Task
 
-**Cluster E-prime — Post-Cluster-E review follow-up (Obs 1 comment + Obs 2 ALLOWLIST).** Single implementer, sequential. WAVE_BASE `2281309`. Dispatched 2026-08-05.
-
-### Scope (2 non-blocking observations from post-Cluster-E external review)
-
-1. **Obs 1 — `PinGitAutoGCOff` idempotency doc gap.**
-   - Current doc comment (`internal/testutil/gitpin.go`) says "Idempotent and safe to call multiple times." True re: repeated self-calls, but the helper unconditionally sets `GIT_CONFIG_COUNT=1`, silently clobbering any pre-existing `GIT_CONFIG_*` entries.
-   - Fix: add a one-line clarification comment. Do NOT change the mechanism (nothing else sets `GIT_CONFIG_*` today; upgrading to read-and-append is overkill until a real second-key need materializes).
-   - Suggested wording: `// Note: unconditionally sets GIT_CONFIG_COUNT=1; any pre-existing GIT_CONFIG_KEY_N/VALUE_N entries in the environment are discarded. If a future test needs a second env-config key, this helper must be extended to read-and-append.`
-
-2. **Obs 2 — `[2/8]` untracked sentinel becoming background noise.**
-   - Three consecutive clusters (C, D, E) surfaced the same 16 untracked WIP files as WARN. Perpetual warnings train reviewers to skim past — defeating the sentinel's forgotten-`git add` purpose.
-   - Fix: add an ALLOWLIST mechanism to `Makefile` `wave-close-check` `[2/8]` step. Design:
-     - New file: `.wave-close-allowlist` at repo root. One glob (or literal path) per line. `#` comments allowed. Blank lines ignored.
-     - Gate behavior: subtract allowlist-matching entries from the untracked WARN list. If remaining WARN list is empty, print OK; else print WARN with the residual only. Show the allowlisted-entry count in the OK/WARN line for visibility.
-     - Initial seed: list the 16 currently-known WIP files, grouped by category with `#` comments (whitepapers, PRDs, state-of-the-art case studies).
-     - Reviewer discipline: reviewers must check that `.wave-close-allowlist` itself hasn't grown silently between clusters (this is a manual-checklist item, not a mechanical check).
-   - Update AGENTS.md Wave-Close Checklist to mention the allowlist as manual-review scope.
-
-### Constraints (per AGENTS.md)
-
-- Explicit `git add <path>` per commit; NEVER `-a`/`-A`/`<dir>/`.
-- `git commit -F /tmp/msg.txt` with Copilot + Copilot-Session trailers; never inline heredoc.
-- Side Research md5 `b385fe622db9926f48861105239f113e` MUST remain preserved on any CURRENT.md edit.
-- Do NOT touch canonical `**Cluster state**` field — supervisor flips at wave transitions.
-- Do NOT stage the 16 untracked WIP files (they're the ALLOWLIST seed, not new commits).
-
-### Non-goals
-
-- Do NOT touch v0.13.0 GH #6 scope — that's Cluster F.
-- Do NOT extend the ALLOWLIST beyond the 16 known WIP entries (that would be scope creep — future adds are operator decisions).
-- Do NOT convert Obs 1 into a mechanism change (read-and-append `GIT_CONFIG_*` merge). Comment only.
-- Do NOT modify the `[8/8]` go test step or other gate checks.
+**IDLE** — Cluster E-prime shipped 2026-08-05. Next: **Cluster F — v0.13.0 GH #6 first-class rejected feature state** (planning-first, PRD + ADR pair). Only remaining open GH issue.
 
 ## Session Summary
 
@@ -65,6 +34,7 @@
 - **Cluster C** (parallel-implementer discipline + `make wave-close-check` mechanical gate) — shipped at `4868f68` after 4 review revs.
 - **Cluster D** (correctness housekeeping — 6 backlog items + 2 review-fold items) — shipped 2026-08-03 after 4 review revs. Range `4868f68..42f85d7`.
 - **Cluster E** (process housekeeping — F1 gate `[8/8] go test` coverage + F2 macOS teardown race via `gc.auto=0` pin extracted to shared `internal/testutil` helper) — shipped 2026-08-04 after 1 rev-1 fold (E-EXT-1 cross-package pin). Range `1bc2a25..b294d8c`.
+- **Cluster E-prime** (post-Cluster-E review follow-up — Obs 1 `PinGitAutoGCOff` doc comment + Obs 2 `.wave-close-allowlist` mechanism for `[2/8]` gate step) — shipped 2026-08-05 external-only rev-0 APPROVED WITH NOTES. Range `2281309..aa34f3c`.
 
 ## Files Changed at v0.12.1 Consolidation
 
@@ -83,10 +53,13 @@
 
 ## Next Steps
 
-**Backlog after Cluster E**:
+**Backlog after Cluster E-prime**:
 
 Feature / release:
 - **Cluster F — v0.13.0 GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger planning-first cluster. Only remaining open GH issue.
+
+Deferred from Cluster E-prime rev-0 external review (documented, no fold — reviewer's explicit "not required for this rev to ship"):
+- **E'-N1 LOW** — `.wave-close-allowlist` stale-entry bitrot is silent. Allowlist entries whose files land (via `git add`) or delete are silently ignored — no active flagging in gate, no protocol coverage in AGENTS.md pruning guidance. Passive signal only via `(N entries allowlisted)` count trend. Two fix options: (a) active stale-entry sub-check reporting patterns matching zero untracked files as "candidate for removal"; (b) extend AGENTS.md checklist bullet to require pruning when a file lands/deletes. Fold into Cluster F pre-flight or next hygiene cluster if allowlist grows beyond initial 16 seed.
 
 Deferred from Cluster D adjudication (documented, no fold):
 - **D-INT-2** (`--from-revision <original>` post-crash "superseded" error) — PRD-#4 lines 180/259 document the flag as CI/test override, not the crash-recovery path. Default retry works (external Rule 20 verified). Backlog if operator friction surfaces.

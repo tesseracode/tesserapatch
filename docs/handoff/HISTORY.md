@@ -1,3 +1,34 @@
+# 2026-08-05 — Cluster E-prime post-Cluster-E hygiene follow-up — SHIPPED
+
+**Range**: `2281309..aa34f3c` (3 commits: 2 impl + 1 supervisor dispatch tracking).
+
+**Scope**: 2 LOW observations from external's post-Cluster-E review. Single implementer, sequential. External-only rev-0 confirmation.
+
+**Two-opinion protocol scoreboard**: external-only rev-0 (`cluster-eprime-rev0-external`, claude-opus-4.8, high) **APPROVED WITH NOTES** — 1 LOW (E'-N1 stale-allowlist-entry bitrot silent) deferred to backlog per reviewer's explicit "not required for this rev to ship" self-classification.
+
+**Landed**:
+- **Obs 1** (`4ac4743`) — `internal/testutil/gitpin.go` doc comment clarifies unconditional `GIT_CONFIG_COUNT=1` clobber semantics; "idempotent" wording now accurate re: repeated self-calls AND re: env-config precedent. Forward-compat guidance included. Mechanism unchanged.
+- **Obs 2** (`aa34f3c`) — `.wave-close-allowlist` at repo root, 16 initial-seed entries grouped by category. Makefile `[2/8]` gate step subtracts allowlisted entries from WARN list via `git ls-files --others -- $allow_patterns` + `grep -Fxf` fixed-string whole-line match. Prints `OK (N entries allowlisted)` when residual empty; `WARN: M untracked files not in allowlist (N allowlisted)` otherwise. AGENTS.md Wave-Close Checklist synced with new bullet on allowlist-growth manual review scope-check.
+
+**Deferrals** (documented, no fold — backlog):
+- **E'-N1 LOW** — stale-allowlist-entry bitrot silent. Allowlist entries whose files land (via `git add`) or delete produce no gate signal beyond a passive `(N entries allowlisted)` count drop. Reviewer's mitigation options: (a) active sub-check flagging patterns matching zero untracked files as "candidate for removal", or (b) extend AGENTS.md checklist to require pruning when file lands/deletes. Deferred rationale: reviewer explicitly framed as "latent maintainability gap the reviewer asked to be assessed", not functional defect. Cluster E-prime was explicitly a small hygiene cluster to close nag-noise; folding every LOW-severity reviewer suggestion into rev-1 would reintroduce the perpetual-hygiene-loop pattern E-prime set out to close. Fold into Cluster F pre-flight or next hygiene cluster if allowlist grows beyond initial 16-entry seed.
+
+**Non-invalidation invariants** held throughout:
+- Rule 18 trailers × 2 impl commits = 4 (2 trailers × 2 commits) ✓.
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved on every CURRENT.md edit ✓.
+- Cluster state canonical field touched only by supervisor at wave transitions ✓.
+- `origin/main..HEAD` = 0 after every commit; pushed on every commit ✓.
+
+**Precedent extensions**:
+- **External-only rev-0 confirmation validated for cross-wave hygiene-scope clusters.** Prior precedent (Cluster D rev-2/rev-3, Cluster E rev-1) was intra-wave single-issue follow-up. E-prime extends the shape to cross-wave hygiene follow-ups where the underlying architectural coverage was established in a prior wave and the follow-up is doc/config refinement on top.
+- **Reviewer's "not required to ship" self-classification is a valid supervisor deferral signal.** Reviewers can now explicitly flag findings as "assess but not required" and supervisor treats that as legitimate deferral rationale. Prevents the Cluster D "3 iterations on the same clause" pattern from being re-invoked by LOW-severity documentation notes on already-shipped mechanisms.
+
+**Structural upshot**: the `[2/8]` untracked sentinel is no longer background noise. Real forgotten-`git add` mistakes now stand out cleanly against a documented allowlist of accepted WIP. Combined with Cluster E's `[8/8] go test` coverage and cross-package `gc.auto=0` pin, the wave-close gate is now genuinely signal-rich — every WARN or FAIL is actionable.
+
+**Final gate at consolidation**: `make wave-close-check WAVE_BASE=2281309` — all 8/8 mechanical checks PASS. `[2/8] OK (16 entries allowlisted)`. `[5/8]` will PASS after this consolidation commit sets Cluster state to `SHIPPED`.
+
+---
+
 # 2026-08-04 — Cluster E process housekeeping — SHIPPED
 
 **Range**: `1bc2a25..b294d8c` (6 commits: 2 rev-0 impl + 2 rev-1 impl + 2 supervisor tracking).
