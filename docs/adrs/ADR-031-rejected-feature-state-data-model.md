@@ -42,6 +42,9 @@ pre-v0.13.0 `status.json` files is guaranteed.
 - **D8** *(rev-1 fold, F-INT-5)*: Dependency edge creation guard against rejected parents — can a new
   `depends_on` edge (`hard`/`soft`/`supersedes`) be created pointing at an already-`rejected` parent?
 - **D9** *(rev-1 fold, F-INT-6)*: Actor provenance mechanism for `rejected_by`/`reopened_by`
+- **D10** *(rev-5 fold, post-Cluster-F external F1 LOW-MEDIUM)*: Naming disposition for the top-level
+  `tpatch reject` verb given the pre-existing `tpatch reconcile --reject <slug>` flag on an adjacent
+  surface (same verb, different noun scope, opposite permanence)
 
 ## 3. Decisions
 
@@ -883,6 +886,106 @@ username/hostname (Alternative 3, privacy concern).
 `reject` (`rejected_by`) and `reopen` (appended as the `history[]` entry's actor field, D5), with unit
 tests for each precedence tier and the final `"unknown"` fallback (PRD §9).
 
+### D10: Naming disposition for the `tpatch reject` verb *(rev-5 fold, post-Cluster-F external F1 LOW-MEDIUM)*
+
+> Post-Cluster-F external review flagged that `tpatch reconcile --reject <slug>` already exists as a
+> flag on the `reconcile` command (`internal/cli/cobra.go:2093`), with the meaning "prune a shadow
+> worktree and roll feature state back to `applied`" — a **transient, reversible action on a
+> shadow-worktree resource**. This ADR (D1–D5) proposes `tpatch reject <slug>` as a **new top-level
+> command** with the meaning "mark a feature permanently `rejected`" — a **terminal lifecycle state
+> transition on the feature itself**. Same verb, opposite permanence, on adjacent reconcile-family
+> surfaces. Rev-4's paper package contained no acknowledgment of the collision; the external reviewer
+> asked that the disposition either rename the new command or document the choice.
+
+**Alternative 1**: Rename to `tpatch feature reject <slug>` / `tpatch feature reopen <slug>` to sit
+under the existing `tpatch feature <subcommand>` group (`internal/cli/feature_deps.go:41-49`,
+`featureCmd`), which already houses `feature deps` and `feature patch`.
+
+Pros: eliminates the verb-level collision with `reconcile --reject` at the command surface entirely;
+the two `reject` mentions live on different command paths (`reconcile --reject` vs.
+`feature reject`) so shell autocompletion, `--help` output, and documentation grep never conflate them.
+
+Cons: **contradicts PRD §4's already-articulated rationale for form (a)** and the established shape
+of the `feature` group. Every existing lifecycle-phase transition in tpatch (`analyze`, `define`,
+`explore`, `implement`, `apply`, `record`, `land`, `reconcile`, `amend`, `remove`, `next`) is a
+**top-level verb** (`internal/cli/cobra.go:60-80`, `buildRootCmd`); `reject`/`reopen` are exactly this
+kind of transition and belong alongside them. The `tpatch feature <subcommand>` group is reserved for
+**noun-scoped per-feature management** (`deps`, `claim`, `patch`) — `feature deps <slug> add <parent>`
+follows the shape `feature <noun> <slug> <verb>` (`internal/cli/feature_deps.go:52-56`, doc comment
+explicitly explains this ordering). Retrofitting a lifecycle verb (`reject`) as a sub-verb under
+`feature` (either as `feature reject <slug>` or `feature <slug> reject`) breaks that shape and reads
+as a generic escape hatch around lifecycle verbs — precisely the shape `amend --state` was deliberately
+reserved against (`internal/cli/c1.go:276-284`, `validateAmendStateFlag`: "Lifecycle states are owned
+by other verbs (add/analyze/define/explore/implement/apply/reconcile)"). Renaming here to dodge a
+flag-vs-command collision would introduce a lifecycle-vs-noun-scope collision instead — a worse
+category error at the CLI-shape level.
+
+**Alternative 2**: Rename to a synonym that avoids the verb entirely (`tpatch retire`,
+`tpatch mark-rejected`, `tpatch decline`, etc.).
+
+Pros: no collision with any existing surface; each candidate reads as its own distinct action.
+
+Cons: none of the candidates are stronger than `reject` at conveying the intended meaning ("this
+feature will not be implemented"). `retire` overlaps with the post-implementation retirement semantics
+that D6 explicitly out-of-scopes (a `retire` verb would be actively misleading given D6's stance).
+`mark-rejected` is verbose and non-idiomatic for a lifecycle transition (no other lifecycle verb in
+this codebase is a compound noun). `decline` is fine but adds no clarity `reject` lacks. Trading a
+minor same-verb-different-noun-scope disambiguation cost for a permanently weaker CLI verb is a bad
+trade.
+
+**Alternative 3**: **Keep bare `tpatch reject` / `tpatch reopen`** (form (a) as PRD §4 already selected),
+and document the collision here with an explicit statement that the two surfaces are **intentionally
+unrelated** and neither should be renamed.
+
+Pros: preserves PRD §4's lifecycle-verb convention (see Alternative 1's cons for why this convention
+matters). The two surfaces are on **different command paths** (`tpatch reconcile --reject SLUG` is a
+flag on a subcommand; `tpatch reject SLUG` is a distinct top-level command); shell autocompletion,
+`--help` output, `SPEC.md` §4, and skill files all render them separately by structure, not just by
+verb text. Nothing in `reconcile --reject`'s implementation, semantics, or state-machine effect
+overlaps with `reject <slug>`: `reconcile --reject` operates on a **shadow-worktree resource** (prunes
+it, returns feature to `applied`); `tpatch reject <slug>` operates on the **feature's lifecycle state**
+(transitions to terminal `rejected`, refused from `applied`/`active`/`reconciling`/`reconciling-shadow`
+per §5). They can never fire on the same feature in the same state (see the D4 transition matrix and
+PRD §5) — so there is no operator scenario where the two surfaces are ambiguous in context.
+
+Cons: the surface-level verb reuse remains, and a first-time reader of the CLI may briefly assume the
+top-level `reject` command and the `reconcile --reject` flag are related. Documenting the intentional
+non-relationship here (and in PRD §4) is the mitigation.
+
+**Chosen**: **Alternative 3** (keep bare verbs, document intentional non-relationship).
+
+**Rationale**: PRD §4's rationale for top-level lifecycle verbs is load-bearing — every other lifecycle
+transition in this codebase is a top-level verb, the `feature` group is noun-scoped, and `amend --state`
+was deliberately reserved against retrofitting lifecycle transitions into other command groups. Renaming
+to satisfy a surface-level verb overlap would introduce a **worse** category error (lifecycle-vs-noun
+mismatch) than the one it fixes (same-verb-different-noun-scope on adjacent but structurally distinct
+command paths). The correct resolution is to **name the collision** so future readers, PRs, and CLI
+skills know the reuse is intentional and see the exact semantic difference — not to paper over the
+convention that produced it. This ADR is exactly where that permanent record belongs.
+
+**Consequences**:
+
+1. Cluster F' implements `tpatch reject <slug>` and `tpatch reopen <slug>` as top-level commands
+   registered on `buildRootCmd` (`internal/cli/cobra.go:60-80`), sibling to the other lifecycle verbs,
+   with no change to `tpatch reconcile --reject`'s existing shape or semantics.
+2. `SPEC.md` §4 (updated in Cluster F') documents both surfaces in the same section with a one-line
+   pointer between them: "`tpatch reject <slug>` — terminal lifecycle transition, distinct from
+   `tpatch reconcile --reject <slug>` which prunes a shadow worktree; see PRD-rejected-feature-state §4
+   and ADR-031 D10 for the intentional non-relationship."
+3. `--help` text for both surfaces gets a one-line cross-reference ("Not to be confused with
+   `tpatch reconcile --reject`, which operates on shadow worktrees; see `tpatch reject --help`" and
+   symmetric).
+4. The shipped skill files (`assets/skills/*.md`, whichever surface them) get the same one-line
+   disambiguation note next to whichever verb they teach first.
+5. If a future ADR ever proposes retiring `tpatch reconcile --reject` or renaming either surface, it
+   must cite D10 and explain why the intentional-non-relationship framing no longer applies. The
+   collision is **documented policy**, not oversight.
+
+Cluster F' scope updates: PRD §9 test matrix picks up one new test — a `--help`-output assertion that
+`tpatch reject --help` and `tpatch reconcile --help` both render the D10 cross-reference. This is a
+27th test row (paired with test 26/26b's orthogonal-integrity pair as the second same-decision test
+addition of the paper cycle).
+
 ## 4. Orthogonality with PRD-#4 (confirm-upstreamed)
 
 This is the section GH #6, the PRD, and the Cluster F dispatch brief all treat as load-bearing: `rejected`
@@ -996,7 +1099,9 @@ not two views of the same mechanism.
 
 **Negative**:
 - New CLI surface (`reject`, `reopen`) and new JSON envelope fields (`rejection` sub-object on `status
-  --json`, plus `reject --json`/`reopen --json` shapes) mean a new test matrix (PRD §9, 26 items) and a
+  --json`, plus `reject --json`/`reopen --json` shapes) mean a new test matrix (PRD §9, 27 items —
+  26 original + 26b note-only-reopen historical-integrity pair + test 27 `--help` cross-reference
+  disambiguation, rev-5 fold per D10) and a
   new documentation surface (`SPEC.md` state table, `docs/feature-layout.md` field list,
   `docs/dependencies.md` — if a rejected feature is ever a dependency parent, see open question below).
 - `FeatureStatus` grows by 8 fields (7 top-level + `history[]`), all `omitempty`, so the common case

@@ -250,6 +250,49 @@ convention. `--note` is required here too (all lifecycle mutations this PRD intr
 note, per GH #6's append-only-audit requirement — a reopen with no stated rationale would be exactly as
 under-audited as a rejection with no stated rationale).
 
+### 4.1 Intentional non-relationship with `tpatch reconcile --reject` *(rev-5 fold, post-Cluster-F external F1 LOW-MEDIUM)*
+
+Post-Cluster-F external review flagged that `tpatch reconcile --reject <slug>` already exists as a
+flag on the `reconcile` command (`internal/cli/cobra.go:2093`), with the pre-existing meaning
+"prune a shadow worktree and roll feature state back to `applied`" — a **transient, reversible action
+on a shadow-worktree resource**, not on the feature's lifecycle. This PRD's `tpatch reject <slug>` is a
+**new top-level command** with the meaning "mark a feature permanently `rejected`" — a **terminal
+lifecycle state transition on the feature itself**. Same verb, opposite permanence, on adjacent
+reconcile-family surfaces.
+
+**The two surfaces are intentionally unrelated**, and this PRD deliberately keeps both names:
+
+1. **Different command paths.** `tpatch reconcile --reject SLUG` is a **flag on a subcommand**;
+   `tpatch reject SLUG` is a **distinct top-level command**. `--help` output, `SPEC.md` §4, shell
+   autocompletion, and skill-file references all render them separately by structure, not by verb text
+   alone.
+2. **Non-overlapping state preconditions.** `reconcile --reject` fires only when a feature is in
+   `reconciling-shadow` and rolls it back to `applied` (`internal/cli/cobra.go` `runReconcileReject`).
+   `tpatch reject` is **refused** from `applied`, `active`, `reconciling`, `reconciling-shadow`, and
+   all post-implementation states (§3.9, §5). The two surfaces can **never** fire on the same feature
+   in the same state — there is no operator scenario where they are contextually ambiguous.
+3. **Different nouns.** `reconcile --reject` operates on the **shadow worktree** as a resource (prune
+   the worktree, discard the provider-resolution attempt). `reject` operates on the **feature's
+   lifecycle state** (mark the feature terminal). The verb `reject` reads correctly for both — the
+   noun differs.
+4. **Renaming either would introduce a worse category error.** ADR-031 D10 enumerates the alternatives
+   (nesting `reject` under `feature`, replacing with `retire`/`decline`/`mark-rejected`) and shows why
+   each trades this collision for a **more expensive** one — chiefly the lifecycle-vs-noun-scope
+   mismatch that PRD §4's form-(a) rationale above was already written to avoid.
+
+Documented mitigations Cluster F' implements:
+
+- `tpatch reject --help` and `tpatch reconcile --help` (specifically the `--reject` flag entry) each
+  carry a one-line cross-reference pointing at the other with a "not to be confused with" phrasing.
+- `SPEC.md` §4's command reference documents both surfaces in the same section with a pointer at
+  PRD §4.1 and ADR-031 D10 for the intentional non-relationship.
+- Skill files (`assets/skills/*.md`) that surface either verb carry the same one-line disambiguation.
+- Test 27 in §9 asserts the `--help` cross-reference is present for both surfaces.
+
+Any future ADR proposing to rename either surface must cite D10 and explain why the
+intentional-non-relationship framing no longer applies. The collision is **documented policy**, not
+oversight.
+
 ## 5. State Machine
 
 ```
@@ -910,6 +953,15 @@ internal MEDIUM)**:
     divergent_reason: "hash-mismatch"}]` — even though zero new `--evidence` paths were supplied. This
     proves historical-evidence verification runs unconditionally on every reopen, orthogonal to whether
     the operator attaches new evidence in the same call.
+27. **`--help` cross-reference disambiguation** (new, rev-5 fold, post-Cluster-F external F1 LOW-MEDIUM,
+    §4.1 / ADR-031 D10). Verify that `tpatch reject --help` output contains a one-line pointer to
+    `tpatch reconcile --reject` explaining the intentional non-relationship (e.g. "Not to be confused
+    with `tpatch reconcile --reject <slug>`, which prunes a shadow worktree — see PRD §4.1 / ADR-031
+    D10"), and symmetrically that `tpatch reconcile --help` (or the `--reject` flag entry in its help
+    text) contains a one-line pointer to `tpatch reject`. This is a golden-string assertion, not a
+    behavioural test; the point is to guarantee the two surfaces render as intentionally-distinct in
+    every operator-facing help output, so the collision documented in §4.1 does not silently degrade to
+    an undocumented one across future refactors.
 
 ## 10. Distinction from Related Concepts
 

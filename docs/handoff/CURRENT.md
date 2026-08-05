@@ -2,9 +2,11 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: REV-5 DISPATCHED
 
-**WAVE_BASE**: `8574ff3` (Cluster F v0.13.0 GH #6 planning dispatch, 2026-08-05).
+**WAVE_BASE**: `e493a2d` (Cluster F planning consolidation, 2026-08-05).
+
+**2026-08-05 Cluster F rev-5 dispatched (micro-fold, docs-only).** Post-Cluster-F external review flagged 1 LOW-MEDIUM: `tpatch reject` verb collides with pre-existing `tpatch reconcile --reject <slug>` flag at `internal/cli/cobra.go:2093` (transient shadow-worktree action, opposite permanence from proposed terminal lifecycle transition). Supervisor disposition: **Alternative 3 — keep bare `tpatch reject`/`tpatch reopen`, document intentional non-relationship** in PRD §4.1 and ADR-031 D10 with full rationale (different command paths, non-overlapping state preconditions, different nouns, renaming introduces worse category error per PRD §4's articulated lifecycle-verb convention). Adds test 27 (`--help` cross-reference golden-string assertion). Reviewer's suggested alt-1 rename to `tpatch feature reject` explicitly rejected — `feature` group is noun-scoped (`deps`, `patch`) per `internal/cli/feature_deps.go:41-49`, retrofitting a lifecycle verb there breaks that shape and contradicts `amend --state` reservation (`c1.go:276-284`).
 
 **2026-08-05 Cluster F planning SHIPPED at `377d103`.** PRD + ADR pair for v0.13.0 GH #6 first-class `rejected` feature lifecycle state. 4 review revs (rev-0 through rev-4), three-way APPROVED at rev-4. Range `8574ff3..377d103` (10 commits: 2 rev-0 impl + 2 rev-1 impl + 2 rev-2 impl + 1 rev-3 impl + 1 rev-4 impl + 5 supervisor tracking, plus adjudication + consolidation). Key architectural decisions locked-in: content-hash evidence (`{path, sha256}` lowercase-hex); post-implementation reject OUT OF SCOPE (deferred to future ADR); exit-code envelope 0/1/2/3; CLI shape `--reason` + mandatory `--note` + optional `--evidence`/`--actor`; actor precedence chain; symmetric dependency invariant; reopen unbounded append-only with historical-evidence verification on every reopen. Convergence arc: internal 8→5→3→1→0; external 2→3→2→1→carry.
 
@@ -37,7 +39,7 @@ Touches (per ADR §7 Implementation Notes):
 - `internal/cli/cobra.go` — new `tpatch reject <slug>` and `tpatch reopen <slug>` commands; `tpatch status` filtering (`--include-rejected` opt-in); `tpatch next` rejection-aware output; guard on `applyConfirmUpstreamedTransition` entry (before reconcile-revision append at `:2535` and `saveConfirmUpstreamedStatus` at `:2554`) refusing on `rejected` source state.
 - `assets/` — state enum doc/template updates (parity guard `assets_test.go`).
 - `SPEC.md` — new state documentation.
-- Tests — PRD §9 27 items (26 + 26b sub-test): reject from allowed states, refuse from post-implementation states, evidence content-hash + path safety, reopen unbounded append-only, note-only reopen historical verification, divergent_reason taxonomy, dependency-order symmetry (both orders × 3 edge types), CLI shape, JSON envelope, exit-code envelope 0/1/2/3, actor precedence, confirm-upstreamed defense-in-depth guard.
+- Tests — PRD §9 27 items (26 + 26b sub-test + test 27 rev-5 `--help` cross-ref): reject from allowed states, refuse from post-implementation states, evidence content-hash + path safety, reopen unbounded append-only, note-only reopen historical verification, divergent_reason taxonomy, dependency-order symmetry (both orders × 3 edge types), CLI shape, JSON envelope, exit-code envelope 0/1/2/3, actor precedence, confirm-upstreamed defense-in-depth guard, `--help` disambiguation for `reject` ↔ `reconcile --reject`.
 
 Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `RetirementAudit` on `ReconcileResult`.
 
@@ -57,7 +59,7 @@ Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `
 
 ### Non-goals
 
-- Do NOT re-open planning decisions. All 9 decision points D1-D9 are binding.
+- Do NOT re-open planning decisions. All 10 decision points D1-D10 are binding.
 - Do NOT extend post-implementation reject scope (D6: OUT OF SCOPE, deferred to future ADR).
 - Do NOT modify `internal/workflow/reconcile.go` or its `RetirementAudit` field.
 - Do NOT block on E'-N1 (allowlist stale-entry bitrot) — orthogonal.

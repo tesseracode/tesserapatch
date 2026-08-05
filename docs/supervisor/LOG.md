@@ -1,4 +1,28 @@
-## 2026-08-05 — Cluster F planning rev-4 internal-only confirmation — APPROVED — CONSOLIDATED
+## 2026-08-05 — Cluster F rev-5 micro-fold DISPATCHED — post-Cluster-F external F1 LOW-MEDIUM disposition
+
+**Trigger**: Post-Cluster-F external review (APPROVED WITH NOTES, 1 LOW-MEDIUM). Reviewer independently verified all 4 E-prime revision items closed and confirmed Cluster F planning strictly docs-only. Single finding: `tpatch reject` verb collides with pre-existing `tpatch reconcile --reject <slug>` flag at `internal/cli/cobra.go:2093` — same verb, opposite permanence (transient shadow-worktree resource action vs. terminal lifecycle state transition), no acknowledgment in Cluster F papers.
+
+**Alternatives considered**:
+- **Alt-1 (reviewer's implicit preference)**: rename to `tpatch feature reject` / `tpatch feature reopen`, nesting under existing `feature` group.
+- **Alt-2**: rename to synonym (`retire`/`decline`/`mark-rejected`).
+- **Alt-3**: keep bare verbs, document intentional non-relationship in PRD §4.1 + ADR D10.
+
+**Supervisor disposition: Alt-3.** Alt-1 contradicts PRD §4's already-articulated rationale — every existing lifecycle-phase transition in tpatch (`analyze`, `define`, `explore`, `implement`, `apply`, `record`, `land`, `reconcile`, `amend`, `remove`, `next`) is a top-level verb registered on `buildRootCmd` (`internal/cli/cobra.go:60-80`); the `tpatch feature <subcommand>` group is reserved for **noun-scoped per-feature management** (`deps`, `patch`, `claim`) with shape `feature <noun> <slug> <verb>` (`internal/cli/feature_deps.go:52-56` doc comment). Retrofitting a lifecycle verb (`reject`) as a sub-verb under `feature` breaks that shape and reads as the generic escape hatch `amend --state` was deliberately reserved against (`c1.go:276-284`, `validateAmendStateFlag`). Alt-2 trades a same-verb-different-noun-scope collision for a permanently weaker CLI verb (`retire` overlaps with post-implementation semantics D6 out-of-scopes; `mark-rejected`/`decline` are verbose or non-idiomatic). Alt-3 preserves the convention and names the collision — the correct resolution is to make the intentional non-relationship **documented policy** rather than paper over the convention that produced it.
+
+**Rev-5 scope (docs-only micro-fold)**:
+1. New ADR-031 D10 documenting the naming disposition (all 3 alternatives with rationale, cross-refs to `cobra.go:2093` and `feature_deps.go:41-49,52-56`, and `c1.go:276-284`).
+2. New PRD §4.1 acknowledging the intentional non-relationship with 4-point rationale (different command paths, non-overlapping state preconditions, different nouns, renaming worse category error) and mitigations (`--help` cross-refs, `SPEC.md` §4 pointer, skill-file disambiguation).
+3. New PRD §9 test 27 — golden-string assertion that `tpatch reject --help` and `tpatch reconcile --help` both render one-line cross-reference at Cluster F' implementation.
+4. Decision-points list bumped D9 → D10; test-matrix count bumped 26 → 27 in ADR §6 Negative consequences.
+5. CURRENT.md state flip to `REV-5 DISPATCHED`; WAVE_BASE → `e493a2d`.
+
+**Review disposition**: External-only rev-5 confirmation (matches Cluster D single-issue precedent — external reviewer raised the finding, fold is narrow docs-only single-decision, internal architectural clearance carries from rev-4 three-way APPROVED). Internal reviewer not re-engaged: rev-4 confirmed all 10 pre-existing decisions and this fold introduces no new architectural surface, only names a naming-convention decision already-implicit in PRD §4's form-(a) selection.
+
+**Action taken**: Dispatched supervisor-authored rev-5 fold directly (paper-only, single decision, articulated in prior planning). Awaiting external rev-5 confirmation.
+
+---
+
+
 
 **Reviewer**: `cluster-f-planning-rev4-intern` (gpt-5.6-sol, high). External rev-3 clearance carries.
 
