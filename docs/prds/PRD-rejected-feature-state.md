@@ -314,11 +314,21 @@ rationale.
 
 **Reopen**: `rejected → requested` only. Append-only: the prior rejection record (`reason`, `evidence`,
 `note`, `rejected_at`, `rejected_by`, `prior_state`) is never deleted — it is pushed onto `history[]`
-(§6) and a fresh `requested` cycle begins. Reopen itself requires its own `--evidence`/`--note` pair,
-appended to the same `history[]` array, so "why did we reopen this" is as auditable as "why did we
-reject this". Reopen cycles are **unbounded** — an operator may reject and reopen the same feature any
-number of times; each cycle appends its own `history[]` entry rather than replacing the previous one
-(ADR-031 D5).
+(§6) and a fresh `requested` cycle begins. Reopen itself requires its own **mandatory** `--note`
+(matching F-INT-CLI's requirement that every lifecycle mutation carries an operator rationale) and **may
+include** additional `--evidence` (optional — if supplied, content-hashed exactly like at `reject` time
+and appended to the same `history[]` entry). Reopen cycles are **unbounded** — an operator may reject and
+reopen the same feature any number of times; each cycle appends its own `history[]` entry rather than
+replacing the previous one (ADR-031 D5).
+> **Rev-3 correction (F-INT-R2-3 HIGH)**: rev-2 text here said reopen "requires its own
+> `--evidence`/`--note` pair," which contradicted §4's CLI signature (`--evidence` bracketed/optional)
+> and §8's zero-evidence reopen examples. Rev-3 picks the **REOPEN-EVIDENCE-OPTIONAL** contract: `--note`
+> is mandatory (the operator's stated reason for reopening is itself sufficient audit), `--evidence` is
+> optional. A brief alternative — REOPEN-EVIDENCE-REQUIRED, mirroring `reject`'s own mandatory-evidence
+> rule — was considered and rejected: reopening because "new context arrived" (e.g. an upstream caller
+> reappeared, a policy changed) doesn't always correspond to a citable file, and forcing an operator to
+> manufacture a throwaway evidence file just to satisfy the flag would degrade evidence quality overall
+> rather than improve audit rigor.
 
 ### What happens to a rejected feature that other features depend on?
 
@@ -371,13 +381,13 @@ eleventh value added to the existing ten-value `FeatureState` enum, `internal/st
 |---|---|---|
 | `state` | `FeatureState` enum, top-level | Must be `"rejected"`. Existing `ValidFeatureState` switch (`internal/store/types.go:21-27`) gains this arm. |
 | `reason` | closed enum string | One of: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded`. Any other value is a validation error, exit code `2` (see ADR-031 D2 for closed-vs-open rationale; ADR-031 D4 addendum for the exit-code lock-in). |
-| `evidence` | `[]EvidenceRef{path, sha256}` (list of hash-verified objects), normalized + deduplicated + sorted by `path` | At least one entry required. Each path must pass **path-safety** checks and be readable as a regular file so its content can be hashed (new, rev-2 fold, F-INT-1 BLOCKING + F-INT-3 HIGH — see below); a path failing either check is a validation error, exit code `2`. |
+| `evidence` | `[]EvidenceRef{path, sha256}` (list of hash-verified objects), normalized + deduplicated + sorted by `path` | At least one entry required. Each path must pass **path-safety** checks and be readable as a regular file so its content can be hashed (new, rev-2 fold, F-INT-1 BLOCKING + F-INT-3 HIGH — see below); a path failing either check is a validation error, exit code `2`. `sha256` is the lowercase-hex ASCII encoding of the raw SHA-256 digest (`^[0-9a-f]{64}$`, rev-3 fold, F4) — not uppercase hex, not base64. |
 | `note` | `string` | Required, non-empty after trim. Free-form rationale. Missing or empty (after trim) is a validation error, exit code `2`. |
 | `rejected_at` | `string` (RFC3339) | Set by the CLI at write time; not operator-supplied. |
 | `rejected_by` | `string` (actor) | Resolved via a precedence chain, not operator-supplied ad hoc (rev-1 fold, F-INT-6 HIGH — see below). |
 | `prior_state` | `FeatureState` enum | Captured automatically as whatever `state` was immediately before this `reject` call. |
 | `related` | `string`, optional | Free-form: a feature slug or a `GH#N` reference. Not validated against the store (a related feature may not exist in this repo, e.g. a cross-repo GH issue). |
-| `history` | `[]HistoryEntry`, append-only | Populated on `reopen` (and on every subsequent `reject`/`reopen` cycle). Each entry snapshots the fields above (`reason`, `evidence`, `note`, `rejected_at`, `rejected_by`, `prior_state`, `related`, plus the reopen's own `reopened_at`/`reopened_by`/`reopen_note`/`reopen_evidence`, and an `evidence_integrity` field — see below) so no rejection record is ever overwritten — only appended past. Matches GH #6 §7's "append-only" requirement (§8 acceptance criteria: "Reopen is explicit and append-only"). Reopen/reject cycles are unbounded (ADR-031 D5). |
+| `history` | `[]HistoryEntry`, append-only | Populated on `reopen` (and on every subsequent `reject`/`reopen` cycle). Each entry snapshots the fields above (`reason`, `evidence`, `note`, `rejected_at`, `rejected_by`, `prior_state`, `related`, plus the reopen's own `reopened_at`/`reopened_by`/`reopen_note`/`reopen_evidence`, and an `evidence_integrity` field with a per-element `divergent_reason` when divergent — see below) so no rejection record is ever overwritten — only appended past. Matches GH #6 §7's "append-only" requirement (§8 acceptance criteria: "Reopen is explicit and append-only"). Reopen/reject cycles are unbounded (ADR-031 D5). |
 
 ### Evidence integrity via content-hash snapshot *(rev-2 fold, F-INT-1 BLOCKING — replaces rev-1's path-restriction approach)*
 
@@ -428,19 +438,43 @@ resolves this by *detecting* drift rather than *forbidding* the paths where it c
   `status.json`, deduplicated after normalization, and sorted by `path` (`sort.Strings` semantics) for
   stable, deterministic serialization (CLAUDE.md rule 4).
 
-**Reopen-time integrity check**: on `reopen`, the CLI recomputes the SHA-256 of every historical
-`evidence` entry's `path` and compares it against the hash recorded at rejection time.
-- If every hash matches (or the file is unreadable/missing — see below — resolving identically): the new
-  `history[]` entry the reopen creates omits `evidence_integrity` (equivalent to `"verified"`).
-- If any hash differs, or the path can no longer be read/hashed at all (deleted, permission changed): the
-  reopen **still proceeds** (non-blocking) and the new `history[]` entry records
-  `evidence_integrity: "divergent"`. A file that was deleted and later recreated with byte-identical
-  content naturally re-verifies via the hash comparison — no separate "was it deleted" tracking is
-  needed. This is a deliberate choice (ADR-031 D3 addendum discusses two stricter alternatives — blocking
-  the reopen outright, or requiring a `--force`/acknowledgment flag — and explains why both were
-  rejected in favor of the non-blocking warn-and-record approach): the operator's past file edit cannot
-  be undone by refusing the reopen, and the persistent `evidence_integrity` record is itself the durable
-  audit signal a stricter block would not add much beyond.
+**Reopen-time integrity check**: on `reopen`, for each historical `evidence` entry the CLI first
+**re-runs the path-safety rule above** (canonicalize, confirm still inside the repo root, confirm still
+a regular file, confirm no symlink escape) and, only if that re-check passes, recomputes the SHA-256 of
+the entry's `path` and compares it against the hash recorded at rejection time.
+- If path safety re-passes **and** the hash matches: the new `history[]` entry the reopen creates omits
+  `evidence_integrity` (equivalent to `"verified"`).
+- Otherwise, the reopen **still proceeds** (non-blocking) and the new `history[]` entry records
+  `evidence_integrity: "divergent"` together with a **`divergent_reason`** *(new, rev-3 fold,
+  F-INT-R2-2 HIGH)* per affected evidence element, drawn from a closed taxonomy:
+  - `hash-mismatch` — path safety re-passed, still a regular in-repo file, but content hash differs.
+  - `missing` — the path no longer resolves to any file.
+  - `non-regular` — the path now resolves to something that is not a regular file (a directory, device,
+    or socket) though it was a regular file at rejection time.
+  - `path-safety-failed-at-reopen` — the path-safety re-check itself fails at reopen time (e.g. now
+    resolves to an absolute path, a `..`-escaping path, or a symlink resolving outside the repository
+    root) even though it passed at rejection time. **No hash is ever attempted in this case** — the
+    file's bytes are never read, so a divergence entry here can never itself become an F-INT-3 violation.
+  - `unreadable` — path safety re-passed and the file is still a regular in-repo file, but it cannot be
+    opened (permission error).
+  - A file that was deleted and later recreated with byte-identical content, at the same
+    path-safety-passing location, naturally resolves back to `"verified"` via the hash comparison — no
+    separate "was it deleted and restored" tracking is needed.
+
+This is a deliberate choice (ADR-031 D3 addendum discusses two stricter alternatives — blocking the
+reopen outright, or requiring a `--force`/acknowledgment flag — and explains why both were rejected in
+favor of the non-blocking warn-and-record approach): the operator's past file edit, deletion, or
+kind-change cannot be undone by refusing the reopen, and the persistent `evidence_integrity`/
+`divergent_reason` record is itself the durable audit signal a stricter block would not add much beyond.
+> **Rev-3 correction (F-INT-R2-2 HIGH)**: rev-2's text here read "if every hash matches (or the file is
+> unreadable/missing... resolving identically)" — placing unreadable/missing evidence in the *same*
+> branch as a verified match, contradicting the "divergent" branch immediately below it that also
+> claimed unreadable/missing files. That was a genuine contradiction, not just imprecise wording:
+> unreadable and missing files belong in exactly one branch (divergent), never both. This rewrite fixes
+> it and additionally closes the file-kind-change gap rev-2 left open (a historical evidence path that
+> was a regular file at rejection could be replaced by a directory, device, socket, or an
+> externally-escaping symlink by reopen time — the last of which must never be hashed, since doing so
+> would itself violate F-INT-3 path safety).
 
 A deferred alternative — restricting evidence to a fixed set of "safe" locations (rev-1's approach) —
 was tried and retracted (see the retraction notice above); ADR-031 D3 addendum records the full
@@ -668,7 +702,8 @@ ADR-031 D4's general principle):
 ```
 
 `tpatch reopen --json` success, evidence divergence detected (exit code `0` — non-blocking per D3's
-Alternative 1, rev-2 fold, F-INT-1 BLOCKING):
+Alternative 1, rev-2 fold, F-INT-1 BLOCKING; `divergent_reason` per-element, rev-3 fold, F-INT-R2-2
+HIGH):
 
 ```jsonc
 {
@@ -682,6 +717,25 @@ Alternative 1, rev-2 fold, F-INT-1 BLOCKING):
   ],
   "history_entries": 1,
   "evidence_integrity": "divergent",
+  "divergence_detail": [
+    {"path": "artifacts/upstream-v1.4-caller-diff.md", "divergent_reason": "hash-mismatch"}
+  ],
+  "exit_code": 0
+}
+```
+
+`tpatch reopen --json` success, note-only, zero `--evidence` supplied (exit code `0` — rev-3 fold,
+F-INT-R2-3 HIGH, REOPEN-EVIDENCE-OPTIONAL contract):
+
+```jsonc
+{
+  "slug": "claude-developer-instruction-preservation",
+  "state": "requested",
+  "reopened_at": "2026-08-06T00:00:00Z",
+  "reopened_by": "operator",
+  "reopen_note": "Policy changed; the original rationale no longer applies. No new artifact to attach.",
+  "reopen_evidence": [],
+  "history_entries": 1,
   "exit_code": 0
 }
 ```
@@ -775,10 +829,10 @@ The implementation cluster (Cluster F') must write, at minimum:
     - Reject citing `artifacts/apply-recipe.json` (previously forbidden under rev-1's restriction) as
       evidence → success; `sha256` recorded matches the file's content at reject time.
     - Reject with evidence → mutate the evidence file's content → reopen → verify the reopen succeeds
-      (non-blocking) and the new `history[]` entry records `evidence_integrity: "divergent"`.
+      (non-blocking) and the new `history[]` entry records `evidence_integrity: "divergent"` with
+      `divergent_reason: "hash-mismatch"`.
     - Reject with evidence → delete the evidence file → reopen → verify the reopen succeeds and the new
-      `history[]` entry records `evidence_integrity: "divergent"` (missing-file and hash-mismatch share
-      one code path per §6).
+      `history[]` entry records `evidence_integrity: "divergent"` with `divergent_reason: "missing"`.
     - Reject with evidence → no change to the file → reopen → verify the new `history[]` entry omits
       `evidence_integrity` (or records it as absent/`"verified"`), i.e. no false-positive divergence.
     - Reject with evidence → delete the evidence file → recreate it with byte-identical content → reopen
@@ -786,6 +840,16 @@ The implementation cluster (Cluster F') must write, at minimum:
       case, per §6's design).
     - Reject citing an evidence file that cannot be hashed (missing, non-regular, symlink escaping the
       repo root, unreadable) → error, exit code `2`, no state change.
+    - **File-kind-change tests, rev-3 fold, F-INT-R2-2 HIGH** (replaces rev-2's untested gap for
+      divergence classes other than hash-mismatch/missing):
+      - Reject with a regular-file evidence path → replace it with a symlink resolving outside the repo
+        root → reopen → verify `evidence_integrity: "divergent"` with `divergent_reason:
+        "path-safety-failed-at-reopen"`, and verify (via test instrumentation / a spy on the hashing
+        helper) that **no read/hash attempt was made** against the escaping symlink target.
+      - Reject with a regular-file evidence path → replace it with a directory → reopen → verify
+        `divergent_reason: "non-regular"`.
+      - Reject with a regular-file evidence path → make it unreadable (permission change) → reopen →
+        verify `divergent_reason: "unreadable"`.
 22. Dependency-order symmetry (F-INT-5 HIGH), both orders × all three edge kinds (`hard`, `soft`,
     `supersedes`): (a) reject parent P, then attempt to create a new edge from Q onto P → error, exit
     code `3`, no edge created; (b) create an edge from Q onto P first, then attempt to reject P → error,
@@ -810,12 +874,20 @@ The implementation cluster (Cluster F') must write, at minimum:
     - Exit code `3` (post-validation state-machine refusal): every scenario in items 6, 7, 8, 10, 22, 24,
       plus item 18's "reopen from a non-`rejected` state" sub-case.
     - Exit code `0` (success, including non-blocking divergence): the happy-path scenarios (1, 2, 9,
-      11-13, 19, 21's mutate/delete/no-change/recreate-identical sub-bullets).
+      11-13, 19, 21's mutate/delete/no-change/recreate-identical/file-kind-change sub-bullets, and item
+      26 below).
     > **Rev-2 correction (F-INT-4 HIGH)**: rev-1's item 25 assigned exit `3` to every item-18 case
     > uniformly. That was wrong — item 18 mixes a validation class (missing evidence/note) with a
     > state-transition class (wrong source state for reopen). This item is split accordingly, matching
     > item 18's rev-2 correction note above and ADR-031 D4's general principle (exit `2` = determinable
     > without consulting current store state; exit `3` = requires consulting it).
+
+**Additional test, rev-3 fold (F-INT-R2-3 HIGH)**:
+
+26. Reopen with zero `--evidence` supplied, only `--note` — verify success (exit code `0`), the new
+    `history[]` entry has an empty/absent `reopen_evidence` list, no `evidence_integrity` field is
+    emitted (nothing to diverge against), and `reopen_note` is recorded exactly as supplied. Confirms the
+    REOPEN-EVIDENCE-OPTIONAL contract (§3.9, §5): only `--note` is mandatory for `reopen`.
 
 ## 10. Distinction from Related Concepts
 

@@ -219,9 +219,10 @@ first, repo-root fallback) matches how the motivating example's evidence
 repo-level document (e.g. a shared research note under `docs/state-of-the-art/`) without forcing a copy
 into the feature directory.
 
-**Consequences**: Cluster F' implements `evidence []string` on `FeatureStatus`, a repeatable
-`--evidence` cobra flag on both `reject` and `reopen`, and a path-resolution helper shared by both
-commands' validation step.
+**Consequences**: Cluster F' implements `evidence []string` on `FeatureStatus` — **superseded by the D3
+addendum below; the shipped contract is `evidence []EvidenceRef{Path, SHA256}`, not a bare string
+slice** (rev-3 fold, F1) — via a repeatable `--evidence` cobra flag on both `reject` and `reopen`, and a
+path-resolution helper shared by both commands' validation step.
 
 #### D3 addendum — evidence integrity via content-hash snapshot (rev-2 fold, F-INT-1 BLOCKING — replaces rev-1's path-restriction approach)
 
@@ -264,6 +265,9 @@ commands' validation step.
   not a regular file, is a symlink resolving outside the repository root, or is unreadable (permission
   error). This is the same failure class rev-1's admissibility check occupied, just re-armed against
   "can we read and hash these bytes right now" instead of "is this filename on an allowlist."
+- **Encoding** (rev-3 fold, F4/external L2): `sha256` is the lowercase-hex ASCII encoding of the raw
+  SHA-256 digest — `^[0-9a-f]{64}$` — matching Go's `encoding/hex.EncodeToString` default (lowercase),
+  not uppercase hex and not base64. This is pinned explicitly to eliminate implementer ambiguity.
 
 **Path safety** (F-INT-3, unchanged from rev-1, still enforced *before* hashing): evidence paths are
 rejected outright if they are absolute, contain a `..` traversal segment, resolve (after symlink
@@ -274,24 +278,50 @@ path is normalized (`filepath.Clean`, forward slashes), deduplicated after norma
 
 **Reopen-time integrity check** — three alternatives considered:
 
-**Alternative 1 (chosen)**: On `reopen`, recompute the SHA-256 of each historical entry's evidence
-path(s) and compare against the hash recorded at rejection time. If any differ (or the file is now
-missing/unreadable), **warn** (non-fatal) and record `evidence_integrity: "divergent"` on the new
-`history[]` entry the reopen creates — do not block the reopen itself. If every hash matches, record
-`evidence_integrity: "verified"` (or omit the field entirely, treated as verified by absence).
+**Alternative 1 (chosen)**: On `reopen`, for each historical evidence entry, **first re-run the F-INT-3
+path-safety checks** (canonicalize, verify the resolved path is still inside the repository root, verify
+it is still a regular file, verify no symlink escape) before attempting to hash anything; **then**, only
+if path safety still passes, recompute the SHA-256 and compare against the hash recorded at rejection
+time. If the path safety re-check fails, or the hash differs, or the file is missing/unreadable, **warn**
+(non-fatal) and record `evidence_integrity: "divergent"` — with a `divergent_reason` per affected entry
+(see taxonomy below) — on the new `history[]` entry the reopen creates; do not block the reopen itself.
+If path safety re-passes and every hash matches, record `evidence_integrity: "verified"` (or omit the
+field entirely, treated as verified by absence).
 
-Pros: the operator's file edit (or deletion) already happened in the past and cannot be un-done by
-`tpatch reopen` refusing to run — blocking would strand the feature in `rejected` with no way forward
-except manually editing `status.json`, which this PRD/ADR pair otherwise avoids requiring. The divergence
-record itself becomes the auditable signal: a future reader of `history[]` sees exactly which reopens
-had trustworthy evidence and which did not, which is arguably *more* informative than a hard failure that
-gives no persistent trace of the problem having occurred.
+> **Rev-3 fold (F-INT-R2-2 HIGH)**: rev-2's addendum specified divergence handling only for
+> hash-mismatch and missing-file. It did not say what happens when an evidence path's **file kind**
+> changes between reject-time and reopen-time — e.g. a historical evidence path that was a regular file
+> at rejection is later replaced by a directory, a device/socket, or (most importantly) a symlink that
+> now resolves outside the repository root. Rehashing an externally-escaping symlink at reopen time would
+> itself violate F-INT-3 path safety — the reopen-time check must never read bytes from outside the
+> repo, even to compute a divergence hash. Rev-3 closes this gap: **path safety is re-run at reopen time,
+> before any hashing is attempted**, and a path that fails it is recorded as divergent with a
+> distinguishing reason rather than either (a) silently attempting to hash it (unsafe) or (b) blocking
+> the reopen outright (contradicts the chosen non-blocking Alternative 1 behavior).
+
+**`divergent_reason` taxonomy** (new, rev-3 fold, F-INT-R2-2 HIGH): each divergent evidence element in a
+`history[]` entry carries exactly one of:
+
+| `divergent_reason` | Meaning | Hash attempted? |
+|---|---|---|
+| `hash-mismatch` | Path safety re-check passed; still a regular in-repo file; content hash differs from the value recorded at rejection. | Yes |
+| `missing` | Path no longer resolves to any file (deleted). | No |
+| `non-regular` | Path now resolves to something that is not a regular file (directory, device, socket) — was a regular file at rejection. | No |
+| `path-safety-failed-at-reopen` | Path safety re-check itself fails at reopen time (e.g. now an absolute path, a `..`-escaping path, or a symlink resolving outside the repository root) though it passed at rejection time. **No hash is ever attempted in this case** — the file is never read. | No |
+| `unreadable` | Path safety re-check passed and the file is still a regular in-repo file, but it cannot be opened/read (permission error). | No |
+
+Pros: the operator's file edit (or deletion, or kind-change) already happened in the past and cannot be
+un-done by `tpatch reopen` refusing to run — blocking would strand the feature in `rejected` with no way
+forward except manually editing `status.json`, which this PRD/ADR pair otherwise avoids requiring. The
+divergence record itself becomes the auditable signal: a future reader of `history[]` sees exactly which
+reopens had trustworthy evidence, which did not, and *why* (via `divergent_reason`) — which is arguably
+*more* informative than a hard failure that gives no persistent trace of the problem having occurred.
 
 Cons: an operator could still reopen (and thus effectively "un-reject", i.e. resume implementation work)
 on top of evidence that no longer supports the original rejection review, without an enforced pause.
 
 **Alternative 2**: Reject the `reopen` call outright (validation error, no state change) if any
-historical evidence entry's hash no longer matches current file content.
+historical evidence entry's hash no longer matches current file content, or if its file kind has changed.
 
 Pros: strictly stronger integrity guarantee — an operator cannot proceed past a reopen without first
 either restoring the original evidence file or explicitly acknowledging the mismatch through some other
@@ -312,11 +342,12 @@ is not permanently stuck (Alternative 2's Con) since a flag unblocks them.
 
 Cons: adds a second reopen code path and a second flag surface for a warning-class condition; Alternative
 1 already achieves "not silently waved through" via the persistent `evidence_integrity: "divergent"`
-record in `history[]` — a flag adds friction without adding information the record doesn't already
-capture. Deferred as unnecessary machinery unless a future ADR finds Alternative 1's non-blocking warning
-insufficient in practice.
+record (now with a `divergent_reason`) in `history[]` — a flag adds friction without adding information
+the record doesn't already capture. Deferred as unnecessary machinery unless a future ADR finds
+Alternative 1's non-blocking warning insufficient in practice.
 
-**Chosen: Alternative 1** (warn + record `evidence_integrity: divergent`, non-blocking).
+**Chosen: Alternative 1** (warn + record `evidence_integrity: divergent` with a `divergent_reason`,
+non-blocking).
 
 **Rationale**: This matches this ADR's own general philosophy elsewhere (D6: no escape-hatch machinery
 until an operator need is demonstrated; D8: symmetric fail-loudly only where the *forward* operation
@@ -324,19 +355,23 @@ itself would be unsound, not merely suspicious) — a reopen is not, by itself, 
 cited evidence changed; it is the operator's own call whether stale evidence still justifies a reopen,
 and the tool's job is to make that staleness visible and permanently recorded, not to adjudicate it.
 
-**Missing-file vs. hash-mismatch handling**: if a historical evidence path no longer exists at all
-(deleted, not merely edited), the reopen-time check cannot compute a hash to compare and treats this as
-`evidence_integrity: "divergent"` exactly like a hash mismatch — there is no separate "missing" state,
-since from an audit-record perspective "cannot verify" and "verified different" carry the same practical
-consequence (the historical evidence claim can no longer be confirmed). If an operator deletes a file
-and later re-creates it with byte-identical content, the hash comparison naturally resolves to
-`"verified"` — the hash-match check already subsumes this case without any special-cased "was it
-deleted and restored" logic.
+**Missing-file / non-regular / path-safety-failure vs. hash-mismatch handling**: if a historical evidence
+path no longer exists at all (deleted, not merely edited), or now resolves to a non-regular file, or now
+fails the F-INT-3 path-safety re-check, the reopen-time check cannot (and in the path-safety-failure case
+must not attempt to) compute a hash to compare, and records `evidence_integrity: "divergent"` with the
+matching `divergent_reason` from the taxonomy above — there is no separate "missing" *state* distinct
+from "divergent", only a distinct *reason* recorded alongside it, since from an audit-record perspective
+"cannot verify" and "verified different" carry the same practical consequence (the historical evidence
+claim can no longer be confirmed), while the reason still tells a future reader *why* verification
+failed. If an operator deletes a file and later re-creates it — as a regular, in-repo, path-safe file —
+with byte-identical content, the hash comparison naturally resolves to `"verified"`: the hash-match check
+already subsumes this case without any special-cased "was it deleted and restored" logic.
 
 **Consequences (addendum)**: Cluster F' implements evidence as `[]EvidenceRef{Path, SHA256 string}` on
 `FeatureStatus` (replacing rev-1's planned `[]string`), a shared hashing helper invoked by `reject`
-(hash-at-write-time) and `reopen` (hash-at-verify-time), and the path-safety/normalization/dedup/sort
-pipeline unchanged from rev-1 but now gating hash computation rather than an admissibility allowlist.
+(hash-at-write-time) and `reopen` (hash-at-verify-time, re-running F-INT-3 path safety before every
+hash attempt per the rev-3 fold above), and the path-safety/normalization/dedup/sort pipeline unchanged
+from rev-1 but now gating hash computation rather than an admissibility allowlist.
 PRD §9 gains tests for: evidence mutated before reopen (divergence recorded), evidence deleted before
 reopen (divergence recorded), evidence unchanged before reopen (no divergence flag), and a
 previously-forbidden path (`artifacts/apply-recipe.json`) now accepted as evidence.
