@@ -16,11 +16,23 @@ const (
 	StateReconcilingShadow FeatureState = "reconciling-shadow"
 	StateBlocked           FeatureState = "blocked"
 	StateUpstreamMerged    FeatureState = "upstream_merged"
+
+	// StateRejected is the eleventh FeatureState (v0.13.0, GH #6 /
+	// PRD-rejected-feature-state §6 / ADR-031 D1). It is a terminal,
+	// PRE-implementation lifecycle outcome meaning "this feature should
+	// never be implemented". It is reachable only from the reject-eligible
+	// source states (see RejectableStates) via `tpatch reject`, and is
+	// left only via the explicit, audited `tpatch reopen` transition.
+	//
+	// It is deliberately disjoint from StateUpstreamMerged (which asserts
+	// the opposite verdict — an implementation exists upstream) and from
+	// StateBlocked (temporary; work resumes once the blocker clears).
+	StateRejected FeatureState = "rejected"
 )
 
 func ValidFeatureState(state FeatureState) bool {
 	switch state {
-	case StateRequested, StateAnalyzed, StateDefined, StateImplementing, StateApplied, StateActive, StateReconciling, StateReconcilingShadow, StateBlocked, StateUpstreamMerged:
+	case StateRequested, StateAnalyzed, StateDefined, StateImplementing, StateApplied, StateActive, StateReconciling, StateReconcilingShadow, StateBlocked, StateUpstreamMerged, StateRejected:
 		return true
 	default:
 		return false
@@ -231,6 +243,21 @@ type FeatureStatus struct {
 	// Read paths must NOT mutate this field. Only the `verify` and
 	// `amend` (recipe-touching) verbs may rewrite it (ADR-013 D3).
 	Verify *VerifyRecord `json:"verify,omitempty"`
+
+	// Rejection is the append-only rejection sub-record written by
+	// `tpatch reject` / `tpatch reopen` (v0.13.0 GH #6,
+	// PRD-rejected-feature-state §6, ADR-031 D1). It lives on
+	// FeatureStatus rather than in a sidecar file so `state` and its
+	// rejection metadata are read/written atomically by the same
+	// SaveFeatureStatus call (ADR-031 D1 Alternative 1).
+	//
+	// The pointer is `omitempty`-marshalled so every pre-v0.13.0
+	// fixture that never rejects round-trips byte-identical
+	// (ADR-031 D7). A non-nil Rejection does NOT imply
+	// `State == StateRejected`: `reopen` is append-only (ADR-031 D5)
+	// and deliberately leaves the record in place after transitioning
+	// the feature back to `requested`, so the audit trail survives.
+	Rejection *RejectionStatus `json:"rejection,omitempty"`
 }
 
 // VerifyRecord is the persisted freshness overlay produced by
