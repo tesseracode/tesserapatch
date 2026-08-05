@@ -12,6 +12,13 @@ import "os"
 // `git maintenance --auto --detach` which can touch .git/{info,objects}
 // while `t.TempDir()` removes the tree (see docs/supervisor/LOG.md
 // 2026-08-04 Cluster E entries).
+//
+// Note: this unconditionally sets GIT_CONFIG_COUNT=1, so any
+// pre-existing GIT_CONFIG_KEY_N/VALUE_N entries in the environment
+// are discarded. Today nothing else sets these, so the clobber is
+// harmless. If a future test needs a second env-config key,
+// extend this helper to read the existing GIT_CONFIG_COUNT and
+// append rather than overwrite.
 func PinGitAutoGCOff() {
 	_ = os.Setenv("GIT_CONFIG_COUNT", "1")
 	_ = os.Setenv("GIT_CONFIG_KEY_0", "gc.auto")
