@@ -14,6 +14,20 @@ import (
 // XDG_CONFIG_HOME to a per-run temp dir so `provider set` (default
 // global scope after bug-provider-set-global) cannot clobber the
 // developer's machine config.
+//
+// It also pins `gc.auto=0` process-wide for every `git` subprocess this
+// package's tests spawn (Cluster E F2). `git commit`/`git init` etc. run
+// `git gc --auto` as a side effect, and when it decides to run it can
+// fork a detached background process (`gc.autoDetach`, default on) that
+// keeps writing under `.git/` (objects/, info/) after the parent git
+// command — and this test's synchronous git helper call — has already
+// returned. Under full-suite load (`-p 8`), that background writer can
+// still be touching `.git/objects` or `.git/info` when `t.TempDir()`'s
+// teardown walks the tree, producing a transient macOS
+// `unlinkat ...: directory not empty` failure. `GIT_CONFIG_*` env vars
+// apply to every `git` invocation in this process (including helpers
+// that pass an explicit `Env`, since they build on `os.Environ()`),
+// without requiring a `-c gc.auto=0` flag on each call site.
 func TestMain(m *testing.M) {
 	tmp, err := os.MkdirTemp("", "tpatch-cli-xdg-*")
 	if err != nil {
@@ -21,6 +35,9 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(tmp)
 	_ = os.Setenv("XDG_CONFIG_HOME", tmp)
+	_ = os.Setenv("GIT_CONFIG_COUNT", "1")
+	_ = os.Setenv("GIT_CONFIG_KEY_0", "gc.auto")
+	_ = os.Setenv("GIT_CONFIG_VALUE_0", "0")
 	os.Exit(m.Run())
 }
 
