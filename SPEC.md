@@ -45,6 +45,18 @@ requested → analyzed → defined → implementing → applied → active
 | `reconciling` | Upstream updated; re-evaluating patches |
 | `blocked` | Failed; needs manual intervention |
 | `upstream_merged` | Feature adopted upstream; local patch retired |
+| `rejected` | Terminal, pre-implementation decision: this feature should never be implemented. Reachable only from `requested`/`analyzed`/`defined` via `tpatch reject`; left only via `tpatch reopen`. |
+
+Rejection is deliberately disjoint from the neighbouring terminal
+concepts: `upstream_merged` asserts an implementation exists upstream,
+`blocked` is temporary (work resumes once the blocker clears), and
+`remove` deletes the feature directory outright. `rejected` preserves the
+complete feature directory and an append-only audit history.
+
+`tpatch reject` is refused (exit 3) from `implementing`, `applied`,
+`active`, `reconciling`, `reconciling-shadow`, `blocked` and
+`upstream_merged`. Post-implementation retirement is out of scope; see
+`docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 
 ### 4. CLI Commands
 
@@ -66,6 +78,42 @@ requested → analyzed → defined → implementing → applied → active
 | `tpatch reconcile confirm-upstreamed <slug> [--json\|--format json] [--path]` | Confirm an upstreamed reconcile outcome and auto-run retirement cleanup audit |
 | `tpatch provider check [--path]` | Validate provider endpoint |
 | `tpatch config show\|set [--path]` | Manage configuration |
+
+#### Feature rejection (v0.13.0, GH #6)
+
+| Command | Purpose |
+|---------|---------|
+| `tpatch status [--include-rejected] ...` | Rejected features are excluded from the default listing; `--include-rejected` opts them back in. The `--feature <slug>` detail view always renders the full rejection record. |
+| `tpatch reject <slug> --reason <code> --note <string> --evidence <path>... [--actor <string>] [--related <ref>] [--json]` | Mark a feature permanently rejected (terminal, pre-implementation). `--reason` is a closed enum: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded`. `--note` is required and non-empty; at least one `--evidence` path is required and is content-hashed (SHA-256, lowercase hex) at write time. |
+| `tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>] [--json]` | Reopen a rejected feature (`rejected → requested`). Append-only: the prior rejection record is never deleted. `--note` is required; `--evidence` is optional. Every historical evidence reference is re-verified against its recorded hash on every reopen; divergence is recorded, never blocking. |
+
+`tpatch reject <slug>` and `tpatch reconcile --reject <slug>` are
+**intentionally unrelated surfaces** and are not to be confused. The
+former is a top-level command performing a terminal lifecycle transition
+on the *feature*; the latter is a flag on `reconcile` that prunes a
+*shadow worktree* (a transient, reversible action on a resource). Their
+state preconditions never overlap: `tpatch reject` is refused from every
+state in which a shadow worktree can exist. See
+`docs/prds/PRD-rejected-feature-state.md` §4.1 and
+`docs/adrs/ADR-031-rejected-feature-state-data-model.md` D10.
+
+`tpatch reconcile confirm-upstreamed` refuses (exit 3) on a `rejected`
+source feature, guarded before any reconcile-revision append.
+
+##### Exit-code envelope
+
+Exit codes are **per-command contracts**, not a single global enum
+across all `tpatch` subcommands (`tpatch verify` has its own, unrelated
+exit-2 meaning). For `reject`, `reopen`, the dependency-editing commands'
+rejected-parent guard, and `reconcile confirm-upstreamed`'s rejected-source
+guard, the codes are:
+
+| Code | Meaning | Example triggers |
+|------|---------|------------------|
+| `0` | Success | The command completed and wrote `status.json`. Includes a reopen that recorded non-blocking evidence divergence. |
+| `1` | Unexpected internal error | Filesystem I/O failure, store load failure unrelated to the slug itself. |
+| `2` | Validation error (pre-mutation input validation) | Invalid `--reason`, missing/empty `--note`, missing `--evidence`, an evidence path that is absolute, `..`-escaping, missing, non-regular, symlink-escaping or unreadable. |
+| `3` | State-transition error (post-validation state-machine refusal) | Rejecting from a non-eligible source state; rejecting a feature with live dependents; rejecting an already-rejected feature; reopening a non-rejected feature; creating a `hard`/`soft`/`supersedes` edge onto a rejected parent; `reconcile confirm-upstreamed` / `apply` / `reconcile` on a rejected feature. |
 
 #### Phase 2 (Post-MVP)
 

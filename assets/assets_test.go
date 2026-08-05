@@ -33,6 +33,8 @@ var requiredCommands = []string{
 	"tpatch feature patch fixup",
 	"tpatch doctor",
 	"tpatch next",
+	"tpatch reject",
+	"tpatch reopen",
 	"tpatch session start",
 	"tpatch session stop",
 	"tpatch session list",
@@ -111,6 +113,17 @@ var requiredAnchors = []struct {
 	// opt-in flag. Anti-drift lesson from Wave α rev-0 F-SEXT-2:
 	// schema/flag change and parity anchor land in the same commit.
 	{"multi-slug-reconcile/legacy-flag", "--cumulative-legacy"},
+	// Cluster F' (v0.13.0, GH #6, PRD-rejected-feature-state §7 +
+	// ADR-031 D10): every shipped skill surface must (a) teach the
+	// terminal `rejected` state and its reject/reopen verbs, and (b)
+	// carry the disambiguation from the pre-existing, unrelated
+	// `tpatch reconcile --reject <slug>` shadow-worktree flag. The
+	// name collision is the single highest-risk agent-confusion
+	// surface in this feature, so the disambiguation sentence is
+	// parity-locked rather than left to prose drift.
+	{"rejected-state/terminal", "`rejected` is a terminal pre-implementation state"},
+	{"rejected-state/include-flag", "--include-rejected"},
+	{"rejected-state/disambiguation", "not the same as `tpatch reconcile --reject`"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching
