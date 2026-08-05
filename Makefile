@@ -69,7 +69,7 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[2/8] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
-	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' 2>/dev/null); \
+	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' '.wave-close-allowlist' 2>/dev/null); \
 	if [ -n "$$untracked_src" ]; then \
 		allowlist_file=".wave-close-allowlist"; \
 		allow_patterns=""; \
