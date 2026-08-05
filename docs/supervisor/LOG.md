@@ -1,4 +1,39 @@
-## 2026-08-05 — Cluster F rev-5 external-only confirmation — APPROVED WITH NOTES — SHIPPED at `c6aaeb2`
+## 2026-08-05 — Cluster F' rev-0 DISPATCHED — v0.13.0 GH #6 implementation cluster
+
+**Trigger**: Cluster F planning three-way APPROVED at rev-4 (`377d103`), amended by rev-5 verb-collision fold (`c6aaeb2`) with external APPROVED WITH NOTES. WAVE_BASE `c6aaeb2`.
+
+**Cluster shape**: Single implementer, sequential (parallel-implementer discipline: `cobra.go`, `internal/store/*.go`, and `internal/cli/*.go` are all shared surfaces across the reject/reopen/status/confirm-upstreamed edits — must run sequentially per AGENTS.md "Parallel-Implementer Discipline" rule 5). Dual review at rev-0. Model: claude-sonnet-4.6 high.
+
+**Binding baseline**: PRD-rejected-feature-state.md + ADR-031-rejected-feature-state-data-model.md at `c6aaeb2`. All 10 decision points D1-D10 binding. No planning reopens.
+
+**Scope**:
+1. `internal/store/types.go` — `StateRejected` as 11th `FeatureState` value; extend `ValidFeatureState` closed switch.
+2. `internal/store/status.go` — `Rejection` field on `FeatureStatus` (`{reason, note, actor, evidence []EvidenceRef, rejected_at, prior_state, history []RejectionHistoryEntry}`); `EvidenceRef{Path, SHA256}`.
+3. `internal/store/validation.go` — Rule 7 in `ValidateDependencies` (edge-creation refused if parent is `rejected`; symmetric with existing dependency-order-symmetry per D8).
+4. `internal/cli/cobra.go` — new top-level `tpatch reject <slug>` + `tpatch reopen <slug>` commands (D10: bare verbs; D10 mitigations require `--help` cross-reference with `reconcile --reject`); `tpatch status` filtering (`--include-rejected` opt-in); confirm-upstreamed defense-in-depth guard at `applyConfirmUpstreamedTransition` entry (BEFORE reconcile-revision append at `:2535` and `saveConfirmUpstreamedStatus` at `:2554`, per rev-2 correction).
+5. `SPEC.md` — new state documentation; pointer to PRD §4.1 + ADR-031 D10 (per D10 Consequences item 2).
+6. `assets/` — state enum doc/template updates; parity guard `assets_test.go` must pass; skill-file `--help` disambiguation note (per D10 Consequences item 4).
+7. Tests — 27 items (26 + 26b + rev-5 test 27) per PRD §9.
+8. **Rev-5 F2 residual** — reword PRD §4.1 point 2 precondition to "fires only when a shadow worktree is registered (pruning it; rolling state back to `applied` only from `reconciling-shadow`)" per external rev-5 confirmation.
+
+**NOT in scope**: `internal/workflow/reconcile.go` and its `RetirementAudit` on `ReconcileResult` (orthogonal per ADR D6). Post-implementation reject deferred per D6.
+
+**Binding decisions**:
+- Content-hash SHA-256 lowercase-hex encoding via `encoding/hex.EncodeToString`, regex `^[0-9a-f]{64}$`.
+- Exit-code envelope: 0 success / 1 unexpected error / 2 pre-mutation validation / 3 state-machine refusal.
+- CLI shape: `tpatch reject <slug> --reason <enum> --note <string> [--evidence <path>...] [--actor <string>]`; `tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>]`.
+- Actor precedence: `--actor` > `TPATCH_ACTOR` > `git config user.email` > `"unknown"`.
+- Reopen unbounded append-only; historical-evidence verification unconditional on every reopen (orthogonal to new-evidence attachment).
+- divergent_reason taxonomy: `hash-mismatch` / `missing` / `non-regular` / `path-safety-failed-at-reopen` / `unreadable`.
+- Symmetric dependency invariant (both directions).
+
+**Review disposition**: dual review at rev-0 (internal + external), model claude-opus-4.8 high for both. Two-opinion protocol standard for implementation-phase cluster with new architectural surface.
+
+**Action taken**: dispatched Cluster F' rev-0 implementer.
+
+---
+
+
 
 **Reviewer**: `cluster-f-rev5-ext` (claude-opus-4.8, high). Internal architectural clearance carries from rev-4 three-way APPROVED.
 

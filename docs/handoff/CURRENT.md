@@ -2,9 +2,11 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: REV-0 DISPATCHED
 
-**WAVE_BASE**: `e493a2d` (Cluster F planning consolidation, 2026-08-05).
+**WAVE_BASE**: `c6aaeb2` (Cluster F planning + rev-5 verb-collision amendment, 2026-08-05).
+
+**2026-08-05 Cluster F' rev-0 DISPATCHED (v0.13.0 GH #6 implementation cluster).** Single implementer, sequential. Planning-baseline: `docs/prds/PRD-rejected-feature-state.md` + `docs/adrs/ADR-031-rejected-feature-state-data-model.md` at `c6aaeb2` (three-way APPROVED rev-4 + rev-5 verb-collision amendment). All 10 decision points D1-D10 binding. Scope: state enum extension (`StateRejected`), `FeatureStatus.Rejection` sub-object with content-hash evidence + append-only `history[]`, Rule 7 dependency-edge guard, `tpatch reject`/`tpatch reopen` top-level commands, `tpatch status` filtering, confirm-upstreamed defense-in-depth guard at `applyConfirmUpstreamedTransition` entry, `--help` cross-reference disambiguation with `reconcile --reject` (rev-5 D10), SPEC.md updates, assets parity, 27 tests (26 top-level + 26b + rev-5 test 27). Rev-5 F2 residual (PRD §4.1 point 2 wording fix) picked up during implementation.
 
 **2026-08-05 Cluster F rev-5 SHIPPED at `c6aaeb2` — docs-only micro-fold amending planning archive.** Post-Cluster-F external F1 LOW-MEDIUM (`tpatch reject` verb collision with pre-existing `tpatch reconcile --reject <slug>` flag at `cobra.go:2093`) resolved via **Alternative 3**: kept bare `tpatch reject`/`tpatch reopen`, documented intentional non-relationship in PRD §4.1 (4-point rationale + 5 mitigations) and ADR-031 D10 (3-alternatives analysis). Test 27 (`--help` cross-reference golden-string assertion) added. Reviewer's suggested Alt-1 (`tpatch feature reject`) explicitly rejected — `feature` group is noun-scoped per `feature_deps.go:41-49,52-56`; retrofitting a lifecycle verb there contradicts `amend --state`'s reservation at `c1.go:276-284`. External rev-5 confirmation: APPROVED WITH NOTES, 1 LOW residual F2 (§4.1 point 2 imprecise precondition wording for `runReconcileReject`; reviewer explicitly deferred to Cluster F' pickup; non-overlap conclusion unaffected). Range `e493a2d..c6aaeb2` (1 commit).
 
