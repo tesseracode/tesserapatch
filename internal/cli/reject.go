@@ -280,6 +280,20 @@ func runReject(cmd *cobra.Command, slug string) error {
 	if err != nil {
 		return err
 	}
+
+	// ─── exit 2: evidence resolution + content hashing ───────────────
+	//
+	// Evidence is pre-mutation INPUT validation, so it must be fully
+	// resolved, path-safety-checked and hashed BEFORE any check against
+	// current store state. An invocation that is wrong on both axes —
+	// bad evidence AND an ineligible source state — must report the
+	// validation error (exit 2), not the state refusal (exit 3)
+	// (Cluster F' rev-1, F-INT-3; ADR-031 D4).
+	evidence, eerr := collectEvidence(s.Root, slug, rawEvidence)
+	if eerr != nil {
+		return emit(map[string]any{}, eerr)
+	}
+
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return emit(map[string]any{}, validationError("feature %q not found: %v", slug, err))
@@ -304,12 +318,6 @@ func runReject(cmd *cobra.Command, slug string) error {
 		return emit(map[string]any{"state": string(status.State), "dependents": jsonDeps},
 			stateRefusalError("cannot reject feature %q: %d dependent feature(s) still reference it: %s. Remove the dependency edge from each dependent (`tpatch feature deps <dependent> remove %s`) before rejecting",
 				slug, len(deps), strings.Join(rendered, ", "), slug))
-	}
-
-	// ─── exit 2: evidence resolution + content hashing ───────────────
-	evidence, eerr := collectEvidence(s.Root, slug, rawEvidence)
-	if eerr != nil {
-		return emit(map[string]any{}, eerr)
 	}
 
 	// ─── mutate ──────────────────────────────────────────────────────

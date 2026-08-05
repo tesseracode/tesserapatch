@@ -113,6 +113,17 @@ func runReopen(cmd *cobra.Command, slug string) error {
 	if err != nil {
 		return err
 	}
+
+	// New evidence is optional (REOPEN-EVIDENCE-OPTIONAL, PRD §5 rev-3)
+	// but is validated exactly like reject's when supplied — and, like
+	// reject's, BEFORE any check against current store state, so a
+	// doubly-invalid invocation reports exit 2 rather than exit 3
+	// (Cluster F' rev-1, F-INT-3; ADR-031 D4).
+	newEvidence, eerr := collectEvidence(s.Root, slug, rawEvidence)
+	if eerr != nil {
+		return emit(map[string]any{}, eerr)
+	}
+
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return emit(map[string]any{}, validationError("feature %q not found: %v", slug, err))
@@ -124,13 +135,6 @@ func runReopen(cmd *cobra.Command, slug string) error {
 	if status.Rejection == nil {
 		return emit(map[string]any{"state": string(status.State)},
 			stateRefusalError("cannot reopen feature %q: state is %q but no rejection record is present in status.json", slug, store.StateRejected))
-	}
-
-	// New evidence is optional (REOPEN-EVIDENCE-OPTIONAL, PRD §5 rev-3)
-	// but is validated exactly like reject's when supplied.
-	newEvidence, eerr := collectEvidence(s.Root, slug, rawEvidence)
-	if eerr != nil {
-		return emit(map[string]any{}, eerr)
 	}
 
 	// Historical-evidence verification runs unconditionally — it is

@@ -386,6 +386,65 @@ func TestReject_ValidationErrorsExitTwo(t *testing.T) {
 	}
 }
 
+// Evidence is INPUT validation and is therefore evaluated before any
+// check against current store state. An invocation that is wrong on both
+// axes must report the validation error (exit 2), never the state
+// refusal (exit 3). Cluster F' rev-1, F-INT-3.
+func TestReject_EvidenceValidationPrecedesStateCheck(t *testing.T) {
+	dir, s := newRejectRepo(t, map[string]store.FeatureState{
+		"alpha": store.StateApplied, // ineligible source state → would be exit 3
+		"beta":  store.StateRequested,
+	})
+
+	// Wrong state AND unresolvable evidence.
+	_, errOut, code := runRJ("reject", "alpha", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "nope.md")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 (validation beats state refusal); stderr=%s", code, errOut)
+	}
+	if !strings.Contains(errOut, "no such file") {
+		t.Errorf("the reported error must be the evidence failure: %s", errOut)
+	}
+	if mustLoad(t, s, "alpha").State != store.StateApplied {
+		t.Fatal("state mutated")
+	}
+
+	// Wrong state AND a path-safety violation.
+	_, errOut, code = runRJ("reject", "alpha", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "/etc/passwd")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2; stderr=%s", code, errOut)
+	}
+
+	// Already rejected AND bad evidence → still exit 2.
+	if _, _, c := runRJ("reject", "beta", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "analysis.md"); c != 0 {
+		t.Fatalf("setup reject failed: %d", c)
+	}
+	if _, _, code := runRJ("reject", "beta", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "nope.md"); code != 2 {
+		t.Errorf("already-rejected + bad evidence: exit %d, want 2", code)
+	}
+}
+
+// The same ordering holds for reopen: bad NEW evidence on a feature that
+// is not even rejected reports exit 2, not exit 3.
+func TestReopen_EvidenceValidationPrecedesStateCheck(t *testing.T) {
+	dir, s := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateApplied})
+
+	_, errOut, code := runRJ("reopen", "alpha", "--path", dir,
+		"--note", "n", "--evidence", "nope.md")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 (validation beats state refusal); stderr=%s", code, errOut)
+	}
+	if !strings.Contains(errOut, "no such file") {
+		t.Errorf("the reported error must be the evidence failure: %s", errOut)
+	}
+	if mustLoad(t, s, "alpha").State != store.StateApplied {
+		t.Fatal("state mutated")
+	}
+}
+
 // A directory is not a regular file.
 func TestReject_EvidenceNonRegularFileExitsTwo(t *testing.T) {
 	dir, _ := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateRequested})
