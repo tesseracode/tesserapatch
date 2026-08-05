@@ -1,3 +1,65 @@
+## 2026-08-05 — Cluster F planning rev-0 dual review — ADJUDICATION → rev-1
+
+**Two-opinion outcomes**:
+- **Internal** (`cluster-f-planning-internal`, gpt-5.6-sol, high): **BLOCKED** — 2 BLOCKING (F-INT-1 append-only audit integrity broken; F-INT-2 confirm-upstreamed is wrong escape hatch AND is not state-guarded) + 4 HIGH (F-INT-3 evidence path safety; F-INT-4 exit-code contradiction PRD vs ADR; F-INT-5 dependency-order asymmetry; F-INT-6 actor mechanism deferred + cites nonexistent precedent) + 2 MEDIUM (F-INT-7 enum count 9 vs actual 10 [dup with external F1]; F-INT-8 tests-to-write matrix gaps).
+- **External** (`cluster-f-planning-external`, claude-opus-4.8, high): **APPROVED WITH NOTES** — 1 HIGH (F1 enum count 9→10, 8× repetition) + 1 LOW (F2 fabricated code comment) — both documentation-accuracy only. Verdict: "no design rework needed".
+
+**Reviewer split analysis**: this is exactly the value of dual review at planning. External did rigorous doc-audit (verified 5 claims-audit citations, verified schema-strictness against actual YAML decoder, verified DAG existence for fail-loudly dependency policy, verified reject-on-rejected empirically already refused). Internal did architectural TRAVERSAL: what happens if you actually walk the append-only audit invariant across reopen? What does confirm-upstreamed do semantically vs what ADR D6 says it does? External's rigor was breadth-first (doc-fidelity); internal's rigor was depth-first (architectural walk). Both are necessary. Cluster D pattern: side with whoever caught the real defect. Internal found genuine design issues.
+
+**Adjudication: side with internal.** Verdict is **NEEDS REVISION**, not BLOCKED — the design is repairable within Cluster F planning; the BLOCKINGs are concrete-fix, not fundamental-redesign. Rev-1 folds all internal findings + external F1/F2.
+
+**F-INT-1 BLOCKING — append-only audit integrity broken on reopen**:
+- **Real flaw**: ADR D3 permits `analysis.md`, `spec.md`, `exploration.md` as evidence paths. After `reopen → requested`, later `tpatch analyze/define/explore` runs OVERWRITE these files (verified at `internal/workflow/workflow.go:90-97,151-155,196-200`). History array retains only path strings, not content — so a historical rejection entry can silently point to different content than what was rejected against.
+- **GH #6 §1 direct quote**: "Preserve the complete feature directory and append-only audit history."
+- **Fold decision**: restrict evidence to write-once artifacts. Simplest form: evidence paths MUST be either (a) under `.tpatch/features/<slug>/artifacts/` OR (b) outside the mutable workflow artifact set (`analysis.md`, `spec.md`, `exploration.md`, `implementation.md`) but within the feature directory. Alternative considered: content-hash snapshot per rejection — adds machinery; deferred to a followup ADR if operator friction surfaces.
+- **New PRD requirement**: evidence file must NOT be `{analysis,spec,exploration,implementation}.md` at feature root; must be under `artifacts/` OR a custom path under feature dir OR a repo-root path that is committed (immutable via git tree). CLI must validate + error if evidence resolves to a mutable workflow file.
+- **New test**: reopen → analyze → verify historical evidence file hash unchanged (or evidence still resolves to expected content).
+
+**F-INT-2 BLOCKING — confirm-upstreamed is wrong post-implementation escape hatch AND not state-guarded**:
+- **Real flaw**: ADR D6 §338-405 suggests `confirm-upstreamed` as the post-implementation escape hatch for a rejected feature. That is semantically wrong: confirm-upstreamed transitions to `upstream_merged`, which asserts "implementation exists upstream". The premise of rejection is "we should NOT implement this". These are opposite verdicts, not compatible escape hatches. Additionally, `saveConfirmUpstreamedStatus` (verified at `cobra.go:2554-2562`) unconditionally sets `StateUpstreamMerged` — no source-state guard — so a `rejected` feature with an authorizing revision could transition to `upstream_merged` and lose its rejection record.
+- **Fold decision**: **remove post-implementation escape hatch from Cluster F scope entirely**. `tpatch reject` is allowed ONLY from pre-implementation states (`requested`, `analyzed`, `defined`, `explored`). Rejecting a post-implementation feature is DEFERRED to a future ADR (potentially "PRD/ADR-feature-unapply" — one of the existing untracked WIP items). This is scope reduction, not scope expansion: Cluster F ships without the escape hatch, and the escape hatch becomes future work.
+- **Additional guard**: every mutating reconcile child command (`reconcile confirm-upstreamed`, any future retirement variants) must add a `rejected`-state guard that returns error before mutation. This is a small Cluster F' implementation task, not new PRD scope, but it must be listed in PRD §7 refuse-list and PRD §9 tests-to-write.
+
+**F-INT-3 HIGH — evidence path safety**: fold. Evidence contract must specify: canonical repo-contained regular files ONLY; reject absolute paths; reject `..` traversal; reject symlinks that escape the repo; normalize to forward slashes; deduplicate; deterministic sort order for stable serialization.
+
+**F-INT-4 HIGH — exit-code contradiction**: fold. Lock exit codes in ADR now:
+- Success: 0.
+- Validation error (missing evidence file, invalid reason enum, missing --note, evidence resolves to mutable workflow artifact): 2.
+- State-transition error (wrong source state, dependency-blocked, already-rejected): 3.
+- Everything else (unexpected internal error, filesystem I/O failure): 1.
+Align PRD §8 JSON examples to match. If different values are chosen, use one number consistently; the point is no PRD/ADR contradiction.
+
+**F-INT-5 HIGH — dependency-order asymmetry**: fold. Two symmetric invariants must be enforced:
+- (a) Rejection of parent refused if dependents exist (already in PRD).
+- (b) Edge creation refused if target parent is `rejected`. Cite `internal/store/validation.go` `ValidateDependencies` as the enforcement point. Cover `hard`, `soft`, and `supersedes` edge types.
+- Remove the "reject the dependent too" remediation from PRD §5 — internal proved it doesn't work (edges persist through rejection; `dependentEdges` returns rejected children).
+- New tests: reject-then-add-edge (must fail), add-edge-then-reject (must fail).
+
+**F-INT-6 HIGH — actor mechanism**: fold. Decision: actor derives from `TPATCH_ACTOR` env var if set; else from `git config user.email` if available; else literal string `"unknown"`. `--actor` CLI flag overrides both. Do NOT derive from git config committer identity (that's the trailer scope). Reject the false `ReconcileRevision` actor-precedent citation. Add tests: env-var, git-config, fallback, override.
+
+**F-INT-7 MEDIUM / F-EXT-1 HIGH — enum count 9→10**: fold. Both reviewers caught the same off-by-one across 8 sites. Global replace: "9 existing" → "10 existing"; "tenth" → "eleventh"; correct claims-audit rows 1-2 to "10 values".
+
+**F-INT-8 MEDIUM — tests-to-write gaps**: fold. Add:
+- `reconciling-shadow` state refusal (missing from refuse-list).
+- Missing/empty `--note` validation error.
+- Reopen validation failures (evidence missing at reopen, etc.).
+- Multiple reopen cycles (bounded or unbounded — ADR must pick).
+- Evidence containment/canonicalization edge cases (F-INT-3 tests).
+- Dependency-order symmetry tests (F-INT-5).
+- Direct `reconcile confirm-upstreamed` refusal on rejected (F-INT-2 guard verification).
+- Explicit JSON error-envelope + exit-code assertion per validation class.
+
+**F-EXT-2 LOW — fabricated code comment in ADR §4**: fold. Quote the real `internal/workflow/reconcile.go:64-65` comment verbatim or drop the fabricated tail.
+
+**External-only closes** (no fold needed — validated in place):
+- Schema-strictness (D7): external verified `json.Unmarshal` at `store.go:357` has no `DisallowUnknownFields`, silent-OK claim is empirically correct.
+- Dependency graph existence: external verified DAG exists (`dag.go`, `dependents.go`, `checkRemoveDependents`), so PRD's "fail loudly" is implementable.
+- Cross-interaction empirical: external verified `retirement_audit.go:38` already gates on state, so a `rejected` feature can never satisfy the reconcile-confirmed-upstreamed precondition. Still, F-INT-2's explicit guard on `saveConfirmUpstreamedStatus` is defense-in-depth against future refactors.
+
+**Cluster state**: `REV-1 DISPATCHED` (planning phase).
+
+---
+
 ## 2026-08-05 — Cluster F v0.13.0 GH #6 first-class rejected state — DISPATCHED (planning phase)
 
 **Scope**: v0.13.0 GH #6 — new terminal `rejected` feature lifecycle state with required reason code, evidence reference, and reopen transition. This is the only remaining open GH issue and closes the measurement-first-engineering audit trail gap (currently a rejected feature can only be left as permanent `requested` backlog noise or destructively removed).

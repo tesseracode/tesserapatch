@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED (planning phase)
+**Cluster state**: REV-1 DISPATCHED (planning phase)
 
 **WAVE_BASE**: `8574ff3` (Cluster F v0.13.0 GH #6 planning dispatch, 2026-08-05).
 
