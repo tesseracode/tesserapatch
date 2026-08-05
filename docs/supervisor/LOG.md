@@ -1,4 +1,53 @@
-## 2026-08-05 — Cluster F' rev-0 DISPATCHED — v0.13.0 GH #6 implementation cluster
+## 2026-08-05 — Cluster F' rev-0 dual review — NEEDS REVISION → rev-1 dispatched
+
+**Reviewers**:
+- Internal: `cluster-f-prime-r0-int` (gpt-5.6-sol, high). **BLOCKED** — 6 findings (1 BLOCKING, 3 HIGH, 1 MEDIUM, 1 LOW). 604s runtime.
+- External: `cluster-f-prime-r0-ext` (claude-opus-4.8, high). **APPROVED WITH NOTES** — 3 findings (1 MEDIUM = internal-convergent, 2 LOW). 623s runtime.
+
+**Implementer**: `cluster-f-prime-r0` (claude-sonnet-4.6, high). 10 commits, ~44 test funcs, 3021s. Range `c6aaeb2..d3e5a11`.
+
+**Verdict scoreboard**:
+
+Internal findings (BLOCKED):
+- F-INT-1 BLOCKING: history schema divergence — appends per-action (both reject + reopen), uses generic `actor`/`timestamp`/`note` field names instead of PRD §6 spec (`rejected_by`/`reopened_by`/etc.). PRD §8 examples show `history_entries: 1` after one cycle; implementation shows `2`.
+- F-INT-2 HIGH: `status --json` embeds internal `FeatureStatus` directly, exposing `"actor"` not `"rejected_by"` and emitting rejection object for any state (not §8-restricted to `state == rejected`).
+- F-INT-3 HIGH: reject/reopen validate feature state BEFORE resolving/hashing/path-safety-checking evidence. Combined bad-evidence + bad-state exits 3 instead of the D4-addendum-mandated exit 2.
+- F-INT-4 HIGH: rejected-parent edge refusals exit 1 not 3 across `feature deps add` + `amend --depends-on`. `ValidateDependencies` returns `ErrRejectedParent` but CLI passes it through unchanged; `Execute` maps non-`*ExitCodeError` to exit 1.
+- F-INT-5 MEDIUM: evidence resolution falls through to root candidate even when feature-dir candidate exists but is non-regular/unsafe/unreadable — could hash wrong file.
+- F-INT-6 LOW: test 27 uses production constants as expected strings; not independent golden assertion.
+
+External findings (APPROVED WITH NOTES):
+- F-EXT-1 MEDIUM: **convergent with F-INT-4.** Rejected-parent edge refusals exit 1 not 3. External adds: golden string diverges from PRD §8 ("dependency parent is rejected" vs spec "cannot add dependency"), no `--json` envelope with `parent`/`kind` fields.
+- F-EXT-2 LOW: reject wrong-state error omits Oxford "or" — emits "requested, analyzed, defined" vs PRD §8 "requested, analyzed, or defined". Cosmetic, no test catches it.
+- F-EXT-3 LOW (adjudication): `history_entries: 2` vs PRD §8's `1`; implementer flagged deliberate. External framed as "supervisor call" — either fix code or update PRD §8.
+
+Both reviewers verified clean:
+- Explored-state pre-flag resolved: PRD §5 explicitly clarifies `explored` "is not itself a distinct `FeatureState` value today — `explore` output lands under the `defined` state." 3-state RejectableStates is faithful.
+- F2 residual fold at `b06571d` factually accurate against `runReconcileReject`.
+- Test 27 / D10 disambiguation symmetric and present (both `reject --help` and `reconcile --help` render cross-reference).
+- Content-hash SHA-256 lowercase-hex + regex + `encoding/hex.EncodeToString`, all 5 divergence-reason constants.
+- Actor precedence 4 tiers + fallback, all tested.
+- Backward compat via `*RejectionStatus` + `omitempty` + round-trip test.
+- Confirm-upstreamed guard at first statement of `applyConfirmUpstreamedTransition`, ahead of `AppendReconcileRevision` and idempotency branch (rev-2 correction from planning cluster faithful).
+
+**Adjudication**: **NEEDS REVISION → rev-1**. Sided with internal on severity. Precedent: internal-strict adjudication for wire-schema violations that external's example-reading passes over. F-INT-1 is architecturally load-bearing — the wire schema is a contract, not an implementation detail; `rejected_by`/`reopened_by` field names carry D9 attribution meaning that generic `actor` collapses. F-EXT-3's "supervisor call" framing acknowledged but overruled — PRD §8 examples are authoritative spec, and implementer's rationale (action discriminator meaningless unless reject also appends) is defensible in isolation but doesn't override written spec on a first review turn.
+
+**Rev-1 fold scope** (7 findings folded, F-EXT-3 subsumed under F-INT-1):
+1. F-INT-1 BLOCKING: rewrite history schema — one completed-cycle entry appended on reopen only.
+2. F-INT-2 HIGH: dedicated DTO for `status --json`.
+3. F-INT-3 HIGH: reorder validation — evidence first, state second.
+4. F-INT-4 / F-EXT-1 HIGH: exit-3 mapping at feature-deps CLI boundary + golden-string reconcile + `--json` envelope for `parent`/`kind`.
+5. F-INT-5 MEDIUM: evidence-fallback fix.
+6. F-INT-6 LOW: independent golden-string fixture for test 27.
+7. F-EXT-2 LOW: reject wrong-state error string joiner adds "or".
+
+**Implementer disposition**: continue with same implementer (`cluster-f-prime-r0`, idle) via `write_agent` — preserves full 3021s of context. Rev-1 fold brief queued.
+
+**Action taken**: adjudicated, updated CURRENT.md state → `REV-1 DISPATCHED`, LOG entry prepended, dispatching rev-1 to existing implementer session.
+
+---
+
+
 
 **Trigger**: Cluster F planning three-way APPROVED at rev-4 (`377d103`), amended by rev-5 verb-collision fold (`c6aaeb2`) with external APPROVED WITH NOTES. WAVE_BASE `c6aaeb2`.
 
