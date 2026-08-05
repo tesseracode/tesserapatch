@@ -2,11 +2,13 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: REV-0 DISPATCHED (planning phase)
 
-**WAVE_BASE**: none (idle — next TBD Cluster F = v0.13.0 GH #6).
+**WAVE_BASE**: `8574ff3` (Cluster F v0.13.0 GH #6 planning dispatch, 2026-08-05).
 
-**2026-08-05 Cluster E-prime SHIPPED (post-Cluster-E hygiene follow-up).** Two LOW observations from external's post-Cluster-E review folded. Scope: Obs 1 (`PinGitAutoGCOff` doc comment clarifying unconditional `GIT_CONFIG_COUNT=1` clobber semantics; mechanism unchanged); Obs 2 (`.wave-close-allowlist` at repo root — Makefile `[2/8]` subtracts allowlisted entries from WARN list; prints `OK (N entries allowlisted)` when residual is empty; residual still WARNs). Two-opinion scoreboard: external-only rev-0 confirmation (APPROVED WITH NOTES — 1 LOW E'-N1: stale-entry bitrot silent, deferred to backlog per reviewer's "not required for this rev to ship" explicit assessment). Reviewer confirmed suite green + gate self-dogfood + negative-case + glob-vs-literal + AGENTS.md sync all empirically valid. Range `2281309..aa34f3c`.
+**2026-08-05 Cluster F DISPATCHED (planning-first — v0.13.0 GH #6).** First-class `rejected` feature lifecycle state per GH #6. Planning phase: PRD + ADR pair. This is a data-model extension (not just a CLI addition), so architectural coverage is required before any code lands. Dual review at planning approval; implementation phase becomes Cluster F' after PRDs+ADRs land three-way APPROVED.
+
+**2026-08-05 Cluster E-prime SHIPPED + E'-N2 amendment (post-Cluster-E hygiene follow-up).** Two LOW observations from external's post-Cluster-E review folded. Scope: Obs 1 (`PinGitAutoGCOff` doc comment clarifying unconditional `GIT_CONFIG_COUNT=1` clobber semantics; mechanism unchanged); Obs 2 (`.wave-close-allowlist` at repo root — Makefile `[2/8]` subtracts allowlisted entries from WARN list; prints `OK (N entries allowlisted)` when residual is empty; residual still WARNs). Post-ship amendment (`189f5d6`): E'-N2 sentinel-self-guard fold — `.wave-close-allowlist` added to `[2/8]` glob list so sentinel catches its own untracked-config case. Post-E-prime external review verdict "NEEDS REVISION" evaluated: F1 HIGH / F2 part-1 / F3 were all against reviewer's stale local pre-fetch tree — only F2 part-2 (self-guard) was state-independent and genuinely valid. E'-N1 (stale-entry bitrot) remains backlog. Range `2281309..8574ff3`.
 
 **2026-08-04 Cluster E SHIPPED (process housekeeping).** Two findings from external's post-Cluster-D review + 1 rev-1 fold. Scope: F1 MEDIUM (`make wave-close-check` never ran `go test` — gate PASSed with red suite empirically demonstrated at Cluster D HEAD; fixed by adding `[8/8] go test -count=1 ./...`), F2 LOW (`t.TempDir()` teardown race on macOS from unpinned `git commit` forking `gc --auto --detach`; fixed by `gc.auto=0` env pin), E-EXT-1 MEDIUM rev-1 fold (F2 pin was `internal/cli`-only; extracted `internal/testutil.PinGitAutoGCOff()` and applied to `internal/gitutil`, `internal/workflow`, `internal/store`). Two-opinion scoreboard: rev-0 dual (internal APPROVED, external APPROVED WITH NOTES 1 MEDIUM), rev-1 external-only confirmation (APPROVED WITH NOTES — 2 non-functional commit-message accuracy notes, no code defects). Range `1bc2a25..b294d8c`.
 
@@ -22,7 +24,78 @@
 
 ## Active Task
 
-**IDLE** — Cluster E-prime shipped 2026-08-05. Next: **Cluster F — v0.13.0 GH #6 first-class rejected feature state** (planning-first, PRD + ADR pair). Only remaining open GH issue.
+**Cluster F — v0.13.0 GH #6 first-class `rejected` feature lifecycle state (planning phase).** Single implementer for planning. WAVE_BASE `8574ff3`. Dispatched 2026-08-05.
+
+### Deliverables (planning phase — no code)
+
+1. **`docs/prds/PRD-rejected-feature-state.md`** — user-facing behavior spec.
+2. **`docs/adrs/ADR-028-rejected-feature-state-data-model.md`** — data-model choice + rationale.
+3. Both cite GH #6 verbatim (evidence anchor) and existing patterns from PRD-#4 (confirm-upstreamed retirement audit) as related-work anchors.
+
+### PRD scope (user-facing)
+
+Extract from GH #6 verbatim wherever possible; PRD should paraphrase only for precision, never for scope. Cover:
+
+- **New terminal state**: `rejected` — must be first-class in `feature.yaml` state enum, not encoded in prose.
+- **Required fields**:
+  - `reason` — enum from: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded`. (Open question: closed enum vs open-string with recommended enum?)
+  - `evidence` — at least one path reference; PRD must specify path validation semantics (must-exist? must-be-in-feature-dir? committed vs untracked?).
+  - `note` — free-form rationale.
+  - `rejected_at`, `rejected_by`, `prior_state` (append-only audit).
+  - `related` — optional feature slug or GH issue reference.
+- **CLI**: `tpatch reject <slug> --reason <code> --evidence <path> [--note <text>] [--related <ref>]`. PRD should evaluate alternative `tpatch feature state <slug> rejected ...` shape and pick one with rationale.
+- **State machine transitions**:
+  - Allowed from: `requested`, `analyzed`, `defined`, `explored`. (Question: from `implementing`/`applied`/beyond? GH #6 §9 says "refuse from states where source changes are already applied unless the command also performs a safe retirement audit". PRD must define this.)
+  - Reopen transition: `rejected → requested` via `tpatch reopen <slug> --evidence <path> --note <text>`. Append-only audit; does not erase rejection record.
+- **Integration**:
+  - `tpatch status`: rejected features excluded from actionable backlog by default; `--all` or `--include-rejected` opts in.
+  - `tpatch next`: prints rejection reason + evidence + reopen command instead of proposing `analyze`.
+  - `FEATURES.md` renderer: distinct section or row style; shows reason + evidence link.
+  - `apply`/`reconcile`: refuse by default on rejected features; explicit override behavior TBD.
+- **JSON envelope**: `tpatch reject --json` shape; `tpatch status --json` addition of rejection fields.
+- **Tests-to-write list** (matches GH #6 acceptance criteria):
+  1. Reject before analysis (from `requested`).
+  2. Reject after analysis/definition (from `analyzed`/`defined`/`explored`).
+  3. Reject with missing evidence file → error.
+  4. Reject with invalid reason code → error.
+  5. Dependency effects (if slug B depends on A, and A rejected, what happens to B? Fail loudly? Warn? PRD must define.).
+  6. Reopen from rejected → requested.
+  7. Reject on already-applied state → error unless explicit escape hatch.
+  8. Status/next/FEATURES.md integration.
+- **Distinctions from related concepts** (verbatim from GH #6 §"Distinction from related concepts"): remove, supersedes (#1), upstream_merged, blocked, rejected-upstreamed (#4). PRD must cite each and confirm no overlap.
+
+### ADR scope (data model)
+
+- **Storage location**: `feature.yaml` state field extension vs separate `.tpatch/features/<slug>/rejection.json` sidecar vs append to `history.json`? Evaluate the three options with:
+  - Human editability tradeoffs.
+  - Consistency with PRD-#4 confirm-upstreamed retirement audit (which uses `RetirementAudit` on `ReconcileResult`, not on `store.FeatureStatus` — verify current state).
+  - Migration path (existing features without the field).
+  - Determinism / stability guarantees (`.tpatch/` artifacts must be deterministic per CLAUDE.md rule 4).
+- **Reason enum shape**: closed enum in code + validation vs open string + recommended-values doc?
+- **Evidence field format**: single string vs list; relative path vs URL; path resolution semantics.
+- **State machine formalization**: draw the transition graph, list allowed transitions, list refused transitions with exit codes.
+- **Reopen mechanism**: append-only history vs full re-state replay; how many reopen cycles are supported (bounded vs unbounded)?
+- **Interaction with confirm-upstreamed**: PRD-#4's confirm-upstreamed is a RECONCILIATION verdict on already-implemented features; Cluster F's rejected is a PRE-implementation lifecycle terminal. These are ORTHOGONAL. ADR must explicitly note this and cite PRD-#4 lines to prevent future conflation.
+- **Backward compatibility**: how do existing feature.yaml files that lack the field render in `tpatch status` after upgrade? Silent OK? Warning? Migration hint like the D10 `patch-generations.json` fallback pattern (Cluster D Item 1)?
+
+### Constraints (per AGENTS.md + CLAUDE.md)
+
+- Planning-phase = docs ONLY. No `internal/`, `cmd/`, `assets/`, `Makefile`, or test changes.
+- PRD claims-audit appendix (per AGENTS.md WP-001 §3.5 graduated conventions): every load-bearing claim about current behavior must cite `file:line` in `SPEC.md`, `docs/dependencies.md`, `docs/feature-layout.md`, or `internal/`/`assets/` source.
+- ADR must evaluate at least 3 alternatives per major decision, not just present a chosen path.
+- Explicit `git add <path>` per commit; NEVER `-a`/`-A`.
+- `git commit -F <tempfile>` with Copilot + Copilot-Session trailers; never inline heredoc.
+- Side Research md5 `b385fe622db9926f48861105239f113e` MUST remain preserved.
+- Do NOT touch canonical `**Cluster state**` field.
+- Do NOT stage the 15 remaining untracked WIP files (allowlisted at rev-0).
+
+### Non-goals (planning phase)
+
+- Do NOT write implementation code. That's the F' implementation cluster.
+- Do NOT add tests. Tests-to-write list belongs in the PRD.
+- Do NOT modify feature.yaml schema in `assets/` or `internal/`. That's implementation.
+- Do NOT extend to related-issues #1 (supersedes) or #4 (confirm-upstreamed). The PRD must cite them for orthogonality but NOT re-scope.
+- Do NOT block on the E'-N1 backlog item (allowlist stale-entry bitrot) — orthogonal.
 
 ## Session Summary
 

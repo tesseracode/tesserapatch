@@ -1,3 +1,39 @@
+## 2026-08-05 — Cluster F v0.13.0 GH #6 first-class rejected state — DISPATCHED (planning phase)
+
+**Scope**: v0.13.0 GH #6 — new terminal `rejected` feature lifecycle state with required reason code, evidence reference, and reopen transition. This is the only remaining open GH issue and closes the measurement-first-engineering audit trail gap (currently a rejected feature can only be left as permanent `requested` backlog noise or destructively removed).
+
+**GH #6 core ask** (verbatim citations preserved in PRD):
+- New terminal state `rejected` with reason code (enum: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded`), evidence reference, note, timestamp/actor/prior-state audit.
+- `tpatch reject <slug> --reason <code> --evidence <path> [--note <text>] [--related <ref>]`.
+- Excluded from actionable backlog + `next` guidance; distinct in `status` / `FEATURES.md`.
+- Refuse from apply/reconcile by default.
+- Append-only reopen transition back to `requested`.
+- Refuse rejection from post-implementation states unless retirement-audit semantics apply.
+- Reference reproduction: `tesseracode/copilot-api` feature `claude-developer-instruction-preservation` (premise disproved by live probes).
+
+**Distinction from related concepts** (per GH #6): explicitly NOT the same as GH #4 confirm-upstreamed (that's a RECONCILIATION verdict on already-implemented work; rejected is a PRE-implementation lifecycle terminal). PRD + ADR must cite this orthogonality explicitly to prevent future conflation. Also distinct from `remove` (destructive), `supersedes` (GH #1 — one impl replaces another), `upstream_merged` (impl exists upstream), `blocked` (temporary).
+
+**Grouping decision (supervisor)**: dispatched as a **planning-first sub-cluster (F planning)**. Larger scope than any prior housekeeping cluster (data-model extension, CLI addition, state-machine formalization, 8-scenario test matrix). Implementation phase becomes **Cluster F'** after PRD + ADR land three-way APPROVED. Mirrors PRD-#3 + PRD-#4 planning-first shape that preceded v0.12.1.
+
+**Deliverables (planning phase — no code)**:
+1. `docs/prds/PRD-rejected-feature-state.md` — user-facing behavior spec, CLI shape, state machine transitions, integration semantics (status/next/FEATURES.md/apply/reconcile), tests-to-write list.
+2. `docs/adrs/ADR-028-rejected-feature-state-data-model.md` — data-model choice (feature.yaml vs sidecar vs history.json append), reason enum shape, evidence field format, state machine formalization, reopen mechanism, orthogonality with PRD-#4 confirm-upstreamed retirement audit, backward-compat migration path.
+
+**Protocol**: single implementer for planning. **Dual review at planning approval** (this is architectural — PRD + ADR need two-opinion coverage before implementation cluster is dispatched). Cluster F' implementation cluster will begin only after both PRD and ADR three-way APPROVED.
+
+**WAVE_BASE**: `8574ff3` (Cluster E-prime + E'-N2 amendment consolidation HEAD; recorded pre-dispatch per AGENTS.md).
+
+**Non-goals of planning phase**:
+- No implementation code, no schema changes, no tests, no CLI modifications.
+- No re-scoping to related GH issues (#1 supersedes, #4 confirm-upstreamed — cite for orthogonality only).
+- No blocking on E'-N1 backlog (allowlist stale-entry bitrot — orthogonal).
+
+**Constraints unchanged**: explicit `git add <path>`, `git commit -F` never inline heredoc, Copilot + Copilot-Session trailers on every commit, Side Research md5 preserved, canonical Cluster state field touched only by supervisor at wave transitions, PRD claims-audit appendix per WP-001 §3.5, ADR must evaluate ≥3 alternatives per major decision.
+
+**Cluster state**: `REV-0 DISPATCHED` (planning phase).
+
+---
+
 ## 2026-08-05 — Cluster E-prime post-ship amendment — sentinel self-guard (E'-N2 fold)
 
 **Post-Cluster-E-prime external review** (user-external, 2026-08-05 01:44 CT) — **NEEDS REVISION** verdict, but the review was authored against the reviewer's stale local pre-fetch working tree. Actual state at review time (verified independently):
