@@ -499,6 +499,30 @@ func nextAction(s *store.Store, status store.FeatureStatus) HarnessTask {
 			State:        string(status.State),
 			Instructions: "Feature has been merged upstream. No further action required.",
 		}
+	case store.StateRejected:
+		// v0.13.0 GH #6 (PRD §3.4 / §7): a rejected feature is excluded
+		// from actionable backlog guidance. Emit the rejection rationale
+		// and the exact reopen command instead of proposing any forward
+		// phase.
+		reason, note := "", ""
+		context := []string{req}
+		if status.Rejection != nil {
+			reason = status.Rejection.Reason
+			note = status.Rejection.Note
+			for _, e := range status.Rejection.Evidence {
+				context = append(context, filepath.Join(featureDir, e.Path))
+			}
+		}
+		return HarnessTask{
+			Phase: "rejected",
+			Slug:  slug,
+			State: string(status.State),
+			Instructions: fmt.Sprintf(
+				"Feature is rejected (reason=%s): %s. It is excluded from the actionable backlog — do NOT propose analyze/define/explore/implement/apply for it. If circumstances have changed, reopen it explicitly with an operator note; the rejection record is preserved append-only.",
+				reason, note),
+			ContextFiles: context,
+			OnComplete:   fmt.Sprintf("tpatch reopen %s --note \"<why this is being reconsidered>\"", slug),
+		}
 	default:
 		return HarnessTask{
 			Phase:        "review",

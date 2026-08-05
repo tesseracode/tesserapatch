@@ -79,6 +79,8 @@ func buildRootCmd() *cobra.Command {
 		verifyCmd(),
 		doctorCmd(),
 		sessionCmd(),
+		rejectCmd(),
+		reopenCmd(),
 	)
 
 	return root
@@ -245,6 +247,7 @@ func statusCmd() *cobra.Command {
 			asJSON, _ := cmd.Flags().GetBool("json")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dagMode, _ := cmd.Flags().GetBool("dag")
+			includeRejected, _ := cmd.Flags().GetBool("include-rejected")
 			featureSlug, _ := cmd.Flags().GetString("feature")
 			if featureSlug == "" && len(args) > 0 {
 				featureSlug = args[0]
@@ -270,6 +273,29 @@ func statusCmd() *cobra.Command {
 			// currently broken.
 			brokenByFeature, _ := store.CollectBrokenRefs(s)
 			warnMalformedPatchGenerations(cmd, s, features)
+
+			// v0.13.0 GH #6 (PRD-rejected-feature-state §7): rejected
+			// features are excluded from the default listing — both the
+			// text dashboard and the JSON envelope's `features[]` array
+			// — and opted back in with --include-rejected. DAG
+			// validation, the malformed-manifest sweep and the
+			// per-feature detail view all keep operating on the full
+			// set: rejection hides a feature from the actionable
+			// backlog, it does not make it unqueryable.
+			allFeatures := features
+			hiddenRejected := 0
+			if !includeRejected {
+				kept := make([]store.FeatureStatus, 0, len(features))
+				for _, f := range features {
+					if f.State == store.StateRejected {
+						hiddenRejected++
+						continue
+					}
+					kept = append(kept, f)
+				}
+				features = kept
+			}
+			_ = allFeatures
 
 			// --dag short-circuits the dashboard render and emits the tree
 			// (or JSON) view directly.
@@ -337,6 +363,9 @@ func statusCmd() *cobra.Command {
 				if len(dagWarnings) > 0 {
 					payload["dag_warnings"] = dagWarnings
 				}
+				if hiddenRejected > 0 {
+					payload["rejected_hidden"] = hiddenRejected
+				}
 				data, _ := json.MarshalIndent(payload, "", "  ")
 				fmt.Fprintf(out, "%s\n", data)
 				return nil
@@ -356,9 +385,15 @@ func statusCmd() *cobra.Command {
 			}
 			if len(features) == 0 {
 				fmt.Fprintln(out, "Features: none")
-				return nil
+				if hiddenRejected > 0 {
+					fmt.Fprintf(out, "Rejected (hidden): %d — pass --include-rejected to show\n", hiddenRejected)
+				}
+				if featureSlug == "" {
+					return nil
+				}
+			} else {
+				fmt.Fprintf(out, "Features: %d\n", len(features))
 			}
-			fmt.Fprintf(out, "Features: %d\n", len(features))
 			for _, f := range features {
 				freshness := workflow.DeriveFreshnessLabel(s, f)
 				labels := mergedLabels(f, freshness)
@@ -377,6 +412,9 @@ func statusCmd() *cobra.Command {
 					line += " (" + strings.Join(strs, ", ") + ")"
 				}
 				fmt.Fprintln(out, line)
+			}
+			if len(features) > 0 && hiddenRejected > 0 {
+				fmt.Fprintf(out, "Rejected (hidden): %d — pass --include-rejected to show\n", hiddenRejected)
 			}
 			// feat-amend-dependent-warning (v0.7.0) — emit one
 			// diagnostic line per affected feature listing the abbrev
@@ -431,6 +469,30 @@ func statusCmd() *cobra.Command {
 					if st.Notes != "" {
 						fmt.Fprintf(out, "  Notes:         %s\n", st.Notes)
 					}
+					// v0.13.0 GH #6: the per-feature detail view always
+					// renders the full rejection record, regardless of
+					// --include-rejected. Rejection hides a feature from
+					// the backlog; it never hides it from a direct query
+					// (PRD §3.7).
+					if st.Rejection != nil {
+						r := st.Rejection
+						fmt.Fprintf(out, "  Rejection:\n")
+						fmt.Fprintf(out, "    Reason:      %s\n", r.Reason)
+						fmt.Fprintf(out, "    Note:        %s\n", r.Note)
+						fmt.Fprintf(out, "    Actor:       %s\n", r.Actor)
+						fmt.Fprintf(out, "    Rejected at: %s\n", r.RejectedAt.Format(time.RFC3339))
+						fmt.Fprintf(out, "    Prior state: %s\n", r.PriorState)
+						if r.Related != "" {
+							fmt.Fprintf(out, "    Related:     %s\n", r.Related)
+						}
+						for _, e := range r.Evidence {
+							fmt.Fprintf(out, "    Evidence:    %s (sha256=%s)\n", e.Path, e.SHA256)
+						}
+						fmt.Fprintf(out, "    History:     %d entr%s\n", len(r.History), pluralEntries(len(r.History)))
+						if st.State == store.StateRejected {
+							fmt.Fprintf(out, "    Next:        tpatch reopen %s --note \"<why this is being reconsidered>\"\n", st.Slug)
+						}
+					}
 					if st.State == store.StateReconcilingShadow || st.Reconcile.ShadowPath != "" {
 						fmt.Fprintf(out, "  Shadow:        %s\n", st.Reconcile.ShadowPath)
 						if st.Reconcile.ResolveSession != "" {
@@ -451,8 +513,17 @@ func statusCmd() *cobra.Command {
 	cmd.Flags().Bool("json", false, "Output as JSON")
 	cmd.Flags().Bool("verbose", false, "Show all feature details")
 	cmd.Flags().String("feature", "", "Show detail for one feature")
+	cmd.Flags().Bool("include-rejected", false, "Include rejected features in the listing (excluded by default)")
 	wireStatusDagFlag(cmd)
 	return cmd
+}
+
+// pluralEntries renders the "entr(y|ies)" suffix for history counts.
+func pluralEntries(n int) string {
+	if n == 1 {
+		return "y"
+	}
+	return "ies"
 }
 
 func warnMalformedPatchGenerations(cmd *cobra.Command, s *store.Store, features []store.FeatureStatus) {
@@ -645,6 +716,13 @@ func applyCmd() *cobra.Command {
 			mode, _ := cmd.Flags().GetString("mode")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			out := cmd.OutOrStdout()
+
+			// v0.13.0 GH #6 (PRD §3.6 / §7): a rejected feature does not
+			// participate in apply. Refuse before any recipe is loaded or
+			// executed.
+			if err := refuseIfRejected(s, slug, "apply"); err != nil {
+				return err
+			}
 
 			// Handle --dry-run: preview recipe operations without modifying anything
 			if dryRun {
@@ -1934,6 +2012,32 @@ func reconcileCmd() *cobra.Command {
 				return err
 			}
 
+			// v0.13.0 GH #6 (PRD §3.6 / §7 / §9 item 15): rejected
+			// features do not participate in reconcile. Explicitly named
+			// rejected slugs are dropped with a per-slug warning so a
+			// multi-slug sweep is not aborted; if every named slug is
+			// rejected there is nothing left to do and we refuse with
+			// exit 3. The default (no-args) sweep never picks up a
+			// rejected feature — it only walks applied/active.
+			if len(args) > 0 {
+				kept := make([]string, 0, len(args))
+				var refusals []error
+				for _, sl := range args {
+					if rerr := refuseIfRejected(s, sl, "reconcile"); rerr != nil {
+						refusals = append(refusals, rerr)
+						continue
+					}
+					kept = append(kept, sl)
+				}
+				if len(kept) == 0 && len(refusals) > 0 {
+					return refusals[0]
+				}
+				for _, rerr := range refusals {
+					fmt.Fprintf(cmd.ErrOrStderr(), "warning: skipping — %v\n", rerr)
+				}
+				args = kept
+			}
+
 			if checkApplied {
 				upstreamRef, _ := cmd.Flags().GetString("upstream-ref")
 				return runReconcileCheckAppliedOnly(cmd, s, args, upstreamRef)
@@ -2090,7 +2194,7 @@ func reconcileCmd() *cobra.Command {
 	cmd.Flags().Int("max-conflicts", 0, "With --resolve, cap the number of conflicted files per feature (0 = workflow default)")
 	cmd.Flags().String("model", "", "With --resolve, override the provider model for phase-3.5 calls only")
 	cmd.Flags().String("accept", "", "Accept a shadow worktree: copy resolved files onto the real tree and transition state → applied")
-	cmd.Flags().String("reject", "", "Reject a shadow worktree: prune it and roll feature state back to applied")
+	cmd.Flags().String("reject", "", "Reject a shadow worktree: prune it and roll feature state back to applied. "+reconcileRejectDisambiguation)
 	cmd.Flags().String("shadow-diff", "", "Emit a unified diff between shadow and real tree for a feature (review without accepting)")
 	// PRD-patch-already-upstream-detector §3.2 / §3.3 (v0.8.1).
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
@@ -2501,6 +2605,28 @@ func isConfirmedViaReviewTransition(e store.ReconcileRevision) bool {
 // superseding transition revision. The consumed revision is left
 // byte-identical in the file.
 func applyConfirmUpstreamedTransition(s *store.Store, status *store.FeatureStatus, info *confirmUpstreamedTransition) error {
+	// v0.13.0 GH #6 defense-in-depth guard (ADR-031 D6, PRD §7).
+	// MUST be the first statement in this function: the
+	// ReconcileRevision append below happens BEFORE
+	// saveConfirmUpstreamedStatus runs, and the crash-recovery
+	// idempotency branch reaches saveConfirmUpstreamedStatus directly.
+	// A guard placed in the callee would let a false audit revision be
+	// appended to a rejected feature before ever firing.
+	//
+	// `confirm-upstreamed` asserts "an implementation already exists
+	// upstream" — the opposite verdict from rejection's "this should
+	// never be implemented". Refuse with a state-machine error (exit 3)
+	// before ANY mutation.
+	if status != nil && status.State == store.StateRejected {
+		reason := ""
+		if status.Rejection != nil {
+			reason = status.Rejection.Reason
+		}
+		return stateRefusalError(
+			"cannot confirm-upstreamed feature %q: feature is rejected (reason=%s); run `tpatch reopen %s` first if this is no longer accurate",
+			status.Slug, reason, status.Slug)
+	}
+
 	// Crash-recovery idempotency (PRD-#4 F-4): info.ConsumedEntry is
 	// already our own previously-appended transition record — skip
 	// the append (it already happened; appending again would chain a

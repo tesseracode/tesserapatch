@@ -675,25 +675,69 @@ func (s *Store) HasPatchingInstructions() bool {
 }
 
 // RefreshFeaturesIndex rebuilds FEATURES.md from current feature state.
+//
+// Rejected features (v0.13.0 GH #6, PRD-rejected-feature-state §7) are
+// excluded from the main table and rendered in a distinct trailing
+// "Rejected" section instead, mirroring `tpatch status`'s default
+// exclusion. Both views are sourced from the same `features` slice — no
+// extra store call.
 func (s *Store) RefreshFeaturesIndex() error {
 	features, err := s.ListFeatures()
 	if err != nil {
 		return err
 	}
 
+	active := make([]FeatureStatus, 0, len(features))
+	rejected := make([]FeatureStatus, 0)
+	for _, f := range features {
+		if f.State == StateRejected {
+			rejected = append(rejected, f)
+			continue
+		}
+		active = append(active, f)
+	}
+
 	var b strings.Builder
 	b.WriteString("# Tracked Features\n\n")
-	if len(features) == 0 {
+	if len(active) == 0 && len(rejected) == 0 {
 		b.WriteString("*No features yet. Run `tpatch add <description>` to add one.*\n")
+	} else if len(active) == 0 {
+		b.WriteString("*No active features.*\n")
 	} else {
 		b.WriteString("| Slug | Title | State | Compatibility |\n")
 		b.WriteString("|------|-------|-------|---------------|\n")
-		for _, f := range features {
+		for _, f := range active {
 			b.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", f.Slug, f.Title, f.State, f.Compatibility))
 		}
 	}
 
+	if len(rejected) > 0 {
+		b.WriteString("\n## Rejected\n\n")
+		b.WriteString("| Slug | Reason | Evidence | Note |\n")
+		b.WriteString("|------|--------|----------|------|\n")
+		for _, f := range rejected {
+			reason, evidence, note := "", "", ""
+			if f.Rejection != nil {
+				reason = f.Rejection.Reason
+				note = singleLineCell(f.Rejection.Note)
+				paths := make([]string, 0, len(f.Rejection.Evidence))
+				for _, e := range f.Rejection.Evidence {
+					paths = append(paths, "`"+e.Path+"`")
+				}
+				evidence = strings.Join(paths, ", ")
+			}
+			b.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", f.Slug, reason, evidence, note))
+		}
+	}
+
 	return writeFile(s.featuresIndexPath(), b.String())
+}
+
+// singleLineCell collapses newlines and escapes pipe characters so a
+// free-form operator note cannot break the generated markdown table.
+func singleLineCell(v string) string {
+	r := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "|", "\\|")
+	return strings.TrimSpace(r.Replace(v))
 }
 
 // Path accessors
