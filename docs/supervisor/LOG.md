@@ -1,3 +1,28 @@
+## 2026-08-05 — Cluster F planning rev-3 dual review — ADJUDICATION → rev-4 (2-item micro-fold)
+
+**Two-opinion outcomes**:
+- **External** (`cluster-f-planning-rev3-extern`, claude-opus-4.8, high): **APPROVED WITH NOTES** — 1 LOW cosmetic (ADR:999 "16 items" stale count, should be "26"), self-classified "not required for ship." Explicit reaffirmation: "The supervisor has clearance to consolidate the planning cluster and proceed to Cluster F′ implementation." Every fold verified against source at `137f23e`.
+- **Internal** (`cluster-f-planning-rev3-intern`, gpt-5.6-sol, high): **NEEDS REVISION** — 1 MEDIUM only. F-INT-R3-1: PRD test 26 (zero-evidence reopen) says "no `evidence_integrity` required because nothing to diverge against" — but historical evidence from the original rejection ALWAYS exists and MUST still be verified on note-only reopens. Test as written could mislead F' implementer to skip integrity verification for note-only reopens.
+
+**Adjudication**: **NEEDS REVISION → rev-4 (micro-fold)**. Internal's MEDIUM is substantive — it's a test description that would cause implementation regression if shipped verbatim to Cluster F'. External missed this because external's focus was CLI-signature side (verified `--evidence` optional across §4/§5/§8/§9) rather than "does the test properly assert what §6 requires." Internal's architectural-traversal discipline caught the semantic gap between "no new evidence attached" and "no historical evidence to verify" (the former holds, the latter never does).
+
+**Rev-4 folds** (2 items, single micro-fold):
+- **F1 — internal F-INT-R3-1 MEDIUM**: PRD §9 test 26 language fix. Change "no `evidence_integrity` required because nothing to diverge against" → "note-only reopen still verifies historical evidence per §6." Add a companion sub-test asserting a note-only reopen with mutated historical evidence records `divergent` correctly.
+- **F2 — external L (LOW, bundled cheap)**: ADR-031 line 999 "16 items" → "26 items" (or drop the parenthetical count; PRD §9 is authoritative).
+
+**Cluster state**: `REV-4 DISPATCHED` (planning phase).
+
+**Convergence note**: Rev-3→rev-4 diff is smallest yet expected (2-line fix + 1-line correction + 1 new sub-test). Cluster F planning is converging cleanly. Internal's finding-count arc: rev-0 8 findings → rev-1 5 → rev-2 3 → rev-3 1. External: rev-0 2 → rev-1 3 → rev-2 2 → rev-3 1. Approaching mutual APPROVED. If rev-4 clears three-way, consolidate and dispatch Cluster F' implementation.
+
+**Precedent — micro-fold amortization**:
+When a rev-cycle produces exactly ONE substantive finding + ONE cosmetic finding, and neither would block implementation-cluster start, the correct move is:
+- **Fold both cheaply** if they can be a single tiny commit (< 50 lines diff, < 1 hour turnaround).
+- **Defer to implementation** if the fold requires design decisions or multi-section changes.
+- Both approaches are valid; supervisor picks based on fold cost vs deferred cost.
+- Rev-4 here fits "fold cheaply": 2 items, both narrow, single-file each, no design implications.
+
+---
+
 ## 2026-08-05 — Cluster F planning rev-2 dual review — ADJUDICATION → rev-3 (small fold)
 
 **Two-opinion outcomes**:
