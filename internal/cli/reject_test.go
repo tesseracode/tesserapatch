@@ -335,15 +335,34 @@ func TestRejectDependencySymmetry_EdgeOntoRejectedParentRefused(t *testing.T) {
 				t.Fatalf("reject parent failed: %d", code)
 			}
 
+			// Rule 7 is a state-machine refusal, so it must carry
+			// exit 3 — not the default exit 1 (Cluster F' rev-1,
+			// F-INT-4 / F-EXT-1; ADR-031 D4).
 			_, errOut, code := runRJ("feature", "deps", "child", "add", "parent:"+kind, "--path", dir)
-			if code == 0 {
-				t.Fatalf("edge onto a rejected parent must be refused (kind=%s)", kind)
+			if code != 3 {
+				t.Fatalf("edge onto a rejected parent: exit %d, want 3 (kind=%s); stderr=%s", code, kind, errOut)
 			}
-			if !strings.Contains(errOut, "rejected") {
-				t.Errorf("refusal should say the parent is rejected: %s", errOut)
+			// PRD §8 golden string.
+			want := "cannot add dependency: parent \"parent\" is rejected (reason=out-of-scope); " +
+				"run `tpatch reopen parent` first if this dependency is still needed"
+			if !strings.Contains(errOut, want) {
+				t.Errorf("refusal message must match PRD §8 verbatim:\nwant: %s\ngot:  %s", want, errOut)
 			}
 			if got := mustLoad(t, s, "child"); len(got.DependsOn) != 0 {
 				t.Fatalf("edge persisted despite refusal: %+v", got.DependsOn)
+			}
+
+			// The amend --depends-on path is the second command that
+			// can create the same edge (PRD §8) and must agree.
+			_, errOut, code = runRJ("amend", "child", "--path", dir, "--depends-on", "parent:"+kind)
+			if code != 3 {
+				t.Fatalf("amend --depends-on onto a rejected parent: exit %d, want 3; stderr=%s", code, errOut)
+			}
+			if !strings.Contains(errOut, want) {
+				t.Errorf("amend refusal must match PRD §8 verbatim:\nwant: %s\ngot:  %s", want, errOut)
+			}
+			if got := mustLoad(t, s, "child"); len(got.DependsOn) != 0 {
+				t.Fatalf("edge persisted despite amend refusal: %+v", got.DependsOn)
 			}
 		})
 	}

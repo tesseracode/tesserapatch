@@ -24,6 +24,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -185,6 +186,23 @@ func dependentEdges(s *store.Store, parent string) []dependentEdge {
 	return out
 }
 
+// mapDependencyValidationError attaches the ADR-031 D4 exit code to
+// dependency-validation failures that carry a binding exit-code
+// contract. Rule 7 (`ErrRejectedParent`) is a state-machine refusal —
+// the input is well formed, but the current state of the store makes
+// the edge invalid — so it must surface as exit 3, not the default
+// exit 1 (Cluster F' rev-1, F-INT-4 / F-EXT-1). Every other validation
+// error keeps its legacy exit-1 behaviour.
+func mapDependencyValidationError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, store.ErrRejectedParent) {
+		return &ExitCodeError{Code: exitStateRefus, Message: err.Error()}
+	}
+	return err
+}
+
 // runFeatureDepsAdd validates and persists a new edge atomically.
 // Existing edges to the same parent are replaced (so kind upgrades are
 // expressible), preserving SatisfiedBy if already set.
@@ -209,7 +227,7 @@ func runFeatureDepsAdd(cmd *cobra.Command, s *store.Store, slug, spec string) er
 		st.DependsOn = append(st.DependsOn, store.Dependency{Slug: parent, Kind: kind})
 	}
 	if err := store.ValidateDependencies(s, slug, st.DependsOn); err != nil {
-		return err
+		return mapDependencyValidationError(err)
 	}
 	if err := s.SaveFeatureStatus(st); err != nil {
 		return err
@@ -243,7 +261,7 @@ func runFeatureDepsRemove(cmd *cobra.Command, s *store.Store, slug, parent strin
 	}
 	st.DependsOn = out
 	if err := store.ValidateDependencies(s, slug, st.DependsOn); err != nil {
-		return err
+		return mapDependencyValidationError(err)
 	}
 	if err := s.SaveFeatureStatus(st); err != nil {
 		return err
@@ -281,12 +299,16 @@ func applyAmendDependsOn(cmd *cobra.Command, s *store.Store, slug string) error 
 	}
 	for _, spec := range addSpecs {
 		if err := runFeatureDepsAdd(cmd, s, slug, spec); err != nil {
-			return err
+			// Idempotent re-wrap: runFeatureDepsAdd already maps Rule 7
+			// to exit 3, but the amend path is a second, independently
+			// reviewed boundary (PRD §8's "whichever command creates
+			// the edge") so the mapping is asserted here too.
+			return mapDependencyValidationError(err)
 		}
 	}
 	for _, parent := range rmSpecs {
 		if err := runFeatureDepsRemove(cmd, s, slug, parent); err != nil {
-			return err
+			return mapDependencyValidationError(err)
 		}
 	}
 	return nil

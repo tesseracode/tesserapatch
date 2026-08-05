@@ -63,7 +63,11 @@ var (
 	// operations (reject the parent then add the edge, or add the
 	// edge then reject the parent) the same outcome results: a
 	// rejected feature never has live dependents.
-	ErrRejectedParent = errors.New("dependency parent is rejected")
+	//
+	// The sentinel's own text is the leading clause of PRD §8's golden
+	// error string, so `fmt.Errorf("%w: ...", ErrRejectedParent, ...)`
+	// renders the spec message verbatim (Cluster F' rev-1, F-EXT-1).
+	ErrRejectedParent = errors.New("cannot add dependency")
 )
 
 // supersederValidationHealthyStates lists the FeatureStates that
@@ -171,7 +175,7 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 		// invalid right now.
 		if parent.State == StateRejected {
 			return fmt.Errorf(
-				"%w: parent feature %q is rejected%s; run `tpatch reopen %s` to restore it before adding dependents",
+				"%w: parent %q is rejected%s; run `tpatch reopen %s` first if this dependency is still needed",
 				ErrRejectedParent, d.Slug, rejectionReasonSuffix(parent), d.Slug,
 			)
 		}
