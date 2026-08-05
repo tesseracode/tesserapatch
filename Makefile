@@ -45,11 +45,16 @@ all: fmt lint test build
 # WAVE_BASE=<ref> to override the default trailer-check range
 # (default: origin/main..HEAD excluding HEAD; for wave close on a
 # pushed HEAD, we walk the last-shipped-tag..HEAD range instead).
+# Cluster E F1 (2026-08-04): added [8/8] `go test -count=1 ./...` as
+# a mechanical check. Prior to this the gate never ran the test
+# suite, so it could report PASS on a red suite (demonstrated
+# empirically at Cluster D HEAD `1bc2a25`). `-count=1` disables the
+# Go build cache so the check is deterministic across gate runs.
 WAVE_BASE ?=
 wave-close-check:
 	@echo "=== Wave-Close Checklist (mechanical gate) ==="
 	@fail=0; warn=0; \
-	echo "[1/7] Working tree clean (no uncommitted changes to tracked files)..."; \
+	echo "[1/8] Working tree clean (no uncommitted changes to tracked files)..."; \
 	if ! git diff --quiet HEAD 2>/dev/null; then \
 		echo "  FAIL: uncommitted changes to tracked files present"; \
 		git status --short | grep -v '^??' || true; \
@@ -57,7 +62,7 @@ wave-close-check:
 	else \
 		echo "  OK"; \
 	fi; \
-	echo "[2/7] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
+	echo "[2/8] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
 	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' 2>/dev/null); \
 	if [ -n "$$untracked_src" ]; then \
 		echo "  WARN: untracked source or design-doc files (may be forgotten adds):"; \
@@ -66,7 +71,7 @@ wave-close-check:
 	else \
 		echo "  OK"; \
 	fi; \
-	echo "[3/7] HEAD pushed to origin/main..."; \
+	echo "[3/8] HEAD pushed to origin/main..."; \
 	if ! git fetch --quiet origin main 2>/dev/null; then \
 		echo "  FAIL: could not fetch origin/main; durability cannot be verified offline"; \
 		echo "  Rerun with network available before closing the wave."; \
@@ -82,7 +87,7 @@ wave-close-check:
 			echo "  OK ($$local_head)"; \
 		fi; \
 	fi; \
-	echo "[4/7] Every wave commit carries the Rule 18 trailer..."; \
+	echo "[4/8] Every wave commit carries the Rule 18 trailer..."; \
 	if [ -n "$(WAVE_BASE)" ]; then \
 		range="$(WAVE_BASE)..HEAD"; \
 	else \
@@ -119,7 +124,7 @@ wave-close-check:
 			echo "  OK ($$commit_count commits)"; \
 		fi; \
 	fi; \
-	echo "[5/7] CURRENT.md \`**Cluster state**:\` canonical field is terminal..."; \
+	echo "[5/8] CURRENT.md \`**Cluster state**:\` canonical field is terminal..."; \
 	if [ ! -f docs/handoff/CURRENT.md ]; then \
 		echo "  FAIL: docs/handoff/CURRENT.md not found"; \
 		fail=1; \
@@ -157,7 +162,7 @@ wave-close-check:
 			esac; \
 		fi; \
 	fi; \
-	echo "[6/7] gofmt clean..."; \
+	echo "[6/8] gofmt clean..."; \
 	unformatted=$$(gofmt -l .); \
 	if [ -n "$$unformatted" ]; then \
 		echo "  FAIL: unformatted files:"; \
@@ -166,7 +171,7 @@ wave-close-check:
 	else \
 		echo "  OK"; \
 	fi; \
-	echo "[7/7] go vet + go build clean..."; \
+	echo "[7/8] go vet + go build clean..."; \
 	if ! go vet ./... >/dev/null 2>&1; then \
 		echo "  FAIL: go vet errors"; \
 		go vet ./...; \
@@ -177,6 +182,14 @@ wave-close-check:
 		fail=1; \
 	else \
 		echo "  OK"; \
+	fi; \
+	echo "[8/8] go test ./... clean..."; \
+	if out=$$(go test -count=1 ./... 2>&1); then \
+		echo "  OK"; \
+	else \
+		echo "  FAIL: test suite failed"; \
+		echo "$$out" | tail -40; \
+		fail=1; \
 	fi; \
 	echo ""; \
 	echo "=== Manual items (verify by hand) ==="; \

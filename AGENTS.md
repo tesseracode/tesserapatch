@@ -227,7 +227,7 @@ Run this **as the last step of every wave close**, before dispatching the next w
 
 If any box is unchecked when the next wave is about to dispatch, **stop and finish the checklist first**. Dispatching against unpushed / stale-Status state is what generated the F1 pattern; the fix is protocol, not memory.
 
-**Mechanical gate**: `make wave-close-check` runs the subset of the checklist that can be verified programmatically (working tree clean, HEAD pushed, trailer parses, CURRENT.md Status line not stale, gofmt/vet/build clean). Human items (LOG prepended, ROADMAP flipped, HISTORY archived, non-invalidation invariants) remain manual — the target prints them as a reminder banner. Codified 2026-08-02 after Cluster A external challenge #2 flagged that the checklist above is protocol-only with no verifier.
+**Mechanical gate**: `make wave-close-check` runs 8 programmatic checks (working tree clean, untracked source-code sentinel, HEAD pushed, trailer parses, CURRENT.md Status line not stale, gofmt clean, vet/build clean, `go test -count=1 ./...` clean). Human items (LOG prepended, ROADMAP flipped, HISTORY archived, non-invalidation invariants) remain manual — the target prints them as a reminder banner. Codified 2026-08-02 after Cluster A external challenge #2 flagged that the checklist above is protocol-only with no verifier. **Test-suite check added 2026-08-04 (Cluster E F1)**: prior to this, the gate reported PASS while `go test -count=1 ./...` exited 1 at Cluster D HEAD `1bc2a25` — correctness was the one dimension the gate didn't check. `[8/8]` runs the full suite with `-count=1` to disable the build cache, so the check is deterministic even when source is unchanged between gate invocations.
 
 ### Parallel-Implementer Discipline
 
@@ -257,7 +257,7 @@ Where `<TOKEN>` is one of the terminal-state allowlist tokens: `IDLE`, `SHIPPED`
 
 Convention: the field lives on its own line at the top of `## Status`, above any historical context blocks. When a new cluster dispatches, the field is **replaced in place** with a mid-cycle token; at wave close it is **replaced in place** with a terminal token before the gate is run. **Never append a second field** — the gate rejects duplicates (Cluster C rev-2 external F-EXT-NEW-1 empirically demonstrated that `grep -m1` on multiple fields false-passes on the earliest match, so rev-3 tightened the parse to require exactly one).
 
-**Selecting `WAVE_BASE`** for the trailer-check range at `[4/7]`: the default `$(git describe --tags --abbrev=0)..HEAD` works when the wave is the first cluster after a tag. For subsequent waves in the same release cycle (e.g., Cluster D shipping between v0.12.1 and v0.13.0), the cluster lead should invoke the gate with `WAVE_BASE=<immediate-pre-cluster-ancestor>` — the commit SHA of `origin/main` at the moment the cluster's first implementer was dispatched.
+**Selecting `WAVE_BASE`** for the trailer-check range at `[4/8]`: the default `$(git describe --tags --abbrev=0)..HEAD` works when the wave is the first cluster after a tag. For subsequent waves in the same release cycle (e.g., Cluster D shipping between v0.12.1 and v0.13.0), the cluster lead should invoke the gate with `WAVE_BASE=<immediate-pre-cluster-ancestor>` — the commit SHA of `origin/main` at the moment the cluster's first implementer was dispatched.
 
 Concrete recipe (run **before** the first implementer dispatches, and record the SHA in the cluster's dispatch brief and in `CURRENT.md`):
 
