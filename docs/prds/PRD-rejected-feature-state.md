@@ -266,8 +266,9 @@ reconcile-family surfaces.
    `tpatch reject SLUG` is a **distinct top-level command**. `--help` output, `SPEC.md` §4, shell
    autocompletion, and skill-file references all render them separately by structure, not by verb text
    alone.
-2. **Non-overlapping state preconditions.** `reconcile --reject` fires only when a feature is in
-   `reconciling-shadow` and rolls it back to `applied` (`internal/cli/cobra.go` `runReconcileReject`).
+2. **Non-overlapping state preconditions.** `reconcile --reject` fires only when a shadow worktree is
+   registered (pruning it; rolling state back to `applied` only from `reconciling-shadow`)
+   (`internal/cli/cobra.go` `runReconcileReject`).
    `tpatch reject` is **refused** from `applied`, `active`, `reconciling`, `reconciling-shadow`, and
    all post-implementation states (§3.9, §5). The two surfaces can **never** fire on the same feature
    in the same state — there is no operator scenario where they are contextually ambiguous.
