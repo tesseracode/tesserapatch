@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: SHIPPED
 
-**WAVE_BASE**: `1bc2a25` (Cluster E process housekeeping dispatch, 2026-08-04).
+**WAVE_BASE**: none (idle — next TBD Cluster F = v0.13.0 GH #6).
 
-**2026-08-04 Cluster E DISPATCHED (process housekeeping).** Two findings from external's post-Cluster-D review folded into a small process cluster before v0.13.0 GH #6 work. Scope: F1 MEDIUM (`make wave-close-check` never runs `go test` — gate PASSes with red suite empirically demonstrated at Cluster D HEAD) + F2 LOW (`TestLand_Success_OneCommit_FourTrailers` teardown race on macOS: `unlinkat .git/info: directory not empty`; passes in isolation, fails under full-suite load). Single implementer, sequential. Mirrors Cluster C process-first discipline before feature cluster.
+**2026-08-04 Cluster E SHIPPED (process housekeeping).** Two findings from external's post-Cluster-D review + 1 rev-1 fold. Scope: F1 MEDIUM (`make wave-close-check` never ran `go test` — gate PASSed with red suite empirically demonstrated at Cluster D HEAD; fixed by adding `[8/8] go test -count=1 ./...`), F2 LOW (`t.TempDir()` teardown race on macOS from unpinned `git commit` forking `gc --auto --detach`; fixed by `gc.auto=0` env pin), E-EXT-1 MEDIUM rev-1 fold (F2 pin was `internal/cli`-only; extracted `internal/testutil.PinGitAutoGCOff()` and applied to `internal/gitutil`, `internal/workflow`, `internal/store`). Two-opinion scoreboard: rev-0 dual (internal APPROVED, external APPROVED WITH NOTES 1 MEDIUM), rev-1 external-only confirmation (APPROVED WITH NOTES — 2 non-functional commit-message accuracy notes, no code defects). Range `1bc2a25..b294d8c`.
 
 **2026-08-03 Cluster D SHIPPED.** Correctness housekeeping — 8 items total, single implementer, sequential. Four review revs (rev-0 → rev-3). Two-opinion protocol scoreboard: rev-0 dual (internal NEEDS REVISION 3 MEDIUM + 1 LOW, external APPROVED WITH NOTES 1 MEDIUM overlap), rev-1 dual (internal NEEDS REVISION 1 MEDIUM residual, external APPROVED), rev-2 external-only (NEEDS REVISION 1 MEDIUM new Rule 17 residual), rev-3 external-only (APPROVED via prescriptive verbatim wording). **Notable pattern**: three consecutive iterations on the same fast-path help clause each introduced a new Rule 17 residual; broken by supervisor-prescribed verbatim text at rev-3. All 6 backlog items + 2 review-fold items landed. Deferred: D-INT-2 (--from-revision post-crash out of PRD-#4 F-4 scope), F-EXT-2 (concurrency out of local-CLI scope). Range: `4868f68..42f85d7` (13 commits: 8 rev-0 impl + 3 rev-1 folds + 1 rev-2 fold + 1 rev-3 fold, plus 4 tracking commits).
 
@@ -20,34 +20,7 @@
 
 ## Active Task
 
-**Cluster E — Process housekeeping (F1 gate coverage + F2 flake fix).** Single implementer, sequential. WAVE_BASE `1bc2a25`. Dispatched 2026-08-04.
-
-### Scope (2 items from external post-Cluster-D review)
-
-1. **F1 MEDIUM — `make wave-close-check` never runs the test suite.**
-   - Empirical evidence: at Cluster D HEAD `1bc2a25`, `make wave-close-check` reports PASS while `go test -count=1 ./...` exits 1 (F2 flake). Gate correctness blind spot.
-   - Fix: add an 8th mechanical check to `Makefile` `wave-close-check` target that runs `go test ./...` (fail-fast). Update AGENTS.md Wave-Close Checklist to reflect the new mechanical check and remove any implicit reliance on manual test runs.
-   - Do NOT count subtests differently or use `-short` unless it's demonstrably needed for gate practicality — the whole point is to catch what full-suite runs catch.
-
-2. **F2 LOW — `TestLand_Success_OneCommit_FourTrailers` cleanup race on macOS.**
-   - Symptom: `unlinkat <TempDir>/001/.git/info: directory not empty` at teardown, under full-suite load only.
-   - Location: `internal/cli/land_test.go:123` (`TestLand_Success_OneCommit_FourTrailers`).
-   - Investigation required before fix: reproduce the flake (`go test -count=20 ./internal/cli/`, or `-parallel` variants), identify what leaves `.git/info` in a non-empty state at teardown (likely `git gc`/index-lock cleanup or a subprocess holding a file open). Fix at the test level (e.g., explicit `t.Cleanup` that drains git subprocesses; `git gc --prune=now` before teardown; sync-wait for git subprocess exit).
-   - Do NOT paper over with `t.Skip` on macOS — the point is to make the gate signal reliable.
-
-### Constraints (per AGENTS.md)
-
-- Explicit `git add <path>` per commit; NEVER `-a`/`-A`/`<dir>/`.
-- `git commit -F /tmp/msg.txt` with Copilot + Copilot-Session trailers; never inline heredoc.
-- Side Research md5 `b385fe622db9926f48861105239f113e` MUST remain preserved on any CURRENT.md edit.
-- Do NOT touch canonical `**Cluster state**` field — supervisor flips at wave close.
-- Do NOT stage the 16 untracked WIP files under `docs/whitepapers/`, `docs/prds/`, `docs/state-of-the-art/case-studies/`.
-
-### Non-goals
-
-- Do NOT extend `wave-close-check` beyond adding the test step (e.g., no coverage checks, no lint additions).
-- Do NOT touch v0.13.0 GH #6 scope — that's Cluster F.
-- Do NOT refactor `TestLand_*` beyond what's needed to close the race.
+**IDLE** — Cluster E shipped 2026-08-04. Next: **Cluster F — v0.13.0 GH #6 first-class rejected feature state** (planning-first, PRD + ADR pair). Only remaining open GH issue.
 
 ## Session Summary
 
@@ -58,6 +31,7 @@
 - **CI hygiene fix** — `4619b55` pinned `gitInitTestRepo` to `-b main`; CI back green 2026-08-02.
 - **Cluster C** (parallel-implementer discipline + `make wave-close-check` mechanical gate) — shipped at `4868f68` after 4 review revs.
 - **Cluster D** (correctness housekeeping — 6 backlog items + 2 review-fold items) — shipped 2026-08-03 after 4 review revs. Range `4868f68..42f85d7`.
+- **Cluster E** (process housekeeping — F1 gate `[8/8] go test` coverage + F2 macOS teardown race via `gc.auto=0` pin extracted to shared `internal/testutil` helper) — shipped 2026-08-04 after 1 rev-1 fold (E-EXT-1 cross-package pin). Range `1bc2a25..b294d8c`.
 
 ## Files Changed at v0.12.1 Consolidation
 
@@ -76,10 +50,10 @@
 
 ## Next Steps
 
-**Backlog after Cluster D**:
+**Backlog after Cluster E**:
 
 Feature / release:
-- **Cluster E — v0.13.0 GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger planning-first cluster. Only remaining open GH issue.
+- **Cluster F — v0.13.0 GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger planning-first cluster. Only remaining open GH issue.
 
 Deferred from Cluster D adjudication (documented, no fold):
 - **D-INT-2** (`--from-revision <original>` post-crash "superseded" error) — PRD-#4 lines 180/259 document the flag as CI/test override, not the crash-recovery path. Default retry works (external Rule 20 verified). Backlog if operator friction surfaces.

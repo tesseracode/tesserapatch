@@ -1,3 +1,41 @@
+# 2026-08-04 — Cluster E process housekeeping — SHIPPED
+
+**Range**: `1bc2a25..b294d8c` (6 commits: 2 rev-0 impl + 2 rev-1 impl + 2 supervisor tracking).
+
+**Scope**: 2 findings from external's post-Cluster-D review + 1 rev-1 fold from rev-0 external. Single implementer, sequential. Small process-first cluster before Cluster F = v0.13.0 GH #6, mirroring Cluster C process-first-then-feature discipline.
+
+**Two-opinion protocol scoreboard**:
+- **rev-0 dual review**: internal `cluster-e-rev0-internal` (gpt-5.6-sol, high) **APPROVED** — no findings. External `cluster-e-rev0-external` (claude-opus-4.8, high) **APPROVED WITH NOTES** — 1 MEDIUM (E-EXT-1) + 2 non-blocking notes.
+- **rev-1 external-only confirmation**: `cluster-e-rev1-external` (claude-opus-4.8, high) **APPROVED WITH NOTES** — E-EXT-1 empirically CLOSED via GIT_TRACE2 re-verify + 5× stress-clean under `-p 8 -parallel 8` load. 2 non-functional notes (commit-message accuracy only).
+
+**Landed**:
+- **F1 MEDIUM** (`6496d27`) — `Makefile` `wave-close-check` gains `[8/8] go test -count=1 ./...`; renumbered `[N/7]` → `[N/8]`; AGENTS.md Wave-Close Checklist synced. Structural fix for the "gate PASSes with red suite" blind spot empirically demonstrated at Cluster D HEAD `1bc2a25` (gate PASS, `go test` exit 1).
+- **F2 LOW** (`d8c8bb4`) — `internal/cli/TestMain` (`phase2_test.go`) pins `GIT_CONFIG_COUNT=1 / GIT_CONFIG_KEY_0=gc.auto / GIT_CONFIG_VALUE_0=0` before `m.Run()`. Root cause verified via `GIT_TRACE2_EVENT=1`: unpinned `git commit` (git 2.55) forks `["git","maintenance","run","--auto","--quiet","--detach"]` background writer that touches `.git/{info,objects}` while `t.TempDir()` teardown removes the tree under `-p 8 -parallel 8` load. Post-fix: 8/8 full-suite runs green in `internal/cli`; `GIT_TRACE2` re-verify shows 0 maintenance forks under pinned env.
+- **E-EXT-1 MEDIUM rev-1 fold** (`c1d86e9` + `b294d8c`) — F2 pin extracted to shared `internal/testutil.PinGitAutoGCOff()` helper; `TestMain` added to `internal/gitutil`, `internal/workflow`, `internal/store` (none had one); `internal/cli/phase2_test.go` `TestMain` refactored to call the helper (keeping XDG_CONFIG_HOME setup). Empirical: 5× `go test -count=1 -p 8 -parallel 8 ./...` FAIL/ENOTEMPTY/unlinkat count = `0 0 0 0 0`.
+
+**Rev-1 external non-blocking notes** (recorded, no code fold):
+- **N1 — `internal/store` pin is a harmless no-op**: store's tests stub git access via `stubIsAncestor` (`internal/store/validation_test.go:171`); zero `git commit` calls. Pin left in place for forward-compat if future tests add git subprocesses. Commit body's "three sibling packages spawn git commit" claim is technically overstated re: store. Recorded, not folded — no functional defect.
+- **N2 — "916 tests" phrasing imprecise**: `--- PASS` literal count is 1154; 916 is the top-level-test approximation. External verified the invariant that matters (test count unchanged from rev-0 base to rev-1 HEAD). No code impact.
+
+**Deferrals** (documented up-front, no fold): None.
+
+**Non-invalidation invariants** held throughout:
+- Rule 18 trailers × 4 impl commits = 8 (2 trailers × 4 commits) ✓.
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved on every CURRENT.md edit ✓.
+- Cluster state canonical field touched only by supervisor at wave transitions ✓.
+- `origin/main..HEAD` = 0 after every commit; pushed on every commit ✓.
+
+**Precedent extensions**:
+- **Cluster C process-first pattern reused**: small process housekeeping wave dispatched before Cluster F (v0.13.0 feature cluster) to fix gate infrastructure BEFORE feature waves generate high-throughput close cycles. This is now a recognized cluster shape.
+- **Shared testutil helper pattern**: Cluster D rev-1 R1 (bespoke parser → canonical `gitutil.FilesInPatch`) extended here to test infrastructure (`internal/testutil.PinGitAutoGCOff`). Eliminate divergence class via shared helper, not per-callsite fixes. This is now the preferred shape for cross-package test-infra fixes.
+- **External-only rev-1 confirmation validated for single-issue empirical folds** — same protocol as Cluster D rev-2/rev-3. Precondition (established by Cluster D): initial two-opinion architectural coverage at rev-0.
+
+**Structural upshot**: `make wave-close-check` is now correctness-aware — running the full suite as `[8/8]` on every close. Combined with the cross-package `gc.auto=0` pin, gate signal is finally reliable: green means the suite is green, red means a real regression. The gate that codified Wave-Close discipline (Cluster C) now dogfoods itself via the full suite (Cluster E).
+
+**Final gate at consolidation**: `make wave-close-check WAVE_BASE=1bc2a25` — all 8 mechanical checks PASS except `[2/8]` WARN on 16 untracked WIP files (expected; F1 gate glob correctly surfaces them). Cluster state check `[5/8]` will PASS after this consolidation commit sets `SHIPPED`.
+
+---
+
 # 2026-08-03 — Cluster D correctness housekeeping — SHIPPED
 
 **Range**: `4868f68..42f85d7` (13 commits: 8 rev-0 impl + 3 rev-1 folds + 1 rev-2 fold + 1 rev-3 fold + 4 tracking).

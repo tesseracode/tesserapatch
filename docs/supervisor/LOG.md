@@ -1,3 +1,34 @@
+## 2026-08-04 — Cluster E process housekeeping — SHIPPED (one review rev + rev-1 fold)
+
+**Range**: `1bc2a25..b294d8c` (6 commits: 2 rev-0 impl + 2 rev-1 impl + 2 supervisor tracking).
+
+**Two-opinion protocol scoreboard**:
+- **rev-0**: internal (`cluster-e-rev0-internal`, gpt-5.6-sol, high) **APPROVED**; external (`cluster-e-rev0-external`, claude-opus-4.8, high) **APPROVED WITH NOTES** — 1 MEDIUM (E-EXT-1 cross-package pin scope gap) + 2 non-blocking notes.
+- **rev-1**: external-only confirmation (`cluster-e-rev1-external`, claude-opus-4.8, high) **APPROVED WITH NOTES** — E-EXT-1 empirically CLOSED via `GIT_TRACE2` re-verify + 5× stress-clean; 2 non-functional commit-message accuracy notes (store pin is a harmless no-op; test count phrasing imprecise). Precedent: single-issue empirical confirmation within same wave once initial two-opinion architectural coverage established (Cluster D rev-2/rev-3 precedent).
+
+**Landed**:
+- **F1 MEDIUM** (`6496d27`) — added `[8/8] go test -count=1 ./...` to `Makefile` `wave-close-check` target; renumbered `[N/7]` → `[N/8]`; synced `AGENTS.md` Wave-Close Checklist. Empirical validation: at pre-fix Cluster D HEAD `1bc2a25`, gate reports PASS while `go test` exits 1. Post-fix, gate correctly catches red suites.
+- **F2 LOW** (`d8c8bb4`) — pinned `gc.auto=0` via `GIT_CONFIG_COUNT/KEY_0/VALUE_0` env in `internal/cli/TestMain`. Root cause verified via `GIT_TRACE2_EVENT=1`: unpinned `git commit` (git 2.55) forks `maintenance --auto --detach` background writer that races `t.TempDir()` teardown on `.git/info` and `.git/objects`. Post-fix: 8/8 full-suite runs green.
+- **E-EXT-1 MEDIUM rev-1 fold** (`c1d86e9` + `b294d8c`) — extracted `internal/testutil.PinGitAutoGCOff()` helper; added `TestMain` to `internal/gitutil`, `internal/workflow`, `internal/store` (none had one); refactored `internal/cli/phase2_test.go` `TestMain` to use the helper. Empirical validation at rev-1: 5× `go test -count=1 -p 8 -parallel 8 ./...` FAIL/ENOTEMPTY/unlinkat count = `0 0 0 0 0`. `GIT_TRACE2` re-verify: 0 `maintenance` events under helper env.
+
+**Deferrals from rev-1 external notes** (both non-functional, no fold):
+- **N1** — `internal/store` doesn't actually spawn `git commit` (git access stubbed via `stubIsAncestor` in `validation_test.go:171`). Pin is a harmless no-op that provides forward-compat protection if future tests add git subprocesses. Left in place: no harm, low cost, hedges against a plausible future flake class.
+- **N2** — "916 tests" in commit body is imprecise ($ `--- PASS` literal count = 1154). Test count invariant that matters (unchanged at rev-1 base vs HEAD) empirically verified by external. Recorded as commit-message accuracy note; no code impact.
+
+**Non-invalidation invariants** (all held throughout the wave):
+- Rule 18 trailers × 4 impl commits = 8 ✓ (`grep -cE "Copilot|Session"` on `%(trailers)` output).
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved at every CURRENT.md edit ✓.
+- Cluster state canonical field touched only by supervisor at wave transitions ✓.
+- Pushed to `origin/main` on every commit; `origin/main..HEAD` = 0 throughout ✓.
+
+**Structural upshot**: The wave-close gate now dogfoods `go test` on every close. Test packages that spawn `git commit` under `t.TempDir()` are protected process-wide from `gc.autoDetach` fork races via a single shared helper. Gate signal is finally correctness-aware, not just process-aware. Mirrors Cluster C's process-first-then-feature pattern: fix the gate before the next feature cluster (Cluster F = v0.13.0 GH #6) generates high-throughput close cycles.
+
+**Rule 20 empirical demonstration**: E-EXT-1 was fail-safe (spurious FAIL, not false PASS) and unreproduced on external's rev-0 hardware, but external's `GIT_TRACE2` mechanism proof was sufficient evidence to fold. Rev-1's stress-loop + re-verify empirically closed it.
+
+**Cluster state**: `SHIPPED`.
+
+---
+
 ## 2026-08-04 — Cluster E rev-0 dual review — ADJUDICATION → rev-1
 
 **Two-opinion outcomes**:

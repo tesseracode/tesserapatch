@@ -549,6 +549,20 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## Cluster E — 2026-08-04 — process housekeeping (F1 gate go test + F2 gc.auto pin) ✅ SHIPPED
+
+Process housekeeping wave before Cluster F (v0.13.0 GH #6) generates high-throughput feature-close cycles. Two findings from external's post-Cluster-D review + 1 rev-1 fold. Single implementer, sequential. **1 review rev + rev-1 fold**.
+
+- **F1 MEDIUM** (`6496d27`) — `Makefile` `wave-close-check` gains `[8/8] go test -count=1 ./...`; renumbered `[N/7]` → `[N/8]`; AGENTS.md Wave-Close Checklist synced. Fixes the "gate PASSes with red suite" blind spot empirically demonstrated at Cluster D HEAD `1bc2a25`.
+- **F2 LOW** (`d8c8bb4`) — `gc.auto=0` env pin in `internal/cli/TestMain` via `GIT_CONFIG_COUNT/KEY_0/VALUE_0`. Root cause: unpinned `git commit` forks `git maintenance --auto --detach` background writer that races `t.TempDir()` teardown on `.git/{info,objects}` under `-p 8 -parallel 8` load. Verified via `GIT_TRACE2_EVENT=1`.
+- **E-EXT-1 MEDIUM rev-1 fold** (`c1d86e9` + `b294d8c`) — extracted `internal/testutil.PinGitAutoGCOff()` shared helper; `TestMain` added to `internal/gitutil`, `internal/workflow`, `internal/store` (F1's `[8/8]` gates on these packages, so per-package pins are required — each `go test` runs a separate process). `internal/cli` refactored to use the helper. Same canonical-helper pattern as Cluster D rev-1 R1.
+
+**Two-opinion protocol**: rev-0 dual (internal APPROVED, external APPROVED WITH NOTES 1 MEDIUM); rev-1 external-only confirmation (APPROVED WITH NOTES, 2 non-functional commit-message accuracy notes only). Range `1bc2a25..b294d8c` (6 commits: 2 rev-0 impl + 2 rev-1 impl + 2 tracking).
+
+**Structural upshot**: The wave-close gate is now correctness-aware — dogfoods the full suite on every close. Combined with the cross-package `gc.auto=0` pin, gate signal is finally reliable: green means the suite is green.
+
+**Precedent extensions**: (a) small process housekeeping wave dispatched **before** feature cluster is now a recognized cluster shape (Cluster C precursor to v0.12.1; Cluster E precursor to Cluster F). (b) Shared testutil helper pattern for cross-package test-infra fixes (extends Cluster D rev-1 R1 canonical-helper pattern to test infrastructure).
+
 ## Cluster D — 2026-08-03 — correctness housekeeping (8 items) ✅ SHIPPED
 
 Correctness-and-docs cluster clearing the v0.12.1 backlog + two external-review folds. Single implementer, sequential per Cluster C rule 5 same-file-overlap discipline. Four review revs.
