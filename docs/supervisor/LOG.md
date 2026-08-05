@@ -1,4 +1,30 @@
-## 2026-08-05 — Cluster F rev-5 micro-fold DISPATCHED — post-Cluster-F external F1 LOW-MEDIUM disposition
+## 2026-08-05 — Cluster F rev-5 external-only confirmation — APPROVED WITH NOTES — SHIPPED at `c6aaeb2`
+
+**Reviewer**: `cluster-f-rev5-ext` (claude-opus-4.8, high). Internal architectural clearance carries from rev-4 three-way APPROVED.
+
+**Verdict**: **APPROVED WITH NOTES** — 1 LOW residual, self-classified deferrable to Cluster F' pickup.
+
+**Confirmations** (all cross-checked):
+- Docs-only scope confirmed: `git diff e493a2d..c6aaeb2 -- ':!docs/**'` empty.
+- All 6 citations in D10 land within ±5 lines (`cobra.go:2093` exact, `:60-80` buildRootCmd verified, `feature_deps.go:41-49` featureCmd exact, `:52-56` ordering doc comment exact, `c1.go:276-284` validateAmendStateFlag with quoted "Lifecycle states are owned by other verbs", `runReconcileReject` exists at `cobra.go:2798`).
+- D10 correctly cites PRD §4's own rationale to reject Alt-1.
+- D10 Consequences (5) ↔ PRD §4.1 mitigations (5) internally consistent. Skill files (`assets/skills/*.md`) already reference `--reject` — no dangling obligation.
+- Test 27 shape implementable without further clarification; symmetric (both `reject --help` and `reconcile --help` directions covered).
+- Test-count bookkeeping correct: PRD §9 items 1..27 + 26b; ADR §6 "27 items" matches.
+- D10 numbering no collision. Exactly one `### D10`.
+- No new undefined concepts. CURRENT.md scope narrative tracks the new mitigation obligations.
+
+**F2 residual (LOW, deferred to Cluster F')**: PRD §4.1 point 2 states `reconcile --reject` "fires only when a feature is in `reconciling-shadow`." Actually `runReconcileReject` (`cobra.go:2794-2826`) fires whenever `st.Reconcile.ShadowPath != ""`; only the state rollback to `applied` is gated on `st.State == store.StateReconcilingShadow`. Reviewer explicitly says "Suggested fix (for Cluster F', do not implement now)." Non-overlap load-bearing conclusion holds because `tpatch reject` is refused from all states with shadows (`applied`/`active`/`reconciling`/`reconciling-shadow`). Fix during Cluster F': reword §4.1 point 2 precondition to "fires only when a shadow worktree is registered (pruning it; rolling state back to `applied` only from `reconciling-shadow`)." Note: ADR D10's own wording ("operates on a shadow-worktree resource (prunes it, returns feature to `applied`)") is imprecision-free.
+
+**Consolidation**: Cluster F rev-5 SHIPPED as amendment to Cluster F planning archive at `c6aaeb2`. This is not a new cluster ship — rev-5 is a post-consolidation micro-amendment folded into the same planning arc. F2 residual carried as Cluster F' pickup item in CURRENT.md scope. WAVE_BASE for Cluster F' shifts `377d103` → `c6aaeb2` to include the amendment.
+
+**Precedent — post-consolidation micro-amendment fold** (added): when a post-cluster external review returns APPROVED WITH NOTES with a single narrow finding on already-shipped planning artifacts, the fold can amend the archive in-place (no new cluster dispatch) provided (a) the fold is docs-only, (b) external-only confirmation follows, (c) any residuals are LOW-severity self-classified deferrable. Rev-5 turnaround: 194 seconds. Distinguished from rev-1 through rev-4 which were pre-consolidation rev cycles inside the planning cluster.
+
+**Precedent — reviewer's own suggested-fix carries deferral authority** (reinforced): reviewer's F2 explicitly said "Suggested fix (for Cluster F', do not implement now)." Supervisor honors self-classified deferral rather than dispatching rev-6. Matches Cluster E-prime pattern.
+
+---
+
+
 
 **Trigger**: Post-Cluster-F external review (APPROVED WITH NOTES, 1 LOW-MEDIUM). Reviewer independently verified all 4 E-prime revision items closed and confirmed Cluster F planning strictly docs-only. Single finding: `tpatch reject` verb collides with pre-existing `tpatch reconcile --reject <slug>` flag at `internal/cli/cobra.go:2093` — same verb, opposite permanence (transient shadow-worktree resource action vs. terminal lifecycle state transition), no acknowledgment in Cluster F papers.
 

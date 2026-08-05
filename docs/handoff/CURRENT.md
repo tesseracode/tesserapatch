@@ -2,11 +2,13 @@
 
 ## Status
 
-**Cluster state**: REV-5 DISPATCHED
+**Cluster state**: IDLE
 
 **WAVE_BASE**: `e493a2d` (Cluster F planning consolidation, 2026-08-05).
 
-**2026-08-05 Cluster F rev-5 dispatched (micro-fold, docs-only).** Post-Cluster-F external review flagged 1 LOW-MEDIUM: `tpatch reject` verb collides with pre-existing `tpatch reconcile --reject <slug>` flag at `internal/cli/cobra.go:2093` (transient shadow-worktree action, opposite permanence from proposed terminal lifecycle transition). Supervisor disposition: **Alternative 3 — keep bare `tpatch reject`/`tpatch reopen`, document intentional non-relationship** in PRD §4.1 and ADR-031 D10 with full rationale (different command paths, non-overlapping state preconditions, different nouns, renaming introduces worse category error per PRD §4's articulated lifecycle-verb convention). Adds test 27 (`--help` cross-reference golden-string assertion). Reviewer's suggested alt-1 rename to `tpatch feature reject` explicitly rejected — `feature` group is noun-scoped (`deps`, `patch`) per `internal/cli/feature_deps.go:41-49`, retrofitting a lifecycle verb there breaks that shape and contradicts `amend --state` reservation (`c1.go:276-284`).
+**2026-08-05 Cluster F rev-5 SHIPPED at `c6aaeb2` — docs-only micro-fold amending planning archive.** Post-Cluster-F external F1 LOW-MEDIUM (`tpatch reject` verb collision with pre-existing `tpatch reconcile --reject <slug>` flag at `cobra.go:2093`) resolved via **Alternative 3**: kept bare `tpatch reject`/`tpatch reopen`, documented intentional non-relationship in PRD §4.1 (4-point rationale + 5 mitigations) and ADR-031 D10 (3-alternatives analysis). Test 27 (`--help` cross-reference golden-string assertion) added. Reviewer's suggested Alt-1 (`tpatch feature reject`) explicitly rejected — `feature` group is noun-scoped per `feature_deps.go:41-49,52-56`; retrofitting a lifecycle verb there contradicts `amend --state`'s reservation at `c1.go:276-284`. External rev-5 confirmation: APPROVED WITH NOTES, 1 LOW residual F2 (§4.1 point 2 imprecise precondition wording for `runReconcileReject`; reviewer explicitly deferred to Cluster F' pickup; non-overlap conclusion unaffected). Range `e493a2d..c6aaeb2` (1 commit).
+
+**Cluster F rev-5 F2 residual (for Cluster F' pickup)**: PRD §4.1 point 2 says `reconcile --reject` "fires only when a feature is in `reconciling-shadow`." Actually `runReconcileReject` (`cobra.go:2794-2826`) fires whenever a shadow is registered (which can occur in `applied`/`active` states as cleanup); only the state rollback to `applied` is gated on `reconciling-shadow`. Non-overlap conclusion holds because `tpatch reject` is refused from all states with shadows. Fix during Cluster F' implementation: reword §4.1 point 2 precondition to "fires only when a shadow worktree is registered (pruning it; rolling state back to `applied` only from `reconciling-shadow`)".
 
 **2026-08-05 Cluster F planning SHIPPED at `377d103`.** PRD + ADR pair for v0.13.0 GH #6 first-class `rejected` feature lifecycle state. 4 review revs (rev-0 through rev-4), three-way APPROVED at rev-4. Range `8574ff3..377d103` (10 commits: 2 rev-0 impl + 2 rev-1 impl + 2 rev-2 impl + 1 rev-3 impl + 1 rev-4 impl + 5 supervisor tracking, plus adjudication + consolidation). Key architectural decisions locked-in: content-hash evidence (`{path, sha256}` lowercase-hex); post-implementation reject OUT OF SCOPE (deferred to future ADR); exit-code envelope 0/1/2/3; CLI shape `--reason` + mandatory `--note` + optional `--evidence`/`--actor`; actor precedence chain; symmetric dependency invariant; reopen unbounded append-only with historical-evidence verification on every reopen. Convergence arc: internal 8→5→3→1→0; external 2→3→2→1→carry.
 
@@ -28,7 +30,7 @@
 
 ## Active Task
 
-**Cluster F' — v0.13.0 GH #6 first-class `rejected` feature lifecycle state (implementation phase).** Pending dispatch. WAVE_BASE `377d103` (Cluster F planning consolidation). Planning-baseline: `docs/prds/PRD-rejected-feature-state.md` + `docs/adrs/ADR-031-rejected-feature-state-data-model.md`, both three-way APPROVED at rev-4.
+**Cluster F' — v0.13.0 GH #6 first-class `rejected` feature lifecycle state (implementation phase).** Pending dispatch. WAVE_BASE `c6aaeb2` (Cluster F planning + rev-5 verb-collision amendment). Planning-baseline: `docs/prds/PRD-rejected-feature-state.md` + `docs/adrs/ADR-031-rejected-feature-state-data-model.md`, both three-way APPROVED (rev-4 baseline + rev-5 docs-only amendment).
 
 ### Implementation scope (from planning baseline)
 
