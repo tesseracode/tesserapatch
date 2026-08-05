@@ -1,3 +1,31 @@
+## 2026-08-04 — Cluster E process housekeeping — DISPATCHED (rev-0)
+
+**Post-Cluster-D external review verdict — APPROVED WITH NOTES.** Reviewer validated both prior post-Cluster-C findings CLOSED empirically:
+- F1 (gate glob extension): sentinel now catches 16 untracked design docs where it previously caught 2.
+- F2 (SHA rewrite pointer): navigational pointer at `docs/supervisor/LOG.md` cite of `2934521`/`6facb68` verified.
+
+Reviewer also verified the three-attempt fast-path help claim finally holds against the code paths (audit gate `ReviewVerdict == "confirmed-upstreamed"` reached on both fast and review paths via `saveConfirmUpstreamedStatus` setting verdict before result construction). Rev-3 verbatim wording succeeded.
+
+**Two new findings from post-Cluster-D review → Cluster E scope**:
+
+1. **F1 MEDIUM — `make wave-close-check` never runs `go test`.**
+   Gate has 7 mechanical checks (working-tree, untracked sentinel, HEAD pushed, Rule 18 trailers, canonical Cluster state, gofmt, vet+build) plus 5 manual items (LOG, ROADMAP, HISTORY, invariants, tag) — none run the test suite. Empirically demonstrated at Cluster D HEAD `1bc2a25`: gate reports PASS, `go test -count=1 ./...` exits 1. Structural blind spot: correctness is the one dimension the wave-close gate doesn't check.
+
+2. **F2 LOW — `TestLand_Success_OneCommit_FourTrailers` flaky teardown on macOS.**
+   `unlinkat <TempDir>/001/.git/info: directory not empty` teardown race. Passes in isolation (`ok ... 2.087s`), fails under full-suite load. Class-of-issue: macOS `t.TempDir()` cleanup racing with git subprocess file operations. Same package (`internal/cli`) as the CI hygiene fix from 2026-08-02 that needed environment pinning — an environmental-sensitivity pattern.
+
+**Grouping decision (supervisor + user)**: dispatched as a small process cluster **before** Cluster F (v0.13.0 GH #6). Rationale: if v0.13.0 waves ship through a gate that never runs tests, red-suite regressions slip past close. Fixing the gate blind spot NOW protects the multi-wave feature cluster to come. Mirrors Cluster C process-first-then-feature discipline.
+
+**WAVE_BASE**: `1bc2a25` (recorded pre-dispatch per AGENTS.md WAVE_BASE recipe).
+
+**Protocol**: single implementer, sequential. F1 is a one-line Makefile addition + AGENTS.md sync; F2 requires reproduction-first investigation. Dual review at rev-0 (both empirically-caught findings warrant two-opinion coverage on the fix).
+
+**Constraints unchanged from prior clusters**: explicit `git add <path>`, `git commit -F` never inline heredoc, Side Research md5 preserved, canonical Cluster state field touched only by supervisor at wave transitions.
+
+**Cluster state**: `REV-0 DISPATCHED`.
+
+---
+
 ## 2026-08-03 — Cluster D correctness housekeeping — SHIPPED (four review revs)
 
 **Scope**: 6 backlog items (PRD-#3 N2/N3/S1 correctness, PRD-#4 F-4 idempotency, GH #5 fast-path docs, Wave γ LOW-γr15-N1 JSON envelope) + 2 review-fold items from external's post-Cluster-C review (F1 gate glob gap, F2 LOG SHA pointer). Single implementer, sequential per Cluster C rule 5 same-file-overlap discipline.
