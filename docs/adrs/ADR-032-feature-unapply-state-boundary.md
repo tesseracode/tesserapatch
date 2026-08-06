@@ -10,6 +10,7 @@
 - [docs/adrs/ADR-011-feature-dependencies.md](ADR-011-feature-dependencies.md) — dependency gate
 - [docs/adrs/ADR-024-patch-generation-manifest-boundary.md](ADR-024-patch-generation-manifest-boundary.md) — no patch-gen writes boundary
 - [docs/adrs/ADR-031-rejected-feature-state-data-model.md](ADR-031-rejected-feature-state-data-model.md) — D6 deferral source; D10 naming precedent
+- [docs/prds/PRD-rejected-feature-state.md](../prds/PRD-rejected-feature-state.md) — v0.13.0 pre-implementation retirement lifecycle; D7 depends on its state machine contract
 - [docs/prds/PRD-feature-unapply.md](../prds/PRD-feature-unapply.md) — paper design this ADR gates
 - [docs/prds/PRD-feature-dependencies.md](../prds/PRD-feature-dependencies.md)
 - [docs/prds/PRD-feature-patch-identity-metadata.md](../prds/PRD-feature-patch-identity-metadata.md)
@@ -36,14 +37,14 @@ deferred from ADR-031 D6) and command-name pattern (D8).
 | Claim | Evidence |
 |---|---|
 | `StateRejected` is the eleventh `FeatureState`; `ValidFeatureState` closed switch includes all 11 values. | `internal/store/types.go:21-30` |
-| `RejectableStates` restricts `tpatch reject` to `{requested, analyzed, defined}`; all post-implementation states are refused at exit code 3 per ADR-031 D6. | `internal/store/status.go:108-118` |
-| `RejectionStatus` (live record) and `RejectionHistoryEntry` (completed-cycle audit) are the only new schema objects introduced by v0.13.0. No shared schema with unapply artifact is required. | `internal/store/status.go:59-106` |
-| ADR-031 D6 explicitly deferred post-implementation retirement command, naming `PRD-feature-unapply.md` as potential host. | `docs/adrs/ADR-031-rejected-feature-state-data-model.md:604-630` |
-| ADR-031 D10 locked top-level verbs for lifecycle state transitions (`reject`/`reopen`); `tpatch feature` group reserved for noun-scoped per-feature management (`deps`, `claim`, `patch`). | `docs/adrs/ADR-031-rejected-feature-state-data-model.md:889-974`, `internal/cli/feature_deps.go:41-49` |
+| `RejectableStates` restricts `tpatch reject` to `{requested, analyzed, defined}`; all post-implementation states are refused at exit code 3 per ADR-031 D6. | `internal/store/status.go:135-145` |
+| `RejectionStatus` (live record) and `RejectionHistoryEntry` (completed-cycle audit) are the only new schema objects introduced by v0.13.0. No shared schema with unapply artifact is required. | `internal/store/status.go:119-133`, `internal/store/status.go:59-96` |
+| ADR-031 D6 explicitly deferred the data-model composition sub-question (schema sharing between `rejected` and a future retirement command), naming `PRD-feature-unapply.md` as the potential host. | `docs/adrs/ADR-031-rejected-feature-state-data-model.md:1111-1114` |
+| ADR-031 D10 locked top-level verbs for lifecycle state transitions (`reject`/`reopen`); `tpatch feature` group reserved for noun-scoped per-feature management (`deps`, `claim`, `patch`). | `docs/adrs/ADR-031-rejected-feature-state-data-model.md:889-974`, `internal/cli/feature_deps.go:38-51` |
 | Patch generations (ADR-024) deliberately do not include working-tree projection events (record of canonical patch bytes only). | `docs/adrs/ADR-024-patch-generation-manifest-boundary.md:48-75` |
 | `gitutil.PreflightReconcile` and reverse-apply check infrastructure already exist. | `internal/gitutil/gitutil.go:396-435`, `internal/gitutil/gitutil.go:85-187` |
 | `tpatch status --include-rejected` pattern (opt-in flag to show terminal-ish hidden state) is established. | `internal/cli/cobra.go:250,397,529` |
-| `confirm-upstreamed` transition is guarded against `rejected` source state at entry (ADR-031 D6 defense-in-depth). | `internal/cli/cobra.go:2525-2540` |
+| `confirm-upstreamed` transition is guarded against `rejected` source state at entry, immediately after status load, using `stateRefusalError` (ADR-031 D6 defense-in-depth). | `internal/cli/cobra.go:2635-2648` |
 | `FeatureStatus.Verify` is cleared on certain state transitions (e.g., patch drift invalidation). Unapply should parallel this. | `internal/store/types.go` (Verify field), `internal/cli/cobra.go` (verify-clearing call sites) |
 
 ---
@@ -217,22 +218,23 @@ names where they overlap (e.g., `actor`, `note`).
 ### Decision: **Alternative 2 — fixed-envelope schema**
 
 The schema below is the **binding wire contract**. Implementation must produce this
-byte-for-byte (stable-sorted keys within objects). The `version` field enables future
-migrations.
+byte-for-byte (in the struct-field order shown, which is the deterministic output of
+Go `json.Marshal` on a fixed struct type — not lexicographic order). The `version`
+field enables future migrations.
 
 ```json
 {
   "version": 1,
-  "feature": "<slug>",
-  "attempt_id": "<ua_hex12>",
+  "feature": "auth-timeout",
+  "attempt_id": "ua_9cb6578d11c8",
+  "attempted_at": "2026-08-05T22:10:04Z",
   "mode": "patch",
-  "attempted_at": "<RFC3339 timestamp>",
-  "previous_state": "<FeatureState string>",
+  "actor": "user@example.com",
+  "previous_state": "applied",
   "result": "unapplied",
-  "actor": "<actor string>",
-  "canonical_patch_sha256": "<64-hex lowercase>",
-  "reverse_patch": "artifacts/unapply/<attempt-id>/reverse.patch",
-  "touched_paths": ["<repo-relative path>", ...],
+  "canonical_patch_sha256": "64-lowercase-hex-chars-here-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "reverse_patch": "artifacts/unapply/ua_9cb6578d11c8/reverse.patch",
+  "touched_paths": ["src/auth.go"],
   "dependency_blockers": [],
   "preflight": {
     "clean_tree": true,
@@ -241,6 +243,9 @@ migrations.
   }
 }
 ```
+
+This example is byte-for-byte identical to the example in PRD-feature-unapply.md §7.1.
+Any future change to the example in either document must be applied to both simultaneously.
 
 Field constraints:
 
@@ -251,9 +256,9 @@ Field constraints:
 | `attempt_id` | string | yes | `ua_` + 12 lowercase hex chars (crypto random) |
 | `attempted_at` | string | yes | RFC3339, UTC, matching existing audit timestamp pattern |
 | `mode` | string | yes | `"patch"` in v1; reserved for future `"landed-commit"` |
+| `actor` | string | yes | Same precedence chain as `tpatch reject`: `--actor` > `TPATCH_ACTOR` > `git config user.email` > `"unknown"` |
 | `previous_state` | string | yes | `FeatureState` string before unapply |
 | `result` | string | yes | `"unapplied"` on success; field not written on refusal (refused attempts do not write the file in v1) |
-| `actor` | string | yes | Same precedence chain as `tpatch reject`: `--actor` > `TPATCH_ACTOR` > `git config user.email` > `"unknown"` |
 | `canonical_patch_sha256` | string | yes | Lowercase hex SHA-256 of `post-apply.patch` bytes at attempt time |
 | `reverse_patch` | string | yes | Relative path from feature dir root to `reverse.patch` |
 | `touched_paths` | []string | yes | Sorted alphabetically; repo-relative forward-slash paths |
@@ -390,22 +395,29 @@ original. Stash semantics interact badly with untracked files.
 
 ### Decision: **Alternative 2**
 
-The implementation must follow the 7-step protocol in PRD §10:
+The implementation must follow the 8-step protocol (expanded from PRD §10 to close the
+artifact-write failure gap):
 
 1. Resolve touched paths from canonical patch.
 2. Run `git apply --reverse --check` in the real tree.
 3. Run the same check in a temporary worktree at current HEAD.
 4. Snapshot touched files from real tree (include missing-file markers and file modes).
 5. Run `git apply --reverse` in the real tree.
-6. If step 5 fails: restore snapshots, restore missing files to missing, and report failure.
-7. Write `.tpatch/` audit artifacts and update `status.json` **only after** step 5 succeeds.
+6. **If step 5 fails**: restore snapshots, restore missing files to missing, and report failure (exit 1). Do not proceed to steps 7-8.
+7. Write `.tpatch/` audit artifacts (`unapply-session.json`, `reverse.patch` under `artifacts/unapply/<attempt-id>/`). **If any artifact write fails**: restore source snapshot (same procedure as step 6), remove any partially-written artifact directory, and report failure (exit 1). `status.json` must NOT be updated if the artifact write fails.
+8. Update `status.json` with `state: "unapplied"`. **If `status.json` write fails**: restore source snapshot, remove artifact directory (best-effort), and report failure (exit 1).
 
 **Invariants:**
 
 - If `unapply-session.json` exists in `artifacts/unapply/<attempt-id>/`, the working-tree
-  reverse-apply completed successfully at the time it was written.
-- If the command exits non-zero, `status.json` retains its previous state.
-- If the command exits non-zero, `artifacts/unapply/` has no new partial artifacts.
+  reverse-apply completed successfully AND the artifact write completed at the time it was
+  written.
+- If `status.json` records `state: "unapplied"`, both the source mutation (step 5) and the
+  artifact write (step 7) completed successfully.
+- If the command exits non-zero, the rollback procedure was attempted. `status.json`
+  retains its previous state (or the update was not reached).
+- If the command exits non-zero, `artifacts/unapply/` has no new partial artifacts (best-
+  effort removal on failure, but a SIGKILL mid-removal may leave a partial directory).
 - No partial reverse-apply success is reported as success.
 
 ### Consequences
@@ -421,26 +433,35 @@ protocol makes this window as small as possible.
 
 ## D7: Composition with `rejected` state
 
-*This is the decision point deferred by ADR-031 D6 to this ADR.*
+*This decision resolves the data-model composition sub-question deferred by ADR-031 D6.
+The retirement-command sub-question remains deferred.*
 
-Source of deferral: `docs/adrs/ADR-031-rejected-feature-state-data-model.md:604-630`:
+**Scope of this decision:** ADR-031 D6 deferred the question of whether a future
+retirement command for already-implemented features should share data-model fields with
+`rejected`. The exact deferral text is at
+`docs/adrs/ADR-031-rejected-feature-state-data-model.md:1111-1114`:
 > "Whether a future retirement command for already-implemented features (Alternative 3 of
 > D6, possibly `PRD-feature-unapply.md`) should share any data-model fields with
-> `rejected`'s — deferred entirely to future work."
+> `rejected`'s — deferred entirely to that future PRD/ADR pair, not decided here."
+
+This ADR answers the **schema-sharing sub-question**: no shared schema. The **retirement-
+command sub-question** (whether a permanent, audit-preserving retirement command should
+exist for `applied`/`active` features) is NOT answered here. `feature unapply` is a
+reversible working-tree operation, not a retirement command. The retirement gap that
+ADR-031 D6 left open remains open after this ADR.
 
 ### Question
 
-How do the proposed `unapplied` state and the shipped `rejected` state compose in the
-lifecycle? Can a feature be in both states? Is there a transition path between them?
+Should `unapplied` and `rejected` share schema fields? Can a feature be in both states?
+Is there a composition path between them?
 
 ### Alternatives
 
 **(A) Parallel independent states** — `unapplied` and `rejected` are valid `FeatureState`
-values that operate on non-overlapping lifecycle segments. Entry to `unapplied` requires a
-post-implementation source state (`applied`/`active`/`reconciling`/`reconciling-shadow`).
-Entry to `rejected` is restricted to pre-implementation source states
-(`requested`/`analyzed`/`defined`). The entry conditions are mechanically disjoint; no
-feature can reach both states without an explicit path the state machine does not provide.
+values that operate on non-overlapping lifecycle segments, with no shared schema. Entry to
+`unapplied` requires a post-implementation source state (`applied`/`active`/`reconciling`/
+`reconciling-shadow`). Entry to `rejected` is restricted to pre-implementation source
+states (`requested`/`analyzed`/`defined`). The entry conditions are mechanically disjoint.
 
 **(B) Hierarchical** — `rejected` implies `unapplied` first (a future "post-implementation
 reject" would require unapply as a prerequisite step), or `unapplied` is a transient
@@ -450,12 +471,14 @@ station in a compound `applied → unapplied → rejected → reopened → appli
 commands compose them (e.g., `reject --from-applied` that internally unapplies then
 rejects).
 
-### Decision: **Alternative A — parallel independent states**
+### Decision: **Alternative A — parallel independent states (no shared schema)**
+
+This decision answers the schema-sharing question from ADR-031 D6's deferral text.
 
 Rationale:
 
 1. **State machine already enforces disjointness.** `RejectableStates = {requested,
-   analyzed, defined}` (`internal/store/status.go:108-118`). A feature cannot be both
+   analyzed, defined}` (`internal/store/status.go:135-145`). A feature cannot be both
    in a post-implementation state (required to reach `unapplied`) and in a
    pre-implementation state (required to reach `rejected`). The mutual exclusion is
    mechanical, not aspirational.
@@ -463,21 +486,19 @@ Rationale:
 2. **No shared schema required.** `RejectionStatus` carries pre-implementation evidence,
    operator rejection intent, and reopen history. `unapply-session.json` carries working-
    tree reverse-apply audit. They are orthogonal schemas (see D3). Sharing fields would
-   create an entangled data model with no benefit.
+   create an entangled data model with no benefit. This directly answers the ADR-031 D6
+   deferral question: the answer is **no shared schema**.
 
-3. **ADR-031 D6's language is precise.** The deferred scope is "post-implementation
-   retirement (should never have shipped)" — a terminal verdict on an implemented feature.
-   `feature unapply` is a reversible working-tree operation, not a terminal verdict. The
-   deferral does not imply the two must converge; it leaves the door open for a future
-   dedicated retirement command. This ADR confirms the door stays open but does not walk
-   through it.
+3. **Scope boundary: this ADR does not address the retirement-command gap.** `feature
+   unapply` is a reversible working-tree operation. The question of whether a permanent
+   "should never have shipped" retirement command exists for applied features remains
+   deferred. `tpatch remove <slug>` is today's destructive workaround.
 
 4. **Hierarchical (B) and union (C) add implementation complexity with no current
    operator demand.** Both require an `unapplied → rejected` transition path that
    `tpatch reject` currently refuses (ADR-031 D6 explicitly closes the post-
    implementation escape hatch). Adding that path here would reopen a door ADR-031 D6
-   deliberately closed, without the operator-demand evidence that justified the original
-   closure scope.
+   deliberately closed.
 
 **Explicit rule (implementation must enforce):**
 
@@ -492,17 +513,17 @@ reject; an unapplied feature is not rejected). If a hand-edited `status.json` se
 fail with exit code 1 (internal error: inconsistent state) rather than silently proceeding.
 
 **Cross-reference to PRD:** PRD-feature-unapply.md §8.2 documents the same decision with
-more prose context.
+more prose context and the same reframing of what ADR-031 D6 actually deferred.
 
 ### Consequences
 
-Positive: both commands remain self-contained and independently extensible. No coupling
-between `reject` command logic and `unapply` command logic.
+Positive: both commands remain self-contained. No coupling between `reject` logic and
+`unapply` logic. The schema-sharing question from ADR-031 D6 is definitively answered.
 
-Negative: operators who want to "permanently retire" a feature that has been applied and
-unapplied have no single-step command in v1. They must `tpatch remove <slug>`. A future
-`tpatch retire` command could wrap both `feature unapply` + logical deletion, but that
-is out of scope for this ADR.
+Negative: the retirement-command gap (no audit-preserving permanent retirement path for
+applied features) is NOT closed. Operators who want to permanently retire an applied
+feature must use `tpatch remove <slug>` (destructive). A future `tpatch retire` command
+could fill this gap but is out of scope for this ADR.
 
 ---
 
@@ -513,7 +534,7 @@ This ADR documents the opposite decision and explains why both are correct.*
 
 Source of naming convention: ADR-031 D10 Alternative 3 (accepted), documented in
 PRD-rejected-feature-state §4.1. The `tpatch feature` group is for "noun-scoped per-
-feature management" (`internal/cli/feature_deps.go:41-49`).
+feature management" (`internal/cli/feature_deps.go:38-51`).
 
 ### Question
 
@@ -624,9 +645,14 @@ accepted. They are not decisions; they are forward-guidance collected during pla
    correctly refuse it because `unapplied` is not in `RejectableStates`. Verify the error
    message rendered includes the D7 guidance message.
 
-4. **`confirm-upstreamed` guard** (`internal/cli/cobra.go:2525-2540`): Add `StateUnapplied`
-   to the guard analogously to the `StateRejected` guard. Exit code 3; suggest `tpatch apply
-   <slug>` first.
+4. **`confirm-upstreamed` guard** (`internal/cli/cobra.go:2626`): Add `StateUnapplied`
+   to the guard **immediately after loading status**, before any fast-path or argument
+   branching, using `stateRefusalError` — exactly where the `StateRejected` guard sits
+   at `cobra.go:2635-2648`. Do NOT place the guard in `applyConfirmUpstreamedTransition`
+   (the callee); a guard in the callee fires too late and allows the crash-recovery path
+   to append a false audit revision before the guard triggers (same rationale as the
+   `StateRejected` guard's comment at `cobra.go:2630-2638`). Exit code 3; suggest
+   `tpatch apply <slug>` first.
 
 5. **`tpatch status` filtering** (§8.3 decision): `unapplied` features appear in the default
    listing. No `--include-unapplied` flag. Add `[unapplied]` rendering badge. Update
@@ -639,8 +665,10 @@ accepted. They are not decisions; they are forward-guidance collected during pla
    code 3; suggest `tpatch apply <slug>` first.
 
 8. **`unapply-session.json` schema**: Implement exactly the D3 wire schema. Use
-   `json.Marshal` with a stable-sorted struct (not `map[string]interface{}`). The `attempt_id`
-   format is `ua_` + 12 lowercase hex chars (`crypto/rand` + `encoding/hex`).
+   `json.Marshal` on a fixed struct type (not `map[string]interface{}`); Go serializes
+   struct fields in declaration order, which is the deterministic, struct-field ordering
+   the D3 example follows. The `attempt_id` format is `ua_` + 12 lowercase hex chars
+   (`crypto/rand` + `encoding/hex`).
 
 9. **`reverse.patch`**: Write under `artifacts/unapply/<attempt-id>/reverse.patch`. Not under
    `patches/` (D4). Derive by capturing the reverse diff from the snapshot/restore cycle.
@@ -679,43 +707,54 @@ accepted. They are not decisions; they are forward-guidance collected during pla
 
 ---
 
-## Test Matrix Outline (Minimum Coverage for Cluster G')
+## Test Matrix Outline (1:1 mirror of PRD §15; minimum coverage for Cluster G')
 
-The test matrix below mirrors the PRD §15 acceptance criteria and is broken out per
-decision point to help reviewers verify coverage without reading the full test file.
+The test matrix below mirrors the PRD §15 acceptance criteria (39 items). Rows are tagged
+with the PRD §15 item number and the ADR decision point that drives the test.
 
-| # | Decision | Test scenario | Expected |
-|---|---|---|---|
-| 1 | D1 | `ValidFeatureState("unapplied")` | `true` |
-| 2 | D1 | `ValidFeatureState` with all 11 existing values | still `true` |
-| 3 | D1 | `switch state` exhaustiveness (compile-time) | zero `default: return err` paths that don't mention `StateUnapplied` in a comment |
-| 4 | D2 | Apply child when hard parent is `unapplied` | refused; waiting-on-parent |
-| 5 | D2 | `tpatch status` with applied child and unapplied hard parent | DAG warning emitted |
-| 6 | D2 | Apply child when hard parent is `applied` → unapply parent → child status | DAG warning; child can no longer re-run apply |
-| 7 | D3 | Successful unapply writes `unapply-session.json` with all required fields | all fields present, correct types, stable-sorted |
-| 8 | D3 | `attempt_id` format | `ua_` + 12 lowercase hex chars |
-| 9 | D3 | `canonical_patch_sha256` is lowercase 64-hex | regex `^[0-9a-f]{64}$` |
-| 10 | D3 | `dependency_blockers: []` (not `null`) when no blockers | `[]` |
-| 11 | D3 | `preflight.conflict_markers: []` (not `null`) when clean | `[]` |
-| 12 | D4 | `patch-generations.json` unchanged after unapply | byte-identical before/after |
-| 13 | D5 | `tpatch feature unapply <slug> --mode landed-commit` | exit 2, error message |
-| 14 | D6 | Reverse-apply check fails → no mutation, no artifact, status unchanged | working tree identical, `status.json` unchanged |
-| 15 | D6 | Successful unapply → status records `unapplied` | `status.json:state == "unapplied"` |
-| 16 | D6 | Successful unapply → `artifacts/post-apply.patch` byte-identical | SHA matches pre-unapply |
-| 17 | D7 | `tpatch reject` from `unapplied` source state | exit 3, message mentions `tpatch remove` |
-| 18 | D7 | `tpatch reopen` from `unapplied` source state (no rejection record) | refused or no-op; no state mutation |
-| 19 | D7 | `confirm-upstreamed` from `unapplied` source state | exit 3, suggests `tpatch apply` first |
-| 20 | D8 | `tpatch feature unapply --help` contains apply cross-reference | golden string present |
-| 21 | D8 | `tpatch apply --help` contains `feature unapply` cross-reference | golden string present |
-| 22 | (PRD §3.3) | `--dry-run` on dirty tree | exit 0, reports dirty-tree blockers, no mutation |
-| 23 | (PRD §5) | Hard dependent exists → unapply refused | exit 3, lists blocker slug |
-| 24 | (PRD §5) | Soft dependent exists, no flag → unapply refused | exit 3 |
-| 25 | (PRD §5) | Soft dependent exists, `--allow-soft-dependents` → unapply proceeds | success |
-| 26 | (PRD §5.1) | Dependency edge creation onto `unapplied` parent | allowed (no Rule-7-analog) |
-| 27 | (PRD §8.3) | `tpatch status` default listing includes `unapplied` feature | appears with `[unapplied]` badge |
-| 28 | (PRD §8.3) | `--include-rejected` does not affect unapplied visibility | unapplied features still shown |
-| 29 | (PRD §11.3) | `tpatch land <slug>` from `unapplied` | exit 3, suggests `tpatch apply` |
-| 30 | (PRD §14) | `tpatch apply <slug>` from `unapplied` returns state to `applied` | success, `status.json:state == "applied"` |
+| # | PRD AC | Decision | Test scenario | Expected |
+|---|---|---|---|---|
+| 1 | AC-1 | D1 | `ValidFeatureState("unapplied")` | `true` |
+| 2 | D1 | D1 | `ValidFeatureState` with all 11 existing values still `true` | no regressions |
+| 3 | D1 | D1 | `switch state` exhaustiveness (compile-time) | no `StateUnapplied`-omitting defaults |
+| 4 | AC-19 | D2 | Apply child when hard parent is `unapplied` | refused; waiting-on-parent |
+| 5 | D2 | D2 | `tpatch status` with applied child and unapplied hard parent | DAG warning emitted |
+| 6 | D2 | D2 | Unapply parent while child is applied → child status at next operation | DAG warning appears |
+| 7 | AC-5 | D3 | Successful unapply writes `unapply-session.json` with all required fields | all 13 fields present, correct types |
+| 8 | D3 | D3 | `attempt_id` format | `ua_` + 12 lowercase hex chars |
+| 9 | AC-5 | D3 | `canonical_patch_sha256` is lowercase 64-hex | regex `^[0-9a-f]{64}$` |
+| 10 | D3 | D3 | `dependency_blockers: []` (not `null`) when no blockers | `[]` |
+| 11 | D3 | D3 | `preflight.conflict_markers: []` (not `null`) when clean | `[]` |
+| 12 | AC-10 | D4 | `patch-generations.json` unchanged after unapply | byte-identical before/after |
+| 13 | D5 | D5 | `tpatch feature unapply <slug> --mode landed-commit` | exit 2, error message |
+| 14 | AC-25 | D6 | Reverse-apply check fails → no mutation, no artifact, status unchanged | working tree identical, `status.json` unchanged |
+| 15 | AC-11 | D6 | Successful unapply → `status.json:state == "unapplied"` | state recorded |
+| 16 | AC-9 | D6 | Successful unapply → `artifacts/post-apply.patch` byte-identical | SHA matches pre-unapply |
+| 17 | AC-26 | D6 | Real reverse-apply fails after check/preview → snapshot restored | exit 1, tree restored, no artifact written |
+| 18 | AC-20 | D6 | Successful unapply clears `Verify` | verify field cleared after unapply |
+| 19 | AC-37 | D7 | `tpatch reject` from `unapplied` source state | exit 3, message mentions `tpatch remove` |
+| 20 | D7 | D7 | `tpatch reopen` from `unapplied` source state (no rejection record) | no state mutation; well-formed error |
+| 21 | AC-38 | D7 | `confirm-upstreamed` from `unapplied` source state | exit 3, suggests `tpatch apply` first |
+| 22 | D8 | D8 | `tpatch feature unapply --help` contains apply cross-reference | golden string present |
+| 23 | D8 | D8 | `tpatch apply --help` contains `feature unapply` cross-reference | golden string present |
+| 24 | AC-2 | (PRD §3.3) | `--dry-run` on dirty tree | exit 0, reports dirty-tree blockers, no mutation |
+| 25 | AC-3 | (PRD §3.3) | `--dry-run` with invalid slug | exit 2 |
+| 26 | AC-34 | (PRD §3.5) | Unknown slug or unreadable status | exit 2 |
+| 27 | AC-35 | (PRD §3.5) | Source state is `defined` (not applied) | exit 3 |
+| 28 | AC-17 | (PRD §5) | Hard dependent exists → unapply refused | exit 3, lists blocker slug |
+| 29 | AC-18 | (PRD §5) | Soft dependent exists, no flag → unapply refused | exit 3 |
+| 30 | AC-18 | (PRD §5) | Soft dependent exists, `--allow-soft-dependents` → unapply proceeds | success |
+| 31 | AC-32 | (PRD §5.1) | `supersedes` dependent exists → unapply refused | exit 3, no bypass flag |
+| 32 | AC-26 | (PRD §5.1) | Dependency edge creation onto `unapplied` parent | allowed |
+| 33 | AC-33 | D3 | `actor` field in `unapply-session.json` follows precedence chain | `--actor` > env > git-config > `"unknown"` |
+| 34 | AC-36 | (PRD §8.3) | `tpatch status` default listing includes `unapplied` feature | `[unapplied]` badge |
+| 35 | AC-28 | (PRD §8.3) | `--include-rejected` does not affect unapplied visibility | unapplied features still shown |
+| 36 | AC-29 | (PRD §11.3) | `tpatch land <slug>` from `unapplied` | exit 3, suggests `tpatch apply` |
+| 37 | AC-29 | (PRD §11.3) | `tpatch remove <slug>` behavior unchanged | same as before |
+| 38 | AC-14 | (PRD §14) | `tpatch apply <slug>` from `unapplied` returns state to `applied` | success |
+| 39 | AC-39 | (PRD §12.1) | Applied-and-dirty feature → unapply refused | exit 3, message explains committed-patch requirement |
+| 40 | AC-21–24 | (PRD §6) | Conflict markers / `.orig` leftovers / mid-merge refuse unapply | exit 3 for each |
 
-Cluster G' implementation cluster may extend this list. The 30-item baseline establishes
-minimum coverage for rev-0 review.
+Cluster G' implementation cluster must cover all 40 rows. Row count exceeds PRD §15's
+39 items because row 40 covers 4 related preflight cases (PRD §6 AC-22/23/24 consolidated).
+The matrix header says "1:1 mirror" meaning every PRD §15 AC has at least one row.
