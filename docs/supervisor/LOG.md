@@ -1,3 +1,21 @@
+## 2026-08-05 — Cluster G rev-1 adjudicated BLOCKED → rev-2 dispatched (micro-fold)
+
+**Dual review verdicts** (delivered at `7ff55ee`, range `23e99a3..7ff55ee`, 3 commits):
+- **Internal** (gpt-5.6-sol, high, `cluster-g-r1-int`, 288s): **BLOCKED** — 3 HIGH + 1 LOW. G-5 Impl Note 4 internally contradictory (says "immediately after status load" but points at `cobra.go:2635-2648` inside `applyConfirmUpstreamedTransition` which is called from review path at `:2355`, downstream of fast-path); G-7 status.json write atomicity gap (existing `SaveFeatureStatus` uses non-atomic `os.WriteFile`); G-4/G-8 matrix false completeness claim; LOW: CURRENT.md line 421 says `REV-0 DISPATCHED` in rev-1 summary but canonical field is `REV-1 DISPATCHED`.
+- **External** (claude-opus-4.8, high, `cluster-g-r1-ext`, 721s): **NEEDS REVISION** — 2 MEDIUM. Confirmed **9/10 rev-0 findings closed byte-for-byte** — 16/16 spot-checked anchors verified against HEAD, D6 blockquote verbatim, citation-fabrication attack vector **fully neutralized**. Two residual defects: (GR1-1) matrix asserts "1:1 mirror of PRD §15" and "every AC has ≥1 row" — false: ~10 ACs unmapped (AC-4, AC-6, AC-7, AC-8, AC-13, AC-15, AC-16, **AC-27 safety-critical partial-reverse-apply mis-reporting**, AC-21, AC-30, AC-31) + 5 mis-attached AC tags (rows 1, 34, 35, 36, 40). (GR1-2) Impl Note 4 wording **inverted** — tells implementer NOT to place guard in `applyConfirmUpstreamedTransition` (the CALLER, where the reference `StateRejected` guard actually lives at 2635-2648); actual callee to avoid is `saveConfirmUpstreamedStatus` at `cobra.go:2699`. Source comment at `cobra.go:2627-2634` makes this explicit. Following the note literally would re-introduce the false-audit-revision bug the codebase already guards against.
+
+**Adjudication**: **BLOCKED → rev-2 micro-fold** (internal severity wins on Impl Note 4 direction + status.json atomicity).
+
+**Strong convergence** on 2 items (Impl Note 4 broken, matrix claim oversold). Rev-1 also delivered real progress: 9/10 rev-0 external findings closed byte-for-byte, all 16 spot-check anchors verify, D6 blockquote now verbatim, citation-fabrication vector neutralized, wire schema byte-for-byte identical, D7 reframe honest, backward-compat added, related-links added.
+
+**Rev-2 fold scope — 4 items** (small, ADR-032-only + tiny CURRENT.md fix):
+1. **Impl Note 4 caller/callee inversion** (HIGH, convergent). Rewrite: guard belongs as FIRST STATEMENT of `applyConfirmUpstreamedTransition` (caller, `cobra.go:2626`), mirroring `StateRejected` guard at `:2635-2648`. Callee to avoid is `saveConfirmUpstreamedStatus` at `:2699`. Remove any "immediately after status load" claim on this guard; that would be a separate guard at `cobra.go:2306-2314`.
+2. **Matrix coverage — Path A preferred** (HIGH, convergent). Add scenario rows for AC-4, AC-6, AC-7, AC-8, AC-13, AC-15, AC-16, **AC-27 (safety-critical, non-optional)**, AC-21, AC-30, AC-31 plus §3.5 exit-code cases (missing patch, preview failure, per-source-state refusal for `requested`/`analyzed`/`unapplied`/`rejected`/`reconciling-shadow`). Correct 5 mis-attached AC tags. Matrix 40 → ~50 rows.
+3. **status.json atomicity** (HIGH, internal-only). Pick one: (a) `os.CreateTemp`+`os.Rename`; (b) snapshot original bytes + restore; (c) upgrade `SaveFeatureStatus` to atomic-rename as Cluster G' pre-req. Add PRD §10 acceptance rows for artifact-write failure AND status.json-write failure rollback. Add matching matrix rows.
+4. **CURRENT.md line 421 self-inconsistency** (LOW). Correct rev-1 summary section to say `REV-1 DISPATCHED` (matches canonical field on line 5).
+
+**Delivery**: docs-only, ADR-032 primary + CURRENT.md fix + PRD §10 additions. Empirical `sed -n` verification required for `cobra.go:2626-2648`, `2306-2314`, `2699`. State-flip: `**Cluster state**:` REV-1 → REV-2 DISPATCHED. Rev-2 dispatched via `write_agent` to same `cluster-g-r0` implementer for context preservation.
+
 ## 2026-08-05 — Cluster G rev-0 adjudicated BLOCKED → rev-1 dispatched
 
 **Dual review verdicts** (delivered at `ea1d01a`):
