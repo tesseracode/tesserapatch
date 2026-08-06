@@ -9,6 +9,7 @@
 
 ## Related
 
+- [SPEC.md](../../SPEC.md) — feature lifecycle state table
 - [Feature Layout](../feature-layout.md)
 - [Recording Patches](../record.md)
 - [Reconcile Workflow](../reconcile.md)
@@ -53,23 +54,23 @@ This PRD is a proposal. It changes nothing.
 |---|---|
 | The canonical replay patch for a feature is `.tpatch/features/<slug>/artifacts/post-apply.patch`; numbered files under `patches/` are audit snapshots, not replay authority. | `docs/feature-layout.md:34-44`, `docs/feature-layout.md:50-67` |
 | `record` captures working-tree or commit-range diffs and writes the canonical patch; same-feature duplicate records skip numbered snapshots. | `docs/record.md:1-3`, `docs/record.md:23-37`, `docs/record.md:89-90` |
-| Reconcile already uses a reverse-apply check to detect whether a recorded patch is present in the tree. | `docs/reconcile.md:5-14`, `internal/workflow/reconcile.go:205-214` |
+| Reconcile already uses a reverse-apply check to detect whether a recorded patch is present in the tree. | `docs/reconcile.md:5-14`, `internal/workflow/reconcile.go:353-357` |
 | The git utility layer already exposes reverse-apply checks and reverse validation using `git apply --reverse --check`. | `internal/gitutil/gitutil.go:396-435` |
 | Reconcile refuses dirty trees, merge conflict markers, and `.orig` / `.rej` leftovers because patch verdicts become unreliable on polluted trees. | `docs/reconcile.md:47-83`, `internal/gitutil/gitutil.go:85-187` |
 | Existing feature states do not include an `unapplied` state. | `internal/store/types.go:5-24` |
 | Hard dependencies are satisfied only by applied/active/upstream-merged parents; removal with dependents refuses unless `--cascade` is used, and `--force` does not bypass dependency integrity. | `docs/dependencies.md:95-112`, `docs/dependencies.md:236-251`, `ADR-011-feature-dependencies.md:76-90` |
-| `remove` deletes the feature directory and all artifacts; it is not a patch-removal operation. | `internal/cli/c1.go:339-399`, `internal/store/store.go:509-521` |
-| Feature management subcommands live under `tpatch feature`; current children are `deps`, `claim`, and `patch`. | `internal/cli/feature_deps.go:37-50` |
+| `remove` deletes the feature directory and all artifacts; it is not a patch-removal operation. | `internal/cli/c1.go:341-399`, `internal/store/store.go:658-666` |
+| Feature management subcommands live under `tpatch feature`; current children are `deps`, `claim`, and `patch`. | `internal/cli/feature_deps.go:38-51` |
 | `land` writes ordinary Git commits with a locked trailer block; `Tpatch-Feature` is the feature-to-commit binding and is not unique across commits. | `docs/feature-layout.md:90-94`, `ADR-019-tpatch-land-trailer-block-schema.md:21-24`, `ADR-019-tpatch-land-trailer-block-schema.md:64-69` |
 | Patch generations track changes to canonical patch bytes and deliberately do not replace `status.json`, `post-apply.patch`, numbered patches, or land trailers. | `PRD-feature-patch-identity-metadata.md:80-88`, `ADR-024-patch-generation-manifest-boundary.md:48-75` |
 | **v0.13.0 / Cluster F additions (for §8.2, §11.7 of this PRD)** | |
 | `StateRejected` is the eleventh `FeatureState` (value `"rejected"`), introduced in v0.13.0 GH #6. The `ValidFeatureState` closed switch includes it. | `internal/store/types.go:21-30` |
-| `RejectableStates` restricts `tpatch reject` to pre-implementation states: `requested`, `analyzed`, `defined`. Post-implementation states (including `implementing`, `applied`, `active`, `reconciling`, `reconciling-shadow`, `blocked`, `upstream_merged`) are refused outright at exit code 3 (ADR-031 D6). `unapplied` — when added — is also post-implementation and therefore implicitly refused. | `internal/store/status.go:108-118` |
-| `RejectionStatus` is the live rejection sub-record on `FeatureStatus` (`reason`, `note`, `actor`, `evidence []EvidenceRef`, `rejected_at`, `prior_state`). `RejectionHistoryEntry` records one completed reject→reopen cycle; `FeatureStatus.RejectionHistory` is append-only and grows by exactly one entry per `tpatch reopen`. | `internal/store/status.go:98-106`, `internal/store/status.go:59-96` |
+| `RejectableStates` restricts `tpatch reject` to pre-implementation states: `requested`, `analyzed`, `defined`. Post-implementation states (including `implementing`, `applied`, `active`, `reconciling`, `reconciling-shadow`, `blocked`, `upstream_merged`) are refused outright at exit code 3 (ADR-031 D6). `unapplied` — when added — is also post-implementation and therefore implicitly refused. | `internal/store/status.go:135-145` |
+| `RejectionStatus` is the live rejection sub-record on `FeatureStatus` (`reason`, `note`, `actor`, `related`, `evidence []EvidenceRef`, `rejected_at`, `prior_state`). `RejectionHistoryEntry` records one completed reject→reopen cycle; `FeatureStatus.RejectionHistory` is append-only and grows by exactly one entry per `tpatch reopen`. | `internal/store/status.go:119-133`, `internal/store/status.go:59-96` |
 | Rule 7 (`ErrRejectedParent`): dependency-edge creation onto a `rejected` parent is refused for all three edge kinds (`hard`, `soft`, `supersedes`) with exit code 3. The remediation message names `tpatch reopen`. | `internal/store/validation.go:57-70`, `internal/store/validation.go:168-181` |
 | `tpatch reject` and `tpatch reopen` are top-level lifecycle verbs. They are intentionally distinct from `tpatch feature <subcommand>` noun-scoped management per ADR-031 D10 Alternative 3. The intentional-non-relationship rationale is documented in PRD-rejected-feature-state §4.1 and ADR-031 D10. | `internal/cli/reject.go:1-40`, `internal/cli/reopen.go:1-40`, `ADR-031-rejected-feature-state-data-model.md:889-985` |
 | `tpatch status` excludes `rejected` features from the default listing. `--include-rejected` opts in. The count of hidden rejected features is shown in the footer. | `internal/cli/cobra.go:250`, `internal/cli/cobra.go:397`, `internal/cli/cobra.go:529` |
-| ADR-031 D6 explicitly deferred post-implementation retirement ("should never have shipped" command) to a future ADR, naming `PRD-feature-unapply.md` as the potential host. | `docs/adrs/ADR-031-rejected-feature-state-data-model.md:604-630` |
+| ADR-031 D6 explicitly deferred the data-model composition sub-question (whether a future retirement command shares schema with `rejected`) to a future ADR, naming `PRD-feature-unapply.md` as the potential host. The retirement-command sub-question (permanent audit-preserving retirement of an applied feature) remains deferred beyond this PRD. | `docs/adrs/ADR-031-rejected-feature-state-data-model.md:1111-1114` |
 
 ## Summary
 
@@ -80,7 +81,7 @@ feature directory, canonical patch, patch-generation history, and audit trail.
 V1 is patch-mode only:
 
 ```bash
-tpatch feature unapply <slug> [--dry-run] [--allow-soft-dependents]
+tpatch feature unapply <slug> [--dry-run] [--allow-soft-dependents] [--actor <string>]
 ```
 
 Unapply is a working-tree operation, not feature deletion and not Git history
@@ -146,7 +147,7 @@ audited unapply operation.
 Selected command:
 
 ```bash
-tpatch feature unapply <slug> [--dry-run] [--allow-soft-dependents]
+tpatch feature unapply <slug> [--dry-run] [--allow-soft-dependents] [--actor <string>]
 ```
 
 ### 3.1 Candidate command evaluation
@@ -221,8 +222,9 @@ this looks asymmetric. The asymmetry is correct and deliberate.
    management operations, not lifecycle verbs.
 
 2. `tpatch feature` is specifically the group for "operate on a feature's artifacts or
-   sub-records" (`internal/cli/feature_deps.go:41-49`, doc comment: "Feature management
-   subcommands (`deps`, `claim`, `patch`)"). `unapply` adds a working-tree projection
+   sub-records" (doc comment at `internal/cli/feature_deps.go:38`: "featureCmd is the
+   parent for all per-feature management subcommands"; `Short` at `:45`:
+   `"Per-feature management commands"`). `unapply` adds a working-tree projection
    operation to this group — consistent with its noun scope.
 
 3. The alternative (`tpatch unapply <slug>` as a top-level verb) would put a working-tree
@@ -237,7 +239,7 @@ this looks asymmetric. The asymmetry is correct and deliberate.
    `reject` and `reopen` are first-class lifecycle-state transitions — terminal outcome and
    its reversal. Every other lifecycle-state transition in tpatch (`analyze`, `define`,
    `explore`, `implement`, `apply`, `reconcile`, `land`) is a top-level verb
-   (`internal/cli/cobra.go:60-80`, `buildRootCmd`). Placing `reject`/`reopen` under `feature`
+   (`internal/cli/cobra.go:57-80`, `buildRootCmd`). Placing `reject`/`reopen` under `feature`
    would contradict that convention and import a lifecycle verb into a noun-scoped group.
 
 **Disambiguating cross-references in `--help`:**
@@ -250,6 +252,32 @@ test matrix):
 - `tpatch feature unapply --help` footer: `"Use 'tpatch apply <slug>' to reapply a feature that has been unapplied."`
 - `tpatch apply --help` footer: `"Use 'tpatch feature unapply <slug>' to remove a feature's patch from the working tree."`
 - `tpatch reject --help` footer is governed by ADR-031 D10; it is NOT expected to cross-reference `feature unapply` because the two commands operate on non-overlapping lifecycle domains (pre-implementation vs post-implementation working-tree management).
+
+### 3.5 Exit-code envelope
+
+`tpatch feature unapply` uses the same exit-code envelope as `tpatch reject` (ADR-031 D4
+pattern):
+
+| Condition | Exit | Notes |
+|---|---|---|
+| Success (mutation complete, artifacts written) | **0** | |
+| `--dry-run` with any blocker | **0** | Dry-run is report-only; all blockers are reported, none cause non-zero exit |
+| `--dry-run` with invalid slug / unreadable status / missing patch | **2** | These are pre-validation failures independent of `--dry-run` |
+| Unexpected internal error (IO failure, corrupted store, etc.) | **1** | |
+| Unknown slug (feature not found in store) | **2** | Pre-mutation validation |
+| Missing or empty canonical patch (`post-apply.patch`) | **2** | Pre-mutation validation |
+| Unreadable `status.json` | **2** | Pre-mutation validation |
+| Invalid flag value (bad `--actor` etc.) | **2** | Pre-mutation validation |
+| Source state is not `applied`, `active`, `reconciling`, or `reconciling-shadow` | **3** | State-machine refusal |
+| Hard dependent exists | **3** | State-machine refusal |
+| Soft dependent exists (without `--allow-soft-dependents`) | **3** | State-machine refusal |
+| Dirty working tree | **3** | State-machine refusal (current tree state prevents operation) |
+| Conflict markers present | **3** | State-machine refusal |
+| `.orig` / `.rej` leftovers present | **3** | State-machine refusal |
+| Mid-merge / mid-rebase / mid-cherry-pick | **3** | State-machine refusal |
+| Reverse-apply check failure | **3** | State-machine refusal (patch not cleanly reversible) |
+| Preview (temp-worktree) failure | **3** | State-machine refusal |
+| Real reverse-apply failure (tree restored from snapshot) | **1** | Unexpected: check passed but apply failed; atomicity rollback fires |
 
 ## 4. Modes
 
@@ -310,26 +338,37 @@ parent?
   the parent is applied.
 
 - Attempting to **unapply a feature that has live hard dependents** is **refused** by default
-  in v1 (see §5 main policy). This is the safe direction: a child that depended on the
-  parent's files should not silently lose those files.
+  in v1 (exit code 3). This is the safe direction: a child that depended on the parent's
+  files should not silently lose those files.
 
-- Attempting to **unapply a feature that has live soft dependents** is refused by default but
-  can be bypassed with `--allow-soft-dependents`.
+- Attempting to **unapply a feature that has live soft dependents** is refused by default (exit
+  code 3) but can be bypassed with `--allow-soft-dependents`.
 
-**Symmetric-invariant statement (analog of Cluster F's Rule 7 symmetric invariant):**
+- Attempting to **unapply a feature that has live `supersedes` dependents** is **refused** by
+  default in v1 (exit code 3). The supersedes relationship means a historical feature is
+  being superseded by this feature; if this feature is unapplied, the supersession assertion
+  becomes unreliable. No bypass flag is provided for supersedes in v1 (mirrors the hard-dependent
+  policy).
 
-> If feature A has a hard dependency on feature B, and B is in state `unapplied`, then A
-> cannot be in state `applied` (the dependency gate prevents applying A when its hard parent
-> is not `applied`/`active`/`upstream_merged`). Conversely, unapplying B when A is applied
-> is refused unless `--allow-soft-dependents` (for soft edges) or there are no hard
-> dependents. The two refusals together mean the set of hard-dependency-satisfied features
-> is always closed under `unapplied` parents — no applied child can have an unapplied hard
-> parent.
+**Best-effort gate and race-detection:**
 
-This invariant is weaker than Rule 7 (which simply prohibits edges onto a `rejected` parent
-entirely), because `unapplied` is reversible. The ADR must confirm whether to add a
-validation-time warning when a live hard edge points at an `unapplied` parent to make the
-broken state visible at `tpatch status` time.
+The unapply dependency gate is a best-effort safety net. It prevents the most common path
+to a broken-dependency state. However, the gate is not atomic with respect to concurrent
+operations: if feature A is applied with a hard dependency on feature B, and B is unapplied
+while A is being applied (rare but possible in automated workflows), A may end up `applied`
+while its hard parent B is `unapplied`. This broken state is detectable:
+
+- `tpatch status` and DAG validation should emit a warning when they detect an `applied`
+  feature with an `unapplied` hard parent.
+- The DAG warning label is `parent-unapplied` (or reuses `waiting-on-parent`; ADR-032 D2
+  defers the exact label name to the implementation cluster).
+
+**Consequence (instead of absolute invariant):**
+
+The set of hard-dependency-satisfied features is expected to be closed under `unapplied`
+parents when the gate fires correctly. In practice, the gate prevents the common case;
+DAG warnings detect residual broken states. Operators must resolve broken states by
+reapplying the parent or unapplying the child.
 
 ## 6. Working Tree Safety
 
@@ -373,10 +412,12 @@ Example `unapply-session.json`:
   "version": 1,
   "feature": "auth-timeout",
   "attempt_id": "ua_9cb6578d11c8",
+  "attempted_at": "2026-08-05T22:10:04Z",
   "mode": "patch",
+  "actor": "user@example.com",
   "previous_state": "applied",
   "result": "unapplied",
-  "canonical_patch_sha256": "64hex...",
+  "canonical_patch_sha256": "64-lowercase-hex-chars-here-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
   "reverse_patch": "artifacts/unapply/ua_9cb6578d11c8/reverse.patch",
   "touched_paths": ["src/auth.go"],
   "dependency_blockers": [],
@@ -388,13 +429,17 @@ Example `unapply-session.json`:
 }
 ```
 
+Field notes: `attempted_at` is required (RFC 3339, UTC). `actor` is required; derivation
+follows the same 4-tier precedence chain used by `tpatch reject`: `--actor` flag >
+`TPATCH_ACTOR` env var > `git config user.email` > `"unknown"`. Keys appear in
+struct-field order (deterministic via Go `json.Marshal` on a fixed struct). All array
+fields use `[]` (not `null`) for schema-stable round-tripping; `dependency_blockers: []`
+is written even when no dependents exist. ADR-032 D3 is the binding wire contract and
+takes precedence over this example if any field description diverges.
+
 Refused attempts do not write `unapply-session.json` in v1. A future PRD may add
 an explicit `--write-refusal-audit` flag if operators want persistent refusal
 logs. This keeps "refused before mutation" commands from dirtying `.tpatch/`.
-
-The session artifact may include wall-clock `attempted_at` if the ADR accepts the
-same audit-session timestamp precedent used elsewhere; deterministic fields must
-remain stable-sorted.
 
 ### 7.2 Patch generations
 
@@ -466,20 +511,32 @@ truth in one field. The ADR must lock this decision before implementation.
 
 ### 8.2 Composition with `rejected` state (v0.13.0 compatibility)
 
-This subsection answers the composition question deferred by ADR-031 D6 ("post-implementation
-retirement is explicitly out of scope for Cluster F; deferred to future ADR, potentially
-PRD-feature-unapply.md").
+This subsection answers the **data-model composition sub-question** of the deferral in
+ADR-031 D6 (`docs/adrs/ADR-031-rejected-feature-state-data-model.md:1111-1114`): "Whether
+a future retirement command for already-implemented features … should share any data-model
+fields with `rejected`'s — deferred entirely to that future PRD/ADR pair, not decided here."
 
-**Three options:**
+**Scope of this answer:** This PRD and ADR-032 D7 resolve the schema-sharing question only.
+The **retirement-command sub-question** — whether a permanent, audit-preserving "this feature
+should never have shipped" command should exist for `applied`/`active` features — remains
+explicitly deferred. `tpatch feature unapply` is a reversible working-tree operation, not a
+retirement verdict. The gap ADR-031 D6 opened (no terminal retirement path for implemented
+features) is NOT filled by this PRD. Today's imperfect workaround is `tpatch remove <slug>`,
+which permanently destroys the feature directory and audit trail. A future `tpatch retire`
+command could provide audit-preserving permanent retirement, but that is out of scope for
+this cluster.
+
+**Three options for schema-sharing composition:**
 
 **(A) Parallel independent states** — `unapplied` and `rejected` are both valid
-`FeatureState` values but operate on non-overlapping lifecycle segments. A feature can hold
-at most one of them at any point. Transition to `unapplied` is only legal from states where
-the feature has an applied patch (i.e., from `applied`/`active`/`reconciling`/
+`FeatureState` values but operate on non-overlapping lifecycle segments. No shared schema
+between `RejectionStatus` / `RejectionHistoryEntry` and `unapply-session.json`. A feature
+can hold at most one of them at any point. Transition to `unapplied` is only legal from
+states where the feature has an applied patch (i.e., from `applied`/`active`/`reconciling`/
 `reconciling-shadow`). Transition to `rejected` is only legal from `requested`/`analyzed`/
 `defined` (the pre-implementation states). Because the entry conditions are disjoint, no
-feature can reach both terminal states without the state machine explicitly allowing a path
-between them, which neither ADR-031 nor this PRD proposes.
+feature can reach both states without the state machine explicitly allowing a path between
+them, which neither ADR-031 nor this PRD proposes.
 
 **(B) Hierarchical** — `rejected` implies `unapplied` first; if a future PRD ever adds
 post-implementation rejection, an operator would run `feature unapply` before `reject`.
@@ -490,39 +547,41 @@ Or: `unapplied` is treated as a transient station in a compound
 stations in the same terminal arc, and commands compose (e.g., a future `reject --from-applied`
 flag that internally unapplies then rejects).
 
-**Chosen: Alternative A — parallel independent states.**
+**Chosen: Alternative A — parallel independent states (no shared schema).**
 
 Rationale:
 
 1. **The state machines are already disjoint.** `RejectableStates = {requested, analyzed,
-   defined}` (`internal/store/status.go:108-118`). A feature cannot be both `applied`
+   defined}` (`internal/store/status.go:135-145`). A feature cannot be both `applied`
    (required to reach `unapplied`) and one of the pre-implementation states (required to
    reach `rejected`). The boundary is mechanical, not merely conceptual.
 
-2. **No shared data model is needed.** `RejectionStatus` and `RejectionHistoryEntry` carry
-   pre-implementation evidence, operator notes, and actor. An `unapply-session.json` carries
-   patch-reversal audit and working-tree snapshot info. These are orthogonal schemas; forcing
-   one into the other produces a bloated composite record.
+2. **No shared schema is warranted.** `RejectionStatus` and `RejectionHistoryEntry` carry
+   pre-implementation evidence, operator rejection intent, and reopen history. An
+   `unapply-session.json` carries patch-reversal audit and working-tree snapshot info. These
+   are orthogonal schemas; forcing one into the other produces a bloated composite record.
+   This directly answers the schema-sharing question from ADR-031 D6's deferral text.
 
-3. **ADR-031 D6's language is explicit.** The deferral says "post-implementation *retirement*
-   command" — not "post-implementation *rejection* command." `feature unapply` is a
-   reversible working-tree operation, not a terminal verdict. Treating it as a station toward
-   `rejected` misrepresents its semantics.
+3. **ADR-031 D6's language is about schema-sharing, not state-sharing.** The deferral at
+   `ADR-031:1111-1114` asks whether schemas share fields, not whether the states merge.
+   `feature unapply` is a reversible working-tree operation; the state-machine disjointness
+   is an already-existing constraint, not a new design choice.
 
 4. **Minimizes future debt.** Hierarchical (B) and union (C) both require a future
    implementation to maintain the `unapplied → rejected` path AND the pre-implementation
    `rejected` path as separate entry-condition branches on `tpatch reject`. This adds
-   complexity to a command that is already well-specified for its narrower pre-implementation
-   scope. Parallel states allow both commands to remain self-contained.
+   complexity to a command that is already well-specified. Parallel states allow both
+   commands to remain self-contained.
 
 **Consequence:** A feature cannot be directly transitioned from `unapplied` to `rejected`.
-If an operator has unapplied a feature and later decides it should be permanently
-discarded, they must run `tpatch remove <slug>` (or a future `tpatch retire` command if one
-is ever specified). `tpatch reject` will refuse `unapplied` as a source state with exit
-code 3, just as it refuses `applied`, `active`, and every other post-implementation state.
+If an operator has unapplied a feature and later decides it should be permanently discarded,
+they must run `tpatch remove <slug>` (destructive — deletes all feature metadata and audit
+trail) or wait for a future `tpatch retire` command if one is specified. `tpatch reject`
+will refuse `unapplied` as a source state with exit code 3, just as it refuses `applied`,
+`active`, and every other post-implementation state.
 
-This decision is locked by ADR-032 D7. The source-of-deferral citation is ADR-031 D6
-(`docs/adrs/ADR-031-rejected-feature-state-data-model.md:539-630`).
+This decision is locked by ADR-032 D7 (data-model composition sub-question resolved;
+retirement-command sub-question remains deferred).
 
 ### 8.3 Status command filtering for `unapplied` features
 
@@ -685,7 +744,7 @@ interaction perspective.
 **`tpatch reject` applied to an `unapplied` feature:**
 
 Refused (exit code 3). `unapplied` is a post-implementation state. `RejectableStates`
-is `{requested, analyzed, defined}` (`internal/store/status.go:108-118`); `tpatch reject`
+is `{requested, analyzed, defined}` (`internal/store/status.go:135-145`); `tpatch reject`
 refuses any source state outside this set with the standard state-machine error. No
 `--force` flag bypasses this: ADR-031 D6 explicitly closes the post-implementation escape
 hatch. Operators who want to permanently retire an unapplied feature should run
@@ -704,14 +763,21 @@ leaving the feature in an unrecoverable configuration.
 
 **`confirm-upstreamed` gate on `unapplied` state:**
 
-`tpatch reconcile confirm-upstreamed` (`internal/cli/cobra.go:2535`) is guarded against
-`rejected` features by the ADR-031 D6 defense-in-depth guard. Parallel reasoning applies
-to `unapplied`: a feature whose patch is not present in the working tree cannot be
-confirmed as upstreamed by examining the working tree. The `confirm-upstreamed` gate should
-refuse `unapplied` source state with exit code 3, printing a message suggesting the
-operator run `tpatch apply <slug>` first to restore the patch before confirming it is
-upstream. The exact guard implementation is deferred to the Cluster G' implementation slice
-alongside the defense-in-depth pattern from ADR-031 D6 (`internal/cli/cobra.go:2525-2540`).
+`tpatch reconcile confirm-upstreamed` (`internal/cli/cobra.go:2272`) is guarded against
+`rejected` features by the ADR-031 D6 defense-in-depth guard at `cobra.go:2635-2648`. That
+guard calls `stateRefusalError` immediately after loading status, before any mutation, using
+the pattern:
+```go
+if status != nil && status.State == store.StateRejected { ... }
+```
+Parallel reasoning applies to `unapplied`: a feature whose patch is not present in the
+working tree cannot be confirmed as upstreamed by examining the working tree. The
+`confirm-upstreamed` gate should refuse `unapplied` source state with exit code 3, printing
+a message suggesting the operator run `tpatch apply <slug>` first to restore the patch
+before confirming it is upstream. The guard must be placed immediately after loading status
+(same placement as the `StateRejected` guard at `cobra.go:2635-2648`), before any
+fast-path or argument branching, using `stateRefusalError`. The exact implementation is
+deferred to the Cluster G' implementation slice.
 
 ## 12. Deferred: landed-commit unapply
 
@@ -728,6 +794,19 @@ Reasons:
 
 V1 patch mode is useful without solving this second feature.
 
+### 12.1 Deferred: uncommitted applied-and-dirty workflow
+
+V1 requires the working tree to be clean before unapply (§6 rules 1-4). This means the
+normal tpatch applied-feature workflow — where `tpatch record` leaves the feature patch
+uncommitted and the tree dirty (`docs/record.md:9-19`) — is **not supported** by v1 unapply.
+Operators who want to unapply a feature that is recorded but not committed to HEAD must
+first commit the working-tree changes, then run `tpatch feature unapply`.
+
+This is a V1 scope restriction, not a design error. A future PRD may add support for
+seeding the preview from an applied-and-dirty tree (Alternative (a) per internal G-6),
+but doing so requires defining the "expected dirt" model and verifying it against the
+canonical patch bytes — complexity not justified by V1's conservative scope.
+
 ## 13. Backwards Compatibility
 
 No existing behavior changes unless `tpatch feature unapply` is invoked.
@@ -738,6 +817,18 @@ as long as `artifacts/post-apply.patch` exists.
 Repositories that do not use the new command see no schema changes except that
 future tpatch binaries understand `state: "unapplied"` after the command has
 been used.
+
+**Old-binary / new-state:** A v0.13.0 binary (which does not know `StateUnapplied`)
+will reject `state: "unapplied"` in `status.json` as an invalid state through
+`ValidFeatureState` (`internal/store/types.go:33-38`), which returns `false` for
+unrecognized values and causes a hard error on load. This is the same behavior as
+v0.12.x binaries encountering `state: "rejected"` written by a v0.13.0 binary. The
+pattern is a known limitation of closed-switch state validation: old binaries require
+upgrade to understand new states. Operators who downgrade a binary after using
+`tpatch feature unapply` must restore the affected features' `status.json` to a known
+prior state manually. Downgrading without this step will cause load errors for any
+feature in state `unapplied`. The ADR-031 D7 `omitempty` guarantee applies to optional
+JSON fields, not to enum values — state validation is always strict.
 
 ## 14. Implementation Notes
 
@@ -804,6 +895,23 @@ been used.
 30. Docs and shipped skill assets that enumerate states or lifecycle flows are
     updated; parity guard passes when assets change.
 31. Existing features behave exactly as before unless the new command is invoked.
+32. `supersedes` dependents (features whose `supersedes` edge points at the target feature)
+    refuse unapply with exit code 3; no bypass flag in v1.
+33. `unapply-session.json` contains `actor` (derived from `--actor` flag >
+    `TPATCH_ACTOR` env var > `git config user.email` > `"unknown"`) and `attempted_at`
+    (RFC 3339, UTC timestamp).
+34. Unknown slug or unreadable `status.json` exits with code 2 (pre-mutation validation).
+35. Source state is not `applied`, `active`, `reconciling`, or `reconciling-shadow` → exits
+    code 3 (state-machine refusal).
+36. Dry-run (`--dry-run`) with any blocker exits 0 and reports all blockers; no worktree
+    mutation occurs.
+37. `tpatch reject <slug>` from `unapplied` source state exits 3 with a message mentioning
+    `tpatch remove`.
+38. `tpatch reconcile confirm-upstreamed <slug>` from `unapplied` source state exits 3 with
+    a message suggesting `tpatch apply <slug>` first.
+39. V1 unapply is refused on an applied-and-dirty feature (patch recorded but working-tree
+    changes not committed to HEAD); the error message explains that the working tree must be
+    clean before unapply (§12.1 restriction). No partial dirty-tree unapply is attempted.
 
 ## 16. Open Questions
 
