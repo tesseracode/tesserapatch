@@ -1,3 +1,26 @@
+## 2026-08-05 — Cluster F' rev-2 dual review — APPROVED WITH NOTES → rev-3 micro-fold dispatched
+
+**Reviewers**:
+- Internal: `cluster-f-prime-r2-int` (gpt-5.6-sol, high). **APPROVED** — 0 findings. 93s runtime.
+- External: `cluster-f-prime-r2-ext` (claude-opus-4.8, high). **APPROVED WITH NOTES** — 1 LOW. 219s runtime.
+
+**Implementer**: `cluster-f-prime-r0` (claude-sonnet-4.6, continued). 2 rev-2 commits, +1 regression test (971 top-level PASS). Range `fbdf815..5883724`. Cumulative 7502s.
+
+**F-INT-Rev1-1 MEDIUM closed** (`1492fb0`): `os.Lstat(cand)` disambiguates true absence vs dangling symlink after `EvalSymlinks` ENOENT. Deep-chain, non-ENOENT error, TOCTOU, backward-compat all verified by external. Test `TestReject_EvidenceDanglingSymlinkNotFallenThrough` uses genuine dangling symlink + root decoy, asserts exit 2, `evidenceHashFn` never touches decoy, no `Rejection` written. Mutation-test verified by external (removing fix causes test failure).
+
+**New rev-2 finding (1 LOW)**:
+
+- **F-EXT-Rev2-1 LOW**: dangling-symlink divergence reason label. `internal/cli/reject.go:161` returns `DivergentReasonUnreadable` for dangling symlink, but the enum's docstring at `internal/store/status.go:54-56` states Unreadable means "path safety re-passed and file is still a regular in-repo file, but it cannot be opened" — neither precondition holds for dangling symlinks. `DivergentReasonMissing` (`status.go:43-44`: "the path no longer resolves to any file") is the textual match, and is what the genuinely-absent branch returns via `reject.go:184`. Consequence: two conditions with identical "does not resolve" semantics emit different machine-readable reasons; the dangling one gets the label whose meaning implies permission/IO fault. In reject path only shapes exit-2 message. In reopen path (`reopen.go:40`) it is durably persisted in append-only history — the audit-honesty surface this feature exists to protect. External explicitly labels non-blocking, notes rev-2 recipe sanctioned "or equivalent". Security-critical guarantees fully intact (no fall-through, decoy never hashed, exit 2).
+
+**Supervisor adjudication**:
+
+- **Verdict: NEEDS REVISION → rev-3 micro-fold dispatched.**
+- LOW audit-label finding. External explicitly deferred. Rev-2 brief authorized "DivergentReasonUnreadable (or equivalent)". Recipe was sanctioned.
+- User adjudication: fold rev-3. Rationale: swap is one-line + one test assertion update, closes Cluster F' at true 0 residuals matching Cluster F planning arc discipline. Persisted enum value has not yet shipped (Cluster F' pre-release) so no wire-compat concern.
+- Same-implementer continuation via `write_agent` on `cluster-f-prime-r0` (idle, 7502s context preserved).
+
+**State**: `**Cluster state**: REV-3 DISPATCHED`. WAVE_BASE remains `c6aaeb2`.
+
 ## 2026-08-05 — Cluster F' rev-1 dual review — APPROVED WITH NOTES → rev-2 dispatched
 
 **Reviewers**:
