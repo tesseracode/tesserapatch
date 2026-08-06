@@ -390,6 +390,36 @@ This supersedes rev-0's "One deliberate deviation from a PRD illustrative exampl
 
 **`investigate-test-suite-wedge`** (LOW priority, tooling): external reviewer reports 3 consecutive sessions where `go test -count=1 ./...` wedges terminal partway through. Since `[8/8]` gate runs this suite, intermittent wedge could block wave-close. Investigate output-buffering / long-running child issue (possibly macOS-tty specific). Deliverable: repro recipe + fix or documented workaround.
 
+## Ready for review — Cluster G rev-1
+
+**Fold scope**: 13 items across two documents (PRD + ADR). All anchor cites re-verified
+with `grep -n`/`sed -n` before writing.
+
+| # | Finding | Action |
+|---|---|---|
+| G1 | `RejectableStates` cited `status.go:108-118` (6 occurrences across both docs) | Fixed to `status.go:135-145` in all occurrences |
+| G2 | `RejectionStatus` cited `status.go:98-106` | Fixed to `status.go:119-133`; added missing `related` field to PRD §0 |
+| G3 | `confirm-upstreamed` guard cited `cobra.go:2525-2540` | Fixed to `cobra.go:2635-2648` in PRD §11.7 and ADR Claims Audit; ADR Impl Note 4 rewritten with correct guard placement (immediately after status load, before fast-path, using `stateRefusalError`) |
+| G4 | `reconcile.go:205-214` cited for reverse-apply | Fixed to `reconcile.go:353-357` in PRD §0 |
+| G5 | `store.go:509-521` cited for RemoveFeature | Fixed to `store.go:658-666` in PRD §0 |
+| G6 | Fabricated `feature_deps.go` quote in PRD §3.4 | Replaced with actual doc comment at line 38 and `Short` at line 45 (no quotation marks on fabricated text) |
+| G7 | ADR-031 D6 blockquote cited at `:604-630`; wrong text | Fixed cite to `ADR-031:1111-1114`; fixed verbatim text to match actual ADR-031 content |
+| G-2 | Wire-schema divergence: `attempted_at` and `actor` absent from PRD §7.1 | Added to PRD §7.1 example; both examples now byte-for-byte identical; `--actor` added to command syntax; removed stale "stable-sorted" claim (replaced with "struct-field order"); `omitempty` language removed |
+| G-3 | Absolute invariant in PRD §5.1 contradicts ADR D2 | Softened to "best-effort gate + race-detection via DAG warning"; added supersedes dependent policy (refused, no bypass); removed false absolute invariant |
+| G-4 | Exit-code envelope missing | Added §3.5 binding exit-code table to PRD; ADR D6 8-step protocol already covers the mechanics |
+| G-5 | confirm-upstreamed guard placement (wrong callee vs caller) | ADR Impl Note 4 rewritten: guard must be in caller immediately after loading status, not in `applyConfirmUpstreamedTransition` |
+| G-6 | v1 dirty-tree restriction undocumented (applied-and-dirty workflow unsupported) | Added §12.1 to PRD; added AC-39 to §15; added row 39 to ADR test matrix |
+| G-7 | Artifact-write failure not covered by D6 atomicity | Extended D6 protocol to 8 steps; added artifact-write and status-write rollback triggers with exit 1 |
+| G-8/G10 | Test matrix 30 rows; missing coverage (AC-20 verify, AC-32 supersedes, AC-33 actor, AC-34 unknown-slug, AC-35 wrong-state, AC-36 dry-run, AC-37 reject-from-unapplied, AC-38 confirm-upstreamed, AC-39 committed-patch, rollback) | Matrix grown to 40 rows; header changed to "1:1 mirror of PRD §15" |
+| G9 | Old-binary/new-state backward compat undocumented | Added to PRD §13 |
+| related | PRD §0 composition framing oversold D6 closure | §8.2 reframed: D7 resolves data-model composition sub-question only; retirement-command gap explicitly stated as still deferred; `tpatch remove` named as destructive workaround |
+
+**Files changed (Cluster G rev-1)**:
+- `docs/prds/PRD-feature-unapply.md` — anchor sweep + new sections (§3.5, §5.1 supersedes, §8.2 reframe, §12.1, §13 old-binary, §15 AC-32–39)
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — anchor sweep + D3 schema fix + D6 atomicity 8-step + D7 reframe + D8 feature_deps fix + Impl Note 4 rewrite + test matrix 40 rows + Related PRD-rejected-feature-state
+
+**wave-close-check**: [5/8] intentional FAIL (state = REV-0 DISPATCHED); 7/8 expected PASS.
+
 ## Ready for review — Cluster G rev-0
 
 **Scope**: docs-only planning cluster. Two deliverables:
