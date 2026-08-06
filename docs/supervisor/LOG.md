@@ -1,3 +1,30 @@
+## 2026-08-05 — Cluster G rev-0 adjudicated BLOCKED → rev-1 dispatched
+
+**Dual review verdicts** (delivered at `ea1d01a`):
+- **Internal** (gpt-5.6-sol, high, `cluster-g-r0-int`, 403s): **BLOCKED** — 8 HIGH + 2 MEDIUM. Composition Alt A does not resolve ADR-031 D6 (only its data-model sub-question); wire-schema `unapply-session.json` diverges between PRD and ADR on `attempted_at`/`actor`; symmetric invariant claim contradicts ADR D2; no exit-code envelope; guard placement guidance wrong; dirty-tree refusal conflicts with recommended record workflow; failure atomicity gap; test matrix count/coverage; anchor-drift spot-checks (2/5 FAIL); related-links missing SPEC/PRD-rejected.
+- **External** (claude-opus-4.8, high, `cluster-g-r0-ext`, 534s): **NEEDS REVISION** — 10 findings, mostly Medium/Low. **Fabricated-citation hunt: 6 correct / 7 wrong** among 13 code anchors spot-checked. `RejectableStates` misanchored in 6 places (linchpin of Alt A argument); `RejectionStatus` struct at wrong line; `confirm-upstreamed` **rejected**-guard at wrong line (Impl Note 4 would send implementer to wrong guard); reconcile reverse-apply at wrong line; `RemoveFeature` at wrong line; **fabricated doc-comment quote** in PRD §3.4 ("Feature management subcommands (deps, claim, patch)" — string does not exist); **misquoted blockquote** in ADR D7 (line range wrong AND text reworded from "not decided here" to "future work"). Plus: PRD/ADR symmetric-invariant contradiction; backward-compat gap for old-binary/new-state; test-matrix header oversells "mirrors" at 30 vs 31.
+
+**Adjudication**: **BLOCKED → rev-1** (internal severity wins; convergent findings dominate).
+
+**Convergent findings** (both reviewers, HIGH-confidence):
+1. Composition Alt A oversell — "resolves ADR-031 D6" claim over-claims. D6 has two sub-questions: (a) data-model composition [Alt A resolves cleanly] and (b) post-impl retirement path [Alt A leaves this deferred; `unapply` reversible; `remove` destroys audit]. Reframe to be honest.
+2. `RejectableStates` anchor drift (`108-118` → `141-145`) in ~6 locations.
+3. `confirm-upstreamed` rejected-guard anchor drift (`2525-2540` → `2635-2646`).
+4. Reconcile `ReverseApplyCheck` anchor drift (`205-214` → `352-357`).
+5. Test-matrix count mismatch (PRD §15 = 31 items, ADR = 30).
+6. Symmetric-invariant contradiction between PRD §5.1 (absolute) and ADR D2 (best-effort).
+
+**Rev-1 fold scope — 13 items**:
+1. Reframe D7 / PRD §8.2 — Alt A resolves data-model sub-question of D6; retirement command deferred to future `tpatch retire`.
+2-8. Anchor refresh across ALL 7 mismatched citations (RejectableStates ×6, RejectionStatus, confirm-upstreamed guard, reconcile, RemoveFeature, feature_deps doc-comment [drop fabricated quote], ADR-031 D6 blockquote [fix range + verbatim text]).
+9. Wire-schema unification for `unapply-session.json` — byte-for-byte identical JSON in PRD and ADR; `attempted_at`/`actor` required; expose `--actor` in PRD command; drop `omitempty`; either sort or drop stable-sort claim.
+10. Soften PRD §5.1 symmetric invariant to best-effort + race-detection, matching D2; decide `supersedes` dependent behavior explicitly.
+11. Add binding per-case exit-code envelope table (mirror ADR-031 D4 pattern) — every case row filled.
+12. Correct confirm-upstreamed guard placement guidance (immediately after status load, before fast-path branching).
+13. v1 dirty-tree scope: restrict to committed patches; add §12 out-of-scope note reconciling with §2 goals. Rewrite D6 as transactional step-by-step with rollback at every metadata-write. Reconcile test matrix 1:1 with PRD §15 (grows to ≥31, likely 33-35 with missing coverage rows added). Add old-binary/new-state backward-compat note. Add missing Related links (SPEC.md to PRD; PRD-rejected to ADR).
+
+**Delivery constraints**: docs-only. All anchors verified via `grep -n`/`sed -n` before citation. Zero fabricated citations acceptable. Side Research md5 `b385fe622db9926f48861105239f113e` preserved. Rev-1 dispatched via `write_agent` to same `cluster-g-r0` implementer for context preservation.
+
 ## 2026-08-05 — Cluster G planning DISPATCHED — v0.14.0 candidate: PRD-feature-unapply + ADR-032
 
 **Scope**: Planning-phase cluster for `tpatch feature unapply` (v0.14.0 candidate). Two deliverables:
