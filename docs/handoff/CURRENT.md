@@ -99,6 +99,7 @@ Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `
 - **Cluster F' rev-0** (v0.13.0 GH #6 implementation — first-class `rejected` feature lifecycle state) — implemented 2026-08-06, reviewed, adjudicated NEEDS REVISION. 10 commits, range `8cf3c1a..d3e5a11`.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
+- **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
 
 ## Files Changed — Cluster F' rev-0
 
@@ -378,7 +379,7 @@ This supersedes rev-0's "One deliberate deviation from a PRD illustrative exampl
 
 **Untracked-WIP paper inventory (2026-08-05, registered from allowlist review)** — 16 files in `.wave-close-allowlist`, all substantive drafts (not scratch). Todos rows created for each:
 
-- **`prd-feature-unapply`** (HIGH priority — Draft 2026-07-10, 587 lines): **direct successor to Cluster F ADR-031 D6** (post-implementation reject was OUT OF SCOPE for v0.13.0, explicitly deferred to "future ADR, potentially PRD-feature-unapply"). Natural v0.14.0 or v0.15.0 planning candidate. Depends on PRD-feature-dependencies + PRD-feature-patch-identity-metadata + PRD-tpatch-land; needs ADR-feature-unapply-state-boundary.
+- **`prd-feature-unapply`** (HIGH priority — Draft 2026-07-10, 587 lines → refreshed to ~950 lines 2026-08-05): **✅ CLUSTER G PLANNING DISPATCHED FOR REVIEW.** PRD refreshed with v0.13.0 compat sections + ADR-032 authored from scratch. See "Ready for review — Cluster G rev-0" below.
 - **`prd-recurring-patches`** (Approved paper 2026-06-26, 433 lines): implementation gated on ADR-recurring-patch-metadata-boundary. Draft the gating ADR to unblock.
 - **`wp-004-auto-feature-dependencies`** (Approved paper research 2026-06-25, 488 lines): elevate to PRD-auto-dependencies + ADR pair. Feeds off case study `t3code-upstream-v0.0.23-2026-05` (also untracked/allowlisted).
 - **`wp-005-spec-driven-workflows`** (Exploring 2026-06-25, 530 lines): OpenSpec/GitHub-Spec/tpatch comparison. Related to WP-001. Elevate-or-archive decision pending.
@@ -388,6 +389,62 @@ This supersedes rev-0's "One deliberate deviation from a PRD illustrative exampl
 - **`.turns.md` siblings for WP-004..007** (4 files): session traces. Retain paired with parent papers; archive when parents elevate or archive.
 
 **`investigate-test-suite-wedge`** (LOW priority, tooling): external reviewer reports 3 consecutive sessions where `go test -count=1 ./...` wedges terminal partway through. Since `[8/8]` gate runs this suite, intermittent wedge could block wave-close. Investigate output-buffering / long-running child issue (possibly macOS-tty specific). Deliverable: repro recipe + fix or documented workaround.
+
+## Ready for review — Cluster G rev-0
+
+**Scope**: docs-only planning cluster. Two deliverables:
+
+1. `docs/prds/PRD-feature-unapply.md` — refreshed from 587-line draft (2026-07-10, untracked)
+   to ~950 lines (tracked at rev-0). Additions:
+   - Header: status → `Rev-0 (Cluster G planning)`, milestone → `v0.14.0 candidate`.
+   - Related section: added ADR-031 (D6 deferral source), ADR-032, PRD-rejected-feature-state.
+   - Implementation Gate: updated ADR slug to `ADR-032-feature-unapply-state-boundary`; added D7/D8 bullet points.
+   - §0 Claims Audit: 8 new v0.13.0 rows (`StateRejected`, `RejectableStates`, `RejectionStatus`/`RejectionHistoryEntry`, Rule 7 / `ErrRejectedParent`, `reject`/`reopen` top-level verbs, `status --include-rejected` pattern, ADR-031 D6 deferral text).
+   - §3.4 (NEW): Intentional naming asymmetry with `reject`/`reopen` — 4-point rationale + golden `--help` cross-reference strings (Cluster F' test-27 precedent).
+   - §5.1 (NEW): Rule 7 interaction — dependency edges onto `unapplied` parents allowed; symmetric-invariant statement; unapply with hard dependents refused; `--allow-soft-dependents` bypass for soft edges.
+   - §8.2 (NEW): Composition with `rejected` state — three options (A/B/C) enumerated; Alternative A (parallel independent states) chosen with 4-point rationale; consequence: `reject` refuses `unapplied` at exit 3.
+   - §8.3 (NEW): Status filtering — `unapplied` shown by default (no `--include-unapplied` flag); `[unapplied]` badge; `next` recommends `tpatch apply`; `FEATURES.md ## Unapplied` section after active/applied, before `## Rejected`.
+   - §9: Added v0.13.0 rows for `tpatch reject`, `tpatch reopen`, dependency gate on unapplied parent, `--include-rejected` non-interaction, docs/skills, and expanded test coverage row.
+   - §11.7 (NEW): Interactions with `reject`/`reopen` — reject refused from `unapplied` (exit 3), reopen non-interaction, `confirm-upstreamed` guard proposal.
+   - §16: OQ 5 added (composition — resolved via §8.2). OQ 3 expanded with §5.1 ADR follow-up.
+   - §17: Composition dispute entry (resolved), `confirm-upstreamed` guard dispute (new, open).
+
+2. `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — authored from scratch. 8 decision
+   points (D1–D8), each with ≥3 alternatives + rationale + consequences + cited precedents.
+   - D1: `unapplied` as real `FeatureState` — Alternative 3 chosen.
+   - D2: Does not satisfy hard deps — Alternative 2 chosen.
+   - D3: `unapply-session.json` wire schema locked byte-for-byte (including `[]` not `null` for arrays, F-INT-1 lesson).
+   - D4: No patch-generation writes — Alternative 2 chosen.
+   - D5: Patch-mode-only v1 — Alternative 2 chosen.
+   - D6: Snapshot/restore failure atomicity — Alternative 2 chosen with 7-step protocol.
+   - D7: Parallel independent states with `rejected` — Alternative A chosen; ADR-031 D6 cited as deferral source.
+   - D8: `feature unapply` under `feature` group — Alternative 2 chosen; contrast with ADR-031 D10's opposite decision documented.
+   - Implementation Notes (12 items for Cluster G').
+   - Negative Consequences table (8 rows, one per D).
+   - 30-item test matrix baseline.
+
+**`.wave-close-allowlist`** updated: `docs/prds/PRD-feature-unapply.md` removed (now tracked).
+
+**Files changed (Cluster G rev-0)**:
+- `docs/prds/PRD-feature-unapply.md` — refreshed (was untracked, now tracked)
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — new
+- `.wave-close-allowlist` — PRD-feature-unapply.md entry removed
+- `docs/handoff/CURRENT.md` — session summary
+
+**No code, no tests, no SPEC.md changes** (docs-only cluster per non-goals).
+
+**wave-close-check**: `make wave-close-check WAVE_BASE=2c8a207`
+- `[5/8]` FAIL by design: state = `REV-0 DISPATCHED` (supervisor flips at wave close).
+- All other checks expected PASS (docs-only cluster: go build/test/fmt unaffected).
+
+**Internal-consistency check**:
+- D7 (ADR-032) ↔ §8.2 (PRD): both choose Alternative A / parallel independent states. ✅
+- D3 schema (ADR-032) ↔ §7.1 example (PRD): keys match (`version`, `feature`, `attempt_id`, `mode`, `previous_state`, `result`, `canonical_patch_sha256`, `reverse_patch`, `touched_paths`, `dependency_blockers`, `preflight`). ✅ ADR-032 adds `attempted_at` and `actor` not in PRD §7.1 example — these are additions to the PRD example, not conflicts.
+- D8 (ADR-032) ↔ §3.4 (PRD): both say `feature unapply` under `feature` group. ✅
+
+**Open reviewer questions from this revision** (not blocking, informational):
+- PRD §7.1 example omits `attempted_at` and `actor`; ADR-032 D3 schema adds them. If reviewers feel the PRD example should be updated to match D3 exactly, that is a fold item for the rev-0 response.
+- ADR-032 D2 defers the exact label name (`parent-unapplied` vs reuse of `blocked-by-parent`) to Cluster G'. Reviewers may prefer the label name to be locked here.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
