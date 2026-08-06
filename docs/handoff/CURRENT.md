@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: REV-3 DISPATCHED
 
 **WAVE_BASE**: `2c8a207` (post-v0.13.0 consolidation + backlog registration).
 

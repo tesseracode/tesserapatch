@@ -1,3 +1,20 @@
+## 2026-08-05 — Cluster G rev-2 adjudicated BLOCKED → rev-3 micro-micro-fold dispatched
+
+**Dual review verdicts** (delivered at `6771544`, range `b2f4afe..6771544`, 1 commit):
+- **Internal** (gpt-5.6-sol, high, `cluster-g-r2-int`, 245s): **BLOCKED** — 1 HIGH + 1 MEDIUM, both introduced by rev-2 fold. HIGH: matrix row 43 `reconciling-shadow → refused` directly contradicts PRD §3.5 line 271 and PRD §15 AC-35 line 920 (both list `reconciling-shadow` as a PERMITTED source state alongside `applied`/`active`/`reconciling`). Also missing per-source-state refusal rows for `defined`, `implementing`, `blocked`, `upstream_merged`. MEDIUM: AC-10c has no dedicated matrix row despite header claiming "3 §10 atomicity ACs" and "every AC has ≥1 row". Rev-1 findings G-5, G-7, LOW closed clean. G-4/G-8 partially closed (§15 mapping done; §10 mapping incomplete).
+- **External** (claude-opus-4.8, high, `cluster-g-r2-ext`, 400s): **APPROVED WITH NOTES** — 1 LOW + 1 INFORMATIONAL. LOW (GR2-1): AC-10c unmapped, same false-completeness pattern as GR1-1 confined to §10 block. INFO (GR2-2): Claims Audit line 47 evidence phrasing "immediately after status load" — same loose framing that seeded rev-1 inversion; non-blocking since Impl Note 4 overrides precisely. Confirmed rev-1 findings **closed byte-for-byte**: 14/14 spot-check anchors verified, Impl Note 4 caller/callee direction correct, verbatim `cobra.go:2627-2634` byte-match, D6 atomicity semantics correct, wire schema still byte-identical, D7 reframe intact.
+
+**Adjudication**: **BLOCKED → rev-3 micro-micro-fold** (internal severity wins; AC-35 row 43 semantic contradiction empirically verified by supervisor at PRD §3.5:271 + §15:920 — would actively mislead implementer).
+
+**Convergent finding**: AC-10c missing (both reviewers).
+
+**Rev-3 fold scope — 3 items** (ADR-032 matrix + Claims Audit line 47 only):
+1. **AC-35 row 43 semantic contradiction** (HIGH, internal, verified). Delete/rewrite row 43 — `reconciling-shadow` is PERMITTED per PRD §3.5. Rewrite AC-35 rows as: 4 permitted-state exit-0 rows (`applied`/`active`/`reconciling`/`reconciling-shadow`) + refusal coverage for missing states (`defined`, `implementing`, `blocked`, `upstream_merged`). Target: 12-row AC-35 block or compact-refused variant.
+2. **AC-10c row** (MEDIUM/LOW, convergent). Add AC-10c row asserting post-rollback `LoadFeatureStatus` returns nil error + previous `state` on both artifact-write AND status.json-write failure paths.
+3. **Claims Audit line 47 phrasing** (INFO). Rewrite "immediately after status load" → "first statement of the transition function `applyConfirmUpstreamedTransition` at `cobra.go:2626`".
+
+**Delivery**: docs-only, ADR-032 primary. Empirical `sed -n` verification required for PRD §3.5:271 and §15:920 before writing AC-35 rows. No touch to Impl Note 4, D6, or wire schema. State-flip: REV-2 → REV-3 DISPATCHED. Rev-3 dispatched via `write_agent` to same `cluster-g-r0` implementer.
+
 ## 2026-08-05 — Cluster G rev-1 adjudicated BLOCKED → rev-2 dispatched (micro-fold)
 
 **Dual review verdicts** (delivered at `7ff55ee`, range `23e99a3..7ff55ee`, 3 commits):
