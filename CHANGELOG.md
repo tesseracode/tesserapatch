@@ -2,6 +2,109 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.13.0 — 2026-08-05 — first-class rejected feature lifecycle state (GH #6)
+
+Feature release adding a first-class `rejected` state to the tpatch feature
+lifecycle, with symmetric dependency guards, content-hash evidence, and
+unbounded append-only reject/reopen history.
+
+### New commands
+
+- **`tpatch reject <slug> --reason <enum> --note <string> [--evidence <path>...] [--actor <string>]`**
+  — mark a feature permanently rejected. Reason is a closed 7-value enum:
+  `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`,
+  `duplicate`, `superseded`. At least one `--evidence` path is required and
+  content-hashed (SHA-256, lowercase-hex). Refused from post-implementation
+  states (`implementing`, `blocked`, `applied`, `active`, `upstream_merged`,
+  `reconciling`, `reconciling-shadow`) with exit 3; reject-eligible states
+  are `requested`, `analyzed`, `defined`.
+- **`tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>]`**
+  — transition back to `requested`. Historical evidence hashes are
+  re-verified against the current filesystem; divergence never blocks (exit
+  0) but is durably recorded. Appends one completed-cycle entry to
+  `RejectionHistory` and clears the live `Rejection`.
+
+### Lifecycle changes
+
+- **11th `FeatureState` value**: `rejected` is a terminal-until-reopen state.
+- **Rule 7 dependency guard**: `feature deps add <slug> <parent>[:kind]`
+  and `amend --depends-on <parent>[:kind]` refuse edges onto rejected
+  parents with exit 3. Applies to `hard`/`soft`/`supersedes` edge kinds.
+- **Symmetric invariant**: reject also refuses when live dependents exist.
+- **`confirm-upstreamed` defense-in-depth**: refuses on rejected source
+  state before any audit append.
+- **`status`**: rejected features hidden by default; `--include-rejected`
+  opts them in. New `rejected_hidden` count field.
+- **FEATURES.md**: rejected features rendered in a trailing `## Rejected`
+  table, partitioned from the active table.
+
+### Data model
+
+- `RejectionStatus` on `FeatureStatus` — live record cleared on reopen.
+- `RejectionHistoryEntry` at top level — one completed cycle
+  (`rejected_at`/`rejected_by`/`reason`/`reject_note`/`reject_evidence`
+  + `reopened_at`/`reopened_by`/`reopen_note`/`reopen_evidence` +
+  `evidence_integrity`/`divergence_detail`/`prior_state`/`related`).
+- `EvidenceRef{Path, SHA256}` — content-hash format, path safety enforced
+  via `EnsureSafeRepoPath` on symlink-resolved paths.
+- Divergent-reason taxonomy: `missing`, `hash-mismatch`, `non-regular`,
+  `path-safety-failed`, `unreadable`. Dangling symlinks now emit
+  `missing` (rev-3 semantic refinement).
+
+### Actor precedence
+
+`--actor` flag > `TPATCH_ACTOR` env > `git config user.email` >
+literal string `"unknown"`.
+
+### Exit-code envelope (reject/reopen scope)
+
+- **0** — success.
+- **1** — unexpected internal error.
+- **2** — pre-mutation validation failure (missing evidence, path-safety
+  violation, invalid reason, missing note).
+- **3** — state-machine refusal (wrong state, dependents exist, rejected
+  parent).
+
+Evidence validation always precedes state-machine check: exit 2 wins over
+exit 3 for combined invalidity.
+
+### `--help` disambiguation
+
+`tpatch reject --help` and `tpatch reconcile --help` carry cross-reference
+strings clarifying the intentional non-relationship with the pre-existing
+`tpatch reconcile --reject` flag. The flag prunes a shadow worktree
+(reversible cleanup); the command marks a feature permanently rejected
+(reversible only via `tpatch reopen`).
+
+### Documentation
+
+- `SPEC.md` — new state row + "Feature rejection" command subsection +
+  exit-code envelope table + intentional non-relationship note.
+- All 6 shipped skill formats — `reject`/`reopen` parity anchors added
+  and validated by `assets_test.go`.
+- `docs/prds/PRD-rejected-feature-state.md` — accepted.
+- `docs/adrs/ADR-031-rejected-feature-state-data-model.md` — accepted.
+
+### Rev-arc process notes
+
+Cluster F' shipped through 4 review revs with same-implementer continuation
+across all folds:
+
+- rev-0 → rev-1: internal caught wire-schema BLOCKING (history schema
+  divergence). Rewritten to completed-cycle pattern with PRD §6 field names.
+- rev-1 → rev-2: internal caught dangling-symlink evidence-fallback edge
+  (MEDIUM). Fixed via `os.Lstat` disambiguation.
+- rev-2 → rev-3: external caught audit-label taxonomy (LOW). Fixed via
+  `DivergentReasonMissing` swap.
+- rev-3: both APPROVED. External noted the swap also improves persisted
+  reopen `divergent_reason` for dangling-symlink historical evidence
+  (INFORMATIONAL non-defect).
+
+All 27 commits carry Rule 18 trailer + `Copilot-Session` trailer.
+
+
+All notable changes to tpatch are recorded here.
+
 ## v0.12.1 — 2026-07-31 — correctness fix pass
 
 ### GH #5 — `tpatch record` is now transactional against round-trip validation failure

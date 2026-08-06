@@ -574,6 +574,44 @@ Planning-phase cluster for v0.13.0 GH #6. Data-model extension (not just CLI add
 
 **Next**: Cluster F' implementation cluster from planning baseline `c6aaeb2` (includes rev-5 amendment). Touches state enum, status fields, validation (Rule 7), CLI (reject/reopen/status filtering + confirm-upstreamed guard), assets, SPEC.md, 27 tests. Does NOT touch `internal/workflow/reconcile.go` (orthogonal per ADR D6). Cluster F rev-5 F2 residual (§4.1 point 2 wording fix) picked up during Cluster F'.
 
+## v0.13.0 — 2026-08-05 — first-class rejected feature lifecycle state (GH #6) ✅ SHIPPED
+
+Feature release implementing planning baseline from Cluster F. **Cluster F' — 4 review revs (rev-0 → rev-3), 27 commits, range `c6aaeb2..70764a3`.**
+
+**Deliverables** (implementation):
+- `internal/store/`: `StateRejected` (11th `FeatureState`); `RejectionStatus` + `RejectionHistoryEntry` + `EvidenceRef` + `DivergenceDetail`; closed 7-value `RejectionReason` enum; `ResolveActor` 4-tier precedence; Rule 7 (`ErrRejectedParent` — rejects edges onto rejected parents); `RefreshFeaturesIndex` renders trailing `## Rejected` table.
+- `internal/cli/`: `tpatch reject <slug> --reason --note [--evidence...] [--actor]`, `tpatch reopen <slug> --note [--evidence...] [--actor]` with historical-evidence verification; `status --include-rejected` opt-in filter + rejection-aware DTO; `next` rejection-aware output; `apply`/`reconcile`/`confirm-upstreamed` refuse on rejected; `amend --depends-on`/`feature deps add` refuse rejected-parent edges (exit 3).
+- `SPEC.md` + all 6 shipped skill formats + `assets_test.go` parity anchors.
+- Tests: PRD §9 27-item matrix (rejection_test.go, reject_test.go); +10 rev-1 regressions; +1 rev-2 dangling-symlink guard. **971 top-level PASS / 0 FAIL** at ship.
+
+**Two-opinion protocol scoreboard**:
+| Rev | Internal | External | Adjudication |
+|---|---|---|---|
+| rev-0 | BLOCKED — 6 findings (1 BLOCKING wire-schema, 3 HIGH, 1 MEDIUM, 1 LOW) | APPROVED WITH NOTES — 3 (1 MEDIUM convergent, 2 LOW) | NEEDS REVISION → rev-1 (internal-strict precedent invoked) |
+| rev-1 | APPROVED WITH NOTES — 1 MEDIUM dangling-symlink | APPROVED — 0 findings | NEEDS REVISION → rev-2 |
+| rev-2 | APPROVED — clean | APPROVED WITH NOTES — 1 LOW audit-label | NEEDS REVISION → rev-3 (0-residual discipline) |
+| rev-3 | APPROVED — clean | APPROVED WITH NOTES — 1 INFORMATIONAL only | **SHIPPED** |
+
+**Finding-count convergence**: internal 6→1→0→0; external 3→0→1→0 (INFO). Every rev closed strictly more than it opened.
+
+**Cross-reviewer catch coverage**: internal caught the wire-schema BLOCKING (`FeatureStatus.RejectionHistory` schema divergence — action discriminator vs completed-cycle pattern, generic `actor` field vs PRD §6 `rejected_by`/`reopened_by`) that external's example-reading missed. External caught the exit-3 golden-string alignment (F-EXT-1), the Oxford comma (F-EXT-2), the audit-label taxonomy (F-EXT-Rev2-1), and the shared-helper reach note (F-EXT-Rev3-1) that internal's specification-focused reads did not surface. Two-opinion protocol continued to pull disjoint findings.
+
+**Key implementation decisions preserved**:
+- History schema (rev-1 F-INT-1 fold): `RejectionHistoryEntry` = completed cycle (reject half + reopen half), appended on reopen only. Live `Rejection` set by reject, cleared by reopen. `PriorState` retained as legitimate audit field (not the reopen target).
+- Validation ordering (rev-1 F-INT-3 fold): evidence (path resolve + safety + hash) precedes state-machine check → exit 2 wins over exit 3 for combined invalidity.
+- Exit 3 mapping (rev-1 F-INT-4/F-EXT-1 fold): `mapDependencyValidationError` at `feature_deps.go` + `amend --depends-on` boundary; PRD §8 golden string byte-for-byte.
+- Dangling-symlink guard (rev-2 F-INT-Rev1-1): `os.Lstat` disambiguation on `EvalSymlinks` ENOENT; `DivergentReasonMissing` (rev-3 F-EXT-Rev2-1 refinement).
+
+**Range**: `c6aaeb2..70764a3` (27 commits: 10 rev-0 impl + 8 rev-1 fold + 2 rev-2 fold + 1 rev-3 fold + 6 tracking).
+
+**Rule 18 trailer**: verified on all 27 commits. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`. `make wave-close-check WAVE_BASE=c6aaeb2`: 8/8 PASS at consolidation.
+
+**Tag**: `v0.13.0` at `70764a3` (consolidation commit).
+
+**Backlog for future clusters** (registered 2026-08-05 external user report):
+- `prd-verify-post-commit-mode` MEDIUM — V8 `post_apply_patch_replay_clean` misleading remediation on already-committed features.
+- `prd-no-upstream-mode` MEDIUM — local-only tpatch mode (sibling PRD).
+
 ## Cluster E-prime — 2026-08-05 — post-Cluster-E hygiene follow-up (Obs 1 doc + Obs 2 ALLOWLIST) ✅ SHIPPED
 
 Tiny process-hygiene follow-up cluster closing two LOW observations from external's post-Cluster-E review. Single implementer, external-only rev-0 confirmation (proportionate protocol for cross-wave doc/config refinement on already-shipped mechanism).

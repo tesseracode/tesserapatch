@@ -1,6 +1,6 @@
 # PRD: Rejected Feature State
 
-**Status**: Proposed
+**Status**: Accepted (implemented and shipped 2026-08-05 as v0.13.0; range `c6aaeb2..70764a3`)
 **Author**: Copilot (Cluster F planning phase)
 **Date**: 2026-08-05
 **Related**: GH #6, PRD-confirm-upstreamed-human-review-path (orthogonal), ADR-031-rejected-feature-state-data-model (data model), ADR-024-patch-generation-manifest-boundary (migration precedent)

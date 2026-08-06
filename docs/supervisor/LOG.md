@@ -1,3 +1,35 @@
+## 2026-08-05 — Cluster F' SHIPPED at `70764a3` (v0.13.0 GH #6)
+
+**Range**: `c6aaeb2..70764a3` (27 commits).
+
+**Convergent close arc**:
+
+| Rev | Internal | External | Adjudication |
+|---|---|---|---|
+| rev-0 | BLOCKED — 6 findings (1 BLOCKING, 3 HIGH, 1 MEDIUM, 1 LOW) | APPROVED WITH NOTES — 3 (1 MEDIUM convergent, 2 LOW) | NEEDS REVISION → rev-1 |
+| rev-1 | APPROVED WITH NOTES — 1 MEDIUM residual | APPROVED — 0 findings | NEEDS REVISION → rev-2 |
+| rev-2 | APPROVED — clean | APPROVED WITH NOTES — 1 LOW audit-label | NEEDS REVISION → rev-3 (user chose 0-residual discipline) |
+| rev-3 | APPROVED — clean | APPROVED WITH NOTES — 1 INFORMATIONAL only | **SHIPPED** |
+
+**Rev-3 dual review verdicts**:
+- Internal `cluster-f-prime-r3-int` (gpt-5.6-sol, high). **APPROVED** — 0 findings. 143s runtime.
+- External `cluster-f-prime-r3-ext` (claude-opus-4.8, high). **APPROVED WITH NOTES** — 1 INFORMATIONAL. 140s runtime.
+
+**F-EXT-Rev2-1 LOW closure verified** (`70764a3`): `internal/cli/reject.go:165` swap `DivergentReasonUnreadable` → `DivergentReasonMissing` on the Lstat-succeeds (dangling-symlink) branch. Test `TestReject_EvidenceDanglingSymlinkNotFallenThrough` strengthened with `strings.Contains(errOut, "no such file or directory")` assertion locking the enum→prose mapping. Both reviewers ran mutation-test in head: reverting to Unreadable would render "permission denied", failing the assertion.
+
+**F-EXT-Rev3-1 INFORMATIONAL (non-defect)**: shared `resolveEvidence` also feeds `reopen.go:40` where the reason is durably persisted in `RejectionHistoryEntry.DivergenceDetail`. External noted the rev-3 framing as "reject-only prose swap" was incomplete — the wire taxonomy of reopen history tightens too. Since the change is *more* semantically correct on both paths and Cluster F' is pre-release (no `status.json` carries the old value from this code path), external explicitly labeled it non-blocking with no fold recommended. Recorded here so downstream consumers of reopen history are informed the taxonomy tightened.
+
+**Implementer**: `cluster-f-prime-r0` (claude-sonnet-4.6, high). 4 turns via `write_agent` continuation across rev-0 → rev-3, preserving 9382s cumulative context. Same-implementer discipline precedent reinforced.
+
+**Reviewer scoreboard across the arc**:
+- Internal (sol) caught the wire-schema BLOCKING (F-INT-1), all 3 HIGH findings, and the MEDIUM dangling-symlink edge (F-INT-Rev1-1). Zero missed by external at rev-1.
+- External (opus) caught the exit-3 convergent (F-EXT-1), the Oxford comma (F-EXT-2), the audit-label choice (F-EXT-Rev2-1), and the shared-helper reach (F-EXT-Rev3-1). Adversarial mutation-testing at every rev.
+- Two-opinion protocol continues to pull findings neither reviewer alone catches — F-INT-1's wire-schema violation and F-EXT-2/F-EXT-Rev2-1's semantic-label refinements were completely disjoint sets.
+
+**Wave-close mechanical gate** (`make wave-close-check WAVE_BASE=c6aaeb2`): pending final consolidation commit + push. Manual items in-progress this turn: LOG (this entry), ROADMAP flip, HISTORY archive, CHANGELOG entry, v0.13.0 tag.
+
+**State**: `**Cluster state**: SHIPPED`. Preparing v0.13.0 release tag.
+
 ## 2026-08-05 — Cluster F' rev-2 dual review — APPROVED WITH NOTES → rev-3 micro-fold dispatched
 
 **Reviewers**:

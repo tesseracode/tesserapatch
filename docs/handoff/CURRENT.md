@@ -2,9 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: SHIPPED
 
 **WAVE_BASE**: `c6aaeb2` (Cluster F planning + rev-5 verb-collision amendment, 2026-08-05).
+
+**2026-08-05 Cluster F' SHIPPED at `70764a3` — v0.13.0 GH #6 first-class `rejected` feature lifecycle state.** Four review revs (rev-0 → rev-3), convergent close pattern. Cluster F' rev-3 dual verdict: internal APPROVED clean, external APPROVED WITH NOTES with 1 INFORMATIONAL only (`F-EXT-Rev3-1`: rev-3's `Unreadable` → `Missing` swap also improves persisted reopen `divergent_reason` for dangling-symlink historical evidence — non-defect, non-blocking, external explicitly deferred). Rev arc: rev-0 BLOCKED (internal 6 findings incl. 1 BLOCKING wire-schema; external APPROVED WITH NOTES 3 findings) → rev-1 APPROVED WITH NOTES (internal 1 MEDIUM residual F-INT-Rev1-1 dangling-symlink; external APPROVED clean) → rev-2 APPROVED WITH NOTES (external 1 LOW F-EXT-Rev2-1 audit-label; internal APPROVED clean) → rev-3 APPROVED (internal clean; external APPROVED WITH NOTES 1 INFORMATIONAL only, non-defect). Range `c6aaeb2..70764a3` (27 commits: 10 rev-0 impl + 8 rev-1 fold + 2 rev-2 fold + 1 rev-3 fold, plus 6 supervisor tracking commits). Test count: 971 top-level PASS / 0 FAIL. Rule 18 trailer verified on all 27 commits. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
 
 **2026-08-05 Cluster F' rev-0 adjudicated NEEDS REVISION → rev-1 dispatched.** Dual review split: internal BLOCKED (6 findings), external APPROVED WITH NOTES (3 findings, 1 convergent with internal). Convergent finding (F-INT-4 == F-EXT-1) HIGH-confidence: rejected-parent edge refusals exit 1 not 3 across `feature deps add` and `amend --depends-on`. Explored-state pre-flag resolved in implementer's favor by both reviewers — PRD §5 clarifies no distinct `StateExplored`; explore output lives under `defined`.
 

@@ -1,3 +1,83 @@
+# 2026-08-05 — Cluster F' — v0.13.0 GH #6 first-class rejected feature lifecycle state (implementation) — SHIPPED
+
+**Range**: `c6aaeb2..70764a3` (27 commits: 10 rev-0 impl + 8 rev-1 fold + 2 rev-2 fold + 1 rev-3 fold + 6 supervisor tracking).
+
+**Tag**: `v0.13.0` at `70764a3`.
+
+**Scope**: Implementation phase from Cluster F planning baseline. Data-model extension (11th `FeatureState` value + `RejectionStatus` + `RejectionHistoryEntry` + Rule 7 dependency guard), CLI (reject/reopen + status/next/apply/reconcile/confirm-upstreamed guards + amend/feature-deps exit-3 mapping), assets parity, SPEC.md, 27-item PRD §9 test matrix.
+
+**Deliverables shipped**:
+- `internal/store/`: `StateRejected` + `RejectionStatus` + `EvidenceRef` + `DivergenceDetail` + `RejectionHistoryEntry` (completed-cycle schema); closed 7-value `RejectionReason` enum; `ResolveActor` 4-tier precedence helper; Rule 7 (`ErrRejectedParent` sentinel with PRD §8 golden-string wording); `RefreshFeaturesIndex` renders `## Rejected` trailing table with pipe-escaping.
+- `internal/cli/`: `tpatch reject` + `tpatch reopen` (with historical-evidence verification); `status --include-rejected` + dedicated `rejectionStatusView` DTO (§8-conformant field names, state-conditional emission); `next` rejection-aware; `apply`/`reconcile`/`confirm-upstreamed` refuse rejected; `mapDependencyValidationError` maps `ErrRejectedParent` → exit 3 at `feature deps add`/`remove` + `amend --depends-on` boundaries; `--help` cross-reference strings for reject ↔ reconcile-flag disambiguation.
+- `SPEC.md` + all 6 shipped skill formats + `assets_test.go` parity anchors (2 new `requiredCommands`, 3 new parity anchors).
+- Tests: PRD §9 27-item matrix (26 top-level + 26b sub-test + rev-5 test 27); +10 rev-1 regressions; +1 rev-2 dangling-symlink guard. **971 top-level PASS / 0 FAIL** at ship.
+
+**Two-opinion protocol scoreboard** (4 review revs, 8 review turns):
+
+| Rev | Internal | External | Adjudication |
+|---|---|---|---|
+| rev-0 | BLOCKED — 6 findings (1 BLOCKING wire-schema divergence, 3 HIGH, 1 MEDIUM, 1 LOW) | APPROVED WITH NOTES — 3 (1 MEDIUM convergent w/ F-INT-4, 2 LOW) | NEEDS REVISION → rev-1 (internal-strict precedent invoked) |
+| rev-1 | APPROVED WITH NOTES — 1 MEDIUM (F-INT-Rev1-1 dangling-symlink) | APPROVED — 0 findings, all 7 prior findings byte-for-byte closure verified | NEEDS REVISION → rev-2 |
+| rev-2 | APPROVED — 0 findings | APPROVED WITH NOTES — 1 LOW (F-EXT-Rev2-1 audit-label taxonomy) | NEEDS REVISION → rev-3 (user chose 0-residual discipline) |
+| rev-3 | APPROVED — 0 findings | APPROVED WITH NOTES — 1 INFORMATIONAL only (F-EXT-Rev3-1 shared-helper reach note, non-defect) | **SHIPPED** |
+
+**Finding-count convergence**:
+- Internal: rev-0 6 → rev-1 1 → rev-2 0 → rev-3 0. Clean descent.
+- External: rev-0 3 → rev-1 0 → rev-2 1 → rev-3 1 (INFO only). Every rev closed strictly more than it opened.
+
+**Cross-reviewer catch coverage**:
+- Internal caught the wire-schema BLOCKING (`RejectionHistoryEntry` action-discriminator vs completed-cycle pattern; generic `actor` field vs PRD §6 `rejected_by`/`reopened_by`); all 3 HIGH findings (status DTO, validation ordering, exit-3 mapping); the MEDIUM dangling-symlink edge that external's rev-1 pass missed.
+- External caught the exit-3 convergent (F-EXT-1 golden-string alignment), the Oxford comma (F-EXT-2), the audit-label taxonomy `Unreadable` → `Missing` (F-EXT-Rev2-1), and the shared-helper reach observation (F-EXT-Rev3-1) that internal's spec-focused reads did not surface.
+- Two-opinion protocol continued to pull disjoint findings; neither reviewer alone would have caught the union.
+
+**Key implementation decisions preserved through the arc**:
+
+1. **History schema** (rev-1 F-INT-1 fold): `RejectionHistoryEntry` = completed cycle (reject half + reopen half), appended on reopen ONLY. Live `Rejection` set by reject, cleared by reopen. Field names verbatim per PRD §6 (`rejected_at`/`rejected_by`/`reject_note`/`reject_evidence`/`reopened_at`/`reopened_by`/`reopen_note`/`reopen_evidence`/`evidence_integrity`/`divergence_detail`/`prior_state`/`related`). `PriorState` retained per implementer discretion as legitimate audit field per PRD §6 (not the reopen target — reopen always → `StateRequested` per PRD §3.8).
+
+2. **`status --json` DTO** (rev-1 F-INT-2 fold): dedicated `rejectionStatusView` shadows embedded `FeatureStatus.Rejection` at depth-0 in `featureWithFreshness`; both carry `json:"rejection,omitempty"` so encoding/json's depth rule renders the DTO and suppresses the internal struct. State-conditional emission via `newRejectionStatusView` returning nil unless `state == rejected`.
+
+3. **Validation ordering** (rev-1 F-INT-3 fold): evidence (path resolve → safety check → hash) precedes state-machine check. Combined bad-evidence + bad-state → exit 2 wins over exit 3. Store opens before evidence resolution (`s.Root` needed for relative-path resolution), but `LoadFeatureStatus` + state check are deferred until after evidence collection. Read-only store open verified safe.
+
+4. **Exit-3 boundary mapping** (rev-1 F-INT-4/F-EXT-1 fold): `mapDependencyValidationError` wraps `ErrRejectedParent` in `&ExitCodeError{Code: 3}` at both `runFeatureDepsAdd`/`runFeatureDepsRemove` (`internal/cli/feature_deps.go:189-230`) and at the `applyAmendDependsOn` boundary (`:302-311`). Golden string byte-for-byte matches PRD §8. `ExitCodeError` has no `Unwrap`, so re-wrap is idempotent.
+
+5. **Evidence fallback** (rev-1 F-INT-5 + rev-2 F-INT-Rev1-1 folds): fallback to repo-root candidate only on `os.IsNotExist(err)`. Directory / unsafe-path / unreadable branches take dedicated code paths returning divergent-reason taxonomy. Rev-2 added `os.Lstat` disambiguation on `EvalSymlinks` ENOENT — dangling symlink (Lstat succeeds, target absent) returns divergent-reason WITHOUT falling through to root decoy.
+
+6. **Audit-label taxonomy** (rev-3 F-EXT-Rev2-1 fold): dangling symlink emits `DivergentReasonMissing` ("path no longer resolves to any file") not `DivergentReasonUnreadable` ("still a regular in-repo file, but cannot be opened"). Semantically-precise label. Also improves persisted reopen `divergent_reason` for dangling-symlink historical evidence (F-EXT-Rev3-1 informational).
+
+7. **Reject-eligible state set** (planning-baseline binding): 3 conceptual states = `requested`/`analyzed`/`defined`. PRD §5 clarified `explored` is not a distinct `FeatureState`; explore output lives under `defined`. Both rev-0 reviewers RESOLVED the pre-flag in implementer's favor.
+
+8. **Reopen target** (planning-baseline binding): unconditionally `StateRequested` per PRD §3.8. `PriorState` is snapshotted for audit but not used as transition target.
+
+9. **Actor precedence** (planning-baseline binding): `--actor` flag > `TPATCH_ACTOR` env > `git config user.email` > literal `"unknown"`. `ResolveActorIn` seam tested.
+
+10. **Symmetric dependency invariant** (Rule 7): reject refuses when live dependents exist; edge creation refuses when target parent is rejected. Applies to `hard`/`soft`/`supersedes`.
+
+**Rev-arc mechanical continuity**:
+- Same-implementer continuation via `write_agent` across rev-0 → rev-3, preserving 9382s cumulative context in a single agent session.
+- Implementer authored 21 code commits + 4 tracking summaries; supervisor authored 6 adjudication/consolidation commits.
+- Rule 18 trailer verified on all 27 commits at `[4/8]` gate.
+- No `.wave-close-allowlist` entries staged.
+- Side Research md5 `b385fe622db9926f48861105239f113e` preserved at every commit.
+
+**Wave-close mechanical gate** (`make wave-close-check WAVE_BASE=c6aaeb2` at consolidation): all 8/8 PASS.
+
+**Precedents reinforced this cluster**:
+- **Internal-strict adjudication**: when internal catches wire-schema violations that external's example-reading misses, sever severity by internal's classification. Cluster F' rev-0 matches Cluster F planning rev-0 pattern.
+- **Same-implementer continuation via `write_agent`**: preserves context across arbitrary rev counts within a single agent lifetime. First multi-turn arc (4 turns) demonstrating scalability.
+- **Convergent close pattern**: rev-0 BLOCKED → rev-1 MEDIUM → rev-2 LOW → rev-3 INFO. Every rev closed strictly more than it opened; no oscillation.
+- **0-residual discipline honored on user preference**: rev-2 LOW folded into rev-3 rather than deferred to backlog, matching Cluster F planning arc's "close clean" preference.
+- **Reviewer-suggested-fix carries deferral authority**: F-EXT-Rev2-1 and F-EXT-Rev3-1 both explicitly labeled non-blocking by external; supervisor honored the "defer to consolidator sign-off" language in the informational case.
+
+**Backlog registered** (post-v0.13.0 candidates, not for Cluster F' or the release):
+- `prd-verify-post-commit-mode` MEDIUM (external user report 2026-08-05): `tpatch verify` V8 misleading remediation on already-committed features.
+- `prd-no-upstream-mode` MEDIUM (sibling): local-only tpatch mode for repos without configured upstream.
+
+**Related documents**:
+- Planning baseline: `docs/prds/PRD-rejected-feature-state.md` (Accepted) + `docs/adrs/ADR-031-rejected-feature-state-data-model.md` (Accepted).
+- Cluster F planning archive: previous section of this file.
+
+---
+
 # 2026-08-05 — Cluster F planning — v0.13.0 GH #6 first-class rejected feature state — SHIPPED
 
 **Range**: `8574ff3..377d103` (10 commits: 2 rev-0 impl + 2 rev-1 impl + 2 rev-2 impl + 1 rev-3 impl + 1 rev-4 impl + 5 supervisor tracking).

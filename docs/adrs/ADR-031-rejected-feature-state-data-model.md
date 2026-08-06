@@ -1,6 +1,6 @@
 # ADR-031: Rejected Feature State Data Model
 
-**Status**: Proposed
+**Status**: Accepted (implemented and shipped 2026-08-05 as v0.13.0; range `c6aaeb2..70764a3`)
 **Date**: 2026-08-05
 **Deciders**: Copilot (Cluster F planning phase)
 **Related**: GH #6, PRD-rejected-feature-state, PRD-confirm-upstreamed-human-review-path (orthogonal, cite specific lines — §4)
