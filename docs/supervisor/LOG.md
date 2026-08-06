@@ -1,3 +1,36 @@
+## 2026-08-05 — Cluster F' rev-1 dual review — APPROVED WITH NOTES → rev-2 dispatched
+
+**Reviewers**:
+- Internal: `cluster-f-prime-r1-int` (gpt-5.6-sol, high). **APPROVED WITH NOTES** — 1 MEDIUM. 338s runtime.
+- External: `cluster-f-prime-r1-ext` (claude-opus-4.8, high). **APPROVED** — 0 findings. 315s runtime.
+
+**Implementer**: `cluster-f-prime-r0` (claude-sonnet-4.6, high, continued). 8 rev-1 commits, +10 regression tests, 970 top-level PASS. Range `d3e5a11..fbdf815`. Cumulative 6216s.
+
+**Verdict scoreboard**:
+
+- All 6 internal rev-0 findings (F-INT-1..6) + all 3 external rev-0 findings (F-EXT-1..3) verified CLOSED byte-for-byte by both reviewers with independent inspection.
+- **F-INT-1 BLOCKING closed** (`aa9b17a`): history schema rewritten to completed-cycle entries with PRD §6 field names; reject appends nothing; reopen appends one + clears `Rejection`. `PriorState` retained as legitimate audit field per PRD §6 (not the reopen target).
+- **F-INT-2 HIGH closed** (`9cf7a29`): dedicated `rejectionStatusView` DTO shadows embedded `FeatureStatus.Rejection`; §8 field names byte-for-byte; state-conditional emission.
+- **F-INT-3 HIGH closed** (`7eca395`): `collectEvidence` runs before `LoadFeatureStatus` + state check; combined bad-evidence + bad-state → exit 2 verified across all three ineligible-axis combos.
+- **F-INT-4 / F-EXT-1 HIGH/MEDIUM closed** (`2903ffc`): `mapDependencyValidationError` maps `ErrRejectedParent` → exit 3 at both `feature deps add/remove` + `amend --depends-on`; PRD §8 golden string byte-for-byte; `ExitCodeError` has no `Unwrap`, re-wrap is idempotent.
+- **F-INT-5 MEDIUM closed** (`1b1f2c7`): fallback only on `os.IsNotExist(err)`; directory + unsafe-path + unreadable branches take dedicated code paths. **Partial residual — see F-INT-Rev1-1 below.**
+- **F-INT-6 LOW closed** (`39194c9`): test 27 uses independent literals `wantRejectSnippet`/`wantReconcileSnippet`; changing either production string now fails the test.
+- **F-EXT-2 LOW closed** (`a60c4c4`): `joinStatesOr` renders Oxford "or"; golden test matches §8 verbatim.
+- **F-EXT-3 LOW subsumed** by F-INT-1.
+
+**New rev-1 finding (1 MEDIUM)**:
+
+- **F-INT-Rev1-1 MEDIUM**: dangling-symlink evidence fallback. `internal/cli/reject.go:146-157` falls through on all `os.IsNotExist(err)`, but `filepath.EvalSymlinks` on a dangling symlink returns an ENOENT-class error even though the feature-directory entry exists. A same-named root file can therefore still be hashed incorrectly. Contradicts explicit dangling-symlink comment at lines 153-156. F-INT-5 regression test covers only directory candidate. Reviewer suggested fix: on `EvalSymlinks` ENOENT, use `os.Lstat(cand)` to distinguish true absence from existing dangling symlink; fall back only when `Lstat` also reports absence. Add dangling-symlink + root-decoy regression test.
+
+**Supervisor adjudication**:
+
+- **Verdict: NEEDS REVISION → rev-2 dispatched.**
+- Sole finding is MEDIUM security-adjacent edge (attacker could plant dangling symlink in feature-dir + decoy at root). Reviewer supplied the exact fix (`Lstat` disambiguation) and named the missing test. Fold is ~5 LOC + 1 test — closes Cluster F' at 0 residuals.
+- User adjudication: fold rev-2. Precedent: Cluster F planning arc closed at 0 external residuals; Cluster F' matches that discipline. MEDIUM is at the fold-not-defer line per historical practice.
+- Same-implementer continuation via `write_agent` on `cluster-f-prime-r0` (idle, 6216s context preserved).
+
+**State**: `**Cluster state**: REV-2 DISPATCHED`. WAVE_BASE remains `c6aaeb2`. HEAD = `fbdf815`.
+
 ## 2026-08-05 — Cluster F' rev-0 dual review — NEEDS REVISION → rev-1 dispatched
 
 **Reviewers**:

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: REV-2 DISPATCHED
 
 **WAVE_BASE**: `c6aaeb2` (Cluster F planning + rev-5 verb-collision amendment, 2026-08-05).
 
