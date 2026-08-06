@@ -480,6 +480,49 @@ func TestReject_EvidenceNonRegularFileExitsTwo(t *testing.T) {
 	}
 }
 
+// Fallback to the repo-root candidate happens ONLY when the feature-dir
+// candidate is genuinely absent. A feature-dir candidate that exists but
+// is unusable (here: a directory) is a hard failure — falling through
+// would silently hash a same-named repo-root file the operator never
+// named. Cluster F' rev-1, F-INT-5.
+func TestReject_EvidenceFallbackOnlyOnGenuineNotFound(t *testing.T) {
+	dir, s := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateRequested})
+	// Feature-dir candidate: a DIRECTORY named shadow.md.
+	if err := os.MkdirAll(filepath.Join(dir, ".tpatch", "features", "alpha", "shadow.md"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Repo-root candidate: a perfectly good regular file of the same name.
+	rootFile := filepath.Join(dir, "shadow.md")
+	if err := os.WriteFile(rootFile, []byte("root decoy\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var hashed []string
+	restore := evidenceHashFn
+	evidenceHashFn = func(abs string) (string, error) {
+		hashed = append(hashed, abs)
+		return restore(abs)
+	}
+	t.Cleanup(func() { evidenceHashFn = restore })
+
+	_, errOut, code := runRJ("reject", "alpha", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "shadow.md")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2; stderr=%s", code, errOut)
+	}
+	if !strings.Contains(errOut, "not a regular file") {
+		t.Errorf("the failure must be reported as-is, not masked by the fallback: %s", errOut)
+	}
+	for _, h := range hashed {
+		if strings.Contains(h, "shadow.md") {
+			t.Fatalf("the repo-root decoy was hashed via the fallback: %s", h)
+		}
+	}
+	if st := mustLoad(t, s, "alpha"); st.Rejection != nil {
+		t.Fatal("rejection written despite the validation failure")
+	}
+}
+
 // A symlink escaping the repository root is refused BEFORE its target's
 // bytes are read (PRD §6, F-INT-3).
 func TestReject_EvidenceSymlinkEscapeRefusedWithoutHashing(t *testing.T) {

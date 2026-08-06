@@ -121,6 +121,13 @@ func normalizeEvidencePath(raw string) (string, error) {
 // directory `.tpatch/features/<slug>/`, then relative to the repository
 // root. The returned reason is "" when the path resolved to a readable
 // regular file inside the repository root.
+//
+// Fallback to the second candidate happens ONLY when the first is
+// genuinely absent (`os.IsNotExist`). A candidate that exists but is
+// unusable — a directory, a path-safety violation, an unreadable entry —
+// is a hard failure reported as-is: silently hashing a same-named file
+// one directory up would attach evidence the operator never named
+// (Cluster F' rev-1, F-INT-5).
 func resolveEvidence(root, slug, normalized string) (abs string, reason string) {
 	// The repository root itself may sit under a symlinked prefix
 	// (macOS `/var` → `/private/var` is the common case), so both sides
@@ -135,30 +142,34 @@ func resolveEvidence(root, slug, normalized string) (abs string, reason string) 
 		filepath.Join(root, filepath.FromSlash(normalized)),
 	}
 
-	var sawNonRegular bool
 	for _, cand := range candidates {
 		// Path-safety must be evaluated on the SYMLINK-RESOLVED path so
 		// a symlink escaping the repository root is caught before any
 		// byte of the target is read.
 		resolved, err := filepath.EvalSymlinks(cand)
 		if err != nil {
-			continue
+			if os.IsNotExist(err) {
+				continue
+			}
+			// A dangling symlink, an ELOOP cycle, a non-directory
+			// component or a permission failure: the candidate exists
+			// in some form and cannot be used. Do not fall through.
+			return "", store.DivergentReasonUnreadable
 		}
 		if safety.EnsureSafeRepoPath(safeRoot, resolved) != nil {
 			return "", store.DivergentReasonPathSafetyFailed
 		}
 		info, err := os.Stat(resolved)
 		if err != nil {
-			continue
+			if os.IsNotExist(err) {
+				continue
+			}
+			return "", store.DivergentReasonUnreadable
 		}
 		if !info.Mode().IsRegular() {
-			sawNonRegular = true
-			continue
+			return "", store.DivergentReasonNonRegular
 		}
 		return resolved, ""
-	}
-	if sawNonRegular {
-		return "", store.DivergentReasonNonRegular
 	}
 	return "", store.DivergentReasonMissing
 }
