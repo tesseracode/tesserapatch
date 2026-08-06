@@ -158,7 +158,11 @@ func resolveEvidence(root, slug, normalized string) (abs string, reason string) 
 				}
 				// Lstat succeeded → the entry exists as a dangling symlink.
 				// Do NOT fall through to the root candidate.
-				return "", store.DivergentReasonUnreadable
+				// DivergentReasonMissing is correct: the path does not
+				// resolve to any file, matching its enum doc. Unreadable
+				// implies a permission/IO fault on a reachable regular file,
+				// which is semantically incorrect for a dangling symlink.
+				return "", store.DivergentReasonMissing
 			}
 			// A dangling symlink, an ELOOP cycle, a non-directory
 			// component or a permission failure: the candidate exists

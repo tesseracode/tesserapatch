@@ -635,6 +635,12 @@ func TestReject_EvidenceDanglingSymlinkNotFallenThrough(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("exit %d, want 2 (dangling symlink must not pass validation); stderr=%s", code, errOut)
 	}
+	// DivergentReasonMissing ("no such file or directory") is the correct
+	// label — the path does not resolve to any file. DivergentReasonUnreadable
+	// would imply a permission/IO fault on a reachable file (F-EXT-Rev2-1).
+	if !strings.Contains(errOut, "no such file or directory") {
+		t.Errorf("want 'no such file or directory' in error; got: %s", errOut)
+	}
 	for _, h := range hashed {
 		if h == rootDecoy || strings.HasSuffix(h, "dangling.md") {
 			t.Fatalf("root decoy was hashed via fallback — dangling symlink fell through: %s", h)
