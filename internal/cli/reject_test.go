@@ -1417,14 +1417,27 @@ func TestReject_JSONEnvelopeCarriesFailureExitCode(t *testing.T) {
 
 // ─── item 27: --help cross-references (golden strings) ─────────────────────
 
+// wantRejectSnippet / wantReconcileSnippet are INDEPENDENT literals, not
+// references to the production constants. Asserting against
+// `rejectReconcileDisambiguation` (as rev-0 did) makes the test
+// self-fulfilling: rewording the constant reworded the expectation too,
+// so the operator-facing text could drift with the test still green.
+// PRD §4.1 mitigation 1 fixes this wording; the literals below are the
+// contract. Cluster F' rev-1, F-INT-6.
+const wantRejectSnippet = "Not to be confused with `tpatch reconcile --reject <slug>`, which prunes a shadow worktree " +
+	"(a transient action on a shadow-worktree resource) — see PRD §4.1 / ADR-031 D10."
+
+const wantReconcileSnippet = "Not to be confused with `tpatch reject <slug>`, which marks a feature as permanently rejected " +
+	"(a terminal lifecycle transition on the feature itself) — see PRD §4.1 / ADR-031 D10."
+
 func TestHelp_RejectAndReconcileCrossReference(t *testing.T) {
 	rejectHelp, _, code := runRJ("reject", "--help")
 	if code != 0 {
 		t.Fatalf("reject --help exit %d", code)
 	}
-	if !strings.Contains(rejectHelp, rejectReconcileDisambiguation) {
+	if !strings.Contains(rejectHelp, wantRejectSnippet) {
 		t.Errorf("`tpatch reject --help` must render the cross-reference:\nwant: %s\ngot:\n%s",
-			rejectReconcileDisambiguation, rejectHelp)
+			wantRejectSnippet, rejectHelp)
 	}
 	if !strings.Contains(rejectHelp, "tpatch reconcile --reject") {
 		t.Errorf("reject --help must name the other surface:\n%s", rejectHelp)
@@ -1434,17 +1447,17 @@ func TestHelp_RejectAndReconcileCrossReference(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("reconcile --help exit %d", code)
 	}
-	if !strings.Contains(reconcileHelp, reconcileRejectDisambiguation) {
+	if !strings.Contains(reconcileHelp, wantReconcileSnippet) {
 		t.Errorf("`tpatch reconcile --help` must render the symmetric cross-reference:\nwant: %s\ngot:\n%s",
-			reconcileRejectDisambiguation, reconcileHelp)
+			wantReconcileSnippet, reconcileHelp)
 	}
 	if !strings.Contains(reconcileHelp, "tpatch reject <slug>") {
 		t.Errorf("reconcile --help must name the other surface:\n%s", reconcileHelp)
 	}
 
-	// The two constants must not be the same string — each surface
+	// The two expectations must not be the same string — each surface
 	// points AT the other one.
-	if rejectReconcileDisambiguation == reconcileRejectDisambiguation {
+	if wantRejectSnippet == wantReconcileSnippet {
 		t.Fatal("the two cross-references must be distinct")
 	}
 
