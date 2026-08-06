@@ -599,6 +599,52 @@ func TestReject_EvidenceSymlinkEscapeRefusedWithoutHashing(t *testing.T) {
 	}
 }
 
+// A dangling symlink in the feature directory must NOT fall through to the
+// repo-root candidate. EvalSymlinks returns ENOENT for dangling symlinks
+// (the target does not exist), but the symlink entry itself is present.
+// Lstat detects this case and the resolution must exit-2 without hashing
+// the root decoy (F-INT-Rev1-1, regression for rev-2 fold).
+func TestReject_EvidenceDanglingSymlinkNotFallenThrough(t *testing.T) {
+	dir, s := newRejectRepo(t, map[string]store.FeatureState{"alpha": store.StateRequested})
+	featureDir := filepath.Join(dir, ".tpatch", "features", "alpha")
+
+	// Create a dangling symlink in the feature dir pointing to a
+	// non-existent target.
+	danglingTarget := filepath.Join(featureDir, "gone-forever.md")
+	linkPath := filepath.Join(featureDir, "dangling.md")
+	if err := os.Symlink(danglingTarget, linkPath); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+
+	// Repo-root decoy — same normalized name.
+	rootDecoy := filepath.Join(dir, "dangling.md")
+	if err := os.WriteFile(rootDecoy, []byte("decoy content\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var hashed []string
+	restore := evidenceHashFn
+	evidenceHashFn = func(abs string) (string, error) {
+		hashed = append(hashed, abs)
+		return restore(abs)
+	}
+	t.Cleanup(func() { evidenceHashFn = restore })
+
+	_, errOut, code := runRJ("reject", "alpha", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "dangling.md")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 (dangling symlink must not pass validation); stderr=%s", code, errOut)
+	}
+	for _, h := range hashed {
+		if h == rootDecoy || strings.HasSuffix(h, "dangling.md") {
+			t.Fatalf("root decoy was hashed via fallback — dangling symlink fell through: %s", h)
+		}
+	}
+	if st := mustLoad(t, s, "alpha"); st.Rejection != nil {
+		t.Fatal("rejection written despite dangling-symlink evidence failure")
+	}
+}
+
 // Evidence hashes are the SHA-256 of the file's raw bytes, and the list
 // is deduplicated and sorted for deterministic serialization.
 func TestReject_EvidenceHashDedupAndSort(t *testing.T) {

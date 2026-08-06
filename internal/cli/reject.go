@@ -149,7 +149,16 @@ func resolveEvidence(root, slug, normalized string) (abs string, reason string) 
 		resolved, err := filepath.EvalSymlinks(cand)
 		if err != nil {
 			if os.IsNotExist(err) {
-				continue
+				// EvalSymlinks returns ENOENT for both a genuinely absent
+				// path AND a dangling symlink (the symlink entry exists but
+				// its target does not). Use Lstat to tell them apart.
+				if _, lstatErr := os.Lstat(cand); os.IsNotExist(lstatErr) {
+					// True absence: the directory entry does not exist.
+					continue
+				}
+				// Lstat succeeded → the entry exists as a dangling symlink.
+				// Do NOT fall through to the root candidate.
+				return "", store.DivergentReasonUnreadable
 			}
 			// A dangling symlink, an ELOOP cycle, a non-directory
 			// component or a permission failure: the candidate exists
