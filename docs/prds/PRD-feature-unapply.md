@@ -1,6 +1,6 @@
 # PRD - Feature Unapply - `feat-feature-unapply`
 
-**Status**: Rev-0 (Cluster G planning)
+**Status**: Accepted (2026-08-05, Cluster G planning shipped at `e1a5898`; rev-0 → rev-3 convergent-close arc)
 **Date**: 2026-07-10 (orig. draft U63); 2026-08-05 (Cluster G refresh)
 **Owner**: Core
 **Byline**: U63; Cluster G refresh

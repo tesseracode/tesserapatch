@@ -1,3 +1,58 @@
+# 2026-08-05 — Cluster G planning — v0.14.0 candidate `tpatch feature unapply` (PRD-feature-unapply + ADR-032) — SHIPPED
+
+**Range**: `99a1e06..e1a5898` (5 implementer commits + 4 supervisor tracking commits).
+
+**Deliverables** (both Accepted at consolidation):
+- `docs/prds/PRD-feature-unapply.md` — refreshed 587 → ~950 lines; moved from `.wave-close-allowlist` untracked to tracked.
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — new ~1100 lines. D1-D8, 61-row test matrix.
+
+**Rev arc** (dual review at every rev; sonnet-4.6 implementer via `write_agent` same-context continuation):
+
+| Rev | Commit | Internal (gpt-5.6-sol, high) | External (claude-opus-4.8, high) | Adjudication |
+|-----|--------|------------------------------|----------------------------------|--------------|
+| rev-0 | `ea1d01a` | BLOCKED 8 HIGH + 2 MEDIUM | NEEDS REVISION 10 findings (7/13 fabricated citations) | BLOCKED → rev-1 |
+| rev-1 | `7ff55ee` | BLOCKED 3 HIGH + 1 LOW | NEEDS REVISION 2 MEDIUM (**9/10 rev-0 closed byte-for-byte, 16/16 anchors verified**) | BLOCKED → rev-2 |
+| rev-2 | `6771544` | BLOCKED 1 HIGH + 1 MEDIUM (supervisor-verified AC-35 row 43 vs PRD §3.5:271) | APPROVED WITH NOTES 1 LOW + 1 INFO | BLOCKED → rev-3 |
+| rev-3 | `e1a5898` | **APPROVED clean** | **APPROVED clean** | **SHIPPED** |
+
+**Key finding-class arcs neutralized**:
+- **Fabricated-citation vector**: rev-0 opened with 7/13 wrong anchors; rev-1 external verified 16/16 anchors byte-exact; rev-2 external verified 14/14 anchors byte-exact; rev-3 external verified only two new anchors (`cobra.go:2626`/`:2699`), both correct. Zero fabrications reached ship.
+- **Composition Alt A oversell**: rev-0 claimed "closes ADR-031 D6" over-broadly. Rev-1 reframed to "resolves data-model composition sub-question; retirement-command sub-question remains deferred to future `tpatch retire`." Externally verified honest at rev-1, rev-2, rev-3.
+- **Wire-schema divergence**: rev-0 PRD/ADR JSON differed on `attempted_at`/`actor`; rev-1 unified byte-for-byte; regression-verified stable at rev-2 and rev-3.
+- **Symmetric-invariant contradiction**: rev-0 PRD §5.1 absolute vs ADR D2 best-effort; rev-1 softened §5.1 to match D2.
+- **Impl Note 4 caller/callee inversion**: rev-1 folded but wrote it backward (told implementer NOT to place guard in `applyConfirmUpstreamedTransition` which is the caller); rev-2 rewrote correctly with verbatim `cobra.go:2627-2634` source-comment byte-match.
+- **Matrix false completeness**: rev-1 claimed "1:1 mirror" with ~10 ACs unmapped; rev-2 grew to 40→59 rows but introduced AC-35 row 43 semantic contradiction + missing AC-10c; rev-3 corrected AC-35 (4 permitted + 8 refused = 12 rows) and added AC-10c row.
+- **D6 atomicity**: rev-0 only rolled back reverse-apply failure; rev-1 added artifact-write rollback; rev-2 mandated `os.CreateTemp` + `os.Rename` POSIX-atomic status.json (Cluster G' pre-req).
+
+**Locked design decisions** (source cites verified):
+- D1 `StateUnapplied` as real FeatureState enum value (`internal/store/types.go:33-38` closed switch will need addition).
+- D2 dependency-satisfaction post-unapply: best-effort gate + DAG warning; `supersedes` refusal explicit.
+- D3 `unapply-session.json` wire schema: byte-identical PRD §7.1 = ADR D3.
+- D4 no patch-generation writes v1.
+- D5 patch-mode-only v1 (`mode: "patch"` reserved-only, `--mode landed-commit` gated to exit 2).
+- D6 8-step transactional protocol with rollback at every metadata-write.
+- D7 composition Alt A (parallel independent states, mutually exclusive) — resolves ADR-031 D6 data-model sub-question only; retirement deferred to future `tpatch retire`.
+- D8 command shape: noun-scoped `tpatch feature unapply` (parallels ADR-031 D10 with inverse decision — Cluster F' shipped bare `reject`/`reopen`).
+- Impl Note 4: guard MUST be first statement of `applyConfirmUpstreamedTransition` (caller); do NOT place in `saveConfirmUpstreamedStatus` (callee).
+
+**Precedents established**:
+- **Same-implementer continuation via `write_agent` scales to 4 revs**: 4 turns cumulative, 4719s (~79min) implementer time across arc, no context degradation.
+- **Convergent-close discipline holds**: every rev closed strictly more than it opened. 8+10 findings at rev-0 → 3+2 at rev-1 → 1+1(HIGH new) + 1+1 at rev-2 → 0+0 at rev-3.
+- **Internal-strict adjudication precedent**: rev-2 internal BLOCKED (1 HIGH matrix semantic error) while external APPROVED WITH NOTES; supervisor sided internal after verifying the semantic contradiction against PRD source. Prevented shipping a wrong AC-35 row.
+- **Rev-1 as citation-neutralization checkpoint**: 9/10 rev-0 external findings closed byte-for-byte at rev-1 with all 16 anchors independently verified. Sets the citation-hunt attack vector fully to rest for the remainder of the arc.
+
+**Backlog carried forward**:
+- Cluster G' pre-req: `SaveFeatureStatus` (`store.go:368`) → `os.CreateTemp` + `os.Rename` atomic-rename pattern.
+- Future work: `tpatch retire` command for post-implementation permanent retirement with audit trail (deferred by ADR-031 D6 and re-deferred by ADR-032 D7).
+
+**Non-invalidation invariants preserved**: Side Research md5 `b385fe622db9926f48861105239f113e` unchanged across arc. `.wave-close-allowlist` pruned 16→15 entries at rev-0 (PRD-feature-unapply.md now tracked). Rule 18 trailer verified on all Cluster G commits.
+
+**Test count**: docs-only cluster; test suite unchanged from v0.13.0 baseline (971 top-level PASS / 0 FAIL). Cluster G' implementation will introduce Cluster G test coverage per the 61-row matrix.
+
+**Next**: Cluster G' implementation cluster from baseline `e1a5898`. Tag v0.14.0 at close.
+
+---
+
 # 2026-08-05 — Cluster F' — v0.13.0 GH #6 first-class rejected feature lifecycle state (implementation) — SHIPPED
 
 **Range**: `c6aaeb2..70764a3` (27 commits: 10 rev-0 impl + 8 rev-1 fold + 2 rev-2 fold + 1 rev-3 fold + 6 supervisor tracking).

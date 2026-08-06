@@ -549,6 +549,36 @@ was double-applying and failing.
   in `internal/workflow/verify.go`. Rule 19 trace clean — no exported
   API surface change.
 
+## Cluster G planning — 2026-08-05 — v0.14.0 candidate: `tpatch feature unapply` (PRD + ADR pair) ✅ SHIPPED
+
+Planning-phase cluster for v0.14.0 `tpatch feature unapply` (PRD-feature-unapply target). Data-model extension (new `StateUnapplied` state) with lifecycle-command scope; planning phase separated from implementation phase mirroring Cluster F. Docs-only. Dual review at rev-0/1/2/3. **4 review revs, 8 review turns (4 int + 4 ext), 5 implementer commits + 4 supervisor tracking commits**.
+
+**Deliverables** (both flipped Proposed → Accepted at consolidation `e1a5898`):
+- `docs/prds/PRD-feature-unapply.md` — refreshed 587 → ~950 lines; moved from `.wave-close-allowlist` untracked to tracked.
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — new ~1100 lines. D1-D8 with 61-row test matrix.
+
+**Key locked decisions**:
+- **D7 composition (Alt A)**: `unapplied` and `rejected` are parallel independent states, mutually exclusive. Resolves ADR-031 D6's **data-model composition sub-question**; retirement-command sub-question remains explicitly deferred to future `tpatch retire` (`tpatch remove` is the destructive current workaround).
+- **D6 atomicity**: 8-step transactional protocol. status.json write via `os.CreateTemp` + `os.Rename` (POSIX-atomic). **Cluster G' pre-req: upgrade `SaveFeatureStatus` (`store.go:368`) to atomic-rename before v1 unapply lands.**
+- **Impl Note 4 guard placement**: first statement of `applyConfirmUpstreamedTransition` (caller, `cobra.go:2626`). NOT `saveConfirmUpstreamedStatus` (callee, `cobra.go:2699`). Verbatim byte-match to `cobra.go:2627-2634` source comment.
+- **D3 wire schema**: `unapply-session.json` byte-identical PRD §7.1 vs ADR D3.
+- **D8 command shape**: noun-scoped `tpatch feature unapply`, parallels ADR-031 D10 with inverse decision (Cluster F' shipped bare verbs `reject`/`reopen`).
+- **§5.1 dependency invariant**: best-effort gate + DAG warning (matches D2), NOT absolute closure.
+- **§3.5 exit envelope**: full 0/1/2/3 coverage per case class.
+- **§15 acceptance**: 39 items, 1:1 mirror in matrix.
+
+**Rev arc scoreboard**:
+| Rev | Verdicts (int / ext) | Key finding class |
+|-----|----------------------|-------------------|
+| rev-0 (`ea1d01a`) | BLOCKED 8H+2M / NEEDS REVISION 10 | Composition oversell, wire-schema divergence, 7/13 fabricated citations, exit envelope missing, matrix count mismatch, symmetric-invariant contradiction |
+| rev-1 (`7ff55ee`) | BLOCKED 3H+1L / NEEDS REVISION 2M | **9/10 rev-0 external findings closed byte-for-byte, 16/16 anchors verified — citation-fabrication vector fully neutralized.** Impl Note 4 caller/callee inverted; matrix false completeness; status.json atomicity gap |
+| rev-2 (`6771544`) | BLOCKED 1H+1M / APPROVED WITH NOTES 1L+1I | AC-35 row 43 semantic contradiction with PRD §3.5:271; AC-10c missing |
+| rev-3 (`e1a5898`) | **APPROVED clean / APPROVED clean** | Convergent-close arc terminates. Zero residuals. State partition exhaustive (12 states × once each). |
+
+**Range**: `99a1e06..e1a5898`. WAVE_BASE: `2c8a207`. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
+
+**Next**: Cluster G' implementation cluster from planning baseline `e1a5898`. Touches state enum (+ `StateUnapplied`), status fields (`UnappliedStatus` parallel to `RejectionStatus`), `SaveFeatureStatus` atomic-rename upgrade (pre-req), validation (Rule 7-parallel `ErrUnappliedParent`), CLI (`tpatch feature unapply` noun-scoped + status/next filtering + confirm-upstreamed guard), assets, SPEC.md, 39+ ACs. Does NOT touch `tpatch reject`/`reopen` (orthogonal per D7). Tag as v0.14.0 at close.
+
 ## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
 
 Planning-phase cluster for v0.13.0 GH #6. Data-model extension (not just CLI addition), so planning phase separated from implementation phase. Docs-only. Dual review at rev-0/1/2/3; internal-only confirmation at rev-4. **4 review revs, 8 review turns, 10 commits**.

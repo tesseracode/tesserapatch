@@ -1,3 +1,23 @@
+## 2026-08-05 — Cluster G planning SHIPPED — v0.14.0 candidate paper package APPROVED (three-way clean at rev-3)
+
+**Rev-3 dual review verdicts** (delivered at `e1a5898`, range `5655962..e1a5898`, 1 commit):
+- **Internal** (gpt-5.6-sol, high, `cluster-g-r3-int`, 162s): **APPROVED clean** — no findings, all rev-2 residuals closed, no new defects, AC-35 rows 39-44 correctly cover 4 permitted + 8 refused states, AC-10c row 51 covers both rollback paths, Claims Audit line 47 correct, Impl Note 4 + D6 + wire schema untouched (rev-1/rev-2 gains preserved).
+- **External** (claude-opus-4.8, high, `cluster-g-r3-ext`, 266s): **APPROVED clean** — no residuals, no notes ("clean APPROVED, not APPROVED WITH NOTES"). GR2-1 (AC-10c) + GR2-2 (line 47 phrasing) both resolved. State partition exhaustive and disjoint (11 canonical + `unapplied` = 12, each covered once). Zero fabrications on new anchors. Impl Note 4 direction still correct with verbatim `cobra.go:2627-2634` byte-exact.
+
+**Cluster G planning arc — full 4-rev convergent close**:
+- **rev-0** (`ea1d01a`) — internal BLOCKED 8 HIGH + 2 MEDIUM, external NEEDS REVISION 10 findings (7/13 fabricated citations). Composition oversell, wire-schema divergence, missing exit envelope, matrix count mismatch, symmetric-invariant contradiction.
+- **rev-1** (`7ff55ee`) — internal BLOCKED 3 HIGH + 1 LOW, external NEEDS REVISION 2 MEDIUM. **9/10 rev-0 external findings closed byte-for-byte, 16/16 anchors verified — citation-fabrication vector fully neutralized**. Impl Note 4 direction inverted (caller/callee), matrix false completeness claim, status.json atomicity gap.
+- **rev-2** (`6771544`) — internal BLOCKED 1 HIGH + 1 MEDIUM, external APPROVED WITH NOTES 1 LOW + 1 INFO. Convergent AC-10c missing + supervisor-verified AC-35 row 43 semantic contradiction (matrix refused `reconciling-shadow` but PRD §3.5:271 lists it as permitted). Impl Note 4 direction now correct with verbatim byte-match. D6 atomicity specified with `os.CreateTemp`+`os.Rename`.
+- **rev-3** (`e1a5898`) — both APPROVED clean. AC-35 rewritten to 4 permitted (exit 0) + 8 refused (exit 3) states. AC-10c row 51 added. Line 47 phrasing aligned. **Terminal.**
+
+**Deliverables (both flipped Proposed → Accepted at consolidation)**:
+- `docs/prds/PRD-feature-unapply.md` — refreshed 587 → ~950 lines, moved from `.wave-close-allowlist` to tracked. Composition Alt A locked; §5.1 best-effort invariant matching D2; §7.1 wire schema byte-identical with ADR D3; §3.5 exit-code envelope; §10 8-step atomicity with AC-10a/10b/10c; §15 39 acceptance criteria; §11.7 reject/reopen interactions; §13 old-binary/new-state backward-compat.
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — new ~1100 lines. D1 unapplied as real FeatureState; D2 dependency-satisfaction post-unapply (best-effort + DAG warning); D3 unapply-session.json wire-schema (byte-identical PRD §7.1); D4 no patch-gen writes v1; D5 patch-mode-only v1; D6 failure atomicity (8-step transactional, `os.CreateTemp`+`os.Rename`); D7 composition with rejected (Alt A — resolves ADR-031 D6 data-model sub-question; retirement deferred to future `tpatch retire`); D8 command-name pattern (noun-scoped `tpatch feature unapply`, parallels ADR-031 D10 with inverse decision). Impl Note 4 guard placement: first statement of `applyConfirmUpstreamedTransition` (caller); NOT `saveConfirmUpstreamedStatus` (callee). 61-row test matrix (39 §15 ACs + 3 §10 atomicity ACs + supporting coverage).
+
+**Cluster G' implementation** (next): Pre-req: upgrade `SaveFeatureStatus` (`store.go:368`) to atomic-rename pattern before v1 unapply lands. Scope: `tpatch feature unapply` command + `RejectionStatus`-parallel unapply data model + Rule 7 parallel + confirm-upstreamed guard + status/next filtering. Tag as v0.14.0 at close.
+
+**Wave-close discipline**: Rule 18 trailer on all Cluster G rev commits. Side Research md5 preserved `b385fe622db9926f48861105239f113e`. `.wave-close-allowlist` pruned rev-0 (16→15 entries, PRD-feature-unapply.md now tracked). Fast gates + full test suite green pending final consolidation gate run.
+
 ## 2026-08-05 — Cluster G rev-2 adjudicated BLOCKED → rev-3 micro-micro-fold dispatched
 
 **Dual review verdicts** (delivered at `6771544`, range `b2f4afe..6771544`, 1 commit):
