@@ -1,3 +1,32 @@
+## 2026-08-05 — Cluster G planning DISPATCHED — v0.14.0 candidate: PRD-feature-unapply + ADR-032
+
+**Scope**: Planning-phase cluster for `tpatch feature unapply` (v0.14.0 candidate). Two deliverables:
+
+1. **PRD-feature-unapply.md refresh** — existing 587-line Draft dated 2026-07-10, predates Cluster F entirely. Zero cross-references to shipped v0.13.0 `StateRejected` / `RejectionStatus` / Rule 7. Cluster F ADR-031 D6 explicitly deferred post-implementation reject to "future ADR, potentially PRD-feature-unapply" — the composition semantics (unapplied vs rejected, whether they can coexist, which one wins for post-impl removal) MUST be resolved in this refresh.
+2. **ADR-032-feature-unapply-state-boundary.md** (new) — the ADR the PRD gates on. Must lock: `unapplied` as a real `FeatureState`, dependency-satisfaction semantics post-unapply, unapply audit artifact schema (`unapply-session.json`), no patch-generation writes in v1, patch-mode-only v1 scope, failure atomicity guarantees.
+
+**Cluster shape** — mirrors Cluster F planning:
+- Docs-only. Zero code, zero test changes.
+- Dispatched to single implementer (general-purpose, sonnet-4.6, high), preserves same-implementer pattern.
+- Dual review (internal gpt-5.6-sol + external claude-opus-4.8, both high) at every rev.
+- Rev cycles continue until three-way APPROVED.
+
+**Cluster F' precedents that apply**:
+- Internal-strict adjudication on wire-schema / decision-point completeness.
+- 0-residual close discipline (fold LOWs rather than defer, per user preference on Cluster F').
+- Same-implementer continuation via `write_agent` across revs.
+- ADR decision-point structure: D1-DN with ≥3 alternatives per decision, cited precedent, consequences enumerated.
+
+**WAVE_BASE**: `2c8a207` (post-v0.13.0 consolidation + backlog registration).
+
+**Non-goals for Cluster G**:
+- Do NOT implement code. This is docs-only planning.
+- Do NOT ship v0.14.0 tag; that's the Cluster G' implementation cluster after this planning ships.
+- Do NOT open Cluster F' scope (rejected state is shipped, treat as fixed baseline).
+- Do NOT touch `.wave-close-allowlist` — the existing untracked PRD file will be replaced-in-place by the implementer's staged edit.
+
+**State**: `**Cluster state**: REV-0 DISPATCHED`.
+
 ## 2026-08-05 — Cluster F' SHIPPED at `70764a3` (v0.13.0 GH #6)
 
 **Range**: `c6aaeb2..70764a3` (27 commits).
