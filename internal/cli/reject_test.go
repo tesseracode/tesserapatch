@@ -250,6 +250,45 @@ func TestReject_RefusedFromIneligibleStates(t *testing.T) {
 	}
 }
 
+// PRD §8's golden wrong-state error string, asserted verbatim. The
+// eligible-state list uses an English disjunction with the Oxford comma
+// ("requested, analyzed, or defined"), not a bare comma-join
+// (Cluster F' rev-1, F-EXT-2).
+func TestReject_WrongStateErrorMatchesGoldenString(t *testing.T) {
+	dir, _ := newRejectRepo(t, map[string]store.FeatureState{"x": store.StateApplied})
+	_, errOut, code := runRJ("reject", "x", "--path", dir,
+		"--reason", "duplicate", "--note", "n", "--evidence", "analysis.md")
+	if code != 3 {
+		t.Fatalf("exit %d, want 3; stderr=%s", code, errOut)
+	}
+	want := `cannot reject feature "x" from state "applied": reject is only valid from requested, analyzed, or defined`
+	if !strings.Contains(errOut, want) {
+		t.Fatalf("wrong-state error must match PRD §8 verbatim:\nwant: %s\ngot:  %s", want, errOut)
+	}
+}
+
+// joinStatesOr handles the 1-, 2- and 3+-element cases.
+func TestJoinStatesOr(t *testing.T) {
+	cases := []struct {
+		in   []store.FeatureState
+		want string
+	}{
+		{nil, ""},
+		{[]store.FeatureState{store.StateRequested}, "requested"},
+		{[]store.FeatureState{store.StateRequested, store.StateAnalyzed}, "requested or analyzed"},
+		{store.RejectableStateList(), "requested, analyzed, or defined"},
+		{
+			[]store.FeatureState{store.StateRequested, store.StateAnalyzed, store.StateDefined, store.StateApplied},
+			"requested, analyzed, defined, or applied",
+		},
+	}
+	for _, tc := range cases {
+		if got := joinStatesOr(tc.in); got != tc.want {
+			t.Errorf("joinStatesOr(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
 // Rejecting an already-rejected feature is refused, and the existing
 // record is left untouched (no silent re-write).
 func TestReject_RefusedWhenAlreadyRejected(t *testing.T) {

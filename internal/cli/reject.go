@@ -317,7 +317,7 @@ func runReject(cmd *cobra.Command, slug string) error {
 	}
 	if !store.IsRejectableState(status.State) {
 		return emit(map[string]any{"state": string(status.State)},
-			stateRefusalError("cannot reject feature %q from state %q: reject is only valid from %s", slug, status.State, joinStates(store.RejectableStateList())))
+			stateRefusalError("cannot reject feature %q from state %q: reject is only valid from %s", slug, status.State, joinStatesOr(store.RejectableStateList())))
 	}
 	if deps := dependentEdges(s, slug); len(deps) > 0 {
 		rendered := make([]string, len(deps))
@@ -471,6 +471,28 @@ func joinStates(states []store.FeatureState) string {
 		parts[i] = string(st)
 	}
 	return strings.Join(parts, ", ")
+}
+
+// joinStatesOr renders a state list as an English disjunction with the
+// Oxford comma: "requested", "requested or analyzed",
+// "requested, analyzed, or defined". PRD §8's golden wrong-state error
+// string uses this form, and the bare comma-join rev-0 emitted did not
+// match it (Cluster F' rev-1, F-EXT-2).
+func joinStatesOr(states []store.FeatureState) string {
+	parts := make([]string, len(states))
+	for i, st := range states {
+		parts[i] = string(st)
+	}
+	switch len(parts) {
+	case 0:
+		return ""
+	case 1:
+		return parts[0]
+	case 2:
+		return parts[0] + " or " + parts[1]
+	default:
+		return strings.Join(parts[:len(parts)-1], ", ") + ", or " + parts[len(parts)-1]
+	}
 }
 
 // refuseIfRejected is the shared precondition used by `apply` and
