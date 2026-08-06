@@ -93,7 +93,8 @@ Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `
 - **Cluster E-prime** (post-Cluster-E review follow-up — Obs 1 `PinGitAutoGCOff` doc comment + Obs 2 `.wave-close-allowlist` mechanism for `[2/8]` gate step) — shipped 2026-08-05 external-only rev-0 APPROVED WITH NOTES. Range `2281309..aa34f3c`.
 - **Cluster F planning** (PRD-rejected-feature-state + ADR-031 pair, v0.13.0 GH #6) — shipped at `c6aaeb2` after 5 review revs (rev-5 = verb-collision amendment).
 - **Cluster F' rev-0** (v0.13.0 GH #6 implementation — first-class `rejected` feature lifecycle state) — implemented 2026-08-06, reviewed, adjudicated NEEDS REVISION. 10 commits, range `8cf3c1a..d3e5a11`.
-- **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, **awaiting review**. 8 commits, range `d3e5a11..HEAD`. All 7 findings folded, none deferred. See "Ready for review — Cluster F' rev-1" below.
+- **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
+- **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 
 ## Files Changed — Cluster F' rev-0
 
@@ -342,7 +343,31 @@ This supersedes rev-0's "One deliberate deviation from a PRD illustrative exampl
 - No file from `.wave-close-allowlist` staged; all 8 commits used explicit `git add <path>` and `git commit -F <file>`.
 - Every commit carries the Rule 18 trailer + the `Copilot-Session` trailer (`[4/8]` verified 21/21 in `c6aaeb2..HEAD`).
 
-## Backlog (post-v0.13.0 candidates, not for Cluster F prime)
+## Ready for review — Cluster F' rev-2
+
+**Scope**: one MEDIUM finding F-INT-Rev1-1 (dangling-symlink guard). Single commit `1492fb0`.
+
+**Problem**: `resolveEvidence` used `os.IsNotExist(EvalSymlinks(cand))` to decide whether to fall through to the root candidate. `EvalSymlinks` returns ENOENT for a dangling symlink (the symlink entry exists; its target does not), so `os.IsNotExist` was true and the code fell through — potentially hashing a root-level decoy file as evidence.
+
+**Fix** (`internal/cli/reject.go`): after `os.IsNotExist` on `EvalSymlinks`, call `os.Lstat(cand)`:
+- Lstat also returns not-found → true absence → `continue` to root candidate (unchanged behavior).
+- Lstat succeeds → dangling symlink entry present → `return "", store.DivergentReasonUnreadable` without falling through.
+
+**Test** (`internal/cli/reject_test.go`): `TestReject_EvidenceDanglingSymlinkNotFallenThrough`:
+1. Feature-dir entry is a dangling symlink (target does not exist).
+2. Root-level decoy of same name is a regular file.
+3. Asserts exit 2; asserts `evidenceHashFn` never called with the decoy path; asserts no `Rejection` written.
+4. `t.Skipf` on `os.Symlink` failure (Windows guard, matching existing test pattern at line 576/911).
+
+**Validation**:
+- `gofmt -l .` clean · `go vet ./...` clean · `go build ./cmd/tpatch` OK.
+- `go test -count=1 ./...` **971 top-level PASS / 0 FAIL** (+1 test over rev-1).
+- `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)` = `b385fe622db9926f48861105239f113e` ✅.
+- `make wave-close-check WAVE_BASE=c6aaeb2`: [1/8]–[4/8] OK · [5/8] FAIL by design (state = REV-2 DISPATCHED) · [6/8]–[8/8] OK.
+
+**Non-goals confirmed**: no other files touched; DTO, history schema, exit-code mapping, Oxford joiner, test 27, and all rev-1 changes untouched.
+
+ (post-v0.13.0 candidates, not for Cluster F prime)
 
 - **prd-verify-post-commit-mode** (MEDIUM, external user report 2026-08-05). `tpatch verify` fails V8 `post_apply_patch_replay_clean` on already-committed features with a misleading "run tpatch reconcile" remediation. Root cause verified at `internal/workflow/verify.go:1160-1163`: V8 resets the shadow to the closure-replayed baseline (target recipe NOT applied) then git-apply-checks post-apply.patch — on a local repo whose HEAD already contains the feature, the check conflicts. PRD questions: detect no-upstream state, seed shadow from pre-feature base, conditional remediation string. Full description in todos table row `prd-verify-post-commit-mode`.
 - **prd-no-upstream-mode** (MEDIUM, external user report 2026-08-05, sibling of prd-verify-post-commit-mode). Local-only mode for repos without configured upstream: `upstream_merged`/`reconciling`/`reconciling-shadow`/confirm-upstreamed states presume upstream exists. Design questions: detection (config flag vs. absence of `upstream.lock` vs. git remote absence vs. `tpatch init --local`), migration path when local repo later configures upstream, which lifecycle states become unavailable, CLI remediation-string changes across `verify`/`reconcile`/`next`/`land`/`status`. Likely paired with prd-verify-post-commit-mode as single "local-first tpatch" PRD/ADR pair. Full description in todos table row `prd-no-upstream-mode`.
