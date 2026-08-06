@@ -92,7 +92,8 @@ Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `
 - **Cluster E** (process housekeeping — F1 gate `[8/8] go test` coverage + F2 macOS teardown race via `gc.auto=0` pin extracted to shared `internal/testutil` helper) — shipped 2026-08-04 after 1 rev-1 fold (E-EXT-1 cross-package pin). Range `1bc2a25..b294d8c`.
 - **Cluster E-prime** (post-Cluster-E review follow-up — Obs 1 `PinGitAutoGCOff` doc comment + Obs 2 `.wave-close-allowlist` mechanism for `[2/8]` gate step) — shipped 2026-08-05 external-only rev-0 APPROVED WITH NOTES. Range `2281309..aa34f3c`.
 - **Cluster F planning** (PRD-rejected-feature-state + ADR-031 pair, v0.13.0 GH #6) — shipped at `c6aaeb2` after 5 review revs (rev-5 = verb-collision amendment).
-- **Cluster F' rev-0** (v0.13.0 GH #6 implementation — first-class `rejected` feature lifecycle state) — implemented 2026-08-06, **awaiting review**. 10 commits, range `8cf3c1a..HEAD`. See "Ready for review — Cluster F' rev-0" below.
+- **Cluster F' rev-0** (v0.13.0 GH #6 implementation — first-class `rejected` feature lifecycle state) — implemented 2026-08-06, reviewed, adjudicated NEEDS REVISION. 10 commits, range `8cf3c1a..d3e5a11`.
+- **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, **awaiting review**. 8 commits, range `d3e5a11..HEAD`. All 7 findings folded, none deferred. See "Ready for review — Cluster F' rev-1" below.
 
 ## Files Changed — Cluster F' rev-0
 
@@ -118,6 +119,44 @@ Docs/assets:
 - `SPEC.md` — `rejected` state row + rationale; "Feature rejection" command subsection; `reject` ↔ `reconcile --reject` non-relationship; exit-code envelope table (stated as per-command, not global).
 - All 6 shipped skill surfaces + `assets/assets_test.go` — 2 new `requiredCommands`, 3 new parity anchors.
 - `docs/prds/PRD-rejected-feature-state.md` — §4.1 point 2 F2 residual wording fix.
+
+## Files Changed — Cluster F' rev-1
+
+Source (modified):
+- `internal/store/status.go` — `RejectionHistoryEntry` rewritten as a completed-cycle record (reject half + reopen half); `History` removed from `RejectionStatus`; `RejectionActionReject`/`RejectionActionReopen` constants deleted. **[F-INT-1]**
+- `internal/store/types.go` — `FeatureStatus.RejectionHistory []RejectionHistoryEntry` (`rejection_history`, `omitempty`) added at top level; `Rejection` doc comment corrected to "live record, cleared on reopen". **[F-INT-1]**
+- `internal/store/validation.go` — `ErrRejectedParent` sentinel text becomes `"cannot add dependency"` so `%w` renders PRD §8's golden string verbatim; Rule 7 message reworded to match §8. **[F-INT-4/F-EXT-1]**
+- `internal/cli/reject.go` — reject no longer appends history; `rejectionStatusView`/`evidenceRefView` §8 DTO + `newRejectionStatusView`; evidence validation moved ahead of the state-machine checks; `resolveEvidence` falls through only on `os.IsNotExist`; `joinStatesOr` added and used in the wrong-state refusal. **[F-INT-1, F-INT-2, F-INT-3, F-INT-5, F-EXT-2]**
+- `internal/cli/reopen.go` — reopen folds the live `Rejection` into one completed-cycle history entry, appends it to `FeatureStatus.RejectionHistory`, then sets `Rejection = nil`; new-evidence validation moved ahead of the state check; `--help` reworded to describe the fold. **[F-INT-1, F-INT-3]**
+- `internal/cli/cobra.go` — `featureWithFreshness` gains a depth-0 `Rejection *rejectionStatusView` field that shadows the embedded `FeatureStatus.Rejection` in `encoding/json`; status detail renders "Rejection history: N completed cycle(s)"; `pluralEntries` → `pluralCycles`. **[F-INT-1, F-INT-2]**
+- `internal/cli/feature_deps.go` — `mapDependencyValidationError` maps `ErrRejectedParent` to exit 3, applied at both `ValidateDependencies` call sites and re-applied at the `amend --depends-on` boundary. **[F-INT-4/F-EXT-1]**
+
+Tests (modified):
+- `internal/store/rejection_test.go` — round-trip split; new `TestRejectionHistoryEntry_CompletedCycleRoundTrip` (asserts all 13 wire keys) and `TestFeatureStatus_RejectionHistoryOmittedWhenEmpty`.
+- `internal/cli/reject_test.go` — history assertions rewritten to the per-cycle invariant; 8 new tests: `TestRejectReopen_TwoCyclesYieldTwoHistoryEntries`, `TestStatusJSON_RejectionDTOMatchesSpecFieldNames`, `TestStatusJSON_NoRejectionObjectAfterReopen`, `TestReject_EvidenceValidationPrecedesStateCheck`, `TestReopen_EvidenceValidationPrecedesStateCheck`, `TestReject_EvidenceFallbackOnlyOnGenuineNotFound`, `TestReject_WrongStateErrorMatchesGoldenString`, `TestJoinStatesOr`. Test 27 rewritten against independent literals.
+
+No docs/assets changed in rev-1: no CLI flag, command name, reason code or state name changed, so the shipped skill surfaces and `SPEC.md` remain accurate and the parity guard is untouched.
+
+## Test Results — Cluster F' rev-1
+
+- `gofmt -l .` empty; `go vet ./...` clean; `go build ./cmd/tpatch` OK.
+- `go test -count=1 ./...` — **970 top-level PASS / 0 FAIL** across all 9 test packages (up from 960 at rev-0; +10 top-level from the rev-1 regression tests).
+- Side Research md5 preserved: `b385fe622db9926f48861105239f113e` (verified post-fold).
+
+### `make wave-close-check WAVE_BASE=c6aaeb2`
+
+| Step | Result |
+|------|--------|
+| `[1/8]` working tree clean | **OK** |
+| `[2/8]` untracked-source sentinel | **OK** (16 entries allowlisted; no WIP file staged) |
+| `[3/8]` HEAD pushed to `origin/main` | **OK after the rev-1 push** (FAILs pre-push by construction) |
+| `[4/8]` Rule 18 trailer on every wave commit | **OK** (21 commits in `c6aaeb2..HEAD` at the pre-docs-commit run) |
+| `[5/8]` canonical `**Cluster state**:` terminal | **FAIL by design** — reads `REV-1 DISPATCHED`. Mid-cycle implementation handoff awaiting review; the dispatch brief forbids the implementer touching the canonical field. **The supervisor flips it at wave close.** |
+| `[6/8]` gofmt clean | **OK** |
+| `[7/8]` go vet + go build clean | **OK** |
+| `[8/8]` `go test -count=1 ./...` clean | **OK** |
+
+Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive, tag.
 
 ## Files Changed at v0.12.1 Consolidation
 
@@ -244,6 +283,64 @@ Four points where the **dispatch brief** and the **binding planning baseline** d
 - `internal/workflow/reconcile.go` and `retirement_audit.go` — **untouched** (ADR D6).
 - No file from `.wave-close-allowlist` staged; all 10 commits used explicit `git add <path>` and `git commit -F <file>`.
 - Every commit carries the Rule 18 trailer + `Copilot-Session` trailer (`[4/8]` verified 12/12 in range).
+
+## Ready for review — Cluster F' rev-1
+
+**Scope delivered**: all 7 findings from the Cluster F' rev-0 dual review, folded. None deferred, none partially folded. Commit range `d3e5a11..HEAD` (8 commits).
+
+### Commit map
+
+| # | Commit | Finding | Scope |
+|---|--------|---------|-------|
+| 1 | `aa9b17a` | F-INT-1 BLOCKING | history schema: one entry per completed cycle, appended on reopen only |
+| 2 | `9cf7a29` | F-INT-2 HIGH | dedicated `status --json` DTO with §8-conformant field names |
+| 3 | `7eca395` | F-INT-3 HIGH | evidence validation precedes the state-machine check in reject/reopen |
+| 4 | `2903ffc` | F-INT-4 / F-EXT-1 HIGH | `ErrRejectedParent` → exit 3 at both edge-creation surfaces + §8 golden string |
+| 5 | `1b1f2c7` | F-INT-5 MEDIUM | evidence fallback only on genuine not-found |
+| 6 | `39194c9` | F-INT-6 LOW | independent golden-string literals for test 27 |
+| 7 | `a60c4c4` | F-EXT-2 LOW | Oxford "or" in the reject wrong-state error |
+| 8 | (this) | — | docs: CURRENT.md session summary |
+
+### Finding-by-finding disposition
+
+**F-INT-1 BLOCKING — history schema.** The `action` discriminator is gone. `RejectionHistoryEntry` is now a completed-cycle record; `reject` appends nothing; `reopen` snapshots the live `Rejection` into the entry's reject half, records the reopen half, appends, and then sets `Rejection = nil`. `History` moved off `RejectionStatus` onto `FeatureStatus.RejectionHistory` — that relocation is what makes clearing `Rejection` non-destructive. Invariants now asserted:
+
+| after | `Rejection` | `len(RejectionHistory)` |
+|---|---|---|
+| reject only | non-nil | 0 |
+| one reject→reopen cycle | nil | 1 |
+| N cycles | nil | N |
+
+This supersedes rev-0's "One deliberate deviation from a PRD illustrative example" — the reviewer's reading is adopted in full, and PRD §8's `history_entries: 1` after one reopen is now what the CLI emits (which also closes F-EXT-3 as the adjudication anticipated).
+
+**F-INT-2 HIGH — status --json DTO.** `rejectionStatusView` renders the §8 key set exactly — `reason`, `evidence[{path,sha256}]`, `note`, `rejected_at`, `rejected_by`, `prior_state`, `related` — and is attached at depth 0 on `featureWithFreshness` so it shadows the embedded `FeatureStatus.Rejection`. The internal `actor` name can no longer reach the wire. The object is emitted only when `state == "rejected"`; post-reopen the envelope carries `rejection_history` and no `rejection`. `TestStatusJSON_RejectionDTOMatchesSpecFieldNames` asserts the key set is exact in both directions (no extra keys, no missing keys).
+
+**F-INT-3 HIGH — validation ordering.** Both commands now run reason → note → evidence (resolve, path-safety, hash) → load status → state check → dependents check → mutate. The store is opened before evidence resolution because resolution needs the repository root; only the status LOAD and the store-state checks moved after it. Three combined-invalidity cases assert exit 2 wins over exit 3.
+
+**F-INT-4 / F-EXT-1 HIGH — exit 3 at the edge boundary.** `mapDependencyValidationError` wraps `ErrRejectedParent` in `&ExitCodeError{Code: 3}` at both `ValidateDependencies` call sites in `feature_deps.go` and again at the `amend --depends-on` / `--remove-depends-on` boundary. The golden string now matches PRD §8 verbatim, achieved by making the sentinel's own text the leading clause. The symmetry test asserts `code == 3` and the verbatim string for 3 edge kinds × 2 surfaces.
+
+**F-INT-5 MEDIUM — evidence fallback.** Fallback to the repo-root candidate is taken only on `os.IsNotExist`. Non-regular, path-safety-failed and unreadable candidates terminate resolution with their taxonomy reason. The regression test stands up a directory at the feature-dir path shadowing a regular file at the root path and asserts the root decoy is never passed to the `evidenceHashFn` seam.
+
+**F-INT-6 LOW — test 27 independence.** `wantRejectSnippet` / `wantReconcileSnippet` are literals holding the PRD §4.1 wording. Editing either production constant now fails the test.
+
+**F-EXT-2 LOW — Oxford "or".** `joinStatesOr` renders `"requested, analyzed, or defined"`; the wrong-state refusal uses it and is asserted verbatim against PRD §8. `joinStates` is retained for the `--help` "Allowed source states:" line, where a plain list reads correctly. The implementation was fixed rather than the PRD, per the adjudication's stated preference.
+
+### Judgment calls the reviewer may want to check
+
+1. **`RejectionHistoryEntry` JSON tags follow the dispatch brief, not PRD §6's prose.** §6's table says the history entry "snapshots the fields above (`reason`, `evidence`, `note`, …)", which would imply bare `note`/`evidence` for the reject half alongside `reopen_note`/`reopen_evidence` for the reopen half — an asymmetric shape. The rev-1 dispatch brief specifies the symmetric `reject_note`/`reject_evidence` ↔ `reopen_note`/`reopen_evidence` pair, and that is what shipped. §6's prose is loose here rather than contradictory (it enumerates *which* fields are snapshotted, not their tags), but flagging it: if the reviewer prefers §6-literal tags, it is a 4-tag rename plus the key list in `TestRejectionHistoryEntry_CompletedCycleRoundTrip`.
+2. **`prior_state` and `related` are carried on the history entry** even though the brief's struct sketch omitted them. Without them a completed cycle would lose the two audit fields PRD §6 explicitly names as snapshotted, and reopen needs to read `PriorState` before nilling `Rejection` anyway.
+3. **`reopen` still transitions to `requested`, not to `prior_state`.** The brief's sketch had a `// transition to prior state` comment, but PRD §3.8 / §5 / §8 all fix `rejected → requested`, and rev-0's adjudication row #4 already resolved this in the PRD's favour. Unchanged from rev-0.
+4. **The completed-cycle entry retains the ORIGINAL reject-time evidence hashes.** Divergence detection records its verdict in `evidence_integrity` / `divergence_detail` and never rewrites `reject_evidence`, so the audit record still says what was reviewed at rejection time.
+5. **`status --json` renders `rejection_history` via the embedded struct**, not a second view type — the entry's tags are already the spec names from finding 1, so a second DTO would be a pure identity mapping.
+
+### Non-invalidation invariants
+
+- Side Research md5 `b385fe622db9926f48861105239f113e` — **preserved**, verified post-fold.
+- Canonical `**Cluster state**:` field — **untouched** (still `REV-1 DISPATCHED`; supervisor flips at close).
+- `internal/workflow/reconcile.go` and `retirement_audit.go` — **untouched** (ADR D6).
+- `assets/`, `SPEC.md`, `docs/prds/`, `docs/adrs/` — **untouched** in rev-1; parity guard unchanged and passing.
+- No file from `.wave-close-allowlist` staged; all 8 commits used explicit `git add <path>` and `git commit -F <file>`.
+- Every commit carries the Rule 18 trailer + the `Copilot-Session` trailer (`[4/8]` verified 21/21 in `c6aaeb2..HEAD`).
 
 ## Backlog (post-v0.13.0 candidates, not for Cluster F prime)
 
