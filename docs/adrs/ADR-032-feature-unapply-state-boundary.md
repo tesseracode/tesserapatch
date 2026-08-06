@@ -44,7 +44,7 @@ deferred from ADR-031 D6) and command-name pattern (D8).
 | Patch generations (ADR-024) deliberately do not include working-tree projection events (record of canonical patch bytes only). | `docs/adrs/ADR-024-patch-generation-manifest-boundary.md:48-75` |
 | `gitutil.PreflightReconcile` and reverse-apply check infrastructure already exist. | `internal/gitutil/gitutil.go:396-435`, `internal/gitutil/gitutil.go:85-187` |
 | `tpatch status --include-rejected` pattern (opt-in flag to show terminal-ish hidden state) is established. | `internal/cli/cobra.go:250,397,529` |
-| `confirm-upstreamed` transition is guarded against `rejected` source state at entry, immediately after status load, using `stateRefusalError` (ADR-031 D6 defense-in-depth). | `internal/cli/cobra.go:2635-2648` |
+| `confirm-upstreamed` transition is guarded against `rejected` source state as the first statement of `applyConfirmUpstreamedTransition` (`cobra.go:2626`), before `saveConfirmUpstreamedStatus` (`cobra.go:2699`) is reached. | `internal/cli/cobra.go:2635-2648` |
 | `FeatureStatus.Verify` is cleared on certain state transitions (e.g., patch drift invalidation). Unapply should parallel this. | `internal/store/types.go` (Verify field), `internal/cli/cobra.go` (verify-clearing call sites) |
 
 ---
@@ -771,29 +771,33 @@ atomicity ACs). Every AC has at least one dedicated row. Rows are tagged with th
 | 36 | AC-32 | (PRD §5.1) | `supersedes` dependent exists → unapply refused | exit 3; no bypass flag |
 | 37 | AC-33 | D3 | `actor` field follows precedence: `--actor` > env > git-config > `"unknown"` | correct actor in `unapply-session.json` |
 | 38 | AC-34 | D6/pre | Unknown slug or unreadable `status.json` | exit 2 |
-| 39 | AC-35 | D6/pre | Source state is `requested` → refused | exit 3 |
-| 40 | AC-35 | D6/pre | Source state is `analyzed` → refused | exit 3 |
-| 41 | AC-35 | D6/pre | Source state is `unapplied` (re-unapply) → refused | exit 3 |
-| 42 | AC-35 | D6/pre | Source state is `rejected` → refused | exit 3 |
-| 43 | AC-35 | D6/pre | Source state is `reconciling-shadow` → refused | exit 3 |
-| 44 | AC-36 | D6/pre | `--dry-run` with any blocker exits 0 and reports all blockers; no mutation | exit 0 |
-| 45 | AC-37 | D7 | `tpatch reject <slug>` from `unapplied` source state | exit 3; message mentions `tpatch remove` |
-| 46 | AC-38 | D7 | `tpatch reconcile confirm-upstreamed <slug>` from `unapplied` | exit 3; suggests `tpatch apply <slug>` first |
-| 47 | AC-39 | (PRD §12.1) | Applied-and-dirty feature → unapply refused | exit 3; error explains committed-patch requirement |
-| 48 | AC-10a | D6 | Artifact-write failure (step 7) → source snapshot restored; no artifact directory; `status.json` unchanged | exit 1; clean rollback |
-| 49 | AC-10b | D6 | `status.json`-write failure (step 8) → source snapshot restored; artifact directory removed (best-effort) | exit 1 |
-| 50 | — | D3 | `attempt_id` format | `ua_` + 12 lowercase hex chars |
-| 51 | — | D3 | `canonical_patch_sha256` is lowercase 64-hex | regex `^[0-9a-f]{64}$` |
-| 52 | — | D3 | `dependency_blockers: []` (not `null`) when no blockers | `[]` |
-| 53 | — | D3 | `preflight.conflict_markers: []` (not `null`) when clean | `[]` |
-| 54 | — | D2 | `tpatch status` with applied child and unapplied hard parent | DAG warning emitted |
-| 55 | — | D8 | `tpatch feature unapply --help` contains apply cross-reference | golden string present |
-| 56 | — | D8 | `tpatch apply --help` contains `feature unapply` cross-reference | golden string present |
-| 57 | — | D5 | `tpatch feature unapply <slug> --mode landed-commit` | exit 2; error message |
-| 58 | — | D7 | `tpatch reopen` from `unapplied` source state (no rejection record) | no state mutation; well-formed error |
-| 59 | — | (PRD §5.1) | Dependency edge creation onto `unapplied` parent | allowed (no Rule-7-analog) |
+| 39 | AC-35 | D6/pre | Source state is `applied` → unapply proceeds (happy path) | exit 0 |
+| 40 | AC-35 | D6/pre | Source state is `active` → unapply proceeds (happy path) | exit 0 |
+| 41 | AC-35 | D6/pre | Source state is `reconciling` → unapply proceeds (happy path) | exit 0 |
+| 42 | AC-35 | D6/pre | Source state is `reconciling-shadow` → unapply proceeds (happy path) | exit 0 |
+| 43 | AC-35 | D6/pre | Source state is `requested`, `analyzed`, `defined`, or `implementing` → refused | exit 3; state-machine refusal |
+| 44 | AC-35 | D6/pre | Source state is `unapplied`, `rejected`, `blocked`, or `upstream_merged` → refused | exit 3; state-machine refusal |
+| 45 | AC-36 | D6/pre | `--dry-run` with any blocker exits 0 and reports all blockers; no mutation | exit 0 |
+| 46 | AC-37 | D7 | `tpatch reject <slug>` from `unapplied` source state | exit 3; message mentions `tpatch remove` |
+| 47 | AC-38 | D7 | `tpatch reconcile confirm-upstreamed <slug>` from `unapplied` | exit 3; suggests `tpatch apply <slug>` first |
+| 48 | AC-39 | (PRD §12.1) | Applied-and-dirty feature → unapply refused | exit 3; error explains committed-patch requirement |
+| 49 | AC-10a | D6 | Artifact-write failure (step 7) → source snapshot restored; no artifact directory; `status.json` unchanged | exit 1; clean rollback |
+| 50 | AC-10b | D6 | `status.json`-write failure (step 8) → source snapshot restored; artifact directory removed (best-effort) | exit 1 |
+| 51 | AC-10c | D6 | After any rollback (artifact or status failure), `LoadFeatureStatus` returns nil error and previous `state` value | previous state readable; no truncated/partial bytes |
+| 52 | — | D3 | `attempt_id` format | `ua_` + 12 lowercase hex chars |
+| 53 | — | D3 | `canonical_patch_sha256` is lowercase 64-hex | regex `^[0-9a-f]{64}$` |
+| 54 | — | D3 | `dependency_blockers: []` (not `null`) when no blockers | `[]` |
+| 55 | — | D3 | `preflight.conflict_markers: []` (not `null`) when clean | `[]` |
+| 56 | — | D2 | `tpatch status` with applied child and unapplied hard parent | DAG warning emitted |
+| 57 | — | D8 | `tpatch feature unapply --help` contains apply cross-reference | golden string present |
+| 58 | — | D8 | `tpatch apply --help` contains `feature unapply` cross-reference | golden string present |
+| 59 | — | D5 | `tpatch feature unapply <slug> --mode landed-commit` | exit 2; error message |
+| 60 | — | D7 | `tpatch reopen` from `unapplied` source state (no rejection record) | no state mutation; well-formed error |
+| 61 | — | (PRD §5.1) | Dependency edge creation onto `unapplied` parent | allowed (no Rule-7-analog) |
 
-Cluster G' implementation cluster must achieve green on all 59 rows. Rows 39–43 cover
-the per-source-state refusal cases (AC-35) individually to prevent partial-state bugs.
-Row 31 (AC-27) is **safety-critical**: partial reverse-apply success falsely reported
-as success is the primary bug class that the D6 check+snapshot protocol prevents.
+Cluster G' implementation cluster must achieve green on all 61 rows. Rows 39–44 cover
+AC-35 per-source-state: rows 39–42 lock the 4 permitted sources as exit 0 (preventing
+a "too strict" regression that would refuse `reconciling-shadow`); rows 43–44 lock the
+8 refused states in two grouped rows. Row 31 (AC-27) is **safety-critical**: partial
+reverse-apply success falsely reported as success is the primary bug class that the D6
+check+snapshot protocol prevents.

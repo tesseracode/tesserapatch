@@ -390,6 +390,19 @@ This supersedes rev-0's "One deliberate deviation from a PRD illustrative exampl
 
 **`investigate-test-suite-wedge`** (LOW priority, tooling): external reviewer reports 3 consecutive sessions where `go test -count=1 ./...` wedges terminal partway through. Since `[8/8]` gate runs this suite, intermittent wedge could block wave-close. Investigate output-buffering / long-running child issue (possibly macOS-tty specific). Deliverable: repro recipe + fix or documented workaround.
 
+## Ready for review — Cluster G rev-3
+
+**Fold scope**: 3 items, ADR-032 test matrix + Claims Audit only.
+
+| # | Finding | Action |
+|---|---|---|
+| Item 1 (HIGH) | Matrix row 43 said `reconciling-shadow` → refused (exit 3), contradicting PRD §3.5:271 and AC-35:920 which list it as a PERMITTED source state. Also missing `defined`, `implementing`, `blocked`, `upstream_merged` refusal rows | Replaced rows 39-43 with 6 rows: rows 39-42 = 4 permitted source states (applied, active, reconciling, reconciling-shadow) each asserting exit 0; rows 43-44 = 8 refused states grouped in 2 consolidated rows asserting exit 3. Verified against `sed -n '265,280p' PRD` before writing |
+| Item 2 (MEDIUM) | AC-10c had zero matrix rows despite header claiming "3 §10 atomicity ACs" | Added row 51 (AC-10c): after any rollback, `LoadFeatureStatus` returns nil error and previous `state` value |
+| Item 3 (INFO) | Claims Audit line 47 said "immediately after status load" — loose framing pointing at the caller | Fixed to "first statement of `applyConfirmUpstreamedTransition` at `cobra.go:2626`" |
+
+**Files changed (Cluster G rev-3)**:
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — test matrix rows 39-61 (AC-35 fix + AC-10c + renumber); Claims Audit line 47 phrasing
+
 ## Ready for review — Cluster G rev-2
 
 **Fold scope**: 4 items, ADR-032 only + CURRENT.md fix.
