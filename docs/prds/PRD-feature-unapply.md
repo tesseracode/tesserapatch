@@ -660,12 +660,28 @@ V1 must provide a concrete rollback strategy:
    markers and file modes where possible.
 5. Run strict `git apply --reverse` in the real tree.
 6. If real apply fails, restore touched files from the snapshot, restore missing
-   files to missing, and report failure.
-7. Write `.tpatch/` audit artifacts and update `status.json` only after source
-   mutation succeeds.
+   files to missing, and report failure (exit 1).
+7. Write `.tpatch/` audit artifacts. If any artifact write fails, restore source
+   snapshot and remove any partially-written artifact directory (exit 1).
+8. Update `status.json` with `state: "unapplied"`. The write **must be atomic**
+   (`os.CreateTemp` + write + `os.Rename` on the same filesystem). The existing
+   `SaveFeatureStatus` path uses `os.WriteFile` (non-atomic, can truncate mid-write).
+   Cluster G' must upgrade this call site before wiring the unapply status commit
+   (see ADR-032 D6 Impl Notes). If the write fails, restore source snapshot and
+   remove artifact directory (best-effort; exit 1).
 
 The preflight clean-tree requirement makes races unlikely, but check+apply is not
 atomic across filesystem changes. Snapshot/restore closes the remaining gap.
+
+**Acceptance criteria for §10:**
+
+- AC-10a: artifact-write failure (step 7) → source snapshot restored, no artifact
+  directory, `status.json` unchanged, exit 1.
+- AC-10b: `status.json`-write failure (step 8) → source snapshot restored,
+  artifact directory removed (best-effort), exit 1.
+- AC-10c: both artifact and status failure paths leave the feature state readable
+  (previous state still valid in any surviving `status.json` bytes, or file
+  unchanged if atomic write rolled back).
 
 ## 11. Interactions
 

@@ -390,6 +390,24 @@ This supersedes rev-0's "One deliberate deviation from a PRD illustrative exampl
 
 **`investigate-test-suite-wedge`** (LOW priority, tooling): external reviewer reports 3 consecutive sessions where `go test -count=1 ./...` wedges terminal partway through. Since `[8/8]` gate runs this suite, intermittent wedge could block wave-close. Investigate output-buffering / long-running child issue (possibly macOS-tty specific). Deliverable: repro recipe + fix or documented workaround.
 
+## Ready for review — Cluster G rev-2
+
+**Fold scope**: 4 items, ADR-032 only + CURRENT.md fix.
+
+| # | Finding | Action |
+|---|---|---|
+| Item 1 (HIGH) | Impl Note 4 caller/callee direction INVERTED — said "do NOT place guard in `applyConfirmUpstreamedTransition`" but that IS where the guard belongs; real callee to avoid is `saveConfirmUpstreamedStatus` (`cobra.go:2699`) | Rewrote Impl Note 4: guard is FIRST STATEMENT of `applyConfirmUpstreamedTransition` (`cobra.go:2626`), mirroring `StateRejected` guard at `cobra.go:2635-2648`; do NOT place in `saveConfirmUpstreamedStatus`; verbatim quote from `cobra.go:2627-2634` source comment added |
+| Item 2 (HIGH) | Test matrix claimed "1:1 mirror" but 10+ ACs missing; 5 tags mis-attached (AC-1, AC-28, AC-29, AC-36, AC-21); AC-27 safety-critical absent | Matrix expanded from 40 → 59 rows; all 39 PRD §15 ACs + 3 §10 atomicity ACs (10a/10b) covered; AC-35 split into 5 per-source-state rows; all tags corrected; AC-27 safety-critical explicitly called out with bold |
+| Item 3 (HIGH) | D6 status.json write atomicity gap: `SaveFeatureStatus` uses `os.WriteFile` (non-atomic) but D6 only promised invariant without specifying how | Added to D6 step 8: write MUST use `os.CreateTemp` + write + `os.Rename` (POSIX-atomic); cited `store.go:368` and `store.go:829`; Cluster G' pre-req noted; D6 Consequences updated; PRD §10 expanded with 8-step numbered protocol + AC-10a/AC-10b/AC-10c |
+| Item 4 (LOW) | CURRENT.md rev-1 summary (line 421) said "state = REV-0 DISPATCHED" instead of "REV-1 DISPATCHED" | Fixed to "REV-1 DISPATCHED" |
+
+**Files changed (Cluster G rev-2)**:
+- `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — Impl Note 4 rewrite (Item 1); test matrix 40→59 rows with correct AC tags (Item 2); D6 step 8 atomicity + Consequences update (Item 3)
+- `docs/prds/PRD-feature-unapply.md` — §10 expanded with 8-step numbered protocol + AC-10a/10b/10c + atomic-write requirement (Item 3)
+- `docs/handoff/CURRENT.md` — line 421 state token fix (Item 4)
+
+**Anchor verification**: `cobra.go:2626` (`applyConfirmUpstreamedTransition` func decl), `cobra.go:2627-2634` (source comment), `cobra.go:2635-2648` (`StateRejected` guard body), `cobra.go:2699` (`saveConfirmUpstreamedStatus` decl), `store.go:368` (`SaveFeatureStatus`), `store.go:821-829` (`writeJSON`/`writeFile`) — all verified with `sed -n` against HEAD.
+
 ## Ready for review — Cluster G rev-1
 
 **Fold scope**: 13 items across two documents (PRD + ADR). All anchor cites re-verified
@@ -418,7 +436,7 @@ with `grep -n`/`sed -n` before writing.
 - `docs/prds/PRD-feature-unapply.md` — anchor sweep + new sections (§3.5, §5.1 supersedes, §8.2 reframe, §12.1, §13 old-binary, §15 AC-32–39)
 - `docs/adrs/ADR-032-feature-unapply-state-boundary.md` — anchor sweep + D3 schema fix + D6 atomicity 8-step + D7 reframe + D8 feature_deps fix + Impl Note 4 rewrite + test matrix 40 rows + Related PRD-rejected-feature-state
 
-**wave-close-check**: [5/8] intentional FAIL (state = REV-0 DISPATCHED); 7/8 expected PASS.
+**wave-close-check**: [5/8] intentional FAIL (state = REV-1 DISPATCHED); 7/8 expected PASS.
 
 ## Ready for review — Cluster G rev-0
 

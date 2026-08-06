@@ -405,7 +405,16 @@ artifact-write failure gap):
 5. Run `git apply --reverse` in the real tree.
 6. **If step 5 fails**: restore snapshots, restore missing files to missing, and report failure (exit 1). Do not proceed to steps 7-8.
 7. Write `.tpatch/` audit artifacts (`unapply-session.json`, `reverse.patch` under `artifacts/unapply/<attempt-id>/`). **If any artifact write fails**: restore source snapshot (same procedure as step 6), remove any partially-written artifact directory, and report failure (exit 1). `status.json` must NOT be updated if the artifact write fails.
-8. Update `status.json` with `state: "unapplied"`. **If `status.json` write fails**: restore source snapshot, remove artifact directory (best-effort), and report failure (exit 1).
+8. Update `status.json` with `state: "unapplied"`. **The write MUST be atomic** using
+   `os.CreateTemp` + write + `os.Rename` on the same filesystem (POSIX-guaranteed atomic
+   on same mount). **Do not use `os.WriteFile` directly**: `SaveFeatureStatus` at
+   `internal/store/store.go:368` delegates to `writeFile` at `store.go:829` which uses
+   `os.WriteFile` — non-atomic, may truncate and partially write before returning an
+   error. **Pre-req for Cluster G' implementation**: upgrade `SaveFeatureStatus` (or
+   add an atomic-write variant) before wiring the unapply status commit. **If the
+   write fails** (even after atomic rename is in use, rename can fail on cross-device
+   paths): restore source snapshot, remove artifact directory (best-effort), report
+   failure (exit 1).
 
 **Invariants:**
 
@@ -427,7 +436,11 @@ Positive: deterministic audit trail; `unapply-session.json` presence implies suc
 Negative: snapshot/restore is not atomic across filesystem operations; a SIGKILL between
 step 5 and step 7 can leave the working tree mutated but `status.json` untouched. This is
 a known gap inherited from the same constraint on `tpatch apply`. The check+snapshot
-protocol makes this window as small as possible.
+protocol makes this window as small as possible. Additionally, `SaveFeatureStatus`
+currently uses non-atomic `os.WriteFile` (`store.go:829`) — Cluster G' MUST upgrade this
+to `os.CreateTemp` + `os.Rename` (atomic on same filesystem) before wiring the unapply
+status commit. Until that pre-req lands, status.json can be truncated-partial on
+mid-write SIGKILL.
 
 ---
 
@@ -646,13 +659,18 @@ accepted. They are not decisions; they are forward-guidance collected during pla
    message rendered includes the D7 guidance message.
 
 4. **`confirm-upstreamed` guard** (`internal/cli/cobra.go:2626`): Add `StateUnapplied`
-   to the guard **immediately after loading status**, before any fast-path or argument
-   branching, using `stateRefusalError` — exactly where the `StateRejected` guard sits
-   at `cobra.go:2635-2648`. Do NOT place the guard in `applyConfirmUpstreamedTransition`
-   (the callee); a guard in the callee fires too late and allows the crash-recovery path
-   to append a false audit revision before the guard triggers (same rationale as the
-   `StateRejected` guard's comment at `cobra.go:2630-2638`). Exit code 3; suggest
-   `tpatch apply <slug>` first.
+   as the **first statement** of `applyConfirmUpstreamedTransition`, mirroring the
+   `StateRejected` guard at `cobra.go:2635-2648`. The source comment at
+   `cobra.go:2627-2634` is explicit: "MUST be the first statement in this function: the
+   ReconcileRevision append below happens BEFORE `saveConfirmUpstreamedStatus` runs, and
+   the crash-recovery idempotency branch reaches `saveConfirmUpstreamedStatus` directly.
+   A guard placed in the callee would let a false audit revision be appended to a rejected
+   feature before ever firing."
+
+   Do NOT place the guard in `saveConfirmUpstreamedStatus` (`cobra.go:2699`) — that is
+   the **callee**; placing the guard there fires too late, after the
+   `AppendReconcileRevision` call at the bottom of `applyConfirmUpstreamedTransition` has
+   already mutated the revision log. Exit code 3; suggest `tpatch apply <slug>` first.
 
 5. **`tpatch status` filtering** (§8.3 decision): `unapplied` features appear in the default
    listing. No `--include-unapplied` flag. Add `[unapplied]` rendering badge. Update
@@ -709,52 +727,73 @@ accepted. They are not decisions; they are forward-guidance collected during pla
 
 ## Test Matrix Outline (1:1 mirror of PRD §15; minimum coverage for Cluster G')
 
-The test matrix below mirrors the PRD §15 acceptance criteria (39 items). Rows are tagged
-with the PRD §15 item number and the ADR decision point that drives the test.
+The test matrix below mirrors the PRD §15 acceptance criteria (39 items + 3 §10
+atomicity ACs). Every AC has at least one dedicated row. Rows are tagged with the PRD
+§15 or §10 AC number and the ADR decision point that drives the test.
 
 | # | PRD AC | Decision | Test scenario | Expected |
 |---|---|---|---|---|
-| 1 | AC-1 | D1 | `ValidFeatureState("unapplied")` | `true` |
-| 2 | D1 | D1 | `ValidFeatureState` with all 11 existing values still `true` | no regressions |
-| 3 | D1 | D1 | `switch state` exhaustiveness (compile-time) | no `StateUnapplied`-omitting defaults |
-| 4 | AC-19 | D2 | Apply child when hard parent is `unapplied` | refused; waiting-on-parent |
-| 5 | D2 | D2 | `tpatch status` with applied child and unapplied hard parent | DAG warning emitted |
-| 6 | D2 | D2 | Unapply parent while child is applied → child status at next operation | DAG warning appears |
-| 7 | AC-5 | D3 | Successful unapply writes `unapply-session.json` with all required fields | all 13 fields present, correct types |
-| 8 | D3 | D3 | `attempt_id` format | `ua_` + 12 lowercase hex chars |
-| 9 | AC-5 | D3 | `canonical_patch_sha256` is lowercase 64-hex | regex `^[0-9a-f]{64}$` |
-| 10 | D3 | D3 | `dependency_blockers: []` (not `null`) when no blockers | `[]` |
-| 11 | D3 | D3 | `preflight.conflict_markers: []` (not `null`) when clean | `[]` |
-| 12 | AC-10 | D4 | `patch-generations.json` unchanged after unapply | byte-identical before/after |
-| 13 | D5 | D5 | `tpatch feature unapply <slug> --mode landed-commit` | exit 2, error message |
-| 14 | AC-25 | D6 | Reverse-apply check fails → no mutation, no artifact, status unchanged | working tree identical, `status.json` unchanged |
-| 15 | AC-11 | D6 | Successful unapply → `status.json:state == "unapplied"` | state recorded |
-| 16 | AC-9 | D6 | Successful unapply → `artifacts/post-apply.patch` byte-identical | SHA matches pre-unapply |
-| 17 | AC-26 | D6 | Real reverse-apply fails after check/preview → snapshot restored | exit 1, tree restored, no artifact written |
-| 18 | AC-20 | D6 | Successful unapply clears `Verify` | verify field cleared after unapply |
-| 19 | AC-37 | D7 | `tpatch reject` from `unapplied` source state | exit 3, message mentions `tpatch remove` |
-| 20 | D7 | D7 | `tpatch reopen` from `unapplied` source state (no rejection record) | no state mutation; well-formed error |
-| 21 | AC-38 | D7 | `confirm-upstreamed` from `unapplied` source state | exit 3, suggests `tpatch apply` first |
-| 22 | D8 | D8 | `tpatch feature unapply --help` contains apply cross-reference | golden string present |
-| 23 | D8 | D8 | `tpatch apply --help` contains `feature unapply` cross-reference | golden string present |
-| 24 | AC-2 | (PRD §3.3) | `--dry-run` on dirty tree | exit 0, reports dirty-tree blockers, no mutation |
-| 25 | AC-3 | (PRD §3.3) | `--dry-run` with invalid slug | exit 2 |
-| 26 | AC-34 | (PRD §3.5) | Unknown slug or unreadable status | exit 2 |
-| 27 | AC-35 | (PRD §3.5) | Source state is `defined` (not applied) | exit 3 |
-| 28 | AC-17 | (PRD §5) | Hard dependent exists → unapply refused | exit 3, lists blocker slug |
-| 29 | AC-18 | (PRD §5) | Soft dependent exists, no flag → unapply refused | exit 3 |
-| 30 | AC-18 | (PRD §5) | Soft dependent exists, `--allow-soft-dependents` → unapply proceeds | success |
-| 31 | AC-32 | (PRD §5.1) | `supersedes` dependent exists → unapply refused | exit 3, no bypass flag |
-| 32 | AC-26 | (PRD §5.1) | Dependency edge creation onto `unapplied` parent | allowed |
-| 33 | AC-33 | D3 | `actor` field in `unapply-session.json` follows precedence chain | `--actor` > env > git-config > `"unknown"` |
-| 34 | AC-36 | (PRD §8.3) | `tpatch status` default listing includes `unapplied` feature | `[unapplied]` badge |
-| 35 | AC-28 | (PRD §8.3) | `--include-rejected` does not affect unapplied visibility | unapplied features still shown |
-| 36 | AC-29 | (PRD §11.3) | `tpatch land <slug>` from `unapplied` | exit 3, suggests `tpatch apply` |
-| 37 | AC-29 | (PRD §11.3) | `tpatch remove <slug>` behavior unchanged | same as before |
-| 38 | AC-14 | (PRD §14) | `tpatch apply <slug>` from `unapplied` returns state to `applied` | success |
-| 39 | AC-39 | (PRD §12.1) | Applied-and-dirty feature → unapply refused | exit 3, message explains committed-patch requirement |
-| 40 | AC-21–24 | (PRD §6) | Conflict markers / `.orig` leftovers / mid-merge refuse unapply | exit 3 for each |
+| 1 | — | D1 | `ValidFeatureState("unapplied")` | `true` |
+| 2 | — | D1 | `ValidFeatureState` with all 11 existing values | still `true` (no regressions) |
+| 3 | — | D1 | `switch state` exhaustiveness (compile-time) | no `StateUnapplied`-omitting defaults |
+| 4 | AC-1 | D1 | `--dry-run` reports touched files, dependency blockers, preflight, viability, planned artifact paths | correct report; no mutation |
+| 5 | AC-2 | D6/pre | Dirty-tree dry-run | exit 0, reports dirty-tree blockers |
+| 6 | AC-3 | D6/pre | Invalid slug / missing feature / unreadable status / missing canonical patch with `--dry-run` | exit non-zero |
+| 7 | AC-4 | D6 | Clean patch-mode unapply reverse-applies `artifacts/post-apply.patch` | feature changes removed from working tree |
+| 8 | AC-5 | D3 | Clean unapply writes `unapply-session.json` with all 13 required fields | all fields present, correct types |
+| 9 | AC-6 | D3 | Clean unapply writes `artifacts/unapply/<attempt-id>/reverse.patch` | file present, valid patch content |
+| 10 | AC-7 | D4 | No unapply artifact written under `patches/` | `patches/` directory unchanged |
+| 11 | AC-8 | D6 | Feature directory remains present after unapply | `.tpatch/features/<slug>/` exists |
+| 12 | AC-9 | D4 | `artifacts/post-apply.patch` byte-identical after unapply | SHA matches pre-unapply |
+| 13 | AC-10 | D4 | `patch-generations.json` unchanged after unapply | byte-identical before/after |
+| 14 | AC-11 | D6 | `status.json` records `state: "unapplied"`, `last_command: "feature unapply"`, note references audit session | all three fields present |
+| 15 | AC-12 | D8 | `tpatch status` text renders unapplied features visibly | `[unapplied]` badge present |
+| 16 | AC-13 | D8 | `tpatch status --json` emits `state: "unapplied"` | JSON field correct |
+| 17 | AC-14 | (PRD §14) | `tpatch apply <slug>` from `unapplied` returns state to `applied` | success; `status.json:state == "applied"` |
+| 18 | AC-15 | D2 | Aggregate `tpatch reconcile` skips unapplied features | unapplied slug absent from reconcile sweep |
+| 19 | AC-16 | D2 | Explicit `tpatch reconcile <slug>` on unapplied feature allowed; does not infer upstreamed from absence | no state change; viability reported |
+| 20 | AC-17 | (PRD §5) | Hard child dependent exists → unapply refused | exit 3; lists blocker slug |
+| 21 | AC-18 | (PRD §5) | Soft child dependent, no flag → refused | exit 3 |
+| 22 | AC-18 | (PRD §5) | Soft child dependent, `--allow-soft-dependents` → proceeds | success |
+| 23 | AC-19 | D2 | Apply child when hard parent is `unapplied` | refused; waiting-on-parent error |
+| 24 | AC-20 | D6 | Successful unapply clears `Verify` | verify field cleared after unapply |
+| 25 | AC-21 | D6/pre | Dirty working tree refuses before mutation | exit 3; no mutation |
+| 26 | AC-22 | D6/pre | Merge conflict markers refuse before mutation | exit 3 |
+| 27 | AC-23 | D6/pre | `.orig` / `.rej` leftovers refuse before mutation | exit 3 |
+| 28 | AC-24 | D6/pre | Mid-merge / mid-rebase / mid-cherry-pick refuses | exit 3 |
+| 29 | AC-25 | D6 | Reverse-apply check failure → worktree, index, metadata, status all unchanged | all identical; exit 3 |
+| 30 | AC-26 | D6 | Real reverse-apply fails after check/preview → snapshot restored; no artifact written | exit 1; tree restored |
+| 31 | **AC-27** | **D6** | **No partial reverse-apply success is reported as success** | **exit 1 on any partial failure; never exit 0 with partial tree mutation** |
+| 32 | AC-28 | (PRD §11.3) | `tpatch land <slug>` from `unapplied` refuses; suggests reapply | exit 3 |
+| 33 | AC-29 | (PRD §11.3) | `tpatch remove <slug>` behavior unchanged | same as before |
+| 34 | AC-30 | — | Docs and skill assets updated; parity guard passes | `go test ./assets/...` passes |
+| 35 | AC-31 | — | Existing features behave as before unless new command invoked | regression test suite passes |
+| 36 | AC-32 | (PRD §5.1) | `supersedes` dependent exists → unapply refused | exit 3; no bypass flag |
+| 37 | AC-33 | D3 | `actor` field follows precedence: `--actor` > env > git-config > `"unknown"` | correct actor in `unapply-session.json` |
+| 38 | AC-34 | D6/pre | Unknown slug or unreadable `status.json` | exit 2 |
+| 39 | AC-35 | D6/pre | Source state is `requested` → refused | exit 3 |
+| 40 | AC-35 | D6/pre | Source state is `analyzed` → refused | exit 3 |
+| 41 | AC-35 | D6/pre | Source state is `unapplied` (re-unapply) → refused | exit 3 |
+| 42 | AC-35 | D6/pre | Source state is `rejected` → refused | exit 3 |
+| 43 | AC-35 | D6/pre | Source state is `reconciling-shadow` → refused | exit 3 |
+| 44 | AC-36 | D6/pre | `--dry-run` with any blocker exits 0 and reports all blockers; no mutation | exit 0 |
+| 45 | AC-37 | D7 | `tpatch reject <slug>` from `unapplied` source state | exit 3; message mentions `tpatch remove` |
+| 46 | AC-38 | D7 | `tpatch reconcile confirm-upstreamed <slug>` from `unapplied` | exit 3; suggests `tpatch apply <slug>` first |
+| 47 | AC-39 | (PRD §12.1) | Applied-and-dirty feature → unapply refused | exit 3; error explains committed-patch requirement |
+| 48 | AC-10a | D6 | Artifact-write failure (step 7) → source snapshot restored; no artifact directory; `status.json` unchanged | exit 1; clean rollback |
+| 49 | AC-10b | D6 | `status.json`-write failure (step 8) → source snapshot restored; artifact directory removed (best-effort) | exit 1 |
+| 50 | — | D3 | `attempt_id` format | `ua_` + 12 lowercase hex chars |
+| 51 | — | D3 | `canonical_patch_sha256` is lowercase 64-hex | regex `^[0-9a-f]{64}$` |
+| 52 | — | D3 | `dependency_blockers: []` (not `null`) when no blockers | `[]` |
+| 53 | — | D3 | `preflight.conflict_markers: []` (not `null`) when clean | `[]` |
+| 54 | — | D2 | `tpatch status` with applied child and unapplied hard parent | DAG warning emitted |
+| 55 | — | D8 | `tpatch feature unapply --help` contains apply cross-reference | golden string present |
+| 56 | — | D8 | `tpatch apply --help` contains `feature unapply` cross-reference | golden string present |
+| 57 | — | D5 | `tpatch feature unapply <slug> --mode landed-commit` | exit 2; error message |
+| 58 | — | D7 | `tpatch reopen` from `unapplied` source state (no rejection record) | no state mutation; well-formed error |
+| 59 | — | (PRD §5.1) | Dependency edge creation onto `unapplied` parent | allowed (no Rule-7-analog) |
 
-Cluster G' implementation cluster must cover all 40 rows. Row count exceeds PRD §15's
-39 items because row 40 covers 4 related preflight cases (PRD §6 AC-22/23/24 consolidated).
-The matrix header says "1:1 mirror" meaning every PRD §15 AC has at least one row.
+Cluster G' implementation cluster must achieve green on all 59 rows. Rows 39–43 cover
+the per-source-state refusal cases (AC-35) individually to prevent partial-state bugs.
+Row 31 (AC-27) is **safety-critical**: partial reverse-apply success falsely reported
+as success is the primary bug class that the D6 check+snapshot protocol prevents.
