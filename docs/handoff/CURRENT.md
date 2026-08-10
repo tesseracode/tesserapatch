@@ -2,10 +2,21 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-0 adjudicated NEEDS REVISION → rev-1
+DISPATCHED.** Internal formal review found two valid MEDIUM defects: Git
+pathspec-magic filenames were not literalized during temporary
+intent-to-add/reset cleanup (ADR rows 7/9), and all six shipped lifecycle
+diagrams omitted valid `reconciling`/`reconciling-shadow` source states
+(rows 34/41/42). A third process finding claimed `Copilot-Session` trailers
+were required; adjudication rejects it because current AGENTS.md and Rule 18
+require the parseable `Co-authored-by` trailer only. The stale inherited
+CURRENT.md context sentence is corrected in rev-1. External rev-0 returned no
+usable verdict and will be rerun after the fold.
 
 **2026-08-10 Cluster G' rev-0 IMPLEMENTED — AWAITING DUAL REVIEW at
 `1746ebb`.** Five-commit range `9e77617..1746ebb`: dispatch, atomic store
@@ -79,7 +90,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Review
+- **Status**: In Progress (rev-1 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -307,10 +318,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run independent internal and external reviews over `9e77617..1746ebb`.
-2. Adjudicate against Accepted PRD-feature-unapply + ADR-032.
-3. Fold any findings as Cluster G' rev-1 without reopening D1-D8.
-4. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Literalize every temporary Git add/reset path and add pathspec-magic tests.
+2. Add all four legal source states to six assets and parity-lock the set.
+3. Remove the stale non-binding `Copilot-Session` sentence from this handoff.
+4. Re-run gates and formal internal/external rev-1 review.
+5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
@@ -328,7 +340,7 @@ None.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
-- **Commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim + `Copilot-Session: <session-id>` per session. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body).
+- **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
 
 ## Ready for review — Cluster G' rev-0
 

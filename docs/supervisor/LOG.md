@@ -1,3 +1,41 @@
+## Review — Cluster G' rev-0 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`gprime-r0-internal`)
+**External reviewer**: claude-opus-5 (`gprime-r0-external`; no usable verdict
+returned)
+**Range**: `9e77617..1746ebb`
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Findings
+
+1. **MEDIUM — accepted**: temporary `git add --intent-to-add` and `git
+   reset` cleanup paths are still interpreted as pathspecs. Filenames such as
+   `:(literal)gone.txt`, `*`, or `[]` can make valid unapply fail or target a
+   different path. Affects ADR rows 7/9.
+2. **MEDIUM — accepted**: all six shipped lifecycle diagrams list only
+   `applied/active` as unapply sources, omitting the binding
+   `reconciling`/`reconciling-shadow` sources. Affects rows 34/41/42.
+3. **MEDIUM process — rejected as stale-context finding**: reviewer claimed
+   every commit requires a `Copilot-Session` trailer based on inherited
+   CURRENT.md prose. Current AGENTS.md mechanical gate and Rule 18 require the
+   parseable `Co-authored-by` trailer; all range commits satisfy it. Rev-1
+   removes the stale handoff sentence so future reviews use current policy.
+
+### Rev-1 Fold
+
+- Run all per-file temporary add/reset operations under Git
+  `--literal-pathspecs`; add adversarial deletion/rollback coverage.
+- Update all six assets with the complete four-state source set and add a
+  parity anchor for that exact set.
+- Correct stale CURRENT.md trailer guidance.
+- Re-run internal and external formal reviews after green gates.
+
+### Action Taken
+
+`docs/handoff/CURRENT.md` transitioned from `AWAITING REVIEW` to
+`REV-1 DISPATCHED`. D1-D8 remain closed; no planning decision is reopened.
+
 ## Review dispatch — Cluster G' rev-0 — 2026-08-10
 
 **Task**: Review v0.14.0 `tpatch feature unapply` implementation.
