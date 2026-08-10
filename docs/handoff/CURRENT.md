@@ -2,10 +2,20 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-0 IMPLEMENTED — AWAITING DUAL REVIEW at
+`1746ebb`.** Five-commit range `9e77617..1746ebb`: dispatch, atomic store
+foundation, transactional command/lifecycle integration, SPEC + six-skill
+parity, and adversarial safety fold. All 61 ADR-032 rows are covered (60
+mechanically, row 3 by source-switch audit + successful build). Three
+independent pre-review passes found and closed canonical-patch inversion,
+rename/space/Unicode path omission, sibling capture-command corruption,
+base-commit drift, and partial-reapply rollback failures. Full
+gofmt/vet/test-count=1/build gates pass. No tag until review and wave close.
 
 **2026-08-10 Cluster G' rev-0 DISPATCHED — v0.14.0 `tpatch feature
 unapply` implementation.** Single implementer, sequential: the store,
@@ -69,7 +79,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -120,7 +130,8 @@ only after implementation review and wave close.
   adversarial pre-review passes found and closed canonical-patch data-loss,
   rename/space/Unicode path, sibling capture-command, and partial-reapply
   rollback failures. Matrix audit: 60 rows mechanically covered + row 3
-  source-switch audit. Repository-wide gates pass.
+  source-switch audit. Repository-wide gates pass. Implementation tip
+  `1746ebb`; awaiting dual review.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -296,11 +307,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Land the atomic `SaveFeatureStatus` and `StateUnapplied` foundation.
-2. Implement the transactional `feature unapply` command and D3 artifacts.
-3. Wire every lifecycle/status/dependency integration.
-4. Update SPEC/assets and complete the 61-row matrix.
-5. Run repository gates, update this handoff to Review, and dispatch dual review.
+1. Run independent internal and external reviews over `9e77617..1746ebb`.
+2. Adjudicate against Accepted PRD-feature-unapply + ADR-032.
+3. Fold any findings as Cluster G' rev-1 without reopening D1-D8.
+4. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+   run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
 
@@ -318,6 +329,51 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim + `Copilot-Session: <session-id>` per session. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body).
+
+## Ready for review — Cluster G' rev-0
+
+**Range**: `9e77617..1746ebb` (5 commits; WAVE_BASE excluded).
+
+**Delivered**:
+- `StateUnapplied` as the twelfth real FeatureState.
+- Atomic `SaveFeatureStatus` temp-write/fsync/rename with prior-byte
+  preservation on failure.
+- `tpatch feature unapply <slug>` with read-only dry-run, strict reverse
+  validation, detached-worktree preview, safe both-side touched-path
+  snapshot/restore, D3 fixed audit envelope, and D6 rollback.
+- Apply/reconcile/status/JSON/FEATURES/next/land/dependency/verify/reject/
+  reopen/confirm-upstreamed integration.
+- Corrected dependency semantics: edge creation allowed; unapplied hard parent
+  does not satisfy apply.
+- SPEC, dependency docs, six shipped assets, and parity anchors.
+- 61-row matrix: 60 mechanically covered; row 3 manually audited.
+
+**Commit map**:
+- `34f0757` — dispatch tracking.
+- `55817c3` — atomic store + state foundation.
+- `15388b8` — core command and lifecycle integration.
+- `f4f151d` — SPEC/docs/six-skill parity.
+- `1746ebb` — adversarial safety fold.
+
+**Review focus**:
+1. D3 exact field order, stable empty arrays, hashes, paths, and audit truth.
+2. D6 rollback under reverse/artifact/status failures, including rename,
+   spaces, Unicode, symlinks, absent files, and modes.
+3. Canonical-patch preservation across record/cycle/feature-patch/apply and
+   incomplete/drifted reapply.
+4. Immediate vs committed unapplied baseline semantics and base_commit.
+5. Corrected no-Rule-7 edge-creation behavior plus hard-gate dissatisfaction.
+6. All state/exit-code and reject/reopen/confirm-upstreamed interactions.
+
+**Verification**:
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- Rule 18 trailer — 5/5 commits.
+- Side Research md5 — `b385fe622db9926f48861105239f113e`.
+
+**Known residuals**: none.
 
 ## Ready for review — Cluster F' rev-0
 

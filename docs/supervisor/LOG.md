@@ -1,3 +1,36 @@
+## Review dispatch — Cluster G' rev-0 — 2026-08-10
+
+**Task**: Review v0.14.0 `tpatch feature unapply` implementation.
+**Range**: `9e77617..1746ebb` (5 commits).
+**WAVE_BASE**: `9e77617`.
+
+### Scope Delivered
+
+- Atomic status writes + `StateUnapplied`.
+- Transactional patch-mode `feature unapply` and D3 audit artifacts.
+- Full lifecycle/dependency/status/assets/SPEC integration.
+- 61-row ADR matrix (60 mechanical + row 3 source audit).
+- Adversarial safety folds for canonical-patch preservation, weird paths,
+  sibling capture commands, and transactional reapply.
+
+### Verification
+
+- [x] Compiles
+- [x] Tests pass with `-count=1`
+- [x] Formatted
+- [x] Artifacts deterministic
+- [x] Secrets safe
+- [x] Accepted PRD/ADR scope implemented
+- [x] Handoff accurate
+- [x] Assets parity passes
+- [x] Rule 18 trailer on 5/5 commits
+
+### Action Taken
+
+Cluster state transitioned to `AWAITING REVIEW`. Dispatch independent internal
+and external reviewers against the Accepted PRD-feature-unapply + ADR-032
+contract. Do not tag v0.14.0 before adjudication and wave close.
+
 ## Dispatch — Cluster G' rev-0 — 2026-08-10
 
 **Supervisor**: Copilot CLI
