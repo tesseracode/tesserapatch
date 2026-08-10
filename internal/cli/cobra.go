@@ -720,7 +720,10 @@ func applyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "apply <slug>",
 		Short: "Execute apply recipe or record session",
-		Args:  cobra.ExactArgs(1),
+		Long: `Execute a feature's apply recipe or record an apply session.
+
+Use 'tpatch feature unapply <slug>' to remove a feature's patch from the working tree.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slug := args[0]
 			s, err := openStoreFromCmd(cmd)
@@ -2530,7 +2533,7 @@ func checkConfirmUpstreamedSupersessionSafety(s *store.Store, slug string) error
 		case store.StateUpstreamMerged:
 			// Row 5: proceed.
 			continue
-		case store.StateApplied:
+		case store.StateApplied, store.StateUnapplied:
 			// Rows 1-2 (healthy or stale satisfied_by — same class).
 			return fmt.Errorf("confirm-upstreamed: refusing to retire %s while supersedes-target %q is state %q; resolve the target first (§7.4 case 1)", slug, dep.Slug, target.State)
 		case store.FeatureState("promoted"):
@@ -2624,6 +2627,12 @@ func isConfirmedViaReviewTransition(e store.ReconcileRevision) bool {
 // superseding transition revision. The consumed revision is left
 // byte-identical in the file.
 func applyConfirmUpstreamedTransition(s *store.Store, status *store.FeatureStatus, info *confirmUpstreamedTransition) error {
+	if status != nil && status.State == store.StateUnapplied {
+		return stateRefusalError(
+			"cannot confirm-upstreamed feature %q: feature is unapplied; run `tpatch apply %s` first",
+			status.Slug, status.Slug)
+	}
+
 	// v0.13.0 GH #6 defense-in-depth guard (ADR-031 D6, PRD §7).
 	// MUST be the first statement in this function: the
 	// ReconcileRevision append below happens BEFORE

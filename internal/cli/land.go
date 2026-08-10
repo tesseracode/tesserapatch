@@ -82,8 +82,12 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// Refusal #1 (§3.2): the feature must exist. We surface the
 	// status-load failure verbatim so the diagnostic matches what
 	// `record` / `apply` produce on the same precondition.
-	if _, err := s.LoadFeatureStatus(slug); err != nil {
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
 		return fmt.Errorf("feature %q not found: %w", slug, err)
+	}
+	if status.State == store.StateUnapplied {
+		return stateRefusalError("cannot land feature %q: its patch is unapplied; run `tpatch apply %s` first", slug, slug)
 	}
 
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -158,7 +162,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// post-land, including on the --no-record path). The new HEAD
 	// SHA is intentionally NOT written here (PRD F2 / §6 ac.5).
 	now := time.Now().UTC().Format(time.RFC3339)
-	status, _ := s.LoadFeatureStatus(slug)
+	status, _ = s.LoadFeatureStatus(slug)
 	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
 	if err := s.SaveFeatureStatus(status); err != nil {
 		return fmt.Errorf("land: cannot update status.json notes: %w", err)

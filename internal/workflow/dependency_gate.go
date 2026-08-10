@@ -77,7 +77,7 @@ func CheckDependencyGate(s *store.Store, slug string) error {
 			continue
 		}
 		switch parent.State {
-		case store.StateApplied:
+		case store.StateApplied, store.StateActive:
 			continue
 		case store.StateUpstreamMerged:
 			if dep.SatisfiedBy != "" && !satisfiedBySHA.MatchString(dep.SatisfiedBy) {

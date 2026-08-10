@@ -112,7 +112,11 @@ only after implementation review and wave close.
 - **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
   Store foundation complete: `StateUnapplied` is the twelfth valid state and
   `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
-  rename that preserves the prior status bytes on rename failure.
+  rename that preserves the prior status bytes on rename failure. Core command
+  and lifecycle integration complete: transactional reverse-unapply, D3 audit
+  envelope, rollback seams, apply/reconcile/status/next/land/dependency and
+  reject/reopen/confirm-upstreamed behavior are wired. SPEC/assets and the
+  final matrix audit remain.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -133,14 +137,37 @@ only after implementation review and wave close.
 Foundation:
 - `internal/store/types.go` — `StateUnapplied` + closed-switch validation.
 - `internal/store/store.go` — atomic JSON/file writer used by
-  `SaveFeatureStatus`.
+  `SaveFeatureStatus`; distinct Unapplied FEATURES.md section.
 - `internal/store/unapply_test.go` — state wire-value guard and failed-rename
   preservation/cleanup regression.
-- `docs/handoff/CURRENT.md` — implementation progress and targeted result.
+
+Core command and Git transaction:
+- `internal/gitutil/unapply.go` — strict reverse check/apply preview,
+  mid-Git-operation detection, safe touched-path snapshot/restore.
+- `internal/gitutil/unapply_test.go` — reverse preview/apply/restore, mode and
+  traversal coverage.
+- `internal/cli/feature_unapply.go` — noun-scoped command, dry-run report,
+  exit envelope, D3 fixed schema, D6 transaction/rollback.
+- `internal/cli/feature_unapply_test.go` — core AC matrix, source states,
+  dependents, failure rollback, wire order, help, apply/reconcile/status/next/
+  land and rejected-state interactions.
+
+Lifecycle integrations:
+- `internal/cli/{feature_deps.go,cobra.go,phase2.go,land.go,reject.go,reopen.go}`
+  — registration, help cross-reference, next, land, confirm-upstreamed and
+  reject/reopen guards.
+- `internal/workflow/{dependency_gate.go,labels.go,reconcile.go,doctor_d5.go}`
+  — active/unapplied dependency semantics, waiting label, explicit viability
+  reconcile without state mutation, doctor coverage.
+- `internal/store/rejection_test.go` — unapplied remains reject-ineligible.
+- `docs/handoff/CURRENT.md` — implementation progress and targeted results.
 
 ## Test Results — Cluster G' rev-0
 
 - `go test ./internal/store` — PASS.
+- `go test ./internal/gitutil` — PASS.
+- `go test ./internal/cli -run 'TestFeatureUnapply|TestFeatureApplyReapplies|TestUnappliedParent|TestActiveParent|TestDependencyEdgeOntoUnappliedParent|TestExplicitReconcileOnUnapplied|TestAggregateReconcileSkips' -count=1` — PASS.
+- `go test ./internal/gitutil ./internal/store ./internal/workflow ./internal/cli` — PASS.
 
 ## Files Changed — Cluster F' rev-0
 

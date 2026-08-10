@@ -53,6 +53,7 @@ var transientStates = map[store.FeatureState]struct{}{
 	store.StateImplementing:      {},
 	store.StateReconciling:       {},
 	store.StateReconcilingShadow: {},
+	store.StateUnapplied:         {},
 }
 
 // appliedSatisfyingStates: hard parents in any of these states are

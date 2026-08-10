@@ -35,6 +35,7 @@ func TestRejected_RejectableStateSet(t *testing.T) {
 	refused := []FeatureState{
 		StateImplementing, StateApplied, StateActive, StateReconciling,
 		StateReconcilingShadow, StateBlocked, StateUpstreamMerged, StateRejected,
+		StateUnapplied,
 	}
 	for _, st := range allowed {
 		if !IsRejectableState(st) {

@@ -128,6 +128,10 @@ func runReopen(cmd *cobra.Command, slug string) error {
 	if err != nil {
 		return emit(map[string]any{}, validationError("feature %q not found: %v", slug, err))
 	}
+	if status.State == store.StateUnapplied && status.Rejection != nil {
+		return emit(map[string]any{"state": string(status.State)},
+			fmt.Errorf("inconsistent status for feature %q: state is %q but a live rejection record is present", slug, status.State))
+	}
 	if status.State != store.StateRejected {
 		return emit(map[string]any{"state": string(status.State)},
 			stateRefusalError("cannot reopen feature %q from state %q: reopen is only valid from %q", slug, status.State, store.StateRejected))

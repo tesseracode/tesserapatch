@@ -324,6 +324,10 @@ func runReject(cmd *cobra.Command, slug string) error {
 	}
 
 	// ─── exit 3: state-machine refusals ──────────────────────────────
+	if status.State == store.StateUnapplied {
+		return emit(map[string]any{"state": string(status.State)},
+			stateRefusalError("cannot reject: feature is unapplied (post-implementation); use 'tpatch remove %s' to discard the feature", slug))
+	}
 	if status.State == store.StateRejected {
 		return emit(map[string]any{"state": string(status.State)},
 			stateRefusalError("cannot reject feature %q: it is already rejected; run `tpatch reopen %s` first if you need to re-record the rejection with different fields", slug, slug))

@@ -349,6 +349,31 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		UpstreamCommit: upstreamCommit,
 	}
 
+	// ADR-032 D2 / PRD-feature-unapply AC-16: an explicitly named
+	// unapplied feature may be reconciled for viability, but absence of
+	// its patch from the live worktree is intentional and must never be
+	// mistaken for an upstream verdict. Report whether the canonical patch
+	// could be materialized, without changing the lifecycle state.
+	if status.State == store.StateUnapplied {
+		preview, _ := gitutil.PreviewForwardApply(s.Root, patch)
+		result.Phase = "unapplied-forward-apply-viability"
+		switch preview.Verdict {
+		case gitutil.ForwardApplyStrict, gitutil.ForwardApply3WayClean:
+			result.Outcome = store.ReconcileStillNeeded
+			result.Notes = append(result.Notes,
+				"Feature is unapplied; canonical patch remains viable. Run `tpatch apply "+slug+"` to materialize it before normal reconciliation.")
+		default:
+			result.Outcome = store.ReconcileBlocked
+			result.Notes = append(result.Notes,
+				"Feature is unapplied and its canonical patch is not currently viable; lifecycle state left unchanged.")
+			result.Conflicts = append(result.Conflicts, preview.ConflictFiles...)
+			if preview.Stderr != "" {
+				result.Notes = append(result.Notes, "Preview: "+preview.Stderr)
+			}
+		}
+		return result, nil
+	}
+
 	// Phase 1: Reverse-apply check (fast, free)
 	reverseOK, _ := gitutil.ReverseApplyCheck(s.Root, patch)
 	if reverseOK {

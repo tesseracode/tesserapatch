@@ -676,11 +676,11 @@ func (s *Store) HasPatchingInstructions() bool {
 
 // RefreshFeaturesIndex rebuilds FEATURES.md from current feature state.
 //
-// Rejected features (v0.13.0 GH #6, PRD-rejected-feature-state §7) are
-// excluded from the main table and rendered in a distinct trailing
-// "Rejected" section instead, mirroring `tpatch status`'s default
-// exclusion. Both views are sourced from the same `features` slice — no
-// extra store call.
+// Unapplied features (v0.14.0, ADR-032 D8) are rendered in a distinct
+// section after the active table and before rejected features. Rejected
+// features (v0.13.0 GH #6) remain in the terminal trailing section,
+// mirroring `tpatch status`'s default exclusion. All views are sourced
+// from the same feature slice.
 func (s *Store) RefreshFeaturesIndex() error {
 	features, err := s.ListFeatures()
 	if err != nil {
@@ -688,9 +688,14 @@ func (s *Store) RefreshFeaturesIndex() error {
 	}
 
 	active := make([]FeatureStatus, 0, len(features))
+	unapplied := make([]FeatureStatus, 0)
 	rejected := make([]FeatureStatus, 0)
 	for _, f := range features {
-		if f.State == StateRejected {
+		switch f.State {
+		case StateUnapplied:
+			unapplied = append(unapplied, f)
+			continue
+		case StateRejected:
 			rejected = append(rejected, f)
 			continue
 		}
@@ -699,7 +704,7 @@ func (s *Store) RefreshFeaturesIndex() error {
 
 	var b strings.Builder
 	b.WriteString("# Tracked Features\n\n")
-	if len(active) == 0 && len(rejected) == 0 {
+	if len(active) == 0 && len(unapplied) == 0 && len(rejected) == 0 {
 		b.WriteString("*No features yet. Run `tpatch add <description>` to add one.*\n")
 	} else if len(active) == 0 {
 		b.WriteString("*No active features.*\n")
@@ -708,6 +713,16 @@ func (s *Store) RefreshFeaturesIndex() error {
 		b.WriteString("|------|-------|-------|---------------|\n")
 		for _, f := range active {
 			b.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", f.Slug, f.Title, f.State, f.Compatibility))
+		}
+	}
+
+	if len(unapplied) > 0 {
+		b.WriteString("\n## Unapplied\n\n")
+		b.WriteString("| Slug | Title | State | Note |\n")
+		b.WriteString("|------|-------|-------|------|\n")
+		for _, f := range unapplied {
+			b.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n",
+				f.Slug, f.Title, f.State, singleLineCell(f.Notes)))
 		}
 	}
 

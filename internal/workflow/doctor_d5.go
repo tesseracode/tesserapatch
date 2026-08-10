@@ -110,7 +110,7 @@ func runDoctorD5(ctx *doctorContext) {
 
 func doctorD5RelevantState(state store.FeatureState) bool {
 	switch state {
-	case store.StateApplied, store.StateActive, store.StateReconciling, store.StateReconcilingShadow, store.StateBlocked, store.StateUpstreamMerged:
+	case store.StateApplied, store.StateActive, store.StateReconciling, store.StateReconcilingShadow, store.StateUnapplied, store.StateBlocked, store.StateUpstreamMerged:
 		return true
 	default:
 		return false

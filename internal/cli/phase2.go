@@ -215,7 +215,8 @@ func featureStateRank(st store.FeatureState) int {
 	case store.StateImplementing:
 		return 4
 	case store.StateApplied, store.StateActive,
-		store.StateReconciling, store.StateBlocked,
+		store.StateReconciling, store.StateReconcilingShadow,
+		store.StateUnapplied, store.StateBlocked,
 		store.StateUpstreamMerged:
 		return 5
 	default:
@@ -474,6 +475,15 @@ func nextAction(s *store.Store, status store.FeatureStatus) HarnessTask {
 			Instructions: "Run the project's test command to validate the applied changes. If tests pass, the feature is complete until the next upstream reconciliation.",
 			ContextFiles: []string{filepath.Join(featureDir, "record.md")},
 			OnComplete:   fmt.Sprintf("tpatch test %s", slug),
+		}
+	case store.StateUnapplied:
+		return HarnessTask{
+			Phase:        "apply",
+			Slug:         slug,
+			State:        string(status.State),
+			Instructions: "The canonical patch is preserved but absent from the working tree. Reapply it before testing, landing, or continuing dependent work.",
+			ContextFiles: []string{filepath.Join(featureDir, "artifacts", "post-apply.patch")},
+			OnComplete:   fmt.Sprintf("tpatch apply %s", slug),
 		}
 	case store.StateReconciling:
 		return HarnessTask{
