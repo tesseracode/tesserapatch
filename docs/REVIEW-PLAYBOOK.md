@@ -109,7 +109,25 @@ git worktree remove --force /tmp/prefix
 *Why*: used to confirm the verify V7/V8 double-apply test genuinely failed before
 the shadow-reset fix.
 
-### 1.7 Run the gates
+### 1.7 Cross-check tracking docs against the artifacts they describe
+
+When a cluster edits `ROADMAP.md`, `CURRENT.md`, `HISTORY.md`, or a CHANGELOG
+entry, treat that prose as a claim about the artifacts the same cluster shipped —
+and verify it. Symbol names in a dispatch brief are the highest-risk case: grep
+each one against the accepted paper.
+
+```sh
+git diff --stat <base>..<head> -- 'docs/ROADMAP.md' 'docs/handoff/**' 'CHANGELOG.md'
+grep -c '<SymbolFromSummary>' docs/adrs/ADR-0NN-*.md docs/prds/PRD-*.md   # 0 ⇒ drift
+```
+
+*Why*: a ROADMAP dispatch brief named `UnappliedStatus` and a Rule-7-parallel
+`ErrUnappliedParent` — neither appears in the ADR it summarizes, and the ADR's
+test matrix had affirmatively decided edge creation onto that parent is *allowed
+(no Rule-7-analog)*. Papers converge over several revisions; the summary written
+*about* them often is not re-verified against the final text.
+
+### 1.8 Run the gates
 
 ```sh
 gofmt -l .            # never piped — must be run directly
@@ -135,6 +153,7 @@ Check each on every review touching the relevant surface.
 | **Ordering around guards** | Whether a write happens *before* the precondition that guards it | `SaveContextSummary` ran before the D6 ignore-contract check — a passing unit test did not reveal it |
 | **Audit-trail integrity** | After any history rewrite, whether cited SHAs still resolve | The supervisor log cited two commits unreachable from `main` and never pushed |
 | **Config artifacts as dependencies** | A gate reading a file that is untracked ⇒ behaves differently elsewhere | `.wave-close-allowlist` was untracked *and* invisible to the sentinel that consumed it |
+| **Summary-vs-source drift** | Tracking prose (ROADMAP / handoff / CHANGELOG) contradicting the artifact it describes — especially symbol names in a dispatch brief | A ROADMAP brief prescribed `ErrUnappliedParent` / `UnappliedStatus` against an ADR that defines neither; a handoff called a *changed* lenient loader "existing" |
 
 ---
 
