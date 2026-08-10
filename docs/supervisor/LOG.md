@@ -1,3 +1,47 @@
+## Review — Cluster G post-ship follow-up — 2026-08-10
+
+**Reviewer**: External reviewer (post-ship summary-vs-source audit)
+**Task**: Verify the Cluster G' ROADMAP dispatch brief against the Accepted
+`PRD-feature-unapply` and ADR-032 paper package.
+
+### Checklist
+- [x] Accepted PRD and ADR remain correct and mutually consistent
+- [x] ROADMAP symbols cross-checked against both Accepted papers
+- [x] Dependency edge-creation and apply-gate semantics distinguished
+- [x] `reject` / `reopen` interaction acceptance criteria retained
+- [x] Corrective documentation commits pushed to `origin/main`
+
+### Verdict: APPROVED WITH NOTES — NOTE CLOSED
+
+### Notes
+
+- **MEDIUM — summary-vs-source drift**: the Cluster G' dispatch sentence in
+  `docs/ROADMAP.md` prescribed `UnappliedStatus` parallel to
+  `RejectionStatus` and a Rule-7-parallel `ErrUnappliedParent`. Neither symbol
+  exists in the Accepted papers. ADR-032 row 61 affirmatively allows dependency
+  edge creation onto an `unapplied` parent with no Rule-7 analog; D2 separately
+  excludes `StateUnapplied` from the hard-dependency satisfying set.
+- The same sentence said Cluster G' would not touch `reject` / `reopen`. Their
+  implementations remain orthogonal, but the PRD-required interaction checks
+  remain in scope.
+- The finding is confined to the post-review tracking summary. The Accepted PRD
+  and ADR remain approved without amendment.
+
+### Action Taken
+
+- `1eba8ee` added a summary-vs-source drift check to
+  `docs/REVIEW-PLAYBOOK.md`.
+- `75d80f0` corrected the ROADMAP dispatch brief: D3's fixed
+  `unapply-session.json` is the audit artifact; no `UnappliedStatus` is
+  introduced; edge creation stays allowed; apply-gate exclusion and
+  `reject` / `reopen` interaction ACs remain in scope.
+- This follow-up revises the external Cluster G cluster-level verdict from
+  **APPROVED clean** to **APPROVED WITH NOTES**, with the sole note now closed.
+  The stale Cluster G' scope sentence in the 2026-08-05 entry below is
+  superseded by this entry and the corrected ROADMAP.
+- Cluster G' may be dispatched from the corrected papers and ROADMAP after
+  recording a fresh pre-dispatch `WAVE_BASE`.
+
 ## 2026-08-05 — Cluster G planning SHIPPED — v0.14.0 candidate paper package APPROVED (three-way clean at rev-3)
 
 **Rev-3 dual review verdicts** (delivered at `e1a5898`, range `5655962..e1a5898`, 1 commit):
