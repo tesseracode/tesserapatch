@@ -30,6 +30,12 @@ requested → analyzed → defined → implementing → applied → active
                                                         reconciling → active (new version)
                                                               ↓        or upstream_merged
                                                            blocked      or blocked
+
+applied | active | reconciling | reconciling-shadow
+                         ↓ tpatch feature unapply
+                     unapplied
+                         ↓ tpatch apply
+                       applied
 ```
 
 #### Feature States
@@ -46,6 +52,7 @@ requested → analyzed → defined → implementing → applied → active
 | `blocked` | Failed; needs manual intervention |
 | `upstream_merged` | Feature adopted upstream; local patch retired |
 | `rejected` | Terminal, pre-implementation decision: this feature should never be implemented. Reachable only from `requested`/`analyzed`/`defined` via `tpatch reject`; left only via `tpatch reopen`. |
+| `unapplied` | Tracked post-implementation feature whose canonical patch and audit history remain intact, but whose patch is absent from the current working tree. Reapply with `tpatch apply <slug>`. |
 
 Rejection is deliberately disjoint from the neighbouring terminal
 concepts: `upstream_merged` asserts an implementation exists upstream,
@@ -55,7 +62,7 @@ complete feature directory and an append-only audit history.
 
 `tpatch reject` is refused (exit 3) from `implementing`, `applied`,
 `active`, `reconciling`, `reconciling-shadow`, `blocked` and
-`upstream_merged`. Post-implementation retirement is out of scope; see
+`upstream_merged`, and `unapplied`. Post-implementation retirement is out of scope; see
 `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 
 ### 4. CLI Commands
@@ -87,6 +94,31 @@ complete feature directory and an append-only audit history.
 | `tpatch reject <slug> --reason <code> --note <string> --evidence <path>... [--actor <string>] [--related <ref>] [--json]` | Mark a feature permanently rejected (terminal, pre-implementation). `--reason` is a closed enum: `not-a-bug`, `premise-disproved`, `obsolete`, `out-of-scope`, `unsafe`, `duplicate`, `superseded`. `--note` is required and non-empty; at least one `--evidence` path is required and is content-hashed (SHA-256, lowercase hex) at write time. |
 | `tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>] [--json]` | Reopen a rejected feature (`rejected → requested`). Append-only: the prior rejection record is never deleted. `--note` is required; `--evidence` is optional. Every historical evidence reference is re-verified against its recorded hash on every reopen; divergence is recorded, never blocking. |
 
+#### Feature unapply (v0.14.0)
+
+| Command | Purpose |
+|---------|---------|
+| `tpatch feature unapply <slug> [--dry-run] [--allow-soft-dependents] [--actor <string>] [--mode patch]` | Strictly reverse-apply a feature's canonical `artifacts/post-apply.patch` from a clean working tree while preserving the feature directory, canonical patch, patch generations, and audit history. |
+
+Successful unapply writes
+`artifacts/unapply/<attempt-id>/{unapply-session.json,reverse.patch}`,
+clears the Verify freshness record, and records `state: "unapplied"`.
+`unapply-session.json` is a fixed version-1 audit envelope; it is not a
+`FeatureStatus` sub-record. V1 is patch mode only.
+
+Hard and `supersedes` dependents refuse unapply. Soft dependents refuse by
+default and require `--allow-soft-dependents`. Dependency edge creation
+onto an unapplied parent remains legal, but `unapplied` does not satisfy a
+hard dependency apply gate. Aggregate reconcile skips unapplied features;
+explicit reconcile reports forward-apply viability without changing their
+lifecycle state.
+
+The command runs strict reverse-check and temporary-worktree preview before
+mutation, snapshots every touched path, and restores source files plus removes
+partial audit artifacts if reverse apply, artifact writes, or the atomic
+status update fail. `--dry-run` reports every blocker and planned artifact
+without mutation.
+
 `tpatch reject <slug>` and `tpatch reconcile --reject <slug>` are
 **intentionally unrelated surfaces** and are not to be confused. The
 former is a top-level command performing a terminal lifecycle transition
@@ -97,8 +129,8 @@ state in which a shadow worktree can exist. See
 `docs/prds/PRD-rejected-feature-state.md` §4.1 and
 `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D10.
 
-`tpatch reconcile confirm-upstreamed` refuses (exit 3) on a `rejected`
-source feature, guarded before any reconcile-revision append.
+`tpatch reconcile confirm-upstreamed` refuses (exit 3) on `rejected` and
+`unapplied` source features, guarded before any reconcile-revision append.
 
 ##### Exit-code envelope
 

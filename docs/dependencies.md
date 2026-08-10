@@ -77,7 +77,7 @@ atomic** — a rejected change never leaves the store half-modified.
 
 ## Validation rules
 
-The five rules from PRD §3.3:
+The dependency graph rules are:
 
 1. **No self-dependency.** A feature cannot depend on itself.
 2. **No dangling refs.** Every parent slug must exist in the store.
@@ -88,6 +88,12 @@ The five rules from PRD §3.3:
 5. **`satisfied_by` requires `upstream_merged`.** Setting `satisfied_by`
    on a parent in any other state is rejected; only an actually-merged
    parent should claim a commit SHA as provenance.
+6. **Rejected parents refuse new edges.** A new hard, soft, or supersedes
+   edge cannot target a `rejected` parent.
+
+An `unapplied` parent is intentionally different: creating an edge onto it
+is allowed because the canonical patch remains available. The edge still
+does not satisfy a hard apply gate until the parent is reapplied.
 
 `tpatch status` (with or without `--dag`) re-runs the same validator at
 read time and surfaces every violation inline. Run it routinely.
@@ -98,6 +104,8 @@ When `features_dependencies: true`:
 
 - `tpatch apply <child> --mode execute` checks each **hard** parent.
   Parents must be in `applied`, `active`, or `upstream_merged`.
+- An `unapplied` hard parent is reported as unsatisfied and contributes
+  `waiting-on-parent` status guidance.
 - Soft parents are never gates; they only contribute to ordering.
 - The check fires before any file mutations. A blocked apply leaves the
   working tree untouched.

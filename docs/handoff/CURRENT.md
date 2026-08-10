@@ -115,8 +115,9 @@ only after implementation review and wave close.
   rename that preserves the prior status bytes on rename failure. Core command
   and lifecycle integration complete: transactional reverse-unapply, D3 audit
   envelope, rollback seams, apply/reconcile/status/next/land/dependency and
-  reject/reopen/confirm-upstreamed behavior are wired. SPEC/assets and the
-  final matrix audit remain.
+  reject/reopen/confirm-upstreamed behavior are wired. SPEC, dependency docs,
+  all six shipped skill surfaces, and parity anchors are updated. Final matrix
+  audit and repository-wide gates remain.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -160,6 +161,14 @@ Lifecycle integrations:
   — active/unapplied dependency semantics, waiting label, explicit viability
   reconcile without state mutation, doctor coverage.
 - `internal/store/rejection_test.go` — unapplied remains reject-ineligible.
+
+Contract documentation and assets:
+- `SPEC.md` — unapplied state, command, dependency, transaction and interaction
+  contract.
+- `docs/dependencies.md` — legal edge creation vs hard-gate dissatisfaction.
+- `assets/assets_test.go` — command and three unapply parity anchors.
+- All six shipped skill/prompt/workflow assets — phase arc, command guidance,
+  dependents and corrected edge semantics.
 - `docs/handoff/CURRENT.md` — implementation progress and targeted results.
 
 ## Test Results — Cluster G' rev-0
@@ -168,6 +177,7 @@ Lifecycle integrations:
 - `go test ./internal/gitutil` — PASS.
 - `go test ./internal/cli -run 'TestFeatureUnapply|TestFeatureApplyReapplies|TestUnappliedParent|TestActiveParent|TestDependencyEdgeOntoUnappliedParent|TestExplicitReconcileOnUnapplied|TestAggregateReconcileSkips' -count=1` — PASS.
 - `go test ./internal/gitutil ./internal/store ./internal/workflow ./internal/cli` — PASS.
+- `go test ./assets` — PASS.
 
 ## Files Changed — Cluster F' rev-0
 

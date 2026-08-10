@@ -35,6 +35,7 @@ var requiredCommands = []string{
 	"tpatch next",
 	"tpatch reject",
 	"tpatch reopen",
+	"tpatch feature unapply",
 	"tpatch session start",
 	"tpatch session stop",
 	"tpatch session list",
@@ -124,6 +125,13 @@ var requiredAnchors = []struct {
 	{"rejected-state/terminal", "`rejected` is a terminal pre-implementation state"},
 	{"rejected-state/include-flag", "--include-rejected"},
 	{"rejected-state/disambiguation", "not the same as `tpatch reconcile --reject`"},
+	// Cluster G' (v0.14.0, PRD-feature-unapply / ADR-032): every
+	// shipped skill must teach the reversible working-tree operation,
+	// its soft-dependent override, and the corrected distinction
+	// between legal edge creation and hard-gate satisfaction.
+	{"unapplied-state/preservation", "`unapplied` keeps the canonical patch"},
+	{"unapplied-state/soft-override", "--allow-soft-dependents"},
+	{"unapplied-state/edge-semantics", "Dependency edges onto an `unapplied` parent remain allowed"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching
