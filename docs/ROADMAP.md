@@ -577,7 +577,9 @@ Planning-phase cluster for v0.14.0 `tpatch feature unapply` (PRD-feature-unapply
 
 **Range**: `99a1e06..e1a5898`. WAVE_BASE: `2c8a207`. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
 
-**Next**: Cluster G' implementation cluster from planning baseline `e1a5898`. Touches state enum (+ `StateUnapplied`), status fields (`UnappliedStatus` parallel to `RejectionStatus`), `SaveFeatureStatus` atomic-rename upgrade (pre-req), validation (Rule 7-parallel `ErrUnappliedParent`), CLI (`tpatch feature unapply` noun-scoped + status/next filtering + confirm-upstreamed guard), assets, SPEC.md, 39+ ACs. Does NOT touch `tpatch reject`/`reopen` (orthogonal per D7). Tag as v0.14.0 at close.
+**Next**: Cluster G' implementation cluster from planning baseline `e1a5898`. Touches state enum (+ `StateUnapplied`), a new `unapply-session.json` audit artifact (ADR-032 D3 — a separate artifact file, **not** a `status.json` struct; D7 locks no shared schema with `RejectionStatus`), `SaveFeatureStatus` atomic-rename upgrade (pre-req), apply-gate dependency-satisfying-set exclusion (`StateUnapplied` must NOT satisfy hard edges; edge *creation* onto an `unapplied` parent stays **allowed** — ADR-032 test-matrix row 61 "no Rule-7-analog", PRD §5.1), CLI (`tpatch feature unapply` noun-scoped + status/next filtering + confirm-upstreamed guard), assets, SPEC.md, 39+ ACs. Does not modify `tpatch reject`/`reopen` implementations (orthogonal per D7), but their **interaction ACs are in scope** (PRD §9: reject-refused-from-unapplied exit 3, `--include-rejected` does-not-hide-unapplied). Tag as v0.14.0 at close.
+
+> Where this summary and the accepted papers disagree, `ADR-032` + `PRD-feature-unapply` govern. This line previously named `UnappliedStatus` and a Rule-7-parallel `ErrUnappliedParent` — neither exists in either paper; corrected 2026-08-10.
 
 ## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
 
