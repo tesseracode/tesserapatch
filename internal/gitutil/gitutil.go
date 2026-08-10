@@ -258,13 +258,12 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	skipPrefixes := []string{".tpatch/", ".claude/skills/", ".github/skills/", ".github/prompts/", ".cursor/rules/", ".windsurfrules"}
 
 	// Stage untracked files with --intent-to-add so they appear in git diff
-	untrackedFiles, _ := runGit(repoRoot, "ls-files", "--others", "--exclude-standard")
+	untrackedFiles, err := listUntrackedFiles(repoRoot, pathspecs)
+	if err != nil {
+		return "", err
+	}
 	var stagedNewFiles []string
-	for _, file := range strings.Split(strings.TrimSpace(untrackedFiles), "\n") {
-		file = strings.TrimSpace(file)
-		if file == "" {
-			continue
-		}
+	for _, file := range untrackedFiles {
 		skip := false
 		for _, prefix := range skipPrefixes {
 			if strings.HasPrefix(file, prefix) || file == strings.TrimSuffix(prefix, "/") {
@@ -276,9 +275,13 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 			continue
 		}
 		// Stage as intent-to-add (makes new files visible to git diff)
-		if _, err := runGit(repoRoot, "add", "--intent-to-add", file); err == nil {
-			stagedNewFiles = append(stagedNewFiles, file)
+		if _, err := runGit(repoRoot, "add", "--intent-to-add", "--", file); err != nil {
+			for _, staged := range stagedNewFiles {
+				runGit(repoRoot, "reset", "--", staged)
+			}
+			return "", fmt.Errorf("git add --intent-to-add %q: %w", file, err)
 		}
+		stagedNewFiles = append(stagedNewFiles, file)
 	}
 
 	// Capture unified diff (now includes tracked changes AND intent-to-add new files).

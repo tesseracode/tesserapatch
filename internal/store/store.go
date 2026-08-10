@@ -382,6 +382,9 @@ func (s *Store) MarkFeatureState(slug string, state FeatureState, command, notes
 	if err != nil {
 		return err
 	}
+	if status.State == StateUnapplied && state != StateUnapplied && state != StateApplied {
+		return fmt.Errorf("cannot transition feature %q from %q to %q: run `tpatch apply %s` to leave the unapplied state", slug, status.State, state, slug)
+	}
 	status.State = state
 	status.LastCommand = command
 	status.UpdatedAt = nowStamp()
@@ -850,6 +853,9 @@ func writeJSONAtomic(path string, v any) error {
 }
 
 func writeFileAtomic(path string, content []byte, mode fs.FileMode) error {
+	if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+		mode = info.Mode().Perm()
+	}
 	return writeFileAtomicWithRename(path, content, mode, os.Rename)
 }
 

@@ -79,6 +79,44 @@ func TestSnapshotWorktreePathsRejectsEscape(t *testing.T) {
 	}
 }
 
+func TestPathsAffectedByPatchIncludesRenameAndCopySides(t *testing.T) {
+	patch := `diff --git a/my file.txt b/my file.txt
+--- a/my file.txt
++++ b/my file.txt
+@@ -1 +1 @@
+--- not a header
++++ replacement
+diff --git a/b/x.txt b/b/x.txt
+old mode 100644
+new mode 100755
+diff --git a/old.txt b/new.txt
+similarity index 100%
+rename from old.txt
+rename to new.txt
+diff --git "a/source name.txt" "b/copied name.txt"
+similarity index 100%
+copy from source name.txt
+copy to copied name.txt
+`
+	got := PathsAffectedByPatch(patch)
+	want := map[string]bool{
+		"my file.txt":     true,
+		"b/x.txt":         true,
+		"old.txt":         true,
+		"new.txt":         true,
+		"source name.txt": true,
+		"copied name.txt": true,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("paths = %v", got)
+	}
+	for _, path := range got {
+		if !want[path] {
+			t.Fatalf("unexpected path %q in %v", path, got)
+		}
+	}
+}
+
 func TestGitOperationInProgress(t *testing.T) {
 	dir := t.TempDir()
 	gitInit(t, dir)

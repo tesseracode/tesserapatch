@@ -182,25 +182,23 @@ func CaptureStagedPatch(repoRoot string, pathspecs []string) (string, StagedDirt
 func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, UnstagedDirtySummary, error) {
 	var summary UnstagedDirtySummary
 
-	args := []string{"ls-files", "--others", "--exclude-standard"}
-	if len(pathspecs) > 0 {
-		args = append(args, "--")
-		args = append(args, pathspecs...)
+	untrackedFiles, err := listUntrackedFiles(repoRoot, pathspecs)
+	if err != nil {
+		return "", summary, err
 	}
-	untrackedRaw, _ := runGit(repoRoot, args...)
 
 	var stagedNewFiles []string
-	for _, file := range strings.Split(strings.TrimSpace(untrackedRaw), "\n") {
-		file = strings.TrimSpace(file)
-		if file == "" {
-			continue
-		}
+	for _, file := range untrackedFiles {
 		if shouldSkipCapturePath(file) {
 			continue
 		}
-		if _, err := runGit(repoRoot, "add", "--intent-to-add", file); err == nil {
-			stagedNewFiles = append(stagedNewFiles, file)
+		if _, err := runGit(repoRoot, "add", "--intent-to-add", "--", file); err != nil {
+			for _, staged := range stagedNewFiles {
+				runGit(repoRoot, "reset", "--", staged)
+			}
+			return "", summary, fmt.Errorf("git add --intent-to-add %q: %w", file, err)
 		}
+		stagedNewFiles = append(stagedNewFiles, file)
 	}
 
 	// Index → worktree diff (i.e. `git diff` without --cached). The
@@ -500,7 +498,22 @@ func unstagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
 // untrackedFiltered lists untracked files filtered by the reserved-
 // area skip-prefixes and the supplied pathspecs.
 func untrackedFiltered(repoRoot string, pathspecs []string) ([]string, error) {
-	args := []string{"ls-files", "--others", "--exclude-standard"}
+	files, err := listUntrackedFiles(repoRoot, pathspecs)
+	if err != nil {
+		return nil, err
+	}
+	var keep []string
+	for _, file := range files {
+		if shouldSkipCapturePath(file) {
+			continue
+		}
+		keep = append(keep, file)
+	}
+	return keep, nil
+}
+
+func listUntrackedFiles(repoRoot string, pathspecs []string) ([]string, error) {
+	args := []string{"-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard", "-z"}
 	if len(pathspecs) > 0 {
 		args = append(args, "--")
 		args = append(args, pathspecs...)
@@ -509,14 +522,14 @@ func untrackedFiltered(repoRoot string, pathspecs []string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files --others failed: %w", err)
 	}
-	var keep []string
-	for _, line := range splitNonEmptyLines(out) {
-		if shouldSkipCapturePath(line) {
+	var files []string
+	for _, file := range strings.Split(out, "\x00") {
+		if file == "" {
 			continue
 		}
-		keep = append(keep, line)
+		files = append(files, file)
 	}
-	return keep, nil
+	return files, nil
 }
 
 func splitNonEmptyLines(s string) []string {

@@ -74,7 +74,13 @@ func defaultUnapplyRuntime() unapplyRuntime {
 		previewReverse:  gitutil.PreviewReverseApply,
 		snapshot:        gitutil.SnapshotWorktreePaths,
 		reverseApply:    gitutil.ReverseApply,
-		captureReverse:  gitutil.CapturePatchScoped,
+		captureReverse: func(root string, paths []string) (string, error) {
+			literal := make([]string, len(paths))
+			for i, path := range paths {
+				literal[i] = ":(literal)" + path
+			}
+			return gitutil.CapturePatchScoped(root, literal)
+		},
 		writeArtifact: func(s *store.Store, slug, name, content string) error {
 			return s.WriteArtifact(slug, name, content)
 		},
@@ -140,6 +146,9 @@ func runFeatureUnapplyWithRuntime(cmd *cobra.Command, s *store.Store, slug strin
 	if err != nil {
 		return validationError("feature %q not found or status.json is unreadable: %v", slug, err)
 	}
+	if !opts.DryRun && !unapplySourceStateAllowed(status.State) {
+		return stateRefusalError("cannot unapply feature %q from state %q: unapply is only valid from applied, active, reconciling, or reconciling-shadow", slug, status.State)
+	}
 	patch, err := s.ReadFeatureFile(slug, "artifacts/post-apply.patch")
 	if err != nil {
 		return validationError("feature %q canonical patch is missing or unreadable: %v", slug, err)
@@ -148,7 +157,7 @@ func runFeatureUnapplyWithRuntime(cmd *cobra.Command, s *store.Store, slug strin
 		return validationError("feature %q canonical patch is empty", slug)
 	}
 
-	touched := gitutil.FilesInPatch(patch)
+	touched := gitutil.PathsAffectedByPatch(patch)
 	sort.Strings(touched)
 	if len(touched) == 0 {
 		return validationError("feature %q canonical patch names no touched files", slug)
@@ -184,6 +193,11 @@ func runFeatureUnapplyWithRuntime(cmd *cobra.Command, s *store.Store, slug strin
 		blockers = append(blockers, fmt.Sprintf("state %q is not unapply-eligible", status.State))
 	}
 	for _, dep := range dependents {
+		if dependent, loadErr := s.LoadFeatureStatus(dep.slug); loadErr == nil {
+			if dependent.State == store.StateRejected || dependent.State == store.StateUpstreamMerged {
+				continue
+			}
+		}
 		switch dep.kind {
 		case store.DependencyKindSoft:
 			if !opts.AllowSoftDependents {
@@ -238,7 +252,7 @@ func runFeatureUnapplyWithRuntime(cmd *cobra.Command, s *store.Store, slug strin
 
 	snapshot, err := runtime.snapshot(s.Root, touched)
 	if err != nil {
-		return validationError("cannot snapshot feature %q touched paths: %v", slug, err)
+		return fmt.Errorf("cannot snapshot feature %q touched paths: %w", slug, err)
 	}
 	if err := runtime.reverseApply(s.Root, patch); err != nil {
 		return rollbackUnapply(s.Root, snapshot, attemptDir, runtime.removeAttempt,
@@ -405,4 +419,51 @@ func viability(err error) string {
 		return "viable"
 	}
 	return "blocked: " + err.Error()
+}
+
+func refuseIfUnappliedBaselinePending(s *store.Store, status store.FeatureStatus, verb string) error {
+	pending, err := unappliedBaselinePending(s, status)
+	if err != nil {
+		return fmt.Errorf("%s: cannot inspect feature %q unapply baseline: %w", verb, status.Slug, err)
+	}
+	if !pending {
+		return nil
+	}
+	return stateRefusalError(
+		"cannot %s feature %q while HEAD still contains its canonical patch and the worktree carries the unapply reversal; commit the unapplied baseline first or run `tpatch apply %s`",
+		verb, status.Slug, status.Slug)
+}
+
+func unappliedBaselinePending(s *store.Store, status store.FeatureStatus) (bool, error) {
+	if status.State != store.StateUnapplied &&
+		status.LastCommand != "feature unapply" &&
+		!strings.Contains(status.Notes, "artifacts/unapply/") {
+		return false, nil
+	}
+	canonical, err := s.ReadFeatureFile(status.Slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil {
+		if status.State == store.StateUnapplied {
+			return false, fmt.Errorf("read canonical patch: %w", err)
+		}
+		return false, nil
+	}
+	presentAtHEAD, err := gitutil.ReverseApplyCheckAtHEAD(s.Root, canonical)
+	if err != nil {
+		return false, err
+	}
+	if !presentAtHEAD {
+		return false, nil
+	}
+	return gitutil.ValidatePatchReverse(s.Root, canonical) != nil, nil
+}
+
+func refuseIfUnappliedState(s *store.Store, slug, verb string) error {
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return err
+	}
+	if status.State != store.StateUnapplied {
+		return nil
+	}
+	return stateRefusalError("cannot %s feature %q while it is unapplied; run `tpatch apply %s` first", verb, slug, slug)
 }

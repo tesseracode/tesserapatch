@@ -120,6 +120,10 @@ func IsRefused(err error) bool {
 // `blocked` is allowed because the apply attempt has completed (the
 // blocker is downstream); `upstream_merged` is allowed because the
 // artifacts may still be inspectable post-retirement.
+//
+// StateUnapplied is intentionally omitted: its patch is absent from the
+// working tree and successful unapply clears Verify, so a fresh verification
+// is meaningful only after `tpatch apply` materializes the patch again.
 func postApplyVerifyStates() map[store.FeatureState]bool {
 	return map[store.FeatureState]bool{
 		store.StateApplied:        true,

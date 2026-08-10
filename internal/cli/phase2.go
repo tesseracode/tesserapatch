@@ -38,6 +38,13 @@ agent implements the code).`,
 			if err != nil {
 				return err
 			}
+			status, err := s.LoadFeatureStatus(slug)
+			if err != nil {
+				return fmt.Errorf("feature %q not found — run 'tpatch add' first: %w", slug, err)
+			}
+			if err := refuseIfUnappliedState(s, slug, "cycle"); err != nil {
+				return err
+			}
 
 			interactive, _ := cmd.Flags().GetBool("interactive")
 			skipExecute, _ := cmd.Flags().GetBool("skip-execute")
@@ -51,11 +58,6 @@ agent implements the code).`,
 			out := cmd.OutOrStdout()
 			in := cmd.InOrStdin()
 			reader := bufio.NewReader(in)
-
-			status, err := s.LoadFeatureStatus(slug)
-			if err != nil {
-				return fmt.Errorf("feature %q not found — run 'tpatch add' first: %w", slug, err)
-			}
 
 			// [1/6] analyze
 			fmt.Fprintf(out, "[1/6] Analyzing %s...\n", slug)

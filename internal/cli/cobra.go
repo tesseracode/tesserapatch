@@ -264,6 +264,7 @@ func statusCmd() *cobra.Command {
 				for _, verr := range store.ValidateAllFeatures(s) {
 					dagWarnings = append(dagWarnings, verr.Error())
 				}
+				dagWarnings = append(dagWarnings, unappliedHardParentWarnings(features)...)
 			}
 
 			// feat-amend-dependent-warning (v0.7.0) — derive
@@ -531,6 +532,31 @@ func statusCmd() *cobra.Command {
 	return cmd
 }
 
+func unappliedHardParentWarnings(features []store.FeatureStatus) []string {
+	bySlug := make(map[string]store.FeatureStatus, len(features))
+	for _, feature := range features {
+		bySlug[feature.Slug] = feature
+	}
+	var warnings []string
+	for _, child := range features {
+		if child.State != store.StateApplied && child.State != store.StateActive {
+			continue
+		}
+		for _, dep := range child.DependsOn {
+			if dep.Kind != store.DependencyKindHard {
+				continue
+			}
+			if parent, ok := bySlug[dep.Slug]; ok && parent.State == store.StateUnapplied {
+				warnings = append(warnings,
+					fmt.Sprintf("feature %q is %s while hard parent %q is unapplied (waiting-on-parent)",
+						child.Slug, child.State, parent.Slug))
+			}
+		}
+	}
+	sortStringsAsc(warnings)
+	return warnings
+}
+
 // pluralCycles renders the plural suffix for completed reject→reopen
 // cycle counts in the status detail view.
 func pluralCycles(n int) string {
@@ -558,6 +584,9 @@ func analyzeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
+				return err
+			}
+			if err := refuseIfUnappliedState(s, args[0], "analyze"); err != nil {
 				return err
 			}
 			if isManualFlag(cmd) {
@@ -605,6 +634,9 @@ func defineCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := refuseIfUnappliedState(s, args[0], "define"); err != nil {
+				return err
+			}
 			if isManualFlag(cmd) {
 				return runManualPhase(cmd, s, args[0], "define")
 			}
@@ -644,6 +676,9 @@ func exploreCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := refuseIfUnappliedState(s, args[0], "explore"); err != nil {
+				return err
+			}
 			if isManualFlag(cmd) {
 				return runManualPhase(cmd, s, args[0], "explore")
 			}
@@ -681,6 +716,9 @@ func implementCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
+				return err
+			}
+			if err := refuseIfUnappliedState(s, args[0], "implement"); err != nil {
 				return err
 			}
 			if isManualFlag(cmd) {
@@ -805,7 +843,7 @@ func runApplyPrepare(cmd *cobra.Command, s *store.Store, slug string) error {
 	if err := s.WriteArtifact(slug, "apply-packet.md", packet); err != nil {
 		return err
 	}
-	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode prepare", "Agent packet ready"); err != nil {
+	if err := markApplyProgress(s, slug, "apply --mode prepare", "Agent packet ready"); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Apply packet prepared for %s\n", slug)
@@ -813,7 +851,7 @@ func runApplyPrepare(cmd *cobra.Command, s *store.Store, slug string) error {
 }
 
 func runApplyStarted(cmd *cobra.Command, s *store.Store, slug string) error {
-	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode started", "Implementation in progress"); err != nil {
+	if err := markApplyProgress(s, slug, "apply --mode started", "Implementation in progress"); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Feature %s marked as implementing\n", slug)
@@ -847,7 +885,40 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		return workflow.RecipeExecResult{}, err
 	}
 	warnRecipeStale(cmd.ErrOrStderr(), s, slug)
-	if err := s.MarkFeatureState(slug, store.StateImplementing, "apply --mode execute", "Executing recipe"); err != nil {
+	statusBefore, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return workflow.RecipeExecResult{}, err
+	}
+	pendingBaseline, err := unappliedBaselinePending(s, statusBefore)
+	if err != nil {
+		return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: inspect unapplied baseline: %w", slug, err)
+	}
+	reapplying := statusBefore.State == store.StateUnapplied || pendingBaseline
+	var reapplySnapshot gitutil.WorktreeSnapshot
+	var canonical string
+	var presentAtHEAD bool
+	if reapplying {
+		canonical, err = s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+		if err != nil {
+			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: read canonical patch: %w", slug, err)
+		}
+		paths := gitutil.PathsAffectedByPatch(canonical)
+		for _, op := range recipe.Operations {
+			if op.Type != "ensure-directory" {
+				paths = append(paths, op.Path)
+			}
+		}
+		paths = uniqueSortedPaths(paths)
+		reapplySnapshot, err = gitutil.SnapshotWorktreePaths(s.Root, paths)
+		if err != nil {
+			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: snapshot touched paths: %w", slug, err)
+		}
+		presentAtHEAD, err = gitutil.ReverseApplyCheckAtHEAD(s.Root, canonical)
+		if err != nil {
+			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: verify HEAD baseline: %w", slug, err)
+		}
+	}
+	if err := markApplyProgress(s, slug, "apply --mode execute", "Executing recipe"); err != nil {
 		return workflow.RecipeExecResult{}, err
 	}
 	result := workflow.ExecuteRecipe(s, recipe)
@@ -866,10 +937,19 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		fmt.Fprintf(cmd.ErrOrStderr(), "  ERROR: %s\n", e)
 	}
 	if result.Success {
+		if reapplying {
+			if err := validateReapplyMaterialization(s.Root, canonical, presentAtHEAD); err != nil {
+				return result, rollbackReapply(s, reapplySnapshot, statusBefore, err)
+			}
+		}
 		fmt.Fprintf(out, "Recipe executed: %d/%d operations succeeded\n", result.Applied, result.Operations)
 		return result, nil
 	}
-	return result, fmt.Errorf("recipe execution failed: %d error(s)", len(result.Errors))
+	execErr := fmt.Errorf("recipe execution failed: %d error(s)", len(result.Errors))
+	if reapplying {
+		execErr = rollbackReapply(s, reapplySnapshot, statusBefore, execErr)
+	}
+	return result, execErr
 }
 
 // runApplyDone captures the post-apply patch, writes apply-session.json,
@@ -881,15 +961,45 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 	valStatus, _ := cmd.Flags().GetString("validation-status")
 	valNote, _ := cmd.Flags().GetString("validation-note")
 
-	patch, patchErr := gitutil.CapturePatch(s.Root)
-	if patchErr != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not capture patch: %v\n", patchErr)
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return "", 0, err
 	}
-	if patch != "" {
-		s.WriteArtifact(slug, "post-apply.patch", patch)
-		patchName, _ := s.WritePatch(slug, "apply", patch)
-		if patchName != "" {
-			fmt.Fprintf(out, "  Saved patch: patches/%s\n", patchName)
+	pendingBaseline, err := unappliedBaselinePending(s, status)
+	if err != nil {
+		return "", 0, fmt.Errorf("reapply %q: inspect unapplied baseline: %w", slug, err)
+	}
+	reapplying := status.State == store.StateUnapplied || pendingBaseline
+	presentAtHEAD := false
+	if reapplying {
+		canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+		if readErr != nil {
+			return "", 0, fmt.Errorf("reapply %q: read canonical patch: %w", slug, readErr)
+		}
+		presentAtHEAD, err = gitutil.ReverseApplyCheckAtHEAD(s.Root, canonical)
+		if err != nil {
+			return "", 0, fmt.Errorf("reapply %q: verify HEAD baseline: %w", slug, err)
+		}
+		if err := validateReapplyMaterialization(s.Root, canonical, presentAtHEAD); err != nil {
+			return "", 0, err
+		}
+		patch = canonical
+	} else {
+		patch, err = gitutil.CapturePatch(s.Root)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not capture patch: %v\n", err)
+		}
+		if patch != "" {
+			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+				return "", 0, err
+			}
+			patchName, writeErr := s.WritePatch(slug, "apply", patch)
+			if writeErr != nil {
+				return "", 0, writeErr
+			}
+			if patchName != "" {
+				fmt.Fprintf(out, "  Saved patch: patches/%s\n", patchName)
+			}
 		}
 	}
 	diffStat, _ := gitutil.CaptureDiffStat(s.Root)
@@ -899,11 +1009,19 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	commit, _ := gitutil.HeadCommit(s.Root)
-	status, _ := s.LoadFeatureStatus(slug)
-	status.Apply.BaseCommit = commit
+	if !reapplying || !presentAtHEAD {
+		status.Apply.BaseCommit = commit
+	}
 	status.Apply.CompletedAt = now
-	status.Apply.HasPatch = patch != ""
-	s.SaveFeatureStatus(status)
+	hasPatch := patch != ""
+	if !hasPatch {
+		existing, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+		hasPatch = readErr == nil && strings.TrimSpace(existing) != ""
+	}
+	status.Apply.HasPatch = hasPatch
+	if err := s.SaveFeatureStatus(status); err != nil {
+		return patch, len(patch), err
+	}
 
 	session := store.ApplySession{
 		Slug:             slug,
@@ -911,12 +1029,14 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 		StartedAt:        status.Apply.StartedAt,
 		CompletedAt:      now,
 		BaseCommit:       commit,
-		HasPatch:         patch != "",
+		HasPatch:         hasPatch,
 		OperatorNotes:    note,
 		ValidationStatus: valStatus,
 		ValidationNotes:  valNote,
 	}
-	s.SaveApplySession(slug, session)
+	if err := s.SaveApplySession(slug, session); err != nil {
+		return patch, len(patch), err
+	}
 
 	if valNote != "" || valStatus != "" {
 		vs := valStatus
@@ -934,10 +1054,103 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 	return patch, len(patch), nil
 }
 
+func markApplyProgress(s *store.Store, slug, command, notes string) error {
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return err
+	}
+	pendingBaseline, err := unappliedBaselinePending(s, status)
+	if err != nil {
+		return err
+	}
+	if status.State != store.StateUnapplied && !pendingBaseline {
+		return s.MarkFeatureState(slug, store.StateImplementing, command, notes)
+	}
+	status.State = store.StateUnapplied
+	status.LastCommand = command
+	status.Notes = notes
+	status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	return s.SaveFeatureStatus(status)
+}
+
+func validateReapplyMaterialization(root, canonical string, presentAtHEAD bool) error {
+	if err := gitutil.ValidatePatchReverse(root, canonical); err != nil {
+		return fmt.Errorf("reapply is incomplete; canonical patch is not fully materialized and state remains unapplied: %w", err)
+	}
+	current, err := gitutil.CapturePatch(root)
+	if err != nil {
+		return fmt.Errorf("reapply: inspect source diff: %w", err)
+	}
+	if presentAtHEAD {
+		if strings.TrimSpace(current) != "" {
+			return fmt.Errorf("reapply restored the canonical patch but left additional source changes; state remains unapplied")
+		}
+		return nil
+	}
+	if strings.TrimSpace(current) == "" {
+		return fmt.Errorf("reapply produced no source diff against the committed unapplied baseline")
+	}
+	wantID, err := gitutil.PatchID(root, canonical)
+	if err != nil {
+		return fmt.Errorf("reapply: compute canonical patch-id: %w", err)
+	}
+	gotID, err := gitutil.PatchID(root, current)
+	if err != nil {
+		return fmt.Errorf("reapply: compute materialized patch-id: %w", err)
+	}
+	if gotID != wantID {
+		return fmt.Errorf("reapply materialized patch-id %s, want canonical %s; state remains unapplied", gotID, wantID)
+	}
+	return nil
+}
+
+func rollbackReapply(s *store.Store, snapshot gitutil.WorktreeSnapshot, status store.FeatureStatus, primary error) error {
+	restoreErr := snapshot.Restore(s.Root)
+	statusErr := s.SaveFeatureStatus(status)
+	switch {
+	case restoreErr != nil && statusErr != nil:
+		return fmt.Errorf("%w; source rollback failed: %v; status rollback failed: %v", primary, restoreErr, statusErr)
+	case restoreErr != nil:
+		return fmt.Errorf("%w; source rollback failed: %v", primary, restoreErr)
+	case statusErr != nil:
+		return fmt.Errorf("%w; status rollback failed: %v", primary, statusErr)
+	default:
+		return primary
+	}
+}
+
+func uniqueSortedPaths(paths []string) []string {
+	seen := make(map[string]struct{}, len(paths))
+	out := make([]string, 0, len(paths))
+	for _, path := range paths {
+		path = filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
+		if path == "." {
+			continue
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		out = append(out, path)
+	}
+	sortStringsAsc(out)
+	return out
+}
+
 // runApplyAuto chains prepare → execute → done in one shot. Stops on the
 // first error; surfaces it as-is. On success, prints a consolidated
 // summary naming each phase.
 func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
+	if status, err := s.LoadFeatureStatus(slug); err == nil && status.State == store.StateUnapplied {
+		if canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch")); readErr == nil {
+			if gitutil.ValidatePatchReverse(s.Root, canonical) == nil {
+				fmt.Fprintf(cmd.OutOrStdout(), "Canonical patch already materialized for %s; finalizing reapply.\n", slug)
+				_, _, err := runApplyDone(cmd, s, slug)
+				return err
+			}
+		}
+	}
+
 	// ADR-011 D4: gate at the top so we don't even write the apply
 	// packet when hard parents are unsatisfied. Re-checked inside
 	// runApplyExecute as a defence-in-depth — same call, same result.
@@ -1096,6 +1309,13 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			slug := args[0]
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
+				return err
+			}
+			status, err := s.LoadFeatureStatus(slug)
+			if err != nil {
+				return fmt.Errorf("feature %q not found: %w", slug, err)
+			}
+			if err := refuseIfUnappliedBaselinePending(s, status, "record"); err != nil {
 				return err
 			}
 
@@ -1562,7 +1782,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason, collision.CrossFeature, prov)
 			s.WriteFeatureFile(slug, "record.md", recordMD)
 
-			status, _ := s.LoadFeatureStatus(slug)
+			status, _ = s.LoadFeatureStatus(slug)
 			status.Apply.HasPatch = true
 			if rangeMode {
 				// PRD §3.3 — for committed-range modes (including

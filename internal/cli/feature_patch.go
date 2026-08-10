@@ -65,7 +65,12 @@ func featurePatchFixupCmd() *cobra.Command {
 }
 
 func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reason, target string) error {
-	if _, err := s.LoadFeatureStatus(slug); err != nil {
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return err
+	}
+	verb := "feature patch " + strings.TrimPrefix(intent, "patch-")
+	if err := refuseIfUnappliedBaselinePending(s, status, verb); err != nil {
 		return err
 	}
 	manifest, err := store.LoadPatchGenerations(s, slug)
@@ -114,7 +119,7 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	if err != nil {
 		return fmt.Errorf("write numbered patch: %w", err)
 	}
-	status, _ := s.LoadFeatureStatus(slug)
+	status, _ = s.LoadFeatureStatus(slug)
 	commit, _ := gitutil.HeadCommit(s.Root)
 	if commit != "" && status.Apply.BaseCommit == "" {
 		status.Apply.BaseCommit = commit

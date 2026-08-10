@@ -52,7 +52,7 @@ func defaultEditArtifact(state store.FeatureState) string {
 		return "spec.md"
 	case store.StateImplementing:
 		return "apply-recipe.json"
-	case store.StateApplied:
+	case store.StateApplied, store.StateUnapplied:
 		return "post-apply.patch"
 	default:
 		return "request.md"

@@ -116,8 +116,11 @@ only after implementation review and wave close.
   and lifecycle integration complete: transactional reverse-unapply, D3 audit
   envelope, rollback seams, apply/reconcile/status/next/land/dependency and
   reject/reopen/confirm-upstreamed behavior are wired. SPEC, dependency docs,
-  all six shipped skill surfaces, and parity anchors are updated. Final matrix
-  audit and repository-wide gates remain.
+  all six shipped skill surfaces, and parity anchors are updated. Three
+  adversarial pre-review passes found and closed canonical-patch data-loss,
+  rename/space/Unicode path, sibling capture-command, and partial-reapply
+  rollback failures. Matrix audit: 60 rows mechanically covered + row 3
+  source-switch audit. Repository-wide gates pass.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -162,6 +165,20 @@ Lifecycle integrations:
   reconcile without state mutation, doctor coverage.
 - `internal/store/rejection_test.go` — unapplied remains reject-ineligible.
 
+Adversarial pre-review folds:
+- `internal/gitutil/{gitutil.go,capture_modes.go,unapply.go}` — NUL-delimited
+  untracked capture with `core.quotePath=false`, both-side rename/copy parser,
+  unquoted spaces/Unicode and literal pathspec handling, fail-closed HEAD check.
+- `internal/cli/{cobra.go,phase2.go,feature_patch.go,c1.go}` — conditional
+  record/patch capture guards, unapplied-only lifecycle boundary, canonical
+  reapply preservation, original base-commit retention, and transactional
+  partial-reapply rollback.
+- `internal/workflow/verify.go` — explicit unapplied verify omission.
+- `internal/cli/feature_unapply_test.go`,
+  `internal/gitutil/unapply_test.go`, `internal/store/unapply_test.go` —
+  regressions for every pre-review finding (rename, spaces, Unicode,
+  capture-command inversion, incomplete recipe, state drift, base commit).
+
 Contract documentation and assets:
 - `SPEC.md` — unapplied state, command, dependency, transaction and interaction
   contract.
@@ -178,6 +195,12 @@ Contract documentation and assets:
 - `go test ./internal/cli -run 'TestFeatureUnapply|TestFeatureApplyReapplies|TestUnappliedParent|TestActiveParent|TestDependencyEdgeOntoUnappliedParent|TestExplicitReconcileOnUnapplied|TestAggregateReconcileSkips' -count=1` — PASS.
 - `go test ./internal/gitutil ./internal/store ./internal/workflow ./internal/cli` — PASS.
 - `go test ./assets` — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- ADR-032 matrix audit — 60 rows mechanically covered; row 3 manually audited
+  across state-aware source switches and covered by successful build.
 
 ## Files Changed — Cluster F' rev-0
 

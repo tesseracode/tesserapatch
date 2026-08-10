@@ -35,6 +35,7 @@ func newUnapplyFixture(t *testing.T, state store.FeatureState) unapplyFixture {
 	testutil.PinGitAutoGCOff()
 	dir := t.TempDir()
 	gitInitTestRepo(t, dir)
+	baseCommit := gitHead(t, dir)
 
 	s, err := store.Init(dir)
 	if err != nil {
@@ -68,6 +69,7 @@ func newUnapplyFixture(t *testing.T, state store.FeatureState) unapplyFixture {
 
 	feature.State = state
 	feature.Apply.HasPatch = true
+	feature.Apply.BaseCommit = baseCommit
 	feature.Verify = &store.VerifyRecord{
 		VerifiedAt: time.Date(2026, 8, 10, 12, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		Passed:     true,
@@ -93,12 +95,32 @@ func newUnapplyFixture(t *testing.T, state store.FeatureState) unapplyFixture {
 	}
 }
 
+func TestDependencyEdgeCLIAllowsUnappliedParent(t *testing.T) {
+	dir, s := newRejectRepo(t, map[string]store.FeatureState{
+		"parent": store.StateUnapplied,
+		"child":  store.StateRequested,
+	})
+	if _, stderr, code := runRJ("feature", "deps", "child", "add", "parent:hard", "--path", dir); code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	child, err := s.LoadFeatureStatus("child")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(child.DependsOn) != 1 || child.DependsOn[0].Slug != "parent" {
+		t.Fatalf("depends_on = %+v", child.DependsOn)
+	}
+}
+
 func TestFeatureUnapplyCleanWritesAuditAndPreservesCanonicalMetadata(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
 	statusBefore, err := os.ReadFile(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	featureDir := filepath.Join(fx.dir, ".tpatch", "features", fx.slug)
+	patchesDir := filepath.Join(featureDir, "patches")
+	patchesBefore := directoryEntryNames(t, patchesDir)
 
 	out, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir, "--actor", "agent@example.com")
 	if code != 0 {
@@ -134,6 +156,12 @@ func TestFeatureUnapplyCleanWritesAuditAndPreservesCanonicalMetadata(t *testing.
 	if bytes.Equal(statusBefore, mustRead(t, filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json"))) {
 		t.Fatal("status.json did not change")
 	}
+	if info, err := os.Stat(featureDir); err != nil || !info.IsDir() {
+		t.Fatalf("feature directory missing after unapply: %v", err)
+	}
+	if patchesAfter := directoryEntryNames(t, patchesDir); strings.Join(patchesAfter, "\n") != strings.Join(patchesBefore, "\n") {
+		t.Fatalf("patches directory changed:\nbefore=%v\nafter=%v", patchesBefore, patchesAfter)
+	}
 
 	if got := mustRead(t, filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")); !bytes.Equal(got, fx.patch) {
 		t.Fatal("canonical patch changed")
@@ -150,6 +178,9 @@ func TestFeatureUnapplyCleanWritesAuditAndPreservesCanonicalMetadata(t *testing.
 	reverseBytes := mustRead(t, filepath.Join(attempts[0], "reverse.patch"))
 	if len(reverseBytes) == 0 {
 		t.Fatal("reverse.patch is empty")
+	}
+	if err := gitutil.ValidatePatchReverse(fx.dir, string(reverseBytes)); err != nil {
+		t.Fatalf("reverse.patch does not round-trip against the unapplied tree: %v", err)
 	}
 
 	var session unapplySession
@@ -173,11 +204,130 @@ func TestFeatureUnapplyCleanWritesAuditAndPreservesCanonicalMetadata(t *testing.
 	if !session.Preflight.CleanTree || len(session.TouchedPaths) != 2 {
 		t.Fatalf("preflight/touched paths = %+v / %v", session.Preflight, session.TouchedPaths)
 	}
+	if strings.Join(session.TouchedPaths, ",") != "README.md,feature.txt" {
+		t.Fatalf("touched_paths = %v", session.TouchedPaths)
+	}
 	assertJSONFieldOrder(t, string(sessionBytes), []string{
 		"version", "feature", "attempt_id", "attempted_at", "mode", "actor",
 		"previous_state", "result", "canonical_patch_sha256", "reverse_patch",
 		"touched_paths", "dependency_blockers", "preflight",
 	})
+}
+
+func TestFeatureUnapplyUnicodeDeletedPathAndRollback(t *testing.T) {
+	t.Run("success-captures-recreated-untracked-path", func(t *testing.T) {
+		fx := newUnicodeDeleteUnapplyFixture(t)
+		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+		if got := string(mustRead(t, filepath.Join(fx.dir, "café.txt"))); got != "unicode\n" {
+			t.Fatalf("unicode file after unapply = %q", got)
+		}
+		attempts, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "ua_*"))
+		var session unapplySession
+		if err := json.Unmarshal(mustRead(t, filepath.Join(attempts[0], "unapply-session.json")), &session); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Join(session.TouchedPaths, ",") != "café.txt" {
+			t.Fatalf("touched_paths = %v", session.TouchedPaths)
+		}
+		reverse := string(mustRead(t, filepath.Join(attempts[0], "reverse.patch")))
+		if got := gitutil.PathsAffectedByPatch(reverse); len(got) != 1 || got[0] != "café.txt" {
+			t.Fatalf("reverse.patch paths = %v\n%s", got, reverse)
+		}
+	})
+
+	t.Run("status-failure-restores-absence", func(t *testing.T) {
+		fx := newUnicodeDeleteUnapplyFixture(t)
+		rt := defaultUnapplyRuntime()
+		rt.newAttemptID = func() (string, error) { return "ua_dddddddddddd", nil }
+		rt.saveStatus = func(*store.Store, store.FeatureStatus) error {
+			return errors.New("injected status failure")
+		}
+		cmd := &cobra.Command{}
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		if err := runFeatureUnapplyWithRuntime(cmd, fx.store, fx.slug, unapplyOptions{Mode: "patch"}, rt); err == nil {
+			t.Fatal("expected status failure")
+		}
+		if _, err := os.Stat(filepath.Join(fx.dir, "café.txt")); !os.IsNotExist(err) {
+			t.Fatalf("unicode path residue remains after rollback, err=%v", err)
+		}
+	})
+}
+
+func TestUnappliedCaptureCommandsRefusePendingBaseline(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	patchPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")
+	before := mustRead(t, patchPath)
+	commands := [][]string{
+		{"cycle", fx.slug, "--path", fx.dir},
+		{"feature", "patch", "refresh", fx.slug, "--path", fx.dir},
+		{"feature", "patch", "fixup", fx.slug, "--path", fx.dir, "--reason", "fix"},
+	}
+	for _, args := range commands {
+		if _, stderr, code := runRJ(args...); code != 3 || !strings.Contains(stderr, "tpatch apply feature") {
+			t.Fatalf("%v code=%d stderr=%s", args, code, stderr)
+		}
+		if got := mustRead(t, patchPath); !bytes.Equal(got, before) {
+			t.Fatalf("%v rewrote canonical patch", args)
+		}
+	}
+}
+
+func TestUnappliedPhaseCommandsRefuseBeforeArtifactsOrStateDrift(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	statusPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json")
+	before := mustRead(t, statusPath)
+	commands := [][]string{
+		{"analyze", fx.slug, "--path", fx.dir, "--manual"},
+		{"define", fx.slug, "--path", fx.dir, "--manual"},
+		{"explore", fx.slug, "--path", fx.dir, "--manual"},
+		{"implement", fx.slug, "--path", fx.dir, "--manual"},
+	}
+	for _, args := range commands {
+		if _, stderr, code := runRJ(args...); code != 3 || !strings.Contains(stderr, "tpatch apply feature") {
+			t.Fatalf("%v code=%d stderr=%s", args, code, stderr)
+		}
+		if got := mustRead(t, statusPath); !bytes.Equal(got, before) {
+			t.Fatalf("%v changed status.json", args)
+		}
+	}
+}
+
+func TestPendingUnapplyBaselineGuardSurvivesStateDrift(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	status, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status.State = store.StateImplementing // Simulate a hand-edited/legacy phase drift.
+	if err := fx.store.SaveFeatureStatus(status); err != nil {
+		t.Fatal(err)
+	}
+	patchPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")
+	before := mustRead(t, patchPath)
+	if _, stderr, code := runRJ("record", fx.slug, "--path", fx.dir); code != 3 || !strings.Contains(stderr, "unapply reversal") {
+		t.Fatalf("record code=%d stderr=%s", code, stderr)
+	}
+	if got := mustRead(t, patchPath); !bytes.Equal(got, before) {
+		t.Fatal("state drift bypassed canonical-patch guard")
+	}
+	if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir, "--mode", "done"); code != 1 || !strings.Contains(stderr, "reapply") {
+		t.Fatalf("apply done code=%d stderr=%s", code, stderr)
+	}
+	if got := mustRead(t, patchPath); !bytes.Equal(got, before) {
+		t.Fatal("state drift let apply --mode done rewrite canonical patch")
+	}
 }
 
 func TestFeatureUnapplyDryRunReportsBlockersWithoutMutation(t *testing.T) {
@@ -207,6 +357,38 @@ func TestFeatureUnapplyDryRunReportsBlockersWithoutMutation(t *testing.T) {
 	if matches, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "*")); len(matches) != 0 {
 		t.Fatalf("dry-run wrote artifacts: %v", matches)
 	}
+}
+
+func TestFeatureUnapplyDryRunStateAndDependentBlockersExitZero(t *testing.T) {
+	t.Run("wrong-state", func(t *testing.T) {
+		fx := newUnapplyFixture(t, store.StateRequested)
+		statusPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json")
+		before := mustRead(t, statusPath)
+		out, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir, "--dry-run")
+		if code != 0 || !strings.Contains(out, `state "requested" is not unapply-eligible`) {
+			t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, out)
+		}
+		if got := mustRead(t, statusPath); !bytes.Equal(got, before) {
+			t.Fatal("wrong-state dry-run changed status")
+		}
+	})
+	t.Run("hard-dependent", func(t *testing.T) {
+		fx := newUnapplyFixture(t, store.StateApplied)
+		child, err := fx.store.AddFeature(store.AddFeatureInput{Title: "Child", Slug: "child", Request: "child"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		child.DependsOn = []store.Dependency{{Slug: fx.slug, Kind: store.DependencyKindHard}}
+		if err := fx.store.SaveFeatureStatus(child); err != nil {
+			t.Fatal(err)
+		}
+		runUnapplyGit(t, fx.dir, "add", "-A")
+		runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "add hard dependent")
+		out, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir, "--dry-run")
+		if code != 0 || !strings.Contains(out, "hard dependent child") {
+			t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, out)
+		}
+	})
 }
 
 func TestFeatureUnapplySourceStateMatrix(t *testing.T) {
@@ -245,6 +427,16 @@ func TestFeatureUnapplySourceStateMatrix(t *testing.T) {
 	}
 }
 
+func TestFeatureUnapplyRealPreImplementationFeatureRefusesBeforePatchLoad(t *testing.T) {
+	dir, _ := newRejectRepo(t, map[string]store.FeatureState{"fresh": store.StateRequested})
+	if _, stderr, code := runRJ("feature", "unapply", "fresh", "--path", dir); code != 3 || !strings.Contains(stderr, "state \"requested\"") {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	if _, _, code := runRJ("feature", "unapply", "fresh", "--path", dir, "--dry-run"); code != 2 {
+		t.Fatalf("dry-run missing-patch code=%d, want 2", code)
+	}
+}
+
 func TestFeatureUnapplyDependentPolicy(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -278,6 +470,31 @@ func TestFeatureUnapplyDependentPolicy(t *testing.T) {
 			_, stderr, code := runRJ(args...)
 			if code != tt.wantCode {
 				t.Fatalf("code=%d want=%d stderr=%s", code, tt.wantCode, stderr)
+			}
+		})
+	}
+}
+
+func TestFeatureUnapplyTerminalDependentsDoNotBlock(t *testing.T) {
+	for _, state := range []store.FeatureState{store.StateRejected, store.StateUpstreamMerged} {
+		t.Run(string(state), func(t *testing.T) {
+			fx := newUnapplyFixture(t, store.StateApplied)
+			child, err := fx.store.AddFeature(store.AddFeatureInput{Title: "Child", Slug: "child", Request: "child"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			child.State = state
+			child.DependsOn = []store.Dependency{{Slug: fx.slug, Kind: store.DependencyKindHard}}
+			if state == store.StateRejected {
+				child.Rejection = &store.RejectionStatus{Reason: "obsolete", Note: "done", Actor: "test"}
+			}
+			if err := fx.store.SaveFeatureStatus(child); err != nil {
+				t.Fatal(err)
+			}
+			runUnapplyGit(t, fx.dir, "add", "-A")
+			runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "add terminal dependent")
+			if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+				t.Fatalf("code=%d stderr=%s", code, stderr)
 			}
 		})
 	}
@@ -384,6 +601,34 @@ func TestFeatureUnapplyPreflightRefusals(t *testing.T) {
 			t.Fatalf("code=%d stderr=%s", code, stderr)
 		}
 	})
+	t.Run("mid-merge", func(t *testing.T) {
+		fx := newUnapplyFixture(t, store.StateApplied)
+		gitDir := strings.TrimSpace(runUnapplyGit(t, fx.dir, "rev-parse", "--git-dir"))
+		if !filepath.IsAbs(gitDir) {
+			gitDir = filepath.Join(fx.dir, gitDir)
+		}
+		head := strings.TrimSpace(runUnapplyGit(t, fx.dir, "rev-parse", "HEAD"))
+		if err := os.WriteFile(filepath.Join(gitDir, "MERGE_HEAD"), []byte(head+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 3 || !strings.Contains(stderr, "mid-merge") {
+			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+	})
+	t.Run("mid-cherry-pick", func(t *testing.T) {
+		fx := newUnapplyFixture(t, store.StateApplied)
+		gitDir := strings.TrimSpace(runUnapplyGit(t, fx.dir, "rev-parse", "--git-dir"))
+		if !filepath.IsAbs(gitDir) {
+			gitDir = filepath.Join(fx.dir, gitDir)
+		}
+		head := strings.TrimSpace(runUnapplyGit(t, fx.dir, "rev-parse", "HEAD"))
+		if err := os.WriteFile(filepath.Join(gitDir, "CHERRY_PICK_HEAD"), []byte(head+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 3 || !strings.Contains(stderr, "mid-cherry-pick") {
+			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+	})
 	t.Run("reverse-check-failure", func(t *testing.T) {
 		fx := newUnapplyFixture(t, store.StateApplied)
 		if err := os.WriteFile(filepath.Join(fx.dir, "README.md"), []byte("# Test\nfeature drifted\n"), 0o644); err != nil {
@@ -391,8 +636,20 @@ func TestFeatureUnapplyPreflightRefusals(t *testing.T) {
 		}
 		runUnapplyGit(t, fx.dir, "add", "README.md")
 		runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "drift feature")
+		statusPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json")
+		statusBefore := mustRead(t, statusPath)
+		gitBefore := runUnapplyGit(t, fx.dir, "status", "--porcelain=v1")
 		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 3 || !strings.Contains(stderr, "does not reverse-apply cleanly") {
 			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+		if got := mustRead(t, statusPath); !bytes.Equal(got, statusBefore) {
+			t.Fatal("reverse-check refusal changed status.json")
+		}
+		if got := runUnapplyGit(t, fx.dir, "status", "--porcelain=v1"); got != gitBefore {
+			t.Fatalf("reverse-check refusal changed worktree/index:\nbefore=%q\nafter=%q", gitBefore, got)
+		}
+		if matches, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "*")); len(matches) != 0 {
+			t.Fatalf("reverse-check refusal wrote artifacts: %v", matches)
 		}
 	})
 }
@@ -482,6 +739,152 @@ func TestFeatureUnapplyRollbackFailures(t *testing.T) {
 	}
 }
 
+func TestFeatureUnapplySnapshotFailureIsInternalError(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	rt := defaultUnapplyRuntime()
+	rt.snapshot = func(string, []string) (gitutil.WorktreeSnapshot, error) {
+		return gitutil.WorktreeSnapshot{}, errors.New("injected snapshot IO failure")
+	}
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	err := runFeatureUnapplyWithRuntime(cmd, fx.store, fx.slug, unapplyOptions{Mode: "patch"}, rt)
+	if err == nil || asExitCodeError(err) != nil {
+		t.Fatalf("snapshot error must use exit 1, got %v", err)
+	}
+}
+
+func TestFeatureUnapplyRecordRefusesAndPreservesCanonicalPatch(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	patchPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")
+	before := mustRead(t, patchPath)
+	if _, stderr, code := runRJ("record", fx.slug, "--path", fx.dir); code != 3 || !strings.Contains(stderr, "tpatch apply feature") {
+		t.Fatalf("record code=%d stderr=%s", code, stderr)
+	}
+	if got := mustRead(t, patchPath); !bytes.Equal(got, before) {
+		t.Fatal("record from unapplied rewrote canonical patch")
+	}
+	status, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil || status.State != store.StateUnapplied {
+		t.Fatalf("status = %q, %v", status.State, err)
+	}
+}
+
+func TestRecordAfterCommittedUnapplyBaselineCapturesNewWork(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	runUnapplyGit(t, fx.dir, "add", "-A")
+	runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "commit unapplied baseline")
+	if err := os.WriteFile(filepath.Join(fx.dir, "replacement.txt"), []byte("replacement\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, code := runRJ("record", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("record code=%d stderr=%s", code, stderr)
+	}
+	patch := string(mustRead(t, filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")))
+	if !strings.Contains(patch, "replacement.txt") {
+		t.Fatalf("recorded patch misses new work:\n%s", patch)
+	}
+	if strings.Contains(patch, "feature.txt") {
+		t.Fatalf("recorded patch recaptured the old unapply reversal:\n%s", patch)
+	}
+}
+
+func TestFeatureUnapplyRenamePathsAndRollback(t *testing.T) {
+	t.Run("success-audits-both-sides", func(t *testing.T) {
+		fx := newRenameUnapplyFixture(t)
+		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+		if _, err := os.Stat(filepath.Join(fx.dir, "old.txt")); err != nil {
+			t.Fatalf("old.txt was not restored by reverse rename: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(fx.dir, "new.txt")); !os.IsNotExist(err) {
+			t.Fatalf("new.txt remains after reverse rename, err=%v", err)
+		}
+		attempts, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "ua_*"))
+		var session unapplySession
+		if err := json.Unmarshal(mustRead(t, filepath.Join(attempts[0], "unapply-session.json")), &session); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Join(session.TouchedPaths, ",") != "new.txt,old.txt" {
+			t.Fatalf("touched_paths = %v", session.TouchedPaths)
+		}
+		reverse := string(mustRead(t, filepath.Join(attempts[0], "reverse.patch")))
+		if !strings.Contains(reverse, "old.txt") || !strings.Contains(reverse, "new.txt") {
+			t.Fatalf("reverse.patch omits rename side:\n%s", reverse)
+		}
+	})
+
+	t.Run("status-failure-restores-both-sides", func(t *testing.T) {
+		fx := newRenameUnapplyFixture(t)
+		rt := defaultUnapplyRuntime()
+		rt.newAttemptID = func() (string, error) { return "ua_bbbbbbbbbbbb", nil }
+		rt.saveStatus = func(*store.Store, store.FeatureStatus) error {
+			return errors.New("injected status failure")
+		}
+		cmd := &cobra.Command{}
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		if err := runFeatureUnapplyWithRuntime(cmd, fx.store, fx.slug, unapplyOptions{Mode: "patch"}, rt); err == nil {
+			t.Fatal("expected status failure")
+		}
+		if _, err := os.Stat(filepath.Join(fx.dir, "old.txt")); !os.IsNotExist(err) {
+			t.Fatalf("old.txt residue remains after rollback, err=%v", err)
+		}
+		if got := string(mustRead(t, filepath.Join(fx.dir, "new.txt"))); got != "rename me\n" {
+			t.Fatalf("new.txt after rollback = %q", got)
+		}
+	})
+}
+
+func TestFeatureUnapplySpacePathAndRollback(t *testing.T) {
+	t.Run("success-audits-exact-path", func(t *testing.T) {
+		fx := newSpaceUnapplyFixture(t)
+		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+		if got := string(mustRead(t, filepath.Join(fx.dir, "my file.txt"))); got != "base\n" {
+			t.Fatalf("file after unapply = %q", got)
+		}
+		attempts, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "ua_*"))
+		var session unapplySession
+		if err := json.Unmarshal(mustRead(t, filepath.Join(attempts[0], "unapply-session.json")), &session); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Join(session.TouchedPaths, ",") != "my file.txt" {
+			t.Fatalf("touched_paths = %v", session.TouchedPaths)
+		}
+		reverse := string(mustRead(t, filepath.Join(attempts[0], "reverse.patch")))
+		if !strings.Contains(reverse, "my file.txt") {
+			t.Fatalf("reverse.patch omits spaced path:\n%s", reverse)
+		}
+	})
+
+	t.Run("status-failure-restores-exact-path", func(t *testing.T) {
+		fx := newSpaceUnapplyFixture(t)
+		rt := defaultUnapplyRuntime()
+		rt.newAttemptID = func() (string, error) { return "ua_cccccccccccc", nil }
+		rt.saveStatus = func(*store.Store, store.FeatureStatus) error {
+			return errors.New("injected status failure")
+		}
+		cmd := &cobra.Command{}
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		if err := runFeatureUnapplyWithRuntime(cmd, fx.store, fx.slug, unapplyOptions{Mode: "patch"}, rt); err == nil {
+			t.Fatal("expected status failure")
+		}
+		if got := string(mustRead(t, filepath.Join(fx.dir, "my file.txt"))); got != "base\nfeature\n" {
+			t.Fatalf("spaced path not restored: %q", got)
+		}
+	})
+}
+
 func TestDependencyEdgeOntoUnappliedParentRemainsAllowed(t *testing.T) {
 	dir, s := newRejectRepo(t, map[string]store.FeatureState{
 		"parent": store.StateUnapplied,
@@ -528,8 +931,12 @@ func TestFeatureUnapplyLifecycleIntegrations(t *testing.T) {
 		"--reason", "obsolete", "--note", "discard", "--evidence", "request.md"); code != 3 || !strings.Contains(stderr, "tpatch remove feature") {
 		t.Fatalf("reject code=%d stderr=%s", code, stderr)
 	}
+	statusBeforeReopen := mustRead(t, filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json"))
 	if _, stderr, code := runRJ("reopen", fx.slug, "--path", fx.dir, "--note", "not rejected"); code != 3 {
 		t.Fatalf("reopen code=%d stderr=%s", code, stderr)
+	}
+	if got := mustRead(t, filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "status.json")); !bytes.Equal(got, statusBeforeReopen) {
+		t.Fatal("refused reopen changed status.json")
 	}
 
 	status, err := fx.store.LoadFeatureStatus(fx.slug)
@@ -581,6 +988,10 @@ func TestFeatureUnapplyReopenRejectsInconsistentLiveRejection(t *testing.T) {
 
 func TestFeatureApplyReappliesUnappliedFeature(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
+	beforeStatus, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
 		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
 	}
@@ -616,11 +1027,109 @@ func TestFeatureApplyReappliesUnappliedFeature(t *testing.T) {
 	if status.State != store.StateApplied {
 		t.Fatalf("state after reapply = %q, want applied", status.State)
 	}
+	if !status.Apply.HasPatch {
+		t.Fatal("reapply cleared apply.has_patch despite preserving the canonical patch")
+	}
+	if status.Apply.BaseCommit != beforeStatus.Apply.BaseCommit {
+		t.Fatalf("reapply changed base_commit from %q to %q", beforeStatus.Apply.BaseCommit, status.Apply.BaseCommit)
+	}
 	if got := mustRead(t, filepath.Join(fx.dir, "README.md")); string(got) != "# Test\nfeature\n" {
 		t.Fatalf("README after reapply = %q", got)
 	}
 	if got := mustRead(t, filepath.Join(fx.dir, "feature.txt")); string(got) != "feature file\n" {
 		t.Fatalf("feature.txt after reapply = %q", got)
+	}
+}
+
+func TestFeatureApplyIncompleteReapplyPreservesCanonicalAndState(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	patchPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")
+	canonicalBefore := mustRead(t, patchPath)
+	incompleteRecipe := `{
+  "feature": "feature",
+  "operations": [
+    {
+      "type": "replace-in-file",
+      "path": "README.md",
+      "search": "# Test\n",
+      "replace": "# Test\nfeature\n"
+    }
+  ]
+}
+`
+	if err := fx.store.WriteArtifact(fx.slug, "apply-recipe.json", incompleteRecipe); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code != 1 || !strings.Contains(stderr, "reapply") {
+		t.Fatalf("apply code=%d stderr=%s", code, stderr)
+	}
+	if got := mustRead(t, patchPath); !bytes.Equal(got, canonicalBefore) {
+		t.Fatal("incomplete reapply overwrote canonical patch")
+	}
+	status, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil || status.State != store.StateUnapplied {
+		t.Fatalf("status = %q, %v", status.State, err)
+	}
+	if got := string(mustRead(t, filepath.Join(fx.dir, "README.md"))); got != "# Test\n" {
+		t.Fatalf("failed reapply did not restore README: %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(fx.dir, "feature.txt")); !os.IsNotExist(err) {
+		t.Fatalf("failed reapply left feature.txt, err=%v", err)
+	}
+}
+
+func TestFeatureRemoveUnappliedFeatureIsUnchanged(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	if _, stderr, code := runRJ("remove", fx.slug, "--path", fx.dir, "--force"); code != 0 {
+		t.Fatalf("remove code=%d stderr=%s", code, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(fx.dir, ".tpatch", "features", fx.slug)); !os.IsNotExist(err) {
+		t.Fatalf("feature directory remains after remove, err=%v", err)
+	}
+}
+
+func TestFeatureUnapplyActorPrecedenceInSession(t *testing.T) {
+	tests := []struct {
+		name      string
+		flag      string
+		env       string
+		unsetGit  bool
+		wantActor string
+	}{
+		{name: "flag", flag: "flag@example.com", env: "env@example.com", wantActor: "flag@example.com"},
+		{name: "environment", env: "env@example.com", wantActor: "env@example.com"},
+		{name: "git-config", wantActor: "test@test.com"},
+		{name: "unknown", unsetGit: true, wantActor: "unknown"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(store.ActorEnvVar, tt.env)
+			fx := newUnapplyFixture(t, store.StateApplied)
+			if tt.unsetGit {
+				runUnapplyGit(t, fx.dir, "config", "user.email", "")
+			}
+			args := []string{"feature", "unapply", fx.slug, "--path", fx.dir}
+			if tt.flag != "" {
+				args = append(args, "--actor", tt.flag)
+			}
+			if _, stderr, code := runRJ(args...); code != 0 {
+				t.Fatalf("code=%d stderr=%s", code, stderr)
+			}
+			attempts, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "ua_*"))
+			var session unapplySession
+			if err := json.Unmarshal(mustRead(t, filepath.Join(attempts[0], "unapply-session.json")), &session); err != nil {
+				t.Fatal(err)
+			}
+			if session.Actor != tt.wantActor {
+				t.Fatalf("actor = %q, want %q", session.Actor, tt.wantActor)
+			}
+		})
 	}
 }
 
@@ -652,6 +1161,17 @@ func TestUnappliedParentBlocksHardDependencyAndLabelsWaiting(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("labels = %v, want waiting-on-parent", labels)
+	}
+	if _, stderr, code := runRJ("apply", "child", "--path", s.Root); code == 0 || !strings.Contains(stderr, "state=unapplied") {
+		t.Fatalf("apply child code=%d stderr=%s", code, stderr)
+	}
+	statusOut, stderr, code := runRJ("status", "--path", s.Root)
+	if code != 0 || !strings.Contains(statusOut, `hard parent "parent" is unapplied (waiting-on-parent)`) {
+		t.Fatalf("status code=%d stderr=%s:\n%s", code, stderr, statusOut)
+	}
+	dagOut, stderr, code := runRJ("status", "--dag", "--path", s.Root)
+	if code != 0 || !strings.Contains(stderr, `hard parent "parent" is unapplied (waiting-on-parent)`) {
+		t.Fatalf("status --dag code=%d stderr=%s stdout=%s", code, stderr, dagOut)
 	}
 }
 
@@ -707,13 +1227,43 @@ func TestExplicitReconcileOnUnappliedReportsViabilityWithoutStateChange(t *testi
 	}
 }
 
-func TestAggregateReconcileSkipsUnappliedFeature(t *testing.T) {
+func TestExplicitReconcileCLIReachesUnappliedViabilityPath(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
 	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
 		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
 	}
 	base := strings.TrimSpace(runUnapplyGit(t, fx.dir, "rev-list", "--max-parents=0", "HEAD"))
-	_, err := workflow.RunReconcile(
+	out, stderr, code := runRJ(
+		"reconcile", fx.slug,
+		"--path", fx.dir,
+		"--upstream-ref", base,
+		"--allow-dirty",
+		"--allow-stale-lock",
+	)
+	if code != 0 || !strings.Contains(out, "unapplied-forward-apply-viability") {
+		t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, out)
+	}
+	status, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil || status.State != store.StateUnapplied {
+		t.Fatalf("status = %q, %v", status.State, err)
+	}
+}
+
+func TestAggregateReconcileSkipsUnappliedFeature(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	other, err := fx.store.AddFeature(store.AddFeatureInput{Title: "Other", Slug: "other", Request: "other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other.State = store.StateApplied
+	if err := fx.store.SaveFeatureStatus(other); err != nil {
+		t.Fatal(err)
+	}
+	base := strings.TrimSpace(runUnapplyGit(t, fx.dir, "rev-list", "--max-parents=0", "HEAD"))
+	results, err := workflow.RunReconcile(
 		context.Background(),
 		fx.store,
 		nil,
@@ -722,8 +1272,11 @@ func TestAggregateReconcileSkipsUnappliedFeature(t *testing.T) {
 		provider.Config{},
 		workflow.ReconcileOptions{},
 	)
-	if err == nil || !strings.Contains(err.Error(), "no applied or active features") {
-		t.Fatalf("aggregate reconcile error = %v", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Slug != "other" {
+		t.Fatalf("aggregate results = %+v; unapplied feature must be skipped", results)
 	}
 	status, loadErr := fx.store.LoadFeatureStatus(fx.slug)
 	if loadErr != nil || status.State != store.StateUnapplied {
@@ -755,6 +1308,22 @@ func mustRead(t *testing.T, path string) []byte {
 	return data
 }
 
+func directoryEntryNames(t *testing.T, path string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, len(entries))
+	for i, entry := range entries {
+		names[i] = entry.Name()
+	}
+	return names
+}
+
 func runUnapplyGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)
@@ -764,4 +1333,127 @@ func runUnapplyGit(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %v: %v: %s", args, err, out)
 	}
 	return string(out)
+}
+
+func newRenameUnapplyFixture(t *testing.T) unapplyFixture {
+	t.Helper()
+	testutil.PinGitAutoGCOff()
+	dir := t.TempDir()
+	gitInitTestRepo(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Rename", Slug: "rename", Request: "rename"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "old.txt"), []byte("rename me\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "rename baseline")
+	if err := os.Rename(filepath.Join(dir, "old.txt"), filepath.Join(dir, "new.txt")); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "rename feature")
+	patch := runUnapplyGit(t, dir, "show", "--find-renames=50%", "--format=", "--binary", "HEAD")
+	if !strings.Contains(patch, "rename from old.txt") {
+		t.Fatalf("fixture did not produce rename patch:\n%s", patch)
+	}
+	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+	feature.State = store.StateApplied
+	feature.Apply.HasPatch = true
+	if err := s.SaveFeatureStatus(feature); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record rename metadata")
+	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
+}
+
+func newUnicodeDeleteUnapplyFixture(t *testing.T) unapplyFixture {
+	t.Helper()
+	testutil.PinGitAutoGCOff()
+	dir := t.TempDir()
+	gitInitTestRepo(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Unicode", Slug: "unicode", Request: "unicode"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "café.txt")
+	if err := os.WriteFile(path, []byte("unicode\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "unicode baseline")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "unicode deletion feature")
+	patch := runUnapplyGit(t, dir, "show", "--format=", "--binary", "HEAD")
+	if got := gitutil.PathsAffectedByPatch(patch); len(got) != 1 || got[0] != "café.txt" {
+		t.Fatalf("fixture patch paths = %v\n%s", got, patch)
+	}
+	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+	feature.State = store.StateApplied
+	feature.Apply.HasPatch = true
+	if err := s.SaveFeatureStatus(feature); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record unicode metadata")
+	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
+}
+
+func newSpaceUnapplyFixture(t *testing.T) unapplyFixture {
+	t.Helper()
+	testutil.PinGitAutoGCOff()
+	dir := t.TempDir()
+	gitInitTestRepo(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Space", Slug: "space", Request: "space"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "my file.txt")
+	if err := os.WriteFile(path, []byte("base\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "space baseline")
+	if err := os.WriteFile(path, []byte("base\nfeature\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	patch, err := gitutil.CapturePatch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(patch, "diff --git a/my file.txt b/my file.txt") {
+		t.Fatalf("fixture did not produce unquoted spaced header:\n%s", patch)
+	}
+	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+	feature.State = store.StateApplied
+	feature.Apply.HasPatch = true
+	if err := s.SaveFeatureStatus(feature); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record spaced feature")
+	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
 }
