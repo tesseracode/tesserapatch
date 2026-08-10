@@ -1,3 +1,32 @@
+## Dispatch — Cluster G' rev-0 — 2026-08-10
+
+**Supervisor**: Copilot CLI
+**Task**: Implement v0.14.0 `tpatch feature unapply` from the Accepted
+PRD-feature-unapply and ADR-032 paper package.
+
+### Dispatch
+
+- **WAVE_BASE**: `9e77617` (`origin/main` immediately before dispatch).
+- **Execution**: one implementer, sequential. Store, CLI, lifecycle integration,
+  assets, and tests overlap on shared files.
+- **Scope**: atomic `SaveFeatureStatus`; `StateUnapplied`; transactional
+  patch-mode `feature unapply`; D3 audit artifacts; apply/reconcile/status/next/
+  land/dependency/confirm-upstreamed integrations; SPEC/assets; all 61 ADR
+  matrix rows.
+- **Corrected semantics**: no `UnappliedStatus`; no `ErrUnappliedParent`;
+  dependency edge creation onto unapplied parents remains allowed, while
+  unapplied parents do not satisfy hard dependency apply gates.
+- **Interaction scope**: `reject` / `reopen` are not redesigned, but their
+  required unapplied-state interaction acceptance criteria remain in scope.
+- **Release**: do not tag v0.14.0 until implementation review, consolidation,
+  and the wave-close checklist are complete.
+
+### Action Taken
+
+`docs/handoff/CURRENT.md` transitioned from Cluster G planning SHIPPED to
+Cluster G' `REV-0 DISPATCHED`. Implementation proceeds from the corrected
+ROADMAP, with the Accepted papers authoritative.
+
 ## Review — Cluster G post-ship follow-up — 2026-08-10
 
 **Reviewer**: External reviewer (post-ship summary-vs-source audit)

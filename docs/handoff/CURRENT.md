@@ -2,9 +2,23 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: REV-0 DISPATCHED
 
-**WAVE_BASE**: `2c8a207` (post-v0.13.0 consolidation + backlog registration).
+**WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
+implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-0 DISPATCHED — v0.14.0 `tpatch feature
+unapply` implementation.** Single implementer, sequential: the store,
+command, lifecycle integrations, assets, and tests overlap on shared files.
+Binding baseline: Accepted `docs/prds/PRD-feature-unapply.md` + Accepted
+`docs/adrs/ADR-032-feature-unapply-state-boundary.md`. The post-ship external
+MEDIUM summary-vs-source note is closed by `1eba8ee`, `75d80f0`, and
+`9e77617`. Corrected scope: add real `StateUnapplied`; write D3's fixed
+`unapply-session.json` as a separate audit artifact; do NOT add
+`UnappliedStatus` or `ErrUnappliedParent`; dependency edge creation onto an
+unapplied parent remains allowed while `StateUnapplied` does not satisfy hard
+dependency apply gates. All 61 ADR matrix rows are in scope. v0.14.0 is tagged
+only after implementation review and wave close.
 
 **2026-08-05 Cluster G planning SHIPPED at `e1a5898` — v0.14.0 candidate paper package APPROVED.** Four review revs (rev-0 → rev-3), convergent close arc terminated three-way clean at rev-3. Deliverables: `PRD-feature-unapply.md` (refreshed 587 → ~950 lines, moved from allowlisted untracked to tracked, Accepted) + `ADR-032-feature-unapply-state-boundary.md` (~1100 lines, new, D1-D8 with 61-row test matrix, Accepted). Rev-3 dual verdict: internal APPROVED clean; external APPROVED clean (no residuals, no notes — clean APPROVED, not APPROVED WITH NOTES). Rev arc: rev-0 BLOCKED (internal 8 HIGH + 2 MEDIUM; external NEEDS REVISION 10 findings dominated by 7/13 fabricated citations) → rev-1 BLOCKED (internal 3 HIGH; external NEEDS REVISION 2 MEDIUM; **9/10 rev-0 external findings closed byte-for-byte, 16/16 anchors verified — citation-fabrication vector fully neutralized**) → rev-2 BLOCKED (internal 1 HIGH + 1 MEDIUM; external APPROVED WITH NOTES 1 LOW + 1 INFO; convergent AC-10c gap + supervisor-verified AC-35 row 43 semantic contradiction with PRD §3.5:271) → rev-3 APPROVED clean (both reviewers). Range `99a1e06..e1a5898`. Key design decisions locked: **composition Alt A** (parallel independent states, mutually exclusive) — resolves ADR-031 D6 data-model composition sub-question; retirement-command sub-question explicitly deferred to future `tpatch retire`. **D6 8-step atomicity** with `os.CreateTemp`+`os.Rename` POSIX-atomic status.json write (Cluster G' pre-req to upgrade `SaveFeatureStatus`). **Impl Note 4** guard placement: first statement of `applyConfirmUpstreamedTransition` (caller), NOT in `saveConfirmUpstreamedStatus` (callee). Wire schema `unapply-session.json` byte-for-byte identical PRD §7.1 vs ADR D3. 39 §15 ACs + 3 §10 atomicity ACs all mapped 1:1. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`. Cluster G' implementation cluster next (v0.14.0 code + tag).
 
@@ -50,44 +64,53 @@
 
 ## Active Task
 
-**Cluster F' — v0.13.0 GH #6 first-class `rejected` feature lifecycle state (implementation phase).** Pending dispatch. WAVE_BASE `c6aaeb2` (Cluster F planning + rev-5 verb-collision amendment). Planning-baseline: `docs/prds/PRD-rejected-feature-state.md` + `docs/adrs/ADR-031-rejected-feature-state-data-model.md`, both three-way APPROVED (rev-4 baseline + rev-5 docs-only amendment).
+**Cluster G' rev-0 — v0.14.0 feature-unapply implementation.**
 
-### Implementation scope (from planning baseline)
+- **Task ID**: Cluster G' rev-0
+- **Milestone**: v0.14.0
+- **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
+- **Status**: In Progress
+- **Assigned**: 2026-08-10
+- **WAVE_BASE**: `9e77617`
 
-Touches (per ADR §7 Implementation Notes):
-- `internal/store/types.go` — add `StateRejected` as 11th `FeatureState` value; extend `ValidFeatureState` closed switch.
-- `internal/store/status.go` — add `Rejection` field to `FeatureStatus` (`{reason, note, actor, evidence []EvidenceRef, rejected_at, prior_state, history []RejectionHistoryEntry}`); `EvidenceRef{Path, SHA256 string}`.
-- `internal/store/validation.go` — add Rule 7 (edge-creation refused if target parent is `rejected`) covering `hard`/`soft`/`supersedes`; extend at existing `ValidateDependencies` function (`113-210`).
-- `internal/cli/cobra.go` — new `tpatch reject <slug>` and `tpatch reopen <slug>` commands; `tpatch status` filtering (`--include-rejected` opt-in); `tpatch next` rejection-aware output; guard on `applyConfirmUpstreamedTransition` entry (before reconcile-revision append at `:2535` and `saveConfirmUpstreamedStatus` at `:2554`) refusing on `rejected` source state.
-- `assets/` — state enum doc/template updates (parity guard `assets_test.go`).
-- `SPEC.md` — new state documentation.
-- Tests — PRD §9 27 items (26 + 26b sub-test + test 27 rev-5 `--help` cross-ref): reject from allowed states, refuse from post-implementation states, evidence content-hash + path safety, reopen unbounded append-only, note-only reopen historical verification, divergent_reason taxonomy, dependency-order symmetry (both orders × 3 edge types), CLI shape, JSON envelope, exit-code envelope 0/1/2/3, actor precedence, confirm-upstreamed defense-in-depth guard, `--help` disambiguation for `reject` ↔ `reconcile --reject`.
+### Implementation scope
 
-Do NOT touch (orthogonal per ADR D6): `internal/workflow/reconcile.go` and its `RetirementAudit` on `ReconcileResult`.
+- Upgrade `SaveFeatureStatus` to same-directory atomic temp-write + rename.
+- Add `StateUnapplied = "unapplied"` and audit every state-aware surface.
+- Add `tpatch feature unapply <slug>` with patch-mode dry-run, dependency and
+  worktree preflight, strict reverse-check, temporary-worktree preview,
+  touched-file snapshot/restore, and exit codes 0/1/2/3.
+- Write D3's deterministic `unapply-session.json` and `reverse.patch` under
+  `artifacts/unapply/<attempt-id>/`; do not mutate patch generations.
+- Integrate apply, aggregate/explicit reconcile, status/JSON/FEATURES.md, next,
+  land, dependency satisfaction, verify invalidation, confirm-upstreamed, and
+  reject/reopen interaction acceptance criteria.
+- Update `SPEC.md`, all affected shipped assets, and the parity guard.
+- Cover all 61 ADR matrix rows, including AC-10a/b/c rollback paths.
 
-### Constraints (per AGENTS.md + CLAUDE.md + planning baseline)
+### Binding corrections
 
-- Implementation phase = code + tests. All planning-baseline decisions binding (see PRD/ADR at `377d103`).
-- Content-hash SHA-256 lowercase-hex encoding (`encoding/hex.EncodeToString`).
-- Exit-code envelope: 0 success / 1 unexpected error / 2 pre-mutation validation / 3 state-machine refusal.
-- CLI shape: `tpatch reject <slug> --reason <enum> --note <string> [--evidence <path>...] [--actor <string>]`; `tpatch reopen <slug> --note <string> [--evidence <path>...] [--actor <string>]`.
-- Actor precedence: `--actor` > `TPATCH_ACTOR` > `git config user.email` > `"unknown"`.
-- Explicit `git add <path>`; NEVER `-a`/`-A`. `git commit -F <tempfile>`; NEVER inline heredoc. Rule 18 trailer.
-- Side Research md5 `b385fe622db9926f48861105239f113e` MUST remain preserved.
-- Do NOT touch canonical `**Cluster state**` field.
-- Do NOT stage the 15 untracked WIP files (allowlisted).
-- Explicit backward-compatibility path per ADR D5 migration.
-- Assets parity guard test must pass.
+- No `UnappliedStatus` store sub-record. The D3 session file is separate.
+- No `ErrUnappliedParent` or Rule-7 edge-creation refusal. Edges onto unapplied
+  parents remain legal; unapplied parents do not satisfy hard apply gates.
+- `reject` and `reopen` are not redesigned, but their unapplied interaction ACs
+  are mandatory.
+- The guard belongs at the first statement of
+  `applyConfirmUpstreamedTransition`, not in its callee.
 
-### Non-goals
+### Constraints and non-goals
 
-- Do NOT re-open planning decisions. All 10 decision points D1-D10 are binding.
-- Do NOT extend post-implementation reject scope (D6: OUT OF SCOPE, deferred to future ADR).
-- Do NOT modify `internal/workflow/reconcile.go` or its `RetirementAudit` field.
-- Do NOT block on E'-N1 (allowlist stale-entry bitrot) — orthogonal.
+- Accepted ADR-032 D1-D8 and PRD-feature-unapply govern; do not reopen them.
+- V1 is patch-mode only; no provider calls, landed-commit mode, cascade unapply,
+  retirement command, or patch-generation writes.
+- Preserve Side Research md5 `b385fe622db9926f48861105239f113e`.
+- Do not stage allowlisted untracked research files.
+- Stage explicit file paths only; Rule 18 trailer required on every commit.
 
 ## Session Summary
 
+- **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`;
+  implementation in progress.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -197,33 +220,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-**Backlog after Cluster E-prime**:
-
-Feature / release:
-- **Cluster F — v0.13.0 GH #6 first-class rejected feature state** — data-model extension, PRD + ADR pair. Larger planning-first cluster. Only remaining open GH issue.
-
-Deferred from Cluster E-prime rev-0 external review (documented, no fold — reviewer's explicit "not required for this rev to ship"):
-- **E'-N1 LOW** — `.wave-close-allowlist` stale-entry bitrot is silent. Allowlist entries whose files land (via `git add`) or delete are silently ignored — no active flagging in gate, no protocol coverage in AGENTS.md pruning guidance. Passive signal only via `(N entries allowlisted)` count trend. Two fix options: (a) active stale-entry sub-check reporting patterns matching zero untracked files as "candidate for removal"; (b) extend AGENTS.md checklist bullet to require pruning when a file lands/deletes. Fold into Cluster F pre-flight or next hygiene cluster if allowlist grows beyond initial 16 seed.
-
-Deferred from Cluster D adjudication (documented, no fold):
-- **D-INT-2** (`--from-revision <original>` post-crash "superseded" error) — PRD-#4 lines 180/259 document the flag as CI/test override, not the crash-recovery path. Default retry works (external Rule 20 verified). Backlog if operator friction surfaces.
-- **F-EXT-2** (concurrency safety of confirm-upstreamed) — pre-existing; concurrent invocation of same slug not a supported local-CLI scenario.
-
-Untracked WIP (surfaced by Cluster D Item 7 gate glob extension; NOT staged by Cluster D):
-- `docs/whitepapers/WP-004..WP-007.md` + `.turns.md` siblings (8 files).
-- `docs/prds/PRD-feature-unapply.md`, `docs/prds/PRD-recurring-patches.md`.
-- `docs/state-of-the-art/*case-study*` (2 files).
-- These require operator decision on disposition; not a defect.
-
-Process / hygiene (all shipped this session):
-- ✅ AGENTS.md parallel-implementer discipline addendum (Cluster C).
-- ✅ Mechanical wave-close-check gate (Cluster C).
-- ✅ Gate glob covers whitepapers + state-of-the-art (Cluster D fold F1).
-
-Documentation:
-- **ADR-027 F2** (nit).
-- **Doctor S3-boundary deferrals** (from Wave β).
-- **ADR-029 nit deferrals**.
+1. Land the atomic `SaveFeatureStatus` and `StateUnapplied` foundation.
+2. Implement the transactional `feature unapply` command and D3 artifacts.
+3. Wire every lifecycle/status/dependency integration.
+4. Update SPEC/assets and complete the 61-row matrix.
+5. Run repository gates, update this handoff to Review, and dispatch dual review.
 
 ## Blockers
 
@@ -231,6 +232,10 @@ None.
 
 ## Context for Next Agent
 
+- **Cluster G' is active at `WAVE_BASE=9e77617`.** The corrected ROADMAP and
+  Accepted papers govern. Never add `UnappliedStatus` or
+  `ErrUnappliedParent`; those were stale summary inventions closed before
+  dispatch.
 - **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
 - **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.
