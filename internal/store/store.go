@@ -369,7 +369,7 @@ func (s *Store) SaveFeatureStatus(status FeatureStatus) error {
 	if status.UpdatedAt == "" {
 		status.UpdatedAt = nowStamp()
 	}
-	if err := writeJSON(s.featureStatusPath(status.Slug), status); err != nil {
+	if err := writeJSONAtomic(s.featureStatusPath(status.Slug), status); err != nil {
 		return err
 	}
 	_ = s.RefreshFeaturesIndex()
@@ -824,6 +824,58 @@ func writeJSON(path string, v any) error {
 		return err
 	}
 	return writeFile(path, string(data)+"\n")
+}
+
+func writeJSONAtomic(path string, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(path, append(data, '\n'), 0o644)
+}
+
+func writeFileAtomic(path string, content []byte, mode fs.FileMode) error {
+	return writeFileAtomicWithRename(path, content, mode, os.Rename)
+}
+
+func writeFileAtomicWithRename(path string, content []byte, mode fs.FileMode, rename func(string, string) error) (retErr error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		if retErr != nil {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := tmp.Chmod(mode); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(content); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := rename(tmpPath, path); err != nil {
+		return err
+	}
+	if d, err := os.Open(dir); err == nil {
+		_ = d.Sync()
+		_ = d.Close()
+	}
+	return nil
 }
 
 func writeFile(path, content string) error {

@@ -28,11 +28,17 @@ const (
 	// the opposite verdict — an implementation exists upstream) and from
 	// StateBlocked (temporary; work resumes once the blocker clears).
 	StateRejected FeatureState = "rejected"
+
+	// StateUnapplied is the twelfth FeatureState (v0.14.0,
+	// PRD-feature-unapply / ADR-032 D1). The feature remains tracked and
+	// retains its canonical patch, but that patch is absent from the
+	// current working tree. `tpatch apply` is the reapply path.
+	StateUnapplied FeatureState = "unapplied"
 )
 
 func ValidFeatureState(state FeatureState) bool {
 	switch state {
-	case StateRequested, StateAnalyzed, StateDefined, StateImplementing, StateApplied, StateActive, StateReconciling, StateReconcilingShadow, StateBlocked, StateUpstreamMerged, StateRejected:
+	case StateRequested, StateAnalyzed, StateDefined, StateImplementing, StateApplied, StateActive, StateReconciling, StateReconcilingShadow, StateBlocked, StateUpstreamMerged, StateRejected, StateUnapplied:
 		return true
 	default:
 		return false

@@ -109,8 +109,10 @@ only after implementation review and wave close.
 
 ## Session Summary
 
-- **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`;
-  implementation in progress.
+- **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
+  Store foundation complete: `StateUnapplied` is the twelfth valid state and
+  `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
+  rename that preserves the prior status bytes on rename failure.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -125,6 +127,20 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster G' rev-0
+
+Foundation:
+- `internal/store/types.go` — `StateUnapplied` + closed-switch validation.
+- `internal/store/store.go` — atomic JSON/file writer used by
+  `SaveFeatureStatus`.
+- `internal/store/unapply_test.go` — state wire-value guard and failed-rename
+  preservation/cleanup regression.
+- `docs/handoff/CURRENT.md` — implementation progress and targeted result.
+
+## Test Results — Cluster G' rev-0
+
+- `go test ./internal/store` — PASS.
 
 ## Files Changed — Cluster F' rev-0
 
