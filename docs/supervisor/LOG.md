@@ -1,3 +1,63 @@
+## Review — Cluster H rev-10 adjudication — 2026-08-18
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r10-external`)
+**Writer commit**: `e926f80`
+**Reviewed range**: `19e3024..e926f80`
+
+### Verdict: NEEDS REVISION → REV-11 DISPATCHED
+
+### Verified Clean
+
+- Exact current range; 106 contiguous AC clauses and 175 contiguous rows
+  with complete coverage.
+- Four resource IDs, batch digest, directory digest and six shared JSON
+  blocks.
+- One-name/one-code taxonomy for the rev-10 names, `trust-dolt` primary
+  lists, path reason definition and Vector 3 ordering.
+- Caller-owned pipes and keeping the leader waitable close rev-9's drain
+  coupling and PGID-reuse defects.
+- Raw `waitid` helper cross-compiles and preserves later `cmd.Wait` exit
+  status.
+
+### Consolidated Findings
+
+1. Darwin may return from `waitid(...WEXITED|WNOWAIT)` for a stopped child;
+   the papers incorrectly promise exit-only behavior.
+2. Negative-PGID signals against an unreaped zombie return `EPERM` on
+   Darwin's normal success path; accepting only `ESRCH` breaks every clean
+   invocation there.
+3. Raw-observer `EINTR` and terminal errors, pipe-reader errors and
+   non-tolerated signal errors have no single cleanup/error state machine.
+4. Joining pipe readers without a deadline can hang forever when an escaped
+   session retains a writer, holding the slug lock indefinitely.
+5. ADR implementation/negative-consequence sections still prescribe
+   rev-9's early `cmd.Wait`; PRD/ADR command and acceptance surfaces still
+   prescribe add-time private copies.
+6. The claim that verified copy bytes are exactly the executed bytes ignores
+   the documented path-replacement residual.
+7. Dry-run sweep behavior conflicts between command and lifecycle sections.
+8. One CI statement incorrectly calls the macOS runner amd64.
+
+### Rev-11 Direction
+
+- Treat Darwin's stopped-child observation as a fail-closed cleanup trigger,
+  not proof of exit; tolerate `EPERM` and `ESRCH` for group signals while the
+  leader remains waitable.
+- Retry `waitid` on `EINTR`; define a named internal failure for other
+  observer/signal/read errors and continue best-effort cleanup without
+  reaping before signaling.
+- After signaling/reaping, impose a read-end deadline, close both caller-owned
+  endpoints on expiry, join readers, refuse a named drain-timeout reason and
+  release the lock. Disclose escaped descendants honestly.
+- Remove every stale early-Wait/add-copy surface, choose no sweeps for
+  dry-run, and qualify executable identity to the owner-only threat model.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-11 DISPATCHED`. The cluster remains
+planning-only; D1/D2, wire schemas and golden hashes are unchanged.
+
 ## Review — Cluster H rev-9 adjudication — 2026-08-17
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r9-internal`)

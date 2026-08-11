@@ -2,10 +2,23 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-11 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-18 Cluster H rev-10 adjudicated NEEDS REVISION → rev-11
+DISPATCHED.** Both correctly scoped reviewers confirmed that keeping the
+leader waitable closes rev-9's PGID-reuse race, but found the surrounding
+contract incomplete. On Darwin, `waitid(...WEXITED|WNOWAIT)` may also return
+for a stopped child and negative-PGID signaling of an unreaped zombie returns
+`EPERM`, not `ESRCH`; both must be explicit accepted cleanup states. Pipe
+drain must also be deadline-bounded because an escaped-session descendant can
+retain a writer outside the signaled PGID. Rev-11 defines one complete
+observer/signal/drain error state machine, folds stale early-`Wait` and
+add-time-copy surfaces, qualifies executable-path identity honestly, and
+resolves the dry-run sweep contradiction. D1/D2, wire schemas and hashes
+remain closed.
 
 **2026-08-17 Cluster H rev-9 adjudicated NEEDS REVISION → rev-10
 DISPATCHED.** Correctly scoped internal and external reviews both blocked
@@ -3209,15 +3222,19 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run correctly scoped internal and external rev-10 dual review.
-2. Continue the same writer context only if a further residual
-   micro-fold is required by the rev-10 adjudication verdict.
-3. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
+1. Fold the consolidated rev-10 Darwin/observer/signal/drain and
+   stale-surface findings into one bounded process state machine.
+2. Re-run source, platform-runtime, golden-vector, JSON parity and
+   AC/matrix audits.
+3. Run correctly scoped internal and external rev-11 reviews.
+4. Continue the same writer context only if a further residual
+   micro-fold is required by the rev-11 adjudication verdict.
+5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-10 written, AWAITING REVIEW.
+**Status**: Cluster H planning active; rev-11 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
