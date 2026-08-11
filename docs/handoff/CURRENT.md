@@ -2,10 +2,19 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-1 adjudicated NEEDS REVISION → rev-2
+DISPATCHED.** Internal confirmation verified both rev-0 findings closed, then
+found four new MEDIUM gaps: reapply still executed potentially stale recipe
+instead of canonical patch; already-materialized reapply shortcut ran before
+dependency/generation gates; touched-path snapshot rejected file↔directory
+transitions; and `amend --reset` wrote request.md before the unapplied state
+transition refusal. External rev-1 full review is deferred to rev-2 after this
+bounded semantic fold.
 
 **2026-08-10 Cluster G' rev-1 IMPLEMENTED — AWAITING DUAL REVIEW at
 `7b65d7f`.** Both accepted rev-0 MEDIUM findings are folded: all temporary
@@ -97,7 +106,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Review (rev-1)
+- **Status**: In Progress (rev-2 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -349,9 +358,12 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run internal rev-1 confirmation and a fresh external full review.
-2. Adjudicate any residuals without reopening D1-D8.
-3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Reapply canonical patch directly and keep rollback/base invariants.
+2. Move dependency/generation gates before materialized-reapply shortcut.
+3. Support file↔directory touched-path snapshots/restores.
+4. Refuse unapplied amend before request mutation.
+5. Re-run internal confirmation plus fresh external full review.
+6. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers

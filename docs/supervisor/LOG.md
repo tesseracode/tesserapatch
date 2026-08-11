@@ -1,3 +1,44 @@
+## Review — Cluster G' rev-1 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`gprime-r1-internal`)
+**Fold reviewed**: `7b65d7f`
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Rev-0 Closure
+
+- Literal pathspec handling: CLOSED.
+- Complete four-state six-asset parity: CLOSED.
+- Green gates, range, handoff and current Rule 18 policy: VERIFIED.
+
+### New Findings
+
+1. **MEDIUM**: reapply executes `apply-recipe.json` although canonical
+   `post-apply.patch` is replay authority; refreshed patches can outlive stale
+   recipes.
+2. **MEDIUM**: already-materialized reapply shortcut bypasses hard-dependency
+   and parent-generation gates.
+3. **MEDIUM**: touched-path snapshot rejects directory entries, so valid
+   file↔directory patches cannot unapply.
+4. **MEDIUM**: `amend --reset` writes request.md before MarkFeatureState
+   refuses the unapplied transition.
+
+### Rev-2 Fold
+
+- Strictly forward-apply canonical patch for reapply; retain transaction,
+  canonical bytes and correct base_commit.
+- Run dependency/generation gates before all shortcut finalization.
+- Snapshot and restore directories/path-type transitions in dependency-safe
+  two-phase order.
+- Refuse non-dependency amend operations before request mutation.
+- Add direct regressions for stale recipe, gate ordering, file↔directory
+  success/rollback and amend byte identity.
+
+### Action Taken
+
+Cluster state transitioned to `REV-2 DISPATCHED`. External full review is
+deferred until this bounded fold is green.
+
 ## Review dispatch — Cluster G' rev-1 — 2026-08-10
 
 **Fold commit**: `7b65d7f`
