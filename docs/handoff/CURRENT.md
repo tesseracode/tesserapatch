@@ -2,10 +2,73 @@
 
 ## Status
 
-**Cluster state**: REV-4 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-4 WRITTEN — full fold of the rev-3 dual-review
+verdict (adjudication `4d9dd21`), awaiting dual review.** Same sequential
+writer continued from rev-3 (`5a3b44a`/`151a50e`). Fourteen numbered
+requirement items folded across both papers, driven by the rev-3
+adjudication's ten concrete findings, plus a supervisor-provided
+supplementary Dolt-source confirmation (`dolt_diff_summary`'s exact
+five-column schema and `IsReadOnly()` status, prior citations reused) and
+an empirical `check-ignore` semantics confirmation carried forward
+unchanged from rev-3.
+`PRD-feature-resource-claims-and-capture-adapters.md` rewritten to 2563
+lines (was 2150); `ADR-033-resource-capture-boundary.md` rewritten to 937
+lines (was 759, then 865 after this session's D9–D11/Test Matrix splice,
+then 937 after the final Implementation Notes/Negative Consequences/Test
+Matrix rebuild). Preserved across every review pass to date (rev-1
+through rev-4, five passes counting the rev-3 citation addendum):
+separate `resources.json`, no canonical-patch/lifecycle authority, Dolt
+never authoritative/a core dependency, Git-only replay. Key rewrites:
+(1) the per-slug lock is redesigned from rev-3's temp-directory/
+`owner.json`/PID+process-start protocol (ABA-prone, `ps -o lstart=`-
+dependent) to a single, persistent, kernel-released nonblocking advisory
+`flock` file — no owner metadata, no quarantine/reclaim, never removed,
+with a Go build-tag platform contract (`resource-lock-unsupported`, exit
+3, on non-`unix` builds); (2) the batch-publication idempotency
+comparison bug is fixed — rev-3 compared the canonical **hash-input**
+bytes (excluding `batch_id`, compact encoding) against on-disk **file-
+wire** bytes (including `batch_id`, indented), which could never match;
+rev-4 compares complete re-encoded file-wire bytes against file-wire
+bytes; (3) `db_path`'s honesty gap is closed as far as the Go standard
+library allows: `exec.Cmd.Dir` is a pathname, not a descriptor, so the
+gate now re-runs immediately before `cmd.Start()`, holds an open
+directory descriptor across the child's lifetime, and re-checks identity
+after exit — framed explicitly as detection, not prevention; (4)
+`remove`/`clear` are corrected to **never** touch `current.json` or any
+`batches/<id>.json` file — only `resources.json`, under the same
+per-slug lock as every other mutator — fixing a rev-3 design where they
+silently made `current.json` writable by a third verb class; (5) `diff`
+now honestly states it **reads current file content** through the same
+bounded scanner `capture` uses (removing a self-contradictory "without
+opening content" claim) and the directory-scan "point-in-time snapshot"
+overclaim is replaced with an honestly-stated sequential-read residual;
+(6) three Dolt-protocol citations are upgraded to more precise source
+evidence — the row-constructor `getRowFromSummary` for the boolean-
+no-coercion claim (C25), the four exact `DiffType` assignment lines plus
+the never-assigned `DiffTypeAll` filter-only caveat for the closed enum
+(C26), and the real captured-stdout trailing-whitespace shapes
+(`"...]}\n"`/`"{}\n\n"`) that ground the "trim before parse" requirement
+(C27); (7) cap-plus-one actual-read enforcement is specified for both
+ignored-file content and Dolt stdout/stderr capture, replacing any
+stat-only/claimed-size trust; (8) the acceptance-criteria set grew from
+70 to **72** individually-tagged clauses (removing rev-3's 7 PID/
+quarantine-specific lock clauses, adding 9 new ones), and the ADR Test
+Matrix was rebuilt from 97 to **111** rows, all 72 clauses mechanically
+confirmed covered. Golden resource-ID vectors 1–4 and the worked batch
+example's `batch_id` (`rb_5cff7f222dce`) are unaffected by rev-4 (only
+lock/publish/read mechanics changed, not the ID-derivation algorithm) and
+were independently reconfirmed this session — a stale `data/users-db`
+typo in the ADR's D3 golden-vector table (inconsistent with its own JSON
+examples and with the PRD) was found and fixed to `data/dolt-db` during
+this reconfirmation. All three shared JSON wire examples reconfirmed
+byte-identical between PRD and ADR (programmatic comparison). `git diff
+--check` clean on both files. Side Research md5 unchanged:
+`b385fe622db9926f48861105239f113e`.
 
 **2026-08-10 Cluster H rev-3 adjudicated NEEDS REVISION → rev-4
 DISPATCHED.** Internal review found 5 HIGH + 5 MEDIUM; external found
@@ -377,13 +440,13 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-3 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-4 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-3
+- **Task ID**: Cluster H rev-4
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-2 dual-review verdict into the
+- **Description**: Fold the rev-3 dual-review verdict into the
   feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-4 fold)
+- **Status**: Review
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -559,6 +622,87 @@ only after implementation review and wave close.
   unconfirmed against source (community/docs-corroborated only); the
   ancestor-symlink gate's TOCTOU residual is accepted, not claimed closed.
   Ready for dual review; see "Ready for review — Cluster H rev-2" below.
+- **Cluster H rev-4** — dispatched 2026-08-10 (adjudication `4d9dd21`) from
+  `WAVE_BASE=f04dec7`; written 2026-08-10. The rev-3 verdict (internal 5
+  HIGH + 5 MEDIUM, external 3 HIGH + 3 MEDIUM plus exact notes) folded in
+  full, driven by a 14-item requirement list plus a supervisor-provided
+  supplementary `dolt_diff_summary` schema/`IsReadOnly()` confirmation.
+  `PRD-feature-resource-claims-and-capture-adapters.md` rewritten to 2563
+  lines (was 2150); `ADR-033-resource-capture-boundary.md` rewritten to
+  937 lines (was 759). Preserved across every review pass to date: a
+  separate `resources.json`, no canonical-patch/lifecycle authority, Dolt
+  never authoritative/a core dependency, Git-only replay. Rewritten: the
+  lock (D9/§7.2) is redesigned from rev-3's temp-directory/`owner.json`/
+  PID+process-start protocol — found still ABA-prone in its
+  quarantine-then-retry reclaim sequence, and dependent on the fragile,
+  shell-out-based `ps -o lstart=` liveness probe — to a single, persistent,
+  kernel-released nonblocking advisory `flock` file: no owner metadata, no
+  PID/process-start tracking, no quarantine/stale-reclaim, the lock file
+  is never removed or renamed (avoiding the classic unlink/recreate ABA
+  race), with a Go build-tag platform contract (`resource-lock-unsupported`,
+  exit 3, on non-`unix` builds), and all five mutating verbs
+  (`add`/`remove`/`clear`/`capture`/`record --resources`) acquire it while
+  `list`/`diff` remain lock-free. The batch-publication idempotency
+  comparison (D7/D11/§7.3) is fixed: rev-3 compared the canonical
+  **hash-input** bytes (excluding `batch_id`, compact encoding) directly
+  against the on-disk **file-wire** bytes (including `batch_id`, real
+  indentation), which could never match even for byte-identical content —
+  rev-4 re-encodes the complete candidate file-wire bytes and compares
+  those against the on-disk file, restoring genuine idempotency. `db_path`'s
+  `cmd.Dir` gap (D6/§9.1) is addressed as far as the Go standard library
+  allows — Go's `os/exec.Cmd.Dir` is a pathname, not a descriptor, so no
+  portable stdlib mechanism can fully close this — by re-running the
+  ancestor-symlink/containment gate immediately before `cmd.Start()`,
+  holding an open directory descriptor across the Dolt child process's
+  lifetime, and re-checking identity via `os.SameFile` after the process
+  exits, explicitly framed as **detection**, not **prevention**, with the
+  residual stated honestly rather than claimed closed. `remove`/`clear`
+  (D7/§3/§4/§12.5) are corrected to **never** touch `current.json` or any
+  `batches/<id>.json` file — only `resources.json`, under the same
+  per-slug lock as every other mutator — fixing a rev-3 design that made
+  `current.json` writable by a third verb class, contradicting D7's
+  "sole commit point" framing. `diff` (D4/§3/§5.1) now honestly states it
+  **reads current file content** through the same bounded scanner
+  `capture` uses (removing a self-contradictory "without opening file
+  content" claim that directly conflicted with the same paragraph's own
+  hash-recomputation requirement), and a directory scan's earlier
+  "point-in-time snapshot" overclaim is replaced with an honestly-stated
+  sequential-read-consistency residual. Three Dolt-protocol citations
+  (D5/§6.2/§6.3) are upgraded to more precise source evidence: the row
+  constructor `getRowFromSummary` (`dolt_diff_summary.go:457-464`) for the
+  boolean-no-coercion claim (C25, stronger than a schema-type-only
+  citation); the four exact `DiffType` assignment lines inside
+  `GetSummary` (`table_deltas.go:722/733/745/760`) for the closed
+  4-value `diff_type` enum, plus the note that a fifth constant,
+  `DiffTypeAll`, exists but is never assigned to any row (C26, stronger
+  than a const-block-only citation); and the real captured-stdout
+  trailing-whitespace shapes (`"...]}\n"` for nonempty rows, `"{}\n\n"`
+  for zero rows, evidenced via `writer.go`'s footer/`Close` and
+  `sql_print.go`'s unconditional trailing blank-line write) that ground
+  the "trim leading/trailing whitespace before structural parse"
+  requirement (C27, previously unstated/purely defensive). Cap-plus-one
+  actual-read enforcement (§8) is specified for both ignored-file content
+  and Dolt stdout/stderr capture, replacing any stat-only/claimed-size
+  trust. Acceptance criteria (§14) grew from 70 to **72** individually-
+  tagged clauses (rev-3's 7 PID/quarantine-specific lock clauses removed
+  entirely, 9 new clauses added: stdout-whitespace parsing, cap-plus-one
+  enforcement, sequential-read residual, `db_path`/`cmd.Dir` detection,
+  local-ignore-for-remove/clear, flock crash-release, unsupported-
+  platform, contention, orphaned-pointer-entry harmlessness); the ADR
+  Test Matrix was rebuilt from 97 to **111** rows, all 72 clauses
+  mechanically confirmed covered, no false "exactly once" claim. Golden
+  resource-ID vectors 1–4 and the worked batch example's `batch_id`
+  (`rb_5cff7f222dce`) are unaffected by rev-4 (only lock/publish/read
+  mechanics changed, never the ID-derivation algorithm itself) and were
+  independently reconfirmed this session via a fresh Python
+  `hashlib.sha256` script; a stale `data/users-db` typo in the ADR's D3
+  golden-vector table (inconsistent with its own JSON examples and with
+  the PRD's `data/dolt-db`) was found and corrected during this
+  reconfirmation. All three shared JSON wire examples (`resources.json`,
+  `batches/<id>.json`, `current.json`) reconfirmed byte-identical between
+  PRD and ADR via programmatic string comparison. `git diff --check`
+  clean on both files. Side Research md5 unchanged:
+  `b385fe622db9926f48861105239f113e`.
 - **Cluster H rev-3** — dispatched 2026-08-10 (adjudication `4ea011e`) from
   `WAVE_BASE=f04dec7`; written 2026-08-10. The rev-2 verdict (internal 5
   HIGH + 5 MEDIUM, external 5 HIGH + 7 MEDIUM plus tracking notes) folded
@@ -725,6 +869,145 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-4
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, **2563 lines** (was 2150). New/changed structure:
+  §0 Fold Summary (rev-4 narrative, §0.1 Claims Audit rows `C25`–`C27`
+  layered on the still-valid `C1`–`C24` — not repeated in this file,
+  living in git history/`HISTORY.md` — §0.2 what rev-4 removes/changes,
+  §0.3 golden vectors unaffected, §0.4 requirement-item 1–14 → section
+  map); §3 Command Surface (`remove`/`clear` never touch `current.json`/
+  batch files, local-ignore gate before lock creation for every mutator);
+  §4 Data Model (fixed the `artifacts/resource-captures/` bullet, removed
+  the "prune current.json's index" claim); §5.1 (`ignored-file`: actual
+  cap-plus-one reads, sequential-read-consistency residual, `diff` reads
+  content); §6.2/§6.3 (C25/C26/C27 citation upgrades, PK-error/
+  nonexistent-table citations narrowed to the exact branch); §6.4
+  (captured-output-cap row describes an actual cap-plus-one read); §7.1
+  (single persistent `.lock` file replacing temp/stale-suffix scratch
+  layout, two separate orphan sweeps, local-ignore gate extended to
+  `remove`/`clear`); §7.2 (full kernel-`flock` lock-semantics rewrite:
+  `O_CREATE|O_RDWR,0600`+`flock(LOCK_EX|LOCK_NB)`, no owner metadata, Go
+  build-tag platform contract, all 5 mutators, `list`/`diff` lock-free);
+  §7.3 (idempotency-comparison fix — file-wire bytes vs. hash-input
+  bytes — exact temp-file naming, updated crash-window table); §7.4
+  (lock-file permissions: `0600` at creation, never `chmod`'d, persists);
+  §8 (cap-plus-one enforcement language for both read paths); §9.1
+  (new `db_path`/`cmd.Dir` honesty paragraph — re-run gate before
+  `cmd.Start()`, hold dir fd across child lifetime, re-check after exit,
+  detection-not-prevention framing); §10.3 (local-ignore gate extended
+  explicitly to `remove`/`clear`); §11 (`record --resources`: `flock`
+  terminology, fixed exit-code table, file-wire-byte idempotency
+  comparison); §12 (batch-ID hash-input-vs-file-wire distinction, fixed
+  §12.5's remove/clear-never-touches-current.json claim); §13.3
+  (golden vectors reconfirmed unaffected); §14 Acceptance Criteria (72
+  individually AC-tagged clauses, down 7/up 9 from 70, arithmetic shown);
+  §15 Open Questions (`db_path`/`cmd.Dir` residual, flock build-tag
+  contract, sequential-read-directory-scan residual); §16/§17 historical
+  changelogs (unchanged, preserved as historical narrative); new §18
+  Rev-4 Changelog vs rev-3.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in full,
+  **937 lines** (was 759). Same 11 binding decisions (D1–D11, numbering
+  unchanged — no decision inserted or removed, only rewritten in place):
+  D4 (ADR-027 compliance) rewritten for the `diff`-reads-content fix and
+  the sequential-read residual; D5 (Dolt protocol) rewritten for the
+  C25/C26/C27 citation upgrades; D6 (path/executable safety) extended
+  with the `db_path`/`cmd.Dir` honesty paragraph and its distinct
+  residual; D7 (publication) rewritten for the corrected idempotency
+  comparison and the remove/clear-never-touches-current.json fix; D8
+  (Git gates) extended to state the local-ignore gate now covers every
+  mutator; D9 (lock) fully rewritten — the largest single edit — from
+  the atomic directory-rename/PID-reuse-guarded design to the
+  kernel-`flock` design; D10 (permissions) updated for the persistent
+  `.lock` file's permissions/no-removal; D11 (wire canonicalization)
+  rewritten for the file-wire-vs-hash-input distinction. A stale
+  `data/users-db` value in D3's golden-vector table (inconsistent with
+  the section's own JSON examples and the PRD) was found and corrected
+  to `data/dolt-db` during this session's golden-vector reconfirmation.
+  Wire Schema Appendix's three JSON examples re-verified programmatically
+  byte-identical to the PRD's §12.1/§12.3/§12.4 (raw string equality, all
+  3/3 matched). Implementation Notes rewritten (7 items: `flock` build-tag
+  note replacing the `ps -o lstart=` shell-out note, `CanonicalBatchJSON`
+  file-wire-wrapper note added); Negative Consequences Summary rewritten
+  (7 bullets: `db_path`/`cmd.Dir` residual added, flock-unsupported-
+  platform bullet added, orphaned-pointer/batch-entry bullet added);
+  Test Matrix rebuilt from 97 to **111 rows** covering all 72 PRD
+  acceptance-criteria clauses (mechanically verified via a Python script
+  — 0 missing, 0 extra — no clause claimed covered "exactly once").
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-4
+  entry prepended above the rev-3-adjudication entry), Active Task
+  Status → Review, this Session Summary bullet, this Files Changed
+  section, Test Results, and the "Ready for review — Cluster H rev-4"
+  section below. Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-4
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation performed
+instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace
+  errors, no conflict markers).
+- Citation re-verification: re-derived `C25`/`C26`/`C27` this session via
+  a scratch sparse clone of `dolthub/dolt` at the pinned commit
+  `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` (created inside the repo
+  working directory at `.dolt-src-check/`, fully deleted — confirmed via
+  `git status --short` — before any document edits began), reading
+  `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff_summary.go`
+  (`getRowFromSummary`, lines 457–464; the 3-arg/single-table branch,
+  lines 300–320), `go/libraries/doltcore/diff/table_deltas.go`
+  (`TableDeltaSummary` struct, lines 83–90; `DiffType*` const block,
+  lines 45–51; `GetSummary`'s four exhaustive assignment lines, 722/733/
+  745/760), `go/libraries/doltcore/table/typed/json/writer.go` (`Close`/
+  footer, no added newline), `go/cmd/dolt/commands/engine/sql_print.go`
+  (`PrintNoSummary`, zero-row `{}` write, unconditional trailing
+  blank-line write), `go/cmd/dolt/commands/sql.go` (`execSingleQuery`
+  calling `PrettyPrintResults`, not the extended/summary variant), and
+  `go/libraries/utils/iohelp/write.go` (`WriteLine` always appends one
+  `"\n"`). Reconfirmed the pre-existing `C21` citation
+  (`dolt_diff_summary.go:347-350`) needed no change.
+- Golden-vector recomputation: all four `resource_id` vectors
+  independently recomputed via a fresh Python `hashlib.sha256` script
+  (order-independence reconfirmed for vectors 2/3); all four match the
+  values carried forward from rev-3 unchanged. Found and fixed a stale
+  `data/users-db` value in the ADR's D3 golden-vector table during this
+  recomputation (corrected to `data/dolt-db`, matching the PRD and the
+  ADR's own JSON examples).
+- Content-addressed batch-ID: not re-derived from scratch this session
+  (rev-4 makes no change to `CanonicalBatchJSON`'s hash-input encoding),
+  but the worked `rb_5cff7f222dce` example was reconfirmed present and
+  unchanged in both documents' Wire Schema sections.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents and confirmed the
+  three shared examples (`resources.json`, `batches/<id>.json`,
+  `current.json`) are byte-identical between the PRD and the ADR
+  (Python `str ==` comparison on the raw fenced block text) — 3/3
+  matched.
+- AC/test-matrix mapping check: mechanically extracted every `AC-<n>`
+  tag from the PRD (72 distinct, sequential `AC-1`..`AC-72`, no gaps —
+  verified via a Python sorted-set script) and every numbered row of the
+  ADR's Test Matrix (111 rows); confirmed all 72 clauses appear in at
+  least one matrix row, no clause missing, no extra/unexpected clause
+  tag, and the matrix's own closing note explicitly disclaims any
+  "exactly once" mapping claim (30 clauses are each covered by 2+ rows).
+- Cross-reference audit: no stray `AC-<n>` references found outside the
+  ADR's Test Matrix section; the revision-count language in both the
+  ADR's fold summary and its D1 header was normalized to avoid an
+  internally-inconsistent "five revisions (rev-1 through rev-4)" claim
+  (four numbered revisions plus the rev-3 citation addendum, phrased
+  explicitly as five review passes, matching the PRD's own count).
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; all pre-existing untracked WIP remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-0
 
@@ -1515,6 +1798,139 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-4
+
+**Scope**: docs-only planning cluster, rev-4 fold. Same two deliverables
+as rev-1/rev-2/rev-3, both fully rewritten (not patched), plus this
+handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **2563 lines** (was 2150). See "Files Changed — Cluster H rev-4"
+   above for the full section-by-section breakdown; see the Session
+   Summary entry above for the complete list of changed decisions
+   mapped to the dispatch's requirement items (1–14).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **937 lines** (was
+   759). Same 11 binding decisions (D1–D11 — no insertion/removal this
+   revision, only in-place rewrites of D4–D11, D9 the largest); see
+   "Files Changed — Cluster H rev-4" above.
+
+**Files changed (Cluster H rev-4)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D3 (ADR) ↔ §13 (PRD): identical canonical-JSON `args` encoding,
+  identical algorithm text, identical four golden vectors
+  (`res_acc91dc23a8b`, `res_cf8e47e6564b` ×2, `res_79f5ac5dca13`),
+  independently recomputed and matching in both documents; the ADR's
+  stale `data/users-db` value found and corrected to `data/dolt-db` to
+  match the PRD and its own JSON examples.
+- D4 (ADR) ↔ §5.1/§3 (PRD): identical `diff`-reads-content statement
+  (no "without opening content" framing), identical cap-plus-one
+  enforcement, identical sequential-read-consistency residual.
+- D5 (ADR) ↔ §6.2/§6.3 (PRD): identical C25/C26/C27 citation text and
+  source line numbers, identical mandatory `db_path`/`table`, identical
+  exact `dolt_diff_summary(from,to,table)` argv template.
+- D6 (ADR) ↔ §9.1 (PRD): identical `os.SameFile` descriptor-identity
+  check, identical `db_path`/`cmd.Dir` detection-not-prevention
+  paragraph, identical honestly-scoped residual language.
+- D7 (ADR) ↔ §7.3/§12.5 (PRD): identical corrected idempotency
+  comparison (file-wire vs. hash-input bytes), identical
+  remove/clear-never-touches-current.json correction, identical
+  crash-window table.
+- D8 (ADR) ↔ §10.3 (PRD): identical local-ignore-gate-for-every-mutator
+  extension, identical `check-ignore`/`./`-prefix behavior carried
+  forward unchanged from rev-3.
+- D9 (ADR) ↔ §7.2 (PRD): identical kernel-`flock` lock design, identical
+  no-owner-metadata/never-removed lock-file semantics, identical
+  build-tag platform contract, identical all-5-mutators-serialize
+  requirement.
+- D11 (ADR) ↔ §7.3/§12.3 (PRD): identical `CanonicalBatchJSON`
+  hash-input-vs-file-wire distinction, byte-identical JSON examples
+  confirmed programmatically (resources.json, batches/<id>.json,
+  current.json — 3/3 matched).
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  (D6) and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain
+  cited consistently in both documents.
+- All 72 PRD §14 acceptance-criteria clauses appear in the ADR's 111-row
+  Test Matrix; the matrix explicitly disclaims any "exactly once"
+  mapping claim.
+
+**Validation performed**:
+- `git diff --check` on both rewritten files — clean.
+- `dolthub/dolt` source facts re-verified against a real sparse clone at
+  pinned commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` (since
+  deleted): `getRowFromSummary`'s row-constructor evidence for the
+  boolean-no-coercion claim (C25); `GetSummary`'s four exact `DiffType`
+  assignment lines plus the never-assigned `DiffTypeAll` caveat (C26);
+  the real captured-stdout trailing-whitespace shapes via
+  `writer.go`/`sql_print.go`/`sql.go`/`iohelp/write.go` (C27); the
+  pre-existing `C21` nonexistent-table citation reconfirmed accurate
+  without change.
+- All four golden `resource_id` vectors independently recomputed via a
+  fresh Python `hashlib.sha256` script; all four match rev-3 unchanged
+  (rev-4 makes no change to the ID-derivation algorithm) — a stale
+  `data/users-db` value in the ADR's D3 table was found and corrected
+  during this recomputation.
+- The content-addressed `batch_id` (`rb_5cff7f222dce`) reconfirmed
+  present and unchanged in both documents (not re-derived from scratch,
+  since `CanonicalBatchJSON`'s hash-input encoding is unaffected by
+  rev-4).
+- All three shared JSON wire examples programmatically confirmed
+  byte-identical (raw string equality) between the PRD and the ADR.
+- AC/test-matrix coverage mechanically verified: 72 distinct, sequential
+  `AC-<n>` tags in the PRD (no gaps, verified via a Python sorted-set
+  script), all 72 present across the ADR's 111-row Test Matrix.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; pre-existing untracked WIP is untouched.
+- Side Research md5 invariant re-verified unchanged:
+  `b385fe622db9926f48861105239f113e`.
+
+**Reviewer focus areas**:
+- Confirm the kernel-`flock` lock (D9/§7.2) genuinely has no owner-
+  metadata/PID/quarantine mechanism left anywhere in either document —
+  this was rev-3's most severe finding (ABA-prone reclaim protocol) —
+  and that the lock file is described as never removed/renamed under any
+  code path, with the build-tag platform contract stated as an explicit
+  refusal (`resource-lock-unsupported`), not a "best-effort" hedge.
+- Confirm the batch-publication idempotency comparison (D7/D11/§7.3) is
+  now described as comparing **file-wire bytes against file-wire
+  bytes** — re-read the exact sentence and confirm it does not still
+  describe comparing hash-input bytes against on-disk bytes anywhere
+  (rev-3's bug, by construction, could never produce a matching retry).
+- Confirm `db_path`/`cmd.Dir` (D6/§9.1) is described honestly as a
+  **detection**, not prevention, mechanism, with the residual stated in
+  both the Negative Consequences Summary and the PRD's Open Questions —
+  not glossed over or claimed as a closed sandbox.
+- Confirm `remove`/`clear` (D7/§3/§12.5) are described as **never**
+  touching `current.json` or any `batches/<id>.json` file anywhere in
+  either document — search for any residual "prune"/"update the index"
+  language left over from rev-3's design.
+- Confirm `diff`'s content-reading behavior (D4/§5.1) is stated
+  consistently as reading actual file content through the bounded
+  scanner, with no remaining "without opening content"/metadata-only
+  phrasing anywhere in either document.
+- Confirm the three Dolt citation upgrades (C25/C26/C27, D5/§6.2/§6.3)
+  cite the specific line numbers given above and that the `DiffTypeAll`
+  filter-only caveat is present alongside the enum citation.
+- Confirm the 72-clause/111-row AC/matrix accounting is genuinely
+  mechanical (spot-check a handful of `AC-<n>` tags against their matrix
+  rows) and not merely asserted, and that no clause is claimed covered
+  "exactly once."
+- Confirm the corrected `data/dolt-db` golden-vector value (fixed from a
+  stale `data/users-db` typo found this session) is now consistent
+  everywhere in the ADR, matching the PRD and both documents' own JSON
+  examples.
 
 ## Ready for review — Cluster H rev-3
 
