@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Cluster H′ rev-0 implementation is dispatched from the corrected and
-re-gated Cluster H planning close.
+Cluster H′ rev-0 implementation is complete and pushed. Both
+implementation commits are on `origin/main`; independent internal and
+external rev-0 reviews have not yet run.
 
 ## Active Task
 
@@ -13,77 +14,194 @@ re-gated Cluster H planning close.
 - **Milestone**: v0.15.0 typed feature resources and capture adapters
 - **Description**: Implement the Accepted Cluster H PRD and ADR-033
   end-to-end.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-11
 - **WAVE_BASE**: `46c984b`
-- **Target release**: v0.15.0
+- **Dispatch commit**: `f277d51`
+- **Implementation commits**: `bff5ef5`, `c66845a`
+- **Commit range**: `46c984b..c66845a`
+- **Target release**: v0.15.0 (untagged; tagging is a later wave)
 
 ## Session Summary
 
-Cluster H planning closed with an 8/8 amended wave-close after folding the
-post-close review's real-date and citation-anchor notes. A single sequential
-implementer is now assigned to Cluster H′ rev-0.
+A single sequential implementer built the Accepted contract end-to-end.
+No parallel implementers ran, every stage used explicit-path `git add`,
+and both commits carry the Rule 18 trailer.
 
-Binding authorities:
+Two commits:
 
-- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
-- `docs/adrs/ADR-033-resource-capture-boundary.md`
+1. `bff5ef5` — production code. Store/wire domain, shared redaction
+   package, resource capture, lock/scratch/platform layer, Dolt
+   adapter, process finalizer, CLI surface and `record --resources`.
+2. `c66845a` — the 120-clause / 189-row acceptance contract, the
+   Windows-portability fix, the `exitCodeFor` extraction, and the docs
+   plus shipped-asset parity updates.
 
 ## Current State
 
-No Cluster H′ production code has landed yet. Baseline `46c984b` is pushed,
-clean for tracked files, and passes the full suite. Rev-0 must implement:
+Everything in the rev-0 dispatch brief is implemented. What landed:
 
-- deterministic resource declarations and capture wire artifacts;
-- ignored-file and logical Git-metadata capture;
-- the trusted Dolt `dolt-diff-summary-v1` adapter;
-- Linux/macOS local locking and bounded process cleanup;
-- `feature resource add|list|remove|clear|trust-dolt|capture|diff`;
-- `record --resources` two-domain staging/publication;
-- shared redaction, path/ignore gates, docs and tests.
+- **Store/wire** (`internal/store/`): `resources.json` declaration
+  manifest with the closed kind set; exact `res_` canonicalization with
+  mutable `trust` excluded from identity; the corruption-vs-collision
+  split; an order-preserving canonical JSON value model so no tracked
+  wire depends on Go map iteration; immutable content-addressed batch
+  files keyed by the full SHA-256 of `CanonicalBatchJSON`; atomic
+  `current.json`; file-wire idempotency with the presentation-drift vs.
+  collision split; crash-safe temp+fsync+rename with unconditional
+  whole-chain retry-fsync.
+- **Privacy** (`internal/redact/`): the ten session matchers moved
+  verbatim (session behaviour unchanged — `session_redaction.go` now
+  delegates) plus the six closed resource classes. `Scan` takes bytes,
+  never a path.
+- **Capture** (`internal/rescap/`): ignored-file file/directory capture
+  with modes, counts, hashes and the exact NUL-terminated tuple rule;
+  the four allowlisted Git-metadata views; the five-step path gate with
+  `O_NOFOLLOW` plus `os.SameFile` descriptor identity; the two Git
+  gates with the colon-magic `./` rule; the two-target
+  `.tpatch/local/` contract; bounded cap-plus-one reads.
+- **Lock/platform**: per-slug persistent `flock` plus `statfs`
+  allow/deny under exactly `linux || darwin`, fail-closed stub
+  elsewhere; deterministic scratch lifecycle, 0700/0600 permissions,
+  both orphan sweeps.
+- **Dolt**: add-time descriptor-only TOFU, `trust-dolt` re-pin, the
+  exact SQL/argv, mandatory args/contract validation, resolved-executable
+  policy, `0600` → streamed hash/`Sync` → pin verify → `Fchmod 0500`
+  → pathname exec, minimal environment, no version probe.
+- **Process finalizer**: caller-owned `os.Pipe`s, `Setpgid`, the raw
+  build-tagged `waitid`/`WNOWAIT` observer, single cleanup owner,
+  deterministic trigger priority, late-`ECHILD` cutoff drain, 2s
+  grace/reap/drain bounds, exact error precedence, the `ECHILD`
+  no-signal finalizer, and the Start-failure carve-out.
+- **CLI**: all seven `feature resource` verbs plus `record --resources`,
+  with refusals surfaced through `ExitCodeError`.
+
+### Accepted clarification honoured
+
+A post-reap observer `ECHILD` is treated as expected secondary
+completion: the classification is frozen at the cutoff drain, and the
+observer's later flag can never re-enter or alter an already-finalized
+entry.
 
 ## Files Changed
 
-- `docs/ROADMAP.md`
-- `docs/handoff/CURRENT.md`
-- `docs/supervisor/LOG.md`
+55 files, +11024 / -177 across `46c984b..c66845a`.
+
+New packages/files:
+
+- `internal/redact/redact.go`, `redact_test.go`
+- `internal/store/canonjson.go`, `resources.go`, `resource_publish.go`,
+  `fsdurable.go`, `resources_test.go`
+- `internal/rescap/`: `refusal.go`, `lock_unix.go`,
+  `lock_unsupported.go`, `statfs_linux.go`, `statfs_darwin.go`,
+  `observer_unix.go`, `observer_unsupported.go`, `process.go`,
+  `gitgate.go`, `pathgate.go`, `pathopen_unix.go`,
+  `pathopen_windows.go`, `content.go`, `gitmeta.go`, `dolt.go`,
+  `scratch.go`, `engine.go`, `compare.go` + eight `_test.go` files
+- `internal/cli/feature_resource.go`, `record_resources.go`,
+  `feature_resource_test.go`
+
+Modified: `internal/cli/cobra.go` (noun wiring, `--resources`/`--json`
+flags, `exitCodeFor` extraction), `internal/cli/feature_deps.go`,
+`internal/cli/session_redaction.go` (delegation only),
+`internal/cli/cobra_test.go` (`runCmdExit`), `assets/assets_test.go`,
+all six shipped skill surfaces, `SPEC.md`, `CHANGELOG.md`, `CLAUDE.md`,
+`docs/feature-layout.md`, `docs/record.md`.
 
 ## Test Results
 
-- Amended Cluster H planning wave-close: PASS 8/8 at `46c984b`.
-- Cluster H′ implementation validation: pending.
-- Side Research md5:
-  `b385fe622db9926f48861105239f113e`.
+At `c66845a`:
+
+- `gofmt -l .` — clean.
+- `go vet ./...` — clean.
+- `go build ./cmd/tpatch` — OK.
+- `go test -count=1 ./...` — PASS, all 14 packages.
+- `go test -race -count=1 ./internal/rescap/` — PASS (the finalizer is
+  the only concurrent surface).
+- Assets parity guard — PASS with seven new anchors and seven new
+  required commands.
+- New suite: 94 test functions, 388 top-level/subtest assertions
+  (262 in `rescap`/`store`/`redact`, 126 in the `cli` resource subset).
+- Cross-compile `go build ./...`: `linux/amd64`, `linux/arm64`,
+  `linux/386`, `linux/s390x`, `darwin/arm64`, `darwin/amd64`,
+  `windows/amd64`, `windows/arm64` — all OK. `go vet` OK on
+  linux/amd64, linux/arm64, darwin/arm64, darwin/amd64, windows/amd64.
+  Cross test-compile (`go test -c`) OK for linux/amd64, linux/arm64,
+  darwin/arm64, darwin/amd64.
+- No installed Dolt binary is used anywhere; the adapter suite drives a
+  controlled fixture through the `SetLookPathForTest` seam.
+- Side Research md5: `b385fe622db9926f48861105239f113e` (verified
+  byte-identical at close).
+
+### Coverage auditability
+
+`internal/rescap/ac_coverage_test.go` is the reviewer-facing artifact.
+It maps every `AC-1`..`AC-120` to the concrete test(s) that discharge it
+and to the ADR-033 matrix rows it covers, and three guards keep the map
+honest: all 120 clauses claimed with no gaps/extras, the union of
+claimed rows exactly `1..189` with no duplicates, and every claimed test
+name confirmed to exist as a real `func Test` declaration.
 
 ## Next Steps
 
-1. Implement the Accepted 120-clause / 189-row contract sequentially.
-2. Run `gofmt`, targeted tests, `go test ./...`, and
-   `go build ./cmd/tpatch`.
-3. Update this handoff to AWAITING REVIEW with exact files, counts and
-   residuals; push the explicit-path commit.
-4. Run independent internal and external rev-0 reviews.
-5. Tag v0.15.0 only after the implementation wave is accepted.
+1. Run the independent internal rev-0 review.
+2. Run the independent external rev-0 review.
+3. Adjudicate, then run the Wave-Close Checklist.
+4. Tag `v0.15.0` only after the implementation wave is accepted.
 
 ## Blockers
 
-None.
+None. No contradictory or impossible requirement was found in the
+Accepted papers; nothing in the PRD or ADR was modified.
+
+## Residuals and Reviewer Focus
+
+Residuals are disclosed, not closed — each is explicitly accepted by
+the Accepted papers:
+
+1. Ancestor-directory TOCTOU between the component walk and the open is
+   not closable with the Go stdlib (no `openat2`); `O_NOFOLLOW` plus
+   `os.SameFile` close the final-component race only.
+2. `cmd.Dir` is pathname-bound, so a `db_path` swap that both occurs and
+   reverts inside the child's own execution window is undetectable. The
+   post-exit check is a hard refusal on *detection*, never prevention.
+3. `cmd.Start()` opens the private copy by pathname after the
+   descriptor-scoped `Fchmod`; the pin verifies the bytes **written**,
+   not the bytes the kernel ultimately executes.
+4. A reap timeout can leave up to two background goroutines outstanding
+   and the leader unreaped; both report over capacity-one buffered
+   non-blocking channels so neither can block.
+5. The `ECHILD` finalizer makes no cleanup claim against the process
+   tree at all.
+6. A directory capture is a sequential read, not an atomic snapshot.
+
+Reviewer focus, in priority order:
+
+1. The process finalizer state machine in `internal/rescap/process.go`
+   against §6.4 — especially the cutoff drain, the primary-error
+   selection walk, and the two finalizers' signal/Wait discipline.
+2. `resource_publish.go`'s idempotency branch against §7.3 step 3.
+3. The two-target local gate and its per-verb application.
+4. Whether `ac_coverage_test.go`'s clause-to-test claims are
+   substantively true, not merely structurally well-formed.
 
 ## Context for Next Agent
 
-- Accepted papers are binding; architecture changes require a new ADR.
+- Accepted papers remain binding; neither was modified.
 - Implementation WAVE_BASE is `46c984b`; planning WAVE_BASE `f04dec7` is
   historical only.
-- One implementer owns all shared surfaces; do not launch parallel writers.
-- Stage and commit explicit file paths only.
-- Do not touch pre-existing untracked PRDs, whitepapers or case-study files.
-- `generic-command` is intentionally out of scope; Dolt is the only v1
-  external adapter.
-- Resources are audit sidecars, never canonical patch or lifecycle truth.
-- Preserve ADR-027 privacy: scanned raw bytes remain bounded in memory and
-  are never persisted.
-- A post-reap observer `ECHILD` is expected secondary completion and must not
-  alter the already-final process classification.
+- Pre-existing untracked PRDs, whitepapers and case-study files were not
+  touched, staged, or formatted.
+- `.impl-scratch/` is local scratch only and is not tracked; it can be
+  deleted at any time.
+- Two design choices worth knowing before reading the code:
+  (a) for `git-metadata`, the view is `--capability` except for `head`,
+  which is self-identifying via `--selector head` — this is what keeps
+  golden Vector 1's empty `capability` correct;
+  (b) `record --resources` wraps record's existing `RunE` rather than
+  editing it, so the Git-side path is provably byte-identical.
+- Resources are audit sidecars, never canonical patch or lifecycle
+  truth. Nothing in `apply`/`reconcile`/`land` reads them.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
