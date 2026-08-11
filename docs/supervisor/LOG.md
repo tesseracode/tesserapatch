@@ -1,3 +1,44 @@
+## Review — Cluster H rev-8 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r8-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r8-external`; invalid stale
+range `d503d55..2aba39b`, excluded from adjudication)
+**Writer commit**: `816bc14`
+
+### Verdict: NEEDS REVISION → REV-9 DISPATCHED
+
+### Verified Clean
+
+- Resource/batch/directory golden IDs.
+- Six shared JSON blocks.
+- 100 AC clauses across 169 rows.
+- Rev-8 trust/copy/gate additions present.
+
+### Valid Internal Findings
+
+1. Matrix row 146 still mandates superseded ancestor-targeted ignore and
+   newly-created-only fsync behavior.
+2. Successful direct-child exit can leave descendants because cleanup is tied
+   to leader observation.
+3. `add --trust-current-dolt` bootstraps through the capture-time missing-pin
+   refusal sequence.
+4. One universal lock/gate contract omits `trust-dolt`.
+5. Duplicate add ambiguously re-pins despite explicit `trust-dolt`.
+6. Capture-time missing pin and new refusal names conflict with/are absent
+   from the normative exit table.
+
+### External Disposition
+
+The external review explicitly scoped itself to rev-7, not rev-8. Findings
+about noexec/copy failures and local gate targets were already folded in
+`816bc14`; no external rev-8 verdict is recorded. A fresh external pass is
+required after rev-9.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-9 DISPATCHED` for a six-item
+acceptance-surface micro-fold.
+
 ## Review — Cluster H rev-7 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r7-internal`)
