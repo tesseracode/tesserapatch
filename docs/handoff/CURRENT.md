@@ -2,10 +2,52 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-2 WRITTEN — full fold of the rev-1 dual-review
+verdict (adjudication `173bb3c`), awaiting dual review.** Same sequential
+writer continued from rev-1 (`e8572b2`/`f0f2c1f`). Both blocking findings
+(internal 5 HIGH + 2 MEDIUM; external 1 CRITICAL + 3 HIGH + 7 MEDIUM + 2 LOW)
+folded across both papers. `PRD-feature-resource-claims-and-capture-adapters.md`
+rewritten to 1460 lines (was 1396); `ADR-033-resource-capture-boundary.md`
+rewritten to 561 lines (was 664). Preserved across all three revisions:
+separate `resources.json`, no canonical-patch/lifecycle authority, Dolt
+never authoritative/a core dependency, Git-only replay. Rewritten: the
+invalid multi-flag Dolt `diff`/`--schema`/`--data`/`--name-only` argv is
+replaced with one exact `dolt sql -r json -q "SELECT ... FROM
+dolt_diff_summary(...)"` invocation, source-verified at `dolthub/dolt`
+commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`; the `dolt version` probe
+is removed entirely — tool identity is now `basename` + `SHA-256` of the
+resolved binary, never an executed probe and never a tracked path; every
+persistent local raw-body lane (including rev-1's `keep_local` opt-in) is
+removed — raw bytes now exist only inside a per-invocation ephemeral scratch
+tree deleted before every invocation returns, closing the full ADR-027 gap
+the rev-1 adjudication found; publication is now exactly one immutable
+tracked `batches/<batch_id>.json` plus one atomically-rewritten tracked
+`current.json` pointer (no more N per-resource tracked files); the symlink
+gate now walks and refuses on **any** ancestor path component (not just the
+final component), paired with a separate, opposite-direction executable
+policy for the Dolt binary; Git ignore/tracked gates now use
+`--literal-pathspecs` with exact exit-code handling and reuse the existing
+`workflow.EnsureLocalIgnoreContract` for the scratch root; a new crash-safe,
+PID-reuse-guarded advisory lock (`ps -o lstart=`-based) replaces the
+undefined rev-1 concurrency story; every tracked `map` type is replaced with
+a sorted array so no wire schema depends on `encoding/json`'s map-key-sort
+behavior; and all wall-clock timestamp fields are removed from every tracked
+artifact. Golden ID vectors 1 and 4 unchanged (`res_acc91dc23a8b`,
+`res_79f5ac5dca13`); vectors 2/3 recomputed to `res_f8a28c218dbb` (Dolt
+capability renamed `schema-diff`/`table-diff` → one unified `diff-summary`)
+and reconfirmed order-independent. Acceptance criteria rebuilt to 48
+individually AC-tagged clauses (no ranges); ADR Test Matrix rebuilt to 74
+mechanically-counted rows covering all 48 clauses, no false "exactly once"
+claim. Two items honestly left open, not silently assumed:
+`dolt_diff_summary`'s `WORKING`/`STAGED` acceptance is unconfirmed against
+source; the ancestor-directory symlink gate has a stated, accepted TOCTOU
+residual the Go standard library cannot fully close. See "Ready for review
+— Cluster H rev-2" below.
 
 **2026-08-10 Cluster H rev-1 adjudicated NEEDS REVISION → rev-2
 DISPATCHED.** Internal review: 5 HIGH + 2 MEDIUM. External review: 1 CRITICAL
@@ -239,13 +281,13 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-1 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-2 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-1
+- **Task ID**: Cluster H rev-2
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold both rev-0 dual-review verdicts into the
+- **Description**: Fold the rev-1 dual-review verdict into the
   feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-2 fold)
+- **Status**: Review
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -275,7 +317,9 @@ only after implementation review and wave close.
 - Reuse shipped file claims, capture modes, capture provenance and generation
   identity rather than creating a parallel ownership model.
 - Honor ADR-027 privacy and ADR-030 `.git/**` store-boundary refusal.
-- Keep Git-first assumptions from WP-006; non-Git replay remains out of scope.
+- Git is the sole replay/change-tracking substrate; the tracked
+  `docs/state-of-the-art/storage-substrate-and-versioned-data.md` research
+  is normative here, not the untracked, still-Exploring `WP-006` whitepaper.
 - Planning only; no CLI/schema implementation.
 - Preserve Side Research md5 `b385fe622db9926f48861105239f113e`.
 - Do not stage allowlisted untracked research files.
@@ -355,6 +399,70 @@ only after implementation review and wave close.
   byte-identical between the two documents. `git diff --check` clean on
   both files. Ready for dual review; see "Ready for review — Cluster H
   rev-1" below.
+- **Cluster H rev-2** — dispatched 2026-08-10 (adjudication `173bb3c`) from
+  `WAVE_BASE=f04dec7`; written 2026-08-10. The rev-1 verdict (internal 5
+  HIGH + 2 MEDIUM, external 1 CRITICAL + 3 HIGH + 7 MEDIUM + 2 LOW) folded
+  in full. `PRD-feature-resource-claims-and-capture-adapters.md` rewritten
+  to 1460 lines (was 1396); `ADR-033-resource-capture-boundary.md`
+  rewritten to 561 lines (was 664) — the ADR is smaller than rev-1 despite
+  a denser AC set because rev-1's per-kind Dolt-invocation branching, the
+  three-tier local-batch-history design, and the separate purge-requirement
+  language all collapse into single, simpler mechanisms. Preserved: a
+  separate `resources.json`, no canonical-patch/lifecycle authority, Dolt
+  never authoritative/a core dependency, Git-only replay. Rewritten: the
+  Dolt protocol (D5) is now one exact `<dolt> sql -r json -q "SELECT
+  from_table_name, to_table_name, diff_type, data_change, schema_change
+  FROM dolt_diff_summary(...) ORDER BY ..."` invocation, source-verified
+  against `dolthub/dolt` commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`
+  (replacing rev-1's mutually-exclusive `--schema`/`--data`/`--name-only`
+  flag combination, which the pinned source does not support as rev-1
+  wrote it); the `dolt version` probe is removed — tool identity is static
+  `basename` + `SHA-256` of the resolved binary, never executed and never
+  a tracked path, with a separate pre/post-invocation replacement check
+  (D5); full `ADR-027` compliance (D4) removes every persistent local raw
+  lane, including rev-1's `keep_local` opt-in — raw bytes now exist only in
+  a per-invocation ephemeral scratch tree, always deleted before the
+  invocation returns, and `feature resource diff` is redefined honestly as
+  metadata/hash/file-set comparison, never a textual content diff; a
+  single tracked publication point (D7) replaces rev-1's per-resource
+  tracked files with one immutable `batches/<batch_id>.json` plus one
+  atomically-rewritten `current.json` pointer, with a full crash-window
+  table; the symlink gate (D6) now walks and refuses on **any** ancestor
+  path component (rev-1 checked only the final component), paired with a
+  separate, opposite-direction executable-location policy for the Dolt
+  binary, and an honestly-stated TOCTOU residual the Go standard library
+  cannot fully close; Git ignore/tracked gates (D8) now use
+  `--literal-pathspecs` with exact exit-code handling for `check-ignore`
+  and `ls-files --error-unmatch`, and reuse the existing
+  `workflow.EnsureLocalIgnoreContract` (`internal/workflow/session_ignore.go:138`)
+  for the scratch root rather than inventing a second ignore mechanism; a
+  new crash-safe, PID-reuse-guarded advisory lock (D9, `ps -o lstart=`
+  -based, malformed/remote-host/stale/PID-reuse handling, no blocking)
+  replaces rev-1's undefined concurrency story; permissions (D10) are now
+  `0700`/`0600` at creation only, never a later `chmod`, and every tracked
+  timestamp field is removed; wire canonicalization (D11) replaces every
+  tracked `map` type with a sorted array so no artifact depends on
+  `encoding/json`'s map-key-sort behavior, and finalizes the `changes`→
+  `result` field rename. Resource ID (D3) canonicalization is unchanged;
+  golden vectors 1/4 (`res_acc91dc23a8b`/`res_79f5ac5dca13`) are unchanged,
+  vectors 2/3 are recomputed to `res_f8a28c218dbb` because the Dolt
+  capability name changed (`schema-diff`/`table-diff` → one unified
+  `diff-summary`) and the capability string is part of the hashed payload
+  — both still resolve identically, reconfirming order-independence.
+  Rebuilt acceptance criteria to 48 individually AC-tagged clauses (no
+  ranges, avoiding rev-1's range-notation counting ambiguity entirely);
+  ADR Test Matrix rebuilt to 74 mechanically-counted rows, isolated from
+  the document's other numbered tables, covering all 48 clauses — no false
+  "exactly once" claim. Fixed the stale WP-006 normative-constraint
+  wording in this handoff's own Active Task block (the tracked
+  `storage-substrate-and-versioned-data.md` research is normative, not the
+  untracked whitepaper). All 3 shared JSON wire examples verified
+  programmatically byte-identical between the PRD and ADR; `git diff
+  --check` clean on both files. Two items left honestly open, not
+  silently assumed: `dolt_diff_summary`'s `WORKING`/`STAGED` acceptance is
+  unconfirmed against source (community/docs-corroborated only); the
+  ancestor-symlink gate's TOCTOU residual is accepted, not claimed closed.
+  Ready for dual review; see "Ready for review — Cluster H rev-2" below.
 - **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
   Store foundation complete: `StateUnapplied` is the twelfth valid state and
   `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
@@ -600,6 +708,132 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
   No design/decision changed; `git diff --check` re-run clean; AC/matrix
   coverage (41 clauses, 66 rows) and all 4 wire-example byte-identity
   checks re-run and unaffected.
+
+## Files Changed — Cluster H rev-2
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, 1460 lines (was 1396). New/changed structure: §0
+  Rev-2 Fold Summary (preserved-decisions restatement, §0.1 Claims Audit
+  rows `C11`–`C14` layered on rev-1's still-valid `C1`–`C10` — not
+  repeated in this file, living in git history/`HISTORY.md` — §0.2 what
+  rev-2 removes/changes, §0.3 golden vector table, §0.4 requirement-item
+  1–14 → section map); §1–§2 unchanged in substance plus a new non-goal
+  deferring raw content diffing/versioning to a future ADR; §3 Command
+  Surface (`--keep-local` flag removed entirely); §4 Data Model
+  (`resources.json` simplified — no `keep_local`, no `added_at`; new
+  `artifacts/resource-captures/{batches/,current.json}` tracked-history
+  design; new §4.1 missing-referenced-batch case); §5 Resource Kinds
+  (§5.1 `ignored-file` literal-pathspec dual gate + fail-closed
+  ancestor-symlink walk + verbatim-hash capture; §5.2 `git-metadata` four
+  tagged result variants; §5.3 `adapter-snapshot` single `diff-summary`
+  capability); §6 Adapter Protocol — Dolt (no version probe, static
+  executable identity, exact `dolt_diff_summary` argv, SQL-literal
+  escaping, honest `WORKING`/`STAGED` caveat, `diff_type` tracked
+  verbatim); §7 Ephemeral Scratch, Locking, Single Publication Point (new
+  section — scratch lifecycle, crash-safe PID+`ps -o lstart=` lock,
+  publish protocol + crash-window table, permissions, local-only failure
+  diagnostics); §8 Privacy & Redaction (same six closed classes,
+  reframed around ephemeral-only scanning); §9 Path & Executable Safety
+  (ancestor-symlink fail-closed gate + honest TOCTOU statement; separate
+  executable policy); §10 Git Ignore/Tracked Gate Semantics (new
+  dedicated section — literal-pathspec exit-code handling,
+  `EnsureLocalIgnoreContract` reuse, pathspec-magic rows); §11 `record
+  --resources` Semantics (two-atomic-domains framing, ephemeral staging);
+  §12 Wire Schemas (map-free arrays, `changes`→`result` finalized); §13
+  Resource ID Canonicalization (unchanged algorithm, updated golden
+  vectors); §14 Acceptance Criteria (48 individually AC-tagged clauses,
+  no ranges); §15 Open Questions/Negative Consequences; §16 Rev-2
+  Changelog vs rev-1.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in full,
+  561 lines (was 664). 11 binding decisions (D1–D11): scope/authority
+  reaffirmation (D1), closed 3-kind set (D2), resource ID canonicalization
+  + golden vectors — algorithm reaffirmed, vectors 2/3 recomputed for the
+  renamed Dolt capability (D3), full `ADR-027` compliance replacing the
+  local `keep_local` lane with ephemeral-scratch-only raw bytes (D4), the
+  redesigned Dolt `dolt_diff_summary` SQL protocol + no-probe static
+  executable identity (D5), the two opposite-direction path/executable
+  safety policies with an honest TOCTOU statement (D6), one tracked
+  publication point replacing per-resource tracked files (D7), literal-
+  pathspec Git ignore/tracked gates + `EnsureLocalIgnoreContract` reuse
+  (D8), the crash-safe PID-reuse-guarded lock (D9), creation-time
+  permissions + no tracked timestamps (D10), and map-free wire
+  canonicalization + the two-atomic-domain `record --resources` framing
+  (D11). Wire Schema Appendix with three JSON examples verified
+  byte-identical to the PRD's §12 (raw string equality, not just semantic
+  equality), Implementation Notes (5 items), a Negative Consequences
+  Summary, and a 74-row Test Matrix covering all 48 PRD acceptance-
+  criteria clauses.
+- `docs/handoff/CURRENT.md` — this update: Status narrative, Active Task
+  Status → Review and corrected WP-006 constraint wording, Session
+  Summary, this Files Changed section, Test Results, and the "Ready for
+  review — Cluster H rev-2" section below. Cluster state flipped to
+  `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any existing PRD/ADR, and all code/assets remain
+untouched by this cluster — confirmed via `git status --short` showing only
+the three owned paths as modified.
+
+## Test Results — Cluster H rev-2
+
+Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
+`cmd/`, or `assets/` files were touched. Validation performed instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace errors,
+  no conflict markers).
+- Citation re-verification: `internal/workflow/session_ignore.go:138`
+  (`EnsureLocalIgnoreContract`'s actual behavior — git-availability +
+  worktree-containment + `gitutil.IsPathIgnored`, confirmed it does NOT
+  independently check trackedness, which is exactly the gap D8/§10 closes
+  by layering the existing `ls-files --error-unmatch` gate on top rather
+  than inventing a second ignore mechanism); `docs/adrs/ADR-004-m10-copilot-proxy-ux.md`
+  D6 (confirmed as the existing macOS/Linux-only platform-scope precedent
+  reused for the new lock's Windows best-effort framing);
+  `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  (confirmed both sections exist and are the tracked, normative
+  Dolt/substrate research, replacing any WP-006 binding); `ADR-030` and
+  `ADR-032` (confirmed as the `.git/**` exclusion and `crypto/rand`
+  fixed-ID precedents respectively). The Dolt SQL redesign cites the
+  supervisor-provided source verification directly (`dolthub/dolt` commit
+  `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`: `dolt_diff_summary`'s exact
+  five-column output, `dolt sql -q`/`-r json`); `WORKING`/`STAGED`
+  acceptance and the `-r json` envelope's exact shape are explicitly
+  flagged as community/docs-corroborated only, not independently
+  source-verified, since web-search results describing them were
+  inconsistent with the source-verified column set.
+- Golden-vector recomputation: all four `resource_id` vectors independently
+  recomputed via Python `hashlib.sha256` against the exact canonical-JSON/
+  payload construction described in both documents; vectors 1 and 4 match
+  rev-1 unchanged; vectors 2 and 3 both recompute to the new
+  `res_f8a28c218dbb` value (Dolt capability renamed) and are identical to
+  each other, reconfirming `args` order-independence under the new
+  capability name.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents (3 in each) and confirmed
+  all three shared examples (`resources.json`, `batches/<id>.json`,
+  `current.json`) are byte-identical between the PRD and the ADR (Python
+  `str ==` comparison on the raw fenced block text).
+- AC/test-matrix mapping check: mechanically extracted every `AC-<n>` tag
+  from the PRD (48 distinct, `AC-1`..`AC-48`, no range notation this
+  revision) and every numbered row of the ADR's Test Matrix section
+  specifically (74 rows, `1`..`74`, isolated from the document's other
+  numbered tables — the D3 golden-vector table and the D5/D6 outcome
+  tables also use a leading-integer column but are not part of the Test
+  Matrix); confirmed all 48 clauses appear in at least one matrix row, no
+  clause is missing, and no row count is claimed "exactly once" anywhere in
+  either document.
+- D-series decision numbering re-verified internally consistent after
+  inserting a new D3 (Resource ID) ahead of the ADR-027-compliance
+  decision and renumbering every subsequent decision (D4–D11); every
+  forward/backward cross-reference to a decision letter within the ADR's
+  own prose (Decision Drivers, Related, Implementation Notes, Negative
+  Consequences Summary) was re-grepped and corrected to match.
+- `git status --short` confirmed only the three owned paths are touched by
+  this writer; all pre-existing untracked WIP (`PRD-recurring-patches.md`,
+  WP-004/005/006/007 files, case-studies directory) remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit (see
+  "Context for Next Agent" below).
 
 ## Files Changed — Cluster G' rev-0
 
@@ -851,21 +1085,23 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Replace invalid Dolt argv with verified deterministic SQL summary capture.
-2. Remove persistent raw bodies and align fully with ADR-027 D1-D6.
-3. Lock single-pointer publication, path/executable, stale-lock, local-ignore,
-   literal-pathspec and failure-directory semantics.
-4. Complete tagged wire variants, exit codes and new matrix rows.
-5. Re-run internal and external rev-2 review with exact count audits.
-6. Reuse the same writer context for further bounded folds if needed.
-7. On dual APPROVED (or APPROVED WITH NOTES): accept papers, archive
-   Cluster H to `docs/handoff/HISTORY.md`, flip ROADMAP's Cluster H status,
-   and dispatch implementation as a separate Cluster H' — no code changes
+1. Dispatch dual review (internal + external) of Cluster H rev-2 against
+   this handoff and both rewritten papers.
+2. If APPROVED (or APPROVED WITH NOTES): accept papers, archive Cluster H
+   to `docs/handoff/HISTORY.md`, flip ROADMAP's Cluster H status, and
+   dispatch implementation as a separate Cluster H' — no code changes
    belong in this cluster's history.
+3. If NEEDS REVISION: continue the same sequential-writer context for
+   rev-3, folding every finding exactly as rev-1 → rev-2 did.
+4. Cluster H' (implementation, once dispatched) must independently
+   re-verify `dolt_diff_summary`'s `WORKING`/`STAGED` acceptance against
+   source before relying on it, and must extract the content-agnostic
+   six-class redaction scanner described in §8 as its own exported
+   package rather than inline logic.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-2 dispatched.
+**Status**: Cluster H planning active; rev-2 awaiting dual review.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
@@ -880,8 +1116,9 @@ becoming canonical-patch/lifecycle authority. It must not capture raw
 `.git/**`, sweep ignored files implicitly, make Dolt authoritative or a core
 dependency, or replace Git as the supported change-tracking substrate.
 Resource capture results remain sidecar audit artifacts in v1, and (as of
-rev-1) raw content of any kind is local-only and opt-in — tracked artifacts
-are hash/count/classification-only. See ROADMAP registered-candidate section
+rev-2) raw content of any kind is ephemeral-scratch-only for the duration of
+one invocation, never persisted locally or tracked — tracked artifacts are
+hash/count/classification-only. See ROADMAP registered-candidate section
 for the CLI sketch, dependencies and safety boundaries.
 
 ## Blockers
@@ -890,23 +1127,142 @@ None.
 
 ## Context for Next Agent
 
-- **Cluster H rev-1 papers are rewritten and awaiting dual review at
+- **Cluster H rev-2 papers are rewritten and awaiting dual review at
   `WAVE_BASE=f04dec7`.** No code or release tag belongs in this cluster;
   implementation is a separately dispatched Cluster H' only after both
-  papers reach Accepted status. See "Ready for review — Cluster H rev-1"
-  below for reviewer focus areas.
-- **Both rev-0 verdicts were NEEDS REVISION** — rev-1 is a substantial
-  rewrite, not a patch (see the Session Summary entry above for the full
-  fold list). If rev-1 also comes back NEEDS REVISION, re-read this
-  handoff's Session Summary/Files Changed/Test Results entries for rev-1
-  before re-diving into the papers — the design rationale for every
-  changed decision is recorded there, not just in the papers themselves.
+  papers reach Accepted status. See "Ready for review — Cluster H rev-2"
+  above for reviewer focus areas.
+- **Both rev-0 and rev-1 verdicts were NEEDS REVISION** — rev-2 is a
+  substantial rewrite of both papers, not a patch (see the Session Summary
+  entry above for the full fold list). If rev-2 also comes back NEEDS
+  REVISION, re-read this handoff's Session Summary/Files Changed/Test
+  Results entries for rev-2 before re-diving into the papers — the design
+  rationale for every changed decision is recorded there, not just in the
+  papers themselves.
+- **The ADR's decision lettering changed this revision**: rev-1's D1–D10
+  became rev-2's D1–D11 (a new D3 "Resource ID" decision was inserted
+  ahead of the ADR-027-compliance decision, per the PRD's own §13.3
+  cross-reference to "ADR-033 D3"; every subsequent letter shifted down by
+  one). Do not assume rev-1's D-number-to-topic mapping still holds.
 - **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
 - **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-2
+
+**Scope**: docs-only planning cluster, rev-2 fold. Same two deliverables as
+rev-1, both fully rewritten (not patched), plus this handoff update — no
+code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — 1460
+   lines (was 1396). See "Files Changed — Cluster H rev-2" above for the
+   full section-by-section breakdown; see the Session Summary entry above
+   for the complete list of changed decisions mapped to the dispatch's
+   requirement items (1–14).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — 561 lines (was 664).
+   11 binding decisions (D1–D11, one more than rev-1's 10 — a new D3
+   Resource ID decision was inserted ahead of the ADR-027-compliance
+   decision, shifting every subsequent letter down by one); see "Files
+   Changed — Cluster H rev-2" above.
+
+**Files changed (Cluster H rev-2)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no existing PRD/ADR changes** (docs-only cluster, exactly
+the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D3 (ADR) ↔ §13 (PRD): identical canonical-JSON `args` encoding,
+  identical algorithm text, identical four golden vectors
+  (`res_acc91dc23a8b`, `res_f8a28c218dbb` ×2, `res_79f5ac5dca13`),
+  independently recomputed and matching in both documents.
+- D4 (ADR) ↔ §5.1/§7 (PRD): identical ephemeral-scratch-only raw-byte
+  lifecycle, identical "no persistent local raw" framing, identical
+  redefinition of `diff` as metadata/hash/file-set comparison only.
+- D5 (ADR) ↔ §6 (PRD): identical exact `dolt_diff_summary` argv template,
+  identical SQL-literal escaping rules, identical no-probe executable
+  identity design, identical honest `WORKING`/`STAGED` caveat.
+- D6 (ADR) ↔ §9 (PRD): identical ancestor-symlink fail-closed gate,
+  identical separate executable-location policy, identical honest TOCTOU
+  residual statement.
+- D7 (ADR) ↔ §7.3 (PRD): identical batch-then-pointer publication
+  sequence and identical crash-window table.
+- D8 (ADR) ↔ §10 (PRD): identical literal-pathspec exit-code handling and
+  identical `EnsureLocalIgnoreContract` reuse.
+- D9 (ADR) ↔ §7.2 (PRD): identical PID+`ps -o lstart=` lock design,
+  identical malformed/remote-host/stale/PID-reuse handling.
+- D11 (ADR) ↔ §12 (PRD): identical map-free sorted-array wire schemas,
+  byte-identical JSON examples confirmed programmatically.
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  are the only normative substrate research cited in either document; the
+  untracked, still-Exploring `WP-006` whitepaper is not cited anywhere in
+  either paper (and the stale WP-006-binding constraint wording in this
+  handoff's own Active Task block has been corrected, see Files Changed
+  above).
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  (D6) and the `.git/**` boundary precedent (`ADR-030` D3/D4) are both
+  cited consistently in both documents.
+- All 48 PRD §14 acceptance-criteria clauses appear in the ADR's 74-row
+  Test Matrix; the matrix explicitly disclaims any "exactly once" mapping
+  claim.
+
+**Validation performed**:
+- `git diff --check` on both rewritten files — clean.
+- `dolthub/dolt` source facts re-verified against the supervisor-provided
+  source check at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`
+  (`dolt_diff_summary`'s exact five-column output, `dolt sql -q`/`-r
+  json`); `WORKING`/`STAGED` support and the `-r json` envelope shape are
+  explicitly flagged as unconfirmed/community-corroborated only, never
+  asserted as source-verified.
+- All four golden `resource_id` vectors independently recomputed via
+  Python `hashlib.sha256`; vectors 1/4 unchanged, vectors 2/3 recomputed
+  and confirmed identical to each other (order-independence holds under
+  the renamed Dolt capability).
+- All three shared JSON wire examples programmatically confirmed
+  byte-identical (raw string equality) between the PRD and the ADR.
+- AC/test-matrix coverage mechanically verified: 48 distinct `AC-<n>` tags
+  in the PRD (no ranges), all 48 present across the ADR's 74-row Test
+  Matrix (isolated from the document's other numbered tables).
+- D-series decision numbering (D1–D11) mechanically re-grepped for
+  internal cross-reference consistency after the D3 insertion.
+- `git status --short` confirmed only the three owned paths are touched by
+  this writer; pre-existing untracked WIP is untouched.
+- Side Research md5 invariant re-verified unchanged:
+  `b385fe622db9926f48861105239f113e`.
+
+**Reviewer focus areas**:
+- Confirm the exact Dolt argv (D5/§6.2) is the *only* invocation shape
+  used anywhere in either document — no residual reference to rev-1's
+  `--schema`/`--data`/`--name-only` flags or to a fabricated `--json`
+  output schema.
+- Confirm no tracked artifact anywhere in the rewritten wire schema
+  (§12/Wire Schema Appendix) contains a raw body, raw stdout, or a
+  wall-clock timestamp — this was the rev-1 adjudication's most severe
+  finding.
+- Confirm the ancestor-symlink gate (D6/§9.1) is re-run at *every*
+  `capture`, not just `add`, for every descendant of a directory
+  selector, and that the stated TOCTOU residual is an honest, accepted
+  limitation rather than an unexamined gap.
+- Confirm the single publication point (D7/§7.3) really is one atomic
+  commit — that no code-facing claim anywhere implies a second tracked
+  write happens after the `current.json` rename.
+- Confirm the lock design (D9/§7.2) is genuinely self-healing on a
+  simulated crash (stale PID, PID reuse, malformed lock) without manual
+  intervention, and that the Windows best-effort scope is stated
+  honestly, not silently assumed complete.
+- Confirm the 48-clause/74-row AC/matrix accounting is genuinely
+  mechanical (spot-check a handful of `AC-<n>` tags against their matrix
+  rows) and not merely asserted.
+- Confirm the two explicitly-left-open items (`WORKING`/`STAGED`
+  acceptance; ancestor-directory TOCTOU) are appropriately scoped as
+  documented v1 limitations rather than blocking gaps, given the rest of
+  the redesign closes every other rev-1 finding.
 
 ## Ready for review — Cluster H rev-1
 

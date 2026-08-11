@@ -1,126 +1,142 @@
-# PRD — Feature Resource Claims & Capture Adapters (rev-1)
+# PRD — Feature Resource Claims & Capture Adapters (rev-2)
 
-**Status**: Draft — rev-1 (supersedes rev-0, writer commit `dd08157`,
-adjudicated NEEDS REVISION at `89c8d79`; see `docs/supervisor/LOG.md` →
-Cluster H rev-0 internal + external verdicts)
+**Status**: Draft — rev-2 (supersedes rev-1, writer commits `e8572b2`/
+`f0f2c1f`, adjudicated NEEDS REVISION → REV-2 DISPATCHED at `173bb3c`;
+see `docs/supervisor/LOG.md` → Cluster H rev-0 and rev-1 adjudications)
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes
 it)
 
 **Related**: `ADR-033-resource-capture-boundary.md` (binding decisions
-this PRD assumes), `ADR-027-capture-context-privacy-boundary.md` (D1–D5,
+this PRD assumes), `ADR-027-capture-context-privacy-boundary.md` (D1–D6,
 directly extended), `ADR-030-multi-slug-reconcile-derivation-mode.md`
 (`.git/**` two-layer exclusion precedent), `ADR-032-feature-unapply-state-boundary.md`
 (ID-generation and fixed-struct-JSON precedent), `docs/state-of-the-art/storage-substrate-and-versioned-data.md`
-§3, §9 (tracked Dolt/substrate research — see §0.4 below on why this
-replaces the untracked WP-006 as the normative citation)
+§3, §9 (tracked Dolt/substrate research), `internal/workflow/session_ignore.go`
+(`EnsureLocalIgnoreContract`, reused rather than re-invented — §10.3)
 
 ---
 
-## 0. Rev-1 Fold Summary (read this first)
+## 0. Rev-2 Fold Summary (read this first)
 
-Both rev-0 reviews (internal: 7 HIGH + 1 MEDIUM; external: 3 HIGH + 8
-MEDIUM + 3 LOW — `docs/supervisor/LOG.md`) converged on: rev-0 described
-committed-artifact behavior that ADR-027 forbids, an under-specified
-symlink/path model, a fabricated Dolt JSON contract, false source
-citations, and a resource-ID scheme with unverified collision/ordering
-guarantees. Rev-1 is a substantial rewrite, not a patch. What is
-**preserved** from rev-0 because both reviews agreed it was sound:
+Rev-1 (`e8572b2`/`f0f2c1f`) was a substantial rewrite of rev-0 that
+closed most of the rev-0 findings, but the rev-1 adjudication
+(`173bb3c`, internal 5 HIGH + 2 MEDIUM, external 1 CRITICAL + 3 HIGH +
+7 MEDIUM + 2 LOW) found rev-1 itself still unsafe or under-specified
+in several places: every Dolt argv template combined mutually
+exclusive flags; local persistent raw bodies and tracked wall-clock
+timestamps still conflicted with ADR-027; the symlink gate only
+handled the final path component, missing ancestor escapes, while the
+executable policy left no valid location for a real Dolt binary to
+live; tracked publication still spanned per-resource files instead of
+one atomic commit; several wire variants and exit paths were
+undefined; the lock/failure-directory design was not crash-recoverable;
+and the Git ignore/tracked gates lacked literal-pathspec handling and
+local-ignore-root coverage. Rev-2 is, again, a substantial rewrite of
+the affected sections, not a patch. **Preserved** because every review
+across all three revisions has agreed it is sound:
 
-- Resources live in a **separate** `resources.json` manifest per
-  feature — never inside the canonical patch, never touching
-  `apply-recipe.json` or unapply/lifecycle state (ADR-032 territory
-  untouched).
+- Resources live in a **separate** manifest per feature — never
+  inside the canonical patch, never touching `apply-recipe.json` or
+  unapply/lifecycle state.
 - Dolt (or any external tool) is **never** an authority over tpatch's
   own state and is **not** a build/runtime dependency of `tpatch`
-  itself — it is invoked, if present, strictly as an external
-  read-only probe.
+  itself — it is invoked, if present, strictly as an external,
+  read-only, externally-located tool.
 - Replay/backward-compatibility remains **Git-only** — a repository
   with no resources declared is byte-identical in behavior to today's
-  `tpatch`, and resource data is never required to reconstruct or
-  replay a canonical patch.
+  `tpatch`.
 
-Everything else below is rewritten. §0.1–§0.4 map each rev-0 finding to
-its rev-1 resolution; §1 onward is the standalone rev-1 design.
+Everything below this point is the standalone rev-2 design; §0.1–§0.4
+map each rev-1 finding to its resolution.
 
-### 0.1 Claims Audit (rev-1)
+### 0.1 Claims Audit (rev-2 additions)
 
-Every normative claim in this PRD that names a source file is verified
-against the file at the commit this document was written against
-(`HEAD` at the time of writing: post-`89c8d79`, pre-rev-1-commit). Rows
-marked "rev-0 error" identify a claim rev-0 made that this audit found
-false; rev-1 does not repeat it.
+Rev-1's `C1`–`C10` (citation corrections for `featureCmd`, the
+lexical-only safety helpers, `--no-index` ignore semantics, the
+existing session-redaction shape, `ExitCodeError` call sites, the
+`feature claim` CLI precedent, ADR-027 D1, tracked-vs-untracked
+research docs, real Dolt CLI flags, and `RemoveClaim`'s line range)
+all remain correct and are not repeated here — see the rev-1 text
+preserved in `docs/handoff/HISTORY.md`/git history for that table.
+Rev-2 adds:
 
-| # | Claim | Citation | rev-0 status |
-|---|-------|----------|---------------|
-| C1 | `feature` is the noun-scoped home for per-feature verbs (`claim`, `deps`, and now `resource`) | `internal/cli/feature_deps.go:38-51` (`featureCmd` doc comment) | rev-0 **error**: cited a nonexistent "ADR-031 D10" for this claim in two places (Claims Audit row + §3.1 candidate-command table). ADR-031's real D10 (`docs/adrs/ADR-031-rejected-feature-state-data-model.md:889`) is about the `reject` verb naming disposition and is unrelated. Corrected here to cite the actual source. |
-| C2 | `safety.EnsureSafeRepoPath` and `store.NormalizeClaimPath` are **lexical-only** — `filepath.Abs` + string-prefix containment, no `Lstat`, no `filepath.EvalSymlinks` | `internal/safety/safety.go:1-28` (whole file); `internal/store/claims.go` (`NormalizeClaimPath`, calls `safety.EnsureSafeRepoPath` with no symlink resolution) | rev-0 **error**: rev-0's ADR D-series described this pair as "symlink-aware validation" and relied on it as the sole gate for resource selectors. It is not symlink-aware. §9 below defines the new, additional symlink-resolution gate this PRD requires. |
-| C3 | `gitutil.IsPathIgnored` invokes `git check-ignore -q --no-index` | `internal/gitutil/ignore.go:1-78` (whole file, the invocation itself) | rev-0 **error** (by omission): rev-0 treated "ignored" as sufficient for the `ignored-file` resource kind. `--no-index` means Git does not consult the index when answering, so an already-**tracked** file that also matches a `.gitignore` pattern still reports "ignored" here. §5.1/§8 below add a mandatory second, explicit tracked-file gate (`git ls-files`) that rev-0 lacked. |
-| C4 | `internal/cli/session_redaction.go` is unexported (`redactSessionForCommit`, `forbiddenContentClasses` are package-private), operates on `store.SessionObservation` (observation-shaped, not a generic byte/string scanner), and uses heuristic **drop-line-and-continue** logic across 10 classes that do **not** include dedicated PEM/OpenSSH-key, DB-connection-URL, or email/PII patterns | `internal/cli/session_redaction.go` (whole file) | rev-0 **error**: rev-0's Privacy section implied this existing mechanism already covered resource-capture content and could be reused as-is. It cannot: it is unexported, shaped for a different data structure, and missing three of the six closed classes this PRD now requires (§8). |
-| C5 | `ExitCodeError` (`internal/cli/exit_error.go`) is constructed and returned by **at least six** commands: `c1.go`, `doctor.go`, `feature_deps.go`, `reconcile_check_applied.go`, `reject.go`, `verify.go` | `internal/cli/exit_error.go` (type definition); `grep -rn "&ExitCodeError{" internal/cli` (six call sites as of this writing) | rev-0 **error**: rev-0's Claims Audit asserted `verify` was the "sole" pre-existing user of a bespoke exit code 2/3 pair, echoing `SPEC.md`'s own explicit disclaimer that exit codes are **per-command contracts, not a global enum** (`SPEC.md` §"Exit-code envelope": "`tpatch verify` has its own, unrelated exit-2 meaning"). Rev-1's exit-code table (§10.5) is one more per-command contract in this family, not a redefinition of any existing command's codes. |
-| C6 | `internal/cli/feature_claim.go` establishes the `add`/`list`/`remove`/`clear` verb quartet under a noun subcommand, including the exact `"no such feature: %s"` refusal shape | `internal/cli/feature_claim.go:1-207` (whole file) | rev-0: accurate, kept as the CLI-shape precedent for `feature resource {add,list,remove,clear}`. |
-| C7 | `docs/adrs/ADR-027-capture-context-privacy-boundary.md` D1 requires that any future PRD choosing a worktree-local, gitignored storage path "MUST verify that path is ignored before the first write and MUST refuse rather than risk accidental commit" | `docs/adrs/ADR-027-capture-context-privacy-boundary.md` D1 (verified against current file text) | rev-0 **partial error**: rev-0 cited ADR-027 generally but did not implement the ignored-before-first-write refusal for its own proposed local buffer, and separately proposed committing raw snapshot/diff bodies in tracked sidecars — directly contradicting D1's committed/local split. §7 below implements the refusal; §4/§8 remove all committed-raw-body claims. |
-| C8 | `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3 and §9 are **tracked** (committed) files; `docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md` is **untracked** as of this writing (`git status --short` shows `??`) | `git status --short docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md` (untracked marker); `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3, §9 (tracked, present in `git ls-files`) | rev-0 **error**: rev-0 cited WP-006 normatively for Dolt/substrate guidance. A docs-only PRD/ADR pair cannot depend normatively on a file with no guarantee of ever being committed. Rev-1 cites the tracked storage-substrate research document instead; WP-006 is not cited at all in rev-1 (not even non-normatively, to avoid any residual dependency). |
-| C9 | Real Dolt CLI: `dolt diff` has no literal `--json` flag — JSON output is `-r json` / `--result-format json`; the per-row field schema of that output is not reliably documented and is treated as opaque | Primary source, `dolthub/dolt` at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`: `go/cmd/dolt/commands/diff.go` (synopsis `dolt diff [options] <commit> <commit> [tables...]`, `--result-format`/`-r` accepting `tabular`/`sql`/`json`, `--schema`/`--data` selection), `go/cmd/dolt/commands/version.go` (`dolt version [--verbose] [--feature]`, prints `dolt version <version>`); cross-checked against the DoltHub CLI reference (`https://www.dolthub.com/docs/cli-reference/cli/`, fetched during rev-1 research); see §6 for the exact verified flag list this PRD relies on | rev-0 **error**: rev-0's adapter protocol examples showed a fabricated `dolt diff --json` invocation and a fabricated per-row JSON schema (invented field names). §6 replaces this with a design that uses only verified, stable flags for anything tracked, and treats richer output as an opaque local-only blob. No claim in this PRD relies on `dolt status --porcelain`, which was not found in either the source or the docs reference. |
-| C10 | `internal/store/claims.go` `RemoveClaim` spans lines 436-444 | `internal/store/claims.go:436-444` | Corrects a stale line-range drift noted during this audit; re-verified against current file content. |
+| # | Claim | Citation | Why this changes rev-1 |
+|---|-------|----------|-------------------------|
+| C11 | `dolt diff --name-only` combined with `--schema`/`--data` and `--filter=` is **not** how the pinned Dolt source expresses per-table schema/data change classification; the source-verified read-only interface is the `dolt_diff_summary(from, to[, table])` table function, queried over `dolt sql -r json -q "..."`, returning exactly `{from_table_name, to_table_name, diff_type, data_change, schema_change}` per row | Supervisor source check against `dolthub/dolt` at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`: `go/cmd/dolt/commands/diff.go` (synopsis, `--schema`/`--data`, `--result-format`), `go/cmd/dolt/commands/sql.go` (`-q`/`--query`, `-r`/`--result-format json`), `go/cmd/dolt/commands/version.go` | rev-1 **error**: rev-1's three-invocation `--name-only --filter={added,dropped,modified}` design combined flags in a way the source does not support as a single coherent invocation, and could not detect renames or represent "both schema and data changed" for one table in one classification. §6 replaces this entirely with the one-query `dolt_diff_summary` design. |
+| C12 | `dolt version` is a real subcommand that can, depending on build/config, perform a network update check and read/write files under the resolved `HOME`; it is not a safe no-side-effect probe | Rev-2 threat-modeling of running an arbitrary resolved executable literally named `dolt` with an unconstrained inherited environment, not a specific pinned-commit source citation (no claim here about `dolt version`'s exact internal behavior beyond "runs arbitrary code with inherited env/network access," which is true of any executed binary in v1's threat model) | rev-1 ran `dolt version` as a "probe" step with the invoking process's inherited environment. §6.1 removes this probe entirely; tool identity is now a static file fact (executable basename + `SHA-256` of the resolved binary's bytes), never a code-execution result, and every actual invocation runs with a minimal, non-inherited scratch environment (§6.4). |
+| C13 | `internal/workflow/session_ignore.go`'s `EnsureLocalIgnoreContract(repoRoot, resolvedPath)` verifies the path is inside the worktree and that `gitutil.IsPathIgnored` (`--no-index`) reports it ignored; it does **not** independently verify the path is untracked | `internal/workflow/session_ignore.go:138-175` (`EnsureLocalIgnoreContract` body) | New for rev-2: §10.3 reuses this exact function for the ephemeral-scratch root (task 7's "do not invent a second ignore mechanism") but layers the same tracked-file gate used for `ignored-file` selectors (§5.1) on top, since `EnsureLocalIgnoreContract` alone does not close the `--no-index` gap for the scratch root either. |
+| C14 | Go's `os.OpenFile` accepts `syscall.O_NOFOLLOW` on Unix build targets (`darwin`/`linux`), which causes the open to fail with `ELOOP` if the **final** path component is a symlink; there is no portable stdlib/syscall equivalent that also binds every **ancestor** directory component against races (no `openat2`/`RESOLVE_NO_SYMLINKS` wrapper in the Go standard library) | Go standard library `os`/`syscall` package documentation (`O_NOFOLLOW` is a documented, platform-gated `syscall` constant; `openat2` has no stdlib wrapper as of the Go versions this project targets) | New for rev-2: §9.1 uses `O_NOFOLLOW` as one real, available hardening measure for the final component and is explicit that ancestor-component TOCTOU is closed by *refusing any symlink component at all* (a stat-time check) rather than by any stronger descriptor-bound guarantee stdlib cannot provide (task 5: "state TOCTOU residual honestly ... do not claim impossible sandbox"). |
 
-### 0.2 What rev-1 removes entirely
+### 0.2 What rev-2 removes or changes
 
-- The `generic-command` resource kind/adapter and its shell-tokenizer +
-  user-declared-env-allowlist machinery (task letter C). Closed
-  external-adapter set for v1 is **Dolt only**. A future ADR is
-  required before any sandboxed/consented generic external-command
-  capability is added; this PRD takes no position on what that ADR
-  will decide.
-- The impossible `.git` "exfiltration" acceptance criterion rev-0 wrote
-  for `generic-command` (it depended on the removed kind and asserted
-  something no sandboxless argv executor can actually guarantee).
-- The claim that committed sidecars ever contain raw snapshot/diff
-  bytes, raw adapter stdout, or raw file content of any kind.
-- The claim of a single cross-tree atomic delete across tracked and
-  local state (§7.4).
-- The `git config` view's access to `user.name`, `user.email`, and
-  wildcarded `core.*`/`remote.*.url`/`branch.*.merge` keys (§5.3).
-- Any literal `record --dry-run` framing (rev-0 never wrote a bare
-  `record --dry-run` without `--resources`, but did overload
-  `record --resources --dry-run` onto the same command that performs
-  the Git-side canonical-patch capture; rev-1 moves all dry-run and
-  resource-only preview/retry flows onto the standalone
-  `feature resource capture` verb — see §10).
+- The three-invocation `--name-only --schema/--data --filter=` Dolt
+  argv pattern and the `schema-diff`/`table-diff` two-capability split
+  (§6). Replaced by one capability, `diff-summary`, one argv template,
+  one SQL query.
+- The `dolt version` probe step entirely (§6.1). Tool identity no
+  longer depends on executing the adapter at all before the real
+  capability invocation.
+- **Every** persistent local raw-body concept: the `keep_local`
+  per-resource opt-in flag, the `.tpatch/local/resource-capture/<slug>/batches/lb_.../raw`
+  files, and the local `current` batch-ID pointer file (§7). Raw bytes
+  now exist only inside a single command's ephemeral scratch directory
+  and are deleted (best-effort) before that command returns — never
+  persisted across commands, opt-in or not.
+- Per-resource tracked `resources/<id>/summary.json` files and their
+  implied "N tracked writes per capture." Replaced by one immutable
+  tracked batch file per capture invocation plus one atomically
+  rewritten tracked pointer file (§7.3, §12).
+- The `changes` field name in the per-resource tracked result.
+  Renamed to `result` throughout (it was already called `result` in
+  one place and `changes` in another in rev-1 — rev-2 uses `result`
+  everywhere, consistently).
+- `git-metadata`'s `config` view keeps rev-1's already-narrow 4-key
+  allowlist (`core.filemode`, `core.ignorecase`, `core.symlinks`,
+  `extensions.objectformat`) — unchanged, restated here only because
+  §5.2 was renumbered.
+- All wall-clock timestamp fields in tracked artifacts (`added_at` in
+  the declaration manifest, `captured_at` in the per-resource result).
+  Tracked artifacts are now timestamp-free; batch identity (`rb_<id>`)
+  and the append-only file layout itself convey ordering, not a clock
+  reading.
 
 ### 0.3 Golden resource-ID vectors
 
-Computed and reproduced deterministically (SHA-256, Python `hashlib`,
-see §12 for the exact byte-string construction). These four vectors
-are embedded byte-identically in both this PRD (§12.3) and
-`ADR-033-resource-capture-boundary.md` D3:
+The canonical `args`-encoding algorithm (§13.1) is **unchanged** from
+rev-1 — none of rev-2's fixes touch the ID-derivation hash function
+itself, only the storage/wire/tool/path layers around it. Vectors 1
+and 4 are therefore byte-identical to rev-1. Vectors 2 and 3 are
+**recomputed** because the Dolt capability name they embed changed
+from `schema-diff` to `diff-summary` (§0.2), which changes the hash
+input:
 
 | Vector | Feature | Kind | Selector | Adapter | Capability | Args (declaration order) | `resource_id` |
 |---|---|---|---|---|---|---|---|
-| 1 | `model-picker` | `git-metadata` | `head` | *(none)* | *(none)* | `{}` | `res_acc91dc23a8b` |
-| 2 | `model-picker` | `adapter-snapshot` | `dolt:schema-diff:users` | `dolt` | `schema-diff` | `table=users, from=main, to=HEAD` | `res_19b4675405e2` |
-| 3 | `model-picker` | `adapter-snapshot` | `dolt:schema-diff:users` | `dolt` | `schema-diff` | `to=HEAD, table=users, from=main` (reordered) | `res_19b4675405e2` (**identical to Vector 2** — proves key-order independence) |
-| 4 | `model-picker` | `ignored-file` | `config/local-secrets.env.template` | *(none)* | *(none)* | `{}` | `res_79f5ac5dca13` |
+| 1 | `model-picker` | `git-metadata` | `head` | *(none)* | *(none)* | `{}` | `res_acc91dc23a8b` (unchanged) |
+| 2 | `model-picker` | `adapter-snapshot` | `dolt:diff-summary:users` | `dolt` | `diff-summary` | `table=users, from=main, to=HEAD` | `res_f8a28c218dbb` (**recomputed**, was `res_19b4675405e2`) |
+| 3 | `model-picker` | `adapter-snapshot` | `dolt:diff-summary:users` | `dolt` | `diff-summary` | `to=HEAD, table=users, from=main` (reordered) | `res_f8a28c218dbb` (**identical to Vector 2** — order-independence still holds) |
+| 4 | `model-picker` | `ignored-file` | `config/local-secrets.env.template` | *(none)* | *(none)* | `{}` | `res_79f5ac5dca13` (unchanged) |
 
-### 0.4 Requirement-letter → section map
+### 0.4 Requirement-item → section map
 
-| Letter | Requirement | Section(s) |
+| Item | Requirement | Section(s) |
 |---|---|---|
-| A | Privacy/authority — no committed raw bodies | §4, §7, §8.1 |
-| B | Redaction — closed hard-refusal classes | §8 |
-| C | Generic-command removed | §0.2, §6 |
-| D | Symlink/path safety | §9 |
-| E | Ignored + untracked, limits, binary/multi-file | §5.1, §7.2 |
-| F | Git metadata scope | §5.3 |
-| G | Dolt exact syntax | §6 |
-| H | Resource ID canonicalization | §12 |
-| I | Transaction/batch design | §7 |
-| J | `record --resources` semantics | §10 |
-| K | Wire schemas | §11 |
-| L | ACS/matrix rebuild | §13 |
-| M | Citations/tracking | §0.1, throughout |
-| N | Additional review details | §5.1, §6.4, §7.3, §9, §10.4 |
+| 1 | Dolt SQL redesign | §6 |
+| 2 | Remove version probe; executable identity | §6.1, §9.2 |
+| 3 | Full ADR-027 compliance, no persistent raw | §7, §8 |
+| 4 | One real publication point | §7.3 |
+| 5 | Path gate (ancestor symlinks) | §9.1 |
+| 6 | Ignored/tracked Git calls, literal pathspecs | §10 |
+| 7 | Local ignore contract reuse | §10.3 |
+| 8 | Permissions | §7.4 |
+| 9 | Lock semantics | §7.2 |
+| 10 | Git metadata / tool fields | §5.2, §5.3, §12 |
+| 11 | Transaction / `record --resources` | §11 |
+| 12 | Wire / canonicalization | §12, §13 |
+| 13 | Tracking / cross-references | throughout, §0.1 |
+| 14 | ACs / matrix rebuild | §14 |
 
 ---
 
@@ -140,27 +156,34 @@ this adjacent state at all.
 
 **Goals**: let a feature declare zero or more *resources* — typed,
 named references to non-canonical-patch state — and capture a
-point-in-time, privacy-safe **summary** of each into a tracked
-per-feature manifest, with any raw content kept strictly local and
-opt-in.
+point-in-time, privacy-safe **summary** of each into one tracked,
+append-only, per-feature capture history, with all raw content
+strictly ephemeral (never persisted past the single command that read
+it, in either the tracked or local tree).
 
-**Non-goals** (unchanged from rev-0, reaffirmed): resources are not
-inputs to `apply`/`unapply`/reconcile; resources do not gate `land`;
-resources are not a general-purpose secrets vault; resources do not
-make Dolt (or any external tool) a runtime dependency of `tpatch`;
-resources do not support arbitrary sandboxless external commands
-(§0.2); this PRD does not change any existing command's exit-code
-contract (C5) or `record`'s existing Git-side capture-mode semantics
-(mutex group, empty-patch handling, `--auto`/range resolution) — it
-only adds an orthogonal `--resources` flag (§10).
+**Non-goals**: resources are not inputs to `apply`/`unapply`/
+reconcile; resources do not gate `land`; resources are not a
+general-purpose secrets vault; resources do not make Dolt (or any
+external tool) a runtime dependency of `tpatch`; resources do not
+support arbitrary sandboxless external commands; this PRD does not
+change any existing command's exit-code contract or `record`'s
+existing Git-side capture-mode semantics (mutex group, empty-patch
+handling, `--auto`/range resolution) — it only adds an orthogonal
+`--resources` flag (§11). **New non-goal (rev-2)**: this PRD does not
+provide textual/byte-level content diffing or any versioned history of
+raw resource content — only metadata/hash/file-set-level change
+detection (§5.1, §7.3.4). Persisting raw content across captures would
+require a future ADR that explicitly supersedes `ADR-027-capture-context-privacy-boundary.md`'s
+committed/local split (which today forbids exactly that); this PRD
+takes no position on whether such a future ADR should exist.
 
 ## 3. Command Surface
 
-All new verbs live under the existing `feature` noun (C1), mirroring
-`feature claim`'s shape (C6):
+All new verbs live under the existing `feature` noun, mirroring
+`feature claim`'s shape:
 
 ```
-tpatch feature resource add    <slug> --kind <kind> --selector <sel> [--adapter <a> --capability <c> --arg k=v ...] [--keep-local] [--json]
+tpatch feature resource add    <slug> --kind <kind> --selector <sel> [--adapter <a> --capability <c> --arg k=v ...] [--json]
 tpatch feature resource list   <slug> [--json]
 tpatch feature resource remove <slug> <resource-id-or-prefix> [--json]
 tpatch feature resource clear  <slug> [--json]
@@ -169,760 +192,849 @@ tpatch feature resource diff   <slug> [--resource <resource-id-or-prefix>] [--js
 tpatch record <slug> [existing flags...] [--resources] [--json]
 ```
 
-`capture` and `diff` are two distinct verbs (rev-0 conflated them into
-one overloaded `diff` that both executed adapters and persisted
-results, which reads as read-only but wasn't):
+Rev-2 removes the rev-1 `--keep-local` flag entirely (§0.2): raw bytes
+are always ephemeral now, so there is nothing left to opt into.
 
-- **`capture`** is the only verb that ever executes adapters, reads
-  local/ignored file content, or reads Git metadata, and the only verb
-  that ever writes tracked (`resources/<id>/summary.json`) or local
-  (`.tpatch/local/resource-capture/...`) state. `--dry-run` runs the
-  full staging pipeline (including redaction) and prints what would be
-  written, but performs no writes at all — not even to the local
-  scratch tree.
-- **`diff`** is read-only and never executes an adapter or touches the
-  local tree: it loads the last-published tracked summary (if any) and
-  reports it. Called before any capture has ever run for a resource,
-  it reports "no capture yet" (not an error — exit 0, per §10.5's
-  distinction between "nothing to show" and "refused").
+- **`capture`** is the only verb that ever executes the Dolt adapter,
+  reads ignored-file content, or reads Git metadata, and the only verb
+  that ever writes tracked (§7.3) or local scratch (§7.1) state.
+  `--dry-run` runs the full pipeline (redaction included) and reports
+  what would be written, but performs **no** writes at all — not even
+  to the ephemeral scratch tree (§7.1 explicitly special-cases
+  `--dry-run` to use an in-process buffer instead of creating a
+  scratch directory on disk).
+- **`diff`** is read-only: it never executes the adapter, never reads
+  `ignored-file`/Git-metadata content, and never touches the scratch
+  tree. It recomputes lightweight **current** metadata (size, mtime,
+  file-set) without opening file content or running Dolt, and compares
+  that against the last tracked batch's recorded `result` for that
+  resource (§5.1, §7.3.4). Called before any capture has ever run for
+  a resource, it reports "no capture yet" (exit 0, not an error).
 
 `add`/`list`/`remove`/`clear` behave exactly as `feature claim`'s
 quartet does (same `"no such feature: %s"` refusal shape, same
-`--json` flag convention, C6), except `add` additionally computes and
-persists the `resource_id` (§12) and rejects duplicates (same
-`selector`+`kind`+`adapter`+`capability`+canonical `args` tuple already
-present for that feature) as a validation error (exit 2).
-
-`--keep-local` (an `add`-time, per-resource, persisted boolean field,
-default `false`) is the explicit opt-in required before `capture` ever
-writes raw bytes to the local tree (§7.3, §8.1). It has no effect on
-tracked output, which never contains raw bytes regardless of this
-flag.
+`--json` convention), except `add` additionally computes and persists
+`resource_id` (§13) and rejects duplicates (same `selector`+`kind`+
+`adapter`+`capability`+canonical `args` tuple already declared for
+that feature) as a validation error (exit 2). `remove`/`clear` only
+ever mutate the declaration manifest and the tracked pointer's live
+index (§7.3.5) — they never delete or rewrite any historical batch
+file, which remains a permanent, immutable audit record even after its
+resource is undeclared.
 
 ## 4. Data Model
 
-Two tracked files per feature, both under the existing per-feature
+Two tracked artifacts per feature, both under the existing per-feature
 artifacts directory (`store.featureArtifactsDir`, `internal/store/store.go`),
 never inside `apply-recipe.json` or any unapply/lifecycle-state file:
 
-- **`resources.json`** — the declaration manifest. One entry per
+- **`resources.json`** — the declaration manifest (declaration-only;
+  not itself part of any capture transaction, task 4). One entry per
   declared resource: `resource_id`, `kind`, `selector`, `adapter`
-  (empty string if not applicable to the kind), `capability` (empty
-  string if not applicable), `args` (a string-keyed map, may be
-  empty), `keep_local` (bool), `added_at` (RFC3339 UTC, matching the
-  existing timestamp convention elsewhere in the store package),
-  `added_by_tool_version` (the `tpatch` version string, informational
-  only). **Never** contains raw content, hashes, or capture results —
-  those live only in the per-resource summary.
-- **`resources/<resource_id>/summary.json`** — the tracked capture
-  result, written only by `capture` (§10), read by `diff` and `list
-  --json`. Contains: the resolved `kind`/`selector`/`adapter`/
-  `capability`/`args` (redundant copy, so a summary is self-describing
-  without cross-referencing `resources.json`), a `captured_at`
-  timestamp, `tool_identity` (executable absolute path + version
-  string, adapter kinds only), a structural `changes` block (§11) that
-  is **always** hashes/counts/classifications, **never** raw bytes,
-  a `raw` block that is **only ever a hash + byte count + presence
-  flag** (§11.4), and `local_batch_id` (the local batch this summary's
-  raw companion lives under, or `null` if `keep_local` was `false` for
-  this capture — see §4.1 on why this is per-capture, not per-resource).
+  (empty string if not applicable), `capability` (empty string if not
+  applicable), `args` (a sorted array of `{key, value}` pairs, never a
+  bare JSON object/map — §12.1), `added_by_tool_version` (the
+  `tpatch` version string that created this declaration; informational
+  only, not a timestamp). **Never** contains a capture result, a hash,
+  or any raw content.
+- **`artifacts/resource-captures/`** — the append-only capture
+  history: immutable `batches/<batch_id>.json` files (one per
+  successful `capture` invocation, containing every resource result
+  produced by that invocation) plus one atomically-rewritten
+  `current.json` pointer mapping each resource to the batch that holds
+  its latest result (§7.3, §12.2–§12.3). `resources.json` is never
+  itself part of this transaction — `add`/`remove`/`clear` write only
+  to `resources.json` (and, for `remove`/`clear`, prune the
+  corresponding live entries from `current.json`'s index — never the
+  batch files themselves, §3).
 
-### 4.1 Why `local_batch_id` is per-capture, not per-resource
+### 4.1 Missing-referenced-batch (closes rev-1's "missing-local" case, now about tracked state)
 
-`keep_local` is a declared, persisted intent (§3) checked at every
-`capture`, but whether a *given* capture actually produced a local
-raw companion also depends on capture-time success (§7.1) and on
-`--dry-run` (which never writes locally regardless of `keep_local`).
-`summary.json` therefore records the batch ID that was actually
-produced for *this* capture, or `null` — never inferred from the
-`resources.json` declaration.
-
-### 4.2 Missing-local behavior (closes rev-0's undefined gap, task A)
-
-If `local_batch_id` is non-null in `summary.json` but the referenced
-local batch directory is absent (pruned out-of-band, moved to another
-machine, or a fresh clone/worktree that never had `.tpatch/local/`
-populated), `diff` and `list` are **unaffected** — they only ever read
-tracked fields and never resolve `local_batch_id` into a filesystem
-read. Only a dedicated inspection affordance (`feature resource
-capture <slug> --dry-run` re-run, or a future explicit "show local
-raw" verb, out of scope for this PRD) would attempt to open the local
-path, and it reports `local raw capture not present for this summary`
-(exit 0, informational, not a failure — the tracked summary is
-authoritative and complete on its own).
+Rev-1 defined a "missing-local" case for an opt-in local raw
+companion; that concept no longer exists (§0.2). The analogous rev-2
+case is: `current.json` names a `batch_id` for some resource, but the
+corresponding **tracked** `batches/<batch_id>.json` file is absent
+(e.g. a shallow clone, a manually pruned history, or filesystem
+corruption — this should not happen in the normal atomic-publish flow,
+§7.3.3, but is a real possibility for anything that reads a
+`.tpatch/features/<slug>/` tree from outside `tpatch` itself). `list
+--json`/`diff` report this as `tracked-batch-missing` for that
+resource specifically (exit 1 — a data-integrity condition, distinct
+from "no capture yet," which is exit 0) and do not fail the whole
+command if other resources' batches are present and readable.
 
 ## 5. Resource Kinds
 
 Three kinds in v1, closed set (no plugin mechanism):
 
-### 5.1 `ignored-file` (task E, task N)
+### 5.1 `ignored-file` (task 5, task 6, task 7)
 
-Selector: a repo-relative path. **Both** of the following must hold at
-`add` time, and are **rechecked at every `capture`** (not just once):
+Selector: a repo-relative path (file or directory). **Both** of the
+following must hold at `add` time and are **rechecked at every
+`capture`**:
 
-1. `gitutil.IsPathIgnored(path) == true` (`git check-ignore -q
-   --no-index`, C3).
-2. The path is **not currently tracked**: a new gate, `git ls-files
-   --error-unmatch <path>` (exit non-zero means "not tracked," per
-   `git-ls-files(1)`), must confirm the path is absent from the
-   index. This closes the exact `--no-index` gap in C3 — an
-   already-tracked file that also matches a `.gitignore` pattern is
-   **refused**, not silently accepted, because `--no-index` alone
-   would say "ignored" for it. (Task N's "add a tracked-file gate.")
+1. `git --literal-pathspecs check-ignore -q --no-index -- <selector>`
+   exits `0` (ignored). Exit `1` means "not ignored" (gate fails,
+   refused). Any other exit code is a fatal Git error (`git-ignore-check-error`,
+   exit 3, fail-closed — never treated as "not ignored" or "ignored,"
+   just refused outright, §10.1).
+2. `git --literal-pathspecs ls-files --error-unmatch -- <selector>`
+   exits non-zero with the standard "did not match any file(s) known
+   to git" message (untracked; gate passes). Exit `0` means the path
+   **is** tracked — refused (`tracked-and-ignored`, exit 3) even
+   though check 1 said "ignored," closing the exact `--no-index` gap
+   where an already-tracked file can still report "ignored" (§10.2).
+   Any exit/output combination that is neither of these two well-known
+   shapes is a fatal Git error, refused the same as check 1
+   (`git-ls-files-error`, exit 3).
 
-Refusal (exit 3, state/policy) if either check fails, both at `add`
-and at `capture` — a file that was untracked-and-ignored at `add` time
-but has since been `git add`ed is refused at the next `capture`, not
-silently captured as if nothing changed.
+Both invocations use `--literal-pathspecs` (task 6) so a selector that
+happens to look like pathspec magic (a leading `:`, an embedded `**`,
+etc.) is always treated as a literal path, never reinterpreted —
+closing an ambiguity rev-1 did not address (§10.4 has the exact rows).
 
-Rev-0 additionally promised acceptance for paths that are merely
-"untracked but not ignored" (e.g. a build artifact nobody bothered to
-`.gitignore`). **Removed** in rev-1: an untracked-but-not-ignored path
-is ambiguous — it may become tracked at any moment with no signal to
-tpatch, and its presence in the repo may be entirely accidental. Only
-the ignored-and-untracked intersection is accepted.
+**Path/symlink gate** (task 5, full rewrite — see §9.1 for the
+complete algorithm): every path component from the repository root
+down to the selector (and, for a directory selector, down to each
+matched descendant file independently) is `Lstat`'d; **any** symlink
+component anywhere in that chain is refused outright
+(`symlink-component-refused`, exit 3) — rev-2 does not attempt to
+resolve and re-validate a symlink's target (rev-1's approach, which
+missed ancestor components); it simply refuses the presence of a
+symlink anywhere in the path, a strictly simpler and safer fail-closed
+v1 rule. Only after every component in the chain is confirmed a
+regular (non-symlink) file/directory is the path opened, using
+`O_NOFOLLOW` on the final open as an additional, real hardening layer
+(§9.1) — and re-`Lstat`'d immediately after opening to compare
+device/inode/size/mtime against the pre-open check, refusing
+(`path-replaced-during-open`, exit 3) if they differ (a TOCTOU
+replacement between the check and the open).
 
-**Selector scope and limits**: a selector may name a single file or a
-directory. For a directory selector, every regular file found by a
-bounded recursive walk (symlinks excluded per §9; the walk does not
-follow directory symlinks) must independently pass both checks above.
-Exact limits, checked at `add` and re-checked at every `capture`
-(snapshot-time bounds, not just declaration-time — task N):
+**Directory limits** (unchanged from rev-1): 5 MiB per file, 20 MiB
+total, 200 files — refused (exit 3) if exceeded, re-checked at every
+`capture` even if the selector passed these limits at `add` time
+(snapshot-time bounds, not a one-time check).
 
-- Per-file size: **5 MiB**. A single file over this limit fails the
-  whole capture for that resource (exit 3), naming the offending path.
-- Total directory size: **20 MiB** across all files matched by the
-  selector at capture time.
-- File count: **200 files** matched by the selector at capture time.
+**Capture** (task 3): the matched file(s) are read into the
+invocation's ephemeral scratch directory (§7.1) — never left in place
+for scanning-in-place, so a directory selector's multi-file scan sees
+a single consistent point-in-time snapshot rather than files that
+could each change mid-scan. Content is scanned (redaction, §8),
+classified `binary` (a `NUL` byte in the first 8 KiB) or `text`, and
+hashed (`SHA-256`, verbatim bytes, **no** text normalization of any
+kind — CRLF/LF, trailing newline, and encoding are all left exactly as
+found, task 5's "raw local bytes are verbatim" requirement). The
+scratch copy is then deleted (best-effort) before the command returns
+(§7.1) — the tracked `result` for this kind is `file_kind`
+(`"text"`/`"binary"`), `size_bytes`, `hash` (single file) or
+`file_count`/`total_bytes`/`combined_hash` (directory — the combined
+hash is `SHA-256` over each matched file's repo-relative path and its
+own hash, sorted by path, joined `\x00`-delimited, so it changes if
+any file's content, size, or the file set itself changes).
 
-Exceeding any limit at `capture` time is a state refusal (exit 3),
-not silently truncated — partial/truncated capture of directory
-content would be a misleading tracked summary.
+**`diff`** (§3, task 3): recomputes the same metadata (size,
+`file_kind` via a fresh first-8-KiB peek, file set) **without**
+persisting a new scratch copy of full content beyond what the
+first-8-KiB binary check and hash computation require in-process, and
+compares against the last tracked batch's `result` for this resource.
+Reports `unchanged`, or exactly which of `size_bytes`/`hash`/
+`file_count`/`total_bytes`/`combined_hash`/file-set membership
+differs — never a textual line-level diff of file content (§2's new
+non-goal).
 
-**Binary detection**: content is classified `binary` if it contains a
-NUL byte in the first 8 KiB read (matching the common Git/`file(1)`
-heuristic), else `text`. This classification is recorded in the
-tracked summary (§11.2) but never changes whether redaction (§8) runs
-— the six closed classes are byte-pattern-based and run identically
-over binary or text content.
+### 5.2 `git-metadata` (task 10)
 
-**No text normalization on raw local bytes**: unlike the `git-metadata`
-and `adapter-snapshot` kinds (§5.2, §5.3), whose structural output is
-normalized before hashing (line-ending and whitespace normalization,
-§11.5, so hash stability doesn't depend on the invoking OS), an
-`ignored-file` resource's local raw copy (when `keep_local=true`) is a
-byte-for-byte verbatim copy — no normalization of any kind. The
-**hash** recorded in the tracked summary is computed over these same
-verbatim bytes, so the tracked hash is reproducible from the local
-raw copy without any transform, if the local copy exists (§4.2).
+Four closed views, tagged result variants (exact fields, §12.3):
 
-**Multi-file local manifest**: when the selector is a directory and
-`keep_local=true`, the local batch (§7) contains a `files/` subtree
-mirroring the matched relative paths, plus a local-only
-`manifest.json` listing each file's relative path, size, and hash —
-this manifest is **local-only**, never copied into the tracked
-summary, which instead records only the directory-level aggregate
-(file count, total bytes, combined hash — §11.2).
+- **`head`**: always defines `symbolic_ref` (the resolved full ref
+  name HEAD points to, e.g. `refs/heads/main`, or JSON `null` when
+  detached — "detached consistently" means `symbolic_ref` is `null`
+  **iff** `detached` is `true`, never independently) and `detached`
+  (bool) and `oid` (the current commit OID, always populated).
+- **`ref`**: an explicitly selected ref (selector is the ref name
+  itself, e.g. `refs/heads/feature-x` or `refs/tags/v1.0.0`); result
+  is `ref` (the resolved full ref name) and `oid`.
+- **`index-entry`**: selector is a repo-relative path; queried via
+  `git --literal-pathspecs ls-files --stage -- <selector>` (literal
+  pathspec, task 6); result is `path`, `mode` (octal string, e.g.
+  `"100644"`), `oid`, `stage` (`0`–`3`). A path with no index entry at
+  all is a validation error (exit 2) at `add` time, and a state
+  refusal (`index-entry-missing`, exit 3) if it disappears from the
+  index by the time of a later `capture`.
+- **`config`**: selector is one of exactly four keys —
+  `core.filemode`, `core.ignorecase`, `core.symlinks`,
+  `extensions.objectformat` (unchanged from rev-1; no `user.*`, no
+  wildcarded `core.*`/`remote.*`/`branch.*`). Any other key is a
+  validation error (exit 2). Result is `key`, `value` (the resolved
+  config value, or `null` if unset — unset is a valid, reportable
+  state, not an error, since these are all keys with sensible
+  defaults when absent).
 
-### 5.2 `git-metadata` (task F)
+Every resolved string value from any view passes through the
+redaction scanner (§8) before being written anywhere — in practice
+none of the four closed views can ever produce a value shaped like
+any of the six closed classes, but the scan runs unconditionally
+rather than being skipped "because it's Git metadata."
 
-Four closed views, selector is the view name plus (for `ref`) the ref
-name appended after a colon:
+### 5.3 `adapter-snapshot` (task 1, task 2, task 10)
 
-| View | Selector | Content (tracked, structural only) |
-|---|---|---|
-| `head` | `head` | The symbolic ref name HEAD currently points to (e.g. `refs/heads/main`), or the literal string `detached` plus the resolved OID if HEAD is detached. |
-| `ref` | `ref:<refname>` where `<refname>` matches `^refs/(heads|tags)/[A-Za-z0-9._/-]+$` | The resolved OID of exactly that one ref, resolved via `git rev-parse --verify <refname>`. No bulk ref dump — one explicitly named ref per resource. |
-| `index-entry` | `index-entry:<path>` | The index entry's mode, OID, and stage number for that one repo-relative path, via `git ls-files -s -- <path>` (refused, exit 2, if the path has zero or more than one matching index entry — a merge-conflict path with multiple stages is out of scope for v1 and must be refused rather than silently picking one). |
-| `config` | `config:<key>` where `<key>` is one of exactly `core.filemode`, `core.ignorecase`, `core.symlinks`, `extensions.objectformat` | The single resolved value of that key via `git config --get <key>` (missing key is recorded as `null`, not an error — these keys are frequently unset and rely on Git's built-in default). |
+Selector: `dolt:<capability>:<table>`. `dolt` is the only adapter in
+v1 (`generic-command` remains removed, per rev-1 §0.2, restated here).
+`diff-summary` is the only capability (§6) — the rev-1 `schema-diff`/
+`table-diff` split is gone; one query now reports both dimensions per
+table (§0.2).
 
-Rev-0's `config` view allowed `user.name`, `user.email`, wildcard
-`core.*`, `remote.*.url`, and `branch.*.merge` — all **removed**. The
-four keys retained are non-PII, boolean-or-enum filesystem/format
-settings with no realistic sensitive content; every other key,
-including any wildcard expansion, is refused at `add` (exit 2,
-validation — the view's selector grammar does not even parse an
-unlisted key as valid input, so this is a shape error, not a runtime
-policy refusal).
+## 6. Adapter Protocol — Dolt (task 1, task 2)
 
-`ref` and `index-entry` selectors are re-resolved fresh at every
-`capture` (the OID a ref points to, or an index entry's OID/mode, may
-have changed since `add`) — there is no caching of the resolved value
-in `resources.json`, only in the per-capture `summary.json`.
-
-### 5.3 `adapter-snapshot` (tasks C, G)
-
-Closed adapter set: **`dolt` only**. Selector shape:
-`dolt:<capability>:<table>`, where `<capability>` is one of
-`schema-diff` or `table-diff`, and `<table>` is a Dolt table name.
-`--arg table=<table> --arg from=<ref> --arg to=<ref>` are all
-**required** (exit 2 if any is missing); `from`/`to` are Dolt
-revision specs (branch name, commit hash, or `HEAD`/`WORKING`/
-`STAGED`). Any `--arg` key outside `{table, from, to}` is a validation
-error (exit 2); a duplicate `--arg table=...` (same key given twice)
-is also a validation error (exit 2) — never silently "last one wins."
-
-See §6 for the exact adapter execution contract.
-
-## 6. Adapter Protocol — Dolt (task G, task N)
-
-Verified against the primary `dolthub/dolt` source at commit
-`59fb843bf6a4b653d7c8b6d997a603b10cf279d9` — specifically
-`go/cmd/dolt/commands/diff.go` (synopsis `dolt diff [options] <commit>
-<commit> [tables...]`, `--schema`/`--data` selection,
-`--result-format`/`-r` accepting `tabular`/`sql`/`json`) and
-`go/cmd/dolt/commands/version.go` (`version [--verbose] [--feature]`
-subcommand, output format) — cross-checked against the DoltHub CLI
-reference (`https://www.dolthub.com/docs/cli-reference/cli/`) during
-rev-1 research for the remaining flags below (`--filter`,
-`--name-only`) that the source check did not separately confirm.
-Nothing in this section is a guessed or invented flag or output
-schema. This PRD does not rely on `dolt status --porcelain`
-anywhere — no such flag was found in the source search, and no claim
-here depends on it.
-
-### 6.1 Executable resolution and probe
+### 6.1 Executable resolution and identity (no version probe, task 2)
 
 The adapter locates `dolt` via `exec.LookPath("dolt")` at `capture`
-time (not at `add` time — `add` only validates selector/arg shape,
-never touches the filesystem or spawns a process). If not found:
-`adapter-missing` (exit 3, state refusal, distinct from a validation
-error because the *declaration* was valid — only the environment
-lacks the tool).
+time (never at `add` time). Distinct from the `ignored-file` path
+policy (§9.1, which requires the path stay **inside** the repo), the
+executable policy requires the opposite:
 
-Once resolved, before running the requested capability, the adapter
-runs a **probe**: `dolt version` with a 5-second timeout and a 4 KiB
-captured-output cap. Per `go/cmd/dolt/commands/version.go`
-(`dolt version [--verbose] [--feature]`), the bare `dolt version`
-invocation prints a single line, `dolt version <version>` (confirmed
-against source — no subcommand output requires JSON/structured
-parsing for the probe). Probe outcomes and their exact treatment
-(task N: "probe failure semantics must be explicit"):
+1. `exec.LookPath` result, then `filepath.EvalSymlinks` on it (unlike
+   the ignored-file gate, symlinks in the *executable's* resolution
+   path are followed and the *resolved* target is what's validated —
+   an external tool is expected to be installed via a symlink chain,
+   e.g. a version manager's shim).
+2. The resolved path must be a regular file with at least one
+   executable bit set (`os.Stat(...).Mode()` — regular file,
+   `mode&0o111 != 0`).
+3. The resolved path must **not** be inside the repository working
+   tree or under any `.git` directory anywhere on the filesystem
+   (`adapter-executable-in-repo`, exit 3) — the opposite refusal
+   direction from `ignored-file`'s containment requirement, and
+   deliberately so: a trusted external tool must live outside the
+   tree an attacker (or a merge/checkout) could have just modified.
+   Any path outside the repository is accepted regardless of how deep
+   the symlink chain that led there was.
+4. Not found at all (`exec.LookPath` fails): `adapter-missing` (exit
+   3).
 
-| Probe outcome | Treatment |
-|---|---|
-| Exits 0, output matches `^dolt version \S+` | Proceed; the matched version string is recorded as `tool_identity.version` in the summary. |
-| Exits 0, output does not match the expected pattern | `adapter-probe-unexpected-output` (exit 3) — the binary at this path is not recognized as Dolt (or is a version whose output shape changed in a way this PRD did not anticipate); refuse rather than guess. |
-| Nonzero exit | `adapter-probe-failed` (exit 3), with the exit code and first 4 KiB of combined output recorded **locally only** (§7, diagnostics — never in the tracked summary). |
-| Timeout (>5s) | `adapter-probe-timeout` (exit 3). The probe process is sent `SIGTERM`; if it has not exited 2 seconds later, `SIGKILL`. |
-| `exec.LookPath` resolves to a path, but `Lstat`/`EvalSymlinks` on that resolved path lands inside the repository working tree | Refused before the probe even runs: `adapter-executable-unsafe` (exit 3) — the symlink/path safety gate (§9) applies to the resolved adapter executable path exactly as it does to any other path this feature touches, closing task D's "in-repo executable" case. |
+Once resolved and validated, **tool identity** is a static file fact,
+never a code-execution result (C12): `basename(resolvedPath)` (e.g.
+`"dolt"`) and the `SHA-256` hex digest of the resolved binary's bytes
+(read directly, not executed). The **resolved absolute path itself is
+never tracked** — only `basename` and `binary_sha256` appear in any
+tracked artifact (§12.3); the absolute path exists only in-process for
+the duration of the invocation and in local diagnostics on failure
+(§7.5), never written to any file this PRD defines as persistent.
 
-### 6.2 Capability invocation — exact argv templates
+Immediately before invoking the actual capability (§6.2), the adapter
+`Lstat`s the resolved path and records device/inode/size/mtime; the
+`SHA-256` hash computed above **is** the one-time identity check (no
+second hash after invocation, to avoid doubling the cost of hashing a
+large binary on every capture) — the cheap post-invocation check is a
+re-`Lstat` compared against the pre-invocation device/inode/size/mtime
+tuple: any difference is `adapter-executable-replaced` (exit 3), and
+that invocation's result — even if the SQL query itself appeared to
+succeed — is discarded, never written to a batch (a replaced binary
+mid-invocation means the output cannot be trusted regardless of its
+apparent shape).
 
+There is no separate "probe" step at all (task 2) — the real SQL
+invocation in §6.2 **is** the capability check; a failure there is
+reported through the same capability-failure taxonomy as any other SQL
+error, not a distinct "probe failed" class.
 
-Both capabilities run inside the repository's Dolt database directory
-(`cwd` = the repo root, matching where `tpatch` itself always runs
-from; this PRD does not support a Dolt database at a different path in
-v1 — a future ADR would be required to add that).
+### 6.2 Capability invocation — `diff-summary` (task 1)
 
-**`schema-diff`**: `dolt diff --schema --name-only <from> <to>
-<table>` — three separate invocations are actually run, varying only
-`--filter`:
+One capability, one exact argv template, using the resolved absolute
+Dolt path (never the bare string `"dolt"`, to avoid a second, redundant
+`PATH` lookup at invocation time):
 
 ```
-dolt diff --schema --name-only --filter=added   <from> <to> <table>
-dolt diff --schema --name-only --filter=dropped <from> <to> <table>
-dolt diff --schema --name-only --filter=modified <from> <to> <table>
+<resolvedDoltPath> sql -r json -q "<SQL>"
 ```
 
-`--filter`'s accepted values (`added`, `modified`, `renamed`, `dropped`,
-with `removed` as a documented alias for `dropped`) and `--name-only`
-are both confirmed present in the DoltHub reference. Whichever of the
-three invocations returns non-empty `--name-only` output for `<table>`
-determines that table's classification for this capture: `added` /
-`removed` (dropped) / `changed` (modified) — recorded structurally in
-the tracked summary (§11.2), never the invocation's raw output.
+Where `<SQL>` is exactly:
 
-**`table-diff`**: same three-invocation pattern, using `--data
---name-only` instead of `--schema --name-only`, to classify rows as
-added/removed/changed **by table name**, not by row content — this
-PRD's tracked output is a per-table row-change *classification*, never
-row-level content or row counts (row counts would require parsing
-Dolt's richer output, which §6.3 explicitly refuses to fabricate a
-schema for).
+```sql
+SELECT from_table_name, to_table_name, diff_type, data_change, schema_change
+FROM dolt_diff_summary('<esc(from)>', '<esc(to)>'[, '<esc(table)>'])
+ORDER BY from_table_name, to_table_name;
+```
 
-### 6.3 Why `-r json` / `--result-format json` is never used for tracked output
+(the `[, '<esc(table)>']` third argument is present **iff** `table`
+was declared; omitted entirely — not passed as an empty string —
+when it was not, per `dolt_diff_summary`'s documented optional third
+argument.)
 
-`go/cmd/dolt/commands/diff.go` at commit
-`59fb843bf6a4b653d7c8b6d997a603b10cf279d9` confirms `-r`/
-`--result-format` accepts `tabular`, `sql`, or `json`, and confirms
-there is **no separate bare `--json` flag** (rev-0 fabricated one).
-Rev-1 research found the exact per-row field schema of `-r json`
-output is not consistently documented across Dolt versions or
-independently confirmed against source (informal sources disagree on
-field names). Rather than encode an unverified schema into a tracked,
-supposedly-stable artifact, rev-1 draws a hard line: **any Dolt
-invocation beyond the three `--name-only --filter=...` calls above is
-only ever run when `keep_local=true`**, using `--result-format json`
-purely as a richer local diagnostic, and its output is stored
-**only** in the local batch (§7) as an opaque blob (hash + byte count
-recorded in the tracked summary, exactly like `ignored-file`'s raw
-bytes — §11.4), never parsed into any tracked structured field.
+**Args**: exactly `from` and `to` are required; `table` is optional.
+Any other key, or a duplicate `--arg` for an already-declared key, is
+a validation error (exit 2) at `add` time — unchanged in spirit from
+rev-1, now scoped to this one capability's exact argument set.
 
-### 6.4 Timeouts, caps, environment (task N: exact examples)
+**Literal escaping** (`esc(...)`, task 1's "strict SQL-literal
+escaping"): fail-closed, not a full SQL-injection-safe general-purpose
+escaper. Each of `from`/`to`/`table` is validated **before** encoding:
+any `NUL` byte or other C0 control character (`0x00`–`0x1F`, `0x7F`)
+is a validation error (exit 2, same discipline as §13.1's canonical
+`args` encoding); a literal backslash (`\`) anywhere in the value is
+also a validation error (exit 2) — rev-2 deliberately refuses
+backslash rather than attempting to encode it, because whether a
+backslash is itself an escape character inside a Dolt/MySQL string
+literal depends on the session's `sql_mode` (`NO_BACKSLASH_ESCAPES`),
+which this PRD does not control or verify; refusing is simpler and
+strictly safer than guessing. The only transform applied to an
+otherwise-valid value is doubling a single quote (`'` → `''`), the
+one escaping rule that is unambiguous under both interpretations of
+`sql_mode`.
+
+**Refs and `WORKING`/`STAGED`**: `from`/`to` accept any Dolt commit-ish
+resolvable by `dolt_diff_summary` — branch names, tags, full or
+abbreviated commit hashes. Whether the literal identifiers `WORKING`
+and `STAGED` are accepted by `dolt_diff_summary` specifically (as
+opposed to Dolt's diff subsystem generally) was **not** independently
+confirmed against the pinned-commit source in this fold (the
+supervisor's source citation covered the function's name, arguments,
+and five-column return shape, not its acceptance of these two special
+identifiers). This PRD does **not** fabricate that confirmation: it
+documents `WORKING`/`STAGED` as commonly accepted by Dolt's other
+diff-family interfaces (`https://www.dolthub.com/docs/concepts/dolt/git/diff/`)
+and defers a definitive yes/no to the implementation cluster, which
+must re-verify directly against the pinned-commit source (or a newer
+one, re-citing the commit used) before shipping either behavior;
+until then, this PRD's own examples and golden vectors use only
+concrete branch/ref names (`main`, `HEAD`), never `WORKING`/`STAGED`,
+so nothing here depends on the unconfirmed answer.
+
+**Rename detection**: a rename surfaces as a `diff_type` value on the
+row pairing the old `from_table_name` with the new `to_table_name`
+(distinct names on the same row is itself the rename signal,
+independent of whatever exact string `diff_type` holds for that case).
+This PRD does **not** hardcode an assumed closed enumeration of
+`diff_type`'s possible string values (the pinned-commit source
+citation confirmed the column's existence and role, not its full
+value set) — `diff_type` is tracked **verbatim** as an opaque string
+classification (it is a single short structural word, not raw
+body/stdout, so tracking it verbatim does not violate §8.1's "never
+raw content" rule) rather than validated against a guessed closed set
+that could silently reject a legitimate value.
+
+**First capture**: when `from` refers to a point before a table
+existed, that table's row (if `dolt_diff_summary` reports one at all
+for a nonexistent `from`-side table — behavior not independently
+re-derived from source beyond the five-column shape) is tracked
+exactly as returned, with no special-cased "first capture" schema
+distinct from any other capture (§14, `AC` for this case).
+
+### 6.3 Output parsing and normalization (task 1)
+
+`dolt sql -r json` wraps rows under a `"rows"` key alongside a
+`"schema"` key describing column types (community/docs-corroborated
+shape, `https://www.dolthub.com/docs/products/dolthub/api/v1alpha1/sql/`
+— not independently re-derived from the pinned-commit source's exact
+JSON-marshaling code, and flagged as such rather than presented with
+the same confidence as the five confirmed column names). This PRD
+does not assume `data_change`/`schema_change` are marshaled as native
+JSON booleans (`true`/`false`) as opposed to `0`/`1` integers (MySQL/Dolt
+`BOOLEAN` columns are `TINYINT(1)` under the hood, and integer JSON
+typing for such columns is at least as plausible as native-boolean
+typing). The parser therefore normalizes defensively: any of `1`,
+`"1"`, `true`, or `"true"` in that field is treated as boolean `true`;
+everything else (`0`, `"0"`, `false`, `"false"`, absent) is `false` —
+and the **tracked** `result` always contains a genuine JSON boolean
+after this normalization, never the raw, ambiguously-typed value.
+
+### 6.4 Timeouts, caps, environment (task 2, task 8)
 
 | Parameter | Value |
 |---|---|
-| Per-invocation timeout | 30 seconds. On timeout: `SIGTERM`, then `SIGKILL` after 2 more seconds if still running. |
-| Captured output cap | 5 MiB combined stdout+stderr per invocation; output beyond the cap is truncated and the truncation is recorded in local diagnostics (never in the tracked summary, which never contains raw output at all). |
-| Environment passthrough | Exactly `DOLT_ROOT_PATH`, `DOLT_CONFIG_PATH`, `HOME`, `PATH`, forwarded from the invoking process's environment if set; no other environment variables are passed, and (since `generic-command` is removed, task C) there is no user-declarable env-allowlist mechanism at all in v1. |
-| Termination | Process group termination (the child and any of its own children) to avoid orphaned Dolt subprocesses on timeout. |
+| Invocation timeout | 30 seconds. On timeout: `SIGTERM` to the process group, then `SIGKILL` after 2 more seconds if still running. |
+| Captured output cap | 5 MiB combined stdout+stderr; output beyond the cap is truncated, and the truncation fact is recorded only in local, ephemeral diagnostics (§7.5) — never in the tracked artifact, which never contains raw output at all. |
+| Environment | **Not** inherited from the invoking process (task 2's "no inherited credentials"). A fresh, minimal environment is constructed: `HOME=<scratch-home>` and `DOLT_ROOT_PATH=<scratch-home>` pointing at a directory created fresh under this invocation's ephemeral scratch tree (§7.1, `0700`), so Dolt never reads or writes the real invoking user's `~/.dolt` config/credentials; `PATH` is **not** set at all (the adapter is invoked by its already-resolved absolute path, §6.1, so `PATH` lookup is never needed mid-invocation). No other variable is passed through. |
+| Termination | Process-group termination (the child and any of its own children) on timeout, to avoid orphaned Dolt subprocesses. |
 
-A concrete, fully-specified example for Vector 2 (§0.3) — the exact
-argv array run for the `schema-diff` capability with `table=users,
-from=main, to=HEAD` (task N: "exact adapter examples must include
-selector/discriminator and all declared capability args"):
+A concrete, fully-specified argv/SQL example for Vector 2 (§0.3) —
+`table=users, from=main, to=HEAD`:
 
 ```
-selector:     dolt:schema-diff:users
-capability:   schema-diff
-args:         {"table":"users","from":"main","to":"HEAD"}
-
-argv[0]: dolt diff --schema --name-only --filter=added   main HEAD users
-argv[1]: dolt diff --schema --name-only --filter=dropped main HEAD users
-argv[2]: dolt diff --schema --name-only --filter=modified main HEAD users
+argv: /usr/local/bin/dolt sql -r json -q "SELECT from_table_name, to_table_name, diff_type, data_change, schema_change FROM dolt_diff_summary('main', 'HEAD', 'users') ORDER BY from_table_name, to_table_name;"
 ```
 
-## 7. Local Storage & Transaction Design (task I)
+(the absolute path shown, `/usr/local/bin/dolt`, is illustrative only
+— it is never the tracked value, §6.1.)
 
-### 7.1 Layout
+## 7. Ephemeral Scratch, Locking, and the Single Publication Point (task 3, task 4, task 8, task 9)
+
+### 7.1 Ephemeral scratch layout and lifecycle (task 3)
+
+`.tpatch/local/` is the existing gitignored local root (`LocalIgnoreRule`,
+`internal/workflow/session_ignore.go:18`). Rev-2 adds a sibling of the
+existing `.tpatch/local/capture/` (session capture) tree:
 
 ```
-.tpatch/local/resource-capture/<slug>/
-  current                       -- plain-text file, contents = one batch ID, atomically updated
-  batches/
-    lb_<12 lowercase hex>/       -- one immutable batch, written once, never mutated after commit
-      meta.json                 -- local-only diagnostics (see 7.3)
-      <resource_id>/
-        raw                     -- present only if keep_local=true and this resource is
-                                    ignored-file/adapter-snapshot with raw bytes to keep
-        files/<relpath>          -- present only for a directory ignored-file selector
-        manifest.json            -- present only for a directory ignored-file selector (5.1)
+.tpatch/local/resource-scratch/<slug>/
+  .lock                          -- advisory lock, present only while a capture runs (§7.2)
+  es_<12 lowercase hex>/         -- one ephemeral-scratch directory per in-progress invocation
+    dolt-home/                   -- scratch HOME/DOLT_ROOT_PATH for the Dolt adapter (§6.4)
+    <resource_id>/
+      raw                        -- present only transiently while this resource is being processed
+      files/<relpath>            -- present only transiently, for a directory ignored-file selector
 ```
 
-Batch IDs are 12 lowercase-hex characters from `crypto/rand`, mirroring
-the `ua_` attempt-ID precedent (`ADR-032` D3, Implementation Notes item
-8) — collision probability is the same 48-bit space already accepted
-there.
+Every file under `es_<id>/` is created `0600` and every directory
+`0700` **at creation** (`os.OpenFile`/`os.Mkdir` with the final mode
+passed directly — never `os.Create` followed by a separate
+`os.Chmod`, which leaves a race window at the default, looser
+umask-derived permissions, task 8). The entire `es_<id>/` directory is
+removed (`os.RemoveAll`, best-effort) as the last step of the
+invocation, on **both** the success and failure paths — a removal
+failure (e.g. a permission error) is logged as a local diagnostic
+(§7.5) but does not itself fail an otherwise-successful capture,
+since the tracked result has already been safely computed and (on the
+success path) published by the time cleanup runs.
 
-Per ADR-027 D1's exact mandate (C7), `capture` verifies
-`.tpatch/local/` is `.gitignore`d **before its first write on a given
-machine** and refuses (`local-path-not-ignored`, exit 3) if it is not
-— this is a one-time-per-worktree check (cached in-process per
-invocation, not persisted), not a per-file recheck, since the ignore
-rule covers the whole subtree by construction (a single `/.tpatch/local/`
-line is the expected `.gitignore` entry; this PRD documents that entry
-as a required addition but does not itself edit `.gitignore` — that is
-an implementation-cluster task).
+`--dry-run` (§3) never creates `es_<id>/` on disk at all — its
+scratch equivalent is an in-process, bounded `bytes.Buffer` per
+resource, discarded when the process exits, since a dry run never
+needs to survive a crash mid-invocation (nothing it produces is ever
+published).
 
-### 7.2 Commit protocol
+**Orphan cleanup** (task 3, task 8): before creating a new `es_<id>/`,
+every `capture`/`add` invocation first sweeps
+`.tpatch/local/resource-scratch/<slug>/` for `es_*` directories and
+`batches/.tmp-*` / `.tmp-current.json` files left behind by a
+previous crashed run (§7.3.3's crash windows) and removes them
+(`os.RemoveAll`/`os.Remove`, best-effort, silent on success, logged as
+a local diagnostic on failure — never a hard failure of the current
+invocation).
 
-1. `capture` allocates a fresh batch ID and writes the batch's full
-   contents under a temporary sibling name, `batches/.tmp-lb_<id>/`.
-2. Every file within is written, then `fsync`'d individually; the
-   temporary directory itself is then `fsync`'d (POSIX directory-fsync
-   pattern, matching the durability posture used elsewhere in the
-   store package for tracked writes).
-3. The temporary directory is `rename`'d to its final name,
-   `batches/lb_<id>/` — a single POSIX `rename(2)`, atomic within the
-   same filesystem, which this design requires (`.tpatch/local/` must
-   be on the same filesystem as `.tpatch/` itself; this PRD does not
-   support a symlinked or bind-mounted `.tpatch/local/` on a different
-   filesystem in v1).
-4. Only **after** step 3 succeeds does `capture` update `current`: a
-   new `.tmp-current` file is written with the batch ID, `fsync`'d,
-   then `rename`'d over `current` — again one atomic POSIX rename.
+### 7.2 Lock semantics (task 9)
 
-Advisory concurrency lock: `capture` opens `resource-capture/<slug>/.lock`
-with `O_CREATE|O_EXCL` before step 1 and removes it after step 4 (or on
-any failure exit). A second concurrent `capture` for the same slug that
-finds the lock held refuses immediately: `capture-in-progress` (exit 3)
-— it does not wait or queue.
+A single advisory lock per slug, `.tpatch/local/resource-scratch/<slug>/.lock`,
+guards against two concurrent `capture`/`record --resources`
+invocations for the same feature racing on scratch creation or
+publication.
 
-### 7.3 Crash-window analysis (task I, task N)
+**Acquire** (never blocks/waits — either succeeds immediately or
+refuses immediately, no polling, no configurable timeout in v1):
 
-| Crash point | Resulting state | Recovery |
+1. `os.OpenFile(lockPath, O_CREATE|O_EXCL|O_WRONLY, 0o600)`. On
+   success, write a JSON body — `{"pid": <int>, "process_start":
+   "<ps -o lstart= output for this pid, captured immediately>", "host":
+   "<os.Hostname()>"}` — and proceed; the lock is held for the
+   remainder of the invocation.
+2. On `O_EXCL` failure (file already exists), read and parse the
+   existing lock file:
+   - **Malformed** (not valid JSON, or missing a required field): a
+     valid lock is always well-formed (written atomically by this
+     same code path) — malformed implies leftover corruption from a
+     crash mid-write. Quarantine it (`os.Rename` to a
+     `crypto/rand`-suffixed `.lock.stale-<8hex>` name, so a
+     concurrent racer doing the same thing cannot collide) and retry
+     step 1 once.
+   - **`host` does not match `os.Hostname()`**: the lock may belong to
+     another machine on a shared filesystem, whose process liveness
+     cannot be verified locally. Refuse immediately
+     (`capture-lock-held-remote`, exit 3) — **do not** attempt to
+     reclaim; two machines racing to reclaim the same shared-FS lock
+     is worse than a manual-intervention refusal.
+   - **`host` matches**: run `ps -o lstart= -p <pid>` fresh.
+     - No output (process no longer exists): stale. Quarantine (as
+       above) and retry step 1 once.
+     - Output **matches** the recorded `process_start` string exactly:
+       the same live process still holds the lock. Refuse immediately
+       (`capture-in-progress`, exit 3), no wait.
+     - Output exists but **differs** from the recorded
+       `process_start` (same numeric PID, different process — PID
+       reuse): stale. Quarantine and retry step 1 once.
+
+**Release**: `os.Remove(lockPath)` as the last step of the invocation
+(success or failure path alike), best-effort — a failed removal is a
+local diagnostic only; the next invocation's PID/`process_start`
+staleness check reclaims it correctly once this process has actually
+exited.
+
+**Platform scope**: `ps -o lstart=` and PID-liveness-via-`ps` are
+POSIX-shaped and validated on macOS/Linux, consistent with this
+project's existing macOS/Linux-only validation scope
+(`ADR-004-m10-copilot-proxy-ux.md` D6 precedent); Windows lock
+liveness/reuse detection is best-effort/unsupported in v1, not claimed
+otherwise.
+
+### 7.3 The single publication point (task 3, task 4)
+
+Per-invocation sequence, after lock acquisition (§7.2) and orphan
+sweep (§7.1):
+
+1. **Stage**: for every targeted resource (all declared, or the
+   `--resource <id>` subset), perform the kind-specific capture work
+   (§5) into `es_<id>/<resource_id>/` and compute its `result` +
+   (where applicable) `raw.hash`/`raw.byte_count` entirely in memory
+   or scratch. If **any** targeted resource's staging fails (adapter
+   error, size limit, redaction refusal, path/symlink refusal), the
+   **whole** invocation aborts here: no batch file is written, `es_<id>/`
+   is removed, the lock is released, and the command exits with the
+   specific refusal's code (all-or-nothing, matching the precedent
+   already established for `record --resources` staging in rev-1).
+2. **Write the batch** (task 4): build the batch object (§12.2) from
+   every staged result, write it to `artifacts/resource-captures/batches/.tmp-<batch_id>.json`
+   (ordinary tracked-repo file permissions — `0644` — since it never
+   contains raw bytes), `fsync` the file, then `os.Rename` it to
+   `artifacts/resource-captures/batches/<batch_id>.json` (same-directory
+   atomic rename) and `fsync` the containing directory. `batch_id` is
+   `rb_<12 lowercase hex>` (`crypto/rand`, same 48-bit space already
+   accepted for other `tpatch` ID conventions).
+3. **Publish the pointer** (task 4 — "the sole commit point"): compute
+   the new `current.json` content (§12.3) — every resource staged in
+   step 1 now points at the new `batch_id`; every other, previously
+   tracked resource not touched this invocation keeps its existing
+   entry, carried forward unchanged from the prior `current.json`.
+   Write to `artifacts/resource-captures/current.tmp.json`, `fsync`,
+   `os.Rename` to `artifacts/resource-captures/current.json`, `fsync`
+   the directory. **This rename is the actual, single, atomic commit
+   point of the whole capture** — before it succeeds, nothing has
+   changed from any reader's perspective (the new batch file, if
+   already renamed into place in step 2, is a harmless orphan no
+   `current.json` entry references yet); after it succeeds, the
+   capture is fully and atomically visible.
+4. **Cleanup**: remove `es_<id>/`, release the lock (§7.2).
+
+**Crash-window analysis** (task 4):
+
+| Crash point | State left behind | Recovery |
 |---|---|---|
-| Mid-write inside `.tmp-lb_<id>/` | An orphaned temp directory; `current` still points at the prior batch (or is absent, for a first capture) | Inert. A future housekeeping pass may delete any `batches/.tmp-lb_*` directory (no capture ever reads a `.tmp-` prefixed directory); until then it is harmless disk usage. No tracked state is affected. |
-| After step 3 (batch committed) but before step 4 (`current` not yet updated) | A fully-written, valid `lb_<id>/` batch exists but is not pointed to by `current` | Harmless — this batch is simply never read (nothing resolves it without going through `current`). Re-running `capture` produces a new batch and retries the `current` update; the orphaned batch is prunable, not corrupt. |
-| After step 4, before the tracked `summary.json` write (§10 publish step) | `current` points at a fully valid local batch that has not yet been reflected in any tracked file | Re-running `capture` (or `record --resources`, §10) recomputes fresh and republishes; no special recovery command is needed because there is no partially-written tracked state to clean up (tracked writes are a separate atomic step, §10.2). |
+| Before step 2's rename | No new batch file (or an orphaned `.tmp-<batch_id>.json`) | Orphan `.tmp-*` swept at next invocation's start (§7.1); safe to retry immediately, produces a fresh `batch_id` |
+| After step 2's rename, before step 3's rename | A fully-written, permanently orphaned `batches/<batch_id>.json` that no `current.json` entry ever references | Harmless — never surfaced by `list`/`diff`/`capture` (§4.1's "missing batch" case does not apply here; this is an *extra*, unreferenced batch, not a missing one); left in place, not garbage-collected, in v1 (same "orphans are left, not auto-deleted" precedent already accepted for the rev-1 lock/scratch design) |
+| During step 3's temp-write, before its rename | Orphaned `current.tmp.json` | Swept at next invocation's start; the last successfully-renamed `current.json` (from a previous, fully-committed invocation, or absent if this was the first-ever capture) remains authoritative and untouched |
+| After step 3's rename | Fully committed | No recovery needed |
 
-"Recovery" in every case above is simply **re-running the capture
-command** — there is no dedicated recovery verb, because no crash
-window described above leaves tracked state in an inconsistent form;
-the local tree is append-only-by-batch and self-healing by
-construction (task I: "no special recovery command needed").
+**Concurrency**: the lock (§7.2) already prevents two invocations for
+the same slug from reaching step 2/3 simultaneously; nothing in §7.3
+depends on filesystem-level atomicity across *different* slugs (each
+slug's `artifacts/resource-captures/` tree is independent).
 
-**Failures write no tracked artifact at all** (task I, task N — "no
-batch failure envelope contradiction"): if staging fails for any
-reason (adapter error, redaction refusal, size-limit exceeded), no
-`summary.json` is written or modified, and no partially-written batch
-is ever promoted via `current`. Diagnostics about *why* a capture
-failed are written only to `batches/lb_<id>/meta.json` inside a batch
-that — because the failure means step 4 was never reached — is never
-pointed to by `current` and is therefore purely a local, informational
-artifact, never a tracked "failure record." Rev-0 had contradictory
-language suggesting both "no tracked failure envelope" and a
-`history/NNN-diff.json`-style append-on-every-attempt model that would
-have required *some* tracked artifact per attempt, including failed
-ones; rev-1 resolves this by removing the numbered-history model
-entirely (§7.4) — there is nothing to contradict once tracked state is
-a single current summary per resource, written only on success.
+### 7.4 Permissions (task 8)
 
-### 7.4 History model, `remove`/`clear` (task I)
+Restated precisely because it spans both the ephemeral (§7.1) and
+tracked (§7.3) trees, which have **different** permission
+requirements:
 
-There is no numbered append-only tracked history (`history/NNN-*.json`)
-in rev-1. The **tracked** artifact for each resource is exactly one
-`summary.json`, overwritten on each successful `capture` (the prior
-tracked content is not retained anywhere tracked — Git's own history
-of the file, once committed, is the audit trail for tracked summaries,
-exactly as it already is for every other tracked tpatch artifact).
+- Ephemeral scratch (`es_<id>/` and everything under it, plus the
+  scratch Dolt `HOME`): directories `0700`, files `0600`, always at
+  creation.
+- Tracked artifacts (`resources.json`, `batches/<id>.json`,
+  `current.json`): ordinary repository file permissions (`0644`),
+  since they never contain raw bytes or secrets by construction
+  (§8.1) — there is nothing to protect with tighter permissions, and
+  using non-standard permissions on a tracked, checked-in file would
+  be surprising to anything else that reads the working tree.
+- The lock file (§7.2): `0600` (it is local/gitignored, and its
+  content — PID, process-start string, hostname — is host-identifying
+  operational metadata, not secret, but there is no reason to make it
+  world-readable either).
 
-The **local** batches are the append-only, immutable history — each
-`capture` produces a new `lb_<id>/` batch that is never overwritten or
-deleted by any command in this PRD. This local history is prunable
-only manually/out-of-band (no `tpatch` command deletes old batches in
-v1) — an explicitly accepted, documented cost (§14 Negative
-Consequences: unbounded local disk growth until pruned).
+### 7.5 Local diagnostics on failure (task 8, task 3)
 
-`feature resource remove <slug> <id>` and `feature resource clear
-<slug>` delete **only** the tracked `resources.json` entry/entries and
-the corresponding tracked `resources/<id>/summary.json` file(s) —
-ordinary sequential file operations, **not** claimed to be atomic
-across the tracked and local trees (rev-1 explicitly does **not**
-repeat rev-0's "atomic cross-tree clean delete" claim, task I). They
-do **not** touch `.tpatch/local/resource-capture/<slug>/` at all — the
-local batch history for a removed resource is preserved exactly as it
-was, on the reasoning that local history is an audit trail that
-`remove`/`clear` (tracked-declaration operations) should not silently
-destroy. A future explicit `feature resource purge-local` verb (out of
-scope here) would be the place to add deliberate local-history
-deletion.
+When a `capture` invocation fails at any stage (§7.3 step 1), no
+tracked failure envelope is ever written (unchanged principle from
+rev-1) — failure detail is either printed directly to the CLI's own
+stdout/stderr for that invocation (never persisted to any file) or, if
+richer detail is useful for later inspection (e.g. the last 4 KiB of a
+timed-out Dolt invocation's combined output, or the truncation fact
+from §6.4), written to a file under the **same** `es_<id>/` ephemeral
+tree that is deleted at the end of the invocation (§7.1) — diagnostics
+never outlive the failed invocation any more than a successful one's
+scratch content does. There is no contradiction between "diagnostics
+are recorded" and "batches are immutable and only ever created on
+success": diagnostics live in the ephemeral tree (deleted regardless
+of outcome), batches live in the tracked tree (written only on
+success, §7.3 step 2) — the two never share a file.
 
-## 8. Privacy & Redaction (task A, task B)
+## 8. Privacy & Redaction (task 3)
 
-### 8.1 Committed content is always structural, never raw (task A)
+### 8.1 Tracked content is always structural, never raw
 
-No tracked file (`resources.json`, any `resources/<id>/summary.json`)
-ever contains: raw file bytes, raw adapter stdout/stderr, a full Git
-object's content, or any string copied verbatim from a scanned
-source. Tracked content is limited to: hashes (`sha256`, hex-encoded),
-byte counts, file counts, path/table/ref names that are themselves the
-*declared selector* (not scanned content), structural
-added/removed/changed classifications, and the six-class redaction
-**pass/refuse** verdict (never the matched substring itself, which
-would defeat the purpose — task B: "closed classes," not "closed
-classes, logged verbatim").
+No tracked file (`resources.json`, any `batches/<id>.json`,
+`current.json`) ever contains: raw file bytes, raw adapter stdout, a
+full Git object's content, or any string copied verbatim from a
+scanned source (`diff_type`, §6.2, is the one narrow exception — a
+short structural classification word, not "content" in the sense this
+rule means). Tracked content is limited to hashes, byte/file counts,
+the declared selector/args (themselves inputs, not scanned content),
+structural true/false change flags, and `basename`+`binary_sha256`
+tool identity. Raw bytes exist **only** transiently, inside a single
+invocation's ephemeral scratch tree (§7.1) — never opt-in, never
+persisted, regardless of `--dry-run` or any other flag.
 
-Raw bytes exist **only** under `.tpatch/local/resource-capture/` (§7),
-and only when `keep_local=true` was declared at `add` time (§3). This
-directly corrects rev-0's claim of "verbatim inheritance" of
-snapshot/diff content into tracked sidecars (task A: "correct any
-claim of verbatim inheritance") — there is no verbatim inheritance
-into any tracked file in rev-1, full stop.
+### 8.2 The hard-refusal scanner
 
-### 8.2 The hard-refusal scanner (task B)
+Unchanged from rev-1: `internal/cli/session_redaction.go` today is
+unexported, shaped around `store.SessionObservation`, and applies
+drop-the-line-and-continue semantics across 10 heuristic classes that
+do not include dedicated PEM/OpenSSH-key, DB-connection-URL, or
+email/PII patterns. This PRD requires the implementation cluster to
+extract the reusable byte-pattern matchers into a new, exported,
+content-agnostic `internal/redact.Scan(content []byte) []string`,
+shared by both the existing session-redaction call site (unchanged
+policy there) and the new resource-capture call site (always
+hard-refuses on any match).
 
-`internal/cli/session_redaction.go` today is: unexported
-(`redactSessionForCommit`, `forbiddenContentClasses` are
-package-private), shaped around `store.SessionObservation` (not a
-generic byte scanner), and applies **drop-the-offending-line-and-continue**
-semantics across 10 heuristic classes (secret-like-string,
-absolute-home-path, prompt-text-marker, tool-call-argument,
-command-output-marker, stack-trace-marker, ide-buffer-marker,
-clipboard-marker, vector-embedding-payload, source-snippet-marker) —
-none of which are a dedicated PEM/OpenSSH-key, DB-connection-URL, or
-email/PII pattern (C4). This PRD does not change that existing
-mechanism's behavior for its existing surface (session summaries) —
-it is out of scope here.
+**Six closed classes** (unchanged from rev-1), applied to every
+candidate string before it is written anywhere — tracked or
+ephemeral-scratch — a match on any class is a hard refusal of the
+**entire** invocation (`redaction-refused`, exit 3), never a partial
+scrub-and-continue, and never a partial batch (§7.3 step 1's
+all-or-nothing rule):
 
-This PRD **requires** the implementation cluster to extract the
-existing byte-pattern matchers that are reusable (`matchSecretLikeString`'s
-bearer/token/API-key-prefix patterns, `matchAbsoluteHomePath`) into a
-new, **exported**, content-agnostic location (e.g. a new `internal/redact`
-package) with a `Scan(content []byte) []string` entry point that
-operates on raw bytes (no `store.SessionObservation` dependency, no
-UTF-8-validity requirement — every pattern below is ASCII-marker-based
-and byte-safe against binary input), returning the set of matched
-class names. Both the existing session-redaction call site and the new
-resource-capture call site (below) consume this shared scanner, but
-apply **different policies** to its findings — the existing surface
-may keep its drop-and-continue policy (unchanged, out of scope); the
-new resource-capture surface below always hard-refuses.
-
-**Six closed classes** (task B, exact list), applied to every tracked
-selector, summary field, and metadata value before it is written
-anywhere (tracked or local) — a match on **any** class is a hard
-refusal of the entire capture (`redaction-refused`, exit 3), never a
-partial scrub-and-continue (matching ADR-027 D3's existing "redaction
-failure is a hard failure" posture, C7):
-
-1. **PEM / OpenSSH private keys** — `-----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----` (OpenSSH's own private-key PEM header, `-----BEGIN OPENSSH PRIVATE KEY-----`, is matched by the optional `OPENSSH ` group, so this single class covers both PEM-armored classic keys and OpenSSH's private-key format — task B lists these as one combined class).
-2. **DB / connection URLs** — either a known DB URL scheme with embedded userinfo (`(postgres|postgresql|mysql|mongodb(\+srv)?|redis|amqp|sqlserver)://\S*:\S*@\S+`), or, generalized, **any** URL of the shape `://[^/\s]*:[^/\s]*@` regardless of scheme — this generalization is what makes the class also catch the masked-userinfo shape rev-0 only handled in prose for Git remote URLs (`<user>:<pass>@<host>`, task M) as a real, enforced scanner rule rather than a one-off comment.
-3. **Emails / PII** — `[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}`.
-4. **Credential assignments** — `(?i)\b(secret|token|password|api[_-]?key|access[_-]?key|private[_-]?key|client[_-]?secret)\b\s*[:=]\s*['"]?\S{8,}`.
-5. **Bearer/token/key patterns** — reuses the existing `session_redaction.go` secret-like-string prefixes (`sk-`, `ghp_`, `gho_`, `ghu_`, `AKIA`, `xox[baprs]-`, and a generic `(?i)bearer\s+[A-Za-z0-9._-]{16,}`).
-6. **Home absolute paths** — reuses the existing `session_redaction.go` absolute-home-path pattern.
+1. PEM / OpenSSH private keys.
+2. DB / connection URLs (known schemes with embedded userinfo, or the
+   generalized `://user:pass@host` shape).
+3. Emails / PII.
+4. Credential assignments (`secret`/`token`/`password`/`api_key`/etc.
+   `=`/`:` a quoted or bare value).
+5. Bearer/token/key patterns (reusing existing `session_redaction.go`
+   prefixes and a generic bearer-token pattern).
+6. Home absolute paths (reusing the existing matcher).
 
 ### 8.3 What is scanned, and when
 
-Every candidate string before it is committed to any file (tracked or
-local): the resource's `selector`, every `args` value, every
-`git-metadata` resolved value (a ref OID is not scannable content
-itself, but a `config` view's resolved value is — e.g. a hypothetical
-future config key holding a URL would be caught by class 2), every
+Every candidate string before it is written anywhere: the resource's
+`selector`, every `args` value, every resolved `git-metadata` value, an
 `ignored-file`'s raw content (byte-scanned regardless of binary/text
-classification, §5.1), and the local-only raw Dolt diagnostic blob
-(§6.3) if `keep_local=true`. Scanning happens **before** any write —
-staging computes the scan result first; a refusal means the batch
-(§7.2) is never written past its temp-directory stage, and no tracked
-file is touched.
+classification), and Dolt's captured stdout (§6.4) before it is
+normalized into a tracked `result` (§6.3). Scanning happens **before**
+any write of any kind — staging computes the scan result first; a
+refusal means no batch is ever written (§7.3 step 1), not even for the
+other, unaffected resources in the same invocation.
 
-### 8.4 Local raw bodies require explicit opt-in (task B)
+## 9. Path & Executable Safety (task 5, task 2)
 
-Restated from §3/§7.1: raw bytes are written locally only when
-`keep_local=true`. When they are written, the batch directory and its
-contents are created with owner-only permissions (`0700` directories,
-`0600` files) — "safe permissions" per task B — regardless of the
-process's umask (explicitly set via `os.Chmod` after creation, not
-relied upon from umask alone). Raw bodies remain untracked in every
-case — `keep_local` never affects tracked output (§8.1).
+### 9.1 `ignored-file` path gate: refuse any ancestor symlink (task 5)
 
-## 9. Symlink & Path Safety (task D)
+`safety.EnsureSafeRepoPath` and `store.NormalizeClaimPath` remain
+lexical-only (`filepath.Abs` + string-prefix containment, no `Lstat`,
+no `EvalSymlinks`) — sufficient for their existing callers, not
+sufficient alone for resource capture. Rev-1's gate resolved the
+**final** component if it was a symlink and re-validated containment
+on the resolved target; the rev-1 adjudication found this missed
+symlinks in **ancestor** directory components (e.g. a selector
+`a/b/secret.txt` where `a` or `a/b` itself is a symlink escaping the
+repo, never checked by a final-component-only rule).
 
-`safety.EnsureSafeRepoPath` and `store.NormalizeClaimPath` are
-**lexical only** (C2) — `filepath.Abs` plus a string-prefix
-containment check, no `Lstat`, no `filepath.EvalSymlinks`. This is
-sufficient for their existing callers (claim paths that are validated
-once against a manifest, not repeatedly re-read from a potentially
-attacker-influenced filesystem), but is **not** sufficient on its own
-for resource capture, where a selector may point through a symlink an
-attacker (or an innocently misconfigured worktree) controls, and where
-the same selector is re-resolved at every `capture`, not just once.
+Rev-2 replaces this with a strictly simpler fail-closed rule, run at
+both `add` and every `capture`, for every path this feature touches
+(the selector itself, every directory descendant for a directory
+selector, and the process `cwd`):
 
-Rev-1 requires, at **both `add` and every `capture`**, and for
-**every** path this feature touches — the selector path itself, every
-regular file discovered while walking a directory selector (§5.1),
-the process `cwd` tpatch is invoked from, and the resolved adapter
-executable path (§6.1) — the following gate, run in this order:
+1. Split the repo-relative path into components. Starting from the
+   repository root, `Lstat` each successive prefix (root, root/a,
+   root/a/b, ..., the full path).
+2. If **any** component's `Lstat` result is a symlink — regardless of
+   where it points, whether the target exists, or whether the target
+   would itself be safely inside the repo — refuse immediately:
+   `symlink-component-refused` (exit 3). Rev-2 does **not** attempt
+   `EvalSymlinks`-and-re-validate for any component; a symlink
+   anywhere in the chain is refused outright, full stop. This is
+   simpler than rev-1's resolve-then-validate approach and closes the
+   ancestor gap by construction — there is no "resolve the ancestor
+   and check its target" step to get wrong, because ancestors are
+   never resolved at all.
+3. If any prefix component does not exist: `path-missing` (exit 3).
+4. If every component is confirmed a plain (non-symlink) entry, open
+   the final path with `O_NOFOLLOW` set (Unix build targets;
+   `syscall.O_NOFOLLOW` — a real, available hardening layer for the
+   **final** component specifically, C14) — a symlink that appeared at
+   the final component between step 2's check and this open fails the
+   open with `ELOOP`, refused the same as `symlink-component-refused`.
+5. Immediately after a successful open, `Lstat` the path again and
+   compare device/inode/size/mtime against the values captured in
+   step 2's walk for the final component: any difference is
+   `path-replaced-during-open` (exit 3), and the just-opened content is
+   discarded, never scanned or hashed.
 
-1. `os.Lstat` the path. If it does not exist: `path-missing` (exit 3).
-2. If the `Lstat` result is itself a symlink, resolve with
-   `filepath.EvalSymlinks`. If resolution fails (dangling target,
-   permission error, or a symlink cycle): `symlink-unresolvable`
-   (exit 3) — never silently skipped or treated as "just don't
-   follow it."
-3. Compute the resolved absolute path and re-run the existing
-   `safety.EnsureSafeRepoPath` **containment** check against it (not
-   just the original, pre-resolution path) — this is the new
-   requirement layered *on top of* the existing lexical check, not a
-   replacement for it. If the resolved path escapes the repository
-   root: `symlink-escapes-repo` (exit 3).
-4. If the resolved path's final path component, or any path component
-   the resolution traversed through, is literally named `.git` (case-
-   sensitive; matching `gitutil.pathIsGitInternal`'s existing `.git`
-   boundary convention used for the diff/store-write exclusions in
-   ADR-030 D3/D4): `symlink-targets-git-internal` (exit 3) — refused
-   even if the resolved target is technically still inside the
-   repository root, because `.git` internals are never a valid
-   resource target regardless of containment.
+**Refuse dangling/external/`.git`**: a missing prefix is `path-missing`
+(step 3); a symlink anywhere is refused unconditionally (step 2) —
+this subsumes rev-1's separate `symlink-escapes-repo` and
+`symlink-targets-git-internal` outcomes, since **no** symlink is ever
+followed or inspected for where it points; refusing all of them is
+strictly more conservative than checking whether a specific one
+happens to escape or target `.git`.
 
-This four-step gate is re-run **fully** at every `capture` (task D:
-"at add and capture for every directory descendant") — a selector that
-was a plain file at `add` time but has since been replaced by a
-symlink (a classic TOCTOU-style concern for any tool that re-reads a
-path by name) is caught at the next `capture`, not just accepted
-because it passed once. For a directory selector, step 2's resolution
-requirement means the walk itself does not follow symlinked
-subdirectories (a symlinked subdirectory is treated as a leaf that
-fails step 2/3/4 in isolation, refusing that one entry rather than
-silently descending into a target outside the intended tree) — this
-closes task D's "every directory descendant" requirement precisely:
-each descendant file is independently Lstat'd and resolved, not just
-the top-level selector.
+**TOCTOU residual, stated honestly** (task 5, C14): steps 1–5 close
+the ancestor-symlink gap and the final-component race as far as Go's
+standard library allows (`O_NOFOLLOW` binds only the *final* open
+call; there is no stdlib/syscall wrapper — no `openat2`/
+`RESOLVE_NO_SYMLINKS` — that also atomically binds every *ancestor*
+directory component against a race between step 2's walk and step 4's
+open). A sufficiently well-timed attacker who can replace an ancestor
+**directory** itself (not just a leaf symlink) between steps 2 and 4
+is not fully closed by this design using only the Go standard library.
+This PRD does not claim otherwise; a stronger guarantee would require
+platform-specific syscalls (`openat2` on Linux, no direct macOS
+equivalent) outside this PRD's zero-external-dependency,
+Unix-portable scope, and is explicitly left as a documented residual
+risk rather than an impossible sandbox claim.
+
+For a directory selector, this five-step gate runs **independently
+per matched descendant file** (task 5's "every directory descendant"),
+not just once for the top-level selector — a selector that was a
+plain directory of plain files at `add` time but has since had one
+entry replaced by a symlink is caught at the next `capture`, not
+grandfathered in because the top-level directory itself still passes.
+
+### 9.2 Executable path safety (task 2, distinct policy)
+
+The Dolt executable's resolution uses the **separate** policy defined
+in §6.1 (external-required, symlinks followed and their resolved
+target validated, not refused) — the opposite direction from §9.1's
+"stay inside the repo, refuse any symlink" rule, because an adapter
+executable is a trusted external tool, not repo-owned content. The two
+policies are never conflated: `ignored-file`/directory-descendant
+paths always use §9.1; the Dolt executable path always uses §6.1/§9.2.
 
 | Case | Outcome |
 |---|---|
-| Selector resolves to a plain file, fully inside repo, not through `.git` | Accepted |
-| Selector is a symlink to a plain file, resolved target fully inside repo, not through `.git` | Accepted — the symlink itself is fine; what's refused is where it points, not that it exists |
-| Selector is a symlink to a path outside the repo root | Refused: `symlink-escapes-repo` |
-| Selector is a symlink whose target does not exist | Refused: `symlink-unresolvable` |
-| Selector (or a directory descendant) resolves through a `.git` path component | Refused: `symlink-targets-git-internal` |
-| `cwd` itself (the directory `tpatch` was invoked from) is a symlink whose resolved target escapes the repo | Refused before any resource-specific work begins: `symlink-escapes-repo` |
-| Resolved Dolt executable path (§6.1) lands inside the repository working tree | Refused: `adapter-executable-unsafe` |
+| `ignored-file` selector, every path component a plain file/dir, fully inside repo | Accepted |
+| `ignored-file` selector, any ancestor component is a symlink (regardless of target) | Refused: `symlink-component-refused` |
+| `ignored-file` selector, final component replaced by a symlink between the walk and the open | Refused: `symlink-component-refused` (via `O_NOFOLLOW`/`ELOOP`) |
+| `ignored-file` selector, file replaced (same name, different inode) between the walk and the open | Refused: `path-replaced-during-open` |
+| `ignored-file` selector, a prefix component does not exist | Refused: `path-missing` |
+| Dolt executable resolves (possibly through symlinks) to a path outside the repo and `.git` | Accepted |
+| Dolt executable resolves to a path inside the repo working tree or under any `.git` directory | Refused: `adapter-executable-in-repo` |
+| Dolt executable's device/inode/size/mtime differ immediately after invocation vs. immediately before | Refused: `adapter-executable-replaced`, result discarded |
 
-## 10. `record --resources` Semantics (task J)
+## 10. Git Ignore/Tracked Gate Semantics (task 6, task 7)
 
-Rev-0 never wrote a literal bare `record --dry-run`; it wrote `record
---resources --dry-run`, overloading dry-run preview onto the same
-command that performs the Git-side canonical-patch capture. Rev-1
-removes `--dry-run` from `record` entirely and moves all dry-run and
-resource-only retry flows to the standalone `feature resource capture`
-verb (§3), which already supports `--dry-run` and an optional single
-`--resource <id>` target. `record --resources` itself never accepts
-`--dry-run` — it always either fully stages and (on Git success)
-publishes, or does neither.
+### 10.1 `check-ignore` exit-code handling
 
-### 10.1 Ordering: stage first, publish only after Git success
+`git --literal-pathspecs check-ignore -q --no-index -- <path>`: exit
+`0` = ignored (gate passes); exit `1` = not ignored (gate fails,
+`not-ignored`, exit 3); any other exit code (`128` and similar) is a
+fatal Git error — refused (`git-ignore-check-error`, exit 3), never
+silently treated as either "ignored" or "not ignored."
 
-`record <slug> --resources [other existing flags]` runs, in order:
+### 10.2 `ls-files --error-unmatch` exit-code handling
 
-1. **Zero-resource preflight** (task J): if the feature has zero
-   declared resources, refuse immediately, before touching Git at all
-   — `no-resources-declared` (exit 1, matching rev-0's original exit
-   choice for this case, kept for consistency): "no resources declared
-   for `<slug>`; declare one with `feature resource add` first, or
-   omit `--resources`."
-2. **Stage** (task J: "preflights/stages privately before existing Git
-   capture"): run the full `capture` pipeline (§7.2 steps 1-3 only —
-   write and commit a local batch under `.tmp-lb_<id>` → `lb_<id>`,
-   including redaction §8) for every declared resource, but do **not**
-   yet update `current` and do **not** yet write any tracked
-   `summary.json`. If **any** resource's staging fails (adapter error,
-   size limit, redaction refusal, symlink refusal), the whole staging
-   step is marked failed (existing all-or-nothing policy, §7 D8
-   precedent) — but this does **not** stop step 3 below.
-3. **Git-side capture**: `record`'s existing capture-mode dispatch runs
-   completely unaffected by step 2's outcome — this PRD does not
-   change `record`'s existing capture-mode mutex group, empty-patch
-   handling, or `--auto`/commit-range resolution (§2 non-goals).
-4. **Publish, gated on Git success** (task J: "publishes pointer only
-   after Git success"):
-   - If Git-side capture **failed**: the record command's own,
-     existing, unmodified failure/exit-code behavior propagates. The
-     locally-staged batch from step 2 (whether it itself succeeded or
-     failed) is **discarded** — `current` is never updated and no
-     tracked summary is ever written. A diagnostic notes "resource
-     capture was staged but not published because the canonical
-     Git-side capture did not succeed."
-   - If Git-side capture **succeeded** and step 2 staging **also
-     succeeded**: publish — update `current` (§7.2 step 4) and write
-     each resource's tracked `summary.json` from the already-staged
-     batch content. This is expected to be fast (no adapter
-     re-execution; the batch was already fully computed in step 2).
-   - If Git-side capture **succeeded** but step 2 staging **failed**:
-     a **partial-domain** result (task J) — see §10.2.
-   - If Git-side capture **succeeded**, step 2 staging succeeded, but
-     the publish step itself fails (disk/permission error writing the
-     tracked files): also a **partial-domain** result — see §10.2.
+`git --literal-pathspecs ls-files --error-unmatch -- <path>`: exit `0`
+= tracked (gate fails when combined with "ignored" — §5.1 check 2);
+exit `1` **with** the standard "did not match any file(s) known to
+git" stderr shape = untracked (gate passes); any other exit code, or
+exit `1` with unexpected stderr, is a fatal Git error — refused
+(`git-ls-files-error`, exit 3), same fail-closed treatment as §10.1.
 
-### 10.2 Partial-domain error (task J)
+### 10.3 Local-ignore-root reuse (task 7)
 
-Both failure shapes in step 4 above ("Git succeeded, resource domain
-did not") produce the same class of result, `resource-domain-incomplete`
-(exit 1 — record's overall command surfaces this as a failure, exit 1,
-matching rev-0's precedent of a non-zero overall exit when the
-resource-capture portion fails even though the primary Git-side action
-succeeded):
+Before the first write to `.tpatch/local/resource-scratch/` on a given
+machine (i.e. once per invocation, cached in-process, not persisted),
+`capture` calls the **existing**
+`workflow.EnsureLocalIgnoreContract(repoRoot, resourceScratchRoot)`
+(`internal/workflow/session_ignore.go:138`) — reused exactly as-is,
+not re-invented (task 7) — which verifies Git is available, the path
+is inside the worktree, and `gitutil.IsPathIgnored` reports it
+ignored. Because `EnsureLocalIgnoreContract` alone does not close the
+`--no-index` gap for the scratch root any more than it does for an
+`ignored-file` selector (C13), rev-2 layers the **same** tracked-file
+gate from §5.1/§10.2 on top: `git --literal-pathspecs ls-files
+--error-unmatch -- .tpatch/local/` must also report untracked. Both
+checks failing to hold is `local-path-not-ignored`/`local-path-tracked`
+(exit 3) — refused before any scratch directory is created, exactly
+mirroring ADR-027 D1's ignored-before-first-write mandate (this PRD
+does not invent a second ignore mechanism, task 7 — it reuses the one
+that exists and adds only the missing tracked-file half, the same
+addition already made for `ignored-file` selectors in §5.1).
 
-> canonical patch recorded successfully (Git-side capture complete);
-> resource capture did not complete: `<reason>`. Your computed
-> resource batch is safely staged and was not lost — retry with
-> `tpatch feature resource capture <slug>` (recomputes and publishes a
-> fresh batch) or, if only the publish step failed and you want to
-> avoid redoing adapter work, `tpatch feature resource capture <slug>
-> --resource <id>` for just the resources that need attention.
+### 10.4 Pathspec-magic rows (task 6)
 
-This is deliberately honest that **Git capture and resource-pointer
-publication are two separate atomic domains** (task J's exact framing)
-— `record` guarantees the canonical patch is captured correctly
-regardless of resource-domain outcome, and separately guarantees that
-if the resource domain does complete, it does so atomically (§7.2);
-it does **not** guarantee both domains complete together, and never
-claims to.
+| Selector | Without `--literal-pathspecs` | With `--literal-pathspecs` (rev-2) |
+|---|---|---|
+| `:(glob)config/*.env` (a literal filename that happens to start with pathspec-magic syntax) | Reinterpreted as glob magic — matches an unintended set of paths | Treated as the literal filename `:(glob)config/*.env`; ignored/tracked checks run against that exact literal path |
+| `config/**/local.env` | `**` reinterpreted as recursive-glob magic | Treated as a literal path containing the literal characters `**`; no magic expansion |
 
-### 10.3 Interactions
+## 11. `record --resources` Semantics (task 11)
 
-- **Empty Git-side capture**: whether `record`'s existing capture-mode
-  dispatch accepts or refuses a capture-mode selection that produces
-  zero changes is existing, unmodified behavior (§2 non-goals) — this
-  PRD does not alter it. If an empty Git-side capture is accepted by
-  existing logic, it is treated as Git-side *success* for the purpose
-  of gating publish in §10.1 step 4 — an empty canonical patch is
-  still a completed capture.
-- **`--auto` / commit-range flags**: `--resources` composes with every
-  existing capture-mode flag exactly the same way regardless of which
-  mode is selected — it has no special-cased interaction with any of
-  them; it only observes whether step 3 (whichever mode was chosen)
-  succeeded or failed.
-- **Retry / idempotency**: re-running `feature resource capture <slug>`
-  (standalone, not through `record`) after any failure always recomputes
-  a fresh local batch and publishes directly (no Git dependency at
-  all in the standalone verb — it stages, then immediately publishes,
-  skipping §10.1's Git-gating entirely, since it is not `record`). The
-  **tracked** `summary.json` content is deterministic given unchanged
-  underlying state (no timestamps or IDs vary in the compared fields
-  used for `diff`'s output — `captured_at` and `local_batch_id` do
-  change every run, which is expected and documented, not a
-  correctness bug). The **local** batch history grows by one batch per
-  invocation regardless of whether anything changed (§7.4, accepted
-  cost).
+Unchanged high-level ordering from rev-1 — Git-side capture and
+resource-domain publication remain **two separate atomic domains**;
+what changes is that "staging" (§7.3 step 1) is now ephemeral-only
+(never writes a batch file) and "publishing" is the same §7.3 steps
+2–4 a standalone `capture` would run.
 
-### 10.4 Resource-only scope matches validation (task N)
+1. **Zero-resource preflight**: zero declared resources refuses
+   immediately, before touching Git (`no-resources-declared`, exit 1),
+   unchanged from rev-1.
+2. **Stage** (ephemeral metadata only, task 11): run §7.3 step 1 for
+   every declared resource — lock, orphan sweep, ephemeral scratch,
+   redaction — but stop before step 2 (no batch file written yet); the
+   fully-computed candidate batch content is held in memory pending
+   step 4 below.
+3. **Git-side capture**: `record`'s existing, unmodified capture-mode
+   dispatch runs, completely unaffected by step 2's outcome.
+4. **Publish, gated on Git success**:
+   - Git failed: the record command's existing failure behavior
+     propagates; the in-memory candidate batch from step 2 is simply
+     discarded (never written anywhere — "ephemeral metadata only,"
+     task 11) regardless of its own success/failure.
+   - Git succeeded and step 2 also succeeded: run §7.3 steps 2–4 now
+     (write batch, publish pointer, cleanup/release lock) using the
+     already-computed candidate content — no adapter/Git-metadata
+     re-execution.
+   - Git succeeded but step 2 failed, or Git succeeded and step 2
+     succeeded but the publish step (§7.3 steps 2–4) itself fails: a
+     **partial-domain** result, `resource-domain-incomplete` (exit 1):
+     > canonical patch recorded successfully; resource capture did not
+     > complete: `<reason>`. Retry with `tpatch feature resource
+     > capture <slug>` — this recomputes and publishes a fresh batch
+     > and is safe to re-run (idempotent: each retry produces a new
+     > `batch_id` and a correct `current.json`, regardless of how many
+     > prior attempts failed).
 
-`record --resources`'s promised scope — "capture every resource
-declared for this feature" — matches exactly what step 2 validates:
-every entry in `resources.json` for the slug, no subset selection (the
-standalone `feature resource capture <slug> --resource <id>` verb is
-the only way to target a single resource; `record --resources` has no
-`--resource` flag of its own, precisely because it must stage the
-complete declared set before it can decide whether to publish at all).
+**Interactions** (unchanged from rev-1): an empty Git-side capture
+accepted by existing logic counts as Git-side success for gating
+publish; `--auto`/commit-range flags compose with `--resources`
+without special-casing; `record --resources` has no `--resource`
+subset flag of its own (it always targets every declared resource —
+the standalone `feature resource capture <slug> --resource <id>` is
+the only subset-targeting entry point, matching its promised
+all-declared-resources scope exactly, task 11/task 5's "resource-only
+promised scope must match validation").
 
-### 10.5 Exit codes (new per-command contract, task M correction)
-
-Per `SPEC.md`'s existing, explicit convention ("Exit codes are
-per-command contracts, not a single global enum" — `SPEC.md`
-§"Exit-code envelope"), this is one more independent contract in that
-family, not a redefinition of any existing command's codes, and not
-"reusing verify's" codes (C5 corrects rev-0's false claim that `verify`
-was the sole existing bespoke user of 2/3 — six commands already use
-this pattern).
+**Exit codes** (unchanged shape from rev-1, restated for the new
+refusal names):
 
 | Code | `feature resource {add,list,remove,clear,capture,diff}` | `record --resources` |
 |---|---|---|
-| `0` | Success | Success (including a `diff` with nothing captured yet) |
-| `1` | Unexpected internal error (I/O, store load failure) | Same, **plus** `no-resources-declared` preflight and `resource-domain-incomplete` partial-domain result (§10.2) |
-| `2` | Validation: bad kind/adapter/capability/view, unknown `--arg` key, duplicate `--arg` key, malformed selector, unresolvable index-entry stage | n/a (record's existing validation codes are unmodified) |
-| `3` | State/policy refusal: not-ignored, tracked-file gate failure, disallowed config key, any symlink refusal (§9), any size/count limit exceeded, `redaction-refused`, `adapter-missing`/`adapter-probe-*`, `local-path-not-ignored`, `capture-in-progress` | Same refusal set applies to the staging step (§10.1 step 2); a staging-step refusal on any single resource fails the whole staged batch, surfacing as `resource-domain-incomplete` (exit 1) if Git succeeded, or as a discarded-batch diagnostic (record's own existing exit code) if Git failed |
+| `0` | Success (including `diff` reporting "no capture yet") | Success |
+| `1` | Internal error; `tracked-batch-missing` (§4.1) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
+| `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate `--arg`, `NUL`/control byte/backslash in a Dolt arg, missing index entry at `add` | n/a (unmodified) |
+| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `redaction-refused`, `adapter-missing`/`adapter-executable-in-repo`/`adapter-executable-replaced`, `local-path-not-ignored`/`local-path-tracked`, `capture-lock-held-remote`/`capture-in-progress`, `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
 
-## 11. Wire Schemas (task K)
+## 12. Wire Schemas (task 12)
 
-Two distinct JSON serializations exist in this design and must not be
-conflated:
+Two distinct JSON serializations, unchanged distinction from rev-1:
 
-- **Canonical args JSON** (§12) — used **only** as hash input when
-  deriving `resource_id`. Sorted keys, minimal escaping, no
-  whitespace, custom encoder (not `encoding/json`).
-- **File wire format** (this section) — the actual bytes written to
-  `resources.json` and `resources/<id>/summary.json`. Ordinary Go
-  `encoding/json` on a fixed-field struct (matching the ADR-032
-  Implementation Notes item 8 precedent: `json.Marshal` on a
-  declared-order struct, not a map, so key order is the Go struct's
-  field declaration order, not alphabetical), 2-space indent, trailing
-  newline. Arrays that are conceptually "empty" are always `[]`, never
-  `null`, and the key is never omitted. Fields that do not apply to a
-  given `kind` are present with an explicit zero value (`""` for
-  inapplicable strings, `{}` for inapplicable `args`, `null` for
-  inapplicable `tool_identity`) — never omitted.
+- **Canonical `args` JSON** (§13.1) — hash input for `resource_id`
+  only. Sorted keys, minimal escaping, custom encoder.
+- **File wire format** (this section) — every tracked file. Ordinary
+  Go `encoding/json` on a fixed-field struct (declared field order,
+  2-space indent, trailing newline). Arrays are always `[]`, never
+  `null`; inapplicable fields are present with an explicit
+  `null`/zero value, never omitted. **No Go `map` type appears in any
+  tracked wire schema** (task 12) — every place rev-1 used a bare
+  `map[string]string`/`map[string]interface{}` (`args`, the rev-1
+  `current` pointer's implied per-resource index) is instead a sorted
+  `[]{key, value}` (for `args`) or `[]{resource_id, batch_id}` (for
+  `current.json`'s index) array of a fixed struct, so tracked output
+  never depends on `encoding/json`'s map-key-sort behavior at all.
 
-### 11.1 `resources.json` (declaration manifest)
+### 12.1 `resources.json` (declaration manifest)
 
 ```json
 {
   "resources": [
     {
-      "resource_id": "res_19b4675405e2",
+      "resource_id": "res_f8a28c218dbb",
       "kind": "adapter-snapshot",
-      "selector": "dolt:schema-diff:users",
+      "selector": "dolt:diff-summary:users",
       "adapter": "dolt",
-      "capability": "schema-diff",
-      "args": {
-        "table": "users",
-        "from": "main",
-        "to": "HEAD"
-      },
-      "keep_local": false,
-      "added_at": "2026-08-10T00:00:00Z",
+      "capability": "diff-summary",
+      "args": [
+        { "key": "from", "value": "main" },
+        { "key": "table", "value": "users" },
+        { "key": "to", "value": "HEAD" }
+      ],
       "added_by_tool_version": "tpatch/0.13.0"
     },
     {
@@ -931,196 +1043,159 @@ conflated:
       "selector": "config/local-secrets.env.template",
       "adapter": "",
       "capability": "",
-      "args": {},
-      "keep_local": true,
-      "added_at": "2026-08-10T00:01:00Z",
+      "args": [],
       "added_by_tool_version": "tpatch/0.13.0"
     }
   ]
 }
 ```
 
-### 11.2 `resources/<id>/summary.json` — one example per kind
+(`args` entries are sorted by `key`, byte-ascending — the same sort
+order as the canonical-hash encoding, §13.1, though this array and
+that hash input are still two independently-defined serializations
+that happen to share a sort rule, not the same code path.)
 
-**`adapter-snapshot`** (added/removed/changed table names, always
-present arrays, lexicographically sorted):
-
-```json
-{
-  "resource_id": "res_19b4675405e2",
-  "kind": "adapter-snapshot",
-  "selector": "dolt:schema-diff:users",
-  "adapter": "dolt",
-  "capability": "schema-diff",
-  "args": {
-    "table": "users",
-    "from": "main",
-    "to": "HEAD"
-  },
-  "captured_at": "2026-08-10T00:05:00Z",
-  "tool_identity": {
-    "executable_path": "/usr/local/bin/dolt",
-    "version": "1.42.3"
-  },
-  "result": {
-    "added": [],
-    "removed": [],
-    "changed": ["users"]
-  },
-  "raw": {
-    "present": false,
-    "hash": null,
-    "bytes": null
-  },
-  "local_batch_id": null
-}
-```
-
-**`git-metadata`** (`head` view; no diffing, `result` is a
-point-in-time resolved value, not an added/removed/changed set):
+### 12.2 `batches/<batch_id>.json`
 
 ```json
 {
-  "resource_id": "res_acc91dc23a8b",
-  "kind": "git-metadata",
-  "selector": "head",
-  "adapter": "",
-  "capability": "",
-  "args": {},
-  "captured_at": "2026-08-10T00:05:00Z",
-  "tool_identity": null,
-  "result": {
-    "symbolic_ref": "refs/heads/main",
-    "oid": "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
-    "detached": false
-  },
-  "raw": {
-    "present": false,
-    "hash": null,
-    "bytes": null
-  },
-  "local_batch_id": null
-}
-```
-
-**`ignored-file`** (single-file selector; directory selectors use the
-aggregate shape shown in §5.1 with `file_count`/`total_bytes`/
-`combined_hash` in place of `size_bytes`/`hash`):
-
-```json
-{
-  "resource_id": "res_79f5ac5dca13",
-  "kind": "ignored-file",
-  "selector": "config/local-secrets.env.template",
-  "adapter": "",
-  "capability": "",
-  "args": {},
-  "captured_at": "2026-08-10T00:06:00Z",
-  "tool_identity": null,
-  "result": {
-    "file_kind": "text",
-    "size_bytes": 214,
-    "hash": "sha256:7b0f6f7b3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f60"
-  },
-  "raw": {
-    "present": true,
-    "hash": "sha256:7b0f6f7b3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f60",
-    "bytes": 214
-  },
-  "local_batch_id": "lb_1a2b3c4d5e6f"
-}
-```
-
-Note `result.hash` and `raw.hash` are the **same** value here — both
-are computed over the same verbatim bytes (§5.1); `result.hash` is
-the tracked structural fact, `raw` additionally confirms a local copy
-exists and reports its own (here identical) hash and size, matching
-§4.1's requirement that `raw` fields are independent of `result` and
-must be re-derivable from the local batch, not inferred.
-
-### 11.3 Local batch `meta.json` (diagnostics, local-only, informal shape)
-
-Not a stable, versioned wire contract (it is never read by any tracked
-process — only a human debugging a failed capture reads it), so this
-PRD only illustrates its shape rather than mandating an exact schema:
-
-```json
-{
-  "batch_id": "lb_1a2b3c4d5e6f",
-  "slug": "model-picker",
-  "started_at": "2026-08-10T00:05:58Z",
-  "outcome": "staged",
-  "resources": [
-    { "resource_id": "res_79f5ac5dca13", "outcome": "ok" }
+  "batch_id": "rb_1a2b3c4d5e6f",
+  "feature": "model-picker",
+  "results": [
+    {
+      "resource_id": "res_f8a28c218dbb",
+      "kind": "adapter-snapshot",
+      "selector": "dolt:diff-summary:users",
+      "adapter": "dolt",
+      "capability": "diff-summary",
+      "args": [
+        { "key": "from", "value": "main" },
+        { "key": "table", "value": "users" },
+        { "key": "to", "value": "HEAD" }
+      ],
+      "tool_identity": {
+        "basename": "dolt",
+        "binary_sha256": "3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b"
+      },
+      "result": {
+        "tables": [
+          {
+            "from_table_name": "users",
+            "to_table_name": "users",
+            "diff_type": "modified",
+            "data_change": true,
+            "schema_change": false
+          }
+        ]
+      },
+      "raw": {
+        "hash": "sha256:9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b3f9c8e1a2d4c5b6a7e8f",
+        "byte_count": 187
+      }
+    },
+    {
+      "resource_id": "res_acc91dc23a8b",
+      "kind": "git-metadata",
+      "selector": "head",
+      "adapter": "",
+      "capability": "",
+      "args": [],
+      "tool_identity": null,
+      "result": {
+        "symbolic_ref": "refs/heads/main",
+        "oid": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        "detached": false
+      },
+      "raw": null
+    },
+    {
+      "resource_id": "res_79f5ac5dca13",
+      "kind": "ignored-file",
+      "selector": "config/local-secrets.env.template",
+      "adapter": "",
+      "capability": "",
+      "args": [],
+      "tool_identity": null,
+      "result": {
+        "file_kind": "text",
+        "size_bytes": 214,
+        "hash": "sha256:7b0f6f7b3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f60"
+      },
+      "raw": {
+        "hash": "sha256:7b0f6f7b3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f60",
+        "byte_count": 214
+      }
+    }
   ]
 }
 ```
 
-### 11.4 `raw` field rules (task K)
+`raw` is `null` for `git-metadata` (no raw-byte concept applies) and
+always a populated `{hash, byte_count}` object for `adapter-snapshot`/
+`ignored-file` (no more optional opt-in, §0.2 — the ephemeral bytes
+are always hashed before being discarded). `tool_identity` is `null`
+for kinds with no adapter/executable concept (`git-metadata`,
+`ignored-file`) and populated for `adapter-snapshot`. The example
+`oid` above is an ordinary, valid-shaped 64-hex-character SHA-256 Git
+object ID (illustrative, not the well-known empty-tree hash, task 10).
 
-`raw.present` is `true` iff `keep_local` was `true` for this capture
-**and** a local raw companion was actually written (never true for a
-`--dry-run` capture, §3). When `false`, `raw.hash` and `raw.bytes` are
-`null` (not omitted). When `true`, `raw.hash` is always populated
-(computed over the same bytes written locally) and `raw.bytes` is the
-exact byte count of that local content (for a directory `ignored-file`
-selector, the aggregate across all files, matching `result.total_bytes`).
+### 12.3 `current.json` (the tracked pointer)
 
-### 11.5 Normalization before hashing (structural kinds only)
+```json
+{
+  "latest_batch_id": "rb_1a2b3c4d5e6f",
+  "resources": [
+    { "resource_id": "res_79f5ac5dca13", "batch_id": "rb_1a2b3c4d5e6f" },
+    { "resource_id": "res_acc91dc23a8b", "batch_id": "rb_1a2b3c4d5e6f" },
+    { "resource_id": "res_f8a28c218dbb", "batch_id": "rb_1a2b3c4d5e6f" }
+  ]
+}
+```
 
-`git-metadata` and `adapter-snapshot` values are normalized before
-hashing/recording (trailing-newline and CRLF/LF normalization) so the
-same underlying state produces the same recorded value across
-operating systems. `ignored-file` raw bytes are **never** normalized
-(§5.1) — the tracked hash for that kind is computed over the exact
-bytes read, with no transform.
+`resources` is sorted by `resource_id`, byte-ascending, for
+determinism (never dependent on map-iteration order, task 12 — this
+is a `[]struct`, not a `map`). `latest_batch_id` is the `batch_id` of
+the most recent successful publish (§7.3 step 3), regardless of which
+specific resources that invocation touched — a convenience field for
+"what's the newest batch that exists at all," distinct from the
+per-resource index, which is what `diff`/`list --json` actually
+resolve against.
 
-### 11.6 The `current` pointer (local, not tracked)
+### 12.4 First capture, add/remove/change shapes
 
-`.tpatch/local/resource-capture/<slug>/current` is a local file (§7.1),
-never a tracked artifact. Its content is exactly the batch ID string
-(`lb_` followed by 12 lowercase hex characters) followed by one `\n`,
-nothing else — no JSON, no additional metadata, to keep the atomic
-rename-based update (§7.2 step 4) as small and simple as possible.
+The **first-ever** capture for a resource produces a `batches/<id>.json`
+entry with the exact same schema shape as any subsequent one (§14 has
+the `AC` for this) — there is no distinct "initial" schema. `remove`/
+`clear` (§3, §4) only ever rewrite `resources.json` and prune
+`current.json`'s `resources` array (dropping the entry for the
+removed `resource_id` — a resource with no declaration and no
+`current.json` entry is simply absent from `list`, matching normal
+"never declared" behavior); every `batches/<id>.json` file that ever
+existed remains on disk, byte-for-byte, forever (immutable historical
+audit trail, task 4).
 
-## 12. Resource ID Canonicalization (task H)
+## 13. Resource ID Canonicalization (task 12, unchanged algorithm)
 
-Rev-0's `key=value\n`-joined `args` encoding was ambiguous (no escaping
-of `=`/newline inside a key or value, so `{"a=b":"c"}` and
-`{"a":"b=c"}` were not distinguishable from each other, nor was a value
-containing a literal newline distinguishable from a second argument).
-Rev-1 replaces it with a dedicated canonical-JSON encoding used **only**
-as ID-derivation hash input (§11 draws the explicit line between this
-and the ordinary file wire format).
+### 13.1 Canonical `args` encoding
 
-### 12.1 Canonical `args` encoding
+Unchanged from rev-1 (§0.3 — no design in this fold touches the
+hash-derivation function itself):
 
-1. Keys are sorted by byte value (ascending, Go's default `<` on
-   `string`, equivalent to `sort.Strings`).
-2. Encoding is `{"k1":"v1","k2":"v2",...}` — no whitespace anywhere.
-3. Only two characters are escaped, in keys and values alike:
-   backslash (`\` → `\\`) and double-quote (`"` → `\"`). No other
-   escaping (deliberately **not** using `encoding/json.Marshal`, which
-   by default also HTML-escapes `<`, `>`, and `&` — an implicit,
-   easy-to-forget behavior this PRD avoids by using a small,
-   fully-specified custom encoder instead).
-4. An empty `args` map encodes as the literal two-character string
-   `{}`.
-5. Input is required to be valid UTF-8; **no NFC/NFD Unicode
-   normalization is performed** (a documented v1 limitation — two
-   selectors that are visually identical but differ in Unicode
-   normalization form will produce different IDs; adding a
-   normalization dependency is deferred, not silently assumed).
-6. Any NUL byte (`0x00`) or other C0 control character (`0x01`–`0x1F`,
-   `0x7F`) anywhere in `feature`, `kind`, `selector`, `adapter`,
-   `capability`, or any `args` key/value is a **validation error**
-   (exit 2) at `add` time — rejected before it can ever reach the
-   encoder, not escaped or transformed.
+1. Keys sorted byte-ascending.
+2. Encoded as `{"k1":"v1","k2":"v2",...}`, no whitespace.
+3. Only `\` → `\\` and `"` → `\"` escaped (not `encoding/json.Marshal`,
+   which also HTML-escapes `<`/`>`/`&` by default).
+4. Empty map encodes as `{}`.
+5. UTF-8 required; no NFC/NFD normalization (documented v1
+   limitation).
+6. Any `NUL`/C0 control byte anywhere in `feature`/`kind`/`selector`/
+   `adapter`/`capability`/any `args` key or value is a validation
+   error (exit 2) at `add` time.
 
-### 12.2 Full ID derivation
+### 13.2 Full ID derivation
 
 ```
-canonical_args := CanonicalArgsJSON(args)          // §12.1
+canonical_args := CanonicalArgsJSON(args)          // §13.1
 payload        := feature + "\x00" + kind + "\x00" + selector +
                    "\x00" + adapter + "\x00" + capability +
                    "\x00" + canonical_args
@@ -1128,283 +1203,258 @@ digest          := SHA-256(UTF-8 bytes of payload)
 resource_id     := "res_" + lowercase-hex(digest)[:12]
 ```
 
-`adapter` and `capability` are empty strings (not omitted from the
-payload) for kinds that don't use them (`git-metadata`,
-`ignored-file`) — the `\x00`-joined payload always has exactly six
-components in this fixed order, regardless of kind.
-
-### 12.3 Golden vectors (reproduced from §0.3, byte-identical to `ADR-033-resource-capture-boundary.md` D3)
-
-Computed with Python `hashlib.sha256` over the exact payload
-construction in §12.2; independently reproducible by any SHA-256
-implementation given the same inputs.
+### 13.3 Golden vectors (reproduced from §0.3, byte-identical to `ADR-033-resource-capture-boundary.md` D3)
 
 | Vector | Inputs (`feature`, `kind`, `selector`, `adapter`, `capability`, `args`) | `resource_id` |
 |---|---|---|
 | 1 | `model-picker`, `git-metadata`, `head`, ``, ``, `{}` | `res_acc91dc23a8b` |
-| 2 | `model-picker`, `adapter-snapshot`, `dolt:schema-diff:users`, `dolt`, `schema-diff`, `{"table":"users","from":"main","to":"HEAD"}` (declared in `table, from, to` order) | `res_19b4675405e2` |
-| 3 | Same as Vector 2, `args` declared in `to, table, from` order | `res_19b4675405e2` (**identical** — proves canonical encoding is order-independent because keys are sorted before joining, §12.1 step 1) |
+| 2 | `model-picker`, `adapter-snapshot`, `dolt:diff-summary:users`, `dolt`, `diff-summary`, `{"table":"users","from":"main","to":"HEAD"}` (declared `table, from, to` order) | `res_f8a28c218dbb` |
+| 3 | Same as Vector 2, `args` declared `to, table, from` order | `res_f8a28c218dbb` (**identical** — order-independence) |
 | 4 | `model-picker`, `ignored-file`, `config/local-secrets.env.template`, ``, ``, `{}` | `res_79f5ac5dca13` |
 
-All four selectors above are valid under the closed selector grammars
-defined in §5: `head` is one of §5.2's four `git-metadata` views;
-`dolt:schema-diff:users` matches §5.3's `dolt:<capability>:<table>`
-shape; `config/local-secrets.env.template` is an ordinary
-repo-relative path, valid for §5.1's `ignored-file` kind.
+## 14. Acceptance Criteria (task 14)
 
-## 13. Acceptance Criteria (task L)
+Clause-level, `AC-<n>` tagged. Each `AC` is one testable clause;
+`ADR-033-resource-capture-boundary.md`'s Test Matrix cites these tags
+directly.
 
-Clause-level, `AC-<n>` tagged. Each AC is a single testable clause;
-rows in the ADR's Test Matrix (§13 of `ADR-033-resource-capture-boundary.md`)
-cite these tags directly rather than re-deriving criteria — this PRD
-is the source of truth for *what* must be true, the ADR's matrix is
-the source of truth for *how each is verified*.
+**Dolt SQL redesign (task 1)**
 
-**Command surface & output (human + JSON, task L)**
+- `AC-1`: The exact argv `<resolvedDolt> sql -r json -q "<SQL>"` is
+  invoked with the exact `dolt_diff_summary('<from>','<to>'[,'<table>'])`
+  query shape (§6.2) — no other Dolt subcommand or flag combination is
+  ever invoked for `diff-summary`.
+- `AC-2`: A value for `from`/`to`/`table` containing a `NUL`/C0
+  control byte or a literal backslash is refused (exit 2) before any
+  SQL is constructed.
+- `AC-3`: A single quote in `from`/`to`/`table` is escaped by doubling
+  and round-trips correctly through the invoked query.
+- `AC-4`: An unknown or duplicate `--arg` key is refused (exit 2).
+- `AC-5`: A rename (differing `from_table_name`/`to_table_name` on one
+  row) is tracked verbatim, not collapsed into a same-name
+  added+removed pair.
+- `AC-6`: `data_change`/`schema_change` are always genuine JSON
+  booleans in the tracked `result`, regardless of whether the
+  underlying `-r json` output typed them as `0`/`1` or `true`/`false`.
+- `AC-7`: The first-ever capture of a resource produces the identical
+  `batches/<id>.json` entry schema shape as any later capture (§12.4).
 
-- `AC-1`: `feature resource add/list/remove/clear` exist under the
-  `feature` noun and refuse a nonexistent slug with `"no such feature:
-  %s"` (C6 shape), for both human and `--json` output.
-- `AC-2`: `feature resource list --json` and human output are both
-  exercised and agree on content (JSON is not a strict superset with
-  extra debug fields, nor a subset missing fields the human view
-  shows).
-- `AC-3`: `feature resource remove`/`capture`/`diff` resolve a full
-  `resource_id`, an unambiguous prefix, and refuse an ambiguous prefix
-  (exit 2, listing the matching candidates) or a prefix matching zero
-  resources (exit 2).
-- `AC-4`: A selector or `--arg` value containing shell metacharacters
-  (`;`, `|`, `` ` ``, `$(...)`, `&&`) is accepted as an ordinary string
-  (argv-only invocation, §6, means no shell is ever invoked to
-  interpret it) and is subject to the same redaction scan (§8) as any
-  other value — it is not specially rejected for containing
-  metacharacters, only for matching a closed redaction class or
-  failing shape validation.
+**No version probe; executable identity (task 2)**
 
-**Dolt adapter (task L)**
+- `AC-8`: `dolt version` is never invoked anywhere in the capture
+  pipeline.
+- `AC-9`: The tracked `tool_identity` contains only `basename` and
+  `binary_sha256` — never an absolute path.
+- `AC-10`: The Dolt invocation's environment contains only `HOME`/
+  `DOLT_ROOT_PATH` (both pointing at ephemeral scratch) — no inherited
+  variable from the invoking process's environment.
+- `AC-11`: A resolved Dolt executable located inside the repository
+  working tree (or under any `.git` directory) is refused
+  (`adapter-executable-in-repo`).
+- `AC-12`: A resolved Dolt executable whose device/inode/size/mtime
+  differ immediately after invocation vs. immediately before is
+  refused (`adapter-executable-replaced`) and its result is discarded.
 
-- `AC-5`: `schema-diff` and `table-diff` capabilities each run the
-  exact three-invocation `--name-only --filter=` sequence (§6.2) and
-  classify a table as `added`/`removed`/`changed` correctly for each
-  case.
-- `AC-6`: A missing `dolt` binary produces `adapter-missing` (exit 3),
-  not a generic internal error.
-- `AC-7`: The `dolt version` probe's four outcomes (§6.1 table) each
-  produce their named, distinct error class.
-- `AC-8`: A duplicate `--arg table=...` (same key twice) at `add` is a
-  validation error (exit 2); an unknown `--arg` key is a validation
-  error (exit 2); a missing required arg (`table`, `from`, or `to`) is
-  a validation error (exit 2).
-- `AC-9`: The resolved `dolt` executable path, when it lands inside
-  the repository working tree, is refused (`adapter-executable-unsafe`,
-  exit 3) before the probe runs.
+**ADR-027 full compliance, no persistent raw (task 3)**
 
-**Capture / list / remove / clear / diff (task L)**
+- `AC-13`: No file under `.tpatch/local/` persists past the
+  invocation that created it (verified by asserting
+  `resource-scratch/<slug>/` is empty immediately after any
+  `capture`/`record --resources` invocation, success or failure).
+- `AC-14`: No tracked file anywhere contains a wall-clock timestamp
+  field.
+- `AC-15`: `feature resource diff` on an `ignored-file` resource
+  reports exactly which of `size_bytes`/`hash`/`file_count`/
+  `total_bytes`/`combined_hash`/file-set membership changed, never a
+  textual line-level diff.
+- `AC-16`: A value matching any of the six redaction classes refuses
+  the entire invocation (`redaction-refused`), with no partial batch
+  written for any resource in that invocation, even unaffected ones.
 
-- `AC-10`: `capture` (no `--resource`) captures every declared
-  resource for the slug; `capture --resource <id>` captures only that
-  one.
-- `AC-11`: `capture --dry-run` performs the full pipeline including
-  redaction (§8) but writes nothing — not the local tree, not any
-  tracked file.
-- `AC-12`: `diff` never executes an adapter, never touches the local
-  tree, and reports "no capture yet" (exit 0) for a resource with no
-  prior tracked summary.
-- `AC-13`: `remove`/`clear` delete only the tracked declaration and
-  tracked summary; the local batch history for that resource is left
-  untouched (§7.4) — verified by asserting the local tree is byte-for-byte
-  unchanged before/after a `remove`.
+**Single publication point (task 4)**
 
-**Privacy classes (task L)**
+- `AC-17`: A successful multi-resource `capture` writes exactly one
+  new `batches/<id>.json` file and rewrites `current.json` exactly
+  once.
+- `AC-18`: A crash simulated between the batch rename and the
+  `current.json` rename leaves a permanently orphaned, harmless batch
+  file that no subsequent `list`/`diff` ever surfaces.
+- `AC-19`: A crash simulated during either temp-file write (before its
+  rename) leaves only a `.tmp-*` artifact, swept at the next
+  invocation's start, with no effect on the last successfully
+  committed `current.json`.
+- `AC-20`: `remove`/`clear` never delete or modify any
+  `batches/<id>.json` file, only `resources.json` and `current.json`'s
+  live index.
 
-- `AC-14`: Each of the six closed redaction classes (§8.2), given a
-  crafted matching input in a selector/`args`/git-metadata-`config`-value/
-  `ignored-file` body, produces `redaction-refused` (exit 3) and the
-  captured artifact set (tracked and local) is unchanged by the
-  attempt (no partial write).
-- `AC-15`: A value that does **not** match any of the six classes
-  captures normally (negative-control case, to prove the scanner is
-  not overly broad in a way that would make the whole feature
-  unusable).
+**Path gate (task 5)**
 
-**Symlinks (task L)**
+- `AC-21`: A selector whose ancestor directory (not the final
+  component) is a symlink is refused (`symlink-component-refused`),
+  regardless of where that symlink points.
+- `AC-22`: A selector replaced by a symlink at the final component
+  between the walk and the open is refused via `O_NOFOLLOW`/`ELOOP`.
+- `AC-23`: A selector whose underlying file is replaced (different
+  inode) between the walk and the open is refused
+  (`path-replaced-during-open`).
+- `AC-24`: A dangling ancestor (missing path component) is refused
+  (`path-missing`).
+- `AC-25`: This five-step gate re-runs independently for every
+  descendant file of a directory selector, both at `add` and at every
+  `capture`.
 
-- `AC-16` – `AC-21`: each row of §9's outcome table (six rows) is an
-  individually testable AC — a plain in-repo file, a symlink to an
-  in-repo file, a symlink escaping the repo root, a dangling symlink,
-  a symlink/descendant resolving through `.git`, and an escaping `cwd`
-  — each produces exactly the outcome named in that table's second
-  column.
+**Ignored/tracked Git gates, literal pathspecs (task 6, task 7)**
 
-**Ignored + tracked dual-gate, limits (task L)**
+- `AC-26`: `check-ignore` exit `1` (not ignored) and exit `>1` (fatal)
+  produce distinct refusal reasons, neither treated as "ignored."
+- `AC-27`: `ls-files --error-unmatch` exit `0` (tracked) and any
+  non-standard exit/stderr shape produce distinct refusal reasons.
+- `AC-28`: A selector shaped like pathspec magic (e.g. leading `:` or
+  embedded `**`) is treated as a literal path under
+  `--literal-pathspecs`, verified by asserting the ignore/tracked
+  checks operate on the exact literal string.
+- `AC-29`: The `.tpatch/local/` scratch root itself is verified both
+  ignored (via `EnsureLocalIgnoreContract`) and untracked (via the
+  `ls-files` gate) before its first write per invocation; either check
+  failing refuses before any scratch directory is created.
 
-- `AC-22`: An ignored-and-untracked file is accepted.
-- `AC-23`: A tracked file that also matches a `.gitignore` pattern is
-  refused (the `--no-index` gap, C3/§5.1) at both `add` and `capture`.
-- `AC-24`: An untracked-but-not-ignored file is refused (rev-0's
-  removed acceptance case, §5.1).
-- `AC-25` – `AC-27`: each of the three directory-selector limits
-  (per-file 5 MiB, total 20 MiB, 200 files) independently triggers a
-  refusal (exit 3) when exceeded, re-checked at `capture` time even if
-  the selector passed at `add` time (task N: snapshot-time bounds).
+**Permissions, lock, scratch orphan cleanup (task 8, task 9)**
 
-**First capture, binary, multi-file (task L)**
-
-- `AC-28`: The first-ever `capture` for a resource and a subsequent
-  `capture` produce byte-identical `summary.json` schema shape (§11.2
-  note on "first snapshot" having no special schema).
-- `AC-29`: A binary `ignored-file` (NUL byte within the first 8 KiB) is
-  classified `binary` in the tracked summary and is still subject to
-  the full redaction scan (§8.3) despite not being valid UTF-8 text.
-- `AC-30`: A directory `ignored-file` selector with `keep_local=true`
-  produces a local `manifest.json` listing every matched file's
-  relative path, size, and hash, and the tracked summary's aggregate
-  fields (`file_count`, `total_bytes`, `combined_hash`) are consistent
-  with that local manifest.
-
-**Crash/recovery/concurrency (task L)**
-
-- `AC-31`: An orphaned `.tmp-lb_*` directory left behind by a
-  simulated crash between §7.2 steps 2 and 3 does not affect the
-  outcome of a subsequent `capture` (it produces a fresh batch and
-  succeeds normally; the orphan is left in place, not auto-deleted, in
-  v1).
-- `AC-32`: A fully-committed `lb_<id>/` batch that a simulated crash
-  left un-pointed-to by `current` (crash between §7.2 steps 3 and 4)
-  is never surfaced by `list`/`diff`, and a subsequent `capture`
-  succeeds and correctly updates `current` to its own new batch.
-- `AC-33`: Two concurrent `capture` invocations for the same slug: the
-  second one to acquire the lock file refuses immediately with
-  `capture-in-progress` (exit 3), it does not block/wait.
-
-**Partial-domain `record --resources` (task L)**
-
-- `AC-34`: `record --resources` on a feature with zero declared
-  resources refuses (`no-resources-declared`, exit 1) before any Git
+- `AC-30`: Every ephemeral scratch directory is created `0700` and
+  every file `0600` at creation (never via a separate `chmod` after a
+  looser-permission create).
+- `AC-31`: A fresh lock acquisition succeeds and writes the expected
+  PID/`process_start`/host body.
+- `AC-32`: A second concurrent invocation for the same slug refuses
+  immediately (`capture-in-progress`) while the first is live, with no
+  blocking/wait.
+- `AC-33`: A lock left by a dead PID (verified via `ps -o lstart=`
+  returning no output) is reclaimed automatically by the next
   invocation.
-- `AC-35`: A resource-staging failure (§10.1 step 2) combined with
-  Git-side capture success produces `resource-domain-incomplete` (exit
-  1) with the exact recovery-command message (§10.2), while the Git-side
-  canonical patch is confirmed present and correct.
-- `AC-36`: A resource-staging failure combined with Git-side capture
-  failure discards the staged batch and surfaces only `record`'s
-  existing, unmodified Git-failure behavior (no `resource-domain-incomplete`
-  double-reporting).
-- `AC-37`: A successful stage and successful Git-side capture publish
-  the resource batch atomically (§7.2 step 4), verified by asserting
-  `current` and every declared resource's tracked `summary.json` are
-  updated together, not partially.
+- `AC-34`: A lock whose PID is alive but whose `process_start` differs
+  from the recorded value (PID reuse) is reclaimed automatically.
+- `AC-35`: A malformed lock file is quarantined and reclaimed
+  automatically.
+- `AC-36`: A lock recorded on a different hostname is refused
+  (`capture-lock-held-remote`) without any reclaim attempt.
+- `AC-37`: An orphaned ephemeral scratch directory or `.tmp-*` file
+  left by a simulated crash is swept at the start of the next
+  invocation for that slug.
 
-**`--dry-run` / resource-only / retry (task L)**
+**Git metadata / tool fields (task 10)**
 
-- `AC-38`: `feature resource capture <slug> --dry-run` on a slug whose
-  Git-side canonical patch has not been touched at all still runs and
-  reports correctly (resource capture is fully independent of any
-  Git-side action, confirming the two-domain separation, §10.2).
-- `AC-39`: Re-running `feature resource capture <slug>` after a prior
-  failure succeeds without requiring any dedicated recovery command
-  (§7.3).
+- `AC-38`: `head`'s `symbolic_ref` is `null` if and only if `detached`
+  is `true`.
+- `AC-39`: The `config` view refuses any key outside the exact
+  four-key allowlist.
+- `AC-40`: An `index-entry` selector queried with a path containing
+  pathspec-magic characters resolves to the literal path under
+  `--literal-pathspecs`.
 
-**Golden IDs (task L)**
+**Transaction / `record --resources` (task 11)**
 
-- `AC-40`: Each of the four golden vectors in §12.3 is independently
+- `AC-41`: `record --resources` on a feature with zero declared
+  resources refuses (`no-resources-declared`) before any Git
+  invocation.
+- `AC-42`: A resource-staging failure combined with Git-side success
+  produces `resource-domain-incomplete` with the exact recovery-command
+  message, while the Git-side canonical patch is confirmed present and
+  correct.
+- `AC-43`: A resource-staging failure combined with Git-side failure
+  discards the staged (never-written) candidate batch and surfaces
+  only record's existing Git-failure behavior.
+- `AC-44`: A successful stage and successful Git-side capture publish
+  the batch and pointer atomically, verified by asserting both
+  `batches/<id>.json` and `current.json` reflect the same invocation
+  together, never partially.
+- `AC-45`: `feature resource capture <slug> --dry-run` performs zero
+  filesystem writes (no scratch directory created, no tracked file
+  touched) regardless of whether the underlying capture would have
+  succeeded or failed.
+- `AC-46`: Re-running `feature resource capture <slug>` after any
+  prior failure succeeds without a dedicated recovery command, and is
+  idempotent in the sense that each retry produces a correct
+  `current.json` regardless of how many prior attempts failed.
+
+**Golden IDs (task 12, unchanged algorithm)**
+
+- `AC-47`: Each of the four golden vectors in §13.3 is independently
   recomputed by the implementation and matches exactly.
-- `AC-41`: Vectors 2 and 3 (identical content, differently-ordered
-  `args`) produce the identical `resource_id` (order-independence
-  property, not just a fixed example).
+- `AC-48`: Vectors 2 and 3 (identical content, differently-ordered
+  `args`) produce the identical `resource_id`.
 
-### 13.1 Exact counts (task L: no false "exactly once" claims)
+### 14.1 Exact counts (task 14: no false "exactly once" claims)
 
-This PRD defines **41** `AC`-tagged clauses (`AC-1` through `AC-41`,
-with `AC-16`–`AC-21` explicitly expanding to six individually-testable
-sub-clauses inside one tag range, and `AC-25`–`AC-27` expanding to
-three). Counting each lettered/numbered sub-clause individually (i.e.
-treating `AC-16` through `AC-21` as six distinct clauses and `AC-25`
-through `AC-27` as three distinct clauses, rather than one clause
-each) yields **41 − 6 − 3 + 6 + 3 = 41** — the range notation already
-counts each sub-clause once, so the total distinct testable clauses is
-exactly **41**. The companion ADR's Test Matrix (§13 there) maps each
-of these 41 clauses to at least one row; several clauses (the
-symlink-outcome and limit sub-clauses in particular) map to more than
-one matrix row where both a human-output and `--json`-output
-verification are both required. The matrix therefore has **more** rows
-than 41 — the exact matrix row count is computed and stated in the
-ADR itself (§13 there), not asserted here, and this PRD does not claim
-the mapping is one-row-per-clause ("exactly once") anywhere.
+This PRD defines **48** `AC`-tagged clauses (`AC-1` through `AC-48`,
+each an individually testable statement — no range-notation grouping
+this time, unlike rev-1's `AC-16`–`AC-21`/`AC-25`–`AC-27`, since
+rev-2's redesign happens to decompose cleanly into one tag per clause
+without needing an expandable range). The companion ADR's Test Matrix
+maps each of these 48 clauses to at least one row; several clauses map
+to more than one row (e.g. both a human-output and `--json`-output
+verification). The matrix therefore has **more** rows than there are
+distinct clauses — this PRD does not claim any clause is covered
+"exactly once."
 
-## 14. Open Questions / Negative Consequences
+## 15. Open Questions / Negative Consequences
 
-**Open questions** (unresolved, out of scope for rev-1, left for a
-future PRD/ADR if pursued): (1) whether a future generic
-sandboxed/consented external-command adapter should share this PRD's
-`adapter-snapshot` kind or need its own kind; (2) whether local batch
-history should eventually get a `purge-local` verb or size-based
-auto-pruning; (3) whether Unicode NFC normalization should be added to
-the canonical `args` encoding (§12.1 step 5) once/if a normalization
-dependency becomes acceptable elsewhere in the codebase.
+- **`WORKING`/`STAGED` support for `dolt_diff_summary`** (§6.2) is
+  explicitly unresolved pending direct source re-verification by the
+  implementation cluster; neither this PRD's examples nor its golden
+  vectors depend on the answer.
+- **Ancestor-directory TOCTOU** (§9.1) is a documented residual risk,
+  not fully closed by the Go standard library alone; a future PRD
+  could revisit this if a portable `openat2`-equivalent becomes
+  available in stdlib.
+- **No raw content diffing/versioning** (§2): a real value proposition
+  for Dolt/ignored-file resources — seeing an actual textual diff, not
+  just "the hash changed" — is deliberately out of scope, and would
+  require a future ADR that explicitly supersedes
+  `ADR-027-capture-context-privacy-boundary.md`'s committed/local
+  split, which this PRD does not attempt.
+- **Windows lock/liveness detection** (§7.2) is best-effort/unsupported
+  in v1, consistent with this project's existing macOS/Linux-only
+  validation scope.
+- **Per-invocation lock granularity is per-slug, not global**: two
+  different features' `capture` invocations never contend, which is
+  intentional (§7.3's concurrency note) but means a single feature
+  with many resources cannot parallelize its own staging across
+  multiple processes in v1.
 
-**Negative consequences** (explicitly accepted costs):
+## 16. Rev-2 Changelog (vs. rev-1, `e8572b2`/`f0f2c1f`)
 
-1. Local batch history grows unboundedly until manually pruned — no
-   `tpatch` command deletes old batches in v1 (§7.4).
-2. `record --resources` does strictly more work than rev-0's
-   Git-first ordering in the common case (staging always runs before
-   Git, even though most of the time Git will succeed and the staged
-   result will simply be published) — a deliberate trade for the
-   stronger no-tracked-inconsistency guarantee (§10.1).
-3. No NFC Unicode normalization (§12.1 step 5) means visually-identical
-   selectors in different normalization forms get different resource
-   IDs — an accepted v1 limitation, not a silent bug.
-4. The `-r json`/richer Dolt output is never parsed into tracked
-   fields (§6.3) — a user wanting per-row Dolt diff detail must inspect
-   the local raw blob by hand; this PRD does not offer a structured
-   API for it.
-
-## 15. Rev-1 Changelog (vs. rev-0, `dd08157`)
-
-- Removed `generic-command` kind/adapter entirely; closed adapter set
-  is Dolt only (task C).
-- Moved all raw snapshot/diff/file bytes to a new gitignored local
-  tree, `.tpatch/local/resource-capture/<slug>/`; tracked sidecars are
-  hash/count/classification-only (task A).
-- Replaced rev-0's ambiguous `key=value\n` `args` encoding with a
-  sorted, minimally-escaped canonical-JSON encoding for `resource_id`
-  derivation, with four independently-verified golden vectors
-  including a reordered-key equivalence proof (task H).
-- Narrowed the `git-metadata` kind from an unrestricted `config` view
-  (`user.name`/`user.email`/wildcards) to four closed views with
-  exactly four safe config keys (task F).
-- Added a mandatory Lstat + `EvalSymlinks` + containment + `.git`-target
-  refusal gate, re-run at both `add` and every `capture`, for every
-  path this feature touches (task D).
-- Added a mandatory ignored-**and**-untracked dual gate (closing the
-  `--no-index` gap), removed the "untracked but not ignored" acceptance
-  case, and added exact per-file/total/file-count directory limits
-  (task E).
-- Replaced the fabricated `dolt diff --json` invocation and invented
-  per-row schema with a verified three-invocation `--name-only
-  --filter=` design for tracked structural output, treating richer
-  output as an opaque local-only blob (task G).
-- Replaced numbered append-only tracked history with immutable local
-  batches plus a single atomic `current` pointer, removed the
-  cross-tree atomic-delete claim from `remove`/`clear`, and defined
-  the full crash-window/recovery analysis (task I).
-- Reordered `record --resources` to stage privately before Git-side
-  capture and publish the resource pointer only after Git succeeds;
-  removed `record --dry-run` entirely in favor of `feature resource
-  capture --dry-run`/`diff` (task J).
-- Wrote out complete local and tracked wire schemas with one example
-  per kind, kept byte-identical between this PRD and the companion ADR
-  (task K).
-- Rebuilt the acceptance-criteria list at clause granularity (41
-  `AC`-tagged clauses) and require the companion ADR's Test Matrix to
-  compute its own row count rather than assume a 1:1 mapping (task L).
-- Corrected six false/fabricated citations (fabricated `ADR-031 D10`,
-  false "`EnsureSafeRepoPath` is symlink-aware," false "`verify` is
-  `ExitCodeError`'s sole user," normative dependence on untracked
-  WP-006, and others — full list in §0.1) (task M).
-- Added the tracked-file gate alongside `IsPathIgnored`, aligned
-  resource-only promised scope with actual validation, required
-  snapshot-time directory bounds (not just declaration-time), made
-  probe-failure semantics an explicit four-outcome table, and removed
-  the batch-failure-envelope contradiction (task N).
+- Replaced the fabricated/invalid `--name-only --schema/--data
+  --filter=` Dolt argv pattern and two-capability split with one
+  source-verified `dolt_diff_summary` SQL query and one capability,
+  `diff-summary` (§6).
+- Removed the `dolt version` probe entirely; tool identity is now a
+  static file fact (`basename` + `SHA-256`), never a code-execution
+  result (§6.1).
+- Removed every persistent local raw-body concept (`keep_local`, the
+  local batch/`current` pointer tree) — raw bytes are now strictly
+  ephemeral, scoped to a single invocation's scratch directory (§7.1,
+  §8.1).
+- Replaced per-resource tracked `summary.json` files with one
+  immutable tracked batch file per invocation plus one atomically
+  rewritten tracked pointer (§7.3, §12.2–§12.3).
+- Rewrote the symlink/path gate to refuse any ancestor symlink
+  component outright (fail-closed, simpler) instead of resolving and
+  re-validating only the final component (§9.1), and introduced a
+  separate, opposite-direction executable-path policy (§6.1/§9.2).
+- Added literal-pathspec handling and exit-code-shape distinctions to
+  every Git ignore/tracked/index-entry invocation (§10).
+- Reused the existing `workflow.EnsureLocalIgnoreContract` for the
+  scratch root, layering the same tracked-file gate already used for
+  `ignored-file` selectors on top (§10.3).
+- Designed crash-safe, PID-reuse-guarded lock semantics using
+  `ps -o lstart=` (§7.2).
+- Removed all wall-clock timestamp fields from every tracked artifact
+  (§0.2).
+- Replaced every `map`-typed tracked JSON field with a sorted
+  `[]struct` array (§12).
+- Renamed the per-resource `changes` field to `result` consistently
+  (§0.2).
+- Recomputed golden vectors 2/3 for the renamed `diff-summary`
+  capability; vectors 1/4 unchanged (§0.3).
+- Rebuilt the acceptance-criteria set from 41 to 48 clauses, covering
+  every new mechanism above (§14).
