@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: REV-9 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
@@ -18,6 +18,56 @@ add-time trust enrollment still enters capture-time missing-pin logic;
 silently re-pin; exit-code table conflicts/omits rev-7 refusal names. Golden
 IDs, six JSON blocks, 100 AC clauses/169 rows and current counts are otherwise
 clean. Rev-9 is restricted to these six consistency fixes.
+
+**2026-08-17 Cluster H rev-9 WRITTEN — bounded terminal micro-fold of
+the rev-8 adjudication verdict (`8152a8b`), awaiting dual review.**
+Same sequential writer continued from rev-8 (`816bc14`). Six-finding
+fold, three real fixes plus three verified-clean confirmations,
+folded across both papers: (1) ADR Test Matrix row 146's stale
+summary text ("`fsync` of each newly-created directory's parent")
+corrected to match §7.1/D9's already-correct unconditional whole-chain
+retry-`fsync` — text-only, no behavioral change; (2) the real
+technical finding: rev-8's unified process-group termination sequence
+gated the entire `SIGTERM`→grace→`SIGKILL` escalation behind "once its
+pipes are drained," but pipe drain-to-`EOF` cannot complete while any
+process — including a descendant the leader itself spawned — still
+holds the write end open, so a leader that exits successfully while
+such a descendant lingers left no way to detect that exit and begin
+the escalation at all (a genuine deadlock, empirically confirmed via a
+scratch Go program). Fixed by switching from `cmd.StdoutPipe()`/
+`cmd.StderrPipe()` to caller-owned `os.Pipe()` pairs assigned directly
+to `cmd.Stdout`/`cmd.Stderr` (write ends closed by the caller
+immediately after `Start()`), so `cmd.Wait()` reflects only the
+leader's own OS-level exit, independent of pipe state (new Claims-
+Audit row `C40`, empirically verified: `cmd.Wait()` returned in ~4ms
+while a concurrent pipe read only reached `EOF` ~3s later, once a
+backgrounded grandchild holding the pipe finally exited; a second
+scratch-program check confirmed `-pgid` signaling still reaches a
+surviving descendant even after the leader has already been reaped).
+The unconditional group-signal sequence now triggers on whichever of
+three events fires first — the decoupled `cmd.Wait()`, the 30-second
+timeout, or the output-cap exceeded — with the identical signal
+sequence run from all three branches, avoiding a return to rev-7's
+"two separate paths" anti-pattern; (3) `trust-dolt` added to §7.2's
+own "every mutating verb" lock-list enumeration (a second, narrower
+list than D9's/§7.1's own already-correct enumeration, which already
+included it since rev-7/rev-8) — text-only, no AC change (`AC-47`
+already covered all six verbs). Three findings verified already
+resolved by rev-8's own prior work and recorded rather than silently
+dropped: the add-time TOFU bootstrap already has no "refuse if
+unpinned" precondition and never executes Dolt (§6.1); duplicate `add`
+is already a strict no-op that never re-pins trust (§4, `AC-103`); the
+exit-code table already cleanly distinguishes `dolt-trust-flag-
+required` (exit 2) from `dolt-trust-required` (exit 3), with
+`adapter-copy-noexec`/`adapter-copy-failed` each appearing exactly
+once (§3). `AC-96`/`AC-97` rewritten in place a second time to reflect
+the new mechanism; AC count unchanged at 105, Test Matrix rows
+unchanged at 174 (rows 77/146/151/165/166 rewritten in place, none
+added/removed); all four golden vectors and the six shared JSON blocks
+mechanically reconfirmed unaffected. Side Research md5 unchanged:
+`b385fe622db9926f48861105239f113e`. See "Files Changed — Cluster H
+rev-9", "Test Results — Cluster H rev-9", and "Ready for review —
+Cluster H rev-9" below.
 
 **2026-08-14 Cluster H rev-8 WRITTEN — full fold of the rev-7
 dual-review verdict (adjudication `bc2c068`), awaiting dual review.**
@@ -836,14 +886,15 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-8 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-9 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-8
+- **Task ID**: Cluster H rev-9
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-7 dual-review verdict (adjudication
-  `bc2c068`) into the feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-9 fold) (rev-8 fold complete, awaiting dual review)
-- **Assigned**: 2026-08-14
+- **Description**: Fold the rev-8 adjudication's six findings
+  (`8152a8b`) into the feature-resource PRD and ADR-033 boundary —
+  a bounded terminal micro-fold.
+- **Status**: Complete (rev-9 fold), AWAITING REVIEW
+- **Assigned**: 2026-08-14 (rev-9 fold: 2026-08-17)
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -882,6 +933,28 @@ only after implementation review and wave close.
 
 ## Session Summary
 
+- **Cluster H rev-9** — dispatched 2026-08-14 (adjudication `8152a8b`)
+  from `WAVE_BASE=f04dec7`; written 2026-08-17. Same sequential writer
+  continued from rev-8 (`816bc14`). Bounded terminal micro-fold
+  resolving six findings — see the Status entry above for the complete
+  itemized breakdown: (1) Test Matrix row 146 fsync-wording fix
+  (text-only); (2) process-group termination redesign closing a real
+  deadlock — leader-exit detection decoupled from pipe drain via
+  caller-owned `os.Pipe()`s assigned to `cmd.Stdout`/`cmd.Stderr`
+  (new Claims-Audit row `C40`, empirically verified on this project's
+  `darwin` dev host); (3) `trust-dolt` added to §7.2's own lock-list
+  enumeration (text-only, `AC-47` already covered it); (4)-(6) three
+  findings verified already resolved by rev-8's own prior work (add-time
+  TOFU bootstrap, duplicate-add no-repin, exit-taxonomy consistency),
+  recorded rather than silently dropped. `AC-96`/`AC-97` rewritten in
+  place a second time; AC count unchanged at **105**, Test Matrix rows
+  unchanged at **174** (rows 77/146/151/165/166 rewritten in place, none
+  added/removed). All four golden vectors and the six shared JSON
+  blocks mechanically reconfirmed unaffected. PRD grew to **5018 lines**
+  (was 4800), ADR to **1909 lines** (was 1809). Side Research md5
+  unchanged: `b385fe622db9926f48861105239f113e`. See "Files Changed —
+  Cluster H rev-9", "Test Results — Cluster H rev-9", and "Ready for
+  review — Cluster H rev-9" below.
 - **Cluster H rev-8** — dispatched 2026-08-14 (adjudication `bc2c068`)
   from `WAVE_BASE=f04dec7`; written 2026-08-14. Same sequential writer
   continued from rev-7 (`2aba39b`). Full 11-item "acceptance/lifecycle
@@ -1355,6 +1428,121 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-9
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, **5018 lines** (was 4800). New/changed structure:
+  title/Status → rev-9, superseding writer commit `816bc14`,
+  adjudicated `8152a8b`; §0 Rev-9 Fold Summary (replacing the rev-8
+  framing as the primary top-level narrative; the rev-8 fold-summary
+  body preserved as historical prose); §0.1 Claims Audit header now
+  "(rev-4 + rev-5 + rev-6 + rev-7 + rev-8 + rev-9 additions)", `C40`
+  added grounding the `os.Pipe()`-based termination-decoupling
+  mechanism (empirically verified on the `darwin` dev host); §0.4 new
+  Rev-9 6-item requirement→section map; §6.4 Termination fully
+  rewritten — leader-exit detection decoupled from pipe drain via
+  caller-owned `os.Pipe()`s assigned to `cmd.Stdout`/`cmd.Stderr`
+  (write ends closed by the caller immediately after `Start()`), the
+  unconditional group-signal sequence now triggers on whichever of
+  three events fires first (decoupled `cmd.Wait()`, 30-second timeout,
+  output-cap exceeded), with exit-status collection the only
+  per-branch difference; §7.2 Lock semantics enumeration fixed to
+  include `trust-dolt` (was previously five verbs, now six, matching
+  `AC-47`); `AC-96`/`AC-97` rewritten in place for the new mechanism —
+  **105** clauses total, unchanged from rev-8; §14.1 exact-counts
+  paragraph gets a new "Rev-9's own count derivation" note (net +0,
+  two clauses rewritten in place); new §23 Rev-9 Changelog vs rev-8.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in
+  full, **1909 lines** (was 1809). Same 11 binding decisions (D1–D11,
+  numbering unchanged): title/Status header updated to rev-9, citing
+  writer commit `816bc14` and adjudication `8152a8b`; new "Rev-9 fold
+  summary" section appended after "Rev-8 fold summary" (ADR's own
+  established append-only pattern, unlike the PRD's nest/demote
+  pattern); D5 "Process-group termination" paragraph fully rewritten
+  for the `os.Pipe()`-decoupled, three-trigger-branch design, replacing
+  rev-8's pipes-gated single sequence; Implementation Note 11 updated
+  for the same redesign; Negative Consequences Summary's unified-
+  termination bullet revised for the new mechanism (still discloses the
+  fixed grace-period latency trade-off, now correctly attributed to the
+  post-decoupling design); Test Matrix row 77 (`AC-47`) fixed to
+  include `trust-dolt` in its own verb enumeration; row 146 (`AC-81`)
+  fsync-wording fix (unconditional whole-chain, not
+  newly-created-only); row 151 (`AC-85`) reworded to avoid implying
+  `cmd.Wait()` is not yet called during the grace window under the new
+  design; rows 165–166 (`AC-96`/`AC-97`) rewritten in place for the new
+  mechanism — Test Matrix stays at **174 rows**, all 105 PRD
+  acceptance-criteria clauses still covered (mechanically verified:
+  rows 1–174 sequential, no gaps; every `AC-1`–`AC-105` referenced by
+  at least one row).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-9
+  entry prepended above the rev-8-adjudication entry), Active Task
+  Status → Complete/AWAITING REVIEW, this Session Summary bullet, this
+  Files Changed section, Test Results, and the "Ready for review —
+  Cluster H rev-9" section below. Cluster state flipped to
+  `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-9
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation
+performed instead:
+
+- **Empirical verification of the core mechanism fix** (not merely a
+  documentation claim): a repo-local scratch Go program (created under
+  `.git/`, never `/tmp`, deleted after use) confirmed that assigning a
+  caller-created `os.Pipe()` write end directly to `cmd.Stdout`
+  (instead of `cmd.StdoutPipe()`) lets `cmd.Wait()` return in ~4ms when
+  the direct child exits, independent of a backgrounded grandchild
+  still holding the pipe open (which only released it, and let the
+  pipe reach `EOF`, ~3s later) — this is the exact mechanism grounding
+  the new Claims-Audit row `C40` and the §6.4/D5 rewrite. A second
+  scratch program confirmed `syscall.Kill(-pgid, sig)` still
+  successfully reaches a surviving descendant even after the leader
+  has already been reaped via `cmd.Wait()`.
+- `git diff --check` on both rewritten files — clean (no whitespace
+  errors, no conflict markers).
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created, run, deleted, never
+  written under `/tmp`) — confirmed **105** distinct, sequential
+  `AC-1`..`AC-105` clauses, zero gaps, zero duplicates (unchanged from
+  rev-8; two clauses, `AC-96`/`AC-97`, rewritten in place, none
+  added/removed).
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (105 distinct, sequential, no gaps) against every row of
+  the ADR's Test Matrix (174 sequential rows, 1..174, zero gaps) —
+  confirmed all 105 clauses appear in at least one matrix row, no
+  clause missing, no extra/unexpected clause tag.
+- Golden-vector reconfirmation: `resource_id` Vectors 2/3
+  (`res_4b62313b6cce`), Vector 4 (`res_79f5ac5dca13`)/Vector 5
+  (`res_acc91dc23a8b`), the worked batch example's `batch_id`
+  (`rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`),
+  and the directory golden vector's `combined_hash`
+  (`5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad`)
+  all mechanically re-grepped across both documents and confirmed
+  identical occurrence counts/values — none of this revision's changes
+  (termination redesign, lock-list text fix, matrix-row text fix)
+  touch `resource_id`'s or `batch_id`'s canonical hash inputs, so no
+  recomputation was required, only reconfirmation.
+- Six shared JSON blocks re-grepped across both documents and confirmed
+  unaffected/byte-identical (no wire-schema changes this revision).
+- Three findings verified against the adjudication's own described
+  symptoms and confirmed already resolved by rev-8's own prior work
+  (add-time TOFU bootstrap, duplicate-add no-repin, exit-taxonomy
+  consistency) — no change made for these three; recorded explicitly
+  in both the PRD §0 fold summary and this handoff rather than silently
+  dropped.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; all pre-existing untracked WIP remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-8
 
@@ -2854,6 +3042,65 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-9
+
+**Scope**: docs-only planning cluster, rev-9 "bounded terminal
+micro-fold". Same two deliverables as rev-1 through rev-8, both fully
+rewritten (not patched), plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **5018 lines** (was 4800). See "Files Changed — Cluster H rev-9"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the adjudication's six findings.
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **1909 lines**
+   (was 1809). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D5 and four Test Matrix
+   rows); see "Files Changed — Cluster H rev-9" above.
+
+**Files changed (Cluster H rev-9)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D5 (ADR) ↔ §6.4 (PRD): identical `os.Pipe()`-decoupled termination
+  redesign — `cmd.Stdout`/`cmd.Stderr` assigned caller-owned pipe write
+  ends (closed immediately after `Start()`), `cmd.Wait()` reflecting
+  only the leader's own OS-level exit, the unconditional group-signal
+  sequence triggered on whichever of three events fires first, exactly
+  one `cmd.Wait()` call per invocation with only its result-source
+  differing by branch.
+- §7.2 (PRD) ↔ D9/§7.1 (ADR): `trust-dolt` now consistently listed in
+  every "every mutating verb" enumeration across both documents — no
+  remaining narrower list omitting it.
+- Test Matrix (ADR) ↔ §14 Acceptance Criteria (PRD): all 105 AC
+  clauses (`AC-1`–`AC-105`) mechanically confirmed covered by at least
+  one of the 174 Test Matrix rows (rows 77, 146, 151, 165, 166
+  rewritten in place this revision; no row added or removed); no
+  orphaned clause, no orphaned row.
+- Wire Schema Appendix (ADR) ↔ §12 (PRD): resource/batch/directory
+  golden vectors and the six shared JSON blocks mechanically
+  reconfirmed byte-identical and unaffected by this revision's edits
+  (none of the termination/lock-list/matrix-text changes touch
+  canonical hash inputs or wire schemas).
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
+- Three findings (add-time TOFU bootstrap, duplicate-add no-repin,
+  exit-taxonomy consistency) verified against the adjudication's own
+  described symptoms and confirmed already resolved by rev-8's own
+  prior work; no change made, recorded explicitly rather than silently
+  dropped.
 
 ## Ready for review — Cluster H rev-8
 

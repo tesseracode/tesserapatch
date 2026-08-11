@@ -1,8 +1,8 @@
-# PRD — Feature Resource Claims & Capture Adapters (rev-8)
+# PRD — Feature Resource Claims & Capture Adapters (rev-9)
 
-**Status**: Draft — rev-8 (supersedes rev-7, writer commit `2aba39b`,
-adjudicated NEEDS REVISION → REV-8 DISPATCHED at `bc2c068`; see
-`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-7 adjudications)
+**Status**: Draft — rev-9 (supersedes rev-8, writer commit `816bc14`,
+adjudicated NEEDS REVISION → REV-9 DISPATCHED at `8152a8b`; see
+`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-8 adjudications)
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes
@@ -18,7 +18,127 @@ directly extended), `ADR-030-multi-slug-reconcile-derivation-mode.md`
 
 ---
 
-## 0. Rev-8 Fold Summary (read this first)
+## 0. Rev-9 Fold Summary (read this first)
+
+Rev-8 (`816bc14`) closed the acceptance/lifecycle gaps rev-7 left
+open — Test Matrix/prose consistency for the leaf/subtree/ancestor
+gate split, a single unified process-group termination sequence,
+add-time-TOFU-vs-capture-time-execution trust split, `trust-dolt`
+added to lock/gate enumerations, exit-taxonomy consolidation, and
+private-copy `noexec`/`ENOSPC`/`EIO` handling — but the rev-8
+adjudication (`8152a8b`) found six residual internal findings, framed
+as a bounded terminal micro-fold that does **not** reopen §1's
+authority/scope decisions or §2's goals (a separately-scoped external
+pass on rev-8 had accidentally re-run against the stale rev-7 range
+and is excluded from this adjudication; its already-folded
+observations are discarded, not re-litigated):
+
+1. The ADR's Test Matrix row 146 still said the retry-fsync step
+   `fsync`s "each newly-created directory's parent" — rev-7's own
+   normative prose (§7.1) already committed to an **unconditional**
+   fsync of the entire relevant chain, both newly-created **and**
+   already-visible-on-retry directories, not merely each newly-created
+   entry's parent; the matrix row's summary text had not been updated
+   to match its own normative source (ADR Test Matrix fix, task 1 —
+   text-only; no behavioral change, §7.1/D9 were already correct).
+2. §6.4's unified termination sequence gated the **entire**
+   `SIGTERM`→grace→`SIGKILL` group-cleanup sequence behind "once its
+   pipes are drained" — but pipe drain-to-`EOF` cannot complete while
+   *any* process still holds the write end open, including a
+   descendant the direct child (leader) itself spawned; if the leader
+   exits successfully while a descendant keeps the pipe open, the old
+   design has no independent way to detect the leader's own exit and
+   is left waiting on a drain that only the (not-yet-signaled)
+   descendant can unblock — a genuine ordering deadlock, not merely
+   an unproven edge case. Rev-9 decouples "leader has exited" detection
+   from pipe drain entirely by switching from `cmd.StdoutPipe()`/
+   `cmd.StderrPipe()` to a pair of caller-created `os.Pipe()`s whose
+   write ends are assigned directly to `cmd.Stdout`/`cmd.Stderr` before
+   `Start()`, with the caller closing its own reference to each write
+   end immediately after `Start()` returns; because `os/exec` neither
+   creates nor manages these particular `*os.File` objects (that
+   coupling is specific to `StdoutPipe()`/`StderrPipe()`, per C30),
+   `cmd.Wait()` in this configuration blocks only on the OS-level reap
+   of the leader's own PID and returns as soon as the leader exits,
+   independent of whether a descendant still holds either pipe open
+   (C40). The unconditional group-signal sequence now triggers on
+   whichever of three events fires first — the (now pipe-independent)
+   `cmd.Wait()` completing, the 30-second invocation timeout, or the
+   output-cap exceeded (still detected by two separate goroutines
+   reading the pipes' read ends into the shared budget) — closing the
+   actual gap: a descendant sharing the PGID can no longer outlive a
+   successfully-exited leader, because the leader's own exit is
+   detected the instant it happens rather than only once the pipes
+   themselves reach `EOF` (§6.4/D5 fix, task 2).
+3. §7.2's Lock semantics enumeration of "every mutating verb" that
+   acquires the per-slug `flock` still listed only `add`/`remove`/
+   `clear`/`capture`/`record --resources` — omitting `trust-dolt`,
+   even though §7.1/§10.3/D9's own enumerations already included it;
+   this is exactly the "one universal lock/gate list omits
+   `trust-dolt`" gap the rev-8 adjudication flagged, just in a
+   different section than rev-8's own fix reached (§7.2 fix, task 3;
+   the companion ADR's Test Matrix row 77/`AC-47` had an identical
+   omission and is fixed alongside it).
+4. (Verified, no fix needed) `add --trust-current-dolt`'s add-time
+   TOFU bootstrap (§6.1) already ran only the shared resolution
+   prefix followed by open→copy→hash→write-pin→delete, with **no**
+   "refuse if unpinned" precondition anywhere in that sequence — the
+   rev-7-vintage single-numbered-list bug the rev-8 adjudication
+   described was already fully corrected by rev-8's own §6.1 rewrite;
+   this finding is recorded here as confirmed-clean, not re-fixed.
+5. (Verified, no fix needed) Duplicate `add` targeting an existing,
+   identical declaration is already a **strict** no-op with respect to
+   `trust.binary_sha256` regardless of whether `--trust-current-dolt`
+   is re-passed (§4, `AC-103`) — only `trust-dolt` may re-pin after the
+   initial `add`; this finding is recorded here as confirmed-clean.
+6. (Verified, no fix needed) The exit-code table already names the
+   add-time missing-flag refusal `dolt-trust-flag-required` (exit 2)
+   distinctly from the capture-time missing-pin refusal
+   `dolt-trust-required` (exit 3), and both `adapter-copy-noexec`/
+   `adapter-copy-failed` already appear exactly once each in the
+   consolidated table (§3); this finding is recorded here as
+   confirmed-clean.
+
+Rev-9 is a **bounded terminal micro-fold** — of the six findings, only
+three (row 146's stale summary text, §6.4's termination-protocol
+deadlock, and §7.2's `trust-dolt` omission) required an actual change;
+the remaining three were verified against the adjudication's own
+described symptom and found already resolved by rev-8's own rewrite,
+and are recorded above rather than silently dropped. It does not touch
+§1/§2's scope, §5.2/§5.3's closed resource kinds, or the separate-
+manifest/no-lifecycle-authority/Dolt-optional/Git-only-replay
+decisions every prior revision has preserved. §6.4, §7.2 are revised
+in place; the ADR's Test Matrix rows 77, 146, 165, 166 and D5 mirror
+these fixes. **Preserved** because every review across all ten
+revisions has agreed it is sound:
+
+- Resources live in a **separate** manifest per feature — never
+  inside the canonical patch, never touching `apply-recipe.json` or
+  unapply/lifecycle state.
+- Dolt (or any external tool) is **never** an authority over tpatch's
+  own state and is **not** a build/runtime dependency of `tpatch`
+  itself — it is invoked, if present, strictly as an external,
+  read-only, externally-located tool.
+- Replay/backward-compatibility remains **Git-only** — a repository
+  with no resources declared is byte-identical in behavior to today's
+  `tpatch`.
+- No tracked artifact ever contains a raw file byte, raw adapter
+  stdout, or any content copied verbatim from a scanned source
+  (ADR-027 D3); scanning happens strictly in bounded in-process memory,
+  never pre-persisted to a scratch file (task 2).
+
+Everything below this point folds rev-9's corrections into the
+standalone design; §0.1 lists the new citation grounding the
+`os.Pipe()`-based termination redesign (appended to the existing
+Claims Audit table).
+Rev-8's own `C1`–`C39` remain correct and are not repeated (see
+`docs/handoff/HISTORY.md`/git history for that table).
+
+**Historical context — rev-8's own fold summary** (superseded by the
+above as the *current* state, preserved verbatim below for
+continuity; its internal §0.1–§0.4 subsection numbers are the ones
+this document's cross-references still use, now carrying rev-9's
+additions appended to them):
 
 Rev-7 (`2aba39b`) closed the compatibility gaps rev-6 left open —
 leaf-targeted ignore/untracked gate for fresh clones, unreaped-leader-
@@ -375,7 +495,7 @@ plus the supervisor-relayed `dolt_diff_summary` schema/read-only/
 literal-argv facts already folded in the accompanying supervisor
 message.
 
-### 0.1 Claims Audit (rev-4 + rev-5 + rev-6 + rev-7 + rev-8 additions)
+### 0.1 Claims Audit (rev-4 + rev-5 + rev-6 + rev-7 + rev-8 + rev-9 additions)
 
 Rev-1's `C1`–`C10`, rev-2's `C11`–`C16`, and rev-3's `C17`–`C24`
 (citation corrections for `featureCmd`, the lexical-only safety
@@ -435,6 +555,12 @@ Rev-8 adds:
 |---|-------|----------|-------------------------|
 | C38 | Linux `statfs(2)`'s `f_flags` field (surfaced by Go stdlib as `syscall.Statfs_t.Flags`, populated "since Linux 2.6.36") carries mount-option bits from a documented `ST_*` namespace shared with `statvfs(3)`, including `ST_NOEXEC` ("Execution of programs is disallowed on this filesystem"); the stable, long-standing numeric value of `ST_NOEXEC` in this namespace is `0x8` | `man7.org` `statfs(2)` manual page, "The f_flags field" section (documents `f_flags`'s availability since Linux 2.6.36 and lists `ST_NOEXEC` as a named bit; https://man7.org/linux/man-pages/man2/statfs.2.html); numeric value `0x8` independently cross-checked against a locally available vendored copy of the standard glibc/Linux `ST_*` constant block (`ST_RDONLY=1`, `ST_NOSUID=2`, `ST_NODEV=4`, `ST_NOEXEC=8`) | Grounds §6.1 task 6's Linux `noexec`-mount preflight for the capture-time private-copy scratch directory: `adapter-copy-noexec` refuses (exit 3) before the copy file is created when `buf.Flags&0x8 != 0`, using the same stdlib-only `syscall.Statfs_t` primitive §7.2 already established (C32), not a new dependency. |
 | C39 | Darwin's `sys/mount.h` defines `MNT_NOEXEC` as `0x00000004` in the same mount-flags namespace `syscall.Statfs_t.Flags` (Go stdlib, `darwin` build target) surfaces | Installed macOS SDK header (`usr/include/sys/mount.h`, `#define MNT_NOEXEC 0x00000004 /* can't exec from filesystem */`) | Grounds §6.1 task 6's Darwin `noexec`-mount preflight: `adapter-copy-noexec` refuses (exit 3) when `buf.Flags&0x00000004 != 0`, the platform-specific bit-value counterpart to C38's Linux `ST_NOEXEC`, using the identical stdlib-only `Statfs_t.Flags` field already read for this project's other `statfs`-based preflights. |
+
+Rev-9 adds:
+
+| # | Claim | Citation | Why this changes rev-8 |
+|---|-------|----------|-------------------------|
+| C40 | Assigning a caller-created `os.Pipe()` write end directly to `exec.Cmd.Stdout`/`Cmd.Stderr` (an `*os.File`, not `Cmd.StdoutPipe()`/`Cmd.StderrPipe()`) means Go's `os/exec` package neither owns nor auto-closes that file: `Cmd.Wait()` in this configuration blocks only on the underlying `wait4`/`waitid` reap of the **direct child's own PID** and returns as soon as that child exits, **independently of whether any other process (e.g. a descendant that inherited the same pipe write-end fd) still holds the pipe open** — this is a materially different, and here more useful, contract than `Cmd.StdoutPipe()`/`Cmd.StderrPipe()`'s documented "must fully drain before `Wait()`" coupling (C30), which applies only to those two specific accessor methods, not to a raw `*os.File` assigned directly | Empirically verified on this project's `darwin` development host (Go stdlib `os/exec`/`os` packages, no third-party dependency): a child process that itself backgrounds a grandchild sharing its stdout fd and then exits immediately causes `cmd.Wait()` to return in ~4ms, while a concurrent read of the pipe's read end only reaches `io.EOF` ~3s later, once the grandchild (still holding the write end) itself exits — proving `Wait()`'s completion is decoupled from pipe-EOF when the pipe is caller-owned rather than `Cmd`-owned. A second empirical check confirms `syscall.Kill(-pgid, sig)` (`pgid` = the already-`Wait()`-reaped leader's own former PID) still successfully reaches a surviving descendant sharing that PGID, consistent with C36's "group persists while any member exists" citation | Grounds §6.4/D5's rev-9 termination-protocol redesign (task 2): switching from `cmd.StdoutPipe()`/`cmd.StderrPipe()` to caller-owned `os.Pipe()` pairs (write ends assigned to `cmd.Stdout`/`cmd.Stderr`, closed by the caller immediately after `Start()`) lets `cmd.Wait()` detect the leader's own exit **without waiting for pipe drain first**, closing the deadlock where a leader that exited successfully while a descendant kept the pipes open could never have its own exit detected (and the group-cleanup sequence could therefore never begin) under the old `StdoutPipe()`/`StderrPipe()`-based design. |
 
 ### 0.2 What rev-4 removes or changes
 
@@ -632,6 +758,17 @@ or history at all.
 | 9 | Counts/history corrections; ground C36 in "escalation never cancels on leader exit" | §0.1, §14.1 |
 | 10 | Wire/vector re-verification (trust/gate changes do not affect canonical IDs) | §12, §13 |
 | 11 | ACs/matrix rebuild for all rev-8 behaviors | §14 |
+
+**Rev-9 items** (6-item terminal micro-fold, `8152a8b` dispatch):
+
+| Item | Requirement | Section(s) |
+|---|---|---|
+| 1 | ADR Test Matrix row 146: fix stale "fsync each newly-created directory's parent" to match §7.1/D9's unconditional whole-chain retry-fsync | ADR Test Matrix |
+| 2 | Process-group completion protocol: decouple leader-exit detection from pipe-drain-to-`EOF` via caller-owned `os.Pipe()`s assigned to `cmd.Stdout`/`cmd.Stderr` (not `cmd.StdoutPipe()`/`cmd.StderrPipe()`), so `cmd.Wait()` reflects only the leader's own exit — closing the successful-exit-can-leave-descendants deadlock | §6.4, §0.1 (C40) |
+| 3 | `trust-dolt` added to §7.2's per-slug-lock "every mutating verb" enumeration (ADR Test Matrix row 77/`AC-47` mirrors the fix) | §7.2 |
+| 4 | Add-time TOFU vs. capture-time missing-pin separation — verified already correct, no fix needed | §6.1 |
+| 5 | Duplicate `add` strict no-repin — verified already correct, no fix needed | §4 |
+| 6 | Exit-taxonomy consistency (`dolt-trust-flag-required`/`dolt-trust-required`/`adapter-copy-noexec`/`adapter-copy-failed`) — verified already correct, no fix needed | §3 |
 
 ---
 
@@ -1744,7 +1881,7 @@ silently normalized.
 | Invocation timeout | 30 seconds. On timeout: `SIGTERM` to the process group, then `SIGKILL` after 2 more seconds if still running. |
 | Captured output cap | 5 MiB combined stdout+stderr, enforced as a **refusal, never a truncation** (rev-5 correction — rev-4's "output beyond the cap is truncated" contradicted its own "zero pre-scan persistence"/fail-closed framing, since silently truncating and proceeding is itself a form of trusting unbounded input up to the point of truncation). The adapter uses `cmd.StdoutPipe()`/`cmd.StderrPipe()` (never `cmd.Stdout`/`cmd.Stderr` set to a `*bytes.Buffer`, which has no built-in bound) with two concurrent goroutines draining each pipe into a **shared** cap-plus-one budget (a single `int64` counter both readers atomically decrement, so stdout and stderr together, not each independently, are bounded by the 5 MiB total) — task 2's "zero pre-scan persistence," never written to a scratch file first, §7.1/§8. The **instant** the shared budget's `limit+1`th byte is actually read from either pipe, the adapter sends `SIGTERM` then (after the existing 2-second grace) `SIGKILL` to the child's **process group** (the same termination mechanism as a timeout), continues draining both pipes to completion (so the child is never left blocked writing to a full, unread pipe while being killed) and `cmd.Wait()`s for it, then refuses the whole invocation with `resource-limit-exceeded` (exit 3) — no partial/truncated output is ever handed to the JSON parser (§6.3) or scanned for redaction (§8), and no tracked artifact reflects a truncated result. **stdout and stderr are captured and bounded identically, but are never merged for parsing purposes**: only the stdout buffer is ever handed to §6.3's JSON parser; the stderr buffer exists solely to be scanned for redaction (§8.3) and, on a non-zero exit or a `dolt-query-error`, to populate the local, ephemeral diagnostic (§7.5) — it is never itself parsed as JSON and never influences whether stdout parses successfully. |
 | Environment | **Not** inherited from the invoking process (task 2's "no inherited credentials"). A fresh, minimal environment is constructed: `HOME=<scratch-home>` and `DOLT_ROOT_PATH=<scratch-home>` pointing at a directory created fresh under this invocation's ephemeral scratch tree (§7.1, `0700`, created before the child process starts so Dolt may write its own ephemeral config/state there if it chooses to — this is not a network or version call, just process-local state under an isolated `HOME`); `PATH` is **not** set at all (the adapter is invoked by its already-resolved absolute path, §6.1, so `PATH` lookup is never needed mid-invocation). No other variable is passed through. |
-| Termination | **One unified process-group cleanup sequence for every invocation, success or kill-triggered alike** (rev-8, task 2 — supersedes rev-7's two-path "kill path" vs. "normal-success path" split, which the rev-8 adjudication found left the normal-success path's immediate `cmd.Wait()` unable to prove the **group** — not just the direct child — was empty: a successful invocation could still leave a rogue descendant sharing the PGID alive past `tpatch`'s own return, since nothing ever signalled or waited on the group in that case). Before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. **Every** invocation — whether it completes on its own, hits the 30-second timeout, or exceeds the output cap — now runs the identical sequence once its pipes are drained: (1) drain `cmd.StdoutPipe()`/`cmd.StderrPipe()` to `EOF` (C30 — required before `Wait()` regardless of trigger; a timeout/cap-triggered drain reads to completion exactly as before, §8.1); (2) **unconditionally** read `cmd.Process.Pid` (the group's PGID, `Setpgid:true`) and call `syscall.Kill(-pgid, syscall.SIGTERM)` — sent every time, not only on a kill trigger, tolerating `syscall.ESRCH` (the entire group has already exited on its own — the overwhelmingly common case for a successful invocation, not an error); (3) the adapter does **not** call `cmd.Wait()` yet — the leader is left unreaped through the entire fixed grace period (2 seconds, unchanged) regardless of trigger, so the PGID cannot be recycled by the kernel to an unrelated process while a group member might still be alive, and so a `SIGTERM`-ignoring descendant is given the same fixed window to exit on every invocation, not only a kill-triggered one; (4) after the grace elapses, the adapter unconditionally calls `syscall.Kill(-pgid, syscall.SIGKILL)`, again tolerating `syscall.ESRCH` as the only acceptable failure; (5) **only after** the `SIGKILL` call returns (with or without `ESRCH`) does the adapter call `cmd.Wait()` to reap the leader and collect its exit state — this is the one and only `Wait()` call for any invocation, and it is never used to infer group emptiness itself (that is exactly the claim rev-7's normal-success path made and rev-8 removes: **there is no "`Wait()` observes the group" claim anywhere in this design**; group emptiness is established by the unconditional signal-and-grace sequence that runs before `Wait()` is ever called, on every invocation, not by anything `Wait()` itself reports). Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group (e.g. a sub-process Dolt itself spawns) — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell. **Grounding, corrected rev-8 task 9**: this design does **not** claim "keeping the leader unreaped prevents PGID reuse" as a standalone proof (C36 itself states unreaped-alone does not guarantee this) — the defensible property is narrower and purely mechanical: **the `SIGTERM`→grace→`SIGKILL`→`Wait()` escalation is never skipped or cancelled merely because the direct child appears to have exited**, because it is no longer conditioned on any exit observation at all; it runs identically every time. **A new, deliberate, disclosed trade-off** (rev-8, task 2): every invocation — including a fully-successful one whose leader has already exited by the time its pipes reach `EOF` — now pays the fixed grace-period latency before `cmd.Wait()` is ever called, since the sequence is unconditional rather than branching on how completion was reached; this is accepted as the cost of having exactly one code path to reason about and test, rather than two. A second trade-off: if the leader process closes its `stdout`/`stderr` pipes (reaching the drain's `EOF`) while genuinely still alive and doing further work (e.g., due to descriptor duplication into a background helper it forked), the unconditional `SIGTERM`→grace→`SIGKILL` sequence will still terminate it — converting what might have been an eventual natural success into a forced termination, surfaced through the same non-zero/abnormal-exit-status path an ordinary Dolt query failure already uses (§6.2's `dolt-query-error` taxonomy — no new named refusal is introduced for this case, since from `cmd.Wait()`'s perspective a signal-terminated child is indistinguishable in kind, only in cause, from any other non-zero exit). This is a deliberate choice (favoring "never let a stray group member outlive the invocation" over "wait indefinitely for a leader that has gone quiet on its pipes but may still be legitimately working") and is not claimed to be reconciled away. **Residual, stated honestly**: a group member that survives `SIGKILL` is not possible for `SIGKILL` itself (it cannot be caught or ignored), but a **new** process spawned by a group member *after* the `SIGKILL` signal was delivered but *before* the kernel has fully torn down the group is a kernel-level race this design does not claim to close — it is bounded by the OS's own signal-delivery/process-teardown semantics, not by anything `tpatch` controls. **Verification**: this design's own tests cover both ends of the unified sequence on the **same** code path — (a) a normal, successfully-completing Dolt-invocation stand-in with a descendant that ignores `SIGTERM` and closes its own pipes without exiting: assert the leader is not reaped (no `Wait()` call observed) until after the unconditional `SIGKILL` call, the descendant no longer exists after the sequence completes, `cmd.Wait()`'s reported exit status still reflects the leader's own real (successful) completion when the leader itself had already exited before `SIGTERM` was sent (`ESRCH` at step 2), and the `tpatch` test-runner process itself is never signaled or observably affected; and (b) the pre-existing timeout/cap-triggered case, run through the identical sequence, with the same assertions. |
+| Termination | **One unified process-group cleanup sequence for every invocation, success or kill-triggered alike, with leader-exit detection decoupled from pipe drain** (rev-8 task 2, redesigned rev-9 task 2 — rev-8's own version gated the entire `SIGTERM`→grace→`SIGKILL` sequence behind "once its pipes are drained," which the rev-9 adjudication found could deadlock: pipe drain-to-`EOF` cannot complete while *any* process holds the write end open, including a descendant the leader itself spawned, so a leader that exits successfully while such a descendant lingers left the old design with no way to detect that exit and begin the group-signal sequence at all). Before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. **Rev-9's pipe setup** (task 2): instead of `cmd.StdoutPipe()`/`cmd.StderrPipe()`, the adapter creates two ordinary `os.Pipe()` pairs itself, assigns each write end directly to `cmd.Stdout`/`cmd.Stderr` (as `*os.File`, not via the `Cmd`-managed accessor methods) before `Start()`, and — immediately after `Start()` returns — closes its own reference to each write end (the child's dup'd fd keeps the pipe alive for as long as the child, or any descendant it forks that inherits the same fd, holds it open). Because `os/exec` never creates or manages these particular `*os.File` objects (that coupling is specific to `StdoutPipe()`/`StderrPipe()`, per C30), `cmd.Wait()` in this configuration reflects only the OS-level reap of the **leader's own PID** and returns the instant the leader exits, entirely independent of whether a descendant still holds either pipe open (C40, empirically verified: `cmd.Wait()` returned in ~4ms while a concurrent pipe read only reached `EOF` ~3s later, once a backgrounded grandchild holding the pipe finally exited). The adapter runs `cmd.Wait()` in its own goroutine, delivering the result over a channel, and races that channel (via `select`) against the pre-existing 30-second invocation timer and the output-cap-exceeded signal from the two independent pipe-draining goroutines (§8.1) — **whichever of these three fires first** begins the identical, unconditional group-signal sequence: (1) `syscall.Kill(-pgid, syscall.SIGTERM)` — sent every time regardless of which of the three events triggered it, tolerating `syscall.ESRCH` (the whole group has already exited on its own — the common case when the `cmd.Wait()` branch fired because a well-behaved leader left no descendants behind); (2) a fixed grace period (2 seconds, unchanged); (3) `syscall.Kill(-pgid, syscall.SIGKILL)`, again tolerating `syscall.ESRCH` as the only acceptable failure. Signaling `-pgid` (the leader's original PID, per `Setpgid:true`) still reaches any surviving descendant even after the leader itself has already been reaped by the `cmd.Wait()` branch — the process group persists as long as any member remains (C36) — which is exactly how this design closes the deadlock: the leader's own exit is detected immediately via the decoupled `cmd.Wait()`, and the group-signal sequence that follows still reaches any descendant regardless of whether the leader is still alive, already reaped, or was itself the target that had to be killed. **Exit-status collection**: if the `cmd.Wait()` branch is the one that fired first (leader exited on its own), its already-in-flight result is simply read from the channel — `cmd.Wait()` is called exactly once per invocation, never twice, and is never called again after the group-signal sequence in this branch, since the leader was already reaped before the signals were even sent; if the timeout/cap branch fired first instead (leader still running), the same single `cmd.Wait()` goroutine — already blocked — completes shortly after the `SIGKILL` step and its result is read from the same channel at that point. After the group-signal sequence completes, the adapter joins the two pipe-draining goroutines to their own real completion (now unblocked, since any holdout descendant sharing the pipes is dead and its fd references have closed). **There is no "`Wait()` observes the group" claim anywhere in this design**: group emptiness is never inferred from `Wait()`'s own return value or timing — it is established solely by the unconditional `SIGTERM`→grace→`SIGKILL` sequence reaching every member of the PGID, run identically regardless of which trigger fired. Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group (e.g. a sub-process Dolt itself spawns) — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell. **This does not reopen rev-7's "two separate paths" anti-pattern** the rev-8 dispatch identified: the descendant-killing sequence itself (`SIGTERM`→grace→`SIGKILL`(-pgid)) remains one identical, unconditional function invoked from all three trigger branches with no branch-specific behavior; the only per-branch difference is the unavoidable OS-level distinction in *how* the leader's own exit status is obtained (already-completed channel read vs. a `cmd.Wait()` that completes moments later), not in what is signaled, to whom, or in what order. **A disclosed trade-off carried over from rev-8, revised for rev-9's mechanism**: a fully successful invocation whose leader exits with no lingering descendants still incurs the two pipe-drain-joins after the (now-redundant, but harmless, since the group is already empty) `SIGTERM`/grace/`SIGKILL` calls against an empty group — accepted as the cost of one code path rather than two. **Residual, stated honestly**: a group member that survives `SIGKILL` is not possible for `SIGKILL` itself (it cannot be caught or ignored), but a **new** process spawned by a group member *after* the `SIGKILL` signal was delivered but *before* the kernel has fully torn down the group is a kernel-level race this design does not claim to close — it is bounded by the OS's own signal-delivery/process-teardown semantics, not by anything `tpatch` controls; likewise, a leader that closes its pipes early while genuinely continuing legitimate work (rev-8's second disclosed trade-off) is unaffected by rev-9's redesign, since pipe closure no longer gates anything — only the leader's own OS-level exit (detected via the decoupled `cmd.Wait()`) or the timeout/cap triggers the sequence. **Verification**: this design's own tests cover all three trigger branches through the **same** unconditional group-signal code path — (a) a successfully-exiting leader whose descendant ignores `SIGTERM`, closes its own pipes only once killed: assert `cmd.Wait()`'s channel fires first (leader-exited branch), the group-signal sequence still runs and kills the descendant, and the descendant no longer exists afterward; (b) the pre-existing timeout-triggered case, with the leader itself still running when the timer fires; and (c) the pre-existing output-cap-exceeded case; in all three, assert the `tpatch` test-runner process itself is never signaled or observably affected, and that `cmd.Wait()` is observed exactly once per invocation. |
 
 A concrete, fully-specified argv/SQL example for Vector 2 (§0.3) —
 `contract=dolt-diff-summary-v1, db_path=data/dolt-db, table=users, from=main, to=HEAD` (trust pin `binary_sha256` lives in the separate `trust` field, §4/§6.1, and never appears in `args` or this argv):
@@ -1968,8 +2105,11 @@ invocation.
 A single lock per slug, `.tpatch/local/resource-scratch/<slug>/.lock`
 (a **regular file**, not a directory — rev-3's directory-rename-based
 lock is removed entirely), serializes **every** mutating verb for
-that slug: `add`, `remove`, `clear`, `capture`, `record --resources`
-all acquire it before their first write; `list`/`diff` never acquire
+that slug: `add`, `remove`, `clear`, `capture`, `trust-dolt`,
+`record --resources` all acquire it before their first write (rev-9
+task 3 fix: `trust-dolt` was previously omitted from this specific
+enumeration, though §7.1/§10.3/D9's own lists already included it —
+see §0's rev-9 fold summary, item 3); `list`/`diff` never acquire
 it (§3, §7.6) and instead rely on `resources.json`/`current.json`/
 `batches/<id>.json` always being read in a fully-written,
 temp-then-atomic-rename state (§7.6), so a concurrent `list` never
@@ -3969,30 +4109,33 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   is reserved for two **independently self-consistent** declarations
   that happen to collide; verified via a hand-constructed fixture
   entry with a deliberately mismatched `resource_id`.
-- `AC-96`: Every Dolt invocation — success or kill-triggered alike —
-  follows the **single unified** termination sequence (rev-8, task 2
-  — corrects rev-7's two-path kill/normal-success design): drain both
-  pipes to EOF, then unconditionally send `SIGTERM` to the negative
-  PGID (tolerating `ESRCH`), then hold the leader **unreaped**
-  (`cmd.Wait()` not yet called) through the fixed grace period
-  regardless of what triggered this sequence, then unconditionally
-  send `SIGKILL` to the negative PGID (tolerating `ESRCH`), and only
-  **then** call `cmd.Wait()` exactly once — verified by instrumenting
-  the test double to assert no `Wait()` call is observed between the
-  `SIGTERM` and `SIGKILL` calls in either the timeout/cap-overflow
-  case or the ordinary successful-completion case, and that exactly
-  one `Wait()` call occurs per invocation regardless of outcome.
-- `AC-97`: A successful invocation whose direct child closes both
-  pipes (reaching EOF) while a lingering descendant or the leader
-  itself remains alive doing further work is nonetheless carried
-  through the full unified sequence — `SIGTERM`, grace, `SIGKILL` —
-  and the resulting forced termination surfaces through the existing
-  `dolt-query-error` taxonomy (no new refusal name is introduced for
-  this case); every invocation, including one whose pipes reach EOF
-  almost immediately, pays the fixed grace-period latency before
-  `Wait()` is called — verified by asserting the elapsed time between
-  EOF and the `Wait()` call is never less than the grace duration,
-  for both this case and the ordinary instant-success case.
+- `AC-96`: A leader process that exits successfully while a
+  descendant it spawned keeps sharing the same PGID's stdout/stderr
+  pipe write ends still has that descendant killed before the
+  invocation returns (rev-9 task 2 rewrite — closes the rev-8 design's
+  deadlock, where the entire group-signal sequence was gated behind a
+  pipe drain that a lingering descendant could block indefinitely):
+  verified by instrumenting the test double so `cmd.Wait()` (racing,
+  via `select`, against the timeout timer and the cap-exceeded signal)
+  is observed to complete first, the unconditional `SIGTERM`→grace→
+  `SIGKILL` sequence against the negative PGID runs regardless, the
+  descendant no longer exists after the sequence completes, and the
+  pipe-draining goroutines are only joined (and reach `EOF`) *after*
+  the descendant has been killed — proving leader-exit detection does
+  not depend on pipe drain completing first.
+- `AC-97`: Across all three trigger branches — leader exits on its
+  own (via the decoupled `cmd.Wait()`), the 30-second timeout elapses,
+  or the output cap is exceeded — the identical unconditional
+  `SIGTERM`→grace→`SIGKILL`(-pgid) sequence runs, tolerating `ESRCH`
+  at both signal steps, and `cmd.Wait()` is observed exactly once per
+  invocation regardless of which branch fired (never called a second
+  time after the leader-exited branch has already consumed its
+  result) — verified by instrumenting the test double across all
+  three branches and asserting the group-signal call sequence and
+  argument (`-pgid`) are byte-for-byte identical regardless of trigger,
+  with only the source of the leader's own exit status differing
+  (already-available channel value vs. a `cmd.Wait()` that completes
+  moments after the `SIGKILL` step).
 - `AC-98`: The leaf-targeted **ignore** half of the gate for
   `.tpatch/local/resource-scratch/<slug>/` (§10.3 step 1) runs and
   refuses correctly even when that exact leaf directory does not yet
@@ -4095,6 +4238,27 @@ clause numbers before and after. `AC-47`, `AC-41`–`AC-43`, and the
 reworded in place (six-verb lock-list count, `trust-dolt` added to the
 gate/lock verb enumerations, duplicate-`add` behavior made explicit)
 without adding or removing any clause.
+
+**Rev-9's own count derivation**: rev-9 is a **net +0** change from
+rev-8's 105 (`AC-1` through `AC-105`, sequentially numbered with no
+gaps) — no clause was added or removed. Exactly two existing clauses
+were rewritten in place a second time: `AC-96` (previously the
+rev-8-vintage "single unified sequence... drain both pipes to EOF,
+then unconditionally send `SIGTERM`" wording, now rewritten to test
+that a leader exiting successfully while a descendant lingers on the
+pipes is still detected and its descendant killed, via the decoupled
+`cmd.Wait()`/`os.Pipe()` mechanism — §6.4/D5, task 2) and `AC-97`
+(previously the "pipes-EOF-but-leader-still-alive forced-termination"
+trade-off test, now rewritten to assert the group-signal sequence and
+its `-pgid` argument are identical across all three trigger branches,
+with only the leader's exit-status source differing). §7.2's separate
+prose fix (adding `trust-dolt` to that section's own "every mutating
+verb" enumeration, task 3) required no AC change at all: `AC-47`
+already covered all six verbs including `trust-dolt` since rev-8 — the
+rev-9 finding was a text-only inconsistency in a second, narrower
+enumeration in §7.2 itself, not a gap in AC-47's own test coverage.
+Row 146's fsync-wording fix (task 1) is likewise text-only in the
+companion ADR's Test Matrix and does not touch any AC in this PRD.
 
 **Historical — rev-7's own count derivation** (preserved for
 provenance, not a current fact about this revision's total): rev-7 was
@@ -4794,6 +4958,60 @@ cross-platform target — which is a harder, more honest guarantee than
   touch `resource_id`'s or `batch_id`'s canonical hash inputs) — the
   vectors already recomputed in rev-7 remain current (§0.3, §12.3,
   §12.4, §13.3).
+- Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
+  attestation are updated to their final, post-edit values as the last
+  step of this revision, per this fold's explicit tracking requirement
+  (§0, CURRENT.md).
+
+## 23. Rev-9 Changelog (vs. rev-8, `8152a8b`)
+
+- **ADR Test Matrix row 146 text fix**: corrected a stale summary
+  ("`fsync` of each newly-created directory's parent") to match
+  §7.1/D9's already-correct normative prose (unconditional `fsync` of
+  every directory in the relevant chain, both newly-created and
+  already-visible on retry) — text-only, no behavioral change (task 1;
+  §14.1, ADR Test Matrix).
+- **Process-group termination redesign, closing a real deadlock**:
+  rev-8's unified sequence gated the entire `SIGTERM`→grace→`SIGKILL`
+  escalation behind "once its pipes are drained," but pipe drain-to-
+  `EOF` cannot complete while any process — including a descendant the
+  leader itself spawned — still holds the write end open; a
+  successfully-exiting leader with such a lingering descendant left
+  the old design with no way to detect that exit and begin the
+  group-signal sequence at all. Rev-9 switches from
+  `cmd.StdoutPipe()`/`cmd.StderrPipe()` to caller-owned `os.Pipe()`
+  pairs assigned directly to `cmd.Stdout`/`cmd.Stderr` (write ends
+  closed by the caller immediately after `Start()`), so `cmd.Wait()`
+  reflects only the leader's own OS-level exit, independent of pipe
+  state (C40, empirically verified). The unconditional group-signal
+  sequence now triggers on whichever of three events fires first —
+  the decoupled `cmd.Wait()` completing, the 30-second timeout, or the
+  output-cap exceeded — and is identical across all three branches;
+  only the source of the leader's own exit-status differs (task 2;
+  §6.4, D5, AC-96, AC-97, C40).
+- **`trust-dolt` added to §7.2's own lock-verb enumeration**: §7.1/
+  §10.3/D9 already listed `trust-dolt` among the per-slug-`flock`
+  verbs since rev-8, but §7.2's own "every mutating verb" prose still
+  named only the prior five — a second, narrower enumeration the
+  rev-8 fix had not reached. Fixed to list all six verbs; no AC change
+  (`AC-47` already covered all six) (task 3; §7.2).
+- **Three findings verified already resolved, recorded rather than
+  silently dropped**: (a) `add --trust-current-dolt`'s TOFU bootstrap
+  already has no "refuse if unpinned" precondition and never executes
+  Dolt (§6.1); (b) duplicate `add` is already a strict no-op that
+  never re-pins trust (§4, `AC-103`); (c) the exit-code table already
+  distinguishes `dolt-trust-flag-required` (exit 2) from
+  `dolt-trust-required` (exit 3), with `adapter-copy-noexec`/
+  `adapter-copy-failed` each appearing exactly once (§3). No changes
+  made for these three; see §0's rev-9 fold summary, items 4-6.
+- Confirmed all resource-ID, full-batch-ID, and directory-hash golden
+  vectors, and the six shared JSON blocks, are **unaffected** by this
+  revision's changes (none of the fixes above touch canonical hash
+  inputs or wire schemas) — the vectors already current as of rev-7/
+  rev-8 remain current (§0.3, §12.3, §12.4, §13.3).
+- Acceptance-criteria count is **unchanged** at 105 (`AC-1` through
+  `AC-105`): two clauses rewritten in place a second time (`AC-96`,
+  `AC-97`), none added or removed — see §14.1 for the exact accounting.
 - Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
   attestation are updated to their final, post-edit values as the last
   step of this revision, per this fold's explicit tracking requirement

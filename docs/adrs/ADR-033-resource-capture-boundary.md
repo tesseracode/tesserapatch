@@ -1,11 +1,11 @@
-# ADR-033 — Resource Capture Boundary (rev-8)
+# ADR-033 — Resource Capture Boundary (rev-9)
 
-**Status**: Proposed — rev-8 (supersedes rev-7, writer commit
-`2aba39b`, rev-7 adjudicated NEEDS REVISION → REV-8 DISPATCHED at
-`bc2c068`; see `docs/supervisor/LOG.md`)
+**Status**: Proposed — rev-9 (supersedes rev-8, writer commit
+`816bc14`, rev-8 adjudicated NEEDS REVISION → REV-9 DISPATCHED at
+`8152a8b`; see `docs/supervisor/LOG.md`)
 
 **Context**: `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
-(rev-8, companion document — this ADR binds the decisions that PRD's
+(rev-9, companion document — this ADR binds the decisions that PRD's
 design depends on; read the PRD first for full rationale, this ADR
 states the decisions themselves plus the Test Matrix).
 
@@ -146,6 +146,52 @@ reworded) for the new/corrected source-grounding rows.
 
 **Preserved across every review pass to date (rev-1 through rev-8,
 plus the rev-3 citation addendum — eight review passes total, matching
+the companion PRD's count)**: a
+separate `resources.json` per feature, never inside the canonical
+patch or unapply/lifecycle state; Dolt (or any external tool) is never
+an authority over tpatch state and is not a build/runtime dependency;
+replay/backward-compatibility is Git-only.
+
+## Rev-9 fold summary
+
+The rev-8 adjudication (`8152a8b`) found rev-8's own new termination/
+lock-list mechanisms still unsafe or under-specified in three concrete
+places (plus three findings verified already resolved by rev-8's own
+work and recorded rather than silently dropped), framed as a bounded
+terminal micro-fold that does not reopen D1/D2's authority/scope
+decisions: the Test Matrix's row 146 still said the retry-fsync step
+targeted "each newly-created directory's parent" rather than D9's own
+already-correct unconditional whole-chain fsync (text-only fix, no
+behavioral change); D5's unified process-group termination sequence
+gated the entire `SIGTERM`→grace→`SIGKILL` escalation behind "once its
+pipes are drained," but pipe drain-to-`EOF` cannot complete while any
+process — including a descendant the leader itself spawned — still
+holds the write end open, so a leader that exited successfully while
+such a descendant lingered left the old design with no way to detect
+that exit and begin the escalation at all (D5 fix — leader-exit
+detection decoupled from pipe drain via caller-owned `os.Pipe()`s
+assigned to `cmd.Stdout`/`cmd.Stderr`, so `cmd.Wait()` reflects only
+the leader's own OS-level exit; the escalation now triggers on
+whichever of three events fires first — the decoupled `cmd.Wait()`,
+the 30-second timeout, or the output-cap exceeded — with the same
+unconditional signal sequence run from all three); and one of D9's own
+supporting sections still enumerated only five of the six per-slug
+`flock`-acquiring verbs, omitting `trust-dolt`, even though D9's own
+primary enumeration already included it (text-only fix — the omission
+was in a second, narrower list, not in D9's own authoritative
+statement, and required no new AC). The three verified-clean findings
+— the add-time TOFU bootstrap already requiring no existing pin and
+never executing Dolt, duplicate `add` already being a strict no-op
+that never re-pins trust, and the exit-code table already cleanly
+distinguishing `dolt-trust-flag-required` from `dolt-trust-required` —
+are confirmed against this rev-9 adjudication's own described symptoms
+and found already resolved; no further change was made for them. This
+rev-9 rewrite resolves the three real findings and confirms the three
+verified-clean ones; see the companion PRD's §0.1 Claims Audit (`C40`)
+for the new source-grounding row.
+
+**Preserved across every review pass to date (rev-1 through rev-9,
+plus the rev-3 citation addendum — nine review passes total, matching
 the companion PRD's count)**: a
 separate `resources.json` per feature, never inside the canonical
 patch or unapply/lifecycle state; Dolt (or any external tool) is never
@@ -555,56 +601,101 @@ the others. `tool_identity.binary_sha256` in every tracked result
 remains always identical to the declaration's pinned value (D10),
 never a freshly-recomputed value presented as if it might differ.
 
-**Process-group termination — one unified sequence for every invocation**
-(rev-6 introduced `Setpgid`; rev-7 fixed the reap-timing gap; rev-8
-unifies the two paths rev-7 left separate): before `cmd.Start()`, the
+**Process-group termination — one unified sequence for every invocation,
+leader-exit detection decoupled from pipe drain** (rev-6 introduced
+`Setpgid`; rev-7 fixed the reap-timing gap; rev-8 unified the two
+paths rev-7 left separate but gated the whole sequence behind pipe
+drain; rev-9 fixes the resulting deadlock): before `cmd.Start()`, the
 adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}`
 (`linux`/`darwin` only, matching D9's build-tag contract), making the
 spawned child the leader of a **new** process group distinct from
-`tpatch`'s own. Rev-8 replaces rev-7's two-path design (a kill path
-that deferred `cmd.Wait()` past the group `SIGKILL`, and a separate
-"normal-success" path that called `cmd.Wait()` immediately on EOF)
-with a **single sequence applied identically to every invocation**,
-regardless of whether it times out, overflows the output cap, or
-completes normally: (1) drain both pipes to EOF; (2) unconditionally
-signal `syscall.Kill(-pgid, syscall.SIGTERM)` (the negative-PGID
-form), tolerating `ESRCH` (meaning the group is already fully gone);
-(3) keep the leader **unreaped** (`cmd.Wait()` not yet called) through
-a fixed grace period, regardless of what triggered this sequence or
-whether the direct child appears to have already exited; (4)
-unconditionally signal `syscall.Kill(-pgid, syscall.SIGKILL)`,
-tolerating `ESRCH`; (5) only then call `cmd.Wait()`, exactly once.
-There is no "`cmd.Wait()` observes the group has exited" claim
-anywhere in this design, and no code path infers group emptiness from
-the direct child's own exit status. Rev-7's own rationale — that
-`cmd.Wait()` only ever waits on the direct child, not the whole
-process group, so reaping the leader early frees its PID for reuse
-while a rogue descendant remains alive — is retained and generalized:
-the load-bearing fact is that the `SIGTERM`→grace→`SIGKILL`→group→
-`Wait()` escalation is **never skipped or cancelled merely because the
-direct child appears to have exited**, not that an unreaped leader by
-itself "prevents PGID reuse" (a rev-7 framing rev-8 corrects; the
-prevention comes from the escalation always running to completion,
-not from any inherent property of leaving a PID unreaped). Rev-8
-discloses two trade-offs this unification introduces, both previously
-absent from rev-7's two-path design: (a) **every** invocation, even
-one that completes successfully almost instantly, now pays the fixed
-grace-period latency before `cmd.Wait()` is called — there is no
-fast-path exemption; (b) a leader that closes both of its pipes (EOF)
-while remaining alive to do further work is now unconditionally
-carried through `SIGTERM`→grace→`SIGKILL` and forcibly terminated —
-this failure mode surfaces through the existing `dolt-query-error`
-taxonomy (D5, exit 3), not a new named refusal, since from the
-adapter's perspective it is indistinguishable from any other
-truncated-but-parseable-or-unparseable Dolt output. Verification:
-tests spawn a Dolt-invocation stand-in that itself forks a descendant
-which ignores `SIGTERM` and closes its pipes, exercised through
-**both** the timeout/cap-overflow trigger and the ordinary
-successful-completion trigger via the identical code path, and assert
-(i) the descendant's eventual termination, (ii) the `tpatch`
-test-runner process's own survival, (iii) exactly one `cmd.Wait()`
-call per invocation, occurring only after the group `SIGKILL`, in
-every case.
+`tpatch`'s own. Rev-8's unification made the entire escalation
+conditional on both pipes first reaching `EOF` — but pipe drain-to-
+`EOF` cannot complete while *any* process, including a descendant the
+leader itself spawned, still holds the write end open; a leader that
+exits successfully while such a descendant lingers left rev-8's design
+with no way to detect that exit and begin the escalation at all (a
+genuine ordering deadlock, not an unproven edge case). **Rev-9 fix**:
+instead of `cmd.StdoutPipe()`/`cmd.StderrPipe()`, the adapter creates
+two ordinary `os.Pipe()` pairs itself, assigns each write end directly
+to `cmd.Stdout`/`cmd.Stderr` (as `*os.File`) before `Start()`, and
+closes its own reference to each write end immediately after `Start()`
+returns. Because `os/exec` never creates or manages these particular
+`*os.File` objects — that coupling ("must fully drain before `Wait()`
+is safe") is specific to `StdoutPipe()`/`StderrPipe()` — `cmd.Wait()`
+in this configuration reflects only the OS-level reap of the leader's
+own PID and returns the instant the leader exits, independent of
+whether a descendant still holds either pipe open (PRD `C40`,
+empirically verified: `cmd.Wait()` returned in ~4ms while a concurrent
+pipe read only reached `EOF` ~3s later, once a backgrounded grandchild
+holding the pipe finally exited). The adapter runs `cmd.Wait()` in its
+own goroutine and races its result (via `select`) against the
+30-second invocation timer and the output-cap-exceeded signal from the
+two independent pipe-draining goroutines — **whichever of these three
+fires first** triggers the identical, unconditional group-signal
+sequence: (1) `syscall.Kill(-pgid, syscall.SIGTERM)`, tolerating
+`ESRCH` (the group is already fully gone — the common case when the
+`cmd.Wait()` branch fired because a well-behaved leader left no
+descendants behind); (2) a fixed grace period; (3)
+`syscall.Kill(-pgid, syscall.SIGKILL)`, tolerating `ESRCH`. Signaling
+`-pgid` (the leader's own original PID) still reaches any surviving
+descendant even after the leader itself has already been reaped by the
+`cmd.Wait()` branch, since the process group persists as long as any
+member remains (C36) — this is exactly how the deadlock is closed: the
+leader's own exit is detected the instant it happens, and the
+group-signal sequence that follows still reaches any descendant
+regardless of whether the leader is still alive, already reaped, or
+was itself the process that had to be killed. **Exit-status
+collection** differs only in source, never in the signal sequence
+itself: if the `cmd.Wait()` branch fired first, its already-available
+result is simply read from the channel — `cmd.Wait()` is called
+exactly once per invocation and never again after the signal sequence
+in this branch, since the leader was already reaped before any signal
+was sent; if the timeout/cap branch fired first instead, the same
+single, already-in-flight `cmd.Wait()` goroutine completes shortly
+after the `SIGKILL` step and its result is read from the same channel
+at that point. There is no "`cmd.Wait()` observes the group has
+exited" claim anywhere in this design, and no code path infers group
+emptiness from the direct child's own exit status — group emptiness is
+established solely by the unconditional `SIGTERM`→grace→`SIGKILL`
+sequence reaching every member of the PGID, run identically regardless
+of which of the three events triggered it. **This is not a return to
+two separate paths**: the descendant-killing sequence itself
+(`SIGTERM`→grace→`SIGKILL(-pgid)`) remains one identical, unconditional
+function invoked from all three trigger branches with no
+branch-specific behavior; the only per-branch difference is the
+unavoidable OS-level distinction in how the leader's own exit status is
+obtained, not in what is signaled, to whom, or in what order. Rev-7's
+own rationale — that `cmd.Wait()` only ever waits on the direct child,
+not the whole process group, so reaping the leader early frees its PID
+for reuse while a rogue descendant remains alive — remains retained and
+generalized: the load-bearing fact is that the escalation is **never
+skipped or cancelled merely because the direct child appears to have
+exited**, not that an unreaped leader by itself "prevents PGID reuse."
+Rev-8's two disclosed trade-offs are revised for rev-9's mechanism: (a)
+a fully successful invocation whose leader exits with no lingering
+descendants still incurs the (now harmless, since the group is already
+empty) `SIGTERM`/grace/`SIGKILL` calls before the pipe-drain goroutines
+are joined — accepted as the cost of one code path rather than three;
+(b) a leader that closes its pipes early while genuinely continuing
+legitimate work is unaffected by rev-9's redesign in kind, since pipe
+closure no longer gates anything — only the leader's own OS-level exit
+(via the decoupled `cmd.Wait()`) or the timeout/cap triggers the
+sequence, and a leader still running when one of those fires is still
+forcibly terminated, surfacing through the existing `dolt-query-error`
+taxonomy (D5, exit 3), not a new named refusal. Verification: tests
+cover all three trigger branches through the **same** unconditional
+group-signal code path — (a) a leader that exits successfully while a
+descendant ignores `SIGTERM` and only releases its pipes once killed:
+assert the `cmd.Wait()` channel fires first, the group-signal sequence
+still runs and kills the descendant, and the pipe-drain goroutines only
+reach `EOF` after the descendant is dead; (b) the pre-existing
+timeout-triggered case; and (c) the pre-existing output-cap-exceeded
+case — asserting in all three that the `tpatch` test-runner process
+itself is never signaled or observably affected, that the group-signal
+call sequence and its `-pgid` argument are byte-for-byte identical
+across all three branches, and that `cmd.Wait()` is observed exactly
+once per invocation.
 
 ### D6 — Executable and path safety: descriptor-identity gate for selectors, `db_path`/`cmd.Dir` hard refusal, opposite-direction policy for the Dolt binary (task 3; rev-6 hard refusal)
 
@@ -1468,16 +1559,19 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
     collide is `resource-id-collision`; these are two different Go
     error values, not two branches of one check.
 11. Process-group termination timing (D5, rev-7 introduced the
-    unreaped-through-grace fix; rev-8 unifies it into one sequence):
-    every invocation — success or kill-triggered alike — runs the
-    identical sequence: drain both pipes to EOF → unconditional
-    `SIGTERM(-pgid)` (tolerating `ESRCH`) → unreaped through the fixed
-    grace period regardless of trigger → unconditional `SIGKILL(-pgid)`
-    (tolerating `ESRCH`) → exactly one `cmd.Wait()` call. Rev-7's two
-    separate code paths (a kill path and a "normal-success" path
-    calling `Wait()` immediately on EOF) are replaced by this single
-    function; there is no fast-path exemption, and no code path infers
-    group emptiness from the direct child's own apparent exit.
+    unreaped-through-grace fix; rev-8 unified it into one sequence but
+    gated it behind pipe drain; rev-9 decouples leader-exit detection
+    from pipe drain): the identical unconditional group-signal sequence
+    — `SIGTERM(-pgid)` (tolerating `ESRCH`) → fixed grace period →
+    `SIGKILL(-pgid)` (tolerating `ESRCH`) — now runs on whichever of
+    three events fires first: a decoupled `cmd.Wait()` (backed by
+    caller-owned `os.Pipe()`s assigned to `cmd.Stdout`/`cmd.Stderr`,
+    reflecting only the leader's own OS-level exit, independent of
+    pipe state), the 30-second timeout, or the output-cap exceeded.
+    There is no fast-path exemption, and no code path infers group
+    emptiness from the direct child's own apparent exit or from
+    `cmd.Wait()`'s own return value/timing — only from the signal
+    sequence itself reaching every member of the PGID.
 12. Trust-pin storage (D5, rev-7) is a top-level `trust` field on each
     `resources.json` entry, deliberately excluded from
     `resource_id`'s hash-input computation (D3) — the field is
@@ -1573,17 +1667,23 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
   with write access to the private copy's own ephemeral scratch
   directory during the narrow window between its creation and its
   execution — that narrower residual is stated explicitly (D6).
-- Rev-8's unified process-group termination sequence (D5) trades
-  latency for one consistent code path: **every** Dolt invocation, even
-  one that completes almost instantly, now pays the fixed grace-period
-  delay before `cmd.Wait()` is called — there is no fast-path exemption
-  for an ordinary quick success. A leader that closes both of its
-  pipes (EOF) while still alive doing further work is now
-  unconditionally terminated by this same sequence; this surfaces
-  through the existing `dolt-query-error` taxonomy, not a distinct
-  named refusal, so an operator debugging such a case must know to
-  look at the process-group design (D5) rather than expecting a
-  Dolt-specific error message.
+- Rev-9's redesigned process-group termination sequence (D5) still
+  trades a fixed grace-period delay for one consistent group-signal
+  code path: **every** trigger branch — a leader-exit detected via
+  the decoupled `cmd.Wait()`, a timeout, or a cap-overflow — runs the
+  same `SIGTERM`→grace→`SIGKILL(-pgid)` sequence, so even a fully
+  successful invocation with no lingering descendants pays that fixed
+  latency (now harmless, since the group is already empty) before the
+  pipe-drain goroutines are joined and the invocation returns; there
+  is no fast-path exemption. A leader that closes both of its pipes
+  (an event that no longer gates anything under rev-9's design) while
+  still alive doing further work is still unconditionally terminated
+  once its own OS-level exit is detected, a timeout elapses, or the
+  cap is exceeded; this surfaces through the existing
+  `dolt-query-error` taxonomy, not a distinct named refusal, so an
+  operator debugging such a case must know to look at the
+  process-group design (D5) rather than expecting a Dolt-specific
+  error message.
 - The add-time trust bootstrap (D5, rev-8) means a duplicate `add`
   targeting an already-declared resource never re-pins trust, even if
   `--trust-current-dolt` is re-passed and the currently-resolved
@@ -1695,7 +1795,7 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
 | 74 | AC-44 | Lock | Second concurrent `capture` for same slug | `EWOULDBLOCK`/`EAGAIN` refuses immediately `capture-in-progress`, no polling |
 | 75 | AC-45 | Lock | `.lock` inode identity across repeated invocations for the same slug | Unchanged device+inode across every invocation — never removed/renamed/replaced |
 | 76 | AC-46 | Lock | Process holding `flock` is killed (simulated crash) | Kernel releases lock immediately; next invocation acquires with no manual reclaim |
-| 77 | AC-47 | Lock | Each of `add`/`remove`/`clear`/`capture`/`record --resources` invoked | Same per-slug `flock` acquired before first write |
+| 77 | AC-47 | Lock | Each of `add`/`remove`/`clear`/`trust-dolt`/`capture`/`record --resources` invoked | Same per-slug `flock` acquired before first write (rev-9 fix: `trust-dolt` was omitted from this row's own verb enumeration, though D9's own primary list already included it since rev-7) |
 | 78 | AC-47 | Lock | `list`/`diff` invoked | Neither ever acquires the `flock` |
 | 79 | AC-48 | Lock | Build tagged exactly `!linux && !darwin` (not a generic `!unix`), any mutating verb invoked | `resource-lock-unsupported` (exit 3) deterministically, never silently proceeding unlocked |
 | 80 | AC-49 | Lock | Two invocations race to acquire `.lock` for the same slug | Exactly one succeeds, the other refuses immediately `capture-in-progress`, no queued wait |
@@ -1764,12 +1864,12 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
 | 143 | AC-80 | Filesystem | Stubbed `Darwin` `statfs`/`Fstypename` result for osxfuse (`Fstypename`) | Refused `resource-lock-filesystem-unsupported` (exit 3) — `Darwin` denylisted type |
 | 144 | AC-80 | Filesystem | Stubbed `Darwin` `statfs`/`Fstypename` result for macfuse (`Fstypename`) | Refused `resource-lock-filesystem-unsupported` (exit 3) — `Darwin` denylisted type |
 | 145 | AC-80 | Filesystem | A filesystem type value on neither the Linux allow/deny list nor the Darwin allow/deny list (unrecognized) | Refused identically to a denylisted value — fail-closed on any unrecognized type, on either platform |
-| 146 | AC-81 | Scratch | First-ever creation of `.tpatch/local/resource-scratch/<slug>/`'s intermediate directories | Ignore gate targets the intended not-yet-created leaf directly (existence-independent); untracked gate targets the whole `.tpatch/local/` subtree (rev-8, task 7); `statfs` preflight targets the nearest existing ancestor only; then `MkdirAll`, then `fsync` of each newly-created directory's parent |
+| 146 | AC-81 | Scratch | First-ever creation of `.tpatch/local/resource-scratch/<slug>/`'s intermediate directories | Ignore gate targets the intended not-yet-created leaf directly (existence-independent); untracked gate targets the whole `.tpatch/local/` subtree (rev-8, task 7); `statfs` preflight targets the nearest existing ancestor only; then `MkdirAll`, then unconditional `fsync` of every directory in the relevant chain, both newly-created and already-visible on retry (rev-9 text fix: row previously said "fsync of each newly-created directory's parent," stale relative to D9's own already-correct unconditional-whole-chain text) |
 | 147 | AC-81 | Scratch | Crash simulated immediately after `MkdirAll` but before the `fsync` sequence completes | Retried invocation re-creates (idempotent `MkdirAll`) and re-`fsync`s the chain rather than assuming prior durability |
 | 148 | AC-82 | Publication | First-ever `capture`/`record --resources` for a slug (no prior `artifacts/resource-captures/` tree), crash simulated between the tracked tree's `MkdirAll` and its parent-directory `fsync` completing | Retried invocation recovers cleanly — re-running the idempotent `MkdirAll`, re-`fsync`ing, and proceeding to §7.3 steps 2-4 exactly as if the tree had always existed |
 | 149 | AC-83 | Output cap | Simulated Dolt child writes 6 MiB combined stdout+stderr | Process group killed (`SIGTERM` then `SIGKILL`), refused `resource-limit-exceeded` (exit 3), JSON parser never invoked at all for the over-cap invocation |
 | 150 | AC-84 | Output cap | Stdout alone 4 MiB, stderr alone 4 MiB (each under cap, combined over) | Refused `resource-limit-exceeded` — proves one shared budget, not two independent 5 MiB budgets |
-| 151 | AC-85 | Process group | `cmd.SysProcAttr{Setpgid: true}` set before `cmd.Start()` on `linux`/`darwin`, inspected | Confirmed set; a timeout/cap-triggered kill signals the negative PGID with `SIGTERM`, then holds the leader **unreaped** through the full grace period (no `cmd.Wait()` call), then `SIGKILL`s the group (tolerating `ESRCH`), then reaps via `cmd.Wait()` |
+| 151 | AC-85 | Process group | `cmd.SysProcAttr{Setpgid: true}` set before `cmd.Start()` on `linux`/`darwin`, inspected | Confirmed set; a timeout/cap-triggered kill signals the negative PGID with `SIGTERM`, then (rev-9: the already-launched, still-in-flight `cmd.Wait()` goroutine has not yet returned a result — it is not called a second time, only awaited) waits the full grace period, then `SIGKILL`s the group (tolerating `ESRCH`), after which the same `cmd.Wait()` goroutine's result becomes available |
 | 152 | AC-85 | Process group | Test Dolt-adapter stub spawns a descendant that ignores `SIGTERM` and closes its own pipes; a timeout/cap kill is triggered | The descendant is eventually terminated by the group `SIGKILL` (not orphaned, not reaped early); the parent `tpatch` process itself is provably unaffected |
 | 153 | AC-86 | Diff | Directory `ignored-file`, one file's mode changed, content/byte_count unchanged (chmod-only) | `combined_hash` differs on next `capture`/`diff`; `diff` reports that entry's `mode` as the differing field, `hash`/`byte_count` unchanged for that entry |
 | 154 | AC-87 | Publication | Resource captured with content `A`, then `B`, then `A` again (three `capture` invocations) | Exactly two distinct `batches/<id>.json` files exist after the third invocation, not three; `current.json` repoints to the pre-existing `A` batch without creating a new batch file |
@@ -1783,8 +1883,8 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
 | 162 | AC-93 | Trust | Private Dolt-binary copy's permissions/lifetime inspected across success and failure invocations | Created, hashed, hardened to `0500` only after a matching digest, and deleted (best-effort) after the child exits on both outcomes |
 | 163 | AC-94 | Trust | Test double records `cmd.Path`/observed `argv[0]` for a Dolt invocation | Equals the private copy's own ephemeral path, never the originally `LookPath`/`EvalSymlinks`-resolved pathname |
 | 164 | AC-95 | Manifest | A hand-constructed `resources.json` entry whose own recorded `resource_id` does not match its own freshly-recomputed value | Refused `resources-file-corrupt` (exit 3) at load time — distinct from `AC-88`'s two-declaration collision |
-| 165 | AC-96 | Process group | Instrumented test double asserts no `cmd.Wait()` call occurs between the `SIGTERM` and the post-grace `SIGKILL`, exercised via both the timeout/cap-overflow trigger and the ordinary successful-completion trigger through the identical code path | No `Wait()` observed until after `SIGKILL` is issued, in either case; exactly one `Wait()` call per invocation |
-| 166 | AC-97 | Process group | Direct child closes both pipes (EOF) while a lingering descendant or the leader itself remains alive doing further work | Forcibly terminated via the unified `SIGTERM`→grace→`SIGKILL` sequence regardless; surfaces as `dolt-query-error` (no new refusal name); elapsed time between EOF and `Wait()` is never less than the grace duration, even for an otherwise-instant success |
+| 165 | AC-96 | Process group | A leader exits successfully while a descendant sharing its PGID keeps both stdout/stderr pipe write ends open | Decoupled `cmd.Wait()` (via caller-owned `os.Pipe()`s assigned to `cmd.Stdout`/`cmd.Stderr`) detects the leader's exit without waiting for pipe drain; the unconditional `SIGTERM`→grace→`SIGKILL(-pgid)` sequence still runs and kills the descendant; the pipe-drain goroutines only reach `EOF` after the descendant is dead (rev-9 rewrite: closes the deadlock in rev-8's pipes-gated design) |
+| 166 | AC-97 | Process group | All three trigger branches — decoupled `cmd.Wait()` completes first, 30-second timeout elapses first, or output cap is exceeded first — exercised through the identical code path | The unconditional group-signal sequence and its `-pgid` argument are byte-for-byte identical across all three branches; `cmd.Wait()` is observed exactly once per invocation, with only the source of the leader's exit status differing (already-available channel value vs. a `cmd.Wait()` that completes moments after `SIGKILL`) (rev-9 rewrite) |
 | 167 | AC-98 | Scratch | Leaf-targeted **ignore** half of the gate evaluated for `.tpatch/local/resource-scratch/<slug>/` both when the leaf directory exists and when it does not (fresh clone) | Identical refusal/pass outcome in both cases; distinguished from the `statfs` preflight, which necessarily targets the nearest existing ancestor |
 | 168 | AC-99 | Scratch | Retried invocation after a simulated first-attempt crash, with some directories in the chain already `Stat`-visible from the failed attempt | Every directory in the chain (local scratch and tracked `artifacts/resource-captures/`/`batches/`) is unconditionally re-`fsync`'d, not only directories `MkdirAll` reports as newly created on the retry |
 | 169 | AC-100 | Filesystem | Stubbed `linux/s390x` `Statfs_t.Type` (`uint32`) compared against the `uint32`-typed allow/deny constants | Comparison succeeds identically to `linux/amd64`/`arm64` (`int64`) and `linux/386`/`arm` (`int32`) stubs for the same filesystem magic number, confirming architecture-independent normalization |
