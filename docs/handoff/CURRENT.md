@@ -2,19 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-Cluster H′ rev-0 implementation is complete and pushed. Both
-implementation commits are on `origin/main`; independent internal and
-external rev-0 reviews have not yet run.
+Cluster H′ rev-0 is blocked by dual review. Rev-1 is dispatched to the same
+sequential implementer for six bounded correctness and test-strength fixes.
 
 ## Active Task
 
-- **Task ID**: Cluster H′ rev-0
+- **Task ID**: Cluster H′ rev-1
 - **Milestone**: v0.15.0 typed feature resources and capture adapters
 - **Description**: Implement the Accepted Cluster H PRD and ADR-033
   end-to-end.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-11
 - **WAVE_BASE**: `46c984b`
 - **Dispatch commit**: `f277d51`
@@ -37,9 +36,25 @@ Two commits:
    Windows-portability fix, the `exitCodeFor` extraction, and the docs
    plus shipped-asset parity updates.
 
+### Rev-0 dual-review adjudication
+
+Internal and external both returned **NEEDS REVISION**. Valid findings:
+
+1. `add` writes selector/arg declarations without the §8.3 redaction scan.
+2. Output drains keep appending after the 5 MiB cap and can consume
+   unbounded memory.
+3. Successful process runs leak the stopped timer's receiver goroutine.
+4. Batch loads do not fully bind filename/field/content or reject trailing
+   JSON.
+5. Optional capabilities are stored raw, creating duplicate semantic IDs and
+   making the documented Dolt CLI form miss the golden ID.
+6. The AC/matrix ledger is name-based and several safety rows have only
+   nominal source/text coverage.
+
 ## Current State
 
-Everything in the rev-0 dispatch brief is implemented. What landed:
+The rev-0 surface is implemented but is not accepted until the six review
+findings above are closed. What landed:
 
 - **Store/wire** (`internal/store/`): `resources.json` declaration
   manifest with the closed kind set; exact `res_` canonicalization with
@@ -140,19 +155,23 @@ It maps every `AC-1`..`AC-120` to the concrete test(s) that discharge it
 and to the ADR-033 matrix rows it covers, and three guards keep the map
 honest: all 120 clauses claimed with no gaps/extras, the union of
 claimed rows exactly `1..189` with no duplicates, and every claimed test
-name confirmed to exist as a real `func Test` declaration.
+name confirmed to exist as a real `func Test` declaration. Rev-0 review
+proved this is only a completeness ledger, not semantic coverage; rev-1 must
+make package/subtest references exact and add mutation-resistant assertions
+for the weak rows.
 
 ## Next Steps
 
-1. Run the independent internal rev-0 review.
-2. Run the independent external rev-0 review.
-3. Adjudicate, then run the Wave-Close Checklist.
-4. Tag `v0.15.0` only after the implementation wave is accepted.
+1. Fold all six rev-0 findings and the targeted mutation-test notes.
+2. Re-run targeted, race, full-suite, cross-build and real CLI checks.
+3. Update this handoff to AWAITING REVIEW and push rev-1.
+4. Run independent internal and external rev-1 reviews.
+5. Tag `v0.15.0` only after the implementation wave is accepted.
 
 ## Blockers
 
-None. No contradictory or impossible requirement was found in the
-Accepted papers; nothing in the PRD or ADR was modified.
+No external blocker. Rev-0 cannot be accepted until the adjudicated findings
+are closed. The Accepted papers remain unchanged.
 
 ## Residuals and Reviewer Focus
 

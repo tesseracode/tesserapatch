@@ -649,6 +649,11 @@ Review requires the full 120-clause / 189-row contract, dual independent
 verdicts, unchanged guarded WIP and an 8/8 release close. No tag before final
 acceptance.
 
+**Rev-0** (`bff5ef5`, `c66845a`): dual **NEEDS REVISION**. Rev-1 is
+dispatched for declaration redaction, true bounded output memory, timer
+cleanup, strict batch integrity, capability canonicalization, and
+mutation-resistant coverage of safety-critical matrix rows.
+
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 
 **Registered**: 2026-08-10.

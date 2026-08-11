@@ -1,3 +1,55 @@
+## Review — Cluster H′ rev-0 adjudication — 2026-08-11
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-prime-r0-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-prime-r0-external`)
+**Implementation commits**: `bff5ef5`, `c66845a`
+**Reviewed range**: `f277d51..977e9da`
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Verified Clean
+
+- Pushed refs, Rule 18 trailers, Accepted papers and Side Research md5.
+- gofmt, vet, build, full tests, race tests, assets parity and cross-builds.
+- Most store, capture, Git/Dolt, lock, CLI and record behavior, including all
+  golden hashes and real exit-code taxonomy.
+
+### Valid Findings
+
+1. **HIGH — declaration privacy**: `feature resource add` persists selector
+   and arg values without the PRD §8.3 hard-refusal scan.
+2. **HIGH — output bound**: drain buffers append every byte after overflow;
+   the external reviewer reproduced 1.72 GiB retained under a 5 MiB cap.
+3. **MEDIUM — timer leak**: successful invocations stop the timer but leave
+   its dedicated receiver goroutine blocked.
+4. **HIGH — batch integrity**: normal reads do not bind decoded `batch_id` and
+   canonical body to the requested filename; semantic re-capture accepts
+   trailing JSON after one valid object.
+5. **MEDIUM — capability identity**: Dolt's inferred `diff-summary` is
+   validated but not stored/hashed when `--capability` is omitted; git
+   metadata `head` also accepts a second, duplicate capability form.
+6. **MEDIUM — test strength**: the AC ledger drops subtest identity, permits
+   cross-package name matches and nominally assigns several matrix mechanisms
+   to tests that do not exercise them.
+
+### Required Test Hardening
+
+- Bound stored stdout+stderr to cap-plus-one under a real runaway child.
+- Drive all four golden resource IDs through the real `add` CLI.
+- Verify current-pointer temp/rename atomicity and strict batch-load
+  filename/field/content/EOF checks.
+- Test the real `Setpgid` call site and descriptor `os.SameFile` gate.
+- Add semantic coverage for rows 173–176, 179–180, 183, 186 and 189,
+  including noexec, ENOSPC/EIO, native observer behavior, deadline failure,
+  escaped-writer timeout, multi-error precedence and Wait-after-signals.
+- Make coverage references exact-package and exact-subtest, while retaining
+  the 120/189 completeness ledger.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to rev-1. The same sequential implementer
+owns the bounded fold; Accepted papers and guarded WIP remain untouched.
+
 ## Dispatch — Cluster H′ rev-0 — 2026-08-11
 
 **Supervisor**: Copilot CLI
