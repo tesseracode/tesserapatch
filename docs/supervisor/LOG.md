@@ -1,3 +1,59 @@
+## Review — Cluster H rev-11 adjudication — 2026-08-19
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`cluster-h-r10-external`, follow-up)
+**Writer commit**: `1403276`
+**Reviewed range**: `bc313df..1403276`
+
+### Verdict: NEEDS REVISION → REV-12 DISPATCHED
+
+### Verified Clean
+
+- All nine rev-10 findings are closed.
+- 111 contiguous AC clauses, 180 contiguous matrix rows and full coverage.
+- Four resource IDs, batch/directory digests, six shared JSON blocks, Vector
+  3 and Side Research md5.
+- Darwin stopped-child handling, `EPERM` observation, bounded pipe deadlines,
+  direct-hash TOFU, capture-copy permissions, dry-run behavior and CI
+  architecture.
+- Core invariant: the leader is not reaped before negative-PGID signaling.
+
+### Consolidated Findings
+
+1. `ECHILD` force-closes pipe readers before claiming the cleanup-owner
+   guard; the induced read error can re-enter normal cleanup and signal the
+   explicitly unsafe recycled PGID.
+2. Non-`ECHILD` observer failure likewise lacks endpoint/goroutine ownership
+   and can be overtaken by normal cleanup.
+3. A live unsignalable leader can return `EPERM` and then block indefinitely
+   in `cmd.Wait`; reap finalization needs its own bound.
+4. Error precedence is defined only within group signaling, not across entry,
+   observer, signal, reap and drain outcomes.
+5. The pipe-drain deadline is outcome-determining but has no concrete value.
+6. ADR matrix/summary text reverses the normative Wait-then-drain order and
+   overstates signal delivery to every group member.
+7. One PRD passage still overclaims that verified bytes are necessarily the
+   ultimately executed bytes.
+
+### Rev-12 Direction
+
+- Every event, including terminal observer error, first acquires one
+  cleanup-owner guard. Close/deadline-induced reader errors are completion
+  events, never new triggers.
+- Normal and non-`ECHILD` error cleanup share signal → bounded Wait/reap →
+  bounded drain finalization. `ECHILD` alone skips group signals and Wait,
+  then force-closes and joins readers under the already-held owner.
+- Use concrete two-second reap and pipe-drain deadlines. A blocked reap
+  returns a named internal error without holding the slug lock forever.
+- Select simultaneous triggers by fixed priority and keep the selected
+  trigger as primary; later cleanup failures become diagnostics unless entry
+  was benign, in which case the first cleanup failure is primary.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-12 DISPATCHED`; no architecture surface
+outside the process finalizer is reopened.
+
 ## Review — Cluster H rev-10 adjudication — 2026-08-18
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`)

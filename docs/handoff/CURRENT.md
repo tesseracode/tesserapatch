@@ -2,10 +2,21 @@
 
 ## Status
 
-**Cluster state**: REV-11 WRITTEN — AWAITING REVIEW
+**Cluster state**: REV-12 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-19 Cluster H rev-11 adjudicated NEEDS REVISION → rev-12
+DISPATCHED.** Both reviewers confirmed every rev-10 finding closed. The
+remaining defect is compositional: terminal observer branches do not first
+acquire the common cleanup owner, so their forced pipe closes can re-enter
+normal cleanup and send signals that `ECHILD` explicitly forbids. Rev-12
+gives every trigger one owner, suppresses cleanup-induced reader events,
+defines deterministic error precedence, and adds concrete two-second reap
+and drain bounds. It also aligns Wait/drain ordering and removes the final
+executed-byte/group-delivery overclaims. No product scope, wire schema,
+privacy boundary or hash is reopened.
 
 **2026-08-19 Cluster H rev-11 WRITTEN — bounded platform/state-machine
 fold, AWAITING REVIEW.** Same sequential writer continued from rev-10
@@ -3432,19 +3443,18 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Fold the consolidated rev-10 Darwin/observer/signal/drain and
-   stale-surface findings into one bounded process state machine.
+1. Fold the rev-11 cleanup-owner, precedence and bounded-finalizer findings.
 2. Re-run source, platform-runtime, golden-vector, JSON parity and
    AC/matrix audits.
-3. Run correctly scoped internal and external rev-11 reviews.
+3. Run correctly scoped internal and external rev-12 reviews.
 4. Continue the same writer context only if a further residual
-   micro-fold is required by the rev-11 adjudication verdict.
+   micro-fold is required by the rev-12 adjudication verdict.
 5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-11 dispatched.
+**Status**: Cluster H planning active; rev-12 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
