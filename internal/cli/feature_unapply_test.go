@@ -1383,7 +1383,9 @@ func TestUnappliedParentBlocksHardDependencyAndLabelsWaiting(t *testing.T) {
 	}
 }
 
-func TestActiveParentStillSatisfiesHardDependency(t *testing.T) {
+// v0.14.0 aligns the runtime gate with the pre-existing documented
+// satisfying set, which has always included active parents.
+func TestActiveParentSatisfiesHardDependency(t *testing.T) {
 	_, s := newRejectRepo(t, map[string]store.FeatureState{
 		"parent": store.StateActive,
 		"child":  store.StateApplied,

@@ -59,6 +59,14 @@
 each review found a distinct empirical data-integrity boundary. The close
 criterion remained monotonic: no finding was deferred into v0.14.0.
 
+**Post-release close-claim review**: APPROVED WITH NOTES. The reviewer
+independently confirmed every headline claim, exact 1022 PASS / 0 FAIL count,
+22/22 Rule 18 trailers, Side Research md5, WIP empty diff and 8/8 close gate.
+Three non-breaking notes were folded on `main` without moving the v0.14.0 tag:
+(1) disclose that `active` parents now satisfy hard apply/land gates, aligning
+runtime with pre-existing docs; (2) rename the regression test to remove false
+continuity; (3) repair SPEC conjunction/wrapping.
+
 **Next**: no successor dispatched; select from post-v0.14.0 backlog.
 
 ---
@@ -8392,4 +8400,3 @@ None.
 **Collision check**:
 - Did not touch Stream A file `docs/prds/PRD-active-feature-session.md`.
 - No production code, assets, CHANGELOG, or Stream A ADR follow-ups touched.
-

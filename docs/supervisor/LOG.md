@@ -1,3 +1,37 @@
+## Review — v0.14.0 post-release close claim — 2026-08-10
+
+**Reviewer**: External reviewer (independent close-claim audit)
+**Range**: `9e77617..0ef771c` (22 commits)
+
+### Verdict: APPROVED WITH NOTES
+
+### Confirmed
+
+- v0.14.0 tag and `origin/main` at `0ef771c`.
+- Transactional unapply, atomic status writes and canonical reapply.
+- Full lifecycle/assets integration and terminal tracking/archive.
+- 1022 top-level PASS / 0 FAIL, 22/22 Rule 18 trailers, Side Research md5,
+  allowlisted-WIP empty diff and wave-close 8/8.
+
+### Notes and Disposition
+
+1. **MEDIUM — folded**: v0.14.0 also corrected the hard-dependency gate so
+   `active` parents satisfy apply/land, matching pre-existing documentation.
+   Added explicit CHANGELOG disclosure.
+2. **LOW — folded**: renamed
+   `TestActiveParentStillSatisfiesHardDependency` to remove the false claim
+   that runtime already behaved this way; added alignment comment.
+3. **LOW — folded**: repaired the double conjunction and wrapping in SPEC's
+   rejected-source list.
+4. **Observation — recorded**: external full passes occurred at rev-2 and
+   rev-5; other revisions were internal confirmations or deferred external
+   passes. The ROADMAP review table already makes this cadence explicit.
+
+### Action Taken
+
+Post-release amendment committed to `main`; annotated tag `v0.14.0` remains
+fixed at `0ef771c` and is not rewritten.
+
 ## Supervisor decision — Cluster G' SHIPPED / v0.14.0 — 2026-08-10
 
 **Decision**: APPROVED → SHIPPED

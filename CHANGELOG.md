@@ -61,6 +61,12 @@ metadata or patch history.
 - Record/cycle/feature-patch/amend guards prevent inverse-patch capture or
   partial metadata mutation while unapplied.
 
+### Fixed
+
+- Hard-dependency gates now treat parents in `active` state as satisfied for
+  `apply` and `land`, aligning runtime behavior with the pre-existing
+  documented satisfying set (`applied`, `active`, `upstream_merged`).
+
 ### Quality
 
 - Accepted PRD-feature-unapply + ADR-032 D1-D8 implemented.

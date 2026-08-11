@@ -7,6 +7,13 @@
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
 
+**2026-08-10 v0.14.0 post-release close-claim review APPROVED WITH NOTES.**
+Headline release claims, 1022/0 count, tag/push, tracking, WIP preservation,
+8/8 gate and invariants independently confirmed. Notes folded on `main`
+without moving `v0.14.0`: disclose the runtime alignment that lets `active`
+hard parents satisfy apply/land, rename its regression test without false
+continuity, and repair SPEC conjunction/wrapping.
+
 **2026-08-10 Cluster G' SHIPPED — v0.14.0 `tpatch feature unapply`.**
 Six-revision implementation/review arc closed three-way APPROVED at rev-5
 (internal APPROVED, external APPROVED, zero residuals). Code tip `6941d41`;
@@ -244,6 +251,9 @@ only after implementation review and wave close.
   Linked-worktree staged-diff/index-identity regression and full gates pass.
 - **Cluster G' SHIPPED** — rev-5 internal + external APPROVED clean; v0.14.0
   release consolidation authorized with 1022 top-level tests passing.
+- **Post-release external review** — APPROVED WITH NOTES; three disclosure/
+  naming/prose notes folded after the tag without changing release code or
+  moving v0.14.0.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.

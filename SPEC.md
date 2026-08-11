@@ -61,9 +61,9 @@ concepts: `upstream_merged` asserts an implementation exists upstream,
 complete feature directory and an append-only audit history.
 
 `tpatch reject` is refused (exit 3) from `implementing`, `applied`,
-`active`, `reconciling`, `reconciling-shadow`, `blocked` and
-`upstream_merged`, and `unapplied`. Post-implementation retirement is out of scope; see
-`docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
+`active`, `reconciling`, `reconciling-shadow`, `blocked`,
+`upstream_merged`, and `unapplied`. Post-implementation retirement is out
+of scope; see `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 
 ### 4. CLI Commands
 

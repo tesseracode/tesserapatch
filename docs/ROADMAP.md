@@ -621,6 +621,10 @@ omission; spaces/Unicode/pathspec magic; symlink and traversal; file↔directory
 transitions; mode-only false success; unrelated and staged owned-path dirt;
 linked-worktree index layouts.
 
+**Post-release close-claim review**: APPROVED WITH NOTES. Headline claims and
+release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
+`main` without moving the v0.14.0 tag.
+
 ## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
 
 Planning-phase cluster for v0.13.0 GH #6. Data-model extension (not just CLI addition), so planning phase separated from implementation phase. Docs-only. Dual review at rev-0/1/2/3; internal-only confirmation at rev-4. **4 review revs, 8 review turns, 10 commits**.
