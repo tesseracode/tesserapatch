@@ -2,23 +2,39 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
 
-**2026-08-10 Cluster H rev-0 adjudicated NEEDS REVISION → rev-1
-DISPATCHED.** Internal review: 7 HIGH + 1 MEDIUM. External review: 3 HIGH +
-8 MEDIUM + 3 LOW. Convergent blockers: raw ignored/adapter payloads cannot be
-committed under ADR-027; `generic-command` has no enforceable sandbox;
-symlink-aware safety was falsely attributed to lexical helpers;
-`record --resources`/dry-run/retry semantics contradict current record;
-multi-file batch rename was not atomic; resource IDs used incompatible
-canonicalization; adapter/Dolt/diff protocols were incomplete; matrix/count/
-citation handoff claims overstated verification. Rev-1 keeps sound D1/D2/D7/
-D10 boundaries but moves raw bodies to the local-private lane, removes
-generic-command from v1, locks realizable pointer-based batch publication,
-and rebuilds exact schemas/AC mapping.
+**2026-08-10 Cluster H rev-1 WRITTEN — full fold of both rev-0 dual-review
+verdicts, awaiting dual review.** Single sequential writer rewrote both
+papers end-to-end from `dd08157` (rev-0) against the adjudication at
+`89c8d79`. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
+is now 1396 lines (was 1086); `docs/adrs/ADR-033-resource-capture-boundary.md`
+is now 664 lines (was 992, corrected from CURRENT's stale "963" rev-0
+claim). Raw snapshot/diff/file bytes moved off every tracked artifact into a
+new gitignored `.tpatch/local/resource-capture/<slug>/` lane (immutable
+batches + one atomic `current`-pointer rename); `generic-command` removed
+from v1 entirely (Dolt is the sole closed adapter); a mandatory
+Lstat+EvalSymlinks+containment+`.git`-target-refusal gate now runs at both
+`add` and every `capture`, for every path a feature touches; `ignored-file`
+now requires both `gitutil.IsPathIgnored` **and** confirmed-untracked (the
+`--no-index` gap is closed); `git-metadata` narrowed to 4 closed views with
+exactly 4 non-PII `config` keys; Dolt's protocol uses only verified DoltHub
+flags (no fabricated `--json`); `resource_id` uses a new sorted
+canonical-JSON `args` encoding with 4 independently-recomputed golden
+vectors (reordered-key equivalence proven); a new six-class hard-refusal
+redaction scanner is required of Cluster H' (PEM/OpenSSH keys, DB/connection
+URLs, emails/PII, credential assignments, bearer/token patterns, home
+paths); `record --resources` now stages privately before Git-side capture
+and publishes the resource pointer only after Git succeeds, with an honest
+partial-domain error + recovery command when the two domains diverge; six
+false/fabricated rev-0 citations were corrected (fabricated `ADR-031 D10`,
+false "`EnsureSafeRepoPath` is symlink-aware," false "`verify` is
+`ExitCodeError`'s sole user," normative reliance on untracked WP-006, a
+stale `RemoveClaim` line range, and the rev-0 stale ADR line count itself).
+See "Ready for review — Cluster H rev-1" below.
 
 **2026-08-10 Cluster H rev-0 WRITTEN — v0.15.0 candidate typed feature
 resources + capture adapters (planning only), awaiting dual review.** Single
@@ -208,12 +224,13 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-0 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-1 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-0
+- **Task ID**: Cluster H rev-1
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Author the feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-1 fold)
+- **Description**: Fold both rev-0 dual-review verdicts into the
+  feature-resource PRD and ADR-033 boundary.
+- **Status**: Review
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -276,6 +293,53 @@ only after implementation review and wave close.
   plus 15 supporting safety rows. Both new-document JSON wire examples
   verified byte-identical between PRD and ADR. Ready for dual review; see
   "Ready for review — Cluster H rev-0" below.
+- **Cluster H rev-1** — dispatched 2026-08-10 (adjudication `89c8d79`) from
+  `WAVE_BASE=f04dec7`; written 2026-08-10. Both rev-0 dual-review verdicts
+  (internal 7 HIGH + 1 MEDIUM, external 3 HIGH + 8 MEDIUM + 3 LOW) folded in
+  full across both papers. `PRD-feature-resource-claims-and-capture-adapters.md`
+  rewritten to 1396 lines; `ADR-033-resource-capture-boundary.md` rewritten
+  to 664 lines (corrected from the rev-0 handoff's stale "963" claim — actual
+  rev-0 file was 992 lines). Preserved: separate `resources.json`, no
+  canonical-patch/lifecycle authority, Dolt never authoritative/a core
+  dependency, Git-only replay. Rewritten: raw snapshot/diff/file bytes now
+  live only under a new gitignored `.tpatch/local/resource-capture/<slug>/`
+  lane (immutable `lb_<12hex>` batches + one atomic `current`-pointer
+  rename, D8) — tracked sidecars are hash/count/classification-only, never
+  verbatim (D1); `generic-command` removed entirely, Dolt is the sole v1
+  adapter (D2); a mandatory Lstat+`EvalSymlinks`+containment+`.git`-target-refusal
+  gate runs at both `add` and every `capture` for every path touched (D6);
+  `ignored-file` requires both `gitutil.IsPathIgnored` **and**
+  confirmed-untracked, closing the `--no-index` gap, plus exact 5 MiB/20
+  MiB/200-file directory limits re-checked at capture time (D4); `git-metadata`
+  narrowed from an unrestricted allowlist to 4 closed views with exactly 4
+  non-PII `config` keys, no more `user.name`/`user.email`/wildcards (D5);
+  the Dolt protocol uses only DoltHub-verified flags (`--name-only
+  --filter=`), never a fabricated `--json`/per-row schema (D7); `resource_id`
+  uses a new sorted, minimally-escaped canonical-JSON `args` encoding with 4
+  independently-recomputed golden vectors, including a reordered-key
+  equivalence proof (D3); a new exported, content-agnostic six-class
+  hard-refusal redaction scanner is required of Cluster H' — PEM/OpenSSH
+  keys, DB/connection URLs, emails/PII, credential assignments, bearer/token
+  patterns, home paths (D9); `record --resources` now stages privately
+  before Git-side capture and publishes the resource pointer only after Git
+  succeeds, with an honest partial-domain error, exact recovery command, and
+  a new per-command exit-code table (D10). Corrected six false/fabricated
+  rev-0 citations (fabricated `ADR-031 D10`; false "`EnsureSafeRepoPath`/
+  `NormalizeClaimPath` are symlink-aware"; false "`verify` is the sole
+  `ExitCodeError` user" — six commands actually use it, matching `SPEC.md`'s
+  own "per-command contracts, not a global enum" language; normative
+  reliance on untracked `WP-006`, replaced with the tracked
+  `storage-substrate-and-versioned-data.md` research; a stale `RemoveClaim`
+  line range; and the rev-0 handoff's own stale ADR line count). Rebuilt the
+  acceptance-criteria list at clause granularity: 41 `AC`-tagged clauses,
+  mechanically verified present in the PRD; the ADR's Test Matrix has 66
+  mechanically-counted rows covering all 41 clauses (not claimed "exactly
+  once" anywhere — several clauses map to 2+ rows for human/JSON pairs or
+  multi-outcome tables). All 4 shared JSON wire examples (`resources.json`
+  + 3 per-kind `summary.json` examples) verified programmatically
+  byte-identical between the two documents. `git diff --check` clean on
+  both files. Ready for dual review; see "Ready for review — Cluster H
+  rev-1" below.
 - **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
   Store foundation complete: `StateUnapplied` is the twelfth valid state and
   `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
@@ -401,6 +465,104 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
   writer; all pre-existing untracked WIP (`PRD-recurring-patches.md`,
   WP-004/005/006/007 drafts and turns files, case-studies directory) remains
   untouched and unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit (see
+  "Context for Next Agent" below).
+
+## Files Changed — Cluster H rev-1
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, 1396 lines (was 1086). New structure: §0 Rev-1 Fold
+  Summary (Claims Audit — 10 rows, `C1`–`C10`, each independently
+  re-verified against current source this session; What rev-1 removes;
+  golden ID vectors; requirement-letter → section map), §1 Problem
+  Statement, §2 Goals/Non-Goals, §3 Command Surface (`capture`/`diff` split
+  as two distinct verbs), §4 Data Model (`resources.json` + per-resource
+  `summary.json`, missing-local semantics), §5 Resource Kinds
+  (`ignored-file` dual-gate + limits, `git-metadata` 4-view allowlist,
+  `adapter-snapshot` Dolt-only), §6 Adapter Protocol (verified Dolt argv,
+  probe outcomes, timeouts/caps/env), §7 Local Storage & Transaction Design
+  (immutable batches, atomic pointer, crash-window table, history model),
+  §8 Privacy & Redaction (six closed classes, hard refusal), §9 Symlink &
+  Path Safety (four-step gate + outcome table), §10 `record --resources`
+  Semantics (stage-then-publish, partial-domain error, exit codes), §11
+  Wire Schemas (one JSON example per kind), §12 Resource ID
+  Canonicalization (algorithm + 4 golden vectors), §13 Acceptance Criteria
+  (41 `AC`-tagged clauses + exact-count reasoning), §14 Open
+  Questions/Negative Consequences, §15 Rev-1 Changelog.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in full,
+  664 lines (was 992 — the rev-0 handoff's "963" claim was itself stale;
+  the actual rev-0 file was 992 lines). 10 binding decisions (D1–D10):
+  scope/authority reaffirmation (D1), closed 3-kind set with
+  `generic-command` removed (D2), resource-ID canonicalization + golden
+  vectors (D3), `ignored-file` dual-gate + limits (D4), `git-metadata`
+  4-view allowlist (D5), symlink/path safety gate (D6), verified Dolt
+  protocol (D7), local storage/transaction model (D8), six-class
+  hard-refusal redaction (D9), `record --resources` stage-then-publish
+  semantics + exit codes (D10). Wire Schema Appendix with byte-identical
+  JSON examples shared with the PRD, Implementation Notes for Cluster H'
+  (5 items), Negative Consequences Summary, and a 66-row Test Matrix
+  covering all 41 PRD acceptance-criteria clauses.
+- `docs/handoff/CURRENT.md` — this update: Status narrative, Active Task
+  Status → Review, Session Summary, this Files Changed section, Test
+  Results, and the "Ready for review — Cluster H rev-1" section below.
+  Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any existing PRD/ADR, and all code/assets remain
+untouched by this cluster — confirmed via `git status --short` showing only
+the three owned paths as modified/deleted-then-recreated.
+
+## Test Results — Cluster H rev-1
+
+Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
+`cmd/`, or `assets/` files were touched. Validation performed instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace errors,
+  no conflict markers).
+- Citation re-verification: every `file:line` anchor cited in the PRD's §0.1
+  Claims Audit (`C1`–`C10`) was independently re-read against current
+  source this session, including `internal/cli/feature_deps.go:38-51`
+  (`featureCmd` doc comment, confirmed the correct citation replacing rev-0's
+  fabricated `ADR-031 D10`), `internal/safety/safety.go` (confirmed
+  `EnsureSafeRepoPath` is lexical-only, no `Lstat`/`EvalSymlinks`),
+  `internal/gitutil/ignore.go` (confirmed `IsPathIgnored` uses `git
+  check-ignore -q --no-index`), `internal/cli/session_redaction.go`
+  (confirmed unexported/observation-shaped/drop-line), `internal/cli/exit_error.go`
+  plus a repo-wide grep confirming six (not one) `&ExitCodeError{` call
+  sites, `internal/store/claims.go:436-444` (`RemoveClaim`, confirmed exact
+  range), and `SPEC.md`'s exact "Exit codes are per-command contracts, not a
+  single global enum ... `tpatch verify` has its own, unrelated exit-2
+  meaning" quote (verified verbatim at `SPEC.md:137-138`).
+- Dolt CLI syntax re-verified against the DoltHub CLI reference
+  (`https://www.dolthub.com/docs/cli-reference/cli/`): confirmed
+  `--name-only`, `--filter={added,modified,renamed,dropped}`,
+  `--schema`/`--data`, and `-r`/`--result-format {tabular,sql,json}` all
+  exist as documented; confirmed no bare `--json` flag exists; confirmed
+  `dolt version`'s single-line output shape.
+- Golden-vector recomputation: all four `resource_id` vectors (§12.3 in the
+  PRD, D3 in the ADR) independently recomputed via Python `hashlib.sha256`
+  against the exact canonical-JSON/payload construction described in both
+  documents; all four match; Vector 3 (reordered `args`) confirmed
+  byte-identical to Vector 2, proving order-independence.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents and confirmed all four
+  shared examples (`resources.json`, and the `adapter-snapshot`/
+  `git-metadata`/`ignored-file` `summary.json` examples) are byte-identical
+  between the PRD and the ADR (Python `str ==` comparison on the raw fenced
+  block text, not just semantic/sorted-key equality).
+- AC/test-matrix mapping check: mechanically extracted every `AC-<n>` tag
+  from the PRD (41 distinct, `AC-1`..`AC-41`, including two multi-item
+  ranges `AC-16`–`AC-21` and `AC-25`–`AC-27` that expand to individually
+  countable clauses) and every numbered row of the ADR's Test Matrix
+  section specifically (66 rows, `1`..`66`, isolated from the document's
+  other numbered tables — golden-vector and view tables — which also use a
+  leading-integer column but are not part of the Test Matrix); confirmed
+  all 41 clauses appear in at least one matrix row and no row count is
+  claimed "exactly once" anywhere in either document.
+- `git status --short` confirmed only the three owned paths are
+  touched by this writer; all pre-existing untracked WIP
+  (`PRD-recurring-patches.md`, WP-004/005/006/007 drafts and turns files,
+  case-studies directory) remains untouched and unstaged.
 - Side Research md5 invariant re-verified unchanged after this edit (see
   "Context for Next Agent" below).
 
@@ -654,17 +816,24 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Writer folds rev-0 safety/authority/transaction/protocol findings.
-2. Re-run exact citation, JSON parity and clause-level AC-matrix audits.
-3. Run independent internal and external rev-1 reviews.
-4. Reuse the same writer context for further bounded folds if needed.
-5. On approval: accept papers, archive Cluster H, flip ROADMAP's Cluster H
-   status, and dispatch implementation as a separate Cluster H' — no code
-   changes belong in this cluster's history.
+1. Run independent internal and external rev-1 reviews against both
+   rewritten papers.
+2. If either verdict is NEEDS REVISION, dispatch a rev-2 fold with the
+   specific findings; reuse the same writer context.
+3. On dual APPROVED (or APPROVED WITH NOTES): accept papers, archive
+   Cluster H to `docs/handoff/HISTORY.md`, flip ROADMAP's Cluster H status,
+   and dispatch implementation as a separate Cluster H' — no code changes
+   belong in this cluster's history.
+4. At Cluster H' dispatch: brief the implementer on the six required new
+   primitives this rev-1 design assumes but does not itself build —
+   `internal/redact.Scan` (D9), the local batch/pointer commit protocol
+   (D8), the symlink-safety helper (D6), the narrowed `git-metadata` view
+   resolver (D5), the verified Dolt argv adapter (D7), and the
+   stage-then-publish `record --resources` integration (D10).
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-1 dispatched.
+**Status**: Cluster H planning active; rev-1 written, awaiting dual review.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
@@ -673,12 +842,15 @@ files. The gap is typed resources outside ordinary Git diff authority:
 explicit gitignored files, logical Git metadata, Dolt schema/table diffs, and
 optional deterministic adapter exports.
 
-The candidate must provide add/remove/list/diff metadata and define how future
-auto-record consumes explicit resource claims. It must not capture raw
-`.git/**`, sweep ignored files implicitly, make Dolt/SQLite authoritative, or
-replace Git as the supported change-tracking substrate. Resource diffs remain
-sidecar audit artifacts in v1. See ROADMAP registered-candidate section for
-the CLI sketch, dependencies and safety boundaries.
+The candidate must provide add/remove/list/diff/capture metadata and define
+how `record --resources` consumes explicit resource claims without ever
+becoming canonical-patch/lifecycle authority. It must not capture raw
+`.git/**`, sweep ignored files implicitly, make Dolt authoritative or a core
+dependency, or replace Git as the supported change-tracking substrate.
+Resource capture results remain sidecar audit artifacts in v1, and (as of
+rev-1) raw content of any kind is local-only and opt-in — tracked artifacts
+are hash/count/classification-only. See ROADMAP registered-candidate section
+for the CLI sketch, dependencies and safety boundaries.
 
 ## Blockers
 
@@ -686,17 +858,111 @@ None.
 
 ## Context for Next Agent
 
-- **Cluster H rev-0 papers are written and awaiting dual review at
+- **Cluster H rev-1 papers are rewritten and awaiting dual review at
   `WAVE_BASE=f04dec7`.** No code or release tag belongs in this cluster;
   implementation is a separately dispatched Cluster H' only after both
-  papers reach Accepted status. See "Ready for review — Cluster H rev-0"
+  papers reach Accepted status. See "Ready for review — Cluster H rev-1"
   below for reviewer focus areas.
+- **Both rev-0 verdicts were NEEDS REVISION** — rev-1 is a substantial
+  rewrite, not a patch (see the Session Summary entry above for the full
+  fold list). If rev-1 also comes back NEEDS REVISION, re-read this
+  handoff's Session Summary/Files Changed/Test Results entries for rev-1
+  before re-diving into the papers — the design rationale for every
+  changed decision is recorded there, not just in the papers themselves.
 - **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
 - **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-1
+
+**Scope**: docs-only planning cluster, rev-1 fold. Same two deliverables as
+rev-0, both fully rewritten (not patched), plus this handoff update — no
+code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — 1396
+   lines (was 1086). See "Files Changed — Cluster H rev-1" above for the
+   full section-by-section breakdown; see the Session Summary entry above
+   for the complete list of changed decisions mapped to the dispatch's
+   requirement letters (A–N).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — 664 lines (was 992).
+   Same 10-decision (D1–D10) shape as rev-0 but every decision's content is
+   rewritten; see "Files Changed — Cluster H rev-1" above.
+
+**Files changed (Cluster H rev-1)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no existing PRD/ADR changes** (docs-only cluster, exactly
+the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D1 (ADR) ↔ §4/§8.1 (PRD): both state tracked artifacts are
+  hash/count/classification-only, never raw bytes; both cite the same
+  gitignored local path shape.
+- D3 (ADR) ↔ §12 (PRD): identical canonical-JSON `args` encoding and
+  identical four golden vectors (`res_acc91dc23a8b`, `res_19b4675405e2`
+  ×2, `res_79f5ac5dca13`), independently recomputed and matching in both
+  documents.
+- D8 (ADR) ↔ §7 (PRD): identical local batch layout, commit protocol, and
+  crash-window table.
+- D9 (ADR) ↔ §8 (PRD): identical six closed redaction classes and
+  hard-refusal (not scrub-and-continue) policy.
+- D10 (ADR) ↔ §10 (PRD): identical stage-then-publish ordering, identical
+  partial-domain error framing, identical exit-code table.
+- WP-006 is not cited anywhere in either document (replaced by the tracked
+  `storage-substrate-and-versioned-data.md`).
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal (D6)
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) are both cited
+  consistently in both documents.
+- All 41 PRD §13 acceptance-criteria clauses appear in the ADR's 66-row Test
+  Matrix; the matrix explicitly disclaims any "exactly once" mapping claim.
+
+**Validation performed**:
+- `git diff --check` on both rewritten files — clean.
+- Every `file:line` citation in the PRD's §0.1 Claims Audit re-verified
+  directly against current source this session (see "Test Results —
+  Cluster H rev-1" above for the full list).
+- Dolt CLI syntax re-verified against the live DoltHub CLI reference this
+  session (no fabricated flags or output schema).
+- All four golden `resource_id` vectors independently recomputed via Python
+  `hashlib.sha256` and confirmed matching in both documents, including the
+  reordered-key equivalence proof.
+- All four shared JSON wire examples programmatically confirmed
+  byte-identical (raw string equality, not just semantic equality) between
+  the PRD and the ADR.
+- AC/test-matrix coverage mechanically verified: 41 distinct `AC-<n>` tags
+  in the PRD, all 41 present in the ADR's 66-row Test Matrix.
+- `git status --short` confirmed only the three owned paths are touched by
+  this writer; pre-existing untracked WIP is untouched.
+- Side Research md5 invariant re-verified unchanged:
+  `b385fe622db9926f48861105239f113e`.
+
+**Reviewer focus areas**:
+- Confirm the new local-storage lane (`.tpatch/local/resource-capture/`)
+  genuinely satisfies ADR-027 D1's ignored-before-first-write mandate as
+  designed (D8/§7), and that no tracked artifact anywhere in the rewritten
+  wire schema (§11/Wire Schema Appendix) contains raw bytes.
+- Confirm the symlink-safety gate (D6/§9) is re-run at *every* capture, not
+  just `add`, and that it covers the resolved Dolt executable path as well
+  as ordinary resource selectors.
+- Confirm the `ignored-file` dual gate (D4/§5.1) correctly closes the
+  `--no-index` gap and that the removed "untracked but not ignored"
+  acceptance case is genuinely gone, not just de-emphasized.
+- Confirm the Dolt protocol (D7/§6) never asserts a fabricated JSON schema
+  and that every flag cited is independently verifiable against the DoltHub
+  reference.
+- Confirm the `record --resources` stage-then-publish ordering (D10/§10)
+  and partial-domain error framing are internally consistent and that no
+  code-facing claim (exit codes, message text) contradicts `record`'s
+  existing, unmodified behavior.
+- Confirm the 41-clause/66-row AC/matrix accounting is genuinely mechanical
+  (spot-check a handful of `AC-<n>` tags against their matrix rows) and not
+  merely asserted.
 
 ## Ready for review — Cluster H rev-0
 
