@@ -2,10 +2,25 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-1 adjudicated NEEDS REVISION → rev-2
+DISPATCHED.** Internal review: 5 HIGH + 2 MEDIUM. External review: 1 CRITICAL
++ 3 HIGH + 7 MEDIUM + 2 LOW. Golden IDs, four shared JSON blocks, 41 AC
+clauses, 66 contiguous rows, and most corrected citations verified clean.
+Remaining blockers: every Dolt argv combines mutually exclusive flags;
+local persistent raw bodies and wall-clock/overwrite semantics still conflict
+with ADR-027; symlink gate misses ancestor components and executable policy
+rejects every valid Dolt location; tracked publication still spans N files;
+wire variants and exit codes remain incomplete; locks/failure directories are
+not crash-recoverable; local-ignore and literal-pathspec mandates lack exact
+coverage; CURRENT counts drifted after addendum. Rev-2 replaces Dolt diff
+flags with the source-verified `dolt_diff_summary` SQL interface, removes
+persistent raw bodies, uses one immutable tracked batch + atomic pointer,
+and closes path/lock/wire/tracking details.
 
 **2026-08-10 Cluster H rev-1 WRITTEN — full fold of both rev-0 dual-review
 verdicts, awaiting dual review.** Single sequential writer rewrote both
@@ -230,7 +245,7 @@ only after implementation review and wave close.
 - **Milestone**: v0.15.0 candidate (planning)
 - **Description**: Fold both rev-0 dual-review verdicts into the
   feature-resource PRD and ADR-033 boundary.
-- **Status**: Review
+- **Status**: In Progress (rev-2 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -836,24 +851,21 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run independent internal and external rev-1 reviews against both
-   rewritten papers.
-2. If either verdict is NEEDS REVISION, dispatch a rev-2 fold with the
-   specific findings; reuse the same writer context.
-3. On dual APPROVED (or APPROVED WITH NOTES): accept papers, archive
+1. Replace invalid Dolt argv with verified deterministic SQL summary capture.
+2. Remove persistent raw bodies and align fully with ADR-027 D1-D6.
+3. Lock single-pointer publication, path/executable, stale-lock, local-ignore,
+   literal-pathspec and failure-directory semantics.
+4. Complete tagged wire variants, exit codes and new matrix rows.
+5. Re-run internal and external rev-2 review with exact count audits.
+6. Reuse the same writer context for further bounded folds if needed.
+7. On dual APPROVED (or APPROVED WITH NOTES): accept papers, archive
    Cluster H to `docs/handoff/HISTORY.md`, flip ROADMAP's Cluster H status,
    and dispatch implementation as a separate Cluster H' — no code changes
    belong in this cluster's history.
-4. At Cluster H' dispatch: brief the implementer on the six required new
-   primitives this rev-1 design assumes but does not itself build —
-   `internal/redact.Scan` (D9), the local batch/pointer commit protocol
-   (D8), the symlink-safety helper (D6), the narrowed `git-metadata` view
-   resolver (D5), the verified Dolt argv adapter (D7), and the
-   stage-then-publish `record --resources` integration (D10).
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-1 written, awaiting dual review.
+**Status**: Cluster H planning active; rev-2 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record

@@ -1,3 +1,66 @@
+## Review — Cluster H rev-1 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r1-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r1-external`)
+**Writer commits**: `e8572b2`, `f0f2c1f`
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Verified Closed
+
+- Four golden IDs and reorder equivalence.
+- Four shared PRD/ADR JSON blocks byte-identical.
+- 41 AC clauses represented across 66 contiguous rows.
+- `generic-command` absent normatively.
+- Most rev-0 privacy/citation corrections.
+
+### Blocking Findings
+
+1. **CRITICAL/HIGH — Dolt**: all exact argv templates combine
+   `--name-only` with `--schema`/`--data`, which cited Dolt source rejects.
+   Three-filter classification also multi-hits data changes and misses rename.
+2. **HIGH — ADR-027**: persistent local raw bodies, overwritten summaries and
+   tracked wall-clock timestamps still conflict with D1-D6.
+3. **HIGH — path policy**: final-component-only symlink handling misses
+   ancestor escapes; repo containment plus in-repo refusal leaves no valid
+   executable location.
+4. **HIGH — publication**: local pointer plus N tracked summaries is not one
+   atomic resource-domain commit.
+5. **HIGH — wire**: nested-map order is not controlled by fixed outer structs;
+   several tagged result variants and exit classifications remain undefined.
+6. **MEDIUM — Git gates**: tracked-file checks fail open and omit literal
+   pathspec semantics.
+7. **MEDIUM — operations**: lock is permanently wedged after crash; failure
+   diagnostics conflict with immutable-success batches; version probe can
+   network/write HOME; local-ignore mandate lacks AC; file creation has a
+   permission window.
+8. **LOW/MEDIUM — tracking**: addendum invalidated line counts; cross-refs,
+   field names and HEAD example drifted.
+
+### Rev-2 Direction
+
+- Use source-verified `dolt sql -r json -q` over
+  `dolt_diff_summary(from,to[,table])`, whose schema is
+  `{from_table_name,to_table_name,diff_type,data_change,schema_change}`.
+- Remove runtime version probe; identify tool by safe basename + binary hash,
+  keeping absolute path local-only.
+- Persist no raw source/adapter bodies in either lane. Capture may use
+  owner-only ephemeral scratch, then delete it. Track immutable structural/
+  hash summaries only.
+- Publish one immutable tracked batch summary and atomically rename one
+  tracked `current.json` pointer; no per-resource summary writes.
+- Resolve every selector path unconditionally and open the resolved in-repo
+  path; apply a distinct external-executable policy.
+- Specify literal Git pathspecs, exact no-match vs fatal errors, local-ignore
+  reuse, creation-time 0600/0700, stale-lock reclaim and failed-temp cleanup.
+- Add complete tagged result variants, deterministic examples, honest
+  crash/partial-domain semantics and exact matrix coverage.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-2 DISPATCHED`. Sound manifest/authority/
+Dolt-non-authority/Git-replay boundaries remain closed.
+
 ## Review — Cluster H rev-0 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r0-internal`)
