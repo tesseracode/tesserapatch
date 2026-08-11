@@ -2,23 +2,38 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
 
-**2026-08-10 Cluster H rev-0 DISPATCHED — v0.15.0 candidate typed feature
-resources + capture adapters (planning only).** Single sequential writer owns
-`docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`,
-`docs/adrs/ADR-033-resource-capture-boundary.md`, and CURRENT.md. Scope:
-extend shipped v0.9 file claims/capture modes to explicit ignored resources,
-logical Git metadata and optional deterministic external adapters such as
-Dolt; define add/remove/list/diff metadata and future auto-record integration.
-Binding safety: raw `.git/**` remains forbidden, ignored files are explicit
-opt-in under ADR-027 privacy rules, resource diffs are v1 sidecars rather than
-canonical patches, Git remains the only replay substrate, and no optional
-adapter becomes a core dependency or authority. No code, assets, version bump,
-or tag in Cluster H.
+**2026-08-10 Cluster H rev-0 WRITTEN — v0.15.0 candidate typed feature
+resources + capture adapters (planning only), awaiting dual review.** Single
+sequential writer produced `docs/prds/
+PRD-feature-resource-claims-and-capture-adapters.md` (1086 lines) and
+`docs/adrs/ADR-033-resource-capture-boundary.md` (963 lines). The PRD extends
+shipped v0.9 file claims/capture modes with a new, separate
+`resources.json` manifest covering three closed v1 resource kinds
+(`ignored-file`, `git-metadata`, `adapter-snapshot` with exactly two closed
+adapters `dolt`/`generic-command`), a full adapter execution/sandbox
+protocol, a snapshot/diff sidecar wire envelope mirroring the existing
+`post-apply.patch`/`patches/NNN-*.patch` canonical-vs-audit pattern, and
+`record --resources` all-or-nothing batch transaction semantics with no
+`patch-generations.json` coupling. The ADR locks 10 binding decisions
+(D1–D10, exceeding the required 8) with byte-identical wire examples shared
+with the PRD, Implementation Notes for Cluster H', a Negative Consequences
+Summary, and a 45-row test matrix providing exact 1:1 coverage of all 30 PRD
+acceptance criteria plus 15 supporting safety rows. Binding safety honored:
+raw `.git/**` remains forbidden at both the diff and store-write boundary
+(reusing ADR-030's two-layer pattern), ignored files are explicit opt-in
+gated by `gitutil.IsPathIgnored` (never swept implicitly), resource diffs are
+v1 sidecar audit artifacts only (never canonical-patch/lifecycle authority —
+no lifecycle command reads `resources.json`), Git remains the sole
+replay/change-tracking substrate (WP-006 non-Git replay explicitly not
+relied upon), and Dolt/`generic-command` are optional runtime-discovered
+adapters with zero new core dependency and no adapter granted tpatch
+authority. No code, assets, ROADMAP, SPEC, CHANGELOG, or supervisor/LOG.md
+changes in Cluster H rev-0.
 
 **2026-08-10 v0.14.0 post-release close-claim review APPROVED WITH NOTES.**
 Headline release claims, 1022/0 count, tag/push, tracking, WIP preservation,
@@ -185,7 +200,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster H rev-0
 - **Milestone**: v0.15.0 candidate (planning)
 - **Description**: Author the feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -224,7 +239,30 @@ only after implementation review and wave close.
 ## Session Summary
 
 - **Cluster H rev-0** — dispatched 2026-08-10 from `WAVE_BASE=f04dec7`;
-  planning writer active.
+  written 2026-08-10. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
+  (1086 lines) and `docs/adrs/ADR-033-resource-capture-boundary.md`
+  (963 lines) authored from scratch, both Claims Audits verified against
+  current source (not stale line references). New `resources.json` manifest
+  (separate from `claims.json`, D1); `res_<12hex>` deterministic ID scheme
+  (D3); three closed v1 resource kinds and two closed adapter names (D6/D7,
+  Dolt scoped strictly to `schema-diff`/`table-diff`, no core dependency, no
+  authority); logical Git metadata restricted to a 4-view allowlist with a
+  `config` key allowlist, raw `.git/**` refused at both diff and store-write
+  boundaries (D5); `ignored-file` resources gated on `gitutil.IsPathIgnored`
+  plus ADR-027 D3 redaction-as-precondition (D4); argv-only, no-shell,
+  env-name-only adapter execution protocol with timeout/output caps (D6);
+  resource diffs are pure sidecar audit artifacts with zero lifecycle
+  coupling — no command in `internal/workflow`/`internal/cli` gates on them
+  (D2); `record --resources` is an all-or-nothing batch with independent
+  Git-side capture and no `patch-generations.json` write (D8); snapshot/diff
+  wire envelope mirrors the existing `post-apply.patch`/`patches/NNN-*.patch`
+  canonical-vs-audit pattern with non-null empty arrays (D9); no coupling to
+  patch generations and clean, non-recoverable local delete on
+  `remove`/`clear`, mirroring `RemoveClaim` (D10). PRD has 30 numbered
+  acceptance criteria; ADR has a 45-row test matrix mapping every AC 1:1
+  plus 15 supporting safety rows. Both new-document JSON wire examples
+  verified byte-identical between PRD and ADR. Ready for dual review; see
+  "Ready for review — Cluster H rev-0" below.
 - **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
   Store foundation complete: `StateUnapplied` is the twelfth valid state and
   `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
@@ -281,6 +319,77 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-0
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — new,
+  1086 lines. Full v1 design: Claims Audit (20 rows), Summary, Problem
+  Statement with existing-primitives preflight (§1.1), Goals/Non-goals,
+  Command Surface with candidate-command evaluation table (§3), Persisted
+  Manifest schema (§4), Resource Kinds and Selector Normalization (§5),
+  Adapter Capability/Execution Protocol (§6), Snapshot/Diff Artifact Layout
+  and Wire Envelope (§7), Privacy/Redaction/Safety (§8), Auto-record
+  Integration/Transaction/Failure Semantics (§9), Interactions (§10),
+  Backward Compatibility (§11), Explicit Deferrals (§12), Implementation
+  Notes for Cluster H' (§13), 30 numbered Acceptance Criteria (§14), 4 Open
+  Questions each with a locked v1 default (§15), Disputes (§16, none).
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — new, 963 lines. 10
+  binding decisions (D1–D10): manifest placement (new `resources.json`, not
+  an extension of `claims.json`), authority boundary (sidecar-only, zero
+  lifecycle coupling), resource ID/selector normalization (`res_<12hex>`),
+  ignored-file/privacy boundary (`gitutil.IsPathIgnored` gate + ADR-027 D3),
+  logical Git metadata allowlist (4 closed views), adapter discovery/
+  execution/sandbox contract (argv-only, no shell, env-name-only), Dolt's v1
+  scope (one closed adapter, never authoritative), `record --resources`
+  transaction/failure policy (all-or-nothing batch), snapshot/diff wire
+  schema (fixed envelope, non-null empty arrays), and generation/amend/
+  remove lifecycle/backward compatibility (no `patch-generations.json`
+  coupling, clean delete on remove). Includes byte-identical JSON wire
+  examples shared with the PRD, an Implementation Notes section for
+  Cluster H' (8 items), a Negative Consequences Summary (one row per
+  decision), and a 45-row Test Matrix mapping every PRD §14 AC (1–30) 1:1
+  plus 15 supporting safety rows.
+- `docs/handoff/CURRENT.md` — this update: Status narrative, Active Task
+  Status → Review, Session Summary, this Files Changed section, Test
+  Results, Next Steps, and the "Ready for review — Cluster H rev-0" section
+  below. Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`, `SPEC.md`,
+`CHANGELOG.md`, any existing PRD/ADR, and all code/assets remain untouched by
+this cluster.
+
+## Test Results — Cluster H rev-0
+
+Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
+`cmd/`, or `assets/` files were touched. Validation performed instead:
+
+- `git diff --check` on both new files — clean (no whitespace errors, no
+  conflict markers).
+- Citation verification: every `file:line` anchor cited in both the PRD
+  Claims Audit and the ADR Claims Audit/decision sections was independently
+  re-read against current source (not trusted from stale line references).
+  Two incorrect citations found during self-review were corrected before
+  finalizing: `internal/store/claims.go:436-444` → `:434-444` (`RemoveClaim`
+  exact line range), and a fabricated `ADR-031 D10` citation (that D10 is
+  actually about the `reject` verb naming disposition, not feature-noun
+  scoping) replaced with a direct quote from `featureCmd`'s own doc comment
+  at `internal/cli/feature_deps.go:39-51`.
+- Wire-example parity check: extracted every fenced ` ```json ` block from
+  both new documents programmatically and confirmed the ADR's `resources.json`
+  example (D1) and diff-envelope example (D9) are byte-identical to the
+  PRD's §4 and §7 examples respectively.
+- AC/test-matrix mapping check: confirmed all 30 PRD §14 acceptance-criterion
+  numbers (AC-1..AC-30) appear exactly once each in the ADR's Test Matrix
+  `PRD AC` column, with 15 additional untagged supporting-safety rows, for a
+  total of 45 mechanically-countable rows.
+- Decision count check: confirmed exactly 10 `## D<N>:` decision headers
+  (D1–D10) in the ADR, exceeding the required minimum of 8.
+- `git status --short` confirmed only the two new files are added by this
+  writer; all pre-existing untracked WIP (`PRD-recurring-patches.md`,
+  WP-004/005/006/007 drafts and turns files, case-studies directory) remains
+  untouched and unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit (see
+  "Context for Next Agent" below).
 
 ## Files Changed — Cluster G' rev-0
 
@@ -532,11 +641,20 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Writer authors PRD + ADR-033 and updates the handoff.
-2. Run independent internal and external reviews over both papers.
+1. Cluster H rev-0 papers are written and staged for review (this handoff).
+2. Run independent internal and external reviews over both papers, checking:
+   the D1 separate-manifest-vs-extend-claims tradeoff; the D2 sidecar/
+   zero-lifecycle-coupling boundary; the D4 ignored-file/redaction gate; the
+   D5 four-view Git-metadata allowlist and `.git/**` store-write refusal
+   (defense in depth, mirrors ADR-030 D3/D4); the D6 no-shell/argv-only
+   adapter execution contract; the D7 Dolt-as-one-closed-adapter/no-new-
+   dependency scope; the D8 `record --resources` all-or-nothing transaction
+   semantics and independence from the Git-side capture; and the 1:1 PRD-AC
+   to ADR-test-matrix mapping (30 ACs, 45 rows).
 3. Reuse the same writer context for bounded folds until convergence.
-4. On approval: accept papers, archive Cluster H, and leave implementation
-   for separately dispatched Cluster H'.
+4. On approval: accept papers, archive Cluster H, flip ROADMAP's Cluster H
+   status, and dispatch implementation as a separate Cluster H' — no code
+   changes belong in this cluster's history.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
@@ -562,14 +680,176 @@ None.
 
 ## Context for Next Agent
 
-- **Cluster H planning is active at `WAVE_BASE=f04dec7`.** No code or release
-  tag belongs in this cluster.
+- **Cluster H rev-0 papers are written and awaiting dual review at
+  `WAVE_BASE=f04dec7`.** No code or release tag belongs in this cluster;
+  implementation is a separately dispatched Cluster H' only after both
+  papers reach Accepted status. See "Ready for review — Cluster H rev-0"
+  below for reviewer focus areas.
 - **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
 - **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-0
+
+**Scope**: docs-only planning cluster. Two new deliverables, no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — new,
+   1086 lines. Extends shipped v0.9 file claims (`PRD-feature-file-claims.md`)
+   and record capture modes (`PRD-record-capture-modes.md`) with a typed
+   feature-resource layer for content Git does not (or cannot) diff:
+   explicit gitignored/generated files, logical Git metadata, Dolt schema/
+   table diffs, and deterministic generic-command adapter snapshots.
+   - §0 Claims Audit: 20 rows, every `file:line` anchor independently
+     re-verified against current source during this session (not carried
+     over from any stale draft).
+   - §1.1 Existing-primitives preflight: explains why `claims.json` (a
+     Git-diffable-path scoping primitive) and capture modes (Git-diff-only
+     dispatch) cannot represent non-file, adapter-executed, or logical-view
+     resources without conflating two different write-boundary guarantees.
+   - §3 Command Surface: locks `tpatch feature resource add|list|remove|
+     clear|diff <slug> ...` plus `tpatch record <slug> --resources`, with a
+     candidate-command evaluation table showing alternatives considered.
+   - §4 Persisted Manifest: new `resources.json` (NOT an extension of
+     `claims.json`), full schema example, `res_<12hex>` deterministic ID.
+   - §5 Resource Kinds: exactly three closed v1 kinds (`ignored-file`,
+     `git-metadata` with a 4-view allowlist, `adapter-snapshot` with exactly
+     two closed adapters `dolt`/`generic-command`) — explicitly closed, not
+     runtime-plugin-extensible.
+   - §6 Adapter Protocol: discovery (`exec.LookPath`), executable/version
+     identity, args/env/stdin/cwd/timeout/output-limit contract, exit/error
+     taxonomy mapped to tpatch's existing exit-code convention (1/2/3, no
+     new exit code 4), deterministic normalization rules.
+   - §7 Wire Envelope: snapshot/diff sidecar layout mirroring the existing
+     `artifacts/post-apply.patch`/`patches/NNN-*.patch` canonical-vs-audit
+     pattern from `docs/feature-layout.md`; full JSON example with non-null
+     empty `added`/`removed`/`changed` arrays.
+   - §8 Privacy/Safety: binds to ADR-027 D3 (redaction is a write
+     precondition, hard failure on refusal), size/binary handling, symlink/
+     path safety via `safety.EnsureSafeRepoPath`.
+   - §9 Auto-record Integration: `record --resources` all-or-nothing batch
+     transaction; a single adapter failure blocks the whole resource batch
+     but never rolls back the already-completed Git-side canonical capture
+     from the same invocation; `--dry-run` shares the staging code path.
+   - §10 Interactions with claims, capture modes, patch generations,
+     status/next/land/reconcile/remove — resources never gate any lifecycle
+     command (sidecar-only authority).
+   - §11 Backward Compatibility, §12 Explicit Deferrals (10 items), §13
+     Implementation Notes for Cluster H', §14 30 numbered Acceptance
+     Criteria, §15 4 Open Questions (each with a locked v1 default so
+     Cluster H' is not blocked), §16 Disputes (none).
+
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — new, 963 lines. Locks
+   10 binding decisions (D1–D10, exceeding the required minimum of 8):
+   - D1: new `resources.json` manifest, not an extension of `claims.json`
+     (Alternative 2 chosen) — includes the byte-identical wire example
+     shared with PRD §4.
+   - D2: resource diffs are pure sidecar audit artifacts with zero lifecycle
+     coupling; no command in `internal/workflow`/`internal/cli` reads
+     `resources.json` or `resources/` for correctness (Alternative 2 chosen).
+   - D3: `res_<12hex>` deterministic ID scheme, NUL-separated hash over
+     `(feature, kind, selector, adapter, capability, canonical_args)`, plus
+     locked per-kind selector normalization rules (Alternative 2 chosen).
+   - D4: `ignored-file` `add` requires `gitutil.IsPathIgnored == true`
+     (fail-closed on `ErrGitUnavailable`), plus ADR-027 D3 redaction as a
+     write precondition (Alternative 2 chosen).
+   - D5: `git-metadata` restricted to a closed 4-view allowlist (`refs`,
+     `attributes`, `index-summary`, `config` with a locked-safe key
+     pattern), with a `.git/**`-reference store-write-boundary refusal
+     applied defense-in-depth regardless of which view produced the output,
+     mirroring ADR-030 D3/D4's two-layer pattern (Alternative 2 chosen).
+   - D6: adapters invoked via direct `exec.Command` argv (never a shell);
+     env resolved by name-allowlist at execution time only; hard timeout and
+     output-size caps on every invocation (Alternative 2 chosen).
+   - D7: Dolt realized exclusively as one closed-set `adapter-snapshot`
+     adapter name (`dolt`) with exactly two capabilities (`schema-diff`,
+     `table-diff`), discovered at runtime, never embedded as a Go
+     dependency, never granted write access or tpatch authority
+     (Alternative 2 chosen).
+   - D8: `record --resources` is an all-or-nothing batch (scratch-then-
+     atomic-rename); independent of the already-completed Git-side capture;
+     never writes `patch-generations.json`; `--dry-run` shares the staging
+     path (Alternative 2 chosen).
+   - D9: fixed-field JSON envelope (`version`, `feature`, `resource_id`,
+     `kind`, `adapter`, `capability`, `executable_path`, `version_probe`,
+     `raw_sha256`, `normalized_sha256`, `outcome`, `changes.{added,removed,
+     changed}`, `body_ref`) via `json.Marshal` on a fixed struct
+     (declaration-order serialization, ADR-032 D3 precedent) — includes the
+     byte-identical wire example shared with PRD §7.
+   - D10: no `patch-generations.json` coupling; `remove`/`clear` fully
+     delete manifest rows and sidecar directories (mirrors `RemoveClaim`
+     clean-delete, no tombstone); missing `resources.json` is the
+     empty-manifest state (mirrors `LoadClaims`) (Alternative 2 chosen).
+   - Implementation Notes (8 items) for Cluster H'.
+   - Negative Consequences Summary (one row per decision, 10 rows).
+   - Test Matrix: 45 rows, exactly 1:1-mapping all 30 PRD §14 acceptance
+     criteria (AC-1..AC-30, each appearing exactly once in the `PRD AC`
+     column) plus 15 untagged supporting safety/determinism rows. Rows 15,
+     16, 19, 26, 30, and 45 are flagged safety-critical
+     (`.git/**` exclusion, shell-injection safety, redaction-as-precondition,
+     secret-by-reference, defense-in-depth store-write boundary, and the
+     mechanical zero-lifecycle-coupling grep check).
+
+**Files changed (Cluster H rev-0)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — new
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — new
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check, per this
+cluster's review-risk controls):
+- D1 (ADR) ↔ §4 (PRD): both choose a new, separate `resources.json`; the
+  `resources.json` JSON example is byte-identical between the two documents
+  (programmatically verified).
+- D9 (ADR) ↔ §7 (PRD): both lock the same fixed-field envelope; the
+  diff-envelope JSON example is byte-identical between the two documents
+  (programmatically verified).
+- D3 (ADR) `res_<12hex>` hash-input tuple order `(feature, kind, selector,
+  adapter, capability, canonical_args)` matches PRD §4's field-rule prose
+  for `resource_id` exactly.
+- D6 (ADR) exit-code classification (adapter-missing/timeout/nonzero-exit/
+  output-too-large → 1; unsafe-path/redaction-refused → 3; closed-set
+  rejections → 2) matches PRD §6.7's exit/error taxonomy table exactly.
+- WP-006 is cited throughout as `Status: Exploring` (not accepted); neither
+  document claims non-Git replay is approved or in scope.
+- No raw `.git/**` capture is proposed anywhere; both documents distinguish
+  logical Git metadata (resolved refs/attributes/index-summary/config
+  values) from filesystem-internal `.git/**` byte content throughout.
+- All 4 PRD §15 Open Questions carry an explicit locked v1 default, so
+  Cluster H' is not blocked by any deferred choice.
+
+**Validation performed**:
+- `git diff --check` on both new files — clean.
+- Every `file:line` citation in both Claims Audits re-verified directly
+  against current source this session; two incorrect citations found during
+  self-review were corrected (see "Test Results — Cluster H rev-0" above).
+- `git status --short` confirmed only the two new files are untracked by
+  this writer; pre-existing untracked WIP is untouched.
+- Side Research md5 invariant re-verified unchanged: `b385fe622db9926f48861105239f113e`.
+
+**Reviewer focus areas**:
+- Confirm D1's separate-manifest choice does not leave any realistic path
+  for `ClaimKind` reuse to have been simpler without the stated costs.
+- Confirm D2's "zero lifecycle coupling" claim by spot-checking that no
+  reference to `resources.json`/`ResourcesManifest`/`resources/` exists in
+  `internal/workflow/reconcile.go`, `internal/cli/land.go`, the dependency
+  gate, or `internal/cli/verify.go` (there should be none — no code changed
+  in this cluster, so this is trivially true today, but the ADR's Test
+  Matrix row 45 should mechanically re-verify it at Cluster H' close).
+- Confirm the D5 Git-metadata allowlist and its `config`-key exclusions are
+  sufficient to prevent secret/credential leakage without over- or
+  under-restricting legitimate use (e.g., is `user.email` genuinely safe to
+  expose in a sidecar artifact for every repo's threat model?).
+- Confirm the D8 all-or-nothing batch design is the right tradeoff versus
+  partial-commit, given that a single flaky adapter can block an entire
+  `record --resources` invocation's sidecar update.
+- Confirm the AC/test-matrix 1:1 mapping is genuinely mechanically countable
+  (30 unique `AC-N` tags, 45 total rows) and not merely asserted.
 
 ## Ready for review — Cluster G' rev-0
 
