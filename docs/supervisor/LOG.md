@@ -1,3 +1,33 @@
+## Review — Cluster G' rev-4 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`gprime-r4-internal`)
+**Fold reviewed**: `a5a814e`
+
+### Verdict: NEEDS REVISION → REV-5 DISPATCHED
+
+### Prior Closure
+
+- Complete staged/unstaged/untracked canonical projection: CLOSED.
+- Literal pathspec and user-index preservation: CLOSED.
+
+### New Finding
+
+- **MEDIUM**: temporary index seeding assumes `<repo>/.git/index`; linked
+  worktrees use a `.git` file and an alternate effective index, so valid
+  reapply fails with `index file smaller than expected`.
+
+### Rev-5 Fold
+
+- Resolve effective index via `git rev-parse --git-path index`.
+- Fail closed when the index cannot be read rather than using a zero-byte
+  invalid temp index.
+- Add linked-worktree projection regression.
+
+### Action Taken
+
+Cluster state transitioned to `REV-5 DISPATCHED`; external review deferred to
+the fold.
+
 ## Review dispatch — Cluster G' rev-4 — 2026-08-10
 
 **Fold commit**: `a5a814e`

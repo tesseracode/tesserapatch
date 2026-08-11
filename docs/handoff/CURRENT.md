@@ -2,10 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-5 DISPATCHED
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-4 adjudicated NEEDS REVISION → rev-5
+DISPATCHED.** Internal review confirmed staged-owned-path closure, then found
+one MEDIUM linked-worktree gap: temporary-index seeding assumed
+`<repo>/.git/index`, but `.git` is a file in linked worktrees. Rev-5 resolves
+the effective index via Git and adds a linked-worktree regression. External
+review is deferred to the fold.
 
 **2026-08-10 Cluster G' rev-4 IMPLEMENTED — AWAITING DUAL REVIEW at
 `a5a814e`.** Internal rev-3 HIGH residual folded: canonical reapply
@@ -141,7 +148,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Review (rev-4)
+- **Status**: In Progress (rev-5 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -463,9 +470,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run internal and external rev-4 confirmation.
-2. Adjudicate any residuals without reopening D1-D8.
-3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Resolve effective index with `git rev-parse --git-path index`.
+2. Fail closed if the effective index cannot be seeded.
+3. Add linked-worktree complete-projection regression.
+4. Re-run internal/external rev-5 review.
+5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
