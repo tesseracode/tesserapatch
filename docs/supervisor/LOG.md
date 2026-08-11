@@ -1,3 +1,54 @@
+## Review — Cluster H rev-12 adjudication — 2026-08-19
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`cluster-h-r10-external`, follow-up)
+**Writer commit**: `e434ba6`
+**Reviewed range**: `c4c367c..e434ba6`
+
+### Verdict: APPROVED WITH NOTES (external) / NEEDS REVISION (internal)
+### Supervisor Decision: REV-13 DISPATCHED
+
+### Verified Clean
+
+- Every rev-11 finding is closed at the mechanism level.
+- Single cleanup owner, cleanup-induced error suppression, deterministic
+  outcome precedence and concrete two-second reap/drain bounds.
+- 115 contiguous AC clauses, 184 contiguous rows and full coverage.
+- All golden IDs/digests, six JSON blocks, taxonomy, Vector 3, line counts,
+  Side Research md5 and canonical handoff field.
+- No privacy, path, lock, publication, Dolt-wire or D1/D2 regression.
+
+### Residual Findings
+
+1. `Start` failure does not explicitly close all four pre-created pipe
+   endpoints or define when drain goroutines launch.
+2. `SetReadDeadline` failure force-closes readers but one ADR branch does not
+   explicitly join both drain goroutines afterward.
+3. Reap-timeout disclosure names only the abandoned `cmd.Wait` goroutine,
+   not the concurrently blocked raw-`waitid` observer; completion sends must
+   be buffered/nonblocking after controller return.
+4. The deterministic snapshot can begin signaling before a later injected
+   `ECHILD`; the papers need the exclusive-waiter/cutoff invariant showing
+   that late `ECHILD` cannot occur in a conforming execution.
+
+### Rev-13 Direction
+
+- Launch drain goroutines only after successful `Start`; on failure close all
+  four endpoints directly, with no owner/observer/signal/Wait.
+- Every forced-close branch performs a bounded join; already-closed
+  `ECHILD` readers use join-only mode, not `SetReadDeadline`.
+- Use capacity-one completion channels for both abandoned goroutines and
+  disclose both on reap timeout.
+- Specify that waitid is the sole wait API before signal-phase cutoff and
+  `cmd.Wait` cannot start until signaling ends; drain any already-published
+  observer result before cutoff. `ECHILD` before cutoff wins and forbids
+  signals; after cutoff it is impossible absent violation of this invariant.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-13 DISPATCHED` for this narrow drafting and
+state-machine proof fold.
+
 ## Review — Cluster H rev-11 adjudication — 2026-08-19
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, follow-up)

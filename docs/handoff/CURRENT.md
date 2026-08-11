@@ -2,10 +2,20 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-13 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-19 Cluster H rev-12 adjudicated APPROVED WITH NOTES
+(external) / NEEDS REVISION (internal) → rev-13 DISPATCHED.** The
+mechanism closes every rev-11 finding and all mechanical invariants pass.
+The final fold is restricted to four edge-contract omissions: close all pipe
+endpoints on `Start` failure; join drains after every forced close; disclose
+both abandoned Wait and observer goroutines on reap timeout; and state the
+exclusive-waiter/cutoff proof that makes a late `ECHILD` impossible before
+signaling in a conforming implementation. No command, schema, taxonomy,
+privacy, hash or product decision is reopened.
 
 **2026-08-19 Cluster H rev-12 WRITTEN — bounded process-finalizer
 fold, AWAITING REVIEW.** Same sequential writer continued from rev-11
@@ -3622,18 +3632,18 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Fold the rev-11 cleanup-owner, precedence and bounded-finalizer findings.
+1. Fold the four rev-12 edge-contract omissions.
 2. Re-run source, platform-runtime, golden-vector, JSON parity and
    AC/matrix audits.
-3. Run correctly scoped internal and external rev-12 reviews.
+3. Run correctly scoped internal and external rev-13 reviews.
 4. Continue the same writer context only if a further residual
-   micro-fold is required by the rev-12 adjudication verdict.
+   micro-fold is required by the rev-13 adjudication verdict.
 5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-12 dispatched.
+**Status**: Cluster H planning active; rev-13 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
