@@ -221,6 +221,10 @@ only after implementation review and wave close.
   including staged, unstaged and untracked canonical-owned changes while
   preserving user index. Staged owned-path drift regression and full gates
   pass.
+- **Cluster G' rev-5** — internal rev-4 MEDIUM finding folded: complete
+  projection resolves Git's effective index with `rev-parse --git-path
+  index`, so linked worktrees and GIT_INDEX_FILE layouts are supported.
+  Linked-worktree staged-diff/index-identity regression and full gates pass.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -371,6 +375,22 @@ Contract documentation and assets:
 ## Test Results — Cluster G' rev-4
 
 - Rev-4 staged-owned-path targeted test — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+
+## Files Changed — Cluster G' rev-5
+
+- `internal/gitutil/gitutil.go` — effective-index resolution for temporary
+  projection.
+- `internal/gitutil/unapply_test.go` — linked-worktree staged diff and user
+  index identity regression.
+- `docs/handoff/CURRENT.md` — rev-5 progress and gates.
+
+## Test Results — Cluster G' rev-5
+
+- Linked-worktree targeted test — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.

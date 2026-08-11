@@ -2,6 +2,7 @@ package gitutil
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -195,4 +196,38 @@ func TestWorktreeSnapshotRestoresFileDirectoryTransitions(t *testing.T) {
 			t.Fatalf("config = %q, %v", got, err)
 		}
 	})
+}
+
+func TestDiffFromCommitForPathsUsesLinkedWorktreeIndex(t *testing.T) {
+	mainDir := t.TempDir()
+	gitInit(t, mainDir)
+	linkedParent := t.TempDir()
+	linkedDir := filepath.Join(linkedParent, "linked")
+	runGitTest(t, mainDir, "worktree", "add", "-q", "-b", "linked-test", linkedDir)
+	t.Cleanup(func() {
+		cmd := exec.Command("git", "worktree", "remove", "--force", linkedDir)
+		cmd.Dir = mainDir
+		_ = cmd.Run()
+	})
+
+	if err := os.WriteFile(filepath.Join(linkedDir, "hello.txt"), []byte("linked change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitTest(t, linkedDir, "add", "hello.txt")
+	statusBefore := runGitTest(t, linkedDir, "status", "--porcelain=v1")
+	indexBefore := runGitTest(t, linkedDir, "write-tree")
+
+	diff, err := DiffFromCommitForPaths(linkedDir, "HEAD", []string{"hello.txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(diff, "linked change") {
+		t.Fatalf("linked-worktree diff missing staged change:\n%s", diff)
+	}
+	if statusAfter := runGitTest(t, linkedDir, "status", "--porcelain=v1"); statusAfter != statusBefore {
+		t.Fatalf("status changed:\nbefore=%q\nafter=%q", statusBefore, statusAfter)
+	}
+	if indexAfter := runGitTest(t, linkedDir, "write-tree"); indexAfter != indexBefore {
+		t.Fatalf("index changed:\nbefore=%s\nafter=%s", indexBefore, indexAfter)
+	}
 }

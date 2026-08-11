@@ -897,15 +897,23 @@ func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, er
 		_ = tmpIdx.Close()
 		defer os.Remove(tmpPath)
 
-		// Seed the temp index from the real one so tracked files are
-		// known to git when we diff. If the real index is missing
-		// (shallow/bare edge case), leave the temp empty — diff will
-		// still work for path selection.
-		realIndex := filepath.Join(repoRoot, ".git", "index")
-		if data, rerr := os.ReadFile(realIndex); rerr == nil {
-			if werr := os.WriteFile(tmpPath, data, 0o644); werr != nil {
-				return "", fmt.Errorf("seed temp index: %w", werr)
-			}
+		// Seed from Git's effective index. Linked worktrees store `.git`
+		// as a file and keep their index under the common repository's
+		// worktrees/ directory; GIT_INDEX_FILE may redirect it again.
+		indexOut, indexErr := runGit(repoRoot, "rev-parse", "--git-path", "index")
+		if indexErr != nil {
+			return "", fmt.Errorf("resolve effective git index: %w", indexErr)
+		}
+		realIndex := strings.TrimSpace(indexOut)
+		if !filepath.IsAbs(realIndex) {
+			realIndex = filepath.Join(repoRoot, realIndex)
+		}
+		data, readErr := os.ReadFile(realIndex)
+		if readErr != nil {
+			return "", fmt.Errorf("read effective git index %q: %w", realIndex, readErr)
+		}
+		if werr := os.WriteFile(tmpPath, data, 0o644); werr != nil {
+			return "", fmt.Errorf("seed temp index: %w", werr)
 		}
 
 		env = append(os.Environ(), "GIT_INDEX_FILE="+tmpPath)
