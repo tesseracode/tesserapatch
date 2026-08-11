@@ -1,3 +1,60 @@
+## Review — Cluster H′ rev-1 adjudication — 2026-08-11
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-prime-r0-internal`,
+follow-up)
+**External reviewer**: claude-opus-5 (`cluster-h-prime-r0-external`,
+follow-up)
+**Implementation commit**: `d82a367`
+**Reviewed range**: `2261714..011fc70`
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Verified Clean
+
+- All six rev-0 findings closed in production.
+- True cap-plus-one retention under a real runaway child; no timer leak.
+- Declaration redaction before all actions; zero-artifact refusals.
+- Strict store-layer batch loading; canonical capabilities and real-CLI
+  golden IDs.
+- Full/race/cross validation, Accepted-paper zero diff, guarded WIP and md5.
+
+### Residual Findings
+
+1. **HIGH — CLI batch taxonomy**: `list` and `diff` convert every batch-load
+   error into `tracked-batch-missing` exit 1, masking present-but-corrupt
+   batches that must surface `batch-file-corrupt` exit 3.
+2. **MEDIUM — publication taxonomy**: `compareSemanticBody` does not bind the
+   existing body to its content-addressed filename before comparison, so
+   ordinary tampering is misreported as a SHA-256 collision.
+3. **MEDIUM — AC-104/105 ledger**: rows 173/174 point to unrelated process
+   tests; copy-failure coverage uses generic errors rather than injected
+   `ENOSPC` and `EIO`.
+4. **MEDIUM — row 180**: the checked-in test calls `Engine.Stage`, so its
+   publication and lock-release assertions bypass the real CLI boundary.
+5. **LOW — ledger parser**: arbitrary basic string literals inside a table
+   are accepted as subtest names.
+6. **LOW — SameFile mechanism**: the replacement test is also caught by the
+   later pathname recheck and does not fail if the descriptor comparison is
+   removed.
+
+### Rev-2 Direction
+
+- Preserve `PublicationError` reason/code through list/diff and add real CLI
+  tamper tests.
+- Call the existing batch-identity binder before semantic drift/collision
+  comparison.
+- Correct exact ledger references; add explicit noexec, `ENOSPC`, `EIO` and
+  real CLI drain-timeout tests.
+- Restrict AST subtest discovery to actual `t.Run` literals or keyed `name`
+  fields.
+- Add a seam between descriptor `f.Stat` and pathname recheck so only
+  `os.SameFile` catches the controlled ABA restore.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to rev-2. The same sequential implementer
+owns the micro-fold; no Accepted paper or WIP file may change.
+
 ## Review — Cluster H′ rev-0 adjudication — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-prime-r0-internal`)

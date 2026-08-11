@@ -654,6 +654,11 @@ dispatched for declaration redaction, true bounded output memory, timer
 cleanup, strict batch integrity, capability canonicalization, and
 mutation-resistant coverage of safety-critical matrix rows.
 
+**Rev-1** (`d82a367`): original findings closed; internal NEEDS REVISION,
+external APPROVED WITH NOTES. Rev-2 is dispatched for end-to-end batch
+corruption taxonomy and direct noexec/copy-fault/CLI drain/SameFile ledger
+coverage.
+
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 
 **Registered**: 2026-08-10.

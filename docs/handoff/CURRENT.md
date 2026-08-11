@@ -2,19 +2,19 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
-Cluster H′ rev-1 is complete and pushed. All six adjudicated rev-0
-findings are closed; independent internal and external rev-1 reviews have
-not yet run.
+Cluster H′ rev-1 closes the original findings but remains blocked by two
+batch-authenticity propagation defects and three test-contract gaps. Rev-2
+is dispatched to the same sequential implementer.
 
 ## Active Task
 
-- **Task ID**: Cluster H′ rev-1
+- **Task ID**: Cluster H′ rev-2
 - **Milestone**: v0.15.0 typed feature resources and capture adapters
 - **Description**: Implement the Accepted Cluster H PRD and ADR-033
   end-to-end, then close the rev-0 dual-review findings.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-11
 - **WAVE_BASE**: `46c984b`
 - **Rev-0 dispatch commit**: `f277d51`
@@ -30,6 +30,23 @@ One sequential implementer built the Accepted contract (rev-0) and then
 folded the six adjudicated findings (rev-1). No parallel implementers
 ran, every stage used explicit-path `git add`, and every commit carries
 the Rule 18 trailer. Neither Accepted paper was modified.
+
+### Rev-1 dual-review adjudication
+
+Internal returned **NEEDS REVISION**; external returned **APPROVED WITH
+NOTES** and recommended the same bounded touch-up:
+
+1. `list`/`diff` collapse `batch-file-corrupt` into
+   `tracked-batch-missing`, changing the reason and exit code.
+2. Re-capture labels a tampered on-disk batch as a cryptographic
+   `batch-id-collision` instead of `batch-file-corrupt`.
+3. AC-104/105 are mapped to unrelated process tests rather than noexec and
+   injected `ENOSPC`/`EIO` copy failures.
+4. Row 180's checked-in test drives `Engine.Stage`, bypassing the real CLI
+   lock/publication boundary.
+5. The AST ledger accepts unrelated string literals as subtest names, and
+   the descriptor `os.SameFile` test is also caught by the redundant pathname
+   recheck.
 
 ## Finding Closures
 
@@ -159,14 +176,16 @@ At `d82a367`:
 
 ## Next Steps
 
-1. Run the independent internal rev-1 review.
-2. Run the independent external rev-1 review.
-3. Adjudicate, then run the Wave-Close Checklist.
-4. Tag `v0.15.0` only after the implementation wave is accepted.
+1. Fold the rev-1 batch classification and test-contract findings.
+2. Re-run targeted, race, full-suite, cross-build and real CLI checks.
+3. Update this handoff to AWAITING REVIEW and push rev-2.
+4. Run independent internal and external rev-2 reviews.
+5. Tag `v0.15.0` only after the implementation wave is accepted.
 
 ## Blockers
 
-None.
+No external blocker. Rev-1 cannot be accepted until the adjudicated findings
+are closed. The Accepted papers remain unchanged.
 
 ## Residuals and Reviewer Focus
 
