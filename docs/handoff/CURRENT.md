@@ -185,6 +185,11 @@ only after implementation review and wave close.
   finalization follows dependency/generation gates, touched-path rollback
   supports file↔directory transitions, and amend refuses before request
   mutation. Full gates pass.
+- **Cluster G' rev-3** — external rev-2 HIGH findings folded: reverse
+  materialization checks now reject success-with-warning mode mismatches;
+  reapply comparison is scoped to canonical literal touched paths so
+  unrelated disjoint work is preserved. Immediate and committed mode-only/
+  unrelated-dirt regressions pass with full gates.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -300,6 +305,24 @@ Contract documentation and assets:
 ## Test Results — Cluster G' rev-2
 
 - Rev-2 targeted semantic tests — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+
+## Files Changed — Cluster G' rev-3
+
+- `internal/gitutil/gitutil.go` — warning-aware strict reverse validation.
+- `internal/gitutil/unapply.go` — warning-aware HEAD materialization check.
+- `internal/cli/{feature_unapply.go,cobra.go}` — shared literal pathspecs and
+  canonical-touched-path-scoped reapply comparison with mode-only fallback.
+- `internal/cli/feature_unapply_test.go` — mode-only immediate/committed and
+  unrelated-dirt reapply regressions.
+- `docs/handoff/CURRENT.md` — rev-3 progress and gates.
+
+## Test Results — Cluster G' rev-3
+
+- Rev-3 targeted mode-only/unrelated-dirt tests — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.

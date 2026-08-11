@@ -1103,6 +1103,71 @@ func TestFeatureApplyIgnoresStaleRecipeAndReappliesCanonicalPatch(t *testing.T) 
 	}
 }
 
+func TestFeatureApplyReappliesModeOnlyCanonicalPatch(t *testing.T) {
+	for _, commitBaseline := range []bool{false, true} {
+		name := "immediate"
+		if commitBaseline {
+			name = "committed-baseline"
+		}
+		t.Run(name, func(t *testing.T) {
+			fx := newModeOnlyUnapplyFixture(t)
+			patchPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")
+			before := mustRead(t, patchPath)
+			if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+				t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+			}
+			if info, err := os.Stat(filepath.Join(fx.dir, "script.sh")); err != nil || info.Mode().Perm() != 0o644 {
+				t.Fatalf("mode after unapply = %v, %v", info, err)
+			}
+			if commitBaseline {
+				runUnapplyGit(t, fx.dir, "add", "-A")
+				runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "commit mode-only unapplied baseline")
+			}
+			if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code != 0 {
+				t.Fatalf("apply code=%d stderr=%s", code, stderr)
+			}
+			if info, err := os.Stat(filepath.Join(fx.dir, "script.sh")); err != nil || info.Mode().Perm() != 0o755 {
+				t.Fatalf("mode after reapply = %v, %v", info, err)
+			}
+			if got := mustRead(t, patchPath); !bytes.Equal(got, before) {
+				t.Fatal("mode-only reapply changed canonical patch")
+			}
+			status, err := fx.store.LoadFeatureStatus(fx.slug)
+			if err != nil || status.State != store.StateApplied {
+				t.Fatalf("status = %q, %v", status.State, err)
+			}
+		})
+	}
+}
+
+func TestFeatureApplyReapplyIgnoresUnrelatedDirtyPaths(t *testing.T) {
+	for _, commitBaseline := range []bool{false, true} {
+		name := "immediate"
+		if commitBaseline {
+			name = "committed-baseline"
+		}
+		t.Run(name, func(t *testing.T) {
+			fx := newUnapplyFixture(t, store.StateApplied)
+			if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+				t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+			}
+			if commitBaseline {
+				runUnapplyGit(t, fx.dir, "add", "-A")
+				runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "commit unapplied baseline")
+			}
+			if err := os.WriteFile(filepath.Join(fx.dir, "unrelated.txt"), []byte("keep me\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code != 0 {
+				t.Fatalf("apply code=%d stderr=%s", code, stderr)
+			}
+			if got := string(mustRead(t, filepath.Join(fx.dir, "unrelated.txt"))); got != "keep me\n" {
+				t.Fatalf("unrelated work changed: %q", got)
+			}
+		})
+	}
+}
+
 func TestMaterializedReapplyStillRunsDependencyGate(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
 	parent, err := fx.store.AddFeature(store.AddFeatureInput{Title: "Parent", Slug: "parent", Request: "parent"})
@@ -1617,5 +1682,48 @@ func newFileToDirectoryUnapplyFixture(t *testing.T) unapplyFixture {
 	}
 	runUnapplyGit(t, dir, "add", "-A")
 	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record config feature")
+	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
+}
+
+func newModeOnlyUnapplyFixture(t *testing.T) unapplyFixture {
+	t.Helper()
+	testutil.PinGitAutoGCOff()
+	dir := t.TempDir()
+	gitInitTestRepo(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Mode", Slug: "mode", Request: "mode"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(dir, "script.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "mode baseline")
+	base := gitHead(t, dir)
+	if err := os.Chmod(script, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "script.sh")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "mode feature")
+	patch := runUnapplyGit(t, dir, "show", "--format=", "HEAD")
+	if !strings.Contains(patch, "old mode 100644") || !strings.Contains(patch, "new mode 100755") {
+		t.Fatalf("fixture patch is not mode-only:\n%s", patch)
+	}
+	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+	feature.State = store.StateApplied
+	feature.Apply.HasPatch = true
+	feature.Apply.BaseCommit = base
+	if err := s.SaveFeatureStatus(feature); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record mode feature")
 	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
 }

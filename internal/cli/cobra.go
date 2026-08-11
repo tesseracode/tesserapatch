@@ -1082,7 +1082,8 @@ func validateReapplyMaterialization(root, canonical string, presentAtHEAD bool) 
 	if err := gitutil.ValidatePatchReverse(root, canonical); err != nil {
 		return fmt.Errorf("reapply is incomplete; canonical patch is not fully materialized and state remains unapplied: %w", err)
 	}
-	current, err := gitutil.CapturePatch(root)
+	current, err := gitutil.CapturePatchScoped(root,
+		literalGitPathspecs(gitutil.PathsAffectedByPatch(canonical)))
 	if err != nil {
 		return fmt.Errorf("reapply: inspect source diff: %w", err)
 	}
@@ -1096,15 +1097,13 @@ func validateReapplyMaterialization(root, canonical string, presentAtHEAD bool) 
 		return fmt.Errorf("reapply produced no source diff against the committed unapplied baseline")
 	}
 	wantID, err := gitutil.PatchID(root, canonical)
-	if err != nil {
-		return fmt.Errorf("reapply: compute canonical patch-id: %w", err)
-	}
-	gotID, err := gitutil.PatchID(root, current)
-	if err != nil {
-		return fmt.Errorf("reapply: compute materialized patch-id: %w", err)
-	}
-	if gotID != wantID {
+	gotID, gotErr := gitutil.PatchID(root, current)
+	if err == nil && gotErr == nil && gotID != wantID {
 		return fmt.Errorf("reapply materialized patch-id %s, want canonical %s; state remains unapplied", gotID, wantID)
+	}
+	if (err != nil || gotErr != nil) &&
+		strings.TrimSpace(current) != strings.TrimSpace(canonical) {
+		return fmt.Errorf("reapply materialized patch differs from canonical patch; state remains unapplied")
 	}
 	return nil
 }

@@ -458,6 +458,9 @@ func ValidatePatchReverse(repoRoot, patch string) error {
 		}
 		return fmt.Errorf("patch does not round-trip against working tree: %s", msg)
 	}
+	if msg := strings.TrimSpace(stderr.String()); msg != "" {
+		return fmt.Errorf("patch does not round-trip against working tree: %s", msg)
+	}
 	return nil
 }
 

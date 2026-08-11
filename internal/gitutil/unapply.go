@@ -213,7 +213,12 @@ func ReverseApplyCheckAtHEAD(repoRoot, patch string) (bool, error) {
 	cmd := exec.Command("git", "apply", "--reverse", "--check", "-")
 	cmd.Dir = wt
 	cmd.Stdin = strings.NewReader(patch)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err == nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return false, nil
+		}
 		return true, nil
 	} else if _, ok := err.(*exec.ExitError); ok {
 		return false, nil

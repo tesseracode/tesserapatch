@@ -75,11 +75,7 @@ func defaultUnapplyRuntime() unapplyRuntime {
 		snapshot:        gitutil.SnapshotWorktreePaths,
 		reverseApply:    gitutil.ReverseApply,
 		captureReverse: func(root string, paths []string) (string, error) {
-			literal := make([]string, len(paths))
-			for i, path := range paths {
-				literal[i] = ":(literal)" + path
-			}
-			return gitutil.CapturePatchScoped(root, literal)
+			return gitutil.CapturePatchScoped(root, literalGitPathspecs(paths))
 		},
 		writeArtifact: func(s *store.Store, slug, name, content string) error {
 			return s.WriteArtifact(slug, name, content)
@@ -419,6 +415,14 @@ func viability(err error) string {
 		return "viable"
 	}
 	return "blocked: " + err.Error()
+}
+
+func literalGitPathspecs(paths []string) []string {
+	literal := make([]string, len(paths))
+	for i, path := range paths {
+		literal[i] = ":(literal)" + path
+	}
+	return literal
 }
 
 func refuseIfUnappliedBaselinePending(s *store.Store, status store.FeatureStatus, verb string) error {
