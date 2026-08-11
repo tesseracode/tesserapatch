@@ -1,3 +1,62 @@
+## Review — Cluster H rev-2 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r2-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r2-external`)
+**Writer commits**: `c603b8f`, `4255bef`
+
+### Verdict: NEEDS REVISION → REV-3 DISPATCHED
+
+### Verified Clean
+
+- Four golden resource IDs.
+- Three shared PRD/ADR JSON blocks.
+- 48 distinct AC clauses across 74 contiguous matrix rows.
+- No persistent raw-body authority; `generic-command` remains removed.
+
+### Blocking Findings
+
+1. `git --literal-pathspecs check-ignore` is invalid; ignored-file add cannot
+   succeed.
+2. Ignored/Dolt bytes are written to scratch before privacy scanning,
+   violating redaction-before-persistence.
+3. Lock body is published after O_EXCL create, so a contender can steal a
+   live but partially-written lock.
+4. Selector post-open identity compares a second pathname Lstat instead of
+   `fstat` on the opened descriptor.
+5. Add/remove/clear mutate declarations/current outside the capture lock.
+6. Dolt JSON is `{\"rows\":[...]}` or `{}` (zero rows), never a schema-bearing
+   envelope; database cwd is unspecified; dot-range and PK-change behavior
+   are unsafe/undefined.
+7. Tracked batch publication and cleanup names/paths still contradict atomic
+   claims; random batch IDs are not content-addressed.
+8. Locks are not self-healing in every crash window; failed/promoted scratch
+   semantics conflict.
+9. Dry-run, local-ignore AC, literal selector invocations, creation-time
+   permissions and wire variants remain incomplete.
+10. CURRENT line counts/cross-refs drifted after the addendum.
+
+### Rev-3 Direction
+
+- Use the existing `check-ignore --no-index -- <path>` pathname semantics,
+  safely prefixing leading-colon names; use literal mode only for `ls-files`.
+- Keep captured bytes in bounded memory; scan before any write.
+- Publish lock ownership atomically (temp+fsync+link/rename or equivalent)
+  and serialize all per-slug mutators.
+- Compare pre-open identity with descriptor `f.Stat`; keep path recheck as
+  defense in depth.
+- Require a repo-relative Dolt database path/cwd and a table selector; use
+  exact `dolt_diff_summary` JSON shape including `{}` zero rows; reject `..`
+  refs and handle PK-change limits explicitly.
+- Use one content-addressed immutable tracked batch plus atomic current
+  pointer; correct every crash/cleanup path and stale-lock recovery.
+- Add all missing tagged variants, local-ignore/permission/pathspec/dry-run
+  rows, and refresh tracking only after the final edit.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-3 DISPATCHED`. Authority and scope decisions
+remain closed; only operational contracts are in fold.
+
 ## Review — Cluster H rev-1 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r1-internal`)

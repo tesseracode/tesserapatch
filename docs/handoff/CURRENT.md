@@ -2,10 +2,23 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-2 adjudicated NEEDS REVISION → rev-3
+DISPATCHED.** Internal review found 5 HIGH + 5 MEDIUM; external found
+5 HIGH + 7 MEDIUM plus tracking notes. Verified clean: 4 golden IDs,
+3 shared JSON blocks, 48 AC clauses and 74 contiguous rows. Remaining
+execution-contract gaps: `check-ignore` literal mode is invalid; bytes are
+written before scanning; lock creation can be stolen while partially written;
+selector identity check compares pathnames rather than opened descriptors;
+manifest/current mutators race capture; Dolt JSON zero-row/schema shape,
+database cwd and primary-key-change behavior are wrong/undefined; tracked
+publication/cleanup/batch IDs, scratch HOME/dry-run, wire variants,
+local-ignore coverage and CURRENT counts remain inconsistent. Rev-3 keeps
+the metadata-only authority model and rewrites these concrete mechanisms.
 
 **2026-08-10 Cluster H rev-2 WRITTEN — full fold of the rev-1 dual-review
 verdict (adjudication `173bb3c`), awaiting dual review.** Same sequential
@@ -287,7 +300,7 @@ only after implementation review and wave close.
 - **Milestone**: v0.15.0 candidate (planning)
 - **Description**: Fold the rev-1 dual-review verdict into the
   feature-resource PRD and ADR-033 boundary.
-- **Status**: Review
+- **Status**: In Progress (rev-3 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -1111,23 +1124,16 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Dispatch dual review (internal + external) of Cluster H rev-2 against
-   this handoff and both rewritten papers.
-2. If APPROVED (or APPROVED WITH NOTES): accept papers, archive Cluster H
-   to `docs/handoff/HISTORY.md`, flip ROADMAP's Cluster H status, and
-   dispatch implementation as a separate Cluster H' — no code changes
-   belong in this cluster's history.
-3. If NEEDS REVISION: continue the same sequential-writer context for
-   rev-3, folding every finding exactly as rev-1 → rev-2 did.
-4. Cluster H' (implementation, once dispatched) must independently
-   re-verify `dolt_diff_summary`'s `WORKING`/`STAGED` acceptance against
-   source before relying on it, and must extract the content-agnostic
-   six-class redaction scanner described in §8 as its own exported
-   package rather than inline logic.
+1. Fold the rev-2 execution-contract findings with source-verified mechanisms.
+2. Re-run Dolt source checks, wire/example parity and expanded matrix audit.
+3. Run independent internal and external rev-3 reviews.
+4. Continue the same writer context for any bounded residual fold.
+5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
+   implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-2 awaiting dual review.
+**Status**: Cluster H planning active; rev-3 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
