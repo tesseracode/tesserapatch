@@ -120,6 +120,23 @@ Resource verbs carry a binding taxonomy surfaced through
   converges on one canonical identity for both spellings. A mismatched
   capability still exits 2.
 
+### Rev-2 taxonomy fold (rev-1 dual review)
+
+- **CLI batch taxonomy**: `list` and `diff` preserve the store's own
+  `PublicationError` reason and exit code instead of flattening every
+  batch-load failure into `tracked-batch-missing`. An absent file stays
+  exit 1; a present-but-corrupt or identity-invalid batch surfaces
+  `batch-file-corrupt` exit 3, in the per-resource JSON/text state as
+  well as at the process boundary. Mixed failures report every distinct
+  reason and take the most severe exit code, and a healthy resource is
+  never hidden by a sick sibling.
+- **Publication authenticity**: `compareSemanticBody` binds the existing
+  file to its content-addressed filename before any drift or collision
+  comparison, so ordinary tampering is `batch-file-corrupt` rather than
+  a claimed SHA-256 collision. `batch-id-collision` is now reserved for
+  two authentic bodies genuinely sharing one full digest, reachable in
+  tests through a substitutable derivation seam.
+
 ## v0.14.0 — 2026-08-10 — transactional feature unapply
 
 Feature release adding a reversible, audited way to remove a tracked

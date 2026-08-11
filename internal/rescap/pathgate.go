@@ -151,6 +151,15 @@ func GatePath(repoRoot, relPath string) (*GatedPath, error) {
 		return nil, Refuse(ReasonPathReplacedDuringOpen,
 			"%s was replaced between the component walk and the open", abs)
 	}
+	// Seam placed strictly AFTER the descriptor-identity decision and
+	// strictly BEFORE the redundant pathname re-Lstat. It exists so a
+	// test can restore the original entry at exactly this instant: the
+	// descriptor comparison above has already had to decide, while the
+	// pathname recheck below has not yet looked. That isolates which of
+	// the two checks is actually load-bearing (ADR-033 §9.1 step 5).
+	if h := afterDescriptorIdentityCheck; h != nil {
+		h(abs)
+	}
 	// Defence in depth: a pathname re-Lstat after the descriptor
 	// identity check, which remains the primary, load-bearing guarantee.
 	if recheck, err := os.Lstat(abs); err != nil || !os.SameFile(finalInfo, recheck) {
@@ -296,4 +305,17 @@ func SetScratchExecCheckForTest(fn func(path string) error) func() {
 	prev := scratchExecCheck
 	scratchExecCheck = fn
 	return func() { scratchExecCheck = prev }
+}
+
+// afterDescriptorIdentityCheck is a test-only seam invoked between
+// GatePath's os.SameFile descriptor comparison and its redundant
+// pathname re-Lstat. It is nil in production.
+var afterDescriptorIdentityCheck func(absPath string)
+
+// SetAfterDescriptorIdentityCheckForTest installs the seam and returns
+// a restore func.
+func SetAfterDescriptorIdentityCheckForTest(fn func(absPath string)) func() {
+	prev := afterDescriptorIdentityCheck
+	afterDescriptorIdentityCheck = fn
+	return func() { afterDescriptorIdentityCheck = prev }
 }

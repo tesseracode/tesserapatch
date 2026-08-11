@@ -734,19 +734,21 @@ func TestLocalPathTrackedRefusal(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
-	mutators := [][]string{
-		{"feature", "resource", "add", "--path", dir, "model-picker", "--kind", "git-metadata", "--selector", "head"},
-		{"feature", "resource", "clear", "--path", dir, "model-picker"},
-		{"feature", "resource", "capture", "--path", dir, "model-picker"},
-		{"feature", "resource", "trust-dolt", "--path", dir, "model-picker", "res_acc91dc23a8b", "--binary-sha256", strings.Repeat("a", 64)},
-		{"feature", "resource", "remove", "--path", dir, "model-picker", "res_acc91dc23a8b"},
+	mutators := []struct {
+		name string
+		args []string
+	}{
+		{name: "add", args: []string{"feature", "resource", "add", "--path", dir, "model-picker", "--kind", "git-metadata", "--selector", "head"}},
+		{name: "clear", args: []string{"feature", "resource", "clear", "--path", dir, "model-picker"}},
+		{name: "capture", args: []string{"feature", "resource", "capture", "--path", dir, "model-picker"}},
+		{name: "trust-dolt", args: []string{"feature", "resource", "trust-dolt", "--path", dir, "model-picker", "res_acc91dc23a8b", "--binary-sha256", strings.Repeat("a", 64)}},
+		{name: "remove", args: []string{"feature", "resource", "remove", "--path", dir, "model-picker", "res_acc91dc23a8b"}},
 	}
-	for _, args := range mutators {
-		verb := args[2]
-		t.Run(verb, func(t *testing.T) {
-			_, stderr, code := runCmdExit(args...)
+	for _, tc := range mutators {
+		t.Run(tc.name, func(t *testing.T) {
+			_, stderr, code := runCmdExit(tc.args...)
 			if code != rescap.ExitRefusal || !strings.Contains(stderr, rescap.ReasonLocalPathTracked) {
-				t.Fatalf("%s: want local-path-tracked exit 3, got code=%d stderr=%s", verb, code, stderr)
+				t.Fatalf("%s: want local-path-tracked exit 3, got code=%d stderr=%s", tc.name, code, stderr)
 			}
 		})
 	}
@@ -1278,4 +1280,373 @@ func doltAddArgs(dir, dbPath string, extra []string) []string {
 		"--arg", "from=main",
 		"--arg", "to=HEAD",
 		"--trust-current-dolt")
+}
+
+// ─── rev-2: CLI batch taxonomy (rev-1 finding 1) ─────────────────────────────
+
+// capturedFeatureWithBatch declares one git-metadata resource, captures
+// it, and returns the store plus the on-disk batch path.
+func capturedFeatureWithBatch(t *testing.T) (string, *store.Store, string) {
+	t.Helper()
+	dir := resourceTestRepo(t)
+	if _, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+		"--kind", "git-metadata", "--selector", "head"); code != 0 {
+		t.Fatalf("add: %d %s", code, stderr)
+	}
+	if _, stderr, code := runCmdExit("feature", "resource", "capture", "--path", dir, "model-picker"); code != 0 {
+		t.Fatalf("capture: %d %s", code, stderr)
+	}
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	entries, err := os.ReadDir(s.ResourceBatchesDir("model-picker"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("expected exactly one batch: %v %v", entries, err)
+	}
+	return dir, s, filepath.Join(s.ResourceBatchesDir("model-picker"), entries[0].Name())
+}
+
+// batchTamperCases enumerates every present-but-invalid batch shape the
+// store distinguishes from an absent file.
+var batchTamperCases = []struct {
+	name       string
+	mutate     func(t *testing.T, path string)
+	wantReason string
+	wantCode   int
+}{
+	{
+		name: "deleted-file-stays-tracked-batch-missing",
+		mutate: func(t *testing.T, path string) {
+			if err := os.Remove(path); err != nil {
+				t.Fatalf("remove: %v", err)
+			}
+		},
+		wantReason: store.ReasonTrackedBatchMissing,
+		wantCode:   rescap.ExitInternal,
+	},
+	{
+		name: "batch-id-field-mismatch",
+		mutate: func(t *testing.T, path string) {
+			body := readBatchFile(t, path)
+			var b store.Batch
+			if err := json.Unmarshal(body, &b); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			b.BatchID = "rb_" + strings.Repeat("0", 64)
+			wire, err := store.BatchFileWireBytes(b)
+			if err != nil {
+				t.Fatalf("encode: %v", err)
+			}
+			writeBatchFile(t, path, wire)
+		},
+		wantReason: store.ReasonBatchFileCorrupt,
+		wantCode:   rescap.ExitRefusal,
+	},
+	{
+		name: "body-tampered-with-consistent-batch-id",
+		mutate: func(t *testing.T, path string) {
+			body := string(readBatchFile(t, path))
+			mutated := strings.Replace(body, `"detached": false`, `"detached": true`, 1)
+			if mutated == body {
+				t.Fatal("the tamper was a no-op")
+			}
+			writeBatchFile(t, path, []byte(mutated))
+		},
+		wantReason: store.ReasonBatchFileCorrupt,
+		wantCode:   rescap.ExitRefusal,
+	},
+	{
+		name: "trailing-second-object",
+		mutate: func(t *testing.T, path string) {
+			body := readBatchFile(t, path)
+			writeBatchFile(t, path, append(body, []byte("{\"batch_id\":\"rb_x\"}\n")...))
+		},
+		wantReason: store.ReasonBatchFileCorrupt,
+		wantCode:   rescap.ExitRefusal,
+	},
+	{
+		name: "unknown-field-injected",
+		mutate: func(t *testing.T, path string) {
+			body := string(readBatchFile(t, path))
+			mutated := strings.Replace(body, `"feature":`, "\"injected\": 1,\n  \"feature\":", 1)
+			writeBatchFile(t, path, []byte(mutated))
+		},
+		wantReason: store.ReasonBatchFileCorrupt,
+		wantCode:   rescap.ExitRefusal,
+	},
+	{
+		name: "results-array-nulled",
+		mutate: func(t *testing.T, path string) {
+			var raw map[string]json.RawMessage
+			if err := json.Unmarshal(readBatchFile(t, path), &raw); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			raw["results"] = json.RawMessage("null")
+			out, err := json.MarshalIndent(raw, "", "  ")
+			if err != nil {
+				t.Fatalf("encode: %v", err)
+			}
+			writeBatchFile(t, path, append(out, '\n'))
+		},
+		wantReason: store.ReasonBatchFileCorrupt,
+		wantCode:   rescap.ExitRefusal,
+	},
+}
+
+func readBatchFile(t *testing.T, path string) []byte {
+	t.Helper()
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read batch: %v", err)
+	}
+	return body
+}
+
+func writeBatchFile(t *testing.T, path string, body []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		t.Fatalf("write batch: %v", err)
+	}
+}
+
+// TestListPreservesBatchLoadTaxonomy proves `list` carries the store's
+// own reason and exit code to the process boundary instead of
+// flattening every batch-load failure into tracked-batch-missing.
+func TestListPreservesBatchLoadTaxonomy(t *testing.T) {
+	for _, tc := range batchTamperCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, _, path := capturedFeatureWithBatch(t)
+			tc.mutate(t, path)
+
+			stdout, stderr, code := runCmdExit("feature", "resource", "list", "--path", dir, "model-picker", "--json")
+			if code != tc.wantCode {
+				t.Fatalf("exit = %d, want %d (stderr: %s)", code, tc.wantCode, stderr)
+			}
+			if !strings.Contains(stderr, tc.wantReason) {
+				t.Fatalf("stderr = %q, want it to name %s", stderr, tc.wantReason)
+			}
+			// The per-resource JSON state carries the same reason.
+			if !strings.Contains(stdout, `"state": "`+tc.wantReason+`"`) {
+				t.Fatalf("list --json state did not carry %s: %s", tc.wantReason, stdout)
+			}
+		})
+	}
+}
+
+// TestDiffPreservesBatchLoadTaxonomy is the same contract for `diff`.
+func TestDiffPreservesBatchLoadTaxonomy(t *testing.T) {
+	for _, tc := range batchTamperCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, _, path := capturedFeatureWithBatch(t)
+			tc.mutate(t, path)
+
+			stdout, stderr, code := runCmdExit("feature", "resource", "diff", "--path", dir, "model-picker", "--json")
+			if code != tc.wantCode {
+				t.Fatalf("exit = %d, want %d (stderr: %s)", code, tc.wantCode, stderr)
+			}
+			if !strings.Contains(stderr, tc.wantReason) {
+				t.Fatalf("stderr = %q, want it to name %s", stderr, tc.wantReason)
+			}
+			if !strings.Contains(stdout, `"status": "`+tc.wantReason+`"`) {
+				t.Fatalf("diff --json status did not carry %s: %s", tc.wantReason, stdout)
+			}
+		})
+	}
+}
+
+// TestListTextOutputCarriesTheBatchReason covers the non-JSON surface:
+// the per-resource line must name the real condition too.
+func TestListTextOutputCarriesTheBatchReason(t *testing.T) {
+	dir, _, path := capturedFeatureWithBatch(t)
+	body := string(readBatchFile(t, path))
+	writeBatchFile(t, path, []byte(strings.Replace(body, `"detached": false`, `"detached": true`, 1)))
+
+	stdout, _, code := runCmdExit("feature", "resource", "list", "--path", dir, "model-picker")
+	if code != rescap.ExitRefusal {
+		t.Fatalf("exit = %d, want 3", code)
+	}
+	if !strings.Contains(stdout, store.ReasonBatchFileCorrupt) {
+		t.Fatalf("text output did not name the reason: %s", stdout)
+	}
+}
+
+// TestMixedBatchFailuresStayCoherent proves multi-resource output stays
+// coherent: each resource reports its own state, a healthy sibling is
+// still shown as captured, and the aggregate exit code is the most
+// severe of the failures rather than whichever happened to be first.
+func TestMixedBatchFailuresStayCoherent(t *testing.T) {
+	dir := resourceTestRepo(t)
+	for _, args := range [][]string{
+		{"feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--selector", "head"},
+		{"feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "ignored-file", "--selector", "config/local-secrets.env.template"},
+		{"feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--capability", "config", "--selector", "core.filemode"},
+	} {
+		if _, stderr, code := runCmdExit(args...); code != 0 {
+			t.Fatalf("setup add: %d %s", code, stderr)
+		}
+	}
+	// Capture each resource into its own batch so they can fail
+	// independently.
+	ids := []string{"res_acc91dc23a8b", "res_79f5ac5dca13"}
+	for _, id := range ids {
+		if _, stderr, code := runCmdExit("feature", "resource", "capture", "--path", dir,
+			"model-picker", "--resource", id); code != 0 {
+			t.Fatalf("capture %s: %d %s", id, code, stderr)
+		}
+	}
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	pointer, err := s.LoadCurrentPointer("model-picker")
+	if err != nil {
+		t.Fatalf("LoadCurrentPointer: %v", err)
+	}
+	headBatch, _ := pointer.BatchFor("res_acc91dc23a8b")
+	fileBatch, _ := pointer.BatchFor("res_79f5ac5dca13")
+	if headBatch == "" || fileBatch == "" || headBatch == fileBatch {
+		t.Fatalf("expected two distinct batches, got %q and %q", headBatch, fileBatch)
+	}
+
+	// One resource: absent batch (exit 1 class). The other: corrupt
+	// batch (exit 3 class).
+	if err := os.Remove(s.ResourceBatchPath("model-picker", headBatch)); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	corruptPath := s.ResourceBatchPath("model-picker", fileBatch)
+	body := string(readBatchFile(t, corruptPath))
+	mutated := strings.Replace(body, `"file_kind": "text"`, `"file_kind": "binary"`, 1)
+	if mutated == body {
+		t.Fatalf("the tamper was a no-op: %s", body)
+	}
+	writeBatchFile(t, corruptPath, []byte(mutated))
+
+	stdout, stderr, code := runCmdExit("feature", "resource", "list", "--path", dir, "model-picker", "--json")
+	if code != rescap.ExitRefusal {
+		t.Fatalf("exit = %d, want the most severe class (3): %s", code, stderr)
+	}
+	for _, want := range []string{store.ReasonTrackedBatchMissing, store.ReasonBatchFileCorrupt} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr must name every distinct reason, missing %s: %s", want, stderr)
+		}
+	}
+	var listing struct {
+		Resources []struct {
+			ResourceID string `json:"resource_id"`
+			State      string `json:"state"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &listing); err != nil {
+		t.Fatalf("list --json: %v\n%s", err, stdout)
+	}
+	states := map[string]string{}
+	for _, r := range listing.Resources {
+		states[r.ResourceID] = r.State
+	}
+	if states["res_acc91dc23a8b"] != store.ReasonTrackedBatchMissing {
+		t.Fatalf("absent-batch resource state = %q", states["res_acc91dc23a8b"])
+	}
+	if states["res_79f5ac5dca13"] != store.ReasonBatchFileCorrupt {
+		t.Fatalf("corrupt-batch resource state = %q", states["res_79f5ac5dca13"])
+	}
+	// The never-captured third resource is unaffected by its siblings.
+	if len(states) != 3 {
+		t.Fatalf("expected three resources in the listing, got %d: %v", len(states), states)
+	}
+	uncaptured := 0
+	for id, state := range states {
+		if state == "" {
+			t.Fatalf("resource %s reported no state at all", id)
+		}
+		if state == "no-capture-yet" {
+			uncaptured++
+		}
+	}
+	if uncaptured != 1 {
+		t.Fatalf("exactly one resource was never captured, got %d: %v", uncaptured, states)
+	}
+}
+
+// TestListAndDiffStayCleanForAuthenticBatches is the control: the
+// tightened taxonomy must not refuse a healthy tree.
+func TestListAndDiffStayCleanForAuthenticBatches(t *testing.T) {
+	dir, _, _ := capturedFeatureWithBatch(t)
+	if _, stderr, code := runCmdExit("feature", "resource", "list", "--path", dir, "model-picker"); code != 0 {
+		t.Fatalf("list: %d %s", code, stderr)
+	}
+	if _, stderr, code := runCmdExit("feature", "resource", "diff", "--path", dir, "model-picker"); code != 0 {
+		t.Fatalf("diff: %d %s", code, stderr)
+	}
+}
+
+// ─── rev-2: publication authenticity at the CLI boundary ─────────────────────
+
+// TestCaptureOverTamperedBatchIsCorruptionNotCollision proves the
+// publish path reports tampering as corruption, through the real
+// `capture` command.
+func TestCaptureOverTamperedBatchIsCorruptionNotCollision(t *testing.T) {
+	dir, _, path := capturedFeatureWithBatch(t)
+	body := string(readBatchFile(t, path))
+	mutated := strings.Replace(body, `"detached": false`, `"detached": true`, 1)
+	if mutated == body {
+		t.Fatal("the tamper was a no-op")
+	}
+	writeBatchFile(t, path, []byte(mutated))
+
+	_, stderr, code := runCmdExit("feature", "resource", "capture", "--path", dir, "model-picker")
+	if code != rescap.ExitRefusal {
+		t.Fatalf("exit = %d, want 3 (stderr: %s)", code, stderr)
+	}
+	if !strings.Contains(stderr, store.ReasonBatchFileCorrupt) {
+		t.Fatalf("stderr = %q, want %s", stderr, store.ReasonBatchFileCorrupt)
+	}
+	if strings.Contains(stderr, store.ReasonBatchIDCollision) {
+		t.Fatal("tampering must never be reported as a cryptographic collision")
+	}
+}
+
+// TestRecordResourcesWrapsBatchCorruption proves the two-domain path
+// surfaces the same underlying corruption, wrapped as a partial-domain
+// outcome once the Git side has already succeeded.
+func TestRecordResourcesWrapsBatchCorruption(t *testing.T) {
+	dir, _, path := capturedFeatureWithBatch(t)
+	body := string(readBatchFile(t, path))
+	writeBatchFile(t, path, []byte(strings.Replace(body, `"detached": false`, `"detached": true`, 1)))
+
+	writeResourceFile(t, dir, "src/feature.txt", "hello\n")
+	stdout, stderr, code := runCmdExit("record", "--path", dir, "model-picker", "--resources")
+	if code != rescap.ExitInternal {
+		t.Fatalf("exit = %d, want 1 (resource-domain-incomplete): %s", code, stderr)
+	}
+	if !strings.Contains(stderr, rescap.ReasonResourceDomainIncomplete) {
+		t.Fatalf("stderr = %q, want %s", stderr, rescap.ReasonResourceDomainIncomplete)
+	}
+	if !strings.Contains(stderr, store.ReasonBatchFileCorrupt) {
+		t.Fatalf("the wrapped reason must be preserved: %s", stderr)
+	}
+	if !strings.Contains(stdout, "Recorded patch for model-picker") {
+		t.Fatalf("the Git side must still have succeeded: %s", stdout)
+	}
+}
+
+// TestCaptureRepublishesUnchangedContentIdempotently is the control:
+// binding authenticity before comparison must not break the ordinary
+// idempotent re-capture.
+func TestCaptureRepublishesUnchangedContentIdempotently(t *testing.T) {
+	dir, s, _ := capturedFeatureWithBatch(t)
+	stdout, stderr, code := runCmdExit("feature", "resource", "capture", "--path", dir, "model-picker", "--json")
+	if code != 0 {
+		t.Fatalf("re-capture: %d %s", code, stderr)
+	}
+	if !strings.Contains(stdout, `"wrote_batch": false`) {
+		t.Fatalf("an unchanged re-capture must write zero new batch bytes: %s", stdout)
+	}
+	entries, err := os.ReadDir(s.ResourceBatchesDir("model-picker"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("expected exactly one batch, got %v (%v)", entries, err)
+	}
 }

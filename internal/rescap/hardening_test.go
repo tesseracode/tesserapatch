@@ -129,118 +129,6 @@ func TestNoexecPreflightRunsBeforeTheCopyIsCreated(t *testing.T) {
 	}
 }
 
-// TestPrivateCopyHostIOFailureCleansUpAndStartsNothing covers matrix
-// row 174's host-fault half.
-//
-// A directory opens fine but fails on read, which is a genuine
-// mid-copy I/O error in the same class as ENOSPC/EIO: the partial copy
-// has already been created by then, so the test proves the cleanup
-// path actually removes it and that no invocation is attempted.
-func TestPrivateCopyHostIOFailureCleansUpAndStartsNothing(t *testing.T) {
-	t.Run("mid-copy-read-failure-removes-the-partial-copy", func(t *testing.T) {
-		scratch := t.TempDir()
-		sourceDir := t.TempDir() // opens, then fails on read
-		_, err := MakeVerifiedPrivateCopy(sourceDir, scratch, strings.Repeat("a", 64))
-		r := AsRefusal(err)
-		if r == nil || r.Reason != ReasonAdapterCopyFailed || r.Code != ExitInternal {
-			t.Fatalf("want adapter-copy-failed exit 1, got %v", err)
-		}
-		entries, readErr := os.ReadDir(scratch)
-		if readErr != nil {
-			t.Fatalf("ReadDir: %v", readErr)
-		}
-		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), "dolt-copy-") {
-				t.Fatalf("the partial copy %s was not cleaned up", e.Name())
-			}
-		}
-	})
-
-	t.Run("uncreatable-copy-refuses-without-starting-anything", func(t *testing.T) {
-		srcDir := t.TempDir()
-		path := writeFixtureExecutable(t, srcDir, "dolt", "#!/bin/sh\nexit 0\n")
-		digest, err := HashExecutableDescriptor(path)
-		if err != nil {
-			t.Fatalf("hash: %v", err)
-		}
-		scratch := t.TempDir()
-		if err := os.Chmod(scratch, 0o500); err != nil {
-			t.Fatalf("chmod: %v", err)
-		}
-		t.Cleanup(func() { _ = os.Chmod(scratch, 0o700) })
-
-		_, err = MakeVerifiedPrivateCopy(path, scratch, digest)
-		r := AsRefusal(err)
-		if r == nil || r.Reason != ReasonAdapterCopyFailed || r.Code != ExitInternal {
-			t.Fatalf("want adapter-copy-failed exit 1, got %v", err)
-		}
-	})
-}
-
-// TestGatedOpenRefusesAReplacedEntry covers the os.SameFile descriptor
-// identity gate through a controlled replacement seam.
-//
-// The hook swaps the validated file for a different inode at the same
-// pathname at exactly the instant a real attacker would. If the
-// os.SameFile comparison in GatePath is deleted, the swap goes
-// undetected and this test fails.
-func TestGatedOpenRefusesAReplacedEntry(t *testing.T) {
-	root := newGitRepo(t)
-	writeRepoFile(t, root, "config/target.env", "original\n")
-
-	var swaps atomic.Int32
-	restore := SetBeforeGatedOpenForTest(func(abs string) {
-		if !strings.HasSuffix(abs, "config/target.env") {
-			return
-		}
-		if !swaps.CompareAndSwap(0, 1) {
-			return
-		}
-		// Replace the name with a DIFFERENT inode: unlink then
-		// recreate. Same pathname, same shape, new identity.
-		if err := os.Remove(abs); err != nil {
-			t.Errorf("remove: %v", err)
-			return
-		}
-		if err := os.WriteFile(abs, []byte("swapped!\n"), 0o644); err != nil {
-			t.Errorf("recreate: %v", err)
-		}
-	})
-	defer restore()
-
-	_, err := GatePath(root, "config/target.env")
-	r := AsRefusal(err)
-	if r == nil || r.Reason != ReasonPathReplacedDuringOpen || r.Code != ExitRefusal {
-		t.Fatalf("want path-replaced-during-open exit 3, got %v", err)
-	}
-	if swaps.Load() != 1 {
-		t.Fatal("the replacement seam never fired; the test proved nothing")
-	}
-}
-
-// TestGatedOpenAcceptsAnUnreplacedEntry is the control for the test
-// above: with the seam installed but performing no swap, the identical
-// gate accepts the path. Without this, a gate that refused everything
-// would also pass.
-func TestGatedOpenAcceptsAnUnreplacedEntry(t *testing.T) {
-	root := newGitRepo(t)
-	writeRepoFile(t, root, "config/target.env", "original\n")
-	var fired atomic.Int32
-	restore := SetBeforeGatedOpenForTest(func(string) { fired.Add(1) })
-	defer restore()
-
-	gated, err := GatePath(root, "config/target.env")
-	if err != nil {
-		t.Fatalf("an unreplaced entry must be accepted: %v", err)
-	}
-	if err := gated.Close(); err != nil {
-		t.Fatalf("close: %v", err)
-	}
-	if fired.Load() == 0 {
-		t.Fatal("the seam is not installed on the real gate path")
-	}
-}
-
 // TestRunawayChildIsBoundedToCapPlusOne covers matrix row 183's memory
 // half with a real child process.
 //
@@ -513,14 +401,14 @@ func TestWaitIsLaunchedStrictlyAfterTheSignalPhase(t *testing.T) {
 		name      string
 		configure func(r *ProcessRunner)
 	}{
-		{"benign-leader-event", func(r *ProcessRunner) {}},
-		{"invocation-timeout", func(r *ProcessRunner) {
+		{name: "benign-leader-event", configure: func(r *ProcessRunner) {}},
+		{name: "invocation-timeout", configure: func(r *ProcessRunner) {
 			r.InvocationTimeout = time.Millisecond
 			block := make(chan struct{})
 			t.Cleanup(func() { close(block) })
 			r.ObserveFn = func() error { <-block; return nil }
 		}},
-		{"output-cap-exceeded", func(r *ProcessRunner) {
+		{name: "output-cap-exceeded", configure: func(r *ProcessRunner) {
 			r.OutputCap = 16
 			block := make(chan struct{})
 			t.Cleanup(func() { close(block) })
@@ -530,7 +418,7 @@ func TestWaitIsLaunchedStrictlyAfterTheSignalPhase(t *testing.T) {
 				return err
 			}
 		}},
-		{"genuine-reader-error", func(r *ProcessRunner) {
+		{name: "genuine-reader-error", configure: func(r *ProcessRunner) {
 			block := make(chan struct{})
 			t.Cleanup(func() { close(block) })
 			r.ObserveFn = func() error { <-block; return nil }
@@ -542,7 +430,7 @@ func TestWaitIsLaunchedStrictlyAfterTheSignalPhase(t *testing.T) {
 				return nil
 			}
 		}},
-		{"non-echild-terminal-observer-error", func(r *ProcessRunner) {
+		{name: "non-echild-terminal-observer-error", configure: func(r *ProcessRunner) {
 			r.ObserveFn = func() error { return syscall.EINVAL }
 		}},
 	}

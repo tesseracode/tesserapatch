@@ -232,10 +232,15 @@ func MakeVerifiedPrivateCopy(resolvedPath, scratchDir, pinnedDigest string) (*Pr
 		return nil, Internal(ReasonAdapterCopyFailed, "generating a scratch suffix: %v", err)
 	}
 	copyPath := filepath.Join(scratchDir, "dolt-copy-"+suffix)
-	dst, err := os.OpenFile(copyPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	rawDst, err := os.OpenFile(copyPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, Internal(ReasonAdapterCopyFailed, "creating the private copy: %v", err)
 	}
+	// The destination is reached through a narrow indirection so a test
+	// can inject the exact host errnos this step must survive — ENOSPC
+	// mid-write and EIO on Sync — without weakening the production
+	// path, which uses the file itself unchanged.
+	dst := wrapPrivateCopyTarget(rawDst)
 	hasher := sha256.New()
 	if _, err := io.Copy(dst, io.TeeReader(source, hasher)); err != nil {
 		_ = dst.Close()
@@ -421,4 +426,38 @@ func ParseDoltSelector(selector string) (capability, table string, err error) {
 		return "", "", Invalid(ReasonInvalidDeclaration, "selector %q names an empty table", selector)
 	}
 	return parts[1], parts[2], nil
+}
+
+// privateCopyTarget is the exact subset of *os.File the private-copy
+// sequence uses. Naming it lets a test substitute a wrapper that fails
+// at one precise step with one precise errno; production passes the
+// *os.File straight through.
+type privateCopyTarget interface {
+	io.Writer
+	Sync() error
+	Chmod(mode os.FileMode) error
+	Stat() (os.FileInfo, error)
+	Close() error
+}
+
+// privateCopyTargetWrapper is nil in production. When a test installs
+// one, it wraps the real destination file, so the bytes still land on
+// disk and the partial-copy cleanup path is genuinely exercised.
+var privateCopyTargetWrapper func(privateCopyTarget) privateCopyTarget
+
+func wrapPrivateCopyTarget(f *os.File) privateCopyTarget {
+	if w := privateCopyTargetWrapper; w != nil {
+		return w(f)
+	}
+	return f
+}
+
+// SetPrivateCopyTargetWrapperForTest installs a wrapper around the
+// private copy's destination file and returns a restore func. Tests use
+// it to inject exact host errnos (syscall.ENOSPC, syscall.EIO) at the
+// write and Sync steps.
+func SetPrivateCopyTargetWrapperForTest(fn func(privateCopyTarget) privateCopyTarget) func() {
+	prev := privateCopyTargetWrapper
+	privateCopyTargetWrapper = fn
+	return func() { privateCopyTargetWrapper = prev }
 }

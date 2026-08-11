@@ -128,7 +128,7 @@ var acLedger = map[int]acLedgerEntry{
 	42:  {Refs: []testRef{ref("rescap", "TestLiteralPathspecsOnLsFiles", "")}, MatrixRows: []int{70}},
 	43:  {Refs: []testRef{ref("rescap", "TestPathGateRefusesSymlinkComponents", "ancestor-symlink-refused-even-when-target-is-safe")}, MatrixRows: []int{71, 72}},
 	44:  {Refs: []testRef{ref("rescap", "TestPathGateRefusesSymlinkComponents", "final-component-symlink-refused")}, MatrixRows: []int{73, 74}},
-	45:  {Refs: []testRef{ref("rescap", "TestGatedOpenRefusesAReplacedEntry", ""), ref("rescap", "TestGatedOpenAcceptsAnUnreplacedEntry", "")}, MatrixRows: []int{75}},
+	45:  {Refs: []testRef{ref("rescap", "TestSameFileDescriptorGateIsTheLoadBearingCheck", ""), ref("rescap", "TestGatedOpenAcceptsAnUnreplacedEntry", "")}, MatrixRows: []int{75}},
 	46:  {Refs: []testRef{ref("rescap", "TestPathGateRefusesSymlinkComponents", "missing-prefix-refused")}, MatrixRows: []int{76}},
 	47:  {Refs: []testRef{ref("rescap", "TestLockContentionRefusesImmediately", ""), ref("cli", "TestCaptureLockContentionAcrossProcesses", "")}, MatrixRows: []int{77, 78}},
 	48:  {Refs: []testRef{ref("rescap", "TestLockContentionRefusesImmediately", "")}, MatrixRows: []int{79}},
@@ -141,8 +141,8 @@ var acLedger = map[int]acLedgerEntry{
 	55:  {Refs: []testRef{ref("rescap", "TestScratchLifecycle", "")}, MatrixRows: []int{89, 90}},
 	56:  {Refs: []testRef{ref("store", "TestPublishBatchFirstWriteAndIdempotency", "")}, MatrixRows: []int{91}},
 	57:  {Refs: []testRef{ref("store", "TestPublishBatchPresentationDriftIsIdempotent", ""), ref("store", "TestPublishStillTreatsPresentationDriftAsIdempotent", "")}, MatrixRows: []int{92}},
-	58:  {Refs: []testRef{ref("store", "TestPublishBatchCollisionAndCorruption", "semantic-collision")}, MatrixRows: []int{93, 94}},
-	59:  {Refs: []testRef{ref("store", "TestPublishBatchCollisionAndCorruption", "unparseable-file"), ref("store", "TestPublishBatchCollisionAndCorruption", "self-inconsistent-batch-id"), ref("store", "TestPublishRejectsTrailingJSONAfterAValidObject", "")}, MatrixRows: []int{95}},
+	58:  {Refs: []testRef{ref("store", "TestPublishBatchCollisionAndCorruption", "semantic-collision-between-two-authentic-bodies"), ref("store", "TestPublishBatchCollisionAndCorruption", "tampered-existing-body-is-corruption-not-collision")}, MatrixRows: []int{93, 94}},
+	59:  {Refs: []testRef{ref("store", "TestPublishBatchCollisionAndCorruption", "unparseable-file"), ref("store", "TestPublishBatchCollisionAndCorruption", "self-inconsistent-batch-id"), ref("store", "TestPublishRejectsTrailingJSONAfterAValidObject", ""), ref("cli", "TestListPreservesBatchLoadTaxonomy", ""), ref("cli", "TestDiffPreservesBatchLoadTaxonomy", ""), ref("cli", "TestCaptureOverTamperedBatchIsCorruptionNotCollision", "")}, MatrixRows: []int{95}},
 	60:  {Refs: []testRef{ref("rescap", "TestCurrentPointerIsCommittedByRenameNotDirectWrite", "")}, MatrixRows: []int{96, 97}},
 	61:  {Refs: []testRef{ref("store", "TestPublishBatchFirstWriteAndIdempotency", "")}, MatrixRows: []int{98, 99}},
 	62:  {Refs: []testRef{ref("cli", "TestResourceAddListRemoveClearRoundTrip", "")}, MatrixRows: []int{100}},
@@ -187,15 +187,15 @@ var acLedger = map[int]acLedgerEntry{
 	101: {Refs: []testRef{ref("rescap", "TestAnythingTrackedUnder", ""), ref("cli", "TestLocalPathTrackedRefusal", "")}, MatrixRows: []int{170}},
 	102: {Refs: []testRef{ref("rescap", "TestHashExecutableDescriptorIsCopyFree", "")}, MatrixRows: []int{171}},
 	103: {Refs: []testRef{ref("rescap", "TestMakeVerifiedPrivateCopy", "verified-copy-is-0500")}, MatrixRows: []int{172}},
-	104: {Refs: []testRef{ref("rescap", "TestProcessRunnerSetsSetpgidOnTheRealCommand", ""), ref("rescap", "TestSignalTargetsTheChildGroupNotOurOwn", "")}, MatrixRows: []int{173}},
-	105: {Refs: []testRef{ref("rescap", "TestSingleCleanupOwner", ""), ref("rescap", "TestTriggerPriorityOrder", "")}, MatrixRows: []int{174}},
+	104: {Refs: []testRef{ref("rescap", "TestNoexecPreflightRunsBeforeTheCopyIsCreated", "")}, MatrixRows: []int{173}},
+	105: {Refs: []testRef{ref("rescap", "TestPrivateCopyExactHostErrnosCleanUpAndStartNothing", "enospc-mid-write"), ref("rescap", "TestPrivateCopyExactHostErrnosCleanUpAndStartNothing", "eio-mid-write"), ref("rescap", "TestPrivateCopyExactHostErrnosCleanUpAndStartNothing", "eio-on-sync"), ref("rescap", "TestPrivateCopyExactHostErrnosCleanUpAndStartNothing", "enospc-on-sync"), ref("rescap", "TestPrivateCopyHostFailureStartsNoProcess", "")}, MatrixRows: []int{174}},
 	106: {Refs: []testRef{ref("rescap", "TestNativeCrossBuildContract", ""), ref("rescap", "TestBuildTagContract", "")}, MatrixRows: []int{175}},
 	107: {Refs: []testRef{ref("rescap", "TestDarwinObserverReturnsForAStoppedChild", ""), ref("rescap", "TestSIGKILLTerminatesAStoppedChild", ""), ref("rescap", "TestFinalizerCompletesAgainstAStoppedChild", "")}, MatrixRows: []int{176}},
 	108: {Refs: []testRef{ref("rescap", "TestToleratedSignalErrnos", "")}, MatrixRows: []int{177}},
 	109: {Refs: []testRef{ref("rescap", "TestECHILDFinalizerSendsNoSignals", ""), ref("rescap", "TestOwnerInducedReaderErrorsAreSuppressed", "")}, MatrixRows: []int{178}},
 	110: {Refs: []testRef{ref("rescap", "TestGenuineReaderErrorClassification", ""), ref("rescap", "TestSetReadDeadlineFailureIsAdapterOutputReadFailed", "")}, MatrixRows: []int{179}},
-	111: {Refs: []testRef{ref("rescap", "TestEngineDrainTimeoutFromEscapedWriterPublishesNothing", "")}, MatrixRows: []int{180}},
-	112: {Refs: []testRef{ref("rescap", "TestSingleCleanupOwner", "")}, MatrixRows: []int{181}},
+	111: {Refs: []testRef{ref("cli", "TestCaptureCLIDrainTimeoutFromEscapedWriter", ""), ref("rescap", "TestEngineDrainTimeoutFromEscapedWriterPublishesNothing", "")}, MatrixRows: []int{180}},
+	112: {Refs: []testRef{ref("rescap", "TestSingleCleanupOwner", ""), ref("rescap", "TestTriggerPriorityOrder", "")}, MatrixRows: []int{181}},
 	113: {Refs: []testRef{ref("rescap", "TestTriggerPriorityOrder", "")}, MatrixRows: []int{182}},
 	114: {Refs: []testRef{ref("rescap", "TestMultiErrorPrecedenceCapOutranksSignalAndDrain", "")}, MatrixRows: []int{183}},
 	115: {Refs: []testRef{ref("rescap", "TestOwnerInducedReaderErrorsAreSuppressed", "")}, MatrixRows: []int{184}},
@@ -382,8 +382,21 @@ func indexPackageTests(dir string) (map[string]map[string]struct{}, error) {
 	return out, nil
 }
 
-// collectSubtestNames walks a test body gathering declared subtest
-// names.
+// collectSubtestNames walks a test body gathering DECLARED subtest
+// names under exactly two recognized forms:
+//
+//  1. a literal `t.Run("name", ...)` call;
+//  2. a table entry with an explicitly keyed `name: "..."` field
+//     (any case spelling of the key), which is how this suite's
+//     table-driven cases name themselves before `t.Run(tc.name, …)`.
+//
+// Rev-1 additionally accepted ANY positional string literal inside a
+// composite literal, which let unrelated fixture strings — SQL
+// fragments, expected stderr text, file bodies — masquerade as subtest
+// names and made a mistyped reference resolve anyway. Positional
+// literals are no longer accepted at all; a legitimately referenced
+// table case must use a keyed `name` field, or the ledger must
+// reference the top-level test honestly instead.
 func collectSubtestNames(body *ast.BlockStmt, into map[string]struct{}) {
 	ast.Inspect(body, func(n ast.Node) bool {
 		switch node := n.(type) {
@@ -392,33 +405,30 @@ func collectSubtestNames(body *ast.BlockStmt, into map[string]struct{}) {
 			if !ok || sel.Sel.Name != "Run" || len(node.Args) == 0 {
 				return true
 			}
-			if lit, ok := node.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-				if s, err := strconv.Unquote(lit.Value); err == nil {
-					into[s] = struct{}{}
-				}
-			}
+			addStringLiteral(node.Args[0], into)
 		case *ast.CompositeLit:
-			// Table-driven case names: string literals declared inside
-			// the table's composite literal.
 			for _, elt := range node.Elts {
-				switch e := elt.(type) {
-				case *ast.BasicLit:
-					addStringLiteral(e, into)
-				case *ast.KeyValueExpr:
-					if key, ok := e.Key.(*ast.Ident); ok && strings.EqualFold(key.Name, "name") {
-						if lit, ok := e.Value.(*ast.BasicLit); ok {
-							addStringLiteral(lit, into)
-						}
-					}
+				kv, ok := elt.(*ast.KeyValueExpr)
+				if !ok {
+					// Positional entries declare no name; ignore them.
+					continue
 				}
+				key, ok := kv.Key.(*ast.Ident)
+				if !ok || !strings.EqualFold(key.Name, "name") {
+					continue
+				}
+				addStringLiteral(kv.Value, into)
 			}
 		}
 		return true
 	})
 }
 
-func addStringLiteral(lit *ast.BasicLit, into map[string]struct{}) {
-	if lit.Kind != token.STRING {
+// addStringLiteral records a node when, and only when, it is a string
+// literal.
+func addStringLiteral(expr ast.Expr, into map[string]struct{}) {
+	lit, ok := expr.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
 		return
 	}
 	s, err := strconv.Unquote(lit.Value)
@@ -426,4 +436,124 @@ func addStringLiteral(lit *ast.BasicLit, into map[string]struct{}) {
 		return
 	}
 	into[s] = struct{}{}
+}
+
+// TestLedgerSubtestDiscoveryRejectsUnrelatedLiterals proves the rev-2
+// parser restriction: only a literal `t.Run("name", ...)` or an
+// explicitly keyed `name: "..."` table field declares a subtest.
+//
+// Rev-1 accepted ANY positional string literal inside a composite
+// literal, so unrelated fixture strings — SQL fragments, expected
+// stderr text, file bodies — resolved as if they were subtest names,
+// and a mistyped reference passed. Each fixture below is parsed
+// directly, so the assertions are about the discovery rule itself
+// rather than about any particular test in this repository.
+func TestLedgerSubtestDiscoveryRejectsUnrelatedLiterals(t *testing.T) {
+	cases := []struct {
+		name     string
+		source   string
+		accepted []string
+		rejected []string
+	}{
+		{
+			name: "literal-t-run-is-accepted",
+			source: `package p
+func TestFoo(t *testing.T) {
+	t.Run("real-subtest", func(t *testing.T) {})
+}`,
+			accepted: []string{"real-subtest"},
+			rejected: []string{"nope"},
+		},
+		{
+			name: "keyed-name-field-is-accepted",
+			source: `package p
+func TestFoo(t *testing.T) {
+	cases := []struct{ name, raw string }{
+		{name: "keyed-case", raw: "SELECT * FROM users"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {})
+	}
+}`,
+			accepted: []string{"keyed-case"},
+			// The raw SQL fixture must NOT masquerade as a subtest.
+			rejected: []string{"SELECT * FROM users"},
+		},
+		{
+			name: "positional-table-entries-are-rejected",
+			source: `package p
+func TestFoo(t *testing.T) {
+	cases := []struct{ name, raw string }{
+		{"positional-case", "some fixture body"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {})
+	}
+}`,
+			rejected: []string{"positional-case", "some fixture body"},
+		},
+		{
+			name: "unrelated-literals-anywhere-are-rejected",
+			source: `package p
+func TestFoo(t *testing.T) {
+	want := "adapter-copy-failed"
+	body := []string{"#!/bin/sh", "exit 0"}
+	_ = want
+	_ = body
+	t.Run("only-this-one", func(t *testing.T) {})
+}`,
+			accepted: []string{"only-this-one"},
+			rejected: []string{"adapter-copy-failed", "#!/bin/sh", "exit 0"},
+		},
+		{
+			name: "non-name-keyed-fields-are-rejected",
+			source: `package p
+func TestFoo(t *testing.T) {
+	cases := []struct{ label, name string }{
+		{label: "not-a-subtest", name: "actual-subtest"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {})
+	}
+}`,
+			accepted: []string{"actual-subtest"},
+			rejected: []string{"not-a-subtest"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "sample_test.go")
+			if err := os.WriteFile(path, []byte(tc.source), 0o644); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			index, err := indexPackageTests(dir)
+			if err != nil {
+				t.Fatalf("index: %v", err)
+			}
+			subtests, ok := index["TestFoo"]
+			if !ok {
+				t.Fatal("the fixture's top-level test was not indexed")
+			}
+			for _, want := range tc.accepted {
+				if _, ok := subtests[want]; !ok {
+					t.Errorf("%q should be a declared subtest, declared: %v", want, sortedKeys(subtests))
+				}
+			}
+			for _, unwanted := range tc.rejected {
+				if _, ok := subtests[unwanted]; ok {
+					t.Errorf("%q must NOT resolve as a subtest, declared: %v", unwanted, sortedKeys(subtests))
+				}
+			}
+		})
+	}
+}
+
+func sortedKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

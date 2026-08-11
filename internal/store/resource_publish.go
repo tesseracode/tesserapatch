@@ -128,6 +128,28 @@ func (c CurrentPointer) BatchFor(resourceID string) (string, bool) {
 	return "", false
 }
 
+// batchIDDeriver maps canonical hash-input bytes to a batch ID. It is
+// the single derivation point, so every consumer — publication, the
+// authenticity binder, and readers — agrees by construction.
+//
+// It is substitutable ONLY so tests can reach the genuine
+// `batch-id-collision` branch: a real full-SHA-256 collision between two
+// distinct canonical bodies is not producible for a fixture, and
+// faking one by tampering a file would now (correctly) be reported as
+// corruption instead. The production code path has no branch on this.
+var batchIDDeriver = func(canonical []byte) string {
+	digest := sha256.Sum256(canonical)
+	return BatchIDPrefix + hex.EncodeToString(digest[:])
+}
+
+// SetBatchIDDeriverForTest substitutes the batch-ID derivation function
+// and returns a restore func. Tests only.
+func SetBatchIDDeriverForTest(fn func(canonical []byte) string) func() {
+	prev := batchIDDeriver
+	batchIDDeriver = fn
+	return func() { batchIDDeriver = prev }
+}
+
 // ComputeBatchID hashes the canonical batch body and returns the full,
 // untruncated content-addressed ID (§7.3 step 2).
 func ComputeBatchID(feature string, results []BatchResult) (string, []byte, error) {
@@ -135,8 +157,7 @@ func ComputeBatchID(feature string, results []BatchResult) (string, []byte, erro
 	if err != nil {
 		return "", nil, err
 	}
-	digest := sha256.Sum256(canonical)
-	return BatchIDPrefix + hex.EncodeToString(digest[:]), canonical, nil
+	return batchIDDeriver(canonical), canonical, nil
 }
 
 // BatchFileWireBytes returns the exact, complete on-disk
@@ -343,11 +364,20 @@ func compareSemanticBody(existing []byte, batchID string, canonical []byte) (boo
 			Detail:  fmt.Sprintf("existing batch file %v", err),
 		}
 	}
-	if onDisk.BatchID != batchID {
+	// Authenticity FIRST, comparison second. An existing file must
+	// genuinely hash to the name it is stored under before its body is
+	// allowed to mean anything: otherwise ordinary tampering (which
+	// changes the body, and therefore the canonical bytes) is
+	// indistinguishable from a cryptographic collision, and rev-1
+	// reported it as one. `batch-id-collision` is now reserved for its
+	// real meaning — an *authentic* existing body under this ID that
+	// nonetheless differs from an *authentic* freshly-staged candidate,
+	// i.e. two distinct contents sharing one full SHA-256.
+	if err := bindBatchIdentity(onDisk, batchID); err != nil {
 		return false, &PublicationError{
 			Reason:  ReasonBatchFileCorrupt,
 			BatchID: batchID,
-			Detail:  fmt.Sprintf("existing batch file records batch_id %q", onDisk.BatchID),
+			Detail:  fmt.Sprintf("existing batch file %v", err),
 		}
 	}
 	body, err := canonicalizeDecodedBatchBody(onDisk)

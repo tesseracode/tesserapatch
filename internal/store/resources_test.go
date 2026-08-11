@@ -9,6 +9,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -424,25 +425,82 @@ func TestPublishBatchPresentationDriftIsIdempotent(t *testing.T) {
 // TestPublishBatchCollisionAndCorruption covers the two fatal branches
 // §7.3 step 3 distinguishes.
 func TestPublishBatchCollisionAndCorruption(t *testing.T) {
-	t.Run("semantic-collision", func(t *testing.T) {
+	t.Run("semantic-collision-between-two-authentic-bodies", func(t *testing.T) {
+		// A real full-SHA-256 collision is not producible for a
+		// fixture, so the derivation function itself is pinned to one
+		// value: BOTH bodies then authentically hash to the same ID,
+		// which is precisely the condition `batch-id-collision` names.
+		// Tampering can no longer reach this branch (it is corruption),
+		// so the seam is the only honest way to exercise it.
+		restore := SetBatchIDDeriverForTest(func([]byte) string {
+			return BatchIDPrefix + strings.Repeat("c", 64)
+		})
+		defer restore()
+
 		s := newResourceTestStore(t)
 		b := goldenBatch()
-		_, canonical, _ := ComputeBatchID(b.Feature, b.Results)
+		id, canonical, err := ComputeBatchID(b.Feature, b.Results)
+		if err != nil {
+			t.Fatalf("ComputeBatchID: %v", err)
+		}
+		b.BatchID = id
 		if _, err := s.PublishBatch("model-picker", b, canonical); err != nil {
 			t.Fatalf("PublishBatch: %v", err)
 		}
-		// A genuinely different staged body claiming the same batch_id.
+
 		colliding := goldenBatch()
 		colliding.Results[2].Result = CanonObject(
 			CanonFieldOf("symbolic_ref", CanonString("refs/heads/different")),
 			CanonFieldOf("oid", CanonString("2222222222222222222222222222222222222222")),
 			CanonFieldOf("detached", CanonBool(false)),
 		)
-		_, otherCanonical, _ := ComputeBatchID(colliding.Feature, colliding.Results)
-		_, err := s.PublishBatch("model-picker", colliding, otherCanonical)
+		otherID, otherCanonical, err := ComputeBatchID(colliding.Feature, colliding.Results)
+		if err != nil {
+			t.Fatalf("ComputeBatchID: %v", err)
+		}
+		if otherID != id {
+			t.Fatalf("the seam did not produce a collision: %s vs %s", otherID, id)
+		}
+		colliding.BatchID = otherID
+		if bytes.Equal(canonical, otherCanonical) {
+			t.Fatal("the two bodies must genuinely differ")
+		}
+		_, err = s.PublishBatch("model-picker", colliding, otherCanonical)
 		var pubErr *PublicationError
 		if err == nil || !asPublicationError(err, &pubErr) || pubErr.Reason != ReasonBatchIDCollision {
 			t.Fatalf("want batch-id-collision, got %v", err)
+		}
+	})
+
+	t.Run("tampered-existing-body-is-corruption-not-collision", func(t *testing.T) {
+		// Rev-1 reported this as a cryptographic collision. The file is
+		// simply no longer authentic for the name it is stored under,
+		// which is corruption.
+		s, b, path := publishGoldenBatch(t)
+		original, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		tampered := []byte(strings.Replace(string(original),
+			`"oid": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"`,
+			`"oid": "0000000000000000000000000000000000000000000000000000000000000000"`, 1))
+		if string(tampered) == string(original) {
+			t.Fatal("the tamper was a no-op")
+		}
+		if err := os.WriteFile(path, tampered, 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+		_, canonical, err := ComputeBatchID(b.Feature, b.Results)
+		if err != nil {
+			t.Fatalf("ComputeBatchID: %v", err)
+		}
+		_, pubErr := s.PublishBatch("model-picker", b, canonical)
+		var perr *PublicationError
+		if pubErr == nil || !asPublicationError(pubErr, &perr) {
+			t.Fatalf("want a PublicationError, got %v", pubErr)
+		}
+		if perr.Reason != ReasonBatchFileCorrupt {
+			t.Fatalf("reason = %s, want %s (tampering is not a collision)", perr.Reason, ReasonBatchFileCorrupt)
 		}
 	})
 	t.Run("unparseable-file", func(t *testing.T) {

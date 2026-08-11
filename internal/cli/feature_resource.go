@@ -508,7 +508,7 @@ func runResourceList(cmd *cobra.Command, slug string) error {
 		return err
 	}
 	entries := make([]resourceListEntry, 0, len(ctx.Manifest.Resources))
-	var missing []string
+	var failures []batchLoadFailure
 	for _, r := range ctx.Manifest.Resources {
 		entry := resourceListEntry{
 			ResourceID: r.ResourceID,
@@ -523,8 +523,12 @@ func runResourceList(cmd *cobra.Command, slug string) error {
 		if batchID, ok := pointer.BatchFor(r.ResourceID); ok {
 			entry.BatchID = batchID
 			if _, err := ctx.Store.LoadBatch(slug, batchID); err != nil {
-				entry.State = store.ReasonTrackedBatchMissing
-				missing = append(missing, r.ResourceID)
+				failure := classifyBatchLoadError(r.ResourceID, err)
+				// The per-resource state carries the store's own reason,
+				// so `list --json` distinguishes a corrupt batch from an
+				// absent one rather than labelling both "missing".
+				entry.State = failure.Reason
+				failures = append(failures, failure)
 			} else {
 				entry.State = "captured"
 			}
@@ -552,11 +556,91 @@ func runResourceList(cmd *cobra.Command, slug string) error {
 			fmt.Fprintf(out, "  %s  %s  %s  %s\n", e.ResourceID, e.Kind, e.State, e.Selector)
 		}
 	}
-	if len(missing) > 0 {
-		return rescap.Internal(rescap.ReasonTrackedBatchMissing,
-			"current.json references absent batch files for %s", strings.Join(missing, ", "))
+	return aggregateBatchFailures(failures)
+}
+
+// batchLoadFailure records one resource's batch-load failure with the
+// STORE's own reason and exit code preserved.
+//
+// Rev-1 collapsed every batch-load error into `tracked-batch-missing`
+// (exit 1), which masked a present-but-corrupt or identity-invalid
+// batch behind the reason and exit code reserved for an absent file.
+// The store already distinguishes them; the CLI's job is to carry that
+// distinction to the process boundary, not to flatten it.
+type batchLoadFailure struct {
+	ResourceID string
+	Reason     string
+	Code       int
+	Detail     string
+}
+
+// classifyBatchLoadError maps a store error onto its CLI-facing reason
+// and exit code. A *store.PublicationError keeps its own reason;
+// `tracked-batch-missing` stays exit 1 (a data-integrity condition
+// distinct from "no capture yet"), and every other named batch failure
+// — notably `batch-file-corrupt` — is an exit-3 state refusal.
+func classifyBatchLoadError(resourceID string, err error) batchLoadFailure {
+	if p, ok := err.(*store.PublicationError); ok {
+		code := rescap.ExitRefusal
+		if p.Reason == store.ReasonTrackedBatchMissing {
+			code = rescap.ExitInternal
+		}
+		return batchLoadFailure{ResourceID: resourceID, Reason: p.Reason, Code: code, Detail: p.Detail}
 	}
-	return nil
+	return batchLoadFailure{
+		ResourceID: resourceID,
+		Reason:     store.ReasonTrackedBatchMissing,
+		Code:       rescap.ExitInternal,
+		Detail:     err.Error(),
+	}
+}
+
+// aggregateBatchFailures folds per-resource failures into the single
+// error the command returns.
+//
+// Every resource's own state is still reported individually in the
+// JSON/text output before this fires, so a healthy resource is never
+// hidden by a sick sibling. When resources fail for different reasons,
+// the most severe exit code wins (3 outranks 1) and every distinct
+// reason is named, so a caller is never told a corrupt batch is merely
+// missing.
+func aggregateBatchFailures(failures []batchLoadFailure) error {
+	if len(failures) == 0 {
+		return nil
+	}
+	byReason := map[string][]string{}
+	code := rescap.ExitInternal
+	for _, f := range failures {
+		byReason[f.Reason] = append(byReason[f.Reason], f.ResourceID)
+		if f.Code > code {
+			code = f.Code
+		}
+	}
+	reasons := make([]string, 0, len(byReason))
+	for reason := range byReason {
+		reasons = append(reasons, reason)
+	}
+	sort.Strings(reasons)
+	parts := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		ids := byReason[reason]
+		sort.Strings(ids)
+		parts = append(parts, fmt.Sprintf("%s: %s", reason, strings.Join(ids, ", ")))
+	}
+	// Name the most severe class first so the reported reason and the
+	// exit code agree.
+	primary := reasons[0]
+	for _, reason := range reasons {
+		if reason != store.ReasonTrackedBatchMissing {
+			primary = reason
+			break
+		}
+	}
+	return &rescap.Refusal{
+		Reason: primary,
+		Code:   code,
+		Detail: strings.Join(parts, "; "),
+	}
 }
 
 // ─── remove / clear ──────────────────────────────────────────────────────────
@@ -839,7 +923,7 @@ func runResourceDiff(cmd *cobra.Command, slug string) error {
 	}
 
 	entries := make([]resourceDiffEntry, 0, len(targets))
-	var missing []string
+	var failures []batchLoadFailure
 	for _, r := range targets {
 		entry := resourceDiffEntry{
 			ResourceID:  r.ResourceID,
@@ -855,8 +939,9 @@ func runResourceDiff(cmd *cobra.Command, slug string) error {
 		}
 		batch, err := ctx.Store.LoadBatch(slug, batchID)
 		if err != nil {
-			entry.Status = store.ReasonTrackedBatchMissing
-			missing = append(missing, r.ResourceID)
+			failure := classifyBatchLoadError(r.ResourceID, err)
+			entry.Status = failure.Reason
+			failures = append(failures, failure)
 			entries = append(entries, entry)
 			continue
 		}
@@ -870,8 +955,17 @@ func runResourceDiff(cmd *cobra.Command, slug string) error {
 			}
 		}
 		if !found {
-			entry.Status = store.ReasonTrackedBatchMissing
-			missing = append(missing, r.ResourceID)
+			// The batch loaded authentically but does not carry an entry
+			// for this resource, which is a pointer/batch disagreement
+			// rather than a corrupt file.
+			failure := batchLoadFailure{
+				ResourceID: r.ResourceID,
+				Reason:     store.ReasonTrackedBatchMissing,
+				Code:       rescap.ExitInternal,
+				Detail:     fmt.Sprintf("batch %s carries no result for this resource", batchID),
+			}
+			entry.Status = failure.Reason
+			failures = append(failures, failure)
 			entries = append(entries, entry)
 			continue
 		}
@@ -906,11 +1000,7 @@ func runResourceDiff(cmd *cobra.Command, slug string) error {
 			fmt.Fprintf(out, "  %s  %s  %s  [%s]\n", e.ResourceID, e.Status, e.Selector, strings.Join(e.Differences, "; "))
 		}
 	}
-	if len(missing) > 0 {
-		return rescap.Internal(rescap.ReasonTrackedBatchMissing,
-			"current.json references absent batch files for %s", strings.Join(missing, ", "))
-	}
-	return nil
+	return aggregateBatchFailures(failures)
 }
 
 // recomputeForDiff recomputes a resource's result without executing any
