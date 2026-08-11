@@ -1,3 +1,57 @@
+## Review — Cluster H rev-4 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r4-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r4-external`)
+**Writer commits**: `ceda294`, `b7ddccb`
+
+### Verdict: NEEDS REVISION → REV-5 DISPATCHED
+
+### Verified Clean
+
+- Resource/batch golden IDs and three shared JSON blocks.
+- 72 AC clauses across 111 contiguous rows.
+- Source-accurate Dolt and check-ignore citations.
+- Metadata-only ADR-027 authority model.
+
+### Remaining Findings
+
+1. `db_path` post-exit check compares the held descriptor to itself rather
+   than re-resolving the pathname Dolt actually used.
+2. `//go:build unix` includes AIX/Solaris where `syscall.Flock` does not
+   compile; network filesystems also invalidate unconditional cross-client
+   lock claims.
+3. Tracked publication temporaries remain shown under local scratch, breaking
+   same-directory rename and cleanup.
+4. Dolt cap behavior says both truncate and refuse; `bytes.Buffer` is
+   unbounded.
+5. Working-set refs load `dolt_ignore`, which can silently omit the mandatory
+   table before PK-change hard-error logic.
+6. Content-addressed batches do not encode ordering; 48-bit batch prefixes
+   are collision-prone.
+7. Directory mode is persisted but omitted from combined hash/diff.
+8. CURRENT addendum counts/cross-refs and lock-body wording drift.
+
+### Rev-5 Direction
+
+- Compare held directory identity to a freshly resolved pathname before
+  start and after exit; document the remaining during-process race.
+- Use explicit `linux || darwin` build tags and fallback complement; support
+  local filesystems only, with network/shared mounts refused or explicitly
+  unsupported.
+- Keep tracked temps only beside tracked destinations; dry-run does not run
+  tracked sweeps.
+- Use concurrent pipe readers with shared cap+1 budget; kill process group and
+  refuse `resource-limit-exceeded` on overflow.
+- Restrict Dolt `from`/`to` to committed refs in v1; defer WORKING/STAGED so
+  `dolt_ignore` cannot silently omit rows.
+- Use full SHA-256 batch IDs, drop ordering claims, and include mode in
+  directory hash/diff.
+- Refresh every count/cross-reference after the final edit.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-5 DISPATCHED`; no authority decision reopened.
+
 ## Review — Cluster H rev-3 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r3-internal`)
