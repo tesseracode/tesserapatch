@@ -2,10 +2,23 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-10 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-17 Cluster H rev-9 adjudicated NEEDS REVISION → rev-10
+DISPATCHED.** Correctly scoped internal and external reviews both blocked
+`0b15495`. The caller-owned `os.Pipe` change is sound, but stale
+`StdoutPipe` requirements remain and the new design reaps the group leader
+before signaling, reopening numeric PGID reuse. Rev-10 replaces that
+mechanism with a Linux/Darwin build-tagged, non-reaping `waitid(P_PID, ...,
+WEXITED|WNOWAIT)` child-exit observer: the leader stays waitable while the
+single group cleanup sequence runs, and `cmd.Wait()` is called exactly once
+after cleanup. The same fold must align `AC-85`/`AC-96`/`AC-97` and matrix
+rows; complete `trust-dolt` gate/orphan coverage; make error names
+one-code/one-row; unify private-copy modes; normalize Vector 3; and remove
+stale CURRENT/revision claims. No D1/D2 scope or wire schema is reopened.
 
 **2026-08-10 Cluster H rev-8 adjudicated NEEDS REVISION → rev-9
 DISPATCHED.** Internal review found 4 HIGH + 2 MEDIUM in the current rev-8
@@ -2955,16 +2968,18 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Fold the six rev-8 internal consistency findings.
-2. Re-run source, golden-vector, JSON parity and AC/matrix audits.
-3. Run correctly scoped internal and external rev-9 reviews.
+1. Fold the consolidated rev-9 process/acceptance/taxonomy consistency
+   findings using the non-reaping `waitid` observer contract.
+2. Re-run source, platform-feasibility, golden-vector, JSON parity and
+   AC/matrix audits.
+3. Run correctly scoped internal and external rev-10 reviews.
 4. Continue the same writer context only for a truly residual micro-fold.
 5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-9 dispatched.
+**Status**: Cluster H planning active; rev-10 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record

@@ -1,3 +1,59 @@
+## Review — Cluster H rev-9 adjudication — 2026-08-17
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-r9-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r9-external`)
+**Writer commit**: `0b15495`
+**Reviewed range**: `8152a8b..0b15495`
+
+### Verdict: NEEDS REVISION → REV-10 DISPATCHED
+
+### Verified Clean
+
+- Exact current range, 5,018-line PRD and 1,909-line ADR.
+- Four resource-ID vectors, full batch digest and directory digest.
+- Six shared PRD/ADR JSON blocks.
+- 105 contiguous AC clauses and 174 contiguous matrix rows.
+- Side Research md5 and cited source/platform facts.
+- Rev-9 caller-owned `os.Pipe` result: `cmd.Wait` is decoupled from pipe
+  drain, empirically reproduced by the external reviewer.
+- TOFU bootstrap separation and duplicate-add no-repin behavior.
+
+### Consolidated Findings
+
+1. Stale normative `StdoutPipe`/`StderrPipe` references and `AC-85` still
+   contradict the caller-owned-pipe mechanism.
+2. Calling `cmd.Wait()` before group signaling frees the leader PID and can
+   let a later negative-PGID signal hit a recycled group. Rev-10 must use a
+   build-tagged non-reaping `waitid(..., WEXITED|WNOWAIT)` observer, preserve
+   the waitable leader through cleanup, then call `cmd.Wait()` exactly once.
+3. `trust-dolt` remains absent from §7.1's universal mutator list and from
+   `AC-52`/matrix row 86's no-orphan-sweep contract.
+4. Exit taxonomy overloads `adapter-missing` across codes and leaves
+   `path-outside-repo` undefined.
+5. Private-copy permissions conflict among direct `0500`, `0700`→`0500`,
+   and the generic `0600` rule; `AC-93` is inconsistent with the primary
+   design.
+6. Vector 3 argument order, CURRENT's invented Vector 5, review counts, and
+   several historical summaries are stale.
+
+### Rev-10 Direction
+
+- Keep caller-owned `os.Pipe` readers and replace early `cmd.Wait` with a
+  non-reaping Linux/Darwin child-exit observer. Route leader-exit, timeout and
+  cap triggers through one cleanup function; reap only after signaling and
+  pipe drain can complete.
+- Use an opened-descriptor hash directly for add-time TOFU. For capture,
+  create the private copy `0600`, stream/hash/fsync, verify the pin, then
+  descriptor-`chmod` to `0500` before execution; align every permission rule
+  and test with that single sequence.
+- Normalize all verb lists, reason names, vectors, ACs, matrix rows and
+  handoff attestations mechanically.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-10 DISPATCHED`. Scope remains planning-only;
+D1/D2 and wire schemas are not reopened.
+
 ## Review — Cluster H rev-8 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r8-internal`)
