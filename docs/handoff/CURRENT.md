@@ -143,6 +143,11 @@ only after implementation review and wave close.
   rollback failures. Matrix audit: 60 rows mechanically covered + row 3
   source-switch audit. Repository-wide gates pass. Implementation tip
   `1746ebb`; awaiting dual review.
+- **Cluster G' rev-1** — internal rev-0 findings folded: every temporary
+  add/reset path now runs under Git literal-pathspec mode; adversarial
+  deletion tests cover `:(literal)`, `*`, and `[]`; all six asset diagrams
+  and parity anchors carry the complete four-state source set; stale
+  `Copilot-Session` guidance removed. Full gates pass.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -223,6 +228,25 @@ Contract documentation and assets:
 - `go build ./cmd/tpatch` — PASS.
 - ADR-032 matrix audit — 60 rows mechanically covered; row 3 manually audited
   across state-aware source switches and covered by successful build.
+
+## Files Changed — Cluster G' rev-1
+
+- `internal/gitutil/{gitutil.go,capture_modes.go}` — literal-pathspec mode for
+  all temporary intent-to-add/reset operations.
+- `internal/cli/feature_unapply_test.go` — pathspec-magic deletion coverage.
+- `assets/assets_test.go` — four-state source-set parity anchor.
+- All six shipped skill/prompt/workflow assets — complete
+  applied/active/reconciling/reconciling-shadow unapply arc.
+- `docs/handoff/CURRENT.md` — rev-1 progress and corrected Rule 18 guidance.
+
+## Test Results — Cluster G' rev-1
+
+- Pathspec-magic + Unicode targeted tests — PASS.
+- `go test ./assets` — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
 
 ## Files Changed — Cluster F' rev-0
 

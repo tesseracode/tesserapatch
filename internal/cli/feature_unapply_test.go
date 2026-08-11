@@ -256,6 +256,28 @@ func TestFeatureUnapplyUnicodeDeletedPathAndRollback(t *testing.T) {
 	})
 }
 
+func TestFeatureUnapplyPathspecMagicDeletedPaths(t *testing.T) {
+	for _, name := range []string{":(literal)gone.txt", "*.txt", "[x].txt"} {
+		t.Run(name, func(t *testing.T) {
+			fx := newDeletedPathUnapplyFixture(t, name, "magic", "magic\n")
+			if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+				t.Fatalf("code=%d stderr=%s", code, stderr)
+			}
+			if got := string(mustRead(t, filepath.Join(fx.dir, name))); got != "magic\n" {
+				t.Fatalf("%s after unapply = %q", name, got)
+			}
+			attempts, _ := filepath.Glob(filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "unapply", "ua_*"))
+			var session unapplySession
+			if err := json.Unmarshal(mustRead(t, filepath.Join(attempts[0], "unapply-session.json")), &session); err != nil {
+				t.Fatal(err)
+			}
+			if len(session.TouchedPaths) != 1 || session.TouchedPaths[0] != name {
+				t.Fatalf("touched_paths = %v", session.TouchedPaths)
+			}
+		})
+	}
+}
+
 func TestUnappliedCaptureCommandsRefusePendingBaseline(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
 	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
@@ -1376,6 +1398,10 @@ func newRenameUnapplyFixture(t *testing.T) unapplyFixture {
 }
 
 func newUnicodeDeleteUnapplyFixture(t *testing.T) unapplyFixture {
+	return newDeletedPathUnapplyFixture(t, "café.txt", "unicode", "unicode\n")
+}
+
+func newDeletedPathUnapplyFixture(t *testing.T, name, slug, content string) unapplyFixture {
 	t.Helper()
 	testutil.PinGitAutoGCOff()
 	dir := t.TempDir()
@@ -1384,23 +1410,23 @@ func newUnicodeDeleteUnapplyFixture(t *testing.T) unapplyFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Unicode", Slug: "unicode", Request: "unicode"})
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: slug, Slug: slug, Request: slug})
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, "café.txt")
-	if err := os.WriteFile(path, []byte("unicode\n"), 0o644); err != nil {
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	runUnapplyGit(t, dir, "add", "-A")
-	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "unicode baseline")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "deleted-path baseline")
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
 	runUnapplyGit(t, dir, "add", "-A")
-	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "unicode deletion feature")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "deleted-path feature")
 	patch := runUnapplyGit(t, dir, "show", "--format=", "--binary", "HEAD")
-	if got := gitutil.PathsAffectedByPatch(patch); len(got) != 1 || got[0] != "café.txt" {
+	if got := gitutil.PathsAffectedByPatch(patch); len(got) != 1 || got[0] != name {
 		t.Fatalf("fixture patch paths = %v\n%s", got, patch)
 	}
 	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
@@ -1412,7 +1438,7 @@ func newUnicodeDeleteUnapplyFixture(t *testing.T) unapplyFixture {
 		t.Fatal(err)
 	}
 	runUnapplyGit(t, dir, "add", "-A")
-	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record unicode metadata")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record deleted-path metadata")
 	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
 }
 

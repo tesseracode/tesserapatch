@@ -132,6 +132,7 @@ var requiredAnchors = []struct {
 	{"unapplied-state/preservation", "`unapplied` keeps the canonical patch"},
 	{"unapplied-state/soft-override", "--allow-soft-dependents"},
 	{"unapplied-state/edge-semantics", "Dependency edges onto an `unapplied` parent remain allowed"},
+	{"unapplied-state/source-set", "applied/active/reconciling/reconciling-shadow → tpatch feature unapply"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching

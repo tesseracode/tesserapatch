@@ -275,9 +275,9 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 			continue
 		}
 		// Stage as intent-to-add (makes new files visible to git diff)
-		if _, err := runGit(repoRoot, "add", "--intent-to-add", "--", file); err != nil {
+		if _, err := runGit(repoRoot, "--literal-pathspecs", "add", "--intent-to-add", "--", file); err != nil {
 			for _, staged := range stagedNewFiles {
-				runGit(repoRoot, "reset", "--", staged)
+				runGit(repoRoot, "--literal-pathspecs", "reset", "--", staged)
 			}
 			return "", fmt.Errorf("git add --intent-to-add %q: %w", file, err)
 		}
@@ -306,7 +306,7 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 			// staged before the diff failed; ignore secondary errors
 			// because the primary error from git is the useful signal.
 			for _, file := range stagedNewFiles {
-				runGit(repoRoot, "reset", "--", file)
+				runGit(repoRoot, "--literal-pathspecs", "reset", "--", file)
 			}
 			return "", fmt.Errorf("git diff failed for pathspecs %v: %w", pathspecs, err)
 		}
@@ -315,7 +315,7 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 
 	// Unstage the intent-to-add files to leave the working tree clean
 	for _, file := range stagedNewFiles {
-		runGit(repoRoot, "reset", "--", file)
+		runGit(repoRoot, "--literal-pathspecs", "reset", "--", file)
 	}
 
 	return normalizePatchTail(patch), nil

@@ -192,9 +192,9 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 		if shouldSkipCapturePath(file) {
 			continue
 		}
-		if _, err := runGit(repoRoot, "add", "--intent-to-add", "--", file); err != nil {
+		if _, err := runGit(repoRoot, "--literal-pathspecs", "add", "--intent-to-add", "--", file); err != nil {
 			for _, staged := range stagedNewFiles {
-				runGit(repoRoot, "reset", "--", staged)
+				runGit(repoRoot, "--literal-pathspecs", "reset", "--", staged)
 			}
 			return "", summary, fmt.Errorf("git add --intent-to-add %q: %w", file, err)
 		}
@@ -211,7 +211,7 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 	patch, err := runGit(repoRoot, diffArgs...)
 	if err != nil {
 		for _, file := range stagedNewFiles {
-			runGit(repoRoot, "reset", "--", file)
+			runGit(repoRoot, "--literal-pathspecs", "reset", "--", file)
 		}
 		if len(pathspecs) > 0 {
 			return "", summary, fmt.Errorf("git diff failed for pathspecs %v: %w", pathspecs, err)
@@ -221,7 +221,7 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 
 	// Unstage intent-to-add markers so the working tree is restored.
 	for _, file := range stagedNewFiles {
-		runGit(repoRoot, "reset", "--", file)
+		runGit(repoRoot, "--literal-pathspecs", "reset", "--", file)
 	}
 
 	// Count paths for provenance / advisory note. Note: for the path

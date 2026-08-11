@@ -30,7 +30,7 @@ implementing → tpatch apply <slug>                                  → applie
              OR tpatch apply --mode started / edit / --mode done    → applied (advanced)
 applied      → tpatch record     → active
 active       → tpatch reconcile  → active | upstream_merged | blocked
-applied/active → tpatch feature unapply → unapplied → tpatch apply → applied
+applied/active/reconciling/reconciling-shadow → tpatch feature unapply → unapplied → tpatch apply → applied
 ```
 
 Never skip a phase. Never go backwards without `tpatch reconcile`.
