@@ -28,6 +28,35 @@ One sequential implementer owns the whole wave. Every stage used
 explicit-path `git add`, every commit carries the Rule 18 trailer, and
 neither Accepted paper nor any guarded WIP file was touched.
 
+### Pre-close note fold (test/ledger only)
+
+The two rev-2 acceptance notes are folded. This fold changes **no**
+production behavior, no Accepted paper, no shipped asset and no WIP
+file; it touches only `internal/rescap/ac_ledger_test.go` and adds one
+new native test file.
+
+1. **AC-85 ledger refs.** `TestProcessRunnerSetsSetpgidOnTheRealCommand`
+   and `TestSignalTargetsTheChildGroupNotOurOwn` are added to AC-85 —
+   the clause that states `Setpgid` is applied before `Start`. Rev-2
+   intended this and silently missed it: the edit matched
+   `85: {Refs:` while gofmt had aligned the map key to `85:  {Refs:`
+   (two spaces), so the replacement was a no-op and both tests were
+   referenced by no clause at all. AC-104 remains correctly mapped to
+   `TestNoexecPreflightRunsBeforeTheCopyIsCreated` (row 173).
+2. **Native observer behavior.** New
+   `internal/rescap/observer_native_test.go`, under exactly
+   `//go:build linux || darwin`, exercises the **production**
+   `observeLeaderEvent` helper against a real child that exits with a
+   real status — no source grep, no injected `ObserveFn`, no
+   substituted syscall. It observes twice after exit and before any
+   `cmd.Wait()`, then calls `cmd.Wait()` exactly once and asserts the
+   child's true exit code survives. Mapped to AC-106 / row 175
+   alongside the existing cross-build and build-tag coverage.
+
+No production file was modified, so no test hook was needed: the
+observer helper is package-level and directly callable from the
+package's own test.
+
 ## Rev-2 Review Verdict
 
 - **Internal**: APPROVED WITH NOTES.
@@ -159,12 +188,40 @@ At `86f93b7`:
   untouched.
 - Side Research md5: `b385fe622db9926f48861105239f113e`.
 
+### Pre-close note fold
+
+At the note-fold commit (test/ledger only; production tree unchanged):
+
+- `gofmt -l .` — clean. `go vet ./...` — clean.
+  `go build ./cmd/tpatch` — OK.
+- `go test -count=1 ./...` — PASS, all 14 packages (uncached).
+- `go test -race -count=1 ./internal/rescap/` — PASS.
+- Targeted `rescap` run — PASS, including the five ledger guards and the
+  two new native observer tests.
+- Cross-compile `go build ./...` on `linux/{amd64,arm64,386,s390x}`,
+  `darwin/{arm64,amd64}`, `windows/{amd64,arm64}` — all OK; `go vet` OK
+  on five representative targets; `go test -c` OK for
+  `linux/{amd64,arm64}` and `darwin/{arm64,amd64}`.
+- Build-tag inclusion verified by `go list` per platform: the new native
+  file is included on **both** `linux` and `darwin` and excluded on
+  `windows`, so it runs on both native CI legs.
+- **Mutation probes** (scratch, reverted; `observer_unix.go` confirmed
+  byte-identical afterwards):
+  - dropping `WNOWAIT` from the raw `waitid` flags → the second observe
+    returns `ECHILD` and the test FAILS;
+  - keeping `WNOWAIT` but reaping via `Wait4` inside the observer → same
+    FAILURE.
+  The test also carries two positive controls: a post-`Wait` observe
+  must return `ECHILD`, and observing an unrelated PID must return
+  `ECHILD`, so the pre-reap successes are not vacuous.
+- Accepted PRD/ADR, shipped assets and guarded WIP: unchanged.
+- Side Research md5 re-verified: `b385fe622db9926f48861105239f113e`.
+
 ## Next Steps
 
-1. Fold the two non-production test-ledger notes.
-2. Re-run targeted, full, race, cross and wave-close validation.
-3. Finalize LOG/ROADMAP/HISTORY/CURRENT.
-4. Tag and push `v0.15.0`.
+1. Supervisor consolidation: flip the canonical `**Cluster state**`,
+   finalize LOG/ROADMAP/HISTORY.
+2. Tag and push `v0.15.0`.
 
 ## Blockers
 
