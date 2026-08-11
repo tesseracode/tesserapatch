@@ -7,7 +7,8 @@
 
 ### Confirmed
 
-- v0.14.0 tag and `origin/main` at `0ef771c`.
+- v0.14.0 tag at `0ef771c`; `origin/main` matched it at review time before
+  this post-release amendment advanced `main` without moving the tag.
 - Transactional unapply, atomic status writes and canonical reapply.
 - Full lifecycle/assets integration and terminal tracking/archive.
 - 1022 top-level PASS / 0 FAIL, 22/22 Rule 18 trailers, Side Research md5,
