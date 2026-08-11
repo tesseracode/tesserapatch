@@ -2,10 +2,54 @@
 
 ## Status
 
-**Cluster state**: REV-12 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-19 Cluster H rev-12 WRITTEN — bounded process-finalizer
+fold, AWAITING REVIEW.** Same sequential writer continued from rev-11
+(`1403276`). Six directives folded across both papers: (1) **single
+cleanup owner across every trigger** — closed the compositional gap
+where terminal-observer-error branches (`ECHILD` and any other errno)
+acted outside any single ownership guard; a single atomic ownership
+primitive (`sync.Once`/CAS) is now attempted by all **five** candidate
+trigger sources (leader event, terminal observer error, reader error,
+cap, timeout) before any cleanup action; a cleanup-initiated flag,
+set the instant ownership is acquired, filters every subsequent
+owner-induced reader error as a join-completion signal only, never a
+fresh trigger; (2) **deterministic trigger priority** — a fixed
+priority re-check (terminal observer error > reader error > cap >
+timeout > benign leader event) determines the reported classification
+once ownership resolves, with a signal→reap→drain phase-order
+tiebreak for benign entries; two worked multi-error examples added;
+(3) **`ECHILD` finalizer separated** — no `-pgid` signal, no
+`cmd.Wait()`, force-close, bounded join, refuse, release lock, proven
+to send **zero** negative-PGID calls even under an induced reader
+error; (4) **shared bounded finalizer with concrete deadlines** —
+every other classification now runs `SIGTERM`→2s grace→`SIGKILL`→a
+new concrete **2-second Reap deadline** for `cmd.Wait()`
+(`adapter-reap-timeout` fallback, exit 1, no second `Wait()` call, lock
+released promptly) → a new concrete **2-second Pipe-drain deadline**,
+strictly sequenced after the reap step; (5) **signal-delivery
+honesty, extended** — no claim a `-pgid` signal reaches every group
+member or proves the group empty; (6) **parity sweep** — removed every
+remaining "`cmd.Wait()` is the last event" claim (corrected order:
+signals → bounded Wait/reap → bounded drain finalization); fixed PRD
+§6.1's residual paragraph (a stale "step 5's `chmod 0500`" reference —
+`Fchmod` is step 6 — and an "ultimately executed... one continuous
+chain" overclaim, both corrected to the narrower, honest guarantee).
+AC count: **115** (net +4 from rev-11's 111: `AC-112`-`AC-115` new;
+`AC-85`/`AC-96`/`AC-97`/`AC-109` rewritten in place, none removed).
+ADR Test Matrix rows: **184** (net +4 from rev-11's 180: rows 181-184
+new for `AC-112`-`AC-115`; rows 151/152/165/166/178 corrected in place,
+not row-count-additive). All four golden vectors and the six shared
+JSON blocks mechanically reconfirmed unaffected — no wire-schema/
+hash-input text was touched. PRD grew to **6218 lines** (was 5812),
+ADR to **2429 lines** (was 2240). Side Research md5 unchanged:
+`b385fe622db9926f48861105239f113e`. See "Files Changed — Cluster H
+rev-12", "Test Results — Cluster H rev-12", and "Ready for review —
+Cluster H rev-12" below.
 
 **2026-08-19 Cluster H rev-11 adjudicated NEEDS REVISION → rev-12
 DISPATCHED.** Both reviewers confirmed every rev-10 finding closed. The
@@ -1051,17 +1095,18 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-11 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-12 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-11
+- **Task ID**: Cluster H rev-12
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-10 adjudication's seven directives
-  (A-G, `bc313df`) into the feature-resource PRD and ADR-033
-  boundary — a bounded platform/state-machine fold hardening the
-  leader-event/cleanup-trigger observer, group-signal errno tolerance,
-  bounded pipe-drain, add-time TOFU, and executed-bytes honesty.
-- **Status**: Complete (rev-11 fold), AWAITING REVIEW
-- **Assigned**: 2026-08-14 (rev-11 fold: 2026-08-19)
+- **Description**: Fold the rev-11 adjudication's six directives
+  (`c4c367c`) into the feature-resource PRD and ADR-033 boundary — a
+  bounded process-finalizer fold introducing a single cleanup owner
+  across all five trigger sources, deterministic trigger priority, a
+  separated `ECHILD` finalizer, and concrete bounded Reap/Pipe-drain
+  deadlines for the shared finalizer.
+- **Status**: Complete (rev-12 fold), AWAITING REVIEW
+- **Assigned**: 2026-08-14 (rev-12 fold: 2026-08-19)
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -1099,6 +1144,27 @@ only after implementation review and wave close.
 - Stage explicit file paths only; Rule 18 trailer required on every commit.
 
 ## Session Summary
+
+- **Cluster H rev-12** — dispatched 2026-08-19 (adjudication
+  `c4c367c`) from `WAVE_BASE=f04dec7`; written 2026-08-19. Same
+  sequential writer continued from rev-11 (`1403276`). Bounded
+  process-finalizer fold resolving six directives — see the Status
+  entry above for the complete itemized breakdown: (1) single cleanup
+  owner (CAS/`sync.Once`) across all five trigger sources, with a
+  cleanup-initiated flag suppressing owner-induced reader errors; (2)
+  deterministic trigger priority (terminal observer error > reader
+  error > cap > timeout > benign leader event) plus phase-order
+  tiebreak and two worked multi-error examples; (3) separated `ECHILD`
+  finalizer proven to send zero negative-PGID calls; (4) shared
+  bounded finalizer with new concrete 2-second Reap deadline
+  (`adapter-reap-timeout` fallback) and 2-second Pipe-drain deadline,
+  strictly sequenced signal → reap → drain; (5) signal-delivery
+  honesty extended; (6) parity sweep removing every "`cmd.Wait()` is
+  the last event" claim and fixing PRD §6.1's step-number/executed-
+  bytes overclaim. AC count: **115** (net +4 from rev-11's 111). ADR
+  Test Matrix rows: **184** (net +4 from rev-11's 180). Golden vectors
+  and six shared JSON blocks reconfirmed unaffected. PRD **6218
+  lines** (was 5812), ADR **2429 lines** (was 2240).
 
 - **Cluster H rev-11** — dispatched 2026-08-18 (adjudication
   `bc313df`) from `WAVE_BASE=f04dec7`; written 2026-08-19. Same
@@ -1659,6 +1725,119 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-12
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  title/Status → rev-12, superseding writer commit `1403276`,
+  adjudicated `c4c367c`; `## 0. Rev-11 Fold Summary` fully replaced
+  with a new `## 0. Rev-12 Fold Summary` (rev-11's own body preserved
+  as historical prose nested below, per the established replace-not-
+  nest §0 pattern); §0.1 header now "(... + rev-11 + rev-12
+  additions)" with a rev-12 note that no new `C`-numbered citation is
+  added; `C36`'s own "Grounds" column amended to describe the
+  five-source ownership design and the `ECHILD` exception (rather than
+  "all three trigger branches"); §3 exit-code-1 table gets a new
+  `adapter-reap-timeout` row and updated `adapter-process-observer-
+  failed`/`adapter-group-signal-failed` descriptions; §6.4 parameter
+  table gets new `Reap deadline`/`Pipe-drain deadline` rows (2 seconds
+  each); §6.4 Termination cell fully rewritten — single-owner CAS
+  across five sources, deterministic priority re-check, cleanup-
+  initiated flag, `ECHILD` finalizer, shared bounded finalizer with the
+  new deadlines, signal-delivery honesty, updated residuals/
+  Verification paragraph; §6.1's "Residual, stated honestly" paragraph
+  fixed (step 5→step 6 `Fchmod` reference, executed-bytes overclaim
+  removed); `AC-85`/`AC-96`/`AC-97`/`AC-109` rewritten in place; new
+  `AC-112`-`AC-115` added — **115** clauses total (net +4 from
+  rev-11's 111); §14.1 exact-counts paragraph gets a new "Rev-11's own
+  count derivation" historical note; new `## 26. Rev-12 Changelog`
+  vs rev-11.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — same 11 binding
+  decisions (D1–D11, numbering unchanged): title/Status header updated
+  to rev-12, citing writer commit `1403276` and adjudication
+  `c4c367c`; new "Rev-12 fold summary" section appended after "Rev-11
+  fold summary"; D5's heading updated ("single-owner bounded process
+  finalizer", rev-12 task citation); D5's "Process-group termination"
+  paragraph fully rewritten mirroring the PRD §6.4 rewrite (five
+  sources, single-owner CAS, deterministic priority, cleanup-initiated
+  flag, primary-error selection with two worked examples, `ECHILD`
+  finalizer, shared bounded finalizer with 2s Reap/2s Pipe-drain
+  deadlines, signal-delivery honesty, narrowed premise, residuals);
+  Implementation Notes item 11 rewritten (five-source/ownership-CAS/
+  bounded-deadline design replacing the stale rev-11 four-branch
+  language); Negative Consequences Summary's process-group-termination
+  bullet rewritten in place (adds the `ECHILD`-unsignaled-and-
+  unreaped residual and the `adapter-reap-timeout` residual); Test
+  Matrix rows 151/152 (`AC-85`), 165/166 (`AC-96`/`AC-97`), 178
+  (`AC-109`) rewritten in place; new rows 181-184 added for
+  `AC-112`-`AC-115` — Test Matrix now **184 rows** (net +4 from
+  rev-11's 180), all 115 PRD acceptance-criteria clauses still covered
+  (mechanically verified: rows 1–184 sequential, no gaps; every
+  `AC-1`–`AC-115` referenced by at least one row).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new
+  rev-12 entry prepended above the rev-11-adjudication entry), Active
+  Task block updated to rev-12, new Session Summary bullet, this Files
+  Changed section, Test Results, and the "Ready for review — Cluster H
+  rev-12" section below. Cluster state flipped to
+  `**Cluster state**: AWAITING REVIEW` (canonical single-token field,
+  per this rev's explicit instruction).
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-12
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation
+performed instead:
+
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created under
+  `.git/scratch-rev12/`, run, deleted, never written under `/tmp`) —
+  confirmed **115** distinct, sequential `AC-1`..`AC-115` clauses, zero
+  gaps, zero duplicates (net +4 from rev-11's 111; `AC-112`-`AC-115`
+  new, four clauses — `AC-85`/`AC-96`/`AC-97`/`AC-109` — rewritten in
+  place).
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (115 distinct, sequential, no gaps) against every row of
+  the ADR's Test Matrix (184 sequential rows, 1..184, zero gaps within
+  the Test Matrix section specifically, verified separately from the
+  unrelated 4-row golden-vector table in D3) — confirmed all 115
+  clauses appear in at least one matrix row, no clause missing, no
+  extra/unexpected clause tag.
+- Golden-vector reconfirmation: `resource_id` Vector 1
+  (`res_acc91dc23a8b`), Vectors 2/3 (`res_4b62313b6cce`), Vector 4
+  (`res_79f5ac5dca13`), the worked batch example's `batch_id`
+  (`rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`),
+  and the directory golden vector's `combined_hash`
+  (`5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad`)
+  all mechanically re-grepped across all three documents and confirmed
+  identical occurrence counts/values — no wire-schema/identity change
+  this revision, only process-finalizer prose/behavior-contract
+  clarifications.
+- Six shared JSON blocks re-grepped across the PRD/ADR and confirmed
+  unaffected/byte-identical (no wire-schema changes this revision).
+- Reason-taxonomy mechanical check: `adapter-reap-timeout` (new)
+  grepped across both documents and confirmed to appear exactly once
+  in the exit-code table plus consistently in every normative usage
+  location (AC-115, new Test Matrix row 184, §6.4 finalizer prose, D5
+  finalizer prose); confirmed no duplicate/contradictory name
+  introduced for any existing condition.
+- Stale-surface global search: confirmed no remaining normative claim
+  that `cmd.Wait()` is "the last event"/"always last" outside of
+  historical (rev-10/rev-11 fold-summary, changelog) narrative context
+  in either document; confirmed no remaining "leader exited"/
+  "confirmed dead"/"group is empty" proof claims; confirmed the PRD
+  §6.1 residual paragraph's step-number reference and executed-bytes
+  language are both corrected and internally consistent.
+- `git status --short` confirmed only the three owned paths are
+  touched by this writer; all pre-existing untracked WIP remains
+  untouched and unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-11
 
@@ -3532,6 +3711,87 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-12
+
+**Scope**: docs-only planning cluster, rev-12 "bounded process-
+finalizer fold". Same two deliverables as rev-1 through rev-11, both
+edited in relevant part (the §6.4/D5 termination-cell rewrite and the
+PRD's §0/§26 restructure are the largest single edits this revision),
+plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **6218 lines** (was 5812). See "Files Changed — Cluster H rev-12"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the adjudication's six directives.
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **2429 lines**
+   (was 2240). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D5, Implementation Notes
+   item 11, one Negative Consequences bullet, and five Test Matrix
+   rows plus four new rows); see "Files Changed — Cluster H rev-12"
+   above.
+
+**Files changed (Cluster H rev-12)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — edited in place
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — edited in place
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D5 (ADR) ↔ §6.4 (PRD): identical single-owner, five-source,
+  deterministic-priority process-finalizer design — a single atomic
+  ownership CAS attempted by all five sources (leader event, terminal
+  observer error, reader error, cap, timeout) before any cleanup
+  action, a cleanup-initiated flag suppressing owner-induced reader
+  errors, a fixed priority re-check once ownership resolves, primary-
+  error selection rules with two worked multi-error examples, a
+  separated `ECHILD` finalizer (no signal, no `Wait()`), and a shared
+  bounded finalizer (`SIGTERM`→2s grace→`SIGKILL`→bounded 2s Reap
+  deadline→bounded 2s Pipe-drain deadline) for every other
+  classification — identical in both documents; no "Wait/observer
+  proves group emptiness" or "`Wait()` is the last event" claim in
+  either.
+- D5 (ADR) Implementation Notes item 11 / Negative Consequences bullet
+  ↔ §6.4 (PRD): the stale rev-11-attributed four-branch/unbounded-reap
+  language replaced in both locations with the rev-12 five-source/
+  ownership-CAS/bounded-deadline design, including the `ECHILD`-
+  unsignaled-and-unreaped and `adapter-reap-timeout`-abandoned-
+  goroutine residuals.
+- §6.1 (PRD) residual paragraph ↔ D5 (ADR): both now state only that
+  bytes **written** (steps 4-7) to the private copy were verified;
+  step 8's pathname-based execution is not thereby proven identical,
+  and the same-UID replacement/ABA residual remains open between step
+  6's `Fchmod` and step 8 — the prior "traces back to one continuous
+  chain" overclaim and the stale "step 5" reference are both removed.
+- §3 exit-code table (PRD) new reason name (`adapter-reap-timeout`,
+  exit 1) — the ADR has no separate exit-code table of its own (the
+  PRD's §3 table is the single normative source), confirmed via
+  full-file grep that no ADR passage contradicts or duplicates this
+  name; the name appears exactly once in the PRD's own taxonomy table.
+- Test Matrix (ADR) ↔ §14 Acceptance Criteria (PRD): all 115 AC
+  clauses (`AC-1`–`AC-115`) mechanically confirmed covered by at least
+  one of the 184 Test Matrix rows (rows 151, 152, 165, 166, 178
+  rewritten in place this revision, rows 181-184 newly added for
+  `AC-112`-`AC-115`); no orphaned clause, no orphaned row.
+- Wire Schema Appendix (ADR) ↔ §12/§13.3 (PRD): resource/batch/
+  directory golden vectors and the six shared JSON blocks mechanically
+  reconfirmed byte-identical and unaffected by this revision's edits —
+  every rev-12 change is a process-finalizer prose/behavior-contract
+  clarification, none touch hash-input/identity data.
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
+- `C36`'s own "Grounds" column in the PRD's §0.1 Claims Audit updated
+  to describe the five-source design and the `ECHILD` exception,
+  confirmed consistent with the rewritten §6.4/D5 prose.
 
 ## Ready for review — Cluster H rev-11
 
