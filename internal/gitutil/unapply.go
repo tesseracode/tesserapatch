@@ -9,9 +9,26 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/tesseracode/tesserapatch/internal/safety"
 )
+
+// ApplyPatchStrict applies patch without a three-way fallback. Reapplying an
+// unapplied canonical patch must reproduce its exact recorded projection.
+func ApplyPatchStrict(repoRoot, patch string) error {
+	if patch == "" {
+		return fmt.Errorf("empty patch")
+	}
+	cmd := exec.Command("git", "apply", "-")
+	cmd.Dir = repoRoot
+	cmd.Stdin = strings.NewReader(patch)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git apply failed: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+	return nil
+}
 
 // PathsAffectedByPatch returns the union of both diff-header sides plus
 // rename/copy source and destination paths. Unapply needs the full set: a
@@ -242,6 +259,7 @@ type WorktreeFileSnapshot struct {
 	Path       string
 	Exists     bool
 	Mode       os.FileMode
+	Directory  bool
 	Data       []byte
 	LinkTarget string
 }
@@ -277,7 +295,7 @@ func SnapshotWorktreePaths(repoRoot string, paths []string) (WorktreeSnapshot, e
 		}
 		entry := WorktreeFileSnapshot{Path: clean}
 		info, err := os.Lstat(abs)
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
 			snapshot.Files = append(snapshot.Files, entry)
 			continue
 		}
@@ -287,6 +305,8 @@ func SnapshotWorktreePaths(repoRoot string, paths []string) (WorktreeSnapshot, e
 		entry.Exists = true
 		entry.Mode = info.Mode()
 		switch {
+		case info.IsDir():
+			entry.Directory = true
 		case info.Mode().IsRegular():
 			entry.Data, err = os.ReadFile(abs)
 		case info.Mode()&os.ModeSymlink != 0:
@@ -306,51 +326,76 @@ func SnapshotWorktreePaths(repoRoot string, paths []string) (WorktreeSnapshot, e
 // joined errors so one failed path does not prevent restoration of its peers.
 func (s WorktreeSnapshot) Restore(repoRoot string) error {
 	var errs []error
-	for _, entry := range s.Files {
-		if err := restoreWorktreeFile(repoRoot, entry); err != nil {
+	entries := append([]WorktreeFileSnapshot(nil), s.Files...)
+	sort.Slice(entries, func(i, j int) bool {
+		di, dj := pathDepth(entries[i].Path), pathDepth(entries[j].Path)
+		if di != dj {
+			return di > dj
+		}
+		return entries[i].Path > entries[j].Path
+	})
+	for _, entry := range entries {
+		if err := removeSnapshotPath(repoRoot, entry.Path); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		di, dj := pathDepth(entries[i].Path), pathDepth(entries[j].Path)
+		if di != dj {
+			return di < dj
+		}
+		return entries[i].Path < entries[j].Path
+	})
+	for _, entry := range entries {
+		if !entry.Exists {
+			continue
+		}
+		if err := recreateSnapshotPath(repoRoot, entry); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func restoreWorktreeFile(repoRoot string, entry WorktreeFileSnapshot) error {
+func removeSnapshotPath(repoRoot, path string) error {
+	abs, clean, err := safeWorktreePath(repoRoot, path)
+	if err != nil {
+		return err
+	}
+	_, err = os.Lstat(abs)
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("remove current %s for restore: %w", clean, err)
+	}
+	if err := os.Remove(abs); err != nil {
+		return fmt.Errorf("remove current %s for restore: %w", clean, err)
+	}
+	return nil
+}
+
+func recreateSnapshotPath(repoRoot string, entry WorktreeFileSnapshot) error {
 	abs, clean, err := safeWorktreePath(repoRoot, entry.Path)
 	if err != nil {
 		return err
 	}
-	if !entry.Exists {
-		info, err := os.Lstat(abs)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-			return nil
-		case err != nil:
-			return fmt.Errorf("restore absence for %s: %w", clean, err)
-		case info.IsDir():
-			return fmt.Errorf("restore absence for %s: refusing to remove directory", clean)
-		default:
-			if err := os.Remove(abs); err != nil {
-				return fmt.Errorf("restore absence for %s: %w", clean, err)
-			}
-			return nil
-		}
-	}
-
 	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 		return fmt.Errorf("restore %s parent: %w", clean, err)
 	}
-	if current, err := os.Lstat(abs); err == nil {
-		if current.IsDir() {
-			return fmt.Errorf("restore %s: refusing to replace directory", clean)
-		}
-		if err := os.Remove(abs); err != nil {
-			return fmt.Errorf("restore %s: %w", clean, err)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("restore %s: %w", clean, err)
-	}
 
 	switch {
+	case entry.Directory:
+		if err := os.Mkdir(abs, entry.Mode.Perm()); err != nil {
+			return fmt.Errorf("restore directory %s: %w", clean, err)
+		}
+		if err := os.Chmod(abs, entry.Mode.Perm()); err != nil {
+			return fmt.Errorf("restore directory mode %s: %w", clean, err)
+		}
 	case entry.Mode.IsRegular():
 		if err := writeSnapshotFile(abs, entry.Data, entry.Mode.Perm()); err != nil {
 			return fmt.Errorf("restore %s: %w", clean, err)
@@ -363,6 +408,14 @@ func restoreWorktreeFile(repoRoot string, entry WorktreeFileSnapshot) error {
 		return fmt.Errorf("restore %s: unsupported file mode %s", clean, entry.Mode)
 	}
 	return nil
+}
+
+func pathDepth(path string) int {
+	clean := filepath.Clean(filepath.FromSlash(path))
+	if clean == "." {
+		return 0
+	}
+	return strings.Count(clean, string(filepath.Separator))
 }
 
 func writeSnapshotFile(path string, data []byte, mode os.FileMode) (retErr error) {

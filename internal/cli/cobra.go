@@ -880,11 +880,6 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 			return workflow.RecipeExecResult{}, err
 		}
 	}
-	recipe, err := workflow.LoadRecipe(s, slug)
-	if err != nil {
-		return workflow.RecipeExecResult{}, err
-	}
-	warnRecipeStale(cmd.ErrOrStderr(), s, slug)
 	statusBefore, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return workflow.RecipeExecResult{}, err
@@ -902,13 +897,7 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		if err != nil {
 			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: read canonical patch: %w", slug, err)
 		}
-		paths := gitutil.PathsAffectedByPatch(canonical)
-		for _, op := range recipe.Operations {
-			if op.Type != "ensure-directory" {
-				paths = append(paths, op.Path)
-			}
-		}
-		paths = uniqueSortedPaths(paths)
+		paths := uniqueSortedPaths(gitutil.PathsAffectedByPatch(canonical))
 		reapplySnapshot, err = gitutil.SnapshotWorktreePaths(s.Root, paths)
 		if err != nil {
 			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: snapshot touched paths: %w", slug, err)
@@ -917,7 +906,31 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		if err != nil {
 			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: verify HEAD baseline: %w", slug, err)
 		}
+		if err := markApplyProgress(s, slug, "apply --mode execute", "Reapplying canonical patch"); err != nil {
+			return workflow.RecipeExecResult{}, err
+		}
+		result := workflow.RecipeExecResult{Operations: 1}
+		if err := gitutil.ApplyPatchStrict(s.Root, canonical); err != nil {
+			result.Errors = []string{err.Error()}
+			return result, rollbackReapply(s, reapplySnapshot, statusBefore,
+				fmt.Errorf("canonical patch reapply failed: %w", err))
+		}
+		if err := validateReapplyMaterialization(s.Root, canonical, presentAtHEAD); err != nil {
+			return result, rollbackReapply(s, reapplySnapshot, statusBefore, err)
+		}
+		result.Success = true
+		result.Applied = 1
+		result.Messages = []string{"[canonical-patch] post-apply.patch: OK"}
+		fmt.Fprintln(out, "  [canonical-patch] post-apply.patch: OK")
+		fmt.Fprintln(out, "Canonical patch reapplied successfully")
+		return result, nil
 	}
+
+	recipe, err := workflow.LoadRecipe(s, slug)
+	if err != nil {
+		return workflow.RecipeExecResult{}, err
+	}
+	warnRecipeStale(cmd.ErrOrStderr(), s, slug)
 	if err := markApplyProgress(s, slug, "apply --mode execute", "Executing recipe"); err != nil {
 		return workflow.RecipeExecResult{}, err
 	}
@@ -937,18 +950,10 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		fmt.Fprintf(cmd.ErrOrStderr(), "  ERROR: %s\n", e)
 	}
 	if result.Success {
-		if reapplying {
-			if err := validateReapplyMaterialization(s.Root, canonical, presentAtHEAD); err != nil {
-				return result, rollbackReapply(s, reapplySnapshot, statusBefore, err)
-			}
-		}
 		fmt.Fprintf(out, "Recipe executed: %d/%d operations succeeded\n", result.Applied, result.Operations)
 		return result, nil
 	}
 	execErr := fmt.Errorf("recipe execution failed: %d error(s)", len(result.Errors))
-	if reapplying {
-		execErr = rollbackReapply(s, reapplySnapshot, statusBefore, execErr)
-	}
 	return result, execErr
 }
 
@@ -1141,16 +1146,6 @@ func uniqueSortedPaths(paths []string) []string {
 // first error; surfaces it as-is. On success, prints a consolidated
 // summary naming each phase.
 func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
-	if status, err := s.LoadFeatureStatus(slug); err == nil && status.State == store.StateUnapplied {
-		if canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch")); readErr == nil {
-			if gitutil.ValidatePatchReverse(s.Root, canonical) == nil {
-				fmt.Fprintf(cmd.OutOrStdout(), "Canonical patch already materialized for %s; finalizing reapply.\n", slug)
-				_, _, err := runApplyDone(cmd, s, slug)
-				return err
-			}
-		}
-	}
-
 	// ADR-011 D4: gate at the top so we don't even write the apply
 	// packet when hard parents are unsatisfied. Re-checked inside
 	// runApplyExecute as a defence-in-depth — same call, same result.
@@ -1161,6 +1156,15 @@ func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
 	if err := checkParentGenerationStaleGate(cmd.ErrOrStderr(), s, slug, "apply"); err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
 		return err
+	}
+	if status, err := s.LoadFeatureStatus(slug); err == nil && status.State == store.StateUnapplied {
+		if canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch")); readErr == nil {
+			if gitutil.ValidatePatchReverse(s.Root, canonical) == nil {
+				fmt.Fprintf(cmd.OutOrStdout(), "Canonical patch already materialized for %s; finalizing reapply.\n", slug)
+				_, _, err := runApplyDone(cmd, s, slug)
+				return err
+			}
+		}
 	}
 	if err := runApplyPrepare(cmd, s, slug); err != nil {
 		return err

@@ -164,6 +164,11 @@ only after implementation review and wave close.
   deletion tests cover `:(literal)`, `*`, and `[]`; all six asset diagrams
   and parity anchors carry the complete four-state source set; stale
   `Copilot-Session` guidance removed. Full gates pass.
+- **Cluster G' rev-2** — internal rev-1 semantic findings folded: reapply
+  strictly uses canonical post-apply.patch (recipe-independent), shortcut
+  finalization follows dependency/generation gates, touched-path rollback
+  supports file↔directory transitions, and amend refuses before request
+  mutation. Full gates pass.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -259,6 +264,26 @@ Contract documentation and assets:
 
 - Pathspec-magic + Unicode targeted tests — PASS.
 - `go test ./assets` — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+
+## Files Changed — Cluster G' rev-2
+
+- `internal/cli/cobra.go` — canonical strict reapply path, dependency-first
+  shortcut ordering and retained base_commit.
+- `internal/gitutil/unapply.go` — strict forward apply plus directory-aware
+  two-phase snapshot restore.
+- `internal/cli/c1.go` — unapplied amend refusal before request writes.
+- `internal/cli/feature_unapply_test.go` — stale-recipe authority,
+  materialized-gate, amend identity and file→directory command regressions.
+- `internal/gitutil/unapply_test.go` — both file↔directory restore directions.
+- `docs/handoff/CURRENT.md` — rev-2 progress and gates.
+
+## Test Results — Cluster G' rev-2
+
+- Rev-2 targeted semantic tests — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.

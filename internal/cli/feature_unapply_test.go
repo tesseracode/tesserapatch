@@ -1063,7 +1063,7 @@ func TestFeatureApplyReappliesUnappliedFeature(t *testing.T) {
 	}
 }
 
-func TestFeatureApplyIncompleteReapplyPreservesCanonicalAndState(t *testing.T) {
+func TestFeatureApplyIgnoresStaleRecipeAndReappliesCanonicalPatch(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
 	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
 		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
@@ -1085,22 +1085,110 @@ func TestFeatureApplyIncompleteReapplyPreservesCanonicalAndState(t *testing.T) {
 	if err := fx.store.WriteArtifact(fx.slug, "apply-recipe.json", incompleteRecipe); err != nil {
 		t.Fatal(err)
 	}
-	if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code != 1 || !strings.Contains(stderr, "reapply") {
+	if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code != 0 {
 		t.Fatalf("apply code=%d stderr=%s", code, stderr)
 	}
 	if got := mustRead(t, patchPath); !bytes.Equal(got, canonicalBefore) {
 		t.Fatal("incomplete reapply overwrote canonical patch")
 	}
 	status, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil || status.State != store.StateApplied {
+		t.Fatalf("status = %q, %v", status.State, err)
+	}
+	if got := string(mustRead(t, filepath.Join(fx.dir, "README.md"))); got != "# Test\nfeature\n" {
+		t.Fatalf("canonical reapply did not restore README: %q", got)
+	}
+	if got := string(mustRead(t, filepath.Join(fx.dir, "feature.txt"))); got != "feature file\n" {
+		t.Fatalf("canonical reapply did not restore feature.txt: %q", got)
+	}
+}
+
+func TestMaterializedReapplyStillRunsDependencyGate(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	parent, err := fx.store.AddFeature(store.AddFeatureInput{Title: "Parent", Slug: "parent", Request: "parent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent.State = store.StateDefined
+	if err := fx.store.SaveFeatureStatus(parent); err != nil {
+		t.Fatal(err)
+	}
+	child, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child.DependsOn = []store.Dependency{{Slug: parent.Slug, Kind: store.DependencyKindHard}}
+	if err := fx.store.SaveFeatureStatus(child); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, fx.dir, "add", "-A")
+	runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "add unsatisfied parent")
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	if err := gitutil.ApplyPatchStrict(fx.dir, string(fx.patch)); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code == 0 || !strings.Contains(stderr, "state=defined") {
+		t.Fatalf("apply code=%d stderr=%s", code, stderr)
+	}
+	status, err := fx.store.LoadFeatureStatus(fx.slug)
 	if err != nil || status.State != store.StateUnapplied {
 		t.Fatalf("status = %q, %v", status.State, err)
 	}
-	if got := string(mustRead(t, filepath.Join(fx.dir, "README.md"))); got != "# Test\n" {
-		t.Fatalf("failed reapply did not restore README: %q", got)
+}
+
+func TestAmendUnappliedRefusesBeforeRequestMutation(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
 	}
-	if _, err := os.Stat(filepath.Join(fx.dir, "feature.txt")); !os.IsNotExist(err) {
-		t.Fatalf("failed reapply left feature.txt, err=%v", err)
+	requestPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "request.md")
+	before := mustRead(t, requestPath)
+	if _, stderr, code := runRJ("amend", fx.slug, "replacement request", "--reset", "--path", fx.dir); code != 3 {
+		t.Fatalf("amend code=%d stderr=%s", code, stderr)
 	}
+	if got := mustRead(t, requestPath); !bytes.Equal(got, before) {
+		t.Fatal("refused amend changed request.md")
+	}
+}
+
+func TestFeatureUnapplyFileToDirectoryTransition(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		fx := newFileToDirectoryUnapplyFixture(t)
+		if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+			t.Fatalf("code=%d stderr=%s", code, stderr)
+		}
+		info, err := os.Stat(filepath.Join(fx.dir, "config"))
+		if err != nil || !info.Mode().IsRegular() {
+			t.Fatalf("config after unapply = %v, %v", info, err)
+		}
+		if got := string(mustRead(t, filepath.Join(fx.dir, "config"))); got != "base\n" {
+			t.Fatalf("config content = %q", got)
+		}
+	})
+
+	t.Run("status-failure-restores-directory", func(t *testing.T) {
+		fx := newFileToDirectoryUnapplyFixture(t)
+		rt := defaultUnapplyRuntime()
+		rt.newAttemptID = func() (string, error) { return "ua_eeeeeeeeeeee", nil }
+		rt.saveStatus = func(*store.Store, store.FeatureStatus) error {
+			return errors.New("injected status failure")
+		}
+		cmd := &cobra.Command{}
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		if err := runFeatureUnapplyWithRuntime(cmd, fx.store, fx.slug, unapplyOptions{Mode: "patch"}, rt); err == nil {
+			t.Fatal("expected status failure")
+		}
+		info, err := os.Stat(filepath.Join(fx.dir, "config"))
+		if err != nil || !info.IsDir() {
+			t.Fatalf("config after rollback = %v, %v", info, err)
+		}
+		if got := string(mustRead(t, filepath.Join(fx.dir, "config", "default.yaml"))); got != "feature\n" {
+			t.Fatalf("default.yaml after rollback = %q", got)
+		}
+	})
 }
 
 func TestFeatureRemoveUnappliedFeatureIsUnchanged(t *testing.T) {
@@ -1481,5 +1569,53 @@ func newSpaceUnapplyFixture(t *testing.T) unapplyFixture {
 	}
 	runUnapplyGit(t, dir, "add", "-A")
 	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record spaced feature")
+	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
+}
+
+func newFileToDirectoryUnapplyFixture(t *testing.T) unapplyFixture {
+	t.Helper()
+	testutil.PinGitAutoGCOff()
+	dir := t.TempDir()
+	gitInitTestRepo(t, dir)
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Config", Slug: "config-feature", Request: "config"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(dir, "config")
+	if err := os.WriteFile(configPath, []byte("base\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "config file baseline")
+	if err := os.Remove(configPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(configPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "default.yaml"), []byte("feature\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "replace config file with directory")
+	patch := runUnapplyGit(t, dir, "show", "--format=", "--binary", "HEAD")
+	paths := gitutil.PathsAffectedByPatch(patch)
+	if strings.Join(paths, ",") != "config,config/default.yaml" {
+		t.Fatalf("fixture patch paths = %v\n%s", paths, patch)
+	}
+	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
+		t.Fatal(err)
+	}
+	feature.State = store.StateApplied
+	feature.Apply.HasPatch = true
+	if err := s.SaveFeatureStatus(feature); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, dir, "add", "-A")
+	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "record config feature")
 	return unapplyFixture{dir: dir, store: s, slug: feature.Slug, patch: []byte(patch)}
 }

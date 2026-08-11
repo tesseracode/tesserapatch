@@ -148,6 +148,11 @@ provided.`,
 			depAdds, _ := cmd.Flags().GetStringArray("depends-on")
 			depRms, _ := cmd.Flags().GetStringArray("remove-depends-on")
 			depsOnly := (len(depAdds) > 0 || len(depRms) > 0) && len(args) == 1 && !stdinIsPiped(cmd)
+			if !depsOnly {
+				if err := refuseIfUnappliedState(s, slug, "amend"); err != nil {
+					return err
+				}
+			}
 
 			var description string
 			if !depsOnly {

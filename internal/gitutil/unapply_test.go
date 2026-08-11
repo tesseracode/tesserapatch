@@ -134,3 +134,65 @@ func TestGitOperationInProgress(t *testing.T) {
 		t.Fatalf("operation = %q, %v, want cherry-pick", operation, err)
 	}
 }
+
+func TestWorktreeSnapshotRestoresFileDirectoryTransitions(t *testing.T) {
+	t.Run("directory-back-over-file", func(t *testing.T) {
+		dir := t.TempDir()
+		config := filepath.Join(dir, "config")
+		if err := os.Mkdir(config, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(config, "default.yaml"), []byte("feature\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := SnapshotWorktreePaths(dir, []string{"config", "config/default.yaml"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.RemoveAll(config); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(config, []byte("base\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := snapshot.Restore(dir); err != nil {
+			t.Fatal(err)
+		}
+		if info, err := os.Stat(config); err != nil || !info.IsDir() {
+			t.Fatalf("config = %v, %v", info, err)
+		}
+		if got, err := os.ReadFile(filepath.Join(config, "default.yaml")); err != nil || string(got) != "feature\n" {
+			t.Fatalf("default.yaml = %q, %v", got, err)
+		}
+	})
+
+	t.Run("file-back-over-directory", func(t *testing.T) {
+		dir := t.TempDir()
+		config := filepath.Join(dir, "config")
+		if err := os.WriteFile(config, []byte("base\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := SnapshotWorktreePaths(dir, []string{"config", "config/default.yaml"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(config); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(config, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(config, "default.yaml"), []byte("feature\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := snapshot.Restore(dir); err != nil {
+			t.Fatal(err)
+		}
+		if info, err := os.Stat(config); err != nil || !info.Mode().IsRegular() {
+			t.Fatalf("config = %v, %v", info, err)
+		}
+		if got, err := os.ReadFile(config); err != nil || string(got) != "base\n" {
+			t.Fatalf("config = %q, %v", got, err)
+		}
+	})
+}
