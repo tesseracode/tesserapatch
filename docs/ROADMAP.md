@@ -625,13 +625,14 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
-## Registered candidate — typed feature resources + capture adapters ⬜
+## Cluster H planning — typed feature resources + capture adapters 🔨 PLANNING
 
 **Registered**: 2026-08-10 user request.
 **Candidate docs**:
 `PRD-feature-resource-claims-and-capture-adapters` +
 `ADR-033-resource-capture-boundary`.
 **Priority**: HIGH for planning; implementation is ADR-gated.
+**Dispatch**: Cluster H rev-0, 2026-08-10, WAVE_BASE `f04dec7`.
 
 This extends, rather than duplicates, shipped v0.9.0 capabilities:
 

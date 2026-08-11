@@ -2,10 +2,23 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: REV-0 DISPATCHED
 
-**WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
-implementation dispatch, 2026-08-10).
+**WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
+planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-0 DISPATCHED — v0.15.0 candidate typed feature
+resources + capture adapters (planning only).** Single sequential writer owns
+`docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`,
+`docs/adrs/ADR-033-resource-capture-boundary.md`, and CURRENT.md. Scope:
+extend shipped v0.9 file claims/capture modes to explicit ignored resources,
+logical Git metadata and optional deterministic external adapters such as
+Dolt; define add/remove/list/diff metadata and future auto-record integration.
+Binding safety: raw `.git/**` remains forbidden, ignored files are explicit
+opt-in under ADR-027 privacy rules, resource diffs are v1 sidecars rather than
+canonical patches, Git remains the only replay substrate, and no optional
+adapter becomes a core dependency or authority. No code, assets, version bump,
+or tag in Cluster H.
 
 **2026-08-10 v0.14.0 post-release close-claim review APPROVED WITH NOTES.**
 Headline release claims, 1022/0 count, tag/push, tracking, WIP preservation,
@@ -167,51 +180,51 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster G' rev-0 — v0.14.0 feature-unapply implementation.**
+**Cluster H rev-0 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster G' rev-0
-- **Milestone**: v0.14.0
-- **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Complete
+- **Task ID**: Cluster H rev-0
+- **Milestone**: v0.15.0 candidate (planning)
+- **Description**: Author the feature-resource PRD and ADR-033 boundary.
+- **Status**: In Progress
 - **Assigned**: 2026-08-10
-- **WAVE_BASE**: `9e77617`
+- **WAVE_BASE**: `f04dec7`
 
-### Implementation scope
+### Deliverables
 
-- Upgrade `SaveFeatureStatus` to same-directory atomic temp-write + rename.
-- Add `StateUnapplied = "unapplied"` and audit every state-aware surface.
-- Add `tpatch feature unapply <slug>` with patch-mode dry-run, dependency and
-  worktree preflight, strict reverse-check, temporary-worktree preview,
-  touched-file snapshot/restore, and exit codes 0/1/2/3.
-- Write D3's deterministic `unapply-session.json` and `reverse.patch` under
-  `artifacts/unapply/<attempt-id>/`; do not mutate patch generations.
-- Integrate apply, aggregate/explicit reconcile, status/JSON/FEATURES.md, next,
-  land, dependency satisfaction, verify invalidation, confirm-upstreamed, and
-  reject/reopen interaction acceptance criteria.
-- Update `SPEC.md`, all affected shipped assets, and the parity guard.
-- Cover all 61 ADR matrix rows, including AC-10a/b/c rollback paths.
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`.
+- `docs/adrs/ADR-033-resource-capture-boundary.md`.
+- Claims-audit anchors against shipped implementation and source papers.
+- Exact v1 CLI/schema/adapter/error/determinism/privacy contracts.
+- 1:1 acceptance/test matrix sufficient for a future Cluster H'
+  implementation dispatch.
 
-### Binding corrections
+### Required decisions
 
-- No `UnappliedStatus` store sub-record. The D3 session file is separate.
-- No `ErrUnappliedParent` or Rule-7 edge-creation refusal. Edges onto unapplied
-  parents remain legal; unapplied parents do not satisfy hard apply gates.
-- `reject` and `reopen` are not redesigned, but their unapplied interaction ACs
-  are mandatory.
-- The guard belongs at the first statement of
-  `applyConfirmUpstreamedTransition`, not in its callee.
+- Extend `claims.json` vs. introduce a separate resource manifest.
+- Resource kind/selector/ID schema and deterministic ordering.
+- Snapshot/diff artifact envelope and canonical-authority boundary.
+- Explicit ignored-file opt-in, privacy, redaction and secret refusal.
+- Logical Git metadata allowlist; raw `.git/**` remains impossible.
+- Optional adapter capability/protocol, command execution and version capture.
+- Dolt scope (schema/table diff exports only; no authoritative Dolt store).
+- Auto-record integration, failure semantics and partial-adapter policy.
+- Resource generation/amend/remove lifecycle and feature metadata diff UX.
 
-### Constraints and non-goals
+### Constraints
 
-- Accepted ADR-032 D1-D8 and PRD-feature-unapply govern; do not reopen them.
-- V1 is patch-mode only; no provider calls, landed-commit mode, cascade unapply,
-  retirement command, or patch-generation writes.
+- Reuse shipped file claims, capture modes, capture provenance and generation
+  identity rather than creating a parallel ownership model.
+- Honor ADR-027 privacy and ADR-030 `.git/**` store-boundary refusal.
+- Keep Git-first assumptions from WP-006; non-Git replay remains out of scope.
+- Planning only; no CLI/schema implementation.
 - Preserve Side Research md5 `b385fe622db9926f48861105239f113e`.
 - Do not stage allowlisted untracked research files.
 - Stage explicit file paths only; Rule 18 trailer required on every commit.
 
 ## Session Summary
 
+- **Cluster H rev-0** — dispatched 2026-08-10 from `WAVE_BASE=f04dec7`;
+  planning writer active.
 - **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
   Store foundation complete: `StateUnapplied` is the twelfth valid state and
   `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
@@ -519,12 +532,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Cluster G' is closed at v0.14.0.
-2. Highest-leverage new planning candidate:
-   `PRD-feature-resource-claims-and-capture-adapters` +
-   `ADR-033-resource-capture-boundary` (registered, not dispatched).
-3. Select that candidate or another post-v0.14.0 backlog item explicitly
-   before changing `**Cluster state**`.
+1. Writer authors PRD + ADR-033 and updates the handoff.
+2. Run independent internal and external reviews over both papers.
+3. Reuse the same writer context for bounded folds until convergence.
+4. On approval: accept papers, archive Cluster H, and leave implementation
+   for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
@@ -550,8 +562,8 @@ None.
 
 ## Context for Next Agent
 
-- **Cluster G' SHIPPED at v0.14.0.** Do not reopen it. The next candidate is
-  registered but not dispatched.
+- **Cluster H planning is active at `WAVE_BASE=f04dec7`.** No code or release
+  tag belongs in this cluster.
 - **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
 - **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.

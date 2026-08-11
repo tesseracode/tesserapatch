@@ -1,3 +1,37 @@
+## Dispatch — Cluster H rev-0 planning — 2026-08-10
+
+**Task**: Author `PRD-feature-resource-claims-and-capture-adapters` +
+`ADR-033-resource-capture-boundary`.
+**WAVE_BASE**: `f04dec7`
+**Milestone**: v0.15.0 candidate, planning only.
+
+### Writer
+
+Single sequential writer. Owned paths:
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
+- `docs/adrs/ADR-033-resource-capture-boundary.md`
+- `docs/handoff/CURRENT.md`
+
+Explicit-path staging only. No code/assets/SPEC/version/tag changes.
+
+### Binding Inputs
+
+Shipped `PRD-feature-file-claims`, `PRD-record-capture-modes`, claims/capture
+implementation, ADR-027, ADR-030, WP-002, WP-006,
+storage-substrate research and the registered ROADMAP safety boundaries.
+
+### Review Protocol
+
+Dual internal/external review at rev-0. Same writer context handles every
+bounded fold. Papers must lock resource authority, privacy, determinism,
+adapter capability/failure semantics, `.git/**` exclusion, Dolt limits,
+auto-record integration and a 1:1 implementation matrix before acceptance.
+
+### Action Taken
+
+CURRENT.md and ROADMAP transitioned to `REV-0 DISPATCHED` / planning.
+
 ## Backlog registration — typed feature resources + capture adapters — 2026-08-10
 
 **Source**: user request after v0.14.0 close.
