@@ -625,63 +625,44 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
-## Cluster H planning — typed feature resources + capture adapters 🔨 PLANNING
+## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 
-**Registered**: 2026-08-10 user request.
-**Candidate docs**:
+**Registered**: 2026-08-10.
+**Accepted**: 2026-08-19.
+**WAVE_BASE**: `f04dec7`.
+**Reviewed implementation contract**: `f04dec7..650b44f` (32 commits).
+**Deliverables**:
 `PRD-feature-resource-claims-and-capture-adapters` +
 `ADR-033-resource-capture-boundary`.
-**Priority**: HIGH for planning; implementation is ADR-gated.
-**Dispatch**: Cluster H rev-0, 2026-08-10, WAVE_BASE `f04dec7`.
 
-This extends, rather than duplicates, shipped v0.9.0 capabilities:
+The accepted v1 boundary adds a separate typed `resources.json` domain for
+explicit ignored-file resources, allowlisted logical Git metadata, and a
+Dolt `diff-summary` adapter. Resource captures are deterministic structural
+sidecar artifacts; they never become canonical patch, lifecycle, reconcile,
+land, or verify authority. Raw resource bodies are never persisted, raw
+`.git/**` remains forbidden, and Git remains the only replay substrate.
 
-- `tpatch feature claim add|list|remove|clear` already persists advisory
-  repository-path ownership in `claims.json`.
-- `tpatch record --all|--staged|--unstaged|--claimed-only|--files` already
-  controls Git capture boundaries and provenance.
-- default worktree capture already includes non-ignored untracked files;
-  committed-range capture intentionally does not.
-
-**Missing capability**: explicitly associate non-standard resources with a
-feature and produce deterministic add/remove/list/diff metadata for them.
-Candidate resource kinds:
-
-- explicitly opted-in gitignored files or generated resources;
-- logical Git metadata (selected refs/config/attributes/index facts), never raw
-  `.git/**` bytes;
-- external/versioned resources such as Dolt schema/table diffs;
-- deterministic command/export snapshots from optional adapters.
-
-**Proposed surface for paper evaluation**:
+**Accepted command family**:
 
 ```text
-tpatch feature resource add <slug> --kind <kind> <selector>
-tpatch feature resource list <slug> [--json]
-tpatch feature resource remove <slug> <resource-id-or-selector>
-tpatch feature resource diff <slug> [--resource <id>]
-tpatch record <slug> --resources            # candidate; exact auto behavior TBD
+tpatch feature resource add|list|remove|clear|capture|diff|trust-dolt
+tpatch record <slug> --resources
 ```
 
-**Binding safety boundaries for planning**:
+**Final contract**: 120 acceptance clauses, 189-row ADR matrix, four
+resource-ID vectors, one full batch-ID vector, one directory combined-hash
+vector, and six byte-identical PRD/ADR JSON wire blocks. Linux and macOS are
+the supported lock/adapter platforms; unsupported hosts fail closed.
 
-1. Raw `.git/**` content remains forbidden in canonical patches and at the
-   store write boundary. Git resources must be logical, allowlisted views.
-2. Gitignored files are never swept implicitly; each selector requires
-   explicit opt-in and privacy/secret handling under ADR-027.
-3. Resource diffs are sidecar audit artifacts in v1, not merged into
-   `post-apply.patch` or lifecycle truth.
-4. Dolt or other tools remain optional adapters discovered at runtime; no new
-   core dependency and no opaque database becomes tpatch authority.
-5. Reuse claims, capture-mode provenance and patch-generation IDs rather than
-   introducing a parallel ownership system.
-6. Git remains the only change-tracking substrate until WP-006's broader
-   non-Git boundary is promoted through a separate ADR.
+**Review close**: rev-13 internal APPROVED WITH NOTES and external APPROVED.
+The internal note is an implementation clarification only: after the signal
+phase, `cmd.Wait()` may reap before the non-reaping observer reports, so a
+post-reap observer `ECHILD` is an expected secondary completion and must not
+alter the already-final classification.
 
-**Planning inputs**:
-`PRD-feature-file-claims`, `PRD-record-capture-modes`, ADR-027,
-ADR-030, WP-002, WP-006, and
-`docs/state-of-the-art/storage-substrate-and-versioned-data.md`.
+**Next**: Cluster H′ implementation from these Accepted papers. Record a new
+`WAVE_BASE` from `origin/main` immediately before dispatch. No release tag was
+created for this planning-only cluster.
 
 ## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
 

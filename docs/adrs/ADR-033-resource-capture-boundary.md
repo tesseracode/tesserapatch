@@ -1,9 +1,9 @@
 # ADR-033 — Resource Capture Boundary (rev-13)
 
-**Status**: Proposed — rev-13 (supersedes rev-12, writer commit
-`e434ba6`, rev-12 adjudicated NEEDS REVISION (internal) / APPROVED
-WITH NOTES (external) → REV-13 DISPATCHED at `521091d`; see
-`docs/supervisor/LOG.md`)
+**Status**: Accepted — Cluster H rev-13 (`650b44f`; internal APPROVED
+WITH NOTES, external APPROVED; see `docs/supervisor/LOG.md`)
+**Planning range**: `f04dec7..650b44f`; implementation is a separately
+based Cluster H′ wave.
 
 **Context**: `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
 (rev-13, companion document — this ADR binds the decisions that PRD's

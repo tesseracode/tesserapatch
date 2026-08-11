@@ -1,3 +1,65 @@
+# 2026-08-19 — Cluster H planning — typed feature resources + capture adapters — ACCEPTED
+
+**WAVE_BASE**: `f04dec7`
+**Accepted writer tip**: `650b44f`
+**Reviewed range**: `f04dec7..650b44f` (32 commits)
+**Deliverables**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
+- `docs/adrs/ADR-033-resource-capture-boundary.md`
+
+**Accepted scope**:
+- Separate typed `resources.json`; existing `claims.json` remains advisory
+  repository-path ownership.
+- Closed v1 kinds: explicit ignored-file, allowlisted logical Git metadata,
+  and Dolt adapter snapshot (`dolt-diff-summary-v1`).
+- Deterministic immutable batch + atomic current-pointer publication.
+- Resource sidecars never become canonical patch/lifecycle/reconcile/land/
+  verify authority.
+- ADR-027 privacy: raw ignored-file/Dolt output never persists to tracked or
+  local files.
+- Linux/macOS `flock`, path/descriptor gates, private verified Dolt copy,
+  bounded process-group cleanup, and fail-closed unsupported platforms.
+
+**Final acceptance surface**:
+- PRD: 6,492 lines, `AC-1` through `AC-120`.
+- ADR: 2,666 lines, Test Matrix rows 1 through 189.
+- Four resource-ID vectors, full batch-ID vector, directory combined-hash
+  vector and six byte-identical PRD/ADR JSON blocks.
+
+**Review arc**:
+
+| Revisions | Internal | External | Outcome |
+|-----------|----------|----------|---------|
+| rev-0–rev-7 | NEEDS REVISION each pass | NEEDS REVISION each usable pass | Sequential bounded folds |
+| rev-8 | NEEDS REVISION | stale-range pass discarded | rev-9 |
+| rev-9–rev-11 | NEEDS REVISION | NEEDS REVISION | Process/trust/finalizer folds |
+| rev-12 | NEEDS REVISION | APPROVED WITH NOTES | rev-13 edge closure |
+| rev-13 | APPROVED WITH NOTES | **APPROVED** | **ACCEPTED** |
+
+**Final non-blocking note**: after signaling, `cmd.Wait()` may reap before
+the non-reaping observer returns; post-reap observer `ECHILD` is expected
+secondary completion and does not change the finalized classification.
+
+**Verification**:
+- AC and row sequences contiguous with complete coverage.
+- All documented digests independently recomputed.
+- Side Research md5 preserved:
+  `b385fe622db9926f48861105239f113e`.
+- Rule 18 trailer verified on all 32 pre-consolidation commits.
+- Guarded WIP and `.wave-close-allowlist` unchanged.
+- No tag: planning cluster only.
+
+**Pattern catch**: the long review arc converged because each revision closed
+a concrete implementation-contract failure class rather than relaxing it:
+privacy persistence, path identity, atomic publication, trust pinning,
+process-group lifetime, Darwin wait semantics, cleanup ownership and bounded
+finalization. The final two passes changed no product/schema decision.
+
+**Next**: dispatch Cluster H′ implementation from a freshly recorded
+`origin/main` WAVE_BASE.
+
+---
+
 # 2026-08-10 — Cluster G' — v0.14.0 `tpatch feature unapply` implementation — SHIPPED
 
 **WAVE_BASE**: `9e77617`

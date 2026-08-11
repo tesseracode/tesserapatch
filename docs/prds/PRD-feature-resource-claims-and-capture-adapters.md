@@ -1,9 +1,9 @@
 # PRD — Feature Resource Claims & Capture Adapters (rev-13)
 
-**Status**: Draft — rev-13 (supersedes rev-12, writer commit `e434ba6`,
-adjudicated NEEDS REVISION (internal) / APPROVED WITH NOTES (external) →
-REV-13 DISPATCHED at `521091d`; see `docs/supervisor/LOG.md` → Cluster H
-rev-0 through rev-12 adjudications)
+**Status**: Accepted — Cluster H rev-13 (`650b44f`; internal APPROVED
+WITH NOTES, external APPROVED; see `docs/supervisor/LOG.md`)
+**Planning range**: `f04dec7..650b44f`; implementation is a separately
+based Cluster H′ wave.
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes

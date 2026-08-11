@@ -1,3 +1,47 @@
+## Review — Cluster H rev-13 acceptance — 2026-08-19
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, final
+follow-up)
+**External reviewer**: claude-opus-5 (`cluster-h-r10-external`, final
+follow-up)
+**Writer commit**: `650b44f`
+**Reviewed range**: `521091d..650b44f`
+
+### Checklist
+
+- [x] Exact review range and pushed HEAD verified
+- [x] 120 contiguous acceptance clauses
+- [x] 189 contiguous matrix rows with complete AC coverage
+- [x] Four resource IDs, batch digest and directory digest recomputed
+- [x] Six shared JSON blocks byte-identical
+- [x] Process finalizer race/deadline/ownership contract implementable
+- [x] Privacy, path, lock, publication and Dolt-wire boundaries preserved
+- [x] Side Research md5 and guarded WIP invariants preserved
+
+### Verdict: APPROVED
+
+Internal returned **APPROVED WITH NOTES**: after the signal phase,
+`cmd.Wait()` may reap before the blocked non-reaping observer returns, making
+post-reap observer `ECHILD` an expected secondary completion. This does not
+affect the pre-signal cutoff guarantee or final classification.
+
+External returned **APPROVED** with no findings. It independently reproduced
+the load-bearing Go/Darwin behaviors and found no race, deadlock, double
+wait/close/signal, leaked lock, unsafe PGID signal, or unsatisfied acceptance
+row.
+
+### Supervisor Decision: ACCEPTED
+
+Both papers are Accepted. Cluster H planning closes at rev-13; implementation
+is deferred to a separately based Cluster H′ wave. No release tag is created
+for this planning-only close.
+
+### Action Taken
+
+PRD/ADR statuses accepted, ROADMAP flipped, handoff archived, terminal
+CURRENT prepared, and planning wave-close dispatched with
+`WAVE_BASE=f04dec7`.
+
 ## Review — Cluster H rev-12 adjudication — 2026-08-19
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, follow-up)
