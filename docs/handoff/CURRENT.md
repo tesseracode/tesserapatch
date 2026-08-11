@@ -2,10 +2,23 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-0 adjudicated NEEDS REVISION → rev-1
+DISPATCHED.** Internal review: 7 HIGH + 1 MEDIUM. External review: 3 HIGH +
+8 MEDIUM + 3 LOW. Convergent blockers: raw ignored/adapter payloads cannot be
+committed under ADR-027; `generic-command` has no enforceable sandbox;
+symlink-aware safety was falsely attributed to lexical helpers;
+`record --resources`/dry-run/retry semantics contradict current record;
+multi-file batch rename was not atomic; resource IDs used incompatible
+canonicalization; adapter/Dolt/diff protocols were incomplete; matrix/count/
+citation handoff claims overstated verification. Rev-1 keeps sound D1/D2/D7/
+D10 boundaries but moves raw bodies to the local-private lane, removes
+generic-command from v1, locks realizable pointer-based batch publication,
+and rebuilds exact schemas/AC mapping.
 
 **2026-08-10 Cluster H rev-0 WRITTEN — v0.15.0 candidate typed feature
 resources + capture adapters (planning only), awaiting dual review.** Single
@@ -200,7 +213,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster H rev-0
 - **Milestone**: v0.15.0 candidate (planning)
 - **Description**: Author the feature-resource PRD and ADR-033 boundary.
-- **Status**: Review
+- **Status**: In Progress (rev-1 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -641,24 +654,17 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Cluster H rev-0 papers are written and staged for review (this handoff).
-2. Run independent internal and external reviews over both papers, checking:
-   the D1 separate-manifest-vs-extend-claims tradeoff; the D2 sidecar/
-   zero-lifecycle-coupling boundary; the D4 ignored-file/redaction gate; the
-   D5 four-view Git-metadata allowlist and `.git/**` store-write refusal
-   (defense in depth, mirrors ADR-030 D3/D4); the D6 no-shell/argv-only
-   adapter execution contract; the D7 Dolt-as-one-closed-adapter/no-new-
-   dependency scope; the D8 `record --resources` all-or-nothing transaction
-   semantics and independence from the Git-side capture; and the 1:1 PRD-AC
-   to ADR-test-matrix mapping (30 ACs, 45 rows).
-3. Reuse the same writer context for bounded folds until convergence.
-4. On approval: accept papers, archive Cluster H, flip ROADMAP's Cluster H
+1. Writer folds rev-0 safety/authority/transaction/protocol findings.
+2. Re-run exact citation, JSON parity and clause-level AC-matrix audits.
+3. Run independent internal and external rev-1 reviews.
+4. Reuse the same writer context for further bounded folds if needed.
+5. On approval: accept papers, archive Cluster H, flip ROADMAP's Cluster H
    status, and dispatch implementation as a separate Cluster H' — no code
    changes belong in this cluster's history.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Registered; planning not started.
+**Status**: Cluster H planning active; rev-1 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record

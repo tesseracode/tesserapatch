@@ -1,3 +1,64 @@
+## Review — Cluster H rev-0 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r0-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r0-external`)
+**Writer commit**: `dd08157`
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Scoreboard
+
+- Internal: 7 HIGH + 1 MEDIUM.
+- External: 3 HIGH + 8 MEDIUM + 3 LOW.
+
+### Convergent Blocking Classes
+
+1. ADR-027 contradiction: raw ignored-file/binary/adapter bodies cannot be
+   committed under the inherited privacy lane.
+2. `generic-command` argv-only execution is not an OS sandbox and cannot
+   guarantee no repository mutation, `.git` read, network or exfiltration.
+3. `EnsureSafeRepoPath`/claims normalization are lexical, not symlink-aware.
+4. `record --resources`, resource-only retry and dry-run semantics contradict
+   the current record mutation order and flags.
+5. Per-resource renames/appends are not atomic as a batch.
+6. PRD/ADR resource-ID canonicalization differs.
+7. Dolt/adapter argv, probe, output, diff and nullability rules remain
+   implementation decisions.
+8. CURRENT line counts and AC/matrix claims are false; multiple claims-audit
+   citations are stale or fabricated.
+
+### External-Specific Required Folds
+
+- Remove PII-bearing `user.*` and broad `core.*` Git config views.
+- Require ignored-file selectors to be both ignored and untracked.
+- Bound snapshot-time file count/total bytes; keep ignored-file bytes
+  verbatim locally rather than normalized tracked JSON.
+- Remove the contradictory untracked-but-not-ignored promise.
+- Replace masked normative text; correct safety-critical row list and
+  ExitCodeError claim.
+- Remove normative dependence on untracked WP-006 or cite tracked research.
+
+### Rev-1 Direction
+
+- Raw bodies/local diffs live under `.tpatch/local/`; committed sidecars carry
+  hashes, redacted summaries and references only.
+- Remove `generic-command` from the closed v1 adapter set; retain tightly
+  specified Dolt export only.
+- Add explicit `Lstat`/`EvalSymlinks` add-time and snapshot-time containment.
+- Publish immutable batch directories with one atomic current-pointer commit
+  point and documented orphan recovery.
+- Use one canonical-JSON resource-ID encoding with golden vectors.
+- Use `feature resource diff/capture` for resource-only and dry-run flows;
+  define `record --resources` preflight/publication and partial-domain failure
+  honestly.
+- Rebuild exact wire schemas, algorithms and clause-level matrix coverage.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-1 DISPATCHED`. D1 separate manifest, D2
+sidecar authority, D7 Dolt non-authority and D10 backward compatibility remain
+closed; other decisions may be rewritten within the bounded fold.
+
 ## Dispatch — Cluster H rev-0 planning — 2026-08-10
 
 **Task**: Author `PRD-feature-resource-claims-and-capture-adapters` +
