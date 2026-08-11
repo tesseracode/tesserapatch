@@ -1,3 +1,39 @@
+## Review — Cluster H′ rev-2 acceptance — 2026-08-11
+
+**Internal reviewer**: gpt-5.6-terra (`cluster-h-prime-r0-internal`,
+final follow-up)
+**External reviewer**: claude-opus-5 (`cluster-h-prime-r0-external`,
+final follow-up)
+**Implementation commit**: `86f93b7`
+**Reviewed range**: `407d68b..360327b`
+
+### Verdict: APPROVED
+
+Internal returned **APPROVED WITH NOTES**; external returned **APPROVED**.
+Both independently re-ran the full/race/cross suite and real CLI corruption,
+runaway-output and escaped-writer scenarios. All rev-0/rev-1 production
+findings are closed.
+
+### Pre-Close Notes
+
+1. AC-85's ledger entry no longer references the real Setpgid mechanism
+   tests after AC-104 was correctly re-homed to noexec.
+2. AC-106/row 175 has native observer+Wait coverage but no dedicated test
+   that calls `waitid(WNOWAIT)` twice after normal exit before `cmd.Wait`.
+
+External LOW observations about duplicate reason wording and generic host
+read-error naming are non-blocking and do not change the Accepted taxonomy.
+
+### Supervisor Decision: APPROVED — CLOSE NOTES
+
+Fold the two test-only notes without changing production behavior, then run
+the release wave-close and tag v0.15.0.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to the pre-close note fold. Accepted papers,
+production code and guarded WIP remain frozen.
+
 ## Review — Cluster H′ rev-1 adjudication — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-prime-r0-internal`,

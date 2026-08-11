@@ -659,6 +659,11 @@ external APPROVED WITH NOTES. Rev-2 is dispatched for end-to-end batch
 corruption taxonomy and direct noexec/copy-fault/CLI drain/SameFile ledger
 coverage.
 
+**Rev-2** (`86f93b7`): internal APPROVED WITH NOTES, external APPROVED.
+All production findings closed. Pre-close fold adds Setpgid ledger
+attribution and a native double-`WNOWAIT` non-reaping test before v0.15.0
+consolidation.
+
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 
 **Registered**: 2026-08-10.

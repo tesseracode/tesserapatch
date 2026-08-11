@@ -2,11 +2,10 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-Cluster H′ rev-2 is complete and pushed. All six adjudicated rev-1
-findings are closed and the rev-0 closures still hold; independent
-internal and external rev-2 reviews have not yet run.
+Cluster H′ rev-2 is accepted: internal APPROVED WITH NOTES, external
+APPROVED. Two test-ledger notes are being folded before release close.
 
 ## Active Task
 
@@ -14,7 +13,7 @@ internal and external rev-2 reviews have not yet run.
 - **Milestone**: v0.15.0 typed feature resources and capture adapters
 - **Description**: Implement the Accepted Cluster H PRD and ADR-033
   end-to-end, then close the rev-0 and rev-1 review findings.
-- **Status**: Review
+- **Status**: Approved — close-note fold
 - **Assigned**: 2026-08-11
 - **WAVE_BASE**: `46c984b`
 - **Rev-2 dispatch commit**: `407d68b`
@@ -28,6 +27,14 @@ internal and external rev-2 reviews have not yet run.
 One sequential implementer owns the whole wave. Every stage used
 explicit-path `git add`, every commit carries the Rule 18 trailer, and
 neither Accepted paper nor any guarded WIP file was touched.
+
+## Rev-2 Review Verdict
+
+- **Internal**: APPROVED WITH NOTES.
+- **External**: APPROVED.
+- All rev-0 and rev-1 production findings are closed.
+- Pre-close notes: add the real Setpgid tests to AC-85's ledger entry and add
+  a native double-`WNOWAIT`-then-`cmd.Wait` test to AC-106/row 175.
 
 ## Rev-2 Finding Closures
 
@@ -154,10 +161,10 @@ At `86f93b7`:
 
 ## Next Steps
 
-1. Run the independent internal rev-2 review.
-2. Run the independent external rev-2 review.
-3. Adjudicate, then run the Wave-Close Checklist.
-4. Tag `v0.15.0` only after the implementation wave is accepted.
+1. Fold the two non-production test-ledger notes.
+2. Re-run targeted, full, race, cross and wave-close validation.
+3. Finalize LOG/ROADMAP/HISTORY/CURRENT.
+4. Tag and push `v0.15.0`.
 
 ## Blockers
 
