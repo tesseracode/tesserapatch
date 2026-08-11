@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -264,19 +265,82 @@ func (s *Store) PublishBatch(slug string, batch Batch, canonical []byte) (Publis
 	return outcome, nil
 }
 
-// compareSemanticBody implements §7.3 step 3's drift-vs-collision
-// split: decode the on-disk file, verify its own batch_id field,
-// re-canonicalize its body, and compare against this invocation's
-// hash-input bytes. Byte inequality alone never means "collision".
-func compareSemanticBody(existing []byte, batchID string, canonical []byte) (bool, error) {
-	var onDisk Batch
-	dec := json.NewDecoder(bytes.NewReader(existing))
+// decodeBatchStrict parses one batch file with every structural bind
+// this design's integrity guarantee depends on:
+//
+//  1. unknown fields are rejected, so a tampered file cannot smuggle
+//     extra keys past the fixed wire schema;
+//  2. exactly one JSON value followed by EOF is required, so appending
+//     a second object (or any trailing garbage) after a valid one is
+//     refused rather than silently ignored — rev-0's decoder read the
+//     first value and abandoned the rest;
+//  3. the fixed-wire "arrays are never null" rule is enforced on
+//     `results`, each entry's `args`, and each entry's `result`, so a
+//     null-for-array substitution cannot decode as a valid batch.
+//
+// It deliberately does NOT bind the ID: callers choose whether the
+// requested-ID binding applies (LoadBatch binds it; the publication
+// idempotency check binds it separately with its own taxonomy).
+func decodeBatchStrict(data []byte) (Batch, error) {
+	var b Batch
+	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&onDisk); err != nil {
+	if err := dec.Decode(&b); err != nil {
+		return Batch{}, fmt.Errorf("does not parse: %w", err)
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return Batch{}, errors.New("carries trailing content after the batch object")
+	}
+	if b.Results == nil {
+		return Batch{}, errors.New("results is null; the fixed wire always uses an array")
+	}
+	for i, r := range b.Results {
+		if r.Args == nil {
+			return Batch{}, fmt.Errorf("results[%d].args is null; the fixed wire always uses an array", i)
+		}
+		if r.Result.IsNull() {
+			return Batch{}, fmt.Errorf("results[%d].result is null; every kind has an object result", i)
+		}
+	}
+	return b, nil
+}
+
+// bindBatchIdentity enforces the two-way binding between a batch's
+// requested identity and its actual content: the decoded `batch_id`
+// field must equal the requested ID, and recomputing the full
+// content-addressed ID over the decoded body must reproduce it too.
+//
+// The second check is what makes tampering detectable even when the
+// attacker keeps the `batch_id` field consistent with the filename:
+// mutating any result value changes the canonical body and therefore
+// the recomputed digest.
+func bindBatchIdentity(b Batch, wantID string) error {
+	if b.BatchID != wantID {
+		return fmt.Errorf("records batch_id %q but is stored as %q", b.BatchID, wantID)
+	}
+	recomputed, _, err := ComputeBatchID(b.Feature, b.Results)
+	if err != nil {
+		return fmt.Errorf("cannot be canonicalized: %w", err)
+	}
+	if recomputed != wantID {
+		return fmt.Errorf("content hashes to %q but is stored as %q", recomputed, wantID)
+	}
+	return nil
+}
+
+// compareSemanticBody implements §7.3 step 3's drift-vs-collision
+// split: strictly decode the on-disk file, verify its own batch_id
+// field, re-canonicalize its body, and compare against this
+// invocation's hash-input bytes. Byte inequality alone never means
+// "collision" — presentation drift on a semantically identical body is
+// idempotent, and only a genuine semantic mismatch is fatal.
+func compareSemanticBody(existing []byte, batchID string, canonical []byte) (bool, error) {
+	onDisk, err := decodeBatchStrict(existing)
+	if err != nil {
 		return false, &PublicationError{
 			Reason:  ReasonBatchFileCorrupt,
 			BatchID: batchID,
-			Detail:  fmt.Sprintf("existing batch file does not parse: %v", err),
+			Detail:  fmt.Sprintf("existing batch file %v", err),
 		}
 	}
 	if onDisk.BatchID != batchID {
@@ -400,9 +464,21 @@ func (s *Store) LoadCurrentPointer(slug string) (CurrentPointer, error) {
 	return p, nil
 }
 
-// LoadBatch reads one immutable batch file. A referenced-but-absent
-// file is `tracked-batch-missing` — a data-integrity condition
-// distinct from "no capture yet" (§4.1).
+// LoadBatch reads one immutable batch file under the full integrity
+// contract. A referenced-but-absent file is `tracked-batch-missing` — a
+// data-integrity condition distinct from "no capture yet" (§4.1) — and
+// **every other** failure is `batch-file-corrupt`.
+//
+// Rev-0 read batches with a permissive json.Unmarshal, so a tampered
+// file whose content no longer matched its own content-addressed name
+// loaded as if it were authentic. Rev-1 binds three things on every
+// normal read: the strict fixed-wire shape (decodeBatchStrict), the
+// decoded `batch_id` field against the requested filename ID, and the
+// full recomputed content address against that same ID. Tampering is
+// therefore `batch-file-corrupt`, never `tracked-batch-missing` (which
+// would misreport a present-but-altered file as absent) and never
+// `batch-id-collision` (which is reserved for two genuinely distinct
+// staged contents colliding at publish time).
 func (s *Store) LoadBatch(slug, batchID string) (Batch, error) {
 	data, err := os.ReadFile(s.ResourceBatchPath(slug, batchID))
 	if err != nil {
@@ -415,12 +491,19 @@ func (s *Store) LoadBatch(slug, batchID string) (Batch, error) {
 		}
 		return Batch{}, err
 	}
-	var b Batch
-	if err := json.Unmarshal(data, &b); err != nil {
+	b, err := decodeBatchStrict(data)
+	if err != nil {
 		return Batch{}, &PublicationError{
 			Reason:  ReasonBatchFileCorrupt,
 			BatchID: batchID,
-			Detail:  fmt.Sprintf("batch file does not parse: %v", err),
+			Detail:  fmt.Sprintf("batch file %v", err),
+		}
+	}
+	if err := bindBatchIdentity(b, batchID); err != nil {
+		return Batch{}, &PublicationError{
+			Reason:  ReasonBatchFileCorrupt,
+			BatchID: batchID,
+			Detail:  fmt.Sprintf("batch file %v", err),
 		}
 	}
 	return b, nil

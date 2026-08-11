@@ -744,3 +744,210 @@ func TestNearestExistingAncestor(t *testing.T) {
 		t.Fatalf("nearest existing ancestor = %s, want %s", got, root)
 	}
 }
+
+// ─── rev-1: strict batch-load integrity (review finding 4) ───────────────────
+
+// publishGoldenBatch writes the golden batch through the real
+// publication path and returns the store plus the on-disk batch path.
+func publishGoldenBatch(t *testing.T) (*Store, Batch, string) {
+	t.Helper()
+	s := newResourceTestStore(t)
+	b := goldenBatch()
+	_, canonical, err := ComputeBatchID(b.Feature, b.Results)
+	if err != nil {
+		t.Fatalf("ComputeBatchID: %v", err)
+	}
+	if _, err := s.PublishBatch("model-picker", b, canonical); err != nil {
+		t.Fatalf("PublishBatch: %v", err)
+	}
+	return s, b, s.ResourceBatchPath("model-picker", b.BatchID)
+}
+
+// TestLoadBatchStrictAcceptsAnAuthenticFile is the control: the strict
+// loader must still accept a batch this design itself wrote.
+func TestLoadBatchStrictAcceptsAnAuthenticFile(t *testing.T) {
+	s, b, _ := publishGoldenBatch(t)
+	loaded, err := s.LoadBatch("model-picker", b.BatchID)
+	if err != nil {
+		t.Fatalf("an authentic batch must load: %v", err)
+	}
+	if loaded.BatchID != b.BatchID || len(loaded.Results) != len(b.Results) {
+		t.Fatalf("round-trip mismatch: %+v", loaded)
+	}
+}
+
+// TestLoadBatchRejectsTampering covers every way a batch file can stop
+// matching its own content-addressed name. All of them are
+// batch-file-corrupt — never tracked-batch-missing (which would
+// misreport a present file as absent) and never batch-id-collision
+// (which is reserved for two distinct staged contents at publish time).
+func TestLoadBatchRejectsTampering(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(t *testing.T, original []byte) []byte
+	}{
+		{
+			name: "batch-id-field-disagrees-with-filename",
+			mutate: func(t *testing.T, original []byte) []byte {
+				var b Batch
+				if err := json.Unmarshal(original, &b); err != nil {
+					t.Fatalf("decode: %v", err)
+				}
+				b.BatchID = "rb_" + strings.Repeat("0", 64)
+				wire, err := BatchFileWireBytes(b)
+				if err != nil {
+					t.Fatalf("encode: %v", err)
+				}
+				return wire
+			},
+		},
+		{
+			name: "body-tampered-while-batch-id-field-kept-consistent",
+			mutate: func(t *testing.T, original []byte) []byte {
+				// The subtle attack: change a tracked value but leave
+				// batch_id agreeing with the filename. Only recomputing
+				// the content address catches this.
+				return []byte(strings.Replace(string(original),
+					`"oid": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"`,
+					`"oid": "0000000000000000000000000000000000000000000000000000000000000000"`, 1))
+			},
+		},
+		{
+			name: "unknown-field-smuggled-in",
+			mutate: func(t *testing.T, original []byte) []byte {
+				return []byte(strings.Replace(string(original),
+					`"feature": "model-picker",`,
+					`"feature": "model-picker",`+"\n  \"injected\": true,", 1))
+			},
+		},
+		{
+			name: "trailing-second-object-appended",
+			mutate: func(t *testing.T, original []byte) []byte {
+				return append(append([]byte{}, original...), []byte("{\"batch_id\":\"rb_x\"}\n")...)
+			},
+		},
+		{
+			name: "trailing-garbage-appended",
+			mutate: func(t *testing.T, original []byte) []byte {
+				return append(append([]byte{}, original...), []byte("not json at all\n")...)
+			},
+		},
+		{
+			name: "results-array-replaced-with-null",
+			mutate: func(t *testing.T, original []byte) []byte {
+				var raw map[string]json.RawMessage
+				if err := json.Unmarshal(original, &raw); err != nil {
+					t.Fatalf("decode: %v", err)
+				}
+				raw["results"] = json.RawMessage("null")
+				out, err := json.MarshalIndent(raw, "", "  ")
+				if err != nil {
+					t.Fatalf("encode: %v", err)
+				}
+				return append(out, '\n')
+			},
+		},
+		{
+			name: "unparseable-file",
+			mutate: func(t *testing.T, original []byte) []byte {
+				return []byte("{ not json")
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, b, path := publishGoldenBatch(t)
+			original, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read: %v", err)
+			}
+			mutated := tc.mutate(t, original)
+			if string(mutated) == string(original) {
+				t.Fatal("the mutation was a no-op; the test would prove nothing")
+			}
+			if err := os.WriteFile(path, mutated, 0o644); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+			_, loadErr := s.LoadBatch("model-picker", b.BatchID)
+			p, ok := loadErr.(*PublicationError)
+			if !ok {
+				t.Fatalf("want a PublicationError, got %v", loadErr)
+			}
+			if p.Reason != ReasonBatchFileCorrupt {
+				t.Fatalf("reason = %s, want %s", p.Reason, ReasonBatchFileCorrupt)
+			}
+		})
+	}
+}
+
+// TestLoadBatchAbsentFileStaysTrackedBatchMissing pins the taxonomy
+// boundary: an absent file is a different condition from a tampered
+// one, and rev-1's strictness must not collapse the two.
+func TestLoadBatchAbsentFileStaysTrackedBatchMissing(t *testing.T) {
+	s, b, path := publishGoldenBatch(t)
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	_, err := s.LoadBatch("model-picker", b.BatchID)
+	p, ok := err.(*PublicationError)
+	if !ok || p.Reason != ReasonTrackedBatchMissing {
+		t.Fatalf("want tracked-batch-missing, got %v", err)
+	}
+}
+
+// TestPublishRejectsTrailingJSONAfterAValidObject covers the
+// idempotency comparison's own EOF binding: an existing batch file with
+// a valid object followed by more JSON is corrupt, not idempotent.
+func TestPublishRejectsTrailingJSONAfterAValidObject(t *testing.T) {
+	s, b, path := publishGoldenBatch(t)
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	appended := append(append([]byte{}, original...), []byte("{\"feature\":\"other\"}\n")...)
+	if err := os.WriteFile(path, appended, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, canonical, err := ComputeBatchID(b.Feature, b.Results)
+	if err != nil {
+		t.Fatalf("ComputeBatchID: %v", err)
+	}
+	_, pubErr := s.PublishBatch("model-picker", b, canonical)
+	p, ok := pubErr.(*PublicationError)
+	if !ok || p.Reason != ReasonBatchFileCorrupt {
+		t.Fatalf("want batch-file-corrupt, got %v", pubErr)
+	}
+}
+
+// TestPublishStillTreatsPresentationDriftAsIdempotent is the guard
+// against over-tightening: a single valid object whose only difference
+// is formatting must still be idempotent, not corrupt.
+func TestPublishStillTreatsPresentationDriftAsIdempotent(t *testing.T) {
+	s, b, path := publishGoldenBatch(t)
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var decoded Batch
+	if err := json.Unmarshal(original, &decoded); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	drifted, err := json.MarshalIndent(decoded, "", "\t")
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if err := os.WriteFile(path, append(drifted, '\n'), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, canonical, err := ComputeBatchID(b.Feature, b.Results)
+	if err != nil {
+		t.Fatalf("ComputeBatchID: %v", err)
+	}
+	outcome, pubErr := s.PublishBatch("model-picker", b, canonical)
+	if pubErr != nil {
+		t.Fatalf("presentation drift must stay idempotent: %v", pubErr)
+	}
+	if !outcome.DriftIgnored || outcome.WroteBatch {
+		t.Fatalf("unexpected outcome: %+v", outcome)
+	}
+}

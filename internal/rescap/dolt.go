@@ -218,7 +218,12 @@ func MakeVerifiedPrivateCopy(resolvedPath, scratchDir, pinnedDigest string) (*Pr
 	}
 	defer func() { _ = source.Close() }()
 
-	if err := CheckScratchExecutable(scratchDir); err != nil {
+	// Step 3: preflight the scratch filesystem for a noexec mount
+	// BEFORE the private copy file is created at all — creating an
+	// executable-intent copy on a filesystem the OS already marked
+	// non-executable can only fail later, and more confusingly, at
+	// cmd.Start().
+	if err := scratchExecCheck(scratchDir); err != nil {
 		return nil, err
 	}
 

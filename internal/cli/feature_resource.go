@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tesseracode/tesserapatch/internal/buildinfo"
+	"github.com/tesseracode/tesserapatch/internal/redact"
 	"github.com/tesseracode/tesserapatch/internal/rescap"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -160,12 +161,24 @@ func runResourceAdd(cmd *cobra.Command, slug string) error {
 		}
 	}
 
+	// PRD §8.3: the selector and every args value are scanned **before
+	// they are written anywhere**. This runs before the store is even
+	// opened, so a refusal cannot have created resources.json, the
+	// per-slug .lock, any ephemeral scratch, current.json or a batch
+	// file — there is nothing to roll back because nothing was made.
+	// It also runs before the add-time Dolt TOFU bootstrap, so a
+	// refused declaration never opens or hashes a binary either.
+	if err := scanDeclarationForRedaction(selector, declared); err != nil {
+		return err
+	}
+
 	ctx, err := openResourceContext(cmd, slug)
 	if err != nil {
 		return err
 	}
 
-	if err := validateDeclaration(ctx, kind, selector, adapter, capability, declared, trustCurrent); err != nil {
+	effectiveCapability, err := validateDeclaration(ctx, kind, selector, adapter, capability, declared, trustCurrent)
+	if err != nil {
 		return err
 	}
 
@@ -178,8 +191,10 @@ func runResourceAdd(cmd *cobra.Command, slug string) error {
 		trust = &store.ResourceTrust{BinarySHA256: digest}
 	}
 
-	candidateID := store.DeriveResourceID(slug, kind, selector, adapter, capability, declared)
-	candidatePayload := store.ResourceIdentityPayload(slug, kind, selector, adapter, capability, declared)
+	// Identity is derived from the NORMALIZED capability, never the raw
+	// flag, so one semantic declaration has exactly one resource_id.
+	candidateID := store.DeriveResourceID(slug, kind, selector, adapter, effectiveCapability, declared)
+	candidatePayload := store.ResourceIdentityPayload(slug, kind, selector, adapter, effectiveCapability, declared)
 
 	out := cmd.OutOrStdout()
 	asJSON, _ := cmd.Flags().GetBool("json")
@@ -209,7 +224,7 @@ func runResourceAdd(cmd *cobra.Command, slug string) error {
 			Kind:               kind,
 			Selector:           selector,
 			Adapter:            adapter,
-			Capability:         capability,
+			Capability:         effectiveCapability,
 			Args:               declared,
 			Trust:              trust,
 			AddedByToolVersion: "tpatch/" + buildinfo.String(),
@@ -221,6 +236,32 @@ func runResourceAdd(cmd *cobra.Command, slug string) error {
 		}
 		return reportResource(out, asJSON, "added", entry)
 	})
+}
+
+// scanDeclarationForRedaction applies PRD §8.3's unconditional pre-write
+// scan to a declaration's selector and every args value, for **every**
+// kind. A match on any of the six closed classes hard-refuses the whole
+// invocation (`redaction-refused`, exit 3) — never a partial
+// scrub-and-continue, and never a partially-written declaration.
+//
+// Args *keys* are deliberately not scanned: they are a closed,
+// design-owned vocabulary (`contract`/`db_path`/`from`/`table`/`to`)
+// validated separately, and the control-byte rules above already bound
+// them. Only caller-supplied content is scanned.
+func scanDeclarationForRedaction(selector string, args []store.ResourceArg) error {
+	if findings := redact.ScanString(selector); len(findings) > 0 {
+		return rescap.Refuse(rescap.ReasonRedactionRefused,
+			"--selector matched forbidden content classes %s; nothing was written",
+			strings.Join(findings, ", "))
+	}
+	for _, a := range args {
+		if findings := redact.ScanString(a.Value); len(findings) > 0 {
+			return rescap.Refuse(rescap.ReasonRedactionRefused,
+				"--arg %s matched forbidden content classes %s; nothing was written",
+				a.Key, strings.Join(findings, ", "))
+		}
+	}
+	return nil
 }
 
 // parseDeclaredArgs converts repeated --arg key=value flags into the
@@ -245,57 +286,75 @@ func parseDeclaredArgs(raw []string) ([]store.ResourceArg, error) {
 }
 
 // validateDeclaration applies every add-time validation rule for the
-// three closed kinds.
-func validateDeclaration(ctx *resourceContext, kind, selector, adapter, capability string, args []store.ResourceArg, trustCurrent bool) error {
+// three closed kinds and returns the **normalized effective
+// capability** — the single canonical spelling that is hashed into
+// resource_id and persisted.
+//
+// Normalization exists because a capability that is merely *validated*
+// but stored raw lets two spellings of one semantic resource produce
+// two different resource_ids. Rev-1 closes that: for every kind there
+// is exactly one stored capability for a given semantic declaration,
+// regardless of whether the caller spelled it out.
+func validateDeclaration(ctx *resourceContext, kind, selector, adapter, capability string, args []store.ResourceArg, trustCurrent bool) (string, error) {
 	if selector == "" {
-		return rescap.Invalid(rescap.ReasonInvalidDeclaration, "--selector is required")
+		return "", rescap.Invalid(rescap.ReasonInvalidDeclaration, "--selector is required")
 	}
 	switch kind {
 	case store.ResourceKindIgnoredFile:
 		if adapter != "" || capability != "" {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"--adapter/--capability do not apply to kind %s", kind)
 		}
 		if len(args) != 0 {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration, "kind %s declares no --arg keys", kind)
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration, "kind %s declares no --arg keys", kind)
 		}
-		return validateIgnoredFileSelector(ctx.Store.Root, selector)
+		// ignored-file has no capability concept at all.
+		return "", validateIgnoredFileSelector(ctx.Store.Root, selector)
 	case store.ResourceKindGitMetadata:
 		if adapter != "" {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"--adapter does not apply to kind %s", kind)
 		}
 		if len(args) != 0 {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration, "kind %s declares no --arg keys", kind)
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration, "kind %s declares no --arg keys", kind)
 		}
-		return validateGitMetadataDeclaration(ctx.Store.Root, selector, capability)
+		return normalizeGitMetadataCapability(ctx.Store.Root, selector, capability)
 	case store.ResourceKindAdapterSnapshot:
 		if adapter != store.ResourceAdapterDolt {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"adapter %q is not supported; v1 accepts only %q", adapter, store.ResourceAdapterDolt)
 		}
 		declaredCapability, table, err := rescap.ParseDoltSelector(selector)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if capability != "" && capability != declaredCapability {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"--capability %q does not match the selector's %q", capability, declaredCapability)
 		}
 		if err := rescap.ValidateDoltArgs(args, table); err != nil {
-			return err
+			return "", err
 		}
 		if !trustCurrent {
-			return rescap.Invalid(rescap.ReasonDoltTrustFlagRequired,
+			return "", rescap.Invalid(rescap.ReasonDoltTrustFlagRequired,
 				"declaring an adapter=dolt resource requires --trust-current-dolt; there is no default-trust fallback")
 		}
 		dbPath, _ := argValue(args, "db_path")
-		if _, err := rescap.GatePath(ctx.Store.Root, dbPath); err != nil {
-			return err
+		gated, err := rescap.GatePath(ctx.Store.Root, dbPath)
+		if err != nil {
+			return "", err
 		}
-		return nil
+		if closeErr := gated.Close(); closeErr != nil {
+			return "", rescap.Internal(rescap.ReasonAdapterCopyFailed,
+				"releasing the db_path descriptor: %v", closeErr)
+		}
+		// The selector is authoritative: `diff-summary` is stored and
+		// hashed whether the caller passed --capability or not, so the
+		// documented CLI form reaches the same identity as the explicit
+		// one (§5.3, §13.3 Vector 2/3).
+		return declaredCapability, nil
 	default:
-		return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+		return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 			"unknown --kind %q; expected one of ignored-file, git-metadata, adapter-snapshot", kind)
 	}
 }
@@ -337,49 +396,58 @@ func validateIgnoredFileSelector(repoRoot, selector string) error {
 	return gated.Close()
 }
 
-// validateGitMetadataDeclaration checks the view and its selector. The
-// head view is self-identifying (selector "head", no capability); every
-// other view names itself via --capability.
-func validateGitMetadataDeclaration(repoRoot, selector, view string) error {
+// normalizeGitMetadataCapability validates the view against its
+// selector and returns the single canonical stored capability.
+//
+// The `head` view is self-identifying via `--selector head`, and its
+// canonical stored capability is the empty string (golden Vector 1,
+// §13.3). Passing `--capability head` is the *same* semantic
+// declaration, so it normalizes to the identical empty capability
+// rather than minting a second identity for one resource. Every other
+// view is not inferable from its selector — a repo-relative path or a
+// config key says nothing about which view is meant — so those keep
+// their view name as the canonical stored capability.
+func normalizeGitMetadataCapability(repoRoot, selector, view string) (string, error) {
 	if view == "" {
 		if selector != store.GitMetadataViewHead {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"git-metadata requires --capability (ref, index-entry, config) unless --selector is exactly %q",
 				store.GitMetadataViewHead)
 		}
-		return nil
+		return "", nil
 	}
 	switch view {
 	case store.GitMetadataViewHead:
 		if selector != store.GitMetadataViewHead {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"the head view takes selector %q", store.GitMetadataViewHead)
 		}
-		return nil
+		// Converges on the omitted spelling's identity.
+		return "", nil
 	case store.GitMetadataViewRef:
 		if _, err := rescap.RunGit(repoRoot, "rev-parse", "--symbolic-full-name", selector); err != nil {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration, "ref %q does not resolve", selector)
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration, "ref %q does not resolve", selector)
 		}
-		return nil
+		return store.GitMetadataViewRef, nil
 	case store.GitMetadataViewIndexEntry:
 		_, ok, err := rescap.LookupIndexEntry(repoRoot, selector)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if !ok {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"%s has no index entry", selector)
 		}
-		return nil
+		return store.GitMetadataViewIndexEntry, nil
 	case store.GitMetadataViewConfig:
 		if !rescap.IsAllowedConfigKey(selector) {
-			return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+			return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 				"config key %q is not one of the four allowed keys: %s",
 				selector, strings.Join(rescap.AllowedConfigKeys, ", "))
 		}
-		return nil
+		return store.GitMetadataViewConfig, nil
 	default:
-		return rescap.Invalid(rescap.ReasonInvalidDeclaration,
+		return "", rescap.Invalid(rescap.ReasonInvalidDeclaration,
 			"unknown git-metadata view %q", view)
 	}
 }

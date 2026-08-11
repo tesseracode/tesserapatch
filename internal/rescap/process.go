@@ -69,6 +69,11 @@ const (
 	DefaultReapDeadline      = 2 * time.Second
 	DefaultDrainDeadline     = 2 * time.Second
 	DefaultOutputCapBytes    = 5 << 20
+	// drainJoinSlack is the defensive margin the join waits beyond the
+	// drain deadline. The deadline itself is what unblocks the reads;
+	// this only covers scheduling delay between a drain returning and
+	// its done-channel closing.
+	drainJoinSlack = 500 * time.Millisecond
 )
 
 // ProcessRunner runs one child process under the finalizer contract.
@@ -98,6 +103,21 @@ type ProcessRunner struct {
 	// publish a late ECHILD in exactly that window.
 	AfterInitialSnapshot func()
 
+	// OnTimerStopped is a deterministic lifecycle hook invoked exactly
+	// once per invocation, as the invocation timer is torn down. Its
+	// argument is time.Timer.Stop()'s own report: true when the timer
+	// was cancelled before firing (the normal, non-timeout path), false
+	// when it had already fired. It exists so a test can assert the
+	// timer is genuinely disarmed rather than inferring it from flaky
+	// global goroutine counts.
+	OnTimerStopped func(stopped bool)
+
+	// BeforeDrainDeadline runs immediately before the shared finalizer
+	// applies its read deadline to both owned pipe read ends. It exists
+	// so a test can force the SetReadDeadline-failure branch by closing
+	// the read ends at exactly that instant.
+	BeforeDrainDeadline func()
+
 	// signalCalls counts every -pgid signal attempt, including ones
 	// whose errno was tolerated. The ECHILD and Start-failure paths
 	// must leave it at zero.
@@ -111,6 +131,10 @@ type ProcessRunner struct {
 	// ever happens.
 	waitBeforeSignals atomic.Bool
 
+	timerFired atomic.Bool
+
+	drainDeadlineHit [2]atomic.Bool
+
 	occurred     [triggerSourceCount]atomic.Bool
 	echild       atomic.Bool
 	observerErr  atomic.Value
@@ -122,8 +146,12 @@ type ProcessRunner struct {
 
 	stdoutRead, stderrRead   *os.File
 	stdoutWrite, stderrWrite *os.File
-	stdoutBuf, stderrBuf     []byte
-	drainDone                [2]chan struct{}
+	// lingeringWriter lets a test retain a write end past Start so the
+	// drain genuinely cannot reach EOF, reproducing an escaped
+	// descendant. Production never sets it.
+	lingeringWriter      *os.File
+	stdoutBuf, stderrBuf []byte
+	drainDone            [2]chan struct{}
 
 	budget atomic.Int64
 }
@@ -156,6 +184,11 @@ type ProcessOutcome struct {
 	// WaitLaunchedBeforeSignals records an exclusive-waiter contract
 	// violation, and must always be false.
 	WaitLaunchedBeforeSignals bool
+	// TimerFired reports whether the invocation timer actually fired.
+	TimerFired bool
+	// RetentionBudgetRemaining is the unclaimed portion of the shared
+	// cap-plus-one retention budget. Zero means the cap was reached.
+	RetentionBudgetRemaining int64
 }
 
 // StartFailureError marks a cmd.Start() failure. It is deliberately a
@@ -278,11 +311,27 @@ func (p *ProcessRunner) Run() (ProcessOutcome, error) {
 		p.record(trigLeaderEvent)
 	}()
 
-	timer := time.NewTimer(p.InvocationTimeout)
-	defer timer.Stop()
-	go func() {
-		<-timer.C
+	// The invocation timer fires its trigger directly from the runtime
+	// timer goroutine rather than from a dedicated receiver blocked on
+	// timer.C. Rev-0 used `go func(){ <-timer.C; ... }()`, which leaks
+	// that receiver forever on every successful invocation: Stop()
+	// prevents the send, so the receiver blocks on a channel nothing
+	// will ever write to. AfterFunc has no receiver to strand, and
+	// Stop() reports whether the callback was cancelled before firing,
+	// which the lifecycle hook below exposes to tests.
+	timer := time.AfterFunc(p.InvocationTimeout, func() {
+		p.timerFired.Store(true)
 		p.record(trigTimeout)
+	})
+	// Teardown is deferred (not run at ownership resolution) so the
+	// timer stays armed through the priority re-check, exactly as
+	// rev-0 sequenced it.
+	defer func() {
+		if h := p.OnTimerStopped; h != nil {
+			h(timer.Stop())
+			return
+		}
+		timer.Stop()
 	}()
 
 	<-p.ownerCh
@@ -429,6 +478,9 @@ func (p *ProcessRunner) finalizeShared(classification triggerSource) (ProcessOut
 
 	// Phase 5: bounded pipe-drain finalization, normatively after
 	// phase 4 resolves one way or the other.
+	if h := p.BeforeDrainDeadline; h != nil {
+		h()
+	}
 	deadline := time.Now().Add(p.DrainDeadline)
 	deadlineErr := false
 	if err := p.stdoutRead.SetReadDeadline(deadline); err != nil {
@@ -437,21 +489,33 @@ func (p *ProcessRunner) finalizeShared(classification triggerSource) (ProcessOut
 	if err := p.stderrRead.SetReadDeadline(deadline); err != nil {
 		deadlineErr = true
 	}
-	if deadlineErr {
+	switch {
+	case deadlineErr:
 		_ = p.stdoutRead.Close()
 		_ = p.stderrRead.Close()
 		p.joinDrains(p.DrainDeadline)
 		recordPhase(Internal(ReasonAdapterOutputReadFailed,
 			"SetReadDeadline failed on an owned pipe read end"))
-	} else if !p.joinDrains(p.DrainDeadline + 500*time.Millisecond) {
+	default:
+		// The deadline is what unblocks a drain still waiting on a
+		// write end an escaped descendant holds open, so BOTH drains
+		// always return here — one via io.EOF, the other possibly via
+		// os.ErrDeadlineExceeded. The join therefore cannot be the
+		// timeout detector (rev-0 measured the join and so could never
+		// observe an expiry); the drains themselves record which
+		// terminal condition ended them, and that is what distinguishes
+		// a clean drain from an expired one.
+		joined := p.joinDrains(p.DrainDeadline + drainJoinSlack)
+		expired := p.drainDeadlineHit[0].Load() || p.drainDeadlineHit[1].Load()
 		_ = p.stdoutRead.Close()
 		_ = p.stderrRead.Close()
-		p.joinDrains(p.DrainDeadline)
-		recordPhase(Refuse(ReasonAdapterDrainTimeout,
-			"a pipe drain did not complete within %s; publishing nothing", p.DrainDeadline))
-	} else {
-		_ = p.stdoutRead.Close()
-		_ = p.stderrRead.Close()
+		if !joined {
+			p.joinDrains(p.DrainDeadline)
+		}
+		if expired || !joined {
+			recordPhase(Refuse(ReasonAdapterDrainTimeout,
+				"a pipe drain did not complete within %s; publishing nothing", p.DrainDeadline))
+		}
 	}
 
 	// Primary-error selection: a non-benign classification's own named
@@ -503,6 +567,8 @@ func (p *ProcessRunner) outcome(classification triggerSource, primary *Refusal) 
 	return ProcessOutcome{
 		Stdout:                    p.stdoutBuf,
 		Stderr:                    p.stderrBuf,
+		TimerFired:                p.timerFired.Load(),
+		RetentionBudgetRemaining:  p.budget.Load(),
 		Classification:            classification.String(),
 		Primary:                   primary,
 		SignalCalls:               int(p.signalCalls.Load()),
@@ -538,9 +604,46 @@ func (p *ProcessRunner) joinDrains(timeout time.Duration) bool {
 	}
 }
 
-// drain reads one pipe into its buffer under the shared cap-plus-one
-// budget. Both streams share one int64 counter, so stdout and stderr
-// together — not each independently — are bounded by the total.
+// claimRetention atomically reserves up to n bytes of the shared
+// retention budget and reports how many of them may actually be
+// appended, plus whether this claim exhausted the budget.
+//
+// The budget starts at cap+1 and is shared by both drains, so the
+// combined retained stdout+stderr length can never exceed cap+1 — not
+// cap+1 *per stream*, and not cap+1 *per read*. The CAS loop is what
+// makes two concurrent chunks unable to overshoot: each competitor
+// re-reads the remaining budget and only ever takes what is left.
+//
+// Exhaustion is reported exactly once (by whichever claim consumes the
+// final byte), so the output-cap trigger is recorded once rather than
+// on every subsequent read.
+func (p *ProcessRunner) claimRetention(n int) (accept int, exhausted bool) {
+	if n <= 0 {
+		return 0, false
+	}
+	for {
+		remaining := p.budget.Load()
+		if remaining <= 0 {
+			return 0, false
+		}
+		take := int64(n)
+		if take > remaining {
+			take = remaining
+		}
+		if p.budget.CompareAndSwap(remaining, remaining-take) {
+			return int(take), remaining-take == 0
+		}
+	}
+}
+
+// drain reads one pipe under the shared cap-plus-one retention budget.
+//
+// Reading continues past the cap so the child can always finish writing
+// and exit cleanly, but **retention stops**: once the shared budget is
+// exhausted, further bytes are read and discarded rather than appended.
+// Rev-0 appended every byte it read, so a runaway child could pin
+// arbitrarily much memory under a 5 MiB cap; rev-1 bounds the retained
+// total at exactly cap+1 bytes across both streams.
 //
 // The drain goroutines never close anything: only the control cleanup
 // function does.
@@ -550,17 +653,30 @@ func (p *ProcessRunner) drain(idx int, r *os.File, dst *[]byte) {
 	for {
 		n, err := r.Read(buf)
 		if n > 0 {
-			remaining := p.budget.Add(-int64(n))
-			*dst = append(*dst, buf[:n]...)
-			if remaining <= 0 {
+			accept, exhausted := p.claimRetention(n)
+			if accept > 0 {
+				*dst = append(*dst, buf[:accept]...)
+			}
+			if exhausted {
+				// The cap-plus-one'th byte has now actually been read.
+				// Everything after this point is drained and discarded;
+				// no partial or truncated output is ever handed to the
+				// parser or the redaction scanner.
 				p.record(trigOutputCap)
-				// Keep draining so the child can exit cleanly; the
-				// finalizer discards the buffer wholesale.
-				continue
 			}
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				return
+			}
+			if errors.Is(err, os.ErrDeadlineExceeded) {
+				// The owner's own drain deadline expired while this
+				// drain was still blocked, which means a writer — an
+				// escaped descendant, typically — still held the pipe
+				// open. Record it so the finalizer can tell an expired
+				// drain apart from a clean one; the error itself is
+				// owner-induced and is never a fresh trigger.
+				p.drainDeadlineHit[idx].Store(true)
 				return
 			}
 			if p.cleanupBegun.Load() {

@@ -925,3 +925,357 @@ func TestNoTimestampsInTrackedResourceArtifacts(t *testing.T) {
 		})
 	}
 }
+
+// ─── rev-1: declaration redaction (review finding 1) ─────────────────────────
+
+// resourceStoreArtifacts enumerates every artifact a mutating verb
+// could create, so a refusal can be asserted to have created none.
+func resourceStoreArtifacts(t *testing.T, dir string) []string {
+	t.Helper()
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	var found []string
+	for _, p := range []string{
+		s.ResourcesPath("model-picker"),
+		s.ResourceCurrentPath("model-picker"),
+		s.ResourceCapturesDir("model-picker"),
+		filepath.Join(rescap.ScratchRoot(dir, "model-picker"), ".lock"),
+		rescap.ScratchRoot(dir, "model-picker"),
+	} {
+		if _, err := os.Stat(p); err == nil {
+			found = append(found, p)
+		}
+	}
+	return found
+}
+
+// TestAddRefusesRedactedDeclarationsWithZeroMutation covers PRD §8.3 at
+// the declaration boundary for every kind.
+//
+// The binding assertion is not just the exit code: after a refusal
+// there must be no resources.json, no per-slug .lock, no ephemeral
+// scratch, no current.json and no batch tree — the scan runs before any
+// of them can be created, so there is nothing to roll back.
+func TestAddRefusesRedactedDeclarationsWithZeroMutation(t *testing.T) {
+	cases := []struct {
+		name string
+		args func(dir string) []string
+	}{
+		{
+			name: "ignored-file-selector-email",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "ignored-file", "--selector", "config/someone@example.com.env"}
+			},
+		},
+		{
+			name: "ignored-file-selector-home-path",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "ignored-file", "--selector", "/Users/someone/secrets.env"}
+			},
+		},
+		{
+			name: "git-metadata-selector-secret-token",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "git-metadata", "--capability", "ref",
+					"--selector", "refs/heads/ghp_" + strings.Repeat("a", 24)}
+			},
+		},
+		{
+			name: "dolt-arg-connection-url",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "adapter-snapshot", "--adapter", "dolt",
+					"--selector", "dolt:diff-summary:users",
+					"--arg", "contract=dolt-diff-summary-v1", "--arg", "db_path=config",
+					"--arg", "table=users", "--arg", "from=main",
+					"--arg", "to=postgres://user:pw@host:5432/app", "--trust-current-dolt"}
+			},
+		},
+		{
+			name: "dolt-arg-credential-assignment",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "adapter-snapshot", "--adapter", "dolt",
+					"--selector", "dolt:diff-summary:users",
+					"--arg", "contract=dolt-diff-summary-v1", "--arg", "db_path=config",
+					"--arg", "table=users", "--arg", "from=main",
+					"--arg", "to=password=hunter2hunter2hunter2", "--trust-current-dolt"}
+			},
+		},
+		{
+			name: "dolt-selector-email",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "adapter-snapshot", "--adapter", "dolt",
+					"--selector", "dolt:diff-summary:someone@example.com",
+					"--arg", "contract=dolt-diff-summary-v1", "--arg", "db_path=config",
+					"--arg", "table=someone@example.com", "--arg", "from=main",
+					"--arg", "to=HEAD", "--trust-current-dolt"}
+			},
+		},
+		{
+			name: "dolt-arg-private-key-material",
+			args: func(dir string) []string {
+				return []string{"feature", "resource", "add", "--path", dir, "model-picker",
+					"--kind", "adapter-snapshot", "--adapter", "dolt",
+					"--selector", "dolt:diff-summary:users",
+					"--arg", "contract=dolt-diff-summary-v1", "--arg", "db_path=config",
+					"--arg", "table=users",
+					"--arg", "from=-----BEGIN OPENSSH PRIVATE KEY-----", "--arg", "to=HEAD",
+					"--trust-current-dolt"}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := resourceTestRepo(t)
+			before := resourceStoreArtifacts(t, dir)
+			_, stderr, code := runCmdExit(tc.args(dir)...)
+			if code != rescap.ExitRefusal {
+				t.Fatalf("exit = %d, want 3 (stderr: %s)", code, stderr)
+			}
+			if !strings.Contains(stderr, rescap.ReasonRedactionRefused) {
+				t.Fatalf("stderr = %q, want it to name %s", stderr, rescap.ReasonRedactionRefused)
+			}
+			after := resourceStoreArtifacts(t, dir)
+			if len(after) != len(before) {
+				t.Fatalf("a refused declaration created artifacts: before=%v after=%v", before, after)
+			}
+		})
+	}
+}
+
+// TestAddScanRunsBeforeAnyOtherValidation proves ordering: a
+// declaration that is BOTH redacted and otherwise invalid reports the
+// redaction refusal, so the scan cannot have been reached only after
+// some other check happened to pass.
+func TestAddScanRunsBeforeAnyOtherValidation(t *testing.T) {
+	dir := resourceTestRepo(t)
+	// Missing --trust-current-dolt would normally be
+	// dolt-trust-flag-required (exit 2); the redacted arg must win.
+	_, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+		"--kind", "adapter-snapshot", "--adapter", "dolt", "--selector", "dolt:diff-summary:users",
+		"--arg", "contract=dolt-diff-summary-v1", "--arg", "db_path=config",
+		"--arg", "table=users", "--arg", "from=main", "--arg", "to=postgres://u:p@h/db")
+	if code != rescap.ExitRefusal || !strings.Contains(stderr, rescap.ReasonRedactionRefused) {
+		t.Fatalf("the pre-write scan must precede other validation: code=%d stderr=%s", code, stderr)
+	}
+	if strings.Contains(stderr, rescap.ReasonDoltTrustFlagRequired) {
+		t.Fatal("a later validation error surfaced instead of the redaction refusal")
+	}
+}
+
+// TestAddAcceptsBenignDeclarations is the control for the scan: the six
+// closed classes must not fire on the ordinary structural values real
+// declarations carry.
+func TestAddAcceptsBenignDeclarations(t *testing.T) {
+	dir := resourceTestRepo(t)
+	for _, args := range [][]string{
+		{"feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "ignored-file", "--selector", "config/local-secrets.env.template"},
+		{"feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--selector", "head"},
+		{"feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--capability", "config", "--selector", "core.filemode"},
+	} {
+		if _, stderr, code := runCmdExit(args...); code != 0 {
+			t.Fatalf("benign declaration refused: %d %s", code, stderr)
+		}
+	}
+}
+
+// ─── rev-1: canonical capability identity (review finding 5) ─────────────────
+
+// declaredResource reads one entry back out of the tracked manifest.
+func declaredResource(t *testing.T, dir, resourceID string) store.Resource {
+	t.Helper()
+	s, err := store.Open(dir)
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	m, err := store.LoadResources(s, "model-picker")
+	if err != nil {
+		t.Fatalf("LoadResources: %v", err)
+	}
+	for _, r := range m.Resources {
+		if r.ResourceID == resourceID {
+			return r
+		}
+	}
+	t.Fatalf("no resource %s in %+v", resourceID, m.Resources)
+	return store.Resource{}
+}
+
+// TestGoldenResourceIDsThroughTheRealAddCLI drives all four §13.3
+// golden vectors through the actual `add` command rather than through
+// ComputeResourceID, which is what the rev-0 review found missing: a
+// capability normalization bug is invisible to a direct hash call but
+// changes what the CLI actually persists.
+func TestGoldenResourceIDsThroughTheRealAddCLI(t *testing.T) {
+	t.Run("vector1-git-metadata-head-capability-omitted", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		stdout, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--selector", "head")
+		if code != 0 {
+			t.Fatalf("add: %d %s", code, stderr)
+		}
+		if !strings.Contains(stdout, "res_acc91dc23a8b") {
+			t.Fatalf("stdout = %q, want golden Vector 1 id res_acc91dc23a8b", stdout)
+		}
+		got := declaredResource(t, dir, "res_acc91dc23a8b")
+		if got.Capability != "" {
+			t.Fatalf("stored capability = %q, want the canonical empty string", got.Capability)
+		}
+	})
+
+	t.Run("vector1-head-explicit-capability-converges", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		if _, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--selector", "head"); code != 0 {
+			t.Fatalf("first add: %d %s", code, stderr)
+		}
+		stdout, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--selector", "head", "--capability", "head")
+		if code != 0 {
+			t.Fatalf("explicit-capability add: %d %s", code, stderr)
+		}
+		if !strings.Contains(stdout, "already-declared") || !strings.Contains(stdout, "res_acc91dc23a8b") {
+			t.Fatalf("the explicit spelling must converge on one identity, got %q", stdout)
+		}
+		s, err := store.Open(dir)
+		if err != nil {
+			t.Fatalf("store.Open: %v", err)
+		}
+		m, err := store.LoadResources(s, "model-picker")
+		if err != nil {
+			t.Fatalf("LoadResources: %v", err)
+		}
+		if len(m.Resources) != 1 {
+			t.Fatalf("two spellings of one resource produced %d entries: %+v", len(m.Resources), m.Resources)
+		}
+	})
+
+	t.Run("vector2-dolt-documented-form-without-capability", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		installFakeDolt(t, dir)
+		stdout, stderr, code := runCmdExit(doltAddArgs(dir, "data/dolt-db", nil)...)
+		if code != 0 {
+			t.Fatalf("add: %d %s", code, stderr)
+		}
+		if !strings.Contains(stdout, "res_4b62313b6cce") {
+			t.Fatalf("stdout = %q, want golden Vector 2 id res_4b62313b6cce", stdout)
+		}
+		got := declaredResource(t, dir, "res_4b62313b6cce")
+		if got.Capability != "diff-summary" {
+			t.Fatalf("stored capability = %q, want the selector's canonical diff-summary", got.Capability)
+		}
+	})
+
+	t.Run("vector3-dolt-explicit-capability-is-idempotent", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		installFakeDolt(t, dir)
+		if _, stderr, code := runCmdExit(doltAddArgs(dir, "data/dolt-db", nil)...); code != 0 {
+			t.Fatalf("first add: %d %s", code, stderr)
+		}
+		stdout, stderr, code := runCmdExit(doltAddArgs(dir, "data/dolt-db",
+			[]string{"--capability", "diff-summary"})...)
+		if code != 0 {
+			t.Fatalf("explicit-capability add: %d %s", code, stderr)
+		}
+		if !strings.Contains(stdout, "already-declared") || !strings.Contains(stdout, "res_4b62313b6cce") {
+			t.Fatalf("the explicit spelling must be idempotent, got %q", stdout)
+		}
+		s, err := store.Open(dir)
+		if err != nil {
+			t.Fatalf("store.Open: %v", err)
+		}
+		m, err := store.LoadResources(s, "model-picker")
+		if err != nil {
+			t.Fatalf("LoadResources: %v", err)
+		}
+		if len(m.Resources) != 1 {
+			t.Fatalf("two spellings produced %d entries: %+v", len(m.Resources), m.Resources)
+		}
+	})
+
+	t.Run("vector4-ignored-file", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		stdout, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "ignored-file", "--selector", "config/local-secrets.env.template")
+		if code != 0 {
+			t.Fatalf("add: %d %s", code, stderr)
+		}
+		if !strings.Contains(stdout, "res_79f5ac5dca13") {
+			t.Fatalf("stdout = %q, want golden Vector 4 id res_79f5ac5dca13", stdout)
+		}
+		got := declaredResource(t, dir, "res_79f5ac5dca13")
+		if got.Capability != "" || got.Adapter != "" {
+			t.Fatalf("ignored-file must store empty adapter/capability, got %+v", got)
+		}
+	})
+
+	t.Run("mismatched-dolt-capability-still-exits-2", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		installFakeDolt(t, dir)
+		_, stderr, code := runCmdExit(doltAddArgs(dir, "data/dolt-db",
+			[]string{"--capability", "table-diff"})...)
+		if code != rescap.ExitValidation {
+			t.Fatalf("exit = %d, want 2 (stderr: %s)", code, stderr)
+		}
+	})
+
+	t.Run("git-metadata-views-keep-their-canonical-capability", func(t *testing.T) {
+		dir := resourceTestRepo(t)
+		if _, stderr, code := runCmdExit("feature", "resource", "add", "--path", dir, "model-picker",
+			"--kind", "git-metadata", "--capability", "config", "--selector", "core.filemode"); code != 0 {
+			t.Fatalf("add: %d %s", code, stderr)
+		}
+		s, err := store.Open(dir)
+		if err != nil {
+			t.Fatalf("store.Open: %v", err)
+		}
+		m, err := store.LoadResources(s, "model-picker")
+		if err != nil {
+			t.Fatalf("LoadResources: %v", err)
+		}
+		if len(m.Resources) != 1 || m.Resources[0].Capability != "config" {
+			t.Fatalf("a non-inferable view must keep its capability: %+v", m.Resources)
+		}
+	})
+}
+
+// installFakeDolt puts a controlled `dolt` stand-in on PATH for the
+// duration of the test, so `--trust-current-dolt` can compute a pin
+// without an installed Dolt.
+func installFakeDolt(t *testing.T, repoDir string) {
+	t.Helper()
+	binDir := t.TempDir()
+	script := "#!/bin/sh\nprintf '%s' '{\"rows\":[]}'\n"
+	if err := os.WriteFile(filepath.Join(binDir, "dolt"), []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake dolt: %v", err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if err := os.MkdirAll(filepath.Join(repoDir, "data", "dolt-db"), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+}
+
+// doltAddArgs builds the documented Dolt declaration form, optionally
+// with extra flags.
+func doltAddArgs(dir, dbPath string, extra []string) []string {
+	args := []string{"feature", "resource", "add", "--path", dir, "model-picker",
+		"--kind", "adapter-snapshot", "--adapter", "dolt", "--selector", "dolt:diff-summary:users"}
+	args = append(args, extra...)
+	return append(args,
+		"--arg", "contract=dolt-diff-summary-v1",
+		"--arg", "db_path="+dbPath,
+		"--arg", "table=users",
+		"--arg", "from=main",
+		"--arg", "to=HEAD",
+		"--trust-current-dolt")
+}

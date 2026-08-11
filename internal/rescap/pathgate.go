@@ -122,6 +122,14 @@ func GatePath(repoRoot, relPath string) (*GatedPath, error) {
 		return nil, Refuse(ReasonPathOutsideRepo, "%q resolves to the repository root itself", relPath)
 	}
 
+	// Deterministic replacement seam: a test can swap the validated
+	// entry for a different inode at exactly the instant a real
+	// attacker would, between the component walk and the open. In
+	// production the hook is nil and this is a no-op — the open below
+	// is the same call either way.
+	if h := beforeGatedOpen; h != nil {
+		h(abs)
+	}
 	f, openErr := openNoFollow(abs)
 	if openErr != nil {
 		if isSymlinkLoopError(openErr) {
@@ -259,4 +267,33 @@ func SetLookPathForTest(fn func(name string) (string, error)) func() {
 	prev := lookPath
 	lookPath = fn
 	return func() { lookPath = prev }
+}
+
+// beforeGatedOpen is a test-only seam invoked between GatePath's
+// component walk and its O_NOFOLLOW open. It is nil in production.
+var beforeGatedOpen func(absPath string)
+
+// SetBeforeGatedOpenForTest installs the replacement seam and returns a
+// restore func. Tests use it to prove the os.SameFile descriptor
+// identity check is load-bearing: with the check deleted, a swap
+// performed by this hook would go undetected.
+func SetBeforeGatedOpenForTest(fn func(absPath string)) func() {
+	prev := beforeGatedOpen
+	beforeGatedOpen = fn
+	return func() { beforeGatedOpen = prev }
+}
+
+// scratchExecCheck is the indirection through which the capture-time
+// private-copy sequence performs its noexec preflight. Production
+// always uses the real build-tagged CheckScratchExecutable; a test can
+// substitute a refusal to prove the preflight runs BEFORE the copy file
+// is created.
+var scratchExecCheck = func(path string) error { return CheckScratchExecutable(path) }
+
+// SetScratchExecCheckForTest substitutes the noexec preflight and
+// returns a restore func.
+func SetScratchExecCheckForTest(fn func(path string) error) func() {
+	prev := scratchExecCheck
+	scratchExecCheck = fn
+	return func() { scratchExecCheck = prev }
 }

@@ -87,6 +87,39 @@ Resource verbs carry a binding taxonomy surfaced through
 `ExitCodeError`: `1` internal/host or data-integrity, `2` validation,
 `3` state/policy refusal. Each named refusal appears in exactly one row.
 
+### Rev-1 correctness fold (rev-0 dual review)
+
+- **Declaration privacy**: `feature resource add` now applies §8.3's
+  hard-refusal scan to the selector and every `--arg` value, for every
+  kind, **before** the store is opened, before the Dolt TOFU bootstrap
+  and before any lock, scratch or manifest write. A refusal creates no
+  artifact at all.
+- **Output bound**: drain retention is claimed through an atomic CAS, so
+  combined stdout+stderr retained bytes never exceed cap+1 no matter how
+  much a runaway child writes. Reading continues past the cap so the
+  child can still exit; the excess is discarded rather than buffered.
+- **Timer lifecycle**: the invocation timeout uses `time.AfterFunc`
+  instead of a dedicated receiver goroutine blocked on `timer.C`, which
+  leaked on every successful invocation. A deterministic
+  `OnTimerStopped` hook reports `Stop()`'s own result.
+- **Drain-timeout reachability**: `adapter-drain-timeout` was
+  unreachable, because `SetReadDeadline` always unblocks the reads and
+  rev-0 measured the join rather than the deadline. The drains now
+  record deadline expiry directly, so a genuine escaped-session writer
+  produces the refusal the design specifies.
+- **Batch integrity**: `LoadBatch` binds the strict fixed-wire shape,
+  exactly one JSON value plus EOF, the decoded `batch_id` and the
+  recomputed full content address against the requested filename ID.
+  Tampering is `batch-file-corrupt`, never `tracked-batch-missing` or
+  `batch-id-collision`. The publish-time comparison rejects trailing
+  JSON after a valid object while keeping presentation drift idempotent.
+- **Capability identity**: the capability is normalized before identity
+  derivation and persistence. A Dolt declaration stores and hashes
+  `diff-summary` whether or not `--capability` is passed, so the
+  documented CLI form reaches golden Vector 2; `git-metadata head`
+  converges on one canonical identity for both spellings. A mismatched
+  capability still exits 2.
+
 ## v0.14.0 — 2026-08-10 — transactional feature unapply
 
 Feature release adding a reversible, audited way to remove a tracked
