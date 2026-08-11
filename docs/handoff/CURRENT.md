@@ -2,10 +2,90 @@
 
 ## Status
 
-**Cluster state**: REV-6 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-12 Cluster H rev-6 WRITTEN — full fold of the rev-5 dual-review
+verdict (adjudication `b312e4a`) plus the supervisor's platform-check
+addendum, awaiting dual review.** Same sequential writer continued from
+rev-5 (`7f653da`). Thirteen numbered "terminal compatibility fold"
+requirement items folded across both papers: (1) Dolt binary trust
+pinning — `--trust-current-dolt`/mandatory `binary_sha256` in every
+resource declaration, pre- **and** post-invocation full-`SHA-256`
+rehash-and-compare, `adapter-binary-untrusted` refusal, superseding the
+rev-4/rev-5 device/inode/size/mtime `Lstat` recheck entirely; (2)
+`db_path`/`cmd.Dir`'s pre-`cmd.Start()` and post-exit mismatch upgraded
+from diagnostic-only detection to a hard `db-path-identity-changed`
+refusal (exit 3, no batch written), with the well-timed-attacker-
+during-execution residual preserved honestly, not claimed closed; (3)
+`cmd.SysProcAttr{Setpgid: true}` required on `linux`/`darwin`, negative-
+PGID `SIGTERM`→`SIGKILL` signaling, verified via a descendant-spawning
+test adapter stub proving the parent `tpatch` process itself survives;
+(4) a new `resource-id-collision` refusal (exit 3) when an `add`/load
+recomputes an existing `resources.json` entry's `resource_id` against
+different canonical declaration bytes, with byte-identical bytes staying
+idempotent; (5) `latest_batch_id` renamed to `current_batch_id`
+everywhere, removing every "newest"/"latest"/chronology implication —
+batches remain an unordered, content-addressed set, and an A→B→A
+capture sequence still produces exactly two batch files, not three; (6)
+a three-way split of the prior single `batch-id-collision` outcome into
+**presentation drift** (decode+canonicalize the on-disk file, compare
+semantic bodies — a match is an idempotent skip, never a rewrite),
+genuine **`batch-id-collision`** (only after drift has been ruled out),
+and **`batch-file-corrupt`** (unparseable JSON or internal `batch_id`
+mismatch) — correcting the prior design, which reached collision
+directly off a raw byte-level difference; (7) the filesystem preflight
+switched from `golang.org/x/sys/unix.Statfs` to stdlib-only
+`syscall.Statfs`, with exact Linux magic-number and Darwin `Fstypename`
+allow/deny lists (Linux allow: `ext`/`xfs`/`btrfs`/`tmpfs`/`overlayfs`;
+Linux deny: `nfs`/`cifs`/`smb2`/`fuse`; Darwin allow: `apfs`/`hfs`/
+`tmpfs`; Darwin deny: `nfs`/`smbfs`/`webdav`/`osxfuse`/`macfuse`),
+correcting the invalid Linux-APFS-constant claim and adding `overlayfs`/
+Darwin-`tmpfs` coverage the rev-5 lists omitted; (8) a new "first-create
+sequencing" contract — nearest-existing-ancestor ignore/untracked gate +
+`statfs` preflight, then `MkdirAll`, then `fsync` of each newly-created
+directory's parent before durability is declared — plus a new
+first-publication crash-window row for the tracked `resource-captures/`
+tree's very first `MkdirAll`; (9) the directory `combined_hash` tuple
+encoding stated unambiguously (`path`+`0x00`+`mode`+`0x00`+raw-unprefixed-
+64-hex-hash+`0x00`, individually `0x00`-terminated per field, concatenated
+directly) with a new, independently-recomputed golden vector; (10)
+`dolt-argument-refused` added as a named exit-2 outcome covering
+`WORKING`/`STAGED` and `..`-shaped values explicitly; (11)-(13) citation
+cleanup (`DiffTypeAll` reframed as a filter-only constant never assigned
+to any row, cited via exact `table_deltas.go` assignment-line numbers
+rather than the enclosing `const` block; the `data_change`/`schema_change`
+boolean claim cited via the row-constructor site; the lock-file-body
+claim fixed to "no body at all"), the two golden resource-ID vectors
+touching Dolt args recomputed for mandatory `binary_sha256`
+(`res_00189e66780a` replaces `res_cf8e47e6564b`), and the worked batch
+example's `batch_id` recomputed to
+`rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a`.
+`PRD-feature-resource-claims-and-capture-adapters.md` rewritten to
+**3726 lines** (was 3021); `ADR-033-resource-capture-boundary.md`
+rewritten to **1353 lines** (was 1102). Preserved across every review
+pass to date (rev-1 through rev-6, seven passes counting the rev-3
+citation addendum and the rev-4 platform addendum): separate
+`resources.json`, no canonical-patch/lifecycle authority, Dolt never
+authoritative/a core dependency, Git-only replay. The acceptance-criteria
+set grew from 78 to **89** individually-tagged clauses (eleven net new:
+`AC-19`/`AC-20` trust-pin pre-invocation checks, `AC-56`–`AC-58` the
+drift/collision/corrupt three-way split, `AC-79`–`AC-82` stdlib-Statfs/
+exhaustive-FS-table/first-create-fsync/first-publication-crash,
+`AC-85` `Setpgid`, `AC-88`/`AC-89` resource-ID-collision/directory-
+golden-vector; two rewritten in place without changing the total:
+`AC-18` — device/inode/size/mtime recheck → post-invocation
+`binary_sha256` mismatch — and `AC-34` — diagnostic-only detection →
+hard `db-path-identity-changed` refusal), and the ADR Test Matrix was
+rebuilt from 121 to **157** rows, all 89 clauses mechanically confirmed
+covered (`AC-80` alone contributing 18 of those rows: 17 named
+filesystem-type fixtures plus 1 unrecognized-type fixture, matching
+`AC-80`'s own "17 supporting Test Matrix rows" text plus its separately
+called-out unrecognized-type case). Golden resource-ID and batch-ID
+vectors, plus the new directory golden vector, independently recomputed
+via repo-local scratch scripts and confirmed exact.
 
 **2026-08-10 Cluster H rev-5 adjudicated NEEDS REVISION → rev-6
 DISPATCHED.** Internal review found 3 HIGH + 4 MEDIUM; external found
@@ -567,14 +647,15 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-5 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-6 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-5
+- **Task ID**: Cluster H rev-6
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-4 dual-review verdict into the
-  feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-6 fold) (rev-5 fold complete, awaiting dual review)
-- **Assigned**: 2026-08-10
+- **Description**: Fold the rev-5 dual-review verdict plus the
+  supervisor's platform-check addendum into the feature-resource PRD
+  and ADR-033 boundary.
+- **Status**: Review (rev-6 fold complete, awaiting dual review)
+- **Assigned**: 2026-08-12
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -1035,6 +1116,157 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-6
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, **3726 lines** (was 3021). New/changed structure:
+  §0 Rev-6 Fold Summary (replacing the rev-5 framing as the primary
+  top-level narrative; the rev-5 fold-summary body is preserved as
+  historical prose); §0.1 Claims Audit extended with `C31`–`C34`
+  (trust-pin mechanism, `db_path` hard-refusal upgrade, `Setpgid`
+  group-kill, resource-ID-collision refusal); §0.4 requirement-item
+  map extended with a new rev-6 13-item table; §3/§6.1 (resource
+  declaration gains a mandatory `binary_sha256` arg, written only via
+  `--trust-current-dolt`; `dolt-trust-required` refusal without it);
+  §6.1/§6.3 (Dolt invocation rewritten for pre- **and**
+  post-invocation full-`SHA-256` rehash-and-compare against the pin,
+  `adapter-binary-untrusted` on mismatch, replacing the device/inode/
+  size/mtime `Lstat` recheck entirely); §6.2 (`dolt-argument-refused`
+  named explicitly as the exit-2 outcome for `WORKING`/`STAGED`/`..`);
+  §6.4 (`Setpgid` process-group termination contract: exact
+  `SysProcAttr{Setpgid:true}`, negative-PGID signaling, descendant-
+  survival test requirement); §7.1 (new "First-create sequencing"
+  subsection — nearest-existing-ancestor gate + `statfs` preflight,
+  `MkdirAll`, then `fsync` of each newly-created directory's parent —
+  plus a new "First-publication crash row"); §7.2 (filesystem contract
+  switched from `golang.org/x/sys/unix.Statfs` to stdlib-only
+  `syscall.Statfs`; exact Linux magic-number and Darwin `Fstypename`
+  allow/deny lists, correcting the invalid Linux-APFS-constant claim
+  and adding `overlayfs`/Darwin-`tmpfs`); §7.3 (step 3's file-wire
+  comparison rewritten into the three-way presentation-drift/
+  collision/corrupt split; new crash-window table row for the tracked
+  tree's first-ever `MkdirAll`/parent-`fsync`); §9.1 (`db_path`/
+  `cmd.Dir` mismatch upgraded from diagnostic-only to hard
+  `db-path-identity-changed` refusal, both pre-`cmd.Start()` and
+  post-exit); §11 (`batch-file-corrupt` added to the exit-3 table);
+  §13 (`resource_id` collision-refusal mechanism documented; golden
+  vectors 2/3 recomputed for `binary_sha256`); §5.1/§12.2 (new
+  directory `combined_hash` tuple-encoding golden vector); §14
+  Acceptance Criteria (`AC-18` rewritten in place, `AC-19`/`AC-20`/
+  `AC-56`–`AC-58`/`AC-79`–`AC-82`/`AC-85`/`AC-88`/`AC-89` added,
+  `AC-34` rewritten in place — 89 clauses total, up from 78); §14.1
+  (exact-count paragraph rewritten for the +11/89 total); §15 Open
+  Questions (`db_path` residual rewrite; new no-event-chronology and
+  trust-pin-scope-limitation bullets); new §20 Rev-6 Changelog vs
+  rev-5.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in full,
+  **1353 lines** (was 1102). Same 11 binding decisions (D1–D11,
+  numbering unchanged — no decision inserted or removed, only rewritten
+  in place): title/Status header updated to rev-6, citing writer
+  commit `7f653da` and adjudication `b312e4a`; new "Rev-6 fold summary"
+  section (replacing "Rev-5 fold summary" as the primary framing)
+  describing all 8 rev-5→rev-6 corrections; D3 (resource-ID vectors 2/3
+  recomputed for mandatory `binary_sha256`, `res_00189e66780a` replaces
+  `res_cf8e47e6564b`; new "Resource-ID collision refusal" paragraph);
+  D5 (new "Binary trust pin, not bare identity recording" paragraph —
+  `--trust-current-dolt`/`dolt-trust-required`/`adapter-binary-untrusted`,
+  pre- and post-invocation full-`SHA-256` rehash; new "Process-group
+  termination, `Setpgid` required" paragraph); D6 (`db_path`/`cmd.Dir`
+  bullet rewritten for the hard-refusal upgrade, honest residual
+  preserved; Dolt-executable bullet rewritten to reference D5's
+  full-`SHA-256` trust-pin recheck, `adapter-executable-replaced`
+  removed); D7 (idempotency-check paragraph rewritten for the
+  drift/collision/corrupt three-way split; `latest_batch_id` renamed
+  `current_batch_id` throughout; new first-publication crash-window
+  row); D9 (filesystem contract switched to stdlib-only `syscall.Statfs`,
+  Linux/Darwin allow/deny tables matched to the PRD exactly, new
+  "container-overlay vs. network filesystems" paragraph; new
+  "First-create sequencing" paragraph); Wire Schema Appendix (all 3
+  JSON blocks rewritten for `res_00189e66780a`/full batch ID
+  `rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a`/
+  `current_batch_id`/`binary_sha256`; new "Directory `ignored-file`
+  result, `combined_hash` tuple encoding" paragraph with the same
+  golden vector as the PRD; new `files[]` directory-array JSON example
+  block); Implementation Notes (3 new: stdlib-only Statfs build tags,
+  full-`SHA-256` trust-pin re-hash mechanism, `resource_id` collision
+  detection on every load); Negative Consequences Summary (`db_path`/
+  `cmd.Dir` residual bullet rewritten for the hard-refusal upgrade; 2
+  new bullets — trust-pin scope is byte-identity not supply-chain
+  legitimacy, no event-chronology exists); Test Matrix rebuilt from 121
+  to **157 rows** — `AC-18`/`AC-34` rows rewritten in place, the two
+  `adapter-executable-replaced` rows removed, new rows added for
+  `AC-19`/`AC-20`/`AC-56`–`AC-58`/`AC-79`–`AC-82`/`AC-85`/`AC-88`/`AC-89`
+  — covering all 89 PRD acceptance-criteria clauses (mechanically
+  verified via a Python script, 0 missing, 0 extra; `AC-80` alone
+  contributes 18 rows: 17 named filesystem-type fixtures + 1
+  unrecognized-type fixture).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-6
+  entry prepended above the rev-5-adjudication entry), Active Task
+  Status → Review, this Session Summary bullet, this Files Changed
+  section, Test Results, and the "Ready for review — Cluster H rev-6"
+  section below. Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-6
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation performed
+instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace
+  errors, no conflict markers).
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created, run, deleted, never
+  written under `/tmp`) — confirmed **89** distinct, sequential
+  `AC-1`..`AC-89` clauses, zero gaps, zero duplicates.
+- Golden-vector recomputation: all four `resource_id` vectors and the
+  worked batch example's `batch_id`
+  (`rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a`)
+  independently recomputed via a repo-local, deleted-after-use Python
+  script over the exact `CanonicalArgsJSON`/`CanonicalBatchJSON`
+  hash-input bodies reconstructed from the published worked examples —
+  matched exactly, including Vector 2/3's order-independence
+  (`res_00189e66780a`). The new directory `combined_hash` golden vector
+  (`config/a.txt` empty + `config/sub/b.sh` known content, tuple rule
+  `path`+`0x00`+`mode`+`0x00`+raw-hex-hash+`0x00`) independently
+  recomputed via the same script family and matched
+  `5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad`
+  exactly.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents and confirmed all 4
+  shared examples (`resources.json`, `batches/<id>.json`,
+  `current.json`, and the directory `ignored-file` `files[]` array) are
+  byte-identical between the PRD and the ADR (Python `str ==`
+  comparison on the raw fenced block text) — 4/4 matched.
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (89 distinct, sequential, no gaps) against every row of
+  the ADR's rebuilt Test Matrix (157 sequential rows, 1..157);
+  confirmed all 89 clauses appear in at least one matrix row, no
+  clause missing, no extra/unexpected clause tag, and the matrix's own
+  closing note explicitly discloses `AC-80`'s 18-row contribution
+  (matching its own definition text) while disclaiming any "exactly
+  once" mapping claim for every other multiply-exercised clause.
+- Stale-term sweep: re-grepped both files for remaining rev-5-only
+  language — `res_cf8e47e6564b` (none live, only as the historical
+  "replaces" value in the rev-6 changelog/status prose), the short-form
+  worked-batch `rb_5cff7f...` ID (none), `latest_batch_id` as a live
+  current-state fact (none — only historical "renamed from"/"rev-6
+  renames" mentions), `adapter-executable-replaced` as a live mechanism
+  (none — fully superseded by the trust-pin design), stale
+  `golang.org/x/sys/unix` import claims (none live — only historical/
+  corrective mentions and the one explicit "no such import" assertion
+  in `AC-79`) — all clean.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; all pre-existing untracked WIP remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-5
 
@@ -2127,6 +2359,150 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-6
+
+**Scope**: docs-only planning cluster, rev-6 "terminal compatibility
+fold". Same two deliverables as rev-1 through rev-5, both fully
+rewritten (not patched), plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **3726 lines** (was 3021). See "Files Changed — Cluster H rev-6"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the dispatch's requirement items (1–13).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **1353 lines**
+   (was 1102). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D3/D5/D6/D7/D9); see "Files
+   Changed — Cluster H rev-6" above.
+
+**Files changed (Cluster H rev-6)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D3 (ADR) ↔ §13 (PRD): identical recomputed `res_00189e66780a` vector
+  and identical `resource-id-collision`/idempotent-same-bytes refusal
+  mechanism.
+- D5 (ADR) ↔ §6.1/§6.3 (PRD): identical `--trust-current-dolt`/
+  `dolt-trust-required`/`adapter-binary-untrusted` trust-pin mechanism,
+  identical pre- and post-invocation full-`SHA-256` rehash-and-compare
+  language, identical `Setpgid`/negative-PGID process-group termination
+  contract.
+- D6 (ADR) ↔ §9.1 (PRD): identical hard `db-path-identity-changed`
+  refusal (both pre-`cmd.Start()` and post-exit), identical honest
+  well-timed-attacker-during-execution residual language, identical
+  removal of the device/inode/size/mtime Dolt-executable recheck in
+  favor of the trust-pin rehash.
+- D7 (ADR) ↔ §7.3/§12.3/§12.4 (PRD): identical `current_batch_id` field
+  name (no remaining `latest_batch_id` as a live fact), identical
+  presentation-drift/collision/corrupt three-way split, identical
+  first-publication crash-window row.
+- D9 (ADR) ↔ §7.2 (PRD): identical stdlib-only `syscall.Statfs`
+  constraint (no `golang.org/x/sys/unix` import anywhere), identical
+  Linux magic-number and Darwin `Fstypename` allow/deny lists (including
+  `overlayfs` and Darwin `tmpfs`), identical "first-create sequencing"
+  paragraph (nearest-existing-ancestor gate, `MkdirAll`, then `fsync`).
+- §5.1/§12.2 (PRD) ↔ Wire Schema Appendix (ADR, cross-referenced):
+  identical directory `combined_hash` tuple-encoding rule and identical
+  independently-recomputed golden vector
+  (`5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad`).
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
+- All 89 PRD §14 acceptance-criteria clauses appear in the ADR's 157-row
+  Test Matrix; the matrix explicitly discloses `AC-80`'s 18-row
+  contribution and disclaims any "exactly once" mapping claim for every
+  other multiply-exercised clause.
+
+**Validation performed**:
+- `git diff --check` on both rewritten files — clean.
+- AC sequential-numbering mechanically verified: 89 distinct, sequential
+  `AC-1`..`AC-89` tags in the PRD, zero gaps, zero duplicates (Python
+  sorted-set script, repo-local, deleted after use).
+- Golden `resource_id` vectors, the worked `batch_id`, and the new
+  directory `combined_hash` golden vector all independently recomputed
+  via repo-local, deleted-after-use Python scripts and matched exactly.
+- All four shared JSON wire examples (including the new directory
+  `files[]` array) programmatically confirmed byte-identical (raw
+  string equality) between the PRD and the ADR.
+- AC/test-matrix coverage mechanically verified: all 89 clauses present
+  across the ADR's rebuilt 157-row Test Matrix (sequential rows 1–157,
+  no gaps), 0 missing, 0 extra.
+- Stale-term sweep across both documents for rev-5-only language
+  (`res_cf8e47e6564b`/short-form worked `batch_id`/`latest_batch_id`-
+  as-current-fact/`adapter-executable-replaced`-as-live-mechanism/
+  `golang.org/x/sys/unix`-as-live-import) — all clean, only historical/
+  corrective mentions remain.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; pre-existing untracked WIP is untouched.
+- Side Research md5 invariant re-verified unchanged:
+  `b385fe622db9926f48861105239f113e`.
+
+**Reviewer focus areas**:
+- Confirm the Dolt binary trust-pin mechanism (D5/D3/§6.1/§6.3/§13) is
+  described as **mandatory** (`--trust-current-dolt`/`dolt-trust-required`
+  refusal without it) and checked via **full `SHA-256`** both before and
+  after invocation — not a cheaper metadata proxy — with
+  `adapter-binary-untrusted` on mismatch, and that the prior rev-4/rev-5
+  device/inode/size/mtime `Lstat` recheck (`adapter-executable-replaced`)
+  is fully removed, not merely supplemented.
+- Confirm `db_path`/`cmd.Dir`'s mismatch (D6/§9.1/`AC-34`) is now a
+  **hard refusal** (`db-path-identity-changed`, exit 3, no batch
+  written) at both checkpoints, not still framed as diagnostic-only,
+  while the well-timed-attacker-during-execution residual remains
+  honestly stated as out of scope, not claimed closed — and that the
+  comparison-input-freshness distinction (fresh pathname `Lstat` vs.
+  descriptor-vs-descriptor) is explicit, not tautological.
+- Confirm `Setpgid` (D5/`AC-85`) is described as exact
+  `SysProcAttr{Setpgid:true}` on `linux`/`darwin`, with negative-PGID
+  `SIGTERM`→`SIGKILL` signaling, and that the test requirement covers a
+  spawned descendant surviving parent-unaffected verification, not just
+  the direct child.
+- Confirm `resource-id-collision` (D3/§13/`AC-88`) distinguishes
+  byte-identical-idempotent from different-bytes-refused, and that the
+  test-only stub-hash-collision seam caveat (a genuine `SHA-256`
+  collision cannot be produced for a real test) is present.
+- Confirm `current_batch_id` (D7/§7.3/§12.4) fully replaces
+  `latest_batch_id` with zero remaining "newest"/"latest"/chronology
+  claims, and that the A→B→A two-batch-files invariant is preserved
+  unchanged from rev-5.
+- Confirm the presentation-drift/collision/corrupt three-way split
+  (D7/§7.3/`AC-56`–`AC-58`) is ordered correctly — drift ruled out
+  *before* collision is ever declared — and that `batch-file-corrupt`
+  is a genuinely distinct outcome from both, never routed through
+  either comparison.
+- Confirm the filesystem contract (D9/§7.2/`AC-79`/`AC-80`) is
+  stdlib-only `syscall.Statfs` with zero `golang.org/x/sys/unix`
+  imports, and that the Linux/Darwin allow/deny lists are byte-identical
+  between the PRD and the ADR, including `overlayfs` and Darwin
+  `tmpfs`, with no invented Linux-APFS constant anywhere.
+- Confirm the first-create sequencing contract (D9/§7.1/`AC-81`/`AC-82`)
+  runs the ignore/untracked gate and `statfs` preflight against the
+  **nearest existing ancestor**, not the not-yet-created leaf, and that
+  `fsync` happens after `MkdirAll` but before durability is declared,
+  with a crash-recovery test for both the local scratch tree and the
+  tracked `resource-captures/` tree's first-ever creation.
+- Confirm the directory `combined_hash` tuple encoding (§5.1/§12.2/D3's
+  cross-reference/`AC-89`) is stated unambiguously (raw unprefixed
+  64-hex hash component, individually `0x00`-terminated fields, no
+  further separator) and that the golden vector is byte-identical
+  between the PRD and the ADR.
+- Confirm the 89-clause/157-row AC/matrix accounting is genuinely
+  mechanical (spot-check a handful of `AC-<n>` tags against their
+  matrix rows, especially `AC-19`/`AC-20`/`AC-56`–`AC-58`/`AC-79`–
+  `AC-82`/`AC-85`/`AC-88`/`AC-89`) and not merely asserted, and that
+  `AC-80`'s explicit 18-row/17-named-plus-1-unrecognized accounting
+  matches its own definition text exactly.
 
 ## Ready for review — Cluster H rev-5
 

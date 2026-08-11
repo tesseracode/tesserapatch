@@ -1,9 +1,8 @@
-# PRD — Feature Resource Claims & Capture Adapters (rev-5)
+# PRD — Feature Resource Claims & Capture Adapters (rev-6)
 
-**Status**: Draft — rev-5 (supersedes rev-4, writer commits `ceda294`
-(rev-4) + `b7ddccb` (rev-4 platform-citation addendum), adjudicated
-NEEDS REVISION → REV-5 DISPATCHED at `07eab8e`; see
-`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-4 adjudications)
+**Status**: Draft — rev-6 (supersedes rev-5, writer commit `7f653da`,
+adjudicated NEEDS REVISION → REV-6 DISPATCHED at `b312e4a`; see
+`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-5 adjudications)
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes
@@ -19,7 +18,77 @@ directly extended), `ADR-030-multi-slug-reconcile-derivation-mode.md`
 
 ---
 
-## 0. Rev-5 Fold Summary (read this first)
+## 0. Rev-6 Fold Summary (read this first)
+
+Rev-5 (`7f653da`) redesigned the build-tag precision, filesystem
+preflight, `db_path` honesty, output-cap-as-refusal, `WORKING`/`STAGED`
+refusal, full-SHA-256 `batch_id`, unordered-batch framing, and
+directory-mode hashing, but the rev-5 adjudication (`b312e4a`) found
+rev-5's own new mechanisms still unsafe or under-specified in eight
+concrete places, framed as a bounded "compatibility micro-fold" that
+does **not** reopen §1's authority/scope decisions or §2's goals: any
+resolved `dolt` binary was accepted without a compatibility trust pin,
+so a same-named but semantically different binary could silently
+change what a tracked result means (§6.1 fix, task 1); a detected
+post-exit `db_path` pathname replacement was diagnostic-only, logging
+the mismatch but still publishing the batch, rather than refusing the
+capture outright (§9.1 fix, task 2); process-group termination lacked
+`SysProcAttr{Setpgid:true}`, so `SIGTERM`/`SIGKILL` could reach the
+`tpatch` process's own process group (including its parent shell)
+instead of only the spawned Dolt child and its descendants (§6.4 fix,
+task 3); the 12-hex-truncated `resource_id` keyspace had no distinct-
+payload collision refusal, so two different declarations that happened
+to truncate to the same ID had no defined outcome (§13/§4 fix, task
+4); `latest_batch_id` reintroduced chronological ("newest") language
+into a design whose own rev-5 fold insists batches are an unordered
+content-addressed set (§4/§7.3/§12.4 fix, task 5); an existing
+batch file's byte-level drift from a freshly re-encoded candidate was
+labeled a `SHA-256` collision without first canonicalizing and
+comparing the **semantic** body, conflating presentation drift
+(whitespace/key-order) with a genuine cryptographic collision (§7.3
+fix, task 6); the filesystem preflight used `golang.org/x/sys/unix`
+(an external dependency this project's own rule minimizes) with
+Linux/macOS allow/deny lists that differed between the PRD and ADR,
+included at least one invalid constant, omitted `overlayfs` (a common
+container/CI filesystem), and did not fsync the first-created parent
+directory of a scratch tree (§7.1/§7.2 fix, task 7/task 8); and the
+directory `combined_hash` tuple never stated whether its hash
+component was raw hex or `sha256:`-prefixed, and had no worked golden
+vector (§5.1/§12.2 fix, task 9). Rev-6 is a **bounded compatibility
+fold** — it does not touch §1/§2's scope, §5.2/§5.3's closed resource
+kinds, or the separate-manifest/no-lifecycle-authority/Dolt-optional/
+Git-only-replay decisions every prior revision has preserved. §6.1,
+§6.4, §7.1, §7.2, §7.3, §9.1, §13 are revised in place; §3, §4, §5.1,
+§6.2, §12.2, §12.3, §12.4, §14, §14.1, §15 are updated for the trust-
+pin/collision/rename/hash-tuple corrections. **Preserved** because
+every review across all seven revisions has agreed it is sound:
+
+- Resources live in a **separate** manifest per feature — never
+  inside the canonical patch, never touching `apply-recipe.json` or
+  unapply/lifecycle state.
+- Dolt (or any external tool) is **never** an authority over tpatch's
+  own state and is **not** a build/runtime dependency of `tpatch`
+  itself — it is invoked, if present, strictly as an external,
+  read-only, externally-located tool.
+- Replay/backward-compatibility remains **Git-only** — a repository
+  with no resources declared is byte-identical in behavior to today's
+  `tpatch`.
+- No tracked artifact ever contains a raw file byte, raw adapter
+  stdout, or any content copied verbatim from a scanned source
+  (ADR-027 D3); scanning happens strictly in bounded in-process memory,
+  never pre-persisted to a scratch file (task 2).
+
+Everything below this point folds rev-6's corrections into the
+standalone design; §0.1 lists the new citations grounding those
+corrections (appended to the existing Claims Audit table). Rev-5's
+own `C1`–`C27` remain correct and are not repeated (see
+`docs/handoff/HISTORY.md`/git history for that table).
+
+**Historical context — rev-5's own fold summary** (superseded by the
+above as the *current* state, preserved verbatim below for
+continuity; its internal §0.1–§0.4 subsection numbers are the ones
+this document's cross-references still use, now carrying rev-6's
+additions appended to them):
 
 Rev-4 (`ceda294`/`b7ddccb`) redesigned the lock protocol, publication
 idempotency, `diff`'s content-reading honesty, and three Dolt
@@ -174,7 +243,7 @@ here — see the rev-1/rev-2/rev-3 text preserved in
 |---|-------|----------|-------------------------|
 | C11 | `dolt diff --name-only` combined with `--schema`/`--data` and `--filter=` is **not** how the pinned Dolt source expresses per-table schema/data change classification; the source-verified read-only interface is the `dolt_diff_summary(from, to[, table])` table function, queried over `dolt sql -r json -q "..."`, returning exactly `{from_table_name, to_table_name, diff_type, data_change, schema_change}` per row | Supervisor source check against `dolthub/dolt` at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`: `go/cmd/dolt/commands/diff.go` (synopsis, `--schema`/`--data`, `--result-format`), `go/cmd/dolt/commands/sql.go` (`-q`/`--query`, `-r`/`--result-format json`), `go/cmd/dolt/commands/version.go` | rev-1 **error**: rev-1's three-invocation `--name-only --filter={added,dropped,modified}` design combined flags in a way the source does not support as a single coherent invocation, and could not detect renames or represent "both schema and data changed" for one table in one classification. §6 replaces this entirely with the one-query `dolt_diff_summary` design. |
 | C12 | `dolt version` is a real subcommand that can, depending on build/config, perform a network update check and read/write files under the resolved `HOME`; it is not a safe no-side-effect probe | Rev-2 threat-modeling of running an arbitrary resolved executable literally named `dolt` with an unconstrained inherited environment, not a specific pinned-commit source citation (no claim here about `dolt version`'s exact internal behavior beyond "runs arbitrary code with inherited env/network access," which is true of any executed binary in v1's threat model) | rev-1 ran `dolt version` as a "probe" step with the invoking process's inherited environment. §6.1 removes this probe entirely; tool identity is now a static file fact (executable basename + `SHA-256` of the resolved binary's bytes), never a code-execution result, and every actual invocation runs with a minimal, non-inherited scratch environment (§6.4). |
-| C13 | `internal/workflow/session_ignore.go`'s `EnsureLocalIgnoreContract(repoRoot, resolvedPath)` verifies the path is inside the worktree and that `gitutil.IsPathIgnored` (`--no-index`) reports it ignored; it does **not** independently verify the path is untracked | `internal/workflow/session_ignore.go:138-175` (`EnsureLocalIgnoreContract` body) | New for rev-2: §10.3 reuses this exact function for the ephemeral-scratch root (task 7's "do not invent a second ignore mechanism") but layers the same tracked-file gate used for `ignored-file` selectors (§5.1) on top, since `EnsureLocalIgnoreContract` alone does not close the `--no-index` gap for the scratch root either. |
+| C13 | `internal/workflow/session_ignore.go`'s `EnsureLocalIgnoreContract(repoRoot, resolvedPath)` verifies the path is inside the worktree and that `gitutil.IsPathIgnored` (`--no-index`) reports it ignored; it does **not** independently verify the path is untracked | `internal/workflow/session_ignore.go:138-194` (`EnsureLocalIgnoreContract` body, full function span, corrected in rev-6 from a prior `138-175` citation that stopped mid-function before the `ignored` check itself) | New for rev-2: §10.3 reuses this exact function for the ephemeral-scratch root (task 7's "do not invent a second ignore mechanism") but layers the same tracked-file gate used for `ignored-file` selectors (§5.1) on top, since `EnsureLocalIgnoreContract` alone does not close the `--no-index` gap for the scratch root either. |
 | C14 | Go's `os.OpenFile` accepts `syscall.O_NOFOLLOW` on Unix build targets (`darwin`/`linux`), which causes the open to fail with `ELOOP` if the **final** path component is a symlink; there is no portable stdlib/syscall equivalent that also binds every **ancestor** directory component against races (no `openat2`/`RESOLVE_NO_SYMLINKS` wrapper in the Go standard library) | Go standard library `os`/`syscall` package documentation (`O_NOFOLLOW` is a documented, platform-gated `syscall` constant; `openat2` has no stdlib wrapper as of the Go versions this project targets) | New for rev-2: §9.1 uses `O_NOFOLLOW` as one real, available hardening measure for the final component and is explicit that ancestor-component TOCTOU is closed by *refusing any symlink component at all* (a stat-time check) rather than by any stronger descriptor-bound guarantee stdlib cannot provide (task 5: "state TOCTOU residual honestly ... do not claim impossible sandbox"). |
 | C15 | `dolt_diff_summary`'s five columns are typed and **non-null**: `from_table_name` (`LongText`), `to_table_name` (`LongText`), `diff_type` (`Text`), `data_change` (`Boolean`), `schema_change` (`Boolean`); the function itself reports `IsReadOnly() == true`; accepted invocation forms are the 2-arg `(from, to)` and 3-arg `(from, to, table)` shapes this PRD already uses, plus dot-range forms (e.g. a single `"from..to"`-shaped argument) this PRD deliberately does not use; Dolt's own internal Go usage of the function queries it with `select * from dolt_diff_summary(?, ?)` and sorts results by `ToName` in application code, rather than an explicit `SELECT <columns> ... ORDER BY` at the SQL layer | Supervisor source check against `dolthub/dolt` at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` (table-function schema/column typing, `IsReadOnly()`, accepted argument forms, and Dolt's own internal query/sort usage) | Confirms — does not correct — §6.2's design: the non-null column guarantee is why `result.tables[]` entries in every tracked wire example (§12.2/§12.3) never carry a null field; the read-only confirmation reinforces C11's "external, read-only tool" framing; this PRD deliberately does **not** adopt Dolt's own internal `select *` + application-side sort pattern, and instead binds every column by explicit name and applies an explicit SQL `ORDER BY from_table_name, to_table_name` (§6.2), so tracked output does not silently reorder or gain/lose a field if a future Dolt version changes the table function's positional column order; dot-range argument forms are noted as existing but out of scope for v1's exact 2-/3-arg argv template. |
 | C16 | `ADR-027-capture-context-privacy-boundary.md` D3 states verbatim: "Local private buffers may keep only the redacted or hashed form; this ADR does not authorize a tpatch-managed raw transcript archive." | `docs/adrs/ADR-027-capture-context-privacy-boundary.md:146-170` (D3 section), exact quoted sentence at `:168-170` | Directly grounds §7.1/§0.2's "no persistent raw bodies anywhere, ephemeral-scratch-only" design in ADR-027's own binding language, not just this PRD's inference from D1–D6's committed/local split "in spirit" (as rev-2's original §0 fold summary put it) — D3 is explicit and unconditional: a persistent raw local archive of any kind, opt-in or not, is not authorized without an ADR that supersedes it (§2's new non-goal). |
@@ -189,9 +258,13 @@ here — see the rev-1/rev-2/rev-3 text preserved in
 | C25 | The claim "Dolt's real, source-confirmed JSON writer always emits native JSON booleans for `BOOLEAN`-typed columns" is best grounded in the **row constructor** that builds each output row from a `TableDeltaSummary`, not the SQL schema/writer-type declaration alone: `getRowFromSummary` builds `sql.Row{ds.FromTableName.String(), ds.ToTableName.String(), ds.DiffType, ds.DataChange, ds.SchemaChange}`, passing the struct's native Go `bool` fields (`DataChange bool`, `SchemaChange bool`, confirmed at `table_deltas.go:83-90`) directly into the row with no intermediate string/int conversion, which is what the JSON writer then serializes as a native JSON boolean | `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff_summary.go:457-464` (`getRowFromSummary`, the row constructor) plus `go/libraries/doltcore/diff/table_deltas.go:83-90` (`TableDeltaSummary` struct field types) | rev-3's C15/§6.2 cited only the SQL schema declaration (`dolt_diff_summary.go:48-54`, `Boolean` column type) for this claim — a schema type alone does not prove what a *particular code path* actually writes into the row. §6.3 now cites the row constructor as the primary evidence for "native JSON boolean, no coercion," retaining the schema citation only for the non-null-column claim it does support. |
 | C26 | `diff_type`'s closed 4-value enumeration is more precisely evidenced by the four **exact assignment lines** inside `GetSummary` — the only places any row's `DiffType` field is ever set — than by the `const` block alone, which also declares a fifth value, `DiffTypeAll = "all"`, that exists only as a caller-side **filter** argument to a different function and is never itself assigned to any row's `DiffType` field (confirmed by an exhaustive grep of every `DiffType` assignment in this file: zero occurrences of `DiffTypeAll` outside the `const` block itself) | `go/libraries/doltcore/diff/table_deltas.go:713-761` (`GetSummary`): `:722` `DiffType: DiffTypeDropped`, `:733` `DiffType: DiffTypeAdded`, `:745` `DiffType: DiffTypeRenamed`, `:760` `DiffType: DiffTypeModified` — the complete, exhaustive set of assignment sites; `:45-51` (`const` block, including the unused-for-this-purpose `DiffTypeAll = "all"`) | rev-3's C23/§6.2 cited only the `const` block (`table_deltas.go:46-49`), which a reader could misread as implying 5 possible row values. §6.2 now cites the four assignment lines directly and notes `DiffTypeAll` is a filter-only value this design's fixed `dolt_diff_summary` query never emits and never needs to recognize as a row value. |
 | C27 | The pinned commit's own `dolt sql -q ... -r json` one-shot (non-interactive) invocation path emits trailing whitespace **beyond** the JSON body itself in both the nonempty- and zero-row cases: the JSON row writer's `Close` writes only the literal footer `]}` with no trailing newline of its own (`writer.go:243-249`); `execSingleQuery` (the one-shot `-q` code path, `sql.go:461-470`) calls `PrettyPrintResults`, which is `prettyPrintResultsWithSummary(..., PrintNoSummary, ...)` (`sql_print.go:59-61`) — so no "N rows in set" summary line is appended for this invocation shape — but regardless of row count, `sql_print.go`'s final, unconditional `case FormatJson, ...: return iohelp.WriteLine(cli.CliOut, "")` (`:168-170`) appends exactly one more `"\n"` after everything else, and `WriteLine` (`iohelp/write.go:66-68`) always appends a trailing `"\n"` to whatever it's given; the zero-row case additionally writes `iohelp.WriteLine(cli.CliOut, "{}")` (`sql_print.go:148-149`) — itself already `"\n"`-terminated — before that same final blank-line write, so the real zero-row stdout is `"{}\n\n"`, not a bare 2-byte `"{}"` | `go/libraries/doltcore/table/typed/json/writer.go:243-249` (`Close`, footer write, no added newline); `go/cmd/dolt/commands/sql.go:452-470` (`execSingleQuery`, the `-q` one-shot path, calls `PrettyPrintResults` not `PrettyPrintResultsExtended`); `go/cmd/dolt/commands/engine/sql_print.go:55-61` (`PrintNoSummary` is what `PrettyPrintResults` passes), `:148-149` (zero-row `{}` write), `:168-170` (unconditional trailing blank-line write for `FormatJson`); `go/libraries/utils/iohelp/write.go:66-68` (`WriteLine` always appends `"\n"`) | Directly grounds task 4's "trim JSON surrounding whitespace before structural parse" requirement with real, cited evidence of trailing whitespace in captured stdout, rather than a purely defensive assumption: §6.3 now states the parser trims leading/trailing ASCII whitespace from the captured buffer before attempting to match either of the two valid top-level shapes, and that both the nonempty (`{"rows":[...]}\n`) and zero-row (`{}\n\n`) real outputs parse correctly under that rule. |
-| C28 | `//go:build unix` is a real, documented Go build constraint that matches every POSIX-family `GOOS` value Go supports (including `aix`, `solaris`, `illumos`, `dragonfly`), not only `linux`/`darwin` | Go standard library/toolchain documentation for build constraints (the `unix` build tag is defined as the union of all Unix-like `GOOS` values the toolchain recognizes, a strictly larger set than this project's tested platforms) | rev-4 **imprecision**: this project's actual CI matrix (`.github/workflows/ci.yml:18-25`) tests only `ubuntu-latest`/`macos-latest`; a `unix`-tagged lock file would silently compile (and claim to work) on untested POSIX targets. §7.2 now uses the exact `//go:build linux \|\| darwin` constraint, with `//go:build !linux && !darwin` as the explicit, narrower fallback. |
+| C28 | `//go:build unix` is a real, documented Go build constraint that matches every POSIX-family `GOOS` value Go's toolchain recognizes under that tag (`aix`, `android`, `darwin`, `dragonfly`, `freebsd`, `hurd`, `illumos`, `ios`, `linux`, `netbsd`, `openbsd`, `solaris` — `illumos` and `solaris` are two distinct, separately-listed `GOOS` values, not synonyms, despite their shared lineage), not only `linux`/`darwin`; it explicitly does **not** match `js`/`wasip1` (`GOOS=js`/`GOOS=wasip1` are not part of the `unix` build-tag set at all, so no part of this correction is about excluding WASM targets specifically — they were never included) | Go standard library/toolchain documentation for build constraints (the `unix` build tag is defined as the union of the Unix-like `GOOS` values above, a strictly larger set than this project's tested platforms, and does not extend to the non-Unix `js`/`wasip1` targets) | rev-4 **imprecision**: this project's actual CI matrix (`.github/workflows/ci.yml:18-25`) tests only `ubuntu-latest`/`macos-latest`; a `unix`-tagged lock file would silently compile (and claim to work) on ten untested POSIX targets. §7.2 now uses the exact `//go:build linux \|\| darwin` constraint, with `//go:build !linux && !darwin` as the explicit, narrower fallback. |
 | C29 | `flock(2)`'s advisory-lock guarantee is documented as applying to the local kernel's view of an open file description; POSIX and Linux/BSD manual pages do not guarantee `flock` semantics are honored identically by every network/shared filesystem client (NFS in particular has historically had inconsistent or client-local-only `flock` emulation depending on protocol version and mount options) | `flock(2)` manual page ("Advisory locks... ", the "NOTES" section on NFS behavior varying by kernel/mount configuration is a widely-documented caveat of this syscall, not specific to this project) | Grounds §7.2's new filesystem-contract preflight (rev-5): this design does not claim `flock` provides real mutual exclusion on every mount a `.tpatch/` directory could live on, and refuses known-risky/unrecognized filesystem types via `statfs` before creating the lock file at all. |
 | C30 | `os/exec.Cmd`'s `StdoutPipe`/`StderrPipe` return `io.ReadCloser`s that must be fully drained (or the child can block writing to a full pipe); `cmd.Wait()` requires all reads from these pipes to complete before it is called, per the documented contract | Go standard library `os/exec` package documentation for `Cmd.StdoutPipe`/`Cmd.StderrPipe` ("It is thus incorrect to call Wait before all reads from the pipe have completed") | Grounds §6.4/§8.1's redesigned output-cap mechanism (rev-5): continuing to drain both pipes to completion after a cap-triggered kill (rather than abandoning the read) is required by this documented contract, not merely a defensive nicety. |
+| C31 | `syscall.SysProcAttr` on `linux`/`darwin` has a `Setpgid bool` field; when `true`, the started child becomes the leader of a **new** process group whose PGID equals the child's own PID (distinct from `tpatch`'s own process group), and `syscall.Kill(-pgid, sig)` (a **negative** PID argument) delivers `sig` to every process in that group — this is standard POSIX `kill(2)` group-signal semantics, not a Dolt- or Go-specific behavior | Go standard library `syscall` package documentation for `SysProcAttr.Setpgid`/`Setpgid`+`Pgid` on Unix-like `GOOS` values; POSIX `kill(2)` manual page (negative `pid` argument targets a process group) | Grounds §6.4's `Setpgid`-based process-group isolation (task 3): without `Setpgid:true`, a spawned Dolt child inherits `tpatch`'s own process group, and a signal sent to "the group" would also reach `tpatch` itself (and any parent shell sharing that group) — `Setpgid:true` plus signaling the child's own (negative) PGID is what confines `SIGTERM`/`SIGKILL` to the Dolt invocation and its own descendants only. |
+| C32 | Go's stdlib `syscall` package exposes `Statfs`/`Statfs_t` on both `linux` and `darwin` build targets with no external dependency: on `linux`, `Statfs_t.Type` is an integer filesystem-type magic number (`int64` on most architectures); on `darwin`, `Statfs_t.Fstypename` is a fixed-size byte array holding the filesystem type name as a NUL-terminated C string (e.g. `"apfs"`, `"hfs"`, `"nfs"`) | Go standard library `syscall` package (`Statfs`/`Statfs_t` are defined for `GOOS=linux` and `GOOS=darwin` with the field shapes above; no `golang.org/x/sys/unix` import is required to reach either) | Grounds task 7's "stdlib-only, no `x/sys` dependency" filesystem preflight (§7.2): rev-5's design imported `golang.org/x/sys/unix` for this same `Statfs` call, an unnecessary external dependency this project's own "minimal external Go dependencies" rule (`CLAUDE.md`) should avoid when the stdlib already exposes the identical syscall on both tested platforms. |
+| C33 | The Linux kernel's public filesystem-magic-number header defines (among others) `EXT2_SUPER_MAGIC`/`EXT3_SUPER_MAGIC`/`EXT4_SUPER_MAGIC` as the single shared value `0xEF53`, `XFS_SUPER_MAGIC` as `0x58465342`, `BTRFS_SUPER_MAGIC` as `0x9123683E`, `TMPFS_MAGIC` as `0x01021994`, and `OVERLAYFS_SUPER_MAGIC` as `0x794C7630`; on the deny side, `NFS_SUPER_MAGIC` is `0x6969`, `CIFS_MAGIC_NUMBER` is `0xFF534D42`, `SMB2_MAGIC_NUMBER` is `0xFE534D42`, and `FUSE_SUPER_MAGIC` is `0x65735546`; there is no Linux `APFS_SUPER_MAGIC` constant at all (APFS is a Darwin-only filesystem with no Linux kernel driver/magic number in the mainline kernel) | Linux kernel `include/uapi/linux/magic.h` (the canonical, stable public header defining every `*_SUPER_MAGIC`/`*_MAGIC_NUMBER` constant used by `statfs(2)`'s `f_type` field) | Corrects rev-5's §7.2 allowlist, which cited `APFS_SUPER_MAGIC` as a Linux-reachable value ("via a Linux VM/container mounting one") — no such Linux kernel constant exists; APFS access from Linux (where it exists at all, e.g. via FUSE) would surface as a FUSE magic number, already on the deny list. §7.2's Linux allowlist/denylist now uses exactly the eight numeric constants above, byte-identical between this PRD and the companion ADR, and explicitly allows `overlayfs` (common under Docker/container CI). |
+| C34 | Darwin's `statfs(2)`/`getfsstat(2)` family reports the filesystem type name as a short lowercase string in `Fstypename`; observed/documented values include `"apfs"`, `"hfs"`, `"tmpfs"`, `"nfs"`, `"smbfs"`, `"webdav"`, and FUSE-backed mounts (including `osxfuse`/macFUSE) surface their own registered type name (historically `"osxfuse"`, `"macfuse"` for newer installs) rather than a shared generic "fuse" string | Apple/BSD `statfs(2)` manual page and `sys/mount.h` (`Fstypename` is populated from the mounted filesystem's registered VFS name; FUSE-based filesystems on macOS register their own distinct type name rather than reusing a generic value) | Grounds §7.2's Darwin allow/deny lists (task 7): allow `"apfs"`, `"hfs"`, `"tmpfs"`; deny `"nfs"`, `"smbfs"`, `"webdav"`, and known FUSE-registered names (`"osxfuse"`, `"macfuse"`) as representative known-network/known-non-local entries, with every other, unrecognized `Fstypename` value failing closed exactly as the Linux side does for an unrecognized numeric magic. |
 
 ### 0.2 What rev-4 removes or changes
 
@@ -272,18 +345,24 @@ here — see the rev-1/rev-2/rev-3 text preserved in
 
 The canonical `args`-encoding algorithm (§13.1) and the
 `CanonicalBatchJSON` batch-body encoder (§7.3 step 2, §12 intro) are
-both **unchanged** by rev-4 — nothing in this fold touches the
-hash-derivation functions themselves, only the lock/idempotency-
-comparison/read-semantics mechanisms around them. All four resource-ID
-golden vectors and the worked batch example's content-addressed
-`batch_id` (§12.3, §13.3) therefore remain byte-identical to rev-3:
+**unchanged** by rev-6 — nothing in this fold touches the
+hash-derivation functions themselves. What **does** change (task 1):
+`adapter-snapshot` resources now declare a mandatory `binary_sha256`
+argument (§6.1), which is part of the hashed `args` set (§13.1) —
+Vectors 2/3 below are therefore genuinely **recomputed**, not merely
+re-verified, and the recomputation was independently confirmed via a
+standalone Python script implementing §13.1/§13.2 verbatim, run as
+part of this revision's validation pass. Vectors 1/4 (no `args`,
+unaffected by the Dolt-only `binary_sha256` addition) remain
+byte-identical:
 
 | Vector | Feature | Kind | Selector | Adapter | Capability | Args (declaration order) | `resource_id` |
 |---|---|---|---|---|---|---|---|
 | 1 | `model-picker` | `git-metadata` | `head` | *(none)* | *(none)* | `{}` | `res_acc91dc23a8b` (unchanged) |
-| 2 | `model-picker` | `adapter-snapshot` | `dolt:diff-summary:users` | `dolt` | `diff-summary` | `db_path=data/dolt-db, table=users, from=main, to=HEAD` | `res_cf8e47e6564b` (unchanged from rev-3) |
-| 3 | `model-picker` | `adapter-snapshot` | `dolt:diff-summary:users` | `dolt` | `diff-summary` | `to=HEAD, db_path=data/dolt-db, table=users, from=main` (reordered) | `res_cf8e47e6564b` (unchanged — order-independence) |
+| 2 | `model-picker` | `adapter-snapshot` | `dolt:diff-summary:users` | `dolt` | `diff-summary` | `binary_sha256=3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b, db_path=data/dolt-db, table=users, from=main, to=HEAD` | `res_00189e66780a` (**recomputed** — rev-6 adds `binary_sha256` to the hashed `args` set) |
+| 3 | `model-picker` | `adapter-snapshot` | `dolt:diff-summary:users` | `dolt` | `diff-summary` | `to=HEAD, db_path=data/dolt-db, binary_sha256=3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b, table=users, from=main` (reordered) | `res_00189e66780a` (**identical to Vector 2** — order-independence, reconfirmed with the added `binary_sha256` field) |
 | 4 | `model-picker` | `ignored-file` | `config/local-secrets.env.template` | *(none)* | *(none)* | `{}` | `res_79f5ac5dca13` (unchanged) |
+
 
 ### 0.4 Requirement-item → section map
 
@@ -318,6 +397,24 @@ golden vectors and the worked batch example's content-addressed
 | 8 | Batches are an unordered content-addressed set, not a chronology | §4, §7.3 |
 | 9 | Directory `mode` folded into `combined_hash`/diff | §5.1, §12.2 |
 | 10-18 | Citation/wording/count corrections (build-tag precision, lock-body, JSON whitespace, etc.) | §0, §14.1, §15 |
+
+**Rev-6 items** (13-item compatibility fold, `b312e4a` dispatch):
+
+| Item | Requirement | Section(s) |
+|---|---|---|
+| 1 | Dolt binary trust pin (`binary_sha256`), pre/post hash, `adapter-binary-untrusted` | §6.1, §12.1, §13 |
+| 2 | `db_path` mismatch is a hard refusal, not diagnostic-only | §9.1 |
+| 3 | `SysProcAttr{Setpgid:true}`, group-only signal, parent survival | §6.4 |
+| 4 | `resource-id-collision` refusal (distinct-payload same-ID) | §4, §13 |
+| 5 | `current_batch_id` rename, remove chronology language | §4, §7.3, §12.4 |
+| 6 | File-wire drift vs. semantic-body collision split | §7.3 |
+| 7 | Stdlib `syscall.Statfs`, exact allow/deny lists incl. overlayfs | §7.2 |
+| 8 | First-create sequencing (nearest-ancestor gate/statfs, parent fsync) | §7.1 |
+| 9 | Directory `combined_hash` tuple clarity + golden vector | §5.1, §12.2 |
+| 10 | `dolt-argument-refused` named exit-2 reason | §6.2, §14 |
+| 11 | Citation/wording cleanup (`unix` scope, refs, counts) | §0.1, §7.2, §9.1 |
+| 12 | Re-confirm output/publish invariants after rename | §6.4, §7.3, §12 |
+| 13 | ACs/matrix rebuild for all rev-6 behaviors | §14 |
 
 ---
 
@@ -369,7 +466,7 @@ All new verbs live under the existing `feature` noun, mirroring
 `feature claim`'s shape:
 
 ```
-tpatch feature resource add    <slug> --kind <kind> --selector <sel> [--adapter <a> --capability <c> --arg k=v ...] [--json]
+tpatch feature resource add    <slug> --kind <kind> --selector <sel> [--adapter <a> --capability <c> --arg k=v ...] [--trust-current-dolt] [--json]
 tpatch feature resource list   <slug> [--json]
 tpatch feature resource remove <slug> <resource-id-or-prefix> [--json]
 tpatch feature resource clear  <slug> [--json]
@@ -380,7 +477,16 @@ tpatch record <slug> [existing flags...] [--resources] [--json]
 
 Rev-2 removed the rev-1 `--keep-local` flag entirely (§0.2, unchanged
 in rev-3): raw bytes are always ephemeral now, so there is nothing
-left to opt into.
+left to opt into. **`--trust-current-dolt`** is new in rev-6 (task 1,
+§6.1): the only way to declare an `adapter="dolt"` resource. `add`
+refuses `--kind adapter-snapshot --adapter dolt` without it
+(`dolt-trust-required`, exit 2) — there is no default-trust fallback.
+When passed, `add` resolves `dolt` exactly as §6.1 describes (deferred
+to `add` time now, not only `capture` time, for this one purpose:
+computing the pin), hashes the resolved binary's bytes (`SHA-256`),
+and writes that digest as a mandatory `binary_sha256` declared `args`
+entry (§12.1) alongside `db_path`/`table`/`from`/`to` — it therefore
+participates in `resource_id` (§13) like any other `args` key.
 
 - **`capture`** is the only verb that ever executes the Dolt adapter,
   reads ignored-file content, or reads Git metadata, and the only verb
@@ -415,9 +521,13 @@ left to opt into.
 `add`/`list`/`remove`/`clear` behave exactly as `feature claim`'s
 quartet does (same `"no such feature: %s"` refusal shape, same
 `--json` convention), except `add` additionally computes and persists
-`resource_id` (§13) and rejects duplicates (same `selector`+`kind`+
-`adapter`+`capability`+canonical `args` tuple already declared for
-that feature) as a validation error (exit 2). `add`/`remove`/`clear`
+`resource_id` (§13); an `add` whose full declaration tuple
+(`selector`+`kind`+`adapter`+`capability`+canonical `args`) is
+byte-identical to an already-declared entry for that `resource_id` is
+**idempotent** (exit 0, no second entry written), while a distinct
+tuple that happens to collide with an existing entry's 12-hex-
+truncated `resource_id` is refused (`resource-id-collision`, exit 3,
+rev-6 — see §4's collision-refusal subsection). `add`/`remove`/`clear`
 now acquire the same per-slug lock `capture` uses (§7.2, task 1)
 before mutating `resources.json` — before the lock file itself is ever
 created, all three (like `capture`/`record --resources`) first run the
@@ -455,6 +565,50 @@ never inside `apply-recipe.json` or any unapply/lifecycle-state file:
   only, not a timestamp). **Never** contains a capture result, a hash,
   or any raw content. `add`/`remove`/`clear` are the **only** verbs
   that ever write this file, under the per-slug lock (§7.2).
+
+  **Resource-ID collision refusal** (task 4, rev-6): `resource_id`
+  remains `res_` + the first 12 lowercase-hex characters of the
+  §13.2 digest — a 48-bit truncation this design keeps for a short,
+  reader-facing ID (unlike `batch_id`, which grew to the full digest
+  in rev-5 specifically because collisions there are silently
+  overwrite-prone; a 12-hex `resource_id` collision, by contrast, is
+  always caught at `add`/load time below before it can silently
+  overwrite anything). Both `add` and every verb that **loads**
+  `resources.json` (`list`, `remove`, `clear`, `capture`, `diff`,
+  `record --resources`) recompute, for every entry already present, a
+  fresh `resource_id` from that entry's own `feature`/`kind`/
+  `selector`/`adapter`/`capability`/`args` fields (§13.2) and compare
+  it against the entry's own recorded `resource_id` key:
+  - At `add`, if the candidate declaration's freshly-computed
+    `resource_id` matches an **existing** entry's `resource_id` and
+    the two declarations' full canonical byte payloads (the exact
+    §13.2 hash-input string: `feature\x00kind\x00selector\x00adapter\x00capability\x00canonical_args`)
+    are **byte-identical**, the `add` is idempotent — no second entry
+    is written, and `add` reports success (exit 0) rather than an
+    error, since nothing about declared state actually changes.
+  - If the candidate's `resource_id` matches an existing entry but the
+    two canonical byte payloads **differ** — a genuine collision in
+    the 12-hex-truncated ID space between two distinct declarations —
+    `add` refuses with `resource-id-collision` (exit 3) and does
+    **not** write or overwrite the existing entry. This is
+    astronomically unlikely for real `SHA-256` inputs (48 bits of
+    truncation) but is not economically impossible, and `resource_id`
+    is a reader-facing, trusted identifier this design must never
+    silently double-assign.
+  - At **load** time (every verb above, independent of `add`), if any
+    entry's own recorded `resource_id` does not match the `resource_id`
+    freshly recomputed from that same entry's own fields — which can
+    only arise from a hand-edited or corrupted `resources.json`, since
+    `add` itself never persists a mismatched pair — the operation
+    refuses with the same `resource-id-collision` (exit 3) for that
+    entry rather than silently trusting or auto-repairing the stored
+    value.
+  - A collision seam is exercised in tests via a stub `resource_id`
+    derivation function that can be forced to return the same value
+    for two different canonical payloads (a real `SHA-256` collision
+    is not economically producible for a test fixture); the production
+    code path has no test-only branch, only the derivation function
+    itself is substitutable in tests.
 - **`artifacts/resource-captures/`** — the tracked capture store: an
   **unordered, content-addressed set** of immutable `batches/
   <batch_id>.json` files (one per **distinct content**, not one per
@@ -585,18 +739,51 @@ reclaims it; there is no file to delete) once hashing/scanning
 completes — the tracked `result` for this kind is `file_kind`
 (`"text"`/`"binary"`), `size_bytes`, `hash` (single file) or
 `file_count`/`total_bytes`/`combined_hash` (directory — rev-5: the
-combined hash is `SHA-256` over each matched file's canonical
-**`path\x00mode\x00hash`** tuple (`path` repo-relative, `mode` the
-same 6-digit octal-string convention as `index-entry`'s `mode`
-sourced from a plain `os.Stat`, `hash` the file's own `SHA-256` hex
-digest), one tuple per matched file, sorted by `path`, tuples
-themselves `\x00`-joined — so a **chmod-only** change (identical
-bytes, different permission bits) now changes `combined_hash`, not
-just a content or file-set change; rev-4's formula omitted `mode`
-from the hash input entirely even though `files[]` already carried a
-per-file `mode` (§12.2), so a permission-only change was silently
-invisible to `combined_hash` and to `diff` — this is corrected).
+combined hash is `SHA-256` over each matched file's canonical tuple,
+sorted by `path`; **rev-6 (task 9) removes the ambiguity in how
+tuples are joined**: each of the tuple's three fields — `path`
+(repo-relative), `mode` (the same 6-digit octal-string convention as
+`index-entry`'s `mode`, sourced from a plain `os.Stat`), and `hash`
+(the file's own **raw, unprefixed 64-lowercase-hex** `SHA-256` digest
+— explicitly **not** the `"sha256:"`-prefixed form used by the
+wire-level `hash`/`raw.hash` fields elsewhere in this design, §12.2;
+the prefix is a wire/display convention for those fields, not part of
+any hash's byte input anywhere) — is individually terminated by a
+single `0x00` byte, i.e. the per-file contribution to the hash input
+is exactly `path + 0x00 + mode + 0x00 + hash + 0x00` (three fields,
+three trailing NUL bytes, not two separators), and files' contributions
+are concatenated directly with **no** additional separator between
+them (each field's own trailing `0x00` already delimits it
+unambiguously, since neither a repo-relative `path` nor a fixed-width
+`mode`/`hash` can itself contain a NUL byte — rev-5's "`\x00`-joined"
+phrasing left open whether the join was inter-field, inter-tuple, or
+both, which task 9 flagged as ambiguous). So a **chmod-only** change
+(identical bytes, different permission bits) now changes
+`combined_hash`, not just a content or file-set change; rev-4's
+formula omitted `mode` from the hash input entirely even though
+`files[]` already carried a per-file `mode` (§12.2), so a
+permission-only change was silently invisible to `combined_hash` and
+to `diff` — this is corrected).
 
+**Golden directory vector** (rev-6, task 9 — byte-identical to
+ADR-033 D3): a two-file directory selector matching exactly
+`config/a.txt` (mode `100644`, empty file) and `config/sub/b.sh` (mode
+`100755`, content `#!/bin/sh\necho hi\n`) produces:
+
+| Field | Value |
+|---|---|
+| `config/a.txt` `hash` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` — i.e. `SHA-256("")` |
+| `config/sub/b.sh` `hash` | `299001868fb8c02fd431c336c6d058f5558c5dff5b5af5e6fe04b870a6a9cbba` |
+| Tuple 1 bytes | `"config/a.txt"` + `0x00` + `"100644"` + `0x00` + `config/a.txt`'s `hash` (above) + `0x00` |
+| Tuple 2 bytes | `"config/sub/b.sh"` + `0x00` + `"100755"` + `0x00` + `config/sub/b.sh`'s `hash` (above) + `0x00` |
+| `combined_hash` input | Tuple 1 bytes directly concatenated with Tuple 2 bytes (sorted by `path`, `a.txt` before `sub/b.sh`) |
+| `combined_hash` | `5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad` |
+
+This vector is reproduced verbatim (identical input files, identical
+`combined_hash`) in ADR-033 D3 so both documents can be diffed for
+parity; a reference Python/Go re-implementation of the tuple-encoding
+rule above, run against these two files, must reproduce this exact
+digest.
 **`diff`** (§3, task 9): **reads current file content** through the
 same bounded in-memory scanner `capture` uses (not a metadata-only
 stat check — rev-3's "without opening file content" claim
@@ -669,12 +856,14 @@ into the SQL query and the resource ID (§13).
 
 ## 6. Adapter Protocol — Dolt (task 1, task 6, task 7)
 
-### 6.1 Executable resolution and identity (no version probe, task 2)
+### 6.1 Executable resolution, trust pin, and identity (task 1, rev-6)
 
 The adapter locates `dolt` via `exec.LookPath("dolt")` at `capture`
-time (never at `add` time). Distinct from the `ignored-file` path
-policy (§9.1, which requires the path stay **inside** the repo), the
-executable policy requires the opposite:
+time, and **also** at `add` time when `--trust-current-dolt` is passed
+(§3, task 1 — the only way to pin a Dolt resource's trust). Distinct
+from the `ignored-file` path policy (§9.1, which requires the path
+stay **inside** the repo), the executable policy requires the
+opposite:
 
 1. `exec.LookPath` result, then `filepath.EvalSymlinks` on it (unlike
    the ignored-file gate, symlinks in the *executable's* resolution
@@ -706,17 +895,69 @@ debugging, only in an ephemeral, redacted-if-possible local diagnostic
 that is itself deleted before the command returns (§7.5) — it is never
 written to any file this PRD defines as persistent, tracked or local.
 
-Immediately before invoking the actual capability (§6.2), the adapter
-`Lstat`s the resolved path and records device/inode/size/mtime; the
-`SHA-256` hash computed above **is** the one-time identity check (no
-second hash after invocation, to avoid doubling the cost of hashing a
-large binary on every capture) — the cheap post-invocation check is a
-re-`Lstat` compared against the pre-invocation device/inode/size/mtime
-tuple: any difference is `adapter-executable-replaced` (exit 3), and
-that invocation's result — even if the SQL query itself appeared to
-succeed — is discarded, never written to a batch (a replaced binary
-mid-invocation means the output cannot be trusted regardless of its
-apparent shape).
+**Trust pin, not bare identity recording** (task 1, rev-6 —
+supersedes rev-1 through rev-5's "arbitrary resolved `dolt`, identity
+merely recorded" posture): rev-5 and earlier resolved and hashed
+whatever binary `exec.LookPath("dolt")` happened to find at capture
+time and simply *recorded* that hash — any binary satisfying steps
+1-4 above (regular, executable, outside the repo, named `dolt` on
+`PATH`) was accepted and trusted implicitly. Rev-6 closes this: a
+Dolt resource's declaration (§12.1) carries a mandatory,
+`add`-time-pinned `binary_sha256` argument, and **every** `capture`
+must resolve `dolt` and confirm the resolved binary's hash matches
+that pin **before** any invocation is attempted:
+
+1. Resolve `dolt` per steps 1-4 above.
+2. Compute the full `SHA-256` hash of the resolved binary's bytes.
+3. Compare against the resource declaration's pinned `binary_sha256`
+   (§12.1 `args`). A mismatch is `adapter-binary-untrusted` (exit 3)
+   — refused **before** the capability invocation (§6.2) is ever
+   attempted; no process is started, no output exists to discard.
+4. Only on a match does the invocation proceed (§6.2).
+5. **Immediately after** the invocation completes (success or
+   failure), the adapter re-hashes the **same resolved path** (full
+   `SHA-256`, not the cheaper device/inode/size/mtime `Lstat` check
+   rev-4/rev-5 used) and compares it against the same pin again. Any
+   mismatch is `adapter-binary-untrusted` (exit 3), and that
+   invocation's result — even if the SQL query itself appeared to
+   succeed — is discarded, never written to a batch (a swapped binary
+   mid-invocation means the output cannot be trusted regardless of its
+   apparent shape). Hashing twice (pre- and post-invocation, per full
+   binary read each time) is more expensive than rev-4/rev-5's single
+   pre-invocation hash plus cheap post-invocation `Lstat`, but a
+   pin-comparison this design's own trust model depends on cannot be
+   satisfied by a metadata-only recheck — device/inode/size/mtime
+   matching does not prove byte-for-byte content still matches the
+   pin.
+
+**What the pin does and does not prove**: the pinned `binary_sha256`
+is what this design trusts to define Dolt's **semantic** contract —
+it is the specific build this PRD's C11/C15/C19–C27 source-verified
+claims about `dolt_diff_summary`'s schema, argument handling, and
+JSON envelope shape were established against, and a byte-identical
+binary is assumed to behave identically. The strict five-field JSON
+parser (§6.3) is a **separate, independent capability check**: even a
+correctly-pinned binary's output is still fully validated against the
+exact `{from_table_name, to_table_name, diff_type, data_change,
+schema_change}` shape before any of it is trusted — the pin
+establishes *which* binary is allowed to run at all, the parser
+establishes that *what it actually printed* still matches this
+design's contract, and neither substitutes for the other. An arbitrary
+binary literally named `dolt` that happens to be resolvable,
+executable, and outside the repo is **no longer sufficient** to be
+accepted (task 1's "arbitrary named dolt no longer accepted") — it
+must also match a hash a human explicitly pinned via
+`--trust-current-dolt` at `add` time.
+
+**Wire/ID inclusion** (task 1): `binary_sha256` is a normal `args` key
+(§12.1, §13.1) and therefore participates in `resource_id`'s hash
+input (§13.2) exactly like `db_path`/`table`/`from`/`to` — two
+declarations differing only in which Dolt binary they trust produce
+different `resource_id`s, by construction, with no special-casing
+needed. `tool_identity.binary_sha256` in every tracked result (§12.2,
+§12.3) is always identical to the declaration's pinned value (never a
+freshly-recomputed value presented as if it might differ — a mismatch
+is a refusal, never a divergent tracked fact).
 
 There is no separate "probe" step at all (task 2) — `dolt version` is
 **never** executed (C12: it is a real subcommand that can perform a
@@ -957,10 +1198,10 @@ silently normalized.
 | Invocation timeout | 30 seconds. On timeout: `SIGTERM` to the process group, then `SIGKILL` after 2 more seconds if still running. |
 | Captured output cap | 5 MiB combined stdout+stderr, enforced as a **refusal, never a truncation** (rev-5 correction — rev-4's "output beyond the cap is truncated" contradicted its own "zero pre-scan persistence"/fail-closed framing, since silently truncating and proceeding is itself a form of trusting unbounded input up to the point of truncation). The adapter uses `cmd.StdoutPipe()`/`cmd.StderrPipe()` (never `cmd.Stdout`/`cmd.Stderr` set to a `*bytes.Buffer`, which has no built-in bound) with two concurrent goroutines draining each pipe into a **shared** cap-plus-one budget (a single `int64` counter both readers atomically decrement, so stdout and stderr together, not each independently, are bounded by the 5 MiB total) — task 2's "zero pre-scan persistence," never written to a scratch file first, §7.1/§8. The **instant** the shared budget's `limit+1`th byte is actually read from either pipe, the adapter sends `SIGTERM` then (after the existing 2-second grace) `SIGKILL` to the child's **process group** (the same termination mechanism as a timeout), continues draining both pipes to completion (so the child is never left blocked writing to a full, unread pipe while being killed) and `cmd.Wait()`s for it, then refuses the whole invocation with `resource-limit-exceeded` (exit 3) — no partial/truncated output is ever handed to the JSON parser (§6.3) or scanned for redaction (§8), and no tracked artifact reflects a truncated result. **stdout and stderr are captured and bounded identically, but are never merged for parsing purposes**: only the stdout buffer is ever handed to §6.3's JSON parser; the stderr buffer exists solely to be scanned for redaction (§8.3) and, on a non-zero exit or a `dolt-query-error`, to populate the local, ephemeral diagnostic (§7.5) — it is never itself parsed as JSON and never influences whether stdout parses successfully. |
 | Environment | **Not** inherited from the invoking process (task 2's "no inherited credentials"). A fresh, minimal environment is constructed: `HOME=<scratch-home>` and `DOLT_ROOT_PATH=<scratch-home>` pointing at a directory created fresh under this invocation's ephemeral scratch tree (§7.1, `0700`, created before the child process starts so Dolt may write its own ephemeral config/state there if it chooses to — this is not a network or version call, just process-local state under an isolated `HOME`); `PATH` is **not** set at all (the adapter is invoked by its already-resolved absolute path, §6.1, so `PATH` lookup is never needed mid-invocation). No other variable is passed through. |
-| Termination | Process-group termination (the child and any of its own children) on timeout **or** on a cap-plus-one overflow (identical mechanism, §6.4 above), to avoid orphaned Dolt subprocesses. |
+| Termination | **Process-group-only termination, `Setpgid` required** (rev-6, task 3 — supersedes rev-4/rev-5's "process group" language, which never specified the mechanism that makes the child's group distinct from `tpatch`'s own): before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. After `cmd.Start()`, the adapter reads `cmd.Process.Pid` (which, with `Setpgid:true`, **is** the new group's PGID) and, on timeout or cap-plus-one overflow, calls `syscall.Kill(-pgid, syscall.SIGTERM)` — the **negative** PGID form (C31, POSIX `kill(2)`) — followed by `syscall.Kill(-pgid, syscall.SIGKILL)` after the existing 2-second grace if the group has not exited. Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group (e.g. a sub-process Dolt itself spawns) — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell, which rev-4/rev-5's undifferentiated "process group" language did not rule out. Escalation is cancelled the moment `cmd.Wait()` observes the group has already exited (no redundant `SIGKILL` to an already-gone PGID). **Verification**: this design's own timeout/cap tests spawn a Dolt-invocation stand-in that itself forks a short-lived descendant process, trigger the timeout/cap path, and assert both (a) the descendant no longer exists after the kill sequence completes and (b) the `tpatch` test-runner process itself is never signaled or observably affected — proving group-only, not process-only, isolation. |
 
 A concrete, fully-specified argv/SQL example for Vector 2 (§0.3) —
-`db_path=data/dolt-db, table=users, from=main, to=HEAD`:
+`binary_sha256=<pinned>, db_path=data/dolt-db, table=users, from=main, to=HEAD`:
 
 ```
 cwd:  <repo-root>/data/dolt-db
@@ -987,6 +1228,61 @@ ignored and untracked — a local root that is somehow tracked or not
 ignored is refused (`local-root-not-ignored`/`local-path-tracked`,
 exit 3) before any scratch content, including the lock file, is
 created, matching §10.3's row for this exact case.
+
+**First-create sequencing** (rev-6, task 8 — the scratch tree/lock
+file's leaf directories do not exist on a fresh clone, so a gate that
+requires `Lstat`ing or `statfs`ing the leaf path itself cannot run
+before that path is created): the local-ignore/untracked gate above,
+and §7.2's filesystem-type preflight, both operate on the **nearest
+existing ancestor** of the path about to be created, never on the
+not-yet-existing leaf itself:
+
+1. Walk upward from `.tpatch/local/resource-scratch/<slug>/` (the
+   directory about to contain `.lock`) toward the repository root
+   until an already-existing directory is found — on a fresh clone
+   this is typically the repository root itself, or `.tpatch/local/`
+   if a prior invocation (for this or a different slug) already
+   created it.
+2. Run `EnsureLocalIgnoreContract` (ignored+untracked, above) and
+   §7.2's `statfs`-based filesystem-type preflight against that
+   **nearest existing ancestor** — both checks are about "is this
+   general area of the filesystem one this design trusts," which an
+   existing ancestor answers just as well as the not-yet-created leaf
+   would.
+3. Only after both checks pass does `os.MkdirAll` create every missing
+   intermediate directory down to and including `es_<id>/` (and
+   `dolt-home/` inside it, when needed), each created `0700` **at
+   creation** (task 8, unchanged from rev-3/rev-4).
+4. **`fsync` every newly-created directory's parent** (rev-6 —
+   corrects a gap rev-5 left open: rev-5 fsynced the tracked batch/
+   pointer *file* writes' containing directory at publish time, §7.3,
+   but never fsynced the **first-ever** creation of the local scratch
+   tree's own intermediate directories, nor the tracked
+   `artifacts/resource-captures/` tree's own first-ever creation).
+   After `MkdirAll` returns, the adapter opens and `fsync`s each newly
+   created directory's **parent** (not the new directory itself — on
+   POSIX, a directory's own `fsync` is about its own entries, but a
+   crash before the directory-entry-creation itself is durable is a
+   parent-directory durability question), walking from the
+   deepest newly-created directory back up to (and including) the
+   nearest-existing-ancestor found in step 1. Before this fsync
+   sequence completes, a crash could still lose the just-created
+   directory entries (the OS may not have durably recorded them yet);
+   after it completes, the scratch tree's existence is crash-durable.
+   This is the same discipline §7.3 already applies to file writes —
+   rev-6 extends it to a tree's first-ever directory creation, not
+   only file renames within an already-existing tree.
+
+**First-publication crash row** (rev-6, task 8): the analogous
+first-ever creation of the **tracked** `artifacts/resource-captures/`
+tree (its `batches/` subdirectory and the very first `current.json`)
+has the identical gap — a first-ever `capture`/`record --resources`
+for a slug that has never captured before must `MkdirAll` these
+tracked directories before §7.3 step 3/4 can rename anything into
+them, and that `MkdirAll` is subject to the same crash-before-durable
+window as the local scratch tree. §7.3's crash-window table (below)
+now includes this case explicitly rather than only covering
+steady-state file renames into an already-existing tree.
 
 Rev-3 removed rev-2's per-resource `raw`/`files/<relpath>` scratch
 files entirely (task 2's "zero pre-scan persistence" — see §8); rev-4
@@ -1210,33 +1506,64 @@ coverage for any additional target and a real locking primitive for it
 is a hard, explicit "unsupported" contract, not a best-effort fallback.
 
 **Filesystem contract — `flock` is a local-filesystem-only guarantee**
-(task 2, new in rev-5): `flock(2)`'s advisory-lock semantics are only
-guaranteed by the kernel for genuinely local filesystems; several
-POSIX-compliant systems document `flock` as unsupported, only
-partially supported, or supported solely through NFS lock-manager
-(`NLM`)/`nfs4` client behavior that this design does not verify or
-depend on for network/shared/clustered filesystems (NFS, network SMB
-mounts, some FUSE-backed or overlay filesystems, and other non-local
-mounts) — using `flock` there could silently fail to serialize
-concurrent invocations from **different hosts**, which this design
-never claims to support in the first place (v1's lock is a
-single-host, same-machine-process serialization primitive only, never
-a distributed/cross-client lock). To fail closed rather than silently
-degrade, `Acquire` performs a `statfs`-family preflight on
-`.tpatch/local/resource-scratch/<slug>/` (the directory that will
-contain `.lock`) **before** the `O_CREATE`/`flock` sequence above:
+(task 2, rev-5; API and exact constants corrected in rev-6, task 7):
+`flock(2)`'s advisory-lock semantics are only guaranteed by the kernel
+for genuinely local filesystems; several POSIX-compliant systems
+document `flock` as unsupported, only partially supported, or
+supported solely through NFS lock-manager (`NLM`)/`nfs4` client
+behavior that this design does not verify or depend on for
+network/shared/clustered filesystems (NFS, network SMB mounts, some
+FUSE-backed or overlay filesystems, and other non-local mounts) —
+using `flock` there could silently fail to serialize concurrent
+invocations from **different hosts**, which this design never claims
+to support in the first place (v1's lock is a single-host,
+same-machine-process serialization primitive only, never a
+distributed/cross-client lock). To fail closed rather than silently
+degrade, `Acquire` performs a `statfs`-family preflight on the
+**nearest existing ancestor** of `.tpatch/local/resource-scratch/
+<slug>/` (§7.1's first-create sequencing — the directory that will
+contain `.lock` may not exist yet on a fresh clone) **before** the
+`O_CREATE`/`flock` sequence above, using **stdlib-only**
+`syscall.Statfs` (rev-6 — no `golang.org/x/sys/unix` import, C32,
+consistent with this project's minimal-external-dependency rule):
 
-- **Linux**: `unix.Statfs(path, &buf)`, inspecting `buf.Type` against a
-  small, explicit **allowlist** of local-filesystem magic numbers
-  (`EXT4_SUPER_MAGIC`, `XFS_SUPER_MAGIC`, `BTRFS_SUPER_MAGIC`,
-  `TMPFS_MAGIC`, `APFS_SUPER_MAGIC` where applicable via a Linux VM/
-  container mounting one) — a **known-denied** type (`NFS_SUPER_MAGIC`,
-  `CIFS_MAGIC_NUMBER`, `SMB2_MAGIC_NUMBER`, `FUSE_SUPER_MAGIC`) or any
-  **unrecognized** type both refuse identically.
-- **Darwin**: `unix.Statfs(path, &buf)`, inspecting `buf.Fstypename`
-  (a short string, e.g. `"apfs"`/`"hfs"`) against a small allowlist
-  (`"apfs"`, `"hfs"`) — a known-denied value (`"nfs"`, `"smbfs"`,
-  `"webdav"`) or any unrecognized value both refuse identically.
+- **Linux** (`//go:build linux`): `syscall.Statfs(path, &buf)`,
+  inspecting `buf.Type` (an `int64` filesystem-type magic number on
+  Linux, C32) against the exact, byte-identical (PRD/ADR) numeric
+  **allowlist**:
+
+  | Filesystem | Magic (hex) |
+  |---|---|
+  | ext2/ext3/ext4 | `0xEF53` |
+  | XFS | `0x58465342` |
+  | Btrfs | `0x9123683E` |
+  | tmpfs | `0x01021994` |
+  | overlayfs (rev-6: newly allowed — common under Docker/container CI, C33) | `0x794C7630` |
+
+  and the exact numeric **denylist**:
+
+  | Filesystem | Magic (hex) |
+  |---|---|
+  | NFS | `0x6969` |
+  | CIFS | `0xFF534D42` |
+  | SMB2 | `0xFE534D42` |
+  | FUSE | `0x65735546` |
+
+  Any type not on the allowlist — including a denylisted type and any
+  wholly unrecognized magic number — refuses identically (below).
+  Rev-6 removes rev-5's `APFS_SUPER_MAGIC`-on-Linux entry entirely
+  (C33): there is no Linux kernel constant for APFS at all; APFS
+  reachable from Linux at all (e.g. via a FUSE driver) surfaces under
+  the FUSE magic number, already denied.
+- **Darwin** (`//go:build darwin`): `syscall.Statfs(path, &buf)`,
+  inspecting `buf.Fstypename` (a fixed-size, NUL-terminated byte array
+  on Darwin, C32) against the exact, byte-identical (PRD/ADR) string
+  **allowlist** — `"apfs"`, `"hfs"`, `"tmpfs"` (rev-6: `tmpfs` newly
+  allowed alongside `apfs`/`hfs`) — and **denylist** — `"nfs"`,
+  `"smbfs"`, `"webdav"`, `"osxfuse"`, `"macfuse"` (rev-6: named FUSE
+  variants added explicitly, C34) as representative known-network/
+  known-FUSE entries. Any other, unrecognized `Fstypename` value
+  refuses identically to a denylisted one.
 - Refusal outcome, either platform: `resource-lock-filesystem-unsupported`
   (**exit 3**), returned before `.lock` is ever opened or created —
   this is a distinct error class from `resource-lock-unsupported`
@@ -1244,6 +1571,28 @@ contain `.lock`) **before** the `O_CREATE`/`flock` sequence above:
   can distinguish "your OS isn't supported at all" from "your OS is
   supported, but this particular directory is on a filesystem this
   design refuses to trust `flock` on."
+- **Why allow container-overlay but deny network filesystems** (task
+  7): `overlayfs` (Linux) is the default storage driver for Docker/
+  Podman/most container runtimes — refusing it would make this design
+  unusable in the CI/container environments this project's own tested
+  matrix actually runs in (`.github/workflows/ci.yml`'s `ubuntu-latest`
+  runners frequently execute inside such a container layer), and
+  `flock` on a mounted `overlayfs` behaves as a genuinely local
+  advisory lock (the lower/upper filesystem layers are themselves
+  local in every configuration this design targets). Network
+  filesystems (NFS/CIFS/SMB2) are denied because `flock`'s
+  cross-client exclusion guarantee on them is exactly the
+  historically-inconsistent case C29 documents — this is not a
+  performance or convenience distinction, it is "genuinely single-host
+  local" vs. "may silently span multiple hosts."
+- **If the exact allow/deny lists prove too brittle in practice** (an
+  unrecognized-but-actually-safe local filesystem type appears on some
+  future host): the documented fallback remains an explicit,
+  **operator-configured local-only precondition** — "resource capture
+  requires `.tpatch/local/` to live on a recognized local
+  filesystem" — with this exact, detectable, actionable refusal, never
+  a silent claim that `flock` works universally on every filesystem a
+  future host might mount.
 
 This is explicitly **not** a claim of cross-client/cross-host
 serialization on any filesystem, networked or otherwise — v1's lock
@@ -1314,13 +1663,54 @@ lock-gated orphan sweep (§7.1):
      written by a prior (possibly crashed-before-step-4) invocation.
      Skip straight to step 4 (idempotent re-publish) rather than
      rewriting an identical file.
-   - **Different bytes**: a `batch_id` collision on genuinely
-     different content is a fatal integrity error
-     (`batch-id-collision`, exit 3) — refuse rather than silently
-     overwrite a distinct historical batch; this is expected to be
-     unreachable in practice (`SHA-256` collision on the hash-input
-     encoding) and exists purely as a defensive, fail-closed guard, not
-     an anticipated real outcome.
+   - **Different bytes — decode and compare the semantic body before
+     deciding anything** (rev-6, task 6 — a byte-level difference no
+     longer, by itself, means a collision): a byte-level file-wire
+     difference can arise from two entirely different causes that this
+     design must not conflate — genuinely different staged content
+     (a real hash collision, integrity-fatal), or **presentation
+     drift** on otherwise-identical content (e.g. this codebase's own
+     JSON-encoding conventions changing between the version that wrote
+     the on-disk file and the version running this invocation — field
+     order, whitespace, or a cosmetic struct change that does not
+     affect any field's actual value). Byte-inequality alone cannot
+     distinguish these, so before refusing anything the adapter:
+     1. **Decodes** the on-disk file as JSON (strict parse, same
+        parser used everywhere else in this design — a file that does
+        not even parse as valid JSON is a distinct, harder failure,
+        `batch-file-corrupt`, exit 3, not routed through the
+        comparison below at all).
+     2. **Verifies** the decoded file's own `batch_id` field equals the
+        target `batch_id` this step is about to write (a sanity check
+        on the on-disk file's own internal consistency, independent of
+        the filename it happens to be stored under) — a mismatch here
+        is also `batch-file-corrupt` (exit 3), never silently trusted.
+     3. **Canonicalizes** the decoded file's own `{feature, results}`
+        body via the identical `CanonicalBatchJSON` encoder used in
+        step 2 (dropping its `batch_id` field, exactly as step 2 does
+        for the freshly-staged candidate) — call this the on-disk
+        file's **semantic body**.
+     4. **Compares** that semantic body, byte-for-byte, against this
+        invocation's own step-2 canonical hash-input bytes for the
+        freshly-staged candidate (the exact bytes that were hashed to
+        produce this `batch_id` in the first place).
+     - **Semantic bodies match** (presentation-only drift): this is an
+       **idempotent** retry in substance, even though the raw on-disk
+       bytes differ — the immutable file is **not** rewritten (an
+       already-published `batches/<batch_id>.json` is never modified
+       in place, drift or not, preserving the "immutable once written"
+       invariant), and the invocation proceeds straight to step 4
+       (pointer publish) exactly as the byte-identical case does.
+     - **Semantic bodies genuinely differ**: this is the real,
+       fatal case — two distinct staged contents produced the
+       identical `SHA-256` `batch_id`, a cryptographic collision on
+       the hash-input encoding — refused as `batch-id-collision`
+       (exit 3), never silently overwritten. This remains expected to
+       be unreachable in practice (a real full-`SHA-256` collision)
+       and exists purely as a defensive, fail-closed guard, exactly as
+       before — rev-6 only corrects *when* this label is applied
+       (after ruling out presentation drift), not the underlying
+       "collisions are fatal, never overwritten" policy itself.
    - **Absent**: write the file-wire bytes to
      `artifacts/resource-captures/batches/<batch_id>.tmp-<12 lowercase hex>.json`
      (`O_CREATE|O_EXCL`, `0644`, since it never contains raw bytes;
@@ -1389,6 +1779,7 @@ writes zero new bytes to `batches/`, it only (re)writes the pointer.
 
 | Crash point | State left behind | Recovery |
 |---|---|---|
+| Before the tracked tree's first-ever `MkdirAll`/parent-`fsync` completes (rev-6, task 8 — a slug's first-ever `capture`/`record --resources`) | `artifacts/resource-captures/batches/` and/or `current.json`'s parent directory entries may not yet be crash-durable | Retried invocation re-runs `MkdirAll` (idempotent — existing directories are left untouched) and re-`fsync`s the parent chain before proceeding; no partial tracked file exists yet at this point, since step 3/4 cannot begin until the tree exists |
 | Before step 3's rename | No new batch file (or an orphaned `batches/<batch_id>.tmp-<12hex>.json`) | Orphan `<batch_id>.tmp-*.json` swept at next invocation's start under its own acquired lock (§7.1/§7.2); a re-run recomputes the identical content and therefore the identical `batch_id` (step 2), and step 3's "identical file-wire bytes" branch makes the retry idempotent even if the orphan sweep somehow left a partial file behind (a partial temp is removed by the sweep before this check, so in practice the retry always re-lands on the "absent" branch) |
 | After step 3's rename, before step 4's rename | A fully-written, permanently orphaned `batches/<batch_id>.json` that no `current.json` entry ever references | Harmless — never surfaced by `list`/`diff`/`capture` (§4.1's "missing batch" case does not apply here; this is an *extra*, unreferenced batch, not a missing one); left in place, not garbage-collected, in v1. A retry recomputes the same `batch_id`, finds it already present with identical file-wire bytes (step 3's idempotent branch), and proceeds straight to step 4 |
 | During step 4's temp-write, before its rename | Orphaned `.tmp-current.json` (the one exact, single temp name used for the pointer, distinct from the batch temp naming above — there is only ever one in-flight pointer write per slug, since the lock serializes it) | Swept at next invocation's start; the last successfully-renamed `current.json` (from a previous, fully-committed invocation, or absent if this was the first-ever capture) remains authoritative and untouched |
@@ -1687,24 +2078,42 @@ have open," which requires a **fresh** pathname resolution each time:
 4. **After the child process exits**: the gate resolves `db_path`'s
    pathname **fresh** a third time (a new `Lstat` chain, not the step-2
    result) and compares that `FileInfo`, again via `os.SameFile`,
-   against the same held descriptor from step 1 — a mismatch is
-   reported as `db-path-identity-changed` in local diagnostics (§7.5)
-   alongside the capture's own result, as a **detection**, not a
-   prevention, signal: by the time this check runs, the child process
-   has already used whatever directory it actually resolved at its own
-   open time, so this can only flag that something suspicious happened
-   during the process's lifetime, not undo it or prove the child
-   itself was affected.
+   against the same held descriptor from step 1 — a mismatch is now a
+   **hard refusal** (rev-6, task 2 — supersedes rev-4/rev-5's
+   diagnostic-only detection): `db-path-identity-changed` (exit 3),
+   and the invocation's output is discarded and **not** written to a
+   batch, exactly as any other post-invocation identity failure in
+   this design is handled (§6.1's Dolt-binary trust-pin recheck is the
+   direct analog). Publishing a result gathered against a `db_path`
+   that no longer resolves to the directory this invocation actually
+   validated would mean the tracked result describes an unverified
+   database, which this design's trust model does not allow merely
+   because the failure is "only" a detection.
 
-This provides **detection of, not protection against**, a mid-invocation
-`db_path` directory swap by a local concurrent attacker who can win a
-narrow race against this process — it is honestly documented as a
-residual risk in Negative Consequences (ADR-033 D6), not claimed as a
-closed sandbox. The general ancestor-symlink/final-component TOCTOU
-residual described above for ordinarily-opened paths applies to
-`db_path`'s own validation walk identically; this subsection documents
-the **additional** residual specific to `cmd.Dir` being pathname-bound
-rather than descriptor-bound.
+This provides **hard refusal upon detection of** a mid-invocation
+`db_path` directory swap — rev-6 closes the gap where rev-4/rev-5
+logged the mismatch as a local diagnostic (§7.5) but still published
+the batch regardless; a caller now gets `db-path-identity-changed`
+(exit 3) and no tracked artifact at all for that invocation. This is
+still **detection**, not **prevention**, of a swap that completes
+entirely *during* the child process's own execution window (between
+step 2's pre-`cmd.Start()` check and the process's own internal
+`cwd` resolution) — a sufficiently well-timed local concurrent
+attacker who swaps `db_path`'s target and swaps it back before this
+step 4 check runs would not be caught by any check in this design,
+since nothing here holds a descriptor across the child's own internal
+directory resolution (that resolution happens inside the Dolt
+process, not this one). This narrower, honestly-scoped residual — a
+swap that both occurs and is reverted entirely inside the child's own
+execution window — is documented explicitly in Negative Consequences
+(ADR-033 D6) as a local-concurrent-attacker residual this design does
+not claim to close; it is not the same as rev-4/rev-5's "detected but
+not refused" gap, which rev-6 closes completely. The general
+ancestor-symlink/final-component TOCTOU residual described above for
+ordinarily-opened paths applies to `db_path`'s own validation walk
+identically; this subsection documents the **additional** residual
+specific to `cmd.Dir` being pathname-bound rather than
+descriptor-bound.
 
 ### 9.2 Executable path safety (task 2, distinct policy)
 
@@ -1725,7 +2134,9 @@ paths always use §9.1; the Dolt executable path always uses §6.1/§9.2.
 | `ignored-file`/`db_path`, a prefix component does not exist | Refused: `path-missing` |
 | Dolt executable resolves (possibly through symlinks) to a path outside the repo and `.git` | Accepted |
 | Dolt executable resolves to a path inside the repo working tree or under any `.git` directory | Refused: `adapter-executable-in-repo` |
-| Dolt executable's device/inode/size/mtime differ immediately after invocation vs. immediately before | Refused: `adapter-executable-replaced`, result discarded |
+| Dolt executable's full `SHA-256` hash (pre-invocation) does not match the resource's pinned `binary_sha256` | Refused: `adapter-binary-untrusted`, no invocation attempted (rev-6, task 1) |
+| Dolt executable's full `SHA-256` hash (post-invocation, same resolved path) does not match the pinned `binary_sha256` | Refused: `adapter-binary-untrusted`, result discarded (rev-6, task 1 — supersedes rev-4/rev-5's cheaper device/inode/size/mtime `Lstat` recheck) |
+| `add --kind adapter-snapshot --adapter dolt` without `--trust-current-dolt` | Refused: `dolt-trust-required` (rev-6, task 1) |
 
 ## 10. Git Ignore/Tracked Gate Semantics (task 1, task 6)
 
@@ -1886,14 +2297,23 @@ all-declared-resources scope exactly). `record --resources` has no
 `--dry-run` of its own either (unchanged — only `feature resource
 capture`/`diff` support `--dry-run`/resource-only preview, §3).
 
-**Exit codes** (restated for rev-4's refusal names):
+**Exit codes** (restated for rev-4/rev-6's refusal names):
 
 | Code | `feature resource {add,list,remove,clear,capture,diff}` | `record --resources` |
 |---|---|---|
 | `0` | Success (including `diff` reporting "no capture yet") | Success |
 | `1` | Internal error; `tracked-batch-missing` (§4.1) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
-| `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate/missing `--arg` (including missing `db_path`/`table`), `NUL`/control byte/backslash/`..` in a Dolt arg, missing index entry at `add`, `table` mismatch between selector and declared field | n/a (unmodified) |
-| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing`/`adapter-executable-in-repo`/`adapter-executable-replaced`, `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
+| `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate/missing `--arg` (including missing `db_path`/`table`/`binary_sha256`), `NUL`/control byte/backslash/`..` in a Dolt arg (named `dolt-argument-refused`, task 10 — covers `..`, control/backslash bytes, and case-insensitive `WORKING`/`STAGED`, all refused at the same argument-validation layer before Dolt is invoked), missing index entry at `add`, `table` mismatch between selector and declared field, `dolt-trust-required` (rev-6: `add --adapter dolt` without `--trust-current-dolt`) | n/a (unmodified) |
+| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing`/`adapter-executable-in-repo`/`adapter-binary-untrusted` (rev-6, §6.1), `db-path-identity-changed` (rev-6, §9.1 — upgraded from a diagnostic-only detection), `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `batch-file-corrupt` (rev-6, §7.3), `resource-id-collision` (rev-6, §4/§13), `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
+
+Named `dolt-argument-refused` cases, exhaustively (task 10): a `from`/
+`to`/`table` value containing a `NUL`/C0 control byte, a literal
+backslash, the two-character substring `".."` (C24), or matching
+`WORKING`/`STAGED` case-insensitively (C19, §6.2's refusal rationale)
+— every one of these is refused at validation, before Dolt is ever
+invoked, and all five cases share this single named reason so a
+caller does not need to distinguish "which specific value shape was
+rejected" from the exit code/reason alone.
 
 ## 12. Wire Schemas (task 10, task 12)
 
@@ -1935,12 +2355,13 @@ Three distinct JSON serializations:
 {
   "resources": [
     {
-      "resource_id": "res_cf8e47e6564b",
+      "resource_id": "res_00189e66780a",
       "kind": "adapter-snapshot",
       "selector": "dolt:diff-summary:users",
       "adapter": "dolt",
       "capability": "diff-summary",
       "args": [
+        { "key": "binary_sha256", "value": "3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b" },
         { "key": "db_path", "value": "data/dolt-db" },
         { "key": "from", "value": "main" },
         { "key": "table", "value": "users" },
@@ -2038,11 +2459,17 @@ not a full per-file array):
 octal-string convention as `index-entry`'s `mode`, sourced from a
 plain `os.Stat` of the file, not the Git index — an ignored file has
 no index entry by definition. `combined_hash` is `SHA-256` over each
-entry's `path\x00mode\x00raw_sha256` tuple, sorted by `path`, tuples
-themselves `\x00`-joined (§5.1, rev-5: `mode` is now part of the hash
-input, not just a displayed `files[]` field — a chmod-only change now
-changes `combined_hash`) — `files[]` is additional per-file detail,
-not a replacement for that aggregate.)
+matched file's canonical tuple, sorted by `path` (rev-6, task 9:
+tuple-encoding rule stated precisely, identical to §5.1) — each of
+`path` (repo-relative), `mode` (this same octal string), and the raw
+hash (the file's own **unprefixed 64-lowercase-hex** `SHA-256` digest
+— distinct from this array's own `raw_sha256` field above, which
+carries the `"sha256:"`-prefixed wire form; the tuple's hash
+component is never prefixed) is individually terminated by a single
+`0x00` byte, and files' contributions concatenate directly with no
+further separator — see §5.1 for the full rule and a worked golden
+vector. `files[]` is additional per-file detail, not a replacement
+for that aggregate.)
 
 **`adapter-snapshot` / Dolt `diff-summary`** (§6.2, §6.3):
 
@@ -2065,9 +2492,42 @@ case, §6.3):
 
 ```json
 {
-  "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7",
+  "batch_id": "rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a",
   "feature": "model-picker",
   "results": [
+    {
+      "resource_id": "res_00189e66780a",
+      "kind": "adapter-snapshot",
+      "selector": "dolt:diff-summary:users",
+      "adapter": "dolt",
+      "capability": "diff-summary",
+      "args": [
+        { "key": "binary_sha256", "value": "3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b" },
+        { "key": "db_path", "value": "data/dolt-db" },
+        { "key": "from", "value": "main" },
+        { "key": "table", "value": "users" },
+        { "key": "to", "value": "HEAD" }
+      ],
+      "tool_identity": {
+        "basename": "dolt",
+        "binary_sha256": "3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b"
+      },
+      "result": {
+        "tables": [
+          {
+            "from_table_name": "users",
+            "to_table_name": "users",
+            "diff_type": "modified",
+            "data_change": true,
+            "schema_change": false
+          }
+        ]
+      },
+      "raw": {
+        "hash": "sha256:9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b3f9c8e1a2d4c5b6a7e8f",
+        "byte_count": 187
+      }
+    },
     {
       "resource_id": "res_79f5ac5dca13",
       "kind": "ignored-file",
@@ -2100,45 +2560,13 @@ case, §6.3):
         "detached": false
       },
       "raw": null
-    },
-    {
-      "resource_id": "res_cf8e47e6564b",
-      "kind": "adapter-snapshot",
-      "selector": "dolt:diff-summary:users",
-      "adapter": "dolt",
-      "capability": "diff-summary",
-      "args": [
-        { "key": "db_path", "value": "data/dolt-db" },
-        { "key": "from", "value": "main" },
-        { "key": "table", "value": "users" },
-        { "key": "to", "value": "HEAD" }
-      ],
-      "tool_identity": {
-        "basename": "dolt",
-        "binary_sha256": "3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b"
-      },
-      "result": {
-        "tables": [
-          {
-            "from_table_name": "users",
-            "to_table_name": "users",
-            "diff_type": "modified",
-            "data_change": true,
-            "schema_change": false
-          }
-        ]
-      },
-      "raw": {
-        "hash": "sha256:9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b3f9c8e1a2d4c5b6a7e8f",
-        "byte_count": 187
-      }
     }
   ]
 }
 ```
 
 `batch_id` is **content-addressed** (§7.3 step 2), not
-random: `rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7` is the actual, computed `SHA-256`-derived ID
+random: `rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a` is the actual, computed `SHA-256`-derived ID
 for this exact `{feature, results}` body (`results` sorted by
 `resource_id` byte-ascending, per `CanonicalBatchJSON`, §12 intro) —
 re-running `CanonicalBatchJSON` over this exact JSON (**excluding**
@@ -2147,8 +2575,12 @@ canonical encoding — the **hash-input bytes**, §7.3 step 2/step 3)
 reproduces this exact `batch_id`, and this revision's validation pass
 independently confirmed this by reimplementing `CanonicalBatchJSON` in
 a standalone script and recomputing the exact value shown above.
-`results` is sorted by `resource_id`, byte-ascending — `res_79f5ac5dca13`
-< `res_acc91dc23a8b` < `res_cf8e47e6564b`. The JSON rendering shown
+`results` is sorted by `resource_id`, byte-ascending — `res_00189e66780a`
+< `res_79f5ac5dca13` < `res_acc91dc23a8b` (rev-6: the `adapter-snapshot`
+resource ID now sorts first because `binary_sha256` — new in this
+revision, §6.1/§13 — changes its hashed `args` and therefore its
+`resource_id` digest; §13.3's golden vectors and this ordering were
+recomputed together). The JSON rendering shown
 above — 2-space indentation, `batch_id` present as an ordinary field,
 trailing newline — is the **file-wire bytes**: the exact, complete
 on-disk representation of `batches/<batch_id>.json`, and is what §7.3
@@ -2164,7 +2596,10 @@ bytes are always hashed in memory before the buffer is discarded,
 §8.1). `tool_identity` is `null` for kinds with no adapter/executable
 concept (`git-metadata`, `ignored-file`) and populated (`basename`
 +`binary_sha256` only, never an absolute path, §6.1) for
-`adapter-snapshot`. The example `oid` above is an ordinary,
+`adapter-snapshot` — `binary_sha256` here is the **pinned, trusted**
+digest (§6.1), identical to the `binary_sha256` value declared in the
+resource's own `args` (§12.1), never a freshly-recomputed value that
+could silently differ from the pin. The example `oid` above is an ordinary,
 valid-shaped 64-hex-character SHA-256 Git object ID (illustrative, not
 the well-known empty-tree hash `4b825dc642cb6eb9a060e54bf8d69288fbee4904`,
 which §12.2's detached-`HEAD` example uses instead, task 10).
@@ -2173,24 +2608,40 @@ which §12.2's detached-`HEAD` example uses instead, task 10).
 
 ```json
 {
-  "latest_batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7",
+  "current_batch_id": "rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a",
   "resources": [
-    { "resource_id": "res_79f5ac5dca13", "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7" },
-    { "resource_id": "res_acc91dc23a8b", "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7" },
-    { "resource_id": "res_cf8e47e6564b", "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7" }
+    { "resource_id": "res_00189e66780a", "batch_id": "rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a" },
+    { "resource_id": "res_79f5ac5dca13", "batch_id": "rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a" },
+    { "resource_id": "res_acc91dc23a8b", "batch_id": "rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a" }
   ]
 }
 ```
 
 `resources` is sorted by `resource_id`, byte-ascending, for
 determinism (never dependent on map-iteration order — this is a
-`[]struct`, not a `map`). `latest_batch_id` is the `batch_id` of the
-most recent successful publish (§7.3 step 4), regardless of which
-specific resources that invocation touched — a convenience field for
-"what's the newest batch that exists at all," distinct from the
-per-resource index, which is what `diff`/`list --json` actually
-resolve against. `current.json` is the **only** file a reader consults
+`[]struct`, not a `map`). **Rev-6 rename** (task 5): the field
+previously named `latest_batch_id` is renamed `current_batch_id`,
+and its meaning is restated to remove every "newest"/"latest"
+implication — batches are an unordered, content-addressed set (§7.3),
+so "newest" is not a concept this design tracks at all.
+`current_batch_id` is simply **this `current.json` file's own
+provenance fact**: it names the `batch_id` that the invocation which
+most recently rewrote *this file* (§7.3 step 4) staged, regardless of
+how many or which resources that invocation actually touched — it is
+not a claim that this `batch_id` is chronologically newer than any
+other `batch_id` referenced by the per-resource `resources` array
+below (an invocation that captures only one of several declared
+resources rewrites `current.json` with `current_batch_id` set to
+*that* invocation's `batch_id`, while every other resource's entry in
+`resources` is carried forward unchanged from whatever earlier
+invocation last touched it — §7.3 step 4 already describes this
+carry-forward; this field is simply named to describe the same fact
+honestly). The per-resource `resources` array — never
+`current_batch_id` alone — is what `diff`/`list --json` actually
+resolve against for any single resource's current state.
+`current.json` is the **only** file a reader consults
 (§7.3 step 4) — `list`/`diff` never scan `batches/` directly.
+
 
 ### 12.5 First capture, add/remove/change shapes
 
@@ -2252,20 +2703,21 @@ resource_id     := "res_" + lowercase-hex(digest)[:12]
 | Vector | Inputs (`feature`, `kind`, `selector`, `adapter`, `capability`, `args`) | `resource_id` |
 |---|---|---|
 | 1 | `model-picker`, `git-metadata`, `head`, ``, ``, `{}` | `res_acc91dc23a8b` |
-| 2 | `model-picker`, `adapter-snapshot`, `dolt:diff-summary:users`, `dolt`, `diff-summary`, `{"db_path":"data/dolt-db","table":"users","from":"main","to":"HEAD"}` (declared `db_path, table, from, to` order) | `res_cf8e47e6564b` |
-| 3 | Same as Vector 2, `args` declared `to, db_path, table, from` order | `res_cf8e47e6564b` (**identical** — order-independence, reconfirmed with the added `db_path` field) |
+| 2 | `model-picker`, `adapter-snapshot`, `dolt:diff-summary:users`, `dolt`, `diff-summary`, `{"binary_sha256":"3f9c8e1a2d4c5b6a7e8f9d0c1b2a3e4d5c6b7a8f9e0d1c2b3a4e5f607b0f6f7b","db_path":"data/dolt-db","table":"users","from":"main","to":"HEAD"}` (declared `binary_sha256, db_path, table, from, to` order — rev-6, task 1: `binary_sha256` is now a mandatory `args` entry, §6.1) | `res_00189e66780a` |
+| 3 | Same as Vector 2, `args` declared `to, db_path, binary_sha256, table, from` order | `res_00189e66780a` (**identical** — order-independence, reconfirmed with the added `binary_sha256` field) |
 | 4 | `model-picker`, `ignored-file`, `config/local-secrets.env.template`, ``, ``, `{}` | `res_79f5ac5dca13` |
 
 Vectors 1 and 4 are byte-identical to rev-1/rev-2 (unaffected by any
-rev-3 change). Vectors 2/3 are **recomputed** (as of rev-3) because
-`db_path` (§6.2) is now a mandatory declared field and therefore part
-of the hashed `args` set; recomputed independently via a standalone
-Python script implementing §13.1/§13.2 verbatim as part of that
-revision's validation pass. **Rev-4 changes nothing about §13.1/§13.2**
-(§0.3) — all four vectors above remain byte-identical to rev-3; this
-revision's validation pass re-ran the same standalone script
-unmodified and reconfirmed all four values, since rev-4's changes are
-entirely about lock/publish/read mechanics, never about the
+rev-3 change). Vectors 2/3 were **recomputed** as of rev-3 (`db_path`
+became a mandatory declared field) and **recomputed again in rev-6**
+(§0.3 — `binary_sha256` is now also a mandatory declared field,
+task 1's trust-pin requirement); both recomputations were performed
+independently via a standalone Python script implementing §13.1/§13.2
+verbatim as part of each revision's validation pass. Rev-4/rev-5
+changed nothing about §13.1/§13.2 — all four vectors remained
+byte-identical to rev-3 through rev-5; only rev-6's new mandatory
+`binary_sha256` field changes Vectors 2/3, since rev-4/rev-5's changes
+were entirely about lock/publish/read mechanics, never about the
 `resource_id` derivation itself.
 
 ## 14. Acceptance Criteria (task 14)
@@ -2273,7 +2725,7 @@ entirely about lock/publish/read mechanics, never about the
 Clause-level, `AC-<n>` tagged. Each `AC` is one testable clause;
 `ADR-033-resource-capture-boundary.md`'s Test Matrix cites these tags
 directly. Renumbered from rev-3: rev-3's PID/temp-directory/quarantine
-lock clauses (old `AC-37`–`AC-43`) are **removed** entirely (that
+lock clauses (old `AC-39`–`AC-45`) are **removed** entirely (that
 lock protocol no longer exists, §7.2) and replaced with kernel-`flock`
 clauses; several other clauses gain corrected wording (remove/clear
 never touching `current.json`, `diff` reading content, the
@@ -2348,111 +2800,131 @@ it did in rev-3.
 - `AC-17`: A resolved Dolt executable located inside the repository
   working tree (or under any `.git` directory) is refused
   (`adapter-executable-in-repo`).
-- `AC-18`: A resolved Dolt executable whose device/inode/size/mtime
-  differ immediately after invocation vs. immediately before is
-  refused (`adapter-executable-replaced`) and its result is discarded.
+- `AC-18`: A resolved Dolt executable whose full `SHA-256` hash,
+  recomputed immediately after invocation from the same resolved
+  path, no longer matches the resource's pinned `binary_sha256` is
+  refused (`adapter-binary-untrusted`) and its result is discarded
+  (rev-6, task 1 — supersedes the rev-4/rev-5 device/inode/size/mtime
+  `Lstat` recheck AC).
+- `AC-19`: A resolved Dolt executable whose full `SHA-256` hash,
+  computed **before** invocation, does not match the resource's
+  pinned `binary_sha256` is refused (`adapter-binary-untrusted`) with
+  no invocation attempted at all (rev-6, task 1).
+- `AC-20`: `add --kind adapter-snapshot --adapter dolt` without
+  `--trust-current-dolt` is refused (`dolt-trust-required`, exit 2);
+  with it, the declared `args` gains a `binary_sha256` entry equal to
+  the `SHA-256` of the binary `add` itself resolved at that moment
+  (rev-6, task 1).
 
 **Zero pre-scan persistence; privacy; bounded reads (task 2)**
 
-- `AC-19`: An `ignored-file` selector's content is read into an
+- `AC-21`: An `ignored-file` selector's content is read into an
   in-process buffer and never written to any scratch or other file
   before scanning/hashing completes.
-- `AC-20`: Dolt's stdout/stderr are captured into an in-process,
+- `AC-22`: Dolt's stdout/stderr are captured into an in-process,
   bounded buffer and never redirected to or copied into a scratch
   file before parsing/scanning completes.
-- `AC-21`: A value matching any of the six redaction classes refuses
+- `AC-23`: A value matching any of the six redaction classes refuses
   the entire invocation (`redaction-refused`), with no partial batch
   written for any resource in that invocation, even unaffected ones,
   and with no unredacted byte having been written to any file at any
   point before the refusal.
-- `AC-22`: No tracked file anywhere contains a wall-clock timestamp
+- `AC-24`: No tracked file anywhere contains a wall-clock timestamp
   field.
-- `AC-23`: `feature resource diff` on an `ignored-file` resource
+- `AC-25`: `feature resource diff` on an `ignored-file` resource
   **reads current file content** through the same bounded in-memory
   scanner `capture` uses (not a stat-only/metadata-only check) to
   recompute `size_bytes`/`hash`/`file_count`/`total_bytes`/
   `combined_hash`, and reports exactly which of those (or file-set
   membership) changed — never a textual line-level diff.
-- `AC-24`: A file/stream that grows beyond the declared limit between
+- `AC-26`: A file/stream that grows beyond the declared limit between
   an initial `Stat`/length check and the actual read is still refused
   (`resource-limit-exceeded`), because the enforcement is an actual
   cap-plus-one read (reads `limit+1` bytes and refuses if that many
   were read), never a stat-only/pre-read-length check that trusts the
   claimed size.
-- `AC-25`: A directory `capture`/`diff` is documented and tested as a
+- `AC-27`: A directory `capture`/`diff` is documented and tested as a
   **sequential**, per-file read — not a single atomic point-in-time
   directory snapshot — and this residual is stated in §15/Negative
   Consequences, not claimed closed.
 
 **Descriptor-identity path gate; `db_path`/`cmd.Dir` residual (task 3)**
 
-- `AC-26`: A selector (`ignored-file` or Dolt `db_path`) whose ancestor
+- `AC-28`: A selector (`ignored-file` or Dolt `db_path`) whose ancestor
   directory (not the final component) is a symlink is refused
   (`symlink-component-refused`), regardless of where that symlink
   points.
-- `AC-27`: A selector replaced by a symlink at the final component
+- `AC-29`: A selector replaced by a symlink at the final component
   between the walk and the open is refused via `O_NOFOLLOW`/`ELOOP`.
-- `AC-28`: A selector whose underlying file is replaced (different
+- `AC-30`: A selector whose underlying file is replaced (different
   device/inode) between the walk and the open is refused
   (`path-replaced-during-open`), detected via `os.SameFile` on the
   **open file descriptor**'s `FileInfo`, not a second pathname
   `Lstat`.
-- `AC-29`: A dangling ancestor (missing path component) is refused
+- `AC-31`: A dangling ancestor (missing path component) is refused
   (`path-missing`).
-- `AC-30`: This gate re-runs independently for every descendant file
+- `AC-32`: This gate re-runs independently for every descendant file
   of a directory selector, both at `add` and at every `capture`.
-- `AC-31`: The Dolt executable path uses the separate, opposite-
+- `AC-33`: The Dolt executable path uses the separate, opposite-
   direction policy (§6.1/§9.2) and is never subject to the ancestor-
-  symlink-refusal rule that applies to `AC-26`–`AC-30`.
-- `AC-32`: `db_path`'s gate is re-run a second time immediately before
+  symlink-refusal rule that applies to `AC-28`–`AC-32`.
+- `AC-34`: `db_path`'s gate is re-run a second time immediately before
   `cmd.Start()` — a **fresh** pathname `Lstat`/resolve, not a reuse of
   the initial gate's cached `FileInfo` — compared via `os.SameFile`
   against the directory descriptor already held open from the initial
   gate; a **third**, independently fresh pathname resolution runs
   after the Dolt child process exits and is again compared
-  (`os.SameFile`) against the same held descriptor, surfacing a
-  detected mismatch as `db-path-identity-changed` in local diagnostics
-  — this is verified as a **detection**, not a prevention, mechanism
-  (a test simulating a post-gate, pre-exit directory swap confirms the
-  mismatch is *flagged*, not silently ignored, without claiming the
-  swap itself was prevented), and a second test confirms the check is
-  genuinely pathname-vs-descriptor, not descriptor-vs-descriptor (a
-  test that only re-`fstat`s the same, unchanged descriptor twice and
-  asserts equality would pass trivially and detect nothing — `AC-32`
-  requires the comparison input to be a freshly-obtained `FileInfo`
-  from a new `Lstat` of the `db_path` string each time).
+  (`os.SameFile`) against the same held descriptor. Rev-6 (task 2)
+  upgrades **both** the pre-`cmd.Start()` and the post-exit mismatch
+  from a diagnostic-only detection to a **hard refusal**
+  (`db-path-identity-changed`, exit 3): the result is discarded and no
+  batch is written — verified by a test simulating a post-gate,
+  pre-start or post-exit directory swap and asserting the invocation
+  fails closed rather than merely logging. A second test confirms the
+  check is genuinely pathname-vs-descriptor, not descriptor-vs-
+  descriptor (a test that only re-`fstat`s the same, unchanged
+  descriptor twice and asserts equality would pass trivially and
+  detect nothing — `AC-34` requires the comparison input to be a
+  freshly-obtained `FileInfo` from a new `Lstat` of the `db_path`
+  string each time). A **documented residual** remains and is
+  explicitly out of scope for this `AC`: a swap that occurs and fully
+  reverts entirely within the child process's own execution window
+  (between the pre-start check and the post-exit check, invisible to
+  either fresh resolution) is not detectable by any pathname-based
+  check and is recorded as a residual in ADR-033 D6's Negative
+  Consequences, not claimed away.
 
 **`check-ignore` fix, ignored/tracked Git gates (task 1)**
 
-- `AC-33`: `check-ignore` is invoked without `--literal-pathspecs` (no
+- `AC-35`: `check-ignore` is invoked without `--literal-pathspecs` (no
   such option exists for it) — verified by asserting the invocation
   never includes that flag.
-- `AC-34`: `check-ignore` exit `1` (not ignored) and exit `>1` (fatal)
+- `AC-36`: `check-ignore` exit `1` (not ignored) and exit `>1` (fatal)
   produce distinct refusal reasons, neither treated as "ignored."
-- `AC-35`: A selector whose first byte is `:` is passed to
+- `AC-37`: A selector whose first byte is `:` is passed to
   `check-ignore` with a `./` prefix, and resolves to the identical
   on-disk path as the unprefixed form would if `check-ignore` could
   accept it literally.
-- `AC-36`: `*`/`?`/`[]` characters in a `check-ignore` pathname
+- `AC-38`: `*`/`?`/`[]` characters in a `check-ignore` pathname
   argument never trigger wildcard/glob matching.
-- `AC-37`: `ls-files --error-unmatch` exit `0` (tracked) and any
+- `AC-39`: `ls-files --error-unmatch` exit `0` (tracked) and any
   non-standard exit/stderr shape produce distinct refusal reasons, and
   every such call uses `--literal-pathspecs`.
-- `AC-38`: A selector is refused unless it is **both** ignored (via
-  `AC-34`) **and** untracked (via `AC-37`) — recheck at `add` and at
+- `AC-40`: A selector is refused unless it is **both** ignored (via
+  `AC-36`) **and** untracked (via `AC-39`) — recheck at `add` and at
   every `capture`.
 
 **Local ignore contract, tracked-root gate, all mutators (task 8)**
 
-- `AC-39`: The scratch root's ignored status is verified via the
+- `AC-41`: The scratch root's ignored status is verified via the
   existing `EnsureLocalIgnoreContract`, not a second, parallel ignore
   mechanism.
-- `AC-40`: The scratch root is also verified untracked via the
-  `AC-37`-style `ls-files --error-unmatch` gate; either check failing
+- `AC-42`: The scratch root is also verified untracked via the
+  `AC-39`-style `ls-files --error-unmatch` gate; either check failing
   refuses (`local-root-not-ignored`/`local-path-tracked`) before any
   scratch content — including the persistent `.lock` file's own
   first-ever creation — is created.
-- `AC-41`: `remove`/`clear` run the identical local-ignore/untracked
+- `AC-43`: `remove`/`clear` run the identical local-ignore/untracked
   gate as `add`/`capture`/`record --resources`, before their own
   `.lock` acquisition — not just the mutators that create scratch
   content (correcting rev-3, which did not explicitly extend this gate
@@ -2460,110 +2932,129 @@ it did in rev-3.
 
 **Kernel `flock` lock semantics (task 1)**
 
-- `AC-42`: `.lock` is opened `O_CREATE|O_RDWR, 0600` and
+- `AC-44`: `.lock` is opened `O_CREATE|O_RDWR, 0600` and
   `flock(LOCK_EX|LOCK_NB)`'d; success proceeds immediately, and
   `EWOULDBLOCK`/`EAGAIN` refuses immediately (`capture-in-progress`),
   with no polling, wait, or configurable timeout.
-- `AC-43`: The `.lock` file is never removed, renamed, or replaced by
+- `AC-45`: The `.lock` file is never removed, renamed, or replaced by
   any code path across repeated invocations — verified by asserting
   the file's device+inode identity is unchanged across multiple
   successive invocations for the same slug.
-- `AC-44`: A process holding the `flock` that is killed (simulating a
+- `AC-46`: A process holding the `flock` that is killed (simulating a
   crash) releases the lock at the kernel level with no code of this
   design's own running — the next invocation acquires it successfully
   immediately, with no manual reclaim/quarantine step of any kind.
-- `AC-45`: All five mutating verbs (`add`, `remove`, `clear`,
+- `AC-47`: All five mutating verbs (`add`, `remove`, `clear`,
   `capture`, `record --resources`) acquire the identical per-slug
   `flock` before their first write; `list`/`diff` never acquire it.
-- `AC-46`: On a build tagged `!linux && !darwin` (the exact fallback
+- `AC-48`: On a build tagged `!linux && !darwin` (the exact fallback
   constraint, not a generic `!unix`), every mutating verb returns
   `resource-lock-unsupported` (exit 3) deterministically, never
   silently proceeding unlocked.
-- `AC-47`: Two invocations racing to acquire `.lock` for the same slug
+- `AC-49`: Two invocations racing to acquire `.lock` for the same slug
   resolve with exactly one succeeding and the other refusing
   immediately (`capture-in-progress`) — contention is instantaneous,
   never a queued/blocking wait.
 
 **Permissions, scratch/orphan cleanup (task 6, task 8)**
 
-- `AC-48`: Every ephemeral scratch directory (`es_<id>/`, `dolt-home/`)
+- `AC-50`: Every ephemeral scratch directory (`es_<id>/`, `dolt-home/`)
   is created `0700` and every file `0600` at creation (never via a
   separate `chmod` after a looser-permission create); the persistent
   `.lock` file is created `0600` at its one-time creation and never
   `chmod`'d afterward.
-- `AC-49`: An orphaned ephemeral scratch directory (`es_*`) or tracked
+- `AC-51`: An orphaned ephemeral scratch directory (`es_*`) or tracked
   temp file (`batches/*.tmp-*.json`/`.tmp-current.json`) left by a
   simulated crash is swept **only after** the sweeping invocation has
   itself acquired the live `flock`, never before, and the local/tracked
   sweeps are exercised as two independently verified enumerations.
-- `AC-50`: `add`/`remove`/`clear` never perform the orphan sweep
+- `AC-52`: `add`/`remove`/`clear` never perform the orphan sweep
   (verified by asserting no `es_*`/tracked-temp removal occurs during
   an `add`/`remove`/`clear` invocation even when such orphans are
   present).
 
 **Content-addressed single publication point (task 5, task 6)**
 
-- `AC-51`: A successful multi-resource `capture` writes exactly one
+- `AC-53`: A successful multi-resource `capture` writes exactly one
   new `batches/<id>.json` file (unless an identical one already
-  exists, `AC-53`) and rewrites `current.json` exactly once.
-- `AC-52`: `batch_id` is deterministically derived from
+  exists, `AC-55`) and rewrites `current.json` exactly once.
+- `AC-54`: `batch_id` is deterministically derived from
   `CanonicalBatchJSON({"feature","results"})` (the hash-input encoding,
   which excludes `batch_id` itself) — recomputing it from the same
   batch content reproduces the identical `batch_id`.
-- `AC-53`: A retry that reproduces identical batch content re-encodes
+- `AC-55`: A retry that reproduces identical batch content re-encodes
   the **complete file-wire bytes** (including `batch_id`, with real
   on-disk indentation) and finds them identical to the existing
   `batches/<batch_id>.json`, skipping directly to pointer publication
   without rewriting the batch file — verified by asserting the
   comparison is against file-wire bytes, not the hash-input bytes
   (which would never match and would incorrectly trigger
-  `AC-54`, rev-3's bug).
-- `AC-54`: A retry that computes the identical `batch_id` for
-  **different** file-wire content (a hash collision) is refused
-  (`batch-id-collision`), never silently overwritten.
-- `AC-55`: A crash simulated between the batch rename and the
+  `AC-56`, rev-3's bug).
+- `AC-56`: When an existing `batches/<batch_id>.json`'s file-wire
+  bytes differ from the freshly-staged candidate, the implementation
+  decodes the on-disk file, verifies its own `batch_id` field, and
+  canonicalizes its `{feature,results}` body via
+  `CanonicalBatchJSON` (rev-6, task 6 — a byte-level difference is
+  **not**, by itself, classified as anything yet); if that recomputed
+  semantic body matches this invocation's own step-2 canonical bytes,
+  it is treated as **presentation drift**: the immutable on-disk file
+  is left untouched (never rewritten) and the invocation proceeds to
+  pointer publication exactly as `AC-55`'s byte-identical case does.
+- `AC-57`: Only when `AC-56`'s canonicalized on-disk semantic body
+  genuinely **differs** from the freshly-staged candidate's is the
+  outcome a true `batch-id-collision` (exit 3, refused, never
+  overwritten) — rev-6 corrects the prior design, which reached this
+  refusal directly off a raw byte-level difference without first
+  ruling out presentation drift.
+- `AC-58`: An on-disk `batches/<batch_id>.json` that fails to parse
+  as valid JSON, or whose own decoded `batch_id` field does not equal
+  the filename's `batch_id`, is refused as `batch-file-corrupt`
+  (exit 3) — a distinct error from both `AC-56`'s presentation-drift
+  path and `AC-57`'s collision path, never routed through either
+  comparison.
+- `AC-59`: A crash simulated between the batch rename and the
   `current.json` rename leaves a permanently orphaned, harmless batch
   file that no subsequent `list`/`diff` ever surfaces, and a re-run
-  recomputes the identical `batch_id` and proceeds via `AC-53`.
-- `AC-56`: A crash simulated during either temp-file write (before its
+  recomputes the identical `batch_id` and proceeds via `AC-55`.
+- `AC-60`: A crash simulated during either temp-file write (before its
   rename) leaves only a temp artifact matching the exact naming in
-  §7.1/§7.3, swept at the next invocation's start (`AC-49`), with no
+  §7.1/§7.3, swept at the next invocation's start (`AC-51`), with no
   effect on the last successfully committed `current.json`.
-- `AC-57`: `remove`/`clear` never write, rename, or delete
+- `AC-61`: `remove`/`clear` never write, rename, or delete
   `current.json` **or** any `batches/<id>.json` file at all — only
-  `resources.json`, under the per-slug `flock` (`AC-45`) — correcting
+  `resources.json`, under the per-slug `flock` (`AC-47`) — correcting
   rev-3, in which `remove`/`clear` pruned `current.json`'s live index.
-- `AC-58`: A resource removed from `resources.json` while `current.json`
+- `AC-62`: A resource removed from `resources.json` while `current.json`
   still references it leaves a harmless orphaned pointer entry that
   `list` never surfaces (since `list` iterates `resources.json`'s
   declared entries, never `current.json`'s index directly) — verified
   by asserting the orphaned entry is not garbage-collected and does
   not appear in `list`'s output.
-- `AC-59`: `current.json` is the only file `list`/`diff` read to
+- `AC-63`: `current.json` is the only file `list`/`diff` read to
   resolve a resource's latest result — neither ever scans `batches/`
   directly.
 
 **Git metadata / tagged variants (task 10)**
 
-- `AC-60`: `head`'s `symbolic_ref` is `null` if and only if `detached`
+- `AC-64`: `head`'s `symbolic_ref` is `null` if and only if `detached`
   is `true`.
-- `AC-61`: The `config` view refuses any key outside the exact
+- `AC-65`: The `config` view refuses any key outside the exact
   four-key allowlist.
-- `AC-62`: An `index-entry` selector queried with a path containing
+- `AC-66`: An `index-entry` selector queried with a path containing
   pathspec-magic characters resolves to the literal path under
   `--literal-pathspecs`.
-- `AC-63`: A directory `ignored-file` result includes a stable,
+- `AC-67`: A directory `ignored-file` result includes a stable,
   `path`-sorted `files[]` array with `{path, raw_sha256, byte_count,
   mode}` per entry, in addition to the aggregate
   `file_count`/`total_bytes`/`combined_hash` fields.
-- `AC-64`: Every kind/view's tagged `result` shape (§12.2) is exercised
+- `AC-68`: Every kind/view's tagged `result` shape (§12.2) is exercised
   by at least one test: `head` attached, `head` detached, `ref`,
   `index-entry`, `config` (set and unset), `ignored-file` single file,
   `ignored-file` directory, `adapter-snapshot`.
 
 **`--dry-run`, transaction / `record --resources` (task 7, task 11)**
 
-- `AC-65`: `feature resource capture <slug> --dry-run` writes **zero
+- `AC-69`: `feature resource capture <slug> --dry-run` writes **zero
   tracked files** (`resources.json` is not touched beyond its
   pre-existing content; no `batches/`/`current.json` write occurs) and
   leaves **zero persistent resource data locally** — but its
@@ -2572,70 +3063,114 @@ it did in rev-3.
   `es_<id>/dolt-home/`, is removed) — the AC therefore asserts "no
   tracked writes and no persistent resource-data local writes," not
   "zero filesystem writes."
-- `AC-66`: `record --resources` on a feature with zero declared
+- `AC-70`: `record --resources` on a feature with zero declared
   resources refuses (`no-resources-declared`) before any Git
   invocation and before lock acquisition.
-- `AC-67`: A resource-staging failure combined with Git-side success
+- `AC-71`: A resource-staging failure combined with Git-side success
   produces `resource-domain-incomplete` with the exact recovery-command
   message, while the Git-side canonical patch is confirmed present and
   correct.
-- `AC-68`: A resource-staging failure combined with Git-side failure
+- `AC-72`: A resource-staging failure combined with Git-side failure
   discards the staged (never-written) candidate batch and surfaces
   only record's existing Git-failure behavior.
-- `AC-69`: A successful stage and successful Git-side capture publish
+- `AC-73`: A successful stage and successful Git-side capture publish
   the batch and pointer atomically, verified by asserting both
   `batches/<id>.json` and `current.json` reflect the same invocation
   together, never partially.
-- `AC-70`: Re-running `feature resource capture <slug>` (or
+- `AC-74`: Re-running `feature resource capture <slug>` (or
   `record --resources`) after a publish-step failure, with the
   underlying captured content unchanged, reproduces the identical
-  `batch_id` and completes via `AC-53`'s idempotent branch — a retry
+  `batch_id` and completes via `AC-55`'s idempotent branch — a retry
   with genuinely changed underlying content correctly produces a
   different `batch_id`.
 
 **Golden IDs, batch golden vector (task 12)**
 
-- `AC-71`: Each of the four golden resource-ID vectors in §13.3 is
+- `AC-75`: Each of the four golden resource-ID vectors in §13.3 is
   independently recomputed by the implementation and matches exactly,
   including the two `db_path`-bearing vectors' order-independence.
-- `AC-72`: The worked `batches/<batch_id>.json` example's `batch_id`
-  (`rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7`, §12.3) is independently recomputed from its
+- `AC-76`: The worked `batches/<batch_id>.json` example's `batch_id`
+  (`rb_fcc1d4c46051f192b9005f8941fa54dbf9e907e2609e9fceb393acef2c70ed0a`, §12.3, recomputed in rev-6 for the corrected `resource_id` sort order and new `binary_sha256` field) is independently recomputed from its
   `CanonicalBatchJSON({"feature","results"})` **hash-input** body
   (excluding `batch_id` itself) and matches exactly.
 
 **Rev-5 additions: build tags, filesystem contract, output-cap
 refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
 
-- `AC-73`: The lock implementation file carries exactly `//go:build
+- `AC-77`: The lock implementation file carries exactly `//go:build
   linux || darwin`, and its fallback file carries exactly `//go:build
   !linux && !darwin` — verified by asserting the literal build-tag
   comment text in each file, not merely its behavior.
-- `AC-74`: A `.tpatch/local/resource-scratch/<slug>/` root created on
+- `AC-78`: A `.tpatch/local/resource-scratch/<slug>/` root created on
   a filesystem type outside this design's allowlist (simulated via a
   fake/stubbed `statfs` result, since CI cannot mount a real network
   filesystem) refuses `resource-lock-filesystem-unsupported` (exit 3)
-  before `.lock` is ever created — distinct from `AC-46`'s
+  before `.lock` is ever created — distinct from `AC-48`'s
   build-tag-based refusal, verified by asserting the two error
   strings never collide and the filesystem check runs strictly before
   the lock-file-creation code path.
-- `AC-75`: A simulated Dolt child process that writes more than 5 MiB
+- `AC-79`: The preflight uses stdlib `syscall.Statfs` exclusively —
+  no `golang.org/x/sys/unix` import anywhere in the lock/filesystem
+  package (rev-6, task 7, verified via a source/import-list assertion,
+  not merely behavior).
+- `AC-80`: Every filesystem type in §7.2's Linux allow/deny table
+  (`ext`/`xfs`/`btrfs`/`tmpfs`/`overlayfs` allowed; `nfs`/`cifs`/
+  `smb2`/`fuse` denied) and Darwin allow/deny table (`apfs`/`hfs`/
+  `tmpfs` allowed; `nfs`/`smbfs`/`webdav`/`osxfuse`/`macfuse` denied)
+  is individually exercised via a table-driven test stubbing the
+  corresponding `buf.Type`/`buf.Fstypename` value and asserting the
+  expected allow/deny outcome — table-driven **supporting rows** for
+  this single `AC`, one per listed type (rev-6, task 7's "AC for every
+  listed type" is satisfied via exhaustive fixture coverage under this
+  one clause, not one distinct numbered `AC` per filesystem type; §14.1
+  counts this as one `AC`-tagged clause with 17 supporting Test Matrix
+  rows).
+  An unrecognized type on either platform (a value on neither the
+  allow nor the deny list) is refused identically to a denylisted
+  value, also exercised here.
+- `AC-81`: The first-ever creation of `.tpatch/local/resource-scratch/
+  <slug>/`'s intermediate directories runs the ignore/untracked gate
+  and `statfs` preflight against the **nearest existing ancestor**
+  (never the not-yet-created leaf), then `MkdirAll`s the missing
+  directories, then `fsync`s each newly-created directory's parent
+  before the invocation proceeds — verified by simulating a crash
+  immediately after `MkdirAll` but before the `fsync` sequence
+  completes and asserting a retried invocation re-creates (idempotent
+  `MkdirAll`) and re-`fsync`s the chain rather than assuming prior
+  durability (rev-6, task 8).
+- `AC-82`: The first-ever `capture`/`record --resources` for a slug
+  (no prior `artifacts/resource-captures/` tree) simulates a crash
+  between the tracked tree's `MkdirAll` and its parent-directory
+  `fsync` completing, and a retried invocation recovers cleanly —
+  re-running the idempotent `MkdirAll`, re-`fsync`ing, and proceeding
+  to §7.3 steps 2-4 exactly as if the tree had always existed
+  (rev-6, task 8's first-publication crash row).
+- `AC-83`: A simulated Dolt child process that writes more than 5 MiB
   combined stdout+stderr is killed (process group `SIGTERM` then
   `SIGKILL`) the instant the shared cap-plus-one budget is exceeded,
   the invocation refuses with `resource-limit-exceeded` (exit 3), and
   no partial/truncated stdout is ever handed to the JSON parser —
   verified by asserting the parser is never invoked at all for an
   over-cap invocation (not invoked-then-discarded).
-- `AC-76`: `dolt_diff_summary`'s stdout and stderr share **one**
+- `AC-84`: `dolt_diff_summary`'s stdout and stderr share **one**
   cap-plus-one budget (not two independent 5 MiB budgets) —
   verified by a test where stdout alone is under 5 MiB but
   stdout+stderr combined exceeds it, and the invocation still refuses.
-- `AC-77`: A directory `ignored-file` capture followed by a
+- `AC-85`: `cmd.SysProcAttr{Setpgid: true}` is set before
+  `cmd.Start()` on `linux`/`darwin`, and a timeout/cap-triggered kill
+  signals the **negative** PGID (the process group, not just the
+  direct child) with `SIGTERM` then `SIGKILL` after a grace period —
+  verified with a test Dolt-adapter stub that spawns its own
+  descendant child process, confirming the descendant is also
+  terminated (not orphaned) while the parent `tpatch` process itself
+  is provably unaffected (rev-6, task 3).
+- `AC-86`: A directory `ignored-file` capture followed by a
   chmod-only change (identical file set and byte content, changed
   permission bits on one file) produces a different `combined_hash`
   on the next `capture`/`diff`, and `diff` reports the specific
   `files[]` entry's `mode` as the differing field, with `hash`/
   `byte_count` unchanged for that entry.
-- `AC-78`: A resource captured with content `A`, then content `B`,
+- `AC-87`: A resource captured with content `A`, then content `B`,
   then content `A` again (three `capture` invocations) results in
   exactly **two** distinct `batches/<id>.json` files on disk (one for
   `A`'s content, one for `B`'s), not three — the third invocation's
@@ -2643,30 +3178,73 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   `A` without creating a new batch file, verified by asserting the
   directory listing of `batches/` is unchanged in file count after the
   third invocation.
+- `AC-88`: Adding a resource whose recomputed `resource_id` matches
+  an existing entry in `resources.json` with **byte-identical**
+  canonical declaration bytes is idempotent (exit 0, no duplicate
+  entry); adding or **loading** (any verb reading `resources.json`) an
+  entry whose recomputed `resource_id` matches an existing entry with
+  **different** canonical bytes is refused (`resource-id-collision`,
+  exit 3), verified via a test-only stub hash function seam since a
+  genuine `SHA-256` collision cannot be produced for a real test
+  (rev-6, task 4).
+- `AC-89`: The two-file golden directory vector in §5.1/ADR-033 D3
+  (`config/a.txt` empty, `config/sub/b.sh` with known content) is
+  independently recomputed by a reference implementation of the
+  `path`+`0x00`+`mode`+`0x00`+`hash`+`0x00` tuple-encoding rule and
+  matches the documented `combined_hash` exactly (rev-6, task 9).
 
 ### 14.1 Exact counts (task 14: no false "exactly once" claims)
 
-This PRD defines **78** `AC`-tagged clauses (`AC-1` through `AC-78`,
-each an individually testable statement, no range-notation grouping).
-This is a **net +6** change from rev-4's 72: rev-5 adds six new
-clauses and removes none — `AC-73` (exact build-tag text), `AC-74`
-(filesystem-preflight refusal, distinct error from build-tag refusal),
-`AC-75` (output-cap-as-refusal via process-group kill, never
-truncation), `AC-76` (stdout/stderr share one budget, not two), `AC-77`
-(chmod-only directory change is diff-distinguishable via `mode` in the
-hash input), and `AC-78` (an A→B→A content sequence produces exactly
-two batch files, not three, verifying the no-chronology/unordered-set
-design) — `72 + 6 = 78`. Two existing clauses were rewritten in place
-without changing the total count: `AC-10`/`AC-11` flipped from
-"`WORKING`/`STAGED` accepted" to "`WORKING`/`STAGED` refused," and
-`AC-32`/`AC-46` were reworded for the pathname-vs-descriptor honesty
-fix and the exact `!linux && !darwin` fallback tag, respectively — none
-of these in-place rewrites add or remove a clause. The companion ADR's
-Test Matrix maps each of these 78 clauses to at least one row; several
-clauses map to more than one row (e.g. both a human-output and
-`--json`-output verification, or both a success and a failure path for
-the same mechanism). The matrix therefore has **more** rows than there
-are distinct clauses — this PRD does not claim any clause is covered
+This PRD defines **89** `AC`-tagged clauses (`AC-1` through `AC-89`,
+each an individually testable statement, no range-notation grouping;
+sequentially numbered with no gaps, verified by an automated scan of
+every definition line matching `- \`AC-<n>\`:` in §14, in document
+order).
+
+This is a **net +11** change from rev-5's 78 (rev-5's own count was
+`AC-1` through `AC-80` with two numbering gaps left by earlier
+in-place rewrites — 78 distinct clauses, not 80): rev-6 adds eleven
+new clauses and removes none —
+
+- `AC-19` (pre-invocation trust-pin hash-vs-pin refusal, no
+  invocation attempted)
+- `AC-20` (`--trust-current-dolt` add-time resolution/hash/refusal
+  behavior)
+- `AC-57` (a genuine `batch-id-collision` is only declared after
+  ruling out presentation drift)
+- `AC-58` (`batch-file-corrupt` for an unparseable or internally
+  inconsistent on-disk batch file)
+- `AC-79` (stdlib-only `syscall.Statfs`, no `golang.org/x/sys/unix`
+  import)
+- `AC-80` (exhaustive per-filesystem-type table-driven coverage of
+  every listed Linux/Darwin allow/deny entry, 17 supporting Test
+  Matrix rows under this one clause)
+- `AC-81` (first-create nearest-existing-ancestor gate/preflight plus
+  parent-directory `fsync` ordering)
+- `AC-82` (first-ever tracked-tree creation crash/recovery)
+- `AC-85` (`Setpgid`-based process-group-only kill with a
+  descendant-survival/parent-survival proof)
+- `AC-88` (resource-ID collision refusal vs. idempotent same-bytes
+  re-add)
+- `AC-89` (directory `combined_hash` golden vector recomputation)
+
+— `78 + 11 = 89`. Three existing clauses were rewritten in place
+without changing the total count: `AC-18` (previously
+`adapter-executable-replaced`'s post-invocation device/inode/size/
+mtime recheck, now the post-invocation `binary_sha256`-vs-pin
+mismatch refusal), `AC-34` (the `db_path` mismatch check upgraded
+from a diagnostic-only detection to a hard `db-path-identity-changed`
+refusal, both pre-`cmd.Start()` and post-exit), and `AC-56` (no
+longer a direct "byte difference implies collision" claim — now
+requires ruling out presentation drift via canonical semantic-body
+comparison first) — none of these in-place rewrites add or remove a
+clause. The companion ADR's Test Matrix maps each of these 89 clauses
+to at least one row; several clauses map to more than one row (e.g.
+both a human-output and `--json`-output verification, or both a
+success and a failure path for the same mechanism, or `AC-80`'s 17
+filesystem-type supporting rows). The matrix therefore has **more**
+rows than there are distinct clauses — this PRD does not claim any
+clause is covered
 "exactly once."
 
 ## 15. Open Questions / Negative Consequences
@@ -2675,16 +3253,30 @@ are distinct clauses — this PRD does not claim any clause is covered
   not fully closed by the Go standard library alone; a future PRD
   could revisit this if a portable `openat2`-equivalent becomes
   available in stdlib.
-- **`db_path`/`cmd.Dir` pathname-bound residual** (§9.1, task 3): Go's
-  `os/exec.Cmd.Dir` takes a pathname, not a descriptor, so a
-  sufficiently well-timed local concurrent attacker can in principle
-  swap the validated `db_path` directory between this design's final
-  re-check and the moment Dolt's own process actually resolves its
-  cwd; this design narrows the window (re-check immediately before
-  `cmd.Start()`, hold an open directory descriptor across the child's
-  lifetime, re-check identity after exit) but provides **detection**,
-  not **prevention** — stated honestly here and in ADR-033 D6, not
-  claimed as a closed sandbox.
+- **`db_path`/`cmd.Dir` pathname-bound residual** (§9.1, task 3, rev-6
+  update): Go's `os/exec.Cmd.Dir` takes a pathname, not a descriptor.
+  Rev-6 upgrades both the pre-`cmd.Start()` and the post-exit identity
+  checks from a diagnostic-only detection to a **hard refusal**
+  (`db-path-identity-changed`, exit 3, result discarded, no batch
+  written) — this closes the "detected but not refused" gap left open
+  by rev-4/rev-5. What remains an honestly-documented **residual**,
+  not claimed as closed: a sufficiently well-timed local concurrent
+  attacker who swaps the `db_path` directory **and reverts the swap**
+  entirely within the child process's own execution window — after
+  this design's pre-start check passes and before its post-exit check
+  runs, but back to the original before that post-exit check actually
+  observes it — remains undetectable by any pathname-based check, since
+  Dolt's own process resolves its `cwd` via the pathname at whatever
+  instant the kernel actually opens it, a moment this design cannot
+  observe directly without also holding an fd-bound `cmd.Dir`
+  equivalent (which Go's `os/exec` does not offer). This design
+  narrows the window to the smallest interval the platform's API
+  surface allows (fresh pathname re-checks immediately before
+  `cmd.Start()` and immediately after the child exits, both compared
+  via `os.SameFile` against a directory descriptor held open across
+  the entire child lifetime) and refuses hard on any detected
+  mismatch, but does not claim to close the in-window residual —
+  stated honestly here and in ADR-033 D6's Negative Consequences.
 - **No raw content diffing/versioning** (§2): a real value proposition
   for Dolt/ignored-file resources — seeing an actual textual diff, not
   just "the hash changed" — is deliberately out of scope, and would
@@ -2741,6 +3333,29 @@ are distinct clauses — this PRD does not claim any clause is covered
   point-in-time directory content if an external process mutates a
   later-scanned file while an earlier one has already been read. This
   is stated honestly rather than claimed away.
+- **No event-chronology/history log** (§7.3, task 5, rev-5/rev-6): the
+  content-addressed `batches/` tree is an **unordered set of distinct
+  content**, not an append-only log — `current.json`'s
+  `current_batch_id` (rev-6 rename) is solely this file's own
+  provenance fact (which batch the last rewriting invocation staged),
+  never a claim about recency across the batch set as a whole. An
+  `A`→`B`→`A` content sequence reuses `A`'s existing batch file and
+  simply repoints the pointer back to it (`AC-87`) — this design
+  deliberately does not provide "what changed since three captures
+  ago" or any other chronological query in v1; a future PRD could add
+  an explicit, separate event log if that need arises, but this
+  design's batch set must not be mistaken for one.
+- **Trust-pin scope is the resolved binary, not its provenance**
+  (§6.1, task 1): `--trust-current-dolt` pins the `SHA-256` of
+  whatever binary `add` resolves via `PATH` at that moment — it
+  verifies the *same bytes run every time*, not that those bytes are
+  a legitimate/unmodified upstream Dolt release, nor that the pinned
+  binary is free of vulnerabilities. A locally-built or
+  already-compromised Dolt binary pinned at `add` time remains
+  trusted by this design for its entire lifetime unless the operator
+  re-pins. This is a deliberate, narrower guarantee ("this exact binary,
+  unchanged, every time") than a supply-chain attestation, and is
+  documented as such rather than oversold.
 
 *(Resolved in earlier revisions, remaining resolved: `diff_type`'s
 value set is confirmed as a closed 4-value enum via its four exact
@@ -2944,18 +3559,18 @@ cross-platform target — which is a harder, more honest guarantee than
   independently fresh `Lstat` after the child exits, again compared
   against the same held descriptor — explicitly labeled as detection,
   not prevention, with a documented well-timed-attacker residual
-  during the child's own execution (§9.1, AC-32).
+  during the child's own execution (§9.1, AC-34).
 - Narrowed the platform build-tag contract from the broad `unix` tag
   to an exact `linux || darwin` (real implementation) /
   `!linux && !darwin` (fallback) split, matching this project's actual
   tested CI matrix (`ubuntu-latest`/`macos-latest`) rather than every
-  POSIX-family `GOOS` value `unix` also covers (§7.2, AC-46, AC-73).
+  POSIX-family `GOOS` value `unix` also covers (§7.2, AC-48, AC-77).
 - Added a `statfs`-based filesystem preflight for the lock, refusing
   `resource-lock-filesystem-unsupported` (exit 3, distinct from the
   build-tag-based `resource-lock-unsupported`) on network/shared or
   unrecognized filesystem types, with an explicit per-OS allow/deny
   list and a documented "operator-configured local-only precondition"
-  fallback if the allowlist proves too brittle (§7.2, AC-74).
+  fallback if the allowlist proves too brittle (§7.2, AC-78).
 - Fixed a scratch-tree diagram bug: rev-4's local-scratch-tree diagram
   incorrectly placed tracked `batches/<id>.tmp-*.json` and
   `.tmp-current.json` temp files under the local, gitignored tree.
@@ -2970,7 +3585,7 @@ cross-platform target — which is a harder, more honest guarantee than
   and the JSON parser is never invoked on partial output — refused
   `resource-limit-exceeded` (exit 3). Only stdout is ever parsed;
   stderr is captured within the same shared budget for local
-  diagnostics only (§6.4, §8.1, AC-75, AC-76).
+  diagnostics only (§6.4, §8.1, AC-83, AC-84).
 - Flipped `WORKING`/`STAGED` from accepted to explicitly refused
   (case-insensitive, `dolt-argument-refused`, exit 2): although
   `ResolveRootForRef` genuinely does resolve these exact-case
@@ -2986,18 +3601,18 @@ cross-platform target — which is a harder, more honest guarantee than
   is collision-prone for a scheme whose own collision handling is a
   fatal integrity error, not a display convenience. Resource IDs
   (`res_` + 12 hex) are a separate, unaffected convention (§7.3,
-  §12.3, AC-72).
+  §12.3, AC-76).
 - Added an explicit "batches are an unordered, content-addressed set —
   not a chronology" clarification: `batch_id` names distinct content,
   not a position in a sequence; an A→B→A capture sequence produces
   exactly two batch files, not three, and `current.json` is the sole
   authority for "what is current now" — event-level chronology is
-  explicitly out of scope for v1 (§4, §7.3, AC-78).
+  explicitly out of scope for v1 (§4, §7.3, AC-87).
 - Folded directory `mode` into the per-file `combined_hash` input
   (`path\x00mode\x00hash`, sorted by path) and into `diff`'s
   comparison, so a chmod-only change (identical content, changed
   permission bits) is now distinguishable from a content change
-  (§5.1, §12.2, AC-77).
+  (§5.1, §12.2, AC-86).
 - Corrected the JSON zero-row parsing description from an exact-byte
   match on the trimmed literal `{}` to a **structural** acceptance of
   either `{}` or `{"rows":[...]}` after trimming surrounding
@@ -3008,13 +3623,103 @@ cross-platform target — which is a harder, more honest guarantee than
   file's body — the lock file has no body at all, matching the
   existing ADR-033 D9 language exactly (§7.2).
 - Rebuilt the acceptance-criteria set from 72 to 78 clauses: six new
-  clauses (`AC-73` exact build-tag text, `AC-74` filesystem-preflight
-  refusal, `AC-75` output-cap-as-refusal via process-group kill,
-  `AC-76` shared stdout+stderr budget, `AC-77` chmod-only
-  diff-distinguishability, `AC-78` A→B→A produces exactly two batch
+  clauses (`AC-77` exact build-tag text, `AC-78` filesystem-preflight
+  refusal, `AC-83` output-cap-as-refusal via process-group kill,
+  `AC-84` shared stdout+stderr budget, `AC-86` chmod-only
+  diff-distinguishability, `AC-87` A→B→A produces exactly two batch
   files) and two clauses rewritten in place without changing the total
-  (`AC-10`/`AC-11` WORKING/STAGED refusal, `AC-32`/`AC-46` pathname-
+  (`AC-10`/`AC-11` WORKING/STAGED refusal, `AC-34`/`AC-48` pathname-
   vs-descriptor and exact build-tag wording) (§14, §14.1).
+- Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
+  attestation are updated to their final, post-edit values as the last
+  step of this revision, per this fold's explicit tracking requirement
+  (§0, CURRENT.md).
+
+## 20. Rev-6 Changelog (vs. rev-5, `b312e4a`)
+
+- Added a Dolt binary **trust pin**: `add --kind adapter-snapshot
+  --adapter dolt --trust-current-dolt` resolves and hashes the Dolt
+  executable at `add` time, writing a mandatory `binary_sha256`
+  `args` entry (participates in `resource_id`, §13); `add` without
+  the flag is refused `dolt-trust-required` (exit 2). Every `capture`
+  now re-hashes the resolved binary both immediately **before**
+  invocation (mismatch: `adapter-binary-untrusted`, exit 3, no
+  invocation attempted, `AC-19`) and immediately **after** (same
+  error, result discarded, `AC-18`) — superseding rev-4/rev-5's
+  cheaper device/inode/size/mtime `Lstat` recheck (§6.1, AC-18,
+  AC-19, AC-20).
+- Upgraded the `db_path`/`cmd.Dir` identity check from a
+  diagnostic-only detection (rev-4/rev-5) to a **hard refusal**
+  (`db-path-identity-changed`, exit 3, result discarded, no batch
+  written) at both the pre-`cmd.Start()` and post-exit re-checks,
+  while continuing to document the narrower, honestly-scoped
+  in-window residual (§9.1, ADR-033 D6, AC-34).
+- Replaced the vague "process-group termination" language with an
+  exact `SysProcAttr{Setpgid: true}` mechanism (`linux`/`darwin`):
+  the child's negative PGID is signaled `SIGTERM` then `SIGKILL`
+  after a grace period, verified by tests that spawn a descendant
+  process and confirm both the descendant's termination and the
+  `tpatch` parent process's own survival (§6.4, AC-85).
+- Added `resource-id-collision` (exit 3): `add`/load-time recomputes
+  each `resources.json` entry's `resource_id` from its own fields —
+  identical canonical bytes at an existing ID is an idempotent no-op
+  (exit 0), different bytes at the same ID is refused, never
+  overwritten; a test-only stub hash function is the collision-
+  testing seam since a real `SHA-256` collision cannot be produced
+  for a test (§4, §13, AC-88).
+- Renamed `latest_batch_id` to `current_batch_id` and removed all
+  "newest"/"latest" chronology language: the field is solely
+  `current.json`'s own provenance fact (which batch the last
+  rewriting invocation staged), not a claim about recency across the
+  unordered batch set (§4, §7.3, §12.4).
+- Split the batch-publish idempotency check into three distinct
+  outcomes instead of a single byte-comparison: identical file-wire
+  bytes (unchanged, `AC-55`); **different** file-wire bytes whose
+  canonicalized semantic body (decoded, `batch_id`-stripped,
+  re-encoded) matches the freshly-staged candidate — **presentation
+  drift**, treated as idempotent, the immutable file is never
+  rewritten (`AC-56`); and genuinely different semantic bodies under
+  the same `batch_id` — a true `batch-id-collision` (`AC-57`). An
+  unparseable or internally-inconsistent on-disk batch file is a
+  separate `batch-file-corrupt` (`AC-58`), never routed through
+  either comparison (§7.3).
+- Replaced `golang.org/x/sys/unix.Statfs` with **stdlib-only**
+  `syscall.Statfs` (`AC-79`), corrected the exact Linux magic-number
+  allow/deny lists (added `overlayfs` `0x794C7630`; removed the
+  invalid rev-5 Linux-APFS entry, since no such constant exists) and
+  Darwin `Fstypename` allow/deny lists (added `tmpfs` to the allow
+  list; named `osxfuse`/`macfuse` to the deny list), with every
+  listed type exercised via table-driven Test Matrix supporting rows
+  under one `AC` (§7.2, AC-80).
+- Added **first-create sequencing**: the local-ignore/untracked gate
+  and filesystem preflight now run against the **nearest existing
+  ancestor** of a not-yet-created directory (never the not-yet-
+  created leaf itself), followed by `MkdirAll` and an explicit
+  `fsync` of every newly-created directory's parent before the
+  invocation proceeds — closing a durability gap rev-5 left open for
+  a slug's or tree's first-ever creation (§7.1, AC-81, AC-82).
+- Clarified the directory `combined_hash` tuple encoding
+  unambiguously: each of `path`/`mode`/`hash` (the **raw, unprefixed
+  64-lowercase-hex** digest, distinct from the wire-level
+  `"sha256:"`-prefixed `hash`/`raw_sha256` fields) is individually
+  `0x00`-terminated, and files' tuples concatenate directly with no
+  further separator — rev-5's "`\x00`-joined" phrasing left this
+  ambiguous. Added a worked, byte-identical (PRD/ADR) golden
+  directory vector (§5.1, §12.2, AC-89).
+- Added `dolt-argument-refused` as the exact named exit-2 reason
+  covering `..`, control/backslash bytes, and case-insensitive
+  `WORKING`/`STAGED`, consolidating what were previously several
+  inline mentions into one named, cross-referenced error class
+  (§6.2, §11).
+- Corrected two stale citations: `internal/workflow/session_ignore.go`'s
+  `EnsureLocalIgnoreContract` line range from `138-175` (which stopped
+  mid-function, before the `ignored` check itself) to the full
+  `138-194` function span (§0.1, C13); and the resource-ID/full-batch-ID
+  golden vectors in §13.3 (which still carried stale rev-3-era values)
+  to match §0.3's rev-6-recomputed values.
+- Rebuilt the acceptance-criteria set from 78 to **89** clauses (11
+  new, none removed, 3 rewritten in place) — see §14.1 for the exact
+  accounting.
 - Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
   attestation are updated to their final, post-edit values as the last
   step of this revision, per this fold's explicit tracking requirement
