@@ -2,225 +2,232 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Cluster H′ rev-0 is blocked by dual review. Rev-1 is dispatched to the same
-sequential implementer for six bounded correctness and test-strength fixes.
+Cluster H′ rev-1 is complete and pushed. All six adjudicated rev-0
+findings are closed; independent internal and external rev-1 reviews have
+not yet run.
 
 ## Active Task
 
 - **Task ID**: Cluster H′ rev-1
 - **Milestone**: v0.15.0 typed feature resources and capture adapters
 - **Description**: Implement the Accepted Cluster H PRD and ADR-033
-  end-to-end.
-- **Status**: In Progress
+  end-to-end, then close the rev-0 dual-review findings.
+- **Status**: Review
 - **Assigned**: 2026-08-11
 - **WAVE_BASE**: `46c984b`
-- **Dispatch commit**: `f277d51`
-- **Implementation commits**: `bff5ef5`, `c66845a`
-- **Commit range**: `46c984b..c66845a`
+- **Rev-0 dispatch commit**: `f277d51`
+- **Rev-1 dispatch commit**: `2261714`
+- **Implementation commits**: `bff5ef5`, `c66845a` (rev-0), `d82a367` (rev-1)
+- **Commit range**: `46c984b..<this handoff commit>`; rev-1 fold is
+  `2261714..d82a367`
 - **Target release**: v0.15.0 (untagged; tagging is a later wave)
 
 ## Session Summary
 
-A single sequential implementer built the Accepted contract end-to-end.
-No parallel implementers ran, every stage used explicit-path `git add`,
-and both commits carry the Rule 18 trailer.
+One sequential implementer built the Accepted contract (rev-0) and then
+folded the six adjudicated findings (rev-1). No parallel implementers
+ran, every stage used explicit-path `git add`, and every commit carries
+the Rule 18 trailer. Neither Accepted paper was modified.
 
-Two commits:
+## Finding Closures
 
-1. `bff5ef5` — production code. Store/wire domain, shared redaction
-   package, resource capture, lock/scratch/platform layer, Dolt
-   adapter, process finalizer, CLI surface and `record --resources`.
-2. `c66845a` — the 120-clause / 189-row acceptance contract, the
-   Windows-portability fix, the `exitCodeFor` extraction, and the docs
-   plus shipped-asset parity updates.
+**F1 — declaration privacy (HIGH).** `runResourceAdd` now calls
+`scanDeclarationForRedaction` (shared `internal/redact`) over the
+selector and every `--arg` value, for **every** kind, before the store
+is opened, before the add-time Dolt TOFU open/hash, and before any lock,
+scratch, manifest, pointer or batch write. A match refuses
+`redaction-refused` (exit 3) with nothing created. Args *keys* remain a
+closed design-owned vocabulary governed by the existing control-byte
+rules. Covered by `TestAddRefusesRedactedDeclarationsWithZeroMutation`
+(seven shapes across all kinds, each asserting zero artifacts),
+`TestAddScanRunsBeforeAnyOtherValidation` (ordering) and
+`TestAddAcceptsBenignDeclarations` (control).
 
-### Rev-0 dual-review adjudication
+**F2 — output bound and timer leak (HIGH/MEDIUM).**
+`ProcessRunner.claimRetention` is an atomic CAS claim, so combined
+retained stdout+stderr can never exceed cap+1 regardless of interleaving;
+reading continues past the cap so the child still exits, but excess bytes
+are discarded rather than appended. The invocation timer moved to
+`time.AfterFunc`, removing the receiver goroutine that blocked forever on
+a stopped timer, with a deterministic `OnTimerStopped` hook. Teardown
+stays deferred past the priority re-check, so trigger priority is
+unchanged. Covered by `TestRunawayChildIsBoundedToCapPlusOne` (real
+3.2 MiB-writing, SIGTERM-ignoring child under a 64 KiB cap),
+`TestClaimRetentionNeverOvershootsUnderConcurrency` (32 goroutines take
+exactly cap+1), `TestInvocationTimerIsDisarmedOnEverySuccessfulRun` and
+`TestInvocationTimerFiresWhenItShould` (control).
 
-Internal and external both returned **NEEDS REVISION**. Valid findings:
+**F3 — batch integrity (HIGH).** `LoadBatch` binds the strict
+fixed-wire shape (`DisallowUnknownFields`, exactly one JSON value plus
+EOF, no null `results`/`args`/`result`), the decoded `batch_id`, and the
+recomputed full content address against the requested filename ID.
+Tampering is `batch-file-corrupt`, never `tracked-batch-missing` or
+`batch-id-collision`. `compareSemanticBody` rejects trailing JSON after
+its first object while presentation drift on a single valid object stays
+idempotent. Covered by `TestLoadBatchRejectsTampering` (seven mutations,
+including a body tamper with `batch_id` kept consistent),
+`TestLoadBatchAbsentFileStaysTrackedBatchMissing`,
+`TestPublishRejectsTrailingJSONAfterAValidObject`,
+`TestPublishStillTreatsPresentationDriftAsIdempotent` and
+`TestLoadBatchStrictAcceptsAnAuthenticFile` (control).
 
-1. `add` writes selector/arg declarations without the §8.3 redaction scan.
-2. Output drains keep appending after the 5 MiB cap and can consume
-   unbounded memory.
-3. Successful process runs leak the stopped timer's receiver goroutine.
-4. Batch loads do not fully bind filename/field/content or reject trailing
-   JSON.
-5. Optional capabilities are stored raw, creating duplicate semantic IDs and
-   making the documented Dolt CLI form miss the golden ID.
-6. The AC/matrix ledger is name-based and several safety rows have only
-   nominal source/text coverage.
+**F4 — canonical capability (MEDIUM).** `validateDeclaration` returns a
+normalized effective capability used for the identity payload,
+`DeriveResourceID` and `Resource.Capability`. A Dolt declaration stores
+and hashes `diff-summary` with or without `--capability` (mismatch still
+exits 2); `git-metadata head` converges on one canonical identity (empty
+capability) for both spellings; other views keep their canonical view
+capability. Covered by `TestGoldenResourceIDsThroughTheRealAddCLI`
+(all four golden vectors driven through the real `add` CLI, plus
+convergence, idempotency, mismatch and non-inferable-view subtests).
 
-## Current State
+**F5 — ledger strength (MEDIUM).** `ac_coverage_test.go` is replaced by
+`ac_ledger_test.go`. References are exact `(package, test, optional
+literal subtest)` triples resolved with `go/ast` **in the declared
+package only** — the cross-package fallback and subtest dropping are
+gone. AC 1..120 and matrix 1..189 completeness is retained and is now
+described honestly as a ledger, not semantic proof. It caught one
+mis-attributed reference on first run
+(`TestCurrentPointerIsCommittedByRenameNotDirectWrite` tagged `store`
+but declared in `rescap`). Three mutation probes (wrong package, bad
+subtest, missing test) were each correctly rejected.
 
-The rev-0 surface is implemented but is not accepted until the six review
-findings above are closed. What landed:
+**F6 — mutation-resistant tests.** `Setpgid` is asserted on the real
+`exec.Cmd` the runner configured, not by grepping observer source; the
+pointer commit point is proven by publishing over a `0444` live
+`current.json`, which only temp+rename can do; the `os.SameFile`
+descriptor gate is driven by a controlled replacement seam with a
+no-swap control. New semantic coverage for rows 173, 174, 175, 176, 179,
+180, 183, 186 and 189 (see the ledger for the exact test per clause).
 
-- **Store/wire** (`internal/store/`): `resources.json` declaration
-  manifest with the closed kind set; exact `res_` canonicalization with
-  mutable `trust` excluded from identity; the corruption-vs-collision
-  split; an order-preserving canonical JSON value model so no tracked
-  wire depends on Go map iteration; immutable content-addressed batch
-  files keyed by the full SHA-256 of `CanonicalBatchJSON`; atomic
-  `current.json`; file-wire idempotency with the presentation-drift vs.
-  collision split; crash-safe temp+fsync+rename with unconditional
-  whole-chain retry-fsync.
-- **Privacy** (`internal/redact/`): the ten session matchers moved
-  verbatim (session behaviour unchanged — `session_redaction.go` now
-  delegates) plus the six closed resource classes. `Scan` takes bytes,
-  never a path.
-- **Capture** (`internal/rescap/`): ignored-file file/directory capture
-  with modes, counts, hashes and the exact NUL-terminated tuple rule;
-  the four allowlisted Git-metadata views; the five-step path gate with
-  `O_NOFOLLOW` plus `os.SameFile` descriptor identity; the two Git
-  gates with the colon-magic `./` rule; the two-target
-  `.tpatch/local/` contract; bounded cap-plus-one reads.
-- **Lock/platform**: per-slug persistent `flock` plus `statfs`
-  allow/deny under exactly `linux || darwin`, fail-closed stub
-  elsewhere; deterministic scratch lifecycle, 0700/0600 permissions,
-  both orphan sweeps.
-- **Dolt**: add-time descriptor-only TOFU, `trust-dolt` re-pin, the
-  exact SQL/argv, mandatory args/contract validation, resolved-executable
-  policy, `0600` → streamed hash/`Sync` → pin verify → `Fchmod 0500`
-  → pathname exec, minimal environment, no version probe.
-- **Process finalizer**: caller-owned `os.Pipe`s, `Setpgid`, the raw
-  build-tagged `waitid`/`WNOWAIT` observer, single cleanup owner,
-  deterministic trigger priority, late-`ECHILD` cutoff drain, 2s
-  grace/reap/drain bounds, exact error precedence, the `ECHILD`
-  no-signal finalizer, and the Start-failure carve-out.
-- **CLI**: all seven `feature resource` verbs plus `record --resources`,
-  with refusals surfaced through `ExitCodeError`.
+### Defect found while hardening
 
-### Accepted clarification honoured
-
-A post-reap observer `ECHILD` is treated as expected secondary
-completion: the classification is frozen at the cutoff drain, and the
-observer's later flag can never re-enter or alter an already-finalized
-entry.
+Writing the row-180 regression exposed a real rev-0 bug:
+`adapter-drain-timeout` was **unreachable**. `SetReadDeadline` always
+unblocks a blocked read, so rev-0's "did the join take too long?"
+detector could never observe an expiry. The drains now record deadline
+expiry themselves, and a genuine `setsid`-escaped writer holding the
+inherited pipe now produces the specified refusal, publishes nothing and
+releases the per-slug `flock`.
 
 ## Files Changed
 
-55 files, +11024 / -177 across `46c984b..c66845a`.
+Rev-1 fold `2261714..d82a367`: 12 files, +2462 / -417.
 
-New packages/files:
+- `internal/cli/feature_resource.go` — F1 scan, F4 normalization
+- `internal/cli/feature_resource_test.go` — F1/F4/F6 CLI tests
+- `internal/rescap/process.go` — F2 claim/timer, drain-expiry fix, hooks
+- `internal/rescap/pathgate.go` — replacement + noexec seams
+- `internal/rescap/dolt.go` — noexec preflight routed through the seam
+- `internal/rescap/hardening_test.go` — new (linux || darwin)
+- `internal/rescap/observer_darwin_test.go` — new (darwin)
+- `internal/rescap/ac_ledger_test.go` — new, replaces
+  `internal/rescap/ac_coverage_test.go` (deleted)
+- `internal/store/resource_publish.go` — F3 strict decode/bind
+- `internal/store/resources_test.go` — F3 tests
+- `CHANGELOG.md` — rev-1 fold section
 
-- `internal/redact/redact.go`, `redact_test.go`
-- `internal/store/canonjson.go`, `resources.go`, `resource_publish.go`,
-  `fsdurable.go`, `resources_test.go`
-- `internal/rescap/`: `refusal.go`, `lock_unix.go`,
-  `lock_unsupported.go`, `statfs_linux.go`, `statfs_darwin.go`,
-  `observer_unix.go`, `observer_unsupported.go`, `process.go`,
-  `gitgate.go`, `pathgate.go`, `pathopen_unix.go`,
-  `pathopen_windows.go`, `content.go`, `gitmeta.go`, `dolt.go`,
-  `scratch.go`, `engine.go`, `compare.go` + eight `_test.go` files
-- `internal/cli/feature_resource.go`, `record_resources.go`,
-  `feature_resource_test.go`
-
-Modified: `internal/cli/cobra.go` (noun wiring, `--resources`/`--json`
-flags, `exitCodeFor` extraction), `internal/cli/feature_deps.go`,
-`internal/cli/session_redaction.go` (delegation only),
-`internal/cli/cobra_test.go` (`runCmdExit`), `assets/assets_test.go`,
-all six shipped skill surfaces, `SPEC.md`, `CHANGELOG.md`, `CLAUDE.md`,
-`docs/feature-layout.md`, `docs/record.md`.
+Whole wave `46c984b..HEAD`: 57 files, +13276 / -190.
 
 ## Test Results
 
-At `c66845a`:
+At `d82a367`:
 
 - `gofmt -l .` — clean.
 - `go vet ./...` — clean.
 - `go build ./cmd/tpatch` — OK.
 - `go test -count=1 ./...` — PASS, all 14 packages.
-- `go test -race -count=1 ./internal/rescap/` — PASS (the finalizer is
-  the only concurrent surface).
-- Assets parity guard — PASS with seven new anchors and seven new
-  required commands.
-- New suite: 94 test functions, 388 top-level/subtest assertions
-  (262 in `rescap`/`store`/`redact`, 126 in the `cli` resource subset).
-- Cross-compile `go build ./...`: `linux/amd64`, `linux/arm64`,
-  `linux/386`, `linux/s390x`, `darwin/arm64`, `darwin/amd64`,
-  `windows/amd64`, `windows/arm64` — all OK. `go vet` OK on
-  linux/amd64, linux/arm64, darwin/arm64, darwin/amd64, windows/amd64.
-  Cross test-compile (`go test -c`) OK for linux/amd64, linux/arm64,
-  darwin/arm64, darwin/amd64.
-- No installed Dolt binary is used anywhere; the adapter suite drives a
-  controlled fixture through the `SetLookPathForTest` seam.
-- Side Research md5: `b385fe622db9926f48861105239f113e` (verified
-  byte-identical at close).
-
-### Coverage auditability
-
-`internal/rescap/ac_coverage_test.go` is the reviewer-facing artifact.
-It maps every `AC-1`..`AC-120` to the concrete test(s) that discharge it
-and to the ADR-033 matrix rows it covers, and three guards keep the map
-honest: all 120 clauses claimed with no gaps/extras, the union of
-claimed rows exactly `1..189` with no duplicates, and every claimed test
-name confirmed to exist as a real `func Test` declaration. Rev-0 review
-proved this is only a completeness ledger, not semantic coverage; rev-1 must
-make package/subtest references exact and add mutation-resistant assertions
-for the weak rows.
+- `go test -race -count=1` — PASS for `rescap`, `store`, `redact`, `cli`.
+- Assets parity guard — PASS.
+- Suite totals: 459 passing assertions in `rescap`/`store`/`redact`, plus
+  153 in the `cli` resource subset. Rev-1 adds 24 new test functions
+  (17 hardening, 3 Darwin-native, 4 ledger) plus 5 store and 4 CLI
+  additions.
+- Cross-compile `go build ./...`: `linux/{amd64,arm64,386,s390x}`,
+  `darwin/{arm64,amd64}`, `windows/{amd64,arm64}` — all OK.
+  `go vet` OK on linux/{amd64,arm64}, darwin/{arm64,amd64},
+  windows/{amd64,arm64}. Cross `go test -c` OK for linux/{amd64,arm64}
+  and darwin/{arm64,amd64}.
+- Native Darwin observer test empirically confirms the documented
+  `waitid` stopped-child quirk on this kernel.
+- No installed Dolt binary is used anywhere.
+- Accepted PRD/ADR: zero diff since `46c984b`. Guarded untracked WIP:
+  untouched.
+- Side Research md5: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Fold all six rev-0 findings and the targeted mutation-test notes.
-2. Re-run targeted, race, full-suite, cross-build and real CLI checks.
-3. Update this handoff to AWAITING REVIEW and push rev-1.
-4. Run independent internal and external rev-1 reviews.
-5. Tag `v0.15.0` only after the implementation wave is accepted.
+1. Run the independent internal rev-1 review.
+2. Run the independent external rev-1 review.
+3. Adjudicate, then run the Wave-Close Checklist.
+4. Tag `v0.15.0` only after the implementation wave is accepted.
 
 ## Blockers
 
-No external blocker. Rev-0 cannot be accepted until the adjudicated findings
-are closed. The Accepted papers remain unchanged.
+None.
 
 ## Residuals and Reviewer Focus
 
-Residuals are disclosed, not closed — each is explicitly accepted by
-the Accepted papers:
+Disclosed residuals (each explicitly accepted by the Accepted papers):
 
 1. Ancestor-directory TOCTOU between the component walk and the open is
-   not closable with the Go stdlib (no `openat2`); `O_NOFOLLOW` plus
-   `os.SameFile` close the final-component race only.
-2. `cmd.Dir` is pathname-bound, so a `db_path` swap that both occurs and
-   reverts inside the child's own execution window is undetectable. The
-   post-exit check is a hard refusal on *detection*, never prevention.
+   not closable with the Go stdlib (no `openat2`).
+2. `cmd.Dir` is pathname-bound, so a `db_path` swap that occurs and
+   reverts inside the child's own execution window is undetectable.
 3. `cmd.Start()` opens the private copy by pathname after the
-   descriptor-scoped `Fchmod`; the pin verifies the bytes **written**,
-   not the bytes the kernel ultimately executes.
+   descriptor-scoped `Fchmod`.
 4. A reap timeout can leave up to two background goroutines outstanding
-   and the leader unreaped; both report over capacity-one buffered
-   non-blocking channels so neither can block.
-5. The `ECHILD` finalizer makes no cleanup claim against the process
-   tree at all.
+   and the leader unreaped.
+5. The `ECHILD` finalizer makes no cleanup claim against the process tree.
 6. A directory capture is a sequential read, not an atomic snapshot.
+
+Rev-1-specific residuals:
+
+7. The ledger verifies that references *resolve*, not that a referenced
+   test semantically exercises its mechanism. That judgement remains a
+   reviewer responsibility by design; the ledger only makes it cheap.
+8. Table-driven subtest resolution accepts a `name`-keyed or positional
+   string literal inside the test's composite literals. This is
+   deterministic and breaks on a renamed case, but it is a superset of
+   the literal `t.Run("x")` form.
+9. Two tests build a helper binary with the local `go` toolchain
+   (`TestNativeCrossBuildContract`,
+   `TestEngineDrainTimeoutFromEscapedWriterPublishesNothing`) and skip
+   under `-short` or without a toolchain.
+10. `TestCurrentPointerIsCommittedByRenameNotDirectWrite` skips as root
+    or on a filesystem where an owner may write a `0444` file, since the
+    discriminator would not hold there.
 
 Reviewer focus, in priority order:
 
-1. The process finalizer state machine in `internal/rescap/process.go`
-   against §6.4 — especially the cutoff drain, the primary-error
-   selection walk, and the two finalizers' signal/Wait discipline.
-2. `resource_publish.go`'s idempotency branch against §7.3 step 3.
-3. The two-target local gate and its per-verb application.
-4. Whether `ac_coverage_test.go`'s clause-to-test claims are
-   substantively true, not merely structurally well-formed.
+1. `internal/rescap/process.go` — the retention claim, the drain-expiry
+   detection rewrite, and that the timer change did not weaken trigger
+   priority.
+2. `internal/store/resource_publish.go` — whether the strict binding
+   over-tightens any legitimate read, and that presentation drift is
+   still idempotent.
+3. `internal/cli/feature_resource.go` — that the scan genuinely precedes
+   every write and that capability normalization cannot mint two
+   identities for one semantic resource.
+4. Whether the new seams (`SetBeforeGatedOpenForTest`,
+   `SetScratchExecCheckForTest`, `OnTimerStopped`,
+   `BeforeDrainDeadline`, `lingeringWriter`) are genuinely inert in
+   production.
 
 ## Context for Next Agent
 
 - Accepted papers remain binding; neither was modified.
-- Implementation WAVE_BASE is `46c984b`; planning WAVE_BASE `f04dec7` is
-  historical only.
+- Implementation WAVE_BASE is `46c984b`.
 - Pre-existing untracked PRDs, whitepapers and case-study files were not
   touched, staged, or formatted.
-- `.impl-scratch/` is local scratch only and is not tracked; it can be
-  deleted at any time.
-- Two design choices worth knowing before reading the code:
-  (a) for `git-metadata`, the view is `--capability` except for `head`,
-  which is self-identifying via `--selector head` — this is what keeps
-  golden Vector 1's empty `capability` correct;
-  (b) `record --resources` wraps record's existing `RunE` rather than
-  editing it, so the Git-side path is provably byte-identical.
-- Resources are audit sidecars, never canonical patch or lifecycle
-  truth. Nothing in `apply`/`reconcile`/`land` reads them.
+- `git-metadata` capability contract: `head` is canonical with an
+  **empty** stored capability (both spellings converge); every other
+  view stores its view name. Dolt always stores `diff-summary`.
+- `record --resources` still wraps record's existing `RunE`, so the
+  Git-side path remains byte-identical.
+- Resources are audit sidecars, never canonical patch or lifecycle truth.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
