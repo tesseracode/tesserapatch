@@ -1535,7 +1535,7 @@ check-ignore -q --no-index -- 'docs/*.md'` fails identically, showing
 the fatal outcome does not depend on the argument looking like
 pathspec magic). Rev-3 removes it: `check-ignore` is invoked as `git
 check-ignore -q --no-index -- <pathname>`, matching the existing
-`internal/gitutil/ignore.go:59-79` `IsPathIgnored` implementation
+`internal/gitutil/ignore.go:59-78` `IsPathIgnored` implementation
 exactly. Because `--literal-pathspecs` cannot be used here, a selector
 whose first byte is a literal `:` (which `check-ignore` would
 otherwise parse as pathspec-magic, e.g. `:(glob)`/`:(literal)`/`:!`/`:^`

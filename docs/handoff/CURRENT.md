@@ -15,7 +15,7 @@ dispatched and no release tag was created.
   explicit non-Git/ignored resources and deterministic capture adapters.
 - **Status**: Complete
 - **Assigned**: 2026-08-10
-- **Accepted**: 2026-08-19
+- **Accepted**: 2026-08-11
 - **WAVE_BASE**: `f04dec7`
 - **Accepted writer tip**: `650b44f`
 
@@ -28,7 +28,8 @@ Accepted:
 
 The final contract contains 120 acceptance clauses and a 189-row ADR test
 matrix. Internal review returned APPROVED WITH NOTES and external review
-returned APPROVED.
+returned APPROVED. A post-close claim review returned APPROVED WITH NOTES;
+its audit-date and citation-anchor corrections are folded.
 
 ## Current State
 

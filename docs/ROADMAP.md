@@ -628,7 +628,7 @@ release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 
 **Registered**: 2026-08-10.
-**Accepted**: 2026-08-19.
+**Accepted**: 2026-08-11.
 **WAVE_BASE**: `f04dec7`.
 **Reviewed implementation contract**: `f04dec7..650b44f` (32 commits).
 **Deliverables**:
@@ -659,6 +659,9 @@ The internal note is an implementation clarification only: after the signal
 phase, `cmd.Wait()` may reap before the non-reaping observer reports, so a
 post-reap observer `ECHILD` is an expected secondary completion and must not
 alter the already-final classification.
+
+**Post-close claim review**: APPROVED WITH NOTES; tracking dates and one
+off-by-one citation anchor were corrected before Cluster H′ dispatch.
 
 **Next**: Cluster H′ implementation from these Accepted papers. Record a new
 `WAVE_BASE` from `origin/main` immediately before dispatch. No release tag was

@@ -1,4 +1,31 @@
-## Review — Cluster H rev-13 acceptance — 2026-08-19
+## Review — Cluster H post-close claim review — 2026-08-11
+
+**Reviewer**: user-external
+**Reviewed range**: `f04dec7..f329b7f`
+
+### Verdict: APPROVED WITH NOTES
+
+The reviewer independently reproduced all four resource-ID vectors, the
+directory combined hash, the full batch ID, all 120 acceptance clauses,
+all 189 matrix rows, six shared JSON blocks, Rule 18 trailers, Side Research
+md5, pushed state and the 8/8 wave-close result.
+
+### Findings
+
+1. **F1 — MEDIUM**: rev-9 through rev-13 adjudications and the terminal
+   acceptance were dated six to eight days after the corresponding
+   2026-08-11 commits.
+2. **F2 — LOW**: ADR-033 cited `internal/gitutil/ignore.go:59-79`; the
+   function ends at line 78.
+
+### Action Taken
+
+All five affected LOG headings and the CURRENT/HISTORY/ROADMAP acceptance
+dates were corrected to 2026-08-11. The ADR anchor was corrected to
+`internal/gitutil/ignore.go:59-78`. Cluster H′ remains unblocked after the
+amended planning close is pushed and re-gated.
+
+## Review — Cluster H rev-13 acceptance — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, final
 follow-up)
@@ -42,7 +69,7 @@ PRD/ADR statuses accepted, ROADMAP flipped, handoff archived, terminal
 CURRENT prepared, and planning wave-close dispatched with
 `WAVE_BASE=f04dec7`.
 
-## Review — Cluster H rev-12 adjudication — 2026-08-19
+## Review — Cluster H rev-12 adjudication — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, follow-up)
 **External reviewer**: claude-opus-5 (`cluster-h-r10-external`, follow-up)
@@ -93,7 +120,7 @@ CURRENT prepared, and planning wave-close dispatched with
 CURRENT.md transitioned to `REV-13 DISPATCHED` for this narrow drafting and
 state-machine proof fold.
 
-## Review — Cluster H rev-11 adjudication — 2026-08-19
+## Review — Cluster H rev-11 adjudication — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`, follow-up)
 **External reviewer**: claude-opus-5 (`cluster-h-r10-external`, follow-up)
@@ -149,7 +176,7 @@ state-machine proof fold.
 CURRENT.md transitioned to `REV-12 DISPATCHED`; no architecture surface
 outside the process finalizer is reopened.
 
-## Review — Cluster H rev-10 adjudication — 2026-08-18
+## Review — Cluster H rev-10 adjudication — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r10-internal`)
 **External reviewer**: claude-opus-5 (`cluster-h-r10-external`)
@@ -209,7 +236,7 @@ outside the process finalizer is reopened.
 CURRENT.md transitioned to `REV-11 DISPATCHED`. The cluster remains
 planning-only; D1/D2, wire schemas and golden hashes are unchanged.
 
-## Review — Cluster H rev-9 adjudication — 2026-08-17
+## Review — Cluster H rev-9 adjudication — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-r9-internal`)
 **External reviewer**: claude-opus-5 (`cluster-h-r9-external`)

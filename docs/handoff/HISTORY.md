@@ -1,4 +1,4 @@
-# 2026-08-19 — Cluster H planning — typed feature resources + capture adapters — ACCEPTED
+# 2026-08-11 — Cluster H planning — typed feature resources + capture adapters — ACCEPTED
 
 **WAVE_BASE**: `f04dec7`
 **Accepted writer tip**: `650b44f`
@@ -48,6 +48,12 @@ secondary completion and does not change the finalized classification.
 - Rule 18 trailer verified on all 32 pre-consolidation commits.
 - Guarded WIP and `.wave-close-allowlist` unchanged.
 - No tag: planning cluster only.
+
+**Post-close claim review**: APPROVED WITH NOTES. All recomputable contract
+claims and close invariants were independently confirmed. The review found
+future-dated tracking entries and one off-by-one source anchor; the dates were
+corrected to the real 2026-08-11 commit date and the ADR anchor was corrected
+from `internal/gitutil/ignore.go:59-79` to `:59-78`.
 
 **Pattern catch**: the long review arc converged because each revision closed
 a concrete implementation-contract failure class rather than relaxing it:
