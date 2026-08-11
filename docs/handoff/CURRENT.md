@@ -2,10 +2,24 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-7 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-6 adjudicated NEEDS REVISION → rev-7
+DISPATCHED.** Internal review found 3 HIGH + 3 MEDIUM; external found
+1 HIGH + 4 MEDIUM + 1 LOW. Golden resource/batch/directory IDs, four shared
+JSON blocks, 89 AC clauses/157 rows, filesystem constants and pinned-source
+claims verified clean. Remaining gaps: fresh-clone ignore gate is applied to
+the existing ancestor instead of the nonexistent ignored leaf; process-group
+escalation relies on direct-child Wait and can leave descendants/PGID reuse;
+binary pin hashes a pathname rather than executed bytes; load-time resource
+corruption is mislabeled collision; binary pin is identity-destroying with no
+re-pin path; Linux Statfs type width varies by architecture; a few historical
+count claims drift. Rev-7 binds execution to a private verified binary copy,
+separates mutable trust metadata from resource identity, and closes the final
+gating/process/count mechanics.
 
 **2026-08-12 Cluster H rev-6 WRITTEN — full fold of the rev-5 dual-review
 verdict (adjudication `b312e4a`) plus the supervisor's platform-check
@@ -654,7 +668,7 @@ only after implementation review and wave close.
 - **Description**: Fold the rev-5 dual-review verdict plus the
   supervisor's platform-check addendum into the feature-resource PRD
   and ADR-033 boundary.
-- **Status**: Review (rev-6 fold complete, awaiting dual review)
+- **Status**: In Progress (rev-7 fold) (rev-6 fold complete, awaiting dual review)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `f04dec7`
 
@@ -2272,16 +2286,16 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Fold rev-5 compatibility/trust/process/filesystem/idempotency findings.
+1. Fold rev-6 fresh-clone/process/trust/re-pin/type-width findings.
 2. Re-run source, golden-vector, JSON parity and AC/matrix audits.
-3. Run independent internal and external rev-6 reviews.
+3. Run independent internal and external rev-7 reviews.
 4. Continue the same writer context only for a truly residual micro-fold.
 5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-6 dispatched.
+**Status**: Cluster H planning active; rev-7 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record

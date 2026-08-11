@@ -1,3 +1,53 @@
+## Review — Cluster H rev-6 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r6-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r6-external`)
+**Writer commit**: `f195998`
+
+### Verdict: NEEDS REVISION → REV-7 DISPATCHED
+
+### Verified Clean
+
+- Four resource IDs, full batch ID and directory combined-hash vector.
+- Four shared JSON blocks.
+- 89 AC clauses across 157 contiguous rows.
+- Filesystem constants, Dolt/Git/ADR/CI citations and rev-6 core model.
+
+### Remaining Findings
+
+1. Fresh-clone ignore/untracked gate incorrectly targets the nearest existing
+   ancestor instead of the nonexistent `.tpatch/local/...` leaf.
+2. Timeout/cap escalation cancels on direct-child `Wait`, which does not prove
+   descendants exited and permits PGID reuse.
+3. Dolt pin hashes/re-hashes a pathname; execution is not bound to verified
+   bytes.
+4. Load-time recorded-ID mismatch is corruption, not resource-ID collision.
+5. `binary_sha256` participates in resource identity, but no re-pin operation
+   exists; upgrades orphan identity/history.
+6. Linux `Statfs_t.Type` width varies by architecture; constants need `uint32`
+   normalization.
+7. Retry directory fsync and a few historical/pass-count statements drift.
+
+### Rev-7 Direction
+
+- Run ignore/untracked checks on the intended nonexistent leaf; use nearest
+  existing ancestor only for statfs.
+- On timeout/cap, keep group leader unreaped through TERM grace + group KILL,
+  then Wait, preventing descendant survival and PGID reuse.
+- Copy the resolved Dolt executable from an opened descriptor into owner-only
+  ephemeral storage while hashing; execute that verified private copy.
+- Split `resources-file-corrupt` from genuine `resource-id-collision`.
+- Exclude mutable trust pin from resource identity and add an explicit
+  lock-serialized re-pin command preserving ID/history/current mapping.
+- Normalize Linux filesystem type via `uint32(buf.Type)` and sync complete
+  parent chains on first/retry publication.
+- Refresh final counts and pass terminology after all edits.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-7 DISPATCHED`; this remains a bounded
+compatibility/maintenance fold.
+
 ## Review — Cluster H rev-5 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r5-internal`)
