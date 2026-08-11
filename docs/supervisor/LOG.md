@@ -1,3 +1,44 @@
+## Release — Cluster H′ / v0.15.0 — 2026-08-11
+
+**WAVE_BASE**: `46c984b`
+**Accepted implementation tip**: `86f93b7`
+**Close-note commit**: `e0771bf`
+**Pre-consolidation range**: `46c984b..e0771bf`
+
+### Final Verdict: SHIPPED
+
+- Rev-2 internal: APPROVED WITH NOTES.
+- Rev-2 external: APPROVED.
+- Test-only close-note confirmation: internal APPROVED, external APPROVED.
+- All rev-0/rev-1 production findings closed.
+
+### Release Checklist
+
+- [x] Accepted PRD and ADR-033 unchanged
+- [x] 120 acceptance clauses / 189 matrix rows
+- [x] Full uncached suite, race, vet and build clean
+- [x] Eight cross-build targets and representative cross-vet/test-compiles
+- [x] Assets/SPEC/CHANGELOG parity
+- [x] Rule 18 on every pre-consolidation commit
+- [x] Side Research md5 and guarded WIP preserved
+- [x] Terminal CURRENT, ROADMAP and HISTORY prepared
+- [x] No production diff in the close-note fold
+
+### Non-Blocking Observations
+
+- Aggregated corrupt-batch text can repeat the reason token.
+- A non-`PublicationError` host read failure keeps exit 1 but uses the
+  coarse `tracked-batch-missing` label.
+
+Neither observation changes data integrity, privacy, exit-code severity or
+the Accepted taxonomy; both are backlog-quality cleanups.
+
+### Action Taken
+
+Cluster H′ marked SHIPPED, handoff archived, v0.15.0 changelog dated, release
+consolidation committed, annotated tag created and main/tag pushed before the
+final `make wave-close-check WAVE_BASE=46c984b`.
+
 ## Review — Cluster H′ rev-2 acceptance — 2026-08-11
 
 **Internal reviewer**: gpt-5.6-terra (`cluster-h-prime-r0-internal`,

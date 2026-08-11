@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: SHIPPED
 
-Cluster H′ rev-2 is accepted: internal APPROVED WITH NOTES, external
-APPROVED. Two test-ledger notes are being folded before release close.
+Cluster H′ is shipped as v0.15.0. Rev-2 and the test-only close-note fold
+received independent internal and external approval.
 
 ## Active Task
 
@@ -13,14 +13,14 @@ APPROVED. Two test-ledger notes are being folded before release close.
 - **Milestone**: v0.15.0 typed feature resources and capture adapters
 - **Description**: Implement the Accepted Cluster H PRD and ADR-033
   end-to-end, then close the rev-0 and rev-1 review findings.
-- **Status**: Approved — close-note fold
+- **Status**: Complete
 - **Assigned**: 2026-08-11
 - **WAVE_BASE**: `46c984b`
 - **Rev-2 dispatch commit**: `407d68b`
 - **Implementation commits**: `bff5ef5`, `c66845a` (rev-0), `d82a367`
   (rev-1), `86f93b7` (rev-2)
 - **Rev-2 fold range**: `407d68b..86f93b7`
-- **Target release**: v0.15.0 (untagged; tagging is a later wave)
+- **Release**: v0.15.0
 
 ## Session Summary
 
@@ -52,6 +52,9 @@ new native test file.
    `cmd.Wait()`, then calls `cmd.Wait()` exactly once and asserts the
    child's true exit code survives. Mapped to AC-106 / row 175
    alongside the existing cross-build and build-tag coverage.
+
+Both reviewers confirmed the close-note fold **APPROVED** with a mechanically
+empty production diff.
 
 No production file was modified, so no test hook was needed: the
 observer helper is package-level and directly callable from the
@@ -219,9 +222,9 @@ At the note-fold commit (test/ledger only; production tree unchanged):
 
 ## Next Steps
 
-1. Supervisor consolidation: flip the canonical `**Cluster state**`,
-   finalize LOG/ROADMAP/HISTORY.
-2. Tag and push `v0.15.0`.
+1. No successor wave is dispatched.
+2. Select the next post-v0.15.0 backlog item from ROADMAP/research inputs.
+3. Record a fresh `origin/main` WAVE_BASE before any new dispatch.
 
 ## Blockers
 

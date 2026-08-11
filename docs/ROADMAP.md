@@ -625,11 +625,13 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
-## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters 🚧 IN PROGRESS
+## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
 **WAVE_BASE**: `46c984b`.
-**Target**: v0.15.0.
+**Release**: v0.15.0.
+**Implementation range**: `46c984b..e0771bf` (12 pre-consolidation
+commits).
 **Authorities**:
 `PRD-feature-resource-claims-and-capture-adapters` +
 `ADR-033-resource-capture-boundary` (both Accepted).
@@ -663,6 +665,13 @@ coverage.
 All production findings closed. Pre-close fold adds Setpgid ledger
 attribution and a native double-`WNOWAIT` non-reaping test before v0.15.0
 consolidation.
+
+**Close-note confirmation** (`e0771bf`): internal APPROVED, external
+APPROVED; production diff empty. Full/race/cross validation clean, 120/120
+acceptance clauses and 189/189 matrix rows auditable. Tagged v0.15.0 at
+release consolidation.
+
+**Next**: no successor dispatched; choose from the post-v0.15.0 backlog.
 
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 

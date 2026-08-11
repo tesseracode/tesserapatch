@@ -1,3 +1,66 @@
+# 2026-08-11 — Cluster H′ — v0.15.0 typed feature resources + capture adapters — SHIPPED
+
+**WAVE_BASE**: `46c984b`
+**Dispatch**: `f277d51`
+**Accepted implementation tip**: `86f93b7`
+**Close-note commit**: `e0771bf`
+**Pre-consolidation range**: `46c984b..e0771bf` (12 commits)
+**Tag**: `v0.15.0` on the release consolidation commit
+
+**Scope shipped**:
+- Deterministic `resources.json` declarations with ignored-file,
+  logical-Git-metadata and Dolt adapter kinds.
+- Immutable full-SHA content-addressed batches and atomic `current.json`.
+- Shared redaction with no raw scanned resource persistence.
+- Symlink/descriptor/ignore/tracked gates, Linux/macOS flock/statfs policy.
+- Trusted private Dolt copy and bounded non-reaping process finalizer.
+- `feature resource add|list|remove|clear|trust-dolt|capture|diff`.
+- `record --resources` two-domain staging and publication.
+- Six shipped skill surfaces, SPEC, feature-layout and record docs.
+
+**Review arc**:
+
+| Revision | Internal | External | Outcome |
+|----------|----------|----------|---------|
+| rev-0 | NEEDS REVISION | NEEDS REVISION | six correctness/test findings |
+| rev-1 | NEEDS REVISION | APPROVED WITH NOTES | batch taxonomy + direct-test touch-up |
+| rev-2 | APPROVED WITH NOTES | **APPROVED** | accepted |
+| close notes | **APPROVED** | **APPROVED** | test-only, production diff empty |
+
+**High-value defect classes closed**:
+1. Declaration values persisted without the mandatory redaction precondition.
+2. Output cap rejected parsing but retained unbounded child output in memory.
+3. Successful invocations leaked a timer receiver goroutine.
+4. Batch filename/field/content authenticity and corruption taxonomy gaps.
+5. Optional capability spellings minted duplicate semantic resources.
+6. Nominal AC/matrix attribution that did not exercise load-bearing
+   mechanisms.
+7. Unreachable drain-timeout classification and vacuous lock/publication
+   assertions.
+
+**Verification**:
+- `AC-1` through `AC-120` and matrix rows 1 through 189.
+- Full uncached suite, race on concurrent/resource packages, vet and build.
+- Cross-build: linux/amd64, linux/arm64, linux/386, linux/s390x,
+  darwin/arm64, darwin/amd64, windows/amd64, windows/arm64.
+- All golden resource IDs, batch ID, directory combined hash and wire blocks.
+- Rule 18 on every wave commit.
+- Side Research md5 preserved:
+  `b385fe622db9926f48861105239f113e`.
+- Accepted papers, guarded WIP and `.wave-close-allowlist` unchanged.
+
+**Non-blocking follow-up observations**:
+- Aggregated corrupt-batch diagnostics can repeat the reason token.
+- Generic host read errors retain exit 1 but use a coarse missing-batch label.
+
+**Pattern catch**: name-based completeness ledgers are not semantic coverage.
+The successful countermeasure was reviewer-driven mutation testing plus real
+CLI/process fixtures tied to the load-bearing call sites.
+
+**Next**: no successor dispatched.
+
+---
+
 # 2026-08-11 — Cluster H planning — typed feature resources + capture adapters — ACCEPTED
 
 **WAVE_BASE**: `f04dec7`

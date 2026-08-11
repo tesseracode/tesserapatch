@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.15.0 — unreleased — typed feature resources and capture adapters
+## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 
 Feature release adding a typed, audited way to record non-Git state a
 feature depends on: a deliberately gitignored config template, an
