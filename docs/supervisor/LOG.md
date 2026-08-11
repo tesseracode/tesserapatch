@@ -1,3 +1,29 @@
+## Review dispatch — Cluster G' rev-2 — 2026-08-10
+
+**Fold commit**: `a2a11b2`
+**Adjudication baseline**: `46d4bdd`
+**Full implementation range**: `9e77617..a2a11b2`
+
+### Fold Delivered
+
+- Canonical-patch direct reapply, independent of recipe freshness.
+- Dependency/generation gates before materialized shortcut.
+- File↔directory transaction snapshot/restore.
+- Pre-mutation unapplied amend refusal.
+
+### Verification
+
+- [x] Rev-2 targeted tests pass
+- [x] gofmt clean
+- [x] go vet passes
+- [x] `go test -count=1 ./...` passes
+- [x] build passes
+
+### Action Taken
+
+Cluster state transitioned to `AWAITING REVIEW`. Dispatch internal rev-2
+confirmation and a fresh external full review. No release/tag action yet.
+
 ## Review — Cluster G' rev-1 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`gprime-r1-internal`)

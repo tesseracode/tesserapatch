@@ -2,10 +2,17 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-2 IMPLEMENTED — AWAITING DUAL REVIEW at
+`a2a11b2`.** Four rev-1 MEDIUM findings folded: canonical patch is now direct
+strict reapply authority independent of recipe drift; dependency/generation
+gates precede materialized shortcut; path snapshots restore both
+file↔directory transitions; amend refuses before request mutation. Targeted
+and full gates pass.
 
 **2026-08-10 Cluster G' rev-1 adjudicated NEEDS REVISION → rev-2
 DISPATCHED.** Internal confirmation verified both rev-0 findings closed, then
@@ -106,7 +113,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: In Progress (rev-2 fold)
+- **Status**: Review (rev-2)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -383,12 +390,9 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Reapply canonical patch directly and keep rollback/base invariants.
-2. Move dependency/generation gates before materialized-reapply shortcut.
-3. Support file↔directory touched-path snapshots/restores.
-4. Refuse unapplied amend before request mutation.
-5. Re-run internal confirmation plus fresh external full review.
-6. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Run internal rev-2 confirmation plus a fresh external full review.
+2. Adjudicate any residuals without reopening D1-D8.
+3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
@@ -468,6 +472,29 @@ None.
    `Co-authored-by` requirement remains and parses on every commit.
 
 **Verification**:
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- Side Research md5 — `b385fe622db9926f48861105239f113e`.
+
+## Ready for review — Cluster G' rev-2
+
+**Fold commit**: `a2a11b2` (adjudication baseline `46d4bdd`).
+**Full implementation**: `9e77617..a2a11b2`.
+
+**Rev-1 findings closed**:
+1. Reapply executes strict canonical `post-apply.patch`; stale/missing recipe
+   cannot block or redefine replay.
+2. Hard-dependency and parent-generation gates run before already-materialized
+   shortcut finalization.
+3. Snapshot/restore supports directory entries and both file↔directory
+   transitions in depth-safe remove/recreate phases.
+4. Non-dependency amend operations refuse while unapplied before request.md
+   writes; deps-only edits remain available.
+
+**Verification**:
+- Rev-2 targeted tests — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.
