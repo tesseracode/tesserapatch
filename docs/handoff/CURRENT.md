@@ -2,10 +2,58 @@
 
 ## Status
 
-**Cluster state**: REV-11 DISPATCHED
+**Cluster state**: REV-11 WRITTEN — AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-19 Cluster H rev-11 WRITTEN — bounded platform/state-machine
+fold, AWAITING REVIEW.** Same sequential writer continued from rev-10
+(`e926f80`). Seven directives (A-G) folded across both papers: (A)
+renamed the observer's successful return from "leader has exited" to
+an unqualified **leader event/cleanup trigger** — Darwin's
+`waitid(...WEXITED|WNOWAIT)` can fire for a merely-**stopped**, not
+exited, child even with only `WEXITED` requested (Go's own stdlib
+avoids `waitid` on Darwin for exactly this reason,
+`$(go env GOROOT)/src/os/wait_waitid.go`, `//go:build linux` only,
+issue #19314 — new `C42`); any successful Darwin return is treated as
+a fail-closed cleanup trigger, never a claim of proven exit; added an
+`EINTR`-retry loop around the raw syscall; split terminal observer
+errors into `ECHILD` (no `-pgid` signals, force-close owned pipe read
+ends, refuse `adapter-process-observer-failed` exit 1, no cleanup
+claim) vs. any other terminal errno (best-effort group signaling
+still runs, `cmd.Wait()` never called, same refusal); (B) `EPERM`
+added alongside `nil`/`ESRCH` as tolerated outcomes at both `-pgid`
+group-signal steps (Darwin can return `EPERM` against a sole unreaped
+zombie); any other errno is `adapter-group-signal-failed` (exit 1,
+first substantive error wins, cleanup continues regardless); (C) the
+previously-unbounded post-cleanup pipe-drain join is now **bounded**
+by an explicit read deadline — `adapter-drain-timeout` (exit 3,
+publishes nothing, releases the `flock`) on expiry, and
+`adapter-output-read-failed` (exit 1) for a non-`EOF` reader error
+(now a fourth cleanup-entry trigger) or a `SetReadDeadline` failure;
+(D) `AC-85`/`AC-96`/`AC-97` rewritten for the 4-branch design and
+matching Test Matrix rows rewritten in place, plus 5 new ACs
+(`AC-107`-`AC-111`) and 5 new Test Matrix rows (176-180) covering
+Darwin `SIGSTOP`, `EPERM` tolerance, `EINTR` retry/terminal observer
+errors, non-`EOF` reader error, and the bounded drain-timeout case;
+(E) removed a stale add-time-TOFU "stream-copy into an ephemeral
+private copy" mandate in PRD §3/`AC-20`/ADR D5, reconciled with the
+already-correct descriptor-hash-only design (`AC-102`); (F) replaced
+"provably the same bytes executed" overclaims (PRD §6.1/§9, ADR D5
+Negative-Consequences bullet) with the narrower, accurate guarantee —
+the pinned digest verifies bytes **written** to the private copy;
+execution is pathname-based after the descriptor-scoped `Fchmod`; (G)
+fixed the PRD's `--dry-run`/orphan-sweep self-contradiction and the
+stale "Ubuntu/macOS `amd64`" CI-architecture claim (`macos-latest` is
+`arm64`). AC count: **111** (net +5 from rev-10's 106, plus 4
+rewritten in place: `AC-20`/`85`/`96`/`97`). Test Matrix rows: **180**
+(net +5 from rev-10's 175). All four golden vectors and the six
+shared JSON blocks mechanically reconfirmed unaffected. PRD grew to
+**5812 lines** (was 5397), ADR to **2240 lines** (was 2032). Side
+Research md5 unchanged: `b385fe622db9926f48861105239f113e`. See
+"Files Changed — Cluster H rev-11", "Test Results — Cluster H
+rev-11", and "Ready for review — Cluster H rev-11" below.
 
 **2026-08-18 Cluster H rev-10 adjudicated NEEDS REVISION → rev-11
 DISPATCHED.** Both correctly scoped reviewers confirmed that keeping the
@@ -992,17 +1040,17 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-10 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-11 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-10
+- **Task ID**: Cluster H rev-11
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-9 adjudication's six consolidated
-  findings (`19e3024`) into the feature-resource PRD and ADR-033
-  boundary — a consolidated correction, centered on replacing the
-  early-`cmd.Wait()` process-group design with a non-reaping
-  `waitid`/`WNOWAIT` observer.
-- **Status**: Complete (rev-10 fold), AWAITING REVIEW
-- **Assigned**: 2026-08-14 (rev-10 fold: 2026-08-18)
+- **Description**: Fold the rev-10 adjudication's seven directives
+  (A-G, `bc313df`) into the feature-resource PRD and ADR-033
+  boundary — a bounded platform/state-machine fold hardening the
+  leader-event/cleanup-trigger observer, group-signal errno tolerance,
+  bounded pipe-drain, add-time TOFU, and executed-bytes honesty.
+- **Status**: Complete (rev-11 fold), AWAITING REVIEW
+- **Assigned**: 2026-08-14 (rev-11 fold: 2026-08-19)
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -1041,6 +1089,40 @@ only after implementation review and wave close.
 
 ## Session Summary
 
+- **Cluster H rev-11** — dispatched 2026-08-18 (adjudication
+  `bc313df`) from `WAVE_BASE=f04dec7`; written 2026-08-19. Same
+  sequential writer continued from rev-10 (`e926f80`). Bounded
+  platform/state-machine fold resolving seven directives (A-G) — see
+  the Status entry above for the complete itemized breakdown: (A)
+  leader-event/cleanup-trigger terminology, Darwin `SIGSTOP` fail-closed
+  handling (new `C42`), `EINTR` retry, `ECHILD`-vs-other terminal
+  observer error split (`adapter-process-observer-failed` exit 1); (B)
+  `EPERM` tolerated alongside `nil`/`ESRCH` at both group-signal steps,
+  `adapter-group-signal-failed` (exit 1) on any other errno, first
+  substantive error wins; (C) bounded post-cleanup pipe-drain deadline
+  replacing the unbounded join — `adapter-drain-timeout` (exit 3) on
+  expiry, `adapter-output-read-failed` (exit 1) for non-`EOF` reader
+  errors/`SetReadDeadline` failure; (D) `AC-85`/`96`/`97` rewritten for
+  the 4-branch design, matching Test Matrix rows 151/152/165/166
+  rewritten in place, 5 new ACs (`AC-107`-`111`) and 5 new rows
+  (176-180); (E) stale add-time-TOFU private-copy mandate removed from
+  PRD §3/`AC-20`/ADR D5, reconciled with `AC-102`'s already-correct
+  descriptor-hash-only design; (F) "provably the same bytes executed"
+  overclaims replaced with the narrower actual guarantee across PRD
+  §6.1/§9 and ADR D5/Negative-Consequences (4 locations total); (G)
+  PRD `--dry-run`/orphan-sweep contradiction and stale
+  "Ubuntu/macOS `amd64`" CI-architecture claim fixed. AC count: **111**
+  (net +5 from rev-10's 106). Test Matrix rows: **180** (net +5 from
+  rev-10's 175, mirroring the PRD's new ACs one-to-one). ADR
+  Implementation Notes item 11 and the Negative Consequences Summary's
+  process-group-termination and executed-binary-binding bullets
+  rewritten in place to remove stale rev-9/rev-10 process-machine
+  language. All four golden vectors and the six shared JSON blocks
+  mechanically reconfirmed unaffected. PRD grew to **5812 lines** (was
+  5397), ADR to **2240 lines** (was 2032). Side Research md5 unchanged:
+  `b385fe622db9926f48861105239f113e`. See "Files Changed — Cluster H
+  rev-11", "Test Results — Cluster H rev-11", and "Ready for review —
+  Cluster H rev-11" below.
 - **Cluster H rev-10** — dispatched 2026-08-17 (adjudication
   `19e3024`) from `WAVE_BASE=f04dec7`; written 2026-08-18. Same
   sequential writer continued from rev-9 (`0b15495`). Consolidated
@@ -1566,6 +1648,134 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-11
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  title/Status → rev-11, superseding writer commit `e926f80`,
+  adjudicated `bc313df`; §0 Rev-11 Fold Summary (replacing the rev-10
+  framing as the primary top-level narrative; the rev-10 fold-summary
+  body preserved as historical prose); §0.1 header now "(rev-4 + rev-5
+  + rev-6 + rev-7 + rev-8 + rev-9 + rev-10 + rev-11 additions)", new
+  `C42` grounding the Go stdlib Darwin `waitid`/`SIGSTOP` citation;
+  §0.4 new Rev-11 7-item requirement→section map; §3 add-time-TOFU
+  stale mandate fixed (descriptor-hash-only, matching `AC-102`),
+  `--dry-run`/orphan-sweep self-contradiction fixed, CI architecture
+  claim fixed (Ubuntu `amd64`/macOS `arm64`), 4 new exit-table entries
+  (`adapter-process-observer-failed`/`adapter-group-signal-failed`/
+  `adapter-output-read-failed` exit 1, `adapter-drain-timeout` exit 3);
+  §6.1 heading/step 8/"Residual, stated honestly" paragraph rewritten
+  for executed-bytes honesty; §6.4 Termination row fully rewritten —
+  leader-event/cleanup-trigger renaming, Darwin `SIGSTOP` fail-closed
+  handling, `EINTR` retry, `ECHILD`-vs-other terminal observer error
+  split, `EPERM` tolerance at group-signal steps, bounded post-cleanup
+  pipe-drain deadline replacing the unbounded join, narrowed premise
+  language; §9.2 duplicate executed-bytes residual paragraph fixed;
+  `AC-20` fixed to match `AC-102`; `AC-85`/`AC-96`/`AC-97` rewritten
+  for the 4-branch design; new `AC-107`-`AC-111` added — **111**
+  clauses total (net +5 from rev-10's 106); §14.1 exact-counts
+  paragraph gets a new "Rev-10's own count derivation" historical note;
+  new §25 Rev-11 Changelog vs rev-10.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — same 11 binding
+  decisions (D1–D11, numbering unchanged): title/Status header updated
+  to rev-11, citing writer commit `e926f80` and adjudication
+  `bc313df`; new "Rev-11 fold summary" section appended after "Rev-10
+  fold summary" (ADR's own established append-only pattern); D5's
+  heading appends "leader-event/cleanup-trigger observer" and the
+  rev-11 task citation; D5's add-time TOFU description fixed to
+  descriptor-hash-only (matching the PRD fix); D5's "Process-group
+  termination" paragraph fully rewritten mirroring PRD §6.4 (leader
+  event/cleanup-trigger terminology, Darwin `SIGSTOP` handling,
+  `EINTR` retry, `ECHILD`/terminal-error split, `EPERM` tolerance,
+  bounded pipe-drain deadline, narrowed premise, bounded lock-holding
+  residual); D5's executed-binary-binding "provably the same
+  descriptor's content" overclaim corrected to the narrower guarantee;
+  Implementation Notes item 11 rewritten (stale rev-9 process-machine
+  language replaced with the rev-11 4-branch design); Negative
+  Consequences Summary's process-group-termination bullet and
+  executed-binary-binding-residual bullet both rewritten in place; one
+  stray "rev-10" reference in D4's caller-owned-pipe paragraph fixed to
+  "rev-11"; Test Matrix rows 151/152 (`AC-85`), 165/166 (`AC-96`/
+  `AC-97`) rewritten in place, row 175 (`AC-106`) terminology fixed;
+  new rows 176-180 added for `AC-107`-`AC-111` — Test Matrix now **180
+  rows** (net +5 from rev-10's 175), all 111 PRD acceptance-criteria
+  clauses still covered (mechanically verified: rows 1–180 sequential,
+  no gaps; every `AC-1`–`AC-111` referenced by at least one row).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new
+  rev-11 entry prepended above the rev-10-adjudication entry), Active
+  Task block updated to rev-11, new Session Summary bullet, this Files
+  Changed section, Test Results, and the "Ready for review — Cluster H
+  rev-11" section below. Cluster state flipped to `REV-11 WRITTEN —
+  AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-11
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation
+performed instead:
+
+- **Go stdlib ground-truth verification of the C42 citation**: directly
+  read `$(go env GOROOT)/src/os/wait_waitid.go` (Go 1.26.5,
+  `darwin/arm64` toolchain; the file itself is `//go:build linux`
+  only) — its own top-of-file comment reads verbatim: "We used to use
+  this code for Darwin, but according to issue #19314 waitid returns
+  if the process is stopped, even when using WEXITED"; confirmed the
+  companion `$(go env GOROOT)/src/os/wait_unimp.go`
+  (`//go:build aix || darwin || (js && wasm) || openbsd || solaris ||
+  wasip1`) makes `blockUntilWaitable` a no-op for exactly this reason;
+  confirmed the Linux implementation wraps its `Waitid` call in an
+  `ignoringEINTR` helper, grounding the `EINTR`-retry-loop design
+  decision.
+- `git diff --check` on all three owned paths — clean (no whitespace
+  errors, no conflict markers).
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created under
+  `.git/scratch-rev11/`, run, deleted, never written under `/tmp`) —
+  confirmed **111** distinct, sequential `AC-1`..`AC-111` clauses, zero
+  gaps, zero duplicates (net +5 from rev-10's 106; `AC-107`-`AC-111`
+  new, four clauses — `AC-20`/`AC-85`/`AC-96`/`AC-97` — rewritten in
+  place).
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (111 distinct, sequential, no gaps) against every row of
+  the ADR's Test Matrix (180 sequential rows, 1..180, zero gaps,
+  verified separately from the unrelated 4-row golden-vector table in
+  D3) — confirmed all 111 clauses appear in at least one matrix row,
+  no clause missing, no extra/unexpected clause tag.
+- Golden-vector reconfirmation: `resource_id` Vector 1
+  (`res_acc91dc23a8b`), Vectors 2/3 (`res_4b62313b6cce`), Vector 4
+  (`res_79f5ac5dca13`), the worked batch example's `batch_id`
+  (`rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`),
+  and the directory golden vector's `combined_hash`
+  (`5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad`)
+  all mechanically re-grepped across all three documents and confirmed
+  identical occurrence counts/values — no wire-schema/identity change
+  this revision, only prose/behavior-contract clarifications.
+- Six shared JSON blocks re-grepped across the PRD/ADR and confirmed
+  unaffected/byte-identical (no wire-schema changes this revision).
+- Reason-taxonomy mechanical check: `adapter-process-observer-failed`,
+  `adapter-group-signal-failed`, `adapter-output-read-failed`, and
+  `adapter-drain-timeout` each grepped across both documents and
+  confirmed to appear consistently in the exit-code table and every
+  normative usage location, with no stray duplicate/contradictory name
+  for the same condition.
+- Stale-surface global search: confirmed no remaining normative "leader
+  has exited"/"leader-exit" claim for the observer's return outside of
+  historical (rev-9/rev-10 fold-summary) narrative context; confirmed
+  no remaining `StdoutPipe()`/`StderrPipe()` normative claim (one
+  stray "kept unchanged through rev-10" cross-reference fixed to
+  rev-11); confirmed no remaining "provably the same bytes/descriptor's
+  content" executed-bytes overclaim in either document.
+- `git status --short` confirmed only the three owned paths are
+  touched by this writer; all pre-existing untracked WIP remains
+  untouched and unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-10
 
@@ -3312,6 +3522,88 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-11
+
+**Scope**: docs-only planning cluster, rev-11 "bounded
+platform/state-machine fold". Same two deliverables as rev-1 through
+rev-10, both edited in relevant part (not wholesale-replaced this
+revision — the §6.4/D5 termination-row rewrite is the largest single
+edit), plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **5812 lines** (was 5397). See "Files Changed — Cluster H rev-11"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the adjudication's seven directives (A-G).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **2240 lines**
+   (was 2032). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D4/D5, Implementation
+   Notes item 11, two Negative Consequences bullets, and six Test
+   Matrix rows plus five new rows); see "Files Changed — Cluster H
+   rev-11" above.
+
+**Files changed (Cluster H rev-11)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — edited in place
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — edited in place
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D5 (ADR) ↔ §6.4 (PRD): identical leader-event/cleanup-trigger
+  observer design — build-tagged `linux`/`darwin` observer, retried on
+  `EINTR`, races its leader-event report against timeout/cap/
+  reader-error via `select`, whichever of the four fires first enters
+  one unified cleanup function (`SIGTERM(-pgid)`→grace→
+  `SIGKILL(-pgid)`, tolerating `nil`/`ESRCH`/`EPERM`→await the
+  leader-event observation if needed→bounded pipe-drain deadline→
+  single final `cmd.Wait()`); identical Darwin `SIGSTOP` fail-closed
+  handling and `ECHILD`-vs-other-terminal-error split in both
+  documents; no "Wait/observer proves group emptiness" claim in
+  either.
+- D5 (ADR) Implementation Notes item 11 / Negative Consequences
+  bullets ↔ §6.4 (PRD): the stale rev-9-attributed process-machine
+  language ("decoupled `cmd.Wait()`... three events") replaced in both
+  locations with the rev-11 4-branch, `EPERM`-tolerant, bounded-drain
+  design.
+- §6.1/§9 (PRD) ↔ D5/Negative-Consequences (ADR): identical
+  executed-bytes-honesty framing in all four locations — the pinned
+  digest verifies bytes **written** to the private copy; execution is
+  pathname-based via the private copy's own path after the
+  descriptor-scoped `Fchmod`; no "provably the same bytes/descriptor's
+  content executed" claim remains in either document.
+- §3 (PRD) add-time-TOFU fix ↔ D5 (ADR) add-time-TOFU fix: both now
+  describe hashing the opened descriptor directly with zero private
+  copies and zero process starts, matching `AC-20`/`AC-102`.
+- §3 exit-code table (PRD) new reason names
+  (`adapter-process-observer-failed`/`adapter-group-signal-failed`/
+  `adapter-output-read-failed`/`adapter-drain-timeout`) — the ADR has
+  no separate exit-code table of its own (the PRD's §3 table is the
+  single normative source), confirmed via full-file grep that no ADR
+  passage contradicts or duplicates these names.
+- Test Matrix (ADR) ↔ §14 Acceptance Criteria (PRD): all 111 AC
+  clauses (`AC-1`–`AC-111`) mechanically confirmed covered by at least
+  one of the 180 Test Matrix rows (rows 151, 152, 165, 166, 175
+  rewritten in place this revision, rows 176-180 newly added for
+  `AC-107`-`AC-111`); no orphaned clause, no orphaned row.
+- Wire Schema Appendix (ADR) ↔ §12/§13.3 (PRD): resource/batch/
+  directory golden vectors and the six shared JSON blocks mechanically
+  reconfirmed byte-identical and unaffected by this revision's edits —
+  every rev-11 change is a prose/behavior-contract clarification, none
+  touch hash-input/identity data.
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
+- One stray "kept unchanged through rev-10" cross-reference in ADR D4's
+  caller-owned-pipe paragraph corrected to "rev-11" in this same
+  update.
 
 ## Ready for review — Cluster H rev-10
 

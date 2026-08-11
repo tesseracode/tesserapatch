@@ -1,8 +1,8 @@
-# PRD — Feature Resource Claims & Capture Adapters (rev-10)
+# PRD — Feature Resource Claims & Capture Adapters (rev-11)
 
-**Status**: Draft — rev-10 (supersedes rev-9, writer commit `0b15495`,
-adjudicated NEEDS REVISION → REV-10 DISPATCHED at `19e3024`; see
-`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-9 adjudications)
+**Status**: Draft — rev-11 (supersedes rev-10, writer commit `e926f80`,
+adjudicated NEEDS REVISION → REV-11 DISPATCHED at `bc313df`; see
+`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-10 adjudications)
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes
@@ -18,7 +18,179 @@ directly extended), `ADR-030-multi-slug-reconcile-derivation-mode.md`
 
 ---
 
-## 0. Rev-10 Fold Summary (read this first)
+## 0. Rev-11 Fold Summary (read this first)
+
+Rev-10 (`e926f80`) replaced rev-9's early-`cmd.Wait()` design with a
+non-reaping `waitid`/`WNOWAIT` observer, unified the private-copy mode
+sequence, and fixed a Vector 3/CURRENT cross-reference bug — but the
+rev-10 adjudication (`bc313df`) found seven consolidated findings,
+framed as a bounded platform/state-machine fold that does **not**
+reopen §1's authority/scope decisions or §2's goals:
+
+1. **Darwin `waitid`/`SIGSTOP` honesty, `EINTR` retry, terminal
+   observer errors (directive A).** Rev-10's observer was described as
+   detecting "the leader has exited," reporting success only when the
+   raw `waitid(P_PID, leaderPID, &buf, WEXITED\|WNOWAIT)` call
+   returned. The rev-11 adjudication found this over-claims on Darwin:
+   the same call can return successfully for a child that has merely
+   been **stopped** (e.g. a `SIGSTOP`-family signal), even though only
+   `WEXITED` was requested — a documented quirk Go's own standard
+   library avoids entirely by never using `waitid` on Darwin
+   (`$(go env GOROOT)/src/os/wait_waitid.go`, `//go:build linux` only,
+   its own comment: "We used to use this code for Darwin, but
+   according to issue #19314 waitid returns if the process is
+   stopped, even when using WEXITED"; the companion `wait_unimp.go`
+   confirms Darwin's `blockUntilWaitable` is a no-op for exactly this
+   reason, C42). Because this project's stdlib-only rule forecloses
+   avoiding `waitid` on Darwin the way upstream Go does, rev-11
+   instead relabels the semantic claim: the observer's successful
+   return is renamed a **leader event/cleanup trigger**, never "the
+   leader has exited" or "proof of exit." Any successful Darwin
+   return — whether the true cause is exit or a stop — is treated
+   identically as a fail-closed signal to enter the unconditional
+   cleanup sequence; this remains safe and correct because `SIGKILL`
+   terminates a stopped process too and cannot be caught, blocked, or
+   ignored. The raw `waitid` call is also wrapped in an `EINTR`-retry
+   loop, mirroring Go's own linux-only `ignoringEINTR` helper (C42).
+   Terminal, non-`EINTR` observer errors are now split: `ECHILD`
+   specifically means the kernel no longer considers this PID a child
+   at all — process identity is no longer safely pinned, so **no**
+   `-pgid` signal is ever sent (it could hit an unrelated,
+   PID-recycled process group), the parent's owned pipe read ends are
+   force-closed instead, and the invocation refuses
+   `adapter-process-observer-failed` (exit 1) with **no cleanup
+   claim** at all; any **other** terminal errno still runs the
+   best-effort group-signal sequence (identity is presumed still
+   pinned), but never calls `cmd.Wait()` — the child remains
+   **unreaped**, a disclosed residual — before the same refusal name
+   (§6.4 fix, task A, new `C42`, `AC-85`/`AC-96`/`AC-97` rewritten, new
+   `AC-107`/`AC-109`).
+2. **Group-signal `EPERM` tolerance (directive B).** Through rev-10,
+   only `nil`/`syscall.ESRCH` were tolerated outcomes at the `-pgid`
+   `SIGTERM`/`SIGKILL` calls. Rev-11 adds `syscall.EPERM` to the
+   tolerated set: Darwin can return `EPERM` when the only remaining
+   member of a process group is an unreaped zombie (a documented BSD/
+   Darwin kernel quirk), and `EPERM` more generally can represent an
+   unsignalable descendant outside the same-UID trusted-adapter threat
+   model already accepted throughout this design. Any other errno is
+   newly named `adapter-group-signal-failed` (exit 1); cleanup
+   continues through the remaining grace/`SIGKILL`/observation/drain/
+   reap steps regardless of a signal-step failure, and the first
+   substantive error encountered across the whole sequence is the one
+   ultimately reported (§6.4 fix, task B, new `AC-108`).
+3. **Bounded pipe-drain deadline (directive C).** Rev-10 joined the
+   two pipe-draining goroutines unconditionally after the
+   group-signal-and-reap sequence, resting on an over-claimed premise
+   that "every process that could hold either pipe's write end open...
+   is confirmed dead" by `-pgid` signaling — but same-PGID descendants
+   are only ever **best-effort** signaled, and an escaped (`setsid()`)
+   or otherwise unsignalable descendant that keeps a write end open
+   could hang this join indefinitely, holding the per-slug `flock`
+   open the whole time. Rev-11 corrects the premise (only the leader
+   is ever proven reaped) and bounds the join: after the reap, a
+   short, explicit read deadline is set on both `os.Pipe` read ends;
+   if `SetReadDeadline` itself fails, both ends are closed immediately
+   and the invocation refuses `adapter-output-read-failed` (exit 1);
+   if either drain has not completed by the deadline, both ends are
+   force-closed, the goroutines are joined, and the invocation refuses
+   `adapter-drain-timeout` (exit 3), publishing nothing and releasing
+   the lock. A non-`EOF` reader error at any other point is itself a
+   **fourth** cleanup-entry trigger (alongside leader-event/timeout/
+   output-cap) and refuses `adapter-output-read-failed` (exit 1) once
+   cleanup completes. The bounded lock-holding consequence of the
+   drain-timeout case is disclosed as an accepted, now strictly
+   bounded trade-off, replacing an unbounded hang risk (§6.4 fix, task
+   C, new `AC-110`/`AC-111`).
+4. **Stale process-machine surfaces (directive D).** `AC-85`, `AC-96`,
+   and `AC-97` still described the three-branch, `ESRCH`-only-tolerant,
+   unbounded-join design; all three are rewritten to describe the
+   four-branch, `nil`/`ESRCH`/`EPERM`-tolerant, bounded-drain design
+   with the renamed leader-event/cleanup-trigger terminology. No claim
+   anywhere states or implies "`Wait()`/the observer proves the group
+   is empty," "the leader exited" (as opposed to a cleanup trigger
+   having fired), or that a signal-step return value gates any later
+   step.
+5. **Add-time TOFU stale-mandate sweep (directive E).** `AC-20` and
+   PRD §3's `add --trust-current-dolt` description still said "resolve/
+   open/stream-copy-while-hash into an ephemeral private copy, write
+   the digest, delete the copy" — a stale rev-8-vintage description
+   directly contradicting rev-10's own fix (`AC-102`) that add-time
+   TOFU opens the resolved binary and hashes the descriptor directly,
+   creating **zero** private copies and starting **zero** Dolt
+   processes. Both stale occurrences are rewritten to match `AC-102`'s
+   already-correct language (§3/`AC-20` fix, task E).
+6. **Executed-bytes honesty (directive F).** Multiple locations (§6.1
+   step 8, its "Residual, stated honestly" paragraph, a duplicate
+   residual paragraph in §9's Negative Consequences, and the exit-3
+   table's private-copy-mismatch row) claimed "the bytes hashed and
+   the bytes executed are provably the same file." This over-claims:
+   `cmd.Start()` opens the private copy **by pathname**, not via the
+   already-hash-verified descriptor, so no step proves the bytes the
+   kernel ultimately executes are byte-identical to the bytes just
+   hashed — only that no *second, independent* `PATH`-based resolution
+   of the *originally-resolved* binary is ever repeated. All four
+   locations are rewritten to state the actual, narrower guarantee:
+   the pinned digest verifies the bytes **written** to the owner-only
+   private copy; execution of that copy is pathname-based after the
+   descriptor-scoped `Fchmod` to `0500`; a same-UID local attacker able
+   to unlink-and-recreate the copy's exact path in that narrow window
+   remains outside this design's threat model, identical in kind to
+   the general local-concurrent-attacker residual already accepted
+   elsewhere (§6.1/§9.2 fix, task F).
+7. **Dry-run/orphan-sweep self-contradiction and stale CI architecture
+   claim (directive G).** §3's `--dry-run` description listed "orphan
+   sweep" as one of the pipeline steps `--dry-run` "runs for real,"
+   directly contradicting the same paragraph's own later sentence and
+   §7.1's correct text that `--dry-run` runs **neither** sweep; §3 is
+   corrected to be internally consistent with §7.1. Separately, §9.2
+   attributed the project's CI matrix to "Ubuntu/macOS `amd64`" —
+   `macos-latest` GitHub-hosted runners are Apple Silicon (`arm64`),
+   consistent with every other CI-architecture reference in this
+   PRD — corrected to "Ubuntu `amd64`/macOS `arm64`" (§3/§7.1/§9.2 fix,
+   task G).
+
+Rev-11 is a **bounded platform/state-machine fold** — of the seven
+findings, findings 1-3 are genuine mechanism hardenings closing real
+correctness gaps (Darwin `waitid` over-claim, missing `EPERM`
+tolerance, unbounded pipe-join hang risk); the remaining four are
+documentation/taxonomy/honesty corrections with no further behavioral
+change. It does not touch §1/§2's scope, §5.2/§5.3's closed resource
+kinds, or the separate-manifest/no-lifecycle-authority/Dolt-optional/
+Git-only-replay decisions every prior revision has preserved. §3,
+§6.1, §6.4, §9.2 are revised in place; the ADR's D4/D5/D10, Negative
+Consequences, Implementation Notes, and Test Matrix rows mirror these
+fixes, and five new rows are added for `AC-107`-`AC-111`. **Preserved**
+because every review across all twelve revisions has agreed it is
+sound:
+
+- Resources live in a **separate** manifest per feature — never
+  inside the canonical patch, never touching `apply-recipe.json` or
+  unapply/lifecycle state.
+- Dolt (or any external tool) is **never** an authority over tpatch's
+  own state and is **not** a build/runtime dependency of `tpatch`
+  itself — it is invoked, if present, strictly as an external,
+  read-only, externally-located tool.
+- Replay/backward-compatibility remains **Git-only** — a repository
+  with no resources declared is byte-identical in behavior to today's
+  `tpatch`.
+- No tracked artifact ever contains a raw file byte, raw adapter
+  stdout, or any content copied verbatim from a scanned source
+  (ADR-027 D3); scanning happens strictly in bounded in-process memory,
+  never pre-persisted to a scratch file (task 2).
+
+Everything below this point folds rev-11's corrections into the
+standalone design; §0.1 lists the new citation (`C42`) grounding the
+Darwin `waitid`/`SIGSTOP`/`EINTR` honesty correction (appended to the
+existing Claims Audit table).
+Rev-10's own `C1`–`C41` remain correct and are not repeated (see
+`docs/handoff/HISTORY.md`/git history for that table).
+
+**Historical context — rev-10's own fold summary** (superseded by the
+above as the *current* state, preserved verbatim below for
+continuity; its internal §0.1–§0.4 subsection numbers are the ones
+this document's cross-references still use, now carrying rev-11's
+additions appended to them):
+
 
 Rev-9 (`0b15495`) decoupled leader-exit detection from pipe drain and
 fixed the CURRENT/matrix cross-reference bugs the rev-8 adjudication
@@ -649,7 +821,7 @@ plus the supervisor-relayed `dolt_diff_summary` schema/read-only/
 literal-argv facts already folded in the accompanying supervisor
 message.
 
-### 0.1 Claims Audit (rev-4 + rev-5 + rev-6 + rev-7 + rev-8 + rev-9 + rev-10 additions)
+### 0.1 Claims Audit (rev-4 + rev-5 + rev-6 + rev-7 + rev-8 + rev-9 + rev-10 + rev-11 additions)
 
 Rev-1's `C1`–`C10`, rev-2's `C11`–`C16`, and rev-3's `C17`–`C24`
 (citation corrections for `featureCmd`, the lexical-only safety
@@ -716,6 +888,7 @@ Rev-9 adds:
 |---|-------|----------|-------------------------|
 | C40 | Assigning a caller-created `os.Pipe()` write end directly to `exec.Cmd.Stdout`/`Cmd.Stderr` (an `*os.File`, not `Cmd.StdoutPipe()`/`Cmd.StderrPipe()`) means Go's `os/exec` package neither owns nor auto-closes that file: `Cmd.Wait()` in this configuration blocks only on the underlying `wait4`/`waitid` reap of the **direct child's own PID** and returns as soon as that child exits, **independently of whether any other process (e.g. a descendant that inherited the same pipe write-end fd) still holds the pipe open** — this is a materially different, and here more useful, contract than `Cmd.StdoutPipe()`/`Cmd.StderrPipe()`'s documented "must fully drain before `Wait()`" coupling (C30), which applies only to those two specific accessor methods, not to a raw `*os.File` assigned directly | Empirically verified on this project's `darwin` development host (Go stdlib `os/exec`/`os` packages, no third-party dependency): a child process that itself backgrounds a grandchild sharing its stdout fd and then exits immediately causes `cmd.Wait()` to return in ~4ms, while a concurrent read of the pipe's read end only reaches `io.EOF` ~3s later, once the grandchild (still holding the write end) itself exits — proving `Wait()`'s completion is decoupled from pipe-EOF when the pipe is caller-owned rather than `Cmd`-owned. A second empirical check confirms `syscall.Kill(-pgid, sig)` (`pgid` = the already-`Wait()`-reaped leader's own former PID) still successfully reaches a surviving descendant sharing that PGID, consistent with C36's "group persists while any member exists" citation | Grounds §6.4/D5's retained caller-owned-pipe design (task 2, unchanged from rev-9): this claim establishes only that `cmd.Wait()`'s completion is decoupled from pipe drain, and remains true and useful for that narrower purpose in rev-10 — it is **not**, on its own, grounds for calling `cmd.Wait()` as soon as leader-exit is detected (that was rev-9's actual defect, corrected by C41/task 1); the decoupling is still valuable because it means the final `cmd.Wait()` call, whenever it is made, never itself blocks on a lingering descendant's pipe hold. |
 | C41 | POSIX `waitid()` accepts a `WNOWAIT` option flag that, combined with `WEXITED`, reports a terminated child's status **without** reaping it — the child remains in a waitable (zombie) state after the call returns, so its PID (and, for a process-group leader created via `Setpgid:true`, its PGID, which the kernel assigns equal to the leader's own PID) is not released for reuse; a subsequent `waitid()`/`wait()`/`waitpid()` call is required to actually reap it | POSIX.1-2017 `waitid()` specification ("If `WNOWAIT` is set... the state of the child shall not be affected" — the child remains available for a later wait call); Go's `syscall` package exposes `syscall.SYS_WAITID`, `syscall.WEXITED`, and `syscall.WNOWAIT` as per-`GOOS`-resolved constants on both `linux` and `darwin` (no `golang.org/x/sys` import required — this project's own stdlib-only rule, §7.2/C28), though no `syscall.Waitid()` Go-level wrapper function exists, requiring a raw `syscall.Syscall6(syscall.SYS_WAITID, uintptr(1 /* P_PID */), uintptr(pid), uintptr(unsafe.Pointer(&buf[0])), uintptr(syscall.WEXITED\|syscall.WNOWAIT), 0, 0)` call (`Syscall6`, not `RawSyscall6`, so the call properly yields the goroutine's OS thread to the Go scheduler while blocked). Empirically verified on this project's `darwin` development host: a raw `waitid(P_PID, childPID, ..., WEXITED\|WNOWAIT)` call blocks until the child exits, returns success, and a repeated call to the same syscall against the same (still-unreaped) PID also succeeds instantly — proving the first call did not consume/reap the child; a subsequent `cmd.Wait()` on the same child still correctly reaps it and reports its real exit code. A separate source-shape/cross-compile test (build-tagged `//go:build linux` and `//go:build darwin` constant files, plus a shared `//go:build linux \|\| darwin` invocation file) was built successfully for `darwin/arm64` (native), `linux/amd64` (cross), and `linux/arm64` (cross) with `go build`, confirming the numerically-different per-platform `WEXITED`/`WNOWAIT` constant values (`darwin`: `WEXITED=0x4`, `WNOWAIT=0x20`; `linux`: `WEXITED=0x4`, `WNOWAIT=0x1000000`) do not require any additional platform branching beyond the two constant files already planned | Grounds §6.4/D5's rev-10 termination-protocol redesign (task 1): the non-reaping `waitid`/`WNOWAIT` observer replaces rev-9's early `cmd.Wait()` as the leader-exit-detection mechanism, closing the PGID-reuse race described under C36 by ensuring the leader is never reaped until strictly after the unconditional `SIGTERM`→grace→`SIGKILL(-pgid)` sequence has fully run, in every trigger branch (`AC-85`/`AC-96`/`AC-97`/new `AC-106`). |
+| C42 | Go's own standard library deliberately does **not** use `waitid`/`WNOWAIT` on Darwin for `os.Process`'s own internal reap-detection, specifically because Darwin's `waitid` can return for a **stopped** (not just exited) child even when only `WEXITED` is requested; Go's linux-only `waitid` helper also wraps its syscall in an `EINTR`-retrying loop | Direct inspection of `$(go env GOROOT)/src/os/wait_waitid.go` (Go 1.26.5, `darwin/arm64` toolchain; the file itself is `//go:build linux` only) — its own top-of-file comment reads verbatim: "We used to use this code for Darwin, but according to issue #19314 waitid returns if the process is stopped, even when using WEXITED"; the companion `$(go env GOROOT)/src/os/wait_unimp.go` (`//go:build aix \|\| darwin \|\| (js && wasm) \|\| openbsd \|\| solaris \|\| wasip1`) confirms `blockUntilWaitable` is a no-op on Darwin for exactly this reason; `wait_waitid.go`'s Linux implementation wraps its `Waitid` call in an `ignoringEINTR` helper, confirming `EINTR` retry is the expected, correct pattern for this exact syscall | Grounds §6.4's rev-11 correction (directive A): this project's stdlib-only rule forecloses avoiding `waitid` on Darwin the way upstream Go does, so rev-11 instead relabels the observer's successful return as a "leader event/cleanup trigger" (never "leader has exited" or "proof of exit"), treats any successful Darwin return — including a merely-stopped child — as a fail-closed cleanup trigger, and adds an `EINTR`-retry loop around the raw syscall matching Go's own linux-only pattern (`AC-107`/matrix rows, §6.4). |
 
 ### 0.2 What rev-4 removes or changes
 
@@ -936,6 +1109,18 @@ or history at all.
 | 5 | Vector 3 declaration-order parity (PRD §0.3/§13.3, ADR D3); CURRENT's invented "Vector 5" corrected (there are only 4 vectors) | §0.3, §13.3, `docs/handoff/CURRENT.md` |
 | 6 | Stale-surface sweep: `AC-85`/`AC-96`/`AC-97` rewritten for the non-reaping observer; `C36`/`C40` re-grounded; stray `cmd.StdoutPipe()` reference in §5.1 corrected | §5.1, §14.1, §0.1 |
 
+**Rev-11 items** (7-item bounded platform/state-machine fold, `bc313df` dispatch):
+
+| Item | Requirement | Section(s) |
+|---|---|---|
+| A | Rename leader-event observer semantics (never "leader exited"/"proof of exit"); Darwin `waitid` may fire on `SIGSTOP`, treated as fail-closed trigger only; `EINTR` retry; terminal `ECHILD` (no signals, force-close reads, refuse, no cleanup claim) vs. other terminal errno (best-effort signal, no reap, refuse) | §6.4, §0.1 (C42) |
+| B | `EPERM` tolerated alongside `nil`/`ESRCH` at both group-signal steps; any other errno named `adapter-group-signal-failed` (exit 1), cleanup continues, first substantive error reported | §6.4 |
+| C | Bounded post-cleanup pipe-drain deadline replaces unbounded join; `adapter-drain-timeout` (exit 3) on expiry, `adapter-output-read-failed` (exit 1) for non-`EOF` reader errors/`SetReadDeadline` failure; narrowed premise (only leader proven reaped) | §6.4 |
+| D | Stale process-machine surfaces rewritten (`AC-85`/`AC-96`/`AC-97`); five new ACs (`AC-107`-`AC-111`) added for Darwin `SIGSTOP`/`EPERM`/`EINTR`/reader-error/drain-timeout | §6.4, §14 |
+| E | Add-time TOFU stale private-copy mandate removed from PRD §3 and `AC-20`, reconciled with `AC-102`'s already-correct descriptor-hash-only language | §3, §14 |
+| F | Executed-bytes honesty: "provably the same file" claims replaced with the narrower pinned-digest-verifies-bytes-written/pathname-based-execution guarantee, four locations | §6.1, §9.2 |
+| G | Dry-run/orphan-sweep self-contradiction fixed (§3 vs. §7.1); stale `macos-latest` CI architecture claim (`amd64`→`arm64`) corrected | §3, §7.1, §9.2 |
+
 ---
 
 ## 1. Problem Statement
@@ -1005,12 +1190,16 @@ exit 2, renamed rev-8, task 3/5 — previously shared the name
 `dolt-trust-required` with the unrelated capture-time exit-3 refusal
 below; every named refusal now appears in exactly one row/table
 context, task 5) — there is no default-trust fallback. **Rev-7 changes
-where the resulting pin is stored, rev-8 clarifies the sequence run**
-(task 3, task 4): when passed, `add` runs only the **add-time trust
-bootstrap (TOFU)** sub-sequence of §6.1 — `exec.LookPath`+
-`EvalSymlinks`+validate, open, stream-copy-while-hashing into an
-ephemeral private copy, write the digest, delete the copy — and
-**never** the capture-time steps that require an *existing* pin or
+where the resulting pin is stored, rev-8 clarifies the sequence run,
+rev-10 (task 4) removes the unnecessary private copy** (task 3, task
+4): when passed, `add` runs only the **add-time trust bootstrap
+(TOFU)** sub-sequence of §6.1 — `exec.LookPath`+`EvalSymlinks`+
+validate, open the resolved descriptor, hash it directly
+(`io.Copy(sha256Hasher, sourceFile)`, no private copy ever created),
+write the digest, close the descriptor — and starts **zero** Dolt
+processes and creates **zero** `es_<id>/` scratch directories or
+files. `add --trust-current-dolt` **never** runs the capture-time
+steps that require an *existing* pin or
 that execute anything (rev-8 corrects rev-7's ambiguous "executes the
 private-copy-verification sequence" phrasing, which read as if `add`
 also ran the unpinned-refusal check and the `cmd.Start()` execution
@@ -1061,7 +1250,7 @@ other case, including routine upgrades.
 - **`capture`** is the only verb that ever executes the Dolt adapter,
   reads ignored-file content, or reads Git metadata, and the only verb
   that ever writes tracked (§7.3) state. `--dry-run` (task 7) runs the
-  **entire** pipeline for real — lock acquisition, orphan sweep,
+  **entire** pipeline for real — lock acquisition,
   ignored-file/Git-metadata reads into bounded memory, the real Dolt
   invocation inside a real scratch `HOME` (§6.4), redaction scanning —
   and reports exactly what would be published, but guarantees **no
@@ -1071,8 +1260,15 @@ other case, including routine upgrades.
   Dolt `dolt-home/` and, when a Dolt capability is targeted, the
   private-copy scratch file, §6.1) is removed before it returns,
   exactly as a real capture's cleanup step does; `--dry-run` never
-  runs either startup orphan sweep against the **tracked** tree
-  (§7.1). This is a narrower, more honest claim than "zero local
+  runs **either** startup orphan sweep (rev-11 fixes a self-
+  contradiction: this paragraph previously listed "orphan sweep" as
+  one of the "entire pipeline for real" steps `--dry-run` runs, while
+  a later sentence in the same paragraph and §7.1 both correctly say
+  it runs neither sweep — `--dry-run` never reaches §7.3's publication
+  sequence where the tracked sweep is invoked, and removes only its
+  own `es_<id>/` directly rather than via the general local-sweep code
+  path, exactly as §7.1 states). This is a narrower, more honest claim
+  than "zero local
   writes survive past the invocation": the `.lock` file (§7.2) is a
   **persistent**, ignored/untracked control file that is never deleted
   after its first creation for a given slug — `--dry-run` acquires and
@@ -1549,9 +1745,11 @@ policy requires the opposite:
    does not permit; resolving *some* `dolt` binary to hash is a
    precondition of the flag succeeding at all).
 
-**Executed-binary binding: hash the exact bytes executed, not a
-separately-resolved pathname twice** (rev-7, task 3 — supersedes
-rev-6's "hash the resolved pathname before invocation, then re-hash
+**Executed-binary binding: hash the bytes written to the private copy,
+not a separately-resolved pathname twice** (rev-7, task 3, rev-11
+directive F corrects the heading/framing — see the residual below for
+the precise, narrower guarantee — supersedes rev-6's "hash the
+resolved pathname before invocation, then re-hash
 the same resolved pathname again after invocation" design, which the
 rev-6 adjudication found never actually bound the hash check to *the
 bytes the child process itself ended up executing*: two hashes of a
@@ -1678,14 +1876,21 @@ binary:
 8. **Execute the private copy's path**, never the originally
    `LookPath`/`EvalSymlinks`-resolved pathname — `cmd.Path` (and
    `argv[0]`) is set to the private copy's own path under `es_<id>/`.
-   This is what closes rev-6's residual: the exact bytes that were
-   hashed and verified (steps 4-5, optionally reconfirmed in step 7)
-   are the exact bytes `cmd.Start()` opens and executes, because they
-   are now the *only* copy of those bytes this invocation ever asks
-   the kernel to run — there is no second, independent path-resolution
-   step for the kernel to race against a swap of the *original*
-   `PATH`-resolved binary, since the original is never referenced
-   again after step 2's open.
+   This closes rev-6's residual only as far as the guarantee actually
+   extends (rev-11 honesty correction, directive F): the pinned digest
+   verifies the exact bytes **written** to the private copy (steps
+   4-5, optionally reconfirmed in step 7); `cmd.Start()` still opens
+   that copy by **pathname**, not by the already-verified descriptor
+   itself, so this step does not, and cannot, prove the bytes the
+   kernel ultimately executes are byte-identical to the bytes just
+   hashed — only that no *second, independent* `PATH`-based
+   resolution of the *originally-resolved* binary is ever repeated,
+   since the original is never referenced again after step 2's open.
+   A same-UID local attacker able to unlink-and-recreate the private
+   copy's exact path between step 7's close and `cmd.Start()`'s open
+   remains outside this design's threat model (see the residual
+   below), identical in kind to the general local-concurrent-attacker
+   residual already accepted elsewhere in this design.
 9. **Delete the private copy** (`os.Remove`, best-effort, like any
    other `es_<id>/` scratch content, §7.1) after the child process
    exits, on both the success and failure paths.
@@ -1703,14 +1908,24 @@ source descriptor, never re-resolved by pathname, step 2/4), hash-
 verified against the operator's own pin immediately before creation is
 finalized (step 5, optionally step 7), and owner-only (`0500`, no
 group/other bits, under a `0700` parent). Its location does not weaken
-these guarantees; what matters is that every byte executed traces back
-to one continuous, never-re-resolved, hash-checked chain, not that the
-path it temporarily occupies happens to sit under the repo.
+these guarantees; what matters is that every byte **written** to the
+copy traces back to one continuous, never-re-resolved, hash-checked
+chain, not that the path it temporarily occupies happens to sit under
+the repo, and not a claim that the bytes later opened by pathname at
+`cmd.Start()` are provably that same chain's output (see the residual
+below, directive F).
 
-**Residual, stated honestly** (task 3): this design closes the
-"resolve, hash, then separately re-resolve-and-execute a possibly-
-swapped pathname" TOCTOU rev-6 left open — the bytes hashed and the
-bytes executed are now provably the same file. It does **not** claim
+**Residual, stated honestly** (task 3, corrected rev-11 directive F):
+this design closes the "resolve, hash, then separately re-resolve-and-
+execute a possibly-swapped pathname" TOCTOU rev-6 left open — there is
+no second, independent `PATH`/`LookPath` resolution of the
+*originally-resolved* binary for a swap to race against. It does
+**not** claim, and previous revisions overstated, that "the bytes
+hashed and the bytes executed are now provably the same file": the
+actual guarantee is narrower — the pinned digest verifies the bytes
+**written** to the owner-only private copy, and execution of that
+copy is **pathname-based** (step 8), not descriptor-based, after the
+descriptor-scoped `Fchmod` in step 6. It does **not** claim
 to close every conceivable local race: a concurrent process running
 as the *same* OS user, with write access to the per-invocation
 `es_<id>/` scratch directory, could in principle still interfere with
@@ -2071,7 +2286,7 @@ silently normalized.
 | Invocation timeout | 30 seconds. On timeout: `SIGTERM` to the process group, then `SIGKILL` after 2 more seconds if still running. |
 | Captured output cap | 5 MiB combined stdout+stderr, enforced as a **refusal, never a truncation** (rev-5 correction — rev-4's "output beyond the cap is truncated" contradicted its own "zero pre-scan persistence"/fail-closed framing, since silently truncating and proceeding is itself a form of trusting unbounded input up to the point of truncation). The adapter uses caller-owned `os.Pipe()` pairs assigned directly to `cmd.Stdout`/`cmd.Stderr` (rev-10: **not** `cmd.StdoutPipe()`/`cmd.StderrPipe()`, and never `cmd.Stdout`/`cmd.Stderr` set to a `*bytes.Buffer`, which has no built-in bound — see the Termination row below for why the caller-owned pipe mechanism is retained) with two concurrent goroutines draining each pipe into a **shared** cap-plus-one budget (a single `int64` counter both readers atomically decrement, so stdout and stderr together, not each independently, are bounded by the 5 MiB total) — task 2's "zero pre-scan persistence," never written to a scratch file first, §7.1/§8. The **instant** the shared budget's `limit+1`th byte is actually read from either pipe, the adapter signals the output-cap-exceeded trigger into the unified termination sequence below (Termination row) — the same group-signal-then-single-`cmd.Wait()` sequence a timeout or a naturally-exiting leader triggers — refusing the whole invocation with `resource-limit-exceeded` (exit 3) once that sequence completes: no partial/truncated output is ever handed to the JSON parser (§6.3) or scanned for redaction (§8), and no tracked artifact reflects a truncated result. **stdout and stderr are captured and bounded identically, but are never merged for parsing purposes**: only the stdout buffer is ever handed to §6.3's JSON parser; the stderr buffer exists solely to be scanned for redaction (§8.3) and, on a non-zero exit or a `dolt-query-error`, to populate the local, ephemeral diagnostic (§7.5) — it is never itself parsed as JSON and never influences whether stdout parses successfully. |
 | Environment | **Not** inherited from the invoking process (task 2's "no inherited credentials"). A fresh, minimal environment is constructed: `HOME=<scratch-home>` and `DOLT_ROOT_PATH=<scratch-home>` pointing at a directory created fresh under this invocation's ephemeral scratch tree (§7.1, `0700`, created before the child process starts so Dolt may write its own ephemeral config/state there if it chooses to — this is not a network or version call, just process-local state under an isolated `HOME`); `PATH` is **not** set at all (the adapter is invoked by its already-resolved absolute path, §6.1, so `PATH` lookup is never needed mid-invocation). No other variable is passed through. |
-| Termination | **One unified process-group cleanup sequence for every invocation, success or kill-triggered alike, using a non-reaping `waitid`/`WNOWAIT` observer instead of an early `cmd.Wait()`** (rev-8 task 2 unified the two paths rev-7 left separate; rev-9 decoupled leader-exit detection from pipe drain via caller-owned `os.Pipe()`s but called `cmd.Wait()` as soon as that detection fired — the rev-9 adjudication found this reaps the leader, releasing its PID/PGID back to the kernel, **before** the group-signal sequence has necessarily run, reopening a PGID-reuse race; rev-10 fixes this while keeping the caller-owned pipes). Before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. **Pipe setup (kept from rev-9, task 2)**: instead of `cmd.StdoutPipe()`/`cmd.StderrPipe()`, the adapter creates two ordinary `os.Pipe()` pairs itself, assigns each write end directly to `cmd.Stdout`/`cmd.Stderr` (as `*os.File`, not via the `Cmd`-managed accessor methods) before `Start()`, and — immediately after `Start()` returns — closes its own reference to each write end (the child's dup'd fd keeps the pipe alive for as long as the child, or any descendant it forks that inherits the same fd, holds it open). This decoupling (C40) remains true and useful — `cmd.Wait()`, whenever it is eventually called, does not itself block on pipe drain — but rev-10 no longer treats "decoupled from pipes" as license to call `cmd.Wait()` the instant leader-exit is detected: doing so is exactly the PGID-reuse defect above, independent of pipes. **Non-reaping leader-exit observer (new, rev-10, task 1, C41)**: instead of running `cmd.Wait()` in a goroutine, the adapter runs a build-tagged (`//go:build linux \|\| darwin`) observer goroutine that calls a small stdlib-only helper wrapping the raw syscall `waitid(P_PID, leaderPID, &buf, WEXITED\|WNOWAIT)` — `syscall.Syscall6(syscall.SYS_WAITID, uintptr(1 /* P_PID */), uintptr(leaderPID), uintptr(unsafe.Pointer(&buf[0])), uintptr(syscall.WEXITED\|syscall.WNOWAIT), 0, 0)`, where `buf` is a discarded, unparsed `siginfo_t`-sized scratch buffer (only the syscall's own success/failure matters; the leader's actual exit status is still collected later, via the single `cmd.Wait()` below) — no `golang.org/x/sys` dependency, matching this project's stdlib-only rule (C41). This call **blocks until the leader exits but does not reap it**: `WNOWAIT` leaves the leader in a waitable (zombie) state, so its PID — and, since `Setpgid:true` makes the PGID equal the leader's PID, the process group's own numeric identity — is **not** released back to the kernel's PID-reuse pool merely because this observer has fired; a second, immediately-repeated call to the same observer would also succeed instantly, proving the leader was not consumed by the first call (verified empirically on this project's `darwin` development host, C41; Linux behavior is grounded in the identical, publicly documented `waitid(2)`/POSIX `WNOWAIT` contract — "leave the child in a waitable state" — via the same `syscall.WEXITED`/`syscall.WNOWAIT`/`syscall.SYS_WAITID` stdlib constants, not independently executed on a Linux host in this planning pass). The observer's goroutine reports "leader has exited (not yet reaped)" over a channel, and the adapter races that channel (via `select`) against the pre-existing 30-second invocation timer and the output-cap-exceeded signal from the two independent pipe-draining goroutines (§8.1) — **whichever of these three fires first** enters the **one** unified cleanup function below; there is no branch-specific cleanup logic. **Unified cleanup function** (rev-10, task 1): (1) `syscall.Kill(-pgid, syscall.SIGTERM)` — sent every time regardless of which of the three events triggered entry, tolerating `syscall.ESRCH` (the whole group has already exited on its own); (2) a fixed grace period (2 seconds, unchanged), during which the leader remains unreaped (no `cmd.Wait()` call has been made yet, by construction — the observer that fired does not reap, and no other reap has occurred); (3) `syscall.Kill(-pgid, syscall.SIGKILL)`, again tolerating `syscall.ESRCH`; (4) **await the non-reaping observation if it has not already fired** — if the timeout or output-cap trigger is what entered cleanup (the leader may still have been running at that instant), the same non-reaping `waitid`/`WNOWAIT` call (idempotent, per above) is awaited now, and is guaranteed to return promptly once the `SIGKILL` in step 3 takes effect, since `SIGKILL` cannot be caught, blocked, or ignored; if the leader-exit branch is what fired, this observation is already available and this step is a no-op; (5) join the two pipe-draining goroutines to their own real completion (now unblocked, since every process that could hold either pipe's write end open — the leader and any descendant sharing its PGID — is confirmed dead by step 4); (6) call `cmd.Wait()` **exactly once**, for the first time in the entire invocation, to finally reap the leader and collect its real exit status. Because no step before (6) ever reaps the leader, its PID (and PGID) remains reserved by the kernel for the leader throughout the entire `SIGTERM`→grace→`SIGKILL` window — **this is what closes the PGID-reuse race rev-9 reopened**: there is no interval in which the leader has been reaped (freeing its PID/PGID for kernel reuse) while a subsequent group-signal call targeting that same numeric PGID is still pending. **There is no "`Wait()`" — nor the non-reaping observer — "proves group emptiness" claim anywhere in this design**: neither is used to infer that the process group has no remaining members; the design's actual, defensible safety property is narrower and purely sequential — **the unconditional `SIGTERM`→grace→`SIGKILL`(-pgid) sequence always completes, targeting a PGID the kernel has not yet been able to recycle, before the leader is ever reaped** (C36) — not a claim that this sequence itself proves the group empty at any instant. Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group (e.g. a sub-process Dolt itself spawns) — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell. **Start failure**: if `cmd.Start()` itself returns an error, no leader process exists at all — no observer is launched, no signal is ever sent, and `cmd.Wait()` is never called for that invocation. **A disclosed trade-off, carried forward**: a fully successful invocation whose leader exits with no lingering descendants still incurs the (now-redundant, but harmless, since the group is already empty) `SIGTERM`/grace/`SIGKILL` calls before the single `cmd.Wait()` — accepted as the cost of one unified code path rather than a branch-specific fast path. **Residuals, stated honestly**: (a) a **new** process spawned by a group member *after* `SIGKILL` was delivered but *before* the kernel has fully torn down the group is a kernel-level race this design does not claim to close, bounded by the OS's own signal-delivery/process-teardown semantics, not by anything `tpatch` controls; (b) a descendant that has **escaped the process group** before cleanup runs — for example by calling its own `setsid()`, or by being re-parented into a different session/group — no longer shares the leader's PGID and is **not** reached by `-pgid` signaling at all; this design signals the group the leader was created into at `Setpgid:true` time, not every process transitively descended from it, and does not claim to reach a descendant that has deliberately detached itself from that group. **Verification**: this design's own tests cover all three trigger branches through the **same** unconditional cleanup function — (a) a successfully-exiting leader whose descendant ignores `SIGTERM`, closes its own pipes only once killed: assert the non-reaping observer's channel fires first, `cmd.Wait()` has **not** been called at that point, the unconditional cleanup sequence still runs and kills the descendant, and `cmd.Wait()` is called exactly once, strictly after that sequence completes; (b) the pre-existing timeout-triggered case, with the leader itself still running when the timer fires; and (c) the pre-existing output-cap-exceeded case; in all three, assert the `tpatch` test-runner process itself is never signaled or observably affected, that the group-signal sequence and its `-pgid` argument are byte-for-byte identical across all three branches, and that `cmd.Wait()` is observed exactly once per invocation, always as the last event in the sequence. A separate cross-compile/source-shape test (AC-106) confirms the build-tagged observer's source layout compiles for both `linux` (`amd64`/`arm64`) and `darwin` (`arm64`) with no external dependency. |
+| Termination | **One unified process-group cleanup sequence for every invocation, success or kill-triggered alike, using a leader event/cleanup-trigger observer instead of an early `cmd.Wait()`** (rev-8 task 2 unified the two paths rev-7 left separate; rev-9 decoupled leader-exit detection from pipe drain via caller-owned `os.Pipe()`s but called `cmd.Wait()` as soon as that detection fired, reopening a PGID-reuse race the rev-9 adjudication found; rev-10 introduced a non-reaping `waitid`/`WNOWAIT` observer that kept the leader unreaped through the full `SIGTERM`→grace→`SIGKILL` sequence, but rev-10 called this observation "leader has exited" — the rev-11 adjudication found this over-claims on Darwin, where `waitid(..., WEXITED|WNOWAIT)` can return for a **stopped** (not exited) child (Go's own stdlib deliberately avoids this call on Darwin for exactly this reason — `$(go env GOROOT)/src/os/wait_waitid.go`, `//go:build linux` only, its own comment: "We used to use this code for Darwin, but according to issue #19314 waitid returns if the process is stopped, even when using WEXITED", C42). Rev-11 renames the concept and hardens the edges (directives A/B/C) while keeping rev-10's core ordering: the leader is never reaped until after the group-signal sequence has run to completion. Before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. **Pipe setup (kept from rev-9/rev-10, task 2)**: instead of `cmd.StdoutPipe()`/`cmd.StderrPipe()`, the adapter creates two ordinary `os.Pipe()` pairs itself, assigns each write end directly to `cmd.Stdout`/`cmd.Stderr` (as `*os.File`, not via the `Cmd`-managed accessor methods) before `Start()`, and — immediately after `Start()` returns — closes its own reference to each write end (the child's dup'd fd keeps the pipe alive for as long as the child, or any descendant it forks that inherits the same fd, holds it open). Two drain goroutines read exclusively from the parent's own read ends; a single control cleanup function (below) is the only code that ever sets a deadline on, or closes, those read ends — the drain goroutines themselves never close anything (C40). **Leader event/cleanup-trigger observer (renamed, rev-11, task A, C41/C42)**: instead of running `cmd.Wait()` in a goroutine, the adapter runs a build-tagged (`//go:build linux \|\| darwin`) observer goroutine that calls a small stdlib-only helper wrapping the raw syscall `waitid(P_PID, leaderPID, &buf, WEXITED\|WNOWAIT)` in a loop that **retries on `EINTR`** (mirroring Go's own linux-only `os.Process.blockUntilWaitable`, which wraps its equivalent call in an `ignoringEINTR` helper, C42) — `syscall.Syscall6(syscall.SYS_WAITID, uintptr(1 /* P_PID */), uintptr(leaderPID), uintptr(unsafe.Pointer(&buf[0])), uintptr(syscall.WEXITED\|syscall.WNOWAIT), 0, 0)`, where `buf` is a discarded, unparsed `siginfo_t`-sized scratch buffer — no `golang.org/x/sys` dependency, matching this project's stdlib-only rule. This call, once it returns successfully (after any `EINTR` retries), **does not reap the leader**: `WNOWAIT` leaves the leader in a waitable (zombie) state, so its PID — and, since `Setpgid:true` makes the PGID equal the leader's PID, the process group's own numeric identity — is **not** released back to the kernel's PID-reuse pool merely because this observer has fired. **What a successful return means differs by platform, and rev-11 corrects rev-10's over-claim here**: on Linux, this project requests only `WEXITED` (not `WSTOPPED`), and Linux's documented `waitid(2)` contract only returns for the requested event classes, so a successful return is exit-only. On Darwin, the same call **may return for the child merely being stopped** (e.g. a `SIGSTOP`-family signal) **despite `WEXITED` being the only flag requested** — a documented Darwin quirk Go's own stdlib works around by not using `waitid` there at all (cited above, C42). Because this project's stdlib-only rule forecloses avoiding `waitid` on Darwin the way upstream Go does, this design instead **relabels the semantic claim**: the observer's successful return is termed a **leader event**, a **cleanup trigger**, never "the leader has exited" or "proof of exit." Any successful Darwin return — whether the true cause was exit or a stop — is treated identically as a fail-closed signal to enter cleanup; this is safe because the unconditional `SIGTERM`→grace→`SIGKILL` sequence below is correct and effective whether the leader has already exited or is merely stopped (`SIGKILL` terminates a stopped process too, and cannot be caught, blocked, or ignored). The observer's goroutine reports "leader event observed" over a channel, and the adapter races that channel (via `select`) against the pre-existing 30-second invocation timer, the output-cap-exceeded signal, and (rev-11, task C, new) a **non-EOF pipe-reader-error** signal from the two independent pipe-draining goroutines (§8.1) — **whichever of these four fires first** enters the **one** unified cleanup function below; there is no branch-specific cleanup logic, and no double entry is possible (a `sync.Once`-guarded owner ensures exactly one of the four triggers drives cleanup even if more than one fires close together). **Terminal observer errors (rev-11, task A, new)**: if the retried `waitid` call itself returns a **non-`EINTR`** error (rather than success), this is a terminal observer failure, handled in one of two ways depending on the errno: (a) **`ECHILD` specifically** means the kernel no longer considers this PID a child of this process at all — this is treated as **process identity no longer safely pinned** (the numeric PID/PGID could, in principle, already have been recycled by the kernel to an unrelated process), so this design does **not** send any `-pgid` signal in this case (doing so could hit an unrelated process group entirely), instead force-closes both of the parent's own owned pipe read ends (to unblock the two drain goroutines, which will then observe read errors and stop), refuses `adapter-process-observer-failed` (exit 1), and makes **no cleanup claim at all** — the leader remains unreaped and unsignaled, a disclosed residual distinct from, and narrower than, the general escaped-descendant residual below; (b) **any other terminal errno** (identity is presumed still safely pinned, since only `ECHILD` specifically indicates otherwise) still runs the **best-effort** group-signal sequence below (`SIGTERM`(-pgid)→grace→`SIGKILL`(-pgid), tolerating the same `nil`/`ESRCH`/`EPERM` set as the normal path), but — because there is no trustworthy leader-event/exit signal to gate on — this path never calls `cmd.Wait()`; the child remains **unreaped** as a disclosed residual, and the invocation refuses `adapter-process-observer-failed` (exit 1) once the best-effort signal sequence completes. **Unified cleanup function, normal path** (rev-10 task 1, rev-11 tasks A/B/C harden the edges): (1) `syscall.Kill(-pgid, syscall.SIGTERM)` — sent every time regardless of which of the four events triggered entry; at this and the next signal call, `nil`, `syscall.ESRCH` (no signalable process group — the whole group has already exited on its own, or, on platforms that report it this way, was never signalable), and `syscall.EPERM` (rev-11, task B, new — expected on Darwin when the group's sole remaining member is an unreaped zombie, a documented BSD/Darwin kernel quirk; `EPERM` can also, more generally, represent an unsignalable descendant, and this design's group-signal cleanup is best-effort outside the same-UID trusted-adapter threat model already accepted throughout this design) are all **tolerated** outcomes, never inferred as proof the group is empty or non-empty; any **other** errno is recorded as `adapter-group-signal-failed` (exit 1) — but cleanup **continues** through the later grace/`SIGKILL`/observation/drain/reap steps regardless (a signal-step failure never short-circuits cleanup), and **the first substantive error encountered across the whole signal sequence is the one ultimately reported** if refusal is needed (a later signal call's own distinct errno does not overwrite an earlier one already recorded); (2) a fixed grace period (2 seconds, unchanged), during which the leader remains unreaped; (3) `syscall.Kill(-pgid, syscall.SIGKILL)`, tolerating the same `nil`/`ESRCH`/`EPERM` set, recording `adapter-group-signal-failed` on any other errno per the same first-substantive-error rule; (4) **await the leader-event observation if it has not already fired** — if the timeout, output-cap, or reader-error trigger is what entered cleanup (the leader may still have been running at that instant), the same observer call (idempotent, retried on `EINTR`) is awaited now, and is guaranteed to return promptly once the `SIGKILL` in step 3 takes effect; if the leader-event branch is what fired, this step is a no-op; if this await itself now surfaces a terminal observer error, it is handled exactly as described above (`ECHILD` vs. other), superseding the remainder of this normal-path sequence; (5) call `cmd.Wait()` **exactly once**, for the first time in the entire invocation, to finally reap the leader and collect its real exit status. Because no step before (5) ever reaps the leader, its PID (and PGID) remains reserved by the kernel throughout the entire `SIGTERM`→grace→`SIGKILL` window — this is what closes the PGID-reuse race rev-9 reopened, and rev-11 makes no change to this core ordering. **Bounded pipe-drain deadline (rev-11, task C, new — replaces rev-10's unbounded join)**: after step (5)'s reap, the cleanup function sets a short, explicit read deadline (`SetReadDeadline`, a fixed bound distinct from, and much shorter than, the 30-second invocation timeout) on **both** `os.Pipe` read ends, then joins the two drain goroutines; if `SetReadDeadline` itself returns an error on either end, the cleanup function closes both read ends immediately and refuses `adapter-output-read-failed` (exit 1); otherwise, if both drains complete (reach `io.EOF`) before the deadline, this is the common case and processing continues normally with the captured output; if the deadline elapses while either drain has not yet completed — meaning some process still holds a write end open that this design's `-pgid` signaling did not reach (see the narrowed premise below) — the cleanup function force-closes both read ends (unblocking both drain goroutines via a read error rather than `EOF`), joins them, refuses `adapter-drain-timeout` (exit 3), publishes nothing, and releases the per-slug `flock`. A **non-`EOF`** read error surfacing from either drain goroutine at any other point (not the deadline-close case just described) is itself one of the four cleanup-entry triggers above and, once cleanup completes, refuses `adapter-output-read-failed` (exit 1). **Narrowed premise, stated honestly (rev-11)**: only the **leader** is ever proven reaped by this design (step 5's single `cmd.Wait()`); same-PGID descendants are reached only by **best-effort** `-pgid` signaling (tolerating `EPERM`/`ESRCH` as above), and a descendant that has escaped the process group (its own `setsid()`, re-parenting) or that is otherwise unsignalable is not proven terminated — this is exactly why the pipe-drain step above is now **bounded** rather than assumed-safe: rev-10's claim that "every process that could hold either pipe's write end open... is confirmed dead" by the signal sequence is corrected here as an over-claim; the bounded deadline converts an unbounded hang risk into a bounded, disclosed refusal instead. **There is no "`Wait()`" — nor the leader-event observer — "proves group emptiness" claim anywhere in this design**: the design's actual, defensible safety property remains narrow and purely sequential — **the unconditional `SIGTERM`→grace→`SIGKILL`(-pgid) sequence always completes, targeting a PGID the kernel has not yet been able to recycle, before the leader is ever reaped** (C36) — not a claim that this sequence itself proves the group empty at any instant, nor that the leader-event observer's firing proves the leader has exited (as opposed to, on Darwin, merely stopped). Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell. **Start failure**: if `cmd.Start()` itself returns an error, no leader process exists at all — no observer is launched, no signal is ever sent, and `cmd.Wait()` is never called for that invocation. **A disclosed trade-off, carried forward**: a fully successful invocation whose leader exits with no lingering descendants still incurs the (now-redundant, but harmless) `SIGTERM`/grace/`SIGKILL` calls before the reap and bounded drain — accepted as the cost of one unified code path rather than a branch-specific fast path. **Bounded lock-holding residual (rev-11, task C, new)**: the per-slug `flock` remains held for the duration of the bounded drain deadline in the `adapter-drain-timeout` case, slightly longer than the pre-rev-11 (unbounded-but-typically-fast) join — this is an accepted, now strictly **bounded** trade-off, replacing an unbounded hang that could have held the lock indefinitely. **Residuals, stated honestly**: (a) a **new** process spawned by a group member *after* `SIGKILL` was delivered but *before* the kernel has fully torn down the group is a kernel-level race this design does not claim to close; (b) a descendant that has **escaped the process group** (its own `setsid()`, re-parenting) no longer shares the leader's PGID and is **not** reached by `-pgid` signaling at all, and may itself be the process whose held pipe write end causes `adapter-drain-timeout`; (c) a descendant in an OS-level **kernel-uninterruptible** sleep (e.g. blocked in an uninterruptible syscall) cannot be terminated by `SIGKILL` until it returns from that syscall — this is an honest, disclosed OS-level limitation, not a gap this design claims to close, and is not conflated with the bounded, `tpatch`-controlled drain-deadline residual above. **Verification**: this design's own tests cover all four trigger branches (leader-event, timeout, output-cap, reader-error) through the **same** unconditional cleanup function, plus: a Darwin-only test double asserting a stopped-not-exited child is still treated as a fail-closed cleanup trigger (never claimed as exit proof); a test asserting `EPERM` from a group-signal call against a sole unreaped zombie is tolerated identically to `ESRCH`; a test asserting the raw `waitid` helper retries correctly on injected `EINTR` and that a genuinely terminal, non-`ECHILD` observer error still runs best-effort group signaling while leaving the child unreaped; a test asserting `ECHILD` specifically sends **no** signals, force-closes the owned read ends, and refuses without any cleanup claim; a test with a successfully-exiting leader whose descendant ignores `SIGTERM` and only closes its pipes once killed, asserting the leader-event fires first, `cmd.Wait()` has **not** been called at that point, the unconditional cleanup sequence still runs and kills the descendant, and `cmd.Wait()` is called exactly once, strictly after that sequence completes; and a test asserting an escaped-session descendant that keeps a pipe write end open past the bounded deadline causes `adapter-drain-timeout` while the `tpatch` test-runner process itself is never signaled or observably affected. A separate cross-compile/source-shape test (AC-106) confirms the build-tagged observer's source layout compiles for both `linux` (`amd64`/`arm64`) and `darwin` (`arm64`) with no external dependency. |
 
 A concrete, fully-specified argv/SQL example for Vector 2 (§0.3) —
 `contract=dolt-diff-summary-v1, db_path=data/dolt-db, table=users, from=main, to=HEAD` (trust pin `binary_sha256` lives in the separate `trust` field, §4/§6.1, and never appears in `args` or this argv):
@@ -2491,7 +2706,8 @@ dependency rule):
   the same allow/deny outcome regardless of the underlying field's
   native width/signedness — this design does not require actually
   cross-compiling and running on all four architectures in CI (§7.2's
-  existing CI matrix is Ubuntu/macOS `amd64`, unchanged), only that
+  existing CI matrix is Ubuntu `amd64`/macOS `arm64` — `macos-latest`
+  runners are Apple Silicon, not `amd64`, unchanged), only that
   the normalization logic itself is architecture-agnostic by
   construction and unit-tested against fixture values representative
   of each width/signedness class.
@@ -3090,7 +3306,7 @@ paths always use §9.1; the Dolt executable path always uses §6.1/§9.2.
 | Dolt executable resolves (possibly through symlinks) to a path outside the repo and `.git` | Accepted |
 | Dolt executable resolves to a path inside the repo working tree or under any `.git` directory | Refused: `adapter-executable-in-repo` |
 | Resource's `trust.binary_sha256` is `null`/absent at capture time | Refused: `dolt-trust-required` (exit 3, rev-7 task 5 — renamed distinct from the add-time `dolt-trust-flag-required` refusal, rev-8, task 3/5; this is a runtime/load-time gate on an already-declared resource, not a CLI-flag-validation gate) |
-| Streamed private-copy `SHA-256` (computed while copying the opened source descriptor's bytes) does not match the resource's pinned `trust.binary_sha256` | Refused: `adapter-binary-untrusted`, private copy deleted, no invocation attempted (rev-7, task 3/4 — supersedes rev-6's "hash the resolved pathname, then invoke" design; the digest compared is now provably the digest of the bytes actually executed, §6.1) |
+| Streamed private-copy `SHA-256` (computed while copying the opened source descriptor's bytes) does not match the resource's pinned `trust.binary_sha256` | Refused: `adapter-binary-untrusted`, private copy deleted, no invocation attempted (rev-7, task 3/4 — supersedes rev-6's "hash the resolved pathname, then invoke" design; the digest compared is provably the digest of the bytes **written** to the private copy that is subsequently executed by pathname, not a claim about the bytes the kernel later opens at that pathname, rev-11 directive F, §6.1) |
 | Optional pre-`cmd.Start()` re-verification of the private copy fails | Refused: `adapter-binary-untrusted`, private copy deleted, no invocation attempted (rev-7, task 3) |
 | Private-copy scratch directory's filesystem has an `ST_NOEXEC`/`MNT_NOEXEC` mount flag set (§6.1 step 3 of the capture-time sequence) | Refused: `adapter-copy-noexec` (exit 3, rev-8, task 6), before the private copy file is created |
 | Private-copy stream-copy/`fsync`/`Close` fails with `ENOSPC`/`EIO` | Refused: `adapter-copy-failed` (exit 1, rev-8, task 6 — a host/environment fault, not a trust/policy refusal), partial copy cleaned up best-effort |
@@ -3302,9 +3518,9 @@ one row/table context):
 | Code | `feature resource {add,list,remove,clear,capture,diff,trust-dolt}` | `record --resources` |
 |---|---|---|
 | `0` | Success (including `diff` reporting "no capture yet") | Success |
-| `1` | Internal error; `tracked-batch-missing` (§4.1); `adapter-copy-failed` (rev-8, task 6 — `ENOSPC`/`EIO` during the capture-time private-copy stream/`fsync`/`Close`, a host/environment fault rather than a trust or policy refusal) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
+| `1` | Internal error; `tracked-batch-missing` (§4.1); `adapter-copy-failed` (rev-8, task 6 — `ENOSPC`/`EIO` during the capture-time private-copy stream/`fsync`/`Close`, a host/environment fault rather than a trust or policy refusal); `adapter-process-observer-failed` (rev-11, task A, new — a terminal, non-`EINTR` error from the leader-event/cleanup-trigger observer's raw `waitid` call, covering both the `ECHILD`-specific no-signal/force-close-reads/no-cleanup-claim path and the best-effort-group-cleanup-then-refuse path for any other terminal errno, §6.4); `adapter-group-signal-failed` (rev-11, task B, new — a `-pgid` `SIGTERM`/`SIGKILL` call returns an errno other than the tolerated `nil`/`ESRCH`/`EPERM` set; cleanup still continues through the remaining steps, first substantive error reported, §6.4); `adapter-output-read-failed` (rev-11, task C, new — a non-`EOF` read error from either pipe-draining goroutine, or a failure of the bounded-deadline `SetReadDeadline` call itself, §6.4) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
 | `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate/missing `--arg` (including missing `db_path`/`table` — `binary_sha256` is **not** a declared `--arg`, rev-7: it lives in the separate `trust` field, set only via `--trust-current-dolt`/`trust-dolt`, §3/§6.1), `NUL`/control byte/backslash/`..` in a Dolt arg (named `dolt-argument-refused`, task 10 — covers `..`, control/backslash bytes, and case-insensitive `WORKING`/`STAGED`, all refused at the same argument-validation layer before Dolt is invoked), missing index entry at `add`, `table` mismatch between selector and declared field, `dolt-trust-flag-required` (`add --adapter dolt` without `--trust-current-dolt`, renamed rev-8, task 3/5 from the previously-overloaded `dolt-trust-required` name), `adapter-missing-at-add` (rev-10, task 3, renamed from rev-8's overloaded `adapter-missing` — `exec.LookPath` fails while computing the bootstrap pin at `add --trust-current-dolt`; distinct name from the same underlying failure's exit-3 meaning at `capture`, below), `dolt-contract-unsupported` (rev-7, task 5), `resource-not-dolt-adapter` (rev-7, task 4, `trust-dolt` on a non-Dolt resource) | n/a (unmodified) |
-| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`/`path-outside-repo` (rev-10, task 3 — the pre-existing lexical `EnsureSafeRepoPath`/`NormalizeClaimPath` containment check, §9.1, run as the first-pass filter before the ancestor-symlink walk; a `db_path` or `ignored-file` selector that lexically resolves outside the repository root, with no symlink involved at all, is refused this name rather than the symlink-specific one), any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing` (rev-10: capture-time-only now that the add-time meaning has its own name, `adapter-missing-at-add`, above)/`adapter-executable-in-repo`/`adapter-binary-untrusted` (rev-6, §6.1), `dolt-trust-required` (capture-time missing pin, renamed-distinct rev-8, task 3/5), `adapter-copy-noexec` (rev-8, task 6 — scratch filesystem `ST_NOEXEC`/`MNT_NOEXEC`), `db-path-identity-changed` (rev-6, §9.1 — upgraded from a diagnostic-only detection), `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `batch-file-corrupt` (rev-6, §7.3), `resources-file-corrupt` (rev-7, task 6), `resource-id-collision` (rev-6, §4/§13), `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
+| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`/`path-outside-repo` (rev-10, task 3 — the pre-existing lexical `EnsureSafeRepoPath`/`NormalizeClaimPath` containment check, §9.1, run as the first-pass filter before the ancestor-symlink walk; a `db_path` or `ignored-file` selector that lexically resolves outside the repository root, with no symlink involved at all, is refused this name rather than the symlink-specific one), any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing` (rev-10: capture-time-only now that the add-time meaning has its own name, `adapter-missing-at-add`, above)/`adapter-executable-in-repo`/`adapter-binary-untrusted` (rev-6, §6.1), `dolt-trust-required` (capture-time missing pin, renamed-distinct rev-8, task 3/5), `adapter-copy-noexec` (rev-8, task 6 — scratch filesystem `ST_NOEXEC`/`MNT_NOEXEC`), `db-path-identity-changed` (rev-6, §9.1 — upgraded from a diagnostic-only detection), `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `batch-file-corrupt` (rev-6, §7.3), `resources-file-corrupt` (rev-7, task 6), `resource-id-collision` (rev-6, §4/§13), `index-entry-missing`, `adapter-drain-timeout` (rev-11, task C, new — the bounded post-cleanup pipe-drain deadline elapses while a lingering process still holds a pipe write end open; publishes nothing, releases the per-slug `flock`, §6.4) | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
 
 Named `dolt-argument-refused` cases, exhaustively (task 10): a `from`/
 `to`/`table` value containing a `NUL`/C0 control byte, a literal
@@ -3870,8 +4086,10 @@ it did in rev-3.
   2, renamed rev-8 task 3/5 from `dolt-trust-required`, which now
   names only the distinct capture-time exit-3 refusal above); with it,
   `add` runs **only** the add-time trust bootstrap (TOFU, §6.1, rev-8
-  task 3) — resolve/open/stream-copy-while-hash, no existing-pin
-  check, no execution — and the resource's separate `trust` field
+  task 3, rev-10 task 4) — resolve, open the descriptor, hash it
+  directly with no private copy ever created and no existing-pin
+  check, starting zero Dolt processes — and the resource's separate
+  `trust` field
   (§4/§12.1) — **not** its `args` — gains a `binary_sha256` entry
   equal to the `SHA-256` of the binary `add` itself resolved at that
   moment (rev-7, task 4 — supersedes rev-6's "`binary_sha256` is a
@@ -4246,25 +4464,32 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   stdout+stderr combined exceeds it, and the invocation still refuses.
 - `AC-85`: `cmd.SysProcAttr{Setpgid: true}` is set before
   `cmd.Start()` on `linux`/`darwin`, and — regardless of which of the
-  three trigger branches fires (leader-exit observed, timeout, or
-  output cap) — the leader is never reaped (no `cmd.Wait()` call)
-  until **after** the unconditional `SIGTERM`(-pgid)→grace→`SIGKILL`
-  (-pgid) sequence has fully run: `cmd.Wait()` is called **exactly
-  once**, strictly after that sequence completes, never before it
-  (rev-10, task 1 — rewritten to describe the single non-reaping
-  `waitid`/`WNOWAIT`-observer-based sequence applied identically to
-  all three branches, replacing rev-7's "timeout/cap-triggered kill"-
-  only framing and rev-9's now-superseded early-`cmd.Wait()` design) —
-  verified with a test Dolt-adapter stub that spawns its own
-  descendant child process configured to ignore `SIGTERM` and close
-  its pipes without exiting, confirming (a) the leader is not reaped
-  until after the `SIGKILL` call regardless of trigger, (b) the
-  descendant is also terminated (not orphaned) by the time the full
-  sequence completes, and (c) the parent `tpatch` process itself is
-  provably unaffected (rev-7, task 2, rev-10 task 1 — supersedes
-  rev-6's "escalation cancelled the moment `cmd.Wait()` observes the
-  group has exited" AC, which only proved the direct child's exit, not
-  the whole group's).
+  **four** trigger branches fires (leader event observed, timeout,
+  output cap, or a non-`EOF` pipe-reader error) — the leader is never
+  reaped (no `cmd.Wait()` call) until **after** the unconditional
+  `SIGTERM`(-pgid)→grace→`SIGKILL`(-pgid) sequence has fully run:
+  `cmd.Wait()` is called **exactly once**, strictly after that
+  sequence completes, never before it (rev-10 task 1 introduced the
+  single non-reaping-observer sequence applied identically across
+  branches; rev-11 directive A renames the observer's successful
+  return from "leader has exited" to a **leader event/cleanup
+  trigger**, since Darwin's `waitid`/`WNOWAIT` can fire for a merely-
+  stopped, not exited, child (C42) — any successful Darwin return is
+  still a valid, fail-closed entry into the same unconditional
+  cleanup sequence, never a claim of proven exit; rev-11 also adds a
+  fourth, reader-error trigger source, §6.4) — verified with a test
+  Dolt-adapter stub that spawns its own descendant child process
+  configured to ignore `SIGTERM` and close its pipes without exiting,
+  confirming (a) the leader is not reaped until after the `SIGKILL`
+  call regardless of trigger, (b) the descendant is also terminated
+  (not orphaned) by the time the full sequence completes, and (c) the
+  parent `tpatch` process itself is never signaled or observably
+  affected (rev-7, task 2, rev-10 task 1, rev-11 directive D — the
+  claim is scoped to "this design never signals a PGID the kernel
+  could have already recycled," not to any stronger, unprovable
+  "group is empty" claim; supersedes rev-6's "escalation cancelled the
+  moment `cmd.Wait()` observes the group has exited" AC, which only
+  proved the direct child's exit, not the whole group's).
 - `AC-86`: A directory `ignored-file` capture followed by a
   chmod-only change (identical file set and byte content, changed
   permission bits on one file) produces a different `combined_hash`
@@ -4348,36 +4573,39 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   leader's exit is detected" design, which reaped the leader, and
   thereby released its PID/PGID back to the kernel, **before** the
   `SIGTERM`/`SIGKILL` group signals had necessarily been sent): the
-  build-tagged, non-reaping `waitid(P_PID, leaderPID, ...,
-  WEXITED|WNOWAIT)` observer (§6.4) reports the leader's exit without
-  reaping it, so the leader stays waitable (its PID/PGID is not yet
-  released) through the unconditional `SIGTERM`→grace→`SIGKILL`
-  sequence that follows — verified by instrumenting the test double
-  so the non-reaping observer's channel (racing, via `select`,
-  against the timeout timer and the cap-exceeded signal) is observed
-  to fire first, `cmd.Wait()` is asserted **not yet called** at that
-  point, the unconditional `SIGTERM`→grace→`SIGKILL` sequence against
-  the negative PGID runs regardless, the descendant no longer exists
-  after the sequence completes, `cmd.Wait()` is called for the first
-  and only time strictly after the sequence completes, and the
-  pipe-draining goroutines are only joined (and reach `EOF`) *after*
-  the descendant has been killed.
-- `AC-97`: Across all three trigger branches — the non-reaping
-  observer reports the leader's exit, the 30-second timeout elapses,
-  or the output cap is exceeded — the identical unconditional
-  `SIGTERM`→grace→`SIGKILL`(-pgid) sequence runs, tolerating `ESRCH`
-  at both signal steps, the leader is confirmed exited (via the
-  observer, awaited if not already fired) before `cmd.Wait()` is ever
-  called, and `cmd.Wait()` is observed exactly once per invocation,
-  strictly after the group-signal sequence completes in every branch,
-  never before it (rev-10, task 1 rewrite — removes rev-9's
-  branch-dependent "already-available channel value vs. a `cmd.Wait()`
-  that completes moments after `SIGKILL`" framing, since no branch now
-  calls `cmd.Wait()` before signaling) — verified by instrumenting the
-  test double across all three branches and asserting the group-signal
+  build-tagged leader-event/cleanup-trigger observer (rev-11, task A,
+  §6.4) — `waitid(P_PID, leaderPID, ..., WEXITED|WNOWAIT)`, retried on
+  `EINTR` — reports the leader event without reaping it, so the leader
+  stays waitable (its PID/PGID is not yet released) through the
+  unconditional `SIGTERM`→grace→`SIGKILL` sequence that follows —
+  verified by instrumenting the test double so the observer's channel
+  (racing, via `select`, against the timeout timer, the cap-exceeded
+  signal, and the reader-error signal) is observed to fire first,
+  `cmd.Wait()` is asserted **not yet called** at that point, the
+  unconditional `SIGTERM`→grace→`SIGKILL` sequence against the
+  negative PGID runs regardless, the descendant no longer exists after
+  the sequence completes, `cmd.Wait()` is called for the first and
+  only time strictly after the sequence completes, and the bounded
+  pipe-drain deadline (rev-11, task C) completes normally (both drains
+  reach `EOF` within the deadline) since the descendant that held the
+  pipes open is already dead by that point.
+- `AC-97`: Across all **four** trigger branches — the leader-event
+  observer fires, the 30-second timeout elapses, the output cap is
+  exceeded, or a non-`EOF` pipe-reader error occurs (rev-11, task C,
+  new fourth branch) — the identical unconditional `SIGTERM`→grace→
+  `SIGKILL`(-pgid) sequence runs, tolerating `nil`/`ESRCH`/`EPERM`
+  (rev-11, task B, `EPERM` newly tolerated) at both signal steps, the
+  leader-event observation is awaited if not already available before
+  `cmd.Wait()` is ever called, and `cmd.Wait()` is observed exactly
+  once per invocation, strictly after the group-signal sequence
+  completes in every branch, never before it (rev-10, task 1
+  introduced the single unconditional sequence; rev-11 directive A/B/C
+  harden the tolerated-errno set, add the fourth trigger, and bound
+  the subsequent pipe-drain join, §6.4) — verified by instrumenting the
+  test double across all four branches and asserting the group-signal
   call sequence and argument (`-pgid`) are byte-for-byte identical
   regardless of trigger, and that `cmd.Wait()`'s single call is always
-  the last event observed in the sequence, in all three branches.
+  the last event observed in the sequence, in all four branches.
 - `AC-98`: The leaf-targeted **ignore** half of the gate for
   `.tpatch/local/resource-scratch/<slug>/` (§10.3 step 1) runs and
   refuses correctly even when that exact leaf directory does not yet
@@ -4461,17 +4689,97 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   feasibility test recorded here for the future implementation cluster
   to reproduce verbatim; it does not itself ship code.
 
+**Leader-event/cleanup-trigger observer hardening (rev-11, directives A/B/C, new)**
+
+- `AC-107`: On a Darwin-only test double, a spawned leader that
+  receives a `SIGSTOP`-family signal (stopped, not exited) causes the
+  `waitid(..., WEXITED|WNOWAIT)` observer call to return successfully
+  — verified this is treated identically to a genuine leader-event
+  cleanup trigger (the unconditional `SIGTERM`→grace→`SIGKILL`(-pgid)
+  sequence still runs), and that no code path anywhere asserts or logs
+  this as "the leader has exited" — only as an unqualified leader
+  event/cleanup trigger (§6.4, C42).
+- `AC-108`: A `-pgid` `SIGTERM` or `SIGKILL` call that returns
+  `syscall.EPERM` (simulated via a test double on a fixture whose only
+  remaining process-group member is an unreaped zombie) is tolerated
+  identically to `syscall.ESRCH` — cleanup continues through the
+  remaining steps, no refusal is raised, and no claim of group
+  emptiness or non-emptiness is inferred from either outcome — verified
+  by a test asserting the group-signal step's own return value never
+  gates any later step's execution (§6.4).
+- `AC-109`: The raw `waitid` syscall helper retries automatically on
+  an injected `EINTR` return (verified via a test double that returns
+  `EINTR` a fixed number of times before succeeding, confirming the
+  observer eventually reports the leader event without the caller
+  observing the intermediate `EINTR`s); a genuinely terminal, non-
+  `EINTR`, non-`ECHILD` observer error causes the invocation to run
+  the best-effort group-signal sequence (tolerating `nil`/`ESRCH`/
+  `EPERM` as usual) while never calling `cmd.Wait()`, leaving the
+  child unreaped, and refuses `adapter-process-observer-failed`
+  (exit 1); a terminal `ECHILD` observer error instead sends **no**
+  `-pgid` signals at all, force-closes both of the parent's owned pipe
+  read ends, refuses `adapter-process-observer-failed` (exit 1), and
+  makes no cleanup claim whatsoever — verified by three distinct test
+  doubles, one per error class, each asserting the exact signal/no-
+  signal and reap/no-reap behavior described (§6.4).
+- `AC-110`: A non-`EOF` read error surfacing from either pipe-draining
+  goroutine (simulated via a test double injecting a read error on one
+  pipe mid-invocation) is itself one of the cleanup-entry triggers,
+  causes the unconditional cleanup sequence to run, and refuses
+  `adapter-output-read-failed` (exit 1) once cleanup completes;
+  separately, a simulated failure of the post-cleanup `SetReadDeadline`
+  call itself causes both read ends to be closed immediately and
+  refuses the same `adapter-output-read-failed` name rather than a
+  distinct one (§6.4).
+- `AC-111`: A test double whose leader exits successfully but whose
+  descendant has escaped the process group (its own `setsid()`) and
+  keeps a pipe write end open past the bounded post-cleanup drain
+  deadline causes the invocation to force-close both read ends, refuse
+  `adapter-drain-timeout` (exit 3), publish nothing (no tracked write
+  attempted), and release the per-slug `flock` — verified the `tpatch`
+  test-runner process itself is never signaled or observably affected,
+  and that the escaped descendant's continued existence afterward is a
+  disclosed residual, not a claim of successful cleanup (§6.4).
+
 ### 14.1 Exact counts (task 14: no false "exactly once" claims)
 
-This PRD defines **106** `AC`-tagged clauses (`AC-1` through
-`AC-106`, each an individually testable statement, no range-notation
+This PRD defines **111** `AC`-tagged clauses (`AC-1` through
+`AC-111`, each an individually testable statement, no range-notation
 grouping; sequentially numbered with no gaps, verified by an automated
 scan of every definition line matching `- \`AC-<n>\`:` in §14, in
 document order).
 
-This is a **net +1** change from rev-9's 105 (rev-9's own count was
-`AC-1` through `AC-105`, sequentially numbered with no gaps): rev-10
-adds one new clause and removes none —
+This is a **net +5** change from rev-10's 106 (rev-10's own count was
+`AC-1` through `AC-106`, sequentially numbered with no gaps): rev-11
+adds five new clauses (`AC-107`-`AC-111`, hardening the leader-event
+observer, group-signal tolerance, and bounded pipe-drain design per
+directives A/B/C) and removes none, while rewriting `AC-20`, `AC-85`,
+`AC-96`, and `AC-97` in place (directives A/B/C/E) —
+
+- `AC-107` (Darwin `SIGSTOP`-as-cleanup-trigger, never claimed as
+  exit proof)
+- `AC-108` (`EPERM` tolerated identically to `ESRCH` at both
+  group-signal steps)
+- `AC-109` (`EINTR` retry; terminal `ECHILD` vs. other terminal
+  observer-error handling)
+- `AC-110` (non-`EOF` reader error and `SetReadDeadline` failure both
+  refuse `adapter-output-read-failed`)
+- `AC-111` (escaped-descendant bounded pipe-drain deadline refuses
+  `adapter-drain-timeout`, publishes nothing, releases the lock)
+
+— `106 + 5 = 111`. Four existing clauses were rewritten in place
+without changing the total count: `AC-20` (previously described the
+add-time TOFU bootstrap as "resolve/open/stream-copy-while-hash," now
+reconciled with `AC-102`'s already-correct "descriptor-hash-only, no
+private copy" language, directive E), `AC-85`/`AC-96`/`AC-97`
+(previously described a three-branch, `ESRCH`-only-tolerant, unbounded
+pipe-join design; rewritten to describe the four-branch,
+`nil`/`ESRCH`/`EPERM`-tolerant design with the bounded post-cleanup
+pipe-drain deadline and the renamed leader-event/cleanup-trigger
+terminology, directives A/B/C).
+
+**Historical — rev-10's own count derivation** (preserved for
+provenance, not a current fact about this revision's total):
 
 - `AC-106` (cross-compile/source-shape feasibility of the build-tagged
   `linux`/`darwin` non-reaping `waitid`/`WNOWAIT` observer, task 1)
@@ -4693,17 +5001,24 @@ source for the matrix itself.)
   but not same-shaped semantic drift in a pinned binary that has
   silently diverged from its originally-approved behavior.
 - **Executed-binary private-copy residual, stated honestly** (§6.1,
-  task 3, rev-7): rev-7's private-copy-execution binding closes the
-  specific "resolve, hash the pathname, then separately re-resolve
-  and execute a possibly-swapped pathname" TOCTOU that rev-6 left
-  open — the exact bytes hashed and the exact bytes executed are now
-  provably the same file, since they trace back to one continuous,
-  never-re-resolved open. It does not close every conceivable local
-  race: a concurrent process running as the *same* OS user, with
-  write access to the per-invocation ephemeral scratch directory,
-  could in principle still interfere with the private copy between
-  its hardening (`chmod 0500`) and `cmd.Start()`'s open of it. This
-  mirrors the general local-concurrent-attacker model already
+  task 3, rev-7, corrected rev-11 directive F): rev-7's private-copy-
+  execution binding closes the specific "resolve, hash the pathname,
+  then separately re-resolve and execute a possibly-swapped pathname"
+  TOCTOU that rev-6 left open — there is no second, independent
+  `PATH`/`LookPath` resolution of the *originally-resolved* binary for
+  a swap to race against. It does **not** claim the exact bytes hashed
+  and the exact bytes executed are "provably the same file": the
+  pinned digest verifies the bytes **written** to the owner-only
+  private copy, and that copy is subsequently executed **by pathname**
+  (not via the already-verified descriptor) after the descriptor-
+  scoped `Fchmod` to `0500` — same-UID replacement of the copy between
+  that `Fchmod`/close and `cmd.Start()`'s pathname-based open remains
+  outside this design's threat model. It does not close every
+  conceivable local race: a concurrent process running as the *same*
+  OS user, with write access to the per-invocation ephemeral scratch
+  directory, could in principle still interfere with the private copy
+  between its hardening (`chmod 0500`) and `cmd.Start()`'s open of it.
+  This mirrors the general local-concurrent-attacker model already
   accepted elsewhere in this design (the `db_path` residual directly
   below, §6.4's process-group residual) and is not claimed to be
   fully closed either.
@@ -5391,6 +5706,106 @@ cross-platform target — which is a harder, more honest guarantee than
   through `AC-106`): one clause added (`AC-106`), six rewritten in
   place (`AC-52`, `AC-85`, `AC-93`, `AC-96`, `AC-97`, `AC-102`), none
   removed — see §14.1 for the exact accounting.
+- Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
+  attestation are updated to their final, post-edit values as the last
+  step of this revision, per this fold's explicit tracking requirement
+  (§0, CURRENT.md).
+
+## 25. Rev-11 Changelog (vs. rev-10, `bc313df`)
+
+- **Leader-event/cleanup-trigger renaming, Darwin `SIGSTOP` honesty
+  (directive A)**: rev-10's non-reaping `waitid`/`WNOWAIT` observer was
+  described as detecting "the leader has exited." The rev-11
+  adjudication found this over-claims on Darwin, whose `waitid` can
+  return for a merely-**stopped** child even when only `WEXITED` is
+  requested — a documented quirk Go's own stdlib avoids by not using
+  `waitid` on Darwin at all (`$(go env GOROOT)/src/os/wait_waitid.go`,
+  issue #19314, C42). The observer's successful return is renamed a
+  **leader event/cleanup trigger**; any successful Darwin return is
+  treated as a fail-closed entry into the same unconditional cleanup
+  sequence, never as proof of exit. The raw `waitid` call now retries
+  on `EINTR` (mirroring Go's own linux-only `ignoringEINTR` pattern).
+  Terminal, non-`EINTR` observer errors split into `ECHILD` (process
+  identity no longer safely pinned — no `-pgid` signals sent, owned
+  pipe read ends force-closed, refuse `adapter-process-observer-failed`
+  exit 1, no cleanup claim) and any other errno (best-effort group
+  signaling still runs, but `cmd.Wait()` is never called, leaving the
+  child unreaped, then the same refusal name) (§6.4, C42, `AC-85`,
+  `AC-96`, `AC-97`, new `AC-107`, new `AC-109`).
+- **Group-signal `EPERM` tolerance (directive B)**: `nil`/`ESRCH` were
+  the only tolerated group-signal outcomes through rev-10; rev-11 adds
+  `syscall.EPERM` to the tolerated set at both the `SIGTERM` and
+  `SIGKILL` steps (a documented Darwin quirk when the group's sole
+  remaining member is an unreaped zombie, and more generally a
+  possible symptom of an unsignalable descendant outside the same-UID
+  threat model). Any other errno is now named
+  `adapter-group-signal-failed` (exit 1); cleanup still continues
+  through the remaining steps regardless, and the first substantive
+  error encountered is the one ultimately reported (§6.4, new `AC-108`).
+- **Bounded pipe-drain deadline replaces an unbounded join (directive
+  C)**: rev-10 joined the two pipe-draining goroutines unconditionally
+  after the group-signal-and-reap sequence, implicitly relying on an
+  over-claimed "every process that could hold a pipe write end open is
+  confirmed dead" premise. Rev-11 corrects the premise (only the
+  leader is proven reaped; same-PGID descendants are best-effort
+  signaled only; escaped/setsid descendants can survive) and bounds
+  the join: a short explicit deadline is set on both `os.Pipe` read
+  ends after the reap; if either drain has not completed by then, both
+  ends are force-closed, the goroutines are joined, and the invocation
+  refuses `adapter-drain-timeout` (exit 3), publishing nothing and
+  releasing the per-slug `flock`. A non-`EOF` reader error at any other
+  point is itself a fourth cleanup-entry trigger (alongside leader-
+  event/timeout/output-cap) and refuses `adapter-output-read-failed`
+  (exit 1); a `SetReadDeadline` failure closes both ends and surfaces
+  the same name. The bounded lock-holding consequence of the
+  drain-timeout case is disclosed as an accepted, now strictly bounded
+  trade-off (§6.4, new `AC-110`, new `AC-111`).
+- **Executed-bytes honesty (directive F)**: removed every "the bytes
+  hashed and the bytes executed are provably the same file" claim
+  (§6.1 step 8, the "Residual, stated honestly" paragraph, the §9
+  duplicate residual paragraph, and the exit-3 table's private-copy
+  mismatch row). The actual guarantee is narrower and now stated as
+  such everywhere: the pinned digest verifies the bytes **written** to
+  the owner-only private copy; execution of that copy is
+  **pathname-based** after the descriptor-scoped `Fchmod` to `0500`,
+  not descriptor-based; a same-UID local attacker able to
+  unlink-and-recreate the copy's exact path in that narrow window
+  remains outside this design's threat model, identical in kind to the
+  general local-concurrent-attacker residual already accepted
+  elsewhere (§6.1, §9.2 Negative Consequences).
+- **Add-time TOFU stale-mandate sweep (directive E)**: `AC-20` and
+  PRD §3's `add --trust-current-dolt` description still said "resolve/
+  open/stream-copy-while-hash into an ephemeral private copy, write
+  the digest, delete the copy" — directly contradicting rev-10's own
+  fix (`AC-102`, §6.1) that add-time TOFU hashes the opened descriptor
+  directly, with zero private copies and zero Dolt processes started.
+  Both stale occurrences are rewritten to match `AC-102`'s language;
+  no behavior changes, only the description (§3, `AC-20`).
+- **Dry-run/orphan-sweep self-contradiction fixed**: §3's `--dry-run`
+  description listed "orphan sweep" as one of the pipeline steps
+  `--dry-run` "runs for real," directly contradicting the same
+  paragraph's later sentence and §7.1's own correct text that
+  `--dry-run` runs **neither** the local nor the tracked orphan sweep.
+  §3 now states this consistently with §7.1 (§3, §7.1).
+- **Stale macOS CI architecture claim fixed**: §9.2 attributed the
+  project's CI matrix to "Ubuntu/macOS `amd64`" — `macos-latest`
+  GitHub-hosted runners are Apple Silicon (`arm64`), consistent with
+  every other CI-architecture reference in this PRD; corrected to
+  "Ubuntu `amd64`/macOS `arm64`" (§9.2).
+- **New Claims Audit row**: `C42` cites Go's own `os/wait_waitid.go`
+  (`//go:build linux` only) and `os/wait_unimp.go`
+  (Darwin/etc. no-op fallback) verbatim, grounding the Darwin
+  `SIGSTOP`/`waitid` honesty correction and the `EINTR`-retry pattern
+  directly in verified Go stdlib source (§0.1).
+- Acceptance-criteria count is a **net +5**, now **111** (`AC-1`
+  through `AC-111`): five clauses added (`AC-107`-`AC-111`), four
+  rewritten in place (`AC-20`, `AC-85`, `AC-96`, `AC-97`), none
+  removed — see §14.1 for the exact accounting.
+- Confirmed all four resource-ID, full-batch-ID, and directory-hash
+  golden vectors, and the six shared JSON blocks, are **unaffected in
+  value** by this revision's changes (every rev-11 edit is prose/
+  behavior-contract clarification, not an identity/hash-input change)
+  (§0.3, §12.3, §12.4, §13.3).
 - Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
   attestation are updated to their final, post-edit values as the last
   step of this revision, per this fold's explicit tracking requirement
