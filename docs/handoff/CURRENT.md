@@ -834,6 +834,32 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
   unstaged.
 - Side Research md5 invariant re-verified unchanged after this edit (see
   "Context for Next Agent" below).
+- **Addendum (supervisor Dolt schema/D3 source check)**: supervisor
+  independently verified additional `dolthub/dolt` source detail at the
+  same pinned commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` —
+  `dolt_diff_summary`'s five columns are typed and non-null
+  (`from_table_name`/`to_table_name` `LongText`, `diff_type` `Text`,
+  `data_change`/`schema_change` `Boolean`), the function reports
+  `IsReadOnly() == true`, accepted forms include the 2-/3-argument shapes
+  already used plus dot-range forms not used here, and Dolt's own
+  internal Go call site queries the function with `select * from
+  dolt_diff_summary(?, ?)` sorting by `ToName` in application code rather
+  than an explicit SQL `SELECT`/`ORDER BY` — and separately confirmed
+  `ADR-027` D3's exact binding text ("Local private buffers may keep only
+  the redacted or hashed form; this ADR does not authorize a
+  tpatch-managed raw transcript archive," `docs/adrs/ADR-027-capture-context-privacy-boundary.md:146-170`).
+  Both facts **confirm, not correct**, rev-2's existing design: added new
+  Claims Audit rows C15 (Dolt schema/read-only/argument-form detail) and
+  C16 (the ADR-027 D3 exact quote) to the PRD; expanded PRD §2's raw-
+  content non-goal and §6.2's capability description with the same
+  detail; expanded ADR D4 (ADR-027 compliance) and D5 (Dolt protocol)
+  with matching text citing C15/C16. No design/decision changed; no
+  golden vector, wire example, or AC/matrix count changed. PRD grew to
+  1482 lines (was 1460), ADR to 581 lines (was 561). `git diff --check`
+  re-run clean; all three shared JSON wire examples re-confirmed
+  byte-identical; all four golden `resource_id` vectors re-confirmed via
+  Python `hashlib.sha256`; AC/matrix coverage (48 clauses, 74 rows)
+  re-confirmed unaffected; Side Research md5 unchanged.
 
 ## Files Changed — Cluster G' rev-0
 

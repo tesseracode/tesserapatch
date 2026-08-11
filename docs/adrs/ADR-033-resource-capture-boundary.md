@@ -137,7 +137,14 @@ committed/local split, which this ADR does not attempt. Because there
 is no persistent raw store at all, rev-1's "purge" requirement no
 longer applies (nothing to purge); what remains is ephemeral-scratch
 orphan cleanup, performed at the start of the next invocation for a
-given slug (PRD §7.1).
+given slug (PRD §7.1). This design is grounded directly in `ADR-027`
+D3's own binding language, not merely inferred from D1–D6's
+committed/local split "in spirit": D3 states verbatim, "Local private
+buffers may keep only the redacted or hashed form; this ADR does not
+authorize a tpatch-managed raw transcript archive" (PRD C16,
+`docs/adrs/ADR-027-capture-context-privacy-boundary.md:146-170`) — a
+persistent local raw archive, opt-in or not, is exactly the thing D3
+already forbids without a superseding ADR.
 
 ### D5 — Dolt adapter protocol: `dolt_diff_summary` SQL, no version probe (task 1, task 2)
 
@@ -150,15 +157,28 @@ detect a rename. Verified against `dolthub/dolt` at commit
 `dolt_diff_summary(from, to[, table])` table function, queried via
 `dolt sql -r json -q "..."`, returns exactly
 `{from_table_name, to_table_name, diff_type, data_change, schema_change}`
-per row. Rev-2's sole Dolt capability, `diff-summary`, uses exactly one
-argv template:
+per row. All five columns are source-confirmed non-null and typed
+(`from_table_name`/`to_table_name` `LongText`, `diff_type` `Text`,
+`data_change`/`schema_change` `Boolean`), and the function itself
+reports `IsReadOnly() == true` (PRD C15) — reinforcing, not changing,
+this decision's existing read-only framing. Rev-2's sole Dolt
+capability, `diff-summary`, uses exactly one argv template:
 
 ```
 <resolvedDoltPath> sql -r json -q "SELECT from_table_name, to_table_name, diff_type, data_change, schema_change FROM dolt_diff_summary('<esc(from)>', '<esc(to)>'[, '<esc(table)>']) ORDER BY from_table_name, to_table_name;"
 ```
 
 `from`/`to` required, `table` optional; any other/duplicate `--arg` key
-is exit 2. Literal escaping refuses `NUL`/C0 control bytes and any
+is exit 2. `dolt_diff_summary` also accepts a dot-range argument form
+(e.g. a single `"from..to"`-shaped argument); this decision does not
+use it. Dolt's own internal Go call site queries this function with
+`select * from dolt_diff_summary(?, ?)` and sorts rows by `ToName` in
+application code, rather than an explicit SQL-level `SELECT`/`ORDER
+BY`; this decision deliberately does not mirror that pattern — every
+column above is bound by explicit name and `ORDER BY` is an explicit
+SQL clause, so the tracked output does not depend on the table
+function's internal positional column order remaining stable across
+Dolt versions. Literal escaping refuses `NUL`/C0 control bytes and any
 backslash outright (exit 2) and escapes only `'` → `''` (PRD §6.2) —
 deliberately not a general SQL-injection-safe escaper, since
 backslash's escape-character status inside a Dolt/MySQL string literal

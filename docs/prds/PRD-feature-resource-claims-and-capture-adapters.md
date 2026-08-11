@@ -68,6 +68,8 @@ Rev-2 adds:
 | C12 | `dolt version` is a real subcommand that can, depending on build/config, perform a network update check and read/write files under the resolved `HOME`; it is not a safe no-side-effect probe | Rev-2 threat-modeling of running an arbitrary resolved executable literally named `dolt` with an unconstrained inherited environment, not a specific pinned-commit source citation (no claim here about `dolt version`'s exact internal behavior beyond "runs arbitrary code with inherited env/network access," which is true of any executed binary in v1's threat model) | rev-1 ran `dolt version` as a "probe" step with the invoking process's inherited environment. §6.1 removes this probe entirely; tool identity is now a static file fact (executable basename + `SHA-256` of the resolved binary's bytes), never a code-execution result, and every actual invocation runs with a minimal, non-inherited scratch environment (§6.4). |
 | C13 | `internal/workflow/session_ignore.go`'s `EnsureLocalIgnoreContract(repoRoot, resolvedPath)` verifies the path is inside the worktree and that `gitutil.IsPathIgnored` (`--no-index`) reports it ignored; it does **not** independently verify the path is untracked | `internal/workflow/session_ignore.go:138-175` (`EnsureLocalIgnoreContract` body) | New for rev-2: §10.3 reuses this exact function for the ephemeral-scratch root (task 7's "do not invent a second ignore mechanism") but layers the same tracked-file gate used for `ignored-file` selectors (§5.1) on top, since `EnsureLocalIgnoreContract` alone does not close the `--no-index` gap for the scratch root either. |
 | C14 | Go's `os.OpenFile` accepts `syscall.O_NOFOLLOW` on Unix build targets (`darwin`/`linux`), which causes the open to fail with `ELOOP` if the **final** path component is a symlink; there is no portable stdlib/syscall equivalent that also binds every **ancestor** directory component against races (no `openat2`/`RESOLVE_NO_SYMLINKS` wrapper in the Go standard library) | Go standard library `os`/`syscall` package documentation (`O_NOFOLLOW` is a documented, platform-gated `syscall` constant; `openat2` has no stdlib wrapper as of the Go versions this project targets) | New for rev-2: §9.1 uses `O_NOFOLLOW` as one real, available hardening measure for the final component and is explicit that ancestor-component TOCTOU is closed by *refusing any symlink component at all* (a stat-time check) rather than by any stronger descriptor-bound guarantee stdlib cannot provide (task 5: "state TOCTOU residual honestly ... do not claim impossible sandbox"). |
+| C15 | `dolt_diff_summary`'s five columns are typed and **non-null**: `from_table_name` (`LongText`), `to_table_name` (`LongText`), `diff_type` (`Text`), `data_change` (`Boolean`), `schema_change` (`Boolean`); the function itself reports `IsReadOnly() == true`; accepted invocation forms are the 2-arg `(from, to)` and 3-arg `(from, to, table)` shapes this PRD already uses, plus dot-range forms (e.g. a single `"from..to"`-shaped argument) this PRD deliberately does not use; Dolt's own internal Go usage of the function queries it with `select * from dolt_diff_summary(?, ?)` and sorts results by `ToName` in application code, rather than an explicit `SELECT <columns> ... ORDER BY` at the SQL layer | Supervisor source check against `dolthub/dolt` at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` (table-function schema/column typing, `IsReadOnly()`, accepted argument forms, and Dolt's own internal query/sort usage) | Confirms — does not correct — §6.2's design: the non-null column guarantee is why `result.tables[]` entries in every tracked wire example (§12.2) never carry a null field; the read-only confirmation reinforces C11's "external, read-only tool" framing; this PRD deliberately does **not** adopt Dolt's own internal `select *` + application-side sort pattern, and instead binds every column by explicit name and applies an explicit SQL `ORDER BY from_table_name, to_table_name` (§6.2), so tracked output does not silently reorder or gain/lose a field if a future Dolt version changes the table function's positional column order; dot-range argument forms are noted as existing but out of scope for v1's exact 2-/3-arg argv template. |
+| C16 | `ADR-027-capture-context-privacy-boundary.md` D3 states verbatim: "Local private buffers may keep only the redacted or hashed form; this ADR does not authorize a tpatch-managed raw transcript archive." | `docs/adrs/ADR-027-capture-context-privacy-boundary.md:146-170` (D3, exact quoted sentence) | Directly grounds §7.1/§0.2's "no persistent raw bodies anywhere, ephemeral-scratch-only" design in ADR-027's own binding language, not just this PRD's inference from D1–D6's committed/local split "in spirit" (as rev-2's original §0 fold summary put it) — D3 is explicit and unconditional: a persistent raw local archive of any kind, opt-in or not, is not authorized without an ADR that supersedes it (§2's new non-goal). |
 
 ### 0.2 What rev-2 removes or changes
 
@@ -172,10 +174,13 @@ handling, `--auto`/range resolution) — it only adds an orthogonal
 `--resources` flag (§11). **New non-goal (rev-2)**: this PRD does not
 provide textual/byte-level content diffing or any versioned history of
 raw resource content — only metadata/hash/file-set-level change
-detection (§5.1, §7.3.4). Persisting raw content across captures would
-require a future ADR that explicitly supersedes `ADR-027-capture-context-privacy-boundary.md`'s
-committed/local split (which today forbids exactly that); this PRD
-takes no position on whether such a future ADR should exist.
+detection (§5.1, §7.3.4). `ADR-027-capture-context-privacy-boundary.md`
+D3 states verbatim (C16): "Local private buffers may keep only the
+redacted or hashed form; this ADR does not authorize a tpatch-managed
+raw transcript archive" — persisting raw content across captures, in
+any local lane, opt-in or not, would require a future ADR that
+explicitly supersedes that sentence; this PRD takes no position on
+whether such a future ADR should exist.
 
 ## 3. Command Surface
 
@@ -481,6 +486,23 @@ strictly safer than guessing. The only transform applied to an
 otherwise-valid value is doubling a single quote (`'` → `''`), the
 one escaping rule that is unambiguous under both interpretations of
 `sql_mode`.
+
+**Column schema (C15)**: all five selected columns are source-confirmed
+non-null and typed (`from_table_name`/`to_table_name` `LongText`,
+`diff_type` `Text`, `data_change`/`schema_change` `Boolean`), and the
+function itself reports `IsReadOnly() == true`. Because every column is
+guaranteed non-null, `result.tables[]` entries in the tracked wire
+schema (§12.2) never carry a null field for a returned row. `dolt_diff_summary`
+also accepts dot-range argument forms (e.g. a single `"from..to"`-shaped
+argument); this PRD does not use them — only the explicit 2-/3-argument
+form above. Dolt's own internal Go call site queries this same function
+with `select * from dolt_diff_summary(?, ?)` and sorts the result rows
+by `ToName` in application code rather than at the SQL layer; this PRD
+deliberately does not mirror that pattern — every column is bound by
+explicit name and the `ORDER BY` above is an explicit SQL clause, so
+this capability's tracked output does not depend on the table
+function's internal positional column order or on any particular
+version of Dolt continuing to sort by `ToName` by default.
 
 **Refs and `WORKING`/`STAGED`**: `from`/`to` accept any Dolt commit-ish
 resolvable by `dolt_diff_summary` — branch names, tags, full or
