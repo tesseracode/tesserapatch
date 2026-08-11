@@ -2,10 +2,23 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-6 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-5 adjudicated NEEDS REVISION → rev-6
+DISPATCHED.** Internal review found 3 HIGH + 4 MEDIUM; external found
+2 HIGH + 4 MEDIUM + 3 LOW. Verified clean: resource/batch golden IDs,
+three JSON blocks, 78 AC clauses/121 rows, pinned Dolt/Git/ADR/CI citations
+and rev-5 core execution model. Final bounded gaps: arbitrary Dolt binaries
+are not compatibility-pinned; detected `db_path` replacement does not refuse;
+process-group kill lacks `Setpgid`; resource-ID collisions lack a refusal;
+`latest_batch_id` reintroduces chronology; filesystem allowlists/API differ
+and omit overlayfs; first-publication parent fsync is incomplete; semantic
+batch equality is mislabeled as crypto collision; combined-hash tuple and
+exit-code/cross-reference details drift. Rev-6 locks trust pinning, process
+isolation, exact local-FS constants, semantic idempotency, and final vectors.
 
 **2026-08-11 Cluster H rev-5 WRITTEN — full fold of the rev-4 dual-review
 verdict (adjudication `07eab8e`), awaiting dual review.** Same sequential
@@ -560,7 +573,7 @@ only after implementation review and wave close.
 - **Milestone**: v0.15.0 candidate (planning)
 - **Description**: Fold the rev-4 dual-review verdict into the
   feature-resource PRD and ADR-033 boundary.
-- **Status**: Review (rev-5 fold complete, awaiting dual review)
+- **Status**: In Progress (rev-6 fold) (rev-5 fold complete, awaiting dual review)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -2027,16 +2040,16 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Fold rev-4 platform/db-path/cap/scratch/batch findings.
+1. Fold rev-5 compatibility/trust/process/filesystem/idempotency findings.
 2. Re-run source, golden-vector, JSON parity and AC/matrix audits.
-3. Run independent internal and external rev-5 reviews.
-4. Continue the same writer context for any bounded residual fold.
+3. Run independent internal and external rev-6 reviews.
+4. Continue the same writer context only for a truly residual micro-fold.
 5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-5 dispatched.
+**Status**: Cluster H planning active; rev-6 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record

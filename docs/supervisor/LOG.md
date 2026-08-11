@@ -1,3 +1,54 @@
+## Review — Cluster H rev-5 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r5-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r5-external`)
+**Writer commit**: `7f653da`
+
+### Verdict: NEEDS REVISION → REV-6 DISPATCHED
+
+### Verified Clean
+
+- Four resource IDs + full batch SHA recompute.
+- Three shared JSON blocks.
+- 78 AC clauses across 121 contiguous rows.
+- Pinned Dolt, Git, ADR and CI citations.
+- Core rev-5 lock/cap/ref/batch model.
+
+### Final Bounded Findings
+
+1. Arbitrary Dolt binaries are accepted without a compatibility trust pin.
+2. Detected post-exit `db_path` replacement is diagnostic-only instead of a
+   hard refusal.
+3. Process-group termination omits `Setpgid`, risking signals to tpatch/shell.
+4. Truncated resource IDs lack distinct-payload collision refusal.
+5. `latest_batch_id` reintroduces chronology into an unordered content set.
+6. Linux/macOS filesystem allowlists/API differ, contain invalid constants,
+   omit overlayfs, and fail to fsync first-created parent directories.
+7. Existing batch file-wire drift is mislabeled as SHA collision rather than
+   semantic-vs-presentation comparison.
+8. Batch ID/directory combined-hash and exit-code/cross-reference details need
+   final exact vectors/names.
+
+### Rev-6 Direction
+
+- Require an explicit trusted full Dolt binary SHA-256 in resource config and
+  refuse mismatches; strict output parsing remains the capability gate.
+- Make pre/post pathname identity mismatch a hard refusal and discard output.
+- Require `SysProcAttr{Setpgid:true}` and signal only the captured child group.
+- Add `resource-id-collision` payload compare/refusal for 12-hex user IDs.
+- Rename/remove chronological pointer language (`current_batch_id`, no latest).
+- Use stdlib `syscall.Statfs` with byte-identical Linux/macOS constants/lists,
+  allow overlayfs explicitly, and fail closed elsewhere; include first-create
+  parent fsync.
+- Decode existing batch and compare canonical semantic body before deciding
+  collision; presentation-only drift is idempotent.
+- Add directory combined-hash golden vector and final matrix/count fixes.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-6 DISPATCHED`; this is a compatibility micro-
+fold, not an authority redesign.
+
 ## Review — Cluster H rev-4 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r4-internal`)
