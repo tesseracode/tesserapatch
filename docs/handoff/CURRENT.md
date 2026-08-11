@@ -13,8 +13,8 @@ writer continued from rev-2 (`c603b8f`/`4255bef`). Nineteen numbered
 requirement items folded across both papers, driven by the rev-2
 adjudication's 10 blocking findings plus three supervisor-provided
 supplementary Dolt-source verification messages.
-`PRD-feature-resource-claims-and-capture-adapters.md` rewritten to 2142
-lines (was 1482); `ADR-033-resource-capture-boundary.md` rewritten to 751
+`PRD-feature-resource-claims-and-capture-adapters.md` rewritten to 2150
+lines (was 1482); `ADR-033-resource-capture-boundary.md` rewritten to 759
 lines (was 581). Preserved across all four revisions (rev-1 through
 rev-3): separate `resources.json`, no canonical-patch/lifecycle authority,
 Dolt never authoritative/a core dependency, Git-only replay. Key rewrites:
@@ -47,14 +47,36 @@ descriptor rather than a second pathname `Lstat`, closing a residual
 TOCTOU gap; (8) the directory `ignored-file` wire result gained a
 per-file `files[]` array; (9) the acceptance-criteria set grew from 48
 to 70 individually-tagged clauses, and the ADR Test Matrix grew from 74
-to 96 rows, all mechanically cross-checked. Golden vectors 1/4 unchanged
-(`res_acc91dc23a8b`/`res_79f5ac5dca13`); vectors 2/3 recomputed to
+to 96 rows (see the supervisor-verification addendum below for a
+subsequent 96→97 row addition), all mechanically cross-checked. Golden
+vectors 1/4 unchanged (`res_acc91dc23a8b`/`res_79f5ac5dca13`); vectors
+2/3 recomputed to
 `res_cf8e47e6564b` for the new mandatory `db_path` field
 (order-independence reconfirmed); the worked batch example's
 content-addressed `batch_id` (`rb_5cff7f222dce`) independently
 recomputed and matching. All three shared JSON wire examples confirmed
 byte-identical between PRD and ADR. `git diff --check` clean on both
 files. Side Research md5 unchanged: `b385fe622db9926f48861105239f113e`.
+
+**2026-08-10 Supervisor source-verification addendum to Cluster H rev-3
+(same writer, no fresh dispatch, still AWAITING REVIEW).** Supervisor
+independently re-confirmed `check-ignore`'s `--literal-pathspecs`
+fatal-exit-128 behavior against a second, non-colon example
+(`'docs/*.md'`, identical `fatal: ... pathspec magic not supported by
+this command: 'literal'`), and independently confirmed a second
+concretely-fatal colon-magic keyword, `:(literal)...` (alongside the
+already-cited `:(glob)...`), plus its safe non-fatal outcome once
+`./`-prefixed. Both papers' C17/C18 citations, §10.1, and §10.4's
+pathspec-magic examples table (PRD) and D8 (ADR) were strengthened
+with these two additional empirically-confirmed data points — no
+design change, since the existing `./`-prefix rule ("any leading `:`
+byte", keyword-agnostic) already covered this case; only the citation
+evidence was thin. One new ADR Test Matrix row was added for the
+`:(literal)` case (AC-31, now covered twice), growing the matrix from
+96 to **97 rows** (still 70 distinct AC clauses, unchanged). PRD line
+count and ADR line count both grew slightly from the rev-3 baseline
+above; see updated "Files Changed" line counts below for the final
+figures.
 
 **2026-08-10 Cluster H rev-2 adjudicated NEEDS REVISION → rev-3
 DISPATCHED.** Internal review found 5 HIGH + 5 MEDIUM; external found
@@ -530,9 +552,9 @@ only after implementation review and wave close.
   HIGH + 5 MEDIUM, external 5 HIGH + 7 MEDIUM plus tracking notes) folded
   in full, driven by a 19-item requirement list plus three supervisor
   supplementary Dolt-source-verification messages.
-  `PRD-feature-resource-claims-and-capture-adapters.md` rewritten to 2142
+  `PRD-feature-resource-claims-and-capture-adapters.md` rewritten to 2150
   lines (was 1482); `ADR-033-resource-capture-boundary.md` rewritten to
-  751 lines (was 581). Preserved across all four revisions: a separate
+  759 lines (was 581). Preserved across all four revisions: a separate
   `resources.json`, no canonical-patch/lifecycle authority, Dolt never
   authoritative/a core dependency, Git-only replay. Rewritten: the Dolt
   protocol (D5) now makes `db_path` and `table` **mandatory** fields (both
@@ -617,6 +639,24 @@ only after implementation review and wave close.
   open question was added (mandatory `table` forecloses a convenient
   whole-database Dolt diff in v1). Ready for dual review; see "Ready for
   review — Cluster H rev-3" below.
+- **Cluster H rev-3 supervisor-verification addendum** — same writer,
+  same commit cycle, no fresh dispatch, still `AWAITING REVIEW`.
+  Supervisor independently re-confirmed `check-ignore --literal-pathspecs`
+  fails identically (fatal, exit 128) for a plain glob-shaped argument
+  (`'docs/*.md'`), not only colon-magic-shaped ones, and independently
+  confirmed a second concretely-fatal colon-magic keyword,
+  `:(literal)...` (alongside the already-cited `:(glob)...`), plus its
+  safe (non-fatal) outcome once `./`-prefixed per the existing rule. Both
+  papers' `C17`/`C18` Claims Audit rows, PRD §10.1's narrative, PRD
+  §10.4's pathspec-magic examples table, and ADR D8 were strengthened
+  with these two additional empirically-confirmed data points — **no
+  design change**: the existing `./`-prefix rule ("any leading `:` byte
+  gets prefixed, keyword-agnostic") already covered `:(literal)` before
+  this addendum; only the citation evidence was thin. One new ADR Test
+  Matrix row was added (a second `AC-31` row, for the `:(literal)` case),
+  growing the matrix from 96 to **97 rows** (still exactly 70 distinct AC
+  clauses — no clause was added or removed). Final line counts updated
+  below.
 - **Cluster G' rev-0** — dispatched 2026-08-10 from `WAVE_BASE=9e77617`.
   Store foundation complete: `StateUnapplied` is the twelfth valid state and
   `SaveFeatureStatus` now uses a same-directory temp file, fsync, and atomic
@@ -1018,7 +1058,7 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
 ## Files Changed — Cluster H rev-3
 
 - `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
-  rewritten in full, **2142 lines** (was 1482). New/changed structure: §0
+  rewritten in full, **2150 lines** (was 1482). New/changed structure: §0
   Rev-3 Fold Summary (preserved-decisions restatement, §0.1 Claims Audit
   rows `C17`–`C24` layered on rev-1/rev-2's still-valid `C1`–`C16` — not
   repeated in this file, living in git history/`HISTORY.md` — §0.2 what
@@ -1052,7 +1092,7 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
   Changelog (stale `§12.2–§12.3` cross-reference fixed, annotated as
   historical); new §17 Rev-3 Changelog vs rev-2.
 - `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in full,
-  **751 lines** (was 581). Same 11 binding decisions (D1–D11, numbering
+  **759 lines** (was 581). Same 11 binding decisions (D1–D11, numbering
   unchanged from rev-2 — no decision was inserted or removed, only
   rewritten in place): D5 (Dolt protocol) fully rewritten for mandatory
   `db_path`/`table`, the `..`-rejection requirement, WORKING/STAGED and
@@ -1068,10 +1108,11 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
   programmatically byte-identical to the PRD's §12.2–§12.4 (raw string
   equality). Implementation Notes expanded to 7 items; Negative
   Consequences Summary updated (mandatory-`table` trade-off added,
-  `WORKING`/`STAGED` uncertainty removed); Test Matrix rebuilt to **96
+  `WORKING`/`STAGED` uncertainty removed); Test Matrix rebuilt to **97
   rows** covering all 70 PRD acceptance-criteria clauses (mechanically
   verified, no clause missing, several intentionally covered more than
-  once).
+  once — including a supervisor-verification addendum row added for the
+  `:(literal)` magic-keyword case).
 - `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-3
   entry prepended above the rev-2-adjudication entry), Active Task
   Status → Review, this Session Summary bullet, this Files Changed
@@ -1131,12 +1172,12 @@ instead:
   `db_path` field and the newly-computed IDs.
 - AC/test-matrix mapping check: mechanically extracted every `AC-<n>` tag
   from the PRD (70 distinct, `AC-1`..`AC-70`) and every numbered row of
-  the ADR's Test Matrix section specifically (96 rows); confirmed all 70
+  the ADR's Test Matrix section specifically (97 rows); confirmed all 70
   clauses appear in at least one matrix row, no clause is missing, and
   the matrix's own closing note explicitly disclaims any "exactly once"
   mapping claim (several clauses — `AC-6`, `AC-9`, `AC-16`, `AC-20`,
-  `AC-23`, `AC-47`, `AC-58`, `AC-59`, `AC-65`, `AC-68`, `AC-69` — are each
-  covered by 2+ rows).
+  `AC-23`, `AC-31`, `AC-47`, `AC-58`, `AC-59`, `AC-65`, `AC-68`, `AC-69`
+  — are each covered by 2+ rows).
 - Cross-reference audit: every `§N`/`§N.M` reference in the PRD
   mechanically extracted and checked against the document's own actual
   headings (all resolve); the same check run against the ADR's PRD-
@@ -1470,11 +1511,11 @@ as rev-1/rev-2, both fully rewritten (not patched), plus this handoff
 update — no code:
 
 1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
-   **2142 lines** (was 1482). See "Files Changed — Cluster H rev-3" above
+   **2150 lines** (was 1482). See "Files Changed — Cluster H rev-3" above
    for the full section-by-section breakdown; see the Session Summary
    entry above for the complete list of changed decisions mapped to the
    dispatch's requirement items (1–19).
-2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **751 lines** (was
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **759 lines** (was
    581). Same 11 binding decisions (D1–D11 — no insertion/removal this
    revision, only in-place rewrites of D5–D11); see "Files Changed —
    Cluster H rev-3" above.
@@ -1521,7 +1562,7 @@ exactly the three owned paths staged).
 - No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
   (D6) and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain
   cited consistently in both documents.
-- All 70 PRD §14 acceptance-criteria clauses appear in the ADR's 96-row
+- All 70 PRD §14 acceptance-criteria clauses appear in the ADR's 97-row
   Test Matrix; the matrix explicitly disclaims any "exactly once"
   mapping claim.
 
@@ -1550,7 +1591,7 @@ exactly the three owned paths staged).
 - All three shared JSON wire examples programmatically confirmed
   byte-identical (raw string equality) between the PRD and the ADR.
 - AC/test-matrix coverage mechanically verified: 70 distinct `AC-<n>`
-  tags in the PRD, all 70 present across the ADR's 96-row Test Matrix.
+  tags in the PRD, all 70 present across the ADR's 97-row Test Matrix.
 - Cross-reference audit: every `§N`/`§N.M` reference in the PRD and every
   `D<n>`/PRD-`§N` reference in the ADR mechanically extracted and
   confirmed to resolve to an actual heading; one broken (`§16.1`) and one
@@ -1587,7 +1628,7 @@ exactly the three owned paths staged).
   `FileInfo`, not a second pathname lookup, and that the stated TOCTOU
   residual is scoped narrowly (ancestor-directory-only) rather than
   overclaimed as fully closed.
-- Confirm the 70-clause/96-row AC/matrix accounting is genuinely
+- Confirm the 70-clause/97-row AC/matrix accounting is genuinely
   mechanical (spot-check a handful of `AC-<n>` tags against their matrix
   rows) and not merely asserted.
 - Confirm both of rev-2's previously-open questions (`WORKING`/`STAGED`

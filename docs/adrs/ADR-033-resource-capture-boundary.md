@@ -346,17 +346,24 @@ the batch ID is reproducible rather than random.
 Rev-2 invoked `check-ignore` with `--literal-pathspecs`; that flag does
 not exist for `check-ignore` and causes a fatal exit 128
 (`"pathspec magic not supported by this command: 'literal'"`, verified
-empirically this revision). Rev-3 removes it: `check-ignore` is
-invoked as `git check-ignore -q --no-index -- <pathname>`, matching
-the existing `internal/gitutil/ignore.go:59-79` `IsPathIgnored`
-implementation exactly. Because `--literal-pathspecs` cannot be used
-here, a selector whose first byte is a literal `:` (which `check-ignore`
-would otherwise parse as pathspec-magic, e.g. `:(glob)`/`:!`/`:^`,
-verified empirically as fatal exit 128 for those forms) is instead
+empirically this revision, and supervisor-independently reconfirmed
+with a second, non-colon example — `git --literal-pathspecs
+check-ignore -q --no-index -- 'docs/*.md'` fails identically, showing
+the fatal outcome does not depend on the argument looking like
+pathspec magic). Rev-3 removes it: `check-ignore` is invoked as `git
+check-ignore -q --no-index -- <pathname>`, matching the existing
+`internal/gitutil/ignore.go:59-79` `IsPathIgnored` implementation
+exactly. Because `--literal-pathspecs` cannot be used here, a selector
+whose first byte is a literal `:` (which `check-ignore` would
+otherwise parse as pathspec-magic, e.g. `:(glob)`/`:(literal)`/`:!`/`:^`
+— all four verified empirically as fatal exit 128 for those forms, the
+`:(literal)` case supervisor-independently reconfirmed) is instead
 passed with a `./` prefix, which disarms the magic-colon parsing
-without needing the missing flag; `*`/`?`/`[]` characters are inert
-for `check-ignore` specifically (verified empirically — no glob
-expansion occurs) and require no such workaround. `check-ignore` exit
+without needing the missing flag and is confirmed safe (exit 0 or 1,
+never fatal) for both `:(glob)` and `:(literal)` forms; `*`/`?`/`[]`
+characters are inert for `check-ignore` specifically (verified
+empirically — no glob expansion occurs) and require no such
+workaround. `check-ignore` exit
 0 = ignored, exit 1 = not ignored (refused), any other exit = fatal
 Git error (refused, distinct reason, never treated as either "ignored"
 or "not ignored"). `ls-files --error-unmatch` (for the tracked/
@@ -694,58 +701,59 @@ programmatically, not just visually).
 | 45 | AC-30 | Git gate | `check-ignore` exit 1 | Refused `not-ignored` |
 | 46 | AC-30 | Git gate | `check-ignore` exit 128 (fatal) | Refused `git-ignore-check-error`, distinct reason |
 | 47 | AC-31 | Git gate | Selector `:(glob)config/*.env` | Passed to `check-ignore` with `./` prefix, resolves to the same on-disk path |
-| 48 | AC-32 | Git gate | Selector containing `*`/`?`/`[]` | No wildcard/glob matching occurs for `check-ignore` |
-| 49 | AC-33 | Git gate | `ls-files --error-unmatch` exit 0 (tracked) | Refused `tracked-and-ignored` |
-| 50 | AC-33 | Git gate | `ls-files --error-unmatch` unexpected stderr | Refused `git-ls-files-error`; call verified to use `--literal-pathspecs` |
-| 51 | AC-34 | Git gate | Selector ignored but tracked | Refused; both checks must pass |
-| 52 | AC-35 | Local ignore | Scratch root verified via `EnsureLocalIgnoreContract` | Refused before scratch content created if the contract fails |
-| 53 | AC-36 | Local ignore | `.tpatch/local/` accidentally tracked | Refused `local-path-tracked` via the `ls-files` gate on the root |
-| 54 | AC-37 | Lock | Fresh `capture` invocation | `.lock.tmp-<nonce>/owner.json` written+fsynced, then renamed to `.lock` atomically |
-| 55 | AC-38 | Lock | Second concurrent `capture` for same slug | Refused `capture-in-progress`, no blocking |
-| 56 | AC-39 | Lock | Lock PID no longer exists | Quarantined and reclaimed automatically |
-| 57 | AC-40 | Lock | Lock PID alive, different `process_start` | Quarantined and reclaimed automatically (PID reuse) |
-| 58 | AC-41 | Lock | `owner.json` is malformed JSON | Quarantined and reclaimed |
-| 59 | AC-42 | Lock | Lock `host` differs from current host | Refused `capture-lock-held-remote`, no reclaim attempt |
-| 60 | AC-43 | Lock | Reclaim retry itself loses the rename race | Refused `capture-lock-contended`, not retried again |
-| 61 | AC-44 | Lock | `add`/`remove`/`clear` invoked | Same per-slug lock acquired before manifest rewrite |
-| 62 | AC-45 | Lock | `add` invoked with orphaned scratch present | No scratch content created, no orphan sweep performed |
-| 63 | AC-46 | Lock | `list` invoked during a concurrent `capture` | Observes fully-prior or fully-new content, never a torn read |
-| 64 | AC-47 | Permissions | Every scratch directory/lock directory created | Mode `0700` at creation, no later `chmod` call observed |
-| 65 | AC-47 | Permissions | Every scratch file created | Mode `0600` at creation |
-| 66 | AC-48 | Scratch | Orphaned `es_*`/`.lock.stale-*`/`.tmp-*` from simulated crash | Swept only after the sweeping invocation has itself acquired the live lock |
-| 67 | AC-49 | Scratch | `add` invoked with orphans present | Orphan sweep never runs during `add` |
-| 68 | AC-50 | Publication | Multi-resource successful capture | Exactly one new `batches/<id>.json`, `current.json` rewritten once |
-| 69 | AC-51 | Publication | Recompute `batch_id` from batch content | Identical `batch_id` reproduced |
-| 70 | AC-52 | Publication | Retry with identical batch content | Existing `batches/<id>.json` reused, skip to pointer publish |
-| 71 | AC-53 | Publication | Same `batch_id`, different content (simulated collision) | Refused `batch-id-collision` |
-| 72 | AC-54 | Publication | Crash simulated after batch rename, before pointer rename | Orphaned batch never surfaced; re-run recomputes identical `batch_id` and proceeds |
-| 73 | AC-55 | Publication | Crash simulated during batch/pointer temp-write | `.tmp-*` swept at next invocation; no effect on last-committed `current.json` |
-| 74 | AC-56 | Manifest | `remove <id>` | `resources.json`/`current.json` updated under lock; all `batches/*.json` untouched |
-| 75 | AC-56 | Manifest | `clear` | Same, for every declared resource |
-| 76 | AC-57 | Read path | `list`/`diff` invoked | Only `current.json` consulted, `batches/` never scanned directly |
-| 77 | AC-58 | Metadata | HEAD detached | `symbolic_ref` is `null`, `detached` is `true` |
-| 78 | AC-58 | Metadata | HEAD on a branch | `symbolic_ref` populated, `detached` is `false` |
-| 79 | AC-59 | Metadata | `config` view with key `user.email` | Refused, exit 2 |
-| 80 | AC-59 | Metadata | `config` view with `core.filemode` | Accepted |
-| 81 | AC-60 | Metadata | `index-entry` selector `:(icase)Foo` | Resolved as the literal path under `--literal-pathspecs` |
-| 82 | AC-61 | Wire | Directory `ignored-file` resource captured | `files[]` present, `path`-sorted, `{path,raw_sha256,byte_count,mode}` per entry |
-| 83 | AC-62 | Wire | Each of `head`/`ref`/`index-entry`/`config`/`ignored-file`(single+dir)/`adapter-snapshot` captured | Every variant's exact tagged shape matches §12.2 |
-| 84 | AC-63 | Dry-run | `feature resource capture <slug> --dry-run` | Zero tracked writes; lock/scratch removed identically to a real capture |
-| 85 | AC-64 | Record | `record --resources` on feature with zero declared resources | Refused `no-resources-declared` before lock/Git |
-| 86 | AC-65 | Record | Staging fails, Git succeeds | `resource-domain-incomplete`, recovery command shown, Git patch intact |
-| 87 | AC-65 | Record | Same, `--json` output | Same fields present in JSON envelope |
-| 88 | AC-66 | Record | Staging fails, Git fails | Only record's existing Git-failure behavior surfaces, no double-report |
-| 89 | AC-67 | Record | Staging succeeds, Git succeeds | Batch + pointer published together, verified atomically |
-| 90 | AC-68 | Record | Re-run `capture`/`record --resources` after publish-step failure, content unchanged | Identical `batch_id` reproduced, idempotent skip-branch taken |
-| 91 | AC-68 | Record | Re-run after genuinely changed content | Different `batch_id` produced |
-| 92 | AC-69 | Golden ID | Recompute Vector 1 | Matches `res_acc91dc23a8b` |
-| 93 | AC-69 | Golden ID | Recompute Vector 2 | Matches `res_cf8e47e6564b` |
-| 94 | AC-69 | Golden ID | Recompute Vector 3 (reordered args) | Matches Vector 2 exactly |
-| 95 | AC-69 | Golden ID | Recompute Vector 4 | Matches `res_79f5ac5dca13` |
-| 96 | AC-70 | Golden ID | Recompute the worked batch example's `batch_id` | Matches `rb_5cff7f222dce` |
+| 48 | AC-31 | Git gate | Selector `:(literal)config/name.env` (second independently-confirmed-fatal magic keyword) | Passed to `check-ignore` with `./` prefix, resolves to the same on-disk path; supervisor-independently reconfirmed non-fatal outcome |
+| 49 | AC-32 | Git gate | Selector containing `*`/`?`/`[]` | No wildcard/glob matching occurs for `check-ignore` |
+| 50 | AC-33 | Git gate | `ls-files --error-unmatch` exit 0 (tracked) | Refused `tracked-and-ignored` |
+| 51 | AC-33 | Git gate | `ls-files --error-unmatch` unexpected stderr | Refused `git-ls-files-error`; call verified to use `--literal-pathspecs` |
+| 52 | AC-34 | Git gate | Selector ignored but tracked | Refused; both checks must pass |
+| 53 | AC-35 | Local ignore | Scratch root verified via `EnsureLocalIgnoreContract` | Refused before scratch content created if the contract fails |
+| 54 | AC-36 | Local ignore | `.tpatch/local/` accidentally tracked | Refused `local-path-tracked` via the `ls-files` gate on the root |
+| 55 | AC-37 | Lock | Fresh `capture` invocation | `.lock.tmp-<nonce>/owner.json` written+fsynced, then renamed to `.lock` atomically |
+| 56 | AC-38 | Lock | Second concurrent `capture` for same slug | Refused `capture-in-progress`, no blocking |
+| 57 | AC-39 | Lock | Lock PID no longer exists | Quarantined and reclaimed automatically |
+| 58 | AC-40 | Lock | Lock PID alive, different `process_start` | Quarantined and reclaimed automatically (PID reuse) |
+| 59 | AC-41 | Lock | `owner.json` is malformed JSON | Quarantined and reclaimed |
+| 60 | AC-42 | Lock | Lock `host` differs from current host | Refused `capture-lock-held-remote`, no reclaim attempt |
+| 61 | AC-43 | Lock | Reclaim retry itself loses the rename race | Refused `capture-lock-contended`, not retried again |
+| 62 | AC-44 | Lock | `add`/`remove`/`clear` invoked | Same per-slug lock acquired before manifest rewrite |
+| 63 | AC-45 | Lock | `add` invoked with orphaned scratch present | No scratch content created, no orphan sweep performed |
+| 64 | AC-46 | Lock | `list` invoked during a concurrent `capture` | Observes fully-prior or fully-new content, never a torn read |
+| 65 | AC-47 | Permissions | Every scratch directory/lock directory created | Mode `0700` at creation, no later `chmod` call observed |
+| 66 | AC-47 | Permissions | Every scratch file created | Mode `0600` at creation |
+| 67 | AC-48 | Scratch | Orphaned `es_*`/`.lock.stale-*`/`.tmp-*` from simulated crash | Swept only after the sweeping invocation has itself acquired the live lock |
+| 68 | AC-49 | Scratch | `add` invoked with orphans present | Orphan sweep never runs during `add` |
+| 69 | AC-50 | Publication | Multi-resource successful capture | Exactly one new `batches/<id>.json`, `current.json` rewritten once |
+| 70 | AC-51 | Publication | Recompute `batch_id` from batch content | Identical `batch_id` reproduced |
+| 71 | AC-52 | Publication | Retry with identical batch content | Existing `batches/<id>.json` reused, skip to pointer publish |
+| 72 | AC-53 | Publication | Same `batch_id`, different content (simulated collision) | Refused `batch-id-collision` |
+| 73 | AC-54 | Publication | Crash simulated after batch rename, before pointer rename | Orphaned batch never surfaced; re-run recomputes identical `batch_id` and proceeds |
+| 74 | AC-55 | Publication | Crash simulated during batch/pointer temp-write | `.tmp-*` swept at next invocation; no effect on last-committed `current.json` |
+| 75 | AC-56 | Manifest | `remove <id>` | `resources.json`/`current.json` updated under lock; all `batches/*.json` untouched |
+| 76 | AC-56 | Manifest | `clear` | Same, for every declared resource |
+| 77 | AC-57 | Read path | `list`/`diff` invoked | Only `current.json` consulted, `batches/` never scanned directly |
+| 78 | AC-58 | Metadata | HEAD detached | `symbolic_ref` is `null`, `detached` is `true` |
+| 79 | AC-58 | Metadata | HEAD on a branch | `symbolic_ref` populated, `detached` is `false` |
+| 80 | AC-59 | Metadata | `config` view with key `user.email` | Refused, exit 2 |
+| 81 | AC-59 | Metadata | `config` view with `core.filemode` | Accepted |
+| 82 | AC-60 | Metadata | `index-entry` selector `:(icase)Foo` | Resolved as the literal path under `--literal-pathspecs` |
+| 83 | AC-61 | Wire | Directory `ignored-file` resource captured | `files[]` present, `path`-sorted, `{path,raw_sha256,byte_count,mode}` per entry |
+| 84 | AC-62 | Wire | Each of `head`/`ref`/`index-entry`/`config`/`ignored-file`(single+dir)/`adapter-snapshot` captured | Every variant's exact tagged shape matches §12.2 |
+| 85 | AC-63 | Dry-run | `feature resource capture <slug> --dry-run` | Zero tracked writes; lock/scratch removed identically to a real capture |
+| 86 | AC-64 | Record | `record --resources` on feature with zero declared resources | Refused `no-resources-declared` before lock/Git |
+| 87 | AC-65 | Record | Staging fails, Git succeeds | `resource-domain-incomplete`, recovery command shown, Git patch intact |
+| 88 | AC-65 | Record | Same, `--json` output | Same fields present in JSON envelope |
+| 89 | AC-66 | Record | Staging fails, Git fails | Only record's existing Git-failure behavior surfaces, no double-report |
+| 90 | AC-67 | Record | Staging succeeds, Git succeeds | Batch + pointer published together, verified atomically |
+| 91 | AC-68 | Record | Re-run `capture`/`record --resources` after publish-step failure, content unchanged | Identical `batch_id` reproduced, idempotent skip-branch taken |
+| 92 | AC-68 | Record | Re-run after genuinely changed content | Different `batch_id` produced |
+| 93 | AC-69 | Golden ID | Recompute Vector 1 | Matches `res_acc91dc23a8b` |
+| 94 | AC-69 | Golden ID | Recompute Vector 2 | Matches `res_cf8e47e6564b` |
+| 95 | AC-69 | Golden ID | Recompute Vector 3 (reordered args) | Matches Vector 2 exactly |
+| 96 | AC-69 | Golden ID | Recompute Vector 4 | Matches `res_79f5ac5dca13` |
+| 97 | AC-70 | Golden ID | Recompute the worked batch example's `batch_id` | Matches `rb_5cff7f222dce` |
 
-**96 rows** cover **70** distinct `AC` clauses; several clauses (e.g.
-`AC-6`, `AC-9`, `AC-16`, `AC-20`, `AC-23`, `AC-30`, `AC-33`, `AC-47`,
-`AC-58`, `AC-59`, `AC-65`, `AC-68`, `AC-69`) are exercised by more than
-one row — this matrix does not claim any clause is covered "exactly
-once."
+**97 rows** cover **70** distinct `AC` clauses; several clauses (e.g.
+`AC-6`, `AC-9`, `AC-16`, `AC-20`, `AC-23`, `AC-30`, `AC-31`, `AC-33`,
+`AC-47`, `AC-58`, `AC-59`, `AC-65`, `AC-68`, `AC-69`) are exercised by
+more than one row — this matrix does not claim any clause is covered
+"exactly once."
