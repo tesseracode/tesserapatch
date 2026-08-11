@@ -62,7 +62,7 @@ false; rev-1 does not repeat it.
 | C6 | `internal/cli/feature_claim.go` establishes the `add`/`list`/`remove`/`clear` verb quartet under a noun subcommand, including the exact `"no such feature: %s"` refusal shape | `internal/cli/feature_claim.go:1-207` (whole file) | rev-0: accurate, kept as the CLI-shape precedent for `feature resource {add,list,remove,clear}`. |
 | C7 | `docs/adrs/ADR-027-capture-context-privacy-boundary.md` D1 requires that any future PRD choosing a worktree-local, gitignored storage path "MUST verify that path is ignored before the first write and MUST refuse rather than risk accidental commit" | `docs/adrs/ADR-027-capture-context-privacy-boundary.md` D1 (verified against current file text) | rev-0 **partial error**: rev-0 cited ADR-027 generally but did not implement the ignored-before-first-write refusal for its own proposed local buffer, and separately proposed committing raw snapshot/diff bodies in tracked sidecars — directly contradicting D1's committed/local split. §7 below implements the refusal; §4/§8 remove all committed-raw-body claims. |
 | C8 | `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3 and §9 are **tracked** (committed) files; `docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md` is **untracked** as of this writing (`git status --short` shows `??`) | `git status --short docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md` (untracked marker); `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3, §9 (tracked, present in `git ls-files`) | rev-0 **error**: rev-0 cited WP-006 normatively for Dolt/substrate guidance. A docs-only PRD/ADR pair cannot depend normatively on a file with no guarantee of ever being committed. Rev-1 cites the tracked storage-substrate research document instead; WP-006 is not cited at all in rev-1 (not even non-normatively, to avoid any residual dependency). |
-| C9 | Real Dolt CLI: `dolt diff` has no literal `--json` flag — JSON output is `-r json` / `--result-format json`; the per-row field schema of that output is not reliably documented and is treated as opaque | DoltHub CLI reference (`https://www.dolthub.com/docs/cli-reference/cli/`, fetched during rev-1 research; see §6 for the exact verified flag list this PRD relies on) | rev-0 **error**: rev-0's adapter protocol examples showed a fabricated `dolt diff --json` invocation and a fabricated per-row JSON schema (invented field names). §6 replaces this with a design that uses only verified, stable flags for anything tracked, and treats richer output as an opaque local-only blob. |
+| C9 | Real Dolt CLI: `dolt diff` has no literal `--json` flag — JSON output is `-r json` / `--result-format json`; the per-row field schema of that output is not reliably documented and is treated as opaque | Primary source, `dolthub/dolt` at commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`: `go/cmd/dolt/commands/diff.go` (synopsis `dolt diff [options] <commit> <commit> [tables...]`, `--result-format`/`-r` accepting `tabular`/`sql`/`json`, `--schema`/`--data` selection), `go/cmd/dolt/commands/version.go` (`dolt version [--verbose] [--feature]`, prints `dolt version <version>`); cross-checked against the DoltHub CLI reference (`https://www.dolthub.com/docs/cli-reference/cli/`, fetched during rev-1 research); see §6 for the exact verified flag list this PRD relies on | rev-0 **error**: rev-0's adapter protocol examples showed a fabricated `dolt diff --json` invocation and a fabricated per-row JSON schema (invented field names). §6 replaces this with a design that uses only verified, stable flags for anything tracked, and treats richer output as an opaque local-only blob. No claim in this PRD relies on `dolt status --porcelain`, which was not found in either the source or the docs reference. |
 | C10 | `internal/store/claims.go` `RemoveClaim` spans lines 436-444 | `internal/store/claims.go:436-444` | Corrects a stale line-range drift noted during this audit; re-verified against current file content. |
 
 ### 0.2 What rev-1 removes entirely
@@ -263,8 +263,9 @@ Selector: a repo-relative path. **Both** of the following must hold at
 1. `gitutil.IsPathIgnored(path) == true` (`git check-ignore -q
    --no-index`, C3).
 2. The path is **not currently tracked**: a new gate, `git ls-files
-   --error-unmatch <path>` (or equivalent porcelain check) must report
-   "not tracked." This closes the exact `--no-index` gap in C3 — an
+   --error-unmatch <path>` (exit non-zero means "not tracked," per
+   `git-ls-files(1)`), must confirm the path is absent from the
+   index. This closes the exact `--no-index` gap in C3 — an
    already-tracked file that also matches a `.gitignore` pattern is
    **refused**, not silently accepted, because `--no-index` alone
    would say "ignored" for it. (Task N's "add a tracked-file gate.")
@@ -365,11 +366,20 @@ See §6 for the exact adapter execution contract.
 
 ## 6. Adapter Protocol — Dolt (task G, task N)
 
-Verified against the official DoltHub CLI reference
-(`https://www.dolthub.com/docs/cli-reference/cli/`) during rev-1
-research. Every flag named below is confirmed to exist in that
-reference; nothing here is a guessed or invented flag or output
-schema.
+Verified against the primary `dolthub/dolt` source at commit
+`59fb843bf6a4b653d7c8b6d997a603b10cf279d9` — specifically
+`go/cmd/dolt/commands/diff.go` (synopsis `dolt diff [options] <commit>
+<commit> [tables...]`, `--schema`/`--data` selection,
+`--result-format`/`-r` accepting `tabular`/`sql`/`json`) and
+`go/cmd/dolt/commands/version.go` (`version [--verbose] [--feature]`
+subcommand, output format) — cross-checked against the DoltHub CLI
+reference (`https://www.dolthub.com/docs/cli-reference/cli/`) during
+rev-1 research for the remaining flags below (`--filter`,
+`--name-only`) that the source check did not separately confirm.
+Nothing in this section is a guessed or invented flag or output
+schema. This PRD does not rely on `dolt status --porcelain`
+anywhere — no such flag was found in the source search, and no claim
+here depends on it.
 
 ### 6.1 Executable resolution and probe
 
@@ -382,11 +392,12 @@ lacks the tool).
 
 Once resolved, before running the requested capability, the adapter
 runs a **probe**: `dolt version` with a 5-second timeout and a 4 KiB
-captured-output cap. `dolt version` prints a single line, `dolt
-version X.Y.Z` (confirmed against the reference — no subcommand
-output requires JSON/structured parsing for the probe). Probe
-outcomes and their exact treatment (task N: "probe failure semantics
-must be explicit"):
+captured-output cap. Per `go/cmd/dolt/commands/version.go`
+(`dolt version [--verbose] [--feature]`), the bare `dolt version`
+invocation prints a single line, `dolt version <version>` (confirmed
+against source — no subcommand output requires JSON/structured
+parsing for the probe). Probe outcomes and their exact treatment
+(task N: "probe failure semantics must be explicit"):
 
 | Probe outcome | Treatment |
 |---|---|
@@ -397,6 +408,7 @@ must be explicit"):
 | `exec.LookPath` resolves to a path, but `Lstat`/`EvalSymlinks` on that resolved path lands inside the repository working tree | Refused before the probe even runs: `adapter-executable-unsafe` (exit 3) — the symlink/path safety gate (§9) applies to the resolved adapter executable path exactly as it does to any other path this feature touches, closing task D's "in-repo executable" case. |
 
 ### 6.2 Capability invocation — exact argv templates
+
 
 Both capabilities run inside the repository's Dolt database directory
 (`cwd` = the repo root, matching where `tpatch` itself always runs
@@ -431,12 +443,14 @@ schema for).
 
 ### 6.3 Why `-r json` / `--result-format json` is never used for tracked output
 
-The DoltHub reference confirms `-r`/`--result-format` accepts
-`tabular`, `sql`, or `json`, and confirms there is **no separate bare
-`--json` flag** (rev-0 fabricated one). Rev-1 research found the exact
-per-row field schema of `-r json` output is not consistently
-documented across Dolt versions (informal sources disagree on field
-names). Rather than encode an unverified schema into a tracked,
+`go/cmd/dolt/commands/diff.go` at commit
+`59fb843bf6a4b653d7c8b6d997a603b10cf279d9` confirms `-r`/
+`--result-format` accepts `tabular`, `sql`, or `json`, and confirms
+there is **no separate bare `--json` flag** (rev-0 fabricated one).
+Rev-1 research found the exact per-row field schema of `-r json`
+output is not consistently documented across Dolt versions or
+independently confirmed against source (informal sources disagree on
+field names). Rather than encode an unverified schema into a tracked,
 supposedly-stable artifact, rev-1 draws a hard line: **any Dolt
 invocation beyond the three `--name-only --filter=...` calls above is
 only ever run when `keep_local=true`**, using `--result-format json`

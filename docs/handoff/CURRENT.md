@@ -565,6 +565,26 @@ Docs-only cluster; no Go build/test/fmt required or run since no `internal/`,
   case-studies directory) remains untouched and unstaged.
 - Side Research md5 invariant re-verified unchanged after this edit (see
   "Context for Next Agent" below).
+- **Addendum (supervisor source check)**: supervisor independently verified
+  the primary `dolthub/dolt` source at commit
+  `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` — `go/cmd/dolt/commands/diff.go`
+  (synopsis `dolt diff [options] <commit> <commit> [tables...]`,
+  `--schema`/`--data` selection, `-r`/`--result-format`
+  `tabular`/`sql`/`json`) and `go/cmd/dolt/commands/version.go`
+  (`dolt version [--verbose] [--feature]`, prints `dolt version
+  <version>`) — and flagged that `dolt status --porcelain` was not found
+  in source. Both owned papers already avoided that flag (the PRD's
+  §5.1 "porcelain check" wording referred generically to `git ls-files
+  --error-unmatch`, not any Dolt flag; tightened anyway to remove the
+  ambiguity). Updated PRD C9/§6/§6.3 and ADR Decision Drivers/D7 to cite
+  the primary source commit directly (previously cited the DoltHub docs
+  page only), and to state precisely which facts (`diff` synopsis,
+  `--schema`/`--data`, `-r`/`--result-format` values, `version` output)
+  are source-verified versus docs-cross-checked (`--filter`,
+  `--name-only`) rather than overclaiming full-source verification.
+  No design/decision changed; `git diff --check` re-run clean; AC/matrix
+  coverage (41 clauses, 66 rows) and all 4 wire-example byte-identity
+  checks re-run and unaffected.
 
 ## Files Changed — Cluster G' rev-0
 

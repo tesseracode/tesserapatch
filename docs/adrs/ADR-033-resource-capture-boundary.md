@@ -42,7 +42,9 @@ replay/backward-compatibility is Git-only.
   redaction posture must extend cleanly to a new kind of captured
   content, not be reinterpreted.
 - Any claim about Dolt's CLI surface must be verified against the
-  actual DoltHub reference, not invented.
+  primary `dolthub/dolt` source where possible (commit
+  `59fb843bf6a4b653d7c8b6d997a603b10cf279d9`), cross-checked against
+  the DoltHub reference, not invented.
 - Any claim about an existing safety/validation primitive
   (`EnsureSafeRepoPath`, `IsPathIgnored`, `ExitCodeError` usage) must
   be verified against current source, not assumed from its name.
@@ -211,11 +213,21 @@ symlink by the next `capture` is caught then, not grandfathered in.
 
 ### D7 — Dolt adapter protocol: verified syntax only, no fabricated JSON schema (task G)
 
-Verified against the DoltHub CLI reference
-(`https://www.dolthub.com/docs/cli-reference/cli/`). No literal `dolt
-diff --json` flag exists (JSON output is `-r json`/`--result-format
-json`), and its per-row field schema is not reliably documented across
-versions — this ADR never encodes it into a tracked schema.
+Verified against the primary `dolthub/dolt` source at commit
+`59fb843bf6a4b653d7c8b6d997a603b10cf279d9`: `go/cmd/dolt/commands/diff.go`
+(synopsis `dolt diff [options] <commit> <commit> [tables...]`,
+`--schema`/`--data` selection, `--result-format`/`-r` accepting
+`tabular`/`sql`/`json`) and `go/cmd/dolt/commands/version.go`
+(`dolt version [--verbose] [--feature]`, prints `dolt version
+<version>`) — cross-checked against the DoltHub CLI reference
+(`https://www.dolthub.com/docs/cli-reference/cli/`) for the remaining
+flags below (`--filter`, `--name-only`) that the source check did not
+separately confirm. No literal `dolt diff --json` flag exists in
+either the source or the docs reference (JSON output is `-r
+json`/`--result-format json`), and its per-row field schema is not
+reliably documented across versions — this ADR never encodes it into
+a tracked schema. No claim in this ADR depends on `dolt status
+--porcelain`, which was not found in the source search.
 
 **Probe**: `dolt version` (expects `dolt version \S+`), 5s timeout, 4
 KiB cap. Four explicit outcomes: matched-pattern success (proceed,
