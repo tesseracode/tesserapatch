@@ -2,10 +2,65 @@
 
 ## Status
 
-**Cluster state**: REV-8 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-14 Cluster H rev-8 WRITTEN — full fold of the rev-7
+dual-review verdict (adjudication `bc2c068`), awaiting dual review.**
+Same sequential writer continued from rev-7 (`2aba39b`). Eleven-item
+"acceptance/lifecycle micro-fold" folded across both papers: (1) Test
+Matrix row 146 rewritten to describe rev-7's own already-correct
+leaf-targeted ignore gate/ancestor-targeted `statfs` behavior instead
+of the superseded rev-6 ancestor-only design; (2) process-group
+termination unified into **one sequence for every invocation**
+(success or kill-triggered alike) — drain to EOF, unconditional
+`SIGTERM(-pgid)`, unreaped through fixed grace regardless of trigger,
+unconditional `SIGKILL(-pgid)`, then exactly one `cmd.Wait()` — no
+"`Wait()` observes the group" claim anywhere, replacing rev-7's
+separate kill-path/normal-success-path design; two new trade-offs
+disclosed (every invocation now pays the grace latency; a leader that
+closes its pipes while still alive is forcibly terminated via the
+existing `dolt-query-error` taxonomy); (3) `add --trust-current-dolt`
+split into a distinct **add-time TOFU bootstrap** (no existing-pin
+precondition, never executes Dolt) vs. **capture-time trust
+verification and execution** (requires an existing pin, is the only
+sequence that ever executes the binary); the add-time missing-flag
+refusal renamed `dolt-trust-flag-required` (exit 2), no longer sharing
+a name with the capture-time `dolt-trust-required` (exit 3); (4)
+`trust-dolt` added to every "every mutating verb"/lock-list/local-
+ignore-gate enumeration (was missing from at least one); duplicate
+`add` made an explicit **strict no-op** that never re-pins trust even
+if the resolved binary's hash has since changed — only `trust-dolt`
+may re-pin; (5) exit-code taxonomy consolidated so every named refusal
+appears in exactly one row/table context; (6) private-copy host-
+failure handling added — `statfs`-based no-exec preflight (Linux
+`ST_NOEXEC=0x8`, Darwin `MNT_NOEXEC=0x00000004`, new Claims-Audit rows
+`C38`/`C39`) refusing `adapter-copy-noexec` (exit 3), and `ENOSPC`/
+`EIO` during the streamed copy refusing `adapter-copy-failed` (exit
+1); private copy now created directly at mode `0500`
+(`O_CREATE|O_EXCL|O_WRONLY`) rather than rev-7's `0700`-then-`chmod`;
+(7) local-gate target split — the ignore half continues to target the
+per-slug leaf (`EnsureLocalIgnoreContract`, unchanged), the untracked
+half now targets the **whole** `.tpatch/local/` subtree via a plain
+`git --literal-pathspecs ls-files -- .tpatch/local/` with an
+empty-stdout convention, dropping `--error-unmatch` for this check
+entirely; (8) resource-corruption/collision taxonomy confirmed
+unchanged (`resources-file-corrupt` load-time self-mismatch vs.
+`resource-id-collision` two-distinct-declarations, unaffected by this
+revision); (9) rev-7 historical numbering/pass-count corrected, C36's
+rationale reworded away from "unreaped leader prevents PGID reuse"
+toward "the escalation is never skipped or cancelled merely because
+the direct child appears to have exited"; (10) all golden vectors
+(resource IDs, full batch ID, directory hash) reconfirmed **unaffected**
+by this revision (none of the trust/gate/termination changes touch
+`resource_id`'s or `batch_id`'s canonical hash inputs); (11) ACs/matrix
+rebuilt to **105** clauses (`AC-1`–`AC-105`, 5 new: `AC-101`–`AC-105`;
+3 rewritten in place: `AC-96`/`AC-97`/`AC-98`) and **174** Test Matrix
+rows (up from 169), all 105 clauses covered by at least one row. See
+"Files Changed — Cluster H rev-8" / "Ready for review — Cluster H
+rev-8" below for the full breakdown.
 
 **2026-08-10 Cluster H rev-7 adjudicated NEEDS REVISION → rev-8
 DISPATCHED.** Internal review found 4 HIGH + 2 MEDIUM; external found
@@ -769,14 +824,14 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-7 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-8 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-7
+- **Task ID**: Cluster H rev-8
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-6 dual-review verdict (adjudication
-  `d503d55`) into the feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-8 fold) (rev-7 fold complete, awaiting dual review)
-- **Assigned**: 2026-08-13
+- **Description**: Fold the rev-7 dual-review verdict (adjudication
+  `bc2c068`) into the feature-resource PRD and ADR-033 boundary.
+- **Status**: Review (rev-8 fold complete, awaiting dual review)
+- **Assigned**: 2026-08-14
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -815,6 +870,18 @@ only after implementation review and wave close.
 
 ## Session Summary
 
+- **Cluster H rev-8** — dispatched 2026-08-14 (adjudication `bc2c068`)
+  from `WAVE_BASE=f04dec7`; written 2026-08-14. Same sequential writer
+  continued from rev-7 (`2aba39b`). Full 11-item "acceptance/lifecycle
+  micro-fold" of the rev-7 dual-review verdict — see the Status entry
+  above for the complete itemized breakdown (Test Matrix row 146,
+  unified process-group termination, add-time TOFU vs. capture-time
+  trust split, `trust-dolt` lock-list completeness + duplicate-add
+  no-repin, exit-taxonomy consolidation, private-copy `noexec`/
+  `ENOSPC`/`EIO` handling, local-gate ignore-leaf/untracked-subtree
+  split, corruption/collision taxonomy confirmed, C36 rationale
+  correction, golden-vector reconfirmation, AC/matrix rebuild to
+  105 clauses / 174 rows).
 - **Cluster H rev-7** — dispatched 2026-08-12 (adjudication `d503d55`)
   from `WAVE_BASE=f04dec7`; written 2026-08-13. Same sequential writer
   continued from rev-6 (`f195998`). Full 11-item fold of the rev-6
@@ -1276,6 +1343,132 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-8
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, **4800 lines** (was 4399). New/changed structure:
+  title/Status → rev-8, superseding writer commit `2aba39b`,
+  adjudicated `bc2c068`; §0 Rev-8 Fold Summary (replacing the rev-7
+  framing as the primary top-level narrative; the rev-7 fold-summary
+  body preserved as historical prose); §0.1 Claims Audit header now
+  "(rev-4 + rev-5 + rev-6 + rev-7 + rev-8 additions)", C36 rationale
+  reworded (escalation-never-cancelled framing, not PGID-reuse-
+  prevention), `C38`/`C39` added (Linux `ST_NOEXEC=0x8`, Darwin
+  `MNT_NOEXEC=0x00000004`); §0.4 new Rev-8 11-item requirement→section
+  map; §3 `--trust-current-dolt` description fixed (TOFU-only, no
+  execution), add-time missing-flag refusal renamed
+  `dolt-trust-flag-required` (exit 2), exit-code table consolidated
+  for exit 1/2/3; §4 duplicate-`add` no-repin language made explicit/
+  strict; §6.1 fully restructured into shared resolution prefix /
+  add-time TOFU bootstrap / capture-time trust verification and
+  execution (9 steps, new `statfs` no-exec preflight step, private
+  copy now created directly at `0500`, new `ENOSPC`/`EIO` handling,
+  new private-copy-safety-despite-location paragraph); §6.4 Termination
+  fully rewritten as one unified sequence for every invocation, two new
+  trade-offs documented; §7.1 first-create sequencing split into
+  ignore-half (leaf) + untracked-half (whole `.tpatch/local/` subtree);
+  §9 exit-3 gate table updated (`adapter-copy-noexec`,
+  `adapter-copy-failed`, duplicate-add no-op row added); §10.3
+  local-ignore-root reuse rewritten for the two-target split, adds
+  `trust-dolt` to the mutator list; `AC-18`–`AC-20` updated for
+  renumbering; `AC-41`–`AC-43`/`AC-47` updated for the ignore/untracked
+  split and the six-verb (not five) lock-list count; `AC-96`–`AC-98`
+  rewritten in place for the unified termination sequence and the
+  ignore-half-only scope; `AC-101`–`AC-105` appended (untracked
+  whole-subtree check, add-time-TOFU-no-pin/no-exec, duplicate-add
+  no-repin, `adapter-copy-noexec`, `adapter-copy-failed`) — **105**
+  clauses total, up from 100; §14.1 exact-counts paragraph rewritten
+  for the +5/105 total and the three in-place rewrites; new §22 Rev-8
+  Changelog vs rev-7.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in
+  full, **1809 lines** (was 1579). Same 11 binding decisions (D1–D11,
+  numbering unchanged): title/Status header updated to rev-8, citing
+  writer commit `2aba39b` and adjudication `bc2c068`; new "Rev-8 fold
+  summary" section (replacing "Rev-7 fold summary" as the primary
+  framing, rev-7 fold summary preserved verbatim above it); D5
+  "Process-group termination" paragraph rewritten for the single
+  unified sequence (drain→SIGTERM→unreaped-grace→SIGKILL→one `Wait()`,
+  applied identically to every invocation); D5 "Binary trust pin"
+  paragraph rewritten for the add-time-TOFU-vs-capture-time-execution
+  split, the `dolt-trust-flag-required` rename, the duplicate-`add`
+  no-repin guarantee, the `statfs` no-exec preflight, and the
+  `ENOSPC`/`EIO` handling; D8 "Ignored/tracked Git gates" rewritten for
+  the two-target local-root-gate split (leaf ignore / whole-subtree
+  untracked); D9 "First-create sequencing" paragraph rewritten to match
+  the D8 split; Implementation Notes 11/12 updated, new notes 13–16
+  (add-time-vs-capture-time function split, `statfs` no-exec preflight,
+  `ENOSPC`/`EIO` detection, whole-subtree untracked-gate mechanism);
+  Negative Consequences Summary gets 3 new bullets (unified-termination
+  latency/forced-termination trade-offs, duplicate-add-no-repin
+  behavioral surprise, private-copy host-failure classes); Test Matrix
+  row 146 rewritten to match rev-7's own already-correct leaf-targeted
+  behavior; rows 165–167 (`AC-96`–`AC-98`) rewritten in place; 5 new
+  rows (170–174) appended for `AC-101`–`AC-105` — Test Matrix rebuilt
+  from 169 to **174 rows**, covering all 105 PRD acceptance-criteria
+  clauses (mechanically verified: rows 1–174 sequential, no gaps; every
+  `AC-1`–`AC-105` referenced by at least one row).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-8
+  entry prepended above the rev-7-adjudication entry), Active Task
+  Status → Review, this Session Summary bullet, this Files Changed
+  section, Test Results, and the "Ready for review — Cluster H rev-8"
+  section below. Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-8
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation
+performed instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace
+  errors, no conflict markers).
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created, run, deleted, never
+  written under `/tmp`) — confirmed **105** distinct, sequential
+  `AC-1`..`AC-105` clauses, zero gaps, zero duplicates.
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (105 distinct, sequential, no gaps) against every row of
+  the ADR's rebuilt Test Matrix (174 sequential rows, 1..174, zero
+  gaps) — confirmed all 105 clauses appear in at least one matrix row,
+  no clause missing, no extra/unexpected clause tag.
+- Golden-vector reconfirmation: `resource_id` Vectors 2/3
+  (`res_4b62313b6cce`), Vector 4 (`res_79f5ac5dca13`)/Vector 5
+  (`res_acc91dc23a8b`), the worked batch example's `batch_id`
+  (`rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`),
+  and the directory golden vector's `combined_hash`
+  (`5af4d6754656795b49c6e22acc2034ed6a2b3426470b0c42156f5ad0b4bcb9ad`)
+  all mechanically re-grepped across both documents and confirmed
+  identical occurrence counts/values — none of this revision's changes
+  (trust split, gate-target split, termination sequence) touch
+  `resource_id`'s or `batch_id`'s canonical hash inputs, so no
+  recomputation was required, only reconfirmation.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents containing
+  `resource_id`/`batch_id`/`current_batch_id` and confirmed shared
+  wire examples remain byte-identical between PRD and ADR (the
+  `trust-dolt` before/after example explicitly re-checked line-for-
+  line) — no drift introduced by this revision's edits.
+- Stale-term sweep: re-grepped both files for remaining rev-7-only
+  language — undifferentiated `dolt-trust-required` used ambiguously
+  for both add-time and capture-time (none live outside explicitly-
+  historical "supersedes"/fold-summary context — the one live
+  Test-Matrix row using the bare name, row 32/`AC-20`, was found and
+  corrected to `dolt-trust-flag-required` during this pass), "kill
+  path"/"normal-success path" two-path termination phrasing (none live
+  outside historical §21/Implementation-Notes-history context), stale
+  "five mutating verbs" counts (none live — all corrected to "six",
+  `trust-dolt` included) — all clean after the row-32 fix.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; all pre-existing untracked WIP remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-7
 
@@ -2649,6 +2842,61 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-8
+
+**Scope**: docs-only planning cluster, rev-8 "acceptance/lifecycle
+micro-fold". Same two deliverables as rev-1 through rev-7, both fully
+rewritten (not patched), plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **4800 lines** (was 4399). See "Files Changed — Cluster H rev-8"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the dispatch's requirement items (1–11).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **1809 lines**
+   (was 1579). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D5/D8/D9); see "Files
+   Changed — Cluster H rev-8" above.
+
+**Files changed (Cluster H rev-8)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D5 (ADR) ↔ §6.1/§6.4 (PRD): identical unified process-group
+  termination sequence (drain→SIGTERM→unreaped-grace→SIGKILL→one
+  `Wait()`), identical add-time-TOFU-vs-capture-time-execution trust
+  split, identical `dolt-trust-flag-required`/`dolt-trust-required`
+  naming, identical `statfs` no-exec preflight and `ENOSPC`/`EIO`
+  handling.
+- D8 (ADR) ↔ §7.1/§10.3 (PRD): identical two-target local-root-gate
+  split (per-slug-leaf ignore check via `EnsureLocalIgnoreContract`,
+  whole-`.tpatch/local/`-subtree untracked check via
+  `git --literal-pathspecs ls-files`), identical `trust-dolt`
+  inclusion in every mutating-verb enumeration.
+- D9 (ADR) ↔ §7.1 (PRD): identical first-create sequencing
+  leaf/subtree/ancestor split, `statfs` still ancestor-only.
+- Test Matrix (ADR) ↔ §14 Acceptance Criteria (PRD): all 105 AC
+  clauses (`AC-1`–`AC-105`) mechanically confirmed covered by at least
+  one of the 174 rewritten/appended Test Matrix rows; no orphaned
+  clause, no orphaned row.
+- Wire Schema Appendix (ADR) ↔ §12 (PRD): resource/batch/directory
+  golden vectors mechanically reconfirmed byte-identical and unaffected
+  by this revision's edits (none of the trust/gate/termination changes
+  touch canonical hash inputs).
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
 
 ## Ready for review — Cluster H rev-7
 

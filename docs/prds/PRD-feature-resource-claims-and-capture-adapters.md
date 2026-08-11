@@ -1,8 +1,8 @@
-# PRD — Feature Resource Claims & Capture Adapters (rev-7)
+# PRD — Feature Resource Claims & Capture Adapters (rev-8)
 
-**Status**: Draft — rev-7 (supersedes rev-6, writer commit `f195998`,
-adjudicated NEEDS REVISION → REV-7 DISPATCHED at `d503d55`; see
-`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-6 adjudications)
+**Status**: Draft — rev-8 (supersedes rev-7, writer commit `2aba39b`,
+adjudicated NEEDS REVISION → REV-8 DISPATCHED at `bc2c068`; see
+`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-7 adjudications)
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes
@@ -18,7 +18,85 @@ directly extended), `ADR-030-multi-slug-reconcile-derivation-mode.md`
 
 ---
 
-## 0. Rev-7 Fold Summary (read this first)
+## 0. Rev-8 Fold Summary (read this first)
+
+Rev-7 (`2aba39b`) closed the compatibility gaps rev-6 left open —
+leaf-targeted ignore/untracked gate for fresh clones, unreaped-leader-
+through-grace group termination, executed-binary-binding via a
+private hash-verified copy, trust/identity split with a `trust-dolt`
+re-pin command, `contract`-enum runtime-compatibility honesty, a
+corruption-vs-collision taxonomy split, `uint32` `statfs` width
+normalization, and unconditional fsync discipline — but the rev-7
+adjudication (`bc2c068`) found eight residual gaps in rev-7's own new
+mechanisms, framed as a bounded "acceptance/lifecycle micro-fold" that
+does **not** reopen §1's authority/scope decisions or §2's goals: the
+ADR's Test Matrix row 146 still encoded the *superseded* "ignore/
+untracked gate against the nearest existing ancestor" text even though
+the PRD's own `AC-81` had already been corrected to leaf-target the
+ignore/untracked checks in rev-7 — the two documents disagreed with
+each other (ADR Test Matrix fix, task 1); process-group termination's
+**normal-success path** called `cmd.Wait()` immediately once pipes
+reached EOF, with no grace period and no group-wide `SIGKILL`, so a
+*successful* Dolt invocation could still leave a rogue descendant
+sharing the same PGID alive past `tpatch`'s own return — only the
+*kill-triggered* path's unreaped-leader-through-grace sequence actually
+proved the group was empty (§6.4 fix, task 2); §6.1's single, undivided
+numbered sequence opened with "refuse if unpinned," which — read
+literally — would fire during `add --trust-current-dolt`'s own
+first-time pin computation, since by definition no pin exists yet the
+first time that flag runs; the sequence needed to be split into a
+non-executing add-time bootstrap and the existing pin-requiring,
+executing capture-time sequence (§6.1/§3 fix, task 3); `trust-dolt`
+was missing from at least one "every mutator"/local-ignore-gate
+enumeration, and the duplicate-`add` idempotency language ambiguously
+implied a re-passed `--trust-current-dolt` might update an existing
+entry's `trust` field as a side effect, when only `trust-dolt` may
+ever re-pin after the initial `add` (§3/§4/§7.2/§10.3 fix, task 4);
+the exit-code taxonomy had `dolt-trust-required` doing double duty as
+both an add-time exit-2 name and a capture-time exit-3 name in the
+same named-refusal slot, violating this design's own "each named
+refusal in exactly one row" convention (§3/§14 fix, task 5); the
+capture-time private-copy sequence had no defined behavior for a
+`noexec`-mounted scratch filesystem or an `ENOSPC`/`EIO` failure
+during the copy itself (§6.1 addition, task 6); and §7.1 and §10.3
+disagreed on what the untracked-check's target path even was — §7.1's
+own worked example already used the exact per-slug leaf, while §10.3
+described re-using the whole `.tpatch/local/` subtree for the same
+check (§7.1/§10.3/ADR-D8 fix, task 7). Rev-8 is a **bounded
+acceptance/lifecycle micro-fold** — it does not touch §1/§2's scope,
+§5.2/§5.3's closed resource kinds, or the separate-manifest/
+no-lifecycle-authority/Dolt-optional/Git-only-replay decisions every
+prior revision has preserved. §3, §4, §6.1, §6.4, §7.1, §7.2, §10.3,
+§14, §14.1 are revised in place; the ADR's Test Matrix row 146, D5, D8
+mirror these fixes. **Preserved** because every review across all nine
+revisions has agreed it is sound:
+
+- Resources live in a **separate** manifest per feature — never
+  inside the canonical patch, never touching `apply-recipe.json` or
+  unapply/lifecycle state.
+- Dolt (or any external tool) is **never** an authority over tpatch's
+  own state and is **not** a build/runtime dependency of `tpatch`
+  itself — it is invoked, if present, strictly as an external,
+  read-only, externally-located tool.
+- Replay/backward-compatibility remains **Git-only** — a repository
+  with no resources declared is byte-identical in behavior to today's
+  `tpatch`.
+- No tracked artifact ever contains a raw file byte, raw adapter
+  stdout, or any content copied verbatim from a scanned source
+  (ADR-027 D3); scanning happens strictly in bounded in-process memory,
+  never pre-persisted to a scratch file (task 2).
+
+Everything below this point folds rev-8's corrections into the
+standalone design; §0.1 lists the new citations grounding those
+corrections (appended to the existing Claims Audit table). Rev-7's
+own `C1`–`C37` remain correct and are not repeated (see
+`docs/handoff/HISTORY.md`/git history for that table).
+
+**Historical context — rev-7's own fold summary** (superseded by the
+above as the *current* state, preserved verbatim below for
+continuity; its internal §0.1–§0.4 subsection numbers are the ones
+this document's cross-references still use, now carrying rev-8's
+additions appended to them):
 
 Rev-6 (`f195998`) closed the compatibility gaps rev-5 left open —
 binary trust pin, `db_path` hard refusal, `Setpgid` termination,
@@ -297,7 +375,7 @@ plus the supervisor-relayed `dolt_diff_summary` schema/read-only/
 literal-argv facts already folded in the accompanying supervisor
 message.
 
-### 0.1 Claims Audit (rev-4 + rev-5 + rev-7 additions)
+### 0.1 Claims Audit (rev-4 + rev-5 + rev-6 + rev-7 + rev-8 additions)
 
 Rev-1's `C1`–`C10`, rev-2's `C11`–`C16`, and rev-3's `C17`–`C24`
 (citation corrections for `featureCmd`, the lexical-only safety
@@ -348,8 +426,15 @@ Rev-7 adds:
 | # | Claim | Citation | Why this changes rev-6 |
 |---|-------|----------|-------------------------|
 | C35 | `syscall.Statfs_t.Type`'s width and signedness on Linux is **architecture-dependent**, not a single fixed type: `int64` on `linux/amd64` and `linux/arm64`, `int32` on `linux/386` and `linux/arm`, and `uint32` on `linux/s390x` — a raw comparison of `buf.Type` against an untyped numeric constant compiles differently (and can behave inconsistently at the boundary of the value range) depending on target architecture | Go standard library generated syscall type files: `syscall/ztypes_linux_amd64.go:118` (`Type int64`), `syscall/ztypes_linux_arm64.go:119` (`Type int64`), `syscall/ztypes_linux_386.go:118` (`Type int32`), `syscall/ztypes_linux_arm.go:119` (`Type int32`), `syscall/ztypes_linux_s390x.go:118` (`Type uint32`) — verified directly against the installed Go toolchain's `GOROOT/src/syscall` sources | rev-6 **imprecision**: §7.2 compared `buf.Type` against the allow/deny numeric constants without stating a normalized comparison type, which is architecture-fragile (a `linux/386`/`arm` build's `int32` `Type` could differ in overflow/sign behavior from the `int64` value on `amd64`/`arm64` for the same on-disk magic number, and `s390x`'s `uint32` is a third, unsigned shape). §7.2 now explicitly normalizes `fsType := uint32(buf.Type)` before comparison, and the allow/deny constants themselves are typed `uint32`, making the comparison identical across every architecture regardless of `Statfs_t.Type`'s own declared width on that target. |
-| C36 | POSIX process-group semantics: a process group is not eligible for PGID reuse by the kernel until **every** process that is a member of that group has exited and been reaped — an implementation that calls `Wait()` on only the group's leader (the direct child) the instant that one process exits, while other descendants sharing the same PGID (e.g. a sub-process the leader itself forked) are still running, does not itself prove the group is empty; the leader's own exit status remaining unreaped for a bounded interval does not, by itself, prevent PGID reuse — reuse is gated on group membership going to zero, not on any single member staying unwaited | POSIX.1-2017 `wait`/`waitpid` and process group lifecycle description (`_exit`, "Process Groups" — a process group persists as long as it has at least one member; PGID values are not recycled by the kernel while any member process still exists, independent of whether a controlling process has called `wait` on any specific member) | Grounds task 2's correction to §6.4: this design's own termination sequence must not treat "the leader's `Wait()` returned" as proof the **group** (not just the leader) is empty — the fix keeps the leader unreaped (no `Wait()` call) through the fixed grace period and sends `SIGKILL` to the group unconditionally before ever calling `Wait()`, rather than inferring group emptiness from the leader's own exit alone. |
+| C36 | POSIX process-group semantics: a process group is not eligible for PGID reuse by the kernel until **every** process that is a member of that group has exited and been reaped — an implementation that calls `Wait()` on only the group's leader (the direct child) the instant that one process exits, while other descendants sharing the same PGID (e.g. a sub-process the leader itself forked) are still running, does not itself prove the group is empty; the leader's own exit status remaining unreaped for a bounded interval does not, by itself, prevent PGID reuse — reuse is gated on group membership going to zero, not on any single member staying unwaited | POSIX.1-2017 `wait`/`waitpid` and process group lifecycle description (`_exit`, "Process Groups" — a process group persists as long as it has at least one member; PGID values are not recycled by the kernel while any member process still exists, independent of whether a controlling process has called `wait` on any specific member) | Grounds task 2's correction to §6.4, **reworded rev-8 task 9 to remove the debatable "unreaped leader prevents PGID reuse" framing as the design's primary safety claim**: since C36 itself already states that staying unreaped does *not by itself* prevent reuse, this design's actual, defensible safety property is narrower and mechanical — **the `SIGTERM`→grace→`SIGKILL`→group-then-`Wait()` escalation sequence is never skipped or cancelled merely because the direct child appears to have exited** (rev-8 unifies this into one sequence run for every invocation, §6.4, task 2), not a claim that the sequence itself *proves* PGID non-reuse is impossible in every kernel scheduling interleaving. |
 | C37 | Go's stdlib `io.TeeReader`/`io.MultiWriter` composed with `crypto/sha256` allow computing a streaming digest of bytes as they are copied from one `io.Reader` to an `io.Writer`, with no intermediate full-buffer materialization required beyond the copy's own internal buffer — a standard, dependency-free pattern for "hash while copying" | Go standard library `io`/`crypto/sha256` package documentation (`io.TeeReader(r, w)` returns a `Reader` that writes to `w` everything read from `r`; `io.Copy` combined with a `sha256.New()`-backed `io.Writer` target is the idiomatic streaming-hash-while-copying construction) | Grounds §6.1's rev-7 executed-binary-binding redesign (task 3): the resolved Dolt binary's bytes are streamed from the already-opened source descriptor into the private ephemeral copy file via exactly this `io.TeeReader`/`sha256.New()` composition, so the digest computed is provably the digest of the exact bytes written to the copy that is later executed — no separate "hash the file, then separately copy the file" two-pass design that could itself race a swap between the two passes. |
+
+Rev-8 adds:
+
+| # | Claim | Citation | Why this changes rev-7 |
+|---|-------|----------|-------------------------|
+| C38 | Linux `statfs(2)`'s `f_flags` field (surfaced by Go stdlib as `syscall.Statfs_t.Flags`, populated "since Linux 2.6.36") carries mount-option bits from a documented `ST_*` namespace shared with `statvfs(3)`, including `ST_NOEXEC` ("Execution of programs is disallowed on this filesystem"); the stable, long-standing numeric value of `ST_NOEXEC` in this namespace is `0x8` | `man7.org` `statfs(2)` manual page, "The f_flags field" section (documents `f_flags`'s availability since Linux 2.6.36 and lists `ST_NOEXEC` as a named bit; https://man7.org/linux/man-pages/man2/statfs.2.html); numeric value `0x8` independently cross-checked against a locally available vendored copy of the standard glibc/Linux `ST_*` constant block (`ST_RDONLY=1`, `ST_NOSUID=2`, `ST_NODEV=4`, `ST_NOEXEC=8`) | Grounds §6.1 task 6's Linux `noexec`-mount preflight for the capture-time private-copy scratch directory: `adapter-copy-noexec` refuses (exit 3) before the copy file is created when `buf.Flags&0x8 != 0`, using the same stdlib-only `syscall.Statfs_t` primitive §7.2 already established (C32), not a new dependency. |
+| C39 | Darwin's `sys/mount.h` defines `MNT_NOEXEC` as `0x00000004` in the same mount-flags namespace `syscall.Statfs_t.Flags` (Go stdlib, `darwin` build target) surfaces | Installed macOS SDK header (`usr/include/sys/mount.h`, `#define MNT_NOEXEC 0x00000004 /* can't exec from filesystem */`) | Grounds §6.1 task 6's Darwin `noexec`-mount preflight: `adapter-copy-noexec` refuses (exit 3) when `buf.Flags&0x00000004 != 0`, the platform-specific bit-value counterpart to C38's Linux `ST_NOEXEC`, using the identical stdlib-only `Statfs_t.Flags` field already read for this project's other `statfs`-based preflights. |
 
 ### 0.2 What rev-4 removes or changes
 
@@ -532,6 +617,22 @@ or history at all.
 | 10 | Wire/vector updates: `resources.json` trust split, recomputed golden vectors, trust-update wire | §12, §13 |
 | 11 | ACs/matrix rebuild for all rev-7 behaviors | §14 |
 
+**Rev-8 items** (11-item acceptance/lifecycle micro-fold, `bc2c068` dispatch):
+
+| Item | Requirement | Section(s) |
+|---|---|---|
+| 1 | Test Matrix row 146 (ADR): leaf-ignore/subtree-untracked + ancestor-`statfs` + unconditional retry-fsync, matching `AC-81` | ADR Test Matrix |
+| 2 | Unified process-group termination for every invocation (success or kill-triggered alike) | §6.4 |
+| 3 | Add-time TOFU bootstrap split from capture-time trust verification/execution | §6.1, §3 |
+| 4 | `trust-dolt` in every universal-mutator/local-gate list; duplicate `add` never re-pins | §3, §4, §7.2, §10.3 |
+| 5 | Exit taxonomy consolidation, each named refusal in exactly one row | §3, §14 |
+| 6 | Private-copy host failures: `ST_NOEXEC`/`MNT_NOEXEC` preflight, `ENOSPC`/`EIO` handling | §6.1 |
+| 7 | Local gate targets split: ignore=leaf, untracked=whole `.tpatch/local/` subtree | §7.1, §10.3, ADR D8 |
+| 8 | Corruption/collision taxonomy confirmation (no rewrite needed) | §4 |
+| 9 | Counts/history corrections; ground C36 in "escalation never cancels on leader exit" | §0.1, §14.1 |
+| 10 | Wire/vector re-verification (trust/gate changes do not affect canonical IDs) | §12, §13 |
+| 11 | ACs/matrix rebuild for all rev-8 behaviors | §14 |
+
 ---
 
 ## 1. Problem Statement
@@ -596,20 +697,30 @@ Rev-2 removed the rev-1 `--keep-local` flag entirely (§0.2, unchanged
 since): raw bytes are always ephemeral now, so there is nothing left
 to opt into. **`--trust-current-dolt`** (§6.1) remains the only way to
 declare an `adapter="dolt"` resource. `add` refuses `--kind
-adapter-snapshot --adapter dolt` without it (`dolt-trust-required`,
-exit 2) — there is no default-trust fallback. **Rev-7 changes where
-the resulting pin is stored** (task 4): when passed, `add` resolves
-`dolt` exactly as §6.1 describes (deferred to `add` time now, not only
-`capture` time, for this one purpose: computing the pin), executes the
-private-copy-verification sequence (§6.1) to obtain the resolved
-binary's `SHA-256`, and writes that digest into the resource's
-**separate `trust` field** (§12.1) — `trust: {"binary_sha256": "<hex>"}`
-— **never** into `args`. `args` for a Dolt resource instead always
-carries a `contract` key (§6.1/§6.2, `"dolt-diff-summary-v1"` in v1)
-alongside `db_path`/`table`/`from`/`to`; unlike rev-6's design, the
-trust pin therefore does **not** participate in `resource_id` (§13) —
-two declarations differing only in which Dolt binary they currently
-trust produce the **identical** `resource_id`, by construction.
+adapter-snapshot --adapter dolt` without it (`dolt-trust-flag-required`,
+exit 2, renamed rev-8, task 3/5 — previously shared the name
+`dolt-trust-required` with the unrelated capture-time exit-3 refusal
+below; every named refusal now appears in exactly one row/table
+context, task 5) — there is no default-trust fallback. **Rev-7 changes
+where the resulting pin is stored, rev-8 clarifies the sequence run**
+(task 3, task 4): when passed, `add` runs only the **add-time trust
+bootstrap (TOFU)** sub-sequence of §6.1 — `exec.LookPath`+
+`EvalSymlinks`+validate, open, stream-copy-while-hashing into an
+ephemeral private copy, write the digest, delete the copy — and
+**never** the capture-time steps that require an *existing* pin or
+that execute anything (rev-8 corrects rev-7's ambiguous "executes the
+private-copy-verification sequence" phrasing, which read as if `add`
+also ran the unpinned-refusal check and the `cmd.Start()` execution
+step; it does not, and could not, since by definition no pin exists
+yet the first time `add --trust-current-dolt` runs, §6.1). The
+resulting digest is written into the resource's **separate `trust`
+field** (§12.1) — `trust: {"binary_sha256": "<hex>"}` — **never** into
+`args`. `args` for a Dolt resource instead always carries a `contract`
+key (§6.1/§6.2, `"dolt-diff-summary-v1"` in v1) alongside `db_path`/
+`table`/`from`/`to`; unlike rev-6's design, the trust pin therefore
+does **not** participate in `resource_id` (§13) — two declarations
+differing only in which Dolt binary they currently trust produce the
+**identical** `resource_id`, by construction.
 
 **`trust-dolt`** is new in rev-7 (task 4, §6.1): the **only** way to
 change an already-declared Dolt resource's trust pin after `add`,
@@ -780,12 +891,24 @@ never inside `apply-recipe.json` or any unapply/lifecycle-state file:
     §13.2 hash-input string: `feature\x00kind\x00selector\x00adapter\x00capability\x00canonical_args`)
     are **byte-identical**, the `add` is idempotent — no second entry
     is written, and `add` reports success (exit 0) rather than an
-    error, since nothing about declared identity actually changes (a
-    Dolt `add --trust-current-dolt` that only differs in the resolved
-    binary's current hash is still idempotent at the identity level —
-    the trust pin is compared/updated separately, never folded into
-    this byte-identity check, since `trust` is not part of the
-    canonical payload at all).
+    error, since nothing about declared identity actually changes. A
+    duplicate `add --kind adapter-snapshot --adapter dolt
+    --trust-current-dolt` targeting an already-declared Dolt resource
+    is a **strict** idempotent no-op with respect to `trust` too
+    (rev-8, task 4, correcting rev-7's ambiguous "the trust pin is
+    compared/updated separately" phrasing, which could be misread as
+    implying a duplicate `add` might still refresh `trust.binary_sha256`
+    as a side effect): the existing entry's `trust.binary_sha256` is
+    left **byte-for-byte unchanged**, even if the currently-resolved
+    `dolt` binary's hash now differs from the stored pin — `add` never
+    re-pins an already-declared resource, regardless of whether
+    `--trust-current-dolt` is re-passed; `trust-dolt` (§3) is the
+    **only** operation that may change an existing resource's `trust`
+    field after its initial `add`. This is consistent with `trust`
+    never participating in the canonical payload/identity check above
+    at all: the *presence* of an existing entry for the same identity
+    is what makes `add` idempotent, and idempotent means "nothing
+    changes," not "everything except identity is refreshed."
   - If the candidate's `resource_id` matches an existing entry but the
     two canonical byte payloads **differ** — a genuine collision in
     the 12-hex-truncated ID space between two **distinct**
@@ -1071,15 +1194,31 @@ into the SQL query and the resource ID (§13).
 
 ## 6. Adapter Protocol — Dolt (task 1, task 6, task 7)
 
-### 6.1 Executable resolution, private-copy execution, trust pin, and identity (task 3, task 4, task 5, rev-7)
+### 6.1 Executable resolution, trust bootstrap, private-copy execution, and identity (task 3, task 4, task 5, rev-7; add-time/capture-time split + private-copy host failures, rev-8)
 
-The adapter locates `dolt` via `exec.LookPath("dolt")` at `capture`
-time, and **also** at `add` time when `--trust-current-dolt` is passed
-(§3 — the only way to pin a Dolt resource's trust at `add` time;
-`trust-dolt`, §3, is the only *other* time trust changes, and it never
-resolves or executes a live binary at all). Distinct from the
-`ignored-file` path policy (§9.1, which requires the path stay
-**inside** the repo), the executable policy requires the opposite:
+The adapter locates `dolt` via `exec.LookPath("dolt")` at **two,
+clearly distinct** times — `capture` time, and `add` time when
+`--trust-current-dolt` is passed (§3) — and runs a **shared resolution
+prefix** (steps 1-4 below) followed by **two different, non-shared
+continuations**: an **add-time trust bootstrap (TOFU)** (never
+executes anything, never requires an existing pin) and a
+**capture-time trust verification and execution** sequence (always
+requires an existing pin, always executes the private copy). Rev-7
+described these as one continuous numbered list; the rev-7 adjudication
+found this literally reads as if `add --trust-current-dolt`'s
+bootstrap run would itself hit the "refuse if unpinned" check the
+capture-time sequence opens with — which cannot be right, since by
+definition no pin exists yet the *first* time `add --trust-current-dolt`
+computes one. Rev-8 (task 3) splits the two sequences explicitly below
+so no single numbered list is read as applying to both call sites.
+`trust-dolt` (§3) is a third, narrower operation: it never resolves or
+executes a live binary at all, and is covered separately at the end of
+this section. Distinct from the `ignored-file` path policy (§9.1,
+which requires the path stay **inside** the repo), the executable
+policy requires the opposite:
+
+**Shared resolution prefix** (steps 1-4, identical for `add
+--trust-current-dolt` and `capture`):
 
 1. `exec.LookPath` result, then `filepath.EvalSymlinks` on it (unlike
    the ignored-file gate, symlinks in the *executable's* resolution
@@ -1098,7 +1237,10 @@ resolves or executes a live binary at all). Distinct from the
    Any path outside the repository is accepted regardless of how deep
    the symlink chain that led there was.
 4. Not found at all (`exec.LookPath` fails): `adapter-missing` (exit
-   3).
+   3, at `capture`; at `add --trust-current-dolt` the same failure is
+   still named `adapter-missing` but surfaces as an `add`-time
+   validation error, exit 2 — resolving *some* `dolt` binary to hash is
+   a precondition of the flag succeeding at all).
 
 **Executed-binary binding: hash the exact bytes executed, not a
 separately-resolved pathname twice** (rev-7, task 3 — supersedes
@@ -1110,62 +1252,133 @@ pathname, taken at two different times, do not prove nothing was
 substituted in between, or that `cmd.Start()`'s own internal `PATH`/
 path resolution opened the identical inode either check observed).
 Once resolved and validated per steps 1-4, the adapter never executes
-the resolved pathname directly. Instead:
+the resolved pathname directly at either call site. The **stream-copy-
+while-hashing** primitive (task 3, C37) below is shared by both
+sequences; only the capture-time sequence goes on to harden and
+execute the copy.
+
+**Add-time trust bootstrap (TOFU)** (rev-8, task 3 — the entire body of
+what `add --trust-current-dolt` runs, and nothing more):
+
+1. Run the shared resolution prefix (steps 1-4 above). There is **no**
+   "refuse if unpinned" check here — an add-time bootstrap is, by
+   definition, the operation that establishes the *first* pin; there
+   is nothing to check it against yet.
+2. **Open** the resolved path (`os.Open`, read-only).
+3. **Stream-copy while hashing** into a private, per-invocation
+   ephemeral scratch file under `es_<id>/` (§7.1, containing directory
+   mode `0700`, file created via `os.OpenFile(...,
+   O_CREATE|O_EXCL|O_WRONLY, 0700)`), via `io.Copy(privateFile,
+   io.TeeReader(sourceFile, sha256Hasher))` (C37) — identical mechanics
+   to the capture-time copy below, so the digest computed is provably
+   the digest of the exact bytes copied.
+4. **Write the pin**: the completed `SHA-256` hex digest becomes
+   `trust.binary_sha256` in the resource's declaration (§4, §12.1),
+   written under the same per-slug `flock` (§7.2) every `add` acquires.
+5. **Delete the private copy** (`os.Remove`, best-effort) — the
+   bootstrap never `chmod`s it to `0500`, never re-verifies it, and
+   never calls `cmd.Start()` on it. **No Dolt binary is ever executed
+   during `add`**, trust-bootstrap or otherwise; `add
+   --trust-current-dolt` only ever resolves, opens, copies, and hashes.
+
+**Capture-time trust verification and execution** (rev-7, task 3/4;
+private-copy host-failure handling added rev-8, task 6) — this is the
+sequence a `capture` (or `--dry-run`, §3) runs for every Dolt
+invocation, and the **only** sequence that ever executes a Dolt
+binary:
 
 1. **Refuse if unpinned**: if the resource's `trust.binary_sha256`
    (§4, §12.1) is `null`/absent, refuse `dolt-trust-required` (exit 3
-   — distinct from `add`-time's exit-2 refusal for the same named
-   error, since this is a runtime/load-time gate on an already-declared
-   resource, not a CLI-argument-validation gate) before opening
-   anything.
+   — distinct from `add`-time's exit-2 `dolt-trust-flag-required`
+   refusal for a missing `--trust-current-dolt` flag, rev-8, task 3/5:
+   the two are different named errors at different validation layers,
+   not one name shared across two exit codes) before opening anything.
 2. **Open** the resolved path (`os.Open`, read-only) — this is the
    file descriptor every subsequent step operates on; no step
    re-resolves the pathname from scratch after this point.
-3. **Stream-copy while hashing** (task 3, C37): create a private,
+3. **Preflight the scratch filesystem for `noexec`** (rev-8, task 6):
+   before creating the private copy, `syscall.Statfs`/`Statfs_t` (§9.2,
+   same stdlib-only primitive already used for the local-root `statfs`
+   preflight, §7.1) the `es_<id>/` scratch directory and inspect the
+   platform's mount-flags field — Linux's `Statfs_t.Flags` bit
+   `ST_NOEXEC` (value `0x8`; documented in the `statfs(2)` man page's
+   `f_flags` description, "Execution of programs is disallowed on this
+   filesystem", present since Linux 2.6.36 — https://man7.org/linux/man-pages/man2/statfs.2.html)
+   or Darwin's `Statfs_t.Flags` bit `MNT_NOEXEC` (value `0x00000004`,
+   `sys/mount.h`). Either bit set refuses `adapter-copy-noexec` (exit
+   3) **before** the private copy file is created at all — creating an
+   executable-intent copy on a filesystem the OS has already marked
+   non-executable can only fail later, and more confusingly, at
+   `cmd.Start()`.
+4. **Stream-copy while hashing** (task 3, C37): create the private,
    per-invocation ephemeral scratch file under `es_<id>/` (§7.1, mode
    `0700` for the containing directory, the file itself created via
-   `os.OpenFile(..., O_CREATE|O_EXCL|O_WRONLY, 0700)` — writable only
-   long enough to receive the copy), and copy the opened source
-   descriptor's bytes into it via `io.Copy(privateFile,
-   io.TeeReader(sourceFile, sha256Hasher))` — a single pass that both
-   writes the private copy and feeds every byte through a running
-   `SHA-256` digest (C37), so the digest computed is provably the
-   digest of the exact bytes that land in the private copy; there is
-   no separate "hash the source, then separately copy the source"
-   two-pass design that could itself race a substitution of the
-   source between the two passes.
-4. **Verify before finalizing**: compare the completed digest against
+   `os.OpenFile(..., O_CREATE|O_EXCL|O_WRONLY, 0500)` — rev-8 corrects
+   rev-7's `0700` initial mode to `0500` from creation, since nothing
+   after this step needs the write bit once the copy completes; the
+   descriptor returned by `O_WRONLY` remains writable for the
+   in-progress copy regardless of the mode bits recorded in the
+   directory entry), and copy the opened source descriptor's bytes
+   into it via `io.Copy(privateFile, io.TeeReader(sourceFile,
+   sha256Hasher))` — a single pass that both writes the private copy
+   and feeds every byte through a running `SHA-256` digest (C37), so
+   the digest computed is provably the digest of the exact bytes that
+   land in the private copy; there is no separate "hash the source,
+   then separately copy the source" two-pass design that could itself
+   race a substitution of the source between the two passes. A copy
+   I/O failure (`ENOSPC`/`EIO` from `io.Copy`, `Sync`, or `Close`) is
+   `adapter-copy-failed` (exit 1 — a host/environment fault, not a
+   trust or policy refusal) with best-effort cleanup of the partial
+   copy; no invocation is attempted.
+5. **Verify before finalizing**: compare the completed digest against
    `trust.binary_sha256`. A mismatch is `adapter-binary-untrusted`
    (exit 3) — the partial/complete private copy is deleted
    (best-effort) and **no invocation is attempted at all**; no process
    is started, no output exists to discard.
-5. **Harden the copy**: on a match, `fsync` the private copy file,
-   close it, then `os.Chmod` it to `0500` (read + execute for the
-   owner only, no write bit) — from this point the copy cannot be
+6. **Harden the copy**: on a match, `fsync` the private copy file and
+   close it — the copy was already created `0500` (step 4, rev-8), so
+   no further `os.Chmod` is needed; from this point the copy cannot be
    rewritten by this process (or, since it lives under the `0700`
    `es_<id>/` scratch directory, by any other process running as a
    different OS user) without first restoring write permission.
-6. **Optionally re-verify immediately before exec** (task 3 — adopted
+7. **Optionally re-verify immediately before exec** (task 3 — adopted
    in this design as a cheap, additional closure of the narrow window
-   between step 5 and `cmd.Start()`): re-open the private copy
+   between step 6 and `cmd.Start()`): re-open the private copy
    read-only, re-stream it through a fresh `SHA-256` digest, and
    compare against `trust.binary_sha256` once more; a mismatch at this
    point is also `adapter-binary-untrusted` (exit 3), copy deleted, no
    invocation attempted.
-7. **Execute the private copy's path**, never the originally
+8. **Execute the private copy's path**, never the originally
    `LookPath`/`EvalSymlinks`-resolved pathname — `cmd.Path` (and
    `argv[0]`) is set to the private copy's own path under `es_<id>/`.
    This is what closes rev-6's residual: the exact bytes that were
-   hashed and verified (steps 3-4, optionally reconfirmed in step 6)
+   hashed and verified (steps 4-5, optionally reconfirmed in step 7)
    are the exact bytes `cmd.Start()` opens and executes, because they
    are now the *only* copy of those bytes this invocation ever asks
    the kernel to run — there is no second, independent path-resolution
    step for the kernel to race against a swap of the *original*
    `PATH`-resolved binary, since the original is never referenced
    again after step 2's open.
-8. **Delete the private copy** (`os.Remove`, best-effort, like any
+9. **Delete the private copy** (`os.Remove`, best-effort, like any
    other `es_<id>/` scratch content, §7.1) after the child process
    exits, on both the success and failure paths.
+
+**Private-copy safety despite its scratch location, qualified** (rev-8,
+task 6): the general executable-safety rationale above (step 3 of the
+shared resolution prefix) requires the *originally-resolved* Dolt
+binary to live outside the repository tree, because that tree is
+attacker-reachable. The **private copy** the capture-time sequence
+executes instead (step 8) necessarily lives *inside* `.tpatch/local/`
+(§7.1) — itself repository-adjacent, though gitignored — and this is
+safe for a different, narrower reason than "outside the tree": the
+copy's bytes are descriptor-bound (copied from an already-`os.Open`ed
+source descriptor, never re-resolved by pathname, step 2/4), hash-
+verified against the operator's own pin immediately before creation is
+finalized (step 5, optionally step 7), and owner-only (`0500`, no
+group/other bits, under a `0700` parent). Its location does not weaken
+these guarantees; what matters is that every byte executed traces back
+to one continuous, never-re-resolved, hash-checked chain, not that the
+path it temporarily occupies happens to sit under the repo.
 
 **Residual, stated honestly** (task 3): this design closes the
 "resolve, hash, then separately re-resolve-and-execute a possibly-
@@ -1531,7 +1744,7 @@ silently normalized.
 | Invocation timeout | 30 seconds. On timeout: `SIGTERM` to the process group, then `SIGKILL` after 2 more seconds if still running. |
 | Captured output cap | 5 MiB combined stdout+stderr, enforced as a **refusal, never a truncation** (rev-5 correction — rev-4's "output beyond the cap is truncated" contradicted its own "zero pre-scan persistence"/fail-closed framing, since silently truncating and proceeding is itself a form of trusting unbounded input up to the point of truncation). The adapter uses `cmd.StdoutPipe()`/`cmd.StderrPipe()` (never `cmd.Stdout`/`cmd.Stderr` set to a `*bytes.Buffer`, which has no built-in bound) with two concurrent goroutines draining each pipe into a **shared** cap-plus-one budget (a single `int64` counter both readers atomically decrement, so stdout and stderr together, not each independently, are bounded by the 5 MiB total) — task 2's "zero pre-scan persistence," never written to a scratch file first, §7.1/§8. The **instant** the shared budget's `limit+1`th byte is actually read from either pipe, the adapter sends `SIGTERM` then (after the existing 2-second grace) `SIGKILL` to the child's **process group** (the same termination mechanism as a timeout), continues draining both pipes to completion (so the child is never left blocked writing to a full, unread pipe while being killed) and `cmd.Wait()`s for it, then refuses the whole invocation with `resource-limit-exceeded` (exit 3) — no partial/truncated output is ever handed to the JSON parser (§6.3) or scanned for redaction (§8), and no tracked artifact reflects a truncated result. **stdout and stderr are captured and bounded identically, but are never merged for parsing purposes**: only the stdout buffer is ever handed to §6.3's JSON parser; the stderr buffer exists solely to be scanned for redaction (§8.3) and, on a non-zero exit or a `dolt-query-error`, to populate the local, ephemeral diagnostic (§7.5) — it is never itself parsed as JSON and never influences whether stdout parses successfully. |
 | Environment | **Not** inherited from the invoking process (task 2's "no inherited credentials"). A fresh, minimal environment is constructed: `HOME=<scratch-home>` and `DOLT_ROOT_PATH=<scratch-home>` pointing at a directory created fresh under this invocation's ephemeral scratch tree (§7.1, `0700`, created before the child process starts so Dolt may write its own ephemeral config/state there if it chooses to — this is not a network or version call, just process-local state under an isolated `HOME`); `PATH` is **not** set at all (the adapter is invoked by its already-resolved absolute path, §6.1, so `PATH` lookup is never needed mid-invocation). No other variable is passed through. |
-| Termination | **Process-group-only termination, `Setpgid` required, unreaped-leader-through-grace** (rev-7, task 2 — supersedes rev-6's "escalation is cancelled the moment `cmd.Wait()` observes the group has already exited" design, which the rev-7 fold found only proves the **direct child's** exit — `cmd.Wait()` observes the direct child process, not the whole process group — permitting the group's PGID to be reused by an unrelated later process while a rogue descendant that ignored `SIGTERM` was still alive in the (still-extant) group). Before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. On timeout or cap-plus-one overflow (the **kill path**, distinct from the normal-success path below): (1) the adapter reads `cmd.Process.Pid` (which, with `Setpgid:true`, **is** the new group's PGID) and calls `syscall.Kill(-pgid, syscall.SIGTERM)` — the **negative** PGID form (C31, POSIX `kill(2)`); (2) the adapter does **not** call `cmd.Wait()` yet — the leader is deliberately left unreaped through the entire fixed grace period (2 seconds, unchanged), regardless of whether the pipes appear to have closed early, specifically so the PGID cannot be recycled by the kernel to an unrelated process while a group member might still be alive; (3) after the grace elapses, the adapter unconditionally calls `syscall.Kill(-pgid, syscall.SIGKILL)`, tolerating `syscall.ESRCH` (no such process — the entire group has already exited on its own, a success case, not an error) as the only acceptable failure from this call; (4) **only after** the `SIGKILL` call returns (with or without `ESRCH`) does the adapter call `cmd.Wait()` to reap the leader and collect its exit state. Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group (e.g. a sub-process Dolt itself spawns) — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell. **Normal-success path** (distinct from the kill path, rev-7 task 2): when the invocation completes on its own before the timeout/cap fires (both pipes reach EOF and the shared budget was never exceeded), the adapter calls `cmd.Wait()` **immediately** — there is no artificial grace delay on the success path; the unreaped-through-grace discipline applies **only** to the kill path, where the delay exists specifically to prevent PGID reuse during the SIGTERM→SIGKILL escalation window. **Residual, stated honestly**: a group member that survives `SIGKILL` is not possible for `SIGKILL` itself (it cannot be caught or ignored), but a **new** process spawned by a group member *after* the `SIGKILL` signal was delivered but *before* the kernel has fully torn down the group is a kernel-level race this design does not claim to close — it is bounded by the OS's own signal-delivery/process-teardown semantics, not by anything `tpatch` controls. **Verification**: this design's own timeout/cap tests spawn a Dolt-invocation stand-in that itself forks a short-lived descendant process configured to ignore `SIGTERM` and close its own pipes without exiting, trigger the timeout/cap path, and assert (a) the leader is not reaped (no `Wait()` call observed) until after the `SIGKILL` call, (b) the descendant no longer exists after the full kill sequence completes, and (c) the `tpatch` test-runner process itself is never signaled or observably affected — proving group-only, unreaped-through-grace isolation, not merely "the group eventually goes away." |
+| Termination | **One unified process-group cleanup sequence for every invocation, success or kill-triggered alike** (rev-8, task 2 — supersedes rev-7's two-path "kill path" vs. "normal-success path" split, which the rev-8 adjudication found left the normal-success path's immediate `cmd.Wait()` unable to prove the **group** — not just the direct child — was empty: a successful invocation could still leave a rogue descendant sharing the PGID alive past `tpatch`'s own return, since nothing ever signalled or waited on the group in that case). Before `cmd.Start()`, the adapter sets `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (C31; `linux`/`darwin` only, matching §7.2's build-tag contract — unsupported platforms are already refused before any Dolt invocation is reachable). This makes the spawned child the leader of a **new** process group whose PGID equals the child's own PID, distinct from `tpatch`'s own process group. **Every** invocation — whether it completes on its own, hits the 30-second timeout, or exceeds the output cap — now runs the identical sequence once its pipes are drained: (1) drain `cmd.StdoutPipe()`/`cmd.StderrPipe()` to `EOF` (C30 — required before `Wait()` regardless of trigger; a timeout/cap-triggered drain reads to completion exactly as before, §8.1); (2) **unconditionally** read `cmd.Process.Pid` (the group's PGID, `Setpgid:true`) and call `syscall.Kill(-pgid, syscall.SIGTERM)` — sent every time, not only on a kill trigger, tolerating `syscall.ESRCH` (the entire group has already exited on its own — the overwhelmingly common case for a successful invocation, not an error); (3) the adapter does **not** call `cmd.Wait()` yet — the leader is left unreaped through the entire fixed grace period (2 seconds, unchanged) regardless of trigger, so the PGID cannot be recycled by the kernel to an unrelated process while a group member might still be alive, and so a `SIGTERM`-ignoring descendant is given the same fixed window to exit on every invocation, not only a kill-triggered one; (4) after the grace elapses, the adapter unconditionally calls `syscall.Kill(-pgid, syscall.SIGKILL)`, again tolerating `syscall.ESRCH` as the only acceptable failure; (5) **only after** the `SIGKILL` call returns (with or without `ESRCH`) does the adapter call `cmd.Wait()` to reap the leader and collect its exit state — this is the one and only `Wait()` call for any invocation, and it is never used to infer group emptiness itself (that is exactly the claim rev-7's normal-success path made and rev-8 removes: **there is no "`Wait()` observes the group" claim anywhere in this design**; group emptiness is established by the unconditional signal-and-grace sequence that runs before `Wait()` is ever called, on every invocation, not by anything `Wait()` itself reports). Signaling `-pgid` reaches only the Dolt child and any of its own descendants that remain in the same group (e.g. a sub-process Dolt itself spawns) — it never reaches `tpatch`'s own process, `tpatch`'s own process group, or a parent shell. **Grounding, corrected rev-8 task 9**: this design does **not** claim "keeping the leader unreaped prevents PGID reuse" as a standalone proof (C36 itself states unreaped-alone does not guarantee this) — the defensible property is narrower and purely mechanical: **the `SIGTERM`→grace→`SIGKILL`→`Wait()` escalation is never skipped or cancelled merely because the direct child appears to have exited**, because it is no longer conditioned on any exit observation at all; it runs identically every time. **A new, deliberate, disclosed trade-off** (rev-8, task 2): every invocation — including a fully-successful one whose leader has already exited by the time its pipes reach `EOF` — now pays the fixed grace-period latency before `cmd.Wait()` is ever called, since the sequence is unconditional rather than branching on how completion was reached; this is accepted as the cost of having exactly one code path to reason about and test, rather than two. A second trade-off: if the leader process closes its `stdout`/`stderr` pipes (reaching the drain's `EOF`) while genuinely still alive and doing further work (e.g., due to descriptor duplication into a background helper it forked), the unconditional `SIGTERM`→grace→`SIGKILL` sequence will still terminate it — converting what might have been an eventual natural success into a forced termination, surfaced through the same non-zero/abnormal-exit-status path an ordinary Dolt query failure already uses (§6.2's `dolt-query-error` taxonomy — no new named refusal is introduced for this case, since from `cmd.Wait()`'s perspective a signal-terminated child is indistinguishable in kind, only in cause, from any other non-zero exit). This is a deliberate choice (favoring "never let a stray group member outlive the invocation" over "wait indefinitely for a leader that has gone quiet on its pipes but may still be legitimately working") and is not claimed to be reconciled away. **Residual, stated honestly**: a group member that survives `SIGKILL` is not possible for `SIGKILL` itself (it cannot be caught or ignored), but a **new** process spawned by a group member *after* the `SIGKILL` signal was delivered but *before* the kernel has fully torn down the group is a kernel-level race this design does not claim to close — it is bounded by the OS's own signal-delivery/process-teardown semantics, not by anything `tpatch` controls. **Verification**: this design's own tests cover both ends of the unified sequence on the **same** code path — (a) a normal, successfully-completing Dolt-invocation stand-in with a descendant that ignores `SIGTERM` and closes its own pipes without exiting: assert the leader is not reaped (no `Wait()` call observed) until after the unconditional `SIGKILL` call, the descendant no longer exists after the sequence completes, `cmd.Wait()`'s reported exit status still reflects the leader's own real (successful) completion when the leader itself had already exited before `SIGTERM` was sent (`ESRCH` at step 2), and the `tpatch` test-runner process itself is never signaled or observably affected; and (b) the pre-existing timeout/cap-triggered case, run through the identical sequence, with the same assertions. |
 
 A concrete, fully-specified argv/SQL example for Vector 2 (§0.3) —
 `contract=dolt-diff-summary-v1, db_path=data/dolt-db, table=users, from=main, to=HEAD` (trust pin `binary_sha256` lives in the separate `trust` field, §4/§6.1, and never appears in `args` or this argv):
@@ -1564,18 +1777,22 @@ ignored is refused (`local-root-not-ignored`/`local-path-tracked`,
 exit 3) before any scratch content, including the lock file, is
 created, matching §10.3's row for this exact case.
 
-**First-create sequencing — leaf-targeted ignore/untracked gate, statfs on nearest ancestor** (rev-7, task 1 — corrects rev-6's design, which ran **both** the ignore/untracked gate and the `statfs` preflight against the nearest existing ancestor; the rev-7 fold found this conflated two checks with different existence requirements. `EnsureLocalIgnoreContract`/the untracked `ls-files` gate (§10.3) are pathname checks whose semantics are **existence-independent** — `git check-ignore`/`git ls-files` answer "would this path be ignored/tracked if it existed" without requiring the path to exist first, so there is no technical reason to weaken them to an ancestor; `statfs`, by contrast, is a **kernel syscall on an existing inode** and genuinely cannot run against a not-yet-created leaf):
+**First-create sequencing — leaf-targeted ignore gate + subtree-targeted untracked gate, statfs on nearest ancestor** (rev-7, task 1; ignore/untracked target split, rev-8, task 7 — corrects rev-6's design, which ran **both** the ignore/untracked gate and the `statfs` preflight against the nearest existing ancestor, and rev-7's design, which correctly leaf-targeted the ignore check but left the untracked check's target ambiguous/inconsistent with §10.3. `EnsureLocalIgnoreContract` (the ignore half) is a pathname check whose semantics are **existence-independent** — `git check-ignore` answers "would this path be ignored if it existed" without requiring the path to exist first, so there is no technical reason to weaken it to an ancestor; the untracked half (§10.3 step 2) answers a **different** question — "is anything tracked under this whole gitignored root" — which is naturally subtree-scoped, not leaf-scoped, and is likewise existence-independent (`git ls-files` over an empty/nonexistent subtree simply reports empty stdout); `statfs`, by contrast, is a **kernel syscall on an existing inode** and genuinely cannot run against a not-yet-created leaf):
 
-1. **Ignore/untracked gate — targets the intended leaf directly, existence-independent** (task 1): run `EnsureLocalIgnoreContract` and the separate untracked `ls-files` gate (§10.3) against the **exact** intended path,
+1. **Ignore gate — targets the intended leaf directly, existence-independent** (task 1): run `EnsureLocalIgnoreContract` (§10.3 step 1) against the **exact** intended path,
    `.tpatch/local/resource-scratch/<slug>/` (the directory about to
    contain `.lock`), regardless of whether it currently exists on
-   disk. On a fresh clone this path does not yet exist, but both
-   checks are pathname-based and answer correctly regardless (Git's
-   own `check-ignore`/`ls-files` semantics do not require the target
-   path to exist, §10.3/N's exception notwithstanding — that exception
-   is about pathspec-mode selection, not about existence). A failure
-   here (`local-root-not-ignored`/`local-path-tracked`, exit 3) is
-   refused **before** any directory in the scratch tree, including
+   disk. On a fresh clone this path does not yet exist, but the check
+   is pathname-based and answers correctly regardless (Git's own
+   `check-ignore` semantics do not require the target path to exist).
+   **Untracked gate — targets the whole `.tpatch/local/` subtree,
+   also existence-independent** (rev-8, task 7): run the separate
+   `ls-files`-based untracked gate (§10.3 step 2) against
+   `.tpatch/local/` as a whole, not the per-slug leaf — a tracked file
+   under any slug's scratch tree is refused the same way regardless of
+   which slug is currently being mutated. A failure in either half
+   (`local-root-not-ignored`/`local-path-tracked`, exit 3) is refused
+   **before** any directory in the scratch tree, including
    `.lock`'s own containing directory, is created — this closes
    rev-6's AC-81/82 gap, where the gate ran against whatever ancestor
    happened to already exist (potentially the repository root itself
@@ -2515,13 +2732,16 @@ paths always use §9.1; the Dolt executable path always uses §6.1/§9.2.
 | `ignored-file`/`db_path`, a prefix component does not exist | Refused: `path-missing` |
 | Dolt executable resolves (possibly through symlinks) to a path outside the repo and `.git` | Accepted |
 | Dolt executable resolves to a path inside the repo working tree or under any `.git` directory | Refused: `adapter-executable-in-repo` |
-| Resource's `trust.binary_sha256` is `null`/absent at capture time | Refused: `dolt-trust-required` (rev-7, task 5 — distinct from `add`-time's exit-2 refusal of the same name; this is a runtime/load-time gate on an already-declared resource) |
+| Resource's `trust.binary_sha256` is `null`/absent at capture time | Refused: `dolt-trust-required` (exit 3, rev-7 task 5 — renamed distinct from the add-time `dolt-trust-flag-required` refusal, rev-8, task 3/5; this is a runtime/load-time gate on an already-declared resource, not a CLI-flag-validation gate) |
 | Streamed private-copy `SHA-256` (computed while copying the opened source descriptor's bytes) does not match the resource's pinned `trust.binary_sha256` | Refused: `adapter-binary-untrusted`, private copy deleted, no invocation attempted (rev-7, task 3/4 — supersedes rev-6's "hash the resolved pathname, then invoke" design; the digest compared is now provably the digest of the bytes actually executed, §6.1) |
 | Optional pre-`cmd.Start()` re-verification of the private copy fails | Refused: `adapter-binary-untrusted`, private copy deleted, no invocation attempted (rev-7, task 3) |
-| `add --kind adapter-snapshot --adapter dolt` without `--trust-current-dolt` | Refused: `dolt-trust-required` (add-time validation error, exit 2) |
+| Private-copy scratch directory's filesystem has an `ST_NOEXEC`/`MNT_NOEXEC` mount flag set (§6.1 step 3 of the capture-time sequence) | Refused: `adapter-copy-noexec` (exit 3, rev-8, task 6), before the private copy file is created |
+| Private-copy stream-copy/`fsync`/`Close` fails with `ENOSPC`/`EIO` | Refused: `adapter-copy-failed` (exit 1, rev-8, task 6 — a host/environment fault, not a trust/policy refusal), partial copy cleaned up best-effort |
+| `add --kind adapter-snapshot --adapter dolt` without `--trust-current-dolt` | Refused: `dolt-trust-flag-required` (add-time validation error, exit 2, renamed rev-8, task 3/5 — previously shared the name `dolt-trust-required` with the distinct capture-time exit-3 refusal above) |
 | `add --kind adapter-snapshot --adapter dolt`, `--arg contract=<anything other than "dolt-diff-summary-v1">` | Refused: `dolt-contract-unsupported` (rev-7, task 5, exit 2) |
 | `trust-dolt` targets a resource whose `kind`/`adapter` is not `adapter-snapshot`/`dolt` | Refused: `resource-not-dolt-adapter` (rev-7, task 4, exit 2) |
 | `trust-dolt --binary-sha256` value is not exactly 64 lowercase hex characters | Refused: validation error (exit 2), before the lock is acquired (rev-7, task 4) |
+| Duplicate `add` with an identical declaration (`--trust-current-dolt` re-passed or not) targeting an existing resource | Accepted as a strict idempotent no-op — `trust.binary_sha256` (if already set) is left byte-for-byte unchanged; only `trust-dolt` may re-pin after the initial `add` (rev-8, task 4) |
 | An entry's own recorded `resource_id` does not match its own recomputed identity | Refused: `resources-file-corrupt` (rev-7, task 6 — distinct from `resource-id-collision`, which is reserved for two distinct declarations) |
 
 ## 10. Git Ignore/Tracked Gate Semantics (task 1, task 6)
@@ -2566,41 +2786,76 @@ exit `1` with unexpected stderr, is a fatal Git error — refused
 Every index-entry-selector call (`git-metadata`'s `index-entry` view,
 §5.2) uses this same literal-pathspec form.
 
-### 10.3 Local-ignore-root reuse (task 1, task 8)
+### 10.3 Local-ignore-root reuse (task 1, task 8; ignore/untracked target split, rev-8 task 7)
 
 Before the first write to `.tpatch/local/resource-scratch/<slug>/` for
 a given slug — which now means before the persistent `.lock` file's
 own first creation (§7.1, §7.2), not merely before scratch-content
 creation — **every** mutating verb (`add`, `remove`, `clear`,
-`capture`, `record --resources`, task 8's "every mutator checks
-EnsureLocalIgnoreContract... before creating lock/scratch") calls the
-**existing** `workflow.EnsureLocalIgnoreContract(repoRoot,
-resourceScratchRoot)` (`internal/workflow/session_ignore.go:138`) —
-reused exactly as-is, not re-invented — which verifies Git is
-available, the path is inside the worktree, and
-`gitutil.IsPathIgnored` reports it ignored; `IsPathIgnored`'s own
-`check-ignore` invocation is precisely the deliberate pathname
-exception documented in §10.1 (it does not, and cannot, use
-`--literal-pathspecs`). Because `EnsureLocalIgnoreContract` alone does
-not close the `--no-index` gap for the scratch root any more than it
-does for an `ignored-file` selector (C13), this design layers the
-**same** tracked-file gate from §5.1/§10.2 on top: `git
---literal-pathspecs ls-files --error-unmatch -- .tpatch/local/` must
-also report untracked. Either check failing to hold is
-`local-path-not-ignored`/`local-path-tracked` (exit 3) — refused
-before any scratch content, **including the lock file itself**, is
-created, exactly mirroring ADR-027 D1's ignored-before-first-write
-mandate. This gate now runs identically for `remove`/`clear` (which
+`trust-dolt`, `capture`, `record --resources`, task 8's "every mutator
+checks `EnsureLocalIgnoreContract`... before creating lock/scratch")
+runs **two separate checks with two separate targets** (rev-8, task 7
+— corrects rev-7's design, which reused the single per-slug leaf path
+for both the ignore check *and* the untracked check, silently
+disagreeing with §7.1's own worked fresh-clone example, which already
+targeted the whole `.tpatch/local/` subtree for the untracked half):
+
+1. **Ignored half — targets the exact per-slug leaf**, existence-
+   independent, nested-negation-aware: the **existing**
+   `workflow.EnsureLocalIgnoreContract(repoRoot, resourceScratchRoot)`
+   (`internal/workflow/session_ignore.go:138`) — reused exactly as-is,
+   not re-invented — verifies Git is available, the path
+   (`.tpatch/local/resource-scratch/<slug>/`) is inside the worktree,
+   and `gitutil.IsPathIgnored` reports it ignored; `IsPathIgnored`'s
+   own `check-ignore` invocation is precisely the deliberate pathname
+   exception documented in §10.1 (it does not, and cannot, use
+   `--literal-pathspecs`). **`EnsureLocalIgnoreContract` itself only
+   ever covers this ignored half** — it has no untracked-checking
+   logic of its own (C13), which is exactly why step 2 below is a
+   separate call, not a parameter or mode of this same function.
+2. **Untracked half — targets the whole `.tpatch/local/` subtree, not
+   the per-slug leaf** (rev-8, task 7): `git --literal-pathspecs
+   ls-files -- .tpatch/local/` (no `--error-unmatch`) is run once per
+   mutating invocation; the check passes only if **stdout is exactly
+   empty** — any tracked path anywhere under `.tpatch/local/` (for
+   *any* slug, not only the one being mutated) makes this list
+   non-empty and refuses; a non-zero exit from the `git` invocation
+   itself (a genuine Git error, distinct from "nothing tracked") is
+   always fatal, never interpreted as "untracked." This deliberately
+   does **not** reuse `AC-39`'s `ls-files --error-unmatch`-based
+   per-selector gate (§10.2): `--error-unmatch`'s "tracked vs.
+   untracked" distinction is inferred from an exit-code/stderr-text
+   shape that is designed for a **single, existing-or-not** pathname
+   argument, not for "is anything anywhere under this whole directory
+   tracked" — the plain, no-flag `ls-files` form with an
+   empty-stdout convention answers that broader question directly,
+   without depending on stderr text matching at all, and is
+   deliberately targeted at the whole `.tpatch/local/` subtree (not
+   the per-slug leaf) precisely because the ignore half (step 1) is
+   already the leaf-targeted, existence-independent check — splitting
+   the two removes the need for the untracked half to also be
+   existence-independent or leaf-scoped, since `ls-files` naturally
+   answers "is anything tracked under this prefix" regardless of
+   whether the prefix itself currently exists on disk.
+
+Either check failing is `local-root-not-ignored` (step 1) or
+`local-path-tracked` (step 2) (exit 3) — refused before any scratch
+content, **including the lock file itself**, is created, exactly
+mirroring ADR-027 D1's ignored-before-first-write mandate. This gate
+now runs identically for `remove`/`clear`/`trust-dolt` (which
 previously, in rev-3, only acquired the lock without first re-running
 this check — corrected here since rev-4 makes the lock file itself
 the very first piece of scratch state any mutator creates) — §14 has
-explicit `AC`/matrix rows for `remove`/`clear` exercising this exact
-case, not just `add`/`capture`. This PRD does not invent a second
-ignore mechanism — it reuses the one that exists and adds only the
-missing tracked-file half, the same addition already made for
-`ignored-file` selectors in §5.1.
+explicit `AC`/matrix rows for `remove`/`clear`/`trust-dolt` exercising
+this exact case, not just `add`/`capture`. This PRD does not invent a
+second ignore mechanism — it reuses the one that exists (step 1) and
+adds only the missing tracked-file half (step 2), scoped to the whole
+gitignored root rather than any one slug's leaf, since a tracked file
+anywhere under `.tpatch/local/` is a privacy-boundary violation
+regardless of which slug's scratch tree it happens to sit under.
 
 ### 10.4 Pathspec-magic rows (task 1, task 6)
+
 
 | Selector / call | Invocation | Behavior |
 |---|---|---|
@@ -2683,14 +2938,16 @@ all-declared-resources scope exactly). `record --resources` has no
 `--dry-run` of its own either (unchanged — only `feature resource
 capture`/`diff` support `--dry-run`/resource-only preview, §3).
 
-**Exit codes** (restated for rev-4/rev-6's refusal names):
+**Exit codes** (restated for rev-4/rev-6's refusal names; rev-8, task 5
+consolidates the taxonomy so every named refusal appears in exactly
+one row/table context):
 
-| Code | `feature resource {add,list,remove,clear,capture,diff}` | `record --resources` |
+| Code | `feature resource {add,list,remove,clear,capture,diff,trust-dolt}` | `record --resources` |
 |---|---|---|
 | `0` | Success (including `diff` reporting "no capture yet") | Success |
-| `1` | Internal error; `tracked-batch-missing` (§4.1) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
-| `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate/missing `--arg` (including missing `db_path`/`table` — `binary_sha256` is **not** a declared `--arg`, rev-7: it lives in the separate `trust` field, set only via `--trust-current-dolt`/`trust-dolt`, §3/§6.1), `NUL`/control byte/backslash/`..` in a Dolt arg (named `dolt-argument-refused`, task 10 — covers `..`, control/backslash bytes, and case-insensitive `WORKING`/`STAGED`, all refused at the same argument-validation layer before Dolt is invoked), missing index entry at `add`, `table` mismatch between selector and declared field, `dolt-trust-required` (rev-6: `add --adapter dolt` without `--trust-current-dolt`; rev-7: also refuses a `capture` whose resource has no `trust.binary_sha256` pinned, §6.1) | n/a (unmodified) |
-| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing`/`adapter-executable-in-repo`/`adapter-binary-untrusted` (rev-6, §6.1), `db-path-identity-changed` (rev-6, §9.1 — upgraded from a diagnostic-only detection), `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `batch-file-corrupt` (rev-6, §7.3), `resource-id-collision` (rev-6, §4/§13), `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
+| `1` | Internal error; `tracked-batch-missing` (§4.1); `adapter-copy-failed` (rev-8, task 6 — `ENOSPC`/`EIO` during the capture-time private-copy stream/`fsync`/`Close`, a host/environment fault rather than a trust or policy refusal) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
+| `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate/missing `--arg` (including missing `db_path`/`table` — `binary_sha256` is **not** a declared `--arg`, rev-7: it lives in the separate `trust` field, set only via `--trust-current-dolt`/`trust-dolt`, §3/§6.1), `NUL`/control byte/backslash/`..` in a Dolt arg (named `dolt-argument-refused`, task 10 — covers `..`, control/backslash bytes, and case-insensitive `WORKING`/`STAGED`, all refused at the same argument-validation layer before Dolt is invoked), missing index entry at `add`, `table` mismatch between selector and declared field, `dolt-trust-flag-required` (`add --adapter dolt` without `--trust-current-dolt`, renamed rev-8, task 3/5 from the previously-overloaded `dolt-trust-required` name), `adapter-missing` **at `add --trust-current-dolt`** (rev-8, task 3 — `exec.LookPath` fails while computing the bootstrap pin, distinct from the same name's exit-3 meaning at `capture`), `dolt-contract-unsupported` (rev-7, task 5), `resource-not-dolt-adapter` (rev-7, task 4, `trust-dolt` on a non-Dolt resource) | n/a (unmodified) |
+| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing` **at `capture`** (distinct exit-2 meaning at `add`, above)/`adapter-executable-in-repo`/`adapter-binary-untrusted` (rev-6, §6.1), `dolt-trust-required` (capture-time missing pin, renamed-distinct rev-8, task 3/5), `adapter-copy-noexec` (rev-8, task 6 — scratch filesystem `ST_NOEXEC`/`MNT_NOEXEC`), `db-path-identity-changed` (rev-6, §9.1 — upgraded from a diagnostic-only detection), `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `batch-file-corrupt` (rev-6, §7.3), `resources-file-corrupt` (rev-7, task 6), `resource-id-collision` (rev-6, §4/§13), `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
 
 Named `dolt-argument-refused` cases, exhaustively (task 10): a `from`/
 `to`/`table` value containing a `NUL`/C0 control byte, a literal
@@ -3235,7 +3492,7 @@ it did in rev-3.
   working tree (or under any `.git` directory) is refused
   (`adapter-executable-in-repo`).
 - `AC-18`: The `SHA-256` digest fed into the private-copy verification
-  (§6.1 steps 3-4) is computed via a single streaming
+  (§6.1 capture-time steps 4-5) is computed via a single streaming
   `io.TeeReader`-based pass over the opened source descriptor's bytes
   while those same bytes are simultaneously written to the private
   ephemeral copy — never a separate hash-then-copy two-pass sequence
@@ -3248,16 +3505,26 @@ it did in rev-3.
   hash-verified copy's own ephemeral path — never the originally
   `LookPath`/`EvalSymlinks`-resolved pathname (rev-7, task 3). A
   missing `trust.binary_sha256` (null/absent) at capture time refuses
-  `dolt-trust-required` (exit 3) before the private copy is even
-  created.
+  `dolt-trust-required` (exit 3, renamed-distinct from the add-time
+  `dolt-trust-flag-required` refusal, rev-8, task 3/5) before the
+  private copy is even created.
 - `AC-20`: `add --kind adapter-snapshot --adapter dolt` without
-  `--trust-current-dolt` is refused (`dolt-trust-required`, exit 2);
-  with it, the resource's separate `trust` field (§4/§12.1) — **not**
-  its `args` — gains a `binary_sha256` entry equal to the `SHA-256`
-  of the binary `add` itself resolved at that moment (rev-7, task 4 —
-  supersedes rev-6's "`binary_sha256` is a mandatory `args` entry" AC,
-  since the pin is now excluded from `resource_id`'s identity hash
-  entirely).
+  `--trust-current-dolt` is refused (`dolt-trust-flag-required`, exit
+  2, renamed rev-8 task 3/5 from `dolt-trust-required`, which now
+  names only the distinct capture-time exit-3 refusal above); with it,
+  `add` runs **only** the add-time trust bootstrap (TOFU, §6.1, rev-8
+  task 3) — resolve/open/stream-copy-while-hash, no existing-pin
+  check, no execution — and the resource's separate `trust` field
+  (§4/§12.1) — **not** its `args` — gains a `binary_sha256` entry
+  equal to the `SHA-256` of the binary `add` itself resolved at that
+  moment (rev-7, task 4 — supersedes rev-6's "`binary_sha256` is a
+  mandatory `args` entry" AC, since the pin is now excluded from
+  `resource_id`'s identity hash entirely). A duplicate `add` (task 4,
+  rev-8) — same declaration, `--trust-current-dolt` re-passed or not —
+  is a strict idempotent no-op: an already-set `trust.binary_sha256`
+  is left byte-for-byte unchanged even if the freshly-resolved
+  binary's hash now differs; only `trust-dolt` (`AC-92`) may re-pin
+  after the initial `add`.
 
 **Zero pre-scan persistence; privacy; bounded reads (task 2)**
 
@@ -3361,17 +3628,25 @@ it did in rev-3.
 
 - `AC-41`: The scratch root's ignored status is verified via the
   existing `EnsureLocalIgnoreContract`, not a second, parallel ignore
-  mechanism.
-- `AC-42`: The scratch root is also verified untracked via the
-  `AC-39`-style `ls-files --error-unmatch` gate; either check failing
-  refuses (`local-root-not-ignored`/`local-path-tracked`) before any
-  scratch content — including the persistent `.lock` file's own
-  first-ever creation — is created.
-- `AC-43`: `remove`/`clear` run the identical local-ignore/untracked
-  gate as `add`/`capture`/`record --resources`, before their own
-  `.lock` acquisition — not just the mutators that create scratch
-  content (correcting rev-3, which did not explicitly extend this gate
-  to `remove`/`clear`).
+  mechanism — targeting the exact per-slug leaf (§10.3 step 1, rev-8
+  task 7).
+- `AC-42`: The scratch root is also verified untracked via a plain
+  `git --literal-pathspecs ls-files -- .tpatch/local/` (no
+  `--error-unmatch`) requiring **empty stdout**, scoped to the
+  **whole** `.tpatch/local/` subtree, not the per-slug leaf (§10.3
+  step 2, rev-8 task 7 — corrects the prior `AC-39`-style
+  `--error-unmatch`-based per-leaf design, which conflated the
+  single-selector-scoped gate's mechanics with this broader
+  whole-subtree question); either check failing refuses
+  (`local-root-not-ignored`/`local-path-tracked`) before any scratch
+  content — including the persistent `.lock` file's own first-ever
+  creation — is created.
+- `AC-43`: `remove`/`clear`/`trust-dolt` run the identical
+  local-ignore/untracked gate as `add`/`capture`/`record --resources`,
+  before their own `.lock` acquisition — not just the mutators that
+  create scratch content (correcting rev-3, which did not explicitly
+  extend this gate to `remove`/`clear`; rev-8, task 4, adds
+  `trust-dolt` to this same list).
 
 **Kernel `flock` lock semantics (task 1)**
 
@@ -3387,9 +3662,11 @@ it did in rev-3.
   crash) releases the lock at the kernel level with no code of this
   design's own running — the next invocation acquires it successfully
   immediately, with no manual reclaim/quarantine step of any kind.
-- `AC-47`: All five mutating verbs (`add`, `remove`, `clear`,
-  `capture`, `record --resources`) acquire the identical per-slug
-  `flock` before their first write; `list`/`diff` never acquire it.
+- `AC-47`: All **six** mutating verbs (`add`, `remove`, `clear`,
+  `trust-dolt`, `capture`, `record --resources`) acquire the identical
+  per-slug `flock` before their first write; `list`/`diff` never
+  acquire it (rev-8, task 4 — corrects the prior five-verb count,
+  which omitted `trust-dolt`).
 - `AC-48`: On a build tagged `!linux && !darwin` (the exact fallback
   constraint, not a generic `!unix`), every mutating verb returns
   `resource-lock-unsupported` (exit 3) deterministically, never
@@ -3692,26 +3969,38 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   is reserved for two **independently self-consistent** declarations
   that happen to collide; verified via a hand-constructed fixture
   entry with a deliberately mismatched `resource_id`.
-- `AC-96`: On the kill path (timeout or cap-plus-one overflow), the
-  process-group leader is not reaped (`cmd.Wait()` not called) until
-  **after** the unconditional post-grace `SIGKILL` to the negative PGID
-  has been issued (tolerating `ESRCH`) — verified by instrumenting the
-  test double to assert no `Wait()` call is observed between the
-  `SIGTERM` and the `SIGKILL` calls, even when the direct child's own
-  pipes close early during the grace window.
-- `AC-97`: On the normal-success path (both pipes reach EOF within the
-  timeout and under the cap), `cmd.Wait()` is called immediately with
-  no artificial grace delay — verified by asserting the elapsed time
-  between EOF and the `Wait()` call is not gated by the kill path's
-  fixed grace duration.
-- `AC-98`: The leaf-targeted ignore/untracked gate for
-  `.tpatch/local/resource-scratch/<slug>/` runs and refuses correctly
-  even when that exact leaf directory does not yet exist on disk
-  (fresh clone), distinguished from the `statfs` preflight, which
-  necessarily targets the nearest existing ancestor instead — verified
-  by a fixture asserting the ignore/untracked gate's refusal/pass
-  outcome is identical whether or not the leaf directory has been
-  pre-created.
+- `AC-96`: Every Dolt invocation — success or kill-triggered alike —
+  follows the **single unified** termination sequence (rev-8, task 2
+  — corrects rev-7's two-path kill/normal-success design): drain both
+  pipes to EOF, then unconditionally send `SIGTERM` to the negative
+  PGID (tolerating `ESRCH`), then hold the leader **unreaped**
+  (`cmd.Wait()` not yet called) through the fixed grace period
+  regardless of what triggered this sequence, then unconditionally
+  send `SIGKILL` to the negative PGID (tolerating `ESRCH`), and only
+  **then** call `cmd.Wait()` exactly once — verified by instrumenting
+  the test double to assert no `Wait()` call is observed between the
+  `SIGTERM` and `SIGKILL` calls in either the timeout/cap-overflow
+  case or the ordinary successful-completion case, and that exactly
+  one `Wait()` call occurs per invocation regardless of outcome.
+- `AC-97`: A successful invocation whose direct child closes both
+  pipes (reaching EOF) while a lingering descendant or the leader
+  itself remains alive doing further work is nonetheless carried
+  through the full unified sequence — `SIGTERM`, grace, `SIGKILL` —
+  and the resulting forced termination surfaces through the existing
+  `dolt-query-error` taxonomy (no new refusal name is introduced for
+  this case); every invocation, including one whose pipes reach EOF
+  almost immediately, pays the fixed grace-period latency before
+  `Wait()` is called — verified by asserting the elapsed time between
+  EOF and the `Wait()` call is never less than the grace duration,
+  for both this case and the ordinary instant-success case.
+- `AC-98`: The leaf-targeted **ignore** half of the gate for
+  `.tpatch/local/resource-scratch/<slug>/` (§10.3 step 1) runs and
+  refuses correctly even when that exact leaf directory does not yet
+  exist on disk (fresh clone), distinguished from the `statfs`
+  preflight, which necessarily targets the nearest existing ancestor
+  instead — verified by a fixture asserting the ignore gate's
+  refusal/pass outcome is identical whether or not the leaf directory
+  has been pre-created.
 - `AC-99`: A retried invocation after a simulated first-attempt crash
   re-`fsync`s every directory in the relevant chain — both local
   scratch and tracked `artifacts/resource-captures/`/`batches/` —
@@ -3724,85 +4013,108 @@ refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
   `linux/386`/`linux/arm` (`int32`), and `linux/s390x` (`uint32`) and
   confirming identical allow/deny outcomes across all four.
 
+**Untracked-subtree gate, add-time TOFU bootstrap, private-copy host failures (rev-8, tasks 3, 4, 6, 7)**
+
+- `AC-101`: The **untracked** half of the local-root gate (§10.3 step
+  2, rev-8 task 7) is verified via a plain `git --literal-pathspecs
+  ls-files -- .tpatch/local/` (no `--error-unmatch`) scoped to the
+  **whole** `.tpatch/local/` subtree — a fixture with a tracked file
+  planted under a *different* slug's scratch tree than the one being
+  mutated still refuses (`local-path-tracked`) — distinguishing this
+  from `AC-98`'s leaf-targeted ignore half, and from `AC-39`'s
+  `--error-unmatch`-based single-selector gate, neither of which this
+  check reuses.
+- `AC-102`: `add --kind adapter-snapshot --adapter dolt ... --arg
+  contract=<value> --trust-current-dolt` succeeds and records
+  `trust.binary_sha256` even when no prior pin exists for this
+  resource (there is no "existing pin" precondition on the add-time
+  path) and never executes the resolved Dolt binary — verified via a
+  test double asserting zero process-start calls occur during `add`,
+  regardless of the `--trust-current-dolt` flag's presence.
+- `AC-103`: A duplicate `add` of an identical declaration — whether or
+  not `--trust-current-dolt` is re-passed, and regardless of whether
+  the currently-resolved Dolt binary's hash now differs from the
+  stored pin — is a **strict** no-op: `trust.binary_sha256` is
+  byte-for-byte unchanged afterward, and no process-start or
+  binary-copy call occurs — verified by asserting the pre/post
+  `trust.binary_sha256` bytes are identical and no copy/exec test
+  double calls are observed across the duplicate `add`.
+- `AC-104`: A capture-time private-copy scratch filesystem reporting
+  the platform's no-exec mount flag (`ST_NOEXEC` on Linux,
+  `MNT_NOEXEC` on Darwin) is refused `adapter-copy-noexec` (exit 3)
+  before any byte of the Dolt binary is copied — verified via a
+  build-tag/unit-test seam constructing a fixture `Statfs_t`/
+  `Statfs_t.Flags` value with the no-exec bit set.
+- `AC-105`: A capture-time private-copy write failing with `ENOSPC` or
+  `EIO` is refused `adapter-copy-failed` (exit 1), the partial copy
+  file is removed (best-effort), and no Dolt process is started —
+  verified via a test double injecting each of `ENOSPC`/`EIO` during
+  the streamed copy-while-hash step.
+
 ### 14.1 Exact counts (task 14: no false "exactly once" claims)
 
-This PRD defines **100** `AC`-tagged clauses (`AC-1` through
-`AC-100`, each an individually testable statement, no range-notation
+This PRD defines **105** `AC`-tagged clauses (`AC-1` through
+`AC-105`, each an individually testable statement, no range-notation
 grouping; sequentially numbered with no gaps, verified by an automated
 scan of every definition line matching `- \`AC-<n>\`:` in §14, in
 document order).
 
-This is a **net +11** change from rev-6's 89 (rev-6's own count was
-`AC-1` through `AC-89`, sequentially numbered with no gaps — see the
-historical rev-6 narrative below for that revision's own derivation):
-rev-7 adds eleven new clauses and removes none —
+This is a **net +5** change from rev-7's 100 (rev-7's own count was
+`AC-1` through `AC-100`, sequentially numbered with no gaps — see the
+historical rev-7 narrative below for that revision's own derivation):
+rev-8 adds five new clauses and removes none —
 
-- `AC-90` (`dolt-trust-required` refusal at capture time for a missing
-  pin, distinct from the add-time exit-2 refusal)
-- `AC-91` (`contract` enum validation, `dolt-contract-unsupported`
-  refusal, identity-hash participation)
-- `AC-92` (`trust-dolt` atomic in-place `trust.binary_sha256` rewrite
-  preserving `resource_id`/history)
-- `AC-93` (private Dolt-binary copy permissions/cleanup)
-- `AC-94` (executed path is the private copy's path, never the
-  originally resolved pathname)
-- `AC-95` (`resources-file-corrupt` for a single entry's own
-  self-mismatch, split from `resource-id-collision`)
-- `AC-96` (unreaped-leader-through-grace kill sequence — `Wait()`
-  deferred until after the group `SIGKILL`)
-- `AC-97` (normal-success path's immediate `Wait()`, no artificial
-  grace delay)
-- `AC-98` (leaf-targeted ignore/untracked gate distinguished from
-  ancestor-targeted `statfs`)
-- `AC-99` (unconditional retry-fsync for both local and tracked
-  directory chains)
-- `AC-100` (Linux `statfs` `uint32` width/signedness normalization
-  across architecture-representative fixtures)
+- `AC-101` (untracked half of the local-root gate, whole-`.tpatch/local/`
+  subtree via plain `ls-files`, distinguished from `AC-98`'s
+  leaf-targeted ignore half and from `AC-39`'s per-selector gate)
+- `AC-102` (add-time TOFU bootstrap requires no existing pin and never
+  executes Dolt)
+- `AC-103` (duplicate `add` is a strict no-op that never re-pins trust)
+- `AC-104` (`adapter-copy-noexec` refusal on a no-exec scratch
+  filesystem)
+- `AC-105` (`adapter-copy-failed` on `ENOSPC`/`EIO` during the private
+  copy)
 
-— `89 + 11 = 100`. Six existing clauses were rewritten in place
-without changing the total count: `AC-18`/`AC-19` (previously the
-post-invocation and pre-invocation resolved-pathname hash-vs-pin
-recheck pair, now the single streaming private-copy-verification
-check split as AC-18/AC-19 above with the executed-path/missing-pin
-facts folded in), `AC-20` (previously "`add --trust-current-dolt`
-writes `binary_sha256` into `args`," now "writes it into the separate
-`trust` field, excluded from `resource_id`"), `AC-81` (previously
-"nearest-existing-ancestor gate for both ignore/untracked and
-`statfs`," now "leaf-targeted ignore/untracked, ancestor-targeted
-`statfs`"), `AC-85` (previously "escalation cancelled the moment
-`cmd.Wait()` observes the group has exited," now "leader unreaped
-through the full grace period, `SIGKILL` before `Wait()`"), and
-`AC-88` (previously covering both the two-distinct-declarations
-collision **and** the single-entry self-mismatch case, now narrowed to
-the two-distinct-declarations case only, with the self-mismatch case
-split out as the new `AC-95`) — none of these in-place rewrites add
-or remove a clause; the count above already reflects them as the same
-clause numbers before and after.
+— `100 + 5 = 105`. Three existing clauses were rewritten in place
+without changing the total count: `AC-96` (previously "kill-path-only
+unreaped-leader-through-grace sequence," now "the single unified
+sequence applied to every invocation, success or kill-triggered
+alike"), `AC-97` (previously "normal-success path's immediate
+`Wait()`, no artificial grace delay" — no longer true under the
+unified design, since every invocation now pays the fixed grace
+latency; rewritten to the pipes-EOF-but-leader-still-alive
+forced-termination trade-off test instead), and `AC-98` (previously
+covering both the ignore and untracked halves of the local-root gate
+together, now narrowed to the ignore half only, with the untracked
+half split out as the new `AC-101`, since rev-8 task 7 gives the two
+halves different targets — leaf vs. whole subtree — that can no
+longer share one clause) — none of these in-place rewrites add or
+remove a clause; the count above already reflects them as the same
+clause numbers before and after. `AC-47`, `AC-41`–`AC-43`, and the
+`add`/`trust-dolt` narrative around `AC-92`/`AC-102`/`AC-103` were also
+reworded in place (six-verb lock-list count, `trust-dolt` added to the
+gate/lock verb enumerations, duplicate-`add` behavior made explicit)
+without adding or removing any clause.
 
-**Historical — rev-6's own count derivation** (preserved for
-provenance, not a current fact about this revision's total): rev-6 was
-a **net +11** change from rev-5's 78 (rev-5's own count was `AC-1`
-through `AC-80` with two numbering gaps left by earlier in-place
-rewrites — 78 distinct clauses, not 80), adding `AC-19`/`AC-20`
-(rev-6's original trust-pin clauses, since rewritten above),
-`AC-57`/`AC-58` (batch-collision/corrupt taxonomy), `AC-79`/`AC-80`
-(stdlib `statfs`, exhaustive filesystem-type coverage), `AC-81`/
-`AC-82` (first-create sequencing, first-publication crash recovery,
-both since rewritten above), `AC-85` (`Setpgid` kill, since rewritten
-above), `AC-88` (resource-ID collision, since narrowed above), and
-`AC-89` (directory golden vector) — `78 + 11 = 89`, the total this
-revision's fold starts from.
+**Historical — rev-7's own count derivation** (preserved for
+provenance, not a current fact about this revision's total): rev-7 was
+a **net +11** change from rev-6's 89 (rev-6's own count was `AC-1`
+through `AC-89`, sequentially numbered with no gaps), adding
+`AC-90`–`AC-100` (Dolt trust/private-copy/termination/gate/statfs
+clauses, several since rewritten above) — `89 + 11 = 100`, the total
+this revision's fold starts from.
 
-The companion ADR's Test Matrix maps each of these 100 clauses
-to at least one row (**169 rows total** — rev-6's 157 plus 12 new rows
-for the 11 new/rewritten rev-7 clauses, one of which, `AC-91`, gets 2
-rows); several clauses map to more than one row (e.g.
+The companion ADR's Test Matrix maps each of these 105 clauses
+to at least one row; several clauses map to more than one row (e.g.
 both a human-output and `--json`-output verification, or both a
 success and a failure path for the same mechanism, or `AC-80`'s 17
 filesystem-type supporting rows). The matrix therefore has **more**
 rows than there are distinct clauses — this PRD does not claim any
 clause is covered
-"exactly once."
+"exactly once." (Exact row total is recorded in the companion ADR's
+own Test Matrix section and cross-referenced from `docs/handoff/
+CURRENT.md`'s rev-8 entry, since the ADR is this PRD's normative
+source for the matrix itself.)
 
 ## 15. Open Questions / Negative Consequences
 
@@ -4393,6 +4705,95 @@ cross-platform target — which is a harder, more honest guarantee than
   `statfs` width/architecture fact, the POSIX process-group/PGID-reuse
   fact, and the `io.TeeReader`+`crypto/sha256` streaming-hash-while-
   copying stdlib pattern (§0.1).
+- Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
+  attestation are updated to their final, post-edit values as the last
+  step of this revision, per this fold's explicit tracking requirement
+  (§0, CURRENT.md).
+
+## 22. Rev-8 Changelog (vs. rev-7, `bc2c068`)
+
+- **Unified process-group termination**: replaced rev-7's two-path
+  design (a kill path deferring `Wait()` past `SIGKILL`, and a
+  separate normal-success path calling `Wait()` immediately on EOF)
+  with a **single sequence** applied to every invocation regardless of
+  outcome: drain both pipes to EOF, unconditional `SIGTERM(-pgid)`
+  (tolerating `ESRCH`), unreaped through the fixed grace period
+  regardless of trigger, unconditional `SIGKILL(-pgid)` (tolerating
+  `ESRCH`), then exactly one `Wait()` call. There is no "`Wait()`
+  observes the group" claim anywhere in this design. Two trade-offs
+  are now explicitly disclosed: every invocation, even an instant
+  success, pays the fixed grace latency before `Wait()`; and a leader
+  that closes its pipes while still alive doing further work is now
+  forcibly terminated, surfaced through the existing `dolt-query-error`
+  taxonomy (§6.4, AC-96, AC-97).
+- **Trust bootstrap split**: `add --trust-current-dolt` is now a
+  distinct **add-time TOFU bootstrap** sub-sequence — resolve, open,
+  stream-copy-while-hash, write the pin, delete the copy — that
+  requires no existing pin and never executes the binary. Capture-time
+  trust verification is a separate, later sequence that requires the
+  pin to already exist (`dolt-trust-required`, exit 3) and is the only
+  path that executes the private copy. The add-time missing-flag
+  refusal is renamed to the distinct `dolt-trust-flag-required` (exit
+  2), no longer sharing a name with the capture-time refusal (§3,
+  §6.1, AC-18, AC-19, AC-20, AC-102).
+- **Duplicate-`add` no-repin guarantee made explicit**: a duplicate
+  `add` targeting an identical declaration — with or without
+  `--trust-current-dolt` re-passed, and regardless of whether the
+  freshly-resolved binary's hash now differs from the stored pin — is
+  a strict no-op that leaves `trust.binary_sha256` byte-for-byte
+  unchanged; only `trust-dolt` may ever re-pin after the initial `add`
+  (§4, AC-103).
+- **Private-copy host-failure handling**: added a `statfs`-based
+  no-exec preflight on the private-copy scratch filesystem
+  (`ST_NOEXEC` on Linux, `MNT_NOEXEC` on Darwin), refusing
+  `adapter-copy-noexec` (exit 3) before any byte is copied; and added
+  explicit `ENOSPC`/`EIO` handling during the streamed copy, refusing
+  `adapter-copy-failed` (exit 1) with best-effort cleanup of the
+  partial copy. Added a paragraph qualifying why executing the private
+  copy remains safe despite living inside `.tpatch/local/`: the bytes
+  are descriptor-bound, hash-verified against the trust pin, and
+  owner-only (`0500`), independent of which directory holds them
+  (§6.1, AC-104, AC-105).
+- **Local-gate target split**: the ignore half of the local-root gate
+  continues to target the exact per-slug leaf, existence-independent
+  (`EnsureLocalIgnoreContract`, unchanged from rev-7); the untracked
+  half now targets the **whole** `.tpatch/local/` subtree via a plain
+  `git --literal-pathspecs ls-files -- .tpatch/local/` with an
+  empty-stdout convention (dropping `--error-unmatch` entirely for
+  this check), rather than reusing the per-selector leaf-targeted gate
+  — a tracked file anywhere under `.tpatch/local/`, for any slug, now
+  refuses every mutator uniformly (§7.1, §10.3, AC-98, AC-101).
+- **`trust-dolt` added to every mutator/lock-list enumeration**:
+  `trust-dolt` now appears alongside `add`/`remove`/`clear`/`capture`/
+  `record --resources` everywhere those five were previously
+  enumerated as "all mutating verbs" — the per-slug `flock` list, the
+  local-ignore/untracked gate list, and the lock-contention Test
+  Matrix rows — correcting a rev-7 omission (§7.2, §10.3, AC-43,
+  AC-47).
+- **Exit-taxonomy consolidation**: every named refusal now appears in
+  exactly one row/table context across §3's exit-code table and §9's
+  exit-3 gate table; the `dolt-trust-required`/`dolt-trust-flag-required`
+  rename (above) was the specific fix needed to satisfy this, since
+  rev-7 had one name shared across two different exit codes and
+  contexts (§3, §9).
+- **C36 rationale correction**: reworded the Claims-Audit rationale for
+  the process-group design away from the debatable "an unreaped leader
+  prevents PGID reuse" framing toward the actually-load-bearing fact:
+  the `SIGTERM`→grace→`SIGKILL`→group→`Wait()` escalation is never
+  skipped or cancelled merely because the direct child appears to have
+  exited (§0.1, C36).
+- Added two new Claims-Audit rows (`C38`/`C39`) grounding the Linux
+  `ST_NOEXEC = 0x8` and Darwin `MNT_NOEXEC = 0x00000004` constants used
+  by the new no-exec preflight (§0.1).
+- Rebuilt the acceptance-criteria set from 100 to **105** clauses (5
+  new, none removed, 3 rewritten in place: `AC-96`/`AC-97`/`AC-98`) —
+  see §14.1 for the exact accounting.
+- Confirmed all resource-ID, full-batch-ID, and directory-hash golden
+  vectors are **unaffected** by this revision's changes (none of the
+  trust-split, gate-target-split, or termination-sequence changes
+  touch `resource_id`'s or `batch_id`'s canonical hash inputs) — the
+  vectors already recomputed in rev-7 remain current (§0.3, §12.3,
+  §12.4, §13.3).
 - Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
   attestation are updated to their final, post-edit values as the last
   step of this revision, per this fold's explicit tracking requirement
