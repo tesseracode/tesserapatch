@@ -2,10 +2,16 @@
 
 ## Status
 
-**Cluster state**: REV-5 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-5 IMPLEMENTED — AWAITING DUAL REVIEW at
+`6941d41`.** Linked-worktree effective-index resolution folded and verified:
+temporary projections now seed from Git's resolved index path, fail closed,
+and preserve staged status/index identity in a real linked worktree. Full
+gates pass.
 
 **2026-08-10 Cluster G' rev-4 adjudicated NEEDS REVISION → rev-5
 DISPATCHED.** Internal review confirmed staged-owned-path closure, then found
@@ -148,7 +154,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: In Progress (rev-5 fold)
+- **Status**: Review (rev-5)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -490,11 +496,9 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Resolve effective index with `git rev-parse --git-path index`.
-2. Fail closed if the effective index cannot be seeded.
-3. Add linked-worktree complete-projection regression.
-4. Re-run internal/external rev-5 review.
-5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Run internal and external rev-5 confirmation.
+2. Adjudicate any residuals without reopening D1-D8.
+3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
@@ -638,6 +642,26 @@ None.
 
 **Verification**:
 - Rev-4 targeted test — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- Side Research md5 — `b385fe622db9926f48861105239f113e`.
+
+## Ready for review — Cluster G' rev-5
+
+**Fold commit**: `6941d41` (adjudication baseline `dcbd570`).
+**Full implementation**: `9e77617..6941d41`.
+
+**Internal rev-4 finding closed**:
+- `DiffFromCommitForPaths` resolves the effective Git index via
+  `git rev-parse --git-path index` and seeds its temporary index from that
+  path; linked worktrees no longer produce zero-byte-index failures.
+- Regression uses a real linked worktree with a staged change and proves
+  complete diff visibility plus unchanged status/index tree.
+
+**Verification**:
+- Linked-worktree targeted test — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.

@@ -1,3 +1,28 @@
+## Review dispatch — Cluster G' rev-5 — 2026-08-10
+
+**Fold commit**: `6941d41`
+**Adjudication baseline**: `dcbd570`
+**Full implementation range**: `9e77617..6941d41`
+
+### Fold Delivered
+
+- Effective-index resolution for linked worktrees and redirected indexes.
+- Fail-closed temporary-index seeding.
+- Linked-worktree staged-diff/index-identity regression.
+
+### Verification
+
+- [x] Linked-worktree targeted test passes
+- [x] gofmt clean
+- [x] go vet passes
+- [x] `go test -count=1 ./...` passes
+- [x] build passes
+
+### Action Taken
+
+Cluster state transitioned to `AWAITING REVIEW`. Dispatch internal and
+external rev-5 confirmation. No release/tag action yet.
+
 ## Review — Cluster G' rev-4 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`gprime-r4-internal`)
