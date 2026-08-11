@@ -1936,6 +1936,16 @@ the committed snapshots at the endpoints contribute to the diff.`,
 	cmd.Flags().Bool("claimed-only", false, "Intersect the capture with the feature's active claims; refuses when no claims exist")
 	cmd.Flags().Bool("with-session", false, "Opt-in: promote the same-feature active/closed session as a redacted committed summary (PRD-active-feature-session §6 D15)")
 	cmd.Flags().String("from-session", "", "Select a specific cs_<12hex> when multiple sessions are eligible; requires --with-session (PRD §6 D15 + §8.8)")
+	cmd.Flags().Bool("resources", false, "Also stage and publish the feature's declared resource captures, gated on Git-side success (ADR-033 §11)")
+	cmd.Flags().Bool("json", false, "Emit the resource-domain publication result as JSON (requires --resources)")
+
+	// The Git-side capture above is left byte-identical; --resources
+	// wraps it with ADR-033 §11's two-domain ordering (stage in memory,
+	// run Git, publish only on Git success).
+	gitSideRecord := cmd.RunE
+	cmd.RunE = func(c *cobra.Command, args []string) error {
+		return runRecordWithResources(c, args, gitSideRecord)
+	}
 	return cmd
 }
 
