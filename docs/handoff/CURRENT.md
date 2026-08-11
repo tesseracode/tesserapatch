@@ -2,10 +2,16 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-3 IMPLEMENTED — AWAITING DUAL REVIEW at
+`b11f1ee`.** Both external rev-2 HIGH findings folded: mode-only
+materialization is warning-aware and cannot false-finalize; reapply comparison
+uses only canonical literal touched paths, so unrelated dirty work no longer
+blocks either immediate or committed-baseline reapply. Full gates pass.
 
 **2026-08-10 Cluster G' rev-2 adjudicated NEEDS REVISION → rev-3
 DISPATCHED.** Internal reviewer APPROVED clean. External full review found
@@ -122,7 +128,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: In Progress (rev-3 fold)
+- **Status**: Review (rev-3)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -422,11 +428,9 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Treat successful `git apply --check` warnings as materialization failure.
-2. Scope reapply comparison to canonical touched paths.
-3. Add mode-only and unrelated-dirt regressions for immediate/committed bases.
-4. Re-run internal/external rev-3 review.
-5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Run internal and external rev-3 confirmation.
+2. Adjudicate any residuals without reopening D1-D8.
+3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
@@ -529,6 +533,27 @@ None.
 
 **Verification**:
 - Rev-2 targeted tests — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- Side Research md5 — `b385fe622db9926f48861105239f113e`.
+
+## Ready for review — Cluster G' rev-3
+
+**Fold commit**: `b11f1ee` (adjudication baseline `864744c`).
+**Full implementation**: `9e77617..b11f1ee`.
+
+**External rev-2 findings closed**:
+1. `ValidatePatchReverse` and HEAD checks reject warning-only mode mismatch;
+   mode-only immediate and committed-baseline reapply restore executable mode
+   before marking applied.
+2. Reapply diff/patch-id comparison uses canonical literal touched paths,
+   ignoring unrelated disjoint dirty work while still rejecting extra changes
+   on feature-owned paths.
+
+**Verification**:
+- Rev-3 targeted tests — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.

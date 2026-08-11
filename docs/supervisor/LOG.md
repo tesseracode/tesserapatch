@@ -1,3 +1,28 @@
+## Review dispatch — Cluster G' rev-3 — 2026-08-10
+
+**Fold commit**: `b11f1ee`
+**Adjudication baseline**: `864744c`
+**Full implementation range**: `9e77617..b11f1ee`
+
+### Fold Delivered
+
+- Warning-aware mode-only materialization verification.
+- Canonical-touched-path-scoped reapply comparison.
+- Immediate/committed mode-only and unrelated-dirt regressions.
+
+### Verification
+
+- [x] Rev-3 targeted tests pass
+- [x] gofmt clean
+- [x] go vet passes
+- [x] `go test -count=1 ./...` passes
+- [x] build passes
+
+### Action Taken
+
+Cluster state transitioned to `AWAITING REVIEW`. Dispatch both internal and
+external rev-3 confirmations. No release/tag action yet.
+
 ## Review — Cluster G' rev-2 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`gprime-r2-internal`)
