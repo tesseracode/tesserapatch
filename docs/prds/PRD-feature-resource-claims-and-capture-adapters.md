@@ -1024,15 +1024,25 @@ by waiting; callers that want serialized execution retry the whole
 command themselves.
 
 **Platform contract** (task 1): `flock(2)` (via `syscall.Flock`) is
-implemented behind a Go build tag restricted to `unix` (Darwin/Linux,
-matching this project's existing macOS/Linux-only validation scope,
-`ADR-004-m10-copilot-proxy-ux.md` D6 precedent). A second build-tagged
-file (`!unix`, e.g. a future Windows target) provides a stub
-implementation whose `Acquire` unconditionally returns a distinct,
-documented error class, `resource-lock-unsupported` (**exit 3**) —
-every one of the five mutating verbs surfaces this exact error on an
-unsupported host, rather than silently proceeding unlocked or
-attempting an unsafe cross-platform approximation. This is a hard,
+implemented behind a Go build tag restricted to `unix` (Darwin/Linux).
+This is not a speculative scope choice: the project's actual CI matrix
+(`.github/workflows/ci.yml:18-25`) runs `test (${{ matrix.os }})` over
+exactly `os: [ubuntu-latest, macos-latest]` — no Windows runner exists
+in the tested matrix today — so a POSIX-only `flock` v1 is consistent
+with, and does not regress, the hosts this project actually builds and
+tests on, matching the existing `ADR-004-m10-copilot-proxy-ux.md` D6
+precedent ("Windows: not supported in M10"). A second build-tagged file
+(`!unix`, e.g. a future Windows target) provides a stub implementation
+whose `Acquire` unconditionally returns a distinct, documented error
+class, `resource-lock-unsupported` (**exit 3**) — every one of the
+five mutating verbs surfaces this exact error on an unsupported host,
+rather than silently proceeding unlocked or attempting an unsafe
+cross-platform approximation. Windows and any other non-`unix` host are
+therefore **explicitly unsupported and deferred** for resource capture
+in v1 — not a portable-lock design in disguise, and not implicitly
+assumed safe merely because the code compiles there; a future PRD
+would need to add both CI coverage and a real Windows locking primitive
+(e.g. `LockFileEx`) before lifting this restriction. This is a hard,
 explicit "unsupported" contract, not a best-effort fallback.
 
 **`list` and `diff`** (task 1, §7.6) never acquire `.lock` at all —
@@ -2382,8 +2392,11 @@ exact-case-string-constant behavior (§6.2, citing `doltdb.go:51-52`);
 citing `table_deltas.go:722/733/745/760`). Neither is an open question
 as of rev-4. Rev-3's PID/temp-directory lock design's "Windows
 best-effort" framing is superseded by rev-4's explicit
-build-tag-gated `resource-lock-unsupported` contract above, which is a
-harder, more honest guarantee than "best-effort.")
+build-tag-gated `resource-lock-unsupported` contract above — grounded
+in the project's actual, tested `ubuntu-latest`/`macos-latest` CI
+matrix (`.github/workflows/ci.yml:18-25`), not a hypothetical
+cross-platform target — which is a harder, more honest guarantee than
+"best-effort.")
 
 ## 16. Rev-2 Changelog (vs. rev-1, `e8572b2`/`f0f2c1f`)
 

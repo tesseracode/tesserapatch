@@ -543,9 +543,16 @@ a Go build-tag split: a `//go:build unix` implementation providing the
 real `flock`-based lock described above, and a fallback build (any
 other `GOOS`) whose lock acquisition unconditionally returns
 `resource-lock-unsupported` (exit 3) without touching the filesystem —
-consistent with this project's existing macOS/Linux-only
-validation-scope precedent, now made an explicit, source-visible build
-contract rather than an informal "best-effort" note.
+consistent with this project's actual, tested CI matrix
+(`.github/workflows/ci.yml:18-25` runs `test (${{ matrix.os }})` over
+exactly `os: [ubuntu-latest, macos-latest]`, with no Windows runner),
+matching the existing `ADR-004-m10-copilot-proxy-ux.md` D6 precedent
+("Windows: not supported in M10"), now made an explicit, source-visible
+build contract rather than an informal "best-effort" note. Windows and
+any other non-`unix` host are therefore explicitly unsupported and
+deferred for resource capture in v1 — this is a hard refusal grounded
+in the hosts this project actually builds and tests, not a portable-
+lock design in disguise.
 
 **Every mutating verb serializes on this lock** (unchanged intent from
 rev-3, mechanism replaced): `add`, `remove`, `clear`, `capture`, and
@@ -798,7 +805,13 @@ programmatically, not just visually).
 - `flock`-based locking is POSIX/BSD-only; unsupported platforms
   refuse every mutating verb with `resource-lock-unsupported` in v1,
   a narrower but more honestly-scoped statement than "best-effort" —
-  there is no partial/degraded lock behavior on those platforms (D9).
+  there is no partial/degraded lock behavior on those platforms. This
+  is not merely a hypothetical scoping choice: the project's own CI
+  (`.github/workflows/ci.yml:18-25`) tests only
+  `os: [ubuntu-latest, macos-latest]` — no Windows runner exists in the
+  matrix — so a POSIX-only v1 tracks the hosts actually built and
+  tested today, and Windows/other non-`unix` hosts are explicitly
+  unsupported and deferred, not silently assumed to work (D9).
 - A feature with many resources cannot parallelize its own staging
   across multiple processes — the lock is per-slug and serializes
   `add`/`remove`/`clear` against `capture`/`record --resources` (D9).

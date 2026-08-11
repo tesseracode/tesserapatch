@@ -70,6 +70,29 @@ byte-identical between PRD and ADR (programmatic comparison). `git diff
 --check` clean on both files. Side Research md5 unchanged:
 `b385fe622db9926f48861105239f113e`.
 
+**2026-08-11 Supervisor platform-verification addendum to Cluster H
+rev-4 (same writer, no rev bump — small grounding fix, not a new
+requirement-list dispatch).** Supervisor confirmed the project's actual
+CI test matrix (`.github/workflows/ci.yml:18-25`) runs `test (${{
+matrix.os }})` over exactly `os: [ubuntu-latest, macos-latest]` — no
+Windows runner exists in the tested matrix — so a POSIX-only `flock` v1
+(D9/§7.2) is consistent with, and does not regress, the hosts this
+project actually builds and tests on. Both papers' platform-contract
+prose (PRD §7.2 "Platform contract", §16 resolved-questions footnote;
+ADR D9 "Platform contract" paragraph, Negative Consequences Summary
+`flock`-POSIX-only bullet) were reworded to cite
+`.github/workflows/ci.yml:18-25` directly and to state Windows/other
+non-`unix` hosts as **explicitly unsupported and deferred** for resource
+capture in v1 — not a portable-lock design in disguise, and not
+implicitly assumed safe merely because the code happens to compile
+there. No AC clauses added/removed/renumbered (still 72 in the PRD, 111
+Test Matrix rows in the ADR, AC-46 unchanged); no golden vectors
+affected; this is prose-only grounding of an already-correct
+`resource-lock-unsupported` (exit 3) build-tag contract. `git diff
+--check` clean on both files. Line counts grew slightly from prose
+additions only: PRD 2563 → **2576** lines, ADR 937 → **950** lines.
+WAVE_BASE and Side Research md5 unchanged.
+
 **2026-08-10 Cluster H rev-3 adjudicated NEEDS REVISION → rev-4
 DISPATCHED.** Internal review found 5 HIGH + 5 MEDIUM; external found
 3 HIGH + 3 MEDIUM plus exact notes. Golden resource/batch IDs, three shared
