@@ -1,3 +1,58 @@
+## Review — Cluster H rev-3 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r3-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r3-external`)
+**Writer commits**: `5a3b44a`, `151a50e`
+
+### Verdict: NEEDS REVISION → REV-4 DISPATCHED
+
+### Verified Clean
+
+- Resource and content-addressed batch golden IDs recompute.
+- Three PRD/ADR JSON blocks remain byte-identical.
+- 70 AC clauses represented across 97 contiguous rows.
+- Pinned Dolt and empirical check-ignore citations hold.
+
+### Blocking Findings
+
+1. Lock stale-reclaim/release has ABA races; lock temp sweep races contenders;
+   lock ownership is not generation-bound.
+2. Existing batch idempotency compares canonical hash input to indented file
+   wire bytes, so identical retries always collide.
+3. Dolt `db_path` descriptor validation is not what pathname-based `cmd.Dir`
+   later uses; final-path replacement residual is overstated.
+4. Add/remove/clear and scratch cleanup are not consistently serialized.
+5. Dolt zero-row output includes whitespace/newlines; DB cwd and PK-change
+   behavior need exact handling.
+6. Publication temporaries/cleanup names and locations conflict.
+7. Local-ignore gates omit mutators; dry-run/scratch and creation-permission
+   contracts still conflict.
+8. Ignored-file bounds and `diff` hash semantics are inconsistent.
+9. Directory/Git-metadata wire variants remain incomplete.
+10. CURRENT line counts and multiple cross-references drifted after addendum.
+
+### Rev-4 Direction
+
+- Replace PID/path lock protocol with a kernel-released nonblocking advisory
+  lock for supported POSIX hosts; explicitly defer unsupported platforms.
+- Compare existing batch against freshly encoded complete file-wire bytes,
+  while hashing the body without `batch_id`.
+- Serialize every mutator under the same lock; remove lock-temp sweeps and
+  enumerate exact tracked temp cleanup paths.
+- Revalidate `db_path` immediately before process start and after exit; state
+  the remaining pathname-cwd race without claiming descriptor binding.
+- Parse Dolt JSON structurally with whitespace tolerance and `{}` zero-row
+  mapping; require db_path/table and hard-error PK changes.
+- Enforce cap-plus-one reads, exact directory entries and content-reading
+  diff semantics.
+- Complete all tagged variants/local-ignore/permission/dry-run/crash rows and
+  refresh tracking only after the final edit.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-4 DISPATCHED`; high-level authority decisions
+remain closed.
+
 ## Review — Cluster H rev-2 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r2-internal`)
