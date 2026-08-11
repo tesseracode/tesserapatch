@@ -1082,8 +1082,8 @@ func validateReapplyMaterialization(root, canonical string, presentAtHEAD bool) 
 	if err := gitutil.ValidatePatchReverse(root, canonical); err != nil {
 		return fmt.Errorf("reapply is incomplete; canonical patch is not fully materialized and state remains unapplied: %w", err)
 	}
-	current, err := gitutil.CapturePatchScoped(root,
-		literalGitPathspecs(gitutil.PathsAffectedByPatch(canonical)))
+	current, err := gitutil.DiffFromCommitForPaths(
+		root, "HEAD", gitutil.PathsAffectedByPatch(canonical))
 	if err != nil {
 		return fmt.Errorf("reapply: inspect source diff: %w", err)
 	}

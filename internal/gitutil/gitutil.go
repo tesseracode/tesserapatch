@@ -914,13 +914,13 @@ func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, er
 		// intent-to-add only helps NEW files; if git refuses (e.g.,
 		// file doesn't exist), the diff call below will still see
 		// tracked-file changes.
-		addArgs := append([]string{"add", "-N", "--"}, paths...)
+		addArgs := append([]string{"--literal-pathspecs", "add", "-N", "--"}, paths...)
 		addCmd := exec.Command("git", addArgs...)
 		addCmd.Dir = repoRoot
 		addCmd.Env = env
 		_, _ = addCmd.CombinedOutput()
 	}
-	args := []string{"diff", commit}
+	args := []string{"--literal-pathspecs", "diff", commit}
 	if len(paths) > 0 {
 		args = append(args, "--")
 		args = append(args, paths...)

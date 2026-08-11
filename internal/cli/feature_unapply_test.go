@@ -1168,6 +1168,39 @@ func TestFeatureApplyReapplyIgnoresUnrelatedDirtyPaths(t *testing.T) {
 	}
 }
 
+func TestFeatureApplyRejectsStagedOwnedPathDrift(t *testing.T) {
+	fx := newUnapplyFixture(t, store.StateApplied)
+	if _, stderr, code := runRJ("feature", "unapply", fx.slug, "--path", fx.dir); code != 0 {
+		t.Fatalf("unapply code=%d stderr=%s", code, stderr)
+	}
+	runUnapplyGit(t, fx.dir, "add", "-A")
+	runUnapplyGit(t, fx.dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "commit unapplied baseline")
+	if err := os.WriteFile(filepath.Join(fx.dir, "README.md"), []byte("# Test\nstaged extra\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runUnapplyGit(t, fx.dir, "add", "README.md")
+	indexBefore := runUnapplyGit(t, fx.dir, "write-tree")
+	patchPath := filepath.Join(fx.dir, ".tpatch", "features", fx.slug, "artifacts", "post-apply.patch")
+	canonicalBefore := mustRead(t, patchPath)
+
+	if _, stderr, code := runRJ("apply", fx.slug, "--path", fx.dir); code != 1 {
+		t.Fatalf("apply code=%d stderr=%s", code, stderr)
+	}
+	if got := string(mustRead(t, filepath.Join(fx.dir, "README.md"))); got != "# Test\nstaged extra\n" {
+		t.Fatalf("staged owned edit not restored: %q", got)
+	}
+	if indexAfter := runUnapplyGit(t, fx.dir, "write-tree"); indexAfter != indexBefore {
+		t.Fatalf("reapply changed user index:\nbefore=%s\nafter=%s", indexBefore, indexAfter)
+	}
+	if got := mustRead(t, patchPath); !bytes.Equal(got, canonicalBefore) {
+		t.Fatal("reapply changed canonical patch")
+	}
+	status, err := fx.store.LoadFeatureStatus(fx.slug)
+	if err != nil || status.State != store.StateUnapplied {
+		t.Fatalf("status = %q, %v", status.State, err)
+	}
+}
+
 func TestMaterializedReapplyStillRunsDependencyGate(t *testing.T) {
 	fx := newUnapplyFixture(t, store.StateApplied)
 	parent, err := fx.store.AddFeature(store.AddFeatureInput{Title: "Parent", Slug: "parent", Request: "parent"})

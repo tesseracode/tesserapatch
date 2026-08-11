@@ -203,6 +203,11 @@ only after implementation review and wave close.
   reapply comparison is scoped to canonical literal touched paths so
   unrelated disjoint work is preserved. Immediate and committed mode-only/
   unrelated-dirt regressions pass with full gates.
+- **Cluster G' rev-4** — internal rev-3 HIGH finding folded: reapply
+  comparison now uses literal temporary-index HEAD→worktree projection,
+  including staged, unstaged and untracked canonical-owned changes while
+  preserving user index. Staged owned-path drift regression and full gates
+  pass.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -336,6 +341,23 @@ Contract documentation and assets:
 ## Test Results — Cluster G' rev-3
 
 - Rev-3 targeted mode-only/unrelated-dirt tests — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+
+## Files Changed — Cluster G' rev-4
+
+- `internal/gitutil/gitutil.go` — literal temporary-index
+  HEAD→worktree projection.
+- `internal/cli/cobra.go` — complete canonical-path reapply comparison.
+- `internal/cli/feature_unapply_test.go` — staged owned-path drift/index
+  preservation regression.
+- `docs/handoff/CURRENT.md` — rev-4 progress and gates.
+
+## Test Results — Cluster G' rev-4
+
+- Rev-4 staged-owned-path targeted test — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.
