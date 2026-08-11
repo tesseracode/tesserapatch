@@ -1,11 +1,12 @@
-# ADR-033 — Resource Capture Boundary (rev-12)
+# ADR-033 — Resource Capture Boundary (rev-13)
 
-**Status**: Proposed — rev-12 (supersedes rev-11, writer commit
-`1403276`, rev-11 adjudicated NEEDS REVISION → REV-12 DISPATCHED at
-`c4c367c`; see `docs/supervisor/LOG.md`)
+**Status**: Proposed — rev-13 (supersedes rev-12, writer commit
+`e434ba6`, rev-12 adjudicated NEEDS REVISION (internal) / APPROVED
+WITH NOTES (external) → REV-13 DISPATCHED at `521091d`; see
+`docs/supervisor/LOG.md`)
 
 **Context**: `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
-(rev-12, companion document — this ADR binds the decisions that PRD's
+(rev-13, companion document — this ADR binds the decisions that PRD's
 design depends on; read the PRD first for full rationale, this ADR
 states the decisions themselves plus the Test Matrix).
 
@@ -376,6 +377,49 @@ Dolt (or any external tool) is never an authority over tpatch state
 and is not a build/runtime dependency; replay/backward-compatibility
 is Git-only.
 
+## Rev-13 fold summary
+
+The rev-12 adjudication (`521091d`) found four narrow edge-contract
+omissions in rev-12's process-finalizer mechanism, none reopening any
+product, schema, privacy, or taxonomy decision. (1) `cmd.Start()`
+-failure endpoint handling was unspecified: D5 now states both
+`os.Pipe()` pairs are created, and both write ends assigned, before
+`cmd.Start()` is ever invoked; the two drain goroutines launch only
+once `Start()` returns successfully; on `Start()` failure, the adapter
+closes all four parent-held endpoints directly and synchronously, in
+a wholly separate, goroutine-free path from either finalizer — no
+observer, no ownership CAS, no signal, no `cmd.Wait()` (task 1). (2)
+Not every forced-close branch was proven to join: the
+`SetReadDeadline`-failure branch now explicitly joins both drain
+goroutines before returning or unlocking, matching the other two
+forced-close branches; the `ECHILD` finalizer's join step is renamed a
+join-only helper that never calls `SetReadDeadline` on already-closed
+ends (task 2). (3) The reap-timeout residual named only the abandoned
+`cmd.Wait()` goroutine: D5 now discloses up to **two** background
+goroutines can remain outstanding — that one, plus, for a non-leader-
+event classification, the still-blocked leader-event observer
+goroutine — both reporting over capacity-one, non-blocking-send
+channels so neither can ever block trying to report (task 3). (4) A
+late `ECHILD` between the priority re-check and the first `-pgid`
+signal was not excluded: D5 now adds a single, fixed **cutoff drain**
+that re-checks the terminal-observer-error flag immediately before the
+first signal, overriding to the `ECHILD` finalizer if it has since
+become set, proven sufficient by a narrowly-scoped exclusive-waiter
+invariant (only this parent can reap its own child, and `tpatch`
+issues no reaping syscall before the cutoff) rather than a claim that
+out-of-contract concurrent waiters are handled (task 4). D5's Test
+Matrix grows from 184 to **189** rows; five new PRD `AC`s
+(`AC-116`-`AC-120`) are added, none rewritten in place, none removed.
+See the companion PRD's §0/§27 for the full per-directive accounting.
+
+**Preserved across every review pass to date (rev-1 through rev-13,
+plus the rev-3 citation addendum — thirteen review passes total,
+matching the companion PRD's count)**: a separate `resources.json` per
+feature, never inside the canonical patch or unapply/lifecycle state;
+Dolt (or any external tool) is never an authority over tpatch state
+and is not a build/runtime dependency; replay/backward-compatibility
+is Git-only.
+
 ## Decision Drivers
 
 - ADR-027 D1–D6's existing committed/local split and hard-failure
@@ -568,7 +612,7 @@ C16, `docs/adrs/ADR-027-capture-context-privacy-boundary.md:146-170`)
 with that sentence, stronger than rev-2's "ephemeral file, deleted
 after."
 
-### D5 — Dolt adapter protocol: mandatory `db_path`/`table`, exact `dolt_diff_summary` SQL, trust pin/identity split, private-copy execution, single-owner bounded process finalizer (task 4, task 8, task 12; rev-7 private-copy execution/`contract` enum/`trust-dolt`; rev-11 platform/state-machine fold; rev-12 finalizer/ownership fold)
+### D5 — Dolt adapter protocol: mandatory `db_path`/`table`, exact `dolt_diff_summary` SQL, trust pin/identity split, private-copy execution, single-owner bounded process finalizer (task 4, task 8, task 12; rev-7 private-copy execution/`contract` enum/`trust-dolt`; rev-11 platform/state-machine fold; rev-12 finalizer/ownership fold; rev-13 edge-contract fold)
 
 Rev-2's `dolt_diff_summary(from, to[, table])` design left `table`
 optional, permitting a whole-database query whose PK-set-change
@@ -850,11 +894,19 @@ of a **new** process group distinct from `tpatch`'s own. **Pipe setup
 (kept from rev-9/rev-10/rev-11)**: instead of `cmd.StdoutPipe()`/
 `cmd.StderrPipe()`, the adapter creates two ordinary `os.Pipe()` pairs
 itself, assigns each write end directly to `cmd.Stdout`/`cmd.Stderr`
-(as `*os.File`) before `Start()`, and closes its own reference to each
-write end immediately after `Start()` returns. Two drain goroutines
-read exclusively from the parent's own read ends; the finalizer
-(below) is the only code that ever sets a deadline on, or closes,
-those read ends (PRD `C40`).
+(as `*os.File`) before `Start()` — **both pipe pairs, and both
+endpoint assignments, exist in full before `cmd.Start()` is ever
+called** (rev-13, directive 1) — and, immediately after `Start()`
+**returns successfully**, closes its own reference to each write end.
+**The two drain goroutines are launched only once `Start()` has
+returned successfully** (rev-13, directive 1 — see the Start-failure
+carve-out below for the distinct, goroutine-free path taken when it
+has not); once launched, they read exclusively from the parent's own
+read ends, and from that point on the finalizer (below) is the only
+code that ever sets a deadline on, or closes, those read ends (PRD
+`C40`). This claim is scoped to the post-`Start()`-success lifetime of
+the invocation; the separate pre-`Start()`-success path below has no
+finalizer, no goroutine, and no ownership CAS at all.
 
 **Leader event/cleanup-trigger observer (rev-11, unchanged in
 substance by rev-12)**: instead of running `cmd.Wait()` in a goroutine,
@@ -876,7 +928,9 @@ exited" or "proof of exit"; any successful Darwin return — exit or a
 stop — is treated identically as a fail-closed signal to enter
 cleanup, safe because the unconditional `SIGTERM`→grace→`SIGKILL`
 sequence below is correct whether the leader has exited or is merely
-stopped.
+stopped. The observer reports "leader event observed" over a
+**capacity-one, buffered channel with a non-blocking send** (rev-13,
+directive 3 — see the reap-timeout residual below for why).
 
 **Five candidate cleanup-trigger sources (rev-12, directives 1/2 —
 supersedes rev-11's four-way race)**: the leader-event observer, a
@@ -922,6 +976,55 @@ highest-priority flag observed set at that instant becomes the entry's
 classification, regardless of which source's own CAS attempt actually
 won the ownership race.
 
+**Cutoff drain, closing the late-`ECHILD` gap (rev-13, directive 4,
+new)**: the priority re-check above happens once, but the shared
+bounded finalizer's own first `-pgid` signal does not fire in that
+same instant — some scheduling delay separates classification
+selection from the first `SIGTERM` `syscall.Kill(-pgid, ...)` call. If
+a genuine `ECHILD` becomes true in that narrow window — strictly after
+the initial re-check selected some other classification but strictly
+before the first `-pgid` signal — sending that signal would violate
+the same "never signal a possibly-recycled PID/PGID" rule the `ECHILD`
+finalizer exists to uphold. To close this, the owning goroutine
+performs exactly **one** additional deterministic drain of the
+terminal-observer-error flag at a single, fixed **cutoff** instant:
+immediately after the initial classification is selected, but strictly
+before the shared bounded finalizer's first `-pgid` syscall. If
+`ECHILD` is now found set, it **overrides** the initial classification:
+the owning goroutine switches to, and runs, the `ECHILD` finalizer
+instead — guaranteeing **zero** negative-PGID signals for the whole
+invocation. If the cutoff drain finds `ECHILD` still unset, the
+initial classification is final. **The exclusive-waiter invariant that
+makes this sufficient, stated narrowly**: before this cutoff instant,
+the raw `waitid(P_PID, leaderPID, ..., WEXITED|WNOWAIT)` call inside
+the observer goroutine is the **sole** wait-family syscall this process
+ever issues against this child — `cmd.Wait()` is never launched until
+strictly after the shared bounded finalizer's signal phase (steps 1-3)
+has fully completed, and no other goroutine in this design ever calls
+any wait-family syscall against this child. Because only a process's
+actual parent can ever reap a child via any wait-family syscall (a
+POSIX guarantee this design relies on but does not itself enforce
+against arbitrary code), and `tpatch` has not issued any reaping
+syscall against this child by the cutoff instant, the child cannot
+already have been reaped by anyone if `ECHILD` was not set at that
+instant — which is exactly why a **late** `ECHILD` (one whose
+condition becomes true only after cutoff, once signaling has already
+begun) is impossible in a conforming implementation of this exact
+contract. This guarantee is deliberately scoped to that
+**exclusive-waiter invariant** alone: it is not a claim that this
+design can detect or recover from an out-of-contract concurrent
+waiter (some other goroutine, injected via a bug, independently
+calling `syscall.Wait4` or an equivalent against the same PID) — such
+a violation is outside this design's control and is not claimed to be
+safely handled; the guarantee holds precisely because, and only
+because, this design itself never introduces a second waiter. PRD
+`AC-119` (new) verifies the race: publishing `ECHILD` between the
+initial trigger snapshot and the cutoff drain wins, switching to the
+`ECHILD` finalizer and sending zero `-pgid` signals. PRD `AC-120` (new)
+separately verifies `cmd.Wait()` is never launched until strictly
+after the signal phase has completed, for every classification that
+runs the shared bounded finalizer.
+
 **Cleanup-initiated flag, suppressing owner-induced reader errors
 (rev-12, directive 1)**: the instant ownership is acquired — before
 any `SetReadDeadline` call, before any `Close` call on either owned
@@ -960,9 +1063,13 @@ fails and whose drain also times out reports
 is earlier than the drain phase in the fixed walk order.
 
 **Terminal observer errors, folded into the same ownership race
-(rev-12, directive 1 — rewritten from rev-11)**: if the retried
-`waitid` call returns a non-`EINTR` error, this is one of the five
-sources above. If it is the highest-priority one set at the re-check
+(rev-12, directive 1 — rewritten from rev-11; cutoff interaction
+rev-13, directive 4)**: if the retried `waitid` call returns a
+non-`EINTR` error, this is one of the five sources above — subject
+also to the cutoff-drain override above, which lets a genuine `ECHILD`
+that only becomes true after another classification's initial
+re-check still preempt it, strictly before any `-pgid` signal is
+sent. If it is the highest-priority one set at the re-check
 instant, the entry's classification is "terminal observer error," and
 which finalizer runs depends on the specific errno: (a) **`ECHILD`
 specifically** runs the `ECHILD` finalizer below; (b) **any other
@@ -979,8 +1086,11 @@ process at all, so its numeric PID/PGID could, in principle, already
 have been recycled to an unrelated process group — and `cmd.Wait()` is
 never called. Sequence: (1) the cleanup-initiated flag is set; (2)
 both owned pipe read ends are force-closed immediately; (3) both drain
-goroutines are joined using the same bounded-join helper the shared
-finalizer's drain step uses, as a defensive ceiling only; (4) the
+goroutines are joined using a **join-only** helper (rev-13, directive
+2, clarified — shares its 2-second ceiling with the shared finalizer's
+own drain-join step but never itself calls `SetReadDeadline`, since
+both read ends are already closed by step 2 and there is no open
+descriptor to set a deadline on), as a defensive ceiling only; (4) the
 invocation refuses `adapter-process-observer-failed` (exit 1) and
 releases the per-slug `flock`. Any reader error observed during step 3
 is, per the cleanup-initiated-flag rule, ignored as a trigger.
@@ -1006,8 +1116,11 @@ recording any other errno as `adapter-group-signal-failed` without
 halting the sequence; (2) a fixed 2-second grace period, during which
 the leader remains unreaped; (3) `syscall.Kill(-pgid,
 syscall.SIGKILL)`, the same tolerance/recording rule; (4) **bounded
-reap**: launch `cmd.Wait()` in its own goroutine and wait at most a
-concrete, fixed **2-second Reap deadline**. If `cmd.Wait()` returns
+reap**: launch `cmd.Wait()` in its own goroutine — reporting its own
+completion over its own **capacity-one, buffered, non-blocking-send
+channel** (rev-13, directive 3, symmetric with the observer's channel
+above) — and wait at most a concrete, fixed **2-second Reap
+deadline**. If `cmd.Wait()` returns
 within the deadline, the leader is reaped, its real exit status is
 collected, and the finalizer proceeds to step (5). If the deadline
 elapses first, the finalizer records `adapter-reap-timeout` (exit 1,
@@ -1015,15 +1128,33 @@ primary only per the selection rule above) and proceeds **without** a
 second `Wait()` call — the original goroutine is left running, still
 blocked inside its own `cmd.Wait()` call, never joined or forcibly
 stopped; the per-slug `flock` is not held any longer than this bound
-requires. **Blocked-goroutine/live-child residual, stated honestly
-(rev-12, new)**: when the Reap deadline elapses, the leader is not
-proven dead, reaped, or even successfully signaled — only that this
-invocation itself stops waiting on it; (5) **bounded pipe-drain
+requires. **Blocked-goroutines (plural)/live-child residual, stated
+honestly (rev-12; extended rev-13, directive 3 — the residual is not
+one goroutine but potentially two)**: when the Reap deadline elapses,
+the leader is not proven dead, reaped, or even successfully signaled —
+only that this invocation itself stops waiting on it. Two distinct
+background goroutines can remain outstanding: (i) the abandoned
+`cmd.Wait()` goroutine from this step, still blocked inside its own
+call; and (ii), if this entry's own classification was not itself the
+leader-event, the original leader-event observer goroutine may also
+still be blocked inside its own retried raw `waitid` call, since its
+own condition never independently became true before some other
+source won the ownership race. Both persist for as long as the OS
+keeps the leader unreaped, unbounded in the kernel-uninterruptible-
+sleep case below; neither can ever block this or any future invocation
+trying to report its own eventual completion, since each reports over
+its own capacity-one, non-blocking-send channel (above) that this
+invocation has already stopped listening on by the time it returns;
+(5) **bounded pipe-drain
 finalization, sequenced strictly after step (4)**: set a concrete,
 fixed **2-second Pipe-drain deadline** via `SetReadDeadline` on both
 owned `os.Pipe` read ends. If `SetReadDeadline` itself fails on either
-end, both ends are closed immediately and the invocation refuses
-`adapter-output-read-failed` (exit 1). If both drains reach `io.EOF`
+end, both ends are closed immediately, **both drain goroutines are
+joined via the same bounded-join helper before this branch returns or
+releases the `flock`** (rev-13, directive 2 — every forced-close
+branch in this design always joins both drain goroutines before
+returning or unlocking; no forced-close branch ever returns early),
+and the invocation refuses `adapter-output-read-failed` (exit 1). If both drains reach `io.EOF`
 before the deadline, this is the common case. If the deadline elapses
 first, both ends are force-closed (setting the cleanup-initiated flag
 first), both goroutines are joined, and the invocation refuses
@@ -1069,10 +1200,25 @@ nor that a successful reap proves every group member has exited.
 Signaling `-pgid` reaches only the Dolt child and any of its own
 descendants that remain in the same group — it never reaches
 `tpatch`'s own process, `tpatch`'s own process group, or a parent
-shell. **Start failure**: if `cmd.Start()` itself returns an error, no
-leader process exists at all — no observer is launched, no ownership
-CAS is ever attempted, no signal is ever sent, and `cmd.Wait()` is
-never called for that invocation.
+shell. **Start failure, fully specified (rev-13, directive 1,
+rewritten)**: both `os.Pipe()` pairs are created, and both write ends
+assigned to `cmd.Stdout`/`cmd.Stderr`, before `cmd.Start()` is ever
+invoked — so if `Start()` itself returns an error, the parent still
+holds all **four** endpoints of its own two pipe pairs by itself (no
+child was ever forked to inherit a duplicate of either write end). The
+adapter closes all four of these parent-held endpoints directly and
+synchronously, in the same goroutine that called `Start()` — no drain
+goroutine is ever launched, no ownership CAS is ever attempted by
+anything, no observer goroutine is ever started, no `-pgid` signal of
+any kind is ever sent, and `cmd.Wait()` is never called for that
+invocation, because no leader process exists at all. This is a wholly
+separate, synchronous, goroutine-free code path — not a degenerate
+case of either the shared bounded finalizer or the `ECHILD` finalizer
+— that completes (four closes, then an error return) before any of
+the five-source race machinery above is even reachable. PRD `AC-116`
+(new) verifies zero goroutines, zero ownership-CAS attempts, zero
+signals, and no `cmd.Wait()` call, with all four endpoints confirmed
+closed.
 
 **A disclosed trade-off, carried forward**: a fully successful
 invocation whose leader exits with no lingering descendants still
@@ -1132,10 +1278,29 @@ goroutine is disclosed as a residual rather than joined or cancelled; a
 test asserting the deterministic priority re-check selects a terminal
 observer error's classification over a simultaneously-recorded
 reader-error/cap/timeout/leader-event occurrence regardless of which
-source's own CAS attempt happens to win the ownership race; and a test
-reproducing the two worked multi-error examples above. A separate
-cross-compile/source-shape test (PRD `AC-106`) confirms the
-build-tagged observer's source layout compiles for both `linux`
+source's own CAS attempt happens to win the ownership race; a test
+reproducing the two worked multi-error examples above; a test
+asserting a `cmd.Start()` failure closes exactly the four parent-held
+pipe endpoints synchronously and spawns zero goroutines, attempts zero
+ownership-CAS operations, sends zero signals, and never calls
+`cmd.Wait()` (rev-13, PRD `AC-116`); a test asserting every
+forced-close branch — `ECHILD`, drain-deadline expiry, and
+`SetReadDeadline` failure — always joins both drain goroutines before
+returning or unlocking, and confirming the `ECHILD` join-only helper
+never calls `SetReadDeadline` (rev-13, PRD `AC-117`); a test asserting
+that, on `adapter-reap-timeout` for a non-leader-event classification,
+both the abandoned `cmd.Wait()` goroutine and the still-blocked
+observer goroutine are disclosed, and that both goroutines' own
+eventual completion sends succeed instantly with no receiver present
+(rev-13, PRD `AC-118`); a race test asserting a genuine `ECHILD`
+published strictly between the initial trigger snapshot and the
+cutoff drain wins, switching to the `ECHILD` finalizer and sending
+zero `-pgid` signals (rev-13, PRD `AC-119`); and a test asserting
+`cmd.Wait()` is never launched until strictly after the signal phase
+completes, for every classification running the shared bounded
+finalizer (rev-13, PRD `AC-120`). A separate cross-compile/source-shape
+test (PRD `AC-106`) confirms the build-tagged observer's source layout
+compiles for both `linux`
 (`amd64`/`arm64`) and `darwin` (`arm64`) with no external dependency.
 
 ### D6 — Executable and path safety: descriptor-identity gate for selectors, `db_path`/`cmd.Dir` hard refusal, opposite-direction policy for the Dolt binary (task 3; rev-6 hard refusal)
@@ -2050,7 +2215,36 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
     "empty." A cleanup-initiated flag, set the instant ownership is
     acquired, ensures every owner-induced pipe-close's resulting
     reader error is treated as a join-completion signal only, never a
-    fresh trigger attempt.
+    fresh trigger attempt. **Rev-13 edge-contract additions**: both
+    `os.Pipe()` pairs exist, and the two drain goroutines launch, only
+    once `cmd.Start()` returns successfully — a `cmd.Start()` failure
+    instead closes all four parent-held endpoints directly and
+    synchronously with zero goroutines, zero ownership-CAS attempts,
+    zero signals, and no `cmd.Wait()` call, a wholly separate path
+    from either finalizer. Every forced-close branch — `ECHILD`, the
+    shared finalizer's drain-deadline expiry, and its
+    `SetReadDeadline`-failure branch alike — now always joins both
+    drain goroutines before returning or unlocking; the `ECHILD`
+    finalizer's own join step is a join-only helper that never calls
+    `SetReadDeadline` on already-closed ends. On `adapter-reap-timeout`,
+    up to two goroutines can remain outstanding — the abandoned
+    `cmd.Wait()` goroutine and, for a non-leader-event classification,
+    the still-blocked observer goroutine — both reporting their own
+    eventual completion over a capacity-one, non-blocking-send channel
+    so neither ever blocks trying to deliver a result nobody is
+    listening for. Finally, a single, fixed cutoff drain — run
+    immediately after the initial classification is selected but
+    strictly before the shared finalizer's first `-pgid` signal —
+    re-checks the terminal-observer-error flag one last time and
+    overrides to the `ECHILD` finalizer if `ECHILD` has since become
+    set, guaranteeing zero signals in that case; this is sufficient
+    because, before this cutoff, the observer's own `WNOWAIT` call is
+    the sole wait-family syscall issued against the child and
+    `cmd.Wait()` is never launched before the signal phase completes
+    — an exclusive-waiter invariant that makes a late `ECHILD` after
+    cutoff impossible in a conforming implementation, though not a
+    claim that an out-of-contract concurrent waiter would be handled
+    safely.
 12. Trust-pin storage (D5, rev-7) is a top-level `trust` field on each
     `resources.json` entry, deliberately excluded from
     `resource_id`'s hash-input computation (D3) — the field is
@@ -2178,12 +2372,42 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
   classification; (c) if the shared bounded finalizer's own 2-second
   Reap deadline elapses (a genuinely live, unsignalable, or
   kernel-uninterruptibly-sleeping leader), the invocation reports
-  `adapter-reap-timeout`, releases its lock promptly, and leaves an
-  abandoned `cmd.Wait()` goroutine running in the background for as
-  long as the OS keeps the leader unreaped — an operator may observe
-  both a lingering leader process and a long-lived background
-  goroutine in this specific, disclosed failure class, distinct from
-  the normal path's guaranteed single bounded reap.
+  `adapter-reap-timeout`, releases its lock promptly, and leaves up to
+  **two** abandoned goroutines running in the background for as long
+  as the OS keeps the leader unreaped — the `cmd.Wait()` goroutine
+  itself, and, if the triggering classification was not the
+  leader-event path, the still-blocked leader-event observer
+  goroutine as well — an operator may observe a lingering leader
+  process alongside one or two long-lived background goroutines in
+  this specific, disclosed failure class, distinct from the normal
+  path's guaranteed single bounded reap. Both goroutines report their
+  own eventual completion over a dedicated capacity-one,
+  non-blocking-send channel, so neither can ever itself block trying
+  to deliver a result to a controller that has already returned and
+  stopped listening — the residual is bounded to "leaked goroutine
+  until the OS event finally occurs," never "blocked goroutine
+  forever."
+- Rev-13 adds three further narrow, disclosed edges to the same
+  process-group design (D5): a `cmd.Start()` failure closes all four
+  parent pipe endpoints directly and synchronously with no goroutine,
+  signal, or `cmd.Wait()` involvement at all — a wholly separate,
+  simpler path from either finalizer, so it carries none of the
+  residuals above. Every forced-close branch across both finalizers
+  now always joins both drain goroutines before returning or
+  unlocking (previously under-specified for the `SetReadDeadline`-
+  failure branch), so no forced-close path can return while a drain
+  goroutine is still outstanding under this design's own accounting.
+  Finally, a single fixed cutoff drain, run after the initial
+  triggering classification is selected but strictly before the
+  shared finalizer's first `-pgid` signal, re-checks for a
+  since-arrived `ECHILD` and, if found, overrides to the no-signal
+  `ECHILD` finalizer — this closes the narrow race where `ECHILD`
+  becomes true in the small window between classification and the
+  first signal, at the cost of that one extra deterministic check on
+  every non-`ECHILD` invocation; the guarantee is scoped narrowly to
+  the fact that, before this cutoff, this process issues no
+  wait-family syscall other than the non-reaping `WNOWAIT` observer
+  call, not to arbitrary out-of-contract concurrent waiters.
 - The add-time trust bootstrap (D5, rev-8) means a duplicate `add`
   targeting an already-declared resource never re-pins trust, even if
   `--trust-current-dolt` is re-passed and the currently-resolved
@@ -2403,8 +2627,13 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
 | 182 | AC-113 | Process group | The `ECHILD` finalizer's own force-close of both owned pipe read ends is asserted to occur only after the cleanup-initiated flag is set; a drain goroutine's resulting `os.ErrClosed`-shaped read is inspected | The induced read error is classified as a join-completion signal only, never resubmitted as a fresh reader-error trigger attempting the ownership CAS; an equivalent test for the shared finalizer's drain-timeout force-close confirms the same suppression |
 | 183 | AC-114 | Process group | Worked multi-error scenarios: (a) an output-cap-exceeded invocation whose finalizer also hits an untolerated group-signal errno and a drain timeout; (b) a benign leader-event invocation whose finalizer's signal step fails and whose drain also times out | (a) reports `resource-limit-exceeded` (exit 3) as the sole primary reason, the later signal/drain failures recorded only as local diagnostics; (b) reports `adapter-group-signal-failed` (exit 1) as primary — the signal phase precedes the drain phase in the fixed walk order |
 | 184 | AC-115 | Process group | A test leader process injected to never become waitable within the 2-second Reap deadline (simulating a kernel-uninterruptible sleep) | The finalizer records `adapter-reap-timeout` (exit 1), proceeds without a second `Wait()` call, releases the per-slug `flock` promptly rather than holding it indefinitely, and still attempts the subsequent bounded pipe-drain finalization; the abandoned `cmd.Wait()` goroutine is disclosed as a residual, never joined or cancelled |
+| 185 | AC-116 | Process group | `cmd.Start()` itself is forced to return an error | All four parent-held pipe endpoints (both read ends, both write ends) are closed directly and synchronously by the same goroutine that called `Start()`; zero drain goroutines are spawned; zero ownership-CAS attempts occur by any source; zero `-pgid` signals are sent; `cmd.Wait()` is never invoked — this path is proven wholly separate from, and never reachable through, either the `ECHILD` finalizer or the shared bounded finalizer |
+| 186 | AC-117 | Process group | Table-driven: the `ECHILD` finalizer's force-close, the shared finalizer's drain-deadline-expiry force-close, and the shared finalizer's `SetReadDeadline`-failure force-close, exercised in turn | Every forced-close branch joins both drain goroutines (via the bounded-join helper, or the `ECHILD` finalizer's join-only variant) strictly before returning control or releasing the per-slug `flock`; no branch returns with either drain goroutine unjoined; the `ECHILD` join-only helper is confirmed to never call `SetReadDeadline` on either already-closed read end |
+| 187 | AC-118 | Process group | An invocation is driven to `adapter-reap-timeout` via a non-leader-event classification (e.g. invocation timeout) with the leader never becoming waitable | Both the abandoned `cmd.Wait()` goroutine and the original leader-event observer goroutine (still blocked in its own retried `waitid` call) are disclosed as residuals; both goroutines' own eventual completion sends succeed instantly over their capacity-one, non-blocking-send channels even with no receiver present after the invocation has returned, so neither ever blocks trying to report |
+| 188 | AC-119 | Process group | A race test publishes the `ECHILD` recorded-occurrence flag strictly between the initial trigger snapshot (priority re-check, selecting a lower-priority classification) and the fixed cutoff-drain instant, strictly before any `-pgid` signal has been sent | The invocation switches to, and runs, the `ECHILD` finalizer instead of the originally-selected shared bounded finalizer; **zero** `-pgid` signal calls are observed for the whole invocation |
+| 189 | AC-120 | Process group | A test-only call-count hook instruments `cmd.Wait()` invocation timing across every classification that runs the shared bounded finalizer | `cmd.Wait()` is never launched until strictly after the signal phase (steps 1-3: `SIGTERM`, grace, `SIGKILL`) has fully completed, for every one of those classifications — confirming the exclusive-waiter invariant the cutoff-drain guarantee depends on actually holds |
 
-**184 rows** cover **115** distinct `AC` clauses; several clauses (e.g.
+**189 rows** cover **120** distinct `AC` clauses; several clauses (e.g.
 `AC-1`, `AC-2`, `AC-4`, `AC-6`, `AC-7`, `AC-10`, `AC-13`, `AC-17`,
 `AC-20`, `AC-21`, `AC-22`, `AC-23`, `AC-25`, `AC-26`, `AC-28`, `AC-32`,
 `AC-34`, `AC-36`, `AC-37`, `AC-39`, `AC-40`, `AC-43`, `AC-44`, `AC-47`,
@@ -2412,7 +2641,7 @@ This encoding is unaffected by rev-7's Dolt trust/identity split.
 `AC-69`, `AC-74`, `AC-75`, `AC-77`, `AC-78`, `AC-80`, `AC-81`, `AC-85`,
 `AC-88`, `AC-91`) are exercised by more than one row — this matrix
 does not claim any clause is covered "exactly once." `AC-80` alone
-contributes 18 of those 184 rows: 17 named allow/deny filesystem-type
+contributes 18 of those 189 rows: 17 named allow/deny filesystem-type
 fixtures (matching `AC-80`'s own "17 supporting Test Matrix rows"
 text) plus 1 additional row for the unrecognized-type case its
 definition text separately calls out as "also exercised here" — the
@@ -2421,9 +2650,17 @@ cover `AC-107`-`AC-111` one-to-one, the Darwin
 `SIGSTOP`/`EPERM`-tolerance/`EINTR`-retry-and-terminal-error/
 non-`EOF`-reader-error/bounded-drain-timeout hardening added by the
 rev-11 platform/state-machine fold (§6.4/D5). Rows 181-184 (rev-12,
-new) cover `AC-112`-`AC-115` one-to-one, the single-ownership-CAS/
-deterministic-priority, cleanup-initiated-flag, multi-error
-primary-selection, and bounded-Reap-deadline hardening added by the
-rev-12 process-finalizer fold (§6.4/D5); rows 151/152/165/166/178 are
-also corrected in place (not row-count-additive) to reflect the same
-fold, per the accounting above.
+not further changed this revision) cover `AC-112`-`AC-115` one-to-one,
+the single-ownership-CAS/deterministic-priority, cleanup-initiated-flag,
+multi-error primary-selection, and bounded-Reap-deadline hardening
+added by the rev-12 process-finalizer fold (§6.4/D5); rows
+151/152/165/166/178 were corrected in place for rev-12 and are
+unchanged this revision. Rows 185-189 (rev-13, new) cover
+`AC-116`-`AC-120` one-to-one, the `cmd.Start()`-failure four-endpoint
+close, the every-forced-close-joins audit, the dual-goroutine
+reap-timeout residual, the late-`ECHILD` cutoff-drain race, and the
+exclusive-waiter `cmd.Wait()`-gating invariant added by the rev-13
+edge-contract fold (§6.4/D5); no existing row's own text required
+correction this revision beyond the pipe-setup/`Start()`-ordering,
+`ECHILD` join-only-helper, `SetReadDeadline`-failure-join, and
+observer/reap-goroutine-channel prose already updated in D5 above.

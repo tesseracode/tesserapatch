@@ -2,10 +2,69 @@
 
 ## Status
 
-**Cluster state**: REV-13 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-19 Cluster H rev-13 WRITTEN — narrow closure fold,
+AWAITING REVIEW.** Same sequential writer continued from rev-12
+(`e434ba6`). Four directives folded across both papers, closing the
+rev-12 adjudication's four residual edge-contract findings: (1)
+**Start-failure endpoints** — both `os.Pipe()` pairs exist, and both
+drain goroutines launch, only once `cmd.Start()` returns
+successfully; a `cmd.Start()` failure instead closes all **four**
+parent-held pipe endpoints directly and synchronously in the calling
+goroutine, with zero drain goroutines, zero ownership-CAS attempts,
+zero signals, and no `cmd.Wait()` call — a wholly separate,
+goroutine-free path from either finalizer (new `AC-116`); the prior
+absolute "only code that ever closes these ends" claim is now scoped
+to the post-`Start()`-success lifetime, with an explicit pre-`Start()`
+carve-out. (2) **Every forced-close branch joins** — the shared
+finalizer's `SetReadDeadline`-failure branch now explicitly joins
+both drain goroutines (via the bounded-join helper) before returning
+or releasing the `flock`, matching the `ECHILD` finalizer's own
+join-only helper and the drain-deadline-expiry branch — no
+forced-close branch returns with either drain goroutine unjoined;
+the `ECHILD` join-only helper is confirmed never to call
+`SetReadDeadline` on an already-closed read end (new `AC-117`). (3)
+**Reap-timeout residual, dual-goroutine** — on `adapter-reap-timeout`
+up to **two** goroutines may remain outstanding (the abandoned
+`cmd.Wait()` goroutine, and, for a non-leader-event classification,
+the still-blocked leader-event observer goroutine as well), each
+reporting its own eventual completion over a dedicated capacity-one,
+non-blocking-send channel so neither can ever itself block trying to
+deliver a result nobody is listening for (new `AC-118`). (4)
+**Late-`ECHILD` cutoff drain** — a single, fixed re-check ("cutoff
+drain"), run after the initial triggering classification is selected
+but strictly before the shared finalizer's first `-pgid` signal,
+re-checks for a since-published `ECHILD` occurrence and, if found,
+overrides to the no-signal `ECHILD` finalizer, proving **zero**
+`-pgid` signals in that race window (new `AC-119`); `cmd.Wait()` is
+additionally proven never to be launched before the shared
+finalizer's signal phase completes, for every classification that
+runs that finalizer (new `AC-120`) — the exclusive-waiter invariant
+justifying this (before cutoff, the non-reaping `WNOWAIT` `waitid`
+call is the sole wait-family syscall issued against the child) is
+stated narrowly, not as a claim that out-of-contract concurrent
+waiters would be handled safely. AC count: **120** (net +5 from
+rev-12's 115: `AC-116`-`AC-120` new, none rewritten in place, none
+removed). ADR Test Matrix rows: **189** (net +5 from rev-12's 184:
+rows 185-189 new for `AC-116`-`AC-120`; mechanically verified
+sequential 1-189, no gaps/duplicates). ADR Implementation Notes item
+11 and the Negative Consequences Summary's process-group bullets were
+also updated to disclose all four rev-13 edge-contract refinements
+(previously only the substantive PRD/ADR §6.4/D5 prose had been
+updated for rev-11/rev-12; this sweep was outstanding until rev-13).
+All four golden vectors (`res_acc91dc23a8b`, `res_79f5ac5dca13`,
+`res_4b62313b6cce`, `res_00189e66780a`) and the six shared JSON
+blocks mechanically reconfirmed unaffected — no wire-schema/
+hash-input text was touched. PRD grew to **6492 lines** (was 6218),
+ADR to **2666 lines** (was 2429). Side Research md5 unchanged:
+`b385fe622db9926f48861105239f113e`. No code/ROADMAP/LOG/assets/SPEC/
+CHANGELOG file was touched. See "Files Changed — Cluster H rev-13",
+"Test Results — Cluster H rev-13", and "Ready for review — Cluster H
+rev-13" below.
 
 **2026-08-19 Cluster H rev-12 adjudicated APPROVED WITH NOTES
 (external) / NEEDS REVISION (internal) → rev-13 DISPATCHED.** The
@@ -1105,18 +1164,18 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-12 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-13 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-12
+- **Task ID**: Cluster H rev-13
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-11 adjudication's six directives
-  (`c4c367c`) into the feature-resource PRD and ADR-033 boundary — a
-  bounded process-finalizer fold introducing a single cleanup owner
-  across all five trigger sources, deterministic trigger priority, a
-  separated `ECHILD` finalizer, and concrete bounded Reap/Pipe-drain
-  deadlines for the shared finalizer.
-- **Status**: Complete (rev-12 fold), AWAITING REVIEW
-- **Assigned**: 2026-08-14 (rev-12 fold: 2026-08-19)
+- **Description**: Fold the rev-12 adjudication's four residual
+  edge-contract findings (`521091d`) into the feature-resource PRD
+  and ADR-033 boundary — Start-failure endpoint closure, universal
+  forced-close join discipline, dual-goroutine reap-timeout residual
+  disclosure, and the late-`ECHILD` cutoff-drain proof/exclusive-
+  waiter invariant.
+- **Status**: Complete (rev-13 fold), AWAITING REVIEW
+- **Assigned**: 2026-08-14 (rev-13 fold: 2026-08-19)
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -1155,6 +1214,30 @@ only after implementation review and wave close.
 
 ## Session Summary
 
+- **Cluster H rev-13** — dispatched 2026-08-19 (adjudication
+  `521091d`) from `WAVE_BASE=f04dec7`; written 2026-08-19. Same
+  sequential writer continued from rev-12 (`e434ba6`). Narrow
+  closure fold resolving the rev-12 adjudication's four residual
+  edge-contract findings — see the Status entry above for the
+  complete itemized breakdown: (1) `cmd.Start()` failure closes all
+  four parent-held pipe endpoints synchronously with zero goroutines/
+  signals/`cmd.Wait()`, scoping the prior absolute "only cleanup
+  closes these ends" claim to post-`Start()`-success; (2) every
+  forced-close branch (`ECHILD`, drain-deadline expiry,
+  `SetReadDeadline` failure) now proven to join both drain goroutines
+  before returning/unlocking; (3) `adapter-reap-timeout` discloses up
+  to two abandoned goroutines (`cmd.Wait()` plus, conditionally, the
+  observer), each safe via a capacity-one non-blocking-send
+  completion channel; (4) a fixed cutoff drain closes the late-
+  `ECHILD` race with an explicit exclusive-waiter invariant, and
+  `cmd.Wait()` is proven gated until after the signal phase completes.
+  AC count 120 (net +5), ADR Test Matrix rows 189 (net +5), both
+  mechanically verified sequential/no-gaps. PRD 6492 lines (was
+  6218), ADR 2666 lines (was 2429). All four golden vectors, the six
+  shared JSON blocks, and the Side Research md5
+  `b385fe622db9926f48861105239f113e` reconfirmed unaffected. ADR
+  Implementation Notes item 11 and the Negative Consequences Summary
+  were additionally swept to disclose the same four refinements.
 - **Cluster H rev-12** — dispatched 2026-08-19 (adjudication
   `c4c367c`) from `WAVE_BASE=f04dec7`; written 2026-08-19. Same
   sequential writer continued from rev-11 (`1403276`). Bounded
@@ -1735,6 +1818,113 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-13
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  title/Status → rev-13, superseding writer commit `e434ba6`,
+  adjudicated `521091d`; `## 0. Rev-12 Fold Summary` fully replaced
+  with a new `## 0. Rev-13 Fold Summary` (rev-12's own body preserved
+  as historical prose nested below, per the established replace-not-
+  nest §0 pattern); §0.1 header now "(... + rev-12 + rev-13
+  additions)" with a rev-13 note that no new `C`-numbered citation is
+  added (same `C36`/`C40`/`C41`/`C42` grounding as rev-12); §6.4's
+  pipe-setup sentence clarified (both `os.Pipe()` pairs before
+  `Start()`, drain goroutines only after `Start()` succeeds, "only
+  code that closes" claim scoped to post-success lifetime); a fully
+  expanded "Start failure" paragraph added (four-endpoint synchronous
+  close, zero goroutines/CAS/signals/`Wait()`, new `AC-116`); the
+  `SetReadDeadline`-failure sentence gains explicit both-drain-join
+  language; the `ECHILD` finalizer's join step renamed to a
+  join-only helper that never calls `SetReadDeadline` on already-
+  closed ends; the observer's and the bounded-reap goroutine's
+  completion channels both specified as capacity-one, non-blocking-
+  send; the "blocked-goroutine" residual paragraph rewritten to
+  "blocked-goroutines" (plural), disclosing both the abandoned
+  `cmd.Wait()` goroutine and, conditionally, the still-blocked
+  observer goroutine; a new "cutoff drain" paragraph added
+  (exclusive-waiter invariant, new `AC-119`/`AC-120`); the "Terminal
+  observer errors" paragraph gains a cutoff-drain cross-reference;
+  the Verification paragraph appends five new tests; new `AC-116`-
+  `AC-120` added — **120** clauses total (net +5 from rev-12's 115,
+  none rewritten in place, none removed); §14.1 exact-counts
+  paragraph gets a new "Rev-12's own count derivation" historical
+  note; new `## 27. Rev-13 Changelog` vs rev-12.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — same 11 binding
+  decisions (D1–D11, numbering unchanged): title/Status header
+  updated to rev-13, citing writer commit `e434ba6` and adjudication
+  `521091d`; new "Rev-13 fold summary" section appended after
+  "Rev-12 fold summary" (with the "Preserved across every review
+  pass" bullet updated to rev-1-through-rev-13/thirteen passes); D5's
+  heading updated ("rev-13 edge-contract fold" task citation); D5's
+  pipe-setup, Start-failure, `SetReadDeadline`-join, `ECHILD`
+  join-only-helper, channel-capacity, plural-residual, cutoff-drain
+  (new), terminal-observer-errors cross-reference, and Verification
+  paragraphs all mirror the PRD's rev-13 edits; Implementation Notes
+  item 11 amended in place with a "Rev-13 edge-contract additions"
+  paragraph covering all four directives; Negative Consequences
+  Summary's process-group-termination residual bullet amended
+  (dual-goroutine disclosure) plus a new bullet for the Start-failure/
+  forced-close-join/cutoff-drain refinements; new Test Matrix rows
+  185-189 added for `AC-116`-`AC-120` — Test Matrix now **189 rows**
+  (net +5 from rev-12's 184), all 120 PRD acceptance-criteria clauses
+  still covered (mechanically verified: rows 1-189 sequential, no
+  gaps; every `AC-1`-`AC-120` referenced by at least one row).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new
+  rev-13 entry prepended above the rev-12-adjudication entry), Active
+  Task block updated to rev-13, new Session Summary bullet, this
+  Files Changed section, Test Results, and the "Ready for review —
+  Cluster H rev-13" section below. Cluster state flipped to
+  `**Cluster state**: AWAITING REVIEW` (canonical single-token field,
+  per this rev's explicit instruction).
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-13
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation
+performed instead:
+
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created under
+  `.git/scratch-rev13/`, run, deleted, never written under `/tmp`) —
+  confirmed **120** distinct, sequential `AC-1`..`AC-120` clauses, zero
+  gaps, zero duplicates (net +5 from rev-12's 115; `AC-116`-`AC-120`
+  new, none rewritten in place, none removed).
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (120 distinct, sequential, no gaps) against every row
+  of the ADR's Test Matrix (189 sequential rows, 1..189, zero gaps
+  within the Test Matrix section specifically, verified separately
+  from the unrelated 4-row golden-vector table in D3) — confirmed all
+  120 clauses appear in at least one matrix row, no clause missing,
+  no extra/unexpected clause tag.
+- Golden-vector reconfirmation: `resource_id` Vector 1
+  (`res_acc91dc23a8b`), Vectors 2/3 (`res_4b62313b6cce`), Vector 4
+  (`res_79f5ac5dca13`/`res_00189e66780a`) all mechanically re-grepped
+  across all three documents and confirmed identical occurrence
+  counts/values — no wire-schema/identity change this revision, only
+  process-finalizer prose/behavior-contract clarifications.
+- Six shared JSON blocks re-grepped across the PRD/ADR and confirmed
+  unaffected/byte-identical (no wire-schema changes this revision).
+- Reason-taxonomy mechanical check: no new exit-taxonomy reason name
+  introduced this revision (`adapter-reap-timeout` from rev-12
+  remains the newest); confirmed no duplicate/contradictory name
+  introduced for any existing condition.
+- Stale-surface global search: confirmed no remaining unscoped
+  "only code that ever closes these ends" claim outside historical/
+  changelog context; confirmed no remaining singular "blocked-
+  goroutine" residual language; confirmed the `ECHILD` finalizer's
+  join step is nowhere described as calling `SetReadDeadline`.
+- `git status --short` confirmed only the three owned paths are
+  touched by this writer; all pre-existing untracked WIP remains
+  untouched and unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-12
 
@@ -3721,6 +3911,79 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-13
+
+**Scope**: docs-only planning cluster, rev-13 "narrow closure fold".
+Same two deliverables as rev-1 through rev-12, both edited in
+relevant part (the §6.4/D5 termination-cell edge-contract additions
+and the PRD's §0/§27 restructure are the largest single edits this
+revision), plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **6492 lines** (was 6218). See "Files Changed — Cluster H rev-13"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the adjudication's four directives.
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **2666 lines**
+   (was 2429). Same 11 binding decisions (D1–D11 — no insertion/
+   removal this revision, only in-place amendments to D5,
+   Implementation Notes item 11, two Negative Consequences bullets,
+   and five new Test Matrix rows); see "Files Changed — Cluster H
+   rev-13" above.
+
+**Files changed (Cluster H rev-13)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — edited in place
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — edited in place
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D5 (ADR) ↔ §6.4 (PRD): identical Start-failure edge contract
+  (four-endpoint synchronous close, zero goroutines/CAS/signals/
+  `Wait()`), identical every-forced-close-joins discipline (`ECHILD`
+  join-only helper, drain-deadline-expiry, `SetReadDeadline`-failure
+  branch all bounded-join both drain goroutines before return/
+  unlock), identical dual-goroutine `adapter-reap-timeout` residual
+  disclosure with capacity-one non-blocking-send completion channels
+  for both the observer and the reap goroutine, and identical
+  cutoff-drain/exclusive-waiter-invariant prose closing the late-
+  `ECHILD` race — all four directives present verbatim-equivalent in
+  both documents; no unscoped "only cleanup closes these ends" claim,
+  no singular "blocked-goroutine" residual, no claim that `ECHILD`'s
+  join step calls `SetReadDeadline` on a closed file, anywhere in
+  either document.
+- D5 (ADR) Implementation Notes item 11 / Negative Consequences
+  bullets ↔ §6.4 (PRD): both now carry the same four rev-13
+  edge-contract refinements — Start-failure's wholly separate
+  goroutine-free path, universal forced-close join discipline, the
+  dual-goroutine reap-timeout residual, and the cutoff-drain's
+  exclusive-waiter invariant — none of which were present in the
+  rev-12 text of either location before this revision's sweep.
+- Test Matrix (ADR) ↔ §14 Acceptance Criteria (PRD): all 120 AC
+  clauses (`AC-1`–`AC-120`) mechanically confirmed covered by at least
+  one of the 189 Test Matrix rows (rows 185-189 newly added for
+  `AC-116`-`AC-120`, mechanically verified sequential 1-189, no gaps,
+  no duplicates); no orphaned clause, no orphaned row.
+- Wire Schema Appendix (ADR) ↔ §12/§13.3 (PRD): resource/batch/
+  directory golden vectors and the six shared JSON blocks mechanically
+  reconfirmed byte-identical and unaffected by this revision's edits —
+  every rev-13 change is a process-finalizer edge-contract prose
+  clarification, none touch hash-input/identity data.
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
+- No new `C`-numbered citation was needed this revision — the PRD's
+  §0.1 Claims Audit rev-13 note confirms the same `C36`/`C40`/`C41`/
+  `C42` grounding as rev-12 covers all four directives' underlying
+  claims.
 
 ## Ready for review — Cluster H rev-12
 
