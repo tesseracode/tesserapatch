@@ -1,3 +1,39 @@
+## Review — Cluster G' rev-2 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`gprime-r2-internal`)
+**External reviewer**: claude-opus-5 (`gprime-r2-external`)
+**Fold reviewed**: `a2a11b2`
+
+### Verdict: NEEDS REVISION → REV-3 DISPATCHED
+
+### Scoreboard
+
+- **Internal**: APPROVED clean; all four rev-1 findings closed.
+- **External**: NEEDS REVISION; two HIGH reapply findings.
+
+### Findings
+
+1. **HIGH**: mode-only canonical patch can false-pass
+   `git apply --reverse --check` with a warning, causing auto shortcut to mark
+   `applied` without restoring executable mode.
+2. **HIGH**: reapply validation compares whole-tree diff, so unrelated
+   disjoint source work changes patch-id/emptiness and blocks valid reapply.
+
+External empirically verified the unapply transaction, D3/D6, weird paths,
+dependency semantics, lifecycle surfaces, assets and Rule 18 clean.
+
+### Rev-3 Fold
+
+- Make reverse materialization checks warning-aware and fail closed.
+- Capture/compare only canonical touched paths via literal pathspecs.
+- Add mode-only exact-reapply regressions.
+- Add unrelated-dirt reapply regressions for immediate and committed
+  unapplied baselines.
+
+### Action Taken
+
+Cluster state transitioned to `REV-3 DISPATCHED`. D1-D8 remain closed.
+
 ## Review dispatch — Cluster G' rev-2 — 2026-08-10
 
 **Fold commit**: `a2a11b2`

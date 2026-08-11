@@ -2,10 +2,19 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-2 adjudicated NEEDS REVISION → rev-3
+DISPATCHED.** Internal reviewer APPROVED clean. External full review found
+two reproduced HIGH reapply defects: mode-only canonical patches could
+false-pass reverse-check warnings and finalize without restoring executable
+mode; and whole-tree materialization comparison rejected valid reapply when
+unrelated disjoint work was dirty. Rev-3 is restricted to strict warning-aware
+materialization checks, canonical-touched-path-scoped comparison, and direct
+regressions for both HEAD-baseline shapes.
 
 **2026-08-10 Cluster G' rev-2 IMPLEMENTED — AWAITING DUAL REVIEW at
 `a2a11b2`.** Four rev-1 MEDIUM findings folded: canonical patch is now direct
@@ -113,7 +122,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Review (rev-2)
+- **Status**: In Progress (rev-3 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -390,9 +399,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run internal rev-2 confirmation plus a fresh external full review.
-2. Adjudicate any residuals without reopening D1-D8.
-3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Treat successful `git apply --check` warnings as materialization failure.
+2. Scope reapply comparison to canonical touched paths.
+3. Add mode-only and unrelated-dirt regressions for immediate/committed bases.
+4. Re-run internal/external rev-3 review.
+5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
