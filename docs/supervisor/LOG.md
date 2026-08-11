@@ -1,3 +1,50 @@
+## Dispatch — Cluster H′ rev-0 — 2026-08-11
+
+**Supervisor**: Copilot CLI
+**WAVE_BASE**: `46c984b`
+**Target**: v0.15.0
+**Mode**: one sequential implementer; no shared-file parallelism
+
+### Binding Authorities
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
+- `docs/adrs/ADR-033-resource-capture-boundary.md`
+
+### Scope
+
+Implement the complete Accepted v1 resource domain: deterministic manifests
+and capture artifacts, ignored-file/logical-Git/Dolt capture, redaction,
+path and ignore gates, platform locks, trusted adapter execution, full
+`feature resource` CLI, `record --resources`, documentation and tests.
+
+### Shared-Surface Ownership
+
+The sole implementer may edit/create the required files under
+`internal/store`, `internal/redact`, `internal/workflow`, `internal/cli`,
+plus `SPEC.md`, `CHANGELOG.md`, directly related docs/assets and
+`docs/handoff/CURRENT.md`. It must use explicit-path staging and must not
+touch pre-existing untracked PRDs, whitepapers or case-study files.
+
+### Hard Constraints
+
+1. Accepted PRD/ADR behavior is binding; architecture changes require an ADR.
+2. Raw scanned bytes stay bounded in memory and are never persisted.
+3. Resources remain sidecars, never canonical patch/lifecycle authority.
+4. Dolt is the only v1 external adapter; no generic-command escape hatch.
+5. Linux/macOS process and lock implementations use exact build tags and
+   fail closed elsewhere.
+6. Post-signal `cmd.Wait()` may cause the observer to report secondary
+   `ECHILD`; it must not overwrite the finalized classification.
+7. Cover all 120 acceptance clauses / 189 matrix rows and preserve every
+   golden digest/wire block.
+8. Run `gofmt`, `go test ./...`, `go build ./cmd/tpatch`, update CURRENT to
+   AWAITING REVIEW, commit with Rule 18, and push.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Cluster H′ rev-0 dispatch. The
+implementation runs sequentially from `46c984b`.
+
 ## Review — Cluster H post-close claim review — 2026-08-11
 
 **Reviewer**: user-external

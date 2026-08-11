@@ -2,81 +2,68 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: REV-0 DISPATCHED
 
-Cluster H planning is accepted at rev-13. No implementation wave has been
-dispatched and no release tag was created.
+Cluster H′ rev-0 implementation is dispatched from the corrected and
+re-gated Cluster H planning close.
 
 ## Active Task
 
-- **Task ID**: Cluster H
-- **Milestone**: Typed feature resources and capture adapters planning
-- **Description**: Define the v1 product and architecture contract for
-  explicit non-Git/ignored resources and deterministic capture adapters.
-- **Status**: Complete
-- **Assigned**: 2026-08-10
-- **Accepted**: 2026-08-11
-- **WAVE_BASE**: `f04dec7`
-- **Accepted writer tip**: `650b44f`
+- **Task ID**: Cluster H′ rev-0
+- **Milestone**: v0.15.0 typed feature resources and capture adapters
+- **Description**: Implement the Accepted Cluster H PRD and ADR-033
+  end-to-end.
+- **Status**: In Progress
+- **Assigned**: 2026-08-11
+- **WAVE_BASE**: `46c984b`
+- **Target release**: v0.15.0
 
 ## Session Summary
 
-Accepted:
+Cluster H planning closed with an 8/8 amended wave-close after folding the
+post-close review's real-date and citation-anchor notes. A single sequential
+implementer is now assigned to Cluster H′ rev-0.
+
+Binding authorities:
 
 - `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
 - `docs/adrs/ADR-033-resource-capture-boundary.md`
-
-The final contract contains 120 acceptance clauses and a 189-row ADR test
-matrix. Internal review returned APPROVED WITH NOTES and external review
-returned APPROVED. A post-close claim review returned APPROVED WITH NOTES;
-its audit-date and citation-anchor corrections are folded.
 
 ## Current State
 
-Cluster H is planning-only and complete. The accepted v1 design provides:
+No Cluster H′ production code has landed yet. Baseline `46c984b` is pushed,
+clean for tracked files, and passes the full suite. Rev-0 must implement:
 
-- a separate typed `resources.json` declaration domain;
-- explicit ignored-file and logical Git-metadata resources;
-- a Dolt `dolt-diff-summary-v1` adapter;
-- deterministic immutable capture batches plus an atomic current pointer;
-- no raw resource persistence and no raw `.git/**` capture;
-- no resource authority over canonical patches or feature lifecycle;
-- Linux/macOS locking and bounded adapter-process cleanup.
-
-The final non-blocking review note is an implementation clarification:
-`cmd.Wait()` may reap after signaling before the non-reaping observer returns.
-That observer may then report `ECHILD`; this is expected secondary completion
-and must not alter the already-final classification.
+- deterministic resource declarations and capture wire artifacts;
+- ignored-file and logical Git-metadata capture;
+- the trusted Dolt `dolt-diff-summary-v1` adapter;
+- Linux/macOS local locking and bounded process cleanup;
+- `feature resource add|list|remove|clear|trust-dolt|capture|diff`;
+- `record --resources` two-domain staging/publication;
+- shared redaction, path/ignore gates, docs and tests.
 
 ## Files Changed
 
-- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
-- `docs/adrs/ADR-033-resource-capture-boundary.md`
 - `docs/ROADMAP.md`
 - `docs/handoff/CURRENT.md`
-- `docs/handoff/HISTORY.md`
 - `docs/supervisor/LOG.md`
 
 ## Test Results
 
-- `AC-1` through `AC-120`: contiguous and fully represented.
-- ADR Test Matrix rows 1 through 189: contiguous, complete coverage.
-- Four resource IDs, batch digest and directory digest recomputed.
-- Six PRD/ADR JSON blocks byte-identical.
+- Amended Cluster H planning wave-close: PASS 8/8 at `46c984b`.
+- Cluster H′ implementation validation: pending.
 - Side Research md5:
   `b385fe622db9926f48861105239f113e`.
-- Rule 18 trailer verified on all 32 pre-consolidation commits.
-- Guarded WIP and `.wave-close-allowlist` unchanged.
 
 ## Next Steps
 
-1. Before dispatching Cluster H′, fetch `origin` and record the then-current
-   `origin/main` commit as the new implementation `WAVE_BASE`.
-2. Dispatch a sequential implementation wave from the Accepted PRD and
-   ADR-033.
-3. Implement store/wire foundations before CLI and adapter execution, then
-   run the accepted 189-row matrix through the normal dual-review loop.
-4. Tag only when the separately reviewed implementation release closes.
+1. Implement the Accepted 120-clause / 189-row contract sequentially.
+2. Run `gofmt`, targeted tests, `go test ./...`, and
+   `go build ./cmd/tpatch`.
+3. Update this handoff to AWAITING REVIEW with exact files, counts and
+   residuals; push the explicit-path commit.
+4. Run independent internal and external rev-0 reviews.
+5. Tag v0.15.0 only after the implementation wave is accepted.
 
 ## Blockers
 
@@ -85,15 +72,18 @@ None.
 ## Context for Next Agent
 
 - Accepted papers are binding; architecture changes require a new ADR.
-- Planning range: `f04dec7..650b44f`; do not reuse `f04dec7` as Cluster H′'s
-  implementation base.
+- Implementation WAVE_BASE is `46c984b`; planning WAVE_BASE `f04dec7` is
+  historical only.
+- One implementer owns all shared surfaces; do not launch parallel writers.
+- Stage and commit explicit file paths only.
+- Do not touch pre-existing untracked PRDs, whitepapers or case-study files.
 - `generic-command` is intentionally out of scope; Dolt is the only v1
   external adapter.
 - Resources are audit sidecars, never canonical patch or lifecycle truth.
 - Preserve ADR-027 privacy: scanned raw bytes remain bounded in memory and
   are never persisted.
-- Preserve the post-reap observer `ECHILD` clarification above when
-  implementing the process finalizer.
+- A post-reap observer `ECHILD` is expected secondary completion and must not
+  alter the already-final process classification.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

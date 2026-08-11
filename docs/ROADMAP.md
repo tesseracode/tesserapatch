@@ -625,6 +625,30 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
+## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters 🚧 IN PROGRESS
+
+**Dispatch**: 2026-08-11.
+**WAVE_BASE**: `46c984b`.
+**Target**: v0.15.0.
+**Authorities**:
+`PRD-feature-resource-claims-and-capture-adapters` +
+`ADR-033-resource-capture-boundary` (both Accepted).
+
+One sequential implementer owns the complete shared surface. Rev-0 scope:
+
+- deterministic `resources.json`, immutable capture batches and atomic
+  `current.json`;
+- ignored-file, logical Git-metadata and Dolt `diff-summary` capture;
+- ADR-027 redaction extraction and bounded in-memory scanning;
+- Linux/macOS `flock`, filesystem/path gates and trusted private-copy process
+  execution;
+- `feature resource add|list|remove|clear|trust-dolt|capture|diff`;
+- `record --resources`, docs, version notes and acceptance-matrix tests.
+
+Review requires the full 120-clause / 189-row contract, dual independent
+verdicts, unchanged guarded WIP and an 8/8 release close. No tag before final
+acceptance.
+
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED
 
 **Registered**: 2026-08-10.
