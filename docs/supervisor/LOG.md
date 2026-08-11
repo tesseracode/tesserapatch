@@ -1,3 +1,28 @@
+## Review dispatch — Cluster G' rev-4 — 2026-08-10
+
+**Fold commit**: `a5a814e`
+**Adjudication baseline**: `3d19245`
+**Full implementation range**: `9e77617..a5a814e`
+
+### Fold Delivered
+
+- Complete temporary-index HEAD→worktree canonical-path projection.
+- Literal pathspec handling and staged owned-path regression.
+- User index preservation on refusal/rollback.
+
+### Verification
+
+- [x] Rev-4 targeted test passes
+- [x] gofmt clean
+- [x] go vet passes
+- [x] `go test -count=1 ./...` passes
+- [x] build passes
+
+### Action Taken
+
+Cluster state transitioned to `AWAITING REVIEW`. Dispatch internal and
+external rev-4 confirmation. No release/tag action yet.
+
 ## Review — Cluster G' rev-3 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`gprime-r3-internal`)

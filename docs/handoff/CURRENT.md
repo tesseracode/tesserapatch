@@ -2,10 +2,16 @@
 
 ## Status
 
-**Cluster state**: REV-4 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-4 IMPLEMENTED — AWAITING DUAL REVIEW at
+`a5a814e`.** Internal rev-3 HIGH residual folded: canonical reapply
+verification now compares complete staged+unstaged+untracked HEAD→worktree
+projection via temporary index and literal paths. Staged owned-path drift is
+refused with source/status/canonical/index preserved. Full gates pass.
 
 **2026-08-10 Cluster G' rev-3 adjudicated NEEDS REVISION → rev-4
 DISPATCHED.** Internal review found one HIGH residual: reapply comparison used
@@ -135,7 +141,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: In Progress (rev-4 fold)
+- **Status**: Review (rev-4)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -457,11 +463,9 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Use complete HEAD→worktree canonical-path projection for reapply checks.
-2. Literalize temporary-index path handling.
-3. Add staged owned-path drift regression.
-4. Re-run internal/external rev-4 review.
-5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Run internal and external rev-4 confirmation.
+2. Adjudicate any residuals without reopening D1-D8.
+3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
@@ -585,6 +589,26 @@ None.
 
 **Verification**:
 - Rev-3 targeted tests — PASS.
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- Side Research md5 — `b385fe622db9926f48861105239f113e`.
+
+## Ready for review — Cluster G' rev-4
+
+**Fold commit**: `a5a814e` (adjudication baseline `3d19245`).
+**Full implementation**: `9e77617..a5a814e`.
+
+**Internal rev-3 finding closed**:
+- Reapply comparison uses `DiffFromCommitForPaths(HEAD, canonicalPaths)` with
+  a temporary index and literal pathspecs, so staged/unstaged/untracked
+  canonical-owned changes are all visible while unrelated paths are excluded.
+- Regression proves staged owned-path drift refuses and restores worktree,
+  status, canonical patch and user index.
+
+**Verification**:
+- Rev-4 targeted test — PASS.
 - `gofmt -l .` — clean.
 - `go vet ./...` — PASS.
 - `go test -count=1 ./...` — PASS.
