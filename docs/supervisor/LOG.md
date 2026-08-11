@@ -1,3 +1,52 @@
+## Review — Cluster H rev-7 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`cluster-h-r7-internal`)
+**External reviewer**: claude-opus-5 (`cluster-h-r7-external`)
+**Writer commit**: `2aba39b`
+
+### Verdict: NEEDS REVISION → REV-8 DISPATCHED
+
+### Verified Clean
+
+- Four resource IDs, full batch ID and directory combined hash.
+- Six PRD/ADR JSON blocks.
+- 100 AC clauses across 169 contiguous rows.
+- Statfs width normalization and cited source claims.
+
+### Residual Findings
+
+1. Matrix row 146 still encodes the superseded ancestor-targeted ignore gate
+   and newly-created-only fsync rule.
+2. Direct-child `Wait` cannot prove successful process-group descendants are
+   gone.
+3. `add --trust-current-dolt` incorrectly enters the capture-time missing-pin
+   refusal sequence.
+4. One normative lock/local-gate verb list omits `trust-dolt`.
+5. Duplicate `add --trust-current-dolt` ambiguously bypasses the explicit
+   re-pin command.
+6. Missing capture pin and new refusal names conflict with/are absent from the
+   exit-code table.
+7. Private-copy noexec/ENOSPC outcomes are undefined.
+8. Ignore leaf vs. untracked-root targets differ across PRD/ADR.
+
+### Rev-8 Direction
+
+- Rewrite row 146 to leaf ignore/untracked + ancestor statfs + unconditional
+  chain fsync.
+- Perform bounded group cleanup on success paths too, not only timeout/cap.
+- Define trust-on-first-use as resolve/open/hash only; private-copy execution
+  begins only after a pin exists.
+- Add `trust-dolt` to every lock/local-gate list; duplicate add is strict
+  idempotent no-op, never re-pin.
+- Consolidate exit taxonomy and add copy/noexec refusal classes.
+- Standardize ignore check on exact leaf and untracked check on
+  `.tpatch/local/` root.
+
+### Action Taken
+
+CURRENT.md transitioned to `REV-8 DISPATCHED`; no architecture decision
+reopened.
+
 ## Review — Cluster H rev-6 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`cluster-h-r6-internal`)

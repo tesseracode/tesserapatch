@@ -2,10 +2,22 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-8 DISPATCHED
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-10 Cluster H rev-7 adjudicated NEEDS REVISION → rev-8
+DISPATCHED.** Internal review found 4 HIGH + 2 MEDIUM; external found
+3 HIGH + 3 MEDIUM. Golden resource/batch/directory IDs, six shared JSON
+blocks, 100 AC clauses/169 rows, Statfs normalization and pinned citations
+verified clean. Remaining gaps: matrix row 146 still encodes superseded
+fresh-clone behavior; success-path Wait can leave descendants; initial Dolt
+trust enrollment loops through capture-time pin refusal; trust-dolt is omitted
+from one normative lock/gate list; duplicate add ambiguously re-pins; exit
+taxonomy misses/splits rev-7 refusals; private-copy noexec/space failures are
+unnamed; local ignore/untracked target differs across sections. Rev-8 is a
+small contract-consistency and lifecycle fold.
 
 **2026-08-13 Cluster H rev-7 WRITTEN — full fold of the rev-6
 dual-review verdict (adjudication `d503d55`), awaiting dual review.**
@@ -763,7 +775,7 @@ only after implementation review and wave close.
 - **Milestone**: v0.15.0 candidate (planning)
 - **Description**: Fold the rev-6 dual-review verdict (adjudication
   `d503d55`) into the feature-resource PRD and ADR-033 boundary.
-- **Status**: Review (rev-7 fold complete, awaiting dual review)
+- **Status**: In Progress (rev-8 fold) (rev-7 fold complete, awaiting dual review)
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `f04dec7`
 
@@ -2550,16 +2562,16 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Fold rev-6 fresh-clone/process/trust/re-pin/type-width findings.
+1. Fold rev-7 acceptance/process/trust/gate consistency findings.
 2. Re-run source, golden-vector, JSON parity and AC/matrix audits.
-3. Run independent internal and external rev-7 reviews.
+3. Run independent internal and external rev-8 reviews.
 4. Continue the same writer context only for a truly residual micro-fold.
 5. On approval: accept papers, archive Cluster H, flip ROADMAP, and leave
    implementation for separately dispatched Cluster H'.
 
 ## Registered Candidate — Typed Feature Resources and Capture Adapters
 
-**Status**: Cluster H planning active; rev-7 dispatched.
+**Status**: Cluster H planning active; rev-8 dispatched.
 
 Existing shipped primitives already cover normal repository files:
 `feature claim add|list|remove|clear`, record
