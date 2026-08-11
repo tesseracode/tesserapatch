@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/tesseracode/tesserapatch/internal/safety"
 )
@@ -123,10 +122,9 @@ func GatePath(repoRoot, relPath string) (*GatedPath, error) {
 		return nil, Refuse(ReasonPathOutsideRepo, "%q resolves to the repository root itself", relPath)
 	}
 
-	flags := os.O_RDONLY | syscall.O_NOFOLLOW
-	f, openErr := os.OpenFile(abs, flags, 0)
+	f, openErr := openNoFollow(abs)
 	if openErr != nil {
-		if errors.Is(openErr, syscall.ELOOP) {
+		if isSymlinkLoopError(openErr) {
 			return nil, Refuse(ReasonSymlinkComponentRefused,
 				"%s became a symlink between the component walk and the open", abs)
 		}
@@ -253,3 +251,12 @@ func pathHasGitComponent(p string) bool {
 }
 
 func defaultLookPath(name string) (string, error) { return exec.LookPath(name) }
+
+// SetLookPathForTest substitutes the executable resolver and returns a
+// restore func. Tests use it to point at a controlled fixture so the
+// suite never depends on an installed Dolt binary.
+func SetLookPathForTest(fn func(name string) (string, error)) func() {
+	prev := lookPath
+	lookPath = fn
+	return func() { lookPath = prev }
+}

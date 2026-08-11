@@ -19,7 +19,11 @@ The #1 confusion, observed in live stress testing, is that users see many number
 │   ├── post-apply.patch    ★ CANONICAL feature diff, always-current
 │   ├── incremental.patch   ← (optional) delta between two post-apply snapshots
 │   ├── post-apply-diff.txt ← `git diff --stat` of the recorded patch
-│   └── raw-*-response-*.txt← LLM raw responses for debugging
+│   ├── raw-*-response-*.txt← LLM raw responses for debugging
+│   ├── resources.json      ← (optional) typed resource declarations
+│   └── resource-captures/  ← (optional) immutable resource capture set
+│       ├── batches/<batch_id>.json  ← one file per DISTINCT content
+│       └── current.json             ← the only file readers consult
 └── patches/
     ├── 001-started.patch   ← HISTORICAL full-diff snapshots, append-only
     ├── 002-record.patch    ← each file is a *full* diff at write-time,
@@ -81,6 +85,33 @@ These are written once or twice per feature, by named phases:
 | `apply-recipe.json` | `tpatch implement` | Operation list (create/modify) the apply flow executes. |
 | `record.md` | `tpatch record` | Human-readable summary of the last record run. |
 
+## Typed resources (optional, v0.15.0)
+
+`artifacts/resources.json` and `artifacts/resource-captures/` appear only
+once a feature declares a typed resource with
+[`tpatch feature resource add`](../SPEC.md). They are **audit sidecars**:
+nothing in this pair is canonical patch or lifecycle truth, and neither
+is ever read by `apply`, `reconcile`, `land` or the state machine.
+
+- `resources.json` is the declaration manifest. It is written only by
+  `add`/`remove`/`clear`/`trust-dolt`, never by a capture.
+- `resource-captures/` is an unordered, content-addressed **set**, not a
+  chronology. A `batches/<batch_id>.json` file names exactly one distinct
+  piece of content, so re-capturing unchanged state writes zero new bytes
+  and only rewrites the pointer; reverting content back to a previously
+  captured state repoints `current.json` at the batch that already exists.
+- `current.json` is the only file a reader consults. Do not scan
+  `batches/` to infer state — an orphaned batch that no pointer entry
+  references is a normal, permanent artifact of a crash window.
+- No file in either artifact ever contains raw file bytes, raw adapter
+  output, or a wall-clock timestamp.
+
+Ephemeral control state lives outside the tracked tree, under the
+gitignored `.tpatch/local/resource-scratch/<slug>/`: a persistent,
+zero-length `.lock` file that is never deleted, plus one `es_<12hex>/`
+directory per in-flight invocation that is removed on both the success
+and failure paths.
+
 ## State & debug files
 
 - `status.json` — authoritative machine state. Fields include `state`, `last_command`, `apply.has_patch`, `apply.base_commit`, and timestamps. Only `tpatch` writes this; editing it by hand is unsupported.
@@ -98,5 +129,7 @@ The full schema (four trailers, ordering, and the additive `Tpatch-CVE` reservat
 - [Recording Patches](./record.md) — when and how to run `tpatch record` (plus the anti-pattern refusal).
 - [Landing Features as Git Commits](./land.md) — `tpatch land`, the trailer-block producer.
 - [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](./adrs/ADR-019-tpatch-land-trailer-block-schema.md) — locks the four-trailer schema.
+- [`docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`](./prds/PRD-feature-resource-claims-and-capture-adapters.md) — the typed-resource contract.
+- [`docs/adrs/ADR-033-resource-capture-boundary.md`](./adrs/ADR-033-resource-capture-boundary.md) — the resource capture boundary decisions.
 - `SPEC.md` — authoritative CLI surface and state machine.
 - `AGENTS.md` — file ownership matrix for the implementation team.

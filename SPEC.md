@@ -147,6 +147,70 @@ guard, the codes are:
 | `2` | Validation error (pre-mutation input validation) | Invalid `--reason`, missing/empty `--note`, missing `--evidence`, an evidence path that is absolute, `..`-escaping, missing, non-regular, symlink-escaping or unreadable. |
 | `3` | State-transition error (post-validation state-machine refusal) | Rejecting from a non-eligible source state; rejecting a feature with live dependents; rejecting an already-rejected feature; reopening a non-rejected feature; creating a `hard`/`soft`/`supersedes` edge onto a rejected parent; `reconcile confirm-upstreamed` / `apply` / `reconcile` on a rejected feature. |
 
+#### Typed feature resources (v0.15.0)
+
+| Command | Purpose |
+|---------|---------|
+| `tpatch feature resource add <slug> --kind <kind> --selector <sel> [--adapter <a>] [--capability <c>] [--arg k=v ...] [--trust-current-dolt] [--json]` | Declare one typed resource. Kinds are a closed set: `ignored-file`, `git-metadata`, `adapter-snapshot`. |
+| `tpatch feature resource list <slug> [--json]` | List declared resources and each one's current capture state. Never acquires the per-slug lock. |
+| `tpatch feature resource remove <slug> <resource-id-or-prefix> [--json]` | Remove one declaration. Never touches `current.json` or any batch file. |
+| `tpatch feature resource clear <slug> [--json]` | Remove all declarations; the file is kept with `resources: []`. |
+| `tpatch feature resource trust-dolt <slug> <resource-id-or-prefix> --binary-sha256 <64hex> [--json]` | Re-pin an already-declared Dolt resource's trusted binary digest without changing its `resource_id`, `current.json` entry or capture history. |
+| `tpatch feature resource capture <slug> [--resource <id>] [--dry-run] [--json]` | The only verb that executes an adapter, reads ignored-file content or writes tracked capture state. |
+| `tpatch feature resource diff <slug> [--resource <id>] [--json]` | Recompute each resource's structural result and compare it against the last tracked batch. Read-only; never executes an adapter. |
+| `tpatch record <slug> [existing flags] --resources [--json]` | Stage resources in memory, run the existing Git-side capture unchanged, and publish the resource domain only if Git succeeded. |
+
+Resources are **audit sidecars**, never canonical patch or lifecycle
+truth. Two tracked artifacts exist per feature:
+
+- `artifacts/resources.json` — the declaration manifest, written only by
+  `add`/`remove`/`clear`/`trust-dolt`. Each entry carries
+  `resource_id`, `kind`, `selector`, `adapter`, `capability`, a sorted
+  `args` array, a mutable `trust` pin, and `added_by_tool_version`.
+- `artifacts/resource-captures/` — an unordered, content-addressed set of
+  immutable `batches/<batch_id>.json` files plus one atomically-rewritten
+  `current.json` pointer, written only by
+  `capture`/`record --resources`.
+
+`resource_id` is `res_` plus the first 12 hex characters of SHA-256 over
+`feature\0kind\0selector\0adapter\0capability\0canonical_args`; the
+trust pin is deliberately excluded, so a Dolt upgrade re-pinned via
+`trust-dolt` preserves identity and history. `batch_id` is `rb_` plus the
+**full** SHA-256 of the canonical `{feature, results}` body. An
+invocation that reproduces already-published content writes zero new
+batch bytes and only rewrites the pointer.
+
+No tracked resource artifact ever contains raw file bytes, raw adapter
+stdout, or a wall-clock timestamp. Ignored-file content and adapter
+output are read into bounded in-process buffers, scanned by
+`internal/redact` against six closed content classes, hashed, and
+discarded; any match hard-refuses the whole invocation. Every path a
+resource touches passes an ancestor-symlink walk plus an `O_NOFOLLOW`
+open and an `os.SameFile` descriptor-identity check.
+
+The Dolt adapter is the only external adapter in v1. It never runs
+`dolt version`, requires an operator-approved `trust.binary_sha256` pin,
+executes a hash-verified private copy under ephemeral scratch rather
+than the resolved pathname, and runs with a fresh minimal environment
+(`HOME`/`DOLT_ROOT_PATH` only) inside an isolated scratch home.
+
+Every mutating verb runs the `.tpatch/local/` ignore + untracked gate,
+then takes a nonblocking per-slug `flock`. Resource capture is supported
+on **Linux and macOS only**; every other target refuses
+`resource-lock-unsupported` without touching the filesystem.
+
+##### Exit-code envelope
+
+| Code | Meaning | Example named refusals |
+|------|---------|------------------------|
+| `0` | Success, including `diff` reporting "no capture yet" | — |
+| `1` | Internal/host fault or data-integrity condition | `tracked-batch-missing`, `adapter-copy-failed`, `adapter-process-observer-failed`, `adapter-group-signal-failed`, `adapter-reap-timeout`, `adapter-output-read-failed`, `no-resources-declared`, `resource-domain-incomplete` |
+| `2` | Validation error | `dolt-argument-refused`, `dolt-trust-flag-required`, `adapter-missing-at-add`, `dolt-contract-unsupported`, `resource-not-dolt-adapter` |
+| `3` | State/policy refusal | `not-ignored`, `tracked-and-ignored`, `symlink-component-refused`, `path-outside-repo`, `path-replaced-during-open`, `redaction-refused`, `resource-limit-exceeded`, `adapter-missing`, `adapter-binary-untrusted`, `dolt-trust-required`, `adapter-copy-noexec`, `db-path-identity-changed`, `dolt-query-error`, `dolt-json-parse-error`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `batch-file-corrupt`, `resources-file-corrupt`, `resource-id-collision`, `index-entry-missing`, `adapter-drain-timeout` |
+
+See `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` and
+`docs/adrs/ADR-033-resource-capture-boundary.md`.
+
 #### Phase 2 (Post-MVP)
 
 | Command | Purpose |
@@ -187,8 +251,18 @@ guard, the codes are:
             ├── reconcile.patch
             ├── reconcile-session.json
             ├── reconcile.md
-            └── manual-validation.md
+            ├── manual-validation.md
+            ├── resources.json
+            └── resource-captures/
+                ├── batches/
+                │   └── <batch_id>.json
+                └── current.json
 ```
+
+Ephemeral, gitignored control state for resource capture lives outside
+the tracked tree, under `.tpatch/local/resource-scratch/<slug>/`: a
+persistent zero-length `.lock` file plus one `es_<12hex>/` directory per
+in-flight invocation. Nothing captured is ever written there.
 
 ### 6. Provider Interface
 

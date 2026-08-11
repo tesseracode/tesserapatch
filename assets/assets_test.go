@@ -41,6 +41,16 @@ var requiredCommands = []string{
 	"tpatch session list",
 	"tpatch session summarize",
 	"tpatch session purge",
+	// Cluster H' (v0.15.0, PRD-feature-resource-claims-and-capture-adapters
+	// + ADR-033): the typed-resource verbs are a new CLI noun, so every
+	// shipped skill surface must name them.
+	"tpatch feature resource add",
+	"tpatch feature resource list",
+	"tpatch feature resource remove",
+	"tpatch feature resource clear",
+	"tpatch feature resource trust-dolt",
+	"tpatch feature resource capture",
+	"tpatch feature resource diff",
 }
 
 // Required anchor strings that must appear VERBATIM in every skill
@@ -133,6 +143,22 @@ var requiredAnchors = []struct {
 	{"unapplied-state/soft-override", "--allow-soft-dependents"},
 	{"unapplied-state/edge-semantics", "Dependency edges onto an `unapplied` parent remain allowed"},
 	{"unapplied-state/source-set", "applied/active/reconciling/reconciling-shadow → tpatch feature unapply"},
+	// Cluster H' (v0.15.0, PRD-feature-resource-claims-and-capture-adapters
+	// §3/§4/§7.2/§11 + ADR-033 D1/D5/D9): every shipped skill surface
+	// must teach (a) that resources are audit sidecars rather than
+	// canonical truth, (b) the immutable content-addressed publication
+	// tree, (c) the mandatory Dolt trust flag and its re-pin verb,
+	// (d) record's two-domain gating, (e) the binding exit taxonomy,
+	// and (f) the Linux/macOS-only platform contract. Each anchor is a
+	// verbatim phrase unique to this feature across all six surfaces,
+	// so paraphrase drift fires the guard.
+	{"feature-resource/audit-sidecar", "Resources are audit sidecars, never canonical patch or lifecycle truth"},
+	{"feature-resource/batches-tree", "artifacts/resource-captures/"},
+	{"feature-resource/no-raw-bytes", "never contains raw bytes or a timestamp"},
+	{"feature-resource/trust-flag", "--trust-current-dolt"},
+	{"feature-resource/record-gating", "publishes them only after the Git-side capture succeeds"},
+	{"feature-resource/exit-taxonomy", "1 internal, 2 validation, 3 state/policy refusal"},
+	{"feature-resource/platform", "supported on Linux and macOS only"},
 }
 
 // requiredRegexAnchors holds parity anchors that need richer matching

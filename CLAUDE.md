@@ -68,6 +68,8 @@ tpatch/
   internal/workflow/   Analyze, define, explore, implement, reconcile orchestration
   internal/gitutil/    Git operations (diff, patch capture, reverse-apply, 3-way merge)
   internal/safety/     Path validation, input sanitization
+  internal/redact/     Shared content-class matchers (session + resource policies)
+  internal/rescap/     Typed resource capture: gates, lock, adapters, finalizer
   assets/              Skills, prompts, workflows, templates (embedded via go:embed)
   docs/                Roadmap, handoff, milestones, supervisor log, ADRs
   tests/               Integration test fixtures and scripts

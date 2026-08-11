@@ -2,6 +2,91 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.15.0 — unreleased — typed feature resources and capture adapters
+
+Feature release adding a typed, audited way to record non-Git state a
+feature depends on: a deliberately gitignored config template, an
+allowlisted logical Git-metadata view, or a Dolt `diff-summary`
+snapshot. Resources are audit sidecars and are never canonical patch or
+lifecycle truth.
+
+Implements `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
+and `docs/adrs/ADR-033-resource-capture-boundary.md`.
+
+### New commands
+
+- **`tpatch feature resource add|list|remove|clear|trust-dolt|capture|diff <slug>`**
+  under the existing `feature` noun.
+- **`tpatch record <slug> --resources`** — stages the resource domain in
+  memory, runs the existing Git-side capture unchanged, and publishes
+  only after Git succeeds. No tracked resource write is ever attempted
+  before Git success; a post-Git failure reports
+  `resource-domain-incomplete` (exit 1) with exact retry guidance.
+
+### Data model
+
+- `artifacts/resources.json` — the declaration manifest, written only by
+  `add`/`remove`/`clear`/`trust-dolt`. Closed kind set: `ignored-file`,
+  `git-metadata`, `adapter-snapshot` (Dolt only).
+- `artifacts/resource-captures/` — an unordered, content-addressed set of
+  immutable `batches/<batch_id>.json` files plus one atomically-rewritten
+  `current.json` pointer, written only by `capture`/`record --resources`.
+- `resource_id` = `res_` + 12 hex of SHA-256 over
+  `feature\0kind\0selector\0adapter\0capability\0canonical_args`. The
+  mutable Dolt trust pin is excluded from identity, so re-pinning after a
+  binary upgrade preserves `resource_id`, the pointer entry and history.
+- `batch_id` = `rb_` + the **full** SHA-256 of the canonical
+  `{feature, results}` body. A capture that reproduces already-published
+  content writes zero new batch bytes and only rewrites the pointer.
+- No tracked resource artifact contains raw bytes or a wall-clock
+  timestamp. Presentation drift on an existing batch file is recognized
+  as idempotent; only a genuine semantic mismatch is
+  `batch-id-collision`.
+
+### Privacy
+
+- New shared `internal/redact` package. The ten session-redaction
+  matchers move there verbatim with **no** change to session behaviour,
+  alongside six closed resource-capture classes (private keys,
+  connection URLs, email/PII, credential assignments, bearer/key tokens,
+  home absolute paths).
+- `redact.Scan` takes in-memory bytes and never a path, so "raw bytes
+  are never written to disk before scanning" is structural rather than a
+  call-site convention. Any match hard-refuses the whole invocation.
+
+### Safety
+
+- Every gated path walks its full ancestor chain, refuses a symlink
+  anywhere outright, opens with `O_NOFOLLOW`, and confirms identity via
+  `os.SameFile` against the **open descriptor**. `db_path` is re-resolved
+  fresh before `cmd.Start()` and again after the child exits; a mismatch
+  is a hard refusal, not a diagnostic.
+- The Dolt adapter never runs `dolt version`, requires an
+  operator-approved `trust.binary_sha256`, and executes a
+  `0600`-created, streamed-and-hash-verified, `Fchmod`-`0500` private
+  copy under ephemeral scratch instead of the resolved pathname, with a
+  fresh minimal environment (`HOME`/`DOLT_ROOT_PATH` only).
+- Bounded process finalizer: caller-owned `os.Pipe` pairs, `Setpgid`, a
+  non-reaping build-tagged `waitid`/`WNOWAIT` observer, a single cleanup
+  owner with deterministic trigger priority, a late-`ECHILD` cutoff
+  drain, a 2s `SIGTERM` grace, and 2s reap/drain bounds. `ECHILD` sends
+  zero `-pgid` signals and never calls `cmd.Wait()`.
+
+### Locking and platform
+
+- Nonblocking per-slug kernel `flock` on a persistent, never-removed
+  `.tpatch/local/resource-scratch/<slug>/.lock`, plus a `statfs`
+  allow/deny preflight that fails closed on network/FUSE mounts.
+- Build tags are exactly `linux || darwin` and `!linux && !darwin`.
+  Every other target refuses `resource-lock-unsupported` without
+  touching the filesystem. Stdlib only — no `golang.org/x/sys`.
+
+### Exit codes
+
+Resource verbs carry a binding taxonomy surfaced through
+`ExitCodeError`: `1` internal/host or data-integrity, `2` validation,
+`3` state/policy refusal. Each named refusal appears in exactly one row.
+
 ## v0.14.0 — 2026-08-10 — transactional feature unapply
 
 Feature release adding a reversible, audited way to remove a tracked

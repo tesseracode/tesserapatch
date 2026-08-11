@@ -38,3 +38,11 @@ func CheckFilesystemSupported(path string) error {
 	return Refuse(ReasonResourceLockUnsupported,
 		"resource capture requires a linux or darwin host; this build target has no verified statfs preflight")
 }
+
+// CheckScratchExecutable refuses unconditionally on an unsupported
+// host. Reachable only in principle: the Dolt adapter is gated behind
+// the lock refusal above.
+func CheckScratchExecutable(path string) error {
+	return Refuse(ReasonAdapterCopyNoexec,
+		"resource capture requires a linux or darwin host; this build target cannot inspect mount flags")
+}

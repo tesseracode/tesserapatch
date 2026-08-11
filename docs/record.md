@@ -89,3 +89,45 @@ To accept an intentional duplicate, rerun with:
 Re-recording the *same* feature with unchanged patch bytes is treated as a deduplication: the canonical artifact is rewritten in place and the numbered `patches/NNN-record.patch` audit snapshot is skipped (`record: no content change since current artifacts/post-apply.patch; skipping numbered audit snapshot`). A changed re-record appends the next numbered snapshot as before.
 
 Use `--allow-collision "<reason>"` only for legitimate duplicates (test fixtures, demonstrations, staged migrations). The reason is mirrored to stderr and persisted in `record.md` under a "Collision Override" section.
+
+## Typed resource capture (`--resources`, v0.15.0)
+
+`tpatch record <slug> --resources` adds a **second, separate atomic
+domain** to a record run: the feature's declared typed resources (see
+`SPEC.md` → "Typed feature resources"). The Git-side capture itself is
+completely unchanged — `--resources` never alters which files are
+diffed, which range is used, or what `post-apply.patch` contains.
+
+Ordering is exact and is not negotiable:
+
+1. **Zero-resource preflight.** A feature with no declared resources
+   refuses `no-resources-declared` (exit 1) *before* Git is touched and
+   *before* the per-slug lock is acquired.
+2. **Stage.** The per-slug `flock` is taken, the lock-gated orphan
+   sweeps run, and every declared resource is captured into bounded
+   in-process memory. Nothing is written to the tracked tree yet.
+3. **Git-side capture.** The existing capture-mode dispatch runs,
+   completely unaffected by step 2's outcome.
+4. **Publish, gated on Git success.**
+   - Git failed → the in-memory candidate batch is discarded and never
+     written anywhere, whatever its own outcome was. **No tracked
+     resource write is ever attempted before Git succeeds.**
+   - Git succeeded and staging succeeded → the batch and pointer are
+     published exactly as a standalone `tpatch feature resource
+     capture` would publish them.
+   - Git succeeded but the resource domain did not complete →
+     `resource-domain-incomplete` (exit 1):
+
+     > canonical patch recorded successfully; resource capture did not
+     > complete: `<reason>`. Retry with `tpatch feature resource capture
+     > <slug>` — this re-stages and republishes and is safe to re-run.
+
+The retry is safe because `batch_id` is content-addressed: a retry over
+unchanged state recomputes the identical ID and lands on the idempotent
+"already published" branch rather than duplicating anything. A retry
+after the underlying state genuinely changed correctly produces a
+different `batch_id` — that is expected, not a re-run bug.
+
+`record --resources` always targets **every** declared resource; there
+is no subset flag. Use `tpatch feature resource capture <slug>
+--resource <id>` when you want a subset.

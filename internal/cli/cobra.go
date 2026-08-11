@@ -33,12 +33,22 @@ func Execute() int {
 	rootCmd := buildRootCmd()
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		if e := asExitCodeError(err); e != nil {
-			return e.ExitCode()
-		}
-		return 1
+		return exitCodeFor(err)
 	}
 	return 0
+}
+
+// exitCodeFor maps a RunE error onto the process exit code. It is the
+// single place that mapping lives, so a test can assert a command's
+// real process-boundary exit code without shelling out.
+func exitCodeFor(err error) int {
+	if err == nil {
+		return 0
+	}
+	if e := asExitCodeError(err); e != nil {
+		return e.ExitCode()
+	}
+	return 1
 }
 
 func buildRootCmd() *cobra.Command {

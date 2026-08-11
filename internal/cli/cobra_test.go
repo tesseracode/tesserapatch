@@ -29,6 +29,24 @@ func runCmd(args ...string) (stdout, stderr string, code int) {
 	return outBuf.String(), errBuf.String(), 0
 }
 
+// runCmdExit mirrors Execute() exactly: it applies the same
+// error-to-exit-code mapping and the same `error: <msg>` stderr line
+// the real process boundary produces, so a test can assert a binding
+// non-1 exit code (ADR-033's 1/2/3 taxonomy) rather than runCmd's
+// collapse-everything-to-1 shape.
+func runCmdExit(args ...string) (stdout, stderr string, code int) {
+	var outBuf, errBuf bytes.Buffer
+	root := buildRootCmd()
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetArgs(args)
+	err := root.Execute()
+	if err != nil {
+		fmt.Fprintf(&errBuf, "error: %v\n", err)
+	}
+	return outBuf.String(), errBuf.String(), exitCodeFor(err)
+}
+
 func TestHelpReturns0(t *testing.T) {
 	_, _, code := runCmd("--help")
 	if code != 0 {
