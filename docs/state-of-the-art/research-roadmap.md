@@ -184,6 +184,14 @@ before tpatch starts capturing richer agent context.
 > `ADR-capture-context-privacy-boundary` and `ADR-patch-amendment-policy`, or
 > review/acceptance updates for the four drafted PRDs.
 
+> Post-v0.14.0 candidate registered 2026-08-10:
+> `PRD-feature-resource-claims-and-capture-adapters` +
+> `ADR-033-resource-capture-boundary`. It extends shipped file claims and
+> capture modes to explicit ignored/logical-Git/external resources (for
+> example Dolt exports) while keeping resource diffs as sidecars and raw
+> `.git/**` prohibited. Review ADR-027, WP-006, and
+> `storage-substrate-and-versioned-data.md` before drafting.
+
 ### Run the structural experiment
 
 > Read `docs/state-of-the-art/experiment-guide-structural-middle-pass.md`.

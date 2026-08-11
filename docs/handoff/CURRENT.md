@@ -520,8 +520,29 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 ## Next Steps
 
 1. Cluster G' is closed at v0.14.0.
-2. Select the next task from the post-v0.14.0 backlog; no successor is
-   dispatched in this handoff.
+2. Highest-leverage new planning candidate:
+   `PRD-feature-resource-claims-and-capture-adapters` +
+   `ADR-033-resource-capture-boundary` (registered, not dispatched).
+3. Select that candidate or another post-v0.14.0 backlog item explicitly
+   before changing `**Cluster state**`.
+
+## Registered Candidate — Typed Feature Resources and Capture Adapters
+
+**Status**: Registered; planning not started.
+
+Existing shipped primitives already cover normal repository files:
+`feature claim add|list|remove|clear`, record
+`--all|--staged|--unstaged|--claimed-only|--files`, and non-ignored untracked
+files. The gap is typed resources outside ordinary Git diff authority:
+explicit gitignored files, logical Git metadata, Dolt schema/table diffs, and
+optional deterministic adapter exports.
+
+The candidate must provide add/remove/list/diff metadata and define how future
+auto-record consumes explicit resource claims. It must not capture raw
+`.git/**`, sweep ignored files implicitly, make Dolt/SQLite authoritative, or
+replace Git as the supported change-tracking substrate. Resource diffs remain
+sidecar audit artifacts in v1. See ROADMAP registered-candidate section for
+the CLI sketch, dependencies and safety boundaries.
 
 ## Blockers
 
@@ -529,10 +550,8 @@ None.
 
 ## Context for Next Agent
 
-- **Cluster G' is active at `WAVE_BASE=9e77617`.** The corrected ROADMAP and
-  Accepted papers govern. Never add `UnappliedStatus` or
-  `ErrUnappliedParent`; those were stale summary inventions closed before
-  dispatch.
+- **Cluster G' SHIPPED at v0.14.0.** Do not reopen it. The next candidate is
+  registered but not dispatched.
 - **v0.12.1 SHIPPED** — do NOT re-open Wave α/β/γ or GH #3/#4/#5 scope. All accepted.
 - **Two-opinion protocol proven load-bearing again** — v0.12.1 rev-0 external caught 4 findings internal missed (PRD-#4 warning wording, PRD-#4 tie-break correctness bug, PRD-#3 err-branch gap, GH #5 hint mislabel). Internal caught PRD-#3 F-INT-3-1 HIGH (Rule 18 trailer parse failure). Continue dual-review protocol on all clusters ≥ paper-only.
 - **Cross-implementer entanglement is now a KNOWN failure mode** — do NOT dispatch parallel implementers to shared source files without briefing them on `git add <path>` discipline. See Cluster A follow-up in backlog.

@@ -1,3 +1,32 @@
+## Backlog registration — typed feature resources + capture adapters — 2026-08-10
+
+**Source**: user request after v0.14.0 close.
+**Candidate**: `PRD-feature-resource-claims-and-capture-adapters` +
+`ADR-033-resource-capture-boundary`.
+**Status**: Registered; not dispatched.
+
+### Existing Coverage
+
+- v0.9.0 file claims already provide add/list/remove/clear for repository
+  paths.
+- Record capture modes already provide all/staged/unstaged/claimed-only/files
+  boundaries and provenance.
+- Non-ignored untracked files are already captured in working-tree modes.
+
+### Missing Scope
+
+- Explicit ignored/generated resources.
+- Safe logical Git metadata views without raw `.git/**`.
+- Optional external adapters such as deterministic Dolt schema/table diff.
+- Feature resource add/remove/list/diff metadata and future auto-record
+  integration.
+
+### Disposition
+
+Planning-first, ADR-gated. Reuse claims/capture provenance. V1 resource diffs
+remain sidecar audit artifacts. No implicit ignored-file sweep, no raw
+`.git/**`, no new core database dependency, and no non-Git replay substrate.
+
 ## Review — v0.14.0 post-release close claim — 2026-08-10
 
 **Reviewer**: External reviewer (independent close-claim audit)

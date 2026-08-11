@@ -625,6 +625,63 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
+## Registered candidate — typed feature resources + capture adapters ⬜
+
+**Registered**: 2026-08-10 user request.
+**Candidate docs**:
+`PRD-feature-resource-claims-and-capture-adapters` +
+`ADR-033-resource-capture-boundary`.
+**Priority**: HIGH for planning; implementation is ADR-gated.
+
+This extends, rather than duplicates, shipped v0.9.0 capabilities:
+
+- `tpatch feature claim add|list|remove|clear` already persists advisory
+  repository-path ownership in `claims.json`.
+- `tpatch record --all|--staged|--unstaged|--claimed-only|--files` already
+  controls Git capture boundaries and provenance.
+- default worktree capture already includes non-ignored untracked files;
+  committed-range capture intentionally does not.
+
+**Missing capability**: explicitly associate non-standard resources with a
+feature and produce deterministic add/remove/list/diff metadata for them.
+Candidate resource kinds:
+
+- explicitly opted-in gitignored files or generated resources;
+- logical Git metadata (selected refs/config/attributes/index facts), never raw
+  `.git/**` bytes;
+- external/versioned resources such as Dolt schema/table diffs;
+- deterministic command/export snapshots from optional adapters.
+
+**Proposed surface for paper evaluation**:
+
+```text
+tpatch feature resource add <slug> --kind <kind> <selector>
+tpatch feature resource list <slug> [--json]
+tpatch feature resource remove <slug> <resource-id-or-selector>
+tpatch feature resource diff <slug> [--resource <id>]
+tpatch record <slug> --resources            # candidate; exact auto behavior TBD
+```
+
+**Binding safety boundaries for planning**:
+
+1. Raw `.git/**` content remains forbidden in canonical patches and at the
+   store write boundary. Git resources must be logical, allowlisted views.
+2. Gitignored files are never swept implicitly; each selector requires
+   explicit opt-in and privacy/secret handling under ADR-027.
+3. Resource diffs are sidecar audit artifacts in v1, not merged into
+   `post-apply.patch` or lifecycle truth.
+4. Dolt or other tools remain optional adapters discovered at runtime; no new
+   core dependency and no opaque database becomes tpatch authority.
+5. Reuse claims, capture-mode provenance and patch-generation IDs rather than
+   introducing a parallel ownership system.
+6. Git remains the only change-tracking substrate until WP-006's broader
+   non-Git boundary is promoted through a separate ADR.
+
+**Planning inputs**:
+`PRD-feature-file-claims`, `PRD-record-capture-modes`, ADR-027,
+ADR-030, WP-002, WP-006, and
+`docs/state-of-the-art/storage-substrate-and-versioned-data.md`.
+
 ## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
 
 Planning-phase cluster for v0.13.0 GH #6. Data-model extension (not just CLI addition), so planning phase separated from implementation phase. Docs-only. Dual review at rev-0/1/2/3; internal-only confirmation at rev-4. **4 review revs, 8 review turns, 10 commits**.
