@@ -1,3 +1,33 @@
+## Review — Cluster G' rev-3 adjudication — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`gprime-r3-internal`)
+**Fold reviewed**: `b11f1ee`
+
+### Verdict: NEEDS REVISION → REV-4 DISPATCHED
+
+### Rev-2 Closure
+
+- Warning-aware mode-only verification: CLOSED.
+- Unrelated disjoint dirt on immediate/committed baselines: CLOSED.
+
+### New Finding
+
+- **HIGH**: reapply comparison uses index→worktree diff, so staged extra
+  changes on canonical-owned paths are invisible and can false-finalize.
+
+### Rev-4 Fold
+
+- Compare a complete HEAD→worktree projection scoped to canonical literal
+  paths using a temporary index.
+- Include staged, unstaged and untracked changes without mutating user index.
+- Add staged-owned-path drift regression and preserve the staged edit on
+  rollback.
+
+### Action Taken
+
+Cluster state transitioned to `REV-4 DISPATCHED`; external review deferred to
+the green fold.
+
 ## Review dispatch — Cluster G' rev-3 — 2026-08-10
 
 **Fold commit**: `b11f1ee`

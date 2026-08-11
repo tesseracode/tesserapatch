@@ -2,10 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-4 DISPATCHED
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-3 adjudicated NEEDS REVISION → rev-4
+DISPATCHED.** Internal review found one HIGH residual: reapply comparison used
+index→worktree `git diff`, so staged extra changes on canonical-owned paths
+were invisible and could false-finalize. Rev-4 replaces it with a literal,
+temporary-index HEAD→worktree projection covering staged, unstaged and
+untracked changes. External rev-3 is deferred to the fold.
 
 **2026-08-10 Cluster G' rev-3 IMPLEMENTED — AWAITING DUAL REVIEW at
 `b11f1ee`.** Both external rev-2 HIGH findings folded: mode-only
@@ -128,7 +135,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Review (rev-3)
+- **Status**: In Progress (rev-4 fold)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -428,9 +435,11 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run internal and external rev-3 confirmation.
-2. Adjudicate any residuals without reopening D1-D8.
-3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Use complete HEAD→worktree canonical-path projection for reapply checks.
+2. Literalize temporary-index path handling.
+3. Add staged owned-path drift regression.
+4. Re-run internal/external rev-4 review.
+5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
