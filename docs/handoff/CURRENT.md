@@ -2,10 +2,106 @@
 
 ## Status
 
-**Cluster state**: REV-7 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-13 Cluster H rev-7 WRITTEN — full fold of the rev-6
+dual-review verdict (adjudication `d503d55`), awaiting dual review.**
+Same sequential writer continued from rev-6 (`f195998`). Eleven
+numbered "bounded maintenance/trust fold" requirement items folded
+across both papers: (1) fresh-clone ignore/untracked gate corrected
+to target the intended nonexistent leaf scratch directory itself
+(pathname checks are existence-independent), using the
+nearest-existing-ancestor only for the `statfs` preflight, superseding
+rev-6's ancestor-only gate; (2) process-group termination redesigned
+to keep the group leader **unreaped through the entire fixed grace
+period** regardless of apparent early child exit — `SIGTERM` to the
+negative PGID, then an unconditional (`ESRCH`-tolerant) `SIGKILL` to
+the group, only then `cmd.Wait()` — since a leader-only `Wait()` never
+proves the *group* (as opposed to just the direct child) is empty, and
+a still-alive descendant risks PGID reuse by an unrelated later
+process; a separate immediate-`Wait()` normal-success path is defined
+for the non-timeout case; (3) the resolved Dolt binary's bytes are
+now streamed (`io.TeeReader`+`sha256`) into a private, per-invocation
+ephemeral 0700→0500 scratch copy while being hashed, the pin is
+verified against that same continuous open, and the child process
+executes the **private copy's own path**, never the original
+resolved pathname — closing the exact "hash the pathname, then
+separately re-resolve and execute" TOCTOU rev-6 left open; (4) trust
+identity split from resource identity: `binary_sha256` is removed
+from Dolt's `args` (and thus from `resource_id`'s canonical-JSON
+identity hash) entirely, replaced by a new closed-enum `contract`
+`args` key (`"dolt-diff-summary-v1"`) that **does** participate in
+identity, while the binary pin becomes mutable trust metadata in a
+new, separate top-level `trust` field (`{"binary_sha256": "<64hex>"}`
+or `null`); a new `trust-dolt <slug> <resource-id> --binary-sha256
+<64hex>` command re-pins that field alone, under the same per-slug
+`flock`, without touching `resource_id`/`args`/`current_batch_id`/any
+batch or history file — closing rev-6's "re-pinning destroys
+identity/history" gap; (5) runtime-compatibility honesty: the trust
+pin is documented as "operator-approved exact binary identity," never
+proof of upstream provenance or freedom from vulnerabilities, and the
+strict five-field JSON parser is reframed as an independent runtime
+capability gate, not a semantic-drift guarantee; (6) resource
+corruption taxonomy split into two named refusals — `resources-file-
+corrupt` (an entry's own recorded `resource_id` does not match its own
+recomputed identity, detected via by-ID payload mapping at load) vs.
+the now-narrowed `resource-id-collision` (two **distinct** canonical
+declarations sharing the same 12-hex ID) — correcting rev-6's single
+conflated outcome; (7) the Linux filesystem-type preflight now
+normalizes `fsType := uint32(buf.Type)` before comparison, since
+`syscall.Statfs_t.Type`'s width/signedness varies by architecture
+(`int64` on amd64/arm64, `int32` on 386/arm, `uint32` on s390x — rev-6
+compared the raw, architecture-varying field directly); the Darwin
+`Fstypename` field is now accurately described as `[16]int8`; (8) an
+unconditional retry-fsync discipline is added for every directory
+`MkdirAll` path, first-create and retry alike, for both the local
+scratch tree and the tracked `resource-captures/batches` tree; (9)
+stale count/citation corrections (rev-6's "Four clauses rewritten in
+place" corrected to the actual six: `AC-18`/`AC-19`/`AC-20`/`AC-81`/
+`AC-85`/`AC-88`; the PRD's exit-2 table's "missing `--arg` ...
+`binary_sha256`" claim corrected — `binary_sha256` was never a
+declared `--arg` value after this rev-7 identity/trust split); (10)
+wire/golden-vector updates — Vectors 2/3's `resource_id` recomputed a
+third time to `res_4b62313b6cce` (superseding rev-6's
+`res_00189e66780a`, Vectors 1/4 unaffected), the worked batch example
+recomputed to
+`rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`,
+and a new `trust-dolt` before/after wire example added (byte-identical
+between PRD §12.6 and ADR, confirmed by an automated JSON-block-parity
+script); (11) the Test Matrix grew from 157 to **169** rows (12 new
+rows for 11 new/rewritten clauses, `AC-91` alone contributing 2 rows),
+and the AC set grew from 89 to **100** individually-tagged clauses
+(11 net new: `AC-90`–`AC-100`; six rewritten in place without changing
+the total: `AC-18`/`AC-19`/`AC-20`/`AC-81`/`AC-85`/`AC-88`).
+`PRD-feature-resource-claims-and-capture-adapters.md` rewritten to
+**4399 lines** (was 3726); `ADR-033-resource-capture-boundary.md`
+rewritten to **1579 lines** (was 1353). New PRD §21 "Rev-7 Changelog"
+section added (mirroring the existing §16–§20 per-rev changelog
+pattern); new ADR "Rev-7 fold summary" section added (mirroring the
+existing rev-6 fold summary, preserved verbatim above it as historical
+provenance). Preserved across every review pass to date (rev-1 through
+rev-7, eight passes counting the rev-3 citation addendum and the rev-4
+platform addendum): separate `resources.json`, no canonical-patch/
+lifecycle authority, Dolt never authoritative/a core dependency,
+Git-only replay, metadata-only ADR-027 compliance (no persistent raw
+bytes anywhere), sidecar-only tracked authority, Dolt as the sole
+optional external adapter. Validation performed this rev: golden
+resource-ID vectors (`res_4b62313b6cce`, unchanged `res_79f5ac5dca13`/
+`res_acc91dc23a8b`) and the full batch-ID vector independently
+recomputed via repo-local scratch Python scripts and confirmed exact;
+an automated JSON-fenced-code-block extraction/diff script confirmed
+all 6 ADR JSON blocks are byte-identical to a PRD block (one
+formatting mismatch found and fixed in the `trust-dolt` wire example
+during this pass); a sequential AC-numbering sweep (grep + `comm`)
+confirmed AC-1 through AC-100 present with no gaps or duplicates; a
+stale-term sweep confirmed no remaining undifferentiated
+`resource-id-collision` claims, no remaining `binary_sha256`-as-`args`
+claims outside historical/superseded context, and no remaining
+"escalation cancels on direct-child-exit" phrasing outside historical
+context. Side Research md5 unchanged: `b385fe622db9926f48861105239f113e`.
 
 **2026-08-10 Cluster H rev-6 adjudicated NEEDS REVISION → rev-7
 DISPATCHED.** Internal review found 3 HIGH + 3 MEDIUM; external found
@@ -661,15 +757,14 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-6 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-7 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-6
+- **Task ID**: Cluster H rev-7
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-5 dual-review verdict plus the
-  supervisor's platform-check addendum into the feature-resource PRD
-  and ADR-033 boundary.
-- **Status**: In Progress (rev-7 fold) (rev-6 fold complete, awaiting dual review)
-- **Assigned**: 2026-08-12
+- **Description**: Fold the rev-6 dual-review verdict (adjudication
+  `d503d55`) into the feature-resource PRD and ADR-033 boundary.
+- **Status**: Review (rev-7 fold complete, awaiting dual review)
+- **Assigned**: 2026-08-13
 - **WAVE_BASE**: `f04dec7`
 
 ### Deliverables
@@ -708,6 +803,45 @@ only after implementation review and wave close.
 
 ## Session Summary
 
+- **Cluster H rev-7** — dispatched 2026-08-12 (adjudication `d503d55`)
+  from `WAVE_BASE=f04dec7`; written 2026-08-13. Same sequential writer
+  continued from rev-6 (`f195998`). Full 11-item fold of the rev-6
+  dual-review verdict: (1) fresh-clone ignore/untracked gate now
+  targets the intended nonexistent leaf scratch directory itself
+  (pathname checks are existence-independent), using the
+  nearest-existing-ancestor only for `statfs`; (2) process-group
+  termination redesigned to keep the leader unreaped through the
+  entire fixed grace period, `SIGTERM`→(unreaped wait)→unconditional
+  `SIGKILL`→`cmd.Wait()`, since a leader-only `Wait()` never proves
+  the whole group is empty; (3) executed-binary-binding via a private,
+  hash-verified, stream-copied (`io.TeeReader`+`sha256`) ephemeral
+  scratch copy, executing the copy's own path, never the original
+  resolved pathname — closing the hash-vs-execute TOCTOU; (4) trust/
+  identity split: `binary_sha256` removed from Dolt `args`/`resource_id`
+  entirely, replaced by an identity-participating `contract` enum
+  (`"dolt-diff-summary-v1"`), with the pin relocated to a new, mutable,
+  non-identity `trust` field updatable via a new `trust-dolt <slug>
+  <resource-id> --binary-sha256 <64hex>` command that never touches
+  `resource_id`/history; (5) runtime-compatibility honesty language
+  (trust pin = operator-approved exact identity, not provenance); (6)
+  resource corruption taxonomy split into `resources-file-corrupt`
+  (self-mismatch) vs. narrowed `resource-id-collision` (distinct
+  declarations only); (7) Linux `Statfs_t.Type` normalized to
+  `uint32(buf.Type)` before comparison (architecture-varying raw
+  width); (8) unconditional retry-fsync for every directory-creation
+  path, first-create and retry alike; (9) stale count/citation fixes
+  (rewritten-in-place count "Four"→"Six"; exit-2 table's
+  `binary_sha256`-as-`--arg` claim corrected); (10) golden-vector
+  recomputation — `res_4b62313b6cce` (Vectors 2/3), full batch ID
+  `rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`,
+  new `trust-dolt` wire example (byte-identical PRD/ADR, automated
+  parity check); (11) AC set grew 89 → **100** (11 new, 6 rewritten in
+  place); ADR Test Matrix rebuilt 157 → **169** rows, all 100 clauses
+  mechanically confirmed covered. PRD grew to **4399 lines** (was
+  3726), ADR to **1579 lines** (was 1353). Side Research md5 unchanged:
+  `b385fe622db9926f48861105239f113e`. See "Files Changed — Cluster H
+  rev-7", "Test Results — Cluster H rev-7", and "Ready for review —
+  Cluster H rev-7" below.
 - **Cluster H rev-5** — dispatched 2026-08-10 from `WAVE_BASE=f04dec7`;
   written 2026-08-11. Same sequential writer continued from rev-4
   (`ceda294`/`b7ddccb`). Full 18-item fold of the rev-4 dual-review
@@ -1130,6 +1264,136 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-7
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, **4399 lines** (was 3726). New/changed structure:
+  §0 Rev-7 Fold Summary (replacing the rev-6 framing as the primary
+  top-level narrative; the rev-6 fold-summary body is preserved as
+  historical prose); §0.1 Claims Audit extended with `C35`–`C37`
+  (Linux `Statfs_t.Type` architecture-width variance, POSIX
+  process-group-reuse semantics, `io.TeeReader`/`sha256` streaming-hash
+  pattern); §3/§6.1 (`add --adapter dolt` no longer accepts a
+  `binary_sha256` `--arg`; the pin is written only via
+  `--trust-current-dolt`/`trust-dolt` into a separate `trust` field;
+  new `contract` `args` key participates in identity instead); §6.1
+  (executed-binary-binding rewritten — stream-copy+hash into a private
+  0700→0500 ephemeral scratch file, verify against the pin, execute
+  the copy's own path, delete after); §6.1 (new `trust-dolt <slug>
+  <resource-id> --binary-sha256 <64hex>` command, exact behavior and
+  history-preservation guarantee); §6.4 (process-group termination
+  rewritten — unreaped-leader-through-grace, unconditional
+  `ESRCH`-tolerant `SIGKILL`, separate normal-success immediate-`Wait()`
+  path); §7.1/§7.2 (statfs `uint32` normalization, retry-fsync
+  discipline for every `MkdirAll` path); §4/§13 (resource corruption
+  taxonomy split — `resources-file-corrupt` vs. narrowed
+  `resource-id-collision`, by-ID payload mapping at load); §12.1/§12.6
+  (new `resources.json` `trust` field, new `trust-dolt` update wire
+  example); §13.1–§13.3 (golden vectors 2/3 recomputed a third time to
+  `res_4b62313b6cce`); §14 Acceptance Criteria (`AC-18`/`AC-19`/`AC-20`/
+  `AC-81`/`AC-85`/`AC-88` rewritten in place, `AC-90`–`AC-100` appended
+  — 100 clauses total, up from 89); §14.1 (exact-count paragraph
+  rewritten for the +11/100 total and the corrected "Six" rewritten-
+  in-place count); §15 Open Questions (private-copy-execution residual,
+  trust-pin-scope-limitation reworded for `contract`/`trust` split);
+  new §21 Rev-7 Changelog vs rev-6; exit-2 table's stale
+  `binary_sha256`-as-`--arg` claim corrected.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in
+  full, **1579 lines** (was 1353). Same 11 binding decisions (D1–D11,
+  numbering unchanged — no decision inserted or removed, only rewritten
+  in place): title/Status header updated to rev-7, citing writer
+  commit `f195998` and adjudication `d503d55`; new "Rev-7 fold summary"
+  section (replacing "Rev-6 fold summary" as the primary framing,
+  rev-6 fold summary preserved verbatim above it); D3 (resource-ID
+  vectors 2/3 recomputed a third time for `contract` replacing
+  `binary_sha256`, `res_4b62313b6cce` supersedes `res_00189e66780a`;
+  corruption-taxonomy split into narrowed `resource-id-collision` vs.
+  new `resources-file-corrupt`); D5 (new "Binary trust pin, separated
+  from resource identity, private-copy execution" paragraph describing
+  the `contract`/`trust` field split, `trust-dolt` command, and the
+  stream-copy-while-hashing execution binding; new "Process-group
+  termination, unreaped leader through the grace period" paragraph);
+  D6 (Dolt-executable bullet rewritten for private-copy execution;
+  residual paragraph adds the private-copy-execution scratch-directory
+  residual alongside the pre-existing ancestor-TOCTOU/`db_path`
+  residuals); D9 (Linux `statfs` bullet adds `uint32(buf.Type)`
+  normalization with architecture-width citation; Darwin bullet
+  corrected to `Fstypename [16]int8`; "First-create sequencing"
+  rewritten for the leaf-vs-ancestor gate split and unconditional
+  retry-fsync; `trust-dolt` added to the lock-serialized-verb list);
+  D10 (new sentence describing the private Dolt-binary copy as the
+  one deliberate exception to the `0600` file-permission default);
+  Wire Schema Appendix (`resources.json`/batch/`current.json` examples
+  updated for the new IDs and `trust`/`contract` fields; new
+  `trust-dolt` update wire subsection, byte-identical to PRD §12.6);
+  Implementation Notes (updated notes 6/8/9; 3 new notes — corruption-
+  taxonomy split, process-group kill-path timing, trust-pin storage/
+  exclusion); Negative Consequences Summary (`db_path` residual
+  reconfirmed; trust-pin bullet expanded for private-copy execution;
+  new `resources-file-corrupt`-vs-`resource-id-collision` bullet); Test
+  Matrix rebuilt from 157 to **169 rows** — rows 30-33/55/117-121/
+  151-152/156 updated for rev-7 mechanics, 12 new rows (158–169)
+  appended for `AC-90`–`AC-100` (`AC-91` contributing 2 rows) —
+  covering all 100 PRD acceptance-criteria clauses.
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-7
+  entry prepended above the rev-6-adjudication entry), Active Task
+  Status → Review, this Session Summary bullet, this Files Changed
+  section, Test Results, and the "Ready for review — Cluster H rev-7"
+  section below. Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-7
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation
+performed instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace
+  errors, no conflict markers).
+- AC sequential-numbering check: mechanically extracted every
+  `AC-<n>` tag definition from the PRD's `## 14. Acceptance Criteria`
+  section via a repo-local Python script (created, run, deleted, never
+  written under `/tmp`) — confirmed **100** distinct, sequential
+  `AC-1`..`AC-100` clauses, zero gaps, zero duplicates.
+- Golden-vector recomputation: `resource_id` Vector 2/3
+  (`res_4b62313b6cce`, `contract` replacing `binary_sha256`, order-
+  independence reconfirmed) and the worked batch example's `batch_id`
+  (`rb_507f520c56f892f882bb06f6e8117040f605fcd06f99f3217fad4b95bc4f1021`)
+  independently recomputed via repo-local, deleted-after-use Python
+  scripts over the exact `CanonicalArgsJSON`/`CanonicalBatchJSON`
+  hash-input bodies reconstructed from the published worked examples —
+  matched exactly.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents and confirmed all 6
+  shared ADR examples are byte-identical to a PRD block (Python
+  `str ==` comparison on the raw fenced block text) — 6/6 matched
+  after fixing one formatting mismatch found in the `trust-dolt` wire
+  example during this pass (the ADR's before/after blocks were
+  originally abbreviated to only the changed field; corrected to the
+  PRD's full-entry form).
+- AC/test-matrix mapping check: mechanically cross-referenced every
+  `AC-<n>` tag (100 distinct, sequential, no gaps) against every row of
+  the ADR's rebuilt Test Matrix (169 sequential rows, 1..169);
+  confirmed all 100 clauses appear in at least one matrix row, no
+  clause missing, no extra/unexpected clause tag.
+- Stale-term sweep: re-grepped both files for remaining rev-6-only
+  language — undifferentiated `resource-id-collision` claims (none
+  live outside historical context — narrowed correctly everywhere),
+  `binary_sha256`-as-declared-`args`-entry claims (none live — the
+  PRD's exit-2 table was found and corrected during this pass), the
+  "escalation is cancelled the moment `cmd.Wait()` observes" leader-
+  only phrasing (none live outside explicitly-historical "supersedes"
+  context) — all clean after the exit-2-table fix.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; all pre-existing untracked WIP remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-6
 
@@ -2373,6 +2637,61 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-7
+
+**Scope**: docs-only planning cluster, rev-7 "bounded maintenance/trust
+fold". Same two deliverables as rev-1 through rev-6, both fully
+rewritten (not patched), plus this handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **4399 lines** (was 3726). See "Files Changed — Cluster H rev-7"
+   above for the full section-by-section breakdown; see the Status
+   entry above for the complete list of changed decisions mapped to
+   the dispatch's requirement items (1–11).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **1579 lines**
+   (was 1353). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D3/D5/D6/D9/D10); see "Files
+   Changed — Cluster H rev-7" above.
+
+**Files changed (Cluster H rev-7)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D3 (ADR) ↔ §13 (PRD): identical recomputed `res_4b62313b6cce` vector
+  and identical narrowed `resource-id-collision`/new
+  `resources-file-corrupt` split.
+- D5 (ADR) ↔ §6.1 (PRD): identical `contract`/`trust` field split,
+  identical `trust-dolt` command semantics, identical private-copy-
+  execution mechanism (stream-copy+hash via `io.TeeReader`/`sha256`,
+  execute the copy's own path).
+- D6 (ADR) ↔ §6.1/§15 (PRD): identical private-copy-execution residual
+  language (same-user local attacker on the scratch directory during
+  creation-to-execution window), identical `db_path` residual carried
+  forward unchanged.
+- D9 (ADR) ↔ §7.2 (PRD): identical `uint32(buf.Type)` normalization
+  language and architecture-width citation, identical
+  leaf-vs-ancestor first-create-sequencing split, identical
+  unconditional retry-fsync discipline.
+- D10 (ADR) ↔ §6.1 (PRD): identical private-copy-permission exception
+  (0700→0500) to the `0600` file-permission default.
+- Wire Schema Appendix (ADR) ↔ §12.1/§12.6 (PRD): identical
+  `trust`/`contract` fields in the `resources.json` example, identical
+  `trust-dolt` before/after wire example (confirmed byte-identical by
+  an automated JSON-block-parity script, 6/6 ADR blocks matched).
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
 
 ## Ready for review — Cluster H rev-6
 
