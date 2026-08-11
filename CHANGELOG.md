@@ -2,6 +2,72 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.14.0 — 2026-08-10 — transactional feature unapply
+
+Feature release adding a reversible, audited way to remove a tracked
+feature's canonical patch from the current working tree without deleting its
+metadata or patch history.
+
+### New command and state
+
+- **`tpatch feature unapply <slug> [--dry-run]
+  [--allow-soft-dependents] [--actor <string>]`** — strictly reverse-apply
+  `artifacts/post-apply.patch` from `applied`, `active`, `reconciling`, or
+  `reconciling-shadow`.
+- **`unapplied`** — twelfth `FeatureState`; canonical patch remains tracked
+  but is absent from the worktree. Reapply with `tpatch apply <slug>`.
+- Dry-run reports touched paths, dependents, preflight blockers, reverse
+  viability and planned artifacts without mutating worktree, index or
+  `.tpatch/`.
+
+### Transaction and audit
+
+- `SaveFeatureStatus` now writes through a same-directory temporary file,
+  fsync and atomic rename.
+- Strict reverse check, detached-worktree preview and touched-path snapshot
+  precede mutation.
+- Failed reverse apply, artifact write or status write restores source paths
+  (including absence, modes, symlinks and file↔directory transitions) and
+  removes partial attempt artifacts.
+- Successful attempts write deterministic
+  `artifacts/unapply/<ua_12hex>/unapply-session.json` plus `reverse.patch`.
+- Canonical patch bytes, numbered patches and patch-generation manifest are
+  unchanged by unapply.
+
+### Lifecycle and dependency integration
+
+- `status`/`--json` show unapplied features by default; FEATURES.md renders
+  `## Unapplied` before `## Rejected`.
+- `next` recommends `tpatch apply`; `land`, `reject`, and
+  `confirm-upstreamed` refuse with actionable guidance.
+- Aggregate reconcile skips unapplied features; explicit reconcile reports
+  patch viability without changing lifecycle state.
+- Hard and `supersedes` dependents block unapply; soft dependents require
+  `--allow-soft-dependents`.
+- Creating an edge onto an unapplied parent remains legal, but an unapplied
+  hard parent does not satisfy child apply.
+
+### Replay hardening
+
+- Reapply uses canonical `post-apply.patch` directly, never a potentially
+  stale recipe.
+- Canonical patch, patch generations, `apply.has_patch`, and the original
+  base commit are preserved.
+- Reapply validation is warning-aware and scoped to the canonical paths while
+  observing staged, unstaged and untracked changes through a temporary index.
+- Linked worktrees, redirected indexes, rename/copy patches, spaces, Unicode,
+  pathspec-magic filenames, symlinks, executable-mode changes and
+  file↔directory transitions are covered.
+- Record/cycle/feature-patch/amend guards prevent inverse-patch capture or
+  partial metadata mutation while unapplied.
+
+### Quality
+
+- Accepted PRD-feature-unapply + ADR-032 D1-D8 implemented.
+- All 61 ADR matrix rows covered.
+- 1022 top-level tests pass; six shipped skill surfaces and parity anchors
+  updated.
+
 ## v0.13.0 — 2026-08-05 — first-class rejected feature lifecycle state (GH #6)
 
 Feature release adding a first-class `rejected` state to the tpatch feature

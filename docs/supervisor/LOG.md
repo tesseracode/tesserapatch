@@ -1,3 +1,64 @@
+## Supervisor decision — Cluster G' SHIPPED / v0.14.0 — 2026-08-10
+
+**Decision**: APPROVED → SHIPPED
+**WAVE_BASE**: `9e77617`
+**Implementation tip**: `6941d41`
+**Pre-consolidation handoff**: `633a95d`
+
+### Action Taken
+
+- CURRENT.md transitioned to terminal `SHIPPED`.
+- ROADMAP and CHANGELOG updated for v0.14.0.
+- Cluster G' archive prepended to HISTORY.
+- Release consolidation tagged `v0.14.0` and pushed with `main`.
+- Final wave-close gate run with `WAVE_BASE=9e77617`.
+
+### Release Summary
+
+- 1022 top-level tests PASS / 0 FAIL.
+- 61/61 ADR matrix rows covered.
+- Rule 18 trailers parse across the full wave.
+- Side Research md5 preserved:
+  `b385fe622db9926f48861105239f113e`.
+- No residual findings.
+
+## Review — Cluster G' rev-5 final — 2026-08-10
+
+**Internal reviewer**: gpt-5.6-sol (`gprime-r5-internal`)
+**External reviewer**: claude-opus-5 (`gprime-r5-external`)
+**Full implementation**: `9e77617..6941d41`
+
+### Checklist
+
+- [x] Compiles
+- [x] Tests pass
+- [x] Formatted
+- [x] D3 artifacts deterministic and exact
+- [x] D6 rollback and atomic status safe
+- [x] Secrets safe
+- [x] Matches Accepted PRD/ADR
+- [x] Handoff accurate
+- [x] Assets parity passes
+- [x] No prior safety-class regression
+
+### Verdict: APPROVED
+
+### Notes
+
+- Internal: linked-worktree/effective-index fold verified; no significant
+  issues.
+- External: full real-CLI adversarial pass APPROVED. Re-exercised atomic
+  failures, weird paths/modes/symlinks, file↔directory, dependency/state
+  matrix, lifecycle guards, direct canonical reapply, staged projections and
+  linked worktrees. No significant issues.
+- Mechanical wave-close was 7/8 during review solely because
+  `**Cluster state**` correctly remained `AWAITING REVIEW`; consolidation
+  flips it terminal before the final gate.
+
+### Action Taken
+
+Supervisor authorized v0.14.0 consolidation and release close.
+
 ## Review dispatch — Cluster G' rev-5 — 2026-08-10
 
 **Fold commit**: `6941d41`

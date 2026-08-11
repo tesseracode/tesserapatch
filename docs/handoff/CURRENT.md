@@ -2,10 +2,21 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: SHIPPED
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' SHIPPED — v0.14.0 `tpatch feature unapply`.**
+Six-revision implementation/review arc closed three-way APPROVED at rev-5
+(internal APPROVED, external APPROVED, zero residuals). Code tip `6941d41`;
+pre-consolidation handoff `633a95d`; 21 wave commits before release
+consolidation. Delivered atomic status writes, `StateUnapplied`, D3 fixed
+audit artifacts, D6 transaction/rollback, canonical direct reapply, complete
+lifecycle/dependency/status integration, SPEC + six-skill parity, and all 61
+matrix rows. Final suite: 1022 top-level PASS / 0 FAIL. Side Research md5 and
+Rule 18 preserved. Tag `v0.14.0` is created on the release consolidation
+commit and pushed with `main`.
 
 **2026-08-10 Cluster G' rev-5 IMPLEMENTED — AWAITING DUAL REVIEW at
 `6941d41`.** Linked-worktree effective-index resolution folded and verified:
@@ -154,7 +165,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: Review (rev-5)
+- **Status**: Complete
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -231,6 +242,8 @@ only after implementation review and wave close.
   projection resolves Git's effective index with `rev-parse --git-path
   index`, so linked worktrees and GIT_INDEX_FILE layouts are supported.
   Linked-worktree staged-diff/index-identity regression and full gates pass.
+- **Cluster G' SHIPPED** — rev-5 internal + external APPROVED clean; v0.14.0
+  release consolidation authorized with 1022 top-level tests passing.
 - **v0.12.0** (three-wave feature cluster: supersession + write-file safety + active-feature-session) — shipped, tagged `v0.12.0`.
 - **Cluster A** (AGENTS.md wave-close checklist codifying F1 pattern) — shipped at `5ac458d`.
 - **Cluster B planning** (PRDs #3 + #4 with dual-review parallel) — shipped at `4e673a8`.
@@ -496,10 +509,9 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Run internal and external rev-5 confirmation.
-2. Adjudicate any residuals without reopening D1-D8.
-3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
-   run the wave-close gate, and tag/push v0.14.0.
+1. Cluster G' is closed at v0.14.0.
+2. Select the next task from the post-v0.14.0 backlog; no successor is
+   dispatched in this handoff.
 
 ## Blockers
 

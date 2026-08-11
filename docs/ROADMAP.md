@@ -577,9 +577,49 @@ Planning-phase cluster for v0.14.0 `tpatch feature unapply` (PRD-feature-unapply
 
 **Range**: `99a1e06..e1a5898`. WAVE_BASE: `2c8a207`. Side Research md5 preserved: `b385fe622db9926f48861105239f113e`.
 
-**Next**: Cluster G' implementation cluster from planning baseline `e1a5898`. Touches state enum (+ `StateUnapplied`), a new `unapply-session.json` audit artifact (ADR-032 D3 — a separate artifact file, **not** a `status.json` struct; D7 locks no shared schema with `RejectionStatus`), `SaveFeatureStatus` atomic-rename upgrade (pre-req), apply-gate dependency-satisfying-set exclusion (`StateUnapplied` must NOT satisfy hard edges; edge *creation* onto an `unapplied` parent stays **allowed** — ADR-032 test-matrix row 61 "no Rule-7-analog", PRD §5.1), CLI (`tpatch feature unapply` noun-scoped + status/next filtering + confirm-upstreamed guard), assets, SPEC.md, 39+ ACs. Does not modify `tpatch reject`/`reopen` implementations (orthogonal per D7), but their **interaction ACs are in scope** (PRD §9: reject-refused-from-unapplied exit 3, `--include-rejected` does-not-hide-unapplied). Tag as v0.14.0 at close.
+**Implementation**: shipped in Cluster G' below. The final implementation
+follows this corrected scope exactly and is tagged v0.14.0.
 
 > Where this summary and the accepted papers disagree, `ADR-032` + `PRD-feature-unapply` govern. This line previously named `UnappliedStatus` and a Rule-7-parallel `ErrUnappliedParent` — neither exists in either paper; corrected 2026-08-10.
+
+## Cluster G' implementation — 2026-08-10 — v0.14.0 `tpatch feature unapply` ✅ SHIPPED
+
+Implementation phase for the Accepted Cluster G paper package. **Six review
+revisions, 21 pre-consolidation wave commits, three-way APPROVED at rev-5.**
+WAVE_BASE `9e77617`; implementation tip `6941d41`; release tag `v0.14.0`
+points at the consolidation commit.
+
+**Delivered**:
+- `StateUnapplied` as the twelfth real lifecycle state.
+- Atomic `SaveFeatureStatus` (`CreateTemp` + fsync + same-directory rename).
+- `tpatch feature unapply <slug>` with dry-run, dependency/worktree
+  preflight, strict reverse check, detached preview, path snapshot/restore,
+  D3 fixed audit envelope and D6 rollback.
+- Direct canonical-patch reapply via `tpatch apply`, preserving patch,
+  generation and base metadata.
+- Full status/JSON/FEATURES/next/apply/reconcile/land/record/amend/reject/
+  reopen/confirm-upstreamed/dependency integration.
+- Corrected D2 split: dependency edge creation onto unapplied parents remains
+  allowed; unapplied hard parents do not satisfy apply.
+- SPEC + dependency docs + six shipped skill surfaces + parity anchors.
+- All 61 ADR matrix rows; 1022 top-level tests PASS / 0 FAIL.
+
+**Review arc**:
+
+| Rev | Verdict | Fold |
+|-----|---------|------|
+| rev-0 | internal NEEDS REVISION; external no usable verdict | literal pathspecs + complete asset source set |
+| rev-1 | internal NEEDS REVISION | canonical direct reapply, gate ordering, file↔directory rollback, amend preflight |
+| rev-2 | internal APPROVED; external NEEDS REVISION | mode-only warning strictness + canonical-path-scoped dirty comparison |
+| rev-3 | internal NEEDS REVISION | complete staged/unstaged/untracked HEAD projection |
+| rev-4 | internal NEEDS REVISION | linked-worktree effective-index resolution |
+| rev-5 | **internal APPROVED / external APPROVED** | terminal clean close |
+
+**Safety patterns closed before ship**: inverse canonical capture through
+record/cycle/feature-patch/apply; partial reapply residue; rename/copy side
+omission; spaces/Unicode/pathspec magic; symlink and traversal; file↔directory
+transitions; mode-only false success; unrelated and staged owned-path dirt;
+linked-worktree index layouts.
 
 ## Cluster F planning — 2026-08-05 — v0.13.0 GH #6 first-class rejected feature state (PRD + ADR pair) ✅ SHIPPED
 
@@ -909,4 +949,3 @@ awaiting implementation cluster kickoff.
 - Web dashboard
 - Recipe modernization (`feat-recipe-schema-expansion`, `feat-record-autogen-recipe`)
 - Parallel feature workflows
-

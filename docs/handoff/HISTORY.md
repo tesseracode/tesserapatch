@@ -1,3 +1,68 @@
+# 2026-08-10 — Cluster G' — v0.14.0 `tpatch feature unapply` implementation — SHIPPED
+
+**WAVE_BASE**: `9e77617`
+**Implementation tip**: `6941d41`
+**Pre-consolidation handoff**: `633a95d`
+**Tag**: `v0.14.0` on the release consolidation commit.
+
+**Scope shipped**:
+- Twelfth lifecycle state, `unapplied`, with strict state validation.
+- Same-directory atomic status writes with prior-byte preservation.
+- Noun-scoped `tpatch feature unapply` patch-mode command.
+- D3 deterministic `unapply-session.json` + `reverse.patch`.
+- D6 strict check/preview/snapshot/mutate/artifact/status transaction and
+  rollback.
+- Direct canonical `tpatch apply` reapply; aggregate reconcile skip and
+  explicit viability-only reconcile.
+- Status/JSON/FEATURES/next/land/record/amend/reject/reopen/
+  confirm-upstreamed/dependency/verify integration.
+- Six skill surfaces, SPEC/dependency docs and parity anchors.
+
+**Corrected planning semantics preserved**:
+- No `UnappliedStatus` store sub-record.
+- No `ErrUnappliedParent` / Rule-7 edge-creation guard.
+- Edges onto unapplied parents remain legal; unapplied hard parents do not
+  satisfy apply.
+- `rejected` and `unapplied` remain parallel independent states.
+
+**Review arc**:
+
+| Rev | Internal | External | Adjudication |
+|-----|----------|----------|--------------|
+| rev-0 | NEEDS REVISION (2 valid MEDIUM + 1 stale process claim) | no usable verdict | rev-1 |
+| rev-1 | NEEDS REVISION (4 MEDIUM) | deferred | rev-2 |
+| rev-2 | APPROVED | NEEDS REVISION (2 HIGH) | rev-3 |
+| rev-3 | NEEDS REVISION (1 HIGH) | deferred | rev-4 |
+| rev-4 | NEEDS REVISION (1 MEDIUM) | deferred | rev-5 |
+| rev-5 | **APPROVED** | **APPROVED** | **SHIPPED** |
+
+**High-value defect classes closed before release**:
+1. Canonical patch inversion through record/cycle/feature-patch/apply.
+2. Incomplete recipe reapply and partial-source rollback.
+3. Rename/copy a-side omission and incomplete reverse audit.
+4. Spaces, Unicode, pathspec magic and literal-path capture.
+5. File↔directory and mode-only transitions.
+6. Whole-tree unrelated dirt and staged owned-path false finalization.
+7. Linked-worktree/effective-index projection.
+8. Request mutation before unapplied amend refusal.
+
+**Verification**:
+- ADR-032 matrix: 61/61 rows.
+- Final suite: **1022 top-level PASS / 0 FAIL**.
+- gofmt, vet and build clean.
+- Rule 18 trailer verified across the wave.
+- Side Research md5 preserved:
+  `b385fe622db9926f48861105239f113e`.
+- Allowlisted untracked WIP remained unstaged and unchanged.
+
+**Pattern catch**: a six-revision implementation arc was justified because
+each review found a distinct empirical data-integrity boundary. The close
+criterion remained monotonic: no finding was deferred into v0.14.0.
+
+**Next**: no successor dispatched; select from post-v0.14.0 backlog.
+
+---
+
 # 2026-08-05 — Cluster G planning — v0.14.0 candidate `tpatch feature unapply` (PRD-feature-unapply + ADR-032) — SHIPPED
 
 **Range**: `99a1e06..e1a5898` (5 implementer commits + 4 supervisor tracking commits).
@@ -8327,5 +8392,4 @@ None.
 **Collision check**:
 - Did not touch Stream A file `docs/prds/PRD-active-feature-session.md`.
 - No production code, assets, CHANGELOG, or Stream A ADR follow-ups touched.
-
 
