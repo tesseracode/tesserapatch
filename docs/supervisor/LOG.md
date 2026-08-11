@@ -1,3 +1,31 @@
+## Review dispatch — Cluster G' rev-1 — 2026-08-10
+
+**Fold commit**: `7b65d7f`
+**Adjudication baseline**: `653b775`
+**Full implementation range**: `9e77617..7b65d7f`
+
+### Fold Delivered
+
+- Literal Git pathspec handling on every temporary add/reset path, with
+  adversarial pathspec-magic deletion tests.
+- Complete four-state unapply source set in six assets and parity guard.
+- Stale handoff-only `Copilot-Session` claim removed; Rule 18 remains the
+  parseable `Co-authored-by` trailer.
+
+### Verification
+
+- [x] gofmt clean
+- [x] go vet passes
+- [x] `go test -count=1 ./...` passes
+- [x] build passes
+- [x] asset parity passes
+
+### Action Taken
+
+Cluster state transitioned to `AWAITING REVIEW`. Dispatch internal rev-1
+confirmation plus a fresh external full review. No v0.14.0 tag before
+adjudication.
+
 ## Review — Cluster G' rev-0 adjudication — 2026-08-10
 
 **Internal reviewer**: gpt-5.6-sol (`gprime-r0-internal`)

@@ -2,10 +2,17 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `9e77617` (`origin/main` immediately before Cluster G'
 implementation dispatch, 2026-08-10).
+
+**2026-08-10 Cluster G' rev-1 IMPLEMENTED — AWAITING DUAL REVIEW at
+`7b65d7f`.** Both accepted rev-0 MEDIUM findings are folded: all temporary
+Git add/reset paths use literal-pathspec mode with `:(literal)`/wildcard/
+bracket deletion regressions, and all six shipped assets plus parity guard
+carry the complete applied/active/reconciling/reconciling-shadow source set.
+The rejected stale `Copilot-Session` handoff claim is removed. Full gates pass.
 
 **2026-08-10 Cluster G' rev-0 adjudicated NEEDS REVISION → rev-1
 DISPATCHED.** Internal formal review found two valid MEDIUM defects: Git
@@ -90,7 +97,7 @@ only after implementation review and wave close.
 - **Task ID**: Cluster G' rev-0
 - **Milestone**: v0.14.0
 - **Description**: Implement the Accepted feature-unapply PRD and ADR-032.
-- **Status**: In Progress (rev-1 fold)
+- **Status**: Review (rev-1)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `9e77617`
 
@@ -342,11 +349,9 @@ Manual items remain for the supervisor: LOG entry, ROADMAP flip, HISTORY archive
 
 ## Next Steps
 
-1. Literalize every temporary Git add/reset path and add pathspec-magic tests.
-2. Add all four legal source states to six assets and parity-lock the set.
-3. Remove the stale non-binding `Copilot-Session` sentence from this handoff.
-4. Re-run gates and formal internal/external rev-1 review.
-5. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
+1. Run internal rev-1 confirmation and a fresh external full review.
+2. Adjudicate any residuals without reopening D1-D8.
+3. On three-way approval only: consolidate, update CHANGELOG/ROADMAP/HISTORY,
    run the wave-close gate, and tag/push v0.14.0.
 
 ## Blockers
@@ -410,6 +415,27 @@ None.
 - Side Research md5 — `b385fe622db9926f48861105239f113e`.
 
 **Known residuals**: none.
+
+## Ready for review — Cluster G' rev-1
+
+**Fold commit**: `7b65d7f` (dispatch/adjudication baseline `653b775`).
+**Full implementation**: `9e77617..7b65d7f`.
+
+**Rev-0 findings closed**:
+1. Temporary per-file `git add --intent-to-add` and `git reset` calls now
+   run under `--literal-pathspecs`. Regression coverage includes deleted
+   `:(literal)gone.txt`, `*.txt`, and `[x].txt`.
+2. Six asset diagrams now list all four legal source states. The exact
+   `applied/active/reconciling/reconciling-shadow` source set is parity-locked.
+3. Stale handoff-only `Copilot-Session` requirement removed; current Rule 18
+   `Co-authored-by` requirement remains and parses on every commit.
+
+**Verification**:
+- `gofmt -l .` — clean.
+- `go vet ./...` — PASS.
+- `go test -count=1 ./...` — PASS.
+- `go build ./cmd/tpatch` — PASS.
+- Side Research md5 — `b385fe622db9926f48861105239f113e`.
 
 ## Ready for review — Cluster F' rev-0
 
