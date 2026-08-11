@@ -1,9 +1,9 @@
-# PRD — Feature Resource Claims & Capture Adapters (rev-4)
+# PRD — Feature Resource Claims & Capture Adapters (rev-5)
 
-**Status**: Draft — rev-4 (supersedes rev-3, writer commits `151a50e`
-(rev-3 + citation addendum), adjudicated NEEDS REVISION → REV-4
-DISPATCHED at `4d9dd21`; see `docs/supervisor/LOG.md` → Cluster H
-rev-0 through rev-3 adjudications)
+**Status**: Draft — rev-5 (supersedes rev-4, writer commits `ceda294`
+(rev-4) + `b7ddccb` (rev-4 platform-citation addendum), adjudicated
+NEEDS REVISION → REV-5 DISPATCHED at `07eab8e`; see
+`docs/supervisor/LOG.md` → Cluster H rev-0 through rev-4 adjudications)
 
 **Owner**: Cluster H implementation lane (planning phase — this document
 does not ship code; a future "Cluster H'" implementation cluster consumes
@@ -19,7 +19,72 @@ directly extended), `ADR-030-multi-slug-reconcile-derivation-mode.md`
 
 ---
 
-## 0. Rev-4 Fold Summary (read this first)
+## 0. Rev-5 Fold Summary (read this first)
+
+Rev-4 (`ceda294`/`b7ddccb`) redesigned the lock protocol, publication
+idempotency, `diff`'s content-reading honesty, and three Dolt
+citations, but the rev-4 adjudication (`07eab8e`) found rev-4's own
+new mechanisms still unsafe or under-specified in eight concrete
+places: the `db_path` post-exit check compared the held descriptor
+against **itself** rather than a freshly re-resolved pathname, making
+the "detection" claim tautological (§9.1 fix, task 3); `//go:build
+unix` is broader than this project's actual, tested
+`ubuntu-latest`/`macos-latest` CI matrix and would silently compile on
+POSIX-family targets (AIX, Solaris) with no `syscall.Flock`
+portability guarantee (§7.2 fix, tasks 1); an unconditional `flock`
+claim says nothing about network/shared filesystems, where advisory
+locking may not provide real cross-client exclusion (§7.2 addition,
+task 2); rev-4's local scratch-tree diagram incorrectly placed the
+tracked batch/pointer temp files under the *local*, gitignored
+scratch tree rather than beside their *tracked* destinations, breaking
+the same-directory-rename invariant §7.3 itself depends on (§7.1 fix,
+task 4); the Dolt output cap was described as both "truncated" and
+"refused," which are contradictory, and `bytes.Buffer` has no
+built-in bound (§6.4/§8.1 fix, task 5); `WORKING`/`STAGED` were
+accepted as `from`/`to` values even though they load Dolt's own
+`dolt_ignore` table, which can silently omit the mandatory `table`
+before the PK-change hard-error logic ever fires — a second,
+independent silent-omission path this design otherwise works hard to
+close (§6.2 fix, task 6); `batch_id`'s 12-hex (48-bit) truncation is
+collision-prone for a scheme whose own collision outcome is a fatal
+integrity error, not a display convenience (§7.3/§12.3/§13 fix, task
+7); and "one batch per invocation" language could be misread as
+implying content-addressed batches carry a chronological ordering,
+which they do not (§4/§7.3 fix, task 8). Directory `mode` was also
+tracked per-file but never folded into `combined_hash`, so a
+chmod-only change was invisible to both the hash and to `diff` (§5.1/
+§12.2 fix, task 9). Rev-5 is again a substantial, targeted rewrite of
+these eight-plus-one mechanisms — §6.2, §6.4, §7.1, §7.2, §8.1, §9.1
+are revised in place; §4, §5.1, §12.3, §14, §14.1, §15 are updated for
+the batch-ID/mode/ordering corrections. **Preserved** because every
+review across all six revisions has agreed it is sound:
+
+- Resources live in a **separate** manifest per feature — never
+  inside the canonical patch, never touching `apply-recipe.json` or
+  unapply/lifecycle state.
+- Dolt (or any external tool) is **never** an authority over tpatch's
+  own state and is **not** a build/runtime dependency of `tpatch`
+  itself — it is invoked, if present, strictly as an external,
+  read-only, externally-located tool.
+- Replay/backward-compatibility remains **Git-only** — a repository
+  with no resources declared is byte-identical in behavior to today's
+  `tpatch`.
+- No tracked artifact ever contains a raw file byte, raw adapter
+  stdout, or any content copied verbatim from a scanned source
+  (ADR-027 D3); scanning happens strictly in bounded in-process memory,
+  never pre-persisted to a scratch file (task 2).
+
+Everything below this point folds rev-5's corrections into the
+standalone design; §0.1 lists the new citations grounding those
+corrections (appended to the existing Claims Audit table). Rev-4's
+own `C1`–`C27` remain correct and are not repeated (see
+`docs/handoff/HISTORY.md`/git history for that table).
+
+**Historical context — rev-4's own fold summary** (superseded by the
+above as the *current* state, preserved verbatim below for
+continuity; its internal §0.1–§0.4 subsection numbers are the ones
+this document's cross-references still use, now carrying rev-5's
+additions appended to them):
 
 Rev-3 (`151a50e`, including the check-ignore citation addendum)
 redesigned rev-2's Dolt argv, ADR-027 compliance, publication,
@@ -86,7 +151,7 @@ plus the supervisor-relayed `dolt_diff_summary` schema/read-only/
 literal-argv facts already folded in the accompanying supervisor
 message.
 
-### 0.1 Claims Audit (rev-4 additions)
+### 0.1 Claims Audit (rev-4 + rev-5 additions)
 
 Rev-1's `C1`–`C10`, rev-2's `C11`–`C16`, and rev-3's `C17`–`C24`
 (citation corrections for `featureCmd`, the lexical-only safety
@@ -97,7 +162,8 @@ flags, `RemoveClaim`'s line range, `EnsureLocalIgnoreContract`'s exact
 scope, `O_NOFOLLOW`'s availability, the `dolt_diff_summary` column
 schema/`IsReadOnly`/argument-form detail, the invalid
 `--literal-pathspecs check-ignore` invocation, the `./`-prefix
-colon-magic workaround, `WORKING`/`STAGED` support, the PK-set-change
+colon-magic workaround, `WORKING`/`STAGED` source support (now
+explicitly refused as a design choice, not accepted), the PK-set-change
 hard-error/nonexistent-table/closed-`diff_type`-enum facts, the
 `{"rows":[...]}`/`{}` JSON envelope shape, and the `".."`
 argument-count-parsing hazard) all remain correct and are not repeated
@@ -114,7 +180,7 @@ here — see the rev-1/rev-2/rev-3 text preserved in
 | C16 | `ADR-027-capture-context-privacy-boundary.md` D3 states verbatim: "Local private buffers may keep only the redacted or hashed form; this ADR does not authorize a tpatch-managed raw transcript archive." | `docs/adrs/ADR-027-capture-context-privacy-boundary.md:146-170` (D3 section), exact quoted sentence at `:168-170` | Directly grounds §7.1/§0.2's "no persistent raw bodies anywhere, ephemeral-scratch-only" design in ADR-027's own binding language, not just this PRD's inference from D1–D6's committed/local split "in spirit" (as rev-2's original §0 fold summary put it) — D3 is explicit and unconditional: a persistent raw local archive of any kind, opt-in or not, is not authorized without an ADR that supersedes it (§2's new non-goal). |
 | C17 | `git check-ignore` does not accept a pathspec at all — its positional arguments are plain `<pathname>` values (per `git-check-ignore(1)`'s synopsis and option list, which has no `--literal-pathspecs`/pathspec-magic-related option); `git --literal-pathspecs check-ignore -q --no-index -- <path>` is therefore not a valid invocation and fails immediately with `fatal: <path>: pathspec magic not supported by this command: 'literal'` (exit `128`), never reaching the ignore check at all, and this holds regardless of whether the argument itself looks like pathspec-magic (a plain glob-shaped argument such as `docs/*.md` fails identically, not only colon-prefixed ones) | Empirically verified against installed Git (`git --literal-pathspecs check-ignore -q --no-index -- 'a/:weird.txt'` → `fatal: a/:weird.txt: pathspec magic not supported by this command: 'literal'`, exit 128; supervisor-independently reconfirmed with `git --literal-pathspecs check-ignore -q --no-index -- 'docs/*.md'` → identical fatal exit 128 with the identical error text) and `git-check-ignore(1)`'s documented option list | rev-2 **error**: §10.1/§5.1 required `--literal-pathspecs` on the `check-ignore` invocation; every `ignored-file` `add`/`capture` would have failed with a fatal Git error before ever checking ignore status. §10.1/§5.1 are rewritten to reuse the **existing**, already-correct `gitutil.IsPathIgnored` invocation shape (`git check-ignore -q --no-index -- <pathname>`, no `--literal-pathspecs`) unchanged. The fatal outcome is independent of the argument's shape — this PRD does not rely on `--literal-pathspecs` ever succeeding for any `check-ignore` argument, glob-shaped or not. |
 | C18 | `check-ignore`'s plain pathname argument **does** parse a leading `:` for pathspec magic (unlike `*`/`?`/`[]`, which are inert literal characters to this command with no glob/fnmatch expansion): a colon-prefixed name using a magic keyword this command does not support (e.g. `:(literal)...`, `:(glob)...`, `:!...`/`:^...` exclude) is a **fatal** error (exit `128`), while `:/...` ("top") magic is silently accepted without error; prefixing any selector beginning with `:` with `./` (e.g. `./:weird.txt`, `./:(literal)weird.txt`) disarms all colon-magic parsing (the argument no longer begins with a bare `:` byte) and is instead treated as a literal pathname — resolving to the identical on-disk file if it exists, or exit `1` (no match, not fatal) if it does not, never a fatal error | Empirically verified: `git check-ignore --no-index -- ':(glob)sub/*.txt'` → fatal (exit 128); `git check-ignore --no-index -- ':!exclude.txt'` → fatal (exit 128); `git check-ignore --no-index -- ':/topmagic.txt'` → exit 0, no error; `git check-ignore --no-index -- './:(glob)sub/*.txt'` → exit 0, treated as the literal filename; `*`/`?`/`[]` in a plain (non-colon-prefixed) pathname never trigger wildcard matching (`git check-ignore --no-index -- 'sub2/file*.txt'` does not match a differently-named ignored file); supervisor-independently reconfirmed `:(literal)...` as a second concretely-fatal magic keyword (`git check-ignore -q --no-index -- ':(literal)name'` → fatal, exit 128) and confirmed the `./`-prefixed form of that same keyword — `git check-ignore -q --no-index -- './:(literal)name'` — is treated purely as a pathname (exit `1`, no match, no fatal), matching this PRD's `./`-prefix rule exactly | New for rev-3: §5.1/§10.1's `check-ignore` invocation now prefixes any selector whose first byte is `:` with `./` before passing it as the pathname argument, closing an ambiguity C17's fix would otherwise reintroduce for colon-shaped selectors specifically (the existing `ls-files --error-unmatch` gate already handles this safely via `--literal-pathspecs`, which `check-ignore` cannot accept). This rule is now confirmed against two independently-fatal magic keywords (`:(glob)`, `:(literal)`) plus the two exclude forms (`:!`, `:^`), and the `./`-prefix's safe non-fatal (exit-0-or-1) outcome is confirmed for both `:(glob)` and `:(literal)` inputs, not merely one — this PRD's rule ("any leading `:` byte gets the `./` prefix, unconditionally") does not depend on enumerating every magic keyword Git supports, so this remains a closed, keyword-agnostic fix rather than a per-keyword allowlist. |
-| C19 | `dolt_diff_summary`'s `from`/`to` arguments accept the literal strings `"WORKING"`/`"STAGED"` (exact case, not case-insensitively) — rev-1/rev-2 left this explicitly unconfirmed; it is now source-confirmed at the pinned commit | `go/libraries/doltcore/doltdb/doltdb.go:51-52` (`Working = "WORKING"`, `Staged = "STAGED"` constants); `go/libraries/doltcore/sqle/dsess/session.go:1022-1031` (`DoltSession.ResolveRootForRef` special-cases an exact match on either literal string before falling through to `doltdb.NewCommitSpec`); `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff.go:378-403` (`loadDetailsForRefs`/`resolveCommitStrings` route both `from` and `to` through `ResolveRootForRef`), commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` | Resolves rev-2's §6.2/§15 open question. §6.2 now states `WORKING`/`STAGED` are accepted (exact uppercase) rather than deferring the question to the implementation cluster; this PRD does not change whether it *uses* them in its own examples (it still does not, to keep golden vectors and examples on concrete refs), only whether the capability accepts them if a caller declares them. |
+| C19 | `dolt_diff_summary`'s `from`/`to` arguments accept the literal strings `"WORKING"`/`"STAGED"` (exact case, not case-insensitively) at the source level — rev-1/rev-2 left this explicitly unconfirmed; it is now source-confirmed at the pinned commit | `go/libraries/doltcore/doltdb/doltdb.go:51-52` (`Working = "WORKING"`, `Staged = "STAGED"` constants); `go/libraries/doltcore/sqle/dsess/session.go:1022-1031` (`DoltSession.ResolveRootForRef` special-cases an exact match on either literal string before falling through to `doltdb.NewCommitSpec`); `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff.go:378-403` (`loadDetailsForRefs`/`resolveCommitStrings` route both `from` and `to` through `ResolveRootForRef`), commit `59fb843bf6a4b653d7c8b6d997a603b10cf279d9` | Resolves rev-2's §6.2/§15 open question as a **source fact**: `WORKING`/`STAGED` are indeed accepted by upstream Dolt at this literal-string level. Rev-5 corrects rev-4's *design* conclusion drawn from this fact — §6.2 no longer states this PRD's own `from`/`to` **accept** these values; it now **explicitly refuses** them (case-insensitively) because either ref bypasses the mandatory-`table` PK-change hard-error guarantee's sibling concern, `dolt_ignore`-gated silent table omission (see §6.2's refusal rationale) — the capability existing upstream and this design choosing not to expose it in v1 are two separate, non-contradictory statements. |
 | C20 | A hard hard-error outcome for a primary-key-set change between `from` and `to` on the requested table is source-confirmed, and is conditional on a `table` argument being supplied: `getSummaryForDelta`'s `shouldErrorOnPKChange` parameter is `true` only for the single-table query path (`tableNameExpr != nil`); the whole-database (no `table`) query path passes `false` and silently omits the affected table's row (with a warning, not an error) instead | `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff_summary.go:299-321` (single-table call site, `shouldErrorOnPKChange=true`, line 311) vs `:324-341` (multi-table/whole-db loop, `shouldErrorOnPKChange=false`, line 334); `:346-365` (`getSummaryForDelta`'s branch); the wrapped sentinel is `diff.ErrPrimaryKeySetChanged` (`"primary key set changed"`, `go/libraries/doltcore/diff/diff_stat.go:31`), error text `"failed to compute diff summary for table %s: %w"` | Directly grounds task 6/task 8's "require `table` in v1 ... so PK-set changes fail rather than silently omit": this PRD's mandatory-`table` decision (§5.3/§6.2) is not merely a simplicity choice, it is the specific argument shape that routes a PK-set-change into Dolt's own hard-error path instead of its own silent-omission path. §6.2/§14 document the resulting `dolt-query-error` refusal class explicitly. |
 | C21 | A `table` argument naming a table that exists in **neither** `from` nor `to` yields zero rows (not an error), a third, distinct outcome from C20's hard error and from a `dolt_ignore`-matched table's zero-row outcome | `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff_summary.go:347-350` (`getSummaryForDelta`'s early `return nil, nil` when all of `FromTable`/`ToTable`/`FromRootObject`/`ToRootObject` are nil and neither name carries `diff.DBPrefix`) | Grounds §6.2's "table never existed" first-capture case and §14's `AC` for it with an exact source citation rather than an inferred "behavior not independently re-derived" hedge (rev-2's phrasing for this case). |
 | C22 | `dolt sql -r json` wraps a nonempty result as `{"rows": [...]}` (a single top-level key, `"rows"`) and emits the literal, distinct 2-byte string `{}` for a zero-row result — there is **no** `"schema"` key in either case. Rev-2's claim of a `"schema"`-key-bearing envelope was community/docs-corroborated but not source-verified, and is now corrected | `go/libraries/doltcore/table/typed/json/writer.go:37-38` (`jsonHeader = `{"rows": [`` / `jsonFooter = `]}``), `:56-58`,`:62-64` (doc comments: "encodes rows as a single JSON object with a single key: \"rows\""); `go/cmd/dolt/commands/engine/sql_print.go:110-113` (`FormatJson` case constructs this writer), `:147-149` (the zero-row `{}` case is written directly by the caller — `iohelp.WriteLine(cli.CliOut, "{}")` — not by the row writer, precisely when `numRows == 0`) | rev-2 **error**: §6.3's parser assumed a `"schema"` key existed alongside `"rows"` and did not define the zero-row shape at all. §6.3/§6.2 are rewritten: the parser recognizes exactly two valid top-level shapes (`{"rows":[...]}` or `{}`), rejects any other top-level shape (missing/extra/renamed key) as a fatal parse error, and `{}` maps deterministically to an empty `tables: []` result. |
@@ -123,6 +189,9 @@ here — see the rev-1/rev-2/rev-3 text preserved in
 | C25 | The claim "Dolt's real, source-confirmed JSON writer always emits native JSON booleans for `BOOLEAN`-typed columns" is best grounded in the **row constructor** that builds each output row from a `TableDeltaSummary`, not the SQL schema/writer-type declaration alone: `getRowFromSummary` builds `sql.Row{ds.FromTableName.String(), ds.ToTableName.String(), ds.DiffType, ds.DataChange, ds.SchemaChange}`, passing the struct's native Go `bool` fields (`DataChange bool`, `SchemaChange bool`, confirmed at `table_deltas.go:83-90`) directly into the row with no intermediate string/int conversion, which is what the JSON writer then serializes as a native JSON boolean | `go/libraries/doltcore/sqle/dtablefunctions/dolt_diff_summary.go:457-464` (`getRowFromSummary`, the row constructor) plus `go/libraries/doltcore/diff/table_deltas.go:83-90` (`TableDeltaSummary` struct field types) | rev-3's C15/§6.2 cited only the SQL schema declaration (`dolt_diff_summary.go:48-54`, `Boolean` column type) for this claim — a schema type alone does not prove what a *particular code path* actually writes into the row. §6.3 now cites the row constructor as the primary evidence for "native JSON boolean, no coercion," retaining the schema citation only for the non-null-column claim it does support. |
 | C26 | `diff_type`'s closed 4-value enumeration is more precisely evidenced by the four **exact assignment lines** inside `GetSummary` — the only places any row's `DiffType` field is ever set — than by the `const` block alone, which also declares a fifth value, `DiffTypeAll = "all"`, that exists only as a caller-side **filter** argument to a different function and is never itself assigned to any row's `DiffType` field (confirmed by an exhaustive grep of every `DiffType` assignment in this file: zero occurrences of `DiffTypeAll` outside the `const` block itself) | `go/libraries/doltcore/diff/table_deltas.go:713-761` (`GetSummary`): `:722` `DiffType: DiffTypeDropped`, `:733` `DiffType: DiffTypeAdded`, `:745` `DiffType: DiffTypeRenamed`, `:760` `DiffType: DiffTypeModified` — the complete, exhaustive set of assignment sites; `:45-51` (`const` block, including the unused-for-this-purpose `DiffTypeAll = "all"`) | rev-3's C23/§6.2 cited only the `const` block (`table_deltas.go:46-49`), which a reader could misread as implying 5 possible row values. §6.2 now cites the four assignment lines directly and notes `DiffTypeAll` is a filter-only value this design's fixed `dolt_diff_summary` query never emits and never needs to recognize as a row value. |
 | C27 | The pinned commit's own `dolt sql -q ... -r json` one-shot (non-interactive) invocation path emits trailing whitespace **beyond** the JSON body itself in both the nonempty- and zero-row cases: the JSON row writer's `Close` writes only the literal footer `]}` with no trailing newline of its own (`writer.go:243-249`); `execSingleQuery` (the one-shot `-q` code path, `sql.go:461-470`) calls `PrettyPrintResults`, which is `prettyPrintResultsWithSummary(..., PrintNoSummary, ...)` (`sql_print.go:59-61`) — so no "N rows in set" summary line is appended for this invocation shape — but regardless of row count, `sql_print.go`'s final, unconditional `case FormatJson, ...: return iohelp.WriteLine(cli.CliOut, "")` (`:168-170`) appends exactly one more `"\n"` after everything else, and `WriteLine` (`iohelp/write.go:66-68`) always appends a trailing `"\n"` to whatever it's given; the zero-row case additionally writes `iohelp.WriteLine(cli.CliOut, "{}")` (`sql_print.go:148-149`) — itself already `"\n"`-terminated — before that same final blank-line write, so the real zero-row stdout is `"{}\n\n"`, not a bare 2-byte `"{}"` | `go/libraries/doltcore/table/typed/json/writer.go:243-249` (`Close`, footer write, no added newline); `go/cmd/dolt/commands/sql.go:452-470` (`execSingleQuery`, the `-q` one-shot path, calls `PrettyPrintResults` not `PrettyPrintResultsExtended`); `go/cmd/dolt/commands/engine/sql_print.go:55-61` (`PrintNoSummary` is what `PrettyPrintResults` passes), `:148-149` (zero-row `{}` write), `:168-170` (unconditional trailing blank-line write for `FormatJson`); `go/libraries/utils/iohelp/write.go:66-68` (`WriteLine` always appends `"\n"`) | Directly grounds task 4's "trim JSON surrounding whitespace before structural parse" requirement with real, cited evidence of trailing whitespace in captured stdout, rather than a purely defensive assumption: §6.3 now states the parser trims leading/trailing ASCII whitespace from the captured buffer before attempting to match either of the two valid top-level shapes, and that both the nonempty (`{"rows":[...]}\n`) and zero-row (`{}\n\n`) real outputs parse correctly under that rule. |
+| C28 | `//go:build unix` is a real, documented Go build constraint that matches every POSIX-family `GOOS` value Go supports (including `aix`, `solaris`, `illumos`, `dragonfly`), not only `linux`/`darwin` | Go standard library/toolchain documentation for build constraints (the `unix` build tag is defined as the union of all Unix-like `GOOS` values the toolchain recognizes, a strictly larger set than this project's tested platforms) | rev-4 **imprecision**: this project's actual CI matrix (`.github/workflows/ci.yml:18-25`) tests only `ubuntu-latest`/`macos-latest`; a `unix`-tagged lock file would silently compile (and claim to work) on untested POSIX targets. §7.2 now uses the exact `//go:build linux \|\| darwin` constraint, with `//go:build !linux && !darwin` as the explicit, narrower fallback. |
+| C29 | `flock(2)`'s advisory-lock guarantee is documented as applying to the local kernel's view of an open file description; POSIX and Linux/BSD manual pages do not guarantee `flock` semantics are honored identically by every network/shared filesystem client (NFS in particular has historically had inconsistent or client-local-only `flock` emulation depending on protocol version and mount options) | `flock(2)` manual page ("Advisory locks... ", the "NOTES" section on NFS behavior varying by kernel/mount configuration is a widely-documented caveat of this syscall, not specific to this project) | Grounds §7.2's new filesystem-contract preflight (rev-5): this design does not claim `flock` provides real mutual exclusion on every mount a `.tpatch/` directory could live on, and refuses known-risky/unrecognized filesystem types via `statfs` before creating the lock file at all. |
+| C30 | `os/exec.Cmd`'s `StdoutPipe`/`StderrPipe` return `io.ReadCloser`s that must be fully drained (or the child can block writing to a full pipe); `cmd.Wait()` requires all reads from these pipes to complete before it is called, per the documented contract | Go standard library `os/exec` package documentation for `Cmd.StdoutPipe`/`Cmd.StderrPipe` ("It is thus incorrect to call Wait before all reads from the pipe have completed") | Grounds §6.4/§8.1's redesigned output-cap mechanism (rev-5): continuing to drain both pipes to completion after a cap-triggered kill (rather than abandoning the read) is required by this documented contract, not merely a defensive nicety. |
 
 ### 0.2 What rev-4 removes or changes
 
@@ -235,6 +304,21 @@ golden vectors and the worked batch example's content-addressed
 | 13 | CURRENT/refs final-count updates | `docs/handoff/CURRENT.md` |
 | 14 | ACs/matrix rebuild | §14 |
 
+**Rev-5 items** (18-item list, `07eab8e` dispatch):
+
+| Item | Requirement | Section(s) |
+|---|---|---|
+| 1 | Exact `linux \|\| darwin` / `!linux && !darwin` build tags | §7.2 |
+| 2 | `statfs` filesystem preflight, allow/deny lists | §7.2 |
+| 3 | `db_path` honest pathname-vs-descriptor pre/post checks | §9.1 |
+| 4 | Dolt JSON/args exactness (unchanged from rev-4, reconfirmed) | §6.2 |
+| 5 | Output-cap-as-refusal via `StdoutPipe`/`StderrPipe` + kill | §6.4, §8.1 |
+| 6 | `WORKING`/`STAGED` refusal (`dolt_ignore` risk) | §6.2, AC-10/11 |
+| 7 | Full SHA-256 (untruncated) `batch_id` | §7.3, §12.3 |
+| 8 | Batches are an unordered content-addressed set, not a chronology | §4, §7.3 |
+| 9 | Directory `mode` folded into `combined_hash`/diff | §5.1, §12.2 |
+| 10-18 | Citation/wording/count corrections (build-tag precision, lock-body, JSON whitespace, etc.) | §0, §14.1, §15 |
+
 ---
 
 ## 1. Problem Statement
@@ -254,7 +338,9 @@ this adjacent state at all.
 **Goals**: let a feature declare zero or more *resources* — typed,
 named references to non-canonical-patch state — and capture a
 point-in-time, privacy-safe **summary** of each into one tracked,
-append-only, per-feature capture history, with all raw content
+content-addressed, per-feature capture set (an unordered set of
+distinct-content batches plus a sole current-state pointer — not a
+chronological append-only log, rev-5 §7.3), with all raw content
 strictly ephemeral (never persisted past the single command that read
 it, in either the tracked or local tree).
 
@@ -369,15 +455,22 @@ never inside `apply-recipe.json` or any unapply/lifecycle-state file:
   only, not a timestamp). **Never** contains a capture result, a hash,
   or any raw content. `add`/`remove`/`clear` are the **only** verbs
   that ever write this file, under the per-slug lock (§7.2).
-- **`artifacts/resource-captures/`** — the append-only capture
-  history: immutable `batches/<batch_id>.json` files (one per
-  successful `capture` invocation, containing every resource result
-  produced by that invocation) plus one atomically-rewritten
-  `current.json` pointer mapping each resource to the batch that holds
-  its latest result (§7.3, §12.3–§12.4). This tree is written
-  **exclusively** by `capture`/`record --resources` — `resources.json`
-  is never part of this transaction, and `add`/`remove`/`clear` never
-  write to `current.json` or any `batches/<id>.json` file, only to
+- **`artifacts/resource-captures/`** — the tracked capture store: an
+  **unordered, content-addressed set** of immutable `batches/
+  <batch_id>.json` files (one per **distinct content**, not one per
+  invocation — rev-5 correction, §7.3; a `capture` invocation that
+  reproduces already-published content writes zero new batch bytes)
+  plus one atomically-rewritten `current.json` pointer mapping each
+  resource to the batch that holds its current result (§7.3,
+  §12.3–§12.4). This is a set of content, not a chronological log —
+  no batch file or the pointer ever records an ordering, sequence
+  number, or timestamp (§0.2), and reverting a resource's content back
+  to a previously-seen state simply repoints `current.json` at the
+  already-existing batch for that content, rather than creating a new
+  entry. This tree is written **exclusively** by `capture`/
+  `record --resources` — `resources.json` is never part of this
+  transaction, and `add`/`remove`/`clear` never write to
+  `current.json` or any `batches/<id>.json` file, only to
   `resources.json` (§3).
 
 ### 4.1 Missing-referenced-batch (closes rev-1's "missing-local" case, now about tracked state)
@@ -491,10 +584,18 @@ in-memory path). The buffer is discarded (Go's garbage collector
 reclaims it; there is no file to delete) once hashing/scanning
 completes — the tracked `result` for this kind is `file_kind`
 (`"text"`/`"binary"`), `size_bytes`, `hash` (single file) or
-`file_count`/`total_bytes`/`combined_hash` (directory — the combined
-hash is `SHA-256` over each matched file's repo-relative path and its
-own hash, sorted by path, joined `\x00`-delimited, so it changes if
-any file's content, size, or the file set itself changes).
+`file_count`/`total_bytes`/`combined_hash` (directory — rev-5: the
+combined hash is `SHA-256` over each matched file's canonical
+**`path\x00mode\x00hash`** tuple (`path` repo-relative, `mode` the
+same 6-digit octal-string convention as `index-entry`'s `mode`
+sourced from a plain `os.Stat`, `hash` the file's own `SHA-256` hex
+digest), one tuple per matched file, sorted by `path`, tuples
+themselves `\x00`-joined — so a **chmod-only** change (identical
+bytes, different permission bits) now changes `combined_hash`, not
+just a content or file-set change; rev-4's formula omitted `mode`
+from the hash input entirely even though `files[]` already carried a
+per-file `mode` (§12.2), so a permission-only change was silently
+invisible to `combined_hash` and to `diff` — this is corrected).
 
 **`diff`** (§3, task 9): **reads current file content** through the
 same bounded in-memory scanner `capture` uses (not a metadata-only
@@ -505,13 +606,20 @@ and is corrected) to recompute `file_kind`/`size_bytes`/`hash`
 (directory) exactly as `capture` would, and compares the fresh result
 against the last tracked batch's `result` for this resource. Reports
 `unchanged`, or exactly which of `size_bytes`/`hash`/`file_count`/
-`total_bytes`/`combined_hash`/file-set membership differs — never a
-textual line-level diff of file content (§2's non-goal is about
-line-level diffing, not about whether content is read at all). `diff`
-never writes any tracked or scratch file and never acquires the lock
-(§7.6) — it is read-only in effect, not in the sense of "never opens
-a file." A directory `diff` inherits the same sequential-read
-consistency residual as a directory `capture` (above).
+`total_bytes`/`combined_hash`/file-set membership/per-file `mode`
+differs — never a textual line-level diff of file content (§2's
+non-goal is about line-level diffing, not about whether content is
+read at all). Because `mode` is now part of `combined_hash`'s input
+(above, rev-5), a chmod-only change (identical file set, identical
+byte content, changed permission bits on one or more files) is
+distinguishable from a content change: `diff` reports it as a `mode`
+difference on the specific `files[]` entry/entries whose `mode`
+changed, with `hash`/`byte_count` unchanged for that entry, rather
+than folding it into an undifferentiated "`combined_hash` differs"
+report. `diff` never writes any tracked or scratch file and never
+acquires the lock (§7.6) — it is read-only in effect, not in the
+sense of "never opens a file." A directory `diff` inherits the same
+sequential-read consistency residual as a directory `capture` (above).
 
 ### 5.2 `git-metadata` (task 10)
 
@@ -701,19 +809,36 @@ the **column type**; see §6.3 (C25) for the separate, stronger claim
 that the code path emitting each row also produces a **native Go
 `bool`** for these two columns.
 
-**Refs, `WORKING`/`STAGED` (C19, source-confirmed)**: `from`/`to`
-accept any Dolt commit-ish resolvable by `ResolveRootForRef`(
-`dsess/session.go:1022-1031`) — branch names, tags, full or abbreviated
-commit hashes, **and** the exact, case-sensitive literal strings
-`WORKING` and `STAGED` (`doltdb.go:51-52`; lowercase or mixed case does
-**not** match and instead attempts ordinary commit-spec resolution,
-which will fail for those literal strings). This corrects rev-2's
-explicit "not independently confirmed" hedge — the answer is now
-confirmed yes, exact-case only. This PRD's own examples and golden
-vectors still use only concrete branch/ref names (`main`, `HEAD`),
-not `WORKING`/`STAGED`, purely to keep the running example simple; a
-caller may declare either value and it is passed through unmodified
-(subject to the escaping rules above, which neither literal violates).
+**Refs, `WORKING`/`STAGED` explicitly refused in v1 (C19, rev-5
+correction)**: `dsess/session.go:1022-1031`'s `ResolveRootForRef`
+does accept the exact, case-sensitive literal strings `WORKING` and
+`STAGED` (`doltdb.go:51-52`) in addition to any ordinary commit-ish —
+this remains a **true, source-confirmed fact** about upstream Dolt's
+capability, unchanged from rev-4's citation. What rev-5 corrects is
+this PRD's own design choice: rev-4 stated `from`/`to` **accept**
+either literal and pass it through; this design now **explicitly
+refuses** both (case-insensitively, so `Working`/`staged`/etc. are
+also caught rather than silently falling through to a failed
+commit-spec resolution), returning `dolt-argument-refused` (exit 2)
+before the child process is ever started. The reason is the working
+tree/staged index, unlike any committed ref, is itself gated by
+Dolt's own `dolt_ignore` table (a Dolt-level analog of `.gitignore`)
+— a table matched by `dolt_ignore` can be silently absent from
+`WORKING`/`STAGED`'s row set the same way an ignored file is absent
+from a Git working tree listing, and since this PRD already makes
+`table` mandatory specifically so a primary-key-set change is a hard
+error rather than a silent omission (C20 below), allowing a ref value
+that reintroduces a different, independent silent-omission path would
+undercut that guarantee for no compensating benefit; v1's committed-
+ref-only scope (branch names, tags, full/abbreviated commit hashes)
+side-steps `dolt_ignore` entirely, since ignore-table membership is a
+working-set-only concept that a committed diff never consults.
+Accepting `WORKING`/`STAGED` remains a plausible **future**
+capability (e.g. a v2 opt-in that explicitly documents the
+`dolt_ignore` interaction rather than silently inheriting it) but is
+out of scope for this PRD, not merely deferred by omission — a caller
+that declares either literal today gets a validation-time refusal, not
+a passthrough.
 
 **Primary-key-set-change hard error (C20, source-confirmed, task 12)**:
 because `table` is now mandatory, every invocation takes the single
@@ -830,9 +955,9 @@ silently normalized.
 | Parameter | Value |
 |---|---|
 | Invocation timeout | 30 seconds. On timeout: `SIGTERM` to the process group, then `SIGKILL` after 2 more seconds if still running. |
-| Captured output cap | 5 MiB combined stdout+stderr, captured into **bounded in-process memory buffers** via an actual cap-plus-one read (the reader stops once `limit+1` bytes have actually been read from the pipe, rather than trusting the process's own claims about how much it wrote) — task 2's "zero pre-scan persistence," never written to a scratch file first, §7.1/§8; output beyond the cap is truncated, and the truncation fact is recorded only in local, ephemeral diagnostics (§7.5) — never in the tracked artifact, which never contains raw output at all. |
+| Captured output cap | 5 MiB combined stdout+stderr, enforced as a **refusal, never a truncation** (rev-5 correction — rev-4's "output beyond the cap is truncated" contradicted its own "zero pre-scan persistence"/fail-closed framing, since silently truncating and proceeding is itself a form of trusting unbounded input up to the point of truncation). The adapter uses `cmd.StdoutPipe()`/`cmd.StderrPipe()` (never `cmd.Stdout`/`cmd.Stderr` set to a `*bytes.Buffer`, which has no built-in bound) with two concurrent goroutines draining each pipe into a **shared** cap-plus-one budget (a single `int64` counter both readers atomically decrement, so stdout and stderr together, not each independently, are bounded by the 5 MiB total) — task 2's "zero pre-scan persistence," never written to a scratch file first, §7.1/§8. The **instant** the shared budget's `limit+1`th byte is actually read from either pipe, the adapter sends `SIGTERM` then (after the existing 2-second grace) `SIGKILL` to the child's **process group** (the same termination mechanism as a timeout), continues draining both pipes to completion (so the child is never left blocked writing to a full, unread pipe while being killed) and `cmd.Wait()`s for it, then refuses the whole invocation with `resource-limit-exceeded` (exit 3) — no partial/truncated output is ever handed to the JSON parser (§6.3) or scanned for redaction (§8), and no tracked artifact reflects a truncated result. **stdout and stderr are captured and bounded identically, but are never merged for parsing purposes**: only the stdout buffer is ever handed to §6.3's JSON parser; the stderr buffer exists solely to be scanned for redaction (§8.3) and, on a non-zero exit or a `dolt-query-error`, to populate the local, ephemeral diagnostic (§7.5) — it is never itself parsed as JSON and never influences whether stdout parses successfully. |
 | Environment | **Not** inherited from the invoking process (task 2's "no inherited credentials"). A fresh, minimal environment is constructed: `HOME=<scratch-home>` and `DOLT_ROOT_PATH=<scratch-home>` pointing at a directory created fresh under this invocation's ephemeral scratch tree (§7.1, `0700`, created before the child process starts so Dolt may write its own ephemeral config/state there if it chooses to — this is not a network or version call, just process-local state under an isolated `HOME`); `PATH` is **not** set at all (the adapter is invoked by its already-resolved absolute path, §6.1, so `PATH` lookup is never needed mid-invocation). No other variable is passed through. |
-| Termination | Process-group termination (the child and any of its own children) on timeout, to avoid orphaned Dolt subprocesses. |
+| Termination | Process-group termination (the child and any of its own children) on timeout **or** on a cap-plus-one overflow (identical mechanism, §6.4 above), to avoid orphaned Dolt subprocesses. |
 
 A concrete, fully-specified argv/SQL example for Vector 2 (§0.3) —
 `db_path=data/dolt-db, table=users, from=main, to=HEAD`:
@@ -865,25 +990,43 @@ created, matching §10.3's row for this exact case.
 
 Rev-3 removed rev-2's per-resource `raw`/`files/<relpath>` scratch
 files entirely (task 2's "zero pre-scan persistence" — see §8); rev-4
-additionally replaces rev-3's temp-directory/`owner.json`/PID-based
+additionally replaced rev-3's temp-directory/`owner.json`/PID-based
 lock protocol with a single, persistent, kernel-`flock`'d file (§7.2,
-task 1). The scratch tree now holds **only** control data, never a
-captured byte, and has no lock-specific transient directories at all:
+task 1). Rev-5 corrects a diagram error rev-4 introduced: the
+tracked-batch and tracked-pointer temp files were shown living under
+this **local**, gitignored scratch tree, but §7.3 has always created
+them beside their **tracked** destination (`artifacts/resource-
+captures/batches/<batch_id>.tmp-*.json` and `artifacts/resource-
+captures/.tmp-current.json`, so that the final rename is a
+same-directory, filesystem-atomic operation) — the local scratch tree
+never contains either of them. The local scratch tree now holds
+**only** control data, never a captured byte and never a tracked-temp
+file:
 
 ```
 .tpatch/local/resource-scratch/<slug>/
   .lock                            -- persistent, ignored+untracked control file, created once and never deleted (§7.2)
-  batches/<batch_id>.tmp-<12 lowercase hex>.json  -- transient, present only mid-write of a tracked batch (§7.3)
-  .tmp-current.json                -- transient, present only mid-write of the tracked pointer (§7.3, one exact name, no suffix — the lock already serializes this file)
   es_<12 lowercase hex>/           -- one ephemeral-scratch directory per in-progress capture/record-resources invocation
     dolt-home/                    -- scratch HOME/DOLT_ROOT_PATH for the Dolt adapter (§6.4); may contain Dolt's own config/state files, never repo content
+```
+
+The **tracked** tree (`artifacts/resource-captures/`, §7.3, §12.3–§12.4)
+separately holds its own transient temp files, each beside its own
+final destination, never under `.tpatch/local/`:
+
+```
+artifacts/resource-captures/
+  batches/<batch_id>.json                          -- committed batch (§7.3 step 3)
+  batches/<batch_id>.tmp-<12 lowercase hex>.json    -- transient, present only mid-write of that batch (§7.3 step 3)
+  current.json                                      -- committed pointer (§7.3 step 4)
+  .tmp-current.json                                 -- transient, present only mid-write of the pointer (§7.3 step 4, one exact name, no suffix — the lock already serializes this file)
 ```
 
 `.lock` (task 1) is created once, `0600`, the first time any mutator
 runs for a given slug, and is **never removed** by any mutator — see
 §7.2 for why deleting an advisory lock file is itself an unsafe
 pattern this design deliberately avoids. `dolt-home/` is the only
-scratch content that can persist for the duration of a single
+local scratch content that can persist for the duration of a single
 invocation beyond in-process memory — it holds whatever ephemeral
 config Dolt itself chooses to write under an isolated `HOME`/
 `DOLT_ROOT_PATH`, never a captured ignored-file byte or a copy of
@@ -897,39 +1040,52 @@ success and failure paths; a removal failure is a local diagnostic
 
 `add`/`remove`/`clear` (task 1) acquire the same per-slug `flock`
 (§7.2) before touching `resources.json`, but never create `es_<id>/`
-and never perform the orphan sweep below — only `capture`/
-`record --resources` ever create scratch content, so only they are
-responsible for cleaning it up.
+and never perform either orphan sweep below — only `capture`/
+`record --resources` ever create scratch content (local or tracked),
+so only they are responsible for cleaning it up.
 
 `--dry-run` (§3, task 7) still acquires the lock and may still create
 a real `es_<id>/dolt-home/` if the targeted resource set includes a
 Dolt capability (a real Dolt invocation needs a real, isolated `HOME`
-regardless of `--dry-run`) — but writes no tracked batch/pointer and
-removes `es_<id>/` at the end exactly as a real capture does; the
-persistent `.lock` file, once created, is not removed for `--dry-run`
-either, exactly as it is not for a real capture — "no persistent local
-writes survive" (§3) is about the ephemeral scratch tree, not the
-lock, which by design is never ephemeral.
+regardless of `--dry-run`) — but writes no tracked batch/pointer,
+**runs neither the local nor the tracked orphan sweep** (both sweeps
+below are exclusively `capture`/`record --resources` behavior, and
+`--dry-run` never reaches §7.3's publication sequence where the
+tracked sweep is invoked), and removes `es_<id>/` at the end exactly
+as a real capture does; the persistent `.lock` file, once created, is
+not removed for `--dry-run` either, exactly as it is not for a real
+capture — "no tracked writes and no persistent local writes" (§3) is
+about the tracked tree and the ephemeral scratch tree, not the lock,
+which by design is never ephemeral.
 
 **Orphan cleanup** (task 1, task 6): a startup sweep runs **only**
 after the current invocation has itself acquired the live `flock`
-(§7.2) — never before acquiring it, and never from `add`/`remove`/
-`clear` (which acquire the lock but never sweep, task 6's "never from
-add outside lock," now extended to `remove`/`clear` too, since v1 has
-no reason to sweep from a verb that never creates scratch content).
-There are two, separately-enumerated sweeps under the same acquired
-lock: (1) the **local** sweep removes any leftover `es_*/` directory
-for this slug (a prior `capture`/`record --resources` that crashed
-mid-invocation); (2) the **tracked** sweep removes any leftover
-`batches/*.tmp-*.json`/`.tmp-current.json` file (§7.3). Because rev-4
-has no lock-acquisition-time temporary state at all (§7.2 — `flock` is
-acquired directly on the persistent `.lock` file with no intermediate
-name), there is no third "lock temp/quarantine" sweep to run; sweeping
-under the lock still guarantees neither sweep ever races a different,
-concurrently-running mutator's own in-flight scratch content, since
-only one mutator can hold the `flock` at a time (§7.2). Removal is
-best-effort (`os.RemoveAll`/`os.Remove`), silent on success, logged as
-a local diagnostic on failure — never a hard failure of the current
+(§7.2) — never before acquiring it, never from `add`/`remove`/`clear`
+(which acquire the lock but never sweep, task 6's "never from add
+outside lock," extended to `remove`/`clear` too, since v1 has no
+reason to sweep from a verb that never creates scratch content), and
+**never** from `--dry-run` (which acquires the lock and may create
+local scratch, but never reaches the publication step where the
+tracked sweep runs, and only ever removes its own `es_<id>/`
+directly, not via the general orphan-sweep code path). There are two,
+separately-enumerated sweeps, both under the same acquired lock and
+run only by `capture`/`record --resources`: (1) the **local** sweep
+removes any leftover `es_*/` directory under
+`.tpatch/local/resource-scratch/<slug>/` for this slug (a prior
+`capture`/`record --resources` that crashed mid-invocation); (2) the
+**tracked** sweep removes any leftover
+`artifacts/resource-captures/batches/*.tmp-*.json`/
+`artifacts/resource-captures/.tmp-current.json` file (§7.3) — this
+sweep operates on the tracked tree, never on `.tpatch/local/`, per the
+corrected diagram above. Because rev-4 has no lock-acquisition-time
+temporary state at all (§7.2 — `flock` is acquired directly on the
+persistent `.lock` file with no intermediate name), there is no third
+"lock temp/quarantine" sweep to run; sweeping under the lock still
+guarantees neither sweep ever races a different, concurrently-running
+mutator's own in-flight scratch content, since only one mutator can
+hold the `flock` at a time (§7.2). Removal is best-effort
+(`os.RemoveAll`/`os.Remove`), silent on success, logged as a local
+diagnostic on failure — never a hard failure of the current
 invocation.
 
 ### 7.2 Lock semantics (task 1)
@@ -974,12 +1130,14 @@ no polling, no configurable timeout in v1):
 1. `os.OpenFile(".lock", O_CREATE|O_RDWR, 0600)` — creates the lock
    file the first time (after the local-ignore/untracked gate, §7.1,
    task 8), or opens the existing one on every subsequent invocation.
-   The file's *content* is never read or written by the lock protocol
-   itself; it exists purely to be an inode `flock` can attach to. (An
-   implementation may write a short, non-authoritative debugging
-   comment — e.g. the literal string `"tpatch resource lock\n"` — at
-   creation time only, purely for a human inspecting the file with
-   `cat`; no code path ever parses it back.)
+   The file has **no body at all** (rev-5 correction: rev-4's text
+   allowed an optional, non-authoritative debugging comment to be
+   written at creation, which the companion ADR never mirrored — the
+   two documents must describe the identical byte content, and empty
+   is the simpler, unambiguous choice): it is never written to, read
+   from, or parsed by any code path — it exists purely to be an inode
+   `flock` can attach to, and stays a zero-length file for its entire
+   lifetime.
 2. `syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)`. Success means
    this process now exclusively holds the advisory lock on this
    inode — proceed. `EWOULDBLOCK`/`EAGAIN` means a different live
@@ -1023,27 +1181,83 @@ exit 3) rather than blocking. There is no v1 requirement to serialize
 by waiting; callers that want serialized execution retry the whole
 command themselves.
 
-**Platform contract** (task 1): `flock(2)` (via `syscall.Flock`) is
-implemented behind a Go build tag restricted to `unix` (Darwin/Linux).
-This is not a speculative scope choice: the project's actual CI matrix
+**Platform contract, exact build tags** (task 1, rev-5 correction):
+`flock(2)` (via `syscall.Flock`) is implemented behind a Go build tag
+restricted to **exactly** `//go:build linux || darwin` — not the
+broader `unix` set rev-4 named, which Go's build-constraint vocabulary
+also expands to include AIX, Solaris, and other Unix-family targets
+where `syscall.Flock` either does not compile identically or is not
+independently verified by this project. A second, complementary
+build-tagged file, `//go:build !linux && !darwin`, provides a stub
+`Acquire` that unconditionally returns a distinct, documented error
+class, `resource-lock-unsupported` (**exit 3**), on every other
+`GOOS`/`GOARCH` combination — including AIX, Solaris, Windows, and any
+future target — without touching the filesystem. This is not a
+speculative scope choice: the project's actual CI matrix
 (`.github/workflows/ci.yml:18-25`) runs `test (${{ matrix.os }})` over
-exactly `os: [ubuntu-latest, macos-latest]` — no Windows runner exists
-in the tested matrix today — so a POSIX-only `flock` v1 is consistent
-with, and does not regress, the hosts this project actually builds and
-tests on, matching the existing `ADR-004-m10-copilot-proxy-ux.md` D6
-precedent ("Windows: not supported in M10"). A second build-tagged file
-(`!unix`, e.g. a future Windows target) provides a stub implementation
-whose `Acquire` unconditionally returns a distinct, documented error
-class, `resource-lock-unsupported` (**exit 3**) — every one of the
-five mutating verbs surfaces this exact error on an unsupported host,
-rather than silently proceeding unlocked or attempting an unsafe
-cross-platform approximation. Windows and any other non-`unix` host are
-therefore **explicitly unsupported and deferred** for resource capture
-in v1 — not a portable-lock design in disguise, and not implicitly
-assumed safe merely because the code compiles there; a future PRD
-would need to add both CI coverage and a real Windows locking primitive
-(e.g. `LockFileEx`) before lifting this restriction. This is a hard,
-explicit "unsupported" contract, not a best-effort fallback.
+exactly `os: [ubuntu-latest, macos-latest]` — Linux and Darwin only, no
+AIX/Solaris/Windows runner exists in the tested matrix today — so a
+`linux || darwin`-only `flock` v1 is consistent with, and does not
+regress, the hosts this project actually builds and tests on, matching
+the existing `ADR-004-m10-copilot-proxy-ux.md` D6 precedent ("Windows:
+not supported in M10"). Windows and every other non-`linux`/non-`darwin`
+host are therefore **explicitly unsupported and deferred** for resource
+capture in v1 — not a portable-lock design in disguise, and not
+implicitly assumed safe merely because the code happens to compile on
+a broader `unix` build tag; a future PRD would need to add both CI
+coverage for any additional target and a real locking primitive for it
+(e.g. `LockFileEx` for Windows) before lifting this restriction. This
+is a hard, explicit "unsupported" contract, not a best-effort fallback.
+
+**Filesystem contract — `flock` is a local-filesystem-only guarantee**
+(task 2, new in rev-5): `flock(2)`'s advisory-lock semantics are only
+guaranteed by the kernel for genuinely local filesystems; several
+POSIX-compliant systems document `flock` as unsupported, only
+partially supported, or supported solely through NFS lock-manager
+(`NLM`)/`nfs4` client behavior that this design does not verify or
+depend on for network/shared/clustered filesystems (NFS, network SMB
+mounts, some FUSE-backed or overlay filesystems, and other non-local
+mounts) — using `flock` there could silently fail to serialize
+concurrent invocations from **different hosts**, which this design
+never claims to support in the first place (v1's lock is a
+single-host, same-machine-process serialization primitive only, never
+a distributed/cross-client lock). To fail closed rather than silently
+degrade, `Acquire` performs a `statfs`-family preflight on
+`.tpatch/local/resource-scratch/<slug>/` (the directory that will
+contain `.lock`) **before** the `O_CREATE`/`flock` sequence above:
+
+- **Linux**: `unix.Statfs(path, &buf)`, inspecting `buf.Type` against a
+  small, explicit **allowlist** of local-filesystem magic numbers
+  (`EXT4_SUPER_MAGIC`, `XFS_SUPER_MAGIC`, `BTRFS_SUPER_MAGIC`,
+  `TMPFS_MAGIC`, `APFS_SUPER_MAGIC` where applicable via a Linux VM/
+  container mounting one) — a **known-denied** type (`NFS_SUPER_MAGIC`,
+  `CIFS_MAGIC_NUMBER`, `SMB2_MAGIC_NUMBER`, `FUSE_SUPER_MAGIC`) or any
+  **unrecognized** type both refuse identically.
+- **Darwin**: `unix.Statfs(path, &buf)`, inspecting `buf.Fstypename`
+  (a short string, e.g. `"apfs"`/`"hfs"`) against a small allowlist
+  (`"apfs"`, `"hfs"`) — a known-denied value (`"nfs"`, `"smbfs"`,
+  `"webdav"`) or any unrecognized value both refuse identically.
+- Refusal outcome, either platform: `resource-lock-filesystem-unsupported`
+  (**exit 3**), returned before `.lock` is ever opened or created —
+  this is a distinct error class from `resource-lock-unsupported`
+  (which is about the *build tag*/`GOOS`, not the *mount*) so a caller
+  can distinguish "your OS isn't supported at all" from "your OS is
+  supported, but this particular directory is on a filesystem this
+  design refuses to trust `flock` on."
+
+This is explicitly **not** a claim of cross-client/cross-host
+serialization on any filesystem, networked or otherwise — v1's lock
+exists solely to serialize same-host, same-machine concurrent
+processes, and the filesystem-type check exists only to fail closed
+rather than silently provide a false sense of safety on a mount where
+even that narrower guarantee might not hold. If a project's actual
+deployment target set turns out to make this allowlist too brittle in
+practice (an unrecognized-but-actually-safe local filesystem type, for
+instance), the fallback is an explicit, **documented operator
+precondition** — "resource capture requires `.tpatch/local/` to live
+on a recognized local filesystem" — with a detectable, actionable
+refusal (this exact error), not a silent claim that `flock` works
+universally on every filesystem a future host might mount.
 
 **`list` and `diff`** (task 1, §7.6) never acquire `.lock` at all —
 they are pure reads of whatever `resources.json`/`current.json`/
@@ -1066,16 +1280,22 @@ lock-gated orphan sweep (§7.1):
    **whole** invocation aborts here: no batch file is written, `es_<id>/`
    (if created) is removed, the lock is released, and the command
    exits with the specific refusal's code (all-or-nothing).
-2. **Compute the content-addressed `batch_id`** (task 9, task 16):
-   build the canonical batch body — `{"feature": <feature>, "results":
-   <staged results, sorted by resource_id byte-ascending>}` — through
-   `CanonicalBatchJSON` (§12's fixed-field, map-free canonical
-   encoder), hash it (`SHA-256`), and take `batch_id = "rb_" +
-   hex(...)[:12]`. Unlike rev-2's random `batch_id`, an unchanged
-   underlying capture (identical `feature` + identical staged
-   `results`) always reproduces the identical `batch_id` — this is
-   what makes a retry after a step-3 crash (below) idempotent without
-   depending solely on the lock.
+2. **Compute the content-addressed `batch_id`** (task 9, task 16,
+   rev-5: full digest): build the canonical batch body — `{"feature":
+   <feature>, "results": <staged results, sorted by resource_id
+   byte-ascending>}` — through `CanonicalBatchJSON` (§12's
+   fixed-field, map-free canonical encoder), hash it (`SHA-256`), and
+   take `batch_id = "rb_" + hex(...)` — the **full**, untruncated
+   64-character lowercase-hex digest, not a truncated prefix (rev-4
+   truncated to `[:12]`, a 48-bit space that is collision-prone for a
+   content-addressing scheme meant to be a fatal-on-mismatch integrity
+   guarantee, not merely a display-friendly short ID; resource IDs
+   (§13, `res_` + 12 hex) are a **separate, unaffected** convention —
+   only `batch_id` grows to the full digest). Unlike rev-2's random
+   `batch_id`, an unchanged underlying capture (identical `feature` +
+   identical staged `results`) always reproduces the identical
+   `batch_id` — this is what makes a retry after a step-3 crash
+   (below) idempotent without depending solely on the lock.
 3. **Write the batch**: encode the **complete, intended on-disk file**
    for this batch — the full JSON object as it will actually be
    written to `batches/<batch_id>.json`, including the `batch_id`
@@ -1128,6 +1348,42 @@ lock-gated orphan sweep (§7.1):
    only — they never scan `batches/` directly to infer state.
 5. **Cleanup**: remove `es_<id>/` (if created), release the lock
    (§7.2).
+
+**Batches are an unordered, content-addressed set — not a chronology**
+(task 8, rev-5 correction): rev-4's "one batch per successful capture
+invocation" phrasing could be misread as implying batches accumulate
+as an ordered event log, or that "the newest batch" is a meaningful
+concept. Neither is true. A `batch_id` names **exactly one, distinct
+piece of content** — two invocations (whether the same run retried, or
+two genuinely separate captures that happen to stage byte-identical
+`results` for the same `feature`) that produce the identical canonical
+body land on the identical `batch_id` and therefore the identical file
+on disk (step 3's idempotent branch); there is no invocation counter,
+sequence number, or timestamp anywhere in a batch file (§0.2) that
+would let two occurrences of the same content be distinguished as
+"first" and "second." `current.json` (§12.4) is the **sole**
+authoritative statement of current state — it names, per resource, the
+one `batch_id` that resource currently points at, and nothing else in
+this design is chronologically ordered or historically authoritative.
+A concrete consequence: if a resource's content is captured (batch
+`A`), then changes and is captured again (batch `B`), then reverts to
+exactly its original content and is captured a third time, the third
+capture recomputes the identical canonical body as the first and
+therefore the identical `batch_id` `A` — `current.json` is simply
+rewritten to point at `A` again (step 4), and **no third batch file is
+ever created**, because `A` already exists on disk with matching
+file-wire bytes (step 3's idempotent branch). This is not a "rewind"
+in the sense of restoring a prior historical state from a log — there
+is no log — it is simply "the pointer now names the same content it
+named before," and the fact that `B` was ever current is not
+recoverable from this design at all once `current.json` no longer
+names it (batch `B`'s file remains on disk as an orphan per this
+section's crash-window table, but no tracked mechanism ever
+lists/enumerates it as "history" — see §4.1/§16 which explicitly defer
+event-chronology tracking to a future PRD). "One file per invocation"
+(rev-4's phrasing) is corrected everywhere in this PRD/ADR to "one file
+per distinct content" — an invocation that reproduces existing content
+writes zero new bytes to `batches/`, it only (re)writes the pointer.
 
 **Crash-window analysis** (task 6):
 
@@ -1230,11 +1486,14 @@ exit 3) if that many were read, so a file that is grown by a
 concurrent process between an initial `Stat` and the actual read
 cannot silently bypass §5.1's per-file/total/file-count limits by
 appearing small at stat-time and large at read-time; Dolt's
-stdout/stderr are captured into a bounded in-process `bytes.Buffer`
-via the identical actual-read discipline (bounded by §6.4's 5 MiB
-combined cap, §6.4) as the child process runs, never redirected to a
-scratch file. Scanning (§8.2), hashing, and classification (§5.1's
-`binary`/`text` first-8-KiB check) all operate on these in-memory
+stdout/stderr are captured via `cmd.StdoutPipe()`/`cmd.StderrPipe()`
+into two in-memory buffers under the identical actual-read discipline,
+sharing a single cap-plus-one budget (§6.4's 5 MiB combined cap,
+enforced as a refusal via process-group kill on overflow, never a
+`*bytes.Buffer` with no bound of its own) as the child process runs,
+never redirected to a scratch file. Scanning (§8.2), hashing, and
+classification (§5.1's `binary`/`text` first-8-KiB check) all operate
+on these in-memory
 buffers directly. Once a resource's `result` has been computed, the
 buffer is discarded (garbage collected) — there is no file to delete,
 because none was ever created. The only content that can legitimately
@@ -1385,40 +1644,57 @@ ancestor-walk and open-time checks — it is not a Dolt-specific path
 policy; only the Dolt **executable** itself (§9.2) uses the
 opposite-direction policy.
 
-**`db_path`/`cmd.Dir` honesty** (task 3): unlike every other path this
-gate protects, `db_path` is not opened and read by this process — it
-is handed to Dolt as a **child process's working directory** via Go's
-`os/exec.Cmd.Dir`, which is a plain pathname **string**, not a file
-descriptor. There is no portable stdlib mechanism to bind a spawned
-child's working directory to an already-opened, already-validated
-directory descriptor (no `fdopendir`-plus-`fexecve`-shaped API is
-exposed by `os/exec`) — so between this gate's validation and the
-moment the child process actually opens its cwd internally, the
-validated pathname could in principle be swapped for something else by
-a sufficiently well-timed local concurrent process. This design
-narrows, but does not eliminate, that window:
+**`db_path`/`cmd.Dir` honesty** (task 3, rev-5 correction): unlike
+every other path this gate protects, `db_path` is not opened and read
+by this process — it is handed to Dolt as a **child process's working
+directory** via Go's `os/exec.Cmd.Dir`, which is a plain pathname
+**string**, not a file descriptor. There is no portable stdlib
+mechanism to bind a spawned child's working directory to an
+already-opened, already-validated directory descriptor (no
+`fdopendir`-plus-`fexecve`-shaped API is exposed by `os/exec`) — so
+between this gate's validation and the moment the child process
+actually opens its cwd internally, the validated pathname could in
+principle be swapped for something else by a sufficiently well-timed
+local concurrent process. This design narrows, but does not eliminate,
+that window. The check is **pathname-vs-descriptor**, not
+descriptor-vs-descriptor — a stat on an already-held open file
+descriptor always matches itself regardless of what has happened to
+the *name* in the filesystem since it was opened, so re-`fstat`ing the
+same descriptor twice and comparing the two results would be a
+tautology that can never detect a swap; the real question is always
+"does the pathname `db_path` still resolve to the exact directory we
+have open," which requires a **fresh** pathname resolution each time:
 
 1. Steps 1–5 above run once at `add` time, and again at the start of
-   every `capture`/`diff` (as with any other gated path).
-2. The full gate is **re-run a second time, immediately before
-   `cmd.Start()`**, minimizing the gap between "last validated" and
-   "handed to the child" as far as this process's own code can.
-3. Step 4's final open (`O_NOFOLLOW`, as a directory) is kept open —
-   the resulting directory file descriptor is held for the entire
-   lifetime of the Dolt child process, even though `cmd.Dir` itself
-   still receives the pathname string, not this descriptor; holding it
-   open at least guarantees the underlying inode cannot be fully
-   deleted-and-reused while the descriptor is live, and provides a
-   basis for step 4's re-check.
-4. After the child process exits, the held descriptor is `fstat`'d
-   again and compared (`os.SameFile`) against the `FileInfo` captured
-   in step 2 immediately before `cmd.Start()` — a mismatch is reported
-   as `db-path-identity-changed` in local diagnostics (§7.5) alongside
-   the capture's own result, as a **detection**, not a prevention,
-   signal: by the time this check runs, the child process has already
-   used whatever directory it actually resolved at its own open time,
-   so this can only flag that something suspicious happened, not
-   undo it.
+   every `capture`/`diff` (as with any other gated path). The final
+   step's directory open (`O_NOFOLLOW`) is kept open for the remainder
+   of the invocation.
+2. **Immediately before `cmd.Start()`**: the gate re-runs its full
+   ancestor-walk-plus-open sequence a second time from scratch — a
+   **fresh** `Lstat` of the `db_path` pathname component chain, not a
+   reuse of step 1's cached `FileInfo` — and the resulting `FileInfo`
+   is compared, via `os.SameFile`, against the `FileInfo` of the
+   directory descriptor **already held open** from step 1. A match
+   confirms the pathname still names the same directory this
+   invocation has open; a mismatch is refused before the child is ever
+   started.
+3. The held directory descriptor from step 1 remains open for the
+   entire lifetime of the Dolt child process — `cmd.Dir` itself still
+   receives only the pathname string, not this descriptor, but holding
+   it open at least guarantees the underlying inode cannot be fully
+   deleted-and-reused while the descriptor is live, and gives step 4 a
+   stable reference to compare a fresh resolution against.
+4. **After the child process exits**: the gate resolves `db_path`'s
+   pathname **fresh** a third time (a new `Lstat` chain, not the step-2
+   result) and compares that `FileInfo`, again via `os.SameFile`,
+   against the same held descriptor from step 1 — a mismatch is
+   reported as `db-path-identity-changed` in local diagnostics (§7.5)
+   alongside the capture's own result, as a **detection**, not a
+   prevention, signal: by the time this check runs, the child process
+   has already used whatever directory it actually resolved at its own
+   open time, so this can only flag that something suspicious happened
+   during the process's lifetime, not undo it or prove the child
+   itself was affected.
 
 This provides **detection of, not protection against**, a mid-invocation
 `db_path` directory swap by a local concurrent attacker who can win a
@@ -1617,7 +1893,7 @@ capture`/`diff` support `--dry-run`/resource-only preview, §3).
 | `0` | Success (including `diff` reporting "no capture yet") | Success |
 | `1` | Internal error; `tracked-batch-missing` (§4.1) | Same, plus `no-resources-declared` and `resource-domain-incomplete` |
 | `2` | Validation: bad kind/adapter/capability/view, unknown/duplicate/missing `--arg` (including missing `db_path`/`table`), `NUL`/control byte/backslash/`..` in a Dolt arg, missing index entry at `add`, `table` mismatch between selector and declared field | n/a (unmodified) |
-| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `redaction-refused`, `adapter-missing`/`adapter-executable-in-repo`/`adapter-executable-replaced`, `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `batch-id-collision`, `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
+| `3` | State/policy refusal: `not-ignored`, `tracked-and-ignored`, `git-ignore-check-error`, `git-ls-files-error`, any `symlink-component-refused`/`path-missing`/`path-replaced-during-open`, any size/count limit, `resource-limit-exceeded`, `redaction-refused`, `adapter-missing`/`adapter-executable-in-repo`/`adapter-executable-replaced`, `dolt-query-error`, `dolt-json-parse-error`, `local-root-not-ignored`/`local-path-tracked`, `capture-in-progress`, `resource-lock-unsupported`, `resource-lock-filesystem-unsupported`, `batch-id-collision`, `index-entry-missing` | Same set applies to staging (§11 step 2); surfaces as `resource-domain-incomplete` (exit 1) if Git succeeded, or as record's own existing exit code (with the discarded-batch diagnostic) if Git failed |
 
 ## 12. Wire Schemas (task 10, task 12)
 
@@ -1761,10 +2037,12 @@ not a full per-file array):
 (`files[]` entries never carry a `null` field; `mode` is the same
 octal-string convention as `index-entry`'s `mode`, sourced from a
 plain `os.Stat` of the file, not the Git index — an ignored file has
-no index entry by definition. `combined_hash` remains `SHA-256` over
-each entry's `path`+`raw_sha256`, sorted by `path`, `\x00`-joined,
-unchanged from §5.1 — `files[]` is additional detail, not a
-replacement for that aggregate.)
+no index entry by definition. `combined_hash` is `SHA-256` over each
+entry's `path\x00mode\x00raw_sha256` tuple, sorted by `path`, tuples
+themselves `\x00`-joined (§5.1, rev-5: `mode` is now part of the hash
+input, not just a displayed `files[]` field — a chmod-only change now
+changes `combined_hash`) — `files[]` is additional per-file detail,
+not a replacement for that aggregate.)
 
 **`adapter-snapshot` / Dolt `diff-summary`** (§6.2, §6.3):
 
@@ -1787,7 +2065,7 @@ case, §6.3):
 
 ```json
 {
-  "batch_id": "rb_5cff7f222dce",
+  "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7",
   "feature": "model-picker",
   "results": [
     {
@@ -1860,7 +2138,7 @@ case, §6.3):
 ```
 
 `batch_id` is **content-addressed** (§7.3 step 2), not
-random: `rb_5cff7f222dce` is the actual, computed `SHA-256`-derived ID
+random: `rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7` is the actual, computed `SHA-256`-derived ID
 for this exact `{feature, results}` body (`results` sorted by
 `resource_id` byte-ascending, per `CanonicalBatchJSON`, §12 intro) —
 re-running `CanonicalBatchJSON` over this exact JSON (**excluding**
@@ -1895,11 +2173,11 @@ which §12.2's detached-`HEAD` example uses instead, task 10).
 
 ```json
 {
-  "latest_batch_id": "rb_5cff7f222dce",
+  "latest_batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7",
   "resources": [
-    { "resource_id": "res_79f5ac5dca13", "batch_id": "rb_5cff7f222dce" },
-    { "resource_id": "res_acc91dc23a8b", "batch_id": "rb_5cff7f222dce" },
-    { "resource_id": "res_cf8e47e6564b", "batch_id": "rb_5cff7f222dce" }
+    { "resource_id": "res_79f5ac5dca13", "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7" },
+    { "resource_id": "res_acc91dc23a8b", "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7" },
+    { "resource_id": "res_cf8e47e6564b", "batch_id": "rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7" }
   ]
 }
 ```
@@ -2038,10 +2316,10 @@ it did in rev-3.
 - `AC-9`: A `table` that exists in neither `from` nor `to` yields
   `result.tables: []` (zero rows), not an error — distinct from
   `AC-8`'s outcome.
-- `AC-10`: The exact literal strings `WORKING`/`STAGED` (uppercase) are
-  accepted as `from`/`to` values without special-casing at the
-  argument-validation layer (they pass the same escaping rules as any
-  other value).
+- `AC-10`: The exact literal strings `WORKING`/`STAGED`, in any
+  case, are refused with `dolt-argument-refused` (exit 2) at the
+  argument-validation layer, before Dolt is ever invoked — v1 accepts
+  committed refs only.
 - `AC-11`: A `from`/`to` value shaped as a dot-range (containing `..`)
   is refused at validation (`AC-2`) before ever reaching Dolt, so the
   dot-range vs. explicit-form ambiguity in `dolt_diff_summary`'s own
@@ -2127,14 +2405,22 @@ it did in rev-3.
   direction policy (§6.1/§9.2) and is never subject to the ancestor-
   symlink-refusal rule that applies to `AC-26`–`AC-30`.
 - `AC-32`: `db_path`'s gate is re-run a second time immediately before
-  `cmd.Start()`, an open directory descriptor is held across the Dolt
-  child process's lifetime, and identity is re-checked
-  (`os.SameFile`) after the process exits, surfacing a detected
-  mismatch as `db-path-identity-changed` in local diagnostics — this
-  is verified as a **detection**, not a prevention, mechanism (a test
-  simulating a post-gate, pre-exit directory swap confirms the
+  `cmd.Start()` — a **fresh** pathname `Lstat`/resolve, not a reuse of
+  the initial gate's cached `FileInfo` — compared via `os.SameFile`
+  against the directory descriptor already held open from the initial
+  gate; a **third**, independently fresh pathname resolution runs
+  after the Dolt child process exits and is again compared
+  (`os.SameFile`) against the same held descriptor, surfacing a
+  detected mismatch as `db-path-identity-changed` in local diagnostics
+  — this is verified as a **detection**, not a prevention, mechanism
+  (a test simulating a post-gate, pre-exit directory swap confirms the
   mismatch is *flagged*, not silently ignored, without claiming the
-  swap itself was prevented).
+  swap itself was prevented), and a second test confirms the check is
+  genuinely pathname-vs-descriptor, not descriptor-vs-descriptor (a
+  test that only re-`fstat`s the same, unchanged descriptor twice and
+  asserts equality would pass trivially and detect nothing — `AC-32`
+  requires the comparison input to be a freshly-obtained `FileInfo`
+  from a new `Lstat` of the `db_path` string each time).
 
 **`check-ignore` fix, ignored/tracked Git gates (task 1)**
 
@@ -2189,7 +2475,8 @@ it did in rev-3.
 - `AC-45`: All five mutating verbs (`add`, `remove`, `clear`,
   `capture`, `record --resources`) acquire the identical per-slug
   `flock` before their first write; `list`/`diff` never acquire it.
-- `AC-46`: On a build tagged `!unix`, every mutating verb returns
+- `AC-46`: On a build tagged `!linux && !darwin` (the exact fallback
+  constraint, not a generic `!unix`), every mutating verb returns
   `resource-lock-unsupported` (exit 3) deterministically, never
   silently proceeding unlocked.
 - `AC-47`: Two invocations racing to acquire `.lock` for the same slug
@@ -2312,25 +2599,71 @@ it did in rev-3.
   independently recomputed by the implementation and matches exactly,
   including the two `db_path`-bearing vectors' order-independence.
 - `AC-72`: The worked `batches/<batch_id>.json` example's `batch_id`
-  (`rb_5cff7f222dce`, §12.3) is independently recomputed from its
+  (`rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7`, §12.3) is independently recomputed from its
   `CanonicalBatchJSON({"feature","results"})` **hash-input** body
   (excluding `batch_id` itself) and matches exactly.
 
+**Rev-5 additions: build tags, filesystem contract, output-cap
+refusal, `WORKING`/`STAGED` refusal, batch ordering, directory mode**
+
+- `AC-73`: The lock implementation file carries exactly `//go:build
+  linux || darwin`, and its fallback file carries exactly `//go:build
+  !linux && !darwin` — verified by asserting the literal build-tag
+  comment text in each file, not merely its behavior.
+- `AC-74`: A `.tpatch/local/resource-scratch/<slug>/` root created on
+  a filesystem type outside this design's allowlist (simulated via a
+  fake/stubbed `statfs` result, since CI cannot mount a real network
+  filesystem) refuses `resource-lock-filesystem-unsupported` (exit 3)
+  before `.lock` is ever created — distinct from `AC-46`'s
+  build-tag-based refusal, verified by asserting the two error
+  strings never collide and the filesystem check runs strictly before
+  the lock-file-creation code path.
+- `AC-75`: A simulated Dolt child process that writes more than 5 MiB
+  combined stdout+stderr is killed (process group `SIGTERM` then
+  `SIGKILL`) the instant the shared cap-plus-one budget is exceeded,
+  the invocation refuses with `resource-limit-exceeded` (exit 3), and
+  no partial/truncated stdout is ever handed to the JSON parser —
+  verified by asserting the parser is never invoked at all for an
+  over-cap invocation (not invoked-then-discarded).
+- `AC-76`: `dolt_diff_summary`'s stdout and stderr share **one**
+  cap-plus-one budget (not two independent 5 MiB budgets) —
+  verified by a test where stdout alone is under 5 MiB but
+  stdout+stderr combined exceeds it, and the invocation still refuses.
+- `AC-77`: A directory `ignored-file` capture followed by a
+  chmod-only change (identical file set and byte content, changed
+  permission bits on one file) produces a different `combined_hash`
+  on the next `capture`/`diff`, and `diff` reports the specific
+  `files[]` entry's `mode` as the differing field, with `hash`/
+  `byte_count` unchanged for that entry.
+- `AC-78`: A resource captured with content `A`, then content `B`,
+  then content `A` again (three `capture` invocations) results in
+  exactly **two** distinct `batches/<id>.json` files on disk (one for
+  `A`'s content, one for `B`'s), not three — the third invocation's
+  `current.json` rewrite repoints at the already-existing batch for
+  `A` without creating a new batch file, verified by asserting the
+  directory listing of `batches/` is unchanged in file count after the
+  third invocation.
+
 ### 14.1 Exact counts (task 14: no false "exactly once" claims)
 
-This PRD defines **72** `AC`-tagged clauses (`AC-1` through `AC-72`,
+This PRD defines **78** `AC`-tagged clauses (`AC-1` through `AC-78`,
 each an individually testable statement, no range-notation grouping).
-This is a **net +2** change from rev-3's 70: rev-3's 7 PID/temp-
-directory/quarantine-specific lock clauses (old `AC-37`–`AC-43`) are
-removed entirely, and 9 new clauses are added (`AC-13` stdout-
-whitespace parsing, `AC-24` cap-plus-one enforcement, `AC-25`
-sequential-read residual, `AC-32` `db_path`/`cmd.Dir` detection,
-`AC-41` local-ignore-for-remove/clear, and `AC-44`/`AC-46`/`AC-47`
-flock crash-release/unsupported-platform/contention clauses beyond
-the direct 1:1 replacements of the removed lock clauses, plus `AC-58`
-orphaned-pointer-entry harmlessness) — `70 - 7 + 9 = 72`. The companion
-ADR's Test Matrix maps each of these 72 clauses to at least one row;
-several clauses map to more than one row (e.g. both a human-output and
+This is a **net +6** change from rev-4's 72: rev-5 adds six new
+clauses and removes none — `AC-73` (exact build-tag text), `AC-74`
+(filesystem-preflight refusal, distinct error from build-tag refusal),
+`AC-75` (output-cap-as-refusal via process-group kill, never
+truncation), `AC-76` (stdout/stderr share one budget, not two), `AC-77`
+(chmod-only directory change is diff-distinguishable via `mode` in the
+hash input), and `AC-78` (an A→B→A content sequence produces exactly
+two batch files, not three, verifying the no-chronology/unordered-set
+design) — `72 + 6 = 78`. Two existing clauses were rewritten in place
+without changing the total count: `AC-10`/`AC-11` flipped from
+"`WORKING`/`STAGED` accepted" to "`WORKING`/`STAGED` refused," and
+`AC-32`/`AC-46` were reworded for the pathname-vs-descriptor honesty
+fix and the exact `!linux && !darwin` fallback tag, respectively — none
+of these in-place rewrites add or remove a clause. The companion ADR's
+Test Matrix maps each of these 78 clauses to at least one row; several
+clauses map to more than one row (e.g. both a human-output and
 `--json`-output verification, or both a success and a failure path for
 the same mechanism). The matrix therefore has **more** rows than there
 are distinct clauses — this PRD does not claim any clause is covered
@@ -2358,13 +2691,37 @@ are distinct clauses — this PRD does not claim any clause is covered
   require a future ADR that explicitly supersedes
   `ADR-027-capture-context-privacy-boundary.md`'s committed/local
   split, which this PRD does not attempt.
-- **`flock` platform scope** (§7.2): kernel-`flock`-based locking is
-  implemented for `unix`-tagged builds (Darwin/Linux) only, consistent
-  with this project's existing macOS/Linux-only validation scope; a
-  non-`unix` build returns `resource-lock-unsupported` (exit 3) for
-  every mutating verb rather than a best-effort approximation — a
-  future PRD could add a Windows-specific locking primitive
-  (`LockFileEx`) if that platform becomes a validation target.
+- **`flock` platform scope** (§7.2, rev-5 correction): kernel-`flock`-
+  based locking is implemented for exactly `//go:build linux ||
+  darwin`-tagged builds, not a generic `unix` tag (rev-4's language
+  was imprecise — a bare `unix` build constraint would also match
+  other POSIX-family targets, such as AIX or Solaris, where this
+  project has no test coverage and no `syscall.Flock` portability
+  guarantee) — consistent with this project's actual, tested
+  `ubuntu-latest`/`macos-latest` CI matrix
+  (`.github/workflows/ci.yml:18-25`); the fallback build
+  (`//go:build !linux && !darwin`) returns `resource-lock-unsupported`
+  (exit 3) for every mutating verb rather than a best-effort
+  approximation — a future PRD could add a Windows-specific locking
+  primitive (`LockFileEx`) if that platform becomes a validation
+  target.
+- **`flock` is a local-filesystem-only guarantee, not a claim about
+  every mount** (§7.2, task 2): even on a `linux`/`darwin` build,
+  `flock`'s advisory-lock semantics are not honored identically by
+  every filesystem a `.tpatch/` directory could be created on — most
+  notably network/shared filesystems (NFS, SMB/CIFS) may silently
+  fail to provide cross-client mutual exclusion. This design adds a
+  `statfs`-based preflight (§7.2) that refuses
+  `resource-lock-filesystem-unsupported` (exit 3) for a known-bad or
+  unrecognized filesystem type before the lock file is ever created;
+  this is explicitly **not** a claim that every allowed filesystem
+  type provides cross-host/cross-client serialization in every
+  configuration — only that this design fails closed rather than
+  silently trusting an unverified mount, and the exact allow/deny list
+  is this PRD's own choice (§7.2), not a claim sourced from a formal
+  POSIX guarantee, with an explicit escape hatch to an
+  operator-configured-precondition framing if the allowlist proves too
+  brittle in practice.
 - **Per-invocation lock granularity is per-slug, not global**: two
   different features' `capture` invocations never contend, which is
   intentional (§7.3's concurrency note) but means a single feature
@@ -2385,12 +2742,14 @@ are distinct clauses — this PRD does not claim any clause is covered
   later-scanned file while an earlier one has already been read. This
   is stated honestly rather than claimed away.
 
-*(Resolved in earlier revisions, remaining resolved: `WORKING`/
-`STAGED` support for `dolt_diff_summary` is source-confirmed
-exact-case-string-constant behavior (§6.2, citing `doltdb.go:51-52`);
-`diff_type`'s value set is confirmed as a closed 4-value enum (§6.2,
-citing `table_deltas.go:722/733/745/760`). Neither is an open question
-as of rev-4. Rev-3's PID/temp-directory lock design's "Windows
+*(Resolved in earlier revisions, remaining resolved: `diff_type`'s
+value set is confirmed as a closed 4-value enum via its four exact
+assignment lines (§6.2, citing `table_deltas.go:722/733/745/760`,
+C26). `WORKING`/`STAGED` support is a confirmed **source** fact
+(§6.2, citing `doltdb.go:51-52`, C19) but rev-5 explicitly **refuses**
+both values in this design's own `from`/`to` validation — see §6.2's
+refusal rationale; this is a design choice layered on top of the
+source fact, not a re-opening of C19's citation. Rev-3's PID/temp-directory lock design's "Windows
 best-effort" framing is superseded by rev-4's explicit
 build-tag-gated `resource-lock-unsupported` contract above — grounded
 in the project's actual, tested `ubuntu-latest`/`macos-latest` CI
@@ -2570,6 +2929,92 @@ cross-platform target — which is a harder, more honest guarantee than
   the flock redesign, cap-plus-one reads, `db_path` residual detection,
   JSON whitespace-trim parsing, and the remove/clear/`current.json`
   correction) (§14).
+- Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
+  attestation are updated to their final, post-edit values as the last
+  step of this revision, per this fold's explicit tracking requirement
+  (§0, CURRENT.md).
+
+## 19. Rev-5 Changelog (vs. rev-4, `07eab8e`)
+
+- Replaced the tautological `db_path`/`cmd.Dir` post-exit check
+  (`fstat` of a held descriptor compared against itself) with an
+  honest **pathname-vs-descriptor** design: a fresh `Lstat` of the
+  `db_path` pathname immediately before `cmd.Start()`, compared
+  (`os.SameFile`) against the held descriptor, and a second,
+  independently fresh `Lstat` after the child exits, again compared
+  against the same held descriptor — explicitly labeled as detection,
+  not prevention, with a documented well-timed-attacker residual
+  during the child's own execution (§9.1, AC-32).
+- Narrowed the platform build-tag contract from the broad `unix` tag
+  to an exact `linux || darwin` (real implementation) /
+  `!linux && !darwin` (fallback) split, matching this project's actual
+  tested CI matrix (`ubuntu-latest`/`macos-latest`) rather than every
+  POSIX-family `GOOS` value `unix` also covers (§7.2, AC-46, AC-73).
+- Added a `statfs`-based filesystem preflight for the lock, refusing
+  `resource-lock-filesystem-unsupported` (exit 3, distinct from the
+  build-tag-based `resource-lock-unsupported`) on network/shared or
+  unrecognized filesystem types, with an explicit per-OS allow/deny
+  list and a documented "operator-configured local-only precondition"
+  fallback if the allowlist proves too brittle (§7.2, AC-74).
+- Fixed a scratch-tree diagram bug: rev-4's local-scratch-tree diagram
+  incorrectly placed tracked `batches/<id>.tmp-*.json` and
+  `.tmp-current.json` temp files under the local, gitignored tree.
+  Rev-5 splits this into a corrected local-only tree and a separate
+  tracked-tree diagram showing these temps beside their real,
+  tracked destinations, and clarifies that `--dry-run` never runs
+  either sweep (§7.1).
+- Replaced the unbounded `bytes.Buffer` Dolt stdout/stderr capture
+  with `StdoutPipe`/`StderrPipe`-based concurrent draining into one
+  **shared** cap-plus-one budget; on overflow, the child's entire
+  process group is killed (`SIGTERM` then `SIGKILL`), never truncated,
+  and the JSON parser is never invoked on partial output — refused
+  `resource-limit-exceeded` (exit 3). Only stdout is ever parsed;
+  stderr is captured within the same shared budget for local
+  diagnostics only (§6.4, §8.1, AC-75, AC-76).
+- Flipped `WORKING`/`STAGED` from accepted to explicitly refused
+  (case-insensitive, `dolt-argument-refused`, exit 2): although
+  `ResolveRootForRef` genuinely does resolve these exact-case
+  constants (a true, unchanged source fact, C19), the working tree/
+  staged index they name is gated by Dolt's own `dolt_ignore` table,
+  which can silently omit a table from the row set the same way
+  `.gitignore` omits a file from a Git listing — an independent
+  silent-omission path this design otherwise works to close via
+  mandatory `table`. v1 accepts committed refs only (§6.2, AC-10,
+  AC-11).
+- Removed the `[:12]`-truncated `batch_id` in favor of the full,
+  untruncated 64-hex-character SHA-256 digest — a 48-bit truncated ID
+  is collision-prone for a scheme whose own collision handling is a
+  fatal integrity error, not a display convenience. Resource IDs
+  (`res_` + 12 hex) are a separate, unaffected convention (§7.3,
+  §12.3, AC-72).
+- Added an explicit "batches are an unordered, content-addressed set —
+  not a chronology" clarification: `batch_id` names distinct content,
+  not a position in a sequence; an A→B→A capture sequence produces
+  exactly two batch files, not three, and `current.json` is the sole
+  authority for "what is current now" — event-level chronology is
+  explicitly out of scope for v1 (§4, §7.3, AC-78).
+- Folded directory `mode` into the per-file `combined_hash` input
+  (`path\x00mode\x00hash`, sorted by path) and into `diff`'s
+  comparison, so a chmod-only change (identical content, changed
+  permission bits) is now distinguishable from a content change
+  (§5.1, §12.2, AC-77).
+- Corrected the JSON zero-row parsing description from an exact-byte
+  match on the trimmed literal `{}` to a **structural** acceptance of
+  either `{}` or `{"rows":[...]}` after trimming surrounding
+  whitespace, citing the real captured shapes (`"...]}\n"`,
+  `"{}\n\n"`) as illustrative examples, not an exact-byte contract
+  (§6.2).
+- Removed the optional "debugging comment" allowance for the `.lock`
+  file's body — the lock file has no body at all, matching the
+  existing ADR-033 D9 language exactly (§7.2).
+- Rebuilt the acceptance-criteria set from 72 to 78 clauses: six new
+  clauses (`AC-73` exact build-tag text, `AC-74` filesystem-preflight
+  refusal, `AC-75` output-cap-as-refusal via process-group kill,
+  `AC-76` shared stdout+stderr budget, `AC-77` chmod-only
+  diff-distinguishability, `AC-78` A→B→A produces exactly two batch
+  files) and two clauses rewritten in place without changing the total
+  (`AC-10`/`AC-11` WORKING/STAGED refusal, `AC-32`/`AC-46` pathname-
+  vs-descriptor and exact build-tag wording) (§14, §14.1).
 - Line counts, `§`-cross-references, and every `docs/handoff/CURRENT.md`
   attestation are updated to their final, post-edit values as the last
   step of this revision, per this fold's explicit tracking requirement

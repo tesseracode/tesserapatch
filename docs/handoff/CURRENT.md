@@ -2,10 +2,87 @@
 
 ## Status
 
-**Cluster state**: REV-5 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
 **WAVE_BASE**: `f04dec7` (`origin/main` immediately before Cluster H
 planning dispatch, 2026-08-10).
+
+**2026-08-11 Cluster H rev-5 WRITTEN — full fold of the rev-4 dual-review
+verdict (adjudication `07eab8e`), awaiting dual review.** Same sequential
+writer continued from rev-4 (`ceda294`/`b7ddccb` platform addendum).
+Eighteen numbered requirement items folded across both papers, driven by
+the rev-4 adjudication's eight concrete findings: a tautological
+`db_path` post-exit descriptor-vs-descriptor self-comparison; a `unix`
+build tag broader than the project's actual `ubuntu-latest`/
+`macos-latest` CI matrix; an unconditional `flock` claim with no
+network/shared-filesystem caveat; tracked batch/pointer temp files
+incorrectly diagrammed under the local scratch tree; a contradictory
+"truncated"-vs-"refused" output-cap description backed by an unbounded
+`bytes.Buffer`; `WORKING`/`STAGED` accepted despite the `dolt_ignore`
+silent-omission risk; a 48-bit-truncated, collision-prone `batch_id`;
+and "one batch per invocation" phrasing that could be misread as a
+chronological-ordering claim. `PRD-feature-resource-claims-and-capture-adapters.md`
+rewritten to **3021 lines** (was 2576 after the rev-4 addendum);
+`ADR-033-resource-capture-boundary.md` rewritten to **1102 lines** (was
+950). Preserved across every review pass to date (rev-1 through rev-5,
+six passes counting the rev-3 citation addendum and the rev-4 platform
+addendum): separate `resources.json`, no canonical-patch/lifecycle
+authority, Dolt never authoritative/a core dependency, Git-only replay.
+Key rewrites: (1) `db_path`/`cmd.Dir`'s post-exit check is corrected
+from `fstat`ing the held descriptor against itself (tautological) to
+two independently **fresh pathname resolutions** — one immediately
+before `cmd.Start()`, one after the child exits — each compared
+(`os.SameFile`) against the held descriptor, with a documented
+well-timed-attacker residual honestly stated, not claimed closed; (2)
+the lock's build-tag contract is narrowed from `//go:build unix` to
+the exact `//go:build linux || darwin` / `//go:build !linux && !darwin`
+split, matching the CI matrix one-to-one rather than every POSIX-family
+`GOOS` the broader `unix` tag also covers; (3) a new `statfs`-based
+filesystem preflight refuses `resource-lock-filesystem-unsupported`
+(exit 3) on network/shared/unrecognized filesystem types with an
+explicit per-OS allow/deny list, distinct from the build-tag-based
+`resource-lock-unsupported`; (4) the local scratch-tree diagram is
+split into a corrected local-only tree and a new tracked-tree diagram,
+with tracked batch/pointer temp files shown beside their real
+destinations, and `--dry-run` clarified to never run either sweep; (5)
+Dolt stdout/stderr capture is rewritten from an unbounded `bytes.Buffer`
+to `StdoutPipe`/`StderrPipe`-based concurrent draining into one shared
+cap-plus-one budget, with a process-group kill (never truncation) on
+overflow and the JSON parser never invoked on partial output; (6)
+`WORKING`/`STAGED` are flipped from accepted to explicitly refused
+(case-insensitive, `dolt-argument-refused`), citing the `dolt_ignore`
+silent-omission risk as rationale, while the underlying source fact
+(`ResolveRootForRef` genuinely resolves these constants) is preserved
+as historically true; (7) `batch_id` is changed from a `[:12]`-truncated
+48-bit ID to the full, untruncated 64-hex-character SHA-256 digest,
+with resource IDs (`res_` + 12 hex) explicitly noted as a separate,
+unaffected convention; (8) a new "batches are an unordered,
+content-addressed set — not a chronology" clarification states that an
+A→B→A capture sequence produces exactly two batch files, not three, and
+that event-level chronology is explicitly deferred; (9) directory
+`mode` is folded into the per-file `combined_hash` input and into
+`diff`'s comparison, making a chmod-only change diff-distinguishable
+from a content change; (10) the ADR's D8 broken/truncated sentence
+describing `ls-files --error-unmatch`'s exit codes (a genuine
+pre-existing content defect carried over unfixed since rev-4) is
+completed with the missing exit-1 (expected, valid untracked outcome)
+and fatal (`git-ls-files-error`, exit >1) descriptions; (11) the
+acceptance-criteria set grew from 72 to **78** individually-tagged
+clauses (six new: exact build-tag text, filesystem-preflight refusal,
+output-cap-as-refusal, shared stdout+stderr budget, chmod-only
+diff-distinguishability, A→B→A two-batch invariant; two rewritten in
+place without changing the total: `AC-10`/`AC-11` WORKING/STAGED
+refusal, `AC-32`/`AC-46` pathname-vs-descriptor and exact build-tag
+wording), and the ADR Test Matrix was rebuilt from 111 to **121** rows,
+all 78 clauses mechanically confirmed covered. Golden resource-ID
+vectors 1–4 are unaffected by rev-5 (`res_` scheme is a separate,
+unaffected convention); the worked batch example's full `batch_id`
+(`rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7`)
+was independently recomputed via a repo-local Python script (created
+and deleted, never `/tmp`) and matches exactly. All three shared JSON
+wire examples reconfirmed byte-identical between PRD and ADR
+(programmatic raw-string comparison). `git diff --check` clean on both
+files. Side Research md5 unchanged: `b385fe622db9926f48861105239f113e`.
 
 **2026-08-10 Cluster H rev-4 adjudicated NEEDS REVISION → rev-5
 DISPATCHED.** Internal review found 2 HIGH + 7 MEDIUM; external found
@@ -477,13 +554,13 @@ only after implementation review and wave close.
 
 ## Active Task
 
-**Cluster H rev-4 — v0.15.0 candidate resource capture planning.**
+**Cluster H rev-5 — v0.15.0 candidate resource capture planning.**
 
-- **Task ID**: Cluster H rev-4
+- **Task ID**: Cluster H rev-5
 - **Milestone**: v0.15.0 candidate (planning)
-- **Description**: Fold the rev-3 dual-review verdict into the
+- **Description**: Fold the rev-4 dual-review verdict into the
   feature-resource PRD and ADR-033 boundary.
-- **Status**: In Progress (rev-5 fold)
+- **Status**: Review (rev-5 fold complete, awaiting dual review)
 - **Assigned**: 2026-08-10
 - **WAVE_BASE**: `f04dec7`
 
@@ -523,6 +600,45 @@ only after implementation review and wave close.
 
 ## Session Summary
 
+- **Cluster H rev-5** — dispatched 2026-08-10 from `WAVE_BASE=f04dec7`;
+  written 2026-08-11. Same sequential writer continued from rev-4
+  (`ceda294`/`b7ddccb`). Full 18-item fold of the rev-4 dual-review
+  verdict (adjudication `07eab8e`): (1) `db_path`/`cmd.Dir`'s
+  post-exit identity check corrected from a tautological
+  descriptor-vs-descriptor self-comparison to two independently fresh
+  pathname resolutions vs. the held descriptor; (2) lock build-tag
+  contract narrowed from `//go:build unix` to exact
+  `linux || darwin`/`!linux && !darwin`, matching the CI matrix
+  one-to-one; (3) new `statfs`-based filesystem preflight refusing
+  `resource-lock-filesystem-unsupported` on network/shared/unrecognized
+  filesystems; (4) local scratch-tree diagram split into corrected
+  local-only + new tracked-tree diagrams, tracked temps shown beside
+  their real destinations; (5) Dolt stdout/stderr capture rewritten
+  from `bytes.Buffer` to `StdoutPipe`/`StderrPipe` + shared cap-plus-one
+  budget with process-group kill (never truncation) on overflow; (6)
+  `WORKING`/`STAGED` flipped from accepted to explicitly refused
+  (`dolt_ignore` silent-omission risk), source fact preserved as
+  historically true; (7) `batch_id` changed from `[:12]`-truncated
+  48-bit to the full, untruncated 64-hex SHA-256 digest; (8) new
+  "batches are an unordered, content-addressed set — not a chronology"
+  clarification (A→B→A produces exactly two batch files, not three);
+  (9) directory `mode` folded into `combined_hash`/diff, making a
+  chmod-only change diff-distinguishable; (10) ADR D8's broken/
+  truncated sentence describing `ls-files --error-unmatch` exit codes
+  (a pre-existing content defect carried unfixed since rev-4) completed
+  with the missing exit-1/fatal descriptions. AC set grew 72 → **78**
+  (6 new, 2 rewritten in place); ADR Test Matrix rebuilt 111 → **121**
+  rows, all 78 clauses mechanically confirmed covered. Golden
+  resource-ID vectors unaffected; full batch-ID digest
+  (`rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7`)
+  independently recomputed and matched via a repo-local, deleted-after-use
+  Python script. All three shared JSON wire blocks reconfirmed
+  byte-identical between PRD and ADR programmatically. `git diff
+  --check` clean on both files. PRD grew to **3021 lines** (was 2576),
+  ADR to **1102 lines** (was 950). Side Research md5 unchanged:
+  `b385fe622db9926f48861105239f113e`. See "Files Changed — Cluster H
+  rev-5", "Test Results — Cluster H rev-5", and "Ready for review —
+  Cluster H rev-5" below.
 - **Cluster H rev-0** — dispatched 2026-08-10 from `WAVE_BASE=f04dec7`;
   written 2026-08-10. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md`
   (1086 lines) and `docs/adrs/ADR-033-resource-capture-boundary.md`
@@ -906,6 +1022,140 @@ only after implementation review and wave close.
 - **Cluster F' rev-1** (7-finding fold from the rev-0 dual review) — implemented 2026-08-06, reviewed, external APPROVED clean, internal APPROVED WITH NOTES (1 MEDIUM residual). 8 commits, range `d3e5a11..fbdf815`.
 - **Cluster F' rev-2** (F-INT-Rev1-1 MEDIUM: dangling-symlink guard in `resolveEvidence` fallback) — implemented 2026-08-05. 1 commit, range `fbdf815..1492fb0`. See "Ready for review — Cluster F' rev-2" below.
 - **Cluster G planning** (docs-only; PRD-feature-unapply.md refresh + ADR-032-feature-unapply-state-boundary.md from scratch; v0.14.0 candidate) — implemented 2026-08-05, dispatched for dual review. See "Ready for review — Cluster G rev-0" below.
+
+## Files Changed — Cluster H rev-5
+
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+  rewritten in full, **3021 lines** (was 2576). New/changed structure:
+  §0 Rev-5 Fold Summary (replacing the rev-4 framing as the primary
+  top-level narrative; the rev-4 fold-summary body is preserved as
+  unheaded historical prose introduced by a bold "Historical context"
+  lead-in, retaining its original §0.1–§0.4 numbering which the rest of
+  the document's cross-references still use); §0.1 Claims Audit
+  extended with `C28`–`C30` (build-tag scope, `flock`/NFS caveat,
+  `StdoutPipe`/`StderrPipe` drain-to-completion contract); §0.4
+  requirement-item map extended with a new rev-5 18-item table; §2
+  Goals fixed ("append-only... capture history" → "content-addressed...
+  capture set", removing an implied chronology the design does not
+  provide); §4 Data Model ("one per successful capture invocation" →
+  "one per distinct content"); §5.1 (`combined_hash` formula extended
+  to include `mode` in the per-file hash tuple; `diff` paragraph
+  updated for chmod-only-change distinguishability); §6.2 (`WORKING`/
+  `STAGED` flipped from accepted to explicitly refused, citing
+  `dolt_ignore`); §6.4/§8.1 (Dolt output-cap rewritten from truncation/
+  `bytes.Buffer` language to `StdoutPipe`/`StderrPipe` + shared
+  cap-plus-one budget + process-group kill); §7.1 (scratch-tree diagram
+  split into corrected local-only tree + new tracked-tree diagram;
+  dry-run/orphan-sweep language clarified); §7.2 (lock-file body fixed
+  to "no body at all", removing rev-4's optional debugging-comment
+  allowance); §7.3 (`batch_id` truncation removed — full 64-hex digest
+  — new "unordered, content-addressed set" paragraph added before the
+  crash-window table); §9.1 (`db_path`/`cmd.Dir` honesty paragraph fully
+  rewritten for fresh-pathname-vs-held-descriptor comparisons, replacing
+  the tautological descriptor-vs-descriptor check); §12.2/§12.3 (wire
+  example prose updated for the new `combined_hash` formula; all 7
+  occurrences of the truncated `rb_5cff7f222dce` replaced with the full
+  digest); §14 Acceptance Criteria (AC-10/AC-11 flipped, AC-32/AC-46
+  rewritten, AC-73–AC-78 added — 78 clauses total, up from 72); §14.1
+  (exact-count paragraph rewritten for the +6/78 total); §15 Open
+  Questions (flock platform-scope bullet rewritten for exact build
+  tags; new flock-local-filesystem-only bullet added; WORKING/STAGED
+  footnote reframed as refused-not-accepted); new §19 Rev-5 Changelog
+  vs rev-4.
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten in full,
+  **1102 lines** (was 950). Same 11 binding decisions (D1–D11, numbering
+  unchanged — no decision inserted or removed, only rewritten in place):
+  title/Status header updated to rev-5, citing writer commits
+  `ceda294`/`b7ddccb` and adjudication `07eab8e`; new "Rev-5 fold
+  summary" section (replacing "Rev-4 fold summary" as the primary
+  framing) describing all 8 rev-4→rev-5 corrections; D5 (`WORKING`/
+  `STAGED` flipped to explicitly refused, `dolt_ignore` rationale;
+  JSON zero-row parsing corrected from exact-byte match to structural
+  `{}`/`{"rows":[...]}` acceptance after whitespace trim); D6 (`db_path`
+  honesty rewritten for fresh-pathname-vs-descriptor comparisons, not
+  descriptor-vs-descriptor; Residual paragraph updated to match); D7
+  (`batch_id` full-digest correction, no-`[:12]`-truncation; new
+  "batches are an unordered, content-addressed set" paragraph); D8
+  (**the broken/truncated sentence describing `ls-files --error-unmatch`'s
+  exit codes — a genuine pre-existing content defect carried unfixed
+  since rev-4 — completed** with the missing exit-1 (expected,
+  untracked outcome) and fatal (`git-ls-files-error`, exit >1)
+  descriptions); D9 (build-tag contract narrowed to exact
+  `linux || darwin`/`!linux && !darwin`; new filesystem-contract
+  paragraph with per-OS `statfs` allow/deny lists and
+  `resource-lock-filesystem-unsupported`); D10 (timestamp/ordering
+  language updated to reference the unordered-batch-set framing);
+  Implementation Notes items 2 and 6 updated for the exact build tags
+  and pathname-vs-descriptor `db_path` check; Negative Consequences
+  Summary updated for the `db_path` residual, flock platform/filesystem
+  scope, both rewritten; Wire Schema Appendix's three JSON examples
+  updated to the full 64-hex `batch_id` (still verified programmatically
+  byte-identical to the PRD, 3/3 matched); Test Matrix rebuilt from 111
+  to **121 rows** — AC-10 flipped, AC-32/AC-46 rewritten, six new rows
+  for AC-73–AC-78 — covering all 78 PRD acceptance-criteria clauses
+  (mechanically verified, 0 missing, 0 extra).
+- `docs/handoff/CURRENT.md` — this update: Status narrative (new rev-5
+  entry prepended above the rev-4-adjudication entry), Active Task
+  Status → Review, this Session Summary bullet, this Files Changed
+  section, Test Results, and the "Ready for review — Cluster H rev-5"
+  section below. Cluster state flipped to `AWAITING REVIEW`.
+
+No other files touched. `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `CHANGELOG.md`, any other existing PRD/ADR, and all code/assets
+remain untouched by this cluster — confirmed via `git status --short`
+showing only the three owned paths as modified.
+
+## Test Results — Cluster H rev-5
+
+Docs-only cluster; no Go build/test/fmt required or run since no
+`internal/`, `cmd/`, or `assets/` files were touched. Validation performed
+instead:
+
+- `git diff --check` on both rewritten files — clean (no whitespace
+  errors, no conflict markers).
+- Structural check: confirmed via `grep -n "^## 0\.\|^### 0\."` that
+  exactly one `## 0.` top-level heading exists in the PRD after the
+  §0 restructuring (a duplicate-heading mistake was caught and fixed
+  mid-session before it reached this commit — see "Context for Next
+  Agent" below for the lesson learned).
+- Golden-vector recomputation: the four `resource_id` vectors are
+  unaffected by rev-5 (no change to `CanonicalArgsJSON`/the ID-derivation
+  algorithm) and were spot-checked present unchanged; the worked batch
+  example's full `batch_id`
+  (`rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7`)
+  was independently recomputed via a repo-local Python script
+  (`hashlib.sha256` over the exact `CanonicalBatchJSON` hash-input body
+  reconstructed from the published §12.3/D7 worked example — created,
+  verified, deleted, never written under `/tmp`) and matched exactly.
+- Short-form-batch-ID sweep: all 7 (PRD) + 6 (ADR) occurrences of the
+  truncated `rb_5cff7f222dce` replaced with the full 64-hex digest;
+  a final `grep -oE "rb_[0-9a-f]{12}\b"` sweep across both files
+  confirmed zero remaining short-form batch IDs.
+- Wire-example parity check: programmatically extracted every fenced
+  ` ```json ` block from both rewritten documents and confirmed the
+  three shared examples (`resources.json`, `batches/<id>.json`,
+  `current.json`) are byte-identical between the PRD and the ADR
+  (Python `str ==` comparison on the raw fenced block text) — 3/3
+  matched.
+- AC/test-matrix mapping check: mechanically extracted every `AC-<n>`
+  tag definition from the PRD (78 distinct, sequential `AC-1`..`AC-78`,
+  no gaps — verified via a Python sorted-set script) and every numbered
+  row of the ADR's Test Matrix (121 rows, sequential 1..121); confirmed
+  all 78 clauses appear in at least one matrix row, no clause missing,
+  no extra/unexpected clause tag, and the matrix's own closing note
+  explicitly disclaims any "exactly once" mapping claim.
+- Stale-term sweep: re-grepped both files for remaining rev-4-only
+  language — bare `` `unix` `` build tag (only found in historical/
+  corrective context describing rev-4's imprecision, never as a live
+  claim), "truncated" Dolt-output-cap language (none live), "accepted"
+  near `WORKING`/`STAGED` (none), "one per...invocation" near batches
+  (none), "point-in-time snapshot" (only historical bug-description
+  context, not a live claim) — all clean.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; all pre-existing untracked WIP remains untouched and
+  unstaged.
+- Side Research md5 invariant re-verified unchanged after this edit:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Files Changed — Cluster H rev-4
 
@@ -1812,6 +2062,35 @@ None.
 
 ## Context for Next Agent
 
+- **Cluster H rev-5 papers are rewritten and awaiting dual review at
+  `WAVE_BASE=f04dec7`.** No code or release tag belongs in this cluster;
+  implementation is a separately dispatched Cluster H' only after both
+  papers reach Accepted status. See "Ready for review — Cluster H rev-5"
+  above for reviewer focus areas.
+- **§0 numbering-collision lesson (rev-5 authoring note, not a paper
+  defect)**: this session initially introduced a duplicate "## 0."
+  top-level heading while rewriting the PRD's fold-summary section,
+  because rev-4's own "### 0.1"–"### 0.4" subsection numbers are
+  cross-referenced dozens of times throughout the whole document. The
+  mistake was caught and fixed before commit (the rev-4 body is now
+  introduced by a bold "Historical context" lead-in and its original
+  §0.1–§0.4 numbers are preserved/extended, not replaced) — verified via
+  `grep -n "^## 0\.\|^### 0\."` showing exactly one `## 0.` heading.
+  **Any future agent restructuring a heavily-cross-referenced numbered
+  section must re-run that grep immediately after the edit**, before
+  moving on, to catch an orphaned-body/duplicate-heading mistake early.
+- **Four items of the rev-5 requirement list were genuine content-defect
+  fixes, not just rewording**: (1) the ADR's D8 `ls-files --error-unmatch`
+  exit-code sentence was literally broken/truncated since rev-4 (missing
+  the exit-1/fatal description) — now completed; (2) rev-4's `db_path`
+  post-exit check was a tautology (`fstat` of a held descriptor compared
+  against itself always matches) — now two independently fresh pathname
+  resolutions; (3) rev-4's `bytes.Buffer` output-cap design could not
+  actually refuse output past a cap without reading past it — now
+  `StdoutPipe`/`StderrPipe` + shared budget + process-group kill; (4)
+  rev-4's `[:12]`-truncated `batch_id` was a 48-bit collision-prone ID
+  for a scheme whose collision handling is a fatal integrity error — now
+  the full, untruncated 64-hex digest.
 - **Cluster H rev-2 papers are rewritten and awaiting dual review at
   `WAVE_BASE=f04dec7`.** No code or release tag belongs in this cluster;
   implementation is a separately dispatched Cluster H' only after both
@@ -1835,6 +2114,133 @@ None.
 - **20 binding carry-forward rules** unchanged. Rule 18 empirical demonstration this cluster: heredoc-authored commit bodies leaked `EOF)` after the trailer, breaking `%(trailers)` parse. Rule 20 empirical demonstration: PRD-#4 external caught the tie-break bug via code path enumeration (in-place dedup) that internal's tests-pass verdict didn't surface. Rule 20 continues to require empirical repro even on paper-approved designs.
 - **Side Research md5 invariant**: `b385fe622db9926f48861105239f113e`. Verify: `md5 -q <(sed -n '/^## Side Research/,$p' docs/handoff/CURRENT.md)`.
 - **Rule 18 commit trailer**: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` verbatim. Use `git commit -F <tempfile>` or `git commit -m ""` — NOT `git commit -F -` with heredoc (heredoc close tokens leak into the body). `Copilot-Session` is historical metadata, not a current Rule 18 requirement.
+
+## Ready for review — Cluster H rev-5
+
+**Scope**: docs-only planning cluster, rev-5 fold. Same two deliverables
+as rev-1/rev-2/rev-3/rev-4, both fully rewritten (not patched), plus this
+handoff update — no code:
+
+1. `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` —
+   **3021 lines** (was 2576). See "Files Changed — Cluster H rev-5"
+   above for the full section-by-section breakdown; see the Session
+   Summary entry above for the complete list of changed decisions
+   mapped to the dispatch's requirement items (1–18).
+2. `docs/adrs/ADR-033-resource-capture-boundary.md` — **1102 lines**
+   (was 950). Same 11 binding decisions (D1–D11 — no insertion/removal
+   this revision, only in-place rewrites of D5–D10, plus the D8
+   broken-sentence fix carried over from rev-4); see "Files Changed —
+   Cluster H rev-5" above.
+
+**Files changed (Cluster H rev-5)**:
+- `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` — rewritten
+- `docs/adrs/ADR-033-resource-capture-boundary.md` — rewritten
+- `docs/handoff/CURRENT.md` — this update
+
+**No code, no assets, no ROADMAP.md, no SPEC.md, no CHANGELOG.md, no
+supervisor/LOG.md, no other existing PRD/ADR changes** (docs-only cluster,
+exactly the three owned paths staged).
+
+**Internal-consistency check** (Summary-vs-source cross-check):
+- D5 (ADR) ↔ §6.2 (PRD): identical `WORKING`/`STAGED`-explicitly-refused
+  text and `dolt_ignore` rationale; identical structural (not exact-byte)
+  JSON zero-row acceptance language.
+- D6 (ADR) ↔ §9.1 (PRD): identical fresh-pathname-vs-held-descriptor
+  `db_path` check (pre-`cmd.Start()` and post-exit, both fresh
+  resolutions, never descriptor-vs-descriptor), identical well-timed-
+  attacker residual language.
+- D7 (ADR) ↔ §7.3/§12.3 (PRD): identical full, untruncated 64-hex
+  `batch_id`, identical "unordered, content-addressed set — not a
+  chronology" paragraph, identical A→B→A two-batch-files example.
+- D8 (ADR) ↔ §14 AC-37 (PRD): identical completed `ls-files
+  --error-unmatch` exit-code description (exit 0 tracked/refused,
+  exit 1 expected untracked, >1 fatal `git-ls-files-error`).
+- D9 (ADR) ↔ §7.2 (PRD): identical exact `linux || darwin`/
+  `!linux && !darwin` build-tag split, identical per-OS `statfs`
+  allow/deny filesystem-preflight lists and
+  `resource-lock-filesystem-unsupported` refusal.
+- D4/D9 (ADR) ↔ §6.4/§8.1 (PRD): identical `StdoutPipe`/`StderrPipe` +
+  shared cap-plus-one budget + process-group-kill output-cap design,
+  identical stdout-only-to-parser framing.
+- §5.1/§12.2 (PRD) ↔ D4 (ADR, cross-referenced): identical `mode`-
+  inclusive `combined_hash` tuple formula and chmod-only-change
+  diff-distinguishability statement.
+- `docs/state-of-the-art/storage-substrate-and-versioned-data.md` §3/§9
+  remain the only normative substrate research cited in either document;
+  the untracked, still-Exploring `WP-006` whitepaper is still not cited
+  anywhere in either paper.
+- No raw `.git/**` capture is proposed anywhere; `.git`-target refusal
+  and the `.git/**` boundary precedent (`ADR-030` D3/D4) remain cited
+  consistently in both documents.
+- All 78 PRD §14 acceptance-criteria clauses appear in the ADR's 121-row
+  Test Matrix; the matrix explicitly disclaims any "exactly once"
+  mapping claim.
+
+**Validation performed**:
+- `git diff --check` on both rewritten files — clean.
+- Golden `resource_id` vectors unaffected by rev-5 (no algorithm
+  change), spot-checked present unchanged; the full `batch_id` digest
+  (`rb_5cff7f222dce2ed9c342375cdba813dd6d57d5e58695ad3fd02df49a78e7efa7`)
+  independently recomputed via a repo-local, deleted-after-use Python
+  script and matched exactly.
+- All three shared JSON wire examples programmatically confirmed
+  byte-identical (raw string equality) between the PRD and the ADR.
+- AC/test-matrix coverage mechanically verified: 78 distinct, sequential
+  `AC-<n>` tags in the PRD (no gaps, verified via a Python sorted-set
+  script), all 78 present across the ADR's 121-row Test Matrix
+  (sequential rows 1–121, no gaps).
+- Stale-term sweep across both documents for rev-4-only language (bare
+  `unix` build tag, output-cap truncation wording, WORKING/STAGED
+  acceptance wording, "one per invocation"/point-in-time-snapshot
+  overclaims) — all clean, only historical/corrective mentions remain.
+- `git status --short` confirmed only the three owned paths are touched
+  by this writer; pre-existing untracked WIP is untouched.
+- Side Research md5 invariant re-verified unchanged:
+  `b385fe622db9926f48861105239f113e`.
+
+**Reviewer focus areas**:
+- Confirm `db_path`/`cmd.Dir`'s identity check (D6/§9.1) is described as
+  **two independently fresh pathname resolutions** (pre-`cmd.Start()`
+  and post-exit) each compared against the held descriptor — not a
+  restatement of rev-4's tautological `fstat`-the-descriptor-against-
+  itself check — and that the well-timed-attacker-during-execution
+  residual is stated honestly, not claimed closed.
+- Confirm the lock's build-tag contract (D9/§7.2) is described as
+  exactly `linux || darwin` (real) / `!linux && !darwin` (fallback),
+  never the broader `unix` tag, anywhere in either document.
+- Confirm the new filesystem preflight (D9/§7.2) states a concrete
+  per-OS allow/deny list and a distinct error string
+  (`resource-lock-filesystem-unsupported`) from the build-tag-based
+  refusal (`resource-lock-unsupported`), and makes no cross-host/
+  cross-client serialization claim.
+- Confirm the Dolt output-cap redesign (D4/D9/§6.4/§8.1) never mentions
+  `bytes.Buffer` or "truncation" as live behavior — only
+  `StdoutPipe`/`StderrPipe`, a single shared cap-plus-one budget, and a
+  process-group kill leading to `resource-limit-exceeded` with the
+  parser never invoked on overflow.
+- Confirm `WORKING`/`STAGED` (D5/§6.2) are described as **explicitly
+  refused** (case-insensitive, `dolt-argument-refused`), with the
+  underlying `ResolveRootForRef` source fact preserved as historically
+  true but the design choice framed as refusal due to the `dolt_ignore`
+  risk — not silently reverted to "resolved as accepted" anywhere.
+- Confirm `batch_id` (D7/§7.3/§12.3) is the full, untruncated 64-hex
+  digest everywhere it appears in both documents — search for any
+  remaining `rb_5cff7f222dce` short form.
+- Confirm the "batches are an unordered, content-addressed set — not a
+  chronology" paragraph (D7/§7.3/§4) is present and that no remaining
+  "one batch per invocation" phrasing implies a one-to-one or
+  chronological relationship.
+- Confirm ADR D8's `ls-files --error-unmatch` exit-code sentence is now
+  complete (exit 0 tracked, exit 1 expected untracked outcome, >1
+  fatal) — this was a genuine content defect (a literally
+  broken/truncated sentence) carried over unfixed from rev-4, now
+  fixed in rev-5.
+- Confirm directory `mode` (D4/§5.1/§12.2) is folded into
+  `combined_hash`'s hash input and that `diff` can now distinguish a
+  chmod-only change from a content change.
+- Confirm the 78-clause/121-row AC/matrix accounting is genuinely
+  mechanical (spot-check a handful of `AC-<n>` tags against their
+  matrix rows, especially `AC-73`–`AC-78`) and not merely asserted.
 
 ## Ready for review — Cluster H rev-4
 
