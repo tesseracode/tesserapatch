@@ -60,7 +60,19 @@ After the embedded `record` step writes `artifacts/post-apply.patch`:
 5. Stage in an **isolated index**. `land` resolves the effective index (honouring `GIT_INDEX_FILE` byte-for-byte), refuses a symlinked or non-regular index outright, and seeds a private temporary index with identical bytes. Every `git add`, every audit and the commit run against that private index via `GIT_INDEX_FILE`, so your own index is never modified while `land` works. After staging (and again after `status.json` is staged) the temp index is audited: anything inside a registered nested worktree refuses.
 6. Publish under Git's index lock. `land` takes `<index>.lock` with `O_EXCL` — the same lock `git add` takes — and re-compares your index against the snapshot from the start of the run. If it changed (a concurrent `git add`, `git reset`, …) `land` refuses without overwriting your work. Otherwise it commits from the temp index while holding the lock, publishes the result, and releases. If the commit fails (for example a rejecting `pre-commit` hook), the audited pre-commit index is published instead so the intended paths are staged for a `tpatch land <slug> --no-record` retry.
 
-This serializes index writes against other Git processes. It does **not** protect against concurrent ref or working-tree changes such as `git checkout` or `git reset --hard`, which no index lock can express.
+Publication is durable: bytes go to a temp in the index's own directory, are fsynced, renamed into place, and the directory is fsynced, so you always see a complete index. The lock is only a mutex sentinel — it is never renamed onto the index as data — and `land` removes the lock it created on every failure path while never touching a lock it did not create.
+
+### Crash recovery
+
+Before committing, `land` writes a journal and a retained copy of its alternate index under the gitignored `.tpatch/local/land-journal/`. Every `tpatch land` checks for one **before** it touches anything, and decides from evidence:
+
+- HEAD still at the pre-land commit → the commit never happened, so the retained audited index is published as the staged-retry state.
+- HEAD advanced to a direct child of the pre-land commit carrying this feature's `Tpatch-Feature` trailer, whose tree matches the retained index → the commit completed and only publication was outstanding, so `land` finishes it.
+- Anything else → `land` refuses and prints manual-recovery steps, keeping the journal and retained index and changing nothing.
+
+Recovery is idempotent, and a successful land leaves no journal, retained index or lock behind. If publication fails *after* a successful commit, `land` reports "commit succeeded, recovery pending" — it never claims HEAD was rolled back.
+
+This serializes index writes against other Git processes and makes index publication durable. It does **not** protect against concurrent ref or working-tree changes such as `git checkout` or `git reset --hard`, which no index lock can express.
 
 The path set is intentionally **strict**: a `land` that silently absorbs unrelated edits is exactly the WP-001 §5.2 row 5 problem moved one step downstream into Git history.
 

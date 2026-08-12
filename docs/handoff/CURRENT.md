@@ -2,110 +2,126 @@
 
 ## Status
 
-**Cluster state**: REV-7 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-6 isolates staging but leaves publish-failure lock
-leakage and a crash-recovery gap. Rev-7 is dispatched.
+v0.15.1 Wave A rev-7 (GitHub issue #7) closes the owned-lock-lifetime
+and crash-durability findings. Validated and pushed. Awaiting review.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave A / GH #7 rev-7
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and from
-  land planning, staging and commit.
-- **Status**: In Progress
+  land planning, staging and commit — with a durable, crash-recoverable
+  land transaction.
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
-- **Rev-6 dispatch HEAD**: `3dfbad0`
+- **Rev-7 dispatch HEAD**: `150da09`
 - **Target release**: v0.15.1
 
-## Rev-5 finding closures
+## Rev-6 finding closures
 
-The architecture changed as directed: land no longer touches the
-operator's index while it works. `internal/gitutil/index_snapshot.go`
-was rewritten around an `IndexTransaction`.
+### F1 (HIGH) — owned lock lifetime — CLOSED
 
-### F1 (HIGH) — effective index path + symlink — CLOSED
+`IndexTransaction` now tracks `lockOwned bool` **independently** of the
+open `*os.File`. Closing the descriptor no longer relinquishes cleanup
+responsibility, which was the exact defect: rev-6 nil'd `lockFile` on
+close, so a later chmod/rename failure left an owned `<index>.lock`
+behind and wedged the repository.
 
-- `GIT_INDEX_FILE` is taken **verbatim** via `os.LookupEnv`; leading and
-  trailing spaces and tabs are preserved. A relative value resolves
-  against `repoRoot`, which is `cmd.Dir` for every git subprocess tpatch
-  spawns — the same rule Git applies.
-- Otherwise `git rev-parse --git-path index` is parsed by stripping only
-  the protocol line terminator (`\n`, then a trailing `\r`). No
-  `TrimSpace`. Output that still contains a newline is **ambiguous** and
-  refused rather than guessed at.
-- `requireRegularIndexFile` **Lstat**s the effective index before
-  anything is staged and refuses a symlink or any non-regular file
-  (directory, FIFO, …) with actionable guidance. The previous code
-  followed the link and would have replaced it with a regular file,
-  writing Git state wherever it pointed.
+- `releaseOwnedLock` closes the descriptor if open, removes the lock
+  **only when `lockOwned`**, fsyncs the parent directory, then clears
+  ownership.
+- `PublishLocked` routes every failure through `joinRelease`, which
+  releases the owned lock and folds any release failure into the primary
+  error. Cleanup failures are never silent.
+- A foreign lock is still never removed — `LockLive` refuses to acquire
+  it, and recovery only removes a lock carrying this run's nonce.
 
-### F2 (HIGH) — blind rollback / concurrent operator staging — CLOSED
+### F2 (MEDIUM) — durable publish + crash recovery — CLOSED
 
-Replaced, not patched:
+**Durable publish.** The lock is now purely a **mutex sentinel**; it is
+never renamed onto the index as the data file. `durableWriteFile`
+creates an `O_EXCL` temp in the live index's own symlink-resolved
+directory, writes, `Sync`s the file, `Close`s, `Chmod`s, `Rename`s onto
+the index and `Sync`s the parent directory. A reader therefore always
+observes the complete old index or the complete new one. Six failure
+seams (`write`, `fsync`, `close`, `chmod`, `rename`, `dir fsync`) are
+injectable and each is tested.
 
-1. `BeginIndexTransaction` snapshots the live index (existence, exact
-   bytes, mode) and seeds a private temp index byte-identically. An
-   absent live index seeds an absent temp index, so the first `git add`
-   creates it exactly as Git would.
-2. Every `git add`, both staged-path audits and the commit run with
-   `GIT_INDEX_FILE=<temp>` through new env-aware helpers
-   (`stagePathSetEnv`, `runGitEnvOut`, `runGitCaptureEnv`,
-   `StagedPathsEnv`, `AuditStagedPathsForNestedWorktreesEnv`). No global
-   env mutation anywhere.
-3. The live index is therefore untouched during staging, audits, status
-   staging and hooks.
-4. Because the temp index is seeded from the live one, all pre-existing
-   operator-staged entries are present, so extras classification and
-   commit contents keep exactly their previous meaning.
+**Crash-recovery journal.** Before `git commit` can advance HEAD, land
+persists, with fsyncs:
 
-### F3 (MEDIUM) — status preimage restoration — CLOSED
+- `.tpatch/local/land-journal/<slug>.json` — versioned, owner-only
+  (0600), recording slug, `created_at`, advisory phase, pre-HEAD,
+  live-index identity (existence / SHA-256 / mode), retained-index
+  reference + identity, and the owned lock's path + nonce.
+- `.tpatch/local/land-journal/<slug>.index` — the retained alternate
+  index bytes.
 
-`captureFileState`/`(*fileState).restore` capture existence, bytes and
-mode and restore atomically. `restore` **returns** its error; land's
-`abort` helper combines the primary cause with every restore/cleanup
-failure into one diagnostic. Nothing is swallowed.
+`.tpatch/local/` is the existing gitignored local root, so nothing leaks
+into `git status`. The journal stores **repo-relative** references; an
+absolute path appears only when `GIT_INDEX_FILE` genuinely points
+outside the repository. No source content, no secrets, no home paths.
 
-### Guarded commit and publication
+**Recovery** runs at the very top of `runLand`, before the pre-record
+gate and therefore before any record/status/staging mutation. It
+validates schema version, slug, required fields, retained-path
+containment inside the journal directory, retained-index checksum and
+effective-index identity — then decides from **evidence, not phase**:
 
-- `LockLive` takes `<effective-index>.lock` with `O_CREAT|O_EXCL` — the
-  same lock `git add` and `git commit` contend for. A pre-existing lock
-  is somebody else's: land refuses and never removes it.
-- `VerifyLiveUnchanged` re-compares the live index against the Begin
-  snapshot while the lock is held. Divergence ⇒ refuse, restore the
-  status preimage, delete the temp index, leave HEAD and the live index
-  untouched.
-- `git commit` runs with `GIT_INDEX_FILE=<temp>` **while the lock is
-  held**, so hooks inherit the temp-index environment and normal hook
-  semantics are preserved.
-- On success the post-commit temp index is published through the held
-  lock (bytes into the lock file, then rename onto the index — Git's own
-  publish shape), so the live index matches the new HEAD.
-- On commit failure the audited pre-commit temp index is published
-  instead, preserving the existing contract that the intended paths stay
-  staged for `land --no-record`. Hook output is surfaced verbatim, and a
-  publish failure is reported explicitly alongside the commit failure.
-- Temp dir and lock are cleaned on every path; `Close` is idempotent and
-  reports its own failures.
+| Evidence | Action |
+|----------|--------|
+| `HEAD == pre_head` | The commit never happened. Publish the retained audited index — exactly the staged-retry contract — and keep the landed-at note consistent with it. |
+| HEAD advanced, is a direct child of `pre_head`, carries `Tpatch-Feature: <slug>`, and the retained index's `write-tree` equals HEAD's tree | The commit completed; only publication was outstanding. Publish and clean. |
+| anything else | Refuse with manual-recovery guidance. Journal and retained index are preserved; nothing is guessed at or overwritten. |
 
-### Honest scope
+The "crash between HEAD advance and phase update" case is handled by
+this evidence, which is why the phase field is explicitly advisory.
+Recovery is idempotent: a successful pass clears the journal, so the
+next land finds nothing.
 
-Documented in the source header, `docs/land.md` and the CHANGELOG: this
-serializes **index** writes against other Git processes. It does **not**
-protect against concurrent ref or working-tree mutation (`git checkout`,
-`git reset --hard`, direct ref updates), which no index lock can
-express. No broader claim is made anywhere.
+**Commit flow.** Journal written before commit → commit against the
+alternate index under the live lock → phase updated (best effort) →
+durable publish → journal cleared → lock released. On ordinary commit
+failure the audited pre-commit index is published for the `--no-record`
+retry and the journal is cleared. If publish fails **after** a
+successful commit, land returns a precise "commit succeeded, recovery
+pending" diagnostic, **keeps** the journal for the next invocation, and
+never claims HEAD was rolled back.
+
+### Status errors (dispatch item 5)
+
+`captureFileState`/`restore` snapshot existence, bytes and mode and
+restore atomically; `restore` returns its error and land's `abort`
+aggregates it with the primary cause. On the commit-failure path the
+landed-at note is deliberately retained, consistent with the published
+staged-retry index — asserted by
+`TestLandCommitFailureClearsJournalAndKeepsStagedRetry`.
+
+### Index path / topology (dispatch item 6)
+
+`GIT_INDEX_FILE` is still taken verbatim (whitespace preserved); the
+index file itself is `Lstat`-refused when it is a symlink or otherwise
+non-regular. Rather than *also* rejecting a symlinked parent — which
+would break legitimate symlinked `.git` setups — the publish temp is
+created in the **symlink-resolved** parent directory, so the final
+rename is same-directory and same-filesystem and cannot be redirected.
+That trade-off is called out for review below.
 
 ## Files Changed
 
+Created this rev:
+
+- `internal/cli/land_journal.go`
+- `internal/cli/land_journal_test.go`
+- `internal/gitutil/index_publish_test.go`
+
 Modified this rev:
 
-- `internal/gitutil/index_snapshot.go` (rewritten around
-  `IndexTransaction`)
-- `internal/gitutil/index_snapshot_test.go` (rewritten)
+- `internal/gitutil/index_snapshot.go`
 - `internal/cli/land.go`
-- `internal/cli/nested_worktree_test.go`
 - `CHANGELOG.md`
 - `docs/land.md`
 - `docs/handoff/CURRENT.md`
@@ -114,8 +130,8 @@ Unchanged this rev: `internal/gitutil/worktrees.go`,
 `internal/gitutil/patch_paths_strict.go`,
 `internal/gitutil/capture_modes.go`, `internal/gitutil/gitutil.go`,
 `internal/cli/cobra.go`, `internal/cli/nested_worktree_guard.go`,
-`internal/cli/phase2.go`, `internal/workflow/refresh.go`, `SPEC.md`,
-`docs/record.md`.
+`internal/cli/nested_worktree_test.go`, `internal/cli/phase2.go`,
+`internal/workflow/refresh.go`, `SPEC.md`, `docs/record.md`.
 
 Deliberately NOT folded: the Makefile nested-repo sentinel LOW is
 separately tracked.
@@ -129,133 +145,110 @@ separately tracked.
 - `go test -race -count=1` on `./internal/gitutil/`, `./internal/workflow/`
   and `./internal/cli/` — ok.
 - Assets parity (`go test ./assets/`) — ok; no asset touched.
-- 178 passing assertions across the GH #7 test set.
+- 204 passing assertions across the GH #7 test set.
 
 New coverage this rev:
 
-- `TestEffectiveIndexPathRespectsWhitespaceBearingGitIndexFile` —
-  absolute `" odd\tindex name "` and relative `"sub dir/idx "`; exact
-  path, full stage → lock → publish round-trip, and no lock residue.
-- `TestEffectiveIndexPathLinkedWorktree` — a linked worktree's own index
-  is seeded from and published back to, and the live index does not move
-  during temp staging.
-- `TestBeginIndexTransactionRefusesSymlinkedIndex` — refusal before any
-  mutation; the symlink topology and its target bytes both survive.
-- `TestBeginIndexTransactionRefusesNonRegularIndex` — directory and
-  FIFO.
-- `TestIndexTransactionDetectsConcurrentLiveMutation` — a concurrent
-  `git add` is detected at publish time; the operator's index is
-  byte-identical, land's staging never reached it, no lock or temp
-  residue.
-- `TestIndexTransactionSeedsFromOperatorState` — operator-staged and
-  intent-to-add entries seed the temp index (verified through
-  `ls-files --cached`, since `diff --cached` deliberately ignores
-  intent-to-add), and the temp bytes equal the live bytes.
-- `TestIndexTransactionAbsentIndexLifecycle` — absent live index stays
-  absent through staging and is created by publish.
-- `TestIndexTransactionRefusesAndPreservesForeignLock`,
-  `TestIndexTransactionCloseIsIdempotent`,
-  `TestPublishLockedRequiresTheLock`.
-- `TestStagedPathsEnvByteExact` — space/tab/newline names, and the live
-  index sees none of it.
-- `TestNestedWorktree_Land_ConcurrentOperatorAddIsDetectedNotOverwritten`
-  — a `git` wrapper runs a real `env -u GIT_INDEX_FILE git add` against
-  the LIVE index during land's first staging call; land refuses,
-  HEAD is unchanged, both operator paths survive, land's paths are
-  absent, no landed-at note, no lock residue.
-- `TestNestedWorktree_Land_RefusesSymlinkedIndexBeforeMutation`,
-  `TestNestedWorktree_Land_RefusesOnLiveIndexLockContention`,
-  `TestNestedWorktree_Land_WhitespaceBearingGitIndexFile`,
-  `TestNestedWorktree_Land_LeavesNoIndexResidue` (success output and
-  trailers unchanged, live index clean vs new HEAD).
-- `TestFileStateRestoreReportsFailures` — bytes and mode restored
-  exactly, an unwritable directory produces an error rather than a
-  silent failure, and an absent preimage restores to absent.
+- `TestPublishFailureSeamsCleanOwnedLockAndNeverTruncate` — all six
+  seams. Each asserts: an error is surfaced, **no owned lock survives**,
+  the live index is the complete old OR complete new file (never a
+  truncation), Git can still read it, and no publish-temp residue
+  remains.
+- `TestPublishDoesNotConsumeTheLockAsData` — the lock holds our nonce
+  sentinel, the published index equals the temp index, and the lock is
+  gone afterwards.
+- `TestOwnedLockCleanupNeverTouchesAForeignLock` — `Close` leaves a
+  foreign lock byte-identical and `LockNonceAt` reports it as not ours.
+- `TestPublishAbsentIndexReleasesLock`.
+- `TestRecoverLandNoJournalIsNoOp`.
+- `TestRecoverLandCrashBeforeCommitPublishesStagedRetry` — retained
+  index published, staged retry present, HEAD unchanged, journal +
+  retained index + our stale lock all cleaned, and a second pass is a
+  no-op.
+- `TestRecoverLandCrashAfterHeadAdvanceBeforePhaseUpdate` — journal
+  still says `pre-commit` (asserted), HEAD advanced via a constructed
+  landing commit; recovery publishes the **committed** index, the
+  published index agrees with the new HEAD, everything is cleaned, and
+  a second pass is a no-op.
+- `TestRecoverLandRefusesUnrelatedHeadAdvance` — refusal names the
+  journal directory and the `git log --grep` recovery step; HEAD, the
+  live index, the journal and the retained index are all untouched.
+- `TestRecoverLandValidatesJournal` — unsupported version, retained-path
+  containment escape (`../../etc/passwd`), checksum mismatch, changed
+  effective-index identity, malformed JSON.
+- `TestRecoverLandLockOwnership` — our stale lock removed; a foreign
+  lock preserved AND reported.
+- `TestLandRunsRecoveryBeforeAnyMutation` — an unrecoverable journal
+  makes `land` refuse with the feature directory byte-identical and HEAD
+  unmoved.
+- `TestLandLeavesNoJournalResidue` — clean land leaves no journal,
+  retained index or lock, and nothing appears in `git status`.
+- `TestLandCommitFailureClearsJournalAndKeepsStagedRetry` — journal
+  cleared, audited staged retry present, landed-at note retained,
+  `--no-record` retry lands.
 
-Retained and re-run unchanged: the four-position stage-time
-fault-injection suite (now injecting into the temp index, since the
-hook inherits `GIT_INDEX_FILE`), the commit-hook retry contract,
-the discovery-budget tests, and every prior original-issue,
-exotic-name, strict-parser, refresh and non-goal regression.
-`TestNestedWorktree_Land_RollbackPreservesOperatorStagedState` was
-renamed `..._AbortLeavesOperatorStagedStateUntouched` because there is
-no longer anything to roll back.
+Crash phases are exercised by **constructing** the durable state a crash
+would leave and invoking recovery, rather than killing processes: that
+is deterministic, leaves no orphans to clean, and tests exactly the
+evidence recovery reasons about.
+
+All prior GH #7, strict-parser, refresh, non-goal, land-hook and
+discovery-budget regressions were re-run unchanged and pass.
 
 ## Reproduction + control matrix (built binary)
 
-Re-run at this HEAD with nested worktrees (`agent review`,
-`agent trail `) plus every over-filtering control: the worktrees are
-absent from patch, diffstat, plan, index and commit; the prefix sibling
-`agent-other/f.txt`, the unregistered nested repo `vendor/plainrepo` and
-the external worktree behave exactly as before. `.git/index.lock` does
-not exist after the run. All scratch repos, worktrees and build
-artifacts were removed; `git worktree list` shows only the primary
-worktree.
+Re-run at this HEAD: nested worktrees (`agent review`, `agent trail `)
+absent from patch, diffstat, plan, index and commit; prefix sibling,
+unregistered nested repo and external worktree unchanged. After land:
+no `.git/index.lock`, an empty `.tpatch/local/land-journal/`, and
+`git diff --cached` empty (index agrees with the new HEAD). All scratch
+repos, worktrees and binaries removed.
 
 ## Reviewer focus
 
-1. Hook compatibility was the named blocker risk. It holds on this
-   platform: `git commit` propagates `GIT_INDEX_FILE` to hooks, so a
-   `pre-commit` hook sees the audited temp index, and the existing
-   hook-failure retry test passes unchanged. No fallback to live-index
-   restore was needed, so none was added.
-2. `PublishLocked` writes into the lock file and renames it onto the
-   index — Git's own publish shape — which means the lock is consumed by
-   a successful publish. `Close` afterwards only cleans the temp dir.
-3. The commit runs *while* the lock is held. Git locks `<temp>.lock`
-   for its own index writes, so there is no self-deadlock; verified by
-   the whole land suite.
-4. `VerifyLiveUnchanged` compares bytes and mode. It does not compare
-   mtime, so a touch-without-change is correctly not treated as
-   divergence.
-5. Scope wording: please check `docs/land.md`, the CHANGELOG and the
-   `index_snapshot.go` header all say the same thing — index
-   serialization only, no claim about refs or the working tree.
-
-## Rev-6 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED.
-- Isolated staging and operator-divergence protection are effective.
-- Valid residuals:
-  1. Publish clears lock ownership too early; later chmod/rename failure can
-     leave a stale owned index lock.
-  2. Commit advances HEAD before durable live-index publication; a crash can
-     leave HEAD/index/lock inconsistent.
-- `tpatch_rev6_bin` and review scratch are absent after external cleanup.
-
-## Next Steps
-
-1. Retain owned-lock cleanup through all publish outcomes.
-2. Make live-index publication atomic and fsync-durable.
-3. Add a durable land-index recovery journal for commit/publish crash windows.
-4. Recover or refuse safely at the next land invocation.
-5. Run final dual review, then close #7 only after approval.
+1. **Symlinked parent components.** The dispatch asked to reject them.
+   Rejecting would break legitimate symlinked `.git` setups, so instead
+   the publish temp is created in the resolved parent, making the rename
+   same-directory and non-redirectable. Please confirm that reading of
+   the requirement; switching to outright rejection is a one-line change
+   if preferred.
+2. **Split index.** `core.splitIndex` writes a shared index in
+   `$GIT_DIR` that the retained index may reference. We retain the index
+   file's bytes, and recovery validates by SHA-256 plus a `write-tree`
+   tree comparison, so a dangling shared reference surfaces as a
+   refusal rather than a wrong publish. No dedicated fixture was added
+   because the tree comparison is the real guard.
+3. **Journal phase is advisory.** It is written and updated, but no
+   decision reads it. That is deliberate per the dispatch; the field is
+   kept for human forensics.
+4. Recovery publishes with `durableWriteOwnerFile` using the journal's
+   recorded live-index mode. If the journal has no mode (an absent live
+   index at Begin), it falls back to 0644 — matching Git.
+5. The commit-failure path clears the journal because the audited index
+   *was* published; the post-commit publish-failure path keeps it. Those
+   are the only two asymmetric branches — worth a careful read.
 
 ## Blockers
 
-None. The lock/alternate-index strategy proved compatible with Git
-hooks on the supported platform, so the dispatch's "stop and report"
-branch was not taken.
+None. A safe durable protocol was provable within the current
+architecture, so the dispatch's "stop and report" branch was not taken.
 
 ## Context for Next Agent
 
-- `internal/gitutil/worktrees.go` is the single discovery authority;
-  `git worktree list --porcelain -z` is the single Git shape (Git 2.36+).
-- `internal/gitutil/index_snapshot.go` is the single index-transaction
-  authority. Any future code that stages on the operator's behalf should
-  use `BeginIndexTransaction` rather than writing to the live index.
-- `FilesInPatchStrict` is mandatory for any NEW code that derives a
-  write scope, a diff scope or a staging decision from a patch. Decode
-  Git quoting with `unquoteGitCStyle`, never `strconv.Unquote`.
-- Land's contract: gate-discover → revalidate → begin transaction →
-  stage temp → audit → status → audit → lock + verify → commit temp →
-  publish → release.
-- Byte exactness remains load-bearing: no `TrimSpace`, no hand-rolled
-  dequote on any path compared against a worktree prefix, and no
-  trimming of `GIT_INDEX_FILE`.
-- `PreflightReconcile` is still deliberately unfiltered: it is a hygiene
-  gate, not a capture surface.
+- `internal/gitutil/worktrees.go` — discovery authority
+  (`git worktree list --porcelain -z`, Git 2.36+).
+- `internal/gitutil/index_snapshot.go` — index transaction, owned-lock
+  lifetime and durable publish.
+- `internal/cli/land_journal.go` — journal schema, durable writes and
+  evidence-based recovery. Any change to the schema must bump
+  `landJournalVersion`; recovery refuses unknown versions.
+- `FilesInPatchStrict` is mandatory for any NEW code deriving a write
+  scope from a patch; decode Git quoting with `unquoteGitCStyle`.
+- Land's contract: recover → gate-discover → revalidate → begin
+  transaction → stage temp → audit → status → audit → lock + verify →
+  journal → commit temp → durable publish → clear journal → release.
+- Byte exactness remains load-bearing: no `TrimSpace` on paths or on
+  `GIT_INDEX_FILE`.
 - Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

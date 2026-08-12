@@ -141,11 +141,45 @@ All notable changes to tpatch are recorded here.
   tpatch did not create is never removed, and temp files are cleaned on
   every path.
 
+  Publication is durable and the lock is only ever a mutex sentinel.
+  Bytes go to a separate `O_EXCL` temp in the live index's own
+  (symlink-resolved) directory, are fsynced, chmod'd, renamed onto the
+  index, and the parent directory is fsynced — so a reader sees the
+  complete old index or the complete new one, never a truncation. Lock
+  ownership is tracked independently of the open descriptor, so a
+  failure at any step still removes the `<index>.lock` this run created;
+  a lock tpatch did not create is never touched.
+
+  Crashes between `git commit` advancing HEAD and the index being
+  published are recoverable. Before committing, land writes a versioned,
+  owner-only journal plus a retained copy of the alternate index under
+  the already-gitignored `.tpatch/local/land-journal/`, fsyncing both
+  and their directory. The journal records the slug, pre-HEAD, live- and
+  retained-index identity (existence, SHA-256, mode), the phase and the
+  owned lock's nonce; it stores repo-relative references and never
+  source content, secrets, or an absolute path unless `GIT_INDEX_FILE`
+  genuinely points outside the repository.
+
+  Every `tpatch land` recovers before touching record, status or the
+  index, and decides from EVIDENCE rather than the recorded phase — the
+  crash can fall between HEAD moving and the phase being updated. If
+  HEAD still equals pre-HEAD the commit never happened, so the retained
+  audited index is published as the existing staged-retry contract. If
+  HEAD advanced, land requires it to be a direct child of pre-HEAD
+  carrying this feature's `Tpatch-Feature` trailer AND the retained
+  index to describe exactly the committed tree; only then does it finish
+  the publication. Anything else refuses with manual-recovery guidance,
+  preserving the journal and retained index and overwriting nothing.
+  Recovery is idempotent. If the publish fails after a successful
+  commit, land says so precisely — the commit exists, recovery is
+  pending — and never claims a rollback of HEAD.
+
   Scope, stated plainly: this serializes INDEX writes against other Git
   processes, because `<index>.lock` is the lock `git add` and
-  `git commit` themselves take. It does not protect against concurrent
-  ref or working-tree mutation (`git checkout`, `git reset --hard`), and
-  land makes no such claim.
+  `git commit` themselves take, and it makes index publication durable
+  and crash-recoverable. It does not protect against concurrent ref or
+  working-tree mutation (`git checkout`, `git reset --hard`), and land
+  makes no such claim.
 
   Patch-derived write scopes are parsed strictly. `FilesInPatch` splits
   each `diff --git` header on the first ` b/` and silently skips
