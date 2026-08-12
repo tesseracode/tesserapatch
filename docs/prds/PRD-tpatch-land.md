@@ -17,7 +17,7 @@
 - [`docs/market-research/competitive-landscape.md`](../market-research/competitive-landscape.md) §9 (DEP-3 / git-gud trailer precedents), §10 (what we don't adopt), §11 (deterministic apply-recipe edge)
 - [`docs/record.md`](../record.md), [`docs/reconcile.md`](../reconcile.md), [`docs/feature-layout.md`](../feature-layout.md)
 - [`docs/prds/PRD-verify-freshness.md`](./PRD-verify-freshness.md) §3.6, §7.1 — the landing-evidence consumer this PRD's §3.8 serves (v0.15.1 Wave B / GH #8)
-- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-2 D8–D17 — binding ADR for the readers' contract
+- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-3 D8–D19 — binding ADR for the readers' contract and the §3.8.6 producer precondition
 - [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](../adrs/ADR-019-tpatch-land-trailer-block-schema.md) — the locked schema §3.8 makes readable
 - [GH #8](https://github.com/tesseracode/tesserapatch/issues/8) — `verify` V8 fails after land
 
@@ -518,7 +518,7 @@ These behaviors fall out of using `git` primitives directly. `land`
 does not implement its own transaction layer.
 
 ---
-### 3.8 Landing-evidence readers' contract — v0.15.1 Wave B / GH #8 (rev-2)
+### 3.8 Landing-evidence contract — v0.15.1 Wave B / GH #8 (rev-3)
 
 > **Amendment status**: proposed rev-1, 2026-08-12, AWAITING REVIEW.
 > **`land`'s behaviour is unchanged by this amendment.** This section is
@@ -528,7 +528,13 @@ does not implement its own transaction layer.
 > D15), and the previously-implicit reader rules must become explicit before a
 > consumer depends on them. Binding schema: ADR-019.
 >
-> **rev-1 → rev-2** adds rules 15–17: the conservative raw-precedence rule
+> **rev-2 → rev-3** adds rules 18–19 (derived commit-id length; shallow and
+> partial history are not root topology) and a **new §3.8.6 producer
+> precondition**: `land` must refuse before committing when
+> `status.apply.base_commit` is not valid for the reader grammar. Everything
+> else about `land` is unchanged.
+>
+> **rev-1 → rev-2** added rules 15–17: the conservative raw-precedence rule
 > (a slug-bearing line Git does not parse as a trailer is *malformed*, never
 > *absent*), the ordering rule (artifact absence is evaluated before any digest
 > comparison), and the **attestation-vs-anchor separation** — a reader that
@@ -647,6 +653,25 @@ materialization signal, never ownership.
     own recorded hashes may be stale; they are not an authority, only a
     baseline source.
 
+18. **The accepted commit-id length is derived, not assumed.**
+    `Tpatch-Base-Commit` is `N` lowercase hex where `N` comes from
+    `git rev-parse --show-object-format` — measured as **40** for `sha1` and
+    **64** for a repository created with `--object-format=sha256`. A reader
+    that hardcodes 40 rejects every valid landing in a SHA-256 repository. If
+    the object format cannot be read, the reader must report an error state
+    rather than guess.
+19. **Zero parents does not mean "root" in a shallow clone.** Measured: in a
+    `--depth 2` clone the graft-boundary commit reports **0 parents** in `%P`
+    exactly like a real root, is marked `(grafted)`, and
+    `git read-tree <boundary>^` fails with the *same*
+    `fatal: Not a valid object name` text. A reader must run
+    `git rev-parse --is-shallow-repository` (and/or check `.git/shallow`
+    membership) **before** classifying topology, and must distinguish a
+    partial clone (`remote.<name>.promisor`) whose objects are fetched lazily.
+    Telling an operator to re-land when the actual fix is
+    `git fetch --unshallow` is a wrong remediation, and a CI shallow checkout
+    is the common case.
+
 #### 3.8.3 No new status metadata — decision
 
 `land` persists **no** landing identifier, and this amendment does not add
@@ -703,6 +728,53 @@ naming `git commit --amend` (`PRD-verify-freshness` §3.6.9 R7), so the
 operator is told precisely, at the next verify. A `land`-side warning would
 move the signal earlier but cannot change any verdict, and `land` is
 behaviour-frozen by §6.2 AC-LD9. Tracked as `PRD-verify-freshness` §6 Q13.
+
+#### 3.8.6 Producer precondition — `land` refuses an invalid `Tpatch-Base-Commit` (rev-3)
+
+**This is the one place §3.8 changes `land`'s behaviour, and it only adds a
+refusal.** `land` reads `status.Apply.BaseCommit` and interpolates it into the
+trailer block with **no validation** (`internal/cli/land.go:394`, `:397-400`).
+On a legacy or corrupt status — including the `--no-record` path
+(`internal/cli/land.go:66`, `:98`), which skips the embedded `record` that
+would otherwise populate the field — the emitted trailer can be
+`Tpatch-Base-Commit: ` with an empty value, which the §3.8.2 grammar
+classifies as **malformed** at every future read. A producer must not create
+evidence the reader is required to reject.
+
+**Decision.** Before building the trailer block, and therefore **before any
+commit**, `land` validates `status.Apply.BaseCommit`:
+
+1. **non-empty**;
+2. **well-formed** — `N` lowercase hex where `N` derives from
+   `git rev-parse --show-object-format` (rule 18: 40 for `sha1`, 64 for
+   `sha256`). The length is derived, never hardcoded;
+3. **resolvable** — `git rev-parse --verify <base>^{commit}` succeeds;
+4. **reachable from `HEAD`** — `gitutil.IsAncestor` (`internal/gitutil/gitutil.go:828`)
+   is true, **unless** the repository is shallow or a partial clone (rule 19),
+   in which case unreachability is reported as a one-line `warn` and the
+   landing proceeds, because the object may simply be outside the local
+   history.
+
+If 1–3 fail, `land` **refuses before the commit**, mutating nothing, with:
+
+> **R23** — `land refuses: status.apply.base_commit is <empty|malformed|unresolvable> (<value>); the Tpatch-Base-Commit trailer would be unreadable. Run tpatch record <slug> --auto (or --from <base>) to repopulate it, then re-run tpatch land <slug>`
+
+**Migration.** Features recorded before `record` populated
+`apply.base_commit`, and features landed with `--no-record` against a status
+that never had it, are the affected population. The remediation is a single
+`tpatch record` invocation; no data is lost and no artifact is rewritten. The
+refusal is *fail-closed*: it converts a silently-unreadable landing into an
+actionable message at the moment of production.
+
+**`status.apply.base_commit` is still never written by `land`.** §3.6 and
+ADR-019 are unchanged. This decision adds a **precondition**, not a writeback:
+the field remains owned by `record` / auto-base resolution (ADR-016), and
+`land` points at `record` rather than repairing it.
+
+**Object-format assumption, stated honestly.** tpatch declares no
+hash-algorithm assumption elsewhere. Rather than assert "commits are 40 hex",
+both the producer here and the reader in rule 18 derive the accepted length
+from `git rev-parse --show-object-format` and fail closed if it cannot be read.
 
 ---
 
@@ -915,13 +987,13 @@ features re-recorded with `--auto`.
 The `reconcile` guard (3) is implementation-independent of `land` —
 they cover different verbs and can ship in either order.
 
-### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-2)
+### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-3)
 
 These rows are **`land`-side** obligations of the readers' contract in §3.8.
 They assert that the evidence substrate `tpatch verify` now depends on is
 actually produced, and — critically — that `land`'s **behaviour is
 unchanged**. The verify-side matrix lives in
-`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L118) and is not
+`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L128) and is not
 duplicated here.
 
 | # | Criterion | Tier |
@@ -943,12 +1015,15 @@ duplicated here.
 | AC-LD15 | No `land` refusal, diagnostic string, exit code, or staging-plan output changes as a result of this amendment. Golden-output comparison against the pre-amendment binary. **The amendment is behaviour-neutral for `land`.** | C |
 | AC-LD16 | Two successive landings of the same slug (re-`record` then re-`land`) leave the **earlier** landing reachable and single-parent, so a reader can still derive a pre-landing tree from it after the newer landing's parent has absorbed the feature. Pins the substrate §3.8.2 rule 17 and `PRD-verify-freshness` §3.6.8 depend on. | C |
 | AC-LD17 | `land` never emits a trailer value outside the §3.8.2 rule 6 formats — no uppercase hex, no wrong-length digest, no `Recipe-SHA` that is neither 64 lowercase hex nor `none` — so a strict reader never rejects a commit `land` produced. | C |
+| AC-LD18 | **`land` refuses before committing** when `status.apply.base_commit` is empty, malformed for the repository object format, or unresolvable, emitting **R23** verbatim and mutating nothing — no commit, no index change, no `status.json` write. Includes the `--no-record` path against a status that never had the field. | C |
+| AC-LD19 | The accepted base-commit length is **derived** from `git rev-parse --show-object-format`: a **SHA-256** repository accepts a 64-hex base and refuses a 40-hex one; a SHA-1 repository does the inverse. Two fixtures; a hardcoded 40 fails this row. | C |
+| AC-LD20 | In a **shallow** or **partial** clone, a base commit that is well-formed and resolvable but not reachable from `HEAD` produces a one-line `warn` and the landing **proceeds** — unreachability alone never refuses. | C |
+| AC-LD21 | `land`'s **successful** path is byte-unchanged: for a feature with a valid base commit, every trailer, refusal message, exit code and staging-plan line is identical to the pre-amendment binary. The §3.8.6 precondition adds a refusal and changes nothing else. | C |
 
-**Matrix size: 17 numbered criteria (AC-LD1 … AC-LD17), all tier C.** Most are
+**Matrix size: 21 numbered criteria (AC-LD1 … AC-LD21), all tier C.** Most are
 already satisfied by shipped behaviour and existing tests; they are listed so
-Wave C proves the substrate rather than assuming it. AC-LD15 is the guard that
-Wave C's changes stay inside `internal/workflow/verify.go` plus the new
-`internal/gitutil` reader.
+Wave C proves the substrate rather than assuming it. AC-LD21 is the guard that `land`'s successful path is untouched, and AC-LD18
+is the guard that it can no longer produce evidence the reader must reject.
 
 
 ## 7. Open questions
