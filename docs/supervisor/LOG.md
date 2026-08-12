@@ -1,3 +1,59 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-0 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, original
+reproducer)
+**Writer commit**: `d9cc323`
+**Reviewed range**: `13a885c..d9cc323`
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Verified Clean
+
+- Diagnosis correctly widened from V8 to V7 and hard parents.
+- Reachable trailer authority direction, HEAD baseline, land-side neutrality
+  and GH #2 reset principle are sound.
+- 99-row matrix mechanically contiguous; citations in range.
+
+### Blocking Findings
+
+1. **CRITICAL**: V10 is absent; landed write-file preimage semantics and the
+   current 11-check schema are undefined.
+2. **HIGH**: malformed trailer evidence cannot be classified from parsed-only
+   output; duplicate Patch/Recipe/Base cardinality is unspecified.
+3. **HIGH**: duplicate-equivalent is undefined for root/merge/incomparable
+   candidates.
+4. **HIGH**: landed-content-absent vocabulary conflicts across PRD/ADR.
+5. **HIGH**: zero-byte patch exactness needs artifact-presence-aware hashing.
+6. **HIGH**: parent materialization ignores V8 and absent-recipe/patch cases.
+7. **HIGH**: concurrent artifact/status mutation lacks immutable snapshots.
+8. **HIGH**: no-evidence byte-identical output contradicts schema 1.1.
+9. **HIGH**: landed write-file byte equality conflicts with ADR-029 and later
+   unrelated edits; reverse apply is offset-tolerant, not byte-exact.
+10. **HIGH**: replace-in-file predicate is vacuous for empty replacement and
+    false-red for repeated replacement text.
+11. **HIGH**: parent evidence `none` replays already-materialized content,
+    recreating double application.
+12. **MEDIUM/HIGH**: reader errors, artifact absence, invocation accounting,
+    root/merge semantics, current golden examples and matrix tiers conflict.
+
+### Rev-1 Direction
+
+- Define V7/V8/V10 as one landed mode with patch materialization authority
+  and recipe/V10 diagnostics consistent with ADR-029.
+- Use a raw+parsed evidence reader, strict cardinality, single-parent landing
+  candidates and deterministic topo ordering.
+- Add explicit unavailable/malformed/stale/ambiguous states; no reader-error
+  fallback.
+- Snapshot all member status/artifact bytes once per run.
+- Rebuild the 11-check schema, failed_at vocabulary, diagnostics, citation
+  counts and matrix.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave B rev-1; same planning writer owns
+the rewrite.
+
 ## Dispatch — v0.15.1 Wave B / GH #8 contract — 2026-08-12
 
 **Task**: Define post-land V7/V8 verification semantics before implementation.

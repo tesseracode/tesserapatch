@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-v0.15.1 Wave B (GH #8 contract) is written and ready for dual independent
-review. Planning only — no Go code, tests, assets, SPEC, CHANGELOG or GitHub
-issue state was touched. Implementation is Wave C.
+v0.15.1 Wave B rev-0 is blocked by V10 omission, evidence grammar,
+materialization false-green/false-red rules and schema contradictions.
+Rev-1 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V7/V8 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD**: `13a885c`
@@ -227,6 +227,32 @@ Ordered by risk:
 9. **Citation spot-check.** Sample §3.6 and ADR D8–D14 anchors against the
    source at `13a885c`; residual #3 lists the known pre-existing drift that is
    *not* this wave's.
+
+## Rev-0 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: NEEDS REVISION.
+- Critical/high themes:
+  1. V10 is omitted; landed write-file preimage freshness is undefined.
+  2. Trailer reader/duplicate cardinality/root/merge/duplicate-equivalent
+     authority is incomplete.
+  3. Landed write/replace predicates produce false reds and false greens;
+     reverse apply is hunk-local, not byte-exact.
+  4. Parent `none`, absent recipe/patch and reader errors create replay or
+     vacuous-skip holes.
+  5. Artifact/status bytes are not snapshotted consistently.
+  6. Schema/check count/failed_at/golden compatibility contradict current V10
+     and landed diagnostics.
+  7. D14 invocation accounting, merge/root semantics, citations and matrix
+     rows need total definitions.
+
+## Next Steps
+
+1. Rewrite landed V7/V8/V10 and parent materialization semantics.
+2. Make evidence parsing/cardinality/topology/error states total.
+3. Add immutable artifact/status snapshots and honest schema compatibility.
+4. Rebuild the acceptance matrix and parity audit.
+5. Run dual rev-1 planning review.
 
 ## Blockers
 

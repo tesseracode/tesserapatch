@@ -703,6 +703,11 @@ WAVE_BASE `ad39e4a`. Amend verify/land planning to define how V7/V8 treat a
 feature and hard parents whose patches are already materialized in reachable
 land commits. Implementation remains Wave C.
 
+**Wave B rev-0** (`d9cc323`): dual NEEDS REVISION. Rev-1 adds landed V10,
+strict evidence grammar/cardinality/topology, patch-authoritative
+materialization with non-vacuous recipe diagnostics, total parent states,
+immutable snapshots and a rebuilt schema/matrix.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
