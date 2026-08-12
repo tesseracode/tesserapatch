@@ -86,12 +86,46 @@ func RecentCommits(repoRoot string, limit int) []RecentCommit {
 // changes in the repo. Used by the record empty-capture diagnostic to
 // distinguish the "nothing changed" case from the "you committed
 // already" case.
+//
+// GH #7 (rev-0 user-external note): registered nested linked worktrees
+// are subtracted, because capture deliberately excludes them. Counting
+// one as dirt made an empty capture report "working tree is dirty, but
+// no textual diff was produced — possibly mode-only or binary changes"
+// when the real story was "the only dirt is a worktree we filtered
+// out", and it suppressed the correct `--from` recovery guidance.
+//
+// The NUL-delimited porcelain shape is used so paths arrive
+// byte-for-byte, with `--untracked-files=all` so an untracked
+// directory is not collapsed to a parent path that the nested-worktree
+// filter cannot classify.  If worktree discovery fails, the raw answer
+// is returned rather than claiming a clean tree.
 func IsWorkingTreeDirty(repoRoot string) bool {
-	out, err := runGit(repoRoot, "status", "--porcelain")
+	out, err := runGit(repoRoot, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
 		return false
 	}
-	return strings.TrimSpace(out) != ""
+	nested, nestedErr := NestedWorktreePrefixes(repoRoot)
+	if nestedErr != nil {
+		return strings.TrimSpace(out) != ""
+	}
+	fields := strings.Split(out, "\x00")
+	for i := 0; i < len(fields); i++ {
+		entry := fields[i]
+		if len(entry) < 4 {
+			continue
+		}
+		x, y := entry[0], entry[1]
+		p := entry[3:]
+		if x == 'R' || x == 'C' || y == 'R' || y == 'C' {
+			// Consume the rename/copy origin field.
+			i++
+		}
+		if p == "" || PathUnderNestedWorktree(p, nested) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // IsPathTracked reports whether `path` (relative to repoRoot) is

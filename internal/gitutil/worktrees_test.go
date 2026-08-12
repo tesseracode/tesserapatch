@@ -858,3 +858,42 @@ func TestNestedWorktreePrefixes_LegacyFallbackRealRepo(t *testing.T) {
 		}
 	}
 }
+
+// A repository whose ONLY dirt is a nested linked worktree must read
+// as clean, so the record empty-capture diagnostic routes to the
+// correct `--from` guidance instead of speculating about mode-only or
+// binary changes (GH #7 rev-0 user-external note).
+func TestIsWorkingTreeDirtyIgnoresNestedWorktree(t *testing.T) {
+	root := nestedWTRepo(t)
+	if IsWorkingTreeDirty(root) {
+		t.Fatal("freshly committed repo should read clean")
+	}
+	addWorktree(t, root, filepath.Join(root, ".claude", "worktrees", "agent review"), "agent-review")
+	if IsWorkingTreeDirty(root) {
+		t.Error("a nested linked worktree must not count as working-tree dirt")
+	}
+
+	// Genuine dirt still counts, in every shape.
+	if err := os.WriteFile(filepath.Join(root, "untracked.txt"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !IsWorkingTreeDirty(root) {
+		t.Error("an untracked file must count as dirt")
+	}
+	if err := os.Remove(filepath.Join(root, "untracked.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if IsWorkingTreeDirty(root) {
+		t.Fatal("removing the untracked file should restore clean")
+	}
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# seed\nchanged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !IsWorkingTreeDirty(root) {
+		t.Error("a tracked modification must count as dirt")
+	}
+	nestedWTGit(t, root, "add", "README.md")
+	if !IsWorkingTreeDirty(root) {
+		t.Error("a staged modification must count as dirt")
+	}
+}

@@ -1550,6 +1550,19 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				return fmt.Errorf("cannot capture patch: %w", err)
 			}
 			if patch == "" {
+				// GH #7 (rev-0 user-external note): when the operator
+				// scoped the capture to paths that the nested-worktree
+				// guard deliberately filtered out, say so. The generic
+				// diagnostics below speculate about mode-only/binary
+				// changes or offer --from candidates, both of which
+				// are actively misleading here. Committed-range mode
+				// is excluded: it never consults the working tree, so
+				// its range semantics are untouched.
+				if !rangeMode && len(pathspecs) > 0 {
+					if wtErr := nestedWorktreeEmptyCaptureRefusal(cmd.ErrOrStderr(), s.Root, slug, pathspecs); wtErr != nil {
+						return wtErr
+					}
+				}
 				// PRD §3.3 / §3.4: --staged and --unstaged refuse on
 				// empty capture with a targeted diagnostic (not the
 				// auto-base / --from candidate listing that the

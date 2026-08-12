@@ -714,3 +714,200 @@ func TestNestedWorktree_TrailingWhitespaceName_ExcludedEndToEnd(t *testing.T) {
 		t.Errorf("land plan dropped the prefix-boundary control:\n%s", stdout)
 	}
 }
+
+// ─── GH #7 rev-1: actionable empty-capture diagnostic ───────────────
+
+// nestedWorktreeDiagnosticMarkers are the load-bearing phrases the
+// actionable refusal must contain.
+var nestedWorktreeDiagnosticMarkers = []string{
+	"registered nested Git worktree",
+	"intentionally excluded from capture",
+	"mode-160000 gitlink",
+	"git worktree remove",
+}
+
+// The misleading speculation the generic zero-byte diagnostic emits;
+// it must NOT appear when the cause is the nested-worktree guard.
+const genericEmptyCaptureSpeculation = "possibly mode-only or binary changes"
+
+// `record --files` naming ONLY nested linked worktrees must say so
+// instead of speculating about mode-only or binary changes.
+func TestNestedWorktree_ScopedRecord_WorktreeOnlyFiles_ActionableDiagnostic(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+
+	stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug, "--files", nestedWorktreeRel)
+	if code == 0 {
+		t.Fatalf("record --files <worktree> must refuse: stdout=%q", stdout)
+	}
+	for _, want := range nestedWorktreeDiagnosticMarkers {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("diagnostic missing %q:\n%s", want, stderr)
+		}
+	}
+	if !strings.Contains(stderr, "every requested path is a registered nested Git worktree") {
+		t.Errorf("worktree-only case should say every requested path is a worktree:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, nestedWorktreeRel) {
+		t.Errorf("diagnostic must name the offending pathspec %q:\n%s", nestedWorktreeRel, stderr)
+	}
+	if strings.Contains(stderr, genericEmptyCaptureSpeculation) {
+		t.Errorf("misleading generic speculation still emitted:\n%s", stderr)
+	}
+	if strings.Contains(stderr, "--from <base-commit-or-ref>") {
+		t.Errorf("misleading --from recovery hint still emitted:\n%s", stderr)
+	}
+	// A refusal must not advance the feature or write artifacts.
+	if _, err := os.Stat(filepath.Join(tmpDir, ".tpatch", "features", slug, "artifacts", "post-apply.patch")); err == nil {
+		t.Error("refused record wrote a canonical patch")
+	}
+}
+
+// A subdirectory INSIDE the nested worktree is the same class.
+func TestNestedWorktree_ScopedRecord_WorktreeDescendant_ActionableDiagnostic(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	inner := filepath.Join(tmpDir, filepath.FromSlash(nestedWorktreeRel), "src")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(inner, "agent.go"), []byte("package agent\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug,
+		"--files", nestedWorktreeRel+"/src")
+	if code == 0 {
+		t.Fatalf("record --files <worktree>/src must refuse: stdout=%q", stdout)
+	}
+	for _, want := range nestedWorktreeDiagnosticMarkers {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("diagnostic missing %q:\n%s", want, stderr)
+		}
+	}
+	if strings.Contains(stderr, genericEmptyCaptureSpeculation) {
+		t.Errorf("misleading generic speculation still emitted:\n%s", stderr)
+	}
+}
+
+// Mixed control A: intended path HAS changes → capture succeeds and no
+// refusal is emitted even though a worktree was also named.
+func TestNestedWorktree_ScopedRecord_MixedWithRealChanges_Succeeds(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+
+	stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go,"+nestedWorktreeRel)
+	if code != 0 {
+		t.Fatalf("mixed record should succeed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if strings.Contains(stderr, "registered nested Git worktree") {
+		t.Errorf("no refusal diagnostic expected for a non-empty capture:\n%s", stderr)
+	}
+	patch := readArtifact(t, tmpDir, slug, "post-apply.patch")
+	assertNoNestedWorktree(t, "post-apply.patch", patch)
+	if !strings.Contains(patch, "+changed") {
+		t.Errorf("mixed record dropped the intended change:\n%s", patch)
+	}
+}
+
+// Mixed control B: intended path has NO changes → the refusal names
+// the excluded worktree AND separates the no-diff remainder, without
+// claiming the whole request was worktrees.
+func TestNestedWorktree_ScopedRecord_MixedWithoutChanges_PartitionedDiagnostic(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	// Revert the intended edits so the non-worktree pathspec is clean.
+	nwtGit(t, tmpDir, "checkout", "--", "README.md", "internal/example.go")
+
+	stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug,
+		"--files", "README.md,"+nestedWorktreeRel)
+	if code == 0 {
+		t.Fatalf("mixed record with no real changes must refuse: stdout=%q", stdout)
+	}
+	for _, want := range nestedWorktreeDiagnosticMarkers {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("diagnostic missing %q:\n%s", want, stderr)
+		}
+	}
+	if strings.Contains(stderr, "every requested path") {
+		t.Errorf("mixed case must not claim every requested path is a worktree:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "Requested and not excluded (no diff):") ||
+		!strings.Contains(stderr, "    - README.md") {
+		t.Errorf("mixed diagnostic must partition the non-worktree remainder:\n%s", stderr)
+	}
+	if strings.Contains(stderr, genericEmptyCaptureSpeculation) {
+		t.Errorf("misleading generic speculation still emitted:\n%s", stderr)
+	}
+}
+
+// The staged/unstaged targeted refusals are equally misleading for a
+// worktree-only scope, so they route through the new diagnostic too.
+func TestNestedWorktree_ScopedRecord_WorktreeOnlyFiles_CaptureModes(t *testing.T) {
+	for _, mode := range []string{"--all", "--staged", "--unstaged"} {
+		t.Run(strings.TrimPrefix(mode, "--"), func(t *testing.T) {
+			tmpDir, slug := setupNestedWorktreeFixture(t)
+			stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug,
+				mode, "--files", nestedWorktreeRel)
+			if code == 0 {
+				t.Fatalf("record %s --files <worktree> must refuse: stdout=%q", mode, stdout)
+			}
+			if !strings.Contains(stderr, "registered nested Git worktree") {
+				t.Errorf("record %s missing the actionable diagnostic:\n%s", mode, stderr)
+			}
+			for _, unwanted := range []string{
+				genericEmptyCaptureSpeculation,
+				"nothing staged for capture",
+				"no unstaged worktree edits to capture",
+			} {
+				if strings.Contains(stderr, unwanted) {
+					t.Errorf("record %s still emitted the misleading %q:\n%s", mode, unwanted, stderr)
+				}
+			}
+		})
+	}
+}
+
+// Non-regression: a genuinely empty capture that has nothing to do
+// with nested worktrees keeps its existing diagnostics verbatim, both
+// with and without --files, and in a repo that HAS a nested worktree.
+func TestNestedWorktree_GenericEmptyCaptureDiagnosticPreserved(t *testing.T) {
+	t.Run("dirty tree, scoped to an unchanged path", func(t *testing.T) {
+		tmpDir, slug := setupNestedWorktreeFixture(t)
+		if err := os.WriteFile(filepath.Join(tmpDir, "untouched.txt"), []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		nwtGit(t, tmpDir, "add", "untouched.txt")
+		nwtGit(t, tmpDir, "-c", "commit.gpgsign=false", "commit", "-qm", "add untouched")
+
+		stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug, "--files", "untouched.txt")
+		if code == 0 {
+			t.Fatalf("record on an unchanged path should refuse: stdout=%q", stdout)
+		}
+		if strings.Contains(stderr, "registered nested Git worktree") {
+			t.Errorf("nested-worktree diagnostic leaked into an unrelated empty capture:\n%s", stderr)
+		}
+		if !strings.Contains(stderr, "tpatch record captured 0 bytes") {
+			t.Errorf("generic empty-capture diagnostic missing:\n%s", stderr)
+		}
+		if !strings.Contains(stderr, genericEmptyCaptureSpeculation) {
+			t.Errorf("generic dirty-tree speculation must be preserved:\n%s", stderr)
+		}
+	})
+
+	t.Run("clean tree, unscoped", func(t *testing.T) {
+		tmpDir, slug := setupNestedWorktreeFixture(t)
+		nwtGit(t, tmpDir, "add", "README.md", "internal/example.go")
+		nwtGit(t, tmpDir, "-c", "commit.gpgsign=false", "commit", "-qm", "commit the feature edits")
+		nwtGit(t, tmpDir, "add", ".tpatch")
+		nwtGit(t, tmpDir, "-c", "commit.gpgsign=false", "commit", "-qm", "commit tpatch state")
+
+		stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug)
+		if code == 0 {
+			t.Fatalf("record on a clean tree should refuse: stdout=%q", stdout)
+		}
+		if strings.Contains(stderr, "registered nested Git worktree") {
+			t.Errorf("nested-worktree diagnostic leaked into an unrelated empty capture:\n%s", stderr)
+		}
+		if !strings.Contains(stderr, "--from <base-commit-or-ref>") {
+			t.Errorf("generic --from recovery hint must be preserved:\n%s", stderr)
+		}
+	})
+}
