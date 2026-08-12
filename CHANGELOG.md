@@ -349,6 +349,34 @@ All notable changes to tpatch are recorded here.
   refusal, the successful path and `status.apply.base_commit`'s ownership
   are unchanged.
 
+  Operator-visible details settled during review:
+
+  - Verification is offline and floor-checked **as a whole**, not just in
+    the landed contract's own commands. The `satisfied_by` reachability
+    check (V5), the dependency-metadata validator (V4) and the shadow
+    worktree commands all run through the same gate, so on a git older
+    than 2.36 the only command `verify` issues is `git --version`, and no
+    verify command can lazy-fetch from a promisor remote.
+  - A probe that could not **run** is now reported as `unavailable` or
+    `history-incomplete` — never as "the content is absent" or "no
+    landing baseline". `git apply --check` exiting 1 is an answer;
+    exiting 128 is a failure, and the two are no longer conflated.
+  - An artifact that exists but cannot be **read** (permission denied,
+    a directory in place of the file, a corrupt `patch-generations.json`)
+    now fails with `inventory-unreadable` naming the artifact, instead of
+    being reported as an absent artifact. On an unrelated feature it is a
+    `warn` advisory naming the artifact, and that feature is excluded
+    from ADR-029 later-touch ordering.
+  - A landing whose attested base commit is well-formed but not reachable
+    from `HEAD` — the rebased or cherry-picked case — now emits the
+    `base-commit-unreachable` advisory alongside the existing report
+    field. It is warn-severity and never changes the verdict.
+  - `tpatch land` rejects a `status.apply.base_commit` carrying any
+    leading or trailing whitespace, and emits the validated value
+    verbatim. Previously the field was trimmed for validation and the
+    original was written into the trailer, which could produce a
+    `Tpatch-Base-Commit` line the reader is required to reject.
+
 ## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 
 Feature release adding a typed, audited way to record non-Git state a
