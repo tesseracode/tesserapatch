@@ -244,24 +244,119 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// braces on top of the revalidated planning inputs (GH #7 rev-4).
 	pathSet = gitutil.FilterNestedWorktreePaths(pathSet, freshNested)
 
-	// Every refusal is now behind us: the strict patch parse, the
-	// revalidated path-set computation, the dirty-path classification
-	// and the extras gate have all passed. Writing status.json here
-	// means a refusal above leaves the feature directory exactly as
-	// `record` left it (GH #7 rev-3 F1). The new HEAD SHA is
-	// intentionally NOT written (PRD F2 / §6 ac.5).
-	status, _ = s.LoadFeatureStatus(slug)
-	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
-	if err := s.SaveFeatureStatus(status); err != nil {
-		return fmt.Errorf("land: cannot update status.json notes: %w", err)
+	// ── Staging transaction (GH #7 rev-5) ───────────────────────────
+	//
+	// Planning cannot close the race on its own, because the window is
+	// INSIDE the staging step: a harness can register a linked worktree
+	// between the revalidation above and `git add`, and `git add` on a
+	// directory that has just become another checkout's working
+	// directory stages it as a mode-160000 gitlink.
+	//
+	// So staging is transactional: snapshot the effective index, stage
+	// the non-status path set, audit what actually landed in the index
+	// against a FRESHLY discovered worktree set, and restore the exact
+	// pre-land index bytes if anything is wrong. The operator's own
+	// staged state survives a rollback byte-for-byte, because the
+	// snapshot is of the whole index file.
+	statusRel := filepath.ToSlash(filepath.Join(".tpatch", "features", slug, "status.json"))
+	stagingSet := make([]string, 0, len(pathSet))
+	for _, p := range pathSet {
+		if p == statusRel {
+			continue
+		}
+		stagingSet = append(stagingSet, p)
+	}
+
+	indexSnap, err := gitutil.SnapshotIndex(s.Root)
+	if err != nil {
+		return fmt.Errorf("land: cannot snapshot the index before staging: %w", err)
+	}
+	rollback := func(cause error) error {
+		if rerr := indexSnap.Restore(); rerr != nil {
+			return fmt.Errorf("%w\nadditionally, restoring the pre-land index failed: %v (inspect `git status` before retrying)", cause, rerr)
+		}
+		return cause
 	}
 
 	// Stage the path set. `git add` accepts directories; for
 	// untracked files we use --intent-to-add first then a normal
 	// add, mirroring CapturePatchScoped's behaviour
-	// (internal/gitutil/gitutil.go:228-251).
-	if err := stagePathSet(s.Root, pathSet); err != nil {
-		return fmt.Errorf("land: cannot stage path set: %w", err)
+	// (internal/gitutil/gitutil.go:228-251). status.json is
+	// deliberately held back: it is staged alone, after the audit.
+	if err := stagePathSet(s.Root, stagingSet); err != nil {
+		return rollback(fmt.Errorf("land: cannot stage path set: %w", err))
+	}
+
+	// Post-stage audit: rediscover, then inspect the index itself.
+	// This is the only check that can see a worktree registered during
+	// `git add`, because it reads what was actually staged rather than
+	// what we intended to stage.
+	contaminated, auditErr := gitutil.AuditStagedPathsForNestedWorktrees(s.Root)
+	if auditErr != nil {
+		return rollback(auditErr)
+	}
+	if len(contaminated) > 0 {
+		var b strings.Builder
+		b.WriteString("land refuses: staging picked up path(s) inside a registered nested Git worktree:\n")
+		for _, p := range contaminated {
+			fmt.Fprintf(&b, "  - %s\n", p)
+		}
+		b.WriteString("\nA linked worktree was registered while `land` was staging, so `git add` recorded it as a\n")
+		b.WriteString("mode-160000 gitlink. The index has been restored to its pre-land state; nothing was committed.\n")
+		b.WriteString("Resolve with one of:\n")
+		b.WriteString("  - stop the process creating worktrees under this repository, then rerun\n")
+		b.WriteString("  - `git worktree remove <path>` if the nested worktree is no longer needed\n")
+		fmt.Fprintf(&b, "  - rerun: tpatch land %s --no-record\n", slug)
+		return rollback(fmt.Errorf("%s", b.String()))
+	}
+
+	// The audit passed. Only now is the landed-at note written, and
+	// only status.json is staged — no further broad staging happens, so
+	// a worktree registered from here on cannot enter the index by
+	// registration alone (registration stages nothing). A concurrent
+	// third-party `git add` remains outside supported semantics.
+	//
+	// The new HEAD SHA is intentionally NOT written (PRD F2 / §6 ac.5).
+	statusPreimage, statusPreimageErr := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(statusRel)))
+	restoreStatus := func() {
+		if statusPreimageErr == nil {
+			_ = os.WriteFile(filepath.Join(s.Root, filepath.FromSlash(statusRel)), statusPreimage, 0o644)
+		}
+	}
+	status, _ = s.LoadFeatureStatus(slug)
+	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
+	if err := s.SaveFeatureStatus(status); err != nil {
+		restoreStatus()
+		return rollback(fmt.Errorf("land: cannot update status.json notes: %w", err))
+	}
+	if err := stagePathSet(s.Root, []string{statusRel}); err != nil {
+		restoreStatus()
+		return rollback(fmt.Errorf("land: cannot stage %s: %w", statusRel, err))
+	}
+
+	// Final audit, immediately before commit. The status-staging pass
+	// above is itself a (much narrower) window, so the index is
+	// re-audited once more: the commit is only ever taken from an index
+	// that was verified clean after the LAST `git add` land performed.
+	// Past this point land issues no further staging at all, so a
+	// worktree registered from here on cannot enter the index by
+	// registration alone. A concurrent third-party `git add` racing the
+	// commit remains outside supported semantics.
+	finalContaminated, finalAuditErr := gitutil.AuditStagedPathsForNestedWorktrees(s.Root)
+	if finalAuditErr != nil {
+		restoreStatus()
+		return rollback(finalAuditErr)
+	}
+	if len(finalContaminated) > 0 {
+		restoreStatus()
+		var b strings.Builder
+		b.WriteString("land refuses: the index picked up path(s) inside a registered nested Git worktree during the final staging step:\n")
+		for _, p := range finalContaminated {
+			fmt.Fprintf(&b, "  - %s\n", p)
+		}
+		b.WriteString("\nThe index has been restored to its pre-land state; nothing was committed.\n")
+		b.WriteString("Stop the process creating worktrees under this repository (or `git worktree remove <path>`), then rerun.\n")
+		return rollback(fmt.Errorf("%s", b.String()))
 	}
 
 	// Build commit subject + trailer block (§3.4).

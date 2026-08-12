@@ -1203,12 +1203,12 @@ func measureRecordDiscoveryCalls(t *testing.T) int {
 	return n
 }
 
-// GH #7 rev-3 F1 + rev-4 F2: land's discovery budget is exactly TWO of
-// its own calls — the pre-record entry gate and the pre-stage
-// revalidation — plus whatever the embedded record needs. Calibrated
-// against a standalone record so the assertion does not hardcode
-// internals. Anything above this budget means a stray rediscovery
-// crept back into the planning path.
+// GH #7 rev-3 F1 + rev-4 F2 + rev-5: land's discovery budget is exactly
+// FOUR of its own calls — the pre-record entry gate, the pre-stage
+// revalidation, the post-stage index audit and the final pre-commit
+// audit — plus whatever the embedded record needs. Calibrated against a standalone record so the
+// assertion does not hardcode internals. Anything above this budget
+// means a stray rediscovery crept back into the path.
 func TestNestedWorktree_Land_DiscoveryBudget(t *testing.T) {
 	recordCalls := measureRecordDiscoveryCalls(t)
 
@@ -1217,7 +1217,7 @@ func TestNestedWorktree_Land_DiscoveryBudget(t *testing.T) {
 		t.Fatalf("apply --mode done failed: %s", stderr)
 	}
 
-	budget := 2 + recordCalls
+	budget := 4 + recordCalls
 	counter, restore := installCountingWorktreeListGit(t, budget)
 	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
 		"--files", "README.md,internal/example.go")
@@ -1228,7 +1228,7 @@ func TestNestedWorktree_Land_DiscoveryBudget(t *testing.T) {
 			budget, total, stdout, stderr)
 	}
 	if total != budget {
-		t.Errorf("expected exactly %d worktree-list invocations (1 entry gate + %d embedded record + 1 pre-stage revalidation), got %d",
+		t.Errorf("expected exactly %d worktree-list invocations (1 entry gate + %d embedded record + 1 pre-stage revalidation + 2 index audits), got %d",
 			budget, recordCalls, total)
 	}
 	committed := nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD")
@@ -1271,9 +1271,9 @@ func TestNestedWorktree_Land_EntryDiscoveryFailureLeavesEverythingUntouched(t *t
 	}
 }
 
-// --no-record spends only land's own two calls (entry gate +
-// pre-stage revalidation); --dry-run runs no record and revalidates at
-// plan time, so it spends exactly one.
+// --no-record spends only land's own four calls (entry gate +
+// pre-stage revalidation + two index audits); --dry-run runs no record,
+// stages nothing, and revalidates at plan time, so it spends one.
 func TestNestedWorktree_Land_NoRecordAndDryRunDiscoveryBudget(t *testing.T) {
 	tmpDir, slug := setupNestedWorktreeFixture(t)
 	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
@@ -1299,15 +1299,15 @@ func TestNestedWorktree_Land_NoRecordAndDryRunDiscoveryBudget(t *testing.T) {
 	})
 
 	t.Run("--no-record", func(t *testing.T) {
-		counter, restore := installCountingWorktreeListGit(t, 2)
+		counter, restore := installCountingWorktreeListGit(t, 4)
 		stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record")
 		total := worktreeListCount(t, counter)
 		restore()
 		if code != 0 {
 			t.Fatalf("--no-record exceeded its discovery budget (observed %d calls): stdout=%q stderr=%q", total, stdout, stderr)
 		}
-		if total != 2 {
-			t.Errorf("--no-record should spend exactly 2 discoveries (entry gate + pre-stage revalidation), got %d", total)
+		if total != 4 {
+			t.Errorf("--no-record should spend exactly 4 discoveries (entry gate + pre-stage revalidation + 2 index audits), got %d", total)
 		}
 		assertNoNestedWorktree(t, "--no-record landing commit",
 			nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD"))
@@ -1738,5 +1738,349 @@ func TestNestedWorktree_LandDryRun_ReflectsLatestSetWithoutMutation(t *testing.T
 	}
 	if got := gitPorcelain(t, tmpDir); got != porcelainBefore {
 		t.Errorf("dry-run mutated the working tree:\n pre=%q\npost=%q", porcelainBefore, got)
+	}
+}
+
+// ─── GH #7 rev-5: land staging transaction ──────────────────────────
+
+// installStageTimeWorktreeHookGit prepends a `git` wrapper that, on the
+// `hookAt`-th `git add` invocation, registers a linked worktree at
+// `wtRel` AND stages its gitlink, before delegating.
+//
+// This is deliberate fault injection, and the comment says so: because
+// land stages explicit file paths, a bare stage-time registration does
+// not by itself put the worktree in the index. The hook therefore
+// creates the exact contaminated-index state that a widening `git add`,
+// a future refactor, or a concurrent third party could produce, and the
+// test asserts that the post-stage audit detects it and restores the
+// pre-land index byte-for-byte. Proving the backstop works is the
+// point; assuming `git add` will never widen is what rev-4 did.
+//
+// hookAt counts `git add` invocations across the whole process tree,
+// which is deterministic for a single land run.
+func installStageTimeWorktreeHookGit(t *testing.T, repoRoot, wtRel, branch string, hookAt int) (counterPath string, restore func()) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate real git: %v", err)
+	}
+	binDir := t.TempDir()
+	counterPath = filepath.Join(binDir, "add-count")
+	wtAbs := filepath.Join(repoRoot, filepath.FromSlash(wtRel))
+	script := fmt.Sprintf(`#!/bin/sh
+isadd=0
+for a in "$@"; do
+  if [ "$a" = "add" ]; then isadd=1; break; fi
+done
+if [ "$isadd" = 1 ]; then
+  n=0
+  if [ -f %[1]q ]; then n=$(cat %[1]q); fi
+  n=$((n+1))
+  printf '%%s' "$n" > %[1]q
+  if [ "$n" -eq %[2]d ]; then
+    %[3]q -C %[4]q worktree add -q %[5]q -b %[6]q >/dev/null 2>&1 || true
+    %[3]q -C %[4]q -c advice.addEmbeddedRepo=false --literal-pathspecs add -- %[7]q >/dev/null 2>&1 || true
+  fi
+fi
+exec %[3]q "$@"
+`, counterPath, hookAt, realGit, repoRoot, wtAbs, branch, wtRel)
+	shim := filepath.Join(binDir, "git")
+	if err := os.WriteFile(shim, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := os.Getenv("PATH")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+original)
+	t.Cleanup(func() {
+		rm := exec.Command(realGit, "-C", repoRoot, "worktree", "remove", "--force", wtAbs)
+		_ = rm.Run()
+		prune := exec.Command(realGit, "-C", repoRoot, "worktree", "prune")
+		_ = prune.Run()
+	})
+	return counterPath, func() { os.Setenv("PATH", original) }
+}
+
+// countGitAddInvocations measures how many `git add` calls a land run
+// makes, so a hook can be aimed at the staging step specifically
+// without hardcoding internals.
+func countGitAddInvocations(t *testing.T) int {
+	t.Helper()
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	binDir := t.TempDir()
+	counter := filepath.Join(binDir, "add-count")
+	script := fmt.Sprintf(`#!/bin/sh
+isadd=0
+for a in "$@"; do
+  if [ "$a" = "add" ]; then isadd=1; break; fi
+done
+if [ "$isadd" = 1 ]; then
+  n=0
+  if [ -f %[1]q ]; then n=$(cat %[1]q); fi
+  n=$((n+1))
+  printf '%%s' "$n" > %[1]q
+fi
+exec %[2]q "$@"
+`, counter, realGit)
+	shim := filepath.Join(binDir, "git")
+	if err := os.WriteFile(shim, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := os.Getenv("PATH")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+original)
+	_, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go", "--allow-extra-paths")
+	os.Setenv("PATH", original)
+	if code != 0 {
+		t.Fatalf("calibration land failed: %s", stderr)
+	}
+	n := worktreeListCount(t, counter)
+	if n < 2 {
+		t.Fatalf("calibration measured %d `git add` invocations", n)
+	}
+	return n
+}
+
+// The rev-5 regression: a worktree registered DURING the staging step
+// (after the pre-stage revalidation) means `git add` records a gitlink.
+// The post-stage index audit must catch it, restore the exact pre-land
+// index, and refuse without touching HEAD or the landed-at note.
+func TestNestedWorktree_Land_StageTimeRegistrationIsAuditedAndRolledBack(t *testing.T) {
+	addCalls := countGitAddInvocations(t)
+
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		hookAt int
+	}{
+		{"broad land, hook on the first add", []string{"--allow-extra-paths"}, 1},
+		{"scoped land, hook on the first add", []string{"--files", "README.md,internal/example.go", "--allow-extra-paths"}, 1},
+		{"hook on the final status-staging add", []string{"--allow-extra-paths"}, addCalls - 1},
+		{"hook on the very last add", []string{"--allow-extra-paths"}, addCalls},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.hookAt < 1 {
+				t.Skipf("calibrated hook position %d is not reachable", tc.hookAt)
+			}
+			tmpDir, slug := setupNestedWorktreeFixture(t)
+			if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+				t.Fatalf("apply --mode done failed: %s", stderr)
+			}
+			// Give the soon-to-be worktree directory a presence in the
+			// dirty set beforehand is impossible (git worktree add
+			// needs a free path), so the harness registers it fresh.
+			lateRel := "wt/stage time"
+			headBefore := gitHead(t, tmpDir)
+			indexTreeBefore := nwtGit(t, tmpDir, "write-tree")
+
+			_, restore := installStageTimeWorktreeHookGit(t, tmpDir, lateRel, "stage-time", tc.hookAt)
+			args := append([]string{"land", "--path", tmpDir, slug}, tc.args...)
+			stdout, stderr, code := runCmdWithError(args...)
+			restore()
+
+			if _, err := os.Stat(filepath.Join(tmpDir, filepath.FromSlash(lateRel))); err != nil {
+				t.Fatalf("hook did not register the stage-time worktree: %v", err)
+			}
+
+			if code == 0 {
+				t.Fatalf("the post-stage audit must catch the injected gitlink; land returned success\nstdout=%q stderr=%q", stdout, stderr)
+			}
+
+			// Refusal path: the audit fired. Index restored, nothing
+			// committed, no landed-at note.
+			if !strings.Contains(stderr, "nested Git worktree") {
+				t.Errorf("refusal should name the contamination: %q", stderr)
+			}
+			if got := gitHead(t, tmpDir); got != headBefore {
+				t.Errorf("HEAD advanced despite refusing: %s -> %s (stdout=%q)", headBefore, got, stdout)
+			}
+			if got := nwtGit(t, tmpDir, "write-tree"); got != indexTreeBefore {
+				t.Errorf("index not restored:\nbefore=%s\nafter=%s", indexTreeBefore, got)
+			}
+			cached := nwtGit(t, tmpDir, "diff", "--cached", "--name-only")
+			if strings.Contains(cached, "stage time") {
+				t.Errorf("worktree still present in the cached diff:\n%s", cached)
+			}
+			statusBody, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(statusBody), `"notes": "landed at`) {
+				t.Errorf("land wrote its status note despite refusing:\n%s", statusBody)
+			}
+
+			// Recovery: remove the worktree, land succeeds.
+			rm := exec.Command("git", "worktree", "remove", "--force",
+				filepath.Join(tmpDir, filepath.FromSlash(lateRel)))
+			rm.Dir = tmpDir
+			if out, rerr := rm.CombinedOutput(); rerr != nil {
+				t.Fatalf("cleanup worktree: %s: %v", out, rerr)
+			}
+			if stdout, stderr, code := runCmdWithError(args...); code != 0 {
+				t.Fatalf("land failed after recovery: stdout=%q stderr=%q", stdout, stderr)
+			}
+			assertNoNestedWorktree(t, "landing commit after recovery",
+				nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD"))
+		})
+	}
+}
+
+// An operator's own staged work must survive the rollback
+// byte-for-byte: the snapshot is of the whole index file.
+func TestNestedWorktree_Land_RollbackPreservesOperatorStagedState(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	// Operator-staged content that land has no business touching.
+	if err := os.WriteFile(filepath.Join(tmpDir, "operator.txt"), []byte("operator staged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "intent.txt"), []byte("intent\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nwtGit(t, tmpDir, "add", "operator.txt")
+	nwtGit(t, tmpDir, "add", "--intent-to-add", "intent.txt")
+
+	indexPath := strings.TrimSpace(nwtGit(t, tmpDir, "rev-parse", "--git-path", "index"))
+	if !filepath.IsAbs(indexPath) {
+		indexPath = filepath.Join(tmpDir, indexPath)
+	}
+	rawBefore, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	treeBefore := nwtGit(t, tmpDir, "write-tree")
+	headBefore := gitHead(t, tmpDir)
+
+	// Fail the post-stage audit's discovery: entry gate = 1, embedded
+	// record = recordCalls, pre-stage revalidation = 2+recordCalls,
+	// post-stage audit = 3+recordCalls.
+	recordCalls := measureRecordDiscoveryCalls(t)
+	_, restore := installFailAtNthWorktreeListGit(t, 3+recordCalls)
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go", "--allow-extra-paths")
+	restore()
+	if code == 0 {
+		t.Fatalf("land must refuse when the post-stage audit's discovery fails: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "Refusing to capture") {
+		t.Errorf("refusal missing the fail-closed guidance: %q", stderr)
+	}
+
+	rawAfter, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(rawAfter) != string(rawBefore) {
+		t.Error("index bytes not restored byte-for-byte after the rollback")
+	}
+	if got := nwtGit(t, tmpDir, "write-tree"); got != treeBefore {
+		t.Errorf("write-tree differs after rollback:\nbefore=%s\nafter=%s", treeBefore, got)
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("HEAD advanced despite refusing: %s -> %s", headBefore, got)
+	}
+	cached := nwtGit(t, tmpDir, "diff", "--cached", "--name-only")
+	if !strings.Contains(cached, "operator.txt") {
+		t.Errorf("operator's staged file lost across the rollback:\n%s", cached)
+	}
+	if strings.Contains(cached, "README.md") {
+		t.Errorf("land's staging survived the rollback:\n%s", cached)
+	}
+	statusBody, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(statusBody), `"notes": "landed at`) {
+		t.Errorf("land wrote its status note despite refusing:\n%s", statusBody)
+	}
+}
+
+// The commit-hook failure contract is unchanged: once the transaction
+// has passed audit and the commit is attempted, a failing hook leaves
+// the audited index staged for a `--no-record` retry.
+func TestNestedWorktree_Land_CommitHookFailureLeavesAuditedIndexStaged(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	hookDir := filepath.Join(tmpDir, ".git", "hooks")
+	if err := os.MkdirAll(hookDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hook := filepath.Join(hookDir, "pre-commit")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho 'hook says no' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	headBefore := gitHead(t, tmpDir)
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land should fail when the pre-commit hook rejects: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "--no-record") {
+		t.Errorf("hook-failure guidance should mention the --no-record retry: %q", stderr)
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("HEAD advanced despite the hook failure")
+	}
+	cached := nwtGit(t, tmpDir, "diff", "--cached", "--name-only")
+	for _, want := range []string{"README.md", "internal/example.go", "status.json"} {
+		if !strings.Contains(cached, want) {
+			t.Errorf("audited index should remain staged for retry, %q missing:\n%s", want, cached)
+		}
+	}
+	assertNoNestedWorktree(t, "staged index after hook failure", cached)
+
+	// The retry path works once the hook is removed.
+	if err := os.Remove(hook); err != nil {
+		t.Fatal(err)
+	}
+	if stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record"); code != 0 {
+		t.Fatalf("--no-record retry failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if gitHead(t, tmpDir) == headBefore {
+		t.Error("retry did not advance HEAD")
+	}
+}
+
+// Clean success is unchanged by the transaction: the same paths land,
+// the tree is clean, and the landed-at note is committed.
+func TestNestedWorktree_Land_CleanSuccessUnchangedByTransaction(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code != 0 {
+		t.Fatalf("land failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	committed := nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD")
+	assertNoNestedWorktree(t, "landing commit", committed)
+	for _, want := range []string{"README.md", "internal/example.go", "status.json"} {
+		if !strings.Contains(committed, want) {
+			t.Errorf("landing commit missing %q:\n%s", want, committed)
+		}
+	}
+	if staged := nwtGit(t, tmpDir, "diff", "--cached", "--name-only"); strings.TrimSpace(staged) != "" {
+		t.Errorf("index not empty after a clean land: %q", staged)
+	}
+	if got := gitPorcelain(t, tmpDir); strings.Contains(got, "status.json") {
+		t.Errorf("status.json left dirty after land: %q", got)
+	}
+	body, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), `"notes": "landed at`) {
+		t.Errorf("landed-at note missing on the success path:\n%s", body)
 	}
 }
