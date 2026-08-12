@@ -57,7 +57,8 @@ After the embedded `record` step writes `artifacts/post-apply.patch`:
 4. Diff the working-tree change set against the path set. If any path is dirty in the working tree but **not** in the path set:
    - With `--allow-extra-paths`: stage it and emit a one-line warning per file (`note: staging extra path foo/bar.go (not in feature patch); the feature commit will include this`).
    - Without `--allow-extra-paths`: refuse with the list of extra paths and a hint to either revert them, run `git stash`, or re-run with `--allow-extra-paths`.
-5. `git add` the path set (using `--intent-to-add` first for untracked files, mirroring `record`'s working-tree mode behavior).
+5. Snapshot the effective index, `git add` the path set minus `status.json` (using `--intent-to-add` first for untracked files, mirroring `record`'s working-tree mode behavior), then **audit the index**: rediscover nested worktrees and inspect `git diff --cached --name-only -z`. If anything staged lies inside a registered nested worktree — or discovery fails — the exact pre-land index is restored and `land` refuses with `HEAD` and `status.json` untouched. Your own staged work survives the rollback byte-for-byte.
+6. Write the landed-at note, stage `status.json` alone, audit the index once more, then commit. `land` performs no staging after that final audit, so a worktree registered later cannot reach the index by registration alone. A concurrent third-party `git add` racing the commit is outside supported semantics.
 
 The path set is intentionally **strict**: a `land` that silently absorbs unrelated edits is exactly the WP-001 §5.2 row 5 problem moved one step downstream into Git history.
 

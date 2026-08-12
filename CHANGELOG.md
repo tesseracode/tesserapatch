@@ -112,6 +112,31 @@ All notable changes to tpatch are recorded here.
   pre-dirtied), so a malformed-patch, extras or discovery refusal never
   leaves a `landed at ...` note behind.
 
+  Staging itself is a transaction, because the last window is *inside*
+  the staging step: a worktree can register between the revalidation and
+  `git add`. `land` snapshots the effective index byte-for-byte
+  (resolved via `git rev-parse --git-path index`, so linked worktrees
+  and a redirected `GIT_INDEX_FILE` are followed correctly, and an
+  absent index is a valid snapshot), stages the non-status path set,
+  then rediscovers and inspects the index itself — `git diff --cached
+  --name-only -z`, byte-exact — for anything under a currently
+  registered nested worktree. On contamination or discovery failure the
+  exact pre-land index is restored atomically and land refuses with
+  `HEAD` and the landed-at note untouched. The operator's own staged
+  work, including intent-to-add entries, survives the rollback
+  byte-for-byte because the snapshot is of the whole index file.
+
+  Only after that audit passes is the landed-at note written and
+  `status.json` staged alone, and the index is audited once more
+  immediately before the commit — so the commit is always taken from an
+  index verified clean after land's last `git add`. Past that point land
+  performs no staging at all, so a worktree registered later cannot
+  enter the index by registration alone; a concurrent third-party
+  `git add` racing the commit remains outside supported semantics. The
+  pre-existing commit-hook contract is unchanged: once the audit has
+  passed and the commit is attempted, a failing hook leaves the audited
+  index staged for a `--no-record` retry.
+
   Patch-derived write scopes are parsed strictly. `FilesInPatch` splits
   each `diff --git` header on the first ` b/` and silently skips
   anything it cannot split — which is every path Git C-quotes (a space
