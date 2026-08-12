@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-4 DISPATCHED
 
-v0.15.1 Wave A rev-3 (GitHub issue #7) closes both rev-2 HIGH findings.
-Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-3 remains blocked by strict-parser validation gaps and
+land cache staleness before staging. Rev-4 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-3
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-4
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and land
   planning.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-3 dispatch HEAD**: `3f5363c`
@@ -218,6 +218,25 @@ All scratch repos, worktrees and build artifacts were removed;
    paths are covered.
 5. Advisory `FilesInPatch` callers are documented in its doc comment
    rather than converted. Confirm neither is a write-scope surface.
+
+## Rev-3 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Valid residuals:
+  1. Strict parsing accepts nonblank headerless input, Go-only escapes and an
+     invalid a-side; refresh can still broaden malformed input.
+  2. Land's entry-time worktree cache can stale if a linked worktree is
+     registered before staging; `--allow-extra-paths` can then stage it.
+- `tpatch_rev3_bin` and scratch artifacts are absent after external cleanup.
+
+## Next Steps
+
+1. Reject nonblank headerless patches and validate both operands with
+   Git-only C escapes.
+2. Revalidate/filter land immediately before staging and guard index/HEAD.
+3. Add malformed-escape/a-side/headerless and concurrent-registration tests.
+4. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 

@@ -1,3 +1,40 @@
+## Review — v0.15.1 Wave A / GH #7 rev-3 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `38c237b`
+**Reviewed range**: `3f5363c..35a672c`
+
+### Verdict: NEEDS REVISION → REV-4 DISPATCHED
+
+### Verified Clean
+
+- Land entry discovery caching and post-refusal status ordering.
+- Real Git quoted-newline worktree parsing/filtering, refresh empty-scope
+  behavior, advisory caller audit, original issue and validation.
+
+### Residual Findings
+
+1. **HIGH**: strict parser accepts nonblank input with no `diff --git`
+   header, accepts Go-only `\\x`/`\\u` escapes Git never emits, and does not
+   validate the a-side operand.
+2. **HIGH**: land's cached prefix set can stale when a linked worktree is
+   added between entry discovery and staging; `--allow-extra-paths` may stage
+   that gitlink.
+
+### Rev-4 Direction
+
+- Require at least one valid header for nonblank input; validate both operands
+  with a Git-specific C-quote decoder limited to emitted escapes.
+- Re-discover immediately before staging, recompute/filter the plan, and
+  ensure new nested worktrees cannot enter index/commit.
+- Test concurrent registration, headerless patches, bad a-side and forbidden
+  escape forms.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-4.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-2 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)

@@ -667,6 +667,10 @@ REVISION. Rev-3 caches land discovery before embedded record and introduces
 strict quoted diff-header parsing so stale newline-worktree patches cannot
 broaden refresh to the full tree.
 
+**Wave A rev-3** (`38c237b`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-4 hardens strict parsing against headerless/Go-only/a-side
+malformation and revalidates linked worktrees immediately before land staging.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
