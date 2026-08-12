@@ -755,6 +755,11 @@ the remaining recipe live-read, classifies attestation and shadow probe
 failures instead of reporting drift/ambiguity, prevents replay after an
 unanswerable parent-presence probe, and detects artifact-readability changes.
 
+**Wave C rev-2** (`61ccae1`..`aeef3a4`): external APPROVED WITH NOTES,
+internal NEEDS REVISION. Rev-3 replaces the broad locale-dependent apply
+diagnostic matcher with an LC_ALL=C, exit-128-only anchored grammar that
+cannot convert wrapper, fatal or signalled failures into patch answers.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

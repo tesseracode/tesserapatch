@@ -2,18 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
-v0.15.1 Wave C rev-2 closes the five adjudicated rev-1 findings and is
-awaiting review. All 161 accepted rows remain green; every rev-2 fix has
-a black-box regression proven to fail against the rev-1 code.
+v0.15.1 Wave C rev-2 closed the five rev-1 findings but its shared apply
+classifier is too broad and locale-dependent. Rev-3 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
@@ -65,6 +64,21 @@ Shared mechanism: `gitutil.ApplyProbeAnswered` is the ONE
 answer-vs-failure classifier, used by `ApplyCheckResult.ApplyAnswered`
 (ladder + qualifier) and `OfflineGitResult.Answered` (shadow V8). It is
 exit-code and stderr based, never status-text matching.
+
+## Rev-2 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED WITH NOTES.
+- All five rev-1 findings closed under black-box review.
+- One internal P1 finding is valid: `ApplyProbeAnswered` accepts broad
+  substrings such as `new file` and `already exists` for any non-answer exit.
+  A wrapper/signalled failure carrying one phrase can become an R5/R11 patch
+  answer instead of R10/R22.
+- The external locale note is coupled: the matching grammar is English, but
+  only the C0 probe currently pins `LC_ALL=C`.
+- Measurement confirmed ordinary `already exists` / `does not exist` patch
+  conflicts exit 1. The exit-128 exception is needed only for Git's malformed
+  patch diagnostics (`No valid patches`, `corrupt patch`, garbage fragments).
 
 ## Current State
 
@@ -123,12 +137,15 @@ Modified:
 
 ## Next Steps
 
-1. Dual review of the rev-2 fold against all 161 rows.
-2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
+1. Pin every evidence/classified Git command to `LC_ALL=C`.
+2. Restrict the exit-128 answer exception to anchored malformed-patch forms.
+3. Reject fatal, mixed, wrapper and signalled outcomes regardless of phrases.
+4. Dual review the rev-3 fold against all 161 rows.
 
 ## Blockers
 
-None.
+No external blocker. Rev-2 cannot ship with a classifier that can turn an
+execution failure into a patch answer.
 
 ## Context for Next Agent
 

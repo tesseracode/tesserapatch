@@ -1,3 +1,51 @@
+## Review — v0.15.1 Wave C / GH #8 rev-2 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, original
+reproducer)
+**Implementation range**: `a1c6b89..aeef3a4`
+
+### Verdict: NEEDS REVISION → REV-3 DISPATCHED
+
+### Verified Clean
+
+- All five rev-1 findings closed under black-box review.
+- Original GH #8, dual anchors, captured recipe, duplicate identities,
+  historical V8, parent arbitration and readability transitions held.
+- Real filtered-remote, full/race/vet/build, ledger and invariants are green.
+
+### Valid Finding
+
+**P1 — broad locale-dependent apply classifier.**
+`ApplyProbeAnswered` accepts any non-answer outcome whose English stderr
+contains broad fragments such as `already exists`, `new file` or
+`deleted file`. A wrapper or signalled failure can therefore become an R5/R11
+patch answer. Most classified probes also inherit the ambient locale, so an
+actual missing-object diagnostic can degrade from R22 to R10 outside English.
+
+### Measurement
+
+Under `LC_ALL=C`, ordinary add/delete conflicts (`already exists in index`,
+`does not exist in index`, working-tree equivalents) exit 1. Exit 128 is
+needed only for malformed patch input: `No valid patches in input`, `corrupt
+patch`, `patch with only garbage`, fragment/header failures and corrupt binary
+patches.
+
+### Rev-3 Direction
+
+- Apply `LC_ALL=C` to every evidence Git invocation whose diagnostics may be
+  classified.
+- Preserve unconditional answers only for success and exit 1.
+- Permit exit 128 only when every non-empty diagnostic line matches a narrow,
+  anchored C-locale malformed-patch grammar.
+- Reject missing-object/network/fatal, mixed, wrapper and signalled outcomes.
+- Add real-Git golden diagnostics plus adversarial overlap and locale tests.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave C rev-3; the same sequential
+implementer owns the narrow classifier fold.
+
 ## Review — v0.15.1 Wave C / GH #8 rev-1 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)
