@@ -1,6 +1,6 @@
 # PRD — `tpatch land`: Per-Feature Git Projection — `feat-tpatch-land`
 
-**Status**: Draft v2.1 (2026-05-09 v2 after G55 cross-review F1–F5; 2026-05-10 v2.1 cross-cite tidy-up after OX47's lock-guard PRD landed) · **§3.8 / §4.3 / §6.2 amended 2026-08-12 for v0.15.1 Wave B (GH #8), rev-6 (final) — AWAITING REVIEW.**
+**Status**: Draft v2.1 (2026-05-09 v2 after G55 cross-review F1–F5; 2026-05-10 v2.1 cross-cite tidy-up after OX47's lock-guard PRD landed) · **§3.8 / §4.3 / §6.2 amended 2026-08-12 for v0.15.1 Wave B (GH #8), rev-7 (final) — AWAITING REVIEW.**
 
 > **Exact scope of the Wave B amendment.** It is *not* behaviour-neutral. It
 > adds two things: **(a)** §3.8.1–§3.8.5, a normative **readers' contract** for
@@ -28,7 +28,7 @@
 - [`docs/market-research/competitive-landscape.md`](../market-research/competitive-landscape.md) §9 (DEP-3 / git-gud trailer precedents), §10 (what we don't adopt), §11 (deterministic apply-recipe edge)
 - [`docs/record.md`](../record.md), [`docs/reconcile.md`](../reconcile.md), [`docs/feature-layout.md`](../feature-layout.md)
 - [`docs/prds/PRD-verify-freshness.md`](./PRD-verify-freshness.md) §3.6, §7.1 — the landing-evidence consumer this PRD's §3.8 serves (v0.15.1 Wave B / GH #8)
-- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-6 (final) D8–D19 — binding ADR for the readers' contract and the §3.8.6 producer precondition
+- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-7 (final) D8–D19 — binding ADR for the readers' contract and the §3.8.6 producer precondition
 - [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](../adrs/ADR-019-tpatch-land-trailer-block-schema.md) — the locked schema §3.8 makes readable
 - [GH #8](https://github.com/tesseracode/tesserapatch/issues/8) — `verify` V8 fails after land
 
@@ -529,10 +529,10 @@ These behaviors fall out of using `git` primitives directly. `land`
 does not implement its own transaction layer.
 
 ---
-### 3.8 Landing-evidence contract — v0.15.1 Wave B / GH #8 (rev-6, final)
+### 3.8 Landing-evidence contract — v0.15.1 Wave B / GH #8 (rev-7, final)
 
-> **Amendment status**: proposed **rev-6 (final)**, 2026-08-12, AWAITING
-> REVIEW. Binding ADR: **ADR-013 Amendment 1 rev-6, D8–D19** (final set).
+> **Amendment status**: proposed **rev-7 (final)**, 2026-08-12, AWAITING
+> REVIEW. Binding ADR: **ADR-013 Amendment 1 rev-7, D8–D19** (final set).
 > Binding schema: **ADR-019**.
 >
 > **Scope.** §3.8.1–§3.8.5 are normative for *readers* of the trailer block and
@@ -765,7 +765,7 @@ move the signal earlier but cannot change any verdict, and this amendment adds
 refusal — so a second producer-side warning is out of its scope (§6.2 AC-LD15,
 AC-LD21). Tracked as `PRD-verify-freshness` §6 Q13.
 
-#### 3.8.6 Producer validation — `Tpatch-Base-Commit`, by invocation mode (rev-6)
+#### 3.8.6 Producer validation — `Tpatch-Base-Commit`, by invocation mode (rev-7)
 
 **This is the one place §3.8 changes `land`'s behaviour, and it only adds a
 refusal.** `land` reads `status.Apply.BaseCommit` and interpolates it into the
@@ -1081,7 +1081,7 @@ features re-recorded with `--auto`.
 The `reconcile` guard (3) is implementation-independent of `land` —
 they cover different verbs and can ship in either order.
 
-### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-6)
+### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-7)
 
 These rows are **`land`-side** obligations of the readers' contract in §3.8.
 They assert that the evidence substrate `tpatch verify` now depends on is

@@ -2,175 +2,182 @@
 
 ## Status
 
-**Cluster state**: REV-7 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave B rev-6 is substantively complete, but G5 flags correct
-anti-hardcode prose. Rev-7 is a one-line guard correction.
+v0.15.1 Wave B **rev-7** is written and pushed. It is a **one-line guard fix**
+on top of rev-6: §7.1.2 **G5** gains the narrow exemption the rev-6 external
+review asked for, so the pattern stops flagging the two correct affirmative
+anti-hardcode sentences while still catching an affirmative fixed-40 claim.
+**No substantive decision, matrix row or citation changed** — 161 rows and 106
+citations are byte-for-byte preserved. Planning only: no Go, tests, assets,
+SPEC, CHANGELOG or GitHub issue state was touched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: In Progress (rev-7)
+- **Status**: Review (rev-7)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
-- **Dispatch HEAD (rev-6)**: `cbf5fcf`
+- **Dispatch HEAD (rev-7)**: `785d261`
 - **Target release**: v0.15.1
 - **Implementation**: deferred to Wave C
 
-## Files Changed (rev-6) — exact list
+## Files Changed (rev-7) — exact list
 
-| File | What changed in rev-6 |
+| File | What changed in rev-7 |
 |---|---|
-| `docs/prds/PRD-verify-freshness.md` | **§2 non-goal** replaced the blanket "changes to `land` are out of scope" with the exact D19 exception; **§3.1** now carries the **V10 row** (id, trigger, block-downgraded-to-warn severity, pass criterion, reuses) and an eleven-check header note, and the **V8 row** states GH #2 reset semantics; **§3.1.1** rewritten — V9 then **V10 last**, with the shadow-reset rationale; **§3.1.2** gained the V10 remediation shape; **§3.4.3** steps 4–5 rewritten for the GH #2 reset, fail-fast now names V9 **and V10**; **§5** presence rows made mutually exclusive and the redundant combined row removed; **§6 Q13** no longer says `land` is behaviour-frozen; **§7.1** added **AC-L135** (totality guard) and rewrote AC-L5 / AC-L53; **new §7.1.2** with the G1–G10 regex table, four whitelist rules and the covered-section list; **§8** added the pre-existing `satisfied_by` 40-hex residual; matrix header 134 → **135**; all labels rev-6, empirical index **E1–E47**. |
-| `docs/prds/PRD-tpatch-land.md` | **Top status** no longer claims `land` is unchanged — it states the exact two-part scope (readers' contract + the one D19 producer refusal) and enumerates what is *not* changed; **§3.8 header** rewritten to rev-6 (final) with the same scope split and E1–E47; **rule 6** base-commit length object-format-derived; **rule 13** rewritten — three mutually exclusive patch states, absent/empty short-circuit to `landed-artifacts-absent`, never a digest mismatch, with the superseded wording explicitly labelled; **rule 16** aligned and recipe shape scoped to a compatible patch state; **§3.8.5** disposition no longer says behaviour-frozen; **AC-LD5** derived length, **AC-LD12** absent/empty ⇒ terminal, **AC-LD23** added (land-side totality guard); matrix 25 → **26**; labels rev-6. |
-| `docs/adrs/ADR-013-verify-freshness-overlay.md` | **Header/status** → Amendment 1 **rev-6 (final)**, D8–D19 declared closed; **D7 step 6** amended for the GH #2 reset with the superseded wording labelled; **§A1.1 preamble** now states the index is **E1–E47**, closed; all amendment section titles (decision, predicate, alternatives, consequences, references) → rev-6; references anchor re-validated at `cbf5fcf`. |
+| `docs/prds/PRD-verify-freshness.md` | **§7.1.2 G5** — pattern is now `40[- ](lowercase[- ])?hex\|hardcode[sd]? 40\|fixed 40`, still scoped to base-commit lines, and **exempt when the same line also matches `derived\|--show-object-format\|would reject\|rejects\|fails this row`**; the "Why" column states exactly which two sentence shapes the exemption clears and why the optional `lowercase` alternation exists. **§7.1.2 G3** class widened to `rev-[0-6]` so a stale current-amendment label cannot survive a revision bump. **Whitelist rule 3** gained one sentence pointing affirmative-voice cases at the per-pattern exemptions instead of at the negation rule. Amendment labels rev-6 → **rev-7** (11 occurrences). |
+| `docs/prds/PRD-tpatch-land.md` | Amendment labels rev-6 → **rev-7** (7 occurrences). No rule, row or count changed. |
+| `docs/adrs/ADR-013-verify-freshness-overlay.md` | Amendment labels rev-6 → **rev-7** (9 occurrences); references anchor re-validated at `785d261`; revision-history entries added for **rev-7** and **rev-6 (superseded)**. No decision changed; D8–D19 remain closed. |
 | `docs/handoff/CURRENT.md` | This rewrite. Side Research tail preserved byte-identically (md5 `b385fe622db9926f48861105239f113e`). |
 
-## Decisions closed in rev-6
+## The fix, precisely
 
-1. **V10 is in the main check table and V10 is last.** §3.1 gained the eleventh
-   row with the shipped severity rule (`block`, downgraded to `warn` when
-   `IsFeatureSuperseded` reports an active superseder), the shipped precondition
-   (`skipped: V2 (recipe_parses) skipped or failed`) and the shipped
-   non-failing outcomes (`preimageLegacyWarn`, `preimageSkip`). §3.1.1 explains
-   why it is appended after V9 (`internal/workflow/verify.go:288-289`).
-2. **GH #2 reset semantics are now stated where V7/V8 are defined.** §3.1 V8,
-   §3.1.1, §3.4.3 steps 4–5 and ADR D7 step 6 all say the shadow is reset to
-   `closureBaselineTree` between V7 and V8 (`internal/workflow/verify.go:1092`,
-   `:1143`, `:1227-1229`), so recipe and patch are checked independently against
-   the same baseline. The old "against the same shadow" text is labelled
-   superseded, not silently deleted.
-3. **The amendment is not behaviour-neutral, and says so.** The land PRD's top
-   status and §3.8 header, the verify PRD's §2 non-goal and Q13, and AC-LD15 /
-   AC-LD21 now agree: **one** producer change (the D19 R23 Base-Commit refusal)
-   and nothing else.
-4. **Absence is never a mismatch, in the producer contract too.** Land rule 13
-   is rewritten to the three mutually exclusive patch states with the
-   short-circuit; rule 16 and AC-LD12 follow; the base-commit length is
-   object-format-derived in rule 6 and AC-LD5.
-5. **Totality is now mechanically enforceable.** **AC-L135** (unit tier) plus
-   **§7.1.2** define ten regexes G1–G10, four whitelist rules (marked line,
-   marked block, negated/quoted, self-reference), explicit pattern scoping for
-   G5 and G8, and the list of sections the guard must cover. **AC-LD23** binds
-   the land PRD as one of the guard's three inputs. The guard was executed
-   during this revision and returns **0 hits**.
+**Problem (rev-6 external review).** G5's pattern flagged two *correct*
+sentences that forbid the hardcode affirmatively rather than by negation, so
+whitelist rule 3 could not clear them:
 
-## Preserved unchanged from rev-1 … rev-5
+- `PRD-tpatch-land` §3.8.2 rule 18 — "A reader that hardcodes 40 **rejects**
+  every valid landing in a SHA-256 repository."
+- `PRD-tpatch-land` §6.2 AC-LD5 / AC-LD19 — "a fixture that hardcodes 40
+  **fails this row**" / "a hardcoded 40 fails this row."
 
-Git floor **2.36** · presence short-circuit before classification · Mode A
-`recoverLand`-first with the two-case guarantee · **partial clone as a Wave C
-acceptance gate (AC-L68 / AC-L69)** · `-C1` forward anchor qualification (E44) ·
-the `(0/0)` block rule (E26/E28/E29) · exhaustive anchor collection ·
-per-member V10 baselines with `RecipeProvenance.BaseCommit` (E42, Q15) ·
-`ListFeatureEntries` inventory · `GIT_NO_LAZY_FETCH=1` on every object command
-(E47) · duplicate identity by index-drop + `@@` normalization (E45/E46) · the
-existential-inverse `replace-in-file` predicate (0/0 over 52,416 cases) ·
-`C^` parent syntax (E43) · Mode A / Mode B producer split.
+**Fix.** A per-pattern exemption on G5 only:
+`derived|--show-object-format|would reject|rejects|fails this row`. This is the
+narrowest rule that clears both: each of the two shapes names either the
+derivation or the consequence of hardcoding, whereas an affirmative claim
+(""`Tpatch-Base-Commit` is 40 lowercase hex"") names neither and still trips.
 
-## Counts
+**Second-order correction found while proving sensitivity.** The rev-6 pattern
+`40[- ]hex` did **not** match the exact pre-rev-5 phrasing it exists to catch —
+"is 40 **lowercase** hex". The optional `(lowercase[- ])?` alternation closes
+that gap, so the guard is now strictly more sensitive than in rev-6 despite the
+new exemption.
 
-| Metric | Value | Delta vs rev-5 |
+## Exact guard output
+
+Run against the three authoritative documents, G1–G10 with the four §7.1.2
+whitelist rules and the per-pattern scoping/exemptions implemented as written:
+
+```
+GUARD HITS: 0
+exit=0
+```
+
+**Synthetic sensitivity harness** — each stale phrase appended to a copy of
+`PRD-tpatch-land.md`, each control sentence likewise:
+
+```
+── stale text MUST be caught ──
+  CAUGHT  G5 affirmative fixed-40  ['G5']
+  CAUGHT  G5 hardcode-40 affirm    ['G5']
+  CAUGHT  G5 fixed 40 affirm       ['G5']
+  CAUGHT  G1 V9-last               ['G1']
+  CAUGHT  G2 ten-check             ['G2']
+  CAUGHT  G3 stale label           ['G3']
+  CAUGHT  G4 blanket unchanged     ['G4']
+  CAUGHT  G6 absence mismatch      ['G6']
+  CAUGHT  G7 exact+absent          ['G7']
+  CAUGHT  G8 mutating nothing      ['G8']
+  CAUGHT  G9 freshness_label       ['G9']
+  CAUGHT  G10 stale E-range        ['G10']
+── correct anti-hardcode text MUST pass ──
+  PASS    G5 exempt: rejects       []
+  PASS    G5 exempt: fails row     []
+  PASS    G5 exempt: derived       []
+  PASS    G5 exempt: flag          []
+BASELINE HITS ON UNMODIFIED COPY: 0
+SENSITIVITY: OK
+exit=0
+```
+
+All twelve stale shapes are caught; all four correct anti-hardcode shapes pass;
+the unmodified copy is clean, so the harness itself introduces no hits.
+
+## Counts — unchanged from rev-6
+
+| Metric | Value | Delta vs rev-6 |
 |---|---|---|
-| Verify acceptance matrix | **135 rows**, AC-L1 … AC-L135, contiguous | +1 (AC-L135 guard) |
-| Verify groups | A 6 / B 10 / C 15 / D 21 / E 26 / F 20 / G 15 / H 22 = 135 | B +1 |
-| Land acceptance matrix | **26 rows**, AC-LD1 … AC-LD23 incl. AC-LD18a/b/c, all tier C | +1 (AC-LD23) |
-| **Total acceptance rows** | **161** | +2 |
-| Unique code citations | **106**, every `file:line[-range]` in range | +4 |
-| ADR decisions | D1–D19, no gaps; Amendment 1 = D8–D19, **closed** | — |
-| Empirical index | E1–E47, contiguous, closed | — |
-| Remediation strings | R1–R24, all referenced ids defined | — |
-| Totality guard regexes | **G1–G10** over 3 documents | new |
+| Verify acceptance matrix | **135 rows**, AC-L1 … AC-L135, contiguous | 0 |
+| Verify groups | A 6 / B 10 / C 15 / D 21 / E 26 / F 20 / G 15 / H 22 = 135 | 0 |
+| Land acceptance matrix | **26 rows**, AC-LD1 … AC-LD23, all tier C | 0 |
+| **Total acceptance rows** | **161** | 0 |
+| Unique code citations | **106**, all in range | 0 |
+| ADR decisions | D1–D19; Amendment 1 = D8–D19, closed | 0 |
+| Empirical index | E1–E47, contiguous, closed | 0 |
+| Remediation strings | R1–R24 | 0 |
+| Totality guard regexes | G1–G10 | 0 (G5 and G3 patterns refined) |
 
 ## Test Results
 
-Planning-only revision — no Go source changed. Validation was documentary and
-mechanical:
+Planning-only revision — no Go source changed.
 
-- **Totality guard executed** (`.scratch-gh8/guard.py`, the exact §7.1.2 G1–G10
-  patterns and whitelist rules, over all three authoritative documents):
-  **0 hits**. It found and I corrected: the land PRD's behaviour-frozen
-  disposition (§3.8.5), the ADR's unamended D7 "same shadow" step, an
-  unlabelled superseded quote in land rule 13, and three self-referential
-  phrasings in AC-L5 / AC-L53 / the §3.1 header note.
-- **Doc validator**: **ALL CHECKS PASS** — 106 citation ranges, AC-L contiguity
-  (135) + group sum (135) + tier well-formedness, AC-LD uniqueness (26) + all
-  tier C, dangling AC/D/R reference check, D1–D19 headings, E1–E47 contiguity,
-  R1–R24 definitions, unique Q1–Q18.
-- **Semantic spot-checks** printed the source line for every new anchor:
-  `verify.go:1092` `closureBaselineTree`, `:1143` `resetShadowToTree`,
-  `:1227` its definition, `:288-289` the V10 append, `:852-905` the V10 body,
-  `validation.go:22` the 40-hex `satisfied_by` regex, `land.go:1034-1043`
-  `readRecipeSHA`, `land.go:394` `baseCommit`.
+- **Totality guard**: `GUARD HITS: 0`, exit 0.
+- **Synthetic sensitivity**: 12/12 stale shapes caught, 4/4 controls pass,
+  0 baseline hits, exit 0.
+- **Doc validator**: **ALL CHECKS PASS** — 106 citation ranges, AC-L
+  contiguity (135) and group sum (135), AC-LD count (26) all tier C, dangling
+  AC/D/R reference check, D1–D19 headings, E1–E47 contiguity, R1–R24
+  definitions.
 - Scratch removed; working tree contains only the four owned docs plus the
   guarded WIP files.
 
 ## Residuals for Wave C
 
+Unchanged from rev-6:
+
 1. **Q17** remains open (non-blocking, scoped in §6).
-2. **`-C1` false reds**: a one-line-away healthy parent is rejected (E44).
-   Measured and accepted — safety over reach.
-3. **Normalization collision**: `@@`-rewritten identity treats the same payload
-   at different positions as equivalent (E45/E46); needs duplicate line content
-   to collide.
-4. **Partial clone is a Wave C gate** (AC-L68 / AC-L69): mechanism proven, real
-   filtered-remote path unproven; a blocker report is required if it cannot be
+2. **`-C1` false reds** on a one-line-away healthy parent (E44) — accepted.
+3. **Normalization collision** for identical payloads at different positions
+   (E45/E46).
+4. **Partial clone is a Wave C gate** (AC-L68 / AC-L69) — mechanism proven,
+   real filtered-remote path unproven; blocker report required if it cannot be
    constructed.
 5. **`(0/0)` block cost**: 26 false reds / 151 present vs 0 false greens / 69
-   absent. Deliberate.
+   absent.
 6. **`active` widening** and the **forward-mode V10 change** alter existing
-   behaviour for non-landed features; both intended and matrixed.
-7. **Mode B is non-rollback**: a completed embedded `record` is retained on an
-   R23 refusal, and says so.
+   behaviour for non-landed features.
+7. **Mode B is non-rollback** on an R23 refusal.
 8. **`satisfied_by` is 40-hex-only in shipped code**
-   (`internal/store/validation.go:22`), so V5 cannot accept a SHA-256
-   repository even though the landed contract derives base-commit length.
-   Pre-existing, out of scope, now recorded in §8 so it is not read as a
-   contradiction.
-9. **Git floor 2.36** is a user-visible tightening; Wave C should surface it in
-   release notes.
-10. **The guard is a docs test, not a linter.** It reads three fixed paths; a
+   (`internal/store/validation.go:22`) — pre-existing, recorded in §8, and
+   deliberately outside G5's scope.
+9. **Git floor 2.36** is a user-visible tightening.
+10. **The guard is a docs test, not a linter** — it reads three fixed paths; a
     future authoritative document must be added to its input list explicitly.
+11. **New, rev-7**: G3's character class must be widened by one on every
+    revision bump. This is stated in the G3 row so it is not forgotten, but it
+    is a manual step.
 
 ## Reviewer focus
 
-1. **§3.1 / §3.1.1 / §3.4.3**: confirm the V10 row matches
-   `internal/workflow/verify.go:852-905` exactly (severity downgrade,
-   precondition, non-failing outcomes) and that the GH #2 reset is stated
-   wherever V7/V8 are defined, including ADR D7 step 6.
-2. **Scope statements**: land top status, land §3.8 header, verify §2 non-goal
-   and Q13, AC-LD15 / AC-LD21 — confirm all five say the same thing (one D19
-   producer change, nothing else) with no surviving blanket claim.
-3. **Land rules 6 / 13 / 16 and AC-LD5 / AC-LD12**: confirm absence never
-   yields a mismatch and no length is hardcoded to 40.
-4. **§7.1.2**: confirm the ten regexes and four whitelist rules are
-   implementable as a unit test, that G5/G8 scoping is stated in the pattern
-   rather than the whitelist, and that the two deliberate out-of-pattern truths
-   (`--dry-run`, anchor C) are justified.
-5. **Counts**: 135 + 26 = 161 rows; 106 citations; groups sum to 135.
+1. **§7.1.2 G5**: confirm the exemption is the narrowest that clears land rule
+   18 and AC-LD5 / AC-LD19, and that an affirmative "is 40 lowercase hex" claim
+   still trips — the sensitivity harness proves both directions.
+2. **Confirm nothing else moved**: 161 rows, 106 citations, D8–D19, E1–E47,
+   R1–R24 all identical to rev-6; the only other edits are label bumps and two
+   ADR revision-history entries.
+3. **G3 widening**: confirm `rev-[0-6]` is correct now that the amendment is
+   rev-7, and that only revision-history and rejected-alternatives narrative
+   names earlier revisions.
 
 ## Context for Next Agent
 
 - Wave B is **planning only**. Implementation is Wave C. Nothing in `internal/`,
   `cmd/`, `assets/`, `tests/`, `SPEC.md` or `CHANGELOG.md` was touched.
-- The binding ADR is **ADR-013 Amendment 1 rev-6 (final), D8–D19** — the
-  decision set is closed. The operational contract is **PRD-verify-freshness
-  §3.6 / §4.3.6–4.3.9 / §5 / §6 / §7.1 / §7.1.2**; the producer contract is
-  **PRD-tpatch-land §3.8 / §6.2**.
-- Load-bearing measurements are indexed **E1–E47** in ADR-013 §A1.1, closed for
-  this amendment. Re-measure before contradicting any of them.
+- The binding ADR is **ADR-013 Amendment 1 rev-7 (final), D8–D19** — closed.
+  The operational contract is **PRD-verify-freshness §3.6 / §4.3.6–4.3.9 / §5 /
+  §6 / §7.1 / §7.1.2**; the producer contract is **PRD-tpatch-land §3.8 / §6.2**.
+- Load-bearing measurements are indexed **E1–E47** in ADR-013 §A1.1, closed.
 - The check sequence is **eleven** checks, V0–V10
   (`internal/workflow/verify.go:49-71`, V10 appended at `:288-289`).
-  `VerifyReport` has **no** `freshness_label` field.
 - V7 and V8 share one shadow but are **reset between** them
   (`resetShadowToTree`, `internal/workflow/verify.go:1142-1153`) — the GH #2 /
-  v0.11.3 invariant. Do not describe them as sharing a tree.
-- Key shipped constraints: `checkWriteFilePreimage`
-  (`internal/workflow/writefile_safety.go:108-112`) reads the **live working
-  tree**; `ListFeatures` (`internal/store/store.go:210-236`) **silently drops**
-  unreadable features, hence `ListFeatureEntries` (`:274-348`);
-  `RecipeProvenance` (`internal/workflow/implement.go:30-34`) already ships.
+  v0.11.3 invariant.
+- **AC-L135 / §7.1.2 is executable**: G1–G10, four whitelist rules, per-pattern
+  scoping for G5 and G8, fence-scoped G9. Wave C should port the harness used
+  here (guard + synthetic sensitivity) into a docs unit test.
 - Verify stays read-only; no status, index or worktree mutation on any path.
 - Stage explicit paths only; do not touch the WIP docs in
   `.wave-close-allowlist`.

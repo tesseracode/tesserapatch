@@ -1,6 +1,6 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-6 (final) proposed 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below — the final decision set, AWAITING REVIEW)**
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) proposed 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below — the final decision set, AWAITING REVIEW)**
 **Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
@@ -229,7 +229,7 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 
 **Cost.** O(closure size) shadow operations per verify. Bounded by DAG depth × per-recipe replay cost; comparable to a phase-2 reconcile op-replay pass per parent. Well within the cheap-budget for typical 1–3-deep DAGs.
 
-> **Amended 2026-08-12 by Amendment 1 rev-6 (GH #8).** D7's machinery is
+> **Amended 2026-08-12 by Amendment 1 rev-7 (GH #8).** D7's machinery is
 > retained in full — one shadow, topological replay, first-failure fail-fast,
 > deferred prune, and the GH #2 reset between the recipe and the patch check.
 > Amendment 1 refines three things.
@@ -324,9 +324,9 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 - `internal/gitutil/gitutil.go:828` — `IsAncestor` (V5 reuse; anchor re-validated 2026-08-12 during Amendment 1 — the pre-amendment `:680` citation had drifted)
 
 ---
-# Amendment 1 (2026-08-12, **rev-6 — final**) — Landed-evidence semantics — v0.15.1 Wave B / GH #8
+# Amendment 1 (2026-08-12, **rev-7 — final**) — Landed-evidence semantics — v0.15.1 Wave B / GH #8
 
-**Status of this amendment**: proposed **rev-6 (final)**, AWAITING REVIEW. The decision set is **D8–D19** and is closed — no decision is added after D19. Binding on the
+**Status of this amendment**: proposed **rev-7 (final)**, AWAITING REVIEW. The decision set is **D8–D19** and is closed — no decision is added after D19. Binding on the
 Wave C implementation once accepted. Adds D8–D19. **No prior decision D1–D7 is
 reversed**; D7 is *extended* (anchor-dependent shadow root, plus an
 index-isolated worktree-free assertion that allocates no shadow).
@@ -359,7 +359,18 @@ index-isolated worktree-free assertion that allocates no shadow).
   own remediation), left hunk positions in the duplicate identity (rejecting
   healthy cherry-picks), and allowed lazy promisor fetches during an
   offline-by-construction command.
-- **rev-5 (this revision)** — final contract cleanup: the effective Git floor
+- **rev-7 (this revision)** — one-line guard fix: §7.1.2 **G5** gains a narrow
+  exemption (`derived|--show-object-format|would reject|rejects|fails this row`)
+  so the pattern stops flagging the correct affirmative anti-hardcode sentences
+  in land rule 18 and AC-LD5 / AC-LD19, while an affirmative "is 40 lowercase
+  hex" claim still trips it; **G3**'s class widens to `rev-[0-6]`. No decision,
+  row count or citation changed.
+- **rev-6 (superseded)** — totality sweep: V10 restored to the main §3.1 check
+  table with the GH #2 shadow-reset semantics, the amendment's exact
+  (non-neutral) `land` scope stated in all five places, absence-is-never-a-
+  mismatch propagated into the producer rules, and the mechanical **AC-L135 /
+  §7.1.2** documentation guard added.
+- **rev-5 (superseded)** — final contract cleanup: the effective Git floor
   becomes **2.36** (D17) because `GIT_NO_LAZY_FETCH` is mandatory; artifact
   presence short-circuits **before** classification so `exact`/`stale` are
   reachable only from `present-nonempty` and the unreachable
@@ -464,7 +475,7 @@ E1–E33 were measured for rev-0…rev-2 and still hold; rev-3 added E34–E42 a
 
 ---
 
-## Decision (Amendment 1 rev-6 — final, D8–D19)
+## Decision (Amendment 1 rev-7 — final, D8–D19)
 
 ### D8. The check set is eleven checks, V0–V10; no identifier changes
 
@@ -1158,7 +1169,7 @@ fail closed if it cannot be read.
 
 ---
 
-## Amendment 1 rev-6 — the `replace-in-file` predicate (diagnostic use only)
+## Amendment 1 rev-7 — the `replace-in-file` predicate (diagnostic use only)
 
 Under D13 this predicate does not decide presence; it localises diagnostics.
 For content `c`, search `S`, replacement `R`:
@@ -1181,7 +1192,7 @@ For content `c`, search `S`, replacement `R`:
 `ensure-directory` ⇒ the path exists and is a directory; unknown type ⇒
 unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
 
-## Amendment 1 rev-6 — alternatives considered and rejected
+## Amendment 1 rev-7 — alternatives considered and rejected
 
 1. **HEAD-only post-state predicates (rev-0)** — false-reds every landed
    `write-file` feature after any later edit; V7 aliases V8.
@@ -1276,7 +1287,7 @@ unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
     can inspect its output, so the promise is unkeepable. D19 splits the
     contract by invocation mode instead.
 
-## Amendment 1 rev-6 — consequences
+## Amendment 1 rev-7 — consequences
 
 **Positive**
 
@@ -1313,7 +1324,7 @@ unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
   no new artifact, no store schema change, and `land`'s **successful** path is
   byte-unchanged.
 
-## Amendment 1 rev-6 — references (anchors validated 2026-08-12 at `cbf5fcf`)
+## Amendment 1 rev-7 — references (anchors validated 2026-08-12 at `785d261`)
 
 **Contract documents**
 

@@ -1,8 +1,8 @@
 # PRD — `tpatch verify` and verification freshness overlay
 
-**Status**: Approved (M15 Wave 3 — APPROVED WITH NOTES at commit 3c122aa; Slice A in implementation. Supersedes `docs/prds/PRD-verify-and-tested-state.md`.) · **§3.6 / §4.3 golden refresh / §4.3.6–4.3.9 / §5 landed rows / §6 Q9–Q18 / §7.1 amended 2026-08-12 for v0.15.1 Wave B (GH #8), **rev-6** — AWAITING REVIEW**
+**Status**: Approved (M15 Wave 3 — APPROVED WITH NOTES at commit 3c122aa; Slice A in implementation. Supersedes `docs/prds/PRD-verify-and-tested-state.md`.) · **§3.6 / §4.3 golden refresh / §4.3.6–4.3.9 / §5 landed rows / §6 Q9–Q18 / §7.1 amended 2026-08-12 for v0.15.1 Wave B (GH #8), **rev-7** — AWAITING REVIEW**
 **Date**: 2026-04-27 (original) · 2026-08-12 (landed-feature amendment)
-**ADR**: **ADR-013-verify-freshness-overlay.md — REQUIRED before Wave 3 implementation slices ship.** ADR-013 supersedes ADR-012 in full. **ADR-013 Amendment 1 rev-6 (final, D8–D19) is the binding ADR for §3.6 and §7.1.**
+**ADR**: **ADR-013-verify-freshness-overlay.md — REQUIRED before Wave 3 implementation slices ship.** ADR-013 supersedes ADR-012 in full. **ADR-013 Amendment 1 rev-7 (final, D8–D19) is the binding ADR for §3.6 and §7.1.**
 **Owner**: Core
 **Milestone**: M15 → Wave 3 (lifecycle / reconcile semantics tranche) · v0.15.1 Wave B (landed-feature amendment; implementation deferred to Wave C)
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-013 (this PRD's binding ADR), ADR-016 (`record` auto-base resolution), ADR-018 (cross-feature collision signature), ADR-019 (`tpatch land` trailer-block schema), ADR-028 (supersession), **ADR-029 (write-file recipe safety — the policy V10 must honour)**, ADR-031 (rejected state), ADR-032 (unapply state), `docs/prds/PRD-tpatch-land.md` (co-amended §3.8), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor), `docs/dependencies.md`, `docs/prds/PRD-feature-dependencies.md`, `docs/reconcile.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2), GH #8
@@ -79,7 +79,7 @@ A derived freshness label (`never-verified` / `verified-fresh` / `verified-stale
 
 The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated only by explicit verbs); freshness is `git status` for the verify check (derived, read-time, no persistence beyond the last record).
 
-> **Landed-feature amendment (2026-08-12, v0.15.1 Wave B / GH #8, rev-6).**
+> **Landed-feature amendment (2026-08-12, v0.15.1 Wave B / GH #8, rev-7).**
 > After `tpatch land` commits a feature into reachable Git history, the
 > HEAD-anchored V7/V8 baseline already contains it and forward-apply semantics
 > stop describing the world: `write-file` recipes pass vacuously,
@@ -96,7 +96,7 @@ The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated o
 > `RecipeProvenance.BaseCommit` anchoring forward mode (Q15 resolved); a
 > **full repository metadata inventory**; and explicit **shallow** /
 > **partial-clone** states. **§7.1** is its 135-row executable acceptance
-> matrix. Binding ADR: ADR-013 Amendment 1 rev-6 (final, D8–D19).
+> matrix. Binding ADR: ADR-013 Amendment 1 rev-7 (final, D8–D19).
 >
 > The shipped check set is **eleven** checks, V0–V10, with
 > `write_file_preimage_fresh` last (`internal/workflow/verify.go:49-71`,
@@ -406,10 +406,10 @@ The compound `EffectiveOutcome()` rule (`internal/store/types.go:192`) is **not 
 `amend` invalidates the freshness record (D3): a recipe-touching amend rewrites the recipe bytes, so `recipe_hash_at_verify` no longer matches; the next `ComposeLabels` derives `verified-stale`. Optionally — and this is the implementation hook in Slice B — `amend` may proactively clear `Verify.Passed` to `false` (effectively a `verify-failed` derived label) so the harness sees the invalidation immediately rather than waiting for the next read. ADR-013 D3 records this as the producer-set rule.
 
 ---
-### 3.6 Landed-feature verification contract — v0.15.1 Wave B / GH #8 (rev-6)
+### 3.6 Landed-feature verification contract — v0.15.1 Wave B / GH #8 (rev-7)
 
-> **Amendment status**: proposed **rev-6 (final)**, 2026-08-12, AWAITING
-> REVIEW. Binding ADR: **ADR-013 Amendment 1 rev-6, decisions D8–D19
+> **Amendment status**: proposed **rev-7 (final)**, 2026-08-12, AWAITING
+> REVIEW. Binding ADR: **ADR-013 Amendment 1 rev-7, decisions D8–D19
 > (final set — no decision is added after D19).** Implementation is
 > Wave C. Issue: <https://github.com/tesseracode/tesserapatch/issues/8>.
 > Co-amended: `docs/prds/PRD-tpatch-land.md` §3.8.
@@ -1270,7 +1270,7 @@ Same: not emitted by `verify` (which writes a fresh record). This is `tpatch sta
   "lifecycle_state": "applied"
 }
 ```
-#### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-6)
+#### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-7)
 
 `schema_version` moves `"1.0"` → `"1.1"` (`internal/workflow/verify.go:83`).
 The guarantee is **additive semantic compatibility, not byte identity**:
@@ -1573,7 +1573,7 @@ Slice B: `tpatch status` gains the freshness label inline (`applied [verified-fr
 | Repo with `Config.FeaturesDependencies = false` | V4 still runs. V5 is a no-op. V6 is a no-op. V7 closure replay still runs (DAG flag does not gate hard-dep traversal). |
 | Verify on a feature in `requested`/`analyzed`/`defined`/`implementing` | Refused with `exit 2 — feature is pre-apply, nothing to verify`. No record write. |
 | Verify on `blocked` / `upstream_merged` | Allowed; runs all applicable checks; writes the freshness record. The harness can interpret `verified-fresh` on `upstream_merged` as "the feature is retired and the artifacts are still healthy." |
-**Landed-feature rows (v0.15.1 Wave B / GH #8 rev-6 — see §3.6 for the contract).**
+**Landed-feature rows (v0.15.1 Wave B / GH #8 rev-7 — see §3.6 for the contract).**
 
 Artifact rows are stated against a fact `land` enforces: it refuses when the
 embedded `record` would capture nothing, so a landed feature with an absent or
@@ -1872,7 +1872,7 @@ which is the intended equivalence class. Pinned by AC-L133.
 - [ ] CHANGELOG v0.6.2 callout names `verify` and the freshness overlay with exact contract surface.
 
 ---
-### 7.1 Acceptance matrix — landed-feature verification (v0.15.1 Wave B / GH #8, rev-6)
+### 7.1 Acceptance matrix — landed-feature verification (v0.15.1 Wave B / GH #8, rev-7)
 
 **Binding on the Wave C implementation dispatch.** **Tier** names where a row
 is proven:
@@ -2090,9 +2090,9 @@ It reads exactly three files and applies exactly these patterns
 |---|---|---|
 | G1 | `V9\s+is\s+last` | The shipped sequence ends at **V10** (`internal/workflow/verify.go:288-289`). |
 | G2 | `\bten[- ]check\b|\b10[- ]check\b|\b10[- ]row\b|exactly ten\b` | The sequence is **eleven** checks, V0–V10. |
-| G3 | `Amendment 1 rev-[0-5]\b|proposed rev-[0-5]\b` | The amendment is **rev-6 (final)**; only the revision-history and rejected-alternatives narrative may name earlier revisions. |
+| G3 | `Amendment 1 rev-[0-6]\b|proposed rev-[0-6]\b` | The amendment is **rev-7 (final)**; only the revision-history and rejected-alternatives narrative may name earlier revisions. The character class is widened by one on every revision, so a stale current-amendment label cannot survive a bump. |
 | G4 | `land[’']?s? behaviou?r is unchanged|behaviou?r-frozen|behaviou?r-neutral` | The amendment adds **one** producer refusal (§3.8.6 / D19); a blanket unchanged/neutral claim is false. |
-| G5 | `40[- ]hex|hardcode[sd]? 40|fixed 40`, **scoped to lines mentioning `Tpatch-Base-Commit`, `base_commit` or `BaseCommit`** | That length is **object-format-derived** (40 `sha1` / 64 `sha256`). Deliberately *not* applied to `satisfied_by`, whose shipped regex really is 40-hex (`internal/store/validation.go:22`) — see §8 residual. |
+| G5 | `40[- ](lowercase[- ])?hex|hardcode[sd]? 40|fixed 40`, **scoped to lines mentioning `Tpatch-Base-Commit`, `base_commit` or `BaseCommit`**, and **exempt when the same line also matches `derived|--show-object-format|would reject|rejects|fails this row`** | That length is **object-format-derived** (40 `sha1` / 64 `sha256`). The exemption is deliberately narrow: it clears only sentences that *forbid* the hardcode by naming the derivation or its consequence — land rule 18's "a reader that hardcodes 40 **rejects** every valid landing in a SHA-256 repository" and AC-LD5 / AC-LD19's "a hardcoded 40 **fails this row**" — while an affirmative claim still trips the pattern because it names neither the derivation nor a rejection — the optional `lowercase` alternation exists precisely so the pre-rev-5 rule-6 phrasing (`… is 40 lowercase hex`) is caught, which a bare `40[- ]hex` pattern misses. Deliberately *not* applied to `satisfied_by`, whose shipped regex really is 40-hex (`internal/store/validation.go:22`) — see §8 residual. |
 | G6 | `absent.{0,60}mismatch|mismatch.{0,60}absent|any attested value mismatch`, **affirmative voice only** (a line that also matches `never|not a mismatch|rather than a mismatch|no mismatch` is exempt) | An absent or empty patch short-circuits to **`landed-artifacts-absent`**; it never mismatches a digest. |
 | G7 | `exact` and (`absent`\|`present-empty`) within 40 characters, **affirmative voice only** (exempt when the line also matches `neither|cannot|never|not reachable|no row`) | `exact` is reachable only from **present-nonempty**. |
 | G8 | `mutat(ing|es) nothing`, **scoped to the §3.8.6 Base-Commit-refusal context** — the line must also mention `base_commit`/`BaseCommit`, `R23`, `recoverLand`, `Mode A`, `Mode B` or `journal` | Mode B retains `record`'s artifacts and Mode A with a pending journal permits `recoverLand`'s mutation, so an unqualified "mutating nothing" is false there. Two true claims are deliberately **out of pattern**: `land --dry-run` really does mutate nothing (AC-LD14, pre-existing §3.5 contract), and anchor C's temp index really does mutate nothing (D11) — neither line mentions the refusal context. |
@@ -2113,7 +2113,11 @@ mechanically checkable conditions:
 3. **Negated or quoted** — the same line also matches
    `\bnot\b|\bnever\b|\bno\b|cannot|neither|rather than|only when|only from`,
    so a sentence that *forbids* the phrase does not trip the guard that
-   enforces it.
+   enforces it. Some correct sentences forbid a phrase **affirmatively**, by
+   stating the consequence rather than by negating; those are cleared by the
+   per-pattern exemptions in the table above (G5's
+   `derived|--show-object-format|would reject|rejects|fails this row`, G6's and
+   G7's voice exemptions), not by this rule.
 4. **Self-reference** — the line is a row of the G-table in this section, or
    names `AC-L135`.
 
