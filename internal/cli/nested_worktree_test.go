@@ -1204,9 +1204,10 @@ func measureRecordDiscoveryCalls(t *testing.T) int {
 }
 
 // GH #7 rev-3 F1 + rev-4 F2 + rev-5: land's discovery budget is exactly
-// FOUR of its own calls — the pre-record entry gate, the pre-stage
-// revalidation, the post-stage index audit and the final pre-commit
-// audit — plus whatever the embedded record needs. Calibrated against a standalone record so the
+// FIVE of its own calls — the pre-record entry gate, the pre-stage
+// revalidation, the post-stage index audit, the final pre-commit audit
+// and the post-commit re-audit (which catches a hook that staged a
+// nested worktree) — plus whatever the embedded record needs. Calibrated against a standalone record so the
 // assertion does not hardcode internals. Anything above this budget
 // means a stray rediscovery crept back into the path.
 func TestNestedWorktree_Land_DiscoveryBudget(t *testing.T) {
@@ -1217,7 +1218,7 @@ func TestNestedWorktree_Land_DiscoveryBudget(t *testing.T) {
 		t.Fatalf("apply --mode done failed: %s", stderr)
 	}
 
-	budget := 4 + recordCalls
+	budget := 5 + recordCalls
 	counter, restore := installCountingWorktreeListGit(t, budget)
 	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
 		"--files", "README.md,internal/example.go")
@@ -1228,7 +1229,7 @@ func TestNestedWorktree_Land_DiscoveryBudget(t *testing.T) {
 			budget, total, stdout, stderr)
 	}
 	if total != budget {
-		t.Errorf("expected exactly %d worktree-list invocations (1 entry gate + %d embedded record + 1 pre-stage revalidation + 2 index audits), got %d",
+		t.Errorf("expected exactly %d worktree-list invocations (1 entry gate + %d embedded record + 1 pre-stage revalidation + 3 index audits), got %d",
 			budget, recordCalls, total)
 	}
 	committed := nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD")
@@ -1271,9 +1272,10 @@ func TestNestedWorktree_Land_EntryDiscoveryFailureLeavesEverythingUntouched(t *t
 	}
 }
 
-// --no-record spends only land's own four calls (entry gate +
-// pre-stage revalidation + two index audits); --dry-run runs no record,
-// stages nothing, and revalidates at plan time, so it spends one.
+// --no-record spends only land's own five calls (entry gate +
+// pre-stage revalidation + three index audits); --dry-run runs no
+// record, stages nothing, and revalidates at plan time, so it spends
+// one.
 func TestNestedWorktree_Land_NoRecordAndDryRunDiscoveryBudget(t *testing.T) {
 	tmpDir, slug := setupNestedWorktreeFixture(t)
 	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
@@ -1299,15 +1301,15 @@ func TestNestedWorktree_Land_NoRecordAndDryRunDiscoveryBudget(t *testing.T) {
 	})
 
 	t.Run("--no-record", func(t *testing.T) {
-		counter, restore := installCountingWorktreeListGit(t, 4)
+		counter, restore := installCountingWorktreeListGit(t, 5)
 		stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record")
 		total := worktreeListCount(t, counter)
 		restore()
 		if code != 0 {
 			t.Fatalf("--no-record exceeded its discovery budget (observed %d calls): stdout=%q stderr=%q", total, stdout, stderr)
 		}
-		if total != 4 {
-			t.Errorf("--no-record should spend exactly 4 discoveries (entry gate + pre-stage revalidation + 2 index audits), got %d", total)
+		if total != 5 {
+			t.Errorf("--no-record should spend exactly 5 discoveries (entry gate + pre-stage revalidation + 3 index audits), got %d", total)
 		}
 		assertNoNestedWorktree(t, "--no-record landing commit",
 			nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD"))

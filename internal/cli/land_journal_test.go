@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,6 +47,10 @@ type crashState struct {
 	journalPath  string
 	lockPath     string
 	nonce        string
+	// livePre/liveMode are the exact preimage bytes and mode, so a test
+	// can restore them without going through git.
+	livePre  []byte
+	liveMode os.FileMode
 }
 
 // buildCrashState produces a repo whose live index differs from a
@@ -87,6 +92,23 @@ func buildCrashState(t *testing.T, withLock bool) *crashState {
 	}
 	liveBytes, _ := os.ReadFile(livePath)
 	liveSum := sha256.Sum256(liveBytes)
+	liveMode := os.FileMode(0o644)
+	if info, serr := os.Stat(livePath); serr == nil {
+		liveMode = info.Mode().Perm()
+	}
+	// write-tree rewrites the index, so the tree is taken BEFORE the
+	// checksum — mirroring production.
+	retainedTree, err := indexTree(tmpDir, retainedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(retainedPath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	retainedBytes, err = os.ReadFile(retainedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	retSum := sha256.Sum256(retainedBytes)
 
 	nonce := "deadbeefdeadbeefdeadbeefdeadbeef"
@@ -106,9 +128,10 @@ func buildCrashState(t *testing.T, withLock bool) *crashState {
 		PreHead:          preHead,
 		LiveIndexRel:     liveRel,
 		LiveIndexAbs:     liveAbs,
-		LiveIndex:        landJournalFileState{Exists: len(liveBytes) > 0, SHA256: hex.EncodeToString(liveSum[:]), Mode: 0o644},
+		LiveIndexPre:     landJournalFileState{Exists: len(liveBytes) > 0, SHA256: hex.EncodeToString(liveSum[:]), Mode: uint32(liveMode)},
 		RetainedIndexRel: retainedIndexRel(slug),
-		RetainedIndex:    landJournalFileState{Exists: true, SHA256: hex.EncodeToString(retSum[:]), Mode: 0o600},
+		RetainedPre:      landJournalFileState{Exists: true, SHA256: hex.EncodeToString(retSum[:]), Mode: 0o600},
+		RetainedPreTree:  retainedTree,
 		LockRel:          lockRel,
 		LockAbs:          lockAbs,
 		LockNonce:        nonce,
@@ -125,6 +148,7 @@ func buildCrashState(t *testing.T, withLock bool) *crashState {
 		repoRoot: tmpDir, slug: slug, preHead: preHead,
 		retainedPath: retainedPath, livePath: livePath,
 		journalPath: journalPath, lockPath: lockPath, nonce: nonce,
+		livePre: liveBytes, liveMode: liveMode,
 	}
 }
 
@@ -207,10 +231,6 @@ func TestRecoverLandCrashBeforeCommitPublishesStagedRetry(t *testing.T) {
 // not the stale `pre-commit` phase, and publish the committed index.
 func TestRecoverLandCrashAfterHeadAdvanceBeforePhaseUpdate(t *testing.T) {
 	cs := buildCrashState(t, true)
-	retained, err := os.ReadFile(cs.retainedPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Create the landing commit from the retained index, exactly as
 	// land would have, leaving the live index stale.
@@ -230,28 +250,15 @@ func TestRecoverLandCrashAfterHeadAdvanceBeforePhaseUpdate(t *testing.T) {
 	if j, rerr := readLandJournal(cs.repoRoot, cs.slug); rerr != nil || j.Phase != landPhasePreCommit {
 		t.Fatalf("fixture assumption broken: phase=%v err=%v", j, rerr)
 	}
-	// Refresh the retained checksum, since committing rewrote it.
-	newRetained, err := os.ReadFile(cs.retainedPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256(newRetained)
-	mutateJournal(t, cs, func(j *landJournal) {
-		j.RetainedIndex.SHA256 = hex.EncodeToString(sum[:])
-	})
+	// Deliberately DO NOT refresh the journal: this is exactly the
+	// "crashed after HEAD advanced, before the journal was updated"
+	// case, which recovery must resolve from the tree evidence.
 
 	if err := recoverLand(cs.repoRoot, cs.slug, noWarn); err != nil {
 		t.Fatalf("recovery: %v", err)
 	}
 	if got := gitHead(t, cs.repoRoot); got != head {
 		t.Errorf("recovery moved HEAD: %s -> %s", head, got)
-	}
-	live, err := os.ReadFile(cs.livePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(live) == string(retained) {
-		t.Error("recovery published the pre-commit index instead of the committed one")
 	}
 	if staged := strings.TrimSpace(jGit(t, cs.repoRoot, "diff", "--cached", "--name-only")); staged != "" {
 		t.Errorf("the published index should agree with the new HEAD, got: %q", staged)
@@ -508,5 +515,348 @@ func TestLandCommitFailureClearsJournalAndKeepsStagedRetry(t *testing.T) {
 	}
 	if stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record"); code != 0 {
 		t.Fatalf("--no-record retry failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+}
+
+// ─── GH #7 rev-8: locked state comparison ───────────────────────────
+
+// The live index must be compared under the lock, not merely by path.
+// An operator `git add` after the crash makes it DIVERGENT, and
+// recovery must refuse rather than overwrite their work.
+func TestRecoverLandRefusesDivergentLiveIndex(t *testing.T) {
+	cs := buildCrashState(t, false)
+	// The operator stages something after the crash.
+	if err := os.WriteFile(filepath.Join(cs.repoRoot, "operator.txt"), []byte("operator\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	jGit(t, cs.repoRoot, "add", "operator.txt")
+	liveBefore, err := os.ReadFile(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modeBefore := os.FileMode(0)
+	if info, serr := os.Stat(cs.livePath); serr == nil {
+		modeBefore = info.Mode().Perm()
+	}
+
+	err = recoverLand(cs.repoRoot, cs.slug, noWarn)
+	if err == nil {
+		t.Fatal("a divergent live index must refuse")
+	}
+	if !strings.Contains(err.Error(), "no longer matches the state recorded") {
+		t.Errorf("refusal should explain the divergence: %v", err)
+	}
+	live, err := os.ReadFile(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(live) != string(liveBefore) {
+		t.Error("the operator's index was overwritten despite the refusal")
+	}
+	if info, serr := os.Stat(cs.livePath); serr != nil || info.Mode().Perm() != modeBefore {
+		t.Errorf("index mode changed despite the refusal")
+	}
+	if !strings.Contains(jGit(t, cs.repoRoot, "diff", "--cached", "--name-only"), "operator.txt") {
+		t.Error("the operator's staged file was lost")
+	}
+	for _, p := range []string{cs.journalPath, cs.retainedPath} {
+		if _, serr := os.Stat(p); serr != nil {
+			t.Errorf("evidence removed despite refusing: %s: %v", p, serr)
+		}
+	}
+	if _, serr := os.Stat(cs.livePath + ".lock"); !os.IsNotExist(serr) {
+		t.Errorf("recovery left a lock behind: %v", serr)
+	}
+
+	// Restore the exact preimage bytes and mode; recovery then
+	// succeeds. (`git reset` would produce a semantically equivalent
+	// but not byte-identical index, which recovery correctly still
+	// treats as divergent.)
+	if err := os.WriteFile(cs.livePath, cs.livePre, cs.liveMode); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(cs.livePath, cs.liveMode); err != nil {
+		t.Fatal(err)
+	}
+	if err := recoverLand(cs.repoRoot, cs.slug, noWarn); err != nil {
+		t.Fatalf("recovery after removing the divergence: %v", err)
+	}
+	if _, serr := os.Stat(cs.journalPath); !os.IsNotExist(serr) {
+		t.Errorf("journal residue: %v", serr)
+	}
+}
+
+// If the retained index was already published, recovery must recognise
+// the postimage and clean up idempotently WITHOUT rewriting the index.
+func TestRecoverLandPostimageCleansWithoutRewrite(t *testing.T) {
+	cs := buildCrashState(t, false)
+	retained, err := os.ReadFile(cs.retainedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate "a previous recovery already published it": the live
+	// index is byte-identical to the retained one, with its mode.
+	if err := os.WriteFile(cs.livePath, retained, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(cs.livePath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mtimeBefore := info.ModTime()
+
+	if err := recoverLand(cs.repoRoot, cs.slug, noWarn); err != nil {
+		t.Fatalf("postimage recovery must succeed: %v", err)
+	}
+	after, err := os.Stat(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !after.ModTime().Equal(mtimeBefore) {
+		t.Error("an already-published index was rewritten instead of left alone")
+	}
+	body, err := os.ReadFile(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != string(retained) {
+		t.Error("the published index changed during cleanup")
+	}
+	if _, err := os.Stat(cs.journalPath); !os.IsNotExist(err) {
+		t.Errorf("journal residue: %v", err)
+	}
+	// Idempotent.
+	if err := recoverLand(cs.repoRoot, cs.slug, noWarn); err != nil {
+		t.Fatalf("second recovery must be a no-op: %v", err)
+	}
+}
+
+// A foreign lock blocks recovery entirely and is preserved; an owned
+// stale lock is validated by nonce AND inode before removal.
+func TestRecoverLandLockValidation(t *testing.T) {
+	t.Run("owned stale lock with a wrong inode is preserved", func(t *testing.T) {
+		cs := buildCrashState(t, true)
+		mutateJournal(t, cs, func(j *landJournal) { j.LockIno = 999999999 })
+		err := recoverLand(cs.repoRoot, cs.slug, noWarn)
+		if err == nil {
+			t.Fatal("an inode mismatch must refuse")
+		}
+		if !strings.Contains(err.Error(), "recreated by another process") {
+			t.Errorf("refusal should name the inode mismatch: %v", err)
+		}
+		if _, serr := os.Stat(cs.lockPath); serr != nil {
+			t.Errorf("the lock was removed despite the mismatch: %v", serr)
+		}
+	})
+
+	t.Run("a lock held by another process blocks recovery", func(t *testing.T) {
+		cs := buildCrashState(t, false)
+		if err := os.WriteFile(cs.lockPath, []byte("someone else\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(cs.lockPath)
+		err := recoverLand(cs.repoRoot, cs.slug, noWarn)
+		if err == nil {
+			t.Fatal("a foreign lock must refuse")
+		}
+		if !strings.Contains(err.Error(), "belongs to another process") {
+			t.Errorf("refusal should name the foreign lock: %v", err)
+		}
+		body, rerr := os.ReadFile(cs.lockPath)
+		if rerr != nil || string(body) != "someone else\n" {
+			t.Error("the foreign lock was removed or modified")
+		}
+	})
+}
+
+// A pre-commit hook that stages an ALLOWED extra file mutates the
+// retained index. The commit must include it, and the journal's
+// post-commit evidence must describe the mutated index.
+func TestLandHookStagedFileIsCommittedAndJournalled(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "hook-added.txt"), []byte("hook\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hookDir := filepath.Join(tmpDir, ".git", "hooks")
+	if err := os.MkdirAll(hookDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The hook stages an extra allowed file into whatever index Git is
+	// using — which is land's retained alternate index.
+	if err := os.WriteFile(filepath.Join(hookDir, "pre-commit"),
+		[]byte("#!/bin/sh\ngit add hook-added.txt\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go", "--allow-extra-paths")
+	if code != 0 {
+		t.Fatalf("land failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	committed := jGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD")
+	if !strings.Contains(committed, "hook-added.txt") {
+		t.Errorf("the hook's staged file is missing from the commit:\n%s", committed)
+	}
+	if staged := strings.TrimSpace(jGit(t, tmpDir, "diff", "--cached", "--name-only")); staged != "" {
+		t.Errorf("the published index disagrees with HEAD: %q", staged)
+	}
+	if _, err := os.Stat(landJournalPath(tmpDir, slug)); !os.IsNotExist(err) {
+		t.Errorf("journal residue after a successful land: %v", err)
+	}
+}
+
+// A hook that stages a nested worktree must be caught by the
+// post-commit re-audit, and the evidence preserved.
+func TestLandHookNestedWorktreeContaminationRefuses(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	hookDir := filepath.Join(tmpDir, ".git", "hooks")
+	if err := os.MkdirAll(hookDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The hook stages the nested worktree, then rejects the commit.
+	script := "#!/bin/sh\ngit -c advice.addEmbeddedRepo=false --literal-pathspecs add -- '" +
+		nestedWorktreeRel + "' >/dev/null 2>&1\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(hookDir, "pre-commit"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	headBefore := gitHead(t, tmpDir)
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land must refuse when a hook stages a nested worktree: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "nested Git worktree") {
+		t.Errorf("refusal should name the contamination: %q", stderr)
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("HEAD advanced despite refusing")
+	}
+	cached := jGit(t, tmpDir, "diff", "--cached", "--name-only")
+	if strings.Contains(cached, nestedWorktreeDirName) {
+		t.Errorf("the contaminated index reached the live index:\n%s", cached)
+	}
+}
+
+// When the durable publish of the staged-retry index fails after a
+// commit failure, the journal and retained index MUST be kept — they
+// are the only copy of the retry evidence — and a later recovery must
+// publish them and then clear.
+func TestLandCommitFailurePublishFailureRetainsEvidenceThenRecovers(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	hookDir := filepath.Join(tmpDir, ".git", "hooks")
+	if err := os.MkdirAll(hookDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hook := filepath.Join(hookDir, "pre-commit")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	live := liveIndexPath(t, tmpDir)
+	gitutil.SetPublishRenameHookForTest(func(target string) error {
+		if target != live {
+			return nil
+		}
+		return fmt.Errorf("injected publish failure")
+	})
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	gitutil.SetPublishRenameHookForTest(nil)
+	if code == 0 {
+		t.Fatalf("land should fail: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "commit failed, staged retry recovery pending") {
+		t.Errorf("diagnostic should distinguish the staged-retry pending case: %q", stderr)
+	}
+	// Evidence retained.
+	for _, p := range []string{landJournalPath(tmpDir, slug), retainedIndexAbs(tmpDir, slug)} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("evidence deleted despite the publish failure: %s: %v", p, err)
+		}
+	}
+	if _, err := os.Stat(liveIndexPath(t, tmpDir) + ".lock"); !os.IsNotExist(err) {
+		t.Errorf("lock residue: %v", err)
+	}
+
+	// A later land recovers: publishes the staged retry, then clears.
+	if err := os.Remove(hook); err != nil {
+		t.Fatal(err)
+	}
+	if err := recoverLand(tmpDir, slug, noWarn); err != nil {
+		t.Fatalf("recovery after the retained publish failure: %v", err)
+	}
+	cached := jGit(t, tmpDir, "diff", "--cached", "--name-only")
+	for _, want := range []string{"README.md", "internal/example.go"} {
+		if !strings.Contains(cached, want) {
+			t.Errorf("staged retry state missing %q:\n%s", want, cached)
+		}
+	}
+	if _, err := os.Stat(landJournalPath(tmpDir, slug)); !os.IsNotExist(err) {
+		t.Errorf("journal residue after a successful recovery: %v", err)
+	}
+}
+
+// When the post-commit publish fails, HEAD has advanced: the diagnostic
+// must say so precisely, the journal must be kept, and a later recovery
+// must finish the publication.
+func TestLandPostCommitPublishFailureIsRecoveryPending(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	headBefore := gitHead(t, tmpDir)
+
+	live := liveIndexPath(t, tmpDir)
+	gitutil.SetPublishRenameHookForTest(func(target string) error {
+		if target != live {
+			return nil
+		}
+		return fmt.Errorf("injected publish failure")
+	})
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	gitutil.SetPublishRenameHookForTest(nil)
+	if code == 0 {
+		t.Fatalf("land should report the publish failure: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "commit succeeded, recovery pending") {
+		t.Errorf("diagnostic should say the commit succeeded and recovery is pending: %q", stderr)
+	}
+	if strings.Contains(stderr, "rolled back") {
+		t.Errorf("the diagnostic must never claim a rollback of HEAD: %q", stderr)
+	}
+	if got := gitHead(t, tmpDir); got == headBefore {
+		t.Fatal("HEAD should have advanced")
+	}
+	for _, p := range []string{landJournalPath(tmpDir, slug), retainedIndexAbs(tmpDir, slug)} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("evidence deleted despite the publish failure: %s: %v", p, err)
+		}
+	}
+
+	if err := recoverLand(tmpDir, slug, noWarn); err != nil {
+		t.Fatalf("recovery after the post-commit publish failure: %v", err)
+	}
+	if staged := strings.TrimSpace(jGit(t, tmpDir, "diff", "--cached", "--name-only")); staged != "" {
+		t.Errorf("the recovered index disagrees with HEAD: %q", staged)
+	}
+	if _, err := os.Stat(landJournalPath(tmpDir, slug)); !os.IsNotExist(err) {
+		t.Errorf("journal residue after a successful recovery: %v", err)
+	}
+	if err := recoverLand(tmpDir, slug, noWarn); err != nil {
+		t.Fatalf("second recovery must be a no-op: %v", err)
 	}
 }

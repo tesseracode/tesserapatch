@@ -161,6 +161,10 @@ func CaptureIndexFileState(path string) (*IndexFileState, error) {
 // assert that the live index is either the complete old file or the
 // complete new one, never a truncation, and that no lock this
 // transaction owns is left behind.
+//
+// Each hook receives the TARGET path, so a test can fail only the live
+// index publication and leave unrelated durable writes (such as seeding
+// the alternate index) alone.
 var (
 	publishHookWrite   func(path string) error
 	publishHookSync    func(path string) error
@@ -169,6 +173,11 @@ var (
 	publishHookRename  func(path string) error
 	publishHookDirSync func(path string) error
 )
+
+// SetPublishRenameHookForTest injects a failure at the rename step of
+// the durable publish. Tests in other packages use it to exercise the
+// "publication failed" contracts; production always leaves it nil.
+func SetPublishRenameHookForTest(f func(path string) error) { publishHookRename = f }
 
 // IndexTransaction isolates a sequence of index mutations in a private
 // temporary index and publishes the result durably, under Git's own
@@ -207,12 +216,35 @@ type IndexTransaction struct {
 }
 
 // BeginIndexTransaction validates the effective index, snapshots it and
-// seeds a private temporary index with identical bytes.
+// seeds a private temporary index with identical bytes in a throwaway
+// directory this transaction owns.
+func BeginIndexTransaction(repoRoot string) (*IndexTransaction, error) {
+	tempDir, err := os.MkdirTemp("", "tpatch-land-index-*")
+	if err != nil {
+		return nil, fmt.Errorf("create temp index directory: %w", err)
+	}
+	tx, err := BeginIndexTransactionAt(repoRoot, filepath.Join(tempDir, "index"))
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return nil, err
+	}
+	tx.tempDir = tempDir
+	return tx, nil
+}
+
+// BeginIndexTransactionAt is BeginIndexTransaction with the alternate
+// index at a caller-chosen path, which the caller owns.
+//
+// GH #7 rev-8: `land` points this at the DURABLE retained index inside
+// its journal directory, so the very file that staging, audits, hooks
+// and `git commit` mutate is the file crash recovery later reads. A
+// separate ephemeral copy could not capture a hook's edits, which is
+// precisely the evidence recovery needs.
 //
 // When the repository has never staged anything the live index is
-// absent; the temp index is left absent too, so the first `git add`
-// creates it exactly as Git would.
-func BeginIndexTransaction(repoRoot string) (*IndexTransaction, error) {
+// absent; the alternate index is left absent too, so the first
+// `git add` creates it exactly as Git would.
+func BeginIndexTransactionAt(repoRoot, altIndexPath string) (*IndexTransaction, error) {
 	livePath, err := EffectiveIndexPath(repoRoot)
 	if err != nil {
 		return nil, err
@@ -228,37 +260,56 @@ func BeginIndexTransaction(repoRoot string) (*IndexTransaction, error) {
 	if resolved, rerr := filepath.EvalSymlinks(liveDir); rerr == nil {
 		liveDir = resolved
 	}
-	tempDir, err := os.MkdirTemp("", "tpatch-land-index-*")
-	if err != nil {
-		return nil, fmt.Errorf("create temp index directory: %w", err)
-	}
 	nonce, err := randomNonce()
 	if err != nil {
-		_ = os.RemoveAll(tempDir)
 		return nil, err
 	}
 	tx := &IndexTransaction{
 		RepoRoot:  repoRoot,
 		LivePath:  livePath,
-		TempPath:  filepath.Join(tempDir, "index"),
+		TempPath:  altIndexPath,
 		LockNonce: nonce,
 		live:      live,
 		liveDir:   liveDir,
-		tempDir:   tempDir,
 		lockPath:  livePath + ".lock",
+	}
+	if err := os.MkdirAll(filepath.Dir(altIndexPath), 0o700); err != nil {
+		return nil, fmt.Errorf("create alternate index directory: %w", err)
 	}
 	if live.Existed {
 		mode := live.Mode
 		if mode == 0 {
 			mode = 0o644
 		}
-		if err := os.WriteFile(tx.TempPath, live.Data, mode); err != nil {
-			_ = os.RemoveAll(tempDir)
-			return nil, fmt.Errorf("seed temp index: %w", err)
+		if err := DurableWriteFile(filepath.Dir(altIndexPath), altIndexPath, live.Data, mode); err != nil {
+			return nil, fmt.Errorf("seed alternate index: %w", err)
 		}
+	} else if rmErr := os.Remove(altIndexPath); rmErr != nil && !os.IsNotExist(rmErr) {
+		return nil, fmt.Errorf("clear a stale alternate index: %w", rmErr)
 	}
 	return tx, nil
 }
+
+// SyncAlternateIndex fsyncs the alternate index so its current bytes —
+// including anything a hook wrote — survive a crash.
+func (tx *IndexTransaction) SyncAlternateIndex() error {
+	f, err := os.Open(tx.TempPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("open alternate index for fsync: %w", err)
+	}
+	defer f.Close()
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("fsync alternate index: %w", err)
+	}
+	return syncDir(filepath.Dir(tx.TempPath))
+}
+
+// AdoptLock takes ownership of an already-created lock file, used by
+// crash recovery after it has validated that the stale lock is ours.
+func (tx *IndexTransaction) AdoptLock() { tx.lockOwned = true }
 
 // LiveState exposes the start-of-transaction snapshot for journalling.
 func (tx *IndexTransaction) LiveState() *IndexFileState { return tx.live }
@@ -311,6 +362,17 @@ func (tx *IndexTransaction) LockLive() error {
 
 // lockSentinelPrefix marks a lock file this tool created.
 const lockSentinelPrefix = "tpatch-land-lock "
+
+// FileIno returns a file's inode number when the platform exposes one.
+// Used to strengthen stale-lock identification beyond the nonce alone.
+// Platforms without inodes report ok=false and the check is skipped.
+func FileIno(path string) (uint64, bool) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return 0, false
+	}
+	return fileInoFromInfo(info)
+}
 
 // LockNonceAt reads the nonce out of a lock file, reporting whether the
 // lock was created by tpatch at all. A lock with any other content is
@@ -380,16 +442,17 @@ func (tx *IndexTransaction) PublishLocked() error {
 	if mode == 0 {
 		mode = 0o644
 	}
-	if err := durableWriteFile(tx.liveDir, tx.LivePath, temp.Data, mode); err != nil {
+	if err := DurableWriteFile(tx.liveDir, tx.LivePath, temp.Data, mode); err != nil {
 		return tx.joinRelease(err)
 	}
 	return tx.releaseOwnedLock()
 }
 
-// durableWriteFile publishes `data` at `target` via an O_EXCL temp in
+// DurableWriteFile publishes `data` at `target` via an O_EXCL temp in
 // `dir`, with file and directory fsyncs, so the result survives a crash
-// and is never observed partially written.
-func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
+// and is never observed partially written. Exported so the land journal
+// layer writes its evidence with identical durability.
+func DurableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 	tmp, err := os.CreateTemp(dir, ".tpatch-publish-*")
 	if err != nil {
 		return fmt.Errorf("publish index: create temp in %q: %w", dir, err)
@@ -404,7 +467,7 @@ func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 	}
 
 	if publishHookWrite != nil {
-		if herr := publishHookWrite(tmpPath); herr != nil {
+		if herr := publishHookWrite(target); herr != nil {
 			return cleanup(fmt.Errorf("publish index: write: %w", herr))
 		}
 	}
@@ -412,7 +475,7 @@ func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 		return cleanup(fmt.Errorf("publish index: write: %w", err))
 	}
 	if publishHookSync != nil {
-		if herr := publishHookSync(tmpPath); herr != nil {
+		if herr := publishHookSync(target); herr != nil {
 			return cleanup(fmt.Errorf("publish index: fsync: %w", herr))
 		}
 	}
@@ -420,7 +483,7 @@ func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 		return cleanup(fmt.Errorf("publish index: fsync: %w", err))
 	}
 	if publishHookClose != nil {
-		if herr := publishHookClose(tmpPath); herr != nil {
+		if herr := publishHookClose(target); herr != nil {
 			return cleanup(fmt.Errorf("publish index: close: %w", herr))
 		}
 	}
@@ -437,7 +500,7 @@ func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 		return primary
 	}
 	if publishHookChmod != nil {
-		if herr := publishHookChmod(tmpPath); herr != nil {
+		if herr := publishHookChmod(target); herr != nil {
 			return removeTmp(fmt.Errorf("publish index: chmod: %w", herr))
 		}
 	}
@@ -445,7 +508,7 @@ func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 		return removeTmp(fmt.Errorf("publish index: chmod: %w", err))
 	}
 	if publishHookRename != nil {
-		if herr := publishHookRename(tmpPath); herr != nil {
+		if herr := publishHookRename(target); herr != nil {
 			return removeTmp(fmt.Errorf("publish index: rename onto %q: %w", target, herr))
 		}
 	}
@@ -453,7 +516,7 @@ func durableWriteFile(dir, target string, data []byte, mode fs.FileMode) error {
 		return removeTmp(fmt.Errorf("publish index: rename onto %q: %w", target, err))
 	}
 	if publishHookDirSync != nil {
-		if herr := publishHookDirSync(dir); herr != nil {
+		if herr := publishHookDirSync(target); herr != nil {
 			return fmt.Errorf("publish index: fsync directory %q: %w", dir, herr)
 		}
 	}
@@ -512,6 +575,9 @@ func (tx *IndexTransaction) Close() error {
 	tx.closed = true
 	lockErr := tx.releaseOwnedLock()
 	var tempErr error
+	// Only a directory this transaction created is removed. When the
+	// caller supplied the alternate index path (land's durable retained
+	// index) its lifetime belongs to the caller's journal.
 	if tx.tempDir != "" {
 		if err := os.RemoveAll(tx.tempDir); err != nil {
 			tempErr = fmt.Errorf("remove temp index %q: %w", tx.tempDir, err)

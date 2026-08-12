@@ -285,7 +285,11 @@ func runLand(cmd *cobra.Command, slug string) error {
 		stagingSet = append(stagingSet, p)
 	}
 
-	tx, err := gitutil.BeginIndexTransaction(s.Root)
+	// GH #7 rev-8: the alternate index IS the durable retained index
+	// inside the journal directory. Staging, audits, hooks and the
+	// commit all mutate that one file, so whatever a hook writes is
+	// part of the evidence a later crash recovery reads.
+	tx, err := gitutil.BeginIndexTransactionAt(s.Root, retainedIndexAbs(s.Root, slug))
 	if err != nil {
 		return err
 	}
@@ -295,6 +299,11 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// Every cleanup failure is folded into the returned diagnostic —
 	// none is ever swallowed.
 	var statusPre *fileState
+	// journalWritten flips once the durable journal exists. Before that
+	// point an abort may delete the retained index (it is only scratch);
+	// afterwards the retained index is the ONLY copy of the staged-retry
+	// evidence and is never deleted on a failure path.
+	journalWritten := false
 	abort := func(cause error) error {
 		problems := []string{}
 		if statusPre != nil {
@@ -304,6 +313,11 @@ func runLand(cmd *cobra.Command, slug string) error {
 		}
 		if cerr := tx.Close(); cerr != nil {
 			problems = append(problems, fmt.Sprintf("cleaning up the temporary index failed: %v", cerr))
+		}
+		if !journalWritten {
+			if rerr := os.Remove(retainedIndexAbs(s.Root, slug)); rerr != nil && !os.IsNotExist(rerr) {
+				problems = append(problems, fmt.Sprintf("removing the scratch alternate index failed: %v", rerr))
+			}
 		}
 		if len(problems) == 0 {
 			return cause
@@ -407,6 +421,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 	if err := writeLandJournal(s.Root, slug, tx, preHead); err != nil {
 		return abort(fmt.Errorf("land: %w", err))
 	}
+	journalWritten = true
 	// The commit runs against the TEMP index while the live index lock
 	// is held, so hooks inherit GIT_INDEX_FILE and see exactly the
 	// audited state — normal hook semantics, isolated substrate.
@@ -418,17 +433,40 @@ func runLand(cmd *cobra.Command, slug string) error {
 		// index through the lock we already hold, so the intended
 		// paths really are staged for the `--no-record` retry.
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s", commitOut)
+
+		// A hook may have mutated the alternate index before rejecting.
+		// Re-audit it and durably journal the new identity BEFORE any
+		// publish, so the staged-retry evidence is both clean and
+		// recoverable.
+		if hookContaminated, hookAuditErr := gitutil.AuditStagedPathsForNestedWorktreesEnv(s.Root, txEnv); hookAuditErr != nil {
+			return abort(fmt.Errorf("land: git commit failed (%v) and the post-commit worktree audit could not run: %w", commitErr, hookAuditErr))
+		} else if len(hookContaminated) > 0 {
+			return abort(formatContaminationRefusal(slug, hookContaminated, "a commit hook"))
+		}
+		if rerr := refreshLandJournalAfterCommit(s.Root, slug, tx, landPhaseFailed); rerr != nil {
+			return abort(fmt.Errorf("land: git commit failed (%v) and recording the post-commit index state failed: %w", commitErr, rerr))
+		}
+
 		publishErr := tx.PublishLocked()
-		journalErr := clearLandJournal(s.Root, slug)
-		closeErr := tx.Close()
 		msg := fmt.Sprintf(
 			"land: git commit failed (%v). The index is staged but uncommitted; "+
 				"after fixing the reported error, retry with `tpatch land %s --no-record` "+
 				"to commit the existing index without re-recording", commitErr, slug)
-		var extra []string
 		if publishErr != nil {
-			extra = append(extra, fmt.Sprintf("publishing the audited index for retry FAILED: %v (your index was left untouched; re-run `tpatch land %s`)", publishErr, slug))
+			// The retained index is the only copy of the staged-retry
+			// state, so the journal is DELIBERATELY kept.
+			closeErr := tx.Close()
+			out := fmt.Sprintf("%s\nland: commit failed, staged retry recovery pending — publishing the audited index failed: %v.\n"+
+				"Your index was left untouched and the evidence is retained in %s; re-run `tpatch land %s` to complete the publication",
+				msg, publishErr, landJournalDirRel, slug)
+			if closeErr != nil {
+				return fmt.Errorf("%s\nadditionally: cleaning up the temporary index failed: %v", out, closeErr)
+			}
+			return fmt.Errorf("%s", out)
 		}
+		journalErr := clearLandJournal(s.Root, slug)
+		closeErr := tx.Close()
+		var extra []string
 		if journalErr != nil {
 			extra = append(extra, fmt.Sprintf("clearing the land journal failed: %v", journalErr))
 		}
@@ -440,8 +478,37 @@ func runLand(cmd *cobra.Command, slug string) error {
 		}
 		return fmt.Errorf("%s", msg)
 	}
-	// Advisory only — recovery decides from evidence, not this field.
-	_ = updateLandJournalPhase(s.Root, slug, landPhaseCommitted)
+
+	// The commit succeeded and HEAD has advanced. Re-audit and durably
+	// journal the post-commit retained identity and tree BEFORE the
+	// live publish, so a crash in the gap is recoverable.
+	if postContaminated, postAuditErr := gitutil.AuditStagedPathsForNestedWorktreesEnv(s.Root, txEnv); postAuditErr != nil {
+		closeErr := tx.Close()
+		out := fmt.Sprintf("land: commit succeeded, recovery pending — the post-commit worktree audit could not run: %v.\n"+
+			"HEAD advanced; re-run `tpatch land %s` to complete the publication", postAuditErr, slug)
+		if closeErr != nil {
+			return fmt.Errorf("%s\nadditionally: %v", out, closeErr)
+		}
+		return fmt.Errorf("%s", out)
+	} else if len(postContaminated) > 0 {
+		closeErr := tx.Close()
+		out := fmt.Sprintf("land: the commit succeeded (HEAD advanced) but a commit hook staged path(s) inside a registered nested Git worktree: %s.\n"+
+			"Your index was not published; the evidence is retained in %s. Remove the nested worktree and re-run `tpatch land %s`",
+			strings.Join(postContaminated, ", "), landJournalDirRel, slug)
+		if closeErr != nil {
+			return fmt.Errorf("%s\nadditionally: %v", out, closeErr)
+		}
+		return fmt.Errorf("%s", out)
+	}
+	if rerr := refreshLandJournalAfterCommit(s.Root, slug, tx, landPhaseCommitted); rerr != nil {
+		closeErr := tx.Close()
+		out := fmt.Sprintf("land: commit succeeded, recovery pending — recording the post-commit index state failed: %v.\n"+
+			"HEAD advanced; re-run `tpatch land %s` to complete the publication", rerr, slug)
+		if closeErr != nil {
+			return fmt.Errorf("%s\nadditionally: %v", out, closeErr)
+		}
+		return fmt.Errorf("%s", out)
+	}
 
 	// Commit succeeded: publish the post-commit temp index (which Git
 	// has already reconciled against the new HEAD) through the held
@@ -456,9 +523,10 @@ func runLand(cmd *cobra.Command, slug string) error {
 		// publication.
 		closeErr := tx.Close()
 		msg := fmt.Sprintf(
-			"land: the commit succeeded (HEAD advanced) but publishing the resulting index failed: %v.\n"+
-				"Recovery is pending: HEAD is correct and your index is stale. Re-run `tpatch land %s` and it will complete the publication from the retained journal, or run `git reset` to resynchronise the index yourself",
-			err, slug)
+			"land: commit succeeded, recovery pending — HEAD advanced but publishing the resulting index failed: %v.\n"+
+				"HEAD is correct and your index is stale; the evidence is retained in %s.\n"+
+				"Re-run `tpatch land %s` to complete the publication, or run `git reset` to resynchronise the index yourself",
+			err, landJournalDirRel, slug)
 		if closeErr != nil {
 			return fmt.Errorf("%s\nadditionally: cleaning up the temporary index failed: %v", msg, closeErr)
 		}
