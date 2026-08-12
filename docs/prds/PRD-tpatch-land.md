@@ -17,7 +17,7 @@
 - [`docs/market-research/competitive-landscape.md`](../market-research/competitive-landscape.md) §9 (DEP-3 / git-gud trailer precedents), §10 (what we don't adopt), §11 (deterministic apply-recipe edge)
 - [`docs/record.md`](../record.md), [`docs/reconcile.md`](../reconcile.md), [`docs/feature-layout.md`](../feature-layout.md)
 - [`docs/prds/PRD-verify-freshness.md`](./PRD-verify-freshness.md) §3.6, §7.1 — the landing-evidence consumer this PRD's §3.8 serves (v0.15.1 Wave B / GH #8)
-- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 D8–D14 — binding ADR for the readers' contract
+- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-1 D8–D16 — binding ADR for the readers' contract
 - [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](../adrs/ADR-019-tpatch-land-trailer-block-schema.md) — the locked schema §3.8 makes readable
 - [GH #8](https://github.com/tesseracode/tesserapatch/issues/8) — `verify` V8 fails after land
 
@@ -518,16 +518,20 @@ These behaviors fall out of using `git` primitives directly. `land`
 does not implement its own transaction layer.
 
 ---
+### 3.8 Landing-evidence readers' contract — v0.15.1 Wave B / GH #8 (rev-1)
 
-### 3.8 Landing-evidence readers' contract — v0.15.1 Wave B / GH #8
-
-> **Amendment status**: proposed 2026-08-12, AWAITING REVIEW.
-> **`land`'s behavior is unchanged by this amendment.** This section is
+> **Amendment status**: proposed rev-1, 2026-08-12, AWAITING REVIEW.
+> **`land`'s behaviour is unchanged by this amendment.** This section is
 > normative for *readers* of the trailer block. It exists because
 > `tpatch verify` now derives a load-bearing decision from it
-> (`docs/prds/PRD-verify-freshness.md` §3.6; ADR-013 Amendment 1 D8),
-> and the previously-implicit reader rules must become explicit before a
+> (`docs/prds/PRD-verify-freshness.md` §3.6; ADR-013 Amendment 1 rev-1 D10 and
+> D15), and the previously-implicit reader rules must become explicit before a
 > consumer depends on them. Binding schema: ADR-019.
+>
+> **rev-0 → rev-1** tightens cardinality, adds topology and reader-error
+> rules, and states the rebase / cherry-pick / multiple-landing / branch-switch
+> / detached-HEAD / history-rewrite behaviour totally. Every claim below was
+> measured; the probe index is ADR-013 §A1.1.
 
 #### 3.8.1 What the trailer block attests
 
@@ -535,48 +539,90 @@ The four-trailer block emitted at `internal/cli/land.go:397-400` is an
 **attestation**, not an index. It asserts: *at the moment this commit was
 created, feature `<slug>`'s canonical `post-apply.patch` hashed to
 `<Tpatch-Patch-SHA>`, its `apply-recipe.json` hashed to
-`<Tpatch-Recipe-SHA>` (or was absent, `none`), and `record` had resolved its
-base to `<Tpatch-Base-Commit>`.*
+`<Tpatch-Recipe-SHA>` (or was absent/whitespace-only, `none`), and `record`
+had resolved its base to `<Tpatch-Base-Commit>`.*
 
-It does **not** assert that the content is still in the tree. That is a
-separate, independently-checked property — a `git revert` of a landing commit
-leaves the commit reachable and its attestation intact while removing the
-content. Any consumer that treats reachability as presence is wrong; verify
-pairs the attestation with a materialization check
-(`PRD-verify-freshness` §3.6.3).
+It does **not** assert that the content is still in the tree. A `git revert`
+of a landing leaves the commit reachable with its attestation intact while
+removing the content — measured. Any consumer that treats reachability as
+presence is wrong; verify pairs the attestation with an independent
+materialization ladder (`PRD-verify-freshness` §3.6.5).
+
+It also does **not** assert *where* the content is. Reverse-applying the
+attested patch succeeds against any tree containing equivalent content,
+including one produced by an unrelated actor — measured. Reverse-apply is a
+materialization signal, never ownership.
 
 #### 3.8.2 Reader rules (normative)
 
 1. **`git log --grep '^Tpatch-Feature: <slug>$'` is a prefilter, not
-   authority.** It matches any commit whose *message text* contains that
-   line, including a docs commit that quotes it in prose. The authoritative
-   value is `git log --format='%(trailers:key=Tpatch-Feature,valueonly)'`,
-   which correctly yields nothing for such a commit. `docs/land.md` and
-   §3.6 of this PRD advertise the `--grep` form as a *human* convenience;
-   tooling must not stop there.
-2. **Git parses trailers only from the last paragraph of the message.** A
-   `git commit --amend` (or a `commit-msg` hook) that appends a paragraph
-   after the block makes the trailers unreadable even though the bytes are
-   still visible in `git log`. Readers must treat this as *malformed
-   attestation*, distinct from *no attestation*.
-3. **The slug is matched by exact string equality**, after trimming ASCII
-   space/tab. `my-slug` must never match `my-slug-extended`. The anchored
-   `--grep` form already behaves this way; the unanchored form does not.
-4. **`Tpatch-Feature` is multi-valued.** A squash landing can carry several
-   values in one commit; a reader must parse a list, not a scalar.
-5. **The slug key is not unique across commits** (already stated in ADR-019
-   → Consequences). Re-landing after a re-`record` produces a second commit
-   with the same slug and different SHA fields. Readers must define a
-   deterministic selection rule; verify's is in §3.6.2.
-6. **Reachability is full-graph.** A landing merged from a side branch is
-   reachable only through a non-first parent. Readers must not scope with
-   `--first-parent`.
-7. **Trailers survive `rebase` and `cherry-pick` verbatim**, while the commit
-   SHA and the parent change and `Tpatch-Base-Commit` may become unreachable.
-   Readers must not key on the commit SHA or on the commit's parent.
-8. **`Tpatch-Recipe-SHA: none` is a value, not an absence.** A reader
-   comparing it against a repo with no `apply-recipe.json` must treat
-   `none == none` as a match (`internal/cli/land.go:1034-1043`).
+   authority.** It matches any commit whose *message text* contains that line,
+   including a docs commit that quotes it in prose. The authoritative value is
+   `git log --format='%(trailers:key=Tpatch-Feature,valueonly)'`, which yields
+   nothing for such a commit. `docs/land.md` and §3.4 advertise the `--grep`
+   form as a *human* convenience; tooling must not stop there.
+2. **Git parses trailers only from the last paragraph.** A `git commit
+   --amend` (or a `commit-msg` hook) that appends a paragraph after the block
+   makes the trailers unreadable even though the bytes remain visible in
+   `git log`. A reader must therefore **retain the raw message** and classify
+   this as *malformed attestation*, distinct from *no attestation*. A
+   parsed-only reader cannot tell the two apart.
+3. **The slug is matched by exact string equality**, after trimming leading
+   and trailing ASCII space/tab. `my-slug` must never match
+   `my-slug-extended`. The anchored `--grep` form already behaves this way;
+   the unanchored form does not.
+4. **`Tpatch-Feature` cardinality is exactly one.** `land` emits exactly one
+   and ADR-019 admits no other producer. A commit carrying two or more values
+   — a hand-rolled squash of two landings — is **malformed** for reading
+   purposes: its sibling `Tpatch-Patch-SHA` / `Tpatch-Recipe-SHA` /
+   `Tpatch-Base-Commit` cannot be attributed to a specific slug.
+5. **`Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA` and `Tpatch-Base-Commit`
+   cardinality is exactly one each.** Duplicates are observable — two
+   `Tpatch-Patch-SHA` lines are returned as `aaaa,bbbb` — and a "take the
+   first" parser would silently pick a convenient one. Duplicates are
+   **malformed**; no reader may select among them.
+6. **Value formats are strict and lowercase.** `Tpatch-Patch-SHA` is 64
+   lowercase hex; `Tpatch-Recipe-SHA` is 64 lowercase hex or the literal
+   `none`; `Tpatch-Base-Commit` is 40 lowercase hex. Anything else is
+   malformed. This follows the ADR-029 D1 precedent already enforced by
+   `isLowercaseHex` (`internal/workflow/writefile_safety.go:176`).
+7. **Trailer keys are matched case-insensitively by Git.**
+   `tpatch-feature: <slug>` is returned by
+   `%(trailers:key=Tpatch-Feature,valueonly)` — measured. A reader inherits
+   this and the contract states it rather than claiming a case-sensitive match
+   it cannot implement.
+8. **The slug key is not unique across commits** (already in ADR-019 →
+   Consequences). Re-landing after a re-`record` produces a second commit with
+   the same slug and different SHA fields. Readers must define a deterministic
+   selection rule; verify's is `PRD-verify-freshness` §3.6.8.
+9. **Reachability is full-graph.** A landing merged from a side branch is
+   reachable only through a non-first parent — measured. Readers must not
+   scope with `--first-parent`.
+10. **Topology matters: `land` emits single-parent commits.** A reader that
+    needs the pre-landing tree must take the commit's **single** parent and
+    must **refuse** rather than approximate when the commit has 0 parents (a
+    root landing — `git rev-parse <root>^` fails outright) or ≥2 (a merge
+    carrying the trailer, whose trailer parses normally). Both shapes were
+    measured. `^1` is not a defensible approximation.
+11. **Trailers survive `rebase` and `cherry-pick` verbatim**, while the commit
+    SHA and the parent change and `Tpatch-Base-Commit` may become unreachable.
+    Readers must not key on the commit SHA or on the commit's parent identity,
+    and must treat base unreachability as advisory.
+12. **`Tpatch-Recipe-SHA: none` is a value, not an absence**, and it covers
+    **two** producer cases: no `apply-recipe.json`, *and* one that is
+    whitespace-only — `readRecipeSHA` returns `none` on a read error and on
+    `strings.TrimSpace(...) == ""` (`internal/cli/land.go:1034-1043`). A
+    reader comparing against a repo in either state must treat `none == none`
+    as a match.
+13. **Patch-digest comparison is presence-aware.** An **absent**
+    `post-apply.patch` has no digest, so any attested value mismatches. A
+    **present, zero-byte** patch hashes to `sha256("")` and must compare
+    equal. Absent is not empty.
+14. **A reader error is not an absence.** If the enumeration cannot be run or
+    parsed — a git failure, or a git older than 2.25, below which
+    `%(trailers:key=…,valueonly,separator=…)` is unavailable — the reader must
+    surface an **error state**, never "no evidence". Degrading to absence
+    converts an unknown into a positive claim.
 
 #### 3.8.3 No new status metadata — decision
 
@@ -585,10 +631,11 @@ one. Considered and rejected:
 
 | Option | Verdict |
 |---|---|
-| `status.landed_commit` (or a `landings[]` array) on `FeatureStatus` | **Rejected.** ADR-019 already refused writing the commit SHA back (a commit cannot contain its own SHA without a rewrite cycle). Beyond that: `rebase`/`cherry-pick` would stale the field at exactly the moment the trailers stay correct; it would need a migration for every repo landed since v0.8.0; and it would create a second source of truth for a derived decision, against ADR-011 D6 / ADR-010 D5. |
-| A `status.landed_at` timestamp | **Rejected.** `status.json:notes` already records `landed at <ts>` (§3.6, `internal/cli/land.go:357`) and no consumer needs it as structured data. Adding a field for narrative information is schema cost with no reader. |
-| A new `Tpatch-Landed-At` trailer | **Rejected.** ADR-019 locks the block; a new mandatory trailer is a breaking schema change requiring its own ADR, and the commit's own author date already carries it. |
-| Keeping the existing four trailers as the sole attestation | **Chosen.** Zero migration; retroactively valid for every feature landed since v0.8.0; degrades honestly (a hand-rolled `git commit` with no trailers simply yields "no evidence" and today's verify behavior). |
+| `status.landed_commit` (or a `landings[]` array) on `FeatureStatus` | **Rejected.** ADR-019 already refused writing the commit SHA back (a commit cannot contain its own SHA without a rewrite cycle). Beyond that: `rebase`/`cherry-pick` would stale the field at exactly the moment the trailers stay correct — measured; it would need a migration for every repo landed since v0.8.0; and it would create a second source of truth for a derived decision, against ADR-011 D6 / ADR-010 D5. |
+| A `status.landed_at` timestamp | **Rejected.** `status.json:notes` already records `landed at <ts>` (§3.6, `internal/cli/land.go:357`) and no consumer needs it as structured data. |
+| A new `Tpatch-Landed-At` trailer | **Rejected.** ADR-019 locks the block; a new mandatory trailer is a breaking schema change requiring its own ADR, and the commit's author date already carries it. |
+| A `Tpatch-Landed-Parent` trailer recording `L^` explicitly | **Rejected.** It would make the §3.8.2 rule 10 topology check unnecessary, but it is redundant with `%P`, which the reader already obtains in the same enumeration, and it would stale under rebase exactly like a stored SHA. |
+| Keeping the existing four trailers as the sole attestation | **Chosen.** Zero migration; retroactively valid for every feature landed since v0.8.0; degrades honestly — a hand-rolled `git commit` with no trailers yields "no evidence" and today's verify behaviour. |
 
 **Compatibility.** Because nothing is added, there is no migration, no
 schema-version bump on `status.json`, and no backfill. Repos that landed
@@ -598,29 +645,40 @@ carry the four trailers.
 #### 3.8.4 `status.apply.base_commit` stays unchanged — reaffirmed with new rationale
 
 §3.6 already locks that `land` does not overwrite `status.apply.base_commit`.
-This amendment **retains** that decision and adds a second, independent
-reason to the original F2 chicken-and-egg one:
+This amendment **retains** that decision and adds a second, independent reason
+to the original F2 chicken-and-egg one:
 
 `verify` validates `Tpatch-Base-Commit` against `status.apply.base_commit`
 (`PRD-verify-freshness` §3.6.2). If `land` overwrote that field with the new
 HEAD, then immediately after every `land` the on-disk value would differ from
 the value just written into the trailer, and **every landed feature would be
 classified as evidence-`stale` the instant it landed** — the amendment would
-fail on its own first test. It would also break `record` auto-base resolution,
-which owns the field (ADR-016).
+fail on its own first test. It would also break `record` auto-base
+resolution, which owns the field (ADR-016).
+
+Note that `Tpatch-Base-Commit` is deliberately **not** the same thing as the
+landing commit's parent, even though the two coincide in the simple case
+(measured). Rebase and cherry-pick preserve the trailer while rewriting the
+parent, so a reader must validate the trailer against `status.apply.base_commit`
+and derive the pre-landing tree from `%P` — two independent facts, neither
+substitutable for the other.
 
 The field remains owned by `record` / auto-base resolution. `land` reads it
 (`internal/cli/land.go:394`) and never writes it.
 
-#### 3.8.5 Residual — hook-appended prose (deferred)
+#### 3.8.5 Residual — hook-appended prose (non-blocking follow-up)
 
 A `commit-msg` / `prepare-commit-msg` hook that appends a paragraph after the
-trailer block silently destroys trailer readability (rule 2 above). `land`
-could detect this after the commit returns — it already re-reads the commit
-for its audit (§3.3) — and warn. This is **deferred**: it is a `land`
-hardening item, not a verify-contract item, and verify already classifies the
-result honestly as `malformed` rather than passing it. Tracked as
-`PRD-verify-freshness` §6 Q13.
+trailer block silently destroys trailer readability (rule 2). `land` could
+detect this after the commit returns — it already re-reads the commit for its
+audit (§3.3) — and warn.
+
+**Disposition (rev-1): non-blocking follow-up, not a Wave C obligation.**
+Verify already classifies the result as `malformed` and emits a remediation
+naming `git commit --amend` (`PRD-verify-freshness` §3.6.9 R7), so the
+operator is told precisely, at the next verify. A `land`-side warning would
+move the signal earlier but cannot change any verdict, and `land` is
+behaviour-frozen by §6.2 AC-LD9. Tracked as `PRD-verify-freshness` §6 Q13.
 
 ---
 
@@ -704,7 +762,7 @@ recipes passed V7 vacuously and failed V8, `replace-in-file` recipes failed
 V7 outright, and `append-file` recipes passed V7 only by double-appending
 into the shadow. The fix is entirely on the verify side
 (`docs/prds/PRD-verify-freshness.md` §3.6); `land` itself is unchanged. The
-executable rows are `PRD-verify-freshness` §7.1 AC-L1–AC-L5.
+executable rows are `PRD-verify-freshness` §7.1 AC-L1–AC-L6.
 
 ---
 
@@ -833,33 +891,39 @@ features re-recorded with `--auto`.
 The `reconcile` guard (3) is implementation-independent of `land` —
 they cover different verbs and can ship in either order.
 
-### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8
+### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-1)
 
 These rows are **`land`-side** obligations of the readers' contract in §3.8.
 They assert that the evidence substrate `tpatch verify` now depends on is
-actually produced, and — critically — that `land`'s **behavior is unchanged**.
-The verify-side matrix lives in `docs/prds/PRD-verify-freshness.md` §7.1
-(AC-L1–AC-L90) and is not duplicated here.
+actually produced, and — critically — that `land`'s **behaviour is
+unchanged**. The verify-side matrix lives in
+`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L106) and is not
+duplicated here.
 
 | # | Criterion | Tier |
 |---|---|---|
-| AC-LD1 | `land` emits all four trailers in the ADR-019 order on every successful landing, and Git parses them (`%(trailers:key=Tpatch-Feature,valueonly)` is non-empty) — not merely that the text appears in `git log`. Existing coverage: `internal/cli/land_test.go:145-148`, `:203-206`. | C |
-| AC-LD2 | `Tpatch-Patch-SHA` equals `sha256` of the canonical `artifacts/post-apply.patch` bytes, and `Tpatch-Recipe-SHA` equals `sha256` of `artifacts/apply-recipe.json` or the literal `none`. Existing coverage: `internal/cli/land_test.go:465-496`. | C |
-| AC-LD3 | `Tpatch-Base-Commit` equals `status.apply.base_commit` at commit time (`internal/cli/land.go:394`). | C |
-| AC-LD4 | `land` does **not** write `status.apply.base_commit` (§3.6, §3.8.4). Byte-comparison of the field before and after a successful `land`. | C |
-| AC-LD5 | `land` adds **no** new field to `status.json`. The `.tpatch/` diff produced by a successful `land` is exactly the existing §3.6 set — no landing identifier, no timestamp field (§3.8.3). | C |
-| AC-LD6 | Landing a feature twice (re-`record` then re-`land`) produces two commits with the same `Tpatch-Feature` value and different SHA fields, and `land` does not refuse on that basis. Pins the not-unique-key property §3.8.2 rule 5 depends on. | C |
-| AC-LD7 | A feature landed **before** this amendment (fixture from a v0.8.0-era repo) is readable under the §3.8.2 rules with no migration. Retroactive-validity guard. | C |
-| AC-LD8 | `land --dry-run` still prints the trailer block and mutates nothing (existing §3.5 contract, unchanged). | C |
-| AC-LD9 | No `land` refusal, diagnostic string, exit code, or staging-plan output changes as a result of this amendment. Golden-output comparison against the pre-amendment binary. **The amendment is behavior-neutral for `land`.** | C |
+| AC-LD1 | `land` emits all four trailers in the ADR-019 order on every successful landing, and **Git parses them** — `%(trailers:key=Tpatch-Feature,valueonly)` is non-empty — not merely that the text appears in `git log`. Existing coverage: `internal/cli/land_test.go:145-148`, `:203-206`. | C |
+| AC-LD2 | Each of the four keys appears **exactly once**. Adversarial against §3.8.2 rule 5: a landing must never produce a duplicate that a reader would have to disambiguate. | C |
+| AC-LD3 | `Tpatch-Patch-SHA` equals `sha256` of the canonical `artifacts/post-apply.patch` bytes, and `Tpatch-Recipe-SHA` equals `sha256` of `artifacts/apply-recipe.json` or the literal `none`. Existing coverage: `internal/cli/land_test.go:465-496`. | C |
+| AC-LD4 | `Tpatch-Recipe-SHA` is `none` in **both** producer cases — recipe absent, and recipe present but whitespace-only — matching `readRecipeSHA` (`internal/cli/land.go:1034-1043`). Pins §3.8.2 rule 12. | C |
+| AC-LD5 | All emitted hex values are **lowercase** and of the documented length (64 for the two digests, 40 for the base commit), so §3.8.2 rule 6's strict reader never rejects a commit `land` produced. | C |
+| AC-LD6 | `Tpatch-Base-Commit` equals `status.apply.base_commit` at commit time (`internal/cli/land.go:394`). | C |
+| AC-LD7 | `land` does **not** write `status.apply.base_commit` (§3.6, §3.8.4). Byte-comparison of the field before and after a successful `land`. | C |
+| AC-LD8 | `land` adds **no** new field to `status.json`. The `.tpatch/` diff produced by a successful `land` is exactly the existing §3.6 set — no landing identifier, no timestamp field (§3.8.3). | C |
+| AC-LD9 | The landing commit has **exactly one parent** in every supported invocation, so §3.8.2 rule 10's single-parent requirement is satisfiable by construction. If any reachable invocation can produce a root or merge landing, this row documents it explicitly rather than leaving readers to discover it. | C |
+| AC-LD10 | The trailer block is the **last paragraph** of the commit message, so `%(trailers:…)` parses it. Adversarial: a fixture repo with a `commit-msg` hook that appends prose demonstrates the failure mode §3.8.2 rule 2 describes, and confirms `land` itself does not introduce it. | C |
+| AC-LD11 | Landing a feature twice (re-`record` then re-`land`) produces two commits with the same `Tpatch-Feature` value and different SHA fields, and `land` does not refuse on that basis. Pins the not-unique-key property §3.8.2 rule 8 depends on. | C |
+| AC-LD12 | `land` refuses when the embedded `record` would capture nothing, so a landed feature with an absent or zero-byte `post-apply.patch` is a corruption/hand-edit case rather than a normal outcome. This is the fact `PRD-verify-freshness` §5 relies on when it classifies those rows. | C |
+| AC-LD13 | A feature landed **before** this amendment (fixture from a v0.8.0-era repo) is readable under the §3.8.2 rules with no migration. Retroactive-validity guard. | C |
+| AC-LD14 | `land --dry-run` still prints the trailer block and mutates nothing (existing §3.5 contract, unchanged). | C |
+| AC-LD15 | No `land` refusal, diagnostic string, exit code, or staging-plan output changes as a result of this amendment. Golden-output comparison against the pre-amendment binary. **The amendment is behaviour-neutral for `land`.** | C |
 
-**Matrix size: 9 numbered criteria (AC-LD1 … AC-LD9).** Eight of the nine are
-already satisfied by shipped behavior and existing tests; they are listed so
-Wave C proves the substrate rather than assuming it. AC-LD9 is the guard that
-Wave C stays inside `internal/workflow/verify.go` + the new `internal/gitutil`
-reader.
+**Matrix size: 15 numbered criteria (AC-LD1 … AC-LD15), all tier C.** Most are
+already satisfied by shipped behaviour and existing tests; they are listed so
+Wave C proves the substrate rather than assuming it. AC-LD15 is the guard that
+Wave C's changes stay inside `internal/workflow/verify.go` plus the new
+`internal/gitutil` reader.
 
----
 
 ## 7. Open questions
 

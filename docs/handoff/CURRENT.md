@@ -2,21 +2,21 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave B rev-0 is blocked by V10 omission, evidence grammar,
-materialization false-green/false-red rules and schema contradictions.
-Rev-1 is dispatched.
+v0.15.1 Wave B **rev-1** (GH #8 contract) is rewritten and ready for dual
+independent review. Planning only — no Go code, tests, assets, SPEC,
+CHANGELOG or GitHub issue state was touched. Implementation is Wave C.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
-- **Description**: Define verify V7/V8 semantics after a feature or hard
+- **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: In Progress
+- **Status**: Review (rev-1)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
-- **Dispatch HEAD**: `13a885c`
+- **Dispatch HEAD (rev-1)**: `4fdc18e`
 - **Target release**: v0.15.1
 - **Implementation**: deferred to Wave C
 
@@ -26,233 +26,245 @@ Owned and staged by explicit path — nothing else:
 
 | File | Change |
 |---|---|
-| `docs/adrs/ADR-013-verify-freshness-overlay.md` | **Amendment 1** appended (D8–D14), plus 16 rejected alternatives, consequences, and a validated reference block. D7 gains an in-place amendment note. One pre-existing drifted anchor (`gitutil.go:680` → `:828`) corrected in the reference list. |
-| `docs/prds/PRD-verify-freshness.md` | New **§3.6** (§3.6.1–§3.6.8) landed-feature contract; new **§4.3.6–§4.3.8** JSON shapes; landed rows appended to **§5**; new **Q9–Q13** in §6; new **§7.1** 90-row acceptance matrix + §7.1.1 non-goals; header/Summary/§0.3 updated. |
-| `docs/prds/PRD-tpatch-land.md` | New **§3.8** (§3.8.1–§3.8.5) landing-evidence readers' contract; **§4.3** gains the same-verdict-across-`land` invariant; new **§6.2** 9-row land-side matrix; header + Related updated. §6.1/§6.2 ordered numerically. |
+| `docs/adrs/ADR-013-verify-freshness-overlay.md` | **Amendment 1 rev-1** replaces the rev-0 amendment in full: A1.0 context, A1.1 empirical index E1–E22, decisions **D8–D16**, the exhaustively-verified `replace-in-file` predicate, **22 rejected alternatives**, consequences, and a validated reference block. The D7 in-place note is rewritten for the dual-anchor model. |
+| `docs/prds/PRD-verify-freshness.md` | **§3.6 rewritten** as §3.6.1–§3.6.9; **§4.3 preamble + §4.3.1/§4.3.4/§4.3.5 golden examples corrected to eleven checks**; **§4.3.6–§4.3.9 rewritten** (LANDED-PASS, LANDED-with-advisories, LANDED-CONTENT-ABSENT, EVIDENCE-INTEGRITY) with closed `failed_at` and advisory vocabularies; **§5 landed rows rebuilt**; **§6 Q12/Q13 resolved, Q14/Q15 added**; **§7.1 rebuilt to 106 rows** + §7.1.1 non-goals; §8 gains five rev-1 risk rows; header/Summary/Related updated. |
+| `docs/prds/PRD-tpatch-land.md` | **§3.8 rewritten** (§3.8.1–§3.8.5): 14 normative reader rules incl. cardinality, topology, case-insensitivity, presence-aware digests and reader-error states; §3.8.3 gains a fifth rejected option; §3.8.4 adds the base-commit-vs-parent distinction; §3.8.5 re-dispositioned as non-blocking. **§6.2 rebuilt to 15 rows.** Header/Related updated. |
 | `docs/handoff/CURRENT.md` | This file. |
 
 Not touched: `internal/`, `cmd/`, `assets/`, `tests/`, `SPEC.md`,
 `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`, GitHub issue #8.
-`docs/ROADMAP.md` and `docs/supervisor/LOG.md` are supervisor-owned
-(`AGENTS.md` → File Ownership) and are left for the review/close step.
+ROADMAP and LOG are supervisor-owned (`AGENTS.md` → File Ownership).
 
-## Decisions Made (all binding, all with recorded alternatives)
+## What rev-0 got wrong, and how rev-1 closes it
 
-ADR-013 **Amendment 1**, decisions **D8–D14**:
+Both reviewers returned NEEDS REVISION on twelve findings. All twelve are
+closed, not just the headline five.
 
-1. **D8 — Evidence authority.** A feature is landed iff a commit reachable
-   from current HEAD carries a well-formed four-trailer block naming it by
-   **exact** slug value, whose `Tpatch-Patch-SHA` / `Tpatch-Recipe-SHA` /
-   `Tpatch-Base-Commit` still match the current canonical bytes,
-   `apply-recipe.json` digest (or `none` on both sides), and
-   `status.apply.base_commit`. `--grep` is a prefilter only;
-   `%(trailers:key=…,valueonly)` is authority. Selection is total and
-   deterministic across six states: `none` / `exact` /
-   `duplicate-equivalent` / `stale` / `ambiguous` / `malformed`.
-   **Reverse-apply is never ownership proof.**
-2. **D9 — Baseline model.** *HEAD-anchored closure with landed-materialization
-   arbitration.* Compared against replay-at-`apply.base_commit` and
-   replay-at-landing-parent (`L^`); both rejected with reasons (operator-owned
-   / possibly unreachable / undefined for squash landings / per-member so no
-   shared baseline / "validates the past" and therefore blind to later
-   overlapping drift). GH #2's invariant is preserved and generalised:
-   *any check that may mutate the shadow MUST reset to `closureBaselineTree`
-   before the next check; V7's result is never an input to V8's tree.*
-3. **D10 — Landed target.** V7 switches to **post-state predicates** (no
-   execution) covering `write-file` (byte equality), `append-file` (strict
-   suffix), `replace-in-file` (op-inverse round trip), `ensure-directory`;
-   V8 becomes `git apply --check --reverse` at the same baseline, sound only
-   because it is gated on the matching `Tpatch-Patch-SHA`. **The
-   idempotent-overwrite shortcut is explicitly forbidden.** Landed-mode
-   remediation never routes to `tpatch reconcile`.
-4. **D11 — Hard-parent closure.** Ten-row classification table. Landed +
-   materialized parents are **skipped** (locally landed ≈ `upstream_merged`);
-   landed-but-reverted, stale/ambiguous/malformed, `unapplied` and `rejected`
-   parents all **fail-fast** with named reasons; unlanded applied parents are
-   still replayed. Governing invariant: **a member is replayed iff its content
-   is not already on the baseline.** Landing order is never consulted.
-5. **D12 — Drift/evolution.** 19-row matrix. **Exactly one fallback edge:**
-   verification falls back to forward semantics **iff** evidence is `none`.
-   `stale`, `ambiguous`, `malformed` are terminal failures. **No
-   success-shaped fallback** anywhere.
-6. **D13 — Diagnostics.** Verify stays read-only; `schema_version` 1.0 → 1.1
-   with additive `omitempty` fields (`baseline`, `landing_evidence`,
-   `target_mode`, `checks[].mode`); closed `failed_at` vocabulary; 12 exact
-   remediation strings. **No new freshness label** — the derivation stays
-   mode-agnostic, so sticky `verify-failed` clears on the first passing run.
-7. **D14 — Implementability.** One `git log -z --format='…%(trailers:…)'`
-   per run; one new generic reader in `internal/gitutil/`; policy stays in
-   `internal/workflow/verify.go` per D7. No new store field, artifact, or
-   migration. Git floor ≥ 2.25; below it, degrade to evidence `none`
-   (a false red, never a false green).
+| rev-0 finding | rev-1 closure |
+|---|---|
+| **1 CRITICAL — V10 absent; 11-check schema undefined** | D8 pins eleven checks V0–V10 and forbids a twelfth. D13 defines landed V10 end to end (anchor, outcomes, ADR-029 D4/D5/D6/D7 consistency, skip reasons, mode, JSON, remediation R11/R12, parent interaction). §4.3.1/4.3.4/4.3.5 goldens corrected to eleven rows. Matrix Group G (AC-L81–L90). |
+| **2 HIGH — malformed evidence unclassifiable from parsed-only output; duplicate cardinality unspecified** | D10 mandates a **raw + parsed** reader and exactly-one cardinality for all four keys, with strict lowercase formats. AC-L37/L38/L40/L43. |
+| **3 HIGH — duplicate-equivalent undefined for root/merge/incomparable** | D15 gives the exact `git diff` invocation, the strict-parser path set, empty-path-set ⇒ `ambiguous` (no broadening), single-parent requirement and deterministic ordering. AC-L48–L54. |
+| **4 HIGH — `landed-content-absent` vocabulary conflict** | §4.3.9 publishes one closed `failed_at` set (10 values) and one closed advisory `code` set (4 values), used identically in PRD and ADR. AC-L96. |
+| **5 HIGH — zero-byte patch exactness** | D10 makes digest comparison **presence-aware**: absent ⇒ mismatch, present-zero-byte ⇒ `sha256("")`. Absent ≠ empty at every consumer. AC-L35/L93. |
+| **6 HIGH — parent materialization ignored V8 and absent artifacts** | D14 defines **total materialization** as a conjunction over every applicable assertion, with an explicit artifact matrix; both-absent ⇒ `landed-artifacts-absent` FAIL. AC-L65–L68. |
+| **7 HIGH — no immutable snapshots** | D14 adds a one-per-run snapshot (status + presence + raw bytes) that every consumer reads, plus end-of-run re-read ⇒ `snapshot-unstable`. AC-L91–L93. |
+| **8 HIGH — byte-identical no-evidence output contradicts 1.1** | §4.3.6 states **additive semantic compatibility, not byte identity**; `baseline`/`landing_evidence`/`target_mode` are emitted for every feature. AC-L94. |
+| **9 HIGH — write-file byte equality conflicts with ADR-029; reverse-apply is offset-tolerant not byte-exact** | D9 moves recipe judgement to anchor H (replay, not post-state), D11 restates reverse-apply accurately, D13 makes a HEAD-side preimage difference a **warn-class later-touch**, never an automatic block. AC-L82/L85/L86. |
+| **10 HIGH — replace-in-file predicate vacuous/false-red** | Replaced with an existential inverse over every occurrence of `R`; **0 false reds, 0 false greens** over 52 416 exhaustively enumerated cases (rev-0: 204 / 15 933). `R==""` undecidable, `S==""` unsupported. AC-L15–L17. |
+| **11 HIGH — parent `evidence none` replays already-materialized content** | D12 adds content-materialization arbitration **before** replay for `evidence none`; already-present ⇒ skip with a mandatory `unattributed-materialized` warn and no ownership claim. AC-L64. |
+| **12 MEDIUM/HIGH — reader errors, artifact absence, invocation accounting, root/merge, goldens, tiers** | Reader error ⇒ `unavailable` block (never `none`); §5 artifact rows rebuilt with the `land`-refuses-empty-patch context; §3.6.9 publishes an honest six-line invocation budget; root/merge ⇒ `unsupported-topology`; goldens corrected; tiers restated as U / W(`PATH` git wrapper) / C with no production seam. |
 
-**Land side (PRD-tpatch-land §3.8):** `land`'s behavior is **unchanged**.
-No new status metadata (four options compared, all rejected;
-`status.landed_commit` rejected on ADR-019 chicken-and-egg + rebase-staleness
-+ migration + second-source-of-truth grounds). `status.apply.base_commit`
-**retained unchanged**, with a new independent reason: overwriting it would
-make every landed feature evidence-`stale` the instant it landed.
+## Decisions Made (binding, all with recorded alternatives)
 
-**16 rejected alternatives** are recorded in ADR-013 Amendment 1, including
-the closest call (#15, ownership-only evidence) and the escape-flag option
-(#16).
+ADR-013 **Amendment 1 rev-1**, decisions **D8–D16**:
+
+1. **D8 — Eleven checks, V0–V10.** No new check ID; the current-materialization
+   assertion folds into **V8**, whose subject is the artifact the trailer
+   attests. A twelfth check was considered and rejected.
+2. **D9 — Baseline: dual-anchor.** *Anchor H* = shadow at `L^`, the selected
+   landing commit's **single** parent, running the existing replay machinery;
+   *anchor C* = current `HEAD` materialization ladder, read-only, no shadow.
+   HEAD-only (rev-0) and `apply.base_commit` replay both rejected with
+   reasons. Anchor H unavailable ⇒ explicit skip with a named reason while
+   anchor C still runs at block severity.
+3. **D10 — Evidence reader.** One `--topo-order` enumeration per run carrying
+   `%H`, `%P`, **raw `%B`** and the four parsed trailers, cached across
+   `--all`. Exactly-one cardinality per key; exact-value slug match; strict
+   lowercase 64/64-or-`none`/40 formats; git's key case-insensitivity stated
+   rather than denied; presence-aware patch digest; `none` covers both absent
+   and whitespace-only recipes. **Eight** closed evidence states, incl.
+   `unsupported-topology` and `unavailable`.
+4. **D11 — Anchor-C ladder.** Default-context reverse-check ⇒ clean; on
+   failure `-C0` ⇒ pass + `context-drift` **warn**; both fail ⇒
+   `landed-content-absent` block. Reverse-apply restated accurately as hunk
+   presence modulo context and offset.
+5. **D12 — Closure arbitration.** Replay iff content is absent from the
+   anchor. Landed+totally-materialized ⇒ skip; `evidence none` + already
+   present ⇒ skip + `unattributed-materialized` warn; landed-but-drifted,
+   integrity failures, `unapplied`, `rejected` ⇒ named fail-fast.
+   **`active` is decided: treated exactly as `applied`**, widening the switch
+   so all four call sites agree.
+6. **D13 — V10 landed.** Anchor-H preimage evaluation; HEAD-side difference is
+   an ADR-029 D5/D6 **warn-class later-touch**, never an automatic block; a
+   mismatch at its own baseline still blocks; supersession downgrade
+   unchanged; anchor unavailable ⇒ skip, never a live-tree fallback.
+7. **D14 — Total materialization + one immutable snapshot per run**, with
+   `snapshot-unstable` on concurrent mutation and absent ≠ empty everywhere.
+8. **D15 — Topology.** Single-parent required; root/merge ⇒
+   `unsupported-topology`, no `^1` guess. Deterministic anchor selection
+   (topo-oldest whose parent does not already materialize, then smallest SHA).
+   Duplicate-equivalence fully specified; empty path set ⇒ `ambiguous`.
+9. **D16 — Honest invocation accounting** (six-line budget), one new
+   `internal/gitutil` reader, policy stays in `verify.go`, no store/schema
+   change, git floor ≥ 2.25 ⇒ `unavailable` (not `none`).
+
+**Land side (`PRD-tpatch-land` §3.8):** behaviour **unchanged**; 14 normative
+reader rules; **no new status metadata** (five options compared, all
+rejected, incl. a new `Tpatch-Landed-Parent` trailer);
+`status.apply.base_commit` **retained** with the added rationale that
+overwriting it would make every landed feature instantly evidence-`stale`,
+and with the explicit note that the base trailer and the landing parent are
+two independent facts that coincide only in the simple case.
+
+**22 rejected alternatives** are recorded in the ADR.
 
 ## Acceptance Matrix
 
-- **`PRD-verify-freshness.md` §7.1 — 90 rows, `AC-L1` … `AC-L90`**, contiguous
-  and unique (machine-checked), across 7 groups: A reported defect (5),
-  B recipe op kinds (13), C baseline + GH #2 (9), D evidence authority (21),
-  E hard-parent closure (15), F drift/evolution (13), G output/persistence/
-  read-only (14). Every row carries a tier: **U** unit / **W** workflow
-  integration / **C** real CLI (`W+C` means both).
-- **`PRD-tpatch-land.md` §6.2 — 9 rows, `AC-LD1` … `AC-LD9`**, all tier C.
-  AC-LD9 is the behavior-neutrality guard for `land`.
-- **Total: 99 numbered acceptance criteria.**
+- **`PRD-verify-freshness` §7.1 — 106 rows, `AC-L1` … `AC-L106`**, contiguous
+  and unique (machine-checked), across 8 groups: A reported defect + 11-check
+  schema (6), B anchor H + op shapes (12), C anchor C ladder (10), D evidence
+  reader/grammar (19), E topology/duplicates/rewrites (12), F closure
+  arbitration + `active` (21), G V10 (10), H snapshots/schema/diagnostics (16).
+- **`PRD-tpatch-land` §6.2 — 15 rows, `AC-LD1` … `AC-LD15`**, all tier C.
+- **Total: 121 numbered acceptance criteria** (rev-0: 99).
+- **Tiers are executable**: **U** = unit over pure functions or the snapshot
+  abstraction; **W** = workflow integration, and where the reader must be
+  observed or perturbed, a **`PATH` git wrapper** (test-only shim first on
+  `PATH`) — **no production seam, no build tag, no exported hook**; **C** =
+  real CLI. AC-L23's rev-0 impossible-seam formulation is gone: concurrent
+  mutation is now AC-L92 (U over the snapshot abstraction + W via the
+  wrapper).
 
 ## Test Results
 
 Planning wave — no code changed, so no build/test delta is claimed.
 
-- Working tree: no tracked source file modified; `go` toolchain not invoked
-  for a code change.
-- **Citation validation**: 163 `internal/**.go:line` citations across the
-  three amended docs machine-checked to resolve to an existing line range,
-  then spot-checked by printing each cited line. Five anchors were corrected
-  during the pass (`verify.go:296`→`:293`, `:305-309`→`:310-314`,
-  `:1093`→`:998`, `:127-137`→`:127-134`, `types.go:343`→`:347`), plus the
-  pre-existing `gitutil.go:680`→`:828` drift in ADR-013's reference list.
-- **Cross-reference validation**: every `§` reference used by the amendments
-  resolves to a heading that exists (verify §3.6.x, §4.3.6–8, §7.1, §7.1.1;
-  land §3.8.x, §6.2; ADR D1–D14 all present).
-- **Matrix count validation**: 90 unique contiguous `AC-L` ids, 9 `AC-LD` ids.
+- Working tree: no tracked source file modified.
+- **Citation validation**: **201 `internal/**.go:line` citations, 81 unique**,
+  across the four docs machine-checked in range, then every unique anchor
+  printed and semantically spot-checked against the source at `4fdc18e`.
+  Seven anchors were tightened or corrected during rev-1:
+  `writefile_safety.go:108-113`→`:108-112`,
+  `recipe_autogen.go:113-118`→`:114-118`, `verify_all.go:88-96`→`:89-97`,
+  `verify.go:854-861`→`:853-861`, `verify.go:864-870`→`:862-870`,
+  `verify.go:840-846`→`:879-883` (the ADR-029 D4 legacy path is the
+  `preimageLegacyWarn` switch arm, not the doc comment), and
+  `dependency_gate.go:79-82`→`:79-81`.
+- **Cross-reference validation**: every self-`§` reference resolves to an
+  existing heading in its own document; ADR `D1`–`D16` all present; all
+  `AC-L*` references resolve; all `R1`–`R19` remediation ids defined and
+  referenced without dangling.
+- **Consistency counts re-derived from the docs, not asserted**: 8 matrix
+  groups sized A 6 / B 12 / C 10 / D 19 / E 12 / F 21 / G 10 / H 16 = 106;
+  22 ADR rejected alternatives; 22 A1.1 empirical rows (E1–E22); 14 land
+  reader rules; 10 `failed_at` values; 4 advisory codes; 8 evidence states.
+- **Matrix count validation**: 106 unique contiguous `AC-L`, 15 unique
+  contiguous `AC-LD`, every row carrying a tier cell.
 - Side Research md5: `b385fe622db9926f48861105239f113e` — preserved
   byte-identical.
 
 ## Empirical Validation (read-only probes; scratch removed)
 
-Every load-bearing behavioral claim was executed before being written down,
-on git 2.55.0 / macOS, in throwaway repos under a scratch directory that has
-been deleted. Guarded WIP files were not touched.
+git 2.55.0 / macOS, throwaway repos, all deleted. rev-1 added E10–E22 to the
+ADR §A1.1 index.
 
-**Real-CLI op-kind × landed matrix** (built binary, full
-`apply → record → land → verify` cycle):
+**V10 reality (new in rev-1).** `RecipeFromPatch` emits `{type,path,content}`
+with **no `preimage_hash`**, so every autogenerated recipe takes the ADR-029
+D4 legacy path. With a genuine `preimage_hash`, **V10 already FAILS for an
+`applied`, un-landed feature** (`expected preimage sha256:5fb14…, observed
+sha256:fa6dd8…`), and `preimage_hash: ""` fails with `new-file collision`,
+because `checkWriteFilePreimage` reads the **live working tree**. Recorded as
+Q15; landed features are fixed by anchoring V10 at `L^`.
 
-| Recipe | pre-land | post-land V7 | post-land V8 |
+**Reverse-apply context ladder (new in rev-1).** 3-hunk patch, 60-line file:
+
+| Scenario | `-C3` | `-C1` | `-C0` |
 |---|---|---|---|
-| `write-file` | ✓/✓ | **✓ false green** | **✗ false red** |
-| `replace-in-file` | ✓/✓ | **✗ false red** (`search text not found`) | skipped |
-| `append-file` | ✓/✓ | **✓ false green + double-append** | **✗ false red** |
+| pristine landed tip | OK | OK | OK |
+| 10 lines prepended / appended | OK | OK | OK |
+| unrelated edit far from a hunk | OK | OK | OK |
+| unrelated edit 2 lines from a hunk | **FAIL** | OK | OK |
+| unrelated edit 1 line from a hunk | **FAIL** | **FAIL** | OK |
+| partial revert / full revert / line re-modified / file deleted | FAIL | FAIL | **FAIL** |
 
-**This widened the diagnosis: GH #8 is not V8-only.** The reporter saw
-`V7 ✓ / V8 ✗` because their recipe was `write-file` shaped. A V8-only fix
-would have shipped with `replace-in-file` still false-failing.
+Randomized 400-tree run: `-C0` gave **0 false greens / 216 absent** and
+**0 false reds / 184 present**; default `-C3` gave **60 false reds / 184**.
+Measured `-C0` hole: revert-in-place plus identical text elsewhere passes;
+`--verbose` prints `Context reduced to (0/0)`, which is the Q14 hardening.
 
-Also measured: landed hard parent + unlanded applied child passes today only
-by accident (the parent's `write-file` replay is a no-op); reverse-apply
-succeeds at an unrelated commit with equivalent content; `--grep` matches a
-prose commit that merely quotes the trailer line; a prose paragraph after the
-trailer block makes Git parse **no** trailers; `cherry-pick`/`rebase` copy
-trailers verbatim while rewriting SHA and parent; `git revert` leaves the
-landing reachable with the content gone; one `git log -z --format` call
-enumerates SHA + all four trailer values.
+**`replace-in-file` predicate (new in rev-1).** Exhaustive enumeration:
+
+| Predicate | decided | undecidable | false reds | false greens |
+|---|---|---|---|---|
+| rev-0 round trip | 56 784 | 0 | **204** | **15 933** |
+| rev-1 existential inverse | 52 416 | 4 368 | **0** | **0** |
+
+**Trailer grammar (new in rev-1).** Duplicate `Tpatch-Patch-SHA` returns
+`aaaa,bbbb`; keys are **case-insensitive** (`tpatch-feature:` parses); a root
+landing has 0 parents and `rev-parse <root>^` fails; a merge landing has 2 and
+its trailer parses normally; a prose paragraph after the block yields an empty
+parse while the raw `%B` still holds the line.
+
+Carried from rev-0: reverse-apply succeeds at an unrelated commit with
+equivalent content; `--grep` matches a prose commit; `cherry-pick`/`rebase`
+copy trailers verbatim; `git revert` leaves the landing reachable with the
+content gone; one `git log -z --format` call yields SHA + parents + raw + all
+four trailers.
 
 ## Open Residuals
 
-1. **Q12 (open)** — whether `verify --all` should order landed features
-   differently. Wave C must keep ordering byte-identical (AC-L88).
-2. **Q13 (open)** — `land`-side warning when a `commit-msg` hook appends prose
-   after the trailer block. Deferred; verify already classifies the result
-   honestly as `malformed`. Tracked in PRD-tpatch-land §3.8.5.
-3. **Pre-existing citation drift outside the amended sections.** Spot-check
-   found stale anchors in *unamended* parts of `PRD-verify-freshness.md`
+1. **Q14 (open, non-blocking, SHOULD)** — whether anchor-C step 2 should parse
+   `git apply --verbose` under `LC_ALL=C` to close the measured `-C0` hole.
+   Bounded by three independent factors; AC-L28/AC-L47 cover both outcomes.
+2. **Q15 (open, out of scope, tracked)** — forward-mode V10 is wrong for
+   un-landed applied features with a real `preimage_hash` (measured). No
+   anchor exists for an un-landed feature and fixing it would change verdicts
+   for features that never landed. Needs its own issue and PRD.
+3. **`active` closure widening is a deliberate behaviour change for non-landed
+   features.** Decided in D12 rather than left dangling (rev-0's disposition,
+   which both reviewers rejected). Pinned by AC-L73/AC-L74 and carried as a
+   §8 risk row; reversible by narrowing the switch.
+4. **Pre-existing citation drift outside the amended sections** —
+   `PRD-verify-freshness` still carries stale anchors in *unamended* prose
    (`gitutil.go:680`, `store.go:232`, `types.go:91`, `types.go:192`,
-   `labels.go:89`, `labels.go:143`, `dependency_gate.go:79`,
-   `validation.go:66`). Deliberately **not** rewritten — they are outside
-   this wave's scope. Flagged so a reviewer does not mistake them for new
-   drift; a separate housekeeping pass should re-anchor them.
-4. **Git version floor is asserted from docs + a 2.55.0 run**, not from a
-   matrix run against 2.22/2.25. Wave C should confirm the exact floor
-   empirically before relying on the advisory path (D14).
-4b. **Pre-existing `active`-parent inconsistency, found but NOT fixed.**
-   `runClosureReplay`'s switch (`internal/workflow/verify.go:1061-1089`)
-   handles only `upstream_merged` and `applied`, so an `active` hard parent
-   fail-fasts — while `CheckDependencyGate` accepts `applied` **and**
-   `active` (`internal/workflow/dependency_gate.go:80`) and
-   `postApplyVerifyStates` allows verifying `active` features
-   (`internal/workflow/verify.go:127-134`). Discovered during this wave and
-   documented in both D11 tables with an explicit scope note. Deliberately
-   **not** widened: it changes verdicts for features unrelated to landing and
-   needs its own PRD row.
-5. **`duplicate-equivalent` byte-equivalence rule** is specified as
-   "byte-identical change over its own parent restricted to the canonical
-   patch's path set". Wave C must pin the exact diff invocation; the PRD
-   deliberately does not over-specify the plumbing.
-6. **CHANGELOG entry** for the contract is intentionally absent — CHANGELOG is
-   out of this wave's write scope and belongs to the Wave C ship.
+   `labels.go:89`, `labels.go:143`, `dependency_gate.go:79` in the §3.1 table,
+   `validation.go:66`). Deliberately not rewritten — outside this wave's
+   scope. Flagged so a reviewer does not mistake them for new drift.
+5. **Git floor asserted from docs plus a 2.55.0 run**, not from a matrix
+   against 2.22/2.25. Wave C should confirm empirically before relying on the
+   `unavailable` advisory path.
+6. **CHANGELOG entry** intentionally absent — out of this wave's write scope;
+   belongs to the Wave C ship.
 7. **`docs/ROADMAP.md` Wave B row and `docs/supervisor/LOG.md` verdict entry**
-   are supervisor-owned and remain to be written at review/close.
+   are supervisor-owned and remain for review/close.
 
 ## Reviewer Focus
 
 Ordered by risk:
 
-1. **Is the fallback edge airtight?** D12 claims exactly one downgrade path
-   (`none` → forward mode) and no success-shaped fallback. Try to construct a
-   sequence that reaches PASS from `stale`, `ambiguous` or `malformed`
-   evidence, or from a materialization failure.
-2. **Is the `replace-in-file` op-inverse round trip sound?**
-   `Replace(Replace(c,R,S,1),S,R,1) == c` (§3.6.3). Look for a postimage it
-   accepts that the op could not have produced, and for a legitimate
-   postimage it rejects. This predicate is the core new logic.
-3. **Is the D10 accepted bound acceptable?** Non-final ops on a shared path
-   are not independently asserted (AC-L16 pins it). Decide whether V8's
-   byte-exact reverse check really covers the gap.
-4. **Is rejected alternative #15 (ownership-only evidence) correctly
-   rejected?** It is the friendlier design and the closest call. The rejection
-   rests on the swapped-`post-apply.patch` false-green scenario.
-5. **Does D11's fail-fast set over-refuse?** Specifically
-   `parent-evidence-integrity` and `parent-landing-drift`: both make a target
-   unverifiable because of a parent's state. Confirm neither can be reached in
-   an ordinary healthy workflow.
-6. **Does the GH #2 invariant survive verbatim?** §3.6.4 restates it as a
-   mode-independent rule; AC-L19 requires
-   `TestRunVerify_EquivalentRecipeAndPatchBothPass`
-   (`internal/workflow/verify_closure_replay_test.go:275`) to stay green
-   **unmodified**.
-7. **Are the remediation strings actually actionable, and free of
-   `reconcile`?** §3.6.6 has 12 exact strings; AC-L82 is the adversarial guard.
-8. **Is the matrix executable?** Each of the 90 rows should be placeable at
-   its stated tier with the primitives named in §3.6.8, with no new
-   dependency and no store schema change.
-9. **Citation spot-check.** Sample §3.6 and ADR D8–D14 anchors against the
-   source at `13a885c`; residual #3 lists the known pre-existing drift that is
-   *not* this wave's.
-
-## Rev-0 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: NEEDS REVISION.
-- Critical/high themes:
-  1. V10 is omitted; landed write-file preimage freshness is undefined.
-  2. Trailer reader/duplicate cardinality/root/merge/duplicate-equivalent
-     authority is incomplete.
-  3. Landed write/replace predicates produce false reds and false greens;
-     reverse apply is hunk-local, not byte-exact.
-  4. Parent `none`, absent recipe/patch and reader errors create replay or
-     vacuous-skip holes.
-  5. Artifact/status bytes are not snapshotted consistently.
-  6. Schema/check count/failed_at/golden compatibility contradict current V10
-     and landed diagnostics.
-  7. D14 invocation accounting, merge/root semantics, citations and matrix
-     rows need total definitions.
-
-## Next Steps
-
-1. Rewrite landed V7/V8/V10 and parent materialization semantics.
-2. Make evidence parsing/cardinality/topology/error states total.
-3. Add immutable artifact/status snapshots and honest schema compatibility.
-4. Rebuild the acceptance matrix and parity audit.
-5. Run dual rev-1 planning review.
+1. **Is the dual-anchor split correct, or does it re-introduce "validates the
+   past"?** Anchor H answers *are the artifacts coherent*, anchor C answers
+   *is it still there*. Try to construct a healthy feature that fails, or a
+   broken one that passes, because the two questions were separated.
+2. **Is the anchor-C ladder's warn/block boundary right?** Step-2 pass is a
+   `warn`, and the measured `-C0` hole (revert-in-place + identical text
+   elsewhere) lands there. Decide whether that is acceptable given the three
+   bounding factors, or whether Q14 must be promoted to MUST.
+3. **Is the existential-inverse predicate sound beyond the enumerated
+   domain?** 0/0 over 52 416 cases with `{a,b,X}`, |pre| ≤ 7, |c| ≤ 5. Look
+   for a shape outside that box — multi-byte runes, overlapping `S`/`R`,
+   `len(R) > len(c)`.
+4. **Does `active` widening (D12) break anything?** It changes verdicts for
+   non-landed features. Confirm the four call sites really do disagree today
+   and that widening is the smaller change.
+5. **Is total materialization (D14) over-strict?** Both-artifacts-absent now
+   FAILs a landed member. Confirm `land` cannot produce that state and that
+   the corruption framing in §5 is accurate.
+6. **Is the evidence grammar total?** Eight states. Try to construct a commit
+   the classifier cannot place, or two commits it places inconsistently.
+7. **Is V10's landed contract genuinely ADR-029-consistent?** Compare D13's
+   table against ADR-029 D4/D5/D6/D7 line by line, especially "later-touch is
+   warning-class" vs "stale preimages on effective features fail".
+8. **Does the GH #2 invariant survive?** §3.6.4 restates it mode-independently;
+   AC-L101 requires `TestRunVerify_EquivalentRecipeAndPatchBothPass`
+   (`internal/workflow/verify_closure_replay_test.go:275`) green **unmodified**
+   and AC-L102 pins the reset at anchor H.
+9. **Are all 121 rows executable at their stated tier** with only the §3.6.9
+   primitives, the `PATH` git wrapper and the snapshot abstraction — no
+   production seam?
+10. **Citation spot-check** against `4fdc18e`; residual 4 lists the known
+    pre-existing drift that is *not* this wave's.
 
 ## Blockers
 
@@ -260,20 +272,21 @@ None.
 
 ## Context for Next Agent
 
-- Wave B is **planning only**. Do not implement verify changes here; Wave C
-  owns implementation and must dispatch from a fresh base.
-- The binding contract is `ADR-013` **Amendment 1 (D8–D14)** plus
+- Wave B is **planning only**. Wave C owns implementation and dispatches from
+  a fresh base.
+- The binding contract is `ADR-013` **Amendment 1 rev-1 (D8–D16)** plus
   `PRD-verify-freshness` **§3.6** and **§7.1**. `PRD-tpatch-land` **§3.8** is
-  a readers' contract, not a `land` behavior change — AC-LD9 exists to keep it
-  that way.
-- The single most important correction to the original diagnosis: **the defect
-  is not V8-only.** `replace-in-file` fails V7 post-land and `append-file`
-  passes V7 while corrupting the shadow.
-- Reverse-apply success is evidence of *materialization*, never of ownership.
-  Both signals are required, always together.
-- Verify remains read-only; no status/index/worktree mutation on any path.
-- Stage explicit paths only; no parallel writers; do not touch WIP docs listed
-  in `.wave-close-allowlist`.
+  a readers' contract, not a `land` behaviour change — AC-LD15 guards that.
+- Two corrections to the original diagnosis, both measured: **the defect is
+  not V8-only** (`replace-in-file` fails V7; `append-file` corrupts the
+  shadow), and **the check set is eleven, not ten** — rev-0's omission of V10
+  was the critical finding.
+- Reverse-apply proves **materialization modulo context and offset**, never
+  ownership and never byte equality. Trailer evidence and materialization are
+  always required together.
+- Verify stays read-only; no status/index/worktree mutation on any path.
+- Stage explicit paths only; no parallel writers; do not touch the WIP docs in
+  `.wave-close-allowlist`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
