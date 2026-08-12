@@ -201,20 +201,27 @@ func TestACL69_MissingPromisorObjectIsHistoryIncomplete(t *testing.T) {
 	if r.Verdict != "failed" {
 		t.Fatalf("a missing promisor object must fail the run: verdict=%s", r.Verdict)
 	}
-	// The classification must be history-incomplete (R22) or, when the
-	// missing object only breaks a later stage, a terminal state whose
-	// remediation names the partial clone.
+	// The classification MUST be history-incomplete with R22 verbatim.
+	// Rev-0 accepted a fallback ("or a terminal state whose remediation
+	// names the partial clone"), which let the swallow-into-no-qualifier
+	// defect pass this gate; the rev-1 adjudication removed that
+	// allowance (finding 3).
+	if r.LandingEvidence.State != EvidenceHistoryIncomplete {
+		t.Fatalf("evidence=%q want history-incomplete (failed_at=%q)", r.LandingEvidence.State, r.FailedAt)
+	}
+	if r.FailedAt != FailedAtLandingEvidence {
+		t.Fatalf("failed_at=%q want landing-evidence", r.FailedAt)
+	}
 	v7 := checkByID(t, r, CheckRecipeReplayClean)
-	if r.LandingEvidence.State == EvidenceHistoryIncomplete {
-		if got, want := v7.Remediation, remediationR22(f.Slug); got != want {
-			t.Errorf("R22 not verbatim:\n got %q\nwant %q", got, want)
+	if got, want := v7.Remediation, remediationR22(f.Slug); got != want {
+		t.Fatalf("R22 not verbatim:\n got %q\nwant %q", got, want)
+	}
+	for _, id := range []string{CheckRecipeReplayClean, CheckPostApplyPatchReplayClean, CheckWriteFilePreimageFresh} {
+		c := checkByID(t, r, id)
+		if c.Passed || c.Mode == "" {
+			t.Errorf("%s: passed=%v mode=%q — want failed with mode present", id, c.Passed, c.Mode)
 		}
-		return
 	}
-	if r.FailedAt != FailedAtHistoricalAnchor && r.FailedAt != FailedAtLandingEvidence {
-		t.Fatalf("unexpected failure shape: failed_at=%q evidence=%q", r.FailedAt, r.LandingEvidence.State)
-	}
-	t.Logf("missing-object run classified as %q / %q", r.LandingEvidence.State, r.FailedAt)
 }
 
 // deleteLooseOrPackedObject removes an object from the clone, unpacking
