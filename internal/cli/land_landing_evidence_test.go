@@ -462,7 +462,7 @@ func TestACLD18a_ModeBRefusesAfterRecordWithRetainedArtifacts(t *testing.T) {
 		}
 		st.Apply.BaseCommit = ""
 		var warned strings.Builder
-		err = validateLandBaseCommit(tmpDir, slug, st, noteRecordArtifacts, func(format string, args ...any) {
+		_, err = validateLandBaseCommit(tmpDir, slug, st, noteRecordArtifacts, func(format string, args ...any) {
 			warned.WriteString(format)
 		})
 		if err == nil {

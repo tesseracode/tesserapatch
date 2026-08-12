@@ -66,33 +66,50 @@ const (
 //
 // It returns a non-nil error ONLY for conditions 1–3. `warn` is emitted
 // for the shallow/partial unreachable case.
-func validateLandBaseCommit(repoRoot, slug string, status store.FeatureStatus, note landBaseCommitNote, warn func(string, ...any)) error {
-	base := strings.TrimSpace(status.Apply.BaseCommit)
-	if base == "" {
-		return landBaseCommitRefusal(slug, baseCommitEmpty, status.Apply.BaseCommit, note)
+func validateLandBaseCommit(repoRoot, slug string, status store.FeatureStatus, note landBaseCommitNote, warn func(string, ...any)) (string, error) {
+	// EXACTNESS (v0.15.1 rev-1, adjudication finding 6). Rev-0 trimmed
+	// the field for validation and then emitted the ORIGINAL value, so a
+	// base commit carrying a leading space, a trailing tab or a newline
+	// passed validation and still produced a trailer the §3.8.2 reader
+	// must reject. The stored value is validated verbatim: any
+	// whitespace, and any non-canonical spelling (uppercase hex, wrong
+	// length for the object format), is malformed. Nothing is
+	// normalised, and the value returned here is the exact string the
+	// trailer must carry.
+	raw := status.Apply.BaseCommit
+	if raw == "" {
+		return "", landBaseCommitRefusal(slug, baseCommitEmpty, raw, note)
+	}
+	if strings.TrimSpace(raw) == "" {
+		// Whitespace-only: it is not "empty" on disk, but it names no
+		// commit. Reported as malformed so the refusal quotes the bytes.
+		return "", landBaseCommitRefusal(slug, baseCommitMalformed, raw, note)
+	}
+	if raw != strings.TrimSpace(raw) {
+		return "", landBaseCommitRefusal(slug, baseCommitMalformed, raw, note)
 	}
 
 	facts, err := gitutil.ReadRepoFacts(repoRoot)
 	if err != nil {
-		return fmt.Errorf("land refuses: cannot read the repository object format to validate status.apply.base_commit: %v", err)
+		return "", fmt.Errorf("land refuses: cannot read the repository object format to validate status.apply.base_commit: %v", err)
 	}
-	if !gitutil.IsLowercaseHexOfLen(base, facts.CommitIDHexLen) {
-		return landBaseCommitRefusal(slug, baseCommitMalformed, status.Apply.BaseCommit, note)
+	if !gitutil.IsLowercaseHexOfLen(raw, facts.CommitIDHexLen) {
+		return "", landBaseCommitRefusal(slug, baseCommitMalformed, raw, note)
 	}
-	if _, _, err := gitutil.ResolveRevOffline(repoRoot, base+"^{commit}"); err != nil {
-		return landBaseCommitRefusal(slug, baseCommitUnresolvable, status.Apply.BaseCommit, note)
+	if _, _, err := gitutil.ResolveRevOffline(repoRoot, raw+"^{commit}"); err != nil {
+		return "", landBaseCommitRefusal(slug, baseCommitUnresolvable, raw, note)
 	}
 
-	reachable, ancErr := gitutil.IsAncestorOffline(repoRoot, base, "HEAD")
+	reachable, ancErr := gitutil.IsAncestorOffline(repoRoot, raw, "HEAD")
 	if ancErr == nil && !reachable {
 		// Unreachability alone NEVER refuses. In a shallow or partial
 		// clone the object may simply be outside local history.
 		if warn != nil {
 			warn("warning: status.apply.base_commit %s is not reachable from HEAD (shallow=%v partial=%v); landing proceeds\n",
-				base, facts.Shallow, facts.PartialClone)
+				raw, facts.Shallow, facts.PartialClone)
 		}
 	}
-	return nil
+	return raw, nil
 }
 
 // landBaseCommitRefusal renders R23 verbatim.

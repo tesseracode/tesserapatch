@@ -125,6 +125,10 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// from evidence (HEAD vs pre-HEAD, commit binding, retained index
 	// tree), never from the journal's phase alone.
 	journalPending := landJournalPending(s.Root, slug)
+	// validatedBase is the EXACT string the Tpatch-Base-Commit trailer
+	// must carry. It is set by whichever mode validated the field and is
+	// never re-derived from a later read (rev-1 adjudication finding 6).
+	validatedBase := ""
 	if err := recoverLand(s.Root, slug, func(format string, args ...any) {
 		fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
 	}); err != nil {
@@ -142,11 +146,13 @@ func runLand(cmd *cobra.Command, slug string) error {
 		if journalPending {
 			note = noteRecoveryCompleted
 		}
-		if err := validateLandBaseCommit(s.Root, slug, status, note, func(format string, args ...any) {
+		vb, err := validateLandBaseCommit(s.Root, slug, status, note, func(format string, args ...any) {
 			fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
+		validatedBase = vb
 	}
 
 	// GH #7 rev-3 (F1) — PRE-RECORD GATE. Discovery runs here, before
@@ -183,11 +189,13 @@ func runLand(cmd *cobra.Command, slug string) error {
 		if loadErr != nil {
 			return fmt.Errorf("land: cannot reload status.json after the embedded record step: %w", loadErr)
 		}
-		if err := validateLandBaseCommit(s.Root, slug, recorded, noteRecordArtifacts, func(format string, args ...any) {
+		vb, vErr := validateLandBaseCommit(s.Root, slug, recorded, noteRecordArtifacts, func(format string, args ...any) {
 			fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
-		}); err != nil {
-			return err
+		})
+		if vErr != nil {
+			return vErr
 		}
+		validatedBase = vb
 	} else {
 		// --no-record: must already have a recorded canonical patch.
 		status, _ := s.LoadFeatureStatus(slug)
@@ -424,7 +432,13 @@ func runLand(cmd *cobra.Command, slug string) error {
 	subject := deriveSubject(s, slug, message)
 	patchSHA := sha256Hex([]byte(patch))
 	recipeSHA := readRecipeSHA(s, slug)
-	baseCommit := status.Apply.BaseCommit
+	// The trailer carries the VALIDATED value verbatim. Validation
+	// rejects any non-canonical spelling, so this is byte-identical to
+	// the stored field for every landing that reaches this point.
+	baseCommit := validatedBase
+	if baseCommit == "" {
+		baseCommit = status.Apply.BaseCommit
+	}
 
 	// PRD §3.4 trailer order (locked).
 	trailerBlock := fmt.Sprintf(
