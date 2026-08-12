@@ -687,6 +687,10 @@ retaining owned-lock cleanup across every failure.
 REVISION. Rev-8 locks and compares recovery state, retains evidence on failed
 publish, and commits directly from the durable retained index.
 
+**Wave A rev-8** (`9314bbc`): external APPROVED WITH NOTES; internal NEEDS
+REVISION. Rev-9 rolls back successful hook-contaminated commits, derives lock
+paths solely from the effective index, and restores Windows test portability.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

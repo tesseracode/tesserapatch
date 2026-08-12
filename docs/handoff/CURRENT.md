@@ -2,22 +2,19 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-9 DISPATCHED
 
-v0.15.1 Wave A rev-8 (GitHub issue #7) closes all three rev-7 findings:
-recovery now runs under the live lock with byte-level state comparison,
-the journal is only cleared after a successful durable publish, and the
-retained index IS the alternate index land stages and commits against.
-Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-8 remains blocked by successful hook contamination and
+journal-controlled lock paths. Rev-9 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-8
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-9
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and from
   land planning, staging and commit — with a durable, crash-recoverable
   land transaction.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-8 dispatch HEAD**: `7905cc9`
@@ -198,6 +195,29 @@ removed.
    retained index, so `git add` inside a hook mutates the evidence — by
    design, and covered both for an allowed file and for a nested
    worktree.
+
+## Rev-8 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED WITH NOTES.
+- Locked state comparison and evidence retention are effective.
+- Valid residuals:
+  1. A successful pre-commit hook can stage a nested worktree and have it
+     committed before the post-commit audit refuses.
+  2. Tampered journal `LockRel`/`LockAbs` fields can target arbitrary
+     nonce-bearing files for removal.
+  3. Windows cross-test compile fails because a FIFO test uses
+     `syscall.Mkfifo` without a build tag.
+- `tpatch_rev8_bin` and review scratch are absent after external cleanup.
+
+## Next Steps
+
+1. Audit successful hook mutations and compare-and-swap roll HEAD back before
+   returning any contamination refusal.
+2. Derive lock path exclusively from the validated effective index.
+3. Remove journal-controlled lock paths and bump schema.
+4. Move FIFO coverage behind `!windows`.
+5. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 

@@ -1,3 +1,40 @@
+## Review — v0.15.1 Wave A / GH #7 rev-8 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `9314bbc`
+**Reviewed range**: `7905cc9..35127b9`
+
+### Verdict: NEEDS REVISION → REV-9 DISPATCHED
+
+### Verified Clean
+
+- Recovery under lock, live pre/post/divergence classification, retained
+  evidence, hook-mutated index durability, original issue and validation.
+
+### Residual Findings
+
+1. **HIGH**: a successful pre-commit hook can stage a nested worktree and
+   commit its gitlink before the post-commit audit detects contamination.
+2. **HIGH**: journal validation constrains retained-index paths but trusts
+   `LockRel`/`LockAbs`; tampering can direct lock cleanup at an arbitrary
+   nonce-bearing file.
+3. **LOW/test portability**: FIFO test directly uses `syscall.Mkfifo`, which
+   does not cross-compile on Windows.
+
+### Rev-9 Direction
+
+- After successful commit, audit the retained index before publish. On nested
+  contamination, compare-and-swap HEAD back to pre-HEAD, restore status/index
+  evidence, and refuse; if rollback fails, retain journal for manual recovery.
+- Derive lock path only as validated effective-index path plus `.lock`; remove
+  lock paths from journal schema and bump version.
+- Split FIFO test behind `!windows`.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-9.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-7 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
