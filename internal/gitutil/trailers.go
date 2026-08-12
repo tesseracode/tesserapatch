@@ -462,7 +462,7 @@ type ApplyCheckResult struct {
 // ApplyAnswered reports whether the probe produced a patch-level verdict
 // rather than an execution failure.
 func (r ApplyCheckResult) ApplyAnswered() bool {
-	return r.OK || r.ExitCode == 1
+	return ApplyProbeAnswered(r.ExitCode, r.OK, r.Stderr)
 }
 
 var zeroContextRe = regexp.MustCompile(`Context reduced to \(0/0\)`)
@@ -542,6 +542,54 @@ func IsMissingObjectError(stderr string) bool {
 		}
 	}
 	return false
+}
+
+// patchInputPatterns are `git apply` diagnostics ABOUT THE PATCH — the
+// artifact it was handed — rather than about the repository. They are
+// domain ANSWERS ("this patch is unusable / does not apply") even when
+// git exits 128, which it does for a malformed or empty patch.
+//
+// Measured: `git apply --check` on a zero-byte or non-diff file exits
+// 128 with `error: No valid patches in input`. Treating that as an
+// execution failure would report a corrupt artifact as an unavailable
+// reader (v0.15.1 Wave C rev-2, finding 3).
+var patchInputPatterns = []string{
+	"no valid patches in input",
+	"unrecognized input",
+	"corrupt patch at line",
+	"patch fragment without header",
+	"patch with only garbage",
+	"patch does not apply",
+	"does not exist in index",
+	"already exists",
+	"cannot apply binary patch",
+	"new file",
+	"deleted file",
+}
+
+// IsPatchInputError reports whether stderr is a patch-level diagnostic.
+func IsPatchInputError(stderr string) bool {
+	low := strings.ToLower(stderr)
+	for _, p := range patchInputPatterns {
+		if strings.Contains(low, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// ApplyProbeAnswered decides whether an apply probe produced a
+// domain-level verdict rather than an execution failure. Exit 0 and
+// exit 1 are always answers; any other exit is an answer only when the
+// diagnostic is about the PATCH and not about a missing object.
+func ApplyProbeAnswered(exitCode int, ok bool, stderr string) bool {
+	if ok || exitCode == 1 {
+		return true
+	}
+	if IsMissingObjectError(stderr) || IsNetworkFetchError(stderr) {
+		return false
+	}
+	return IsPatchInputError(stderr)
 }
 
 // IsNetworkFetchError reports whether stderr looks like git reached (or
@@ -694,4 +742,44 @@ func HeadCommitOffline(repoRoot string) (string, error) {
 // worktree) under the offline discipline, returning combined stderr.
 func RunOfflineGitIn(dir string, args ...string) (string, string, error) {
 	return runEvidenceGit(dir, nil, args...)
+}
+
+// OfflineGitResult is a structured git invocation outcome.
+//
+// ExitCode is the discriminator between an ANSWER and a FAILURE, the
+// same split ApplyCheckResult makes: `git apply --check` exits 1 when
+// the patch legitimately does not apply, and 128 (or anything else)
+// when git could not carry the command out. ExitCode is 0 on success
+// and -1 when the process could not be started or was signalled.
+type OfflineGitResult struct {
+	Stdout   string
+	Stderr   string
+	ExitCode int
+	Err      error
+}
+
+// Answered reports whether the command produced a domain-level verdict
+// (success, the documented exit-1 "does not apply", or a patch-level
+// diagnostic) rather than an execution failure.
+func (r OfflineGitResult) Answered() bool {
+	return ApplyProbeAnswered(r.ExitCode, r.Err == nil, r.Stderr)
+}
+
+// OK reports a clean success.
+func (r OfflineGitResult) OK() bool { return r.Err == nil }
+
+// RunOfflineGitInResult is RunOfflineGitIn with the exit code retained,
+// so callers can separate an answer from a failure instead of
+// string-matching status text (v0.15.1 Wave C rev-2, finding 3).
+func RunOfflineGitInResult(dir string, args ...string) OfflineGitResult {
+	stdout, stderr, err := runEvidenceGit(dir, nil, args...)
+	res := OfflineGitResult{Stdout: stdout, Stderr: stderr, Err: err}
+	if err != nil {
+		res.ExitCode = -1
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			res.ExitCode = exitErr.ExitCode()
+		}
+	}
+	return res
 }

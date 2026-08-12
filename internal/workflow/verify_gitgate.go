@@ -143,6 +143,17 @@ func (ctx *verifyRunContext) runShadowGit(shadowPath string, args ...string) (st
 
 // ── Enumeration + preflight (performed once, in newVerifyRunContext) ─────
 
+// shadowApplyCheck is the gateway form of `git apply --check <patch>`
+// INSIDE a shadow worktree, with the exit code retained so the caller
+// can tell "the patch does not apply" (exit 1 — the answer V8 wants)
+// from "git could not run the check" (rev-2 adjudication finding 3).
+func (ctx *verifyRunContext) shadowApplyCheck(shadowPath, patchPath string) gitutil.OfflineGitResult {
+	if err := ctx.gitGate(); err != nil {
+		return gitutil.OfflineGitResult{ExitCode: -1, Err: err}
+	}
+	return gitutil.RunOfflineGitInResult(shadowPath, "apply", "--check", patchPath)
+}
+
 // normalizedIdentity is the gateway form of the D18 identity diff.
 func (ctx *verifyRunContext) normalizedIdentity(commit string, paths []string) (string, error) {
 	if err := ctx.gitGate(); err != nil {
