@@ -625,6 +625,33 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
+## v0.15.1 correctness batch — GH #7 + GH #8 🚧 IN PROGRESS
+
+**Dispatch**: 2026-08-12.
+**WAVE_BASE**: `5d15fcf`.
+**Mode**: sequential; one implementer per wave.
+
+Validated against current `main`:
+
+- **GH #7**: nested registered linked worktrees are captured as mode-160000
+  gitlinks by manual apply/default record, and remain in scoped land's
+  outside-path plan.
+- **GH #8**: after land, verify's V7/V8 shadow starts at HEAD where the
+  feature is already materialized; V8 forward-check therefore fails even
+  after a correct committed-range re-record. This is distinct from GH #2's
+  V7→V8 same-shadow double-apply defect.
+
+Sequential plan:
+
+1. **Wave A — GH #7**: shared nested-worktree discovery/exclusion for
+   apply/record capture and land dirty-path planning.
+2. **Wave B — GH #8 contract**: amend verify/land semantics for landed
+   already-materialized overlays; record the architecture decision.
+3. **Wave C — GH #8 implementation**: implement the accepted contract while
+   preserving GH #2's regression.
+
+No v0.15.1 tag until all three waves pass dual review and the release close.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

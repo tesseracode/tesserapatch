@@ -1,3 +1,48 @@
+## Dispatch — v0.15.1 Wave A / GH #7 — 2026-08-12
+
+**Task**: Exclude nested registered Git worktrees from apply/record capture
+and land planning.
+**WAVE_BASE**: `5d15fcf`
+**Issue**: https://github.com/tesseracode/tesserapatch/issues/7
+**Mode**: one sequential implementer
+
+### Reproduction
+
+- Manual Path B `apply --mode done` captures the nested worktree as a
+  mode-160000 gitlink.
+- Default `record` captures the same gitlink and recipe autogen attempts to
+  read the directory.
+- Scoped `record --files` avoids the patch contamination.
+- Scoped `land --dry-run --files` still reports the nested worktree in the
+  outside-path/refusal plan.
+
+### Root Cause
+
+- `internal/gitutil/capture_modes.go` consumes
+  `git ls-files --others --exclude-standard` without subtracting registered
+  linked worktree paths.
+- `internal/cli/land.go` consumes
+  `git status --porcelain --untracked-files=all` with the same gap.
+
+### Implementation Contract
+
+1. Add one robust shared helper based on `git worktree list --porcelain`
+   output; exclude only registered worktrees strictly nested under the target
+   root.
+2. Reuse it in untracked capture and land dirty-path classification.
+3. Fail closed when worktree discovery itself fails.
+4. Do not exclude ordinary directories, unrelated external worktrees,
+   submodules, or nested repositories that are not registered linked
+   worktrees.
+5. Cover manual apply completion, default/scoped record, land dry-run and
+   real staging-plan behavior with actual linked-worktree fixtures.
+6. Preserve guarded WIP, run full validation, commit explicit paths with Rule
+   18, push, and leave CURRENT AWAITING REVIEW.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to v0.15.1 Wave A rev-0 dispatch.
+
 ## Review — v0.15.0 post-release claim review — 2026-08-11
 
 **Reviewer**: user-external

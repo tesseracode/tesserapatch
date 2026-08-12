@@ -2,289 +2,82 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: REV-0 DISPATCHED
 
-Cluster H′ is shipped as v0.15.0. Rev-2 and the test-only close-note fold
-received independent internal and external approval. A post-release claim
-review returned APPROVED WITH NOTES; its duplicated-reason diagnostic fix is
-folded on `main` without moving the v0.15.0 tag.
+v0.15.1 Wave A is dispatched for GitHub issue #7.
 
 ## Active Task
 
-- **Task ID**: Cluster H′ rev-2
-- **Milestone**: v0.15.0 typed feature resources and capture adapters
-- **Description**: Implement the Accepted Cluster H PRD and ADR-033
-  end-to-end, then close the rev-0 and rev-1 review findings.
-- **Status**: Complete
-- **Assigned**: 2026-08-11
-- **WAVE_BASE**: `46c984b`
-- **Rev-2 dispatch commit**: `407d68b`
-- **Implementation commits**: `bff5ef5`, `c66845a` (rev-0), `d82a367`
-  (rev-1), `86f93b7` (rev-2)
-- **Rev-2 fold range**: `407d68b..86f93b7`
-- **Release**: v0.15.0
+- **Task ID**: v0.15.1 Wave A / GH #7
+- **Description**: Exclude registered linked Git worktrees nested beneath
+  the target repository from apply/record capture and land planning.
+- **Status**: In Progress
+- **Assigned**: 2026-08-12
+- **WAVE_BASE**: `5d15fcf`
+- **Target release**: v0.15.1
 
 ## Session Summary
 
-One sequential implementer owns the whole wave. Every stage used
-explicit-path `git add`, every commit carries the Rule 18 trailer, and
-neither Accepted paper nor any guarded WIP file was touched.
+The GitHub issue audit found:
 
-### Pre-close note fold (test/ledger only)
+- Issues #1–#5 remain correctly closed with live regression coverage.
+- Issue #6 shipped in v0.13.0 and was closed as completed.
+- Issue #7 reproduces on current `main` and is Wave A.
+- Issue #8 reproduces independently of #2 and is queued behind Wave A for a
+  contract amendment followed by implementation.
 
-The two rev-2 acceptance notes are folded. This fold changes **no**
-production behavior, no Accepted paper, no shipped asset and no WIP
-file; it touches only `internal/rescap/ac_ledger_test.go` and adds one
-new native test file.
+## Current State
 
-1. **AC-85 ledger refs.** `TestProcessRunnerSetsSetpgidOnTheRealCommand`
-   and `TestSignalTargetsTheChildGroupNotOurOwn` are added to AC-85 —
-   the clause that states `Setpgid` is applied before `Start`. Rev-2
-   intended this and silently missed it: the edit matched
-   `85: {Refs:` while gofmt had aligned the map key to `85:  {Refs:`
-   (two spaces), so the replacement was a no-op and both tests were
-   referenced by no clause at all. AC-104 remains correctly mapped to
-   `TestNoexecPreflightRunsBeforeTheCopyIsCreated` (row 173).
-2. **Native observer behavior.** New
-   `internal/rescap/observer_native_test.go`, under exactly
-   `//go:build linux || darwin`, exercises the **production**
-   `observeLeaderEvent` helper against a real child that exits with a
-   real status — no source grep, no injected `ObserveFn`, no
-   substituted syscall. It observes twice after exit and before any
-   `cmd.Wait()`, then calls `cmd.Wait()` exactly once and asserts the
-   child's true exit code survives. Mapped to AC-106 / row 175
-   alongside the existing cross-build and build-tag coverage.
+Issue #7 reproduction on `5d15fcf`:
 
-Both reviewers confirmed the close-note fold **APPROVED** with a mechanically
-empty production diff.
+- manual Path B apply completion captures a nested linked worktree as a
+  mode-160000 gitlink;
+- default record captures the same gitlink and recipe autogen attempts to
+  read the directory;
+- scoped record avoids contaminating the new patch;
+- scoped land still lists the nested worktree in the outside-path plan.
 
-No production file was modified, so no test hook was needed: the
-observer helper is package-level and directly callable from the
-package's own test.
+The two known unfiltered surfaces are:
 
-## Rev-2 Review Verdict
-
-- **Internal**: APPROVED WITH NOTES.
-- **External**: APPROVED.
-- All rev-0 and rev-1 production findings are closed.
-- Pre-close notes: add the real Setpgid tests to AC-85's ledger entry and add
-  a native double-`WNOWAIT`-then-`cmd.Wait` test to AC-106/row 175.
-
-## Rev-2 Finding Closures
-
-**R2-F1 — CLI batch taxonomy (HIGH).** `list`/`diff` route every
-batch-load error through `classifyBatchLoadError`, which preserves the
-store's own `*store.PublicationError` reason, and
-`aggregateBatchFailures`, which folds per-resource failures into the
-returned error. An absent file stays `tracked-batch-missing` exit 1; a
-present-but-corrupt or identity-invalid batch surfaces
-`batch-file-corrupt` exit 3 at the process boundary **and** in the
-per-resource JSON `state`/`status` and text line. Mixed failures name
-every distinct reason and take the most severe code. Covered by
-`TestListPreservesBatchLoadTaxonomy` and
-`TestDiffPreservesBatchLoadTaxonomy` (six shapes each: deleted,
-batch_id mismatch, body tamper with consistent batch_id, trailing
-object, unknown field, nulled results),
-`TestListTextOutputCarriesTheBatchReason`,
-`TestMixedBatchFailuresStayCoherent` and
-`TestListAndDiffStayCleanForAuthenticBatches` (control).
-
-**R2-F2 — publication authenticity (MEDIUM).** `compareSemanticBody`
-calls `bindBatchIdentity` before any drift/collision comparison, so a
-file that does not authentically hash to its own name is
-`batch-file-corrupt`. `batch-id-collision` is reserved for two
-*authentic* bodies sharing one full digest, which tampering can no
-longer reach — so a substitutable `SetBatchIDDeriverForTest` seam makes
-that branch reachable honestly. Covered by
-`TestPublishBatchCollisionAndCorruption` subtests
-`semantic-collision-between-two-authentic-bodies` and
-`tampered-existing-body-is-corruption-not-collision`,
-`TestCaptureOverTamperedBatchIsCorruptionNotCollision` (real `capture`),
-`TestRecordResourcesWrapsBatchCorruption` (wrapped as
-`resource-domain-incomplete` once Git succeeded) and
-`TestCaptureRepublishesUnchangedContentIdempotently` (control).
-
-**R2-F3 — AC-104/105 and rows 173/174 (MEDIUM).** AC-104 now references
-`TestNoexecPreflightRunsBeforeTheCopyIsCreated`. AC-105 references
-`TestPrivateCopyExactHostErrnosCleanUpAndStartNothing`, which injects
-exact `syscall.ENOSPC` and `syscall.EIO` at the streamed-write and
-`Sync` steps through a narrow `privateCopyTarget` seam, asserting
-`adapter-copy-failed` exit 1, the injected errno present in the
-refusal, the partial copy removed, and — via
-`TestPrivateCopyHostFailureStartsNoProcess` — zero process starts and
-zero publication. The rev-1 generic directory-read and
-unwritable-directory substitutes are removed.
-`TestPrivateCopySucceedsWithoutInjection` is the inertness control.
-
-**R2-F4 — row 180 real CLI (MEDIUM).**
-`TestCaptureCLIDrainTimeoutFromEscapedWriter` drives the actual
-`feature resource capture` command against a real `setsid`-escaped
-writer through lock acquisition and publication orchestration:
-`adapter-drain-timeout` exit 3, no batch and no pointer, ephemeral
-scratch cleaned, lock released (verified by re-acquiring it), and a
-subsequent normal capture succeeding. The fixture switches behaviour by
-marker rather than by rewriting itself, so recovery runs against the
-same pinned digest. Row 180 maps to this test; the `Engine.Stage` test
-remains as unit coverage only.
-
-**R2-F5 — ledger subtest parser (LOW).** Discovery recognizes only a
-literal `t.Run("name", ...)` or an explicitly keyed `name: "..."` table
-field; arbitrary positional string literals are rejected. Four
-positional tables (`TestValidateDoltArgs`, `TestParseDiffSummaryJSON`,
-`TestWaitIsLaunchedStrictlyAfterTheSignalPhase`,
-`TestLocalPathTrackedRefusal`) were converted to keyed `name` fields,
-and two package-scope tables are referenced at top level honestly.
-`TestLedgerSubtestDiscoveryRejectsUnrelatedLiterals` adds five negative
-cases parsed from fixtures, proving SQL fragments, script bodies and
-non-`name` keyed fields cannot resolve.
-
-**R2-F6 — SameFile mechanism (LOW).** A seam sits strictly after the
-descriptor `os.SameFile` decision and strictly before the redundant
-pathname re-Lstat.
-`TestSameFileDescriptorGateIsTheLoadBearingCheck` swaps the path for the
-open and restores it only at that seam, and asserts the restore seam
-never fires — i.e. the descriptor comparison already refused.
-`TestGatedOpenAcceptsAnUnreplacedEntry` is the control. A scratch
-mutation probe deleting the `os.SameFile` guard was run: the test failed
-with `got <nil>`, accepting the swapped descriptor. The probe was
-reverted and the file restored.
+- `internal/gitutil/capture_modes.go` untracked-file discovery;
+- `internal/cli/land.go` dirty-path discovery.
 
 ## Files Changed
 
-Rev-2 fold `407d68b..86f93b7`: 12 files, +1359 / -218.
-
-- `internal/cli/feature_resource.go` — R2-F1 classify/aggregate
-- `internal/cli/feature_resource_test.go` — R2-F1/F2 CLI tests; keyed table
-- `internal/cli/feature_resource_drain_test.go` — new, R2-F4
-- `internal/rescap/dolt.go` — R2-F3 privateCopyTarget seam
-- `internal/rescap/pathgate.go` — R2-F6 post-SameFile seam
-- `internal/rescap/dolt_test.go` — keyed tables
-- `internal/rescap/hardening_test.go` — superseded tests removed; keyed table
-- `internal/rescap/mechanism_test.go` — new, R2-F3/F6
-- `internal/rescap/ac_ledger_test.go` — R2-F3/F4/F5
-- `internal/store/resource_publish.go` — R2-F2 bind-before-compare + seam
-- `internal/store/resources_test.go` — R2-F2 tests
-- `CHANGELOG.md` — rev-2 fold section
-
-Whole wave `46c984b..HEAD`: 59 files, +14509 / -194.
+- `docs/ROADMAP.md`
+- `docs/handoff/CURRENT.md`
+- `docs/supervisor/LOG.md`
 
 ## Test Results
 
-At `86f93b7`:
-
-- `gofmt -l .` — clean.
-- `go vet ./...` — clean.
-- `go build ./cmd/tpatch` — OK.
-- `go test -count=1 ./...` — PASS, all 14 packages.
-- `go test -race -count=1` — PASS for `rescap`, `store`, `redact`, `cli`.
-- Assets parity guard — PASS.
-- Suite totals: 471 passing assertions in `rescap`/`store`/`redact`,
-  182 in the `cli` resource subset. Rev-2 adds 6 new test functions
-  (5 mechanism, 1 real-CLI drain) plus new subtests in existing tests.
-- Cross-compile `go build ./...`: `linux/{amd64,arm64,386,s390x}`,
-  `darwin/{arm64,amd64}`, `windows/{amd64,arm64}` — all OK.
-  `go vet` OK on all six of those targets. Cross `go test -c` OK for
-  `linux/{amd64,arm64}` and `darwin/{arm64,amd64}`.
-- Rev-0/rev-1 closure regression re-run explicitly: redaction,
-  golden-ID-via-CLI, retention bound, timer lifecycle, forced-close
-  joins, Wait ordering, late-ECHILD, Start-failure and strict batch
-  loading all still PASS.
-- Accepted PRD/ADR: zero diff since `46c984b`. Guarded untracked WIP:
-  untouched.
-- Side Research md5: `b385fe622db9926f48861105239f113e`.
-
-### Pre-close note fold
-
-At the note-fold commit (test/ledger only; production tree unchanged):
-
-- `gofmt -l .` — clean. `go vet ./...` — clean.
-  `go build ./cmd/tpatch` — OK.
-- `go test -count=1 ./...` — PASS, all 14 packages (uncached).
-- `go test -race -count=1 ./internal/rescap/` — PASS.
-- Targeted `rescap` run — PASS, including the five ledger guards and the
-  two new native observer tests.
-- Cross-compile `go build ./...` on `linux/{amd64,arm64,386,s390x}`,
-  `darwin/{arm64,amd64}`, `windows/{amd64,arm64}` — all OK; `go vet` OK
-  on five representative targets; `go test -c` OK for
-  `linux/{amd64,arm64}` and `darwin/{arm64,amd64}`.
-- Build-tag inclusion verified by `go list` per platform: the new native
-  file is included on **both** `linux` and `darwin` and excluded on
-  `windows`, so it runs on both native CI legs.
-- **Mutation probes** (scratch, reverted; `observer_unix.go` confirmed
-  byte-identical afterwards):
-  - dropping `WNOWAIT` from the raw `waitid` flags → the second observe
-    returns `ECHILD` and the test FAILS;
-  - keeping `WNOWAIT` but reaping via `Wait4` inside the observer → same
-    FAILURE.
-  The test also carries two positive controls: a post-`Wait` observe
-  must return `ECHILD`, and observing an unrelated PID must return
-  `ECHILD`, so the pre-reap successes are not vacuous.
-- Accepted PRD/ADR, shipped assets and guarded WIP: unchanged.
-- Side Research md5 re-verified: `b385fe622db9926f48861105239f113e`.
+- Current-main issue #7 reproduction: confirmed.
+- v0.15.0 post-release state: 8/8 gate PASS.
+- Wave A implementation validation: pending.
+- Side Research md5:
+  `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. No successor wave is dispatched.
-2. Select the next post-v0.15.0 backlog item from ROADMAP/research inputs.
-3. Record a fresh `origin/main` WAVE_BASE before any new dispatch.
+1. Implement one shared nested-linked-worktree discovery/filter helper.
+2. Reuse it across apply/record untracked capture and land path planning.
+3. Add real linked-worktree regressions for apply, record and land.
+4. Run full validation and dual review.
+5. Proceed to GH #8 contract work only after Wave A closes.
 
 ## Blockers
 
 None.
 
-## Residuals and Reviewer Focus
-
-Disclosed design residuals (accepted by the Accepted papers):
-
-1. Ancestor-directory TOCTOU is not closable with the Go stdlib.
-2. `cmd.Dir` is pathname-bound; a swap-and-revert inside the child's own
-   execution window is undetectable.
-3. `cmd.Start()` opens the private copy by pathname after the
-   descriptor-scoped `Fchmod`.
-4. A reap timeout can leave up to two background goroutines outstanding.
-5. The `ECHILD` finalizer makes no cleanup claim against the process tree.
-6. A directory capture is a sequential read, not an atomic snapshot.
-
-Test-contract residuals:
-
-7. The ledger verifies that references *resolve*, not that a referenced
-   test semantically exercises its mechanism.
-8. Subtest discovery binds only literal `t.Run` names and keyed `name`
-   fields declared **inside** the test function; a table declared at
-   package scope is referenced at top level instead.
-9. Three tests build a helper binary with the local `go` toolchain and
-   skip under `-short` or without one.
-10. `TestCurrentPointerIsCommittedByRenameNotDirectWrite` skips as root
-    or where an owner may write a `0444` file.
-11. `TestNoexecPreflightRunsBeforeTheCopyIsCreated` and the ENOSPC/EIO
-    cases inject their conditions through seams rather than mounting a
-    noexec filesystem or filling a real disk.
-
-Reviewer focus, in priority order:
-
-1. `aggregateBatchFailures`' severity/primary-reason rule — whether the
-   reported reason and exit code can ever disagree.
-2. `compareSemanticBody`'s new ordering — that binding first cannot
-   reclassify a legitimate presentation-drift republish.
-3. Whether the four new seams (`privateCopyTarget`,
-   `afterDescriptorIdentityCheck`, `batchIDDeriver`, and the existing
-   `beforeGatedOpen`) are genuinely inert in production.
-4. Whether the ledger's keyed-`name` restriction now under-reports any
-   subtest a reviewer would expect to see referenced.
-
 ## Context for Next Agent
 
-- Accepted papers remain binding; neither was modified.
-- Implementation WAVE_BASE is `46c984b`.
-- Pre-existing untracked PRDs, whitepapers and case-study files were not
-  touched, staged, or formatted.
-- Ledger rule: reference a subtest only when it is declared by a literal
-  `t.Run` or a keyed `name:` field inside that test function; otherwise
-  reference the top-level test.
-- `git-metadata` capability contract: `head` is canonical with an empty
-  stored capability; every other view stores its view name; Dolt always
-  stores `diff-summary`.
-- Resources are audit sidecars, never canonical patch or lifecycle truth.
+- Use `git worktree list --porcelain` as authority; exclude the target root
+  itself and worktrees outside the target repository.
+- Exclude a nested worktree path and all descendants while preserving
+  ordinary directories, submodules and unregistered nested repositories.
+- Discovery failure is safety-relevant and must fail closed.
+- One sequential implementer owns the shared capture/land surface.
+- Stage explicit paths only; do not touch pre-existing untracked WIP docs.
+- Include the Rule 18 trailer and push; do not tag.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
