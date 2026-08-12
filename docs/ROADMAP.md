@@ -723,6 +723,11 @@ NOTES. Rev-4 fixes parent-tree syntax, uses error-preserving full inventory,
 defines producer Base-Commit timing, uses `-C1` anchor qualification,
 normalizes hunk positions, and makes partial-clone checks offline.
 
+**Wave B rev-4** (`96cfe2a`): internal NEEDS REVISION, external APPROVED WITH
+NOTES. Rev-5 sets the effective Git floor to 2.36, removes unreachable
+artifact-state rows, clarifies recovery-before-validation, and completes
+11-check cross-document parity.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

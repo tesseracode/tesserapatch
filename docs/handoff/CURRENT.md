@@ -2,18 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-5 DISPATCHED
 
-v0.15.1 Wave B **rev-4** (GH #8 contract) is rewritten and ready for dual
-independent review. Planning only — no Go code, tests, assets, SPEC,
-CHANGELOG or GitHub issue state was touched. Implementation is Wave C.
+v0.15.1 Wave B rev-4 has one Git-floor finding plus artifact/recovery/stale
+prose corrections required before Wave C. Rev-5 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-4)
+- **Status**: In Progress (rev-5)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-4)**: `6d87198`
@@ -192,6 +191,23 @@ sha1/sha256 id lengths; `RecipeProvenance` shipping alongside `preimage_hash`.
     2.25 trailer floor — Wave C should state the effective floor as 2.36.
 11. **CHANGELOG entry** intentionally absent; **ROADMAP row and LOG verdict**
     are supervisor-owned.
+
+## Rev-4 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED WITH NOTES.
+- Required corrections:
+  1. Effective verify Git floor is 2.36, not 2.25.
+  2. Remove unreachable exact-evidence absent/empty arbitration rows.
+  3. Clarify mandatory journal recovery before Mode-A no-record validation.
+  4. Reconcile all remaining V9-last/10-check/rev-label/base grammar prose.
+  5. Mark real partial-clone missing-object path as a Wave C validation gate.
+
+## Next Steps
+
+1. Fold the bounded rev-4 corrections and rebuild matrix/count parity.
+2. Run final dual planning confirmation.
+3. Accept Wave B and dispatch Wave C from a fresh base.
 
 ## Reviewer Focus
 

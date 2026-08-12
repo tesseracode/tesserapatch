@@ -1,3 +1,44 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-4 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, follow-up)
+**Writer commit**: `96cfe2a`
+**Reviewed range**: `6d87198..96cfe2a`
+
+### Verdict: NEEDS REVISION → REV-5 DISPATCHED
+
+### Verified Clean
+
+- Rev-3 corrections, valid Git syntax, error-preserving inventory, `-C1`
+  anchor qualification, normalized duplicates, offline object env and 157
+  rows.
+
+### Required Corrections
+
+1. **HIGH/MEDIUM**: effective Git floor is 2.36 because
+   `GIT_NO_LAZY_FETCH` is mandatory; 2.25 text can silently violate offline
+   behavior.
+2. **HIGH**: exact evidence requires present-nonempty patch, so exact+absent/
+   empty arbitration rows are unreachable.
+3. **HIGH**: `recoverLand` precedes Mode-A Base-Commit validation; the
+   no-mutation promise must exempt mandatory pending-journal recovery.
+4. **MEDIUM**: stale V9-last/10-check, amendment rev label, 40-hex and
+   absence-mismatch prose remains in authoritative sections.
+5. **MEDIUM**: real filtered-remote missing-object behavior is not reproduced;
+   make it a Wave C acceptance gate rather than a silently claimed fact.
+
+### Rev-5 Direction
+
+- Set/enforce Git 2.36 floor and add a below-floor unavailable row.
+- Make artifact presence states mutually exclusive before arbitration.
+- Define recovery-first Mode-A semantics and exact mutation boundary.
+- Sweep all authoritative prose/examples/matrix parity.
+- Mark real partial-clone validation mandatory in Wave C.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave B rev-5.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-3 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)
