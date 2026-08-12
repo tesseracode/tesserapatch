@@ -54,13 +54,22 @@ type Shadow struct {
 //
 // Returns the absolute shadow path on success.
 func CreateShadow(repoRoot, slug, commit string) (string, error) {
+	return CreateShadowEnv(repoRoot, slug, commit, nil)
+}
+
+// CreateShadowEnv is CreateShadow with an explicit extra environment for
+// every git invocation it makes. Callers that must not reach the network
+// (v0.15.1 / ADR-013 D11: `tpatch verify` is offline by construction)
+// pass `[]string{NoLazyFetchEnv}`; unrelated callers keep the historical
+// environment by passing nil.
+func CreateShadowEnv(repoRoot, slug, commit string, extraEnv []string) (string, error) {
 	if slug == "" {
 		return "", fmt.Errorf("shadow: slug is required")
 	}
 	if commit == "" {
 		return "", fmt.Errorf("shadow: commit is required")
 	}
-	if err := PruneAllShadows(repoRoot, slug); err != nil {
+	if err := PruneAllShadowsEnv(repoRoot, slug, extraEnv); err != nil {
 		return "", fmt.Errorf("shadow: prune prior: %w", err)
 	}
 
@@ -88,6 +97,7 @@ func CreateShadow(repoRoot, slug, commit string) (string, error) {
 
 	add := exec.Command("git", "worktree", "add", "--detach", "-q", path, commit)
 	add.Dir = absRoot
+	add.Env = shadowEnv(extraEnv)
 	var stderr strings.Builder
 	add.Stderr = &stderr
 	if err := add.Run(); err != nil {
@@ -120,6 +130,12 @@ func ResolveShadow(repoRoot, slug string) (*Shadow, error) {
 // deletes any residue. Returns nil if no shadow exists for the slug
 // (prune is idempotent).
 func PruneShadow(repoRoot, slug string) error {
+	return PruneShadowEnv(repoRoot, slug, nil)
+}
+
+// PruneShadowEnv is PruneShadow with an explicit extra environment for
+// every git invocation (see CreateShadowEnv).
+func PruneShadowEnv(repoRoot, slug string, extraEnv []string) error {
 	sh, err := ResolveShadow(repoRoot, slug)
 	if err != nil {
 		return err
@@ -127,23 +143,39 @@ func PruneShadow(repoRoot, slug string) error {
 	if sh == nil {
 		return nil
 	}
-	return pruneShadowPath(repoRoot, sh.Path)
+	return pruneShadowPath(repoRoot, sh.Path, extraEnv)
 }
 
 // PruneAllShadows removes every shadow associated with slug. Used by
 // CreateShadow to guarantee a clean slate and by `--reject` for
 // thoroughness.
 func PruneAllShadows(repoRoot, slug string) error {
+	return PruneAllShadowsEnv(repoRoot, slug, nil)
+}
+
+// PruneAllShadowsEnv is PruneAllShadows with an explicit extra
+// environment for every git invocation (see CreateShadowEnv).
+func PruneAllShadowsEnv(repoRoot, slug string, extraEnv []string) error {
 	shadows, err := listShadows(repoRoot, slug)
 	if err != nil {
 		return err
 	}
 	for _, sh := range shadows {
-		if err := pruneShadowPath(repoRoot, sh.Path); err != nil {
+		if err := pruneShadowPath(repoRoot, sh.Path, extraEnv); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// shadowEnv returns the process environment plus extra. A nil extra
+// keeps the historical behaviour (inherit os.Environ implicitly) by
+// returning nil, so unrelated callers are byte-unchanged.
+func shadowEnv(extra []string) []string {
+	if len(extra) == 0 {
+		return nil
+	}
+	return append(append([]string{}, os.Environ()...), extra...)
 }
 
 // CopyShadowToReal copies a set of feature-relative files from the
@@ -274,7 +306,7 @@ func listShadows(repoRoot, slug string) ([]Shadow, error) {
 // pruneShadowPath detaches the worktree via git, then removes any
 // residue on disk. Git's own bookkeeping lives in .git/worktrees/
 // and is cleaned up by `git worktree remove`.
-func pruneShadowPath(repoRoot, path string) error {
+func pruneShadowPath(repoRoot, path string, extraEnv []string) error {
 	absRoot, err := filepath.Abs(repoRoot)
 	if err != nil {
 		return err
@@ -284,6 +316,7 @@ func pruneShadowPath(repoRoot, path string) error {
 	}
 	rm := exec.Command("git", "worktree", "remove", "--force", path)
 	rm.Dir = absRoot
+	rm.Env = shadowEnv(extraEnv)
 	// Ignore the exit code — if git refuses (e.g., the directory is no
 	// longer registered), we still want the disk residue gone. The
 	// subsequent RemoveAll is the authoritative cleanup.
@@ -294,6 +327,7 @@ func pruneShadowPath(repoRoot, path string) error {
 	// Best-effort: prune stale worktree registrations. Never fatal.
 	prune := exec.Command("git", "worktree", "prune")
 	prune.Dir = absRoot
+	prune.Env = shadowEnv(extraEnv)
 	_ = prune.Run()
 	return nil
 }

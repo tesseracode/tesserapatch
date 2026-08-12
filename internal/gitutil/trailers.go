@@ -26,6 +26,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -442,11 +443,26 @@ type ApplyCheckOptions struct {
 }
 
 // ApplyCheckResult is one probe outcome.
+//
+// ExitCode distinguishes an ANSWER from a FAILURE: `git apply --check`
+// exits 1 when the patch legitimately does not apply, and 128 (or
+// anything else) when git could not carry the probe out at all — a
+// missing object, a broken repository, a usage error. Rev-0 collapsed
+// both into `OK == false`, so an unrunnable probe was reported as "the
+// content is absent" / "no candidate qualified" (v0.15.1 rev-1
+// adjudication finding 3).
 type ApplyCheckResult struct {
 	OK               bool
+	ExitCode         int
 	Stderr           string
 	ZeroContextHunks int
 	Args             []string
+}
+
+// ApplyAnswered reports whether the probe produced a patch-level verdict
+// rather than an execution failure.
+func (r ApplyCheckResult) ApplyAnswered() bool {
+	return r.OK || r.ExitCode == 1
 }
 
 var zeroContextRe = regexp.MustCompile(`Context reduced to \(0/0\)`)
@@ -477,6 +493,13 @@ func (t *TempIndex) ApplyCheck(opts ApplyCheckOptions) ApplyCheckResult {
 		Stderr:           stderr,
 		ZeroContextHunks: len(zeroContextRe.FindAllString(stderr, -1)),
 		Args:             args,
+	}
+	if err != nil {
+		res.ExitCode = -1
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			res.ExitCode = exitErr.ExitCode()
+		}
 	}
 	return res
 }

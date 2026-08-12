@@ -407,11 +407,27 @@ func (s *Store) WriteVerifyRecord(slug string, record VerifyRecord) error {
 	if err != nil {
 		return err
 	}
+	_, err = s.WriteVerifyRecordFrom(status, record)
+	return err
+}
+
+// WriteVerifyRecordFrom persists the freshness record onto an ALREADY
+// CAPTURED status and returns the exact value written.
+//
+// v0.15.1 Wave C rev-1 (adjudication finding 2): `tpatch verify` holds
+// one immutable capture of every feature; re-loading `status.json` here
+// just to write it back is the persistence reload that contract
+// forbids, and it also made the in-memory capture diverge from disk
+// (`last_command` / `updated_at` are set by this writer).
+func (s *Store) WriteVerifyRecordFrom(status FeatureStatus, record VerifyRecord) (FeatureStatus, error) {
 	rec := record
 	status.Verify = &rec
 	status.LastCommand = "verify"
 	status.UpdatedAt = nowStamp()
-	return s.SaveFeatureStatus(status)
+	if err := s.SaveFeatureStatus(status); err != nil {
+		return FeatureStatus{}, err
+	}
+	return status, nil
 }
 
 // ReadFeatureFile reads a named file from the feature directory.

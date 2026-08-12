@@ -140,6 +140,51 @@ func rejectionReasonSuffix(f FeatureStatus) string {
 // errors.Is-match. To get *all* violations across all features at once,
 // use ValidateAllFeatures.
 func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
+	return ValidateDependenciesWith(s, slug, deps, ValidationEnv{})
+}
+
+// ValidationEnv injects a read-once feature capture and an ancestry
+// resolver into ValidateDependencies.
+//
+// v0.15.1 Wave C rev-1 (adjudication findings 1 + 2): `tpatch verify`
+// must (a) answer every feature question from ONE immutable inventory
+// and (b) route every Git call through its floor-validated offline
+// gateway. A zero ValidationEnv keeps the historical behaviour
+// byte-for-byte — disk loads and the package-level `isAncestor` hook —
+// so no unrelated caller changes.
+type ValidationEnv struct {
+	// Snapshot, when non-nil, answers every parent/graph read instead
+	// of the filesystem.
+	Snapshot *FeatureSnapshot
+	// IsAncestor, when non-nil, replaces the package-level ancestry
+	// hook. It must never reach the network.
+	IsAncestor func(repoRoot, ancestor, descendant string) (bool, error)
+}
+
+func (env ValidationEnv) loadStatus(s *Store, slug string) (FeatureStatus, error) {
+	if env.Snapshot != nil {
+		return env.Snapshot.Load(slug)
+	}
+	return s.LoadFeatureStatus(slug)
+}
+
+func (env ValidationEnv) listFeatures(s *Store) ([]FeatureStatus, error) {
+	if env.Snapshot != nil {
+		return env.Snapshot.List(), nil
+	}
+	return s.ListFeatures()
+}
+
+func (env ValidationEnv) ancestry(repoRoot, ancestor, descendant string) (bool, error) {
+	if env.IsAncestor != nil {
+		return env.IsAncestor(repoRoot, ancestor, descendant)
+	}
+	return isAncestor(repoRoot, ancestor, descendant)
+}
+
+// ValidateDependenciesWith is ValidateDependencies over an explicit
+// ValidationEnv. See ValidationEnv for why it exists.
+func ValidateDependenciesWith(s *Store, slug string, deps []Dependency, env ValidationEnv) error {
 	// Rule 1: self-dependency, plus kind sanity.
 	seen := make(map[string]string, len(deps))
 	for _, d := range deps {
@@ -158,7 +203,7 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 
 	// Rules 2 + 5: per-parent existence and satisfied_by gate.
 	for _, d := range deps {
-		parent, err := s.LoadFeatureStatus(d.Slug)
+		parent, err := env.loadStatus(s, d.Slug)
 		if err != nil {
 			if os.IsNotExist(err) || errors.Is(err, os.ErrNotExist) {
 				return fmt.Errorf("%w: %s -> %s", ErrDanglingDependency, slug, d.Slug)
@@ -190,7 +235,7 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 			if !satisfiedBySHARe.MatchString(d.SatisfiedBy) {
 				return fmt.Errorf("%w: %s -> %s satisfied_by=%q", ErrSatisfiedByMalformed, slug, d.Slug, d.SatisfiedBy)
 			}
-			ok, aerr := isAncestor(s.Root, d.SatisfiedBy, "HEAD")
+			ok, aerr := env.ancestry(s.Root, d.SatisfiedBy, "HEAD")
 			if aerr != nil {
 				return fmt.Errorf("verify satisfied_by reachability for %s -> %s: %w", slug, d.Slug, aerr)
 			}
@@ -201,7 +246,7 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 	}
 
 	// Rule 4: cycle detection on the global graph including the proposed change.
-	graph, err := loadGraphWithOverride(s, slug, deps)
+	graph, err := loadGraphWithOverride(s, slug, deps, env)
 	if err != nil {
 		return err
 	}
@@ -220,7 +265,7 @@ func ValidateDependencies(s *Store, slug string, deps []Dependency) error {
 	// presumed-healthy for the purposes of this check: even a freshly
 	// authored draft edge is enough to make the second-superseder
 	// state ambiguous per D5.
-	feats, ferr := s.ListFeatures()
+	feats, ferr := env.listFeatures(s)
 	if ferr == nil {
 		for _, d := range deps {
 			if d.Kind != DependencyKindSupersedes {
@@ -358,8 +403,8 @@ func ValidateAllFeatures(s *Store) []error {
 // reading every feature's status.json, then substitutes deps for the
 // supplied slug (modeling the proposed write before it is persisted).
 // Used by cycle detection in ValidateDependencies.
-func loadGraphWithOverride(s *Store, slug string, deps []Dependency) (map[string][]Dependency, error) {
-	feats, err := s.ListFeatures()
+func loadGraphWithOverride(s *Store, slug string, deps []Dependency, env ValidationEnv) (map[string][]Dependency, error) {
+	feats, err := env.listFeatures(s)
 	if err != nil {
 		return nil, err
 	}
