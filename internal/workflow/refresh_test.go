@@ -683,3 +683,219 @@ func installFailingWorktreeListGitForRefresh(t *testing.T) {
 	}
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
+
+// ─── GH #7 rev-3 F2: strict header parsing in the refresh ───────────
+
+// gitCapture runs git capturing stdout only.
+func gitCapture(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	c := exec.Command("git", args...)
+	c.Dir = dir
+	out, err := c.Output()
+	if err != nil {
+		t.Fatalf("git %v: %v", args, err)
+	}
+	return string(out)
+}
+
+func gitMust(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	c := exec.Command("git", args...)
+	c.Dir = dir
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %s: %v", args, out, err)
+	}
+}
+
+// realQuotedGitlinkPatch registers a newline-named nested worktree,
+// stages it, and returns the REAL Git-generated diff — whose header is
+// C-quoted. Skips when the platform refuses the name.
+func realQuotedGitlinkPatch(t *testing.T, repoRoot, rel string) string {
+	t.Helper()
+	abs := filepath.Join(repoRoot, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	add := exec.Command("git", "worktree", "add", "-q", abs, "-b", "wt-quoted")
+	add.Dir = repoRoot
+	if out, err := add.CombinedOutput(); err != nil {
+		t.Skipf("platform/Git refuses this worktree path: %s: %v", out, err)
+	}
+	t.Cleanup(func() {
+		rm := exec.Command("git", "worktree", "remove", "--force", abs)
+		rm.Dir = repoRoot
+		_ = rm.Run()
+		prune := exec.Command("git", "worktree", "prune")
+		prune.Dir = repoRoot
+		_ = prune.Run()
+	})
+	gitMust(t, repoRoot, "-c", "advice.addEmbeddedRepo=false",
+		"--literal-pathspecs", "add", "--", rel)
+	patch := gitCapture(t, repoRoot, "diff", "--cached", "HEAD")
+	gitMust(t, repoRoot, "--literal-pathspecs", "reset", "-q", "--", rel)
+	if !strings.Contains(patch, "160000") {
+		t.Fatalf("fixture did not produce a gitlink entry:\n%q", patch)
+	}
+	return patch
+}
+
+// The F2 regression: a stale, REAL Git-generated, C-quoted
+// worktree-only patch must regenerate NOTHING. Before strict parsing
+// the header was skipped, the scope became empty, and an empty scope
+// means "diff everything" — sweeping unrelated working-tree dirt into
+// post-apply.patch.
+func TestRefreshAfterAcceptQuotedWorktreeOnlyPatchDoesNotCaptureUnrelatedDirt(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := realQuotedGitlinkPatch(t, tmpDir, ".claude/worktrees/new\nline")
+	if !strings.Contains(originalPatch, `diff --git "a/`) {
+		t.Fatalf("fixture header is not C-quoted:\n%q", originalPatch)
+	}
+
+	// Unrelated working-tree dirt an over-broad diff WOULD capture.
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nunrelated dirt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "stray.txt"), []byte("stray\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+	if err := RefreshAfterAccept(s, slug, upstream, originalPatch); err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+
+	newPatch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(newPatch) != "" {
+		t.Fatalf("quoted worktree-only patch must regenerate nothing, got:\n%s", newPatch)
+	}
+	for _, dirt := range []string{"unrelated dirt", "stray.txt"} {
+		if strings.Contains(newPatch, dirt) {
+			t.Errorf("refresh captured unrelated dirt %q", dirt)
+		}
+	}
+	// Numbered snapshot and generation metadata must be equally clean.
+	entries, _ := os.ReadDir(filepath.Join(tmpDir, ".tpatch", "features", slug, "patches"))
+	for _, e := range entries {
+		body, _ := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "patches", e.Name()))
+		for _, dirt := range []string{"unrelated dirt", "stray.txt", "160000"} {
+			if strings.Contains(string(body), dirt) {
+				t.Errorf("numbered patch %s contains %q", e.Name(), dirt)
+			}
+		}
+	}
+	if gens, gerr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "patch-generations.json")); gerr == nil {
+		for _, dirt := range []string{"stray.txt", "worktrees"} {
+			if strings.Contains(gens, dirt) {
+				t.Errorf("generation metadata contains %q:\n%s", dirt, gens)
+			}
+		}
+	}
+}
+
+// Mixed: a quoted worktree entry plus an intended path retains only the
+// intended path.
+func TestRefreshAfterAcceptQuotedWorktreePlusIntendedPathKeepsOnlyIntended(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gitlinkPatch := realQuotedGitlinkPatch(t, tmpDir, ".claude/worktrees/new\nline")
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nintended\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitMust(t, tmpDir, "add", "README.md")
+	intendedPatch := gitCapture(t, tmpDir, "diff", "--cached", "HEAD")
+	gitMust(t, tmpDir, "reset", "-q", "--", "README.md")
+	if err := os.WriteFile(filepath.Join(tmpDir, "stray.txt"), []byte("stray\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := gitlinkPatch + intendedPatch
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+	if err := RefreshAfterAccept(s, slug, upstream, originalPatch); err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+
+	newPatch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(newPatch, "README.md") || !strings.Contains(newPatch, "+intended") {
+		t.Errorf("refreshed patch dropped the intended path:\n%s", newPatch)
+	}
+	if strings.Contains(newPatch, "160000") || strings.Contains(newPatch, "worktrees") {
+		t.Errorf("refreshed patch kept the nested worktree:\n%s", newPatch)
+	}
+	if strings.Contains(newPatch, "stray.txt") {
+		t.Errorf("refreshed patch swept in unrelated dirt:\n%s", newPatch)
+	}
+}
+
+// A malformed header must refuse before ANY write.
+func TestRefreshAfterAcceptMalformedHeaderFailsBeforeWrites(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	malformed := "diff --git \"a/broken.txt b/broken.txt\nindex 111..222 100644\n--- a/broken.txt\n+++ b/broken.txt\n@@ -1 +1 @@\n-a\n+b\n"
+	if err := s.WriteArtifact(slug, "post-apply.patch", malformed); err != nil {
+		t.Fatal(err)
+	}
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+	before := snapshotTreeForRefresh(t, featureDir)
+
+	err = RefreshAfterAccept(s, slug, upstream, malformed)
+	if err == nil {
+		t.Fatal("a malformed diff header must refuse")
+	}
+	if !strings.Contains(err.Error(), "which paths") {
+		t.Errorf("refusal should name the parse failure: %v", err)
+	}
+	after := snapshotTreeForRefresh(t, featureDir)
+	if len(before) != len(after) {
+		t.Fatalf("feature directory changed across a refusal: %d -> %d files", len(before), len(after))
+	}
+	for k, v := range before {
+		if after[k] != v {
+			t.Errorf("%s changed across a refusal", k)
+		}
+	}
+}

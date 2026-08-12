@@ -44,13 +44,22 @@ import (
 // already reflected in the new state. The safe recovery path is to
 // re-run `tpatch record` which uses the same plumbing.
 func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch string) error {
-	// GH #7 rev-2: the ORIGINAL patch may carry stale nested-worktree
-	// gitlink entries recorded by a pre-fix tpatch. Filtering the
-	// touched-path set here keeps them out of the regenerated diff,
-	// the numbered reconcile snapshot AND the generation metadata,
-	// which all derive from this one list. Discovery runs before any
-	// artifact write, so a failure leaves the feature untouched.
-	originalFiles := gitutil.FilesInPatch(originalPatch)
+	// GH #7 rev-2/rev-3: the ORIGINAL patch may carry stale
+	// nested-worktree gitlink entries recorded by a pre-fix tpatch, and
+	// Git C-quotes any of those whose path contains a space plus a
+	// control byte, a quote, a backslash or a newline. Strict parsing is
+	// mandatory here: the fail-soft scanner silently dropped quoted
+	// headers, and an empty touched-path set means "diff everything" to
+	// Git — which is how a worktree-only patch broadened the refresh to
+	// unrelated working-tree dirt.
+	//
+	// Order is load-bearing: strict parse, then discovery, then
+	// filtering, and only then the first write. A failure in any of the
+	// three leaves the feature directory byte-identical.
+	originalFiles, err := gitutil.FilesInPatchStrict(originalPatch)
+	if err != nil {
+		return fmt.Errorf("refresh: cannot determine which paths the current post-apply.patch touches: %w", err)
+	}
 	files, err := gitutil.FilterPathsExcludingNestedWorktrees(s.Root, originalFiles)
 	if err != nil {
 		return fmt.Errorf("refresh: %w", err)

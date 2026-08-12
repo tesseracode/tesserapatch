@@ -118,6 +118,25 @@ func runLand(cmd *cobra.Command, slug string) error {
 		return err
 	}
 
+	// GH #7 rev-3 (F1): discover nested linked worktrees ONCE, here,
+	// before the metadata snapshot and before the embedded record. The
+	// resulting prefix set is immutable for the rest of the command and
+	// is threaded through every later path-set and dirty-path
+	// computation, so NO `git worktree list` runs after the embedded
+	// record begins.
+	//
+	// Rationale: `record` writes artifacts. If land re-discovered
+	// afterwards and that discovery failed, land would refuse while
+	// leaving record's artifacts and status behind. Hoisting the single
+	// discovery to the entry means a discovery failure refuses before
+	// `record` is ever invoked. The embedded record still performs its
+	// own fail-closed discovery — that is its own transaction — but once
+	// it succeeds, land's planning never asks Git again.
+	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
+	if err != nil {
+		return err
+	}
+
 	// PRD §3.3 step 3: snapshot the global metadata files BEFORE
 	// the embedded record step so we can decide later whether
 	// `record` (e.g. --auto refreshing upstream.lock) actually
@@ -156,22 +175,17 @@ func runLand(cmd *cobra.Command, slug string) error {
 		return fmt.Errorf("land: cannot read post-apply.patch for %q: %v", slug, err)
 	}
 
-	// Update status.json:notes BEFORE staging so the freshly-dirty
-	// status.json is picked up by the slug-prefix branch in
-	// computePathSet (PRD §3.6: working tree must be clean
-	// post-land, including on the --no-record path). The new HEAD
-	// SHA is intentionally NOT written here (PRD F2 / §6 ac.5).
+	// Update status.json:notes AFTER every remaining fallible step
+	// (GH #7 rev-3 F1). It used to be written here so the freshly
+	// dirty status.json would be swept up by computePathSet's
+	// slug-prefix branch; that made a later refusal — malformed
+	// patch, extras, discovery — leave a mutated status.json behind.
+	// The path set now names status.json explicitly instead, so the
+	// write can move below the last refusal.
 	now := time.Now().UTC().Format(time.RFC3339)
-	status, _ = s.LoadFeatureStatus(slug)
-	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
-	if err := s.SaveFeatureStatus(status); err != nil {
-		return fmt.Errorf("land: cannot update status.json notes: %w", err)
-	}
 
-	// Compute path set (§3.3) — ordered AFTER the status.notes
-	// save so the slug-prefix branch picks up the dirty
-	// status.json on every path (with-record and --no-record).
-	pathSet, err := computePathSet(s, slug, patch, metaChanged)
+	// Compute path set (§3.3) using the entry-cached prefixes.
+	pathSet, err := computePathSet(s, slug, patch, metaChanged, nested, true)
 	if err != nil {
 		return fmt.Errorf("land: cannot compute path set: %w", err)
 	}
@@ -180,7 +194,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// This is the WP-001 §5.2 row 5 boundary check moved one step
 	// downstream: if the operator has unrelated edits in the tree,
 	// we refuse rather than absorb them into the feature commit.
-	dirty, err := dirtyPaths(s.Root)
+	dirty, err := dirtyPaths(s.Root, nested)
 	if err != nil {
 		return fmt.Errorf("land: cannot read git status: %w", err)
 	}
@@ -210,6 +224,18 @@ func runLand(cmd *cobra.Command, slug string) error {
 				"note: staging extra path %s (not in feature patch); the feature commit will include this\n", p)
 			pathSet = append(pathSet, p)
 		}
+	}
+
+	// Every refusal is now behind us: the strict patch parse, the
+	// cached path-set computation, the dirty-path classification and
+	// the extras gate have all passed. Writing status.json here means a
+	// refusal above leaves the feature directory exactly as `record`
+	// left it (GH #7 rev-3 F1). The new HEAD SHA is intentionally NOT
+	// written (PRD F2 / §6 ac.5).
+	status, _ = s.LoadFeatureStatus(slug)
+	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
+	if err := s.SaveFeatureStatus(status); err != nil {
+		return fmt.Errorf("land: cannot update status.json notes: %w", err)
 	}
 
 	// Stage the path set. `git add` accepts directories; for
@@ -353,16 +379,21 @@ func embedRecord(cmd *cobra.Command, repoRoot, slug, fromRef string, autoBase bo
 // metadata-files-not-touched stay out of the index. Returned paths are
 // repo-relative and unique.
 //
-// GH #7: nested linked worktrees are stripped from BOTH inputs. The
-// dirty-path side is already filtered by dirtyPaths; the patch side is
-// filtered here so a patch recorded by a pre-fix tpatch (which may
-// still carry a `mode 160000` gitlink entry) cannot cause a broad or
-// default `land` to stage the worktree.
-func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]bool) ([]string, error) {
-	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
-	if err != nil {
-		return nil, err
-	}
+// GH #7: nested linked worktrees are stripped from BOTH inputs, using
+// the caller-supplied `nested` prefix set — discovered ONCE at land
+// entry (rev-3 F1) and never re-derived here, so no `git worktree list`
+// can run after the embedded record.
+//
+// GH #7 rev-3 (F2): the patch is parsed with FilesInPatchStrict. The
+// fail-soft scanner silently dropped Git C-quoted headers, so a stale
+// pre-fix patch whose only entry was a quoted nested-worktree gitlink
+// produced an EMPTY path set. A malformed header now refuses instead.
+//
+// `includeStatus` names `.tpatch/features/<slug>/status.json`
+// explicitly. `land` writes it AFTER the last refusal, so it is no
+// longer dirty when the path set is built and can no longer be picked
+// up by the slug-prefix branch below.
+func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]bool, nested []string, includeStatus bool) ([]string, error) {
 	seen := make(map[string]struct{})
 	var out []string
 	add := func(p string) {
@@ -379,10 +410,14 @@ func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]b
 		seen[p] = struct{}{}
 		out = append(out, p)
 	}
-	for _, f := range gitutil.FilesInPatch(patch) {
+	files, err := gitutil.FilesInPatchStrict(patch)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine which paths post-apply.patch touches: %w", err)
+	}
+	for _, f := range files {
 		add(f)
 	}
-	dirty, err := dirtyPaths(s.Root)
+	dirty, err := dirtyPaths(s.Root, nested)
 	if err != nil {
 		return nil, err
 	}
@@ -400,6 +435,9 @@ func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]b
 				add(p)
 			}
 		}
+	}
+	if includeStatus {
+		add(featurePrefix + "status.json")
 	}
 	return out, nil
 }
@@ -468,11 +506,7 @@ func metadataChangedSet(before, after map[string]string) map[string]bool {
 // plus `TrimSpace` dequote silently corrupted exactly the names the
 // nested-worktree filter must match — a worktree directory ending in a
 // space would have been mangled back into a non-matching prefix.
-func dirtyPaths(repoRoot string) ([]string, error) {
-	nested, err := gitutil.NestedWorktreePrefixes(repoRoot)
-	if err != nil {
-		return nil, err
-	}
+func dirtyPaths(repoRoot string, nested []string) ([]string, error) {
 	out, err := runGit(repoRoot, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
 		return nil, err
@@ -648,6 +682,17 @@ func runGitCapture(repoRoot string, args ...string) (string, error) {
 // post-apply.patch (if any) and the current FeatureStatus.
 func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	out := cmd.OutOrStdout()
+
+	// GH #7 rev-3 (F1): discover once, up front, and thread the
+	// immutable prefix set through every later computation — the same
+	// contract the real land path follows. Dry-run performs no writes,
+	// so the only requirement is that the plan it prints is derived
+	// from a single, consistent answer.
+	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
+	if err != nil {
+		return err
+	}
+
 	fmt.Fprintf(out, "DRY RUN: tpatch land %s\n\n", slug)
 
 	// Pre-flight section.
@@ -700,7 +745,11 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 		fmt.Fprintln(out, "  expected files in patch: 0")
 	} else {
 		fmt.Fprintf(out, "  expected patch bytes  : %d (current capture)\n", len(patch))
-		fmt.Fprintf(out, "  expected files in patch: %d\n", len(gitutil.FilesInPatch(patch)))
+		filesInPatch, ferr := gitutil.FilesInPatchStrict(patch)
+		if ferr != nil {
+			return fmt.Errorf("land --dry-run: %w", ferr)
+		}
+		fmt.Fprintf(out, "  expected files in patch: %d\n", len(filesInPatch))
 	}
 	fmt.Fprintln(out)
 
@@ -709,11 +758,11 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	// global metadata into the would-be commit. Pass nil so the
 	// path-set builder leaves `.tpatch/upstream.lock` and
 	// `.tpatch/FEATURES.md` alone (PRD §3.3 step 3).
-	pathSet, err := computePathSet(s, slug, patch, nil)
+	pathSet, err := computePathSet(s, slug, patch, nil, nested, true)
 	if err != nil {
 		return fmt.Errorf("land --dry-run: cannot compute path set: %w", err)
 	}
-	dirty, err := dirtyPaths(s.Root)
+	dirty, err := dirtyPaths(s.Root, nested)
 	if err != nil {
 		return fmt.Errorf("land --dry-run: cannot read git status: %w", err)
 	}

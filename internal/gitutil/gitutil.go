@@ -885,8 +885,29 @@ func MergeBase(repoRoot, a, b string) (string, error) {
 // FilesInPatch returns the unique set of repo-relative file paths
 // touched by a unified diff, parsed from `diff --git a/<path> b/<path>`
 // headers. Paths are returned in first-seen order so the output is
-// stable. Used by `reconcile --accept` to know which paths to restrict
-// the regenerated post-apply.patch to.
+// stable.
+//
+// It is deliberately FAIL-SOFT: it splits each `diff --git` header on
+// the first ` b/` and silently skips any header it cannot split, which
+// includes every Git C-quoted path (spaces plus a control byte, a
+// quote, a backslash, or a newline). Callers that derive a WRITE SCOPE
+// from a patch must NOT use it — an unparseable header would degrade to
+// an empty scope, and an empty scope means "everything" to `git diff`.
+// Those callers use FilesInPatchStrict instead
+// (workflow.RefreshAfterAccept, cli.computePathSet).
+//
+// The remaining fail-soft callers are advisory only and intentionally
+// stay on this function (GH #7 rev-3 F2 audit):
+//
+//   - workflow.touchedPathsFromPostApplyPatch — feeds the D10
+//     migration-hint suppression check, which is documented fail-soft
+//     ("absence of data is not evidence of cumulative recording");
+//   - workflow.AppendPatchGenerationForFeature — fills the advisory
+//     `touched` audit field in patch-generations.json.
+//
+// Neither drives a write, a diff scope, or a staging decision, so a
+// dropped quoted path understates a hint or an audit list rather than
+// widening what tpatch touches.
 func FilesInPatch(patch string) []string {
 	seen := map[string]bool{}
 	var out []string
