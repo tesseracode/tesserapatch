@@ -1,3 +1,44 @@
+## Review — v0.15.1 Wave A / GH #7 rev-1 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commits**: `3c583e6`, `04ac7f2`
+**Reviewed range**: `556f9fa..a1e077b`
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Verified Clean
+
+- Exact NUL-mode trailing-space/tab paths, original issue surfaces, diffstat
+  residue, fail-closed primary paths and actionable empty-capture diagnostics.
+- Non-goals, full/race validation, md5, trailers and scratch cleanup.
+
+### Residual Findings
+
+1. **HIGH**: newline-delimited fallback remains intrinsically ambiguous when
+   a pathname continuation is shaped like a valid attribute such as
+   `locked x`.
+2. **HIGH**: bare `usage:` text is accepted as proof that `-z` is unsupported.
+3. **HIGH**: reconcile refresh calls `DiffFromCommitForPaths` without nested
+   worktree exclusions.
+4. **HIGH**: apply and record can write patch artifacts before a later
+   diffstat discovery failure.
+
+### Rev-2 Direction
+
+- Remove fallback execution; any NUL-mode failure is fail-closed with
+  actionable Git-version guidance.
+- Filter paths and append excludes inside `DiffFromCommitForPaths`.
+- Reorder apply/record so patch and diffstat discovery both finish before the
+  first write.
+- Test a first-success/second-failure discovery sequence for byte-identical
+  no-mutation behavior.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-2; same sequential implementer
+continues.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-0 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`)

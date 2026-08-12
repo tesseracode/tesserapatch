@@ -2,18 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
-v0.15.1 Wave A rev-1 (GitHub issue #7) closes the three rev-0 residuals,
-the test note and the folded user-external diagnostic note. Validated and
-pushed. Awaiting review.
+v0.15.1 Wave A rev-1 remains blocked by an ambiguous legacy fallback,
+reconcile-refresh bypass, and mutation ordering. Rev-2 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-1
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-2
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record capture and land planning.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-1 dispatch HEAD**: `556f9fa`
@@ -305,6 +304,29 @@ this repository shows only the primary worktree, and
    It has one caller (the empty-capture diagnostic), so the blast
    radius is that message only — confirm the `all` upgrade is not
    observable anywhere else.
+
+## Rev-1 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Valid residuals:
+  1. Legacy newline porcelain cannot distinguish a path continuation that
+     looks like a valid attribute; fallback must fail closed.
+  2. Bare `usage:` text is too weak to authorize fallback.
+  3. Reconcile accepted-result refresh uses `DiffFromCommitForPaths` without
+     nested-worktree filtering.
+  4. Apply/record can write canonical artifacts before a later diffstat
+     discovery failure.
+- Scratch artifacts reported by the user-external rev-0 review are absent;
+  only guarded WIP remains.
+
+## Next Steps
+
+1. Remove the ambiguous legacy fallback; require NUL porcelain or fail closed.
+2. Filter `DiffFromCommitForPaths`, including reconcile refresh.
+3. Compute all discovery-dependent patch/diffstat results before writes.
+4. Add late-failure transactional regressions.
+5. Run final dual review and close #7 only after approval.
 
 ## Blockers
 

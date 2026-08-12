@@ -657,6 +657,11 @@ REVISION. Rev-1 covers exact trailing-space/tab path bytes, strict legacy
 porcelain dequoting/fail-closed behavior, diffstat pathspec exclusion and
 CLI-level discovery-failure regression.
 
+**Wave A rev-1** (`3c583e6`, diagnostic fold `04ac7f2`): original reproducer
+APPROVED; internal NEEDS REVISION. Rev-2 removes the fundamentally ambiguous
+legacy fallback, filters reconcile refresh, and makes apply/record discovery
+transactional before the first artifact write.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
