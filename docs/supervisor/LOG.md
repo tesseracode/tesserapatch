@@ -1,3 +1,50 @@
+## Dispatch — v0.15.1 Wave B / GH #8 contract — 2026-08-12
+
+**Task**: Define post-land V7/V8 verification semantics before implementation.
+**WAVE_BASE**: `ad39e4a`
+**Issue**: https://github.com/tesseracode/tesserapatch/issues/8
+**Mode**: planning amendment, one writer, dual independent review
+
+### Reproduced Behavior
+
+- Pre-land target: V7 PASS, V8 PASS.
+- Post-land target: V7 PASS, V8 FAIL because HEAD already contains the patch.
+- Full committed-range re-record from original base does not change the
+  failure.
+- A landed leaf with no parents reproduces; hard-parent closure is not the
+  root cause.
+- At HEAD, forward apply fails and reverse apply succeeds; at
+  `status.apply.base_commit`, forward apply succeeds.
+
+### Planning Scope
+
+- Amend `PRD-verify-freshness.md`, `PRD-tpatch-land.md`, and ADR-013 (or a new
+  ADR only if the decision cannot fit ADR-013's boundary).
+- Define authoritative landing evidence: reachable commit, exact
+  `Tpatch-Feature`/patch-SHA/base trailers and parent relationship.
+- Define baseline selection for landed target and landed hard parents.
+- Define V7 recipe behavior for write/replace/append operations when content
+  is already materialized.
+- Define V8 already-materialized detection, current-HEAD drift checks,
+  diagnostics and remediation.
+- Preserve GH #2's independent V7/V8 reset regression and non-landed behavior.
+- Include negative cases: stale/mismatched trailer, multiple landing commits,
+  later drift, revert, cherry-pick/rebase, superseded/unapplied/rejected state.
+
+### Hard Constraints
+
+1. No verify implementation changes in Wave B.
+2. Verification remains read-only.
+3. Do not treat reverse-apply success alone as sufficient landing authority.
+4. Do not silently pass a patch that was materialized by unrelated code.
+5. All decisions need executable acceptance rows and exact source anchors.
+6. Preserve guarded WIP, Rule 18 and Side Research md5.
+
+### Action Taken
+
+Wave A closed and GH #7 closed. CURRENT/ROADMAP transitioned to Wave B rev-0
+planning dispatch from `ad39e4a`.
+
 ## Wave Close — v0.15.1 Wave A / GH #7 — 2026-08-12
 
 **WAVE_BASE**: `5d15fcf`

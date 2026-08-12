@@ -696,6 +696,13 @@ APPROVED. GH #7 accepted; original reproduction and all adversarial path,
 capture, land, index-transaction and crash-recovery scenarios closed. Wave A
 terminal range: `5d15fcf..54580d5`.
 
+**Wave A close**: ACCEPTED at `ad39e4a`; GH #7 closed; 8/8 gate PASS.
+
+**Wave B — GH #8 contract** 🚧 IN PROGRESS. Dispatch 2026-08-12,
+WAVE_BASE `ad39e4a`. Amend verify/land planning to define how V7/V8 treat a
+feature and hard parents whose patches are already materialized in reachable
+land commits. Implementation remains Wave C.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
