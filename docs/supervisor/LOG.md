@@ -1,3 +1,45 @@
+## Review — v0.15.1 Wave C / GH #8 rev-0 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, original
+reproducer)
+**Implementation commits**: `a4c1f51`, `c57069a`, `307faa5`, `82f1a0a`
+**Reviewed range**: `7cf245a..5697d0f`
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Verified Clean
+
+- Original GH #8 sequence fixed end-to-end.
+- Dual anchors, hardened C0, cherry/re-land recovery, per-member V10,
+  evidence grammar, schema, partial clone fixture, GH #2 regression and
+  full/race/cross validation.
+
+### Valid Findings
+
+1. **P1**: legacy `IsAncestor` and shadow Git calls bypass below-floor hard
+   stop / `GIT_NO_LAZY_FETCH`.
+2. **P1**: inventory is built twice and later code re-reads via
+   `ListFeatures`, `IsFeatureSuperseded`, and persistence reloads.
+3. **P1**: anchor qualification/identity swallow missing-object errors into
+   no-qualifier/ambiguous states.
+4. **P1**: artifact/generation read errors are suppressed as absence.
+5. **P2**: `base-commit-unreachable` advisory is never emitted.
+6. **P2**: land trims BaseCommit for validation but emits the original value.
+
+### Rev-1 Direction
+
+- Centralize every verify Git call under one floor-validated offline context.
+- Build one immutable inventory and pass it through V7/V8/V10/persistence.
+- Preserve missing-object and artifact/generation errors as terminal states.
+- Emit the reachability advisory.
+- Reject non-canonical whitespace rather than normalizing only for validation.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave C rev-1; same sequential implementer
+owns the fold.
+
 ## Dispatch — v0.15.1 Wave C / GH #8 implementation — 2026-08-12
 
 **WAVE_BASE**: `b768602`

@@ -745,6 +745,11 @@ WAVE_BASE `b768602`. Implement ADR-013 Amendment 1 rev-7 and the accepted
 161-row verify/land contract. One sequential implementer; no v0.15.1 tag
 until dual review and release close.
 
+**Wave C rev-0** (`a4c1f51`..`82f1a0a`): external APPROVED, internal NEEDS
+REVISION. Rev-1 closes offline Git bypasses, enforces a single immutable
+inventory, propagates history/artifact read errors, emits the reachability
+advisory, and rejects whitespace BaseCommit metadata.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

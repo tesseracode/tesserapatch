@@ -2,17 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-v0.15.1 Wave C (GitHub issue #8) is implemented end-to-end and awaiting
-review. All 161 accepted rows are implemented and green.
+v0.15.1 Wave C rev-0 is blocked by offline/inventory/error propagation and
+BaseCommit exactness defects. Rev-1 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
@@ -146,12 +146,28 @@ Modified:
 
 ## Next Steps
 
-1. Dual review against the 161 rows.
-2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
+1. Route all verify Git calls through floor/offline context.
+2. Make one immutable inventory authoritative end-to-end.
+3. Propagate missing-object and artifact/generation read errors.
+4. Emit base-commit-unreachable advisory and reject whitespace BaseCommit.
+5. Re-run dual review against all 161 rows.
 
 ## Blockers
 
-None.
+No external blocker. Rev-0 cannot ship until the adjudicated findings close.
+
+## Rev-0 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Valid findings:
+  1. Legacy ancestry/shadow calls bypass Git floor/offline environment.
+  2. Inventory is built/re-read multiple ways, including error-dropping APIs.
+  3. Missing-object anchor qualification errors are swallowed into
+     unavailable/ambiguous outcomes.
+  4. Artifact and generation read errors become absence.
+  5. Required base-commit-unreachable advisory is not emitted.
+  6. Land validates trimmed BaseCommit but emits the original whitespace value.
 
 ## Context for Next Agent
 
