@@ -97,6 +97,26 @@ func writeVerifyRecipe(t *testing.T, s *store.Store, slug string, recipe ApplyRe
 	}
 }
 
+// writeVerifyProvenance writes `artifacts/recipe-provenance.json` bound
+// to the CURRENT recipe bytes. Required by ADR-013 D15 for any recipe
+// carrying a real `preimage_hash`.
+func writeVerifyProvenance(t *testing.T, s *store.Store, slug, baseCommit string) {
+	t.Helper()
+	raw, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
+	if err != nil {
+		t.Fatalf("read recipe for provenance: %v", err)
+	}
+	sum := sha256Hex([]byte(raw))
+	prov := RecipeProvenance{BaseCommit: baseCommit, GeneratedAt: "2026-08-12T00:00:00Z", RecipeSHA256: &sum}
+	data, err := json.Marshal(prov)
+	if err != nil {
+		t.Fatalf("marshal provenance: %v", err)
+	}
+	if err := s.WriteArtifact(slug, "recipe-provenance.json", string(data)); err != nil {
+		t.Fatalf("write provenance: %v", err)
+	}
+}
+
 // ── V0 / V1 / V2 pass ───────────────────────────────────────────────────
 
 func TestRunVerify_V0V1V2_AllPass(t *testing.T) {
@@ -455,8 +475,12 @@ func TestRunVerify_JSONShape(t *testing.T) {
 			t.Errorf("JSON report missing required key %q", key)
 		}
 	}
-	if m["schema_version"] != "1.0" {
-		t.Errorf("schema_version=1.0 expected, got %v", m["schema_version"])
+	// v0.15.1 Wave C: schema_version moves 1.0 → 1.1. The guarantee is
+	// ADDITIVE semantic compatibility, not byte identity (AC-L113): every
+	// 1.0 key retains its name, type and position, and the landed blocks
+	// are added alongside.
+	if m["schema_version"] != "1.1" {
+		t.Errorf("schema_version=1.1 expected, got %v", m["schema_version"])
 	}
 	checks, ok := m["checks"].([]any)
 	if !ok || len(checks) != 11 {

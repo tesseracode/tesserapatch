@@ -117,6 +117,10 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 		return nil, fmt.Errorf("verify --all: nil store")
 	}
 
+	// D10/D17: ONE preflight, ONE inventory and ONE `git log`
+	// enumeration for the entire aggregate run, reused by every feature.
+	ctx := newVerifyRunContext(s)
+
 	feats, err := s.ListFeatureEntries()
 	if err != nil {
 		return nil, fmt.Errorf("verify --all: list features: %w", err)
@@ -203,7 +207,7 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 			continue
 		}
 
-		rep, runErr := RunVerify(s, slug, opts)
+		rep, runErr := runVerifyWithContext(s, slug, opts, ctx)
 		switch {
 		case IsRefused(runErr):
 			// Defensive — state slipped between the pre-check above and

@@ -35,7 +35,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -80,7 +79,7 @@ const (
 
 // verifySchemaVersion is the PRD §4.3 schema_version field for the
 // `--json` report. Bumping is a breaking change for harness consumers.
-const verifySchemaVersion = "1.0"
+const verifySchemaVersion = "1.1"
 
 // VerifyOptions controls a single `RunVerify` invocation.
 type VerifyOptions struct {
@@ -137,12 +136,22 @@ func postApplyVerifyStates() map[store.FeatureState]bool {
 // `Checks` field carries all ten check rows; `Persisted` carries the
 // minimal field set actually written to status.json (Reviewer Note 1).
 type VerifyReport struct {
-	SchemaVersion      string                        `json:"schema_version"`
-	Slug               string                        `json:"slug"`
-	VerifiedAt         string                        `json:"verified_at"`
-	Verdict            string                        `json:"verdict"` // "passed" | "failed" | "refused"
-	ExitCode           int                           `json:"exit_code"`
-	Reason             string                        `json:"reason,omitempty"` // populated on "refused"
+	SchemaVersion string `json:"schema_version"`
+	Slug          string `json:"slug"`
+	VerifiedAt    string `json:"verified_at"`
+	Verdict       string `json:"verdict"` // "passed" | "failed" | "refused"
+	ExitCode      int    `json:"exit_code"`
+	Reason        string `json:"reason,omitempty"` // populated on "refused"
+
+	// Schema 1.1 additive landed-verification surface (PRD §4.3.6).
+	// Emitted for EVERY feature, forward or landed. `freshness_label`
+	// is deliberately NOT a member here (Q16) — the derived label
+	// belongs to `tpatch status --json`.
+	Repository      *VerifyRepositoryInfo  `json:"repository,omitempty"`
+	Baseline        *VerifyBaseline        `json:"baseline,omitempty"`
+	LandingEvidence *VerifyLandingEvidence `json:"landing_evidence,omitempty"`
+	TargetMode      string                 `json:"target_mode,omitempty"`
+
 	Checks             []store.VerifyCheckResult     `json:"checks"`
 	LifecycleState     store.FeatureState            `json:"lifecycle_state"`
 	RecipeHashAtVerify string                        `json:"recipe_hash_at_verify,omitempty"`
@@ -155,6 +164,10 @@ type VerifyReport struct {
 	// shape is unchanged.
 	FailedAt   string `json:"failed_at,omitempty"`
 	ParentSlug string `json:"parent_slug,omitempty"`
+
+	// Advisories is the closed warn-severity vocabulary of §4.3.9.
+	// No advisory ever flips `passed` or the exit code.
+	Advisories []VerifyAdvisory `json:"advisories,omitempty"`
 
 	// Persisted is the trimmed record that gets written to status.json.
 	// It is NOT a separate JSON field on the report — RunVerify uses it
@@ -173,12 +186,19 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 	if strings.TrimSpace(slug) == "" {
 		return nil, errors.New("verify requires a feature slug")
 	}
+	return runVerifyWithContext(s, slug, opts, newVerifyRunContext(s))
+}
 
+// runVerifyWithContext is the single-feature pipeline over a run context
+// that may be SHARED across a `verify --all` run (D10/D17: one git
+// enumeration, one inventory, one preflight for the whole invocation).
+func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *verifyRunContext) (*VerifyReport, error) {
 	report := &VerifyReport{
 		SchemaVersion: verifySchemaVersion,
 		Slug:          slug,
 		VerifiedAt:    time.Now().UTC().Format(time.RFC3339),
-		Checks:        make([]store.VerifyCheckResult, 0, 10),
+		Checks:        make([]store.VerifyCheckResult, 0, 11),
+		Repository:    ctx.repositoryInfo(),
 	}
 
 	// V0 — status_loaded (severity: block-abort). If this fails the
@@ -251,50 +271,59 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 	// Config.DAGEnabled).
 	report.Checks = append(report.Checks, checkDependencyGateSatisfied(s, slug, status))
 
-	// V7 + V8 — closure replay (severity: block, dynamic). Skip if
-	// any earlier static block-severity check failed so we don't
-	// allocate a shadow we can't trust the inputs of.
-	v7v8Skip := anyBlockFailed(report.Checks)
-	if v7v8Skip {
-		report.Checks = append(report.Checks,
-			store.VerifyCheckResult{ID: CheckRecipeReplayClean, Severity: SeverityBlock, Passed: true, Skipped: true, Reason: "skipped: an earlier block-severity static check failed"},
-			store.VerifyCheckResult{ID: CheckPostApplyPatchReplayClean, Severity: SeverityBlock, Passed: true, Skipped: true, Reason: "skipped: V7 (recipe_replay_clean) skipped"},
-		)
-	} else {
-		patchPath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "post-apply.patch")
-		patchPresent := false
-		if fi, statErr := os.Stat(patchPath); statErr == nil && !fi.IsDir() {
-			patchPresent = true
-		}
-		cr := runClosureReplay(s, slug, status, recipe, recipePresent, patchPresent)
-		report.Checks = append(report.Checks, cr.v7, cr.v8)
-		if cr.failedAt != "" {
-			report.FailedAt = cr.failedAt
-			report.ParentSlug = cr.parentSlug
-		}
+	// V7 + V8 + V10 — the anchored dynamic phase (ADR-013 Amendment 1).
+	// The evidence classification decides forward vs landed mode; the
+	// dynamic phase owns the shadow, the arbitration and both anchors.
+	evidence := ctx.classifyEvidence(slug)
+	report.LandingEvidence = &evidence.Evidence
+	report.TargetMode = TargetModeForward
+	if evidence.Landed() || evidence.Terminal() || evidence.ArtifactsAbsent {
+		report.TargetMode = TargetModeLanded
+	}
+
+	phase := runDynamicPhase(anchoredInput{
+		ctx:           ctx,
+		store:         s,
+		slug:          slug,
+		status:        status,
+		recipe:        recipe,
+		recipePresent: recipePresent,
+		entry:         inventoryEntryOrEmpty(ctx, slug),
+		evidence:      evidence,
+		staticFailed:  anyBlockFailed(report.Checks),
+	})
+	baseline := phase.baseline
+	report.Baseline = &baseline
+	report.Checks = append(report.Checks, phase.v7, phase.v8)
+	if phase.failedAt != "" {
+		report.FailedAt = phase.failedAt
+		report.ParentSlug = phase.parentSlug
 	}
 
 	// V9 — reconcile_outcome_consistent (severity: warn). Reads
 	// status.Reconcile.Outcome ONLY (ADR-013 D6).
 	report.Checks = append(report.Checks, checkReconcileOutcomeConsistent(status))
 
-	// V10 — write_file_preimage_fresh (severity: block, downgraded to
-	// warn for superseded features). PRD-write-file-recipe-safety
-	// AC-9 + §5:130 + ADR-029 D6/D7. Scans each write-file operation
-	// in the parsed apply-recipe and compares its preimage_hash
-	// against the current on-disk file. Skipped when V2
-	// (recipe_parses) already skipped/failed — the check needs a
-	// parseable recipe to iterate.
-	report.Checks = append(report.Checks,
-		checkWriteFilePreimageFresh(s, slug, status, recipe, recipePresent))
+	// V10 — write_file_preimage_fresh, produced by the dynamic phase so
+	// each member is evaluated at its OWN baseline (D15).
+	report.Checks = append(report.Checks, phase.v10)
+	report.Advisories = append(report.Advisories, phase.advisories...)
+	report.Advisories = append(report.Advisories, ctx.inventoryAdvisories(slug)...)
 
-	// Hashes for the persisted record.
-	report.RecipeHashAtVerify = sha256Hex(recipeBytes)
-	report.PatchHashAtVerify = sha256Hex(readArtifactBytes(s, slug, "post-apply.patch"))
+	// Hashes for the persisted record — computed from the IMMUTABLE
+	// inventory bytes, never a fresh disk read (D17 / AC-L109).
+	report.RecipeHashAtVerify = sha256Hex(inventoryRecipeBytes(ctx, slug, recipeBytes))
+	report.PatchHashAtVerify = sha256Hex(inventoryPatchBytes(ctx, slug))
 
 	// Parent snapshot: iterate hard deps and read each parent's
 	// FeatureState.
 	report.ParentSnapshot = parentSnapshot(s, status)
+
+	// Instability detection (D17): re-state the inventory and fail the
+	// run if any feature was added, removed or changed while it ran.
+	if unstable := inventoryInstability(s, ctx.inv); unstable != "" {
+		markSnapshotUnstable(report, slug, unstable)
+	}
 
 	// Verdict: failed if any non-skipped, non-warn check failed.
 	report.Verdict, report.ExitCode = computeVerdict(report.Checks)
@@ -311,6 +340,10 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 		if err := s.WriteVerifyRecord(slug, report.Persisted); err != nil {
 			return report, fmt.Errorf("verify ran but persistence failed: %w", err)
 		}
+		// Verify's OWN documented write is not concurrent mutation: refresh
+		// this feature's captured status so a shared `verify --all` context
+		// does not read its own freshness record as instability (D17).
+		ctx.refreshAfterOwnWrite(s, slug)
 	}
 
 	// Use `recipe` only to suppress the unused-var warning when no
@@ -330,6 +363,16 @@ func (r *VerifyReport) WriteJSONReport(w io.Writer) error {
 // WriteHumanReport emits a brief per-check summary suitable for stderr.
 func (r *VerifyReport) WriteHumanReport(w io.Writer) {
 	fmt.Fprintf(w, "verify %s — %s\n", r.Slug, r.Verdict)
+	// §3.6.9: two lines above the check list naming both anchors, the
+	// replay anchor when it differs from the attestation, and the
+	// isolated-index probe.
+	if sw, ok := w.(io.StringWriter); ok {
+		writeLandedHeader(sw, r)
+	} else {
+		var buf strings.Builder
+		writeLandedHeader(&buf, r)
+		fmt.Fprint(w, buf.String())
+	}
 	for _, c := range r.Checks {
 		marker := "✓"
 		switch {
@@ -346,6 +389,9 @@ func (r *VerifyReport) WriteHumanReport(w io.Writer) {
 			line += " — " + c.Remediation
 		}
 		fmt.Fprintln(w, line)
+	}
+	for _, a := range r.Advisories {
+		fmt.Fprintf(w, "  ! [warn] %s — %s\n", a.Code, a.Message)
 	}
 }
 
@@ -822,89 +868,6 @@ func checkReconcileOutcomeConsistent(status store.FeatureStatus) store.VerifyChe
 	}
 }
 
-// checkWriteFilePreimageFresh — V10 (PRD-write-file-recipe-safety AC-9
-// + §5:130 verify integration, ADR-029 D6 + D7 + D8).
-//
-// Contract:
-//   - For every `write-file` operation in the parsed apply-recipe,
-//     recompute the current on-disk file's SHA-256 (via the shared
-//     `checkWriteFilePreimage` helper) and check whether the recipe's
-//     preimage_hash still matches.
-//   - Effective (non-superseded) feature: any preimage mismatch or
-//     missing-file drift is SeverityBlock and fails the check. This is
-//     PRD §7.2's authoritative v1 rule ("v1 blocks only on preimage
-//     mismatch"): verify surfaces the same signal that apply refuses on.
-//   - Superseded feature: the same mismatches are surfaced but the
-//     check's severity is downgraded to SeverityWarn per ADR-029 D7
-//     and Slice 4's supersession-controls-severity coupling — the
-//     superseder's recipe is the effective source of truth, so a stale
-//     preimage on the superseded feature is expected and must not
-//     block the report.
-//   - Legacy recipe path (op.PreimageHash == nil / preimageLegacyWarn)
-//     is treated as a non-failing pass — ADR-029 D4 already emitted the
-//     legacy-warn at record/apply time; V10 does not re-warn.
-//   - When V2 (recipe_parses) skipped or failed, V10 skips with a
-//     matching reason so the check row remains stable-shaped.
-//   - Non-write-file operations (preimageSkip) contribute nothing.
-//
-// Diagnostic bodies follow ADR-029 D8: only paths, hashes, and slug/op
-// coordinates appear. No file contents are embedded.
-func checkWriteFilePreimageFresh(s *store.Store, slug string, status store.FeatureStatus, recipe ApplyRecipe, recipePresent bool) store.VerifyCheckResult {
-	if !recipePresent {
-		return store.VerifyCheckResult{
-			ID:       CheckWriteFilePreimageFresh,
-			Severity: SeverityBlock,
-			Passed:   true,
-			Skipped:  true,
-			Reason:   "skipped: V2 (recipe_parses) skipped or failed",
-		}
-	}
-	// Supersession downgrade — parallel to Slice 4's writefile_safety
-	// appendDrift routing. When an active superseder claims this
-	// feature, block-severity failures land as warn-severity so
-	// verify does not veto a legitimately-superseded feature that
-	// still has an older stale preimage on record (D7).
-	superseder, superseded := IsFeatureSuperseded(s, slug)
-	severity := SeverityBlock
-	if superseded {
-		severity = SeverityWarn
-	}
-
-	var failures []string
-	for i, op := range recipe.Operations {
-		outcome, msg := checkWriteFilePreimage(s.Root, slug, i, op)
-		switch outcome {
-		case preimageRejected:
-			failures = append(failures, msg)
-		case preimageOK, preimageLegacyWarn, preimageSkip:
-			// preimageLegacyWarn: ADR-029 D4 already surfaces the
-			// legacy warning at record/apply time; V10 does not
-			// re-emit. preimageSkip: not a write-file. preimageOK:
-			// nothing to report.
-		}
-	}
-
-	if len(failures) == 0 {
-		return store.VerifyCheckResult{
-			ID:       CheckWriteFilePreimageFresh,
-			Severity: severity,
-			Passed:   true,
-		}
-	}
-
-	remediation := strings.Join(failures, "; ")
-	if superseded {
-		remediation = fmt.Sprintf("%s (downgraded to warn: superseded by %q per ADR-029 D7 + PRD-feature-supersession §4.5 \"Reconcile interaction with write-file safety\")",
-			remediation, superseder)
-	}
-	return store.VerifyCheckResult{
-		ID:          CheckWriteFilePreimageFresh,
-		Severity:    severity,
-		Passed:      false,
-		Remediation: remediation,
-	}
-}
-
 // ── V7 + V8 — hard-parent topological closure replay ────────────────────
 //
 // PRD §3.4.3 spec. ONE shadow is allocated for the run; V7 replays the
@@ -917,274 +880,6 @@ func checkWriteFilePreimageFresh(s *store.Store, slug string, status store.Featu
 // The closure-replay primitive lives ONLY in this file (ADR-010 D2 +
 // ADR-013 §3.4.3 "Why this is verify-only"). Do not factor out into a
 // shared helper without an ADR amendment.
-type closureReplayResult struct {
-	v7         store.VerifyCheckResult
-	v8         store.VerifyCheckResult
-	failedAt   string
-	parentSlug string
-}
-
-func runClosureReplay(s *store.Store, slug string, status store.FeatureStatus, recipe ApplyRecipe, recipePresent, patchPresent bool) closureReplayResult {
-	// Edge case (PRD-verify-freshness §5, line 526): both apply-recipe.json
-	// and post-apply.patch absent → skip V7 and V8, do NOT allocate the
-	// shadow. The shadow is only spun up when at least one of the two
-	// dynamic checks has an artifact to validate.
-	if !recipePresent && !patchPresent {
-		return closureReplayResult{
-			v7: store.VerifyCheckResult{ID: CheckRecipeReplayClean, Severity: SeverityBlock, Passed: true, Skipped: true, Reason: "no apply-recipe.json (precondition not met)"},
-			v8: store.VerifyCheckResult{ID: CheckPostApplyPatchReplayClean, Severity: SeverityBlock, Passed: true, Skipped: true, Reason: "no post-apply.patch (precondition not met)"},
-		}
-	}
-
-	// V7 skipped reason when recipe is absent but we still proceed to
-	// allocate the shadow (because patch is present and V8 must run
-	// against the closure-replayed baseline — PRD §5 line 524).
-	v7SkipRecipeAbsent := store.VerifyCheckResult{
-		ID:       CheckRecipeReplayClean,
-		Severity: SeverityBlock,
-		Passed:   true,
-		Skipped:  true,
-		Reason:   "no apply-recipe.json (precondition not met)",
-	}
-
-	// 1. Compute hard-parent closure (BFS over DependencyKindHard).
-	//
-	// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession §5.1):
-	// pre-load all features once and use isFeatureSupersededIn to
-	// skip parents that are superseded by an active healthy
-	// superseder. Skipped parents are silently omitted from the
-	// closure — their historical recipes are excluded from the
-	// effective replay baseline (§3.3 default replay filtering).
-	//
-	// v0.12.0 rev-1 Internal F1 runtime flip (PRD §4.5.3 + ADR-028
-	// D6/D8): supersession excludes the historical target whether
-	// the superseder is healthy OR stale. Both cases keep the
-	// exclusion; operators see `stale-superseder` on the graph as
-	// the signal that the replacement needs repair, matching the
-	// composeSupersessionLabels docstring and PRD §4.5.3 clause 3.
-	// Drift on the historical stays warning-class per ADR-028 D8.
-	allFeatures, _ := s.ListFeatures()
-	closure := map[string][]store.Dependency{}
-	closure[slug] = filterHardDeps(status.DependsOn)
-	queue := append([]string(nil), depSlugsHard(status.DependsOn)...)
-	for len(queue) > 0 {
-		curr := queue[0]
-		queue = queue[1:]
-		if _, seen := closure[curr]; seen {
-			continue
-		}
-		if _, superseded := isFeatureSupersededIn(allFeatures, curr); superseded {
-			// Skip the superseded historical parent AND stop
-			// walking its own hard-parent chain — its ancestors
-			// are only in the closure because of this excluded
-			// node. If any ancestor is legitimately needed via a
-			// different hard-dep path, it will be re-queued via
-			// that path.
-			continue
-		}
-		st, err := s.LoadFeatureStatus(curr)
-		if err != nil {
-			closure[curr] = nil
-			continue
-		}
-		hd := filterHardDeps(st.DependsOn)
-		closure[curr] = hd
-		for _, d := range hd {
-			queue = append(queue, d.Slug)
-		}
-	}
-
-	// 2. Topological order over hard-only sub-DAG.
-	order, err := store.TopologicalOrder(closure)
-	if err != nil {
-		return closureReplayResult{
-			v7: store.VerifyCheckResult{
-				ID:          CheckRecipeReplayClean,
-				Severity:    SeverityBlock,
-				Passed:      false,
-				Remediation: fmt.Sprintf("hard-parent closure topology failed: %v; investigate or re-run tpatch implement %s", err, slug),
-			},
-			v8: skipV8Because("V7 (recipe_replay_clean) failed: topology"),
-		}
-	}
-
-	// 3. Allocate ONE shadow for the run, defer prune.
-	head, err := gitutil.HeadCommit(s.Root)
-	if err != nil {
-		return closureReplayResult{
-			v7: store.VerifyCheckResult{
-				ID:          CheckRecipeReplayClean,
-				Severity:    SeverityBlock,
-				Passed:      false,
-				Remediation: fmt.Sprintf("cannot resolve HEAD for shadow allocation: %v", err),
-			},
-			v8: skipV8Because("V7 (recipe_replay_clean) failed: HEAD unresolved"),
-		}
-	}
-	shadowPath, err := gitutil.CreateShadow(s.Root, slug, head)
-	if err != nil {
-		return closureReplayResult{
-			v7: store.VerifyCheckResult{
-				ID:          CheckRecipeReplayClean,
-				Severity:    SeverityBlock,
-				Passed:      false,
-				Remediation: fmt.Sprintf("cannot allocate shadow worktree: %v", err),
-			},
-			v8: skipV8Because("V7 (recipe_replay_clean) failed: shadow allocation"),
-		}
-	}
-	defer func() {
-		// ADR-013 D7: shadow is pruned before verify exits, regardless
-		// of pass/fail. Single defer guards every return path.
-		_ = gitutil.PruneShadow(s.Root, slug)
-	}()
-
-	// 4. Replay parents in topo order, skipping target. On any
-	// parent-replay failure: V7 carries the parent-replay remediation
-	// (PRD §3.4.3 verbatim form) and V8 is skipped with the
-	// "parent-replay aborted before V8" reason (PRD §4.3.5). This
-	// holds even when recipePresent is false — the parent-replay
-	// failure is still reported on V7.
-	for _, parent := range order {
-		if parent == slug {
-			continue
-		}
-		pst, err := s.LoadFeatureStatus(parent)
-		if err != nil {
-			return closureReplayResult{
-				v7:         parentReplayFail(parent, fmt.Errorf("cannot load parent status: %w", err)),
-				v8:         skipV8Because("skipped: parent-replay aborted before V8"),
-				failedAt:   "parent-replay",
-				parentSlug: parent,
-			}
-		}
-		switch pst.State {
-		case store.StateUpstreamMerged:
-			// Skip — parent's changes are already on the baseline.
-			continue
-		case store.StateApplied:
-			pr, prerr := loadParentRecipe(s, parent)
-			if prerr != nil {
-				return closureReplayResult{
-					v7:         parentReplayFail(parent, prerr),
-					v8:         skipV8Because("skipped: parent-replay aborted before V8"),
-					failedAt:   "parent-replay",
-					parentSlug: parent,
-				}
-			}
-			if _, rerr := replayRecipeOpsInShadow(shadowPath, pr.Operations); rerr != nil {
-				return closureReplayResult{
-					v7:         parentReplayFail(parent, rerr),
-					v8:         skipV8Because("skipped: parent-replay aborted before V8"),
-					failedAt:   "parent-replay",
-					parentSlug: parent,
-				}
-			}
-		default:
-			return closureReplayResult{
-				v7:         parentReplayFail(parent, fmt.Errorf("parent state is %q (need applied or upstream_merged)", pst.State)),
-				v8:         skipV8Because("skipped: parent-replay aborted before V8"),
-				failedAt:   "parent-replay",
-				parentSlug: parent,
-			}
-		}
-	}
-	closureBaselineTree, err := snapshotShadowTree(shadowPath)
-	if err != nil {
-		return closureReplayResult{
-			v7: store.VerifyCheckResult{
-				ID:          CheckRecipeReplayClean,
-				Severity:    SeverityBlock,
-				Passed:      false,
-				Remediation: fmt.Sprintf("cannot snapshot closure-replayed baseline: %v", err),
-			},
-			v8: skipV8Because("V7 (recipe_replay_clean) failed: closure baseline snapshot"),
-		}
-	}
-
-	// 5. V7 — apply target's recipe in the same shadow, OR skip if
-	// recipe is absent (PRD §5 line 524: V7 skipped when recipe absent
-	// but V8 still runs against the closure-replayed baseline).
-	var v7 store.VerifyCheckResult
-	if recipePresent {
-		if opIdx, rerr := replayRecipeOpsInShadow(shadowPath, recipe.Operations); rerr != nil {
-			return closureReplayResult{
-				v7: store.VerifyCheckResult{
-					ID:          CheckRecipeReplayClean,
-					Severity:    SeverityBlock,
-					Passed:      false,
-					Remediation: fmt.Sprintf("recipe op #%d failed in shadow replay: %v; investigate or re-run tpatch implement %s", opIdx, rerr, slug),
-				},
-				v8: skipV8Because("V7 (recipe_replay_clean) failed"),
-			}
-		}
-		v7 = store.VerifyCheckResult{ID: CheckRecipeReplayClean, Severity: SeverityBlock, Passed: true}
-	} else {
-		v7 = v7SkipRecipeAbsent
-	}
-
-	// 6. V8 — git apply --check post-apply.patch against the closure-
-	// replayed baseline. If V7 applied the target recipe, reset the
-	// shared shadow first so equivalent recipe/patch pairs are validated
-	// independently instead of double-applied. Skip if the patch is absent.
-	if !patchPresent {
-		return closureReplayResult{
-			v7: v7,
-			v8: store.VerifyCheckResult{
-				ID:       CheckPostApplyPatchReplayClean,
-				Severity: SeverityBlock,
-				Passed:   true,
-				Skipped:  true,
-				Reason:   "no post-apply.patch (precondition not met)",
-			},
-		}
-	}
-	if recipePresent {
-		if err := resetShadowToTree(shadowPath, closureBaselineTree); err != nil {
-			return closureReplayResult{
-				v7: v7,
-				v8: store.VerifyCheckResult{
-					ID:          CheckPostApplyPatchReplayClean,
-					Severity:    SeverityBlock,
-					Passed:      false,
-					Remediation: fmt.Sprintf("cannot reset shadow to closure-replayed baseline before V8: %v", err),
-				},
-			}
-		}
-	}
-	patchPath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "post-apply.patch")
-	cmd := exec.Command("git", "apply", "--check", patchPath)
-	cmd.Dir = shadowPath
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return closureReplayResult{
-			v7: v7,
-			v8: store.VerifyCheckResult{
-				ID:          CheckPostApplyPatchReplayClean,
-				Severity:    SeverityBlock,
-				Passed:      false,
-				Remediation: fmt.Sprintf("post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile %s", slug),
-			},
-		}
-	}
-	return closureReplayResult{
-		v7: v7,
-		v8: store.VerifyCheckResult{ID: CheckPostApplyPatchReplayClean, Severity: SeverityBlock, Passed: true},
-	}
-}
-
-// parentReplayFail formats the V7 result for a parent-replay failure
-// per PRD §3.1.2 (parent-replay variant).
-func parentReplayFail(parentSlug string, err error) store.VerifyCheckResult {
-	return store.VerifyCheckResult{
-		ID:          CheckRecipeReplayClean,
-		Severity:    SeverityBlock,
-		Passed:      false,
-		Remediation: fmt.Sprintf("hard parent %s failed to replay in shadow: %v; re-run tpatch verify %s on the parent first", parentSlug, err, parentSlug),
-	}
-}
-
 func skipV8Because(reason string) store.VerifyCheckResult {
 	return store.VerifyCheckResult{
 		ID:       CheckPostApplyPatchReplayClean,
@@ -1209,15 +904,11 @@ func snapshotShadowTree(shadowPath string) (string, error) {
 	if err := runShadowGit(shadowPath, "add", "-A", "-f"); err != nil {
 		return "", err
 	}
-	cmd := exec.Command("git", "write-tree")
-	cmd.Dir = shadowPath
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, stderr, err := gitutil.RunOfflineGitIn(shadowPath, "write-tree")
 	if err != nil {
-		return "", fmt.Errorf("git write-tree: %v: %s", err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("git write-tree: %v: %s", err, strings.TrimSpace(stderr))
 	}
-	tree := strings.TrimSpace(string(out))
+	tree := strings.TrimSpace(out)
 	if tree == "" {
 		return "", fmt.Errorf("git write-tree returned empty tree")
 	}
@@ -1231,13 +922,13 @@ func resetShadowToTree(shadowPath, tree string) error {
 	return runShadowGit(shadowPath, "clean", "-fdx")
 }
 
+// runShadowGit runs a git command inside the shadow worktree under the
+// offline discipline (ADR-013 D11: every object and materialization
+// command carries GIT_NO_LAZY_FETCH=1).
 func runShadowGit(shadowPath string, args ...string) error {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = shadowPath
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+	_, stderr, err := gitutil.RunOfflineGitIn(shadowPath, args...)
+	if err != nil {
+		return fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr))
 	}
 	return nil
 }
@@ -1250,18 +941,6 @@ func depSlugsHard(deps []store.Dependency) []string {
 		}
 	}
 	return out
-}
-
-func loadParentRecipe(s *store.Store, parent string) (ApplyRecipe, error) {
-	raw, err := s.ReadFeatureFile(parent, filepath.Join("artifacts", "apply-recipe.json"))
-	if err != nil {
-		return ApplyRecipe{}, fmt.Errorf("read parent recipe: %w", err)
-	}
-	var pr ApplyRecipe
-	if err := json.Unmarshal([]byte(raw), &pr); err != nil {
-		return ApplyRecipe{}, fmt.Errorf("parse parent recipe: %w", err)
-	}
-	return pr, nil
 }
 
 // replayRecipeOpsInShadow applies recipe ops directly against the

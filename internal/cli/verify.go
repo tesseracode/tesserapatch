@@ -53,7 +53,14 @@ freshness-overlay record to status.json. V0-V10 all execute as real checks
 (status_loaded through write_file_preimage_fresh); individual checks
 may still report skipped when their documented preconditions are absent.
 The lifecycle state is never mutated — verify is a freshness overlay, not
-a state transition (ADR-013 D1).`,
+a state transition (ADR-013 D1).
+
+When a feature has been landed (its four-trailer block is reachable from
+HEAD), verification is dual-anchor: the recipe and patch are replayed at
+the landing baseline, and the canonical patch is separately asserted to
+still be materialized at HEAD through an isolated index that never reads
+the working tree or the real index. Verify is offline and requires
+git >= 2.36.`,
 		// Args validated inside RunE — `--all` flips the slug from
 		// required to forbidden. Cobra cannot express that natively.
 		Args: cobra.ArbitraryArgs,

@@ -297,6 +297,20 @@ type VerifyRecord struct {
 
 // VerifyCheckResult is the per-check entry in the in-memory `--json`
 // report. NOT persisted to status.json (see VerifyRecord doc).
+//
+// The last four fields are the additive schema-1.1 surface of the
+// v0.15.1 landed-verification contract (PRD-verify-freshness §4.3.6,
+// ADR-013 Amendment 1). All are `omitempty`, so a forward-mode report is
+// a semantic superset of schema 1.0 rather than a breaking change:
+//
+//   - Mode is present on V7, V8 and V10 in EVERY report — passed, failed
+//     and skipped — and absent on V0–V6 and V9.
+//   - AnchorResults is V8-only and carries {"historical","current"}.
+//   - MemberBaselines is V10-only: slug → the baseline commit that
+//     member's preimages were evaluated at, proving each landed member
+//     used its OWN anchor.
+//   - ProvenanceHashBound is V10-only in provenance mode: false when the
+//     sidecar predates `recipe_sha256`.
 type VerifyCheckResult struct {
 	ID          string `json:"id"`
 	Severity    string `json:"severity"` // "block" | "block-abort" | "warn"
@@ -304,6 +318,11 @@ type VerifyCheckResult struct {
 	Skipped     bool   `json:"skipped,omitempty"`
 	Reason      string `json:"reason,omitempty"`
 	Remediation string `json:"remediation,omitempty"`
+
+	Mode                string            `json:"mode,omitempty"`
+	AnchorResults       map[string]string `json:"anchor_results,omitempty"`
+	MemberBaselines     map[string]string `json:"member_baselines,omitempty"`
+	ProvenanceHashBound *bool             `json:"provenance_hash_bound,omitempty"`
 }
 
 // Dependency declares a relationship from a child feature to a parent feature

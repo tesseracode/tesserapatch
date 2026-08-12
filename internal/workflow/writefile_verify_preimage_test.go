@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -53,6 +55,36 @@ func findCheckR4(t *testing.T, checks []store.VerifyCheckResult, id string) stor
 	return store.VerifyCheckResult{}
 }
 
+// sliceR4Anchor commits the current worktree and writes the
+// `recipe-provenance.json` sidecar that v0.15.1 Wave C / ADR-013 D15
+// requires for any op carrying a real `preimage_hash`. Forward-mode V10
+// evaluates preimages at `RecipeProvenance.BaseCommit` — never the live
+// working tree, which was the measured false block (Q15).
+func sliceR4Anchor(t *testing.T, s *store.Store) {
+	t.Helper()
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-q", "-m", "anchor"}} {
+		c := exec.Command("git", args...)
+		c.Dir = s.Root
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	head, err := gitutil.HeadCommit(s.Root)
+	if err != nil {
+		t.Fatalf("HeadCommit: %v", err)
+	}
+	writeVerifyProvenance(t, s, currentSlugForAnchor, head)
+}
+
+// currentSlugForAnchor is set by sliceR4AnchorFor.
+var currentSlugForAnchor string
+
+func sliceR4AnchorFor(t *testing.T, s *store.Store, slug string) {
+	t.Helper()
+	currentSlugForAnchor = slug
+	sliceR4Anchor(t, s)
+}
+
 // TestSliceR4_PreimageFreshPassesWhenMatching — baseline: an effective
 // feature whose recipe preimage matches the on-disk file passes V10.
 func TestSliceR4_PreimageFreshPassesWhenMatching(t *testing.T) {
@@ -65,6 +97,7 @@ func TestSliceR4_PreimageFreshPassesWhenMatching(t *testing.T) {
 		Operations: []RecipeOperation{{Type: "write-file", Path: "src/a.txt", PreimageHash: ptr(hash), Content: "next\n"}},
 	}
 	writeVerifyRecipe(t, s, slug, recipe)
+	sliceR4AnchorFor(t, s, slug)
 
 	report, err := RunVerify(s, slug, VerifyOptions{NoWrite: true})
 	if err != nil {
@@ -99,6 +132,7 @@ func TestSliceR4_PreimageFreshBlocksOnMismatchForEffective(t *testing.T) {
 		Operations: []RecipeOperation{{Type: "write-file", Path: "src/a.txt", PreimageHash: ptr(expected), Content: "next\n"}},
 	}
 	writeVerifyRecipe(t, s, slug, recipe)
+	sliceR4AnchorFor(t, s, slug)
 
 	report, err := RunVerify(s, slug, VerifyOptions{NoWrite: true})
 	if err != nil {
@@ -141,6 +175,7 @@ func TestSliceR4_PreimageFreshDowngradesForSuperseded(t *testing.T) {
 		Operations: []RecipeOperation{{Type: "write-file", Path: "src/a.txt", PreimageHash: ptr(expected), Content: "next\n"}},
 	}
 	writeVerifyRecipe(t, s, slug, recipe)
+	sliceR4AnchorFor(t, s, slug)
 
 	// Register an active healthy superseder that declares
 	// `supersedes` on the target — matches Slice 4 fixture pattern.
