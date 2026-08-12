@@ -1,3 +1,32 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-5 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, follow-up)
+**Writer commit**: `b6d4f89`
+**Reviewed range**: `4c632b6..b6d4f89`
+
+### Verdict: NEEDS REVISION → REV-6 TOTALITY SWEEP
+
+### Verified Clean
+
+- Git 2.36 floor, presence short-circuit, recovery-first Mode A, partial-clone
+  implementation gate, 159-row matrix and all prior decisions.
+
+### Remaining Blocker
+
+Authoritative legacy sections still contradict the amendment:
+
+- V9-last / ten-check sequence;
+- rev-3/rev-1 amendment labels;
+- land header's behavior-unchanged claim;
+- hardcoded 40-hex and absence-as-mismatch rules;
+- verify non-goal excluding the required land producer refusal.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to rev-6 for a docs-only search-and-correct
+pass with totality grep guards.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-4 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)

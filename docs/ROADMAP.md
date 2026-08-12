@@ -728,6 +728,9 @@ NOTES. Rev-5 sets the effective Git floor to 2.36, removes unreachable
 artifact-state rows, clarifies recovery-before-validation, and completes
 11-check cross-document parity.
 
+**Wave B rev-5** (`b6d4f89`): external APPROVED, internal NEEDS REVISION on
+stale authoritative prose only. Rev-6 performs the final totality sweep.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

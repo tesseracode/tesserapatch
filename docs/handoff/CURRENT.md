@@ -2,22 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-6 DISPATCHED
 
-v0.15.1 Wave B **rev-5** is written and pushed. All five rev-4 corrections are
-closed: the effective Git floor is **2.36**, artifact presence **short-circuits
-before** evidence classification, Mode A's no-mutation promise is scoped around
-the mandatory `recoverLand` step, the real-filtered-remote partial-clone path is
-a **Wave C acceptance gate** rather than a claimed fact, and every authoritative
-document has been swept for stale prose. Planning only — no Go, tests, assets,
-SPEC, CHANGELOG or GitHub issue state was touched.
+v0.15.1 Wave B rev-5 decisions are externally approved, but authoritative
+legacy prose still contradicts them. Rev-6 is a surgical totality sweep.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-5)
+- **Status**: In Progress (rev-6)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-5)**: `4c632b6`
@@ -134,6 +129,23 @@ implicated. Validation was documentary and empirical:
    sections) was not swept — out of scope for a landed-contract revision.
 9. **Git floor 2.36** is a user-visible tightening; Wave C should surface it in
    release notes.
+
+## Rev-5 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Remaining blocker is authoritative stale prose:
+  - V9-last / ten-check sequence in the main PRD;
+  - stale amendment rev labels;
+  - land header claims behavior unchanged despite D19;
+  - stale 40-hex and absence-as-mismatch rules;
+  - non-goal still excludes the required land producer change.
+
+## Next Steps
+
+1. Sweep and correct every authoritative contradiction.
+2. Add grep-based totality guards to the acceptance matrix.
+3. Run final dual confirmation and accept Wave B.
 
 ## Reviewer focus
 
