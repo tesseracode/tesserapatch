@@ -19,9 +19,8 @@ All notable changes to tpatch are recorded here.
 
   A single authority now answers "is this path inside a registered linked
   worktree nested under the target repository?":
-  `gitutil.NestedWorktreePrefixes` (discovery, preferring the
-  NUL-delimited `git worktree list --porcelain -z` shape and falling back
-  to the newline-delimited form on Git < 2.36) plus
+  `gitutil.NestedWorktreePrefixes` (discovery via the NUL-delimited
+  `git worktree list --porcelain -z` shape) plus
   `gitutil.PathUnderNestedWorktree` (segment-boundary path membership).
   Every untracked-discovery, diff, and staging surface routes through it:
 
@@ -62,15 +61,33 @@ All notable changes to tpatch are recorded here.
   as the patch, so a pre-existing intent-to-add or staged gitlink for a
   nested worktree cannot leak through the diffstat either.
 
-  On Git older than 2.36, where `git worktree list --porcelain -z` does
-  not exist, the newline-delimited shape is parsed strictly: records are
-  validated against Git's known attribute keys, C-quoted paths are
-  decoded, unquoted paths keep their bytes including trailing
-  whitespace, and any ambiguity — an unrecognised continuation line, an
-  unterminated or malformed quote — is refused with guidance to upgrade
-  Git rather than guessed at. A `-z` failure that is not an
-  unknown-switch usage error is never re-routed through the weaker
-  legacy shape.
+  **Git 2.36 is a safety floor for this guard.** `git worktree list
+  --porcelain -z` is the only shape that delimits worktree paths
+  losslessly, and tpatch runs no other. There is no newline-delimited
+  fallback: that shape is intrinsically ambiguous — a worktree path
+  containing a newline whose continuation happens to look like a valid
+  attribute (`locked x`, `bare`, `HEAD <sha>`) parses as a well-formed
+  record, so no amount of structural validation can distinguish it, and
+  the worktree would silently escape the filter. Every `-z` failure —
+  unknown switch, usage error, broken repository, missing git — is
+  fail-closed with guidance naming the 2.36 requirement.
+
+  Reconcile's derived-artifact refresh is covered too:
+  `gitutil.DiffFromCommitForPaths` filters caller paths before the
+  intent-to-add pass and appends the same `:(exclude,literal)` excludes
+  to its diff, so a stale gitlink recorded by a pre-fix tpatch cannot
+  survive into the refreshed `post-apply.patch`, the numbered
+  `NNN-reconcile.patch`, or the generation metadata. When every path a
+  caller asked for is a nested worktree the result is an empty diff,
+  never a broadened full-tree diff.
+
+  Discovery is transactional with respect to writes: `apply --mode done`
+  and `record` complete every discovery-dependent read — canonical patch
+  and diffstat — before the first artifact write, so a discovery failure
+  leaves the feature directory byte-for-byte unchanged and the state
+  unadvanced. Each capture helper now performs exactly one discovery and
+  threads the result through, so a single command cannot observe two
+  different answers.
 
   Unchanged by design: ordinary directories (including prefix-boundary
   siblings such as `agent-other` next to `agent`, or `agent` next to

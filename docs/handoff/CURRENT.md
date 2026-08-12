@@ -2,169 +2,143 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-1 remains blocked by an ambiguous legacy fallback,
-reconcile-refresh bypass, and mutation ordering. Rev-2 is dispatched.
+v0.15.1 Wave A rev-2 (GitHub issue #7) closes all four rev-1 HIGH
+findings. Validated and pushed. Awaiting review.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave A / GH #7 rev-2
 - **Description**: Exclude registered linked Git worktrees nested beneath
-  the target repository from apply/record capture and land planning.
-- **Status**: In Progress
+  the target repository from apply/record/reconcile capture and land
+  planning.
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
-- **Rev-1 dispatch HEAD**: `556f9fa`
+- **Rev-2 dispatch HEAD**: `79a6c2b`
 - **Target release**: v0.15.1
 
-## Rev-0 residual closures
+## Rev-1 finding closures
 
-### R1 (HIGH) — NUL porcelain path bytes — CLOSED
+### F1 (HIGH) — newline fallback intrinsically ambiguous — CLOSED
 
-`normalizeRepoRelPath` applied `strings.TrimSpace`. For a worktree
-directory named `wt/trailing space `, discovery derived the prefix
-`wt/trailing space` while `git ls-files --others` reported
-`wt/trailing space /`, which `path.Clean`s to `wt/trailing space ` — the
-two no longer matched, so the worktree flowed straight back into
-capture as a `mode 160000` gitlink.
+The fallback is **removed**, not tightened. The reviewer's counter-example
+is exact: a worktree path containing a newline whose continuation is
+shaped like a valid attribute (`locked x`, `bare`, `HEAD <sha>`) parses
+as a well-formed record, so structural validation can never distinguish
+it and the worktree escapes the filter.
 
-All whitespace normalization is removed from the path pipeline:
+`listRegisteredWorktreePaths` now runs `git worktree list --porcelain -z`
+and nothing else. Deleted from production: `parseWorktreeListLegacy`,
+`decodeLegacyWorktreePath`, `unquoteCStyle`, `legacyAmbiguityError`,
+`worktreeAttrKeys`, `isUnknownSwitchError`. No quarantined copy was kept
+— there was no tested reason to keep one.
 
-- `parseWorktreeListNUL` takes the value after the exact `worktree `
-  key verbatim; the emptiness guard is exact equality, not `TrimSpace`;
-- `nestedWorktreePrefixes` skips only exactly-empty records;
-- `normalizeRepoRelPath` performs `ToSlash` + `path.Clean` only.
+### F2 (HIGH) — bare `usage:` accepted as proof `-z` is unsupported — CLOSED
 
-Absolute canonicalization (`filepath.Abs`, `EvalSymlinks`, the
-missing-ancestor fallback) and `:(exclude,literal)` pathspec rendering
-already preserved bytes and are unchanged.
+Moot by construction: stderr is no longer classified at all. Every
+failure — unknown switch, usage error, broken repository, missing git —
+returns the wrapped `ErrNestedWorktreeDiscovery` with guidance naming
+the Git 2.36 requirement and stating that tpatch will not fall back.
 
-**Proof**: temporarily restoring the single `TrimSpace` call makes
-`TestNestedWorktreePrefixes_ExoticNamesRealRepo` fail with
-`new file mode 160000` entries for `wt/trailing space ` and
-`wt/trailing tab\t`; removing it again makes the test pass. The
-regression is therefore pinned, not merely asserted.
+### F3 (HIGH) — reconcile refresh bypassed the exclusions — CLOSED
 
-### R2 (HIGH) — legacy newline fallback — CLOSED
+`DiffFromCommitForPaths` now:
 
-Empirically, Git does **not** C-quote in `worktree list --porcelain`
-without `-z`: a worktree at `wt/new\nline` is emitted as a raw embedded
-newline, which is exactly why `-z` was added in Git 2.36. The rev-0
-fallback split on `\n` and took whatever followed `worktree `, so such a
-path was silently truncated.
+- discovers nested prefixes/excludes **first**, before the temp index is
+  created or any `git add -N` runs, so a discovery failure cannot leave a
+  half-mutated temp index (and, at the caller layer, cannot happen after
+  an artifact write);
+- filters the caller's paths before the intent-to-add pass;
+- appends `:(exclude,literal)` pathspecs to the diff so index residue
+  cannot re-admit the worktree;
+- returns an **empty diff** when every caller path was a nested worktree,
+  never a broadened full-tree diff;
+- with an empty caller list, still produces the full diff minus nested
+  worktrees.
 
-`parseWorktreeListLegacy` is now strict:
+The global `--literal-pathspecs` flag on the diff is replaced by the
+per-pathspec `:(literal)` form — identical semantics for caller paths
+(pinned by `TestDiffFromCommitForPathsKeepsLiteralPathSemantics` using a
+`weird[1]*name.txt` fixture) while leaving pathspec magic enabled so the
+excludes are honoured. Linked-worktree effective-index behavior is
+unchanged and pinned by two tests.
 
-- a record starts at a `worktree ` line and ends at a blank line;
-- every other line must be a known attribute key (`HEAD`, `branch`,
-  `bare`, `detached`, `locked`, `prunable`), optionally with a value;
-  an unrecognised line is treated as the continuation of a
-  newline-bearing path and refused;
-- a value starting with `"` must be a well-formed, fully terminated Git
-  C-quoted string, decoded by `unquoteCStyle` (`\a \b \f \n \r \t \v
-  \" \\` and 1–3 digit octal). Malformed quoting is refused, never
-  taken literally;
-- an unquoted value is preserved byte-for-byte including trailing
-  spaces and tabs; `\r` is not stripped, since Git does not emit CRLF
-  here and a trailing `\r` is a legitimate path byte;
-- every refusal names the fix: upgrade to Git 2.36+ for
-  `git worktree list --porcelain -z`.
+`RefreshAfterAccept` derives its touched-path set through the new
+`gitutil.FilterPathsExcludingNestedWorktrees`, and that one filtered list
+feeds the regenerated diff, the numbered `NNN-reconcile.patch` **and**
+`Capture.Pathspecs` in the generation metadata — the metadata previously
+re-derived from the unfiltered original patch. When every original path
+was a nested worktree it regenerates nothing rather than widening scope.
 
-Routing is also tightened. `-z` failure is classified by stderr: only
-an unknown-switch / usage error routes to the legacy shape. Any other
-`-z` failure (broken repository, not a work tree) fails closed instead
-of silently re-running through the weaker parser.
+### F4 (HIGH) — writes before a later discovery failure — CLOSED
 
-### R3 (MEDIUM) — diffstat bypass — CLOSED
+`runApplyDone`: the canonical patch and the diffstat are both computed
+before the first write. The non-reapply branch also defers its
+`could not capture patch` warning until after discovery, so the message
+order on the success path is unchanged. The reapply branch computes the
+diffstat before falling through to the shared write.
 
-`CaptureDiffStatScoped` (and therefore `CaptureDiffStat`) now appends
-the same `:(exclude,literal)` nested-worktree pathspecs as the patch
-capture and fails closed on discovery error. Both CLI diffstat call
-sites propagate `ErrNestedWorktreeDiscovery` rather than swallowing it,
-which matters on the reapply branch of `apply --mode done` where the
-diffstat is the first Git read.
+`record`: the diffstat is hoisted above `WriteArtifact(post-apply.patch)`
+and the numbered snapshot. `record.md` consumes the same hoisted value.
 
-Additionally, `land`'s `dirtyPaths` now reads
-`git status --porcelain -z`. The newline shape C-quotes any path
-containing a space, and the previous `TrimSpace` + `Trim(path, "\"")`
-dequote corrupted exactly the names the filter must match; the `-z`
-shape is unquoted and byte-exact. Rename/copy entries consume their
-extra origin field; the new path is still the staged one.
+Both route through the new `captureDiffStatFailClosed`, which preserves
+the historical tolerance (a transient Git failure yields an empty
+diffstat and the artifact is skipped) while surfacing the discovery
+class.
 
-### R4 (test note) — CLI fail-closed regression — CLOSED
+**Discovery-count reduction.** Investigating `cycle` showed
+`CapturePatchScoped` was itself discovering twice (once for excludes,
+once inside `listUntrackedFiles`). Each capture helper now discovers
+exactly once and threads both products through
+(`listUntrackedFilesWithPrefixes`, `stagedNameOnly`/`unstagedNameOnly`
+taking excludes, `untrackedFiltered` taking prefixes). A single command
+can no longer observe two different answers, and the failure window
+before the first write is minimal.
 
-`installFailingWorktreeListGit` puts a `git` wrapper on `PATH` that
-fails only for `git worktree list` (with a `fatal:` error, so it
-exercises the genuine-failure branch rather than the legacy fallback)
-and execs the real git otherwise. Production code is untouched — the
-seam is the `git` executable. The same helper's returned `restore`
-proves recovery in the same test.
+`cycle` inspected: its only discovery-dependent read is the [6/6]
+capture, and every record-phase write follows it. Proven by the seam
+test — a discovery failure leaves no `post-apply.patch`,
+`post-apply-diff.txt` or numbered patch, and does not advance the feature
+to `applied`. The earlier phases' analysis/spec/exploration/recipe
+artifacts are not discovery-dependent.
 
-### R5 (user-external LOW, rev-0 fold) — misleading empty-capture diagnostic — CLOSED
-
-`record --files '<nested worktree>'` filtered every requested path away
-and then fell through to the generic zero-byte diagnostic, which
-speculates "possibly mode-only or binary changes". Actively misleading:
-the paths were deliberately excluded by the GH #7 guard.
-
-`nestedWorktreeEmptyCaptureRefusal` (in
-`internal/cli/record_capture_modes.go`) runs first on the empty-capture
-branch whenever the capture was scoped, and returns nil — falling
-through to the untouched legacy diagnostics — unless at least one
-requested pathspec is a nested worktree. Two shapes:
-
-- **all requested paths are worktrees** → "every requested path is a
-  registered nested Git worktree and is intentionally excluded from
-  capture", listing them;
-- **mixed** → names the count excluded, lists them, and separately
-  lists the requested paths that simply produced no diff, so it never
-  claims the whole request was worktrees.
-
-Both explain why (a nested worktree is another checkout's working
-directory; capturing it records a mode-160000 gitlink) and offer three
-targeted recoveries, including `--path <worktree-root>` for operators
-who genuinely meant to capture work done inside the worktree. The
-`--staged` / `--unstaged` targeted refusals ("nothing staged for
-capture") route through the new diagnostic too, since they are equally
-misleading for a worktree-only scope. Committed-range mode is
-deliberately excluded: it never consults the working tree, so its
-`--from`/`--to` and `--auto` semantics are untouched.
-
-Pathspecs carrying Git magic (a leading `:`) are conservatively
-classified as "not a worktree", so the refusal can never be invented
-from a spec tpatch cannot interpret as a plain path.
-
-Same defect class, unscoped: `IsWorkingTreeDirty` counted a nested
-worktree as dirt, so an unscoped empty capture printed the same
-"possibly mode-only or binary changes" line and suppressed the correct
-`--from` guidance. It now subtracts nested worktrees, reading
-`git status --porcelain -z --untracked-files=all` so paths are
-byte-exact and untracked directories are not collapsed to a parent that
-the filter cannot classify. It has exactly one caller (this
-diagnostic), and falls back to the raw answer if discovery fails.
+`land` inspected: it delegates capture to the embedded `record` (now
+transactional) and performs its own discovery in `computePathSet` /
+`dirtyPaths`, both strictly before `stagePathSet` and the commit. A late
+discovery failure therefore leaves the index and HEAD untouched; pinned
+by `TestNestedWorktree_SecondDiscoveryFailure_LandDoesNotStageOrCommit`.
 
 ## Files Changed
+
+Created this rev:
+
+- `internal/cli/nested_worktree_guard.go` — CLI-side GH #7 guards
+  (`captureDiffStatFailClosed` plus the two empty-capture-diagnostic
+  helpers moved out of `record_capture_modes.go`).
 
 Modified this rev:
 
 - `internal/gitutil/worktrees.go`
-- `internal/gitutil/worktrees_test.go`
 - `internal/gitutil/capture_modes.go`
 - `internal/gitutil/gitutil.go`
-- `internal/cli/land.go`
+- `internal/gitutil/worktrees_test.go`
 - `internal/cli/cobra.go`
 - `internal/cli/record_capture_modes.go`
 - `internal/cli/nested_worktree_test.go`
+- `internal/workflow/refresh.go`
+- `internal/workflow/refresh_test.go`
 - `CHANGELOG.md`
-- `docs/land.md`
+- `SPEC.md`
 - `docs/record.md`
 - `docs/handoff/CURRENT.md`
 
-Unchanged since rev-0: `internal/cli/phase2.go`, `SPEC.md`.
+Unchanged this rev: `internal/cli/land.go`, `internal/cli/phase2.go`,
+`docs/land.md`.
 
 Deliberately NOT folded: the Makefile nested-repo sentinel LOW is
-separately tracked and is not part of this code wave.
+separately tracked.
 
 ## Test Results
 
@@ -172,161 +146,108 @@ separately tracked and is not part of this code wave.
 - `go vet ./...` — clean.
 - `go build ./cmd/tpatch` — clean.
 - `go test -count=1 ./...` — all packages `ok`.
-- `go test -race -count=1 ./internal/gitutil/` — ok.
-- `go test -race -count=1 ./internal/cli/` — ok.
+- `go test -race -count=1` on `./internal/gitutil/`, `./internal/workflow/`
+  and `./internal/cli/` — ok.
 - Assets parity (`go test ./assets/`) — ok; no asset touched.
 - 82 passing assertions across the GH #7 test set.
 
-New or reworked coverage this rev:
+New coverage this rev:
 
-- `TestParseWorktreeListNUL_PreservesPathBytes` — trailing space,
-  trailing tab, leading space, internal tab + double spaces, embedded
-  newline, quote/backslash; every path asserted byte-for-byte.
-- `TestParseWorktreeListNUL_Malformed` — empty output, no worktree
-  records, empty path.
-- `TestParseWorktreeListLegacy_RawPathsPreserved` — raw trailing space,
-  trailing tab, internal tab, double spaces, with `locked`/`prunable`
-  attributes present.
-- `TestParseWorktreeListLegacy_DecodesCQuoting` — newline, tab,
-  trailing space, embedded quote, backslash, octal (`caf\303\251`),
-  bell/vtab.
-- `TestParseWorktreeListLegacy_RefusesAmbiguity` — raw newline
-  continuation, unterminated quote, unknown escape, escape at end of
-  input, bytes after the closing quote, octal out of range, attribute
-  before any record, second `worktree` line inside a record, empty
-  path, no records, empty output; each refusal asserted to carry
-  `ErrNestedWorktreeDiscovery`.
-- `TestParseWorktreeListLegacy_RefusalIsActionable` — refusal names
-  Git 2.36 and `--porcelain -z`.
-- `TestIsUnknownSwitchError` and
-  `TestListRegisteredWorktreePaths_NonUsageFailureFailsClosed` — `-z`
-  probe classification and the no-silent-downgrade rule.
-- `TestNestedWorktreePrefixes_ExoticNamesRealRepo` — real
-  `git worktree add` for four exotic names, four prefix-boundary
-  control directories, byte-exact prefixes, untracked discovery,
-  capture and diffstat.
-- `TestNestedWorktreePrefixes_NewlineNameRealRepo` — real newline-named
-  worktree (skips if the platform refuses the name; it does not on
-  macOS/APFS).
-- `TestNestedWorktreePrefixes_LegacyFallbackRealRepo` — a `git` wrapper
-  rejecting `-z` exactly like pre-2.36 Git; the legacy parser still
-  discovers and excludes a space-bearing nested worktree and
-  over-filters nothing.
-- `TestCaptureDiffStatExcludesStagedNestedWorktreeResidue` — staged
-  intent-to-add gitlink residue absent from patch, diffstat and scoped
-  diffstat.
-- `TestNestedWorktree_StagedGitlinkResidue_AbsentFromPatchAndDiffstat`
-  — the same at CLI level, for default and scoped record.
-- `TestNestedWorktree_DiscoveryFailure_{ApplyDone,Record,Land}RefusesThenRecovers`
-  — refusal + byte-identical feature dir + no HEAD advance + no
-  staging plan, then recovery on the same fixture.
-- `TestNestedWorktree_TrailingWhitespaceName_ExcludedEndToEnd` — a
-  `wt/agent ` worktree excluded from patch, diffstat and land plan
-  while the sibling `wt/agent` control stays in.
-- `TestNestedWorktree_ScopedRecord_WorktreeOnlyFiles_ActionableDiagnostic`
-  and `..._WorktreeDescendant_...` — the new refusal, asserted to name
-  the offending pathspec and to NOT emit the mode-only/binary
-  speculation or the `--from` hint; refusal writes no artifacts.
-- `TestNestedWorktree_ScopedRecord_MixedWithRealChanges_Succeeds` and
-  `..._MixedWithoutChanges_PartitionedDiagnostic` — the two mixed
-  controls.
-- `TestNestedWorktree_ScopedRecord_WorktreeOnlyFiles_CaptureModes` —
-  `--all` / `--staged` / `--unstaged` route through the new diagnostic
-  instead of "nothing staged for capture".
-- `TestNestedWorktree_GenericEmptyCaptureDiagnosticPreserved` — both
-  legacy branches (dirty-tree speculation, clean-tree `--from`
-  candidates) preserved verbatim for genuinely empty non-worktree
-  captures, in a repository that DOES contain a nested worktree.
-- `TestIsWorkingTreeDirtyIgnoresNestedWorktree` — a nested worktree is
-  not dirt; untracked, tracked-modified and staged changes still are.
+- `TestListRegisteredWorktreePaths_NoLegacyFallback` — the failure text
+  names `--porcelain -z`, `2.36` and `will not fall back`, and is in the
+  fail-closed class.
+- `TestNoLegacyPorcelainParserInProduction` — grep-level guard: the
+  production source contains no `parseWorktreeListLegacy`,
+  `isUnknownSwitchError`, `unquoteCStyle` or plain `"--porcelain")`
+  call, and every `worktree list` argv carries `-z`.
+- `TestNestedWorktreePrefixes_NoZRejectionFailsClosedWithoutRetry` — a
+  `git` wrapper rejects `-z` like pre-2.36 Git **and logs every
+  `worktree list` invocation**; exactly one invocation is recorded, it
+  carries `-z`, and `NestedWorktreePrefixes`, `CapturePatchScoped`,
+  `CaptureDiffStat`, `DiffFromCommitForPaths` and
+  `FilterPathsExcludingNestedWorktrees` all fail closed with no plain
+  `--porcelain` retry.
+- `TestDiffFromCommitForPathsExcludesNestedWorktree` /
+  `...WorktreeOnlyScopeReturnsEmpty` /
+  `...EmptyScopeStillExcludesNestedWorktree` /
+  `...PreservesLinkedWorktreeIndexAfterFiltering` /
+  `...KeepsLiteralPathSemantics`.
+- `TestRefreshAfterAcceptExcludesStaleNestedWorktreePaths` — a stale
+  mode-160000 entry in the ORIGINAL patch is absent from the refreshed
+  canonical patch, the numbered reconcile patch and
+  `patch-generations.json`, while `feature.txt` / `README.md` remain.
+- `TestRefreshAfterAcceptWorktreeOnlyOriginalPatchRegeneratesNothing` —
+  an unrelated real change is NOT swept in by a broadened diff.
+- `TestRefreshAfterAcceptFailsClosedBeforeMutation` — feature directory
+  byte-identical across the refusal.
+- `TestNestedWorktree_SecondDiscoveryFailure_{ApplyDoneNoMutation,
+  RecordNoMutation,LandDoesNotStageOrCommit}` — an Nth-call-failing
+  `git` wrapper (file-backed counter, so it survives the many
+  short-lived `git` processes one tpatch command spawns) proves
+  first-success/second-failure leaves the feature directory
+  byte-identical and `status.json` unadvanced, across the numbered
+  snapshot branch, the same-feature duplicate branch and the scoped
+  branch, plus recovery in each case.
+- `TestNestedWorktree_CycleSingleDiscovery` — no record-phase artifact,
+  no state advance on failure; one successful discovery completes the
+  run.
 
-Every fixture worktree is removed with `git worktree remove --force`
-plus a prune via `t.Cleanup`, which runs before `t.TempDir()` teardown.
+Retained unchanged: the NUL exotic-name coverage
+(`TestParseWorktreeListNUL_PreservesPathBytes`,
+`TestNestedWorktreePrefixes_ExoticNamesRealRepo`,
+`TestNestedWorktreePrefixes_NewlineNameRealRepo`) and the actionable
+all-filtered record diagnostic suite.
 
-## Issue #7 regression + over-filtering control matrix (built binary)
+## Reproduction + control matrix (built binary)
 
-Single scratch repo carrying all controls at once:
+One scratch repo with three nested worktrees (`agent review`,
+`agent trail ` with a trailing space, and a newline-named one) plus every
+over-filtering control:
 
 | Path | Kind | Result |
 |------|------|--------|
-| `.claude/worktrees/agent review` | nested linked worktree | excluded from patch, diffstat, land plan, commit |
-| `.claude/worktrees/agent trail ` | nested linked worktree, trailing space | excluded from patch, diffstat, land plan, commit |
+| `.claude/worktrees/agent review` | nested worktree | absent from patch, diffstat, land plan, commit |
+| `.claude/worktrees/agent trail ` | nested worktree, trailing space | absent from all four |
+| `.claude/worktrees/new\nline` | nested worktree, embedded newline | absent from all four |
 | `.claude/worktrees/agent-other/f.txt` | ordinary dir, prefix-boundary sibling | captured and landed |
 | `vendor/plainrepo` | unregistered nested Git repo | captured and landed as a gitlink (correctly NOT filtered) |
-| `../ext-wt` | linked worktree outside the root | never referenced |
-| `unrelated.txt` | ordinary dirty path | still refused, then staged under `--allow-extra-paths` |
-| tracked submodule gitlink | intentional | still captured (`TestCaptureKeepsTrackedGitlink`) |
+| `../extwt` | worktree outside the root | never referenced |
+| `unrelated.txt` | ordinary dirty path | refused, then staged under `--allow-extra-paths` |
 
-Post-land `git status` shows only the two nested worktrees as untracked
-and the carved-out `.tpatch/FEATURES.md`. Running tpatch **from** a
-linked worktree was re-verified end to end with the built binary:
-`apply --mode done` captures normally and the main worktree is not
-treated as nested.
+Post-land `git status` lists only the three worktrees as untracked and
+the carved-out `.tpatch/FEATURES.md`. The actionable all-filtered
+`record --files` diagnostic still fires for the space-bearing and the
+newline-bearing worktree names.
 
-Empty-capture diagnostic matrix, re-verified with the built binary:
-
-| Invocation | Result |
-|------------|--------|
-| `record --files '<worktree>'` | actionable refusal, names the worktree, exit 1 |
-| `record --files 'README.md,<worktree>'` with README changed | succeeds; patch has only README |
-| `record --files 'internal/example.go,<worktree>'` with no changes | partitioned refusal (excluded vs. no-diff), exit 1 |
-| `record --files 'internal/example.go'` with unrelated dirt | generic diagnostic preserved verbatim, exit 1 |
-| `record` unscoped, only dirt is the worktree | correct `--auto` / `--from` guidance with commit candidates, exit 1 |
-
-All scratch repos, worktrees and build artifacts were removed. The
-review-named `scratch-review/` and `tpatch_review_bin` were already
-absent; this session's `.scratch7/`, `.scratch8/`, `.scratch9/` and the
-gitignored root `tpatch` binary are removed. `git worktree list` in
-this repository shows only the primary worktree, and
-`git status --porcelain` shows only the guarded WIP docs.
+All scratch repos, worktrees and build artifacts were removed;
+`git worktree list` shows only the primary worktree.
 
 ## Reviewer focus
 
-1. `parseWorktreeListLegacy` structural validation — is the known-key
-   set the right forward-compatibility trade-off? A future Git
-   attribute key would be rejected as ambiguous. Deliberate: the legacy
-   shape only runs on Git < 2.36, which will not gain new keys.
-2. `dirtyPaths` rename/copy handling under `-z` — the extra origin
-   field is consumed by index advance; confirm against `R`/`C` in
-   either status column.
-3. `CaptureDiffStatScoped` now emits `--` whenever nested excludes
-   exist even with no caller pathspecs; confirm no artifact byte drift
-   for repositories without nested worktrees (the argument list is
-   identical in that case).
-4. The two `git` wrappers in tests install via `t.Setenv("PATH", …)`;
-   confirm no test in these packages calls `t.Parallel()`.
-5. `nestedWorktreeEmptyCaptureRefusal` runs before the `--staged` /
-   `--unstaged` targeted refusals but after the capture itself, and is
-   skipped entirely for committed-range mode; confirm that ordering
-   matches the intended precedence and that no legacy diagnostic byte
-   changed for non-worktree cases.
-6. `IsWorkingTreeDirty` moved to `--porcelain -z --untracked-files=all`.
-   It has one caller (the empty-capture diagnostic), so the blast
-   radius is that message only — confirm the `all` upgrade is not
-   observable anywhere else.
-
-## Rev-1 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED.
-- Valid residuals:
-  1. Legacy newline porcelain cannot distinguish a path continuation that
-     looks like a valid attribute; fallback must fail closed.
-  2. Bare `usage:` text is too weak to authorize fallback.
-  3. Reconcile accepted-result refresh uses `DiffFromCommitForPaths` without
-     nested-worktree filtering.
-  4. Apply/record can write canonical artifacts before a later diffstat
-     discovery failure.
-- Scratch artifacts reported by the user-external rev-0 review are absent;
-  only guarded WIP remains.
-
-## Next Steps
-
-1. Remove the ambiguous legacy fallback; require NUL porcelain or fail closed.
-2. Filter `DiffFromCommitForPaths`, including reconcile refresh.
-3. Compute all discovery-dependent patch/diffstat results before writes.
-4. Add late-failure transactional regressions.
-5. Run final dual review and close #7 only after approval.
+1. `DiffFromCommitForPaths` dropped the global `--literal-pathspecs` in
+   favour of `:(literal)` per pathspec. Confirm this is semantically
+   identical for every caller (`RefreshAfterAccept` file lists,
+   `validateReapplyMaterialization`'s `PathsAffectedByPatch`), and note
+   the `weird[1]*name.txt` regression that pins it.
+2. The record diffstat is now captured before the artifact writes, so it
+   no longer observes tpatch's own writes. In a repository where
+   `.tpatch/features/<slug>/` is TRACKED, a re-record's
+   `post-apply-diff.txt` no longer lists the artifact rewrite it is about
+   to perform. This is an intentional consequence of the F4 reorder; no
+   test asserted the old bytes.
+3. Capture helpers now discover once and thread prefixes/excludes.
+   Confirm no path lost its filter in the refactor —
+   `stagedNameOnly`/`unstagedNameOnly` take excludes, `untrackedFiltered`
+   takes prefixes, `StagedUnstagedOverlap` discovers once for all three.
+4. Known limitation (pre-existing, not a GH #7 regression): `--files`
+   `TrimSpace`s each comma-separated element, so a worktree whose name
+   has significant leading/trailing whitespace cannot be named through
+   `--files` and therefore does not trigger the actionable diagnostic.
+   Exclusion itself still works — the guard matches the real path bytes
+   from `ls-files`, not the flag text.
+5. `land`'s transactional boundary is "embedded record artifacts may
+   exist; index and HEAD are untouched". That is inherent to land
+   delegating to a complete `record` invocation.
 
 ## Blockers
 
@@ -334,18 +255,19 @@ None.
 
 ## Context for Next Agent
 
-- `internal/gitutil/worktrees.go` is the single authority. Any new
-  untracked-discovery, diff or staging surface must route through
-  `NestedWorktreePrefixes` + `PathUnderNestedWorktree`.
-- `NestedWorktreePrefixes` now returns an already-wrapped
-  `ErrNestedWorktreeDiscovery`; `NestedWorktreeDiscoveryError` is
-  idempotent, so callers just propagate.
-- Byte exactness is load-bearing. Do not reintroduce `TrimSpace`,
-  `TrimSuffix(" ")` or a hand-rolled dequote anywhere on a path that
-  will be compared against a worktree prefix.
-- `PreflightReconcile` is still deliberately unfiltered: it is a
-  hygiene gate, not a capture surface, and a nested worktree surfacing
-  there produces a refusal, which is the safe direction.
+- `internal/gitutil/worktrees.go` is the single authority, and
+  `git worktree list --porcelain -z` is the single Git shape. Do not
+  reintroduce a newline-delimited reader: it cannot be made unambiguous.
+- Git 2.36+ is now a documented safety floor for this guard
+  (`SPEC.md` §9.4, `docs/record.md`, CHANGELOG).
+- Byte exactness remains load-bearing: no `TrimSpace`, no hand-rolled
+  dequote on any path compared against a worktree prefix.
+- Any new discovery-dependent read must complete before its command's
+  first artifact write, and should reuse an already-discovered prefix
+  set rather than discovering again.
+- `PreflightReconcile` is still deliberately unfiltered: it is a hygiene
+  gate, not a capture surface, and a nested worktree surfacing there
+  produces a refusal, which is the safe direction.
 - Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
