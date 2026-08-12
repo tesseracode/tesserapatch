@@ -119,7 +119,7 @@ func buildCrashState(t *testing.T, withLock bool) *crashState {
 		}
 	}
 	liveRel, liveAbs := relOrAbs(tmpDir, livePath)
-	lockRel, lockAbs := relOrAbs(tmpDir, lockPath)
+	lockIno, _ := gitutil.FileIno(lockPath)
 	j := landJournal{
 		Version:          landJournalVersion,
 		Slug:             slug,
@@ -132,9 +132,8 @@ func buildCrashState(t *testing.T, withLock bool) *crashState {
 		RetainedIndexRel: retainedIndexRel(slug),
 		RetainedPre:      landJournalFileState{Exists: true, SHA256: hex.EncodeToString(retSum[:]), Mode: 0o600},
 		RetainedPreTree:  retainedTree,
-		LockRel:          lockRel,
-		LockAbs:          lockAbs,
 		LockNonce:        nonce,
+		LockIno:          lockIno,
 	}
 	body, err := json.MarshalIndent(j, "", "  ")
 	if err != nil {
@@ -858,5 +857,343 @@ func TestLandPostCommitPublishFailureIsRecoveryPending(t *testing.T) {
 	}
 	if err := recoverLand(tmpDir, slug, noWarn); err != nil {
 		t.Fatalf("second recovery must be a no-op: %v", err)
+	}
+}
+
+// ─── GH #7 rev-9 F1: contaminated successful commit ─────────────────
+
+// writeHook installs an executable hook.
+func writeHook(t *testing.T, repoRoot, name, body string) string {
+	t.Helper()
+	dir := filepath.Join(repoRoot, ".git", "hooks")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, name)
+	if err := os.WriteFile(p, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// A pre-commit hook that stages a registered nested worktree and then
+// lets the commit SUCCEED already put the gitlink in a commit. Refusing
+// to publish is not enough: the commit must be rolled back.
+func TestLandSuccessfulHookContaminationRollsBackHead(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	writeHook(t, tmpDir, "pre-commit",
+		"#!/bin/sh\ngit -c advice.addEmbeddedRepo=false --literal-pathspecs add -- '"+
+			nestedWorktreeRel+"' >/dev/null 2>&1\nexit 0\n")
+
+	headBefore := gitHead(t, tmpDir)
+	livePath := liveIndexPath(t, tmpDir)
+	liveBefore, err := os.ReadFile(livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusPath := filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json")
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land must refuse a contaminated commit: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "nested Git worktree") {
+		t.Errorf("refusal should name the contamination: %q", stderr)
+	}
+	if !strings.Contains(stderr, "rolled back") {
+		t.Errorf("refusal should say the commit was rolled back: %q", stderr)
+	}
+	if strings.Contains(stdout, "Landed ") {
+		t.Errorf("a contaminated commit must never be presented as landed:\n%s", stdout)
+	}
+
+	// HEAD is exactly the pre-land commit.
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Fatalf("HEAD was not rolled back: %s (want %s)", got, headBefore)
+	}
+	// No binding commit reachable from the branch.
+	bound := jGit(t, tmpDir, "log", "--grep", "^Tpatch-Feature: "+slug+"$", "--pretty=%H")
+	if strings.TrimSpace(bound) != "" {
+		t.Errorf("a binding landing commit is still reachable:\n%s", bound)
+	}
+	// The live index and status preimage are untouched.
+	liveAfter, err := os.ReadFile(livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(liveAfter) != string(liveBefore) {
+		t.Error("the live index was modified despite the refusal")
+	}
+	// The embedded record legitimately rewrote status.json (its own
+	// completed transaction, as on every other refusal path). What must
+	// be gone is land's own landed-at note.
+	statusAfter, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(statusAfter), `"notes": "landed at`) {
+		t.Errorf("the landed-at note survived the rollback:\n%s", statusAfter)
+	}
+	// A completed rollback cleans the evidence.
+	for _, p := range []string{landJournalPath(tmpDir, slug), retainedIndexAbs(tmpDir, slug)} {
+		if _, serr := os.Stat(p); !os.IsNotExist(serr) {
+			t.Errorf("evidence residue after a completed rollback: %s: %v", p, serr)
+		}
+	}
+	if _, serr := os.Stat(livePath + ".lock"); !os.IsNotExist(serr) {
+		t.Errorf("lock residue: %v", serr)
+	}
+	if err := recoverLand(tmpDir, slug, noWarn); err != nil {
+		t.Fatalf("recovery after a completed rollback must be a no-op: %v", err)
+	}
+
+	// Removing the hook lets the feature land normally.
+	if err := os.Remove(filepath.Join(tmpDir, ".git", "hooks", "pre-commit")); err != nil {
+		t.Fatal(err)
+	}
+	if stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go"); code != 0 {
+		t.Fatalf("land failed after removing the hook: stdout=%q stderr=%q", stdout, stderr)
+	}
+	assertNoNestedWorktree(t, "landing commit after recovery",
+		jGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD"))
+}
+
+// If the compare-and-swap rollback cannot complete — here because a
+// concurrent process advanced the branch — the evidence is preserved
+// and the diagnostic is a manual-recovery one that never claims a
+// landing.
+func TestLandContaminatedRollbackFailureRetainsEvidence(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	// The hook stages the nested worktree AND, via post-commit, moves
+	// the branch on so the CAS rollback sees an unexpected old value.
+	writeHook(t, tmpDir, "pre-commit",
+		"#!/bin/sh\ngit -c advice.addEmbeddedRepo=false --literal-pathspecs add -- '"+
+			nestedWorktreeRel+"' >/dev/null 2>&1\nexit 0\n")
+	// `commit-tree` needs no index, so this deterministically advances
+	// the branch past the landing commit while land is still running.
+	writeHook(t, tmpDir, "post-commit",
+		"#!/bin/sh\n"+
+			"n=$(git commit-tree 'HEAD^{tree}' -p HEAD -m 'concurrent advance') || exit 0\n"+
+			"git update-ref HEAD \"$n\" || true\n")
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land must refuse: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "manual recovery pending") {
+		t.Errorf("diagnostic should be the manual-recovery one: %q", stderr)
+	}
+	if strings.Contains(stdout, "Landed ") {
+		t.Errorf("a contaminated commit must never be presented as landed:\n%s", stdout)
+	}
+	for _, p := range []string{landJournalPath(tmpDir, slug), retainedIndexAbs(tmpDir, slug)} {
+		if _, serr := os.Stat(p); serr != nil {
+			t.Errorf("evidence deleted despite the rollback failure: %s: %v", p, serr)
+		}
+	}
+	if _, serr := os.Stat(liveIndexPath(t, tmpDir) + ".lock"); !os.IsNotExist(serr) {
+		t.Errorf("lock residue: %v", serr)
+	}
+	// Recovery must refuse rather than publish anything: either the
+	// unexpected HEAD or the contaminated retained index is enough.
+	livePre, err := os.ReadFile(liveIndexPath(t, tmpDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rerr := recoverLand(tmpDir, slug, noWarn)
+	if rerr == nil {
+		t.Fatal("recovery must refuse to publish after a failed rollback")
+	}
+	if !strings.Contains(rerr.Error(), "cannot be recovered automatically") {
+		t.Errorf("recovery should refuse with manual guidance: %v", rerr)
+	}
+	liveAfter, err := os.ReadFile(liveIndexPath(t, tmpDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(liveAfter) != string(livePre) {
+		t.Error("recovery modified the live index despite refusing")
+	}
+	for _, p := range []string{landJournalPath(tmpDir, slug), retainedIndexAbs(tmpDir, slug)} {
+		if _, serr := os.Stat(p); serr != nil {
+			t.Errorf("evidence removed by the refusing recovery: %s: %v", p, serr)
+		}
+	}
+}
+
+// Recovery must never publish a retained index containing a nested
+// worktree, even when HEAD is exactly the pre-land commit and every
+// other check passes.
+func TestRecoverLandRefusesContaminatedRetainedIndex(t *testing.T) {
+	cs := buildCrashState(t, false)
+	// Contaminate the retained index in place, then re-journal its
+	// identity so only the contamination guard can refuse.
+	env := append(os.Environ(), "GIT_INDEX_FILE="+cs.retainedPath)
+	add := exec.Command("git", "-c", "advice.addEmbeddedRepo=false",
+		"--literal-pathspecs", "add", "--", nestedWorktreeRel)
+	add.Dir = cs.repoRoot
+	add.Env = env
+	if out, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("contaminate the retained index: %s: %v", out, err)
+	}
+	body, err := os.ReadFile(cs.retainedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	info, err := os.Stat(cs.retainedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutateJournal(t, cs, func(j *landJournal) {
+		j.RetainedPre.SHA256 = hex.EncodeToString(sum[:])
+		j.RetainedPre.Mode = uint32(info.Mode().Perm())
+	})
+	livePre, err := os.ReadFile(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = recoverLand(cs.repoRoot, cs.slug, noWarn)
+	if err == nil {
+		t.Fatal("recovery must refuse to publish a contaminated retained index")
+	}
+	if !strings.Contains(err.Error(), "nested Git worktree") {
+		t.Errorf("refusal should name the contamination: %v", err)
+	}
+	liveAfter, err := os.ReadFile(cs.livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(liveAfter) != string(livePre) {
+		t.Error("recovery published the contaminated index")
+	}
+	for _, p := range []string{cs.journalPath, cs.retainedPath} {
+		if _, serr := os.Stat(p); serr != nil {
+			t.Errorf("evidence removed despite refusing: %s: %v", p, serr)
+		}
+	}
+}
+
+// commit-msg and prepare-commit-msg hooks are controls: they run in the
+// same environment and must not be treated as contamination when they
+// touch nothing.
+func TestLandBenignMessageHooksStillLand(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	writeHook(t, tmpDir, "prepare-commit-msg", "#!/bin/sh\nexit 0\n")
+	writeHook(t, tmpDir, "commit-msg", "#!/bin/sh\nexit 0\n")
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code != 0 {
+		t.Fatalf("benign message hooks must not block landing: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Landed ") {
+		t.Errorf("expected a normal landing:\n%s", stdout)
+	}
+	if _, err := os.Stat(landJournalPath(tmpDir, slug)); !os.IsNotExist(err) {
+		t.Errorf("journal residue: %v", err)
+	}
+}
+
+// ─── GH #7 rev-9 F2: journal cannot direct filesystem operations ────
+
+// A journal carrying a lock path field is rejected outright by the
+// strict decoder, and the victim file it names is never touched.
+func TestRecoverLandRejectsJournalSuppliedLockPaths(t *testing.T) {
+	for _, field := range []string{"lock_abs", "lock_rel", "some_other_path"} {
+		t.Run(field, func(t *testing.T) {
+			cs := buildCrashState(t, false)
+			victimDir := t.TempDir()
+			victim := filepath.Join(victimDir, "victim.lock")
+			// A victim that even carries a matching nonce sentinel.
+			if err := os.WriteFile(victim, []byte("tpatch-land-lock "+cs.nonce+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			body, err := os.ReadFile(cs.journalPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var raw map[string]any
+			if err := json.Unmarshal(body, &raw); err != nil {
+				t.Fatal(err)
+			}
+			raw[field] = victim
+			tampered, err := json.MarshalIndent(raw, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(cs.journalPath, append(tampered, '\n'), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			rerr := recoverLand(cs.repoRoot, cs.slug, noWarn)
+			if rerr == nil {
+				t.Fatal("a journal with an unknown field must be refused")
+			}
+			if !strings.Contains(rerr.Error(), "not a valid journal document") {
+				t.Errorf("refusal should come from the strict decoder: %v", rerr)
+			}
+			if _, serr := os.Stat(victim); serr != nil {
+				t.Fatalf("the victim file was removed: %v", serr)
+			}
+			body2, err := os.ReadFile(victim)
+			if err != nil || !strings.Contains(string(body2), cs.nonce) {
+				t.Error("the victim file was modified")
+			}
+		})
+	}
+}
+
+// Schema v2 journals are refused: the version gate is the contract.
+func TestRecoverLandRefusesPreviousSchemaVersion(t *testing.T) {
+	cs := buildCrashState(t, false)
+	mutateJournal(t, cs, func(j *landJournal) { j.Version = 2 })
+	err := recoverLand(cs.repoRoot, cs.slug, noWarn)
+	if err == nil {
+		t.Fatal("a v2 journal must be refused")
+	}
+	if !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("refusal should name the version: %v", err)
+	}
+}
+
+// A retained-index reference reached through a symlinked component is
+// refused before it is read.
+func TestRecoverLandRefusesSymlinkedRetainedPath(t *testing.T) {
+	cs := buildCrashState(t, false)
+	dir := landJournalDir(cs.repoRoot)
+	realDir := filepath.Join(cs.repoRoot, ".tpatch", "local", "elsewhere")
+	if err := os.MkdirAll(realDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	linkDir := filepath.Join(dir, "sub")
+	if err := os.Symlink(realDir, linkDir); err != nil {
+		t.Skipf("platform refuses symlinks: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(realDir, "x.index"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mutateJournal(t, cs, func(j *landJournal) {
+		j.RetainedIndexRel = landJournalDirRel + "/sub/x.index"
+	})
+	err := recoverLand(cs.repoRoot, cs.slug, noWarn)
+	if err == nil {
+		t.Fatal("a symlinked retained-index component must be refused")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Errorf("refusal should name the symlink: %v", err)
 	}
 }

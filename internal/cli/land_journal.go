@@ -37,6 +37,7 @@
 package cli
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -47,12 +48,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
 // landJournalVersion is bumped whenever the on-disk shape changes.
 // Recovery refuses any other version rather than guessing.
-const landJournalVersion = 2
+const landJournalVersion = 3
 
 // landJournalDirRel is the gitignored home for journals and the durable
 // retained index.
@@ -125,10 +128,11 @@ type landJournal struct {
 	RetainedPreTree  string                `json:"retained_pre_tree,omitempty"`
 	RetainedPost     *landJournalFileState `json:"retained_post,omitempty"`
 	RetainedPostTree string                `json:"retained_post_tree,omitempty"`
-	// Lock identity: nonce plus inode where the platform exposes one,
-	// so a stale lock of ours is distinguishable from a foreign one.
-	LockRel   string `json:"lock_rel,omitempty"`
-	LockAbs   string `json:"lock_abs,omitempty"`
+	// Lock OWNERSHIP evidence only. GH #7 rev-9 F2: the journal must
+	// never name a filesystem path that cleanup will act on. The lock
+	// path is DERIVED at use time as the validated effective index path
+	// plus ".lock"; a tampered journal therefore cannot point lock
+	// removal at an arbitrary nonce-bearing victim file.
 	LockNonce string `json:"lock_nonce"`
 	LockIno   uint64 `json:"lock_ino,omitempty"`
 }
@@ -246,7 +250,6 @@ func writeLandJournal(repoRoot, slug string, tx *gitutil.IndexTransaction, preHe
 
 	liveState := tx.LiveState()
 	liveRel, liveAbs := relOrAbs(repoRoot, tx.LivePath)
-	lockRel, lockAbs := relOrAbs(repoRoot, tx.LockPath())
 	lockIno, _ := gitutil.FileIno(tx.LockPath())
 	j := landJournal{
 		Version:          landJournalVersion,
@@ -259,8 +262,6 @@ func writeLandJournal(repoRoot, slug string, tx *gitutil.IndexTransaction, preHe
 		RetainedIndexRel: retainedIndexRel(slug),
 		RetainedPre:      retained,
 		RetainedPreTree:  tree,
-		LockRel:          lockRel,
-		LockAbs:          lockAbs,
 		LockNonce:        tx.LockNonce,
 		LockIno:          lockIno,
 	}
@@ -352,9 +353,14 @@ func readLandJournal(repoRoot, slug string) (*landJournal, error) {
 		}
 		return nil, err
 	}
+	// Strict decoding: an unknown field means the file is not a journal
+	// this build wrote. Refusing beats silently ignoring a `lock_abs`
+	// somebody added hoping cleanup would act on it.
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.DisallowUnknownFields()
 	var j landJournal
-	if err := json.Unmarshal(body, &j); err != nil {
-		return nil, fmt.Errorf("land journal is not valid JSON: %w", err)
+	if err := dec.Decode(&j); err != nil {
+		return nil, fmt.Errorf("land journal is not a valid journal document: %w", err)
 	}
 	if j.Version != landJournalVersion {
 		return nil, fmt.Errorf("land journal version %d is not supported (this build expects %d)", j.Version, landJournalVersion)
@@ -365,11 +371,47 @@ func readLandJournal(repoRoot, slug string) (*landJournal, error) {
 	if j.PreHead == "" || j.LockNonce == "" {
 		return nil, fmt.Errorf("land journal is missing required fields")
 	}
-	clean := filepath.ToSlash(filepath.Clean(j.RetainedIndexRel))
-	if !strings.HasPrefix(clean, landJournalDirRel+"/") || strings.Contains(clean, "..") {
-		return nil, fmt.Errorf("land journal retained-index reference %q escapes %s", j.RetainedIndexRel, landJournalDirRel)
+	if err := validateContainedRelPath(repoRoot, j.RetainedIndexRel); err != nil {
+		return nil, err
 	}
 	return &j, nil
+}
+
+// validateContainedRelPath refuses any journal-supplied relative path
+// that escapes the journal directory, is not a regular file, or reaches
+// it through a symlinked component. The journal is untrusted input.
+func validateContainedRelPath(repoRoot, rel string) error {
+	if rel == "" {
+		return fmt.Errorf("land journal is missing its retained-index reference")
+	}
+	if filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") {
+		return fmt.Errorf("land journal reference %q must be repo-relative", rel)
+	}
+	clean := filepath.ToSlash(filepath.Clean(rel))
+	if !strings.HasPrefix(clean, landJournalDirRel+"/") || strings.Contains(clean, "..") {
+		return fmt.Errorf("land journal retained-index reference %q escapes %s", rel, landJournalDirRel)
+	}
+	abs := filepath.Join(repoRoot, filepath.FromSlash(clean))
+	// No component between the journal root and the file may be a
+	// symlink, and the file itself must be a regular file when present.
+	root := landJournalDir(repoRoot)
+	cur := abs
+	for {
+		info, err := os.Lstat(cur)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("land journal reference %q passes through a symlink (%s); refusing", rel, cur)
+			}
+			if cur == abs && !info.Mode().IsRegular() && !info.IsDir() {
+				return fmt.Errorf("land journal reference %q is not a regular file (mode %s)", rel, info.Mode())
+			}
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur || cur == root {
+			return nil
+		}
+		cur = parent
+	}
 }
 
 // liveClass is how recovery classifies the live index under the lock.
@@ -421,11 +463,13 @@ func recoverLand(repoRoot, slug string, warn func(string, ...any)) error {
 	}
 
 	// Take the live lock before reading, comparing or publishing
-	// anything. A stale lock of OURS is removed first, but only after
-	// nonce and (where available) inode both match.
+	// anything. The path is DERIVED from the validated effective index,
+	// never read from the journal (rev-9 F2). A stale lock of OURS is
+	// removed first, but only after nonce and (where the platform
+	// exposes one) inode both match.
 	lockPath := livePath + ".lock"
 	if _, statErr := os.Lstat(lockPath); statErr == nil {
-		if err := removeOwnedLandLock(repoRoot, j); err != nil {
+		if err := removeOwnedLandLock(lockPath, j); err != nil {
 			return landRecoveryRefusal(j, err.Error())
 		}
 	}
@@ -522,6 +566,22 @@ func recoverUnderLock(repoRoot, slug string, j *landJournal, livePath string, wa
 			abbrevSHA(head), abbrevSHA(j.PreHead)))
 	}
 
+	// GH #7 rev-9: never publish a retained index that contains a
+	// nested worktree. This is reachable when a hook contaminated the
+	// commit and the automatic rollback could not complete.
+	if retainedNow.Exists {
+		env := append(os.Environ(), "GIT_INDEX_FILE="+retainedAbs)
+		contaminated, aerr := gitutil.AuditIndexEntriesForNestedWorktreesEnv(repoRoot, env)
+		if aerr != nil {
+			return fail(fmt.Sprintf("the retained index could not be audited for nested worktrees: %v", aerr))
+		}
+		if len(contaminated) > 0 {
+			return fail(fmt.Sprintf(
+				"the retained index contains path(s) inside a registered nested Git worktree (%s); publishing it would stage a gitlink",
+				strings.Join(contaminated, ", ")))
+		}
+	}
+
 	// Publish only when the live index is still the preimage. A
 	// postimage means a previous recovery already published it, so this
 	// pass is pure cleanup — idempotent, with no rewrite.
@@ -612,11 +672,7 @@ func recoveryNonce() (string, error) {
 // removeOwnedLandLock removes a stale `<index>.lock` only when it
 // carries this transaction's nonce AND, where the platform exposes one,
 // the recorded inode. A foreign lock is left alone and reported.
-func removeOwnedLandLock(repoRoot string, j *landJournal) error {
-	lockPath := resolveJournalPath(repoRoot, j.LockRel, j.LockAbs)
-	if lockPath == "" {
-		return nil
-	}
+func removeOwnedLandLock(lockPath string, j *landJournal) error {
 	nonce, ours, err := gitutil.LockNonceAt(lockPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -684,4 +740,32 @@ func syncDirPath(dir string) error {
 		return fmt.Errorf("fsync directory %q: %w", dir, err)
 	}
 	return nil
+}
+
+// contaminatedRollbackPending renders the state where a commit hook
+// staged a nested worktree, the commit SUCCEEDED, and the automatic
+// rollback could not be completed.
+//
+// Nothing is guessed at: the journal and retained index stay in place so
+// a later recovery (or the operator) can resolve it, and only a lock we
+// safely own is released. The diagnostic never claims the feature
+// landed, because the commit that exists contains a gitlink tpatch
+// refuses to publish.
+func contaminatedRollbackPending(cmd *cobra.Command, tx *gitutil.IndexTransaction, slug string, contaminated []string, why string) error {
+	var extra []string
+	if cerr := tx.Close(); cerr != nil {
+		extra = append(extra, fmt.Sprintf("cleaning up the alternate index failed: %v", cerr))
+	}
+	msg := fmt.Sprintf(
+		"land: contaminated commit, manual recovery pending — a commit hook staged path(s) inside a registered nested Git worktree "+
+			"and the commit succeeded, but %s.\n"+
+			"Contaminated path(s): %s\n"+
+			"The feature has NOT landed: nothing was published to your index. HEAD may still point at the contaminated commit.\n"+
+			"Resolve by hand: inspect `git log -1`, and if the top commit is the contaminated landing, run `git reset --soft HEAD^`.\n"+
+			"Then remove the nested worktree (`git worktree remove <path>`), delete %s/%s.json and its .index sibling, and re-run `tpatch land %s`",
+		why, strings.Join(contaminated, ", "), landJournalDirRel, slug, slug)
+	if len(extra) > 0 {
+		return fmt.Errorf("%s\nadditionally: %s", msg, strings.Join(extra, "; "))
+	}
+	return fmt.Errorf("%s", msg)
 }

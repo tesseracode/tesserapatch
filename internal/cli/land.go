@@ -438,7 +438,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 		// Re-audit it and durably journal the new identity BEFORE any
 		// publish, so the staged-retry evidence is both clean and
 		// recoverable.
-		if hookContaminated, hookAuditErr := gitutil.AuditStagedPathsForNestedWorktreesEnv(s.Root, txEnv); hookAuditErr != nil {
+		if hookContaminated, hookAuditErr := gitutil.AuditIndexEntriesForNestedWorktreesEnv(s.Root, txEnv); hookAuditErr != nil {
 			return abort(fmt.Errorf("land: git commit failed (%v) and the post-commit worktree audit could not run: %w", commitErr, hookAuditErr))
 		} else if len(hookContaminated) > 0 {
 			return abort(formatContaminationRefusal(slug, hookContaminated, "a commit hook"))
@@ -482,7 +482,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// The commit succeeded and HEAD has advanced. Re-audit and durably
 	// journal the post-commit retained identity and tree BEFORE the
 	// live publish, so a crash in the gap is recoverable.
-	if postContaminated, postAuditErr := gitutil.AuditStagedPathsForNestedWorktreesEnv(s.Root, txEnv); postAuditErr != nil {
+	if postContaminated, postAuditErr := gitutil.AuditIndexEntriesForNestedWorktreesEnv(s.Root, txEnv); postAuditErr != nil {
 		closeErr := tx.Close()
 		out := fmt.Sprintf("land: commit succeeded, recovery pending — the post-commit worktree audit could not run: %v.\n"+
 			"HEAD advanced; re-run `tpatch land %s` to complete the publication", postAuditErr, slug)
@@ -491,14 +491,58 @@ func runLand(cmd *cobra.Command, slug string) error {
 		}
 		return fmt.Errorf("%s", out)
 	} else if len(postContaminated) > 0 {
-		closeErr := tx.Close()
-		out := fmt.Sprintf("land: the commit succeeded (HEAD advanced) but a commit hook staged path(s) inside a registered nested Git worktree: %s.\n"+
-			"Your index was not published; the evidence is retained in %s. Remove the nested worktree and re-run `tpatch land %s`",
-			strings.Join(postContaminated, ", "), landJournalDirRel, slug)
-		if closeErr != nil {
-			return fmt.Errorf("%s\nadditionally: %v", out, closeErr)
+		// GH #7 rev-9 F1: a hook that staged a nested worktree and then
+		// let the commit SUCCEED has already put the gitlink in a
+		// commit. Refusing to publish is not enough — the commit is on
+		// the branch. Roll HEAD back with a compare-and-swap against
+		// the exact commit we just made, so a concurrent ref advance
+		// can never be clobbered, and never present this as landed.
+		newHead, headReadErr := gitutil.HeadCommit(s.Root)
+		if headReadErr != nil {
+			return contaminatedRollbackPending(cmd, tx, slug, postContaminated,
+				fmt.Sprintf("HEAD could not be read for the rollback: %v", headReadErr))
 		}
-		return fmt.Errorf("%s", out)
+		// Only roll back when HEAD is EXACTLY the landing commit we
+		// made: a direct child of pre-HEAD carrying this feature's
+		// trailer. If anything advanced the branch further (a
+		// post-commit hook, another process), rolling back to pre-HEAD
+		// would silently discard their work, so refuse instead.
+		if !landCommitBindsSlug(s.Root, newHead, preHead, slug) {
+			return contaminatedRollbackPending(cmd, tx, slug, postContaminated,
+				fmt.Sprintf("HEAD is %s, which is no longer the landing commit made from pre-HEAD %s "+
+					"(the branch advanced meanwhile), so rolling back would discard someone else's work",
+					abbrevSHA(newHead), abbrevSHA(preHead)))
+		}
+		if _, casErr := runGit(s.Root, "update-ref",
+			"-m", fmt.Sprintf("tpatch land %s: rolled back — a commit hook staged a nested Git worktree", slug),
+			"HEAD", preHead, newHead); casErr != nil {
+			return contaminatedRollbackPending(cmd, tx, slug, postContaminated,
+				fmt.Sprintf("rolling HEAD back to %s failed (a concurrent ref update may have advanced the branch): %v", abbrevSHA(preHead), casErr))
+		}
+		// The branch is back at pre-HEAD. Restore the status preimage
+		// so the working tree matches "nothing landed"; the live index
+		// was never touched.
+		if statusPre != nil {
+			if rerr := statusPre.restore(); rerr != nil {
+				return contaminatedRollbackPending(cmd, tx, slug, postContaminated,
+					fmt.Sprintf("HEAD was rolled back but restoring %s failed: %v", statusRel, rerr))
+			}
+		}
+		// Rollback complete: clean the evidence and refuse. The orphan
+		// commit object stays unreferenced and is never reported as a
+		// landing.
+		var problems []string
+		if jerr := clearLandJournal(s.Root, slug); jerr != nil {
+			problems = append(problems, fmt.Sprintf("clearing the land journal failed: %v", jerr))
+		}
+		if cerr := tx.Close(); cerr != nil {
+			problems = append(problems, fmt.Sprintf("cleaning up the alternate index failed: %v", cerr))
+		}
+		refusal := formatContaminationRefusal(slug, postContaminated, "a commit hook (the commit was rolled back)")
+		if len(problems) > 0 {
+			return fmt.Errorf("%w\nadditionally: %s", refusal, strings.Join(problems, "; "))
+		}
+		return refusal
 	}
 	if rerr := refreshLandJournalAfterCommit(s.Root, slug, tx, landPhaseCommitted); rerr != nil {
 		closeErr := tx.Close()

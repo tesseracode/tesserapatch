@@ -664,6 +664,57 @@ func AuditStagedPathsForNestedWorktreesEnv(repoRoot string, env []string) (conta
 	return contaminated, nil
 }
 
+// IndexEntriesEnv lists EVERY path present in the index reachable
+// through `env`, byte-exactly, regardless of how it compares to HEAD.
+//
+// This is the post-commit question. `git diff --cached` compares the
+// index against HEAD, so once a commit has been made from a
+// contaminated index the contamination is invisible there — it is in
+// HEAD too. The full listing still shows it.
+func IndexEntriesEnv(repoRoot string, env []string) ([]string, error) {
+	out, err := runGitWithEnv(repoRoot, env, "-c", "core.quotePath=false",
+		"ls-files", "--cached", "-z")
+	if err != nil {
+		return nil, fmt.Errorf("list index entries: %w", err)
+	}
+	var paths []string
+	for _, p := range strings.Split(out, "\x00") {
+		if p == "" {
+			continue
+		}
+		paths = append(paths, filepath.ToSlash(p))
+	}
+	return paths, nil
+}
+
+// AuditIndexEntriesForNestedWorktreesEnv returns every path PRESENT in
+// the index that falls inside a currently registered nested linked
+// worktree.
+//
+// Used after `git commit` returns, where the diff-against-HEAD audit is
+// blind: a hook that staged a nested worktree and let the commit
+// succeed put the gitlink into HEAD as well, so only the full index
+// listing can still see it.
+func AuditIndexEntriesForNestedWorktreesEnv(repoRoot string, env []string) (contaminated []string, err error) {
+	nested, err := NestedWorktreePrefixes(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	if len(nested) == 0 {
+		return nil, nil
+	}
+	entries, err := IndexEntriesEnv(repoRoot, env)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range entries {
+		if PathUnderNestedWorktree(p, nested) {
+			contaminated = append(contaminated, p)
+		}
+	}
+	return contaminated, nil
+}
+
 // AuditStagedPathsForNestedWorktrees audits the ambient index.
 func AuditStagedPathsForNestedWorktrees(repoRoot string) ([]string, error) {
 	return AuditStagedPathsForNestedWorktreesEnv(repoRoot, nil)

@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -255,8 +254,8 @@ func TestBeginIndexTransactionRefusesNonRegularIndex(t *testing.T) {
 		root := nestedWTRepo(t)
 		indexPath := filepath.Join(root, ".git", "index")
 		_ = os.Remove(indexPath)
-		if err := syscall.Mkfifo(indexPath, 0o644); err != nil {
-			t.Skipf("platform refuses FIFOs: %v", err)
+		if !makeFifoForTest(t, indexPath) {
+			t.Skip("platform has no FIFOs")
 		}
 		tx, err := BeginIndexTransaction(root)
 		if err == nil {
