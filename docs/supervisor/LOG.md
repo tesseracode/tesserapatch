@@ -1,3 +1,39 @@
+## Review — v0.15.1 Wave A / GH #7 rev-6 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `0b557ef`
+**Reviewed range**: `3dfbad0..d6b0b07`
+
+### Verdict: NEEDS REVISION → REV-7 DISPATCHED
+
+### Verified Clean
+
+- Exact redirected index paths, symlink/nonregular refusal, temp-index
+  staging, operator divergence detection, hook environment and validation.
+
+### Residual Findings
+
+1. **HIGH**: `PublishLocked` drops lock ownership after close; a subsequent
+   chmod/rename failure can leave an owned stale `<index>.lock`.
+2. **MEDIUM**: commit advances HEAD before live-index publish. A crash can
+   leave new HEAD, old index and lock residue; publication lacks file/dir
+   fsync durability.
+
+### Rev-7 Direction
+
+- Track owned lock independently and clean it on every failed publish.
+- Publish through a separate same-directory temp with file+directory fsync
+  while retaining the owned index lock.
+- Add a durable transaction journal before commit. On the next land, compare
+  pre-HEAD/current HEAD and the retained temp index tree to recover staged
+  failure or complete post-commit index publication safely.
+- Test crash points before commit, after HEAD advance and during publish.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-7.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-5 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)

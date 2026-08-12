@@ -2,19 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-7 DISPATCHED
 
-v0.15.1 Wave A rev-6 (GitHub issue #7) replaces land's live-index
-rollback with an isolated temp-index transaction, closing all three
-rev-5 findings. Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-6 isolates staging but leaves publish-failure lock
+leakage and a crash-recovery gap. Rev-7 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-6
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-7
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and from
   land planning, staging and commit.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-6 dispatch HEAD**: `3dfbad0`
@@ -212,6 +211,26 @@ worktree.
 5. Scope wording: please check `docs/land.md`, the CHANGELOG and the
    `index_snapshot.go` header all say the same thing — index
    serialization only, no claim about refs or the working tree.
+
+## Rev-6 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Isolated staging and operator-divergence protection are effective.
+- Valid residuals:
+  1. Publish clears lock ownership too early; later chmod/rename failure can
+     leave a stale owned index lock.
+  2. Commit advances HEAD before durable live-index publication; a crash can
+     leave HEAD/index/lock inconsistent.
+- `tpatch_rev6_bin` and review scratch are absent after external cleanup.
+
+## Next Steps
+
+1. Retain owned-lock cleanup through all publish outcomes.
+2. Make live-index publication atomic and fsync-durable.
+3. Add a durable land-index recovery journal for commit/publish crash windows.
+4. Recover or refuse safely at the next land invocation.
+5. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 

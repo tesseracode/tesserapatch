@@ -679,6 +679,10 @@ so a worktree registered after planning cannot enter the commit.
 REVISION. Rev-6 replaces live-index rollback with isolated temporary-index
 staging and guarded publication, preserving concurrent operator state.
 
+**Wave A rev-6** (`0b557ef`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-7 adds durable index publication and crash recovery while
+retaining owned-lock cleanup across every failure.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
