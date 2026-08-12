@@ -361,7 +361,7 @@ func embedRecord(cmd *cobra.Command, repoRoot, slug, fromRef string, autoBase bo
 func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]bool) ([]string, error) {
 	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
 	if err != nil {
-		return nil, gitutil.NestedWorktreeDiscoveryError(s.Root, err)
+		return nil, err
 	}
 	seen := make(map[string]struct{})
 	var out []string
@@ -461,37 +461,46 @@ func metadataChangedSet(before, after map[string]string) map[string]bool {
 // use, so an agent harness checkout never shows up in land's staging
 // plan, in the outside-path/refusal list, or in the `--allow-extra-paths`
 // sweep. Discovery failure is fail-closed (error), never "assume none".
+//
+// GH #7 rev-1: the NUL-delimited porcelain shape is used so paths
+// arrive byte-for-byte. The newline shape C-quotes any path containing
+// a space (or control byte), and the previous crude `Trim(path, "\"")`
+// plus `TrimSpace` dequote silently corrupted exactly the names the
+// nested-worktree filter must match — a worktree directory ending in a
+// space would have been mangled back into a non-matching prefix.
 func dirtyPaths(repoRoot string) ([]string, error) {
 	nested, err := gitutil.NestedWorktreePrefixes(repoRoot)
 	if err != nil {
-		return nil, gitutil.NestedWorktreeDiscoveryError(repoRoot, err)
+		return nil, err
 	}
-	out, err := runGit(repoRoot, "status", "--porcelain", "--untracked-files=all")
+	out, err := runGit(repoRoot, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
 		return nil, err
 	}
 	var paths []string
-	for _, line := range strings.Split(out, "\n") {
-		if len(line) < 4 {
+	// Porcelain v1 `-z`: each entry is `XY <path>\0`, and a rename or
+	// copy (`R`/`C` in either column) is followed by one extra
+	// `<origin>\0` field. Paths are never quoted in this shape.
+	fields := strings.Split(out, "\x00")
+	for i := 0; i < len(fields); i++ {
+		entry := fields[i]
+		if len(entry) < 4 {
 			continue
 		}
-		// Porcelain v1: columns 1–2 are XY status; column 3 is a
-		// space; column 4+ is the path. Renames use ` -> ` to
-		// separate old → new — we take the new path because
-		// that's what we'll be staging.
-		path := strings.TrimSpace(line[3:])
-		if idx := strings.Index(path, " -> "); idx >= 0 {
-			path = strings.TrimSpace(path[idx+4:])
+		x, y := entry[0], entry[1]
+		p := entry[3:]
+		if x == 'R' || x == 'C' || y == 'R' || y == 'C' {
+			// Skip the origin-path field; we stage the new path.
+			i++
 		}
-		path = strings.Trim(path, "\"")
-		path = filepath.ToSlash(path)
-		if path == "" {
+		p = filepath.ToSlash(p)
+		if p == "" {
 			continue
 		}
-		if gitutil.PathUnderNestedWorktree(path, nested) {
+		if gitutil.PathUnderNestedWorktree(p, nested) {
 			continue
 		}
-		paths = append(paths, path)
+		paths = append(paths, p)
 	}
 	sort.Strings(paths)
 	return paths, nil

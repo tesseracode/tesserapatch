@@ -1024,7 +1024,10 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 			}
 		}
 	}
-	diffStat, _ := gitutil.CaptureDiffStat(s.Root)
+	diffStat, diffStatErr := gitutil.CaptureDiffStat(s.Root)
+	if diffStatErr != nil && errors.Is(diffStatErr, gitutil.ErrNestedWorktreeDiscovery) {
+		return "", 0, diffStatErr
+	}
 	if diffStat != "" {
 		s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
 	}
@@ -1766,7 +1769,10 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// round-tripped (or --lenient was passed), so we proceed
 			// directly to diff-stat capture.
 
-			diffStat, _ := gitutil.CaptureDiffStatScoped(s.Root, pathspecs)
+			diffStat, diffStatErr := gitutil.CaptureDiffStatScoped(s.Root, pathspecs)
+			if diffStatErr != nil && errors.Is(diffStatErr, gitutil.ErrNestedWorktreeDiscovery) {
+				return diffStatErr
+			}
 			if diffStat != "" {
 				s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
 			}

@@ -221,10 +221,23 @@ func CaptureDiffStat(repoRoot string) (string, error) {
 // the captured patch covers (M15-W2 review F2: previously the patch
 // was scoped but the diffstat metadata was not, leaking cross-feature
 // edits into per-feature artifacts).
+//
+// GH #7 rev-1: the diffstat carries the SAME nested-worktree
+// `:(exclude,literal)` pathspecs as the patch capture. Without them, a
+// pre-existing intent-to-add or staged gitlink for a nested registered
+// worktree — residue from a pre-fix tpatch run or from an operator's
+// own `git add` — was filtered out of `post-apply.patch` but still
+// rendered into `post-apply-diff.txt`. Discovery failure is
+// fail-closed here too.
 func CaptureDiffStatScoped(repoRoot string, pathspecs []string) (string, error) {
+	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return "", err
+	}
 	args := []string{"diff", "--stat"}
-	if len(pathspecs) > 0 {
+	if len(nestedExcludes) > 0 || len(pathspecs) > 0 {
 		args = append(args, "--")
+		args = append(args, nestedExcludes...)
 		args = append(args, pathspecs...)
 	}
 	out, err := runGit(repoRoot, args...)

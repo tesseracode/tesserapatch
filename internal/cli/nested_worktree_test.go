@@ -399,3 +399,318 @@ func TestNestedWorktree_ExternalWorktreeAndTrackedGitlinkUnaffected(t *testing.T
 		t.Errorf("ordinary untracked file dropped while an external worktree is registered:\n%s", got)
 	}
 }
+
+// ─── GH #7 rev-1: CLI-level fail-closed regression ──────────────────
+
+// installFailingWorktreeListGit prepends a `git` wrapper to PATH that
+// fails ONLY for `git worktree list` and execs the real git for
+// everything else. It returns a restore func that removes the wrapper
+// again, so the same test can prove both the refusal and the recovery.
+//
+// The simulated failure is a `fatal:` error, not an unknown-switch
+// usage error, so it exercises the "genuine repository failure" branch
+// rather than the pre-2.36 legacy fallback. Production code is
+// untouched: the seam is the `git` executable itself.
+func installFailingWorktreeListGit(t *testing.T) (restore func()) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate real git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := "#!/bin/sh\nprev=\"\"\nfor a in \"$@\"; do\n" +
+		"  if [ \"$prev\" = \"worktree\" ] && [ \"$a\" = \"list\" ]; then\n" +
+		"    echo \"fatal: simulated worktree discovery failure\" >&2\n" +
+		"    exit 128\n" +
+		"  fi\n" +
+		"  prev=\"$a\"\n" +
+		"done\n" +
+		"exec " + realGit + " \"$@\"\n"
+	shim := filepath.Join(binDir, "git")
+	if err := os.WriteFile(shim, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := os.Getenv("PATH")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+original)
+
+	// Sanity: the wrapper must actually break `worktree list` and
+	// leave every other git subcommand working.
+	probe := exec.Command("git", "worktree", "list", "--porcelain", "-z")
+	probe.Dir = binDir
+	if err := probe.Run(); err == nil {
+		t.Fatal("git wrapper did not break `worktree list`")
+	}
+	if out, err := exec.Command("git", "--version").CombinedOutput(); err != nil {
+		t.Fatalf("git wrapper broke unrelated subcommands: %s: %v", out, err)
+	}
+	return func() { os.Setenv("PATH", original) }
+}
+
+// snapshotDir returns a path → content map for every regular file
+// under dir, used to prove a refusal left state byte-identical.
+func snapshotDir(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	err := filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		body, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
+		out[filepath.ToSlash(rel)] = string(body)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func assertSnapshotUnchanged(t *testing.T, label string, before, after map[string]string) {
+	t.Helper()
+	for k, v := range before {
+		got, ok := after[k]
+		if !ok {
+			t.Errorf("%s: %s was removed by a refusal", label, k)
+			continue
+		}
+		if got != v {
+			t.Errorf("%s: %s changed across a refusal", label, k)
+		}
+	}
+	for k := range after {
+		if _, ok := before[k]; !ok {
+			t.Errorf("%s: %s was created by a refusal", label, k)
+		}
+	}
+}
+
+// apply --mode done must refuse and write nothing when worktree
+// discovery itself fails, then succeed once discovery is restored.
+func TestNestedWorktree_DiscoveryFailure_ApplyDoneRefusesThenRecovers(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+	before := snapshotDir(t, featureDir)
+
+	restore := installFailingWorktreeListGit(t)
+	stdout, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done")
+	if code == 0 {
+		t.Fatalf("apply --mode done must refuse when worktree discovery fails: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "Refusing to capture") {
+		t.Errorf("refusal missing the fail-closed guidance: %q", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(featureDir, "artifacts", "post-apply.patch")); err == nil {
+		t.Error("apply --mode done wrote a patch despite refusing")
+	}
+	assertSnapshotUnchanged(t, "apply --mode done", before, snapshotDir(t, featureDir))
+
+	restore()
+	if stdout, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed after discovery was restored: stdout=%q stderr=%q", stdout, stderr)
+	}
+	canonical := readArtifact(t, tmpDir, slug, "post-apply.patch")
+	assertNoNestedWorktree(t, "canonical patch after recovery", canonical)
+	if !strings.Contains(canonical, "+changed") {
+		t.Errorf("recovered capture missing the intended change:\n%s", canonical)
+	}
+}
+
+// record must refuse and leave the feature directory byte-identical.
+func TestNestedWorktree_DiscoveryFailure_RecordRefusesThenRecovers(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+	before := snapshotDir(t, featureDir)
+
+	restore := installFailingWorktreeListGit(t)
+	for _, mode := range [][]string{nil, {"--all"}, {"--unstaged"}, {"--files", "README.md"}} {
+		args := append([]string{"record", "--path", tmpDir, slug}, mode...)
+		stdout, stderr, code := runCmdWithError(args...)
+		if code == 0 {
+			t.Fatalf("record %v must refuse when worktree discovery fails: stdout=%q", mode, stdout)
+		}
+		if !strings.Contains(stderr, "Refusing to capture") {
+			t.Errorf("record %v refusal missing the fail-closed guidance: %q", mode, stderr)
+		}
+		assertSnapshotUnchanged(t, "record "+strings.Join(mode, " "), before, snapshotDir(t, featureDir))
+	}
+
+	restore()
+	if stdout, stderr, code := runCmdWithError("record", "--path", tmpDir, slug); code != 0 {
+		t.Fatalf("record failed after discovery was restored: stdout=%q stderr=%q", stdout, stderr)
+	}
+	assertNoNestedWorktree(t, "post-apply.patch after recovery", readArtifact(t, tmpDir, slug, "post-apply.patch"))
+	assertNoNestedWorktree(t, "post-apply-diff.txt after recovery", readArtifact(t, tmpDir, slug, "post-apply-diff.txt"))
+}
+
+// land --dry-run must refuse without printing a staging plan, and land
+// must not commit; both recover once discovery works again.
+func TestNestedWorktree_DiscoveryFailure_LandRefusesThenRecovers(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	headBefore := gitHead(t, tmpDir)
+
+	restore := installFailingWorktreeListGit(t)
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--dry-run")
+	if code == 0 {
+		t.Fatalf("land --dry-run must refuse when worktree discovery fails: stdout=%q", stdout)
+	}
+	if strings.Contains(stdout, "Staging (path set):") || strings.Contains(stdout, "Outside path set") {
+		t.Errorf("land --dry-run emitted a misleading plan despite refusing:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "Refusing to capture") {
+		t.Errorf("land --dry-run refusal missing the fail-closed guidance: %q", stderr)
+	}
+
+	stdout, stderr, code = runCmdWithError("land", "--path", tmpDir, slug, "--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land must refuse when worktree discovery fails: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("land advanced HEAD despite refusing: %s -> %s", headBefore, got)
+	}
+
+	restore()
+	stdout, stderr, code = runCmdWithError("land", "--path", tmpDir, slug, "--dry-run",
+		"--files", "README.md,internal/example.go")
+	if code != 0 {
+		t.Fatalf("land --dry-run failed after discovery was restored: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Staging (path set):") {
+		t.Errorf("recovered dry-run missing the staging plan:\n%s", stdout)
+	}
+	assertNoNestedWorktree(t, "recovered dry-run plan", stdout)
+	if stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go"); code != 0 {
+		t.Fatalf("land failed after discovery was restored: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if gitHead(t, tmpDir) == headBefore {
+		t.Error("recovered land did not advance HEAD")
+	}
+	assertNoNestedWorktree(t, "recovered landing commit",
+		nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD"))
+}
+
+// GH #7 rev-1 residual 3, CLI level: pre-existing staged gitlink
+// residue must be absent from post-apply.patch AND post-apply-diff.txt.
+func TestNestedWorktree_StagedGitlinkResidue_AbsentFromPatchAndDiffstat(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"default record", nil},
+		{"scoped record", []string{"--files", "README.md,internal/example.go"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir, slug := setupNestedWorktreeFixture(t)
+			// Residue a pre-fix tpatch run (or an operator `git add`)
+			// leaves behind in the index.
+			nwtGit(t, tmpDir, "-c", "advice.addEmbeddedRepo=false",
+				"--literal-pathspecs", "add", "--intent-to-add", "--", nestedWorktreeRel)
+
+			if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+				t.Fatalf("apply --mode done failed: %s", stderr)
+			}
+			args := append([]string{"record", "--path", tmpDir, slug}, tc.args...)
+			if stdout, stderr, code := runCmdWithError(args...); code != 0 {
+				t.Fatalf("record failed: stdout=%q stderr=%q", stdout, stderr)
+			}
+
+			patch := readArtifact(t, tmpDir, slug, "post-apply.patch")
+			diffstat := readArtifact(t, tmpDir, slug, "post-apply-diff.txt")
+			assertNoNestedWorktree(t, "post-apply.patch", patch)
+			assertNoNestedWorktree(t, "post-apply-diff.txt", diffstat)
+			for _, want := range []string{"README.md", "internal/example.go"} {
+				if !strings.Contains(patch, want) {
+					t.Errorf("patch missing %q:\n%s", want, patch)
+				}
+				if !strings.Contains(diffstat, want) {
+					t.Errorf("diffstat missing %q:\n%s", want, diffstat)
+				}
+			}
+		})
+	}
+}
+
+// A nested worktree whose directory name carries significant trailing
+// whitespace must stay out of the CLI artifacts and out of land's
+// plan, while the same name without the trailing space stays in.
+func TestNestedWorktree_TrailingWhitespaceName_ExcludedEndToEnd(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitInitTestRepo(t, tmpDir)
+	nwtGit(t, tmpDir, "config", "commit.gpgsign", "false")
+	if err := os.MkdirAll(filepath.Join(tmpDir, "internal"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "internal", "example.go"), []byte("package example\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nwtGit(t, tmpDir, "add", "internal/example.go")
+	nwtGit(t, tmpDir, "-c", "commit.gpgsign=false", "commit", "-qm", "seed")
+	if _, _, code := runCmd("init", "--path", tmpDir); code != 0 {
+		t.Fatalf("tpatch init failed")
+	}
+	nwtGit(t, tmpDir, "add", ".")
+	nwtGit(t, tmpDir, "-c", "commit.gpgsign=false", "commit", "-qm", "tpatch scaffolding")
+	if _, _, code := runCmd("add", "--path", tmpDir, "Trailing space guard"); code != 0 {
+		t.Fatalf("tpatch add failed")
+	}
+	slug := "trailing-space-guard"
+
+	wtRel := "wt/agent "
+	addNestedWorktree(t, tmpDir, wtRel, "agent-trailing")
+	// Prefix-boundary control: same name, no trailing space.
+	control := filepath.Join(tmpDir, "wt", "agent")
+	if err := os.MkdirAll(control, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(control, "keep.txt"), []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nchanged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if stdout, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	patch := readArtifact(t, tmpDir, slug, "post-apply.patch")
+	diffstat := readArtifact(t, tmpDir, slug, "post-apply-diff.txt")
+	for label, body := range map[string]string{"post-apply.patch": patch, "post-apply-diff.txt": diffstat} {
+		if strings.Contains(body, "160000") {
+			t.Errorf("%s captured the trailing-space worktree as a gitlink:\n%s", label, body)
+		}
+		if strings.Contains(body, "wt/agent ") {
+			t.Errorf("%s referenced the trailing-space worktree:\n%s", label, body)
+		}
+	}
+	// The prefix-boundary control is untracked, so it shows up in the
+	// patch (which intent-to-adds untracked files) but not in the
+	// plain `git diff --stat` diffstat — that asymmetry predates this
+	// fix and is unchanged by it.
+	if !strings.Contains(patch, "wt/agent/keep.txt") {
+		t.Errorf("post-apply.patch dropped the prefix-boundary control wt/agent/keep.txt:\n%s", patch)
+	}
+	if !strings.Contains(patch, "+changed") {
+		t.Errorf("intended change missing:\n%s", patch)
+	}
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--dry-run")
+	if code != 0 {
+		t.Fatalf("land --dry-run failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if strings.Contains(stdout, "wt/agent ") {
+		t.Errorf("land plan listed the trailing-space worktree:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "wt/agent/keep.txt") {
+		t.Errorf("land plan dropped the prefix-boundary control:\n%s", stdout)
+	}
+}

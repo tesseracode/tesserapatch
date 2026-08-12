@@ -548,7 +548,7 @@ func untrackedFiltered(repoRoot string, pathspecs []string) ([]string, error) {
 func listUntrackedFiles(repoRoot string, pathspecs []string) ([]string, error) {
 	nested, err := NestedWorktreePrefixes(repoRoot)
 	if err != nil {
-		return nil, NestedWorktreeDiscoveryError(repoRoot, err)
+		return nil, err
 	}
 	args := []string{"-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard", "-z"}
 	if len(pathspecs) > 0 {
