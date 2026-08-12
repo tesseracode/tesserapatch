@@ -192,6 +192,38 @@ All notable changes to tpatch are recorded here.
   `commit succeeded, recovery pending`, the latter never claiming a
   rollback of HEAD.
 
+  A *successful* commit hook that stages a nested worktree is caught
+  too. `git diff --cached` compares the index against the NEW HEAD once
+  the commit exists, so a contamination the hook committed is invisible
+  to it; the post-commit audit therefore lists the retained index
+  outright (`git ls-files --cached -z`) and inspects the exact
+  hook-mutated index that produced the commit. On contamination land
+  publishes nothing and instead compare-and-swaps the branch back to
+  pre-HEAD (`git update-ref` with the expected old value and an explicit
+  reflog message), restores the `status.json` preimage, and leaves the
+  live index untouched — the orphaned commit object is never presented
+  as landed. The swap runs only when HEAD is still exactly the landing
+  commit (a direct child of pre-HEAD carrying this feature's trailer);
+  if anything advanced the branch meanwhile, land refuses with manual
+  guidance rather than discarding another process's work. Any failure of
+  the rollback, the status restore or the cleanup keeps the journal and
+  retained index and reports a precise recovery-pending diagnostic, and
+  recovery itself refuses to publish a retained index that contains a
+  nested worktree.
+
+  The journal schema is version 3 and carries no caller-controlled
+  filesystem path. Earlier versions persisted the lock's absolute and
+  relative path; a tampered journal could therefore have aimed the
+  stale-lock removal at an arbitrary file. The only lock path is now
+  derived at use time from the validated effective index
+  (`<index>.lock`), the journal keeping the nonce and inode purely as
+  ownership evidence. Journals are decoded strictly — an unknown field
+  such as a reintroduced `lock_abs` is refused rather than ignored —
+  and every remaining relative path is validated for repository
+  containment, regular-file type and the absence of symlinked
+  components before it is read or written. A v2 or older journal
+  refuses with manual-recovery guidance instead of being interpreted.
+
   Scope, stated plainly: this serializes INDEX writes against other Git
   processes, because `<index>.lock` is the lock `git add` and
   `git commit` themselves take, and it makes index publication durable

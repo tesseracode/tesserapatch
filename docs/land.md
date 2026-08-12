@@ -76,6 +76,14 @@ HEAD is the second axis: still at the pre-land commit means the commit never hap
 
 The journal and retained index are deleted only after a durable publish succeeds — they are the only copy of the retry evidence. A failed publish keeps them and reports either `commit failed, staged retry recovery pending` or `commit succeeded, recovery pending`; the latter never claims HEAD was rolled back. Recovery is idempotent.
 
+The journal is schema **v3** and stores **no caller-controlled filesystem path**. The lock path is always derived at use time from the validated effective index (`<index>.lock`); the journal keeps only the nonce and inode as ownership evidence, so a tampered journal cannot aim the stale-lock removal at another file. Journals are decoded strictly — an unknown field is refused, not ignored — and the remaining relative paths are checked for repository containment, regular-file type and the absence of symlinked components before use. A v2 or older journal refuses with manual-recovery guidance rather than being interpreted.
+
+### A commit hook that stages a nested worktree
+
+A `pre-commit` hook inherits `GIT_INDEX_FILE`, so it stages into the retained index — including, potentially, a nested worktree. Once the commit exists, `git diff --cached` compares the index against the *new* HEAD, which makes that contamination invisible; `land` therefore audits the retained index by listing it outright (`git ls-files --cached -z`) after the commit returns, inspecting the exact hook-mutated index the commit was made from.
+
+On contamination `land` publishes nothing. It compare-and-swaps the branch back to the pre-land commit (`git update-ref` with the expected old value and an explicit reflog message), restores the `status.json` preimage and leaves your index untouched, then reports the nested-worktree refusal naming the offending paths. The commit object is orphaned and is never presented as landed. The swap runs **only** while HEAD is still exactly the landing commit — a direct child of the pre-land commit carrying this feature's trailer; if something advanced the branch in between (a `post-commit` hook, another process) `land` refuses with manual guidance instead of discarding that work. Any failure of the rollback, the status restore or the cleanup keeps the journal and retained index and reports a recovery-pending diagnostic, and recovery itself refuses to publish a retained index containing a nested worktree. A hook that stages an ordinary allowed file is unaffected and commits normally.
+
 This serializes index writes against other Git processes and makes index publication durable. It does **not** protect against concurrent ref or working-tree changes such as `git checkout` or `git reset --hard`, which no index lock can express.
 
 The path set is intentionally **strict**: a `land` that silently absorbs unrelated edits is exactly the WP-001 §5.2 row 5 problem moved one step downstream into Git history.

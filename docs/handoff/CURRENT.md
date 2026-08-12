@@ -2,242 +2,207 @@
 
 ## Status
 
-**Cluster state**: REV-9 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-8 remains blocked by successful hook contamination and
-journal-controlled lock paths. Rev-9 is dispatched.
+v0.15.1 Wave A / GH #7 rev-9 is implemented, validated and pushed. Both
+rev-8 HIGH findings (successful-hook contamination, journal-controlled
+lock paths) are closed, and the Windows test-portability finding is
+closed by build-tag separation rather than a runtime skip.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave A / GH #7 rev-9
-- **Description**: Exclude registered linked Git worktrees nested beneath
-  the target repository from apply/record/reconcile capture and from
-  land planning, staging and commit — with a durable, crash-recoverable
-  land transaction.
-- **Status**: In Progress
-- **Assigned**: 2026-08-12
+- **Milestone**: v0.15.1 — nested linked worktrees are never captured or staged
+- **Description**: Close the rev-8 adjudication findings: audit the exact
+  hook-mutated index that produced a *successful* commit and roll the
+  branch back on contamination; remove every caller-controlled filesystem
+  path from the crash-recovery journal; make the FIFO test compile on
+  Windows.
+- **Status**: Review
 - **WAVE_BASE**: `5d15fcf`
-- **Rev-8 dispatch HEAD**: `7905cc9`
-- **Target release**: v0.15.1
 
-## Rev-7 finding closures
+## Session Summary
 
-### F1 (HIGH) — recovery under the live lock + state compare — CLOSED
+### F1 (HIGH) — a successful commit hook could still land a nested worktree
 
-Recovery previously published without locking or comparing the live
-index, so an operator `git add` after the crash could be silently
-overwritten.
+`git commit` passes `GIT_INDEX_FILE` to hooks, so a `pre-commit` hook
+stages into the retained index. Rev-8 audited that index after the commit
+with `git diff --cached`, which is the wrong instrument: once the commit
+exists, `--cached` compares the index against the **new** HEAD, so a
+gitlink the hook staged and the commit captured is invisible. A hook that
+ran `git add .claude/worktrees/agent` and exited 0 therefore produced a
+landed commit containing a `mode 160000` entry.
 
-- Recovery now takes the live `<index>.lock` (`O_EXCL`) before it
-  reads, compares or publishes anything. A stale lock is removed only
-  after **both** the nonce and, where the platform exposes one, the
-  recorded **inode** match the journal; a foreign lock refuses outright
-  and is left byte-identical.
-- The journal carries the canonical **preimage** identity —
-  `LiveIndexPre{Exists, SHA256, Mode}` — plus the index path identity,
-  and the retained index's identity and `write-tree`.
-- Under the lock the live index is classified by CONTENT, never by path
-  match: `livePreimage` (safe to publish), `livePostimage` (a previous
-  recovery already published it → idempotent cleanup, **no rewrite**),
-  or `liveDivergent` (→ refuse, preserving the live index, journal and
-  retained index; only our own lock is released).
-- Both HEAD branches go through the same comparison, and recovery
-  remains evidence-based and idempotent.
+- Added `gitutil.IndexEntriesEnv` (`git ls-files --cached -z`) and
+  `gitutil.AuditIndexEntriesForNestedWorktreesEnv`, which list the index
+  outright rather than diffing it against a moving reference. Both
+  post-commit audits (success and failure) now use them; the pre-commit
+  audits keep `--cached` semantics, which are correct before the commit.
+- On contamination `land` publishes nothing. It compare-and-swaps the
+  branch back to the pre-land commit
+  (`git update-ref -m <reflog> HEAD <preHead> <newHead>`), restores the
+  `status.json` preimage and leaves the live index untouched, then
+  returns the nested-worktree refusal naming the paths. The commit object
+  is orphaned and never presented as landed.
+- The swap is gated on HEAD still being **exactly** the landing commit
+  (direct child of pre-HEAD carrying this feature's trailer). If a
+  `post-commit` hook or another process advanced the branch, `land`
+  refuses with manual guidance rather than discarding that work — a
+  blind CAS would have thrown away a concurrent commit.
+- Rollback / status-restore / cleanup failures route to
+  `contaminatedRollbackPending`, which keeps the journal and retained
+  index and returns a precise recovery-pending diagnostic.
+- Recovery refuses to publish a retained index that contains a nested
+  worktree, so the contaminated evidence cannot be published by a later
+  invocation either.
 
-### F2 (HIGH) — journal clearing — CLOSED
+### F2 (HIGH) — the journal directed filesystem operations
 
-The journal and retained index are the **only** copy of the staged-retry
-evidence, so they are cleared strictly after a durable publish and lock
-cleanup succeed:
+Schema v2 persisted `lock_abs` / `lock_rel`, and stale-lock removal used
+them. A tampered journal could therefore have aimed an unlink at an
+arbitrary file. Schema is now **v3**:
 
-- commit failure + publish failure → journal retained, diagnostic
-  `land: commit failed, staged retry recovery pending — …`;
-- commit success + publish failure → journal retained, diagnostic
-  `land: commit succeeded, recovery pending — …`, which explicitly never
-  claims a rollback of HEAD;
-- a later `tpatch land` recovers both cases (HEAD==pre publishes the
-  staged retry; HEAD advanced finishes the publication) and only then
-  clears.
+- `LockAbs` / `LockRel` removed from the struct and from every decision.
+  The lock path is always derived at use time as
+  `EffectiveIndexPath(repoRoot) + ".lock"`, after index-identity
+  validation. The journal keeps `LockNonce` and `LockIno` purely as
+  ownership evidence.
+- Journals decode with `DisallowUnknownFields`, so a reintroduced
+  `lock_abs` (or any other injected field) is refused, not ignored.
+- `validateContainedRelPath` checks every remaining relative path for
+  repository containment, regular-file type and the absence of symlinked
+  components before it is read or written.
+- A v2-or-older journal refuses with manual-recovery guidance instead of
+  being interpreted.
 
-An abort *before* the journal exists still removes the scratch alternate
-index; after it exists, nothing on a failure path deletes it.
+### F3 (LOW) — Windows test portability
 
-### F3 (MEDIUM) — retained index is the commit index — CLOSED
-
-`gitutil.BeginIndexTransactionAt` lets land point `GIT_INDEX_FILE` at
-`.tpatch/local/land-journal/<slug>.index` directly. Staging, both
-pre-commit audits, the commit and every hook mutate that one durable
-file, so a hook's edits are inside the evidence.
-
-- Before the commit: `write-tree` (which rewrites the index in place),
-  then fsync, then hash — in that order, because hashing first records a
-  checksum the file no longer has. This ordering bug was found and fixed
-  during implementation and is now stated in `indexTree`'s doc comment.
-- After `git commit` returns (success **or** failure): the alternate
-  index is re-audited for nested worktrees, fsynced, re-hashed, its tree
-  recomputed, and the journal durably updated — all **before** any live
-  publish or clear.
-- A hook that stages a nested worktree is caught by that re-audit on
-  both branches and refuses with the evidence preserved.
-
-### F4 — evidence matrix (dispatch item 4)
-
-Stated in the `landJournal` doc comment, in `docs/land.md`, in the
-CHANGELOG and exercised by tests. A retained checksum that differs from
-the pre-commit value is accepted **only** in the HEAD-advanced branch
-and **only** when path containment holds and the retained `write-tree`
-equals the direct-child HEAD tree; the observed identity is then
-persisted under the lock. `Phase` is written and refreshed but no
-decision reads it.
+The FIFO helper referenced `syscall.Mkfifo`, which does not exist on
+Windows, so `internal/gitutil` did not test-compile there — a runtime
+skip could not have fixed an unresolved symbol. Split into
+`fifo_unix_test.go` (`//go:build !windows`) and `fifo_other_test.go`
+(`//go:build windows`, returns "unsupported"). Native FIFO coverage is
+unchanged on Unix.
 
 ## Files Changed
 
-Created this rev:
+**rev-9 (this cycle)**
 
-- `internal/gitutil/file_ino_unix.go`
-- `internal/gitutil/file_ino_other.go`
-
-Modified this rev:
-
-- `internal/gitutil/index_snapshot.go`
-- `internal/cli/land_journal.go`
-- `internal/cli/land_journal_test.go`
-- `internal/cli/land.go`
-- `internal/cli/nested_worktree_test.go`
-- `CHANGELOG.md`
-- `docs/land.md`
-- `docs/handoff/CURRENT.md`
-
-Deliberately NOT folded: the Makefile nested-repo sentinel LOW is
-separately tracked.
+- `internal/gitutil/index_snapshot.go` — `IndexEntriesEnv`,
+  `AuditIndexEntriesForNestedWorktreesEnv`
+- `internal/gitutil/index_snapshot_test.go` — FIFO helper call site
+- `internal/gitutil/fifo_unix_test.go` (new) — `//go:build !windows`
+- `internal/gitutil/fifo_other_test.go` (new) — `//go:build windows`
+- `internal/cli/land.go` — post-commit index-entry audit, CAS rollback,
+  `contaminatedRollbackPending`, landing-commit gate
+- `internal/cli/land_journal.go` — schema v3, derived lock path, strict
+  decode, `validateContainedRelPath`, contaminated-retained refusal
+- `internal/cli/land_journal_test.go` — rev-9 tests
+- `CHANGELOG.md`, `docs/land.md`, `docs/handoff/CURRENT.md`
 
 ## Test Results
 
-- `gofmt -l .` — clean.
-- `go vet ./...` — clean.
-- `go build ./cmd/tpatch` — clean; `GOOS=windows go build ./...` — clean
-  (the inode lookup is behind a build tag; Windows degrades to the nonce
-  check, which is the decisive one).
-- `go test -count=1 ./...` — all packages `ok`, including the
-  cross-build contract test that caught the original `syscall.Stat_t`
-  portability break.
-- `go test -race -count=1` on `./internal/gitutil/`, `./internal/workflow/`
-  and `./internal/cli/` — ok.
-- 238 passing assertions across the GH #7 test set.
+```
+gofmt -l .                                    (clean)
+go vet ./...                                  ok
+GOOS=windows GOARCH=amd64 go vet ./...        ok
+GOOS=linux  GOARCH=amd64 go build ./...       ok
+GOOS=windows GOARCH=amd64 go test -c          ok  (gitutil, cli)
+GOOS=linux   GOARCH=amd64 go test -c          ok  (cli)
+go build ./cmd/tpatch                         ok
+go test -count=1 ./...                        ok  (all 13 packages)
+go test -race -count=1 ./internal/gitutil/ ./internal/workflow/ ./internal/cli/
+                                              ok
+```
 
-New coverage this rev:
+New rev-9 tests, all passing:
 
-- `TestRecoverLandRefusesDivergentLiveIndex` — an operator `git add`
-  after the crash makes the live index divergent; recovery refuses, the
-  operator's bytes AND mode are preserved, their staged file survives,
-  the journal/retained index are kept and no lock is left. Restoring the
-  exact preimage then lets recovery succeed.
-- `TestRecoverLandPostimageCleansWithoutRewrite` — an already-published
-  index is recognised by content; recovery cleans up without rewriting
-  (asserted via unchanged mtime) and is idempotent.
-- `TestRecoverLandLockValidation` — an inode mismatch on an otherwise
-  ours-looking lock refuses and preserves it; a foreign lock blocks
-  recovery and is untouched.
-- `TestLandHookStagedFileIsCommittedAndJournalled` — a `pre-commit` hook
-  that stages an allowed extra file: the commit contains it, the
-  published index agrees with HEAD, no journal residue.
-- `TestLandHookNestedWorktreeContaminationRefuses` — a hook that stages
-  the nested worktree is caught by the post-commit re-audit; HEAD does
-  not advance and the contamination never reaches the live index.
-- `TestLandCommitFailurePublishFailureRetainsEvidenceThenRecovers` —
-  injected live-publish failure on the commit-failure path: the exact
-  `commit failed, staged retry recovery pending` diagnostic, evidence
-  retained, no lock residue, and a later recovery publishes the staged
-  retry and clears.
-- `TestLandPostCommitPublishFailureIsRecoveryPending` — injected
-  live-publish failure after a successful commit: the exact
-  `commit succeeded, recovery pending` diagnostic, no "rolled back"
-  wording, HEAD advanced, evidence retained, and a later recovery
-  finishes the publication and clears (idempotent on a second pass).
+- `TestLandSuccessfulHookContaminationRollsBackHead` — a real
+  `pre-commit` hook stages a registered nested worktree and exits 0;
+  asserts nonzero exit, HEAD exactly pre-HEAD, live index unchanged, no
+  binding commit on the branch, journal cleared, no landed-at note.
+- `TestLandContaminatedRollbackFailureRetainsEvidence` — a `post-commit`
+  hook advances the branch via `commit-tree`, defeating the CAS gate;
+  asserts the manual-recovery diagnostic, retained journal + index, and
+  a refusing, non-mutating recovery.
+- `TestRecoverLandRefusesContaminatedRetainedIndex` — recovery refuses to
+  publish a contaminated retained index even when HEAD is exactly
+  pre-HEAD and every other check passes.
+- `TestLandBenignMessageHooksStillLand` — `prepare-commit-msg` /
+  `commit-msg` controls, and a hook staging an *allowed* file, land
+  normally.
+- `TestRecoverLandRejectsJournalSuppliedLockPaths` — a journal carrying
+  `lock_abs` / `lock_rel` aimed at a victim file is refused; the victim
+  is untouched.
+- `TestRecoverLandRefusesPreviousSchemaVersion` — v2 journal refuses.
+- `TestRecoverLandRefusesSymlinkedRetainedPath` — symlinked retained
+  path refused before use.
 
-Updated: the publish failure seams now receive the **target** path, so a
-test can fail only the live publication and leave alternate-index
-seeding alone. Discovery budgets moved to `5 + recordCalls` (entry gate,
-pre-stage revalidation, post-stage audit, pre-commit audit, post-commit
-re-audit); `--no-record` spends 5, `--dry-run` 1.
+## Reproduction
 
-All prior GH #7, strict-parser, refresh, non-goal and land-hook
-regressions were re-run unchanged and pass.
+Built binary against a scratch repo with two registered nested worktrees
+(`.claude/worktrees/agent review` — note the space — and
+`.claude/worktrees/agent-other`) plus an ordinary unrelated dirty
+directory:
 
-## Reproduction + control matrix (built binary)
+- `record` → patch contains `README.md`, `internal/example.go`,
+  `.gitignore`, `unrelated-dir/sub/file.txt`; zero `160000` entries; no
+  `.claude/worktrees` reference anywhere under the feature directory.
+- `record --files '.claude/worktrees/agent review'` → the targeted
+  "every requested path is a registered nested Git worktree" diagnostic,
+  nonzero exit.
+- `land --dry-run` → zero `.claude/worktrees` occurrences in the staging
+  plan, the outside-path list or the carve-out section; the ordinary
+  unrelated dirty paths still appear and still refuse without
+  `--allow-extra-paths`.
+- `land --no-record --allow-extra-paths` → landed; `git ls-tree -r HEAD`
+  has zero `160000` entries, the index has zero `.claude/worktrees`
+  entries, both worktrees remain registered, `README.md` and
+  `internal/example.go` are in the commit, and no journal or
+  `index.lock` residue remains.
 
-Re-run at this HEAD: the nested worktree is absent from patch, diffstat,
-plan, index and commit; the prefix sibling is captured and landed. After
-land there is no `.git/index.lock`, the journal directory is empty, and
-`git diff --cached` is empty. Scratch repos, worktrees and binaries
-removed.
-
-## Reviewer focus
-
-1. **`write-tree` rewrites the index.** This is the subtlest part of the
-   rev: any hash taken before `write-tree` is stale. Production computes
-   tree → fsync → hash in `writeLandJournal` and
-   `refreshLandJournalAfterCommit`, and in recovery the tree is computed
-   only inside the HEAD-advanced branch with the identity re-taken
-   afterwards. Worth a careful read.
-2. **Divergence is strict.** `git reset` produces a semantically
-   equivalent but not byte-identical index, so it is classified
-   divergent and refuses. That is deliberate — it is exactly the "the
-   operator touched it" signal — but it means a well-meaning `git reset`
-   forces manual recovery. The refusal explains how.
-3. **Recovery does not open an `IndexTransaction`** (that would re-seed
-   the alternate index from the live one and destroy the evidence); it
-   uses a minimal `recoveryLock`. Confirm the duplication is warranted.
-4. **Windows inode degradation.** `FileIno` returns `ok=false` there, so
-   stale-lock identification rests on the nonce alone. The nonce is the
-   decisive check; the inode is a strengthening.
-5. **Hook environment.** Hooks inherit `GIT_INDEX_FILE` pointing at the
-   retained index, so `git add` inside a hook mutates the evidence — by
-   design, and covered both for an allowed file and for a nested
-   worktree.
-
-## Rev-8 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED WITH NOTES.
-- Locked state comparison and evidence retention are effective.
-- Valid residuals:
-  1. A successful pre-commit hook can stage a nested worktree and have it
-     committed before the post-commit audit refuses.
-  2. Tampered journal `LockRel`/`LockAbs` fields can target arbitrary
-     nonce-bearing files for removal.
-  3. Windows cross-test compile fails because a FIFO test uses
-     `syscall.Mkfifo` without a build tag.
-- `tpatch_rev8_bin` and review scratch are absent after external cleanup.
+Scratch repo removed with `git worktree remove --force` on both
+worktrees followed by `git worktree prune`; the repository's own
+`git worktree list` is back to a single entry.
 
 ## Next Steps
 
-1. Audit successful hook mutations and compare-and-swap roll HEAD back before
-   returning any contamination refusal.
-2. Derive lock path exclusively from the validated effective index.
-3. Remove journal-controlled lock paths and bump schema.
-4. Move FIFO coverage behind `!windows`.
-5. Run final dual review, then close #7 only after approval.
+1. Reviewer pass on rev-9.
+2. On APPROVED: run the Wave-Close Checklist, flip `ROADMAP.md`, archive
+   this handoff into `HISTORY.md`, and tag v0.15.1 (tagging is explicitly
+   out of scope for the implementer).
 
 ## Blockers
 
-None. A safe durable protocol was provable in the current architecture.
+None.
 
 ## Context for Next Agent
 
-- `internal/gitutil/worktrees.go` — discovery authority.
-- `internal/gitutil/index_snapshot.go` — index transaction, owned-lock
-  lifetime, durable publish, target-aware failure seams.
-- `internal/cli/land_journal.go` — journal schema (v2), the evidence
-  matrix, locked recovery. Any schema change must bump
-  `landJournalVersion`; recovery refuses unknown versions.
-- Land's contract: recover (under lock) → gate-discover → revalidate →
-  begin transaction at the retained index → stage → audit → status →
-  audit → lock + verify → journal → commit → re-audit + refresh journal
-  → durable publish → clear journal → release.
-- Never hash an index before `write-tree`.
-- Never clear the journal before a publish has succeeded.
-- Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
+- **`git diff --cached` is the wrong audit after a commit.** It compares
+  against the new HEAD, so anything the commit captured looks clean. Any
+  post-commit index assertion must use `git ls-files --cached`.
+- **`git commit` really does export `GIT_INDEX_FILE` to hooks** (verified
+  empirically), which is why the retained index *is* the commit index —
+  hook mutations are inside the evidence, not lost with an ephemeral
+  copy.
+- **`git write-tree` rewrites the index in place** (cache-tree
+  extension), so any hash of the index must be taken *after* it, never
+  before. This bit both production code and fixtures earlier in the wave.
+- **The CAS rollback is deliberately conservative.** It fires only when
+  HEAD is still the exact landing commit. Rolling back a branch that
+  moved on would destroy someone else's commit, which is worse than the
+  refusal.
+- The status preimage `land` restores is the one taken *after* the
+  embedded `record` has already rewritten `status.json`. Tests must
+  assert the absence of the landed-at note rather than byte equality
+  with a pre-`land` snapshot.
+- Split-index (`core.splitIndex`) still has no dedicated fixture; it is
+  covered only indirectly by the `write-tree` tree comparison. Flagged
+  for the reviewer, unchanged from rev-8.
+- Symlinked *parent* components of the index are resolved (the durable
+  temp is created in the resolved directory) rather than refused, so
+  symlinked `.git` setups keep working. Only the index file itself is
+  refused when it is a symlink or non-regular.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 
