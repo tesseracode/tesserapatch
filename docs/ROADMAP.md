@@ -738,6 +738,13 @@ one G5 whitelist self-test defect. Rev-7 is a one-line guard correction.
 1 D8–D19 accepted with 161 executable rows. Terminal planning range:
 `ad39e4a..8412161`.
 
+**Wave B close**: ACCEPTED at `b768602`; 8/8 gate PASS.
+
+**Wave C — GH #8 implementation** 🚧 IN PROGRESS. Dispatch 2026-08-12,
+WAVE_BASE `b768602`. Implement ADR-013 Amendment 1 rev-7 and the accepted
+161-row verify/land contract. One sequential implementer; no v0.15.1 tag
+until dual review and release close.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

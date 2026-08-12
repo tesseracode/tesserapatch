@@ -2,185 +2,88 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: REV-0 DISPATCHED
 
-v0.15.1 Wave B **rev-7** is accepted. It is a one-line guard fix
-on top of rev-6: §7.1.2 **G5** gains the narrow exemption the rev-6 external
-review asked for, so the pattern stops flagging the two correct affirmative
-anti-hardcode sentences while still catching an affirmative fixed-40 claim.
-**No substantive decision, matrix row or citation changed** — 161 rows and 106
-citations are byte-for-byte preserved. Planning only: no Go, tests, assets,
-SPEC, CHANGELOG or GitHub issue state was touched.
+v0.15.1 Wave C is dispatched for GitHub issue #8 implementation.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave B / GH #8 contract
-- **Description**: Define verify V0–V10 semantics after a feature or hard
-  parent has been landed into reachable Git history.
-- **Status**: Complete
+- **Task ID**: v0.15.1 Wave C / GH #8 implementation
+- **Description**: Implement the accepted landed-feature verification and
+  land producer contract.
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
-- **WAVE_BASE**: `ad39e4a`
-- **Dispatch HEAD (rev-7)**: `785d261`
+- **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
-- **Implementation**: deferred to Wave C
 
-## Files Changed (rev-7) — exact list
+## Session Summary
 
-| File | What changed in rev-7 |
-|---|---|
-| `docs/prds/PRD-verify-freshness.md` | **§7.1.2 G5** — pattern is now `40[- ](lowercase[- ])?hex\|hardcode[sd]? 40\|fixed 40`, still scoped to base-commit lines, and **exempt when the same line also matches `derived\|--show-object-format\|would reject\|rejects\|fails this row`**; the "Why" column states exactly which two sentence shapes the exemption clears and why the optional `lowercase` alternation exists. **§7.1.2 G3** class widened to `rev-[0-6]` so a stale current-amendment label cannot survive a revision bump. **Whitelist rule 3** gained one sentence pointing affirmative-voice cases at the per-pattern exemptions instead of at the negation rule. Amendment labels rev-6 → **rev-7** (11 occurrences). |
-| `docs/prds/PRD-tpatch-land.md` | Amendment labels rev-6 → **rev-7** (7 occurrences). No rule, row or count changed. |
-| `docs/adrs/ADR-013-verify-freshness-overlay.md` | Amendment labels rev-6 → **rev-7** (9 occurrences); references anchor re-validated at `785d261`; revision-history entries added for **rev-7** and **rev-6 (superseded)**. No decision changed; D8–D19 remain closed. |
-| `docs/handoff/CURRENT.md` | This rewrite. Side Research tail preserved byte-identically (md5 `b385fe622db9926f48861105239f113e`). |
+Wave B is accepted and 8/8 gated:
 
-## The fix, precisely
+- ADR-013 Amendment 1 rev-7, D8–D19;
+- 135 verify acceptance rows;
+- 26 land acceptance rows;
+- G1–G10 authoritative totality guard.
 
-**Problem (rev-6 external review).** G5's pattern flagged two *correct*
-sentences that forbid the hardcode affirmatively rather than by negation, so
-whitelist rule 3 could not clear them:
+No Wave C production code has landed yet.
 
-- `PRD-tpatch-land` §3.8.2 rule 18 — "A reader that hardcodes 40 **rejects**
-  every valid landing in a SHA-256 repository."
-- `PRD-tpatch-land` §6.2 AC-LD5 / AC-LD19 — "a fixture that hardcodes 40
-  **fails this row**" / "a hardcoded 40 fails this row."
+## Current State
 
-**Fix.** A per-pattern exemption on G5 only:
-`derived|--show-object-format|would reject|rejects|fails this row`. This is the
-narrowest rule that clears both: each of the two shapes names either the
-derivation or the consequence of hardcoding, whereas an affirmative claim
-(""`Tpatch-Base-Commit` is 40 lowercase hex"") names neither and still trips.
+Issue #8 is a landed-baseline defect:
 
-**Second-order correction found while proving sensitivity.** The rev-6 pattern
-`40[- ]hex` did **not** match the exact pre-rev-5 phrasing it exists to catch —
-"is 40 **lowercase** hex". The optional `(lowercase[- ])?` alternation closes
-that gap, so the guard is now strictly more sensitive than in rev-6 despite the
-new exemption.
+- before land, V7/V8 pass;
+- after land, current HEAD already contains the feature;
+- existing V7 recipe semantics vary by op kind and V8 forward-check fails;
+- committed-range re-record does not change the baseline mismatch.
 
-## Exact guard output
+The accepted implementation uses:
 
-Run against the three authoritative documents, G1–G10 with the four §7.1.2
-whitelist rules and the per-pattern scoping/exemptions implemented as written:
+- exact landing attestation plus a separate historical replay anchor;
+- Anchor H for independent V7/V8/V10;
+- isolated Anchor C materialization against HEAD;
+- total landed/unlanded hard-parent arbitration;
+- offline Git 2.36 evidence and immutable repository snapshots;
+- object-format-aware land Base-Commit validation.
 
-```
-GUARD HITS: 0
-exit=0
-```
+## Files Changed
 
-**Synthetic sensitivity harness** — each stale phrase appended to a copy of
-`PRD-tpatch-land.md`, each control sentence likewise:
-
-```
-── stale text MUST be caught ──
-  CAUGHT  G5 affirmative fixed-40  ['G5']
-  CAUGHT  G5 hardcode-40 affirm    ['G5']
-  CAUGHT  G5 fixed 40 affirm       ['G5']
-  CAUGHT  G1 V9-last               ['G1']
-  CAUGHT  G2 ten-check             ['G2']
-  CAUGHT  G3 stale label           ['G3']
-  CAUGHT  G4 blanket unchanged     ['G4']
-  CAUGHT  G6 absence mismatch      ['G6']
-  CAUGHT  G7 exact+absent          ['G7']
-  CAUGHT  G8 mutating nothing      ['G8']
-  CAUGHT  G9 freshness_label       ['G9']
-  CAUGHT  G10 stale E-range        ['G10']
-── correct anti-hardcode text MUST pass ──
-  PASS    G5 exempt: rejects       []
-  PASS    G5 exempt: fails row     []
-  PASS    G5 exempt: derived       []
-  PASS    G5 exempt: flag          []
-BASELINE HITS ON UNMODIFIED COPY: 0
-SENSITIVITY: OK
-exit=0
-```
-
-All twelve stale shapes are caught; all four correct anti-hardcode shapes pass;
-the unmodified copy is clean, so the harness itself introduces no hits.
-
-## Counts — unchanged from rev-6
-
-| Metric | Value | Delta vs rev-6 |
-|---|---|---|
-| Verify acceptance matrix | **135 rows**, AC-L1 … AC-L135, contiguous | 0 |
-| Verify groups | A 6 / B 10 / C 15 / D 21 / E 26 / F 20 / G 15 / H 22 = 135 | 0 |
-| Land acceptance matrix | **26 rows**, AC-LD1 … AC-LD23, all tier C | 0 |
-| **Total acceptance rows** | **161** | 0 |
-| Unique code citations | **106**, all in range | 0 |
-| ADR decisions | D1–D19; Amendment 1 = D8–D19, closed | 0 |
-| Empirical index | E1–E47, contiguous, closed | 0 |
-| Remediation strings | R1–R24 | 0 |
-| Totality guard regexes | G1–G10 | 0 (G5 and G3 patterns refined) |
+- `docs/ROADMAP.md`
+- `docs/handoff/CURRENT.md`
+- `docs/supervisor/LOG.md`
 
 ## Test Results
 
-Planning-only revision — no Go source changed.
+- Wave B terminal gate: PASS 8/8.
+- GH #8 current-main reproduction: confirmed.
+- Wave C validation: pending.
+- Side Research md5:
+  `b385fe622db9926f48861105239f113e`.
 
-- **Totality guard**: `GUARD HITS: 0`, exit 0.
-- **Synthetic sensitivity**: 12/12 stale shapes caught, 4/4 controls pass,
-  0 baseline hits, exit 0.
-- **Doc validator**: **ALL CHECKS PASS** — 106 citation ranges, AC-L
-  contiguity (135) and group sum (135), AC-LD count (26) all tier C, dangling
-  AC/D/R reference check, D1–D19 headings, E1–E47 contiguity, R1–R24
-  definitions.
-- Scratch removed; working tree contains only the four owned docs plus the
-  guarded WIP files.
+## Next Steps
 
-## Residuals for Wave C
+1. Implement all 161 accepted rows sequentially.
+2. Reproduce a real filtered-remote partial-clone missing-object path.
+3. Preserve GH #2 and read-only verify behavior.
+4. Run full/race/cross validation and dual review.
+5. Close #8 and tag v0.15.1 only after acceptance.
 
-Unchanged from rev-6:
+## Blockers
 
-1. **Q17** remains open (non-blocking, scoped in §6).
-2. **`-C1` false reds** on a one-line-away healthy parent (E44) — accepted.
-3. **Normalization collision** for identical payloads at different positions
-   (E45/E46).
-4. **Partial clone is a Wave C gate** (AC-L68 / AC-L69) — mechanism proven,
-   real filtered-remote path unproven; blocker report required if it cannot be
-   constructed.
-5. **`(0/0)` block cost**: 26 false reds / 151 present vs 0 false greens / 69
-   absent.
-6. **`active` widening** and the **forward-mode V10 change** alter existing
-   behaviour for non-landed features.
-7. **Mode B is non-rollback** on an R23 refusal.
-8. **`satisfied_by` is 40-hex-only in shipped code**
-   (`internal/store/validation.go:22`) — pre-existing, recorded in §8, and
-   deliberately outside G5's scope.
-9. **Git floor 2.36** is a user-visible tightening.
-10. **The guard is a docs test, not a linter** — it reads three fixed paths; a
-    future authoritative document must be added to its input list explicitly.
-11. **New, rev-7**: G3's character class must be widened by one on every
-    revision bump. This is stated in the G3 row so it is not forgotten, but it
-    is a manual step.
-
-## Reviewer focus
-
-1. **§7.1.2 G5**: confirm the exemption is the narrowest that clears land rule
-   18 and AC-LD5 / AC-LD19, and that an affirmative "is 40 lowercase hex" claim
-   still trips — the sensitivity harness proves both directions.
-2. **Confirm nothing else moved**: 161 rows, 106 citations, D8–D19, E1–E47,
-   R1–R24 all identical to rev-6; the only other edits are label bumps and two
-   ADR revision-history entries.
-3. **G3 widening**: confirm `rev-[0-6]` is correct now that the amendment is
-   rev-7, and that only revision-history and rejected-alternatives narrative
-   names earlier revisions.
+None.
 
 ## Context for Next Agent
 
-- Wave B is **planning only**. Implementation is Wave C. Nothing in `internal/`,
-  `cmd/`, `assets/`, `tests/`, `SPEC.md` or `CHANGELOG.md` was touched.
-- The binding ADR is **ADR-013 Amendment 1 rev-7 (final), D8–D19** — closed.
-  The operational contract is **PRD-verify-freshness §3.6 / §4.3.6–4.3.9 / §5 /
-  §6 / §7.1 / §7.1.2**; the producer contract is **PRD-tpatch-land §3.8 / §6.2**.
-- Load-bearing measurements are indexed **E1–E47** in ADR-013 §A1.1, closed.
-- The check sequence is **eleven** checks, V0–V10
-  (`internal/workflow/verify.go:49-71`, V10 appended at `:288-289`).
-- V7 and V8 share one shadow but are **reset between** them
-  (`resetShadowToTree`, `internal/workflow/verify.go:1142-1153`) — the GH #2 /
-  v0.11.3 invariant.
-- **AC-L135 / §7.1.2 is executable**: G1–G10, four whitelist rules, per-pattern
-  scoping for G5 and G8, fence-scoped G9. Wave C should port the harness used
-  here (guard + synthetic sensitivity) into a docs unit test.
-- Verify stays read-only; no status, index or worktree mutation on any path.
-- Stage explicit paths only; do not touch the WIP docs in
-  `.wave-close-allowlist`.
+- Binding docs are Accepted; changes require an amendment.
+- Use `ListFeatureEntries`, immutable snapshots and one cached raw+parsed
+  topo-reverse evidence enumeration.
+- All object/materialization Git calls use `GIT_NO_LAZY_FETCH=1`.
+- Anchor C uses a temp index seeded from HEAD; never the worktree/live index.
+- Any C0 `(0/0)` hunk blocks.
+- Historical anchor qualification uses `git read-tree C^` and forward
+  `git apply --cached -C1`.
+- Parent arbitration is non-mutating patch materialization; V10 uses each
+  member's own baseline/provenance.
+- Stage explicit paths only; one implementer; preserve WIP/md5; no tag.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

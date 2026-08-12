@@ -1,3 +1,37 @@
+## Dispatch — v0.15.1 Wave C / GH #8 implementation — 2026-08-12
+
+**WAVE_BASE**: `b768602`
+**Issue**: https://github.com/tesseracode/tesserapatch/issues/8
+**Authorities**:
+- `PRD-verify-freshness` accepted landed amendment rev-7
+- `PRD-tpatch-land` accepted §3.8/§6.2 amendment rev-7
+- ADR-013 Amendment 1 rev-7, D8–D19
+
+### Scope
+
+- Git 2.36 preflight and offline raw+parsed landing-evidence cache.
+- Immutable full feature/artifact inventory.
+- Exact evidence states, attestation and historical replay-anchor selection.
+- Anchor H historical V7/V8/V10 and isolated Anchor C materialization.
+- Landed/unlanded hard-parent arbitration and per-member V10 baselines.
+- Schema 1.1 additive report fields, diagnostics, labels and persistence.
+- Land Base-Commit producer validation by Mode A/Mode B.
+- All 135 verify and 26 land acceptance rows.
+
+### Mandatory Gates
+
+1. Real filtered-remote partial-clone missing-object reproduction; report a
+   blocker rather than claiming completion if unavailable.
+2. GH #2 equivalent recipe/patch reset regression remains green unmodified.
+3. Verify stays read-only on real worktree/index and `--no-write`.
+4. G1–G10 totality guard passes.
+5. Full/race/cross validation, Rule 18, md5 and guarded WIP.
+
+### Action Taken
+
+Wave B closed and gated. CURRENT/ROADMAP transitioned to Wave C rev-0
+dispatch from fresh base `b768602`.
+
 ## Wave Close — v0.15.1 Wave B / GH #8 contract — 2026-08-12
 
 **WAVE_BASE**: `ad39e4a`
