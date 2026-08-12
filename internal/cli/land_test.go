@@ -368,7 +368,12 @@ func TestLand_AutoFromMutuallyExclusive(t *testing.T) {
 // TestLand_NoRecord_RequiresExistingPatch — PRD §3.1 / §3.7. --no-record
 // without a prior post-apply.patch refuses cleanly.
 func TestLand_NoRecord_RequiresExistingPatch(t *testing.T) {
-	tmpDir, slug, _ := setupLandFixture(t)
+	tmpDir, slug, base := setupLandFixture(t)
+	// v0.15.1 Wave C / ADR-013 D19: Mode A validates
+	// `status.apply.base_commit` immediately after `recoverLand`, so the
+	// fixture must carry a valid one for this row to still exercise the
+	// missing-patch refusal it is about.
+	setLandBaseCommit(t, tmpDir, slug, base)
 	_, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record")
 	if code == 0 {
 		t.Fatalf("expected refusal for --no-record without prior patch; stderr=%q", stderr)
@@ -908,5 +913,25 @@ func TestLand_NoRecord_LeavesCleanWorkingTree(t *testing.T) {
 	porcelain := gitPorcelain(t, tmpDir)
 	if strings.TrimSpace(porcelain) != "" {
 		t.Errorf("working tree must be clean after --no-record land (PRD §3.6); porcelain=%q", porcelain)
+	}
+}
+
+// setLandBaseCommit writes a valid `apply.base_commit` onto a fixture
+// feature. `tpatch add` does not populate it — `record` does — so any
+// Mode A (`--no-record`) row that is not ABOUT the D19 precondition must
+// set it explicitly.
+func setLandBaseCommit(t *testing.T, repoRoot, slug, commit string) {
+	t.Helper()
+	s, err := store.Open(repoRoot)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	st, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		t.Fatalf("load status: %v", err)
+	}
+	st.Apply.BaseCommit = commit
+	if err := s.SaveFeatureStatus(st); err != nil {
+		t.Fatalf("save status: %v", err)
 	}
 }

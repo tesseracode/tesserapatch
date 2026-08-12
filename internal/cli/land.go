@@ -124,10 +124,29 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// record, status or the index. Recovery is idempotent and decides
 	// from evidence (HEAD vs pre-HEAD, commit binding, retained index
 	// tree), never from the journal's phase alone.
+	journalPending := landJournalPending(s.Root, slug)
 	if err := recoverLand(s.Root, slug, func(format string, args ...any) {
 		fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
 	}); err != nil {
 		return err
+	}
+
+	// GH #8 / ADR-013 D19 — Mode A base-commit precondition. Inserted
+	// IMMEDIATELY after `recoverLand` returns and before the pre-record
+	// gate, the metadata snapshot and every land-owned mutation. Mode B
+	// (the default) validates `record`'s OUTPUT further down instead,
+	// because pre-validating a value `record` is expected to replace has
+	// no content.
+	if noRecord {
+		note := noteNone
+		if journalPending {
+			note = noteRecoveryCompleted
+		}
+		if err := validateLandBaseCommit(s.Root, slug, status, note, func(format string, args ...any) {
+			fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
+		}); err != nil {
+			return err
+		}
 	}
 
 	// GH #7 rev-3 (F1) — PRE-RECORD GATE. Discovery runs here, before
@@ -153,6 +172,20 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// ("No re-wrapping").
 	if !noRecord {
 		if err := embedRecord(cmd, s.Root, slug, fromRef, autoBase, filesFlag, allowCollision); err != nil {
+			return err
+		}
+		// GH #8 / ADR-013 D19 — Mode B. `record` owns the producer
+		// invariant; `land` re-validates the RELOADED value here, before
+		// the `landed at` note, before staging and before the commit.
+		// On refusal `record`'s artifacts persist: it completed as an
+		// independent, already-finished transaction.
+		recorded, loadErr := s.LoadFeatureStatus(slug)
+		if loadErr != nil {
+			return fmt.Errorf("land: cannot reload status.json after the embedded record step: %w", loadErr)
+		}
+		if err := validateLandBaseCommit(s.Root, slug, recorded, noteRecordArtifacts, func(format string, args ...any) {
+			fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
+		}); err != nil {
 			return err
 		}
 	} else {
