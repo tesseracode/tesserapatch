@@ -118,6 +118,18 @@ func runLand(cmd *cobra.Command, slug string) error {
 		return err
 	}
 
+	// GH #7 rev-7 — CRASH RECOVERY. If a previous land was interrupted
+	// between `git commit` advancing HEAD and the index being
+	// published, finish or refuse it BEFORE anything here mutates
+	// record, status or the index. Recovery is idempotent and decides
+	// from evidence (HEAD vs pre-HEAD, commit binding, retained index
+	// tree), never from the journal's phase alone.
+	if err := recoverLand(s.Root, slug, func(format string, args ...any) {
+		fmt.Fprintf(cmd.ErrOrStderr(), format, args...)
+	}); err != nil {
+		return err
+	}
+
 	// GH #7 rev-3 (F1) — PRE-RECORD GATE. Discovery runs here, before
 	// the metadata snapshot and before the embedded record, purely so a
 	// broken `git worktree list` refuses BEFORE `record` can write any
@@ -384,6 +396,17 @@ func runLand(cmd *cobra.Command, slug string) error {
 		"-m", trailerBlock,
 	}
 	//
+	// GH #7 rev-7: persist the durable journal + retained alternate
+	// index BEFORE the commit can advance HEAD, so a crash in the gap
+	// between HEAD moving and the index being published is recoverable
+	// on the next land.
+	preHead, headErr := gitutil.HeadCommit(s.Root)
+	if headErr != nil {
+		return abort(fmt.Errorf("land: cannot read HEAD before committing: %w", headErr))
+	}
+	if err := writeLandJournal(s.Root, slug, tx, preHead); err != nil {
+		return abort(fmt.Errorf("land: %w", err))
+	}
 	// The commit runs against the TEMP index while the live index lock
 	// is held, so hooks inherit GIT_INDEX_FILE and see exactly the
 	// audited state — normal hook semantics, isolated substrate.
@@ -396,6 +419,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 		// paths really are staged for the `--no-record` retry.
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s", commitOut)
 		publishErr := tx.PublishLocked()
+		journalErr := clearLandJournal(s.Root, slug)
 		closeErr := tx.Close()
 		msg := fmt.Sprintf(
 			"land: git commit failed (%v). The index is staged but uncommitted; "+
@@ -405,6 +429,9 @@ func runLand(cmd *cobra.Command, slug string) error {
 		if publishErr != nil {
 			extra = append(extra, fmt.Sprintf("publishing the audited index for retry FAILED: %v (your index was left untouched; re-run `tpatch land %s`)", publishErr, slug))
 		}
+		if journalErr != nil {
+			extra = append(extra, fmt.Sprintf("clearing the land journal failed: %v", journalErr))
+		}
 		if closeErr != nil {
 			extra = append(extra, fmt.Sprintf("cleaning up the temporary index failed: %v", closeErr))
 		}
@@ -413,6 +440,8 @@ func runLand(cmd *cobra.Command, slug string) error {
 		}
 		return fmt.Errorf("%s", msg)
 	}
+	// Advisory only — recovery decides from evidence, not this field.
+	_ = updateLandJournalPhase(s.Root, slug, landPhaseCommitted)
 
 	// Commit succeeded: publish the post-commit temp index (which Git
 	// has already reconciled against the new HEAD) through the held
@@ -420,8 +449,24 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// the commit exists, so silently leaving a stale live index would
 	// misrepresent the repository state.
 	if err := tx.PublishLocked(); err != nil {
+		// The commit EXISTS. Do not claim any rollback of HEAD, and do
+		// NOT clear the journal: the next `tpatch land` will see the
+		// advanced HEAD, verify it is this feature's landing commit
+		// whose tree matches the retained index, and finish the
+		// publication.
 		closeErr := tx.Close()
-		msg := fmt.Sprintf("land: the commit succeeded but publishing the resulting index failed: %v.\nRun `git reset` to resynchronise your index with HEAD", err)
+		msg := fmt.Sprintf(
+			"land: the commit succeeded (HEAD advanced) but publishing the resulting index failed: %v.\n"+
+				"Recovery is pending: HEAD is correct and your index is stale. Re-run `tpatch land %s` and it will complete the publication from the retained journal, or run `git reset` to resynchronise the index yourself",
+			err, slug)
+		if closeErr != nil {
+			return fmt.Errorf("%s\nadditionally: cleaning up the temporary index failed: %v", msg, closeErr)
+		}
+		return fmt.Errorf("%s", msg)
+	}
+	if jerr := clearLandJournal(s.Root, slug); jerr != nil {
+		closeErr := tx.Close()
+		msg := fmt.Sprintf("land: the commit and index publication succeeded but clearing the land journal failed: %v.\nRemove %s/%s.json by hand", jerr, landJournalDirRel, slug)
 		if closeErr != nil {
 			return fmt.Errorf("%s\nadditionally: cleaning up the temporary index failed: %v", msg, closeErr)
 		}
