@@ -261,6 +261,94 @@ All notable changes to tpatch are recorded here.
   target root, running tpatch *from* a linked worktree, and
   `--allow-extra-paths` semantics for ordinary unrelated dirty paths.
 
+- **`tpatch verify` no longer false-reds (or false-greens) a landed
+  feature ([GH #8](https://github.com/tesseracode/tesserapatch/issues/8))**.
+  `tpatch land` commits a feature into reachable Git history while
+  deliberately leaving `status.apply.base_commit` untouched, but verify
+  allocated its V7/V8 shadow from **current HEAD** — so after a landing the
+  baseline already contained the feature. Measured at `13a885c`: a
+  `write-file` target passed V7 vacuously and failed V8, a
+  `replace-in-file` target failed V7 outright, and an `append-file` target
+  double-applied into the shadow. The committed-range re-record the issue
+  describes could not fix it, because the mismatch was the baseline, not
+  the artifacts.
+
+  Verification is now **dual-anchor** for a landed feature
+  (ADR-013 Amendment 1, D8–D19):
+
+  - **Anchor H (historical)** — the shadow is rooted at the *replay
+    anchor's* single parent tree. Anchor candidates are collected
+    exhaustively from one `git log --topo-order --reverse -z`
+    enumeration, qualified by a **forward** `git apply --check --cached
+    -C1` at `C^`, compared by a normalized zero-context change identity
+    when more than one qualifies, and then selected deterministically.
+    V7 replays the recipe there, the shadow is reset to the closure
+    baseline (the GH #2 / v0.11.3 invariant), and V8's historical half
+    runs the forward check.
+  - **Anchor C (current)** — an index-isolated assertion at `HEAD`
+    through a temporary index seeded by `git read-tree`. It never reads
+    the worktree or the real index, so a dirty tree no longer false-reds,
+    and a reduced-context `(0/0)` match blocks rather than certifying.
+
+  The landing attestation itself is read from the four-trailer block
+  `land` emits, under a conservative grammar: exact-value slug matching,
+  strict one-value cardinality on all four keys, a `Tpatch-Base-Commit`
+  length **derived** from `git rev-parse --show-object-format` (40 for
+  `sha1`, 64 for `sha256`), and a raw-body line that Git does not parse
+  as a trailer classified `malformed` rather than "no attestation".
+  Ten closed evidence states are reported; only `none` degrades to the
+  previous forward-mode behaviour, which is byte-unchanged.
+
+  Closure arbitration is now **non-mutating**: a member's presence is
+  decided by the patch ladder at the anchor tree, never by replaying its
+  recipe, so a landed `append-file` parent is no longer double-applied
+  and a landed `replace-in-file` parent no longer reports `search text
+  not found`. A hard parent in `active` is treated exactly like
+  `applied` — a deliberate behaviour change that makes four previously
+  disagreeing call sites agree.
+
+  **V10 changes for every feature whose recipe carries a
+  `preimage_hash`**: the reference tree moves from the live working tree
+  (which made the check fail for *every* applied feature) to the
+  member's own baseline — the closure baseline for a landed target, that
+  member's own replay-anchor parent for a landed parent, and
+  `RecipeProvenance.BaseCommit` in forward mode. A recipe that carries a
+  real `preimage_hash` without a usable provenance sidecar now fails with
+  `recipe-provenance-unavailable` instead of silently reading the
+  worktree. Ops without `preimage_hash` stay on the ADR-029 D4 legacy
+  path.
+
+  Supporting changes: verify requires **git ≥ 2.36** and carries
+  `GIT_NO_LAZY_FETCH=1` on every object and materialization command, so a
+  partial clone with a missing object classifies as `history-incomplete`
+  locally instead of reaching the network; a shallow graft boundary is
+  distinguished from a true root landing by a preflight rather than by
+  its parent count; and the whole run reads **one immutable inventory**
+  built from `store.ListFeatureEntries()`, which retains unreadable
+  features as explicit rows instead of dropping them.
+
+  The `--json` report moves to `schema_version` **1.1**. The change is an
+  additive semantic superset: every 1.0 key keeps its name, type and
+  position, and `repository`, `baseline`, `landing_evidence`,
+  `target_mode` and `advisories` are added alongside. `checks[].mode`
+  is present on V7, V8 and V10 in every report. No new check id, no new
+  persisted field, no `.tpatch/` migration, and no `freshness_label` in
+  the verify report.
+
+- **`tpatch land` refuses to emit an unreadable `Tpatch-Base-Commit`
+  trailer.** `land` interpolated `status.apply.base_commit` with no
+  validation, so a legacy or corrupt status produced
+  `Tpatch-Base-Commit: ` with an empty value — evidence every future
+  reader is required to reject. The field is now validated as non-empty,
+  object-format-correct, resolvable and (outside shallow/partial clones)
+  reachable. With `--no-record` the check runs immediately after crash
+  recovery and before any land-owned mutation; in the default embedded
+  `record` mode it runs on the reloaded value immediately after `record`
+  returns, and the refusal states that `record`'s artifacts are retained.
+  Unreachability alone never refuses — it warns. Every pre-existing
+  refusal, the successful path and `status.apply.base_commit`'s ownership
+  are unchanged.
+
 ## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 
 Feature release adding a typed, audited way to record non-Git state a

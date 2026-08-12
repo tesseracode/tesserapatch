@@ -2,70 +2,152 @@
 
 ## Status
 
-**Cluster state**: REV-0 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave C is dispatched for GitHub issue #8 implementation.
+v0.15.1 Wave C (GitHub issue #8) is implemented end-to-end and awaiting
+review. All 161 accepted rows are implemented and green.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
 
 ## Session Summary
 
-Wave B is accepted and 8/8 gated:
+Implemented ADR-013 Amendment 1 rev-7 (D8–D19), PRD-verify-freshness §3.6
+and PRD-tpatch-land §3.8.6 in full, with the 135 verify + 26 land
+acceptance rows and a mechanically audited ledger.
 
-- ADR-013 Amendment 1 rev-7, D8–D19;
-- 135 verify acceptance rows;
-- 26 land acceptance rows;
-- G1–G10 authoritative totality guard.
+Production changes:
 
-No Wave C production code has landed yet.
+1. **`internal/gitutil/trailers.go` (new)** — the single git-side reader:
+   the ≥ 2.36 floor probe (`ReadGitVersion`), the three-fact repository
+   preflight (`ReadRepoFacts`: object format + derived commit-id hex
+   length, shallowness, promisor config, `<git-dir>`, `.git/shallow`
+   membership), ONE
+   `git log --topo-order --reverse -z --format=…` enumeration returning
+   raw bodies AND parsed trailers (`EnumerateCommitTrailers`), the
+   raw-precedence probe (`RawBodyHasTrailerLine`), the index-isolated
+   prober (`TempIndex` + `ApplyCheck` with `(0/0)` counting), the D18
+   normalized change identity (`NormalizedChangeIdentity` /
+   `NormalizeDiffBytes`), offline `cat-file`/`rev-parse`/`merge-base`
+   helpers, and the local-missing-object classifier. Every command
+   carries `GIT_NO_LAZY_FETCH=1`.
+2. **`internal/workflow/verify_landed.go` (new)** — policy: the immutable
+   inventory over `store.ListFeatureEntries()` (status + `RequestedAt`,
+   three artifacts' presence states and raw bytes, `patch-generations`
+   touched paths, unreadable rows retained), instability re-statement,
+   the run context shared across `verify --all`, D10 evidence
+   classification with the presence short-circuit, the D12 hardened
+   ladder, D14 collect/qualify/compare/select, D15 provenance
+   resolution, the ADR-029 later-touch index over the inventory, and the
+   R1–R22/R24 remediation templates.
+3. **`internal/workflow/verify_anchored.go` (new)** — the V7/V8/V10
+   dynamic phase: terminal families, the landed path (anchor H shadow at
+   the replay anchor's parent + anchor C ladder folded into V8), the
+   forward path, D13 arbitration (patch-ladder presence, `active`
+   widening, unapplied/rejected/terminal fail-fast,
+   unattributed-materialized advisory), and per-member V10 baselines.
+4. **`internal/workflow/verify_diagnostics.go` (new)** — the
+   diagnostic-only op-presence predicates, including the existential
+   inverse for `replace-in-file`.
+5. **`internal/workflow/verify.go` / `verify_all.go`** — schema 1.1
+   report (`repository`, `baseline`, `landing_evidence`, `target_mode`,
+   `advisories`), one run context per invocation reused by `--all`,
+   hashes computed from captured bytes, human-report header lines,
+   snapshot-instability marking. The superseded `runClosureReplay`,
+   `checkWriteFilePreimageFresh`, `parentReplayFail` and
+   `loadParentRecipe` were removed.
+6. **`internal/store/types.go`** — `VerifyCheckResult` gains `mode`,
+   `anchor_results`, `member_baselines`, `provenance_hash_bound`, all
+   `omitempty`. No persisted field changed.
+7. **`internal/cli/land_base_commit.go` (new) + `land.go`** — the R23
+   producer precondition, inserted after `recoverLand` in Mode A and
+   after `record` returns in Mode B.
+8. Docs: `SPEC.md`, `CHANGELOG.md`, `docs/land.md`, `internal/cli/verify.go`
+   help text.
 
 ## Current State
 
-Issue #8 is a landed-baseline defect:
-
-- before land, V7/V8 pass;
-- after land, current HEAD already contains the feature;
-- existing V7 recipe semantics vary by op kind and V8 forward-check fails;
-- committed-range re-record does not change the baseline mismatch.
-
-The accepted implementation uses:
-
-- exact landing attestation plus a separate historical replay anchor;
-- Anchor H for independent V7/V8/V10;
-- isolated Anchor C materialization against HEAD;
-- total landed/unlanded hard-parent arbitration;
-- offline Git 2.36 evidence and immutable repository snapshots;
-- object-format-aware land Base-Commit validation.
+- GH #8 is empirically closed. With the pre-fix binary at `7cf245a` the
+  post-land run reports `verdict=failed`, V8 false-red and the wrong
+  `run tpatch reconcile` remediation; with the fixed binary the same
+  scenario reports `target_mode=landed`, `landing_evidence=exact`,
+  `baseline.mode=dual-anchor`, all three anchored checks green, exit 0,
+  and the committed-range re-record still passes.
+- AC-L68 / AC-L69 (the Wave C acceptance gates) are **closed with a real
+  filtered remote**: the fixture starts a real `git daemon` with
+  `uploadpack.allowFilter=true`, makes a real `--filter=blob:none`
+  clone, backfills through that same remote for AC-L68, and for AC-L69
+  deletes a real object and points the promisor at a dead URL. The
+  missing-object failure is the LOCAL form under `GIT_NO_LAZY_FETCH=1`,
+  never the network form. **No blocker is required.**
+- Forward mode (evidence `none`) is byte-unchanged for V7/V8; V10 moves
+  to `RecipeProvenance.BaseCommit` for ops carrying `preimage_hash`, as
+  §7.1.1 requires.
 
 ## Files Changed
 
-- `docs/ROADMAP.md`
-- `docs/handoff/CURRENT.md`
-- `docs/supervisor/LOG.md`
+New:
+
+- `internal/gitutil/trailers.go`
+- `internal/workflow/verify_landed.go`
+- `internal/workflow/verify_anchored.go`
+- `internal/workflow/verify_diagnostics.go`
+- `internal/cli/land_base_commit.go`
+- `internal/workflow/verify_landed_fixture_test.go`
+- `internal/workflow/verify_landed_groupabc_test.go`
+- `internal/workflow/verify_landed_groupd_test.go`
+- `internal/workflow/verify_landed_groupe_test.go`
+- `internal/workflow/verify_landed_groupf_test.go`
+- `internal/workflow/verify_landed_groupg_test.go`
+- `internal/workflow/verify_landed_grouph_test.go`
+- `internal/workflow/verify_landed_partialclone_test.go`
+- `internal/workflow/docs_totality_guard_test.go`
+- `internal/workflow/acceptance_ledger_test.go`
+- `internal/cli/verify_landed_cli_test.go`
+- `internal/cli/land_landing_evidence_test.go`
+
+Modified:
+
+- `internal/workflow/verify.go`, `internal/workflow/verify_all.go`
+- `internal/store/types.go`
+- `internal/cli/land.go`, `internal/cli/verify.go`
+- `internal/workflow/verify_test.go` (schema 1.1 assertion, AC-L113)
+- `internal/workflow/writefile_verify_preimage_test.go` (provenance
+  anchor fixtures, Q15)
+- `internal/cli/land_test.go` (Mode A base-commit precondition fixture)
+- `SPEC.md`, `CHANGELOG.md`, `docs/land.md`, `docs/handoff/CURRENT.md`
 
 ## Test Results
 
-- Wave B terminal gate: PASS 8/8.
-- GH #8 current-main reproduction: confirmed.
-- Wave C validation: pending.
-- Side Research md5:
-  `b385fe622db9926f48861105239f113e`.
+- `gofmt -l .` — clean.
+- `go vet ./...` — clean; `GOOS=linux` and `GOOS=windows` vet clean.
+- `go build ./cmd/tpatch` — clean; cross-builds clean for
+  linux/amd64, linux/arm64, darwin/arm64, windows/amd64.
+- `go test -count=1 ./...` — **all 12 packages pass**.
+- `go test -race -count=1 ./internal/workflow ./internal/gitutil ./internal/store`
+  — pass.
+- Acceptance ledger: **161/161 rows mapped** (135 verify + 26 land),
+  audited mechanically against the ids scraped from both PRDs, and every
+  named test function proven to exist.
+- Docs totality guard (AC-L135 / G1–G10): **zero hits** across the three
+  authoritative documents, plus a sensitivity test proving each pattern
+  fires on a reintroduced stale claim.
+- GH #2 regression `TestRunVerify_EquivalentRecipeAndPatchBothPass` is
+  green and **unmodified** (pinned by AC-L121, which diffs the file
+  against WAVE_BASE `b768602`).
+- Side Research md5: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Implement all 161 accepted rows sequentially.
-2. Reproduce a real filtered-remote partial-clone missing-object path.
-3. Preserve GH #2 and read-only verify behavior.
-4. Run full/race/cross validation and dual review.
-5. Close #8 and tag v0.15.1 only after acceptance.
+1. Dual review against the 161 rows.
+2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
 
 ## Blockers
 
@@ -73,17 +155,61 @@ None.
 
 ## Context for Next Agent
 
-- Binding docs are Accepted; changes require an amendment.
-- Use `ListFeatureEntries`, immutable snapshots and one cached raw+parsed
-  topo-reverse evidence enumeration.
-- All object/materialization Git calls use `GIT_NO_LAZY_FETCH=1`.
-- Anchor C uses a temp index seeded from HEAD; never the worktree/live index.
-- Any C0 `(0/0)` hunk blocks.
-- Historical anchor qualification uses `git read-tree C^` and forward
-  `git apply --cached -C1`.
-- Parent arbitration is non-mutating patch materialization; V10 uses each
-  member's own baseline/provenance.
-- Stage explicit paths only; one implementer; preserve WIP/md5; no tag.
+Reviewer focus, and the four places where implementation judgement was
+exercised inside the contract:
+
+1. **`landing_evidence.state` is OMITTED for the D10 artifact-presence
+   short-circuit.** The state vocabulary is a closed set of ten and
+   `landed-artifacts-absent` is not one of them — it is a `failed_at`
+   value, and the short-circuit happens *before* classification. Rather
+   than emit an eleventh state or misreport one of the ten, the field is
+   omitted and `landing_evidence.reason` + `failed_at` carry the
+   outcome. `patch_presence` / `recipe_presence` are still emitted and
+   the digest-match fields are omitted, exactly as AC-L51 requires.
+2. **The classification terminals run BEFORE the static short-circuit.**
+   `terminal` evidence and `landed-artifacts-absent` are properties of
+   the evidence and the captured artifacts, not of the dynamic phase, so
+   they are decided even when an earlier block-severity static check
+   failed. Neither allocates a shadow, so the "no shadow on static
+   failure" guarantee is preserved.
+3. **Two rows are proven in two halves because a shipped static check
+   pre-empts the arbitration branch.** `AC-L84` (rejected parent) and
+   `AC-L111` (unreadable closure member) are blocked by V4
+   (`dep_metadata_valid`) before V7 runs — pre-existing ADR-031 /
+   validation behaviour this amendment does not change. Each test
+   asserts the shipped precedence end-to-end AND drives the specified
+   arbitration branch directly, so the R17 / inventory-unreadable text
+   is still pinned.
+4. **AC-LD18a's refusal half is driven through the production
+   validator.** The shipped `record` always writes a valid
+   `Apply.BaseCommit` (AC-LD18b proves it), so Mode B's refusal is
+   unreachable end-to-end without corrupting `record`. The test asserts
+   (a) end-to-end that Mode B validates the *produced* value — an
+   invalid pre-record value lands fine — and (b) the exact R23 text plus
+   the retained-artifacts note through `validateLandBaseCommit`, with
+   `record`'s artifacts and the absent `landed at` note checked on disk.
+
+Other things worth knowing:
+
+- The isolated index lives under `<git-dir>/tpatch-verify`, not
+  `.tpatch/local/`. D11 permits either; the git dir is unconditionally
+  outside the tracked tree, whereas the `.tpatch/local/` ignore rule is
+  installed by `tpatch init` and can be absent in a hand-made workspace.
+- `git apply --cached` reports an unreadable blob as
+  `error: failed to read <path>`, which is in the missing-object
+  classifier; a genuine content mismatch says `patch does not apply`, so
+  the two are distinguishable and `history-incomplete` never masks
+  `landed-content-absent`.
+- Verify's own `WriteVerifyRecord` refreshes that feature's captured
+  status in the shared run context, so `verify --all` does not read its
+  own freshness write as `snapshot-unstable`.
+- The preflight issues ONE combined
+  `git rev-parse --path-format=absolute --show-object-format
+  --is-shallow-repository --git-dir` plus one `git config --get-regexp`,
+  which is inside the documented three-call budget.
+- Stray build artifacts in the repo root (`cli.test`, `cli.test.exe`,
+  `gitutil.test.exe`, `tpatch`) predate this session and are gitignored;
+  they were left untouched.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

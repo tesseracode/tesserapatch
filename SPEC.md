@@ -211,6 +211,42 @@ on **Linux and macOS only**; every other target refuses
 See `docs/prds/PRD-feature-resource-claims-and-capture-adapters.md` and
 `docs/adrs/ADR-033-resource-capture-boundary.md`.
 
+#### Landed-feature verification (v0.15.1, GH #8)
+
+`tpatch verify` reads the four-trailer block `tpatch land` emits and
+switches to a **dual-anchor** model when a feature is landed:
+
+- **Anchor H (historical)** — the closure-replay shadow is rooted at the
+  *replay anchor's* single parent tree, not at `HEAD`. Candidates are
+  collected from one `git log --topo-order --reverse -z` enumeration,
+  qualified by a forward `git apply --check --cached -C1` at `C^`,
+  compared by a normalized zero-context change identity when more than
+  one qualifies, then selected deterministically. V7 replays the recipe
+  there; the shadow is reset to the closure baseline before V8's forward
+  check.
+- **Anchor C (current)** — an index-isolated assertion at `HEAD` through
+  a temporary index seeded by `git read-tree`. It reads neither the
+  working tree nor the real index. A match that survives only with all
+  context discarded blocks rather than certifying.
+
+Ten closed landing-evidence states are reported (`none`, `exact`,
+`duplicate-equivalent`, `stale`, `ambiguous`, `malformed`,
+`unsupported-topology`, `shallow-history`, `history-incomplete`,
+`unavailable`); only `none` keeps the previous forward-mode behaviour.
+`Tpatch-Base-Commit` length is derived from
+`git rev-parse --show-object-format`, and `tpatch land` refuses to emit a
+base commit that is empty, ill-formed or unresolvable.
+
+Verify requires **git ≥ 2.36** and carries `GIT_NO_LAZY_FETCH=1` on every
+object and materialization command, so it never reaches the network.
+The `--json` report is `schema_version` **1.1** — an additive superset of
+1.0 adding `repository`, `baseline`, `landing_evidence`, `target_mode`,
+`advisories` and `checks[].mode`.
+
+See `docs/prds/PRD-verify-freshness.md` §3.6,
+`docs/prds/PRD-tpatch-land.md` §3.8 and `docs/adrs/ADR-013-verify-freshness-overlay.md`
+Amendment 1 (D8–D19).
+
 #### Phase 2 (Post-MVP)
 
 | Command | Purpose |
