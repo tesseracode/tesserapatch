@@ -1,3 +1,41 @@
+## Review — v0.15.1 Wave A / GH #7 rev-5 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `972c859`
+**Reviewed range**: `159050f..2800883`
+
+### Verdict: NEEDS REVISION → REV-6 DISPATCHED
+
+### Verified Clean
+
+- Post-stage nested-worktree audit, two audit points, original issue surfaces,
+  strict parser, non-goals and validation.
+
+### Residual Findings
+
+1. **HIGH**: `EffectiveIndexPath` trims whitespace-bearing redirected index
+   paths; snapshot/restore follows then replaces a symlinked index.
+2. **HIGH**: rollback blindly restores the whole snapshot, potentially
+   discarding a concurrent operator `git add`; success can include concurrent
+   staged content.
+3. **MEDIUM**: status preimage restoration ignores write failures.
+
+### Rev-6 Direction
+
+- Stage and audit exclusively in a temporary index seeded byte-for-byte from
+  the live index.
+- Preserve exact redirected path bytes; reject symlinked effective indexes
+  before mutation.
+- Acquire the live index lock, compare against the initial snapshot, and
+  publish/commit only if unchanged.
+- Preserve commit-hook failure recovery and surface every status/index
+  restoration failure.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-6.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-4 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)

@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-6 DISPATCHED
 
-v0.15.1 Wave A rev-5 (GitHub issue #7) closes the rev-4 HIGH race with a
-land staging transaction. Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-5 closes worktree contamination but introduces unsafe
+live-index rollback semantics. Rev-6 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-5
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-6
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and land
   planning, staging and commit.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-5 dispatch HEAD**: `159050f`
@@ -214,6 +214,27 @@ worktree.
 5. `status.json` is held out of the first staging pass but stays in the
    path set for extras classification. Confirm that split reads clearly
    in `land.go`.
+
+## Rev-5 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Worktree contamination audit is effective.
+- Valid residuals:
+  1. Effective index path trimming corrupts whitespace-bearing
+     `GIT_INDEX_FILE`; restore replaces symlinked index paths.
+  2. Whole-index rollback can discard a concurrent operator `git add`, while
+     success can include one.
+  3. Status preimage restoration ignores errors.
+- `tpatch_rev5_bin` and review scratch are absent after external cleanup.
+
+## Next Steps
+
+1. Isolate land staging in a temporary index seeded from the live index.
+2. Reject symlinked index paths and preserve redirected path bytes exactly.
+3. Lock/compare the live index before publish/commit; refuse on divergence.
+4. Surface and test every status/index restore or publish failure.
+5. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 

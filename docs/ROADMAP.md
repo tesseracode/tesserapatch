@@ -675,6 +675,10 @@ malformation and revalidates linked worktrees immediately before land staging.
 REVISION. Rev-5 adds an exact index snapshot/stage/audit/rollback transaction
 so a worktree registered after planning cannot enter the commit.
 
+**Wave A rev-5** (`972c859`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-6 replaces live-index rollback with isolated temporary-index
+staging and guarded publication, preserving concurrent operator state.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
