@@ -112,30 +112,40 @@ All notable changes to tpatch are recorded here.
   pre-dirtied), so a malformed-patch, extras or discovery refusal never
   leaves a `landed at ...` note behind.
 
-  Staging itself is a transaction, because the last window is *inside*
-  the staging step: a worktree can register between the revalidation and
-  `git add`. `land` snapshots the effective index byte-for-byte
-  (resolved via `git rev-parse --git-path index`, so linked worktrees
-  and a redirected `GIT_INDEX_FILE` are followed correctly, and an
-  absent index is a valid snapshot), stages the non-status path set,
-  then rediscovers and inspects the index itself — `git diff --cached
-  --name-only -z`, byte-exact — for anything under a currently
-  registered nested worktree. On contamination or discovery failure the
-  exact pre-land index is restored atomically and land refuses with
-  `HEAD` and the landed-at note untouched. The operator's own staged
-  work, including intent-to-add entries, survives the rollback
-  byte-for-byte because the snapshot is of the whole index file.
+  Staging itself is isolated, because the last window is *inside* the
+  staging step: a worktree can register between the revalidation and
+  `git add`. `land` never mutates the operator's index while it works.
+  It resolves the effective index (`GIT_INDEX_FILE` verbatim — leading
+  and trailing whitespace preserved — otherwise `git rev-parse
+  --git-path index`, refusing ambiguous multi-line output), refuses a
+  symlinked or otherwise non-regular index up front rather than
+  following and later replacing it, snapshots it, and seeds a private
+  temporary index with identical bytes. Every `git add`, every
+  staged-path audit and the commit itself then run with
+  `GIT_INDEX_FILE` pointing at that private file, so hooks inherit it
+  and see exactly the audited state.
 
-  Only after that audit passes is the landed-at note written and
-  `status.json` staged alone, and the index is audited once more
-  immediately before the commit — so the commit is always taken from an
-  index verified clean after land's last `git add`. Past that point land
-  performs no staging at all, so a worktree registered later cannot
-  enter the index by registration alone; a concurrent third-party
-  `git add` racing the commit remains outside supported semantics. The
-  pre-existing commit-hook contract is unchanged: once the audit has
-  passed and the commit is attempted, a failing hook leaves the audited
-  index staged for a `--no-record` retry.
+  The temp index is audited after the main staging pass and again after
+  `status.json` is staged, using byte-exact `git diff --cached
+  --name-only -z`; anything inside a currently registered nested
+  worktree refuses. Publication happens only under Git's own
+  `<index>.lock`, taken with `O_EXCL`, and only after the live index is
+  re-compared against the start-of-land snapshot. A divergence means a
+  concurrent `git add`/`git reset` and land refuses without overwriting
+  the operator's work — the earlier blind-restore design could have
+  discarded it. On commit success the post-commit temp index is
+  published through the held lock; on commit failure the audited
+  pre-commit index is published instead, so the intended paths really
+  are staged for the `land --no-record` retry, and a publish failure is
+  reported alongside the commit failure rather than swallowed. A lock
+  tpatch did not create is never removed, and temp files are cleaned on
+  every path.
+
+  Scope, stated plainly: this serializes INDEX writes against other Git
+  processes, because `<index>.lock` is the lock `git add` and
+  `git commit` themselves take. It does not protect against concurrent
+  ref or working-tree mutation (`git checkout`, `git reset --hard`), and
+  land makes no such claim.
 
   Patch-derived write scopes are parsed strictly. `FilesInPatch` splits
   each `diff --git` header on the first ` b/` and silently skips

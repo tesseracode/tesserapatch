@@ -2,101 +2,109 @@
 
 ## Status
 
-**Cluster state**: REV-6 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-5 closes worktree contamination but introduces unsafe
-live-index rollback semantics. Rev-6 is dispatched.
+v0.15.1 Wave A rev-6 (GitHub issue #7) replaces land's live-index
+rollback with an isolated temp-index transaction, closing all three
+rev-5 findings. Validated and pushed. Awaiting review.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave A / GH #7 rev-6
 - **Description**: Exclude registered linked Git worktrees nested beneath
-  the target repository from apply/record/reconcile capture and land
-  planning, staging and commit.
-- **Status**: In Progress
+  the target repository from apply/record/reconcile capture and from
+  land planning, staging and commit.
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
-- **Rev-5 dispatch HEAD**: `159050f`
+- **Rev-6 dispatch HEAD**: `3dfbad0`
 - **Target release**: v0.15.1
 
-## Rev-4 finding closure
+## Rev-5 finding closures
 
-### HIGH — worktree registers between revalidation and staging — CLOSED
+The architecture changed as directed: land no longer touches the
+operator's index while it works. `internal/gitutil/index_snapshot.go`
+was rewritten around an `IndexTransaction`.
 
-The remaining window is *inside* the staging step, so no amount of
-pre-stage planning can close it. `land` now wraps staging in a
-transaction.
+### F1 (HIGH) — effective index path + symlink — CLOSED
 
-**New primitives** — `internal/gitutil/index_snapshot.go`, all explicit
-Go helpers, no shell:
+- `GIT_INDEX_FILE` is taken **verbatim** via `os.LookupEnv`; leading and
+  trailing spaces and tabs are preserved. A relative value resolves
+  against `repoRoot`, which is `cmd.Dir` for every git subprocess tpatch
+  spawns — the same rule Git applies.
+- Otherwise `git rev-parse --git-path index` is parsed by stripping only
+  the protocol line terminator (`\n`, then a trailing `\r`). No
+  `TrimSpace`. Output that still contains a newline is **ambiguous** and
+  refused rather than guessed at.
+- `requireRegularIndexFile` **Lstat**s the effective index before
+  anything is staged and refuses a symlink or any non-regular file
+  (directory, FIFO, …) with actionable guidance. The previous code
+  followed the link and would have replaced it with a regular file,
+  writing Git state wherever it pointed.
 
-- `EffectiveIndexPath` — `git rev-parse --git-path index`, absolutised
-  against `repoRoot`. Verified to follow all three shapes: the main
-  worktree (`.git/index`), a linked worktree
-  (`.git/worktrees/<name>/index`), and a redirected `GIT_INDEX_FILE`.
-- `SnapshotIndex` — captures existence, exact bytes and file mode.
-  Reading does not disturb the index, so the operator's staged state is
-  untouched by the snapshot. An absent index is a valid snapshot.
-- `(*IndexSnapshot).Restore` — atomic (temp file in the same directory,
-  then rename) with the original mode; removes the file when the
-  snapshot was "absent". Idempotent.
-- `StagedPaths` — `git diff --cached --name-only -z`, byte-exact and
-  never quoted, with an `ls-files --cached -z` fallback for a repository
-  with no HEAD.
-- `AuditStagedPathsForNestedWorktrees` — rediscovers, then returns every
-  staged path inside a currently registered nested worktree. Discovery
-  failure returns the fail-closed class so the caller rolls back rather
-  than committing an unaudited index.
+### F2 (HIGH) — blind rollback / concurrent operator staging — CLOSED
 
-**Land sequence** (`internal/cli/land.go`):
+Replaced, not patched:
 
-1. Snapshot the effective index.
-2. Stage the path set **minus** `status.json`. `status.json` stays in
-   the path set for extras classification (so it is never mis-classified
-   as an extra) but is held back from this pass.
-3. Audit: rediscover + inspect the index. On contamination or discovery
-   failure, restore the exact pre-land index and refuse — `HEAD`,
-   `status.json` and the landed-at note all untouched.
-4. Only then write the landed-at note and stage exactly `status.json`.
-   A failure here restores the status preimage as well as the index, so
-   no false `landed at` note can survive.
-5. Audit once more, immediately before the commit, because the
-   status-staging pass is itself a (narrower) window. The commit is
-   therefore always taken from an index verified clean after land's
-   LAST `git add`.
-6. Commit. Past step 5 land performs no staging at all.
+1. `BeginIndexTransaction` snapshots the live index (existence, exact
+   bytes, mode) and seeds a private temp index byte-identically. An
+   absent live index seeds an absent temp index, so the first `git add`
+   creates it exactly as Git would.
+2. Every `git add`, both staged-path audits and the commit run with
+   `GIT_INDEX_FILE=<temp>` through new env-aware helpers
+   (`stagePathSetEnv`, `runGitEnvOut`, `runGitCaptureEnv`,
+   `StagedPathsEnv`, `AuditStagedPathsForNestedWorktreesEnv`). No global
+   env mutation anywhere.
+3. The live index is therefore untouched during staging, audits, status
+   staging and hooks.
+4. Because the temp index is seeded from the live one, all pre-existing
+   operator-staged entries are present, so extras classification and
+   commit contents keep exactly their previous meaning.
 
-**Closure statement.** A worktree registered after the final audit
-cannot enter the index by registration alone — registration stages
-nothing, and land issues no further `git add`. A concurrent
-third-party `git add` racing the commit remains outside supported
-semantics, and is documented as such in `docs/land.md` and the
-CHANGELOG rather than silently assumed.
+### F3 (MEDIUM) — status preimage restoration — CLOSED
 
-**Boundaries preserved.** Embedded record artifacts still persist across
-a land refusal (record's own completed transaction, unchanged from
-rev-4). The commit-hook contract is unchanged: once the audit has passed
-and the commit is attempted, a failing hook intentionally leaves the
-audited index staged for a `--no-record` retry.
+`captureFileState`/`(*fileState).restore` capture existence, bytes and
+mode and restore atomically. `restore` **returns** its error; land's
+`abort` helper combines the primary cause with every restore/cleanup
+failure into one diagnostic. Nothing is swallowed.
 
-**Honest note on reachability.** Because land stages explicit file
-paths, a bare stage-time registration does not by itself put the
-worktree in the index — the audit is a backstop, not a routine catch.
-The tests therefore *inject* the contaminated-index state
-deterministically (the hook registers the worktree AND stages its
-gitlink) so the backstop is proven to work rather than assumed. That
-distinction is written into the test's own comment; assuming `git add`
-will never widen is what rev-4 did.
+### Guarded commit and publication
+
+- `LockLive` takes `<effective-index>.lock` with `O_CREAT|O_EXCL` — the
+  same lock `git add` and `git commit` contend for. A pre-existing lock
+  is somebody else's: land refuses and never removes it.
+- `VerifyLiveUnchanged` re-compares the live index against the Begin
+  snapshot while the lock is held. Divergence ⇒ refuse, restore the
+  status preimage, delete the temp index, leave HEAD and the live index
+  untouched.
+- `git commit` runs with `GIT_INDEX_FILE=<temp>` **while the lock is
+  held**, so hooks inherit the temp-index environment and normal hook
+  semantics are preserved.
+- On success the post-commit temp index is published through the held
+  lock (bytes into the lock file, then rename onto the index — Git's own
+  publish shape), so the live index matches the new HEAD.
+- On commit failure the audited pre-commit temp index is published
+  instead, preserving the existing contract that the intended paths stay
+  staged for `land --no-record`. Hook output is surfaced verbatim, and a
+  publish failure is reported explicitly alongside the commit failure.
+- Temp dir and lock are cleaned on every path; `Close` is idempotent and
+  reports its own failures.
+
+### Honest scope
+
+Documented in the source header, `docs/land.md` and the CHANGELOG: this
+serializes **index** writes against other Git processes. It does **not**
+protect against concurrent ref or working-tree mutation (`git checkout`,
+`git reset --hard`, direct ref updates), which no index lock can
+express. No broader claim is made anywhere.
 
 ## Files Changed
 
-Created this rev:
-
-- `internal/gitutil/index_snapshot.go`
-- `internal/gitutil/index_snapshot_test.go`
-
 Modified this rev:
 
+- `internal/gitutil/index_snapshot.go` (rewritten around
+  `IndexTransaction`)
+- `internal/gitutil/index_snapshot_test.go` (rewritten)
 - `internal/cli/land.go`
 - `internal/cli/nested_worktree_test.go`
 - `CHANGELOG.md`
@@ -122,138 +130,111 @@ separately tracked.
 - `go test -race -count=1` on `./internal/gitutil/`, `./internal/workflow/`
   and `./internal/cli/` — ok.
 - Assets parity (`go test ./assets/`) — ok; no asset touched.
-- 162 passing assertions across the GH #7 test set.
+- 178 passing assertions across the GH #7 test set.
 
 New coverage this rev:
 
-- `TestEffectiveIndexPathMainWorktree` / `...LinkedWorktree` /
-  `...RespectsGitIndexFile` — all three index shapes, including a
-  snapshot/restore round-trip against a linked worktree's own index.
-- `TestSnapshotIndexAbsentIndexRoundTrip` — a never-staged repository
-  has no index; restore removes the one land created, and a second
-  restore is a no-op.
-- `TestSnapshotIndexPreservesOperatorStagedState` — operator-staged
-  content plus an intent-to-add entry survive a rollback with identical
-  index bytes, identical `write-tree`, identical `status -z` and the
-  original file mode.
-- `TestStagedPathsByteExact` — space, tab and newline names survive.
-- `TestAuditStagedPathsForNestedWorktrees` — flags a staged gitlink,
-  flags nothing when no worktree is nested.
-- `TestAuditStagedPathsFailsClosedOnDiscoveryFailure`.
-- `TestNestedWorktree_Land_StageTimeRegistrationIsAuditedAndRolledBack`
-  — fault injection at FOUR positions in the `git add` sequence (first
-  staging add, first staging add under a scoped land, the
-  status-staging add, and the very last add). Every one is caught:
-  land refuses, `HEAD` is unchanged, `write-tree` matches the pre-land
-  index, the cached diff no longer mentions the worktree, no landed-at
-  note was written, and a rerun after removing the worktree succeeds.
-- `TestNestedWorktree_Land_RollbackPreservesOperatorStagedState` — the
-  post-stage audit's discovery is failed at the calibrated call; the
-  index is restored byte-for-byte, the operator's staged file is still
-  staged, land's staging is gone, `HEAD` is unchanged and no landed-at
-  note was written.
-- `TestNestedWorktree_Land_CommitHookFailureLeavesAuditedIndexStaged` —
-  a rejecting `pre-commit` hook leaves `README.md`,
-  `internal/example.go` and `status.json` staged (and no worktree), and
-  the `--no-record` retry lands.
-- `TestNestedWorktree_Land_CleanSuccessUnchangedByTransaction` — same
-  paths land, index empty afterwards, tree clean, landed-at note
-  present.
+- `TestEffectiveIndexPathRespectsWhitespaceBearingGitIndexFile` —
+  absolute `" odd\tindex name "` and relative `"sub dir/idx "`; exact
+  path, full stage → lock → publish round-trip, and no lock residue.
+- `TestEffectiveIndexPathLinkedWorktree` — a linked worktree's own index
+  is seeded from and published back to, and the live index does not move
+  during temp staging.
+- `TestBeginIndexTransactionRefusesSymlinkedIndex` — refusal before any
+  mutation; the symlink topology and its target bytes both survive.
+- `TestBeginIndexTransactionRefusesNonRegularIndex` — directory and
+  FIFO.
+- `TestIndexTransactionDetectsConcurrentLiveMutation` — a concurrent
+  `git add` is detected at publish time; the operator's index is
+  byte-identical, land's staging never reached it, no lock or temp
+  residue.
+- `TestIndexTransactionSeedsFromOperatorState` — operator-staged and
+  intent-to-add entries seed the temp index (verified through
+  `ls-files --cached`, since `diff --cached` deliberately ignores
+  intent-to-add), and the temp bytes equal the live bytes.
+- `TestIndexTransactionAbsentIndexLifecycle` — absent live index stays
+  absent through staging and is created by publish.
+- `TestIndexTransactionRefusesAndPreservesForeignLock`,
+  `TestIndexTransactionCloseIsIdempotent`,
+  `TestPublishLockedRequiresTheLock`.
+- `TestStagedPathsEnvByteExact` — space/tab/newline names, and the live
+  index sees none of it.
+- `TestNestedWorktree_Land_ConcurrentOperatorAddIsDetectedNotOverwritten`
+  — a `git` wrapper runs a real `env -u GIT_INDEX_FILE git add` against
+  the LIVE index during land's first staging call; land refuses,
+  HEAD is unchanged, both operator paths survive, land's paths are
+  absent, no landed-at note, no lock residue.
+- `TestNestedWorktree_Land_RefusesSymlinkedIndexBeforeMutation`,
+  `TestNestedWorktree_Land_RefusesOnLiveIndexLockContention`,
+  `TestNestedWorktree_Land_WhitespaceBearingGitIndexFile`,
+  `TestNestedWorktree_Land_LeavesNoIndexResidue` (success output and
+  trailers unchanged, live index clean vs new HEAD).
+- `TestFileStateRestoreReportsFailures` — bytes and mode restored
+  exactly, an unwritable directory produces an error rather than a
+  silent failure, and an absent preimage restores to absent.
 
-Updated to the rev-5 contract:
-
-- `TestNestedWorktree_Land_DiscoveryBudget` — budget is now
-  `4 + recordCalls` (entry gate, pre-stage revalidation, post-stage
-  audit, final pre-commit audit), still calibrated against a standalone
-  `record` rather than hardcoded.
-- `TestNestedWorktree_Land_NoRecordAndDryRunDiscoveryBudget` —
-  `--no-record` spends 4; `--dry-run` stages nothing and spends 1.
-
-All prior original-issue, exotic-name, non-goal, refresh, strict-parse
-and transaction suites were re-run unchanged and pass.
+Retained and re-run unchanged: the four-position stage-time
+fault-injection suite (now injecting into the temp index, since the
+hook inherits `GIT_INDEX_FILE`), the commit-hook retry contract,
+the discovery-budget tests, and every prior original-issue,
+exotic-name, strict-parser, refresh and non-goal regression.
+`TestNestedWorktree_Land_RollbackPreservesOperatorStagedState` was
+renamed `..._AbortLeavesOperatorStagedStateUntouched` because there is
+no longer anything to roll back.
 
 ## Reproduction + control matrix (built binary)
 
 Re-run at this HEAD with nested worktrees (`agent review`,
-`agent trail `) plus every over-filtering control:
-
-| Path | Kind | Result |
-|------|------|--------|
-| `.claude/worktrees/agent review` | nested worktree | absent from patch, diffstat, plan, index, commit |
-| `.claude/worktrees/agent trail ` | nested worktree, trailing space | absent from all five |
-| `.claude/worktrees/agent-other/f.txt` | ordinary dir, prefix sibling | captured and landed |
-| `vendor/plainrepo` | unregistered nested Git repo | captured and landed as a gitlink (correctly NOT filtered) |
-| `../extwt` | worktree outside the root | never referenced |
-
-Post-land `git status` lists only the two worktrees as untracked plus
-the carved-out `.tpatch/FEATURES.md`. All scratch repos, worktrees and
-build artifacts were removed; `git worktree list` shows only the primary
+`agent trail `) plus every over-filtering control: the worktrees are
+absent from patch, diffstat, plan, index and commit; the prefix sibling
+`agent-other/f.txt`, the unregistered nested repo `vendor/plainrepo` and
+the external worktree behave exactly as before. `.git/index.lock` does
+not exist after the run. All scratch repos, worktrees and build
+artifacts were removed; `git worktree list` shows only the primary
 worktree.
 
 ## Reviewer focus
 
-1. The rollback restores the **index file**, not the working tree. A
-   file land created on disk before staging (none today — land only
-   stages existing paths) would remain; the tests assert `write-tree`
-   and `status -z` equivalence after removing such a file explicitly, so
-   the distinction is visible rather than hidden.
-2. Land's discovery budget grew to `4 + recordCalls`. Two of those are
-   index audits, which each also run `git diff --cached`. If the extra
-   subprocess cost matters for very large repos, the two audits could be
-   collapsed by staging `status.json` in the same pass — at the cost of
-   reopening the narrow status-pass window that the fourth injection
-   point proves is real.
-3. `Restore` deliberately does not remove a stale `index.lock`.
-   Removing a lock we did not create would be unsafe; `git add` removes
-   its own.
-4. The fault-injection framing (hook stages the gitlink itself) is
-   documented in the test. If a reviewer prefers a naturally-occurring
-   reproduction, note that it would require land to stage a directory
-   path, which it does not currently do — the audit exists precisely so
-   that property does not have to be assumed.
-5. `status.json` is held out of the first staging pass but stays in the
-   path set for extras classification. Confirm that split reads clearly
-   in `land.go`.
-
-## Rev-5 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED.
-- Worktree contamination audit is effective.
-- Valid residuals:
-  1. Effective index path trimming corrupts whitespace-bearing
-     `GIT_INDEX_FILE`; restore replaces symlinked index paths.
-  2. Whole-index rollback can discard a concurrent operator `git add`, while
-     success can include one.
-  3. Status preimage restoration ignores errors.
-- `tpatch_rev5_bin` and review scratch are absent after external cleanup.
-
-## Next Steps
-
-1. Isolate land staging in a temporary index seeded from the live index.
-2. Reject symlinked index paths and preserve redirected path bytes exactly.
-3. Lock/compare the live index before publish/commit; refuse on divergence.
-4. Surface and test every status/index restore or publish failure.
-5. Run final dual review, then close #7 only after approval.
+1. Hook compatibility was the named blocker risk. It holds on this
+   platform: `git commit` propagates `GIT_INDEX_FILE` to hooks, so a
+   `pre-commit` hook sees the audited temp index, and the existing
+   hook-failure retry test passes unchanged. No fallback to live-index
+   restore was needed, so none was added.
+2. `PublishLocked` writes into the lock file and renames it onto the
+   index — Git's own publish shape — which means the lock is consumed by
+   a successful publish. `Close` afterwards only cleans the temp dir.
+3. The commit runs *while* the lock is held. Git locks `<temp>.lock`
+   for its own index writes, so there is no self-deadlock; verified by
+   the whole land suite.
+4. `VerifyLiveUnchanged` compares bytes and mode. It does not compare
+   mtime, so a touch-without-change is correctly not treated as
+   divergence.
+5. Scope wording: please check `docs/land.md`, the CHANGELOG and the
+   `index_snapshot.go` header all say the same thing — index
+   serialization only, no claim about refs or the working tree.
 
 ## Blockers
 
-None.
+None. The lock/alternate-index strategy proved compatible with Git
+hooks on the supported platform, so the dispatch's "stop and report"
+branch was not taken.
 
 ## Context for Next Agent
 
 - `internal/gitutil/worktrees.go` is the single discovery authority;
   `git worktree list --porcelain -z` is the single Git shape (Git 2.36+).
-- `internal/gitutil/index_snapshot.go` is the single index
-  snapshot/restore/audit authority. Any future code that stages on the
-  operator's behalf should snapshot first and audit after.
+- `internal/gitutil/index_snapshot.go` is the single index-transaction
+  authority. Any future code that stages on the operator's behalf should
+  use `BeginIndexTransaction` rather than writing to the live index.
 - `FilesInPatchStrict` is mandatory for any NEW code that derives a
   write scope, a diff scope or a staging decision from a patch. Decode
   Git quoting with `unquoteGitCStyle`, never `strconv.Unquote`.
-- Land's contract: gate-discover before `record`, revalidate before
-  planning, snapshot → stage → audit → status → audit → commit.
+- Land's contract: gate-discover → revalidate → begin transaction →
+  stage temp → audit → status → audit → lock + verify → commit temp →
+  publish → release.
 - Byte exactness remains load-bearing: no `TrimSpace`, no hand-rolled
-  dequote on any path compared against a worktree prefix.
+  dequote on any path compared against a worktree prefix, and no
+  trimming of `GIT_INDEX_FILE`.
 - `PreflightReconcile` is still deliberately unfiltered: it is a hygiene
   gate, not a capture surface.
 - Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
