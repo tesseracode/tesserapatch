@@ -137,7 +137,13 @@ type UnstagedDirtySummary struct {
 func CaptureStagedPatch(repoRoot string, pathspecs []string) (string, StagedDirtySummary, error) {
 	var summary StagedDirtySummary
 
+	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return "", summary, err
+	}
+
 	args := append([]string{"diff", "--cached", "HEAD", "--"}, captureModeExcludes()...)
+	args = append(args, nestedExcludes...)
 	if len(pathspecs) > 0 {
 		args = append(args, pathspecs...)
 	}
@@ -182,6 +188,11 @@ func CaptureStagedPatch(repoRoot string, pathspecs []string) (string, StagedDirt
 func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, UnstagedDirtySummary, error) {
 	var summary UnstagedDirtySummary
 
+	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return "", summary, err
+	}
+
 	untrackedFiles, err := listUntrackedFiles(repoRoot, pathspecs)
 	if err != nil {
 		return "", summary, err
@@ -205,6 +216,7 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 	// intent-to-add markers we just placed surface untracked files
 	// here as new additions.
 	diffArgs := append([]string{"diff", "--"}, captureModeExcludes()...)
+	diffArgs = append(diffArgs, nestedExcludes...)
 	if len(pathspecs) > 0 {
 		diffArgs = append(diffArgs, pathspecs...)
 	}
@@ -469,7 +481,12 @@ func isLikelyDir(p string) bool {
 // any). The exclude pathspecs match the diff-capture excludes so
 // reserved-area entries never appear in overlap diagnostics.
 func stagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
+	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return nil, err
+	}
 	args := append([]string{"diff", "--cached", "--name-only", "HEAD", "--"}, captureModeExcludes()...)
+	args = append(args, nestedExcludes...)
 	if len(pathspecs) > 0 {
 		args = append(args, pathspecs...)
 	}
@@ -484,7 +501,12 @@ func stagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
 // differ between the index and the working tree. Untracked files are
 // listed separately via untrackedFiltered.
 func unstagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
+	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return nil, err
+	}
 	args := append([]string{"diff", "--name-only", "--"}, captureModeExcludes()...)
+	args = append(args, nestedExcludes...)
 	if len(pathspecs) > 0 {
 		args = append(args, pathspecs...)
 	}
@@ -512,7 +534,22 @@ func untrackedFiltered(repoRoot string, pathspecs []string) ([]string, error) {
 	return keep, nil
 }
 
+// listUntrackedFiles is the single untracked-discovery entry point for
+// every capture mode (default/manual Path B via CapturePatchScoped,
+// --unstaged via CaptureUnstagedPatch, and the overlap diagnostics via
+// untrackedFiltered). Registered linked worktrees nested under
+// repoRoot are subtracted here — before any caller can hand the path
+// to `git add --intent-to-add` — so no capture surface can turn an
+// agent harness checkout into a `mode 160000` gitlink (GH #7).
+//
+// The subtraction is applied regardless of pathspecs, so explicitly
+// naming the worktree via `record --files <worktree>` cannot re-admit
+// it. Discovery failure is safety-relevant and fails closed.
 func listUntrackedFiles(repoRoot string, pathspecs []string) ([]string, error) {
+	nested, err := NestedWorktreePrefixes(repoRoot)
+	if err != nil {
+		return nil, NestedWorktreeDiscoveryError(repoRoot, err)
+	}
 	args := []string{"-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard", "-z"}
 	if len(pathspecs) > 0 {
 		args = append(args, "--")
@@ -525,6 +562,9 @@ func listUntrackedFiles(repoRoot string, pathspecs []string) ([]string, error) {
 	var files []string
 	for _, file := range strings.Split(out, "\x00") {
 		if file == "" {
+			continue
+		}
+		if PathUnderNestedWorktree(file, nested) {
 			continue
 		}
 		files = append(files, file)

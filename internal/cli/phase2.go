@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -154,6 +155,11 @@ agent implements the code).`,
 			fmt.Fprintf(out, "[6/6] Recording patch...\n")
 			patch, patchErr := gitutil.CapturePatch(s.Root)
 			if patchErr != nil {
+				// GH #7: fail closed on nested linked-worktree
+				// discovery failure instead of recording blind.
+				if errors.Is(patchErr, gitutil.ErrNestedWorktreeDiscovery) {
+					return patchErr
+				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "  warning: capture failed: %v\n", patchErr)
 			}
 			if patch != "" {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -1002,6 +1003,12 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 	} else {
 		patch, err = gitutil.CapturePatch(s.Root)
 		if err != nil {
+			// GH #7: nested linked-worktree discovery failure is
+			// safety-relevant — refuse rather than degrade to the
+			// historical warning-and-continue path.
+			if errors.Is(err, gitutil.ErrNestedWorktreeDiscovery) {
+				return "", 0, err
+			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not capture patch: %v\n", err)
 		}
 		if patch != "" {

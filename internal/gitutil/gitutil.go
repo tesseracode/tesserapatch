@@ -255,6 +255,17 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 		":(exclude).windsurfrules",
 	}
 
+	// GH #7: registered linked worktrees nested under repoRoot are
+	// excluded from the diff as well as from the intent-to-add pass
+	// below (listUntrackedFiles subtracts them). Discovery failure is
+	// fail-closed — capturing blind would fold an agent harness
+	// checkout into the feature patch as a mode-160000 gitlink.
+	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	excludePatterns = append(excludePatterns, nestedExcludes...)
+
 	skipPrefixes := []string{".tpatch/", ".claude/skills/", ".github/skills/", ".github/prompts/", ".cursor/rules/", ".windsurfrules"}
 
 	// Stage untracked files with --intent-to-add so they appear in git diff

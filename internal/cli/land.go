@@ -171,7 +171,10 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// Compute path set (§3.3) — ordered AFTER the status.notes
 	// save so the slug-prefix branch picks up the dirty
 	// status.json on every path (with-record and --no-record).
-	pathSet := computePathSet(s, slug, patch, metaChanged)
+	pathSet, err := computePathSet(s, slug, patch, metaChanged)
+	if err != nil {
+		return fmt.Errorf("land: cannot compute path set: %w", err)
+	}
 
 	// Identify dirty paths in the working tree NOT in the path set.
 	// This is the WP-001 §5.2 row 5 boundary check moved one step
@@ -349,12 +352,25 @@ func embedRecord(cmd *cobra.Command, repoRoot, slug, fromRef string, autoBase bo
 // We deliberately compute the metadata portion from `git status` so
 // metadata-files-not-touched stay out of the index. Returned paths are
 // repo-relative and unique.
-func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]bool) []string {
+//
+// GH #7: nested linked worktrees are stripped from BOTH inputs. The
+// dirty-path side is already filtered by dirtyPaths; the patch side is
+// filtered here so a patch recorded by a pre-fix tpatch (which may
+// still carry a `mode 160000` gitlink entry) cannot cause a broad or
+// default `land` to stage the worktree.
+func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]bool) ([]string, error) {
+	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
+	if err != nil {
+		return nil, gitutil.NestedWorktreeDiscoveryError(s.Root, err)
+	}
 	seen := make(map[string]struct{})
 	var out []string
 	add := func(p string) {
 		p = filepath.ToSlash(p)
 		if p == "" {
+			return
+		}
+		if gitutil.PathUnderNestedWorktree(p, nested) {
 			return
 		}
 		if _, ok := seen[p]; ok {
@@ -366,7 +382,10 @@ func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]b
 	for _, f := range gitutil.FilesInPatch(patch) {
 		add(f)
 	}
-	dirty, _ := dirtyPaths(s.Root)
+	dirty, err := dirtyPaths(s.Root)
+	if err != nil {
+		return nil, err
+	}
 	featurePrefix := filepath.ToSlash(filepath.Join(".tpatch", "features", slug)) + "/"
 	for _, p := range dirty {
 		switch {
@@ -382,7 +401,7 @@ func computePathSet(s *store.Store, slug, patch string, metaChanged map[string]b
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 // snapshotMetadataFiles returns a map from the global metadata file
@@ -436,7 +455,17 @@ func metadataChangedSet(before, after map[string]string) map[string]bool {
 // dirtyPaths returns repo-relative paths that `git status --porcelain`
 // reports as modified, added, deleted, renamed, or untracked. Output
 // is in stable (sorted) order.
+//
+// GH #7: registered linked worktrees nested under repoRoot are
+// subtracted using the same gitutil primitive the capture surfaces
+// use, so an agent harness checkout never shows up in land's staging
+// plan, in the outside-path/refusal list, or in the `--allow-extra-paths`
+// sweep. Discovery failure is fail-closed (error), never "assume none".
 func dirtyPaths(repoRoot string) ([]string, error) {
+	nested, err := gitutil.NestedWorktreePrefixes(repoRoot)
+	if err != nil {
+		return nil, gitutil.NestedWorktreeDiscoveryError(repoRoot, err)
+	}
 	out, err := runGit(repoRoot, "status", "--porcelain", "--untracked-files=all")
 	if err != nil {
 		return nil, err
@@ -456,9 +485,13 @@ func dirtyPaths(repoRoot string) ([]string, error) {
 		}
 		path = strings.Trim(path, "\"")
 		path = filepath.ToSlash(path)
-		if path != "" {
-			paths = append(paths, path)
+		if path == "" {
+			continue
 		}
+		if gitutil.PathUnderNestedWorktree(path, nested) {
+			continue
+		}
+		paths = append(paths, path)
 	}
 	sort.Strings(paths)
 	return paths, nil
@@ -667,8 +700,14 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	// global metadata into the would-be commit. Pass nil so the
 	// path-set builder leaves `.tpatch/upstream.lock` and
 	// `.tpatch/FEATURES.md` alone (PRD §3.3 step 3).
-	pathSet := computePathSet(s, slug, patch, nil)
-	dirty, _ := dirtyPaths(s.Root)
+	pathSet, err := computePathSet(s, slug, patch, nil)
+	if err != nil {
+		return fmt.Errorf("land --dry-run: cannot compute path set: %w", err)
+	}
+	dirty, err := dirtyPaths(s.Root)
+	if err != nil {
+		return fmt.Errorf("land --dry-run: cannot read git status: %w", err)
+	}
 	// Three-way split (PRD §3.5): dirty paths fall into pathSet
 	// (would be staged), carved-out globals (left dirty + stderr
 	// note per ADR-021), or extras (would refuse without
