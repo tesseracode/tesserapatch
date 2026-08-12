@@ -1,3 +1,47 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-3 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, follow-up)
+**Writer commit**: `f2cd7ae`
+**Reviewed range**: `c2e7b85..f2cd7ae`
+
+### Verdict: NEEDS REVISION → REV-4 DISPATCHED
+
+### Verified Clean
+
+- Rev-2 findings closed, exhaustive anchor direction, per-member V10,
+  inventory/absence/shallow states and 149-row matrix.
+
+### Required Corrections
+
+1. **CRITICAL**: `C^{tree}^` is invalid; use the commit parent/tree form.
+2. **HIGH**: `ListFeatures` silently drops unreadable status; inventory must
+   use `ListFeatureEntries`.
+3. **HIGH**: land Base-Commit refusal timing cannot promise no mutation after
+   embedded record; distinguish no-record entry validation and record's own
+   producer invariant.
+4. **HIGH/MEDIUM**: default-context anchor qualification can dead-end its own
+   remediation; measured `-C1` distinguishes healthy old/new parents.
+5. **MEDIUM**: duplicate normalization retains hunk line positions and rejects
+   offset-equivalent cherry-picks.
+6. **HIGH**: parent V10 must use each parent's own anchor/provenance baseline.
+7. **HIGH**: partial-clone lazy fetch contradicts offline verify; set
+   `GIT_NO_LAZY_FETCH=1` and classify missing objects.
+8. **HIGH/MEDIUM**: empty-patch precedence, stale V10 prose and AC-LD15 vs
+   AC-LD18/21 conflict.
+
+### Rev-4 Direction
+
+- Correct all tree/index commands and use `-C1` forward qualification.
+- Normalize hunk positions in duplicate identity with documented trade-off.
+- Use error-preserving full inventory and offline object probes.
+- Define Base-Commit producer validation by invocation mode.
+- Reconcile authoritative prose, matrix and acceptance rows.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave B rev-4.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-2 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)

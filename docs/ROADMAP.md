@@ -718,6 +718,11 @@ NOTES. Rev-3 makes anchor selection exhaustive/forward-applicability-based,
 adds per-parent V10 baselines and full metadata snapshots, validates land
 Base-Commit, handles shallow history, and normalizes duplicate landings.
 
+**Wave B rev-3** (`f2cd7ae`): internal NEEDS REVISION, external APPROVED WITH
+NOTES. Rev-4 fixes parent-tree syntax, uses error-preserving full inventory,
+defines producer Base-Commit timing, uses `-C1` anchor qualification,
+normalizes hunk positions, and makes partial-clone checks offline.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-4 DISPATCHED
 
-v0.15.1 Wave B **rev-3** (GH #8 contract) is rewritten and ready for dual
-independent review. Planning only — no Go code, tests, assets, SPEC,
-CHANGELOG or GitHub issue state was touched. Implementation is Wave C.
+v0.15.1 Wave B rev-3 remains blocked by anchor syntax/qualification,
+inventory, land producer timing, offline history and duplicate normalization.
+Rev-4 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-3)
+- **Status**: In Progress (rev-4)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-3)**: `c2e7b85`
@@ -227,6 +227,27 @@ Ordered by risk:
     primitives, the `PATH` wrapper and the inventory/reader abstractions?
 12. **Citation and count spot-check** against `c2e7b85`; residual 7 lists the
     known pre-existing drift that is *not* this wave's.
+
+## Rev-3 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED WITH NOTES, requiring folds before
+  Wave C.
+- Required corrections:
+  1. Fix invalid parent-tree revision syntax.
+  2. Use `ListFeatureEntries`, not error-dropping `ListFeatures`.
+  3. Define producer-side Base-Commit validation timing honestly.
+  4. Anchor qualification uses measured `-C1` forward apply.
+  5. Normalize positional hunk metadata for duplicate equivalence.
+  6. Parent V10 uses each parent's own baseline.
+  7. Add offline `GIT_NO_LAZY_FETCH` partial-clone behavior.
+  8. Reconcile empty-patch states, stale V10 prose and AC-LD contradictions.
+
+## Next Steps
+
+1. Fold all rev-3 contract corrections and rebuild matrix/parity.
+2. Run final dual planning review.
+3. Accept Wave B and dispatch Wave C from a fresh base.
 
 ## Blockers
 
