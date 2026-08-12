@@ -4,8 +4,9 @@
 
 **Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-1 (GitHub issue #7) closes all three rev-0 residuals
-plus the test note, is validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-1 (GitHub issue #7) closes the three rev-0 residuals,
+the test note and the folded user-external diagnostic note. Validated and
+pushed. Awaiting review.
 
 ## Active Task
 
@@ -101,6 +102,49 @@ and execs the real git otherwise. Production code is untouched — the
 seam is the `git` executable. The same helper's returned `restore`
 proves recovery in the same test.
 
+### R5 (user-external LOW, rev-0 fold) — misleading empty-capture diagnostic — CLOSED
+
+`record --files '<nested worktree>'` filtered every requested path away
+and then fell through to the generic zero-byte diagnostic, which
+speculates "possibly mode-only or binary changes". Actively misleading:
+the paths were deliberately excluded by the GH #7 guard.
+
+`nestedWorktreeEmptyCaptureRefusal` (in
+`internal/cli/record_capture_modes.go`) runs first on the empty-capture
+branch whenever the capture was scoped, and returns nil — falling
+through to the untouched legacy diagnostics — unless at least one
+requested pathspec is a nested worktree. Two shapes:
+
+- **all requested paths are worktrees** → "every requested path is a
+  registered nested Git worktree and is intentionally excluded from
+  capture", listing them;
+- **mixed** → names the count excluded, lists them, and separately
+  lists the requested paths that simply produced no diff, so it never
+  claims the whole request was worktrees.
+
+Both explain why (a nested worktree is another checkout's working
+directory; capturing it records a mode-160000 gitlink) and offer three
+targeted recoveries, including `--path <worktree-root>` for operators
+who genuinely meant to capture work done inside the worktree. The
+`--staged` / `--unstaged` targeted refusals ("nothing staged for
+capture") route through the new diagnostic too, since they are equally
+misleading for a worktree-only scope. Committed-range mode is
+deliberately excluded: it never consults the working tree, so its
+`--from`/`--to` and `--auto` semantics are untouched.
+
+Pathspecs carrying Git magic (a leading `:`) are conservatively
+classified as "not a worktree", so the refusal can never be invented
+from a spec tpatch cannot interpret as a plain path.
+
+Same defect class, unscoped: `IsWorkingTreeDirty` counted a nested
+worktree as dirt, so an unscoped empty capture printed the same
+"possibly mode-only or binary changes" line and suppressed the correct
+`--from` guidance. It now subtracts nested worktrees, reading
+`git status --porcelain -z --untracked-files=all` so paths are
+byte-exact and untracked directories are not collapsed to a parent that
+the filter cannot classify. It has exactly one caller (this
+diagnostic), and falls back to the raw answer if discovery fails.
+
 ## Files Changed
 
 Modified this rev:
@@ -111,6 +155,7 @@ Modified this rev:
 - `internal/gitutil/gitutil.go`
 - `internal/cli/land.go`
 - `internal/cli/cobra.go`
+- `internal/cli/record_capture_modes.go`
 - `internal/cli/nested_worktree_test.go`
 - `CHANGELOG.md`
 - `docs/land.md`
@@ -118,6 +163,9 @@ Modified this rev:
 - `docs/handoff/CURRENT.md`
 
 Unchanged since rev-0: `internal/cli/phase2.go`, `SPEC.md`.
+
+Deliberately NOT folded: the Makefile nested-repo sentinel LOW is
+separately tracked and is not part of this code wave.
 
 ## Test Results
 
@@ -128,7 +176,7 @@ Unchanged since rev-0: `internal/cli/phase2.go`, `SPEC.md`.
 - `go test -race -count=1 ./internal/gitutil/` — ok.
 - `go test -race -count=1 ./internal/cli/` — ok.
 - Assets parity (`go test ./assets/`) — ok; no asset touched.
-- 70 passing assertions across the GH #7 test set.
+- 82 passing assertions across the GH #7 test set.
 
 New or reworked coverage this rev:
 
@@ -176,6 +224,22 @@ New or reworked coverage this rev:
 - `TestNestedWorktree_TrailingWhitespaceName_ExcludedEndToEnd` — a
   `wt/agent ` worktree excluded from patch, diffstat and land plan
   while the sibling `wt/agent` control stays in.
+- `TestNestedWorktree_ScopedRecord_WorktreeOnlyFiles_ActionableDiagnostic`
+  and `..._WorktreeDescendant_...` — the new refusal, asserted to name
+  the offending pathspec and to NOT emit the mode-only/binary
+  speculation or the `--from` hint; refusal writes no artifacts.
+- `TestNestedWorktree_ScopedRecord_MixedWithRealChanges_Succeeds` and
+  `..._MixedWithoutChanges_PartitionedDiagnostic` — the two mixed
+  controls.
+- `TestNestedWorktree_ScopedRecord_WorktreeOnlyFiles_CaptureModes` —
+  `--all` / `--staged` / `--unstaged` route through the new diagnostic
+  instead of "nothing staged for capture".
+- `TestNestedWorktree_GenericEmptyCaptureDiagnosticPreserved` — both
+  legacy branches (dirty-tree speculation, clean-tree `--from`
+  candidates) preserved verbatim for genuinely empty non-worktree
+  captures, in a repository that DOES contain a nested worktree.
+- `TestIsWorkingTreeDirtyIgnoresNestedWorktree` — a nested worktree is
+  not dirt; untracked, tracked-modified and staged changes still are.
 
 Every fixture worktree is removed with `git worktree remove --force`
 plus a prune via `t.Cleanup`, which runs before `t.TempDir()` teardown.
@@ -198,8 +262,24 @@ Post-land `git status` shows only the two nested worktrees as untracked
 and the carved-out `.tpatch/FEATURES.md`. Running tpatch **from** a
 linked worktree was re-verified end to end with the built binary:
 `apply --mode done` captures normally and the main worktree is not
-treated as nested. All scratch repos and worktrees were removed;
-`git worktree list` in this repository shows only the primary worktree.
+treated as nested.
+
+Empty-capture diagnostic matrix, re-verified with the built binary:
+
+| Invocation | Result |
+|------------|--------|
+| `record --files '<worktree>'` | actionable refusal, names the worktree, exit 1 |
+| `record --files 'README.md,<worktree>'` with README changed | succeeds; patch has only README |
+| `record --files 'internal/example.go,<worktree>'` with no changes | partitioned refusal (excluded vs. no-diff), exit 1 |
+| `record --files 'internal/example.go'` with unrelated dirt | generic diagnostic preserved verbatim, exit 1 |
+| `record` unscoped, only dirt is the worktree | correct `--auto` / `--from` guidance with commit candidates, exit 1 |
+
+All scratch repos, worktrees and build artifacts were removed. The
+review-named `scratch-review/` and `tpatch_review_bin` were already
+absent; this session's `.scratch7/`, `.scratch8/`, `.scratch9/` and the
+gitignored root `tpatch` binary are removed. `git worktree list` in
+this repository shows only the primary worktree, and
+`git status --porcelain` shows only the guarded WIP docs.
 
 ## Reviewer focus
 
@@ -216,6 +296,15 @@ treated as nested. All scratch repos and worktrees were removed;
    identical in that case).
 4. The two `git` wrappers in tests install via `t.Setenv("PATH", …)`;
    confirm no test in these packages calls `t.Parallel()`.
+5. `nestedWorktreeEmptyCaptureRefusal` runs before the `--staged` /
+   `--unstaged` targeted refusals but after the capture itself, and is
+   skipped entirely for committed-range mode; confirm that ordering
+   matches the intended precedence and that no legacy diagnostic byte
+   changed for non-worktree cases.
+6. `IsWorkingTreeDirty` moved to `--porcelain -z --untracked-files=all`.
+   It has one caller (the empty-capture diagnostic), so the blast
+   radius is that message only — confirm the `all` upgrade is not
+   observable anywhere else.
 
 ## Blockers
 

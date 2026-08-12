@@ -34,7 +34,19 @@ All notable changes to tpatch are recorded here.
     `--allow-extra-paths` routes.
 
   Naming the worktree explicitly through `record --files` no longer
-  admits it. Discovery failure is treated as safety-relevant: capture and
+  admits it, and no longer produces a misleading diagnostic: when a
+  scoped capture comes back empty because the requested paths were
+  nested worktrees, `record` says exactly that and offers targeted
+  recovery, instead of speculating about mode-only or binary changes or
+  offering `--from` candidates. A mixed request partitions the excluded
+  worktrees from the paths that simply had no diff. Genuinely empty
+  non-worktree captures keep their existing diagnostics unchanged.
+  Relatedly, a nested worktree no longer counts as working-tree dirt in
+  the empty-capture diagnostic's clean/dirty branch, so an unscoped
+  `record` in a repository whose only dirt is a nested worktree now
+  reaches the correct `--from` guidance.
+
+  Discovery failure is treated as safety-relevant: capture and
   land refuse with an actionable error instead of capturing blind
   (`gitutil.ErrNestedWorktreeDiscovery`).
 
