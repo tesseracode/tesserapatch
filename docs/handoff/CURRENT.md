@@ -2,199 +2,163 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave C rev-1 closed the six rev-0 findings but remains blocked by
-five completeness defects found in dual review. Rev-2 is dispatched.
+v0.15.1 Wave C rev-2 closes the five adjudicated rev-1 findings and is
+awaiting review. All 161 accepted rows remain green; every rev-2 fix has
+a black-box regression proven to fail against the rev-1 code.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
 
-## Session Summary — rev-1 fold
+## Session Summary — rev-2 fold
 
-Every adjudicated finding is closed, each with a regression that fails
-against the rev-0 code.
+**F1 (P1) — V2 parses the CAPTURED recipe.**
+`checkRecipeParses(ctx, slug)` decodes `inventoryEntry.Recipe.Bytes`
+with the same strict `DisallowUnknownFields` and the same presence
+semantics; there is no live read and no fallback. A NON-absence read
+failure is reported as a block ("cannot read apply-recipe.json"), never
+as "no recipe", so it composes with the D17 `inventory-unreadable`
+terminal instead of contradicting it. The parsed value and the bytes are
+the ones V3, V7, V10 and `recipe_hash_at_verify` all use.
+`readArtifactBytes` and the `inventoryRecipeBytes` fallback are deleted.
 
-## Rev-1 Review Adjudication
+**F2 (P1) — duplicate-attestation identity failure.**
+In `classifyEvidence`'s `len(allMatch) >= 2` branch the `identitiesFor`
+error is classified with `classifyGitFailure`: a missing object is
+`history-incomplete` (R22), any other command failure is `unavailable`
+(R10), and only a SUCCESSFUL comparison that disagrees stays
+`ambiguous` (R7).
 
-- Internal: NEEDS REVISION.
-- External/original reproducer: NEEDS REVISION.
-- The offline gateway, floor stop, base-reachability advisory, BaseCommit
-  exactness, basic read-error policy and original GH #8 workflow all held.
-- Five valid completeness findings remain:
-  1. V2 still reads `apply-recipe.json` from disk after inventory capture.
-  2. Duplicate-attestation identity probe failures still become `ambiguous`.
-  3. Historical V8 treats every `git apply` failure as patch drift.
-  4. An unlanded parent's failed presence probe falls through to replay.
-  5. Inventory instability ignores artifact/generation readability changes.
+**F3 (P1) — historical V8 apply failure.**
+New `gitutil.OfflineGitResult` + `ctx.shadowApplyCheck` retain the exit
+code and stderr through the offline gateway. Exit 1 — and a
+patch-level diagnostic such as "no valid patches in input", which git
+reports with exit 128 — remain ANSWERS: a genuine non-apply is still
+exactly R5, and a corrupt artifact still gets the shipped forward-mode
+V8 string. A missing object or a repository-level fatal routes through
+`terminalEvidencePhase`, so the emitted remediation is the closed
+R22/R10 string and no patch/attestation disagreement is claimed.
 
-**F1 (P1) — one floor-validated offline Git context.**
-New `internal/workflow/verify_gitgate.go` is the single gateway. Every
-Git operation the verify path performs is a method on
-`verifyRunContext`; each calls `gitGate()` BEFORE spawning anything and
-applies `GIT_NO_LAZY_FETCH=1`. Routed through it: ancestry
-(`isAncestorChecked`, used by V5 **and** by the V4 dependency
-validator), the landing enumeration, `TempIndex`, shadow
-create/prune/read-tree/apply/write-tree/clean, `cat-file`, the
-normalized-identity `diff`, parent replay and `verify --all`.
-`internal/gitutil/shadow.go` gained `CreateShadowEnv`,
-`PruneShadowEnv` and `PruneAllShadowsEnv` so the offline environment is
-explicit and unrelated callers are byte-unchanged. Below the floor the
-run now spawns **only** `git --version` even when the feature carries
-`satisfied_by` deps; V5 refuses with a floor-naming remediation instead
-of silently answering.
+**F4 (P1) — unlanded parent presence probe.**
+In the evidence-none branch a probe that cannot be answered is terminal:
+missing object → R22/`history-incomplete`, generic failure →
+R10/`unavailable`. It never falls through to recipe replay.
+`ladder.Blocked` is an ANSWERED absence and still means replay; a clean
+or context-drift probe still means skip + R18.
 
-**F2 (P1) — a single immutable inventory.**
-`newVerifyRunContext` builds it once and it is now the authority for
-V0 (target status), V3 (parent states), V4
-(`store.ValidateDependenciesWith` over a new `store.ValidationEnv`),
-V5, V6 (`CheckDependencyGateSnapshot`), the closure walk, supersession
-(`isFeatureSupersededIn(ctx.inv.Statuses(), …)`), the parent snapshot,
-`verify --all`'s own feature enumeration and persistence. New
-`store.FeatureSnapshot` is the read-once view; `ListFeatures`,
-`IsFeatureSuperseded` and per-parent `LoadFeatureStatus` are gone from
-the verify path. `store.WriteVerifyRecordFrom` persists from the
-captured status and returns the exact persisted value, so the capture is
-folded forward without a reload.
+**F5 (P2) — instability readability transitions.**
+The re-statement compares `Err` nil/non-nil for the recipe, patch and
+provenance snapshots plus `GenerationsErr`, alongside presence and
+bytes. `absent ↔ unreadable` — both of which carry `Presence == absent`
+and no bytes — is now `snapshot-unstable` naming the exact slug and
+path. A stably-unreadable unrelated feature keeps its existing warn.
 
-**F3 (P1) — probe failures classify honestly.**
-`gitutil.ApplyCheckResult` gained `ExitCode` and `ApplyAnswered()`:
-exit 1 is a patch-level answer, anything else is an execution failure.
-`forwardQualifies` returns `(qualified, state, err)`; `anchorResolution`
-carries `FailState`/`FailDetail`; `identitiesFor` failures route through
-`classifyGitFailure`. A locally missing object is `history-incomplete`
-with R22, any other unrunnable probe is `unavailable` — never "no
-qualifier" or "ambiguous". The AC-L69 fallback allowance is deleted: the
-row now requires `history-incomplete` + R22 verbatim.
-
-**F4 (P1) — read errors are not absence.**
-`snapshotArtifact` treats only `os.ErrNotExist` as absent and retains
-every other read failure with its path; `patch-generations.json` read
-and parse failures are retained too. `inventoryEntry.ReadErr()` drives
-the D17 policy: the target or a closure member blocks with
-`inventory-unreadable` naming the artifact, an unrelated feature warns
-and is excluded from ADR-029 ordering.
-
-**F5 (P2) — the reachability advisory.**
-An `exact`/`duplicate-equivalent` landing whose attested base commit is
-well-formed but not reachable from `HEAD` now emits the required
-`base-commit-unreachable` warn advisory alongside the report field, and
-never fails on its own.
-
-**F6 (P2) — land base-commit exactness.**
-`validateLandBaseCommit` validates the stored bytes verbatim (any
-leading/trailing whitespace, whitespace-only, uppercase or wrong-length
-value is malformed), returns the validated canonical string, and `land`
-emits **that** string in the trailer. Mode A/B ordering is unchanged.
+Shared mechanism: `gitutil.ApplyProbeAnswered` is the ONE
+answer-vs-failure classifier, used by `ApplyCheckResult.ApplyAnswered`
+(ladder + qualifier) and `OfflineGitResult.Answered` (shadow V8). It is
+exit-code and stderr based, never status-text matching.
 
 ## Current State
 
-- GH #8 stays empirically closed with the rev-1 binary: before land
-  passes in forward mode; after land `target_mode=landed`,
-  `landing_evidence=exact`, `baseline.mode=dual-anchor`, all three
-  anchored rows green, exit 0; `verify --all` exits 0.
-- AC-L68 / AC-L69 remain closed against a **real filtered remote**
-  (`git daemon` + `uploadpack.allowFilter`, real object deletion, dead
-  promisor URL). AC-L69 no longer accepts a fallback classification.
+- GH #8 stays empirically closed with the rev-2 binary: before land
+  passes, after land `landing evidence: exact`, dual-anchor baseline,
+  exit 0, `verify --all` exit 0.
+- AC-L68 / AC-L69 remain green against a real filtered remote.
 - No blocker.
 
-## Files Changed (rev-1)
+## Files Changed (rev-2)
 
 New:
 
-- `internal/workflow/verify_gitgate.go`
-- `internal/store/feature_snapshot.go`
-- `internal/workflow/verify_rev1_fold_test.go`
-- `internal/cli/land_rev1_fold_test.go`
+- `internal/workflow/verify_rev2_fold_test.go`
 
 Modified:
 
-- `internal/gitutil/shadow.go` (env-aware create/prune helpers)
-- `internal/gitutil/trailers.go` (`ExitCode` / `ApplyAnswered`)
-- `internal/store/store.go` (`WriteVerifyRecordFrom`)
-- `internal/store/validation.go` (`ValidationEnv`, `ValidateDependenciesWith`)
-- `internal/workflow/dependency_gate.go` (`CheckDependencyGateSnapshot`)
-- `internal/workflow/verify.go`, `verify_landed.go`, `verify_anchored.go`,
-  `verify_all.go`, `verify_diagnostics.go`
-- `internal/cli/land.go`, `internal/cli/land_base_commit.go`
-- `internal/workflow/acceptance_ledger_test.go`,
-  `verify_landed_groupd_test.go`, `verify_landed_partialclone_test.go`,
-  `verify_test.go`, `internal/cli/land_landing_evidence_test.go`
+- `internal/gitutil/trailers.go` (`OfflineGitResult`,
+  `RunOfflineGitInResult`, `IsPatchInputError`, `ApplyProbeAnswered`)
+- `internal/workflow/verify_gitgate.go` (`shadowApplyCheck`)
+- `internal/workflow/verify.go` (V2 over captured bytes; dead reader
+  removed)
+- `internal/workflow/verify_landed.go` (identity-failure classification,
+  readability transitions, fallback removal)
+- `internal/workflow/verify_anchored.go` (historical V8 split, unlanded
+  parent probe terminal)
+- `internal/workflow/acceptance_ledger_test.go`
 - `CHANGELOG.md`, `docs/handoff/CURRENT.md`
-
-The rev-0 files (`internal/gitutil/trailers.go`,
-`internal/workflow/verify_landed.go`, `verify_anchored.go`,
-`verify_diagnostics.go`, `internal/cli/land_base_commit.go` and the
-eight acceptance-test files) are unchanged except where a finding
-required it.
 
 ## Test Results
 
-- `gofmt -l .` — clean.
-- `go vet ./...` — clean; `GOOS=linux` and `GOOS=windows` vet clean.
-- `go build ./cmd/tpatch` — clean; cross-builds clean for
-  linux/amd64, linux/arm64, darwin/arm64, windows/amd64.
-- `go test -count=1 ./...` — **all 12 packages pass**.
+- `gofmt -l .` clean; `go vet ./...` clean; `GOOS=linux` and
+  `GOOS=windows` vet clean.
+- Cross-builds clean: linux/amd64, linux/arm64, darwin/arm64,
+  windows/amd64.
+- `go test -count=1 ./...` — all 12 packages pass.
 - `go test -race -count=1 ./internal/workflow ./internal/gitutil
   ./internal/store ./internal/cli` — pass.
-- Acceptance ledger: **161/161 rows mapped**, audited against the ids
-  scraped from both PRDs; 17 rows gained rev-1 mappings and every named
-  test is proven to exist.
-- Docs totality guard (AC-L135 / G1–G10): zero hits, sensitivity test
-  green. The accepted documents were **not** edited.
-- GH #2 regression `TestRunVerify_EquivalentRecipeAndPatchBothPass` green
-  and **unmodified** (AC-L121 diffs it against WAVE_BASE `b768602`).
+- **Regression proof**: with the rev-1 production files restored and the
+  rev-2 tests in place, 8 rev-2 tests fail (V2 capture purity, the
+  source guard, both duplicate-attestation branches, both historical-V8
+  branches, the unlanded-parent probe, and the workspace mutation);
+  restoring rev-2 turns them green. The readability table additionally
+  fails 8 of its 16 sub-cases — exactly the `absent ↔ unreadable` pairs
+  rev-1 could not see.
+- Acceptance ledger: 161/161 rows mapped; AC-L35/L53/L58/L69/L77/L78/
+  L108/L109/L110/L117/L123 remapped to the black-box proofs, and the two
+  helper-only rev-1 entries were removed from the ledger so no row
+  claims assurance a unit call cannot give.
+- Docs totality guard (AC-L135 / G1–G10): zero hits; accepted documents
+  untouched.
+- GH #2 regression green and unmodified (AC-L121 diffs it against
+  WAVE_BASE `b768602`).
+- Real filtered-remote AC-L68 / AC-L69: green.
 - Side Research md5: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Make V2 parse only the captured recipe bytes.
-2. Classify all identity/apply probe execution failures honestly.
-3. Fail instead of replaying when an unlanded-parent probe cannot run.
-4. Detect artifact/generation readability transitions as instability.
-5. Dual review the rev-2 fold against all 161 rows.
+1. Dual review of the rev-2 fold against all 161 rows.
+2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
 
 ## Blockers
 
-No external blocker. Rev-1 cannot ship until the five adjudicated findings
-close.
+None.
 
 ## Context for Next Agent
 
-Reviewer focus for rev-1, and the judgement calls made inside the
-contract:
+Reviewer focus for rev-2:
 
-1. **`git apply --check` exit 1 vs 128 is the answer/failure
-   discriminator.** Treating every non-zero exit as a failure would
-   break the ladder (a patch that does not apply is the answer the
-   contract wants); treating none as a failure is the rev-0 defect.
-   `ApplyAnswered()` encodes exactly that split, and
-   `TestRev1_GenericProbeFailureIsUnavailable` injects a 128 to pin it.
-2. **V5 below the floor is a block, not a skip.** The run already fails
-   via `unavailable`, but V5 must not claim reachability it could not
-   check; the remediation names the 2.36 requirement. A feature with no
-   `satisfied_by` dep is unaffected, so AC-L134's fixture is unchanged.
-3. **`store.ValidationEnv` / `CheckDependencyGateSnapshot` /
-   `WriteVerifyRecordFrom` are additive.** A zero env or a nil snapshot
-   reproduces the shipped behaviour byte-for-byte, so `amend`, `apply`,
-   `status` and every other caller is untouched — only verify passes the
-   capture and the gated ancestry resolver.
-4. **`pruneShadow` is a no-op below the floor.** No shadow can exist in
-   that case (creation is gated), so the deferred cleanup returns nil
-   rather than reporting an error the operator cannot act on.
-5. **The unreachable-base advisory has no R-number.** The accepted R
-   table stops at R24 and the advisory vocabulary is closed at five
-   codes; the message is therefore a new string carrying the code,
-   pinned verbatim by `TestRev1_BaseCommitUnreachableAdvisoryIsEmitted`.
+1. **`git apply --check` exits 128 for a MALFORMED patch**, not 1.
+   Measured: a zero-byte or non-diff artifact yields
+   `error: No valid patches in input` with exit 128. Treating every
+   non-1 exit as an execution failure would report a corrupt artifact as
+   an unavailable reader and would have broken two shipped GH #2-era
+   rows. `ApplyProbeAnswered` therefore accepts exit 0, exit 1, and any
+   exit whose diagnostic is about the PATCH, while a missing-object or
+   network diagnostic is always a failure.
+2. **Unanswerable probes route through `terminalEvidencePhase`.** That
+   is what makes the emitted remediation the closed R10/R22 string
+   rather than a new sentence, and it keeps `failed_at` inside the
+   thirteen-value vocabulary (`landing-evidence`). No schema vocabulary
+   was invented for any rev-2 branch.
+3. **The purity guard is AST-based**, not a substring scan: it allows
+   `os.ReadFile` only inside `snapshotArtifact`, `buildInventory`,
+   `inventoryInstability` (the documented re-statement) and
+   `replayOpInShadow` (which reads inside the shadow worktree, not the
+   store). V1's intent-file stat and V3's op-target stat are working-tree
+   probes, not captured artifacts, and are deliberately out of scope.
+4. **Readability comparison is nil/non-nil only.** Comparing error TEXT
+   would make two independent `*PathError` values look like a change on
+   every run; the contract-useful signal is the transition, and the
+   stable-unreadable case is pinned by its own test.
 
-Carried forward from rev-0 (still true):
+Carried forward from rev-0/rev-1 (still true):
 
 - `landing_evidence.state` is OMITTED for the D10 artifact-presence
   short-circuit; `failed_at` and `reason` carry the outcome.
@@ -202,8 +166,7 @@ Carried forward from rev-0 (still true):
   neither allocates a shadow.
 - AC-L84 and AC-L111 are proven in two halves because V4 pre-empts the
   arbitration branch; AC-LD18a's refusal half is driven through the
-  production validator because the shipped `record` always writes a
-  valid base commit.
+  production validator.
 - The isolated index lives under `<git-dir>/tpatch-verify`.
 - Stray build artifacts in the repo root predate the session and are
   gitignored; they were left untouched.

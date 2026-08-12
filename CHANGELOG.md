@@ -376,6 +376,30 @@ All notable changes to tpatch are recorded here.
     verbatim. Previously the field was trimmed for validation and the
     original was written into the trailer, which could produce a
     `Tpatch-Base-Commit` line the reader is required to reject.
+  - V2 parses the recipe bytes the run **captured**, not the file. A
+    concurrent write between the capture and the check can no longer
+    produce a report built from two versions of the same artifact; the
+    write is still caught by the end-of-run re-statement as
+    `snapshot-unstable`.
+  - The answer/failure split is applied to **every** apply and diff
+    probe, including the historical `post-apply.patch` check and the
+    duplicate-attestation identity comparison. A patch that does not
+    apply, or a corrupt patch git reports as "no valid patches in
+    input", stays a patch-level answer; a missing object or a
+    repository-level fatal is reported as `history-incomplete` or
+    `unavailable`. `ambiguous` — and its "resolve the history"
+    remediation — is now reachable only from identities that were
+    successfully computed and differ.
+  - An unlanded hard parent whose presence probe cannot be answered is
+    terminal. Previously the run fell through to replaying that
+    parent's recipe, which turns "we could not tell whether this
+    content is present" into "apply it again".
+  - The end-of-run re-statement compares artifact **readability** as
+    well as presence and bytes, so an artifact that flips between
+    absent and unreadable — both of which look like "absent" with no
+    bytes — is reported as `snapshot-unstable` naming the exact
+    feature and path. A feature that is unreadable for the whole run
+    keeps its existing warn and never becomes perpetual instability.
 
 ## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 
