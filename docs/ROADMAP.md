@@ -683,6 +683,10 @@ staging and guarded publication, preserving concurrent operator state.
 REVISION. Rev-7 adds durable index publication and crash recovery while
 retaining owned-lock cleanup across every failure.
 
+**Wave A rev-7** (`32602d5`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-8 locks and compares recovery state, retains evidence on failed
+publish, and commits directly from the durable retained index.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

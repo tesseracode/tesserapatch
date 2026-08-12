@@ -1,3 +1,40 @@
+## Review — v0.15.1 Wave A / GH #7 rev-7 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `32602d5`
+**Reviewed range**: `150da09..674d447`
+
+### Verdict: NEEDS REVISION → REV-8 DISPATCHED
+
+### Verified Clean
+
+- Owned lock lifetime, durable writes, basic journal validation, original
+  issue, crash reproduction, non-goals and validation.
+
+### Residual Findings
+
+1. **HIGH**: recovery publishes without locking/comparing live index bytes
+   and mode to the journaled state; operator `git add` can be overwritten.
+2. **HIGH**: commit-failure path clears journal/retained retry index even when
+   live-index publication fails.
+3. **MEDIUM**: a hook can mutate the alternate index before HEAD advances;
+   the final retained bytes/checksum/tree are not durably persisted for
+   recovery.
+
+### Rev-8 Direction
+
+- Recover under live index lock; accept only exact preimage or already
+  published retained postimage, otherwise refuse and preserve evidence.
+- Use the durable retained index path as GIT_INDEX_FILE so hook mutations
+  survive a crash.
+- Fsync and update retained checksum/tree after commit/hook completion.
+- Clear journal only after durable publish succeeds.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-8.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-6 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)

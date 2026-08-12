@@ -2,19 +2,19 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-8 DISPATCHED
 
-v0.15.1 Wave A rev-7 (GitHub issue #7) closes the owned-lock-lifetime
-and crash-durability findings. Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-7 adds recovery but can overwrite operator index changes
+and lose retry evidence on publish failure. Rev-8 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-7
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-8
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and from
   land planning, staging and commit — with a durable, crash-recoverable
   land transaction.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-7 dispatch HEAD**: `150da09`
@@ -227,6 +227,27 @@ repos, worktrees and binaries removed.
 5. The commit-failure path clears the journal because the audited index
    *was* published; the post-commit publish-failure path keeps it. Those
    are the only two asymmetric branches — worth a careful read.
+
+## Rev-7 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Durable lock cleanup and basic crash recovery are effective.
+- Valid residuals:
+  1. Recovery does not lock/compare the live index against journaled
+     pre/post state before publishing, so operator staging can be overwritten.
+  2. Commit-failure path clears recovery evidence when index publication
+     fails.
+  3. Hook-mutated alternate index is not durably retained before recovery.
+- `tpatch_rev7_bin` and review scratch are absent after external cleanup.
+
+## Next Steps
+
+1. Recover under live lock and accept only journaled preimage/postimage state.
+2. Use the durable retained index itself as the commit index.
+3. Persist hook-mutated retained bytes/checksum/tree before publication.
+4. Keep journal/evidence on every failed publish.
+5. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 
