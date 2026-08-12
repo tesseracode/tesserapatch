@@ -1,3 +1,52 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-1 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, follow-up)
+**Writer commit**: `f4cabe4`
+**Reviewed range**: `4fdc18e..f4cabe4`
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Verified Clean
+
+- Rev-0 findings closed, V10 restored, strict evidence states, 121-row matrix,
+  existential replace predicate and dual-anchor diagnosis.
+
+### Blocking Findings
+
+1. **CRITICAL**: Anchor C uses the working tree rather than an isolated HEAD
+   tree/index, producing dirty-tree false greens/reds.
+2. **CRITICAL/HIGH**: C0 fallback has measured false greens; Q14 cannot remain
+   optional.
+3. **HIGH**: historical-anchor unavailable skips block checks and can pass on
+   Anchor C alone.
+4. **HIGH**: parent arbitration reuses whole-file byte equality, circularly
+   refers to replay, and mishandles evidence-none/absent artifacts.
+5. **HIGH**: V10 later-touch does not use ADR-029 metadata and parent V10
+   aggregation is incomplete.
+6. **HIGH**: raw trailer grammar/absence precedence and invocation ordering
+   remain inconsistent.
+7. **MEDIUM/HIGH**: re-land remediation disqualifies the new candidate and can
+   permanently degrade Anchor H.
+8. **MEDIUM**: tree probe plumbing, freshness_label examples, stale V10 prose
+   and matrix tiers conflict.
+
+### Rev-2 Direction
+
+- Run Anchor C against a temp index seeded from HEAD, never the worktree.
+- Any `(0/0)` reduced-context hunk blocks unless a stronger non-vacuous
+  corroboration is specified and proven.
+- Separate exact evidence candidate from a deterministic historical replay
+  anchor candidate.
+- Use canonical patch ladder for non-mutating parent arbitration; recipe
+  predicates are diagnostics and V10 follows ADR-029 metadata.
+- Make unavailable/malformed/absent evidence terminal, snapshot all bytes, and
+  refresh the 11-check schema/examples/matrix.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave B rev-2.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-0 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`)

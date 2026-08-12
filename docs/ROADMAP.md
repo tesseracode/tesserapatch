@@ -708,6 +708,11 @@ strict evidence grammar/cardinality/topology, patch-authoritative
 materialization with non-vacuous recipe diagnostics, total parent states,
 immutable snapshots and a rebuilt schema/matrix.
 
+**Wave B rev-1** (`f4cabe4`): dual NEEDS REVISION. Rev-2 isolates Anchor C
+from worktree dirt, hardens C0, separates landing attestation from replay
+anchor selection, makes parent arbitration patch-based, and rebuilds
+V10/evidence/schema/matrix parity.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

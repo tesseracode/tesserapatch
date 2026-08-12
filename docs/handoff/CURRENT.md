@@ -2,18 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
-v0.15.1 Wave B **rev-1** (GH #8 contract) is rewritten and ready for dual
-independent review. Planning only — no Go code, tests, assets, SPEC,
-CHANGELOG or GitHub issue state was touched. Implementation is Wave C.
+v0.15.1 Wave B rev-1 remains blocked by Anchor-C false results, parent
+arbitration and evidence/schema gaps. Rev-2 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-1)
+- **Status**: In Progress (rev-2)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-1)**: `4fdc18e`
@@ -228,6 +227,30 @@ four trailers.
    belongs to the Wave C ship.
 7. **`docs/ROADMAP.md` Wave B row and `docs/supervisor/LOG.md` verdict entry**
    are supervisor-owned and remain for review/close.
+
+## Rev-1 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: NEEDS REVISION.
+- Blocking themes:
+  1. Anchor C reads the dirty worktree and C0 admits measured false greens.
+  2. Historical-anchor unavailable is a success-shaped skip.
+  3. Parent arbitration reuses rejected whole-file predicates and is
+     circular about replay.
+  4. V10 later-touch and parent aggregation do not match ADR-029.
+  5. Evidence raw grammar, artifact-absence precedence and invocation
+     accounting remain inconsistent.
+  6. Re-land remediation can permanently lose historical anchor H.
+  7. Golden examples, freshness_label and stale V10 prose still conflict.
+
+## Next Steps
+
+1. Isolate Anchor C at HEAD tree/index and make unsafe C0 reductions block.
+2. Separate exact landing attestation from historical replay-anchor selection.
+3. Make parent arbitration patch-ladder-based and non-mutating.
+4. Align V10 with ADR-029 metadata and total parent materialization.
+5. Rebuild evidence grammar, schema, examples and matrix.
+6. Run dual rev-2 planning review.
 
 ## Reviewer Focus
 
