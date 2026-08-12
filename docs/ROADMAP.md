@@ -652,6 +652,11 @@ Sequential plan:
 
 No v0.15.1 tag until all three waves pass dual review and the release close.
 
+**Wave A rev-0** (`469e9dd`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-1 covers exact trailing-space/tab path bytes, strict legacy
+porcelain dequoting/fail-closed behavior, diffstat pathspec exclusion and
+CLI-level discovery-failure regression.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

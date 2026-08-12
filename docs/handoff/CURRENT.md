@@ -2,17 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-v0.15.1 Wave A (GitHub issue #7) is implemented, validated and pushed.
-Awaiting review.
+v0.15.1 Wave A rev-0 fixes the reported scenarios but remains blocked by
+pathname-byte parsing and diffstat exclusions. Rev-1 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-1
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record capture and land planning.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Dispatch HEAD**: `3c55e43`
@@ -81,6 +81,20 @@ directory read never happens. This is asserted, not assumed.
 
 No ADR was required — the fix reuses the locked capture/land
 architecture and introduces no new decision.
+
+### Rev-0 review adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Valid residuals:
+  1. NUL porcelain parsing trims valid trailing spaces/tabs from worktree
+     paths, allowing capture.
+  2. Legacy newline fallback can ambiguously split unusual paths and must
+     dequote/validate or fail closed.
+  3. Diffstat generation lacks nested-worktree pathspec exclusions, so stale
+     intent-to-add gitlinks can leak into `post-apply-diff.txt`.
+- Test note: add CLI-level fail-closed coverage for worktree discovery
+  failure.
 
 ## Current State
 
@@ -181,9 +195,12 @@ The scratch repos and their worktrees were removed after validation.
 
 ## Next Steps
 
-1. Review this wave (internal + external).
-2. On acceptance, run the Wave-Close Checklist and ship v0.15.1.
-3. Proceed to GH #8 (contract amendment, then implementation).
+1. Preserve exact path bytes in NUL parsing and strictly dequote/validate the
+   legacy fallback.
+2. Apply nested-worktree exclusions to diffstat generation.
+3. Add trailing whitespace/newline and CLI fail-closed regressions.
+4. Re-run dual review and close #7 only after approval.
+5. Proceed to GH #8 contract work after Wave A closes.
 
 ## Blockers
 

@@ -1,3 +1,46 @@
+## Review — v0.15.1 Wave A / GH #7 rev-0 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, original
+reproducer)
+**Implementation commit**: `469e9dd`
+**Reviewed range**: `3c55e43..94dcb21`
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Verified Clean
+
+- The original apply/default-record gitlink contamination, recipe-autogen
+  directory read and land outside-path noise are closed.
+- Explicit worktree pathspecs cannot re-admit the path.
+- Tracked submodules, unregistered nested repos, external worktrees, ordinary
+  dirt and prefix-boundary siblings remain unchanged.
+- Discovery failure propagates fail-closed; full suite and invariants pass.
+
+### Residual Findings
+
+1. **HIGH**: NUL-mode parser applies `TrimSpace` to the worktree path and
+   corrupts valid trailing-space/tab names.
+2. **HIGH**: legacy non-NUL fallback can ambiguously split unusual pathnames;
+   it must strictly parse Git quoting or fail closed.
+3. **MEDIUM**: diffstat generation does not receive nested-worktree exclude
+   pathspecs, so pre-existing intent-to-add residue can leak into
+   `post-apply-diff.txt`.
+4. **Test note**: add CLI-level regression for a real discovery-command
+   failure, not only primitive wiring.
+
+### Rev-1 Direction
+
+- Preserve path bytes exactly in NUL mode.
+- Strictly dequote and validate legacy porcelain records; reject ambiguity.
+- Reuse the same exclusions for all patch/diffstat generation.
+- Add actual trailing-space/tab/newline fixtures and CLI fail-closed tests.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-1; the same sequential
+implementer owns the bounded fold.
+
 ## Dispatch — v0.15.1 Wave A / GH #7 — 2026-08-12
 
 **Task**: Exclude nested registered Git worktrees from apply/record capture
