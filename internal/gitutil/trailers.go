@@ -49,13 +49,25 @@ const (
 	GitFloorMinor = 36
 )
 
+// CLocaleEnv is the mandatory deterministic-diagnostics entry for every
+// evidence command (v0.15.1 Wave C rev-3, adjudication finding P1).
+//
+// Rev-2 forced `LC_ALL=C` only on the `-C0` ladder step, so every OTHER
+// classified probe — `read-tree`, `apply`, `diff`, `cat-file`, `log` —
+// inherited the ambient locale. A translated diagnostic then fails the
+// missing-object test and degrades a genuine `history-incomplete` (R22)
+// into `unavailable` (R10), and makes the malformed-patch grammar
+// unmatchable. Classification is only sound if the text is fixed.
+const CLocaleEnv = "LC_ALL=C"
+
 // evidenceEnv returns the environment for every git command issued by
-// this file. `GIT_NO_LAZY_FETCH=1` is appended last so it wins over any
-// inherited value.
+// this file. `GIT_NO_LAZY_FETCH=1` and `LC_ALL=C` are appended LAST, in
+// that order, so they win over both the inherited environment and any
+// caller-supplied extra.
 func evidenceEnv(extra ...string) []string {
 	env := append([]string{}, os.Environ()...)
 	env = append(env, extra...)
-	env = append(env, NoLazyFetchEnv)
+	env = append(env, NoLazyFetchEnv, CLocaleEnv)
 	return env
 }
 
@@ -437,9 +449,6 @@ type ApplyCheckOptions struct {
 	// Verbose adds `--verbose`, which is what surfaces the
 	// `Context reduced to (n/m)` lines the D12 ladder counts.
 	Verbose bool
-	// ForceCLocale runs the probe under `LC_ALL=C`, mandatory for the
-	// `-C0` step so the reduced-context diagnostic is matchable.
-	ForceCLocale bool
 }
 
 // ApplyCheckResult is one probe outcome.
@@ -483,11 +492,9 @@ func (t *TempIndex) ApplyCheck(opts ApplyCheckOptions) ApplyCheckResult {
 	}
 	args = append(args, opts.PatchPath)
 
-	env := t.Env()
-	if opts.ForceCLocale {
-		env = append(env, "LC_ALL=C")
-	}
-	_, stderr, err := runEvidenceGit(t.repoRoot, env, args...)
+	// `LC_ALL=C` is applied unconditionally by evidenceEnv, so every
+	// probe — not just the `-C0` step — has matchable diagnostics.
+	_, stderr, err := runEvidenceGit(t.repoRoot, t.Env(), args...)
 	res := ApplyCheckResult{
 		OK:               err == nil,
 		Stderr:           stderr,
@@ -544,34 +551,87 @@ func IsMissingObjectError(stderr string) bool {
 	return false
 }
 
-// patchInputPatterns are `git apply` diagnostics ABOUT THE PATCH — the
-// artifact it was handed — rather than about the repository. They are
-// domain ANSWERS ("this patch is unusable / does not apply") even when
-// git exits 128, which it does for a malformed or empty patch.
+// ── Apply-probe answer classification (rev-3) ────────────────────────────
 //
-// Measured: `git apply --check` on a zero-byte or non-diff file exits
-// 128 with `error: No valid patches in input`. Treating that as an
-// execution failure would report a corrupt artifact as an unavailable
-// reader (v0.15.1 Wave C rev-2, finding 3).
-var patchInputPatterns = []string{
-	"no valid patches in input",
-	"unrecognized input",
-	"corrupt patch at line",
-	"patch fragment without header",
-	"patch with only garbage",
-	"patch does not apply",
-	"does not exist in index",
-	"already exists",
-	"cannot apply binary patch",
-	"new file",
-	"deleted file",
+// `git apply --check` distinguishes three outcomes:
+//
+//   - exit 0  — the patch applies. An ANSWER.
+//   - exit 1  — the patch does not apply. Every ordinary conflict lands
+//     here: measured under `LC_ALL=C`, `already exists in index`,
+//     `does not exist in index`, `patch does not apply` and their
+//     working-tree equivalents ALL exit 1. An ANSWER, decided by the
+//     exit code alone — no stderr grammar is consulted.
+//   - exit 128 — git refused the input. This is the ONLY exit where the
+//     diagnostic matters, and it is admitted as an answer only when the
+//     whole diagnostic is a malformed-PATCH complaint.
+//
+// Rev-2 accepted any non-answer exit whose stderr merely CONTAINED a
+// broad fragment such as `already exists`, `new file` or `deleted
+// file`. A wrapper failure, a signalled process or a translated
+// diagnostic could therefore be promoted to a patch answer (R5/R11) —
+// the rev-3 P1 finding. The grammar below is anchored, C-locale only
+// (guaranteed by CLocaleEnv), and every non-empty line must match.
+
+// malformedPatchLineRes are the anchored `git apply` diagnostics that
+// describe MALFORMED PATCH INPUT. Measured on git 2.55.0 under
+// `LC_ALL=C`:
+//
+//	empty / non-diff input     → error: No valid patches in input (allow with "--allow-empty")
+//	truncated or garbage hunk  → error: corrupt patch at ../p.patch:5
+//	fragment with no header    → error: patch fragment without header at ../p.patch:1: @@ -1,3 +1,3 @@
+//	corrupt binary payload     → error: corrupt binary patch at ../p.patch:6: NOTBASE85
+//	                             error: No valid patches in input (allow with "--allow-empty")
+//
+// `corrupt patch at line N` and `patch with only garbage at line N` are
+// the same message family emitted by other git versions; both are
+// anchored here so an older git is classified identically.
+var malformedPatchLineRes = []*regexp.Regexp{
+	regexp.MustCompile(`^error: No valid patches in input \(allow with "--allow-empty"\)$`),
+	regexp.MustCompile(`^error: No valid patches in input$`),
+	regexp.MustCompile(`^error: corrupt patch at line [0-9]+$`),
+	regexp.MustCompile(`^error: corrupt patch at .+:[0-9]+$`),
+	regexp.MustCompile(`^error: patch with only garbage at line [0-9]+$`),
+	regexp.MustCompile(`^error: patch fragment without header at .+:[0-9]+: .*$`),
+	regexp.MustCompile(`^error: patch fragment without header at line [0-9]+: .*$`),
+	regexp.MustCompile(`^error: corrupt binary patch at .+:[0-9]+: .*$`),
+	regexp.MustCompile(`^error: corrupt binary patch at line [0-9]+: .*$`),
 }
 
-// IsPatchInputError reports whether stderr is a patch-level diagnostic.
-func IsPatchInputError(stderr string) bool {
-	low := strings.ToLower(stderr)
-	for _, p := range patchInputPatterns {
-		if strings.Contains(low, p) {
+// applyInformationalLineRes are non-diagnostic lines `git apply
+// --verbose` prints. They never carry a verdict, so they may accompany a
+// malformed-patch complaint but can never satisfy the "at least one
+// recognised diagnostic" requirement on their own.
+var applyInformationalLineRes = []*regexp.Regexp{
+	regexp.MustCompile(`^Checking patch .*\.\.\.$`),
+}
+
+// IsMalformedPatchDiagnostic reports whether stderr is WHOLLY a
+// malformed-patch complaint: at least one recognised diagnostic line,
+// and no unrecognised non-empty line. A `fatal:` line, a missing-object
+// line, a wrapper's own message or anything unknown makes the whole
+// diagnostic unrecognised — mixed output is never an answer.
+func IsMalformedPatchDiagnostic(stderr string) bool {
+	diagnostics := 0
+	for _, raw := range strings.Split(stderr, "\n") {
+		line := strings.TrimRight(raw, "\r")
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if matchesAny(line, malformedPatchLineRes) {
+			diagnostics++
+			continue
+		}
+		if matchesAny(line, applyInformationalLineRes) {
+			continue
+		}
+		return false
+	}
+	return diagnostics > 0
+}
+
+func matchesAny(line string, res []*regexp.Regexp) bool {
+	for _, re := range res {
+		if re.MatchString(line) {
 			return true
 		}
 	}
@@ -579,17 +639,28 @@ func IsPatchInputError(stderr string) bool {
 }
 
 // ApplyProbeAnswered decides whether an apply probe produced a
-// domain-level verdict rather than an execution failure. Exit 0 and
-// exit 1 are always answers; any other exit is an answer only when the
-// diagnostic is about the PATCH and not about a missing object.
+// domain-level verdict rather than an execution failure.
+//
+// Exactly one exit code other than 0 and 1 can be an answer — 128, and
+// only when the diagnostic is wholly a malformed-patch complaint that is
+// neither a missing-object nor a network failure. Every other exit
+// (negative for a signalled or unstartable process, 2, 126, 127, 129+)
+// is a FAILURE regardless of what it printed: a wrapper that echoes a
+// git-looking line must never be promoted to a patch answer.
 func ApplyProbeAnswered(exitCode int, ok bool, stderr string) bool {
-	if ok || exitCode == 1 {
+	if ok {
 		return true
+	}
+	if exitCode == 1 {
+		return true
+	}
+	if exitCode != 128 {
+		return false
 	}
 	if IsMissingObjectError(stderr) || IsNetworkFetchError(stderr) {
 		return false
 	}
-	return IsPatchInputError(stderr)
+	return IsMalformedPatchDiagnostic(stderr)
 }
 
 // IsNetworkFetchError reports whether stderr looks like git reached (or
