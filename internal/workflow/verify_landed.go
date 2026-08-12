@@ -1090,12 +1090,14 @@ func (ctx *verifyRunContext) runLadderUncached(treeish, patchPath string, patchB
 	}
 
 	// Step 2 — `-C0 --verbose` under LC_ALL=C (mandatory).
+	// `LC_ALL=C` is applied to EVERY evidence command by the gateway
+	// (rev-3), so the reduced-context diagnostic this step counts is
+	// matchable without a per-call flag.
 	step2 := idx.ApplyCheck(gitutil.ApplyCheckOptions{
-		PatchPath:    patchPath,
-		Reverse:      true,
-		Context:      gitutil.IntPtr(0),
-		Verbose:      true,
-		ForceCLocale: true,
+		PatchPath: patchPath,
+		Reverse:   true,
+		Context:   gitutil.IntPtr(0),
+		Verbose:   true,
 	})
 	if !step2.ApplyAnswered() {
 		return ladderOutcome{

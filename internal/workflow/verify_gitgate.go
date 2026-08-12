@@ -36,9 +36,13 @@ import (
 // into a "no result" answer: callers surface it as `unavailable`.
 var errGitBelowFloor = errors.New("git is below the required floor 2.36; no object command may be issued")
 
-// offlineEnv is the mandatory environment for every verify Git call.
+// offlineEnv is the mandatory environment for every verify Git call:
+// offline by construction, and C-locale so diagnostics are classifiable
+// (rev-3). `internal/gitutil` applies both to the commands it issues
+// itself; this is the copy handed to helpers that build their own
+// command, such as the shadow worktree operations.
 func (ctx *verifyRunContext) offlineEnv() []string {
-	return []string{gitutil.NoLazyFetchEnv}
+	return []string{gitutil.NoLazyFetchEnv, gitutil.CLocaleEnv}
 }
 
 // gitGate is the single admission check. Every gateway method calls it
