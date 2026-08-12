@@ -662,6 +662,11 @@ APPROVED; internal NEEDS REVISION. Rev-2 removes the fundamentally ambiguous
 legacy fallback, filters reconcile refresh, and makes apply/record discovery
 transactional before the first artifact write.
 
+**Wave A rev-2** (`bc85956`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-3 caches land discovery before embedded record and introduces
+strict quoted diff-header parsing so stale newline-worktree patches cannot
+broaden refresh to the full tree.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

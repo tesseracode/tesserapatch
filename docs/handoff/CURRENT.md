@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
-v0.15.1 Wave A rev-2 (GitHub issue #7) closes all four rev-1 HIGH
-findings. Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-2 remains blocked by land's post-record discovery and
+quoted patch-header parsing in refresh. Rev-3 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-2
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-3
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and land
   planning.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-2 dispatch HEAD**: `79a6c2b`
@@ -248,6 +248,26 @@ All scratch repos, worktrees and build artifacts were removed;
 5. `land`'s transactional boundary is "embedded record artifacts may
    exist; index and HEAD are untouched". That is inherent to land
    delegating to a complete `record` invocation.
+
+## Rev-2 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Valid residuals:
+  1. Land's embedded record mutates feature artifacts/status before later
+     `computePathSet`/dirty-path discovery can fail.
+  2. `FilesInPatch` skips C-quoted newline paths; refresh can mistake a
+     stale worktree-only patch for empty scope and capture the full tree.
+- `tpatch_rev2_bin` and review scratch are absent after external cleanup.
+
+## Next Steps
+
+1. Cache land's nested-worktree discovery before embedded record and reuse it
+   for all later planning.
+2. Add strict Git diff-header parsing with C-quote decoding and fail-closed
+   refresh behavior.
+3. Add Nth-call land failure and quoted-newline stale-patch regressions.
+4. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 

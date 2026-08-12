@@ -1,3 +1,40 @@
+## Review — v0.15.1 Wave A / GH #7 rev-2 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `bc85956`
+**Reviewed range**: `79a6c2b..9cb2b67`
+
+### Verdict: NEEDS REVISION → REV-3 DISPATCHED
+
+### Verified Clean
+
+- Legacy fallback removed, Git 2.36 floor documented.
+- DiffFromCommit filtering, apply/record pre-write ordering, exotic names,
+  original issue surfaces, diagnostics, non-goals and validation.
+
+### Residual Findings
+
+1. **HIGH**: land runs embedded record before later nested-worktree discovery
+   in `computePathSet`/`dirtyPaths`; an Nth-call failure can leave record
+   artifacts/status mutated despite land refusal.
+2. **HIGH**: `FilesInPatch` skips C-quoted newline diff headers; a stale
+   newline-worktree-only patch becomes empty scope and refresh broadens to
+   unrelated full-tree changes.
+
+### Rev-3 Direction
+
+- Discover/cache nested prefixes before embedded record and thread them
+  through land planning with no later worktree-list call.
+- Add strict diff-header parsing using Git C-quote decoding; refresh and land
+  fail closed on malformed/unparseable headers.
+- Test Nth-call land failure and stale quoted-newline worktree patches with
+  unrelated dirt.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-3.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-1 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
