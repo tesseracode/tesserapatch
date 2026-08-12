@@ -229,3 +229,204 @@ func TestFilesInPatchStrictAgreesWithFailSoftOnPlainPatches(t *testing.T) {
 		t.Errorf("strict and fail-soft disagree on a plain patch:\n soft  =%q\n strict=%q", soft, strict)
 	}
 }
+
+// ─── GH #7 rev-4 F1: grammar hardening ──────────────────────────────
+
+// Non-blank input with no `diff --git` header used to yield an empty,
+// error-free scope — the same "empty means everything" hole reached
+// through a truncated artifact or a plain `diff -u` patch.
+func TestFilesInPatchStrictRefusesHeaderlessNonBlankPatch(t *testing.T) {
+	cases := []struct {
+		name  string
+		patch string
+	}{
+		{
+			"plain diff -u output",
+			"--- a/foo.txt\t2026-01-01\n+++ b/foo.txt\t2026-01-02\n@@ -1 +1 @@\n-a\n+b\n",
+		},
+		{
+			"truncated artifact",
+			"index 1111111..2222222 100644\n--- a/foo.txt\n+++ b/foo.txt\n",
+		},
+		{"prose", "this is not a patch at all\n"},
+		{"lone hunk", "@@ -1 +1 @@\n-a\n+b\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := FilesInPatchStrict(tc.patch)
+			if err == nil {
+				t.Fatalf("expected refusal, got %q", got)
+			}
+			if got != nil {
+				t.Errorf("a refusal must return a nil scope, got %q", got)
+			}
+			if !strings.Contains(err.Error(), "no `diff --git` header") {
+				t.Errorf("refusal should name the missing header: %v", err)
+			}
+		})
+	}
+}
+
+// Whitespace-only input is the control: it legitimately touches
+// nothing and must NOT be an error.
+func TestFilesInPatchStrictWhitespaceOnlyIsNotAnError(t *testing.T) {
+	for _, blank := range []string{"", "\n", "   \n\t\n", "\r\n"} {
+		got, err := FilesInPatchStrict(blank)
+		if err != nil {
+			t.Errorf("blank input %q must not be an error: %v", blank, err)
+		}
+		if len(got) != 0 {
+			t.Errorf("blank input %q produced %q", blank, got)
+		}
+	}
+}
+
+// The a-side must be validated too: a malformed a-side with a
+// perfectly good b-side used to pass.
+func TestFilesInPatchStrictValidatesASide(t *testing.T) {
+	cases := []struct {
+		name  string
+		patch string
+	}{
+		{"a-side bad escape", "diff --git \"a/o\\qops.txt\" \"b/fine.txt\"\nindex 1..2 100644\n"},
+		{"a-side unterminated", "diff --git \"a/oops.txt \"b/fine.txt\"\nindex 1..2 100644\n"},
+		{"a-side wrong prefix", "diff --git \"x/oops.txt\" \"b/fine.txt\"\nindex 1..2 100644\n"},
+		{"a-side empty payload", "diff --git \"a/\" \"b/fine.txt\"\nindex 1..2 100644\n"},
+		{"b-side wrong prefix", "diff --git \"a/fine.txt\" \"z/oops.txt\"\nindex 1..2 100644\n"},
+		{"b-side empty payload", "diff --git \"a/fine.txt\" \"b/\"\nindex 1..2 100644\n"},
+		{"unquoted a-side without a/ prefix", "diff --git x/foo.txt b/foo.txt\nindex 1..2 100644\n"},
+		{"unquoted header without a b-side", "diff --git a/foo.txt\nindex 1..2 100644\n"},
+		{"trailing third operand", "diff --git \"a/x.txt\" \"b/x.txt\" \"c/x.txt\"\nindex 1..2 100644\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := FilesInPatchStrict(tc.patch)
+			if err == nil {
+				t.Fatalf("expected refusal, got %q", got)
+			}
+			if got != nil {
+				t.Errorf("a refusal must return a nil scope, got %q", got)
+			}
+		})
+	}
+}
+
+// Go-literal escapes Git never emits must be refused on EITHER side,
+// even though strconv.Unquote would happily decode them.
+func TestFilesInPatchStrictRefusesGoOnlyEscapes(t *testing.T) {
+	forbidden := []string{
+		`\x41`,
+		`\u0041`,
+		`\U0001F600`,
+		`\'`,
+		`\e`,
+		`\3`,
+		`\30`,
+		`\400`,
+	}
+	for _, esc := range forbidden {
+		for _, side := range []string{"a", "b"} {
+			t.Run(esc+"/"+side, func(t *testing.T) {
+				aPath, bPath := `a/ok.txt`, `b/ok.txt`
+				if side == "a" {
+					aPath = `a/x` + esc + `y.txt`
+				} else {
+					bPath = `b/x` + esc + `y.txt`
+				}
+				patch := "diff --git \"" + aPath + "\" \"" + bPath + "\"\nindex 1..2 100644\n"
+				got, err := FilesInPatchStrict(patch)
+				if err == nil {
+					t.Fatalf("escape %q on the %s-side must be refused, got %q", esc, side, got)
+				}
+				if got != nil {
+					t.Errorf("a refusal must return a nil scope, got %q", got)
+				}
+			})
+		}
+	}
+}
+
+// The escapes Git DOES emit must decode byte-correctly.
+func TestUnquoteGitCStyleAcceptsExactlyGitsEscapes(t *testing.T) {
+	cases := map[string]string{
+		`"a\ab"`:        "a\ab",
+		`"a\bb"`:        "a\bb",
+		`"a\fb"`:        "a\fb",
+		`"a\nb"`:        "a\nb",
+		`"a\rb"`:        "a\rb",
+		`"a\tb"`:        "a\tb",
+		`"a\vb"`:        "a\vb",
+		`"a\"b"`:        `a"b`,
+		`"a\\b"`:        `a\b`,
+		`"caf\303\251"`: "café",
+		`"\000end"`:     "\x00end",
+		`"\377"`:        "\xff",
+		`"plain"`:       "plain",
+	}
+	for in, want := range cases {
+		got, err := unquoteGitCStyle(in)
+		if err != nil {
+			t.Errorf("unquoteGitCStyle(%s): %v", in, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("unquoteGitCStyle(%s) = %q, want %q", in, got, want)
+		}
+	}
+	for _, bad := range []string{
+		`"unterminated`,
+		`"trailing"x`,
+		`"\q"`,
+		`"\x41"`,
+		`"\u0041"`,
+		`"\"`,
+		`"\12"`,
+		`"\1"`,
+		`"\800"`,
+		`plain`,
+		`"`,
+	} {
+		if got, err := unquoteGitCStyle(bad); err == nil {
+			t.Errorf("unquoteGitCStyle(%s) should have failed, got %q", bad, got)
+		}
+	}
+}
+
+// Unquoted operands keep whitespace bytes Git permits unquoted.
+func TestFilesInPatchStrictPreservesUnquotedWhitespace(t *testing.T) {
+	patch := "diff --git a/dir/sp  ace.txt b/dir/sp  ace.txt\nindex 1..2 100644\n--- a/dir/sp  ace.txt\n+++ b/dir/sp  ace.txt\n@@ -1 +1 @@\n-a\n+b\n"
+	got, err := FilesInPatchStrict(patch)
+	if err != nil {
+		t.Fatalf("FilesInPatchStrict: %v", err)
+	}
+	if len(got) != 1 || got[0] != "dir/sp  ace.txt" {
+		t.Fatalf("got %q, want [dir/sp  ace.txt]", got)
+	}
+}
+
+// A copy entry (real Git, -C) resolves from `copy to`.
+func TestFilesInPatchStrictHandlesRealGitCopyEntry(t *testing.T) {
+	dir := exoticDiffFixture(t)
+	body, err := os.ReadFile(filepath.Join(dir, "base.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "copied to.txt"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	strictGit(t, dir, "add", "-A")
+	patch := strictGitOut(t, dir, "diff", "--cached", "-C", "--find-copies-harder", "HEAD")
+	got, err := FilesInPatchStrict(patch)
+	if err != nil {
+		t.Fatalf("FilesInPatchStrict: %v\npatch:\n%s", err, patch)
+	}
+	found := false
+	for _, p := range got {
+		if p == "copied to.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("copy entry not resolved; got %q\npatch:\n%s", got, patch)
+	}
+}

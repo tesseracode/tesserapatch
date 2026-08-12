@@ -118,22 +118,13 @@ func runLand(cmd *cobra.Command, slug string) error {
 		return err
 	}
 
-	// GH #7 rev-3 (F1): discover nested linked worktrees ONCE, here,
-	// before the metadata snapshot and before the embedded record. The
-	// resulting prefix set is immutable for the rest of the command and
-	// is threaded through every later path-set and dirty-path
-	// computation, so NO `git worktree list` runs after the embedded
-	// record begins.
-	//
-	// Rationale: `record` writes artifacts. If land re-discovered
-	// afterwards and that discovery failed, land would refuse while
-	// leaving record's artifacts and status behind. Hoisting the single
-	// discovery to the entry means a discovery failure refuses before
-	// `record` is ever invoked. The embedded record still performs its
-	// own fail-closed discovery — that is its own transaction — but once
-	// it succeeds, land's planning never asks Git again.
-	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
-	if err != nil {
+	// GH #7 rev-3 (F1) — PRE-RECORD GATE. Discovery runs here, before
+	// the metadata snapshot and before the embedded record, purely so a
+	// broken `git worktree list` refuses BEFORE `record` can write any
+	// artifact. The result is deliberately discarded: planning uses a
+	// revalidated set taken immediately before staging (rev-4 F2),
+	// because the entry-time answer can go stale in between.
+	if _, err := gitutil.NestedWorktreePrefixes(s.Root); err != nil {
 		return err
 	}
 
@@ -176,16 +167,37 @@ func runLand(cmd *cobra.Command, slug string) error {
 	}
 
 	// Update status.json:notes AFTER every remaining fallible step
-	// (GH #7 rev-3 F1). It used to be written here so the freshly
-	// dirty status.json would be swept up by computePathSet's
-	// slug-prefix branch; that made a later refusal — malformed
-	// patch, extras, discovery — leave a mutated status.json behind.
-	// The path set now names status.json explicitly instead, so the
-	// write can move below the last refusal.
+	// (GH #7 rev-3 F1). It used to be written before the path-set
+	// computation so the freshly dirty status.json would be swept up by
+	// computePathSet's slug-prefix branch; that made a later refusal —
+	// malformed patch, extras, discovery — leave a mutated status.json
+	// behind. The path set names status.json explicitly instead, so the
+	// write sits below the last refusal.
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// Compute path set (§3.3) using the entry-cached prefixes.
-	pathSet, err := computePathSet(s, slug, patch, metaChanged, nested, true)
+	// GH #7 rev-4 (F2): RE-DISCOVER immediately before planning and
+	// staging. The entry-time set (`nested`) is the pre-record safety
+	// gate; it can be stale by the time we stage, because the embedded
+	// record — or a concurrent agent harness — may register a linked
+	// worktree in between. A stale set turns that worktree into an
+	// ordinary "extra", which `--allow-extra-paths` would then stage as
+	// a gitlink: exactly the GH #7 bug, re-entering through a race.
+	//
+	// The whole plan (path set, dirty paths, carve-out notes, extras)
+	// is computed ONCE, against this fresh set, so no diagnostic is
+	// emitted twice and the success-path bytes are unchanged.
+	//
+	// Boundary, deliberate and tested: if this discovery fails, land
+	// refuses BEFORE the status note, the index and HEAD are touched.
+	// The embedded record's artifacts persist — that is record's own
+	// completed transaction, identical to running `tpatch record`
+	// followed by a failing `tpatch land`.
+	freshNested, err := gitutil.NestedWorktreePrefixes(s.Root)
+	if err != nil {
+		return err
+	}
+	// Compute path set (§3.3) against the revalidated prefixes.
+	pathSet, err := computePathSet(s, slug, patch, metaChanged, freshNested, true)
 	if err != nil {
 		return fmt.Errorf("land: cannot compute path set: %w", err)
 	}
@@ -194,7 +206,7 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// This is the WP-001 §5.2 row 5 boundary check moved one step
 	// downstream: if the operator has unrelated edits in the tree,
 	// we refuse rather than absorb them into the feature commit.
-	dirty, err := dirtyPaths(s.Root, nested)
+	dirty, err := dirtyPaths(s.Root, freshNested)
 	if err != nil {
 		return fmt.Errorf("land: cannot read git status: %w", err)
 	}
@@ -226,12 +238,18 @@ func runLand(cmd *cobra.Command, slug string) error {
 		}
 	}
 
+	// Final defensive filter: nothing under a nested linked worktree
+	// may reach `git add`, no matter which branch put it in the set —
+	// including the --allow-extra-paths fold above. This is belt and
+	// braces on top of the revalidated planning inputs (GH #7 rev-4).
+	pathSet = gitutil.FilterNestedWorktreePaths(pathSet, freshNested)
+
 	// Every refusal is now behind us: the strict patch parse, the
-	// cached path-set computation, the dirty-path classification and
-	// the extras gate have all passed. Writing status.json here means a
-	// refusal above leaves the feature directory exactly as `record`
-	// left it (GH #7 rev-3 F1). The new HEAD SHA is intentionally NOT
-	// written (PRD F2 / §6 ac.5).
+	// revalidated path-set computation, the dirty-path classification
+	// and the extras gate have all passed. Writing status.json here
+	// means a refusal above leaves the feature directory exactly as
+	// `record` left it (GH #7 rev-3 F1). The new HEAD SHA is
+	// intentionally NOT written (PRD F2 / §6 ac.5).
 	status, _ = s.LoadFeatureStatus(slug)
 	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
 	if err := s.SaveFeatureStatus(status); err != nil {
@@ -683,16 +701,6 @@ func runGitCapture(repoRoot string, args ...string) (string, error) {
 func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	out := cmd.OutOrStdout()
 
-	// GH #7 rev-3 (F1): discover once, up front, and thread the
-	// immutable prefix set through every later computation — the same
-	// contract the real land path follows. Dry-run performs no writes,
-	// so the only requirement is that the plan it prints is derived
-	// from a single, consistent answer.
-	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
-	if err != nil {
-		return err
-	}
-
 	fmt.Fprintf(out, "DRY RUN: tpatch land %s\n\n", slug)
 
 	// Pre-flight section.
@@ -758,6 +766,16 @@ func runLandDryRun(cmd *cobra.Command, s *store.Store, slug string) error {
 	// global metadata into the would-be commit. Pass nil so the
 	// path-set builder leaves `.tpatch/upstream.lock` and
 	// `.tpatch/FEATURES.md` alone (PRD §3.3 step 3).
+	//
+	// GH #7 rev-4 (F2): discovery runs HERE, immediately before the
+	// plan is computed, so the printed plan reflects the latest
+	// registered-worktree set — the same revalidation point the real
+	// land path uses. Dry-run runs no embedded record and performs no
+	// writes, so this single call is both the first and the last word.
+	nested, err := gitutil.NestedWorktreePrefixes(s.Root)
+	if err != nil {
+		return err
+	}
 	pathSet, err := computePathSet(s, slug, patch, nil, nested, true)
 	if err != nil {
 		return fmt.Errorf("land --dry-run: cannot compute path set: %w", err)
