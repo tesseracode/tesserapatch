@@ -1,3 +1,23 @@
+## Wave Close — v0.15.1 Wave B / GH #8 contract — 2026-08-12
+
+**WAVE_BASE**: `ad39e4a`
+**Accepted writer tip**: `8412161`
+**Range**: `ad39e4a..8412161`
+
+### Final Verdict: ACCEPTED
+
+- Internal rev-7: APPROVED.
+- External/original reproducer rev-7: APPROVED.
+- ADR-013 Amendment 1 rev-7 D8–D19 accepted.
+- 135 verify rows + 26 land rows = 161.
+- G1–G10 totality guard: zero real hits, synthetic sensitivity retained.
+
+### Action Taken
+
+PRD/land/ADR amendment statuses accepted, CURRENT/ROADMAP terminal, HISTORY
+archived, planning gate dispatched. Wave C implementation requires a fresh
+WAVE_BASE after this close.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-6 — 2026-08-12
 
 **Internal reviewer**: no usable verdict returned

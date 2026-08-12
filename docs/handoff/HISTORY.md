@@ -1,3 +1,38 @@
+# 2026-08-12 — v0.15.1 Wave B — GH #8 landed verify contract — ACCEPTED
+
+**WAVE_BASE**: `ad39e4a`
+**Accepted writer tip**: `8412161`
+**Range**: `ad39e4a..8412161` (16 commits)
+**Deliverables**:
+- `PRD-verify-freshness` landed-feature amendment
+- `PRD-tpatch-land` reader/producer amendment
+- ADR-013 Amendment 1 rev-7, D8–D19
+
+**Accepted contract**:
+- eleven checks V0–V10;
+- dual historical/current anchors;
+- strict reachable trailer evidence and total history states;
+- isolated HEAD materialization with hardened C0;
+- exhaustive replay-anchor selection and normalized duplicate identity;
+- per-member V10/provenance baselines and ADR-029 later-touch;
+- full metadata snapshots, shallow/partial offline handling and Git 2.36;
+- Mode A/Mode B land Base-Commit producer semantics;
+- 135 verify + 26 land acceptance rows;
+- G1–G10 totality guard.
+
+**Review arc**: rev-0 through rev-6 NEEDS REVISION; rev-7 internal APPROVED,
+external APPROVED. The amendment converged from a HEAD-only V8 fix to a total
+V7/V8/V10 and hard-parent contract with quantified false-red trade-offs and
+no measured false-green path.
+
+**Wave C gates**: real filtered-remote partial-clone reproduction is mandatory;
+GH #2 regression remains green; no implementation may weaken totality guard
+or read-only guarantees.
+
+**Next**: Wave C implementation from a fresh base.
+
+---
+
 # 2026-08-12 — v0.15.1 Wave A — GH #7 nested linked-worktree exclusion — ACCEPTED
 
 **WAVE_BASE**: `5d15fcf`

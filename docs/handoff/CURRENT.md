@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: ACCEPTED
 
-v0.15.1 Wave B **rev-7** is written and pushed. It is a **one-line guard fix**
+v0.15.1 Wave B **rev-7** is accepted. It is a one-line guard fix
 on top of rev-6: §7.1.2 **G5** gains the narrow exemption the rev-6 external
 review asked for, so the pattern stops flagging the two correct affirmative
 anti-hardcode sentences while still catching an affirmative fixed-40 claim.
@@ -17,7 +17,7 @@ SPEC, CHANGELOG or GitHub issue state was touched.
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-7)
+- **Status**: Complete
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-7)**: `785d261`

@@ -1,6 +1,6 @@
 # PRD — `tpatch land`: Per-Feature Git Projection — `feat-tpatch-land`
 
-**Status**: Draft v2.1 (2026-05-09 v2 after G55 cross-review F1–F5; 2026-05-10 v2.1 cross-cite tidy-up after OX47's lock-guard PRD landed) · **§3.8 / §4.3 / §6.2 amended 2026-08-12 for v0.15.1 Wave B (GH #8), rev-7 (final) — AWAITING REVIEW.**
+**Status**: Draft v2.1 (2026-05-09 v2 after G55 cross-review F1–F5; 2026-05-10 v2.1 cross-cite tidy-up after OX47's lock-guard PRD landed) · **§3.8 / §4.3 / §6.2 amendment ACCEPTED 2026-08-12 for v0.15.1 Wave B (GH #8), rev-7 (final).**
 
 > **Exact scope of the Wave B amendment.** It is *not* behaviour-neutral. It
 > adds two things: **(a)** §3.8.1–§3.8.5, a normative **readers' contract** for

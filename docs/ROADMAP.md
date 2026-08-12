@@ -734,6 +734,10 @@ stale authoritative prose only. Rev-6 performs the final totality sweep.
 **Wave B rev-6** (`c893d66`): substantive contract confirmed; external found
 one G5 whitelist self-test defect. Rev-7 is a one-line guard correction.
 
+**Wave B rev-7** (`8412161`): internal APPROVED, external APPROVED. Amendment
+1 D8–D19 accepted with 161 executable rows. Terminal planning range:
+`ad39e4a..8412161`.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
