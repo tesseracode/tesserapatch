@@ -18,6 +18,8 @@ git add -A && git commit -m "feat: fix model translation"
 
 `record` captures unstaged modifications plus untracked files (via `git add --intent-to-add`, so untracked files appear in the diff). This is the common path and matches the default cycle.
 
+> **Nested linked Git worktrees are never captured.** If a linked worktree is registered *beneath* the repository root (the `.claude/worktrees/agent-*` shape agent harnesses create), `record` subtracts that directory and everything under it from every capture mode — including when you name it explicitly in `--files`. Ordinary directories, intentionally tracked submodules/gitlinks, unregistered nested Git repositories, and worktrees registered outside the repository root are unaffected. If tpatch cannot run `git worktree list`, capture **refuses** rather than recording blind; fix the reported Git error (often `git worktree prune`) and retry. See [GH #7](https://github.com/tesseracode/tesserapatch/issues/7).
+
 > **Composed alternative**: `tpatch land <slug>` does (record → safe path-set staging → one Git commit) in a single verb and writes the four-trailer block (`Tpatch-Feature`, `Tpatch-Patch-SHA`, `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) for you. See [`docs/land.md`](./land.md). Prefer `land` when you would otherwise immediately follow `record` with `git add` + `git commit`.
 
 ### B. Record from commits after the fact

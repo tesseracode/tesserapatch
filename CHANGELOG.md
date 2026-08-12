@@ -2,6 +2,49 @@
 
 All notable changes to tpatch are recorded here.
 
+## Unreleased — v0.15.1
+
+### Fixed
+
+- **Nested linked Git worktrees are no longer captured or staged
+  ([GH #7](https://github.com/tesseracode/tesserapatch/issues/7))**. Agent
+  harnesses routinely provision linked worktrees *inside* the target
+  repository (`.claude/worktrees/agent-*`). Git reports such a directory
+  to `git ls-files --others` and `git status --porcelain` as an ordinary
+  untracked path, so `apply --mode done`, `record`, and `land` all folded
+  it into feature artifacts as a `mode 160000` gitlink — pulling unrelated
+  agent checkouts into `post-apply.patch`, making recipe autogen try to
+  read the directory, and listing the worktree in
+  `land --dry-run`'s outside-path/refusal plan.
+
+  A single authority now answers "is this path inside a registered linked
+  worktree nested under the target repository?":
+  `gitutil.NestedWorktreePrefixes` (discovery, preferring the
+  NUL-delimited `git worktree list --porcelain -z` shape and falling back
+  to the newline-delimited form on Git < 2.36) plus
+  `gitutil.PathUnderNestedWorktree` (segment-boundary path membership).
+  Every untracked-discovery, diff, and staging surface routes through it:
+
+  - untracked discovery for default/manual Path B capture, `--all`,
+    `--staged`, `--unstaged`, and the staged/unstaged overlap diagnostics;
+  - the capture diffs themselves, via `:(exclude,literal)` pathspecs, so
+    residue in the index cannot re-admit the worktree;
+  - `land`'s dirty-path classification and staging path set, for both
+    `--dry-run` and real `land`, including the broad/default and
+    `--allow-extra-paths` routes.
+
+  Naming the worktree explicitly through `record --files` no longer
+  admits it. Discovery failure is treated as safety-relevant: capture and
+  land refuse with an actionable error instead of capturing blind
+  (`gitutil.ErrNestedWorktreeDiscovery`).
+
+  Unchanged by design: ordinary directories (including prefix-boundary
+  siblings such as `agent-other` next to `agent`), intentionally tracked
+  gitlinks and submodules, unregistered nested Git repositories, linked
+  worktrees registered *outside* the target root, running tpatch *from* a
+  linked worktree, and `--allow-extra-paths` semantics for ordinary
+  unrelated dirty paths.
+
 ## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 
 Feature release adding a typed, audited way to record non-Git state a

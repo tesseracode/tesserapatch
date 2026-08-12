@@ -328,7 +328,7 @@ Phase 4: Forward-Apply Attempt (safety net)
 1. `ensureSafeRepoPath()` before any file write outside `.tpatch/`
 2. Deterministic apply recipe — generate, review, then execute
 3. Secret-by-reference — store env var name, not secret
-4. Patch artifact filtering — exclude `.tpatch/`, `.claude/skills/`, `.github/skills/`, `.github/prompts/`, `.cursor/rules/`
+4. Patch artifact filtering — exclude `.tpatch/`, `.claude/skills/`, `.github/skills/`, `.github/prompts/`, `.cursor/rules/`, plus any registered linked Git worktree nested beneath the repository root (GH #7)
 5. Untracked file capture in patches
 
 ### 10. Sources

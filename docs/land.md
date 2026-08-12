@@ -61,6 +61,8 @@ After the embedded `record` step writes `artifacts/post-apply.patch`:
 
 The path set is intentionally **strict**: a `land` that silently absorbs unrelated edits is exactly the WP-001 §5.2 row 5 problem moved one step downstream into Git history.
 
+Registered linked Git worktrees nested beneath the repository root are subtracted from the dirty-path set before steps 1–5 run, so they never appear in the staging plan, in the outside-path refusal list, or in the `--allow-extra-paths` sweep — and a stale pre-fix `post-apply.patch` carrying a `mode 160000` gitlink entry cannot re-introduce one. Ordinary unrelated dirty paths keep their existing extras semantics. See [GH #7](https://github.com/tesseracode/tesserapatch/issues/7).
+
 Authoritative source: PRD-tpatch-land §3.3.
 
 ## Commit message and trailer block
