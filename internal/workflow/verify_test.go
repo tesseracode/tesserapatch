@@ -561,7 +561,7 @@ func TestParentSnapshot_MissingParentOmitted(t *testing.T) {
 		},
 	}
 
-	snap := parentSnapshot(s, child)
+	snap := parentSnapshot(newVerifyRunContext(s), child)
 	if len(snap) != 1 {
 		t.Fatalf("expected exactly one entry, got %d: %+v", len(snap), snap)
 	}
@@ -593,7 +593,7 @@ func TestParentSnapshot_AllParentsMissingReturnsNil(t *testing.T) {
 		},
 	}
 
-	snap := parentSnapshot(s, child)
+	snap := parentSnapshot(newVerifyRunContext(s), child)
 	if snap != nil {
 		t.Fatalf("expected nil for all-missing parents, got %+v", snap)
 	}
@@ -621,7 +621,7 @@ func TestParentSnapshot_SoftDepsExcluded(t *testing.T) {
 			{Slug: "soft-parent", Kind: store.DependencyKindSoft},
 		},
 	}
-	snap := parentSnapshot(s, child)
+	snap := parentSnapshot(newVerifyRunContext(s), child)
 	if snap != nil {
 		t.Fatalf("soft-only deps must yield nil snapshot, got %+v", snap)
 	}

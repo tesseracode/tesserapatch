@@ -51,7 +51,11 @@ func TestACL30_QualificationIsForwardAtC1(t *testing.T) {
 	w := installGitWrapper(t)
 	w.Reset()
 	ctx := newVerifyRunContext(f.Store)
-	if !ctx.forwardQualifies(f.LandingCommit, artifactPath(f.Root, f.Slug, "post-apply.patch")) {
+	qualified, failState, qErr := ctx.forwardQualifies(f.LandingCommit, artifactPath(f.Root, f.Slug, "post-apply.patch"))
+	if qErr != nil {
+		t.Fatalf("qualification failed with %s: %v", failState, qErr)
+	}
+	if !qualified {
 		t.Fatalf("landing candidate did not forward-qualify at its parent")
 	}
 	calls := w.Calls()

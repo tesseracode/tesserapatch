@@ -40,7 +40,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/safety"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -201,9 +200,14 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 		Repository:    ctx.repositoryInfo(),
 	}
 
-	// V0 — status_loaded (severity: block-abort). If this fails the
-	// rest of the run aborts because we have no FeatureStatus to read.
-	status, err := s.LoadFeatureStatus(slug)
+	// V0 — status_loaded (severity: block-abort). Answered from the ONE
+	// immutable inventory captured at run start (D17): no second read,
+	// and an unreadable feature is an explicit Err row rather than a
+	// silent drop.
+	status, err := ctx.inv.Snapshot().Load(slug)
+	if ctx.invErr != nil {
+		err = ctx.invErr
+	}
 	if err != nil {
 		report.Checks = append(report.Checks, store.VerifyCheckResult{
 			ID:          CheckStatusLoaded,
@@ -259,17 +263,17 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	report.Checks = append(report.Checks, parseCheck)
 
 	// V3 — recipe_op_targets_resolve (severity: block).
-	report.Checks = append(report.Checks, checkRecipeOpTargetsResolve(s, status, recipe, recipePresent))
+	report.Checks = append(report.Checks, checkRecipeOpTargetsResolve(ctx, s, status, recipe, recipePresent))
 
 	// V4 — dep_metadata_valid (severity: block).
-	report.Checks = append(report.Checks, checkDepMetadataValid(s, slug, status))
+	report.Checks = append(report.Checks, checkDepMetadataValid(ctx, s, slug, status))
 
 	// V5 — satisfied_by_reachable (severity: block).
-	report.Checks = append(report.Checks, checkSatisfiedByReachable(s, slug, status))
+	report.Checks = append(report.Checks, checkSatisfiedByReachable(ctx, s, slug, status))
 
 	// V6 — dependency_gate_satisfied (severity: warn, gated on
 	// Config.DAGEnabled).
-	report.Checks = append(report.Checks, checkDependencyGateSatisfied(s, slug, status))
+	report.Checks = append(report.Checks, checkDependencyGateSatisfied(ctx, s, slug, status))
 
 	// V7 + V8 + V10 — the anchored dynamic phase (ADR-013 Amendment 1).
 	// The evidence classification decides forward vs landed mode; the
@@ -307,6 +311,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	// V10 — write_file_preimage_fresh, produced by the dynamic phase so
 	// each member is evaluated at its OWN baseline (D15).
 	report.Checks = append(report.Checks, phase.v10)
+	report.Advisories = append(report.Advisories, evidence.Advisories...)
 	report.Advisories = append(report.Advisories, phase.advisories...)
 	report.Advisories = append(report.Advisories, ctx.inventoryAdvisories(slug)...)
 
@@ -317,7 +322,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 
 	// Parent snapshot: iterate hard deps and read each parent's
 	// FeatureState.
-	report.ParentSnapshot = parentSnapshot(s, status)
+	report.ParentSnapshot = parentSnapshot(ctx, status)
 
 	// Instability detection (D17): re-state the inventory and fail the
 	// run if any feature was added, removed or changed while it ran.
@@ -337,13 +342,15 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	}
 
 	if !opts.NoWrite {
-		if err := s.WriteVerifyRecord(slug, report.Persisted); err != nil {
-			return report, fmt.Errorf("verify ran but persistence failed: %w", err)
+		// Persist from the CAPTURED status — no reload — and fold the
+		// exact persisted value back into the capture, so a shared
+		// `verify --all` context never reads its own documented write as
+		// instability (D17, rev-1 adjudication finding 2).
+		persisted, werr := s.WriteVerifyRecordFrom(status, report.Persisted)
+		if werr != nil {
+			return report, fmt.Errorf("verify ran but persistence failed: %w", werr)
 		}
-		// Verify's OWN documented write is not concurrent mutation: refresh
-		// this feature's captured status so a shared `verify --all` context
-		// does not read its own freshness record as instability (D17).
-		ctx.refreshAfterOwnWrite(s, slug)
+		ctx.refreshAfterOwnWrite(slug, persisted)
 	}
 
 	// Use `recipe` only to suppress the unused-var warning when no
@@ -576,7 +583,7 @@ func readArtifactBytes(s *store.Store, slug, name string) []byte {
 // absent key rather than `"parent_snapshot": {}`. We return nil in
 // that case to keep the JSON byte-identical to the never-verified
 // baseline (ADR-013 D4).
-func parentSnapshot(s *store.Store, status store.FeatureStatus) map[string]store.FeatureState {
+func parentSnapshot(ctx *verifyRunContext, status store.FeatureStatus) map[string]store.FeatureState {
 	if len(status.DependsOn) == 0 {
 		return nil
 	}
@@ -590,9 +597,10 @@ func parentSnapshot(s *store.Store, status store.FeatureStatus) map[string]store
 	sort.Strings(keys)
 	out := map[string]store.FeatureState{}
 	for _, slug := range keys {
-		ps, err := s.LoadFeatureStatus(slug)
+		ps, err := ctx.inv.Snapshot().Load(slug)
 		if err != nil {
-			// Parent missing — omit from snapshot. See function doc.
+			// Parent missing or unreadable — omit from snapshot. See
+			// the function doc; the inventory reports it separately.
 			continue
 		}
 		out[slug] = ps.State
@@ -647,7 +655,7 @@ func anyBlockFailed(checks []store.VerifyCheckResult) bool {
 // require a pre-existing target (replace-in-file, append-file) trigger
 // the existence check; write-file and ensure-directory create their
 // targets and pass trivially.
-func checkRecipeOpTargetsResolve(s *store.Store, status store.FeatureStatus, recipe ApplyRecipe, recipePresent bool) store.VerifyCheckResult {
+func checkRecipeOpTargetsResolve(ctx *verifyRunContext, s *store.Store, status store.FeatureStatus, recipe ApplyRecipe, recipePresent bool) store.VerifyCheckResult {
 	if !recipePresent {
 		return store.VerifyCheckResult{
 			ID:       CheckRecipeOpTargetsResolve,
@@ -663,7 +671,7 @@ func checkRecipeOpTargetsResolve(s *store.Store, status store.FeatureStatus, rec
 		if dep.Kind != store.DependencyKindHard {
 			continue
 		}
-		ps, err := s.LoadFeatureStatus(dep.Slug)
+		ps, err := ctx.inv.Snapshot().Load(dep.Slug)
 		if err != nil {
 			continue
 		}
@@ -708,8 +716,16 @@ func checkRecipeOpTargetsResolve(s *store.Store, status store.FeatureStatus, rec
 // PRD §3.1 V4 wraps `store.ValidateDependencies(s, slug, status.DependsOn)`
 // (`internal/store/validation.go:66`). Per §3.1.2 the remediation
 // surfaces the validation sentinel verbatim.
-func checkDepMetadataValid(s *store.Store, slug string, status store.FeatureStatus) store.VerifyCheckResult {
-	if err := store.ValidateDependencies(s, slug, status.DependsOn); err != nil {
+func checkDepMetadataValid(ctx *verifyRunContext, s *store.Store, slug string, status store.FeatureStatus) store.VerifyCheckResult {
+	// The validator reads parents and resolves ancestry. Both go through
+	// the run's single capture and its floor-validated offline gateway
+	// (rev-1 adjudication findings 1 + 2): below the 2.36 floor the
+	// ancestry resolver refuses without spawning git.
+	env := store.ValidationEnv{
+		Snapshot:   ctx.inv.Snapshot(),
+		IsAncestor: func(_, ancestor, descendant string) (bool, error) { return ctx.isAncestorChecked(ancestor, descendant) },
+	}
+	if err := store.ValidateDependenciesWith(s, slug, status.DependsOn, env); err != nil {
 		return store.VerifyCheckResult{
 			ID:          CheckDepMetadataValid,
 			Severity:    SeverityBlock,
@@ -727,9 +743,9 @@ func checkDepMetadataValid(s *store.Store, slug string, status store.FeatureStat
 // ── V5 — satisfied_by_reachable ─────────────────────────────────────────
 //
 // PRD §3.1 V5: every dep with `satisfied_by` set must match the 40-hex
-// SHA regex AND `gitutil.IsAncestor(repoRoot, sha, "HEAD")` must return
+// SHA regex AND the run context's floor-validated ancestry probe must return
 // true. Skipped (passed) when no dep carries satisfied_by.
-func checkSatisfiedByReachable(s *store.Store, slug string, status store.FeatureStatus) store.VerifyCheckResult {
+func checkSatisfiedByReachable(ctx *verifyRunContext, s *store.Store, slug string, status store.FeatureStatus) store.VerifyCheckResult {
 	var checked int
 	for _, dep := range status.DependsOn {
 		if dep.SatisfiedBy == "" {
@@ -744,7 +760,19 @@ func checkSatisfiedByReachable(s *store.Store, slug string, status store.Feature
 				Remediation: fmt.Sprintf("satisfied_by SHA %s for parent %s is no longer reachable from HEAD; re-run tpatch amend %s --remove-depends-on %s --depends-on %s", dep.SatisfiedBy, dep.Slug, slug, dep.Slug, dep.Slug),
 			}
 		}
-		ok, err := gitutil.IsAncestor(s.Root, dep.SatisfiedBy, "HEAD")
+		// Routed through the floor-validated offline gateway: below the
+		// 2.36 floor this refuses WITHOUT issuing a git command, so a
+		// below-floor run still spawns nothing but `git --version`
+		// (rev-1 adjudication finding 1).
+		ok, err := ctx.isAncestorChecked(dep.SatisfiedBy, "HEAD")
+		if errors.Is(err, errGitBelowFloor) {
+			return store.VerifyCheckResult{
+				ID:          CheckSatisfiedByReachable,
+				Severity:    SeverityBlock,
+				Passed:      false,
+				Remediation: fmt.Sprintf("satisfied_by reachability for parent %s cannot be checked: %v; verify requires git >= 2.36", dep.Slug, err),
+			}
+		}
 		if err != nil || !ok {
 			return store.VerifyCheckResult{
 				ID:          CheckSatisfiedByReachable,
@@ -777,7 +805,7 @@ func checkSatisfiedByReachable(s *store.Store, slug string, status store.Feature
 // `workflow.CheckDependencyGate` (`internal/workflow/dependency_gate.go:42`)
 // and reports the first hard parent in a non-{applied,upstream_merged}
 // state per PRD §3.1.2 V6.
-func checkDependencyGateSatisfied(s *store.Store, slug string, status store.FeatureStatus) store.VerifyCheckResult {
+func checkDependencyGateSatisfied(ctx *verifyRunContext, s *store.Store, slug string, status store.FeatureStatus) store.VerifyCheckResult {
 	cfg, err := s.LoadConfig()
 	if err != nil {
 		return store.VerifyCheckResult{
@@ -797,14 +825,14 @@ func checkDependencyGateSatisfied(s *store.Store, slug string, status store.Feat
 			Reason:   "DAG disabled in config",
 		}
 	}
-	if gateErr := CheckDependencyGate(s, slug); gateErr != nil {
+	if gateErr := CheckDependencyGateSnapshot(s, slug, ctx.inv.Snapshot()); gateErr != nil {
 		// Locate the first hard parent that fails the apply-gate so the
 		// remediation can name slug + state.
 		for _, dep := range status.DependsOn {
 			if dep.Kind != store.DependencyKindHard {
 				continue
 			}
-			ps, perr := s.LoadFeatureStatus(dep.Slug)
+			ps, perr := ctx.inv.Snapshot().Load(dep.Slug)
 			label := "<missing>"
 			if perr == nil {
 				if ps.State == store.StateApplied || ps.State == store.StateUpstreamMerged {
@@ -900,11 +928,11 @@ func filterHardDeps(deps []store.Dependency) []store.Dependency {
 	return out
 }
 
-func snapshotShadowTree(shadowPath string) (string, error) {
-	if err := runShadowGit(shadowPath, "add", "-A", "-f"); err != nil {
+func snapshotShadowTree(ctx *verifyRunContext, shadowPath string) (string, error) {
+	if err := runShadowGit(ctx, shadowPath, "add", "-A", "-f"); err != nil {
 		return "", err
 	}
-	out, stderr, err := gitutil.RunOfflineGitIn(shadowPath, "write-tree")
+	out, stderr, err := ctx.runShadowGit(shadowPath, "write-tree")
 	if err != nil {
 		return "", fmt.Errorf("git write-tree: %v: %s", err, strings.TrimSpace(stderr))
 	}
@@ -915,18 +943,18 @@ func snapshotShadowTree(shadowPath string) (string, error) {
 	return tree, nil
 }
 
-func resetShadowToTree(shadowPath, tree string) error {
-	if err := runShadowGit(shadowPath, "read-tree", "--reset", "-u", tree); err != nil {
+func resetShadowToTree(ctx *verifyRunContext, shadowPath, tree string) error {
+	if err := runShadowGit(ctx, shadowPath, "read-tree", "--reset", "-u", tree); err != nil {
 		return err
 	}
-	return runShadowGit(shadowPath, "clean", "-fdx")
+	return runShadowGit(ctx, shadowPath, "clean", "-fdx")
 }
 
 // runShadowGit runs a git command inside the shadow worktree under the
 // offline discipline (ADR-013 D11: every object and materialization
 // command carries GIT_NO_LAZY_FETCH=1).
-func runShadowGit(shadowPath string, args ...string) error {
-	_, stderr, err := gitutil.RunOfflineGitIn(shadowPath, args...)
+func runShadowGit(ctx *verifyRunContext, shadowPath string, args ...string) error {
+	_, stderr, err := ctx.runShadowGit(shadowPath, args...)
 	if err != nil {
 		return fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr))
 	}

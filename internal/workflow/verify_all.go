@@ -119,9 +119,12 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 
 	// D10/D17: ONE preflight, ONE inventory and ONE `git log`
 	// enumeration for the entire aggregate run, reused by every feature.
+	// The aggregate's own feature enumeration is the SAME capture — rev-0
+	// re-read the store here, which is the second inventory build the
+	// rev-1 adjudication rejected (finding 2).
 	ctx := newVerifyRunContext(s)
 
-	feats, err := s.ListFeatureEntries()
+	feats, err := ctx.inventoryEntries()
 	if err != nil {
 		return nil, fmt.Errorf("verify --all: list features: %w", err)
 	}

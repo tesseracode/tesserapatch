@@ -12,8 +12,6 @@ package workflow
 
 import (
 	"strings"
-
-	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
 // OpPresenceVerdict is the closed outcome set of a diagnostic predicate.
@@ -129,7 +127,7 @@ func diagnosePathForBlockedLadder(ctx *verifyRunContext, treeish string, recipe 
 		if op.Path == "" {
 			continue
 		}
-		data, found, _, err := gitutilBlobAtTree(ctx, treeish, op.Path)
+		data, found, err := gitutilBlobAtTree(ctx, treeish, op.Path)
 		if err != nil {
 			continue
 		}
@@ -141,6 +139,6 @@ func diagnosePathForBlockedLadder(ctx *verifyRunContext, treeish string, recipe 
 	return ""
 }
 
-func gitutilBlobAtTree(ctx *verifyRunContext, treeish, path string) ([]byte, bool, string, error) {
-	return gitutil.BlobAtTree(ctx.root, treeish, path)
+func gitutilBlobAtTree(ctx *verifyRunContext, treeish, path string) ([]byte, bool, error) {
+	return ctx.blobAtTree(treeish, path)
 }

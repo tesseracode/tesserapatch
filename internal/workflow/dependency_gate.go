@@ -40,6 +40,23 @@ var satisfiedBySHA = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
 // blocking parent slugs and their current states. Soft parents and hard
 // parents already satisfied are excluded from the message.
 func CheckDependencyGate(s *store.Store, slug string) error {
+	return CheckDependencyGateSnapshot(s, slug, nil)
+}
+
+// CheckDependencyGateSnapshot is CheckDependencyGate answered from a
+// read-once feature capture instead of the filesystem.
+//
+// v0.15.1 Wave C rev-1 (adjudication finding 2): `tpatch verify` reads
+// the feature set exactly once per invocation. A nil snapshot keeps the
+// historical disk-loading behaviour byte-for-byte, so every unrelated
+// caller is unchanged.
+func CheckDependencyGateSnapshot(s *store.Store, slug string, snap *store.FeatureSnapshot) error {
+	loadStatus := func(slug string) (store.FeatureStatus, error) {
+		if snap != nil {
+			return snap.Load(slug)
+		}
+		return s.LoadFeatureStatus(slug)
+	}
 	cfg, err := s.LoadConfig()
 	if err != nil {
 		return err
@@ -48,7 +65,7 @@ func CheckDependencyGate(s *store.Store, slug string) error {
 		return nil
 	}
 
-	child, err := s.LoadFeatureStatus(slug)
+	child, err := loadStatus(slug)
 	if err != nil {
 		return fmt.Errorf("dependency gate: cannot load feature status for %q: %w", slug, err)
 	}
@@ -67,7 +84,7 @@ func CheckDependencyGate(s *store.Store, slug string) error {
 		if dep.Kind != store.DependencyKindHard {
 			continue
 		}
-		parent, err := s.LoadFeatureStatus(dep.Slug)
+		parent, err := loadStatus(dep.Slug)
 		if err != nil {
 			blockers = append(blockers, blocker{
 				slug:  dep.Slug,

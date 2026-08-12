@@ -27,6 +27,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -220,31 +221,73 @@ func warnAdvisory(code, slug, path, message string) VerifyAdvisory {
 type artifactSnapshot struct {
 	Presence string
 	Bytes    []byte
+	// Err is a NON-absence read failure — permission denied, EIO, a
+	// directory in place of the file. Rev-0 collapsed every read error
+	// into `absent`, which is the same false-green class the presence
+	// short-circuit exists to close (rev-1 adjudication finding 4).
+	// Only `os.ErrNotExist` means absent.
+	Err error
+	// Path is the repo-relative artifact path, named in the block
+	// diagnostic when Err is set.
+	Path string
 }
 
 func snapshotArtifact(root, slug, name string, whitespaceIsEmpty bool) artifactSnapshot {
+	rel := filepath.ToSlash(filepath.Join("artifacts", name))
 	p := filepath.Join(root, ".tpatch", "features", slug, "artifacts", name)
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return artifactSnapshot{Presence: PresenceAbsent}
+		if errors.Is(err, os.ErrNotExist) {
+			return artifactSnapshot{Presence: PresenceAbsent, Path: rel}
+		}
+		// Permission denied, EIO, EISDIR, … — the artifact EXISTS as far
+		// as we can tell and we could not read it. Never absence.
+		return artifactSnapshot{Presence: PresenceAbsent, Err: err, Path: rel}
 	}
 	if len(data) == 0 || (whitespaceIsEmpty && strings.TrimSpace(string(data)) == "") {
-		return artifactSnapshot{Presence: PresenceEmpty, Bytes: data}
+		return artifactSnapshot{Presence: PresenceEmpty, Bytes: data, Path: rel}
 	}
-	return artifactSnapshot{Presence: PresenceNonEmpty, Bytes: data}
+	return artifactSnapshot{Presence: PresenceNonEmpty, Bytes: data, Path: rel}
 }
 
 // inventoryEntry is one feature's immutable capture. An entry with
 // Err != nil is an explicit `unreadable` row and is NEVER omitted (D17).
 type inventoryEntry struct {
-	Slug         string
-	Status       *store.FeatureStatus
-	Err          error
-	Recipe       artifactSnapshot
-	Patch        artifactSnapshot
-	Provenance   artifactSnapshot
-	Generations  []byte
-	TouchedPaths []string
+	Slug        string
+	Status      *store.FeatureStatus
+	Err         error
+	Recipe      artifactSnapshot
+	Patch       artifactSnapshot
+	Provenance  artifactSnapshot
+	Generations []byte
+	// GenerationsErr is a NON-absence read failure on
+	// `patch-generations.json`. Rev-0 discarded it, so a corrupt or
+	// unreadable manifest silently produced an empty touched-path set
+	// and suppressed ADR-029 later-touch detection (rev-1 finding 4).
+	GenerationsErr error
+	TouchedPaths   []string
+}
+
+// ReadErr returns the first NON-absence artifact/metadata read failure
+// captured for this feature, or nil. A non-nil result makes the feature
+// `inventory-unreadable` for the target and every closure member (D17),
+// and a warn advisory for an unrelated feature.
+func (e *inventoryEntry) ReadErr() (string, error) {
+	if e == nil {
+		return "", nil
+	}
+	if e.Err != nil {
+		return "status.json", e.Err
+	}
+	for _, a := range []artifactSnapshot{e.Recipe, e.Patch, e.Provenance} {
+		if a.Err != nil {
+			return a.Path, a.Err
+		}
+	}
+	if e.GenerationsErr != nil {
+		return "patch-generations.json", e.GenerationsErr
+	}
+	return "", nil
 }
 
 // RecipeShape returns the four-way recipe classification of D10.
@@ -295,6 +338,10 @@ func (e *inventoryEntry) ExpectedRecipeSHA() string {
 type featureInventory struct {
 	Order   []string
 	Entries map[string]*inventoryEntry
+
+	// snap memoises the store-level view; the inventory is immutable
+	// for the run, so one derivation is enough.
+	snap *store.FeatureSnapshot
 }
 
 func (inv *featureInventory) Entry(slug string) *inventoryEntry {
@@ -302,6 +349,47 @@ func (inv *featureInventory) Entry(slug string) *inventoryEntry {
 		return nil
 	}
 	return inv.Entries[slug]
+}
+
+// Snapshot is the store-level view of this inventory. Every downstream
+// reader that used to call `LoadFeatureStatus` / `ListFeatures` takes
+// this instead, so a run answers every feature question from ONE
+// capture (D17, rev-1 adjudication finding 2).
+func (inv *featureInventory) Snapshot() *store.FeatureSnapshot {
+	if inv == nil {
+		return nil
+	}
+	if inv.snap != nil {
+		return inv.snap
+	}
+	snap := &store.FeatureSnapshot{
+		Status: map[string]store.FeatureStatus{},
+		Errs:   map[string]error{},
+	}
+	for _, slug := range inv.Order {
+		e := inv.Entries[slug]
+		snap.Order = append(snap.Order, slug)
+		if e == nil {
+			continue
+		}
+		if e.Err != nil {
+			snap.Errs[slug] = e.Err
+			continue
+		}
+		if e.Status != nil {
+			snap.Status[slug] = *e.Status
+		}
+	}
+	inv.snap = snap
+	return snap
+}
+
+// Statuses is the `ListFeatures()` equivalent over the capture: every
+// readable feature, slug-sorted. Unreadable entries are EXCLUDED here
+// (they cannot contribute a status) but are never dropped from the
+// inventory itself — the caller reports them.
+func (inv *featureInventory) Statuses() []store.FeatureStatus {
+	return inv.Snapshot().List()
 }
 
 // buildInventory captures every feature via store.ListFeatureEntries —
@@ -322,7 +410,11 @@ func buildInventory(s *store.Store) (*featureInventory, error) {
 			ie.Recipe = snapshotArtifact(s.Root, fe.Slug, "apply-recipe.json", true)
 			ie.Patch = snapshotArtifact(s.Root, fe.Slug, "post-apply.patch", false)
 			ie.Provenance = snapshotArtifact(s.Root, fe.Slug, "recipe-provenance.json", true)
-			ie.Generations, _ = os.ReadFile(s.PatchGenerationsPath(fe.Slug))
+			gen, genErr := os.ReadFile(s.PatchGenerationsPath(fe.Slug))
+			if genErr != nil && !errors.Is(genErr, os.ErrNotExist) {
+				ie.GenerationsErr = genErr
+			}
+			ie.Generations = gen
 			ie.TouchedPaths = touchedPathsFromCapture(ie)
 		}
 		inv.Order = append(inv.Order, fe.Slug)
@@ -338,7 +430,11 @@ func touchedPathsFromCapture(e *inventoryEntry) []string {
 	seen := map[string]struct{}{}
 	if len(e.Generations) > 0 {
 		var m store.PatchGenerationsManifest
-		if err := json.Unmarshal(e.Generations, &m); err == nil {
+		if err := json.Unmarshal(e.Generations, &m); err != nil {
+			// A manifest that exists but does not parse is a read
+			// failure, not an empty touched-path set (rev-1 finding 4).
+			e.GenerationsErr = err
+		} else {
 			for _, g := range m.Generations {
 				for _, p := range g.TouchedPaths {
 					seen[p] = struct{}{}
@@ -561,6 +657,10 @@ type landingEvidenceResult struct {
 	// Candidates that are well-formed, exact-slug and single-parent.
 	// Retained so arbitration and the anchor search share one pass.
 	wellFormed []gitutil.CommitRecord
+
+	// Advisories raised by classification itself — currently the
+	// `base-commit-unreachable` note (D12 closed vocabulary).
+	Advisories []VerifyAdvisory
 }
 
 // Landed reports whether the target/member is in landed mode.
@@ -795,17 +895,48 @@ func (ctx *verifyRunContext) classifyEvidenceUncached(slug string) *landingEvide
 		ev.Reason = "no reachable landing attests the current artifacts"
 	}
 
-	// Advisory-only reachability of the attested base commit.
+	// Advisory-only reachability of the attested base commit. Rev-0
+	// recorded the boolean but never emitted the advisory the closed
+	// vocabulary requires (rev-1 adjudication finding 5).
 	if ev.AttestationCommit != "" {
 		base := firstValue(recordBySHA(wellFormed, ev.AttestationCommit), gitutil.TrailerBaseCommit)
 		if base != "" {
 			reachable := ctx.isAncestor(base, "HEAD")
 			ev.BaseCommitReachable = boolPtr(reachable)
+			if !reachable {
+				out.Advisories = append(out.Advisories, warnAdvisory(
+					AdvisoryBaseCommitUnreachable, slug, "",
+					advisoryBaseCommitUnreachable(slug, ev.AttestationCommit, base)))
+			}
 		}
 	}
 
 	out.Evidence = ev
 	return out
+}
+
+// classifyGitFailure maps a git execution failure to the evidence state
+// that honestly describes it: a locally missing object is
+// `history-incomplete`; anything else the reader could not complete is
+// `unavailable`. A nil error, or an error that is a genuine contract
+// answer (e.g. "the canonical patch declares no paths"), returns "".
+func classifyGitFailure(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if gitutil.IsMissingObjectError(msg) {
+		return EvidenceHistoryIncomplete
+	}
+	if gitutil.IsNetworkFetchError(msg) {
+		return EvidenceUnavailable
+	}
+	if strings.Contains(msg, "git diff") || strings.Contains(msg, "git read-tree") ||
+		strings.Contains(msg, "git apply") || strings.Contains(msg, "isolated index") ||
+		errors.Is(err, errGitBelowFloor) {
+		return EvidenceUnavailable
+	}
+	return ""
 }
 
 func recordBySHA(recs []gitutil.CommitRecord, sha string) gitutil.CommitRecord {
@@ -849,19 +980,6 @@ func (ctx *verifyRunContext) trailerGrammarOK(rec gitutil.CommitRecord) bool {
 	return true
 }
 
-func (ctx *verifyRunContext) isAncestor(ancestor, descendant string) bool {
-	key := ancestor + "\x00" + descendant
-	if v, ok := ctx.ancestorMemo[key]; ok {
-		return v
-	}
-	v, err := gitutil.IsAncestorOffline(ctx.root, ancestor, descendant)
-	if err != nil {
-		v = false
-	}
-	ctx.ancestorMemo[key] = v
-	return v
-}
-
 // identitiesFor computes the D18 normalized change identity of every
 // record over the canonical patch's declared path set. An empty path set
 // makes candidates incomparable (⇒ `ambiguous`).
@@ -881,7 +999,7 @@ func (ctx *verifyRunContext) identitiesFor(recs []gitutil.CommitRecord, patchByt
 			out = append(out, cached)
 			continue
 		}
-		id, idErr := gitutil.NormalizedChangeIdentity(ctx.root, rec.SHA, paths)
+		id, idErr := ctx.normalizedIdentity(rec.SHA, paths)
 		if idErr != nil {
 			return nil, idErr
 		}
@@ -926,7 +1044,7 @@ func (ctx *verifyRunContext) runLadder(treeish string, patchPath string, patchBy
 }
 
 func (ctx *verifyRunContext) runLadderUncached(treeish, patchPath string, patchBytes []byte) ladderOutcome {
-	idx, err := gitutil.NewTempIndex(ctx.root, ctx.tempIndexDir())
+	idx, err := ctx.newTempIndex()
 	if err != nil {
 		return ladderOutcome{Result: CurrentSkipped, Err: err}
 	}
@@ -941,6 +1059,13 @@ func (ctx *verifyRunContext) runLadderUncached(treeish, patchPath string, patchB
 	if step1.OK {
 		return ladderOutcome{Result: CurrentMaterializedClean}
 	}
+	if !step1.ApplyAnswered() {
+		return ladderOutcome{
+			Result:        CurrentSkipped,
+			MissingObject: gitutil.IsMissingObjectError(step1.Stderr),
+			Err:           fmt.Errorf("git apply --check --reverse --cached exited %d: %s", step1.ExitCode, strings.TrimSpace(step1.Stderr)),
+		}
+	}
 
 	// Step 2 — `-C0 --verbose` under LC_ALL=C (mandatory).
 	step2 := idx.ApplyCheck(gitutil.ApplyCheckOptions{
@@ -950,6 +1075,13 @@ func (ctx *verifyRunContext) runLadderUncached(treeish, patchPath string, patchB
 		Verbose:      true,
 		ForceCLocale: true,
 	})
+	if !step2.ApplyAnswered() {
+		return ladderOutcome{
+			Result:        CurrentSkipped,
+			MissingObject: gitutil.IsMissingObjectError(step2.Stderr),
+			Err:           fmt.Errorf("git apply --check --reverse --cached -C0 exited %d: %s", step2.ExitCode, strings.TrimSpace(step2.Stderr)),
+		}
+	}
 	checked, zeroPaths, offsetPaths := parseApplyVerbose(step2.Stderr)
 	fallbackPath := firstPatchPath(patchBytes, checked)
 
@@ -1024,6 +1156,15 @@ type anchorResolution struct {
 	Collected  int
 	Qualified  int
 	Reason     string
+
+	// FailState classifies a git-level failure during collection,
+	// qualification or identity comparison. Rev-0 swallowed every such
+	// error into "no candidate qualified" / "ambiguous", which reports a
+	// history problem as a contract violation (rev-1 adjudication
+	// finding 3). "" means the resolution failed on its own terms —
+	// genuinely no qualifier, or genuinely non-equivalent qualifiers.
+	FailState  string // "" | EvidenceHistoryIncomplete | EvidenceUnavailable
+	FailDetail string
 }
 
 // resolveAnchor runs D14 steps 1–4 for slug. Memoised per run so a
@@ -1067,7 +1208,14 @@ func (ctx *verifyRunContext) resolveAnchorUncached(slug string) *anchorResolutio
 	// 2. Qualify by FORWARD apply at -C1 against `C^`.
 	var qualified []gitutil.CommitRecord
 	for _, rec := range collected {
-		if ctx.forwardQualifies(rec.SHA, patchPath) {
+		ok, failState, qErr := ctx.forwardQualifies(rec.SHA, patchPath)
+		if qErr != nil {
+			res.FailState = failState
+			res.FailDetail = qErr.Error()
+			res.Reason = fmt.Sprintf("candidate %s could not be qualified: %v", rec.SHA, qErr)
+			return res
+		}
+		if ok {
 			qualified = append(qualified, rec)
 		}
 	}
@@ -1081,6 +1229,12 @@ func (ctx *verifyRunContext) resolveAnchorUncached(slug string) *anchorResolutio
 	if len(qualified) > 1 {
 		identities, err := ctx.identitiesFor(qualified, entry.Patch.Bytes)
 		if err != nil {
+			// An identity that could not be COMPUTED is not the same as
+			// two identities that differ (rev-1 finding 3).
+			if state := classifyGitFailure(err); state != "" {
+				res.FailState = state
+				res.FailDetail = err.Error()
+			}
 			res.Reason = err.Error()
 			return res
 		}
@@ -1126,25 +1280,52 @@ func sameEnumerationPosition(commits []gitutil.CommitRecord, a, b string) bool {
 // forwardQualifies answers D14 step 2: seed a temp index from `C^` and
 // run a FORWARD `git apply --check --cached -C1`. Never `--reverse`;
 // never the invalid `C^{tree}^` revision (E43).
-func (ctx *verifyRunContext) forwardQualifies(commit, patchPath string) bool {
+//
+// A git-level FAILURE is returned separately from "did not qualify"
+// (rev-1 adjudication finding 3). A tree or blob that is missing
+// locally is `history-incomplete`; any other execution failure is
+// `unavailable`. Neither is ever reported as "no candidate qualified".
+func (ctx *verifyRunContext) forwardQualifies(commit, patchPath string) (bool, string, error) {
 	key := commit + "^\x00" + patchPath + "\x00forward-C1"
 	if v, ok := ctx.forwardMemo[key]; ok {
-		return v
+		return v, "", nil
 	}
-	ok := false
-	idx, err := gitutil.NewTempIndex(ctx.root, ctx.tempIndexDir())
-	if err == nil {
-		defer func() { _ = idx.Close() }()
-		if rtErr := idx.ReadTree(commit + "^"); rtErr == nil {
-			res := idx.ApplyCheck(gitutil.ApplyCheckOptions{
-				PatchPath: patchPath,
-				Context:   gitutil.IntPtr(1),
-			})
-			ok = res.OK
+	idx, err := ctx.newTempIndex()
+	if err != nil {
+		return false, EvidenceUnavailable, fmt.Errorf("isolated index for %s^: %w", commit, err)
+	}
+	defer func() { _ = idx.Close() }()
+
+	if rtErr := idx.ReadTree(commit + "^"); rtErr != nil {
+		if gitutil.IsMissingObjectError(rtErr.Error()) {
+			return false, EvidenceHistoryIncomplete, rtErr
 		}
+		// A candidate whose parent tree cannot be read at all is not a
+		// silent non-qualifier: surface it.
+		return false, EvidenceUnavailable, rtErr
 	}
-	ctx.forwardMemo[key] = ok
-	return ok
+	res := idx.ApplyCheck(gitutil.ApplyCheckOptions{
+		PatchPath: patchPath,
+		Context:   gitutil.IntPtr(1),
+	})
+	if !res.ApplyAnswered() {
+		// git could not carry the probe out: never a silent
+		// non-qualification (rev-1 finding 3).
+		state := EvidenceUnavailable
+		if gitutil.IsMissingObjectError(res.Stderr) {
+			state = EvidenceHistoryIncomplete
+		}
+		return false, state, fmt.Errorf("git apply --check --cached -C1 at %s^ exited %d: %s",
+			commit, res.ExitCode, strings.TrimSpace(res.Stderr))
+	}
+	if !res.OK && gitutil.IsMissingObjectError(res.Stderr) {
+		return false, EvidenceHistoryIncomplete, fmt.Errorf("git apply --check --cached -C1 at %s^: %s", commit, strings.TrimSpace(res.Stderr))
+	}
+	if !res.OK && gitutil.IsNetworkFetchError(res.Stderr) {
+		return false, EvidenceUnavailable, fmt.Errorf("git apply --check --cached -C1 at %s^ attempted the network: %s", commit, strings.TrimSpace(res.Stderr))
+	}
+	ctx.forwardMemo[key] = res.OK
+	return res.OK, "", nil
 }
 
 // ── Provenance (D15) ─────────────────────────────────────────────────────
@@ -1205,6 +1386,11 @@ func laterTouchIndexFromInventory(inv *featureInventory, currentSlug string) map
 		}
 		e := inv.Entries[slug]
 		if e == nil || e.Err != nil || e.Status == nil {
+			continue
+		}
+		if _, readErr := e.ReadErr(); readErr != nil {
+			// Excluded from ADR-029 ordering — and REPORTED as an
+			// advisory rather than silently skipped (D17).
 			continue
 		}
 		if e.Status.RequestedAt == "" || e.Status.RequestedAt <= cur.Status.RequestedAt {
@@ -1316,6 +1502,14 @@ func remediationR22(slug string) string {
 	return fmt.Sprintf("landing evidence for %s could not be completed: an object required to read the landing baseline is missing from this partial clone — restore network access to the promisor remote, or run git fetch --refetch, and re-run verify", slug)
 }
 
+// advisoryBaseCommitUnreachable is the D12 `base-commit-unreachable`
+// warn advisory. It is emitted whenever a landing attests a well-formed
+// base commit that is NOT reachable from HEAD — the measured
+// cherry-pick / rebase case — and it never fails the run on its own.
+func advisoryBaseCommitUnreachable(slug, attestation, base string) string {
+	return fmt.Sprintf("base-commit-unreachable: landing %s for %s attests base commit %s, which is not reachable from HEAD; the landing was most likely rebased or cherry-picked — this is advisory only and does not affect the verdict", attestation, slug, base)
+}
+
 func remediationR24(opIndex int, path, condition, slug string) string {
 	return fmt.Sprintf("recipe op #%d %s carries a preimage_hash but artifacts/recipe-provenance.json is %s; verify will not evaluate a preimage against the live working tree — re-run tpatch implement %s to regenerate the recipe and its provenance", opIndex, path, condition, slug)
 }
@@ -1370,29 +1564,34 @@ func (ctx *verifyRunContext) inventoryAdvisories(targetSlug string) []VerifyAdvi
 	var out []VerifyAdvisory
 	for _, slug := range ctx.inv.Order {
 		e := ctx.inv.Entries[slug]
-		if e == nil || e.Err == nil || slug == targetSlug {
+		if e == nil || slug == targetSlug {
 			continue
 		}
-		out = append(out, warnAdvisory(AdvisoryInventoryUnreadable, slug, "",
-			fmt.Sprintf("inventory-unreadable: feature %s could not be read (%v); it is excluded from ADR-029 later-touch ordering for this run", slug, e.Err)))
+		path, readErr := e.ReadErr()
+		if readErr == nil {
+			continue
+		}
+		out = append(out, warnAdvisory(AdvisoryInventoryUnreadable, slug, path,
+			fmt.Sprintf("inventory-unreadable: feature %s could not be read at %s (%v); it is excluded from ADR-029 later-touch ordering for this run", slug, path, readErr)))
 	}
 	return out
 }
 
-// refreshAfterOwnWrite re-captures one feature's status after verify
-// persisted its own freshness record. Only the status is re-read: the
-// artifacts are untouched by the write, and re-reading them would defeat
-// the immutability the instability check exists to prove.
-func (ctx *verifyRunContext) refreshAfterOwnWrite(s *store.Store, slug string) {
+// refreshAfterOwnWrite folds verify's OWN freshness write into the
+// capture. Rev-0 re-read `status.json` from disk here, which is a
+// persistence reload the immutable-inventory contract forbids (rev-1
+// adjudication finding 2). The value written is already known, so the
+// capture is updated in memory and stays byte-consistent with disk.
+func (ctx *verifyRunContext) refreshAfterOwnWrite(slug string, persisted store.FeatureStatus) {
 	e := ctx.inv.Entry(slug)
-	if e == nil || e.Err != nil {
+	if e == nil || e.Err != nil || e.Status == nil {
 		return
 	}
-	st, err := s.LoadFeatureStatus(slug)
-	if err != nil {
-		return
+	updated := persisted
+	e.Status = &updated
+	if ctx.inv.snap != nil {
+		ctx.inv.snap.SetStatus(slug, updated)
 	}
-	e.Status = &st
 }
 
 // inventoryEntryOrEmpty returns the captured entry for slug, or an empty
@@ -1442,4 +1641,31 @@ func markSnapshotUnstable(report *VerifyReport, slug, detail string) {
 		}
 	}
 	report.FailedAt = FailedAtSnapshotUnstable
+}
+
+// inventoryEntries re-exposes the ONE immutable capture in the
+// `store.FeatureEntry` shape `verify --all` already consumes, so the
+// aggregate walks the same inventory as every per-feature run instead of
+// re-reading the store (rev-1 adjudication finding 2).
+func (ctx *verifyRunContext) inventoryEntries() ([]store.FeatureEntry, error) {
+	if ctx.invErr != nil {
+		return nil, ctx.invErr
+	}
+	if ctx.inv == nil {
+		return nil, nil
+	}
+	out := make([]store.FeatureEntry, 0, len(ctx.inv.Order))
+	for _, slug := range ctx.inv.Order {
+		e := ctx.inv.Entries[slug]
+		if e == nil {
+			continue
+		}
+		entry := store.FeatureEntry{Slug: slug, Err: e.Err}
+		if e.Err == nil && e.Status != nil {
+			st := *e.Status
+			entry.Status = &st
+		}
+		out = append(out, entry)
+	}
+	return out, nil
 }

@@ -75,6 +75,21 @@ func runDynamicPhase(in anchoredInput) dynamicPhase {
 		v7Mode, v8Mode, v10Mode = ModeHistoricalAnchor, ModeDualAnchor, ModeHistoricalAnchor
 	}
 
+	// The TARGET's own inventory read failure outranks every other
+	// outcome: a feature whose artifacts could not be read cannot be
+	// classified, replayed or asserted (D17, rev-1 finding 4).
+	if path, readErr := in.entry.ReadErr(); readErr != nil {
+		rem := fmt.Sprintf("verify aborted: %s/%s could not be read from the feature inventory: %v; repair the artifact before verifying %s",
+			in.slug, path, readErr, in.slug)
+		return dynamicPhase{
+			v7:       withMode(store.VerifyCheckResult{ID: CheckRecipeReplayClean, Severity: SeverityBlock, Passed: false, Remediation: rem}, v7Mode),
+			v8:       withMode(store.VerifyCheckResult{ID: CheckPostApplyPatchReplayClean, Severity: SeverityBlock, Passed: false, Remediation: rem}, v8Mode),
+			v10:      withMode(store.VerifyCheckResult{ID: CheckWriteFilePreimageFresh, Severity: SeverityBlock, Passed: false, Remediation: rem}, v10Mode),
+			failedAt: FailedAtInventoryUnreadable,
+			baseline: baseline,
+		}
+	}
+
 	// The two CLASSIFICATION terminals are decided before the static
 	// short-circuit: they are properties of the evidence and the captured
 	// artifacts, not of the dynamic phase, and neither allocates a shadow.
@@ -197,6 +212,22 @@ func landedPhase(in anchoredInput, baseline VerifyBaseline) dynamicPhase {
 		in.evidence.Evidence.Reason = "an object required to read the landing baseline is missing from this partial clone"
 		return terminalEvidencePhase(in, baseline, ModeHistoricalAnchor, ModeDualAnchor, ModeHistoricalAnchor)
 	}
+	// A probe that could not RUN is `unavailable` — the reader failed,
+	// which is not the same claim as "the content is absent"
+	// (rev-1 adjudication finding 3).
+	if ladder.Err != nil {
+		in.evidence.Evidence.State = EvidenceUnavailable
+		in.evidence.Evidence.Reason = fmt.Sprintf("the current-anchor probe could not run: %v", ladder.Err)
+		return terminalEvidencePhase(in, baseline, ModeHistoricalAnchor, ModeDualAnchor, ModeHistoricalAnchor)
+	}
+
+	// A qualification or identity probe that FAILED classifies on its own
+	// terms rather than degrading to "no usable landing baseline".
+	if anchor.FailState != "" {
+		in.evidence.Evidence.State = anchor.FailState
+		in.evidence.Evidence.Reason = anchor.FailDetail
+		return terminalEvidencePhase(in, baseline, ModeHistoricalAnchor, ModeDualAnchor, ModeHistoricalAnchor)
+	}
 
 	if !anchor.Available {
 		baseline.HistoricalAnchor = &VerifyHistoricalAnchor{
@@ -256,12 +287,14 @@ func foldAnchorC(out *dynamicPhase, in anchoredInput, ladder ladderOutcome) {
 
 	switch {
 	case ladder.Err != nil:
+		// Defensive: landedPhase already routes a failed probe to
+		// `unavailable` before this fold runs.
 		out.v8.Passed = false
 		out.v8.Skipped = false
 		out.v8.Remediation = appendRemediation(out.v8.Remediation,
 			fmt.Sprintf("landed feature: the current-anchor probe could not run: %v", ladder.Err))
 		if out.failedAt == "" {
-			out.failedAt = FailedAtLandedContentAbsent
+			out.failedAt = FailedAtLandingEvidence
 		}
 	case ladder.Blocked:
 		out.v8.Passed = false
@@ -341,7 +374,9 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 	}
 
 	// 1. Hard-parent closure (unchanged BFS + supersession filtering).
-	allFeatures, _ := s.ListFeatures()
+	//    The feature set comes from the ONE immutable inventory, never a
+	//    second `ListFeatures()` scan (rev-1 adjudication finding 2).
+	allFeatures := ctx.inv.Statuses()
 	closure := map[string][]store.Dependency{}
 	closure[slug] = filterHardDeps(in.status.DependsOn)
 	queue := append([]string(nil), depSlugsHard(in.status.DependsOn)...)
@@ -379,14 +414,16 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 	}
 
 	// Inventory read-error policy (D17): the target or any closure member
-	// that could not be read is a block.
+	// that could not be read is a block. "Could not be read" covers the
+	// status AND every artifact/metadata read failure that is not plain
+	// absence (rev-1 adjudication finding 4).
 	for _, member := range order {
 		e := ctx.inv.Entry(member)
 		if e == nil {
 			continue
 		}
-		if e.Err != nil {
-			rem := fmt.Sprintf("verify aborted: %s could not be read from the feature inventory: %v; repair or remove the feature before verifying %s", member, e.Err, slug)
+		if path, readErr := e.ReadErr(); readErr != nil {
+			rem := fmt.Sprintf("verify aborted: %s/%s could not be read from the feature inventory: %v; repair or remove the feature before verifying %s", member, path, readErr, slug)
 			return dynamicPhase{
 				v7:       withMode(store.VerifyCheckResult{ID: CheckRecipeReplayClean, Severity: SeverityBlock, Passed: false, Remediation: rem}, v7Mode),
 				v8:       withMode(store.VerifyCheckResult{ID: CheckPostApplyPatchReplayClean, Severity: SeverityBlock, Passed: false, Remediation: rem}, v8Mode),
@@ -400,7 +437,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 	//    HEAD in forward mode.
 	shadowRoot := anchorCommit
 	if shadowRoot == "" {
-		head, headErr := gitutil.HeadCommitOffline(s.Root)
+		head, headErr := ctx.head, ctx.headErr
 		if headErr != nil {
 			return dynamicPhase{
 				v7: withMode(store.VerifyCheckResult{
@@ -413,7 +450,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 		}
 		shadowRoot = head
 	}
-	shadowPath, err := gitutil.CreateShadow(s.Root, slug, shadowRoot)
+	shadowPath, err := ctx.createShadow(slug, shadowRoot)
 	if err != nil {
 		return dynamicPhase{
 			v7: withMode(store.VerifyCheckResult{
@@ -424,7 +461,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 			v10: withMode(skipV10Because("skipped: V7 (recipe_replay_clean) failed: shadow allocation"), v10Mode),
 		}
 	}
-	defer func() { _ = gitutil.PruneShadow(s.Root, slug) }()
+	defer func() { _ = ctx.pruneShadow(slug) }()
 
 	// 3. Closure arbitration (D13).
 	arb := arbitrateClosure(in, order, shadowRoot, shadowPath, v7Mode, v8Mode, v10Mode)
@@ -436,7 +473,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 	memberBaselines := in.ctx.pendingMemberBaselines
 	in.ctx.pendingMemberBaselines = nil
 
-	closureBaselineTree, err := snapshotShadowTree(shadowPath)
+	closureBaselineTree, err := snapshotShadowTree(ctx, shadowPath)
 	if err != nil {
 		return dynamicPhase{
 			v7: withMode(store.VerifyCheckResult{
@@ -507,7 +544,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 		return out
 	}
 	if recipePresent && len(in.recipe.Operations) > 0 {
-		if err := resetShadowToTree(shadowPath, closureBaselineTree); err != nil {
+		if err := resetShadowToTree(ctx, shadowPath, closureBaselineTree); err != nil {
 			out.v8 = withMode(store.VerifyCheckResult{
 				ID: CheckPostApplyPatchReplayClean, Severity: SeverityBlock, Passed: false,
 				Remediation: fmt.Sprintf("cannot reset shadow to closure-replayed baseline before V8: %v", err),
@@ -516,7 +553,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 		}
 	}
 	patchPath := artifactPath(s.Root, slug, "post-apply.patch")
-	if _, _, err := gitutil.RunOfflineGitIn(shadowPath, "apply", "--check", patchPath); err != nil {
+	if _, _, err := ctx.runShadowGit(shadowPath, "apply", "--check", patchPath); err != nil {
 		rem := fmt.Sprintf("post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile %s", slug)
 		if landed {
 			rem = remediationR5(anchorCommit)
@@ -626,7 +663,16 @@ func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPat
 				return fail(FailedAtLandedArtifacts, member, remediationR19(member))
 			}
 			ladder := ctx.runLadder(anchorTreeish, artifactPath(ctx.root, member, "post-apply.patch"), entry.Patch.Bytes)
-			if ladder.Err != nil || ladder.Blocked {
+			if ladder.MissingObject {
+				return fail(FailedAtLandingEvidence, member, remediationR22(member))
+			}
+			if ladder.Err != nil {
+				// The probe could not run: report the reader failure,
+				// not a drift claim (rev-1 finding 3).
+				return fail(FailedAtLandingEvidence, member,
+					remediationR10(member, fmt.Sprintf("the presence probe for hard parent %s could not run: %v", member, ladder.Err)))
+			}
+			if ladder.Blocked {
 				return fail(FailedAtParentLandingDrift, member, remediationR14(member, mev.Evidence.AttestationCommit))
 			}
 			if ladder.ContextDrift {
@@ -713,7 +759,9 @@ func evaluateV10(in anchoredInput, memberBaselines map[string]string, closureTre
 	if !in.recipePresent {
 		return v10Outcome{result: skipV10Because("skipped: V2 (recipe_parses) skipped or failed")}
 	}
-	superseder, superseded := IsFeatureSuperseded(in.store, slug)
+	// Supersession is answered from the capture, not a fresh
+	// `ListFeatures()` scan (rev-1 adjudication finding 2).
+	superseder, superseded := isFeatureSupersededIn(ctx.inv.Statuses(), slug)
 	severity := SeverityBlock
 	if superseded {
 		severity = SeverityWarn
@@ -885,7 +933,7 @@ func (ctx *verifyRunContext) preimageAtTree(treeish, slug string, opIndex int, o
 	expected := *op.PreimageHash
 
 	if expected == "" {
-		_, found, _, err := gitutil.BlobAtTree(ctx.root, treeish, op.Path)
+		_, found, err := ctx.blobAtTree(treeish, op.Path)
 		if err != nil {
 			return false, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot read the baseline tree %s: %v", slug, opIndex, op.Path, treeish, err), ""
 		}
@@ -904,7 +952,7 @@ func (ctx *verifyRunContext) preimageAtTree(treeish, slug string, opIndex int, o
 			slug, opIndex, op.Path, expected), ""
 	}
 
-	data, found, _, err := gitutil.BlobAtTree(ctx.root, treeish, op.Path)
+	data, found, err := ctx.blobAtTree(treeish, op.Path)
 	if err != nil {
 		return false, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot read the baseline tree %s: %v", slug, opIndex, op.Path, treeish, err), ""
 	}
