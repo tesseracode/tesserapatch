@@ -1847,9 +1847,9 @@ exec %[2]q "$@"
 }
 
 // The rev-5 regression: a worktree registered DURING the staging step
-// (after the pre-stage revalidation) means `git add` records a gitlink.
-// The post-stage index audit must catch it, restore the exact pre-land
-// index, and refuse without touching HEAD or the landed-at note.
+// (after the pre-stage revalidation) means `git add` records a gitlink
+// in land's private index. The post-stage audit must catch it and
+// refuse, leaving HEAD, the live index and the landed-at note alone.
 func TestNestedWorktree_Land_StageTimeRegistrationIsAuditedAndRolledBack(t *testing.T) {
 	addCalls := countGitAddInvocations(t)
 
@@ -1930,9 +1930,10 @@ func TestNestedWorktree_Land_StageTimeRegistrationIsAuditedAndRolledBack(t *test
 	}
 }
 
-// An operator's own staged work must survive the rollback
-// byte-for-byte: the snapshot is of the whole index file.
-func TestNestedWorktree_Land_RollbackPreservesOperatorStagedState(t *testing.T) {
+// An operator's own staged work is never touched: land stages in a
+// private temp index, so an abort leaves the live index exactly as the
+// operator last set it (GH #7 rev-6 — there is nothing to "roll back").
+func TestNestedWorktree_Land_AbortLeavesOperatorStagedStateUntouched(t *testing.T) {
 	tmpDir, slug := setupNestedWorktreeFixture(t)
 	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
 		t.Fatalf("apply --mode done failed: %s", stderr)
@@ -1978,20 +1979,20 @@ func TestNestedWorktree_Land_RollbackPreservesOperatorStagedState(t *testing.T) 
 		t.Fatal(err)
 	}
 	if string(rawAfter) != string(rawBefore) {
-		t.Error("index bytes not restored byte-for-byte after the rollback")
+		t.Error("the live index was modified even though staging is isolated")
 	}
 	if got := nwtGit(t, tmpDir, "write-tree"); got != treeBefore {
-		t.Errorf("write-tree differs after rollback:\nbefore=%s\nafter=%s", treeBefore, got)
+		t.Errorf("write-tree differs after the abort:\nbefore=%s\nafter=%s", treeBefore, got)
 	}
 	if got := gitHead(t, tmpDir); got != headBefore {
 		t.Errorf("HEAD advanced despite refusing: %s -> %s", headBefore, got)
 	}
 	cached := nwtGit(t, tmpDir, "diff", "--cached", "--name-only")
 	if !strings.Contains(cached, "operator.txt") {
-		t.Errorf("operator's staged file lost across the rollback:\n%s", cached)
+		t.Errorf("operator's staged file lost:\n%s", cached)
 	}
 	if strings.Contains(cached, "README.md") {
-		t.Errorf("land's staging survived the rollback:\n%s", cached)
+		t.Errorf("land's staging leaked into the live index:\n%s", cached)
 	}
 	statusBody, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
 	if err != nil {
@@ -2082,5 +2083,335 @@ func TestNestedWorktree_Land_CleanSuccessUnchangedByTransaction(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `"notes": "landed at`) {
 		t.Errorf("landed-at note missing on the success path:\n%s", body)
+	}
+}
+
+// ─── GH #7 rev-6: isolated temp-index land transaction ──────────────
+
+// liveIndexPath returns the repo's effective index path.
+func liveIndexPath(t *testing.T, repoRoot string) string {
+	t.Helper()
+	p := strings.TrimSuffix(nwtGit(t, repoRoot, "rev-parse", "--git-path", "index"), "\n")
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(repoRoot, p)
+	}
+	return p
+}
+
+// Land must not touch the live index at any point before publication.
+// A concurrent operator `git add` performed while land is staging is
+// therefore preserved, and detected at publish time rather than
+// overwritten.
+func TestNestedWorktree_Land_ConcurrentOperatorAddIsDetectedNotOverwritten(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "operator.txt"), []byte("operator\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nwtGit(t, tmpDir, "add", "operator.txt")
+
+	// A `git` wrapper that, on the first `git add` land performs,
+	// stages an operator file into the LIVE index (no GIT_INDEX_FILE),
+	// simulating a concurrent `git add` mid-land.
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	binDir := t.TempDir()
+	counter := filepath.Join(binDir, "add-count")
+	if err := os.WriteFile(filepath.Join(tmpDir, "concurrent.txt"), []byte("concurrent\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	script := fmt.Sprintf(`#!/bin/sh
+isadd=0
+for a in "$@"; do
+  if [ "$a" = "add" ]; then isadd=1; break; fi
+done
+if [ "$isadd" = 1 ]; then
+  n=0
+  if [ -f %[1]q ]; then n=$(cat %[1]q); fi
+  n=$((n+1))
+  printf '%%s' "$n" > %[1]q
+  if [ "$n" -eq 1 ]; then
+    env -u GIT_INDEX_FILE %[2]q -C %[3]q add concurrent.txt >/dev/null 2>&1 || true
+  fi
+fi
+exec %[2]q "$@"
+`, counter, realGit, tmpDir)
+	shim := filepath.Join(binDir, "git")
+	if err := os.WriteFile(shim, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := os.Getenv("PATH")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+original)
+
+	headBefore := gitHead(t, tmpDir)
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go", "--allow-extra-paths")
+	os.Setenv("PATH", original)
+
+	if code == 0 {
+		t.Fatalf("land must refuse when the live index changed mid-flight: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "changed while") {
+		t.Errorf("refusal should explain the concurrent mutation: %q", stderr)
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("HEAD advanced despite refusing")
+	}
+	// The operator's concurrent work is intact and land's staging is
+	// nowhere to be seen.
+	cached := nwtGit(t, tmpDir, "diff", "--cached", "--name-only")
+	for _, want := range []string{"operator.txt", "concurrent.txt"} {
+		if !strings.Contains(cached, want) {
+			t.Errorf("operator's staged path %q lost:\n%s", want, cached)
+		}
+	}
+	if strings.Contains(cached, "README.md") {
+		t.Errorf("land's staging leaked into the live index:\n%s", cached)
+	}
+	statusBody, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(statusBody), `"notes": "landed at`) {
+		t.Errorf("land wrote its status note despite refusing:\n%s", statusBody)
+	}
+	if _, err := os.Stat(liveIndexPath(t, tmpDir) + ".lock"); !os.IsNotExist(err) {
+		t.Errorf("index lock residue left behind: %v", err)
+	}
+}
+
+// A symlinked effective index is refused before anything is staged or
+// written.
+func TestNestedWorktree_Land_RefusesSymlinkedIndexBeforeMutation(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	indexPath := liveIndexPath(t, tmpDir)
+	moved := filepath.Join(t.TempDir(), "real-index")
+	if err := os.Rename(indexPath, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(moved, indexPath); err != nil {
+		t.Skipf("platform refuses symlinks: %v", err)
+	}
+	headBefore := gitHead(t, tmpDir)
+	statusBefore, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug, "--no-record")
+	if code == 0 {
+		t.Fatalf("land must refuse a symlinked index: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "symlink") {
+		t.Errorf("refusal should name the symlink: %q", stderr)
+	}
+	info, err := os.Lstat(indexPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Error("the symlink was replaced despite the refusal")
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("HEAD advanced despite refusing")
+	}
+	statusAfter, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(statusAfter) != string(statusBefore) {
+		t.Error("status.json changed despite the refusal")
+	}
+}
+
+// A pre-existing index lock is somebody else's: land refuses, leaves it
+// alone, and mutates nothing.
+func TestNestedWorktree_Land_RefusesOnLiveIndexLockContention(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	lockPath := liveIndexPath(t, tmpDir) + ".lock"
+	if err := os.WriteFile(lockPath, []byte("someone else\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(lockPath)
+	headBefore := gitHead(t, tmpDir)
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land must refuse while another process holds the index lock: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "another Git process") {
+		t.Errorf("refusal should explain the contention: %q", stderr)
+	}
+	body, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("the foreign lock was removed: %v", err)
+	}
+	if string(body) != "someone else\n" {
+		t.Error("the foreign lock was overwritten")
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("HEAD advanced despite refusing")
+	}
+	statusBody, err := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(statusBody), `"notes": "landed at`) {
+		t.Errorf("land wrote its status note despite refusing:\n%s", statusBody)
+	}
+}
+
+// Land works when the effective index is redirected through a
+// whitespace-bearing GIT_INDEX_FILE, and leaves no residue.
+func TestNestedWorktree_Land_WhitespaceBearingGitIndexFile(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	// Seed the redirected index from the real one so the repository
+	// state is coherent.
+	redirect := filepath.Join(t.TempDir(), " odd\tindex ")
+	realIndex := liveIndexPath(t, tmpDir)
+	if body, err := os.ReadFile(realIndex); err == nil {
+		if werr := os.WriteFile(redirect, body, 0o644); werr != nil {
+			t.Fatal(werr)
+		}
+	}
+	t.Setenv("GIT_INDEX_FILE", redirect)
+
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code != 0 {
+		t.Fatalf("land failed with a redirected index: stdout=%q stderr=%q", stdout, stderr)
+	}
+	committed := nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD")
+	assertNoNestedWorktree(t, "landing commit", committed)
+	for _, want := range []string{"README.md", "internal/example.go", "status.json"} {
+		if !strings.Contains(committed, want) {
+			t.Errorf("landing commit missing %q:\n%s", want, committed)
+		}
+	}
+	if _, err := os.Stat(redirect); err != nil {
+		t.Errorf("the redirected index should exist after land: %v", err)
+	}
+	if _, err := os.Stat(redirect + ".lock"); !os.IsNotExist(err) {
+		t.Errorf("lock residue at the redirected path: %v", err)
+	}
+}
+
+// A clean land leaves no temp-index or lock residue, and the live index
+// agrees with the new HEAD.
+func TestNestedWorktree_Land_LeavesNoIndexResidue(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code != 0 {
+		t.Fatalf("land failed: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Landed ") || !strings.Contains(stdout, "trailer: Tpatch-Feature: "+slug) {
+		t.Errorf("success output changed:\n%s", stdout)
+	}
+	if _, err := os.Stat(liveIndexPath(t, tmpDir) + ".lock"); !os.IsNotExist(err) {
+		t.Errorf("index lock residue: %v", err)
+	}
+	if staged := nwtGit(t, tmpDir, "diff", "--cached", "--name-only"); strings.TrimSpace(staged) != "" {
+		t.Errorf("live index disagrees with the new HEAD: %q", staged)
+	}
+	msg := gitLastCommitMsg(t, tmpDir)
+	for _, want := range []string{"Tpatch-Feature: " + slug, "Tpatch-Patch-SHA: ", "Co-authored-by: Copilot"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("commit trailers changed, missing %q:\n%s", want, msg)
+		}
+	}
+}
+
+// fileState.restore must report failures rather than swallow them —
+// a silently failed restore leaves a false `landed at` note behind.
+func TestFileStateRestoreReportsFailures(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "status.json")
+	if err := os.WriteFile(target, []byte("preimage\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := captureFileState(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.existed || string(st.data) != "preimage\n" || st.mode != 0o600 {
+		t.Fatalf("capture = %+v", st)
+	}
+
+	// Happy path restores bytes and mode exactly.
+	if err := os.WriteFile(target, []byte("mutated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.restore(); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	body, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "preimage\n" {
+		t.Errorf("restore did not put the preimage back: %q", body)
+	}
+	if info, err := os.Stat(target); err != nil {
+		t.Fatal(err)
+	} else if info.Mode().Perm() != 0o600 {
+		t.Errorf("mode not restored: %v", info.Mode().Perm())
+	}
+
+	// A restore into an unwritable directory must return an error.
+	roDir := filepath.Join(dir, "readonly")
+	if err := os.Mkdir(roDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	roTarget := filepath.Join(roDir, "status.json")
+	if err := os.WriteFile(roTarget, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	roState, err := captureFileState(roTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(roDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(roDir, 0o755) })
+	if err := roState.restore(); err == nil {
+		t.Error("restore into an unwritable directory must return an error")
+	}
+
+	// An absent preimage restores to absent.
+	missing := filepath.Join(dir, "never-existed.json")
+	absentState, err := captureFileState(missing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absentState.existed {
+		t.Fatal("capture of a missing file should report absent")
+	}
+	if err := os.WriteFile(missing, []byte("created\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := absentState.restore(); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Errorf("restore should have removed the file, got %v", err)
 	}
 }

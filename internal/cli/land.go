@@ -244,21 +244,27 @@ func runLand(cmd *cobra.Command, slug string) error {
 	// braces on top of the revalidated planning inputs (GH #7 rev-4).
 	pathSet = gitutil.FilterNestedWorktreePaths(pathSet, freshNested)
 
-	// ── Staging transaction (GH #7 rev-5) ───────────────────────────
+	// ── Isolated staging transaction (GH #7 rev-6) ──────────────────
 	//
-	// Planning cannot close the race on its own, because the window is
-	// INSIDE the staging step: a harness can register a linked worktree
-	// between the revalidation above and `git add`, and `git add` on a
-	// directory that has just become another checkout's working
-	// directory stages it as a mode-160000 gitlink.
+	// Land never mutates the operator's live index while it works.
+	// A private temp index is seeded byte-identically from the live
+	// one; every `git add`, every staged-path audit and the commit
+	// itself run with GIT_INDEX_FILE pointing at it. The result is
+	// published only under Git's own `<index>.lock`, and only after
+	// the live index is verified to still match the snapshot taken at
+	// the start.
 	//
-	// So staging is transactional: snapshot the effective index, stage
-	// the non-status path set, audit what actually landed in the index
-	// against a FRESHLY discovered worktree set, and restore the exact
-	// pre-land index bytes if anything is wrong. The operator's own
-	// staged state survives a rollback byte-for-byte, because the
-	// snapshot is of the whole index file.
+	// Rev-5 staged into the live index and rolled it back on failure,
+	// which discards a concurrent operator `git add` and can fold
+	// concurrently staged content into a "successful" land. Isolation
+	// removes both failure modes rather than narrowing them.
+	//
+	// Scope, stated honestly: this serializes INDEX writes against
+	// other Git processes. It does not protect against concurrent ref
+	// or working-tree mutation (`git checkout`, `git reset --hard`),
+	// which no index lock can express.
 	statusRel := filepath.ToSlash(filepath.Join(".tpatch", "features", slug, "status.json"))
+	statusAbs := filepath.Join(s.Root, filepath.FromSlash(statusRel))
 	stagingSet := make([]string, 0, len(pathSet))
 	for _, p := range pathSet {
 		if p == statusRel {
@@ -267,96 +273,92 @@ func runLand(cmd *cobra.Command, slug string) error {
 		stagingSet = append(stagingSet, p)
 	}
 
-	indexSnap, err := gitutil.SnapshotIndex(s.Root)
+	tx, err := gitutil.BeginIndexTransaction(s.Root)
 	if err != nil {
-		return fmt.Errorf("land: cannot snapshot the index before staging: %w", err)
+		return err
 	}
-	rollback := func(cause error) error {
-		if rerr := indexSnap.Restore(); rerr != nil {
-			return fmt.Errorf("%w\nadditionally, restoring the pre-land index failed: %v (inspect `git status` before retrying)", cause, rerr)
+	txEnv := tx.Env()
+	// abort closes the transaction (releasing any lock, deleting the
+	// temp index) and restores the status preimage when one was taken.
+	// Every cleanup failure is folded into the returned diagnostic —
+	// none is ever swallowed.
+	var statusPre *fileState
+	abort := func(cause error) error {
+		problems := []string{}
+		if statusPre != nil {
+			if rerr := statusPre.restore(); rerr != nil {
+				problems = append(problems, fmt.Sprintf("restoring %s failed: %v", statusRel, rerr))
+			}
 		}
-		return cause
+		if cerr := tx.Close(); cerr != nil {
+			problems = append(problems, fmt.Sprintf("cleaning up the temporary index failed: %v", cerr))
+		}
+		if len(problems) == 0 {
+			return cause
+		}
+		return fmt.Errorf("%w\nadditionally: %s", cause, strings.Join(problems, "; "))
 	}
 
-	// Stage the path set. `git add` accepts directories; for
-	// untracked files we use --intent-to-add first then a normal
-	// add, mirroring CapturePatchScoped's behaviour
+	// Stage the path set into the TEMP index. `git add` accepts
+	// directories; for untracked files we use --intent-to-add first
+	// then a normal add, mirroring CapturePatchScoped's behaviour
 	// (internal/gitutil/gitutil.go:228-251). status.json is
 	// deliberately held back: it is staged alone, after the audit.
-	if err := stagePathSet(s.Root, stagingSet); err != nil {
-		return rollback(fmt.Errorf("land: cannot stage path set: %w", err))
+	if err := stagePathSetEnv(s.Root, txEnv, stagingSet); err != nil {
+		return abort(fmt.Errorf("land: cannot stage path set: %w", err))
 	}
 
-	// Post-stage audit: rediscover, then inspect the index itself.
-	// This is the only check that can see a worktree registered during
-	// `git add`, because it reads what was actually staged rather than
-	// what we intended to stage.
-	contaminated, auditErr := gitutil.AuditStagedPathsForNestedWorktrees(s.Root)
+	// Post-stage audit: rediscover, then inspect the temp index
+	// itself. This is the only check that can see a worktree
+	// registered during `git add`, because it reads what was actually
+	// staged rather than what we intended to stage.
+	contaminated, auditErr := gitutil.AuditStagedPathsForNestedWorktreesEnv(s.Root, txEnv)
 	if auditErr != nil {
-		return rollback(auditErr)
+		return abort(auditErr)
 	}
 	if len(contaminated) > 0 {
-		var b strings.Builder
-		b.WriteString("land refuses: staging picked up path(s) inside a registered nested Git worktree:\n")
-		for _, p := range contaminated {
-			fmt.Fprintf(&b, "  - %s\n", p)
-		}
-		b.WriteString("\nA linked worktree was registered while `land` was staging, so `git add` recorded it as a\n")
-		b.WriteString("mode-160000 gitlink. The index has been restored to its pre-land state; nothing was committed.\n")
-		b.WriteString("Resolve with one of:\n")
-		b.WriteString("  - stop the process creating worktrees under this repository, then rerun\n")
-		b.WriteString("  - `git worktree remove <path>` if the nested worktree is no longer needed\n")
-		fmt.Fprintf(&b, "  - rerun: tpatch land %s --no-record\n", slug)
-		return rollback(fmt.Errorf("%s", b.String()))
+		return abort(formatContaminationRefusal(slug, contaminated, "staging"))
 	}
 
 	// The audit passed. Only now is the landed-at note written, and
-	// only status.json is staged — no further broad staging happens, so
-	// a worktree registered from here on cannot enter the index by
-	// registration alone (registration stages nothing). A concurrent
-	// third-party `git add` remains outside supported semantics.
-	//
-	// The new HEAD SHA is intentionally NOT written (PRD F2 / §6 ac.5).
-	statusPreimage, statusPreimageErr := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(statusRel)))
-	restoreStatus := func() {
-		if statusPreimageErr == nil {
-			_ = os.WriteFile(filepath.Join(s.Root, filepath.FromSlash(statusRel)), statusPreimage, 0o644)
-		}
+	// only status.json is staged. The preimage is captured first so
+	// any later abort leaves no false `landed at` note behind.
+	statusPre, err = captureFileState(statusAbs)
+	if err != nil {
+		return abort(fmt.Errorf("land: cannot snapshot %s: %w", statusRel, err))
 	}
 	status, _ = s.LoadFeatureStatus(slug)
 	status.Notes = strings.TrimSpace(fmt.Sprintf("landed at %s", now))
 	if err := s.SaveFeatureStatus(status); err != nil {
-		restoreStatus()
-		return rollback(fmt.Errorf("land: cannot update status.json notes: %w", err))
+		return abort(fmt.Errorf("land: cannot update status.json notes: %w", err))
 	}
-	if err := stagePathSet(s.Root, []string{statusRel}); err != nil {
-		restoreStatus()
-		return rollback(fmt.Errorf("land: cannot stage %s: %w", statusRel, err))
+	if err := stagePathSetEnv(s.Root, txEnv, []string{statusRel}); err != nil {
+		return abort(fmt.Errorf("land: cannot stage %s: %w", statusRel, err))
 	}
 
 	// Final audit, immediately before commit. The status-staging pass
-	// above is itself a (much narrower) window, so the index is
-	// re-audited once more: the commit is only ever taken from an index
-	// that was verified clean after the LAST `git add` land performed.
-	// Past this point land issues no further staging at all, so a
-	// worktree registered from here on cannot enter the index by
-	// registration alone. A concurrent third-party `git add` racing the
-	// commit remains outside supported semantics.
-	finalContaminated, finalAuditErr := gitutil.AuditStagedPathsForNestedWorktrees(s.Root)
+	// is itself a (much narrower) window, so the index is re-audited:
+	// the commit is only ever taken from an index verified clean after
+	// the LAST `git add` land performed. Past this point land issues no
+	// staging at all, so a worktree registered later cannot enter the
+	// index by registration alone.
+	finalContaminated, finalAuditErr := gitutil.AuditStagedPathsForNestedWorktreesEnv(s.Root, txEnv)
 	if finalAuditErr != nil {
-		restoreStatus()
-		return rollback(finalAuditErr)
+		return abort(finalAuditErr)
 	}
 	if len(finalContaminated) > 0 {
-		restoreStatus()
-		var b strings.Builder
-		b.WriteString("land refuses: the index picked up path(s) inside a registered nested Git worktree during the final staging step:\n")
-		for _, p := range finalContaminated {
-			fmt.Fprintf(&b, "  - %s\n", p)
-		}
-		b.WriteString("\nThe index has been restored to its pre-land state; nothing was committed.\n")
-		b.WriteString("Stop the process creating worktrees under this repository (or `git worktree remove <path>`), then rerun.\n")
-		return rollback(fmt.Errorf("%s", b.String()))
+		return abort(formatContaminationRefusal(slug, finalContaminated, "the final staging step"))
+	}
+
+	// Take Git's own index lock before committing or publishing, and
+	// confirm the live index still matches the Begin snapshot. A
+	// divergence means the operator ran a concurrent Git operation;
+	// publishing over it would destroy their work.
+	if err := tx.LockLive(); err != nil {
+		return abort(fmt.Errorf("land: %w", err))
+	}
+	if err := tx.VerifyLiveUnchanged(); err != nil {
+		return abort(fmt.Errorf("land refuses: %w", err))
 	}
 
 	// Build commit subject + trailer block (§3.4).
@@ -381,17 +383,52 @@ func runLand(cmd *cobra.Command, slug string) error {
 		"-m", subject,
 		"-m", trailerBlock,
 	}
-	commitOut, commitErr := runGitCapture(s.Root, commitArgs...)
+	//
+	// The commit runs against the TEMP index while the live index lock
+	// is held, so hooks inherit GIT_INDEX_FILE and see exactly the
+	// audited state — normal hook semantics, isolated substrate.
+	commitOut, commitErr := runGitCaptureEnv(s.Root, txEnv, commitArgs...)
 	if commitErr != nil {
-		// PRD §3.7 + §7.6: a pre-commit hook (or any commit
-		// failure) leaves the staged index intact for recovery.
-		// Surface the hook output verbatim and tell the user that
-		// `--no-record` retries against the existing index.
+		// PRD §3.7 + §7.6: a pre-commit hook (or any commit failure)
+		// leaves the staged index intact for recovery. The audited
+		// pre-commit temp index is therefore published to the live
+		// index through the lock we already hold, so the intended
+		// paths really are staged for the `--no-record` retry.
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s", commitOut)
-		return fmt.Errorf(
+		publishErr := tx.PublishLocked()
+		closeErr := tx.Close()
+		msg := fmt.Sprintf(
 			"land: git commit failed (%v). The index is staged but uncommitted; "+
 				"after fixing the reported error, retry with `tpatch land %s --no-record` "+
 				"to commit the existing index without re-recording", commitErr, slug)
+		var extra []string
+		if publishErr != nil {
+			extra = append(extra, fmt.Sprintf("publishing the audited index for retry FAILED: %v (your index was left untouched; re-run `tpatch land %s`)", publishErr, slug))
+		}
+		if closeErr != nil {
+			extra = append(extra, fmt.Sprintf("cleaning up the temporary index failed: %v", closeErr))
+		}
+		if len(extra) > 0 {
+			return fmt.Errorf("%s\nadditionally: %s", msg, strings.Join(extra, "; "))
+		}
+		return fmt.Errorf("%s", msg)
+	}
+
+	// Commit succeeded: publish the post-commit temp index (which Git
+	// has already reconciled against the new HEAD) through the held
+	// lock, then release. A publish failure here is reported loudly —
+	// the commit exists, so silently leaving a stale live index would
+	// misrepresent the repository state.
+	if err := tx.PublishLocked(); err != nil {
+		closeErr := tx.Close()
+		msg := fmt.Sprintf("land: the commit succeeded but publishing the resulting index failed: %v.\nRun `git reset` to resynchronise your index with HEAD", err)
+		if closeErr != nil {
+			return fmt.Errorf("%s\nadditionally: cleaning up the temporary index failed: %v", msg, closeErr)
+		}
+		return fmt.Errorf("%s", msg)
+	}
+	if err := tx.Close(); err != nil {
+		return fmt.Errorf("land: the commit succeeded but cleaning up the temporary index failed: %w", err)
 	}
 
 	// Post-conditions (§3.6).
@@ -690,12 +727,104 @@ func formatExtrasRefusal(slug string, extras []string) error {
 	return fmt.Errorf("%s", b.String())
 }
 
+// fileState is a byte-for-byte capture of a small metadata file, used
+// to restore a preimage when land aborts after writing it.
+type fileState struct {
+	path    string
+	existed bool
+	data    []byte
+	mode    os.FileMode
+}
+
+func captureFileState(path string) (*fileState, error) {
+	st := &fileState{path: path}
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return st, nil
+		}
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file (mode %s)", path, info.Mode())
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	st.existed = true
+	st.data = data
+	st.mode = info.Mode().Perm()
+	return st, nil
+}
+
+// restore puts the file back exactly as captureFileState found it,
+// atomically. Errors are returned, never swallowed: a failed restore
+// can leave a false `landed at` note behind and the operator must be
+// told.
+func (f *fileState) restore() error {
+	if f == nil {
+		return nil
+	}
+	if !f.existed {
+		if err := os.Remove(f.path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
+	dir := filepath.Dir(f.path)
+	tmp, err := os.CreateTemp(dir, ".tpatch-restore-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(f.data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	mode := f.mode
+	if mode == 0 {
+		mode = 0o644
+	}
+	if err := os.Chmod(tmpPath, mode); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, f.path)
+}
+
+// formatContaminationRefusal renders the post-stage audit failure.
+func formatContaminationRefusal(slug string, contaminated []string, phase string) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "land refuses: %s picked up path(s) inside a registered nested Git worktree:\n", phase)
+	for _, p := range contaminated {
+		fmt.Fprintf(&b, "  - %s\n", p)
+	}
+	b.WriteString("\nA linked worktree was registered while `land` was staging, so `git add` recorded it as a\n")
+	b.WriteString("mode-160000 gitlink. Staging happened in a private index, so your own index was never\ntouched and nothing was committed.\n")
+	b.WriteString("Resolve with one of:\n")
+	b.WriteString("  - stop the process creating worktrees under this repository, then rerun\n")
+	b.WriteString("  - `git worktree remove <path>` if the nested worktree is no longer needed\n")
+	fmt.Fprintf(&b, "  - rerun: tpatch land %s --no-record\n", slug)
+	return fmt.Errorf("%s", b.String())
+}
+
 // stagePathSet runs `git add --intent-to-add` followed by `git add`
 // for each path in the set. --intent-to-add is a no-op for tracked
 // files but turns untracked files into tracked-with-empty-blob, which
 // is what `git add` then needs to capture their content. This mirrors
 // CapturePatchScoped's behaviour at internal/gitutil/gitutil.go:228-251.
 func stagePathSet(repoRoot string, pathSet []string) error {
+	return stagePathSetEnv(repoRoot, nil, pathSet)
+}
+
+// stagePathSetEnv is stagePathSet against an explicit environment, so
+// land can stage into its private temp index (GH #7 rev-6). A nil env
+// inherits the process environment.
+func stagePathSetEnv(repoRoot string, env []string, pathSet []string) error {
 	if len(pathSet) == 0 {
 		return nil
 	}
@@ -703,10 +832,10 @@ func stagePathSet(repoRoot string, pathSet []string) error {
 	// `git add` without staging content. Errors here are tolerated:
 	// the path may already be tracked or deleted.
 	intentArgs := append([]string{"add", "--intent-to-add", "--"}, pathSet...)
-	_, _ = runGit(repoRoot, intentArgs...)
+	_, _ = runGitEnvOut(repoRoot, env, intentArgs...)
 	// Second pass: actually stage the content.
 	addArgs := append([]string{"add", "--"}, pathSet...)
-	if _, err := runGit(repoRoot, addArgs...); err != nil {
+	if _, err := runGitEnvOut(repoRoot, env, addArgs...); err != nil {
 		return err
 	}
 	return nil
@@ -778,11 +907,39 @@ func runGit(repoRoot string, args ...string) (string, error) {
 	return string(out), nil
 }
 
+// runGitEnvOut runs git in repoRoot with an explicit environment and
+// returns stdout. A nil env inherits the process environment.
+func runGitEnvOut(repoRoot string, env []string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoRoot
+	if env != nil {
+		cmd.Env = env
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return string(ee.Stderr), err
+		}
+		return "", err
+	}
+	return string(out), nil
+}
+
 // runGitCapture runs git with combined stdout+stderr captured, used
 // by the commit step so a hook's stdout is surfaced verbatim.
 func runGitCapture(repoRoot string, args ...string) (string, error) {
+	return runGitCaptureEnv(repoRoot, nil, args...)
+}
+
+// runGitCaptureEnv is runGitCapture against an explicit environment, so
+// the commit (and every hook it spawns) runs against land's private
+// temp index.
+func runGitCaptureEnv(repoRoot string, env []string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repoRoot
+	if env != nil {
+		cmd.Env = env
+	}
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
