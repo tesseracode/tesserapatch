@@ -1,6 +1,6 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-5 proposed 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below, AWAITING REVIEW)**
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-6 (final) proposed 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below — the final decision set, AWAITING REVIEW)**
 **Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
@@ -220,7 +220,7 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 3. Skip parents in `upstream_merged` (their changes are already on the baseline).
 4. Replay parents in `applied` — load each parent's `apply-recipe.json` and execute its ops in the shadow.
 5. **Fail-fast** on first parent in any other state, or on first replay failure: verify aborts the V7/V8 phase, writes `Verify.Passed = false`, and emits `failed_at: "parent-replay"` with the failing parent slug in the JSON output.
-6. Apply the target's recipe (V7) and `git apply --check` the target's `post-apply.patch` (V8) against the same shadow.
+6. Apply the target's recipe (V7); then, **per GH #2 / v0.11.3**, reset the shadow to the recorded closure-replayed baseline tree (`resetShadowToTree`, `internal/workflow/verify.go:1142-1153`) before `git apply --check`ing the target's `post-apply.patch` (V8), so recipe and patch are validated **independently against the same baseline** rather than double-applied. *(Amended: the original D7 text said "against the same shadow" — that predates the GH #2 reset and is superseded.)*
 7. Prune.
 
 **Per-slug shadow lock.** Verify and reconcile both write to `.tpatch/shadow/<slug>-<timestamp>/`. To prevent two concurrent writers, `verify` refuses when the lifecycle state is `reconciling` / `reconciling-shadow`. Per-slug only: verify on slug A while reconcile runs on slug B is allowed.
@@ -229,7 +229,7 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 
 **Cost.** O(closure size) shadow operations per verify. Bounded by DAG depth × per-recipe replay cost; comparable to a phase-2 reconcile op-replay pass per parent. Well within the cheap-budget for typical 1–3-deep DAGs.
 
-> **Amended 2026-08-12 by Amendment 1 rev-5 (GH #8).** D7's machinery is
+> **Amended 2026-08-12 by Amendment 1 rev-6 (GH #8).** D7's machinery is
 > retained in full — one shadow, topological replay, first-failure fail-fast,
 > deferred prune, and the GH #2 reset between the recipe and the patch check.
 > Amendment 1 refines three things.
@@ -324,9 +324,9 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 - `internal/gitutil/gitutil.go:828` — `IsAncestor` (V5 reuse; anchor re-validated 2026-08-12 during Amendment 1 — the pre-amendment `:680` citation had drifted)
 
 ---
-# Amendment 1 (2026-08-12, **rev-5**) — Landed-evidence semantics — v0.15.1 Wave B / GH #8
+# Amendment 1 (2026-08-12, **rev-6 — final**) — Landed-evidence semantics — v0.15.1 Wave B / GH #8
 
-**Status of this amendment**: proposed rev-3, AWAITING REVIEW. Binding on the
+**Status of this amendment**: proposed **rev-6 (final)**, AWAITING REVIEW. The decision set is **D8–D19** and is closed — no decision is added after D19. Binding on the
 Wave C implementation once accepted. Adds D8–D19. **No prior decision D1–D7 is
 reversed**; D7 is *extended* (anchor-dependent shadow root, plus an
 index-isolated worktree-free assertion that allocates no shadow).
@@ -410,7 +410,7 @@ hard parent (`internal/workflow/verify.go:1048-1091`).
 
 ## A1.1 Empirical basis (read-only probes, git 2.55.0 / macOS, scratch removed)
 
-E1–E33 were measured for rev-0…rev-2 and still hold. rev-3 adds E34–E42.
+E1–E33 were measured for rev-0…rev-2 and still hold; rev-3 added E34–E42 and rev-4 added E43–E47. The index is **E1–E47**, contiguous, and is closed for this amendment.
 
 | # | Observation | Consequence |
 |---|---|---|
@@ -464,7 +464,7 @@ E1–E33 were measured for rev-0…rev-2 and still hold. rev-3 adds E34–E42.
 
 ---
 
-## Decision (Amendment 1 rev-5)
+## Decision (Amendment 1 rev-6 — final, D8–D19)
 
 ### D8. The check set is eleven checks, V0–V10; no identifier changes
 
@@ -1158,7 +1158,7 @@ fail closed if it cannot be read.
 
 ---
 
-## Amendment 1 rev-5 — the `replace-in-file` predicate (diagnostic use only)
+## Amendment 1 rev-6 — the `replace-in-file` predicate (diagnostic use only)
 
 Under D13 this predicate does not decide presence; it localises diagnostics.
 For content `c`, search `S`, replacement `R`:
@@ -1181,7 +1181,7 @@ For content `c`, search `S`, replacement `R`:
 `ensure-directory` ⇒ the path exists and is a directory; unknown type ⇒
 unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
 
-## Amendment 1 rev-5 — alternatives considered and rejected
+## Amendment 1 rev-6 — alternatives considered and rejected
 
 1. **HEAD-only post-state predicates (rev-0)** — false-reds every landed
    `write-file` feature after any later edit; V7 aliases V8.
@@ -1276,7 +1276,7 @@ unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
     can inspect its output, so the promise is unkeepable. D19 splits the
     contract by invocation mode instead.
 
-## Amendment 1 rev-5 — consequences
+## Amendment 1 rev-6 — consequences
 
 **Positive**
 
@@ -1313,7 +1313,7 @@ unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
   no new artifact, no store schema change, and `land`'s **successful** path is
   byte-unchanged.
 
-## Amendment 1 rev-5 — references (anchors validated 2026-08-12 at `4c632b6`)
+## Amendment 1 rev-6 — references (anchors validated 2026-08-12 at `cbf5fcf`)
 
 **Contract documents**
 
