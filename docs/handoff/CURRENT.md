@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-2 remains blocked by land's post-record discovery and
-quoted patch-header parsing in refresh. Rev-3 is dispatched.
+v0.15.1 Wave A rev-3 (GitHub issue #7) closes both rev-2 HIGH findings.
+Validated and pushed. Awaiting review.
 
 ## Active Task
 
@@ -13,129 +13,103 @@ quoted patch-header parsing in refresh. Rev-3 is dispatched.
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and land
   planning.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
-- **Rev-2 dispatch HEAD**: `79a6c2b`
+- **Rev-3 dispatch HEAD**: `3f5363c`
 - **Target release**: v0.15.1
 
-## Rev-1 finding closures
+## Rev-2 finding closures
 
-### F1 (HIGH) — newline fallback intrinsically ambiguous — CLOSED
+### F1 (HIGH) — land discovery transaction — CLOSED
 
-The fallback is **removed**, not tightened. The reviewer's counter-example
-is exact: a worktree path containing a newline whose continuation is
-shaped like a valid attribute (`locked x`, `bare`, `HEAD <sha>`) parses
-as a well-formed record, so structural validation can never distinguish
-it and the worktree escapes the filter.
+`runLand` now discovers **once**, at entry, immediately after the
+dependency gate and **before** `snapshotMetadataFiles` and the embedded
+`record`. The resulting prefix set is immutable for the rest of the
+command and is threaded through `computePathSet` and `dirtyPaths`, both
+of which lost their own discovery calls. No `git worktree list` runs
+after the embedded record begins.
 
-`listRegisteredWorktreePaths` now runs `git worktree list --porcelain -z`
-and nothing else. Deleted from production: `parseWorktreeListLegacy`,
-`decodeLegacyWorktreePath`, `unquoteCStyle`, `legacyAmbiguityError`,
-`worktreeAttrKeys`, `isUnknownSwitchError`. No quarantined copy was kept
-— there was no tested reason to keep one.
+`runLandDryRun` follows the same shape: one discovery at entry, threaded
+through the path-set and dirty-path computations.
 
-### F2 (HIGH) — bare `usage:` accepted as proof `-z` is unsupported — CLOSED
+The embedded `record` keeps its own fail-closed discovery — that is its
+own transaction — but once it succeeds, land's planning never asks Git
+again, so a discovery failure can no longer leave record's artifacts
+behind while land refuses.
 
-Moot by construction: stderr is no longer classified at all. Every
-failure — unknown switch, usage error, broken repository, missing git —
-returns the wrapped `ErrNestedWorktreeDiscovery` with guidance naming
-the Git 2.36 requirement and stating that tpatch will not fall back.
+**Status-notes reorder.** `status.json:notes` used to be written before
+`computePathSet` specifically so the freshly dirty `status.json` would be
+swept up by the slug-prefix branch. That made every later refusal —
+malformed patch, extras, dirty-path classification — leave a
+`landed at ...` note behind. The path set now names
+`.tpatch/features/<slug>/status.json` explicitly (`includeStatus`), so
+the write moved below the last refusal. Both the real-land and dry-run
+paths pass `includeStatus=true`, keeping the dry-run plan faithful to
+what land will actually stage.
 
-### F3 (HIGH) — reconcile refresh bypassed the exclusions — CLOSED
+Verification is calibrated, not hardcoded:
+`measureRecordDiscoveryCalls` runs a standalone `record` on an identical
+fixture under a counting `git` wrapper, then the land test configures
+the wrapper to fail after `1 + recordCalls` invocations. Land must
+**succeed** — only possible if it makes zero post-record discovery calls
+— and the observed total must equal `1 + recordCalls` exactly.
 
-`DiffFromCommitForPaths` now:
+### F2 (HIGH) — strict `diff --git` header parsing — CLOSED
 
-- discovers nested prefixes/excludes **first**, before the temp index is
-  created or any `git add -N` runs, so a discovery failure cannot leave a
-  half-mutated temp index (and, at the caller layer, cannot happen after
-  an artifact write);
-- filters the caller's paths before the intent-to-add pass;
-- appends `:(exclude,literal)` pathspecs to the diff so index residue
-  cannot re-admit the worktree;
-- returns an **empty diff** when every caller path was a nested worktree,
-  never a broadened full-tree diff;
-- with an empty caller list, still produces the full diff minus nested
-  worktrees.
+New `gitutil.FilesInPatchStrict` (`internal/gitutil/patch_paths_strict.go`).
+It resolves each entry's b-side path from the `diff --git` operand when
+that is unambiguous (both operands quoted, or both unquoted with
+byte-identical payloads), and otherwise from the unambiguous
+corroborating headers `rename to` / `copy to` / `+++` / `---`. Quoted
+fields are decoded with `strconv.Unquote`, which accepts exactly the
+escape set Git emits (`\a \b \f \n \r \t \v \" \\` and three-digit
+octal); `splitGitDiffPaths` is reused for field splitting, as directed.
+A header that cannot be resolved returns an error and a **nil** slice —
+it can never degrade to an empty scope, which is what `git diff` reads
+as "everything".
 
-The global `--literal-pathspecs` flag on the diff is replaced by the
-per-pathspec `:(literal)` form — identical semantics for caller paths
-(pinned by `TestDiffFromCommitForPathsKeepsLiteralPathSemantics` using a
-`weird[1]*name.txt` fixture) while leaving pathspec magic enabled so the
-excludes are honoured. Linked-worktree effective-index behavior is
-unchanged and pinned by two tests.
+Wired into the two write-scope surfaces:
 
-`RefreshAfterAccept` derives its touched-path set through the new
-`gitutil.FilterPathsExcludingNestedWorktrees`, and that one filtered list
-feeds the regenerated diff, the numbered `NNN-reconcile.patch` **and**
-`Capture.Pathspecs` in the generation metadata — the metadata previously
-re-derived from the unfiltered original patch. When every original path
-was a nested worktree it regenerates nothing rather than widening scope.
+- `workflow.RefreshAfterAccept` — strict-parses `originalPatch` **before**
+  discovery and before any write; then filters nested worktrees; if a
+  non-empty touched set filters down to empty it regenerates nothing
+  rather than widening to a full-tree diff.
+- `cli.computePathSet` — strict-parses the canonical patch; a malformed
+  patch refuses before `status.json`, the index or HEAD is touched.
+  `runLandDryRun`'s "expected files in patch" count uses it too.
 
-### F4 (HIGH) — writes before a later discovery failure — CLOSED
-
-`runApplyDone`: the canonical patch and the diffstat are both computed
-before the first write. The non-reapply branch also defers its
-`could not capture patch` warning until after discovery, so the message
-order on the success path is unchanged. The reapply branch computes the
-diffstat before falling through to the shared write.
-
-`record`: the diffstat is hoisted above `WriteArtifact(post-apply.patch)`
-and the numbered snapshot. `record.md` consumes the same hoisted value.
-
-Both route through the new `captureDiffStatFailClosed`, which preserves
-the historical tolerance (a transient Git failure yields an empty
-diffstat and the artifact is skipped) while surfacing the discovery
-class.
-
-**Discovery-count reduction.** Investigating `cycle` showed
-`CapturePatchScoped` was itself discovering twice (once for excludes,
-once inside `listUntrackedFiles`). Each capture helper now discovers
-exactly once and threads both products through
-(`listUntrackedFilesWithPrefixes`, `stagedNameOnly`/`unstagedNameOnly`
-taking excludes, `untrackedFiltered` taking prefixes). A single command
-can no longer observe two different answers, and the failure window
-before the first write is minimal.
-
-`cycle` inspected: its only discovery-dependent read is the [6/6]
-capture, and every record-phase write follows it. Proven by the seam
-test — a discovery failure leaves no `post-apply.patch`,
-`post-apply-diff.txt` or numbered patch, and does not advance the feature
-to `applied`. The earlier phases' analysis/spec/exploration/recipe
-artifacts are not discovery-dependent.
-
-`land` inspected: it delegates capture to the embedded `record` (now
-transactional) and performs its own discovery in `computePathSet` /
-`dirtyPaths`, both strictly before `stagePathSet` and the commit. A late
-discovery failure therefore leaves the index and HEAD untouched; pinned
-by `TestNestedWorktree_SecondDiscoveryFailure_LandDoesNotStageOrCommit`.
+**Fail-soft callers audited and documented** in `FilesInPatch`'s doc
+comment. The only two remaining are advisory:
+`workflow.touchedPathsFromPostApplyPatch` (D10 migration-hint
+suppression, already documented fail-soft) and
+`AppendPatchGenerationForFeature` (the `touched` audit field). Neither
+drives a write, a diff scope or a staging decision, so a dropped quoted
+path understates a hint or an audit list rather than widening what
+tpatch touches. `PathsAffectedByPatch` is unchanged.
 
 ## Files Changed
 
 Created this rev:
 
-- `internal/cli/nested_worktree_guard.go` — CLI-side GH #7 guards
-  (`captureDiffStatFailClosed` plus the two empty-capture-diagnostic
-  helpers moved out of `record_capture_modes.go`).
+- `internal/gitutil/patch_paths_strict.go`
+- `internal/gitutil/patch_paths_strict_test.go`
 
 Modified this rev:
 
-- `internal/gitutil/worktrees.go`
-- `internal/gitutil/capture_modes.go`
-- `internal/gitutil/gitutil.go`
-- `internal/gitutil/worktrees_test.go`
-- `internal/cli/cobra.go`
-- `internal/cli/record_capture_modes.go`
+- `internal/gitutil/gitutil.go` (FilesInPatch doc/audit only)
+- `internal/cli/land.go`
 - `internal/cli/nested_worktree_test.go`
 - `internal/workflow/refresh.go`
 - `internal/workflow/refresh_test.go`
 - `CHANGELOG.md`
-- `SPEC.md`
-- `docs/record.md`
+- `docs/land.md`
 - `docs/handoff/CURRENT.md`
 
-Unchanged this rev: `internal/cli/land.go`, `internal/cli/phase2.go`,
-`docs/land.md`.
+Unchanged this rev: `internal/gitutil/worktrees.go`,
+`internal/gitutil/capture_modes.go`, `internal/cli/cobra.go`,
+`internal/cli/nested_worktree_guard.go`, `internal/cli/phase2.go`,
+`SPEC.md`, `docs/record.md`.
 
 Deliberately NOT folded: the Makefile nested-repo sentinel LOW is
 separately tracked.
@@ -149,125 +123,101 @@ separately tracked.
 - `go test -race -count=1` on `./internal/gitutil/`, `./internal/workflow/`
   and `./internal/cli/` — ok.
 - Assets parity (`go test ./assets/`) — ok; no asset touched.
-- 82 passing assertions across the GH #7 test set.
+- 104 passing assertions across the GH #7 test set.
 
-New coverage this rev:
+New coverage this rev — **all quoted-header fixtures are produced by
+real Git**, not hand-written strings:
 
-- `TestListRegisteredWorktreePaths_NoLegacyFallback` — the failure text
-  names `--porcelain -z`, `2.36` and `will not fall back`, and is in the
-  fail-closed class.
-- `TestNoLegacyPorcelainParserInProduction` — grep-level guard: the
-  production source contains no `parseWorktreeListLegacy`,
-  `isUnknownSwitchError`, `unquoteCStyle` or plain `"--porcelain")`
-  call, and every `worktree list` argv carries `-z`.
-- `TestNestedWorktreePrefixes_NoZRejectionFailsClosedWithoutRetry` — a
-  `git` wrapper rejects `-z` like pre-2.36 Git **and logs every
-  `worktree list` invocation**; exactly one invocation is recorded, it
-  carries `-z`, and `NestedWorktreePrefixes`, `CapturePatchScoped`,
-  `CaptureDiffStat`, `DiffFromCommitForPaths` and
-  `FilterPathsExcludingNestedWorktrees` all fail closed with no plain
-  `--porcelain` retry.
-- `TestDiffFromCommitForPathsExcludesNestedWorktree` /
-  `...WorktreeOnlyScopeReturnsEmpty` /
-  `...EmptyScopeStillExcludesNestedWorktree` /
-  `...PreservesLinkedWorktreeIndexAfterFiltering` /
-  `...KeepsLiteralPathSemantics`.
-- `TestRefreshAfterAcceptExcludesStaleNestedWorktreePaths` — a stale
-  mode-160000 entry in the ORIGINAL patch is absent from the refreshed
-  canonical patch, the numbered reconcile patch and
-  `patch-generations.json`, while `feature.txt` / `README.md` remain.
-- `TestRefreshAfterAcceptWorktreeOnlyOriginalPatchRegeneratesNothing` —
-  an unrelated real change is NOT swept in by a broadened diff.
-- `TestRefreshAfterAcceptFailsClosedBeforeMutation` — feature directory
-  byte-identical across the refusal.
-- `TestNestedWorktree_SecondDiscoveryFailure_{ApplyDoneNoMutation,
-  RecordNoMutation,LandDoesNotStageOrCommit}` — an Nth-call-failing
-  `git` wrapper (file-backed counter, so it survives the many
-  short-lived `git` processes one tpatch command spawns) proves
-  first-success/second-failure leaves the feature directory
-  byte-identical and `status.json` unadvanced, across the numbered
-  snapshot branch, the same-feature duplicate branch and the scoped
-  branch, plus recovery in each case.
-- `TestNestedWorktree_CycleSingleDiscovery` — no record-phase artifact,
-  no state advance on failure; one successful discovery completes the
-  run.
+- `TestFilesInPatchStrictRealGitQuotedHeaders` — one real
+  `git diff --cached -M --binary` covering `sp ace.txt`,
+  `tab\tin.txt`, `new\nline.txt`, `qu"ote.txt`, `back\slash.md`,
+  `café.txt` (octal), a binary entry with no `---`/`+++`, a rename, a
+  deletion and a mode-only change. It also asserts that `FilesInPatch`
+  demonstrably MISSES the quoted entries, so the strict/fail-soft split
+  stays justified.
+- `TestFilesInPatchStrictQuotedGitlinkOnlyPatch` — a real
+  `mode 160000` entry for a newline-named worktree resolves to exactly
+  that one path.
+- `TestFilesInPatchStrictRefusesMalformedHeaders` — unterminated quote,
+  single operand, three operands, bad escape, empty operand,
+  unresolvable rename; each returns an error and a nil scope.
+- `TestFilesInPatchStrictEmptyPatch` (empty is not malformed) and
+  `TestFilesInPatchStrictAgreesWithFailSoftOnPlainPatches`.
+- `TestRefreshAfterAcceptQuotedWorktreeOnlyPatchDoesNotCaptureUnrelatedDirt`
+  — the F2 regression end to end: a real quoted worktree-only patch plus
+  unrelated dirt (`README.md` edit + `stray.txt`) regenerates NOTHING;
+  the numbered reconcile patch and generation metadata are equally clean.
+- `TestRefreshAfterAcceptQuotedWorktreePlusIntendedPathKeepsOnlyIntended`.
+- `TestRefreshAfterAcceptMalformedHeaderFailsBeforeWrites` — feature
+  directory byte-identical.
+- `TestNestedWorktree_Land_DiscoversOnceBeforeEmbeddedRecord` — the
+  calibrated invocation-budget test described above.
+- `TestNestedWorktree_Land_EntryDiscoveryFailureLeavesEverythingUntouched`
+  — feature dir, HEAD and `git status -z` all unchanged.
+- `TestNestedWorktree_Land_NoRecordAndDryRunUseCachedPrefixes` — exactly
+  one discovery each.
+- `TestNestedWorktree_Land_StaleQuotedGitlinkPatchFilteredFromPlan` —
+  a real quoted gitlink entry in the canonical artifact is parsed,
+  filtered, and absent from the plan while the intended path remains.
+- `TestNestedWorktree_Land_MalformedPatchFailsBeforeMutation` — refuses
+  before `status.json`, index or HEAD change.
+- `TestNestedWorktree_Land_ExtrasSemanticsUnchangedAfterReorder` —
+  ordinary extras still refuse naming only themselves, the refusal does
+  not write land's `landed at` note, `--allow-extra-paths` still stages
+  the extra, `status.json` is still staged and the tree is clean after.
 
-Retained unchanged: the NUL exotic-name coverage
-(`TestParseWorktreeListNUL_PreservesPathBytes`,
-`TestNestedWorktreePrefixes_ExoticNamesRealRepo`,
-`TestNestedWorktreePrefixes_NewlineNameRealRepo`) and the actionable
-all-filtered record diagnostic suite.
+Preserved unchanged: `PathsAffectedByPatch` behavior and its tests, the
+linked-worktree effective-index tests
+(`TestDiffFromCommitForPathsUsesLinkedWorktreeIndex`,
+`...PreservesLinkedWorktreeIndexAfterFiltering`), the NUL exotic-name
+suite and the actionable all-filtered record diagnostic suite.
 
 ## Reproduction + control matrix (built binary)
 
 One scratch repo with three nested worktrees (`agent review`,
-`agent trail ` with a trailing space, and a newline-named one) plus every
-over-filtering control:
+`agent trail `, and a newline-named one) plus every over-filtering
+control:
 
 | Path | Kind | Result |
 |------|------|--------|
 | `.claude/worktrees/agent review` | nested worktree | absent from patch, diffstat, land plan, commit |
 | `.claude/worktrees/agent trail ` | nested worktree, trailing space | absent from all four |
 | `.claude/worktrees/new\nline` | nested worktree, embedded newline | absent from all four |
-| `.claude/worktrees/agent-other/f.txt` | ordinary dir, prefix-boundary sibling | captured and landed |
+| `.claude/worktrees/agent-other/f.txt` | ordinary dir, prefix sibling | captured and landed |
 | `vendor/plainrepo` | unregistered nested Git repo | captured and landed as a gitlink (correctly NOT filtered) |
 | `../extwt` | worktree outside the root | never referenced |
-| `unrelated.txt` | ordinary dirty path | refused, then staged under `--allow-extra-paths` |
+| `unrelated.txt` | ordinary dirty path | refused naming only itself, then staged under `--allow-extra-paths` |
 
-Post-land `git status` lists only the three worktrees as untracked and
-the carved-out `.tpatch/FEATURES.md`. The actionable all-filtered
-`record --files` diagnostic still fires for the space-bearing and the
-newline-bearing worktree names.
+Post-land `git status` lists only the three worktrees as untracked plus
+the carved-out `.tpatch/FEATURES.md`; `status.json` carries
+`"notes": "landed at ..."` and is committed, so the tree is clean w.r.t.
+feature scope.
 
 All scratch repos, worktrees and build artifacts were removed;
 `git worktree list` shows only the primary worktree.
 
 ## Reviewer focus
 
-1. `DiffFromCommitForPaths` dropped the global `--literal-pathspecs` in
-   favour of `:(literal)` per pathspec. Confirm this is semantically
-   identical for every caller (`RefreshAfterAccept` file lists,
-   `validateReapplyMaterialization`'s `PathsAffectedByPatch`), and note
-   the `weird[1]*name.txt` regression that pins it.
-2. The record diffstat is now captured before the artifact writes, so it
-   no longer observes tpatch's own writes. In a repository where
-   `.tpatch/features/<slug>/` is TRACKED, a re-record's
-   `post-apply-diff.txt` no longer lists the artifact rewrite it is about
-   to perform. This is an intentional consequence of the F4 reorder; no
-   test asserted the old bytes.
-3. Capture helpers now discover once and thread prefixes/excludes.
-   Confirm no path lost its filter in the refactor —
-   `stagedNameOnly`/`unstagedNameOnly` take excludes, `untrackedFiltered`
-   takes prefixes, `StagedUnstagedOverlap` discovers once for all three.
-4. Known limitation (pre-existing, not a GH #7 regression): `--files`
-   `TrimSpace`s each comma-separated element, so a worktree whose name
-   has significant leading/trailing whitespace cannot be named through
-   `--files` and therefore does not trigger the actionable diagnostic.
-   Exclusion itself still works — the guard matches the real path bytes
-   from `ls-files`, not the flag text.
-5. `land`'s transactional boundary is "embedded record artifacts may
-   exist; index and HEAD are untouched". That is inherent to land
-   delegating to a complete `record` invocation.
-
-## Rev-2 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED.
-- Valid residuals:
-  1. Land's embedded record mutates feature artifacts/status before later
-     `computePathSet`/dirty-path discovery can fail.
-  2. `FilesInPatch` skips C-quoted newline paths; refresh can mistake a
-     stale worktree-only patch for empty scope and capture the full tree.
-- `tpatch_rev2_bin` and review scratch are absent after external cleanup.
-
-## Next Steps
-
-1. Cache land's nested-worktree discovery before embedded record and reuse it
-   for all later planning.
-2. Add strict Git diff-header parsing with C-quote decoding and fail-closed
-   refresh behavior.
-3. Add Nth-call land failure and quoted-newline stale-patch regressions.
-4. Run final dual review, then close #7 only after approval.
+1. `computePathSet` gained `nested []string` and `includeStatus bool`.
+   Confirm the dry-run passing `includeStatus=true` is the right call —
+   it makes the printed plan match what real land stages, at the cost of
+   listing `status.json` even in the rare case where it is not yet
+   dirty (it normally is, since `apply`/`record` write it).
+2. The status-notes write moved below `stagePathSet`'s precondition
+   checks but stays above `stagePathSet` itself. Confirm PRD §3.6
+   post-land cleanliness still holds — the end-to-end run above shows
+   `status.json` staged, committed and clean.
+3. `FilesInPatchStrict` precedence is: unambiguous `diff --git` operand,
+   then `rename to`/`copy to`, then `+++`, then `---`. Renames of
+   space-bearing unquoted paths rely on `rename to`; confirm that is
+   sound for `diff.renames=false` repos, where Git emits separate
+   delete/create entries that each resolve from the operand.
+4. `land --no-record` with a malformed pre-existing canonical patch is
+   the honest test of land's own strict parse; with the embedded record
+   the parse failure would be attributable to `record` instead. Both
+   paths are covered.
+5. Advisory `FilesInPatch` callers are documented in its doc comment
+   rather than converted. Confirm neither is a write-scope surface.
 
 ## Blockers
 
@@ -275,19 +225,18 @@ None.
 
 ## Context for Next Agent
 
-- `internal/gitutil/worktrees.go` is the single authority, and
-  `git worktree list --porcelain -z` is the single Git shape. Do not
-  reintroduce a newline-delimited reader: it cannot be made unambiguous.
-- Git 2.36+ is now a documented safety floor for this guard
-  (`SPEC.md` §9.4, `docs/record.md`, CHANGELOG).
+- `internal/gitutil/worktrees.go` is the single discovery authority;
+  `git worktree list --porcelain -z` is the single Git shape (Git 2.36+).
+- `FilesInPatchStrict` is mandatory for any NEW code that derives a
+  write scope, a diff scope or a staging decision from a patch.
+  `FilesInPatch` is advisory-only and its two remaining callers are
+  named in its doc comment.
+- Land's contract is now: discover once at entry, thread the set, write
+  nothing until every refusal has passed.
 - Byte exactness remains load-bearing: no `TrimSpace`, no hand-rolled
   dequote on any path compared against a worktree prefix.
-- Any new discovery-dependent read must complete before its command's
-  first artifact write, and should reuse an already-discovered prefix
-  set rather than discovering again.
 - `PreflightReconcile` is still deliberately unfiltered: it is a hygiene
-  gate, not a capture surface, and a nested worktree surfacing there
-  produces a refusal, which is the safe direction.
+  gate, not a capture surface.
 - Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

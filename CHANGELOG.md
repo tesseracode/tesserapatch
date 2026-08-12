@@ -89,6 +89,33 @@ All notable changes to tpatch are recorded here.
   threads the result through, so a single command cannot observe two
   different answers.
 
+  `land` extends the same contract across the embedded `record`: it
+  discovers once at entry, before the metadata snapshot and before
+  `record` runs, and threads that immutable prefix set through every
+  later path-set and dirty-path computation, so no `git worktree list`
+  runs after `record` begins. A discovery failure therefore refuses
+  before `record` can write anything. `land`'s own `status.json:notes`
+  write also moved below the last refusal (the path set now names
+  `status.json` explicitly instead of relying on it being pre-dirtied),
+  so a malformed-patch, extras or classification refusal no longer
+  leaves a `landed at ...` note behind.
+
+  Patch-derived write scopes are parsed strictly. `FilesInPatch` splits
+  each `diff --git` header on the first ` b/` and silently skips
+  anything it cannot split — which is every path Git C-quotes (a space
+  plus a control byte, a quote, a backslash, or a newline). An empty
+  scope means "everything" to `git diff`, so a stale worktree-only patch
+  with a quoted header broadened the reconcile refresh to unrelated
+  working-tree dirt. The new `gitutil.FilesInPatchStrict` decodes Git's
+  C-quoting (spaces, tabs, newlines, octal escapes, quotes,
+  backslashes) and handles renames, copies, mode-only, binary, new and
+  deleted entries; a header it cannot resolve returns an error instead
+  of an empty scope. `workflow.RefreshAfterAccept` and `land`'s path-set
+  builder use it and refuse on malformed input before any write.
+  `FilesInPatch` remains for the two advisory callers — the D10
+  migration hint and the `touched` audit field — neither of which drives
+  a write, a diff scope or a staging decision.
+
   Unchanged by design: ordinary directories (including prefix-boundary
   siblings such as `agent-other` next to `agent`, or `agent` next to
   `agent `), intentionally tracked gitlinks and submodules, unregistered
