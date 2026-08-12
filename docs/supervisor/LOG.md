@@ -1,3 +1,39 @@
+## Wave Close — v0.15.1 Wave A / GH #7 — 2026-08-12
+
+**WAVE_BASE**: `5d15fcf`
+**Final production commit**: `24e92e0`
+**Pre-close handoff**: `54580d5`
+
+### Final Verdict: ACCEPTED
+
+- Internal rev-9: APPROVED WITH NOTES (scratch cleanup only).
+- External/original reproducer rev-9: APPROVED.
+- Scratch artifacts were absent at final external confirmation.
+
+### Scope Closed
+
+- Nested registered worktrees excluded from apply/record capture, diffstat,
+  reconcile refresh, land planning/staging/commit and stale patches.
+- Exact NUL pathname handling and Git 2.36 fail-closed floor.
+- Strict Git patch-header grammar for write-scope callers.
+- Transactional discovery ordering.
+- Isolated alternate-index staging, nested-path audits, operator divergence
+  protection, durable publication, crash journal and evidence-based recovery.
+- Successful hook contamination rolled back with CAS; journal lock paths
+  derived only from validated effective index.
+
+### Verification
+
+- Original issue reproduced pre-fix and absent post-fix.
+- Full uncached/race/vet/build and cross-platform test compilation.
+- Rule 18, Side Research md5 and guarded WIP preserved.
+
+### Action Taken
+
+CURRENT and ROADMAP flipped terminal, HISTORY archived, Wave A close committed
+and pushed, `make wave-close-check WAVE_BASE=5d15fcf` dispatched, then GH #7
+closed before Wave B.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-8 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)

@@ -2,12 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: ACCEPTED
 
-v0.15.1 Wave A / GH #7 rev-9 is implemented, validated and pushed. Both
-rev-8 HIGH findings (successful-hook contamination, journal-controlled
-lock paths) are closed, and the Windows test-portability finding is
-closed by build-tag separation rather than a runtime skip.
+v0.15.1 Wave A / GH #7 is accepted. Internal returned APPROVED WITH NOTES
+(scratch cleanup only); external/original reproducer returned APPROVED and
+confirmed cleanup.
 
 ## Active Task
 
@@ -18,7 +17,7 @@ closed by build-tag separation rather than a runtime skip.
   branch back on contamination; remove every caller-controlled filesystem
   path from the crash-recovery journal; make the FIFO test compile on
   Windows.
-- **Status**: Review
+- **Status**: Complete
 - **WAVE_BASE**: `5d15fcf`
 
 ## Session Summary
@@ -167,10 +166,9 @@ worktrees followed by `git worktree prune`; the repository's own
 
 ## Next Steps
 
-1. Reviewer pass on rev-9.
-2. On APPROVED: run the Wave-Close Checklist, flip `ROADMAP.md`, archive
-   this handoff into `HISTORY.md`, and tag v0.15.1 (tagging is explicitly
-   out of scope for the implementer).
+1. Close GitHub issue #7 after the terminal Wave A gate.
+2. Record a fresh Wave B WAVE_BASE.
+3. Define GH #8 post-land verify semantics before implementation.
 
 ## Blockers
 

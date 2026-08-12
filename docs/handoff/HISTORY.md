@@ -1,3 +1,41 @@
+# 2026-08-12 — v0.15.1 Wave A — GH #7 nested linked-worktree exclusion — ACCEPTED
+
+**WAVE_BASE**: `5d15fcf`
+**Final production commit**: `24e92e0`
+**Pre-close handoff**: `54580d5`
+**Range**: `5d15fcf..54580d5` (32 commits)
+**Issue**: GH #7
+
+**Scope**:
+- Shared NUL-porcelain linked-worktree discovery and exact path filtering.
+- Apply/record/diffstat/reconcile-refresh/land exclusions.
+- Strict Git patch path parsing for write scopes.
+- Fail-closed Git 2.36 safety floor.
+- Isolated index staging with staged-path audits.
+- Live-index divergence protection, durable publish and crash recovery.
+- Hook contamination CAS rollback and strict journal path authority.
+
+**Review arc**:
+
+| Revision | Internal | External | Result |
+|----------|----------|----------|--------|
+| rev-0–rev-8 | NEEDS REVISION | APPROVED / APPROVED WITH NOTES | sequential hardening |
+| rev-9 | **APPROVED WITH NOTES** | **APPROVED** | **ACCEPTED** |
+
+**Pattern catch**: excluding nested worktrees exposed every boundary where Git
+treats nested repositories as opaque gitlinks: capture, diffstat, refresh,
+land path planning, staging, hooks and crash recovery. The final solution is
+an end-to-end safety protocol rather than a single list filter.
+
+**Verification**: full/race/vet/build clean; original and exotic-path
+reproductions pass; Rule 18 and Side Research md5
+`b385fe622db9926f48861105239f113e` preserved; no tag (v0.15.1 batch continues
+with GH #8).
+
+**Next**: Wave B — define GH #8 post-land verify semantics.
+
+---
+
 # 2026-08-11 — Cluster H′ — v0.15.0 typed feature resources + capture adapters — SHIPPED
 
 **WAVE_BASE**: `46c984b`

@@ -691,6 +691,11 @@ publish, and commits directly from the durable retained index.
 REVISION. Rev-9 rolls back successful hook-contaminated commits, derives lock
 paths solely from the effective index, and restores Windows test portability.
 
+**Wave A rev-9** (`24e92e0`): internal APPROVED WITH NOTES, external
+APPROVED. GH #7 accepted; original reproduction and all adversarial path,
+capture, land, index-transaction and crash-recovery scenarios closed. Wave A
+terminal range: `5d15fcf..54580d5`.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
