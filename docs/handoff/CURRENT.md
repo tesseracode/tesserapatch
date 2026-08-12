@@ -2,205 +2,220 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-0 fixes the reported scenarios but remains blocked by
-pathname-byte parsing and diffstat exclusions. Rev-1 is dispatched.
+v0.15.1 Wave A rev-1 (GitHub issue #7) closes all three rev-0 residuals
+plus the test note, is validated and pushed. Awaiting review.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave A / GH #7 rev-1
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record capture and land planning.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
-- **Dispatch HEAD**: `3c55e43`
+- **Rev-1 dispatch HEAD**: `556f9fa`
 - **Target release**: v0.15.1
 
-## Session Summary
+## Rev-0 residual closures
 
-Implemented the bounded fix direction recorded on the issue: one shared
-nested-linked-worktree discovery/filter helper, reused by every untracked
-capture surface and by `land`'s dirty-path / staging-plan classification.
+### R1 (HIGH) — NUL porcelain path bytes — CLOSED
 
-New file `internal/gitutil/worktrees.go` is the single authority:
+`normalizeRepoRelPath` applied `strings.TrimSpace`. For a worktree
+directory named `wt/trailing space `, discovery derived the prefix
+`wt/trailing space` while `git ls-files --others` reported
+`wt/trailing space /`, which `path.Clean`s to `wt/trailing space ` — the
+two no longer matched, so the worktree flowed straight back into
+capture as a `mode 160000` gitlink.
 
-- `NestedWorktreePrefixes(repoRoot)` — discovery. Prefers the
-  NUL-delimited `git worktree list --porcelain -z` shape (unambiguous for
-  paths containing any byte except NUL) and transparently falls back to
-  the newline-delimited `--porcelain` form when `-z` is rejected, so the
-  repository's Git floor is not raised past the pre-existing one. The
-  path is everything after the `worktree ` key and is never split on
-  whitespace, so spaces and other special characters parse correctly.
-- `PathUnderNestedWorktree(path, prefixes)` — the one path-membership
-  primitive. Segment-boundary exact: `agent` never matches `agent-other`;
-  a nested worktree root and every descendant match. Trailing `/` (which
-  both `git ls-files --others` and `git status --porcelain` emit for
-  un-recursed directories) and a leading `./` normalize away.
-- `FilterNestedWorktreePaths`, `nestedWorktreeCaptureFilters` (renders
-  `:(exclude,literal)` diff pathspecs — `literal` is required because a
-  worktree directory name may contain glob metacharacters), and
-  `NestedWorktreeDiscoveryError` / `ErrNestedWorktreeDiscovery` for the
-  fail-closed class.
+All whitespace normalization is removed from the path pipeline:
 
-Classification rules: the target repository root itself is never a
-prefix; worktrees resolving outside the root are dropped; paths are
-compared after `filepath.EvalSymlinks` because Git prints physical paths
-(this is exactly the `/var` → `/private/var` shape `t.TempDir()`
-produces on macOS).
+- `parseWorktreeListNUL` takes the value after the exact `worktree `
+  key verbatim; the emptiness guard is exact equality, not `TrimSpace`;
+- `nestedWorktreePrefixes` skips only exactly-empty records;
+- `normalizeRepoRelPath` performs `ToSlash` + `path.Clean` only.
 
-Wiring:
+Absolute canonicalization (`filepath.Abs`, `EvalSymlinks`, the
+missing-ancestor fallback) and `:(exclude,literal)` pathspec rendering
+already preserved bytes and are unchanged.
 
-- `internal/gitutil/capture_modes.go` — `listUntrackedFiles` subtracts
-  nested worktrees before any caller can hand a path to
-  `git add --intent-to-add`. This single choke point covers default and
-  manual Path B capture (`CapturePatchScoped`), `--all`, `--unstaged`
-  (`CaptureUnstagedPatch`), and the overlap diagnostics
-  (`untrackedFiltered` → `StagedUnstagedOverlap`). Subtraction is applied
-  regardless of pathspecs, so `record --files <worktree>` cannot re-admit
-  it. `CaptureStagedPatch`, `CaptureUnstagedPatch`, `stagedNameOnly` and
-  `unstagedNameOnly` additionally append `:(exclude,literal)` pathspecs
-  to their diffs as defense in depth against index residue.
-- `internal/gitutil/gitutil.go` — `CapturePatchScoped` appends the same
-  exclude pathspecs and fails closed on discovery error.
-- `internal/cli/land.go` — `dirtyPaths` subtracts nested worktrees (so
-  they never reach staging, the outside-path/refusal list, or the
-  `--allow-extra-paths` sweep) and now fails closed; `computePathSet`
-  additionally filters `FilesInPatch`, so a stale pre-fix
-  `post-apply.patch` carrying a `mode 160000` gitlink cannot cause a
-  broad/default `land` to stage the worktree. `computePathSet` returns an
-  error; both the real-land and `--dry-run` call sites propagate it.
-- `internal/cli/cobra.go` (`runApplyDone`) and `internal/cli/phase2.go`
-  (`cycle` record step) hard-fail on `ErrNestedWorktreeDiscovery` instead
-  of degrading to their historical warning-and-continue path.
+**Proof**: temporarily restoring the single `TrimSpace` call makes
+`TestNestedWorktreePrefixes_ExoticNamesRealRepo` fail with
+`new file mode 160000` entries for `wt/trailing space ` and
+`wt/trailing tab\t`; removing it again makes the test pass. The
+regression is therefore pinned, not merely asserted.
 
-Recipe autogen needs no separate filter: it derives write-file ops from
-the captured patch, which no longer contains the worktree, so the
-directory read never happens. This is asserted, not assumed.
+### R2 (HIGH) — legacy newline fallback — CLOSED
 
-No ADR was required — the fix reuses the locked capture/land
-architecture and introduces no new decision.
+Empirically, Git does **not** C-quote in `worktree list --porcelain`
+without `-z`: a worktree at `wt/new\nline` is emitted as a raw embedded
+newline, which is exactly why `-z` was added in Git 2.36. The rev-0
+fallback split on `\n` and took whatever followed `worktree `, so such a
+path was silently truncated.
 
-### Rev-0 review adjudication
+`parseWorktreeListLegacy` is now strict:
 
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED.
-- Valid residuals:
-  1. NUL porcelain parsing trims valid trailing spaces/tabs from worktree
-     paths, allowing capture.
-  2. Legacy newline fallback can ambiguously split unusual paths and must
-     dequote/validate or fail closed.
-  3. Diffstat generation lacks nested-worktree pathspec exclusions, so stale
-     intent-to-add gitlinks can leak into `post-apply-diff.txt`.
-- Test note: add CLI-level fail-closed coverage for worktree discovery
-  failure.
+- a record starts at a `worktree ` line and ends at a blank line;
+- every other line must be a known attribute key (`HEAD`, `branch`,
+  `bare`, `detached`, `locked`, `prunable`), optionally with a value;
+  an unrecognised line is treated as the continuation of a
+  newline-bearing path and refused;
+- a value starting with `"` must be a well-formed, fully terminated Git
+  C-quoted string, decoded by `unquoteCStyle` (`\a \b \f \n \r \t \v
+  \" \\` and 1–3 digit octal). Malformed quoting is refused, never
+  taken literally;
+- an unquoted value is preserved byte-for-byte including trailing
+  spaces and tabs; `\r` is not stripped, since Git does not emit CRLF
+  here and a trailing `\r` is a legitimate path byte;
+- every refusal names the fix: upgrade to Git 2.36+ for
+  `git worktree list --porcelain -z`.
 
-## Current State
+Routing is also tightened. `-z` failure is classified by stderr: only
+an unknown-switch / usage error routes to the legacy shape. Any other
+`-z` failure (broken repository, not a work tree) fails closed instead
+of silently re-running through the weaker parser.
 
-Working. Reproduced the pre-fix behavior with a binary built from
-`3c55e43` and confirmed each symptom is gone with the fixed binary
-(see Test Results).
+### R3 (MEDIUM) — diffstat bypass — CLOSED
 
-Deliberately unchanged: ordinary directories (including prefix-boundary
-siblings), intentionally tracked gitlinks/submodules, unregistered nested
-Git repositories, linked worktrees registered outside the target root,
-running tpatch *from* a linked worktree (the existing effective-index
-behavior in `DiffFromCommitForPaths` is untouched and still covered by
-`TestDiffFromCommitForPathsUsesLinkedWorktreeIndex`), and
-`--allow-extra-paths` semantics for ordinary unrelated dirty paths.
+`CaptureDiffStatScoped` (and therefore `CaptureDiffStat`) now appends
+the same `:(exclude,literal)` nested-worktree pathspecs as the patch
+capture and fails closed on discovery error. Both CLI diffstat call
+sites propagate `ErrNestedWorktreeDiscovery` rather than swallowing it,
+which matters on the reapply branch of `apply --mode done` where the
+diffstat is the first Git read.
+
+Additionally, `land`'s `dirtyPaths` now reads
+`git status --porcelain -z`. The newline shape C-quotes any path
+containing a space, and the previous `TrimSpace` + `Trim(path, "\"")`
+dequote corrupted exactly the names the filter must match; the `-z`
+shape is unquoted and byte-exact. Rename/copy entries consume their
+extra origin field; the new path is still the staged one.
+
+### R4 (test note) — CLI fail-closed regression — CLOSED
+
+`installFailingWorktreeListGit` puts a `git` wrapper on `PATH` that
+fails only for `git worktree list` (with a `fatal:` error, so it
+exercises the genuine-failure branch rather than the legacy fallback)
+and execs the real git otherwise. Production code is untouched — the
+seam is the `git` executable. The same helper's returned `restore`
+proves recovery in the same test.
 
 ## Files Changed
 
-Created:
+Modified this rev:
 
 - `internal/gitutil/worktrees.go`
 - `internal/gitutil/worktrees_test.go`
-- `internal/cli/nested_worktree_test.go`
-
-Modified:
-
 - `internal/gitutil/capture_modes.go`
 - `internal/gitutil/gitutil.go`
 - `internal/cli/land.go`
 - `internal/cli/cobra.go`
-- `internal/cli/phase2.go`
+- `internal/cli/nested_worktree_test.go`
 - `CHANGELOG.md`
-- `SPEC.md`
 - `docs/land.md`
 - `docs/record.md`
 - `docs/handoff/CURRENT.md`
+
+Unchanged since rev-0: `internal/cli/phase2.go`, `SPEC.md`.
 
 ## Test Results
 
 - `gofmt -l .` — clean.
 - `go vet ./...` — clean.
 - `go build ./cmd/tpatch` — clean.
-- `go test -count=1 ./...` — all packages `ok` (assets, buildinfo, cli,
-  gitutil, provider, redact, rescap, safety, store, studyvalidator,
-  workflow, tests/integration).
-- `go test -race -count=1 ./internal/gitutil/ -run 'NestedWorktree|...'`
-  — ok. The changed code spawns Git subprocesses and holds no shared
-  mutable state, so no other package needed a race pass.
-- Assets parity (`go test ./assets/`) — ok. No asset was touched.
+- `go test -count=1 ./...` — all packages `ok`.
+- `go test -race -count=1 ./internal/gitutil/` — ok.
+- `go test -race -count=1 ./internal/cli/` — ok.
+- Assets parity (`go test ./assets/`) — ok; no asset touched.
+- 70 passing assertions across the GH #7 test set.
 
-New coverage:
+New or reworked coverage this rev:
 
-- `internal/gitutil/worktrees_test.go` — porcelain parsing in both the
-  NUL and newline shapes; paths with spaces; malformed/failing output
-  (empty output, no worktree records, empty path) errors rather than
-  reporting "no nested worktrees"; classification of primary root,
-  nested path, nested path with spaces and outside-root worktree;
-  prefix-boundary (`agent` vs `agent-other`); real-repo discovery with a
-  nested worktree, an external worktree, an unregistered nested repo and
-  a sibling directory; discovery from inside a linked worktree; fail-
-  closed outside a Git repository; untracked discovery (default and
-  explicitly-scoped-to-the-worktree); `CapturePatchScoped` in three
-  pathspec shapes plus a no-residue check; `CaptureUnstagedPatch` and
-  overlap diagnostics; tracked-gitlink non-regression.
-- `internal/cli/nested_worktree_test.go` — real `git worktree add`
-  fixtures for manual Path B `apply --mode done` (canonical + every
-  numbered patch); default `record` (patch, recipe, diffstat, and no
-  autogen directory-read warning); `record --all/--staged/--unstaged`;
-  scoped `record --files` in three shapes including one that names the
-  worktree explicitly and one that names its parent; `land --dry-run
-  --files` (absent from staging AND from outside-path, while an ordinary
-  unrelated dirty path still refuses); real `land` (not staged, not
-  committed, intended paths land, worktree survives); scoped refusal +
-  `--allow-extra-paths` + broad/default land; external registered
-  worktree and intentionally tracked gitlink non-regression.
+- `TestParseWorktreeListNUL_PreservesPathBytes` — trailing space,
+  trailing tab, leading space, internal tab + double spaces, embedded
+  newline, quote/backslash; every path asserted byte-for-byte.
+- `TestParseWorktreeListNUL_Malformed` — empty output, no worktree
+  records, empty path.
+- `TestParseWorktreeListLegacy_RawPathsPreserved` — raw trailing space,
+  trailing tab, internal tab, double spaces, with `locked`/`prunable`
+  attributes present.
+- `TestParseWorktreeListLegacy_DecodesCQuoting` — newline, tab,
+  trailing space, embedded quote, backslash, octal (`caf\303\251`),
+  bell/vtab.
+- `TestParseWorktreeListLegacy_RefusesAmbiguity` — raw newline
+  continuation, unterminated quote, unknown escape, escape at end of
+  input, bytes after the closing quote, octal out of range, attribute
+  before any record, second `worktree` line inside a record, empty
+  path, no records, empty output; each refusal asserted to carry
+  `ErrNestedWorktreeDiscovery`.
+- `TestParseWorktreeListLegacy_RefusalIsActionable` — refusal names
+  Git 2.36 and `--porcelain -z`.
+- `TestIsUnknownSwitchError` and
+  `TestListRegisteredWorktreePaths_NonUsageFailureFailsClosed` — `-z`
+  probe classification and the no-silent-downgrade rule.
+- `TestNestedWorktreePrefixes_ExoticNamesRealRepo` — real
+  `git worktree add` for four exotic names, four prefix-boundary
+  control directories, byte-exact prefixes, untracked discovery,
+  capture and diffstat.
+- `TestNestedWorktreePrefixes_NewlineNameRealRepo` — real newline-named
+  worktree (skips if the platform refuses the name; it does not on
+  macOS/APFS).
+- `TestNestedWorktreePrefixes_LegacyFallbackRealRepo` — a `git` wrapper
+  rejecting `-z` exactly like pre-2.36 Git; the legacy parser still
+  discovers and excludes a space-bearing nested worktree and
+  over-filters nothing.
+- `TestCaptureDiffStatExcludesStagedNestedWorktreeResidue` — staged
+  intent-to-add gitlink residue absent from patch, diffstat and scoped
+  diffstat.
+- `TestNestedWorktree_StagedGitlinkResidue_AbsentFromPatchAndDiffstat`
+  — the same at CLI level, for default and scoped record.
+- `TestNestedWorktree_DiscoveryFailure_{ApplyDone,Record,Land}RefusesThenRecovers`
+  — refusal + byte-identical feature dir + no HEAD advance + no
+  staging plan, then recovery on the same fixture.
+- `TestNestedWorktree_TrailingWhitespaceName_ExcludedEndToEnd` — a
+  `wt/agent ` worktree excluded from patch, diffstat and land plan
+  while the sibling `wt/agent` control stays in.
 
 Every fixture worktree is removed with `git worktree remove --force`
 plus a prune via `t.Cleanup`, which runs before `t.TempDir()` teardown.
-`git worktree list` in this repository shows only the primary worktree
-after the run.
 
-## Issue #7 reproduction — before and after
+## Issue #7 regression + over-filtering control matrix (built binary)
 
-Built a pre-fix binary from `3c55e43` (`git archive HEAD`) and a fixed
-binary from the working tree, then ran the issue's reproduction against
-a scratch repo with `git worktree add ".claude/worktrees/agent review"`:
+Single scratch repo carrying all controls at once:
 
-| Step | pre-fix `3c55e43` | fixed |
-|------|-------------------|-------|
-| `apply --mode done` canonical patch | `diff --git a/.claude/worktrees/agent review …` + `new file mode 160000` | only `README.md` + `internal/example.go` |
-| numbered `patches/001-apply.patch` | same gitlink entry | clean |
-| default `record` + recipe autogen | captures the gitlink; autogen reads the directory | clean, 2 ops, no warning |
-| `record --files …,'.claude/worktrees/agent review'` | n/a | clean |
-| `land --dry-run --files …` | `Outside path set: M .claude/worktrees/agent review/` | worktree absent; `unrelated.txt` still listed |
-| real `land` | n/a | worktree neither staged nor committed; `README.md` + `internal/example.go` land |
-| broad `land --allow-extra-paths` | n/a | worktree still absent from the commit |
+| Path | Kind | Result |
+|------|------|--------|
+| `.claude/worktrees/agent review` | nested linked worktree | excluded from patch, diffstat, land plan, commit |
+| `.claude/worktrees/agent trail ` | nested linked worktree, trailing space | excluded from patch, diffstat, land plan, commit |
+| `.claude/worktrees/agent-other/f.txt` | ordinary dir, prefix-boundary sibling | captured and landed |
+| `vendor/plainrepo` | unregistered nested Git repo | captured and landed as a gitlink (correctly NOT filtered) |
+| `../ext-wt` | linked worktree outside the root | never referenced |
+| `unrelated.txt` | ordinary dirty path | still refused, then staged under `--allow-extra-paths` |
+| tracked submodule gitlink | intentional | still captured (`TestCaptureKeepsTrackedGitlink`) |
 
-The scratch repos and their worktrees were removed after validation.
+Post-land `git status` shows only the two nested worktrees as untracked
+and the carved-out `.tpatch/FEATURES.md`. Running tpatch **from** a
+linked worktree was re-verified end to end with the built binary:
+`apply --mode done` captures normally and the main worktree is not
+treated as nested. All scratch repos and worktrees were removed;
+`git worktree list` in this repository shows only the primary worktree.
 
-## Next Steps
+## Reviewer focus
 
-1. Preserve exact path bytes in NUL parsing and strictly dequote/validate the
-   legacy fallback.
-2. Apply nested-worktree exclusions to diffstat generation.
-3. Add trailing whitespace/newline and CLI fail-closed regressions.
-4. Re-run dual review and close #7 only after approval.
-5. Proceed to GH #8 contract work after Wave A closes.
+1. `parseWorktreeListLegacy` structural validation — is the known-key
+   set the right forward-compatibility trade-off? A future Git
+   attribute key would be rejected as ambiguous. Deliberate: the legacy
+   shape only runs on Git < 2.36, which will not gain new keys.
+2. `dirtyPaths` rename/copy handling under `-z` — the extra origin
+   field is consumed by index advance; confirm against `R`/`C` in
+   either status column.
+3. `CaptureDiffStatScoped` now emits `--` whenever nested excludes
+   exist even with no caller pathspecs; confirm no artifact byte drift
+   for repositories without nested worktrees (the argument list is
+   identical in that case).
+4. The two `git` wrappers in tests install via `t.Setenv("PATH", …)`;
+   confirm no test in these packages calls `t.Parallel()`.
 
 ## Blockers
 
@@ -209,20 +224,17 @@ None.
 ## Context for Next Agent
 
 - `internal/gitutil/worktrees.go` is the single authority. Any new
-  untracked-discovery or staging surface must route through
-  `NestedWorktreePrefixes` + `PathUnderNestedWorktree` rather than
-  re-deriving the classification.
-- The filter is scoped to *registered linked worktrees nested under the
-  target root*. It deliberately does not touch gitlinks in general —
-  `TestCaptureKeepsTrackedGitlink` and
-  `TestNestedWorktree_ExternalWorktreeAndTrackedGitlinkUnaffected` pin
-  that boundary.
-- `PreflightReconcile` was left alone on purpose: it is a hygiene gate,
-  not a capture surface, and a nested worktree surfacing there as an
-  untracked path produces a refusal (fail-closed), which is the safe
-  direction.
-- `computePathSet` now returns `([]string, error)`; both call sites in
-  `land.go` propagate.
+  untracked-discovery, diff or staging surface must route through
+  `NestedWorktreePrefixes` + `PathUnderNestedWorktree`.
+- `NestedWorktreePrefixes` now returns an already-wrapped
+  `ErrNestedWorktreeDiscovery`; `NestedWorktreeDiscoveryError` is
+  idempotent, so callers just propagate.
+- Byte exactness is load-bearing. Do not reintroduce `TrimSpace`,
+  `TrimSuffix(" ")` or a hand-rolled dequote anywhere on a path that
+  will be compared against a worktree prefix.
+- `PreflightReconcile` is still deliberately unfiltered: it is a
+  hygiene gate, not a capture surface, and a nested worktree surfacing
+  there produces a refusal, which is the safe direction.
 - Side Research md5 `b385fe622db9926f48861105239f113e` preserved.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)

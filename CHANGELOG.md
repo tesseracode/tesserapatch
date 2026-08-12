@@ -38,12 +38,34 @@ All notable changes to tpatch are recorded here.
   land refuse with an actionable error instead of capturing blind
   (`gitutil.ErrNestedWorktreeDiscovery`).
 
+  Path bytes are preserved exactly end to end. Discovery reads the
+  NUL-delimited porcelain shape and takes the value after `worktree `
+  verbatim — no whitespace normalization — so a worktree directory
+  legitimately named `agent ` or `agent<TAB>` derives a prefix that still
+  matches the path Git reports for it elsewhere. `land` reads
+  `git status --porcelain -z` for the same reason: the newline shape
+  C-quotes any path containing a space, and the previous crude dequote
+  corrupted exactly the names the filter has to match. Diffstat
+  generation (`post-apply-diff.txt`) carries the same exclude pathspecs
+  as the patch, so a pre-existing intent-to-add or staged gitlink for a
+  nested worktree cannot leak through the diffstat either.
+
+  On Git older than 2.36, where `git worktree list --porcelain -z` does
+  not exist, the newline-delimited shape is parsed strictly: records are
+  validated against Git's known attribute keys, C-quoted paths are
+  decoded, unquoted paths keep their bytes including trailing
+  whitespace, and any ambiguity — an unrecognised continuation line, an
+  unterminated or malformed quote — is refused with guidance to upgrade
+  Git rather than guessed at. A `-z` failure that is not an
+  unknown-switch usage error is never re-routed through the weaker
+  legacy shape.
+
   Unchanged by design: ordinary directories (including prefix-boundary
-  siblings such as `agent-other` next to `agent`), intentionally tracked
-  gitlinks and submodules, unregistered nested Git repositories, linked
-  worktrees registered *outside* the target root, running tpatch *from* a
-  linked worktree, and `--allow-extra-paths` semantics for ordinary
-  unrelated dirty paths.
+  siblings such as `agent-other` next to `agent`, or `agent` next to
+  `agent `), intentionally tracked gitlinks and submodules, unregistered
+  nested Git repositories, linked worktrees registered *outside* the
+  target root, running tpatch *from* a linked worktree, and
+  `--allow-extra-paths` semantics for ordinary unrelated dirty paths.
 
 ## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 
