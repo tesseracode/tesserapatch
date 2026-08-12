@@ -2,20 +2,20 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: SHIPPED
 
-v0.15.1 Wave C rev-3 is dual-approved with no findings. All 161 accepted
-rows are green and the release is ready for consolidation.
+v0.15.1 is shipped. Wave C rev-3 received dual approval with no findings,
+closing GH #8 after the previously accepted GH #7 and GH #8 contract waves.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: Approved — release close
+- **Status**: Complete
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
-- **Target release**: v0.15.1
+- **Release**: v0.15.1
 
 ## Rev-3 Review Verdict
 
@@ -139,9 +139,9 @@ Modified:
 
 ## Next Steps
 
-1. Consolidate and archive the accepted Wave C handoff.
-2. Tag and push v0.15.1.
-3. Run the Wave-Close Checklist, then close GH #8.
+1. No successor wave is dispatched.
+2. Select the next backlog item from ROADMAP/research inputs.
+3. Record a fresh `origin/main` WAVE_BASE before any new dispatch.
 
 ## Blockers
 

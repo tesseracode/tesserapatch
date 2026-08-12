@@ -1,3 +1,45 @@
+## Release — v0.15.1 correctness batch / GH #7 + GH #8 — 2026-08-12
+
+**Batch WAVE_BASE**: `5d15fcf`
+**Wave C WAVE_BASE**: `b768602`
+**Accepted implementation tip**: `8fc7e33`
+**Acceptance tracking**: `99adbc9`
+**Wave C pre-consolidation range**: `b768602..99adbc9`
+**Full batch pre-consolidation range**: `5d15fcf..99adbc9`
+
+### Final Verdict: SHIPPED
+
+- Wave A / GH #7: accepted and already gated.
+- Wave B / GH #8 contract: dual-approved and already gated.
+- Wave C rev-3 / GH #8 implementation: internal APPROVED, external APPROVED.
+- All rev-0 through rev-2 findings closed.
+
+### Release Checklist
+
+- [x] Accepted PRD amendments and ADR-013 unchanged
+- [x] 135 verify + 26 land acceptance rows, 161/161 mapped
+- [x] Original GH #8 and `verify --all` reproductions pass
+- [x] Real filtered-remote AC-L68/L69 pass without lazy fetch
+- [x] Full uncached suite, race, vet and build clean
+- [x] Four cross-build targets clean
+- [x] GH #2 regression green and unmodified
+- [x] Rule 18 on every Wave C pre-consolidation commit
+- [x] Side Research md5 and guarded WIP preserved
+- [x] Terminal CURRENT, ROADMAP, HISTORY and CHANGELOG prepared
+
+### Empirical Gaps
+
+- Runtime validation used Git 2.55 rather than an actual Git 2.36 binary.
+- No native Windows or SHA-256 repository runtime was available; automated
+  compile/object-format coverage remains green.
+
+### Action Taken
+
+The correctness batch is marked SHIPPED, Wave C is archived, the annotated
+v0.15.1 tag is created and main/tag are pushed before the final
+`make wave-close-check WAVE_BASE=b768602`. GH #8 is closed against the
+released tag after the gate passes.
+
 ## Review — v0.15.1 Wave C / GH #8 rev-3 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)

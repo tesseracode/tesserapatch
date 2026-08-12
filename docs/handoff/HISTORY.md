@@ -1,3 +1,76 @@
+# 2026-08-12 — v0.15.1 Wave C — GH #8 landed verification — SHIPPED
+
+**WAVE_BASE**: `b768602`
+**Dispatch**: `7cf245a`
+**Accepted implementation tip**: `8fc7e33`
+**Acceptance tracking**: `99adbc9`
+**Pre-consolidation range**: `b768602..99adbc9` (23 commits)
+**Release batch range**: `5d15fcf..99adbc9` (73 commits)
+**Tag**: `v0.15.1` on the release consolidation commit
+
+**Scope shipped**:
+- Reachable four-trailer landing evidence with exact, stale, ambiguous,
+  malformed, topology, shallow, history-incomplete and unavailable states.
+- Separate historical replay anchor H and isolated current materialization
+  anchor C for V7/V8/V10.
+- Hardened C3/C0 reverse-apply ladder and exhaustive `-C1` replay-anchor
+  qualification.
+- Per-member V10 baselines, landed/unlanded parent arbitration and
+  ADR-029 later-touch preservation.
+- One immutable full feature/artifact inventory shared by `verify --all`.
+- Git 2.36 offline floor with `GIT_NO_LAZY_FETCH=1` and deterministic
+  `LC_ALL=C` diagnostics.
+- Mode A/Mode B `Tpatch-Base-Commit` validation and exact trailer emission.
+- Additive report schema 1.1 with eleven V0–V10 rows and five advisories.
+
+**Review arc**:
+
+| Revision | Internal | External | Outcome |
+|----------|----------|----------|---------|
+| rev-0 | NEEDS REVISION | APPROVED | offline/inventory/error completeness |
+| rev-1 | NEEDS REVISION | NEEDS REVISION | live recipe read and probe branches |
+| rev-2 | NEEDS REVISION | APPROVED WITH NOTES | broad locale-dependent classifier |
+| rev-3 | **APPROVED** | **APPROVED** | accepted |
+
+**High-value defect classes closed**:
+1. Legacy ancestry and shadow Git calls bypassed the floor/offline gate.
+2. Multiple inventories and live status/artifact re-reads broke immutability.
+3. Missing objects and generic probe failures degraded into absence,
+   ambiguity, drift or recipe replay.
+4. Artifact and generation read errors were treated as absence or omitted
+   from instability detection.
+5. BaseCommit reachability advisory and exact stored-byte validation were
+   incomplete.
+6. Apply exit 128 used broad English substrings that could promote wrapper,
+   fatal or signalled failures into patch answers.
+
+**Verification**:
+- 135 verify + 26 land acceptance rows, 161/161 mapped and resolving.
+- Original pre-land → land → post-land GH #8 sequence and `verify --all`.
+- Real filtered-remote partial clone with both available and genuinely
+  missing promisor objects.
+- Full uncached suite, race on workflow/gitutil/store/cli, vet and build.
+- Cross-build: linux/amd64, linux/arm64, darwin/arm64, windows/amd64.
+- GH #2 reset-before-V8 regression green and unmodified.
+- Rule 18 on all 23 Wave C pre-consolidation commits.
+- Side Research md5 preserved:
+  `b385fe622db9926f48861105239f113e`.
+- Accepted papers, 11 guarded WIP files and allowlist unchanged.
+
+**Empirical gaps**:
+- Runtime exercised Git 2.55, not an actual Git 2.36 binary.
+- Native Windows and SHA-256 repository runtime paths were not available;
+  compile and object-format tests cover them.
+
+**Pattern catch**: a green name-based acceptance ledger is necessary but not
+sufficient. Shared-helper error classifiers require black-box coverage through
+every consumer, with answer-vs-failure semantics and diagnostic locale pinned
+at the process boundary.
+
+**Next**: no successor dispatched.
+
+---
+
 # 2026-08-12 — v0.15.1 Wave B — GH #8 landed verify contract — ACCEPTED
 
 **WAVE_BASE**: `ad39e4a`

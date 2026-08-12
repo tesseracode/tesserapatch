@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## Unreleased — v0.15.1
+## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification
 
 ### Fixed
 

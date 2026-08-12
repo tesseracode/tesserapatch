@@ -625,11 +625,14 @@ linked-worktree index layouts.
 release invariants confirmed. Disclosure/test-name/SPEC prose notes folded on
 `main` without moving the v0.14.0 tag.
 
-## v0.15.1 correctness batch — GH #7 + GH #8 🚧 IN PROGRESS
+## v0.15.1 correctness batch — GH #7 + GH #8 ✅ SHIPPED
 
 **Dispatch**: 2026-08-12.
 **WAVE_BASE**: `5d15fcf`.
 **Mode**: sequential; one implementer per wave.
+**Release**: v0.15.1.
+**Pre-consolidation range**: `5d15fcf..99adbc9` (73 commits across three
+independently gated waves).
 
 Validated against current `main`:
 
@@ -650,7 +653,7 @@ Sequential plan:
 3. **Wave C — GH #8 implementation**: implement the accepted contract while
    preserving GH #2's regression.
 
-No v0.15.1 tag until all three waves pass dual review and the release close.
+Released as annotated tag v0.15.1 after all three waves passed dual review.
 
 **Wave A rev-0** (`469e9dd`): original reproducer APPROVED; internal NEEDS
 REVISION. Rev-1 covers exact trailing-space/tab path bytes, strict legacy
@@ -698,7 +701,7 @@ terminal range: `5d15fcf..54580d5`.
 
 **Wave A close**: ACCEPTED at `ad39e4a`; GH #7 closed; 8/8 gate PASS.
 
-**Wave B — GH #8 contract** 🚧 IN PROGRESS. Dispatch 2026-08-12,
+**Wave B — GH #8 contract** ✅ ACCEPTED. Dispatch 2026-08-12,
 WAVE_BASE `ad39e4a`. Amend verify/land planning to define how V7/V8 treat a
 feature and hard parents whose patches are already materialized in reachable
 land commits. Implementation remains Wave C.
@@ -740,7 +743,7 @@ one G5 whitelist self-test defect. Rev-7 is a one-line guard correction.
 
 **Wave B close**: ACCEPTED at `b768602`; 8/8 gate PASS.
 
-**Wave C — GH #8 implementation** 🚧 IN PROGRESS. Dispatch 2026-08-12,
+**Wave C — GH #8 implementation** ✅ ACCEPTED. Dispatch 2026-08-12,
 WAVE_BASE `b768602`. Implement ADR-013 Amendment 1 rev-7 and the accepted
 161-row verify/land contract. One sequential implementer; no v0.15.1 tag
 until dual review and release close.
@@ -762,8 +765,15 @@ cannot convert wrapper, fatal or signalled failures into patch answers.
 
 **Wave C rev-3** (`2348fea`..`8fc7e33`): internal APPROVED, external
 APPROVED. The deterministic locale and narrowed apply grammar held under
-real-Git and adversarial black-box probes. Wave C is accepted; release
-consolidation and the v0.15.1 tag are next.
+real-Git and adversarial black-box probes.
+
+**Wave C close**: ACCEPTED at `99adbc9`; 161/161 rows, original GH #8,
+real filtered-remote AC-L68/L69, full/race/vet/build and four cross-builds
+green. Tagged v0.15.1 at release consolidation; final Wave C gate uses
+WAVE_BASE `b768602`.
+
+**Batch close**: GH #7 and GH #8 shipped in v0.15.1. No successor is
+dispatched; record a fresh `origin/main` WAVE_BASE before the next wave.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
