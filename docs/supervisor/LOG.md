@@ -1,3 +1,18 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-6 — 2026-08-12
+
+**Internal reviewer**: no usable verdict returned
+**External reviewer**: claude-opus-5 (`issue-8-validator`, terminal follow-up)
+**Writer commit**: `c893d66`
+**Reviewed range**: `cbf5fcf..c893d66`
+
+### Verdict: NEEDS REVISION → REV-7 GUARD FIX
+
+All substantive decisions, 161 rows, citations and parity were confirmed.
+The sole defect is G5: its hardcoded-40 regex also flags correct affirmative
+anti-hardcode sentences. Add a narrow exemption for `derived`,
+`--show-object-format`, `would reject`, or `fails this row`, then rerun the
+guard and terminal confirmation.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-5 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)

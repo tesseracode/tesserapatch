@@ -2,21 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-7 DISPATCHED
 
-v0.15.1 Wave B **rev-6 (final totality sweep)** is written and pushed. Every
-authoritative contradiction cited by the rev-5 internal review is corrected at
-its source — not only inside the amended fragments — and a **mechanical
-totality guard (AC-L135 + §7.1.2, paired with AC-LD23)** is added so Wave C can
-enforce the sweep instead of re-discovering it. Planning only: no Go, tests,
-assets, SPEC, CHANGELOG or GitHub issue state was touched.
+v0.15.1 Wave B rev-6 is substantively complete, but G5 flags correct
+anti-hardcode prose. Rev-7 is a one-line guard correction.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-6)
+- **Status**: In Progress (rev-7)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-6)**: `cbf5fcf`

@@ -731,6 +731,9 @@ artifact-state rows, clarifies recovery-before-validation, and completes
 **Wave B rev-5** (`b6d4f89`): external APPROVED, internal NEEDS REVISION on
 stale authoritative prose only. Rev-6 performs the final totality sweep.
 
+**Wave B rev-6** (`c893d66`): substantive contract confirmed; external found
+one G5 whitelist self-test defect. Rev-7 is a one-line guard correction.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
