@@ -89,15 +89,27 @@ All notable changes to tpatch are recorded here.
   threads the result through, so a single command cannot observe two
   different answers.
 
-  `land` extends the same contract across the embedded `record`: it
-  discovers once at entry, before the metadata snapshot and before
-  `record` runs, and threads that immutable prefix set through every
-  later path-set and dirty-path computation, so no `git worktree list`
-  runs after `record` begins. A discovery failure therefore refuses
-  before `record` can write anything. `land`'s own `status.json:notes`
-  write also moved below the last refusal (the path set now names
-  `status.json` explicitly instead of relying on it being pre-dirtied),
-  so a malformed-patch, extras or classification refusal no longer
+  `land` spends exactly two discoveries of its own. The first runs at
+  entry, before the metadata snapshot and before the embedded `record`,
+  purely as a gate: a broken `git worktree list` refuses before `record`
+  can write anything. The second runs immediately before planning and
+  staging, and it is the one the plan is built from — the entry answer
+  can go stale, because `record` or a concurrent agent harness may
+  register a linked worktree in between, and a stale set would turn that
+  worktree into an ordinary "extra" that `--allow-extra-paths` would
+  stage as a gitlink. The path set, dirty paths, carve-out notes and
+  extras are all computed once against the revalidated set, and the
+  final path set is defensively re-filtered before `git add`.
+  `land --dry-run` discovers once, at plan time, for the same reason.
+
+  When the pre-stage revalidation fails, the boundary is explicit and
+  tested: land refuses with `status.json`, the index and HEAD all
+  untouched, while the embedded `record`'s artifacts persist — that is
+  `record`'s own completed transaction, identical to running
+  `tpatch record` followed by a failing `tpatch land`. `land`'s own
+  `status.json:notes` write sits below the last refusal (the path set
+  names `status.json` explicitly instead of relying on it being
+  pre-dirtied), so a malformed-patch, extras or discovery refusal never
   leaves a `landed at ...` note behind.
 
   Patch-derived write scopes are parsed strictly. `FilesInPatch` splits
@@ -110,7 +122,14 @@ All notable changes to tpatch are recorded here.
   C-quoting (spaces, tabs, newlines, octal escapes, quotes,
   backslashes) and handles renames, copies, mode-only, binary, new and
   deleted entries; a header it cannot resolve returns an error instead
-  of an empty scope. `workflow.RefreshAfterAccept` and `land`'s path-set
+  of an empty scope. Decoding uses a Git-specific C decoder rather than
+  `strconv.Unquote`, which accepts `\x41`, `\u0041`, `\U0001F600`,
+  `\'` and short octal — escapes Git never emits, so accepting them
+  would mean accepting corruption as if it were a path. Both the a-side
+  and the b-side operand are parsed and validated before either is
+  used, and non-blank input containing zero `diff --git` headers is
+  itself refused: that was the same "empty scope means everything" hole
+  reached through a truncated artifact or a plain `diff -u` patch. `workflow.RefreshAfterAccept` and `land`'s path-set
   builder use it and refuse on malformed input before any write.
   `FilesInPatch` remains for the two advisory callers — the D10
   migration hint and the `touched` audit field — neither of which drives

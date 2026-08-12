@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: REV-4 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave A rev-3 remains blocked by strict-parser validation gaps and
-land cache staleness before staging. Rev-4 is dispatched.
+v0.15.1 Wave A rev-4 (GitHub issue #7) closes both rev-3 HIGH findings.
+Validated and pushed. Awaiting review.
 
 ## Active Task
 
@@ -13,103 +13,113 @@ land cache staleness before staging. Rev-4 is dispatched.
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and land
   planning.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
-- **Rev-3 dispatch HEAD**: `3f5363c`
+- **Rev-4 dispatch HEAD**: `d516f5e`
 - **Target release**: v0.15.1
 
-## Rev-2 finding closures
+## Rev-3 finding closures
 
-### F1 (HIGH) — land discovery transaction — CLOSED
+### F1 (HIGH) — strict Git patch grammar — CLOSED
 
-`runLand` now discovers **once**, at entry, immediately after the
-dependency gate and **before** `snapshotMetadataFiles` and the embedded
-`record`. The resulting prefix set is immutable for the rest of the
-command and is threaded through `computePathSet` and `dirtyPaths`, both
-of which lost their own discovery calls. No `git worktree list` runs
-after the embedded record begins.
+Three separate holes, all closed in
+`internal/gitutil/patch_paths_strict.go`.
 
-`runLandDryRun` follows the same shape: one discovery at entry, threaded
-through the path-set and dirty-path computations.
+**Headerless input.** Non-blank input containing zero `diff --git`
+headers returned an empty, error-free scope — the same "empty scope
+means everything" failure the strict API exists to remove, reached
+through a truncated artifact or a plain `diff -u` patch. It is now an
+error. Whitespace-only input remains legitimately empty and is the
+explicit control.
 
-The embedded `record` keeps its own fail-closed discovery — that is its
-own transaction — but once it succeeds, land's planning never asks Git
-again, so a discovery failure can no longer leave record's artifacts
-behind while land refuses.
+**Both operands validated.** `parseDiffGitOperands` parses and validates
+the a-side AND the b-side before either is used: each must decode, must
+carry its `a/` / `b/` prefix, and must have a non-empty payload. A
+malformed a-side with a healthy b-side used to pass unnoticed. A
+repository configured with `diff.noprefix` or `diff.mnemonicPrefix`
+produces a different shape and is refused with an error naming that
+cause, rather than guessed at. The `rename to` / `copy to` / `+++` /
+`---` fallback is consulted only after the operands themselves are
+structurally valid (the ambiguous-but-well-formed unquoted rename/copy
+case).
 
-**Status-notes reorder.** `status.json:notes` used to be written before
-`computePathSet` specifically so the freshly dirty `status.json` would be
-swept up by the slug-prefix branch. That made every later refusal —
-malformed patch, extras, dirty-path classification — leave a
-`landed at ...` note behind. The path set now names
-`.tpatch/features/<slug>/status.json` explicitly (`includeStatus`), so
-the write moved below the last refusal. Both the real-land and dry-run
-paths pass `includeStatus=true`, keeping the dry-run plan faithful to
-what land will actually stage.
+**Git-specific C decoder.** `unquoteGitCStyle` replaces
+`strconv.Unquote`. It accepts exactly what git's `quote_c_style()`
+emits — `\a \b \f \n \r \t \v \" \\` plus three-digit octal — and
+refuses everything else. Go's decoder accepts `\x41`, `\u0041`,
+`\U0001F600`, `\'` and one- or two-digit octal; Git emits none of them,
+so accepting them meant accepting corrupted bytes as if they were a
+path. Short octal, overflowing octal (`\400`), trailing backslash,
+unterminated quote, bytes after the closing quote and extra operands are
+all refused. Every refusal returns `error` **and a nil slice** — never a
+partial or empty scope.
 
-Verification is calibrated, not hardcoded:
-`measureRecordDiscoveryCalls` runs a standalone `record` on an identical
-fixture under a counting `git` wrapper, then the land test configures
-the wrapper to fail after `1 + recordCalls` invocations. Land must
-**succeed** — only possible if it makes zero post-record discovery calls
-— and the observed total must equal `1 + recordCalls` exactly.
+Downstream behavior is unchanged in shape: `RefreshAfterAccept` and
+`land`'s `computePathSet` both still fail before their own writes, and a
+stale quoted-newline worktree-only patch still filters to empty and
+regenerates nothing rather than widening to a full-tree diff.
 
-### F2 (HIGH) — strict `diff --git` header parsing — CLOSED
+### F2 (HIGH) — land pre-stage revalidation — CLOSED
 
-New `gitutil.FilesInPatchStrict` (`internal/gitutil/patch_paths_strict.go`).
-It resolves each entry's b-side path from the `diff --git` operand when
-that is unambiguous (both operands quoted, or both unquoted with
-byte-identical payloads), and otherwise from the unambiguous
-corroborating headers `rename to` / `copy to` / `+++` / `---`. Quoted
-fields are decoded with `strconv.Unquote`, which accepts exactly the
-escape set Git emits (`\a \b \f \n \r \t \v \" \\` and three-digit
-octal); `splitGitDiffPaths` is reused for field splitting, as directed.
-A header that cannot be resolved returns an error and a **nil** slice —
-it can never degrade to an empty scope, which is what `git diff` reads
-as "everything".
+`land` now spends exactly two discoveries of its own:
 
-Wired into the two write-scope surfaces:
+1. **Entry gate**, before the metadata snapshot and before the embedded
+   `record`. Its result is deliberately discarded; its only job is to
+   refuse before `record` can write anything if `git worktree list` is
+   broken. (This is rev-3's F1 fix, retained.)
+2. **Pre-stage revalidation**, immediately before planning and staging.
+   The entry answer can go stale: `record` itself, or a concurrent agent
+   harness, may register a linked worktree in between. A stale set turns
+   that worktree into an ordinary "extra", which `--allow-extra-paths`
+   would then stage as a gitlink — the GH #7 bug re-entering through a
+   race.
 
-- `workflow.RefreshAfterAccept` — strict-parses `originalPatch` **before**
-  discovery and before any write; then filters nested worktrees; if a
-  non-empty touched set filters down to empty it regenerates nothing
-  rather than widening to a full-tree diff.
-- `cli.computePathSet` — strict-parses the canonical patch; a malformed
-  patch refuses before `status.json`, the index or HEAD is touched.
-  `runLandDryRun`'s "expected files in patch" count uses it too.
+The **entire** plan — path set, dirty paths, carve-out notes, extras —
+is computed once against the revalidated set, so no diagnostic is
+emitted twice and the success-path bytes are unchanged. The final path
+set is then defensively re-filtered with
+`gitutil.FilterNestedWorktreePaths` immediately before `git add`, so
+nothing under a nested worktree can reach the index no matter which
+branch put it in the set (including the `--allow-extra-paths` fold).
 
-**Fail-soft callers audited and documented** in `FilesInPatch`'s doc
-comment. The only two remaining are advisory:
-`workflow.touchedPathsFromPostApplyPatch` (D10 migration-hint
-suppression, already documented fail-soft) and
-`AppendPatchGenerationForFeature` (the `touched` audit field). Neither
-drives a write, a diff scope or a staging decision, so a dropped quoted
-path understates a hint or an audit list rather than widening what
-tpatch touches. `PathsAffectedByPatch` is unchanged.
+`land --dry-run` discovers once, at plan time rather than at entry, so
+the printed plan reflects the latest registered-worktree set. It runs no
+embedded record and performs no writes, so one call is both the first
+and the last word.
+
+**Documented boundary when the revalidation fails**: land refuses with
+`status.json`, the index and HEAD all untouched. The embedded `record`'s
+artifacts persist — that is `record`'s own completed transaction,
+identical to running `tpatch record` followed by a failing
+`tpatch land`. This is asserted explicitly, not left implicit.
+
+### F3 (dispatch item 3) — status notes ordering — CONFIRMED
+
+`status.json:notes` is written only after the revalidated planning, the
+dirty-path classification and the extras gate have all passed, and it is
+staged through the ordinary path set (which names it explicitly via
+`includeStatus`). Pinned by
+`TestNestedWorktree_Land_ExtrasSemanticsUnchangedAfterReorder` and the
+revalidation-failure boundary test.
 
 ## Files Changed
 
-Created this rev:
+Modified this rev:
 
 - `internal/gitutil/patch_paths_strict.go`
 - `internal/gitutil/patch_paths_strict_test.go`
-
-Modified this rev:
-
-- `internal/gitutil/gitutil.go` (FilesInPatch doc/audit only)
 - `internal/cli/land.go`
 - `internal/cli/nested_worktree_test.go`
-- `internal/workflow/refresh.go`
-- `internal/workflow/refresh_test.go`
 - `CHANGELOG.md`
 - `docs/land.md`
 - `docs/handoff/CURRENT.md`
 
 Unchanged this rev: `internal/gitutil/worktrees.go`,
-`internal/gitutil/capture_modes.go`, `internal/cli/cobra.go`,
-`internal/cli/nested_worktree_guard.go`, `internal/cli/phase2.go`,
-`SPEC.md`, `docs/record.md`.
+`internal/gitutil/capture_modes.go`, `internal/gitutil/gitutil.go`,
+`internal/cli/cobra.go`, `internal/cli/nested_worktree_guard.go`,
+`internal/cli/phase2.go`, `internal/workflow/refresh.go`, `SPEC.md`,
+`docs/record.md`.
 
 Deliberately NOT folded: the Makefile nested-repo sentinel LOW is
 separately tracked.
@@ -123,60 +133,64 @@ separately tracked.
 - `go test -race -count=1` on `./internal/gitutil/`, `./internal/workflow/`
   and `./internal/cli/` — ok.
 - Assets parity (`go test ./assets/`) — ok; no asset touched.
-- 104 passing assertions across the GH #7 test set.
+- 146 passing assertions across the GH #7 test set.
 
-New coverage this rev — **all quoted-header fixtures are produced by
-real Git**, not hand-written strings:
+New coverage this rev:
 
-- `TestFilesInPatchStrictRealGitQuotedHeaders` — one real
-  `git diff --cached -M --binary` covering `sp ace.txt`,
-  `tab\tin.txt`, `new\nline.txt`, `qu"ote.txt`, `back\slash.md`,
-  `café.txt` (octal), a binary entry with no `---`/`+++`, a rename, a
-  deletion and a mode-only change. It also asserts that `FilesInPatch`
-  demonstrably MISSES the quoted entries, so the strict/fail-soft split
-  stays justified.
-- `TestFilesInPatchStrictQuotedGitlinkOnlyPatch` — a real
-  `mode 160000` entry for a newline-named worktree resolves to exactly
-  that one path.
-- `TestFilesInPatchStrictRefusesMalformedHeaders` — unterminated quote,
-  single operand, three operands, bad escape, empty operand,
-  unresolvable rename; each returns an error and a nil scope.
-- `TestFilesInPatchStrictEmptyPatch` (empty is not malformed) and
-  `TestFilesInPatchStrictAgreesWithFailSoftOnPlainPatches`.
-- `TestRefreshAfterAcceptQuotedWorktreeOnlyPatchDoesNotCaptureUnrelatedDirt`
-  — the F2 regression end to end: a real quoted worktree-only patch plus
-  unrelated dirt (`README.md` edit + `stray.txt`) regenerates NOTHING;
-  the numbered reconcile patch and generation metadata are equally clean.
-- `TestRefreshAfterAcceptQuotedWorktreePlusIntendedPathKeepsOnlyIntended`.
-- `TestRefreshAfterAcceptMalformedHeaderFailsBeforeWrites` — feature
-  directory byte-identical.
-- `TestNestedWorktree_Land_DiscoversOnceBeforeEmbeddedRecord` — the
-  calibrated invocation-budget test described above.
-- `TestNestedWorktree_Land_EntryDiscoveryFailureLeavesEverythingUntouched`
-  — feature dir, HEAD and `git status -z` all unchanged.
-- `TestNestedWorktree_Land_NoRecordAndDryRunUseCachedPrefixes` — exactly
-  one discovery each.
-- `TestNestedWorktree_Land_StaleQuotedGitlinkPatchFilteredFromPlan` —
-  a real quoted gitlink entry in the canonical artifact is parsed,
-  filtered, and absent from the plan while the intended path remains.
-- `TestNestedWorktree_Land_MalformedPatchFailsBeforeMutation` — refuses
-  before `status.json`, index or HEAD change.
-- `TestNestedWorktree_Land_ExtrasSemanticsUnchangedAfterReorder` —
-  ordinary extras still refuse naming only themselves, the refusal does
-  not write land's `landed at` note, `--allow-extra-paths` still stages
-  the extra, `status.json` is still staged and the tree is clean after.
+- `TestFilesInPatchStrictRefusesHeaderlessNonBlankPatch` — plain
+  `diff -u` output, a truncated artifact, prose, a lone hunk; each
+  refuses with a nil scope and names the missing header.
+- `TestFilesInPatchStrictWhitespaceOnlyIsNotAnError` — the control.
+- `TestFilesInPatchStrictValidatesASide` — bad a-side escape,
+  unterminated a-side, wrong prefix on either side, empty payload on
+  either side, unquoted a-side without `a/`, missing b-side operand, a
+  trailing third operand.
+- `TestFilesInPatchStrictRefusesGoOnlyEscapes` — `\x41`, `\u0041`,
+  `\U0001F600`, `\'`, `\e`, `\3`, `\30`, `\400`, each exercised on BOTH
+  sides (16 cases).
+- `TestUnquoteGitCStyleAcceptsExactlyGitsEscapes` — every escape Git
+  emits decodes byte-correctly (including `\000` and `\377`), and
+  eleven malformed forms are refused.
+- `TestFilesInPatchStrictPreservesUnquotedWhitespace` — double-space
+  unquoted path survives.
+- `TestFilesInPatchStrictHandlesRealGitCopyEntry` — real
+  `git diff -C --find-copies-harder` copy entry.
+- `TestNestedWorktree_Land_RevalidatesBeforeStaging` — a `git` wrapper
+  registers a NEW linked worktree on the 2nd `worktree list` call (i.e.
+  after land's entry gate, during the embedded record, before the
+  pre-stage revalidation). Broad land and scoped land, both with
+  `--allow-extra-paths`, must keep it out of the index, the commit and
+  the committed tree, while the intended files land.
+- `TestNestedWorktree_Land_RevalidationFailureBoundary` — a wrapper
+  fails exactly the pre-stage revalidation call (calibrated as
+  `2 + recordCalls`); HEAD, the index and the `landed at` note are all
+  unchanged, the record artifacts are asserted to persist, and a rerun
+  recovers.
+- `TestNestedWorktree_Land_RevalidationNoOpPreservesOutput` — with no
+  registration in between, land's stdout and stderr are byte-stable
+  across runs (landing SHA normalised).
+- `TestNestedWorktree_LandDryRun_ReflectsLatestSetWithoutMutation` — a
+  worktree registered after `apply` is absent from the printed plan, and
+  the dry-run mutates neither HEAD nor the working tree.
 
-Preserved unchanged: `PathsAffectedByPatch` behavior and its tests, the
-linked-worktree effective-index tests
-(`TestDiffFromCommitForPathsUsesLinkedWorktreeIndex`,
-`...PreservesLinkedWorktreeIndexAfterFiltering`), the NUL exotic-name
-suite and the actionable all-filtered record diagnostic suite.
+Updated to the rev-4 contract:
+
+- `TestNestedWorktree_Land_DiscoveryBudget` (was
+  `..._DiscoversOnceBeforeEmbeddedRecord`) — the budget is now exactly
+  `2 + recordCalls`, still calibrated against a standalone `record`
+  rather than hardcoded, so a stray rediscovery in the planning path
+  still fails the test.
+- `TestNestedWorktree_Land_NoRecordAndDryRunDiscoveryBudget` —
+  `--no-record` spends 2 (entry gate + revalidation), `--dry-run`
+  spends 1 (plan time).
+
+All prior original-issue, exotic-name, non-goal, refresh and
+transaction tests were re-run unchanged and pass.
 
 ## Reproduction + control matrix (built binary)
 
-One scratch repo with three nested worktrees (`agent review`,
-`agent trail `, and a newline-named one) plus every over-filtering
-control:
+Re-run at this HEAD with three nested worktrees (`agent review`,
+`agent trail `, newline-named) plus every over-filtering control:
 
 | Path | Kind | Result |
 |------|------|--------|
@@ -186,57 +200,35 @@ control:
 | `.claude/worktrees/agent-other/f.txt` | ordinary dir, prefix sibling | captured and landed |
 | `vendor/plainrepo` | unregistered nested Git repo | captured and landed as a gitlink (correctly NOT filtered) |
 | `../extwt` | worktree outside the root | never referenced |
-| `unrelated.txt` | ordinary dirty path | refused naming only itself, then staged under `--allow-extra-paths` |
 
 Post-land `git status` lists only the three worktrees as untracked plus
-the carved-out `.tpatch/FEATURES.md`; `status.json` carries
-`"notes": "landed at ..."` and is committed, so the tree is clean w.r.t.
-feature scope.
-
-All scratch repos, worktrees and build artifacts were removed;
-`git worktree list` shows only the primary worktree.
+the carved-out `.tpatch/FEATURES.md`. All scratch repos, worktrees and
+build artifacts were removed; `git worktree list` shows only the primary
+worktree.
 
 ## Reviewer focus
 
-1. `computePathSet` gained `nested []string` and `includeStatus bool`.
-   Confirm the dry-run passing `includeStatus=true` is the right call —
-   it makes the printed plan match what real land stages, at the cost of
-   listing `status.json` even in the rare case where it is not yet
-   dirty (it normally is, since `apply`/`record` write it).
-2. The status-notes write moved below `stagePathSet`'s precondition
-   checks but stays above `stagePathSet` itself. Confirm PRD §3.6
-   post-land cleanliness still holds — the end-to-end run above shows
-   `status.json` staged, committed and clean.
-3. `FilesInPatchStrict` precedence is: unambiguous `diff --git` operand,
-   then `rename to`/`copy to`, then `+++`, then `---`. Renames of
-   space-bearing unquoted paths rely on `rename to`; confirm that is
-   sound for `diff.renames=false` repos, where Git emits separate
-   delete/create entries that each resolve from the operand.
-4. `land --no-record` with a malformed pre-existing canonical patch is
-   the honest test of land's own strict parse; with the embedded record
-   the parse failure would be attributable to `record` instead. Both
-   paths are covered.
-5. Advisory `FilesInPatch` callers are documented in its doc comment
-   rather than converted. Confirm neither is a write-scope surface.
-
-## Rev-3 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED.
-- Valid residuals:
-  1. Strict parsing accepts nonblank headerless input, Go-only escapes and an
-     invalid a-side; refresh can still broaden malformed input.
-  2. Land's entry-time worktree cache can stale if a linked worktree is
-     registered before staging; `--allow-extra-paths` can then stage it.
-- `tpatch_rev3_bin` and scratch artifacts are absent after external cleanup.
-
-## Next Steps
-
-1. Reject nonblank headerless patches and validate both operands with
-   Git-only C escapes.
-2. Revalidate/filter land immediately before staging and guard index/HEAD.
-3. Add malformed-escape/a-side/headerless and concurrent-registration tests.
-4. Run final dual review, then close #7 only after approval.
+1. The `a/`+`b/` prefix requirement means a repository configured with
+   `diff.noprefix` or `diff.mnemonicPrefix` now refuses rather than
+   mis-parses. That is deliberate fail-closed behavior and the error
+   names the cause; confirm the trade-off is the one you want, since
+   tpatch's own artifacts are always generated without those options.
+2. Land's discovery budget grew from `1 + recordCalls` to
+   `2 + recordCalls`. The extra call is the revalidation; the test is
+   calibrated, so any *third* land-side call still fails it.
+3. The revalidation-failure boundary lets the embedded record's
+   artifacts persist. Alternative designs (rolling record back) would
+   require undoing a completed sub-command; the chosen boundary is
+   asserted and documented instead.
+4. A post-stage defensive audit/rollback was considered and rejected:
+   un-staging after the fact risks disturbing unrelated index state that
+   the operator staged themselves. The equivalent guarantee is provided
+   pre-stage by the revalidated plan plus the final
+   `FilterNestedWorktreePaths` pass immediately before `git add`, which
+   is proven by the concurrent-registration test.
+5. `land --dry-run` moved its discovery from entry to plan time. It
+   performs no writes, so this is purely about the printed plan being
+   current.
 
 ## Blockers
 
@@ -247,11 +239,11 @@ None.
 - `internal/gitutil/worktrees.go` is the single discovery authority;
   `git worktree list --porcelain -z` is the single Git shape (Git 2.36+).
 - `FilesInPatchStrict` is mandatory for any NEW code that derives a
-  write scope, a diff scope or a staging decision from a patch.
-  `FilesInPatch` is advisory-only and its two remaining callers are
-  named in its doc comment.
-- Land's contract is now: discover once at entry, thread the set, write
-  nothing until every refusal has passed.
+  write scope, a diff scope or a staging decision from a patch. Decode
+  Git quoting with `unquoteGitCStyle`, never `strconv.Unquote`.
+- Land's contract: gate-discover before `record`, revalidate before
+  planning/staging, filter the path set once more before `git add`,
+  write `status.json` only after the last refusal.
 - Byte exactness remains load-bearing: no `TrimSpace`, no hand-rolled
   dequote on any path compared against a worktree prefix.
 - `PreflightReconcile` is still deliberately unfiltered: it is a hygiene
