@@ -671,6 +671,12 @@ APPROVED; production diff empty. Full/race/cross validation clean, 120/120
 acceptance clauses and 189/189 matrix rows auditable. Tagged v0.15.0 at
 release consolidation.
 
+**Post-release claim review**: APPROVED WITH NOTES. Golden IDs, published
+batch identity, privacy, determinism, idempotency, path safety, redaction
+refactor parity and 8/8 close were independently reproduced. The sole LOW
+finding—duplicated primary reason text in aggregated batch failures—was
+folded on `main` without moving the v0.15.0 tag.
+
 **Next**: no successor dispatched; choose from the post-v0.15.0 backlog.
 
 ## Cluster H planning — typed feature resources + capture adapters ✅ ACCEPTED

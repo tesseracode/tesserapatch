@@ -50,8 +50,13 @@
 - Accepted papers, guarded WIP and `.wave-close-allowlist` unchanged.
 
 **Non-blocking follow-up observations**:
-- Aggregated corrupt-batch diagnostics can repeat the reason token.
 - Generic host read errors retain exit 1 but use a coarse missing-batch label.
+
+**Post-release claim review**: APPROVED WITH NOTES. The reviewer reproduced
+spec-to-binary golden IDs, content addressing, privacy, determinism,
+idempotency, path safety and redaction-refactor parity. Its sole LOW finding,
+a duplicated primary reason in aggregated batch-failure text, was fixed on
+`main` without moving the v0.15.0 tag.
 
 **Pattern catch**: name-based completeness ledgers are not semantic coverage.
 The successful countermeasure was reviewer-driven mutation testing plus real

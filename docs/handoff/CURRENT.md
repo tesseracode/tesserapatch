@@ -5,7 +5,9 @@
 **Cluster state**: SHIPPED
 
 Cluster H′ is shipped as v0.15.0. Rev-2 and the test-only close-note fold
-received independent internal and external approval.
+received independent internal and external approval. A post-release claim
+review returned APPROVED WITH NOTES; its duplicated-reason diagnostic fix is
+folded on `main` without moving the v0.15.0 tag.
 
 ## Active Task
 

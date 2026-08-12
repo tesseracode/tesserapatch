@@ -623,9 +623,7 @@ func aggregateBatchFailures(failures []batchLoadFailure) error {
 	sort.Strings(reasons)
 	parts := make([]string, 0, len(reasons))
 	for _, reason := range reasons {
-		ids := byReason[reason]
-		sort.Strings(ids)
-		parts = append(parts, fmt.Sprintf("%s: %s", reason, strings.Join(ids, ", ")))
+		sort.Strings(byReason[reason])
 	}
 	// Name the most severe class first so the reported reason and the
 	// exit code agree.
@@ -635,6 +633,13 @@ func aggregateBatchFailures(failures []batchLoadFailure) error {
 			primary = reason
 			break
 		}
+	}
+	parts = append(parts, strings.Join(byReason[primary], ", "))
+	for _, reason := range reasons {
+		if reason == primary {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", reason, strings.Join(byReason[reason], ", ")))
 	}
 	return &rescap.Refusal{
 		Reason: primary,

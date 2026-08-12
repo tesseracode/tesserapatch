@@ -1,3 +1,28 @@
+## Review — v0.15.0 post-release claim review — 2026-08-11
+
+**Reviewer**: user-external
+**Reviewed range**: `46c984b..763e2cd`
+
+### Verdict: APPROVED WITH NOTES
+
+The reviewer independently reproduced the real CLI golden IDs, published
+batch content address, privacy/no-raw persistence, determinism, idempotency,
+path refusals, session-redaction matcher parity, Rule 18, tag push and 8/8
+wave-close.
+
+### Finding
+
+**LOW**: `aggregateBatchFailures` placed the primary reason in both
+`Refusal.Reason` and `Refusal.Detail`, rendering
+`batch-file-corrupt: batch-file-corrupt: ...`.
+
+### Action Taken
+
+The aggregate now renders primary resource IDs directly and prefixes only
+secondary reason groups. Mixed-failure regression coverage asserts the exact
+diagnostic and rejects repeated reason tokens. The v0.15.0 tag remains fixed
+at `763e2cd`; the follow-up lands on `main`.
+
 ## Release — Cluster H′ / v0.15.0 — 2026-08-11
 
 **WAVE_BASE**: `46c984b`

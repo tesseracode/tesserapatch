@@ -1534,6 +1534,13 @@ func TestMixedBatchFailuresStayCoherent(t *testing.T) {
 			t.Fatalf("stderr must name every distinct reason, missing %s: %s", want, stderr)
 		}
 	}
+	wantDiagnostic := "batch-file-corrupt: res_79f5ac5dca13; tracked-batch-missing: res_acc91dc23a8b"
+	if !strings.Contains(stderr, wantDiagnostic) {
+		t.Fatalf("aggregate diagnostic = %q, want substring %q", stderr, wantDiagnostic)
+	}
+	if strings.Contains(stderr, "batch-file-corrupt: batch-file-corrupt:") {
+		t.Fatalf("aggregate diagnostic repeats the primary reason: %s", stderr)
+	}
 	var listing struct {
 		Resources []struct {
 			ResourceID string `json:"resource_id"`
