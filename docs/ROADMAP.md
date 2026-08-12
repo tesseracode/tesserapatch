@@ -671,6 +671,10 @@ broaden refresh to the full tree.
 REVISION. Rev-4 hardens strict parsing against headerless/Go-only/a-side
 malformation and revalidates linked worktrees immediately before land staging.
 
+**Wave A rev-4** (`bf58acc`): original reproducer APPROVED; internal NEEDS
+REVISION. Rev-5 adds an exact index snapshot/stage/audit/rollback transaction
+so a worktree registered after planning cannot enter the commit.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

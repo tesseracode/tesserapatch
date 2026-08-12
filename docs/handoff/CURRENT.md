@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-5 DISPATCHED
 
-v0.15.1 Wave A rev-4 (GitHub issue #7) closes both rev-3 HIGH findings.
-Validated and pushed. Awaiting review.
+v0.15.1 Wave A rev-4 closes parser defects but remains blocked by the
+pre-stage registration race. Rev-5 is dispatched.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave A / GH #7 rev-4
+- **Task ID**: v0.15.1 Wave A / GH #7 rev-5
 - **Description**: Exclude registered linked Git worktrees nested beneath
   the target repository from apply/record/reconcile capture and land
   planning.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `5d15fcf`
 - **Rev-4 dispatch HEAD**: `d516f5e`
@@ -229,6 +229,23 @@ worktree.
 5. `land --dry-run` moved its discovery from entry to plan time. It
    performs no writes, so this is purely about the printed plan being
    current.
+
+## Rev-4 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED.
+- Parser findings are closed.
+- Remaining HIGH: a worktree can register after pre-stage revalidation but
+  before `dirtyPaths`/staging; `--allow-extra-paths` can stage its gitlink.
+- `tpatch_rev4_bin` and review scratch are absent after external cleanup.
+
+## Next Steps
+
+1. Snapshot the effective index before land staging.
+2. Stage non-status paths, rediscover, and audit the staged index.
+3. Roll back exact index bytes on discovery failure or nested contamination.
+4. Write/stage status only after the staged-index audit passes.
+5. Run final dual review, then close #7 only after approval.
 
 ## Blockers
 

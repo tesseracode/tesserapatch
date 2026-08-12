@@ -1,3 +1,37 @@
+## Review — v0.15.1 Wave A / GH #7 rev-4 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
+**External reviewer**: claude-sonnet-5 (`issue-7-validator`, follow-up)
+**Implementation commit**: `bf58acc`
+**Reviewed range**: `d516f5e..2feb812`
+
+### Verdict: NEEDS REVISION → REV-5 DISPATCHED
+
+### Verified Clean
+
+- Strict Git-only patch grammar, headerless/malformed refusal, both-operand
+  validation and refresh/land fail-closed behavior.
+- Entry/fresh discovery contract, original issue, non-goals and validation.
+
+### Residual Finding
+
+**HIGH**: a linked worktree can register after fresh revalidation but before
+dirty-path classification/staging. The stale prefix set can classify it as an
+extra and `--allow-extra-paths` can stage its gitlink.
+
+### Rev-5 Direction
+
+- Snapshot the effective index byte-for-byte before staging.
+- Stage non-status paths, rediscover current worktrees, inspect staged paths,
+  and roll back the exact index on failure/contamination.
+- Only after the audit passes, write and stage status.json, then commit.
+- Test worktree registration after revalidation/before stage and after stage/
+  before audit, including `--allow-extra-paths` and operator-staged controls.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave A rev-5.
+
 ## Review — v0.15.1 Wave A / GH #7 rev-3 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-7-internal-review`, follow-up)
