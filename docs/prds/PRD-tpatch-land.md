@@ -17,7 +17,7 @@
 - [`docs/market-research/competitive-landscape.md`](../market-research/competitive-landscape.md) §9 (DEP-3 / git-gud trailer precedents), §10 (what we don't adopt), §11 (deterministic apply-recipe edge)
 - [`docs/record.md`](../record.md), [`docs/reconcile.md`](../reconcile.md), [`docs/feature-layout.md`](../feature-layout.md)
 - [`docs/prds/PRD-verify-freshness.md`](./PRD-verify-freshness.md) §3.6, §7.1 — the landing-evidence consumer this PRD's §3.8 serves (v0.15.1 Wave B / GH #8)
-- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-1 D8–D16 — binding ADR for the readers' contract
+- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-2 D8–D17 — binding ADR for the readers' contract
 - [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](../adrs/ADR-019-tpatch-land-trailer-block-schema.md) — the locked schema §3.8 makes readable
 - [GH #8](https://github.com/tesseracode/tesserapatch/issues/8) — `verify` V8 fails after land
 
@@ -518,7 +518,7 @@ These behaviors fall out of using `git` primitives directly. `land`
 does not implement its own transaction layer.
 
 ---
-### 3.8 Landing-evidence readers' contract — v0.15.1 Wave B / GH #8 (rev-1)
+### 3.8 Landing-evidence readers' contract — v0.15.1 Wave B / GH #8 (rev-2)
 
 > **Amendment status**: proposed rev-1, 2026-08-12, AWAITING REVIEW.
 > **`land`'s behaviour is unchanged by this amendment.** This section is
@@ -528,10 +528,13 @@ does not implement its own transaction layer.
 > D15), and the previously-implicit reader rules must become explicit before a
 > consumer depends on them. Binding schema: ADR-019.
 >
-> **rev-0 → rev-1** tightens cardinality, adds topology and reader-error
-> rules, and states the rebase / cherry-pick / multiple-landing / branch-switch
-> / detached-HEAD / history-rewrite behaviour totally. Every claim below was
-> measured; the probe index is ADR-013 §A1.1.
+> **rev-1 → rev-2** adds rules 15–17: the conservative raw-precedence rule
+> (a slug-bearing line Git does not parse as a trailer is *malformed*, never
+> *absent*), the ordering rule (artifact absence is evaluated before any digest
+> comparison), and the **attestation-vs-anchor separation** — a reader that
+> needs a pre-landing tree must select an anchor candidate independently of the
+> commit that carries the current attestation. Every claim below was measured;
+> the probe index is ADR-013 §A1.1 E1–E33.
 
 #### 3.8.1 What the trailer block attests
 
@@ -623,6 +626,26 @@ materialization signal, never ownership.
     `%(trailers:key=…,valueonly,separator=…)` is unavailable — the reader must
     surface an **error state**, never "no evidence". Degrading to absence
     converts an unknown into a positive claim.
+15. **A slug-bearing line that Git does not parse as a trailer is
+    *malformed*, never *absent*.** A prose paragraph that quotes
+    `Tpatch-Feature: <slug>` and a trailer block destroyed by a later
+    `--amend` are measurably **indistinguishable** from the outside: both yield
+    an empty parsed value while the raw `%B` still contains the line. A
+    conservative reader classifies **both** as malformed and accepts the
+    resulting false red on the prose case, because reading a destroyed
+    attestation as "never attested" is the unsafe direction.
+16. **Artifact absence is evaluated before any digest comparison.** If the
+    feature's `post-apply.patch` is absent there is no digest to compare, and a
+    reader must report absence rather than a mismatch. Only a **present**
+    artifact is hashed; a present zero-byte artifact hashes to `sha256("")`.
+17. **The commit that carries the current attestation is not necessarily the
+    commit that can supply a pre-landing tree.** After a re-record and re-land
+    the newest landing's parent already contains the feature — measured — so a
+    reader that needs a baseline must select that candidate **independently**,
+    from among exact-slug single-parent landings whose parent does *not*
+    already contain the feature, and must not assume the two coincide. Their
+    own recorded hashes may be stale; they are not an authority, only a
+    baseline source.
 
 #### 3.8.3 No new status metadata — decision
 
@@ -635,6 +658,7 @@ one. Considered and rejected:
 | A `status.landed_at` timestamp | **Rejected.** `status.json:notes` already records `landed at <ts>` (§3.6, `internal/cli/land.go:357`) and no consumer needs it as structured data. |
 | A new `Tpatch-Landed-At` trailer | **Rejected.** ADR-019 locks the block; a new mandatory trailer is a breaking schema change requiring its own ADR, and the commit's author date already carries it. |
 | A `Tpatch-Landed-Parent` trailer recording `L^` explicitly | **Rejected.** It would make the §3.8.2 rule 10 topology check unnecessary, but it is redundant with `%P`, which the reader already obtains in the same enumeration, and it would stale under rebase exactly like a stored SHA. |
+| A `Tpatch-Landing-Generation` counter to order re-landings | **Rejected.** The enumeration's `--topo-order --reverse` already provides a deterministic order (rule 17), and a counter would need a migration for every repo landed since v0.8.0 while staling under history rewrites. |
 | Keeping the existing four trailers as the sole attestation | **Chosen.** Zero migration; retroactively valid for every feature landed since v0.8.0; degrades honestly — a hand-rolled `git commit` with no trailers yields "no evidence" and today's verify behaviour. |
 
 **Compatibility.** Because nothing is added, there is no migration, no
@@ -891,13 +915,13 @@ features re-recorded with `--auto`.
 The `reconcile` guard (3) is implementation-independent of `land` —
 they cover different verbs and can ship in either order.
 
-### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-1)
+### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-2)
 
 These rows are **`land`-side** obligations of the readers' contract in §3.8.
 They assert that the evidence substrate `tpatch verify` now depends on is
 actually produced, and — critically — that `land`'s **behaviour is
 unchanged**. The verify-side matrix lives in
-`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L106) and is not
+`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L118) and is not
 duplicated here.
 
 | # | Criterion | Tier |
@@ -917,8 +941,10 @@ duplicated here.
 | AC-LD13 | A feature landed **before** this amendment (fixture from a v0.8.0-era repo) is readable under the §3.8.2 rules with no migration. Retroactive-validity guard. | C |
 | AC-LD14 | `land --dry-run` still prints the trailer block and mutates nothing (existing §3.5 contract, unchanged). | C |
 | AC-LD15 | No `land` refusal, diagnostic string, exit code, or staging-plan output changes as a result of this amendment. Golden-output comparison against the pre-amendment binary. **The amendment is behaviour-neutral for `land`.** | C |
+| AC-LD16 | Two successive landings of the same slug (re-`record` then re-`land`) leave the **earlier** landing reachable and single-parent, so a reader can still derive a pre-landing tree from it after the newer landing's parent has absorbed the feature. Pins the substrate §3.8.2 rule 17 and `PRD-verify-freshness` §3.6.8 depend on. | C |
+| AC-LD17 | `land` never emits a trailer value outside the §3.8.2 rule 6 formats — no uppercase hex, no wrong-length digest, no `Recipe-SHA` that is neither 64 lowercase hex nor `none` — so a strict reader never rejects a commit `land` produced. | C |
 
-**Matrix size: 15 numbered criteria (AC-LD1 … AC-LD15), all tier C.** Most are
+**Matrix size: 17 numbered criteria (AC-LD1 … AC-LD17), all tier C.** Most are
 already satisfied by shipped behaviour and existing tests; they are listed so
 Wave C proves the substrate rather than assuming it. AC-LD15 is the guard that
 Wave C's changes stay inside `internal/workflow/verify.go` plus the new
