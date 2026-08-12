@@ -1,3 +1,52 @@
+## Review — v0.15.1 Wave B / GH #8 contract rev-2 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, follow-up)
+**Writer commit**: `fdc309f`
+**Reviewed range**: `f9138e6..fdc309f`
+
+### Verdict: NEEDS REVISION → REV-3 DISPATCHED
+
+### Verified Clean
+
+- Anchor C isolation, mandatory C0 hardening, patch-based parent arbitration,
+  strict evidence states, snapshots, 11-check schema and rev-1 closures.
+
+### Residual Findings
+
+1. **HIGH**: replay-anchor selection says stop at first qualifier but must
+   compare all qualifying candidates for differing diffs.
+2. **HIGH**: parent V10 is evaluated at a baseline that may already contain
+   the parent's postimage.
+3. **HIGH**: target+closure snapshot omits later-feature metadata needed by
+   ADR-029.
+4. **HIGH**: empty/absent patch states overlap and exact evidence precedence
+   is ambiguous.
+5. **HIGH**: land can emit an invalid Base-Commit trailer on legacy/corrupt
+   `--no-record` state.
+6. **MEDIUM**: shallow/partial history is misclassified as unsupported
+   topology with wrong remediation.
+7. **MEDIUM**: anchor qualification inherits reverse-ladder false reds rather
+   than testing forward applicability.
+8. **MEDIUM**: raw duplicate-equivalence rejects healthy cherry-pick/merge-back
+   histories; normalize to zero-context change bytes.
+9. **MEDIUM**: Q15 ignores existing recipe provenance baseline; stale V10
+   prose remains.
+
+### Rev-3 Direction
+
+- Collect all anchor candidates, qualify by forward applicability at parent
+  tree, normalize/compare all qualifying diffs, then select deterministically.
+- Evaluate parent V10 at that parent's own provenance/landing baseline.
+- Snapshot the full feature metadata inventory required by ADR-029.
+- Add explicit absent/empty/shallow/unavailable states and strict land
+  Base-Commit refusal.
+- Use `--unified=0` normalized duplicate comparison and resolve Q15.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave B rev-3.
+
 ## Review — v0.15.1 Wave B / GH #8 contract rev-1 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-contract-internal`, follow-up)

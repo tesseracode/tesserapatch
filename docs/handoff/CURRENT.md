@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
-v0.15.1 Wave B **rev-2** (GH #8 contract) is rewritten and ready for dual
-independent review. Planning only — no Go code, tests, assets, SPEC,
-CHANGELOG or GitHub issue state was touched. Implementation is Wave C.
+v0.15.1 Wave B rev-2 remains blocked by replay-anchor selection, parent V10,
+snapshot inventory, land base validation and shallow/cherry-pick handling.
+Rev-3 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: Review (rev-2)
+- **Status**: In Progress (rev-3)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
 - **Dispatch HEAD (rev-2)**: `f9138e6`
@@ -208,6 +208,34 @@ predicate scores 0/0 over 52 416 exhaustive cases.
 6. **CHANGELOG entry** intentionally absent — belongs to the Wave C ship.
 7. **`docs/ROADMAP.md` Wave B row and `docs/supervisor/LOG.md` verdict entry**
    are supervisor-owned and remain for review/close.
+
+## Rev-2 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: APPROVED WITH NOTES, with required folds
+  before implementation.
+- Blocking themes:
+  1. Replay-anchor selection stops early but also requires global duplicate
+     comparison.
+  2. Parent V10 lacks the parent's own preimage baseline.
+  3. ADR-029 later-touch needs a full metadata inventory snapshot.
+  4. Empty/absent patch precedence and strict land Base-Commit production are
+     incomplete.
+  5. Shallow/partial history needs a dedicated evidence state/remediation.
+  6. Anchor qualification must use forward applicability, not the hardened
+     reverse ladder.
+  7. Cherry-pick duplicate equivalence needs normalized zero-context diffs.
+  8. Q15 must use or explicitly reject recipe provenance; stale cross-doc
+     V10 prose remains.
+
+## Next Steps
+
+1. Collect all anchor candidates and compare before deterministic selection.
+2. Define per-parent V10 baseline and full metadata snapshot.
+3. Add land Base-Commit refusal and total absent/empty precedence.
+4. Add shallow/partial-history states and normalized duplicate comparison.
+5. Resolve Q15 and refresh all V10 prose/matrix rows.
+6. Run dual rev-3 planning review.
 
 ## Reviewer Focus
 

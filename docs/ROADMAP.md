@@ -713,6 +713,11 @@ from worktree dirt, hardens C0, separates landing attestation from replay
 anchor selection, makes parent arbitration patch-based, and rebuilds
 V10/evidence/schema/matrix parity.
 
+**Wave B rev-2** (`fdc309f`): internal NEEDS REVISION, external APPROVED WITH
+NOTES. Rev-3 makes anchor selection exhaustive/forward-applicability-based,
+adds per-parent V10 baselines and full metadata snapshots, validates land
+Base-Commit, handles shallow history, and normalizes duplicate landings.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
