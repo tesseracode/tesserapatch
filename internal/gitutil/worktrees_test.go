@@ -131,155 +131,54 @@ func TestParseWorktreeListNUL_Malformed(t *testing.T) {
 	}
 }
 
-// ─── layer 1: strict legacy (newline) parser ────────────────────────
+// ─── layer 1: no legacy fallback ────────────────────────────────────
 
-func TestParseWorktreeListLegacy_RawPathsPreserved(t *testing.T) {
-	out := "worktree /repo\nHEAD abc\nbranch refs/heads/main\n\n" +
-		"worktree /repo/nested wt with  spaces\nHEAD def\ndetached\n\n" +
-		"worktree /repo/wt/trailing space \nHEAD 012\nbranch refs/heads/t\n\n" +
-		"worktree /repo/wt/trailing tab\t\nHEAD 345\nprunable gitdir file points to non-existent location\n\n" +
-		"worktree /repo/wt/internal\ttab\nHEAD 678\nlocked\n\n"
-	got, err := parseWorktreeListLegacy(out)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	want := []string{
-		"/repo",
-		"/repo/nested wt with  spaces",
-		"/repo/wt/trailing space ",
-		"/repo/wt/trailing tab\t",
-		"/repo/wt/internal\ttab",
-	}
-	if len(got) != len(want) {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("path[%d] = %q, want %q (byte-for-byte)", i, got[i], want[i])
-		}
-	}
-}
-
-func TestParseWorktreeListLegacy_DecodesCQuoting(t *testing.T) {
-	cases := []struct {
-		name  string
-		quote string
-		want  string
-	}{
-		{"newline", `"/repo/wt/new\nline"`, "/repo/wt/new\nline"},
-		{"tab", `"/repo/wt/tab\there"`, "/repo/wt/tab\there"},
-		{"trailing space", `"/repo/wt/trailing space "`, "/repo/wt/trailing space "},
-		{"embedded quote", `"/repo/wt/say\"hi"`, `/repo/wt/say"hi`},
-		{"backslash", `"/repo/wt/back\\slash"`, `/repo/wt/back\slash`},
-		{"octal", `"/repo/wt/caf\303\251"`, "/repo/wt/café"},
-		{"bell and vtab", `"/repo/wt/\a\v"`, "/repo/wt/\a\v"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			out := "worktree /repo\nHEAD abc\nbranch refs/heads/main\n\n" +
-				"worktree " + tc.quote + "\nHEAD def\ndetached\n\n"
-			got, err := parseWorktreeListLegacy(out)
-			if err != nil {
-				t.Fatalf("parse %s: %v", tc.quote, err)
-			}
-			if len(got) != 2 || got[1] != tc.want {
-				t.Fatalf("got %q, want second path %q", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestParseWorktreeListLegacy_RefusesAmbiguity(t *testing.T) {
-	cases := []struct {
-		name string
-		out  string
-	}{
-		{
-			// The real shape a pre-2.36 Git emits for a worktree whose
-			// directory name contains a newline: the tail of the path
-			// is indistinguishable from an attribute line.
-			"raw newline continuation",
-			"worktree /repo\nHEAD abc\n\nworktree /repo/wt/new\nline\nHEAD def\n\n",
-		},
-		{"unterminated quote", "worktree \"/repo/wt/oops\nHEAD abc\n\n"},
-		{"unknown escape", "worktree \"/repo/wt/o\\qops\"\nHEAD abc\n\n"},
-		{"escape at end of input", "worktree \"/repo/wt/oops\\\nHEAD abc\n\n"},
-		{"bytes after closing quote", "worktree \"/repo/wt/oops\" extra\nHEAD abc\n\n"},
-		{"octal out of range", "worktree \"/repo/wt/\\777x\"\nHEAD abc\n\n"},
-		{"attribute before any record", "HEAD abc\nworktree /repo\n\n"},
-		{"second worktree line inside a record", "worktree /repo\nworktree /repo/wt\nHEAD abc\n\n"},
-		{"empty path", "worktree \nHEAD abc\n\n"},
-		{"no worktree records", "HEAD abc\nbranch refs/heads/main\n\n"},
-		{"empty output", ""},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseWorktreeListLegacy(tc.out)
-			if err == nil {
-				t.Fatalf("expected refusal for %q, got %q", tc.out, got)
-			}
-			// Every legacy refusal must reach the operator wrapped in
-			// the fail-closed class with the Git-version guidance.
-			wrapped := NestedWorktreeDiscoveryError("/repo", err)
-			if !errors.Is(wrapped, ErrNestedWorktreeDiscovery) {
-				t.Errorf("refusal not in the fail-closed class: %v", wrapped)
-			}
-		})
-	}
-}
-
-// A legacy ambiguity refusal must name the Git upgrade path, since
-// that is the only real fix for a newline-bearing worktree name.
-func TestParseWorktreeListLegacy_RefusalIsActionable(t *testing.T) {
-	_, err := parseWorktreeListLegacy("worktree /repo\nHEAD abc\n\nworktree /repo/wt/new\nline\nHEAD def\n\n")
-	if err == nil {
-		t.Fatal("expected refusal")
-	}
-	for _, want := range []string{"2.36", "--porcelain -z"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("refusal missing actionable guidance %q: %v", want, err)
-		}
-	}
-}
-
-func TestUnquoteCStyleRejectsMissingOpeningQuote(t *testing.T) {
-	if _, err := unquoteCStyle("/repo/plain"); err == nil {
-		t.Fatal("expected error when the value is not C-quoted")
-	}
-}
-
-// ─── layer 1: -z support probing ────────────────────────────────────
-
-func TestIsUnknownSwitchError(t *testing.T) {
-	cases := []struct {
-		stderr string
-		want   bool
-	}{
-		{"error: unknown switch `z'\nusage: git worktree list [-v | --porcelain [-z]]\n", true},
-		{"error: unknown option `z'\n", true},
-		{"usage: git worktree list [-v | --porcelain [-z]]\n", true},
-		{"fatal: not a git repository (or any of the parent directories): .git\n", false},
-		{"fatal: this operation must be run in a work tree\n", false},
-		{"", false},
-	}
-	for _, tc := range cases {
-		if got := isUnknownSwitchError(tc.stderr); got != tc.want {
-			t.Errorf("isUnknownSwitchError(%q) = %v, want %v", tc.stderr, got, tc.want)
-		}
-	}
-}
-
-// A `-z` failure that is NOT an unknown-switch usage error must fail
-// closed rather than silently re-routing through the weaker legacy
-// shape.
-func TestListRegisteredWorktreePaths_NonUsageFailureFailsClosed(t *testing.T) {
+// GH #7 rev-2 F1/F2: the newline-delimited fallback is REMOVED, not
+// merely stricter. Any `-z` failure is fail-closed with the Git 2.36
+// guidance; tpatch never runs plain `git worktree list --porcelain`.
+func TestListRegisteredWorktreePaths_NoLegacyFallback(t *testing.T) {
 	notARepo := t.TempDir()
 	_, err := listRegisteredWorktreePaths(notARepo)
 	if err == nil {
 		t.Fatal("expected an error outside a Git repository")
 	}
-	if strings.Contains(err.Error(), "--porcelain -z") == false {
-		t.Errorf("error should attribute the failure to the -z probe: %v", err)
+	for _, want := range []string{"--porcelain -z", "2.36", "will not fall back"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("failure message missing %q: %v", want, err)
+		}
+	}
+	wrapped := NestedWorktreeDiscoveryError(notARepo, err)
+	if !errors.Is(wrapped, ErrNestedWorktreeDiscovery) {
+		t.Errorf("failure not in the fail-closed class: %v", wrapped)
+	}
+}
+
+// The production source must contain no plain-`--porcelain`
+// invocation and no legacy parser symbols: a reviewer should be able
+// to prove the fallback is gone by grep alone.
+func TestNoLegacyPorcelainParserInProduction(t *testing.T) {
+	body, err := os.ReadFile("worktrees.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(body)
+	for _, banned := range []string{
+		"parseWorktreeListLegacy",
+		"isUnknownSwitchError",
+		"unquoteCStyle",
+		`"--porcelain")`,
+	} {
+		if strings.Contains(src, banned) {
+			t.Errorf("legacy fallback residue %q still present in production source", banned)
+		}
+	}
+	// Every `git worktree list` argv in production must carry -z.
+	for _, line := range strings.Split(src, "\n") {
+		if strings.Contains(line, `runGitStreams(`) && strings.Contains(line, `"worktree"`) {
+			if !strings.Contains(line, `"-z"`) {
+				t.Errorf("worktree list invocation without -z: %s", strings.TrimSpace(line))
+			}
+		}
 	}
 }
 
@@ -786,20 +685,23 @@ func contains(items []string, want string) bool {
 
 // installNoZWorktreeListGit prepends a `git` wrapper to PATH that
 // rejects `worktree list ... -z` exactly the way a pre-2.36 Git does,
-// and execs the real git for everything else. Production code is
-// untouched: the seam is the `git` executable.
-func installNoZWorktreeListGit(t *testing.T) {
+// records every `worktree list` invocation, and execs the real git for
+// everything else. Production code is untouched: the seam is the `git`
+// executable. The returned path is the invocation log.
+func installNoZWorktreeListGit(t *testing.T) string {
 	t.Helper()
 	realGit, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatalf("locate real git: %v", err)
 	}
 	binDir := t.TempDir()
+	invocationLog := filepath.Join(binDir, "worktree-list-calls.log")
 	script := "#!/bin/sh\nlist=0\nz=0\nprev=\"\"\nfor a in \"$@\"; do\n" +
 		"  if [ \"$prev\" = \"worktree\" ] && [ \"$a\" = \"list\" ]; then list=1; fi\n" +
 		"  if [ \"$a\" = \"-z\" ]; then z=1; fi\n" +
 		"  prev=\"$a\"\n" +
 		"done\n" +
+		"if [ \"$list\" = 1 ]; then echo \"$@\" >> " + invocationLog + "; fi\n" +
 		"if [ \"$list\" = 1 ] && [ \"$z\" = 1 ]; then\n" +
 		"  echo \"error: unknown switch \\`z'\" >&2\n" +
 		"  echo \"usage: git worktree list [-v | --porcelain]\" >&2\n" +
@@ -817,44 +719,80 @@ func installNoZWorktreeListGit(t *testing.T) {
 	if err := probe.Run(); err == nil {
 		t.Fatal("git wrapper did not reject -z")
 	}
+	_ = os.Remove(invocationLog)
+	return invocationLog
 }
 
-// The pre-2.36 fallback must still discover and exclude a nested
-// worktree, including one whose name contains spaces, through the
-// strict legacy parser.
-func TestNestedWorktreePrefixes_LegacyFallbackRealRepo(t *testing.T) {
+// worktreeListInvocations returns the recorded `git worktree list`
+// argv lines.
+func worktreeListInvocations(t *testing.T, logPath string) []string {
+	t.Helper()
+	body, err := os.ReadFile(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		t.Fatal(err)
+	}
+	var out []string
+	for _, line := range strings.Split(strings.TrimSpace(string(body)), "\n") {
+		if strings.TrimSpace(line) != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+// GH #7 rev-2 F1/F2: when `-z` is rejected, discovery must fail closed
+// and must NOT retry with plain `--porcelain`.
+func TestNestedWorktreePrefixes_NoZRejectionFailsClosedWithoutRetry(t *testing.T) {
 	root := nestedWTRepo(t)
 	rel := ".claude/worktrees/agent review"
 	addWorktree(t, root, filepath.Join(root, filepath.FromSlash(rel)), "agent-review")
-	if err := os.MkdirAll(filepath.Join(root, ".claude", "worktrees", "agent-other"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".claude", "worktrees", "agent-other", "f.txt"), []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# seed\nchanged\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	installNoZWorktreeListGit(t)
+	logPath := installNoZWorktreeListGit(t)
 
 	got, err := NestedWorktreePrefixes(root)
-	if err != nil {
-		t.Fatalf("NestedWorktreePrefixes via the legacy fallback: %v", err)
+	if err == nil {
+		t.Fatalf("a -z rejection must fail closed, got prefixes %q", got)
 	}
-	if len(got) != 1 || got[0] != rel {
-		t.Fatalf("prefixes = %q, want exactly [%q]", got, rel)
+	if !errors.Is(err, ErrNestedWorktreeDiscovery) {
+		t.Errorf("failure not in the fail-closed class: %v", err)
 	}
-	patch, err := CapturePatchScoped(root, nil)
-	if err != nil {
-		t.Fatalf("CapturePatchScoped: %v", err)
+	for _, want := range []string{"2.36", "--porcelain -z", "will not fall back"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("guidance missing %q: %v", want, err)
+		}
 	}
-	if strings.Contains(patch, "agent review") || strings.Contains(patch, "160000") {
-		t.Errorf("legacy fallback let the nested worktree into capture:\n%s", patch)
+
+	calls := worktreeListInvocations(t, logPath)
+	if len(calls) != 1 {
+		t.Fatalf("expected exactly one `git worktree list` invocation, got %d: %q", len(calls), calls)
 	}
-	for _, want := range []string{"+changed", ".claude/worktrees/agent-other/f.txt"} {
-		if !strings.Contains(patch, want) {
-			t.Errorf("legacy fallback over-filtered %q:\n%s", want, patch)
+	if !strings.Contains(calls[0], "-z") {
+		t.Errorf("the single invocation must be the -z form: %q", calls[0])
+	}
+
+	// Every discovery-dependent entry point refuses rather than
+	// operating blind, and none of them retries the plain form.
+	if _, err := CapturePatchScoped(root, nil); !errors.Is(err, ErrNestedWorktreeDiscovery) {
+		t.Errorf("CapturePatchScoped must fail closed on a -z rejection, got %v", err)
+	}
+	if _, err := CaptureDiffStat(root); !errors.Is(err, ErrNestedWorktreeDiscovery) {
+		t.Errorf("CaptureDiffStat must fail closed on a -z rejection, got %v", err)
+	}
+	if _, err := DiffFromCommitForPaths(root, "HEAD", []string{"README.md"}); !errors.Is(err, ErrNestedWorktreeDiscovery) {
+		t.Errorf("DiffFromCommitForPaths must fail closed on a -z rejection, got %v", err)
+	}
+	if _, err := FilterPathsExcludingNestedWorktrees(root, []string{"README.md"}); !errors.Is(err, ErrNestedWorktreeDiscovery) {
+		t.Errorf("FilterPathsExcludingNestedWorktrees must fail closed on a -z rejection, got %v", err)
+	}
+	for _, call := range worktreeListInvocations(t, logPath) {
+		if !strings.Contains(call, "-z") {
+			t.Errorf("plain --porcelain was invoked: %q", call)
 		}
 	}
 }
@@ -895,5 +833,137 @@ func TestIsWorkingTreeDirtyIgnoresNestedWorktree(t *testing.T) {
 	nestedWTGit(t, root, "add", "README.md")
 	if !IsWorkingTreeDirty(root) {
 		t.Error("a staged modification must count as dirt")
+	}
+}
+
+// ─── GH #7 rev-2 F3: DiffFromCommitForPaths filtering ───────────────
+
+// A stale nested-worktree gitlink path in the caller's list must be
+// dropped before the intent-to-add pass and excluded from the diff,
+// while intended paths still flow through.
+func TestDiffFromCommitForPathsExcludesNestedWorktree(t *testing.T) {
+	root := nestedWTRepo(t)
+	rel := ".claude/worktrees/agent review"
+	addWorktree(t, root, filepath.Join(root, filepath.FromSlash(rel)), "agent-review")
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# seed\nchanged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "new.go"), []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	statusBefore := nestedWTGit(t, root, "status", "--porcelain", "-z", "--untracked-files=all")
+
+	diff, err := DiffFromCommitForPaths(root, "HEAD", []string{"README.md", "new.go", rel})
+	if err != nil {
+		t.Fatalf("DiffFromCommitForPaths: %v", err)
+	}
+	if strings.Contains(diff, "agent review") || strings.Contains(diff, "160000") {
+		t.Errorf("nested worktree leaked into the refreshed diff:\n%s", diff)
+	}
+	for _, want := range []string{"README.md", "new.go", "+changed"} {
+		if !strings.Contains(diff, want) {
+			t.Errorf("intended path %q missing from the refreshed diff:\n%s", want, diff)
+		}
+	}
+	// The real index must be untouched (temp-index contract).
+	if got := nestedWTGit(t, root, "status", "--porcelain", "-z", "--untracked-files=all"); got != statusBefore {
+		t.Errorf("real index/worktree mutated:\nbefore=%q\nafter=%q", statusBefore, got)
+	}
+}
+
+// A caller list consisting ONLY of nested-worktree paths must produce
+// an EMPTY diff, never a broadened full-tree diff.
+func TestDiffFromCommitForPathsWorktreeOnlyScopeReturnsEmpty(t *testing.T) {
+	root := nestedWTRepo(t)
+	rel := ".claude/worktrees/agent review"
+	addWorktree(t, root, filepath.Join(root, filepath.FromSlash(rel)), "agent-review")
+	// Real, unrelated change that a broadened full-tree diff WOULD pick up.
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# seed\nchanged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	diff, err := DiffFromCommitForPaths(root, "HEAD", []string{rel, rel + "/src"})
+	if err != nil {
+		t.Fatalf("DiffFromCommitForPaths: %v", err)
+	}
+	if diff != "" {
+		t.Fatalf("worktree-only scope must yield an empty diff, got:\n%s", diff)
+	}
+}
+
+// An empty caller list still means "full diff", minus nested worktrees.
+func TestDiffFromCommitForPathsEmptyScopeStillExcludesNestedWorktree(t *testing.T) {
+	root := nestedWTRepo(t)
+	rel := ".claude/worktrees/agent review"
+	addWorktree(t, root, filepath.Join(root, filepath.FromSlash(rel)), "agent-review")
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# seed\nchanged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Residue a pre-fix run leaves in the real index.
+	nestedWTGit(t, root, "-c", "advice.addEmbeddedRepo=false",
+		"--literal-pathspecs", "add", "--intent-to-add", "--", rel)
+
+	diff, err := DiffFromCommitForPaths(root, "HEAD", nil)
+	if err != nil {
+		t.Fatalf("DiffFromCommitForPaths: %v", err)
+	}
+	if strings.Contains(diff, "agent review") || strings.Contains(diff, "160000") {
+		t.Errorf("nested worktree leaked into the full diff:\n%s", diff)
+	}
+	if !strings.Contains(diff, "+changed") {
+		t.Errorf("intended change missing from the full diff:\n%s", diff)
+	}
+}
+
+// The linked-worktree effective-index behavior must survive the
+// pathspec-magic change (`--literal-pathspecs` → `:(literal)`).
+func TestDiffFromCommitForPathsPreservesLinkedWorktreeIndexAfterFiltering(t *testing.T) {
+	mainDir := nestedWTRepo(t)
+	linkedDir := filepath.Join(t.TempDir(), "linked")
+	addWorktree(t, mainDir, linkedDir, "linked-rev2")
+
+	if err := os.WriteFile(filepath.Join(linkedDir, "hello.txt"), []byte("linked change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nestedWTGit(t, linkedDir, "add", "hello.txt")
+	statusBefore := nestedWTGit(t, linkedDir, "status", "--porcelain=v1")
+	indexBefore := nestedWTGit(t, linkedDir, "write-tree")
+
+	diff, err := DiffFromCommitForPaths(linkedDir, "HEAD", []string{"hello.txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(diff, "linked change") {
+		t.Fatalf("linked-worktree diff missing staged change:\n%s", diff)
+	}
+	if got := nestedWTGit(t, linkedDir, "status", "--porcelain=v1"); got != statusBefore {
+		t.Fatalf("status changed:\nbefore=%q\nafter=%q", statusBefore, got)
+	}
+	if got := nestedWTGit(t, linkedDir, "write-tree"); got != indexBefore {
+		t.Fatalf("index changed:\nbefore=%s\nafter=%s", indexBefore, got)
+	}
+}
+
+// A path containing pathspec-magic-looking bytes must still be treated
+// literally now that the global --literal-pathspecs flag is gone.
+func TestDiffFromCommitForPathsKeepsLiteralPathSemantics(t *testing.T) {
+	root := nestedWTRepo(t)
+	name := "weird[1]*name.txt"
+	if err := os.WriteFile(filepath.Join(root, name), []byte("v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nestedWTGit(t, root, "--literal-pathspecs", "add", "--", name)
+	nestedWTGit(t, root, "commit", "-qm", "add weird name")
+	if err := os.WriteFile(filepath.Join(root, name), []byte("v1\nv2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	diff, err := DiffFromCommitForPaths(root, "HEAD", []string{name})
+	if err != nil {
+		t.Fatalf("DiffFromCommitForPaths: %v", err)
+	}
+	if !strings.Contains(diff, "+v2") {
+		t.Errorf("literal pathspec semantics broken for %q:\n%s", name, diff)
 	}
 }

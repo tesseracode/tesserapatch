@@ -106,6 +106,25 @@ func FilterNestedWorktreePaths(paths, prefixes []string) []string {
 	return keep
 }
 
+// FilterPathsExcludingNestedWorktrees returns `paths` with every entry
+// that names a registered nested linked worktree (or anything inside
+// one) removed. Order is preserved and the input slice is not mutated.
+//
+// Discovery failure is fail-closed: the wrapped
+// ErrNestedWorktreeDiscovery is returned so callers refuse rather than
+// operating on an unfiltered path set.
+//
+// Callers that use the result as a diff scope MUST treat
+// "non-empty input filtered down to empty" as "produce nothing", never
+// as "no scope, diff everything" — see DiffFromCommitForPaths.
+func FilterPathsExcludingNestedWorktrees(repoRoot string, paths []string) ([]string, error) {
+	prefixes, err := NestedWorktreePrefixes(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	return FilterNestedWorktreePaths(paths, prefixes), nil
+}
+
 // nestedWorktreeCaptureFilters discovers the nested linked worktrees of
 // repoRoot once and returns both filter shapes a capture site needs:
 // `:(exclude,literal)` pathspecs to append to a `git diff` invocation,
@@ -163,51 +182,49 @@ func runGitStreams(dir string, args ...string) (stdout, stderr string, err error
 }
 
 // listRegisteredWorktreePaths returns the raw worktree paths reported
-// by `git worktree list --porcelain`, byte-for-byte.
+// by `git worktree list --porcelain -z`, byte-for-byte.
 //
-// The NUL-delimited `-z` shape (Git 2.36+) is the only unambiguous
-// form: a worktree path may contain any byte except NUL, newlines and
-// trailing whitespace included, and only NUL termination can delimit
-// it losslessly. It is therefore tried first.
+// The NUL-delimited `-z` shape (Git 2.36+) is the ONLY shape tpatch
+// accepts. A worktree path may contain any byte except NUL — newlines,
+// tabs and trailing whitespace included — and only NUL termination can
+// delimit it losslessly.
 //
-// When `-z` is rejected as an unknown switch — i.e. the repository's
-// Git predates 2.36 — the newline-delimited form is parsed STRICTLY:
-// records are structurally validated against Git's known attribute
-// keys, C-quoted paths are decoded, and anything ambiguous (an
-// unrecognised continuation line, an unterminated or malformed quote)
-// is refused rather than guessed. Guessing is what would let a
-// newline-bearing worktree path slip past the filter and back into a
-// capture.
+// GH #7 rev-2: the newline-delimited fallback that used to run on
+// pre-2.36 Git is gone, not merely stricter. Two independent defects
+// made it unsafe:
 //
-// Any `-z` failure that is NOT an unknown-switch usage error is
-// propagated as-is: a broken repository must fail closed, not silently
-// re-route through the weaker legacy shape.
+//  1. It is intrinsically ambiguous. A worktree path containing a
+//     newline whose continuation happens to be shaped like a valid
+//     attribute — `locked x`, `bare`, `HEAD <sha>` — parses as a
+//     well-formed record, so no amount of structural validation can
+//     tell it apart from a real one. The nested worktree then silently
+//     escapes the filter and lands back in a capture as a gitlink.
+//  2. Deciding that `-z` is unsupported required classifying Git's
+//     stderr, and bare `usage:` text is emitted for several failures
+//     that have nothing to do with an unknown switch.
+//
+// Every failure — unknown switch, usage error, broken repository, git
+// missing — is therefore fail-closed with actionable guidance. tpatch
+// never runs plain `git worktree list --porcelain`.
 func listRegisteredWorktreePaths(repoRoot string) ([]string, error) {
 	out, stderr, err := runGitStreams(repoRoot, "worktree", "list", "--porcelain", "-z")
-	if err == nil {
-		return parseWorktreeListNUL(out)
+	if err != nil {
+		detail := strings.TrimSpace(stderr)
+		if detail == "" {
+			detail = err.Error()
+		}
+		return nil, fmt.Errorf(
+			"git worktree list --porcelain -z failed: %s\n"+
+				"tpatch requires Git 2.36 or newer: the NUL-delimited porcelain shape is the only one that "+
+				"delimits worktree paths losslessly, and byte-safe nested-worktree exclusion depends on it. "+
+				"The newline-delimited shape is intrinsically ambiguous (a path containing a newline can parse "+
+				"as a well-formed record), so tpatch will not fall back to it",
+			detail)
 	}
-	if !isUnknownSwitchError(stderr) {
-		return nil, fmt.Errorf("git worktree list --porcelain -z: %v: %s", err, strings.TrimSpace(stderr))
-	}
-	legacy, legacyStderr, legacyErr := runGitStreams(repoRoot, "worktree", "list", "--porcelain")
-	if legacyErr != nil {
-		return nil, fmt.Errorf("git worktree list --porcelain: %v: %s", legacyErr, strings.TrimSpace(legacyStderr))
-	}
-	return parseWorktreeListLegacy(legacy)
+	return parseWorktreeListNUL(out)
 }
 
-// isUnknownSwitchError reports whether Git rejected an option it does
-// not know, which is how a pre-2.36 Git answers `worktree list -z`.
-// Git prints `error: unknown switch \`z'` (short form) or
-// `error: unknown option \`...'` followed by the usage block, and
-// exits with the usage status.
-func isUnknownSwitchError(stderr string) bool {
-	s := strings.ToLower(stderr)
-	return strings.Contains(s, "unknown switch") ||
-		strings.Contains(s, "unknown option") ||
-		strings.Contains(s, "usage: git worktree list")
-}
+const worktreeKey = "worktree "
 
 // parseWorktreeListNUL extracts worktree paths from the NUL-delimited
 // porcelain shape. Each attribute is NUL-terminated and each record is
@@ -219,6 +236,11 @@ func isUnknownSwitchError(stderr string) bool {
 // otherwise the derived prefix stops matching the path Git reports for
 // the same directory elsewhere and the worktree slips back into
 // capture.
+//
+// Output that yields zero worktree records is treated as malformed: a
+// working repository always reports at least its own main worktree, so
+// an empty parse means we cannot prove the absence of nested
+// worktrees.
 func parseWorktreeListNUL(out string) ([]string, error) {
 	var paths []string
 	for _, field := range strings.Split(out, "\x00") {
@@ -235,169 +257,6 @@ func parseWorktreeListNUL(out string) ([]string, error) {
 		return nil, fmt.Errorf("git worktree list --porcelain -z: no worktree records in output %q", truncateForError(out))
 	}
 	return paths, nil
-}
-
-const worktreeKey = "worktree "
-
-// worktreeAttrKeys is the set of non-`worktree` keys Git emits in a
-// `worktree list --porcelain` record. Presence of a value is allowed
-// for every key (`locked`/`prunable` carry an optional reason), which
-// keeps the validator forward-compatible with new valued attributes
-// while still catching a stray path continuation line.
-var worktreeAttrKeys = map[string]bool{
-	"HEAD":     true,
-	"branch":   true,
-	"bare":     true,
-	"detached": true,
-	"locked":   true,
-	"prunable": true,
-}
-
-// parseWorktreeListLegacy strictly parses the newline-delimited
-// porcelain shape emitted by Git versions without `-z`.
-//
-// Contract:
-//
-//   - A record begins with a `worktree ` line and ends at a blank line
-//     (Git terminates every record, including the last, with one).
-//   - Every other line in a record MUST be a known attribute key,
-//     optionally followed by a space and a value. An unrecognised line
-//     is treated as the continuation of a path containing a newline —
-//     unrepresentable in this shape — and refused.
-//   - A path beginning with `"` MUST be a well-formed, fully
-//     terminated Git C-quoted string; it is decoded to raw bytes.
-//     Malformed quoting is refused, never silently taken literally.
-//   - An unquoted path is preserved byte-for-byte, INCLUDING trailing
-//     spaces and tabs. `\r` is not stripped: Git does not emit CRLF
-//     here, so a trailing `\r` is a legitimate path byte.
-func parseWorktreeListLegacy(out string) ([]string, error) {
-	lines := strings.Split(out, "\n")
-	// A trailing "\n" produces one empty tail element; drop exactly
-	// that one so it is not mistaken for a record separator.
-	if n := len(lines); n > 0 && lines[n-1] == "" {
-		lines = lines[:n-1]
-	}
-
-	var paths []string
-	inRecord := false
-	for i, line := range lines {
-		if line == "" {
-			inRecord = false
-			continue
-		}
-		if strings.HasPrefix(line, worktreeKey) {
-			if inRecord {
-				return nil, legacyAmbiguityError(i, line, "a second `worktree` line inside an unterminated record")
-			}
-			p, err := decodeLegacyWorktreePath(line[len(worktreeKey):])
-			if err != nil {
-				return nil, legacyAmbiguityError(i, line, err.Error())
-			}
-			paths = append(paths, p)
-			inRecord = true
-			continue
-		}
-		if !inRecord {
-			return nil, legacyAmbiguityError(i, line, "attribute line outside any worktree record")
-		}
-		key := line
-		if sp := strings.IndexByte(line, ' '); sp >= 0 {
-			key = line[:sp]
-		}
-		if !worktreeAttrKeys[key] {
-			return nil, legacyAmbiguityError(i, line,
-				"unrecognised line; it is indistinguishable from the continuation of a worktree path containing a newline")
-		}
-	}
-	if len(paths) == 0 {
-		return nil, fmt.Errorf("git worktree list --porcelain: no worktree records in output %q", truncateForError(out))
-	}
-	return paths, nil
-}
-
-func legacyAmbiguityError(lineNo int, line, why string) error {
-	return fmt.Errorf(
-		"git worktree list --porcelain (newline-delimited, pre-Git-2.36 fallback) cannot be parsed unambiguously at line %d (%q): %s.\n"+
-			"Upgrade Git to 2.36 or newer so tpatch can use the NUL-delimited `git worktree list --porcelain -z` shape, or move the offending worktree to a path without unusual characters",
-		lineNo+1, truncateForError(line), why)
-}
-
-// decodeLegacyWorktreePath returns the raw bytes of a path field from
-// the newline-delimited shape. A leading `"` selects Git's C-quoting;
-// everything else is verbatim.
-func decodeLegacyWorktreePath(value string) (string, error) {
-	if value == "" {
-		return "", fmt.Errorf("empty worktree path")
-	}
-	if value[0] != '"' {
-		return value, nil
-	}
-	return unquoteCStyle(value)
-}
-
-// unquoteCStyle decodes a Git `quote_c_style` string. The input must
-// start and end with `"` with nothing after the closing quote, and may
-// contain only the escapes Git emits: \a \b \f \n \r \t \v \" \\ and
-// one-to-three-digit octal. Anything else is malformed.
-func unquoteCStyle(s string) (string, error) {
-	if len(s) < 2 || s[0] != '"' {
-		return "", fmt.Errorf("malformed C-quoted path: missing opening quote")
-	}
-	var b strings.Builder
-	i := 1
-	for i < len(s) {
-		c := s[i]
-		switch {
-		case c == '"':
-			if i != len(s)-1 {
-				return "", fmt.Errorf("malformed C-quoted path: trailing bytes after the closing quote")
-			}
-			return b.String(), nil
-		case c != '\\':
-			b.WriteByte(c)
-			i++
-		default:
-			i++
-			if i >= len(s) {
-				return "", fmt.Errorf("malformed C-quoted path: escape at end of input")
-			}
-			e := s[i]
-			i++
-			switch e {
-			case 'a':
-				b.WriteByte(0x07)
-			case 'b':
-				b.WriteByte(0x08)
-			case 'f':
-				b.WriteByte(0x0c)
-			case 'n':
-				b.WriteByte(0x0a)
-			case 'r':
-				b.WriteByte(0x0d)
-			case 't':
-				b.WriteByte(0x09)
-			case 'v':
-				b.WriteByte(0x0b)
-			case '"', '\\':
-				b.WriteByte(e)
-			case '0', '1', '2', '3', '4', '5', '6', '7':
-				val := int(e - '0')
-				digits := 1
-				for digits < 3 && i < len(s) && s[i] >= '0' && s[i] <= '7' {
-					val = val*8 + int(s[i]-'0')
-					i++
-					digits++
-				}
-				if val > 0xFF {
-					return "", fmt.Errorf("malformed C-quoted path: octal escape out of range")
-				}
-				b.WriteByte(byte(val))
-			default:
-				return "", fmt.Errorf("malformed C-quoted path: unknown escape %q", "\\"+string(e))
-			}
-		}
-	}
-	return "", fmt.Errorf("malformed C-quoted path: unterminated quote")
 }
 
 // nestedWorktreePrefixes maps absolute worktree paths onto normalized

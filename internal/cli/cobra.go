@@ -987,6 +987,14 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 	}
 	reapplying := status.State == store.StateUnapplied || pendingBaseline
 	presentAtHEAD := false
+
+	// GH #7 rev-2 (F4): every discovery-dependent read runs BEFORE the
+	// first artifact write. Previously the canonical patch was written,
+	// then the diffstat was captured — so a discovery failure between
+	// the two left a written patch behind on a command that reports
+	// failure. Capture and diffstat are both computed here; only after
+	// both succeed does anything touch the feature directory.
+	var pendingDiffStat string
 	if reapplying {
 		canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 		if readErr != nil {
@@ -1000,7 +1008,12 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 			return "", 0, err
 		}
 		patch = canonical
+		pendingDiffStat, err = captureDiffStatFailClosed(s.Root, nil)
+		if err != nil {
+			return "", 0, err
+		}
 	} else {
+		var captureWarning string
 		patch, err = gitutil.CapturePatch(s.Root)
 		if err != nil {
 			// GH #7: nested linked-worktree discovery failure is
@@ -1009,7 +1022,15 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 			if errors.Is(err, gitutil.ErrNestedWorktreeDiscovery) {
 				return "", 0, err
 			}
-			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not capture patch: %v\n", err)
+			captureWarning = fmt.Sprintf("warning: could not capture patch: %v\n", err)
+		}
+		pendingDiffStat, err = captureDiffStatFailClosed(s.Root, nil)
+		if err != nil {
+			return "", 0, err
+		}
+		// Discovery is complete; writes begin here.
+		if captureWarning != "" {
+			fmt.Fprint(cmd.ErrOrStderr(), captureWarning)
 		}
 		if patch != "" {
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
@@ -1024,12 +1045,8 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 			}
 		}
 	}
-	diffStat, diffStatErr := gitutil.CaptureDiffStat(s.Root)
-	if diffStatErr != nil && errors.Is(diffStatErr, gitutil.ErrNestedWorktreeDiscovery) {
-		return "", 0, diffStatErr
-	}
-	if diffStat != "" {
-		s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
+	if pendingDiffStat != "" {
+		s.WriteArtifact(slug, "post-apply-diff.txt", pendingDiffStat)
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -1745,6 +1762,27 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				fmt.Fprintf(cmd.OutOrStdout(), "  Patch validated: round-trips cleanly against working tree\n")
 			}
 
+			// GH #7 rev-2 (F4): the diffstat's nested-worktree
+			// discovery must finish BEFORE the first artifact write.
+			// It used to run after post-apply.patch and the numbered
+			// snapshot were on disk, so a discovery failure there
+			// reported an error while leaving mutated artifacts
+			// behind. Hoisting it here makes the whole write sequence
+			// transactional with respect to discovery: patch capture
+			// (above) and diffstat (here) are the only two
+			// discovery-dependent reads, and both complete before
+			// anything touches the feature directory.
+			//
+			// Side effect, intentional: the diffstat no longer
+			// observes tpatch's own artifact writes, so a re-record in
+			// a repository where `.tpatch/features/<slug>/` is tracked
+			// describes the feature's code changes rather than the
+			// artifact rewrite it is about to perform.
+			pendingDiffStat, diffStatErr := captureDiffStatFailClosed(s.Root, pathspecs)
+			if diffStatErr != nil {
+				return diffStatErr
+			}
+
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 				return err
@@ -1779,15 +1817,12 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// hoisted above the artifact writes (search for
 			// "PRD-record-roundtrip-transactional" upstream). By the
 			// time execution reaches this point the patch has already
-			// round-tripped (or --lenient was passed), so we proceed
-			// directly to diff-stat capture.
+			// round-tripped (or --lenient was passed), and the
+			// diffstat was captured before the first write (GH #7
+			// rev-2 F4), so we only persist it here.
 
-			diffStat, diffStatErr := gitutil.CaptureDiffStatScoped(s.Root, pathspecs)
-			if diffStatErr != nil && errors.Is(diffStatErr, gitutil.ErrNestedWorktreeDiscovery) {
-				return diffStatErr
-			}
-			if diffStat != "" {
-				s.WriteArtifact(slug, "post-apply-diff.txt", diffStat)
+			if pendingDiffStat != "" {
+				s.WriteArtifact(slug, "post-apply-diff.txt", pendingDiffStat)
 			}
 
 			// GAP 3: Generate record.md
@@ -1818,7 +1853,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 					unstagedSummary.UnstagedPaths, unstagedSummary.UnrelatedStagedPaths)
 			}
 			filesChanged := countPatchFiles(patch)
-			recordMD := generateRecordMD(slug, filesChanged, len(patch), diffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason, collision.CrossFeature, prov)
+			recordMD := generateRecordMD(slug, filesChanged, len(patch), pendingDiffStat, fromRef, toRef, captureMode, filesFlag, allowCollisionReason, collision.CrossFeature, prov)
 			s.WriteFeatureFile(slug, "record.md", recordMD)
 
 			status, _ = s.LoadFeatureStatus(slug)

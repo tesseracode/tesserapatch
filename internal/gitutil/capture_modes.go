@@ -155,12 +155,12 @@ func CaptureStagedPatch(repoRoot string, pathspecs []string) (string, StagedDirt
 		return "", summary, fmt.Errorf("git diff --cached failed: %w", err)
 	}
 
-	staged, err := stagedNameOnly(repoRoot, pathspecs)
+	staged, err := stagedNameOnly(repoRoot, pathspecs, nestedExcludes)
 	if err != nil {
 		return "", summary, err
 	}
 	summary.StagedPaths = len(staged)
-	unstaged, err := unstagedNameOnly(repoRoot, pathspecs)
+	unstaged, err := unstagedNameOnly(repoRoot, pathspecs, nestedExcludes)
 	if err != nil {
 		return "", summary, err
 	}
@@ -188,12 +188,12 @@ func CaptureStagedPatch(repoRoot string, pathspecs []string) (string, StagedDirt
 func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, UnstagedDirtySummary, error) {
 	var summary UnstagedDirtySummary
 
-	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	nestedExcludes, nestedPrefixes, err := nestedWorktreeCaptureFilters(repoRoot)
 	if err != nil {
 		return "", summary, err
 	}
 
-	untrackedFiles, err := listUntrackedFiles(repoRoot, pathspecs)
+	untrackedFiles, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, nestedPrefixes)
 	if err != nil {
 		return "", summary, err
 	}
@@ -241,11 +241,11 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 	// were removed (so plain untracked additions show up only if they
 	// were intent-to-add staged during the diff). We re-stage and
 	// re-reset around stagedNameOnly to keep the live tree untouched.
-	staged, err := stagedNameOnly(repoRoot, pathspecs)
+	staged, err := stagedNameOnly(repoRoot, pathspecs, nestedExcludes)
 	if err != nil {
 		return "", summary, err
 	}
-	unstaged, err := unstagedNameOnly(repoRoot, pathspecs)
+	unstaged, err := unstagedNameOnly(repoRoot, pathspecs, nestedExcludes)
 	if err != nil {
 		return "", summary, err
 	}
@@ -253,7 +253,7 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 	// have appeared in the patch via intent-to-add). We list them
 	// post-reset to mirror the "what the user has, minus the index"
 	// set.
-	untracked, err := untrackedFiltered(repoRoot, pathspecs)
+	untracked, err := untrackedFiltered(repoRoot, pathspecs, nestedPrefixes)
 	if err != nil {
 		return "", summary, err
 	}
@@ -286,15 +286,19 @@ func CaptureUnstagedPatch(repoRoot string, pathspecs []string) (string, Unstaged
 // forward-slash normalized as `git diff --name-only` produces them.
 // The returned slices are sorted for stable diagnostic ordering.
 func StagedUnstagedOverlap(repoRoot string, pathspecs []string) (overlap, unrelatedStaged, unrelatedUnstaged []string, err error) {
-	staged, err := stagedNameOnly(repoRoot, pathspecs)
+	nestedExcludes, nestedPrefixes, err := nestedWorktreeCaptureFilters(repoRoot)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	unstaged, err := unstagedNameOnly(repoRoot, pathspecs)
+	staged, err := stagedNameOnly(repoRoot, pathspecs, nestedExcludes)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	untracked, err := untrackedFiltered(repoRoot, pathspecs)
+	unstaged, err := unstagedNameOnly(repoRoot, pathspecs, nestedExcludes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	untracked, err := untrackedFiltered(repoRoot, pathspecs, nestedPrefixes)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -480,11 +484,7 @@ func isLikelyDir(p string) bool {
 // between HEAD and the index, scoped by the supplied pathspecs (if
 // any). The exclude pathspecs match the diff-capture excludes so
 // reserved-area entries never appear in overlap diagnostics.
-func stagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
-	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
-	if err != nil {
-		return nil, err
-	}
+func stagedNameOnly(repoRoot string, pathspecs, nestedExcludes []string) ([]string, error) {
 	args := append([]string{"diff", "--cached", "--name-only", "HEAD", "--"}, captureModeExcludes()...)
 	args = append(args, nestedExcludes...)
 	if len(pathspecs) > 0 {
@@ -500,11 +500,7 @@ func stagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
 // unstagedNameOnly returns the list of distinct TRACKED paths that
 // differ between the index and the working tree. Untracked files are
 // listed separately via untrackedFiltered.
-func unstagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
-	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
-	if err != nil {
-		return nil, err
-	}
+func unstagedNameOnly(repoRoot string, pathspecs, nestedExcludes []string) ([]string, error) {
 	args := append([]string{"diff", "--name-only", "--"}, captureModeExcludes()...)
 	args = append(args, nestedExcludes...)
 	if len(pathspecs) > 0 {
@@ -519,8 +515,8 @@ func unstagedNameOnly(repoRoot string, pathspecs []string) ([]string, error) {
 
 // untrackedFiltered lists untracked files filtered by the reserved-
 // area skip-prefixes and the supplied pathspecs.
-func untrackedFiltered(repoRoot string, pathspecs []string) ([]string, error) {
-	files, err := listUntrackedFiles(repoRoot, pathspecs)
+func untrackedFiltered(repoRoot string, pathspecs, nested []string) ([]string, error) {
+	files, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, nested)
 	if err != nil {
 		return nil, err
 	}
@@ -550,6 +546,15 @@ func listUntrackedFiles(repoRoot string, pathspecs []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return listUntrackedFilesWithPrefixes(repoRoot, pathspecs, nested)
+}
+
+// listUntrackedFilesWithPrefixes is listUntrackedFiles for callers that
+// already performed discovery. GH #7 rev-2 (F4): every capture helper
+// discovers EXACTLY ONCE and threads the result through, so a single
+// command cannot observe two different answers, and the number of
+// failure windows before the first artifact write is minimal.
+func listUntrackedFilesWithPrefixes(repoRoot string, pathspecs, nested []string) ([]string, error) {
 	args := []string{"-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard", "-z"}
 	if len(pathspecs) > 0 {
 		args = append(args, "--")

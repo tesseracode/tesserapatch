@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -415,4 +416,270 @@ new file mode 100644
 	if content, err := os.ReadFile(filepath.Join(tmpDir, "b.txt")); err != nil || strings.TrimSpace(string(content)) != "B" {
 		t.Errorf("b.txt should have been applied; got content=%q err=%v", content, err)
 	}
+}
+
+// ─── GH #7 rev-2 F3: nested-worktree filtering in the refresh ───────
+
+// refreshAddWorktree registers a linked worktree under repoRoot and
+// removes it (plus prune) before temp-root teardown.
+func refreshAddWorktree(t *testing.T, repoRoot, rel, branch string) string {
+	t.Helper()
+	abs := filepath.Join(repoRoot, filepath.FromSlash(rel))
+	c := exec.Command("git", "worktree", "add", "-q", abs, "-b", branch)
+	c.Dir = repoRoot
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add: %s: %v", out, err)
+	}
+	t.Cleanup(func() {
+		rm := exec.Command("git", "worktree", "remove", "--force", abs)
+		rm.Dir = repoRoot
+		_ = rm.Run()
+		prune := exec.Command("git", "worktree", "prune")
+		prune.Dir = repoRoot
+		_ = prune.Run()
+	})
+	return abs
+}
+
+// A stale nested-worktree gitlink recorded in the ORIGINAL patch must
+// not survive into the refreshed canonical patch, the numbered
+// reconcile snapshot, or the generation metadata.
+func TestRefreshAfterAcceptExcludesStaleNestedWorktreePaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+
+	wtRel := ".claude/worktrees/agent review"
+	refreshAddWorktree(t, tmpDir, wtRel, "agent-review")
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "feature.txt"), []byte("feature content\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nupdated line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// The original patch carries a stale mode-160000 gitlink for the
+	// nested worktree, exactly as a pre-fix tpatch would have recorded.
+	originalPatch := `diff --git a/feature.txt b/feature.txt
+new file mode 100644
+--- /dev/null
++++ b/feature.txt
+@@ -0,0 +1 @@
++feature content
+diff --git a/.claude/worktrees/agent review b/.claude/worktrees/agent review
+new file mode 160000
+--- /dev/null
++++ b/.claude/worktrees/agent review
+@@ -0,0 +1 @@
++Subproject commit 0000000000000000000000000000000000000000
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ # Test
++updated line
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RefreshAfterAccept(s, slug, upstream, originalPatch); err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+
+	newPatch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(newPatch, "agent review") || strings.Contains(newPatch, "160000") {
+		t.Errorf("refreshed canonical patch kept the stale nested-worktree gitlink:\n%s", newPatch)
+	}
+	for _, want := range []string{"feature.txt", "README.md", "+updated line"} {
+		if !strings.Contains(newPatch, want) {
+			t.Errorf("refreshed canonical patch dropped %q:\n%s", want, newPatch)
+		}
+	}
+
+	// Numbered reconcile snapshot mirrors the canonical patch.
+	entries, err := os.ReadDir(filepath.Join(tmpDir, ".tpatch", "features", slug, "patches"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), "-reconcile.patch") {
+			continue
+		}
+		found = true
+		body, rerr := os.ReadFile(filepath.Join(tmpDir, ".tpatch", "features", slug, "patches", e.Name()))
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
+		if strings.Contains(string(body), "agent review") || strings.Contains(string(body), "160000") {
+			t.Errorf("numbered reconcile patch %s kept the nested worktree:\n%s", e.Name(), body)
+		}
+	}
+	if !found {
+		t.Error("no numbered reconcile patch written")
+	}
+
+	// Generation metadata records the FILTERED pathspec set.
+	gens, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "patch-generations.json"))
+	if err != nil {
+		t.Fatalf("read patch-generations.json: %v", err)
+	}
+	if strings.Contains(gens, "agent review") {
+		t.Errorf("generation metadata kept the nested-worktree pathspec:\n%s", gens)
+	}
+	for _, want := range []string{"feature.txt", "README.md"} {
+		if !strings.Contains(gens, want) {
+			t.Errorf("generation metadata dropped %q:\n%s", want, gens)
+		}
+	}
+}
+
+// If EVERY path in the original patch was a nested worktree, the
+// refresh must regenerate nothing rather than broadening to a
+// full-tree diff that would sweep unrelated working-tree state in.
+func TestRefreshAfterAcceptWorktreeOnlyOriginalPatchRegeneratesNothing(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wtRel := ".claude/worktrees/agent review"
+	refreshAddWorktree(t, tmpDir, wtRel, "agent-review")
+	// Unrelated real change a broadened full-tree diff WOULD capture.
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test\nunrelated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := `diff --git a/.claude/worktrees/agent review b/.claude/worktrees/agent review
+new file mode 160000
+--- /dev/null
++++ b/.claude/worktrees/agent review
+@@ -0,0 +1 @@
++Subproject commit 0000000000000000000000000000000000000000
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+	if err := RefreshAfterAccept(s, slug, upstream, originalPatch); err != nil {
+		t.Fatalf("RefreshAfterAccept: %v", err)
+	}
+	newPatch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(newPatch) != "" {
+		t.Fatalf("worktree-only original patch must regenerate nothing, got:\n%s", newPatch)
+	}
+}
+
+// Discovery failure must be fail-closed and must happen before any
+// artifact mutation.
+func TestRefreshAfterAcceptFailsClosedBeforeMutation(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+	s, err := store.Init(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.AddFeature(store.AddFeatureInput{Title: "Demo", Request: "demo"})
+	slug := "demo"
+	upstream, err := gitutil.HeadCommit(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalPatch := `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1,2 @@
+ # Test
++updated line
+`
+	if err := s.WriteArtifact(slug, "post-apply.patch", originalPatch); err != nil {
+		t.Fatal(err)
+	}
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+	before := snapshotTreeForRefresh(t, featureDir)
+
+	installFailingWorktreeListGitForRefresh(t)
+
+	err = RefreshAfterAccept(s, slug, upstream, originalPatch)
+	if err == nil {
+		t.Fatal("RefreshAfterAccept must fail closed when worktree discovery fails")
+	}
+	if !errors.Is(err, gitutil.ErrNestedWorktreeDiscovery) {
+		t.Errorf("failure not in the fail-closed class: %v", err)
+	}
+	after := snapshotTreeForRefresh(t, featureDir)
+	if len(before) != len(after) {
+		t.Fatalf("feature directory changed across a refusal: %d -> %d files", len(before), len(after))
+	}
+	for k, v := range before {
+		if after[k] != v {
+			t.Errorf("%s changed across a refusal", k)
+		}
+	}
+}
+
+func snapshotTreeForRefresh(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		body, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
+		out[filepath.ToSlash(rel)] = string(body)
+		return nil
+	})
+	return out
+}
+
+func installFailingWorktreeListGitForRefresh(t *testing.T) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate real git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := "#!/bin/sh\nprev=\"\"\nfor a in \"$@\"; do\n" +
+		"  if [ \"$prev\" = \"worktree\" ] && [ \"$a\" = \"list\" ]; then\n" +
+		"    echo \"fatal: simulated worktree discovery failure\" >&2\n" +
+		"    exit 128\n" +
+		"  fi\n" +
+		"  prev=\"$a\"\n" +
+		"done\n" +
+		"exec " + realGit + " \"$@\"\n"
+	shim := filepath.Join(binDir, "git")
+	if err := os.WriteFile(shim, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }

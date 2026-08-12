@@ -13,6 +13,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -910,4 +911,213 @@ func TestNestedWorktree_GenericEmptyCaptureDiagnosticPreserved(t *testing.T) {
 			t.Errorf("generic --from recovery hint must be preserved:\n%s", stderr)
 		}
 	})
+}
+
+// ─── GH #7 rev-2 F4: transactional discovery ordering ───────────────
+
+// installNthCallFailingWorktreeListGit prepends a `git` wrapper to PATH
+// that succeeds for the first `failAfter` `git worktree list`
+// invocations and fails every one after that, execing the real git for
+// all other subcommands. The counter lives in a file so it survives the
+// many short-lived `git` processes a single tpatch command spawns.
+//
+// This is the deterministic seam for "a first discovery succeeds, a
+// later one fails": the command must then leave the feature directory
+// byte-for-byte unchanged.
+func installNthCallFailingWorktreeListGit(t *testing.T, failAfter int) (restore func()) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate real git: %v", err)
+	}
+	binDir := t.TempDir()
+	counter := filepath.Join(binDir, "worktree-list-count")
+	script := fmt.Sprintf(`#!/bin/sh
+list=0
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "worktree" ] && [ "$a" = "list" ]; then list=1; fi
+  prev="$a"
+done
+if [ "$list" = 1 ]; then
+  n=0
+  if [ -f %[1]q ]; then n=$(cat %[1]q); fi
+  n=$((n+1))
+  printf '%%s' "$n" > %[1]q
+  if [ "$n" -gt %[2]d ]; then
+    echo "fatal: simulated worktree discovery failure on call $n" >&2
+    exit 128
+  fi
+fi
+exec %[3]q "$@"
+`, counter, failAfter, realGit)
+	shim := filepath.Join(binDir, "git")
+	if err := os.WriteFile(shim, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := os.Getenv("PATH")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+original)
+	return func() { os.Setenv("PATH", original) }
+}
+
+// apply --mode done: the canonical patch and the diffstat are the only
+// two discovery-dependent reads. A failure on the SECOND must leave the
+// feature directory byte-identical and the state unadvanced.
+func TestNestedWorktree_SecondDiscoveryFailure_ApplyDoneNoMutation(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+	before := snapshotDir(t, featureDir)
+	stateBefore := readArtifact(t, tmpDir, slug, "status.json")
+
+	restore := installNthCallFailingWorktreeListGit(t, 1)
+	stdout, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done")
+	if code == 0 {
+		t.Fatalf("apply --mode done must refuse when the second discovery fails: stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "Refusing to capture") {
+		t.Errorf("refusal missing the fail-closed guidance: %q", stderr)
+	}
+	assertSnapshotUnchanged(t, "apply --mode done (2nd discovery fails)", before, snapshotDir(t, featureDir))
+	if got := readArtifact(t, tmpDir, slug, "status.json"); got != stateBefore {
+		t.Errorf("status.json advanced despite refusing:\nbefore=%s\nafter=%s", stateBefore, got)
+	}
+
+	restore()
+	if stdout, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed after recovery: stdout=%q stderr=%q", stdout, stderr)
+	}
+	canonical := readArtifact(t, tmpDir, slug, "post-apply.patch")
+	assertNoNestedWorktree(t, "canonical patch after recovery", canonical)
+	if !strings.Contains(canonical, "+changed") {
+		t.Errorf("recovered capture missing the intended change:\n%s", canonical)
+	}
+}
+
+// record: same contract, across the numbered-snapshot branch and the
+// same-feature duplicate branch (which skips the numbered snapshot).
+func TestNestedWorktree_SecondDiscoveryFailure_RecordNoMutation(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		preRecord   bool
+		recordArgs  []string
+		description string
+	}{
+		{name: "first record (numbered snapshot branch)"},
+		{name: "re-record (same-feature duplicate branch)", preRecord: true},
+		{name: "scoped record", recordArgs: []string{"--files", "README.md,internal/example.go"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir, slug := setupNestedWorktreeFixture(t)
+			if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+				t.Fatalf("apply --mode done failed: %s", stderr)
+			}
+			if tc.preRecord {
+				if _, stderr, code := runCmdWithError("record", "--path", tmpDir, slug); code != 0 {
+					t.Fatalf("priming record failed: %s", stderr)
+				}
+			}
+			featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+			before := snapshotDir(t, featureDir)
+
+			restore := installNthCallFailingWorktreeListGit(t, 1)
+			args := append([]string{"record", "--path", tmpDir, slug}, tc.recordArgs...)
+			stdout, stderr, code := runCmdWithError(args...)
+			if code == 0 {
+				t.Fatalf("record must refuse when a later discovery fails: stdout=%q", stdout)
+			}
+			if !strings.Contains(stderr, "Refusing to capture") {
+				t.Errorf("refusal missing the fail-closed guidance: %q", stderr)
+			}
+			assertSnapshotUnchanged(t, "record (2nd discovery fails)", before, snapshotDir(t, featureDir))
+
+			restore()
+			if stdout, stderr, code := runCmdWithError(args...); code != 0 {
+				t.Fatalf("record failed after recovery: stdout=%q stderr=%q", stdout, stderr)
+			}
+			assertNoNestedWorktree(t, "post-apply.patch after recovery",
+				readArtifact(t, tmpDir, slug, "post-apply.patch"))
+			assertNoNestedWorktree(t, "post-apply-diff.txt after recovery",
+				readArtifact(t, tmpDir, slug, "post-apply-diff.txt"))
+		})
+	}
+}
+
+// land delegates capture to the embedded record; a later discovery
+// failure must still leave the index and HEAD untouched.
+func TestNestedWorktree_SecondDiscoveryFailure_LandDoesNotStageOrCommit(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	if _, stderr, code := runCmdWithError("apply", "--path", tmpDir, slug, "--mode", "done"); code != 0 {
+		t.Fatalf("apply --mode done failed: %s", stderr)
+	}
+	headBefore := gitHead(t, tmpDir)
+
+	restore := installNthCallFailingWorktreeListGit(t, 1)
+	stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go")
+	if code == 0 {
+		t.Fatalf("land must refuse when a later discovery fails: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if got := gitHead(t, tmpDir); got != headBefore {
+		t.Errorf("land advanced HEAD despite refusing: %s -> %s", headBefore, got)
+	}
+	if staged := nwtGit(t, tmpDir, "diff", "--cached", "--name-only"); strings.TrimSpace(staged) != "" {
+		t.Errorf("land staged paths despite refusing: %q", staged)
+	}
+
+	restore()
+	if stdout, stderr, code := runCmdWithError("land", "--path", tmpDir, slug,
+		"--files", "README.md,internal/example.go"); code != 0 {
+		t.Fatalf("land failed after recovery: stdout=%q stderr=%q", stdout, stderr)
+	}
+	assertNoNestedWorktree(t, "landing commit after recovery",
+		nwtGit(t, tmpDir, "show", "--pretty=format:", "--name-only", "HEAD"))
+}
+
+// `cycle` performs exactly ONE discovery-dependent read — the [6/6]
+// capture — and its record-phase artifacts are written only after that
+// read completes. The earlier phases write analysis/spec/exploration/
+// recipe artifacts, which are not discovery-dependent, so the
+// invariant proven here is: a discovery failure leaves NO record-phase
+// artifact behind and does not advance the feature to `applied`.
+func TestNestedWorktree_CycleSingleDiscovery(t *testing.T) {
+	tmpDir, slug := setupNestedWorktreeFixture(t)
+	featureDir := filepath.Join(tmpDir, ".tpatch", "features", slug)
+
+	restore := installNthCallFailingWorktreeListGit(t, 0)
+	stdout, stderr, code := runCmdWithError("cycle", "--path", tmpDir, slug)
+	restore()
+	if code == 0 {
+		t.Fatalf("cycle must refuse when discovery fails: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stderr, "Refusing to capture") {
+		t.Errorf("refusal missing the fail-closed guidance: %q", stderr)
+	}
+	for _, recordPhase := range []string{
+		filepath.Join("artifacts", "post-apply.patch"),
+		filepath.Join("artifacts", "post-apply-diff.txt"),
+	} {
+		if _, err := os.Stat(filepath.Join(featureDir, recordPhase)); err == nil {
+			t.Errorf("cycle wrote %s despite refusing", recordPhase)
+		}
+	}
+	if _, err := os.ReadDir(filepath.Join(featureDir, "patches")); err == nil {
+		entries, _ := os.ReadDir(filepath.Join(featureDir, "patches"))
+		if len(entries) > 0 {
+			t.Errorf("cycle wrote %d numbered patch(es) despite refusing", len(entries))
+		}
+	}
+	statusBody := readArtifact(t, tmpDir, slug, "status.json")
+	if strings.Contains(statusBody, `"state": "applied"`) {
+		t.Errorf("cycle advanced the feature to applied despite refusing:\n%s", statusBody)
+	}
+
+	// A single successful discovery completes the whole run: the
+	// capture is the only discovery-dependent read in `cycle`.
+	restoreOne := installNthCallFailingWorktreeListGit(t, 1)
+	stdout, stderr, code = runCmdWithError("cycle", "--path", tmpDir, slug)
+	restoreOne()
+	if code != 0 {
+		t.Fatalf("cycle needs more than one discovery call: stdout=%q stderr=%q", stdout, stderr)
+	}
+	assertNoNestedWorktree(t, "cycle post-apply.patch", readArtifact(t, tmpDir, slug, "post-apply.patch"))
 }

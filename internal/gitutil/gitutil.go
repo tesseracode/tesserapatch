@@ -304,10 +304,15 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 
 	// GH #7: registered linked worktrees nested under repoRoot are
 	// excluded from the diff as well as from the intent-to-add pass
-	// below (listUntrackedFiles subtracts them). Discovery failure is
-	// fail-closed — capturing blind would fold an agent harness
-	// checkout into the feature patch as a mode-160000 gitlink.
-	nestedExcludes, _, err := nestedWorktreeCaptureFilters(repoRoot)
+	// below. Discovery failure is fail-closed — capturing blind would
+	// fold an agent harness checkout into the feature patch as a
+	// mode-160000 gitlink.
+	//
+	// GH #7 rev-2 (F4): discovery runs EXACTLY ONCE per capture and
+	// both of its products are threaded through, so this helper cannot
+	// observe two different answers and presents a single failure
+	// window, entirely before any caller-visible write.
+	nestedExcludes, nestedPrefixes, err := nestedWorktreeCaptureFilters(repoRoot)
 	if err != nil {
 		return "", err
 	}
@@ -316,7 +321,7 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	skipPrefixes := []string{".tpatch/", ".claude/skills/", ".github/skills/", ".github/prompts/", ".cursor/rules/", ".windsurfrules"}
 
 	// Stage untracked files with --intent-to-add so they appear in git diff
-	untrackedFiles, err := listUntrackedFiles(repoRoot, pathspecs)
+	untrackedFiles, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, nestedPrefixes)
 	if err != nil {
 		return "", err
 	}
@@ -944,7 +949,39 @@ func ForwardApplyExcluding(repoRoot, patch string, excludePaths []string) error 
 // user's working state after the function returns — a bug from prior
 // versions that left `git status` dirty after reconcile --accept /
 // refresh. The temp file is removed before return.
+//
+// GH #7 rev-2: nested registered linked worktrees are excluded here
+// too. Discovery runs FIRST, before the temp index is created or any
+// `git add -N` is issued, so a discovery failure cannot leave a
+// half-mutated temp index behind — and, at the caller layer, cannot
+// happen after an artifact has already been written. Caller paths that
+// name a nested worktree are dropped before the intent-to-add pass,
+// and `:(exclude,literal)` pathspecs are appended to the diff itself so
+// index residue cannot re-admit the worktree.
+//
+// When every caller-supplied path is a nested worktree the result is an
+// EMPTY diff, never a broadened full-tree diff: silently widening the
+// scope would be a worse failure than returning nothing.
+//
+// The historical global `--literal-pathspecs` flag is replaced by the
+// per-pathspec `:(literal)` form, which has identical semantics for the
+// caller's paths while leaving pathspec magic enabled so the exclude
+// entries are honoured.
 func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, error) {
+	nestedExcludes, nestedPrefixes, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	scoped := len(paths) > 0
+	if scoped {
+		paths = FilterNestedWorktreePaths(paths, nestedPrefixes)
+		if len(paths) == 0 {
+			// The caller asked only for nested-worktree paths. Return
+			// nothing rather than falling through to a full-tree diff.
+			return "", nil
+		}
+	}
+
 	var env []string
 	if len(paths) > 0 {
 		tmpIdx, err := os.CreateTemp("", "tpatch-idx-*")
@@ -986,10 +1023,13 @@ func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, er
 		addCmd.Env = env
 		_, _ = addCmd.CombinedOutput()
 	}
-	args := []string{"--literal-pathspecs", "diff", commit}
-	if len(paths) > 0 {
+	args := []string{"diff", commit}
+	if len(paths) > 0 || len(nestedExcludes) > 0 {
 		args = append(args, "--")
-		args = append(args, paths...)
+		args = append(args, nestedExcludes...)
+		for _, p := range paths {
+			args = append(args, ":(literal)"+p)
+		}
 	}
 	diffCmd := exec.Command("git", args...)
 	diffCmd.Dir = repoRoot
