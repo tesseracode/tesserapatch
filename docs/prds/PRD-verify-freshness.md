@@ -1,8 +1,8 @@
 # PRD — `tpatch verify` and verification freshness overlay
 
-**Status**: Approved (M15 Wave 3 — APPROVED WITH NOTES at commit 3c122aa; Slice A in implementation. Supersedes `docs/prds/PRD-verify-and-tested-state.md`.) · **§3.6 / §4.3 golden refresh / §4.3.6–4.3.9 / §5 landed rows / §6 Q9–Q18 / §7.1 amended 2026-08-12 for v0.15.1 Wave B (GH #8), **rev-3** — AWAITING REVIEW**
+**Status**: Approved (M15 Wave 3 — APPROVED WITH NOTES at commit 3c122aa; Slice A in implementation. Supersedes `docs/prds/PRD-verify-and-tested-state.md`.) · **§3.6 / §4.3 golden refresh / §4.3.6–4.3.9 / §5 landed rows / §6 Q9–Q18 / §7.1 amended 2026-08-12 for v0.15.1 Wave B (GH #8), **rev-4** — AWAITING REVIEW**
 **Date**: 2026-04-27 (original) · 2026-08-12 (landed-feature amendment)
-**ADR**: **ADR-013-verify-freshness-overlay.md — REQUIRED before Wave 3 implementation slices ship.** ADR-013 supersedes ADR-012 in full. **ADR-013 Amendment 1 rev-3 (D8–D19) is the binding ADR for §3.6 and §7.1.**
+**ADR**: **ADR-013-verify-freshness-overlay.md — REQUIRED before Wave 3 implementation slices ship.** ADR-013 supersedes ADR-012 in full. **ADR-013 Amendment 1 rev-4 (D8–D19) is the binding ADR for §3.6 and §7.1.**
 **Owner**: Core
 **Milestone**: M15 → Wave 3 (lifecycle / reconcile semantics tranche) · v0.15.1 Wave B (landed-feature amendment; implementation deferred to Wave C)
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-013 (this PRD's binding ADR), ADR-016 (`record` auto-base resolution), ADR-018 (cross-feature collision signature), ADR-019 (`tpatch land` trailer-block schema), ADR-028 (supersession), **ADR-029 (write-file recipe safety — the policy V10 must honour)**, ADR-031 (rejected state), ADR-032 (unapply state), `docs/prds/PRD-tpatch-land.md` (co-amended §3.8), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor), `docs/dependencies.md`, `docs/prds/PRD-feature-dependencies.md`, `docs/reconcile.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2), GH #8
@@ -71,7 +71,7 @@ A derived freshness label (`never-verified` / `verified-fresh` / `verified-stale
 
 The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated only by explicit verbs); freshness is `git status` for the verify check (derived, read-time, no persistence beyond the last record).
 
-> **Landed-feature amendment (2026-08-12, v0.15.1 Wave B / GH #8, rev-3).**
+> **Landed-feature amendment (2026-08-12, v0.15.1 Wave B / GH #8, rev-4).**
 > After `tpatch land` commits a feature into reachable Git history, the
 > HEAD-anchored V7/V8 baseline already contains it and forward-apply semantics
 > stop describing the world: `write-file` recipes pass vacuously,
@@ -87,7 +87,7 @@ The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated o
 > non-mutating patch ladder; **per-member V10 baselines** with
 > `RecipeProvenance.BaseCommit` anchoring forward mode (Q15 resolved); a
 > **full repository metadata inventory**; and explicit **shallow** /
-> **partial-clone** states. **§7.1** is its 128-row executable acceptance
+> **partial-clone** states. **§7.1** is its 133-row executable acceptance
 > matrix. Binding ADR: ADR-013 Amendment 1 rev-3 (D8–D19).
 >
 > The shipped check set is **eleven** checks, V0–V10, with
@@ -371,7 +371,7 @@ The compound `EffectiveOutcome()` rule (`internal/store/types.go:192`) is **not 
 `amend` invalidates the freshness record (D3): a recipe-touching amend rewrites the recipe bytes, so `recipe_hash_at_verify` no longer matches; the next `ComposeLabels` derives `verified-stale`. Optionally — and this is the implementation hook in Slice B — `amend` may proactively clear `Verify.Passed` to `false` (effectively a `verify-failed` derived label) so the harness sees the invalidation immediately rather than waiting for the next read. ADR-013 D3 records this as the producer-set rule.
 
 ---
-### 3.6 Landed-feature verification contract — v0.15.1 Wave B / GH #8 (rev-3)
+### 3.6 Landed-feature verification contract — v0.15.1 Wave B / GH #8 (rev-4)
 
 > **Amendment status**: proposed rev-3, 2026-08-12, AWAITING REVIEW. Binding
 > ADR: **ADR-013 Amendment 1 rev-3, decisions D8–D19.** Implementation is
@@ -517,9 +517,23 @@ runs; V7's result is never an input to V8's tree.*
    (`internal/cli/land_journal.go:31`, `:60`;
    `internal/gitutil/ignore.go:50-51`). **Never** inside the tracked working
    tree.
-2. `GIT_INDEX_FILE=<tmp> git read-tree <tree-ish>`.
-3. `GIT_INDEX_FILE=<tmp> git apply --check [--reverse] --cached [-C0 --verbose] <patch>`.
+2. `GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE=<tmp> git read-tree <commit-or-tree>` —
+   `HEAD` for anchor C, **`C^`** for a candidate-parent probe (§3.6.8).
+   **Never `C^{tree}^`**: measured, `git rev-parse C^{tree}^` returns
+   `error: object <tree> is a tree, not a commit` and `git read-tree C^{tree}^`
+   fails outright. The valid forms are `C^`, `C^^{tree}`, `C~1`, `C~1^{tree}`.
+3. `GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE=<tmp> git apply --check [--reverse] --cached [-C1|-C0 --verbose] <patch>`.
 4. Remove the temp index on **every** exit path, in a deferred cleanup.
+
+**`GIT_NO_LAZY_FETCH=1` is mandatory on every object and materialization
+command** — `read-tree`, `apply`, `diff`, `cat-file`, `merge-base` and the
+enumeration. Measured: with a promisor remote configured and its object
+absent, `git cat-file -p <blob>` **attempts the network** and fails with
+`fatal: '<url>' does not appear to be a git repository`; the same command under
+`GIT_NO_LAZY_FETCH=1` fails immediately and locally with
+`fatal: Not a valid object name <sha>`. Verify is offline by construction
+(§1.3), so a silent network fetch is a contract violation, and the local
+failure is what lets §3.6.8 classify `history-incomplete` deterministically.
 
 Results are memoised per `(tree, patch, direction, context)`.
 
@@ -712,17 +726,47 @@ second qualifier.
    reachable from `HEAD`, carries exactly one `Tpatch-Feature` value equal to
    the slug with a parseable terminal trailer block, and has **exactly one**
    parent in `%P`. Their own hashes **may be stale**.
-2. **Qualify by FORWARD apply.** For each candidate `C`, seed a temp index with
-   `read-tree` of `C`'s single parent tree and run
-   `GIT_INDEX_FILE=<tmp> git apply --check --cached <canonical patch>`. `C`
-   qualifies iff that **forward** check succeeds. Measured: at a clean
-   pre-landing tree forward passes and reverse fails; at the landing itself
-   forward fails and reverse passes. Qualification asks *"does the current
-   canonical patch apply here"* — the question a replay baseline must answer.
-   **Honest bound**: forward apply is context-sensitive like any `git apply`,
-   so a candidate parent carrying unrelated drift inside the patch's context
-   window does **not** qualify. That is correct — a replay there would not be
-   meaningful either.
+2. **Qualify by FORWARD apply at `-C1`.** For each candidate `C`:
+
+   ```
+   GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE=<tmp> git read-tree C^
+   GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE=<tmp> git apply --check --cached -C1 <canonical patch>
+   ```
+
+   `C` qualifies iff that **forward** check succeeds. The revision string is
+   **`C^`** (or `C^^{tree}` when a tree object is explicitly wanted); `C^{tree}^`
+   is invalid and is never used (§3.6.5).
+
+   **Why forward.** Measured: at a clean pre-landing tree forward passes and
+   reverse fails; at the landing itself forward fails and reverse passes.
+   Qualification asks *"does the current canonical patch apply here"* — the
+   question a replay baseline must answer.
+
+   **Why `-C1`.** Measured ladder at candidate parent trees:
+
+   | Candidate parent tree | `-C3` | `-C1` | `-C0` |
+   |---|---|---|---|
+   | pristine pre-landing parent | OK | OK | OK |
+   | unrelated edit 4 lines from the hunk | OK | OK | OK |
+   | unrelated edit **2 lines** from the hunk | **FAIL** | **OK** | OK |
+   | unrelated edit **1 line** from the hunk | FAIL | **FAIL** | OK |
+   | 10 lines prepended (pure offset) | OK | OK | OK |
+   | unrelated edit far away | OK | OK | OK |
+   | **tree that already has the feature** | FAIL | **FAIL** | **FAIL** |
+   | feature line changed to something else | FAIL | **FAIL** | **FAIL** |
+   | feature line deleted | FAIL | **FAIL** | **FAIL** |
+
+   Default context rejects a healthy parent whose neighbourhood moved by two
+   lines — which can **dead-end the operator's own re-record-and-re-land
+   remediation**, since the re-recorded patch spans the drift. `-C1` keeps
+   every healthy parent in the table while still rejecting all three
+   already-materialized or otherwise-modified trees. **`-C0` is rejected**: it
+   discards context entirely, the same over-permissive setting §3.6.5 refuses
+   in the reverse direction.
+
+   **Accepted bound.** A parent carrying an unrelated edit **1 line** from the
+   hunk does not qualify even at `-C1`. That is the measured false-red
+   boundary; the only alternative is `-C0`, which is not safe.
 3. **Compare.** If **more than one** candidate qualifies, compute each one's
    **normalized change identity** (below) and compare. All equal ⇒ equivalent.
    Any differ ⇒ **ambiguous** anchor ⇒ terminal. No selection happens before
@@ -755,12 +799,20 @@ passes. If no qualifier exists, the run fails with R11 rather than degrading.
 **Normalized change identity.** For candidate `C` over path set `P`:
 
 ```
-git diff --no-color --no-ext-diff --no-textconv --binary --no-renames \
-         --unified=0 <C>^ <C> -- <P...>
+GIT_NO_LAZY_FETCH=1 git diff --no-color --no-ext-diff --no-textconv \
+    --binary --no-renames --unified=0 C^ C -- <P...>
 ```
 
-with **only** lines beginning `index ` removed, and the remaining bytes hashed
-with SHA-256.
+post-processed by **exactly two** rules, then hashed with SHA-256:
+
+1. **drop** every line beginning `index `;
+2. **rewrite** every hunk header — any line matching
+   `^@@ -<range> \+<range> @@.*$` — to the bare token `@@`, discarding both
+   line ranges **and** the optional function-context suffix.
+
+Nothing else is altered: hunk **bodies** keep their content and order, and
+`diff --git`, `old mode` / `new mode`, `new file mode` / `deleted file mode`,
+`--- ` / `+++ ` and `GIT binary patch` all survive verbatim.
 
 - `P` is the canonical patch's declared path set from
   `gitutil.FilesInPatchStrict` (`internal/gitutil/patch_paths_strict.go:253`),
@@ -768,22 +820,38 @@ with SHA-256.
   `ambiguous`.** Never broadened to "all paths".
 - Measured: the same logical change on two branches with different preimage
   blobs gives **different** raw `-U3` bytes, **different** `-U0` bytes, and
-  **identical** bytes once `^index ` lines are removed (observed divergence:
-  `index 58b8997..c3badef 100644` vs `index ed24a75..1b142d1 100644`). Both
-  `--unified=0` **and** the `index` strip are required.
+  **identical** bytes once `^index ` lines are removed. Both `--unified=0` and
+  the `index` strip are required.
+- Measured: rule 1 alone is **not** enough. A healthy cherry-pick applied after
+  five unrelated lines were prepended yields headers `@@ -10 +10 @@ l9` versus
+  `@@ -15 +15 @@ l9`, so the identities **differ** — rev-3 rejected that
+  history. Rewriting both headers to `@@` makes them **equal**. Hunk ranges and
+  the function suffix are position metadata, not payload.
 - Measured: the normalized form **preserves** `old mode`/`new mode`,
   `GIT binary patch`, and the `new file mode` / `deleted file mode` pair that
-  `--no-renames` emits for a rename.
-- **Known bound**: the `-U0` hunk header retains git's function-context suffix
-  (`@@ -10 +10 @@ l9`). It is **not** stripped — removing undocumented tokens is
-  how normalization becomes unsound. Recorded as a residual.
+  `--no-renames` emits for a rename. A mode-only change normalizes to
+  `diff --git` + `old mode` + `new mode` with no `@@` at all and stays distinct
+  from any payload change.
+- **The trade, stated precisely.** Discarding positions means two changes whose
+  `-`/`+` **bodies are byte-identical** compare equal even at different line
+  numbers. Measured: in a file with duplicate lines, changing the first `DUP`
+  and changing the second `DUP` both normalize to `@@ / -DUP / +DUP CHANGED`.
+  The collision therefore requires **duplicate line content at the changed
+  lines**; whenever the removed or added text differs at all the bodies differ
+  and the identities stay distinct — measured for a distinct payload, a
+  mode-only change and a different path. The trade is accepted because the
+  alternative rejects healthy cherry-picks, and because a collision yields
+  `duplicate-equivalent` between commits that genuinely introduce the same
+  text.
 - **Cherry-picked and merged-back landings compare EQUAL** under this identity
   and are therefore `duplicate-equivalent`, not `ambiguous`.
 - Candidates with 0 or ≥2 parents have no `<C>^` and are never compared; they
   are already excluded at step 1 and by the topology rules below.
 
 **Topology, shallow history and partial clones.** A **preflight** runs once per
-run before any topology classification: `git rev-parse
+run, **strictly before any parent-count or topology classification** — the
+ordering is normative, because a shallow boundary and a true root are
+indistinguishable by `%P` alone: `git rev-parse
 --is-shallow-repository`, `git rev-parse --show-object-format`, and the
 `remote.<name>.promisor` / `partialclonefilter` config.
 
@@ -792,7 +860,7 @@ run before any topology classification: `git rev-parse
 | candidate has ≥2 parents | `unsupported-topology` | R9 — re-land on a linear commit |
 | candidate has 0 parents **and** the repository is **not** shallow | `unsupported-topology` (genuine root landing) | R9 |
 | candidate has 0 parents **and** the repository **is** shallow, or the candidate appears in `.git/shallow` | **`shallow-history`** | **R21 — `git fetch --unshallow`** |
-| a needed object is missing in a partial clone, or a promisor fetch fails | **`history-incomplete`** | **R22 — restore network access / `git fetch --refetch`** |
+| a needed object is missing locally — detected deterministically because every object and materialization command runs under `GIT_NO_LAZY_FETCH=1` (§3.6.5) | **`history-incomplete`** | **R22 — restore network access / `git fetch --refetch`, then re-run** |
 
 Measured: in a `--depth 2` clone the boundary commit reports
 `parents_in_%P = 0` **exactly like a real root** and is marked `(grafted)`, and
@@ -800,9 +868,11 @@ Measured: in a `--depth 2` clone the boundary commit reports
 text as a true root. Without the preflight the two are indistinguishable and
 the operator is told to re-land when the fix is to deepen the clone. A **CI
 shallow checkout** is the common case and gets R21, not R9. A partial
-(blobless) clone reports `is-shallow=false`, `promisor=true`, has commits and
-trees locally, and fetches blobs lazily — usable, but offline content
-operations fail into `history-incomplete`.
+(blobless) clone reports `is-shallow=false`, `promisor=true`, and has commits
+and trees locally. Because every command carries `GIT_NO_LAZY_FETCH=1`, a
+missing blob fails **locally and immediately** — measured
+`fatal: Not a valid object name <sha>` — instead of the network error the
+default produces, and classifies as `history-incomplete`.
 
 **Rebase / cherry-pick / branch switch / detached HEAD / rewrite — total.**
 Trailers survive rebase and cherry-pick verbatim while SHA and parent change,
@@ -814,42 +884,60 @@ whatever `HEAD` resolves to. A rewrite leaving no reachable landing yields
 
 #### 3.6.9 Inventory, diagnostics, remediation and implementability (ADR-013 D17)
 
-**Full repository metadata inventory.** `loadLaterFeatureTouches` calls
-`s.ListFeatures()` and reads **every** feature
+**Full repository metadata inventory, built from `ListFeatureEntries`.**
+`loadLaterFeatureTouches` reads **every** feature
 (`internal/workflow/writefile_safety.go:409-442`), so a closure-only snapshot
-cannot make ADR-029 ordering deterministic. At the start of a run verify
-captures **once**:
+cannot make ADR-029 ordering deterministic.
 
-- for **every** feature returned by `store.ListFeatures()`, in that call's
-  order (already alphabetised by slug): the decoded `FeatureStatus` including
-  `RequestedAt`; the **presence state** (§3.6.2 three-state) and **raw bytes**
-  of `artifacts/apply-recipe.json`, `artifacts/post-apply.patch` and
+**`ListFeatures` is not usable for this.** It **silently skips** any feature
+whose `status.json` fails to load — `continue // skip features without valid
+status.json` (`internal/store/store.go:210-236`, the skip at `:226`) — so an
+unreadable feature cannot be represented at all, which is the same false-green
+class this amendment exists to close. `ListFeatureEntries`
+(`internal/store/store.go:274-348`) exists for exactly this purpose: it returns
+`FeatureEntry{Slug, Status *FeatureStatus, Err error}`
+(`internal/store/store.go:238-245`) per feature, **sorted by slug**
+(`internal/store/store.go:344-346`), surfacing stat and decode failures as
+error rows.
+
+At the start of a run verify captures **once**:
+
+- every `FeatureEntry` from `store.ListFeatureEntries()`, **in the returned
+  slug-sorted order** — the deterministic enumeration order for the whole run;
+- for every entry with `Err == nil`: the decoded `FeatureStatus` including
+  `RequestedAt`; the **presence state** (§3.6.2) and **raw bytes** of
+  `artifacts/apply-recipe.json`, `artifacts/post-apply.patch` and
   `artifacts/recipe-provenance.json`; and the decoded
   `patch-generations.json` `touched_paths` union
   (`internal/store/patch_generations.go:52`);
+- for every entry with `Err != nil`: the slug and the error, retained as an
+  explicit **`unreadable`** row — **never omitted**;
 - the §3.6.8 preflight facts and the object format.
 
 Every later stage — evidence classification, V7, V8, V10, ADR-029 later-touch
 ordering, the persisted `VerifyRecord` and the derived labels — consumes
 **copies** from this one inventory and never re-reads disk.
 
-**Read errors are recorded, not dropped.** A feature whose `status.json` cannot
-be decoded is retained with an explicit `unreadable` marker and excluded from
-later-touch ordering, matching the shipped best-effort behaviour that skips
-features without `RequestedAt`. A read error on the **target's or a closure
-member's** artifacts is a **block**; a read error on an unrelated feature's
-metadata is a **`warn` advisory**, because the shipped detector is explicitly
-best-effort.
+**Read-error policy, explicit, no silent skip.**
 
-**Instability detection.** Before the report is finalised, `ListFeatures()` is
-re-run and every captured artifact re-read and compared. A feature **added**,
-**removed** or **changed** during the run ⇒ **FAIL** `failed_at:
-"snapshot-unstable"` naming the slug and path. This covers the concurrent
-`tpatch add` / `tpatch remove` case a target-only snapshot missed.
+| Unreadable entry is… | Effect |
+|---|---|
+| the **target**, or any **closure member** | **block** — `failed_at: "inventory-unreadable"` naming the slug and the underlying error |
+| any **other** feature | a **`warn` `inventory-unreadable` advisory** naming the slug, **and** exclusion from ADR-029 later-touch ordering — matching the shipped detector, which already skips features whose `RequestedAt` is empty, but now **reported** rather than invisible |
 
-**Cost.** For `F` features and closure size `K`: `F` status decodes and up to
-`3F` artifact reads once, against `K` before. Bounded, sequential, and reused
-by `verify --all`.
+`ListFeatureEntries` itself errors when `features/` is missing while `.tpatch/`
+exists (`internal/store/store.go:294-302`); verify surfaces that as a block
+rather than an empty inventory.
+
+**Instability detection.** Before the report is finalised,
+`ListFeatureEntries()` is re-run and every captured artifact re-read and
+compared. A feature **added**, **removed**, or **changed** — including a slug
+flipping between an `Err` row and a `Status` row — ⇒ **FAIL** `failed_at:
+"snapshot-unstable"` naming the slug and path.
+
+**Cost.** One `ListFeatureEntries` call plus O(features) artifact reads, once:
+`F` status decodes and up to `3F` artifact reads, against `K` before. Bounded,
+sequential, reused by `verify --all`, and spawning no git process.
 
 **Read-only guarantees.** No worktree mutation, no real-index mutation, no
 `status.json` write beyond the existing `Verify` record — and none at all under
@@ -919,15 +1007,17 @@ per-member anchor resolution:
 
 | Purpose | Invocations |
 |---|---|
-| Repository preflight (`--is-shallow-repository`, `--show-object-format`, promisor config) | **3 per run**, cached |
+| Repository preflight (`--is-shallow-repository`, `--show-object-format`, promisor config) | **3 per run**, cached; runs **before** any topology classification |
+| Inventory build (`store.ListFeatureEntries` + artifact reads) | **1 `ListFeatureEntries` per run**; `F` status decodes, up to `3F` artifact reads; cached across `verify --all`; **no git process** |
 | Evidence enumeration (`git log --topo-order --reverse -z --format=…`) | **1 per run**, cached across `verify --all`. **No `rev-list`.** |
 | Shadow allocation at anchor H | 1 `CreateShadow` per anchored member whose recipe must replay |
-| Tree materialization for a candidate parent | 1 parent-id read from the cached `%P` (or `git rev-parse <C>^^{tree}`), then 1 `git read-tree <tree>` **per distinct tree** |
-| Anchor qualification | 1 **forward** `git apply --check --cached` **per collected candidate**, memoised per `(tree, patch)` |
-| Normalized identity | 1 `git diff --unified=0 …` **per qualifying candidate, only when ≥2 qualify** |
+| Tree materialization for a candidate parent | 1 `git read-tree C^` **per distinct parent commit** — the parent id is already in the cached `%P`, so no extra `rev-parse` is needed |
+| Anchor qualification | 1 **forward** `git apply --check --cached -C1` **per collected candidate**, memoised per `(tree, patch)` |
+| Normalized identity | 1 `git diff --unified=0 …` **per qualifying candidate, only when ≥2 qualify**; post-processing is in-process |
 | Anchor-C ladder | 1 `apply --check --reverse --cached`, plus 1 `-C0 --verbose` on failure, per `(tree, patch)`, memoised |
 | Per-member anchor resolution | the collect/qualify/compare loop **per landed closure member**, sharing the one enumeration and the tree/apply memo |
 | Reachability (`base_commit`, provenance) | 1 `git merge-base --is-ancestor` per checked commit, memoised |
+| Offline discipline | **every** git invocation above carries `GIT_NO_LAZY_FETCH=1`; none of them may reach the network |
 
 New code is one generic reader in `internal/gitutil/` (candidate
 `trailers.go`) returning raw **and** parsed records, plus a temp-index helper;
@@ -1096,7 +1186,7 @@ Same: not emitted by `verify` (which writes a fresh record). This is `tpatch sta
   "lifecycle_state": "applied"
 }
 ```
-#### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-3)
+#### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-4)
 
 `schema_version` moves `"1.0"` → `"1.1"` (`internal/workflow/verify.go:83`).
 The guarantee is **additive semantic compatibility, not byte identity**:
@@ -1399,7 +1489,7 @@ Slice B: `tpatch status` gains the freshness label inline (`applied [verified-fr
 | Repo with `Config.FeaturesDependencies = false` | V4 still runs. V5 is a no-op. V6 is a no-op. V7 closure replay still runs (DAG flag does not gate hard-dep traversal). |
 | Verify on a feature in `requested`/`analyzed`/`defined`/`implementing` | Refused with `exit 2 — feature is pre-apply, nothing to verify`. No record write. |
 | Verify on `blocked` / `upstream_merged` | Allowed; runs all applicable checks; writes the freshness record. The harness can interpret `verified-fresh` on `upstream_merged` as "the feature is retired and the artifacts are still healthy." |
-**Landed-feature rows (v0.15.1 Wave B / GH #8 rev-3 — see §3.6 for the contract).**
+**Landed-feature rows (v0.15.1 Wave B / GH #8 rev-4 — see §3.6 for the contract).**
 
 Artifact rows are stated against a fact `land` enforces: it refuses when the
 embedded `record` would capture nothing, so a landed feature with an absent or
@@ -1650,18 +1740,22 @@ hash-bound to the recipe bytes, so back-filling would manufacture an
 attestation nobody made. **This does not block acceptance**; it is recorded so
 Wave C sizes the failure population rather than discovering it.
 
-### Q18 — Open (non-blocking): the `-U0` function-context suffix
+### Q18 — Hunk-position normalization — **RESOLVED: normalize, with a measured trade**
 
-**Open, non-blocking, tracked.** The normalized change identity of §3.6.8
-strips **only** `^index ` lines. The `-U0` hunk header retains git's
-function-context suffix (`@@ -10 +10 @@ l9`), which is derived from surrounding
-content and could in principle differ between two equivalent changes on
-branches whose neighbouring lines differ. In the measured fixture it was
-identical. It is deliberately **not** stripped: removing undocumented tokens is
-how a normalization becomes unsound, and the failure mode of keeping it is a
-conservative `ambiguous` rather than a false equivalence. If Wave C observes a
-real-world divergence it may extend the strip rule with the same measured
-evidence.
+**Decided (rev-4): hunk ranges and the function-context suffix are
+normalized.** rev-3 left them in place and called the residual conservative.
+Measured, it is not: a healthy cherry-pick applied after five unrelated lines
+were prepended yields `@@ -10 +10 @@ l9` versus `@@ -15 +15 @@ l9` and is
+rejected outright. §3.6.8 therefore rewrites every hunk header to a bare `@@`.
+
+**The trade is measured and bounded**: two changes whose `-`/`+` bodies are
+byte-identical compare equal even at different line numbers, which requires
+**duplicate line content at the changed lines** (measured with a file
+containing repeated `DUP` lines). Whenever the removed or added text differs at
+all, the bodies differ and the identities stay distinct — verified for a
+distinct payload, a mode-only change and a different path. A collision yields
+`duplicate-equivalent` between commits that genuinely introduce the same text,
+which is the intended equivalence class. Pinned by AC-L133.
 
 ## 7. Acceptance criteria (combined verify + freshness ships when…)
 
@@ -1694,7 +1788,7 @@ evidence.
 - [ ] CHANGELOG v0.6.2 callout names `verify` and the freshness overlay with exact contract surface.
 
 ---
-### 7.1 Acceptance matrix — landed-feature verification (v0.15.1 Wave B / GH #8, rev-3)
+### 7.1 Acceptance matrix — landed-feature verification (v0.15.1 Wave B / GH #8, rev-4)
 
 **Binding on the Wave C implementation dispatch.** **Tier** names where a row
 is proven:
@@ -1736,6 +1830,7 @@ is proven:
 | AC-L11 | After any landed run the real index is byte-identical, the worktree is byte-identical, `git status --porcelain -z` is unchanged, and the temp index is not an untracked entry. | W+C |
 | AC-L12 | The temp index is removed on **every** exit path, including each terminal state. Asserted by scanning the git dir and `.tpatch/local/`. | W |
 | AC-L13 | The temp index is created outside the tracked working tree. | W |
+| AC-L129 | **Every** git invocation issued by verify — enumeration, `read-tree`, `apply`, `diff`, `merge-base`, `cat-file` — carries `GIT_NO_LAZY_FETCH=1`. Asserted by a `PATH` git wrapper recording each call's environment; any call missing it fails the test. | W |
 
 #### Group C — the hardened ladder
 
@@ -1762,7 +1857,10 @@ is proven:
 | # | Criterion | Tier |
 |---|---|---|
 | AC-L29 | **All** candidates are collected before any selection: with three slug-bearing single-parent landings reachable, `candidates_collected == 3` in the report even though the first one qualifies. Pins that rev-2's stop-at-first is gone. | W |
-| AC-L30 | Qualification uses a **forward** `git apply --check --cached` at the candidate's parent tree. Asserted by a `PATH` wrapper: the qualification calls must **not** carry `--reverse`. | W |
+| AC-L30 | Qualification uses a **forward** `git apply --check --cached -C1` seeded by `git read-tree C^`. Asserted by a `PATH` wrapper: qualification calls must **not** carry `--reverse`, must carry `-C1`, and the `read-tree` revision must be `C^` (or `C^^{tree}`) — **never** `C^{tree}^`, which is invalid. | W |
+| AC-L130 | `git rev-parse C^{tree}^` and `git read-tree C^{tree}^` both fail; `C^`, `C^^{tree}`, `C~1` and `C~1^{tree}` all resolve and `read-tree` accepts them. Pins the rev-3 syntax defect. | U+W |
+| AC-L131 | The `-C1` qualification ladder matches the §3.6.8 measured table row for row: pristine, 4-lines-away, 2-lines-away, 1-line-away, pure offset, far-away, already-materialized, feature-line-changed and feature-line-deleted. Nine fixtures; the 2-lines-away row must pass **only** at `-C1`, and all three materialized/modified rows must fail at `-C1`. | W |
+| AC-L132 | **Remediation-loop fixture**: a landed feature whose neighbourhood drifted two lines, then re-recorded over the drift and re-landed. Default-context qualification rejects the surviving candidate and dead-ends R11; `-C1` qualifies it and the run passes. Pins that the contract does not send an operator into an unresolvable loop. | W+C |
 | AC-L31 | Measured semantics hold: at a clean pre-landing parent tree forward passes and reverse fails; at the landing itself forward fails and reverse passes. Both directions asserted on one fixture. | W |
 | AC-L32 | A candidate parent carrying unrelated drift **inside** the patch's context window does **not** qualify, and the report says so rather than claiming immunity. | W |
 | AC-L33 | **Re-record + re-land**: both landings are collected; the newest **fails** qualification (its parent already contains the feature) and the earlier **qualifies**. `attestation_commit` ≠ `replay_anchor_commit` in the report. | W+C |
@@ -1776,7 +1874,8 @@ is proven:
 | AC-L41 | After the R6 re-land remediation anchor H is **regained** and the run passes; where history admits no qualifier it fails with R11. Both branches; neither degrades silently. | C |
 | AC-L42 | Normalized identity is exactly `git diff --no-color --no-ext-diff --no-textconv --binary --no-renames --unified=0 <C>^ <C> -- <P…>` with **only** `^index ` lines removed, SHA-256 over the remainder. Asserted by a `PATH` wrapper on the argv. | W |
 | AC-L43 | Measured normalization behaviour: the same logical change on two branches with different preimage blobs gives **different** raw `-U3` bytes, **different** `-U0` bytes, and **identical** bytes after the `index` strip. All three asserted on one fixture. | W |
-| AC-L44 | Normalization **preserves** `old mode`/`new mode`, `GIT binary patch`, and the `new file mode` / `deleted file mode` rename split. Three fixtures. | W |
+| AC-L44 | Normalization **preserves** `old mode`/`new mode`, `GIT binary patch`, and the `new file mode` / `deleted file mode` rename split; hunk **bodies** keep content and order. Three fixtures. A mode-only change normalizes with no `@@` line at all and stays distinct from any payload change. | W |
+| AC-L133 | **Offset-normalized duplicate trade, both directions.** (a) A cherry-pick applied after unrelated lines were prepended — headers `@@ -10 +10 @@ l9` vs `@@ -15 +15 @@ l9` — compares **equal** after the hunk-header rewrite and **unequal** without it. (b) Two changes with byte-identical `-`/`+` bodies at different positions in a file with duplicate lines compare **equal** — the documented trade. (c) A distinct payload, a mode-only change and a different path all stay **distinct**. | W |
 | AC-L45 | An **empty** canonical path set makes candidates incomparable ⇒ `ambiguous`; never broadened to "all paths". Adversarial. | U+W |
 
 #### Group E — evidence reader, grammar, presence, topology, shallow
@@ -1790,7 +1889,7 @@ is proven:
 | AC-L50 | `Tpatch-Recipe-SHA: none` matches an **absent** recipe and a **present-empty** (whitespace-only) recipe. | U+W |
 | AC-L51 | **Presence precedes digest**: patch `absent` ⇒ the report emits `patch_presence: "absent"` and **omits** `patch_sha_match` entirely; no mismatch is reported. | U+W |
 | AC-L52 | Patch **present-empty** ⇒ cannot support `exact`; classified `landed-artifacts-absent`-eligible **before** any digest comparison, with the corruption framing. Distinct fixture from `absent`. | U+W |
-| AC-L53 | The four recipe shapes are distinguished: `absent`, `present-empty`, `present-nonempty-zero-op`, `present-nonempty-with-ops`; the zero-op case records `0 op(s)` rather than a vacuous V7 pass. Four fixtures, no overlap. | U+W |
+| AC-L53 | The four recipe shapes are distinguished: `absent`, `present-empty`, `present-nonempty-zero-op`, `present-nonempty-with-ops`; the zero-op case records `0 op(s)` rather than a vacuous V7 pass. Four fixtures. **Adversarial exclusivity check**: over the cross-product of the three patch states and four recipe shapes, every combination maps to exactly one outcome row in §3.6.2/§3.6.6 — no combination is unclassified and none matches two rows. | U+W |
 | AC-L54 | Missing any of the four trailers, or a duplicate of any, or ≥2 `Tpatch-Feature` values ⇒ `malformed`. | U+W |
 | AC-L55 | A commit whose **raw** body carries an exact `Tpatch-Feature: <slug>` line that Git does not parse as a trailer ⇒ **`malformed`**, never `none`. Fixtures for **both** the amend-destroyed block **and** the prose quotation; the prose false red is asserted as intended. | U+W |
 | AC-L56 | Slug matching is exact after trimming; `my-slug` ≠ `my-slug-extended`. A **lowercase** trailer key is still a candidate. | U |
@@ -1804,9 +1903,9 @@ is proven:
 | AC-L64 | Root landing (0 parents) in a **non-shallow** repository ⇒ `unsupported-topology`, R9. | U+W |
 | AC-L65 | Merge landing (≥2 parents) ⇒ `unsupported-topology`, R9; never approximated to `^1`. | U+W |
 | AC-L66 | **Shallow clone**: a candidate on the graft boundary reports 0 parents in `%P` yet classifies **`shallow-history`** with **R21 (`git fetch --unshallow`)**, not `unsupported-topology`/R9. Fixture uses a real `--depth 1` clone. | W+C |
-| AC-L67 | The shallow discriminator is the preflight (`git rev-parse --is-shallow-repository` and/or `.git/shallow` membership), not the parent count — asserted by a fixture where a **true root** in a full repo still yields `unsupported-topology`. | W |
+| AC-L67 | The shallow discriminator is the preflight (`git rev-parse --is-shallow-repository` and/or `.git/shallow` membership), not the parent count — asserted by a fixture where a **true root** in a full repo still yields `unsupported-topology`. The preflight is proven to run **before** any parent-count branch, via `PATH`-wrapper call ordering. | W |
 | AC-L68 | **Partial (blobless) clone** with objects available ⇒ verification proceeds normally (`repository.partial_clone: true`). | W |
-| AC-L69 | Partial clone with a missing object or a failed promisor fetch ⇒ **`history-incomplete`** with **R22**. | W |
+| AC-L69 | Partial clone with a **missing promisor object** ⇒ **`history-incomplete`** with **R22**, and **no network call is attempted**: the fixture configures a promisor remote pointing at a nonexistent path, removes the object, and asserts the failure is the local `fatal: Not a valid object name` form rather than the `does not appear to be a git repository` form the default produces. | W |
 | AC-L70 | A landing reachable only through a merge's **non-first** parent **is** found. Cherry-picked and rebased landings ⇒ `exact`. | W |
 | AC-L71 | Branch switch away from the landing ⇒ `none` ⇒ forward mode; equivalent content present anyway ⇒ still `none` and the diagnostic says the content is unattributed. Detached `HEAD` and history-rewrite rows included. | W |
 
@@ -1859,17 +1958,17 @@ is proven:
 
 | # | Criterion | Tier |
 |---|---|---|
-| AC-L107 | The inventory covers **every** feature returned by `store.ListFeatures()`, not just the target and closure — including status, `RequestedAt`, the three artifacts' presence states and raw bytes, and `patch-generations.touched_paths`. Asserted on a repo with features outside the closure that participate in ADR-029 ordering. | W |
+| AC-L107 | The inventory is built from **`store.ListFeatureEntries()`**, not `ListFeatures()`, and covers **every** feature — status, `RequestedAt`, the three artifacts' presence states and raw bytes, and `patch-generations.touched_paths`. Asserted on a repo with features outside the closure that participate in ADR-029 ordering, **and** by a `PATH`/call assertion that `ListFeatures` is not the enumeration source. | W |
 | AC-L108 | Classification, V7, V8, V10, the persisted `VerifyRecord` and the derived labels are a **pure, deterministic function of the inventory**: two runs over identical inventory values produce byte-identical reports, and the unit under test performs no filesystem access. | U |
 | AC-L109 | Every later stage consumes **copies**: an artifact changed after capture but before the final re-read still yields digests computed from the captured bytes. | U |
-| AC-L110 | A feature **added**, **removed** or **changed** during a run ⇒ **FAIL `snapshot-unstable`** (R20) naming the slug and path. Three fixtures; the add/remove cases are the ones a closure-only snapshot missed. Proven at **U** over the inventory abstraction and at **W** with a `PATH` wrapper mutating `.tpatch/` between git calls. **No production hook.** | U+W |
-| AC-L111 | An unreadable `status.json` on an **unrelated** feature ⇒ `warn` advisory and exclusion from later-touch ordering; on the **target or a closure member** ⇒ **FAIL `inventory-unreadable`**. Two fixtures. | U+W |
-| AC-L112 | Inventory enumeration order is deterministic (the `ListFeatures()` order) and the report is stable across runs. | U |
+| AC-L110 | A feature **added**, **removed**, **changed**, or **flipping between an `Err` row and a `Status` row** during a run ⇒ **FAIL `snapshot-unstable`** (R20) naming the slug and path. Four fixtures; the add/remove and `Err`-flip cases are the ones `ListFeatures` could not see. Proven at **U** over the inventory abstraction and at **W** with a `PATH` wrapper mutating `.tpatch/` between git calls. **No production hook.** | U+W |
+| AC-L111 | An unreadable `status.json` is **represented in the inventory as an `Err` row, never dropped**. On an **unrelated** feature ⇒ `warn` `inventory-unreadable` advisory naming the slug **and** exclusion from ADR-029 later-touch ordering; on the **target or a closure member** ⇒ **FAIL `inventory-unreadable`**. Three fixtures (unrelated, target, closure member); the unrelated case additionally asserts the slug appears in `advisories` — a silent skip fails this row. | U+W |
+| AC-L112 | Inventory enumeration order is deterministic — the slug-sorted order `ListFeatureEntries()` returns (`internal/store/store.go:344-346`) — and the report is stable across runs. | U |
 | AC-L113 | `schema_version` is `"1.1"`; a no-evidence report is **semantically** compatible with `"1.0"` — every `"1.0"` key retains name, type and position — but **not** byte-identical. The test asserts the additive superset. | W |
 | AC-L114 | `failed_at` only takes a value from the §4.3.9 closed set of **thirteen**, and advisory `code` only from the closed set of **five**. Adversarial enumeration. | U+W |
 | AC-L115 | **No verify report contains `freshness_label`** (Q16). Adversarial over every §4.3 shape. | W |
 | AC-L116 | `checks[].mode` is present on V7, V8 and V10 in **every** report — passed, failed **and** skipped — and absent on V0–V6 and V9. | W |
-| AC-L117 | Every R1–R22 and R24 remediation string is emitted **verbatim** (golden strings), and R23 is emitted by `land` per `PRD-tpatch-land` §3.8.6. | W+C |
+| AC-L117 | Every R1–R22 and R24 remediation string is emitted **verbatim** (golden strings). **R23 is `land`-owned** and is pinned by `PRD-tpatch-land` §6.2 AC-LD18/AC-LD18a, including the Mode-B retained-artifacts note. | W+C |
 | AC-L118 | The human report emits `baseline:` and `landing evidence:` above the check list, naming both anchors, the replay anchor when it differs from the attestation, and the `isolated index` probe. | W+C |
 | AC-L119 | A passing landed run persists a `VerifyRecord` with the same field set as a passing forward run — no new persisted field, `omitempty` round-trip preserved. | W |
 | AC-L120 | Sticky clearing is mode-agnostic; `ComposeLabels` takes no mode input (adversarial: the labels package has no reference to landing evidence). | U+W |
@@ -1882,8 +1981,10 @@ is proven:
 | AC-L127 | Diagnostic predicates never certify: a `write-file` op whose content matches byte-for-byte while the patch ladder **blocks** must still FAIL; `append-file` with empty content reports undecidable rather than passing. | U+W |
 | AC-L128 | `gofmt -l .` clean, `go build ./cmd/tpatch` clean, `go test ./...` clean, and `make wave-close-check` 8/8 at the Wave C close commit. | C |
 
-**Matrix size: 128 numbered criteria (AC-L1 … AC-L128) across 8 groups** —
-A 6, B 7, C 15, D 17, E 26, F 20, G 15, H 22.
+**Matrix size: 133 numbered criteria (AC-L1 … AC-L133) across 8 groups** —
+A 6, B 8, C 15, D 21, E 26, F 20, G 15, H 22. AC-L129–AC-L133 are appended to
+the groups they belong to (B, D, D, D, D respectively) rather than to a new
+group, so the group totals above are authoritative.
 A Wave C dispatch that cannot place a row at its stated tier must amend this
 section rather than silently re-tier it.
 
