@@ -1,3 +1,50 @@
+## Review — v0.15.1 Wave C / GH #8 rev-1 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, original
+reproducer)
+**Implementation range**: `61d9011..dfeb129`
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Verified Clean
+
+- The original pre-land → land → post-land and `verify --all` workflow passes.
+- Every verify Git subprocess is floor-gated and offline; below Git 2.36 only
+  `git --version` runs.
+- BaseCommit exactness, the unreachable-base advisory and target/closure
+  unreadable-artifact policy held under adversarial probes.
+- Full, race, vet, build, partial-clone and guarded-file checks are green.
+
+### Valid Findings
+
+1. **P1**: V2's `checkRecipeParses` re-reads `apply-recipe.json` from disk
+   instead of parsing the captured inventory bytes.
+2. **P1**: duplicate-attestation identity failures still classify as
+   `ambiguous`; a real missing object reproduced the wrong R7 remediation.
+3. **P1**: historical V8 collapses all `git apply --check` failures into R5
+   rather than separating exit 1 from missing-object/generic execution errors.
+4. **P1**: an unlanded hard parent's failed ladder probe falls through to
+   recipe replay instead of R22/R10.
+5. **P2**: instability compares artifact presence/bytes but not artifact or
+   generation read-error transitions, so unreadable → absent can evade
+   `snapshot-unstable`.
+
+### Rev-2 Direction
+
+- Parse the target recipe exclusively from the immutable inventory.
+- Use one shared answer/failure classifier for every identity/apply probe.
+- Treat unanswerable parent presence as terminal, never as permission to
+  replay.
+- Compare readability state as well as presence and bytes during re-statement.
+- Add black-box regressions through the actual multi-attestation, historical
+  V8, unlanded-parent and instability branches.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to Wave C rev-2; the same sequential
+implementer owns the bounded fold.
+
 ## Review — v0.15.1 Wave C / GH #8 rev-0 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)

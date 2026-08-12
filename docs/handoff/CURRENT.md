@@ -2,18 +2,17 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
-v0.15.1 Wave C rev-1 folds all six adjudicated rev-0 findings and is
-awaiting review. All 161 accepted rows remain green, with the rev-1
-regressions added on top.
+v0.15.1 Wave C rev-1 closed the six rev-0 findings but remains blocked by
+five completeness defects found in dual review. Rev-2 is dispatched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
@@ -22,6 +21,19 @@ regressions added on top.
 
 Every adjudicated finding is closed, each with a regression that fails
 against the rev-0 code.
+
+## Rev-1 Review Adjudication
+
+- Internal: NEEDS REVISION.
+- External/original reproducer: NEEDS REVISION.
+- The offline gateway, floor stop, base-reachability advisory, BaseCommit
+  exactness, basic read-error policy and original GH #8 workflow all held.
+- Five valid completeness findings remain:
+  1. V2 still reads `apply-recipe.json` from disk after inventory capture.
+  2. Duplicate-attestation identity probe failures still become `ambiguous`.
+  3. Historical V8 treats every `git apply` failure as patch drift.
+  4. An unlanded parent's failed presence probe falls through to replay.
+  5. Inventory instability ignores artifact/generation readability changes.
 
 **F1 (P1) — one floor-validated offline Git context.**
 New `internal/workflow/verify_gitgate.go` is the single gateway. Every
@@ -143,12 +155,16 @@ required it.
 
 ## Next Steps
 
-1. Dual review of the rev-1 fold against all 161 rows.
-2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
+1. Make V2 parse only the captured recipe bytes.
+2. Classify all identity/apply probe execution failures honestly.
+3. Fail instead of replaying when an unlanded-parent probe cannot run.
+4. Detect artifact/generation readability transitions as instability.
+5. Dual review the rev-2 fold against all 161 rows.
 
 ## Blockers
 
-None.
+No external blocker. Rev-1 cannot ship until the five adjudicated findings
+close.
 
 ## Context for Next Agent
 

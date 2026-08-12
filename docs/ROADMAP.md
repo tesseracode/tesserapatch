@@ -750,6 +750,11 @@ REVISION. Rev-1 closes offline Git bypasses, enforces a single immutable
 inventory, propagates history/artifact read errors, emits the reachability
 advisory, and rejects whitespace BaseCommit metadata.
 
+**Wave C rev-1** (`24374a9`..`dfeb129`): dual NEEDS REVISION. Rev-2 removes
+the remaining recipe live-read, classifies attestation and shadow probe
+failures instead of reporting drift/ambiguity, prevents replay after an
+unanswerable parent-presence probe, and detects artifact-readability changes.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
