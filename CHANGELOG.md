@@ -151,28 +151,46 @@ All notable changes to tpatch are recorded here.
   a lock tpatch did not create is never touched.
 
   Crashes between `git commit` advancing HEAD and the index being
-  published are recoverable. Before committing, land writes a versioned,
-  owner-only journal plus a retained copy of the alternate index under
-  the already-gitignored `.tpatch/local/land-journal/`, fsyncing both
-  and their directory. The journal records the slug, pre-HEAD, live- and
-  retained-index identity (existence, SHA-256, mode), the phase and the
-  owned lock's nonce; it stores repo-relative references and never
-  source content, secrets, or an absolute path unless `GIT_INDEX_FILE`
-  genuinely points outside the repository.
+  published are recoverable. The alternate index land stages, audits,
+  hooks and commits against IS the durable retained index in the
+  journal directory, so a hook's edits are part of the evidence rather
+  than lost with an ephemeral copy. Before committing, land writes a
+  versioned, owner-only journal beside it under the already-gitignored
+  `.tpatch/local/land-journal/`, fsyncing both and their directory. The
+  journal records the slug, pre-HEAD, the live index's canonical
+  PREIMAGE identity (existence, SHA-256, mode), the retained index's
+  identity and tree, and the owned lock's nonce and inode. It stores
+  repo-relative references and never source content, secrets or an
+  absolute path unless `GIT_INDEX_FILE` genuinely points outside the
+  repository. After `git commit` returns — success or failure — the
+  retained index is re-audited for nested worktrees, fsynced, re-hashed
+  and its post-commit identity and tree durably journalled BEFORE any
+  live publication is attempted.
 
   Every `tpatch land` recovers before touching record, status or the
-  index, and decides from EVIDENCE rather than the recorded phase — the
-  crash can fall between HEAD moving and the phase being updated. If
-  HEAD still equals pre-HEAD the commit never happened, so the retained
-  audited index is published as the existing staged-retry contract. If
-  HEAD advanced, land requires it to be a direct child of pre-HEAD
-  carrying this feature's `Tpatch-Feature` trailer AND the retained
-  index to describe exactly the committed tree; only then does it finish
-  the publication. Anything else refuses with manual-recovery guidance,
-  preserving the journal and retained index and overwriting nothing.
-  Recovery is idempotent. If the publish fails after a successful
-  commit, land says so precisely — the commit exists, recovery is
-  pending — and never claims a rollback of HEAD.
+  index, and does so UNDER the live index lock. A stale lock is removed
+  only after its nonce and (where the platform exposes one) its inode
+  both match the journal; a foreign lock refuses outright. Under the
+  lock, the live index is classified against the journal by content, not
+  by path: exact preimage (safe to publish), exact retained postimage
+  (a previous recovery already published it — clean up idempotently
+  without rewriting), or divergent (an operator `git add`/`git reset`
+  since the crash — refuse and preserve the live index, journal and
+  retained index). HEAD is the second axis: equal to pre-HEAD means the
+  commit never happened and the retained index is the audited
+  staged-retry state; advanced is accepted only when it is a direct
+  child of pre-HEAD carrying this feature's `Tpatch-Feature` trailer AND
+  the retained index's `write-tree` equals HEAD's tree, which is also
+  how a crash between HEAD advancing and the journal refresh is resolved
+  (the observed identity is then persisted under the lock). Anything
+  else refuses with manual-recovery guidance. Recovery is idempotent.
+
+  The journal and retained index are cleared ONLY after a durable
+  publish succeeds — they are the sole copy of the staged-retry
+  evidence. A publish failure therefore keeps them and reports either
+  `commit failed, staged retry recovery pending` or
+  `commit succeeded, recovery pending`, the latter never claiming a
+  rollback of HEAD.
 
   Scope, stated plainly: this serializes INDEX writes against other Git
   processes, because `<index>.lock` is the lock `git add` and

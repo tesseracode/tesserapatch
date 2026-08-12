@@ -64,13 +64,17 @@ Publication is durable: bytes go to a temp in the index's own directory, are fsy
 
 ### Crash recovery
 
-Before committing, `land` writes a journal and a retained copy of its alternate index under the gitignored `.tpatch/local/land-journal/`. Every `tpatch land` checks for one **before** it touches anything, and decides from evidence:
+`land` stages, audits, runs hooks and commits against a durable *retained index* kept under the gitignored `.tpatch/local/land-journal/`, alongside a journal written before the commit. Because that file is the real alternate index, anything a hook stages is part of the recorded evidence.
 
-- HEAD still at the pre-land commit → the commit never happened, so the retained audited index is published as the staged-retry state.
-- HEAD advanced to a direct child of the pre-land commit carrying this feature's `Tpatch-Feature` trailer, whose tree matches the retained index → the commit completed and only publication was outstanding, so `land` finishes it.
-- Anything else → `land` refuses and prints manual-recovery steps, keeping the journal and retained index and changing nothing.
+Every `tpatch land` checks for a journal **before** it touches anything, and does so **under the index lock**. A stale lock is removed only when its nonce (and inode, where available) match the journal; a lock belonging to another process refuses outright. Under the lock the live index is compared by content:
 
-Recovery is idempotent, and a successful land leaves no journal, retained index or lock behind. If publication fails *after* a successful commit, `land` reports "commit succeeded, recovery pending" — it never claims HEAD was rolled back.
+- **preimage** — byte-identical to what `land` recorded before the crash → safe to publish the retained index.
+- **postimage** — already identical to the retained index → a previous recovery published it; `land` only cleans up, without rewriting.
+- **divergent** — anything else (you ran `git add` or `git reset` since) → `land` refuses and preserves your index, the journal and the retained index.
+
+HEAD is the second axis: still at the pre-land commit means the commit never happened and the retained index is the staged-retry state; advanced is accepted only when it is a direct child of the pre-land commit carrying this feature's `Tpatch-Feature` trailer *and* the retained index's tree matches HEAD's tree. Anything else refuses with manual-recovery steps.
+
+The journal and retained index are deleted only after a durable publish succeeds — they are the only copy of the retry evidence. A failed publish keeps them and reports either `commit failed, staged retry recovery pending` or `commit succeeded, recovery pending`; the latter never claims HEAD was rolled back. Recovery is idempotent.
 
 This serializes index writes against other Git processes and makes index publication durable. It does **not** protect against concurrent ref or working-tree changes such as `git checkout` or `git reset --hard`, which no index lock can express.
 
