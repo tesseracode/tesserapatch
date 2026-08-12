@@ -17,7 +17,7 @@
 - [`docs/market-research/competitive-landscape.md`](../market-research/competitive-landscape.md) §9 (DEP-3 / git-gud trailer precedents), §10 (what we don't adopt), §11 (deterministic apply-recipe edge)
 - [`docs/record.md`](../record.md), [`docs/reconcile.md`](../reconcile.md), [`docs/feature-layout.md`](../feature-layout.md)
 - [`docs/prds/PRD-verify-freshness.md`](./PRD-verify-freshness.md) §3.6, §7.1 — the landing-evidence consumer this PRD's §3.8 serves (v0.15.1 Wave B / GH #8)
-- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-4 D8–D19 — binding ADR for the readers' contract and the §3.8.6 producer precondition
+- [`docs/adrs/ADR-013-verify-freshness-overlay.md`](../adrs/ADR-013-verify-freshness-overlay.md) Amendment 1 rev-5 D8–D19 — binding ADR for the readers' contract and the §3.8.6 producer precondition
 - [`docs/adrs/ADR-019-tpatch-land-trailer-block-schema.md`](../adrs/ADR-019-tpatch-land-trailer-block-schema.md) — the locked schema §3.8 makes readable
 - [GH #8](https://github.com/tesseracode/tesserapatch/issues/8) — `verify` V8 fails after land
 
@@ -518,7 +518,7 @@ These behaviors fall out of using `git` primitives directly. `land`
 does not implement its own transaction layer.
 
 ---
-### 3.8 Landing-evidence contract — v0.15.1 Wave B / GH #8 (rev-4)
+### 3.8 Landing-evidence contract — v0.15.1 Wave B / GH #8 (rev-5)
 
 > **Amendment status**: proposed rev-1, 2026-08-12, AWAITING REVIEW.
 > **`land`'s behaviour is unchanged by this amendment.** This section is
@@ -591,9 +591,12 @@ materialization signal, never ownership.
    first" parser would silently pick a convenient one. Duplicates are
    **malformed**; no reader may select among them.
 6. **Value formats are strict and lowercase.** `Tpatch-Patch-SHA` is 64
-   lowercase hex; `Tpatch-Recipe-SHA` is 64 lowercase hex or the literal
-   `none`; `Tpatch-Base-Commit` is 40 lowercase hex. Anything else is
-   malformed. This follows the ADR-029 D1 precedent already enforced by
+   lowercase hex and `Tpatch-Recipe-SHA` is 64 lowercase hex or the literal
+   `none` — both are SHA-256 digests of artifact bytes and are independent of
+   the repository object format. `Tpatch-Base-Commit` is **`N` lowercase hex
+   where `N` is derived from `git rev-parse --show-object-format`** — 40 for
+   `sha1`, **64 for `sha256`** (rule 18). Anything else is malformed. Lowercase
+   strictness follows the ADR-029 D1 precedent already enforced by
    `isLowercaseHex` (`internal/workflow/writefile_safety.go:176`).
 7. **Trailer keys are matched case-insensitively by Git.**
    `tpatch-feature: <slug>` is returned by
@@ -628,10 +631,13 @@ materialization signal, never ownership.
     **present, zero-byte** patch hashes to `sha256("")` and must compare
     equal. Absent is not empty.
 14. **A reader error is not an absence.** If the enumeration cannot be run or
-    parsed — a git failure, or a git older than 2.25, below which
-    `%(trailers:key=…,valueonly,separator=…)` is unavailable — the reader must
+    parsed — a git failure, or a git below the reader's floor — the reader must
     surface an **error state**, never "no evidence". Degrading to absence
-    converts an unknown into a positive claim.
+    converts an unknown into a positive claim. The **effective floor for a
+    reader that verifies offline is git ≥ 2.36**, set by `GIT_NO_LAZY_FETCH`;
+    the component capabilities (`%(trailers:key=…,valueonly)` 2.22,
+    `separator=` 2.25, `--show-object-format` 2.29) are historical facts about
+    individual features, not the operative floor.
 15. **A slug-bearing line that Git does not parse as a trailer is
     *malformed*, never *absent*.** A prose paragraph that quotes
     `Tpatch-Feature: <slug>` and a trailer block destroyed by a later
@@ -729,7 +735,7 @@ operator is told precisely, at the next verify. A `land`-side warning would
 move the signal earlier but cannot change any verdict, and `land` is
 behaviour-frozen by §6.2 AC-LD9. Tracked as `PRD-verify-freshness` §6 Q13.
 
-#### 3.8.6 Producer validation — `Tpatch-Base-Commit`, by invocation mode (rev-4)
+#### 3.8.6 Producer validation — `Tpatch-Base-Commit`, by invocation mode (rev-5)
 
 **This is the one place §3.8 changes `land`'s behaviour, and it only adds a
 refusal.** `land` reads `status.Apply.BaseCommit` and interpolates it into the
@@ -761,13 +767,33 @@ classifies as **malformed** at every future read.
 ##### Mode A — `--no-record` (`internal/cli/land.go:66`, `:98`)
 
 `land` does not run `record`, so the field is whatever is already on disk.
-Validation runs **at command entry**: before the metadata snapshot, before any
-`status.json` write, before nested-worktree discovery, before any index or
-artifact mutation.
 
-On failure `land` refuses with **R23** having **mutated nothing** — no commit,
-no index change, no `status.json` note, no artifact. This strong guarantee is
-achievable here precisely because nothing has run yet.
+**Ordering against the shipped sequence.** `runLand`
+(`internal/cli/land.go:76`) already performs, in order: store open and
+`LoadFeatureStatus` (`:85`), the `unapplied` refusal (`:89`), the dry-run
+branch (`:93`), `landPreflight` (`:110`), `CheckDependencyGate` (`:116`), then
+**`recoverLand`** (`:127`, defined at `internal/cli/land_journal.go:437-445`).
+Base-Commit validation is inserted **immediately after `recoverLand` returns**
+and **before** the pre-record gate, the metadata snapshot, and every
+`land`-owned mutation.
+
+**`recoverLand` remains first — the one documented exception.** GH #7 made
+crash recovery mandatory before anything else mutates record, status or the
+index, and recovery is not read-only: with a pending journal it may publish a
+retained index, compare-and-swap the branch back to the pre-land commit, and
+restore the `status.json` preimage. That work completes a **prior, interrupted
+transaction**; it is not this invocation's.
+
+The guarantee is therefore stated in two cases:
+
+| Case at command entry | Guarantee on an invalid `BaseCommit` |
+|---|---|
+| **no pending journal** — `recoverLand` is a no-op | `land` refuses with **R23** having made **no mutation whatsoever**: no commit, no index change, no `status.json` write, no artifact. |
+| **pending journal** — `recoverLand` completes or refuses the prior transaction | `recoverLand` **may have mutated** the index, the branch ref and/or `status.json` **while finishing that earlier land**. `land` then refuses with **R23** having made **no NEW mutation for this invocation**. The refusal names the completed recovery. |
+
+**Absolute command-entry immutability is not promised.** The shipped
+recovery-first ordering forbids it, and that ordering is correct: leaving an
+interrupted land unfinished to preserve a weaker promise would be worse.
 
 ##### Mode B — embedded `record` (the default)
 
@@ -795,7 +821,9 @@ producing an invalid one. Only the actually-produced value is worth checking.
 
 > **R23** — `land refuses: status.apply.base_commit is <empty|malformed|unresolvable> (<value>); the Tpatch-Base-Commit trailer would be unreadable. Run tpatch record <slug> --auto (or --from <base>) to repopulate it, then re-run tpatch land <slug>`
 >
-> In Mode B the message additionally states: `note: the embedded record step already completed; its artifacts under .tpatch/features/<slug>/artifacts/ are retained and are not rolled back`.
+> In **Mode B** the message additionally states: `note: the embedded record step already completed; its artifacts under .tpatch/features/<slug>/artifacts/ are retained and are not rolled back`.
+>
+> In **Mode A with a pending journal** it additionally states: `note: an interrupted previous land was recovered before this refusal; that recovery is complete and is not rolled back`.
 
 **Migration.** The affected population is features recorded before `record`
 populated `apply.base_commit`, and `--no-record` landings against a status that
@@ -1023,13 +1051,13 @@ features re-recorded with `--auto`.
 The `reconcile` guard (3) is implementation-independent of `land` —
 they cover different verbs and can ship in either order.
 
-### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-4)
+### 6.2 Landing-evidence acceptance rows — v0.15.1 Wave B / GH #8 (rev-5)
 
 These rows are **`land`-side** obligations of the readers' contract in §3.8.
 They assert that the evidence substrate `tpatch verify` now depends on is
 actually produced, and — critically — that `land`'s **behaviour is
 unchanged**. The verify-side matrix lives in
-`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L133) and is not
+`docs/prds/PRD-verify-freshness.md` §7.1 (AC-L1–AC-L134) and is not
 duplicated here.
 
 | # | Criterion | Tier |
@@ -1051,15 +1079,16 @@ duplicated here.
 | AC-LD15 | **Every pre-existing** `land` refusal, diagnostic string, exit code and staging-plan line is unchanged, and their relative ordering is unchanged. Golden-output comparison against the pre-amendment binary **over inputs whose `status.apply.base_commit` is valid**. The amendment adds exactly one new refusal (§3.8.6) and alters nothing else; it is **not** claimed to be behaviour-neutral in the presence of an invalid base commit. | C |
 | AC-LD16 | Two successive landings of the same slug (re-`record` then re-`land`) leave the **earlier** landing reachable and single-parent, so a reader can still derive a pre-landing tree from it after the newer landing's parent has absorbed the feature. Pins the substrate §3.8.2 rule 17 and `PRD-verify-freshness` §3.6.8 depend on. | C |
 | AC-LD17 | `land` never emits a trailer value outside the §3.8.2 rule 6 formats — no uppercase hex, no wrong-length digest, no `Recipe-SHA` that is neither 64 lowercase hex nor `none` — so a strict reader never rejects a commit `land` produced. | C |
-| AC-LD18 | **Mode A (`--no-record`)**: with an empty, malformed or unresolvable `status.apply.base_commit`, `land` refuses **at command entry** emitting **R23** verbatim and **mutating nothing** — no commit, no index change, no `status.json` write, no artifact. Asserted by hashing `.tpatch/`, the index and the worktree before and after. | C |
+| AC-LD18 | **Mode A, no pending journal**: with an empty, malformed or unresolvable `status.apply.base_commit` and **no land journal present**, `land` refuses immediately after the no-op `recoverLand`, emitting **R23** verbatim and **mutating nothing** — no commit, no index change, no `status.json` write, no artifact. Asserted by hashing `.tpatch/`, the index and the worktree before and after. | C |
 | AC-LD18a | **Mode B (embedded `record`)**: `land` re-validates the reloaded value **immediately after `record` returns and before any `land`-owned mutation**, refuses with **R23** plus the retained-artifacts note, and leaves **no** commit, **no** index change and **no** `landed at` note — while `record`'s artifacts **do** persist. The row asserts both halves; it must **not** claim "mutating nothing". | C |
 | AC-LD18b | `record` writes a valid `Apply.BaseCommit` **before its own first mutation**, so Mode B's post-record validation passes for every well-formed workspace. Adversarial: a fixture that forces `record` to produce an invalid value must fail this row rather than silently landing. | C |
+| AC-LD18c | **Mode A, pending journal**: with a land journal present **and** an invalid `BaseCommit`, `recoverLand` still runs **first** and completes or refuses the prior transaction; `land` then refuses with **R23** plus the recovery note, having made **no NEW mutation of its own**. The row asserts (a) recovery ran, (b) no commit and no `landed at` note were written by this invocation, and (c) the row does **not** claim absolute immutability. | C |
 | AC-LD19 | The accepted base-commit length is **derived** from `git rev-parse --show-object-format`: a **SHA-256** repository accepts a 64-hex base and refuses a 40-hex one; a SHA-1 repository does the inverse. Two fixtures; a hardcoded 40 fails this row. | C |
 | AC-LD20 | In a **shallow** or **partial** clone, a base commit that is well-formed and resolvable but not reachable from `HEAD` produces a one-line `warn` and the landing **proceeds** — unreachability alone never refuses. | C |
 | AC-LD21 | `land`'s **successful** path is byte-unchanged: for a feature with a valid base commit, every trailer, message, exit code and staging-plan line is identical to the pre-amendment binary. Together with AC-LD15 this bounds the amendment to exactly one added refusal. | C |
 | AC-LD22 | Every `land`-side git invocation added by §3.8.6 carries `GIT_NO_LAZY_FETCH=1`, so validation never reaches the network. Asserted by a `PATH` git wrapper recording the call environment. | C |
 
-**Matrix size: 24 numbered criteria (AC-LD1 … AC-LD22, including AC-LD18a and AC-LD18b), all tier C.** Most are
+**Matrix size: 25 numbered criteria (AC-LD1 … AC-LD22, including AC-LD18a, AC-LD18b and AC-LD18c), all tier C.** Most are
 already satisfied by shipped behaviour and existing tests; they are listed so
 Wave C proves the substrate rather than assuming it. AC-LD21 is the guard that `land`'s successful path is untouched, and AC-LD18
 is the guard that it can no longer produce evidence the reader must reject.

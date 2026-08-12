@@ -2,262 +2,174 @@
 
 ## Status
 
-**Cluster state**: REV-5 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave B rev-4 has one Git-floor finding plus artifact/recovery/stale
-prose corrections required before Wave C. Rev-5 is dispatched.
+v0.15.1 Wave B **rev-5** is written and pushed. All five rev-4 corrections are
+closed: the effective Git floor is **2.36**, artifact presence **short-circuits
+before** evidence classification, Mode A's no-mutation promise is scoped around
+the mandatory `recoverLand` step, the real-filtered-remote partial-clone path is
+a **Wave C acceptance gate** rather than a claimed fact, and every authoritative
+document has been swept for stale prose. Planning only — no Go, tests, assets,
+SPEC, CHANGELOG or GitHub issue state was touched.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave B / GH #8 contract
 - **Description**: Define verify V0–V10 semantics after a feature or hard
   parent has been landed into reachable Git history.
-- **Status**: In Progress (rev-5)
+- **Status**: Review (rev-5)
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `ad39e4a`
-- **Dispatch HEAD (rev-4)**: `6d87198`
+- **Dispatch HEAD (rev-5)**: `4c632b6`
 - **Target release**: v0.15.1
 - **Implementation**: deferred to Wave C
 
-## Files Changed (exact, this wave)
+## Files Changed (rev-5) — exact list
 
-Owned and staged by explicit path — nothing else:
-
-| File | Change |
+| File | What changed in rev-5 |
 |---|---|
-| `docs/adrs/ADR-013-verify-freshness-overlay.md` | **Amendment 1 relabelled rev-4.** D14 rewritten (`C^` syntax, `-C1` forward qualification with the measured ladder); D11 and D16 gain mandatory `GIT_NO_LAZY_FETCH=1` and preflight-before-parent-count ordering; D17 rebuilt on `ListFeatureEntries` with an explicit read-error policy; D18 gains the hunk-header rewrite and the measured trade; **D19 rewritten as a mode-split producer contract**. Empirical index extended to **E1–E47**; **47 rejected alternatives**; references gain the `store.go` anchors. |
-| `docs/prds/PRD-verify-freshness.md` | §3.6.5 exact commands + offline env + invalid-syntax note; §3.6.8 `-C1` ladder table, `C^` syntax, hunk-header normalization and the measured trade; §3.6.8 preflight ordering and offline classification; §3.6.9 inventory rebuilt on `ListFeatureEntries` with the read-error table; budget rows updated; **Q18 RESOLVED**; **§7.1 extended to 133 rows** (AC-L129–AC-L133). |
-| `docs/prds/PRD-tpatch-land.md` | **§3.8.6 rewritten as Mode A / Mode B**; **§6.2 extended to 24 rows** with AC-LD18a/AC-LD18b/AC-LD22 and **AC-LD15 reworded** so it no longer contradicts AC-LD18/AC-LD21; header/labels to rev-4. |
-| `docs/handoff/CURRENT.md` | This file. |
+| `docs/adrs/ADR-013-verify-freshness-overlay.md` | **D10** presence states short-circuit before classification + reachable 3×4 patch×recipe outcome table; **D13** the two unreachable `exact + absent/empty` arbitration rows removed, replaced by one short-circuit row; **D16** "Scope of what is proven, without overclaim" — partial-clone mechanism proven, end-to-end path unproven, made a Wave C gate; **D17** Git floor rewritten to **2.36** with a capability table (2.22 / 2.25 / 2.29 demoted to historical component facts); **D19 Mode A** rewritten against the shipped `runLand` ordering with a two-case guarantee table; rev-5 labels, `4c632b6` reference anchor, rev-5 revision-history entry; `land.go` preflight/gate anchors corrected to `:110` / `:116`. |
+| `docs/prds/PRD-verify-freshness.md` | **§3.6.2** presence table rewritten with short-circuit semantics + 3×4 reachable outcome table, `stale` now requires `present-nonempty`; **§3.6.6** unreachable arbitration rows collapsed to one; **§3.6.8** partial-clone scope-of-proof paragraph + Wave C gate; **§3.6.9** Git-floor block rewritten to 2.36 with the PATH-shim proof; **R10** names 2.36 and the three sub-capabilities; **§5** two landed rows rewritten; **§7.1** AC-L52 / AC-L53 / AC-L68 / AC-L69 / AC-L79 / AC-L80 rewritten, **AC-L134 added** (Git-floor preflight), matrix header recount and Wave C gate note; **§8** risk row now "below 2.36"; historical Wave 3 10-check row annotated; rev-5 labels. |
+| `docs/prds/PRD-tpatch-land.md` | **§3.8.2 rule 6** `Tpatch-Base-Commit` length is object-format-derived (40 `sha1` / 64 `sha256`), not 40-hex-only; **rule 14** floor raised to **2.36** with the component capabilities demoted; **§3.8.6 Mode A** rewritten with the shipped `recoverLand`-first ordering and the two-case guarantee table plus the pending-journal **R23** note; **AC-LD18** narrowed to the no-journal case and **AC-LD18c added** for the pending-journal case; matrix header 24 → **25**; rev-5 labels; `AC-L1–AC-L134`. |
+| `docs/handoff/CURRENT.md` | This rewrite. Side Research tail preserved byte-identically (md5 `b385fe622db9926f48861105239f113e`). |
 
-Not touched: `internal/`, `cmd/`, `assets/`, `tests/`, `SPEC.md`,
-`CHANGELOG.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`, GitHub issue #8.
+## Decisions closed in rev-5
 
-## How rev-4 closes every rev-3 finding
+1. **Git floor is 2.36 for the whole landed contract.** `GIT_NO_LAZY_FETCH`
+   (2.36) is mandatory on every object and materialization command, so it — not
+   `%(trailers:key=…,valueonly)` (2.22), `separator=` (2.25) or
+   `--show-object-format` (2.29) — sets the operative floor. Below it the run
+   reports evidence `unavailable` with **R10** and issues **only** `--version`:
+   no `log`, `read-tree`, `apply`, `diff`, `cat-file`, `merge-base`, and no
+   network. Measured with a PATH shim. The sub-capabilities survive as
+   historical component facts only.
+2. **Artifact presence short-circuits before classification.** Evidence first
+   computes patch state `absent` / `present-empty` / `present-nonempty`. Only
+   `present-nonempty` can reach `exact` or `stale` by digest; `absent` and
+   `present-empty` are terminal **`landed-artifacts-absent`** *before* any digest
+   comparison, regardless of recipe shape. The 3×4 patch×recipe table is now
+   reachable and mutually exclusive in all twelve cells, and the rev-4 rows that
+   let a recipe be "sole authority" under an absent patch are gone.
+3. **Mode A promises no *new* mutation, not absolute command-entry
+   immutability.** `recoverLand` (`internal/cli/land.go:127`,
+   `land_journal.go:437-445`) is mandatory first by GH #7 and may publish a
+   retained index, CAS the branch back and restore `status.json` while finishing
+   a *prior* transaction. Base-Commit validation is inserted immediately after
+   it returns. Two cases: **no journal** ⇒ refusal mutates nothing at all;
+   **pending journal** ⇒ recovery may have mutated, and the refusal makes no NEW
+   mutation and names the completed recovery.
+4. **Partial-clone behaviour is a Wave C acceptance gate, not a Wave B claim.**
+   The offline *mechanism* is measured (E47: default git attempts the network on
+   a missing promisor object; `GIT_NO_LAZY_FETCH=1` fails locally). The
+   end-to-end path is **not** — a `file://` `--filter=blob:none` clone on git
+   2.55.0 does not withhold blobs. **AC-L68/AC-L69** now require a real filtered
+   remote (non-local transport with `uploadpack.allowFilter=true`, or a
+   deterministic promisor fixture); if Wave C cannot construct one it must
+   report a **blocker** and may not mark those rows passed.
+5. **Global staleness sweep across whole documents**, not amended fragments:
+   no `V9-last` / 10-row shape survives outside the one row that forbids it; the
+   ADR header now reads rev-5 D8–D19; the land PRD's 40-hex-only grammar is
+   object-format-derived; `C^{tree}^` appears only in negative framing; no
+   `"freshness_label"` appears in any verify sample; Q and residual ids are
+   unique; `AC-L1–AC-L134` everywhere.
 
-| rev-3 finding | rev-4 closure |
+## Preserved unchanged from rev-1 … rev-4
+
+`-C1` forward anchor qualification (E44) · the `(0/0)` block rule (E26/E28/E29,
+0 false greens) · exhaustive anchor collection with no stop-at-first ·
+per-member V10 baselines with `RecipeProvenance.BaseCommit` (E42, resolves Q15)
+· the `ListFeatureEntries` full inventory · `GIT_NO_LAZY_FETCH=1` on every
+object command (E47) · duplicate identity by index-drop + `@@` header
+normalization (E45/E46) · the exhaustive existential-inverse `replace-in-file`
+predicate (0 false reds / 0 false greens over 52,416 cases) · the Mode A /
+Mode B producer split · `C^` parent syntax (E43) · eleven checks V0–V10.
+
+## Counts
+
+| Metric | Value |
 |---|---|
-| **1 CRITICAL — `C^{tree}^` is invalid** | **D14 / §3.6.5**: the normative revision is **`C^`** (or `C^^{tree}` for an explicit tree). Measured (E43): `git rev-parse C^{tree}^` → `error: object <tree> is a tree, not a commit`; `git read-tree C^{tree}^` fails; `C^`, `C^^{tree}`, `C~1`, `C~1^{tree}` all resolve and `read-tree` accepts them. Grepped: the string survives only inside the two paragraphs that name it as invalid. AC-L130. |
-| **2 HIGH — `ListFeatures` silently drops unreadable status** | **D17 / §3.6.9**: the inventory is built from **`ListFeatureEntries`** (`store.go:274-345`), which returns `FeatureEntry{Slug, Status, Err}` (`:238-245`) sorted by slug (`:343-345`). `ListFeatures` skips at `store.go:226` and is explicitly rejected. Unreadable entries are retained as `Err` rows; target/closure ⇒ **block** `inventory-unreadable`, unrelated ⇒ **`warn` advisory + exclusion from ADR-029 ordering**, never a silent skip. AC-L107, AC-L110, AC-L111. |
-| **3 HIGH — land refusal cannot promise "no mutation" after embedded record** | **D19 / §3.8.6 split by invocation mode.** **Mode A (`--no-record`)**: validate at command entry, refuse with R23 **mutating nothing**. **Mode B (embedded `record`)**: `record` owns the invariant — it must write a valid `BaseCommit` before its own first mutation — and `land` re-validates the reloaded value immediately after `record` returns, **before any `land`-owned mutation**; on failure **`record`'s artifacts persist as an independent completed transaction** and the message says so. AC-LD18, AC-LD18a, AC-LD18b; AC-LD15 reworded. |
-| **4 HIGH/MEDIUM — default-context qualification dead-ends its own remediation** | **D14 / §3.6.8**: qualification is `git apply --check --cached -C1`. Measured ladder (E44): 2-lines-away noise `C3=FAIL / **C1=OK**`; 1-line-away `FAIL/FAIL`; already-materialized, feature-line-changed and feature-line-deleted **all FAIL at `-C1`**. `-C0` rejected as over-permissive. AC-L131, **AC-L132 remediation-loop fixture**. |
-| **5 MEDIUM — duplicate identity retains hunk positions** | **D18 / §3.6.8**: exactly two post-processing rules — drop `^index `, rewrite every `^@@ … @@.*$` to a bare `@@`. Measured (E45): a cherry-pick after 5 prepended lines gives `@@ -10 +10 @@ l9` vs `@@ -15 +15 @@ l9` and is **rejected** without the rewrite, **equal** with it. Trade measured and bounded (E46). AC-L133. |
-| **6 HIGH — parent V10 must use its own baseline** | Already binding in D15/§3.6.7 and re-verified this revision: landed member ⇒ its own replay anchor; unlanded applied/active ⇒ `RecipeProvenance.BaseCommit`; **never** the target's anchor. Aggregation and malformed/unavailable outcomes unchanged. AC-L92, AC-L93, AC-L106. |
-| **7 HIGH — lazy fetch contradicts offline verify** | **D11/D16/§3.6.5**: **every** object and materialization command carries `GIT_NO_LAZY_FETCH=1`. Measured (E47): with a promisor remote and its object absent, `git cat-file -p` **attempts the network** (`does not appear to be a git repository`); under the variable it fails locally (`Not a valid object name`). Missing object ⇒ `history-incomplete`, no network. Shallow preflight now explicitly **precedes** any parent-count branch. AC-L129, AC-L67, AC-L69. |
-| **8 HIGH/MEDIUM — presence precedence, stale prose, AC-LD conflict** | Presence states get an **adversarial exclusivity check** over the 3×4 patch/recipe cross-product (AC-L53). AC-LD15 reworded to "every **pre-existing** refusal is unchanged … not claimed behaviour-neutral in the presence of an invalid base commit", removing the contradiction with AC-LD18/AC-LD21. Q18 resolved; Q15 already resolved and its residual removed. |
-
-## Decisions Made (binding)
-
-ADR-013 **Amendment 1 rev-4**, decisions **D8–D19**. Changed this revision:
-
-1. **D11** — temp-index commands stated exactly, with `GIT_NO_LAZY_FETCH=1`
-   mandatory and `C^{tree}^` explicitly forbidden.
-2. **D14** — anchor qualification is `read-tree C^` + `apply --check --cached
-   -C1`; the ladder is tabulated from measurement; `-C3` and `-C0` are both
-   rejected with reasons.
-3. **D16** — preflight runs **before** any parent-count branch; missing objects
-   are detected locally because of the offline env.
-4. **D17** — inventory from `ListFeatureEntries`, slug-sorted, `Err` rows
-   retained, read-error policy tabulated, `Err`↔`Status` flips count as
-   instability.
-5. **D18** — two normalization rules (`index` drop + `@@` rewrite), with the
-   collision bound measured.
-6. **D19** — producer validation split into Mode A (no mutation) and Mode B
-   (record's artifacts persist), with `record` owning the pre-mutation
-   invariant.
-
-Unchanged and still binding: D8 eleven checks, D9 dual anchor, D10 grammar and
-three-state presence with derived commit-id length, D12 the `(0/0)` block,
-D13 patch-ladder-only arbitration with `active` total, D15 per-member V10 and
-`RecipeProvenance` (Q15).
-
-**47 rejected alternatives** recorded in the ADR, including the six new
-rev-3-specific ones (invalid syntax, `-C3`, `-C0`, `ListFeatures`, lazy fetch,
-and the unkeepable "mutating nothing" promise).
-
-## Acceptance Matrix
-
-- **`PRD-verify-freshness` §7.1 — 133 rows, `AC-L1` … `AC-L133`**, contiguous
-  and unique (machine-checked). Groups: A 6, B 8, C 15, D 21, E 26, F 20,
-  G 15, H 22. AC-L129–AC-L133 are appended to groups B and D.
-- **`PRD-tpatch-land` §6.2 — 24 rows, `AC-LD1` … `AC-LD22`** including
-  `AC-LD18a` and `AC-LD18b`, all tier C.
-- **Total: 157 numbered acceptance criteria** (rev-3: 149; rev-2: 135).
-- **Tiers**: **U** = pure functions plus the inventory and evidence-reader
-  abstractions; **W** = workflow integration with a **`PATH` git wrapper** for
-  argv/env capture, call ordering, error injection and between-call mutation;
-  **C** = real CLI. No production seam, no build tag, no exported hook.
+| Verify acceptance matrix | **134 rows**, AC-L1 … AC-L134, contiguous, groups A 6 / B 9 / C 15 / D 21 / E 26 / F 20 / G 15 / H 22 |
+| Land acceptance matrix | **25 rows**, AC-LD1 … AC-LD22 incl. AC-LD18a/b/c, all tier C |
+| **Total acceptance rows** | **159** (rev-4: 157) |
+| Unique code citations | **102**, every `file:line[-range]` in range — machine-checked |
+| ADR decisions | D1–D19, no gaps; Amendment 1 = D8–D19 |
+| Empirical index | E1–E47, contiguous |
+| Remediation strings | R1–R24, all referenced ids defined |
 
 ## Test Results
 
-Planning wave — no code changed, so no build/test delta is claimed.
+Planning-only revision — no Go source changed, so no build or test run is
+implicated. Validation was documentary and empirical:
 
-- Working tree: no tracked source file modified.
-- **Citation validation**: **229 `internal/**.go:line` citations, 96 unique**,
-  machine-checked in range, every unique anchor printed and semantically
-  spot-checked against the source at `6d87198`.
-- **Cross-reference validation**: every self-`§` reference resolves; ADR
-  `D1`–`D19` present; all `AC-L*` references resolve; `R1`–`R22` and `R24`
-  defined in the verify PRD with no dangling reference; `R23` defined in the
-  land PRD (owner-split, asserted).
-- **Matrix count validation**: 133 unique contiguous `AC-L` with a tier cell on
-  every row; 24 `AC-LD` rows with `AC-LD18a`/`AC-LD18b` inserts.
-- **Staleness sweep**: `"freshness_label"` in verify JSON = **0**; no
-  `V9-last`, no 10-row claim outside AC-L5's prohibition; `C^{tree}^` survives
-  only in the two paragraphs that declare it invalid; every `rev-list` mention
-  is a negation; `ListFeatures` appears only where it is rejected.
-- **Counts re-derived from the docs**: groups 6/8/15/21/26/20/15/22 = 133;
-  47 ADR rejected alternatives; 47 empirical rows E1–E47 contiguous with no
-  dangling reference; 19 land reader rules; 13 `failed_at` values; 5 advisory
-  codes; 10 evidence states; 23 remediations across the two PRDs.
-- Side Research md5: `b385fe622db9926f48861105239f113e` — preserved
-  byte-identical.
+- Doc validator (`.scratch-gh8/v.py`, removed after the run): **ALL CHECKS
+  PASS** — citation range check over 102 anchors, AC-L contiguity + tier column
+  well-formedness, AC-LD uniqueness, dangling AC/D/R/E reference check, E-index
+  contiguity, staleness greps, unique Q numbering, `C^{tree}^` negative-framing
+  check.
+- Semantic spot-checks printed the source line for every newly cited anchor;
+  two were off by one (`landPreflight` `:111`→`:110`,
+  `CheckDependencyGate` `:115`→`:116`) and were corrected in both documents.
+- Below-floor PATH-shim probe re-run for rev-5: only `--version` is invoked
+  before the refusal.
+- Scratch removed; working tree contains only the four owned docs plus the
+  guarded WIP files.
 
-## Empirical Validation (read-only probes; scratch removed)
+## Residuals for Wave C
 
-git 2.55.0 / macOS, throwaway repos, all deleted. rev-4 added E43–E47.
+1. **Q17** remains open (non-blocking, scoped in §6).
+2. **`-C1` false reds**: a one-line-away healthy parent is rejected by the
+   forward ladder (E44). Measured and accepted — safety over reach.
+3. **Normalization collision**: `@@`-rewritten identity treats the same payload
+   at different positions as equivalent (E45/E46). Collides only when the
+   `-`/`+` bodies are byte-identical, which needs duplicate line content.
+4. **Partial clone is a Wave C gate** (AC-L68/AC-L69). Mechanism proven, path
+   unproven; a real filtered remote or a blocker report is required.
+5. **`(0/0)` block cost**: 26 false reds over 151 present cases, against 0 false
+   greens over 69 absent cases. Deliberate.
+6. **`active` widening** and the **forward-mode V10 change** alter existing
+   behaviour for non-landed features; both are intended and matrixed.
+7. **Mode B is non-rollback**: a completed embedded `record` is retained on an
+   R23 refusal, and says so.
+8. **Pre-existing citation drift** elsewhere in these PRDs (outside the amended
+   sections) was not swept — out of scope for a landed-contract revision.
+9. **Git floor 2.36** is a user-visible tightening; Wave C should surface it in
+   release notes.
 
-**E43 — parent-tree syntax.** `git rev-parse C^{tree}^` →
-`error: object <tree> is a tree, not a commit`; `git read-tree C^{tree}^` →
-`fatal: Not a valid object name`. `C^`, `C^^{tree}`, `C~1`, `C~1^{tree}` all
-resolve and `read-tree` accepts them.
+## Reviewer focus
 
-**E44 — forward qualification ladder** at candidate parent trees:
-
-| Candidate parent tree | `-C3` | `-C1` | `-C0` |
-|---|---|---|---|
-| pristine pre-landing parent | OK | OK | OK |
-| unrelated edit 4 lines from hunk | OK | OK | OK |
-| unrelated edit **2 lines** from hunk | **FAIL** | **OK** | OK |
-| unrelated edit **1 line** from hunk | FAIL | **FAIL** | OK |
-| 10 lines prepended (pure offset) | OK | OK | OK |
-| unrelated edit far away | OK | OK | OK |
-| **tree that already has the feature** | FAIL | **FAIL** | **FAIL** |
-| feature line changed to something else | FAIL | **FAIL** | **FAIL** |
-| feature line deleted | FAIL | **FAIL** | **FAIL** |
-
-**E45 / E46 — normalization.** A cherry-pick applied after five prepended
-lines yields `@@ -10 +10 @@ l9` vs `@@ -15 +15 @@ l9`: `-U0` minus `index`
-**differs**, and rewriting headers to `@@` makes it **equal**. The trade:
-identical `-`/`+` bodies at different positions compare equal — measured with
-duplicate `DUP` lines, both normalizing to `@@ / -DUP / +DUP CHANGED`. Distinct
-payload, mode-only change and different path all stay distinct; mode-only
-normalizes to `diff --git` + `old mode` + `new mode` with no `@@` at all.
-
-**E47 — offline discipline.** With a promisor remote configured and its object
-physically removed: default `git cat-file -p <blob>` →
-`fatal: '<url>' does not appear to be a git repository` /
-`Could not read from remote repository.` (network attempted);
-`GIT_NO_LAZY_FETCH=1 git cat-file -p <blob>` →
-`fatal: Not a valid object name <sha>` (local, immediate). The variable is
-accepted by git 2.55.0 and does not disturb the normal path.
-
-Carried forward: the op-kind × landed matrix; the anchor-C `C3`/`C0`/`(0/0)`
-ladder with 0 false greens / 69 absent at 26 false reds / 151 present;
-dirty-worktree false red; temp-index read-only guarantees; anchor recovery
-after re-land; shallow boundary indistinguishable from a root by `%P`;
-sha1/sha256 id lengths; `RecipeProvenance` shipping alongside `preimage_hash`.
-
-## Open Residuals
-
-1. **Q17 (open, non-blocking)** — recipes carrying `preimage_hash` produced
-   before the provenance sidecar existed fail closed with
-   `recipe-provenance-unavailable`; remediation is `tpatch implement <slug>`.
-   A back-fill from `status.apply.base_commit` was rejected as not hash-bound.
-2. **The `-C1` false-red boundary** — a parent carrying an unrelated edit one
-   line from the hunk does not qualify. Measured and accepted; the only
-   alternative is `-C0`, which is unsafe.
-3. **The normalization collision** — identical `-`/`+` bodies at different
-   positions compare equal, which requires duplicate line content at the
-   changed lines. Measured, bounded and documented (Q18 resolved).
-4. **`history-incomplete` failure path is specified but not end-to-end
-   reproduced.** E47 proves the mechanism (`GIT_NO_LAZY_FETCH=1` converts a
-   network attempt into a local error) on a synthetic promisor repo with a
-   removed object; a `file://` `--filter=blob:none` clone on git 2.55.0 did
-   **not** withhold blobs, so the full partial-clone path could not be
-   exercised locally. Wave C must validate AC-L69 against a real filtered
-   remote.
-5. **`(0/0)` block cost** — 26 false reds per 151 present trees, each with R2.
-6. **`active` closure widening** changes verdicts for non-landed features.
-7. **Forward-mode V10 changes behaviour** for ops with `preimage_hash` (Q15).
-8. **`land` gains a refusal path**; Mode B cannot roll back `record`.
-9. **Pre-existing citation drift outside the amended sections** —
-   `gitutil.go:680`, `store.go:232`, `types.go:91`, `types.go:192`,
-   `labels.go:89`, `labels.go:143`, `dependency_gate.go:79` in §3.1,
-   `validation.go:66`. Outside this wave's scope; flagged so a reviewer does
-   not mistake them for new drift.
-10. **Git floor asserted from docs plus a 2.55.0 run**, not a matrix against
-    2.22/2.25. `GIT_NO_LAZY_FETCH` requires git ≥ 2.36, which is above the
-    2.25 trailer floor — Wave C should state the effective floor as 2.36.
-11. **CHANGELOG entry** intentionally absent; **ROADMAP row and LOG verdict**
-    are supervisor-owned.
-
-## Rev-4 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED WITH NOTES.
-- Required corrections:
-  1. Effective verify Git floor is 2.36, not 2.25.
-  2. Remove unreachable exact-evidence absent/empty arbitration rows.
-  3. Clarify mandatory journal recovery before Mode-A no-record validation.
-  4. Reconcile all remaining V9-last/10-check/rev-label/base grammar prose.
-  5. Mark real partial-clone missing-object path as a Wave C validation gate.
-
-## Next Steps
-
-1. Fold the bounded rev-4 corrections and rebuild matrix/count parity.
-2. Run final dual planning confirmation.
-3. Accept Wave B and dispatch Wave C from a fresh base.
-
-## Reviewer Focus
-
-Ordered by risk:
-
-1. **Is every git command syntactically valid and offline?** Grep for
-   `C^{tree}^` (should appear only where declared invalid) and for any object
-   command lacking `GIT_NO_LAZY_FETCH=1`.
-2. **Is `-C1` the right level?** Check the E44 table against the claim: it must
-   keep the 2-lines-away parent and reject all three materialized/modified
-   trees. Try to find a healthy parent it rejects or a materialized tree it
-   accepts.
-3. **Does the remediation loop actually terminate?** AC-L132 is the fixture;
-   construct a history where re-record + re-land still yields R11.
-4. **Is the Mode A / Mode B split honest and complete?** Mode B explicitly
-   cannot roll back `record`. Confirm no acceptance row still claims "mutating
-   nothing" for it, and that AC-LD15 no longer contradicts AC-LD18/AC-LD21.
-5. **Is the inventory read-error policy right?** Unrelated-unreadable is a warn
-   plus exclusion; target/closure-unreadable is a block. Confirm nothing is
-   silently skipped and that `Err`↔`Status` flips are instability.
-6. **Is the normalization trade acceptable?** It requires duplicate line
-   content at the changed lines. Probe mode-only, binary, rename and
-   duplicate-line cases.
-7. **Are per-member V10 baselines still independent** after the rev-4 edits?
-8. **Is the presence cross-product genuinely exhaustive?** AC-L53 asserts
-   3×4 coverage with no unclassified or double-matching combination.
-9. **Are all 157 rows executable at their stated tier?**
-10. **Citation and count spot-check** against `6d87198`; residual 9 lists the
-    known pre-existing drift that is *not* this wave's.
-
-## Blockers
-
-None.
+1. **§3.6.2 / D10 short-circuit**: confirm all twelve patch×recipe cells are
+   reachable, mutually exclusive, and that no surviving row lets an absent or
+   empty patch produce `exact`, `stale`, or a recipe-only authority (AC-L52,
+   AC-L53, AC-L79, AC-L80).
+2. **§3.8.6 / D19 Mode A**: confirm the ordering matches shipped `runLand` and
+   that no row still claims absolute command-entry immutability (AC-LD18,
+   AC-LD18c).
+3. **Git floor**: confirm 2.36 is used as the *overall* floor everywhere and
+   that 2.22 / 2.25 / 2.29 appear only as component history (AC-L134, R10, land
+   rule 14).
+4. **AC-L68/AC-L69 framing**: confirm the Wave C gate wording forbids marking
+   them passed on a synthetic fixture.
+5. **Counts**: 134 + 25 = 159 rows; 102 citations; groups sum to 134.
 
 ## Context for Next Agent
 
-- Wave B is **planning only**. Wave C owns implementation and dispatches from
-  a fresh base.
-- The binding contract is `ADR-013` **Amendment 1 rev-4 (D8–D19)** plus
-  `PRD-verify-freshness` **§3.6** and **§7.1**. `PRD-tpatch-land`
-  §3.8.1–§3.8.5 is a readers' contract; **§3.8.6 is the one producer change**,
-  and it is split by invocation mode because Mode B cannot roll back `record`.
-- Five corrections to the original diagnosis, all measured: **the defect is not
-  V8-only**; **the check set is eleven, not ten**; **the current assertion must
-  never read the working tree**; **anchor qualification is a forward question
-  at `-C1`**; and **every object command must be offline**.
-- `C^` is the parent revision. `C^{tree}^` is invalid.
-- **Q15 and Q18 are resolved.** Q17 and the four measured trade-offs are the
-  only open items.
-- Verify stays read-only; no status/index/worktree mutation on any path.
+- Wave B is **planning only**. Implementation is Wave C. Nothing in `internal/`,
+  `cmd/`, `assets/`, `tests/`, `SPEC.md` or `CHANGELOG.md` was touched.
+- The binding ADR is **ADR-013 Amendment 1 rev-5, D8–D19**. The operational
+  contract is **PRD-verify-freshness §3.6 / §4.3.6–4.3.9 / §5 / §6 / §7.1**; the
+  producer contract is **PRD-tpatch-land §3.8 / §6.2**.
+- Load-bearing measurements are indexed **E1–E47** in ADR-013 §A1.1. Re-measure
+  before contradicting any of them.
+- The check sequence is **eleven** checks, V0–V10
+  (`internal/workflow/verify.go:49-71`, V10 appended at `:288-289`).
+  `VerifyReport` has **no** `freshness_label` field.
+- Key shipped constraints: `checkWriteFilePreimage`
+  (`internal/workflow/writefile_safety.go:108-112`) reads the **live working
+  tree**; `ListFeatures` (`internal/store/store.go:210-236`) **silently drops**
+  unreadable features, which is why the inventory uses `ListFeatureEntries`
+  (`:274-348`); `RecipeProvenance` (`internal/workflow/implement.go:30-34`)
+  already ships and anchors forward-mode V10.
+- Verify stays read-only; no status, index or worktree mutation on any path.
 - Stage explicit paths only; do not touch the WIP docs in
   `.wave-close-allowlist`.
 

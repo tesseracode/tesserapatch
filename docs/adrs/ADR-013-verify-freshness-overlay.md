@@ -1,6 +1,6 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-1 proposed 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D16 below, AWAITING REVIEW)**
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-5 proposed 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below, AWAITING REVIEW)**
 **Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
@@ -229,7 +229,7 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 
 **Cost.** O(closure size) shadow operations per verify. Bounded by DAG depth × per-recipe replay cost; comparable to a phase-2 reconcile op-replay pass per parent. Well within the cheap-budget for typical 1–3-deep DAGs.
 
-> **Amended 2026-08-12 by Amendment 1 rev-4 (GH #8).** D7's machinery is
+> **Amended 2026-08-12 by Amendment 1 rev-5 (GH #8).** D7's machinery is
 > retained in full — one shadow, topological replay, first-failure fail-fast,
 > deferred prune, and the GH #2 reset between the recipe and the patch check.
 > Amendment 1 refines three things.
@@ -324,7 +324,7 @@ Verify mutates **only** `status.json` (the `Verify` sub-record). Apply-simulatio
 - `internal/gitutil/gitutil.go:828` — `IsAncestor` (V5 reuse; anchor re-validated 2026-08-12 during Amendment 1 — the pre-amendment `:680` citation had drifted)
 
 ---
-# Amendment 1 (2026-08-12, **rev-4**) — Landed-evidence semantics — v0.15.1 Wave B / GH #8
+# Amendment 1 (2026-08-12, **rev-5**) — Landed-evidence semantics — v0.15.1 Wave B / GH #8
 
 **Status of this amendment**: proposed rev-3, AWAITING REVIEW. Binding on the
 Wave C implementation once accepted. Adds D8–D19. **No prior decision D1–D7 is
@@ -359,7 +359,16 @@ index-isolated worktree-free assertion that allocates no shadow).
   own remediation), left hunk positions in the duplicate identity (rejecting
   healthy cherry-picks), and allowed lazy promisor fetches during an
   offline-by-construction command.
-- **rev-4 (this revision)** — corrects all eight: `C^` syntax (D14/E43),
+- **rev-5 (this revision)** — final contract cleanup: the effective Git floor
+  becomes **2.36** (D17) because `GIT_NO_LAZY_FETCH` is mandatory; artifact
+  presence short-circuits **before** classification so `exact`/`stale` are
+  reachable only from `present-nonempty` and the unreachable
+  `exact + absent/empty` arbitration rows are removed (D10/D13); Mode A's
+  no-mutation promise is scoped around the mandatory `recoverLand` step (D19);
+  the real-filtered-remote partial-clone behaviour is marked a **Wave C
+  acceptance gate** rather than a claimed fact (D16); and all authoritative
+  prose, labels and acceptance rows are swept for parity.
+- **rev-4** — corrected all eight rev-3 findings: `C^` syntax (D14/E43),
   `ListFeatureEntries` inventory (D17), `land` validation split by invocation
   mode (D19), `-C1` forward qualification (D14/E44), hunk-position
   normalization (D18/E45–E46), `GIT_NO_LAZY_FETCH=1` on every object command
@@ -455,7 +464,7 @@ E1–E33 were measured for rev-0…rev-2 and still hold. rev-3 adds E34–E42.
 
 ---
 
-## Decision (Amendment 1 rev-4)
+## Decision (Amendment 1 rev-5)
 
 ### D8. The check set is eleven checks, V0–V10; no identifier changes
 
@@ -526,18 +535,37 @@ Lowercase strictness follows the ADR-029 D1 precedent enforced by
 `isLowercaseHex` (`internal/workflow/writefile_safety.go:176`).
 
 **Artifact presence — three closed, mutually exclusive states, evaluated
-before any digest comparison.**
+*first*, before any digest comparison and therefore before any `exact` /
+`stale` classification. `exact` and `stale` are reachable only from
+`present-nonempty`; `absent` and `present-empty` short-circuit to
+`landed-artifacts-absent` (terminal).**
 
 | State | Definition | Effect on a landing candidate |
 |---|---|---|
-| **absent** | the artifact file does not exist in the snapshot | the candidate cannot be an `exact` attestation; the member is `landed-artifacts-absent`-eligible (D13). **No digest comparison is attempted** and no mismatch is reported. |
-| **present-empty** | the file exists and is zero bytes (for the recipe: zero bytes **or** whitespace-only) | for the **patch**: the candidate cannot be an `exact` attestation, because `land` refuses when the embedded `record` would capture nothing, so a landed empty patch is a corruption or hand-edit. For the **recipe**: the expected trailer value is the literal `none`, mirroring `readRecipeSHA` (E19). |
+| **absent** | the artifact file does not exist in the snapshot | **Terminal `landed-artifacts-absent`.** The candidate cannot be an `exact` **or** `stale` attestation, because no digest exists to compare. **No digest comparison is attempted**, no mismatch is reported, and no downstream arbitration row for this member is reachable. |
+| **present-empty** | the file exists and is zero bytes (for the recipe: zero bytes **or** whitespace-only) | For the **patch**: **terminal `landed-artifacts-absent`**, same short-circuit as `absent` — `land` refuses when the embedded `record` would capture nothing, so a landed empty patch is corruption or a hand edit, and it can be neither `exact` nor `stale`. For the **recipe**: the expected trailer value is the literal `none`, mirroring `readRecipeSHA` (E19); the recipe's shape never rescues an absent-or-empty patch. |
 | **present-nonempty** | the file exists with ≥1 byte (recipe: ≥1 non-whitespace byte) | the only state in which a digest comparison happens, and the only state in which the **patch** can support `exact` authority. |
 
 The recipe's four shapes are named separately and do not overlap: **absent**,
 **present-empty** (zero-byte or whitespace-only ⇒ expected trailer `none`),
 **present-nonempty-zero-op** (parses, `operations` is empty ⇒ V7 has nothing
-to replay and cannot attest), and **present-nonempty-with-ops**.
+to replay and cannot attest), and **present-nonempty-with-ops**. **Recipe
+shape is evaluated only within a `present-nonempty` patch state** — the two
+short-circuiting patch states terminate the member before the recipe is
+consulted for classification.
+
+**Reachable outcome table — 3 patch states × 4 recipe shapes, mutually
+exclusive and total.**
+
+| patch \ recipe | absent | present-empty | present-nonempty-zero-op | present-nonempty-with-ops |
+|---|---|---|---|---|
+| **absent** | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` |
+| **present-empty** | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` |
+| **present-nonempty** | digest compared; recipe trailer must be `none`; patch ladder is sole authority; V7/V10 skip | digest compared; recipe trailer must be `none`; patch ladder is sole authority; V7/V10 skip | digest compared; V7 records `0 op(s)` and cannot attest; patch ladder is sole authority | digest compared; V7 replays; patch ladder and V7 both apply |
+
+Every cell is reachable and no cell matches two rules. The eight
+`landed-artifacts-absent` cells are the corruption/hand-edit region `land`
+cannot produce.
 
 **Evidence states — closed set of ten, total:** `none`, `exact`,
 `duplicate-equivalent`, `stale`, `ambiguous`, `malformed`,
@@ -609,8 +637,7 @@ they never certify presence.
 | superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify.go:976-983`) |
 | evidence `exact`/`duplicate-equivalent`, patch **present-nonempty**, ladder ⇒ clean or context-drift | **skip** |
 | evidence `exact`/`duplicate-equivalent`, patch present-nonempty, ladder ⇒ block | **fail-fast** `parent-landing-drift` |
-| evidence `exact`/`duplicate-equivalent`, patch **absent or present-empty**, recipe present-nonempty-with-ops | the **recipe** is the sole authority: replay decides; a failure is `parent-landing-drift`. Corruption case. |
-| evidence `exact`/`duplicate-equivalent`, patch absent-or-empty **and** recipe absent, empty or zero-op | **fail-fast** `landed-artifacts-absent` |
+| patch **absent** or **present-empty**, whatever the recipe shape | **fail-fast** `landed-artifacts-absent` — reached **before** any digest comparison and therefore **before** any `exact`/`stale` classification (D10). A slug-bearing candidate on such a member never becomes an attestation. |
 | evidence `none`, patch present-nonempty, ladder ⇒ clean or context-drift | **skip** with a mandatory `warn` `unattributed-materialized` advisory. Verify claims **no ownership**. |
 | evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify.go:1065-1082`) |
 | evidence `none`, patch absent or present-empty | **replay** |
@@ -827,6 +854,22 @@ boundary and a true root are indistinguishable by `%P` alone:
 | candidate has 0 parents **and** the repository **is** shallow, or the candidate SHA appears in `.git/shallow` | **`shallow-history`** | `git fetch --unshallow` (R21) |
 | any object needed for enumeration, `read-tree`, `diff` or `apply` is missing locally — detected deterministically because every such command runs under `GIT_NO_LAZY_FETCH=1` (E47) | **`history-incomplete`** | `git fetch --refetch` / restore network access, then re-run (R22) |
 
+**Scope of what is proven, without overclaim.** E47 proves the *mechanism*:
+with a promisor remote configured and its object physically removed, the
+default run attempts the network while the same run under
+`GIT_NO_LAZY_FETCH=1` fails locally and immediately. It does **not** prove the
+end-to-end partial-clone path — a `file://` `--filter=blob:none` clone on git
+2.55.0 did **not** withhold blobs, so no genuinely missing promisor object
+could be produced that way. Constructing one requires a **non-local
+transport** (HTTP, SSH or `git daemon`) with `uploadpack.allowFilter=true`, or
+a deterministic promisor fixture built by setting `extensions.partialclone`
+plus a dead promisor URL and deleting the object. `history-incomplete` is
+therefore a **specified behaviour with a proven mechanism and an unproven
+end-to-end path**, and its validation is a **Wave C acceptance gate**
+(AC-L68 / AC-L69): if the implementation environment cannot reproduce a real
+filtered remote, Wave C **cannot claim completion** and must report a blocker
+rather than mark those rows passed.
+
 E38 is the reason this matters: in a `--depth 2` clone the boundary commit
 reports `parents_in_%P = 0` **exactly like a real root**, and E39 shows
 `read-tree <boundary>^` fails with the *same error text* as a true root.
@@ -925,9 +968,25 @@ New code is one generic reader in `internal/gitutil/` (candidate
 reuses shipped primitives. **No new store field, no new artifact, no schema
 migration, no new dependency, no new check ID.**
 
-**Git floor.** `%(trailers:key=…,valueonly)` needs git ≥ 2.22 and `separator=`
-needs ≥ 2.25; verified on 2.55.0. Below the floor the reader **fails** ⇒
-`unavailable`, never `none`.
+**Git floor is 2.36, checked before anything else.** The landed contract's
+**effective** floor is set by its strictest mandatory capability:
+
+| Capability | Introduced | Used by |
+|---|---|---|
+| `%(trailers:key=…,valueonly)` | 2.22 | D10 enumeration |
+| `…,separator=` | 2.25 | D10 enumeration |
+| `git rev-parse --show-object-format` | 2.29 | D10 / D19 derived commit-id length |
+| **`GIT_NO_LAZY_FETCH`** | **2.36** | **D11 / D16 offline discipline — mandatory on every object command** |
+
+The sub-capability rows are recorded as **historical component facts only**.
+Because `GIT_NO_LAZY_FETCH` is *mandatory* (D11), a git that lacks it cannot
+run this contract offline at all, so **the overall preflight requires ≥ 2.36**
+and it runs **before any evidence, object, `log`, `read-tree`, `apply` or
+`diff` command**. Below the floor the run reports evidence `unavailable` with
+R10 and issues **no** object or log command and **no** network call — only the
+`git --version` probe itself. Verified on git 2.55.0; the below-floor gate is
+proven with a `PATH` shim that reports `git version 2.30.2`, after which the
+only subcommand recorded is `--version`.
 
 ### D18. Normalized change identity
 
@@ -1031,13 +1090,33 @@ valid iff it is:
    history.
 
 **Mode A — `--no-record` (`internal/cli/land.go:66`, `:98`).** `land` does not
-run `record`, so `Apply.BaseCommit` is whatever is already on disk. Validation
-runs **at command entry**, before the metadata snapshot, before any
-`status.json` write, before any index or artifact mutation, and before the
-nested-worktree discovery that precedes staging. On failure `land` refuses
-with **R23** having **mutated nothing** — no commit, no index change, no
-`status.json` note, no artifact. This is the strong guarantee, and it is
-achievable here precisely because nothing has run yet.
+run `record`, so `Apply.BaseCommit` is whatever is already on disk.
+
+**Ordering, stated against the shipped sequence.** `runLand`
+(`internal/cli/land.go:76`) already performs, in order: store open and
+`LoadFeatureStatus` (`:85`), the `unapplied` refusal (`:89`), the dry-run
+branch (`:93`), `landPreflight` (`:110`), `CheckDependencyGate` (`:116`), then
+**`recoverLand`** (`:127`, defined at `internal/cli/land_journal.go:437-445`).
+Base-Commit validation is inserted **immediately after `recoverLand` returns**
+and **before** the pre-record gate, the metadata snapshot and every
+`land`-owned mutation.
+
+**`recoverLand` stays first, and it is the one documented exception.** GH #7
+made crash recovery mandatory before anything else mutates record, status or
+the index, and recovery is not read-only: with a pending journal it may
+publish a retained index, compare-and-swap the branch back to the pre-land
+commit, and restore the `status.json` preimage. That work belongs to a
+**prior, interrupted transaction**, not to this invocation.
+
+The guarantee is therefore stated in two cases:
+
+| Case at command entry | Guarantee on an invalid `BaseCommit` |
+|---|---|
+| **no pending journal** — `recoverLand` is a no-op | `land` refuses with **R23** having made **no mutation whatsoever**: no commit, no index change, no `status.json` write, no artifact. |
+| **pending journal** — `recoverLand` completes or refuses the prior transaction | `recoverLand` **may have mutated** the index, the branch ref and/or `status.json` **while finishing that earlier land**. `land` then refuses with **R23** having made **no NEW mutation for this invocation**. The refusal names the completed recovery so the operator is not surprised. |
+
+**Absolute command-entry immutability is not promised**, because the shipped
+recovery-first ordering forbids it and that ordering is correct.
 
 **Mode B — embedded `record` (the default).** The field is `record`'s output,
 so it cannot be validated before `record` runs.
@@ -1079,7 +1158,7 @@ fail closed if it cannot be read.
 
 ---
 
-## Amendment 1 rev-4 — the `replace-in-file` predicate (diagnostic use only)
+## Amendment 1 rev-5 — the `replace-in-file` predicate (diagnostic use only)
 
 Under D13 this predicate does not decide presence; it localises diagnostics.
 For content `c`, search `S`, replacement `R`:
@@ -1102,7 +1181,7 @@ For content `c`, search `S`, replacement `R`:
 `ensure-directory` ⇒ the path exists and is a directory; unknown type ⇒
 unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
 
-## Amendment 1 rev-4 — alternatives considered and rejected
+## Amendment 1 rev-5 — alternatives considered and rejected
 
 1. **HEAD-only post-state predicates (rev-0)** — false-reds every landed
    `write-file` feature after any later edit; V7 aliases V8.
@@ -1197,7 +1276,7 @@ unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
     can inspect its output, so the promise is unkeepable. D19 splits the
     contract by invocation mode instead.
 
-## Amendment 1 rev-4 — consequences
+## Amendment 1 rev-5 — consequences
 
 **Positive**
 
@@ -1234,7 +1313,7 @@ unsupported (`internal/workflow/verify.go:1316`). None of these certifies.
   no new artifact, no store schema change, and `land`'s **successful** path is
   byte-unchanged.
 
-## Amendment 1 rev-4 — references (anchors validated 2026-08-12 at `6d87198`)
+## Amendment 1 rev-5 — references (anchors validated 2026-08-12 at `4c632b6`)
 
 **Contract documents**
 

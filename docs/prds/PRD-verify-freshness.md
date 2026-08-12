@@ -1,8 +1,8 @@
 # PRD — `tpatch verify` and verification freshness overlay
 
-**Status**: Approved (M15 Wave 3 — APPROVED WITH NOTES at commit 3c122aa; Slice A in implementation. Supersedes `docs/prds/PRD-verify-and-tested-state.md`.) · **§3.6 / §4.3 golden refresh / §4.3.6–4.3.9 / §5 landed rows / §6 Q9–Q18 / §7.1 amended 2026-08-12 for v0.15.1 Wave B (GH #8), **rev-4** — AWAITING REVIEW**
+**Status**: Approved (M15 Wave 3 — APPROVED WITH NOTES at commit 3c122aa; Slice A in implementation. Supersedes `docs/prds/PRD-verify-and-tested-state.md`.) · **§3.6 / §4.3 golden refresh / §4.3.6–4.3.9 / §5 landed rows / §6 Q9–Q18 / §7.1 amended 2026-08-12 for v0.15.1 Wave B (GH #8), **rev-5** — AWAITING REVIEW**
 **Date**: 2026-04-27 (original) · 2026-08-12 (landed-feature amendment)
-**ADR**: **ADR-013-verify-freshness-overlay.md — REQUIRED before Wave 3 implementation slices ship.** ADR-013 supersedes ADR-012 in full. **ADR-013 Amendment 1 rev-4 (D8–D19) is the binding ADR for §3.6 and §7.1.**
+**ADR**: **ADR-013-verify-freshness-overlay.md — REQUIRED before Wave 3 implementation slices ship.** ADR-013 supersedes ADR-012 in full. **ADR-013 Amendment 1 rev-5 (D8–D19) is the binding ADR for §3.6 and §7.1.**
 **Owner**: Core
 **Milestone**: M15 → Wave 3 (lifecycle / reconcile semantics tranche) · v0.15.1 Wave B (landed-feature amendment; implementation deferred to Wave C)
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-013 (this PRD's binding ADR), ADR-016 (`record` auto-base resolution), ADR-018 (cross-feature collision signature), ADR-019 (`tpatch land` trailer-block schema), ADR-028 (supersession), **ADR-029 (write-file recipe safety — the policy V10 must honour)**, ADR-031 (rejected state), ADR-032 (unapply state), `docs/prds/PRD-tpatch-land.md` (co-amended §3.8), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor), `docs/dependencies.md`, `docs/prds/PRD-feature-dependencies.md`, `docs/reconcile.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2), GH #8
@@ -71,7 +71,7 @@ A derived freshness label (`never-verified` / `verified-fresh` / `verified-stale
 
 The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated only by explicit verbs); freshness is `git status` for the verify check (derived, read-time, no persistence beyond the last record).
 
-> **Landed-feature amendment (2026-08-12, v0.15.1 Wave B / GH #8, rev-4).**
+> **Landed-feature amendment (2026-08-12, v0.15.1 Wave B / GH #8, rev-5).**
 > After `tpatch land` commits a feature into reachable Git history, the
 > HEAD-anchored V7/V8 baseline already contains it and forward-apply semantics
 > stop describing the world: `write-file` recipes pass vacuously,
@@ -87,8 +87,8 @@ The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated o
 > non-mutating patch ladder; **per-member V10 baselines** with
 > `RecipeProvenance.BaseCommit` anchoring forward mode (Q15 resolved); a
 > **full repository metadata inventory**; and explicit **shallow** /
-> **partial-clone** states. **§7.1** is its 133-row executable acceptance
-> matrix. Binding ADR: ADR-013 Amendment 1 rev-3 (D8–D19).
+> **partial-clone** states. **§7.1** is its 134-row executable acceptance
+> matrix. Binding ADR: ADR-013 Amendment 1 rev-5 (D8–D19).
 >
 > The shipped check set is **eleven** checks, V0–V10, with
 > `write_file_preimage_fresh` last (`internal/workflow/verify.go:49-71`,
@@ -371,10 +371,10 @@ The compound `EffectiveOutcome()` rule (`internal/store/types.go:192`) is **not 
 `amend` invalidates the freshness record (D3): a recipe-touching amend rewrites the recipe bytes, so `recipe_hash_at_verify` no longer matches; the next `ComposeLabels` derives `verified-stale`. Optionally — and this is the implementation hook in Slice B — `amend` may proactively clear `Verify.Passed` to `false` (effectively a `verify-failed` derived label) so the harness sees the invalidation immediately rather than waiting for the next read. ADR-013 D3 records this as the producer-set rule.
 
 ---
-### 3.6 Landed-feature verification contract — v0.15.1 Wave B / GH #8 (rev-4)
+### 3.6 Landed-feature verification contract — v0.15.1 Wave B / GH #8 (rev-5)
 
 > **Amendment status**: proposed rev-3, 2026-08-12, AWAITING REVIEW. Binding
-> ADR: **ADR-013 Amendment 1 rev-3, decisions D8–D19.** Implementation is
+> ADR: **ADR-013 Amendment 1 rev-5, decisions D8–D19.** Implementation is
 > Wave C. Issue: <https://github.com/tesseracode/tesserapatch/issues/8>.
 > Co-amended: `docs/prds/PRD-tpatch-land.md` §3.8.
 >
@@ -443,18 +443,35 @@ deliberately.
 | Reader failure | Git error, unparsable output, or a git below the §3.6.9 floor ⇒ **`unavailable`**, a block failure distinct from `none` and `malformed`. |
 
 **Artifact presence — three closed, mutually exclusive states, evaluated
-BEFORE any digest comparison.**
+*first*, before any digest comparison and therefore before any `exact` /
+`stale` classification. `exact` and `stale` are reachable only from
+`present-nonempty`.**
 
 | State | Definition | Effect on a landing candidate |
 |---|---|---|
-| **absent** | the file does not exist in the inventory | the candidate cannot be an `exact` attestation; the member is `landed-artifacts-absent`-eligible. **No digest comparison is attempted**, and no mismatch is reported. |
-| **present-empty** | patch: zero bytes. Recipe: zero bytes **or** whitespace-only. | **Patch**: cannot support `exact` authority — `land` refuses when the embedded `record` would capture nothing, so a landed empty patch is corruption or a hand edit. **Recipe**: the expected trailer value is the literal `none`, mirroring `readRecipeSHA` (`internal/cli/land.go:1039-1041`). |
-| **present-nonempty** | patch: ≥1 byte. Recipe: ≥1 non-whitespace byte. | The **only** state in which a digest comparison happens, and the only state in which the **patch** can support `exact` authority. |
+| **absent** | the file does not exist in the inventory | **Terminal `landed-artifacts-absent`.** The candidate can be neither `exact` **nor** `stale`, because no digest exists to compare. **No digest comparison is attempted**, no mismatch is reported, and no downstream arbitration row for this member is reachable. |
+| **present-empty** | patch: zero bytes. Recipe: zero bytes **or** whitespace-only. | **Patch**: **terminal `landed-artifacts-absent`**, the same short-circuit as `absent` — `land` refuses when the embedded `record` would capture nothing, so a landed empty patch is corruption or a hand edit, and it can be neither `exact` nor `stale`. **Recipe**: the expected trailer value is the literal `none`, mirroring `readRecipeSHA` (`internal/cli/land.go:1039-1041`); the recipe's shape never rescues an absent-or-empty patch. |
+| **present-nonempty** | patch: ≥1 byte. Recipe: ≥1 non-whitespace byte. | The **only** state in which a digest comparison happens, and therefore the only state from which `exact` or `stale` is reachable. |
 
 The recipe's four shapes are named separately and never overlap: **absent**,
 **present-empty** (⇒ expected trailer `none`), **present-nonempty-zero-op**
 (parses, `operations` empty ⇒ V7 has nothing to replay and cannot attest), and
-**present-nonempty-with-ops**.
+**present-nonempty-with-ops**. **Recipe shape is consulted only within a
+`present-nonempty` patch state** — the two short-circuiting patch states
+terminate the member before the recipe affects classification.
+
+**Reachable outcome table — 3 patch states × 4 recipe shapes, mutually
+exclusive and total.**
+
+| patch \ recipe | absent | present-empty | present-nonempty-zero-op | present-nonempty-with-ops |
+|---|---|---|---|---|
+| **absent** | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` |
+| **present-empty** | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` | `landed-artifacts-absent` |
+| **present-nonempty** | digest compared; trailer must be `none`; patch ladder sole authority; V7/V10 skip | digest compared; trailer must be `none`; patch ladder sole authority; V7/V10 skip | digest compared; V7 records `0 op(s)` and cannot attest; patch ladder sole authority | digest compared; V7 replays; patch ladder **and** V7 both apply |
+
+Every cell is reachable and no cell matches two rules. The eight
+`landed-artifacts-absent` cells are the corruption/hand-edit region `land`
+cannot produce.
 
 **Evidence states — closed set of ten, total:**
 
@@ -464,7 +481,7 @@ The recipe's four shapes are named separately and never overlap: **absent**,
 | exactly one well-formed candidate, patch **present-nonempty**, all three values match | `exact` | landed mode |
 | ≥2 such candidates with equal normalized identity (§3.6.8) | `duplicate-equivalent` | landed mode; `duplicates: n` |
 | ≥2 such candidates with differing identities, or incomparable | `ambiguous` | **FAIL** `landing-evidence` |
-| 0 all-match, ≥1 well-formed-but-mismatched | `stale` | **FAIL** `landing-evidence` |
+| 0 all-match, ≥1 well-formed-but-mismatched, patch **present-nonempty** | `stale` | **FAIL** `landing-evidence` |
 | cardinality / format / raw-only failures | `malformed` | **FAIL** `landing-evidence` |
 | every candidate has ≥2 parents, or 0 parents in a **non-shallow** repository | `unsupported-topology` | **FAIL** `landing-evidence` |
 | the repository is shallow and a candidate sits on the graft boundary | **`shallow-history`** | **FAIL** `landing-evidence` |
@@ -596,8 +613,7 @@ localise which op/path a failure concerns and never certify presence.
 | superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify.go:976-983`) |
 | evidence `exact`/`duplicate-equivalent`, patch **present-nonempty**, ladder ⇒ clean or context-drift | **skip** |
 | evidence `exact`/`duplicate-equivalent`, patch present-nonempty, ladder ⇒ block | **fail-fast** `parent-landing-drift` |
-| evidence `exact`/`duplicate-equivalent`, patch **absent or present-empty**, recipe present-nonempty-with-ops | the **recipe** is the sole authority: replay decides; a failure is `parent-landing-drift`. Corruption case. |
-| evidence `exact`/`duplicate-equivalent`, patch absent-or-empty **and** recipe absent / present-empty / zero-op | **fail-fast** `landed-artifacts-absent` |
+| patch **absent** or **present-empty**, whatever the recipe shape | **fail-fast** `landed-artifacts-absent` — reached **before** any digest comparison and therefore before any `exact`/`stale` classification (§3.6.2). A slug-bearing candidate on such a member never becomes an attestation. |
 | evidence `none`, patch present-nonempty, ladder ⇒ clean or context-drift | **skip** with a mandatory `warn` `unattributed-materialized` advisory. No ownership claimed. |
 | evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify.go:1065-1082`) |
 | evidence `none`, patch absent or present-empty | **replay** |
@@ -870,9 +886,24 @@ the operator is told to re-land when the fix is to deepen the clone. A **CI
 shallow checkout** is the common case and gets R21, not R9. A partial
 (blobless) clone reports `is-shallow=false`, `promisor=true`, and has commits
 and trees locally. Because every command carries `GIT_NO_LAZY_FETCH=1`, a
-missing blob fails **locally and immediately** — measured
+missing object fails **locally and immediately** — measured
 `fatal: Not a valid object name <sha>` — instead of the network error the
 default produces, and classifies as `history-incomplete`.
+
+**Scope of what is proven, without overclaim.** The *mechanism* is measured:
+with a promisor remote configured and its object physically removed, the
+default run **attempts the network** while the same run under
+`GIT_NO_LAZY_FETCH=1` fails locally. The **end-to-end partial-clone path is
+not** — a `file://` `--filter=blob:none` clone on git 2.55.0 did **not**
+withhold blobs, so no genuinely missing promisor object could be produced that
+way. Producing one requires a **non-local transport** (HTTP, SSH or
+`git daemon`) with `uploadpack.allowFilter=true`, or a deterministic promisor
+fixture (`extensions.partialclone` + a dead promisor URL + object deletion).
+`history-incomplete` is therefore a **specified behaviour with a proven
+mechanism and an unproven end-to-end path**; **AC-L68 and AC-L69 are Wave C
+acceptance gates** — if the environment cannot reproduce a real filtered
+remote, Wave C **cannot claim completion** and must report a blocker rather
+than mark those rows passed.
 
 **Rebase / cherry-pick / branch switch / detached HEAD / rewrite — total.**
 Trailers survive rebase and cherry-pick verbatim while SHA and parent change,
@@ -965,7 +996,7 @@ Exact strings (Wave C emits these verbatim):
 | R7 | evidence `ambiguous` | V7 | `landing evidence for <slug> is ambiguous: <n> reachable commits carry matching trailers with non-equivalent normalized changes (<sha>, <sha>, …); resolve the history or re-land so exactly one attestation is current` |
 | R8 | evidence `malformed` | V7 | `landing evidence for <slug> is malformed: commit <sha> carries a Tpatch-Feature line that Git does not parse as a trailer, or a duplicated/ill-formed Tpatch-* value; restore the four-trailer block with git commit --amend, or re-land` |
 | R9 | evidence `unsupported-topology` | V7 | `landing evidence for <slug> is unusable: commit <sha> has <n> parents and tpatch land emits single-parent commits; verify cannot derive a landing baseline from a root or merge commit — re-land <slug> on a linear commit` |
-| R10 | evidence `unavailable` | V7 | `landing evidence for <slug> could not be read: <err>; verify requires git >= 2.25 for trailer enumeration and a readable object format, and refuses to guess — upgrade git or report this environment` |
+| R10 | evidence `unavailable` | V7 | `landing evidence for <slug> could not be read: <err>; verify requires git >= 2.36 (trailer enumeration >= 2.22/2.25, object-format probe >= 2.29, and GIT_NO_LAZY_FETCH >= 2.36 for offline object access) and refuses to guess — upgrade git to 2.36 or newer, or report this environment` |
 | R11 | anchor H unavailable (terminal) | V7 | `landed feature <slug> has no usable landing baseline: no reachable single-parent landing commit has a parent that the current canonical patch applies to, or the qualifying candidates describe different changes; verify will not certify a landed feature it cannot replay — re-run tpatch record <slug> and tpatch land <slug> to create a fresh single-parent landing` |
 | R12 | V10 preimage mismatch at the member's reference tree | V10 | `recipe op #<n> <path> expected preimage <sha> at baseline <sha> but observed <sha>; the recipe is stale against its own baseline — re-run tpatch record <slug> --regenerate-recipe and re-land` |
 | R13 | V10 later-touch (metadata) | V10 (warn) | `later-touch: later feature <slug> touched <path> after <slug> was recorded; replaying this write-file would silently revert it — review before any replay (ADR-029 D5/D6, warning-class)` |
@@ -1025,8 +1056,25 @@ New code is one generic reader in `internal/gitutil/` (candidate
 else reuses shipped primitives. **No new store field, no new artifact, no
 schema migration, no new dependency, no new check ID.**
 
-**Git floor.** `%(trailers:key=…,valueonly)` needs git ≥ 2.22 and `separator=`
-needs ≥ 2.25; verified on 2.55.0. Below the floor ⇒ `unavailable`.
+**Git floor is 2.36, checked before anything else.** The **effective** floor
+is set by the strictest mandatory capability:
+
+| Capability | Introduced | Used by |
+|---|---|---|
+| `%(trailers:key=…,valueonly)` | 2.22 | §3.6.2 enumeration |
+| `…,separator=` | 2.25 | §3.6.2 enumeration |
+| `git rev-parse --show-object-format` | 2.29 | §3.6.2 / §3.8.6 derived commit-id length |
+| **`GIT_NO_LAZY_FETCH`** | **2.36** | **§3.6.5 offline discipline — mandatory on every object command** |
+
+The first three rows are **historical component facts only**. Because
+`GIT_NO_LAZY_FETCH` is *mandatory*, a git that lacks it cannot run this
+contract offline at all, so the **overall preflight requires ≥ 2.36** and runs
+**before any evidence, object, `log`, `read-tree`, `apply` or `diff`
+command**. Below the floor the run reports evidence `unavailable` with **R10**
+and issues **no** object or log command and **no** network call — only the
+`git --version` probe. Verified on git 2.55.0; the below-floor gate is proven
+with a `PATH` shim reporting `git version 2.30.2`, after which the only
+recorded subcommand is `--version`.
 
 ---
 ## 4. CLI surface
@@ -1186,7 +1234,7 @@ Same: not emitted by `verify` (which writes a fresh record). This is `tpatch sta
   "lifecycle_state": "applied"
 }
 ```
-#### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-4)
+#### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-5)
 
 `schema_version` moves `"1.0"` → `"1.1"` (`internal/workflow/verify.go:83`).
 The guarantee is **additive semantic compatibility, not byte identity**:
@@ -1489,7 +1537,7 @@ Slice B: `tpatch status` gains the freshness label inline (`applied [verified-fr
 | Repo with `Config.FeaturesDependencies = false` | V4 still runs. V5 is a no-op. V6 is a no-op. V7 closure replay still runs (DAG flag does not gate hard-dep traversal). |
 | Verify on a feature in `requested`/`analyzed`/`defined`/`implementing` | Refused with `exit 2 — feature is pre-apply, nothing to verify`. No record write. |
 | Verify on `blocked` / `upstream_merged` | Allowed; runs all applicable checks; writes the freshness record. The harness can interpret `verified-fresh` on `upstream_merged` as "the feature is retired and the artifacts are still healthy." |
-**Landed-feature rows (v0.15.1 Wave B / GH #8 rev-4 — see §3.6 for the contract).**
+**Landed-feature rows (v0.15.1 Wave B / GH #8 rev-5 — see §3.6 for the contract).**
 
 Artifact rows are stated against a fact `land` enforces: it refuses when the
 embedded `record` would capture nothing, so a landed feature with an absent or
@@ -1535,7 +1583,7 @@ zero-byte `post-apply.patch` is a **corruption or hand-edit** case.
 | Recipe **absent** | Expected trailer `none`; V7 skips; the patch is sole authority. |
 | Recipe **present-empty** (zero bytes or whitespace-only) | Expected trailer `none` (`readRecipeSHA`, `internal/cli/land.go:1039-1041`); V2 fails to parse ⇒ V7/V10 skip; the patch is sole authority. |
 | Recipe **present-nonempty-zero-op** | Parses, no operations ⇒ V7 has nothing to replay and **cannot attest**; the V7 row records `0 op(s)` rather than a vacuous pass; the patch is sole authority. |
-| Patch absent-or-empty **and** recipe absent / present-empty / zero-op | **FAIL `landed-artifacts-absent`** (R19). Never skipped, never replayed, never assumed materialized. |
+| Patch **absent** or **present-empty**, **any** recipe shape | **FAIL `landed-artifacts-absent`** (R19), reached before any digest comparison. Never skipped, never replayed, never assumed materialized. Eight of the twelve §3.6.2 cross-product cells land here. |
 | **Evidence** | |
 | Hand-rolled `git commit` with no trailers | `none` ⇒ forward mode ⇒ today's behavior. |
 | Commit whose **prose body** quotes `Tpatch-Feature: <slug>` | **`malformed`** ⇒ FAIL. A deliberate, documented false red — indistinguishable from an amend-destroyed block. |
@@ -1551,7 +1599,7 @@ zero-byte `post-apply.patch` is a **corruption or hand-edit** case.
 | **Parents** | |
 | Landed hard parent, patch ladder clean at the anchor | Skipped — never replayed, so an `append-file` parent is not duplicated. |
 | Landed hard parent, ladder blocks at the anchor | Fail-fast `parent-landing-drift` (R14) **before** the target is judged. |
-| Landed hard parent, patch absent-or-empty, recipe present with ops | The recipe is the sole authority for that member. |
+| Landed hard parent, patch **absent** or **present-empty** | **FAIL `landed-artifacts-absent`** regardless of recipe shape — the recipe never rescues an absent-or-empty patch. |
 | Landed hard parent, no usable artifact | **FAIL `landed-artifacts-absent`**. |
 | Hard parent, `evidence none`, patch **ladder-passes** at the anchor | **Skipped** with a mandatory `unattributed-materialized` warn (R18). No ownership claimed. |
 | Hard parent, `evidence none`, ladder blocks or no patch | **Replayed**, unchanged. |
@@ -1763,7 +1811,7 @@ which is the intended equivalence class. Pinned by AC-L133.
 - [ ] `go build ./...`, `go test ./...`, `gofmt -l .` all clean.
 - [ ] `FeatureStatus.Verify *VerifyRecord` field present, `omitempty`-marshalled. v0.6.1 fixtures round-trip byte-identical.
 - [ ] `FeatureState` enum is unchanged (no `StateTested`).
-- [ ] `tpatch verify <slug>` runs the 10-check sequence in order, with the severities documented in §3.1.
+- [ ] `tpatch verify <slug>` runs the check sequence in order, with the severities documented in §3.1. *(Historical Wave 3 acceptance row, written before V10 shipped; the current sequence is eleven checks V0–V10 — `internal/workflow/verify.go:49-71`.)*
 - [ ] V7/V8 replay the **hard-parent topological closure** before applying the target's recipe (§3.4.3). Order is `store.TopologicalOrder` over the hard-only sub-DAG. `upstream_merged` parents are skipped.
 - [ ] V7/V8 fail-fast on first parent-replay failure with `failed_at: "parent-replay"` and the failing parent slug in the JSON output.
 - [ ] On green, `Verify` record is written with `passed=true`; no lifecycle mutation.
@@ -1788,7 +1836,7 @@ which is the intended equivalence class. Pinned by AC-L133.
 - [ ] CHANGELOG v0.6.2 callout names `verify` and the freshness overlay with exact contract surface.
 
 ---
-### 7.1 Acceptance matrix — landed-feature verification (v0.15.1 Wave B / GH #8, rev-4)
+### 7.1 Acceptance matrix — landed-feature verification (v0.15.1 Wave B / GH #8, rev-5)
 
 **Binding on the Wave C implementation dispatch.** **Tier** names where a row
 is proven:
@@ -1831,6 +1879,7 @@ is proven:
 | AC-L12 | The temp index is removed on **every** exit path, including each terminal state. Asserted by scanning the git dir and `.tpatch/local/`. | W |
 | AC-L13 | The temp index is created outside the tracked working tree. | W |
 | AC-L129 | **Every** git invocation issued by verify — enumeration, `read-tree`, `apply`, `diff`, `merge-base`, `cat-file` — carries `GIT_NO_LAZY_FETCH=1`. Asserted by a `PATH` git wrapper recording each call's environment; any call missing it fails the test. | W |
+| AC-L134 | **Git-floor preflight.** With a `PATH` shim reporting `git version 2.30.2`, the run reports `landing_evidence.state: "unavailable"` with **R10** verbatim, and the shim's call log contains **only** `--version` — no `log`, `read-tree`, `apply`, `diff`, `cat-file`, `merge-base`, and no network call. A shim reporting `2.36.0` proceeds normally. Two fixtures. | W+C |
 
 #### Group C — the hardened ladder
 
@@ -1888,8 +1937,8 @@ is proven:
 | AC-L49 | `Tpatch-Recipe-SHA` mismatch ⇒ `stale`. `Tpatch-Base-Commit` mismatch ⇒ `stale`. | W |
 | AC-L50 | `Tpatch-Recipe-SHA: none` matches an **absent** recipe and a **present-empty** (whitespace-only) recipe. | U+W |
 | AC-L51 | **Presence precedes digest**: patch `absent` ⇒ the report emits `patch_presence: "absent"` and **omits** `patch_sha_match` entirely; no mismatch is reported. | U+W |
-| AC-L52 | Patch **present-empty** ⇒ cannot support `exact`; classified `landed-artifacts-absent`-eligible **before** any digest comparison, with the corruption framing. Distinct fixture from `absent`. | U+W |
-| AC-L53 | The four recipe shapes are distinguished: `absent`, `present-empty`, `present-nonempty-zero-op`, `present-nonempty-with-ops`; the zero-op case records `0 op(s)` rather than a vacuous V7 pass. Four fixtures. **Adversarial exclusivity check**: over the cross-product of the three patch states and four recipe shapes, every combination maps to exactly one outcome row in §3.6.2/§3.6.6 — no combination is unclassified and none matches two rows. | U+W |
+| AC-L52 | Patch **present-empty** ⇒ **terminal `landed-artifacts-absent`** reached **before** any digest comparison, with the corruption framing; neither `exact` nor `stale` is reachable. Distinct fixture from `absent`, which behaves identically by the same short-circuit. | U+W |
+| AC-L53 | The four recipe shapes are distinguished: `absent`, `present-empty`, `present-nonempty-zero-op`, `present-nonempty-with-ops`; the zero-op case records `0 op(s)` rather than a vacuous V7 pass. **Adversarial exclusivity check over the full 3×4 cross-product** of §3.6.2's table: all twelve cells are exercised, each maps to exactly one outcome, the eight absent/empty-patch cells all yield `landed-artifacts-absent`, and no cell is unclassified or matches two rules. | U+W |
 | AC-L54 | Missing any of the four trailers, or a duplicate of any, or ≥2 `Tpatch-Feature` values ⇒ `malformed`. | U+W |
 | AC-L55 | A commit whose **raw** body carries an exact `Tpatch-Feature: <slug>` line that Git does not parse as a trailer ⇒ **`malformed`**, never `none`. Fixtures for **both** the amend-destroyed block **and** the prose quotation; the prose false red is asserted as intended. | U+W |
 | AC-L56 | Slug matching is exact after trimming; `my-slug` ≠ `my-slug-extended`. A **lowercase** trailer key is still a candidate. | U |
@@ -1904,8 +1953,8 @@ is proven:
 | AC-L65 | Merge landing (≥2 parents) ⇒ `unsupported-topology`, R9; never approximated to `^1`. | U+W |
 | AC-L66 | **Shallow clone**: a candidate on the graft boundary reports 0 parents in `%P` yet classifies **`shallow-history`** with **R21 (`git fetch --unshallow`)**, not `unsupported-topology`/R9. Fixture uses a real `--depth 1` clone. | W+C |
 | AC-L67 | The shallow discriminator is the preflight (`git rev-parse --is-shallow-repository` and/or `.git/shallow` membership), not the parent count — asserted by a fixture where a **true root** in a full repo still yields `unsupported-topology`. The preflight is proven to run **before** any parent-count branch, via `PATH`-wrapper call ordering. | W |
-| AC-L68 | **Partial (blobless) clone** with objects available ⇒ verification proceeds normally (`repository.partial_clone: true`). | W |
-| AC-L69 | Partial clone with a **missing promisor object** ⇒ **`history-incomplete`** with **R22**, and **no network call is attempted**: the fixture configures a promisor remote pointing at a nonexistent path, removes the object, and asserts the failure is the local `fatal: Not a valid object name` form rather than the `does not appear to be a git repository` form the default produces. | W |
+| AC-L68 | **Wave C acceptance gate.** **Partial (blobless) clone** built against a **real filtered remote** — a non-local transport (HTTP, SSH or `git daemon`) with `uploadpack.allowFilter=true`, or a deterministic promisor fixture — with objects available ⇒ verification proceeds normally (`repository.partial_clone: true`). If the environment cannot construct such a remote, Wave C **must report a blocker** and may not mark this row passed. | W |
+| AC-L69 | **Wave C acceptance gate.** The same real filtered remote with a **genuinely missing promisor object** ⇒ **`history-incomplete`** with **R22**, and **no network call attempted**: the failure must be the local `fatal: Not a valid object name` form, never the `does not appear to be a git repository` form the default produces. Wave B proved only the *mechanism* on a synthetic promisor repo; the end-to-end path is unproven and this row is where it is closed. Same blocker rule as AC-L68. | W |
 | AC-L70 | A landing reachable only through a merge's **non-first** parent **is** found. Cherry-picked and rebased landings ⇒ `exact`. | W |
 | AC-L71 | Branch switch away from the landing ⇒ `none` ⇒ forward mode; equivalent content present anyway ⇒ still `none` and the diagnostic says the content is unattributed. Detached `HEAD` and history-rewrite rows included. | W |
 
@@ -1920,8 +1969,8 @@ is proven:
 | AC-L76 | A landed member whose ladder **blocks** ⇒ fail-fast `parent-landing-drift` (R14) **before** the target is judged. | W |
 | AC-L77 | An applied hard parent with `evidence none` whose patch **ladder-passes** is **skipped** with a mandatory `unattributed-materialized` advisory (R18). | W |
 | AC-L78 | An applied hard parent with `evidence none` whose ladder **blocks**, or which has no patch, is **replayed**, byte-identically to today. | W+C |
-| AC-L79 | Landed member with patch absent-or-empty and a with-ops recipe ⇒ the recipe is sole authority; a replay failure is `parent-landing-drift`. | W |
-| AC-L80 | Landed member with recipe absent / present-empty / zero-op ⇒ the patch ladder is sole authority. | W |
+| AC-L79 | Landed member with patch **absent** or **present-empty** ⇒ **`landed-artifacts-absent`**, **regardless of recipe shape**. Four fixtures across the recipe shapes; none may reach a recipe-is-sole-authority outcome. Replaces the rev-4 row that contradicted §3.6.2's short-circuit. | W |
+| AC-L80 | Landed member with patch **present-nonempty** and recipe absent / present-empty / zero-op ⇒ the patch ladder is sole authority and V7/V10 skip with their existing reasons. | W |
 | AC-L81 | Landed member with **no usable artifact** under the §3.6.2 presence states ⇒ **FAIL `landed-artifacts-absent`** (R19). Never skipped, never replayed. | W |
 | AC-L82 | Hard parent with any terminal non-`exact` evidence state — including `shallow-history` and `history-incomplete` — ⇒ fail-fast `parent-evidence-integrity` (R15). | W |
 | AC-L83 | Hard parent in `unapplied` ⇒ `parent-unapplied` (R16), replacing today's generic `default:` message. | W+C |
@@ -1981,10 +2030,15 @@ is proven:
 | AC-L127 | Diagnostic predicates never certify: a `write-file` op whose content matches byte-for-byte while the patch ladder **blocks** must still FAIL; `append-file` with empty content reports undecidable rather than passing. | U+W |
 | AC-L128 | `gofmt -l .` clean, `go build ./cmd/tpatch` clean, `go test ./...` clean, and `make wave-close-check` 8/8 at the Wave C close commit. | C |
 
-**Matrix size: 133 numbered criteria (AC-L1 … AC-L133) across 8 groups** —
-A 6, B 8, C 15, D 21, E 26, F 20, G 15, H 22. AC-L129–AC-L133 are appended to
-the groups they belong to (B, D, D, D, D respectively) rather than to a new
+**Matrix size: 134 numbered criteria (AC-L1 … AC-L134) across 8 groups** —
+A 6, B 9, C 15, D 21, E 26, F 20, G 15, H 22. AC-L129–AC-L134 are appended to
+the groups they belong to (B, D, D, D, D, B respectively) rather than to a new
 group, so the group totals above are authoritative.
+
+**Wave C acceptance gates.** AC-L68 and AC-L69 require a **real filtered
+remote**. Wave B proved only the offline *mechanism*; if the implementation
+environment cannot construct such a remote, Wave C must report a **blocker**
+and may not mark those rows passed.
 A Wave C dispatch that cannot place a row at its stated tier must amend this
 section rather than silently re-tier it.
 
@@ -2032,7 +2086,7 @@ section rather than silently re-tier it.
 | **Forward-mode V10 changes behaviour** for ops with `preimage_hash`: the reference tree moves from the live working tree to `RecipeProvenance.BaseCommit`. | That is the fix for a measured defect, not a regression, and ops without `preimage_hash` are untouched on the ADR-029 D4 legacy path (AC-L96, AC-L101). |
 | **`land` gains a refusal path** on legacy/corrupt status. | Fail-closed at production time beats an unreadable trailer at every future read; the successful path is byte-unchanged (`PRD-tpatch-land` §3.8.6, AC-LD18, AC-LD21). |
 | **Anchor H is unavailable for root/merge landings and for histories where every landing's parent already contains the feature.** | Reported explicitly as `historical_anchor.state = "unavailable"` with a reason; anchor C still runs at block severity, so no verdict is silently weakened. AC-L12 pins it. |
-| **Verify now fails on git below 2.25 instead of silently forward-verifying.** | Deliberate: `unavailable` is a block because degrading to `none` converts an unknown into a positive claim. The floor is documented and the diagnostic (R9) names it. |
+| **Verify now fails on git below 2.36 instead of silently forward-verifying.** | Deliberate: `unavailable` is a block because degrading to `none` converts an unknown into a positive claim. The floor is set by the mandatory `GIT_NO_LAZY_FETCH` (§3.6.9), the preflight runs before any object command, and R10 names the exact version and the reason. |
 | **V10 remains wrong for un-landed applied features with a real `preimage_hash`.** | Pre-existing and measured (Q15); out of this amendment's scope because there is no anchor for an un-landed feature. Recorded rather than implied fixed. |
 | Apply gate ignoring freshness misread as "verify is pointless." | The PRD §1.2 + skill bullet emphasise that freshness is a harness signal, not a gate. The harness pattern (`verify parent && apply child`) keeps working. |
 
