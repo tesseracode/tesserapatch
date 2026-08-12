@@ -1,3 +1,40 @@
+## Review — v0.15.1 Wave C / GH #8 rev-3 — 2026-08-12
+
+**Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)
+**External reviewer**: claude-opus-5 (`issue-8-validator`, original
+reproducer)
+**Implementation range**: `70a2b75..8fc7e33`
+
+### Verdict: APPROVED → RELEASE CLOSE
+
+### Findings
+
+None.
+
+### Verified
+
+- `LC_ALL=C` and `GIT_NO_LAZY_FETCH=1` win on every evidence and shadow Git
+  subprocess, including under a foreign ambient locale.
+- Success and exit 1 are answers; only exact exit 128 with a wholly matched
+  malformed-patch diagnostic can be an additional answer.
+- Fatal, mixed, missing-object, network, wrapper, signalled and broad-phrase
+  outcomes fail closed into R10/R22.
+- Original GH #8, dual anchors, immutable inventory, parent arbitration,
+  BaseCommit exactness, GH #2 and real filtered-remote AC-L68/L69 are green.
+- Full uncached suite, race, vet, native/cross builds, 161-row ledger,
+  Rule 18, Side Research md5 and guarded WIP checks pass.
+
+### Empirical Gaps
+
+- Runtime validation used Git 2.55 rather than an actual Git 2.36 binary.
+- No native Windows or SHA-256 repository runtime was available; their
+  compile/length paths remain covered by automated tests.
+
+### Action Taken
+
+Wave C accepted at `8fc7e33`; release consolidation, annotated v0.15.1 tag,
+final gate and GH #8 closure dispatched.
+
 ## Review — v0.15.1 Wave C / GH #8 rev-2 — 2026-08-12
 
 **Internal reviewer**: gpt-5.6-terra (`issue-8-implementation-interna`)

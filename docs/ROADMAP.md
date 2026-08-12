@@ -760,6 +760,11 @@ internal NEEDS REVISION. Rev-3 replaces the broad locale-dependent apply
 diagnostic matcher with an LC_ALL=C, exit-128-only anchored grammar that
 cannot convert wrapper, fatal or signalled failures into patch answers.
 
+**Wave C rev-3** (`2348fea`..`8fc7e33`): internal APPROVED, external
+APPROVED. The deterministic locale and narrowed apply grammar held under
+real-Git and adversarial black-box probes. Wave C is accepted; release
+consolidation and the v0.15.1 tag are next.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

@@ -2,21 +2,30 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
-v0.15.1 Wave C rev-3 closes the single adjudicated rev-2 finding (the
-broad, locale-dependent apply classifier) and is awaiting review. All
-161 accepted rows remain green; every rev-1 and rev-2 fix is preserved.
+v0.15.1 Wave C rev-3 is dual-approved with no findings. All 161 accepted
+rows are green and the release is ready for consolidation.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: Review
+- **Status**: Approved — release close
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
+
+## Rev-3 Review Verdict
+
+- **Internal**: APPROVED.
+- **External/original reproducer**: APPROVED.
+- No high-confidence defect remains.
+- The original pre-land → land → post-land sequence and `verify --all` pass.
+- The C-locale, offline apply-classifier grammar resisted fatal, mixed,
+  wrapper, signalled, translated and broad-phrase adversarial outcomes.
+- All rev-0 through rev-2 findings remain closed.
 
 ## Session Summary — rev-3 fold
 
@@ -130,8 +139,9 @@ Modified:
 
 ## Next Steps
 
-1. Dual review of the rev-3 fold against all 161 rows.
-2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
+1. Consolidate and archive the accepted Wave C handoff.
+2. Tag and push v0.15.1.
+3. Run the Wave-Close Checklist, then close GH #8.
 
 ## Blockers
 
