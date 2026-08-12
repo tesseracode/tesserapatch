@@ -400,6 +400,21 @@ All notable changes to tpatch are recorded here.
     bytes — is reported as `snapshot-unstable` naming the exact
     feature and path. A feature that is unreadable for the whole run
     keeps its existing warn and never becomes perpetual instability.
+  - Every verify Git command runs under `LC_ALL=C`, not just the
+    reduced-context ladder step. Diagnostics are therefore classified
+    against fixed text: outside English, a genuinely missing object no
+    longer degrades from `history-incomplete` to `unavailable`.
+  - The apply-probe answer rule is narrow and exit-code led. Success and
+    exit 1 are answers — every ordinary conflict (`already exists in
+    index`, `does not exist in index`, `patch does not apply`) exits 1,
+    so no text is consulted for them. Exit 128 is an answer only when
+    the whole diagnostic is a recognised malformed-patch complaint
+    (`No valid patches in input`, `corrupt patch`, `patch fragment
+    without header`, `patch with only garbage`, `corrupt binary patch`);
+    a missing-object, network, `fatal:`, mixed or unrecognised
+    diagnostic is a failure, and every other exit code — including
+    signalled and wrapper failures — is a failure regardless of what it
+    printed.
 
 ## v0.15.0 — 2026-08-11 — typed feature resources and capture adapters
 

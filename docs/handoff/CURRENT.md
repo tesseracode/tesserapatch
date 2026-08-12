@@ -2,109 +2,100 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-v0.15.1 Wave C rev-2 closed the five rev-1 findings but its shared apply
-classifier is too broad and locale-dependent. Rev-3 is dispatched.
+v0.15.1 Wave C rev-3 closes the single adjudicated rev-2 finding (the
+broad, locale-dependent apply classifier) and is awaiting review. All
+161 accepted rows remain green; every rev-1 and rev-2 fix is preserved.
 
 ## Active Task
 
 - **Task ID**: v0.15.1 Wave C / GH #8 implementation
 - **Description**: Implement the accepted landed-feature verification and
   land producer contract.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-12
 - **WAVE_BASE**: `b768602`
 - **Target release**: v0.15.1
 
-## Session Summary — rev-2 fold
+## Session Summary — rev-3 fold
 
-**F1 (P1) — V2 parses the CAPTURED recipe.**
-`checkRecipeParses(ctx, slug)` decodes `inventoryEntry.Recipe.Bytes`
-with the same strict `DisallowUnknownFields` and the same presence
-semantics; there is no live read and no fallback. A NON-absence read
-failure is reported as a block ("cannot read apply-recipe.json"), never
-as "no recipe", so it composes with the D17 `inventory-unreadable`
-terminal instead of contradicting it. The parsed value and the bytes are
-the ones V3, V7, V10 and `recipe_hash_at_verify` all use.
-`readArtifactBytes` and the `inventoryRecipeBytes` fallback are deleted.
+**P1 — deterministic locale.** `internal/gitutil/trailers.go` appends
+`GIT_NO_LAZY_FETCH=1` and the new `CLocaleEnv` (`LC_ALL=C`) LAST to
+every evidence invocation, so both win over the inherited environment
+AND any caller-supplied extra. That covers `log`, `rev-parse`,
+`read-tree`, `apply`, `diff`, `cat-file` and `merge-base` — rev-2
+forced the locale only on the `-C0` ladder step, leaving every other
+classified diagnostic at the mercy of the ambient locale. The
+`ForceCLocale` option is removed rather than left as a second, weaker
+path. The workflow gateway's `offlineEnv()` carries both entries too, so
+the shadow worktree commands are equally deterministic. Unrelated
+callers are untouched: `shadowEnv(nil)` still returns nil.
 
-**F2 (P1) — duplicate-attestation identity failure.**
-In `classifyEvidence`'s `len(allMatch) >= 2` branch the `identitiesFor`
-error is classified with `classifyGitFailure`: a missing object is
-`history-incomplete` (R22), any other command failure is `unavailable`
-(R10), and only a SUCCESSFUL comparison that disagrees stays
-`ambiguous` (R7).
+**P1 — narrow, safe `ApplyProbeAnswered`.** The broad substring list
+(`already exists`, `new file`, `deleted file`, `patch does not apply`,
+…) is gone. The rule is now:
 
-**F3 (P1) — historical V8 apply failure.**
-New `gitutil.OfflineGitResult` + `ctx.shadowApplyCheck` retain the exit
-code and stderr through the offline gateway. Exit 1 — and a
-patch-level diagnostic such as "no valid patches in input", which git
-reports with exit 128 — remain ANSWERS: a genuine non-apply is still
-exactly R5, and a corrupt artifact still gets the shipped forward-mode
-V8 string. A missing object or a repository-level fatal routes through
-`terminalEvidencePhase`, so the emitted remediation is the closed
-R22/R10 string and no patch/attestation disagreement is claimed.
+- success → answer;
+- exit 1 → answer, by exit code alone (measured: every ordinary
+  conflict exits 1, so no text is consulted);
+- any exit other than 0/1/128 → FAILURE regardless of stderr, which
+  covers signalled and unstartable processes (-1), 2, 126, 127, 129+;
+- exit 128 with a missing-object or network diagnostic → FAILURE;
+- exit 128 → answer ONLY when every non-empty stderr line matches the
+  anchored C-locale malformed-patch grammar, with at least one
+  recognised diagnostic line.
 
-**F4 (P1) — unlanded parent presence probe.**
-In the evidence-none branch a probe that cannot be answered is terminal:
-missing object → R22/`history-incomplete`, generic failure →
-R10/`unavailable`. It never falls through to recipe replay.
-`ladder.Blocked` is an ANSWERED absence and still means replay; a clean
-or context-drift probe still means skip + R18.
+The grammar is `IsMalformedPatchDiagnostic`: anchored regexps for
+`No valid patches in input (allow with "--allow-empty")`, `corrupt patch
+at <path>:<line>` and `at line N`, `patch fragment without header`,
+`patch with only garbage at line N`, and `corrupt binary patch`
+(including its paired no-valid-patches line), plus `Checking patch …`
+as an informational line that can never satisfy the requirement alone.
+A `fatal:` spoof, a wrapper line, an unknown line, an empty diagnostic
+or any mixture is rejected.
 
-**F5 (P2) — instability readability transitions.**
-The re-statement compares `Err` nil/non-nil for the recipe, patch and
-provenance snapshots plus `GenerationsErr`, alongside presence and
-bytes. `absent ↔ unreadable` — both of which carry `Presence == absent`
-and no bytes — is now `snapshot-unstable` naming the exact slug and
-path. A stably-unreadable unrelated feature keeps its existing warn.
+Measured on git 2.55.0 under `LC_ALL=C` (probe repo removed):
 
-Shared mechanism: `gitutil.ApplyProbeAnswered` is the ONE
-answer-vs-failure classifier, used by `ApplyCheckResult.ApplyAnswered`
-(ladder + qualifier) and `OfflineGitResult.Answered` (shadow V8). It is
-exit-code and stderr based, never status-text matching.
+| input | exit | stderr |
+|---|---|---|
+| empty / garbage / prose | 128 | `error: No valid patches in input (allow with "--allow-empty")` |
+| truncated or garbage hunk | 128 | `error: corrupt patch at ../p.patch:5` |
+| fragment without header | 128 | `error: patch fragment without header at ../p.patch:1: @@ …` |
+| corrupt binary payload | 128 | `error: corrupt binary patch at …` + the no-valid-patches line |
+| new file that already exists | **1** | `error: f.txt: already exists in index` |
+| delete of a missing file | **1** | `error: gone.txt: does not exist in index` |
+| context mismatch | **1** | `error: f.txt: patch does not apply` |
 
-## Rev-2 Review Adjudication
-
-- Internal: NEEDS REVISION.
-- External/original reproducer: APPROVED WITH NOTES.
-- All five rev-1 findings closed under black-box review.
-- One internal P1 finding is valid: `ApplyProbeAnswered` accepts broad
-  substrings such as `new file` and `already exists` for any non-answer exit.
-  A wrapper/signalled failure carrying one phrase can become an R5/R11 patch
-  answer instead of R10/R22.
-- The external locale note is coupled: the matching grammar is English, but
-  only the C0 probe currently pins `LC_ALL=C`.
-- Measurement confirmed ordinary `already exists` / `does not exist` patch
-  conflicts exit 1. The exit-128 exception is needed only for Git's malformed
-  patch diagnostics (`No valid patches`, `corrupt patch`, garbage fragments).
+`unrecognized input` was NOT reproducible on this git and is therefore
+excluded — the classifier fails closed to `unavailable` for anything it
+cannot demonstrate.
 
 ## Current State
 
-- GH #8 stays empirically closed with the rev-2 binary: before land
-  passes, after land `landing evidence: exact`, dual-anchor baseline,
-  exit 0, `verify --all` exit 0.
+- GH #8 stays empirically closed with the rev-3 binary, including under
+  a foreign ambient locale (`LC_ALL=fr_FR.UTF-8`): before land passes,
+  after land `landing evidence: exact` with a dual-anchor baseline, and
+  `verify --all` exits 0.
 - AC-L68 / AC-L69 remain green against a real filtered remote.
 - No blocker.
 
-## Files Changed (rev-2)
+## Files Changed (rev-3)
 
 New:
 
-- `internal/workflow/verify_rev2_fold_test.go`
+- `internal/gitutil/apply_classifier_test.go`
+- `internal/workflow/verify_rev3_fold_test.go`
 
 Modified:
 
-- `internal/gitutil/trailers.go` (`OfflineGitResult`,
-  `RunOfflineGitInResult`, `IsPatchInputError`, `ApplyProbeAnswered`)
-- `internal/workflow/verify_gitgate.go` (`shadowApplyCheck`)
-- `internal/workflow/verify.go` (V2 over captured bytes; dead reader
+- `internal/gitutil/trailers.go` (`CLocaleEnv`, unconditional locale,
+  anchored grammar, exit-code-led `ApplyProbeAnswered`; `ForceCLocale`
   removed)
-- `internal/workflow/verify_landed.go` (identity-failure classification,
-  readability transitions, fallback removal)
-- `internal/workflow/verify_anchored.go` (historical V8 split, unlanded
-  parent probe terminal)
+- `internal/workflow/verify_gitgate.go` (`offlineEnv` carries the
+  locale)
+- `internal/workflow/verify_landed.go` (ladder no longer passes a
+  per-call locale flag)
 - `internal/workflow/acceptance_ledger_test.go`
 - `CHANGELOG.md`, `docs/handoff/CURRENT.md`
 
@@ -117,70 +108,66 @@ Modified:
 - `go test -count=1 ./...` — all 12 packages pass.
 - `go test -race -count=1 ./internal/workflow ./internal/gitutil
   ./internal/store ./internal/cli` — pass.
-- **Regression proof**: with the rev-1 production files restored and the
-  rev-2 tests in place, 8 rev-2 tests fail (V2 capture purity, the
-  source guard, both duplicate-attestation branches, both historical-V8
-  branches, the unlanded-parent probe, and the workspace mutation);
-  restoring rev-2 turns them green. The readability table additionally
-  fails 8 of its 16 sub-cases — exactly the `absent ↔ unreadable` pairs
-  rev-1 could not see.
-- Acceptance ledger: 161/161 rows mapped; AC-L35/L53/L58/L69/L77/L78/
-  L108/L109/L110/L117/L123 remapped to the black-box proofs, and the two
-  helper-only rev-1 entries were removed from the ledger so no row
-  claims assurance a unit call cannot give.
+- **Regression proof.** Against the rev-2 production files, 6 rev-3
+  workflow sub-tests fail (four broad-phrase historical-V8 exits, the
+  ladder broad-phrase case, and the C-locale assertion). The classifier
+  itself is proven in-tree by
+  `TestRev3ClassifierFixesRev2Misclassifications`, which reproduces the
+  rev-2 predicate verbatim and enumerates ten outcomes it promoted to a
+  patch verdict and rev-3 rejects;
+  `TestRev3ClassifierKeepsEveryRealAnswer` proves no real git answer was
+  lost.
+- Real-git goldens: `TestRealGit_MalformedPatchesExit128AndAreAdmitted`
+  and `TestRealGit_OrdinaryConflictsExitOne` measure the actual
+  diagnostics rather than mocking them.
+- Acceptance ledger: 161/161 rows mapped; AC-L26/L58/L69/L117/L123/
+  L129/L134 remapped to the rev-3 black-box and golden proofs.
 - Docs totality guard (AC-L135 / G1–G10): zero hits; accepted documents
   untouched.
 - GH #2 regression green and unmodified (AC-L121 diffs it against
   WAVE_BASE `b768602`).
-- Real filtered-remote AC-L68 / AC-L69: green.
 - Side Research md5: `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Pin every evidence/classified Git command to `LC_ALL=C`.
-2. Restrict the exit-128 answer exception to anchored malformed-patch forms.
-3. Reject fatal, mixed, wrapper and signalled outcomes regardless of phrases.
-4. Dual review the rev-3 fold against all 161 rows.
+1. Dual review of the rev-3 fold against all 161 rows.
+2. On acceptance: close #8, tag v0.15.1, run the Wave-Close Checklist.
 
 ## Blockers
 
-No external blocker. Rev-2 cannot ship with a classifier that can turn an
-execution failure into a patch answer.
+None.
 
 ## Context for Next Agent
 
-Reviewer focus for rev-2:
+Reviewer focus for rev-3:
 
-1. **`git apply --check` exits 128 for a MALFORMED patch**, not 1.
-   Measured: a zero-byte or non-diff artifact yields
-   `error: No valid patches in input` with exit 128. Treating every
-   non-1 exit as an execution failure would report a corrupt artifact as
-   an unavailable reader and would have broken two shipped GH #2-era
-   rows. `ApplyProbeAnswered` therefore accepts exit 0, exit 1, and any
-   exit whose diagnostic is about the PATCH, while a missing-object or
-   network diagnostic is always a failure.
-2. **Unanswerable probes route through `terminalEvidencePhase`.** That
-   is what makes the emitted remediation the closed R10/R22 string
-   rather than a new sentence, and it keeps `failed_at` inside the
-   thirteen-value vocabulary (`landing-evidence`). No schema vocabulary
-   was invented for any rev-2 branch.
-3. **The purity guard is AST-based**, not a substring scan: it allows
-   `os.ReadFile` only inside `snapshotArtifact`, `buildInventory`,
-   `inventoryInstability` (the documented re-statement) and
-   `replayOpInShadow` (which reads inside the shadow worktree, not the
-   store). V1's intent-file stat and V3's op-target stat are working-tree
-   probes, not captured artifacts, and are deliberately out of scope.
-4. **Readability comparison is nil/non-nil only.** Comparing error TEXT
-   would make two independent `*PathError` values look like a change on
-   every run; the contract-useful signal is the transition, and the
-   stable-unreadable case is pinned by its own test.
+1. **Exit 1 is decided WITHOUT reading stderr.** That is what makes the
+   grammar safe to narrow: every ordinary conflict — including the
+   `already exists` / `does not exist` / `does not apply` forms rev-2
+   listed — exits 1, so removing them from the grammar cannot cost a
+   real answer. `TestRealGit_OrdinaryConflictsExitOne` measures it.
+2. **Exit 128 is the only text-sensitive case**, and it is required:
+   git reports a malformed or empty patch with exit 128, and two shipped
+   GH #2-era rows depend on that staying a patch-level answer.
+3. **The grammar fails closed.** A form that could not be demonstrated
+   on this git (`unrecognized input`) is excluded; an unrecognised
+   diagnostic yields `unavailable` (R10), which is the honest "the
+   reader could not answer" outcome rather than a fabricated patch
+   verdict.
+4. **Locale is applied at the ONE env builder**, so there is no second
+   path that can drift. `ForceCLocale` was deleted rather than kept as a
+   no-op, to remove the ambiguity of two mechanisms for one guarantee.
 
-Carried forward from rev-0/rev-1 (still true):
+Carried forward from rev-0/rev-1/rev-2 (still true):
 
 - `landing_evidence.state` is OMITTED for the D10 artifact-presence
   short-circuit; `failed_at` and `reason` carry the outcome.
-- The classification terminals run before the static short-circuit, and
-  neither allocates a shadow.
+- Classification terminals run before the static short-circuit and
+  allocate no shadow; unanswerable probes route through
+  `terminalEvidencePhase` so remediations stay inside the closed
+  R10/R22 set and `failed_at` inside the thirteen-value vocabulary.
+- V2 parses the captured recipe bytes; the verify path has no live
+  artifact read (AST-guarded).
 - AC-L84 and AC-L111 are proven in two halves because V4 pre-empts the
   arbitration branch; AC-LD18a's refusal half is driven through the
   production validator.
