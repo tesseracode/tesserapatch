@@ -506,9 +506,20 @@ func inventoryInstability(s *store.Store, before *featureInventory) string {
 			{"artifacts/post-apply.patch", b.Patch, a.Patch},
 			{"artifacts/recipe-provenance.json", b.Provenance, a.Provenance},
 		} {
+			// rev-2 adjudication finding 5: READABILITY is part of the
+			// captured state. An artifact that flips between readable and
+			// unreadable keeps its presence label (`absent`) and its
+			// bytes (none), so comparing only those let
+			// `unreadable → absent` evade `snapshot-unstable`.
+			if (pair.b.Err == nil) != (pair.a.Err == nil) {
+				return fmt.Sprintf("%s/%s: readability changed during the run", slug, pair.name)
+			}
 			if pair.b.Presence != pair.a.Presence || !bytesEqual(pair.b.Bytes, pair.a.Bytes) {
 				return fmt.Sprintf("%s/%s: changed during the run", slug, pair.name)
 			}
+		}
+		if (b.GenerationsErr == nil) != (a.GenerationsErr == nil) {
+			return fmt.Sprintf("%s/patch-generations.json: readability changed during the run", slug)
 		}
 		if !bytesEqual(b.Generations, a.Generations) {
 			return fmt.Sprintf("%s/patch-generations.json: changed during the run", slug)
@@ -855,10 +866,20 @@ func (ctx *verifyRunContext) classifyEvidenceUncached(slug string) *landingEvide
 	case len(allMatch) >= 2:
 		identities, err := ctx.identitiesFor(allMatch, entry.Patch.Bytes)
 		if err != nil {
-			ev.State = EvidenceAmbiguous
 			ev.AttestationCommit = allMatch[0].SHA
 			ev.ParentCount = allMatch[0].ParentCount()
 			ev.Reason = err.Error()
+			// rev-2 adjudication finding 2: an identity that could not be
+			// COMPUTED is a reader failure, not two identities that
+			// differ. Only a successful comparison may yield `ambiguous`
+			// (and R7's "resolve the history" remediation); a missing
+			// object is `history-incomplete` (R22) and any other command
+			// failure is `unavailable` (R10).
+			if state := classifyGitFailure(err); state != "" {
+				ev.State = state
+			} else {
+				ev.State = EvidenceAmbiguous
+			}
 			break
 		}
 		equal := true
@@ -932,7 +953,8 @@ func classifyGitFailure(err error) string {
 		return EvidenceUnavailable
 	}
 	if strings.Contains(msg, "git diff") || strings.Contains(msg, "git read-tree") ||
-		strings.Contains(msg, "git apply") || strings.Contains(msg, "isolated index") ||
+		strings.Contains(msg, "git apply") || strings.Contains(msg, "git cat-file") ||
+		strings.Contains(msg, "isolated index") || strings.Contains(msg, "normalized identity") ||
 		errors.Is(err, errGitBelowFloor) {
 		return EvidenceUnavailable
 	}
@@ -1604,16 +1626,10 @@ func inventoryEntryOrEmpty(ctx *verifyRunContext, slug string) *inventoryEntry {
 		Patch: artifactSnapshot{Presence: PresenceAbsent}, Provenance: artifactSnapshot{Presence: PresenceAbsent}}
 }
 
-// inventoryRecipeBytes / inventoryPatchBytes return the CAPTURED bytes.
-// The fallback keeps a feature that appeared after the inventory (which
-// the instability check then fails) from panicking.
-func inventoryRecipeBytes(ctx *verifyRunContext, slug string, fallback []byte) []byte {
-	if e := ctx.inv.Entry(slug); e != nil && e.Err == nil {
-		return e.Recipe.Bytes
-	}
-	return fallback
-}
-
+// inventoryPatchBytes returns the CAPTURED canonical-patch bytes. There
+// is no live-read fallback: a feature that is not in the capture cannot
+// contribute a hash, and the instability re-statement fails the run
+// (rev-2 finding 1).
 func inventoryPatchBytes(ctx *verifyRunContext, slug string) []byte {
 	if e := ctx.inv.Entry(slug); e != nil && e.Err == nil {
 		return e.Patch.Bytes

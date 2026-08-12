@@ -258,7 +258,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	report.Checks = append(report.Checks, checkIntentFilesPresent(s, slug))
 
 	// V2 — recipe_parses (severity: block).
-	parseCheck, recipe, recipeBytes := checkRecipeParses(s, slug)
+	parseCheck, recipe, recipeBytes := checkRecipeParses(ctx, slug)
 	recipePresent := parseCheck.Passed && !parseCheck.Skipped
 	report.Checks = append(report.Checks, parseCheck)
 
@@ -317,7 +317,10 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 
 	// Hashes for the persisted record — computed from the IMMUTABLE
 	// inventory bytes, never a fresh disk read (D17 / AC-L109).
-	report.RecipeHashAtVerify = sha256Hex(inventoryRecipeBytes(ctx, slug, recipeBytes))
+	// Both hashes come from the CAPTURED bytes — the same ones V2
+	// parsed — so the persisted record can never describe a mixture of
+	// two artifact versions (rev-2 finding 1).
+	report.RecipeHashAtVerify = sha256Hex(recipeBytes)
 	report.PatchHashAtVerify = sha256Hex(inventoryPatchBytes(ctx, slug))
 
 	// Parent snapshot: iterate hard deps and read each parent's
@@ -443,26 +446,38 @@ func checkIntentFilesPresent(s *store.Store, slug string) store.VerifyCheckResul
 // PRD's V3 (`recipe_op_targets_resolve`) is a real check on its own
 // (see `checkRecipeOpTargetsResolve`) — it runs immediately after V2
 // once a recipe successfully parses.
-func checkRecipeParses(s *store.Store, slug string) (parse store.VerifyCheckResult, recipe ApplyRecipe, raw []byte) {
-	recipePath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "apply-recipe.json")
-	data, err := os.ReadFile(recipePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return store.VerifyCheckResult{
-				ID:       CheckRecipeParses,
-				Severity: SeverityBlock,
-				Passed:   true,
-				Skipped:  true,
-				Reason:   "no apply-recipe.json (legacy / pre-autogen-era feature)",
-			}, ApplyRecipe{}, nil
-		}
+// v0.15.1 Wave C rev-2 (adjudication finding 1): V2 parses the bytes the
+// run CAPTURED, never the file. Rev-1 re-read `apply-recipe.json` here,
+// so a concurrent write between the capture and V2 produced a report
+// built from two different versions of the same artifact — the exact
+// split the immutable-inventory contract exists to prevent. The parsed
+// value returned here is the ONE the whole run uses: V3's op targets,
+// V7's replay, V10's preimages and `recipe_hash_at_verify`.
+func checkRecipeParses(ctx *verifyRunContext, slug string) (parse store.VerifyCheckResult, recipe ApplyRecipe, raw []byte) {
+	entry := inventoryEntryOrEmpty(ctx, slug)
+
+	// A NON-absence read failure is never reported as "no recipe": the
+	// dynamic phase turns it into `inventory-unreadable` (D17), and V2
+	// must not contradict that with a skip.
+	if entry.Recipe.Err != nil {
 		return store.VerifyCheckResult{
 			ID:          CheckRecipeParses,
 			Severity:    SeverityBlock,
 			Passed:      false,
-			Remediation: fmt.Sprintf("cannot read apply-recipe.json: %v", err),
+			Remediation: fmt.Sprintf("cannot read apply-recipe.json: %v", entry.Recipe.Err),
 		}, ApplyRecipe{}, nil
 	}
+	if entry.Recipe.Presence == PresenceAbsent {
+		return store.VerifyCheckResult{
+			ID:       CheckRecipeParses,
+			Severity: SeverityBlock,
+			Passed:   true,
+			Skipped:  true,
+			Reason:   "no apply-recipe.json (legacy / pre-autogen-era feature)",
+		}, ApplyRecipe{}, nil
+	}
+
+	data := entry.Recipe.Bytes
 
 	// Strict-decode: reject unknown fields. Mirrors the canonical
 	// pattern guarded by `TestRecipeUnmarshal_DisallowsUnknownFields`
@@ -554,15 +569,6 @@ func sha256Hex(b []byte) string {
 	}
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:])
-}
-
-func readArtifactBytes(s *store.Store, slug, name string) []byte {
-	p := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", name)
-	data, err := os.ReadFile(p)
-	if err != nil {
-		return nil
-	}
-	return data
 }
 
 // parentSnapshot returns a deterministic map of parent slug → current

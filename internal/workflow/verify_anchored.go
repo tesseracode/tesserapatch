@@ -553,7 +553,26 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 		}
 	}
 	patchPath := artifactPath(s.Root, slug, "post-apply.patch")
-	if _, _, err := ctx.runShadowGit(shadowPath, "apply", "--check", patchPath); err != nil {
+	applyRes := ctx.shadowApplyCheck(shadowPath, patchPath)
+	if !applyRes.Answered() {
+		// rev-2 adjudication finding 3: `git apply --check` exiting 1 is
+		// the ANSWER V8 wants ("the patch does not apply"); anything else
+		// means git could not carry the check out. Rev-1 collapsed both
+		// into R5, claiming the patch and the attestation disagree when
+		// in fact nothing was compared. An unanswerable probe classifies
+		// on its own terms and routes through the terminal family, so
+		// the emitted remediation is the closed R22/R10 string.
+		state := EvidenceUnavailable
+		if gitutil.IsMissingObjectError(applyRes.Stderr) {
+			state = EvidenceHistoryIncomplete
+		}
+		in.evidence.Evidence.State = state
+		in.evidence.Evidence.Reason = fmt.Sprintf(
+			"the historical post-apply.patch check could not run (git apply --check exited %d): %s",
+			applyRes.ExitCode, strings.TrimSpace(applyRes.Stderr))
+		return terminalEvidencePhase(in, baseline, v7Mode, v8Mode, v10Mode)
+	}
+	if !applyRes.OK() {
 		rem := fmt.Sprintf("post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile %s", slug)
 		if landed {
 			rem = remediationR5(anchorCommit)
@@ -702,7 +721,20 @@ func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPat
 		// evidence `none`
 		if memberPatchPresent {
 			ladder := ctx.runLadder(anchorTreeish, artifactPath(ctx.root, member, "post-apply.patch"), entry.Patch.Bytes)
-			if ladder.Err == nil && !ladder.Blocked {
+			// rev-2 adjudication finding 4: an UNANSWERABLE presence
+			// probe is terminal. Rev-1 fell through to recipe replay,
+			// which silently converts "we could not determine whether
+			// this parent's content is present" into "replay it" — the
+			// double-apply hazard D13 exists to remove. `ladder.Blocked`
+			// is an ANSWERED absence and still means replay.
+			if ladder.MissingObject {
+				return fail(FailedAtLandingEvidence, member, remediationR22(member))
+			}
+			if ladder.Err != nil {
+				return fail(FailedAtLandingEvidence, member,
+					remediationR10(member, fmt.Sprintf("the presence probe for hard parent %s could not run: %v", member, ladder.Err)))
+			}
+			if !ladder.Blocked {
 				ctx.pendingAdvisories = append(ctx.pendingAdvisories, warnAdvisory(
 					AdvisoryUnattributedMaterialized, member, "", remediationR18(member)))
 				continue
