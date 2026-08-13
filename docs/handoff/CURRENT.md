@@ -2,11 +2,10 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Artifact-validation/provenance PRD rev-0 is blocked by CLI-envelope,
-filesystem-race, readiness and matrix-totality defects. Rev-1 is dispatched;
-this remains planning only.
+Artifact-validation/provenance PRD rev-1 is written and closes every rev-0
+adjudicated finding. Both reviews are pending; this remains planning only.
 
 ## Active Task
 
@@ -14,11 +13,12 @@ this remains planning only.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-1
+- **Status**: Review — rev-1
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
+- **Rev-1 writer base**: `3ecfa38`
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
-- **Scope**: one PRD + WP-005 graduation/index updates + handoff
+- **Scope**: one PRD + handoff. rev-1 touched nothing else.
 - **Release tag**: v0.15.1 remains fixed at `15560af`
 
 ## PRD Writer Contract
@@ -185,6 +185,213 @@ declared at dispatch.
 6. **Provenance/docs**: define `unknown` as the stable "not provable" meaning,
    add the future `agent-as-provider` correction, and keep the ADR trigger
    bounded.
+
+## PRD Writer Result — rev-1 (2026-08-13)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-artifact-validation-and-provenance.md` | rewritten in place; `Status: Draft — Awaiting Review (rev-1)`; a `Revision history` table records what changed vs rev-0 |
+| `docs/handoff/CURRENT.md` | `Cluster state` flip to `AWAITING REVIEW`, Active Task block, and this section |
+
+Nothing else was touched. **No** edit to `docs/ROADMAP.md`,
+`docs/supervisor/LOG.md`, `SPEC.md`, `docs/adrs/**`, `docs/whitepapers/**`
+(WP-005 was already marked Graduated in rev-0 and needed no further change),
+`docs/prds/PRD-prepare-intent-bundle.md` (still undrafted and still blocked),
+`internal/**`, `cmd/**`, `assets/**`, `tests/**`, `.wave-close-allowlist`, or
+any guarded untracked WIP (`WP-004`, `WP-006`, `WP-007`,
+`PRD-recurring-patches.md`, the state-of-the-art case studies).
+
+### Counts (mechanically verified, commit-independent)
+
+- **2,233 lines** in the PRD (rev-0: 1,478).
+- **75 claims** in the §23 claims-audit appendix (rev-0: 64), each with a
+  `file:line` anchor; `C1`…`C75` contiguous with no gaps.
+- **140 acceptance rows** `AVP-001`…`AVP-140` (rev-0: 95), contiguous, no
+  duplicates, no retired/struck rows. Nineteen categories:
+  A 10, B 20, C 8, D 14, E 6, F 5, G 9, H 4, I 6, J 4, K 6, L 3, M 6, N 5,
+  O 12, P 10, Q 1, R 9, S 2.
+- **By kind**: `U` 38, `I` 80, `S` 6, `G` 13, plus 3 combined-kind rows
+  (`S+G`, `S+I`, `I+G`). 15 rows carry a guard component and are covered by
+  the §18.21 sensitivity requirement.
+- **161 distinct `file:line` anchors** across 33 files; all mechanically
+  verified in-range against the working tree, zero out-of-range, zero missing
+  files. Four rev-0 anchors were re-resolved after content verification
+  (`phase2.go` `fileExistsAt`, `assets_test.go` skill-file/anchor blocks,
+  `workflow.go` heuristic block, `verify.go` stream routing).
+- **45 new rows** (`AVP-096`…`AVP-140`); every rev-0 ID kept its number, and
+  the rows whose meaning changed (`AVP-031`…`AVP-036`, `AVP-042`, `AVP-048`,
+  `AVP-051`, `AVP-069`, `AVP-071`, `AVP-073`, `AVP-075`, `AVP-092`,
+  `AVP-095`) were amended in place per §18.1's no-renumbering rule.
+- **All 140 rows are assigned to exactly one implementation slice** (S1–S5);
+  zero unassigned, zero double-assigned.
+
+### Contract decisions in rev-1 (what changed, and why)
+
+1. **Readiness = the full intent bundle.** `ready` now requires all three
+   canonical Markdown artifacts present-and-non-empty. `artifacts/analysis.json`
+   stays optional and can never affect readiness. §6.2.1 gives four cited
+   reasons (bundle unit per WP-005 Agreed item 7; the Path B operator guide
+   already teaches authoring all three; alignment with `verify`'s later
+   blocking `intent_files_present`; every gap still fully reported). §6.2.2
+   answers the WP-005 "must not make exploration mandatory" constraint with a
+   six-question table separating **optional command adoption** from **relaxed
+   bundle semantics** — nothing calls the command, `defined` is still reachable
+   without exploration, `next`/`cycle` are byte-identical.
+2. **Output composed with the real root error printer.** `cobra.go:33-39`
+   prints `error: %v` for every non-nil `RunE` error, so rev-0's "stderr empty
+   on `--json --quiet`" was false for exits 2/3/4. §10.1 now tables all
+   15 exit × flag combinations, §9.5 closes the `ExitCodeError.Message`
+   catalog, and §10.5 gives the exact `--quiet` line for every outcome.
+   Exit 0 is the only case with an empty stderr under `--json --quiet`.
+3. **Abort shape rebuilt.** `artifacts` is `[]` **iff** `abort` is present —
+   rev-0's four all-`absent` rows claimed an inspection that never happened.
+   `feature_state` is `"unknown"` on every abort (never `""`), `overall` is
+   fully specified with the schema-constant totals, and `advisories` is `[]`.
+   §9.3 guarantees every abort is decided before the first per-artifact
+   `Lstat`, which is what makes the two-shape rule total (AVP-127, AVP-128).
+4. **Slug validated before any path is composed.** New §7.2 defines a canonical
+   grammar (`^[a-z0-9]+(-[a-z0-9]+)*$`, ≤60 bytes) that provably accepts every
+   `store.Slugify` output, plus a Windows reserved-device refusal. New abort
+   code `slug-unsafe` (exit 3). **No stream ever echoes the raw argument**:
+   JSON `slug` is `""`, the human header and the quiet line withhold it.
+   Traversal, absolute, control-byte and non-ASCII arguments are all closed by
+   one rule (AVP-102…AVP-106).
+5. **Race-safe platform capture replaces `Lstat`→ordinary-open.** §7.4
+   specifies `O_RDONLY|O_NOFOLLOW|O_NONBLOCK` on unix (no follow, no FIFO
+   hang) and a real Windows equivalent (`FILE_FLAG_OPEN_REPARSE_POINT` +
+   `GetFileType == FILE_TYPE_DISK`), then post-open `fstat`, `os.SameFile`
+   identity, regular-file recheck, size cross-check, bounded read, and a
+   post-read `fstat`. AVP-118 asserts the build-tagged sibling exists and that
+   no target falls back to a bare `os.Open`.
+6. **Bounded read is `io.LimitReader(f, MaxArtifactBytes+1)`.** A growth race
+   can never allocate unbounded memory; growth past the cap during the read is
+   `unstable`, not `oversize`, and the two are mutually exclusive by
+   construction (row 8 pre-open vs row 17 post-open). AVP-112, AVP-116,
+   AVP-140.
+7. **Ladder rebuilt to 24 total rows.** Adds no-follow-refusal-at-open, fstat
+   failure, descriptor kind change, Lstat-vs-fstat size mismatch, growth past
+   the cap, byte-count disagreement, post-read fstat failure and post-read size
+   change. Seven named instability probes, all with sidecar equivalents
+   (AVP-107…AVP-117). §8.3 keeps the honest limits: same-length in-place
+   rewrite is undetectable, and a second `fstat` on a held descriptor is a
+   tautology.
+8. **Advisory selection is a total state → advisory function.** Nine sidecar
+   states → at most one `analysis-sidecar-*` advisory. `*-absent-*` fires only
+   for `state == absent`; `present-empty` / `invalid-structured` /
+   `unstable` / `symlink-refused` / `not-regular` / `unreadable` / `oversize`
+   each get a truthful **neutral** message that never claims absence and never
+   calls the condition a defect. `analysis-sidecar-unstable` now has real
+   production coverage. rev-0's `exploration-absent-verify-requires-later` and
+   `optional-artifact-unstable` are removed. AVP-119…AVP-122.
+9. **`status.json` populations split three ways.** Absent → **continue** the
+   full inspection with `feature_state: "unknown"` + advisory
+   `feature-state-absent`, exit from readiness (justified by `ListFeatures`
+   already treating such a directory as ordinary). Malformed and unreadable
+   stay distinct aborts, because a present-but-broken metadata file is
+   `doctor` D1's domain. AVP-123…AVP-126.
+10. **Forbidden-field guard scoped to keys and labels.** AVP-051 walks JSON
+    **key names** at every nesting level and compares the human surface against
+    a closed label set — never a raw substring scan, which would have made
+    `oversize`/`artifact-oversize` impossible. AVP-140 exercises an `oversize`
+    artifact with the guard green, which is the proof the scoping is real.
+11. **`unknown` provenance given a stable definition.** §11.1 fixes it as "no
+    trustworthy provenance is available from an accepted source", with three
+    consequences: it is not a placeholder, adding known values later is
+    additive (no `schema_version: 2`), and legacy artifacts stay `unknown`
+    forever rather than being backfilled by guess. The ADR trigger is kept
+    **narrow** — it fires on selection of a persistent representation and on
+    nothing else. No representation is selected.
+12. **`agent-as-provider.md` correction made a required future edit.** §16.1
+    row (b) requires the shipped sentence that presents `status.json.notes` as
+    what "distinguishes Path B transitions from provider output" to be
+    corrected to a *last-transition hint, not durable per-artifact provenance*.
+    Claim C67 anchors the current wording.
+13. **Refusal remediation made self-contained.** The exit-4 line names only
+    `--check` and `tpatch prepare --help`; it cites no PRD, no `docs/` path and
+    no URL (AVP-100). §5.3 also states *why* the guard is implementable before
+    the store opens.
+14. **Test bite added.** Composite differentials that first advance a real
+    feature to `analyzed`/`defined` through the real `--manual` command with a
+    zero-byte / whitespace-only / symlink artifact, then run the real
+    `prepare --check` and assert the honest non-`ready` verdict with zero
+    mutation (AVP-130…AVP-133). Routing non-invalidation now uses
+    **pre-change-binary goldens** plus reverse call-graph and source guards
+    (AVP-134…AVP-137) instead of a before/after no-op comparison. AVP-138
+    composes all three headline §1 failure modes in one real CLI run.
+15. **Guard sensitivity generalised.** §18.1 adds a disqualifying assertion
+    shape for guards; §18.21 extends the sensitivity requirement from three
+    hand-picked rows to every row carrying a guard component; AVP-139 is the
+    meta-check.
+
+### Unchanged from rev-0 (deliberately)
+
+- Planning-only scope: no Go file, test, asset or CLI surface created or
+  modified.
+- `--manual` gates stay loose and unchanged (§12), now additionally pinned by
+  the composite rows.
+- Skill parity still ships the command in all six surfaces — with a new §16.2
+  item 5 forbidding it from entering the phase-ordering or preflight sequence,
+  so non-goal 8 (no downstream SDD mandate) is asserted, not assumed
+  (AVP-092).
+- `PRD-prepare-intent-bundle.md` remains blocked and undrafted (§20).
+- No ADR created; no persistent provenance representation selected.
+
+### Open decisions left to review (§21, six)
+
+Q1 a later `--all` sweep mode; Q2 whether exit `4` becomes a cross-command
+convention; Q3 the `MaxArtifactBytes = 4 MiB` value; Q4 whether `request.md`
+becomes a fifth optional row; **Q5 (new)** whether the Windows reserved-device
+refusal should be platform-conditional; **Q6 (new)** whether `--format` should
+alias `--json` to match `next`. All six have a stated default; none blocks
+review.
+
+### Validation performed (docs-only change)
+
+- **Anchor audit**: 161 distinct `file:line` citations across 33 files parsed
+  and checked in-range; zero bad. Every newly added anchor was additionally
+  content-verified by reading the cited lines (root printer, `exitCodeFor`,
+  `readBounded`, `openNoFollow` unix/windows, `Slugify`, `AddFeature`,
+  `LoadFeatureStatus` error split, `ListFeatures`, `snapshot-unstable`
+  vocabulary, `pathgate` held-descriptor tautology, assets anchor blocks).
+- **JSON examples**: both `json` fenced blocks parse; top-level key order
+  matches §10.2's declared order in both (the abort example adds `abort`).
+- **Matrix mechanics**: 140 rows, contiguous `AVP-001`…`AVP-140`, zero
+  duplicates; every `AVP-NNN` referenced in prose resolves to a real row;
+  category counts sum to 140; slice assignment is a partition.
+- **Claims mechanics**: `C1`…`C75` contiguous, zero duplicates.
+- **Markdown hygiene**: 26 fence markers (balanced), 50 tables with zero
+  column-count mismatches, zero trailing-whitespace lines, all relative links
+  resolve on disk.
+- No Go source changed, so `gofmt` / `go build` / `go test` are not applicable
+  to this change set; no existing docs test targets these files
+  (`internal/workflow/docs_totality_guard_test.go` reads exactly three
+  verify-family documents, none of them touched here).
+
+### Reviewer focus for rev-1
+
+1. **§6.2 is the load-bearing change.** The question to test is not "is
+   full-bundle readiness nicer" but "does §6.2.2 actually discharge WP-005
+   Agreed item 6". The claim is that item 6 constrains the **lifecycle**, and
+   that this command is outside the lifecycle in six specific, separately
+   asserted ways.
+2. **§10.1 must be read against `cobra.go:33-39`, not against `verify.go`
+   alone.** `verify` copies the report routing; the `error:` line is the root's
+   and applies on top. Any residual claim of an empty stderr on a nonzero exit
+   is a defect.
+3. **§7.5's ladder is the totality surface.** Check that no reachable
+   filesystem condition is missing a row and that rows 8 and 17 really cannot
+   both apply.
+4. **§10.4 must stay a function of state, not of artifact id.** The rev-0
+   defect was an advisory that could contradict its own artifact row.
+5. **§9.4's three-way `status.json` split** is a deliberate asymmetry; the
+   justification (absent is ordinary per `ListFeatures`, broken is `doctor`'s)
+   is the thing to challenge, not the mechanics.
+6. **AVP-136/AVP-137 depend on S1 capturing pre-change goldens.** §17 states
+   this as a prerequisite; if it is skipped the rows silently degrade back into
+   the rev-0 no-op comparison.
+
 
 ## WP-005 Turn 2 Scope
 
@@ -415,10 +622,15 @@ Modified:
 
 ## Next Steps
 
-1. Complete rev-1 with matrix/claim counts updated mechanically.
-2. Re-run both PRD reviews.
+1. Run the rev-1 internal (contract/protocol) and external (product/
+   adversarial) PRD reviews against `docs/prds/PRD-artifact-validation-and-provenance.md`.
+2. Adjudicate; if NEEDS REVISION, dispatch rev-2 with a bounded finding list.
 3. Continue bounded revisions until dual acceptance.
-4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
+4. On acceptance: archive this handoff to `HISTORY.md`, append the verdict to
+   `docs/supervisor/LOG.md`, flip the `docs/ROADMAP.md` row, and only then
+   consider unblocking `PRD-prepare-intent-bundle.md`.
+5. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
+6. No code, ADR, asset or milestone is authorized by this task.
 
 ## Blockers
 
