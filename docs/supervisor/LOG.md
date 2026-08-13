@@ -1,3 +1,23 @@
+## Close — WP-005 council Turns 2–4 — 2026-08-13
+
+**WAVE_BASE**: `76ed78b`
+**Accepted tip**: `2018fd7`
+
+### Final Verdict: ACCEPTED
+
+- Internal rev-1: APPROVED.
+- External rev-1: APPROVED WITH NOTES.
+- All rev-0 findings closed.
+- N1 attribution fixed in the main paper.
+- N2 `--manual` mutation boundary promoted to the first PRD acceptance
+  contract and recorded in Turn 4.
+
+### Action Taken
+
+WP-005 council fold archived. CURRENT returned to IDLE. The
+artifact-validation/provenance PRD is the only ready successor; prepare remains
+blocked and no code/ADR/milestone is authorized.
+
 ## Review — WP-005 council Turn 3 rev-1 — 2026-08-13
 
 **Revision tip**: `605a382`

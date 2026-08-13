@@ -1,3 +1,43 @@
+# 2026-08-13 — WP-005 council Turns 2–4 — ACCEPTED
+
+**WAVE_BASE**: `76ed78b`
+**Dispatch**: `2fd9786`
+**Writer tip**: `260936a`
+**Rev-1 dispatch**: `9d97b2c`
+**Revision tip**: `605a382`
+**Accepted tip**: `2018fd7`
+
+**Scope**: second-opinion council on `tpatch prepare`, internal spec-driven
+development and downstream SDD methodology.
+
+**Accepted conclusions**:
+
+- `prepare` is a valid product seam but mutation is blocked on truthful
+  artifact validation/provenance.
+- `prepare --check` is first and read-only.
+- No new lifecycle state; successful preparation remains `defined`.
+- Internal SDD aids are optional; downstream SDD is encouraged, never enforced.
+- Provenance is `unknown` until accepted persistent metadata proves it.
+- Atomic preparation covers Markdown, sidecars and `status.json`.
+- Existing `--manual`, `next` and `cycle` compatibility must be explicit.
+- Two PRDs graduate in order; no ADR until a representation choice is made.
+
+**Review arc**:
+
+| Revision | Internal | External | Outcome |
+|---|---|---|---|
+| rev-0 / Turn 2 | NEEDS REVISION | APPROVED WITH NOTES | broken link + five contract gaps |
+| rev-1 / Turn 3 | APPROVED | APPROVED WITH NOTES | accepted; two LOW close notes |
+| Turn 4 | not re-reviewed | reviewer-deferred note fold | attribution + `--manual` boundary |
+
+**Protocol**: Turn 1 and Turn 2 remained byte-immutable; corrections appended
+as Turns 3 and 4. WP-005 remains Exploring until the first PRD is opened.
+
+**Next**: draft/review `PRD-artifact-validation-and-provenance`; keep the
+prepare-intent-bundle PRD blocked.
+
+---
+
 # 2026-08-13 — v0.15.1 post-release review fold — COMPLETE
 
 **Base / fixed release tag**: `15560af` (`v0.15.1`)

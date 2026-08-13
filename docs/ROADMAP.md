@@ -784,11 +784,12 @@ passes closed follow-up package/signature/subtest and stale-prose findings.
 The nested-repository blind spot in the wave-close source sentinel is
 explicitly deferred as [GH #9](https://github.com/tesseracode/tesserapatch/issues/9).
 
-**WP-005 council fold rev-1** ✅ APPROVED WITH NOTES (2026-08-13, base
-`76ed78b`): Turn 3 closed every rev-0 finding; Turn 4 folds LOW attribution and
-`--manual` acceptance-boundary notes. Prior turns remain immutable. This
-paper-only task is followed by artifact-validation/provenance and blocked
-prepare-intent-bundle PRDs. No implementation is authorized.
+**WP-005 council fold rev-1** ✅ ACCEPTED (2026-08-13; range
+`76ed78b..2018fd7`): Turn 3 closed every rev-0 finding; Turn 4 folded LOW
+attribution and `--manual` acceptance-boundary notes. Internal APPROVED,
+external APPROVED WITH NOTES. Prior turns remain immutable. Next:
+artifact-validation/provenance PRD, with prepare-intent-bundle blocked behind
+it. No implementation is authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

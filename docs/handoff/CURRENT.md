@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IDLE
 
-WP-005 council fold rev-1 is accepted. A two-note traceability and `--manual`
-boundary fold is complete; the paper is ready for PRD graduation.
+WP-005 council Turns 2–4 are accepted. The paper remains Exploring until its
+first graduating PRD opens; no implementation is authorized.
 
 ## Active Task
 
@@ -13,10 +13,13 @@ boundary fold is complete; the paper is ready for PRD graduation.
 - **Description**: Record the five-advisor/five-reviewer council verdict on
   `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
   findings without drafting PRDs yet.
-- **Status**: Approved — close-note fold
+- **Status**: Complete
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `76ed78b`
 - **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
+- **Writer tip**: `260936a`
+- **Revision tip**: `605a382`
+- **Accepted tip**: `2018fd7`
 - **Release tag**: v0.15.1 remains fixed at `15560af`
 
 ## WP-005 Turn 2 Scope
@@ -248,9 +251,12 @@ Modified:
 
 ## Next Steps
 
-1. Archive/close the accepted WP-005 council fold.
-2. Mark WP-005 Graduated when the first PRD is opened.
-3. Dispatch the validation/provenance PRD writer/review loop.
+1. Record a fresh `origin/main` WAVE_BASE.
+2. Open `PRD-artifact-validation-and-provenance.md` and mark WP-005
+   Graduated.
+3. Run the PRD writer/review loop.
+4. Keep `PRD-prepare-intent-bundle.md` blocked until the prerequisite PRD is
+   accepted.
 
 ## Blockers
 
