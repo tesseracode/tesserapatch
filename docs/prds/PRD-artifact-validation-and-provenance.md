@@ -1,12 +1,16 @@
 # PRD — Artifact Validation and Provenance — `tpatch prepare <slug> --check`
 
-**Status**: Draft — Awaiting Review (rev-2)
+**Status**: Draft — Awaiting Review (rev-3)
 **Date**: 2026-08-13
 **Owner**: Core (planning lane)
-**Byline**: writer sub-agent, rev-2 at HEAD `c590f17`
+**Byline**: writer sub-agent, rev-3 at HEAD `5a678b5`
 **Milestone**: TBD — this document ships no code
 **Issue**: [GH #10 — define truthful intent-artifact validation and provenance](https://github.com/tesseracode/tesserapatch/issues/10)
 **Graduates from**: [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md), Turns 2–4
+**Architecture**: [ADR-034 — Rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md)
+(Proposed — Awaiting Review, rev-0). **This PRD and ADR-034 are reviewed
+together.** The ADR locks the decisions; this PRD states the design that
+depends on them. Where they overlap, ADR-034 is normative.
 **Blocks**: `PRD-prepare-intent-bundle.md` — **that PRD remains blocked until this
 one is accepted.** See §20.
 
@@ -25,6 +29,7 @@ one is accepted.** See §20.
 - [ADR-027 capture context privacy boundary](../adrs/ADR-027-capture-context-privacy-boundary.md) — D2 (no raw context), D6 (no wall-clock in determinism)
 - [ADR-031 rejected feature state data model](../adrs/ADR-031-rejected-feature-state-data-model.md) — D1 sub-record-on-`FeatureStatus` precedent, weighed in §11
 - [ADR-033 resource capture boundary](../adrs/ADR-033-resource-capture-boundary.md) — D10 (no tracked timestamps), D11 (no Go map in a wire schema)
+- [ADR-034 rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md) — **companion, Proposed rev-0.** D1–D14 lock the `os.Root` decision, the logical-confinement scope, workspace discovery's exclusion, the `fs.ValidPath` name rule, the fail-closed platform allowlist, the open flags, the Windows mapping and `winsymlink` policy, the observed-symlink/identity limits, the single reused scratch buffer, the contract/tripwire split and its Go-upgrade gate, the non-migration of `rescap`, the single-implementation test seam, native Windows CI, and the absence of any provenance persistence
 
 ## Revision history
 
@@ -32,7 +37,8 @@ one is accepted.** See §20.
 |---|---|---|
 | rev-0 | NEEDS REVISION (internal), APPROVED WITH NOTES (external) | First draft. |
 | rev-1 | NEEDS REVISION (internal and external) | Readiness now evaluates the **full intent bundle** (§6.2). CLI output composed with the real root error printer (§10.1, §9.5). Slug validated before any path is composed (§7.2). Race-safe platform open + `Max+1` bounded read replace the `Lstat`→ordinary-open design (§7.4). Total per-artifact ladder rebuilt (§7.5). Advisory selection made a total state→advisory function (§10.4). Absent `status.json` continues instead of aborting (§9.4). `unknown` provenance given a stable, forward-compatible definition (§11.1). Acceptance matrix rebuilt to 140 rows; claims audit to 75. |
-| rev-2 | this document | Path architecture pivoted to **one held `*os.Root`** opened for the repository root; every status and artifact `Lstat`/open is handle-relative through it (§7.3, §7.4). Ancestor-symlink races addressed with an honest same-identity limit (§7.4.4). `io.ReadAll(io.LimitReader(...))` replaced by **one preallocated `MaxArtifactBytes+1` buffer** with defined EOF semantics (§7.4.5). `status.json` inspected through the same discipline with its own cap and a **total** population table mapping every failure to a closed abort code, message and remediation (§9.4). `FeatureState` validated before echo (§9.4.3). Windows contract rebuilt on `os.Root`'s handle-relative primitives instead of a raw `CreateFile`; native `windows-latest` CI is now an acceptance obligation (§7.4.3, §16.1, §17). `--path` / workspace-discovery exit ownership corrected to exit 3 (§9.2, §9.3). Abort messages closed as exact templates (§9.4.5). "Printable ASCII" replaced by a control-byte/argument-byte rule (§14.3). `slug-unsafe` remediation made loop-free (§7.2). Guard arithmetic corrected (§18.26). Acceptance matrix rebuilt to 188 rows; claims audit to 88 repository claims plus 12 Go-standard-library claims. |
+| rev-2 | NEEDS REVISION (internal and external) | Path architecture pivoted to **one held `*os.Root`** opened for the repository root; every status and artifact `Lstat`/open is handle-relative through it (§7.3, §7.4). Ancestor-symlink races addressed with an honest same-identity limit (§7.4.4). `io.ReadAll(io.LimitReader(...))` replaced by **one preallocated `MaxArtifactBytes+1` buffer** with defined EOF semantics (§7.4.5). `status.json` inspected through the same discipline with its own cap and a **total** population table mapping every failure to a closed abort code, message and remediation (§9.4). `FeatureState` validated before echo (§9.4.3). Windows contract rebuilt on `os.Root`'s handle-relative primitives instead of a raw `CreateFile`; native `windows-latest` CI is now an acceptance obligation (§7.4.3, §16.1, §17). `--path` / workspace-discovery exit ownership corrected to exit 3 (§9.2, §9.3). Abort messages closed as exact templates (§9.4.5). "Printable ASCII" replaced by a control-byte/argument-byte rule (§14.3). `slug-unsafe` remediation made loop-free (§7.2). Guard arithmetic corrected (§18.26, renumbered §18.27 in rev-3). Acceptance matrix rebuilt to 188 rows; claims audit to 88 repository claims plus 12 Go-standard-library claims. |
+| rev-3 | this document | Companion **[ADR-034](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md)** created (Proposed rev-0) and reviewed with this PRD. `os.Root`'s guarantee restated as **logical rooted pathname confinement**, explicitly *not* physical filesystem or repository-content confinement — mount points, bind mounts, `/proc` files and device files remain reachable inside the namespace and are handled by the kind and bounded-read gates (§7.3, §7.4.2). Workspace discovery declared **outside** the rooted capture (§7.3, §9.3). `safety.EnsureSafeRepoPath` **removed** from the design; root-relative names are canonical `fs.ValidPath` names (§7.3). Platform selection converted from a fail-open denylist to a **fail-closed allowlist** (`unix \|\| windows \|\| wasip1` and its exact negation), so an unmatched future `GOOS` aborts (§7.4.1). Slug validation moved **before** the platform check (§9.3). Windows reparse mapping corrected (AF_UNIX → `ModeSocket`, DEDUP deliberately regular, junction/name-surrogate behavior, `ModeIrregular` only in the default branch) and `//go:debug winsymlink=1` pinned in `package main` (§7.4.3). `O_NOFOLLOW` removed from the caller's flags as inert; `O_NONBLOCK` pass-through recorded as an implementation tripwire (§7.4.3). Identity promise weakened to "an object **observed as different** is never read", with hard-link alias, file-ID reuse, swap-and-restore and walk→`Lstat` window limits stated (§7.4.4, §8.3). Pre- **and** post-component walks per capture (§7.4.4). **One** reusable `MaxArtifactBytes+1` scratch buffer per inspection command, reused sequentially by the status capture and all four artifacts (§7.4.5). Unexported `rootOps`/`fileOps` test seam defined (§7.1). Attacker-byte guarantees scoped to **command-owned output after successful Cobra parsing** (§14.3). Native Windows junction fixtures must **fail, not skip** (§16.1). Every drifted prose→`AVP` citation corrected and a mechanical citation-resolution guard added (AVP-202). Acceptance matrix 188 → **202 rows**; claims audit 88 → **92 repository claims** and 12 → **21 Go-standard-library claims**, each classified as a public **contract** or a version-pinned implementation **tripwire**. |
 
 ## Summary
 
@@ -59,11 +65,24 @@ reports `provenance: unknown` for every artifact because no durable
 per-artifact source metadata exists yet, and exits with a per-command code
 contract.
 
-Every filesystem operation it performs — including the `status.json` read whose
-value it echoes — goes through **one `*os.Root` handle opened for the
-repository root** (Go 1.26), so no operation can resolve outside the
-repository, and a pre-read identity comparison guarantees a substituted object
-is never read (§7.3, §7.4).
+Every filesystem operation it performs **after workspace discovery** — including
+the `status.json` read whose value it echoes — goes through **one `*os.Root`
+handle opened for the repository root** (Go 1.26), so no *name* it resolves can
+escape the repository root as a logical pathname, and a pre-read identity
+comparison guarantees an object **observed as different** is never read (§7.3,
+§7.4).
+
+Two boundaries of that claim are stated up front, because rev-2 overstated
+both. **(a)** `os.Root` provides *logical rooted pathname confinement*, not
+physical filesystem or repository-content confinement: a mount point, a Linux
+bind mount, a `/proc` special file or a Unix device file that lives inside the
+root's namespace is reachable through it, by the `Root` doc comment's own
+words. Those leaves are handled by the kind gate and the bounded read, not by
+the root (§7.4.2). **(b)** Workspace discovery — `store.FindProjectRoot`, which
+resolves `--path` and walks upward for `.tpatch/` — necessarily runs **before**
+`os.OpenRoot` and is therefore **outside** the rooted capture. It is an
+ordinary pathname walk in the shipped store package, it is not part of this
+command's confinement claim, and §9.3 orders it explicitly.
 
 It also makes one decision the WP-005 Turn 4 review demanded explicitly
 (§12): **the existing mutating `analyze|define|explore --manual` gates do not
@@ -176,11 +195,14 @@ the prerequisite contract.
    process-level exit codes and error precedence exactly enough to test
    byte-stably — **composed with the real root error printer**
    (`internal/cli/cobra.go:33-39`), not against an idealised one.
-7. Guarantee zero mutation; a **rooted** namespace from which no operation can
-   escape the repository root (§7.3); refusal of every observed symlink or
-   reparse component; a pre-read identity check so a substituted object is
-   never read; fixed-allocation bounded reads; no content echo; no
-   hostile-byte echo; and no wall-clock in output.
+7. Guarantee zero mutation; a **rooted** namespace whose logical pathname
+   resolution cannot escape the repository root (§7.3, and §7.4.2 for what
+   that does and does not mean); refusal of every **observed** symlink or
+   reparse component, checked before and after each capture; a pre-read
+   identity check so an object observed as different is never read;
+   fixed-allocation bounded reads from one reused scratch buffer; no content
+   echo; no hostile-byte echo in command-owned output; and no wall-clock in
+   output.
 8. Keep every existing behavior — `defined` semantics, `analyze|define|explore
    [--manual]`, `implement`, `cycle`, `next`, `verify`, `status`, `doctor`,
    `apply`, `record`, worktree handling, the Git index — bit-for-bit
@@ -214,7 +236,7 @@ the prerequisite contract.
 |---|---|
 | **Intent artifact** | One of the four canonical files in §6.1. Nothing else. |
 | **Intent bundle** | The three canonical Markdown artifacts as a set. This is the unit `prepare` is named after and the unit readiness is computed over (§6.2). |
-| **Canonical path** | The fixed, non-configurable **root-relative**, slash-separated name of an intent artifact, resolved only through the held `*os.Root` (§7.3). Not user-supplied, not derived from flags, never composed into an absolute path inside the inspector. |
+| **Canonical path** | The fixed, non-configurable **root-relative**, slash-separated name of an intent artifact, resolved only through the held `*os.Root` (§7.3). It is a canonical `fs.ValidPath` name: no leading slash, no `.` or `..` element, no empty element. Not user-supplied, not derived from flags, never composed into an absolute path inside the inspector. |
 | **Canonical slug** | A feature name matching the grammar in §7.2. The only string this command will ever join into a path. |
 | **Structural state** | One value of the closed enum in §7.6. A fact about the file's existence, kind and byte shape. Never a statement about meaning. |
 | **Required artifact** | An artifact whose structural state participates in the readiness verdict (§6.2). |
@@ -222,7 +244,7 @@ the prerequisite contract.
 | **Structural readiness** | The three-valued verdict `ready` / `not_ready` / `indeterminate` over the required set only (§9.1). |
 | **Provenance** | The *source of authorship* of one artifact. v1 emits only `unknown`, whose stable meaning is fixed in §11.1. |
 | **Capture** | The single per-artifact descriptor-scoped read performed by the inspector. Classification reads the capture, never the file a second time (§8.2). |
-| **Capture window** | The interval from the leaf `Root.Lstat` to the post-read `(*os.File).Stat` for one artifact (§8.3). `status.json` has its own, separate window (§9.4.2). |
+| **Capture window** | The interval from the pre-capture component walk through the leaf `Root.Lstat` to the post-read `(*os.File).Stat` and the post-capture component walk for one artifact (§7.4.4, §8.3). `status.json` has its own, separate window (§9.4.2). |
 | **Snapshot instability** | An observation that the artifact changed identity, kind or size across its own capture window (§8.3). |
 | **Abort** | A precondition failure that ends the run before any artifact is inspected, with one of the thirteen closed codes of §9.4.4. |
 | **Semantic quality** | Anything about the artifact's content beyond "at least one non-whitespace byte exists" and, for the sidecar only, "these bytes parse as a JSON object". Out of scope in v1 and every acceptance row. |
@@ -243,7 +265,7 @@ bundle question.
 | `status` | Lifecycle dashboard over `ListFeatures` (`internal/store/store.go:209-227`). | Renders `FeatureStatus` fields. It has never inspected artifact files, and adding artifact classification to it would change a shipped read surface's meaning for every feature at once. |
 | `doctor` | D1–D8 workspace metadata drift; D1 validates `status.json` and flags legacy `feature.yaml` (`internal/workflow/doctor_d1.go:14-52`). | Scoped to metadata/manifest drift across the workspace, is `--fix`-capable (a writer), and reports findings, not a per-feature readiness verdict. No doctor check reads `analysis.md`, `spec.md`, `exploration.md` or `artifacts/analysis.json`. |
 | `store.Slugify` | Normalises free text into a kebab-case directory name (`internal/store/slug.go:14-51`). | It is a *producer*, not a validator: it never rejects, it rewrites. Feeding a hostile argument through it would silently inspect a different feature than the one named. §7.2 needs an accept/refuse predicate, which does not exist today. |
-| `safety.EnsureSafeRepoPath` | Lexical containment only (`internal/safety/safety.go:11-28`), described as "the coarse pre-filter that runs before any Lstat of any component" (`internal/rescap/pathgate.go:50-54`). | Says nothing about symlinks, file kind, readability or size, and nothing about *resolution* — it is a string test. §7.3 step 3 keeps it as a pre-filter; the containment guarantee is the `*os.Root` handle. |
+| `safety.EnsureSafeRepoPath` | Lexical containment only (`internal/safety/safety.go:11-28`), described as "the coarse pre-filter that runs before any Lstat of any component" (`internal/rescap/pathgate.go:50-54`). | **Not used by this design at all** (rev-3 removal). It is a *lexical* test over a pathname, and it says nothing about symlinks, file kind, readability, resolution or size. rev-2 kept it as "defence in depth" over a root-relative name, which was incoherent twice over: the names it would have checked are compile-time constants joined to an already-validated canonical slug, and its containment notion is defined against a repository *prefix* rather than a `Root` handle, so under `--path` from an unrelated cwd it is checking a relationship the inspector does not have. §7.3 replaces it with an `fs.ValidPath` canonicality assertion on the composed name, which is the property that actually matters for a `Root` method argument. |
 | `rescap.GatePath` | Full five-step pathname-walk / descriptor-identity gate (`internal/rescap/pathgate.go:68-83`). | Correct in spirit but scoped to the typed-resource capture domain, refuses on a *missing* path (`ReasonPathMissing`), refuses non-regular kinds through a different vocabulary, and returns an open descriptor with a lock/scratch lifecycle. `prepare --check` must treat "missing" as an ordinary reportable state, not a refusal. It is also **pathname-resolution based**, and its Windows half is an unsupported compile-only stub (`internal/rescap/pathopen_windows.go:1-20`). §7.3 reuses its ancestor-walk **policy** and nothing else; the mechanism is `os.Root`. |
 | `store.LoadFeatureStatus` | Reads and unmarshals `status.json` (`internal/store/store.go:351-361`). | The obvious way to answer "what state is this feature in", and the one rev-1 used. It is `os.ReadFile` on an absolute pathname: follows symlinks, unbounded, no kind check, no identity check, outside any rooted namespace, and it cannot distinguish an unrecognised `FeatureState` from a valid one. §9.4 replaces it for this command, and §7.1 forbids it. |
 | `os.Root` (Go 1.26) | Directory-handle-relative filesystem access whose methods refuse to resolve outside the root (`$GOROOT/src/os/root.go`; `go.mod:3`). | This *is* the primitive §7.3 adopts. Listed here for completeness: it solves confinement and nothing else — it does not classify, does not bound reads, follows in-root symlinks, and is not available in a confined form on `js`/`plan9` (§7.4.1). The rest of §7 is what turns it into an answer. |
@@ -458,29 +480,118 @@ func CanonicalSlug(raw string) (string, error)
 // Inspect returns a total Report. Every failure is a closed abort or a
 // closed per-artifact state inside the Report; there is no error return.
 //
-// root is a *os.Root already opened for the repository root by the CLI
-// layer and owned by it. Every filesystem operation Inspect performs is
-// handle-relative to that root (§7.3, §7.4). Inspect never composes an
-// absolute path, never calls a package-level os filesystem function,
-// and never closes the root.
-func Inspect(root *os.Root, canonicalSlug string) Report
+// ops is the rooted operation set the CLI layer constructed from a
+// *os.Root already opened for the repository root and owned by it.
+// Every filesystem operation Inspect performs goes through ops (§7.3,
+// §7.4). Inspect never composes an absolute path, never calls a
+// package-level os filesystem function, and never closes the root.
+//
+// scratch is the single reusable data buffer the CLI layer allocated
+// for this invocation. It is exactly MaxArtifactBytes+1 bytes long and
+// is reused, sequentially, by the status capture and by all four
+// artifact captures (§7.4.5). Inspect never allocates a second data
+// buffer and never grows this one.
+func Inspect(ops RootOps, canonicalSlug string, scratch []byte) Report
 ```
 
-`Inspect` performs filesystem reads only, all of them through `root`. It must
+`Inspect` performs filesystem reads only, all of them through `ops`. It must
 not import `internal/store`, `internal/provider`, or `internal/gitutil`.
 
+#### 7.1.1 The rooted operation seam
+
+The decision recorded here is locked by ADR-034 D12.
+
+rev-2 specified `Inspect(root *os.Root, …)` against the concrete type. That
+made a whole class of acceptance rows unimplementable as written: rows that
+require an **injected** `fstat` failure, an injected short or erroring read, or
+a deterministic before/after race hook (AVP-083…AVP-085, AVP-107…AVP-115,
+AVP-148, AVP-151, AVP-160…AVP-163, AVP-195, AVP-196) cannot be driven through
+a concrete `*os.Root` without either a real hostile filesystem or a package
+variable that production code also reads. rev-3 declares the seam explicitly:
+
+```go
+// RootOps is the whole filesystem surface the inspector may use.
+// It is deliberately five methods wide: there is no ReadDir, no Walk,
+// no Readlink, no Create and no pathname-taking method of any kind.
+type RootOps interface {
+    Lstat(name string) (fs.FileInfo, error)
+    OpenFile(name string, flag int, perm fs.FileMode) (FileOps, error)
+}
+
+// FileOps is the descriptor surface. Read fills a caller-owned slice;
+// the inspector never asks a FileOps for a new buffer.
+type FileOps interface {
+    Stat() (fs.FileInfo, error)
+    Read(p []byte) (int, error)
+    Close() error
+}
+```
+
+Rules that keep the seam from becoming an escape hatch:
+
+1. **Exactly one non-test implementation exists**, an unexported adapter over
+   `*os.Root` and `*os.File`:
+
+   ```go
+   type osRootOps struct{ root *os.Root }
+
+   func (o osRootOps) Lstat(name string) (fs.FileInfo, error) { return o.root.Lstat(name) }
+   func (o osRootOps) OpenFile(name string, flag int, perm fs.FileMode) (FileOps, error) {
+       f, err := o.root.OpenFile(name, flag, perm)
+       if err != nil { return nil, err }
+       return f, nil
+   }
+   ```
+
+   Every other implementation lives in a `_test.go` file. AVP-194 is an AST
+   guard: it enumerates the types in `internal/intent` that implement `RootOps`
+   or `FileOps`, asserts exactly one of them is declared outside a `_test.go`
+   file, and asserts that one is `osRootOps`. A sensitivity fixture adding a
+   second production implementation fails it.
+2. **The seam does not weaken the forbidden-reader guards.** AVP-089 and
+   AVP-150 scan the *whole* package, test files included, for
+   `os.Stat`/`os.Lstat`/`os.Open`/`os.OpenFile`/`os.ReadFile`/`os.ReadDir`/
+   `filepath.Walk`/`store.LoadFeatureStatus` **outside** the one adapter and
+   outside test *fixture construction*. Concretely, the guard's allowlist is:
+   the `osRootOps` adapter file may name `*os.Root` and `*os.File` methods; a
+   `_test.go` file may call `os.WriteFile`, `os.Symlink`, `os.Mkdir` and
+   friends to **build** a fixture tree. What no file may do — production or
+   test — is read an intent artifact or `status.json` through a pathname
+   reader. AVP-194's sensitivity fixture adds a second pathname-based
+   `RootOps` implementation in production and fails.
+3. **Deterministic hooks are part of the seam, not of production.** A test
+   implementation may carry `before(name string)` and `after(name string)`
+   callbacks that fire immediately before and after each underlying call, which
+   is how "replace the leaf between `Lstat` and `OpenFile`" becomes a
+   deterministic unit test rather than a sleep-and-hope race. Production
+   `osRootOps` has no hook field, and AVP-194 asserts the production adapter
+   struct has exactly one field (`root`).
+4. **The seam is `internal/intent`-unexported to the rest of the binary.**
+   `RootOps` and `FileOps` are exported *within* the package for readability
+   but the package itself is `internal/`, and AVP-134's reverse call-graph
+   guard already limits the importer set to the `prepare` command file.
+
+The seam is the *only* thing rev-3 adds to make the injected-failure rows
+implementable. It adds no configurability, no flag, no env var and no
+production branch: on every production path there is exactly one `RootOps`
+value and it wraps exactly one `*os.Root`.
+
+#### 7.1.2 Forbidden readers
+
 rev-1 routed the `feature_state` echo through a caller-supplied `StateReader`
-closure that wrapped `store.LoadFeatureStatus`. **rev-2 removes that seam.**
-`store.LoadFeatureStatus` is `os.ReadFile` on an absolute pathname followed by
-`json.Unmarshal` (`internal/store/store.go:351-361`): it follows symlinks, has
-no size bound, has no kind check, has no identity check, and resolves outside
-the rooted namespace. Using it would have left the single most security-
-relevant read in the command — the one that names the feature's lifecycle
-state — as the only read not covered by §7.4. So the status read is performed
-by the inspector itself, through the same root and the same discipline, and is
-specified in §9.4. **No code path of this command may call
-`store.LoadFeatureStatus`, `os.ReadFile`, `os.Open`, `os.OpenFile`, `os.Stat`
-or `os.Lstat`** (AVP-150, AVP-160).
+closure that wrapped `store.LoadFeatureStatus`. **rev-2 removed that seam, and
+rev-3 does not bring it back** — `RootOps` is a rooted *primitive* seam, not a
+"read this file for me" seam. `store.LoadFeatureStatus` is `os.ReadFile` on an
+absolute pathname followed by `json.Unmarshal`
+(`internal/store/store.go:351-361`): it follows symlinks, has no size bound,
+has no kind check, has no identity check, and resolves outside the rooted
+namespace. Using it would have left the single most security-relevant read in
+the command — the one that names the feature's lifecycle state — as the only
+read not covered by §7.4. So the status read is performed by the inspector
+itself, through the same `RootOps` and the same discipline, and is specified in
+§9.4. **No code path of this command may call `store.LoadFeatureStatus`,
+`os.ReadFile`, `os.Open`, `os.OpenFile`, `os.Stat` or `os.Lstat`** (AVP-089,
+AVP-150, AVP-194).
 
 Because `internal/intent` cannot use the store's unexported path helpers
 (`internal/store/store.go:779-797`), it declares its own canonical
@@ -505,6 +616,16 @@ does not describe.
 **Rule: no byte of the user's slug argument is joined into a path, passed to a
 filesystem call, or emitted on any stream until it has been accepted by
 `CanonicalSlug`.**
+
+**Ordering (rev-3 correction).** Slug validation is §9.3 precedence **step 3**
+and the platform-confinement guard is **step 4**. rev-2 had them the other way
+round, which broke a contract rev-2 itself asserted: §10.2 rule 8 says `slug`
+is `""` **exactly** on `slug-unsafe`, and that biconditional is false if a
+hostile slug on an unsupported target aborts `workspace-unsupported-platform`
+with `slug: ""` instead. Validating the slug first restores the biconditional
+on every target, and costs nothing: `CanonicalSlug` is a pure string predicate
+that touches no filesystem, no root and no platform-conditional code. AVP-192
+pins the order.
 
 Grammar (a closed predicate, not a rewriter):
 
@@ -562,9 +683,15 @@ rooted namespace. AVP-102…AVP-104, AVP-106.
 
 **`slug` field domain.** The top-level `slug` field carries a canonical slug
 whenever one exists, and `""` exactly when the run aborted with `slug-unsafe`.
-It is never a rewritten or truncated form of the argument.
+It is never a rewritten or truncated form of the argument. Because §7.2's
+ordering puts slug validation ahead of every other abort that could produce an
+empty slug, the "`""` iff `slug-unsafe`" biconditional is total (AVP-106,
+AVP-192).
 
-### 7.3 Rooted path policy
+### 7.3 Rooted path policy — logical pathname confinement
+
+The decision recorded here is locked by
+[ADR-034](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md) D1–D4.
 
 rev-1 composed absolute pathnames with `filepath.Join` and then re-validated
 them lexically and component-by-component with `os.Lstat`. That is the
@@ -584,18 +711,45 @@ resolution that would leave it:
 > Methods on `Root` will follow symbolic links, but symbolic links may not
 > reference a location outside the root. Symbolic links must not be absolute.
 >
+> Methods on `Root` do not prohibit traversal of filesystem boundaries, Linux
+> bind mounts, /proc special files, or access to Unix device files.
+>
 > — Go 1.26 `os` package, `Root` doc comment (`$GOROOT/src/os/root.go`)
+
+**Read the second paragraph as carefully as the first.** It is quoted here
+rather than paraphrased because it is the sentence rev-2 elided, and eliding it
+is what produced rev-2's over-broad "no operation can resolve outside the
+repository" claim. What `Root` bounds is the **logical pathname**: the sequence
+of names it resolves stays under the root directory. It does **not** bound the
+physical filesystem, the physical device, or the semantics of the object a
+name finally reaches. §7.4.2 states the consequence in full.
 
 **The policy, in order:**
 
 1. **One root, opened once, held for the whole run.** The CLI layer calls
-   `os.OpenRoot(repoRoot)` exactly once, after workspace discovery, and passes
-   the handle to `Inspect`. It is closed exactly once, by the CLI layer, after
-   the report is rendered. `repoRoot` is the directory `store.FindProjectRoot`
-   returned (`internal/store/store.go:23-40`). AVP-141, AVP-142.
-2. **Root-relative names only.** Every name handed to a `Root` method is a
-   slash-separated, relative name composed from fixed constants and the
-   canonical slug: `.tpatch/features/<slug>/analysis.md` and its three
+   `os.OpenRoot(repoRoot)` exactly once, after workspace discovery, wraps it in
+   the `osRootOps` adapter (§7.1.1) and passes that to `Inspect`. It is closed
+   exactly once, by the CLI layer, after the report is rendered. `repoRoot` is
+   the directory `store.FindProjectRoot` returned
+   (`internal/store/store.go:23-40`). AVP-141, AVP-142.
+
+   **Workspace discovery is outside the rooted capture, and this PRD says so
+   rather than implying otherwise.** `store.FindProjectRoot` resolves the
+   `--path` value with `filepath.Abs` and walks upward looking for `.tpatch/`
+   (`internal/store/store.go:23-40`). That walk is an ordinary, symlink-
+   following pathname traversal in the shipped store package. It runs
+   **before** any root exists — it is what *produces* the directory the root is
+   opened on — so it cannot be inside the root's guarantee, and no claim in
+   this PRD covers it. rev-2's summary sentence "every filesystem operation it
+   performs goes through one `*os.Root`" was therefore false as written; the
+   true statement is "every filesystem operation **after workspace discovery**".
+   The threat model consequence is stated in §14.1: an operator who points
+   `--path` at a hostile directory gets a root opened on that directory, and
+   the command then confines itself to it. AVP-189 is a mechanical guard that
+   no shipped string, PRD sentence or ADR sentence makes the stronger claim.
+2. **Root-relative names only, and canonical.** Every name handed to a `Root`
+   method is a slash-separated, relative name composed from fixed constants and
+   the canonical slug: `.tpatch/features/<slug>/analysis.md` and its three
    siblings, plus `.tpatch/features/<slug>/status.json`. No absolute path is
    ever composed inside `internal/intent`, and no flag, config key or artifact
    content ever contributes a component. `os.Root` splits on both separators
@@ -603,33 +757,46 @@ resolution that would leave it:
    and lexically cleans the name through `GetFullPathName` there
    (`$GOROOT/src/os/root_windows.go`, `rootCleanPath`), so one slash-joined
    constant set is correct on every target.
-3. **Lexical containment is retained as defence in depth.**
-   `safety.EnsureSafeRepoPath` (`internal/safety/safety.go:11-28`) is applied
-   to the composed relative name before it is used. With a canonical slug and
-   fixed constants it can never fire; it is required anyway so a future
-   refactor that parameterises a component cannot silently reach the root
-   resolver at all. It is a *pre-filter*, not the containment guarantee — the
-   guarantee is the root handle.
-4. **Component policy: any observed symlink or reparse component is
+
+   **The canonicality rule is `fs.ValidPath`** (`$GOROOT/src/io/fs/fs.go`,
+   `ValidPath`): the name is unrooted, slash-separated, non-empty, contains no
+   `.` or `..` element, no empty element, no leading or trailing slash, and is
+   valid UTF-8. Every composed name — the four artifact names, the status name,
+   and every prefix used by the component walk — is asserted against
+   `fs.ValidPath` before it is passed to a `Root` method, and a name that fails
+   is a programming error, not a user-reachable condition: with fixed constants
+   and a `[a-z0-9-]`-only canonical slug it cannot fail. The assertion exists
+   so that a future refactor which parameterises a component cannot reach the
+   resolver with a `..`, an absolute name, or an empty element. AVP-144.
+
+   **`safety.EnsureSafeRepoPath` is not used** (rev-3 removal). rev-2 kept it
+   as "defence in depth", which was wrong in kind: it is a lexical test defined
+   against a repository *prefix string*, and this inspector holds a *root
+   handle* and composes *relative* names. Under `--path <dir>` from an
+   unrelated cwd there is no absolute prefix for it to test against that the
+   inspector even knows. `fs.ValidPath` is the property that actually
+   constrains a `Root` method argument, so that is what rev-3 asserts. AVP-144
+   asserts the removal as well as the replacement, and AVP-089's source scan
+   fails if `EnsureSafeRepoPath` reappears in `internal/intent`.
+3. **Component policy: any *observed* symlink or reparse component is
    refused.** Each successive prefix of the relative name is inspected with
    `Root.Lstat`, which does not follow a symbolic link in the final component
-   of the name it is given. The refusal predicate is
+   of the name it is given (`$GOROOT/src/os/root.go`, `Root.Lstat`). The
+   refusal predicate is
 
    ```go
    info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0
    ```
 
-   Both bits are load-bearing and neither is redundant. On Unix, `Root.Lstat`
-   is `fstatat(dirfd, name, AT_SYMLINK_NOFOLLOW)` and a symlink sets
-   `os.ModeSymlink`. On Windows, `Root.Lstat` opens the entry with
-   `FILE_FLAG_OPEN_REPARSE_POINT` and derives the mode from the handle: an
-   `IO_REPARSE_TAG_SYMLINK` reparse point sets `os.ModeSymlink`, and **every
-   other reparse tag — including `IO_REPARSE_TAG_MOUNT_POINT`, i.e. a
-   junction — sets `os.ModeIrregular` instead**
-   (`$GOROOT/src/os/root_windows.go` `rootStat`;
-   `$GOROOT/src/os/types_windows.go` `(*fileStat).mode`). Testing only
-   `ModeSymlink` would let a junction through. AVP-166, AVP-175, AVP-176.
-5. **The walk decides by component order, first match wins.** For the feature
+   and it is deliberately **not** the whole kind policy — it is the *refuse the
+   component outright* half. The rest is closed by the regular-file gate
+   (`Mode().IsRegular()`, ladder rows 7 and 14) and by the directory gate on
+   ancestors. §7.4.3's Windows table gives the exact tag → mode mapping,
+   including the two cases rev-2 got wrong (`IO_REPARSE_TAG_AF_UNIX` →
+   `ModeSocket`, and `IO_REPARSE_TAG_DEDUP` → deliberately regular), which is
+   precisely why the predicate cannot be the only gate. AVP-146, AVP-190,
+   AVP-198, AVP-199.
+4. **The walk decides by component order, first match wins.** For the feature
    directory prefix `.tpatch/features/<slug>`:
    - a component that is a symlink or reparse point → abort `feature-dir-unsafe`;
    - a component that does not exist → abort `feature-not-found`;
@@ -640,150 +807,311 @@ resolution that would leave it:
    This mirrors the ancestor-walk **policy** of
    `internal/rescap/pathgate.go:97-120` without adopting its
    missing-path-is-a-refusal semantics for the leaves. AVP-182.
-6. **Per-artifact walk.** For the remaining components (`artifacts/` for the
-   sidecar) and the leaf, `Root.Lstat` only. Any symlink or reparse point →
-   `symlink-refused`. The link **target is never resolved, never read and
-   never named in output**.
-7. **No package-level `os` filesystem call, ever.** `os.Stat`, `os.Lstat`,
+5. **Per-capture walk, before *and* after.** For the remaining components
+   (`artifacts/` for the sidecar) and the leaf, `Root.Lstat` only. Any symlink
+   or reparse point → `symlink-refused`. The link **target is never resolved,
+   never read and never named in output**. §7.4.4 specifies that the walk runs
+   twice per capture — once before the open and once after the read — and what
+   a post-walk observation means.
+6. **No package-level `os` filesystem call, ever.** `os.Stat`, `os.Lstat`,
    `os.Open`, `os.OpenFile` and `os.ReadFile` all resolve a pathname outside
    the rooted namespace. Every current call site that inspects an intent
    artifact uses `os.Stat` (`internal/store/manual.go:57`,
    `internal/cli/phase2.go:556`, `internal/workflow/verify.go:416`), which
-   additionally follows symlinks. The inspector uses `Root.Lstat`,
-   `Root.OpenFile` and `(*os.File).Stat` exclusively. AVP-089 is the source
-   scan and AVP-160 the runtime spy.
-8. **No writes of any kind.** No directory creation, no lock file, no temp
+   additionally follows symlinks. The inspector uses `RootOps.Lstat`,
+   `RootOps.OpenFile` and `FileOps.Stat` exclusively, and the one production
+   implementation of those is the `*os.Root`/`*os.File` adapter of §7.1.1.
+   AVP-089 and AVP-194 are the source scans; AVP-149's process-wide filesystem
+   spy is the runtime check.
+7. **No writes of any kind.** No directory creation, no lock file, no temp
    file, no `.orig` backup, no `FEATURES.md` refresh (§10.6). The root is
-   opened read-only in intent: only `Root.Lstat` and `Root.OpenFile` with
-   `O_RDONLY` are ever called on it, and AVP-087 asserts no `Root` mutator
-   (`Create`, `Mkdir`, `MkdirAll`, `Remove`, `RemoveAll`, `Rename`, `Chmod`,
-   `Chown`, `Chtimes`, `Link`, `Symlink`, `WriteFile`) appears in the call
-   graph.
+   opened read-only in intent: only `Lstat` and `OpenFile` with `O_RDONLY` are
+   ever called on it — `RootOps` (§7.1.1) exposes no other method, which makes
+   this a type-level property rather than a convention — and AVP-087 asserts no
+   `Root` mutator (`Create`, `Mkdir`, `MkdirAll`, `Remove`, `RemoveAll`,
+   `Rename`, `Chmod`, `Chown`, `Chtimes`, `Link`, `Symlink`, `WriteFile`)
+   appears in the call graph.
 
 ### 7.4 Rooted, race-safe capture — the platform contract
 
-#### 7.4.1 Platform scope, stated honestly
+#### 7.4.1 Platform scope — a fail-closed allowlist
+
+The decision recorded here is locked by ADR-034 D5.
 
 `os.Root`'s confinement guarantee is not uniform across every `GOOS` Go can
 target, and the PRD does not pretend it is. The Go implementation splits three
-ways (`$GOROOT/src/os/root_openat.go`, `root_js.go`, `root_plan9.go`,
-`root_noopenat.go` build tags):
+ways (`$GOROOT/src/os/root_openat.go`, `root_noopenat.go`, `root_unix.go`,
+`root_windows.go` build tags):
 
-| Target class | `GOOS` | `os.Root` implementation | Confinement |
+| Target class | Selected by | `os.Root` implementation | Logical confinement |
 |---|---|---|---|
-| `unix \|\| wasip1` | `linux`, `darwin`, the BSDs, `wasip1` | `openat`/`fstatat` relative to a held directory descriptor (`$GOROOT/src/os/root_unix.go`) | Held-descriptor; escape refused |
-| `windows` | `windows` | `NtCreateFile`-based `openat` relative to a held handle, with `O_NOFOLLOW_ANY` and lexical pre-cleaning (`$GOROOT/src/os/root_windows.go`) | Held-handle; escape refused |
-| `(js && wasm) \|\| plan9` | `js`, `plan9` | name-based, no directory handle (`$GOROOT/src/os/root_noopenat.go`) | **Not guaranteed.** The `Root` doc comment states that on `js` it "is vulnerable to TOCTOU […] and cannot ensure that operations will not escape the root", and that on `js`/`plan9` "a `Root` references a directory name, not a file descriptor" |
+| `unix \|\| wasip1` | `//go:build unix \|\| wasip1` | `openat`/`fstatat` relative to a held directory descriptor (`$GOROOT/src/os/root_unix.go`) | Held-descriptor; escaping name refused |
+| `windows` | `//go:build windows` | `NtCreateFile`-based `openat` relative to a held handle, with `O_NOFOLLOW_ANY` and lexical pre-cleaning (`$GOROOT/src/os/root_windows.go`) | Held-handle; escaping name refused |
+| everything else | the negation of the above | name-based, no directory handle (`$GOROOT/src/os/root_noopenat.go`, tagged `(js && wasm) \|\| plan9`) — **or nothing at all**, for a `GOOS` no `os/root_*.go` file matches | **Not guaranteed.** The `Root` doc comment states that on `js` it "is vulnerable to TOCTOU […] and cannot ensure that operations will not escape the root", and that on `js`/`plan9` "a `Root` references a directory name, not a file descriptor" |
 
 The three targets tpatch's CI exercises or plausibly ships to are `linux`,
-`darwin` and `windows` (`.github/workflows/ci.yml:24-25`; §16.1 adds
+`darwin` and `windows` (`.github/workflows/ci.yml:25`; §16.1 adds
 `windows-latest`), and all three are in the confined classes.
 
-**The unsupported targets are handled explicitly rather than ignored.**
-`internal/intent` carries a build-tagged constant, one file per target set:
+**The selection is an allowlist and it fails closed. This is a rev-3
+correction.** rev-2 wrote the pair as a denylist:
+
+```go
+//go:build (js && wasm) || plan9        → false
+//go:build !((js && wasm) || plan9)     → true
+```
+
+That is **fail-open**, and the failure is not hypothetical: it hard-codes the
+claim that the *only* unconfined targets are the two that exist today. A future
+Go release that adds a `GOOS` — or a build of this module for an existing
+`GOOS` whose `os.Root` support Go later reclassifies — silently lands in the
+`true` branch and the command asserts a confinement guarantee nobody checked.
+The allowlist inverts the default:
+
+```go
+// confine_supported.go
+//go:build unix || windows || wasip1
+
+package intent
+
+// rootConfinementSupported records that this target is one of the
+// GOOS classes for which os.Root is implemented against a held
+// directory descriptor or handle ($GOROOT/src/os/root_openat.go's own
+// build tag is the identical expression, which is the point: the
+// inspector's allowlist is the stdlib's allowlist, not a paraphrase).
+const rootConfinementSupported = true
+```
 
 ```go
 // confine_unsupported.go
-//go:build (js && wasm) || plan9
+//go:build !(unix || windows || wasip1)
 
 package intent
 
 const rootConfinementSupported = false
 ```
 
-```go
-// confine_supported.go
-//go:build !((js && wasm) || plan9)
+The `true` expression is **byte-identical to `$GOROOT/src/os/root_openat.go`'s
+own build tag**, and the `false` expression is its exact syntactic negation.
+That is the whole design: the inspector claims confinement on exactly the set
+of targets for which the standard library implements the confined resolver,
+and on nothing else. `js/wasm`, `plan9` and any future `GOOS` that matches
+neither `unix`, `windows` nor `wasip1` land in the `false` branch and abort
+`workspace-unsupported-platform` (exit 3) **before** `os.OpenRoot` is called
+and before any name is composed.
 
-package intent
-
-const rootConfinementSupported = true
-```
-
-When it is `false` the command aborts with `workspace-unsupported-platform`
-(exit 3) **before** `os.OpenRoot` is called and before any name is composed.
 This is a refusal, not a degraded mode: a read-only inspector that cannot
-promise confinement must say so rather than silently inspect. AVP-177 asserts
-the guard, and that the two build-tag sets are exhaustive and disjoint over
-every `GOOS` — a fixture that makes them overlap fails both the build and the
-guard.
+promise confinement must say so rather than silently inspect. AVP-191 asserts
+the exact tag texts (allowlist expression, exact negation, both compared
+against the stdlib file's tag), that the two sets are exhaustive and disjoint
+over every `GOOS` in `go tool dist list`, and — the sensitivity half — that a
+fixture rewriting the pair back into rev-2's denylist form fails. AVP-177
+retains the runtime half: the `false` path aborts before any filesystem call.
+AVP-192 pins that this guard runs **after** slug validation (§7.2, §9.3).
 
 #### 7.4.2 What `os.Root` does and does not prevent
 
-**Prevents (the guarantee this design rests on):** no operation through the
-root can read, stat or open anything outside `repoRoot`, no matter what
-symlinks exist inside the tree and no matter when they are created. Absolute
-symlinks are refused outright; relative symlinks are re-resolved from the root
-with a `..`-escape check and a symlink-count limit
-(`$GOROOT/src/os/root_openat.go`, `doInRoot`).
+The scope statement recorded here is locked by ADR-034 D2.
 
-**Does not prevent:** `Root` **follows** symbolic links it encounters during
-resolution, as long as they stay inside the root. It is a confinement
-primitive, not a no-follow primitive. Two consequences the PRD states rather
-than papers over:
+**Prevents — logical rooted pathname confinement.** No *name* resolved through
+the root can leave the root directory. Every component is resolved relative to
+the held descriptor/handle; an absolute symlink is refused outright; a relative
+symlink is re-resolved from the root with a `..`-escape check and a
+symlink-count limit (`$GOROOT/src/os/root_openat.go`, `doInRoot`;
+`rootMaxSymlinks = 8`). This holds no matter what symlinks exist inside the
+tree and no matter when they are created.
 
-- A symlink created between the `Root.Lstat` walk and the `Root.OpenFile` — at
-  an ancestor component or at the leaf — **is** followed, in-root, by the open.
-- Therefore the open alone cannot be relied on to refuse a raced link. The
-  refusal comes from §7.4.4's pre-read identity comparison, and the confinement
-  bounds the blast radius to "some other object inside this repository", never
-  "a file outside it".
+**Does not prevent — and rev-2 claimed otherwise, which is the finding this
+subsection closes:**
 
-#### 7.4.3 The open, per platform
+1. **It is not a physical filesystem boundary.** The `Root` doc comment says,
+   verbatim: *"Methods on `Root` do not prohibit traversal of filesystem
+   boundaries, Linux bind mounts, /proc special files, or access to Unix
+   device files."* A mount point, a bind mount, a `/proc` entry or a device
+   node that is reachable **by name** from inside the root is reachable
+   **through** the root. The bytes such a leaf yields may physically originate
+   outside the repository's own filesystem, outside its own device, and
+   outside anything a Git checkout contains.
+
+   rev-2 said the design guarantees "no path outside the repository is ever
+   opened, read, or named" and that a raced link's blast radius is bounded to
+   "some other object inside this repository". **Both sentences are removed.**
+   The correct statements are: no *name* outside the repository root is ever
+   resolved, and the blast radius of a raced in-root link is bounded to *some
+   object nameable from inside this repository root* — which, on a tree with a
+   bind mount or a device node, is not the same set as "this repository's
+   content".
+2. **It is not a repository-content boundary.** `os.Root` knows nothing about
+   Git. A file inside `repoRoot` that is untracked, ignored, or a live device
+   is as reachable as a tracked one.
+3. **It is not a no-follow primitive.** `Root` **follows** symbolic links it
+   encounters during resolution, as long as they stay inside the root. Two
+   consequences the PRD states rather than papers over:
+   - A symlink created between the `Root.Lstat` walk and the `Root.OpenFile` —
+     at an ancestor component or at the leaf — **is** followed, in-root, by the
+     open.
+   - Therefore the open alone cannot be relied on to refuse a raced link. The
+     refusal comes from §7.4.4's pre-read identity comparison and its
+     post-capture walk.
+
+**What actually closes the leaf cases, then.** Not the root — the *kind gate*
+and the *bounded read*:
+
+| Hazard the root does not close | What closes it |
+|---|---|
+| A leaf that is a mount point (Unix: an ordinary directory; Windows: a junction, a name-surrogate reparse point) | Ladder row 1/6 (`ModeSymlink\|ModeIrregular`, which a junction sets, §7.4.3) for the reparse form, and row 7 (`!IsRegular()`) for the directory form. A mounted **regular file** — a bind mount of a file — is not distinguishable from a regular file and is deliberately not claimed to be (AVP-190). |
+| A leaf that is a `/proc`-style special file that reports size 0 and streams indefinitely | Row 7 refuses it when it is not a regular file. When such a file *does* report as regular (Linux `/proc` files report `ModeRegular` with size 0), the fixed `MaxArtifactBytes+1` read (§7.4.5) bounds it: at most `Max+1` bytes are ever requested, and the byte-count/size disagreement at row 18 classifies it `unstable` rather than reporting fabricated content. AVP-190 exercises exactly this shape with an injected `FileInfo`. |
+| A leaf that is a Unix device file | Row 7 (`ModeDevice`/`ModeCharDevice` fail `IsRegular`), plus `O_NONBLOCK` (§7.4.3) so the open of a blocking character device does not hang. |
+| A leaf that is a FIFO | Row 7 pre-open; `O_NONBLOCK` for the raced case. |
+
+The PRD makes **no** claim that the bytes it reads physically originate inside
+the repository's filesystem. It claims that the *name* it resolved did not
+leave the repository root, that the object it read was **observed as the same
+object** it classified, that at most `MaxArtifactBytes+1` bytes were requested,
+and that no leaf kind can hang it. AVP-189 is a mechanical guard over every
+shipped string, this PRD's own text and ADR-034's own text: none may contain a
+physical-confinement claim.
+
+#### 7.4.3 The open, and the Windows kind mapping
+
+The decisions recorded here are locked by ADR-034 D6 and D7.
 
 ```go
 // package internal/intent, one file per build tag.
 
 // openFlags returns the extra open flags for the final leaf on this
-// target. It never includes a write, create, truncate or append bit.
+// target. It never includes a write, create, truncate or append bit,
+// and it never includes a flag whose only effect would be to duplicate
+// something os.Root already does.
 func openFlags() int
 ```
 
 **Unix (`//go:build !windows`)** — `openFlags()` returns
-`syscall.O_NOFOLLOW | syscall.O_NONBLOCK`, and the call is
-`root.OpenFile(rel, os.O_RDONLY|openFlags(), 0)`.
+`syscall.O_NONBLOCK`, and the call is
+`ops.OpenFile(rel, os.O_RDONLY|openFlags(), 0)`.
 
-- `O_NONBLOCK` is the load-bearing flag. `Root.OpenFile` passes the caller's
-  flags straight through to `openat` (`$GOROOT/src/os/root_unix.go`,
-  `rootOpenFileNolog`: `openFlag := syscall.O_NOFOLLOW | syscall.O_CLOEXEC |
-  flag`), so a FIFO that appears at the leaf is opened without waiting for a
-  writer instead of hanging a read-only inspector forever. It has no effect on
-  a regular file, so the happy path is unchanged.
-- `O_NOFOLLOW` is **belt-and-braces only, and the PRD says so.** `Root` already
-  sets it internally on the final component — but it then converts the
-  resulting `ELOOP` into an in-root symlink *resolution*, not a refusal
-  (`$GOROOT/src/os/root_unix.go` `rootOpenFileNolog` → `checkSymlink`;
-  `$GOROOT/src/os/root_openat.go` `doInRoot` → `case errSymlink`). Passing it
-  again from the caller therefore changes nothing observable. **No acceptance
-  row claims the flag produces a refusal**, because it does not; AVP-172
-  asserts only that it is present and that no write bit is.
+- `O_NONBLOCK` is the only flag, and it is load-bearing. It is what keeps a
+  read-only inspector from hanging forever on a FIFO or a blocking character
+  device that appears at the leaf **after** the pre-open kind check refused the
+  stable case. A stable FIFO never reaches the open at all — ladder row 7
+  refuses it from `Root.Lstat` — so `O_NONBLOCK` covers exactly the raced
+  window: the open returns immediately, and the post-open kind recheck at
+  row 14 classifies the result `unstable`. It has no effect on a regular file,
+  so the happy path is unchanged. AVP-107, AVP-021.
+
+- **`O_NONBLOCK` pass-through is an implementation dependency, not a public
+  contract — this is a tripwire, and rev-3 labels it as one.** `os.Root`'s
+  documentation does not promise that caller flags reach `openat`. The behavior
+  is read from the pinned toolchain: `rootOpenFileNolog` computes
+  `openFlag := syscall.O_NOFOLLOW | syscall.O_CLOEXEC | flag` and passes it to
+  `unix.Openat`, then constructs the `*File` with
+  `unix.HasNonblockFlag(flag)` (`$GOROOT/src/os/root_unix.go`). Both halves are
+  unexported. G17 records the claim as a **tripwire** rather than a contract,
+  and **AVP-200 is a Go-upgrade tripwire test**: it opens a real FIFO with no
+  writer through a real `os.Root` under a hard deadline and fails if the open
+  blocks. A Go release that stopped forwarding the flag would turn AVP-200 red
+  at upgrade time instead of turning the command into a hang in the field.
+
+- **`O_NOFOLLOW` is removed from the caller's flags** (rev-3 correction). rev-2
+  passed it "belt-and-braces" while simultaneously documenting that it cannot
+  produce a refusal: `Root` already ORs it internally on the final component,
+  and then converts the resulting signal into an in-root symlink *resolution*
+  via `checkSymlink`/`doInRoot`'s `case errSymlink`
+  (`$GOROOT/src/os/root_unix.go`, `$GOROOT/src/os/root_openat.go`). A flag the
+  design documents as producing no observable effect is not defence in depth,
+  it is a false affordance: the next reader of the code reasonably infers a
+  no-follow guarantee that does not exist. rev-3 drops it, keeps the
+  explanation (so the omission is deliberate and reviewable), and **no
+  acceptance row anywhere claims a caller-supplied `O_NOFOLLOW` produces a
+  refusal through `Root`.** AVP-118 asserts the flag set is exactly
+  `O_NONBLOCK` on non-Windows and exactly `0` on Windows, that no write,
+  create, truncate or append bit is present, and — the sensitivity half — that
+  reintroducing `syscall.O_NOFOLLOW` fails the guard.
 
 **Windows (`//go:build windows`)** — `openFlags()` returns `0`, and the call is
-`root.OpenFile(rel, os.O_RDONLY, 0)`.
+`ops.OpenFile(rel, os.O_RDONLY, 0)`.
 
 rev-1 specified a raw `syscall.CreateFile` with
 `FILE_FLAG_OPEN_REPARSE_POINT` and asserted that the open would *succeed* on a
 reparse point and hand back a reparse-point handle, while the ladder
 simultaneously classified the same case from an *open error*. That was
-self-contradictory, and rev-2 removes it entirely. There is no raw
-`CreateFile` in this design:
+self-contradictory, and rev-2 removed it entirely. There is no raw
+`CreateFile` in this design: reparse points are refused **before** the open, by
+§7.3 step 3's `Root.Lstat` mode test, whose Windows implementation is itself an
+`O_FILE_FLAG_OPEN_REPARSE_POINT` handle open plus a handle-derived stat
+(`$GOROOT/src/os/root_windows.go` `rootStat`). The open is never reached for a
+refused reparse point, so no claim about its error is needed.
 
-- Reparse points (symlinks **and** junctions) are refused **before** the open,
-  by §7.3 step 4's `Root.Lstat` mode test, whose Windows implementation is
-  itself an `OPEN_REPARSE_POINT` handle open plus a handle-derived stat
-  (`$GOROOT/src/os/root_windows.go` `rootStat`). The open is never reached for
-  a reparse point, so no claim about its error is needed.
-- Windows has no `O_NONBLOCK`, and it needs none here. The FIFO/character-device
-  hang class is closed by kind, not by read semantics: `statHandle` calls
-  `GetFileType` on the handle and reports `FILE_TYPE_PIPE` as
-  `os.ModeNamedPipe` and `FILE_TYPE_CHAR` as `os.ModeDevice|os.ModeCharDevice`
-  (`$GOROOT/src/os/stat_windows.go` `statHandle`;
-  `$GOROOT/src/os/types_windows.go` `(*fileStat).mode`). Both fail
-  `Mode().IsRegular()` at ladder row 7 (pre-open, from `Root.Lstat`) and again
-  at row 14 (post-open, from `File.Stat`). AVP-176.
-- §7.2's reserved-device-name refusal removes the remaining way a device could
-  be named through a slug at all, and `os.Root` independently refuses Windows
-  reserved device names (`Root` doc comment).
+**The reparse-tag → mode mapping, corrected.** rev-2 asserted that "every other
+reparse tag […] sets `os.ModeIrregular`". That is **false**, and the two
+exceptions matter. Under the current `(*fileStat).mode`
+(`$GOROOT/src/os/types_windows.go`) the mapping is:
+
+| Reparse tag | Name surrogate? | Resulting `FileMode` bits | Refused by §7.3 step 3's `ModeSymlink\|ModeIrregular` predicate? |
+|---|---|---|---|
+| `IO_REPARSE_TAG_SYMLINK` | yes | `ModeSymlink` | **yes** |
+| `IO_REPARSE_TAG_MOUNT_POINT` (junction / volume mount point) | yes | `ModeIrregular`, via the `default` branch. Because it is a name surrogate, `mode()` **suppresses** the `ModeDir` bit and the `GetFileType`-derived bits first, so a junction to a directory does not look like a directory | **yes** |
+| `IO_REPARSE_TAG_AF_UNIX` | no | `ModeSocket` — **not** `ModeIrregular` | **no** — closed instead by the `!IsRegular()` kind gate at ladder rows 7 and 14 |
+| `IO_REPARSE_TAG_DEDUP` | no | **no type bit at all**: Go deliberately treats a Data-Deduplication reparse point as a *regular* file, with an explicit comment saying so, because DEDUP files support ordinary random-access reads and should not flip from regular to irregular when the dedup job runs | **no, and deliberately so** — it is classified and read as the regular file Go says it is |
+| any other tag | no (unless the surrogate bit is set) | `ModeIrregular`, via the `default` branch | **yes** |
+
+Three consequences the PRD now states plainly:
+
+1. **The `ModeSymlink|ModeIrregular` predicate is a *refusal* predicate, not
+   the kind policy.** It is not, and was never, sufficient on its own. AF_UNIX
+   sockets pass it and are caught one row later by `!IsRegular()`. rev-2's
+   "both bits are load-bearing and neither is redundant" was true but
+   incomplete; rev-3 adds "and neither is sufficient".
+2. **A DEDUP reparse point is inspected as a regular file.** This is a
+   deliberate acceptance of the standard library's own decision, recorded here
+   so it is a decision rather than an omission. AVP-198 asserts an injected
+   DEDUP-shaped `FileInfo` (reparse attribute set, no type bit, `IsRegular()`
+   true) is classified normally and **not** refused.
+3. **The mapping is version-pinned behavior, not a documented contract.**
+   `(*fileStat).mode` is unexported. G14 records it as a **tripwire**.
+
+**`//go:debug winsymlink=1` is pinned in `package main`, and it is tested.**
+`(*fileStat).Mode` consults the `winsymlink` GODEBUG setting: when it is `0`
+the mode is computed by `modePreGo1_23` instead, under which a **junction maps
+to `ModeSymlink`** rather than `ModeIrregular`
+(`$GOROOT/src/os/types_windows.go`, `Mode` and `modePreGo1_23`). Both values
+happen to be refused by this design's predicate, so the *refusal* is stable —
+but the *reason code path*, the mode bits a test asserts, and any future
+narrowing of the predicate are not. Two obligations follow, and both are
+implementation obligations of this PRD rather than assumptions:
+
+- **The directive.** `cmd/tpatch/main.go` (`cmd/tpatch/main.go:1`, currently a
+  bare `package main` with no directives) gains
+  `//go:debug winsymlink=1` immediately above `package main`. A `//go:debug`
+  directive is only honored in the **main** package, which is why it lives
+  there and not in `internal/intent`. The module already declares
+  `go 1.26.1` (`go.mod:3`), so `1` is already the default for this module —
+  the directive makes it **explicit and reviewable**, so that a future
+  `go.mod` language downgrade, a vendored build, or a copy of this main package
+  into another module cannot silently move the mapping to the pre-1.23 shape.
+- **The test.** AVP-198 asserts the directive is present in `cmd/tpatch`'s
+  `package main` file with exactly that text, and — the behavioral half, native
+  Windows only — that a junction created by the fixture reports
+  `ModeIrregular` and **not** `ModeSymlink`, which is the observable that
+  distinguishes `winsymlink=1` from `winsymlink=0` at runtime.
+- **Honest limit.** A `//go:debug` directive sets the *default*; the `GODEBUG`
+  **environment variable** at process start still overrides it. The PRD does
+  not claim otherwise. What the directive buys is that the default is pinned
+  and reviewed; what AVP-198's behavioral half buys is that a change to the
+  effective value is detected by CI rather than in the field.
+
+**Windows has no `O_NONBLOCK`, and needs none.** The FIFO/character-device hang
+class is closed by kind, not by read semantics: `statHandle` calls
+`GetFileType` on the handle and reports `FILE_TYPE_PIPE` as
+`os.ModeNamedPipe` and `FILE_TYPE_CHAR` as `os.ModeDevice|os.ModeCharDevice`
+(`$GOROOT/src/os/stat_windows.go` `statHandle`;
+`$GOROOT/src/os/types_windows.go` `(*fileStat).mode`). Both fail
+`Mode().IsRegular()` at ladder row 7 (pre-open, from `Root.Lstat`) and again
+at row 14 (post-open, from `File.Stat`). AVP-176.
+
+§7.2's reserved-device-name refusal removes the remaining way a device could
+be named through a slug at all, and `os.Root` independently refuses Windows
+reserved device names (`Root` doc comment).
 
 **The rescap Windows stub is precedent for the problem, not a reusable
 implementation.** `internal/rescap/pathopen_windows.go:12-20` is a compile-only
@@ -792,29 +1120,57 @@ comment says resource capture "is explicitly unsupported there […] the lock
 layer refuses before any gated path is ever opened", and `isSymlinkLoopError`
 "always reports false on this target". rev-1 cited it as the seam to reuse;
 that was wrong in kind. rev-2 cites it only as evidence that the *previous*
-design could not be made cross-platform without `os.Root`, and AVP-172 asserts
+design could not be made cross-platform without `os.Root`, and AVP-180 asserts
 that no `internal/intent` file calls `rescap.openNoFollow` or reproduces its
-fallback. C60 is corrected accordingly.
+fallback. C60 is corrected accordingly. **ADR-034 D11 locks that this PRD does
+not migrate `rescap.GatePath` and does not replace the shipped pathname gate.**
 
-#### 7.4.4 The capture sequence, and the exact race behavior
+#### 7.4.4 The capture sequence, the pre/post walks, and the exact race behavior
+
+The scope statements recorded here are locked by ADR-034 D8.
 
 For every artifact, in order:
 
-1. `Root.Lstat` each non-leaf component below the feature directory (§7.3
-   step 6); refuse an observed symlink/reparse component.
-2. `pre := Root.Lstat(rel)` — the leaf. This is the **identity of record**: it
+1. **Pre-capture component walk.** `Lstat` each non-leaf component below the
+   feature directory (§7.3 step 5); refuse an **observed** symlink/reparse
+   component.
+2. `pre := ops.Lstat(rel)` — the leaf. This is the **identity of record**: it
    is captured from a handle-relative lookup, not from a pathname `os.Lstat`.
 3. Kind and size decisions from `pre` (§7.5 rows 6–8). An oversize leaf is
    never opened.
-4. `f, err := root.OpenFile(rel, os.O_RDONLY|openFlags(), 0)`.
+4. `f, err := ops.OpenFile(rel, os.O_RDONLY|openFlags(), 0)`.
 5. `post, err := f.Stat()` — an `fstat`/`GetFileInformationByHandle` on the
    descriptor we hold, not a second pathname lookup.
 6. **Identity comparison before any byte is read**: `os.SameFile(pre, post)`.
 7. **Kind recheck on the descriptor**: `post.Mode().IsRegular()`.
 8. **Size cross-check**: `post.Size() == pre.Size()`.
-9. Bounded read into the fixed buffer (§7.4.5).
+9. Bounded read into the shared scratch buffer (§7.4.5).
 10. Post-read `f.Stat()` and size re-check.
-11. Content classification from the captured bytes only.
+11. **Post-capture component walk.** Re-`Lstat` the same non-leaf components as
+    step 1, in the same order. **Any component now observed as a symlink or
+    reparse point makes the result unstable** — see below.
+12. Content classification from the captured bytes only.
+
+**Steps 1 and 11 are the pre/post walk pair, and step 11 is new in rev-3.**
+rev-2 walked the ancestors once, before the open, and then relied entirely on
+the leaf identity comparison. That leaves a real gap the reviewer named: the
+identity comparison proves the *leaf* descriptor is the object the leaf
+`Lstat` observed, and proves nothing about whether the ancestor chain was the
+same chain at both moments. The post-walk closes the reportable half of that
+gap:
+
+- If the post-walk observes an ancestor that is now a symlink or reparse
+  point, the tree moved under the capture. The result is **not** trusted: the
+  artifact is reported `unstable` (ladder row 20a), the captured bytes are
+  discarded, and — because instability of a *required* artifact forces
+  `indeterminate` (§9.1) — the run exits 3 rather than reporting a content
+  state derived from an ancestor chain that changed. AVP-195.
+- If the post-walk observes an ancestor that vanished, or that is now a
+  non-directory, the same rule applies: `unstable`, not `absent` and not
+  `unreadable`. A component that existed at step 1 and does not exist at step
+  11 is a change, not an absence.
+- The post-walk is a *detector*, not a *guarantee*. It narrows the window; it
+  does not eliminate it. §8.3 limit 4 states the residual precisely.
 
 **Why the identity comparison is sound on both platform classes.** On Unix,
 `Root.Lstat` yields a `fileStat` populated from `fstatat` and `File.Stat`
@@ -822,17 +1178,36 @@ yields one populated from `fstat`; `os.SameFile` compares `Dev` and `Ino`
 (`$GOROOT/src/os/types_unix.go` `sameFile`). On Windows, `Root.Lstat` yields a
 `fileStat` populated by `statHandle` →
 `newFileStatFromGetFileInformationByHandle` from an
-`OPEN_REPARSE_POINT` handle, and `File.Stat` is literally
+`O_FILE_FLAG_OPEN_REPARSE_POINT` handle, and `File.Stat` is literally
 `statHandle(file.name, file.pfd.Sysfd)` on the held handle
 (`$GOROOT/src/os/stat_windows.go`). Both set `vol`/`idxhi`/`idxlo` from
-`GetFileInformationByHandle` **and deliberately clear the struct's `path`
-field so that `os.SameFile` will not re-fetch them by pathname**
+`GetFileInformationByHandle` **and deliberately leave the struct's `path`
+field empty so that `os.SameFile` will not re-fetch them by pathname**
 (`$GOROOT/src/os/types_windows.go`, the comment on
 `newFileStatFromGetFileInformationByHandle`; `sameFile` → `loadFileId`, which
 returns immediately when `path == ""`). So on Windows the comparison is
 volume-serial + file-index, both handle-derived, with **no pathname reopen**.
 rev-1's claim that `os.SameFile` on Windows would re-open by pathname is
-removed, and no row depends on it. AVP-167, AVP-176.
+removed, and no row depends on it.
+
+**This Windows soundness argument is a version-pinned implementation
+dependency, not a public guarantee — rev-3 labels it as one.** Nothing in
+`os`'s documentation promises that a handle-derived `FileInfo` carries a
+comparable identity, that `Stat` on Windows is handle-based, or that
+`SameFile` will not fall back to a pathname. Every one of those is read from
+unexported code in the pinned toolchain (G7, G8, G16, all classified
+**tripwire** in §23.2). Two consequences:
+
+- **AVP-176 is a Go-version tripwire**, not an eternal contract test. It runs
+  natively on Windows and asserts the observable — `os.SameFile` over
+  `Root.Lstat` and `File.Stat` is true for an unchanged file and false after an
+  injected replacement — so a toolchain change that breaks the assumption is
+  caught at upgrade time by a red test rather than by a silent weakening of the
+  identity check in the field.
+- **The PRD does not promise this property to consumers.** No shipped string,
+  help text, doc or skill surface states that the command detects object
+  substitution on Windows as a guarantee. What it states is the outcome:
+  `unstable`, with a re-run remediation. AVP-189, AVP-152.
 
 **Ancestor-symlink races, stated precisely.** Suppose an attacker replaces
 `.tpatch/features/<slug>` (or `artifacts/`, or the leaf itself) with a symlink
@@ -840,90 +1215,181 @@ after step 1/2 and before step 4.
 
 | Raced link points at | What `os.Root` does | What the inspector reports | Bytes read |
 |---|---|---|---|
-| anything **outside** `repoRoot`, or an absolute target | resolution refused; `Root.OpenFile` returns an error | `unreadable` (ladder row 11) | none |
-| an object **inside** `repoRoot` with a **different** identity | followed, in-root; the open succeeds on the other object | `unstable` (ladder row 13 — `os.SameFile` fails) | **none** — step 6 precedes step 9 |
-| an object **inside** `repoRoot` with the **same** identity (a link to the very file that was `Lstat`ed, or a hard link to it) | followed, in-root | the artifact's real state, computed from that object | that object's bytes |
+| a name **outside** `repoRoot`, or an absolute target | resolution refused; `OpenFile` returns an error | `unreadable` (ladder row 11) | none |
+| a name **inside** `repoRoot` resolving to an object with a **different** identity | followed, in-root; the open succeeds on the other object | `unstable` (ladder row 13 — `os.SameFile` fails) | **none** — step 6 precedes step 9 |
+| a name **inside** `repoRoot` resolving to an object with the **same** identity (a link to the very file that was `Lstat`ed, or a hard link to it) | followed, in-root | the artifact's real state, computed from that object | that object's bytes |
+| any of the above at an **ancestor**, still in place at step 11 | as above for the open; step 11 additionally observes the changed component | `unstable` (row 20a) even when the leaf identity matched | discarded |
 
-The third row is the honest limitation, and the PRD does **not** claim to
-detect it. Reading it is not a leak and not a misreport: it is the same inode
-the inspector already observed and already decided to classify, so every
-statement the report makes about it is true of the object that was read. What
-the design guarantees is the pair of properties that matter:
+**The guarantee, weakened to what is actually true.** rev-2 said "a
+*different* object is never read". rev-3 says:
 
-- **Confinement**: the raced resolution can never leave `repoRoot`, so no path
-  outside the repository is ever opened, read, or named.
-- **No substitution**: a *different* object is never read, because identity is
-  compared before the first byte and a mismatch aborts the capture.
+> An object **observed as different** is never read.
 
-Neither property is a claim that every alias is detectable, and §8.3 repeats
-the limit in the instability-limits subsection. AVP-155…AVP-158.
+The distinction is the whole finding. "Different" is a property of the world;
+"observed as different" is a property of two `FileInfo` values this process
+compared. Four cases where those diverge, all stated here, none of them
+claimed away, and all four repeated in §8.3:
+
+1. **Same-identity alias.** A raced link that resolves, in-root, to the very
+   object `Lstat` observed. `os.SameFile` matches and the capture proceeds. The
+   report is still true of the object that was read. AVP-151.
+2. **Hard-link alias.** A hard link is not an alias *of* an inode, it **is**
+   the inode: `pre` and `post` carry the same `Dev`/`Ino` (Unix) or the same
+   volume serial and file index (Windows) because they *are* the same file.
+   Swapping the name to a hard link of the same file is undetectable **by
+   construction**, not by omission, and no additional check could detect it.
+   AVP-196 case (a).
+3. **Inode / file-ID reuse.** If the object is unlinked and a new object is
+   created that the filesystem assigns the same `Ino` (Unix) or the same
+   `FileIndex` (Windows — NTFS file IDs are reusable after deletion), the
+   comparison matches two genuinely different objects. This is a known,
+   unavoidable property of identity-by-number, and the PRD asserts nothing
+   stronger. AVP-196 case (b).
+4. **Swap-and-restore between probes.** An attacker who replaces the object
+   between two probes and restores it before the next probe defeats every
+   probe individually. The design has finitely many observation points
+   (steps 1, 2, 5, 9, 10, 11); an adversary with arbitrary timing control can
+   arrange for each one to see the intended object. AVP-196 case (c).
+5. **The walk→`Lstat` window is real and is not closed.** Between step 1's
+   observation of an ancestor and step 2's `Lstat` of the leaf, and again
+   between step 2 and step 4's open, the tree can change. The design's answer
+   is *detect and report*, not *prevent*: `os.Root` bounds where a changed name
+   can resolve **to**, the identity comparison catches the substitutions it can
+   observe, and steps 11/20a catch a persisting ancestor change. What remains
+   is a genuine TOCTOU residue, and rev-3 names it rather than implying it is
+   closed. AVP-195, AVP-196.
+
+What the design **does** guarantee, exactly and no more:
+
+- **Logical confinement**: the raced resolution can never leave the repository
+  root *as a name*. It can still reach a mount point, a bind mount, a `/proc`
+  file or a device node that is nameable from inside the root (§7.4.2).
+- **No observed substitution**: an object the inspector observed to be
+  different from the one it classified is never read, because identity is
+  compared before the first byte and a mismatch ends the capture.
+- **Bounded cost**: at most `MaxArtifactBytes+1` bytes are requested, from one
+  reused buffer, with no unbounded wait (§7.4.5).
 
 **What is deliberately not claimed.** rev-1 asserted a "final no-follow"
-guarantee on both platforms. rev-2 does not: with `os.Root`, exact final-leaf
-no-follow is not available (§7.4.3), and the safe behavior above is stated in
-its place. Any output string, help text or doc that claims the command detects
-a same-identity alias, or that it refuses every raced link, is a defect
-(AVP-159).
+guarantee on both platforms. rev-2 dropped that and asserted a
+"no substitution" guarantee that was still too strong. rev-3 asserts only the
+three properties above. Any output string, help text, doc or skill surface that
+claims the command detects a same-identity alias, a hard-link alias, an
+ID-reuse substitution or a swap-and-restore, or that it refuses every raced
+link, or that bytes it read are physically inside the repository, is a defect
+(AVP-152, AVP-189).
 
-#### 7.4.5 The bounded read — one fixed buffer, no growth
+#### 7.4.5 The bounded read — one reused scratch buffer per invocation
 
-`MaxArtifactBytes = 4 MiB` (4,194,304).
+The decision recorded here is locked by ADR-034 D9.
+
+`MaxArtifactBytes = 4 MiB` (4,194,304). `MaxStatusBytes = 1 MiB` (1,048,576),
+§9.4.2.
 
 rev-1 specified `io.ReadAll(io.LimitReader(f, MaxArtifactBytes+1))` and claimed
 it "allocates at most `MaxArtifactBytes+1` bytes". **That claim was false.**
 `io.ReadAll` starts from a small slice and grows it by `append`, so reading a
 4 MiB artifact allocates a geometric series of buffers and copies between them;
 the *result* length is bounded by the limit reader, the *allocation* is not.
-rev-2 removes the claim and the mechanism:
+rev-2 removed the claim and the mechanism, and specified one fixed
+`MaxArtifactBytes+1` buffer **per capture**.
+
+**rev-3 makes it one buffer per *invocation*, not per capture.** Five captures
+per run (`status.json` plus four artifacts) at one 4 MiB+1 allocation each is a
+worst case of ~20 MiB of allocation for a command whose entire job is to answer
+a five-line question. That is a real, avoidable cost, and rev-2 stated the
+ceiling per capture without ever totalling it. The mechanism:
 
 ```go
-const MaxArtifactBytes = 4 << 20
+const (
+    MaxArtifactBytes = 4 << 20 // 4 MiB
+    MaxStatusBytes   = 1 << 20 // 1 MiB
+)
 
-// One allocation, sized before the read, never grown.
-buf := make([]byte, MaxArtifactBytes+1)
-n, err := io.ReadFull(f, buf)
+// internal/cli, once per invocation of the command, before Inspect:
+scratch := make([]byte, MaxArtifactBytes+1)   // the only data buffer
+report := intent.Inspect(ops, slug, scratch)
+```
+
+- **Exactly one data buffer is allocated per invocation of the command**, of
+  exactly `MaxArtifactBytes+1` bytes, before any capture begins.
+- **It is reused sequentially.** Captures are strictly sequential (§8.4: four
+  independent, ordered captures, no concurrency anywhere in this command), so
+  reuse is safe without a lock, a pool or a copy. Each capture fills the buffer
+  from index 0; each classification consumes `scratch[:n]` **before** the next
+  capture starts; nothing downstream retains a reference to the slice.
+- **The status capture gets a smaller *slice of the same array*, not its own
+  array**: `statusBuf := scratch[:MaxStatusBytes+1]`. `MaxStatusBytes <
+  MaxArtifactBytes` is therefore a **compile-time-checkable invariant** of the
+  design, not an accident, and the implementation asserts it
+  (`const _ = MaxArtifactBytes - MaxStatusBytes` fails to compile if the
+  relation inverts). The two caps stay distinct constants and neither is
+  defined in terms of the other (Q3/Q7), but the reuse imposes the ordering.
+- **Honest cost statement.** The command's fixed data-buffer cost is
+  `MaxArtifactBytes + 1` bytes = **4,194,305 bytes, allocated once**, for every
+  invocation — including a run that aborts before any capture, and including a
+  run against a feature whose artifacts are all absent or all 12 bytes long.
+  This PRD does **not** claim the allocation scales with the data. It is a
+  deliberate trade: a fixed, predictable ~4 MiB against five variable
+  allocations and any possibility of growth during a read. Q9 records the
+  alternative (allocate lazily on the first capture that actually opens
+  something) as revisable. AVP-197.
+
+The read itself is unchanged in shape:
+
+```go
+n, err := io.ReadFull(f, buf) // buf is scratch, or scratch[:MaxStatusBytes+1]
 ```
 
 `io.ReadFull` is used as a bounded fill, not as a "must be exactly this long"
-assertion, and its three outcomes are exactly the three cases the ladder needs:
+assertion, and its outcomes are exactly the cases the ladder needs:
 
 | `io.ReadFull` result | Meaning | Ladder |
 |---|---|---|
-| `err == io.EOF` (so `n == 0`) | the file was empty | captured bytes are `buf[:0]`; classification continues at row 18 |
+| `err == io.EOF` (so `n == 0`) | the file was empty | captured bytes are `buf[:0]`; classification continues at row 21 |
 | `err == io.ErrUnexpectedEOF` (`0 < n < len(buf)`) | the whole file fit inside the cap | captured bytes are `buf[:n]`; classification continues at row 18 |
-| `err == nil` (`n == len(buf)`, i.e. `MaxArtifactBytes+1`) | the file is **larger** than the cap. Row 8 already excluded a stably-oversize leaf, so this can only mean it grew inside the capture window | row 17 → `unstable` |
+| `err == nil` (`n == len(buf)`, i.e. the cap `+1`) | the file is **larger** than the cap. Row 8 already excluded a stably-oversize leaf, so this can only mean it grew inside the capture window | row 17 → `unstable` |
 | any other `err` | a real read failure | row 16 → `unreadable` |
 
 Properties this buys, each separately asserted:
 
-- **Exactly one allocation per capture, of exactly `MaxArtifactBytes+1`
-  bytes**, made before the read begins. There is no capacity growth, no
-  reallocation and no copy, whatever the file does during the read. An
-  allocation-counting fixture asserts it (AVP-170).
-- **A hard read ceiling.** At most `MaxArtifactBytes+1` bytes are ever
-  requested from the descriptor (AVP-171).
-- **`os.ReadFile`, `io.ReadAll` and `io.LimitReader` are forbidden** in the
-  inspector, and the source guard fails if any of them reappears or if the
-  `+1` is dropped (AVP-173).
+- **Exactly one data-buffer allocation per invocation**, of exactly
+  `MaxArtifactBytes+1` bytes, before the first read begins. There is no
+  capacity growth, no reallocation and no copy, whatever any file does during
+  any read (AVP-197).
+- **A hard read ceiling per capture.** At most `MaxArtifactBytes+1` bytes are
+  ever requested from any artifact descriptor, and at most `MaxStatusBytes+1`
+  from the status descriptor (AVP-171, AVP-174).
+- **`os.ReadFile`, `io.ReadAll`, `io.LimitReader` and `bufio.Scanner` are
+  forbidden** in the inspector, and the source guard fails if any of them
+  reappears, if either `+1` is dropped, or if a growable slice replaces the
+  fixed buffer (AVP-116, AVP-172).
+- **Cap changes are coupled to frozen message text.** `MaxArtifactBytes`'s
+  value appears verbatim as `4 MiB` in the `analysis-sidecar-oversize` advisory
+  (§10.4) and in §15's remediation, and `MaxStatusBytes`'s appears verbatim as
+  `1 MiB` in the `status-oversize` abort message (§9.4.5). Changing either
+  constant without changing its message would ship a diagnostic that states a
+  limit the binary does not enforce. AVP-201 is a mechanical guard: it derives
+  the human-readable unit string from each constant and asserts it appears in
+  exactly the messages listed, with a sensitivity fixture that changes the
+  constant alone and fails.
 - The captured slice is `buf[:n]`; nothing downstream ever reads past `n`, and
-  the buffer is not retained after classification.
+  no reference to the buffer survives the invocation.
 
 An equivalent hand-rolled bounded loop over the same fixed buffer is
-acceptable — the requirement is the fixed preallocation and the byte count, not
-the specific stdlib helper. `internal/rescap/content.go:50-70` is the shipped
-precedent for the cap-plus-one discipline, and
+acceptable — the requirement is the single fixed allocation and the byte count,
+not the specific stdlib helper. `internal/rescap/content.go:50-70` is the
+shipped precedent for the cap-plus-one discipline, and
 `internal/rescap/content.go:9-11` states the reason: a pre-read
-`Stat().Size()` check alone is bypassed by a file that grows. rev-2 keeps that
-reasoning and fixes the allocation claim rev-1 attached to it.
-
-`status.json` is read with the same mechanism and its own cap
-(`MaxStatusBytes`, §9.4.2).
+`Stat().Size()` check alone is bypassed by a file that grows. rev-2 kept that
+reasoning and fixed the allocation claim rev-1 attached to it; rev-3 keeps both
+and fixes the per-capture multiplication.
 
 ### 7.5 Per-artifact classification ladder (first match wins, total)
 
 Every row is reachable, every reachable condition is a row, and the order is
-normative. Every `Lstat` below is `Root.Lstat` and every open is
-`Root.OpenFile` (§7.3 step 7); `fstat` means `(*os.File).Stat` on the held
+normative. Every `Lstat` below is `RootOps.Lstat` and every open is
+`RootOps.OpenFile` (§7.3 step 6); `fstat` means `FileOps.Stat` on the held
 descriptor.
 
 | # | Condition | Resulting state |
@@ -948,10 +1414,16 @@ descriptor.
 | 18 | `int64(n) != post.Size()` | `unstable` |
 | 19 | post-read `f.Stat()` fails | `unreadable` |
 | 20 | post-read size differs from `post.Size()` | `unstable` |
+| 20a | the **post-capture component walk** (§7.4.4 step 11) observes a non-leaf component that is now a symlink or reparse point, that has vanished, or that is now a non-directory | `unstable` |
+| 20b | the post-capture component walk fails for any other reason | `unreadable` |
 | 21 | `strings.TrimSpace(buf[:n])` is empty | `present-empty` |
 | 22 | `analysis_sidecar` and the captured bytes are not valid JSON | `invalid-structured` (`sidecar-not-json`) |
 | 23 | `analysis_sidecar` and the captured bytes are valid JSON but not an object | `invalid-structured` (`sidecar-not-json-object`) |
 | 24 | otherwise | `present-nonempty` |
+
+Rows 20a and 20b are lettered rather than renumbered so that every row number
+cited in rev-2's prose, acceptance rows and reviews still resolves to the same
+condition. The ladder is **26 rows** (1–20, 20a, 20b, 21–24).
 
 Row 10 is stated separately from row 11 for honesty, not for behavior: both
 yield `unreadable`, because `os.Root` reports an escape as an ordinary
@@ -959,10 +1431,10 @@ yield `unreadable`, because `os.Root` reports an escape as an ordinary
 (`$GOROOT/src/os/file.go`, `errPathEscapes`) with no exported way to
 discriminate it. The row exists so the ladder documents where a raced,
 outward-pointing link actually lands rather than leaving it implicit, and
-AVP-157 asserts that landing. No output string distinguishes rows 10 and 11,
+AVP-149 asserts that landing. No output string distinguishes rows 10 and 11,
 and none names the link target.
 
-Five orderings are load-bearing and must not be reordered:
+Six orderings are load-bearing and must not be reordered:
 
 - **`oversize` (8) precedes every open (9+).** A file whose *stable* observed
   size already exceeds the cap is never opened and never read. This is the only
@@ -975,10 +1447,15 @@ Five orderings are load-bearing and must not be reordered:
   mutually exclusive by construction — 8 is decided before the descriptor
   exists, 17 only after — so the pair is first-match explicit with no overlap.
   Guarded by AVP-112 and AVP-140.
-- **`unstable` (9, 13, 14, 15, 17, 18, 20) precedes every content-derived row
-  (21–24).** A file observed mid-truncation looks empty or looks like invalid
-  JSON. Classifying it `present-empty` would be exactly the false statement
-  this PRD exists to prevent. Guarded by AVP-094.
+- **`unstable` (9, 13, 14, 15, 17, 18, 20, 20a) precedes every content-derived
+  row (21–24).** A file observed mid-truncation looks empty or looks like
+  invalid JSON. Classifying it `present-empty` would be exactly the false
+  statement this PRD exists to prevent. Guarded by AVP-094.
+- **The post-capture walk (20a, 20b) precedes every content-derived row
+  (21–24).** This is what makes step 11 of §7.4.4 mean anything: a capture
+  whose ancestor chain changed is never reported with a content state, even
+  when the bytes were read successfully and the leaf identity matched.
+  Guarded by AVP-195.
 - **`symlink-refused` (1, 6) precedes `not-regular` (7 for the leaf's own kind)
   and every read row.** An *observed* symlink or reparse point is refused on
   kind alone, before the open; nothing downstream ever touches it. A link that
@@ -998,9 +1475,9 @@ constraint as the analyze-phase `JSONObjectValidator`
 only** — never field names, never the `AnalysisResult` field set — so a future
 sidecar field addition cannot retroactively turn an existing feature red.
 
-Rows 1–24 apply identically to `analysis_sidecar`; rows 22–23 apply *only* to
-it. There is no artifact-specific short-cut anywhere in the ladder, so every
-instability probe has a sidecar case (AVP-117).
+Rows 1–24 (including 20a and 20b) apply identically to `analysis_sidecar`;
+rows 22–23 apply *only* to it. There is no artifact-specific short-cut anywhere
+in the ladder, so every instability probe has a sidecar case (AVP-117).
 
 ### 7.6 The closed state enum
 
@@ -1013,12 +1490,12 @@ The vocabulary extends the presence vocabulary already shipped in
 | `present-nonempty` | Regular file; the captured bytes contain at least one non-whitespace byte, and — for `analysis_sidecar` only — additionally parse as a JSON **object**. | **yes** |
 | `present-empty` | Regular file; captured bytes are zero-length or whitespace-only. | no |
 | `absent` | A path component or the leaf does not exist (`os.ErrNotExist` from `Lstat`). | no |
-| `symlink-refused` | Any component at or below the feature directory, including the leaf, was **observed** to be a symbolic link or a Windows reparse point (junction, mount point) by `Root.Lstat`. Never followed, never read, target never named. | no |
-| `not-regular` | The leaf exists at `Root.Lstat` time, is not a symlink/reparse point, and is not a regular file (directory, socket, FIFO, device). | no |
-| `unreadable` | An inspector operation — `Root.Lstat`, `Root.OpenFile`, `(*os.File).Stat` or the bounded read — failed for a reason other than absence (EACCES, EIO, ENOTDIR, ENAMETOOLONG, EBADF, or `os.Root` refusing a resolution that would leave the repository root). | no |
+| `symlink-refused` | Any component at or below the feature directory, including the leaf, was **observed** to be a symbolic link or a Windows reparse point that maps to `ModeSymlink` or `ModeIrregular` (junction / mount point / any other non-`AF_UNIX`, non-`DEDUP` tag, §7.4.3) by `Root.Lstat`. Never followed, never read, target never named. | no |
+| `not-regular` | The leaf exists at `Root.Lstat` time, is not a refused symlink/reparse point, and is not a regular file (directory, socket — including a Windows `AF_UNIX` reparse point — FIFO, device). | no |
+| `unreadable` | An inspector operation — `Lstat`, `OpenFile`, `FileOps.Stat` or the bounded read — failed for a reason other than absence (EACCES, EIO, ENOTDIR, ENAMETOOLONG, EBADF, or `os.Root` refusing a resolution whose name would leave the repository root). | no |
 | `oversize` | The leaf's `Root.Lstat` size exceeds `MaxArtifactBytes`; the file is deliberately never opened and never read. | no |
 | `invalid-structured` | `analysis_sidecar` only: bytes captured, but they are not valid JSON, or are valid JSON that is not an object. | no (and it is optional, so it never affects readiness) |
-| `unstable` | The artifact changed identity, kind or size across its own capture window (§8.3). The captured bytes, if any, are not trusted and are not classified further. | no — and for a required artifact it forces `indeterminate` (§9.1) |
+| `unstable` | The artifact changed identity, kind or size across its own capture window, or its ancestor chain was observed to have changed by the post-capture walk (§7.4.4 step 11, §8.3). The captured bytes, if any, are not trusted and are not classified further. | no — and for a required artifact it forces `indeterminate` (§9.1) |
 
 The enum is **closed and total**: §7.5 maps every reachable condition into
 exactly one row. AVP-093 mechanically asserts the implementation's exported
@@ -1074,18 +1551,19 @@ JSON renderer.
 
 ### 8.3 Instability detection and its honest limits
 
-Instability is detected per artifact by the seven probes in §7.5 rows 9, 13,
-14, 15, 17, 18 and 20:
+Instability is detected per artifact by the eight probes in §7.5 rows 9, 13,
+14, 15, 17, 18, 20 and 20a:
 
 | Probe | Row | Detects |
 |---|---|---|
-| open-time disappearance | 9 | the leaf vanished between `Root.Lstat` and `Root.OpenFile` |
-| descriptor identity | 13 | the name resolved, in-root, to a different object than `Root.Lstat` observed |
-| descriptor kind | 14 | the thing opened is not the regular file `Root.Lstat` saw |
-| pre-read size cross-check | 15 | size changed between `Root.Lstat` and the descriptor `fstat` |
+| open-time disappearance | 9 | the leaf vanished between the leaf `Lstat` and the `OpenFile` |
+| descriptor identity | 13 | the name resolved, in-root, to an object **observed as different** from the one the leaf `Lstat` reported |
+| descriptor kind | 14 | the thing opened is not the regular file the leaf `Lstat` saw |
+| pre-read size cross-check | 15 | size changed between the leaf `Lstat` and the descriptor `fstat` |
 | growth past the cap | 17 | the file grew beyond `MaxArtifactBytes` during the read |
 | byte-count disagreement | 18 | the read returned a different length than the descriptor `fstat` reported |
 | post-read size change | 20 | the file changed after the read but inside the window |
+| post-capture ancestor walk | 20a | a non-leaf component is now a symlink/reparse point, is now a non-directory, or has vanished (§7.4.4 step 11) |
 
 `snapshot-unstable` is an existing, shipped tpatch concept, not a new one:
 verify already carries a `snapshot-unstable` failure vocabulary
@@ -1093,26 +1571,47 @@ verify already carries a `snapshot-unstable` failure vocabulary
 `artifact-snapshot-unstable` keeps that word deliberately.
 
 **Scope claim, stated precisely.** These probes detect the enumerated
-conditions and nothing more. Three limits, all of them stated here and in
-§7.4.4, and none of them contradicted by any output string, help text or doc:
+conditions and nothing more. The command's identity promise is *"an object
+**observed as different** is never read"* (§7.4.4), and the gap between
+"different" and "observed as different" is enumerated here in full. Six limits,
+all of them stated here and in §7.4.4, and none of them contradicted by any
+output string, help text, doc or skill surface (AVP-152, AVP-189):
 
 1. **Same-length in-place rewrite is undetectable.** A writer that truncates
    and fully rewrites the same inode to the same length between the pre-read
    `fstat` and the post-read `fstat` is not detectable by size, kind or
    identity.
 2. **A same-identity alias is undetectable, and is deliberately not claimed.**
-   If a raced link resolves — inside the root — to the very object
-   `Root.Lstat` observed, `os.SameFile` matches and the capture proceeds. The
+   If a raced link resolves — inside the root — to the very object the leaf
+   `Lstat` observed, `os.SameFile` matches and the capture proceeds. The
    report is still true of the object that was read (§7.4.4). The command does
-   not claim to have refused it.
-3. **A second `fstat` on a held descriptor is a tautology for pathname
+   not claim to have refused it. AVP-151.
+3. **A hard-link alias is undetectable by construction.** A hard link *is* the
+   same inode: `pre` and `post` carry identical `Dev`/`Ino` (Unix) or identical
+   volume serial and file index (Windows) because they describe one object with
+   two names. No additional check inside this design could distinguish the two
+   names, and none is claimed. AVP-196 (a).
+4. **Inode / file-ID reuse defeats identity-by-number.** If the object is
+   unlinked and the filesystem assigns the same inode number (Unix) or the same
+   NTFS file ID (Windows — file IDs are reusable after deletion) to a new
+   object, `os.SameFile` reports two genuinely different objects as the same.
+   This is an inherent property of identity-by-number, not a defect in this
+   design, and the PRD asserts nothing stronger than what `os.SameFile`
+   observes. AVP-196 (b).
+5. **Swap-and-restore between probes defeats every probe individually.** The
+   capture has finitely many observation points (§7.4.4 steps 1, 2, 5, 9, 10,
+   11). An adversary with arbitrary timing control can restore the intended
+   object before each one. The post-capture ancestor walk (probe 20a) narrows
+   the window; it does not close it, and the residual walk→`Lstat`→open TOCTOU
+   window is a genuine, named limitation rather than an implied absence.
+   AVP-195, AVP-196 (c).
+6. **A second `fstat` on a held descriptor is a tautology for pathname
    questions.** It cannot detect a name swap; it can only detect a change to
    the object it already holds. `internal/rescap/pathgate.go:181-190` states
    this explicitly for the analogous case. Probes 19–20 are therefore scoped to
-   "did this object change", not "does this name still point here" — and with
-   `os.Root` the latter question no longer needs a pathname re-resolution,
-   because the identity comparison at row 13 already answered it before any
-   byte was read.
+   "did this object change", not "does this name still point here" — the
+   name question is answered, to the extent it can be, by row 13's identity
+   comparison and row 20a's post-walk.
 
 Overclaiming here would repeat the category error the PRD is correcting.
 
@@ -1126,8 +1625,10 @@ which is why it registers no `--timeout` (§5.1).
 
 ### 8.4 No cross-artifact atomicity claim
 
-The four captures are independent and sequential. The report **must not** claim
-they represent one instant. Concretely:
+The four captures are independent and **strictly sequential** — there is no
+goroutine, no `errgroup` and no concurrency anywhere in this command, which is
+also what makes §7.4.5's single reused scratch buffer safe without a lock. The
+report **must not** claim the captures represent one instant. Concretely:
 
 - there is no snapshot id, generation counter or `captured_at` field;
 - `status.json` is captured once, before the artifact captures, through its own
@@ -1141,10 +1642,11 @@ is out of scope and would make a read-only command a lock acquirer. AVP-086
 asserts no such field exists.
 
 The single held `*os.Root` is **not** an atomicity mechanism and is never
-described as one. It fixes the *directory* the run resolves against — including
-across a rename of `repoRoot` itself, since on the confined targets the root is
-a descriptor/handle, not a name (`Root` doc comment; AVP-143) — but it says
-nothing about the contents of the files beneath it.
+described as one. It fixes the *directory name resolution base* the run uses —
+including across a rename of `repoRoot` itself, since on the allowlisted
+targets the root is a descriptor/handle, not a name (`Root` doc comment;
+AVP-143) — but it says nothing about the contents of the files beneath it, and
+nothing about whether those files live on the same filesystem (§7.4.2).
 
 ### 8.5 Determinism on a quiescent tree
 
@@ -1219,21 +1721,31 @@ inspector takes an `*os.Root` (§7.1), not a store.
 
 ### 9.3 Error precedence (first match wins)
 
-1. **Cobra/pflag parse or arity** → `1`. Nothing else runs.
+1. **Cobra/pflag parse or arity** → `1`. Nothing else runs. **This population
+   is outside this command's output schema entirely** (§14.3): the bytes are
+   cobra's and pflag's, not the command's.
 2. **Reserved-surface guard** (`--check` absent) → `4`. Evaluated at the top of
    `RunE`, before slug validation and before workspace discovery, so
    `tpatch prepare ../../etc` outside a workspace is `4`, not `3`.
    Deterministic and asserted by AVP-006.
-3. **Platform-confinement guard** (§7.4.1) → `3`, `abort.code:
-   workspace-unsupported-platform`. Evaluated before any name is composed and
-   before `os.OpenRoot`.
-4. **Slug validation** (§7.2) → `3`, `abort.code: slug-unsafe`. Evaluated
-   before any name is composed and before workspace discovery.
+3. **Slug validation** (§7.2) → `3`, `abort.code: slug-unsafe`. Evaluated
+   before any name is composed, before the platform guard, before workspace
+   discovery and before `os.OpenRoot`. **rev-3 moved this ahead of the
+   platform guard.** `CanonicalSlug` is a pure string predicate with no
+   filesystem, root or platform-conditional dependency, so nothing about the
+   platform can inform it — and putting it second would break §10.2 rule 8's
+   biconditional ("`slug` is `""` **exactly** on `slug-unsafe`") on any
+   unsupported target, because a hostile slug there would abort
+   `workspace-unsupported-platform` while still withholding the slug. AVP-192.
+4. **Platform-confinement guard** (§7.4.1) → `3`, `abort.code:
+   workspace-unsupported-platform`. Evaluated after slug validation and before
+   `os.OpenRoot`. AVP-177, AVP-179, AVP-191.
 5. **Workspace discovery** (§9.2) → `3`, `abort.code:
-   workspace-not-initialized`.
+   workspace-not-initialized`. **This step runs outside the rooted namespace**
+   (§7.3 step 1) — it is what produces the directory the root is opened on.
 6. **Root open** — `os.OpenRoot(repoRoot)` fails → `3`, `abort.code:
    workspace-root-unopenable`.
-7. **Feature-directory walk** (§7.3 step 5), whose own first-match rule is by
+7. **Feature-directory walk** (§7.3 step 4), whose own first-match rule is by
    component order → `3`, `abort.code: feature-dir-unsafe` or
    `feature-not-found`.
 8. **`status.json` inspection** (§9.4.2, §9.4.3), whose own first-match rule is
@@ -1245,7 +1757,7 @@ inspector takes an `*os.Root` (§7.1), not a store.
 
 Exactly one `abort` object is ever emitted. A run that reaches step 9 or later
 has `abort` absent. **Every abort is decided before the first per-artifact
-`Root.Lstat`**, which is what makes the `artifacts: []` rule of §10.2 total
+`Lstat`**, which is what makes the `artifacts: []` rule of §10.2 total
 rather than a special case; AVP-128 asserts the ordering in source and at
 runtime.
 
@@ -1263,32 +1775,44 @@ property §7.4 exists to provide was absent from the one read whose result is
 printed. rev-2 closes that gap.
 
 **`prepare --check` never calls `store.LoadFeatureStatus`, `os.ReadFile`, or
-any package-level `os` open/stat for this or any other file** (§7.1, AVP-150,
-AVP-160).
+any package-level `os` open/stat for this or any other file** (§7.1.2,
+AVP-089, AVP-150, AVP-194).
 
 #### 9.4.2 The status capture, and its own cap
 
 The status file is captured through the **same** rooted discipline as an
-artifact — `Root.Lstat` component policy, `Root.OpenFile` with the same
-build-tagged `openFlags()`, `(*os.File).Stat` identity and kind rechecks, size
-cross-check, one preallocated buffer, post-read recheck (§7.3, §7.4) — with one
-deliberate difference:
+artifact — component policy with a pre- and post-capture walk, `OpenFile` with
+the same build-tagged `openFlags()`, `FileOps.Stat` identity and kind rechecks,
+size cross-check, the **same shared scratch buffer** (§7.4.5), post-read
+recheck (§7.3, §7.4) — with one deliberate difference:
 
 **`MaxStatusBytes = 1 MiB` (1,048,576), separate from `MaxArtifactBytes`.**
 
-The two caps answer different questions and are deliberately not shared.
-`MaxArtifactBytes` bounds a human-authored Markdown document whose size is
-unpredictable, so it is generous. `MaxStatusBytes` bounds a machine-written
-metadata record with a fixed field set — `FeatureStatus` plus its free-text
-`Notes`, its `DependsOn` list and its `Verify`/`Rejection` sub-records
-(`internal/store/types.go:215,234,236-265`) — written by `writeJSONAtomic`
-through the one `SaveFeatureStatus` writer
+The two caps answer different questions and are deliberately not shared as one
+constant. `MaxArtifactBytes` bounds a human-authored Markdown document whose
+size is unpredictable, so it is generous. `MaxStatusBytes` bounds a
+machine-written metadata record with a fixed field set — `FeatureStatus` plus
+its free-text `Notes`, its `DependsOn` list and its `Verify`/`Rejection`
+sub-records (`internal/store/types.go:215,234,236-265`) — written by
+`writeJSONAtomic` through the one `SaveFeatureStatus` writer
 (`internal/store/store.go:363-377`). 1 MiB is roughly three orders of magnitude
 above anything that writer can plausibly produce, and a `status.json` larger
 than that is a corruption signal in its own right, not a document to parse. A
 smaller, separately-named cap also means widening the artifact cap later
 (§21 Q3) cannot silently widen the metadata cap. Q7 records the value as
-revisable. AVP-162, AVP-163.
+revisable.
+
+**The status read borrows the artifact buffer; it does not allocate its own.**
+Per §7.4.5, the status capture fills `scratch[:MaxStatusBytes+1]`, a slice of
+the one array the command allocated. This makes `MaxStatusBytes <
+MaxArtifactBytes` a structural invariant of the design (asserted at compile
+time), and it is the reason the status cap can stay a separate, independently
+revisable constant without costing a second megabyte-scale allocation.
+AVP-157, AVP-158, AVP-174, AVP-197.
+
+**The cap value is coupled to a frozen message.** `status-oversize`'s §9.4.5
+template names `the 1 MiB inspection limit` verbatim. AVP-201 fails if the
+constant and the message disagree.
 
 The status capture produces exactly one value of a closed outcome enum. The
 ladder is first-match-wins and total:
@@ -1340,7 +1864,7 @@ The outcome enum has nine values, and the mapping to behavior is total:
 
 **`ok` — the only population that echoes.** `feature_state` is emitted **only**
 when the document parsed *and* its `State` is a member of the closed list. The
-echo is the enum constant, never the raw bytes from the file. AVP-161.
+echo is the enum constant, never the raw bytes from the file. AVP-166.
 
 **`absent` — continue, do not abort.** A feature directory that exists without
 a `status.json` is a legitimate, reachable shape: `ListFeatures` already skips
@@ -1382,7 +1906,7 @@ Thirteen codes. The catalog is closed; a fourteenth requires a schema decision
 | `workspace-unsupported-platform` | `GOOS` is one where `os.Root` cannot guarantee confinement (§7.4.1) | `$GOROOT/src/os/root.go` `Root` doc comment; `$GOROOT/src/os/root_noopenat.go` build tag |
 | `workspace-not-initialized` | workspace discovery failed: the start directory could not be resolved, or no `.tpatch/` exists at it or any ancestor | `internal/store/store.go:23-40`; `internal/cli/cobra.go:3782-3793` |
 | `workspace-root-unopenable` | `os.OpenRoot(repoRoot)` failed | `$GOROOT/src/os/root.go` `OpenRoot` |
-| `feature-dir-unsafe` | a symlink/reparse component, a non-directory, or a non-absence `Root.Lstat` failure at or above `.tpatch/features/<slug>` | §7.3 step 5 |
+| `feature-dir-unsafe` | a symlink/reparse component, a non-directory, or a non-absence `Root.Lstat` failure at or above `.tpatch/features/<slug>` | §7.3 step 4 |
 | `feature-not-found` | a component of `.tpatch/features/<slug>` does not exist | `internal/store/store.go:786` |
 | `status-symlink-refused` | `status.json` is a symlink or reparse point (ladder row 1) | §9.4.2 |
 | `status-not-regular` | `status.json` is not a regular file (ladder row 4) | §9.4.2 |
@@ -1397,7 +1921,7 @@ Thirteen codes. The catalog is closed; a fourteenth requires a schema decision
 `abort.message` is a **fixed template per code**. No template wraps an `os`
 error, interpolates an absolute path, or echoes any byte of the slug argument
 or of `status.json`. The only interpolation permitted anywhere below is the
-canonical slug inside a canonical repo-relative path. AVP-172, AVP-185.
+canonical slug inside a canonical repo-relative path. AVP-181, AVP-185.
 
 | `abort.code` | `abort.message` (exact) |
 |---|---|
@@ -1418,7 +1942,7 @@ canonical slug inside a canonical repo-relative path. AVP-172, AVP-185.
 Two properties of the table are asserted mechanically rather than trusted:
 
 - **Every code has exactly one message and every message belongs to exactly one
-  code** (AVP-172).
+  code** (AVP-181).
 - **No message contains an absolute path, a `docs/` path, a `.md` filename, a
   URL, an `os` error string, or any byte of the raw argument** (AVP-185,
   AVP-186, AVP-078).
@@ -1901,7 +2425,7 @@ Structural presence only. This report does not certify semantic quality.
 
 The abort body is the §9.4.5 message for that code, wrapped for the terminal at
 a fixed column. Wrapping is the renderer's; the message string is the same
-bytes as the JSON `abort.message`, and AVP-172 compares them after unwrapping.
+bytes as the JSON `abort.message`, and AVP-181 compares them after unwrapping.
 
 #### 10.5.2 `--quiet`
 
@@ -1956,7 +2480,7 @@ four canonical path strings and the frozen disclaimer.
   graph;
 - call `store.LoadFeatureStatus`, `os.ReadFile`, `os.Open`, `os.OpenFile`,
   `os.Stat` or `os.Lstat` — these are read-only, but they resolve outside the
-  rooted namespace and are forbidden for that reason (§7.3 step 7, §9.4.1).
+  rooted namespace and are forbidden for that reason (§7.3 step 6, §9.4.1).
 
 Enforced three ways: a byte-level fixture assertion (AVP-053), a
 `git status --porcelain` equality assertion (AVP-054), and an AST source scan
@@ -2050,7 +2574,11 @@ Evaluated, **not selected** (§11.4):
 
 rev-1 **selects none** of P1/P2/P4 and needs none: `unknown` is a constant with
 a stable meaning (§11.1), so no persistent representation is required for this
-PRD to be coherent, implementable or testable.
+PRD to be coherent, implementable or testable. **ADR-034 D14 locks this**: it
+authorizes no persistent provenance representation, states that the trigger
+below stays unfired, and forbids citing ADR-034 as provenance precedent — it is
+a filesystem *access* boundary and says nothing about what may be persisted
+about an artifact's authorship.
 
 The trigger, per WP-005 Agreed item 8
 (`docs/whitepapers/WP-005-spec-driven-workflows.md:84-90`) and Turn 3
@@ -2220,14 +2748,15 @@ or making an advisory affect the exit code is a breaking change that requires a
 ### 14.1 Path safety
 
 Per §7.2–§7.4 and §9.4.2: canonical slug validation before any name is
-composed; one held `*os.Root` for the repository root, with every `Lstat` and
-open handle-relative to it; root-relative names built only from fixed
-constants and the canonical slug; lexical containment via
-`safety.EnsureSafeRepoPath` retained as a pre-filter; observed symlink and
-reparse components refused without being followed, resolved or named;
+composed and before the platform guard; one held `*os.Root` for the repository
+root, with every `Lstat` and open handle-relative to it; root-relative names
+built only from fixed constants and the canonical slug and asserted canonical
+with `fs.ValidPath`; observed symlink and reparse components refused without
+being followed, resolved or named, checked **before and after** every capture;
 non-blocking open on Unix and pre-open kind refusal on Windows so no read can
 hang; post-open descriptor identity, kind and size rechecks **before the first
-byte is read**; one preallocated `Max+1` buffer; and a post-read recheck.
+byte is read**; one reused `MaxArtifactBytes+1` scratch buffer; and a post-read
+recheck.
 
 The threat model is a hostile or corrupted `.tpatch/` tree plus a hostile
 argument — for example `spec.md` symlinked to `/etc/shadow`, `status.json`
@@ -2235,15 +2764,37 @@ replaced by a junction on Windows, `exploration.md` replaced by a FIFO that
 would block a naive reader forever, an ancestor directory swapped for a symlink
 at exactly the instant between the walk and the open, a slug of `../../../etc`,
 or a sparse file that grows during the read. Every one of these is classified
-and reported without escaping the repository root, without reading a
-substituted object, without a hang, without an unbounded allocation, and
-without echoing the hostile bytes.
+and reported without resolving a name outside the repository root, without
+reading an object observed to be different from the one classified, without a
+hang, without an unbounded allocation, and without echoing the hostile bytes
+into command-owned output.
 
-The two guarantees are stated exactly, and no more than exactly, in §7.4.4:
-**confinement** (no operation can leave `repoRoot`) and **no substitution** (a
-different object is never read). The same-identity-alias limit and the
-same-length-rewrite limit are stated there and in §8.3 and are not claimed
-away anywhere in the shipped output.
+**Three boundaries of the threat model, stated rather than implied:**
+
+1. **`--path` is trusted input, and workspace discovery is outside the rooted
+   capture.** `store.FindProjectRoot` (`internal/store/store.go:23-40`) runs
+   before `os.OpenRoot` and is an ordinary symlink-following pathname walk in
+   the shipped store package (§7.3 step 1, §9.3 step 5). An operator who points
+   `--path` at a hostile directory gets a root opened on that directory; the
+   command then confines itself to it, and reports about it. Nothing in this
+   PRD hardens the discovery walk, and nothing claims to.
+2. **The root is a logical name boundary, not a physical one.** §7.4.2 is
+   normative here: mount points, bind mounts, `/proc` special files and device
+   files nameable from inside the root remain reachable. They are handled by
+   the kind gate and the bounded read, and the PRD makes no claim that the
+   bytes it reads physically originate inside the repository's filesystem.
+3. **The identity guarantee is "observed as different".** §7.4.4 and §8.3
+   enumerate six limits — same-length rewrite, same-identity alias, hard-link
+   alias, inode/file-ID reuse, swap-and-restore, and the residual
+   walk→`Lstat`→open window.
+
+The guarantees stated exactly, and no more than exactly, in §7.4.4:
+**logical confinement** (no resolved name leaves `repoRoot`), **no observed
+substitution** (an object observed as different is never read), and **bounded
+cost** (at most `MaxArtifactBytes+1` bytes requested per capture, from one
+reused buffer, with no unbounded wait). Every limit is stated in §7.4.2, §7.4.4
+and §8.3, and none is claimed away anywhere in the shipped output — AVP-152 and
+AVP-189 are the mechanical guards.
 
 ### 14.2 No content, no content hashes
 
@@ -2268,41 +2819,95 @@ away anywhere in the shipped output.
 
 ### 14.3 Diagnostics hygiene
 
-Raw `error` strings from `os` frequently embed absolute paths (and therefore
-usernames and home-directory layout). No output string — including every
-`ExitCodeError.Message` in §9.5 and every `abort.message` in §9.4.5 — is built
-by wrapping an `os` error. Every message is a fixed template whose only
-interpolations are a canonical slug, a repo-relative canonical path, a small
-integer and a closed code. Absolute paths never appear on stdout or stderr.
-AVP-078 asserts this against a fixture rooted in a directory whose name is a
-distinctive sentinel, across every exit code including all thirteen aborts.
+#### 14.3.1 Scope: command-owned output only
 
-**The byte-level rule, stated correctly.** rev-1 asserted that output "remains
-printable ASCII". That was both wrong and unenforceable: this project's house
-style uses non-ASCII characters deliberately — the em dash in the `--quiet`
-line (`prepare --check <slug> — ready`, §10.5.2) and the `→` remediation marker
-in the human report (§10.5) are both required output, and both are multi-byte
+**This subsection's guarantees apply to bytes this command emits, and to
+nothing else. rev-3 states the boundary; rev-2 accidentally claimed the
+universe.**
+
+The command owns:
+
+- the human report and the `--quiet` line on stdout;
+- the JSON report on stdout;
+- the human report mirrored to stderr under `--json`;
+- the single `error:` line the root printer produces from an
+  `*ExitCodeError` **this command returned** (`internal/cli/cobra.go:33-39`,
+  §9.5).
+
+The command does **not** own, and this section makes no claim about:
+
+- **Cobra/pflag parse and arity errors** — the exit-1 population of §9.2 and
+  §9.3 step 1: `unknown flag: --manual`, `accepts 1 arg(s), received 2`,
+  `flag needs an argument: --path`, and the usage block cobra prints with
+  them. Those bytes are produced by `spf13/cobra` and `spf13/pflag` **before
+  `RunE` runs**, from the raw `os.Args` the shell handed the process. Cobra
+  interpolates the offending argument verbatim, so a slug argument containing
+  an ESC byte *can* reach stderr through an unknown-flag or arity error, and
+  **this PRD does not claim it is sanitized**. Claiming otherwise would be a
+  false security statement about third-party code this PRD does not modify —
+  and rev-2's unqualified "no byte of stdout or stderr is an ASCII control
+  character" made exactly that claim.
+- anything a shell, terminal, pager or CI log processor does downstream.
+
+**What still holds for the hostile slug, unconditionally.** The exit-1
+population is reached only for a *flag* or *arity* error. A hostile slug
+supplied as the positional argument with a well-formed flag set parses fine,
+reaches `RunE`, and is refused by `CanonicalSlug` at §9.3 step 3 — at which
+point §7.2's withholding rule applies and **the argument bytes are never
+echoed** (AVP-102…AVP-104, AVP-106). So the hostile-slug case the threat model
+cares about is fully covered; what is excluded is the case where the operator
+also mistyped a flag, and there the bytes belong to cobra's diagnostic.
+AVP-193 asserts the split: it enumerates the exit-1 population, asserts the
+schema and byte rules are **not** applied to it, asserts no report is emitted
+on it, asserts `.tpatch/` is byte-identical, and — the sensitivity half —
+fails if a future implementation starts intercepting cobra's error to
+re-render it, because that would silently move those bytes into this
+command's ownership without a schema decision.
+
+#### 14.3.2 No wrapped `os` errors, no absolute paths
+
+Raw `error` strings from `os` frequently embed absolute paths (and therefore
+usernames and home-directory layout). No command-owned output string —
+including every `ExitCodeError.Message` in §9.5 and every `abort.message` in
+§9.4.5 — is built by wrapping an `os` error. Every message is a fixed template
+whose only interpolations are a canonical slug, a repo-relative canonical path,
+a small integer and a closed code. Absolute paths never appear in
+command-owned stdout or stderr. AVP-078 asserts this against a fixture rooted
+in a directory whose name is a distinctive sentinel, across every
+command-owned exit code including all thirteen aborts.
+
+#### 14.3.3 The byte-level rule, stated correctly and scoped
+
+rev-1 asserted that output "remains printable ASCII". That was both wrong and
+unenforceable: this project's house style uses non-ASCII characters
+deliberately — the em dash in the `--quiet` line
+(`prepare --check <slug> — ready`, §10.5.2) and the `→` remediation marker in
+the human report (§10.5) are both required output, and both are multi-byte
 UTF-8. A printable-ASCII assertion would fail on the command's own happy path.
 
-The real property is about **control bytes and attacker-supplied bytes**, and
-that is what rev-2 requires:
+The real property is about **control bytes and attacker-supplied bytes**, over
+**command-owned output after successful Cobra parsing**:
 
-1. **No control bytes.** No byte of stdout or stderr is an ASCII control
-   character — `0x00`–`0x08`, `0x0B`, `0x0C`, `0x0E`–`0x1F`, or `0x7F` — with
-   the single exception of the `0x0A` line terminators the renderer itself
-   emits. In particular no `0x1B`, so no terminal escape sequence can be
-   reflected. `0x09` (tab) and `0x0D` (carriage return) are also excluded: the
-   renderer emits neither, and either could be used to overwrite a line.
+1. **No control bytes.** No byte of command-owned stdout or stderr is an ASCII
+   control character — `0x00`–`0x08`, `0x0B`, `0x0C`, `0x0E`–`0x1F`, or `0x7F`
+   — with the single exception of the `0x0A` line terminators the renderer
+   itself emits. In particular no `0x1B`, so no terminal escape sequence can be
+   reflected through this command's own report or `error:` line. `0x09` (tab)
+   and `0x0D` (carriage return) are also excluded: the renderer emits neither,
+   and either could be used to overwrite a line.
 2. **No attacker argument bytes.** No byte sequence from the raw `<slug>`
-   argument appears on any stream unless the argument was accepted by
+   argument appears in command-owned output unless the argument was accepted by
    `CanonicalSlug`, in which case it is by construction `[a-z0-9-]` only.
-3. **Valid UTF-8, house style preserved.** Output is valid UTF-8 and may
-   contain the project's non-ASCII punctuation. The guard checks for control
-   bytes and argument bytes, not for a restricted alphabet.
+3. **Valid UTF-8, house style preserved.** Command-owned output is valid UTF-8
+   and may contain the project's non-ASCII punctuation. The guard checks for
+   control bytes and argument bytes, not for a restricted alphabet.
 
-AVP-104 and AVP-187 assert all three over the full flag × exit × abort matrix,
-including a slug argument built from `0x1B[2J`, a raw newline and a non-ASCII
-rune.
+AVP-104 and AVP-187 assert all three over the full flag × exit × abort matrix
+**of command-owned populations** (exits 0, 2, 3 and 4), including a slug
+argument built from `0x1B[2J`, a raw newline and a non-ASCII rune. AVP-193
+asserts the complementary exit-1 population is excluded by design and says so
+in the guard's own name, so a reader of the test cannot mistake the exclusion
+for an oversight.
 
 ### 14.4 No provider, no network, no subprocess
 
@@ -2327,7 +2932,7 @@ with an intentionally broken provider configuration.
 | A required artifact is unreadable | exit 2, `state: unreadable` | fix permissions, re-run |
 | A required artifact is a symlink or reparse point | exit 2, `state: symlink-refused` | replace with a regular file |
 | A required artifact is a FIFO/device/directory | exit 2, `state: not-regular`; on Unix the open is non-blocking and on Windows the kind is refused before the open, so nothing hangs | replace with a regular file |
-| A required artifact is oversize | exit 2, `state: oversize` | inspect manually; the command refuses to read >4 MiB |
+| A required artifact is oversize | exit 2, `state: oversize` | inspect manually; the command refuses to read a file larger than the 4 MiB inspection limit (`MaxArtifactBytes`, §7.4.5 — the figure and the constant are coupled by AVP-201) |
 | A required artifact is unstable | exit 3, `state: unstable`, no `abort` object | re-run when no other tpatch process is writing the feature |
 | Sidecar in any non-`present-nonempty` state | readiness unaffected; exactly one `analysis-sidecar-*` advisory (§10.4) | re-run `tpatch analyze <slug>` to regenerate, or delete the sidecar |
 
@@ -2345,7 +2950,8 @@ shipping the read-only slice first.
 | `docs/agent-as-provider.md` | Two required edits. **(a)** After the phase → artifact → state table (`:33-45`), add a short "inspect before you advance" note: `prepare --check` reports the same artifacts read-only, evaluates the whole intent bundle, and never advances state — and `--manual`'s gate is unchanged (§12). **(b) A correction, not an addition**: the current text at `:47-54` presents the `status.json.notes` string as the thing that "distinguishes Path B transitions from provider output". That is true only of the **last** transition, because `MarkFeatureState` overwrites `Notes` every time (`internal/store/store.go:388-392`). The wording must be corrected to say the notes string is a **hint about the most recent transition, not durable per-artifact provenance**, and to point at `provenance: unknown` (§11.1) as the current honest answer. Leaving that sentence as-is would leave a shipped doc contradicting this PRD's central finding. |
 | `docs/path-b-operator-guide.md` | In the preferred Path B flow (`:63-73`), show `tpatch prepare <slug> --check` as an optional verification step after authoring the three Markdown files and before the `--manual` commands. It must be presented as optional (§2.2 item 8). |
 | `docs/feature-layout.md` | Note that the four intent artifacts are the set `prepare --check` classifies, that the three Markdown files are the readiness set, and that `artifacts/analysis.json` is Path A only. |
-| `.github/workflows/ci.yml` | **Required, not optional.** Add `windows-latest` to the test matrix (`.github/workflows/ci.yml:24-25`, currently `[ubuntu-latest, macos-latest]`). §7.3 step 4 and §7.4.3 rest on Windows-specific `os.Root` behavior — reparse tags mapping to `ModeSymlink` vs `ModeIrregular`, handle-derived `GetFileInformationByHandle` identity, `GetFileType`-derived kinds — none of which a cross-compile can execute. Cross-building for `GOOS=windows` proves the code compiles; it proves nothing about the behavior this PRD depends on. Without this row, AVP-175 and AVP-176 are unrunnable and the Windows half of the design is unverified. |
+| `.github/workflows/ci.yml` | **Required, not optional.** Add `windows-latest` to the test matrix (`.github/workflows/ci.yml:25`, currently `[ubuntu-latest, macos-latest]`). §7.3 step 3 and §7.4.3 rest on Windows-specific `os.Root` behavior — reparse tags mapping to `ModeSymlink` / `ModeSocket` / `ModeIrregular` / regular, handle-derived `GetFileInformationByHandle` identity, `GetFileType`-derived kinds, and the `winsymlink` GODEBUG default — none of which a cross-compile can execute. Cross-building for `GOOS=windows` proves the code compiles; it proves nothing about the behavior this PRD depends on. Without this row, AVP-175, AVP-176, AVP-198 and AVP-199 are unrunnable and the Windows half of the design is unverified. The existing steps (`gofmt -l`, `go vet ./...`, `go build ./...`, `go test ./... -count=1`, install smoke test — `.github/workflows/ci.yml:37-58`) are matrix-wide and need no change. |
+| `cmd/tpatch/main.go` | **Required.** Add `//go:debug winsymlink=1` immediately above `package main` (`cmd/tpatch/main.go:1`). §7.4.3 explains why: `(*fileStat).Mode` falls back to the pre-Go-1.23 mapping when the setting is `0`, under which a Windows junction reports `ModeSymlink` instead of `ModeIrregular`. A `//go:debug` directive is honored only in the main package, so it cannot live in `internal/intent`. The module already declares `go 1.26.1` (`go.mod:3`) and therefore already defaults to `1`; the directive makes the dependency explicit and reviewable rather than inherited. AVP-198. |
 | `CHANGELOG.md` | New command, new exit-code contract, explicit "no existing behavior changed" line. |
 
 This PRD edits none of them; it is planning-only. `SPEC.md` in particular is
@@ -2353,12 +2959,52 @@ owned by the implementation lane (`AGENTS.md` → File Ownership).
 
 **Native Windows CI is an acceptance obligation of this PRD, stated plainly.**
 tpatch's CI matrix today is Linux and macOS only
-(`.github/workflows/ci.yml:24-25`), and this PRD does **not** claim that any
+(`.github/workflows/ci.yml:25`), and this PRD does **not** claim that any
 Windows behavior is currently exercised by any runner. It requires that the
 implementation wave add `windows-latest` **in the same slice that lands the
 Windows open/stat path** (S1, §17), and it makes the native rows (AVP-175,
-AVP-176) exit criteria of that slice. A wave that ships the Windows code
-without the runner has not satisfied this PRD.
+AVP-176, AVP-198, AVP-199) exit criteria of that slice. A wave that ships the
+Windows code without the runner has not satisfied this PRD.
+
+**Junction fixtures must FAIL, not SKIP — this is the rev-3 tightening, and
+ADR-034 D13 locks it.** The
+Windows half of §7.3 step 3 and §7.4.3 stands or falls on one observable: a
+**junction** (`IO_REPARSE_TAG_MOUNT_POINT`) is a name-surrogate reparse point
+that maps to `ModeIrregular`, and the refusal predicate must catch it. Creating
+a junction in a Go test is not a one-liner: `os.Symlink` creates a *symlink*
+(tag `IO_REPARSE_TAG_SYMLINK`), which is the case the predicate would catch
+even if the `ModeIrregular` half were wrong, so a symlink fixture proves
+nothing about junctions.
+
+The mandated mechanism, in test code, native Windows only:
+
+```go
+// windows-only test helper
+cmd := exec.Command("cmd", "/c", "mklink", "/J", linkPath, targetPath)
+out, err := cmd.CombinedOutput()
+if err != nil {
+    t.Fatalf("mklink /J failed; this test must not be skipped: %v\n%s", err, out)
+}
+```
+
+`mklink /J` creates a directory junction and, unlike `mklink /D`, does **not**
+require the `SeCreateSymbolicLinkPrivilege` or Developer Mode — an ordinary
+unprivileged `windows-latest` runner can create one. Two rules follow, and
+AVP-199 asserts both:
+
+1. **If `mklink /J` is unavailable or fails for any reason, the test calls
+   `t.Fatal`, never `t.Skip`.** A skipped Windows junction test is
+   indistinguishable, in a green CI log, from a passing one — and the entire
+   reason R7's severity is High is that an unexercised Windows path degrades
+   silently. A failure is loud; a skip is a lie of omission.
+2. **`t.Skip` is forbidden in the Windows fixture path**, and AVP-199's source
+   half asserts no `t.Skip`/`t.Skipf`/`t.SkipNow` appears in the
+   junction-fixture helper or in any test that consumes it. The only permitted
+   guard is `runtime.GOOS != "windows"`, which is a *platform* skip on
+   non-Windows runners, not a *capability* skip on Windows. A sensitivity
+   fixture converting the `t.Fatal` back into a `t.Skip` fails the guard.
+
+A test that cannot create the object it exists to test has not passed.
 
 ### 16.2 Skill asset parity
 
@@ -2398,7 +3044,15 @@ skills:
    It must not describe exit 2 as an error, a failure, or a blocker, and it
    must not instruct the agent to abort the workflow on it. AVP-188.
 
-Acceptance rows AVP-090, AVP-091, AVP-092, AVP-188.
+7. **The skill text must not restate any `os.Root` guarantee.** Skill surfaces
+   describe *what the command reports*, never *how it reads*. In particular no
+   surface may claim the command "cannot read files outside the repository",
+   "detects tampering", or "is safe against symlink attacks" — §7.4.2 and
+   §7.4.4 bound those claims precisely, and a skill paraphrase is exactly where
+   the bound would be lost. AVP-189's shipped-string scan covers all six
+   surfaces.
+
+Acceptance rows AVP-090, AVP-091, AVP-092, AVP-188, AVP-189.
 
 ### 16.3 Rollout
 
@@ -2413,11 +3067,11 @@ accepted.
 
 | Slice | Scope | Exit criteria |
 |---|---|---|
-| **S1** | `internal/intent` core: `CanonicalSlug`, canonical root-relative path constants, the closed `FeatureState` list, the closed state enum, the §7.5 ladder, the §7.3 rooted policy, the §7.4.3 build-tagged `openFlags()` (all target sets), the §7.4.1 platform-confinement constant, the §7.4.5 fixed-buffer read, the seven instability probes, and the §9.4.2 status ladder. Pure; no CLI. **Also lands the `windows-latest` CI matrix row (§16.1) and the pre-change routing goldens.** | AVP-011…AVP-030, AVP-083…AVP-086, AVP-093, AVP-094, AVP-105, AVP-107…AVP-118, AVP-144…AVP-152, AVP-155…AVP-163, AVP-165, AVP-168, AVP-170…AVP-178, AVP-180 |
-| **S2** | Report model + renderers: JSON schema, human renderer (ordinary / abort / status-abort / slug-withheld forms), the §10.5.1 lifecycle-line table, the §9.4.5 abort-message catalog, total advisory function, determinism, privacy. Still no CLI wiring. | AVP-039…AVP-052, AVP-059, AVP-077…AVP-080, AVP-119…AVP-122, AVP-153, AVP-154, AVP-181, AVP-187 |
-| **S3** | `internal/cli`: `prepareCmd`, flag set, reserved-surface refusal, root open/close lifetime, abort precedence, exit codes, the §9.5 process-message catalog, stream routing composed with the root printer. | AVP-001…AVP-010, AVP-031…AVP-038, AVP-096…AVP-104, AVP-106, AVP-123…AVP-128, AVP-141…AVP-143, AVP-164, AVP-166, AVP-167, AVP-169, AVP-179, AVP-182…AVP-186 |
-| **S4** | Zero-mutation, provenance, parity and compatibility proofs; source scans; the composite differential and routing goldens. | AVP-053…AVP-058, AVP-060…AVP-076, AVP-081, AVP-082, AVP-087…AVP-089, AVP-129…AVP-138 |
-| **S5** | Docs + six skill surfaces + parity guard extension + guard-sensitivity meta-check. | AVP-090…AVP-092, AVP-095, AVP-139, AVP-140, AVP-188 |
+| **S1** (78 rows) | `internal/intent` core: `CanonicalSlug`, canonical root-relative `fs.ValidPath` constants, the §7.1.1 `RootOps`/`FileOps` seam and its one production adapter, the closed `FeatureState` list, the closed state enum, the §7.5 ladder (including 20a/20b), the §7.3 rooted policy with pre/post component walks, the §7.4.3 build-tagged `openFlags()` (all target sets), the §7.4.1 fail-closed platform allowlist, the §7.4.5 shared scratch buffer, the eight instability probes, and the §9.4.2 status ladder. Pure; no CLI. **Also lands the `windows-latest` CI matrix row and the `//go:debug winsymlink=1` directive (§16.1), and the pre-change routing goldens.** | AVP-011…AVP-030, AVP-083…AVP-086, AVP-093, AVP-094, AVP-105, AVP-107…AVP-118, AVP-144…AVP-152, AVP-155…AVP-163, AVP-165, AVP-168, AVP-170…AVP-178, AVP-180, AVP-190, AVP-191, AVP-194…AVP-200 |
+| **S2** (28 rows) | Report model + renderers: JSON schema, human renderer (ordinary / abort / status-abort / slug-withheld forms), the §10.5.1 lifecycle-line table, the §9.4.5 abort-message catalog, total advisory function, cap↔message coupling, determinism, privacy. Still no CLI wiring. | AVP-039…AVP-052, AVP-059, AVP-077…AVP-080, AVP-119…AVP-122, AVP-153, AVP-154, AVP-181, AVP-187, AVP-201 |
+| **S3** (49 rows) | `internal/cli`: `prepareCmd`, flag set, reserved-surface refusal, root open/close lifetime and the scratch-buffer allocation, abort precedence (slug before platform), exit codes, the §9.5 process-message catalog, stream routing composed with the root printer, and the §14.3.1 command-owned output boundary. | AVP-001…AVP-010, AVP-031…AVP-038, AVP-096…AVP-104, AVP-106, AVP-123…AVP-128, AVP-141…AVP-143, AVP-164, AVP-166, AVP-167, AVP-169, AVP-179, AVP-182…AVP-186, AVP-192, AVP-193 |
+| **S4** (38 rows) | Zero-mutation, provenance, parity and compatibility proofs; source scans; the composite differential and routing goldens. | AVP-053…AVP-058, AVP-060…AVP-076, AVP-081, AVP-082, AVP-087…AVP-089, AVP-129…AVP-138 |
+| **S5** (9 rows) | Docs + six skill surfaces + parity guard extension + guard-sensitivity meta-check + the over-claim and citation guards. | AVP-090…AVP-092, AVP-095, AVP-139, AVP-140, AVP-188, AVP-189, AVP-202 |
 
 Slices S1→S3 are strictly ordered. S4 and S5 may run in parallel with each
 other **only if** they touch disjoint files; both touch neither `cobra.go` nor
@@ -2431,11 +3085,13 @@ must be captured and committed in S1, before any CLI wiring exists, or the
 comparison degenerates into the before/after-a-no-op comparison rev-0 relied on
 (which cannot detect a change that is present in both halves).
 
-**Windows-runner prerequisite.** The `windows-latest` matrix row (§16.1) must
-land in S1, in the same slice as the Windows-relevant code, not deferred to
-S5's docs pass. A slice that adds the Windows open/stat path without a runner
-that executes it ships unverified behavior, and AVP-175 is written so it can
-only pass on a native run.
+**Windows-runner prerequisite.** The `windows-latest` matrix row and the
+`//go:debug winsymlink=1` directive (§16.1) must land in S1, in the same slice
+as the Windows-relevant code, not deferred to S5's docs pass. A slice that adds
+the Windows open/stat path without a runner that executes it ships unverified
+behavior; AVP-175 is written so it can only pass on a native run, and AVP-199
+is written so a runner that cannot create a junction **fails** rather than
+quietly skipping.
 
 ## 18. Acceptance matrix
 
@@ -2598,7 +3254,7 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
-| AVP-083 | U | deterministic hook deletes `spec.md` between `Lstat` and `open` | `unstable`, `artifact-snapshot-unstable` (not `absent`) — ladder row 10 |
+| AVP-083 | U | deterministic hook deletes `spec.md` between the leaf `Lstat` and the `OpenFile`, driven through the §7.1.1 seam's `before` hook | `unstable`, `artifact-snapshot-unstable` (not `absent`) — ladder row 9 |
 | AVP-084 | U | deterministic hook replaces `spec.md` with a different inode between `Lstat` and `fstat` | `unstable` via the `os.SameFile` probe — ladder row 13 |
 | AVP-085 | U | hook truncates `spec.md` to zero after `fstat`, before the read | `unstable` via the byte-count/size disagreement — **never** `present-empty` — ladder row 18 |
 | AVP-086 | I | quiescent tree | no artifact is `unstable`; no snapshot/atomicity field exists in the JSON (`snapshot_id`, `captured_at` absent by key-name walk) |
@@ -2648,7 +3304,7 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
 | AVP-107 | U | hook replaces `spec.md` with a FIFO (no writer) between `Root.Lstat` and `Root.OpenFile` | the open returns without blocking (hard test deadline); result is `unstable` — the descriptor-kind recheck, ladder row 14. On Unix this is `O_NONBLOCK`; on Windows the handle-derived `GetFileType` kind |
-| AVP-108 | U | hook replaces `spec.md` with an in-root symlink to a **different** file between `Root.Lstat` and `Root.OpenFile` | `unstable` via the row-13 identity comparison — **not** `symlink-refused`, because the link was never observed; zero bytes are read from the substituted object; its path is never named. This row pins §7.4.4's second table row and is the reason no acceptance row claims a final no-follow refusal |
+| AVP-108 | U | hook replaces `spec.md` with an in-root symlink to a **different** file between `Root.Lstat` and `Root.OpenFile` | `unstable` via the row-13 identity comparison — **not** `symlink-refused`, because the link was never observed; zero bytes are read from the substituted object; its path is never named. This row pins §7.4.4's second table row and is the reason no acceptance row claims a final no-follow refusal, and no caller-supplied `O_NOFOLLOW` exists to claim one with |
 | AVP-109 | U | injected `fstat(fd)` failure | `unreadable`, `artifact-unreadable` (ladder row 12) |
 | AVP-110 | U | descriptor is a non-regular file although `Lstat` reported regular | `unstable` (ladder row 14) |
 | AVP-111 | U | `fstat` size differs from the `Lstat` size | `unstable` (ladder row 15) |
@@ -2656,9 +3312,9 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 | AVP-113 | U | file grows within the cap during the read | `unstable` via the byte-count disagreement (ladder row 18) |
 | AVP-114 | U | post-read `fstat` reports a different size | `unstable` (ladder row 20) |
 | AVP-115 | U | injected post-read `fstat` failure | `unreadable` (ladder row 19) |
-| AVP-116 | S+G | inspector package | every artifact read fills one preallocated `MaxArtifactBytes+1` buffer (§7.4.5) and every status read one preallocated `MaxStatusBytes+1` buffer; zero calls to `os.ReadFile`, `io.ReadAll`, `io.LimitReader` or `bufio.Scanner`; the guard fails if either `+1` is dropped, if either limit is widened, or if a growable slice replaces the fixed buffer |
-| AVP-117 | U | each of the seven instability probes applied to `analysis_sidecar` | sidecar is `unstable` with `artifact-snapshot-unstable`; advisory `analysis-sidecar-unstable` is emitted; readiness is `ready` when the three Markdown artifacts are `present-nonempty`; exit 0 |
-| AVP-118 | G | platform contract | the build-tagged `openFlags()` set is exhaustive and disjoint over `windows` / `!windows`; `syscall.O_NOFOLLOW` and `syscall.O_NONBLOCK` appear only in the non-Windows file; the Windows file returns `0`; no file calls `syscall.CreateFile`, `rescap.openNoFollow`, or a bare `os.Open`; no `openFlags()` return value contains a write, create, truncate or append bit; a sensitivity fixture adding `os.O_WRONLY` fails the guard |
+| AVP-116 | S+G | inspector package | every artifact read fills the caller-supplied `MaxArtifactBytes+1` scratch slice and every status read the `scratch[:MaxStatusBytes+1]` sub-slice of the **same array** (§7.4.5); `internal/intent` contains no `make([]byte, …)` for a data buffer at all; zero calls to `os.ReadFile`, `io.ReadAll`, `io.LimitReader` or `bufio.Scanner`; the guard fails if either `+1` is dropped, if either limit is widened, if a growable slice replaces the fixed buffer, or if the status capture allocates its own array |
+| AVP-117 | U | each of the **eight** instability probes (§8.3, including the post-capture ancestor walk) applied to `analysis_sidecar` | sidecar is `unstable` with `artifact-snapshot-unstable`; advisory `analysis-sidecar-unstable` is emitted; readiness is `ready` when the three Markdown artifacts are `present-nonempty`; exit 0 |
+| AVP-118 | G | platform contract | the build-tagged `openFlags()` set is exhaustive and disjoint over `windows` / `!windows`; the non-Windows file returns **exactly** `syscall.O_NONBLOCK` and the Windows file **exactly** `0`; `syscall.O_NOFOLLOW` appears in **no** file (§7.4.3's rev-3 removal); no file calls `syscall.CreateFile`, `rescap.openNoFollow`, or a bare `os.Open`; no `openFlags()` return value contains a write, create, truncate or append bit; two sensitivity fixtures fail the guard — one adding `os.O_WRONLY`, one reintroducing `syscall.O_NOFOLLOW` |
 
 ### 18.17 P — Diagnostic totality
 
@@ -2699,7 +3355,7 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
-| AVP-139 | G | meta-check over the guard set, **derived** rather than hand-listed: every matrix row whose Kind string contains `G` (29 rows per §18.26) | each ships a paired sensitivity fixture on which it **fails**; a guard with no such fixture fails this meta-check; the derived set is compared against §18.26's stated arithmetic, and a row whose Kind contains no `G` (e.g. AVP-128, `S+I`) is **not** in the set; the guard also asserts §17's slice assignment is a partition of all 188 rows |
+| AVP-139 | G | meta-check over the guard set, **derived** rather than hand-listed: every matrix row whose Kind string contains `G` (39 rows per §18.27) | each ships a paired sensitivity fixture on which it **fails**; a guard with no such fixture fails this meta-check; the derived set is compared against §18.27's stated arithmetic, and a row whose Kind contains no `G` (e.g. AVP-128, `S+I`) is **not** in the set. The slice-partition and count arithmetic are AVP-202's, so the two meta-guards do not restate each other |
 | AVP-140 | I+G | a feature whose `spec.md` is `oversize` and whose sidecar is `oversize` | the report contains `state: "oversize"` and `reason_code: "artifact-oversize"` and the advisory `analysis-sidecar-oversize`, **and** the AVP-051 forbidden-field guard is green — proving the guard is key-name scoped rather than substring scoped |
 
 ### 18.21 T — Rooted namespace, ancestor races and root lifetime
@@ -2709,15 +3365,15 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 | AVP-141 | S+I | root lifetime | `os.OpenRoot` is called **exactly once** per invocation, in the CLI layer, after workspace discovery; an AST check finds exactly one call site in the command's call graph, and a runtime counter asserts one open and one `Close` per run |
 | AVP-142 | I | root ownership | `Inspect` never closes the root: after `Inspect` returns, the root is still usable (a further `Root.Lstat` succeeds); `Close` happens once, after the report is rendered |
 | AVP-143 | I | `repoRoot` renamed mid-run | with a deterministic hook that renames `repoRoot` after the root is opened and before the first artifact capture, the run completes and reports against the **original** directory in its new location; no path outside it is opened; exit code is readiness-derived |
-| AVP-144 | U | root-relative names | every name passed to a `Root` method is relative, slash-separated, and composed only from the fixed constants and the canonical slug; an AST check finds no `filepath.Join(repoRoot, …)`, no `filepath.Abs` and no absolute-path literal inside `internal/intent` |
+| AVP-144 | U+G | root-relative names are canonical `fs.ValidPath` names | every name passed to a `RootOps` method — the four artifact names, the status name and every component-walk prefix — satisfies `fs.ValidPath`: relative, slash-separated, non-empty, no `.`/`..`/empty element, valid UTF-8; the implementation asserts it at the call site; an AST check finds no `filepath.Join(repoRoot, …)`, no `filepath.Abs`, no absolute-path literal and **no reference to `safety.EnsureSafeRepoPath`** inside `internal/intent` (§7.3 step 2's rev-3 removal); a sensitivity fixture composing a name with a `..` element fails the assertion |
 | AVP-145 | U | ancestor component policy, symlink — `.tpatch`, `features`, `<slug>` and `artifacts` each replaced by a symlink in four separate fixtures | each is refused: the first three abort `feature-dir-unsafe`, the fourth yields sidecar `symlink-refused`; zero `Root.OpenFile` calls |
-| AVP-146 | U+G | ancestor component policy, reparse — the same four fixtures using a Windows junction (native run) or an injected `ModeIrregular` `FileInfo` (all targets) | each is refused identically to AVP-145, because the predicate tests `ModeSymlink\|ModeIrregular`; a sensitivity fixture testing only `ModeSymlink` lets the junction through and fails the guard |
+| AVP-146 | U+G | ancestor component policy, reparse — the same four fixtures using a Windows junction created by `cmd /c mklink /J` (native run, see AVP-199) or an injected `ModeIrregular` `FileInfo` through the §7.1.1 seam (all targets) | each is refused identically to AVP-145, because the predicate tests `ModeSymlink\|ModeIrregular`; a sensitivity fixture testing only `ModeSymlink` lets the junction through and fails the guard |
 | AVP-147 | U | ancestor not a directory — `.tpatch/features/<slug>` exists as a regular file | abort `feature-dir-unsafe`; zero artifact `Root.Lstat` calls |
 | AVP-148 | U | raced ancestor symlink, in-root, different identity — a hook replaces `artifacts/` with an in-root symlink to a different directory after the walk and before the sidecar open | sidecar is `unstable` (row 13); **zero bytes read**; the substituted directory's path is never named |
 | AVP-149 | U | raced ancestor symlink, out-of-root — a hook replaces `artifacts/` with a symlink to a directory outside `repoRoot`, in both a relative `../../..` form and an absolute form | both: `Root.OpenFile` fails; sidecar is `unreadable` (ladder row 10/11); zero bytes read; no path outside `repoRoot` is opened, stat'd or named, asserted with a filesystem spy over the whole process |
 | AVP-150 | S+G | forbidden readers | neither `internal/intent` nor the `prepare` command file references `store.LoadFeatureStatus`, `os.ReadFile`, `os.Open`, `os.OpenFile`, `os.Stat`, `os.Lstat` or `*store.Store`; a sensitivity fixture reintroducing `store.LoadFeatureStatus` fails the guard |
 | AVP-151 | U | raced leaf symlink, same identity — a hook replaces `spec.md` with an in-root symlink pointing at the very inode `Root.Lstat` observed | the capture proceeds and reports that object's real state; the test asserts the report is **true of the object that was read**, and that **no output string claims the alias was detected or refused**. This row pins §7.4.4's stated limitation; it does not claim a capability |
-| AVP-152 | G | no over-claim | no shipped string — help text, human report, advisory, abort message, `error:` line or skill text — contains a claim that every symlink race is detected, that the final open never follows a link, or that a same-identity alias is refused; a sensitivity fixture adding such a sentence fails the guard |
+| AVP-152 | G | no over-claim in shipped strings | no shipped string — help text, human report, advisory, abort message, `error:` line or skill text — contains a claim that every symlink race is detected, that the final open never follows a link, that a same-identity alias is refused, that a hard-link alias is detected, that an inode/file-ID reuse is detected, or that a swap-and-restore is defeated; a sensitivity fixture adding any one of those sentences fails the guard. AVP-189 is the complementary guard over the **documents** (this PRD and ADR-034) |
 
 ### 18.22 V — `status.json` inspection totality
 
@@ -2737,7 +3393,7 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 | AVP-164 | I | status invalid state — `status.json` is a valid JSON object whose `state` is `"prepared"`, and separately `""`, and separately a 4 KiB junk string | each: exit 3; `abort.code: status-invalid-state`; the offending value appears in **neither** stdout nor stderr; `feature_state` is `"unknown"` |
 | AVP-165 | G | `FeatureState` parity | every value in the inspector's closed list satisfies `store.ValidFeatureState` (`internal/store/types.go:39-46`), and an AST scan of the `FeatureState` const block (`internal/store/types.go:8-37`) yields exactly that list; adding a thirteenth state to `store` without updating the inspector fails the guard, and vice versa |
 | AVP-166 | I | status echo domain | across a corpus covering all twelve `FeatureState` values, `feature_state` equals the enum constant exactly; across the seven status abort populations it is `"unknown"`; it is never the empty string and never a value that failed validation |
-| AVP-167 | I | status absent, ready — feature directory exists, `status.json` absent, all three Markdown files `present-nonempty` | exit 0; `ready`; `feature_state: "unknown"`; advisory `feature-state-absent`; lifecycle line is the §10.5.1 `absent` row; stderr has no `error:` line |
+| AVP-167 | I | status absent, **human surface** — the same fixture as AVP-124, rendered without `--json` | the lifecycle line is the §10.5.1 `absent` row byte-for-byte; `feature-state-absent` is the **first** entry of `advisories` per §10.4's rank list; the disclaimer is the last line; stderr has no `error:` line. AVP-124 asserts the JSON and the exit code; this row asserts the human bytes, so the two are not the same test twice |
 | AVP-168 | G | status abort totality | the seven `status-*` abort codes are produced by exactly the §9.4.2 ladder rows listed in §9.4.4, are pairwise disjoint, and cover every non-`ok`, non-`absent` outcome; an outcome added without an abort code fails the guard |
 | AVP-169 | I | status abort precedence | with `status.json` malformed **and** all three Markdown artifacts absent, the run aborts `status-malformed` with `artifacts: []` — the status decision precedes artifact inspection (§9.3 step 8) |
 
@@ -2745,7 +3401,7 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
-| AVP-170 | U+G | allocation ceiling | an allocation-counting fixture over a capture of a 1-byte, a 4 MiB−1, a 4 MiB and a growing artifact records **exactly one** buffer allocation per capture, of exactly `MaxArtifactBytes+1` bytes; no reallocation, no copy, no growth in any case |
+| AVP-170 | U+G | allocation ceiling, per capture | an allocation-counting fixture over a capture of a 1-byte, a 4 MiB−1, a 4 MiB and a growing artifact records **zero** data-buffer allocations inside the capture itself — the buffer is the caller's (§7.4.5) — and no reallocation, no copy and no growth in any case. AVP-197 asserts the complementary per-invocation property |
 | AVP-171 | U | read ceiling | a counting reader asserts at most `MaxArtifactBytes+1` bytes are requested from the descriptor in every case, including the unbounded-growth case |
 | AVP-172 | G | forbidden read primitives | the inspector contains no `io.ReadAll`, `io.LimitReader`, `os.ReadFile`, `ioutil.ReadFile` or `bufio.Scanner`; a sensitivity fixture substituting `io.ReadAll(io.LimitReader(f, Max+1))` fails the guard, proving the guard tests the mechanism and not just the byte count |
 | AVP-173 | U | EOF semantics, total | zero-byte file → `io.EOF`, `n == 0`, captured `buf[:0]`, classified `present-empty`; short file → `io.ErrUnexpectedEOF`, captured `buf[:n]`; exactly-`Max` file → `io.ErrUnexpectedEOF` with `n == Max`, classified normally; file larger than `Max` at read time → `err == nil`, `n == Max+1`, classified `unstable` |
@@ -2756,8 +3412,8 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
 | AVP-175 | G | CI matrix | `.github/workflows/ci.yml`'s test matrix contains `windows-latest`; the guard parses the workflow and fails if it is absent, so the Windows rows below cannot silently become unrun |
-| AVP-176 | I | native Windows behavior, guarded by `runtime.GOOS == "windows"` and skipped elsewhere | on a native runner: a symlink `spec.md` is `symlink-refused`; a **junction** `artifacts/` is `symlink-refused` via `ModeIrregular`; a `status.json` reparse point aborts `status-symlink-refused`; `os.SameFile` over `Root.Lstat` and `File.Stat` is true for an unchanged file and false after an injected replacement; a `FILE_TYPE_CHAR` handle is `not-regular` |
-| AVP-177 | G | platform-confinement constant | `rootConfinementSupported` is declared exactly twice, under build tags that are exhaustive and disjoint over all `GOOS` values; it is `false` for `js`/`plan9` and `true` elsewhere; the `false` path returns abort `workspace-unsupported-platform` before `os.OpenRoot` is called; a sensitivity fixture that makes the tags overlap fails the build and the guard |
+| AVP-176 | I | native Windows behavior, guarded by `runtime.GOOS == "windows"` (a **platform** guard; capability skips are forbidden, AVP-199) | on a native runner: a symlink `spec.md` is `symlink-refused`; a **junction** `artifacts/` created per AVP-199 is `symlink-refused` via `ModeIrregular`; a `status.json` reparse point aborts `status-symlink-refused`; `os.SameFile` over `Root.Lstat` and `File.Stat` is true for an unchanged file and false after an injected replacement; a `FILE_TYPE_CHAR` handle is `not-regular`. The test's doc comment records that the identity half rests on version-pinned unexported behavior (G7, G8, G16) and is therefore a **Go-upgrade tripwire**, not a public contract (§7.4.4) |
+| AVP-177 | G | platform-confinement constant, runtime half | `rootConfinementSupported` is declared exactly twice; the `false` path returns abort `workspace-unsupported-platform` **before** `os.OpenRoot` is called and before any name is composed; a sensitivity fixture that makes the tags overlap fails the build and the guard. AVP-191 owns the build-tag *text* half (allowlist vs denylist) |
 | AVP-178 | G | cross-build | `GOOS=linux`, `GOOS=darwin` and `GOOS=windows` each vet and build the whole module; the guard fails if any target stops compiling |
 | AVP-179 | I | unsupported-platform abort shape | with the confinement constant forced `false`: exit 3; `abort.code: workspace-unsupported-platform`; `artifacts: []`; the §9.4.5 message exactly; **zero** filesystem calls of any kind (spy over the process) |
 | AVP-180 | S | no raw platform syscalls | neither `internal/intent` nor the `prepare` command file references `syscall.CreateFile`, `windows.Openat`, `GetFileType`, `FILE_FLAG_OPEN_REPARSE_POINT`, or `rescap.openNoFollow`; the Windows contract is expressed entirely through `os.Root` and `os.FileInfo` |
@@ -2767,18 +3423,37 @@ temp workspace), `S` source scan (AST), `G` mechanical guard.
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
 | AVP-181 | G | abort-message catalog | the thirteen §9.4.5 templates are a bijection with the thirteen §9.4.4 codes; each emitted `abort.message` equals its template byte-for-byte (after the human renderer's wrapping is undone); no template contains `%v`, an `os` error string, an absolute path, a `docs/` path, a `.md` filename or a URL; a sensitivity fixture wrapping an `os` error fails the guard |
-| AVP-182 | I | feature-directory walk order — four fixtures in which `.tpatch`, `features`, `<slug>` and the leaf respectively are the first offending component | each yields the abort the §7.3 step-5 order predicts (`feature-dir-unsafe` or `feature-not-found`), and the component **after** the offending one is never passed to `Root.Lstat` |
+| AVP-182 | I | feature-directory walk order — four fixtures in which `.tpatch`, `features`, `<slug>` and the leaf respectively are the first offending component | each yields the abort the §7.3 step-4 order predicts (`feature-dir-unsafe` or `feature-not-found`), and the component **after** the offending one is never passed to `Lstat` |
 | AVP-183 | I | `--path` exit ownership — `--path <nonexistent-dir>`, and `--path <existing-dir-with-no-.tpatch-anywhere-above>` | both: exit **3**, `abort.code: workspace-not-initialized`, full abort report emitted — **not** cobra exit 1; the message names `tpatch init` and `--path` and contains no absolute path |
-| AVP-184 | I | the genuine exit-1 population — `--path` supplied with no value, `--manual`, `--regenerate`, zero args, two args | each: exit 1 from cobra/pflag before `RunE`; no report on either stream; `.tpatch/` byte-identical |
+| AVP-184 | I | the genuine exit-1 population — `--path` supplied with no value, `--manual`, `--regenerate`, zero args, two args | each: exit 1 from cobra/pflag before `RunE`; no report on either stream; `.tpatch/` byte-identical. The §14.3.3 byte rules are **not** asserted here — that population is outside command-owned output (§14.3.1, AVP-193) |
 | AVP-185 | I | no status bytes leak — fixtures whose `status.json` carries a distinctive sentinel inside the state value, inside a note, and inside malformed bytes | the sentinel appears in neither stdout nor stderr in any flag combination, on `status-malformed` and `status-invalid-state` alike |
 | AVP-186 | I | remediation coherence | a hand-assembled feature directory named canonically (three Markdown files, no `status.json`) reports `ready`/exit 0; a hand-assembled directory named `My_Feature` yields `slug-unsafe` whose message names `tpatch add` and the rename path and does **not** contain the string `tpatch status` — following the message once produces a canonical name that the command then accepts |
-| AVP-187 | G | output byte rule | over the full flag × exit × abort matrix, including a slug argument containing `0x1B[2J`, `0x09`, `0x0D` and a raw newline: stdout and stderr contain no ASCII control byte other than the renderer's own `0x0A`; no byte sequence from a rejected argument appears; both streams are valid UTF-8; the project's `—` and `→` characters are present on the happy path and do **not** fail the guard |
+| AVP-187 | G | output byte rule, over **command-owned** output | over the full flag × exit × abort matrix for exits 0, 2, 3 and 4 — the command-owned populations of §14.3.1 — including a slug argument containing `0x1B[2J`, `0x09`, `0x0D` and a raw newline: stdout and stderr contain no ASCII control byte other than the renderer's own `0x0A`; no byte sequence from a rejected argument appears; both streams are valid UTF-8; the project's `—` and `→` characters are present on the happy path and do **not** fail the guard. Exit 1 is excluded by name, and AVP-193 asserts the exclusion is deliberate |
 | AVP-188 | U | skill exit-2 wording | all six skill surfaces contain the §16.2 item 6 paragraph verbatim; none describes exit 2 from this command as an error, a failure, a blocker, or a reason to abort the workflow; a sensitivity fixture rewording it to "fails with exit 2" fails the guard |
 
-### 18.26 Count, kinds and slice partition
+### 18.26 Z — Rooted-boundary honesty, seams, platform policy and citation integrity
 
-**Count: 188 acceptance rows**, `AVP-001`…`AVP-188`, contiguous, no duplicates,
-no retired rows. Twenty-four categories:
+| ID | Kind | Case | Asserted observable |
+|---|---|---|---|
+| AVP-189 | G | no physical-confinement over-claim, in **documents and strings** | a scan over every shipped string (help text, human report, advisory, abort message, `error:` line, all six skill surfaces) **and** over `docs/prds/PRD-artifact-validation-and-provenance.md` and `docs/adrs/ADR-034-rooted-filesystem-inspection-boundary.md` finds no sentence asserting that bytes read are physically inside the repository, that no file outside the repository can be read, that the root is a filesystem or device boundary, or that mount points / bind mounts / `/proc` / device files are prevented; every occurrence of a confinement claim is qualified as **logical**, **pathname** or **name** confinement. The guard carries a fixed list of forbidden phrasings derived from rev-2's own removed sentences, and a sensitivity fixture reinserting rev-2's "no path outside the repository is ever opened, read, or named" fails it |
+| AVP-190 | U | leaves the root does **not** close, handled by the kind gate and the bounded read | four injected-`FileInfo` fixtures through the §7.1.1 seam: (a) a directory-shaped mount point → `not-regular` (row 7); (b) a `/proc`-shaped leaf reporting `IsRegular()` with `Size() == 0` that then streams more than `MaxArtifactBytes+1` bytes → `unstable` via row 17, with a counting reader asserting at most `MaxArtifactBytes+1` bytes requested and **no** content in output; (c) a character-device leaf → `not-regular`; (d) a bind-mounted **regular file** → classified exactly like an ordinary regular file, and the test asserts in its own name that this case is deliberately **not** distinguished (§7.4.2) |
+| AVP-191 | G | platform build tags are a fail-closed allowlist | the `rootConfinementSupported = true` file's `//go:build` line is byte-identical to `unix \|\| windows \|\| wasip1`, and is compared against the live text of `$GOROOT/src/os/root_openat.go`'s own build tag; the `false` file's line is its exact syntactic negation `!(unix \|\| windows \|\| wasip1)`; the two sets are exhaustive and disjoint over every `GOOS` reported by `go tool dist list`; a sensitivity fixture rewriting the pair into rev-2's denylist form (`(js && wasm) \|\| plan9` / its negation) fails the guard, and so does a fixture adding a hypothetical new `GOOS` that the denylist form would have silently admitted |
+| AVP-192 | I | slug validation precedes the platform guard | with the confinement constant forced `false` **and** a non-canonical slug argument, the run aborts `slug-unsafe` (not `workspace-unsupported-platform`), exit 3, `slug: ""`; with the constant forced `false` and a canonical slug it aborts `workspace-unsupported-platform` with `slug` set to that canonical slug; across the whole abort matrix `slug == ""` **iff** `abort.code == "slug-unsafe"` (§10.2 rule 8) |
+| AVP-193 | G | command-owned output scope | the exit-1 population (unknown flag, wrong arity, `--path` with no value) is enumerated and asserted to be **outside** the §10.2 schema and the §14.3.3 byte rules: no report on either stream, `.tpatch/` byte-identical, and the guard explicitly records that cobra's own diagnostic bytes are not sanitized and not claimed to be. A sensitivity fixture that intercepts and re-renders cobra's error inside `RunE` fails the guard, because that would move those bytes into the command's ownership without a schema decision. Separately asserted: a hostile slug with a **well-formed** flag set never reaches this population — it reaches `slug-unsafe` and is withheld (AVP-102…AVP-104) |
+| AVP-194 | S+G | the `RootOps`/`FileOps` seam | exactly **one** type implementing `RootOps` and one implementing `FileOps` are declared outside `_test.go` files, and they are the `*os.Root`/`*os.File` adapters of §7.1.1; the production `RootOps` adapter struct has exactly one field; no production type carries a before/after hook field; `RootOps` declares exactly two methods and `FileOps` exactly three, none of them taking or returning an absolute path. Sensitivity: a fixture adding a second production implementation fails; so does one adding a pathname-based method to either interface |
+| AVP-195 | U | pre- and post-capture component walks | with the §7.1.1 seam's `after` hook replacing `artifacts/` with a symlink **after** the read completes and before the post-walk: the sidecar is `unstable` (ladder row 20a), the captured bytes are discarded, and the reported state is **not** a content state even though the read succeeded and the leaf identity matched. Three companion fixtures: the component vanishes → `unstable` (not `absent`); the component becomes a regular file → `unstable` (not `unreadable`); the post-walk `Lstat` fails for another reason → `unreadable` (row 20b). A required artifact in this state forces `indeterminate`/exit 3 (§9.1) |
+| AVP-196 | U | identity limits, asserted as limits | three fixtures, each asserting the **documented** outcome and each named for the limit it pins: (a) **hard-link alias** — the leaf name is swapped to a hard link of the same inode; `os.SameFile` matches, the capture proceeds, and the test asserts the report is true of the object read and that **no output string claims detection**; (b) **file-ID reuse** — an injected `FileInfo` pair with identical `Dev`/`Ino` (or `vol`/`idxhi`/`idxlo`) representing two different objects; the comparison matches and the test records that this is inherent to identity-by-number; (c) **swap-and-restore** — the seam's hooks restore the intended object before each of the six observation points; every probe passes and the test asserts the PRD documents this residue (§8.3 limit 5) rather than claiming to close it. All three are *limit* rows: none asserts a capability |
+| AVP-197 | U+G | one reused scratch buffer per invocation, with a stated cost | an allocation-counting fixture over a full real run (status capture plus four artifact captures, artifacts sized 0 B, 1 B, 4 MiB−1 and 4 MiB) records **exactly one** data-buffer allocation for the whole invocation, of exactly `MaxArtifactBytes+1 == 4,194,305` bytes; the status capture is asserted to use a sub-slice of that same array (compared by backing-array pointer), not its own; the same single allocation occurs on an abort run that captures nothing; `MaxStatusBytes < MaxArtifactBytes` is asserted at compile time; a sensitivity fixture restoring rev-2's per-capture `make` fails the guard by counting five allocations |
+| AVP-198 | G | `winsymlink` directive and the Windows tag mapping | source half (all targets): `cmd/tpatch`'s `package main` file contains the exact line `//go:debug winsymlink=1` immediately above `package main`, and a sensitivity fixture removing it or setting `0` fails. Mapping half (injected `FileInfo` through the seam, all targets): a symlink-tag stat → refused; a mount-point/name-surrogate stat → refused via `ModeIrregular` **with no `ModeDir` bit**; an `AF_UNIX`-tag stat → `ModeSocket`, **not** refused by the predicate but caught by `!IsRegular()` at row 7; a `DEDUP`-tag stat → **no type bit, classified as a regular file and read normally**, which the test asserts as the deliberate behavior of §7.4.3. Native half (`runtime.GOOS == "windows"`): a junction created per AVP-199 reports `ModeIrregular` and **not** `ModeSymlink`, which is the runtime observable distinguishing `winsymlink=1` from `winsymlink=0` |
+| AVP-199 | I | native Windows junction fixtures fail, never skip | on `windows-latest`: the junction helper runs `cmd /c mklink /J <link> <target>` and calls `t.Fatal` — never `t.Skip` — if the command is unavailable or returns non-zero; a source-scan half asserts no `t.Skip`/`t.Skipf`/`t.SkipNow` appears in the junction-fixture helper or in any test consuming it, the only permitted guard being `runtime.GOOS != "windows"`; the created object is asserted to be a real junction (`ModeIrregular`, name-surrogate, `IsDir()` false). Sensitivity: a fixture converting the `t.Fatal` into a `t.Skip` fails the guard |
+| AVP-200 | G | `O_NONBLOCK` pass-through Go-upgrade tripwire | a real `os.Root` over a real temp directory containing a real FIFO with **no writer** is opened with `os.O_RDONLY\|syscall.O_NONBLOCK` under a hard deadline (non-Windows only); the open must return — success or error — within the deadline. The test's name and comment state that it verifies an **unexported implementation detail of `os.Root`** (`rootOpenFileNolog` forwarding caller flags to `openat`, G17), not a documented contract, so a Go release that stops forwarding the flag turns this red at upgrade time rather than turning `prepare --check` into a field hang. A sensitivity fixture opening without `O_NONBLOCK` blocks and fails the deadline |
+| AVP-201 | G | cap ↔ frozen-message coupling | the guard derives the human unit string from each constant (`MaxArtifactBytes` → `4 MiB`, `MaxStatusBytes` → `1 MiB`) and asserts: the derived artifact string appears in the `analysis-sidecar-oversize` advisory (§10.4) and in §15's oversize remediation, and nowhere claims a different figure; the derived status string appears in the `status-oversize` abort template (§9.4.5) and nowhere else claims a different figure; no message names a limit that is not one of the two constants. Two sensitivity fixtures fail the guard: one changing `MaxArtifactBytes` without changing its message, one changing the message without changing the constant |
+| AVP-202 | G | citation-resolution and matrix-arithmetic guard | a mechanical pass over this PRD asserts: (a) every `AVP-NNN` token appearing **anywhere** in the prose resolves to a declared row in §18.2–§18.26; (b) declared IDs are contiguous `AVP-001`…`AVP-202` with zero duplicates and zero gaps; (c) §18.27's category table sums to the declared total, and each category's stated count equals the number of rows under that section heading; (d) §18.27's kind table sums to the declared total, and each kind's count equals the number of rows whose Kind column is exactly that string; (e) the guard-arithmetic predicate ("Kind contains `G`") reproduces §18.27's stated guard-row count; (f) §17's slice assignment is a partition of `1…202` — zero unassigned, zero double-assigned — and each slice's row count matches. Sensitivity fixtures, all of which must fail the guard: a prose reference to a row number beyond the declared maximum; a category count off by one; a row moved between categories without updating the table; a row assigned to two slices. **What this guard does not prove, stated in the guard's own doc comment:** it verifies that citations *resolve* and that counts are *arithmetically consistent*. It cannot verify that a cited row is the *semantically right* row for the sentence citing it — a prose sentence about the status cap citing a row about the artifact cap resolves fine and is still wrong. Semantic mapping remains a reviewer obligation, and §18.1's "a test does not satisfy a row merely by existing" rule is its analogue on the implementation side |
+
+### 18.27 Count, kinds and slice partition
+
+**Count: 202 acceptance rows**, `AVP-001`…`AVP-202`, contiguous, no duplicates,
+no retired rows. Twenty-five categories:
 
 | Cat | § | Rows | Cat | § | Rows |
 |---|---|---|---|---|---|
@@ -2793,59 +3468,71 @@ no retired rows. Twenty-four categories:
 | I | 18.10 | 6 | W | 18.23 | 5 |
 | J | 18.11 | 4 | X | 18.24 | 6 |
 | K | 18.12 | 6 | Y | 18.25 | 8 |
-| L | 18.13 | 3 | | | |
+| L | 18.13 | 3 | Z | 18.26 | 14 |
 | M | 18.14 | 6 | | | |
 
-The category letters sum to 188. `U` is deliberately skipped as a category
-letter so it cannot be confused with the `U` (unit) **kind**; `G` and `S`
-remain as both a category letter and a kind letter for historical reasons —
-they are disambiguated by column position and were not renumbered, per §18.1's
-stability rule.
+The category letters sum to **202** (188 carried forward + 14 new `Z` rows).
+`U` is deliberately skipped as a category letter so it cannot be confused with
+the `U` (unit) **kind**; `G` and `S` remain as both a category letter and a
+kind letter for historical reasons — they are disambiguated by column position
+and were not renumbered, per §18.1's stability rule.
 
 **By kind** (the Kind column, exactly as written in each row):
 
 | Kind | Rows | Carries a guard component? |
 |---|---|---|
-| `U` | 57 | no |
-| `I` | 94 | no |
+| `U` | 59 | no |
+| `I` | 96 | no |
 | `S` | 6 | no |
-| `G` | 23 | **yes** |
-| `S+G` | 3 (AVP-089, AVP-116, AVP-150) | **yes** |
-| `U+G` | 2 (AVP-146, AVP-170) | **yes** |
+| `G` | 30 | **yes** |
+| `S+G` | 4 (AVP-089, AVP-116, AVP-150, AVP-194) | **yes** |
+| `U+G` | 4 (AVP-144, AVP-146, AVP-170, AVP-197) | **yes** |
 | `I+G` | 1 (AVP-140) | **yes** |
 | `S+I` | 2 (AVP-128, AVP-141) | no |
 
-57 + 94 + 6 + 23 + 3 + 2 + 1 + 2 = **188**.
+59 + 96 + 6 + 30 + 4 + 4 + 1 + 2 = **202**.
 
 **Guard arithmetic, stated once and used everywhere.** A row "carries a guard
-component" **iff** its Kind string contains `G`. That is **23 pure `G` rows +
-3 `S+G` + 2 `U+G` + 1 `I+G` = 29 rows**, and 29 is the number §18.27 and
-AVP-139 operate over.
+component" **iff** its Kind string contains `G`. That is **30 pure `G` rows +
+4 `S+G` + 4 `U+G` + 1 `I+G` = 39 rows**, and 39 is the number §18.28 and
+AVP-139 operate over. Restated as the arithmetic a reviewer can reproduce
+directly: 30 + 4 + 4 + 1 = 39, and the complement (59 `U` + 96 `I` + 6 `S` +
+2 `S+I` = 163) carries no guard component; 39 + 163 = 202.
 
 rev-1 got this wrong in two directions at once: it claimed "13 `G` rows plus 3
 combined = 15" in the count paragraph while its sensitivity section listed "the
 13 `G` rows plus AVP-116, AVP-128 and AVP-140" — sixteen items — and it
-included **AVP-128**,
-whose kind is `S+I` and which contains no guard at all. rev-2 removes AVP-128
-from the guard set (it is an AST + runtime-spy row, not a mechanical guard over
-a declared table), states the rule as a predicate rather than a hand-list, and
-makes AVP-139 derive the set mechanically so the arithmetic cannot drift again.
+included **AVP-128**, whose kind is `S+I` and which contains no guard at all.
+rev-2 removed AVP-128 from the guard set (it is an AST + runtime-spy row, not a
+mechanical guard over a declared table), stated the rule as a predicate rather
+than a hand-list, and made AVP-139 derive the set mechanically. **rev-3 adds
+AVP-202**, which re-derives *all* of the arithmetic above from the matrix
+itself — category counts, kind counts, the guard predicate and the slice
+partition — so a future rev cannot restate a stale total in prose while the
+rows say otherwise. AVP-202's own doc comment states what it cannot do:
+resolution and arithmetic are mechanical, semantic correctness of a citation is
+not.
 
-**Slice partition.** All 188 rows are assigned to exactly one slice in §17's
-exit-criteria column: zero unassigned, zero double-assigned. AVP-139 and the
-§17 table are cross-checked in the same guard.
+**Slice partition.** All 202 rows are assigned to exactly one slice in §17's
+exit-criteria column: zero unassigned, zero double-assigned (S1 78, S2 28,
+S3 49, S4 38, S5 9 — sum 202). AVP-139 and AVP-202 cross-check the §17 table.
 
-### 18.27 Sensitivity requirement
+### 18.28 Sensitivity requirement
 
-Every row carrying a guard component — the **29** rows whose Kind contains `G`,
-per §18.26 — is a mechanical guard, and mechanical guards can false-pass. Each
+Every row carrying a guard component — the **39** rows whose Kind contains `G`,
+per §18.27 — is a mechanical guard, and mechanical guards can false-pass. Each
 must ship with a **sensitivity regression** proving it fails on a deliberately
 broken input: a synthetic extra enum value, a swapped precedence pair, an
 orphan catalog code, a dropped `+1` on a read limit, a growable slice
-substituted for the fixed buffer, a substring- rather than key-scoped field
-check, an advisory row deleted from the total function, an abort code without a
-message template, a lifecycle line without a population, overlapping build
-tags, or a reparse predicate narrowed to `ModeSymlink` alone.
+substituted for the shared scratch buffer, a substring- rather than key-scoped
+field check, an advisory row deleted from the total function, an abort code
+without a message template, a lifecycle line without a population, the platform
+build tags rewritten into a denylist, a reparse predicate narrowed to
+`ModeSymlink` alone, a reinstated `syscall.O_NOFOLLOW`, a removed
+`//go:debug winsymlink=1`, a `t.Skip` restored in the Windows junction helper,
+a second production `RootOps` implementation, a cap changed without its frozen
+message, a physical-confinement sentence reinserted into the PRD or ADR, or a
+prose citation pointed at a row number beyond the declared maximum.
 
 AVP-139 is the meta-check, and it derives the guard set from the matrix rather
 than from a hand-maintained list: it parses this section's rows, selects those
@@ -2866,15 +3553,19 @@ without a proven failure mode is not evidence.
 | R2 | The §6.2 full-bundle readiness decision is misread as "tpatch now requires exploration". | **High** | §6.2.2 answers the six concrete questions in a table; §13.3 gives the affected population its own row; six acceptance rows (AVP-070, AVP-071, AVP-072, AVP-136, AVP-137, plus the AVP-134/135 reverse call-graph guards) prove no lifecycle, routing or gate change. §16.2 item 5 keeps the skills from presenting it as a mandated step, asserted by AVP-092. |
 | R3 | `prepare` collides with `apply --mode prepare` and confuses agents. | Medium | Reciprocal help text (§5.2), asserted by AVP-009/AVP-010; skill surfaces name the full invocation including `--check` (§16.2). |
 | R4 | A future wave quietly reuses the inspector inside `AdvanceStateManually`, silently tightening a shipped gate. | Medium | §12's decision is written as acceptance rows AVP-064…AVP-069 that pin the *loose* behavior, plus the composite rows AVP-130…AVP-133 that exercise the real mutating path; a tightening refactor turns them red. |
-| R5 | Instability detection over-promises and operators trust a torn read. | Medium | §8.3 states three limits — same-length in-place rewrite, same-identity alias, and the held-descriptor tautology — in the PRD and forbids any stronger claim in output or docs; AVP-152 is a mechanical over-claim guard over every shipped string; no retry/lock is added. |
+| R5 | Instability detection over-promises and operators trust a torn read. | Medium | §8.3 states **six** limits — same-length in-place rewrite, same-identity alias, hard-link alias, inode/file-ID reuse, swap-and-restore, and the held-descriptor tautology — and §7.4.4 weakens the promise to "an object **observed as different** is never read"; AVP-152 is a mechanical over-claim guard over every shipped string and AVP-196 pins the three alias/reuse limits as *limits*, not capabilities; the post-capture ancestor walk (row 20a, AVP-195) narrows the window without claiming to close it; no retry/lock is added. |
 | R6 | Harness authors expect stderr to be empty on `--json --quiet` and break on the `error:` line. | Medium | §10.1 tables the composed behavior for every exit × flag combination; AVP-096…AVP-101 assert it, including the exit-0 case where stderr *is* empty. The `error:` line is always last and always exactly one line. |
-| R7 | The Windows capture contract diverges from the Unix one and quietly degrades, and no runner would notice. | **High** | rev-1's severity was too low: CI is Linux + macOS only today (`.github/workflows/ci.yml:24-25`), so the entire Windows half was unexecuted. Three mitigations, all mandatory: (a) the contract is expressed through `os.Root` rather than a hand-rolled `CreateFile`, so both targets share one code path and one set of ladder rows (§7.4.3); (b) `windows-latest` is added to the CI matrix **in S1**, as an acceptance obligation, not a nicety (§16.1, §17, AVP-175); (c) AVP-176 exercises symlink, junction, reparse-`status.json`, handle identity and `FILE_TYPE_CHAR` natively, and AVP-178 keeps all three targets building. |
-| R8 | `oversize` makes a legitimate large artifact unusable. | Low | 4 MiB is ~1000× any real intent artifact; the state is reported honestly with a manual-inspection remediation rather than a silent truncation. `MaxStatusBytes` is separate (§9.4.2) so widening one cannot silently widen the other. |
+| R7 | The Windows capture contract diverges from the Unix one and quietly degrades, and no runner would notice. | **High** | rev-1's severity was too low: CI is Linux + macOS only today (`.github/workflows/ci.yml:25`), so the entire Windows half was unexecuted. Five mitigations, all mandatory: (a) the contract is expressed through `os.Root` rather than a hand-rolled `CreateFile`, so both targets share one code path and one set of ladder rows (§7.4.3); (b) `windows-latest` is added to the CI matrix **in S1**, as an acceptance obligation, not a nicety (§16.1, §17, AVP-175); (c) AVP-176 exercises symlink, junction, reparse-`status.json`, handle identity and `FILE_TYPE_CHAR` natively, and AVP-178 keeps all three targets building; (d) the reparse-tag mapping is corrected and pinned, including the AF_UNIX and DEDUP exceptions rev-2 got wrong, with `//go:debug winsymlink=1` in `package main` (AVP-198); (e) **junction fixtures must fail, not skip** — `cmd /c mklink /J` with `t.Fatal` on unavailability, and a source guard forbidding `t.Skip` in the fixture path (AVP-199), because a skipped Windows test is indistinguishable from a passing one in a green log. |
+| R8 | `oversize` makes a legitimate large artifact unusable. | Low | 4 MiB is ~1000× any real intent artifact; the state is reported honestly with a manual-inspection remediation rather than a silent truncation. `MaxStatusBytes` is separate (§9.4.2) so widening one cannot silently widen the other — though §7.4.5's shared buffer does make `MaxStatusBytes < MaxArtifactBytes` a structural invariant, asserted at compile time. Changing either constant without changing its frozen message fails AVP-201. |
 | R9 | Schema churn breaks harness consumers. | Low | §10.2's versioning rule; the two-shape `artifacts` contract with an exact `iff` discriminator; §11.1's stable `unknown` keeps a future provenance value additive. |
 | R10 | The four-artifact set is wrong for some workflow. | Low | The set is closed for v1 and additive later; §6.1 states the exclusion rationale rather than leaving it implicit. |
 | R11 | Skill-surface edits drift across the six formats. | Low | The existing parity guard is the mechanism; AVP-090…AVP-092 and AVP-188 extend it in the same commit. |
 | R12 | An agent treats exit `2` as a tool failure and aborts or retries the workflow. | Medium | §16.2 item 6 fixes verbatim skill wording that names exit 2 an expected report outcome and forbids calling it an error or a blocker; AVP-188 asserts it in all six surfaces with a sensitivity fixture on the word "fails". |
-| R13 | A future refactor reintroduces an unrooted `os` read — the exact defect rev-1 shipped by delegating `status.json` to `store.LoadFeatureStatus`. | **High** | AVP-089 and AVP-150 are AST guards over both the inspector and the command file, each with a sensitivity fixture that reintroduces one forbidden call; §7.1 and §9.4.1 state the rule as a package invariant rather than a convention. |
+| R13 | A future refactor reintroduces an unrooted `os` read — the exact defect rev-1 shipped by delegating `status.json` to `store.LoadFeatureStatus`. | **High** | AVP-089, AVP-150 and AVP-194 are AST guards over both the inspector and the command file, each with a sensitivity fixture that reintroduces one forbidden call or a second production `RootOps` implementation; §7.1.1, §7.1.2 and §9.4.1 state the rule as a package invariant rather than a convention. |
+| R14 | A reader takes `os.Root` for a **physical** boundary and assumes the command cannot read a device file, a bind mount or a `/proc` entry — then builds a security argument on it. | **High** | §7.4.2 quotes the `Root` doc comment's own "do not prohibit traversal of filesystem boundaries, Linux bind mounts, /proc special files, or access to Unix device files" sentence and tables what actually closes each leaf; §14.1 names the three boundaries; ADR-034 D2 locks the scope; AVP-189 is a mechanical over-claim guard over the shipped strings **and** over this PRD and ADR-034; AVP-190 exercises the four leaf shapes. |
+| R15 | A Go toolchain upgrade silently removes a behavior this design depends on but the standard library never promised — `O_NONBLOCK` forwarding, handle-derived Windows identity, or the reparse-tag mapping. | Medium | §23.2 classifies every stdlib claim as **contract** or **tripwire**, and every tripwire names a runtime acceptance row: AVP-200 (FIFO deadline) for `O_NONBLOCK`, AVP-176 (native identity) for Windows `SameFile`, AVP-198 (tag mapping + `winsymlink` directive) for the mode mapping. A red test at upgrade time is the designed failure mode; a field hang or a silently weakened identity check is not. |
+| R16 | The `RootOps` seam becomes a general-purpose injection point and a future change routes a real read through a non-adapter implementation. | Medium | §7.1.1 rule 1 permits exactly one production implementation and AVP-194 asserts it by AST with a sensitivity fixture; the interface is two + three methods wide with no pathname-taking method; AVP-089 and AVP-150 continue to scan the whole package including test files for pathname readers. |
+| R17 | The fixed ~4 MiB scratch allocation is read as "the command allocates proportionally to the data" and someone later multiplies it back out per capture. | Low | §7.4.5 states the cost as a flat 4,194,305 bytes per invocation, including on abort runs; AVP-197 counts exactly one allocation for a whole run and its sensitivity fixture fails at five when the per-capture form is restored; Q9 records the lazy-allocation alternative rather than leaving it unconsidered. |
 
 ## 20. Relationship to `PRD-prepare-intent-bundle` (blocked)
 
@@ -2921,7 +3612,9 @@ a decision.
 | Q5 | Should the Windows reserved-device-name refusal (§7.2) be platform-conditional rather than universal? | A universal refusal makes one slug name unusable on Linux for a Windows-only reason; a conditional one makes the same slug behave differently per platform, which is worse for a deterministic contract. | Universal, for determinism; a later PRD may narrow it with an enumerated delta. |
 | Q6 | Should `--format text\|json` be offered as an alias for `--json`, matching `next`'s flag shape (`internal/cli/phase2.go:360-407`)? | The repo has two conventions: `verify` uses `--json`/`--quiet`, `next` uses `--format`. This PRD follows `verify` because the output is a report, not a task envelope. | `--json`/`--quiet` only; an alias is additive. |
 | Q7 | Is `MaxStatusBytes = 1 MiB` right, and should it stay separate from `MaxArtifactBytes`? | `status.json` is machine-written with a fixed field set (`internal/store/types.go:215,234,236-265`), so 1 MiB is ~three orders of magnitude above anything `SaveFeatureStatus` can produce — but no distribution has been measured, and a single shared cap would be one fewer constant. | Separate, at 1 MiB. Sharing the cap would mean a future widening of the artifact cap (Q3) silently widened the metadata cap, which is the coupling §9.4.2 exists to avoid. Changing the value later moves only the `status-oversize`/`status-unstable` boundary and is additive. |
-| Q8 | Should `workspace-unsupported-platform` be a **compile-time** refusal on `js`/`plan9` instead of a runtime abort? | A build constraint would make the refusal impossible to forget, but it would break `go build ./...` for anyone cross-compiling the whole module to those targets, which the repo does not currently forbid. | Runtime abort (§7.4.1). It is total, testable (AVP-179) and does not change what the module can be built for. A later PRD may tighten it with an enumerated delta. |
+| Q8 | Should `workspace-unsupported-platform` be a **compile-time** refusal instead of a runtime abort? | A build constraint would make the refusal impossible to forget, but it would break `go build ./...` for anyone cross-compiling the whole module to a non-allowlisted target, which the repo does not currently forbid. | Runtime abort (§7.4.1). It is total, testable (AVP-179) and does not change what the module can be built for. With rev-3's fail-closed allowlist the runtime abort now also covers *unknown future* targets, which was Q8's real worry. A later PRD may tighten it with an enumerated delta. |
+| Q9 | Should the `MaxArtifactBytes+1` scratch buffer be allocated **lazily**, on the first capture that actually opens a file, instead of unconditionally per invocation? | §7.4.5's flat ~4 MiB cost is paid by every invocation, including aborts that capture nothing and the common case of four small Markdown files. Lazy allocation would remove that, at the price of a nilable buffer parameter and a branch on every capture — i.e. exactly the kind of conditional the fixed-buffer design exists to eliminate. | Unconditional. The cost is stated honestly (§7.4.5) rather than hidden, it is bounded and predictable, and AVP-197 asserts it as one allocation. A later PRD may make it lazy with an enumerated delta and a revised AVP-197. |
+| Q10 | Should the `RootOps`/`FileOps` seam (§7.1.1) be unexported (`rootOps`/`fileOps`) rather than exported within `internal/intent`? | Exported names read better in the `Inspect` signature and in test files, but they widen the apparent API of a package whose whole point is a narrow surface. The package is `internal/`, so neither choice is reachable from outside the module. | Exported within the package, as written. AVP-134's reverse call-graph guard already limits the importer set to the `prepare` command file, which is the property that actually matters. Renaming to unexported is a mechanical change a reviewer may request without reopening any decision. |
 
 ## 22. Alternatives considered
 
@@ -2935,7 +3628,7 @@ a decision.
 | **Introduce a `prepared` lifecycle state** | Explicitly rejected by WP-005 Agreed item 6 (`docs/whitepapers/WP-005-spec-driven-workflows.md:73-76`). Completeness is an artifact-level fact; adding a state would force every consumer of `FeatureState` to learn it. |
 | **Abort when `status.json` is absent** (rev-0 behavior) | It refused to describe the population an inspection command most needs to describe, and asserted a precondition no artifact classification depends on. `ListFeatures` already treats such a directory as ordinary-and-skippable rather than corrupt (`internal/store/store.go:209-227`). §9.4 continues with `feature_state: "unknown"` instead. |
 | **Emit four all-`absent` artifact rows on the abort path** (rev-0 behavior) | It claimed an inspection that never happened — a false statement of exactly the class this PRD exists to remove. §10.2 rule 1 uses an empty collection with an exact `iff` discriminator instead. |
-| **`Lstat` then an ordinary `os.Open`** (rev-0 behavior) | Follows a symlink that appears after the `Lstat` and blocks forever on a FIFO. §7.4 replaces it with a no-follow, non-blocking open plus post-open identity and kind rechecks, reusing the seam `internal/rescap/pathopen_unix.go:20-28` already ships. |
+| **`Lstat` then an ordinary `os.Open`** (rev-0 behavior) | Follows a symlink that appears after the `Lstat` and blocks forever on a FIFO. §7.4 replaces it with a rooted, non-blocking open plus post-open identity and kind rechecks. rev-0 and rev-1 proposed reusing `internal/rescap/pathopen_unix.go:20-28`; rev-2 rejected that (its Windows sibling is a stub, C60) and rev-3 additionally drops the caller-supplied `O_NOFOLLOW` that seam is built around, because `os.Root` consumes it (§7.4.3). |
 | **Bound the read with a pre-read size check only** | A file that grows between the `Lstat` and the read bypasses it, so the inspector could allocate without bound. `internal/rescap/content.go:9-11` states the same reasoning for the same hazard. §7.4.5 uses one preallocated `MaxArtifactBytes+1` buffer. |
 | **`io.ReadAll(io.LimitReader(f, Max+1))`** (rev-1 behavior) | It bounds the *result length* but not the *allocation*: `io.ReadAll` grows its slice by `append`, so a 4 MiB artifact allocates a geometric series of buffers and copies between them. rev-1 asserted an exact allocation ceiling that the mechanism does not provide. §7.4.5 replaces it with one preallocated `Max+1` buffer and `io.ReadFull`, and AVP-172's sensitivity fixture fails if the `ReadAll` form is reintroduced. |
 | **Pathname resolution with `os.Lstat` component walks and `openNoFollow`** (rev-1 behavior) | Every check and the open resolve the *name* independently, so the ancestor chain is re-resolved by the kernel at open time with whatever the tree looks like then. Its Windows half was worse than unimplemented: rev-1 cited `internal/rescap/pathopen_windows.go:12-20` as a reusable seam when that file is an explicitly unsupported compile-only stub whose `isSymlinkLoopError` "always reports false on this target". §7.3 replaces the whole model with one held `*os.Root`, which confines resolution by construction on every shipped target. |
@@ -2944,6 +3637,15 @@ a decision.
 | **Reading `status.json` through `store.LoadFeatureStatus`** (rev-1 behavior) | It is `os.ReadFile` on an absolute pathname (`internal/store/store.go:351-361`): it follows symlinks, is unbounded, checks no kind and no identity, and resolves outside the rooted namespace — leaving the one read whose bytes reach output as the only read not covered by §7.4. §9.4 gives it the full discipline and its own cap, and AVP-150 makes the old call a guard failure. |
 | **Grouping the seven `status-*` aborts into one `status-broken` code** | It would reproduce, at the abort layer, the "one bucket, several different truths" shape §1 documents at the gate layer: a symlink, an oversize file, a torn read and an unknown lifecycle value need four different remediations. §9.4.4 keeps them distinct; §9.4.5 gives each its own message. |
 | **Asserting output is "printable ASCII"** (rev-1 behavior) | Wrong on the command's own happy path: the `—` in the `--quiet` line and the `→` remediation marker are required, deliberate, non-ASCII house style. §14.3 states the property that actually matters — no control bytes and no attacker-argument bytes — and AVP-187 asserts it while letting the house style through. |
+| **Keeping `safety.EnsureSafeRepoPath` as a "defence in depth" pre-filter** (rev-2 behavior) | It is a lexical test defined against an absolute repository *prefix*, applied to a *root-relative* name in a design whose containment primitive is a *handle*. With fixed constants and a canonical slug it can never fire, so it proved nothing; and under `--path <dir>` from an unrelated cwd the prefix it wants to test against is not a value the inspector holds. Worse, keeping it implied a containment contribution it does not make. §7.3 step 2 replaces it with an `fs.ValidPath` assertion — the property that actually constrains a `Root` method argument — and AVP-089 fails if it reappears in `internal/intent`. |
+| **A denylist of unconfined platforms** (`(js && wasm) \|\| plan9` → `false`, its negation → `true`) (rev-2 behavior) | **Fail-open.** It encodes the claim that today's two unconfined targets are the only ones there will ever be. A new `GOOS`, or an existing one Go later reclassifies, lands silently in the `true` branch and the command asserts a confinement guarantee nobody checked. §7.4.1 inverts it into an allowlist whose `true` expression is byte-identical to `$GOROOT/src/os/root_openat.go`'s own build tag, and AVP-191's sensitivity fixture fails if the denylist form returns. |
+| **Passing `syscall.O_NOFOLLOW` from the caller "belt-and-braces"** (rev-2 behavior) | `Root.OpenFile` already ORs it internally and then converts the resulting signal into an in-root symlink *resolution* rather than a refusal (G10). rev-2 documented that and passed the flag anyway. A flag whose own specification says it produces no observable effect is not defence in depth — it is a false affordance that invites the next reader to infer a no-follow guarantee. rev-3 removes it and keeps the explanation; AVP-118's sensitivity fixture fails if it returns. |
+| **Asserting the command's byte rules over *all* process output** (rev-2 behavior) | rev-2's "no byte of stdout or stderr is an ASCII control character" swept in cobra's and pflag's own parse diagnostics, which are produced before `RunE` from raw `os.Args` and interpolate the offending argument verbatim. The claim was therefore false for the exit-1 population and, worse, was a security assertion about third-party code this PRD does not modify. §14.3.1 scopes every byte guarantee to command-owned output after successful parsing, and AVP-193 asserts the exclusion is deliberate rather than forgotten. |
+| **One `MaxArtifactBytes+1` buffer per capture** (rev-2 behavior) | Correct on allocation *shape* and wrong on allocation *total*: five captures per run means a ~20 MiB worst case for a command that answers a five-line question, and rev-2 stated the per-capture ceiling without ever totalling it. §7.4.5 allocates one buffer per invocation and reuses it sequentially (captures are strictly sequential, §8.4), which keeps every property rev-2 bought and states the flat cost honestly. AVP-197's sensitivity fixture counts five allocations when the per-capture form returns. |
+| **Claiming "a different object is never read"** (rev-2 behavior) | Unprovable as stated. `os.SameFile` compares identity *numbers*, so a hard-link alias, an inode/file-ID reuse and a swap-and-restore between probes all defeat it — and the first of those is undetectable by construction, not by omission. §7.4.4 weakens the promise to "an object **observed as different** is never read" and §8.3 enumerates six limits; AVP-196 pins three of them as *limits*. |
+| **Walking the ancestor components once, before the open only** (rev-2 behavior) | The leaf identity comparison proves the *leaf* descriptor is the object the leaf `Lstat` saw; it proves nothing about the ancestor chain at two different instants. §7.4.4 step 11 adds a post-capture walk and ladder rows 20a/20b, so an ancestor observed to have changed makes the result `unstable` rather than yielding a content state derived from a chain that moved. It narrows the window; §8.3 limit 5 says plainly that it does not close it. |
+| **Testing `Inspect` against a concrete `*os.Root`** (rev-2 behavior) | It left roughly two dozen acceptance rows — every injected `fstat` failure, every injected read error, every deterministic before/after race hook — unimplementable except through a real hostile filesystem or a production-visible package variable. §7.1.1 declares a two-interface, five-method seam with exactly one production implementation, and AVP-194 makes "exactly one" a mechanical, sensitivity-tested property rather than a convention. |
+| **Migrating `rescap.GatePath` onto `os.Root` in this slice** | Rejected, and locked out by ADR-034 D11. `rescap` is a *capture* domain with a lock/scratch lifecycle, a missing-path-is-a-refusal policy and a different refusal vocabulary; converting it is a behavior change to a shipped surface with its own PRD lineage (ADR-033). This PRD reuses `rescap`'s ancestor-walk **policy** and cites its cap-plus-one **reasoning**; it does not touch its code, and a wave that "helpfully" migrates it has exceeded this PRD's scope. |
 | **Infer provenance heuristically and label it "best effort"** | A best-effort provenance field is worse than none: consumers use it, and §11.2 shows every signal is overwritten or forgeable. `unknown`, with §11.1's stable meaning, is the only truthful v1 answer. |
 | **Emit content hashes for stability comparison across runs** | Rejected on privacy grounds (§14.2) and because readiness needs no hash. |
 | **Take a workspace lock for a coherent multi-artifact snapshot** | Makes a read-only command a lock acquirer, can block on a stuck writer, and still cannot prove atomicity for files written by a truncating writer. §8.4 chooses honest non-atomicity instead. |
@@ -2954,17 +3656,20 @@ a decision.
 Every load-bearing claim about current behavior, anchored. Claims split into
 two tables:
 
-- **§23.1 — repository claims (C1…C88)**, anchored as `file:line`. All
-  citations verified against HEAD `c590f17`, whose only difference from
-  `WAVE_BASE` `0aa0d95` is tracking-doc and PRD commits; no source file cited
-  below differs between the two.
-- **§23.2 — Go standard library claims (G1…G12)**, anchored by **symbol** in
-  `$GOROOT/src/os/...` rather than by line. Line numbers in the toolchain are
-  not stable across Go patch releases, and a stale line anchor is worse than a
-  symbol name that a reviewer can `grep`. Every G-claim is additionally backed
-  by a runtime acceptance row, so the design does not rest on the citation
-  alone. Verified against the toolchain this repository pins — `go.mod:3`
-  declares `go 1.26.1`; the claims were read from a `go1.26.5` `GOROOT`.
+- **§23.1 — repository claims (C1…C92)**, anchored as `file:line`. All
+  citations verified against HEAD `5a678b5`, whose only difference from
+  `WAVE_BASE` `0aa0d95` is tracking-doc, PRD and ADR commits; no source file
+  cited below differs between the two.
+- **§23.2 — Go standard library claims (G1…G19, plus `G5a` and `G9a`)**,
+  anchored by **symbol** in
+  `$GOROOT/src/...` rather than by line, and **classified** as either a public
+  **contract** or a version-pinned implementation **tripwire**. Line numbers in
+  the toolchain are not stable across Go patch releases, and a stale line
+  anchor is worse than a symbol name that a reviewer can `grep`. Every G-claim
+  is additionally backed by a runtime acceptance row, so the design does not
+  rest on the citation alone. Verified against the toolchain this repository
+  pins — `go.mod:3` declares `go 1.26.1`; the claims were read from a
+  `go1.26.5` `GOROOT`.
 
 ### 23.1 Repository claims
 
@@ -3044,7 +3749,7 @@ two tables:
 | C72 | WP-005 Turn 2 records the council split and the two ordered PRDs. | `docs/whitepapers/WP-005-spec-driven-workflows.turns.md:26-82` |
 | C73 | WP-005 Turn 3 pins `unknown` provenance, the ADR trigger, the atomic-publication unit, and slice-1 routing compatibility. | `docs/whitepapers/WP-005-spec-driven-workflows.turns.md:84-141` |
 | C74 | WP-005 Turn 4 requires the first PRD to decide report-only vs stronger `--manual` gates in acceptance criteria. | `docs/whitepapers/WP-005-spec-driven-workflows.turns.md:143-165` |
-| C75 | The acceptance-ledger machinery (AC ids → real test functions, AST-resolved) is the precedent §18.1 follows, and a byte-scanning guard can false-pass — the reason §18.27 requires sensitivity regressions. | `internal/workflow/acceptance_ledger_test.go:1-30`; `docs/handoff/CURRENT.md` → "Post-Release Review Adjudication" → F2 |
+| C75 | The acceptance-ledger machinery (AC ids → real test functions, AST-resolved) is the precedent §18.1 follows, and a byte-scanning guard can false-pass — the reason §18.28 requires sensitivity regressions. | `internal/workflow/acceptance_ledger_test.go:1-30`; `docs/handoff/CURRENT.md` → "Post-Release Review Adjudication" → F2 |
 
 | C76 | `FindProjectRoot` resolves the start directory with `filepath.Abs` and walks upward for a `.tpatch` directory, returning `could not find .tpatch in this directory or any parent` at the filesystem root. This is the **actual** workspace-discovery trigger §9.2 binds to exit 3. | `internal/store/store.go:23-40` |
 | C77 | `--path` is a persistent **string** flag on the root command; pflag validates nothing about its value, so a nonexistent or unreadable directory parses cleanly and `RunE` runs. | `internal/cli/cobra.go:66` |
@@ -3059,8 +3764,12 @@ two tables:
 | C86 | The module targets Go 1.26, which is the version that provides `os.Root`. | `go.mod:3` |
 | C87 | `AddFeature` derives the slug through `Slugify` and refuses an empty result — the "create through `tpatch add`" half of the `slug-unsafe` remediation. | `internal/store/store.go:157-163` |
 | C88 | `verify`'s CLI wrapper is the shipped precedent for report routing plus a typed `ExitCodeError` whose message the root printer prints, which §10.1 composes against rather than replacing. | `internal/cli/verify.go:108-146` |
+| C89 | `cmd/tpatch/main.go` is the module's only `package main`: eleven lines, no build tags and **no `//go:debug` directive today**. It is therefore the one file where §16.1's `//go:debug winsymlink=1` can be placed, since the directive is honored only in the main package. | `cmd/tpatch/main.go:1-11` |
+| C90 | The CI matrix line is a single-line list — `os: [ubuntu-latest, macos-latest]` — so adding `windows-latest` is a one-token edit to one line, not a workflow restructure. The surrounding job (`runs-on: ${{ matrix.os }}`, `fail-fast: false`) already parameterises every step by matrix entry. | `.github/workflows/ci.yml:20-25` |
+| C91 | `safety.EnsureSafeRepoPath` takes a **repository root** and a candidate path and tests lexical containment of the latter within the former; it has no notion of a directory handle and no notion of a root-relative name. That signature is why §7.3 step 2 drops it rather than adapting it. | `internal/safety/safety.go:11-28` |
+| C92 | `internal/rescap`'s ancestor walk, no-follow open, descriptor-identity check and bounded read are a shipped, reviewed **capture** surface with its own lock/scratch lifecycle and its own refusal vocabulary — the reason ADR-034 D11 keeps it out of scope rather than migrating it onto `os.Root` in this slice. | `internal/rescap/pathgate.go:68-83,97-120,133-155`; `internal/rescap/content.go:29-32,50-70` |
 
-**88 repository claims audited.**
+**92 repository claims audited.**
 
 ### 23.2 Go standard library claims
 
@@ -3068,19 +3777,54 @@ Anchored by symbol, not by line (see the note above). Each row names the
 acceptance row that verifies the behavior at runtime, so no design decision
 rests on a citation alone.
 
-| # | Claim | Anchor (Go 1.26 `os`) | Verified at runtime by |
-|---|---|---|---|
-| G1 | `Root` confines every operation beneath its directory: a name whose component references a location outside the root returns an error, symlinks are followed but may not reference a location outside the root, and absolute symlinks are refused. | `root.go` — `Root` doc comment | AVP-149 |
-| G2 | On most platforms creating a `Root` opens a descriptor/handle for the directory; if the directory is moved, methods on the `Root` still reference the original directory in its new location. | `root.go` — `Root` doc comment | AVP-143 |
-| G3 | On `GOOS=js` `Root` is vulnerable to TOCTOU in symlink validation and cannot ensure operations will not escape the root; on `js` and `plan9` a `Root` references a directory **name**, not a descriptor. These are the targets §7.4.1 refuses. | `root.go` — `Root` doc comment; `root_noopenat.go` build tag `(js && wasm) \|\| plan9` | AVP-177, AVP-179 |
-| G4 | The confined implementation is selected by `//go:build unix \|\| windows \|\| wasip1`, with the per-platform halves under `unix \|\| wasip1` and `windows`. | `root_openat.go`, `root_unix.go`, `root_windows.go` build tags | AVP-177, AVP-178 |
-| G5 | `Root.Lstat` describes the symbolic link itself rather than its target. On Unix it is an `fstatat` relative to the resolved parent descriptor with no-follow semantics. | `root.go` — `Root.Lstat`; `root_unix.go` — `rootStat` | AVP-145, AVP-155 |
-| G6 | On Windows `Root.Lstat` opens the entry with `O_FILE_FLAG_OPEN_REPARSE_POINT` relative to the parent handle and derives the `FileInfo` from that handle via `statHandle` — it is handle-relative, not a pathname `os.Lstat`. | `root_windows.go` — `rootStat` | AVP-176 |
-| G7 | On Windows a `FileInfo` derived from a handle sets `vol`, `idxhi` and `idxlo` from `GetFileInformationByHandle` and deliberately leaves the struct's `path` empty so that `os.SameFile` will not re-fetch them by pathname. | `types_windows.go` — `newFileStatFromGetFileInformationByHandle`; `sameFile` → `loadFileId` | AVP-176 |
-| G8 | `(*os.File).Stat` on Windows is `statHandle(file.name, file.pfd.Sysfd)` — a stat of the held handle. On Unix it is an `fstat` of the held descriptor. So both sides of §7.4.4's identity comparison are handle-derived on both platform classes. | `stat_windows.go` — `(*File).Stat`; `stat_unix.go` — `(*File).Stat` | AVP-176 |
-| G9 | On Windows `statHandle` calls `GetFileType` and reports `FILE_TYPE_PIPE` as `ModeNamedPipe` and `FILE_TYPE_CHAR` as `ModeDevice\|ModeCharDevice`; `IO_REPARSE_TAG_SYMLINK` maps to `ModeSymlink` while **every other reparse tag**, including a junction's `IO_REPARSE_TAG_MOUNT_POINT`, maps to `ModeIrregular`. This is why §7.3 step 4's predicate must test both bits. | `stat_windows.go` — `statHandle`; `types_windows.go` — `(*fileStat).mode` | AVP-146, AVP-176 |
-| G10 | `Root.OpenFile` passes the caller's flags through to the platform `openat`; on Unix it additionally ORs `O_NOFOLLOW\|O_CLOEXEC` itself, and converts the resulting symlink signal into an **in-root resolution** rather than a refusal. A caller therefore cannot obtain a final-leaf no-follow refusal from `Root`, but **can** obtain `O_NONBLOCK`. | `root_unix.go` — `rootOpenFileNolog`; `root_openat.go` — `doInRoot`, `case errSymlink` | AVP-107, AVP-108, AVP-118 |
-| G11 | `Root` reports an escape attempt as an ordinary `*os.PathError` wrapping an unexported sentinel, so a caller cannot discriminate it from other open failures. This is why ladder rows 10 and 11 share the `unreadable` state. | `file.go` — `errPathEscapes` | AVP-149 |
-| G12 | `io.ReadFull` into a fixed buffer returns `io.EOF` when nothing was read, `io.ErrUnexpectedEOF` on a short fill, and `nil` on a complete fill — the exact three-way split §7.4.5's ladder needs, with no allocation of its own. | `io.ReadFull` (package `io`) | AVP-173, AVP-174 |
+**The `Class` column is the rev-3 addition, and it is the point of this
+table.** rev-2 cited exported doc comments and unexported implementation
+details side by side, with no way for a reader to tell which claims Go has
+promised and which are read from source that may change in any release:
 
-**12 Go standard library claims audited.**
+- **`contract`** — stated in the package's own documentation (a doc comment on
+  an exported identifier, or the package's `GODEBUG` history). Go's
+  compatibility promise covers it. A change here would be a documented
+  breaking change.
+- **`tripwire`** — read from **unexported** code in the pinned toolchain
+  (`go1.26.5`, for a module declaring `go 1.26.1`). Go promises nothing. Every
+  tripwire row names a runtime acceptance test whose job is to turn **red at
+  upgrade time** rather than let the behavior change silently in the field.
+  ADR-034 D10 records the maintenance obligation: a Go minor-version bump
+  requires re-reading every `tripwire` row before the bump lands.
+
+A design that rests on a `tripwire` is not automatically wrong — it is wrong
+only if it *claims* the tripwire as a guarantee. §7.4.3 and §7.4.4 state each
+one as a dependency, and AVP-189 guards the documents against restating a
+tripwire as a promise.
+
+| # | Class | Claim | Anchor (Go 1.26) | Verified at runtime by |
+|---|---|---|---|---|
+| G1 | contract | `Root` confines every operation beneath its directory: a name whose component references a location outside the root returns an error, symlinks are followed but may not reference a location outside the root, and absolute symlinks are refused. This is **logical pathname** confinement — see G13 for what it explicitly does not cover. | `os/root.go` — `Root` doc comment | AVP-149 |
+| G2 | contract | On most platforms creating a `Root` opens a descriptor/handle for the directory; if the directory is moved, methods on the `Root` still reference the original directory in its new location. | `os/root.go` — `Root` doc comment | AVP-143 |
+| G3 | contract | On `GOOS=js` `Root` is vulnerable to TOCTOU in symlink validation and cannot ensure operations will not escape the root; on `js` and `plan9` a `Root` references a directory **name**, not a descriptor. These are the two *currently known* unconfined targets — §7.4.1 refuses them **and every target outside the allowlist**, rather than enumerating them. | `os/root.go` — `Root` doc comment | AVP-177, AVP-179 |
+| G4 | tripwire | The confined implementation is selected by the build tag `unix \|\| windows \|\| wasip1`, with the per-platform halves under `unix \|\| wasip1` and `windows`, and the unconfined fallback under `(js && wasm) \|\| plan9`. Build tags are not API; §7.4.1's allowlist copies the first expression **verbatim** so the coupling is explicit and mechanically comparable rather than paraphrased. | `os/root_openat.go`, `os/root_unix.go`, `os/root_windows.go`, `os/root_noopenat.go` build tags | AVP-191, AVP-177, AVP-178 |
+| G5 | contract | `Root.Lstat` describes the symbolic link itself rather than its target. | `os/root.go` — `Root.Lstat` doc comment | AVP-145, AVP-155 |
+| G5a | tripwire | On Unix that is implemented as an `fstatat` relative to the resolved parent descriptor with no-follow semantics. | `os/root_unix.go` — `rootStat` | AVP-145 |
+| G6 | tripwire | On Windows `Root.Lstat` opens the entry with `O_FILE_FLAG_OPEN_REPARSE_POINT` relative to the parent handle and derives the `FileInfo` from that handle via `statHandle` — it is handle-relative, not a pathname `os.Lstat`. | `os/root_windows.go` — `rootStat` | AVP-176 |
+| G7 | tripwire | On Windows a `FileInfo` derived from a handle sets `vol`, `idxhi` and `idxlo` from `GetFileInformationByHandle` and deliberately leaves the struct's `path` empty so that `os.SameFile` will not re-fetch them by pathname. §7.4.4's Windows identity argument rests on this and says so. | `os/types_windows.go` — `newFileStatFromGetFileInformationByHandle`; `sameFile` → `loadFileId` | AVP-176 |
+| G8 | tripwire | `(*os.File).Stat` on Windows is `statHandle(file.name, file.pfd.Sysfd)` — a stat of the held handle. On Unix it is an `fstat` of the held descriptor. So both sides of §7.4.4's identity comparison are handle-derived on both platform classes. | `os/stat_windows.go` — `(*File).Stat`; `os/stat_unix.go` — `(*File).Stat` | AVP-176 |
+| G9 | tripwire | On Windows `statHandle` calls `GetFileType` and reports `FILE_TYPE_PIPE` as `ModeNamedPipe` and `FILE_TYPE_CHAR` as `ModeDevice\|ModeCharDevice`. For a **name-surrogate** reparse tag (`IO_REPARSE_TAG_SYMLINK`, `IO_REPARSE_TAG_MOUNT_POINT`) `mode()` suppresses the `ModeDir` and `GetFileType`-derived bits entirely, so a junction to a directory does not report as a directory. | `os/stat_windows.go` — `statHandle`; `os/types_windows.go` — `(*fileStat).mode`, `isReparseTagNameSurrogate` | AVP-176, AVP-198 |
+| G9a | tripwire | **rev-3 correction.** The reparse-tag switch in `(*fileStat).mode` is: `IO_REPARSE_TAG_SYMLINK` → `ModeSymlink`; `IO_REPARSE_TAG_AF_UNIX` → **`ModeSocket`**; `IO_REPARSE_TAG_DEDUP` → **no type bit at all**, deliberately treated as a regular file with an explanatory comment; **`default`** (which is where a junction's `IO_REPARSE_TAG_MOUNT_POINT` lands) → `ModeIrregular`. rev-2's "every other reparse tag maps to `ModeIrregular`" was false for AF_UNIX and DEDUP, which is why §7.3 step 3's predicate is a *refusal* predicate backed by the `IsRegular` kind gate rather than the whole kind policy. | `os/types_windows.go` — `(*fileStat).mode` | AVP-198 |
+| G10 | tripwire | `Root.OpenFile` passes the caller's flags through to the platform `openat`; on Unix it additionally ORs `O_NOFOLLOW\|O_CLOEXEC` itself, and converts the resulting symlink signal into an **in-root resolution** rather than a refusal. A caller therefore cannot obtain a final-leaf no-follow refusal from `Root` — which is why §7.4.3 **removed** the caller-supplied `O_NOFOLLOW` in rev-3 rather than keeping an inert flag. | `os/root_unix.go` — `rootOpenFileNolog`; `os/root_openat.go` — `doInRoot`, `case errSymlink` | AVP-107, AVP-108, AVP-118 |
+| G11 | tripwire | `Root` reports an escape attempt as an ordinary `*os.PathError` wrapping an unexported sentinel, so a caller cannot discriminate it from other open failures. This is why ladder rows 10 and 11 share the `unreadable` state. | `os/file.go` — `errPathEscapes` | AVP-149 |
+| G12 | contract | `io.ReadFull` into a fixed buffer returns `io.EOF` when nothing was read, `io.ErrUnexpectedEOF` on a short fill, and `nil` on a complete fill — the exact three-way split §7.4.5's ladder needs, with no allocation of its own. | `io` — `ReadFull` doc comment | AVP-173, AVP-174 |
+| G13 | contract | **The sentence rev-2 elided.** The `Root` doc comment states verbatim: *"Methods on `Root` do not prohibit traversal of filesystem boundaries, Linux bind mounts, /proc special files, or access to Unix device files."* This is the documented basis for §7.4.2's logical-versus-physical distinction and for AVP-189's over-claim guard. | `os/root.go` — `Root` doc comment | AVP-189, AVP-190 |
+| G14 | tripwire | `(*fileStat).Mode` consults the `winsymlink` GODEBUG setting and, when it is `0`, recomputes the mode with `modePreGo1_23`, under which a junction (`IO_REPARSE_TAG_MOUNT_POINT`) maps to **`ModeSymlink`** instead of `ModeIrregular`. The refusal outcome is stable across both values; the mode bits an assertion sees are not. | `os/types_windows.go` — `(*fileStat).Mode`, `modePreGo1_23` | AVP-198 |
+| G15 | contract | `winsymlink` is a registered `GODEBUG` setting whose default changed to `1` in Go 1.23; a module declaring `go 1.23` or later gets `1` unless a `//go:debug` directive or the `GODEBUG` environment variable says otherwise. A `//go:debug` directive is honored **only in the main package**, and the environment variable still overrides it at process start — §7.4.3 states that limit rather than claiming the directive is absolute. | `internal/godebugs/table.go` — `{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"}`; the Go toolchain's `//go:debug` documentation | AVP-198 |
+| G16 | tripwire | For a `FILE_TYPE_PIPE` or `FILE_TYPE_CHAR` handle, Windows `statHandle` returns early with a `fileStat` carrying only `name` and `filetype` — `vol`, `idxhi` and `idxlo` are all zero. `os.SameFile` over two such values is therefore degenerate (it compares zeros and reports "same"). The design does not depend on it: both such handles fail `IsRegular()` at ladder rows 7 and 14 before any identity conclusion is used. Recorded so the limit is known rather than discovered. | `os/stat_windows.go` — `statHandle` | AVP-176, AVP-198 |
+| G17 | tripwire | `rootOpenFileNolog` computes `openFlag := syscall.O_NOFOLLOW \| syscall.O_CLOEXEC \| flag` and passes it to `unix.Openat`, then constructs the `*File` with `unix.HasNonblockFlag(flag)`. **Caller-flag forwarding is not documented anywhere in `os`.** §7.4.3's `O_NONBLOCK` no-hang property rests entirely on this, and AVP-200 is the Go-upgrade tripwire test that fails loudly if a release stops forwarding it. | `os/root_unix.go` — `rootOpenFileNolog`; `internal/syscall/unix` — `HasNonblockFlag` | AVP-200, AVP-107 |
+| G18 | contract | `fs.ValidPath` reports whether a name is valid for `Open`: unrooted, slash-separated, non-empty, valid UTF-8, with no `.` or `..` element, no empty element, and no leading or trailing slash. This is the canonicality predicate §7.3 step 2 asserts on every composed name. | `io/fs` — `ValidPath` doc comment | AVP-144 |
+| G19 | tripwire | `os.Root`'s resolver caps symlink traversal at `rootMaxSymlinks = 8`, described in source as `__POSIX_SYMLOOP_MAX`. The design does not depend on the specific number — it depends only on there being *a* finite limit, which bounds resolution time — and no acceptance row asserts the value. | `os/root.go` — `rootMaxSymlinks` | AVP-149 |
+
+**21 Go standard library claims audited**: `G1`…`G19` plus the two sub-rows
+`G5a` and `G9a`, which split rev-2 claims that mixed a contract with a
+tripwire. **8 are `contract`** (G1, G2, G3, G5, G12, G13, G15, G18) and
+**13 are `tripwire`** (G4, G5a, G6, G7, G8, G9, G9a, G10, G11, G14, G16, G17,
+G19); 8 + 13 = 21. Every tripwire names a runtime verifier, and ADR-034 D10
+makes re-reading all thirteen a precondition of any Go minor-version bump.
