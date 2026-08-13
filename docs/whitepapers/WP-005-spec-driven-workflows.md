@@ -8,7 +8,6 @@
 - [WP-001 Feature-slice gap](./WP-001-feature-slice-gap.md)
 - [WP-002 Capture and metadata foundation](./WP-002-capture-and-metadata-foundation.md)
 - [WP-003 Reconcile safety and middle-pass](./WP-003-reconcile-safety-and-middle-pass.md)
-- [WP-004 Auto feature dependency suggestions](./WP-004-auto-feature-dependencies.md)
 - [Active clusters](../CLUSTERS.md)
 - [PRD tpatch land](../prds/PRD-tpatch-land.md)
 - [PRD skill doc strategy](../prds/PRD-skill-doc-strategy.md)
@@ -64,21 +63,31 @@ The second council pass reached the following durable conclusions:
 5. **`prepare --check` is the first product slice.** It reports each canonical
    intent artifact independently and must say explicitly that structural
    presence does not certify semantic quality. Existing `defined` features are
-   reported, not retroactively invalidated.
+   reported, not retroactively invalidated. Provenance is `unknown` unless an
+   accepted persistent representation proves it; the check must never infer
+   provenance from the overwrite-prone free-text `status.json.notes`.
 6. **No new lifecycle state.** A successful preparation ends at the existing
    `defined` state; completeness remains an artifact-level fact. Invoking the
    optional full-bundle command must not make exploration mandatory for every
    trivial feature.
-7. **Mutating preparation is gated.** `--manual` reuses the existing phase
-   primitives; `--regenerate` waits for non-destructive overwrite and
-   provenance rules; Path A publishes all-or-nothing rather than leaving a
-   half-generated bundle. `next` and `cycle` must consume the same validation
-   answer instead of raw file presence (`internal/cli/phase2.go:409-466`).
+7. **Mutating preparation is gated.** `--manual` reuses validation extracted
+   from the existing phase primitives; it must not naively invoke their
+   incremental writers. `--regenerate` waits for non-destructive overwrite and
+   provenance rules. The all-or-nothing publication unit includes the three
+   canonical Markdown files, structured sidecars and the final `status.json`
+   transition. A provider failure must expose either the complete prior set or
+   the complete new set, never a half-generated bundle.
 8. **Two PRDs graduate from this paper, in order.**
    `PRD-artifact-validation-and-provenance` defines truthful inspection,
    parity, migration and provenance. `PRD-prepare-intent-bundle` is blocked on
-   that contract and defines orchestration. No ADR is created until a
-   persistent provenance/publication representation is actually selected.
+   that contract and defines orchestration. The first PRD may evaluate and
+   propose a persistent representation; no pre-emptive ADR is required, but an
+   ADR becomes mandatory when that representation is selected, before the
+   contract is accepted for implementation.
+9. **Existing routing remains compatible by default.** Slice 1 is advisory:
+   richer classifications do not reroute `next`, fail `cycle`, or invalidate
+   existing `defined` features. A later PRD may reuse the shared classifier
+   only after enumerating every intended routing delta.
 
 These conclusions reflect Turn 2's five independent advisors, five anonymous
 peer reviews and chairman synthesis. The council split on "ship now" versus
@@ -475,8 +484,9 @@ is not needed for the bounded preparation seam.
 1. **Truthful intent-artifact inspection.** Before orchestration, define
    deterministic structural states for the existing canonical artifacts:
    `analysis.md`, `spec.md`, `exploration.md`, and Path A's structured analysis
-   sidecar. The check must distinguish absence/thinness/source provenance
-   without claiming semantic quality.
+   sidecar. The check must distinguish absence and structural thinness without
+   claiming semantic quality. Source provenance remains `unknown` until an
+   accepted representation proves it.
 2. **Optional intent-bundle preparation.** After the inspection contract is
    accepted, a future `tpatch prepare` may compose the existing Path A/Path B
    phases and stop at `defined`. It is an opt-in convenience, not a gate on all
@@ -487,6 +497,22 @@ is not needed for the bounded preparation seam.
 4. **Project constitution mapping — deferred.** Spec Kit's constitution
    resembles tpatch's `SPEC.md`, `CLAUDE.md`, `AGENTS.md`, ADRs and skill
    assets. Duplicating them remains unjustified.
+
+**Existing-primitives pre-flight.**
+
+- Individual `analyze|define|explore --manual` commands adopt one canonical
+  artifact at a time, but provide no bundle-wide read-only report or
+  all-or-nothing publication (`internal/store/manual.go:25-31,45-79`).
+- `cycle` runs analyze → define → explore → implement → apply → record. Its
+  `--skip-execute` stops only after recipe generation, and interactive refusal
+  after explore is not a deterministic batch or Path B completion contract
+  (`internal/cli/phase2.go:26-145`).
+- `next` emits one logical action and currently uses raw `exploration.md`
+  presence to distinguish two `defined` substates; it neither validates the
+  whole intent set nor publishes it (`internal/cli/phase2.go:409-466`).
+
+Therefore `prepare` is not merely an alias for an existing stop point. The
+PRD must still reuse shared validation rather than duplicate phase semantics.
 
 ## 7. What tpatch should not borrow *(R58)*
 
@@ -536,8 +562,8 @@ experiment:
 1. draft and review `PRD-artifact-validation-and-provenance`;
 2. only after that contract is accepted, draft/review the blocked
    `PRD-prepare-intent-bundle`;
-3. create an ADR only if the PRDs select a new persistent
-   provenance/publication representation;
+3. create an ADR when a PRD selects a persistent provenance/publication
+   representation, before accepting that representation for implementation;
 4. add prepare to the implementation roadmap only after its prerequisite PRD
    is accepted.
 
@@ -556,12 +582,15 @@ experiment:
    ADR gates.
 6. Which deterministic structural states can `prepare --check` report without
    implying semantic document quality?
-7. Where should per-artifact Path A/Path B provenance live, and what existing
-   metadata can carry it without inventing a second lifecycle?
-8. How should a provider-generated bundle stage, publish and recover so a
-   mid-sequence failure cannot expose a half-generated intent set?
+7. Should per-artifact Path A/Path B provenance use an existing field or a new
+   manifest, and which choice requires an ADR? Until accepted, how is
+   `provenance: unknown` rendered?
+8. How should a provider-generated bundle stage and atomically publish
+   Markdown, sidecars and `status.json` so a mid-sequence failure cannot expose
+   a half-generated intent set?
 9. How should existing `defined` features and trivial features remain valid
-   when richer validation becomes available?
+   when richer validation becomes available, and which `next`/`cycle` routing
+   outcomes are explicitly unchanged?
 
 ## 10. References *(R58)*
 

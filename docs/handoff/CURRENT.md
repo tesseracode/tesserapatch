@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-WP-005 council Turn 2 review found one broken link and five contract gaps.
-An append-only Turn 3 revision is dispatched; this remains paper-only.
+WP-005 council fold rev-1 appends Turn 3 and closes every Turn 2 review
+finding. The paper-only revision is awaiting dual re-review.
 
 ## Active Task
 
@@ -13,7 +13,7 @@ An append-only Turn 3 revision is dispatched; this remains paper-only.
 - **Description**: Record the five-advisor/five-reviewer council verdict on
   `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
   findings without drafting PRDs yet.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `76ed78b`
 - **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
@@ -64,6 +64,22 @@ An append-only Turn 3 revision is dispatched; this remains paper-only.
 - **Coupled observation accepted**: update the whitepaper index for all tracked
   WP-002/WP-003/WP-005 documents.
 - **Protocol**: Turn 2 remains immutable; corrections append as Turn 3.
+
+## Turn 3 Revision Result
+
+- Removed the broken guarded-WP-004 link without staging unrelated WIP.
+- Mapped every advisor lens to its position and explained the 3/2 peer-review
+  selection that produced the validation-first verdict.
+- Defined legacy/current provenance as `unknown` until accepted persistent
+  metadata proves otherwise; PRD-1 may trigger an ADR when it makes that
+  choice.
+- Expanded atomic publication to Markdown, structured sidecars and
+  `status.json`; distinguished shared validation from incremental phase
+  writers.
+- Added the required existing-primitives pre-flight for individual
+  `--manual`, `cycle` and `next`.
+- Made slice-1 validation advisory and routing-compatible by default.
+- Refreshed the tracked whitepaper index for WP-002, WP-003 and WP-005.
 
 ## Post-Release Review Adjudication
 
@@ -222,10 +238,10 @@ Modified:
 
 ## Next Steps
 
-1. Append Turn 3 and update Agreed/§6.2/open questions.
-2. Remove the broken WP-004 link and refresh the tracked whitepaper index.
-3. Re-run both reviews.
-4. Accept/archive the council fold, then dispatch the first PRD.
+1. Re-run internal and external reviews against Turn 3.
+2. Fold any residual findings append-only.
+3. Accept/archive the council fold.
+4. Dispatch the validation/provenance PRD writer.
 
 ## Blockers
 

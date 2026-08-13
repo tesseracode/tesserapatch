@@ -80,3 +80,62 @@ is drafted.
 - Keep `PRD-prepare-intent-bundle.md` blocked until the prerequisite contract
   is accepted.
 - Do not create an ADR or implementation milestone during the first PRD.
+
+## Turn 3 - CO76 - 2026-08-13
+
+**Responding to**: Turn 2 internal/external review
+**Type**: agreement
+
+Turn 2 remains unchanged. This turn records the review corrections and
+supersedes its final "do not create an ADR during the first PRD" instruction
+with the narrower rule below.
+
+**Council traceability.** The lens-to-position mapping was:
+
+- Executor and Expansionist: ship orchestration now;
+- Contrarian and Outsider: reject the current proposal as misleading sugar;
+- First Principles: specify now, repair validation/provenance first, and defer
+  mutation.
+
+Anonymous peer review selected First Principles as strongest three times and
+Contrarian twice. That is why the chairman adopted validation-first planning
+even though only one advisor initially occupied the middle position.
+
+**Review clarifications accepted.**
+
+1. Current free-text notes cannot prove per-artifact provenance:
+   `MarkFeatureState` overwrites the one `Notes` field on each phase
+   (`internal/store/store.go:384-400`). The first PRD therefore renders
+   provenance `unknown` until an accepted representation proves otherwise. It
+   may propose that representation; if it selects one, an ADR is required
+   before acceptance for implementation.
+2. "All-or-nothing" includes `analysis.md`, `spec.md`, `exploration.md`,
+   structured sidecars and the final `status.json` transition. Current Path A
+   phase functions write artifacts and state incrementally
+   (`internal/workflow/workflow.go:88-105,155-200`), so prepare cannot simply
+   call them sequentially and claim atomicity. Validation logic should be
+   shared; publication needs its own transaction boundary.
+3. Existing primitives are insufficient in a bounded way: individual
+   `--manual` commands are one-artifact transitions; `cycle` continues through
+   implement/apply/record and `--skip-execute` stops after implement; `next`
+   emits one action and infers exploration from file presence
+   (`internal/cli/phase2.go:26-145,409-466`). This is the required
+   "could existing primitives do this?" pre-flight for the prepare PRD.
+4. Slice 1 is advisory. Existing `defined` features are not invalidated, and
+   `next`/`cycle` routing does not change merely because a document is
+   classified thin or provenance is unknown. Any later routing change must be
+   an explicit PRD behavior delta.
+5. WP-004 is a guarded local draft, so its broken clean-checkout link was
+   removed rather than staging unrelated work. The tracked whitepaper index is
+   refreshed alongside this turn.
+
+The `## Agreed` and §6.2 text now carry these constraints. WP-005 remains
+`Exploring`; the next task is still the validation/provenance PRD, not
+implementation.
+
+**Asks of next agent**:
+- Treat `unknown` provenance and routing compatibility as acceptance
+  requirements, not open-ended prose.
+- Include artifacts, sidecars and `status.json` in the transaction analysis.
+- If the PRD chooses a persistent representation, write the ADR before asking
+  reviewers to accept that choice for implementation.

@@ -116,3 +116,6 @@ header is updated to **Status: Closed**.
 | ID | Title | Status |
 |---|---|---|
 | WP-001 | Feature-slice gap & intent-VCS direction | **Graduated** (2026-04-28) |
+| WP-002 | Capture and metadata foundation | **Graduated** (2026-05-16) |
+| WP-003 | Reconcile safety and middle-pass foundation | **Accepted paper cluster** |
+| WP-005 | Spec-driven workflows: OpenSpec, Spec Kit, and tpatch | **Exploring** |

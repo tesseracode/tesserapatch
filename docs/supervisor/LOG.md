@@ -1,3 +1,24 @@
+## Writer — WP-005 council Turn 3 rev-1 — 2026-08-13
+
+**Dispatch**: `9d97b2c`
+**Writer**: CO76
+
+### Revision
+
+- Turn 2 preserved; Turn 3 appended.
+- Broken WP-004 clean-checkout link removed.
+- Advisor lens → position mapping recorded.
+- Provenance defaults to `unknown`; ADR required at representation choice.
+- Atomicity covers Markdown, sidecars and `status.json`.
+- Existing `--manual` / `cycle` / `next` pre-flight added.
+- Slice-1 validation is advisory and routing-compatible.
+- Tracked whitepaper index refreshed.
+
+### Action Taken
+
+CURRENT and ROADMAP returned to AWAITING REVIEW. Both reviewers are asked to
+verify the append-only correction and bounded PRD handoff.
+
 ## Review — WP-005 council Turn 2 rev-0 — 2026-08-13
 
 **Writer tip**: `260936a`
