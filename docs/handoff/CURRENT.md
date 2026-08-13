@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-4 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Artifact-validation/provenance PRD rev-3 and ADR-034 preserve the accepted
-architecture direction but retain four implementability gaps. Narrow rev-4 is
-dispatched for joint re-review.
+Artifact-validation/provenance PRD **rev-4** and ADR-034 **rev-1** are written
+and ready for joint re-review. All eight rev-4 required corrections are closed;
+no reopened decision. Reviewer focus is at the end of the rev-4 result section.
 
 ## Active Task
 
@@ -14,16 +14,18 @@ dispatched for joint re-review.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-4 + ADR-034 rev-1
+- **Status**: Writer rev-4 + ADR-034 rev-1 — **AWAITING REVIEW**
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
 - **Rev-2 writer base**: `c590f17`
 - **Rev-3 writer base**: `5a678b5`
+- **Rev-4 writer base**: `be33d2a`
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
-- **Scope**: one PRD + one new ADR + the ADR index + handoff. rev-1 touched
-  nothing else; rev-3 adds exactly `docs/adrs/ADR-034-*.md` and one line of
-  `docs/adrs/README.md`.
+- **Scope**: one PRD + one ADR + handoff. rev-4 touches exactly three files and
+  deliberately does **not** touch `docs/adrs/README.md` (the ADR's status is
+  unchanged at `Proposed — Awaiting Review`, so the index needs no status
+  change; the dispatch brief scoped rev-4 to PRD + ADR + CURRENT).
 - **Release tag**: v0.15.1 remains fixed at `15560af`
 
 ## PRD Writer Contract
@@ -1023,6 +1025,435 @@ named as **required future** edits (§16.1) and were **not** touched.
    real defect.
 8. **ADR-034 is `Proposed`, not `Accepted`.** The writer cannot accept its own
    ADR. It becomes Accepted only when it and PRD rev-3 both pass review.
+
+## PRD Writer Result — rev-4 + ADR-034 rev-1 (2026-08-13)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-artifact-validation-and-provenance.md` | edited in place; `Status: Draft — Awaiting Review (rev-4)`; byline `rev-4 at HEAD be33d2a`; `Architecture` header and `Related` bullet now point at ADR-034 **rev-1** and D1–D18; `Revision history` gains a rev-4 row and records rev-3's disposition as NEEDS REVISION. **4,289 lines** (rev-3: 3,830). |
+| `docs/adrs/ADR-034-rooted-filesystem-inspection-boundary.md` | edited in place; `Status: Proposed — Awaiting Review (rev-1)`; byline `rev-1 at HEAD be33d2a`; companion pinned to PRD rev-4; a new `Revision history` table records rev-0's disposition. **945 lines** (rev-0: 635). Decisions D1–D18, in numeric order. |
+| `docs/handoff/CURRENT.md` | `Cluster state` flip to `AWAITING REVIEW`, Active Task `Status`/`Rev-4 writer base`/`Scope`, and this section |
+
+Nothing else was touched. **No** edit to `docs/adrs/README.md` (deliberate — see
+below), `docs/ROADMAP.md`, `docs/supervisor/LOG.md`, `SPEC.md`,
+`docs/whitepapers/**`, `docs/prds/PRD-prepare-intent-bundle.md` (still undrafted,
+still blocked), any other `docs/adrs/ADR-0*.md`, `internal/**`, `cmd/**`,
+`assets/**`, `tests/**`, `.github/**`, `.wave-close-allowlist`, or any guarded
+untracked WIP (`WP-004`, `WP-006`, `WP-007`, `PRD-recurring-patches.md`, the
+state-of-the-art case studies).
+
+**Why `docs/adrs/README.md` is untouched.** The dispatch brief scoped rev-4 to
+"PRD, ADR-034 and CURRENT" and stated the ADR index needs no status change,
+which is correct: ADR-034's status is still `Proposed — Awaiting Review`. The
+index line's parenthetical still reads `(rev-0)` and `rev-3`. That is a stale
+*revision* label, not a stale *status*, and correcting it would have exceeded
+the declared file set. **Flagged for the supervisor**: the index line should be
+refreshed to `(rev-1)` / `rev-4` at acceptance, in the same commit that flips
+the status to `Accepted`.
+
+### Counts (mechanically verified, commit-independent)
+
+- **PRD 4,289 lines** (rev-3: 3,830; rev-2: 3,075; rev-1: 2,233; rev-0: 1,478);
+  **ADR 945 lines** (rev-0: 635).
+- **208 acceptance rows** `AVP-001`…`AVP-208` (rev-3: 202), contiguous, zero
+  duplicates, zero retired rows. **6 new rows** (`AVP-203`…`AVP-208`); every
+  rev-3 ID kept its number, and the rows whose meaning changed (`AVP-084`,
+  `AVP-118`, `AVP-139`, `AVP-189`, `AVP-191`, `AVP-193`, `AVP-194`, `AVP-202`)
+  were amended in place per §18.1's no-renumbering rule.
+- **25 categories**: A 10, B 20, C 8, D 14, E 6, F 5, G 9, H 4, I 6, J 4, K 6,
+  L 3, M 6, N 5, O 12, P 10, Q 1, R 9, S 2, T 12, V 17, W 5, X 6, Y 8,
+  **Z 20**. Sum = 208, verified by parsing the section headings.
+- **By kind**: `U` 61, `I` 96, `S` 6, `G` 31, `S+G` 5, `U+G` 6, `I+G` 1,
+  `S+I` 2. Sum = 208.
+- **Guard arithmetic**: Kind contains `G` → 31 + 5 + 6 + 1 = **43 rows**
+  (rev-3: 39). Complement 61 + 96 + 6 + 2 = 165; 43 + 165 = 208. Note
+  `AVP-193` moved `G` → `S+G` (it gained an AST half), so pure `G` went
+  30 → 31 rather than 30 → 32.
+- **Slice partition verified programmatically**: S1 83, S2 28, S3 49, S4 38,
+  S5 10 = 208; zero unassigned, zero double-assigned.
+- **Claims audit**: **95 repository claims** `C1`…`C95` (rev-3: 92) and
+  **24 Go-stdlib claims** `G1`…`G22` plus `G5a`/`G9a` (rev-3: 21), split into
+  **10 `contract`** and **14 `tripwire`**.
+- **ADR-034**: **18 decisions** D1–D18 (rev-0: 14), 18 rejected alternatives
+  (rev-0: 10), an 18-row decision→acceptance-row dependency table whose every
+  `AVP` reference resolves in the PRD.
+- **Ladder sizes**: artifact ladder **27 rows** (1–20, 20a, 20b, **20c**,
+  21–24); status ladder **20 rows** (1–16, **16a**, 17–19).
+- **Catalogs unchanged and still total**: 13 abort codes, 10 reason codes, 11
+  advisory codes, 15 lifecycle lines, 9 state-enum values, 9 status outcomes.
+
+### What rev-4 changed, correction by correction
+
+**(1) Platform allowlist → `unix || windows`; `wasip1` unsupported (§7.4.1,
+ADR D5, AVP-191 amended, AVP-208 new)**
+
+- `confine_supported.go` → `//go:build unix || windows`;
+  `confine_unsupported.go` → `//go:build !(unix || windows)`. Exact negation.
+- The platform table gains a **fifth column** (`Supported by this design?`) and
+  a separate `wasip1` row so the stdlib's confined set and this design's
+  supported set are visibly different objects.
+- **rev-3's "byte-identical to `$GOROOT/src/os/root_openat.go`'s tag"
+  justification is withdrawn by name.** It reasoned about the *stdlib's*
+  implementation set when the question is *this design's*. Four stated reasons
+  for excluding `wasip1`: `openFlags()` has two halves not three; the
+  `O_NONBLOCK`/FIFO semantics AVP-107/AVP-200 rest on are not WASI preview-1
+  semantics; no runner/fixture/cross-build is proposed (which would reproduce
+  R7's unexecuted-platform defect); and **no split implementation is specified
+  or authorized** — the target is simply refused.
+- The asserted property is now a **proper subset** relation: every `GOOS` in
+  our `true` set is matched by the stdlib tag, and `wasip1` is matched by the
+  stdlib tag and not by ours. AVP-208 owns it, with a sensitivity fixture that
+  fails when `wasip1` is re-added without a `wasip1` `openFlags()` half.
+- G4 amended; Q8's default sentence updated; one new §22 rejected-alternative
+  row; ADR D5 rewritten with the same four reasons.
+
+**(2) Every universal bounded-runtime claim withdrawn (§2.1, §5.1, §7.4.2,
+§7.4.3, §8.3, §14.1, §14.4, §15, §16.2, §19 R18, ADR D16 new, AVP-207 new)**
+
+- Three rev-3 sentences are removed and **named** in the withdrawal so a
+  reviewer can grep them: "the command has no unbounded wait anywhere" (§8.3),
+  "so nothing hangs" (§15), "no leaf kind can hang it" (§7.4.2).
+- The guarantee list is rebuilt everywhere it appears (Summary, §2.1 goal 7,
+  §7.4.2, §7.4.4, §14.1) as **four** properties: bounded allocation, bounded
+  bytes requested, a bounded operation count, and a **non-wedging open** on
+  Unix. `O_NONBLOCK`'s scope is stated as "the open, not the read" in §7.4.3,
+  AVP-118, AVP-200, G17 and ADR D6/D10.
+- New explicit statement, in five places, that an ordinary `read(2)` (and even
+  `Lstat`) on a regular file served by a stalled NFS/SMB mount, a wedged FUSE
+  server, a `/proc`-style provider or an unresponsive driver **can block
+  indefinitely**, and that v1 has **no timeout, no context and no watchdog**.
+- §5.1's `--timeout` justification rewritten: the honest reason is "no provider,
+  network or subprocess wait to bound, and no cancellation contract defined",
+  not "nothing can time out".
+- §14.1 gains a fourth threat-model boundary: **availability is out of scope**;
+  the security property is confidentiality and integrity.
+- §16.2 item 7 extended to forbid any skill surface from making a timing
+  promise ("always terminates", "cannot hang", "safe in a blocking preflight").
+- **R18 (High)** added; R15's "field hang" phrasing corrected to "wedged open".
+- **Q11 (new)** records the additive alternative and states honestly why it is
+  not free: Go's `os` file reads are not context-cancellable and
+  `SetReadDeadline` does not apply to ordinary files, so a `--timeout` that
+  could not interrupt the read would be the same false affordance as rev-2's
+  inert `O_NOFOLLOW`.
+- **AVP-207** is the mechanical guard. Its row explicitly specifies the
+  **quotation-context** rule (a forbidden phrase inside a sentence carrying a
+  withdrawal marker is a quotation, not an assertion) plus a fourth *inverse*
+  sensitivity fixture asserting the guard is green on the documents as
+  written — without which the guard would be permanently red on its own
+  withdrawal sections and would be weakened until it proved nothing. **AVP-189
+  was amended in place with the same rule**, which it needed already.
+
+**(3) Injectable `SameFile`; exactly two production adapters (§7.1.1, §7.4.4,
+ADR D12, AVP-194 amended, AVP-206 new)**
+
+- `RootOps` gains `SameFile(a, b fs.FileInfo) bool`. The seam is now **three +
+  three = six methods**; §7.1.1's "five methods wide" and ADR D12's identical
+  sentence are corrected.
+- Rationale stated: `os.SameFile` is only meaningful over unexported
+  `*os.fileStat` values no test outside `os` can construct, so AVP-084,
+  AVP-151, AVP-160 and AVP-196 (b) were unwritable — the same defect rev-3
+  fixed for `Lstat`/`OpenFile` and left in place one line later.
+- **`osFileOps` is now declared explicitly** and returned from `OpenFile`.
+  rev-3's sample returned the bare `*os.File`, which made the production
+  `FileOps` a type declared in `os` and left AVP-194's "declared outside a
+  `_test.go` file" with nothing in `internal/intent` to point at. §7.1.1's code
+  sample, its prose, ADR D12 and AVP-194 now all say **exactly two production
+  adapters, one per interface, both declared in `internal/intent`** — one
+  production implementation per interface, unchanged in spirit.
+- Ladder row 13 and status row 9 now read `!ops.SameFile(pre, post)`; §7.4.4
+  step 6 likewise; the §7.4.4 race table and AVP-084 updated. G7/G8/G16 and the
+  Windows soundness argument are unchanged (they describe what the production
+  body delegates to).
+- AVP-206 asserts both halves: the injectable verdict (no `os.fileStat`
+  construction) and the AST fact that `os.SameFile` appears at exactly **one**
+  production call site. R16 updated.
+
+**(4) `Close` in both ladders (§7.4.4 step 11a, §7.5 row 20c, §9.4.2 row 16a,
+ADR D15 new, AVP-203/204/205 new)**
+
+- New capture step **11a** (lettered, not renumbered, so every "step 11"
+  citation still resolves): close exactly once, **after** the post-capture
+  component walk. The ordering is justified, not asserted — holding the
+  descriptor across the walk keeps the object pinned so it cannot be unlinked
+  and its identity reclaimed while the ancestors are re-observed.
+- **Artifact ladder row 20c** → `unreadable`; **status ladder row 16a** →
+  `unreadable`. Both sit after the last descriptor-scoped probe and **before**
+  any content classification or parse. First-match-wins is stated explicitly:
+  20c never overwrites or suppresses an upstream `unstable`/`unreadable`.
+- **No new code is minted, and the PRD says why.** Reason `artifact-unreadable`,
+  advisory `analysis-sidecar-unreadable`, abort `status-unreadable` — all
+  existing. §10.3 gains a paragraph stating the catalogs stay at 10/11/13 so
+  AVP-095, AVP-119, AVP-181, AVP-101, AVP-153 keep their arithmetic, and giving
+  the reason (a code earns its place by changing the remediation).
+- **Truthfulness fix that falls out of this**: `status-unreadable`'s §9.4.5
+  message and §10.5.1 lifecycle line are widened to "could not be read **and
+  closed cleanly**", because with rev-3's wording a run that read every byte
+  and then failed to close would have printed "could not be read". The widened
+  form is true of all six of its rows (3, 7, 8, 12, 15, 16a). §10.5.1's
+  truthfulness bullet records the change.
+- **Zero leaks**: AVP-205 counts opens against closes over every post-open
+  ladder row, every status post-open row and all thirteen aborts, asserts zero
+  outstanding descriptors when `Inspect` returns, adds an AST half (the close
+  is not inside a success-only branch), and ships two sensitivity fixtures
+  (skipped close, double close). **R19 (Medium)** added.
+- §7.5's ordering list grows from six to **seven** load-bearing orderings;
+  the ladder is **27 rows**; §7.6's `unreadable` definition and §15's recovery
+  table gain their close rows; §7.1's `Inspect` doc comment states the close
+  obligation.
+
+**(5) Cobra parse-error ownership rewritten (§9.5, §10.1, §14.3.1, §5.4,
+ADR D17 new, AVP-193 rewritten, C38 amended, C93/C94 new)**
+
+- The mechanism is now stated from source: the root command sets
+  `SilenceUsage: true` **and** `SilenceErrors: true`
+  (`internal/cli/cobra.go:56-62`), so **cobra prints neither a usage block nor
+  the error**; it returns the parse error from `rootCmd.Execute()`, the
+  repository's own printer writes `error: %v`
+  (`internal/cli/cobra.go:33-39`), and `exitCodeFor` maps the untyped error to
+  `1` (`internal/cli/cobra.go:43-52`).
+- **rev-3's "and the usage block cobra prints with them" is removed by name**
+  — this binary prints no usage block on error, for any command.
+- The excluded bytes are correctly characterised as a **repository-emitted line
+  wrapping third-party text**, and the PRD states plainly that carrying them
+  through our own `Fprintf` does not make them sanitized: the printer is a
+  shared pre-existing surface applying no filtering, and changing it would be a
+  cross-command behavior change no single command's PRD may make. Those bytes
+  are outside the report schema **and** outside the §14.3.3 byte rules.
+- **AVP-193's sensitivity fixture is replaced with a real one.** rev-3's
+  fixture — "intercepts and re-renders cobra's error inside `RunE`" — is
+  **unconstructible**, because a parse error is raised before `RunE`; a guard
+  whose negative fixture cannot exist proves nothing. The row is now `S+G`: an
+  **AST half** (no `FlagErrorFunc`, no `SetFlagErrorFunc`, no `SetErr`/`SetOut`,
+  no self-formatting `Args` validator, no local `Silence*` assignment;
+  sensitivity = adding a `FlagErrorFunc`) plus a **behavior half** over the five
+  exit-1 inputs (exit 1, empty stdout, exactly one `error:` line matching no
+  §9.5 template and carrying no abort code, no report, `.tpatch/`
+  byte-identical).
+- **C38's description now includes parse errors** and cites C93. C93 (the
+  `Silence*` settings) and C94 (`exitCodeFor`'s default-1 mapping) are new.
+  §10.1's exit-1 routing row and §9.5's closing paragraph rewritten.
+
+**(6) `eleven` → `twelve` (§9.5, §10.5.2)**
+
+Both occurrences fixed; each cell already listed 5 + 7 = 12 codes. A new
+sentence reconciles the arithmetic explicitly: twelve canonical-slug-known
+codes plus `slug-unsafe` = the unchanged **thirteen** of §9.4.4, which is the
+number AVP-098, AVP-101, AVP-127, AVP-153 and AVP-181 operate over.
+
+**(7) G18 anchor corrected (§23.2, §7.3 step 2, ADR D4)**
+
+The property list (UTF-8, unrooted, slash-separated, no `.`/`..`/empty element,
+no leading/trailing slash) lives in the **`io/fs` package documentation's
+`# Path Names` section**, not in `ValidPath`'s doc comment, which states only
+"valid for use in a call to Open" and links to that section. G18 now anchors
+**both** (section for the property, function for the predicate). The row also
+records the **`"."` special case** — `fs.ValidPath(".")` is `true` — and notes
+that no name this design composes is `"."`, so nothing changes today, but a
+future refactor must not assume `ValidPath` refuses it. §7.3 step 2 and ADR D4
+carry the same correction.
+
+**(8) ADR D7 name-surrogate table corrected**
+
+`isReparseTagNameSurrogate()` is a **bit test** —
+`FILE_ATTRIBUTE_REPARSE_POINT` set **and** `ReparseTag & 0x20000000` — not the
+two-tag list its source comment names. rev-0's table answered "no" for *any
+other tag*, which is wrong. The corrected table gives each tag's numeric value,
+marks AF_UNIX (`0x80000023`) and DEDUP (`0x80000013`) as **non**-surrogates
+(so their `ModeDir`/`GetFileType` bits are **not** suppressed), and states that
+"any other tag" **depends on that tag's own bit** — `ModeIrregular` either way,
+but the suppression differs. A third consequence is added: the two exceptions
+are exceptions to the *surrogate* rule as well as the *mode* rule, which is
+precisely why the `!IsRegular()` kind gate — not the refusal predicate — must
+be total. `winsymlink=1` is retained unchanged. The PRD's §7.4.3 table gets the
+same numeric values and the same "depends on the bit" wording.
+
+**(9) Exit-3 workspace divergence disclosed (§9.2, ADR D18 new, C95 new)**
+
+`tpatch status` outside a workspace exits **1** (untyped
+`FindProjectRoot` error via `openStoreFromCmd` → `exitCodeFor`'s default);
+`tpatch prepare <slug> --check` exits **3** with a full abort report. §9.2 now
+states the divergence, justifies it on three grounds (per-command exit
+contracts per `SPEC.md:135-141`; this command's exit code is a *verdict* and
+collapsing to 1 would make it the only nonzero path with no report, breaking
+the `artifacts` ⇔ `abort` invariant; additive and reversible — no existing
+command changes and this command never calls `openStoreFromCmd`), and states
+what is **not** claimed: a harness grepping exit 1 for "no workspace" will not
+get that answer here, and §16.1's `SPEC.md` row must document the envelope.
+
+**(10) Fixed-buffer rationale corrected (§7.4.5, ADR D9, §22, G20/G21/G22 new)**
+
+- **`io.ReadAll(io.LimitReader(f, Max+1))` is bounded.** The limit reader caps
+  the result, so total allocation is `O(Max)`. rev-1 claimed a false *exact
+  ceiling*; rev-2/rev-3 over-corrected into "the allocation is not bounded",
+  which is equally false. rev-4 states both accurately and forbids the
+  unboundedness claim.
+- The real rejection is cost **shape**: `ReadAll` grows by `append`, so one
+  capture performs a *sequence* of increasing allocations with copies, and the
+  sequence is paid again on each of **five** sequential captures. The chosen
+  reusable fixed buffer **caps and flattens** that cost.
+- **The ~4 MiB zeroing cost is now stated**: `make([]byte, n)` yields a zeroed
+  slice (G22), so the invocation pays one zeroing pass — once per invocation,
+  never per capture. Q9's note updated (lazy allocation removes the cost only
+  for runs that open nothing).
+- **Cap↔message coupling is restated exactly and unchanged**: AVP-201 *derives*
+  the unit string from the constant (never compares two literals), asserts
+  appearance in exactly the enumerated messages and non-appearance of any other
+  limit figure, and fails in **both** directions.
+- G20 (LimitReader bounds → contract), G21 (ReadAll growth shape → tripwire)
+  and G22 (zeroed `make` → contract) added; §22's `ReadAll` row rewritten;
+  R17 updated.
+
+**(11) Walk→`Lstat` race limit retained and sharpened (§7.4.4, §8.3, ADR D8)**
+
+The residue is restated in the place most likely to be read as stronger than it
+is: an object *observed as different* is never read, **but** an object never
+observed to be different — most importantly a consistent in-root alias or hard
+link that satisfies every probe — **is** read, and its bytes are then
+**attributed to the canonical artifact name** in the report. The claim is "the
+object I classified is the object I read", not "the canonical name designated
+this object at every instant". Limits 1, 2 and 5 in §8.3, the §7.4.4 limit
+list, ADR D8 and R5 all carry the attribution sentence.
+
+**(12) Cap-message coupling and Windows junction mechanism unchanged**
+
+`cmd /c mklink /J`, `t.Fatal` never `t.Skip`, the source half forbidding
+`t.Skip`/`t.Skipf`/`t.SkipNow` in the fixture path, and `runtime.GOOS !=
+"windows"` as the only permitted guard — all verbatim from rev-3 (§16.1,
+AVP-199, ADR D13). AVP-201's mechanism likewise, now stated explicitly as
+derive-not-compare and fail-in-both-directions.
+
+**(13) IDs, counts, categories, kinds, slices, claims, citations, guards**
+
+All updated and mechanically re-verified — see "Validation performed".
+
+### Unchanged from rev-3 (deliberately, as instructed)
+
+- **`os.Root` as the mechanism** and the whole D1/D3/D4 policy.
+- **Logical (not physical) confinement**, §7.4.2's table, the quoted `Root`
+  doc-comment paragraph, AVP-189, AVP-190, R14, ADR D2.
+- **Full three-doc readiness** (§6.2): `ready` requires `analysis.md` +
+  `spec.md` + `exploration.md`; the sidecar stays optional.
+- **`status.json` safety and `FeatureState` validation**: same boundary, same
+  caps, all nine populations, thirteen abort codes, fifteen lifecycle
+  annotations, valid-state gate before any echo.
+- **`provenance` is the stable constant `unknown`**; no ADR trigger fired
+  (ADR D14).
+- **Manual/routing compatibility**: loose `--manual`, `next` and `cycle`
+  unchanged; AVP-064…AVP-069 and AVP-130…AVP-133 still pin the loose behavior.
+- **No mutation, no new state**; **the `prepare` reserved-surface block**
+  (exit 4) and the unregistered `--manual`/`--regenerate`.
+- **`PRD-prepare-intent-bundle.md` remains blocked and undrafted** (§20).
+- **ADR status**: `Proposed — Awaiting Review`. The writer cannot accept its
+  own ADR.
+
+### Open decisions left to review (§21, eleven)
+
+Q1 `--all`; Q2 exit `4` as a cross-command convention; Q3
+`MaxArtifactBytes = 4 MiB`; Q4 `request.md` as a fifth row; Q5
+platform-conditional Windows reserved-device refusal; Q6 `--format` aliasing;
+Q7 `MaxStatusBytes = 1 MiB` and its separateness; Q8 compile-time vs runtime
+platform refusal; Q9 lazy vs unconditional scratch allocation; Q10 whether the
+seam should be unexported; **Q11 (new)** whether v1 should bound wall-clock
+with a `--timeout` or a cancellable context. All eleven have a stated default;
+none blocks review.
+
+### Implementation status
+
+**None.** Planning only. No Go file, test, asset, workflow or CLI surface was
+created or modified. `cmd/tpatch/main.go`, `.github/workflows/ci.yml` and
+`SPEC.md` remain named as **required future** edits (§16.1) and were **not**
+touched.
+
+### Validation performed (docs-only change)
+
+- **AVP mechanics**: 208 declared rows, contiguous `AVP-001`…`AVP-208`, zero
+  duplicates; **every** `AVP-NNN` token in the PRD's prose **and in ADR-034**
+  resolves to a declared row (zero unresolved); category counts parsed from the
+  section headings sum to 208 and match §18.27; kind counts parsed from the
+  Kind column sum to 208 and match; the guard predicate yields **43**; §17's
+  slice assignment expanded programmatically and verified as a partition of
+  1…208 (S1 83, S2 28, S3 49, S4 38, S5 10 — zero duplicates, zero missing,
+  each slice's stated count equal to its expanded count).
+- **Guard-count self-check caught a writer error**: the first draft of §18.27
+  stated pure `G` = 32 and guard = 44. The parser returned 31 and 43 because
+  `AVP-193` moved out of pure `G` into `S+G`. §18.27, §18.28 and AVP-139 were
+  corrected to 31/43 and the narrative now explains the move.
+- **Claims mechanics**: `C1`…`C95` contiguous, zero duplicates;
+  `G1`…`G22` + `G5a` + `G9a` = 24 rows, 10 contract + 14 tripwire = 24.
+- **Repository anchors**: every `file:line` citation in **both** documents
+  parsed and checked in-range; zero out-of-range, zero missing files. The four
+  new/changed ones were content-verified by reading the cited lines —
+  `internal/cli/cobra.go:56-62` (`SilenceUsage`/`SilenceErrors` on the root
+  command struct, C93), `:43-52` (`exitCodeFor`'s default `return 1`, C94),
+  `:33-39` (the `Fprintf` printer, C38), `:3782-3793` +
+  `internal/store/store.go:23-40` (`openStoreFromCmd` → `FindProjectRoot`
+  returning a plain `errors.New`, C95).
+- **Go stdlib claims re-read from the pinned toolchain's `GOROOT`**
+  (`go1.26.5`): `os/types_windows.go` `(*fileStat).mode`,
+  `isReparseTagNameSurrogate` (confirming the `0x20000000` bit test and the
+  AF_UNIX/DEDUP branches verbatim, including the DEDUP explanatory comment),
+  `Mode`/`modePreGo1_23`; `io/fs/fs.go` package doc `# Path Names` section and
+  `ValidPath`'s body (confirming the `"."` special case returns `true`);
+  `os/root_openat.go`'s build tag; `os/root_unix.go` `rootOpenFileNolog`.
+- **Cross-reference closure**: every `§N.N` reference in the PRD **and** in
+  ADR-034 resolves to a PRD heading that exists (zero unresolved).
+- **ADR↔PRD parity**: ADR declares D1–D18 with no gaps, in numeric order (D13
+  and D14 were moved back above D15 after the new decisions were appended);
+  every `AVP` reference in the ADR's 18-row decision→verification table
+  resolves to a declared PRD row; every ADR decision D1–D18 is cited by name
+  somewhere in the PRD; the ADR's companion pointer, references block and
+  consequences all name rev-4.
+- **Markdown hygiene**: PRD 44 fence markers (balanced), 69 tables with **zero**
+  column-count mismatches (counted with `\|` escapes stripped, which is what
+  the earlier "mismatch" noise was); ADR 2 fence markers (balanced), 6 tables
+  with zero mismatches; **zero** trailing-whitespace lines in either; every
+  relative link in both resolves on disk; both `json` fenced blocks parse.
+- No Go source changed, so `gofmt` / `go build` / `go test` are not applicable
+  to this change set; no existing docs test targets these files
+  (`internal/workflow/docs_totality_guard_test.go` reads exactly three
+  verify-family documents, none of them touched here).
+
+### Reviewer focus for rev-4
+
+1. **The `wasip1` exclusion is a *narrowing*, and it costs a target.** rev-3
+   would have run confined on `wasip1`; rev-4 refuses it. The argument is that
+   confinement is necessary but not sufficient — the design also needs an
+   `openFlags()` half and a runner, and has neither. If the reviewer thinks
+   `wasip1` support is worth a third build-tagged half, that is a scope
+   *addition* with its own slice, not a build-tag edit; **rev-4 deliberately
+   does not split the implementation**.
+2. **The bounded-runtime withdrawal is the largest semantic change.** Nothing
+   about the *code* changes — the same `O_NONBLOCK`, the same kind gates — only
+   what the documents promise. Check §7.4.2, §8.3 and §14.1 for any residual
+   assertion, and check that AVP-207's quotation-context rule is specified well
+   enough to be implementable: the guard must tolerate the withdrawal
+   sections' own quotations of the removed sentences, which is why it ships a
+   fourth, *inverse* fixture asserting green-on-current-text.
+3. **`Close` mints no new code, deliberately.** The alternative (a fourteenth
+   abort code) is argued down in §22 and ADR D15 item 5. The visible cost is
+   that `status-unreadable`'s frozen message and lifecycle line changed text;
+   if the reviewer prefers a new code, that reopens the thirteen-code
+   arithmetic in five places (AVP-095, AVP-098, AVP-101, AVP-153, AVP-181).
+4. **`SameFile` is one production method that exists only for testability.**
+   Its production body is a one-line delegation. If the reviewer objects to
+   widening the interface for tests, the counter-argument is in §7.1.1 and
+   ADR D12 constraint 3: without it, four identity rows are unwritable, which
+   is the exact defect class rev-3 was revised to fix.
+5. **Two production adapters, one per interface** — this is a *clarification*
+   of rev-3's "exactly one production implementation", not a relaxation. rev-3
+   said one implementation of *each* interface but its code sample returned a
+   bare `*os.File`, which put the `FileOps` implementation in package `os`.
+   Check §7.1.1 rule 1, ADR D12 constraint 1 and AVP-194 agree on this.
+6. **Ladder row lettering.** 20c and 16a are lettered so no rev-2/rev-3 row
+   citation breaks. Verify the ordering claims: 20c after 20a/20b, before
+   21–24; 16a after 16, before 17.
+7. **AVP-193 is the one row whose *kind* changed** (`G` → `S+G`), which is why
+   the guard arithmetic moved 39 → 43 rather than 39 → 45. §18.27 explains it.
+8. **`docs/adrs/README.md` is untouched by design** and its parenthetical
+   revision labels are now stale. That is flagged above for the supervisor to
+   fix at acceptance, not silently left.
 
 ## WP-005 Turn 2 Scope
 
