@@ -1,3 +1,24 @@
+## Writer — PRD artifact validation rev-3 + ADR-034 rev-0 — 2026-08-13
+
+**Writer tip**: `9d52a2b`
+**Dispatch**: `5a678b5`
+
+### Revision
+
+- PRD rev-3: 202 AVP rows, 92 repository + 21 stdlib claims.
+- ADR-034 rev-0: 635 lines, D1–D14, Proposed.
+- `os.Root` guarantee narrowed to logical pathname confinement.
+- Fail-closed supported-platform allowlist.
+- Correct Windows tags + `winsymlink=1` + native CI.
+- One reused fixed scratch buffer and explicit identity/race limits.
+- Test-operation seam and AVP-citation guard.
+- `rescap` migration and provenance persistence explicitly out of scope.
+
+### Action Taken
+
+PRD and ADR returned to joint dual review. No code or mutating prepare is
+authorized.
+
 ## Review — PRD artifact validation and provenance rev-2 — 2026-08-13
 
 **Writer tip**: `0fa1c07`
