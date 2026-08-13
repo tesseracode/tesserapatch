@@ -1,3 +1,31 @@
+## Dispatch — PRD artifact validation and provenance rev-0 — 2026-08-13
+
+**WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
+**Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
+**Prerequisite**: accepted WP-005 Turns 2–4
+
+### Scope
+
+- Truthful read-only intent-artifact classifier.
+- `tpatch prepare --check` human/JSON/exit contract.
+- Provenance `unknown` default and persistence decision gate.
+- `--manual`, existing `defined`, `next`, and `cycle` compatibility.
+- Path A/B sidecar parity, migration, privacy, path safety and determinism.
+- Claims audit and executable acceptance matrix.
+
+### Non-Goals
+
+- Mutating prepare / regenerate / provider generation.
+- Atomic intent-bundle publication.
+- New lifecycle state.
+- Mandatory downstream SDD.
+- Pre-emptive ADR or implementation milestone.
+
+### Action Taken
+
+GH #10 registered. CURRENT and ROADMAP transitioned to the single sequential
+PRD writer. WP-005 graduates when the PRD file is opened.
+
 ## Close — WP-005 council Turns 2–4 — 2026-08-13
 
 **WAVE_BASE**: `76ed78b`

@@ -2,25 +2,43 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-WP-005 council Turns 2–4 are accepted. The paper remains Exploring until its
-first graduating PRD opens; no implementation is authorized.
+The artifact-validation/provenance PRD writer is dispatched from fresh base
+`0aa0d95`. This is planning only; prepare mutation remains blocked.
 
 ## Active Task
 
-- **Task ID**: WP-005 council Turn 2
-- **Description**: Record the five-advisor/five-reviewer council verdict on
-  `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
-  findings without drafting PRDs yet.
-- **Status**: Complete
+- **Task ID**: PRD-artifact-validation-and-provenance
+- **Description**: Define truthful read-only intent-artifact inspection,
+  provenance/migration boundaries and `tpatch prepare --check` as the
+  prerequisite to mutating preparation.
+- **Status**: Writer rev-0
 - **Assigned**: 2026-08-13
-- **WAVE_BASE**: `76ed78b`
-- **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
-- **Writer tip**: `260936a`
-- **Revision tip**: `605a382`
-- **Accepted tip**: `2018fd7`
+- **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
+- **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
+- **Scope**: one PRD + WP-005 graduation/index updates + handoff
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## PRD Writer Contract
+
+- Claims-audit current `manual.go`, Path A workflow, `FeatureStatus.Notes`,
+  `next`, `cycle`, feature layout and shipped skill surfaces.
+- Define deterministic structural artifact states without claiming semantic
+  quality.
+- Define read-only `prepare --check` human/JSON output, precedence and exits.
+- Pin `provenance: unknown` until accepted metadata proves otherwise.
+- Decide explicitly whether individual mutating `--manual` gates change.
+- Preserve existing `defined`, `next` and `cycle` behavior unless a behavior
+  delta is enumerated and accepted.
+- Cover symlinks, non-regular files, unreadable paths, privacy, determinism,
+  migration and Path A/B parity.
+- Evaluate provenance representation alternatives. No ADR is pre-created; if
+  the PRD selects persistent representation, flag the ADR gate before
+  acceptance for implementation.
+- Exclude mutating prepare, regenerate, provider execution, atomic bundle
+  publication, new lifecycle state and downstream SDD mandates.
+- Mark WP-005 Graduated when the PRD file is created.
 
 ## WP-005 Turn 2 Scope
 
@@ -251,12 +269,10 @@ Modified:
 
 ## Next Steps
 
-1. Record a fresh `origin/main` WAVE_BASE.
-2. Open `PRD-artifact-validation-and-provenance.md` and mark WP-005
-   Graduated.
-3. Run the PRD writer/review loop.
-4. Keep `PRD-prepare-intent-bundle.md` blocked until the prerequisite PRD is
-   accepted.
+1. Complete writer rev-0 and transition to review.
+2. Run independent internal/external PRD reviews.
+3. Fold revisions until dual acceptance.
+4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
 
 ## Blockers
 
