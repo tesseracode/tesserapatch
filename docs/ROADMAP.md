@@ -791,13 +791,13 @@ external APPROVED WITH NOTES. Prior turns remain immutable. Next:
 artifact-validation/provenance PRD, with prepare-intent-bundle blocked behind
 it. No implementation is authorized.
 
-**Artifact-validation/provenance PRD rev-1** 🚧 AWAITING REVIEW (2026-08-13,
-WAVE_BASE `0aa0d95`, writer `205a81e`,
-[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): 75 audited
-claims and 140 AVP rows now cover the rebuilt CLI envelope, race-safe bounded
-capture, full-bundle readiness, diagnostic totality, compatibility and
-provenance boundaries. Mutating prepare remains blocked; no implementation or
-ADR is authorized.
+**Artifact-validation/provenance PRD rev-2** 🚧 IN PROGRESS (2026-08-13,
+WAVE_BASE `0aa0d95`, rev-1 writer `205a81e`,
+[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): rev-1
+closed all rev-0 findings, then both reviewers found status-path and rooted
+open gaps. Rev-2 moves status/artifact reads under Go 1.26 `os.Root`, validates
+lifecycle state, closes output/error catalogs and rebuilds the AVP matrix.
+Mutating prepare remains blocked; no implementation or ADR is authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

@@ -1,3 +1,45 @@
+## Review — PRD artifact validation and provenance rev-1 — 2026-08-13
+
+**Writer tip**: `205a81e`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION → REV-2 DISPATCHED
+
+### Confirmed Closed
+
+All rev-0 findings: root error/quiet composition, full-bundle readiness,
+slug gate, abort shape, truthful advisories, stable unknown provenance,
+composite manual/check tests, routing guards and matrix continuity.
+
+### New Blocking Findings
+
+1. Artifact path safety still relied on pathname `Lstat` plus a final-component
+   no-follow open; raced ancestor symlinks and Windows identity semantics were
+   overstated.
+2. `status.json` remained a bare, unbounded, symlink-following `os.ReadFile`;
+   its string lifecycle value was not validated before rendering.
+3. Windows reparse-row semantics contradicted successful reparse-handle open.
+4. Exact allocation claims exceeded what `io.ReadAll(LimitReader)` guarantees.
+5. Abort lifecycle text/message catalogs and workspace `--path` ownership were
+   incomplete.
+
+### Rev-2 Direction
+
+- Use Go 1.26 `os.Root` as the common descriptor/handle-relative namespace for
+  status and artifacts.
+- Use rooted `Lstat`, opened-handle stat/identity/kind/size checks and a fixed
+  cap-plus-one buffer.
+- Validate `FeatureState`, close status/abort/lifecycle output populations and
+  update all AVP totals.
+- Correct Windows/support claims instead of citing the resource-capture
+  unsupported stub.
+
+### Action Taken
+
+Same writer dispatched for a narrow rev-2. No implementation, ADR or mutating
+prepare is authorized.
+
 ## Writer — PRD artifact validation and provenance rev-1 — 2026-08-13
 
 **Writer tip**: `205a81e`

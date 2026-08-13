@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
-Artifact-validation/provenance PRD rev-1 is written and closes every rev-0
-adjudicated finding. Both reviews are pending; this remains planning only.
+Artifact-validation/provenance PRD rev-1 closed every rev-0 finding but exposed
+status-path and cross-platform rooted-open gaps. Rev-2 is dispatched.
 
 ## Active Task
 
@@ -13,7 +13,7 @@ adjudicated finding. Both reviews are pending; this remains planning only.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Review — rev-1
+- **Status**: Writer rev-2
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
@@ -622,19 +622,50 @@ Modified:
 
 ## Next Steps
 
-1. Run the rev-1 internal (contract/protocol) and external (product/
-   adversarial) PRD reviews against `docs/prds/PRD-artifact-validation-and-provenance.md`.
-2. Adjudicate; if NEEDS REVISION, dispatch rev-2 with a bounded finding list.
-3. Continue bounded revisions until dual acceptance.
-4. On acceptance: archive this handoff to `HISTORY.md`, append the verdict to
-   `docs/supervisor/LOG.md`, flip the `docs/ROADMAP.md` row, and only then
-   consider unblocking `PRD-prepare-intent-bundle.md`.
-5. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
-6. No code, ADR, asset or milestone is authorized by this task.
+1. Rewrite status/artifact reads around one rooted namespace and fixed-buffer
+   bounded capture.
+2. Close lifecycle validation, abort-message, workspace-path, quiet output and
+   matrix arithmetic findings.
+3. Re-run both PRD reviews.
+4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
 
 ## Blockers
 
-None.
+Rev-1 is not acceptable for implementation until the findings below close.
+
+## Rev-1 Review Adjudication
+
+- **Internal**: NEEDS REVISION (2 HIGH, 3 MEDIUM).
+- **External**: NEEDS REVISION; every rev-0 finding closed, then three
+  blocking status/output findings plus bounded completeness notes.
+- **Supervisor verdict**: NEEDS REVISION → rev-2.
+
+### Rev-2 architecture correction
+
+Go 1.26's `os.Root` is the cross-platform rooted namespace primitive. Rev-2
+must open one root for the repository and use root-relative `Lstat`/open for
+`status.json` and all artifacts. This closes ancestor escape without custom
+pathname re-resolution:
+
+1. Refuse observed symlink components.
+2. Before reading, compare rooted `Lstat` identity to the opened handle's
+   `File.Stat` identity and recheck kind/size.
+3. Use final no-follow/nonblocking flags on Unix. On Windows rely on
+   `os.Root`'s handle-relative implementation and handle-derived stat identity,
+   not ordinary `os.Lstat`/`os.SameFile`.
+4. Read into one preallocated `MaxArtifactBytes+1` buffer/loop; do not claim
+   `io.ReadAll(LimitReader)` has an exact allocation ceiling.
+
+### Remaining corrections
+
+- Apply the same safe bounded capture to `status.json`.
+- Validate `FeatureState`; never echo unknown lifecycle bytes.
+- Define human lifecycle text for status present/absent/unreadable/malformed/
+  invalid-state populations.
+- Close abort messages and correct `--path`/workspace error ownership.
+- Correct quiet-abort guidance, control-byte wording, guard arithmetic,
+  canonical hand-assembled feature scope and skill wording for ordinary exit 2.
+- Rebuild AVP totals around all new status/root/race cases.
 
 ## Context for Next Agent
 
