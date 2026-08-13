@@ -1,3 +1,23 @@
+## Writer — PRD artifact validation and provenance rev-2 — 2026-08-13
+
+**Writer tip**: `0fa1c07`
+**Dispatch**: `c590f17`
+
+### Revision
+
+- One held Go 1.26 `os.Root` namespace for status and artifacts.
+- Fixed-cap buffer reads; no `ReadAll` allocation overclaim.
+- Total bounded `status.json` populations and `FeatureState` validation.
+- 13 abort codes, 15 lifecycle-output populations and exact messages.
+- Native `windows-latest` CI obligation and stdlib symbol claims.
+- 88 repository + 12 Go-stdlib claims.
+- 188 contiguous AVP rows with corrected guard arithmetic.
+
+### Action Taken
+
+ROADMAP and LOG returned to rev-2 dual review. No code, ADR or mutating prepare
+is authorized.
+
 ## Review — PRD artifact validation and provenance rev-1 — 2026-08-13
 
 **Writer tip**: `205a81e`
