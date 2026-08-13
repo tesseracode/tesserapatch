@@ -1,3 +1,24 @@
+## Writer — PRD artifact validation rev-4 + ADR-034 rev-1 — 2026-08-13
+
+**Writer tip**: `80768fb`
+**Dispatch**: `be33d2a`
+
+### Revision
+
+- Supported platforms narrowed to `unix || windows`.
+- Universal no-wait claims withdrawn; allocation/byte/open scope made exact.
+- `SameFile` and `Close` added to the injected operations seam/ladders.
+- Exactly two production adapters pinned.
+- Cobra parse-error ownership and exit-3 workspace divergence corrected.
+- Twelve-code arithmetic and `io/fs` Path Names anchor fixed.
+- 208 AVP rows; 95 repository + 24 stdlib claims.
+- ADR-034 expanded to D1–D18.
+
+### Action Taken
+
+PRD and ADR returned to focused joint review. No code or mutating prepare is
+authorized.
+
 ## Review — PRD artifact validation rev-3 + ADR-034 rev-0 — 2026-08-13
 
 **Writer tip**: `9d52a2b`

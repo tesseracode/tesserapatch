@@ -791,12 +791,11 @@ external APPROVED WITH NOTES. Prior turns remain immutable. Next:
 artifact-validation/provenance PRD, with prepare-intent-bundle blocked behind
 it. No implementation is authorized.
 
-**Artifact-validation/provenance PRD rev-4 + ADR-034 rev-1** 🚧 IN PROGRESS
-(2026-08-13, WAVE_BASE `0aa0d95`, rev-3 writer `9d52a2b`,
-[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): reviewers
-accepted the rooted-namespace architecture but found WASI flag,
-unbounded-wait, identity-seam and close-error gaps. Narrow rev-4 corrects those
-plus Cobra/adapter/count/anchor parity. Mutating prepare remains blocked; no
+**Artifact-validation/provenance PRD rev-4 + ADR-034 rev-1** 🚧 AWAITING
+REVIEW (2026-08-13, WAVE_BASE `0aa0d95`, writer `80768fb`,
+[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): 208 AVP
+rows and ADR D1–D18 close WASI, runtime, identity-seam, close-error,
+Cobra/adapter/count/anchor parity. Mutating prepare remains blocked; no
 implementation is authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
