@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: ACCEPTED
 
-Artifact-validation/provenance PRD rev-5 and ADR-034 rev-2 complete the final
-no-decision-change correction and await focused confirmation.
+Artifact-validation/provenance PRD rev-5 and ADR-034 rev-2 are accepted by
+both reviewers. GH #10 planning is complete; no implementation has begun.
 
 ## Active Task
 
@@ -13,7 +13,7 @@ no-decision-change correction and await focused confirmation.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Final review — PRD rev-5 + ADR-034 rev-2
+- **Status**: Complete
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
@@ -23,6 +23,19 @@ no-decision-change correction and await focused confirmation.
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
 - **Scope**: one PRD + one ADR + ADR index + handoff.
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Final Verdict
+
+- **Internal**: APPROVED at `cd15165`.
+- **External**: APPROVED at `0275067`; final byline/guard folds changed no
+  decision or matrix shape.
+- **Accepted contract**: PRD rev-5, 208 AVP rows.
+- **Accepted architecture**: ADR-034 rev-2, D1–D18.
+- **Claims**: 95 repository + 24 Go-stdlib claims.
+- **Implementation**: none.
+- **Provenance ADR trigger**: still unfired; `unknown` remains constant.
+- **Prepare PRD**: may now enter planning, but mutating implementation remains
+  unauthorized until that separate PRD is accepted.
 
 ## PRD Writer Contract
 
@@ -1680,16 +1693,15 @@ Modified:
 
 ## Next Steps
 
-1. Write PRD rev-3 and proposed ADR-034.
-2. Re-run internal/external review over both documents.
-3. Continue bounded revisions until both are accepted.
-4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
+1. Commit/push terminal tracking and run `make wave-close-check
+   WAVE_BASE=0aa0d95`.
+2. Close GH #10 with the accepted PRD/ADR references.
+3. Return CURRENT to IDLE after durable close.
+4. Record a fresh WAVE_BASE before dispatching `PRD-prepare-intent-bundle.md`.
 
 ## Blockers
 
-None for the writer. Every rev-2 required correction is addressed in rev-3
-(see "PRD Writer Result — rev-3 + ADR-034 rev-0" for the point-by-point
-mapping). Two items are **gated on review rather than blocked**:
+None. Planning is accepted; implementation remains a separate future wave. Two items are **gated on review rather than blocked**:
 
 1. **ADR-034 is `Proposed`, not `Accepted`.** A writer cannot accept its own
    ADR. It and PRD rev-3 are reviewed together; acceptance of both is the

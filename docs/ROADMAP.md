@@ -791,12 +791,12 @@ external APPROVED WITH NOTES. Prior turns remain immutable. Next:
 artifact-validation/provenance PRD, with prepare-intent-bundle blocked behind
 it. No implementation is authorized.
 
-**Artifact-validation/provenance PRD rev-5 + ADR-034 rev-2** 🚧 FINAL FOLD
-(2026-08-13, WAVE_BASE `0aa0d95`, rev-4 writer `80768fb`,
-[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): internal
-review found one residual AVP timing promise; external approved with count/index
-notes. Final fold changes no decision or matrix shape. Mutating prepare remains
-blocked; no implementation is authorized.
+**Artifact-validation/provenance PRD rev-5 + ADR-034 rev-2** ✅ ACCEPTED
+(2026-08-13, WAVE_BASE `0aa0d95`, accepted tip `cd15165`,
+[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): dual
+APPROVED after five PRD revisions. Accepted contract: 208 AVP rows, 95
+repository + 24 stdlib claims, rooted-inspection ADR D1–D18. No implementation
+has begun. The prepare-intent-bundle PRD is now unblocked for planning.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

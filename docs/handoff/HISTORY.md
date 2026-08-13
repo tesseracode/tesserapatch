@@ -1,3 +1,42 @@
+# 2026-08-13 — Artifact validation/provenance PRD + ADR-034 — ACCEPTED
+
+**WAVE_BASE**: `0aa0d95`
+**Issue**: GH #10
+**PRD writer rev-0**: `a8b1935`
+**PRD/ADR final note folds**: `0275067`, `5e492fe`, `cd15165`
+**Accepted PRD**: `PRD-artifact-validation-and-provenance` rev-5
+**Accepted ADR**: ADR-034 rev-2, D1–D18
+
+**Contract**:
+
+- Read-only `tpatch prepare <slug> --check`; no provider or mutation.
+- Full three-Markdown bundle readiness; analysis sidecar optional.
+- Nine structural states, total status/artifact failure handling.
+- Stable `provenance: unknown`; no persistence representation selected.
+- Existing `--manual`, `next`, `cycle` and lifecycle behavior unchanged.
+- Logical rooted pathname confinement through Go 1.26 `os.Root`.
+- `unix || windows` fail-closed platform policy with native Windows CI.
+- One reused fixed-cap buffer; allocation/bytes bounded, runtime not promised.
+- 208 acceptance rows, 95 repository claims, 24 stdlib claims.
+
+**Review arc**:
+
+| Revision | Internal | External | Outcome |
+|---|---|---|---|
+| rev-0 | NEEDS REVISION | APPROVED WITH NOTES | CLI/path/readiness/matrix gaps |
+| rev-1 | NEEDS REVISION | NEEDS REVISION | status/root/platform gaps |
+| rev-2 | NEEDS REVISION | NEEDS REVISION | os.Root scope/ADR/seam gaps |
+| rev-3 | NEEDS REVISION | APPROVED WITH NOTES | WASI/runtime/seam/close parity |
+| rev-4 | NEEDS REVISION | APPROVED WITH NOTES | one timing row + editorial counts |
+| rev-5 | **APPROVED** | **APPROVED** | accepted |
+
+**Architecture**: ADR-034 records the non-obvious rooted-inspection decision.
+It does not migrate `rescap` and is not the deferred provenance ADR.
+
+**Next**: `PRD-prepare-intent-bundle.md` is unblocked for planning only.
+
+---
+
 # 2026-08-13 — WP-005 council Turns 2–4 — ACCEPTED
 
 **WAVE_BASE**: `76ed78b`

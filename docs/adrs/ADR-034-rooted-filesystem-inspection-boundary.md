@@ -1,6 +1,6 @@
 # ADR-034 — Rooted Filesystem Inspection Boundary
 
-**Status**: Proposed — Awaiting Review (rev-2)
+**Status**: Accepted — 2026-08-13 (rev-2)
 **Date**: 2026-08-13 (Proposed)
 **Owner**: Core (planning lane)
 **Byline**: writer sub-agent + supervisor note-fold, rev-2 based on dispatch HEAD `70876c1`
@@ -11,7 +11,7 @@
 context, D6 no wall-clock), [ADR-033](./ADR-033-resource-capture-boundary.md)
 (D10 no tracked timestamps, D11 no Go map in a wire schema)
 **Companion**: [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md)
-(rev-5, Draft — Awaiting Review). **The two documents are reviewed together.**
+(rev-5, Accepted). **The two documents were reviewed together.**
 Read the PRD for the full design and its acceptance matrix; this ADR states the
 decisions the PRD's §7 depends on, and where the two overlap **this ADR is
 normative**.
@@ -24,7 +24,7 @@ S1–S5). No implementation is authorized until both documents are accepted.
 |---|---|---|
 | rev-0 | NEEDS REVISION (internal and external) | First draft: D1–D14. |
 | rev-1 | NEEDS REVISION (internal), APPROVED WITH NOTES (external) | **D5** narrows the confinement allowlist from `unix \|\| windows \|\| wasip1` to **`unix \|\| windows`**; `wasip1` becomes an unsupported target that aborts, the "byte-identical to the stdlib tag" justification is withdrawn in favour of an asserted **subset** relation, and **no split implementation** is authorized. **D6** scopes `O_NONBLOCK` to the *open*. **D7**'s name-surrogate column is corrected to the `0x20000000` bit test rather than a two-tag list. **D8** records that bytes read through an unobserved consistent alias are **attributed to the canonical name**. **D9** corrects the `io.ReadAll(io.LimitReader(...))` rationale — it is bounded but variable and repeated, not unbounded — and states the one-time ~4 MiB zeroing cost. **D12** adds an injectable `SameFile` to the seam, making it three + three methods with **exactly two** production adapters, one per interface. **Four new decisions**: **D15** descriptor `Close` contract and close-failure precedence; **D16** withdrawal of every bounded-runtime guarantee; **D17** Cobra parse-error ownership under `SilenceUsage`/`SilenceErrors`; **D18** the deliberate exit-3 workspace divergence. |
-| rev-2 | this document | Final no-decision-change correction: advisory catalog count ten; companion PRD rev-5 labels synchronized. |
+| rev-2 | APPROVED (internal and external) | Final no-decision-change correction: advisory catalog count ten; companion PRD rev-5 labels synchronized. |
 
 ---
 
@@ -873,9 +873,8 @@ enumerated behavior delta (PRD Q2 tracks the analogous question for exit `4`).
 
 ## Acceptance dependencies
 
-This ADR is **Proposed**. It becomes **Accepted** only when both it and the
-companion PRD rev-5 pass review. Its decisions are verified by the companion
-PRD's acceptance matrix; the mapping is:
+This ADR is **Accepted** with companion PRD rev-5. Its decisions are verified
+by the companion PRD's acceptance matrix; the mapping is:
 
 | Decision | Verified by (PRD §18) |
 |---|---|

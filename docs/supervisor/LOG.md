@@ -1,3 +1,30 @@
+## Close — Artifact validation/provenance PRD + ADR-034 — 2026-08-13
+
+**WAVE_BASE**: `0aa0d95`
+**Accepted tip**: `cd15165`
+**Issue**: GH #10
+
+### Final Verdict: ACCEPTED
+
+- Internal: APPROVED.
+- External: APPROVED.
+- PRD rev-5: 208 acceptance rows, 95 repository + 24 stdlib claims.
+- ADR-034 rev-2: D1–D18.
+- No implementation, provider call, lifecycle state or provenance persistence.
+
+### Review Convergence
+
+Five revisions hardened readiness truth, CLI envelopes, rooted status/artifact
+capture, public `os.Root` guarantees, platform policy, test seams, descriptor
+close, timing claims and mechanical guards. The final two folds changed no
+decision or matrix shape.
+
+### Action Taken
+
+PRD and ADR marked Accepted, handoff archived, GH #10 ready to close, and the
+prepare-intent-bundle PRD unblocked for planning. Implementation remains
+unauthorized.
+
 ## Review — PRD artifact validation rev-4 + ADR-034 rev-1 — 2026-08-13
 
 **Writer tip**: `80768fb`
