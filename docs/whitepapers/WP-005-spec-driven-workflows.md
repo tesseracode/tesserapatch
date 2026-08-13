@@ -1,10 +1,12 @@
 # WP-005 — Spec-driven Workflows: OpenSpec, GitHub Spec, and tpatch
 
-**Status**: Exploring
+**Status**: Graduated (2026-08-13) — first graduating PRD:
+[PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md)
 **Authors**: R58, CO76
 **Started**: 2026-06-25
 **Turn log**: [WP-005-spec-driven-workflows.turns.md](./WP-005-spec-driven-workflows.turns.md)
 **Related**:
+- [PRD artifact validation and provenance](../prds/PRD-artifact-validation-and-provenance.md) — graduates Agreed items 4–9; `PRD-prepare-intent-bundle` stays blocked until it is accepted
 - [WP-001 Feature-slice gap](./WP-001-feature-slice-gap.md)
 - [WP-002 Capture and metadata foundation](./WP-002-capture-and-metadata-foundation.md)
 - [WP-003 Reconcile safety and middle-pass](./WP-003-reconcile-safety-and-middle-pass.md)

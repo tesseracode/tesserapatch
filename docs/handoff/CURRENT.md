@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-The artifact-validation/provenance PRD writer is dispatched from fresh base
-`0aa0d95`. This is planning only; prepare mutation remains blocked.
+The artifact-validation/provenance PRD writer has delivered rev-0 from base
+`0aa0d95` (HEAD at dispatch `12980f2`). This is planning only; no code, no
+assets, no SPEC, no ADR. `prepare` mutation remains blocked.
 
 ## Active Task
 
@@ -13,7 +14,7 @@ The artifact-validation/provenance PRD writer is dispatched from fresh base
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-0
+- **Status**: Writer rev-0 delivered — Awaiting Review
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
@@ -39,6 +40,121 @@ The artifact-validation/provenance PRD writer is dispatched from fresh base
 - Exclude mutating prepare, regenerate, provider execution, atomic bundle
   publication, new lifecycle state and downstream SDD mandates.
 - Mark WP-005 Graduated when the PRD file is created.
+
+## PRD Writer Result — rev-0 (2026-08-13)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-artifact-validation-and-provenance.md` | **new**, 1,472 lines, `Status: Draft — Awaiting Review (rev-0)` |
+| `docs/whitepapers/WP-005-spec-driven-workflows.md` | header only: `Exploring` → `Graduated (2026-08-13)` + one `Related` bullet to the PRD. Body and turn log untouched. |
+| `docs/whitepapers/README.md` | index row: WP-005 `Exploring` → `Graduated (2026-08-13)` |
+| `docs/handoff/CURRENT.md` | this section + `Cluster state` flip |
+
+Nothing else was touched. No edit to `docs/ROADMAP.md`, `docs/supervisor/LOG.md`,
+`SPEC.md`, `docs/adrs/**`, `internal/**`, `cmd/**`, `assets/**`, `tests/**`,
+`.wave-close-allowlist`, or any guarded untracked WIP (`WP-004`, `WP-006`,
+`WP-007`, `PRD-recurring-patches.md`, state-of-the-art case studies).
+
+### Counts
+
+- **64 claims** in the §23 claims-audit appendix, each with a `file:line`
+  anchor.
+- **95 acceptance rows** (`AVP-001`…`AVP-095`) across 12 categories: CLI
+  grammar 10, classification 20, readiness/exit 8, output shape 14, zero
+  mutation 6, provenance 5, compatibility 9, Path A/B parity 4,
+  security/privacy 6, concurrency 4, source scans/parity 6, totality guards 3.
+- **133 distinct `file:line` anchors** across the whole document; all
+  mechanically verified in-range at HEAD `12980f2`, and the load-bearing ones
+  content-verified by reading the cited lines.
+
+### Contract decisions made (not deferred)
+
+1. **Scope**: `tpatch prepare <slug> --check [--json] [--quiet] [--path]` only.
+   Plain `prepare` refuses with exit 4 *before* the store is opened;
+   `--manual` / `--regenerate` are deliberately **unregistered** (cobra
+   unknown-flag → exit 1).
+2. **Turn-4 question answered**: mutating `analyze|define|explore|implement
+   --manual` gates are **unchanged** in this slice. The inspector is pure and
+   wired to `prepare --check` only. Six acceptance rows (`AVP-064`…`AVP-069`)
+   pin the *loose* current behavior — including "zero-byte `spec.md` still
+   advances to `defined`" — as deliberately unchanged. §12.3 lists what a
+   future tightening PRD must enumerate.
+3. **Closed 9-value state enum** extending the shipped
+   `absent`/`present-empty`/`present-nonempty` vocabulary with
+   `symlink-refused`, `not-regular`, `unreadable`, `oversize`,
+   `invalid-structured`, `unstable`; 17-row total precedence table.
+   `unstable` deliberately outranks every content-derived state so a
+   mid-truncation read is never reported as `present-empty`.
+4. **Required = `analysis.md` + `spec.md`.** `exploration.md` and
+   `artifacts/analysis.json` are optional and can never change readiness; the
+   sidecar is reported separately, and no output field may assert Path A vs
+   Path B for a feature (that would be provenance inference from sidecar
+   presence).
+5. **Provenance = constant `unknown`.** Seven forbidden inference sources
+   enumerated with anchors. Four persistence alternatives evaluated (status
+   sub-record / dedicated manifest / derivation-only / write-time attestation);
+   **none selected in rev-0** — the PRD is coherent without one — and the ADR
+   trigger is stated as a gate on any future PRD that selects one.
+6. **Exit envelope**: 0 ready / 1 generic CLI / 2 not_ready / 3 indeterminate
+   (abort or required-artifact instability) / 4 reserved-surface refusal, with
+   a six-step first-match-wins precedence and five closed abort codes.
+7. **Output**: `schema_version: 1`, fixed key order, fixed-length 4-element
+   `artifacts` array (even on abort), closed reason/advisory/abort catalogs,
+   frozen disclaimer string, verify-style `--json`/`--quiet` stream routing.
+   No wall-clock, no size, no hash, no content, no absolute path, no symlink
+   target — 17 forbidden field names asserted absent.
+8. **Snapshot semantics**: one descriptor-scoped capture per artifact, three
+   named instability probes, **explicitly stated limits** (a same-length
+   in-place rewrite is not detectable), no retry, no lock, and no
+   cross-artifact atomicity claim.
+9. **Skill parity**: v1 ships the command in all six surfaces and extends
+   `requiredCommands` + `requiredAnchors` (`AVP-090`…`AVP-092`).
+10. **Blocked-PRD statement**: `PRD-prepare-intent-bundle.md` remains blocked
+    until this PRD is accepted — stated in the header, the summary and §20.
+
+### Open decisions left to review (§21, four)
+
+Q1 a later `--all` sweep mode; Q2 whether exit `4` becomes a cross-command
+convention or stays local to `prepare`; Q3 the `MaxArtifactBytes = 4 MiB`
+value; Q4 whether `request.md` becomes a fifth optional reported row. All four
+have a stated default and none blocks review.
+
+### Implementation status
+
+**None.** No Go file, test, asset or CLI surface was created or modified. The
+PRD defines five ordered implementation slices (S1–S5) for a future wave and
+explicitly requires the AGENTS.md parallel-implementer file partition to be
+declared at dispatch.
+
+### Validation performed (docs-only change)
+
+- Mechanical anchor audit: 133 distinct `file:line` citations parsed and
+  checked in-range against the working tree; **zero** out-of-range, zero
+  missing files. Re-run after the WP-005 header edit shifted that file by +2
+  lines, and the ten affected anchors were re-resolved and content-verified.
+- Markdown hygiene: fence balance (16 markers, balanced), table column
+  consistency (0 mismatched rows), zero trailing-whitespace lines, all 13
+  relative links resolve on disk.
+- The `json` example block parses as valid JSON.
+- No Go source changed, so `gofmt` / `go build` / `go test` are not applicable
+  to this change set; no existing docs test targets these files
+  (`internal/workflow/docs_totality_guard_test.go` reads exactly three
+  verify-family documents, none of them touched here).
+
+### Notes for the reviewer
+
+- The PRD deliberately does **not** claim a test proves semantics merely by
+  existing: §18.1 states five disqualifying assertion shapes, and §18.14
+  requires sensitivity regressions for the three mechanical guards
+  (`AVP-093`/`094`/`095`) because a byte-scanning guard can false-pass — the
+  lesson from the F2 finding recorded above in this file.
+- §4 is the required WP-005 existing-primitives pre-flight and covers
+  `--manual`, `cycle`, `next`, `verify`, `status`, `doctor` and the generic
+  path/fs helpers, each with an anchor.
+- The `apply --mode prepare` name collision is treated as a real risk with two
+  mandated help-text mitigations and two acceptance rows, not waved away.
 
 ## WP-005 Turn 2 Scope
 
