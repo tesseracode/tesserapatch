@@ -1,3 +1,30 @@
+## Review — WP-005 council Turn 3 rev-1 — 2026-08-13
+
+**Revision tip**: `605a382`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: APPROVED WITH NOTES → CLOSE-NOTE FOLD
+
+### Prior Findings
+
+All six rev-0 findings are closed. Turn 2 remains byte-immutable; Turn 3 is
+append-only and protocol-correct. Current-code citations and the tracked
+whitepaper index resolve.
+
+### Notes
+
+1. **N1 LOW**: the Agreed attribution should separate original council output
+   from Turn 3 review-derived constraints.
+2. **N2 LOW**: PRD-1 must decide whether validation remains report-only or
+   changes mutating `--manual` success behavior.
+
+### Action Taken
+
+Turn 4 records both dispositions. N1 is fixed in the paper; N2 is promoted to
+a mandatory PRD acceptance decision. WP-005 is approved for graduation when
+the first PRD opens.
+
 ## Writer — WP-005 council Turn 3 rev-1 — 2026-08-13
 
 **Dispatch**: `9d97b2c`

@@ -41,7 +41,7 @@ tpatch itself. Productizing these ideas for downstream tpatch users is considere
 only in §6.2. Turn 2 pressure-tests one bounded downstream primitive,
 `tpatch prepare`, but authorizes planning only — not implementation.
 
-## Agreed — Turn 2
+## Agreed — Turns 2–3
 
 The second council pass reached the following durable conclusions:
 
@@ -89,9 +89,10 @@ The second council pass reached the following durable conclusions:
    existing `defined` features. A later PRD may reuse the shared classifier
    only after enumerating every intended routing delta.
 
-These conclusions reflect Turn 2's five independent advisors, five anonymous
-peer reviews and chairman synthesis. The council split on "ship now" versus
-"reject as sugar"; peer review converged on the validation-first middle
+Items 1–8 originate in Turn 2's five independent advisors, five anonymous peer
+reviews and chairman synthesis, as clarified by Turn 3 review. Item 9 is the
+Turn 3 routing-compatibility correction. The council split on "ship now"
+versus "reject as sugar"; peer review converged on the validation-first middle
 position. See the append-only turn log for the disagreement and disposition.
 
 ## 2. Current tpatch process baseline *(R58)*
@@ -588,9 +589,10 @@ experiment:
 8. How should a provider-generated bundle stage and atomically publish
    Markdown, sidecars and `status.json` so a mid-sequence failure cannot expose
    a half-generated intent set?
-9. How should existing `defined` features and trivial features remain valid
-   when richer validation becomes available, and which `next`/`cycle` routing
-   outcomes are explicitly unchanged?
+9. Does slice 1 change the mutating `analyze|define|explore --manual` gate or
+   remain report-only? How do existing `defined` and trivial features remain
+   valid, and which individual-command / `next` / `cycle` outcomes are
+   explicitly unchanged?
 
 ## 10. References *(R58)*
 

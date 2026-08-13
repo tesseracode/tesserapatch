@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
-WP-005 council fold rev-1 appends Turn 3 and closes every Turn 2 review
-finding. The paper-only revision is awaiting dual re-review.
+WP-005 council fold rev-1 is accepted. A two-note traceability and `--manual`
+boundary fold is complete; the paper is ready for PRD graduation.
 
 ## Active Task
 
@@ -13,7 +13,7 @@ finding. The paper-only revision is awaiting dual re-review.
 - **Description**: Record the five-advisor/five-reviewer council verdict on
   `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
   findings without drafting PRDs yet.
-- **Status**: Review
+- **Status**: Approved — close-note fold
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `76ed78b`
 - **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
@@ -80,6 +80,16 @@ finding. The paper-only revision is awaiting dual re-review.
   `--manual`, `cycle` and `next`.
 - Made slice-1 validation advisory and routing-compatible by default.
 - Refreshed the tracked whitepaper index for WP-002, WP-003 and WP-005.
+
+## Turn 3 Review Verdict
+
+- **Internal**: APPROVED.
+- **External**: APPROVED WITH NOTES.
+- Every rev-0 finding is closed.
+- LOW N1 closed by attributing council versus review-derived Agreed items.
+- LOW N2 is pinned as a required first-PRD acceptance decision: report-only
+  versus stronger mutating `--manual` gates and their compatibility.
+- Turn 4 records the disposition append-only.
 
 ## Post-Release Review Adjudication
 
@@ -238,10 +248,9 @@ Modified:
 
 ## Next Steps
 
-1. Re-run internal and external reviews against Turn 3.
-2. Fold any residual findings append-only.
-3. Accept/archive the council fold.
-4. Dispatch the validation/provenance PRD writer.
+1. Archive/close the accepted WP-005 council fold.
+2. Mark WP-005 Graduated when the first PRD is opened.
+3. Dispatch the validation/provenance PRD writer/review loop.
 
 ## Blockers
 

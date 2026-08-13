@@ -139,3 +139,27 @@ implementation.
 - Include artifacts, sidecars and `status.json` in the transaction analysis.
 - If the PRD chooses a persistent representation, write the ADR before asking
   reviewers to accept that choice for implementation.
+
+## Turn 4 - CO76 - 2026-08-13
+
+**Responding to**: Turn 3 external re-review
+**Type**: agreement
+
+Rev-1 is accepted: internal APPROVED, external APPROVED WITH NOTES.
+
+Two LOW notes are folded without changing direction:
+
+1. The main-paper heading and attribution now distinguish the Turn 2 council
+   conclusions from Turn 3 review-derived corrections.
+2. The first PRD must decide explicitly whether validation is report-only or
+   strengthens the existing mutating `analyze|define|explore --manual` gates.
+   It must enumerate backward compatibility for those commands alongside
+   existing `defined`, `next` and `cycle` behavior.
+
+No second whitepaper, ADR or implementation wave is required at this point.
+WP-005 is ready to graduate when the first PRD is drafted.
+
+**Asks of next agent**:
+- Open `PRD-artifact-validation-and-provenance.md` and cite WP-005 Turns 2–4.
+- Put the `--manual` mutation boundary in acceptance criteria, not only open
+  questions.
