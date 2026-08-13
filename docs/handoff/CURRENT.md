@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-The artifact-validation/provenance PRD writer has delivered rev-0 from base
-`0aa0d95` (HEAD at dispatch `12980f2`). This is planning only; no code, no
-assets, no SPEC, no ADR. `prepare` mutation remains blocked.
+Artifact-validation/provenance PRD rev-0 is blocked by CLI-envelope,
+filesystem-race, readiness and matrix-totality defects. Rev-1 is dispatched;
+this remains planning only.
 
 ## Active Task
 
@@ -14,7 +14,7 @@ assets, no SPEC, no ADR. `prepare` mutation remains blocked.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-0 delivered — Awaiting Review
+- **Status**: Writer rev-1
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
@@ -155,6 +155,36 @@ declared at dispatch.
   path/fs helpers, each with an anchor.
 - The `apply --mode prepare` name collision is treated as a real risk with two
   mandated help-text mitigations and two acceptance rows, not waved away.
+
+## Rev-0 Review Adjudication
+
+- **Internal**: NEEDS REVISION (3 HIGH, 2 MEDIUM).
+- **External**: APPROVED WITH NOTES; F1–F4 block implementation dispatch and
+  F5–F13 are valid completeness notes.
+- **Supervisor verdict**: NEEDS REVISION.
+
+### Rev-1 required corrections
+
+1. **CLI/output envelope**: compose quiet and all nonzero paths with the root
+   error printer; define abort `feature_state`, overall/readiness and artifact
+   shape; keep refusal help self-contained.
+2. **Safe bounded capture**: canonical slug validation before path use;
+   race-safe no-follow/nonblocking open + post-open fstat; size checks before
+   and after open; bounded `Max+1` reads; total fstat/read failure rows.
+3. **Readiness truth**: because `prepare` is optional, its `ready` verdict
+   requires all three canonical Markdown artifacts. The analysis sidecar stays
+   optional. Do not conflate optional command adoption with bundle
+   completeness.
+4. **Total diagnostics**: advisory selection must be state-accurate; a missing
+   `status.json` continues with `feature_state: unknown`; unsafe slugs and
+   every abort population have closed codes.
+5. **Compatibility/acceptance bite**: add composite loose-`--manual` versus
+   strict-check regressions, reverse call-graph routing guards, sidecar
+   instability, growth/FIFO/path traversal and quiet-abort rows; scope
+   forbidden-field guards to keys/labels rather than substrings.
+6. **Provenance/docs**: define `unknown` as the stable "not provable" meaning,
+   add the future `agent-as-provider` correction, and keep the ADR trigger
+   bounded.
 
 ## WP-005 Turn 2 Scope
 
@@ -385,9 +415,9 @@ Modified:
 
 ## Next Steps
 
-1. Complete writer rev-0 and transition to review.
-2. Run independent internal/external PRD reviews.
-3. Fold revisions until dual acceptance.
+1. Complete rev-1 with matrix/claim counts updated mechanically.
+2. Re-run both PRD reviews.
+3. Continue bounded revisions until dual acceptance.
 4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
 
 ## Blockers

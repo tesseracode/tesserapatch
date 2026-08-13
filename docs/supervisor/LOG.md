@@ -1,3 +1,37 @@
+## Review — PRD artifact validation and provenance rev-0 — 2026-08-13
+
+**Writer tip**: `a8b1935`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION → REV-1 DISPATCHED
+
+### Blocking Groups
+
+1. Root error printing conflicts with quiet/error stream promises; abort
+   objects leave required fields undefined.
+2. Slug/path validation and Lstat→open race safety are incomplete; FIFO and
+   growth races can block or over-read.
+3. `ready` excludes `exploration.md`, contradicting the optional full-bundle
+   command and future prepare handoff.
+4. Optional-artifact advisory messages can assert absence for existing corrupt
+   files; status-less feature directories are unclassified.
+5. Several acceptance rows prove only non-mutation/existence, not routing,
+   composite loose-manual behavior or every instability branch.
+
+### Additional Valid Notes
+
+- Scope forbidden-field guards to JSON keys/human labels.
+- Stabilize `unknown` provenance semantics for future schema additions.
+- Correct future agent-as-provider provenance wording.
+- Keep refusal remediation self-contained; do not cite an undrafted PRD.
+
+### Action Taken
+
+Rev-1 writer dispatched with full-bundle readiness (all three Markdown files),
+race-safe bounded capture, total abort/advisory contracts and a rebuilt
+acceptance matrix. No code, ADR or mutating prepare is authorized.
+
 ## Writer — PRD artifact validation and provenance rev-0 — 2026-08-13
 
 **Writer tip**: `a8b1935`
