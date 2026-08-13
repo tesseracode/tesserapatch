@@ -2,11 +2,10 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-WP-005 council Turn 2 is written and awaiting independent review. This remains
-a paper-only continuation; no prepare implementation or lifecycle change is
-authorized.
+WP-005 council Turn 2 review found one broken link and five contract gaps.
+An append-only Turn 3 revision is dispatched; this remains paper-only.
 
 ## Active Task
 
@@ -14,7 +13,7 @@ authorized.
 - **Description**: Record the five-advisor/five-reviewer council verdict on
   `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
   findings without drafting PRDs yet.
-- **Status**: Review
+- **Status**: In Progress
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `76ed78b`
 - **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
@@ -47,6 +46,24 @@ authorized.
 - Kept `Status: Exploring` until the first graduating PRD is drafted.
 - Added current-code anchors for manual validation, Path A's structured
   analysis sidecar and `next`'s file-presence inference.
+
+## Turn 2 Review Adjudication
+
+- **Internal**: NEEDS REVISION — WP-004 is guarded/untracked, so WP-005's
+  Related link breaks in a clean checkout.
+- **External**: APPROVED WITH NOTES; five valid findings are folded:
+  1. provenance must be `unknown` until a representation is chosen, and the
+     prerequisite PRD may trigger an ADR at decision time;
+  2. all-or-nothing publication includes intent artifacts, sidecars and
+     `status.json`, not just staged Markdown;
+  3. compare `prepare` explicitly with `cycle`, `next` and the individual
+     manual phases;
+  4. richer validation is advisory for existing routing unless a later PRD
+     enumerates a deliberate behavior change;
+  5. map each council lens to its position in the durable record.
+- **Coupled observation accepted**: update the whitepaper index for all tracked
+  WP-002/WP-003/WP-005 documents.
+- **Protocol**: Turn 2 remains immutable; corrections append as Turn 3.
 
 ## Post-Release Review Adjudication
 
@@ -205,10 +222,10 @@ Modified:
 
 ## Next Steps
 
-1. Run independent internal and external whitepaper reviews.
-2. Fold any findings and re-review until accepted.
-3. Accept/archive the Turn 2 task.
-4. Dispatch `PRD-artifact-validation-and-provenance.md` writer/review.
+1. Append Turn 3 and update Agreed/§6.2/open questions.
+2. Remove the broken WP-004 link and refresh the tracked whitepaper index.
+3. Re-run both reviews.
+4. Accept/archive the council fold, then dispatch the first PRD.
 
 ## Blockers
 

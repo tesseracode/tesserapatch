@@ -1,3 +1,37 @@
+## Review — WP-005 council Turn 2 rev-0 — 2026-08-13
+
+**Writer tip**: `260936a`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION → TURN 3 DISPATCHED
+
+### Valid Findings
+
+1. **Internal MEDIUM**: WP-004 is not tracked; its Related link is broken in a
+   clean checkout.
+2. **External F1 MEDIUM**: provenance is currently overwritten free-text notes;
+   PRD-1 needs `unknown` semantics and permission to trigger an ADR when it
+   selects persistence.
+3. **External F2 MEDIUM**: all-or-nothing publication must include artifacts,
+   structured sidecars and `status.json`; current phase writers persist each
+   incrementally.
+4. **External F3 MEDIUM**: `cycle`, `next` and individual `--manual` phases need
+   an explicit existing-primitives preflight.
+5. **External F4 LOW/MEDIUM**: advisory validation must preserve existing
+   `next`/`cycle` routing unless a PRD enumerates a deliberate delta.
+6. **External F5 LOW**: the turn needs lens-to-position mapping.
+
+### Coupled Observation
+
+The whitepaper README index omits tracked WP-002/WP-003/WP-005. Fold the index
+while adding newly tracked WP-005.
+
+### Action Taken
+
+Turn 2 stays byte-immutable. CO76 Turn 3 and main-paper/index corrections are
+dispatched; no code, ADR or implementation milestone.
+
 ## Writer — WP-005 council Turn 2 — 2026-08-13
 
 **WAVE_BASE**: `76ed78b`
