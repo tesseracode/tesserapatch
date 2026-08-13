@@ -1,3 +1,44 @@
+## Review — v0.15.1 post-release fold — 2026-08-13
+
+**Base**: `15560af` (v0.15.1, fixed)
+**Dispatch**: `1a77569`
+**Fold commit**: `64010bf`
+
+### Verdict: APPROVED
+
+### Findings Closed
+
+1. All verify-family ADR/PRD anchors were re-resolved after source extraction;
+   a source-bounds test now prevents EOF-dangling recurrence.
+2. The 161-row ledger now uses exact Go AST resolution by declared package,
+   runnable test signature and optional literal subtest. Comment-only,
+   wrong-package, external-package, invalid-signature and unused-table
+   fixtures fail.
+3. Follow-up review corrected stale present-tense `active` behavior, narrowed
+   the anchor-validation claim to the verify family, and tightened V10 ranges.
+
+### Review Adjudication
+
+- Pass 1 MEDIUM findings (signature/package and unused-table subtests): fixed.
+- Pass 2 MEDIUM findings (stale active prose and overbroad revalidation claim)
+  plus LOW range precision: fixed.
+- Final guarded-WIP observation: dismissed as pre-existing, allowlisted,
+  operator-owned files with an empty task diff.
+
+### Validation
+
+- Full `go test -count=1 ./...`, `go vet ./...`, and `go build ./cmd/tpatch`
+  pass.
+- Rule 18 present on both post-release commits.
+- Side Research md5 and guarded WIP preserved.
+- v0.15.1 tag remains `15560af`.
+
+### Action Taken
+
+Fold pushed to `origin/main` at `64010bf`; tracking returned to IDLE. GH #9
+records the deferred source-sentinel observation. WP-005/prepare planning is
+next and remains non-implementing until its PRDs are reviewed.
+
 ## Review — v0.15.1 Waves B+C post-release — 2026-08-13
 
 **Reviewer**: user-external final release reviewer

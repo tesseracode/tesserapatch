@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: IDLE
 
-v0.15.1 remains shipped and its tag stays fixed at `15560af`. A bounded
-post-release documentation/test-rigor fold is in progress on `main`.
+v0.15.1 remains shipped and its tag stays fixed at `15560af`. The bounded
+post-release documentation/test-rigor fold is complete on `main`.
 
 ## Active Task
 
@@ -13,9 +13,11 @@ post-release documentation/test-rigor fold is in progress on `main`.
 - **Description**: Repair stale verify-contract source anchors, replace the
   161-row ledger's raw-text existence check with AST-exact resolution, and
   record the nested-repository sentinel deferral.
-- **Status**: In Progress
+- **Status**: Complete
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `15560af`
+- **Dispatch commit**: `1a77569`
+- **Fold commit**: `64010bf`
 - **Release tag**: v0.15.1 fixed at `15560af`
 
 ## Post-Release Review Adjudication
@@ -34,6 +36,24 @@ post-release documentation/test-rigor fold is in progress on `main`.
 - **Next planning work, deferred one turn by the operator**: append WP-005
   council Turn 2, then draft artifact-validation/provenance and prepare-bundle
   PRDs through the normal writer/review loop.
+
+## Post-Release Fold Result
+
+- Every verify-family citation in ADR-013 and PRD-verify-freshness was
+  re-resolved against the extracted source at tag `15560af`; a non-vacuous
+  bounds guard now checks the full reference set.
+- Stale present-tense `active`-parent prose was corrected to describe the
+  shipped Wave C behavior and its current source sites.
+- The 161-row ledger now resolves an exact package, runnable
+  `func TestX(*testing.T)` declaration, and optional literal subtest through
+  Go AST. Comments, wrong/external packages, invalid signatures, unused table
+  names and unrelated literals all fail sensitivity fixtures.
+- Three internal review passes closed package/signature/subtest and citation
+  scope/semantics findings. The final WIP-file observation was dismissed:
+  those files predate this task, are guarded, and have an empty diff.
+- Full uncached suite, vet and build pass.
+- GH #9 records the deferred nested-repository source-sentinel blind spot.
+- v0.15.1 remains byte-fixed at `15560af`; the fold is main-only at `64010bf`.
 
 ## Rev-3 Review Verdict
 
@@ -157,10 +177,11 @@ Modified:
 
 ## Next Steps
 
-1. Repair all stale contract anchors.
-2. Replace the ledger source scan with AST-exact resolution and regressions.
-3. Re-run review/validation and push the main-only fold.
-4. Resume the council-recommended WP-005/PRD sequence.
+1. Append council Turn 2 to WP-005 and update its agreed findings.
+2. Draft `PRD-artifact-validation-and-provenance.md` through writer/review.
+3. Draft blocked `PRD-prepare-intent-bundle.md` through writer/review.
+4. Register the validation/provenance issue; add prepare to ROADMAP only after
+   the prerequisite contract is accepted.
 
 ## Blockers
 

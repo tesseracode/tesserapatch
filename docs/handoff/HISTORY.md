@@ -1,3 +1,42 @@
+# 2026-08-13 — v0.15.1 post-release review fold — COMPLETE
+
+**Base / fixed release tag**: `15560af` (`v0.15.1`)
+**Dispatch**: `1a77569`
+**Fold commit**: `64010bf`
+**Range**: `15560af..64010bf` (2 main-only commits)
+
+**External verdict**: APPROVED WITH NOTES.
+
+**Notes closed**:
+
+1. Re-resolved the complete verify-family citation set in ADR-013 and
+   PRD-verify-freshness after Wave C extracted anchored verification from
+   `verify.go`. A source-bounds guard now makes an EOF-dangling citation fail.
+2. Replaced the 161-row ledger's comment-sensitive raw byte scan with exact
+   Go AST resolution: declared package, runnable `func TestX(*testing.T)`
+   signature and optional literal subtest.
+3. Corrected directly coupled stale `active`-parent tense and source anchors.
+
+**Review arc**:
+
+- Internal pass 1 found invalid-signature/external-package and unused-table
+  subtest false positives.
+- Internal pass 2 found stale present-tense `active` prose, overly broad
+  anchor-validation wording and imprecise V10 ranges.
+- Final pass found only the known guarded WIP set; adjudicated non-finding
+  because the fold's diff against those files is empty.
+
+**Verification**: full uncached suite, vet and build pass; Side Research md5
+`b385fe622db9926f48861105239f113e` preserved; v0.15.1 tag unchanged.
+
+**Deferred**: wave-close nested-repository source-sentinel blind spot is
+tracked as GH #9.
+
+**Next**: WP-005 council Turn 2, then the artifact-validation/provenance and
+prepare-intent-bundle PRD writer/review sequence.
+
+---
+
 # 2026-08-12 — v0.15.1 Wave C — GH #8 landed verification — SHIPPED
 
 **WAVE_BASE**: `b768602`

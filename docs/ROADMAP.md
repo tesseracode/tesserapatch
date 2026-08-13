@@ -775,14 +775,16 @@ WAVE_BASE `b768602`.
 **Batch close**: GH #7 and GH #8 shipped in v0.15.1. No successor is
 dispatched; record a fresh `origin/main` WAVE_BASE before the next wave.
 
-**Post-release review fold** 🚧 IN PROGRESS (2026-08-13, base `15560af`;
-v0.15.1 tag fixed): refresh 16 stale verify-contract source anchors and
-replace the 161-row acceptance ledger's raw-text existence scan with
-package-aware AST resolution. The nested-repository blind spot in the
-wave-close source sentinel is explicitly deferred as
-[GH #9](https://github.com/tesseracode/tesserapatch/issues/9).
+**Post-release review fold** ✅ COMPLETE (2026-08-13; `15560af..64010bf`;
+v0.15.1 tag fixed): refreshed the full verify-family contract anchor set,
+added a non-vacuous source-bounds guard, and replaced the 161-row acceptance
+ledger's raw-text scan with exact Go-package/runnable-test/literal-subtest AST
+resolution plus false-positive sensitivity fixtures. Three internal review
+passes closed follow-up package/signature/subtest and stale-prose findings.
+The nested-repository blind spot in the wave-close source sentinel is
+explicitly deferred as [GH #9](https://github.com/tesseracode/tesserapatch/issues/9).
 
-**Queued after this fold**: WP-005 council Turn 2, followed by
+**Next queued work**: WP-005 council Turn 2, followed by
 artifact-validation/provenance and prepare-intent-bundle PRDs through the
 normal writer/review loop. No implementation is authorized by the council.
 
