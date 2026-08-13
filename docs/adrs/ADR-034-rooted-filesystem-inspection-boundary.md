@@ -3,7 +3,7 @@
 **Status**: Proposed — Awaiting Review (rev-2)
 **Date**: 2026-08-13 (Proposed)
 **Owner**: Core (planning lane)
-**Byline**: writer sub-agent, rev-2 at HEAD `70876c1`
+**Byline**: writer sub-agent + supervisor note-fold, rev-2 based on dispatch HEAD `70876c1`
 **Cluster**: WP-005 spec-driven workflows / GH #10
 **Supersedes**: none
 **Superseded by**: none
