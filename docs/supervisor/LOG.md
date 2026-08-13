@@ -1,3 +1,26 @@
+## Writer — PRD artifact validation and provenance rev-1 — 2026-08-13
+
+**Writer tip**: `205a81e`
+**Dispatch**: `3ecfa38`
+
+### Revision
+
+- 75 claims and 161 audited source anchors.
+- 140 contiguous AVP rows across 19 categories.
+- All three Markdown artifacts required for voluntary bundle readiness.
+- Root-compatible quiet/error and total abort shapes.
+- Canonical slug gate, no-follow/nonblocking open, fstat identity checks and
+  cap-plus-one bounded reads.
+- State-accurate advisory mapping and status-absent continuation.
+- Composite loose-manual/strict-check, routing, sidecar-instability and race
+  tests.
+- Stable `unknown` provenance and future agent-as-provider correction.
+
+### Action Taken
+
+ROADMAP and LOG returned to rev-1 dual review. No code, ADR or mutating prepare
+is authorized.
+
 ## Review — PRD artifact validation and provenance rev-0 — 2026-08-13
 
 **Writer tip**: `a8b1935`
