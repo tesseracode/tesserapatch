@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IDLE
 
 Artifact-validation/provenance PRD rev-5 and ADR-034 rev-2 are accepted by
-both reviewers. GH #10 planning is complete; no implementation has begun.
+both reviewers. GH #10 is closed and the planning gate passes 8/8. No
+implementation has begun.
 
 ## Active Task
 
@@ -23,6 +24,8 @@ both reviewers. GH #10 planning is complete; no implementation has begun.
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
 - **Scope**: one PRD + one ADR + ADR index + handoff.
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+- **Accepted contract tip**: `cd15165`
+- **Close tracking commit**: `cb771ce`
 
 ## Final Verdict
 
@@ -1693,11 +1696,9 @@ Modified:
 
 ## Next Steps
 
-1. Commit/push terminal tracking and run `make wave-close-check
-   WAVE_BASE=0aa0d95`.
-2. Close GH #10 with the accepted PRD/ADR references.
-3. Return CURRENT to IDLE after durable close.
-4. Record a fresh WAVE_BASE before dispatching `PRD-prepare-intent-bundle.md`.
+1. Record a fresh `origin/main` WAVE_BASE.
+2. Dispatch `PRD-prepare-intent-bundle.md` through the writer/review loop.
+3. Keep all implementation blocked until that PRD is accepted.
 
 ## Blockers
 

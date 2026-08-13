@@ -792,11 +792,13 @@ artifact-validation/provenance PRD, with prepare-intent-bundle blocked behind
 it. No implementation is authorized.
 
 **Artifact-validation/provenance PRD rev-5 + ADR-034 rev-2** ✅ ACCEPTED
-(2026-08-13, WAVE_BASE `0aa0d95`, accepted tip `cd15165`,
+(2026-08-13, WAVE_BASE `0aa0d95`, contract tip `cd15165`, close tracking
+`cb771ce`,
 [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): dual
 APPROVED after five PRD revisions. Accepted contract: 208 AVP rows, 95
 repository + 24 stdlib claims, rooted-inspection ADR D1–D18. No implementation
-has begun. The prepare-intent-bundle PRD is now unblocked for planning.
+has begun. Gate 8/8 passes; GH #10 is closed. The prepare-intent-bundle PRD is
+now unblocked for planning.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

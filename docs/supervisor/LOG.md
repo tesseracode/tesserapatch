@@ -2,6 +2,7 @@
 
 **WAVE_BASE**: `0aa0d95`
 **Accepted tip**: `cd15165`
+**Close tracking**: `cb771ce`
 **Issue**: GH #10
 
 ### Final Verdict: ACCEPTED
@@ -21,9 +22,16 @@ decision or matrix shape.
 
 ### Action Taken
 
-PRD and ADR marked Accepted, handoff archived, GH #10 ready to close, and the
+PRD and ADR marked Accepted, handoff archived, GH #10 closed, and the
 prepare-intent-bundle PRD unblocked for planning. Implementation remains
 unauthorized.
+
+### Durable Close
+
+- `make wave-close-check WAVE_BASE=0aa0d95`: PASS 8/8.
+- GH #10 closed completed.
+- CURRENT returned to IDLE.
+- v0.15.1 tag remains fixed at `15560af`.
 
 ## Review — PRD artifact validation rev-4 + ADR-034 rev-1 — 2026-08-13
 

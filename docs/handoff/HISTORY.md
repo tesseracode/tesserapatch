@@ -4,6 +4,7 @@
 **Issue**: GH #10
 **PRD writer rev-0**: `a8b1935`
 **PRD/ADR final note folds**: `0275067`, `5e492fe`, `cd15165`
+**Close tracking**: `cb771ce`
 **Accepted PRD**: `PRD-artifact-validation-and-provenance` rev-5
 **Accepted ADR**: ADR-034 rev-2, D1–D18
 
@@ -34,6 +35,9 @@
 It does not migrate `rescap` and is not the deferred provenance ADR.
 
 **Next**: `PRD-prepare-intent-bundle.md` is unblocked for planning only.
+
+**Close gate**: `make wave-close-check WAVE_BASE=0aa0d95` PASS 8/8; GH #10
+closed completed.
 
 ---
 
