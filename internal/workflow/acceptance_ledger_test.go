@@ -14,16 +14,103 @@ package workflow
 // rather than be silently re-tiered (PRD-verify-freshness §7.1).
 
 import (
+	"go/ast"
 	"go/format"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 )
 
 func formatGoSource(src []byte) ([]byte, error) { return format.Source(src) }
+
+type acceptanceLedgerTestRef struct {
+	Package string
+	Test    string
+	Subtest string
+}
+
+func (r acceptanceLedgerTestRef) String() string {
+	if r.Subtest == "" {
+		return r.Package + ":" + r.Test
+	}
+	return r.Package + ":" + r.Test + "/" + r.Subtest
+}
+
+type acceptanceLedgerPackageSpec struct {
+	Dir       string
+	GoPackage string
+}
+
+var acceptanceLedgerPackageSpecs = map[string]acceptanceLedgerPackageSpec{
+	"workflow": {Dir: ".", GoPackage: "workflow"},
+	"cli":      {Dir: "../cli", GoPackage: "cli"},
+	"gitutil":  {Dir: "../gitutil", GoPackage: "gitutil"},
+}
+
+// Most acceptance tests live in workflow. Every exception is explicit so a
+// test moved to another package cannot continue satisfying the ledger merely
+// because its name still exists somewhere under internal/.
+var acceptanceLedgerPackageOverrides = map[string]string{
+	"TestACL1_IssueSequencePassesBeforeLand":                   "cli",
+	"TestACL118CLI_HumanReportHeader":                          "cli",
+	"TestACL11CLI_RunIsReadOnly":                               "cli",
+	"TestACL124CLI_VerifyAllOrderingAndReuse":                  "cli",
+	"TestACL125CLI_ExitCodes":                                  "cli",
+	"TestACL14CLI_LadderOutcomes":                              "cli",
+	"TestACL2CLI_LandedFeaturePasses":                          "cli",
+	"TestACL3_CommittedRangeReRecordBothBranches":              "cli",
+	"TestACL39CLI_UnanchoredFails":                             "cli",
+	"TestACL46CLI_ForwardModeUnchanged":                        "cli",
+	"TestACL4CLI_LandedLeafPasses":                             "cli",
+	"TestACL6CLI_NoWriteIsByteIdentical":                       "cli",
+	"TestACL8CLI_DirtyWorktreePasses":                          "cli",
+	"TestACLD1_FourTrailersAreParsedByGit":                     "cli",
+	"TestACLD10_TrailerBlockIsTheLastParagraph":                "cli",
+	"TestACLD11_LandingTwiceIsAllowed":                         "cli",
+	"TestACLD12_LandRefusesWhenRecordCapturesNothing":          "cli",
+	"TestACLD13_PreAmendmentLandingIsReadable":                 "cli",
+	"TestACLD14_DryRunMutatesNothing":                          "cli",
+	"TestACLD16_EarlierLandingStaysReachable":                  "cli",
+	"TestACLD17_NoOutOfFormatTrailerValues":                    "cli",
+	"TestACLD18_ModeANoJournalRefusesWithoutMutating":          "cli",
+	"TestACLD18a_ModeBRefusesAfterRecordWithRetainedArtifacts": "cli",
+	"TestACLD18b_RecordProducesAValidBaseCommit":               "cli",
+	"TestACLD18c_ModeAPendingJournalRefusesAfterRecovery":      "cli",
+	"TestACLD19_BaseCommitLengthIsDerivedFromObjectFormat":     "cli",
+	"TestACLD2_TrailerCardinalityIsExactlyOne":                 "cli",
+	"TestACLD20_UnreachableBaseWarnsButProceeds":               "cli",
+	"TestACLD21_SuccessfulPathIsUnchanged":                     "cli",
+	"TestACLD22_LandValidationIsOffline":                       "cli",
+	"TestACLD23_LandDocumentIsAGuardInput":                     "cli",
+	"TestACLD3_DigestsMatchArtifactBytes":                      "cli",
+	"TestACLD4_RecipeSHANoneInBothProducerCases":               "cli",
+	"TestACLD5_HexFormatsAreLowercaseAndDerived":               "cli",
+	"TestACLD6_BaseCommitTrailerEqualsStatusAndIsNotWritten":   "cli",
+	"TestACLD8_NoNewStatusField":                               "cli",
+	"TestACLD9_LandingCommitIsSingleParent":                    "cli",
+	"TestEvidenceCommandsForceCLocale":                         "gitutil",
+	"TestRev1Land_NonCanonicalBaseCommitIsRefused":             "cli",
+	"TestRev1Land_ObjectFormatLengthIsDerived":                 "cli",
+	"TestRev1Land_TrailerCarriesTheValidatedValue":             "cli",
+	"TestRev1Land_ValidationIsOfflineAndFloorAware":            "cli",
+}
+
+func acceptanceLedgerRef(name string) acceptanceLedgerTestRef {
+	test, subtest, _ := strings.Cut(name, "/")
+	pkg := "workflow"
+	if override, ok := acceptanceLedgerPackageOverrides[test]; ok {
+		pkg = override
+	}
+	return acceptanceLedgerTestRef{Package: pkg, Test: test, Subtest: subtest}
+}
 
 // acceptanceLedger maps AC id → the test(s) that prove it.
 func acceptanceLedger() map[string][]string {
@@ -46,7 +133,7 @@ func acceptanceLedger() map[string][]string {
 		"AC-L13":  {"TestACL13_TempIndexOutsideTrackedTree"},
 		"AC-L129": {"TestACL129_EveryGitCallCarriesNoLazyFetch", "TestRev1_EveryVerifyGitCallIsOffline", "TestRev1_NoLegacyGitHelperInVerifyPath", "TestRev3_VerifyRunsUnderCLocale"},
 		"AC-L134": {"TestACL134_GitFloorPreflight", "TestRev1_BelowFloorIssuesOnlyVersion", "TestRev1_GitGateRefusesWithoutSpawning", "TestRev3_VerifyRunsUnderCLocale"},
-		"AC-L135": {"TestACL135_DocsTotalityGuard", "TestACL135_GuardCoversTheNamedSections", "TestACL135_GuardIsSensitive"},
+		"AC-L135": {"TestACL135_DocsTotalityGuard", "TestACL135_GuardCoversTheNamedSections", "TestACL135_GuardIsSensitive", "TestAcceptanceLedger_VerifyContractAnchorsResolve", "TestAcceptanceLedger_ContractAnchorGuardIsSensitive"},
 
 		// ── Group C ──────────────────────────────────────────────────
 		"AC-L14": {"TestACL14_LadderStep1CleanNoAdvisory", "TestACL14CLI_LadderOutcomes"},
@@ -256,24 +343,333 @@ func TestAcceptanceLedger_CoversEveryDeclaredRow(t *testing.T) {
 	}
 }
 
-// TestAcceptanceLedger_TestsExist asserts every named test function is
-// present in the repository's test sources — a ledger that names a
-// non-existent test proves nothing.
+// TestAcceptanceLedger_TestsExist resolves every reference as an exact
+// package/top-level-test/optional-subtest triple using Go's parser. Comments,
+// string fixtures and declarations in the wrong package cannot satisfy it.
 func TestAcceptanceLedger_TestsExist(t *testing.T) {
-	sources := testSourceBodies(t)
+	index := acceptanceLedgerTestIndex(t)
 	for id, names := range acceptanceLedger() {
 		for _, name := range names {
-			decl := "func " + name + "("
-			found := false
-			for _, body := range sources {
-				if strings.Contains(body, decl) {
-					found = true
-					break
+			ref := acceptanceLedgerRef(name)
+			if !acceptanceLedgerRefResolves(index, ref) {
+				t.Errorf("%s names %s, which does not resolve exactly", id, ref)
+			}
+		}
+	}
+}
+
+func acceptanceLedgerTestIndex(t *testing.T) map[string]map[string]map[string]struct{} {
+	t.Helper()
+	index := map[string]map[string]map[string]struct{}{}
+	root := filepath.Join(docsRootForTest(t), "internal", "workflow")
+	for pkg, spec := range acceptanceLedgerPackageSpecs {
+		tests, err := indexAcceptanceLedgerPackageTests(
+			filepath.Clean(filepath.Join(root, spec.Dir)),
+			spec.GoPackage,
+		)
+		if err != nil {
+			t.Fatalf("index %s: %v", pkg, err)
+		}
+		index[pkg] = tests
+	}
+	return index
+}
+
+func acceptanceLedgerRefResolves(index map[string]map[string]map[string]struct{}, ref acceptanceLedgerTestRef) bool {
+	tests, ok := index[ref.Package]
+	if !ok {
+		return false
+	}
+	subtests, ok := tests[ref.Test]
+	if !ok {
+		return false
+	}
+	if ref.Subtest == "" {
+		return true
+	}
+	_, ok = subtests[ref.Subtest]
+	return ok
+}
+
+func indexAcceptanceLedgerPackageTests(dir, goPackage string) (map[string]map[string]struct{}, error) {
+	fset := token.NewFileSet()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]map[string]struct{}{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filepath.Join(dir, entry.Name()), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		if file.Name == nil || file.Name.Name != goPackage {
+			continue
+		}
+		testingAliases, dotTesting := acceptanceLedgerTestingImports(file)
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || !isRunnableAcceptanceLedgerTest(fn, testingAliases, dotTesting) {
+				continue
+			}
+			subtests := map[string]struct{}{}
+			collectAcceptanceLedgerSubtests(fn.Body, acceptanceLedgerTestVariables(fn), subtests)
+			out[fn.Name.Name] = subtests
+		}
+	}
+	return out, nil
+}
+
+func acceptanceLedgerTestingImports(file *ast.File) (map[string]struct{}, bool) {
+	aliases := map[string]struct{}{}
+	dot := false
+	for _, imp := range file.Imports {
+		importPath, err := strconv.Unquote(imp.Path.Value)
+		if err != nil || importPath != "testing" {
+			continue
+		}
+		if imp.Name == nil {
+			aliases["testing"] = struct{}{}
+			continue
+		}
+		switch imp.Name.Name {
+		case ".":
+			dot = true
+		case "_":
+			// A blank import cannot name testing.T.
+		default:
+			aliases[imp.Name.Name] = struct{}{}
+		}
+	}
+	return aliases, dot
+}
+
+func isRunnableAcceptanceLedgerTest(fn *ast.FuncDecl, testingAliases map[string]struct{}, dotTesting bool) bool {
+	if fn.Recv != nil || fn.Body == nil || fn.Name == nil || !validGoTestName(fn.Name.Name) {
+		return false
+	}
+	if fn.Type.TypeParams != nil && len(fn.Type.TypeParams.List) != 0 {
+		return false
+	}
+	if fn.Type.Results != nil && len(fn.Type.Results.List) != 0 {
+		return false
+	}
+	if fn.Type.Params == nil || len(fn.Type.Params.List) != 1 || len(fn.Type.Params.List[0].Names) > 1 {
+		return false
+	}
+	star, ok := fn.Type.Params.List[0].Type.(*ast.StarExpr)
+	if !ok {
+		return false
+	}
+	if ident, ok := star.X.(*ast.Ident); ok {
+		return dotTesting && ident.Name == "T"
+	}
+	sel, ok := star.X.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "T" {
+		return false
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	_, ok = testingAliases[pkg.Name]
+	return ok
+}
+
+func validGoTestName(name string) bool {
+	if !strings.HasPrefix(name, "Test") || len(name) == len("Test") {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(name[len("Test"):])
+	return !unicode.IsLower(r)
+}
+
+func acceptanceLedgerTestVariables(fn *ast.FuncDecl) map[string]struct{} {
+	out := map[string]struct{}{}
+	if fn.Type.Params == nil || len(fn.Type.Params.List) != 1 {
+		return out
+	}
+	for _, name := range fn.Type.Params.List[0].Names {
+		out[name.Name] = struct{}{}
+	}
+	return out
+}
+
+func collectAcceptanceLedgerSubtests(body *ast.BlockStmt, testVariables map[string]struct{}, into map[string]struct{}) {
+	ast.Inspect(body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != "Run" {
+			return true
+		}
+		receiver, ok := sel.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if _, ok := testVariables[receiver.Name]; ok {
+			addAcceptanceLedgerString(call.Args[0], into)
+		}
+		return true
+	})
+}
+
+func addAcceptanceLedgerString(expr ast.Expr, into map[string]struct{}) {
+	lit, ok := expr.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return
+	}
+	value, err := strconv.Unquote(lit.Value)
+	if err == nil && value != "" {
+		into[value] = struct{}{}
+	}
+}
+
+func TestAcceptanceLedger_ASTResolutionRejectsFalsePositives(t *testing.T) {
+	dir := t.TempDir()
+	source := `package fixture
+import "testing"
+// func TestGhostRowNeverImplemented(t *testing.T) {}
+func TestReal(t *testing.T) {
+	t.Run("real-subtest", func(t *testing.T) {})
+	_ = []struct{ name string }{{name: "table-subtest"}}
+	_ = []string{"not-a-subtest"}
+}
+func TestNotRunnable() {}`
+	if !strings.Contains(source, "func TestGhostRowNeverImplemented(") {
+		t.Fatal("fixture no longer reproduces the retired raw-text false positive")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fixture_test.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	externalSource := `package fixture_test
+import "testing"
+func TestExternalOnly(t *testing.T) {}`
+	if err := os.WriteFile(filepath.Join(dir, "external_test.go"), []byte(externalSource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tests, err := indexAcceptanceLedgerPackageTests(dir, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := map[string]map[string]map[string]struct{}{"fixture": tests}
+	for _, ref := range []acceptanceLedgerTestRef{
+		{Package: "fixture", Test: "TestGhostRowNeverImplemented"},
+		{Package: "wrong-package", Test: "TestReal"},
+		{Package: "fixture", Test: "TestNotRunnable"},
+		{Package: "fixture", Test: "TestExternalOnly"},
+		{Package: "fixture", Test: "TestReal", Subtest: "missing-subtest"},
+		{Package: "fixture", Test: "TestReal", Subtest: "not-a-subtest"},
+		{Package: "fixture", Test: "TestReal", Subtest: "table-subtest"},
+	} {
+		if acceptanceLedgerRefResolves(index, ref) {
+			t.Errorf("false-positive reference resolved: %s", ref)
+		}
+	}
+	for _, ref := range []acceptanceLedgerTestRef{
+		{Package: "fixture", Test: "TestReal"},
+		{Package: "fixture", Test: "TestReal", Subtest: "real-subtest"},
+	} {
+		if !acceptanceLedgerRefResolves(index, ref) {
+			t.Errorf("real declaration did not resolve: %s", ref)
+		}
+	}
+}
+
+func TestAcceptanceLedger_VerifyContractAnchorsResolve(t *testing.T) {
+	root := docsRootForTest(t)
+	anchorRE := regexp.MustCompile(`internal/workflow/(verify(?:_[a-z_]+)?\.go):([0-9]+)(?:-([0-9]+))?`)
+	lineCounts := map[string]int{}
+	checked := 0
+
+	for _, rel := range []string{
+		"docs/adrs/ADR-013-verify-freshness-overlay.md",
+		"docs/prds/PRD-verify-freshness.md",
+		"docs/prds/PRD-tpatch-land.md",
+	} {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		for _, match := range anchorRE.FindAllStringSubmatch(string(data), -1) {
+			sourceRel := filepath.Join("internal", "workflow", match[1])
+			lines, ok := lineCounts[sourceRel]
+			if !ok {
+				source, err := os.ReadFile(filepath.Join(root, sourceRel))
+				if err != nil {
+					t.Fatalf("%s cites missing source %s: %v", rel, sourceRel, err)
 				}
+				lines = acceptanceLedgerSourceLineCount(source)
+				lineCounts[sourceRel] = lines
 			}
-			if !found {
-				t.Errorf("%s names %s, which does not exist", id, name)
+			start, _ := strconv.Atoi(match[2])
+			end := start
+			if match[3] != "" {
+				end, _ = strconv.Atoi(match[3])
 			}
+			if !contractAnchorWithinFile(lines, start, end) {
+				t.Errorf("%s cites %s:%d-%d, but the file has %d lines", rel, sourceRel, start, end, lines)
+			}
+			checked++
+		}
+	}
+	if checked < 60 {
+		t.Fatalf("verified only %d source anchors; guard may be vacuous", checked)
+	}
+}
+
+func contractAnchorWithinFile(lineCount, start, end int) bool {
+	return start > 0 && end >= start && end <= lineCount
+}
+
+func acceptanceLedgerSourceLineCount(source []byte) int {
+	if len(source) == 0 {
+		return 0
+	}
+	lines := strings.Count(string(source), "\n")
+	if source[len(source)-1] != '\n' {
+		lines++
+	}
+	return lines
+}
+
+func TestAcceptanceLedger_ContractAnchorGuardIsSensitive(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		lineCount, start int
+		end              int
+		want             bool
+	}{
+		{name: "single-valid", lineCount: 10, start: 10, end: 10, want: true},
+		{name: "range-valid", lineCount: 10, start: 2, end: 9, want: true},
+		{name: "past-eof", lineCount: 10, start: 9, end: 11, want: false},
+		{name: "reversed", lineCount: 10, start: 8, end: 7, want: false},
+		{name: "zero", lineCount: 10, start: 0, end: 1, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := contractAnchorWithinFile(tc.lineCount, tc.start, tc.end); got != tc.want {
+				t.Errorf("contractAnchorWithinFile(%d, %d, %d) = %v, want %v",
+					tc.lineCount, tc.start, tc.end, got, tc.want)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		source string
+		want   int
+	}{
+		{source: "", want: 0},
+		{source: "one", want: 1},
+		{source: "one\n", want: 1},
+		{source: "one\ntwo", want: 2},
+		{source: "one\ntwo\n", want: 2},
+	} {
+		if got := acceptanceLedgerSourceLineCount([]byte(tc.source)); got != tc.want {
+			t.Errorf("acceptanceLedgerSourceLineCount(%q) = %d, want %d", tc.source, got, tc.want)
 		}
 	}
 }
@@ -338,31 +734,6 @@ func declaredAcceptanceIDs(t *testing.T) map[string]bool {
 	}
 	if len(out) == 0 {
 		t.Fatalf("no acceptance ids scraped — the ledger audit would be vacuous")
-	}
-	return out
-}
-
-// testSourceBodies returns every *_test.go body under internal/.
-func testSourceBodies(t *testing.T) map[string]string {
-	t.Helper()
-	root := filepath.Join(docsRootForTest(t), "internal")
-	out := map[string]string{}
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || !strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		data, rerr := os.ReadFile(path)
-		if rerr != nil {
-			return rerr
-		}
-		out[path] = string(data)
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk: %v", err)
 	}
 	return out
 }

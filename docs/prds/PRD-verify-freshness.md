@@ -99,8 +99,9 @@ The Git-like analogy: lifecycle states are commits (sticky, persisted, mutated o
 > matrix. Binding ADR: ADR-013 Amendment 1 rev-7 (final, D8–D19).
 >
 > The shipped check set is **eleven** checks, V0–V10, with
-> `write_file_preimage_fresh` last (`internal/workflow/verify.go:49-71`,
-> appended at `:288-289`); §4.3's golden examples are corrected accordingly.
+> `write_file_preimage_fresh` last (`internal/workflow/verify.go:49-70`,
+> appended at `internal/workflow/verify.go:313`); §4.3's golden examples are
+> corrected accordingly.
 
 Verify reuses the v0.6.1 primitives end-to-end:
 
@@ -185,7 +186,8 @@ The harness composition pattern is therefore: `tpatch verify parent && tpatch ap
 V0 aborts early — a feature whose `status.json` cannot be loaded cannot be verified meaningfully (`exit 2 — internal error`, no record written).
 
 > **The shipped sequence is eleven checks, V0 … V10, and V10 is last**
-> (`internal/workflow/verify.go:49-71`; V10 appended at `:288-289`). V10
+> (`internal/workflow/verify.go:49-70`; V10 appended at
+> `internal/workflow/verify.go:313`). V10
 > (`write_file_preimage_fresh`) was added in v0.12.0 Wave β Slice R4 under
 > `PRD-write-file-recipe-safety` / ADR-029 and is included in the table below.
 > **Superseded**: any statement elsewhere in this document that describes the
@@ -202,16 +204,16 @@ V0 aborts early — a feature whose `status.json` cannot be loaded cannot be ver
 | V5 | `satisfied_by_reachable`       | every dep with `satisfied_by` set  | block       | `store.satisfiedBySHARe.MatchString` AND `gitutil.IsAncestor(repoRoot, dep.SatisfiedBy, "HEAD")` true | `internal/store/validation.go:101–108`, `internal/gitutil/gitutil.go:680` |
 | V6 | `dependency_gate_satisfied`    | always (gated on `Config.DAGEnabled()`) | warn   | `workflow.CheckDependencyGate(s, slug)` returns nil | `internal/workflow/dependency_gate.go:42` |
 | V7 | `recipe_replay_clean`          | recipe present                     | block       | After replaying the **hard-parent topological closure** of the target into a `gitutil.CreateShadow` worktree (§3.4.3), the target's recipe replays cleanly | `gitutil.CreateShadow`, `PruneShadow`, `store.TopologicalOrder`, recipe executor |
-| V8 | `post_apply_patch_replay_clean`| `artifacts/post-apply.patch` present | block     | After the same closure replay used by V7, `git apply --check` of `post-apply.patch` succeeds against the **closure-replayed baseline tree**. Per **GH #2 / v0.11.3**, when a recipe was applied in V7 the one shared shadow is **reset to `closureBaselineTree`** first (`resetShadowToTree`, `internal/workflow/verify.go:1142-1153`, `:1227-1229`), so recipe and patch are checked **independently against the same baseline** rather than double-applied | one shadow allocation shared with V7, **reset between them**; `git apply --check` |
+| V8 | `post_apply_patch_replay_clean`| `artifacts/post-apply.patch` present | block     | After the same closure replay used by V7, `git apply --check` of `post-apply.patch` succeeds against the **closure-replayed baseline tree**. Per **GH #2 / v0.11.3**, when a recipe was applied in V7 the one shared shadow is **reset to `closureBaselineTree`** first (`resetShadowToTree`, `internal/workflow/verify.go:952-960`; call at `internal/workflow/verify_anchored.go:547-553`), so recipe and patch are checked **independently against the same baseline** rather than double-applied | one shadow allocation shared with V7, **reset between them**; `git apply --check` |
 | V9 | `reconcile_outcome_consistent` | `status.Reconcile.Outcome` set     | warn        | `Outcome ∈ {reapplied, upstreamed, still_needed}` | reads `status.Reconcile.Outcome` only — never any artifact (D6) |
-| V10 | `write_file_preimage_fresh`   | recipe present and parsed (skipped with `skipped: V2 (recipe_parses) skipped or failed` otherwise) | block, **downgraded to `warn` when the feature is superseded by an active superseder** | every `write-file` op's `preimage_hash` still matches the current on-disk file; `preimageLegacyWarn` (no `preimage_hash`, ADR-029 D4 legacy path) and `preimageSkip` (not a write-file) do not fail the check | `checkWriteFilePreimage` (`internal/workflow/writefile_safety.go:108-112`), `IsFeatureSuperseded`; check body at `internal/workflow/verify.go:852-905` |
+| V10 | `write_file_preimage_fresh`   | recipe present and parsed (skipped with `skipped: V2 (recipe_parses) skipped or failed` otherwise) | block, **downgraded to `warn` when the feature is superseded by an active superseder** | every `write-file` op's `preimage_hash` still matches the current on-disk file; `preimageLegacyWarn` (no `preimage_hash`, ADR-029 D4 legacy path) and `preimageSkip` (not a write-file) do not fail the check | `checkWriteFilePreimage` (`internal/workflow/writefile_safety.go:108-112`), `IsFeatureSuperseded`; target check at `internal/workflow/verify_anchored.go:788-899`, member check at `internal/workflow/verify_anchored.go:916-960` |
 
 #### 3.1.1 Ordering rationale
 
 V0 → V6 are **static**: file checks, struct unmarshals, regex/git ancestor, in-process function calls. V7 and V8 are **dynamic** (shadow worktree + parent closure replay + recipe/patch apply). Static block runs first so a recipe-shape error doesn't waste a shadow allocation. V7 and V8 share a **single** shadow allocation: the closure is replayed once, the target recipe is applied for V7, and then — per **GH #2 / v0.11.3** — the shadow is **reset to the closure-replayed baseline tree** before `git apply --check` runs for V8, so an equivalent recipe/patch pair is validated **independently against the same baseline** instead of being applied twice on top of itself. V9 follows — an informational read of `status.Reconcile.Outcome`.
 
 **V10 is last.** `write_file_preimage_fresh` is appended after V9
-(`internal/workflow/verify.go:288-289`). It is placed last because it is a
+(`internal/workflow/verify.go:313`). It is placed last because it is a
 post-hoc integrity assertion over the parsed recipe that needs neither the
 shadow nor V9's outcome, and because its severity is resolved late: it is
 `block` normally and **`warn` when `IsFeatureSuperseded` reports an active
@@ -232,7 +234,7 @@ Every fail surfaces a one-line remediation:
 - V7 (parent-replay failure) → `"hard parent <slug> failed to replay in shadow: <err>; re-run tpatch verify <slug> on the parent first"` — see §3.4.3 for the exact JSON shape.
 - V8 → `"post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile <slug>"`
 - V9 → `"reconcile outcome is <outcome>; verify cannot vouch for reconcile health (warn-only)"`
-- V10 → the joined per-op `checkWriteFilePreimage` rejection messages, `; `-separated. When the feature is superseded the joined string is suffixed with `" (downgraded to warn: superseded by \"<superseder>\" per ADR-029 D7 + PRD-feature-supersession §4.5 \"Reconcile interaction with write-file safety\")"` (`internal/workflow/verify.go:896-905`).
+- V10 → the joined per-op `checkWriteFilePreimage` rejection messages, `; `-separated. When the feature is superseded the joined string is suffixed with `" (downgraded to warn: superseded by \"<superseder>\" per ADR-029 D7 + PRD-feature-supersession §4.5 \"Reconcile interaction with write-file safety\")"` (`internal/workflow/verify_anchored.go:889-893`).
 
 ### 3.2 What `verify` writes
 
@@ -285,7 +287,7 @@ type VerifyCheckResult struct {
 
 `Verify` is `omitempty`-marshalled: a `nil` pointer round-trips byte-identically with v0.6.1 status.json (D4). Hashes are SHA-256 of the canonical bytes of `apply-recipe.json` and `artifacts/post-apply.patch` respectively, computed at verify time. `ParentSnapshot` is keyed by parent slug; values are the parent's `FeatureState` as observed when verify ran.
 
-The persisted record deliberately does **not** carry the per-check array. The full **eleven-row** check results (V0–V10, `internal/workflow/verify.go:49-71`) live on the in-memory `VerifyReport` and are emitted on `tpatch verify --json` stdout only (LOG entry `3c122aa` Note 1 — the authoritative disposition). Slice B's `ComposeLabels` derivation reads only the persisted minimal fields.
+The persisted record deliberately does **not** carry the per-check array. The full **eleven-row** check results (V0–V10, `internal/workflow/verify.go:49-70`) live on the in-memory `VerifyReport` and are emitted on `tpatch verify --json` stdout only (LOG entry `3c122aa` Note 1 — the authoritative disposition). Slice B's `ComposeLabels` derivation reads only the persisted minimal fields.
 
 `Verify` is **not** a state, **not** a `Reconcile.Outcome`, and **not** an enum value on `FeatureState`. It is a freshness overlay.
 
@@ -321,7 +323,7 @@ This is the F1 closure-replay spec. Without it, V7/V8 are structurally useless f
    shadow. This is the V7 check.
 5. **GH #2 / v0.11.3 — reset between V7 and V8.** If V7 applied a recipe, the
    shadow is reset to the recorded closure-replayed baseline tree
-   (`resetShadowToTree`, `internal/workflow/verify.go:1142-1153`) **before**
+   (`resetShadowToTree`, `internal/workflow/verify.go:952-960`) **before**
    `git apply --check` runs the target's `post-apply.patch`. V8 therefore
    validates the patch **independently, against the same baseline V7 used** —
    not against a tree that already contains V7's recipe output. Without the
@@ -373,7 +375,10 @@ Verify on slug A does not block reconcile on slug B; the lock is per-slug.
 
 #### 3.4.6 Apply gate: pure lifecycle, freshness ignored — D2
 
-The apply gate (`workflow.CheckDependencyGate`, `internal/workflow/dependency_gate.go:79`) accepts hard parents in `{applied, upstream_merged}`. **This is unchanged in Wave 3.** The freshness overlay does not extend the satisfaction set.
+At the pre-amendment baseline the apply gate accepted hard parents in
+`{applied, upstream_merged}`. The freshness overlay does not extend that set
+or become a gate input. Wave C's separately disclosed `active`-totality change
+now admits `active` at `internal/workflow/dependency_gate.go:97-98`.
 
 The original first-revision PRD argued whether `tested` should join `{applied, upstream_merged}`. Under the freshness-overlay model that question is moot — there is no `tested` state to satisfy. The supervisor's binding adjudication on F4: lifecycle gates govern persistence, freshness governs harness composition. If the apply gate consulted freshness, it would re-create the demote-on-read problem from a different angle (a child applied at T1 against a `verified-fresh` parent could find its parent's freshness flipped to `verified-stale` at T2 with no operator action — a hidden retroactive change to gate satisfaction). Keeping the gate pure-lifecycle is the Git-like answer.
 
@@ -434,20 +439,20 @@ The compound `EffectiveOutcome()` rule (`internal/store/types.go:192`) is **not 
 `tpatch land` commits a feature into reachable Git history while deliberately
 leaving `status.apply.base_commit` untouched (`PRD-tpatch-land` §3.6;
 `internal/cli/land.go:394`; ADR-019). V7/V8 allocate their shadow from
-**current HEAD** (`internal/workflow/verify.go:1012`, `:1024`).
+**current HEAD** (`internal/workflow/verify_anchored.go:439-464`).
 
 Measured at `13a885c`; every run reported `checks=11` — the shipped set is
-**V0–V10** (`internal/workflow/verify.go:49-71`), V10 appended last
-(`:288-289`):
+**V0–V10** (`internal/workflow/verify.go:49-70`), V10 appended last
+(`internal/workflow/verify.go:313`):
 
 | Target recipe op kind | pre-land | post-land V7 | post-land V8 |
 |---|---|---|---|
-| `write-file`      | ✓ / ✓ | **✓ false green** (`internal/workflow/verify.go:1290-1294`) | **✗ false red** |
-| `replace-in-file` | ✓ / ✓ | **✗ false red** (`internal/workflow/verify.go:1295-1305`) | skipped |
-| `append-file`     | ✓ / ✓ | **✓ false green, shadow double-appended** (`internal/workflow/verify.go:1306-1313`) | **✗ false red** |
+| `write-file`      | ✓ / ✓ | **✓ false green** (`internal/workflow/verify.go:1003-1007`) | **✗ false red** |
+| `replace-in-file` | ✓ / ✓ | **✗ false red** (`internal/workflow/verify.go:1008-1018`) | skipped |
+| `append-file`     | ✓ / ✓ | **✓ false green, shadow double-appended** (`internal/workflow/verify.go:1019-1025`) | **✗ false red** |
 
 The defect is not V8-only, and the same hazard applies to a landed hard
-**parent** (`internal/workflow/verify.go:1048-1091`).
+**parent** (`internal/workflow/verify_anchored.go:621-756`).
 
 #### 3.6.2 Evidence reader — enumeration, grammar, and closed presence states (ADR-013 D10)
 
@@ -545,13 +550,15 @@ terminal.
 
 **Implementation delta**: the commit-ish handed to `gitutil.CreateShadow`
 (`internal/gitutil/shadow.go:56`) becomes the replay anchor's parent tree
-instead of `gitutil.HeadCommit` (`internal/workflow/verify.go:1012`, `:1024`),
+instead of `gitutil.HeadCommit`
+(`internal/workflow/verify_anchored.go:439-464`),
 plus the §3.6.5 temp-index ladder.
 
 **GH #2 (v0.11.3) invariant, binding in every mode.** The recipe and the patch
 are validated independently against the same baseline tree, with the shadow
 reset to `closureBaselineTree` between them
-(`internal/workflow/verify.go:1092`, `:1143`). Normative: *any check that may
+(`internal/workflow/verify_anchored.go:476`,
+`internal/workflow/verify_anchored.go:547-553`). Normative: *any check that may
 mutate the shadow MUST reset it to `closureBaselineTree` before the next check
 runs; V7's result is never an input to V8's tree.*
 
@@ -645,13 +652,13 @@ localise which op/path a failure concerns and never certify presence.
 
 | Member condition | Action |
 |---|---|
-| `upstream_merged` | **skip** (unchanged, `internal/workflow/verify.go:1062-1064`) |
-| superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify.go:976-983`) |
+| `upstream_merged` | **skip** (unchanged, `internal/workflow/verify_anchored.go:653-655`) |
+| superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify_anchored.go:389-391`) |
 | evidence `exact`/`duplicate-equivalent`, patch **present-nonempty**, ladder ⇒ clean or context-drift | **skip** |
 | evidence `exact`/`duplicate-equivalent`, patch present-nonempty, ladder ⇒ block | **fail-fast** `parent-landing-drift` |
 | patch **absent** or **present-empty**, whatever the recipe shape | **fail-fast** `landed-artifacts-absent` — reached **before** any digest comparison and therefore before any `exact`/`stale` classification (§3.6.2). A slug-bearing candidate on such a member never becomes an attestation. |
 | evidence `none`, patch present-nonempty, ladder ⇒ clean or context-drift | **skip** with a mandatory `warn` `unattributed-materialized` advisory. No ownership claimed. |
-| evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify.go:1065-1082`) |
+| evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify_anchored.go:721-753`) |
 | evidence `none`, patch absent or present-empty | **replay** |
 | evidence `stale` / `ambiguous` / `malformed` / `unsupported-topology` / `shallow-history` / `history-incomplete` / `unavailable` | **fail-fast** `parent-evidence-integrity` |
 | `unapplied` | **fail-fast** `parent-unapplied` |
@@ -665,15 +672,16 @@ ladder **at the anchor tree being built**. A revert landed *after* the anchor
 commit is invisible at anchor H and is caught at anchor C; a revert predating
 the anchor is caught at anchor H. Both anchors are reported.
 
-**`active` is total.** Treated **identically to `applied`** everywhere in the
-closure. Today the switch handles only `upstream_merged` and `applied`, so an
-`active` hard parent reaches `default:` and fail-fasts
-(`internal/workflow/verify.go:1061-1089`) — while `CheckDependencyGate`
-accepts both (`internal/workflow/dependency_gate.go:79-81`),
-`postApplyVerifyStates` admits `active` (`internal/workflow/verify.go:127-134`)
-and `isPostApplyState` does too (`internal/workflow/verify_all.go:89-97`).
-**This is a deliberate behaviour change for non-landed features**, pinned by
-AC-L86/AC-L87 and carried as a §8 risk row.
+**`active` is total.** It is treated **identically to `applied`** everywhere
+in the closure. Before Wave C, the switch handled only `upstream_merged` and
+`applied`, so an `active` hard parent reached `default:` and failed fast.
+Wave C widened the switch (`internal/workflow/verify_anchored.go:653-666`) to
+match `CheckDependencyGate`
+(`internal/workflow/dependency_gate.go:97-98`),
+`postApplyVerifyStates` admits `active` (`internal/workflow/verify.go:125-135`)
+and `isPostApplyState` (`internal/workflow/verify_all.go:90-94`). **This was a
+deliberate behaviour change for non-landed features**, pinned by AC-L86/AC-L87
+and carried as a §8 risk row.
 
 **Worked mixed chains.**
 
@@ -698,7 +706,7 @@ applied. rev-3 gives every member its **own** baseline.
 | the **target**, landed | the target's anchor-H **closure baseline** (shadow after arbitration, before the target's recipe replays) |
 | a **landed** closure member | **that member's own** replay-anchor parent tree, resolved by running §3.6.8 for that member's slug. **Never** the target's anchor. |
 | an **unlanded** member (evidence `none`), or the target in forward mode | **`RecipeProvenance.BaseCommit`** for that member |
-| any op with no `preimage_hash` | ADR-029 D4 legacy path: pass, no re-warn (`internal/workflow/verify.go:879-883`) |
+| any op with no `preimage_hash` | ADR-029 D4 legacy path: pass, no re-warn (`internal/workflow/verify_anchored.go:847-850`) |
 
 **Q15 is RESOLVED; rev-2's "no anchor exists" rationale is withdrawn.**
 Measured: the shipped `RecipeProvenance`
@@ -739,10 +747,10 @@ fail for every applied feature.
 |---|---|
 | `preimage_hash` absent | legacy pass, no re-warn (ADR-029 D4) |
 | present and matching at the member's reference tree | **PASS**, `mode` naming the anchor kind |
-| present and **not** matching | **FAIL**, block; downgraded to `warn` when superseded (ADR-029 D7, `internal/workflow/verify.go:862-870`) |
+| present and **not** matching | **FAIL**, block; downgraded to `warn` when superseded (ADR-029 D7, `internal/workflow/verify_anchored.go:796-800`, `internal/workflow/verify_anchored.go:889-893`) |
 | `preimage_hash` malformed per ADR-029 D1 | **FAIL**, block — the preimage contract itself is invalid |
 | provenance required but absent / ill-formed / unreachable | **FAIL** `recipe-provenance-unavailable` |
-| V2 skipped or failed | **skip**, unchanged reason (`internal/workflow/verify.go:853-861`) |
+| V2 skipped or failed | **skip**, unchanged reason (`internal/workflow/verify_anchored.go:791-792`) |
 | the member's own anchor unavailable | **FAIL** `historical-anchor-unavailable` for that member |
 
 **Later-touch — metadata, never bytes.** The shipped detector: `RequestedAt`
@@ -1008,16 +1016,17 @@ sequential, reused by `verify --all`, and spawning no git process.
 
 **Read-only guarantees.** No worktree mutation, no real-index mutation, no
 `status.json` write beyond the existing `Verify` record — and none at all under
-`--no-write` (`internal/workflow/verify.go:310-314`). Measured for the
+`--no-write` (`internal/workflow/verify.go:347-357`). Measured for the
 anchor-C and anchor-qualification probes: the real index is byte-identical, the
 worktree is byte-identical, `git status --porcelain` is unchanged, and the temp
 index never appears as an untracked entry. The shadow is pruned via the
-existing deferred call (`internal/workflow/verify.go:1036-1040`).
+existing deferred call (`internal/workflow/verify_anchored.go:464`).
 
 **Remediation must never route a just-landed local feature to `reconcile`.**
 The current V8 text is `post-apply.patch no longer applies to
 closure-replayed baseline; run tpatch reconcile <slug>`
-(`internal/workflow/verify.go:1167`). The forward-mode string is **unchanged**.
+(`internal/workflow/verify_anchored.go:576`). The forward-mode string is
+**unchanged**.
 
 Exact strings (Wave C emits these verbatim):
 
@@ -1147,7 +1156,8 @@ Slice A. The schema is **frozen at the version field**: every consumer reads `sc
 
 > **rev-1 golden-example refresh (2026-08-12).** The shipped check set is
 > **eleven** rows, V0–V10, with `write_file_preimage_fresh` last
-> (`internal/workflow/verify.go:49-71`, appended at `:288-289`). The
+> (`internal/workflow/verify.go:49-70`, appended at
+> `internal/workflow/verify.go:313`). The
 > §4.3.1–4.3.5 examples below predate V10 and are corrected here to eleven
 > rows. `schema_version` moves `"1.0"` → `"1.1"` for the landed fields of
 > §4.3.6–4.3.9; the compatibility guarantee is **additive semantic
@@ -1272,14 +1282,14 @@ Same: not emitted by `verify` (which writes a fresh record). This is `tpatch sta
 ```
 #### 4.3.6 LANDED-PASS — dual-anchor verification green (v0.15.1 Wave B / GH #8, rev-7)
 
-`schema_version` moves `"1.0"` → `"1.1"` (`internal/workflow/verify.go:83`).
+`schema_version` moves `"1.0"` → `"1.1"` (`internal/workflow/verify.go:81`).
 The guarantee is **additive semantic compatibility, not byte identity**:
 `baseline`, `landing_evidence` and `target_mode` are emitted for *every*
 feature. Consumers refuse unknown **majors** (§4.3), so 1.1 is non-breaking.
 The `checks` array is **eleven** rows in V0–V10 order in every shape below.
 
 > **`freshness_label` is not a verify-report field.** The shipped
-> `VerifyReport` (`internal/workflow/verify.go:139-166`) has no such member;
+> `VerifyReport` (`internal/workflow/verify.go:137-182`) has no such member;
 > the derived label belongs to `tpatch status --json` (§4.3.2, §4.3.3, §4.5).
 > Every **verify** sample omits it (Q16).
 
@@ -1655,7 +1665,7 @@ zero-byte `post-apply.patch` is a **corruption or hand-edit** case.
 | Concurrent `tpatch add` / `remove` / artifact edit during a run | **FAIL `snapshot-unstable`** (R20) naming the slug and path. Detected because the inventory covers **all** features, not just the closure. |
 | Unreadable `status.json` on an **unrelated** feature | `warn` advisory; excluded from later-touch ordering (matching the shipped best-effort detector). |
 | Unreadable artifacts on the **target or a closure member** | **FAIL `inventory-unreadable`**. |
-| `--no-write` on any landed path | All checks run, nothing persists (`internal/workflow/verify.go:310-314`). |
+| `--no-write` on any landed path | All checks run, nothing persists (`internal/workflow/verify.go:347-357`). |
 | `verify --all` over a mixed landed/unlanded set | One evidence enumeration and one inventory total, reused; ladder and tree probes memoised; output ordering unchanged. |
 
 ---
@@ -1800,7 +1810,7 @@ direction, and the remediation (`tpatch implement <slug>`) is one command.
 ### Q16 — Should verify emit `freshness_label` in its `--json` report? — **RESOLVED: no**
 
 **Decided (rev-2): no.** The shipped `VerifyReport`
-(`internal/workflow/verify.go:139-166`) has no such member; the derived label
+(`internal/workflow/verify.go:137-182`) has no such member; the derived label
 belongs to `tpatch status --json` (§4.3.2, §4.3.3, §4.5). rev-1's landed
 samples and the pre-implementation §4.3.1/§4.3.4/§4.3.5 samples all carried
 it, which would have led an implementer to add a field nobody decided to add.
@@ -1847,7 +1857,7 @@ which is the intended equivalence class. Pinned by AC-L133.
 - [ ] `go build ./...`, `go test ./...`, `gofmt -l .` all clean.
 - [ ] `FeatureStatus.Verify *VerifyRecord` field present, `omitempty`-marshalled. v0.6.1 fixtures round-trip byte-identical.
 - [ ] `FeatureState` enum is unchanged (no `StateTested`).
-- [ ] `tpatch verify <slug>` runs the check sequence in order, with the severities documented in §3.1. *(Historical Wave 3 acceptance row, written before V10 shipped; the current sequence is eleven checks V0–V10 — `internal/workflow/verify.go:49-71`.)*
+- [ ] `tpatch verify <slug>` runs the check sequence in order, with the severities documented in §3.1. *(Historical Wave 3 acceptance row, written before V10 shipped; the current sequence is eleven checks V0–V10 — `internal/workflow/verify.go:49-70`.)*
 - [ ] V7/V8 replay the **hard-parent topological closure** before applying the target's recipe (§3.4.3). Order is `store.TopologicalOrder` over the hard-only sub-DAG. `upstream_merged` parents are skipped.
 - [ ] V7/V8 fail-fast on first parent-replay failure with `failed_at: "parent-replay"` and the failing parent slug in the JSON output.
 - [ ] On green, `Verify` record is written with `passed=true`; no lifecycle mutation.
@@ -1900,7 +1910,7 @@ is proven:
 | AC-L2 | The same feature **after** `land` passes: `target_mode: "landed"`, `landing_evidence.state: "exact"`, `baseline.mode: "dual-anchor"`, eleven rows. | W+C |
 | AC-L3 | The committed-range re-record is decided by the §3.6.2 values, and **both branches** asserted: byte-identical artifacts ⇒ `exact`, passes with no re-land; changed artifacts ⇒ `stale`, FAIL with R6, passes after the re-land. | C |
 | AC-L4 | A landed **leaf** with no dependencies passes. | W+C |
-| AC-L5 | Every report — forward or landed, pass or fail — emits exactly eleven `checks` rows whose `id` values equal the constants at `internal/workflow/verify.go:49-71`, in order. No shorter or differently-terminated sequence shape survives anywhere in this PRD, the ADR or the land PRD — enforced mechanically by **AC-L135 / §7.1.2 G1 and G2**. Golden assertion plus the docs guard. | W |
+| AC-L5 | Every report — forward or landed, pass or fail — emits exactly eleven `checks` rows whose `id` values equal the constants at `internal/workflow/verify.go:49-70`, in order. No shorter or differently-terminated sequence shape survives anywhere in this PRD, the ADR or the land PRD — enforced mechanically by **AC-L135 / §7.1.2 G1 and G2**. Golden assertion plus the docs guard. | W |
 | AC-L6 | `--no-write` on every AC-L row leaves `.tpatch/`, the real index and the worktree byte-identical. | W+C |
 
 #### Group B — anchor C isolation
@@ -2013,8 +2023,8 @@ is proven:
 | AC-L83 | Hard parent in `unapplied` ⇒ `parent-unapplied` (R16), replacing today's generic `default:` message. | W+C |
 | AC-L84 | Hard parent in `rejected` ⇒ `parent-rejected` (R17). | W |
 | AC-L85 | Hard parent in `upstream_merged` is skipped byte-identically to today; a superseded parent stays excluded by the existing filter. | W |
-| AC-L86 | Hard parent in **`active`** is treated exactly as `applied` — skipped or replayed by the same arbitration, never fail-fast. Asserted for a **non-landed** target too, where it changes today's verdict. | W+C |
-| AC-L87 | After AC-L86, all four `active` sites agree: `dependency_gate.go:79-81`, `verify.go:127-134`, `verify_all.go:89-97`, and the closure switch. Adversarial cross-check. | U |
+| AC-L86 | Hard parent in **`active`** is treated exactly as `applied` — skipped or replayed by the same arbitration, never fail-fast. Asserted for a **non-landed** target too, where it changed the pre-Wave-C verdict. | W+C |
+| AC-L87 | After AC-L86, all four `active` sites agree: `dependency_gate.go:97-98`, `verify.go:125-135`, `verify_all.go:90-94`, and the closure switch. Adversarial cross-check. | U |
 | AC-L88 | A revert landing **after** the anchor commit is invisible at anchor H and caught at anchor C; one predating the anchor is caught at anchor H. Both anchors reported. | W |
 | AC-L89 | Parent landed **after** vs **before** the target yields identical verdicts; closure ordering for an all-unlanded closure is topological and identical to today. | W |
 | AC-L90 | Mixed chain — target unlanded, P1 landed, P2 applied-unlanded ⇒ anchor `HEAD`, P1 ladder-skipped, P2 replayed, target forward-verified. | W+C |
@@ -2088,7 +2098,7 @@ It reads exactly three files and applies exactly these patterns
 
 | # | Regex | Why it is forbidden |
 |---|---|---|
-| G1 | `V9\s+is\s+last` | The shipped sequence ends at **V10** (`internal/workflow/verify.go:288-289`). |
+| G1 | `V9\s+is\s+last` | The shipped sequence ends at **V10** (`internal/workflow/verify.go:313`). |
 | G2 | `\bten[- ]check\b|\b10[- ]check\b|\b10[- ]row\b|exactly ten\b` | The sequence is **eleven** checks, V0–V10. |
 | G3 | `Amendment 1 rev-[0-6]\b|proposed rev-[0-6]\b` | The amendment is **rev-7 (final)**; only the revision-history and rejected-alternatives narrative may name earlier revisions. The character class is widened by one on every revision, so a stale current-amendment label cannot survive a bump. |
 | G4 | `land[’']?s? behaviou?r is unchanged|behaviou?r-frozen|behaviou?r-neutral` | The amendment adds **one** producer refusal (§3.8.6 / D19); a blanket unchanged/neutral claim is false. |
@@ -2165,7 +2175,7 @@ and the references block.
 | Closure-replay shadow contention with reconcile. | §3.4.5: per-slug lock; verify refused while reconcile in flight on the same slug. |
 | Shadow leak on crash. | `defer PruneShadow(...)` at verify entry; `PruneAllShadows` reaps stale shadows from prior crashed runs. |
 | `Verify` field break on downstream JSON consumers that hard-code v0.6.1 schema. | `omitempty` means v0.6.1 round-trip is byte-identical until first verify. After first verify, the schema gains one new top-level field; downstream consumers need to handle the omitempty case. CHANGELOG callout. |
-| **`active` closure widening (§3.6.6) changes verdicts for non-landed features.** A hard parent in `active` fail-fasts today and will be replayed or skipped after Wave C. | The widening makes four call sites agree that already disagree (`dependency_gate.go:79-81`, `verify.go:127-134`, `verify_all.go:88-96` vs the closure switch); today's behaviour is an oversight, not a decision. Pinned by AC-L73/AC-L74, called out in the CHANGELOG at Wave C, and reversible by narrowing the switch. |
+| **`active` closure widening (§3.6.6) changed verdicts for non-landed features.** Before Wave C, a hard parent in `active` failed fast; it is now replayed or skipped as `applied`. | The widening made four call sites agree (`dependency_gate.go:97-98`, `verify.go:125-135`, `verify_all.go:90-94`, and `verify_anchored.go:653-666`). The pre-Wave-C behavior was an oversight, not a decision. Pinned by AC-L86/AC-L87, called out in the CHANGELOG, and reversible by narrowing the switch. |
 | **The mandatory `(0/0)` block produces measured false reds** — 26 over 151 postimage-present trees, each an unrelated edit within one line of a hunk. | Deliberate: the alternative leaked 2 false greens over 69 absent trees. Every false red carries R2, a real remediation (re-record so the captured context matches HEAD, then re-land). Q14 records the decision and the rejected alternative. |
 | **`historical-anchor-unavailable` is terminal**, so a feature whose landing history admits no single-parent candidate with a non-materializing parent fails until re-landed. | It is the only honest outcome: an unverifiable historical half is an unverified feature. R11 names the exact fix, and AC-L37 pins that a re-land recovers the anchor. |
 | **Anchor C depends on `git apply --cached` and a temp index.** | Measured read-only: real index byte-identical, worktree byte-identical, `git status` unchanged, temp index invisible and removed on every exit path (AC-L7–AC-L13). |
@@ -2193,7 +2203,7 @@ The dispatch contract names four slices. Boundaries below reflect F3's correctio
 - Cobra wiring: `<slug>` arg, `--json`, `--quiet`, `--no-write`, `--path`. **No `--all`, no `--shadow`.**
 - New `VerifyRecord` and `VerifyCheckResult` structs in `internal/store/types.go` with `omitempty` JSON tags.
 - New `WriteVerifyRecord` (or equivalent) helper in `internal/store/store.go` that updates `FeatureStatus.Verify` and persists.
-- V3–V9 stubbed with `TODO` and a sentinel result that marks them `passed=true, severity=warn` so the report still emits a stable-shaped array. *(Historical Slice A note, written before V10 shipped; the current set is eleven rows V0–V10 — `internal/workflow/verify.go:49-71`.)*
+- V3–V9 stubbed with `TODO` and a sentinel result that marks them `passed=true, severity=warn` so the report still emits a stable-shaped array. *(Historical Slice A note, written before V10 shipped; the current set is eleven rows V0–V10 — `internal/workflow/verify.go:49-70`.)*
 - **No closure replay.** V7/V8 stubs return immediately.
 - **No skill anchor regen.** Slice D handles all skill surface changes.
 - **No `ComposeLabels` extension.** Slice B integrates the freshness derivation.

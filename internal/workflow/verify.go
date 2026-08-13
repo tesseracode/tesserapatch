@@ -132,7 +132,7 @@ func postApplyVerifyStates() map[store.FeatureState]bool {
 }
 
 // VerifyReport is the full in-memory result of a verify run. The
-// `Checks` field carries all ten check rows; `Persisted` carries the
+// `Checks` field carries all eleven check rows; `Persisted` carries the
 // minimal field set actually written to status.json (Reviewer Note 1).
 type VerifyReport struct {
 	SchemaVersion string `json:"schema_version"`
