@@ -1,3 +1,30 @@
+## Dispatch — WP-005 council Turn 2 — 2026-08-13
+
+**WAVE_BASE**: `76ed78b`
+**Scope**: `WP-005-spec-driven-workflows.md` and its append-only turn log
+
+### Council Input
+
+- Five independent advisor lenses.
+- Five anonymous peer reviews.
+- One chairman synthesis.
+- Human constraint: no new lifecycle state; prepare completion remains
+  `defined`.
+
+### Required Disposition
+
+- Validation/provenance precedes mutating orchestration.
+- `prepare --check` is the first product slice.
+- Internal SDD additions remain optional and lightweight.
+- Downstream SDD is encouraged, never enforced.
+- WP-005 is sufficient prior art for two gated PRDs; no second whitepaper.
+- No ADR until a persistent provenance/publication representation is chosen.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to a paper-only Turn 2 writer/review cycle.
+No code or prepare roadmap milestone is authorized in this task.
+
 ## Review — v0.15.1 post-release fold — 2026-08-13
 
 **Base**: `15560af` (v0.15.1, fixed)

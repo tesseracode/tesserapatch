@@ -2,23 +2,36 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-v0.15.1 remains shipped and its tag stays fixed at `15560af`. The bounded
-post-release documentation/test-rigor fold is complete on `main`.
+WP-005 council Turn 2 is in progress from fresh base `76ed78b`. This is a
+paper-only continuation; no prepare implementation or lifecycle change is
+authorized.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 post-release review fold
-- **Description**: Repair stale verify-contract source anchors, replace the
-  161-row ledger's raw-text existence check with AST-exact resolution, and
-  record the nested-repository sentinel deferral.
-- **Status**: Complete
+- **Task ID**: WP-005 council Turn 2
+- **Description**: Record the five-advisor/five-reviewer council verdict on
+  `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
+  findings without drafting PRDs yet.
+- **Status**: In Progress
 - **Assigned**: 2026-08-13
-- **WAVE_BASE**: `15560af`
-- **Dispatch commit**: `1a77569`
-- **Fold commit**: `64010bf`
-- **Release tag**: v0.15.1 fixed at `15560af`
+- **WAVE_BASE**: `76ed78b`
+- **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
+- **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## WP-005 Turn 2 Scope
+
+- Append one `agreement` turn introducing the new stable agent ID.
+- Record the council method and the advisor/reviewer split honestly.
+- Add `## Agreed` findings: validation before orchestration, `prepare --check`
+  first, no new lifecycle state, optional internal SDD, downstream SDD
+  encouraged but never enforced.
+- Resolve WP-005's prior "separate whitepaper" uncertainty: this paper is
+  sufficient prior art for two gated PRDs.
+- Keep the paper `Exploring` until the first graduating PRD is drafted.
+- Do not edit code, create an ADR, or add prepare to the implementation
+  roadmap in this task.
 
 ## Post-Release Review Adjudication
 
@@ -177,11 +190,10 @@ Modified:
 
 ## Next Steps
 
-1. Append council Turn 2 to WP-005 and update its agreed findings.
-2. Draft `PRD-artifact-validation-and-provenance.md` through writer/review.
-3. Draft blocked `PRD-prepare-intent-bundle.md` through writer/review.
-4. Register the validation/provenance issue; add prepare to ROADMAP only after
-   the prerequisite contract is accepted.
+1. Write WP-005 Turn 2 and agreed findings.
+2. Run an independent whitepaper review and fold any findings.
+3. Accept/archive the Turn 2 task.
+4. Dispatch `PRD-artifact-validation-and-provenance.md` writer/review.
 
 ## Blockers
 
