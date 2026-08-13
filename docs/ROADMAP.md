@@ -791,11 +791,12 @@ external APPROVED WITH NOTES. Prior turns remain immutable. Next:
 artifact-validation/provenance PRD, with prepare-intent-bundle blocked behind
 it. No implementation is authorized.
 
-**Artifact-validation/provenance PRD** 🚧 WRITER REV-0 (2026-08-13,
-WAVE_BASE `0aa0d95`, [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)):
-define truthful read-only `prepare --check`, structural artifact states,
-provenance/migration and Path A/B compatibility. Mutating prepare remains
-blocked; no implementation or ADR is authorized by this dispatch.
+**Artifact-validation/provenance PRD rev-0** 🚧 AWAITING REVIEW (2026-08-13,
+WAVE_BASE `0aa0d95`, writer `a8b1935`,
+[GH #10](https://github.com/tesseracode/tesserapatch/issues/10)): 64 audited
+claims, 95 AVP acceptance rows and a read-only `prepare --check` contract are
+written. Provenance remains `unknown`; mutating prepare remains blocked; no
+implementation or ADR is authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

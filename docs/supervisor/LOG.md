@@ -1,3 +1,23 @@
+## Writer — PRD artifact validation and provenance rev-0 — 2026-08-13
+
+**Writer tip**: `a8b1935`
+**WAVE_BASE**: `0aa0d95`
+
+### Output
+
+- New 1,478-line Draft PRD for GH #10.
+- 64 current-behavior claims and 133 source anchors.
+- 95 acceptance rows (`AVP-001`…`AVP-095`).
+- Closed structural state/readiness/output/exit/privacy contracts.
+- Existing mutating `--manual` behavior explicitly unchanged.
+- Provenance fixed to `unknown`; no persistence representation selected.
+- WP-005 marked Graduated.
+
+### Action Taken
+
+ROADMAP and LOG transitioned to rev-0 review. Internal contract and external
+product/adversarial reviews dispatched. Mutating prepare remains blocked.
+
 ## Dispatch — PRD artifact validation and provenance rev-0 — 2026-08-13
 
 **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
