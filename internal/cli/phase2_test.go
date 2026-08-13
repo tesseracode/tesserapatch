@@ -17,13 +17,12 @@ import (
 // global scope after bug-provider-set-global) cannot clobber the
 // developer's machine config.
 //
-// It also pins `gc.auto=0` process-wide for every `git` subprocess this
-// package's tests spawn (Cluster E F2), via testutil.PinGitAutoGCOff.
-// `git commit`/`git init` etc. run `git gc --auto` as a side effect,
-// and when it decides to run it can fork a detached background process
-// (`gc.autoDetach`, default on) that keeps writing under `.git/`
-// (objects/, info/) after the parent git command — and this test's
-// synchronous git helper call — has already returned. Under
+// It also disables automatic Git GC/maintenance and detachment process-wide
+// for every `git` subprocess this package's tests spawn (Cluster E F2), via
+// testutil.PinGitAutoGCOff. `git commit`/`git init` can otherwise fork a
+// detached background process that keeps writing under `.git/` (objects/,
+// info/) after the parent git command — and this test's synchronous git helper
+// call — has already returned. Under
 // full-suite load (`-p 8`), that background writer can still be
 // touching `.git/objects` or `.git/info` when `t.TempDir()`'s teardown
 // walks the tree, producing a transient macOS
