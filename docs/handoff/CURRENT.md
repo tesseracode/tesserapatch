@@ -2,16 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-4 DISPATCHED
 
-Artifact-validation/provenance PRD rev-3 and the coupled proposed ADR-034 are
-written and awaiting three-way review. Rev-3 closes every rev-2 finding: the
-`os.Root` scope is restated as logical pathname confinement, the platform
-selection is a fail-closed allowlist, the Windows reparse mapping is corrected
-and `winsymlink=1` pinned, the identity promise is weakened to "observed as
-different", one scratch buffer is reused per invocation, an injected operation
-seam is defined, attacker-byte guarantees are scoped to command-owned output,
-and every drifted `AVP` citation is corrected behind a new mechanical guard.
+Artifact-validation/provenance PRD rev-3 and ADR-034 preserve the accepted
+architecture direction but retain four implementability gaps. Narrow rev-4 is
+dispatched for joint re-review.
 
 ## Active Task
 
@@ -19,7 +14,7 @@ and every drifted `AVP` citation is corrected behind a new mechanical guard.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-3 + ADR-034 rev-0 — **complete, awaiting review**
+- **Status**: Writer rev-4 + ADR-034 rev-1
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
@@ -1320,6 +1315,32 @@ This is **not** the deferred provenance ADR; provenance remains constant
 10. Correct every drifted AVP citation and add a citation-resolution guard.
 11. Couple cap values to frozen messages, define Windows test mechanism, and
     close the remaining status/output wording.
+
+## Rev-3 Review Adjudication
+
+- **Internal**: NEEDS REVISION (4 HIGH, 1 MEDIUM plus one LOW).
+- **External**: APPROVED WITH NOTES; architecture accepted, four contract
+  parity corrections required before S1.
+- **Supervisor verdict**: NEEDS REVISION → narrow rev-4.
+
+### Rev-4 required corrections
+
+1. Remove `wasip1` from the supported allowlist (or define a separate
+   compilable flag contract); this revision chooses fail-closed
+   `unix || windows`.
+2. Withdraw universal no-unbounded-wait claims. Allocation is bounded; ordinary
+   OS reads can still block. Static/raced FIFO handling remains tested.
+3. Add an injectable `SameFile` operation to the test seam so identity rows are
+   implementable without constructing private `os.fileStat` values.
+4. Add `Close` failures to status/artifact ladders and AVP coverage.
+5. Correct Cobra parse-error ownership: the shared root printer emits pflag
+   text unsanitized; those generic exit-1 bytes are outside this command's
+   report schema.
+6. Align `RootOps`/`FileOps` samples, ADR D12 and AVP-194 on two adapters.
+7. Fix the twelve-code arithmetic, G18 `fs.ValidPath` anchor, Windows
+   name-surrogate wording and workspace-exit divergence disclosure.
+8. Preserve ADR decisions, update matrix/claims/counts, and re-review only the
+   affected contract surfaces.
 
 ## Rev-1 Review Adjudication
 

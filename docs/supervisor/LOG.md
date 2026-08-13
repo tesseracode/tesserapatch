@@ -1,3 +1,32 @@
+## Review — PRD artifact validation rev-3 + ADR-034 rev-0 — 2026-08-13
+
+**Writer tip**: `9d52a2b`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION → NARROW REV-4
+
+### Architecture Disposition
+
+ADR-034's `os.Root` decision, logical-confinement scope, platform
+fail-closed policy, identity limits, fixed-buffer policy, native Windows gate,
+test seam and non-migration of `rescap` are accepted in direction.
+
+### Required Corrections
+
+- WASI lacks the mandated `O_NONBLOCK`; remove it from support or split flags.
+- Allocation is bounded, but universal read-time/no-wait claims are false.
+- `os.SameFile` synthetic equality is not injectable through the current seam.
+- `Close` errors are missing from ladders and AVPs.
+- Cobra parse errors are emitted by the shared root printer, not Cobra itself.
+- PRD sample, ADR D12 and AVP-194 disagree on one vs two adapters.
+- Two code-count words and one stdlib anchor are stale.
+
+### Action Taken
+
+Same writer dispatched for rev-4 / ADR rev-1. Joint re-review is limited to
+the corrected sections and matrix parity. No code or mutating prepare.
+
 ## Writer — PRD artifact validation rev-3 + ADR-034 rev-0 — 2026-08-13
 
 **Writer tip**: `9d52a2b`
