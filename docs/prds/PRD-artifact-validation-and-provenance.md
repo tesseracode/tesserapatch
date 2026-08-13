@@ -1494,9 +1494,9 @@ What the design **does** guarantee, exactly and no more:
 - **A non-wedging open on Unix**: a FIFO or blocking character device at the
   leaf cannot wedge the `open(2)` (§7.4.3).
 
-**Explicitly not guaranteed: bounded runtime.** rev-3 listed "bounded cost […]
-with no unbounded wait" as the third property. rev-4 **withdraws the wait
-half**. An ordinary read of an ordinary regular file can block indefinitely on
+**Explicitly not guaranteed: bounded runtime.** **Withdrawn rev-3 wording:**
+"bounded cost […] with no unbounded wait". An ordinary read of an ordinary
+regular file can block indefinitely on
 a stalled filesystem; v1 has no deadline and no cancellation (§7.4.2, §8.3,
 Q11, AVP-207).
 

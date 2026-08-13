@@ -674,9 +674,9 @@ decision, capture step or ladder row consumed it. rev-1 closes that gap.
 
 ### D16 — No bounded-runtime guarantee: the cost guarantees are about space, not time
 
-rev-0 of this ADR and rev-3 of the companion PRD asserted, in several places,
-that the command "has no unbounded wait anywhere", that "no leaf kind can hang
-it" and that "nothing hangs". **All such claims are withdrawn.**
+**Withdrawn claims from rev-0 of this ADR and rev-3 of the companion PRD:**
+the command "has no unbounded wait anywhere", "no leaf kind can hang it", and
+"nothing hangs".
 
 **What is guaranteed:**
 
