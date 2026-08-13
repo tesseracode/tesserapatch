@@ -800,6 +800,13 @@ repository + 24 stdlib claims, rooted-inspection ADR D1–D18. No implementation
 has begun. Gate 8/8 passes; GH #10 is closed. The prepare-intent-bundle PRD is
 now unblocked for planning.
 
+**GitHub CI stabilization** ✅ COMPLETE (2026-08-13; `efd96c8`,
+`35e8080`): Ubuntu shell shims now emit the unit separator with POSIX octal
+`\037`, and test Git subprocesses disable detached auto-maintenance as well as
+legacy auto-GC. Actions run
+[31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
+passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

@@ -10,22 +10,34 @@ implementation has begun.
 
 ## Active Task
 
-- **Task ID**: PRD-artifact-validation-and-provenance
-- **Description**: Define truthful read-only intent-artifact inspection,
-  provenance/migration boundaries and `tpatch prepare --check` as the
-  prerequisite to mutating preparation.
+- **Task ID**: GitHub CI stabilization
+- **Description**: Restore Ubuntu CI by fixing POSIX shell wrapper framing and
+  detached Git-maintenance teardown races.
 - **Status**: Complete
 - **Assigned**: 2026-08-13
-- **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
-- **Rev-1 writer base**: `3ecfa38`
-- **Rev-2 writer base**: `c590f17`
-- **Rev-3 writer base**: `5a678b5`
-- **Rev-4 writer base**: `be33d2a`
-- **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
-- **Scope**: one PRD + one ADR + ADR index + handoff.
+- **Base**: `bd1f749`
+- **POSIX wrapper fix**: `efd96c8`
+- **Maintenance teardown fix**: `35e8080`
+- **Green Actions run**:
+  [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
-- **Accepted contract tip**: `cd15165`
-- **Close tracking commit**: `cb771ce`
+
+## CI Stabilization Result
+
+The failure was still active on current main; it was not already fixed.
+
+1. Ubuntu `/bin/sh` (dash) does not interpret `printf '\x1f'`. Test Git shims
+   logged the literal four bytes `\x1f`, while Go parsers split on the real
+   unit separator. `efd96c8` changes every shell producer to POSIX octal
+   `\037`; production Git framing is unchanged.
+2. After that fix, Ubuntu exposed a separate flaky cleanup race:
+   `TestLandContaminatedRollbackFailureRetainsEvidence` could leave `.git`
+   non-empty while `t.TempDir` removed it. The shared pin disabled
+   `gc.auto` only; modern Git could still detach `git maintenance --auto`.
+   `35e8080` disables legacy auto-GC, modern auto-maintenance and both detach
+   controls for test subprocesses, with an exact env regression.
+
+Both Ubuntu and macOS test jobs now pass. The changes are test-only.
 
 ## Final Verdict
 

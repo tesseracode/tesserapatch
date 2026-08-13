@@ -1,3 +1,32 @@
+## Fix — GitHub CI stabilization — 2026-08-13
+
+**Base**: `bd1f749`
+**Fix commits**: `efd96c8`, `35e8080`
+
+### Diagnosis
+
+1. CI run
+   [31709294398](https://github.com/tesseracode/tesserapatch/actions/runs/31709294398)
+   failed because Ubuntu dash does not support `printf '\x1f'`; every wrapper
+   call record was unparsable.
+2. Run
+   [31732383640](https://github.com/tesseracode/tesserapatch/actions/runs/31732383640)
+   confirmed the wrapper fix, then exposed the known detached-maintenance
+   teardown class in `TestLandContaminatedRollbackFailureRetainsEvidence`.
+
+### Fix
+
+- Shell unit separators use portable octal `\037`.
+- Shared test Git config disables both auto-GC/maintenance and detachment.
+- Exact env regression added; flaky test passed 20 consecutive local runs.
+
+### Result
+
+Actions run
+[31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
+passes both Ubuntu and macOS jobs. Full local suite, vet and build pass.
+Production behavior and v0.15.1 tag are unchanged.
+
 ## Close — Artifact validation/provenance PRD + ADR-034 — 2026-08-13
 
 **WAVE_BASE**: `0aa0d95`

@@ -1,3 +1,23 @@
+# 2026-08-13 — GitHub CI stabilization — COMPLETE
+
+**Base**: `bd1f749`
+**POSIX wrapper fix**: `efd96c8`
+**Detached-maintenance fix**: `35e8080`
+**Green run**: [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
+
+**Failure 1**: Ubuntu dash printed `\x1f` literally in test-generated Git
+wrapper logs; parsers expected byte `0x1f`. Shell producers now use POSIX
+octal `\037`.
+
+**Failure 2**: after wrapper parsing was fixed, a detached
+`git maintenance --auto` process could race a temporary repository teardown.
+The shared test pin now sets `gc.auto=0`, `gc.autoDetach=false`,
+`maintenance.auto=false`, and `maintenance.autoDetach=false`.
+
+Both platform jobs pass. Test-only changes; v0.15.1 remains fixed.
+
+---
+
 # 2026-08-13 — Artifact validation/provenance PRD + ADR-034 — ACCEPTED
 
 **WAVE_BASE**: `0aa0d95`
