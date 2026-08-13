@@ -2,10 +2,14 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Artifact-validation/provenance PRD rev-1 closed every rev-0 finding but exposed
-status-path and cross-platform rooted-open gaps. Rev-2 is dispatched.
+Artifact-validation/provenance PRD rev-2 is written and every rev-1 finding is
+closed. The path architecture is now one held `*os.Root` (Go 1.26) for the
+repository root, `status.json` is inspected under the same discipline with its
+own cap and a total abort catalog, the bounded read is a fixed preallocated
+buffer, and the Windows contract rests on `os.Root`'s handle-relative
+primitives plus a required native `windows-latest` CI row. Awaiting review.
 
 ## Active Task
 
@@ -13,10 +17,11 @@ status-path and cross-platform rooted-open gaps. Rev-2 is dispatched.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-2
+- **Status**: Review rev-2
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
+- **Rev-2 writer base**: `c590f17`
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
 - **Scope**: one PRD + handoff. rev-1 touched nothing else.
 - **Release tag**: v0.15.1 remains fixed at `15560af`
@@ -393,6 +398,277 @@ review.
    the rev-0 no-op comparison.
 
 
+## PRD Writer Result — rev-2 (2026-08-13)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-artifact-validation-and-provenance.md` | rewritten in place; `Status: Draft — Awaiting Review (rev-2)`; byline `rev-2 at HEAD c590f17`; the `Revision history` table gains a rev-2 row and records rev-1's disposition as NEEDS REVISION |
+| `docs/handoff/CURRENT.md` | `Cluster state` flip to `AWAITING REVIEW`, Active Task `Status`/`Rev-2 writer base`, and this section |
+
+Nothing else was touched. **No** edit to `docs/ROADMAP.md`,
+`docs/supervisor/LOG.md`, `SPEC.md`, `docs/adrs/**`, `docs/whitepapers/**`
+(WP-005 was marked Graduated in rev-0 and needed no further change),
+`docs/prds/PRD-prepare-intent-bundle.md` (still undrafted, still blocked),
+`internal/**`, `cmd/**`, `assets/**`, `tests/**`, `.github/**`,
+`.wave-close-allowlist`, or any guarded untracked WIP (`WP-004`, `WP-006`,
+`WP-007`, `PRD-recurring-patches.md`, the state-of-the-art case studies).
+
+### Counts (mechanically verified, commit-independent)
+
+- **3,075 lines** in the PRD (rev-1: 2,233; rev-0: 1,478).
+- **188 acceptance rows** `AVP-001`…`AVP-188` (rev-1: 140), contiguous, zero
+  duplicates, zero retired rows. **48 new rows**; every rev-1 ID kept its
+  number.
+- **24 categories**: A 10, B 20, C 8, D 14, E 6, F 5, G 9, H 4, I 6, J 4, K 6,
+  L 3, M 6, N 5, O 12, P 10, Q 1, R 9, S 2, **T 12, V 17, W 5, X 6, Y 8**.
+  Sum = 188. The letter `U` is deliberately skipped as a category so it cannot
+  be confused with the `U` (unit) kind.
+- **By kind**: `U` 57, `I` 94, `S` 6, `G` 23, `S+G` 3, `U+G` 2, `I+G` 1,
+  `S+I` 2. Sum = 188.
+- **Guard arithmetic (the rev-1 defect)**: a row carries a guard component
+  **iff** its Kind contains `G` → 23 + 3 + 2 + 1 = **29 rows**. AVP-128
+  (`S+I`) is now excluded, and AVP-139 derives the set mechanically instead of
+  from a hand-list.
+- **All 188 rows are assigned to exactly one slice** (S1 69, S2 27, S3 47,
+  S4 38, S5 7). Verified as a partition: zero unassigned, zero double-assigned.
+- **Claims audit split in two**: **88 repository claims** `C1`…`C88`
+  (rev-1: 75), contiguous, anchored `file:line`; plus a new **§23.2 with 12
+  Go-standard-library claims** `G1`…`G12`, anchored **by symbol** in
+  `$GOROOT/src/os/...` rather than by line, each naming the acceptance row that
+  verifies it at runtime.
+- **159 distinct repository `file:line` anchors** across 35 files; all
+  mechanically verified in-range, zero out-of-range, zero missing files.
+
+### What rev-2 changed, finding by finding
+
+1. **Rooted namespace (§7.3, §7.4).** One `os.OpenRoot(repoRoot)` per run,
+   held for the whole inspection, passed to `Inspect`, closed once by the CLI.
+   Every `Lstat` is `Root.Lstat`, every open is `Root.OpenFile`, every
+   descriptor stat is `(*os.File).Stat`. `filepath.Join(repoRoot, …)`,
+   `os.Stat`, `os.Lstat`, `os.Open`, `os.OpenFile` and `os.ReadFile` are all
+   forbidden and source-scanned (AVP-089, AVP-144, AVP-150).
+2. **Platform scope stated honestly (§7.4.1).** A three-row table over the Go
+   build-tag split: `unix||wasip1` and `windows` are confined; `(js&&wasm)||plan9`
+   is **not**, per the `Root` doc comment. A build-tagged
+   `rootConfinementSupported` constant makes the unsupported targets abort
+   `workspace-unsupported-platform` before `os.OpenRoot` is called
+   (AVP-177, AVP-179).
+3. **Component policy widened to reparse points.** The refusal predicate is
+   `Mode()&(ModeSymlink|ModeIrregular)`, because Go maps a Windows **junction**
+   (`IO_REPARSE_TAG_MOUNT_POINT`) to `ModeIrregular`, not `ModeSymlink`. A
+   sensitivity fixture that tests only `ModeSymlink` lets the junction through
+   and fails (AVP-146).
+4. **The no-follow claim is dropped, and the race behavior is stated exactly
+   (§7.4.2, §7.4.4).** `os.Root` **follows** in-root symlinks; it is a
+   confinement primitive, not a no-follow primitive. On Unix `Root.OpenFile`
+   already ORs `O_NOFOLLOW` internally and converts the `ELOOP` into an in-root
+   *resolution*, so a caller cannot obtain a final-leaf refusal from it — the
+   PRD says so and **no acceptance row claims otherwise**. What is claimed is a
+   three-row table: an out-of-root raced link → `Root` refuses → `unreadable`,
+   zero bytes; an in-root raced link to a *different* object → identity
+   mismatch → `unstable`, **zero bytes**; an in-root raced link to the *same*
+   inode → read proceeds, and the same-identity alias is explicitly **not**
+   claimed detectable. AVP-148, AVP-149, AVP-151, plus AVP-152, a mechanical
+   over-claim guard over every shipped string.
+5. **Windows contract rebuilt (§7.4.3).** rev-1's raw `syscall.CreateFile` with
+   `FILE_FLAG_OPEN_REPARSE_POINT` was self-contradictory — the flag makes the
+   open *succeed* while the ladder classified from an open *error*. rev-2 has
+   no raw syscall at all: reparse points are refused pre-open by `Root.Lstat`
+   (whose Windows implementation is itself an `OPEN_REPARSE_POINT` handle open
+   plus a handle-derived stat), and pipes/char devices are refused by
+   `statHandle`'s `GetFileType`-derived modes at ladder rows 7 and 14.
+   `openFlags()` returns `0` on Windows and `O_NOFOLLOW|O_NONBLOCK` on Unix
+   (AVP-118, AVP-180).
+6. **`os.SameFile`-on-a-pathname removed.** Both sides of the identity check
+   are handle-derived on both platform classes. On Windows,
+   `newFileStatFromGetFileInformationByHandle` clears the struct's `path` field
+   specifically so `os.SameFile` will not re-fetch by pathname, and
+   `(*File).Stat` is `statHandle(name, handle)` — cited as G7/G8 and asserted
+   natively by AVP-176.
+7. **Native Windows CI is an acceptance obligation, not an assumption.** The CI
+   matrix is Linux + macOS today (C84). §16.1 makes adding `windows-latest` a
+   **required** file change, §17 lands it in **S1** alongside the Windows code,
+   AVP-175 parses the workflow and fails if it is absent, and AVP-176 is the
+   native behavioral row. R7's severity was raised to High.
+8. **Fixed-buffer read (§7.4.5).** rev-1's `io.ReadAll(io.LimitReader(f,
+   Max+1))` "exact allocation ceiling" claim was **false** — `io.ReadAll` grows
+   by `append`. rev-2 uses one `make([]byte, MaxArtifactBytes+1)` plus
+   `io.ReadFull`, with a total four-way EOF table (`io.EOF` → empty;
+   `ErrUnexpectedEOF` → captured `buf[:n]`; `nil` → grew past the cap →
+   `unstable`; anything else → `unreadable`). An allocation-counting fixture
+   asserts exactly one allocation of exactly `Max+1` bytes per capture
+   (AVP-170…AVP-174); `io.ReadAll`, `io.LimitReader` and `os.ReadFile` are
+   source-forbidden with a sensitivity fixture that reintroduces the rev-1 form.
+9. **`status.json` (§9.4).** `store.LoadFeatureStatus` — `os.ReadFile` on an
+   absolute pathname, symlink-following, unbounded, no kind or identity check —
+   is **forbidden** (AVP-150), and the rev-1 `StateReader` seam is deleted from
+   §7.1. The status file gets the full rooted discipline, its **own**
+   `MaxStatusBytes = 1 MiB` cap (justified, and separate so widening Q3 cannot
+   silently widen it), a 19-row first-match ladder, and a **nine-value** outcome
+   enum. Two outcomes continue (`ok`, `absent`); seven abort.
+10. **Closed abort catalog grown to thirteen codes (§9.4.4)** with **exact
+    message templates (§9.4.5)**: `slug-unsafe`,
+    `workspace-unsupported-platform`, `workspace-not-initialized`,
+    `workspace-root-unopenable`, `feature-dir-unsafe`, `feature-not-found`,
+    `status-symlink-refused`, `status-not-regular`, `status-oversize`,
+    `status-unreadable`, `status-unstable`, `status-malformed`,
+    `status-invalid-state`. Bijection code↔message asserted; no template wraps
+    an `os` error or carries an absolute path (AVP-181).
+11. **`FeatureState` validated before echo (§9.4.2 row 18).** The inspector
+    carries its own closed twelve-value list with a two-way AST parity guard
+    against `store` (AVP-165); a parsed-but-unrecognised state aborts
+    `status-invalid-state` and **the offending value is never echoed**
+    (AVP-164, AVP-185).
+12. **Lifecycle line made truthful per population (§10.5.1).** A fifteen-row
+    table (status `ok`, status `absent`, thirteen aborts). rev-1 printed
+    `(status.json was not read)` on every abort, which is false for
+    `status-malformed`, `status-invalid-state`, `status-unreadable` and
+    `status-unstable`. AVP-154 asserts those four do **not** contain the
+    substring `was not read`; AVP-153 is the totality guard.
+13. **`--path` exit ownership corrected (§9.2).** `--path` is a persistent
+    **string** flag (`internal/cli/cobra.go:66`); pflag validates nothing, so
+    the failure surfaces inside `RunE` at `store.FindProjectRoot`
+    (`internal/store/store.go:23-40`) — the actual trigger — and is bound to
+    abort `workspace-not-initialized`, **exit 3**, not cobra exit 1. The
+    genuine exit-1 population is unknown flags, wrong arity, and `--path` with
+    no value (AVP-183, AVP-184). `store.Open` is documented as **not** the
+    trigger and is never called.
+14. **Quiet abort distinguishes codes.** All thirteen `--quiet` abort lines are
+    pairwise distinct and carry the same closed token as `abort.code` and the
+    `error:` line; the bare `— indeterminate` form is reserved for the one
+    non-abort indeterminate case (AVP-098, AVP-184).
+15. **"Printable ASCII" replaced (§14.3).** That claim was wrong on the
+    command's own happy path — the `—` in the quiet line and the `→`
+    remediation marker are required non-ASCII house style. The rule is now: no
+    ASCII control byte other than the renderer's own `0x0A` (so no `0x1B`, no
+    tab, no CR), no attacker-argument bytes, valid UTF-8, house style preserved
+    (AVP-187).
+16. **`slug-unsafe` remediation de-looped (§7.2).** rev-1 said "Run `tpatch
+    status` to list valid slugs" — but `ListFeatures` applies no canonicality
+    filter (C16), so `status` prints the same refused name back. The message
+    now names `tpatch add` and the rename path only. §13.3 splits the
+    hand-assembled population into a canonically-named row (fully inspectable,
+    the only claim made) and a non-canonically-named row (AVP-186).
+17. **Skill wording for exit 2 (§16.2 item 6).** Verbatim required paragraph in
+    all six surfaces stating exit 2 is an expected report outcome, not a
+    workflow or system failure; it may not be called an error, a failure or a
+    blocker. AVP-188, with a sensitivity fixture on "fails with exit 2". New
+    risk R12.
+18. **Source claims corrected.** C60 now records that
+    `internal/rescap/pathopen_windows.go` is an **unsupported compile-only
+    stub** (bare `os.OpenFile`, `isSymlinkLoopError` always false) — precedent
+    for the problem, not a reusable implementation. C61/C82 record that
+    `rescap.readBounded` uses a growable `append` buffer. C28's stale
+    `types.go:207-215` anchor for the `DependsOn` doc comment is corrected to
+    `:219-234`. §4's preflight gains rows for `store.LoadFeatureStatus` and
+    `os.Root`.
+19. **New ladder rows and probes.** The per-artifact ladder stays 24 rows but
+    is rebuilt on `Root`; row 10 (out-of-root escape refusal → `unreadable`) is
+    stated separately from row 11 for honesty even though both share a state,
+    because `errPathEscapes` is unexported and undiscriminable (G11). The seven
+    instability probes move to rows 9, 13, 14, 15, 17, 18, 20.
+20. **New alternatives recorded (§22).** Seven new rejected-alternative rows,
+    each naming a rev-1 behavior and why it is gone:
+    `io.ReadAll(LimitReader)`, pathname-walk resolution, the raw `CreateFile`,
+    `os.SameFile`-on-a-pathname, `store.LoadFeatureStatus`, grouping the seven
+    status aborts into one code, and the printable-ASCII assertion.
+
+### Unchanged from rev-1 (deliberately, as instructed)
+
+- **No mutating `prepare`**; plain `prepare <slug>` still refuses with exit 4
+  before anything runs.
+- **No lifecycle state**, no new `FeatureState`, no transition, no write.
+- **Individual `--manual` / `next` / `cycle` unchanged** (§12, §13.2), still
+  pinned by AVP-064…AVP-069 and the composite rows AVP-130…AVP-133.
+- **`provenance` is the constant `unknown`** with §11.1's stable "not provable"
+  meaning; the seven forbidden inference sources are unchanged.
+- **No persistent provenance representation selected; no ADR created.** The
+  §11.4 trigger remains narrow and unexercised.
+- **`PRD-prepare-intent-bundle.md` remains blocked and undrafted** (§20).
+- Full-bundle readiness (§6.2), the advisory total function (§10.4), the
+  two-shape `artifacts` iff-`abort` rule, the composite differentials, the
+  reverse call-graph routing guards, the sidecar instability rows and the
+  forbidden-field key-name scoping all carry over intact.
+
+### Open decisions left to review (§21, eight)
+
+Q1 `--all`; Q2 whether exit `4` becomes a cross-command convention; Q3
+`MaxArtifactBytes = 4 MiB`; Q4 `request.md` as a fifth optional row; Q5
+platform-conditional Windows reserved-device refusal; Q6 `--format` aliasing;
+**Q7 (new)** `MaxStatusBytes = 1 MiB` and whether it stays separate from
+`MaxArtifactBytes`; **Q8 (new)** whether `workspace-unsupported-platform`
+should be a compile-time refusal instead of a runtime abort. All eight have a
+stated default; none blocks review.
+
+### Implementation status
+
+**None.** Planning only. No Go file, test, asset, workflow or CLI surface was
+created or modified. The PRD defines five ordered slices (S1–S5); S1 now also
+carries the `windows-latest` CI matrix row and the pre-change routing goldens.
+
+### Validation performed (docs-only change)
+
+- **Repository anchors**: 159 distinct `file:line` citations across 35 files
+  parsed and checked in-range; zero bad. Every new or changed anchor was
+  additionally content-verified by reading the cited lines — `FindProjectRoot`,
+  `ListFeatures`, `ValidFeatureState`, the `FeatureState` const block, the
+  `--path` registration, `LoadFeatureStatus`, `SaveFeatureStatus`,
+  `AddFeature`, `Notes`, `DependsOn`, the CI matrix and step block, `go.mod`'s
+  Go version, the `rescap` Windows stub, `readBounded`, and
+  `pathgate.SamePathIdentity`.
+- **Go stdlib claims**: read directly from the pinned toolchain's `GOROOT`
+  (`go1.26.5`) — `os/root.go`, `root_openat.go`, `root_unix.go`,
+  `root_windows.go`, `root_noopenat.go`, `stat_windows.go`, `stat_unix.go`,
+  `types_windows.go`, `types_unix.go`, `file.go`. Cited **by symbol**, never by
+  line, and every one is additionally backed by a runtime acceptance row.
+- **Matrix mechanics**: 188 rows, contiguous `AVP-001`…`AVP-188`, zero
+  duplicates; every `AVP-NNN` referenced in prose resolves to a real row;
+  category counts sum to 188; kind counts sum to 188; the slice assignment is a
+  verified partition of 1…188.
+- **Claims mechanics**: `C1`…`C88` and `G1`…`G12` both contiguous, zero
+  duplicates.
+- **Markdown hygiene**: 30 fence markers (balanced); every table's data rows
+  match its header column count (checked with `\|`-escape awareness); zero
+  trailing-whitespace lines; all 13 relative links resolve on disk; both `json`
+  fenced blocks parse.
+- **Cross-reference closure**: every `§N.N` reference in the document resolves
+  to a heading that exists.
+- No Go source changed, so `gofmt` / `go build` / `go test` are not applicable
+  to this change set; no existing docs test targets these files
+  (`internal/workflow/docs_totality_guard_test.go` reads exactly three
+  verify-family documents, none of them touched here).
+
+### Reviewer focus for rev-2
+
+1. **§7.4.2 and §7.4.4 are the load-bearing honesty sections.** The question to
+   test is not "is `os.Root` safer" but "does the PRD claim exactly what
+   `os.Root` provides and nothing more". Specifically: it claims **confinement**
+   and **no substitution**, and it explicitly disclaims final-leaf no-follow
+   and same-identity-alias detection. AVP-152 is the mechanical guard against
+   any shipped string drifting back into the stronger claim.
+2. **The Unix `O_NOFOLLOW` flag is deliberately described as inert.**
+   `rootOpenFileNolog` already sets it and `doInRoot` converts the signal into
+   an in-root resolution. If a reviewer finds any row or sentence that treats
+   it as a refusal mechanism, that is a defect.
+3. **§9.4.2's status ladder must be checked for totality against §9.4.3's nine
+   outcomes and §9.4.4's thirteen codes.** The three tables have to agree, and
+   AVP-168 is the guard that says so.
+4. **§10.5.1 is the fix for the falsest sentence in rev-1.** Check that no
+   annotation says "was not read" for a population where a read happened.
+5. **§16.1's CI row is a hard requirement, not advice.** If the reviewer thinks
+   `GOOS=windows` cross-building is sufficient, that disagreement should be
+   raised now — the whole Windows half of §7.4.3 rests on runtime behavior a
+   cross-build cannot execute.
+6. **§18.26's guard arithmetic is stated as a predicate.** Recount it: 23 pure
+   `G` + 3 `S+G` + 2 `U+G` + 1 `I+G` = 29, and AVP-128 (`S+I`) is out. If the
+   count does not reproduce, the section is wrong.
+7. **The claims audit is now two tables with two anchoring conventions**
+   (§23.1 `file:line`, §23.2 by symbol). The by-symbol choice is deliberate —
+   toolchain line numbers drift across patch releases — and each G-claim names
+   its runtime verifier so the citation is not the only evidence.
+
 ## WP-005 Turn 2 Scope
 
 - Append one `agreement` turn introducing the new stable agent ID.
@@ -622,16 +898,20 @@ Modified:
 
 ## Next Steps
 
-1. Rewrite status/artifact reads around one rooted namespace and fixed-buffer
-   bounded capture.
-2. Close lifecycle validation, abort-message, workspace-path, quiet output and
-   matrix arithmetic findings.
-3. Re-run both PRD reviews.
+1. Run the internal and external rev-2 PRD reviews against the reviewer-focus
+   list in "PRD Writer Result — rev-2".
+2. Adjudicate; on APPROVED, archive this handoff to `HISTORY.md`, flip
+   `docs/ROADMAP.md`, append the verdicts to `docs/supervisor/LOG.md`, and run
+   the Wave-Close Checklist before any implementation dispatch.
+3. If implementation is authorized, dispatch S1 first — it carries the
+   `windows-latest` CI matrix row and the pre-change routing goldens, and both
+   are prerequisites for later slices.
 4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
 
 ## Blockers
 
-Rev-1 is not acceptable for implementation until the findings below close.
+None outstanding for the writer lane: every rev-1 finding recorded below is
+closed in rev-2. Implementation remains gated on rev-2 acceptance.
 
 ## Rev-1 Review Adjudication
 
@@ -639,6 +919,8 @@ Rev-1 is not acceptable for implementation until the findings below close.
 - **External**: NEEDS REVISION; every rev-0 finding closed, then three
   blocking status/output findings plus bounded completeness notes.
 - **Supervisor verdict**: NEEDS REVISION → rev-2.
+- **Disposition**: every item below is **closed in rev-2** — see "PRD Writer
+  Result — rev-2" for the point-by-point mapping.
 
 ### Rev-2 architecture correction
 
