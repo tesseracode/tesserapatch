@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-5 DISPATCHED
 
-Artifact-validation/provenance PRD **rev-4** and ADR-034 **rev-1** are written
-and ready for joint re-review. All eight rev-4 required corrections are closed;
-no reopened decision. Reviewer focus is at the end of the rev-4 result section.
+Artifact-validation/provenance PRD rev-4 and ADR-034 rev-1 preserve the
+accepted contract but retain one stale timing assertion and count/index prose.
+Final rev-5 is dispatched.
 
 ## Active Task
 
@@ -14,7 +14,7 @@ no reopened decision. Reviewer focus is at the end of the rev-4 result section.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Writer rev-4 + ADR-034 rev-1 — **AWAITING REVIEW**
+- **Status**: Final editorial rev-5 + ADR-034 rev-2
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`

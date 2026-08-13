@@ -1,3 +1,30 @@
+## Review — PRD artifact validation rev-4 + ADR-034 rev-1 — 2026-08-13
+
+**Writer tip**: `80768fb`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION → FINAL REV-5 FOLD
+
+### Confirmed Clean
+
+Platform tags, runtime scope, identity seam, adapter parity, descriptor close,
+Cobra ownership, Windows mapping, workspace divergence, buffer rationale,
+208-row arithmetic and ADR D1–D18.
+
+### Residuals
+
+1. **Internal HIGH**: AVP-082 still promised `runtime bounded`, contradicting
+   ADR D16 and AVP-207.
+2. **External LOW**: advisory catalog labels say eleven but enumerate ten.
+3. **External editorial**: ADR index rev labels stale; identity paragraph says
+   four cases but lists five.
+
+### Action Taken
+
+Final rev-5 editorial fold dispatched. No contract decision or row shape
+changes; both reviewers re-read the affected lines before acceptance.
+
 ## Writer — PRD artifact validation rev-4 + ADR-034 rev-1 — 2026-08-13
 
 **Writer tip**: `80768fb`
