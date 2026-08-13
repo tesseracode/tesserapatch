@@ -8,11 +8,12 @@
 **Issue**: [GH #10 — define truthful intent-artifact validation and provenance](https://github.com/tesseracode/tesserapatch/issues/10)
 **Graduates from**: [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md), Turns 2–4
 **Architecture**: [ADR-034 — Rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md)
-(Proposed — Awaiting Review, rev-2). **This PRD and ADR-034 are reviewed
+(Accepted — 2026-08-13, rev-2). **This PRD and ADR-034 were reviewed
 together.** The ADR locks the decisions; this PRD states the design that
 depends on them. Where they overlap, ADR-034 is normative.
-**Blocks**: `PRD-prepare-intent-bundle.md` — **that PRD remains blocked until this
-one is accepted.** See §20.
+**Unblocks**: `PRD-prepare-intent-bundle.md` for planning only. Mutating
+implementation remains unauthorized until that separate PRD is accepted. See
+§20.
 
 ## Related
 
@@ -29,7 +30,7 @@ one is accepted.** See §20.
 - [ADR-027 capture context privacy boundary](../adrs/ADR-027-capture-context-privacy-boundary.md) — D2 (no raw context), D6 (no wall-clock in determinism)
 - [ADR-031 rejected feature state data model](../adrs/ADR-031-rejected-feature-state-data-model.md) — D1 sub-record-on-`FeatureStatus` precedent, weighed in §11
 - [ADR-033 resource capture boundary](../adrs/ADR-033-resource-capture-boundary.md) — D10 (no tracked timestamps), D11 (no Go map in a wire schema)
-- [ADR-034 rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md) — **companion, Proposed rev-2.** D1–D18 lock the `os.Root` decision, the logical-confinement scope, workspace discovery's exclusion, the `fs.ValidPath` name rule, the fail-closed `unix || windows` platform allowlist, the open flags, the Windows mapping and `winsymlink` policy, the observed-symlink/identity limits, the single reused scratch buffer, the contract/tripwire split and its Go-upgrade gate, the non-migration of `rescap`, the two-adapter test seam (including the injectable `SameFile`), native Windows CI, the absence of any provenance persistence, the descriptor-close contract, the **withdrawal of every bounded-runtime claim**, Cobra parse-error ownership, and the deliberate exit-3 workspace divergence
+- [ADR-034 rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md) — **companion, Accepted rev-2.** D1–D18 lock the `os.Root` decision, the logical-confinement scope, workspace discovery's exclusion, the `fs.ValidPath` name rule, the fail-closed `unix || windows` platform allowlist, the open flags, the Windows mapping and `winsymlink` policy, the observed-symlink/identity limits, the single reused scratch buffer, the contract/tripwire split and its Go-upgrade gate, the non-migration of `rescap`, the two-adapter test seam (including the injectable `SameFile`), native Windows CI, the absence of any provenance persistence, the descriptor-close contract, the **withdrawal of every bounded-runtime claim**, Cobra parse-error ownership, and the deliberate exit-3 workspace divergence
 
 ## Revision history
 
@@ -4012,15 +4013,16 @@ without a proven failure mode is not evidence.
 | R18 | An operator or an agent reads the command as "cannot hang" — rev-3 said exactly that — and wires it into a blocking, non-cancellable harness or CI preflight step; a stalled NFS/SMB mount, a wedged FUSE server or an unresponsive device then hangs the pipeline. | **High** | rev-4 **withdraws every bounded-runtime claim**: §7.4.2, §7.4.3, §8.3, §14.1, §15 and §5.1 now say what is bounded (allocation, bytes requested, operation count, the Unix open) and state plainly that an ordinary read can block indefinitely with no timeout and no cancellation in v1. §14.1 boundary 4 records that availability is out of scope. AVP-207 is a mechanical over-claim guard over every shipped string, this PRD and ADR-034, with three sensitivity fixtures drawn from rev-3's own removed sentences; §16.2 item 7 forbids any skill surface from making a timing promise; Q11 records adding a deadline or cancellable context as an additive later decision. |
 | R19 | A descriptor is leaked on one of the fifteen post-open ladder paths, and a harness that invokes the command in a loop exhausts its descriptor table. | Medium | §7.4.4 step 11a makes the close unconditional and exactly-once; §7.5 row 20c makes its failure a classified outcome rather than a discarded error; AVP-205 counts opens against closes over every post-open ladder row, every status post-open row and all thirteen aborts, asserts zero outstanding descriptors when `Inspect` returns, and ships two sensitivity fixtures (a skipped close and a double close). |
 
-## 20. Relationship to `PRD-prepare-intent-bundle` (blocked)
+## 20. Relationship to `PRD-prepare-intent-bundle` (unblocked for planning)
 
-**`PRD-prepare-intent-bundle.md` remains blocked until this PRD is accepted.**
-It is not drafted, not scheduled, and not implied by anything here. Nothing in
-this PRD's shipped output — including the §5.3 refusal — may reference it, for
+This PRD is now accepted, so `PRD-prepare-intent-bundle.md` is unblocked for
+planning. That document remains undrafted at this acceptance point, and no
+mutating implementation is authorized. Nothing in this PRD's future shipped
+output — including the §5.3 refusal — may reference the planning document, for
 the reason given in §5.3.
 
-When it is unblocked it must, at minimum, address what this PRD deliberately
-does not:
+The prepare-intent-bundle PRD must, at minimum, address what this PRD
+deliberately does not:
 
 1. **Atomic publication.** WP-005 Turn 3 fixes the unit as the three canonical
    Markdown files **plus** structured sidecars **plus** the final `status.json`
