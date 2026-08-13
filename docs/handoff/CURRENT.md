@@ -2,14 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
-Artifact-validation/provenance PRD rev-2 is written and every rev-1 finding is
-closed. The path architecture is now one held `*os.Root` (Go 1.26) for the
-repository root, `status.json` is inspected under the same discipline with its
-own cap and a total abort catalog, the bounded read is a fixed preallocated
-buffer, and the Windows contract rests on `os.Root`'s handle-relative
-primitives plus a required native `windows-latest` CI row. Awaiting review.
+Artifact-validation/provenance PRD rev-2 closed every rev-1 finding but
+overstated `os.Root` and platform guarantees. Rev-3 is dispatched with a
+coupled proposed ADR-034 for the rooted inspection architecture.
 
 ## Active Task
 
@@ -17,7 +14,7 @@ primitives plus a required native `windows-latest` CI row. Awaiting review.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Review rev-2
+- **Status**: Writer rev-3 + ADR-034 rev-0
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
@@ -898,20 +895,55 @@ Modified:
 
 ## Next Steps
 
-1. Run the internal and external rev-2 PRD reviews against the reviewer-focus
-   list in "PRD Writer Result — rev-2".
-2. Adjudicate; on APPROVED, archive this handoff to `HISTORY.md`, flip
-   `docs/ROADMAP.md`, append the verdicts to `docs/supervisor/LOG.md`, and run
-   the Wave-Close Checklist before any implementation dispatch.
-3. If implementation is authorized, dispatch S1 first — it carries the
-   `windows-latest` CI matrix row and the pre-change routing goldens, and both
-   are prerequisites for later slices.
+1. Write PRD rev-3 and proposed ADR-034.
+2. Re-run internal/external review over both documents.
+3. Continue bounded revisions until both are accepted.
 4. Keep `PRD-prepare-intent-bundle.md` blocked throughout.
 
 ## Blockers
 
-None outstanding for the writer lane: every rev-1 finding recorded below is
-closed in rev-2. Implementation remains gated on rev-2 acceptance.
+Rev-2 is not acceptable until the architecture and public-guarantee findings
+below close.
+
+## Rev-2 Review Adjudication
+
+- **Internal**: NEEDS REVISION (4 HIGH, 2 MEDIUM).
+- **External**: NEEDS REVISION; all rev-1 findings closed, then bounded
+  `os.Root`, seam, citation and platform-policy findings.
+- **Supervisor verdict**: NEEDS REVISION → rev-3 + ADR-034.
+
+### Architecture decision now requiring ADR
+
+Adopting a held `*os.Root` as a new read-only rooted namespace is a non-obvious
+repository architecture choice. It differs from the shipped
+`rescap.GatePath` pathname model and sets platform/confinement/identity policy.
+Rev-3 must create proposed
+`ADR-034-rooted-filesystem-inspection-boundary.md` and review it with the PRD.
+This is **not** the deferred provenance ADR; provenance remains constant
+`unknown`.
+
+### Rev-3 required corrections
+
+1. Scope `os.Root` honestly: logical root confinement, not physical filesystem
+   boundary confinement; bind mounts/filesystem boundaries remain reachable.
+2. Use allowlist build tags (`unix || windows || wasip1`) and fail closed on
+   other targets; validate slug before platform selection.
+3. Remove `EnsureSafeRepoPath` misuse and use canonical `fs.ValidPath`
+   root-relative names.
+4. Correct Windows reparse mapping, pin `winsymlink=1`, and make native Windows
+   junction tests fail rather than skip.
+5. Define injectable rooted/file operation seams for deterministic race/error
+   rows without weakening production call-graph guards.
+6. Reuse one fixed cap-plus-one data buffer per inspection and document cost.
+7. Weaken identity claims to “objects observed as different are never read”;
+   document inode/file-ID reuse and same-identity aliases.
+8. Pre/post-walk components per capture; describe the residual swap-back
+   limitation.
+9. Scope attacker-byte guarantees to command-owned output; Cobra parse errors
+   remain generic CLI behavior.
+10. Correct every drifted AVP citation and add a citation-resolution guard.
+11. Couple cap values to frozen messages, define Windows test mechanism, and
+    close the remaining status/output wording.
 
 ## Rev-1 Review Adjudication
 

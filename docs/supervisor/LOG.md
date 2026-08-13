@@ -1,3 +1,45 @@
+## Review — PRD artifact validation and provenance rev-2 — 2026-08-13
+
+**Writer tip**: `0fa1c07`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION → REV-3 + ADR-034 DISPATCHED
+
+### Confirmed Closed
+
+Every rev-1 finding: status bounded capture/state validation, lifecycle text,
+closed abort messages, workspace path ownership, fixed buffer, quiet/control
+wording, guard arithmetic, canonical hand-made behavior and skill exit-2
+guidance.
+
+### New Findings
+
+- `os.Root` confines pathname resolution but permits mount/filesystem
+  boundaries; physical "inside repository" claims were too broad.
+- Platform tags were a fail-open denylist; Windows reparse mapping was
+  inaccurate and `winsymlink` was unpinned.
+- Universal control-byte promises accidentally covered Cobra parse errors.
+- Lexical `EnsureSafeRepoPath` use was incompatible with unrelated-CWD
+  `--path`.
+- Deterministic error/race rows lacked injectable seams.
+- Several prose-to-AVP citations drifted during the rewrite.
+- Identity equality, fixed-buffer allocation cost and walk-to-Lstat races
+  needed honest limits.
+
+### Architecture Adjudication
+
+The `os.Root` choice now triggers AGENTS.md's architecture-record rule.
+Proposed ADR-034 will lock logical confinement, platform allowlists, identity
+limits, fixed-buffer policy, native Windows coverage and the non-migration of
+`rescap` in this slice. This is separate from provenance; its ADR trigger
+remains unfired.
+
+### Action Taken
+
+Same writer dispatched for PRD rev-3 plus ADR-034 rev-0. No code or mutating
+prepare is authorized.
+
 ## Writer — PRD artifact validation and provenance rev-2 — 2026-08-13
 
 **Writer tip**: `0fa1c07`
