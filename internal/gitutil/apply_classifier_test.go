@@ -337,9 +337,11 @@ func installEnvRecordingGit(t *testing.T) string {
 	}
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "calls.log")
+	// POSIX printf uses octal escapes; Ubuntu's /bin/sh (dash) does not
+	// interpret \xHH and would log the four literal bytes "\x1f".
 	script := "#!/bin/sh\n{\n" +
-		"  for a in \"$@\"; do printf '%s\\x1f' \"$a\"; done\n" +
-		"  printf 'ENV\\x1fLC_ALL=%s\\x1fGIT_NO_LAZY_FETCH=%s\\n' \"${LC_ALL-}\" \"${GIT_NO_LAZY_FETCH-}\"\n" +
+		"  for a in \"$@\"; do printf '%s\\037' \"$a\"; done\n" +
+		"  printf 'ENV\\037LC_ALL=%s\\037GIT_NO_LAZY_FETCH=%s\\n' \"${LC_ALL-}\" \"${GIT_NO_LAZY_FETCH-}\"\n" +
 		"} >> " + logPath + "\nexec " + realGit + " \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755); err != nil {
 		t.Fatalf("write shim: %v", err)

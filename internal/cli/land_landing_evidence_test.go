@@ -713,8 +713,9 @@ func installLandGitWrapper(t *testing.T) string {
 	}
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "calls.log")
+	// Use POSIX octal: Ubuntu's /bin/sh does not interpret \xHH escapes.
 	script := "#!/bin/sh\n{\n" +
-		"  for a in \"$@\"; do printf '%s\\x1f' \"$a\"; done\n" +
+		"  for a in \"$@\"; do printf '%s\\037' \"$a\"; done\n" +
 		"  printf 'GIT_NO_LAZY_FETCH=%s\\n' \"${GIT_NO_LAZY_FETCH-}\"\n" +
 		"} >> " + logPath + "\nexec " + realGit + " \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755); err != nil {

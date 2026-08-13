@@ -322,7 +322,9 @@ func advisoryByCode(r *VerifyReport, code string) (VerifyAdvisory, bool) {
 
 // gitWrapper installs a shim named `git` first on PATH that forwards to
 // the real git while appending one record per invocation to a log file.
-// Each record is `argv...\x1fENV=<k=v;...>`.
+// Each record is argv fields separated by the 0x1f unit separator, followed
+// by ENV fields. The shell emits it as \037 because POSIX printf does not
+// require support for \xHH escapes (Ubuntu /bin/sh does not support them).
 type gitWrapper struct {
 	t       *testing.T
 	dir     string
@@ -341,8 +343,8 @@ func installGitWrapper(t *testing.T) *gitWrapper {
 	script := fmt.Sprintf(`#!/bin/sh
 {
   printf '%%s' "ARGS"
-  for a in "$@"; do printf '\x1f%%s' "$a"; done
-  printf '\x1fENV\x1fGIT_NO_LAZY_FETCH=%%s\x1fLC_ALL=%%s\x1fGIT_INDEX_FILE=%%s\n' "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_INDEX_FILE-}"
+  for a in "$@"; do printf '\037%%s' "$a"; done
+  printf '\037ENV\037GIT_NO_LAZY_FETCH=%%s\037LC_ALL=%%s\037GIT_INDEX_FILE=%%s\n' "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_INDEX_FILE-}"
 } >> %q
 exec %q "$@"
 `, logPath, realGit)
@@ -365,7 +367,7 @@ func installFakeVersionGit(t *testing.T, version string) *gitWrapper {
 	script := fmt.Sprintf(`#!/bin/sh
 {
   printf '%%s' "ARGS"
-  for a in "$@"; do printf '\x1f%%s' "$a"; done
+  for a in "$@"; do printf '\037%%s' "$a"; done
   printf '\n'
 } >> %q
 if [ "$1" = "--version" ]; then
