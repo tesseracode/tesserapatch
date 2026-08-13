@@ -1,9 +1,9 @@
 # ADR-034 — Rooted Filesystem Inspection Boundary
 
-**Status**: Proposed — Awaiting Review (rev-1)
+**Status**: Proposed — Awaiting Review (rev-2)
 **Date**: 2026-08-13 (Proposed)
 **Owner**: Core (planning lane)
-**Byline**: writer sub-agent, rev-1 at HEAD `be33d2a`
+**Byline**: writer sub-agent, rev-2 at HEAD `70876c1`
 **Cluster**: WP-005 spec-driven workflows / GH #10
 **Supersedes**: none
 **Superseded by**: none
@@ -11,7 +11,7 @@
 context, D6 no wall-clock), [ADR-033](./ADR-033-resource-capture-boundary.md)
 (D10 no tracked timestamps, D11 no Go map in a wire schema)
 **Companion**: [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md)
-(rev-4, Draft — Awaiting Review). **The two documents are reviewed together.**
+(rev-5, Draft — Awaiting Review). **The two documents are reviewed together.**
 Read the PRD for the full design and its acceptance matrix; this ADR states the
 decisions the PRD's §7 depends on, and where the two overlap **this ADR is
 normative**.
@@ -23,13 +23,14 @@ S1–S5). No implementation is authorized until both documents are accepted.
 | Rev | Disposition | What changed |
 |---|---|---|
 | rev-0 | NEEDS REVISION (internal and external) | First draft: D1–D14. |
-| rev-1 | this document | **D5** narrows the confinement allowlist from `unix \|\| windows \|\| wasip1` to **`unix \|\| windows`**; `wasip1` becomes an unsupported target that aborts, the "byte-identical to the stdlib tag" justification is withdrawn in favour of an asserted **subset** relation, and **no split implementation** is authorized. **D6** scopes `O_NONBLOCK` to the *open*. **D7**'s name-surrogate column is corrected to the `0x20000000` bit test rather than a two-tag list. **D8** records that bytes read through an unobserved consistent alias are **attributed to the canonical name**. **D9** corrects the `io.ReadAll(io.LimitReader(...))` rationale — it is bounded but variable and repeated, not unbounded — and states the one-time ~4 MiB zeroing cost. **D12** adds an injectable `SameFile` to the seam, making it three + three methods with **exactly two** production adapters, one per interface. **Four new decisions**: **D15** descriptor `Close` contract and close-failure precedence; **D16** withdrawal of every bounded-runtime guarantee; **D17** Cobra parse-error ownership under `SilenceUsage`/`SilenceErrors`; **D18** the deliberate exit-3 workspace divergence. |
+| rev-1 | NEEDS REVISION (internal), APPROVED WITH NOTES (external) | **D5** narrows the confinement allowlist from `unix \|\| windows \|\| wasip1` to **`unix \|\| windows`**; `wasip1` becomes an unsupported target that aborts, the "byte-identical to the stdlib tag" justification is withdrawn in favour of an asserted **subset** relation, and **no split implementation** is authorized. **D6** scopes `O_NONBLOCK` to the *open*. **D7**'s name-surrogate column is corrected to the `0x20000000` bit test rather than a two-tag list. **D8** records that bytes read through an unobserved consistent alias are **attributed to the canonical name**. **D9** corrects the `io.ReadAll(io.LimitReader(...))` rationale — it is bounded but variable and repeated, not unbounded — and states the one-time ~4 MiB zeroing cost. **D12** adds an injectable `SameFile` to the seam, making it three + three methods with **exactly two** production adapters, one per interface. **Four new decisions**: **D15** descriptor `Close` contract and close-failure precedence; **D16** withdrawal of every bounded-runtime guarantee; **D17** Cobra parse-error ownership under `SilenceUsage`/`SilenceErrors`; **D18** the deliberate exit-3 workspace divergence. |
+| rev-2 | this document | Final no-decision-change correction: advisory catalog count ten; companion PRD rev-5 labels synchronized. |
 
 ---
 
 ## Context
 
-`tpatch prepare <slug> --check` (PRD rev-4) is a **read-only** inspector that
+`tpatch prepare <slug> --check` (PRD rev-5) is a **read-only** inspector that
 classifies four intent artifacts plus `status.json` under
 `.tpatch/features/<slug>/` and reports a structural-readiness verdict. It
 writes nothing, advances no state, and adds no lifecycle state.
@@ -663,7 +664,7 @@ decision, capture step or ladder row consumed it. rev-1 closes that gap.
    failure is `unreadable` / `artifact-unreadable` for an artifact,
    `analysis-sidecar-unreadable` for the sidecar advisory, and
    `status-unreadable` for `status.json`. The abort catalog stays at thirteen
-   codes, the reason catalog at ten and the advisory catalog at eleven, so
+   codes, the reason catalog at ten and the advisory catalog at ten, so
    every totality assertion keeps its arithmetic. A code earns its place by
    changing the remediation, and "could not be read and closed cleanly — check
    permissions and the filesystem, then run `tpatch doctor`" is the same
@@ -873,7 +874,7 @@ enumerated behavior delta (PRD Q2 tracks the analogous question for exit `4`).
 ## Acceptance dependencies
 
 This ADR is **Proposed**. It becomes **Accepted** only when both it and the
-companion PRD rev-4 pass review. Its decisions are verified by the companion
+companion PRD rev-5 pass review. Its decisions are verified by the companion
 PRD's acceptance matrix; the mapping is:
 
 | Decision | Verified by (PRD §18) |
@@ -914,7 +915,7 @@ and `PRD-prepare-intent-bundle.md` remains blocked.
 ## References
 
 - [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md)
-  rev-4 — companion; §7 (path policy and capture), §14 (security), §18 (matrix),
+  rev-5 — companion; §7 (path policy and capture), §14 (security), §18 (matrix),
   §23 (claims audit).
 - [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md)
   — `## Agreed`, Turns 2–4.

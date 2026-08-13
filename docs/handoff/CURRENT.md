@@ -2,11 +2,10 @@
 
 ## Status
 
-**Cluster state**: REV-5 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Artifact-validation/provenance PRD rev-4 and ADR-034 rev-1 preserve the
-accepted contract but retain one stale timing assertion and count/index prose.
-Final rev-5 is dispatched.
+Artifact-validation/provenance PRD rev-5 and ADR-034 rev-2 complete the final
+no-decision-change correction and await focused confirmation.
 
 ## Active Task
 
@@ -14,7 +13,7 @@ Final rev-5 is dispatched.
 - **Description**: Define truthful read-only intent-artifact inspection,
   provenance/migration boundaries and `tpatch prepare --check` as the
   prerequisite to mutating preparation.
-- **Status**: Final editorial rev-5 + ADR-034 rev-2
+- **Status**: Final review — PRD rev-5 + ADR-034 rev-2
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `0aa0d956b090288780b51d8270eb3a250fabeee3`
 - **Rev-1 writer base**: `3ecfa38`
@@ -22,10 +21,7 @@ Final rev-5 is dispatched.
 - **Rev-3 writer base**: `5a678b5`
 - **Rev-4 writer base**: `be33d2a`
 - **Issue**: [GH #10](https://github.com/tesseracode/tesserapatch/issues/10)
-- **Scope**: one PRD + one ADR + handoff. rev-4 touches exactly three files and
-  deliberately does **not** touch `docs/adrs/README.md` (the ADR's status is
-  unchanged at `Proposed — Awaiting Review`, so the index needs no status
-  change; the dispatch brief scoped rev-4 to PRD + ADR + CURRENT).
+- **Scope**: one PRD + one ADR + ADR index + handoff.
 - **Release tag**: v0.15.1 remains fixed at `15560af`
 
 ## PRD Writer Contract
@@ -1081,7 +1077,7 @@ the status to `Accepted`.
   `AVP` reference resolves in the PRD.
 - **Ladder sizes**: artifact ladder **27 rows** (1–20, 20a, 20b, **20c**,
   21–24); status ladder **20 rows** (1–16, **16a**, 17–19).
-- **Catalogs unchanged and still total**: 13 abort codes, 10 reason codes, 11
+- **Catalogs unchanged and still total**: 13 abort codes, 10 reason codes, 10
   advisory codes, 15 lifecycle lines, 9 state-enum values, 9 status outcomes.
 
 ### What rev-4 changed, correction by correction

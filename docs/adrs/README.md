@@ -18,7 +18,7 @@
 - [ADR-027: Capture Context Privacy Boundary](ADR-027-capture-context-privacy-boundary.md) — Accepted
 - [ADR-028: Supersession Edge Model](ADR-028-supersession-edge-model.md) — Accepted
 - [ADR-029: Write-file Recipe Safety](ADR-029-write-file-recipe-safety.md) — Accepted
-- [ADR-034: Rooted Filesystem Inspection Boundary](ADR-034-rooted-filesystem-inspection-boundary.md) — Proposed — Awaiting Review (rev-0); companion to [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md) rev-3
+- [ADR-034: Rooted Filesystem Inspection Boundary](ADR-034-rooted-filesystem-inspection-boundary.md) — Proposed — Awaiting Review (rev-2); companion to [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md) rev-5
 
 ## Locked-In Decisions (from review process)
 
