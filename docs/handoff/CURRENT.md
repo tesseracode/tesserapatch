@@ -2,20 +2,38 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: IN PROGRESS
 
-v0.15.1 is shipped. Wave C rev-3 received dual approval with no findings,
-closing GH #8 after the previously accepted GH #7 and GH #8 contract waves.
+v0.15.1 remains shipped and its tag stays fixed at `15560af`. A bounded
+post-release documentation/test-rigor fold is in progress on `main`.
 
 ## Active Task
 
-- **Task ID**: v0.15.1 Wave C / GH #8 implementation
-- **Description**: Implement the accepted landed-feature verification and
-  land producer contract.
-- **Status**: Complete
-- **Assigned**: 2026-08-12
-- **WAVE_BASE**: `b768602`
-- **Release**: v0.15.1
+- **Task ID**: v0.15.1 post-release review fold
+- **Description**: Repair stale verify-contract source anchors, replace the
+  161-row ledger's raw-text existence check with AST-exact resolution, and
+  record the nested-repository sentinel deferral.
+- **Status**: In Progress
+- **Assigned**: 2026-08-13
+- **WAVE_BASE**: `15560af`
+- **Release tag**: v0.15.1 fixed at `15560af`
+
+## Post-Release Review Adjudication
+
+- **External verdict**: APPROVED WITH NOTES.
+- **F1 LOW — valid**: Wave C extraction left 16 accepted-contract
+  `verify.go:<line>` anchors stale; re-resolve them against current symbols
+  and refresh the validation marker.
+- **F2 LOW — valid**: `TestAcceptanceLedger_TestsExist` can false-pass on a
+  comment because it searches raw bytes. Replace it with package-aware AST
+  resolution and a sensitivity regression.
+- **Observation — deferred explicitly**: the wave-close untracked-source
+  sentinel cannot enumerate source files inside an untracked nested Git
+  repository. Registered as GH #9; no release invariant is invalidated.
+- **Tag policy**: fold only on `main`; never move v0.15.1.
+- **Next planning work, deferred one turn by the operator**: append WP-005
+  council Turn 2, then draft artifact-validation/provenance and prepare-bundle
+  PRDs through the normal writer/review loop.
 
 ## Rev-3 Review Verdict
 
@@ -139,9 +157,10 @@ Modified:
 
 ## Next Steps
 
-1. No successor wave is dispatched.
-2. Select the next backlog item from ROADMAP/research inputs.
-3. Record a fresh `origin/main` WAVE_BASE before any new dispatch.
+1. Repair all stale contract anchors.
+2. Replace the ledger source scan with AST-exact resolution and regressions.
+3. Re-run review/validation and push the main-only fold.
+4. Resume the council-recommended WP-005/PRD sequence.
 
 ## Blockers
 

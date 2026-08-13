@@ -1,3 +1,46 @@
+## Review — v0.15.1 Waves B+C post-release — 2026-08-13
+
+**Reviewer**: user-external final release reviewer
+**Reviewed spans**: Wave B `ad39e4a..b768602`; Wave C
+`b768602..15560af`
+
+### Verdict: APPROVED WITH NOTES → MAIN-ONLY FOLD
+
+### Verified
+
+- Corrected scope: Wave B is 17 docs-only commits; Wave C is 24
+  implementation/release commits.
+- Original GH #8 false-red reproduces before the fix and passes after it.
+- Tampered patch and recipe both remain terminal `stale` failures.
+- Dirty worktree does not affect isolated Anchor C.
+- `land --no-record` refuses malformed BaseCommit before mutation.
+- GH #2 reset-before-V8 invariant and all prior review closures remain intact.
+- v0.15.1 tag/peel, 71/71 reviewed trailers and Wave C gate 8/8 pass.
+
+### Valid Notes
+
+1. **F1 LOW**: 16 accepted-contract citations still point at pre-extraction
+   `verify.go` line numbers. The behavior remains correct; the source anchors
+   must move to current `verify.go`, `verify_anchored.go` or
+   `verify_landed.go` symbols.
+2. **F2 LOW**: the 161-row ledger resolves references with raw
+   `strings.Contains("func "+name+"(")`, so comment-only text can false-pass.
+   Replace it with package-aware AST declaration/subtest resolution, following
+   the stronger resource-capture ledger precedent.
+
+### Deferred Observation
+
+Wave A's nested-repository source-sentinel blind spot was never recorded.
+It is now explicit as
+[GH #9](https://github.com/tesseracode/tesserapatch/issues/9); it does not
+invalidate v0.15.1.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to a bounded post-release fold from
+`15560af`. The v0.15.1 tag stays fixed. Council-recommended WP-005/prepare
+planning is queued immediately after this fold.
+
 ## Release — v0.15.1 correctness batch / GH #7 + GH #8 — 2026-08-12
 
 **Batch WAVE_BASE**: `5d15fcf`
