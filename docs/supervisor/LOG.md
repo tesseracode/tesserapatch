@@ -1,3 +1,22 @@
+## Writer — WP-005 council Turn 2 — 2026-08-13
+
+**WAVE_BASE**: `76ed78b`
+**Writer**: CO76
+
+### Output
+
+- Turn 1 preserved byte-for-byte; Turn 2 appended as `agreement`.
+- `## Agreed` added without a byline, per whitepaper protocol.
+- Council disagreement and peer-review convergence recorded.
+- Downstream prepare seam narrowed to validation/check first.
+- Two ordered PRDs identified; no ADR or implementation authorization.
+- WP status remains Exploring until the first graduating PRD exists.
+
+### Action Taken
+
+CURRENT and ROADMAP transitioned to AWAITING REVIEW. Internal protocol/contract
+and external council/product reviews dispatched against the writer output.
+
 ## Dispatch — WP-005 council Turn 2 — 2026-08-13
 
 **WAVE_BASE**: `76ed78b`

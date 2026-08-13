@@ -784,11 +784,11 @@ passes closed follow-up package/signature/subtest and stale-prose findings.
 The nested-repository blind spot in the wave-close source sentinel is
 explicitly deferred as [GH #9](https://github.com/tesseracode/tesserapatch/issues/9).
 
-**WP-005 council Turn 2** 🚧 IN PROGRESS (2026-08-13, base `76ed78b`):
-record the prepare/SDD council verdict and update agreed findings. This
-paper-only task is followed by artifact-validation/provenance and blocked
-prepare-intent-bundle PRDs through the normal writer/review loop. No
-implementation is authorized by the council.
+**WP-005 council Turn 2** 🚧 AWAITING REVIEW (2026-08-13, base `76ed78b`):
+the prepare/SDD council verdict, agreed findings and two-PRD graduation order
+are written. This paper-only task is followed by
+artifact-validation/provenance and blocked prepare-intent-bundle PRDs through
+the normal writer/review loop. No implementation is authorized by the council.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

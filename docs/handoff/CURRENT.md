@@ -2,10 +2,10 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-WP-005 council Turn 2 is in progress from fresh base `76ed78b`. This is a
-paper-only continuation; no prepare implementation or lifecycle change is
+WP-005 council Turn 2 is written and awaiting independent review. This remains
+a paper-only continuation; no prepare implementation or lifecycle change is
 authorized.
 
 ## Active Task
@@ -14,7 +14,7 @@ authorized.
 - **Description**: Record the five-advisor/five-reviewer council verdict on
   `tpatch prepare`, internal SDD and downstream SDD; update WP-005's agreed
   findings without drafting PRDs yet.
-- **Status**: In Progress
+- **Status**: Review
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `76ed78b`
 - **Scope**: `WP-005-spec-driven-workflows.md` + append-only turn log
@@ -32,6 +32,21 @@ authorized.
 - Keep the paper `Exploring` until the first graduating PRD is drafted.
 - Do not edit code, create an ADR, or add prepare to the implementation
   roadmap in this task.
+
+## WP-005 Turn 2 Writer Result
+
+- Added CO76 as the second stable whitepaper author and appended one
+  `agreement` turn without editing Turn 1.
+- Recorded the full council split (2 ship now / 2 reject / 1 specify first),
+  five-reviewer convergence and chairman disposition.
+- Added an unbylined `## Agreed` section covering validation before
+  orchestration, check-first delivery, no new state, optional internal SDD and
+  downstream encourage-never-enforce.
+- Replaced the open-ended "separate whitepaper" product note with two ordered
+  PRDs: artifact validation/provenance first; prepare bundle blocked second.
+- Kept `Status: Exploring` until the first graduating PRD is drafted.
+- Added current-code anchors for manual validation, Path A's structured
+  analysis sidecar and `next`'s file-presence inference.
 
 ## Post-Release Review Adjudication
 
@@ -190,8 +205,8 @@ Modified:
 
 ## Next Steps
 
-1. Write WP-005 Turn 2 and agreed findings.
-2. Run an independent whitepaper review and fold any findings.
+1. Run independent internal and external whitepaper reviews.
+2. Fold any findings and re-review until accepted.
 3. Accept/archive the Turn 2 task.
 4. Dispatch `PRD-artifact-validation-and-provenance.md` writer/review.
 
