@@ -1,3 +1,76 @@
+## Dispatch — PRD prepare intent bundle rev-4 + ADR-035 rev-4 — 2026-08-14
+
+**Writer base**: `3b849e1`
+**Reviewed writer tip**: `efcddc6`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Pin the lock-owning `*os.File` lifetime across forced GC and explicit release.
+- Make root rename an honest refusal and remove the false total hold bound.
+- Define recoverable per-hash pending purge and dangling-reference repair.
+- Reconcile §9.7 selection/procedure/X11 and acceptance rows.
+- Branch dry-run before Git/lock and replace the zero-Git guard with an exact
+  scrubbed allowlist.
+- Authorize/reuse the central Git gate refactor with repo-relative paths.
+- Replace the narrow filesystem allowlist with a root-inode denylist plus
+  successful-flock policy and real Linux/macOS contention coverage.
+- Add non-creating doctor contention diagnosis and structural raw-response
+  guards.
+- Resolve remaining section/source/slice drift and rebuild mechanics.
+
+### Action Taken
+
+One sequential docs-only rev-4 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-3 + ADR-035 rev-3 — 2026-08-14
+
+**Writer tip**: `efcddc6`
+**Tracking tip**: `3b849e1`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- The lock-owning directory `*os.File` can be garbage-collected and silently
+  release authority while the process remains live.
+- PIB-107 still forbids all Git despite the four-command contract.
+- §9.7 selection describes tombstone-then-remove while X11 requires
+  pending-then-remove-then-tombstone.
+- Precedence makes dry-run run the Git gate and acquire the lock.
+- The named shipped Git gate re-probes, inherits hostile GIT_* selection and
+  emits absolute paths; implementation slices omit the required refactor.
+- The workspace filesystem allowlist excludes working local/container filesystems
+  and overclaims nested-mount coverage.
+- Doctor cannot diagnose a foreign/live root lock, raw-response guards are
+  content-impossible, and references/slice ownership drifted.
+
+### Verified
+
+The rev-2 cache, lock-unlink, archive-clean, tombstone, manual-writer and purge
+CAS findings are closed. Directory flock, alias contention and deletion split
+were reproduced empirically on Darwin.
+
+## Internal Review — PRD prepare intent bundle rev-3 + ADR-035 rev-3 — 2026-08-14
+
+**Writer tip**: `efcddc6`
+**Tracking tip**: `3b849e1`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- X11 makes multi-hash removal-pending and dangling-reference repair
+  impossible.
+- Root-rename success cannot re-resolve the original discovered pathname.
+- Filesystem I/O makes the claimed total lock hold bound false.
+
+### Verified
+
+432 rows, 165 claims, D1–D21, CP0–CP14, J1–J10, X1–X11, 26 seams and
+range-valid source anchors.
+
 ## Writer — PRD prepare intent bundle rev-3 + ADR-035 rev-3 — 2026-08-14
 
 **Writer tip**: `efcddc6`

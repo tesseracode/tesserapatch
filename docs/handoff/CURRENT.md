@@ -2,13 +2,14 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-4 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-3** and proposed ADR-035
-**rev-3** are ready for review. The rev-3 fold replaces the cache-located lock
-with held workspace-root directory authority, removes raw provider transcript
-retention, and corrects purge, archive, Git and refusal truth. No mutating
-command is implemented or authorized.
+**rev-3** preserve the chosen held-root authority and close the rev-2 defects,
+but review found implementation-level contradictions in descriptor lifetime,
+root rename, purge pending recovery, dry-run precedence and the Git gate.
+A bounded **rev-4** is dispatched. No mutating command is implemented or
+authorized.
 
 ## Active Task
 
@@ -16,14 +17,88 @@ command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-3 writer complete — awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1, rev-2 and rev-3)
+- **Status**: Rev-4 dispatched after rev-3 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-4)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-3 Review and Rev-4 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `efcddc6`
+**Tracking tip before adjudication**: `3b849e1`
+
+The workspace-root directory lock is retained. Rev-4 must close these bounded
+contract/implementation contradictions:
+
+1. **Descriptor lifetime (CRITICAL).** Authority must retain the directory
+   `*os.File`, not a naked fd integer, for the whole invocation. Acquire through
+   `SyscallConn.Control`, store `root` and `lockFile` in one authority value,
+   release explicitly, and use `runtime.KeepAlive` at the release boundary.
+   Forced GC while a real-process contender runs must not release the lock; a
+   sensitivity fixture that drops the reference must fail.
+2. **Purge pending state machine (HIGH).** X11 cannot require every
+   removal-pending blob to remain present after the first removal. Pending
+   means a recoverable transitional state: blob present → remove/continue;
+   blob absent → finalize tombstone. Process selected hashes durably and define
+   retry after every crash point. Strict shape/storage validation must permit
+   the named repair paths for dangling live references instead of making the
+   archive permanently unwritable.
+3. **Root rename (HIGH).** The original discovered pathname cannot be
+   portably rediscovered after rename. Alias paths still contend, but a missing
+   or identity-changed live pathname is a refusal before the window or exit 6
+   after it. Amend PIB-413; do not claim rename success.
+4. **Lock-duration truth (MEDIUM).** Only provider time is budgeted. Filesystem,
+   Git, recovery and publication I/O have no hard wall-clock bound. Remove the
+   “worst-case hold” claim while retaining the provider timeout statement.
+5. **Git guard contradiction (HIGH).** PIB-107 must enforce a closed
+   read-only Git allowlist, not zero Git. G1 runs once; central gate helpers
+   accept that established state and repo-relative paths without re-probing.
+   The implementation slices must authorize the required
+   `internal/gitutil/**`, `session_ignore.go` and `rescap/scratch.go` refactor
+   while preserving existing caller goldens and eliminating absolute paths
+   from prepare reports.
+6. **Dry-run precedence (HIGH).** `--dry-run` never runs the local-lane gate or
+   acquires the lock. Its pending-journal read/refusal and plan path must branch
+   before all mutating platform/filesystem/Git/lock steps. Make the first-match
+   ladder match §§6.4/7.4/7.13 and PIB-079.
+7. **Filesystem policy (MEDIUM-HIGH).** The rev-3 exact allowlist is too
+   restrictive and even drops shipped overlayfs support. Use an explicit
+   denylist for known remote/user-space types (NFS/CIFS/SMB/FUSE families),
+   accept other Linux/Darwin types only when `flock` itself succeeds, and add
+   real cross-process Linux/macOS contention coverage. Scope the check to the
+   locked root inode; nested mounts do not claim separate lock validation.
+   Name uncertainty and the no-cross-machine boundary honestly.
+8. **Live-lock diagnosis (MEDIUM).** Doctor D9 may make a non-creating,
+   nonblocking root-directory lock probe. It reports only that the workspace
+   mutation authority is held and that holder identity is unknowable; it must
+   not create state or imply the holder is tpatch.
+9. **Raw-response guards (MEDIUM).** Intended final staged canonical output may
+   equal provider response bytes. Guards must be structural: no retry sink/raw
+   attempt file/path/report/history outside the canonical publication
+   temporary. Do not use an impossible content scan claiming provider bytes
+   exist nowhere.
+10. **Purge protocol parity (HIGH).** §9.7.1, §9.7.2, D10/X11 and PIB-423 must
+    describe one procedure: pending → per-hash removal/recovery → tombstone.
+    A crash must always have a next-step or repair command.
+11. **Reference/surface cleanup (LOW).** Repair dangling §7.13/§9.7 refs,
+    O_EXCL section attribution, lane-row cites, rescap “extraction” drift and
+    duplicate slice ownership. Recompute all mechanics and retain an explicit
+    PRD citation to ADR-035 D1.
+
+The filesystem reviewer overstates one source fact: shipped Linux rescap
+already allowlists overlayfs. The valid finding is that rev-3 narrowed it away
+and overclaimed coverage of nested write mounts; rev-4 must restore a
+mechanism-focused, root-inode policy rather than inherit that mistake.
+
+Rev-4 remains a **docs-only** revision of the PRD, ADR-035 and handoff.
+Implementation, accepted prerequisites, supervisor-owned tracking, assets and
+guarded WIP remain out of scope.
 
 ## Rev-2 Review and Rev-3 Adjudication (2026-08-14)
 

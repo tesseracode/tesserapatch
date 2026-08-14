@@ -807,7 +807,7 @@ legacy auto-GC. Actions run
 [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
 
-**Prepare intent-bundle PRD rev-3 + ADR-035 rev-3** 🚧 AWAITING REVIEW
+**Prepare intent-bundle PRD rev-4 + ADR-035 rev-4** 🚧 IN PROGRESS
 (2026-08-13, WAVE_BASE `d060ff4`, writer `409710c`,
 [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)): 234 PIB
 rows and 142 claims define Path A missing-only generation, Path B adoption,
@@ -823,8 +823,10 @@ platform/Git/root guarantees, and doctor residue consistency. Rev-2 landed at
 then rejected raw-response retention and the cache-located authority and found
 purge/rehydration truth gaps. Rev-3 at `efcddc6` replaces the cache with a
 Linux/Darwin workspace-root directory lock, removes raw transcript retention,
-and folds the bounded archive/privacy corrections into 432 PIB rows. Joint
-review is pending; no implementation is authorized.
+and folds the bounded archive/privacy corrections into 432 PIB rows. Rev-3
+review retained that architecture but found descriptor-lifetime, purge
+recovery, root-rename, dry-run/Git-gate and filesystem-policy contradictions.
+Rev-4 is dispatched; no implementation is authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
