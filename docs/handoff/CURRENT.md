@@ -2,12 +2,12 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-2** and proposed ADR-035
-**rev-2** closed the rev-1 adjudication, but review found new defects in its
-cache-located lock authority, provider-response retention and archive purge /
-rehydration contract. A simplifying **rev-3** is dispatched. No mutating
+Transactional prepare-intent-bundle PRD **rev-3** and proposed ADR-035
+**rev-3** are ready for review. The rev-3 fold replaces the cache-located lock
+with held workspace-root directory authority, removes raw provider transcript
+retention, and corrects purge, archive, Git and refusal truth. No mutating
 command is implemented or authorized.
 
 ## Active Task
@@ -16,7 +16,7 @@ command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-3 dispatched after rev-2 NEEDS REVISION
+- **Status**: Rev-3 writer complete — awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1, rev-2 and rev-3)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -106,6 +106,58 @@ the detectable root-replacement boundary.
 Rev-3 remains a **docs-only** revision of the PRD, ADR-035 and handoff. It must
 not implement `prepare`, edit accepted prerequisites, source/assets/tracking
 owned by the supervisor, or guarded WIP.
+
+## Prepare PRD Writer Result — rev-3 (2026-08-14)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-prepare-intent-bundle.md` | `Draft — Awaiting Review (rev-3)`, byline `faf055e` / dispatch `155e721` / WAVE_BASE `d060ff4`. Replaces cache/key/file/Windows lock promises with one Linux/Darwin held-root directory `flock`; removes all prepare-managed raw provider text retention; adds global-hash rehydration, removal-pending storage truth, X11, Git environment/call-count contract, untracked-clean disclosure, closed refusals, and rev-3 rows. |
+| `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` | `Proposed — Awaiting Review (rev-3)`. D4–D6, D8, D10, D12, D13, D16 and D17 mirror the PRD’s held-root, privacy, purge, storage, Git and evidence limits. |
+| `docs/handoff/CURRENT.md` | Cluster state changed to `AWAITING REVIEW`; this exact rev-3 writer record added. |
+
+No source, test, asset, accepted prerequisite, ADR index, SPEC, ROADMAP,
+supervisor LOG, or guarded/untracked WIP path changed.
+
+### Exact mechanical counts
+
+- **432 acceptance rows** `PIB-001`…`PIB-432`: all unique and set-contiguous;
+  matrix category grouping is intentionally not numeric source order. **40
+  categories**; kinds: I 191, C 95, G 78, U 46, S 22.
+- Slice partition: S1 75, S1b 15, S2 24, S3 42, S4 142, S4b 17, S5 48,
+  S6 31, S7 38 = 432. Rev-3 adds 23 rows `PIB-410`…`PIB-432`; §18.1 lists
+  every amended stable row, including retired cache/Windows/raw-response
+  semantics.
+- **165 claims** `C1`…`C165`; **21 ADR decisions** `D1`…`D21`; **15 crash
+  phases** `CP0`…`CP14`; 10 J binds; 11 X binds; **26 injection seams**;
+  17 advisories; one closed human/JSON refusal catalog.
+- **355 repository `file:line` citation occurrences** across the PRD and ADR;
+  all resolve and are in range. Go `os.Root` documentation is cited by stable
+  `$GOROOT` symbol, not toolchain line number.
+
+### Validation record (docs-only)
+
+- Verified `PIB-001`…`PIB-432` uniqueness/set-contiguity, category/kind/slice
+  arithmetic, claims, ADR decisions, crash phases, J/X binds and seam count.
+- Verified all relative links, numeric section references, JSON fences,
+  escaped-table column counts, balanced fences, citation file/range anchors and
+  `git diff --check`.
+- No `gofmt`, `go test`, or `go build` run or claimed: only planning documents
+  changed and implementation remains prohibited.
+
+### Remaining limits for reviewer
+
+1. The directory flock serializes tpatch mutators only: no cross-machine
+   guarantee, no defense against malicious local fd-holder DoS, and no control
+   over editors/Git or final CAS→rename/remove races.
+2. Root deletion/recreation and unmount/eject remain real limits; live-root
+   identity revalidation refuses before the window or exits 6 with evidence
+   after it, never false success.
+3. Untracked archive bytes can be lost to clone or `git clean`; committed Git
+   history and later identical archival are the only stated recovery routes.
+4. This remains planning-only and depends on accepted `prepare --check`
+   implementation landing before any mutating slice dispatch.
 
 ## Rev-1 Review and Rev-2 Adjudication (2026-08-14)
 
