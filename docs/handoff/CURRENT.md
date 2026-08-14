@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD rev-0 and proposed ADR-035 completed
-three-way review with convergent NEEDS REVISION. Rev-1 is dispatched; no
+Transactional prepare-intent-bundle PRD **rev-1** and proposed ADR-035
+**rev-1** are written and returned to three-way review. Every rev-0 finding is
+closed with a decision, and the acceptance matrix was rebuilt to 391 rows. No
 mutating command is implemented or authorized.
 
 ## Active Task
@@ -14,13 +15,249 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Writer rev-1
-- **Assigned**: 2026-08-13
+- **Status**: Rev-1 written — awaiting review
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
-  ADR-034 rev-2
+  ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
+  before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Prepare PRD Writer Result — rev-1 (2026-08-14)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-prepare-intent-bundle.md` | rewritten in place: 2,301 → 3,808 lines; `Status: Draft — Awaiting Review (rev-1)`; a `Revision history` row records what changed vs rev-0 |
+| `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` | rewritten in place: 465 → 902 lines; `Status: Proposed — Awaiting Review (rev-1)`; D1–D14 revised, D15–D21 added |
+| `docs/handoff/CURRENT.md` | `Cluster state` flip to `AWAITING REVIEW`, Active Task block, and this section |
+
+Nothing else was touched. **No** edit to `docs/ROADMAP.md`,
+`docs/supervisor/LOG.md`, `docs/adrs/README.md` (the ADR-035 index row already
+exists from rev-0 and its title is unchanged), `SPEC.md`, `CHANGELOG.md`,
+`docs/prds/PRD-artifact-validation-and-provenance.md`, `docs/adrs/ADR-034-*.md`,
+`docs/adrs/ADR-027-*.md`, `docs/whitepapers/**`, `internal/**`, `cmd/**`,
+`assets/**`, `tests/**`, `.github/**`, `.wave-close-allowlist`, or any guarded
+untracked WIP (`WP-004`, `WP-006`, `WP-007`, `PRD-recurring-patches.md`, the
+state-of-the-art case studies).
+
+### Counts (mechanically verified at this commit)
+
+- **391 acceptance rows** `PIB-001`…`PIB-391`, contiguous, zero duplicates,
+  zero retired. **157 new** rows (`PIB-235`…`PIB-391`); **15 rev-0 rows amended
+  in place** with their IDs preserved (`PIB-015`, `-016`, `-017`, `-020`,
+  `-041`, `-053`, `-079`, `-110`, `-117`, `-118`, `-124`, `-196`, `-197`,
+  `-215`, `-227`), listed in §18.1.
+- **38 categories** (A–T from rev-0, U–AL new): A 20, B 24, C 15, D 12, E 9,
+  F 19, G 13, H 14, I 13, J 8, K 12, L 10, M 14, N 14, O 10, P 7, Q 6, R 3,
+  S 9, T 2, U 10, V 12, W 5, X 6, Y 7, Z 4, AA 12, AB 7, AC 10, AD 8, AE 10,
+  AF 5, AG 14, AH 17, AI 6, AJ 10, AK 10, AL 4. Sum = 391.
+- **By kind**: `I` 179, `C` 79, `G` 70, `U` 42, `S` 21. Sum = 391.
+- **Slice partition** is total and disjoint over eight slices: S1 75, S1b 12,
+  S2 24, S3 42, S4 142, S4b 17, S5 48, S6 31 = 391.
+- **165 claims** `C1`…`C165` (rev-0: 142), contiguous and ascending in file
+  order; 23 new, 9 corrected (marked †).
+- **ADR-035: 21 decisions** `D1`…`D21`, contiguous; every one is cited by the
+  PRD and every one has an acceptance-dependency row naming real PIB rows.
+- **12 crash phases** `CP0`…`CP11` (rev-0: 10), each with a recovery outcome
+  and a row; **no** phase can leave a slug permanently blocked.
+- Closed catalogs: 7 exit codes (4 still retired), **17** advisories (rev-0:
+  10), 6 staged-output checks `V1`…`V6`, **10 journal binds** `J1`…`J10`,
+  **10 index binds** `X1`…`X10`, 19 injection seams (rev-0: 12).
+- **430 `file:line` citations** across both documents; all mechanically
+  verified in range at this commit; zero out-of-range, zero missing files.
+
+### How each rev-0 finding was closed
+
+**Transaction / recovery**
+
+1. **Stale locks (CRITICAL)** — the `O_EXCL`-plus-nonce model is **gone**. The
+   lock is the shipped kernel `flock(2)` process-lifetime lock
+   (`internal/rescap/lock_unix.go:63-88`), extracted into a shared package,
+   plus a Windows deny-share `CreateFile` sibling and a fail-closed stub.
+   Ownership is released by the OS on process death; the lock **file** carries
+   zero bytes and no authority, so CP1/CP2/CP8 and every `--manual` crash are
+   ordinary. Contention is a transient **exit 3**, not exit 6. §7.4, ADR-035
+   D4, PIB-284…PIB-295.
+2. **Semantic CAS (CRITICAL)** — every publish, undo, remove, blob write,
+   index rewrite and purge is compare-and-swap gated on the target's *current*
+   identity (§7.6.3). The journal binds itself to its plan by `plan_digest` and
+   passes ten strict binds (J1–J10) before any restore, so a forged or corrupt
+   journal refuses and preserves evidence. Both metadata paths are now full
+   entries with preimage and new-image. §7.5, §7.6, ADR-035 D5, PIB-275…PIB-307.
+3. **T1 scope (HIGH)** — T1 is now "at a command-owned final verification point
+   under the lock, every entry matches its intended new image". External writes
+   after that point are explicitly outside the postcondition; writes during the
+   window are detected where observable and produce **divergence, not
+   destructive rollback**. §7.1, §7.8 step 10, ADR-035 D1/D6, PIB-314, PIB-315,
+   PIB-324.
+4. **Rooted writes (HIGH)** — `(*os.Root).Rename`/`OpenFile`/`Remove`/`Mkdir`
+   are adopted for every publication write (Go 1.26.1 is pinned, `go.mod:3`).
+   No path-based `os.Rename`/`os.CreateTemp` after a rooted check. The
+   ancestor-pathname race is **closed**; the residual is narrowed to content
+   identity. §7.7, ADR-035 D2, PIB-308…PIB-313.
+5. **Exit 6 / doctor (HIGH)** — new `--abandon-transaction` mode: takes the
+   lock, moves journal + preimages + staging into `abandoned-<12hex>/`, touches
+   **no** canonical file, previews without `--yes`. Doctor D9 now reports the
+   total residue set (pending journal, live transaction via a non-creating lock
+   probe, inert lock file as informational, staging, abandoned evidence, orphan
+   blobs, corrupt index, journal loss). §6.6, §12.5, ADR-035 D13, PIB-268…
+   PIB-274, PIB-362, PIB-363, PIB-380…PIB-387.
+
+**Archive / privacy**
+
+6. **Default coherence + sidecar (CRITICAL)** — the default mode preserves
+   every present artifact **including the sidecar**, generates only a
+   dependency-coherent **suffix** of analysis → spec → exploration, and refuses
+   incoherent gaps with `incoherent-bundle-gap` (exit 2) naming `--regenerate`
+   and `--manual`. Consequence: the default mode has **no `replace` entry
+   ever**, so §9.2.1's per-mode archive table is total and unambiguous. §6.1.2,
+   §6.1.3, ADR-035 D19, PIB-245…PIB-256.
+7. **ADR-027 D3 (CRITICAL)** — the redaction contract is a **write
+   precondition**: `redact.Scan`'s closed six classes run on in-memory bytes
+   before any blob exists, and a match **refuses the whole regeneration**
+   (exit 3, `archive-content-refused-sensitive`) naming artifact ids and class
+   codes only. Refusal rather than scrubbing is justified by the exact-recovery
+   conflict. No override flag, no config key. §9.6.1, ADR-035 D15,
+   PIB-262…PIB-267, PIB-388.
+8. **Retention (HIGH)** — "no new exposure class" is **withdrawn** and replaced
+   by an explicit disclosure that the archive converts a destructive overwrite
+   into durable retention; tracking is conditional on `.tpatch/` being tracked
+   and no clone-durability is claimed before a commit. A bounded surface ships:
+   `tpatch feature intent-archive list|purge` with tombstones, reference
+   checks, orphan collection, dry-run-by-default and `--yes`. "Immutable" now
+   means *never modified in place*, not *undeletable*. §9.6.2, §9.7, ADR-035
+   D8/D16, PIB-316, PIB-317, PIB-342…PIB-361.
+9. **Index integrity (MEDIUM)** — ten strict binds `X1`…`X10` including
+   version-ahead ("upgrade tpatch", not "corrupt"), foreign-feature, path
+   escape, closed ids, tombstone consistency and `generation_id` recomputation.
+   §9.3.1, ADR-035 D10, PIB-331…PIB-341.
+10. **Orphan blobs (MEDIUM)** — reported by `list`, `doctor` and by every
+    outcome that leaves one; removable with `purge --orphans`. The exit-5
+    message no longer claims the whole tree is byte-identical. §7.9, §9.7.3.
+
+**Product / compatibility**
+
+11. **Regenerate fallback (HIGH)** — `--regenerate` now **requires a configured
+    provider and provider success**; no provider refuses before any mutation
+    (exit 3), a failure or deadline refuses before publication (exit 5).
+    `--allow-heuristic` is the only opt-in, with full grammar, help text and no
+    config key. Deadlines are **per-phase (`--timeout-phase`, 90s) and total
+    (`--timeout`, 180s)**, and a total expiry that causes ≥2 fallbacks emits a
+    distinct cascade advisory. §11.3, §11.5, ADR-035 D18, PIB-365,
+    PIB-368…PIB-375.
+12. **FEATURES.md (HIGH)** — named as derived, best-effort, **outside T1**,
+    never journaled, never rolled back; `--manual`'s write set is
+    `{status.json} ∪ {FEATURES.md best-effort}`; rollback and recovery re-run
+    the refresh; a failure is reported as an advisory. §12.3.1, ADR-035 D20,
+    PIB-257…PIB-261.
+13. **Git (HIGH)** — the "no Git operation" claim is **corrected**. Four exact
+    read-only invocations are enumerated with a spy row, and the lane gate is
+    made **conditional**: no `.git` → skip with advisory `workspace-not-git`
+    (Path B keeps working); `.git` + usable git → shipped gate; `.git` +
+    unusable git → refuse `local-lane-unverifiable`, disclosed as delta D9.
+    §7.13, ADR-035 D17, PIB-279…PIB-283, PIB-326…PIB-329.
+14. **Prerequisite sequencing (MEDIUM)** — §17.1 makes the accepted `--check`
+    **implementation** a hard dispatch precondition, and PIB-391 asserts its
+    goldens come from that cluster's commit range, not this one. S1b adds
+    pre-change `feature resource` goldens for the lock extraction.
+15. **Dry-run (MEDIUM)** — with a pending journal it now refuses
+    `recovery-pending` (exit 3) instead of printing a plan that recovery would
+    invalidate. §6.4, PIB-268, PIB-269.
+16. **Journal-loss boundary (MEDIUM)** — `git clean -xfd` / fresh clone /
+    out-of-band delete is an explicit **T2 boundary**: doctor detects, never
+    repairs. Relocating the journal under `.git` was evaluated and rejected
+    with reasons. §7.11.1, ADR-035 D21, PIB-321…PIB-323.
+17. **Flags / lifecycle / notes / citations (MEDIUM–LOW)** — a complete flag
+    delta table covering every newly registered flag plus a completeness guard
+    (§5.3, PIB-236…PIB-244); exit 4 stays retired; every exit-6 population
+    names its escape; `notes` is stated as a last-transition hint, not
+    provenance (§12.3.2); and the drifted citations are fixed —
+    `landJournalFileState` has **no size** (C56 †, size is now declared as this
+    design's deliberate extension), the `O_EXCL`/inode lock precedent is cited
+    only as the rejected alternative (C63 †, C65 †), `PIB-215`→`PIB-217` for
+    the WP-005 non-mandate assertion, `internal/cli/phase2.go:50` for `--interactive`,
+    `CLAUDE.md` decision **8** (not 7) for offline fallback, and nine
+    `resource_publish.go` / `doctor.go` / `scratch.go` ranges re-resolved.
+
+### Validation performed (docs-only change)
+
+- **Anchors**: 430 `file:line` citations parsed and checked in range; zero
+  out-of-range, zero missing files. Every newly written anchor was
+  content-verified by reading the cited line, and ten ranges were tightened
+  after that read (`internal/rescap/lock_unix.go:43-52`, `internal/cli/feature_resource.go:101-116`,
+  `internal/redact/redact.go:18-21`, `internal/cli/feature_deps.go:43-53`, `internal/cli/land_journal.go:383-415`,
+  `internal/store/resource_publish.go:131-143` / `:305-328` / `:358-399`, `internal/workflow/doctor.go:226-237`,
+  `internal/cli/session.go:353-419`). All shorthand `:NNN-NNN` anchors were expanded to full
+  paths so the checker can see them.
+- **Matrix mechanics**: 391 rows contiguous, zero duplicates; every `PIB-NNN`
+  cited anywhere in either document resolves to a real row; category counts sum
+  to 391; the slice partition is total and disjoint.
+- **Claims mechanics**: `C1`…`C165` contiguous **and ascending in file order**.
+- **PRD ↔ ADR parity**: ADR decisions `D1`…`D21` are contiguous; **every** one
+  is cited by the PRD; every acceptance-dependency row names PIB rows that
+  exist; every `PRD §N.N` reference in the ADR resolves to a real PRD heading.
+- **Markdown hygiene**: fences balanced (24 PRD, 0 ADR); zero table
+  column-count mismatches (escaped `\|` accounted for); zero trailing-whitespace
+  lines; every relative link resolves on disk; all `json` blocks parse; every
+  `§N.N` reference resolves to a real heading.
+- **Over-claim audit**: every occurrence of "atomic"/"atomically"/
+  "simultaneously" was re-read; each is either about a genuinely single-file
+  rename, about a shipped primitive's name, or an explicit statement that the
+  property is **not** claimed.
+- No Go source changed, so `gofmt` / `go build` / `go test` do not apply to
+  this change set. `internal/workflow/docs_totality_guard_test.go` reads three
+  verify-family documents, none of them touched here.
+
+### Implementation status
+
+**None.** No Go file, test, asset or CLI surface was created or modified. §19
+now states a **three-part** gate: this PRD accepted, ADR-035 accepted, and the
+accepted `prepare --check` PRD **implemented and landed** with its own goldens.
+
+### Reviewer focus for rev-1
+
+1. **§7.4 is the load-bearing replacement.** Test whether the kernel-lock model
+   really removes every "permanently blocked slug" path — including the
+   Windows deny-share sibling, the narrowed platform envelope (delta D8) and
+   the claim that a leftover lock file is inert.
+2. **§7.6.3's CAS table must be total.** Look for a mutating step that is not
+   in it, and for any path where an undo could overwrite third-party bytes.
+3. **§7.1's T1 wording.** The question is whether any sentence anywhere still
+   implies a world-state guarantee after the command returns. PIB-155 and
+   PIB-324 are the guards.
+4. **§9.6 is the privacy answer.** Challenge the refuse-don't-scrub choice, the
+   false-positive cost (R12, Q9), and whether §9.6.2's disclosure is complete —
+   especially the committed-history caveat in §9.7.4.
+5. **§9.7's purge ordering.** Verify that the index-then-blob order really
+   lands crashes in the recoverable direction and that reference counting
+   cannot orphan a live reference.
+6. **§11.3.2's provider authority.** Is refusing `--regenerate` without a
+   provider the right default for offline users, or does `--allow-heuristic`
+   need to be more discoverable?
+7. **§7.13.2's third row.** The `local-lane-unverifiable` refusal is a real
+   regression against `define --manual`. Challenge whether the privacy argument
+   justifies it.
+8. **§17.1 and PIB-391.** Confirm the prerequisite is stated strongly enough
+   that no implementer can dispatch a mutating slice on top of an unimplemented
+   read half.
+9. **Matrix bite.** 157 new rows: check that each names an *observable*, that
+   the `G` rows have sensitivity fixtures, and that §18.41's six semantic
+   fixtures are the right six.
+
+### Open decisions left to review (§20, thirteen)
+
+Q1 `--regenerate --only <ids>`; Q2 the 180s total deadline; Q3 a default-mode
+`--require-provider`; Q4 a `--restore` verb; Q5 automatic retention policy;
+Q6 whether `--regenerate` invalidates `verified-fresh`; Q7 per-feature vs
+per-workspace archive; Q8 whether `doctor` D9 should be an error; **Q9** a
+scoped redaction override; **Q10** the 90s per-phase deadline; **Q11**
+`feature intent-archive` vs a top-level `tpatch archive`; **Q12** whether
+`solaris`/`aix` deserve a different lock primitive; **Q13** whether a
+non-allowlisted filesystem can opt in to mutating `prepare`. All thirteen have
+a stated default; none blocks review.
 
 ## Prepare PRD Writer Contract
 
