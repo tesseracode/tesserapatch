@@ -1,3 +1,66 @@
+## Dispatch — PRD prepare intent bundle rev-7 + ADR-035 rev-7 — 2026-08-14
+
+**Writer base**: `ec28a48`
+**Reviewed writer tip**: `7af5092`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Give archive-purge divergence its own manual escape, not transaction abandon.
+- Let abandon skip feature/status and Git/lane parsing after root-lock safety.
+- Amend the stale lane-gate row and ADR dependency.
+- Make partial-purge retry shape conditional on pending/between-hash/orphan
+  state.
+- Define zero-write preview behavior for pending purge recovery.
+- Qualify recoverability rows and correct the amendment ledger.
+- Pin archive purge at zero Git and add the missing default grammar flag.
+
+### Action Taken
+
+One sequential docs-only rev-7 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-6 + ADR-035 rev-6 — 2026-08-14
+
+**Writer tip**: `7af5092`
+**Tracking tip**: `ec28a48`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Abandon still parses feature/status before its branch, so malformed CP9
+  evidence can block the escape.
+- PIB-283 still requires the Git lane gate in abandon, contradicting rev-6.
+- Partial-purge retry prose assumes every failure has a pending recovery run.
+- Preview behavior with pending purge state is unscoped.
+- Recoverability rows/ledger remain unqualified, and purge Git counts are not
+  pinned.
+
+### Verified
+
+Terminal recovery, pending-journal purge refusal, broken-Git abandon, retry
+sanitization, repeat abandon, flag parsing, `Control`/`fstatfs`, 505 rows and
+all mechanical totals were independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-6 + ADR-035 rev-6 — 2026-08-14
+
+**Writer tip**: `7af5092`
+**Tracking tip**: `ec28a48`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Archive-purge divergence is exit 6 but its mandated abandon route cannot
+  consume pending purge state.
+- The default grammar line omits its legal `[--allow-heuristic]` flag.
+
+### Verified
+
+505 rows/categories/kinds/slices, C1–C176, D1–D21, CP/J/X, the 53-code
+partition and 402 source citations.
+
 ## Writer — PRD prepare intent bundle rev-6 + ADR-035 rev-6 — 2026-08-14
 
 **Writer tip**: `7af5092`

@@ -2,15 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-7 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-6** and proposed ADR-035
-**rev-6** are written and awaiting the rev-6 review. Rev-6 closes the final
-rev-5 adjudication: terminal recovery, purge's refusal to touch a prepare
-journal, abandon reachability through a broken Git plus the environmental
-manual route, sanitized retries and repeat-abandon residue, the flag-grammar
-corrections, and the descriptor/step-reference cleanup. It is **docs-only**; no
-mutating command is implemented or authorized.
+**rev-6** close the rev-5 adjudication, but acceptance review found two
+remaining escape/ordering contradictions and bounded purge-preview/retry
+drift. A narrow **rev-7** is dispatched. It is **docs-only**; no mutating
+command is implemented or authorized.
 
 ## Active Task
 
@@ -18,14 +16,61 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-6 written — Awaiting Review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-6)
+- **Status**: Rev-7 dispatched after rev-6 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-7)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-6 Review and Rev-7 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `7af5092`
+**Tracking tip**: `ec28a48`
+
+All rev-5 findings are closed. Rev-7 is limited to these final totality fixes:
+
+1. **Archive divergence escape (HIGH).** Exit-6 journal populations keep
+   `--abandon-transaction`. `archive-purge-evidence-divergent` instead gets an
+   archive-specific, repo-relative manual escape: preserve the unexpected blob
+   if desired, remove the managed divergent blob path, then rerun the sanitized
+   purge command so pending+absent finalizes safely. Partition every exit-6
+   remediation claim and PIB-362 accordingly; never direct archive divergence
+   to an abandon mode that cannot consume it.
+2. **Abandon gate totality (HIGH).** After parse, safe slug and workspace
+   discovery, abandon uses the mutating Linux/Darwin root authority and lock,
+   then branches without feature-directory or `status.json` parsing and without
+   Git/lane gates. A malformed/missing feature cannot block local evidence
+   abandonment. Replace “exactly three” with a total pre-abandon gate table
+   covering parse/slug/workspace/platform/filesystem/contention/unavailable
+   outcomes and the wait or manual escape for each.
+3. **Lane row parity (HIGH).** Amend PIB-283 and ADR D17 dependencies so the
+   lane gate runs before local writes in normal mutating modes but never in
+   abandon. Add the missed ID to the amendment ledger.
+4. **Partial-purge retry truth (MEDIUM).** Reports branch on state:
+   pending hash present → recovery run then completion run; failure between
+   hashes with no pending marker → one completion retry; `--orphans` → one
+   retry over remaining orphans. Add rows for all three and remove unconditional
+   “two runs” prose.
+5. **Preview pending purge (MEDIUM).** Preview with no journal and a pending
+   hash performs no recovery/write/lock. Define its output explicitly
+   (pending-recovery preview plus `--yes` route); only `--yes` performs terminal
+   recovery.
+6. **Recoverability/ledger wording (LOW).** Qualify PIB-294/363 and all
+   “never permanent” sentences by the command or manual escape actually
+   available. Correct the rev-6 amendment ledger to the rows truly changed.
+7. **Purge Git count and grammar (LOW).** Archive purge executes zero Git
+   commands because it writes the tracked archive, not the local lane; pin the
+   count. Add `[--allow-heuristic]` to the default grammar line without
+   changing its already-correct semantics.
+
+Rev-7 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Prepare PRD Writer Result — rev-6 (2026-08-14)
 
