@@ -2,13 +2,14 @@
 
 ## Status
 
-**Cluster state**: REV-8 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-7** and proposed ADR-035
-**rev-7** close the rev-6 adjudication, but review found one remaining archive
-state-classification contradiction plus bounded preview/ledger/reference
-drift. A narrow **rev-8** is dispatched. The revision is **docs-only**; no
-mutating command is implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-8** and proposed ADR-035
+**rev-8** close the six rev-8 adjudication items: the tombstone-beside-blob
+classification, purge-owned pending recovery, all-selector recovery/preview
+totality, the abandon-table domain, the pending-purge preview shape, and the
+ledger/reference/lock drift. The revision is **docs-only**; no mutating command
+is implemented or authorized.
 
 ## Active Task
 
@@ -16,7 +17,7 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-8 dispatched after rev-7 NEEDS REVISION
+- **Status**: Rev-8 written, awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-8)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -113,6 +114,182 @@ All rev-5 findings are closed. Rev-7 is limited to these final totality fixes:
 Rev-7 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
 implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
 change is authorized.
+
+## Prepare PRD Writer Result — rev-8 (2026-08-14)
+
+**Writer base/dispatch**: `aab0c32`; **reviewed writer tip (rev-7)**: `751d817`;
+**WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the six rev-8
+adjudication items above, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-8
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-8
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **A tombstone beside a present blob is physical residue (item 1).** It is
+   removed from `archive-purge-evidence-divergent` and from the pending+absent
+   escape, because it holds **no pending reference**: there is no hash to name
+   as pending, no purge transaction in flight, and nothing for that escape's
+   rerun to finalize. X11 now classifies it as exit-3
+   `archive-index-storage-inconsistent` **unreferenced physical residue**,
+   zero-write on discovery for every ordinary archive/canonical mutation, with
+   `list`/`doctor` rendering it as `orphan`. Its one shipped repair is
+   `tpatch feature intent-archive purge <slug> --orphans --yes` from the
+   workspace root, explicitly admitted past that X11 observation **after** the
+   strict X1–X10 wire decode — the second admitted exception in the purge
+   preflight, alongside the confirmed dangling-hash one — which validates the
+   file as a regular hash-correct blob, removes it and rewrites no index. A
+   non-regular or hash-wrong file at that path keeps its existing
+   `archive-blob-corrupt` exit-3 refusal. The `--orphans` preview reports the
+   residue. Archive divergence now covers exactly the pending-hash and
+   pending-index evidence, and keeps its manual `cp`/`rm`-or-restore + rerun
+   route unchanged. §9.3's storage table (new sixth row), §9.3.1 X11 and its new
+   classification block, §9.7's `list` sentence, §9.7.1's `--orphans` bullet,
+   §9.7.2's preflight/exit-6/blob-divergence text, §9.7.3, §6.6 rule 8, §10.4,
+   §10.4.1, §12.5, §7.10 CP13, ADR D10/D13/D16, amended PIB-404, PIB-447,
+   PIB-506, new PIB-521…PIB-524, new risk R20.
+2. **Pending purge recovery is purge-owned (item 2).** §7.8 step 5 stops being
+   a recovery and becomes a refusal: a normal mutating `prepare` that observes
+   `purge_pending` returns exit 3 `recovery-pending` with the whole tree
+   byte-identical and names the sanitized
+   `tpatch feature intent-archive purge <slug> --all --yes` with
+   `retry_cwd: "workspace-root"` (or `--blob <h> --yes` where one hash provably
+   covers the pending set). `RecoverPendingPurge` has exactly one call site, on
+   `feature intent-archive purge --yes`, so `archive-purge-partial` and
+   `archive-purge-evidence-divergent` have one command that can produce **and**
+   resolve them. "After the first per-hash mutation" is scoped to the purge
+   transaction **in flight**, which may have been written by a prior invocation
+   — so both codes are reachable from a recovery invocation that wrote nothing
+   itself, and neither is reachable before the pending record exists. §7.8 step
+   5 and its new "Why step 5 refuses" rationale, §7.11's entry points and new
+   consequence 4, §7.10 CP12/CP12a, §6.6 rules 3 and 8, §9.7.2, §10.4 (exit-3
+   population (c), exit-6 wording), §10.4.1 (`recovery-pending`,
+   `no-pending-transaction`, the closing scoping paragraph), §10.5 step 13 and
+   step 22, §12.6 D13, ADR D13/D16, amended PIB-453 and PIB-486, new PIB-525 and
+   PIB-526, new risk R21.
+3. **Selector totality (item 3).** Every `--yes` selector — `--blob`,
+   `--generation`, `--all` **and `--orphans`** — takes the pending-hash recovery
+   first and returns terminal `recovered`; the operator reruns the selector they
+   asked for. `--orphans` is in that set for a stated reason, not for symmetry:
+   the orphan set is derived from a reference set a pending record is mid-
+   decision about. No selector recovers a journal. Every preview selector takes
+   no lock, writes nothing and reports the pending recovery. Selector
+   preservation is normative and asserted: every emitted retry is the operator's
+   own command with `--yes` appended and no root-selection argv — never widened
+   to `--all`, never narrowed to the pending hash. §9.7's bullets and worked
+   example, §9.7.1, §9.7.2, §10.5 step 22, ADR D16, new PIB-527 and PIB-528.
+4. **The abandon table is total over reachable stops (item 4).** rev-7's row 1a
+   — the `--yes` validation, listed while its own cell called it unreachable —
+   is removed, and the table's **domain** is now stated: the gates a
+   syntactically valid `--abandon-transaction` invocation can actually reach.
+   The three grammar-excluded branches (step 1a, the `--check` handoff, the
+   `--dry-run` branch) are recorded as deliberate absences rather than rows.
+   PIB-511 is amended to **derive** the row set and to fail in both directions:
+   a reachable stop with no row, and a listed row no fixture can produce. §10.5
+   step 10's precedence note is tightened from "steps 1–5 and 8–9" to the exact
+   set {1, 3, 4, 5, 8, 9}. §6.6's gate table and both surrounding paragraphs,
+   §10.5 step 10, ADR D13, amended PIB-511 (plus a second semantic fixture).
+5. **The pending-purge preview has a bound shape (item 5).** A new closed
+   `outcome` token, `recovery-required`, carries it — `planned` implies an
+   executable plan, `refused` implies a non-zero exit and a `refusal` object,
+   and the preview is neither. One closed object, `pending_purge`, carries
+   `recovery_required: true`, `pending_hashes[]` (each `hash`, repo-relative
+   `blob`, repo-relative `index`, fixed `plan`; sorted, never null), the closed
+   `selector`, the sanitized `retry` and `retry_cwd: "workspace-root"`. Human
+   and JSON parity is asserted field by field. §10.2's closed-vocabulary table
+   (two rows), the new "Pending-purge preview shape" block with its JSON, §9.7,
+   §10.4's exit-0 row, §10.6's `--quiet` block, ADR D16, amended PIB-226,
+   PIB-367 and PIB-515, new PIB-529.
+6. **Drift (item 6).** `PIB-274` is removed from the rev-7 amendment ledger:
+   diffing `7af5092` against `751d817` shows it changed only in ledger prose,
+   not as a matrix row, so it belongs to rev-6's list alone. Both ledgers are
+   now exactly diff-derived. ADR-035's Status/Byline/Companion and the PRD's
+   Architecture/Related/§8.4/§14.1/§19/§22 headers all read rev-8 with base
+   `aab0c32` and reviewed tip `751d817`. §7.4.1 states the never-acquire
+   population positively and names **every purge preview on every selector**;
+   §7.12's matrix row does the same and its contention row is scoped to
+   `purge --yes`; purge remains zero-Git in both forms. One further count error
+   found while verifying references — §14.1 said "the twelve deltas of §12.6"
+   when §12.6 has held thirteen since rev-6 — is corrected.
+
+### Mechanics recomputed (each derived mechanically, not trusted)
+
+- **530 matrix rows**, `PIB-001`…`PIB-530`, contiguous, zero duplicates, zero
+  retired. Rev-8 adds contiguous `PIB-521`…`PIB-530` in a new category **AS**
+  (10 rows).
+- **45 categories** summing to 530, each count derived from the tables
+  themselves. **Kinds** `I` 231 / `C` 118 / `G` 107 / `U` 49 / `S` 25, sum 530,
+  cross-checked against the Kind column. **Slice partition** sums to 530 with
+  S7 at 136.
+- **Amended stable rows are exactly the nine the diff changed**: `PIB-226`,
+  `PIB-367`, `PIB-404`, `PIB-447`, `PIB-453`, `PIB-486`, `PIB-506`, `PIB-511`,
+  `PIB-515` — verified by extracting changed `| PIB-NNN |` rows from
+  `git diff 751d817`.
+- **No refusal code was added or removed**: the catalog is still 53 codes, and
+  §6.4's reproduced (23) / non-evaluated (30) tables remain total over it with
+  zero overlap and zero unplaced, re-derived mechanically. The advisory catalog
+  is still exactly seventeen codes.
+- The `outcome` vocabulary grows from ten to **eleven** (`recovery-required`);
+  one new closed report object `pending_purge{recovery_required,pending_hashes[],
+  selector,retry,retry_cwd}` with the closed `pending_purge.selector` set. **No**
+  new refusal code, exit code, lifecycle state or injection seam.
+- Semantic-fixture table grows from seventeen to **nineteen** guards (adds
+  PIB-524, PIB-528; PIB-511's entry gains a second fixture). Claims stay at
+  **176**: rev-8 makes no new assertion about current shipped behavior.
+- §18.45 remains AR; the new AS section is §18.46, and the former
+  §18.46/§18.47 became §18.47/§18.48 with every reference to them updated.
+
+### Verification performed (docs-only; no build or test run)
+
+- Every `PIB-NNN` referenced in either document resolves to a real row (0
+  dangling, both directions); every `§` reference in both documents resolves to
+  a real heading (0 dangling); every `§7.8 step N` and `§10.5 step N` reference
+  was re-derived from the numbered lists and checked against the text of the
+  step it cites.
+- Matrix contiguity, per-category counts, kind counts, the slice partition and
+  the refusal-catalog partition were each derived from the tables by script
+  rather than trusted.
+- Markdown hygiene: balanced fences, uniform column counts across all **99** PRD
+  and 5 ADR tables (escaped `\|` handled), no trailing whitespace, valid JSON in
+  every `json` fence, single trailing newline, every relative link target exists,
+  and no absolute path appears anywhere in the added text.
+
+### Remaining issues / notes for the reviewer
+
+- `docs/adrs/README.md` still lists ADR-035 at rev-0. Updating the ADR index is
+  **out of this writer's authorized diff**; §14.1 records it as an
+  implementation-wave obligation, now pointing at rev-8.
+- **CP13 is now an operator step.** A crash in the rehydration window (blob
+  durable, index rename not landed) leaves the residue this revision classifies,
+  so an ordinary retry refuses exit 3 until `--orphans --yes` clears it. That is
+  the honest consequence of keeping X11 a refusal and not admitting rehydration
+  past it; the cost is disclosed in §7.10 CP13, §9.3 and the ADR's negative
+  consequences. A reviewer who prefers admitting rehydration past X11 should
+  challenge that analysis rather than the row text.
+- **The purge-owned recovery costs one extra invocation** for a mutating
+  `prepare` that meets a pending index. The reasoning is in §7.8's "Why step 5
+  refuses" and in §21's two rejected alternatives (keep the second owner;
+  duplicate the archive remediation into `prepare`).
+- `PIB-452` was deliberately **not** amended: its assertion that neither
+  journal recovery nor pending archive-hash recovery is invoked in abandon mode
+  remains true and non-contradictory under the new ownership.
+- Dry-run was deliberately **not** given a pending-index refusal. Its branch
+  returns at §10.5 step 7 and never reaches step 13; §6.4's non-evaluated table
+  now says so explicitly rather than leaving `recovery-pending` ambiguous.
+- All frozen rev-6 and rev-7 closures are preserved: terminal journal recovery,
+  purge's journal refusal, the exit-6 route partition and its archive procedure,
+  the three conditional partial-purge branches, the abandon gate's contention
+  row, sanitized retries, root lock/lifetime/`Control` discipline, rooted
+  writes, dry-run scope, exit-5 partial-purge semantics, the removed doctor
+  probe, the Git helper/scrub boundary, and the privacy, provider, coherence,
+  archive, lifecycle and prerequisite decisions.
 
 ## Prepare PRD Writer Result — rev-7 (2026-08-14)
 

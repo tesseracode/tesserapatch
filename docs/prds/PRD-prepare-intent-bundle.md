@@ -1,10 +1,10 @@
 # PRD — Prepare Intent Bundle — `tpatch prepare <slug>` (mutating modes)
 
-**Status**: Draft — Awaiting Review (rev-7)
+**Status**: Draft — Awaiting Review (rev-8)
 **Date**: 2026-08-14
 **Owner**: Core (planning lane)
-**Byline**: sole sequential planning writer, rev-7 from reviewed writer tip `7af5092`;
-dispatch/base `ee19f89`; WAVE_BASE `d060ff4`
+**Byline**: sole sequential planning writer, rev-8 from reviewed writer tip `751d817`;
+dispatch/base `aab0c32`; WAVE_BASE `d060ff4`
 **Milestone**: TBD — this document ships no code
 **Issue**: [GH #11 — define the mutating prepare intent-bundle contract](https://github.com/tesseracode/tesserapatch/issues/11)
 **Graduates from**: [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md), Turns 2–4
@@ -14,7 +14,7 @@ rev-2 (Accepted 2026-08-13). This PRD builds **on top of** that read-only
 contract and does not reopen it. Its **implementation** is a hard sequencing
 prerequisite for every mutating slice here (§17.1).
 **Architecture**: [ADR-035 — Intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md)
-(**Proposed**, rev-7). **This PRD and ADR-035 must be reviewed together.**
+(**Proposed**, rev-8). **This PRD and ADR-035 must be reviewed together.**
 ADR-035 locks the publication/history decisions; this PRD states the product
 contract that depends on them. Where they overlap, **ADR-035 is normative**.
 
@@ -27,7 +27,7 @@ contract that depends on them. Where they overlap, **ADR-035 is normative**.
 
 - [PRD-artifact-validation-and-provenance](./PRD-artifact-validation-and-provenance.md) — the accepted read-only `prepare <slug> --check` contract this PRD extends without modifying (its §20 lists exactly what this document must answer)
 - [ADR-034 rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md) — D1–D18; reused verbatim for every canonical **read** this command performs
-- [ADR-035 intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md) — **companion, Proposed rev-7**; the transaction, the archive and the honesty limits
+- [ADR-035 intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md) — **companion, Proposed rev-8**; the transaction, the archive and the honesty limits
 - [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md) — `## Agreed — Turns 2–3` items 4–9
 - [WP-005 turn log](../whitepapers/WP-005-spec-driven-workflows.turns.md) — Turns 2, 3 and 4
 - [Agent as Provider — Path B workflow](../agent-as-provider.md) — the phase → artifact → state contract
@@ -53,6 +53,7 @@ contract that depends on them. Where they overlap, **ADR-035 is normative**.
 | rev-5 | Draft — Awaiting Review | Bounded reachability and totality adjudication of rev-4; no product choice is reopened. **Abandon is reachable**: `--abandon-transaction` branches after the mutating gate and the lock and **before** journal and archive recovery, so it can never auto-recover the evidence it was invoked to preserve; corrupt, divergent and recoverable journals all abandon successfully (§6.6, §7.8, §7.11, §10.5). **Every control write is rooted**: a prepare-owned rooted durable single-file helper replaces path-based `gitutil.DurableWriteFile` for the journal, both raw preimages, staging and every `.tpatch/local/` write; `DurableWriteFile`/`writeFileAtomic` are shape precedents only (§7.5, §7.7.1, §13.2, ADR-035 D2). **One dangling repair**: unreachable exact-content rehydration is removed as a dangling-reference remedy; the sole shipped repair is confirmed `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, and the existing global rehydration path applies only to tombstoned/pending references afterwards (§9.3, §9.3.1, §9.7). **Dry-run states its exact scope**: it reproduces only the refusal classes it evaluates, enumerates the non-evaluated ones, always reports `execution_preflight: not_evaluated`, and its precedence branch runs every non-mutating gate before returning (§6.4, §10.5). **Partial purge is a distinct retryable outcome**: everything predictable is preflighted, and a failure after the first per-hash mutation is exit 5 `archive-purge-partial` with completed/pending/remaining hashes and an exact same-command retry; exit 3 keeps its zero-write promise (§9.7.2, §10.4). **Doctor stops probing**: D9 reports persistent evidence only and never opens or flocks the root (§12.5). **The Git slice is complete**: `internal/rescap/gitgate.go` joins the authorized central-gate refactor, the environment scrub list is pinned, and global/system ignore configuration is deliberately preserved (§7.13, §17.2). **Guards are feasible**: provenance guards inspect controlled schema keys and persistence sinks rather than `.tpatch` bytes (§9.8, §13.4). Matrix: 482 rows; rev-5 amends listed stable rows and adds `PIB-449`…`PIB-482`. |
 | rev-6 | Draft — Awaiting Review | Final bounded ordering/grammar adjudication of rev-5; no product choice is reopened. **Recovery is terminal**: a successful automatic journal recovery or pending-purge recovery ends the invocation at exit 0 with `outcome: "recovered"`, reports what it restored or finalized, and hands the operator a sanitized equivalent retry; it never continues into the requested operation's later exit-2/exit-3 gates, which is what makes exit 3's zero-write promise unqualified (§7.8, §7.11, §10.4, §10.5). **Purge refuses a pending journal**: `intent-archive purge` never recovers, decodes or consumes a prepare journal — it refuses `recovery-pending` with the whole tree unchanged, and recovers only a pending *purge* state, terminally (§9.7, §9.7.2, ADR-035 D16). **Abandon is reachable through a broken Git**: it still requires the supported platform, the classified root filesystem and the exclusive root lock, but it bypasses G1–G4 and the local-lane privacy gate because it only moves existing bytes inside the same lane; where the environment denies the lock outright, the refusal names the repo-relative lane and a safe last-resort manual removal, and every “never terminal” claim is qualified by that route (§6.6, §7.8, §10.4, §10.5). **Retries are sanitized**: no retry or remediation echoes an inherited absolute `--path`; every retry is the equivalent command without root-selection argv plus the closed field `retry_cwd: "workspace-root"`, and a second abandon over `abandoned-*` residue alone refuses `no-pending-transaction` while preserving it (§9.7.2, §10.2, §10.4.1). **Flag grammar is honest**: default-mode `--allow-heuristic` is a legal no-op with an advisory in §5.1 as well as §5.2, and `--yes` outside `--abandon-transaction` is rejected by the command's own preflight at §10.5 step 1a with one fixed literal, because cobra cannot express a mutex against the *absence* of a mode flag. **Descriptor discipline is uniform**: `fstatfs` runs inside the retained directory file's `SyscallConn().Control` callback, and no `(*os.File).Fd()` appears in the authority path (§7.4.2). Matrix: 505 rows; rev-6 amends listed stable rows and adds `PIB-483`…`PIB-505`. |
 | rev-7 | Draft — Awaiting Review | Bounded totality fold of rev-6; no product choice is reopened. **Exit-6 remediation is partitioned by population**: the nine journal/publication codes keep `--abandon-transaction`, and `archive-purge-evidence-divergent` — which abandon provably cannot consume, because that mode touches no index and no blob — gets its own repo-relative, executable archive procedure (preserve the unexpected bytes if wanted, remove the divergent managed blob path or restore the index, then rerun the sanitized purge, whose pending+absent recovery terminally tombstones), with its destructive cost and the Git-history caveat stated (§6.6, §9.7.2, §10.4, §10.4.1). **The pre-abandon gate is total**: rev-6's “exactly three conditions” is replaced by a total table over parse/flag, slug, workspace, read platform, mutating platform, root filesystem, contention and lock failure; contention says wait and retry rather than offering deletion under a live holder; and abandon is confirmed to branch **without** reading the feature directory or `status.json` and without G1–G4, so an absent, malformed or unreadable feature cannot block local evidence inspection (§6.6, §10.5 steps 6 and 10). **Lane parity**: PIB-283 is amended to the normal mutating modes and explicitly excludes abandon, dry-run, check, list and purge (§18.1, ADR-035 D17). **Partial purge branches**: the resumption story is conditional — pending hash present (recovery run then completion run), failure exactly between hashes (one completion run, no `recovered` promised) and `--orphans` (one rescan run, no `recovered` promised) — carried by the closed `purge_progress.resume` field (§9.7.2, §10.2, §10.4). **Pending-purge preview is honest**: with no journal and a pending hash, preview acquires no lock, writes nothing, recovers nothing, and says that recovery is required and that `--yes` from the workspace root performs it (§9.7). **Purge runs zero Git**: it writes the tracked archive and never the gitignored staging lane, so the lane gate has no subject there and G1 is scoped to normal mutating `prepare` alone (§7.13, ADR-035 D17). **`--allow-heuristic` joins the default grammar line** without changing its no-op/advisory semantics (§5.1). Every “never permanently blocked” sentence is qualified by the command or manual escape actually available, and the rev-6 amendment ledger is corrected to the rows it truly changed. Matrix: 520 rows; rev-7 amends listed stable rows and adds `PIB-506`…`PIB-520`. |
+| rev-8 | Draft — Awaiting Review | Final bounded archive-state correction of rev-7; no product choice is reopened. **A tombstone beside a present blob is physical residue, not purge divergence**: it holds no pending reference, so it cannot be the subject of `archive-purge-evidence-divergent` or of the pending+absent escape. X11 classifies it as exit-3 `archive-index-storage-inconsistent` **unreferenced physical residue**, zero-write on discovery, and its one shipped repair is `tpatch feature intent-archive purge <slug> --orphans --yes` run from the workspace root, which is explicitly admitted past that X11 refusal after the strict X1–X10 wire decode and removes the unreferenced blob without rewriting the index; the preview reports it (§9.3, §9.3.1, §9.7.3, §10.4.1, ADR-035 D10/D16). Archive divergence keeps only genuinely pending-hash/index evidence and its manual `rm`/restore-then-rerun route. **Pending purge recovery is purge-owned**: a normal mutating `prepare` never runs `RecoverPendingPurge`; observing `purge_pending` in the index it refuses exit 3 `recovery-pending` with zero writes and names the sanitized `tpatch feature intent-archive purge <slug> --all --yes` with `retry_cwd: "workspace-root"`, so one command owns the pending-purge transaction and `archive-purge-evidence-divergent` has one owner (§7.8 step 5, §7.11, §10.4, §10.5 step 13). “After the first per-hash mutation” is scoped to the purge transaction in flight, which may have begun in a **prior** invocation. **Selector totality**: every `--yes` selector, `--orphans` included, finalizes any pending hash first and returns terminal `recovered`, after which the operator reruns the requested selector; every preview selector takes no lock, writes nothing and reports the pending recovery, and every emitted retry preserves the operator's own selector verbatim minus root-selection argv (§9.7, §9.7.1, §9.7.2). **The pending-purge preview has a bound shape**: the new closed outcome token `recovery-required` and the closed `pending_purge` object carry `recovery_required`, the pending hashes with their safe repo-relative blob/index paths and per-hash plan, the selector, the sanitized `retry` and `retry_cwd`, with asserted human/JSON parity (§10.2). **The pre-abandon gate table is total over reachable stops only**: the intentionally unreachable `--yes` row is removed and the table is defined over the gates a syntactically valid abandon invocation can actually reach (§6.6). Purge preview joins the never-acquire population explicitly, `--yes` purge acquires, and purge stays zero-Git in both forms (§7.4.1, §7.12). Matrix: 530 rows; rev-8 amends listed stable rows and adds `PIB-521`…`PIB-530`. |
 
 ## Summary
 
@@ -764,7 +765,7 @@ and total over the §10.4.1 refusal catalog (PIB-464):
 | `incoherent-bundle-gap`, `artifact-empty-not-overwritten`, `not-ready` | `local-lane-not-ignored`, `local-lane-unverifiable` |
 | `provider-required-for-regenerate` (configuration only) | `regenerate-generation-failed`, `staged-output-invalid`, `archive-content-refused-sensitive` |
 | `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-blob-dangling`, `archive-index-storage-inconsistent`, `archive-blob-corrupt` | `entry-appeared`, `entry-changed`, `status-changed`, `archive-index-changed`, `workspace-root-changed`, `archive-purge-index-changed`, `archive-blob-shared`, `archive-generation-id-collision`, `archive-purge-partial` |
-| `recovery-pending` (evaluated here; it also fires for archive purge) | `undo-cas-mismatch`, `recovery-divergent`, `journal-corrupt`, `journal-version-mismatch`, `journal-foreign`, `journal-path-escape`, `journal-forged`, `post-publication-divergence`, `workspace-root-replaced-after-publication`, `archive-purge-evidence-divergent`, `no-pending-transaction`, `abandon-evidence-unsafe` |
+| `recovery-pending` (its pending-**journal** population is evaluated here; the same code also fires for archive purge, and for a normal mutating `prepare` on a removal-pending index, neither of which a dry-run reaches) | `undo-cas-mismatch`, `recovery-divergent`, `journal-corrupt`, `journal-version-mismatch`, `journal-foreign`, `journal-path-escape`, `journal-forged`, `post-publication-divergence`, `workspace-root-replaced-after-publication`, `archive-purge-evidence-divergent`, `no-pending-transaction`, `abandon-evidence-unsafe` |
 
 The redaction scan is deliberately in the right-hand column. It is defined as a
 write precondition immediately before the first blob write (§9.6.1, ADR-035
@@ -853,8 +854,10 @@ has its own procedure in §9.7.2, because this mode cannot touch the archive.
    boundary is therefore unchanged and the escape stays reachable.
 3. **Branches before any automatic recovery, and before any feature-directory
    read.** Under the lock, the abandon branch is taken **before** journal
-   recovery (§7.11) and before pending archive-hash recovery (§9.7.2), and
-   neither is invoked in this mode. This ordering is the whole point of the
+   recovery (§7.8 step 4, §7.11) and before the pending archive-hash gate
+   (§7.8 step 5), and neither is entered in this mode — so abandon neither
+   recovers a journal nor refuses `recovery-pending` on a removal-pending
+   index. This ordering is the whole point of the
    mode: a route whose purpose is to move the evidence of an interrupted
    transaction must not first run the automatic recovery that consumes, undoes
    or deletes that evidence, and must not first hit the exit-6 refusal it
@@ -917,17 +920,24 @@ has its own procedure in §9.7.2, because this mode cannot touch the archive.
    journal, abandon does **not** consume it, does not rewrite the index and does
    not remove a blob — the index is tracked canonical-adjacent state, which
    rule 10 forbids this mode from touching. It refuses `no-pending-transaction`
-   and its remediation names the archive recovery route instead: re-run
-   `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, which
-   resumes the per-hash state machine, or run an admissible mutating `prepare`,
-   which performs the same pending-hash recovery under the lock (PIB-453).
+   and its remediation names the **one** command that owns that state:
+   `tpatch feature intent-archive purge <slug> --blob <hash> --yes` (or
+   `--all --yes` where more than one hash is pending), which resumes the
+   per-hash state machine. It does **not** offer a mutating `prepare` as a
+   second route: since rev-8 a normal mutating `prepare` never runs the
+   pending-hash recovery either — it refuses exit 3 `recovery-pending` and
+   names this same purge command (§7.8 step 5, §7.11) — so naming it here would
+   hand the operator a refusal dressed as a route (PIB-453).
 
    **The same limit is why abandon is not the escape from
    `archive-purge-evidence-divergent`.** That exit-6 population is divergence
-   in the *archive*: a blob whose bytes do not hash to its name, a non-regular
-   file where a blob belongs, a blob beside a tombstone, or an index that
-   stopped strict-decoding under an external write mid-run. Every one of those
-   lives in `.tpatch/features/<slug>/artifacts/intent-archive/`, which this mode
+   in the *archive* under a **pending** reference: a blob whose bytes do not
+   hash to its name, a non-regular file where a blob belongs, or an index that
+   stopped strict-decoding under an external write mid-run. (A tombstone whose
+   named blob is present is **not** in that population — it holds no pending
+   reference at all, and §9.3.1 classifies it as unreferenced physical residue
+   with its own `--orphans --yes` repair.) Every one of those lives in
+   `.tpatch/features/<slug>/artifacts/intent-archive/`, which this mode
    is forbidden to touch, so directing an operator here would hand them a
    command that provably cannot consume their evidence. §9.7.2 defines that
    population's own repo-relative, executable procedure, and §10.4.1 routes it
@@ -962,15 +972,24 @@ rules 1 and 2 leave "exactly three conditions" that can stop
 `--abandon-transaction` before it inspects anything. That was a count, not a
 proof, and it was wrong by omission: parse, slug, workspace and read-platform
 stops all precede the mutating gate, and rev-6's §10.5 additionally let the
-feature-directory step refuse before the branch. rev-7 replaces the count with a
-**total table**. Every row below can stop this mode before rule 4 inspects a
-single lane entry; **nothing else can**, and PIB-511 fails if a stop exists
-outside it:
+feature-directory step refuse before the branch. rev-7 replaced the count with a
+**total table**, and rev-8 states the domain that table is total **over**: the
+gates reachable by a *syntactically valid* `--abandon-transaction` invocation.
+A branch that mode's own grammar makes unreachable is **not** a row — rev-7
+listed §10.5 step 1a's `--yes` validation as row 1a and then said in the same
+cell that it is unreachable here, which is a contradiction rather than a
+completeness argument, and it invited the mirror error of listing the `--check`
+handoff and the `--dry-run` branch, both of which are mutex-incompatible with
+this mode and can never be entered from it. So the domain is fixed: every row
+below is a stop that some real `--abandon-transaction` invocation reaches before
+rule 4 inspects a single lane entry; **nothing else can stop it**, and PIB-511
+derives that exact row set from the implementation's pre-branch control flow —
+failing both if a reachable stop is missing from the table and if a listed row
+is unreachable:
 
 | # | Stop, in order | Exit / code | The route this refusal must offer |
 |---:|---|---|---|
 | 1 | cobra/pflag parse, arity, or a mode mutex | `1`, pflag's own text | fix the command line; nothing was read, opened or locked |
-| 1a | this command's own `--yes` validation (§10.5 step 1a) — unreachable here, since `--yes` is legal in this mode, and listed so the table is total over §10.5's pre-branch steps | `1`, the fixed literal | fix the command line |
 | 2 | canonical slug grammar (§10.5 step 3) | `3`, `slug-unsafe` | supply a slug that satisfies the accepted grammar. **No lane path is named**, because the accepted no-echo rule forbids composing or echoing a path from an unsafe slug, and there is no evidence to point at until one exists |
 | 3 | workspace discovery (§10.5 step 4) | `3`, `workspace-not-initialized` | **truly unavoidable**: with no workspace root there is no repo-relative lane to name and no `.tpatch/` to inspect. The remediation is to run from inside a tpatch workspace, or pass `--path`; it offers no manual removal because it cannot honestly name a target |
 | 4 | read-boundary platform allowlist (§10.5 step 5) | `3`, `workspace-unsupported-platform` | **truly unavoidable**: this is the boundary that resolves the lane at all, so no procedure this document could print would be executable on that host. It states that and stops |
@@ -989,6 +1008,14 @@ directory was deleted, whose `status.json` is truncated JSON, or whose
 `status.json` is unreadable is therefore still abandonable, with a corrupt
 journal in the lane and no `git` on `PATH`, and PIB-509, PIB-510 and PIB-513
 assert exactly that composition.
+
+Three further §10.5 branches are absent because this mode's own grammar makes
+them unreachable, not because they were forgotten: step 1a's `--yes` validation
+(`--yes` is legal here, so it never fires), step 2's `--check` handoff and step
+7's `--dry-run` branch (both flags are mutually exclusive with
+`--abandon-transaction`, §5.2). Listing them as rows would put cells in the
+table that no fixture can reach, which is what PIB-511's reachability arm
+forbids.
 
 **Where rows 5, 6 and 8 fire and evidence exists, the refusal is itself a route
 out.** All three are exit 3 and write nothing. When journal, preimage or staging
@@ -1176,13 +1203,18 @@ filesystem, then retry."** It names the detected filesystem class but never an
 absolute pathname.
 
 The scope is the whole workspace, not a slug. Every mutating `prepare` mode
-(`generate`, `manual`, `regenerate`, `abandon`) and every archive `purge`
-serializes across all slugs in that workspace. The invocation acquires once,
-threads this one authority through recovery, publication, nested archive
-helpers and purge, and never recursively re-acquires. Nested helpers receive
-the authority, never an fd and never reacquire. `prepare --check`, every
-`--dry-run`, archive `list` and `doctor` never acquire it — no diagnostic
-command opens or locks the workspace root at all (§12.5).
+(`generate`, `manual`, `regenerate`, `abandon`) and every archive
+`purge --yes` serializes across all slugs in that workspace. The invocation
+acquires once, threads this one authority through recovery, publication, nested
+archive helpers and purge, and never recursively re-acquires. Nested helpers
+receive the authority, never an fd and never reacquire. The **never-acquire**
+population is closed and stated positively: `prepare --check`, every
+`--dry-run`, archive `list`, **every archive `purge` preview — that is, `purge`
+on any selector without `--yes`, including the pending-hash and pending-journal
+cases of §9.7** — and `doctor` never acquire it; no diagnostic command opens or
+locks the workspace root at all (§12.5). Only the `--yes` form of `purge` takes
+the authority, which is what makes the confirmation flag, and not the verb, the
+thing that serializes (§7.12, PIB-490, PIB-515, PIB-530).
 
 Release is explicit and exactly once at invocation end: issue `LOCK_UN` through
 the retained file's `SyscallConn().Control`, close that `*os.File`, then close
@@ -1658,7 +1690,8 @@ platform, refuses here — before the lock and before any byte.
 1. Acquire the one held-root directory lock (§7.4). Contention → exit 3, `transaction-in-progress`.
 2. **`--abandon-transaction` branches here** and returns (§6.6). The branch is
    after the lock — so it never races a live sibling — and **before** the Git
-   privacy gate and both recovery passes, so the mode never depends on a
+   privacy gate, the journal recovery and the pending-hash gate, so the mode
+   never depends on a
    working `git` to move bytes that already exist in the lane, and never runs
    the automatic recovery that would consume, undo or delete the very evidence
    it was invoked to move. It is also reached **without** the feature-directory
@@ -1681,10 +1714,15 @@ platform, refuses here — before the lock and before any byte.
    If no journal exists, stale `stage-*` trees for the slug are removed as
    ordinary lane hygiene — that is not a recovery and does not terminate — and
    evaluation continues.
-5. **Pending archive-hash recovery (§9.7.2), and it is terminal.** If the index
-   holds removal-pending references, finish that per-hash state machine and
-   **return**: exit 0, `outcome: "recovered"`, naming the finalized hashes plus
-   the sanitized retry. If nothing is pending, evaluation continues.
+5. **Pending archive-hash state refuses; it is not recovered here.** If the
+   index holds removal-pending references for the slug, this invocation
+   **refuses**: exit 3, `recovery-pending`, with the whole tree byte-identical
+   — no blob removed, no tombstone published, no index rewrite. It names the
+   sanitized `tpatch feature intent-archive purge <slug> --all --yes` with
+   `retry_cwd: "workspace-root"` (or, when every pending reference shares one
+   hash `h` and the refusal can therefore prove the narrower selector is total
+   over the observed pending set, `--blob <h> --yes`). No step below runs. If
+   nothing is pending, evaluation continues (§7.11, §9.7.2, PIB-525, PIB-526).
 6. Inspect (accepted inspector, ADR-034 boundaries). Compute and freeze the
    publication set. Refuse here for every §6 admissibility failure — nothing
    has been written.
@@ -1718,7 +1756,7 @@ platform, refuses here — before the lock and before any byte.
 Step 14 is the point after which the transaction is invisible. Steps 11→12 are
 the armed window; step 12 is the T0 exposure window (final T1 verification is step 13).
 
-**Why steps 4 and 5 return instead of continuing.** rev-5 recovered and then
+**Why step 4 returns instead of continuing.** rev-5 recovered and then
 fell through into steps 6 and beyond, where a lifecycle, admissibility,
 coherence, provider or archive gate can refuse with exit 2 or exit 3. That
 produced an invocation which had already written — recovery restores canonical
@@ -1731,6 +1769,24 @@ is one extra invocation after an interrupted run, and it is paid explicitly:
 the report says what was recovered and hands over the exact command to run next
 (§7.11, §10.2). There is no hidden auto-continue and no flag that restores
 one (PIB-483, PIB-484, PIB-487).
+
+**Why step 5 refuses instead of recovering.** rev-6 and rev-7 had *two*
+commands run the pending-hash state machine of §9.7.2 — a mutating `prepare`
+and `feature intent-archive purge --yes`. Both then terminated, so exit 3's
+zero-write promise was safe; but the pending-purge transaction had two owners,
+and every statement about it had to be written twice and kept in agreement. The
+concrete cost showed up in the exit-6 population: `archive-purge-evidence-divergent`
+is discovered *by* that state machine, so with two owners the code could be
+emitted by `prepare` while its whole remediation, its "after the first per-hash
+mutation" scoping and its route all belong to `purge`. rev-8 gives the
+transaction one owner. A normal mutating `prepare` observes `purge_pending` and
+stops at exit 3 with the whole tree unchanged; `feature intent-archive purge
+--yes` is the only command that finalizes it (§9.7.2). The trade is one extra
+invocation in a rare state, against a refusal, a remediation and an exit-6
+population that each have exactly one command that can produce and resolve them.
+The alternative — keeping the second owner and duplicating the archive
+remediation into `prepare`'s output — is recorded and rejected in §21
+(PIB-525, PIB-526).
 
 **File modes.** Created files use `0644` (the shipped default at
 `internal/store/store.go:918-923`); replaced files preserve the existing
@@ -1791,9 +1847,9 @@ in which the slug stays blocked.
 | CP9 | any of the above, plus a third party wrote one of the entries | at least one entry matches neither preimage nor new-image | **refuse** (exit 6, `recovery-divergent`), preserve every file, the journal and the archive; name them and name §6.6 |
 | CP10 | `--manual` crash after the workspace directory lock, before or during the single `status.json` rename | `status.json` old or new; no journal; no lock residue | acquire; nothing to recover (single-file publication, ADR-035 D3); `FEATURES.md` may be stale and is reconverged by the next transition (§12.3.1) |
 | CP11 | crash between an archive blob write and the journal write, on a **retry** of the same regeneration | journal absent; blob already present with matching bytes | acquire; nothing is pending, so nothing is terminal; the blob is reused, not rewritten (content-addressed idempotency, `internal/store/resource_publish.go:240-246`); proceed |
-| CP12 | purge after a per-hash removal-pending index rename, before blob removal | pending `h`; hash-correct `h.blob` present | under the workspace lock recovery removes `h.blob`, then tombstones every pending `h` reference, then **returns** exit 0 `recovered` without starting new work. A **non-crash** failure at the same point is the `archive-purge-partial` outcome on branch (a) (§9.7.2, exit 5, `resume: "pending-recovery-then-completion"`), whose reported retry drives exactly this recovery |
-| CP12a | purge after `h.blob` removal, before the tombstone CAS | pending `h`; `h.blob` absent | under the workspace lock recovery CAS-publishes every pending `h` reference as tombstoned and **returns** exit 0 `recovered`; no removal is retried. The same non-crash failure here is likewise branch (a) of `archive-purge-partial`, resumed by the sanitized equivalent retry |
-| CP13 | duplicate-generation rehydration after blob durability, before index rename | old tombstone plus an unreferenced/reused blob | retry strict-decodes and rehydrates by CAS; no duplicate generation is appended |
+| CP12 | purge after a per-hash removal-pending index rename, before blob removal | pending `h`; hash-correct `h.blob` present | the next `feature intent-archive purge <slug> … --yes` removes `h.blob` under the workspace lock, then tombstones every pending `h` reference, then **returns** exit 0 `recovered` without starting new work; a mutating `prepare` in this state refuses exit 3 `recovery-pending` and names that command (§7.8 step 5). A **non-crash** failure at the same point is the `archive-purge-partial` outcome on branch (a) (§9.7.2, exit 5, `resume: "pending-recovery-then-completion"`), whose reported retry drives exactly this recovery |
+| CP12a | purge after `h.blob` removal, before the tombstone CAS | pending `h`; `h.blob` absent | the next `purge … --yes` CAS-publishes every pending `h` reference as tombstoned under the workspace lock and **returns** exit 0 `recovered`; no removal is retried, and a mutating `prepare` again refuses `recovery-pending` rather than finalizing it. The same non-crash failure here is likewise branch (a) of `archive-purge-partial`, resumed by the sanitized equivalent retry |
+| CP13 | duplicate-generation rehydration after blob durability, before index rename | old tombstone plus the present, unreferenced blob it names | the blob is **unreferenced physical residue**, not a live reference: a retry strict-decodes X1–X10, then X11 observes the tombstone beside its present named blob and refuses exit 3 `archive-index-storage-inconsistent` with the whole tree unchanged, naming `tpatch feature intent-archive purge <slug> --orphans --yes` (§9.3.1). After that one command removes the residue, an ordinary retry rehydrates by CAS and appends no duplicate generation. If the same hash is still **retained** by another reference the blob is not unreferenced, X11 is satisfied and the retry rehydrates directly |
 | CP14 | live workspace root deleted/recreated after a publication rename, before final verification | held old root plus a different or missing live root pathname | preserve journal/evidence; final verification exits 6 `workspace-root-replaced-after-publication`, never 0 |
 
 CP7 is why recovery decides from **evidence, not phase**: the process died after
@@ -1813,19 +1869,22 @@ PIB-415, PIB-443, PIB-466 … PIB-468, PIB-483 … PIB-486.
   `--abandon-transaction`** runs journal recovery under the lock before any
   other work, exactly as `land` does
   (`internal/cli/land_journal.go:445-482`).
-- **Archive recovery**: after journal recovery and still under that authority,
-  every mutating archive entry point (`prepare` before a blob/index operation
-  and `intent-archive purge --yes`) runs the §9.7.2 pending-hash recovery
-  before any new archive mutation. It consumes present/absent pending states
-  deterministically and refuses wrong/unsafe evidence. `intent-archive purge`
-  runs **only** this pass: it never recovers a prepare journal, and refuses
-  `recovery-pending` if one exists (§9.7). A `purge` **preview** runs no
-  recovery at all — it takes no lock and writes nothing, and instead reports
-  that recovery is required and names the `--yes` rerun (§9.7, PIB-515).
+- **Archive recovery**: `feature intent-archive purge --yes` — and **only**
+  that command — runs the §9.7.2 pending-hash recovery, under its own
+  authority and before any new archive mutation. It consumes present/absent
+  pending states deterministically and refuses wrong/unsafe evidence. It never
+  recovers a prepare journal, and refuses `recovery-pending` if one exists
+  (§9.7). A mutating `prepare` that observes a removal-pending index does
+  **not** finalize it: it refuses exit 3 `recovery-pending` with zero writes
+  and names this command (§7.8 step 5, PIB-525, PIB-526). A `purge` **preview**
+  runs no recovery either — it takes no lock and writes nothing, and instead
+  reports that recovery is required and names the `--yes` rerun of the
+  operator's own selector (§9.7, PIB-515, PIB-529).
 - **Operator**: `tpatch prepare <slug> --abandon-transaction --yes` (§6.6) for
   the cases automatic recovery refuses. It runs **instead of** automatic
   recovery, not after it: its branch is taken at §7.8 step 2, before the Git
-  gate and before either recovery pass, so the evidence it moves is the
+  gate and before both the journal recovery and the pending-hash gate, so the
+  evidence it moves is the
   evidence that was on disk when the operator looked at it (PIB-452).
 - **Diagnostic**: `tpatch doctor` gains a check that *reports* pending or
   orphaned transaction state, never acts on it, and never opens or locks the
@@ -1837,8 +1896,9 @@ PIB-415, PIB-443, PIB-466 … PIB-468, PIB-483 … PIB-486.
 
 **Recovery is terminal. It never continues into the requested operation.**
 
-A successful recovery — journal undo/clear at §7.8 step 4, or pending-hash
-finalization at step 5 — ends the invocation:
+A successful recovery — journal undo/clear at §7.8 step 4 of a mutating
+`prepare`, or pending-hash finalization inside `feature intent-archive purge
+… --yes` (§9.7.2) — ends the invocation:
 
 | Property | Value |
 |---|---|
@@ -1869,12 +1929,19 @@ Three consequences are normative:
    removed rather than made optional, because an option here would mean the exit
    code's meaning depends on a flag the harness may not have set (PIB-483,
    PIB-484, PIB-487).
+4. **The pending-purge transaction has exactly one owner.** `RecoverPendingPurge`
+   has one call site and it is on the `feature intent-archive purge --yes`
+   path. No mutating `prepare` mode, no preview and no diagnostic reaches it,
+   which is what gives `archive-purge-partial` and
+   `archive-purge-evidence-divergent` a single command that can both produce
+   and resolve them (§7.8 step 5, §9.7.2, §10.4.1, PIB-525, PIB-526).
 
 **What is *not* a recovery.** With no journal present, removing stale `stage-*`
 directories for the slug is ordinary lane hygiene: nothing was pending, nothing
 is restored, no `recovered` outcome is emitted and the invocation proceeds with
 the work it was asked to do (CP1, CP2, CP11). The terminal rule fires only when
-there was a pending transaction to undo/complete or a pending archive hash to
+there was a pending transaction to undo/complete, or — in
+`feature intent-archive purge --yes` alone — a pending archive hash to
 finalize (PIB-483).
 
 **Why not "every relevant command must recover or refuse".** That alternative
@@ -1930,11 +1997,11 @@ would require a second non-Git lane, and does not improve the held-root authorit
 
 | Concurrent actor | Behavior |
 |---|---|
-| A second mutating `prepare` or archive `purge`, **any slug in the same workspace** | The single directory authority contends: exit 3, `transaction-in-progress`; the holder is unaffected (PIB-124, PIB-125, PIB-397). |
+| A second mutating `prepare` or archive `purge --yes`, **any slug in the same workspace** | The single directory authority contends: exit 3, `transaction-in-progress`; the holder is unaffected (PIB-124, PIB-125, PIB-397). |
 | Holder process killed | Kernel close releases the directory flock; the next invocation acquires, recovers from evidence and proceeds (PIB-396). |
 | Alias path at acquisition; root rename later | An alias acquired before the rename contends on the same inode. The original discovered pathname cannot be rediscovered after a rename: missing/changed live path refuses before the window or exits 6 after it; held-root I/O does not make the moved path discoverable (PIB-413, PIB-436). |
 | Root deletion/recreation | A new root can split authority; live identity mismatch refuses before the window or exits 6 with preserved evidence after it (PIB-414, PIB-415). |
-| `prepare --check`, any slug; any `--dry-run`; archive `list` | Never acquire the directory lock and report/plan from observed bytes. |
+| `prepare --check`, any slug; any `--dry-run`; archive `list`; **archive `purge` preview on every selector, including the pending-hash and pending-journal cases** | Never acquire the directory lock and report/plan from observed bytes. Only `purge --yes` acquires (§7.4.1, PIB-490, PIB-515, PIB-530). |
 | Editor, Git, `define`, `cycle`, other local user or other machine | Not excluded. Preflight/CAS detects only changes that land before its check. A write in CAS→rename/remove's final syscall window can be overwritten or removed; this is disclosed, never called total CAS (PIB-103, PIB-421, PIB-422, PIB-430). |
 | `git clean -fd` / `git clean -xfd` | Can remove untracked `.tpatch/features/**` archives as well as `.tpatch/local/**`; after external deletion archive recovery exists only from identical later archival or committed Git history (§9.6.2, PIB-426). |
 | Unmount/eject or an explicitly denied/failed root filesystem | Fails closed at authority acquisition or yields the classified pre/post-publication failure; no unlocked fallback and no cross-machine guarantee. |
@@ -2135,7 +2202,7 @@ with its own wire format, its own identifiers and its own lifecycle. Per the
 dispatch and per AGENTS.md's "ADR on every architecture decision" rule, this
 PRD therefore creates
 [`ADR-035-intent-bundle-publication-and-history.md`](../adrs/ADR-035-intent-bundle-publication-and-history.md)
-as **Proposed rev-7**, keeps it in the ADR index, and requires it to be
+as **Proposed rev-8**, keeps it in the ADR index, and requires it to be
 reviewed together with this PRD. **Neither may be accepted alone.**
 
 ### 8.5 What this selection is NOT
@@ -2247,6 +2314,7 @@ per-hash transition, not a claim that a removal has not happened:
 | removal-pending | absent | CAS-publish the tombstone; removal already occurred |
 | removal-pending | non-regular or hash-wrong | refuse and preserve evidence |
 | tombstoned | absent | ordinary purged storage |
+| tombstoned | present | **unreferenced physical residue.** No pending reference exists, so no purge transaction is in flight and nothing can be finalized. X11 refuses exit 3 `archive-index-storage-inconsistent`, writing nothing, and names the one repair: `tpatch feature intent-archive purge <slug> --orphans --yes` (§9.3.1, §9.7.3) |
 
 Thus an otherwise-valid pending record remains recoverable after its first
 physical removal, and a tombstone is permitted only when
@@ -2283,12 +2351,15 @@ mutation while one exists, so no regeneration can reach this path to repair it,
 and §9.7.3's confirmed purge is its only shipped repair. Once that purge has
 tombstoned the references, an ordinary later regeneration that reproduces the
 same generation rehydrates them through exactly this path. No tombstone may
-claim absence while `blobs/h.blob` exists. A later purge
+claim absence while `blobs/h.blob` exists; where one does, the blob is
+unreferenced physical residue and X11 refuses until
+`purge --orphans --yes` removes it (§9.3.1, §9.7.3). A later purge
 evaluates the current global live-reference count. Repeated purge→rehydrate
 cycles retain stable ids and deterministic index order. Redaction is still
 checked before rehydration writes a blob; a refusal leaves storage untouched.
 Blob durability precedes the rooted index rename, so a crash before it leaves
-at most an orphan; after it, the index never claims a missing referenced blob.
+at most an unreferenced blob — CP13's residue, removed by that same one
+command — and never a live reference to a missing blob.
 
 #### 9.3.1 Strict decoding — the index is never guessed at
 
@@ -2307,7 +2378,7 @@ decodes one JSON value plus EOF. Failure writes nothing.
 | X8 | every path is relative and contained in its feature directory | `archive-index-path-escape` | 3 |
 | X9 | artifact ids are the closed four-value set and unique per generation | `archive-index-corrupt` | 3 |
 | X10 | recomputing `generation_id` from the immutable pre-purge body (including `content_sha256`) reproduces its recorded value, whether or not entries are tombstoned | `archive-index-generation-mismatch` | 3 |
-| X11 | retained references name a present regular hash-correct blob; pending references have either that blob (removal remains) or no blob (tombstone finalization remains); tombstones have no blob | `archive-blob-dangling` for a missing retained blob; `archive-index-storage-inconsistent` for an unsafe/wrong pending blob or a tombstone with one | 3 |
+| X11 | retained references name a present regular hash-correct blob; pending references have either that blob (removal remains) or no blob (tombstone finalization remains); tombstones have no blob | `archive-blob-dangling` for a missing retained blob; `archive-index-storage-inconsistent` for an unsafe/wrong **pending** blob, and — as a separate, separately routed sub-population — for a **tombstone whose named blob is present** | 3 |
 
 Strict JSON binds X1–X10 validate wire shape and immutable identity. X11 is a
 separate storage-state validation over the filesystem. A missing **retained**
@@ -2335,11 +2406,61 @@ and a later regeneration that reproduces the tombstoned generation may use the
 already-defined global rehydration path of §9.3 (PIB-457, PIB-458, PIB-459,
 PIB-460).
 
-A wrong/non-regular blob and a blob beside a tombstone remain
-evidence-preserving refusals, never guessed repairs. This keeps strict shape
-decoding while making the documented repair reachable rather than permanently
-bricking the archive
-(PIB-331…PIB-341, PIB-401, PIB-428, PIB-444, PIB-457…PIB-460).
+A wrong/non-regular blob under a **pending** reference remains an
+evidence-preserving refusal, never a guessed repair.
+
+**A tombstone whose named blob is present is physical residue, not divergence,
+and it has its own one-command repair.** rev-7 filed this observation with the
+pending-hash divergence population of §9.7.2 and offered it that population's
+escape: report the pending hash, remove the divergent managed blob path, rerun,
+and let the pending+absent case finalize the tombstone. That is unexecutable
+here, because there **is** no pending reference. The reference is already
+tombstoned: the index claims nothing about those bytes, no purge transaction is
+in flight, no hash can be named as pending, and the rerun the escape points at
+would find nothing to finalize. So the classification is corrected rather than
+patched:
+
+- **What it is.** `blobs/<h>.blob` exists as a regular file while every
+  reference to `h` in every generation is tombstoned. Nothing references it.
+  It is the same object §9.7.3 already calls an **orphan**, observed through the
+  index rather than through a directory scan — CP13's window (blob durable,
+  rehydration index rename not yet landed) produces it, and so does an external
+  recreation of a blob after a completed purge.
+- **What tpatch does on discovery.** X11 refuses exit 3
+  `archive-index-storage-inconsistent`, **writing nothing** — no removal, no
+  index rewrite, no pending record — for every ordinary archive or canonical
+  mutation, and `list`/`doctor` render it rather than acting on it. tpatch does
+  not delete a file the operator never asked it to delete, and it does not
+  silently un-tombstone a reference to adopt bytes it did not put there.
+- **What repairs it, exactly.** One command, named literally, character for
+  character, by the refusal, by `list` and by `doctor`:
+
+  ```text
+  tpatch feature intent-archive purge <slug> --orphans --yes
+  ```
+
+  run from the workspace root. `--orphans` is **explicitly admitted past this
+  X11 refusal** — after the strict X1–X10 wire decode has passed, so the index
+  is known to be well-formed before anything is removed — because that
+  invocation is this state's one shipped repair, exactly as the confirmed
+  `--blob <h> --yes` is the one shipped repair for a dangling retained
+  reference. It validates the file as a regular blob whose bytes hash to its
+  name, removes it, rewrites **no** index (§9.7.1), and leaves the tombstone
+  saying what was already true. A non-regular or hash-wrong file at that path
+  is not an orphan and keeps its existing `archive-blob-corrupt` exit-3
+  refusal, which is likewise zero-write and preserves the evidence.
+- **What reports it.** `purge --orphans` **without** `--yes` reports the residue
+  — the repo-relative `blobs/<h>.blob` path and the fact that every reference to
+  `h` is tombstoned — takes no lock, writes nothing, and names the `--yes`
+  rerun.
+- **What it is not.** It is never `archive-purge-evidence-divergent`, never
+  routed to §9.7.2's pending+absent escape, and never routed to
+  `--abandon-transaction` (PIB-521, PIB-522, PIB-523, PIB-524).
+
+This keeps strict shape decoding while making every documented repair reachable
+rather than permanently bricking the archive
+(PIB-331…PIB-341, PIB-401, PIB-428, PIB-444, PIB-457…PIB-460,
+PIB-521…PIB-524).
 
 ### 9.4 Determinism
 
@@ -2451,11 +2572,18 @@ tpatch feature intent-archive purge <slug> (--blob <hash>... | --generation <id>
 create state. It strictly validates X1–X10, reports X11 storage state
 (`present`, `pending-remove`, `pending-finalize`, `purged`, `orphan`, or
 `dangling`), and exit-3 refuses a malformed/dangling live reference while still
-rendering only safe identifiers and remediation. `purge` is preview-by-default,
-requires one mutually-exclusive selector and `--yes` to act. **Neither
+rendering only safe identifiers and remediation. A **tombstoned reference whose
+named blob is present** renders as `orphan` — the same physical-residue state a
+directory scan reports — and carries the `--orphans --yes` repair, never the
+archive-divergence procedure (§9.3.1, PIB-521). `purge` is
+preview-by-default,
+requires one mutually-exclusive selector and `--yes` to act; **the preview form
+acquires no directory lock on any selector, and only `--yes` does** (§7.4.1,
+§7.12, PIB-530). **Neither
 subcommand runs a Git process**: `list` reads, and `purge` writes only the
 tracked archive and never the gitignored staging lane, so the local-lane gate
-has no subject in either (§7.13, PIB-514).
+has no subject in either, in **both** the preview and the `--yes` form
+(§7.13, PIB-514).
 
 **`purge` never recovers a prepare journal.** A pending journal means an
 interrupted *publication* transaction whose undo evidence binds canonical
@@ -2469,30 +2597,48 @@ a verb whose subject is stored bytes. So:
   byte-identical. It does not strict-decode the journal, does not move it, does
   not consume it and does not undo a single entry (PIB-350, PIB-489, PIB-490).
 - The remediation names the same two routes `--dry-run` names: run a mutating
-  `prepare <slug>`, which recovers and reports `recovered` (§7.11), or
+  `prepare <slug>`, which recovers the **journal** and reports `recovered`
+  (§7.11), or
   `tpatch prepare <slug> --abandon-transaction --yes`. Neither is performed for
   the operator.
 - The acting (`--yes`) path acquires the workspace authority first, so a live
   sibling still yields `transaction-in-progress` (PIB-349), and performs the
   marker check under that authority. The preview path acquires nothing and
   performs the same marker check from observed bytes.
-- Only when **no** journal exists does the acting (`--yes`) path run the §9.7.2
-  pending-hash recovery — and that recovery is terminal in exactly the same way
-  `prepare`'s is: it finalizes the pending hashes, reports exit 0 `recovered`,
-  and does **not** go on to process the selector in the same invocation. The
-  operator re-runs the reported retry to perform the purge they asked for
-  (§9.7.2, PIB-491).
-- **The preview does not recover, and says so.** With no journal but one or
-  more removal-pending hashes in the index, a `purge` without `--yes` acquires
+- **Only when no journal exists does the acting (`--yes`) path run the §9.7.2
+  pending-hash recovery, and it does so on every selector.** `--blob`,
+  `--generation`, `--all` **and `--orphans`** all take this pass first. There is
+  no selector that skips it and no selector that recovers a journal. The pass is
+  terminal in exactly the way a journal recovery is: it finalizes the pending
+  hashes, reports exit 0 `recovered`, and does **not** go on to process the
+  selector in the same invocation. The operator re-runs the reported retry —
+  which carries **their** selector, not a substituted one — to perform the purge
+  they asked for (§9.7.2, PIB-491, PIB-527, PIB-528).
+
+  `--orphans` is in that set even though it rewrites no index, and the reason is
+  not symmetry. The orphan set is *derived from* the index's live-reference set,
+  and a removal-pending reference is a reference whose liveness is mid-decision:
+  finalize it and its blob may become an orphan; leave it and the same blob is
+  still referenced. Scanning for orphans against an index with pending
+  references would therefore compute a set from state that is about to change,
+  which is the exact defect that makes recovery terminal in the first place. So
+  the pending hashes are finalized first, terminally, and the rescan runs
+  against the index the operator can now see (PIB-527).
+- **The preview does not recover, and says so — on every selector.** With no
+  journal but one or more removal-pending hashes in the index, a `purge`
+  without `--yes`, on **any** selector including `--orphans`, acquires
   no lock, writes nothing, removes nothing and finalizes nothing. It exits 0
+  with the closed outcome token `recovery-required` (§10.2)
   and prints, in this order: that pending purge recovery is required before any
   new purge can run; each pending hash and the repo-relative
   `blobs/<hash>.blob` and `index.json` paths the recovery would act on; the
   per-hash plan the recovery would follow (remove the blob if present, then
   tombstone every reference to that hash); and the exact rerun that performs
-  it — the same command **with** `--yes`, run from the workspace root, carrying
+  it — **the operator's own command with `--yes` appended**, run from the
+  workspace root, carrying
   `retry_cwd: "workspace-root"` like every other retry this PRD emits. It never
-  emits `outcome: "recovered"`, because it recovered nothing. The human form is:
+  emits `outcome: "recovered"`, because it recovered nothing. The human form,
+  for an operator who ran `purge <slug> --all`, is:
 
   ```text
   feature intent-archive purge <slug>: recovery required before this purge
@@ -2502,13 +2648,27 @@ a verb whose subject is stored bytes. So:
         index: .tpatch/features/<slug>/artifacts/intent-archive/index.json
         plan:  remove the blob if it is present, then tombstone every reference to it
     Run this again from the same workspace root to perform it:
-      tpatch feature intent-archive purge <slug> --blob <hash> --yes
+      tpatch feature intent-archive purge <slug> --all --yes
   ```
 
+  **Selector preservation is normative, and it is the whole reason the retry is
+  trustworthy.** The last line reproduces the selector the operator actually
+  passed — `--all` here, `--orphans` for an orphan scan, `--blob <h>` with the
+  operator's own hashes, `--generation <id>` with their own ids — with `--yes`
+  appended and **no** root-selection argv, exactly as §9.7.2's sanitization rule
+  requires of every retry. It is never widened to `--all` for convenience and
+  never narrowed to the pending hash, because either substitution would name a
+  command that does something other than what the operator asked, on the one
+  line they are most likely to copy and run unread. The recovery that `--yes`
+  then performs is identical on every selector — it is a property of the index,
+  not of the selection — so preserving the selector costs nothing and keeps the
+  reported command true (PIB-528, PIB-529).
+
   Only the `--yes` form takes the authority and performs the terminal recovery.
-  PIB-515 asserts the exit code, the zero writes, the **zero** flock
+  PIB-515 asserts the exit code, the `recovery-required` outcome token, the zero
+  writes, the **zero** flock
   acquisitions, the listed hash/plan and the absence of any `recovered`
-  outcome.
+  outcome; PIB-529 asserts the JSON object and its parity with the human form.
 
 #### 9.7.1 Selection and shared references
 
@@ -2530,7 +2690,12 @@ already-tombstoned reference is a deterministic no-op for selection.
   removal because every intermediate record is either retained, pending or
   tombstoned by the same state machine.
 - `--orphans` selects only physical blobs absent from the current reference set
-  and rewrites no index.
+  and rewrites no index. It is nonetheless preceded by the same terminal
+  pending-hash recovery as every other selector (§9.7), because the orphan set
+  is derived from a reference set that a pending reference is in the middle of
+  changing; and it is the **one shipped repair** for a tombstoned reference
+  whose named blob is present, which it is explicitly admitted past X11 to
+  remove (§9.3.1, §9.7.3, PIB-522, PIB-527).
 
 A purged blob is not recoverable **until identical content is archived again**.
 If identical content is later rehydrated, every tombstoned or removal-pending
@@ -2543,9 +2708,12 @@ absent while a blob exists, and never offer a repair an operator cannot reach
 
 #### 9.7.2 Honest purge procedure and residual race
 
-For `--blob`, `--generation` and `--all`, and only after the journal-marker
+For **every** selector — `--blob`, `--generation`, `--all` and `--orphans` —
+and **only** in the `--yes` form, and only after the journal-marker
 refusal of §9.7 has passed, the authority runs `RecoverPendingPurge` **under the
-workspace lock and before any new archive mutation**. It strict-decodes X1–X10
+workspace lock and before any new archive mutation**. That call site is the
+**only** one in the shipped binary: no mutating `prepare` mode, no preview and
+no diagnostic reaches it (§7.8 step 5, §7.11, PIB-526). It strict-decodes X1–X10
 and applies X11's pending-state rules.
 For every pending hash, sorted lexically, it does exactly this:
 
@@ -2564,13 +2732,16 @@ X11 brick.
 **If it did anything, the invocation ends there.** When at least one pending
 hash was finalized, the command returns exit 0 with `outcome: "recovered"`, a
 `recovery` object of kind `archive-purge-finalize` naming the finalized hashes,
-and the sanitized equivalent retry for the selector the operator passed. It does
+and the sanitized equivalent retry for the selector the operator passed —
+**their** selector, `--orphans` included, never a substituted one (§9.7). It does
 **not** continue into a new purge in the same invocation: the selection was
 computed against an index that the recovery has just rewritten, and re-deriving
 it silently would make the reported result depend on state the operator never
-saw. Exactly the same rule governs a mutating `prepare` that finds pending
-hashes (§7.8 step 5, §7.11). When nothing was pending, this pass is a no-op and
-evaluation continues into the preflight below (PIB-486, PIB-491).
+saw. A mutating `prepare` in the same state does not reach this pass at all: it
+refuses exit 3 `recovery-pending` and names this command (§7.8 step 5, §7.11).
+When nothing was pending, this pass is a no-op and
+evaluation continues into the preflight below (PIB-486, PIB-491, PIB-527,
+PIB-528).
 
 Only after that recovery does purge run its **complete preflight**, before the
 first byte of new mutation. Everything predictable is decided here, so the
@@ -2580,7 +2751,7 @@ zero-write refusal population is as large as it can honestly be:
 |---|---|
 | selector present, exactly one, and well-formed (`^[0-9a-f]{64}$` hashes, known generation ids) | exit 1 (no selector) / exit 3 (`archive-index-corrupt` for an unknown id) |
 | strict index decode X1–X10 over the captured raw preimage | exit 3, the matching `archive-index-*` code |
-| X11 storage observation for **every** reference the selection touches — retained/pending/tombstoned versus present/absent/regular/hash-correct | exit 3, `archive-blob-dangling` or `archive-index-storage-inconsistent` — **except** that a dangling retained hash which is *exactly* the confirmed selection (`--blob <h> --yes`, or an applicable `--all --yes`) is admitted, because that invocation is its one shipped repair (§9.7.3) |
+| X11 storage observation for **every** reference the selection touches — retained/pending/tombstoned versus present/absent/regular/hash-correct | exit 3, `archive-blob-dangling` or `archive-index-storage-inconsistent` — with exactly **two** admitted exceptions, each of which is the observed state's one shipped repair: a dangling retained hash which is *exactly* the confirmed selection (`--blob <h> --yes`, or an applicable `--all --yes`) is admitted (§9.7.3), and a **tombstoned reference whose named blob is present** is admitted under `--orphans --yes`, which removes that unreferenced blob and rewrites no index (§9.3.1). Both admissions happen **after** the strict X1–X10 wire decode above, never before it |
 | shared-reference analysis: a `--generation` selection whose hash is referenced by a non-selected generation | exit 3, `archive-blob-shared`, naming `--blob <hash>` or `--all` |
 | per-orphan identity and hash for `--orphans` | exit 3, `archive-blob-corrupt` |
 | global live-reference count per selected hash, computed once from the validated index | exit 3, the matching code |
@@ -2605,7 +2776,25 @@ removal has landed, the command has written, so the exit-3 promise of "wrote
 nothing" no longer holds for it. A later I/O error, fsync failure or
 externally-caused revalidation failure therefore ends in
 **`archive-purge-partial`**, and the report states exactly where the per-hash
-machine stopped:
+machine stopped.
+
+**"After the first mutation" is a property of the purge transaction, not of the
+current process.** The mutation that opens this window is the first one of the
+per-hash machine that is **in flight** — which is very often a write performed
+by an *earlier* invocation whose pending record this run is resuming. A
+`purge --yes` that acquires the authority, finds a removal-pending reference and
+then hits an I/O error inside `RecoverPendingPurge` before writing a byte of its
+own is still in the post-first-mutation window: the transaction it adopted had
+already written, the index has already advanced, and reporting exit 3 for it
+would claim a zero-write that the transaction as a whole cannot honour. So both
+`archive-purge-partial` (exit 5) and `archive-purge-evidence-divergent`
+(exit 6) are reachable from a recovery invocation that performed no write
+itself, and neither is reachable before the pending record exists. This is also
+why both codes are **purge-owned**: `purge --yes` is the only command that can
+open, adopt, advance or discover that transaction at all (§7.8 step 5, §7.11,
+§10.4.1, PIB-526).
+
+The partial report's fields are:
 
 | Field | Meaning |
 |---|---|
@@ -2695,10 +2884,22 @@ abort with zero canonical/index change, and archive-purge partial progress —
 rather than silently widening the older promise (PIB-466, PIB-467).
 
 If the evidence itself is divergent or requires human judgement — a blob that is
-present but hash-wrong, a non-regular file where a blob belongs, a tombstone
-beside a live blob, or an index that no longer strict-decodes after an external
+present but hash-wrong under a **pending** reference, a non-regular file where a
+pending blob belongs, or an index that no longer strict-decodes after an external
 write — the outcome is **exit 6, `archive-purge-evidence-divergent`**, not 5,
 and nothing further is attempted (PIB-468).
+
+**This population is exactly the pending-hash and pending-index evidence, and
+nothing else.** rev-7 also listed "a tombstone beside a live blob" here and
+offered it this population's escape. That was unexecutable: a tombstoned
+reference is not pending, so there is no pending hash to name, no purge
+transaction in flight, and nothing for the escape's rerun to finalize — the
+"pending+absent case" it points at cannot fire on a reference that is already
+tombstoned. That state is unreferenced physical residue, classified by X11 as
+exit-3 `archive-index-storage-inconsistent` with zero writes on discovery and
+repaired by `tpatch feature intent-archive purge <slug> --orphans --yes`
+(§9.3.1, §9.7.3, PIB-521, PIB-522). It is not in this population, and PIB-524
+fails any classification that puts it back (PIB-506, PIB-508).
 
 **That exit 6 gets an archive-shaped escape, not the abandon mode.** rev-6
 routed every exit-6 population to `tpatch prepare <slug> --abandon-transaction`.
@@ -2714,8 +2915,9 @@ it cannot identify. What it does instead is report enough for the operator to
 act, in repo-relative terms only. The procedure has two forms, selected by which
 object diverged, and each is executable:
 
-**Blob divergence** — the blob is present but hash-wrong, is a non-regular file,
-or sits beside a tombstone. The managed blob path is the divergent object:
+**Blob divergence** — under a **pending** reference, the blob is present but
+hash-wrong, or is a non-regular file. The managed blob path is the divergent
+object:
 
 ```text
 feature intent-archive purge <slug>: refused archive-purge-evidence-divergent
@@ -2773,10 +2975,12 @@ mutators only, not external writers. A crash after a pending rename is always
 resumed by the specified per-hash next action, never guessed or restored. A
 crash before that rename leaves the old index. Injection covers detected
 pre-CAS edits, every pending/recovery crash point, all three partial-outcome
-branches, the divergent-evidence procedure, and the disclosed post-CAS
+branches, the divergent-evidence procedure, the unreferenced-residue
+classification and its `--orphans --yes` repair, and the disclosed post-CAS
 final-syscall race (PIB-405, PIB-421,
 PIB-422, PIB-429, PIB-430, PIB-443, PIB-447, PIB-465…PIB-468, PIB-489…PIB-491,
-PIB-497, PIB-498, PIB-506…PIB-508, PIB-515…PIB-518).
+PIB-497, PIB-498, PIB-506…PIB-508, PIB-515…PIB-518,
+PIB-521…PIB-524, PIB-527, PIB-528).
 
 #### 9.7.3 Orphans and accidental-secret remediation
 
@@ -2784,6 +2988,28 @@ An orphan is a regular blob not referenced by the strict current index. List,
 doctor and reports name it; `purge --orphans --yes` removes only validated
 orphans and rewrites no index. Operator/Git deletion of a referenced blob is
 instead a dangling-reference refusal (X11), not an orphan.
+
+**A tombstoned reference whose named blob is present is an orphan, observed
+through the index rather than through a directory scan.** The tombstone's `blob`
+locator is empty, so nothing in the index references those bytes; the file is
+unreferenced physical residue. X11 refuses exit 3
+`archive-index-storage-inconsistent` on discovery, writing nothing, and names
+this one repair, character for character, in the refusal, in `list` and in
+`doctor`:
+
+```text
+tpatch feature intent-archive purge <slug> --orphans --yes
+```
+
+run from the workspace root. That invocation is admitted past the X11 refusal
+after the strict X1–X10 wire decode, validates the file as a regular blob whose
+bytes hash to its name, removes it, and rewrites no index — the tombstone
+already says what is true, so nothing about the archive's meaning changes. A
+non-regular or hash-wrong file at that path is not an orphan and keeps its
+`archive-blob-corrupt` exit-3 refusal. No other repair is offered, and the
+archive-divergence procedure of §9.7.2 is never named for it, because there is
+no pending reference for that procedure to finalize (§9.3.1, PIB-521, PIB-522,
+PIB-523, PIB-524).
 
 For an accidentally archived secret, use:
 
@@ -2946,13 +3172,14 @@ Closed vocabularies:
 | Field | Closed set |
 |---|---|
 | `mode` | `generate`, `manual`, `regenerate`, `abandon` (`check` never emits this schema) |
-| `outcome` | `published`, `no-op`, `planned`, `refused`, `rolled-back`, `recovered`, `recovery-refused`, `abandoned`, `abandon-planned`, `purge-partial` |
+| `outcome` | `published`, `no-op`, `planned`, `refused`, `rolled-back`, `recovered`, `recovery-refused`, `recovery-required`, `abandoned`, `abandon-planned`, `purge-partial` |
 | `action` | `none`, `adopt`, `complete`, `regenerate`, `abandon` |
 | `disposition` (per artifact) | `preserved`, `generated`, `regenerated`, `untouched`, `absent-optional` |
 | `generator` | `provider`, `heuristic`, `` (empty for anything not generated this run) |
 | `execution_preflight` | `not_evaluated` (emitted **only** in a dry-run report; §6.4) |
 | `recovery.kind` | `journal-undo`, `archive-purge-finalize` (emitted **only** on the `recovered` outcome) |
 | `purge_progress.resume` | `pending-recovery-then-completion`, `completion-only`, `orphan-scan` (emitted **only** on the `purge-partial` outcome; §9.7.2) |
+| `pending_purge.selector` | `blob`, `generation`, `all`, `orphans` (emitted **only** on the `recovery-required` outcome; §9.7) |
 | `retry_cwd` | `workspace-root` (emitted wherever a `retry` command is emitted; §9.7.2) |
 | `advisories[].code` | the seventeen codes of §10.3 |
 | `refusal.code` | the closed refusal catalog of §10.4, asserted complete by PIB-228 |
@@ -2975,6 +3202,64 @@ and only if** `resume` is `pending-recovery-then-completion`; on
 promised for the retry.
 Those fields appear on no other outcome, and PIB-466, PIB-516, PIB-517 and
 PIB-518 assert them against a real interrupted purge of each branch.
+
+**Pending-purge preview shape.** A `feature intent-archive purge` **preview**
+(no `--yes`) that finds no journal and one or more removal-pending hashes
+reports the closed outcome token `recovery-required` — a preview that recovered
+nothing, planned nothing and is not a refusal, so none of `planned`, `refused`
+or `recovered` can carry it truthfully. `action` is `none`. The report carries
+exactly one extra object, `pending_purge`, with exactly these fields in this
+order:
+
+```json
+{
+  "outcome": "recovery-required",
+  "action": "none",
+  "pending_purge": {
+    "recovery_required": true,
+    "pending_hashes": [
+      {
+        "hash": "b12d…",
+        "blob": ".tpatch/features/fix-model-id-translation/artifacts/intent-archive/blobs/b12d….blob",
+        "index": ".tpatch/features/fix-model-id-translation/artifacts/intent-archive/index.json",
+        "plan": "remove the blob if it is present, then tombstone every reference to it"
+      }
+    ],
+    "selector": "all",
+    "retry": "tpatch feature intent-archive purge fix-model-id-translation --all --yes",
+    "retry_cwd": "workspace-root"
+  }
+}
+```
+
+Every field is normative:
+
+- `recovery_required` is the constant `true`; the object is emitted on no other
+  outcome, so a consumer switching on `outcome` and a consumer switching on the
+  field agree.
+- `pending_hashes[]` is always present and never null (ADR-033 D11), is sorted
+  lexically by `hash`, and holds one object per removal-pending hash. `hash`
+  matches `^[0-9a-f]{64}$`. `blob` and `index` are **repo-relative** paths under
+  the feature's `artifacts/intent-archive/` directory and are the only paths the
+  object carries; no absolute path, no symlink target and no path outside that
+  directory may appear (§10.6, PIB-497). `plan` is the fixed per-hash sentence
+  above, identical for every entry, because the recovery's next action is
+  decided from the blob observation at recovery time and not at preview time.
+- `selector` is the closed field naming which selector the operator passed. It
+  exists so a consumer can verify the retry without parsing it.
+- `retry` is the operator's own command with `--yes` appended and **no**
+  root-selection argv — the same sanitization every retry in this PRD obeys
+  (§9.7.2) — and it preserves the operator's selector exactly, including their
+  own hashes or generation ids.
+- `retry_cwd` is the closed literal `workspace-root`.
+
+The human rendering of §9.7 carries the same hashes, the same two repo-relative
+paths, the same plan sentence and the same retry line, under the verbatim
+`Run this again from the same workspace root to perform it:` heading — so the
+two surfaces are checkable against each other field by field rather than
+described twice. The report carries no `recovery` object, no `purge_progress`,
+no `archive` and no blob hash outside `pending_hashes[]`; the invocation
+acquires no lock and writes nothing (PIB-515, PIB-529, PIB-530).
 
 **Recovered shape.** A terminal recovery (§7.11) reports `outcome: "recovered"`,
 `action: "none"` and a `recovery` object with exactly these fields, in this
@@ -3079,13 +3364,13 @@ Per-command contract, per `SPEC.md:137`.
 
 | Code | Meaning | Report emitted? | Wrote anything? |
 |---|---|---|---|
-| `0` | success: published, no-op, plan OK, preview of an abandon/purge, a terminal `recovered` outcome (§7.11), or `--check` ready | yes | only on `published`, on a terminal `recovered`, and on `--yes` abandon/purge |
+| `0` | success: published, no-op, plan OK, preview of an abandon/purge, a pending-purge preview's `recovery-required` (§9.7), a terminal `recovered` outcome (§7.11), or `--check` ready | yes | only on `published`, on a terminal `recovered`, and on `--yes` abandon/purge |
 | `1` | generic CLI/parse error (arity, unknown flag, mutually exclusive flags, missing purge scope), or an unexpected internal error | no (parse) / yes (internal) | no |
 | `2` | **not-ready / not-coherent refusal**: `--manual` on an incomplete bundle; default mode on a `present-empty` required artifact; an incoherent bundle gap (§6.1.2); staged-output validation failure | yes | no |
-| `3` | **cannot-act refusal**, four documented populations distinguished by `refusal.code`: (a) *indeterminate* — workspace not initialized, feature not found, unsafe slug, `status.json` malformed/unreadable, an artifact in an unsafe/unstable state, archive or index corruption, local-lane gate failure or unverifiability, unsupported platform, unsupported lock filesystem, `request.md` unreadable; (b) *lifecycle-state* — the source state does not permit preparation (§12.2); (c) *transient* — `transaction-in-progress` (a live sibling holds the lock), `recovery-pending` (`--dry-run`/`purge` with a pending journal); (d) *policy* — `provider-required-for-regenerate`, `archive-content-refused-sensitive` | yes | no |
+| `3` | **cannot-act refusal**, four documented populations distinguished by `refusal.code`: (a) *indeterminate* — workspace not initialized, feature not found, unsafe slug, `status.json` malformed/unreadable, an artifact in an unsafe/unstable state, archive or index corruption, unreferenced physical residue under a tombstone (§9.3.1), local-lane gate failure or unverifiability, unsupported platform, unsupported lock filesystem, `request.md` unreadable; (b) *lifecycle-state* — the source state does not permit preparation (§12.2); (c) *transient* — `transaction-in-progress` (a live sibling holds the lock), `recovery-pending` (`--dry-run` or `purge` with a pending journal, and a normal mutating `prepare` that observes a removal-pending archive index, §7.8 step 5); (d) *policy* — `provider-required-for-regenerate`, `archive-content-refused-sensitive` | yes | no |
 | `4` | **retired.** The reserved-surface population (`prepare` without `--check`) no longer exists, and no new population is bound to it. `prepare` never exits 4. | — | — |
 | `5` | **transaction aborted or archive purge partially applied**, two populations, distinguished by `refusal.code`/`outcome`: (a) *publication abort* — revalidation or per-entry CAS mismatch, generation failure after staging began, or a rename failure that was **successfully rolled back**; no canonical artifact, no `status.json` and no index entry changed, and orphan blobs may remain and are listed (§7.9). (b) *`archive-purge-partial`* — a purge that had already begun its deterministic per-hash mutations hit a later I/O or external-change failure; the index has advanced but decodes, is consistent and claims no absent bytes, and re-running the reported **sanitized equivalent command** resumes it. How many runs that takes is stated by the report's `resume` field and is not promised uniformly: with a pending hash it is one `recovered` run and then one completing run; with the failure exactly between hashes, or on `--orphans`, it is a single completing run and **no** `recovered` outcome (§9.7.2). Both are retryable without human judgement. | yes | (a) possibly additive orphan blobs, fully enumerated; (b) the enumerated per-hash index/blob progress |
-| `6` | **manual intervention required**: an undo CAS refused, rollback failed, recovery found divergent evidence, a journal failed a J1–J10 bind, the final verification found post-publication divergence, or purge evidence became divergent/unsafe mid-run. Everything is preserved, and the message names the **one** route that applies to that population — §6.6's abandon route for the journal and publication codes, §9.7.2's archive procedure for `archive-purge-evidence-divergent`. | yes | possibly a partial publication, fully described |
+| `6` | **manual intervention required**: an undo CAS refused, rollback failed, recovery found divergent evidence, a journal failed a J1–J10 bind, the final verification found post-publication divergence, or purge evidence became divergent/unsafe under a pending reference. Everything is preserved, and the message names the **one** route that applies to that population — §6.6's abandon route for the journal and publication codes, §9.7.2's archive procedure for `archive-purge-evidence-divergent`. | yes | possibly a partial publication, fully described |
 
 **Exit 3 keeps its zero-write promise, absolutely.** Every exit-3 population is
 reached before the invocation's first byte of mutation, including the whole
@@ -3118,7 +3403,7 @@ partitions the population instead of widening one command's promise:
 | Exit-6 codes | The one route | Where it is defined |
 |---|---|---|
 | `undo-cas-mismatch`, `recovery-divergent`, `journal-corrupt`, `journal-version-mismatch`, `journal-foreign`, `journal-path-escape`, `journal-forged`, `post-publication-divergence`, `workspace-root-replaced-after-publication` | `tpatch prepare <slug> --abandon-transaction` — and, where the environment denies that mode, the named repo-relative manual removal | §6.6 |
-| `archive-purge-evidence-divergent` | the repo-relative archive procedure: preserve the unexpected bytes if wanted, remove the divergent managed `blobs/<hash>.blob` (or restore a `index.json` that no longer decodes), then rerun the sanitized purge, whose pending+absent recovery terminally tombstones | §9.7.2 |
+| `archive-purge-evidence-divergent` | the repo-relative archive procedure: preserve the unexpected bytes if wanted, remove the divergent managed `blobs/<hash>.blob` under the pending reference (or restore a `index.json` that no longer decodes), then rerun the sanitized purge, whose pending+absent recovery terminally tombstones | §9.7.2 |
 
 Every message in the first population names, in this order: the
 divergent entry, the file that holds its prior bytes (an archive blob or a
@@ -3165,20 +3450,25 @@ literal in `refusal.code`, `refusal.message`, and `refusal.remediation`.
 | Code(s) | Exit | Remediation class |
 |---|---:|---|
 | `slug-unsafe`, `workspace-not-initialized`, `workspace-unsupported-platform`, `prepare-unsupported-platform`, `lock-filesystem-unsupported`, `directory-flock-unavailable`, `local-lane-not-ignored`, `local-lane-unverifiable`, `feature-not-found`, `status-malformed`, `status-unreadable`, `request-unreadable`, `artifact-unsafe`, `artifact-unstable`, `state-refused`, `abandon-evidence-unsafe` | 3 | fix the named workspace/input/state condition; a denied/failed root filesystem says “move workspace to a supported local filesystem”; unsafe abandon evidence names the exact lane entry whose kind or containment failed, and moves nothing. **When `prepare-unsupported-platform`, `lock-filesystem-unsupported` or `directory-flock-unavailable` is returned while journal, preimage or staging evidence exists for the slug, the message additionally names the repo-relative lane `.tpatch/local/intent-prepare/<slug>/` and the last-resort manual removal, so the exit-6 escape stays executable there too (§6.6's pre-abandon gate table, rows 5, 6 and 8)**. `feature-not-found`, `status-malformed` and `status-unreadable` are **unreachable in `abandon` mode**, which never reads the feature directory (§6.6 rule 3, §10.5 step 6) |
-| `transaction-in-progress`, `recovery-pending` | 3 | for `transaction-in-progress`: the workspace mutation authority is held, the holder's identity is unknowable, and the safe action is to wait and retry — no stronger claim is made anywhere (§12.5), and **no manual removal is offered even in `abandon` mode with evidence present**, because the evidence may be a live holder's undo journal (§6.6's gate table row 7, PIB-512). For `recovery-pending` (`--dry-run`, and `intent-archive purge` in both its preview and `--yes` forms): run a mutating `prepare <slug>`, which recovers and reports `recovered` (§7.11), or `tpatch prepare <slug> --abandon-transaction --yes`; the refusing command never recovers, decodes or moves the journal itself |
+| `transaction-in-progress`, `recovery-pending` | 3 | for `transaction-in-progress`: the workspace mutation authority is held, the holder's identity is unknowable, and the safe action is to wait and retry — no stronger claim is made anywhere (§12.5), and **no manual removal is offered even in `abandon` mode with evidence present**, because the evidence may be a live holder's undo journal (§6.6's gate table row 7, PIB-512). `recovery-pending` has **two** populations and each names exactly one route. *Pending journal* (`--dry-run`, and `intent-archive purge` in both its preview and `--yes` forms): run a mutating `prepare <slug>`, which recovers the journal and reports `recovered` (§7.11), or `tpatch prepare <slug> --abandon-transaction --yes`; the refusing command never recovers, decodes or moves the journal itself. *Pending archive index* (a **normal mutating `prepare`** — `generate`, `manual`, `regenerate` — that observes removal-pending references, §7.8 step 5): run the sanitized `tpatch feature intent-archive purge <slug> --all --yes` from the workspace root, or `--blob <h> --yes` where every pending reference shares one hash `h`; the refusing `prepare` never finalizes a pending hash, and `retry_cwd: "workspace-root"` accompanies the named command (PIB-525, PIB-526) |
 | `provider-required-for-regenerate`, `archive-content-refused-sensitive` | 3 | configure provider/use explicit heuristic opt-in, or remove sensitive material and retry |
-| `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-generation-id-collision`, `archive-blob-corrupt`, `archive-blob-dangling`, `archive-index-storage-inconsistent`, `archive-blob-shared`, `archive-purge-index-changed` | 3 | preserve bytes; upgrade/inspect; for a dangling `h`, the one named repair is the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` (or an applicable `--all --yes`), which tombstones every reference to `h` and removes nothing |
-| `no-pending-transaction` | 3 | run an admissible mutating operation, or inspect the stated residue; when the only pending state is a removal-pending archive index, the message names the archive route (`feature intent-archive purge <slug> --blob <h> --yes`) instead; when the only residue is one or more prior `abandoned-<12hex>/` directories, the message lists them repo-relative, states that they were preserved untouched, and offers the optional `rm -rf` form (§6.6 rule 7); no destructive cleanup is implied or performed |
+| `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-generation-id-collision`, `archive-blob-corrupt`, `archive-blob-dangling`, `archive-index-storage-inconsistent`, `archive-blob-shared`, `archive-purge-index-changed` | 3 | preserve bytes; upgrade/inspect; for a dangling `h`, the one named repair is the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` (or an applicable `--all --yes`), which tombstones every reference to `h` and removes nothing. `archive-index-storage-inconsistent` has **two** sub-populations with two different routes: an unsafe/wrong blob under a **pending** reference preserves the evidence and is resolved by §9.7.2's archive procedure, while a **tombstoned reference whose named blob is present** is unreferenced physical residue whose one named repair is the literal `tpatch feature intent-archive purge <slug> --orphans --yes` run from the workspace root (§9.3.1, §9.7.3, PIB-521, PIB-522) |
+| `no-pending-transaction` | 3 | run an admissible mutating operation, or inspect the stated residue; when the only pending state is a removal-pending archive index, the message names the archive route (`feature intent-archive purge <slug> --blob <h> --yes`, or `--all --yes` for more than one pending hash) and **not** a mutating `prepare`, which since rev-8 refuses `recovery-pending` in that state rather than finalizing it (§6.6 rule 8, §7.8 step 5); when the only residue is one or more prior `abandoned-<12hex>/` directories, the message lists them repo-relative, states that they were preserved untouched, and offers the optional `rm -rf` form (§6.6 rule 7); no destructive cleanup is implied or performed |
 | `incoherent-bundle-gap`, `artifact-empty-not-overwritten`, `not-ready`, `staged-output-invalid` | 2 | complete/adopt or choose the explicitly named regenerate/manual route |
 | `entry-appeared`, `entry-changed`, `status-changed`, `archive-index-changed`, `regenerate-generation-failed`, `workspace-root-changed` | 5 | no canonical overwrite; retry from the observed tree. A missing/changed original workspace path must be restored/reselected; a held root cannot discover a moved pathname |
 | `archive-purge-partial` | 5 | the purge is resumable: re-run the reported **sanitized equivalent command** from the workspace root (`retry` plus `retry_cwd`, never an inherited `--path`). What that run does is stated by the report's closed `resume` field: on `pending-recovery-then-completion` it finalizes the pending hash and reports exit 0 `recovered` (terminal, §7.11) and a further run completes the remaining hashes; on `completion-only` and `orphan-scan` a single run completes the work and **no** `recovered` outcome is emitted or promised. The report's `completed_hashes`, `pending_hash` (branch (a) only) and `remaining_hashes` say where it stopped, and the index is consistent in the meantime (§9.7.2) |
 | `undo-cas-mismatch`, `recovery-divergent`, `journal-corrupt`, `journal-version-mismatch`, `journal-foreign`, `journal-path-escape`, `journal-forged`, `post-publication-divergence`, `workspace-root-replaced-after-publication` | 6 | preserve evidence and name `--abandon-transaction`; where platform, filesystem or `flock` denies that mode and evidence exists, name the repo-relative lane and the last-resort manual removal instead (§6.6) |
-| `archive-purge-evidence-divergent` | 6 | preserve every blob, the index and the pending record, and name the **archive** procedure of §9.7.2 — the pending hash, the repo-relative managed blob and `index.json` paths, the optional preservation copy, the removal of the divergent managed blob path (or restoration of an index that no longer strict-decodes), and the sanitized rerun with `retry_cwd`, whose pending+absent recovery terminally tombstones — together with its destructive cost and the Git-history caveat. It **must not** name `--abandon-transaction`: that mode touches no index and no blob and cannot consume this evidence (§6.6 rules 8 and 10, PIB-506, PIB-508) |
+| `archive-purge-evidence-divergent` | 6 | preserve every blob, the index and the pending record, and name the **archive** procedure of §9.7.2 — the pending hash, the repo-relative managed blob and `index.json` paths, the optional preservation copy, the removal of the divergent managed blob path (or restoration of an index that no longer strict-decodes), and the sanitized rerun with `retry_cwd`, whose pending+absent recovery terminally tombstones — together with its destructive cost and the Git-history caveat. It **must not** name `--abandon-transaction`: that mode touches no index and no blob and cannot consume this evidence (§6.6 rules 8 and 10, PIB-506, PIB-508). It is reachable **only** where a pending reference exists; a tombstoned reference beside a present blob is not this code but exit-3 `archive-index-storage-inconsistent` with the `--orphans --yes` repair (§9.3.1, PIB-521, PIB-524) |
 
 `archive-index-changed` is publication/rehydration exit 5 only;
 `archive-purge-index-changed` is purge exit 3 only (preflight, before the first
-write); `archive-purge-partial` and `archive-purge-evidence-divergent` are purge
-only and are reachable only **after** the first per-hash mutation. The catalog
+write); `archive-purge-partial` and `archive-purge-evidence-divergent` are
+`feature intent-archive purge --yes` only — no other command can produce them,
+because no other command runs the per-hash machine (§7.11, PIB-526) — and are
+reachable only **after** the first per-hash mutation **of the purge transaction
+in flight**, which may have been written by a **prior** invocation whose pending
+record this run adopted rather than by a write this invocation performed
+(§9.7.2). The catalog
 is closed by PIB-228 and PIB-431; parse errors remain exit 1 and are not refusal
 reports.
 
@@ -3247,11 +3537,15 @@ reports.
    table, PIB-512).
 10. **`--abandon-transaction` → its own contract (§6.6); nothing below
     applies.** The branch is here, immediately after the lock and **before**
-    the local-lane Git gate and both recovery passes, so the mode never depends
+    the local-lane Git gate, the journal recovery and the pending-hash gate, so
+    the mode never depends
     on a working `git` to move bytes already in the lane, never runs the
     recovery that would consume the evidence it exists to move, and never hits
-    the exit-6 refusal it exists to escape. Steps 1–5 and 8–9 are the only
-    steps that can precede it, and §6.6's gate table is total over them
+    the exit-6 refusal it exists to escape. Steps 1, 3, 4, 5, 8 and 9 are the
+    only steps that can precede it — step 1a's `--yes` validation never fires
+    here because `--yes` is legal in this mode, step 2's `--check` handoff and
+    step 7's `--dry-run` branch are mutually exclusive with it, and step 6 is
+    skipped — and §6.6's gate table is total over exactly that set
     (PIB-452, PIB-492…PIB-494, PIB-510, PIB-511).
 11. Local-lane Git contract (every mode except `abandon`) → `3`
     (`local-lane-not-ignored` or `local-lane-unverifiable`), or skipped with
@@ -3262,9 +3556,13 @@ reports.
     exit `0`, `outcome: "recovered"`, advisory `recovered-prior-transaction`,
     the `recovery` object and the sanitized retry. Nothing below runs in that
     invocation (§7.11, PIB-483, PIB-484).
-13. Pending archive-hash recovery (§9.7.2) → its named repair/refusal before
-    any new archive mutation; **on success it is likewise terminal** at exit
-    `0`, `outcome: "recovered"`, and nothing below runs (PIB-486, PIB-491).
+13. Pending archive-hash state (§9.7.2) → `3` (`recovery-pending`), zero
+    writes, naming the sanitized `feature intent-archive purge <slug> --all
+    --yes` (or `--blob <h> --yes` where one hash covers the whole pending set)
+    with `retry_cwd: "workspace-root"`. This step **never recovers**: the
+    per-hash machine has exactly one owner and it is
+    `feature intent-archive purge --yes` (§7.8 step 5, §7.11, PIB-525,
+    PIB-526). Nothing below runs.
 14. `request.md` capture (generating modes only) → `3`
     (`request-unreadable`).
 15. Lifecycle-state gate (§12.2) → `3` (`state-refused`).
@@ -3280,40 +3578,56 @@ reports.
     (`archive-content-refused-sensitive`), §9.6.1.
 22. Archive/index/storage integrity (§9.2, §9.3.1 X1–X11), shared-selection
     refusal and purge preimage mismatch → `3`, all of it before the purge's
-    first mutation. For the `feature intent-archive purge` command this ladder
+    first mutation. A tombstoned reference whose named blob is present refuses
+    here as `archive-index-storage-inconsistent` and names
+    `--orphans --yes`, which is the one invocation admitted past that
+    observation (§9.3.1, PIB-521, PIB-522). For the `feature intent-archive
+    purge` command this ladder
     is entered only after its own journal-marker refusal (§9.7): a pending
     prepare journal is `3` `recovery-pending` before any archive work, and that
-    command never recovers, decodes or moves the journal. That command also
-    executes **zero** Git processes, so step 11's lane gate and every G1–G4
+    command never recovers, decodes or moves the journal. Its `--yes` form
+    additionally runs the §9.7.2 pending-hash recovery — on **every** selector,
+    `--orphans` included — before this ladder, and returns terminally at `0`
+    `recovered` if anything was pending; its preview form runs no recovery, takes
+    no lock, and returns `0` `recovery-required` instead (§9.7, PIB-515,
+    PIB-527, PIB-528, PIB-529). That command also
+    executes **zero** Git processes in both forms, so step 11's lane gate and
+    every G1–G4
     count are inapplicable to it (§7.13, PIB-514). A purge failure
-    **after** the first per-hash mutation is
+    **after** the first per-hash mutation of the transaction in flight — which
+    may have been written by a prior invocation — is
     instead `5` (`archive-purge-partial`), whose `resume` field says how many
     runs finish it, or `6`
-    (`archive-purge-evidence-divergent`) when the evidence is divergent — and
+    (`archive-purge-evidence-divergent`) when the evidence under a **pending**
+    reference is divergent — and
     that exit 6 names §9.7.2's archive procedure, never the abandon mode
-    (§9.7.2, PIB-506, PIB-508).
+    (§9.7.2, §10.4.1, PIB-506, PIB-508, PIB-526).
 23. Per-entry CAS, publication and rollback → `5` if rolled back, `6` if an
     undo CAS refused or the rollback failed.
 24. Final verification (§7.8 step 13) → `6` on divergence.
 25. Otherwise → `0`.
 
-The order is load-bearing in twelve places, and each has a row: `--yes` is
+The order is load-bearing in thirteen places, and each has a row: `--yes` is
 validated before the `--check` handoff, so one literal covers every illegal
 spelling (PIB-502); the slug is
 validated before any path is composed (PIB-176); dry-run branches before every
 mutating gate, Git process and flock, and evaluates every non-mutating plan
 gate inside that branch (PIB-440, PIB-461); the lock is acquired before
 recovery, so recovery never races a live sibling (PIB-364); **abandon branches
-after the lock and before both the Git gate and both recovery passes, so its
+after the lock and before both the Git gate and both the journal recovery and
+the pending-hash gate, so its
 escape is reachable for corrupt, divergent and recoverable evidence alike, and
 survives a missing or unusable `git`** (PIB-452, PIB-492…PIB-494); **step 6 is
 skipped in `abandon` mode, so an absent, malformed or unreadable feature cannot
 stop the escape and §6.6's pre-abandon gate table is total** (PIB-509, PIB-510,
 PIB-511, PIB-513); the Git gate
 still runs before the first local-lane or canonical byte in every other mode
-(PIB-106, PIB-107); **recovery returns instead of continuing, so no exit-2 or
+(PIB-106, PIB-107); **journal recovery returns instead of continuing, so no
+exit-2 or
 exit-3 gate is ever evaluated after a recovery write** (PIB-483, PIB-484,
-PIB-487); recovery runs before the lifecycle gate so a pending transaction is
+PIB-487); **step 13 refuses instead of recovering, so the pending-purge
+transaction has exactly one owning command** (PIB-525, PIB-526); recovery runs
+before the lifecycle gate so a pending transaction is
 never left behind by a refusal that happens to come first (PIB-177); the
 redaction scan runs before
 the first blob write, so a refusal leaves no sensitive bytes on disk (PIB-262);
@@ -3359,6 +3673,7 @@ prepare fix-model-id-translation: regenerate published (4 artifacts, 3 archived)
 prepare fix-model-id-translation: abandon abandoned (3 control files moved)
 prepare fix-model-id-translation: regenerate recovered (2 entries restored)
 prepare fix-model-id-translation: generate refused incoherent-bundle-gap
+feature intent-archive purge fix-model-id-translation: recovery-required (1 pending hash)
 ```
 
 A terminal recovery renders in the full human output as its own short block,
@@ -3379,8 +3694,10 @@ Run this again from the same workspace root:
 Structural presence only. This report does not certify semantic quality.
 ```
 
-The line is a fixed grammar — `prepare <slug>: <mode> <outcome>[ <detail>]` —
-so a harness can parse it without knowing the mode (PIB-019, PIB-367).
+The line is a fixed grammar — `prepare <slug>: <mode> <outcome>[ <detail>]` for
+the verb's own modes, and `feature intent-archive purge <slug>: <outcome>[
+<detail>]` for the archive command, which has no mode — so a harness can parse
+it without knowing the mode (PIB-019, PIB-367).
 
 ### 10.7 Refusal remediation is self-contained
 
@@ -3758,7 +4075,9 @@ does not reopen it. In particular:
 
 D9 is warning-only and makes zero writes. It reports **persistent evidence
 only**: a present journal, allowed staging or `abandoned-*` control residue, an
-orphan blob, a corrupt archive index, or an X11 dangling reference — and for a
+orphan blob — including a blob left unreferenced beside a tombstone, which it
+names with the `--orphans --yes` repair (§9.3.1) — a corrupt archive index, or
+an X11 dangling reference; for a
 dangling reference it names the same single literal repair command as `list`
 and the refusal report (§9.7.3). It must not
 diagnose a lost journal from ordinary canonical partial bytes (§7.11.1), and it
@@ -3815,7 +4134,7 @@ Nothing outside this table changes.
 | D10 | `prepare` **reports** a failed `FEATURES.md` refresh as an advisory; the shipped phase commands swallow it silently. `status.json` remains authoritative in both (§12.3.1) | `prepare` (new surface only) |
 | D11 | A new command group `tpatch feature intent-archive {list,purge}` appears (§9.7) | `feature` |
 | D12 | A prepare-owned held-root directory authority retains `*os.Root` and `*os.File`, uses the root-inode denylist plus real flock on Linux/Darwin, and is not a `rescap` extraction; `feature resource *` remains byte-identical. | `prepare` (new mutating surface only) |
-| D13 | A mutating `prepare` or `intent-archive purge` that finds a pending transaction **recovers and stops**: exit 0, `outcome: "recovered"`, and the operator re-runs the reported sanitized command. No shipped command performs a recovery and the requested operation in one invocation. | `prepare`, `feature intent-archive purge` (new surface only) |
+| D13 | A mutating `prepare` that finds a pending **journal** recovers and stops: exit 0, `outcome: "recovered"`, and the operator re-runs the reported sanitized command. A mutating `prepare` that finds a pending **archive purge** instead refuses exit 3 `recovery-pending` with zero writes and names `feature intent-archive purge <slug> … --yes`, which is the one command that finalizes it — and which likewise recovers and stops rather than continuing into the selector. No shipped command performs a recovery and the requested operation in one invocation, and no command other than `intent-archive purge --yes` finalizes a pending archive hash. | `prepare`, `feature intent-archive purge` (new surface only) |
 
 **Non-invalidation obligations**, each with a row:
 
@@ -3974,8 +4293,8 @@ under `.tpatch/local/` refuses the command (PIB-186, PIB-187).
 | `docs/agent-as-provider.md` | A `prepare --manual` row alongside the per-phase `--manual` table (`docs/agent-as-provider.md:40-45`), stating that it adopts the **whole** bundle and is strict where the per-phase gates are loose. The existing sentence presenting `status.json.notes` as what "distinguishes Path B transitions from provider output" (`docs/agent-as-provider.md:47-54`) must additionally be corrected to a last-transition hint, **not** durable per-artifact provenance — a correction the accepted PRD already requires (`docs/prds/PRD-artifact-validation-and-provenance.md:3372-3435`) and which this PRD must not contradict. |
 | `docs/path-b-operator-guide.md` | The three-`--manual`-commands flow (`docs/path-b-operator-guide.md:61-73`) gains `tpatch prepare <slug> --manual` as the one-step adoption alternative. |
 | `docs/path-b-operator-guide.md` (second change) | The non-Git and unusable-Git behavior of §7.13, so a Path B operator learns the `local-lane-unverifiable` refusal from the guide rather than from the refusal. |
-| `CHANGELOG.md` | The twelve deltas of §12.6. |
-| `docs/adrs/README.md` | The ADR-035 index row (created with this PRD at rev-0; update its proposed rev-7 status when implementation is authorized). |
+| `CHANGELOG.md` | The thirteen deltas of §12.6. |
+| `docs/adrs/README.md` | The ADR-035 index row (created with this PRD at rev-0; update its proposed rev-8 status when implementation is authorized). |
 
 ### 14.2 Skill asset parity
 
@@ -4037,7 +4356,7 @@ grows one (PIB-068).
 | R6 | Unbounded archive growth, or a secret retained forever. | Content-addressed dedupe means only distinct content costs bytes; blobs are the artifacts' own sizes, capped by `MaxArtifactBytes`; `tpatch feature intent-archive purge` bounds it explicitly (§9.7); orphans are reported and removable (§9.7.3); the redaction gate refuses secret-shaped content up front (§9.6.1); the committed-history caveat is stated rather than papered over (§9.6.2). |
 | R7 | The lock's limited authority is read as full mutual exclusion. | §7.12's concurrency matrix names the unexcluded writers row by row, §7.4.2 states the no-cross-machine and lying-filesystem limits, and §7.4.4 records why every alternative authority was rejected; PIB-104 exercises a concurrent `define`; every entry is CAS-gated on publish and on undo (§7.6.3). |
 | R8 | The archive is later cited as provenance. | §9.8's table, ADR-035 D9, the extension of the forbidden-inference list (PIB-143), the `notes`-is-a-hint rule (§12.3.2) and the over-claim guard (PIB-155). |
-| R9 | A future reviewer assumes a test proves semantics because it exists. | §18.1's disqualifying assertion shapes; §18.47's sensitivity and semantic-fixture requirements over every guard row. |
+| R9 | A future reviewer assumes a test proves semantics because it exists. | §18.1's disqualifying assertion shapes; §18.48's sensitivity and semantic-fixture requirements over every guard row. |
 | R10 | Blob files confuse `git status` / `land` staging for users. | They are ordinary files under `artifacts/`, swept by the shipped feature-path-set rule (`internal/cli/land.go:723-725`); PIB-152 asserts `land` stages them like any other artifact and PIB-153 asserts `record`'s canonical patch is unaffected. |
 | R11 | Doctor accidentally becomes a competing lock client. | D9 never opens or flocks the workspace root; it reports persistent evidence only (§12.5), so it can neither perturb a mutating prepare nor diagnose a second doctor. rev-4's transient probe is removed, and PIB-470 asserts zero open/flock calls with a live holder. |
 | R12 | A false-positive `home-absolute-path` or broad `email-pii` match blocks a legitimate regeneration. | The trade is stated in §9.6.1: an edit and a re-run versus a credential in every future clone. The refusal names the artifact and class codes so the operator can see what matched; Q9 records a scoped-override design, deliberately not in v1. |
@@ -4048,6 +4367,8 @@ grows one (PIB-068).
 | R17 | An operator or harness assumes a mutating run did the work when it actually recovered. | The outcome token is a distinct closed value (`recovered`), `action` is `none`, the advisory says the requested operation was not performed, the `--quiet` line ends in `recovered`, and the report hands over the exact retry (§7.11, §10.2, §10.6, PIB-483, PIB-485). |
 | R18 | An operator hits `archive-purge-evidence-divergent`, is told to run `--abandon-transaction`, and finds it refuses `no-pending-transaction` — leaving them with two refusals and no route. | rev-7 partitions the exit-6 remediation by population: that code is routed **only** to §9.7.2's archive procedure, which names the pending hash, the repo-relative managed blob and index paths, the optional preservation copy, the removal or restoration step and the sanitized rerun whose pending+absent recovery terminally tombstones; the message is forbidden from naming abandon. PIB-506 asserts the message, PIB-507 asserts the procedure actually finishes the purge, and PIB-508 fails any mapping that sends a code to a route that cannot consume it. |
 | R19 | An operator reads the `archive-purge-partial` report as "one more command finishes it" when their branch needs two, or waits for a `recovered` outcome that will never come. | The closed `purge_progress.resume` field names the branch, `pending_hash` is present exactly on the branch that recovers first, and the prose is written per branch rather than once (§9.7.2, §10.4). PIB-516 and PIB-517 exercise the two no-recovery branches end to end, and PIB-518 fails a report whose shape and promise disagree. |
+| R20 | An operator whose archive holds a blob beside a tombstone is sent to the pending-hash escape, finds no pending hash to name and no rerun that finalizes anything, and is left with an unexecutable procedure. | The state is classified as unreferenced physical residue rather than divergence: X11 refuses exit 3 `archive-index-storage-inconsistent` with zero writes and names the one executable repair, `purge <slug> --orphans --yes`, which is admitted past that observation after the strict wire decode and removes the blob without rewriting the index (§9.3, §9.3.1, §9.7.3). PIB-521 asserts the refusal and its route, PIB-522 asserts the repair actually clears it, PIB-523 asserts the preview reports it, and PIB-524 fails any classification that files it back under `archive-purge-evidence-divergent`. |
+| R21 | Two commands own the pending-purge transaction, so `archive-purge-evidence-divergent` can be emitted by a `prepare` whose output cannot carry the archive procedure that resolves it. | The transaction has exactly one owner: `RecoverPendingPurge` has a single call site, on `feature intent-archive purge --yes`. A mutating `prepare` that observes `purge_pending` refuses exit 3 `recovery-pending` with zero writes and hands over the purge command with `retry_cwd` (§7.8 step 5, §7.11, §10.4.1). PIB-525 asserts the refusal and its zero writes, PIB-526 fails any second call site. |
 
 ## 17. Implementation slices and file ownership
 
@@ -4101,7 +4422,7 @@ unimplemented read half.
 | **S4b** | The retention surface: `tpatch feature intent-archive list\|purge`. | new `internal/cli/feature_intent_archive.go`; modified `internal/cli/feature_deps.go` (the group registration line only) |
 | **S5** | `doctor` D9 — persistent-evidence reporting only, with **no** root open and no flock probe; compatibility and non-invalidation proofs. D1–D8 retain their CLI goldens. | new `internal/workflow/doctor_d9.go`; modified `internal/workflow/doctor.go` (registry only) and `internal/cli/doctor.go` (D9 help/check-list only) |
 | **S6** | Docs, six skill surfaces, parity-guard extension, over-claim and citation guards, sensitivity meta-check. | `SPEC.md`, `docs/**`, `assets/skills/**`, `assets/assets_test.go` |
-| **S7** | Rev-4 … rev-7 cross-cutting hardening after owned slices: terminal-recovery ordering and its exit-3 zero-write consequence, purge's journal-marker refusal and terminal pending-purge recovery, abandon reachability with `git` absent/unusable and with an absent/malformed/unreadable feature, the total pre-abandon gate table and its wait-and-retry contention case, the partitioned exit-6 route map and the archive-divergence procedure, the three conditional partial-purge branches, the pending-purge preview, the purge Git zero, sanitized retries and repeat-abandon residue, the command-owned `--yes` literal, `Control`-scoped `fstatfs` with no `Fd()` in the authority path, forced-GC real-process authority lifetime, release-then-`Control` determinism, alias-at-acquisition/renamed-original-path refusal, `fstatfs`-on-held-descriptor and exact denied-class fixtures, Linux/macOS root-inode contention/release, abandon-before-recovery ordering with corrupt/divergent/recoverable evidence, rooted control-write proofs, purge preflight/partial-outcome/crash recovery and the single dangling repair, structural raw-sink and schema-scoped provenance guards, closed Git count/argv/environment spies including the indexed config forms, dry-run branch totality, and D9 zero-probe proofs. | tests beside `internal/intentlock`, `internal/intentpub`, `internal/store`, `internal/cli`, `internal/workflow`, `internal/gitutil`, `internal/rescap`; no new public surface |
+| **S7** | Rev-4 … rev-8 cross-cutting hardening after owned slices: terminal-recovery ordering and its exit-3 zero-write consequence, purge's journal-marker refusal and its purge-owned terminal pending-hash recovery on every selector, `prepare`'s zero-write `recovery-pending` refusal on a removal-pending index, the unreferenced-residue classification and its `--orphans --yes` repair, the bound pending-purge preview shape, abandon reachability with `git` absent/unusable and with an absent/malformed/unreadable feature, the total pre-abandon gate table over reachable stops and its wait-and-retry contention case, the partitioned exit-6 route map and the archive-divergence procedure, the three conditional partial-purge branches, the purge Git zero and the purge-preview lock zero, sanitized retries and repeat-abandon residue, the command-owned `--yes` literal, `Control`-scoped `fstatfs` with no `Fd()` in the authority path, forced-GC real-process authority lifetime, release-then-`Control` determinism, alias-at-acquisition/renamed-original-path refusal, `fstatfs`-on-held-descriptor and exact denied-class fixtures, Linux/macOS root-inode contention/release, abandon-before-recovery ordering with corrupt/divergent/recoverable evidence, rooted control-write proofs, purge preflight/partial-outcome/crash recovery and the single dangling repair, structural raw-sink and schema-scoped provenance guards, closed Git count/argv/environment spies including the indexed config forms, dry-run branch totality, and D9 zero-probe proofs. | tests beside `internal/intentlock`, `internal/intentpub`, `internal/store`, `internal/cli`, `internal/workflow`, `internal/gitutil`, `internal/rescap`; no new public surface |
 
 **Ordering.** S1b → S1 → S3 → S4 → S4b is strict. S2 may run in parallel with
 S1/S1b/S3 **only** under an explicit file partition; S5 and S6 follow S4b;
@@ -4182,6 +4503,9 @@ that nothing runs between a completed recovery and the command's return. rev-7
 adds `failPurgeBetweenHashes` and `failOrphanRemoveAfterFirst`, which are what
 let PIB-516 and PIB-517 reach the two partial-purge branches that carry **no**
 pending marker and therefore cannot be produced by `failPurgeAfterFirstMutation`.
+rev-8 adds **no** seam: every state it classifies or re-routes is reachable
+through the existing set, `beforeRehydrateIndexRename` in particular being what
+produces CP13's unreferenced residue.
 
 **Amended rows.** IDs are never renumbered. Rev-1 amended `PIB-015`,
 `PIB-016`, `PIB-017`, `PIB-020`, `PIB-041`, `PIB-053`, `PIB-079`, `PIB-110`,
@@ -4237,7 +4561,7 @@ whose observable moved with this revision:
 - *Authority, filesystem and reference truth* (§7.4.1, §7.4.2, §7.4.4):
   `PIB-286`, `PIB-287`, `PIB-392`…`PIB-394`, `PIB-409`…`PIB-411`, `PIB-416`,
   `PIB-418`, `PIB-433`, `PIB-435`, `PIB-441`, `PIB-442`.
-- *Catalogs, vocabularies and ledgers* (§10.2, §10.4.1, §18.46): `PIB-226`,
+- *Catalogs, vocabularies and ledgers* (§10.2, §10.4.1, §18.47): `PIB-226`,
   `PIB-228`, `PIB-229`, `PIB-230`, `PIB-231`, `PIB-431`.
 
 Their old dry-run-equivalence, recovery-before-abandon, path-based-journal,
@@ -4272,7 +4596,7 @@ whose observable moved with this revision — and only those rows:
 - *Exit-6 route partition* (§6.6 rule 8, §9.7.2, §10.4, §10.4.1): `PIB-362`,
   `PIB-363`.
 - *Abandon pre-gate totality* (§6.6's gate table, §10.5 steps 6, 9 and 10):
-  `PIB-274`, `PIB-495`.
+  `PIB-495`.
 - *Lane parity and the purge Git zero* (§7.13, §12.6 D9): `PIB-281`,
   `PIB-282`, `PIB-283`.
 - *Conditional partial-purge retry* (§9.7.2, §10.2, §10.4.1): `PIB-466`,
@@ -4285,6 +4609,31 @@ lane-gate-includes-abandon, unconditional-two-run-purge-retry,
 unqualified-never-blocked and delta-table-only-completeness meanings are
 retired; **no stable ID silently changes meaning, and none is renumbered.**
 Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
+
+rev-8 corrected this ledger too: rev-7 originally listed `PIB-274` under
+*Abandon pre-gate totality*, but that row's text and observable were changed by
+**rev-6**, not by rev-7 — verified by diffing `7af5092` against `751d817`, in
+which `PIB-274` appears only in ledger prose and not as a changed matrix row —
+so it is removed here and stays in rev-6's list where it belongs. The eleven
+rows above are exactly the rows the rev-7 diff changed.
+
+**Rev-8 explicitly amends**, rather than silently re-meaning, every stable row
+whose observable moved with this revision — and only those rows, each one
+verifiable in the rev-8 diff:
+
+- *Unreferenced physical residue* (§9.3, §9.3.1, §9.7.3, §10.4.1): `PIB-404`,
+  `PIB-447`, `PIB-506`.
+- *Purge-owned pending recovery* (§7.8 step 5, §7.11, §10.5 step 13):
+  `PIB-453`, `PIB-486`.
+- *Pending-purge preview shape and selector totality* (§9.7, §10.2):
+  `PIB-226`, `PIB-367`, `PIB-515`.
+- *Pre-abandon gate reachability* (§6.6's gate table): `PIB-511`.
+
+Their old tombstone-beside-blob-is-divergence, crash-leaves-a-plain-orphan,
+prepare-finalizes-a-pending-hash, abandon-names-a-prepare-recovery-route,
+single-selector-preview and presence-only-gate-table meanings are retired;
+**no stable ID silently changes meaning, and none is renumbered.** Rev-8 adds
+only contiguous `PIB-521`…`PIB-530`.
 
 ### 18.2 A — CLI grammar, modes and flag mutexes
 
@@ -4605,7 +4954,7 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 |---|---|---|---|
 | PIB-224 | G | §6.1 and §6.3 disposition tables | total over the accepted nine-value enum; adding a tenth value fails compilation or the guard |
 | PIB-225 | G | §12.2 state table | total over `ValidFeatureState`; a thirteenth state fails the guard rather than defaulting to allowed |
-| PIB-226 | G | the closed vocabularies of §10.2 | the shipped constant sets equal the tables exactly, including `outcome`'s `purge-partial` and the one-value `execution_preflight` set |
+| PIB-226 | G | the closed vocabularies of §10.2 | the shipped constant sets equal the tables exactly, including `outcome`'s `purge-partial` and `recovery-required`, the closed `pending_purge.selector` set and the one-value `execution_preflight` set |
 | PIB-227 | G | the advisory catalog | exactly seventeen codes; every one reachable by a named fixture; a sensitivity fixture proves an eighteenth code fails the guard |
 | PIB-228 | G | the refusal-code catalog | closed; every code reachable; every code has a remediation |
 | PIB-229 | G | every `PIB-NNN` cited in prose | resolves to a real matrix row |
@@ -4829,7 +5178,7 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 | PIB-364 | C | recovery with a live sibling process | the lock is acquired before recovery is attempted; recovery never runs while another process holds the lock |
 | PIB-365 | C | `--regenerate` with no provider, provider and filesystem spies | zero provider calls, zero staged files, zero blobs; exit 3 `provider-required-for-regenerate` |
 | PIB-366 | I | `--abandon-transaction --json` | `mode: "abandon"`, `artifacts: []`, `archive` absent, `abandoned` object present with the evidence directory |
-| PIB-367 | I | `--quiet` across all five modes and all outcomes | every line matches `prepare <slug>: <mode> <outcome>[ <detail>]`; exactly one line |
+| PIB-367 | I | `--quiet` across all five modes and all outcomes, plus `feature intent-archive purge` on each of its outcomes | every `prepare` line matches `prepare <slug>: <mode> <outcome>[ <detail>]` and every archive line matches `feature intent-archive purge <slug>: <outcome>[ <detail>]`; exactly one line in every case |
 
 ### 18.37 AJ — Provider authority, deadlines and leakage
 
@@ -4883,7 +5232,7 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 | PIB-401 | U | tombstoned index entry with immutable `content_sha256` | X10 recomputes the recorded generation id after purge; missing/mismatched digest, blob/purged inconsistency, or altered immutable body refuses |
 | PIB-402 | I | later regeneration computes an existing fully tombstoned generation whose hash also appears elsewhere | redaction passes; blobs are written/reused before one CAS index rewrite rehydrates **every** tombstoned or removal-pending reference to that hash, no duplicate generation is appended, and no false tombstone/orphan remains |
 | PIB-403 | I | repeated purge→rehydrate with a blob shared by two generations | ids/order remain stable; rehydrating hash h revives **every** tombstoned or pending reference to h, and later purge counts every current live reference |
-| PIB-404 | C | rehydration redaction and crash-order subtests | a redaction match leaves tombstones/no blob; a crash before index rename leaves at most an orphan, while no index ever references a missing blob |
+| PIB-404 | C | rehydration redaction and crash-order subtests | a redaction match leaves tombstones/no blob; a crash before index rename leaves at most an **unreferenced** blob beside its tombstone — CP13's residue, which X11 reports as exit-3 `archive-index-storage-inconsistent` naming `--orphans --yes` and never as `archive-purge-evidence-divergent` — while no index ever references a missing blob |
 | PIB-405 | C | concurrent index edit after purge preimage capture and immediately before rooted rename | strict re-read/CAS refuses `archive-purge-index-changed` before **any** selected blob removal; live edited index and blobs survive |
 | PIB-406 | C | ancestor becomes a relative symlink to another directory inside the held root | outside-root escape remains refused; an identity-changing in-root redirect is caught by CAS; fixture/docs do not claim detection of an equal-identity alias |
 | PIB-407 | I | ordinary partial bundle made by `analyze`/`define`, with completely clean lane/archive | D9 emits neither residue nor journal-loss diagnosis; no recovery/repair is suggested |
@@ -4936,7 +5285,7 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 | PIB-444 | I | a missing retained blob, with exact replacement bytes available on disk | ordinary regenerate and archive mutation still refuse — availability of the bytes changes nothing, because no reachable path consumes them; the confirmed purge is the only repair, and after it an ordinary regenerate rehydrates through §9.3 |
 | PIB-445 | G | doctor source and output surface | no D9 code path opens the workspace root or calls `flock`; no D9 string reports, denies or speculates about a live authority; D1–D8 goldens stay byte-identical; a sensitivity fixture reintroducing a probe fails the guard |
 | PIB-446 | G | raw-response structural sensitivity fixture | adding a retry store, raw-attempt/transcript sink/path or report/history persistence fails; a canonical staged output equal to provider bytes remains permitted |
-| PIB-447 | G | §9.7.1, §9.7.2, X11, CP12/CP12a and ADR D10/D16 semantic parity fixture | all express pending → remove-or-finalize → tombstone, deterministic recovery, the single confirmed-purge dangling repair and the `archive-purge-partial` boundary; a contradictory “pending must still exist” or “rehydration repairs a dangling reference” sentence fails |
+| PIB-447 | G | §9.3 §9.7.1, §9.7.2, X11, CP12/CP12a/CP13 and ADR D10/D16 semantic parity fixture | all express pending → remove-or-finalize → tombstone, deterministic recovery **performed only by `intent-archive purge --yes`**, the single confirmed-purge dangling repair, the `--orphans --yes` repair for a tombstone whose named blob is present, and the `archive-purge-partial` boundary; a contradictory “pending must still exist”, “rehydration repairs a dangling reference”, “a mutating `prepare` finalizes a pending hash” or “a tombstone beside a present blob is purge divergence” sentence fails |
 | PIB-448 | G | refusal/precedence/help/JSON/row catalog guard | root-path change, dangling repair and `archive-purge-partial` each have one exit and one remediation everywhere; archive list stays read-only/no-lock and no stale section reference remains |
 
 ### 18.43 AP — Rev-5 adjudication: reachability, rooted control writes and bounded totality
@@ -4947,7 +5296,7 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 | PIB-450 | C | `--abandon-transaction --yes` on CP9-shaped divergent evidence | exit 0; the whole `.tpatch/features/` subtree is byte-identical; nothing is restored, undone or removed; the report names the evidence directory |
 | PIB-451 | C | `--abandon-transaction --yes` on a cleanly recoverable CP4 journal | exit 0; the two published entries are **not** undone; the journal is moved rather than consumed; the report states that no canonical file changed and does not imply a repair |
 | PIB-452 | C | abandon-ordering spy over all of the above | the mutating platform/filesystem gate and the flock both ran, the lane gate did **not**, and neither journal recovery nor pending archive-hash recovery was invoked at all; the branch is taken at §7.8 step 2 / §10.5 step 10 |
-| PIB-453 | I | slug with a removal-pending archive index and no journal, staging or abandoned evidence | exit 3, `no-pending-transaction`; `index.json` and every blob byte-identical; the remediation names the literal `feature intent-archive purge <slug> --blob <hash> --yes` archive route |
+| PIB-453 | I | `--abandon-transaction` on a slug with a removal-pending archive index and no journal, staging or abandoned evidence | exit 3, `no-pending-transaction`; `index.json` and every blob byte-identical; the remediation names the literal `feature intent-archive purge <slug> --blob <hash> --yes` archive route (or `--all --yes` when more than one hash is pending) and names **no** mutating `prepare` route, because `prepare` refuses `recovery-pending` in that state |
 | PIB-454 | S | every mutating prepare write path, including journal, both preimages, staging, abandon moves and the derived-index refresh | each goes through the §7.7.1 rooted control writer; `gitutil.DurableWriteFile`, `writeFileAtomic*` and `os.CreateTemp` appear nowhere in them |
 | PIB-455 | C | journal write with a rooted-operation spy | the observed sequence is same-directory `Root.OpenFile(O_CREATE\|O_EXCL)` → write → `Sync` → `Close` → `Root.Rename` → rooted parent-directory `Sync`, with no path-based call between them |
 | PIB-456 | G | sensitivity fixture for PIB-454 | inserting a `gitutil.DurableWriteFile` call — or any path-based writer — into the local lane makes the scan fail |
@@ -4985,7 +5334,7 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 | PIB-483 | I | mutating `prepare` (each of `generate`, `manual`, `regenerate`) on a CP3–CP7 pending journal | exit 0; `outcome: "recovered"`; `action: "none"`; the `recovery` object names `kind: "journal-undo"` and every restored repo-relative entry; advisory `recovered-prior-transaction`; the requested operation is **not** performed and no artifact it would have written exists |
 | PIB-484 | C | the same runs with an `afterRecoveryComplete` ordering spy | the command returns immediately after recovery: zero lifecycle-gate evaluations, zero artifact-admissibility checks, zero coherence checks, zero provider calls, zero staging writes and zero archive mutations occur after the recovery completes |
 | PIB-485 | I | re-running the reported `retry` from the workspace root after PIB-483 | the originally requested operation is performed and exits 0 `published` (or the admissible refusal the tree actually warrants); no `recovered` outcome is emitted the second time |
-| PIB-486 | I | mutating `prepare` and `intent-archive purge`, each with removal-pending archive hashes and no journal | exit 0; `outcome: "recovered"`; `recovery.kind: "archive-purge-finalize"`; `finalized_hashes` lists exactly the finalized hashes; no new blob, no new tombstone beyond the pending set, and no selector processing occurred in that invocation |
+| PIB-486 | I | `intent-archive purge … --yes` — and **only** that command — with removal-pending archive hashes and no journal | exit 0; `outcome: "recovered"`; `recovery.kind: "archive-purge-finalize"`; `finalized_hashes` lists exactly the finalized hashes; no new blob, no new tombstone beyond the pending set, and no selector processing occurred in that invocation; the same state under a mutating `prepare` yields exit 3 `recovery-pending` with zero writes instead (PIB-525) |
 | PIB-487 | G | exit-3 zero-write guard, post-recovery arm | no reachable path reaches an exit-3 return after a recovery write in the same invocation; two sensitivity fixtures fail the guard — one that recovers and then evaluates the lifecycle gate, and one that recovers and then evaluates artifact admissibility |
 | PIB-488 | C | recovery failure fixtures: CP9 divergence, each J1–J10 bind failure, and a refused undo CAS | exit **6** in every case with `outcome: "recovery-refused"`; never exit 0, never `recovered` and never the in-command `rolled-back` outcome of §7.9; every file, the journal and the archive are preserved and named |
 | PIB-489 | I | `intent-archive purge <slug> --blob <h> --yes` with a pending prepare journal | exit 3, `recovery-pending`; whole-tree byte snapshot identical; a decode spy records zero strict decodes of the journal, zero journal renames and zero journal removals; zero canonical or index writes |
@@ -5010,44 +5359,62 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
-| PIB-506 | I | the `archive-purge-evidence-divergent` refusal, in each of its sub-populations: hash-wrong blob, non-regular file where a blob belongs, blob beside a tombstone, and an index that stopped strict-decoding mid-run | exit 6; the message names the pending hash and the repo-relative `blobs/<hash>.blob` and `index.json` paths, offers the optional preservation copy, names the removal step (blob forms) or the restoration step (index form), names the sanitized rerun with `retry_cwd: "workspace-root"`, and states both the destructive cost and the Git-history caveat; the string `--abandon-transaction` appears **nowhere** in it, and no absolute path appears anywhere in it |
+| PIB-506 | I | the `archive-purge-evidence-divergent` refusal, in each of its three sub-populations — hash-wrong blob under a **pending** reference, non-regular file where a **pending** blob belongs, and an index that stopped strict-decoding mid-run | exit 6; the message names the pending hash and the repo-relative `blobs/<hash>.blob` and `index.json` paths, offers the optional preservation copy, names the removal step (blob forms) or the restoration step (index form), names the sanitized rerun with `retry_cwd: "workspace-root"`, and states both the destructive cost and the Git-history caveat; the string `--abandon-transaction` appears **nowhere** in it, and no absolute path appears anywhere in it; a tombstoned reference whose named blob is present produces exit **3** `archive-index-storage-inconsistent` instead and never this code (PIB-521) |
 | PIB-507 | I | executing the documented blob-form procedure after PIB-506 — copy aside, remove the managed blob path, rerun the sanitized command | the rerun takes the pending+absent branch of §9.7.2, exits 0 with `outcome: "recovered"`, tombstones every reference to that hash, removes nothing, and leaves an index that strict-decodes; a subsequent ordinary archive mutation proceeds |
 | PIB-508 | G | the exit-6 route map over the §10.4.1 catalog | every exit-6 code resolves to exactly one route — the nine journal/publication codes to `--abandon-transaction` (plus §6.6's manual fallback), `archive-purge-evidence-divergent` to §9.7.2's archive procedure; no code maps to zero routes or to two; a semantic sensitivity fixture that routes `archive-purge-evidence-divergent` to the abandon mode fails the guard |
 | PIB-509 | I | `--abandon-transaction --yes` with journal evidence present and, in three separate fixtures, an **absent** feature directory, a malformed `status.json` and an unreadable `status.json` | exit 0 in all three; the evidence is moved; `feature-not-found`, `status-malformed` and `status-unreadable` are never emitted; `.tpatch/features/` is byte-identical (or still absent) afterwards |
 | PIB-510 | C | abandon-mode read-ordering spy over the PIB-509 fixtures | between the flock and the abandon branch the command performs zero opens of `.tpatch/features/<slug>/`, zero `status.json` decodes and zero G1–G4 spawns; §10.5 step 6 is not entered in this mode |
-| PIB-511 | G | §6.6's pre-abandon gate table against the implementation's pre-branch control flow | every stop that can return before the abandon branch appears exactly once in the table with its exit code, refusal code and route, and every table row is reachable; a semantic sensitivity fixture that inserts a new pre-branch refusal without adding its row fails the guard |
+| PIB-511 | G | §6.6's pre-abandon gate table against the implementation's pre-branch control flow | the guard **derives** the row set: the table's rows are exactly the stops a syntactically valid `--abandon-transaction` invocation can reach before the branch, each appearing once with its exit code, refusal code and route. It fails in **both** directions — a reachable pre-branch stop missing from the table fails it, and a listed row for which no fixture can produce the refusal (a `--check`-, `--dry-run`- or `--yes`-validation branch this mode's own grammar excludes) fails it too. Two semantic sensitivity fixtures: one inserts a new pre-branch refusal without adding its row; one adds a row for a mutex-incompatible branch, spelled and formatted correctly |
 | PIB-512 | I | `--abandon-transaction` (with and without `--yes`) refused by `transaction-in-progress` while a live sibling holds the authority, with journal evidence present in the lane | exit 3; the message says the authority is held, the holder is unknowable and the action is to wait and retry; it names **no** manual removal, contains no `rm`, and the lane is byte-identical afterwards |
 | PIB-513 | I | `--abandon-transaction --yes` with a J1–J10-failing journal **and** an absent feature directory **and** `git` absent from `PATH` | exit 0; the journal is moved and never decoded; no `journal-*`, `feature-not-found` or `local-lane-*` code is emitted; a process spy records zero Git spawns |
 | PIB-514 | C | `feature intent-archive purge` and `feature intent-archive list`, process spy, over every selector and both the preview and `--yes` forms | zero Git processes are spawned in every combination; a filesystem spy shows purge writes only under `.tpatch/features/<slug>/artifacts/intent-archive/` and zero bytes under `.tpatch/local/` |
-| PIB-515 | I | `purge` **without** `--yes`, no journal, one or more removal-pending hashes in the index | exit 0; a filesystem spy records zero writes and an authority spy records zero flock acquisitions; the output states that pending purge recovery is required, lists each pending hash with its repo-relative blob and index paths and the per-hash plan, and names the same command with `--yes` run from the workspace root; `outcome` is never `recovered` and nothing is finalized |
+| PIB-515 | I | `purge` **without** `--yes`, no journal, one or more removal-pending hashes in the index — run once per selector (`--blob`, `--generation`, `--all`, `--orphans`) | exit 0 and `outcome: "recovery-required"` in every case; a filesystem spy records zero writes and an authority spy records zero flock acquisitions; the output states that pending purge recovery is required, lists each pending hash with its repo-relative blob and index paths and the per-hash plan, and names **the operator's own selector** with `--yes` appended, run from the workspace root; `outcome` is never `recovered` and nothing is finalized |
 | PIB-516 | C | purge failure injected exactly between two hashes, after one hash fully completed and before the next begins (`failPurgeBetweenHashes`) | exit 5, `archive-purge-partial`; `resume: "completion-only"`; `pending_hash` absent; no reference is removal-pending; a single retry from the workspace root completes `remaining_hashes` at exit 0 and emits **no** `recovered` outcome; the report never promises one |
 | PIB-517 | C | `purge --orphans --yes` failure injected after the first orphan removal (`failOrphanRemoveAfterFirst`) | exit 5, `archive-purge-partial`; `resume: "orphan-scan"`; `pending_hash` absent; `index.json` byte-identical to its pre-run bytes; a single retry removes exactly the remaining orphans at exit 0 and emits **no** `recovered` outcome |
 | PIB-518 | G | every `purge_progress` object the command can emit | `pending_hash` is present if and only if `resume` is `pending-recovery-then-completion`; the retry prose matches the branch named by `resume`; a semantic sensitivity fixture whose `completion-only` or `orphan-scan` report promises a `recovered` run, or whose `pending-recovery-then-completion` report omits `pending_hash`, fails the guard |
 | PIB-519 | G | every shipped string, help text and doc sentence this cluster owns that asserts a slug, archive or transaction cannot be permanently blocked | each names the command or the manual procedure that unblocks it; a semantic sensitivity fixture asserting "the slug is never permanently blocked" with no route named fails the guard |
 | PIB-520 | S | §5.1's grammar block against the registered flag set | all twelve registered flags appear on at least one grammar line, each only in modes where it is legal, and `--allow-heuristic` appears on both the `generate` and `regenerate` lines; a flag registered but absent from every line fails the scan |
 
-### 18.46 Counts, kinds and slice partition
+### 18.46 AS — Rev-8 adjudication: physical residue, purge-owned recovery and preview shape
 
-- **520 rows**, `PIB-001`…`PIB-520`, contiguous, zero duplicates, zero retired.
+| ID | Kind | Case | Asserted observable |
+|---|---|---|---|
+| PIB-521 | I | an index whose reference to `h` is tombstoned in every generation while `blobs/<h>.blob` is present as a regular hash-correct file, observed by an ordinary mutating `prepare`, by `--regenerate`, by `feature intent-archive list` and by `doctor` | the mutating paths exit **3** with `refusal.code: "archive-index-storage-inconsistent"` and a whole-tree byte snapshot identical to the pre-run tree (zero removals, zero index writes, zero pending records); every one of the four surfaces classifies it as unreferenced physical residue and names the literal `tpatch feature intent-archive purge <slug> --orphans --yes` run from the workspace root; `list` renders the storage state as `orphan`; the strings `archive-purge-evidence-divergent` and `--abandon-transaction` appear nowhere, no pending hash is named, and no absolute path appears |
+| PIB-522 | I | running exactly the command PIB-521 named, from the workspace root, over the same fixture | exit 0; the `--orphans --yes` selection is admitted past the X11 observation **after** a successful strict X1–X10 decode (a decode spy records the decode before the first removal); `blobs/<h>.blob` is gone; `index.json` is **byte-identical** to its pre-run bytes; the tombstone is unchanged; a following ordinary `--regenerate` that reproduces that generation proceeds and rehydrates through §9.3 |
+| PIB-523 | I | `purge <slug> --orphans` **without** `--yes` over the PIB-521 fixture | exit 0; a filesystem spy records zero writes and an authority spy records zero flock acquisitions; the output names the repo-relative `blobs/<h>.blob` path, states that every reference to `h` is tombstoned, and names the `--orphans --yes` rerun with `retry_cwd: "workspace-root"` |
+| PIB-524 | G | the X11 storage-observation classification map over §9.3's wire-state table | every (wire state × blob observation) pair resolves to exactly one classification and exactly one route: retained/absent → `archive-blob-dangling` + the confirmed `--blob <h> --yes`; pending/unsafe-or-wrong → `archive-index-storage-inconsistent` + §9.7.2's archive procedure; tombstoned/present → `archive-index-storage-inconsistent` + `--orphans --yes`; no pair maps to zero routes or to two. A semantic sensitivity fixture that classifies tombstoned/present as `archive-purge-evidence-divergent`, spelled correctly and formatted validly, fails the guard |
+| PIB-525 | I | a mutating `prepare` in each of `generate`, `manual` and `regenerate`, with one or more removal-pending archive references and **no** journal | exit **3**, `recovery-pending`; a whole-tree byte snapshot identical to the pre-run tree; a filesystem spy records zero blob removals and zero index writes; `outcome` is never `recovered` and no `recovery` object is emitted; the remediation names the sanitized `tpatch feature intent-archive purge <slug> --all --yes` (or `--blob <h> --yes` when one hash covers the pending set) with `retry_cwd: "workspace-root"` and no inherited `--path`; running the named command then exits 0 `recovered` and a further `prepare` proceeds |
+| PIB-526 | G | the `RecoverPendingPurge` call graph | it has exactly **one** call site and that site is on the `feature intent-archive purge --yes` path; no mutating `prepare` mode, no preview path, no `list` and no `doctor` reaches it, asserted by a reverse call-graph walk rather than a name scan; a sensitivity fixture that adds a call from the publication path fails the guard |
+| PIB-527 | I | `purge <slug> --orphans --yes` with one or more removal-pending hashes and no journal | exit 0, `outcome: "recovered"`, `recovery.kind: "archive-purge-finalize"`; the pending hashes are finalized; **no orphan is removed in that invocation**; the reported `retry` preserves `--orphans` verbatim with `retry_cwd: "workspace-root"`; re-running it removes exactly the orphans and exits 0 |
+| PIB-528 | G | purge recovery and preview totality over the four selectors | for `--blob`, `--generation`, `--all` and `--orphans`: the `--yes` form finalizes any pending hash first and returns terminal `recovered` without processing the selector, and the preview form takes no lock, writes nothing and returns `recovery-required`; every emitted `retry` reproduces the operator's own selector and its own hashes/ids with `--yes` appended and no root-selection argv. A semantic sensitivity fixture whose `--orphans` preview reports a `--all --yes` retry — valid JSON, correct field names, a real command — fails the guard |
+| PIB-529 | I | the pending-purge preview report, JSON and human, for each selector | JSON carries `outcome: "recovery-required"`, `action: "none"` and a `pending_purge` object with exactly `recovery_required: true`, `pending_hashes[]` (each `hash`, repo-relative `blob`, repo-relative `index`, fixed `plan`), the closed `selector`, `retry` and `retry_cwd: "workspace-root"`, in that key order, with `pending_hashes[]` sorted lexically and never null; the human rendering carries the same hashes, the same two repo-relative paths, the same plan sentence and the same retry line under the verbatim `Run this again from the same workspace root to perform it:` heading; no `recovery` object, no `purge_progress`, no `archive` and no absolute path appear in either |
+| PIB-530 | I | `feature intent-archive purge`, every selector, over three fixtures — a clean archive, a removal-pending archive, and one with a pending prepare journal — in both the preview and the `--yes` form | an authority spy records **zero** flock acquisitions for every preview combination and exactly **one** for every `--yes` combination; no cache, lock file or other durable authority artifact is created by either form; a process spy records zero Git spawns in all of them |
+
+### 18.47 Counts, kinds and slice partition
+
+- **530 rows**, `PIB-001`…`PIB-530`, contiguous, zero duplicates, zero retired.
   160 rows are new in rev-1 (`PIB-235`…`PIB-394`); 15 are new in rev-2
   (`PIB-395`…`PIB-409`); **23** are new in rev-3 (`PIB-410`…`PIB-432`);
   **16** are new in rev-4 (`PIB-433`…`PIB-448`); **34** are new in rev-5
   (`PIB-449`…`PIB-482`); **23** are new in rev-6 (`PIB-483`…`PIB-505`);
   **15** are new in rev-7 (`PIB-506`…`PIB-520`);
+  **10** are new in rev-8 (`PIB-521`…`PIB-530`);
   earlier IDs retain their
   numbers when amended (§18.1).
-- **44 categories**: A 20, B 24, C 15, D 12, E 9, F 19, G 13, H 14, I 13, J 8,
+- **45 categories**: A 20, B 24, C 15, D 12, E 9, F 19, G 13, H 14, I 13, J 8,
   K 12, L 10, M 14, N 14, O 10, P 7, Q 6, R 3, S 9, T 2, U 10, V 12, W 5, X 6,
   Y 7, Z 4, AA 15, AB 7, AC 10, AD 8, AE 10, AF 5, AG 14, AH 17, AI 6, AJ 10,
-  AK 10, AL 4, AM 15, AN 23, AO 16, AP 34, AQ 23, AR 15. **44 categories;
-  sum = 520.**
-- **By kind**: `I` 224, `C` 118, `G` 104, `U` 49, `S` 25. Sum = 520. (Rev-7 adds
-  `I` 6, `C` 4, `G` 4 and `S` 1 and re-kinds nothing; the rev-6 baseline was
-  `I` 218, `C` 114, `G` 100, `U` 49, `S` 24, which itself added
+  AK 10, AL 4, AM 15, AN 23, AO 16, AP 34, AQ 23, AR 15, AS 10. **45 categories;
+  sum = 530.**
+- **By kind**: `I` 231, `C` 118, `G` 107, `U` 49, `S` 25. Sum = 530. (Rev-8 adds
+  `I` 7 and `G` 3 and re-kinds nothing; the rev-7 baseline was
+  `I` 224, `C` 118, `G` 104, `U` 49, `S` 25, which itself added
+  `I` 6, `C` 4, `G` 4 and `S` 1 over rev-6's
+  `I` 218, `C` 114, `G` 100, `U` 49, `S` 24, which added
   `I` 14, `C` 3 and `G` 6 over rev-5's `I` 204,
   `C` 111, `G` 94, `U` 49, `S` 24 — that revision re-kinded `PIB-445` from `C`
   to `G` because the probe it drove no longer exists.) Every row
-  whose kind is `G` is covered by §18.47's sensitivity requirement.
+  whose kind is `G` is covered by §18.48's sensitivity requirement.
 - **Slice partition** (each row in exactly one slice):
 
 | Slice | Categories | Rows |
@@ -5060,12 +5427,12 @@ Rev-7 adds only contiguous `PIB-506`…`PIB-520`.
 | S4b retention surface | AH | 17 |
 | S5 doctor, compatibility, non-invalidation | J, O, P, R, AE, AK | 48 |
 | S6 docs, skills, guards | K, Q, S, AL | 31 |
-| S7 rev-3…rev-7 cross-cutting hardening | AM, AN, AO, AP, AQ, AR | 126 |
+| S7 rev-3…rev-8 cross-cutting hardening | AM, AN, AO, AP, AQ, AR, AS | 136 |
 
-Sum = 520; zero unassigned, zero double-assigned (PIB-230's ledger check
+Sum = 530; zero unassigned, zero double-assigned (PIB-230's ledger check
 derives this partition mechanically rather than trusting the table).
 
-### 18.47 Sensitivity requirement
+### 18.48 Sensitivity requirement
 
 Every row whose Kind contains `G` carries a **sensitivity fixture**: a
 deliberately wrong input that the guard must reject. A byte-scanning or
@@ -5075,7 +5442,7 @@ been burned by exactly that
 the meta-check that derives the guard set mechanically from the Kind column
 rather than from a hand-maintained list.
 
-**Semantic guards additionally require a semantic fixture.** Seventeen guards in
+**Semantic guards additionally require a semantic fixture.** Nineteen guards in
 this matrix assert a *meaning*, not a token, and a byte scan cannot establish
 them.
 Each therefore carries a fixture that is textually valid and semantically
@@ -5097,11 +5464,13 @@ wrong, and the guard must still fail:
 | PIB-497 no inherited absolute path | a report that renders the absolute workspace path inside a prose sentence rather than in a `path`-named field |
 | PIB-505 step references | a `§10.5 step N` reference renumbered to a **real but wrong** step whose text does not match the sentence citing it |
 | PIB-508 exit-6 route partition | a catalog in which `archive-purge-evidence-divergent` is routed to `--abandon-transaction`, spelled correctly and formatted validly |
-| PIB-511 pre-abandon gate totality | a pre-branch refusal added to the control flow whose code is already used elsewhere in the table, so a code-presence check would pass |
+| PIB-511 pre-abandon gate totality | a pre-branch refusal added to the control flow whose code is already used elsewhere in the table, so a code-presence check would pass; **and** a table row added for a `--check`/`--dry-run`/`--yes`-validation branch this mode's grammar excludes, written in the table's exact column shape |
 | PIB-518 conditional purge retry | a `completion-only` report whose prose says "the first run recovers, the second completes", with every field spelled and typed correctly |
 | PIB-519 qualified recoverability | a sentence that says "no interrupted purge can leave the archive permanently blocked" without naming the abandon mode, the manual procedure or the rerun |
+| PIB-524 X11 classification map | a map that files a tombstoned reference whose named blob is present under `archive-purge-evidence-divergent`, with the code spelled correctly and every other pair classified correctly |
+| PIB-528 selector totality | an `--orphans` preview whose reported retry is `--all --yes` — valid JSON, correct field names, a real shipped command, and wrong |
 
-PIB-231 derives the guard set mechanically; this table is what stops seventeen of
+PIB-231 derives the guard set mechanically; this table is what stops nineteen of
 those guards from being satisfied by a spelling check (PIB-231's own
 sensitivity fixture covers the derivation).
 
@@ -5110,7 +5479,7 @@ sensitivity fixture covers the derivation).
 **No implementation is authorized by this document.**
 
 1. This PRD must be accepted.
-2. **ADR-035 must be accepted.** It is `Proposed` at rev-7, and a writer cannot
+2. **ADR-035 must be accepted.** It is `Proposed` at rev-8, and a writer cannot
    accept its own ADR; the two are reviewed together and acceptance of both is
    the precondition for dispatching any slice.
 3. **The accepted `prepare --check` PRD must be implemented, landed on
@@ -5167,7 +5536,7 @@ Beyond §8's six overwrite alternatives:
 | An immutable archive with no removal route (rev-0's "normal and permanent") | **Rejected.** Immutable must mean "never modified in place", not "undeletable forever"; without §9.7 the design is a retention leak with a nice hash function. |
 | Path-based `os.Rename` after rooted checks (rev-0's publication) | **Rejected.** `(*os.Root).Rename` prevents resolution outside the held root; it does not prove an ancestor did not redirect inside that root, which §7.7.2 discloses. |
 | Bringing `FEATURES.md` into the publication set | **Rejected.** CAS on a derived index that eleven unlocked commands rewrite would turn ordinary concurrency into exit-5 aborts (§12.3.1). |
-| Running automatic recovery before the `--abandon-transaction` branch (rev-4's order) | **Rejected.** It makes the escape unreachable for exactly the populations that need it: recovery either consumes the evidence the operator asked to preserve, or refuses exit 6 first — which is the state abandon exists to leave. The branch is now taken after the lock and before both recovery passes (§6.6, §7.8, §10.5). |
+| Running automatic recovery before the `--abandon-transaction` branch (rev-4's order) | **Rejected.** It makes the escape unreachable for exactly the populations that need it: recovery either consumes the evidence the operator asked to preserve, or refuses exit 6 first — which is the state abandon exists to leave. The branch is now taken after the lock and before both the journal recovery and the pending-hash gate (§6.6, §7.8, §10.5). |
 | Writing the journal and preimages with the shipped path-based `gitutil.DurableWriteFile` (rev-4) | **Rejected.** It is the right durability shape and the wrong resolution model: it takes a directory pathname and `os.CreateTemp`s inside it, so a local-lane write would sit outside D2's rooted guarantee while carrying the undo evidence for a rooted publication. The shape is reimplemented on the rooted primitives instead (§7.5, §7.7.1). |
 | Exact-content rehydration as a repair for a dangling retained reference (rev-4) | **Rejected as unreachable.** X11 refuses every ordinary archive and canonical mutation while the dangling reference exists, so no run can ever reach the point of writing the replacement blob. The single shipped repair is the confirmed `purge --blob <hash> --yes` (§9.3.1, §9.7.3). |
 | Claiming `--dry-run` reproduces every real-run refusal | **Rejected.** It cannot, by construction: it deliberately runs no mutating platform, filesystem, Git, lock or recovery gate. rev-5 enumerates the reproduced and non-evaluated populations and reports `execution_preflight: not_evaluated` instead of an unsupportable equivalence (§6.4). |
@@ -5193,18 +5562,25 @@ Beyond §8's six overwrite alternatives:
 | Telling every partial purge that one run recovers and a second completes (rev-6) | **Rejected as false for two of three branches.** A failure exactly between hashes leaves no pending marker, and `--orphans` rewrites no index at all; both finish in a single run and neither ever emits `recovered`. The closed `resume` field names the branch and the prose is written per branch (§9.7.2, §10.4). |
 | Letting a `purge` preview perform the pending-hash recovery it reports | **Rejected.** Preview is defined by writing nothing and taking no lock; recovering would make the confirmation flag decorative on the one command whose whole gate is that flag. The preview states that recovery is required, lists the hash and plan, and names the `--yes` rerun (§9.7). |
 | Leaving `--allow-heuristic` off the default-mode grammar line while §5.2 declares it legal there (rev-6) | **Rejected.** rev-6 fixed the prose and left the grammar block disagreeing with it, which is the same defect one paragraph away. The flag is on both lines it is legal on, with its no-op/advisory semantics unchanged (§5.1). |
+| Filing a tombstone whose named blob is present under `archive-purge-evidence-divergent` (rev-7) | **Rejected as unexecutable.** That population's escape names a pending hash, removes the divergent managed blob and reruns the purge so the pending+absent case finalizes the tombstone. A tombstoned reference has no pending record: there is no hash to name, no purge transaction in flight, and nothing for the rerun to finalize. The state is unreferenced physical residue — the same object §9.7.3 calls an orphan, seen through the index — so it is exit-3 `archive-index-storage-inconsistent`, zero-write on discovery, repaired by the one command `purge <slug> --orphans --yes` (§9.3.1, §9.7.3). |
+| Letting a mutating `prepare` run `RecoverPendingPurge` (rev-6, rev-7) | **Rejected as a second owner for one transaction.** Both commands terminated after recovering, so exit 3's zero-write promise was safe; the cost was elsewhere. `archive-purge-evidence-divergent` and `archive-purge-partial` are *discovered by* the per-hash machine, so a second owner meant `prepare` could emit codes whose entire remediation, exit-window scoping and route belong to `purge`. The machine now has one call site, and `prepare` refuses exit 3 `recovery-pending` naming the purge command with `retry_cwd` (§7.8 step 5, §7.11, §10.4.1). |
+| Duplicating §9.7.2's archive remediation into `prepare`'s output so `prepare` could keep recovering | **Rejected.** It keeps two owners and adds a second copy of every archive route sentence that must then stay in agreement with the first — the failure mode this cluster has already paid for twice in the exit-6 partition. One refusal that hands over one command is smaller and cannot drift (§7.8's "Why step 5 refuses"). |
+| Exempting `--orphans` from the pending-hash recovery and from the pending-purge preview (rev-7) | **Rejected.** The orphan set is derived from the index's live-reference set, and a removal-pending reference is one whose liveness is mid-decision, so an orphan scan against a pending index computes its answer from state that is about to change. `--orphans` takes the same terminal recovery first and the same `recovery-required` preview as every other selector (§9.7, §9.7.1). |
+| Reporting a widened `--all --yes` retry from any pending-purge preview | **Rejected.** The retry line is the one line an operator is most likely to copy and run unread, so it must be their command with `--yes` appended and nothing else — never widened for convenience, never narrowed to the pending hash. The recovery `--yes` performs is identical on every selector, so preservation costs nothing (§9.7, PIB-528). |
+| Carrying the pending-purge preview on the existing `planned` or `refused` outcome token | **Rejected.** `planned` belongs to `--dry-run` and implies a plan the command would execute; `refused` implies a non-zero exit and a `refusal` object. The preview is neither: it exits 0, plans nothing and refuses nothing. It gets its own closed token `recovery-required` and one closed object (§10.2). |
+| Listing §10.5 step 1a's `--yes` validation, the `--check` handoff and the `--dry-run` branch as pre-abandon gate rows (rev-7) | **Rejected as rows no fixture can reach.** All three are excluded by this mode's own grammar, and rev-7's own cell said so while still listing one of them. The table is defined over the stops a syntactically valid `--abandon-transaction` invocation can reach, and PIB-511 fails a row that no fixture can produce as well as a stop that no row covers (§6.6). |
 
 ## 22. Claims-audit appendix
 
 **176 claims (`C1`…`C176`)** record every load-bearing claim this PRD makes
 about **current** behavior, with a
 `file:line` anchor. A reviewer should spot-check that each anchor lands within
-±5 lines of the cited construct at dispatch/base `ee19f89` (reviewed tip
-`7af5092`). Claims corrected in rev-1
+±5 lines of the cited construct at dispatch/base `aab0c32` (reviewed tip
+`751d817`). Claims corrected in rev-1
 are marked †; claims added in rev-1 start at C143, claims added in rev-5 start
-at C166, and the claim added in rev-6 is C176. rev-7 adds no claim: it makes no
-new assertion about current shipped behavior, only about this cluster's own
-contract.
+at C166, and the claim added in rev-6 is C176. Neither rev-7 nor rev-8 adds a
+claim: neither makes a new assertion about current shipped behavior, only about
+this cluster's own contract.
 
 | # | Claim | Anchor |
 |---|---|---|
