@@ -1,3 +1,26 @@
+## Writer — PRD prepare intent bundle rev-2 + ADR-035 rev-2 — 2026-08-14
+
+**Writer tip**: `faf055e`
+**Dispatch**: `176ee06`
+
+### Revision
+
+- Moved the process lock to a persistent opaque per-user cache authority.
+- Rooted and CAS-gated manual status publication.
+- Preserved tombstone blob identity and defined deterministic rehydration.
+- Added purge index-preimage CAS.
+- Narrowed mutation to Linux/Darwin/Windows and made G1 Git detection
+  authoritative.
+- Corrected `os.Root` to outside-root confinement with disclosed in-root
+  redirection.
+- Limited doctor journal-loss diagnosis to evidence-bearing residue.
+- Rebuilt the matrix to 409 PIB rows and CP0–CP13.
+
+### Action Taken
+
+PRD and ADR returned to joint internal/external review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-2 + ADR-035 rev-2 — 2026-08-14
 
 **Writer base**: `94fd055`
