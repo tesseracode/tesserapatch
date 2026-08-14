@@ -1,3 +1,60 @@
+## Dispatch — PRD prepare intent bundle rev-9 + ADR-035 rev-9 — 2026-08-14
+
+**Writer base**: `08af5db`
+**Reviewed writer tip**: `837f28a`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Split unreferenced tombstone residue from mixed tombstone/live references.
+- Use `--orphans --yes` only for truly unreferenced blobs and `--blob --yes`
+  for the mixed global-hash repair.
+- Unify all retry headings.
+- Reconcile the abandon-table domain and companion reference.
+- Pin list exits, exact remediation, compound residue, root-open refusal and
+  manual/pending-archive disclosure.
+
+### Action Taken
+
+One sequential docs-only rev-9 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-8 + ADR-035 rev-8 — 2026-08-14
+
+**Writer tip**: `837f28a`
+**Tracking tip**: `08af5db`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Retry emitters use incompatible verbatim headings.
+- ADR References still labels the companion rev-6.
+- The abandon table’s “syntactically valid” domain excludes its parser row.
+
+### Verified
+
+All six rev-8 dispatch items are substantively closed. The 530-row matrix,
+176 claims, refusal partition, ledgers, preview JSON and frozen contracts were
+independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-8 + ADR-035 rev-8 — 2026-08-14
+
+**Writer tip**: `837f28a`
+**Tracking tip**: `08af5db`
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+- Tombstone-plus-blob cannot be called unreferenced when another generation
+  retains or has a pending reference to the same global content hash.
+
+### Verified
+
+530 rows, the 53-code partition, C1–C176, D1–D21, CP/J/X, outcomes,
+advisories and source citations.
+
 ## Writer — PRD prepare intent bundle rev-8 + ADR-035 rev-8 — 2026-08-14
 
 **Writer tip**: `837f28a`

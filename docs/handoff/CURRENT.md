@@ -2,14 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-9 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-8** and proposed ADR-035
-**rev-8** close the six rev-8 adjudication items: the tombstone-beside-blob
-classification, purge-owned pending recovery, all-selector recovery/preview
-totality, the abandon-table domain, the pending-purge preview shape, and the
-ledger/reference/lock drift. The revision is **docs-only**; no mutating command
-is implemented or authorized.
+**rev-8** close the rev-7 adjudication, but review found one final global-hash
+subclassification error plus three editorial parity defects. A narrow
+**rev-9** is dispatched. The revision is **docs-only**; no mutating command is
+implemented or authorized.
 
 ## Active Task
 
@@ -17,14 +16,48 @@ is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-8 written, awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-8)
+- **Status**: Rev-9 dispatched after rev-8 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-9)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-8 Review and Rev-9 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION (editorial except global-hash split)
+**Reviewed writer tip**: `837f28a`
+**Tracking tip**: `08af5db`
+
+All rev-7 findings are closed. Rev-9 is limited to:
+
+1. **Global-hash residue split (HIGH).** Tombstone-plus-blob is an orphan only
+   when the hash has **no retained or pending reference anywhere**. That
+   subcase repairs via `purge --orphans --yes`. If any retained/pending
+   reference shares the hash, the blob is live and `--orphans` must exclude it;
+   classify the mixed tombstone/live-reference index inconsistency separately
+   and repair it explicitly with confirmed `purge --blob <hash> --yes`, which
+   selects every reference and makes global availability truthful. Update X11,
+   D10/D16 and PIB-521…PIB-524.
+2. **Retry heading parity (MEDIUM).** Use one verbatim human heading for every
+   emitted `retry`, including pending preview and archive divergence. PIB-498
+   remains the total guard; amend PIB-529 and any numbered prose variant.
+3. **Abandon table domain (LOW).** Define the table over every argv attempting
+   abandon, including parser/arity failure, or remove that row. PIB-511 and the
+   prose must use the same reachable domain.
+4. **Reference/self-certification (LOW).** Fix ADR References to companion
+   rev-9 and remove the false CURRENT certification.
+5. **Pin observed gaps (LOW).** Pin `list` exit behavior for both residue
+   subcases, exact `--orphans --yes` wording, compound pending+residue routing,
+   root-open failure to `directory-flock-unavailable`, and disclose in §6.2
+   that manual is blocked by pending archive state despite writing no archive.
+
+Rev-9 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Rev-7 Review and Rev-8 Adjudication (2026-08-14)
 
