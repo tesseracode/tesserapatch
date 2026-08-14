@@ -1,3 +1,24 @@
+## Writer — PRD prepare intent bundle rev-7 + ADR-035 rev-7 — 2026-08-14
+
+**Writer tip**: `751d817`
+**Dispatch**: `ee19f89`
+
+### Revision
+
+- Partitions journal and archive exit-6 escape routes.
+- Makes the pre-abandon gate total and skips feature/status/Git parsing.
+- Corrects lane-gate acceptance parity.
+- Defines all pending/between-hash/orphan partial-purge retry branches.
+- Defines zero-write preview of pending purge recovery.
+- Qualifies recoverability claims and corrects amendment ledgers.
+- Pins archive purge to zero Git and completes default grammar.
+- Rebuilds the matrix to 520 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-7 + ADR-035 rev-7 — 2026-08-14
 
 **Writer base**: `ec28a48`
