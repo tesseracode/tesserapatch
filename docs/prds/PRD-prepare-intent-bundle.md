@@ -1,10 +1,10 @@
 # PRD — Prepare Intent Bundle — `tpatch prepare <slug>` (mutating modes)
 
-**Status**: Draft — Awaiting Review (rev-11)
+**Status**: Draft — Awaiting Review (rev-12)
 **Date**: 2026-08-14
 **Owner**: Core (planning lane)
-**Byline**: sole sequential planning writer, rev-11 from reviewed writer tip `a9ad7c0`;
-dispatch/base `c394117`; WAVE_BASE `d060ff4`
+**Byline**: sole sequential planning writer, rev-12 from reviewed writer tip `f06c2fd`;
+dispatch/base `62c21a9`; WAVE_BASE `d060ff4`
 **Milestone**: TBD — this document ships no code
 **Issue**: [GH #11 — define the mutating prepare intent-bundle contract](https://github.com/tesseracode/tesserapatch/issues/11)
 **Graduates from**: [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md), Turns 2–4
@@ -14,7 +14,7 @@ rev-2 (Accepted 2026-08-13). This PRD builds **on top of** that read-only
 contract and does not reopen it. Its **implementation** is a hard sequencing
 prerequisite for every mutating slice here (§17.1).
 **Architecture**: [ADR-035 — Intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md)
-(**Proposed**, rev-11). **This PRD and ADR-035 must be reviewed together.**
+(**Proposed**, rev-12). **This PRD and ADR-035 must be reviewed together.**
 ADR-035 locks the publication/history decisions; this PRD states the product
 contract that depends on them. Where they overlap, **ADR-035 is normative**.
 
@@ -27,7 +27,7 @@ contract that depends on them. Where they overlap, **ADR-035 is normative**.
 
 - [PRD-artifact-validation-and-provenance](./PRD-artifact-validation-and-provenance.md) — the accepted read-only `prepare <slug> --check` contract this PRD extends without modifying (its §20 lists exactly what this document must answer)
 - [ADR-034 rooted filesystem inspection boundary](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md) — D1–D18; reused verbatim for every canonical **read** this command performs
-- [ADR-035 intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md) — **companion, Proposed rev-11**; the transaction, the archive and the honesty limits
+- [ADR-035 intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md) — **companion, Proposed rev-12**; the transaction, the archive and the honesty limits
 - [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md) — `## Agreed — Turns 2–3` items 4–9
 - [WP-005 turn log](../whitepapers/WP-005-spec-driven-workflows.turns.md) — Turns 2, 3 and 4
 - [Agent as Provider — Path B workflow](../agent-as-provider.md) — the phase → artifact → state contract
@@ -57,6 +57,7 @@ contract that depends on them. Where they overlap, **ADR-035 is normative**.
 | rev-9 | Draft — Awaiting Review | Final bounded global-hash and parity fold of rev-8; no product choice is reopened. **A tombstone beside a present blob is classified globally, not per reference**: X11 computes whether the hash is still live — any reference to it retained or removal-pending, in any generation — before deciding. Unreferenced ⇒ physical residue, `list` exit 0 rendering `orphan`, repaired by `tpatch feature intent-archive purge <slug> --orphans --yes`. Still live ⇒ a **mixed tombstone/live-reference global-availability inconsistency**: the blob is live data, `--orphans` excludes it and may never remove it, `list` exits 3 rendering `mixed-reference`, and the repair is the confirmed `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, which selects every reference to the hash, runs the ordinary pending/removal/tombstone machine and makes global availability truthful. rev-8's per-reference rule would have deleted a retained reference's blob through the one selector that promises to remove nothing referenced (§9.3, §9.3.1, §9.7, §9.7.1, §9.7.3, §10.4.1, §12.5, §7.10 CP13, ADR-035 D10/D16). Neither subcase is `archive-purge-evidence-divergent`, which keeps exactly the pending-hash and pending-index evidence. **Compound ordering is fixed**: a pending hash plus a residue observation previews without a lock, recovers terminally on `--yes`, and the rerun then performs the correct subcase repair — with no dead end, since even the off-selector refusal names an executable command (§9.7.2). **One verbatim retry heading**: every emitted rerun prints `Run this again from the same workspace root:` byte-for-byte and nothing else; rev-8's `to perform it:` variant and the numbered divergence step are withdrawn, and PIB-498 becomes the derived totality guard over every emitter (§9.7.2, §10.2). **The pre-abandon gate table's domain is every argv that attempts to select `--abandon-transaction`**, parsing or not, which makes its parse/arity/mutex row reachable and removes rev-8's “syntactically valid” contradiction (§6.6, §10.5 step 10). **`os.OpenRoot` and `root.Open(".")` failures are classified** as `directory-flock-unavailable`, exit 3, before any `fstatfs` or `flock`, and carry gate row 8's manual route (§7.4.1, §6.6). **§6.2 discloses** that `--manual`, which writes no archive, is nonetheless refused zero-write by a removal-pending index and names the purge route. Matrix: 536 rows; rev-9 amends listed stable rows, re-kinds `PIB-498` from `I` to `G`, and adds `PIB-531`…`PIB-536`. |
 | rev-10 | Draft — Awaiting Review | Final bounded ownership/scope fold of rev-9; no product choice is reopened. **A removal-pending reference makes the purge transaction the global owner of its content hash.** rev-9 evaluated *classification* globally but still let the per-hash machine act per reference, so a recovery could remove `h.blob` while another generation's reference to `h` stayed **retained** — manufacturing the dangling reference the whole design exists to prevent, and rev-9's own compound ladder said so out loud. Rev-10 removes that composition instead of documenting it: `RecoverPendingPurge` first **claims `h` globally** — one CAS-published index rewrite that sets every reference to `h`, in every generation, to removal-pending, taken only while `h.blob` is present, regular and hash-correct — then re-reads and revalidates that no reference to `h` is anything but pending, and only then removes the blob and tombstones every reference. Where the blob is already absent the claim is published straight to tombstones, which is exactly the shipped dangling repair. **The blob is removed only when the index, at the revalidation immediately before the removal, holds no retained reference to `h`** (§9.3, §9.7.2, §7.10 CP12/CP12a, ADR-035 D10/D16). Ordinary commands and previews never act on an owned hash: ownership outranks every other classification of the same hash, a mutating `prepare` refuses exit 3 `recovery-pending`, and the honest residual — an external index edit inserting a same-hash reference before, between or after the claim — is modelled per window with the CAS residual stated rather than hidden. **X11's storage validation is global and selector-independent**: it observes the whole index before **every** archive mutation, so a mixed tombstone/live-reference hash makes an unrelated `--orphans`, `--blob`, `--generation` or `--all` invocation refuse exit 3 **zero-write**, naming that hash's owning repair; no partial cleanup of unrelated items proceeds around a global inconsistency, and an admitted repair is admitted only for the exact inconsistency it repairs, after global classification (§9.7.1, §9.7.2, §10.5 step 22). **A retained reference beside a present but non-regular or hash-wrong blob is `archive-blob-corrupt`, exit 3**, zero-write for `list`, `doctor` and every ordinary mutation, with one repo-relative route: preserve the unexpected bytes if wanted, remove the managed blob path, then run the confirmed `purge <slug> --blob <h> --yes` that tombstones every now-dangling reference — or restore the exact correct blob and retry — with its cost and the Git-history caveat (§9.3.1, §10.4.1, §10.7). **The abandon table's domain is every argv that requests a *true* abandon**, or that fails parsing/arity/mutex while naming the flag; an explicit `--abandon-transaction=false` selects `generate` and is outside it (§5.2, §6.6). **The one retry heading is a column-0 literal**, alone on its line with no leading or trailing whitespace, in every worked example and every emitter (§9.7.2, §10.2). `list` and `doctor` render every safe observation and exit **3** whenever any exit-3 observation is present alongside an exit-0 one; §6.2 discloses that `--manual`, which writes no archive, is refused zero-write by every X11 global inconsistency as well as by pending state. Matrix: 545 rows; rev-10 amends listed stable rows and adds `PIB-537`…`PIB-545`. |
 | rev-11 | Draft — Awaiting Review | Final bounded claim/ordering/route fold of rev-10; no product choice is reopened. **The global claim is total over the hash.** rev-10 gated every removal on *every* reference to `h` being removal-pending while still calling an already-tombstoned same-hash reference a “deterministic no-op”, so an index holding one tombstoned and one retained reference to `h` could never satisfy the gate and the hash stayed owned with no command able to advance it. The exemption is withdrawn, not the gate: the claim CAS sets **every** reference to `h`, in every generation and every wire state, to removal-pending in one rewrite; the absent-blob path publishes **every** reference straight to tombstones with no retained reference surviving; and PIB-545 now derives the claim's reference set as well as the removal's dominator (§9.3, §9.7.1, §9.7.2, §9.3.1, ADR-035 D10/D16). **Pending recovery is the one explicit exception to global validation.** Whole-index X11 runs before every mutation a **new selector** would perform; completing an already-pending purge transaction runs *first*, may finalize its owned hash while an unrelated inconsistency is present, returns terminal `recovered` and never proceeds into the selector — after which the operator's rerun performs the full global scan and may refuse the unrelated hash. Every universal claim is qualified accordingly, the compound ladder of §9.7.2 is reconciled, and a normal mutating `prepare` still refuses `recovery-pending` (§9.3.1, §9.7, §9.7.2, §10.5, new PIB-546). **Corrupt-object removal is type-total.** For an unexpected managed blob object — symlink, directory, FIFO, device node or hash-wrong regular file — the procedures print one exact-path `rm -rf -- <managed blob path>` under an explicit destructive warning, with the `--` terminator and no wildcard, and **withdraw** rev-10's `cp` preservation promise, which was unexecutable on a directory and misleading on a symlink; an operator who wants the object is told to stop and use kind-appropriate tooling. The index-divergence restore route stays separate and names no removal (§9.3.1, §9.7.2, §10.4.1, §10.7, new PIB-547). **Admission is per repair class, fully covered.** rev-10's “sole inconsistency” rule bricked an archive holding two same-class instances; admission now requires one class and a confirmed selection covering every instance of it — `--orphans --yes` clears all unreferenced residues, repeated `--blob` (or an applicable `--all`) clears all same-class hashes — while mixed classes stay a zero-write refusal rendering each route (§9.3.1, §9.7.1, §9.7.2, new PIB-548/PIB-549). **The state map is total and the last residual is pinned**: §9.3's table covers retained/absent and retained/present-unidentifiable across ownership, tombstoned/absent-and-owned and tombstoned/present-unidentifiable, with corrupt dominating mixed and ownership dominating both, so no triple has zero or two routes (new PIB-551); and the external replacement of a managed object between the pre-removal revalidation and the unlink is disclosed as a fifth window and a permanent residual that no string may claim closed (new PIB-550). Matrix: 551 rows; rev-11 amends listed stable rows and adds `PIB-546`…`PIB-551`. |
+| rev-12 | Draft — Awaiting Review | Final bounded repair-sequencing, printed-command and state-domain fold of rev-11; no product choice is reopened. **Repair is sequential, one class per invocation, and a second class no longer bricks the first.** rev-11 admitted a repair only when its class was the *sole* class the global scan found, so an archive holding an unreferenced residue **and** a mixed hash had no admitted selector at all — the same brick rev-11 removed for two instances of one class, one level up. Rev-12 keeps the global scan total (it observes and reports **every** class, and every ordinary mutation still refuses zero-write) and admits **one chosen class** past it under four conjunctive conditions: the confirmed selection covers every instance of that class, no selected hash or object belongs to another class, the mutation provably cannot erase or degrade another class's evidence, and the report names every untouched class with its own route and states that a rerun is required. Same-hash overlapping observations collapse to **one** class by the fixed §9.3 precedence, so a selector can never straddle two classes silently (§9.3.1, §9.7.1, §9.7.2, §9.7.3, §10.5 step 22, new PIB-552…PIB-556, amended PIB-533/534/542/548/549). **The admissions are deterministic per class**: unreferenced residue ⇒ `--orphans --yes` (total over the class by construction); dangling and mixed ⇒ repeated `--blob <h> --yes` covering every hash of that class, with `--all --yes` admitted **only** when it is separately justified and its whole-archive blast radius is printed beside it; corrupt objects ⇒ no selector at all until the operator's own type-total removal has run, after which the hash is an ordinary dangling or unreferenced instance. **Printed-command parity.** Every emitted procedure and worked example drops `cp`, `cp -R`, `cp -P`, `readlink`, `git show`, `mv`, `rsync` and `tar`: the blob form emits exactly the type-total `rm -rf -- <validated repo-relative managed blob path>` beneath the destructive warning, the index-divergence form emits **no** command, and the preservation sentence tells the operator to stop and use tooling appropriate to the object's kind **without naming one** (§9.3.1, §9.7.2, §10.7, amended PIB-506/507/543/547, new PIB-559). **The owned-corrupt route is singular.** Any hash a purge transaction owns whose blob is present but non-regular or hash-wrong maps **only** to exit 6 `archive-purge-evidence-divergent`; rev-11's residual exit-3 `archive-index-storage-inconsistent` mapping for an unsafe/wrong pending blob is withdrawn from ADR D10, the X11 row, §10.4.1 and PIB-524/545/549, and the precedence that produces it — ownership first, unidentifiable bytes second — is pinned (new PIB-558). A **non-owned retained** reference beside an unidentifiable blob stays exit-3 `archive-blob-corrupt`. **The state map is total over a stated 4-tuple domain.** §9.3's domain is (this reference's wire state × the hash's single blob observation × global ownership × global liveness) = 36 tuples; three stated dependencies (a retained or removal-pending reference makes its hash live, a removal-pending reference makes it owned, and owned implies live) rule out 18, leaving **18 reachable tuples and exactly 18 rows**. The collapsed tombstoned/owned/present row splits on hash-correct versus unidentifiable, the tombstoned/absent/not-owned row splits on liveness, and the mis-stated “triple” wording is corrected throughout (amended PIB-551). **Fixtures are real where a filesystem can make them.** Regular file, symlink, directory and FIFO are constructed on the real filesystem and the printed `rm -rf --` is executed verbatim against each; the device-node kind runs through an explicit injected file-kind seam where `mknod` needs privilege the CI user lacks, and that substitution is stated as a test limitation rather than hidden (new PIB-560, amended PIB-507/543). §21 gains the withdrawn sole-class rejection; §10.3 gains one advisory (`archive-repairs-remaining`, eighteen codes) and §10.2 one closed `remaining_repairs` object. Matrix: 560 rows; rev-12 amends listed stable rows and adds `PIB-552`…`PIB-560`. |
 
 ## Summary
 
@@ -725,7 +726,12 @@ whole-tree byte snapshot identical to the pre-run tree (PIB-525, PIB-538).
    it. That is deliberate: this mode publishes a lifecycle transition the
    archive's own truthfulness is part of, and proceeding past an index that is
    lying about stored bytes would make the transition a statement made on top
-   of state tpatch has already refused to trust.
+   of state tpatch has already refused to trust. **§9.3.1's sequential
+   admission does not reach this mode.** Admitting one repair class past the
+   global scan is a property of the confirmed retention verb, which is
+   repairing the archive; `--manual` is not repairing anything, so it refuses
+   on every class it observes and renders every one of them with its own route
+   (§9.3.1, PIB-538, PIB-552).
 
 Running the named owning repair clears the state, after which an ordinary
 `--manual` proceeds. The cost is one extra invocation in a rare state; the
@@ -2330,7 +2336,7 @@ with its own wire format, its own identifiers and its own lifecycle. Per the
 dispatch and per AGENTS.md's "ADR on every architecture decision" rule, this
 PRD therefore creates
 [`ADR-035-intent-bundle-publication-and-history.md`](../adrs/ADR-035-intent-bundle-publication-and-history.md)
-as **Proposed rev-11**, keeps it in the ADR index, and requires it to be
+as **Proposed rev-12**, keeps it in the ADR index, and requires it to be
 reviewed together with this PRD. **Neither may be accepted alone.**
 
 ### 8.5 What this selection is NOT
@@ -2517,44 +2523,111 @@ are therefore not an X7 failure (X7 is per-reference, §9.3.1) and not silently
 tolerated either: the observer either owns the hash and normalizes it, or routes
 to the owner.
 
-**The classification map below is total, and its precedence is fixed.** A
-reference's disposition is decided from four facts — its own wire state, the one
-blob observation the hash's file supports (`absent`, `present, regular and
-hash-correct`, or `present but non-regular or hash-wrong`), whether the hash is
-**owned**, and whether it is **live** — in this order, so no triple resolves to
-zero routes or to two:
+**The classification map below is total over a stated domain, and its precedence
+is fixed.** A reference's disposition is decided from a **4-tuple**, and the
+domain is spelled out rather than implied, because a table whose domain is not
+stated cannot be checked for totality:
+
+| Dimension | Values | Cardinality |
+|---|---|---|
+| **Wire state** — *this* reference's own recorded state | `retained`, `removal-pending`, `tombstoned` | 3 |
+| **Blob observation** — the one observation the hash's file at `blobs/<h>.blob` supports | `absent`, `present, regular and hash-correct`, `present but non-regular or hash-wrong` (the **unidentifiable** observation) | 3 |
+| **Ownership** — global over the hash: is any reference to `h`, in any generation, removal-pending? | `owned`, `not owned` | 2 |
+| **Liveness** — global over the hash: is any reference to `h`, in any generation, retained **or** removal-pending? | `live`, `unreferenced` | 2 |
+
+The Cartesian product is **36 tuples**. Ownership and liveness are separate
+dimensions rather than one, because a hash can be live without being owned (a
+retained reference and no pending one); they are not independent of the wire
+state, and three dependencies — each a definition, not a heuristic — remove
+exactly 18 tuples:
+
+1. **A retained reference makes its own hash live.** Every retained row is
+   therefore `live`; the 6 `retained × unreferenced` tuples are unreachable.
+2. **A removal-pending reference makes its own hash both owned and live.** Every
+   removal-pending row is therefore `owned, live`; the 9 remaining
+   removal-pending tuples are unreachable.
+3. **Owned implies live**, by (2) applied to the pending reference elsewhere in
+   the index. For a tombstoned reference that removes the 3
+   `tombstoned × owned × unreferenced` tuples.
+
+6 + 9 + 3 = **18 unreachable**, leaving **18 reachable tuples** — 6 retained, 3
+removal-pending and 9 tombstoned — and the table below has **exactly 18 rows,
+one per reachable tuple, each with exactly one required next action**. PIB-551
+derives both sides and fails a table with a missing row, a duplicate row, a row
+over an unreachable tuple, or a tuple with two routes.
+
+Precedence resolves the tuple in this order, so no tuple resolves to zero routes
+or to two:
 
 1. **Ownership first.** If `h` is owned, every reader but
    `feature intent-archive purge --yes` reports pending and routes to the owner,
-   whatever the reference's own wire state or the blob's condition says.
-2. **Unidentifiable bytes next.** If `h` is not owned and its file is present
+   whatever the reference's own wire state or the blob's condition says. The
+   owner itself resolves the tuple: with a present, regular, hash-correct blob
+   it claims and completes; with an absent blob it publishes tombstones; and
+   with an **unidentifiable** blob it refuses **exit 6
+   `archive-purge-evidence-divergent`** with the evidence preserved. That is the
+   **only** code an owned unidentifiable blob can produce — it is never
+   `archive-index-storage-inconsistent` and never `archive-blob-corrupt`,
+   because those are exit-3 zero-write classifications of a hash **no**
+   transaction owns, and a hash whose removal is already half applied cannot be
+   handed an exit-3 route that promises the tree was not written (§9.7.2 step 6,
+   §10.4.1, PIB-558).
+2. **Unidentifiable bytes next.** If `h` is **not owned** and its file is present
    but non-regular or hash-wrong, the observation is `archive-blob-corrupt`
    while any reference to `h` is retained, and `--orphans`' per-blob identity
    refusal (the same code) while the hash is unreferenced. A corrupt file is
    never reclassified as residue, as mixed or as dangling, and the corrupt
-   observation dominates the mixed one when the same file carries both.
-3. **Liveness last.** Only for a present, regular, hash-correct file does the
-   tombstoned-reference split of §9.3.1 apply — unreferenced ⇒ residue, live ⇒
-   mixed.
+   observation dominates the mixed one when the same file carries both. This is
+   also the **class collapse** rule: a hash carrying two observations at once
+   belongs to exactly one repair class, the higher-precedence one, so no
+   confirmed selection can straddle two classes (§9.3.1, PIB-554).
+3. **Liveness last.** Only for a hash that is neither owned nor unidentifiable
+   does liveness decide: a **tombstoned** reference beside a present, regular,
+   hash-correct file is residue when the hash is unreferenced and the mixed
+   inconsistency when it is live, and a tombstoned reference beside an **absent**
+   file is ordinary purged storage when the hash is unreferenced and the
+   dangling classification (carried by the retained reference) when it is live
+   (§9.3.1).
 
-| Wire state | Blob observation | Required next action |
-|---|---|---|
-| retained | present, regular and hash-correct, `h` **not owned** | ordinary live storage |
-| retained | present, regular and hash-correct, `h` **owned** | the reference is inside the purge transaction. Not an inconsistency: the recovery's global claim normalizes it to removal-pending before any removal, and every other command routes to the owner with `recovery-pending` (§9.7.2) |
-| retained | **absent**, `h` **not owned** | **dangling live reference.** X11 refuses exit 3 `archive-blob-dangling`, writing nothing, and names the one repair: the confirmed `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, which tombstones every reference to `h` after confirming the blob is still absent and removes nothing (§9.3.1, §9.7.3) |
-| retained | **absent**, `h` **owned** | the transaction in flight owns it. Not classified as dangling: `RecoverPendingPurge`'s absent-blob path claims and tombstones **every** reference to `h`, this one included, and every other command routes to the owner with `recovery-pending` (§9.7.2 step 5) |
-| retained | present, **non-regular or hash-wrong**, `h` **not owned** | **corrupt live storage.** The index says these bytes are the recovery material for a live reference and they are not. X11 refuses exit 3 `archive-blob-corrupt`, writing nothing, and names the one route: §9.3.1's type-total removal of the managed blob path followed by the confirmed `tpatch feature intent-archive purge <slug> --blob <hash> --yes` — or restore the exact correct blob and retry (§9.3.1) |
-| retained | present, **non-regular or hash-wrong**, `h` **owned** | the transaction in flight owns it: every reader but `purge --yes` routes with `recovery-pending`, and `purge --yes` finds the claim's evidence check unsatisfied and refuses exit 6 `archive-purge-evidence-divergent` with the evidence preserved (§9.7.2 step 6) |
-| removal-pending | present, regular and hash-correct | claim `h` globally — every reference to it, retained and tombstoned alike — then remove it, then CAS-publish the tombstone for every reference to `h` |
-| removal-pending | absent | CAS-publish the tombstone for every reference to `h`; removal already occurred |
-| removal-pending | present, non-regular or hash-wrong | refuse exit 6 `archive-purge-evidence-divergent` and preserve evidence (§9.7.2 step 6) |
-| tombstoned | absent, `h` **not owned** | ordinary purged storage |
-| tombstoned | absent, `h` **owned** | the transaction in flight owns the hash; this reference is already at its end state and is nonetheless claimed and re-tombstoned with the rest, so the hash's wire state is uniform at every step (§9.7.2 steps 1 and 5) |
-| tombstoned | present, and `h` is **owned** | the transaction in flight owns it; the recovery's global claim sweeps this reference into removal-pending and tombstones it again at the end. Every other command routes to the owner with `recovery-pending` (§9.7.2) |
-| tombstoned | present, regular and hash-correct, and `h` is **unreferenced** | **unreferenced physical residue.** Nothing references those bytes and no pending reference exists, so no purge transaction is in flight and nothing can be finalized. X11 refuses exit 3 `archive-index-storage-inconsistent`, writing nothing, and names the one repair: `tpatch feature intent-archive purge <slug> --orphans --yes` (§9.3.1, §9.7.3) |
-| tombstoned | present, regular and hash-correct, and `h` is **live but not owned** — some other reference to it is retained | **mixed tombstone/live-reference global-availability inconsistency.** The blob is live storage for the retained reference, so it is **not** an orphan and `--orphans` must exclude it; the tombstone nevertheless claims those bytes are gone. X11 refuses exit 3 `archive-index-storage-inconsistent`, writing nothing, and names the one repair: `tpatch feature intent-archive purge <slug> --blob <hash> --yes` (§9.3.1, §9.7.3) |
-| tombstoned | present, **non-regular or hash-wrong**, and `h` is **unreferenced** | not an orphan and not residue: the file is unidentifiable, so `--orphans --yes` refuses it at its per-blob identity check. X11 refuses exit 3 `archive-blob-corrupt`, writing nothing, and names §9.3.1's type-total removal of the managed blob path, after which the hash is simply unreferenced with no file and nothing further is required (§9.7.2, §9.7.3) |
-| tombstoned | present, **non-regular or hash-wrong**, and `h` is **live but not owned** | the corrupt observation dominates the mixed one, because both describe the same unidentifiable file and only one of them has a route that can act on it: X11 refuses exit 3 `archive-blob-corrupt` and names §9.3.1's type-total removal followed by the confirmed `--blob <hash> --yes`, which tombstones the retained reference and leaves the already-tombstoned one where it is (§9.3.1) |
+Every row below states its full tuple. The `retained` rows are `live` by
+dependency (1) and the `removal-pending` rows are `owned, live` by dependency
+(2), so those columns are stated once here rather than repeated per row.
+
+| # | Wire state | Blob observation, ownership and liveness | Required next action |
+|---:|---|---|---|
+| 1 | retained | present, regular and hash-correct; `h` **not owned** (live) | ordinary live storage |
+| 2 | retained | present, regular and hash-correct; `h` **owned** (live) | the reference is inside the purge transaction. Not an inconsistency: the recovery's global claim normalizes it to removal-pending before any removal, and every other command routes to the owner with `recovery-pending` (§9.7.2) |
+| 3 | retained | **absent**; `h` **not owned** (live) | **dangling live reference.** X11 refuses exit 3 `archive-blob-dangling`, writing nothing, and names the one repair: the confirmed `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, which tombstones every reference to `h` after confirming the blob is still absent and removes nothing (§9.3.1, §9.7.3) |
+| 4 | retained | **absent**; `h` **owned** (live) | the transaction in flight owns it. Not classified as dangling: `RecoverPendingPurge`'s absent-blob path claims and tombstones **every** reference to `h`, this one included, and every other command routes to the owner with `recovery-pending` (§9.7.2 step 5) |
+| 5 | retained | present, **non-regular or hash-wrong**; `h` **not owned** (live) | **corrupt live storage.** The index says these bytes are the recovery material for a live reference and they are not. X11 refuses exit 3 `archive-blob-corrupt`, writing nothing, and names the one route: §9.3.1's type-total removal of the managed blob path followed by the confirmed `tpatch feature intent-archive purge <slug> --blob <hash> --yes` — or restore the exact correct blob and retry (§9.3.1) |
+| 6 | retained | present, **non-regular or hash-wrong**; `h` **owned** (live) | the transaction in flight owns it: every reader but `purge --yes` routes with `recovery-pending`, and `purge --yes` finds the claim's evidence check unsatisfied and refuses **exit 6** `archive-purge-evidence-divergent` with the evidence preserved. No exit-3 code is reachable for this tuple (§9.7.2 step 6, §10.4.1, PIB-558) |
+| 7 | removal-pending | present, regular and hash-correct (owned, live) | claim `h` globally — every reference to it, retained and tombstoned alike — then remove it, then CAS-publish the tombstone for every reference to `h` |
+| 8 | removal-pending | **absent** (owned, live) | CAS-publish the tombstone for every reference to `h`; removal already occurred |
+| 9 | removal-pending | present, **non-regular or hash-wrong** (owned, live) | refuse **exit 6** `archive-purge-evidence-divergent` and preserve evidence. This tuple and row 6 and row 12 are the same observation seen through three different references of one owned hash, and all three take that one code (§9.7.2 step 6, §10.4.1, PIB-558) |
+| 10 | tombstoned | **absent**; `h` **not owned** and **unreferenced** | ordinary purged storage |
+| 11 | tombstoned | **absent**; `h` **not owned** but **live** — some other reference to it is retained | not this reference's problem and not an inconsistency in it: the hash is a **dangling live reference**, classified through that retained reference at row 3, and this reference is already at the end state the confirmed `--blob <hash> --yes` repair will leave every reference to `h` in. It carries row 3's route and no second one (§9.3.1, §9.7.3) |
+| 12 | tombstoned | **absent**; `h` **owned** (live) | the transaction in flight owns the hash; this reference is already at its end state and is nonetheless claimed and re-tombstoned with the rest, so the hash's wire state is uniform at every step (§9.7.2 steps 1 and 5) |
+| 13 | tombstoned | present, regular and hash-correct; `h` **owned** (live) | the transaction in flight owns it; the recovery's global claim sweeps this reference into removal-pending and tombstones it again at the end. Every other command routes to the owner with `recovery-pending` (§9.7.2) |
+| 14 | tombstoned | present, **non-regular or hash-wrong**; `h` **owned** (live) | the transaction in flight owns it, and ownership still outranks the unidentifiable observation: every reader but `purge --yes` routes with `recovery-pending`, and `purge --yes` refuses **exit 6** `archive-purge-evidence-divergent` at the claim's evidence check, exactly as rows 6 and 9 do. It is **not** residue, **not** mixed and **not** `archive-blob-corrupt`, because those classifications are defined over a hash no transaction owns (§9.7.2 step 6, §10.4.1, PIB-551, PIB-558) |
+| 15 | tombstoned | present, regular and hash-correct; `h` **not owned** and **unreferenced** | **unreferenced physical residue.** Nothing references those bytes and no pending reference exists, so no purge transaction is in flight and nothing can be finalized. X11 refuses exit 3 `archive-index-storage-inconsistent`, writing nothing, and names the one repair: `tpatch feature intent-archive purge <slug> --orphans --yes` (§9.3.1, §9.7.3) |
+| 16 | tombstoned | present, regular and hash-correct; `h` **not owned** but **live** — some other reference to it is retained | **mixed tombstone/live-reference global-availability inconsistency.** The blob is live storage for the retained reference, so it is **not** an orphan and `--orphans` must exclude it; the tombstone nevertheless claims those bytes are gone. X11 refuses exit 3 `archive-index-storage-inconsistent`, writing nothing, and names the one repair: `tpatch feature intent-archive purge <slug> --blob <hash> --yes` (§9.3.1, §9.7.3) |
+| 17 | tombstoned | present, **non-regular or hash-wrong**; `h` **not owned** and **unreferenced** | not an orphan and not residue: the file is unidentifiable, so `--orphans --yes` refuses it at its per-blob identity check. X11 refuses exit 3 `archive-blob-corrupt`, writing nothing, and names §9.3.1's type-total removal of the managed blob path, after which the hash is simply unreferenced with no file and nothing further is required (§9.7.2, §9.7.3) |
+| 18 | tombstoned | present, **non-regular or hash-wrong**; `h` **not owned** but **live** | the corrupt observation dominates the mixed one, because both describe the same unidentifiable file and only one of them has a route that can act on it: X11 refuses exit 3 `archive-blob-corrupt` and names §9.3.1's type-total removal followed by the confirmed `--blob <hash> --yes`, which tombstones the retained reference and leaves the already-tombstoned one where it is (§9.3.1) |
+
+**What rev-12 split, and why it was not cosmetic.** rev-11 carried one
+`tombstoned | present, and h is owned` row that did not say whether the present
+file was hash-correct or unidentifiable, and one `tombstoned | absent, h not
+owned` row that did not say whether the hash was live. The first collapse
+mattered: rows 13 and 14 have **different exits** — 13 completes at exit 0 under
+the owner and 14 refuses exit 6 — so a single row could be read as promising
+that an owned tombstoned reference beside a directory or a hash-wrong file is
+merely "swept into the claim", which is exactly the mis-mapping item 3 of the
+rev-12 dispatch withdraws. The second mattered because a tombstoned reference
+beside an absent blob is ordinary purged storage when the hash is unreferenced
+and part of a **dangling** hash when it is live, and a reader of the collapsed
+row had no way to tell which route applied. Both are now separate rows over
+separate tuples, and PIB-551 derives the domain and the row count rather than
+reading them (§9.3.1, PIB-551, PIB-558).
 
 Thus an otherwise-valid pending record remains recoverable after its first
 physical removal, and a tombstone is permitted only when
@@ -2629,7 +2702,7 @@ decodes one JSON value plus EOF. Failure writes nothing.
 | X8 | every path is relative and contained in its feature directory | `archive-index-path-escape` | 3 |
 | X9 | artifact ids are the closed four-value set and unique per generation | `archive-index-corrupt` | 3 |
 | X10 | recomputing `generation_id` from the immutable pre-purge body (including `content_sha256`) reproduces its recorded value, whether or not entries are tombstoned | `archive-index-generation-mismatch` | 3 |
-| X11 | over the **whole index**, never over a selection, and before every mutation a **new selector** would perform: retained references name a present regular hash-correct blob; pending references have either that blob (removal remains) or no blob (tombstone finalization remains); a tombstone has no blob **unless** the hash is owned or still live, which is itself a routing or a refusal. Completing an already-pending purge transaction is the one explicit exception to the "before every mutation" ordering, and it is stated in §9.7.2 | `archive-blob-dangling` for a missing retained blob; `archive-blob-corrupt` for a present but non-regular or hash-wrong blob under a **retained** reference, and for the same file where the hash is unreferenced or only tombstone-referenced, because unidentifiable bytes outrank the residue and mixed classifications of the same file; `archive-index-storage-inconsistent` for an unsafe/wrong **pending** blob, and — as two separate, separately routed sub-populations — for a **tombstone whose named regular hash-correct blob is present**, split by whether the hash is globally **unreferenced** (physical residue) or still **live** (mixed tombstone/live-reference). An **owned** hash (any reference removal-pending) is not classified here at all: ownership outranks, and every observer other than `purge --yes` routes to `recovery-pending` (§9.3) | 3 |
+| X11 | over the **whole index**, never over a selection, and before every mutation a **new selector** would perform: retained references name a present regular hash-correct blob; pending references have either that blob (removal remains) or no blob (tombstone finalization remains); a tombstone has no blob **unless** the hash is owned or still live, which is itself a routing or a refusal. Completing an already-pending purge transaction is the one explicit exception to the "before every mutation" ordering, and it is stated in §9.7.2 | `archive-blob-dangling` for a missing retained blob; `archive-blob-corrupt` for a present but non-regular or hash-wrong blob under a **retained** reference of a **non-owned** hash, and for the same file where a non-owned hash is unreferenced or only tombstone-referenced, because unidentifiable bytes outrank the residue and mixed classifications of the same file; `archive-index-storage-inconsistent` — as two separate, separately routed sub-populations — for a **tombstone whose named regular hash-correct blob is present** on a **non-owned** hash, split by whether the hash is globally **unreferenced** (physical residue) or still **live** (mixed tombstone/live-reference). An **owned** hash (any reference removal-pending) is not classified here at all: ownership outranks, every observer other than `purge --yes` routes to `recovery-pending` (§9.3), and where the owned hash's blob is present but unidentifiable the owning `purge --yes` refuses **exit 6** `archive-purge-evidence-divergent` — X11 emits **no** exit-3 code for an owned hash, and in particular emits `archive-index-storage-inconsistent` for **no** pending blob observation whatsoever (rev-11 mapped an unsafe/wrong pending blob to that exit-3 code in this cell while §9.3 and §9.7.2 step 6 mapped the same tuple to exit 6; the exit-3 half is withdrawn, PIB-558) | 3 |
 
 Strict JSON binds X1–X10 validate wire shape and immutable identity. X11 is a
 separate storage-state validation over the filesystem. A missing **retained**
@@ -2645,45 +2718,145 @@ reference in every generation and over the blob directory, not over the subset
 the requested selector would touch. The consequences are stated once here and
 derived everywhere else:
 
-- **A global inconsistency refuses an unrelated selector, zero-write.** An
-  archive holding a mixed tombstone/live-reference hash `h₂` refuses
-  `purge --orphans --yes`, `purge --blob <h₃> --yes`,
-  `purge --generation <id> --yes` and `purge --all --yes` alike, at exit 3 with
-  the whole tree byte-identical, naming `h₂`'s owning repair — even when the
-  selector is provably disjoint from `h₂` (§9.7.1, §9.7.2, PIB-542).
-- **No partial cleanup proceeds around it.** The command does not remove the
-  orphans it *could* have removed, or purge the hashes it *could* have purged,
-  and then report the inconsistency as a leftover. Acting on part of an index
-  that is lying about another part is how a half-repaired archive becomes an
-  archive nobody can reason about; fail-closed is chosen precisely so the
-  operator's next observation is the same one this run refused on.
+- **A global inconsistency refuses every *ordinary* mutation, zero-write.** An
+  archive holding a mixed tombstone/live-reference hash `h₂` refuses every
+  mutating `prepare` mode — `generate`, `manual` and `regenerate` — at exit 3
+  with the whole tree byte-identical, naming `h₂`'s owning repair, whether or
+  not that mode would have touched `h₂` (§6.2, PIB-538). It also refuses every
+  confirmed purge selector that is **not** an admitted repair for a class the
+  archive actually holds, on the same terms (§9.7.1, §9.7.2, PIB-542).
+- **The scan always reports every class it found, whatever it admits.** The
+  observation is over the whole index, so the report is over the whole index
+  too: a refusal renders every observed class with its own route, and an
+  *admitted* repair renders every class it did **not** touch with its own route
+  and states that a rerun is required (PIB-541, PIB-548, PIB-556).
+- **No partial cleanup proceeds *within* a class, and no unrelated class is
+  half-acted-on.** A command never removes some of the orphans it could have
+  removed, or purges some of the hashes of the class it is repairing, and then
+  reports the rest as leftovers. Acting on part of a class that is lying about
+  another part of itself is how a half-repaired archive becomes an archive
+  nobody can reason about. What rev-12 does permit — and rev-11 did not — is
+  completing **one whole class** while a **different** class remains, because
+  that leaves an archive whose every remaining observation is exactly what the
+  operator was just told to expect (see "Sequential multi-class repair" below).
 - **The admitted repairs are scoped to the repair *class* they repair, and are
-  admitted only after global classification.** §9.7.2's three admissions are
+  admitted only after global classification.** §9.7.2's admissions are
   not selector exemptions from X11; each is the one shipped repair for one
   observed **class** of state, admitted past that class's own refusal after the
   strict X1–X10 decode, and admitted only when the confirmed selection **covers
   every instance of that class in the whole index**. `--orphans --yes` is
   admitted past globally unreferenced tombstone-beside-blob residue and
-  **nothing else** — not past a mixed hash, a dangling retained reference or a
-  corrupt blob — and if the archive holds any of those as well, `--orphans
-  --yes` refuses zero-write like every other selector (§9.7.2, PIB-542,
+  **nothing else** — never past a mixed hash, a dangling retained reference or a
+  corrupt object, whose blobs it may not touch at all (§9.7.2, PIB-542,
   PIB-543, PIB-549).
 - **A class may have many instances, and covering all of them is admitted.**
   Rev-10 admitted a repair only when its observation was "the *sole*
   inconsistency the global scan found", which bricked an archive holding two
   unreferenced residues or two dangling hashes: each instance individually
   disqualified the other, so no selector was ever admitted and the archive had
-  no shipped repair at all. **Rev-11 replaces "sole inconsistency" with "sole
+  no shipped repair at all. **Rev-11 replaced "sole inconsistency" with "sole
   repair class, fully covered."** `--orphans --yes` repairs *all* unreferenced
   residues in one invocation; a repeated `--blob <h₁> --blob <h₂> --yes`
   selection — the grammar takes repeats (§5.1) — repairs all instances of one
-  same-class hash population, and `--all --yes` does so where it is applicable
-  to that class. Mixed classes remain a zero-write refusal that renders each
-  class's own route (§9.7.2, PIB-548, PIB-549).
+  same-class hash population (§9.7.2, PIB-548, PIB-549).
+- **Rev-12 removes the last multiplicity brick: "sole class" becomes "one
+  chosen class per invocation."** rev-11's rule still required the admitted
+  class to be the **only** class the scan found, so an archive holding one
+  unreferenced residue **and** one mixed hash had no admitted selector at all —
+  `--orphans --yes` was withdrawn by the mixed hash and `--blob <h> --yes` by
+  the residue — and every ordinary mutation refused too. That is the same brick
+  rev-11 removed one level down, re-created between classes instead of between
+  instances, and it is not hypothetical: §9.7.2's own compound ladder produces
+  exactly that archive whenever a pending recovery finalizes beside a residue
+  that a second, unrelated event created. **Sequential multi-class repair** is
+  the fix, and it is stated as four conjunctive conditions below.
 - **The refusal always names the owning repair, and it is the repair for the
   observation that refused** — not for the selector the operator typed. Where
   more than one distinct inconsistency is present, every one of them is
   rendered with its own repair, and the exit is 3 (§9.7, PIB-541).
+
+**Sequential multi-class repair — the four conditions, and what they buy.** A
+confirmed `feature intent-archive purge <slug> <selector> --yes` may be admitted
+past the global X11 refusal to repair **one chosen repair class**, even while
+other classes exist elsewhere in the index, **if and only if all four of these
+hold**:
+
+| # | Condition | Why it is required |
+|---:|---|---|
+| (a) | The confirmed selection **covers every instance of the chosen class** in the whole index | This is rev-11's coverage rule, unchanged. A selection covering part of its class is the intra-class partial cleanup that leaves an archive whose next observation differs from the one just acted on |
+| (b) | **No selected hash, and no object the selection would remove, belongs to another class.** Class membership is decided by §9.3's precedence, so every hash belongs to exactly **one** class and the test is a set-disjointness check, not a judgement | This is what makes "one class" a property of the *mutation* rather than of the operator's intent. A selector that would sweep a second class's hash into its work list is repairing two classes at once under one confirmation, which is precisely what no confirmed selection may do silently |
+| (c) | The mutation **provably cannot erase, degrade or reclassify another class's evidence**: the reference set it rewrites is exactly the references of the selected hashes, the blob set it removes is exactly the blobs of the selected hashes, and neither the wire state nor the blob observation nor the ownership nor the liveness of any *other* hash is a function of them | Liveness, ownership and the blob observation are all per-hash (§9.3), so a repair of hash `h₁` changes nothing any classification of `h₂` reads. That is a proof, not an assumption, and PIB-555 derives it from the implementation rather than from this sentence. Where it does **not** hold — `--all --yes`, which selects every retained reference in the archive — the admission is withheld unless the chosen class is the only class present |
+| (d) | The report **names every untouched class, with its own literal repair command, and states that a rerun is required** before the archive is consistent | Without it, a run that repaired one class and exited 0 would look like a run that repaired the archive. The operator would discover the second class on their next ordinary mutation, as an exit-3 refusal that reads exactly like the one they thought they had just fixed |
+
+When all four hold the invocation proceeds, repairs its whole class, exits 0,
+and carries the `archive-repairs-remaining` advisory and the closed
+`remaining_repairs` object of §10.2. When any one fails, the invocation refuses
+exit 3 **zero-write** and renders every observed class with its own route, which
+is rev-11's behavior unchanged for the cases rev-11 got right (§9.7.2,
+PIB-552, PIB-553, PIB-555, PIB-556).
+
+**Ordinary mutations are not admitted by any of this.** Sequential repair is a
+property of the confirmed retention verb alone. A mutating `prepare` —
+`generate`, `manual` or `regenerate` — observing **any** class still refuses
+exit 3 zero-write with the class's own route, because it is not repairing
+anything: it would be publishing a lifecycle transition on top of an index that
+is still lying about stored bytes (§6.2, §7.8, PIB-538).
+
+**The admissions are deterministic, one per class, and stated as a closed
+table.** There are exactly four repair classes, they partition the non-owned
+inconsistent hashes, and each has exactly one admitted confirmed selection:
+
+| Class | Observation (non-owned hashes only) | Admitted confirmed selection | Coverage argument for (a) |
+|---|---|---|---|
+| **`unreferenced-residue`** | row 15 of §9.3: a tombstoned reference whose named blob is present, regular and hash-correct, on a globally unreferenced hash | `purge <slug> --orphans --yes` | **Total by construction.** `--orphans` selects *every* globally unreferenced blob (§9.7.1), so one invocation covers the class whatever its instance count. No repetition, no enumeration and no `--all` is ever needed for it |
+| **`dangling-reference`** | row 3 of §9.3: a retained reference whose blob is absent, together with row 11's tombstoned reference of the same hash, which carries row 3's route and no second one | `purge <slug> --blob <h₁> [--blob <h₂> …] --yes`, repeated once per dangling hash, covering **every** hash of the class | The flag repeats (§5.1); the refusal lists every dangling hash, so the operator's selection is a transcription of the report rather than a search |
+| **`mixed-reference`** | row 16 of §9.3: a tombstoned and a retained reference to one hash whose blob is present, regular and hash-correct | `purge <slug> --blob <h₁> [--blob <h₂> …] --yes`, repeated once per mixed hash, covering **every** hash of the class | As above. `--orphans` is forbidden here under every circumstance: the blob is live storage (§9.7.1, §9.7.3) |
+| **`corrupt-object`** | rows 5, 17 and 18 of §9.3: a present but non-regular or hash-wrong object at a managed blob path | **No selector at all**, until a **manual prerequisite** has run: the operator's own type-total `rm -rf --` of that exact managed blob path (the procedure below). After it the hash is either an ordinary `dangling-reference` instance (a retained reference survives) or simply an unreferenced hash with no file and nothing further required, and the class's remaining members are repaired through those already-admitted routes | Coverage is over the class's *objects*: the prerequisite is run once per corrupt object, and the refusal lists every one of them with its exact path |
+
+`--generation <id> --yes` is **never** an admitted repair for any class: it
+refuses `archive-blob-shared` rather than splitting a hash (§9.7.1), so it
+cannot be shown total over a class in the general case, and admitting it would
+require condition (b) to be re-derived per generation.
+
+**`--all --yes` is admitted only under an explicit, separately stated
+justification, and its blast radius is printed beside it every time it is
+named.** `--all` selects **every retained reference in the archive** and is
+allowed to remove **every** blob (§9.7.1), so it fails conditions (b) and (c)
+against any second class by construction: it would sweep that class's hashes
+into its own work list. It is therefore admitted **only** when the chosen class
+is the **only** class the global scan found *and* the operator has been told, in
+the same message, exactly what it costs. Wherever this PRD, ADR-035 or any
+shipped string offers `--all --yes` as a repair, the offer carries all three of
+the following, adjacent to the command and not in a footnote:
+
+1. **What it does to the whole archive**: it claims and tombstones **every**
+   reference in **every** generation and removes **every** blob — not only the
+   class's instances — leaving an archive with no recoverable bytes for any
+   artifact until identical content is archived again (§9.7.1, §9.7.3).
+2. **Preview first, which is the default**: `purge <slug> --all` without `--yes`
+   takes no lock, writes nothing and shows the full selection, and the message
+   says so before the confirmed form appears.
+3. **The narrower alternative**: repeated `--blob <h> --yes` covers the same
+   class while touching nothing else, and is what the report recommends whenever
+   the class's hashes are enumerable — which, since the refusal enumerates them,
+   is always.
+
+PIB-557 asserts those three elements at every emitter that names `--all` as a
+repair, and fails an emitter that names it bare (§9.7.1, §9.7.3, §10.4.1).
+
+**Overlapping observations on one hash collapse to one class, so a selector can
+never straddle two.** A single hash can satisfy the *descriptions* of two
+classes at once — most obviously a hash with a tombstoned and a retained
+reference (mixed) whose blob is a directory (corrupt). §9.3's precedence decides
+it once, globally, before any class set is built: ownership first, unidentifiable
+bytes second, liveness last. So that hash is a `corrupt-object` instance and is
+**not** in the `mixed-reference` class at all, which is why condition (b)'s
+disjointness test is decidable: class membership is a function, not a
+predicate that can hold twice. The consequence is stated so it cannot be
+re-derived wrongly: `--blob <h> --yes` over that hash is **not** admitted,
+because `h`'s class is `corrupt-object` and that class admits no selector until
+its manual prerequisite has run — even though a reader matching on the mixed
+description alone would have said it was the mixed class's repair (PIB-554).
 
 **The one exception is completing a purge transaction that is already
 pending.** "Before every archive mutation" is a statement about mutations a
@@ -2696,8 +2869,10 @@ preflight, and it may mutate and finalize **its own owned hash** while an
 unrelated inconsistency `h₂` is present elsewhere in the index. It is terminal:
 it returns exit 0 `recovered` and never proceeds into the new selector. The
 operator's rerun is then an ordinary new-selector invocation, it performs the
-full global X11 scan, and it may refuse on `h₂` at exit 3 zero-write naming
-`h₂`'s own repair. Ordering the two the other way would make an unrelated
+full global X11 scan, and it either refuses on `h₂` at exit 3 zero-write naming
+`h₂`'s own repair or — when the rerun's selector is `h₂`'s class's admitted
+repair and the four conditions above hold — repairs that class and reports every
+class it left (§9.7.2). Ordering the two the other way would make an unrelated
 residue permanently block the recovery of a hash whose bytes are already half
 removed — a global check bricking the transaction it was added to protect
 (§9.7, §9.7.2, §10.5 step 22, PIB-546). A **normal mutating `prepare`** in the
@@ -2705,8 +2880,10 @@ same state still refuses exit 3 `recovery-pending` and finalizes nothing; the
 exception belongs to the transaction's one owner, not to every command
 (§7.8 step 5, PIB-525, PIB-526).
 
-This is fail-closed by choice, and the alternative — validating only the
-selected references — is recorded and rejected in §21.
+This is fail-closed by choice — the **validation** is global and unconditional,
+and only the **admission** is per class — and the alternative, validating only
+the selected references, is recorded and rejected in §21, alongside rev-11's
+withdrawn sole-class admission rule.
 
 **There is exactly one shipped repair, and it is a command an operator can
 type.** rev-4 offered two — the confirmed purge and "exact-content
@@ -2721,8 +2898,16 @@ tpatch feature intent-archive purge <slug> --blob <hash> --yes
 
 It tombstones **every** reference to that hash, in every generation, after
 confirming the blob is still absent, and performs **no** removal because the
-file is already gone (a removal spy records zero removals for that hash). An
-applicable confirmed `--all --yes` has the same effect for every selected hash.
+file is already gone (a removal spy records zero removals for that hash). The
+selection is repeated once per dangling hash so that it covers the whole class
+(§9.3.1's admission table). A confirmed `--all --yes` reaches the same end state
+for the dangling hashes, but it is admitted **only** where `dangling-reference`
+is the archive's sole class, and only where the message has stated in the same
+breath that `--all` tombstones every reference in every generation and removes
+every blob in the archive, that the unconfirmed `purge <slug> --all` preview is
+the default and shows the full selection first, and that repeated
+`--blob <h> --yes` covers the same class without touching anything else
+(§9.3.1, PIB-557).
 After that repair the archive is consistent again, ordinary mutation proceeds,
 and a later regeneration that reproduces the tombstoned generation may use the
 already-defined global rehydration path of §9.3 (PIB-457, PIB-458, PIB-459,
@@ -2775,19 +2960,21 @@ pins its behavior so it cannot be discovered later as an unclassified brick:
   operator-executed procedure step, not a retry, and keeps its own numbering;
   the tpatch command is a retry and carries the column-0 heading and
   `retry_cwd: "workspace-root"` like every other (§9.7.2, §10.7, PIB-498).
-- **Why the removal step is `rm -rf --` and why no preservation copy is
-  promised.** rev-10 printed `cp <managed blob path> <a path outside .tpatch/>`
+- **Why the removal step is `rm -rf --`, and why the message names no
+  preservation command at all.** rev-10 printed `cp <managed blob path> <a path
+  outside .tpatch/>`
   followed by plain `rm <managed blob path>`, and told the operator both would
   work for *any* of the observed object kinds. Neither does. Against a
-  **directory** — one of the three kinds PIB-543 fixtures — `cp` without `-R`
+  **directory** — one of the kinds PIB-543 fixtures — `cp` without `-R`
   fails and `rm` without `-r` fails, so the printed procedure is unexecutable on
   the exact fixture it was written for; against a **symlink** `cp` silently
   copies the *target's* bytes rather than the link, which is a different object
   than the one that refused; and against a **FIFO or device node** `cp` either
   blocks on open or copies nothing meaningful. A procedure that is correct only
   for the regular-file subcase is not a route for a code whose population
-  includes the others. Rev-11 therefore ships **one type-total destructive
-  step** and withdraws the copy promise:
+  includes the others. Rev-11 shipped **one type-total destructive
+  step** and withdrew the copy promise; **rev-12 finishes the withdrawal** by
+  removing the *named* alternatives from the prose as well:
   - `rm -rf -- <the validated repo-relative managed blob path>` removes a
     regular file, a symlink (the link itself, never its target), a directory
     and everything beneath it, a FIFO and a device node, on both supported
@@ -2796,15 +2983,22 @@ pins its behavior so it cannot be discovered later as an unclassified brick:
     path that begins with `-` cannot become an option, and with the exact
     single managed path and **no wildcard** — the path is the one X11 already
     validated as contained in the feature's archive, so the command's blast
-    radius is exactly the object that refused.
+    radius is exactly the object that refused. It is the **only** command this
+    procedure emits.
   - **If the operator wants those bytes, they must stop here and preserve the
-    object with tooling appropriate to its kind** — `cp -R` for a directory,
-    `cp -P`/`readlink` for a symlink, `git show` for a version-controlled
-    original — and tpatch says exactly that instead of printing a copy command
-    that is wrong for four of the five kinds. No generic preservation command is
-    emitted, because a wrong one is worse than none: it either fails loudly
-    after the operator has committed to the procedure, or succeeds while
-    copying something other than the object they were told they were keeping.
+    object with tooling appropriate to its kind, chosen by them.** The message
+    says exactly that and **names no command** — not `cp`, not `cp -R`, not
+    `cp -P`, not `readlink`, not `git show`, not `mv`, not `rsync` and not
+    `tar`. rev-11 withdrew the emitted `cp` and then listed those alternatives
+    in prose, which reintroduced the same defect one layer out: a shipped
+    remediation that names a kind-specific command is naming it for an object
+    whose kind the operator has not been asked to confirm, and §10.7's permitted
+    external forms do not include any of them. A wrong preservation command is
+    worse than none — it either fails loudly after the operator has committed to
+    the procedure, or succeeds while copying something other than the object
+    they were told they were keeping — and a *list* of possibly-wrong commands
+    is worse still, because it reads as a menu tpatch has vetted. PIB-559 is the
+    token guard over every emitted block in this cluster (§10.7, PIB-547).
 - **Or restore the exact correct blob and retry.** If the operator still has the
   original bytes — from Git history or a backup — writing a regular file at
   `blobs/<hash>.blob` whose bytes
@@ -2932,8 +3126,12 @@ inconsistency.**
   claiming: every reference to `h` tombstoned, no blob, global availability
   truthful again. The mixed pair is admitted past this X11 refusal — after the
   strict X1–X10 wire decode — **only** for a confirmed selection that is total
-  over `h`, that is `--blob <h> --yes` (repeated once per mixed hash where more
-  than one exists) or an applicable `--all --yes`.
+  over `h` and over every other `mixed-reference` hash in the index, that is
+  `--blob <h> --yes` repeated once per mixed hash. A confirmed `--all --yes`
+  reaches the same end state, but only where `mixed-reference` is the archive's
+  sole class and only with the whole-archive blast radius, the preview-first
+  default and the narrower repeated-`--blob` alternative stated beside it
+  (§9.3.1's admission table, PIB-557).
 - **The direction is deliberate.** The alternative repair — un-tombstone the
   tombstoned reference so it agrees with the live one — is rejected: it would
   make tpatch adopt bytes into a reference the operator purged, silently
@@ -2951,17 +3149,27 @@ inconsistency.**
   compound ordering, and why it terminates, is stated in §9.7.2.
 
 **Neither subcase is `archive-purge-evidence-divergent`.** That code requires
-genuinely divergent evidence **under a pending reference** — a hash-wrong or
-non-regular blob, or an index that stopped strict-decoding mid-run. Neither
+genuinely divergent evidence on an **owned** hash — a hash-wrong or non-regular
+blob observed while some reference to that hash is removal-pending, whatever the
+observing reference's own wire state — or an index that stopped strict-decoding
+mid-run. Ownership is what puts it there: rev-11 said "under a pending
+reference", which reads as a statement about *this* reference and left rows 6
+and 14 of §9.3 — a **retained** and a **tombstoned** reference of an owned hash
+beside an unidentifiable object — looking unclassified. They are the same
+observation of the same owned hash and they take the same exit-6 code (§9.3,
+§9.7.2 step 6, PIB-558). Neither tombstone-beside-blob
 subcase is routed to §9.7.2's pending+absent escape, and neither is ever routed
-to `--abandon-transaction`, and the same is true of the retained corrupt-blob
-observation above (PIB-521, PIB-522, PIB-523, PIB-524, PIB-531,
-PIB-532, PIB-533, PIB-535, PIB-543).
+to `--abandon-transaction`, and the same is true of the non-owned retained
+corrupt-blob observation above (PIB-521, PIB-522, PIB-523, PIB-524, PIB-531,
+PIB-532, PIB-533, PIB-535, PIB-543, PIB-558).
 
 This keeps strict shape decoding while making every documented repair reachable
-rather than permanently bricking the archive
+rather than permanently bricking the archive — including an archive holding more
+than one repair class, which rev-12's sequential admission clears one class at a
+time rather than refusing forever
 (PIB-331…PIB-341, PIB-401, PIB-428, PIB-444, PIB-457…PIB-460,
-PIB-521…PIB-524, PIB-531…PIB-533, PIB-535, PIB-539…PIB-543).
+PIB-521…PIB-524, PIB-531…PIB-533, PIB-535, PIB-539…PIB-543,
+PIB-552…PIB-560).
 
 ### 9.4 Determinism
 
@@ -3233,10 +3441,11 @@ X11's storage observation runs over the **whole index** before every archive
 mutation a new selector would perform, independent of the selector (§9.3.1), so
 everything below describes
 only which references a selector *acts on* once the archive as a whole has been
-found consistent — or found to hold exactly one repair class that the confirmed
-selection covers completely. A global inconsistency outside that class refuses
-every selector,
-zero-write, naming that observation's owning repair (PIB-542, PIB-549).
+found consistent — or found to hold a repair class that the confirmed
+selection covers completely, disjointly and non-destructively of every other
+class, which is §9.3.1's four-condition sequential admission. A selector that
+fails any of those conditions refuses zero-write, naming every observed class's
+owning repair (PIB-542, PIB-549, PIB-552, PIB-555).
 Completing an already-pending purge transaction runs before that scan and is its
 one exception (§9.3.1, §9.7.2, PIB-546).
 
@@ -3268,7 +3477,17 @@ forever (§9.3, §9.7.2, PIB-532, PIB-545).
 - `--all` selects every retained reference and is allowed to remove every blob.
   Its lexically ordered per-hash processing remains valid after the first
   removal because every intermediate record is either retained, pending or
-  tombstoned by the same state machine.
+  tombstoned by the same state machine. **Its blast radius is the whole
+  archive, and every offer of it as a repair says so.** Because it selects every
+  retained reference, it fails §9.3.1's conditions (b) and (c) against any
+  second repair class by construction — it would sweep that class's hashes into
+  its own work list — so it is admitted as a class repair **only** where the
+  chosen class is the archive's only class. Wherever it is named as a repair,
+  the message states, adjacent to the command, that it tombstones every
+  reference in every generation and removes every blob, that the unconfirmed
+  `purge <slug> --all` preview is the default and shows the full selection
+  first, and that repeated `--blob <h> --yes` covers the same class while
+  touching nothing else (§9.3.1, PIB-557).
 - `--orphans` selects only physical blobs whose hash is **globally
   unreferenced** — no reference to it, in any generation, is retained or
   removal-pending (§9.3) — and rewrites no index. It selects **every** such blob
@@ -3288,12 +3507,18 @@ forever (§9.3, §9.7.2, PIB-532, PIB-545).
   whose named blob is present **and whose hash is unreferenced**, which it is
   explicitly admitted past X11 to remove (§9.3.1, §9.7.3, PIB-522, PIB-527).
   That admission is scoped to **exactly that repair class, covered
-  completely**: `--orphans --yes`
-  is not admitted past a mixed hash, a dangling retained reference, a corrupt
-  blob or an unsafe pending blob, so an archive holding any of those
-  refuses `--orphans --yes` at exit 3, zero-write, naming the other
-  observation's repair — it does not remove the orphans it could have removed
-  and report the rest as leftovers (§9.3.1, PIB-542, PIB-549).
+  completely, and to nothing outside it**: `--orphans --yes`
+  is never admitted past a mixed hash, a dangling retained reference, a corrupt
+  object or an owned hash, and it removes none of their blobs. Where the archive
+  holds one of those **as well**, `--orphans --yes` is nonetheless admitted for
+  the residue class it does cover, because it satisfies §9.3.1's four
+  conditions: it is total over the residue class, its selection set is disjoint
+  from every other class's hashes (an orphan's hash is unreferenced, and every
+  other class's hash is live or owned), removing an unreferenced blob changes no
+  other hash's wire state, blob observation, ownership or liveness, and the
+  report names the untouched classes with their routes and says a rerun is
+  required. What it still may **never** do is remove some orphans and report the
+  rest as leftovers (§9.3.1, PIB-542, PIB-549, PIB-552, PIB-555, PIB-556).
 
 A purged blob is not recoverable **until identical content is archived again**.
 If identical content is later rehydrated, every tombstoned or removal-pending
@@ -3468,7 +3693,7 @@ everything a *new* selector would do (§9.3.1, PIB-546):
 |---|---|
 | selector present, exactly one, and well-formed (`^[0-9a-f]{64}$` hashes, known generation ids) | exit 1 (no selector) / exit 3 (`archive-index-corrupt` for an unknown id) |
 | strict index decode X1–X10 over the captured raw preimage | exit 3, the matching `archive-index-*` code |
-| X11 storage observation over the **whole index**, never over the selection — every reference in every generation, retained/pending/tombstoned versus present/absent/regular/hash-correct, with each hash's **global** ownership and liveness computed once (§9.3, §9.3.1) | exit 3, `archive-blob-dangling`, `archive-blob-corrupt` or `archive-index-storage-inconsistent` — with exactly **three** admitted exceptions, each of which is one observed **repair class**'s one shipped repair, each admitted **only** for that class and only when the confirmed selection **covers every instance of that class in the whole index**, and only when it is the *sole* class the global scan found: dangling retained hashes, where the confirmed selection is exactly those hashes (`--blob <h> --yes`, repeated per hash, or an applicable `--all --yes`), are admitted (§9.7.3); **tombstoned references whose named blobs are present while their hashes are globally unreferenced** are admitted under `--orphans --yes`, which removes every such unreferenced blob and rewrites no index (§9.3.1 subcase A); and the **same tombstones beside blobs whose hashes are still live** are admitted only under a confirmed selection total over every one of those hashes (`--blob <h> --yes` per hash, or an applicable `--all --yes`), which purges each hash globally and never under `--orphans` (§9.3.1 subcase B). All three admissions happen **after** the strict X1–X10 wire decode above, never before it. An inconsistency of a **different class** anywhere in the index, or an instance of the same class the selection does not cover, withdraws every admission: the invocation refuses exit 3, zero-write, and names each class's own repair (PIB-542, PIB-548, PIB-549) |
+| X11 storage observation over the **whole index**, never over the selection — every reference in every generation, retained/pending/tombstoned versus present/absent/regular/hash-correct, with each hash's **global** ownership and liveness computed once (§9.3, §9.3.1) | exit 3, `archive-blob-dangling`, `archive-blob-corrupt` or `archive-index-storage-inconsistent` — unless §9.3.1's **sequential admission** grants this invocation one repair class. Admission requires all four conditions: the confirmed selection covers **every instance** of the chosen class in the whole index; no selected hash or removed object belongs to another class (class membership is a function of §9.3's precedence, so this is a set-disjointness test); the mutation provably cannot erase, degrade or reclassify another class's evidence; and the report names every untouched class with its own route and states that a rerun is required. The four admitted class repairs are `--orphans --yes` for `unreferenced-residue` (total by construction), repeated `--blob <h> --yes` for `dangling-reference` and for `mixed-reference` (once per hash of that class), and — for `corrupt-object` — **no selector at all** until the operator's own type-total `rm -rf --` prerequisite has run. `--generation` is never a class repair, and `--all --yes` is admitted only where the chosen class is the archive's only class and only with its whole-archive blast radius printed beside it. All admissions happen **after** the strict X1–X10 wire decode above, never before it. A selection covering only part of its class, a selection that reaches into a second class, or a mutation that would degrade another class's evidence withdraws the admission: the invocation refuses exit 3, zero-write, and names each observed class's own repair (PIB-542, PIB-548, PIB-549, PIB-552…PIB-557) |
 | shared-reference analysis: a `--generation` selection whose hash is referenced by a non-selected generation | exit 3, `archive-blob-shared`, naming `--blob <hash>` or `--all` |
 | per-orphan identity and hash for `--orphans`, over the globally unreferenced set only | exit 3, `archive-blob-corrupt` |
 | global live-reference count per selected hash, computed once from the validated index | exit 3, the matching code |
@@ -3487,7 +3712,9 @@ immediately runs the recovery steps above from step 2. A generation/`--all`
 purge therefore
 never produces an invalid state after the first hash is removed, and never
 removes a blob while a retained reference to it survives. For a dangling
-retained `h`, a confirmed global `--blob h --yes` (or applicable `--all --yes`)
+retained `h`, a confirmed global `--blob h --yes` — repeated once per dangling
+hash so the class is covered, or `--all --yes` where that class is the archive's
+only one and the blast radius has been stated —
 CAS-publishes its references straight to tombstones only after rechecking that
 the blob remains absent; it never invents a removal. For a **mixed
 tombstone/live-reference** `h` (§9.3.1 subcase B), the same confirmed selection
@@ -3498,11 +3725,42 @@ which the hash's global availability matches
 what the index says. For a **corrupt** `h` (§9.3.1) no selector is
 admitted at all: the operator's own type-total `rm -rf --` of the managed blob
 path removes the
-unidentifiable object first, after which the confirmed selection is the ordinary
-dangling repair. `--orphans` similarly
+unidentifiable object first — that removal is the class's **manual
+prerequisite**, not a tpatch mutation — after which `h` is an ordinary
+`dangling-reference` instance (if a retained reference survives) or simply an
+unreferenced hash with no file, and the confirmed selection is that class's
+already-admitted repair. `--orphans` similarly
 captures and revalidates its strict index preimage and each orphan
 identity/hash immediately before removal, over the globally unreferenced set
 only, and it processes **every** member of that set in one invocation.
+
+**Sequential multi-class repair, worked.** §9.3.1 states the four admission
+conditions; this is what they look like from the command's side. Take an archive
+holding three `unreferenced-residue` instances and two `mixed-reference` hashes,
+and no pending record:
+
+1. `purge <slug> --orphans --yes` is admitted for `unreferenced-residue`: it
+   covers the class (the selector is total over it by construction), its
+   selection set — three unreferenced blobs — is disjoint from the two mixed
+   hashes, which are live, and removing an unreferenced blob changes nothing any
+   classification of a live hash reads. It removes all three, rewrites no index,
+   exits **0**, and carries the `archive-repairs-remaining` advisory naming the
+   two mixed hashes, their literal `--blob <h₁> --blob <h₂> --yes` repair and
+   the statement that a rerun is required (§10.2, §10.3, PIB-552, PIB-556).
+2. The rerun `purge <slug> --blob <h₁> --blob <h₂> --yes` is admitted for
+   `mixed-reference`: it covers both instances, touches no other class (there is
+   none left), and repairs them. It exits **0** with **no**
+   `archive-repairs-remaining` advisory, because nothing remains.
+3. An ordinary mutating `prepare` between steps 1 and 2 still refuses exit 3
+   zero-write naming the mixed hashes' repair, exactly as it did before step 1.
+   Sequential repair changes what the **retention verb** may do, not what a
+   lifecycle mutation may do (§6.2, PIB-538, PIB-552).
+
+Where a `corrupt-object` instance is also present, it is the class that has no
+admitted selector, so it does not block the other two: steps 1 and 2 proceed
+under the same conditions, each reporting the corrupt object among the untouched
+classes with its own procedure, and the operator's manual `rm -rf --`
+prerequisite plus one further confirmed rerun closes it (PIB-553).
 
 **Compound state: a pending hash *and* a residue observation in the same
 archive.** These are independent facts about different hashes, and the ordering
@@ -3535,9 +3793,14 @@ observation on `h₂` (either subcase). Then, for any selector:
    exit 0; under any **other** selector it refuses exit 3
    `archive-index-storage-inconsistent`, writing nothing, and names that
    subcase's literal repair command. The admission is for `h₂`'s repair
-   **class**: an instance of the same class the selector does not cover, or an
-   inconsistency of a *different* class, makes the rerun refuse
-   zero-write and name each class's own repair (§9.3.1, PIB-542, PIB-549).
+   **class**: an instance of the same class the selector does not cover, a
+   selection that reaches into a second class, or a mutation that would degrade
+   a second class's evidence makes the rerun refuse
+   zero-write and name each class's own route. A **second class** merely being
+   present does **not**: since rev-12 the rerun repairs `h₂`'s class and reports
+   the other class untouched with its own route, so an archive that accumulated
+   two classes needs two reruns rather than becoming unrepairable (§9.3.1,
+   PIB-542, PIB-549, PIB-552, PIB-556).
 
 There is no dead end in that ladder, and in particular the refusal at step 3 is
 not one: it names an executable command, and running it completes the archive's
@@ -3729,10 +3992,11 @@ pending blob belongs, or an index that no longer strict-decodes after an externa
 write — the outcome is **exit 6, `archive-purge-evidence-divergent`**, not 5,
 and nothing further is attempted (PIB-468).
 
-**This population is exactly the pending-hash and pending-index evidence, and
+**This population is exactly the owned-hash and pending-index evidence, and
 nothing else.** rev-7 also listed "a tombstone beside a live blob" here and
 offered it this population's escape. That was unexecutable: a tombstoned
-reference is not pending, so there is no pending hash to name, no purge
+reference of a **non-owned** hash is not pending, so there is no pending hash to
+name, no purge
 transaction in flight, and nothing for the escape's rerun to finalize — the
 "pending+absent case" it points at cannot fire on a reference that is already
 tombstoned. **Both** of §9.3.1's tombstone-beside-blob subcases are therefore
@@ -3742,13 +4006,29 @@ repaired by `tpatch feature intent-archive purge <slug> --orphans --yes`, and a
 still-**live** hash is a mixed tombstone/live-reference inconsistency, repaired
 by the confirmed `tpatch feature intent-archive purge <slug> --blob <hash>
 --yes` (§9.3.1, §9.7.3, PIB-521, PIB-522, PIB-531, PIB-532). A **retained**
-reference beside a present but non-regular or hash-wrong blob is outside this
-population for the same reason — no pending reference — and is exit-3
+reference of a **non-owned** hash beside a present but non-regular or hash-wrong
+blob is outside this population for the same reason — no reference to that hash
+is pending — and is exit-3
 `archive-blob-corrupt` with §9.3.1's type-total removal-then-confirmed-purge or
-restore route (PIB-543). None of the three is in this
+restore route (PIB-543).
+
+**Ownership, not this reference's wire state, is what puts an unidentifiable
+blob in this population.** rev-11 wrote the boundary as "under a **pending**
+reference", which is true of the observation but reads as a test on the
+observing reference. It is not: the population is every hash the purge
+transaction **owns** — any reference to it removal-pending — whose blob is
+present but non-regular or hash-wrong, observed through *any* of that hash's
+references. §9.3's rows 6, 9 and 14 are one hash seen through a retained, a
+pending and a tombstoned reference, and all three take **exit 6
+`archive-purge-evidence-divergent`**. rev-11's residual exit-3
+`archive-index-storage-inconsistent` mapping for "an unsafe/wrong pending blob"
+— carried in the X11 cell, in §10.4.1 and in ADR-035 D10 — is **withdrawn**: it
+contradicted §9.3 and this step 6, and it offered a zero-write exit-3 promise
+for a transaction whose first mutation had already landed, which exit 3 cannot
+honour (§9.3, §10.4.1, ADR-035 D10, PIB-558). None of the four non-owned classes is in this
 population, and PIB-524 fails any classification that puts either
 tombstone-beside-blob subcase back
-(PIB-506, PIB-508).
+(PIB-506, PIB-508, PIB-558).
 
 **That exit 6 gets an archive-shaped escape, not the abandon mode.** rev-6
 routed every exit-6 population to `tpatch prepare <slug> --abandon-transaction`.
@@ -3764,9 +4044,9 @@ it cannot identify. What it does instead is report enough for the operator to
 act, in repo-relative terms only. The procedure has two forms, selected by which
 object diverged, and each is executable:
 
-**Blob divergence** — under a **pending** reference, the blob is present but
-hash-wrong, or is a non-regular file. The managed blob path is the divergent
-object:
+**Blob divergence** — the hash is **owned** (some reference to it is
+removal-pending) and its blob is present but hash-wrong, or is a non-regular
+file. The managed blob path is the divergent object:
 
 ```text
 feature intent-archive purge <slug>: refused archive-purge-evidence-divergent
@@ -3781,10 +4061,8 @@ feature intent-archive purge <slug>: refused archive-purge-evidence-divergent
        including a directory and everything under it. There is no undo:
          rm -rf -- .tpatch/features/<slug>/artifacts/intent-archive/blobs/<hash>.blob
   If you want to keep that object, stop here and preserve it with a tool that
-  matches what it is: cp -R for a directory, cp -P for a symlink, git show for
-  a version-controlled original. tpatch does not print one copy command,
-  because no single copy command is correct for every kind of object that can
-  be at that path.
+  matches what it is. tpatch does not name one, because no single command is
+  correct for every kind of object that can be at that path.
   The rerun below then finds the reference pending and the blob absent, which
   is the already-defined pending+absent case: it finalizes the tombstone and
   exits 0 recovered.
@@ -3796,19 +4074,26 @@ Run this again from the same workspace root:
   tpatch feature intent-archive purge <slug> --blob <hash> --yes
 ```
 
-**Why one destructive command and no copy command.** This population's fixtures
+**Why one destructive command, and why the message names no preservation
+command either.** This population's fixtures
 include a hash-wrong regular file, a symlink, a directory, a FIFO and a device
 node at the managed path (PIB-506). rev-10's `cp` + plain `rm` pair is
 unexecutable against three of those and *misleading* against a fourth: `cp`
 without `-R` and `rm` without `-r` both fail on a directory, and `cp` on a
 symlink copies the target's bytes rather than the link. A procedure printed as
 the route out of an exit-6 refusal has to work on the object that produced the
-refusal, so rev-11 prints exactly one removal — `rm -rf --` against the single
+refusal, so rev-11 printed exactly one removal — `rm -rf --` against the single
 validated repo-relative managed path, with the `--` terminator, no wildcard and
-no recursion beyond that path — and tells the operator plainly to stop and use
-kind-appropriate tooling if they want the object preserved. The destructive
+no recursion beyond that path — and told the operator plainly to stop and use
+kind-appropriate tooling if they want the object preserved. **Rev-12 removes the
+named alternatives from that sentence too**: the emitted block above names no
+`cp`, `cp -R`, `cp -P`, `readlink`, `git show`, `mv`, `rsync` or `tar`, in the
+procedure or in the prose beside it, because a shipped remediation that names a
+kind-specific preservation command is vouching for it against an object whose
+kind the operator has not confirmed, and §10.7's permitted external forms
+contain none of them. The destructive
 warning is printed **above** the command, not after it (§9.3.1, §10.7,
-PIB-506, PIB-507, PIB-547).
+PIB-506, PIB-507, PIB-547, PIB-559).
 
 The rerun is not a new mechanism: it is exactly step 2 of the per-hash recovery
 above (absent blob → treat the removal as already complete) followed by step 4
@@ -3862,7 +4147,7 @@ the disclosed post-CAS
 final-syscall race (PIB-405, PIB-421,
 PIB-422, PIB-429, PIB-430, PIB-443, PIB-447, PIB-465…PIB-468, PIB-489…PIB-491,
 PIB-497, PIB-498, PIB-506…PIB-508, PIB-515…PIB-518,
-PIB-521…PIB-524, PIB-527, PIB-528, PIB-531…PIB-535, PIB-539…PIB-551).
+PIB-521…PIB-524, PIB-527, PIB-528, PIB-531…PIB-535, PIB-539…PIB-560).
 
 #### 9.7.3 Orphans and accidental-secret remediation
 
@@ -3897,13 +4182,20 @@ removes every unreferenced residue in the archive, not one**: the admission is
 for the residue *class*, and one invocation is expected to clear all of its
 instances, so an archive holding three of them is repaired in one run rather
 than bricked because each instance disqualifies the others (§9.3.1, PIB-548,
-PIB-549). A
+PIB-549). **A second, different repair class elsewhere in the archive does not
+withdraw it either**: `--orphans --yes` satisfies §9.3.1's four sequential
+conditions against every other class — an orphan's hash is unreferenced while
+every other class's hash is live or owned, so the selection sets are disjoint,
+and removing an unreferenced blob changes no other hash's classification — so it
+repairs the residue class, exits 0, and reports the untouched classes with their
+own routes and the fact that a rerun is required (§9.3.1, PIB-552, PIB-555,
+PIB-556). A
 non-regular or hash-wrong file at that path is not an orphan and keeps its
 `archive-blob-corrupt` exit-3 refusal, whose own route is §9.3.1's type-total
 removal. No other repair is offered, and the
-archive-divergence procedure of §9.7.2 is never named for it, because there is
-no pending reference for that procedure to finalize (§9.3.1, PIB-521, PIB-522,
-PIB-523, PIB-524).
+archive-divergence procedure of §9.7.2 is never named for it, because no
+reference to that hash is pending for that procedure to finalize (§9.3.1,
+PIB-521, PIB-522, PIB-523, PIB-524).
 
 **When the hash is still live, the same observation is not an orphan and
 `--orphans` must not touch it.** If any other reference to that hash — in the
@@ -3919,11 +4211,18 @@ one repair named character for character by the refusal, by `list` and by
 tpatch feature intent-archive purge <slug> --blob <hash> --yes
 ```
 
-run from the workspace root. It selects **every** reference to that hash, claims
+run from the workspace root, repeated once per mixed hash so that the class is
+covered. It selects **every** reference to that hash, claims
 them all, removes the blob and tombstones them all, which
 makes the index's global availability claim true again. `--orphans --yes` never
 removes that blob, and no report ever names `--orphans` for this state
-(§9.3.1 subcase B, PIB-531, PIB-532, PIB-533, PIB-535). If instead any
+(§9.3.1 subcase B, PIB-531, PIB-532, PIB-533, PIB-535). A confirmed
+`--all --yes` reaches the same end state, but it is offered only where
+`mixed-reference` is the archive's only class, and only with the sentence that
+it tombstones every reference in every generation and removes every blob, that
+the unconfirmed `purge <slug> --all` preview is the default and shows the full
+selection first, and that repeated `--blob <h> --yes` covers the same class
+without touching anything else (§9.3.1, PIB-557). If instead any
 reference to that hash is **removal-pending**, the hash is owned by a purge
 transaction in flight (§9.3): the observation is reported as `recovery-pending`
 and routed to that transaction, and neither subcase's repair is named
@@ -3960,19 +4259,26 @@ generation/archive mutation guesses which repair the operator intended
 **A blob that is present but unidentifiable is neither dangling nor an
 orphan.** A non-regular file — a symlink, a directory, a FIFO or a device node —
 or one whose bytes do not hash to its name, under
-a **retained** reference is `archive-blob-corrupt` (exit 3), rendered `corrupt`
+a **retained** reference of a **non-owned** hash is `archive-blob-corrupt`
+(exit 3), rendered `corrupt`
 by `list` and reported by `doctor`, and its route is §9.3.1's procedure: one
 type-total `rm -rf --` of the exact managed blob path, printed under an explicit
 destructive warning, then the confirmed `--blob <hash> --yes` above — which by
 then is the
 ordinary dangling repair — or restore the exact correct blob and retry. **No
-preservation copy is promised**, because no single copy command is correct for
-every kind of object that can occupy that path; an operator who wants the object
-is told to stop and use kind-appropriate tooling (§9.3.1, PIB-547). It is
+preservation command is named at all**, because no single copy command is correct
+for every kind of object that can occupy that path and a *list* of them reads as
+a menu tpatch has vetted; an operator who wants the object
+is told to stop and use tooling appropriate to its kind, chosen by them
+(§9.3.1, §10.7, PIB-547, PIB-559). It is
 never an orphan, because the hash is live; `--orphans --yes` never touches it;
 and the per-orphan identity check of §9.7.2, which yields the same code over the
 globally **unreferenced** set, routes to the same type-total removal, after
-which the hash is simply unreferenced with no file (PIB-428, PIB-543).
+which the hash is simply unreferenced with no file (PIB-428, PIB-543). Where the
+hash is instead **owned**, the observation is not this code at all: it is exit-6
+`archive-purge-evidence-divergent` under the owning transaction, whatever the
+observing reference's own wire state (§9.3 rows 6, 9 and 14, §9.7.2 step 6,
+PIB-558).
 
 ### 9.8 Why the archive is not provenance — stated so it cannot drift
 
@@ -4115,8 +4421,9 @@ Closed vocabularies:
 | `recovery.kind` | `journal-undo`, `archive-purge-finalize` (emitted **only** on the `recovered` outcome) |
 | `purge_progress.resume` | `pending-recovery-then-completion`, `completion-only`, `orphan-scan` (emitted **only** on the `purge-partial` outcome; §9.7.2) |
 | `pending_purge.selector` | `blob`, `generation`, `all`, `orphans` (emitted **only** on the `recovery-required` outcome; §9.7) |
+| `remaining_repairs.classes[].class` | `unreferenced-residue`, `dangling-reference`, `mixed-reference`, `corrupt-object` — the four repair classes of §9.3.1, closed and total over the non-owned inconsistent hashes |
 | `retry_cwd` | `workspace-root` (emitted wherever a `retry` command is emitted; §9.7.2) |
-| `advisories[].code` | the seventeen codes of §10.3 |
+| `advisories[].code` | the eighteen codes of §10.3 |
 | `refusal.code` | the closed refusal catalog of §10.4, asserted complete by PIB-228 |
 | `orphan_blobs[]` | zero or more `^[0-9a-f]{64}$` hashes; present on every outcome that leaves one (§7.9, §9.7.3) |
 
@@ -4198,6 +4505,69 @@ described twice. The report carries no `recovery` object, no `purge_progress`,
 no `archive` and no blob hash outside `pending_hashes[]`; the invocation
 acquires no lock and writes nothing (PIB-498, PIB-515, PIB-529, PIB-530).
 
+**Sequential-repair shape.** A confirmed `feature intent-archive purge` that
+§9.3.1's four conditions admitted for **one** repair class, in an archive that
+held more than one, exits 0 with its ordinary outcome and carries exactly one
+extra object, `remaining_repairs`, plus the `archive-repairs-remaining` advisory
+of §10.3. The object is emitted on no other outcome and by no other command:
+
+```json
+{
+  "outcome": "published",
+  "action": "none",
+  "remaining_repairs": {
+    "rerun_required": true,
+    "repaired_class": "unreferenced-residue",
+    "classes": [
+      {
+        "class": "mixed-reference",
+        "hashes": ["7c41…", "b12d…"],
+        "paths": [
+          ".tpatch/features/fix-model-id-translation/artifacts/intent-archive/blobs/7c41….blob",
+          ".tpatch/features/fix-model-id-translation/artifacts/intent-archive/blobs/b12d….blob"
+        ],
+        "repair": "tpatch feature intent-archive purge fix-model-id-translation --blob 7c41… --blob b12d… --yes",
+        "repair_cwd": "workspace-root"
+      }
+    ]
+  }
+}
+```
+
+Every field is normative:
+
+- `rerun_required` is the constant `true`. The object exists only to say that
+  the archive is **not** consistent yet, so a consumer switching on the field
+  and one switching on the object's presence agree.
+- `repaired_class` is the closed class token this invocation was admitted for,
+  so a consumer can check the admission against the selector without parsing
+  either.
+- `classes[]` is always present, never null (ADR-033 D11), never empty (an empty
+  array would mean nothing remained, which is the case where the object is not
+  emitted at all), and sorted by `class` in the closed set's declared order.
+  Each entry names its class, the lexically sorted hashes of that class's
+  instances, their repo-relative managed paths, and the **literal** repair the
+  operator must run — the same string §9.3.1's admission table assigns to that
+  class, with `--all` never substituted for a `--blob` enumeration.
+- `repair_cwd` is the closed literal `workspace-root`, exactly as `retry_cwd` is
+  everywhere else. The repair line is **not** a retry — it is the next class's
+  own command, not a re-run of this one — so it does **not** carry §9.7.2's
+  `Run this again from the same workspace root:` heading, which is reserved for
+  re-running the invocation that emitted it. Its human rendering is labelled as
+  a remaining repair and prints the same command and the same closed cwd literal
+  (§9.7.2, PIB-498, PIB-556).
+- For `corrupt-object`, `repair` carries the manual prerequisite's procedure
+  reference rather than a `tpatch` command line, because that class admits no
+  selector until the operator's own type-total removal has run; the emitted text
+  is §9.3.1's procedure, including the destructive warning above the single
+  `rm -rf --`, and names no preservation command (§9.3.1, PIB-547, PIB-559).
+
+The human rendering carries the same class tokens, the same hashes, the same
+repo-relative paths and the same repair lines, so the two surfaces are checkable
+field by field. No absolute path, no symlink target and no path outside the
+feature's `artifacts/intent-archive/` directory appears in either (§10.6,
+PIB-497, PIB-556, PIB-557).
+
 **Recovered shape.** A terminal recovery (§7.11) reports `outcome: "recovered"`,
 `action: "none"` and a `recovery` object with exactly these fields, in this
 order:
@@ -4267,7 +4637,7 @@ residue remains (§6.6 rule 7), `outcome` is `refused` and the same `abandoned`
 object carries an `existing[]` array of repo-relative residue directories and
 nothing else (PIB-499).
 
-### 10.3 Advisory catalog (closed, seventeen codes)
+### 10.3 Advisory catalog (closed, eighteen codes)
 
 | Code | Fires when | Says |
 |---|---|---|
@@ -4283,6 +4653,7 @@ nothing else (PIB-499).
 | `archive-blob-reused` | a replaced artifact's content already existed as a blob | zero new bytes were written for it |
 | `archive-generation-duplicate` | the computed `generation_id` already exists in the index | no index entry was appended; the archive is a set |
 | `archive-orphan-blobs` | orphan blobs exist for this slug after this invocation, whatever its outcome | how many, and the exact `purge --orphans` command |
+| `archive-repairs-remaining` | a confirmed `feature intent-archive purge` was admitted for **one** repair class (§9.3.1) while the global scan observed at least one **other** class, and it repaired only the class it was admitted for | which class was repaired, which classes were left untouched, each remaining class's instances with their repo-relative managed paths, each class's literal repair command run from the workspace root, and that the archive is not consistent until those reruns have been performed. It accompanies the closed `remaining_repairs` object of §10.2 and is emitted **if and only if** that object is (PIB-552, PIB-556) |
 | `staging-retained` | a failure left a staging tree | its repo-relative path; that the next successful run removes it |
 | `recovered-prior-transaction` | a terminal recovery completed (§7.11): a pending journal was undone/cleared, or pending archive hashes were finalized | which entries were restored or which hashes were finalized, that the requested operation was **not** performed, and the sanitized retry that performs it |
 | `features-index-refresh-failed` | the best-effort `FEATURES.md` refresh returned an error (§12.3.1) | that `status.json` is authoritative and the next transition retries the index |
@@ -4292,7 +4663,7 @@ nothing else (PIB-499).
 Advisory selection is a **total function of observed state**, never of artifact
 id: every advisory's precondition is a predicate over the inspection result and
 the transaction outcome, and PIB-175 asserts no advisory can contradict its own
-artifact row. PIB-227 asserts the shipped catalog is exactly these seventeen
+artifact row. PIB-227 asserts the shipped catalog is exactly these eighteen
 codes and that each is reachable by a named fixture.
 
 ### 10.4 Exit codes
@@ -4390,13 +4761,13 @@ literal in `refusal.code`, `refusal.message`, and `refusal.remediation`.
 | `slug-unsafe`, `workspace-not-initialized`, `workspace-unsupported-platform`, `prepare-unsupported-platform`, `lock-filesystem-unsupported`, `directory-flock-unavailable`, `local-lane-not-ignored`, `local-lane-unverifiable`, `feature-not-found`, `status-malformed`, `status-unreadable`, `request-unreadable`, `artifact-unsafe`, `artifact-unstable`, `state-refused`, `abandon-evidence-unsafe` | 3 | fix the named workspace/input/state condition; a denied/failed root filesystem says “move workspace to a supported local filesystem”; unsafe abandon evidence names the exact lane entry whose kind or containment failed, and moves nothing. **When `prepare-unsupported-platform`, `lock-filesystem-unsupported` or `directory-flock-unavailable` is returned while journal, preimage or staging evidence exists for the slug, the message additionally names the repo-relative lane `.tpatch/local/intent-prepare/<slug>/` and the last-resort manual removal, so the exit-6 escape stays executable there too (§6.6's pre-abandon gate table, rows 5, 6 and 8)**. `feature-not-found`, `status-malformed` and `status-unreadable` are **unreachable in `abandon` mode**, which never reads the feature directory (§6.6 rule 3, §10.5 step 6) |
 | `transaction-in-progress`, `recovery-pending` | 3 | for `transaction-in-progress`: the workspace mutation authority is held, the holder's identity is unknowable, and the safe action is to wait and retry — no stronger claim is made anywhere (§12.5), and **no manual removal is offered even in `abandon` mode with evidence present**, because the evidence may be a live holder's undo journal (§6.6's gate table row 7, PIB-512). `recovery-pending` has **two** populations and each names exactly one route. *Pending journal* (`--dry-run`, and `intent-archive purge` in both its preview and `--yes` forms): run a mutating `prepare <slug>`, which recovers the journal and reports `recovered` (§7.11), or `tpatch prepare <slug> --abandon-transaction --yes`; the refusing command never recovers, decodes or moves the journal itself. *Pending archive index* (a **normal mutating `prepare`** — `generate`, `manual`, `regenerate` — that observes removal-pending references, §7.8 step 5): run the sanitized `tpatch feature intent-archive purge <slug> --all --yes` from the workspace root, or `--blob <h> --yes` where every pending reference shares one hash `h`; the refusing `prepare` never finalizes a pending hash, and `retry_cwd: "workspace-root"` accompanies the named command. This population is defined by **global hash ownership**: any removal-pending reference makes the purge transaction the owner of its content hash, ownership outranks every other classification of that hash, and it fires whether or not the refusing mode would have touched that hash — `--manual`, which writes no archive at all, is refused by it (§9.3, §6.2, PIB-525, PIB-526, PIB-538, PIB-539) |
 | `provider-required-for-regenerate`, `archive-content-refused-sensitive` | 3 | configure provider/use explicit heuristic opt-in, or remove sensitive material and retry |
-| `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-generation-id-collision`, `archive-blob-corrupt`, `archive-blob-dangling`, `archive-index-storage-inconsistent`, `archive-blob-shared`, `archive-purge-index-changed` | 3 | preserve bytes; upgrade/inspect; for a dangling `h`, the one named repair is the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` (or an applicable `--all --yes`), which tombstones every reference to `h` and removes nothing. `archive-index-storage-inconsistent` has **three** sub-populations with three different routes, decided from the hash's **global** liveness (§9.3): an unsafe/wrong blob under a **pending** reference preserves the evidence and is resolved by §9.7.2's archive procedure; a **tombstoned reference whose named blob is present while the hash is globally unreferenced** is physical residue whose one named repair is the literal `tpatch feature intent-archive purge <slug> --orphans --yes` run from the workspace root; and the **same tombstone beside a blob whose hash is still live** is a mixed tombstone/live-reference inconsistency whose one named repair is the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` run from the workspace root, `--orphans` being forbidden from touching a live blob (§9.3.1, §9.7.3, PIB-521, PIB-522, PIB-531, PIB-532). `archive-blob-corrupt` likewise has **two** sub-populations, and both take the same type-total removal: over the globally **unreferenced** set it is `--orphans`' per-blob identity refusal, whose route is one `rm -rf -- <managed blob path>` after which the hash is simply unreferenced with no file and nothing further is required; under a **retained** reference it is a present but unidentifiable live blob, whose one named route is §9.3.1's repo-relative procedure — an explicit destructive warning, one `rm -rf --` of the exact managed blob path, then the confirmed `tpatch feature intent-archive purge <slug> --blob <h> --yes` that tombstones every now-dangling reference, or restore the exact correct blob and retry — stated with its destructive cost and the Git-history caveat, and with **no** generic preservation copy, because no single copy command is correct for a regular file, a symlink, a directory, a FIFO and a device node alike (§9.3.1, §9.7.3, §10.7, PIB-428, PIB-543, PIB-547). Every code in this row is refused over a **global** X11 scan of the whole index, so an inconsistency on a hash the requested selector does not touch still refuses it zero-write and names that hash's own repair; an admitted repair is admitted for its whole **class** and only when the confirmed selection covers every instance of that class, so multiple same-class instances are repaired in one invocation while mixed classes refuse zero-write and render each class's route (§9.3.1, PIB-542, PIB-548, PIB-549) |
+| `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-generation-id-collision`, `archive-blob-corrupt`, `archive-blob-dangling`, `archive-index-storage-inconsistent`, `archive-blob-shared`, `archive-purge-index-changed` | 3 | preserve bytes; upgrade/inspect; for a dangling `h`, the one named repair is the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes`, repeated once per dangling hash so the class is covered, which tombstones every reference to each `h` and removes nothing. `archive-index-storage-inconsistent` has **two** sub-populations with two different routes, decided from the hash's **global** liveness (§9.3), and both are defined over a hash **no** transaction owns: a **tombstoned reference whose named blob is present while the hash is globally unreferenced** is physical residue whose one named repair is the literal `tpatch feature intent-archive purge <slug> --orphans --yes` run from the workspace root; and the **same tombstone beside a blob whose hash is still live** is a mixed tombstone/live-reference inconsistency whose one named repair is the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` run from the workspace root, `--orphans` being forbidden from touching a live blob (§9.3.1, §9.7.3, PIB-521, PIB-522, PIB-531, PIB-532). It has **no** pending sub-population: rev-11 additionally mapped an unsafe/wrong blob under a pending reference here, which contradicted §9.3 and §9.7.2 step 6 and offered an exit-3 zero-write promise for a transaction that had already written; that mapping is **withdrawn**, and an **owned** hash whose blob is present but non-regular or hash-wrong is exit-6 `archive-purge-evidence-divergent` and nothing else (§9.3 rows 6, 9 and 14, PIB-558). `archive-blob-corrupt` likewise has **two** sub-populations, both on **non-owned** hashes, and both take the same type-total removal: over the globally **unreferenced** set it is `--orphans`' per-blob identity refusal, whose route is one `rm -rf -- <managed blob path>` after which the hash is simply unreferenced with no file and nothing further is required; under a **retained** reference it is a present but unidentifiable live blob, whose one named route is §9.3.1's repo-relative procedure — an explicit destructive warning, one `rm -rf --` of the exact managed blob path, then the confirmed `tpatch feature intent-archive purge <slug> --blob <h> --yes` that tombstones every now-dangling reference, or restore the exact correct blob and retry — stated with its destructive cost and the Git-history caveat, and naming **no** preservation command at all, because no single copy command is correct for a regular file, a symlink, a directory, a FIFO and a device node alike and a list of them reads as a vetted menu (§9.3.1, §9.7.3, §10.7, PIB-428, PIB-543, PIB-547, PIB-559). Every code in this row is refused over a **global** X11 scan of the whole index, so an inconsistency the requested selector does not touch still refuses an ordinary mutation zero-write and names that hash's own repair; a confirmed purge selector is admitted for **one** repair class under §9.3.1's four conditions — full coverage of the class, disjointness from every other class, provable non-degradation of every other class's evidence, and a report naming every untouched class with its route and requiring a rerun — so multiple same-class instances are repaired in one invocation, multiple **classes** are repaired one invocation each in sequence, and a selection that covers part of a class or reaches into a second one refuses zero-write and renders each class's route (§9.3.1, PIB-542, PIB-548, PIB-549, PIB-552…PIB-557) |
 | `no-pending-transaction` | 3 | run an admissible mutating operation, or inspect the stated residue; when the only pending state is a removal-pending archive index, the message names the archive route (`feature intent-archive purge <slug> --blob <h> --yes`, or `--all --yes` for more than one pending hash) and **not** a mutating `prepare`, which since rev-8 refuses `recovery-pending` in that state rather than finalizing it (§6.6 rule 8, §7.8 step 5); when the only residue is one or more prior `abandoned-<12hex>/` directories, the message lists them repo-relative, states that they were preserved untouched, and offers the optional `rm -rf` form (§6.6 rule 7); no destructive cleanup is implied or performed |
 | `incoherent-bundle-gap`, `artifact-empty-not-overwritten`, `not-ready`, `staged-output-invalid` | 2 | complete/adopt or choose the explicitly named regenerate/manual route |
 | `entry-appeared`, `entry-changed`, `status-changed`, `archive-index-changed`, `regenerate-generation-failed`, `workspace-root-changed` | 5 | no canonical overwrite; retry from the observed tree. A missing/changed original workspace path must be restored/reselected; a held root cannot discover a moved pathname |
 | `archive-purge-partial` | 5 | the purge is resumable: re-run the reported **sanitized equivalent command** from the workspace root (`retry` plus `retry_cwd`, never an inherited `--path`). What that run does is stated by the report's closed `resume` field: on `pending-recovery-then-completion` it finalizes the pending hash and reports exit 0 `recovered` (terminal, §7.11) and a further run completes the remaining hashes; on `completion-only` and `orphan-scan` a single run completes the work and **no** `recovered` outcome is emitted or promised. The report's `completed_hashes`, `pending_hash` (branch (a) only) and `remaining_hashes` say where it stopped, and the index is consistent in the meantime (§9.7.2) |
 | `undo-cas-mismatch`, `recovery-divergent`, `journal-corrupt`, `journal-version-mismatch`, `journal-foreign`, `journal-path-escape`, `journal-forged`, `post-publication-divergence`, `workspace-root-replaced-after-publication` | 6 | preserve evidence and name `--abandon-transaction`; where platform, filesystem or `flock` denies that mode and evidence exists, name the repo-relative lane and the last-resort manual removal instead (§6.6) |
-| `archive-purge-evidence-divergent` | 6 | preserve every blob, the index and the pending record, and name the **archive** procedure of §9.7.2 — the pending hash, the repo-relative managed blob and `index.json` paths, an explicit destructive warning, the type-total `rm -rf --` of the divergent managed blob path (blob form) **or** the restoration of an index that no longer strict-decodes (index form, which names no removal at all), and the sanitized rerun with `retry_cwd`, whose pending+absent recovery terminally tombstones — together with its destructive cost and the Git-history caveat. No generic preservation copy is offered, because no one copy command is correct for a regular file, a symlink, a directory, a FIFO and a device node alike (PIB-547). It **must not** name `--abandon-transaction`: that mode touches no index and no blob and cannot consume this evidence (§6.6 rules 8 and 10, PIB-506, PIB-508). It is reachable **only** where a pending reference exists; a tombstoned reference beside a present blob is not this code but exit-3 `archive-index-storage-inconsistent`, with the `--orphans --yes` repair when the hash is globally unreferenced and the confirmed `--blob <h> --yes` repair when it is still live (§9.3.1, PIB-521, PIB-524, PIB-531), and a retained reference beside a present but unidentifiable blob is exit-3 `archive-blob-corrupt` with §9.3.1's own route (PIB-543) |
+| `archive-purge-evidence-divergent` | 6 | preserve every blob, the index and the pending record, and name the **archive** procedure of §9.7.2 — the pending hash, the repo-relative managed blob and `index.json` paths, an explicit destructive warning, the type-total `rm -rf --` of the divergent managed blob path (blob form) **or** the restoration of an index that no longer strict-decodes (index form, which names no removal at all), and the sanitized rerun with `retry_cwd`, whose pending+absent recovery terminally tombstones — together with its destructive cost and the Git-history caveat. **No preservation command is named**, because no one copy command is correct for a regular file, a symlink, a directory, a FIFO and a device node alike and a list of them reads as a vetted menu (PIB-547, PIB-559). It **must not** name `--abandon-transaction`: that mode touches no index and no blob and cannot consume this evidence (§6.6 rules 8 and 10, PIB-506, PIB-508). Its population is every hash a purge transaction **owns** — some reference to it removal-pending — whose blob is present but non-regular or hash-wrong, observed through **any** of that hash's references, plus the pending-index form; §9.3's rows 6, 9 and 14 are one owned hash seen through a retained, a pending and a tombstoned reference and all three take this code, which is the **only** code reachable for them (PIB-558). A **non-owned** tombstoned reference beside a present blob is instead exit-3 `archive-index-storage-inconsistent`, with the `--orphans --yes` repair when the hash is globally unreferenced and the confirmed `--blob <h> --yes` repair when it is still live (§9.3.1, PIB-521, PIB-524, PIB-531), and a **non-owned** retained reference beside a present but unidentifiable blob is exit-3 `archive-blob-corrupt` with §9.3.1's own route (PIB-543) |
 
 `archive-index-changed` is publication/rehydration exit 5 only;
 `archive-purge-index-changed` is purge exit 3 only (preflight, before the first
@@ -4524,23 +4895,36 @@ reports.
     refusal and purge preimage mismatch → `3`, all of it before the purge's
     first mutation. **X11's observation here is over the whole index, never
     over the selection** (§9.3.1), so an inconsistency on a hash the requested
-    selector does not touch refuses this step zero-write and names that hash's
-    own repair; no partial cleanup of unrelated items proceeds around it
-    (PIB-542). **Admission is per repair class and requires full coverage**: a
-    confirmed selection that covers every instance of the one class present is
-    admitted and repairs them all in that invocation, while an uncovered
-    same-class instance or any second class refuses zero-write and names each
-    class's own route (PIB-548, PIB-549). A tombstoned reference whose named blob is present refuses
+    selector does not touch refuses every **ordinary** mutation zero-write and
+    names that hash's own repair; no partial cleanup of unrelated items
+    proceeds around it (PIB-542). **A confirmed purge selector may be admitted
+    for exactly one repair class under §9.3.1's four conditions**: it covers
+    every instance of that class, no selected hash or removed object belongs to
+    another class, the mutation cannot erase or degrade another class's
+    evidence, and the report names every untouched class with its own route and
+    states that a rerun is required. A second class merely being present no
+    longer withdraws the admission — that was rev-11's brick — but an uncovered
+    same-class instance, a selection reaching into a second class, or a
+    mutation that would degrade another class's evidence still refuses
+    zero-write and names each class's own route (PIB-548, PIB-549, PIB-552,
+    PIB-555, PIB-556). A tombstoned reference whose named blob is present, on a
+    hash **no** transaction owns, refuses
     here as `archive-index-storage-inconsistent`, and which repair it names is
     decided from the hash's **global** liveness: with the hash unreferenced it
     names `--orphans --yes`, and with the hash still live it names the confirmed
-    `--blob <h> --yes`; each is the one invocation admitted past that
-    observation, admitted only for that observation, and `--orphans` never
+    `--blob <h> --yes` repeated once per mixed hash; each is the invocation
+    admitted past that
+    observation, admitted only for that observation's class, and `--orphans` never
     removes a live blob (§9.3.1, PIB-521,
-    PIB-522, PIB-531, PIB-532, PIB-542). A **retained** reference whose blob is
+    PIB-522, PIB-531, PIB-532, PIB-542). A **retained** reference of a
+    **non-owned** hash whose blob is
     present but non-regular or hash-wrong refuses here as
     `archive-blob-corrupt`, naming §9.3.1's type-total removal-then-confirmed-purge
     or restore route, and no selector is admitted past it (PIB-543, PIB-547).
+    An **owned** hash is not classified at this step at all: it was routed or
+    resolved before it, and where its blob is unidentifiable the owning
+    `purge --yes` refuses **exit 6** `archive-purge-evidence-divergent` rather
+    than any exit-3 code (§9.3, §9.7.2 step 6, PIB-558).
     For the
     `feature intent-archive
     purge` command this ladder
@@ -4688,8 +5072,15 @@ repo-relative paths or an explicit `<a path outside .tpatch/>` placeholder, and
 each is printed with what it costs. Any other external command in any shipped
 string is a guard failure (PIB-180, PIB-506, PIB-543).
 
-**Form (3) is destructive, type-total and deliberately unaccompanied by a copy
-command.** rev-10 permitted a `cp`/`rm` *pair* here and rev-11 withdraws the
+**Form (1) is scoped to §9.5's success report and may not appear anywhere
+else.** It restores an archived artifact the operator asked to restore; it is
+**not** a preservation aid, and it is forbidden in every corrupt-object,
+divergent-evidence and repair-class message. Mixing the two contexts is how a
+`cp` line ended up beside a destructive step in rev-10 (PIB-559).
+
+**Form (3) is destructive, type-total and deliberately unaccompanied by any
+preservation command.** rev-10 permitted a `cp`/`rm` *pair* here and rev-11
+withdrew the
 `cp` half: the observations this form serves include a symlink, a directory, a
 FIFO and a device node at the managed path, and a `cp` that is correct for a
 regular file is wrong or fatal for the rest (§9.3.1). The permitted form is
@@ -4699,10 +5090,26 @@ a directory and its contents included — with no undo. It carries the `--`
 terminator so a path cannot be read as an option, and it never contains a
 wildcard, a directory prefix or a second path. Where an operator wants to keep
 the object, the message tells them to stop and use tooling appropriate to its
-kind rather than printing one command that is right for one kind out of five.
+kind **and names no command** — rev-11 removed the emitted `cp` and then listed
+`cp -R`, `cp -P`/`readlink` and `git show` in the prose beside it, which is the
+same defect one layer out, since none of those three is a permitted form and
+naming them vouches for them against an object whose kind the operator has not
+confirmed.
 PIB-547 asserts the form, the warning, the absence of any copy command and the
 absence of any wildcard, over all five object kinds; PIB-180 keeps the permitted
 set closed at three.
+
+**The forbidden-token set is explicit, and it is guarded over emitted blocks
+rather than argued.** No shipped string, worked example or documented procedure
+in the corrupt-object, divergent-evidence, repair-class or
+remaining-repairs surfaces may contain any of the tokens `cp`, `git`,
+`readlink`, `mv`, `rsync`, `tar`, `ln`, `install`, `dd` or `chmod`, as a command
+word. The set is stated as tokens, not as a description, so a guard can decide
+it: PIB-559 extracts every emitted block those surfaces can produce — the
+refusal renderings, the `list`/`doctor` route strings, the `remaining_repairs`
+repair lines and the worked examples in this PRD and in ADR-035 — and fails on
+any of them. The three permitted forms above are the closed exception list, each
+scoped to the one surface §10.7 assigns it (PIB-180, PIB-547, PIB-559).
 
 ## 11. Path A generation
 
@@ -5292,7 +5699,7 @@ under `.tpatch/local/` refuses the command (PIB-186, PIB-187).
 | `docs/path-b-operator-guide.md` | The three-`--manual`-commands flow (`docs/path-b-operator-guide.md:61-73`) gains `tpatch prepare <slug> --manual` as the one-step adoption alternative. |
 | `docs/path-b-operator-guide.md` (second change) | The non-Git and unusable-Git behavior of §7.13, so a Path B operator learns the `local-lane-unverifiable` refusal from the guide rather than from the refusal. |
 | `CHANGELOG.md` | The thirteen deltas of §12.6. |
-| `docs/adrs/README.md` | The ADR-035 index row (created with this PRD at rev-0; update its proposed rev-11 status when implementation is authorized). |
+| `docs/adrs/README.md` | The ADR-035 index row (created with this PRD at rev-0; update its proposed rev-12 status when implementation is authorized). |
 
 ### 14.2 Skill asset parity
 
@@ -5369,11 +5776,16 @@ grows one (PIB-068).
 | R21 | Two commands own the pending-purge transaction, so `archive-purge-evidence-divergent` can be emitted by a `prepare` whose output cannot carry the archive procedure that resolves it. | The transaction has exactly one owner: `RecoverPendingPurge` has a single call site, on `feature intent-archive purge --yes`. A mutating `prepare` that observes `purge_pending` refuses exit 3 `recovery-pending` with zero writes and hands over the purge command with `retry_cwd` (§7.8 step 5, §7.11, §10.4.1). PIB-525 asserts the refusal and its zero writes, PIB-526 fails any second call site. |
 | R22 | A tombstoned reference is read as proof that its blob is unreferenced, `--orphans --yes` deletes a blob another generation still retains, and the operator loses recoverable bytes plus gains a dangling reference — through the one selector that promises to remove nothing referenced. | Liveness is a **global** property of the content hash and is computed over every generation before anything is classified or selected (§9.3). The orphan predicate excludes any hash with a retained or removal-pending reference; the mixed state gets its own classification and its own confirmed `--blob <h> --yes` repair (§9.3.1 subcase B, §9.7.1, §9.7.3). PIB-531 asserts the classification across all four surfaces, PIB-532 asserts the repair restores global truth, PIB-535 pins `list`'s exits and remediation for both subcases, and PIB-533 is the guard whose sensitivity fixture is exactly a per-reference predicate — valid code that deletes live data — which must fail. |
 | R23 | The purge recovery itself creates a dangling reference: it removes `h.blob` because *some* reference to `h` is removal-pending, while another generation's reference to `h` is still retained. The archive's repair mechanism becomes a producer of the state it repairs. | A removal-pending reference makes the purge transaction the **global owner** of the hash (§9.3). The recovery claims `h` globally — one CAS rewrite making every reference to `h` removal-pending, taken only while the blob is present and hash-correct — revalidates immediately before the removal, and **removes only when no reference to `h` is anything but pending**. Where the blob is already absent it tombstones every reference instead, which is the shipped dangling repair. PIB-539 asserts the invariant with an index-write spy over the claim/remove/tombstone order, PIB-540 drives the crash points, and PIB-544 drives the four external-insertion windows (§9.7.2, §7.10 CP12/CP12a). |
-| R24 | A `purge --orphans --yes` removes the residue it was asked about while a mixed tombstone/live-reference hash elsewhere in the same index goes unmentioned, leaving an archive that is partly repaired and whose next observation is different from the one just acted on. | X11's storage observation is over the **whole index** before every archive mutation, independent of the selector (§9.3.1). A global inconsistency refuses every selector at exit 3 with the whole tree byte-identical, naming that observation's owning repair; each admitted repair is admitted only for the exact inconsistency it repairs, after global classification. PIB-542 asserts a disjoint-selector refusal with a whole-tree snapshot, and `list`/`doctor` render every observation at once so one pass shows the whole inventory (PIB-541). |
+| R24 | A `purge --orphans --yes` removes the residue it was asked about while a mixed tombstone/live-reference hash elsewhere in the same index goes **unmentioned**, leaving an operator who believes the archive is repaired and discovers otherwise on their next ordinary mutation. | X11's storage observation is over the **whole index** before every archive mutation, independent of the selector (§9.3.1), and the report is over the whole index too. Since rev-12 the residue **is** repaired in that archive — refusing it was rev-11's brick — but only under §9.3.1's four conditions, of which the fourth is that the report names every untouched class with its own literal repair and states that a rerun is required, carried by the `archive-repairs-remaining` advisory and the closed `remaining_repairs` object (§10.2, §10.3). What remains forbidden is a **partial** repair *within* a class, a selection that reaches into a second class, and a silent omission. PIB-542 asserts the refusal where no admission applies, PIB-552 and PIB-556 assert the admitted run and its untouched-class report, and `list`/`doctor` render every observation at once so one pass shows the whole inventory (PIB-541). |
 | R25 | An operator finds a present but hash-wrong blob under a retained reference, gets a refusal with no route, and either edits the index by hand or deletes the archive. | The observation is `archive-blob-corrupt` at exit 3, zero-write, pinned across `list`, `doctor` and every ordinary mutation, with one repo-relative procedure: one type-total `rm -rf --` of the managed blob path under an explicit destructive warning, then the confirmed `purge <slug> --blob <h> --yes` — which by then is the ordinary, already-admitted dangling repair — or restore the exact correct blob and retry. The cost and the Git-history caveat are stated. PIB-543 asserts the classification, the route and the end-to-end composition, and PIB-547 asserts the printed command executes on all five object kinds (§9.3.1, §9.7.3, §10.7). |
 | R26 | A shipped refusal prints `rm -rf`, an operator pastes it in the wrong directory or against a wrong path, and loses unrelated work. | The form is constrained rather than trusted: it names **one** repo-relative managed `blobs/<hash>.blob` path that X11 has already validated as contained in the feature's archive, carries the `--` terminator so a leading `-` cannot become an option, contains no wildcard, no directory prefix above the blob and no second path, and is printed beneath an explicit statement that it deletes whatever is there — a directory and its contents included — with no undo. It is one of only three permitted external shell forms (§10.7), and PIB-547 asserts the exact shape, the warning's position, the absence of a wildcard and the fact that a symlink's target is untouched. The alternative — printing a copy command first — is what rev-11 withdrew, because it was wrong for four of the five object kinds and gave false confidence before a destructive step (§9.3.1, §9.7.2). |
 | R27 | An operator's archive holds two instances of one repair class and every selector refuses, so the shipped repair is unreachable and the archive is bricked. | Admission is per repair **class** with full coverage rather than per instance: `--orphans --yes` clears every unreferenced residue in one run, and repeated `--blob` (or an applicable `--all`) clears every same-class hash. `list` and `doctor` render multiple instances of one class as one class with many instances carrying a single invocation. PIB-548 asserts the three multi-instance fixtures end to end and PIB-549 fails an admission predicate that keeps rev-10's sole-inconsistency rule (§9.3.1, §9.7.1, §9.7.3). |
 | R28 | The whole-index validation added to protect the archive blocks the recovery of a purge transaction that is already half applied, leaving a pending hash no command can finish. | Completing an already-pending purge is the one explicit exception to pre-mutation global validation: `RecoverPendingPurge` runs before the global scan, finalizes only hashes the transaction already owns, is terminal at exit 0 `recovered`, and never proceeds into the selector; the operator's rerun is then an ordinary new-selector invocation fully governed by the scan. PIB-546 derives the ordering from control flow and fails a scan-first implementation, a recovery that continues into the selector and a `prepare` granted the same exception (§9.3.1, §9.7.2, §10.5 step 22). |
+| R29 | An operator's archive accumulates **two different** repair classes — say an unreferenced residue and a mixed hash — and rev-11's "sole class" admission withdraws every selector, so the archive has no shipped repair at all and every ordinary mutation refuses forever. | Admission is **sequential**, one chosen class per invocation, under §9.3.1's four conditions: full coverage of the chosen class, disjointness from every other class's hashes and objects, provable non-degradation of every other class's evidence, and a report naming every untouched class with its own route and requiring a rerun. The global scan still observes and reports **every** class, and every ordinary mutation still refuses. PIB-552 drives the two-class sequence end to end, PIB-553 the three-class sequence including the corrupt class's manual prerequisite, PIB-555 derives the non-degradation predicate from the implementation, and PIB-549 fails an admission predicate that keeps the sole-class rule (§9.3.1, §9.7.1, §9.7.2). |
+| R30 | A hash satisfies two class descriptions at once — a mixed tombstone/live pair whose blob is a directory — and a confirmed `--blob <h> --yes`, admitted as the mixed class's repair, silently acts on an object the corrupt class forbids tpatch to touch. | Class membership is a **function**, not a predicate that can hold twice: §9.3's precedence — ownership first, unidentifiable bytes second, liveness last — collapses overlapping observations on one hash to exactly one class before any class set is built, so that hash is `corrupt-object` and is not in the mixed class at all. Its selector is therefore **not** admitted until the manual prerequisite has run. PIB-554 derives the collapse from the classifier and fails an implementation that lets one hash appear in two class sets or that admits a selector for the lower-precedence description (§9.3, §9.3.1). |
+| R31 | An operator is told to run `--all --yes` to clear one class, runs it, and discovers it tombstoned every generation and removed every blob in the archive. | `--all` fails the disjointness and non-degradation conditions against any second class by construction, so it is admitted only where the chosen class is the archive's only class — and wherever it is named as a repair the message states, adjacent to the command, that it tombstones every reference in every generation and removes every blob, that the unconfirmed `purge <slug> --all` preview is the default and shows the full selection first, and that repeated `--blob <h> --yes` covers the same class while touching nothing else. PIB-557 asserts all three elements at every emitter that names it and fails one that names it bare (§9.3.1, §9.7.1, §9.7.3). |
+| R32 | An operator whose owned hash has an unidentifiable blob is handed an exit-3 `archive-index-storage-inconsistent` refusal promising the tree was not written, when the purge transaction that owns the hash has already written. | That mapping is withdrawn. An owned hash whose blob is present but non-regular or hash-wrong maps **only** to exit 6 `archive-purge-evidence-divergent`, through every one of its references — §9.3's rows 6, 9 and 14 — with the evidence preserved and §9.7.2's archive procedure as its route. PIB-558 derives the mapping from the classifier and fails any exit-3 code for an owned hash; PIB-524 and PIB-545 carry the same fixture in their existing entries (§9.3, §9.3.1 X11, §9.7.2 step 6, §10.4.1). |
+| R33 | A shipped remediation names `cp -R`, `git show` or `readlink` as a preservation aid for an object whose kind the operator has not confirmed, and they lose the object while believing they kept it. | The corrupt-object and divergent-evidence surfaces name **no** preservation command at all: they emit exactly the type-total `rm -rf --` beneath its warning, or no command at all in the index-divergence form, and the preservation sentence tells the operator to stop and choose tooling appropriate to the object's kind themselves. §10.7 states the forbidden token set explicitly and PIB-559 greps every emitted block those surfaces can produce, with sensitivity fixtures for each withdrawn token (§9.3.1, §9.7.2, §10.7, PIB-547). |
 
 ## 17. Implementation slices and file ownership
 
@@ -5427,7 +5839,7 @@ unimplemented read half.
 | **S4b** | The retention surface: `tpatch feature intent-archive list\|purge`. | new `internal/cli/feature_intent_archive.go`; modified `internal/cli/feature_deps.go` (the group registration line only) |
 | **S5** | `doctor` D9 — persistent-evidence reporting only, with **no** root open and no flock probe; compatibility and non-invalidation proofs. D1–D8 retain their CLI goldens. | new `internal/workflow/doctor_d9.go`; modified `internal/workflow/doctor.go` (registry only) and `internal/cli/doctor.go` (D9 help/check-list only) |
 | **S6** | Docs, six skill surfaces, parity-guard extension, over-claim and citation guards, sensitivity meta-check. | `SPEC.md`, `docs/**`, `assets/skills/**`, `assets/assets_test.go` |
-| **S7** | Rev-4 … rev-11 cross-cutting hardening after owned slices: terminal-recovery ordering and its exit-3 zero-write consequence, purge's journal-marker refusal and its purge-owned terminal pending-hash recovery on every selector, `prepare`'s zero-write `recovery-pending` refusal on a removal-pending index, the globally-evaluated tombstone-beside-blob split with its `--orphans --yes` and confirmed `--blob <h> --yes` repairs, the one verbatim retry heading over every emitter, the classified root-open/`Open(".")` refusal, the bound pending-purge preview shape, abandon reachability with `git` absent/unusable and with an absent/malformed/unreadable feature, the total pre-abandon gate table over every argv requesting a true abandon (or failing parse while naming the flag) and its wait-and-retry contention case, the global pending-hash ownership invariant and its total same-hash claim-then-remove-then-tombstone order, the selector-independent whole-index storage validation with its zero-write refusal and its one pending-recovery ordering exception, the per-repair-class multi-instance admission, the type-total corrupt-object removal route and the disclosed revalidate-to-unlink residual, the partitioned exit-6 route map and the archive-divergence procedure, the three conditional partial-purge branches, the purge Git zero and the purge-preview lock zero, sanitized retries and repeat-abandon residue, the command-owned `--yes` literal, `Control`-scoped `fstatfs` with no `Fd()` in the authority path, forced-GC real-process authority lifetime, release-then-`Control` determinism, alias-at-acquisition/renamed-original-path refusal, `fstatfs`-on-held-descriptor and exact denied-class fixtures, Linux/macOS root-inode contention/release, abandon-before-recovery ordering with corrupt/divergent/recoverable evidence, rooted control-write proofs, purge preflight/partial-outcome/crash recovery and the single dangling repair, structural raw-sink and schema-scoped provenance guards, closed Git count/argv/environment spies including the indexed config forms, dry-run branch totality, and D9 zero-probe proofs. | tests beside `internal/intentlock`, `internal/intentpub`, `internal/store`, `internal/cli`, `internal/workflow`, `internal/gitutil`, `internal/rescap`; no new public surface |
+| **S7** | Rev-4 … rev-12 cross-cutting hardening after owned slices: terminal-recovery ordering and its exit-3 zero-write consequence, purge's journal-marker refusal and its purge-owned terminal pending-hash recovery on every selector, `prepare`'s zero-write `recovery-pending` refusal on a removal-pending index, the globally-evaluated tombstone-beside-blob split with its `--orphans --yes` and confirmed `--blob <h> --yes` repairs, the one verbatim retry heading over every emitter, the classified root-open/`Open(".")` refusal, the bound pending-purge preview shape, abandon reachability with `git` absent/unusable and with an absent/malformed/unreadable feature, the total pre-abandon gate table over every argv requesting a true abandon (or failing parse while naming the flag) and its wait-and-retry contention case, the global pending-hash ownership invariant and its total same-hash claim-then-remove-then-tombstone order, the selector-independent whole-index storage validation with its zero-write refusal and its one pending-recovery ordering exception, the per-repair-class multi-instance admission, the type-total corrupt-object removal route and the disclosed revalidate-to-unlink residual, the partitioned exit-6 route map and the archive-divergence procedure, the three conditional partial-purge branches, the purge Git zero and the purge-preview lock zero, sanitized retries and repeat-abandon residue, the command-owned `--yes` literal, `Control`-scoped `fstatfs` with no `Fd()` in the authority path, forced-GC real-process authority lifetime, release-then-`Control` determinism, alias-at-acquisition/renamed-original-path refusal, `fstatfs`-on-held-descriptor and exact denied-class fixtures, Linux/macOS root-inode contention/release, abandon-before-recovery ordering with corrupt/divergent/recoverable evidence, rooted control-write proofs, purge preflight/partial-outcome/crash recovery and the single dangling repair, structural raw-sink and schema-scoped provenance guards, closed Git count/argv/environment spies including the indexed config forms, dry-run branch totality, and D9 zero-probe proofs. | tests beside `internal/intentlock`, `internal/intentpub`, `internal/store`, `internal/cli`, `internal/workflow`, `internal/gitutil`, `internal/rescap`; no new public surface |
 
 **Ordering.** S1b → S1 → S3 → S4 → S4b is strict. S2 may run in parallel with
 S1/S1b/S3 **only** under an explicit file partition; S5 and S6 follow S4b;
@@ -5524,7 +5936,15 @@ seam either: PIB-550's revalidate→unlink replacement is injected at the existi
 other rev-11 state — the tombstoned-reference claim, the multi-instance repair
 classes, the five corrupt object kinds and the compound recovery ordering — is
 an index or filesystem fixture, a control-flow derivation or a printed string
-rather than a fault.
+rather than a fault. **rev-12 adds exactly one test-only seam, and it is not a
+fault-injection point**: PIB-560's injected **file-kind** seam, which reports an
+observed object's kind to the classifier so the device-node case can be
+exercised where `mknod` needs privilege the test user lacks. It has no
+production call site, it is used only for that one kind, and the substitution is
+recorded as a stated limitation in the test's own output. Every other rev-12
+state — the multi-class archives, the class-collapse hash, the owned-corrupt
+tuples, the split state-map rows and the forbidden-token blocks — is an index or
+filesystem fixture, a control-flow derivation or a printed string.
 
 **Amended rows.** IDs are never renumbered. Rev-1 amended `PIB-015`,
 `PIB-016`, `PIB-017`, `PIB-020`, `PIB-041`, `PIB-053`, `PIB-079`, `PIB-110`,
@@ -5580,7 +6000,7 @@ whose observable moved with this revision:
 - *Authority, filesystem and reference truth* (§7.4.1, §7.4.2, §7.4.4):
   `PIB-286`, `PIB-287`, `PIB-392`…`PIB-394`, `PIB-409`…`PIB-411`, `PIB-416`,
   `PIB-418`, `PIB-433`, `PIB-435`, `PIB-441`, `PIB-442`.
-- *Catalogs, vocabularies and ledgers* (§10.2, §10.4.1, §18.50): `PIB-226`,
+- *Catalogs, vocabularies and ledgers* (§10.2, §10.4.1, §18.51): `PIB-226`,
   `PIB-228`, `PIB-229`, `PIB-230`, `PIB-231`, `PIB-431`.
 
 Their old dry-run-equivalence, recovery-before-abandon, path-based-journal,
@@ -5667,8 +6087,8 @@ verifiable in the rev-9 diff against `837f28a`:
 
 `PIB-498` additionally changes **Kind**, from `I` to `G`, because it is now the
 derived totality guard over every retry emitter rather than one path's
-assertion; the kind change is carried in §18.50's arithmetic and the row gains a
-§18.51 semantic-fixture entry; §18.51's table grows from nineteen to
+assertion; the kind change is carried in §18.51's arithmetic and the row gains a
+§18.52 semantic-fixture entry; §18.52's table grows from nineteen to
 twenty-two guards (PIB-356, PIB-498 and PIB-533 join it, and nothing leaves).
 Their old
 per-reference-orphan, single-tombstone-route, two-spelling-retry-heading and
@@ -5690,8 +6110,8 @@ verifiable in the rev-10 diff against `ebd1be8`:
 - *Abandon boolean domain* (§5.2, §6.6): `PIB-511`.
 - *List/doctor coexistence precedence* (§9.7, §12.5): `PIB-535`.
 
-No row changes **Kind** in rev-10, so §18.50's arithmetic carries the rev-9
-totals forward unchanged before the nine new rows are added. §18.51's table
+No row changes **Kind** in rev-10, so §18.51's arithmetic carries the rev-9
+totals forward unchanged before the nine new rows are added. §18.52's table
 grows from twenty-two to twenty-three guards (`PIB-545` joins it, and nothing
 leaves); `PIB-498`, `PIB-511`, `PIB-524` and `PIB-533` each gain an additional
 semantic fixture inside their existing entries. Their old
@@ -5715,8 +6135,8 @@ verifiable in the rev-11 diff against `a9ad7c0`:
 - *State-map totality and the pinned residual* (§9.3, §9.7.2): `PIB-524`,
   `PIB-544`.
 
-No row changes **Kind** in rev-11 either, so §18.50's arithmetic carries the
-rev-10 totals forward unchanged before the six new rows are added. §18.51's
+No row changes **Kind** in rev-11 either, so §18.51's arithmetic carries the
+rev-10 totals forward unchanged before the six new rows are added. §18.52's
 table grows from twenty-three to twenty-six guards (`PIB-546`, `PIB-549` and
 `PIB-551` join it, and nothing leaves); `PIB-524` and `PIB-545` each gain
 additional semantic fixtures inside their existing entries. Their old
@@ -5725,6 +6145,34 @@ tombstoned-reference-no-op, sole-inconsistency-admission,
 retired; **no stable ID silently changes
 meaning, and none is renumbered.** Rev-11 adds only contiguous
 `PIB-546`…`PIB-551`.
+
+**Rev-12 explicitly amends**, rather than silently re-meaning, every stable row
+whose observable moved with this revision — and only those rows, each one
+verifiable in the rev-12 diff against `f06c2fd`:
+
+- *Sequential multi-class admission* (§9.3.1, §9.7.1, §9.7.2, §9.7.3,
+  §10.4.1, §10.5 step 22): `PIB-533`, `PIB-534`, `PIB-542`, `PIB-548`,
+  `PIB-549`.
+- *Owned-corrupt route, exit 6 only* (§9.3, §9.3.1 X11, §9.7.2 step 6,
+  §10.4.1): `PIB-506`, `PIB-524`, `PIB-543`, `PIB-545`.
+- *Printed-command parity and the forbidden-token set* (§9.3.1, §9.7.2, §9.7.3,
+  §10.7): `PIB-506`, `PIB-543`, `PIB-547`.
+- *State-map domain and the two row splits* (§9.3): `PIB-524`, `PIB-545`,
+  `PIB-551`.
+- *Real non-regular fixtures and the injected device-kind seam* (§9.3.1,
+  §9.7.2): `PIB-507`, `PIB-543`, `PIB-547`.
+- *Advisory and vocabulary growth* (§10.2, §10.3): `PIB-226`, `PIB-227`.
+
+No row changes **Kind** in rev-12 either, so §18.51's arithmetic carries the
+rev-11 totals forward unchanged before the nine new rows are added. §18.52's
+table grows from twenty-six to thirty guards (`PIB-554`, `PIB-555`, `PIB-558`
+and `PIB-559` join it, and nothing leaves); `PIB-524`, `PIB-533`, `PIB-545`,
+`PIB-549` and `PIB-551` each gain additional semantic fixtures inside their
+existing entries. Their old sole-class-admission,
+pending-blob-is-exit-3, `cp`-named-in-prose, collapsed-owned-tombstone-row and
+assumed-device-fixture meanings are retired; **no stable ID silently changes
+meaning, and none is renumbered.** Rev-12 adds only contiguous
+`PIB-552`…`PIB-560`.
 
 ### 18.2 A — CLI grammar, modes and flag mutexes
 
@@ -6045,8 +6493,8 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
 |---|---|---|---|
 | PIB-224 | G | §6.1 and §6.3 disposition tables | total over the accepted nine-value enum; adding a tenth value fails compilation or the guard |
 | PIB-225 | G | §12.2 state table | total over `ValidFeatureState`; a thirteenth state fails the guard rather than defaulting to allowed |
-| PIB-226 | G | the closed vocabularies of §10.2 | the shipped constant sets equal the tables exactly, including `outcome`'s `purge-partial` and `recovery-required`, the closed `pending_purge.selector` set and the one-value `execution_preflight` set |
-| PIB-227 | G | the advisory catalog | exactly seventeen codes; every one reachable by a named fixture; a sensitivity fixture proves an eighteenth code fails the guard |
+| PIB-226 | G | the closed vocabularies of §10.2 | the shipped constant sets equal the tables exactly, including `outcome`'s `purge-partial` and `recovery-required`, the closed `pending_purge.selector` set, the closed four-value `remaining_repairs.classes[].class` set and the one-value `execution_preflight` set |
+| PIB-227 | G | the advisory catalog | exactly eighteen codes, `archive-repairs-remaining` included; every one reachable by a named fixture; `archive-repairs-remaining` is emitted **if and only if** §10.2's `remaining_repairs` object is; a sensitivity fixture proves a nineteenth code fails the guard, and one that emits the advisory without the object, or the object without the advisory, fails it too |
 | PIB-228 | G | the refusal-code catalog | closed; every code reachable; every code has a remediation |
 | PIB-229 | G | every `PIB-NNN` cited in prose | resolves to a real matrix row |
 | PIB-230 | G | the acceptance ledger | every row maps to a resolvable package, `func TestX(*testing.T)` declaration and optional literal subtest, via AST — not a byte scan |
@@ -6450,8 +6898,8 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
 
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
-| PIB-506 | I | the `archive-purge-evidence-divergent` refusal, in each of its sub-populations — a hash-wrong regular file under a **pending** reference; a symlink, a directory, a FIFO and a device node where a **pending** blob belongs; and an index that stopped strict-decoding mid-run | exit 6; the message names the pending hash and the repo-relative `blobs/<hash>.blob` and `index.json` paths, prints the explicit destructive warning **above** the command, names the single type-total `rm -rf -- <managed blob path>` (blob forms) or the restoration step and **no** removal at all (index form), names the sanitized rerun with `retry_cwd: "workspace-root"`, and states both the destructive cost and the Git-history caveat; no `cp` command and no wildcard appears in any of them; the string `--abandon-transaction` appears **nowhere** in it, and no absolute path appears anywhere in it; a tombstoned reference whose named blob is present produces exit **3** `archive-index-storage-inconsistent` instead and never this code, in **both** its globally-unreferenced and its still-live subcase (PIB-521, PIB-531) |
-| PIB-507 | I | executing the documented blob-form procedure after PIB-506, once per object kind — run the printed `rm -rf --` verbatim against the managed blob path, then the sanitized rerun | the printed command succeeds on all five kinds (regular file, symlink, directory, FIFO, device node) with a shell exit of 0 and removes exactly that path, following no symlink to its target and touching no sibling; the rerun then takes the pending+absent branch of §9.7.2, exits 0 with `outcome: "recovered"`, tombstones every reference to that hash, removes nothing, and leaves an index that strict-decodes; a subsequent ordinary archive mutation proceeds (PIB-547) |
+| PIB-506 | I | the `archive-purge-evidence-divergent` refusal, in each of its sub-populations — a hash-wrong regular file under a **pending** reference; a symlink, a directory, a FIFO and a device node where a **pending** blob belongs; and an index that stopped strict-decoding mid-run | exit 6; the message names the pending hash and the repo-relative `blobs/<hash>.blob` and `index.json` paths, prints the explicit destructive warning **above** the command, names the single type-total `rm -rf -- <managed blob path>` (blob forms) or the restoration step and **no** removal at all (index form), names the sanitized rerun with `retry_cwd: "workspace-root"`, and states both the destructive cost and the Git-history caveat; no `cp`, `git`, `readlink`, `mv`, `rsync`, `tar`, `ln`, `install`, `dd` or `chmod` command word and no wildcard appears in any of them, in the procedure or in the prose beside it (PIB-559); the string `--abandon-transaction` appears **nowhere** in it, and no absolute path appears anywhere in it; the population is scoped by **ownership**, not by the observing reference's wire state: the same unidentifiable object under a **retained** and under a **tombstoned** reference of the same owned hash produces this same exit-6 code (§9.3 rows 6 and 14, PIB-558), while a tombstoned reference whose named blob is present on a hash **no** transaction owns produces exit **3** `archive-index-storage-inconsistent` instead and never this code, in **both** its globally-unreferenced and its still-live subcase (PIB-521, PIB-531) |
+| PIB-507 | I | executing the documented blob-form procedure after PIB-506, once per object kind — run the printed `rm -rf --` verbatim against the managed blob path, then the sanitized rerun | the printed command is executed **for real** against a **real filesystem fixture** for the four kinds any unprivileged process can create — regular file, symlink, directory and FIFO — succeeding with a shell exit of 0, removing exactly that path, following no symlink to its target and touching no sibling; the **device-node** kind runs the identical assertions against the injected file-kind seam of PIB-560 where `mknod` requires privilege the test user lacks, and the substitution is recorded in the test's own skip/limitation output rather than presented as a real-filesystem result. In every kind the rerun then takes the absent-blob branch of §9.7.2, exits 0 with `outcome: "recovered"`, tombstones every reference to that hash, removes nothing, and leaves an index that strict-decodes; a subsequent ordinary archive mutation proceeds (PIB-547, PIB-560) |
 | PIB-508 | G | the exit-6 route map over the §10.4.1 catalog | every exit-6 code resolves to exactly one route — the nine journal/publication codes to `--abandon-transaction` (plus §6.6's manual fallback), `archive-purge-evidence-divergent` to §9.7.2's archive procedure; no code maps to zero routes or to two; a semantic sensitivity fixture that routes `archive-purge-evidence-divergent` to the abandon mode fails the guard |
 | PIB-509 | I | `--abandon-transaction --yes` with journal evidence present and, in three separate fixtures, an **absent** feature directory, a malformed `status.json` and an unreadable `status.json` | exit 0 in all three; the evidence is moved; `feature-not-found`, `status-malformed` and `status-unreadable` are never emitted; `.tpatch/features/` is byte-identical (or still absent) afterwards |
 | PIB-510 | C | abandon-mode read-ordering spy over the PIB-509 fixtures | between the flock and the abandon branch the command performs zero opens of `.tpatch/features/<slug>/`, zero `status.json` decodes and zero G1–G4 spawns; §10.5 step 6 is not entered in this mode |
@@ -6473,7 +6921,7 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
 | PIB-521 | I | an index in which **every** reference to `h`, in every generation, is tombstoned — so `h` is globally unreferenced — while `blobs/<h>.blob` is present as a regular hash-correct file, observed by an ordinary mutating `prepare`, by `--regenerate`, by `feature intent-archive list` and by `doctor` | the mutating paths exit **3** with `refusal.code: "archive-index-storage-inconsistent"` and a whole-tree byte snapshot identical to the pre-run tree (zero removals, zero index writes, zero pending records); every one of the four surfaces classifies it as unreferenced physical residue and names the literal `tpatch feature intent-archive purge <slug> --orphans --yes` run from the workspace root; `list` exits **0** and renders the storage state as `orphan`; the strings `archive-purge-evidence-divergent` and `--abandon-transaction` appear nowhere, no pending hash is named, and no absolute path appears |
 | PIB-522 | I | running exactly the command PIB-521 named, from the workspace root, over the same fixture | exit 0; the `--orphans --yes` selection is admitted past the X11 observation **after** a successful strict X1–X10 decode (a decode spy records the decode before the first removal); `blobs/<h>.blob` is gone; `index.json` is **byte-identical** to its pre-run bytes; the tombstone is unchanged; a following ordinary `--regenerate` that reproduces that generation proceeds and rehydrates through §9.3 |
 | PIB-523 | I | `purge <slug> --orphans` **without** `--yes` over the PIB-521 fixture | exit 0; a filesystem spy records zero writes and an authority spy records zero flock acquisitions; the output names the repo-relative `blobs/<h>.blob` path, states that every reference to `h` is tombstoned, and names the `--orphans --yes` rerun under the one verbatim `Run this again from the same workspace root:` heading with `retry_cwd: "workspace-root"` |
-| PIB-524 | G | the X11 storage-observation classification map over §9.3's wire-state table, whose domain is (wire state × blob observation × the hash's global **ownership** × its global **liveness**) | every reachable tuple resolves to exactly one classification and exactly one route: any tuple whose hash is **owned** → `recovery-pending`, routed to `feature intent-archive purge … --yes`, for every reader but that command; retained/absent → `archive-blob-dangling` + the confirmed `--blob <h> --yes`; retained/present-non-regular-or-hash-wrong → `archive-blob-corrupt` + §9.3.1's type-total removal-then-confirmed-purge or restore route; pending/unsafe-or-wrong → `archive-index-storage-inconsistent` + §9.7.2's archive procedure; tombstoned/present with the hash **unreferenced** → `archive-index-storage-inconsistent` + `--orphans --yes`; tombstoned/present with the hash **live but not owned** → `archive-index-storage-inconsistent` + the confirmed `--blob <h> --yes`, never `--orphans`; retained/absent with the hash **owned** → routed, never dangling; tombstoned/present-non-regular-or-hash-wrong → `archive-blob-corrupt` in both the unreferenced and the live-but-not-owned case, the corrupt classification dominating; no tuple maps to zero routes or to two, and the accepting tuples are unchanged. Four semantic sensitivity fixtures: one classifies either tombstoned/present tuple as `archive-purge-evidence-divergent`; one collapses the two tombstoned/present tuples into a single per-reference rule that routes both to `--orphans --yes`; one drops the ownership dimension so an owned hash is classified as mixed or dangling instead of routed; one routes a tombstoned/present **non-regular** file to `--orphans --yes` as residue instead of refusing it as corrupt — all spelled correctly and formatted validly, and all must fail |
+| PIB-524 | G | the X11 storage-observation classification map over §9.3's wire-state table, whose domain is the **4-tuple** (wire state × blob observation × the hash's global **ownership** × its global **liveness**) of §9.3 | every reachable tuple resolves to exactly one classification and exactly one route: any tuple whose hash is **owned** → `recovery-pending`, routed to `feature intent-archive purge … --yes`, for every reader but that command; retained/absent and **not owned** → `archive-blob-dangling` + the confirmed `--blob <h> --yes`; retained/present-non-regular-or-hash-wrong and **not owned** → `archive-blob-corrupt` + §9.3.1's type-total removal-then-confirmed-purge or restore route; **any owned hash whose blob is present but non-regular or hash-wrong, observed through a retained, a pending or a tombstoned reference alike → exit-6 `archive-purge-evidence-divergent` under the owning `purge --yes`, and no exit-3 code at all** (rev-11's `archive-index-storage-inconsistent` mapping for an unsafe/wrong pending blob is withdrawn, PIB-558); tombstoned/present-regular-hash-correct with the hash **unreferenced** → `archive-index-storage-inconsistent` + `--orphans --yes`; tombstoned/present-regular-hash-correct with the hash **live but not owned** → `archive-index-storage-inconsistent` + the confirmed `--blob <h> --yes`, never `--orphans`; retained/absent with the hash **owned** → routed, never dangling; tombstoned/present-non-regular-or-hash-wrong and **not owned** → `archive-blob-corrupt` in both the unreferenced and the live case, the corrupt classification dominating; no tuple maps to zero routes or to two, and the accepting tuples are unchanged. Five semantic sensitivity fixtures: one classifies either tombstoned/present tuple as `archive-purge-evidence-divergent`; one collapses the two tombstoned/present tuples into a single per-reference rule that routes both to `--orphans --yes`; one drops the ownership dimension so an owned hash is classified as mixed or dangling instead of routed; one routes a tombstoned/present **non-regular** file on a non-owned hash to `--orphans --yes` as residue instead of refusing it as corrupt; and one that keeps rev-11's exit-3 `archive-index-storage-inconsistent` mapping for an unsafe/wrong blob on an **owned** hash, which offers a zero-write exit-3 promise for a transaction that has already written — all spelled correctly and formatted validly, and all must fail |
 | PIB-525 | I | a mutating `prepare` in each of `generate`, `manual` and `regenerate`, with one or more removal-pending archive references and **no** journal | exit **3**, `recovery-pending`; a whole-tree byte snapshot identical to the pre-run tree; a filesystem spy records zero blob removals and zero index writes; `outcome` is never `recovered` and no `recovery` object is emitted; the remediation names the sanitized `tpatch feature intent-archive purge <slug> --all --yes` (or `--blob <h> --yes` when one hash covers the pending set) with `retry_cwd: "workspace-root"` and no inherited `--path`; running the named command then exits 0 `recovered` and a further `prepare` proceeds |
 | PIB-526 | G | the `RecoverPendingPurge` call graph | it has exactly **one** call site and that site is on the `feature intent-archive purge --yes` path; no mutating `prepare` mode, no preview path, no `list` and no `doctor` reaches it, asserted by a reverse call-graph walk rather than a name scan; a sensitivity fixture that adds a call from the publication path fails the guard |
 | PIB-527 | I | `purge <slug> --orphans --yes` with one or more removal-pending hashes and no journal | exit 0, `outcome: "recovered"`, `recovery.kind: "archive-purge-finalize"`; the pending hashes are finalized; **no orphan is removed in that invocation**; the reported `retry` preserves `--orphans` verbatim with `retry_cwd: "workspace-root"`; re-running it removes exactly the orphans and exits 0 |
@@ -6487,8 +6935,8 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
 |---|---|---|---|
 | PIB-531 | I | an index in which generation `G1` references `h` as **retained** while generation `G2` references the same `h` as **tombstoned**, with `blobs/<h>.blob` present as a regular hash-correct file, observed by an ordinary mutating `prepare`, by `--regenerate`, by `feature intent-archive list` and by `doctor` | the mutating paths exit **3** with `refusal.code: "archive-index-storage-inconsistent"` and a whole-tree byte snapshot identical to the pre-run tree; `list` exits **3** and renders the storage state as `mixed-reference`, naming the repo-relative `blobs/<h>.blob` path, the tombstoning generation ids and the live generation ids; all four surfaces classify it as a mixed tombstone/live-reference global-availability inconsistency and name the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` run from the workspace root; the strings `--orphans`, `archive-purge-evidence-divergent` and `--abandon-transaction` appear **nowhere** in any of the four outputs, and no absolute path appears |
 | PIB-532 | I | running exactly the command PIB-531 named, from the workspace root, over the same fixture | exit 0; the mixed pair is admitted past the X11 observation **after** a successful strict X1–X10 decode (a decode spy records the decode before the first mutation); every reference to `h` in every generation is tombstoned afterwards, `blobs/<h>.blob` is gone, `index.json` strict-decodes and X11 is satisfied; **both** the retained `G1` reference **and** the already-tombstoned `G2` reference passed through removal-pending before the removal — an index-write spy records one claim rewrite in which *every* reference to `h`, including the tombstoned one, carries `purge_pending: true`, then the removal, then the tombstone rewrite, in that order — so no same-hash reference is a claim no-op; no reference is left retained and none is left dangling |
-| PIB-533 | G | the `--orphans` selection set, derived from the implementation's orphan predicate rather than from its output | the predicate is **global by content hash**: a blob is selected only when no reference to its hash, in any generation, is retained or removal-pending. Over a fixture holding a directory-scan orphan and a globally-unreferenced tombstoned hash and **no** other inconsistency, `purge --orphans --yes` removes exactly those two and the resulting index leaves no dangling reference. Over the same fixture **plus** PIB-531's mixed hash, the whole invocation instead refuses exit 3 zero-write naming the mixed hash's `--blob <h> --yes` repair — a filesystem spy records zero removals, including of the two blobs the first fixture proved removable — because X11's scan is global and no partial cleanup proceeds around an inconsistency (PIB-542). Two semantic sensitivity fixtures, both valid code with correct names: one whose predicate is evaluated per reference, so a tombstoned reference admits its blob to the orphan set while another generation still retains the hash; one that removes the removable orphans and reports the mixed hash as a leftover |
-| PIB-534 | I | an archive holding both a removal-pending reference to `h₁` **and** a tombstone-beside-present-blob observation on `h₂`, run for each of `--orphans` and `--blob <h₂>`, in preview then `--yes` then rerun | the preview exits 0 `recovery-required` naming only `h₁`, with an authority spy recording zero flock acquisitions and a filesystem spy zero writes; the `--yes` run exits 0 `recovered` with `recovery.kind: "archive-purge-finalize"`, finalizes `h₁` only, leaves `h₂`'s blob and index entry byte-identical, and reports the operator's own selector as the retry — **it is not refused by `h₂`'s inconsistency**, which is the recovery exception of §9.3.1 asserted at the composition level and cross-checked against PIB-546's order spy; the rerun then performs the correct `h₂` repair for its subcase at exit 0, or — for a selector that is not that subcase's admitted repair — refuses exit 3 naming that subcase's literal repair command, which then completes at exit 0. No step in the ladder returns a refusal whose remediation names no executable command, and at no point is `h₂` acted on by an admission earned by a different repair class (PIB-542, PIB-546, PIB-549) |
+| PIB-533 | G | the `--orphans` selection set, derived from the implementation's orphan predicate rather than from its output | the predicate is **global by content hash**: a blob is selected only when no reference to its hash, in any generation, is retained or removal-pending. Over a fixture holding a directory-scan orphan and a globally-unreferenced tombstoned hash and **no** other inconsistency, `purge --orphans --yes` removes exactly those two and the resulting index leaves no dangling reference. Over the same fixture **plus** PIB-531's mixed hash, the invocation is **admitted for the residue class** under §9.3.1's four conditions — the two orphans are removed, `index.json` is byte-identical, and the mixed hash's blob and index entry are byte-identical — and it exits 0 carrying the `archive-repairs-remaining` advisory and the `remaining_repairs` object naming the mixed class, its hash, its repo-relative path, its literal `--blob <h> --yes` repair and `rerun_required: true`. What the predicate may **never** do is admit the mixed hash's blob to the orphan set. Three semantic sensitivity fixtures, all valid code with correct names: one whose predicate is evaluated per reference, so a tombstoned reference admits its blob to the orphan set while another generation still retains the hash; one that removes the removable orphans and says **nothing** about the mixed hash, so the operator reads exit 0 as a repaired archive; and one that removes only one of the two orphans and reports the other as a leftover, which is the intra-class partial cleanup that stays forbidden (§9.3.1, PIB-542, PIB-552, PIB-556) |
+| PIB-534 | I | an archive holding both a removal-pending reference to `h₁` **and** a tombstone-beside-present-blob observation on `h₂`, run for each of `--orphans` and `--blob <h₂>`, in preview then `--yes` then rerun | the preview exits 0 `recovery-required` naming only `h₁`, with an authority spy recording zero flock acquisitions and a filesystem spy zero writes; the `--yes` run exits 0 `recovered` with `recovery.kind: "archive-purge-finalize"`, finalizes `h₁` only, leaves `h₂`'s blob and index entry byte-identical, and reports the operator's own selector as the retry — **it is not refused by `h₂`'s inconsistency**, which is the recovery exception of §9.3.1 asserted at the composition level and cross-checked against PIB-546's order spy; the rerun then performs the correct `h₂` repair for its subcase at exit 0, or — for a selector that is not that subcase's admitted repair — refuses exit 3 naming that subcase's literal repair command, which then completes at exit 0. A third fixture adds a **second** repair class beside `h₂` and asserts the rev-12 sequencing: the rerun still repairs `h₂`'s class at exit 0 and reports the second class untouched with its own route and `rerun_required: true`, rather than refusing because a second class exists. No step in any of the ladders returns a refusal whose remediation names no executable command, and at no point is `h₂` acted on by an admission earned by a different repair class (PIB-542, PIB-546, PIB-549, PIB-552, PIB-556) |
 | PIB-535 | I | `feature intent-archive list <slug>` over five fixtures — a clean archive, a globally-unreferenced tombstone-beside-blob, a mixed tombstone/live-reference hash, a dangling retained reference, and a retained reference beside a present hash-wrong blob | exit **0** for the clean archive and for the unreferenced residue (rendered `orphan`, carrying the literal `--orphans --yes` repair); exit **3** for the mixed hash (rendered `mixed-reference`, carrying the literal `--blob <h> --yes` repair), for the dangling reference (rendered `dangling`, carrying the literal `--blob <h> --yes` repair) and for the corrupt blob (rendered `corrupt`, carrying §9.3.1's type-total removal-then-confirmed-purge or restore route); a filesystem spy records zero writes and an authority spy zero flock acquisitions in all five; no absolute path, no symlink target and no repair string other than the one its subcase owns appears in any of them. Coexisting observations are covered by PIB-541, and multiple instances of one class by PIB-548 |
 | PIB-536 | C | a mutating `prepare` whose workspace `*os.Root` open fails and, in a second fixture, whose `root.Open(".")` fails, each injected at `beforeLockAcquire` before any `fstatfs` or `flock` is attempted | exit **3**, `refusal.code: "directory-flock-unavailable"`, with a whole-tree byte snapshot identical to the pre-run tree; a syscall spy records zero `fstatfs` and zero `flock` calls; the codes `transaction-in-progress`, `lock-filesystem-unsupported` and `workspace-not-initialized` are never emitted; with journal, preimage or staging evidence present for the slug the message additionally names the repo-relative `.tpatch/local/intent-prepare/<slug>/` lane and the last-resort manual removal exactly as §6.6's gate row 8 requires, and no absolute path appears |
 
@@ -6501,25 +6949,39 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
 | PIB-539 | I | `feature intent-archive purge <slug> --blob <h> --yes` over an index where generation `G1` references `h` as **retained**, `G2` references `h` as **removal-pending**, and `blobs/<h>.blob` is present, regular and hash-correct | exit 0 `recovered`; an index-write spy records exactly this order — one **claim** rewrite in which *every* reference to `h` is removal-pending, then the blob removal, then one tombstone rewrite in which *every* reference to `h` is tombstoned; a filesystem spy records **zero** blob removals before the claim rewrite lands; afterwards no reference to `h` is retained, none is dangling, and X11 is satisfied. The same fixture observed by an ordinary mutating `prepare`, by a `purge` preview and by `list` reports the hash as pending and routes to this command — `recovery-pending`, `recovery-required` and `pending-remove` respectively — and never as dangling, residue, mixed or corrupt, which is the ownership-outranks rule asserted directly (§9.3, §9.7.2) |
 | PIB-540 | C | crash injection at each point of the claimed per-hash machine over the PIB-539 fixture — `beforePurgeIndexCAS` (before the claim), `beforePurgeBlobRemove` (after the claim), `afterPurgeBlobRemove` and `beforePendingTombstoneCAS` — each followed by a rerun of the same sanitized command | after every crash the invariant holds on disk: `blobs/<h>.blob` is present **or** no reference to `h` is retained, never both absent-and-retained by tpatch's own action; each rerun performs exactly the one next action (re-claim, revalidate-and-remove, tombstone-all) and terminates at exit 0 `recovered`; the post-removal crash resumes through the absent-blob path and tombstones every reference to `h` including `G1`'s, performing zero removals; no rerun leaves a dangling reference and no rerun requires a second distinct repair command (§7.10 CP12/CP12a, §9.7.2) |
 | PIB-541 | I | `feature intent-archive list <slug>` and `doctor` over one archive holding **both** a globally unreferenced tombstone-beside-blob (an exit-0 observation) and a mixed tombstone/live-reference hash (an exit-3 observation), plus a clean generation | `list` exits **3**, and its body renders **all three** observations — the clean references, the `orphan` with its literal `--orphans --yes` repair, and the `mixed-reference` with its literal `--blob <h> --yes` repair — with neither the exit-0 observation suppressed nor the report truncated at the exit-3 one; `doctor` reports the identical set with the identical repairs, warning-only, and a filesystem spy records zero writes and an authority spy zero flock acquisitions in both. Reversing the fixture's generation order changes neither the exit code nor the rendered set, so the exit is a property of the observations and not of iteration order (§9.7, §12.5) |
-| PIB-542 | I | `feature intent-archive purge <slug> --yes` on **four disjoint selectors** — `--orphans`, `--blob <h₃>`, `--generation <id₃>` and `--all` — over an archive whose *unrelated* hash `h₂` is a mixed tombstone/live-reference inconsistency, where `h₃`/`id₃` provably touch no reference to `h₂` and a removable orphan is also present | every one of the four exits **3** `archive-index-storage-inconsistent` with a whole-tree byte snapshot identical to the pre-run tree: the orphan is **not** removed, `h₃` is **not** purged, no pending record is written and `index.json` is byte-identical; each message names `h₂`'s literal `--blob <h₂> --yes` repair rather than the selector the operator typed; running that repair and then re-running the original selector completes at exit 0. A decode spy confirms the whole-index X11 scan ran before the refusal, and a second fixture in which `h₂` is clean shows all four selectors succeeding, so the refusal is attributable to `h₂` alone. A third fixture holds **two** mixed hashes and shows that `--blob <h₂> --blob <h₂'> --yes` — the class fully covered — is admitted and repairs both, while `--blob <h₂> --yes` alone is refused zero-write for leaving an instance of its own class uncovered (§9.3.1, §9.7.1, §9.7.2, PIB-548, PIB-549) |
-| PIB-543 | I | a **retained** reference whose `blobs/<h>.blob` is present but (i) a symlink, (ii) a directory, (iii) a regular file whose bytes hash to something else, (iv) a FIFO and (v) a device node — observed by an ordinary mutating `prepare`, by `--regenerate`, by `--manual`, by `list` and by `doctor`, then repaired | every observer exits **3** `archive-blob-corrupt` with a whole-tree byte snapshot identical to the pre-run tree; `list` renders the storage state `corrupt` and exits 3; all five name one repo-relative procedure — the explicit destructive warning, the single `rm -rf -- <managed blob path>`, then, under the one column-0 retry heading, the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` with `retry_cwd: "workspace-root"` — plus the restore-the-correct-blob alternative, the destructive cost and the Git-history caveat, with no absolute path anywhere, no `--orphans` mentioned and no `cp` command emitted. Executing the procedure completes on **all five** object kinds: after the removal the reference is dangling, the confirmed purge is admitted past X11, tombstones every reference to `h`, performs zero removals and exits 0, and a following ordinary mutation proceeds. Writing the correct blob back instead also clears it with nothing purged (§9.3.1, §9.7.3, §10.7, PIB-547) |
+| PIB-542 | I | `feature intent-archive purge <slug> --yes` on **four disjoint selectors** — `--orphans`, `--blob <h₃>`, `--generation <id₃>` and `--all` — over an archive whose *unrelated* hash `h₂` is a mixed tombstone/live-reference inconsistency, where `h₃`/`id₃` provably touch no reference to `h₂` and **no** unreferenced residue exists, so no selector is any class's admitted repair | every one of the four exits **3** `archive-index-storage-inconsistent` with a whole-tree byte snapshot identical to the pre-run tree: nothing is removed, `h₃` is **not** purged, no pending record is written and `index.json` is byte-identical; each message names `h₂`'s literal `--blob <h₂> --yes` repair rather than the selector the operator typed; running that repair and then re-running the original selector completes at exit 0. A decode spy confirms the whole-index X11 scan ran before the refusal, and a second fixture in which `h₂` is clean shows all four selectors succeeding, so the refusal is attributable to `h₂` alone. A third fixture holds **two** mixed hashes and shows that `--blob <h₂> --blob <h₂'> --yes` — the class fully covered — is admitted and repairs both, while `--blob <h₂> --yes` alone is refused zero-write for leaving an instance of its own class uncovered. A fourth fixture adds a removable unreferenced residue beside `h₂` and shows the rev-12 boundary directly: `--orphans --yes` is now **admitted** for the residue class and exits 0 reporting `h₂` untouched with its route (PIB-552), while `--blob <h₃> --yes`, `--generation <id₃> --yes` and `--all --yes` still refuse exit 3 zero-write — the first two because they are no class's repair, `--all` because it would reach into `h₂`'s class (§9.3.1, §9.7.1, §9.7.2, PIB-548, PIB-549, PIB-552, PIB-555, PIB-557) |
+| PIB-543 | I | a **retained** reference of a **non-owned** hash whose `blobs/<h>.blob` is present but (i) a symlink, (ii) a directory, (iii) a regular file whose bytes hash to something else, (iv) a FIFO and (v) a device node — the first four built on the real filesystem and the fifth through PIB-560's injected file-kind seam — observed by an ordinary mutating `prepare`, by `--regenerate`, by `--manual`, by `list` and by `doctor`, then repaired | every observer exits **3** `archive-blob-corrupt` with a whole-tree byte snapshot identical to the pre-run tree; `list` renders the storage state `corrupt` and exits 3; all five name one repo-relative procedure — the explicit destructive warning, the single `rm -rf -- <managed blob path>`, then, under the one column-0 retry heading, the literal `tpatch feature intent-archive purge <slug> --blob <h> --yes` with `retry_cwd: "workspace-root"` — plus the restore-the-correct-blob alternative, the destructive cost and the Git-history caveat, with no absolute path anywhere, no `--orphans` mentioned and none of the forbidden command words `cp`, `git`, `readlink`, `mv`, `rsync`, `tar`, `ln`, `install`, `dd` or `chmod` appearing in the procedure or in the prose beside it (PIB-559). A sixth fixture makes the same hash **owned** by adding a removal-pending reference and asserts the observation moves entirely to exit-6 `archive-purge-evidence-divergent`, with this code emitted nowhere (PIB-558). Executing the procedure completes on **all five** object kinds: after the removal the reference is dangling, the confirmed purge is admitted past X11, tombstones every reference to `h`, performs zero removals and exits 0, and a following ordinary mutation proceeds. Writing the correct blob back instead also clears it with nothing purged (§9.3.1, §9.7.3, §10.7, PIB-547) |
 | PIB-544 | C | an external same-hash reference inserted into `index.json` at each of the four insertion windows of §9.7.2 — before the claim's re-read, between the re-read and its CAS, between the CAS and the pre-removal revalidation, and after the removal — driven through `beforePurgeIndexCAS`, `afterPurgeBlobRevalidate`, `beforePurgeBlobRemove` and `beforePendingTombstoneCAS` (the fifth window, external **replacement** of the managed object between revalidation and unlink, is PIB-550) | window 1 completes normally with the inserted reference claimed and tombstoned like every other; windows 2 and 3 perform **no** removal and end in `archive-purge-partial` at exit 5 with `resume: "pending-recovery-then-completion"` and `pending_hash: h` — the pending record already existed, so the post-first-mutation window is open — and the reported sanitized retry re-derives the claim and completes at exit 0; window 4 is detected by the tombstone CAS and its retry takes the absent-blob path, tombstoning the inserted reference with the rest. A fifth fixture inserts the reference against a **new** selection before its first write and asserts exit 3 `archive-purge-index-changed` with a whole-tree byte snapshot. In no window is a blob removed while a non-pending reference to it is visible in the index the command validated, and in no window does the command loop in-process (§9.7.2, §7.12) |
-| PIB-545 | G | the archive's storage-classification, **claim** and removal authority, **derived** from the implementation rather than from a table: the map over (wire state × blob observation × the hash's global **ownership** × its global **liveness**), the domain of the claim CAS, and the guarded precondition of every blob removal | every reachable tuple resolves to exactly one disposition and one route: any tuple whose hash is **owned** resolves to `recovery-pending` for every reader except `purge --yes`, which claims it; retained/absent → `archive-blob-dangling`; retained/present-unsafe-or-wrong → `archive-blob-corrupt` with §9.3.1's type-total procedure; pending/unsafe-or-wrong → `archive-purge-evidence-divergent`; tombstoned/present-regular-hash-correct with the hash unreferenced → `--orphans --yes`; tombstoned/present-regular-hash-correct with the hash live-but-not-owned → the confirmed `--blob <h> --yes`; tombstoned/present-unsafe-or-wrong → `archive-blob-corrupt`, the corrupt classification dominating both; accepting tuples unchanged. The guard additionally asserts, by control-flow walk rather than name scan, that (a) the claim CAS's reference set is **every** reference with the target hash — retained and tombstoned alike, with no wire-state predicate excluding any of them — and (b) **every** blob-removal call site is dominated by a check that no reference to that hash is anything but removal-pending. Six semantic sensitivity fixtures, each spelled correctly and formatted validly, must fail: one that classifies an owned hash as mixed or dangling instead of routing it; one that removes a blob under a hash with a surviving retained reference; one that maps retained/present-hash-wrong to `archive-blob-dangling`; one that admits `--orphans --yes` past a mixed hash; **one whose claim CAS skips already-tombstoned references while the removal gate still requires every reference to be pending — the deadlock rev-10 shipped in prose**; and one whose absent-blob path tombstones only the pending references and leaves a retained one behind |
+| PIB-545 | G | the archive's storage-classification, **claim** and removal authority, **derived** from the implementation rather than from a table: the map over (wire state × blob observation × the hash's global **ownership** × its global **liveness**), the domain of the claim CAS, and the guarded precondition of every blob removal | every reachable tuple resolves to exactly one disposition and one route: any tuple whose hash is **owned** resolves to `recovery-pending` for every reader except `purge --yes`, which claims it; retained/absent → `archive-blob-dangling`; retained/present-unsafe-or-wrong and **not owned** → `archive-blob-corrupt` with §9.3.1's type-total procedure; **any owned hash with an unsafe-or-wrong blob, through a retained, a pending or a tombstoned reference alike → `archive-purge-evidence-divergent`, exit 6, with no exit-3 code reachable** (PIB-558); tombstoned/present-regular-hash-correct with the hash unreferenced → `--orphans --yes`; tombstoned/present-regular-hash-correct with the hash live-but-not-owned → the confirmed `--blob <h> --yes`; tombstoned/present-unsafe-or-wrong and **not owned** → `archive-blob-corrupt`, the corrupt classification dominating both; accepting tuples unchanged. The guard additionally asserts, by control-flow walk rather than name scan, that (a) the claim CAS's reference set is **every** reference with the target hash — retained and tombstoned alike, with no wire-state predicate excluding any of them — and (b) **every** blob-removal call site is dominated by a check that no reference to that hash is anything but removal-pending. Seven semantic sensitivity fixtures, each spelled correctly and formatted validly, must fail: one that classifies an owned hash as mixed or dangling instead of routing it; one that removes a blob under a hash with a surviving retained reference; one that maps retained/present-hash-wrong on a non-owned hash to `archive-blob-dangling`; one that admits `--orphans --yes` to *remove* a mixed hash's blob; one that maps an **owned** unsafe-or-wrong blob to an exit-3 code instead of exit-6 `archive-purge-evidence-divergent`; **one whose claim CAS skips already-tombstoned references while the removal gate still requires every reference to be pending — the deadlock rev-10 shipped in prose**; and one whose absent-blob path tombstones only the pending references and leaves a retained one behind |
 
 ### 18.49 AV — Rev-11 adjudication: total same-hash claim, the recovery exception, type-total removal and repair-class multiplicity
 
 | ID | Kind | Case | Asserted observable |
 |---|---|---|---|
 | PIB-546 | G | the ordering of pending-purge recovery against the whole-index X11 scan, **derived** from the implementation's control flow rather than from prose: every archive-mutating entry point, the position of its global storage validation, and the position of `RecoverPendingPurge` | a control-flow walk shows exactly one path that mutates before the global X11 scan, and it is `RecoverPendingPurge` on `feature intent-archive purge --yes`, restricted to hashes the index already marks removal-pending; every other archive mutation — each mutating `prepare` mode and each new-selector purge — is dominated by that scan. Run against an archive holding a removal-pending `h₁` **and** an unrelated mixed hash `h₂`, `purge <slug> --orphans --yes` and `purge <slug> --blob <h₂> --yes` both exit **0** `recovered`, finalizing `h₁` while `h₂` is byte-identical, and neither processes its selector; each rerun then performs the full global scan and refuses or repairs per §9.3.1. Three semantic sensitivity fixtures, each valid code with correct names, must fail: one that runs the global scan first and so refuses the recovery, leaving `h₁` pending with the refusing command as its only named repair; one whose recovery continues into the selector after finalizing; and one that grants the same exception to a mutating `prepare`, which must keep refusing exit 3 `recovery-pending` (§9.3.1, §9.7.2, §10.5 step 22) |
-| PIB-547 | I | the corrupt-object and divergent-blob procedures as **printed strings**, executed verbatim from the workspace root against a managed `blobs/<hash>.blob` that is in turn a hash-wrong regular file, a symlink to a file outside `.tpatch/`, a directory containing two files, a FIFO and a device node | in all five the printed removal is the single line `rm -rf -- <the repo-relative managed blob path>`, preceded by the explicit destructive warning on its own line(s) and containing no wildcard, no second path, no directory prefix above the blob and no `-i`/`-I` interactive form; running it exits 0 on Linux and Darwin, leaves the path absent, leaves the symlink's **target** untouched, and removes no sibling blob. No `cp`, `mv`, `rsync`, `tar` or other copy command appears in any of the five outputs; instead the message states that preserving the object requires kind-appropriate tooling chosen by the operator. The index-divergence form of the same code names **no** removal command at all and no managed blob path. A sensitivity fixture that emits rev-10's `cp` + plain `rm` pair, and one that emits `rm -rf <path>` without the `--` terminator, both fail (§9.3.1, §9.7.2, §10.7, PIB-506, PIB-543) |
+| PIB-547 | I | the corrupt-object and divergent-blob procedures as **printed strings**, executed verbatim from the workspace root against a managed `blobs/<hash>.blob` that is in turn a hash-wrong regular file, a symlink to a file outside `.tpatch/`, a directory containing two files, a FIFO — all four real filesystem fixtures — and a device node through PIB-560's injected file-kind seam | in all five the printed removal is the single line `rm -rf -- <the repo-relative managed blob path>`, preceded by the explicit destructive warning on its own line(s) and containing no wildcard, no second path, no directory prefix above the blob and no `-i`/`-I` interactive form; running it exits 0 on Linux and Darwin, leaves the path absent, leaves the symlink's **target** untouched, and removes no sibling blob. None of the forbidden command words `cp`, `git`, `readlink`, `mv`, `rsync`, `tar`, `ln`, `install`, `dd` or `chmod` appears in any of the five outputs — neither in the procedure nor in the prose beside it, which is the rev-12 tightening (PIB-559); instead the message states that preserving the object requires tooling appropriate to the object's kind, chosen by the operator, and names none. The index-divergence form of the same code names **no** removal command at all and no managed blob path. A sensitivity fixture that emits rev-10's `cp` + plain `rm` pair, one that emits `rm -rf <path>` without the `--` terminator, and one that emits the correct single `rm -rf --` while listing `cp -R for a directory, cp -P for a symlink, git show for a version-controlled original` in the sentence beneath it — rev-11's own prose — all fail (§9.3.1, §9.7.2, §10.7, PIB-506, PIB-543, PIB-559, PIB-560) |
 | PIB-548 | I | multi-instance repair classes, one class per fixture: (a) three globally unreferenced tombstone-beside-blob residues; (b) two dangling retained hashes; (c) two mixed tombstone/live-reference hashes — each observed by `list` and `doctor`, then repaired by one invocation | `list` and `doctor` render every instance, each carrying the **same** class repair for (a) and its own `--blob <h> --yes` for (b) and (c), and neither implies one run per instance; one `purge <slug> --orphans --yes` removes all three residues in (a) at exit 0 with `index.json` byte-identical; one `purge <slug> --blob <h₁> --blob <h₂> --yes` completes (b) with zero removals and (c) with two removals, both at exit 0, after which X11 is satisfied and an ordinary mutation proceeds. A fourth fixture mixing classes (a) and (c) refuses every selector at exit 3 zero-write and renders both routes (§9.7.1, §9.7.3, PIB-542, PIB-549) |
-| PIB-549 | G | the admission predicate for X11-refused states, **derived** from the implementation: the mapping from (observed inconsistency set, confirmed selection) to admitted/refused | admission is granted exactly when the observed set is non-empty, belongs to a **single** repair class, and the confirmed selection covers **every** instance of that class; it is refused when two classes are present, when an instance of the admitted class is not covered by the selection, and when the selection is not that class's shipped repair. `--orphans --yes` is admitted only for the unreferenced-residue class; a selection total over each dangling hash only for the dangling class; a selection total over each mixed hash only for the mixed class; no selection is ever admitted past a corrupt object or an unsafe pending blob. Three semantic sensitivity fixtures, all valid code with correct names: one that keeps rev-10's "sole inconsistency" rule and so refuses an archive holding two residues, leaving it with no shipped repair; one that admits a selection covering only part of its class and repairs it partially; one that admits a selection past a second class because the first was admitted (§9.3.1, §9.7.2) |
+| PIB-549 | G | the admission predicate for X11-refused states, **derived** from the implementation: the mapping from (observed class set, confirmed selection) to admitted/refused | admission is granted exactly when all four of §9.3.1's conditions hold for **one chosen class**: the observed set is non-empty, the confirmed selection covers **every** instance of the chosen class, the selection's hash and object sets are disjoint from every other observed class's, and the mutation's write set provably cannot change any other class's members' wire state, blob observation, ownership or liveness. It is refused when an instance of the chosen class is uncovered, when the selection reaches into a second class, when the mutation would degrade another class's evidence, and when the selection is not that class's shipped repair. `--orphans --yes` is admitted only for the unreferenced-residue class; a selection total over every dangling hash only for the dangling class; a selection total over every mixed hash only for the mixed class; `--generation` is never a class repair; `--all --yes` is admitted only where the chosen class is the sole observed class; and no selection is ever admitted past a corrupt object (whose class carries a manual prerequisite instead) or past an owned hash. Five semantic sensitivity fixtures, all valid code with correct names: one that keeps rev-10's "sole inconsistency" rule and so refuses an archive holding two residues, leaving it with no shipped repair; one that keeps rev-11's "sole class" rule and so refuses an archive holding one residue and one mixed hash, which is the same brick one level up; one that admits a selection covering only part of its class and repairs it partially; one that admits `--all --yes` while a second class is present, whose whole-archive write set erases that class's evidence; and one that admits a selection for a hash whose §9.3 precedence puts it in a **different** class than the description the selection matched (§9.3.1, §9.7.2, PIB-552, PIB-554, PIB-555) |
 | PIB-550 | C | the revalidate→unlink window: an external writer replaces the object at `blobs/<h>.blob` between the pre-removal revalidation and the unlink, injected at `beforePurgeBlobRemove` after `afterPurgeBlobRevalidate` has passed, over both a replacement regular file and a replacement directory | the unlink removes whatever is at that path, the machine continues to the tombstone CAS, and the invocation ends at exit 0 `recovered` with every reference to `h` tombstoned — an index-consistent outcome whose byte-level loss of the replacement is **not** detected. The guard half asserts the disclosure rather than the behavior: no shipped string, and no sentence of this PRD or ADR-035, claims this window is closed, conditioned or detected, and a sensitivity fixture that adds "the removal is conditioned on the revalidated content" to either document or to a report must fail. The residual is rendered beside the post-CAS final-syscall race in the same disclosure, never in place of it (§7.1, §9.7.2) |
-| PIB-551 | G | the wire/storage disposition table of §9.3 against the implementation, over the **full** domain (wire state × blob observation ∈ {absent, present-regular-hash-correct, present-non-regular-or-hash-wrong} × ownership × liveness) | every reachable triple resolves to exactly one row of the shipped table and exactly one route, and the guard derives both sides — the domain from the enumerated wire states and blob observations, the mapping from the classifier — rather than reading the document. No triple maps to zero routes, none maps to two, and the three retained rows (present-hash-correct, absent, present-unidentifiable) each split correctly on ownership. Two semantic sensitivity fixtures: one that drops the retained/absent-and-owned triple so an owned dangling reference is classified as `archive-blob-dangling` instead of routed to its transaction; one that adds a second route to the tombstoned/present-unidentifiable triple by offering both `--orphans --yes` and the corrupt procedure (§9.3, §9.3.1) |
+| PIB-551 | G | the wire/storage disposition table of §9.3 against the implementation, over the **full 4-tuple domain** (wire state × blob observation ∈ {absent, present-regular-hash-correct, present-non-regular-or-hash-wrong} × global ownership × global liveness) | the guard derives **both** sides — the domain from the enumerated wire states and blob observations, the reachability from the three stated dependencies (a retained reference makes its hash live; a removal-pending reference makes its hash owned and live; owned implies live), and the mapping from the classifier — rather than reading the document. It asserts the arithmetic explicitly: **36** tuples in the Cartesian product, **18** ruled out by the dependencies (6 retained × unreferenced, 9 removal-pending × the other ownership/liveness combinations, 3 tombstoned × owned × unreferenced), **18** reachable, and the shipped table has **exactly 18 rows**, one per reachable tuple, each with exactly one route. No tuple maps to zero routes, none to two, none is duplicated, and no row exists over an unreachable tuple. The two rev-12 splits are asserted directly: `tombstoned × owned × present` splits on hash-correct (row 13, completes at exit 0 under the owner) versus unidentifiable (row 14, exit 6 `archive-purge-evidence-divergent`), and `tombstoned × not-owned × absent` splits on unreferenced (row 10, ordinary purged storage) versus live (row 11, carrying the dangling hash's route). Four semantic sensitivity fixtures: one that drops the retained/absent-and-owned tuple so an owned dangling reference is classified `archive-blob-dangling` instead of routed to its transaction; one that adds a second route to the tombstoned/present-unidentifiable tuple by offering both `--orphans --yes` and the corrupt procedure; one that re-collapses rows 13 and 14 into rev-11's single `tombstoned | present, and h is owned` row, so an owned tombstoned reference beside a directory is described as merely swept into the claim; and one whose row count and stated domain disagree — a table of 17 or 19 rows over the same 18 reachable tuples — which a count-free totality check would pass (§9.3, §9.3.1, PIB-558) |
 
-### 18.50 Counts, kinds and slice partition
+### 18.50 AW — Rev-12 adjudication: sequential multi-class repair, printed-command parity, the owned-corrupt route and the state domain
 
-- **551 rows**, `PIB-001`…`PIB-551`, contiguous, zero duplicates, zero retired.
+| ID | Kind | Case | Asserted observable |
+|---|---|---|---|
+| PIB-552 | I | **two-class sequential repair**, end to end: an archive holding three `unreferenced-residue` instances **and** two `mixed-reference` hashes, no pending record, run as (1) `purge <slug> --orphans --yes`, (2) `purge <slug> --blob <h₁> --blob <h₂> --yes`, with an ordinary mutating `prepare` attempted before, between and after | run (1) exits **0**: all three residue blobs are gone, `index.json` is **byte-identical** to its pre-run bytes, both mixed hashes' blobs and index entries are byte-identical, and the report carries the `archive-repairs-remaining` advisory and the `remaining_repairs` object naming `repaired_class: "unreferenced-residue"`, one `classes[]` entry for `mixed-reference` with both hashes, both repo-relative paths, the literal repeated-`--blob` repair, `repair_cwd: "workspace-root"` and `rerun_required: true`. Run (2) exits **0**, tombstones every reference to both mixed hashes, removes both blobs, and emits **no** `archive-repairs-remaining` advisory and **no** `remaining_repairs` object, because nothing remains. The `prepare` attempted before run (1) refuses exit 3 naming both classes' routes; the one attempted between refuses exit 3 naming only the mixed class's route; the one attempted after succeeds. A whole-tree byte snapshot is taken at each step, and a filesystem spy confirms run (1) removed exactly three files and wrote zero index bytes (§9.3.1, §9.7.1, §10.2, §10.3, PIB-549, PIB-555, PIB-556) |
+| PIB-553 | I | **three-class sequential repair** including the class with a manual prerequisite: an archive holding two `unreferenced-residue` instances, two `dangling-reference` hashes and one `corrupt-object` (a directory at a managed blob path under a retained reference), run to completion | the operator's route is three admitted invocations plus one manual step, in any order the report permits, and every intermediate state is reported truthfully: each admitted run exits **0**, repairs exactly its class, and lists the classes it did not touch with their own routes; the `corrupt-object` entry's `repair` carries §9.3.1's procedure — the destructive warning, the single `rm -rf --` of that exact managed path, and **no** preservation command — rather than a `tpatch` command line; after the manual removal that hash becomes an ordinary `dangling-reference` instance and is cleared by the dangling class's repeated-`--blob` repair. At the end X11 is satisfied, an ordinary mutating `prepare` proceeds, and the total tpatch invocation count is exactly one per class. **`purge <slug> --all --yes` is attempted at every intermediate state and refuses exit 3 zero-write every time**, because more than one class is present and its write set reaches into classes it was not admitted for (§9.3.1, §9.7.2, PIB-552, PIB-555, PIB-557, PIB-559) |
+| PIB-554 | G | the **class-collapse** function, **derived** from the classifier: the mapping from each inconsistent non-owned hash to its repair class, over an index whose hashes carry overlapping observations | every inconsistent hash resolves to **exactly one** class, computed by §9.3's precedence — ownership first, unidentifiable bytes second, liveness last — before any class set is constructed, so the class sets are pairwise disjoint by construction and §9.3.1's condition (b) is a decidable set test. The driving fixture holds a hash that is simultaneously a mixed tombstone/live pair **and** a directory at its managed blob path: it resolves to `corrupt-object`, appears in no other class's set, and `purge <slug> --blob <h> --yes` over it is **refused** rather than admitted as the mixed class's repair. A second fixture makes that hash owned as well and asserts it leaves the class partition entirely, routing to `recovery-pending` (§9.3, PIB-558). Three semantic sensitivity fixtures, all valid code with correct names: one that puts a hash in two class sets so a selector can be admitted for either; one that resolves the mixed-plus-directory hash to `mixed-reference` and admits its `--blob` repair against an object tpatch cannot identify; and one that computes class membership **after** building the selection rather than before, so the collapse cannot constrain the admission |
+| PIB-555 | G | §9.3.1's **non-degradation** condition (c), **derived** by walking each admitted repair's write set rather than by reading the prose | for every admitted class repair the guard computes the exact write set — the index references rewritten and the blob paths removed — and proves it is a function of the selected hashes only, and that no other hash's wire state, blob observation, global ownership or global liveness is derivable from it. `--orphans --yes` removes only globally unreferenced blobs and rewrites no index; a repeated `--blob` selection rewrites only the selected hashes' references and removes only their blobs; the `corrupt-object` prerequisite is an operator action outside tpatch's write set entirely. `--all --yes` **fails** the check whenever a second class exists, and the guard asserts the implementation withholds its admission there. Three semantic sensitivity fixtures, all valid code with correct names: one whose `--orphans` implementation also rewrites the index, so a concurrent class's reference states move under it; one that admits `--all --yes` beside a second class; and one whose repeated-`--blob` repair widens its work list to shared generations, pulling an unselected hash into the mutation |
+| PIB-556 | I | the `remaining_repairs` object and the `archive-repairs-remaining` advisory, JSON and human, over each of the four repair classes appearing as the untouched class | JSON carries `remaining_repairs` with exactly `rerun_required: true`, the closed `repaired_class` token, and `classes[]` — never null, never empty, sorted in the closed set's declared order — each entry carrying `class`, lexically sorted `hashes[]`, repo-relative `paths[]`, the literal `repair` string §9.3.1's admission table assigns to that class and `repair_cwd: "workspace-root"`; the advisory is emitted **if and only if** the object is; the human rendering carries the same tokens, hashes, paths and repair lines and labels them as remaining repairs, **without** the `Run this again from the same workspace root:` heading, which is reserved for re-running the emitting invocation (PIB-498); no absolute path, no symlink target and no path outside the feature's `artifacts/intent-archive/` directory appears in either surface; and for the `corrupt-object` class the `repair` text is §9.3.1's procedure with its destructive warning above the single `rm -rf --` and no preservation command (§10.2, §10.3, PIB-497, PIB-547, PIB-559) |
+| PIB-557 | I | every emitter that names `--all --yes` as a repair — the refusal renderings, `list`, `doctor`, the `remaining_repairs` repair lines and every worked example in this PRD and ADR-035 | each one prints, adjacent to the command and not in a footnote, all three elements: that it claims and tombstones **every** reference in **every** generation and removes **every** blob in the archive, leaving no recoverable bytes for any artifact until identical content is archived again; that the unconfirmed `purge <slug> --all` preview is the default and shows the full selection first; and that repeated `--blob <h> --yes` covers the same class while touching nothing else, with the class's hashes enumerated so the operator can transcribe rather than search. An emitter that names `--all --yes` bare, one that states the blast radius only in a later paragraph, and one that omits the narrower alternative all fail. The guard additionally asserts `--all --yes` is offered as a class repair **only** where the chosen class is the archive's only class (§9.3.1, §9.7.1, §9.7.3, PIB-555) |
+| PIB-558 | G | the **owned-corrupt route**, **derived** from the classifier and the purge machine: the mapping from every (owned hash × blob observation) pair to an exit code and a route | every owned hash whose blob is present but non-regular or hash-wrong resolves to **exit 6** `archive-purge-evidence-divergent` and to §9.7.2's archive procedure, through **each** of that hash's references — retained (§9.3 row 6), removal-pending (row 9) and tombstoned (row 14) alike — and **no** exit-3 code is reachable for any of them: the guard asserts, by walking the classifier's outputs rather than scanning names, that `archive-index-storage-inconsistent`, `archive-blob-corrupt` and `archive-blob-dangling` are unreachable for an owned hash. The other owned observations keep their routes: present-regular-hash-correct completes under the owner and absent takes the tombstone path. A non-owned retained reference beside an unidentifiable blob still resolves to exit-3 `archive-blob-corrupt`, so the guard also fails an implementation that widens the exit-6 population to non-owned hashes. Three semantic sensitivity fixtures, all valid code with correct names: one that keeps rev-11's `archive-index-storage-inconsistent` mapping for an unsafe/wrong blob under a pending reference, which offers a zero-write exit-3 promise for a transaction that has already written; one that maps the same observation under a **tombstoned** reference of the owned hash to `archive-blob-corrupt`, splitting one hash's route in two; and one that routes the exit-6 population to `--abandon-transaction`, which cannot consume it (§9.3, §9.3.1 X11, §9.7.2 step 6, §10.4.1, PIB-508, PIB-524, PIB-545) |
+| PIB-559 | G | the **forbidden-token guard** over every emitted block the corrupt-object, divergent-evidence, repair-class and remaining-repairs surfaces can produce — refusal renderings, `list` and `doctor` route strings, `remaining_repairs` repair lines, and the worked examples in this PRD and in ADR-035 | the guard **derives** the emitter set from the code paths that produce those surfaces rather than from a list, extracts every emitted block, and fails on any occurrence of the command words `cp`, `git`, `readlink`, `mv`, `rsync`, `tar`, `ln`, `install`, `dd` or `chmod`, in the command lines **and** in the prose beside them. The three permitted external forms of §10.7 are the closed exception list, each admitted only on the one surface §10.7 assigns it: §9.5's `cp` restore form is permitted **only** in the §9.5 success report and fails the guard anywhere else. Four semantic sensitivity fixtures, all spelled correctly and formatted validly: one that restores rev-11's `cp -R for a directory, cp -P/readlink for a symlink, git show for a version-controlled original` prose beside a correct `rm -rf --`; one that moves §9.5's `cp` restore line into the corrupt-object procedure; one that suggests `mv` the object aside instead of removing it; and one that offers `tar -cf` as a preservation step for the directory kind (§9.3.1, §9.7.2, §10.7, PIB-180, PIB-547) |
+| PIB-560 | I | the non-regular fixture construction itself, asserted as part of the harness contract rather than assumed | a **real filesystem** fixture is built for the regular-file, symlink, directory and FIFO kinds — `os.WriteFile`, `os.Symlink`, `os.MkdirAll` and `syscall.Mkfifo` respectively — at the managed `blobs/<hash>.blob` path, on both Linux and Darwin, and every assertion of PIB-507, PIB-543 and PIB-547 runs against them unmodified. The **device-node** kind is created by `mknod` where the test process has the privilege and, where it does not, through an **explicit injected file-kind seam**: a single test-only interface that reports the observed object's kind to the classifier, injected with `device`, exercising the same classification, message and route assertions while performing no real `mknod`. The guard half asserts that the seam is test-only (a build-tag or interface-injection walk shows no production call site), that it is used **only** for the device kind, and that the test reports the substitution as a stated limitation in its own output — an unconditional injected-kind run for all five kinds fails, and so does a run that silently skips the device kind without recording it. What the seam cannot cover is stated rather than hidden: no real `rm -rf --` is executed against a real device node in that environment, so the type-totality of the printed command over that one kind rests on the documented POSIX behavior of `rm -rf` plus the four kinds that are executed for real (§9.3.1, PIB-507, PIB-543, PIB-547) |
+
+### 18.51 Counts, kinds and slice partition
+
+- **560 rows**, `PIB-001`…`PIB-560`, contiguous, zero duplicates, zero retired.
   160 rows are new in rev-1 (`PIB-235`…`PIB-394`); 15 are new in rev-2
   (`PIB-395`…`PIB-409`); **23** are new in rev-3 (`PIB-410`…`PIB-432`);
   **16** are new in rev-4 (`PIB-433`…`PIB-448`); **34** are new in rev-5
@@ -6529,16 +6991,20 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
   **6** are new in rev-9 (`PIB-531`…`PIB-536`);
   **9** are new in rev-10 (`PIB-537`…`PIB-545`);
   **6** are new in rev-11 (`PIB-546`…`PIB-551`);
+  **9** are new in rev-12 (`PIB-552`…`PIB-560`);
   earlier IDs retain their
   numbers when amended (§18.1).
-- **48 categories**: A 20, B 24, C 15, D 12, E 9, F 19, G 13, H 14, I 13, J 8,
+- **49 categories**: A 20, B 24, C 15, D 12, E 9, F 19, G 13, H 14, I 13, J 8,
   K 12, L 10, M 14, N 14, O 10, P 7, Q 6, R 3, S 9, T 2, U 10, V 12, W 5, X 6,
   Y 7, Z 4, AA 15, AB 7, AC 10, AD 8, AE 10, AF 5, AG 14, AH 17, AI 6, AJ 10,
   AK 10, AL 4, AM 15, AN 23, AO 16, AP 34, AQ 23, AR 15, AS 10, AT 6, AU 9,
-  AV 6.
-  **48 categories; sum = 551.**
-- **By kind**: `I` 242, `C` 122, `G` 113, `U` 49, `S` 25. Sum = 551. (Rev-11 adds
-  `I` 2, `C` 1 and `G` 3 and re-kinds nothing, so the rev-10 totals of
+  AV 6, AW 9.
+  **49 categories; sum = 560.**
+- **By kind**: `I` 247, `C` 122, `G` 117, `U` 49, `S` 25. Sum = 560. (Rev-12 adds
+  `I` 5 and `G` 4 and re-kinds nothing, so the rev-11 totals of
+  `I` 242, `C` 122, `G` 113, `U` 49, `S` 25 carry forward unchanged before the
+  nine new rows are added. Rev-11 added
+  `I` 2, `C` 1 and `G` 3 and re-kinded nothing, so the rev-10 totals of
   `I` 240, `C` 121, `G` 110, `U` 49, `S` 25 carry forward unchanged before the
   six new rows are added. Rev-10 added
   `I` 6, `C` 2 and `G` 1, and re-kinded nothing, so the rev-9 totals of
@@ -6556,7 +7022,7 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
   `I` 14, `C` 3 and `G` 6 over rev-5's `I` 204,
   `C` 111, `G` 94, `U` 49, `S` 24 — that revision re-kinded `PIB-445` from `C`
   to `G` because the probe it drove no longer exists.) Every row
-  whose kind is `G` is covered by §18.51's sensitivity requirement.
+  whose kind is `G` is covered by §18.52's sensitivity requirement.
 - **Slice partition** (each row in exactly one slice):
 
 | Slice | Categories | Rows |
@@ -6569,12 +7035,12 @@ meaning, and none is renumbered.** Rev-11 adds only contiguous
 | S4b retention surface | AH | 17 |
 | S5 doctor, compatibility, non-invalidation | J, O, P, R, AE, AK | 48 |
 | S6 docs, skills, guards | K, Q, S, AL | 31 |
-| S7 rev-3…rev-11 cross-cutting hardening | AM, AN, AO, AP, AQ, AR, AS, AT, AU, AV | 157 |
+| S7 rev-3…rev-12 cross-cutting hardening | AM, AN, AO, AP, AQ, AR, AS, AT, AU, AV, AW | 166 |
 
-Sum = 551; zero unassigned, zero double-assigned (PIB-230's ledger check
+Sum = 560; zero unassigned, zero double-assigned (PIB-230's ledger check
 derives this partition mechanically rather than trusting the table).
 
-### 18.51 Sensitivity requirement
+### 18.52 Sensitivity requirement
 
 Every row whose Kind contains `G` carries a **sensitivity fixture**: a
 deliberately wrong input that the guard must reject. PIB-550 is kinded `C`
@@ -6588,7 +7054,7 @@ been burned by exactly that
 the meta-check that derives the guard set mechanically from the Kind column
 rather than from a hand-maintained list.
 
-**Semantic guards additionally require a semantic fixture.** Twenty-six guards
+**Semantic guards additionally require a semantic fixture.** Thirty guards
 in this matrix assert a *meaning*, not a token, and a byte scan cannot establish
 them.
 Each therefore carries a fixture that is textually valid and semantically
@@ -6620,10 +7086,14 @@ wrong, and the guard must still fail:
 | PIB-533 global orphan predicate | an orphan predicate evaluated per reference, so a tombstoned reference admits its blob to the orphan set while another generation still retains the same hash — valid code, correct names, and it deletes live data; **and** an `--orphans --yes` that removes the orphans it can while an unrelated mixed hash goes unrepaired, which is a partial cleanup around a global inconsistency |
 | PIB-545 global ownership, claim domain and removal authority | a classification that files an **owned** hash — one with a removal-pending reference — as mixed, dangling or residue instead of routing it to its purge transaction; a blob removal whose call site is not dominated by a check that every reference to that hash is removal-pending, so a retained reference survives the removal; a map sending retained/present-but-hash-wrong to `archive-blob-dangling` rather than `archive-blob-corrupt`; an admission of `--orphans --yes` past a mixed tombstone/live-reference hash; **a claim CAS that skips already-tombstoned same-hash references while the removal gate still requires every reference to be pending, which deadlocks the hash forever**; and an absent-blob path that tombstones only the pending references and leaves a retained one behind. All six are valid code with correct names, and all six must fail |
 | PIB-546 recovery-exception ordering | a control flow that runs the whole-index X11 scan before `RecoverPendingPurge`, so a pending hash cannot be finalized while an unrelated hash is inconsistent and the refusing command is the only repair the refusal names; a recovery that continues into the selector after finalizing; and a mutating `prepare` granted the same exception instead of refusing `recovery-pending`. All three are valid code with correct names |
-| PIB-549 class-coverage admission | an admission predicate that keeps rev-10's "sole inconsistency" rule, so an archive holding two unreferenced residues is refused under every selector and has no shipped repair at all; one that admits a selection covering only part of its class and repairs it partially; and one that admits a selection past a second repair class because the first was admitted |
-| PIB-551 wire/storage disposition totality | a table that drops the retained/absent-and-**owned** triple, so an owned dangling reference is classified `archive-blob-dangling` instead of routed to its transaction; and one that gives the tombstoned/present-unidentifiable triple two routes by offering both `--orphans --yes` and the corrupt procedure |
+| PIB-549 sequential class admission | an admission predicate that keeps rev-10's "sole inconsistency" rule, so an archive holding two unreferenced residues is refused under every selector and has no shipped repair at all; one that keeps rev-11's "sole class" rule, so an archive holding one residue and one mixed hash is refused for the same reason one level up; one that admits a selection covering only part of its class and repairs it partially; one that admits `--all --yes` while a second class is present, whose whole-archive write set erases that class's evidence; and one that admits a selection for a hash whose §9.3 precedence puts it in a **different** class than the description the selection matched |
+| PIB-551 wire/storage disposition totality | a table that drops the retained/absent-and-**owned** tuple, so an owned dangling reference is classified `archive-blob-dangling` instead of routed to its transaction; one that gives the tombstoned/present-unidentifiable tuple two routes by offering both `--orphans --yes` and the corrupt procedure; one that re-collapses rows 13 and 14 into rev-11's single `tombstoned \| present, and h is owned` row, so an owned tombstoned reference beside a directory is described as merely swept into the claim; and one whose row count and stated domain disagree — 17 or 19 rows over the same 18 reachable tuples — which a count-free totality check would pass |
+| PIB-554 class collapse | a classifier that puts one hash in two class sets, so a selector can be admitted for either; one that resolves a mixed-plus-directory hash to `mixed-reference` and admits its `--blob` repair against an object tpatch cannot identify; and one that computes class membership **after** building the selection, so the collapse cannot constrain the admission |
+| PIB-555 non-degradation | an `--orphans` implementation that also rewrites the index, so a concurrent class's reference states move under it; an admission of `--all --yes` beside a second class, whose whole-archive write set erases that class's evidence; and a repeated-`--blob` repair that widens its work list to shared generations, pulling an unselected hash into the mutation |
+| PIB-558 owned-corrupt route | a map that keeps rev-11's `archive-index-storage-inconsistent` mapping for an unsafe/wrong blob under a pending reference, offering a zero-write exit-3 promise for a transaction that has already written; one that maps the same observation under a **tombstoned** reference of the same owned hash to `archive-blob-corrupt`, splitting one hash's route in two; and one that routes the exit-6 population to `--abandon-transaction`, which cannot consume it |
+| PIB-559 forbidden emitted tokens | a procedure that restores rev-11's `cp -R for a directory, cp -P/readlink for a symlink, git show for a version-controlled original` prose beside a correct `rm -rf --`; one that moves §9.5's `cp` restore line into the corrupt-object procedure; one that suggests `mv` the object aside instead of removing it; and one that offers `tar -cf` as a preservation step for the directory kind — all four spelled correctly and formatted validly |
 
-PIB-231 derives the guard set mechanically; this table is what stops twenty-six
+PIB-231 derives the guard set mechanically; this table is what stops thirty
 of those guards from being satisfied by a spelling check (PIB-231's own
 sensitivity fixture covers the derivation).
 
@@ -6632,7 +7102,7 @@ sensitivity fixture covers the derivation).
 **No implementation is authorized by this document.**
 
 1. This PRD must be accepted.
-2. **ADR-035 must be accepted.** It is `Proposed` at rev-11, and a writer cannot
+2. **ADR-035 must be accepted.** It is `Proposed` at rev-12, and a writer cannot
    accept its own ADR; the two are reviewed together and acceptance of both is
    the precondition for dispatching any slice.
 3. **The accepted `prepare --check` PRD must be implemented, landed on
@@ -6735,6 +7205,12 @@ Beyond §8's six overwrite alternatives:
 | Keeping the `cp` preservation step and plain `rm` in the corrupt/divergent procedures (rev-10) | **Rejected as unexecutable on its own fixtures.** The populations include a directory, a symlink, a FIFO and a device node at the managed blob path. `cp` without `-R` and `rm` without `-r` both fail on a directory; `cp` on a symlink copies the target rather than the link. One type-total `rm -rf --` against the exact validated path, under an explicit destructive warning, is printed instead, and an operator who wants the object is told to stop and use kind-appropriate tooling rather than being handed one command that is right for one kind out of five (§9.3.1, §9.7.2, §10.7, PIB-547). |
 | Claiming the revalidate→unlink window is closed by re-checking the file's hash immediately before removal | **Rejected as unimplementable, and therefore not claimed.** Neither supported platform offers an unlink conditioned on content, so between the pre-removal revalidation and the syscall an external writer can replace the object and have the replacement removed. The window is disclosed as a residual beside the post-CAS rename race rather than closed in prose, and PIB-550 fails any shipped string or document sentence that says otherwise (§9.7.2, §7.1). |
 | Letting `list` or `doctor` stop at the first exit-3 observation, or report only the worst one | **Rejected.** An operator repairing an archive needs the whole inventory in one pass; reporting one observation at a time turns an *n*-inconsistency archive into *n* discover-fix cycles, and each cycle's refusal looks identical to the last. Both surfaces render every safe observation with its own repair and take the highest exit, so the exit code answers "is anything here untrustworthy" while the body answers "what, exactly" (§9.7, §12.5, PIB-541). |
+| Admitting a repair only when its class is the **sole** class in the index (rev-11) | **Withdrawn as the same brick one level up.** rev-11 correctly replaced rev-10's per-instance rule with a per-class one, and then required the class to be the only class present. An archive holding one unreferenced residue and one mixed hash therefore had no admitted selector at all — `--orphans --yes` was withdrawn by the mixed hash and `--blob <h> --yes` by the residue — while every ordinary mutation refused, which is exactly the unrepairable state the class rule was introduced to remove. Admission is now **sequential**: one chosen class per invocation, under four conjunctive conditions (full coverage of the class, disjointness from every other class, provable non-degradation of every other class's evidence, and a report naming every untouched class with its route and requiring a rerun). The global scan is unchanged — it still validates and reports the whole index, and every ordinary mutation still refuses zero-write (§9.3.1, §9.7.1, §9.7.2, PIB-552, PIB-553, PIB-555, PIB-556). |
+| Letting a confirmed selector repair **two** classes in one invocation | **Rejected.** The operator confirmed one repair, and the classes have different blast radii, different evidence and different costs — a residue removal touches nothing referenced, while a mixed-hash purge destroys recoverable bytes. Collapsing them under one `--yes` would make the confirmation cover a decision the operator was never shown. One class per invocation, with the next class's own literal command reported, keeps every destructive step individually confirmed (§9.3.1, PIB-552, PIB-556). |
+| Admitting `--all --yes` as a class repair while a second class is present | **Rejected as a whole-archive mutation dressed as a class repair.** `--all` selects every retained reference in the archive, so its write set necessarily includes the other class's hashes: it fails the disjointness condition and the non-degradation condition together, and would erase the very evidence the untouched-class report is supposed to hand the operator. It is admitted only where the chosen class is the archive's only class, and every offer of it states the whole-archive blast radius, the preview-first default and the narrower repeated-`--blob` alternative (§9.3.1, §9.7.1, PIB-555, PIB-557). |
+| Mapping an unsafe or hash-wrong blob on an **owned** hash to exit-3 `archive-index-storage-inconsistent` (rev-11) | **Withdrawn as a contradiction and a false promise.** rev-11's X11 cell, §10.4.1 and ADR-035 D10 carried that exit-3 mapping while §9.3's table and §9.7.2 step 6 mapped the same tuple to exit-6 `archive-purge-evidence-divergent`. Exit 3 means the tree was not written; a hash the purge transaction owns has already had its first mutation land, so exit 3 cannot be honoured for it, and the exit-3 route names repairs that are defined over non-owned hashes. Every observation of an owned hash with an unidentifiable blob — through a retained, a pending or a tombstoned reference — is exit 6 with §9.7.2's archive procedure, and no exit-3 code is reachable for it (§9.3, §9.3.1, §10.4.1, PIB-558). |
+| Naming kind-appropriate preservation commands in prose beside the `rm -rf --` step (rev-11) | **Withdrawn.** rev-11 removed the emitted `cp` and then wrote "`cp -R` for a directory, `cp -P`/`readlink` for a symlink, `git show` for a version-controlled original" in the sentence beneath it. That reintroduces the defect one layer out: none of the three is a permitted external form (§10.7), each is being vouched for against an object whose kind the operator has not confirmed, and a *list* of possibly-wrong commands reads as a menu tpatch has vetted. The message now says to stop and use tooling appropriate to the object's kind and names nothing; §10.7 states the forbidden token set and PIB-559 greps every emitted block (§9.3.1, §9.7.2). |
+| Asserting the corrupt-object fixtures over an injected file-kind seam for **all five** kinds | **Rejected as a weaker test than the environment allows.** Four of the five kinds — regular file, symlink, directory and FIFO — are creatable by an unprivileged process on both supported platforms, so the printed `rm -rf --` is executed against real objects for them and the classification, message and removal are proved end to end. Only the device node needs the seam, and only where `mknod` requires privilege the test user lacks; that substitution is stated as a limitation in the test's own output rather than presented as a real-filesystem result (§9.3.1, PIB-507, PIB-560). |
 | Leaving the one retry heading's indentation unspecified (rev-9) | **Rejected.** rev-9 promised the sentence byte-for-byte and then indented it differently in different worked examples, so two emitters could satisfy the promise and still disagree on the bytes at the start of the line, and a harness matching the line would need each caller's nesting depth. The heading is a column-0 literal with no leading or trailing whitespace, alone on its line, and PIB-498's sensitivity set includes an indented and a trailing-space variant (§9.7.2). |
 
 ## 22. Claims-audit appendix
@@ -6742,11 +7218,11 @@ Beyond §8's six overwrite alternatives:
 **176 claims (`C1`…`C176`)** record every load-bearing claim this PRD makes
 about **current** behavior, with a
 `file:line` anchor. A reviewer should spot-check that each anchor lands within
-±5 lines of the cited construct at dispatch/base `c394117` (reviewed tip
-`a9ad7c0`). Claims corrected in rev-1
+±5 lines of the cited construct at dispatch/base `62c21a9` (reviewed tip
+`f06c2fd`). Claims corrected in rev-1
 are marked †; claims added in rev-1 start at C143, claims added in rev-5 start
 at C166, and the claim added in rev-6 is C176. None of rev-7, rev-8, rev-9,
-rev-10 or rev-11
+rev-10, rev-11 or rev-12
 adds a claim: none makes a new assertion about current shipped behavior, only
 about this cluster's own contract, so the count stays at **176**.
 

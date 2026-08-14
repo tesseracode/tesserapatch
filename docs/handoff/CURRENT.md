@@ -2,13 +2,19 @@
 
 ## Status
 
-**Cluster state**: REV-12 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-11** and proposed ADR-035
-**rev-11** close the rev-10 adjudication, but review found a final inter-class
-repair deadlock plus printed-command and pending-corrupt state-map parity
-defects. A narrow **rev-12** is dispatched. The revision is **docs-only**; no
-mutating command is implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-12** and proposed ADR-035
+**rev-12** close every rev-11 adjudication item: repair admission is sequential
+(one chosen class per invocation under four conjunctive conditions) so a second
+class no longer bricks the first, every emitted procedure names exactly the
+type-total `rm -rf --` and no preservation command at all, an owned hash with an
+unidentifiable blob routes only to exit-6 `archive-purge-evidence-divergent`,
+§9.3's state map states its 4-tuple domain and carries exactly 18 rows over 18
+reachable tuples, the non-regular fixtures are real for four kinds with an
+explicit injected seam for the fifth, and every `--all` offer prints its
+whole-archive blast radius. The revision is **docs-only**; no mutating command
+is implemented or authorized.
 
 ## Active Task
 
@@ -16,7 +22,7 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-12 dispatched after rev-11 NEEDS REVISION
+- **Status**: Rev-12 written, awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-12)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -66,6 +72,154 @@ The same-hash claim and recovery exception are closed. Rev-12 is limited to:
 Rev-12 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
 implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
 change is authorized.
+
+## Prepare PRD Writer Result — rev-12 (2026-08-14)
+
+**Writer base/dispatch**: `62c21a9`; **reviewed writer tip (rev-11)**: `f06c2fd`;
+**WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the six rev-12 dispatch
+items, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-12
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-12
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **Sequential multi-class repair (item 1).** The global scan is unchanged —
+   it still validates and **reports every class**, and every ordinary mutating
+   `prepare` still refuses zero-write on any class (§6.2, PIB-538). What changed
+   is the admission. rev-11 admitted a repair only when its class was the
+   *sole* class present, which re-created between classes exactly the brick it
+   had removed between instances: an archive holding one unreferenced residue
+   **and** one mixed hash had no admitted selector at all. §9.3.1 now states
+   **sequential admission** as four conjunctive conditions in a table — (a) the
+   confirmed selection covers every instance of the chosen class; (b) no
+   selected hash or removed object belongs to another class; (c) the mutation
+   provably cannot erase, degrade or reclassify another class's evidence; (d)
+   the report names every untouched class with its route and requires a rerun.
+   A closed four-row table gives each class its deterministic admission:
+   `unreferenced-residue` ⇒ `--orphans --yes` (total by construction);
+   `dangling-reference` and `mixed-reference` ⇒ repeated `--blob <h> --yes`
+   covering every hash of the class; `corrupt-object` ⇒ **no selector** until
+   the operator's own type-total `rm -rf --` prerequisite has run, after which
+   the hash is an ordinary dangling or unreferenced instance. `--generation` is
+   never a class repair. Same-hash overlapping observations collapse to one
+   class by §9.3's fixed precedence, so class membership is a **function** and
+   (b) is a decidable set test — a mixed pair whose blob is a directory is
+   `corrupt-object` and its `--blob` repair is **not** admitted. Reconciled at
+   X11's cell, the §9.7.2 preflight row, §9.7.1's four selector bullets, the
+   compound ladder step 3, §9.7.3's two repair blocks, §10.4.1's exit-3 row,
+   §10.5 step 22, §10.7, ADR D10's class-collapse note and ADR D16's admission
+   block. §21 and the ADR's alternatives table both gain the withdrawn
+   sole-class rejection. New PIB-552 (two-class sequence end to end), PIB-553
+   (three-class sequence including the manual prerequisite), PIB-554 (derived
+   class collapse), PIB-555 (derived non-degradation predicate), PIB-556 (the
+   untouched-class report); amended PIB-533, PIB-534, PIB-542, PIB-548,
+   PIB-549.
+2. **Printed command parity (item 2).** Every emitted procedure and worked
+   example now contains exactly one command — the type-total
+   `rm -rf -- <validated repo-relative managed blob path>` beneath its
+   destructive warning — or, for index divergence, none. The preservation
+   sentence says to stop and use tooling appropriate to the object's kind and
+   **names nothing**: rev-11's `cp -R` / `cp -P` / `readlink` / `git show` prose
+   is removed from §9.3.1's bullet, from the §9.7.2 worked block and from
+   §9.7.3. §10.7 states the forbidden command-word set explicitly (`cp`, `git`,
+   `readlink`, `mv`, `rsync`, `tar`, `ln`, `install`, `dd`, `chmod`) and scopes
+   permitted form (1) — §9.5's `cp` restore — to the §9.5 success report alone.
+   New PIB-559 derives the emitter set and greps every emitted block; amended
+   PIB-506, PIB-507, PIB-543, PIB-547. A mechanical fenced-block scan of the
+   PRD now finds forbidden tokens in **zero** corrupt/divergent/repair-class
+   blocks; the only `cp` occurrences left are §9.5's restore form and its §10.6
+   rendering, which are permitted form (1).
+3. **Owned corrupt route (item 3).** Any hash a purge transaction **owns**
+   whose blob is present but non-regular or hash-wrong maps **only** to exit-6
+   `archive-purge-evidence-divergent`, observed through a retained, a
+   removal-pending or a tombstoned reference alike (§9.3 rows 6, 9 and 14).
+   rev-11's residual exit-3 `archive-index-storage-inconsistent` mapping for an
+   unsafe/wrong pending blob is withdrawn from X11's cell, from §10.4.1's
+   exit-3 row (three sub-populations → **two**), from §10.5 step 22, from
+   PIB-524 and PIB-545, and from ADR D10's map. The boundary is re-stated as
+   **ownership**, not the observing reference's wire state — the phrasing that
+   left rows 6 and 14 looking unclassified. Non-owned retained corrupt stays
+   exit-3 `archive-blob-corrupt`. Precedence is pinned in §9.3's ordered list
+   (ownership first, unidentifiable bytes second, liveness last). New PIB-558
+   derives the mapping and fails any exit-3 code for an owned hash.
+4. **State map totality (item 4).** §9.3 now states its domain as an explicit
+   **4-tuple** table (wire state × blob observation × ownership × liveness) =
+   **36** tuples, with three named dependencies ruling out **18** (6 retained ×
+   unreferenced, 9 removal-pending, 3 tombstoned × owned × unreferenced),
+   leaving **18** reachable tuples and **exactly 18 numbered rows**. The
+   collapsed `tombstoned | present | owned` row is split on hash-correct (row
+   13, completes at exit 0) versus unidentifiable (row 14, exit 6), and
+   `tombstoned | absent | not owned` is split on liveness (row 10 ordinary
+   purged storage, row 11 carrying the dangling hash's route). The "triple"
+   wording is corrected to "tuple" throughout. PIB-551 is amended to derive the
+   domain, the reachability and the row count, with four sensitivity fixtures
+   including a re-collapse and a row-count/domain disagreement.
+5. **Fixtures and blast radius (item 5).** New PIB-560 pins the fixture
+   contract: regular file, symlink, directory and FIFO are built on the **real
+   filesystem** (`os.WriteFile`, `os.Symlink`, `os.MkdirAll`, `syscall.Mkfifo`)
+   at the managed blob path on both platforms, and the printed `rm -rf --` is
+   executed verbatim against each; the device-node kind uses an **explicit
+   injected file-kind seam** where `mknod` needs privilege the test user lacks,
+   the seam is asserted test-only and device-only, and the substitution plus its
+   residual limitation are stated in the test's own output. PIB-507 and PIB-543
+   are amended to match. Every place `--all` is offered as a repair now carries
+   three adjacent elements — whole-archive blast radius, preview-first default,
+   narrower repeated-`--blob` alternative — asserted by new PIB-557; `--all` is
+   admitted only as a **sole-class** repair, because it fails conditions (b)
+   and (c) against any second class by construction.
+6. **Mechanics (item 6).** Matrix **551 → 560** rows, `PIB-552`…`PIB-560`
+   contiguous, zero renumbered, zero retired. New category **AW** (9 rows), 48
+   → **49** categories, sum 560. Kinds: `I` 242→**247**, `C` 122, `G`
+   113→**117**, `U` 49, `S` 25; sum 560; no row re-kinded. Slice partition: S7
+   157 → **166**, total 560. §18.52's semantic table 26 → **30** guards
+   (PIB-554, PIB-555, PIB-558, PIB-559 join). §10.3 advisory catalog 17 →
+   **18** (`archive-repairs-remaining`), with §10.2's closed vocabulary row and
+   PIB-227 updated; §10.2 gains one closed object `remaining_repairs` and its
+   closed four-value `classes[].class` set, with PIB-226 updated. §18.50 is the
+   new AW section, and the former §18.50/§18.51 are renumbered to §18.51/§18.52
+   with every internal cross-reference updated. §16 gains R29–R33. §21 gains six
+   withdrawn/rejected rows; ADR alternatives gains six. Claims stay at
+   **C1…C176** (rev-12 asserts nothing new about shipped behavior); anchors
+   re-based to dispatch `62c21a9` / reviewed tip `f06c2fd`. ADR decisions stay
+   **D1–D21**; CP, J and X sets are unchanged in membership (X11's cell is
+   re-scoped, not renumbered). Every frozen rev-11 closure — the total same-hash
+   claim, the pending-recovery ordering exception, the column-0 retry heading,
+   the five external-write windows and the revalidate→unlink residual — is
+   preserved verbatim.
+
+### Verification
+
+- Fenced-block scan for forbidden command words over the whole PRD: the only
+  hits are §9.5's permitted `cp` restore form and its §10.6 rendering.
+- Contiguity: `PIB-001`…`PIB-560`, no gaps, no duplicates.
+- Arithmetic: 49 categories sum to 560; kinds sum to 560; slices sum to 560;
+  §9.3's 36 − 18 = 18 tuples matches its 18 rows.
+- No Go, asset, SPEC, ROADMAP, LOG or prerequisite file touched; `git status`
+  shows exactly the three intended paths plus the pre-existing untracked WIP.
+
+### Context for reviewer
+
+- The one substantive **behavior** change in rev-12 is that a confirmed purge
+  may now succeed (exit 0) in an archive that still holds another repair class.
+  Condition (d) — the `remaining_repairs` object plus the
+  `archive-repairs-remaining` advisory — is what keeps that from reading as "the
+  archive is repaired". If the reviewer disagrees with admitting a class beside
+  another class at all, the alternative is rev-11's behavior, which is recorded
+  as withdrawn in §21 with its brick stated.
+- `--all --yes` is deliberately the one selector that stays sole-class-only.
+  Its write set is the whole archive, so conditions (b) and (c) cannot hold
+  beside a second class.
+- The device-node fixture seam is the only test-only seam rev-12 adds, and it is
+  **not** a fault-injection point. §18.1's seam inventory paragraph is updated
+  to say so and to state what the seam cannot prove.
 
 ## Prepare PRD Writer Result — rev-11 (2026-08-14)
 
