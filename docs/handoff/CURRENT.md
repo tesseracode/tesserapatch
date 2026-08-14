@@ -2,14 +2,16 @@
 
 ## Status
 
-**Cluster state**: REV-5 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-4** and proposed ADR-035
-**rev-4** close the prior descriptor and purge-state defects, but review found
-unreachable abandon/dangling-repair routes, one path-based journal writer,
-dry-run and partial-purge contract gaps, and stale guard/slice wiring. A
-bounded **rev-5** is dispatched. No mutating command is implemented or
-authorized.
+Transactional prepare-intent-bundle PRD **rev-5** and proposed ADR-035
+**rev-5** are written and ready for review. The bounded revision makes
+`--abandon-transaction` reachable before every automatic recovery, roots every
+control write, reduces the dangling-reference repair to one shipped command,
+states dry-run's exact evaluated scope, adds a retryable partial-purge outcome,
+removes the perturbing doctor lock probe, completes the Git slice and makes the
+provenance guard feasible. It is **docs-only**; no mutating command is
+implemented or authorized.
 
 ## Active Task
 
@@ -17,7 +19,7 @@ authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-5 dispatched after rev-4 NEEDS REVISION
+- **Status**: Rev-5 writer complete — awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-5)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -87,6 +89,169 @@ Rev-5 must recompute matrix/categories/kinds/slices/claims/decisions/crash
 phases/binds/seams/citations and list every amended stable ID. It remains a
 **docs-only** revision of the PRD, ADR-035 and handoff; no implementation or
 supervisor-owned/guarded surface may change.
+
+## Prepare PRD Writer Result — rev-5 (2026-08-14)
+
+**Writer base/dispatch**: `e1633f2`; **reviewed writer tip**: `dc37ad8`;
+**WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the rev-5 adjudication
+items above, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-5
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-5
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **Abandon is reachable (item 1).** §7.8 gains an explicit step 2 and §10.5 an
+   explicit step 11: after the mutating platform/filesystem gate, the lane gate
+   and the flock, `--abandon-transaction` branches **before** journal recovery
+   and before pending archive-hash recovery, and neither runs in that mode. The
+   mode validates only kind and containment of its own evidence — never the
+   J1–J10 binds — so corrupt, forged, version-mismatched and foreign journals
+   are abandonable; a recoverable journal is moved, not consumed or undone. A
+   removal-pending archive index with no journal is **not** abandonable: abandon
+   refuses `no-pending-transaction` and names the archive purge route. §6.6,
+   §7.11, §10.5, ADR D13, PIB-449…PIB-453 plus amended PIB-270…PIB-274,
+   PIB-362, PIB-363.
+2. **Every control write is rooted (item 2).** §7.7.1 specifies a prepare-owned
+   rooted durable single-file helper (rooted mkdir chain → same-directory
+   `O_CREATE|O_EXCL` temp → write/sync/close → step CAS where defined →
+   `Root.Rename` → rooted parent fsync) that takes the authority and
+   root-relative names only. It carries the journal, both raw preimages,
+   staging, the `--manual` status publication, abandon moves and every other
+   `.tpatch/local/` write. `gitutil.DurableWriteFile` and `writeFileAtomic*` are
+   shape precedents, never callees, and the local lane gets no carve-out. §4,
+   §7.5, §7.7.1, §7.7.3, §13.2, ADR D2/D5, PIB-454…PIB-456 plus amended
+   PIB-096, PIB-308, PIB-309, PIB-312, PIB-313.
+3. **One dangling repair (item 3).** Unreachable exact-content rehydration is
+   removed as a dangling remedy; rehydration now applies only to tombstoned and
+   removal-pending references. The sole shipped repair is the literal
+   `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, which
+   tombstones every reference to the hash after confirming the blob is absent
+   and performs no removal; preview, `list`, doctor and the refusal all name
+   that one command. After it, an ordinary regenerate that reproduces the
+   generation uses the existing global rehydration path. §9.3, §9.3.1 X11,
+   §9.7.1, §9.7.3, §10.4.1, ADR D10/D16, PIB-457…PIB-460 plus amended PIB-402,
+   PIB-403, PIB-425, PIB-428, PIB-444, PIB-447.
+4. **Dry-run exact scope (item 4).** §6.4 enumerates what dry-run evaluates and
+   adds two closed columns that are **total over the 53-code refusal catalog**
+   (every code in exactly one column, verified mechanically). The universal
+   "same code as the real run" claim is withdrawn. Every dry-run report carries
+   `execution_preflight: "not_evaluated"` and a verbatim sentence saying the
+   real mutation can still refuse on platform, filesystem, Git, lock or
+   recovery grounds; on Windows, a denied filesystem or unverifiable Git it
+   still reports a plan. §10.5 step 7 is rebuilt as a real branch containing
+   every non-mutating gate. §6.4, §10.2, §10.5, PIB-461…PIB-464 plus amended
+   PIB-072, PIB-074, PIB-077, PIB-079, PIB-080, PIB-268, PIB-440.
+5. **Partial purge outcome (item 5).** §9.7.2 adds a complete preflight table
+   (selector, strict decode, X11 storage, shared reference, orphan identity,
+   reference count) that runs before the first write, and a distinct retryable
+   `archive-purge-partial` at **exit 5** for any failure after the first
+   per-hash mutation, reporting `completed_hashes`, optional `pending_hash`,
+   `remaining_hashes`, the exact same-command retry and the consistent-state
+   line. Divergent evidence is exit 6 `archive-purge-evidence-divergent`. Exit
+   3 keeps its zero-write meaning, now asserted globally. §9.7.2, §10.2, §10.4,
+   §10.4.1, §10.5, §7.10 CP12/CP12a, ADR D16, PIB-465…PIB-469.
+6. **Doctor probe removed (item 6).** D9 reports persistent evidence only and
+   never opens or flocks the root, with both reasons stated: the probe can make
+   a real mutator refuse, and concurrent doctors would diagnose each other. The
+   lost capability is stated rather than replaced — no diagnostic can identify a
+   holder or prove none exists; only the contending mutator reports the
+   authority, as held, holder-unknowable, wait-and-retry. `beforeDoctorLockProbe`
+   is removed from the seam list. §12.5, §7.4.1, §16 R11, §17.2 S1b/S5, ADR D13,
+   PIB-470, PIB-471 plus amended PIB-133…PIB-136, PIB-232, PIB-380, PIB-381,
+   PIB-386, PIB-387, PIB-445 (re-kinded `C` → `G`).
+7. **Git surface completeness and policy (item 7).** `internal/rescap/gitgate.go`
+   is added to the authorized S4 central-gate refactor and to the
+   shared-surface list, with the reason stated (it is where the shipped
+   executor lives). The environment scrub is pinned as a closed table including
+   `GIT_CONFIG_COUNT` and every `GIT_CONFIG_KEY_<n>`/`GIT_CONFIG_VALUE_<n>`
+   regardless of count; global/system ignore configuration is **deliberately
+   preserved**, with the reason and the explicit "this is not a sandbox"
+   disclosure. Existing callers keep explicit compatibility wrappers with
+   unchanged environment, argv asymmetries, output and goldens; no broader
+   behavior change is authorized. C locale and repo-relative argv are pinned,
+   and no argv or report field is absolute. §7.13, §12.6, §17.1, §17.2, ADR D17,
+   PIB-472…PIB-476.
+8. **Guard feasibility (item 8).** The provenance guard walks declared wire-struct
+   keys and the enumerated §13.5 persistence sinks instead of scanning `.tpatch/`
+   bytes for the token `generator`; canonical and provider prose may contain any
+   word. The structural raw-attempt guards stay structural and sensitive. §10.2,
+   §13.4, ADR D12, PIB-477 plus amended PIB-144, PIB-147, PIB-190, PIB-376,
+   PIB-419.
+9. **Source/reference truth and residuals (item 9).** Every current-state
+   "extracted from rescap" claim is gone; the rev-1 history row now says
+   explicitly that rev-1 *proposed* an extraction that rev-2/rev-3 superseded.
+   Status, byline, base `e1633f2`, reviewed tip `dc37ad8`, §22's audit base and
+   the ADR's 482-row reference are corrected; R7 now cites §7.12/§7.4.2 rather
+   than §7.4.4. Classification moves to `fstatfs` on the already-held
+   root-directory descriptor; the Linux denied magic list and the Darwin
+   exact-name semantics are pinned to real kernel forms with no prefix/suffix
+   matching; overlay/unknown-local proceeds only after a real flock, with the
+   lying-filesystem and no-cross-machine limits disclosed. The
+   `SyscallConn.Control`-versus-release ownership rule is stated and pinned.
+   §7.4.1, §7.4.2, §7.4.4, §22, ADR D4, PIB-478…PIB-482.
+10. **Mechanics (item 10).** §18.1 lists every amended stable row by area; new
+    IDs are contiguous `PIB-449`…`PIB-482` in a new category **AP**. Counts
+    recomputed mechanically: **482 rows, 42 categories, kinds I 204 / C 111 /
+    G 94 / U 49 / S 24**, slice partition sums to 482 with S7 at 88. Claims
+    grow to **175** (`C166`…`C175` added, all anchors verified in range).
+    Two new refusal codes (`archive-purge-partial`, `abandon-evidence-unsafe`)
+    and one new exit-6 code (`archive-purge-evidence-divergent`) are catalogued;
+    the closed `outcome` vocabulary gains `purge-partial`; the semantic-fixture
+    table grows from six to nine guards. The latent `--dry-run` /
+    `--abandon-transaction` mutex gap between §5.2 and §6.4 is closed.
+
+### Preserved closures (re-verified, not reopened)
+
+Held `*os.File` lifetime with `runtime.KeepAlive` and no finalizer release;
+Linux/Darwin root-directory flock; root-rename refusal without claimed
+rediscovery; rooted manual CAS; honest CAS→rename race disclosure; the
+coherent-suffix default and absolute sidecar preservation; provider-required
+`--regenerate` with `--allow-heuristic` opt-in; the ADR-027 D3 redaction
+precondition and its no-override rule; global-by-hash rehydration and
+tombstone identity; untracked-archive `git clean` risk; the `FEATURES.md` T1
+carve-out; the evidence-only lost-journal boundary; and the `--check`
+implementation prerequisite with its own-commit-range goldens.
+
+### Verification performed (docs-only; no build or test run)
+
+- **482 matrix rows**, `PIB-001`…`PIB-482`, contiguous, zero duplicates, zero
+  retired — checked mechanically.
+- **Every `PIB-NNN` cited in prose or in ADR-035 resolves to a real row**;
+  every `§` reference in both documents resolves to a real heading; every
+  relative link target exists.
+- **Category counts and kind counts recomputed from the tables themselves**
+  (42 categories summing to 482; kinds summing to 482) and written back, rather
+  than carried over.
+- **Refusal-catalog totality**: 53 codes, each appearing in exactly one column
+  of §6.4's reproduced/non-evaluated tables.
+- **Every Go source anchor** in both documents exists and its line range is
+  within the file.
+- Markdown hygiene: balanced fences, uniform table column counts, no trailing
+  whitespace, no unescaped pipes inside table cells, trailing newline present.
+
+### Remaining issues / notes for the reviewer
+
+- `docs/adrs/README.md` still lists ADR-035 as "Proposed (2026-08-13) …
+  rev-0". Updating the ADR index is **out of this writer's authorized diff**;
+  §14.1 records it as an implementation-wave obligation, now pointing at rev-5.
+- Exit 5 now carries two populations. That is a deliberate widening of the
+  rev-4 wording and is called out explicitly in §10.4 rather than left implicit;
+  a reviewer who disagrees should challenge the contract analysis in §9.7.2,
+  not the row text.
+- `abandon-evidence-unsafe` and `archive-purge-evidence-divergent` are new
+  codes introduced by this revision to keep the catalog total; both are named
+  in §10.4.1 with remediation.
+- The `--dry-run` / `--abandon-transaction` mutex was a latent §5.2-versus-§6.4
+  contradiction, not a dispatch item. It is fixed because rev-5's dry-run
+  totality tables depend on abandon not being a dry-run mode.
 
 ## Prepare PRD Writer Result — rev-4 (2026-08-14)
 
