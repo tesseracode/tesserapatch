@@ -2,42 +2,47 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-Artifact-validation/provenance PRD rev-5 and ADR-034 rev-2 are accepted by
-both reviewers. GH #10 is closed and the planning gate passes 8/8. No
-implementation has begun.
+The transactional prepare-intent-bundle PRD writer is dispatched from fresh
+base `d060ff4`. This is planning only; no mutating command is implemented.
 
 ## Active Task
 
-- **Task ID**: GitHub CI stabilization
-- **Description**: Restore Ubuntu CI by fixing POSIX shell wrapper framing and
-  detached Git-maintenance teardown races.
-- **Status**: Complete
+- **Task ID**: PRD-prepare-intent-bundle
+- **Description**: Define Path A generation, Path B adoption and explicit
+  regeneration of a complete intent bundle with truthful transaction and
+  recovery semantics.
+- **Status**: Writer rev-0
 - **Assigned**: 2026-08-13
-- **Base**: `bd1f749`
-- **POSIX wrapper fix**: `efd96c8`
-- **Maintenance teardown fix**: `35e8080`
-- **Green Actions run**:
-  [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
+- **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
+- **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
+- **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
+  ADR-034 rev-2
 - **Release tag**: v0.15.1 remains fixed at `15560af`
 
-## CI Stabilization Result
+## Prepare PRD Writer Contract
 
-The failure was still active on current main; it was not already fixed.
-
-1. Ubuntu `/bin/sh` (dash) does not interpret `printf '\x1f'`. Test Git shims
-   logged the literal four bytes `\x1f`, while Go parsers split on the real
-   unit separator. `efd96c8` changes every shell producer to POSIX octal
-   `\037`; production Git framing is unchanged.
-2. After that fix, Ubuntu exposed a separate flaky cleanup race:
-   `TestLandContaminatedRollbackFailureRetainsEvidence` could leave `.git`
-   non-empty while `t.TempDir` removed it. The shared pin disabled
-   `gc.auto` only; modern Git could still detach `git maintenance --auto`.
-   `35e8080` disables legacy auto-GC, modern auto-maintenance and both detach
-   controls for test subprocesses, with an exact env regression.
-
-Both Ubuntu and macOS test jobs now pass. The changes are test-only.
+- Default Path A generates only missing intent artifacts and preserves every
+  existing non-empty canonical file.
+- `--manual` adopts an already structurally complete bundle without provider
+  calls.
+- `--regenerate` is the only overwrite route and must preserve prior
+  hand-authored bytes under an explicit durable policy.
+- Successful mutation ends at existing `defined`; no new lifecycle state.
+- Publication unit is all three Markdown files, structured sidecars and final
+  `status.json`.
+- Distinguish command-boundary rollback/crash recovery from instantaneous
+  multi-file visibility; do not call a rename sequence atomic.
+- Define provider/heuristic fallback, timeouts, locks, journals, preimages,
+  failure/recovery/idempotency and concurrent-editor behavior.
+- Define allowed lifecycle states and interaction with `prepare --check`,
+  individual phases, `next`, `cycle`, reject/reopen and post-implementation
+  states.
+- Preserve accepted rooted inspection/privacy/provenance boundaries.
+- Evaluate persistent history/pointer/provenance alternatives. If one is
+  selected, create the required ADR before acceptance.
+- Include claims audit and executable acceptance matrix; no implementation.
 
 ## Final Verdict
 
@@ -1708,9 +1713,10 @@ Modified:
 
 ## Next Steps
 
-1. Record a fresh `origin/main` WAVE_BASE.
-2. Dispatch `PRD-prepare-intent-bundle.md` through the writer/review loop.
-3. Keep all implementation blocked until that PRD is accepted.
+1. Complete writer rev-0 and transition to dual review.
+2. Create an ADR only if rev-0 selects a persistent publication/history model.
+3. Fold revisions until the PRD and any coupled ADR are accepted.
+4. Keep implementation blocked throughout.
 
 ## Blockers
 

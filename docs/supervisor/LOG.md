@@ -1,3 +1,33 @@
+## Dispatch — PRD prepare intent bundle rev-0 — 2026-08-13
+
+**WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
+**Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
+**Prerequisites**: accepted artifact-validation/provenance PRD rev-5 and
+ADR-034 rev-2
+
+### Scope
+
+- Default Path A missing-only generation.
+- Path B `--manual` complete-bundle adoption.
+- Explicit `--regenerate` overwrite with durable prior-byte preservation.
+- Existing `defined` terminal state; no new lifecycle state.
+- Provider/heuristic semantics, timeout and failure handling.
+- Locks, journals, preimages, recovery, idempotency and concurrency.
+- Honest command-boundary transaction semantics; no false multi-file
+  atomic-visibility claim.
+- CLI/human/JSON/docs/skills and executable acceptance matrix.
+
+### Architecture Gate
+
+If the PRD selects persistent generation history, pointer publication or
+durable provenance, a new ADR is required before accepting that choice.
+ADR-034 remains the read-only inspection boundary and is not overloaded.
+
+### Action Taken
+
+GH #11 registered and the sole sequential PRD writer dispatched. No code,
+schema, ADR or mutating command is authorized yet.
+
 ## Fix — GitHub CI stabilization — 2026-08-13
 
 **Base**: `bd1f749`

@@ -807,6 +807,12 @@ legacy auto-GC. Actions run
 [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
 
+**Prepare intent-bundle PRD rev-0** 🚧 WRITER (2026-08-13, WAVE_BASE
+`d060ff4`, [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)):
+define Path A generation, Path B adoption, explicit regeneration, durable
+preimage/recovery policy and honest publication semantics on top of accepted
+`prepare --check`. No implementation is authorized.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
