@@ -1,3 +1,22 @@
+## Writer — PRD prepare intent bundle rev-10 + ADR-035 rev-10 — 2026-08-14
+
+**Writer tip**: `a9ad7c0`
+**Dispatch**: `2f8f697`
+
+### Revision
+
+- Makes any pending reference own every same-hash reference before removal.
+- Applies X11 globally before every archive mutation.
+- Adds the retained-corrupt-blob code and preserve/remove repair.
+- Corrects withdrawn alternatives and false-abandon domain.
+- Pins column-zero retry bytes, list/doctor precedence and manual X11 refusal.
+- Rebuilds the matrix to 545 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-10 + ADR-035 rev-10 — 2026-08-14
 
 **Writer base**: `2fea6ab`
