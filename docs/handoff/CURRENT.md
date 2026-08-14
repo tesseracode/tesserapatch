@@ -2,16 +2,14 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-11 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-10** and proposed ADR-035
-**rev-10** close every rev-9 adjudication item: global pending-hash ownership
-with a removal invariant, selector-independent whole-index X11 validation, the
-retained corrupt-blob route, the withdrawn-prose and abandon-domain
-corrections, column-0 retry-heading parity, and the pinned list/doctor,
-`--manual` and fence-count observations. The revision is **docs-only**; no
-mutating
-command is implemented or authorized.
+**rev-10** close the rev-9 adjudication, but review found two remaining
+scope contradictions in pending recovery/X11 admission and a non-regular
+manual-removal procedure that was not type-total. A narrow **rev-11** is
+dispatched. The revision is **docs-only**; no mutating command is implemented
+or authorized.
 
 ## Active Task
 
@@ -19,14 +17,54 @@ command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-10 written, awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-10)
+- **Status**: Rev-11 dispatched after rev-10 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-11)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-10 Review and Rev-11 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `a9ad7c0`
+**Tracking tip**: `d1a7efd`
+
+The global ownership model is retained. Rev-11 is limited to:
+
+1. **Claim every same-hash reference (HIGH).** The global claim CAS sets
+   retained **and tombstoned** same-hash references to pending. No same-hash
+   reference is a no-op while purge owns `h`; removal requires every reference
+   pending. Remove contradictory prose and make PIB-545 enforce this exact
+   dominance.
+2. **Recovery exception to global X11 (HIGH).** Global X11 validation precedes
+   every **new selector mutation**. Completing an already-pending purge
+   transaction is the one explicit exception: recovery may finalize its owned
+   hash first and returns terminal `recovered`; it never proceeds into the new
+   selector. The operator reruns, and only then global X11 may refuse unrelated
+   residue. Align universal claims and compound rows.
+3. **Type-total corrupt removal (HIGH).** Replace plain `cp`/`rm` procedures
+   for non-regular/hash-wrong managed blob objects with one executable
+   Linux/Darwin route that handles symlink/directory/FIFO/device safely (for
+   example an exact-path `rm -rf -- <repo-relative-managed-path>` after an
+   explicit destructive warning). Do not promise type-agnostic preservation;
+   if preservation is desired, tell the operator to stop and use an
+   object-appropriate tool. PIB-506/507/543 must be satisfiable.
+4. **Class-multiplicity admission (MEDIUM).** Admission is scoped to one
+   repair **class**, not one instance. A selector must cover every instance in
+   that class: `--orphans` may remove multiple unreferenced residues; repeated
+   `--blob` or an explicitly justified `--all` may cover multiple same-class
+   hashes. Mixed classes remain zero-write refusal with separate routes.
+5. **State-map/pin cleanup (LOW).** Expand the wire/storage table to retained
+   missing/corrupt and ownership dimensions, pin the revalidate→unlink residual,
+   and recompute all mechanics.
+
+Rev-11 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Rev-9 Review and Rev-10 Adjudication (2026-08-14)
 

@@ -807,7 +807,7 @@ legacy auto-GC. Actions run
 [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
 
-**Prepare intent-bundle PRD rev-10 + ADR-035 rev-10** 🚧 AWAITING REVIEW
+**Prepare intent-bundle PRD rev-11 + ADR-035 rev-11** 🚧 IN PROGRESS
 (2026-08-13, WAVE_BASE `d060ff4`, writer `409710c`,
 [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)): 234 PIB
 rows and 142 claims define Path A missing-only generation, Path B adoption,
@@ -839,8 +839,9 @@ plus preview/ledger drift. Rev-8 landed at `837f28a` with 530 PIB rows.
 Acceptance review found a final global-hash residue split plus editorial parity
 drift. Rev-9 landed at `ebd1be8` with 536 PIB rows. Acceptance review found a
 final global pending-hash invariant and bounded X11 scope/guard drift; rev-10
-landed at `a9ad7c0` with 545 PIB rows; joint acceptance review is pending. No
-implementation is authorized.
+landed at `a9ad7c0` with 545 PIB rows. Acceptance review found final global
+claim/X11 recovery-exception and type-total removal gaps; rev-11 is dispatched.
+No implementation is authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

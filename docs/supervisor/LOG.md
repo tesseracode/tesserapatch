@@ -1,3 +1,59 @@
+## Dispatch — PRD prepare intent bundle rev-11 + ADR-035 rev-11 — 2026-08-14
+
+**Writer base**: `d1a7efd`
+**Reviewed writer tip**: `a9ad7c0`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Claim retained and tombstoned same-hash references before removal.
+- State pending recovery as the sole exception before new-selector X11 checks.
+- Replace non-regular corrupt-object shell procedures with a type-total route.
+- Admit every instance of one repair class while refusing mixed classes.
+- Complete the state map and final syscall residual coverage.
+
+### Action Taken
+
+One sequential docs-only rev-11 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-10 + ADR-035 rev-10 — 2026-08-14
+
+**Writer tip**: `a9ad7c0`
+**Tracking tip**: `d1a7efd`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Some sections claim tombstoned refs into pending while others treat them as
+  no-ops, deadlocking the global removal gate.
+- Universal pre-mutation X11 wording omits the pending-recovery exception.
+- Plain `cp`/`rm` cannot execute against directory/non-regular fixtures.
+- “Sole inconsistency” admission bricks multiple same-class instances.
+
+### Verified
+
+The ownership model, global-liveness split, selector-independent direction,
+545-row matrix and every mechanical total were independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-10 + ADR-035 rev-10 — 2026-08-14
+
+**Writer tip**: `a9ad7c0`
+**Tracking tip**: `d1a7efd`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Pending recovery finalizes its owned hash before unrelated global X11 state,
+  contradicting “before every archive mutation.”
+- The corrupt-object route is not executable for directory objects.
+
+### Verified
+
+545 rows, refusal partition, claims/references, JSON, links and fences.
+
 ## Writer — PRD prepare intent bundle rev-10 + ADR-035 rev-10 — 2026-08-14
 
 **Writer tip**: `a9ad7c0`
