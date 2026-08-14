@@ -2,14 +2,14 @@
 
 ## Status
 
-**Cluster state**: REV-4 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-3** and proposed ADR-035
-**rev-3** preserve the chosen held-root authority and close the rev-2 defects,
-but review found implementation-level contradictions in descriptor lifetime,
-root rename, purge pending recovery, dry-run precedence and the Git gate.
-A bounded **rev-4** is dispatched. No mutating command is implemented or
-authorized.
+Transactional prepare-intent-bundle PRD **rev-4** and proposed ADR-035
+**rev-4** are ready for review. The bounded adjudication retains accepted
+product choices while correcting descriptor lifetime, root rename, pending
+purge recovery, dry-run precedence, the Git gate, root-inode filesystem policy,
+doctor probing and structural raw-response guards. No mutating command is
+implemented or authorized.
 
 ## Active Task
 
@@ -17,7 +17,7 @@ authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-4 dispatched after rev-3 NEEDS REVISION
+- **Status**: Rev-4 writer complete — awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-4)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -25,6 +25,28 @@ authorized.
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Prepare PRD Writer Result — rev-4 (2026-08-14)
+
+**Writer base/dispatch**: `1a2ec28`; **reviewed writer tip**: `efcddc6`;
+**WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`.
+
+| File | Result |
+|---|---|
+| `docs/prds/PRD-prepare-intent-bundle.md` | `Draft — Awaiting Review (rev-4)`, **3,983 lines**, 448 contiguous `PIB-001`…`PIB-448` rows, 41 categories, kinds `I195/C100/G84/U47/S22`, and 165 claims. Rev-4 specifies the retained root+directory-file authority, `SyscallConn.Control` lifetime/release, root-rename refusal, provider-only timeout, pending per-hash purge recovery/dangling repair, dry-run branch, closed G1–G4 gateway, denylist-plus-flock root policy, D9 probe and structural raw-sink guards. |
+| `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` | `Proposed — Awaiting Review (rev-4)`, **857 lines**. D4, D10, D12, D13, D16 and D17 mirror the PRD without reopening accepted choices. |
+| `docs/handoff/CURRENT.md` | Cluster state and active task flipped to `AWAITING REVIEW`; this exact rev-4 writer record added. |
+
+**Validation**: `git diff --check`; repository-relative-link/fence scan; matrix
+contiguity/uniqueness, claims (`C1`…`C165`), section-reference, D1–D21 and
+protocol-anchor scripts all pass. Docs-only scope: no code, tests, assets,
+SPEC, roadmap, log, ADR index or guarded WIP changed. Existing untracked WIP
+was left untouched.
+
+**Reviewer focus**: authority must retain the `*os.File` through explicit
+release; all pending-purge prose must agree on present→remove or
+absent→finalize; dry-run/list must stay zero-Git/zero-lock; rename must never
+claim discovery success; and D9 must be a zero-write, holder-unknown probe.
 
 ## Rev-3 Review and Rev-4 Adjudication (2026-08-14)
 
