@@ -1,3 +1,24 @@
+## Writer — PRD prepare intent bundle rev-1 + ADR-035 rev-1 — 2026-08-14
+
+**Writer tip**: `91dea32`
+**Dispatch**: `2e2a67d`
+
+### Revision
+
+- Process-lifetime kernel lock and no stale-lock authority.
+- Plan-bound semantic CAS across canonical and metadata paths.
+- Root-relative `os.Root` writes and scoped T1 final verification.
+- Coherence-safe missing suffix; sidecar never overwritten by default.
+- ADR-027 D3 scan, archive purge/tombstones/orphan reporting.
+- Safe regenerate provider policy and optional heuristic override.
+- Conditional Git behavior, FEATURES.md carve-out, recovery abandon route.
+- 394 contiguous PIB rows, 165 claims, ADR D1–D21.
+
+### Action Taken
+
+PRD and ADR returned to joint internal/external review. No implementation is
+authorized.
+
 ## External concurrence — PRD prepare rev-0 + ADR-035 — 2026-08-14
 
 **Reviewed range**: `d060ff4..2c89df0`

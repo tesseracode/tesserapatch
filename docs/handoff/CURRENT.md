@@ -6,7 +6,7 @@
 
 Transactional prepare-intent-bundle PRD **rev-1** and proposed ADR-035
 **rev-1** are written and returned to three-way review. Every rev-0 finding is
-closed with a decision, and the acceptance matrix was rebuilt to 391 rows. No
+closed with a decision, and the acceptance matrix was rebuilt to 394 rows. No
 mutating command is implemented or authorized.
 
 ## Active Task
@@ -45,18 +45,18 @@ state-of-the-art case studies).
 
 ### Counts (mechanically verified at this commit)
 
-- **391 acceptance rows** `PIB-001`…`PIB-391`, contiguous, zero duplicates,
-  zero retired. **157 new** rows (`PIB-235`…`PIB-391`); **15 rev-0 rows amended
+- **394 acceptance rows** `PIB-001`…`PIB-394`, contiguous, zero duplicates,
+  zero retired. **160 new** rows (`PIB-235`…`PIB-394`); **15 rev-0 rows amended
   in place** with their IDs preserved (`PIB-015`, `-016`, `-017`, `-020`,
   `-041`, `-053`, `-079`, `-110`, `-117`, `-118`, `-124`, `-196`, `-197`,
   `-215`, `-227`), listed in §18.1.
 - **38 categories** (A–T from rev-0, U–AL new): A 20, B 24, C 15, D 12, E 9,
   F 19, G 13, H 14, I 13, J 8, K 12, L 10, M 14, N 14, O 10, P 7, Q 6, R 3,
   S 9, T 2, U 10, V 12, W 5, X 6, Y 7, Z 4, AA 12, AB 7, AC 10, AD 8, AE 10,
-  AF 5, AG 14, AH 17, AI 6, AJ 10, AK 10, AL 4. Sum = 391.
-- **By kind**: `I` 179, `C` 79, `G` 70, `U` 42, `S` 21. Sum = 391.
+  AF 5, AG 14, AH 17, AI 6, AJ 10, AK 10, AL 4. Sum = 394.
+- **By kind**: `I` 179, `C` 79, `G` 72, `U` 43, `S` 21. Sum = 394.
 - **Slice partition** is total and disjoint over eight slices: S1 75, S1b 12,
-  S2 24, S3 42, S4 142, S4b 17, S5 48, S6 31 = 391.
+  S2 24, S3 42, S4 142, S4b 17, S5 48, S6 31 = 394.
 - **165 claims** `C1`…`C165` (rev-0: 142), contiguous and ascending in file
   order; 23 new, 9 corrected (marked †).
 - **ADR-035: 21 decisions** `D1`…`D21`, contiguous; every one is cited by the
@@ -192,9 +192,9 @@ state-of-the-art case studies).
   `internal/store/resource_publish.go:131-143` / `:305-328` / `:358-399`, `internal/workflow/doctor.go:226-237`,
   `internal/cli/session.go:353-419`). All shorthand `:NNN-NNN` anchors were expanded to full
   paths so the checker can see them.
-- **Matrix mechanics**: 391 rows contiguous, zero duplicates; every `PIB-NNN`
+- **Matrix mechanics**: 394 rows contiguous, zero duplicates; every `PIB-NNN`
   cited anywhere in either document resolves to a real row; category counts sum
-  to 391; the slice partition is total and disjoint.
+  to 394; the slice partition is total and disjoint.
 - **Claims mechanics**: `C1`…`C165` contiguous **and ascending in file order**.
 - **PRD ↔ ADR parity**: ADR decisions `D1`…`D21` are contiguous; **every** one
   is cited by the PRD; every acceptance-dependency row names PIB rows that
@@ -243,7 +243,7 @@ accepted `prepare --check` PRD **implemented and landed** with its own goldens.
 8. **§17.1 and PIB-391.** Confirm the prerequisite is stated strongly enough
    that no implementer can dispatch a mutating slice on top of an unimplemented
    read half.
-9. **Matrix bite.** 157 new rows: check that each names an *observable*, that
+9. **Matrix bite.** 160 new rows: check that each names an *observable*, that
    the `G` rows have sensitivity fixtures, and that §18.41's six semantic
    fixtures are the right six.
 
