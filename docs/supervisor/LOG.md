@@ -1,3 +1,23 @@
+## Writer — PRD prepare intent bundle rev-9 + ADR-035 rev-9 — 2026-08-14
+
+**Writer tip**: `ebd1be8`
+**Dispatch**: `d9df6f9`
+
+### Revision
+
+- Splits globally unreferenced residue from mixed live/tombstone references.
+- Pins `--orphans` versus `--blob` repair without deleting live shared data.
+- Unifies all emitted retry headings.
+- Makes the abandon-table domain and guard identical.
+- Corrects ADR companion and pins list exits, compound routing, root-open
+  refusal and manual/pending disclosure.
+- Rebuilds the matrix to 536 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-9 + ADR-035 rev-9 — 2026-08-14
 
 **Writer base**: `08af5db`
