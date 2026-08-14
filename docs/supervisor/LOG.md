@@ -1,3 +1,23 @@
+## Writer — PRD prepare intent bundle rev-11 + ADR-035 rev-11 — 2026-08-14
+
+**Writer tip**: `f06c2fd`
+**Dispatch**: `c394117`
+
+### Revision
+
+- Claims every retained and tombstoned same-hash reference before removal.
+- Makes pending recovery the sole exception before new-selector X11 checks.
+- Replaces non-regular corrupt-object instructions with type-total exact-path
+  removal.
+- Admits all instances of one fully covered repair class.
+- Completes the ownership/liveness/storage map and final unlink residual.
+- Rebuilds the matrix to 551 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-11 + ADR-035 rev-11 — 2026-08-14
 
 **Writer base**: `d1a7efd`
