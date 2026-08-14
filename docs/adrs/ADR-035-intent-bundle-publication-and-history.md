@@ -18,7 +18,7 @@ wire schema),
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
 (rev-4, Draft — Awaiting Review). **The two documents must be reviewed
-together.** Read the PRD for the full product contract and its 432-row
+together.** Read the PRD for the full product contract and its 448-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
 **Blocks**: implementation of the mutating `tpatch prepare` modes (PRD §17.2

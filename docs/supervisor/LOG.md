@@ -1,3 +1,25 @@
+## Writer — PRD prepare intent bundle rev-4 + ADR-035 rev-4 — 2026-08-14
+
+**Writer tip**: `c5f7fd8`
+**Dispatch**: `1a2ec28`
+
+### Revision
+
+- Retains `*os.Root` and the lock-owning `*os.File` through explicit release.
+- Makes root rename a refusal and removes the false total hold-time bound.
+- Defines recoverable per-hash pending purge and dangling-reference repair.
+- Branches dry-run before Git/lock and specifies a reusable single-G1 gate.
+- Replaces the exact filesystem allowlist with known-remote/user-space denial
+  plus successful real flock.
+- Adds zero-write doctor contention diagnosis and structural raw-sink guards.
+- Rebuilds the matrix to 448 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint internal/external review. A pre-review editorial
+fold corrected the ADR matrix count and three rejected-lock section anchors.
+No implementation is authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-4 + ADR-035 rev-4 — 2026-08-14
 
 **Writer base**: `3b849e1`
