@@ -2,14 +2,14 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-5 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-4** and proposed ADR-035
-**rev-4** are ready for review. The bounded adjudication retains accepted
-product choices while correcting descriptor lifetime, root rename, pending
-purge recovery, dry-run precedence, the Git gate, root-inode filesystem policy,
-doctor probing and structural raw-response guards. No mutating command is
-implemented or authorized.
+**rev-4** close the prior descriptor and purge-state defects, but review found
+unreachable abandon/dangling-repair routes, one path-based journal writer,
+dry-run and partial-purge contract gaps, and stale guard/slice wiring. A
+bounded **rev-5** is dispatched. No mutating command is implemented or
+authorized.
 
 ## Active Task
 
@@ -17,14 +17,76 @@ implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-4 writer complete — awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-4)
+- **Status**: Rev-5 dispatched after rev-4 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-5)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-4 Review and Rev-5 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed tip**: `dc37ad8` (writer `c5f7fd8` plus editorial fold)
+
+The architecture remains intact. Rev-5 is limited to reachability, repair and
+contract-totality corrections:
+
+1. **Abandon reachability (BLOCKER).** After lock acquisition,
+   `--abandon-transaction` must branch before automatic journal or archive
+   recovery. It inspects/moves the evidence it was asked to abandon and never
+   runs the recovery path first. Add divergent/corrupt/recoverable journal
+   cases proving exit 6 has a reachable escape.
+2. **Rooted journal/control writes (BLOCKER).** `gitutil.DurableWriteFile` is a
+   path-based shape precedent only. Journal, raw metadata preimages and all
+   local-lane control writes use the same rooted temp→fsync→`Root.Rename`→dir
+   fsync helper as the rest of prepare. D2/§7.7/PIB-308 must cover them.
+3. **Dangling repair surface (BLOCKER).** Remove the unreachable
+   “exact-content rehydration” remediation for a dangling retained reference.
+   The shipped repair is confirmed `intent-archive purge --blob <hash> --yes`,
+   which tombstones all missing references without attempting removal. Normal
+   regenerate continues to refuse until that repair; later tombstoned
+   generations may use the existing rehydration path.
+4. **Dry-run honesty (BLOCKER).** Dry-run reproduces only read/model
+   admissibility, lifecycle, coherence and provider-configuration refusals. It
+   deliberately does not evaluate mutating platform/filesystem, local-lane
+   Git, lock or recovery execution gates. Report that execution preflight is
+   not evaluated; never claim every real-run code matches. Rewrite precedence
+   so all non-mutating plan gates run inside the dry-run branch before return.
+5. **Partial purge outcome (HIGH).** Preflight all predictable selection/blob
+   conditions before the first write. Once the deterministic per-hash loop
+   writes pending/tombstone state, a later I/O/external failure is a distinct
+   retryable partial-purge outcome (recommended exit 5), reporting completed,
+   pending and remaining hashes plus the exact same-command retry. Exit 3 keeps
+   its zero-write promise. Divergent evidence remains exit 6.
+6. **Doctor probe removal (HIGH).** Remove the flock probe: it can make a real
+   mutator refuse and makes concurrent doctors diagnose each other. D9 reports
+   persistent evidence only. `transaction-in-progress` states holder identity
+   is unknowable and retry is the only safe observation.
+7. **Git slice completeness (HIGH).** Add `internal/rescap/gitgate.go` to the
+   authorized central-gate refactor. Existing callers retain explicit
+   compatibility wrappers/goldens; prepare uses one scrubbed G1 result and
+   repo-relative G2/G3/G4 helpers. State whether compatibility wrappers retain
+   current environment behavior rather than hiding two policies.
+8. **Guard feasibility (MEDIUM).** PIB-144 checks controlled report-schema
+   keys/sinks, not every `.tpatch` byte containing `generator`; canonical
+   provider prose may contain that token. Keep raw-attempt guards structural.
+9. **Reference and source truth (LOW).** Remove all remaining “rescap
+   extraction” claims, use the rev-4 dispatch/base, classify filesystem only
+   after opening/locking the held root descriptor, fix R7 and related section
+   anchors, and keep the ADR matrix count current.
+10. **Pinned residuals (LOW).** Pin the exact GIT_* scrub list; Darwin FUSE
+    denial uses real kernel-name/prefix semantics; add a `SyscallConn.Control`
+    vs release/close race row. State that an unrecognized local filesystem can
+    lie about flock and that no cross-machine guarantee follows.
+
+Rev-5 must recompute matrix/categories/kinds/slices/claims/decisions/crash
+phases/binds/seams/citations and list every amended stable ID. It remains a
+**docs-only** revision of the PRD, ADR-035 and handoff; no implementation or
+supervisor-owned/guarded surface may change.
 
 ## Prepare PRD Writer Result — rev-4 (2026-08-14)
 

@@ -1,3 +1,67 @@
+## Dispatch — PRD prepare intent bundle rev-5 + ADR-035 rev-5 — 2026-08-14
+
+**Writer base**: `dc37ad8`
+**Reviewed writer tip**: `c5f7fd8`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Branch abandon after lock and before all automatic recovery.
+- Root every journal/preimage/control write; DurableWriteFile is precedent only.
+- Make purge the sole shipped dangling-reference repair.
+- Limit dry-run equivalence to gates it actually evaluates.
+- Add a retryable partial-purge outcome after the first per-hash mutation.
+- Remove the perturbing doctor flock probe.
+- Add `rescap/gitgate.go` and explicit compatibility-wrapper policy.
+- Scope generator/raw guards to controlled schemas/sinks.
+- Correct remaining rescap/base/root-classification references and pin residual
+  environment/filesystem/lifetime tests.
+
+### Action Taken
+
+One sequential docs-only rev-5 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-4 + ADR-035 rev-4 — 2026-08-14
+
+**Reviewed tip**: `dc37ad8`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Recovery runs before `--abandon-transaction`, making its escape unreachable.
+- The journal uses path-based `DurableWriteFile` despite D2’s rooted-write rule.
+- Dangling-reference rehydration has no command surface.
+- Dry-run claims all real-run refusals while deliberately skipping mutating
+  platform/filesystem/Git/lock gates.
+- Doctor’s flock probe perturbs mutators and concurrent doctors.
+- The Git slice omits `internal/rescap/gitgate.go`.
+- Rescap extraction/base/root-classification references still drift.
+
+### Verified
+
+Descriptor lifetime was closed empirically across forced GC; directory flock,
+alias contention, rename/delete behavior, the 448-row matrix, 165 claims,
+D1–D21, CP0–CP14 and all sampled anchors were verified.
+
+## Internal Review — PRD prepare intent bundle rev-4 + ADR-035 rev-4 — 2026-08-14
+
+**Reviewed tip**: `dc37ad8`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- PIB-144’s whole-tree `generator` token scan is impossible for canonical
+  provider prose.
+- Per-hash purge can write earlier tombstones before a later failure, while the
+  exit-3 table promises zero writes.
+
+### Verified
+
+448 contiguous rows/kinds, 165 claims, D1–D21, source citations and diff scope.
+
 ## Writer — PRD prepare intent bundle rev-4 + ADR-035 rev-4 — 2026-08-14
 
 **Writer tip**: `c5f7fd8`
