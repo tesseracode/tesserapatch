@@ -1,3 +1,30 @@
+## External concurrence — PRD prepare rev-0 + ADR-035 — 2026-08-14
+
+**Reviewed range**: `d060ff4..2c89df0`
+**Verdict**: NEEDS REVISION
+
+### Verified
+
+- 234 contiguous PIB rows.
+- 142 contiguous claims.
+- ADR D1–D14 and CP0–CP9 complete.
+- All repository anchors in range.
+- T0/T1/T2 honesty split is sound.
+
+### Additive Findings
+
+1. `os.Root.Rename` exists in the pinned Go toolchain and must be evaluated for
+   handle-relative publication; D6 currently overstates the unclosable
+   pathname race.
+2. The tracked immutable archive engages ADR-027 D3's tpatch-writer redaction
+   boundary and turns removable mistakes into retained bytes. Retention and a
+   deletion/redaction route are mandatory.
+
+### Action Taken
+
+Both additions folded into the rev-1 dispatch alongside the prior critical/
+high transaction, archive, provider and compatibility findings.
+
 ## Review — PRD prepare intent bundle rev-0 + ADR-035 rev-0 — 2026-08-13
 
 **Writer tip**: `409710c`

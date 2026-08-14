@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: REV-1 DISPATCHED
 
 Transactional prepare-intent-bundle PRD rev-0 and proposed ADR-035 completed
-dual review with NEEDS REVISION. Planning remains active; no mutating command
-is implemented or authorized.
+three-way review with convergent NEEDS REVISION. Rev-1 is dispatched; no
+mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -14,7 +14,7 @@ is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Needs Revision — rev-1 pending
+- **Status**: Writer rev-1
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -1904,8 +1904,8 @@ Modified:
 
 ## Next Steps
 
-1. Dispatch rev-1 with the bounded finding list below.
-2. Re-review PRD and ADR-035 together.
+1. Complete rev-1 PRD + ADR-035 correction.
+2. Re-review both documents together.
 3. Continue bounded revisions until both documents are accepted.
 4. Keep implementation blocked throughout.
 
@@ -1964,6 +1964,15 @@ Rev-0 is not acceptable until the findings below close.
   concurrent-writer, rooted-write, provider fallback and prerequisite case.
 - Keep T0 rejected, provenance `unknown`, no new state, and implementation
   unauthorized.
+
+### Additional external concurrence
+
+1. Evaluate and adopt `(*os.Root).Rename` for handle-relative publication;
+   narrow the residual race to content identity rather than over-conceding the
+   pathname half.
+2. Engage ADR-027 D3 explicitly. The archive turns overwrite-removable mistakes
+   into retained tracked bytes, so rev-1 must define retention and a safe
+   removal/redaction route rather than claiming no new exposure class.
 
 1. **ADR-034 is `Proposed`, not `Accepted`.** A writer cannot accept its own
    ADR. It and PRD rev-3 are reviewed together; acceptance of both is the
