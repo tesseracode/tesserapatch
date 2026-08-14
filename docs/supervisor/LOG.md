@@ -1,3 +1,34 @@
+## Review — PRD prepare intent bundle rev-0 + ADR-035 rev-0 — 2026-08-13
+
+**Writer tip**: `409710c`
+**Internal reviewer**: gpt-5.6-terra
+**External reviewer**: claude-opus-5
+
+### Verdict: NEEDS REVISION
+
+### Critical / High Findings
+
+- Stale locks without journals cannot prove ownership (CP1/CP2/CP8/manual).
+- Rollback lacks semantic new-image CAS for canonical and metadata paths.
+- T1 wording ignores unlocked concurrent writers.
+- Rooted read checks followed by pathname rename leave a write TOCTOU.
+- Default can overwrite an existing sidecar without a coherent archive rule.
+- Tracked indefinite archive creates retention/redaction/clone-durability risk.
+- PRD claims no Git while required local-lane/advisory gates call Git.
+
+### Required Product Corrections
+
+- Make regenerate provider fallback safe for hand-authored bundles.
+- Define FEATURES.md/status publication truthfully.
+- Add exit-6 operator recovery and doctor coverage for orphan lock/staging.
+- Pin prerequisite implementation/goldens before mutating slices.
+- Complete flags, dry-run/recovery, coherence and lifecycle matrices.
+
+### Action Taken
+
+Planning remains IN PROGRESS and implementation blocked. Rev-1 must update both
+PRD and ADR-035 and add adversarial rows for every finding.
+
 ## Writer — PRD prepare intent bundle rev-0 + ADR-035 rev-0 — 2026-08-13
 
 **Writer tip**: `409710c`

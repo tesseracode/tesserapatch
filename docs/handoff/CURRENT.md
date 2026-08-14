@@ -2,12 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-The transactional prepare-intent-bundle PRD writer produced rev-0 from base
-`d060ff4` at HEAD `20e8bbe`. This is planning only; no mutating command is
-implemented and none is authorized. The writer's architecture gate **fired**,
-so a coupled proposed ADR-035 must be reviewed together with the PRD.
+Transactional prepare-intent-bundle PRD rev-0 and proposed ADR-035 completed
+dual review with NEEDS REVISION. Planning remains active; no mutating command
+is implemented or authorized.
 
 ## Active Task
 
@@ -15,7 +14,7 @@ so a coupled proposed ADR-035 must be reviewed together with the PRD.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Writer rev-0 complete — AWAITING DUAL REVIEW (PRD + coupled ADR-035)
+- **Status**: Needs Revision — rev-1 pending
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -1905,14 +1904,66 @@ Modified:
 
 ## Next Steps
 
-1. Complete writer rev-0 and transition to dual review.
-2. Create an ADR only if rev-0 selects a persistent publication/history model.
-3. Fold revisions until the PRD and any coupled ADR are accepted.
+1. Dispatch rev-1 with the bounded finding list below.
+2. Re-review PRD and ADR-035 together.
+3. Continue bounded revisions until both documents are accepted.
 4. Keep implementation blocked throughout.
 
 ## Blockers
 
-None. Planning is accepted; implementation remains a separate future wave. Two items are **gated on review rather than blocked**:
+Rev-0 is not acceptable until the findings below close.
+
+## Rev-0 Review Adjudication
+
+- **Internal**: NEEDS REVISION (2 CRITICAL, 3 HIGH, 1 MEDIUM).
+- **External**: NEEDS REVISION (3 HIGH, 9 MEDIUM, 6 LOW).
+- **Supervisor verdict**: NEEDS REVISION.
+
+### Transaction/recovery blockers
+
+1. Locks created before/after the journal (CP1/CP2/CP8 and all `--manual`
+   crashes) cannot prove ownership, so stale recovery is impossible.
+2. Canonical and metadata rollback need semantic new-image CAS checks; a
+   forged journal or concurrent edit must never be overwritten.
+3. T1 all-old/all-new is only a command-owned guarantee. Concurrent unlocked
+   writers can change files after publication; wording and tests must scope it.
+4. Rooted preflight paired with path-based rename leaves an ancestor-swap write
+   race; publication writes need a rooted write boundary or an honest locked
+   alternative.
+5. Exit-6 divergent states need a safe, explicit operator recovery/abandon
+   path; doctor must report orphan locks/staging as well as journals.
+
+### Archive/privacy blockers
+
+1. Default mode can overwrite an existing sidecar without `--regenerate`; the
+   preservation/archive policy is contradictory.
+2. The tracked never-pruned archive can permanently preserve removed secrets,
+   grows without a retention policy, and is not clone-durable until committed.
+3. Archive/index strict decoding, semantic journal binding and orphan-blob
+   disclosure are incomplete.
+4. Archive persistence is bytes-at-path history only; Notes and output must not
+   become durable provenance claims.
+
+### Product/compatibility blockers
+
+1. `--regenerate` may replace a hand-authored bundle with heuristic boilerplate
+   after provider failure; timeout cascade/fallback policy must be explicit.
+2. `--manual`/multi-file status publication interacts with `FEATURES.md`;
+   the claimed write set and refresh semantics are false/incomplete.
+3. Local-lane gates and archive advisories perform Git operations and can
+   refuse non-Git workspaces; disclose or redesign instead of claiming no Git.
+4. The accepted `--check` prerequisite is planning-only, so implementation
+   sequencing/goldens must require it to land first.
+5. Flag delta table, dry-run/recovery ordering, default upstream-coherence
+   cases, lifecycle states and provider behavior need complete rows.
+
+### Matrix/architecture follow-up
+
+- Revise ADR-035 D2/D4/D8/D13 with the PRD.
+- Add real rows for every stale-lock, CAS, archive privacy/retention,
+  concurrent-writer, rooted-write, provider fallback and prerequisite case.
+- Keep T0 rejected, provenance `unknown`, no new state, and implementation
+  unauthorized.
 
 1. **ADR-034 is `Proposed`, not `Accepted`.** A writer cannot accept its own
    ADR. It and PRD rev-3 are reviewed together; acceptance of both is the
