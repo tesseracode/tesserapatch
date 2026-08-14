@@ -2,13 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-10 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-9** and proposed ADR-035
-**rev-9** close the five rev-9 adjudication items: the global-hash residue
-split, the single retry heading, the abandon-table domain, the companion
-reference, and the five pinned observations. The revision is **docs-only**; no
-mutating command is implemented or authorized.
+**rev-9** close the rev-8 adjudication, but review found one final missing
+global pending-hash invariant plus bounded X11 scope/guard/editorial drift. A
+narrow **rev-10** is dispatched. The revision is **docs-only**; no mutating
+command is implemented or authorized.
 
 ## Active Task
 
@@ -16,14 +16,55 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-9 written, awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-9)
+- **Status**: Rev-10 dispatched after rev-9 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-10)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-9 Review and Rev-10 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `ebd1be8`
+**Tracking tip**: `2fea6ab`
+
+The global-liveness split remains correct. Rev-10 is limited to:
+
+1. **Global pending ownership (HIGH).** If any reference to hash `h` is
+   removal-pending, the purge transaction owns `h` globally. Before removing
+   `h.blob`, recovery must CAS **every** retained/tombstoned same-hash
+   reference to pending in one index rewrite, revalidate, then remove and
+   tombstone all. It must never remove while a retained reference remains.
+   Update X11, recovery, D10/D16 and adversarial rows.
+2. **X11 global scope (HIGH).** X11 observes the whole index before every
+   archive mutation, not merely references selected by the requested selector.
+   A mixed global inconsistency makes unrelated `--orphans`, `--blob` or
+   `--generation` selectors refuse zero-write with the owning repair; no
+   partial cleanup proceeds around it. Reconcile PIB-533/534 and add disjoint
+   selector coverage.
+3. **Retained corrupt blob route (MEDIUM).** A retained reference whose blob
+   is non-regular or hash-wrong maps to `archive-blob-corrupt` exit 3 with one
+   explicit repo-relative preserve/remove-then-confirmed-purge or restore route.
+   Pin list/doctor/ordinary mutation behavior and close the X11 total map.
+4. **Withdrawn-prose parity (MEDIUM).** Fix §21’s stale “syntactically valid”
+   abandon domain and unconditional tombstone-orphan alternative so they match
+   rev-9 and its guards.
+5. **Abandon boolean domain (LOW).** Define the table over argv that requests
+   true abandon (or fails parsing that flag); explicit
+   `--abandon-transaction=false` is normal generate and outside the domain.
+6. **Retry byte parity (LOW).** The one heading appears at column 0 with no
+   leading/trailing whitespace in every worked example and emitter.
+7. **Pins/self-certification (LOW).** Add list precedence when both residue
+   subcases coexist, disclose X11 residue blocking `--manual`, and correct the
+   handoff fence count. Recompute all mechanics.
+
+Rev-10 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Rev-8 Review and Rev-9 Adjudication (2026-08-14)
 

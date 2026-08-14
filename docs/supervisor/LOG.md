@@ -1,3 +1,59 @@
+## Dispatch — PRD prepare intent bundle rev-10 + ADR-035 rev-10 — 2026-08-14
+
+**Writer base**: `2fea6ab`
+**Reviewed writer tip**: `ebd1be8`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Make one pending reference own every same-hash reference before removal.
+- Apply X11 globally before every archive selector.
+- Give retained corrupt blobs a closed code and repair route.
+- Correct withdrawn alternatives, abandon-boolean domain and retry indentation.
+- Pin mixed-residue list precedence, manual X11 disclosure and handoff counts.
+
+### Action Taken
+
+One sequential docs-only rev-10 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-9 + ADR-035 rev-9 — 2026-08-14
+
+**Writer tip**: `ebd1be8`
+**Tracking tip**: `2fea6ab`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- PIB-533 allows orphan cleanup while PIB-534 requires the same mixed state to
+  refuse globally.
+- X11 scope differs between global and selection-local prose.
+- Retained non-regular/hash-wrong blobs have no named code/route.
+- Withdrawn alternatives retain the exact claims their guards reject.
+- Explicit false abandon and retry indentation leave low-level guard drift.
+
+### Verified
+
+The 536-row matrix, ledgers, refusal partition, global live/unreferenced split,
+retry heading, companion and pinned observations were independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-9 + ADR-035 rev-9 — 2026-08-14
+
+**Writer tip**: `ebd1be8`
+**Tracking tip**: `2fea6ab`
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+- Recovery can remove a blob while another same-hash retained reference remains
+  unless pending ownership is made global.
+
+### Verified
+
+536 rows, C1–C176, D1–D21, CP/J/X, the 53-code partition and frozen catalogs.
+
 ## Writer — PRD prepare intent bundle rev-9 + ADR-035 rev-9 — 2026-08-14
 
 **Writer tip**: `ebd1be8`
