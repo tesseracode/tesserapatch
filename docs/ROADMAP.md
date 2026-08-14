@@ -807,11 +807,13 @@ legacy auto-GC. Actions run
 [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
 
-**Prepare intent-bundle PRD rev-0** 🚧 WRITER (2026-08-13, WAVE_BASE
-`d060ff4`, [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)):
-define Path A generation, Path B adoption, explicit regeneration, durable
-preimage/recovery policy and honest publication semantics on top of accepted
-`prepare --check`. No implementation is authorized.
+**Prepare intent-bundle PRD rev-0 + ADR-035 rev-0** 🚧 AWAITING REVIEW
+(2026-08-13, WAVE_BASE `d060ff4`, writer `409710c`,
+[GH #11](https://github.com/tesseracode/tesserapatch/issues/11)): 234 PIB
+rows and 142 claims define Path A missing-only generation, Path B adoption,
+archived regeneration, undo recovery and honest T0/T1/T2 publication limits.
+Proposed ADR-035 selects the immutable intent archive. No implementation is
+authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

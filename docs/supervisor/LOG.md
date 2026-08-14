@@ -1,3 +1,25 @@
+## Writer — PRD prepare intent bundle rev-0 + ADR-035 rev-0 — 2026-08-13
+
+**Writer tip**: `409710c`
+**WAVE_BASE**: `d060ff4`
+
+### Output
+
+- New 2,301-line PRD with 234 PIB rows and 142 claims.
+- New 465-line proposed ADR-035, D1–D14.
+- Default missing-only generation, manual adoption and explicit regeneration.
+- Durable tracked content-addressed intent archive selected.
+- Undo journal with CP0–CP9 crash model.
+- T0 instantaneous visibility rejected; T1 command-boundary and T2 recovery
+  claimed.
+- Pure staged generators, provider fallback, lock/revalidation and lifecycle
+  contracts.
+
+### Action Taken
+
+PRD and ADR returned to joint internal/external review. No code or mutating
+prepare is authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-0 — 2026-08-13
 
 **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
