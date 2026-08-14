@@ -1,3 +1,57 @@
+## Dispatch — PRD prepare intent bundle rev-12 + ADR-035 rev-12 — 2026-08-14
+
+**Writer base**: `0e844d5`
+**Reviewed writer tip**: `f06c2fd`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Admit safe sequential repair of one fully covered disjoint class.
+- Remove every forbidden preservation command from emitted procedures.
+- Route owned corrupt hashes only to archive-purge divergence.
+- Split the final collapsed state-map row and derive all dimensions.
+- Pin non-regular fixture seams and `--all` blast radius.
+
+### Action Taken
+
+One sequential docs-only rev-12 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-11 + ADR-035 rev-11 — 2026-08-14
+
+**Writer tip**: `f06c2fd`
+**Tracking tip**: `0e844d5`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Multiple repair classes mutually block every selector.
+- Worked output still emits commands its guards and §10.7 forbid.
+- Pending unsafe/wrong blobs have conflicting exit-3/exit-6 mappings.
+- The state map collapses two owned tombstone storage observations.
+
+### Verified
+
+The total same-hash claim and recovery exception are closed. All 551-row
+mechanical totals, claims, references and frozen contracts were verified.
+
+## Internal Review — PRD prepare intent bundle rev-11 + ADR-035 rev-11 — 2026-08-14
+
+**Writer tip**: `f06c2fd`
+**Tracking tip**: `0e844d5`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Pending unsafe/wrong blob has conflicting exit-3 and exit-6 mappings.
+- The corrupt-object procedure is not type-total for directory objects.
+
+### Verified
+
+551 rows, C1–C176, D1–D21, CP/J/X sets and the refusal partition.
+
 ## Writer — PRD prepare intent bundle rev-11 + ADR-035 rev-11 — 2026-08-14
 
 **Writer tip**: `f06c2fd`

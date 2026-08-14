@@ -2,16 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-12 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-11** and proposed ADR-035
-**rev-11** close every rev-10 adjudication item: the global claim is total over
-the hash (retained **and** tombstoned same-hash references), pending-purge
-recovery is the one explicit exception to whole-index X11 validation,
-corrupt-object removal is a type-total `rm -rf --` with the copy promise
-withdrawn, admission is per repair class with full coverage, and the state map
-plus the revalidate→unlink residual are pinned. The revision is **docs-only**;
-no mutating command is implemented or authorized.
+**rev-11** close the rev-10 adjudication, but review found a final inter-class
+repair deadlock plus printed-command and pending-corrupt state-map parity
+defects. A narrow **rev-12** is dispatched. The revision is **docs-only**; no
+mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -19,14 +16,56 @@ no mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-11 written, awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-11)
+- **Status**: Rev-12 dispatched after rev-11 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-12)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-11 Review and Rev-12 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `f06c2fd`
+**Tracking tip**: `0e844d5`
+
+The same-hash claim and recovery exception are closed. Rev-12 is limited to:
+
+1. **Sequential multi-class repair (HIGH).** Global X11 still reports every
+   inconsistency and blocks ordinary archive mutation. A confirmed selector may
+   repair one **disjoint repair class** even while other classes exist if it
+   covers every instance of the chosen class, cannot mutate another class, and
+   reports every untouched class plus its next route. The operator reruns class
+   by class. Same-hash overlapping observations collapse to one precedence
+   class; no selector may straddle classes silently. Add two-class,
+   three-class and overlap rows.
+2. **Printed command parity (HIGH).** Remove every emitted `cp`, `git show`,
+   `readlink` or other non-allowlisted preservation command from corrupt/blob
+   procedures and worked examples. Emit only the type-total exact-path
+   `rm -rf --` under the destructive warning. Preservation prose says to stop
+   and use an object-appropriate tool, without printing a command. Align
+   PIB-506/507/543/547 and §10.7.
+3. **Owned corrupt state route (MEDIUM).** Any owned/pending hash whose blob is
+   unsafe or hash-wrong maps only to exit-6
+   `archive-purge-evidence-divergent`; remove stale exit-3
+   `archive-index-storage-inconsistent` mappings from ADR D10, PIB-524/549 and
+   X11 prose.
+4. **State-map totality (MEDIUM).** Split the collapsed tombstoned-owned row by
+   correct versus non-regular/hash-wrong blob observation. The declared
+   ownership × liveness × storage domain and row count must match; fix
+   “triple”/dimension wording and derive one route per tuple.
+5. **Fixture and blast-radius pins (LOW).** Real fixtures cover regular,
+   symlink, directory and FIFO; device behavior may use an explicit injected
+   file-kind seam where privilege/filesystem blocks `mknod`. When `--all` is
+   offered as repair, state its entire-archive destructive blast radius next to
+   the route.
+
+Rev-12 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Prepare PRD Writer Result — rev-11 (2026-08-14)
 
