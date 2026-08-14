@@ -1,3 +1,24 @@
+## Writer — PRD prepare intent bundle rev-5 + ADR-035 rev-5 — 2026-08-14
+
+**Writer tip**: `eec458c`
+**Dispatch**: `e1633f2`
+
+### Revision
+
+- Makes abandon branch before every automatic recovery.
+- Roots journal, preimage, staging and all local control writes.
+- Reduces dangling repair to confirmed `purge --blob`.
+- Makes dry-run’s evaluated/non-evaluated refusal partition total.
+- Adds retryable exit-5 partial-purge state and exact resume reporting.
+- Removes doctor flock probing.
+- Completes the central Git gate surfaces and pinned scrub policy.
+- Rebuilds the matrix to 482 PIB rows and claims to C1–C175.
+
+### Action Taken
+
+PRD and ADR returned to joint internal/external review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-5 + ADR-035 rev-5 — 2026-08-14
 
 **Writer base**: `dc37ad8`
