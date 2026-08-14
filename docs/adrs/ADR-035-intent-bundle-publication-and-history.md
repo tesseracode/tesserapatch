@@ -1,10 +1,10 @@
 # ADR-035 — Intent Bundle Publication and History
 
-**Status**: Proposed — Awaiting Review (rev-5), 2026-08-14
-**Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-5)
+**Status**: Proposed — Awaiting Review (rev-6), 2026-08-14
+**Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-6)
 **Owner**: Core (planning lane)
-**Byline**: sole sequential planning writer, rev-5 from reviewed writer tip `dc37ad8`;
-dispatch/base `e1633f2`; WAVE_BASE `d060ff4`
+**Byline**: sole sequential planning writer, rev-6 from reviewed writer tip `eec458c`;
+dispatch/base `9af1ec1`; WAVE_BASE `d060ff4`
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -17,8 +17,8 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-5, Draft — Awaiting Review). **The two documents must be reviewed
-together.** Read the PRD for the full product contract and its 482-row
+(rev-6, Draft — Awaiting Review). **The two documents must be reviewed
+together.** Read the PRD for the full product contract and its 505-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
 **Blocks**: implementation of the mutating `tpatch prepare` modes (PRD §17.2
@@ -36,6 +36,7 @@ landed (PRD §17.1).
 | rev-3 | Proposed — Awaiting Review | Removes the prohibited raw-provider local transcript lane and replaces the cache authority with the held workspace-root directory inode: `Root.Open(".")` + one Linux/Darwin nonblocking flock, workspace-wide scope, no lock/cache artifact and live-root identity revalidation. It makes purge CAS honest about the final syscall race; makes content-hash availability global for purge/rehydration; recognizes untracked archive deletion by Git clean; scrubs/counts G1–G4; and adds X11 dangling-reference storage truth. The companion matrix gains `PIB-410`…`PIB-432`. |
 | rev-4 | Proposed — Awaiting Review | Adjudicates rev-3’s implementation contradictions without reopening the product choices. D4 retains a concrete root+directory-file authority through explicit `SyscallConn.Control` unlock/close and no claimed renamed-path rediscovery; its filesystem policy becomes deny-known-remote/user-space plus real flock, scoped to the locked root inode. D10/D16 define one per-hash pending → remove/recover → tombstone machine and repairable dangling references. D13 permits a non-creating, racy doctor flock probe. D17 becomes a closed Git argv contract with one threaded G1 state. D12’s raw-response protection is structural. The companion matrix gains `PIB-433`…`PIB-448`. |
 | rev-5 | Proposed — Awaiting Review | Bounded reachability and totality adjudication of rev-4; no product choice reopened. D13 moves the `--abandon-transaction` branch after the lock and **before** both recovery passes, and removes the doctor flock probe entirely. D2/D5 route the journal, both raw preimages, staging and every `.tpatch/local/` write through a prepare-owned rooted durable single-file helper; `gitutil.DurableWriteFile` is a shape precedent only. D10/D16 make the confirmed global-hash purge the sole shipped dangling-reference repair, restrict rehydration to tombstoned/pending references, require a complete purge preflight and add the retryable `archive-purge-partial` outcome at exit 5. D4 classifies with `fstatfs` on the already-held root descriptor, pins the exact denied magic/name lists, discloses the lying-filesystem and cross-machine limits, and states the `SyscallConn.Control`-versus-release ownership rule. D17 adds `internal/rescap/gitgate.go` to the authorized central-gate refactor, pins the environment scrub including the indexed `GIT_CONFIG_*` forms, and deliberately preserves global/system ignore configuration. D12's provenance guard is schema-scoped rather than byte-scoped. The companion matrix gains `PIB-449`…`PIB-482`. |
+| rev-6 | Proposed — Awaiting Review | Final bounded ordering/grammar adjudication of rev-5; no product choice reopened. **D13 makes recovery terminal**: a successful journal or pending-purge recovery ends the invocation at exit 0 `recovered` with a sanitized retry and never continues into the requested operation's exit-2/exit-3 gates, which is what lets exit 3's zero-write meaning stand unqualified. **D13/D17 make abandon reachable through a broken Git**: the mode still requires the D4 authority but bypasses G1–G4 and the local-lane gate, because it only renames existing bytes inside the same lane; where platform, filesystem or `flock` denies the mode outright, the refusal names the repo-relative lane and a last-resort manual removal, and every “never terminal” claim is qualified by that route. **D16 stops purge from touching a prepare journal**: `intent-archive purge` refuses `recovery-pending` without decoding, moving or consuming it, recovers only pending purge state, and that recovery is terminal too; its retry, and every other retry, is the equivalent command without root-selection argv plus `retry_cwd: "workspace-root"`. **D4 classifies inside `SyscallConn().Control`**: `fstatfs`, `flock` and the unlock all run in a `Control` callback on the retained directory file, and `(*os.File).Fd()` appears nowhere in the authority path. The companion matrix gains `PIB-483`…`PIB-505`. |
 
 ---
 
@@ -232,10 +233,16 @@ lock: it may not be reported as contention, as lock loss, or as acquisition,
 and fails closed as `directory-flock-unavailable` where reachable (PIB-481).
 
 Mutation is Linux/Darwin only. **Classification runs `fstatfs` on the
-already-held root-directory descriptor**, after the root and `"."` are open and
-before the flock attempt, so the classified object and the locked object are the
-same inode by construction; a path-based `statfs` before opening would leave a
-rename window between the check and the lock. Linux denies exactly the magic
+already-held root-directory descriptor, inside a `SyscallConn().Control`
+callback on that same retained `*os.File`**, after the root and `"."` are open
+and before the flock attempt, so the classified object and the locked object are
+the same inode by construction; a path-based `statfs` before opening would leave
+a rename window between the check and the lock. The `Control` requirement is not
+decoration: `(*os.File).Fd()` returns a bare integer holding no reference to the
+file, which is the naked-descriptor hazard this decision already rejects for the
+`flock` on that file, so **every syscall in the authority path — `fstatfs`,
+`flock` and the unlock — runs inside a `Control` callback, and `Fd()` appears
+nowhere in it** (PIB-504). Linux denies exactly the magic
 numbers `0x6969` (`NFS_SUPER_MAGIC`, shared by NFS and NFSv4), `0x517B`
 (`SMB_SUPER_MAGIC`, legacy smbfs), `0xFF534D42` (`CIFS_MAGIC_NUMBER`),
 `0xFE534D42` (`SMB2_MAGIC_NUMBER`) and `0x65735546` (`FUSE_SUPER_MAGIC`, shared
@@ -342,6 +349,11 @@ entirely. The decision function over each entry is:
 | every entry == preimage | **nothing published** — clear the journal |
 | each entry is preimage **or** new-image, mixed | **partial** — undo the published ones (each CAS-gated), clear |
 | any entry matches neither | **divergent** — refuse, preserve everything, name the journal, the archive and the abandon route |
+
+**Every non-divergent row ends the invocation.** Recovery is not a preamble to
+the requested operation: when it acts, the command returns exit 0 with
+`outcome: "recovered"` and the sanitized retry, and the operator re-runs. D13
+states why.
 
 The "complete" row is why evidence beats phase: a crash between the final
 rename and the journal clear is indistinguishable from a completed transaction
@@ -569,24 +581,72 @@ Turn 3 rules out
 without goldens would risk regressing four shipped commands, so the goldens are
 a slice prerequisite, not a nicety.
 
-### D13 — Recovery has three entry points; the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing
+### D13 — Recovery has three entry points, it is terminal, the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing
 
 Automatic journal recovery, then pending archive-hash recovery, runs under D4's
 held authority before any new archive mutation. D9 never mutates. No other
 command recovers or blocks.
 
-**`--abandon-transaction` branches after the lock and before both recovery
-passes.** It is not a fallback that runs after recovery has had its turn; it
-replaces recovery for that invocation. rev-4 placed recovery first, which made
-the escape unreachable exactly where it is needed: automatic recovery would
-either consume, undo or delete the evidence the operator asked to preserve, or
-refuse exit 6 first — the state abandon exists to leave. The mode therefore
+**A successful recovery ends the invocation.** It returns exit 0 with
+`outcome: "recovered"`, an object naming what was restored or finalized, the
+`recovered-prior-transaction` advisory and a sanitized retry; it does **not**
+continue into the operation the operator asked for. rev-5 recovered and then
+fell through into the lifecycle, admissibility, coherence, provider and archive
+gates, any of which can return exit 2 or exit 3 — from an invocation that had
+already written, because recovery restores canonical bytes and removes the
+journal. The two available repairs were to qualify exit 3 as "wrote nothing
+except after recovery" or to make recovery terminal. This ADR takes the second:
+exit 3's zero-write meaning is the single strongest thing a harness can rely on
+across this whole surface, and a qualification that depends on state the harness
+cannot observe destroys it. The cost is one extra invocation after an
+interrupted run, paid explicitly and reported. There is no opt-in that restores
+the fall-through, because a flag would move the same defect one argument away
+(PRD §7.8, §7.11, PIB-483…PIB-488).
+
+Recovery **failure** is unchanged: divergent evidence, a J1–J10 bind failure or
+a refused undo CAS is exit 6 with everything preserved, and a rolled-back undo
+is exit 5. Removing stale staging directories when no journal exists is lane
+hygiene, not recovery: nothing was pending, so nothing is terminal and the run
+proceeds.
+
+**`--abandon-transaction` branches after the lock and before the Git gate and
+both recovery passes.** It is not a fallback that runs after recovery has had
+its turn; it replaces recovery for that invocation. rev-4 placed recovery first,
+which made the escape unreachable exactly where it is needed: automatic recovery
+would either consume, undo or delete the evidence the operator asked to preserve,
+or refuse exit 6 first — the state abandon exists to leave. The mode therefore
 validates only kind and containment of its own evidence, never the J1–J10
 binds, so a corrupt, forged, version-mismatched or foreign journal is
 abandonable; it moves journal, preimage and staging evidence and touches no
 canonical or archive file. A removal-pending archive index with no journal is
 **not** abandonable and is not consumed: abandon refuses `no-pending-transaction`
-and names the archive purge route instead (PRD §6.6, PIB-449…PIB-453).
+and names the archive purge route instead. A second abandon over nothing but
+prior `abandoned-*` residue likewise refuses `no-pending-transaction`, preserves
+that residue untouched and reports it repo-relative rather than nesting it
+(PRD §6.6, PIB-449…PIB-453, PIB-499).
+
+**Abandon does not run the local-lane Git gate.** It still requires D4's
+authority — supported platform, non-denied root filesystem, exclusive flock —
+but G1–G4 are skipped and neither lane refusal is reachable from it. The gate
+proves the gitignored lane is really ignored *before tpatch writes new content
+into it*; abandon writes none, renaming existing lane entries one directory
+deeper in the same lane. Requiring a working `git` to move bytes already on disk
+would make an absent, broken or misconfigured Git a **permanent** block on the
+only escape from exit 6, which is the failure this decision exists to prevent.
+The privacy boundary is unchanged; the reachability is restored (PRD §6.6,
+§7.13, PIB-492…PIB-494).
+
+**"Exit 6 is never terminal" is qualified by an executable route, not left
+unconditional.** Three environmental conditions can refuse abandon before it
+inspects anything: an unsupported mutating platform, a denied or unclassifiable
+root filesystem, and any non-contention `flock` failure. When evidence exists for
+the slug, each of those exit-3 refusals additionally names the repo-relative
+`.tpatch/local/intent-prepare/<slug>/` lane and the last-resort manual removal
+that unblocks it without touching a canonical file — together with what that
+costs, namely the undo evidence. The claim this ADR and the PRD are permitted to
+make is therefore: **every exit-6 population has a named, executable route out —
+the abandon mode where the environment supports mutation, and that named manual
+procedure where it does not** (PRD §6.6, §10.4, PIB-495, PIB-496).
 
 D9 reports **persistent evidence only**: a present journal, allowed retained
 staging, abandoned evidence, orphan blobs, a corrupt index, and X11 dangling
@@ -663,9 +723,27 @@ clone.
 ### D16 — Retention is bounded: listing, purging, tombstones and orphans
 
 `list` is read-only: no Git process, lock or state creation. `purge` requires
-one selector, previews without `--yes`, and its `--yes` path takes D4's
-authority, recovers a pending journal, then recovers every pending archive
-hash before a new archive mutation. X11 requires each retained reference to
+one selector and previews without `--yes`.
+
+**`purge` never recovers a prepare journal.** A pending journal is an
+interrupted *publication* whose undo evidence binds canonical artifacts,
+`status.json` and the index together (D5); recovering it from a retention verb
+would undo a publication the operator did not ask about, under binds that
+belong to `prepare`. So `purge` — in both its preview and its `--yes` form —
+checks for the journal **marker** before any archive work and refuses exit 3
+`recovery-pending` with the whole tree byte-identical: it does not strict-decode
+the journal, does not move it, does not consume it and undoes no entry. Its
+remediation names the mutating `prepare` and the abandon route without
+performing either. The `--yes` path takes D4's authority first, so a live
+sibling still yields `transaction-in-progress`; the preview takes no lock
+(PIB-350, PIB-489, PIB-490).
+
+Only when **no** journal exists does the `--yes` path recover every pending
+archive hash before a new archive mutation — and, per D13, **that recovery is
+terminal**: it finalizes the pending hashes, reports exit 0 `recovered`, and does
+not go on to process the selector in the same invocation, because the selection
+was computed against an index the recovery has just rewritten. The operator
+re-runs the reported retry (PIB-486, PIB-491). X11 requires each retained reference to
 name a present regular matching blob; a pending reference may have that blob
 (remove next) or no blob (tombstone next); each tombstone has none. A dangling
 retained reference is `archive-blob-dangling` (exit 3) for ordinary mutation,
@@ -703,8 +781,20 @@ captures/revalidates index and per-blob identity/hash.
 **After the first pending/tombstone/index/blob mutation, a later I/O or
 external-change failure is a distinct retryable outcome, not exit 3.** It is
 `archive-purge-partial` at **exit 5**, reporting `completed_hashes`, an optional
-`pending_hash`, `remaining_hashes`, the exact same-command retry and the fact
-that the current index decodes and is consistent. Exit 5 is chosen because the
+`pending_hash`, `remaining_hashes`, a sanitized retry and the fact
+that the current index decodes and is consistent. Because pending-hash recovery
+is terminal, that retry finalizes the pending hash and reports `recovered`; a
+further run completes the remaining hashes, and the report says so rather than
+implying one command finishes the job.
+
+**Retries are sanitized.** No retry or remediation this cluster emits — the
+partial-purge retry, and both terminal-recovery retries of D13 — reproduces the
+operator's inherited `--path`, which is an absolute pathname in ordinary use and
+would violate the no-absolute-path rule on the very output an operator copies
+and pastes. Each `retry` is the **equivalent** command with no root-selection
+argv, accompanied by the closed field `retry_cwd: "workspace-root"` and one
+verbatim human sentence saying to run it from the same workspace root
+(PIB-497, PIB-498). Exit 5 is chosen because the
 state is self-describing and resumable without human judgement: exit 3 must keep
 its zero-write promise, and exit 6 means manual intervention. Divergent or
 unsafe evidence discovered after the first mutation is instead exit 6,
@@ -730,8 +820,10 @@ mutation. G1 uses a C locale and a narrow known-not-worktree classifier so an
 arbitrary Git error cannot fail open.
 
 A worktree non-regenerate mutator runs exactly G1+G2+G3; a worktree regenerate
-runs exactly G1–G4; an established non-worktree runs G1 only; dry-run and
-archive list run none. G2/G3 receive the established state and repo-relative
+runs exactly G1–G4; an established non-worktree runs G1 only; dry-run, archive
+list and `--abandon-transaction` run none. The abandon exemption is D13's: that
+mode writes no new content into the lane, and making the only escape from exit 6
+depend on a working `git` would make a broken Git a permanent block. G2/G3 receive the established state and repo-relative
 lane, rather than probing again.
 
 All prepare-specific G1–G4 invocations use a C locale and scrub a **pinned,
@@ -789,7 +881,10 @@ ever creates absent files** (D19).
   (exit 5), with zero blobs and zero canonical writes;
 - `--allow-heuristic` is the **only** way to permit heuristic replacement, it is
   never implied, there is no config key for it, and its use is reported by a
-  dedicated advisory.
+  dedicated advisory. In the default mode the same flag is a **legal no-op**
+  with its own redundancy advisory, because fallback is already the behavior
+  there; it is a parse error only with `--check`, `--manual` and
+  `--abandon-transaction` (PRD §5.1, §5.2, PIB-500, PIB-501).
 
 **Deadlines are per-phase and total** (`--timeout-phase`, default 90s, clamped
 to the remaining `--timeout`, default 180s). A total expiry that causes two or
@@ -866,14 +961,18 @@ and PIB-407.
   explicitly not claimed, T1 is scoped to a verification point the command
   owns, and T2 has enumerable crash phases plus a stated loss boundary.
 - **No crash can permanently block a slug.** Lock ownership dies with the
-  process, and every refusal has a named route out — and that route is
-  *reachable*, because the abandon branch precedes automatic recovery (D13).
+  process, and every refusal has a named, **executable** route out: the abandon
+  branch precedes both the Git gate and automatic recovery, so a corrupt journal
+  and a broken `git` are both escapable; and where the platform, filesystem or
+  `flock` denies the mode itself, the refusal names the repo-relative lane and a
+  last-resort manual removal (D13).
 - **Every write this command performs is rooted**, tracked lane and gitignored
   lane alike, so the undo evidence enjoys the same boundary as the publication
   it protects (D2).
 - **Exit 3 keeps a single, checkable meaning across the whole surface**: it was
-  reached before the first byte of mutation. Partial archive progress has its
-  own retryable code instead of eroding that (D16).
+  reached before the first byte of mutation, with **no** post-recovery
+  qualification, because a successful recovery is terminal (D13). Partial
+  archive progress has its own retryable code instead of eroding that (D16).
 - **No third-party bytes are ever clobbered by recovery**: every undo is
   CAS-gated and refuses rather than overwriting.
 - Rooted writes prevent outside-root escape. In-root relative-symlink redirection and the CAS→rename content race remain explicitly disclosed; neither is called a closed pathname half.
@@ -913,7 +1012,15 @@ and PIB-407.
 - **An operator's global/system Git configuration still influences the lane
   gate**, by design, so the scrub is not a sandbox (D17).
 - **A purge can end partially applied.** The state is consistent and resumable
-  by the identical command, but the operator must re-run it (D16).
+  by the reported sanitized command, but the operator must re-run it (D16).
+- **An interrupted run costs two invocations, not one.** A mutating `prepare`
+  or `purge` that finds a pending transaction recovers and stops, so the
+  operator (or harness) must run the reported retry to get the work done. This
+  is the deliberate price of an unqualified exit-3 zero-write contract (D13).
+- **`intent-archive purge` is blocked by an unrelated pending prepare journal.**
+  It refuses `recovery-pending` rather than recovering it, so retention work
+  waits on a `prepare` or an abandon; that is chosen over letting a retention
+  verb undo a publication (D16).
 - Extraction touches `internal/workflow/workflow.go`; the new prepare authority
   is separate from `rescap/lock_unix.go`. The Git gate refactor touches
   `internal/gitutil/ignore.go`, `internal/workflow/session_ignore.go` and
@@ -968,6 +1075,14 @@ and PIB-407.
 | Claiming dry-run reproduces every real-run refusal | Contradicted by dry-run's own design, which runs no mutating gate (PRD §6.4). |
 | Scrubbing `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` in the ignore gate | Changes the answer to the question actually being asked and manufactures false refusals (D17). |
 | A `.tpatch/`-wide byte scan for the token `generator` | Unsatisfiable against free-text canonical artifacts; the guard is schema-scoped instead (D12). |
+| Continuing into the requested operation after a successful recovery (rev-5) | Recovery writes, and the gates below it return exit 2/3, whose contract is "wrote nothing"; making recovery terminal preserves the one code a harness can trust (D13). |
+| A flag that restores the recover-then-continue fall-through | Moves the same defect one argument away: an exit code's meaning would depend on a flag (D13). |
+| Recovering a pending prepare journal from `intent-archive purge` (rev-5) | A retention verb would be undoing a publication the operator did not ask about, under binds that belong to `prepare` (D16). |
+| Running the local-lane Git gate before the abandon branch (rev-5) | Abandon writes no new lane content, so the gate answers nothing; requiring `git` would make a broken Git a permanent block on the only escape from exit 6 (D13, D17). |
+| Leaving "exit 6 is never terminal" unqualified where platform/filesystem/`flock` denies abandon | The claim would be false exactly where it is needed; the three refusals name the lane and a manual removal instead (D13). |
+| Echoing the operator's inherited absolute `--path` in a retry command (rev-5) | Puts an absolute path in output that forbids them, on the line most likely to be copied; the retry is the equivalent command plus `retry_cwd` (D16). |
+| A cobra mutex between `--yes` and the default prepare mode (rev-5) | Unimplementable: the default mode is the absence of a flag, and `MarkFlagsMutuallyExclusive` takes flag names. Command-owned validation with one fixed literal replaces it (PRD §5.2). |
+| Classifying the root filesystem through `int(f.Fd())` (rev-5) | Reintroduces the naked-descriptor hazard D4 rejects for the `flock` on the same file; `fstatfs` runs inside `SyscallConn().Control` (D4). |
 
 ---
 
@@ -982,8 +1097,8 @@ mechanically).
 | D1 three guarantees; T0 not claimed; T1 scoped | PIB-103, PIB-155, PIB-206, PIB-314, PIB-315, PIB-324 |
 | D2 rooted writes, the rooted control writer, outside-root boundary, manual CAS and in-root residual | PIB-148…PIB-151, PIB-154, PIB-182, PIB-183, PIB-308…PIB-313, PIB-399, PIB-400, PIB-406, PIB-454…PIB-456 |
 | D3 single-file rooted/CAS `--manual` publication set | PIB-051, PIB-052, PIB-257, PIB-258, PIB-399, PIB-400 |
-| D4 held-root directory authority, `fstatfs` ordering, exact denied classes, release-versus-`Control`, root replacement boundary and platform envelope | PIB-053, PIB-080, PIB-117, PIB-124, PIB-125, PIB-279…PIB-295, PIB-395…PIB-398, PIB-409…PIB-418, PIB-433…PIB-437, PIB-442, PIB-478…PIB-481 |
-| D5 undo-only recovery, plan binding, semantic CAS and purge residual disclosure | PIB-113, PIB-116…PIB-123, PIB-126, PIB-164, PIB-275…PIB-278, PIB-296…PIB-307, PIB-421, PIB-422, PIB-429, PIB-430 |
+| D4 held-root directory authority, `Control`-scoped `fstatfs`/`flock`, exact denied classes, release-versus-`Control`, root replacement boundary and platform envelope | PIB-053, PIB-080, PIB-117, PIB-124, PIB-125, PIB-279…PIB-295, PIB-395…PIB-398, PIB-409…PIB-418, PIB-433…PIB-437, PIB-442, PIB-478…PIB-481, PIB-504 |
+| D5 undo-only recovery, plan binding, semantic CAS and purge residual disclosure | PIB-113, PIB-116…PIB-123, PIB-126, PIB-164, PIB-275…PIB-278, PIB-296…PIB-307, PIB-421, PIB-422, PIB-429, PIB-430, PIB-488 |
 | D6 disclosed content and in-root name-to-object residuals | PIB-100…PIB-105, PIB-296, PIB-297, PIB-324, PIB-406 |
 | D7 fixed publication order, status last | PIB-108, PIB-109, PIB-121, PIB-122 |
 | D8 durable content-addressed archive, conditional tracking | PIB-060…PIB-068, PIB-071, PIB-152, PIB-153, PIB-330, PIB-342…PIB-344 |
@@ -991,13 +1106,13 @@ mechanically).
 | D10 deterministic ids, immutable tombstone identity, X11 storage truth, global rehydration and the singular dangling repair | PIB-064, PIB-065, PIB-069, PIB-160…PIB-162, PIB-165, PIB-168, PIB-169, PIB-331…PIB-341, PIB-401…PIB-404, PIB-423…PIB-425, PIB-428, PIB-443, PIB-444, PIB-447, PIB-457…PIB-460 |
 | D11 metadata preimages are raw files **and** modelled entries | PIB-119, PIB-122, PIB-164, PIB-277, PIB-278 |
 | D12 pure generators, goldens, nil retry store, structural no-raw sink and the schema-scoped provenance guard | PIB-184…PIB-190, PIB-208…PIB-211, PIB-376, PIB-419, PIB-420, PIB-446, PIB-144, PIB-477 |
-| D13 abandon-before-recovery, three entry points, and evidence-only doctor with no probe | PIB-079, PIB-133…PIB-136, PIB-177, PIB-213, PIB-268…PIB-274, PIB-380…PIB-387, PIB-445, PIB-449…PIB-453, PIB-470, PIB-471 |
+| D13 terminal recovery, abandon before the Git gate and both recovery passes, the qualified exit-6 route, three entry points, and evidence-only doctor with no probe | PIB-079, PIB-133…PIB-136, PIB-177, PIB-213, PIB-268…PIB-274, PIB-380…PIB-387, PIB-445, PIB-449…PIB-453, PIB-470, PIB-471, PIB-483…PIB-488, PIB-492…PIB-496, PIB-499 |
 | D14 accepted check frozen; implementation is a prerequisite | PIB-198…PIB-207, PIB-391 |
-| D1–D21 reference truth and dry-run scope honesty | PIB-461…PIB-464, PIB-482 |
+| D1–D21 reference truth, step-reference truth and dry-run scope honesty | PIB-461…PIB-464, PIB-482, PIB-502, PIB-503, PIB-505 |
 | D15 redaction precondition; refusal, not scrubbing | PIB-262…PIB-267, PIB-388 |
-| D16 bounded retention: list, complete preflight, per-hash pending recovery/tombstones, rehydration, orphans, the single dangling repair, `archive-purge-partial` and honest CAS | PIB-316, PIB-317, PIB-345…PIB-361, PIB-405, PIB-421…PIB-430, PIB-443, PIB-444, PIB-447, PIB-457…PIB-460, PIB-465…PIB-469 |
-| D17 exact, scrubbed, single-probe Git usage, `gitgate.go` inclusion and compatibility wrappers | PIB-106, PIB-107, PIB-279…PIB-283, PIB-326…PIB-329, PIB-408, PIB-427, PIB-438, PIB-439, PIB-472…PIB-476 |
-| D18 provider authority for `--regenerate`; deadlines | PIB-365, PIB-368…PIB-375 |
+| D16 bounded retention: list, the journal-marker refusal, complete preflight, terminal per-hash pending recovery/tombstones, rehydration, orphans, the single dangling repair, sanitized retries, `archive-purge-partial` and honest CAS | PIB-316, PIB-317, PIB-345…PIB-361, PIB-405, PIB-421…PIB-430, PIB-443, PIB-444, PIB-447, PIB-457…PIB-460, PIB-465…PIB-469, PIB-486, PIB-489…PIB-491, PIB-497, PIB-498 |
+| D17 exact, scrubbed, single-probe Git usage, the abandon exemption, `gitgate.go` inclusion and compatibility wrappers | PIB-106, PIB-107, PIB-279…PIB-283, PIB-326…PIB-329, PIB-408, PIB-427, PIB-438, PIB-439, PIB-472…PIB-476, PIB-492…PIB-494 |
+| D18 provider authority for `--regenerate`; the default-mode `--allow-heuristic` no-op; deadlines | PIB-365, PIB-368…PIB-375, PIB-500, PIB-501 |
 | D19 coherent-suffix default; sidecar never overwritten | PIB-245…PIB-256 |
 | D20 `FEATURES.md` derived and outside T1 | PIB-049, PIB-257…PIB-261 |
 | D21 journal-loss boundary; evidence-only residue and clean-loss non-detectability | PIB-321…PIB-323, PIB-407 |
@@ -1006,7 +1121,7 @@ mechanically).
 
 ## References
 
-- [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) — companion (rev-5)
+- [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) — companion (rev-6)
 - [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md) — accepted prerequisite; its **implementation** is a dispatch precondition
 - [ADR-034 rooted filesystem inspection boundary](./ADR-034-rooted-filesystem-inspection-boundary.md)
 - [ADR-033 resource capture boundary](./ADR-033-resource-capture-boundary.md)

@@ -2,13 +2,15 @@
 
 ## Status
 
-**Cluster state**: REV-6 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-5** and proposed ADR-035
-**rev-5** close all rev-4 findings, but acceptance review found three remaining
-ordering contradictions plus bounded flag/retry/reference drift. A final
-**rev-6** is dispatched. It is **docs-only**; no mutating command is
-implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-6** and proposed ADR-035
+**rev-6** are written and awaiting the rev-6 review. Rev-6 closes the final
+rev-5 adjudication: terminal recovery, purge's refusal to touch a prepare
+journal, abandon reachability through a broken Git plus the environmental
+manual route, sanitized retries and repeat-abandon residue, the flag-grammar
+corrections, and the descriptor/step-reference cleanup. It is **docs-only**; no
+mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -16,7 +18,7 @@ implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-6 dispatched after rev-5 NEEDS REVISION
+- **Status**: Rev-6 written — Awaiting Review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-6)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -24,6 +26,146 @@ implemented or authorized.
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Prepare PRD Writer Result — rev-6 (2026-08-14)
+
+**Writer base/dispatch**: `9af1ec1`; **reviewed writer tip**: `eec458c`;
+**tracking tip**: `5463c4b`; **WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the six rev-6
+adjudication items below, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-6
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-6
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **Recovery is terminal (item 1).** A successful automatic journal recovery
+   (§7.8 step 4) or pending-purge recovery (§7.8 step 5) now **returns**: exit
+   0, `outcome: "recovered"`, `action: "none"`, a `recovery` object naming
+   `kind` (`journal-undo` / `archive-purge-finalize`), the restored entries or
+   finalized hashes, and the sanitized retry for the operation the operator
+   actually asked for. It never continues into the lifecycle, admissibility,
+   coherence, provider or archive gates, so **no exit-2/3 gate can be evaluated
+   after a recovery write**. §10.4's exit-3 zero-write statement is therefore
+   restored to an unqualified claim and PIB-469 keeps its whole-tree snapshot
+   with a second sensitivity fixture. Removing stale staging with no journal is
+   explicitly *not* a recovery and does not terminate. There is no opt-in that
+   restores the fall-through, and §21/ADR alternatives record why. §7.8, §7.9,
+   §7.10 (CP1, CP3–CP8, CP11, CP12, CP12a), §7.11, §10.2, §10.3, §10.4, §10.5
+   steps 12–13, §10.6, ADR D5/D13, PIB-483…PIB-488 plus amended PIB-015,
+   PIB-113, PIB-177, PIB-469.
+2. **Purge refuses a pending journal (item 2).** `intent-archive purge`, in
+   both its preview and `--yes` forms, checks the journal **marker** before any
+   archive work and refuses exit 3 `recovery-pending` with the whole tree
+   unchanged — no strict decode, no move, no consumption, no undo. Only when no
+   journal exists does it run pending-hash recovery, and that recovery is
+   terminal (exit 0 `recovered`); it does not proceed into a new purge in the
+   same invocation, because the selection was computed against an index the
+   recovery just rewrote. §9.7, §9.7.2, §7.11, §10.4.1, §10.5 step 22, ADR D16,
+   PIB-489…PIB-491 plus amended PIB-350, PIB-467.
+3. **Abandon is reachable through a broken Git (item 3).** The mutating branch
+   order is now platform/filesystem → lock → **abandon** → Git/lane gate →
+   recovery. Abandon requires the Linux/Darwin authority, the classified root
+   filesystem and the exclusive flock, but bypasses G1–G4 and both lane
+   refusals, because it only renames existing bytes one directory deeper in the
+   same lane and writes no new content. Where platform, filesystem or `flock`
+   denies the mode itself and evidence exists, the exit-3 refusal names the
+   repo-relative `.tpatch/local/intent-prepare/<slug>/` lane and the last-resort
+   `rm -rf` procedure, including what it costs; with an empty lane the
+   procedure is omitted. Every "never terminal" claim is qualified by that
+   executable route. §6.6, §7.8 steps 2–3, §7.13, §10.4, §10.4.1, §10.5 steps
+   10–11, §12.6 D9, §16 R16, ADR D13/D17, PIB-492…PIB-496 plus amended
+   PIB-452, PIB-274, PIB-362, PIB-363.
+4. **Sanitized retries and repeat abandon (item 4).** No retry, remediation or
+   report echoes an inherited absolute `--path`. Every retry is the equivalent
+   command **without** root-selection argv, plus the closed field
+   `retry_cwd: "workspace-root"` and the verbatim human sentence
+   `Run this again from the same workspace root:`. The rev-5 "exact same
+   command line, verbatim" wording is withdrawn everywhere. A second abandon
+   whose only residue is `abandoned-<12hex>/` refuses exit 3
+   `no-pending-transaction`, preserves it unnested, and reports it repo-relative
+   with the optional `rm -rf`; human and JSON shapes are both defined. §6.6
+   rules 7 and 9, §9.7.2, §10.2, §10.4, §10.4.1, ADR D16, PIB-497…PIB-499 plus
+   amended PIB-466.
+5. **Flag grammar (item 5).** §5.1 now agrees with §5.2/§10.3/§11.3.1:
+   `--allow-heuristic` is legal in `generate` (a no-op emitting
+   `allow-heuristic-redundant`) and `regenerate`, and a parse error only with
+   `--check`, `--manual` and `--abandon-transaction`. `--yes` carries **no**
+   cobra mutex — the default mode is the absence of a flag, which
+   `MarkFlagsMutuallyExclusive` cannot express — and is instead rejected by the
+   command's own preflight at §10.5 **step 1a** with one fixed literal,
+   `prepare: --yes is only valid with --abandon-transaction`, exit 1, before
+   the `--check` handoff. Bare `--abandon-transaction` still previews;
+   `--abandon-transaction --yes` acts; `feature intent-archive purge` owns its
+   own `--yes`. §5.1, §5.2, §5.3, §10.5, §12.6 D2, ADR D18, PIB-500…PIB-503
+   plus amended PIB-243.
+6. **Descriptor and step references (item 6).** `fstatfs` now runs inside a
+   `SyscallConn().Control` callback on the retained directory `*os.File`, with
+   the same strong-reference discipline as the flock and the unlock;
+   `(*os.File).Fd()` is forbidden anywhere in the authority path, and the
+   shipped `rescap` form is recorded as the precedent deliberately not copied
+   (new claim C176, `internal/rescap/lock_unix.go:80`). §7.9's stale "step 9"
+   is now step 12, and every `§7.8 step N` / `§10.5 step N` reference in both
+   documents was re-audited against the new ordering. §7.4.2, §7.4.4, §7.9,
+   §7.1, §9.2, §17.2, ADR D4, PIB-504, PIB-505.
+
+### Mechanics recomputed
+
+- **505 matrix rows**, `PIB-001`…`PIB-505`, contiguous, zero duplicates, zero
+  retired — verified mechanically. Rev-6 adds contiguous `PIB-483`…`PIB-505` in
+  a new category **AQ** (23 rows) and lists every amended stable row in §18.1.
+- **43 categories** summing to 505, each count derived from the tables
+  themselves. **Kinds** `I` 218 / `C` 114 / `G` 100 / `U` 49 / `S` 24, sum 505,
+  cross-checked against the Kind column. **Slice partition** sums to 505 with
+  S7 at 111.
+- New seam `afterRecoveryComplete`; `outcome` vocabulary gains `recovered`
+  (ten values); new report fields `recovery{kind,restored_entries,
+  finalized_hashes,retry,retry_cwd}` and `purge_progress.retry_cwd`.
+- **No refusal code was added or removed**: the catalog is still 53 codes, and
+  §6.4's reproduced/non-evaluated tables remain total over it with zero overlap
+  (verified mechanically). The advisory catalog is still exactly seventeen
+  codes, with `recovered-prior-transaction` re-scoped to the terminal outcome.
+- Semantic-fixture table grows from nine to **thirteen** guards (adds PIB-487,
+  PIB-496, PIB-497, PIB-505). Claims grow to **176** (`C176` added, anchor
+  verified on the exact line).
+- §18.44 is the new AQ section; the former §18.44/§18.45 became §18.45/§18.46
+  and every reference to them was updated.
+
+### Verification performed (docs-only; no build or test run)
+
+- Every `PIB-NNN` referenced in either document resolves to a real row; every
+  `§` reference in both documents resolves to a real heading; every `§7.8 step
+  N` and `§10.5 step N` reference resolves to the step it describes.
+- Every relative link target exists; every Go/`SPEC.md` source anchor exists
+  with its line range inside the file (including the new C176 anchor).
+- Refusal-catalog totality re-derived: 53 codes, each in exactly one §6.4
+  column.
+- Markdown hygiene: balanced fences, uniform table column counts, no trailing
+  whitespace, valid JSON in every `json` fence, single trailing newline,
+  `git diff --check` clean.
+
+### Remaining issues / notes for the reviewer
+
+- `docs/adrs/README.md` still lists ADR-035 at rev-0. Updating the ADR index is
+  **out of this writer's authorized diff**; §14.1 records it as an
+  implementation-wave obligation, now pointing at rev-6.
+- Terminal recovery costs one extra invocation after an interrupted run. That
+  is a deliberate, disclosed trade recorded in §7.8's "Why steps 4 and 5
+  return", ADR D13 and the ADR's negative-consequences list — a reviewer who
+  disagrees should challenge that analysis rather than the row text.
+- Resuming an `archive-purge-partial` now takes two runs (one `recovered`, one
+  completing). §9.7.2, §10.4 and §10.4.1 say so explicitly instead of implying
+  a single command finishes it.
+- The `--yes` rule is prepare-scoped by construction;
+  `feature intent-archive purge --yes` keeps its own registration and is
+  untouched.
+- No new refusal code, exit code or lifecycle state was introduced.
 
 ## Rev-5 Review and Rev-6 Adjudication (2026-08-14)
 
