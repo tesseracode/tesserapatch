@@ -1,3 +1,22 @@
+## Writer — PRD prepare intent bundle rev-12 + ADR-035 rev-12 — 2026-08-14
+
+**Writer tip**: `f6bab00`
+**Dispatch**: `62c21a9`
+
+### Revision
+
+- Admits sequential repair of one fully covered disjoint class.
+- Removes all forbidden preservation commands from emitted procedures.
+- Routes every owned corrupt hash only to archive-purge divergence.
+- Expands the state map to 18 reachable four-dimensional tuples.
+- Pins real non-regular fixtures and `--all` blast-radius disclosures.
+- Rebuilds the matrix to 560 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-12 + ADR-035 rev-12 — 2026-08-14
 
 **Writer base**: `0e844d5`
