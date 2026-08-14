@@ -1,3 +1,70 @@
+## Dispatch — PRD prepare intent bundle rev-2 + ADR-035 rev-2 — 2026-08-14
+
+**Writer base**: `94fd055`
+**Reviewed writer tip**: `91dea32`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Select a lock authority that cannot be split by unlink/recreate.
+- Root and CAS-gate the single-file manual publication.
+- Make tombstone identity recomputable and repeated generations rehydratable.
+- CAS the archive index before purge publication.
+- Correct the mutating platform envelope and nested-worktree Git detection.
+- State `os.Root`'s outside-root guarantee without claiming in-root symlink
+  immunity.
+- Remove doctor false positives and contradictory rows.
+- Correct references, slice counts and redaction false-positive examples.
+
+### Action Taken
+
+One sequential docs-only rev-2 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-1 + ADR-035 rev-1 — 2026-08-14
+
+**Writer tip**: `91dea32`
+**Tracking tip**: `94fd055`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Claimed BSD lock support lacks the shipped statfs primitive and CI coverage.
+- `.git` leaf inspection skips the privacy gate in nested worktrees.
+- `os.Root` blocks root escape but not in-root symlink redirection.
+- Doctor's no-journal silence row contradicts its residue-totality rows.
+- "Mixed artifact set" cannot distinguish lost journals from ordinary partial
+  lifecycle work.
+- Four transaction references and the S1b slice name/count drifted.
+
+### Verified
+
+394 contiguous PIB rows, 165 contiguous claims, ADR D1–D21 parity, CP0–CP11,
+closed catalogs and source anchors. All rev-0 findings were otherwise closed.
+
+## Internal Review — PRD prepare intent bundle rev-1 + ADR-035 rev-1 — 2026-08-14
+
+**Writer tip**: `91dea32`
+**Tracking tip**: `94fd055`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- `git clean -xfd` can unlink the held lock and let a second process lock a
+  replacement inode concurrently.
+- `--manual` bypasses D2 with path-based, non-CAS `writeFileAtomic`.
+- Tombstones discard data required by X10 and make a repeated purged generation
+  a no-op plus orphan.
+- Purge has no explicit index-preimage CAS before its rename.
+- Handoff AA/S1b counts were stale at 12 instead of 15.
+
+### Verified
+
+The rev-0 transaction, archive, provider and compatibility corrections are
+otherwise substantially specified.
+
 ## Writer — PRD prepare intent bundle rev-1 + ADR-035 rev-1 — 2026-08-14
 
 **Writer tip**: `91dea32`

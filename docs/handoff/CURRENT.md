@@ -2,12 +2,14 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-1** and proposed ADR-035
-**rev-1** are written and returned to three-way review. Every rev-0 finding is
-closed with a decision, and the acceptance matrix was rebuilt to 394 rows. No
-mutating command is implemented or authorized.
+**rev-1** closed every rev-0 finding, but three-way review found eleven
+follow-up defects in lock-path stability, rooted/manual writes, archive
+tombstones and purge CAS, platform/Git detection, in-root redirection, doctor
+residue semantics and document consistency. A bounded **rev-2** is dispatched.
+No mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -15,14 +17,80 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-1 written — awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1)
+- **Status**: Rev-2 dispatched after rev-1 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 and rev-2)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-1 Review and Rev-2 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `91dea32`
+**Tracking tip before adjudication**: `94fd055`
+
+The rev-0 findings are closed substantively. Rev-2 is limited to the following
+accepted findings and their executable acceptance rows:
+
+1. **Lock unlink/recreate (CRITICAL).** The live `flock`/deny-share lock cannot
+   live at a pathname `git clean -xfd` may unlink. A second process can create
+   and lock a new inode while the first still owns the deleted inode. D4 must
+   select one stable cross-process authority for Git and non-Git workspaces,
+   state its Windows parity and cleanup boundary, and test unlink/recreate
+   rather than merely process death.
+2. **Manual rooted write/CAS (HIGH).** D2 says every mutating write is rooted,
+   but D3 reuses path-based `writeFileAtomic` for `--manual`. Make its
+   single-file publication handle-relative and preimage-CAS-gated; retaining
+   the no-journal single-file scope is acceptable.
+3. **Tombstone identity and rehydration (HIGH).** X10 cannot recompute a
+   pre-purge generation body after the only blob digest is cleared. Preserve
+   enough immutable identity to validate a tombstone and define what happens
+   when a later regeneration reproduces a tombstoned generation; it must not
+   become a duplicate-id no-op plus orphan blob.
+4. **Purge index CAS (HIGH).** Purge must capture the strict-decoded index
+   preimage and compare it immediately before the rooted index rename. A
+   concurrent index edit must refuse before any blob removal.
+5. **Platform envelope (HIGH).** The shipped lock and filesystem preflight are
+   implemented only for Linux/Darwin. Narrow mutating support to
+   Linux/Darwin/Windows unless BSD statfs implementations and CI are part of
+   the contract; keep read-only `--check`'s accepted envelope distinct.
+6. **Nested Git detection (HIGH).** `Lstat(".git")` at the `.tpatch` root is a
+   false negative inside a parent worktree. Use `git rev-parse
+   --is-inside-work-tree` from the workspace as the authoritative detector,
+   distinguish "not a work tree" from exec failure, and keep the privacy gate
+   fail-closed when Git presence is unverifiable.
+7. **Root guarantee wording (MEDIUM-HIGH).** `os.Root` prevents escape from
+   the root but follows relative symlinks that remain inside it. Replace the
+   false "pathname race closed" claim with the exact guarantee and disclose
+   in-root ancestor redirection; split the acceptance coverage for outside-root
+   escape and in-root redirection.
+8. **Doctor row contradiction (MEDIUM).** PIB-134's "no journal → no D9" cannot
+   coexist with no-journal residue rows such as PIB-386. Scope silence to a
+   completely clean lane/archive and make PIB-139 conditional on being inside
+   a usable Git worktree.
+9. **Journal-loss detectability (MEDIUM).** An ordinary partial lifecycle
+   bundle is indistinguishable from some lost-journal states. D21/doctor may
+   diagnose only evidence-bearing lane/archive residue; they must not label a
+   canonical mixed/partial artifact set as an interrupted prepare. State the
+   undetectable boundary explicitly and add a negative ordinary-workflow row.
+10. **Cross-reference consistency (LOW).** Correct T1 step 9→10, residual
+    §7.7.3→§7.7.2, revalidation/CAS steps 4/8→5/9, and `S0b`→`S1b`.
+11. **Tracking/matrix consistency (LOW).** The PRD has AA/S1b = 15, not 12.
+    Recompute every rev-2 total, kind, category, slice and citation claim.
+
+Also name `email-pii` alongside `home-absolute-path` in the redaction
+false-positive discussion: it is the broad class observed on repository
+Markdown. The claimed 430 citation occurrences are valid under the writer's
+scope: 426 path-prefixed anchors plus four repeated root-level `SPEC.md`
+anchors; no citation correction is required for that reviewer note.
+
+Rev-2 remains a **docs-only** revision of the PRD, ADR-035 and handoff. It must
+not implement `prepare`, change accepted prerequisites, edit source/assets, or
+touch guarded WIP.
 
 ## Prepare PRD Writer Result — rev-1 (2026-08-14)
 
@@ -52,10 +120,10 @@ state-of-the-art case studies).
   `-215`, `-227`), listed in §18.1.
 - **38 categories** (A–T from rev-0, U–AL new): A 20, B 24, C 15, D 12, E 9,
   F 19, G 13, H 14, I 13, J 8, K 12, L 10, M 14, N 14, O 10, P 7, Q 6, R 3,
-  S 9, T 2, U 10, V 12, W 5, X 6, Y 7, Z 4, AA 12, AB 7, AC 10, AD 8, AE 10,
+  S 9, T 2, U 10, V 12, W 5, X 6, Y 7, Z 4, AA 15, AB 7, AC 10, AD 8, AE 10,
   AF 5, AG 14, AH 17, AI 6, AJ 10, AK 10, AL 4. Sum = 394.
 - **By kind**: `I` 179, `C` 79, `G` 72, `U` 43, `S` 21. Sum = 394.
-- **Slice partition** is total and disjoint over eight slices: S1 75, S1b 12,
+- **Slice partition** is total and disjoint over eight slices: S1 75, S1b 15,
   S2 24, S3 42, S4 142, S4b 17, S5 48, S6 31 = 394.
 - **165 claims** `C1`…`C165` (rev-0: 142), contiguous and ascending in file
   order; 23 new, 9 corrected (marked †).
