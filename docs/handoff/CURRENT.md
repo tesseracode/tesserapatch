@@ -2,13 +2,13 @@
 
 ## Status
 
-**Cluster state**: REV-9 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-8** and proposed ADR-035
-**rev-8** close the rev-7 adjudication, but review found one final global-hash
-subclassification error plus three editorial parity defects. A narrow
-**rev-9** is dispatched. The revision is **docs-only**; no mutating command is
-implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-9** and proposed ADR-035
+**rev-9** close the five rev-9 adjudication items: the global-hash residue
+split, the single retry heading, the abandon-table domain, the companion
+reference, and the five pinned observations. The revision is **docs-only**; no
+mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -16,7 +16,7 @@ implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-9 dispatched after rev-8 NEEDS REVISION
+- **Status**: Rev-9 written, awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-9)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -147,6 +147,217 @@ All rev-5 findings are closed. Rev-7 is limited to these final totality fixes:
 Rev-7 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
 implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
 change is authorized.
+
+## Prepare PRD Writer Result — rev-9 (2026-08-14)
+
+**Writer base/dispatch**: `d9df6f9`; **reviewed writer tip (rev-8)**: `837f28a`;
+**WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the five rev-9
+adjudication items above, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-9
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-9
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **Global-hash residue split (item 1).** X11's tombstone-beside-blob
+   observation is now computed over the **content hash globally across every
+   generation**, not per reference. Two derived predicates are defined once in
+   §9.3 and used everywhere: `h` is **live** when at least one reference to it
+   is retained or removal-pending, and **unreferenced** otherwise. An **orphan**
+   is a regular blob whose hash is unreferenced by that definition.
+   - **Subcase A** — tombstoned reference(s) plus a present `h.blob` with
+     **zero** retained or removal-pending references to `h` anywhere: truly
+     unreferenced physical residue. X11 refuses exit 3
+     `archive-index-storage-inconsistent`, zero writes, for every ordinary
+     archive/canonical mutation; `list` exits **0** rendering `orphan`; `doctor`
+     reports orphan evidence. Repair is the literal
+     `tpatch feature intent-archive purge <slug> --orphans --yes`, admitted past
+     X11 **after** the strict X1–X10 wire decode, validating and removing the
+     blob with **no** index rewrite.
+   - **Subcase B** — the same observation with **≥1** retained or
+     removal-pending reference to `h`: the blob is **live**. It is never an
+     orphan, `--orphans` excludes it and may never remove it, and rev-8's
+     per-reference rule would have deleted a retained reference's storage and
+     left it dangling. It is classified as a **mixed tombstone/live-reference
+     global-availability inconsistency**: exit 3
+     `archive-index-storage-inconsistent`, zero writes; `list` exits **3**
+     rendering `mixed-reference` with the tombstoning and live generation ids;
+     repair is the confirmed
+     `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, which
+     selects every reference to `h` (§9.7.1), marks the live ones
+     removal-pending, removes the blob and tombstones them all through the
+     normal machine, restoring global truth. The opposite repair
+     (un-tombstoning) is stated and rejected.
+   - **Pending refs.** If any reference to `h` is removal-pending, a purge
+     transaction is actually in flight and pending recovery owns the index
+     before any new selector. §9.7.2 states the compound ordering explicitly:
+     preview (no lock, zero writes, `recovery-required`) → `--yes` terminal
+     `recovered` finalizing only the pending hash → rerun of the operator's own
+     selector, which then performs the correct residue repair or refuses exit 3
+     naming it. The one composition that could look like a dead end — recovery
+     removing a blob while another reference stays retained — resolves to
+     `archive-blob-dangling`, whose single repair is the same confirmed
+     `--blob <h> --yes`. No dead end anywhere in the ladder.
+   - Aligned: §9.3 (table split into two rows plus the global predicates),
+     §9.3.1 (X11 row and a rewritten subcase-A/subcase-B block), §9.7 (`list`
+     exits/render), §9.7.1 (global orphan definition, `--orphans` exclusion,
+     availability truth), §9.7.2 (three admitted preflight exceptions, compound
+     ordering, divergence population), §9.7.3, §10.4, §10.4.1 (three
+     sub-populations), §10.5 step 22, §12.5 doctor, §7.10 CP13, ADR D10/D16,
+     amended PIB-356/-404/-447/-506/-521/-523/-524, new
+     PIB-531…PIB-533 and PIB-535, new risk **R22**, and a scoping correction to
+     **R20**'s mitigation cell, whose old text called every tombstone-beside-blob
+     unreferenced. Neither subcase is routed to
+     `archive-purge-evidence-divergent`, which keeps exactly the pending-hash
+     and pending-index evidence.
+2. **One retry heading (item 2).** Exactly one verbatim human heading —
+   `Run this again from the same workspace root:` — now precedes **every**
+   emitted rerun: pending-purge preview, terminal journal recovery, terminal
+   pending-purge recovery, all three partial-purge branches, the
+   archive-divergence rerun, the dangling repair and both §9.3.1 residue
+   repairs. rev-8's second spelling (`… to perform it:`) and the numbered
+   `3. run this again …` step inside the divergence procedure are withdrawn;
+   the divergence block now ends with the heading and the command. No alternate
+   punctuation, appended purpose clause, numbered prefix or capitalization
+   variant is permitted. The three external shell forms §10.7 allows are
+   explicitly carved out as procedures, not retries. §9.7's preview block,
+   §9.7.2's rule and divergence block, §10.2's parity sentence; PIB-498 becomes
+   the **derived totality guard** (kind `I` → `G`, three semantic fixtures, the
+   first being rev-8's own variant) and PIB-529 is amended to the single
+   heading.
+3. **Abandon table domain (item 3).** The domain is now **every argv that
+   attempts to select `--abandon-transaction`** — parsing or not, legal
+   combination or not. That closes the domain under the parse layer, so row 1
+   (parse/arity/mutex) is reachable by construction and rev-8's
+   "syntactically valid" self-contradiction is gone. The three grammar-excluded
+   branches stay out as *post-parse* rows and are explained: `--yes` is legal
+   so step 1a never fires, and an argv pairing `--check` or `--dry-run` with
+   this flag stops at row 1 rather than at a row of its own. §6.6's two
+   surrounding paragraphs and rows 1 and 8, ADR D13, amended PIB-511 with a
+   third semantic fixture that rejects the old domain wording.
+4. **Companion reference and self-certification (item 4).** ADR-035's Status,
+   Date, Byline, **Companion** header and **References** entry all read rev-9;
+   the References line had been stale at rev-6 since rev-6. The PRD's Status,
+   Byline, Architecture, Related, §8.4, §14.1, §19 and §22 headers read rev-9
+   with base `d9df6f9` and reviewed tip `837f28a`. Every `rev-` label in both
+   files was enumerated by grep and dispositioned; historical labels inside the
+   revision-history and amendment-ledger prose are deliberately left as
+   historical statements. This record certifies only what was mechanically
+   re-derived (see "Verification performed"), and makes no claim about
+   documents outside the three-file diff.
+5. **Pinned observations (item 5).** (a) `list` exits and renderings are pinned
+   for both subcases with their exact remediation strings —
+   `--orphans --yes` for A, `--blob <h> --yes` for B — and a new PIB-535 asserts
+   all four fixtures. (b) The compound pending-hash-plus-residue ladder is
+   defined in §9.7.2 and asserted by new PIB-534 over both `--orphans` and
+   `--blob`, with no dead end. (c) `os.OpenRoot` and `root.Open(".")` failures
+   are classified as `directory-flock-unavailable`, exit 3, before any
+   `fstatfs` or `flock`, with the reasons the three neighbouring codes are
+   wrong; §6.6's gate row 8 is widened to "the authority could not be
+   established at all" and §10.5 step 9 matches; new PIB-536 asserts it,
+   including the pre-abandon lane route. §7.4.1, §7.8's mutating pre-step, ADR
+   D4/D13. (d) §6.2 now discloses that `--manual`, which writes no archive, is
+   nonetheless refused zero-write by a removal-pending index and names the
+   purge route with `retry_cwd`, citing PIB-525/PIB-526 rather than inventing a
+   row.
+
+### Mechanics recomputed (each derived mechanically, not trusted)
+
+- **536 matrix rows**, `PIB-001`…`PIB-536`, contiguous, zero duplicates, zero
+  retired. Rev-9 adds contiguous `PIB-531`…`PIB-536` in a new category **AT**
+  (6 rows).
+- **46 categories** summing to 536, each count derived from the tables
+  themselves. **Kinds** `I` 234 / `C` 119 / `G` 109 / `U` 49 / `S` 25, sum 536,
+  cross-checked against the Kind column. **Slice partition** sums to 536 with
+  S7 at 142 (AT joins it).
+- **One stable row changes Kind**: `PIB-498` moves `I` → `G` because it is now
+  the derived totality guard over every retry emitter. The rev-8 baseline
+  `I` 231 / `G` 107 therefore becomes `I` 230 / `G` 108 before the six new rows
+  are added, and the arithmetic in §18.48 states that explicitly.
+- **Amended stable rows are exactly the ten the diff changed**: `PIB-356`,
+  `PIB-404`, `PIB-447`, `PIB-498`, `PIB-506`, `PIB-511`, `PIB-521`, `PIB-523`,
+  `PIB-524`, `PIB-529` — verified by extracting changed `| PIB-NNN |` rows from
+  `git diff 837f28a`. `PIB-522` was deliberately **not** amended: its
+  subcase-A repair assertion is unchanged.
+- **No refusal code was added or removed**: the catalog is still 53 codes, and
+  §6.4's reproduced (23) / non-evaluated (30) tables remain total over it with
+  zero overlap and zero unplaced, re-derived mechanically. The advisory catalog
+  is still exactly seventeen codes; the `outcome` vocabulary is still eleven;
+  `recovery.kind`, `purge_progress.resume`, `pending_purge.selector`,
+  `retry_cwd` and `execution_preflight` are unchanged. **No** new refusal code,
+  exit code, lifecycle state, report object or injection seam. `list` gains one
+  storage-state token, `mixed-reference`.
+- **D1–D21, CP0–CP14, J1–J10 and X1–X11 keep their identifiers and counts.**
+  X11's classification map widens from (wire state × blob observation) to
+  (wire state × blob observation × global liveness) — four refusing triples
+  instead of three, accepting triples unchanged.
+- Semantic-fixture table grows from nineteen to **twenty-two** guards (adds
+  PIB-356, PIB-498, PIB-533) and is re-sorted numerically. Claims stay at
+  **176**: rev-9 makes no new assertion about current shipped behavior.
+- §18.46 remains AS; the new AT section is §18.47, and the former
+  §18.47/§18.48 became §18.48/§18.49 with every reference to them updated
+  (§16 R9, the rev-5 ledger's catalogs bullet, the kind-count paragraph).
+
+### Verification performed (docs-only; no build or test run)
+
+- Matrix contiguity (536, 1…536, zero duplicates), per-category counts (46
+  categories, sum 536), kind counts, the slice partition (sum 536, 46 of 46
+  categories covered, zero double-assigned) and the 53-code refusal partition
+  were each derived from the tables by script rather than trusted.
+- Every `PIB-NNN` referenced in either document resolves to a real row (0
+  dangling, checked over both files); every `§` reference in the PRD resolves to
+  a real heading (0 dangling); every `§7.8 step N` and `§10.5 step N` reference
+  was re-derived from the numbered lists (steps 1–15 and 1–25 respectively, 0
+  bad references).
+- Retry-heading uniqueness was grepped across both files: the only occurrences
+  of rev-8's variant are the prose that withdraws it and PIB-498's sensitivity
+  fixture.
+- Markdown hygiene: balanced fences (46 in the PRD, the ADR ships none), uniform
+  column counts across every table in both files (escaped `\|` handled), no
+  trailing whitespace, valid JSON in every `json` fence, single trailing
+  newline, every relative link target exists, and no absolute path appears
+  anywhere in either file.
+
+### Remaining issues / notes for the reviewer
+
+- `docs/adrs/README.md` still lists ADR-035 at rev-0. Updating the ADR index is
+  **out of this writer's authorized diff**; §14.1 records it as an
+  implementation-wave obligation, now pointing at rev-9.
+- **Subcase B is off-invariant by construction, and the PRD says so.** Ordinary
+  operation cannot produce a mixed tombstone/live-reference hash — purge selects
+  globally, `--generation` refuses `archive-blob-shared`, and rehydration
+  un-tombstones globally — so its producers are an external index edit, a
+  partial hand-merge or a restored older `index.json`. It is nonetheless a
+  reachable observation, and rev-8's rule turned it into silent data loss, which
+  is why it gets a first-class classification rather than a note.
+- **The chosen repair direction for subcase B is purge, not rehydrate.** The
+  reasoning is in §9.3.1 and ADR D10's alternatives row: un-tombstoning would
+  reverse a confirmed destructive decision on the strength of an index edit
+  tpatch did not make. A reviewer who prefers the other direction should
+  challenge that argument rather than the row text.
+- **`list` now has two exit codes over archive-health observations.** Exit 0 for
+  subcase A (the index is truthful about every reference it holds; only
+  unreferenced residue remains) and exit 3 for subcase B and for a dangling
+  reference (a live reference the index describes untruthfully). PIB-535 pins
+  all four fixtures so the split cannot drift.
+- **PIB-536 is kind `C`, not `I`**, because it drives the open failures through
+  the existing `beforeLockAcquire` seam. Rev-9 adds **no** new seam.
+- All frozen rev-6, rev-7 and rev-8 closures are preserved: terminal journal
+  recovery, purge's journal refusal, purge-owned pending recovery with its
+  single `RecoverPendingPurge` call site, selector totality and the
+  `recovery-required` preview shape, the exit-6 route partition and its archive
+  procedure, the three conditional partial-purge branches, the abandon gate's
+  wait-and-retry contention row, sanitized retries, root lock/lifetime/`Control`
+  discipline, rooted writes, dry-run scope, exit-5 partial-purge semantics, the
+  removed doctor probe, the Git helper/scrub boundary, and the privacy,
+  provider, coherence, archive, lifecycle and prerequisite decisions.
 
 ## Prepare PRD Writer Result — rev-8 (2026-08-14)
 
