@@ -2,15 +2,12 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-6 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-5** and proposed ADR-035
-**rev-5** are written and ready for review. The bounded revision makes
-`--abandon-transaction` reachable before every automatic recovery, roots every
-control write, reduces the dangling-reference repair to one shipped command,
-states dry-run's exact evaluated scope, adds a retryable partial-purge outcome,
-removes the perturbing doctor lock probe, completes the Git slice and makes the
-provenance guard feasible. It is **docs-only**; no mutating command is
+**rev-5** close all rev-4 findings, but acceptance review found three remaining
+ordering contradictions plus bounded flag/retry/reference drift. A final
+**rev-6** is dispatched. It is **docs-only**; no mutating command is
 implemented or authorized.
 
 ## Active Task
@@ -19,14 +16,61 @@ implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-5 writer complete — awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-5)
+- **Status**: Rev-6 dispatched after rev-5 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-6)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-5 Review and Rev-6 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `eec458c`
+**Tracking tip**: `5463c4b`
+
+Every rev-4 finding is closed. Rev-6 is limited to the following final
+ordering/grammar corrections:
+
+1. **Recovery versus zero-write refusal (HIGH).** Successful journal or
+   pending-purge recovery becomes a terminal exit-0 `recovered` outcome with a
+   sanitized exact-equivalent retry. It does not continue into the requested
+   operation’s later exit-2/3 gates. Recovery failure remains exit 5/6 as
+   appropriate. This preserves exit 3’s absolute zero-new-write invariant
+   rather than qualifying it after the fact.
+2. **Purge with pending journal (HIGH).** `intent-archive purge --yes` refuses
+   `recovery-pending` before strict-decoding or changing the journal. It never
+   performs journal recovery. It may recover a pending purge state only when
+   no journal exists, and that recovery is terminal/retryable. Align ADR D16,
+   §7.11, §9.7, precedence and PIB-350.
+3. **Abandon environmental reachability (HIGH).** Abandon still requires the
+   supported root-directory authority, but it bypasses the local-lane Git
+   privacy gate because it only moves existing bytes within the same lane and
+   creates no new exposure class. Branch after lock and before Git/recovery.
+   If platform/filesystem/flock prevents the escape, the refusal names the
+   repo-relative lane and safe last-resort manual removal; qualify “never
+   terminal” by that explicit route.
+4. **Sanitized retry (HIGH).** Partial-purge/recovery reports never echo an
+   absolute inherited `--path`. Emit an equivalent retry without root
+   selection plus `retry_cwd: "workspace-root"` (and the same human sentence),
+   or another fully defined symbolic representation. Define second abandon
+   with only `abandoned-*` residue as `no-pending-transaction`, preserving and
+   reporting that residue.
+5. **Flag grammar (MEDIUM).** Default-mode `--allow-heuristic` is the already
+   specified legal no-op/advisory; fix §5.1. `--yes` without abandon uses a
+   command-owned RunE validation and fixed literal, not an impossible Cobra
+   mutex with the absence of a mode flag.
+6. **Descriptor/reference cleanup (LOW).** Use `SyscallConn.Control` for
+   `fstatfs` as well as flock; correct §7.9 step 9→10 and any new step drift.
+   Recompute guards/counts and preserve the closed scrub/filesystem residual
+   tests.
+
+Rev-6 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, accepted prerequisite, supervisor-owned tracking, asset or
+guarded WIP change is authorized.
 
 ## Rev-4 Review and Rev-5 Adjudication (2026-08-14)
 

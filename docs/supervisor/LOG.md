@@ -1,3 +1,68 @@
+## Dispatch — PRD prepare intent bundle rev-6 + ADR-035 rev-6 — 2026-08-14
+
+**Writer base**: `5463c4b`
+**Reviewed writer tip**: `eec458c`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Make successful recovery terminal exit 0 with a symbolic workspace-root
+  retry, preserving exit 3 as absolute zero-write.
+- Make archive purge refuse pending journals and recover only purge state.
+- Let abandon bypass the Git privacy gate while retaining root-lock safety and
+  a manual last-resort route.
+- Sanitize partial-purge retries and define repeated abandon over archived
+  evidence.
+- Reconcile default `--allow-heuristic` and `--yes` validation grammar.
+- Route `fstatfs` through `SyscallConn.Control` and repair final step drift.
+
+### Action Taken
+
+One sequential docs-only rev-6 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-5 + ADR-035 rev-5 — 2026-08-14
+
+**Writer tip**: `eec458c`
+**Tracking tip**: `5463c4b`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Successful recovery can write before later exit-3 gates despite the absolute
+  zero-write promise.
+- ADR D16 says purge recovers a pending journal while PRD/PIB-350 say refuse.
+- Abandon still runs platform/filesystem/Git/lock gates, so Git failure can
+  block the advertised escape.
+- Default `--allow-heuristic` grammar and `--yes` Cobra ownership contradict
+  their acceptance rows.
+- One step reference drifted and `fstatfs` still uses a naked fd.
+
+### Verified
+
+All rev-4 findings are closed. The 482-row matrix, 175 claims, D1–D21,
+refusal partition, source anchors, held-lock primitives and Git slice were
+independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-5 + ADR-035 rev-5 — 2026-08-14
+
+**Writer tip**: `eec458c`
+**Tracking tip**: `5463c4b`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Recovery writes before later exit-2/3 gates.
+- Partial-purge retry can leak an inherited absolute `--path`.
+- Repeated abandon with only `abandoned-*` residue has no defined outcome.
+
+### Verified
+
+482 rows/kinds/slices, C1–C175, D1–D21, J/X binds, the 53-code dry-run
+partition and all references.
+
 ## Writer — PRD prepare intent bundle rev-5 + ADR-035 rev-5 — 2026-08-14
 
 **Writer tip**: `eec458c`
