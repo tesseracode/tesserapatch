@@ -2,14 +2,11 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-1** and proposed ADR-035
-**rev-1** closed every rev-0 finding, but three-way review found eleven
-follow-up defects in lock-path stability, rooted/manual writes, archive
-tombstones and purge CAS, platform/Git detection, in-root redirection, doctor
-residue semantics and document consistency. A bounded **rev-2** is dispatched.
-No mutating command is implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-2** and proposed ADR-035
+**rev-2** now incorporate the bounded adjudication. They await review; no
+mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -17,7 +14,7 @@ No mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-2 dispatched after rev-1 NEEDS REVISION
+- **Status**: Rev-2 writer complete — awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 and rev-2)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -91,6 +88,59 @@ anchors; no citation correction is required for that reviewer note.
 Rev-2 remains a **docs-only** revision of the PRD, ADR-035 and handoff. It must
 not implement `prepare`, change accepted prerequisites, edit source/assets, or
 touch guarded WIP.
+
+## Prepare PRD Writer Result — rev-2 (2026-08-14)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-prepare-intent-bundle.md` | `Draft — Awaiting Review (rev-2)`. D2/D3/D4/§§6–7 now specify a persistent opaque per-user cache lock authority, rooted manual status CAS, exact root-escape/in-root-redirect limits, Linux/Darwin/Windows mutation, G1 tri-state Git detection, evidence-only doctor behavior, immutable tombstone digest/rehydration, and purge-index CAS. |
+| `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` | `Proposed — Awaiting Review (rev-2)`. D2–D6, D10, D13, D16, D17 and D21 mirror the revised normative decisions and acceptance mapping. |
+| `docs/handoff/CURRENT.md` | Canonical cluster state changed to `AWAITING REVIEW`; this exact rev-2 writer record added. |
+
+No source, test, asset, accepted prerequisite, roadmap, log, ADR index, SPEC,
+or WIP file changed. `git status` retains only pre-existing guarded untracked
+WIP outside these three authorized paths.
+
+### Exact counts and closure record
+
+- **409 acceptance rows** `PIB-001`…`PIB-409`, contiguous and unique: 160
+  rev-1 additions, 15 contiguous rev-2 additions `PIB-395`…`PIB-409`, and
+  amended-in-place IDs explicitly listed in PRD §18.1. The old AA/S1b count
+  remains **15**; new rev-2 coverage is category AM / sequential S7.
+- **39 categories**; **kinds**: I 185, C 85, G 74, U 44, S 21; **slice
+  partition**: S1 75, S1b 15, S2 24, S3 42, S4 142, S4b 17, S5 48, S6 31,
+  S7 15 = 409.
+- **165 claims** `C1`…`C165`, contiguous/ascending (unchanged count);
+  **21 ADR decisions** `D1`…`D21`; **14 crash phases** `CP0`…`CP13`;
+  10 J binds, 10 X binds, and **23 injection seams**.
+- **393 `file:line` occurrences** across the two revised documents: 389
+  path-prefixed plus four root-level `SPEC.md` anchors. All resolve and are in
+  range. This is the recomputed post-edit scope; the rev-1 reviewer’s 430
+  count (426 path-prefixed + four root `SPEC.md`) was valid for its tip and was
+  not “corrected” to 426.
+
+### Rev-2 validation record (docs-only; no build/test claim)
+
+- Matrix IDs, all cited PIB references, kinds, claims, ADR decisions, heading
+  references, strict JSON blocks, balanced fences and table structure checked.
+- 393 citation occurrences checked for file existence and line range; no
+  dangling PIB reference or out-of-range citation.
+- `git diff --check` passed. Diff scope is exactly the three authorized files.
+- No `gofmt`, `go test`, or `go build` was run or claimed: this change edits no
+  Go, test, asset, or dependency file.
+
+### Reviewer focus for rev-2
+
+1. D4’s external cache locator must be judged against unlink/recreate, alias,
+   cache cleanup, worktree/submodule, and same-user scope limits—not merely
+   process death.
+2. Cross-check manual CAS, immutable tombstone rehydration, purge-index CAS,
+   G1 tri-state, and in-root redirect disclosures against their executable
+   rows `PIB-395`…`PIB-409`.
+3. Confirm D21 never diagnoses ordinary partial lifecycle bytes as lost
+   journal evidence and that PRD/ADR accept no BSD mutation promise.
 
 ## Prepare PRD Writer Result — rev-1 (2026-08-14)
 

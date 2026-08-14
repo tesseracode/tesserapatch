@@ -1,9 +1,10 @@
 # ADR-035 — Intent Bundle Publication and History
 
-**Status**: Proposed — Awaiting Review (rev-1), 2026-08-14
-**Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1)
+**Status**: Proposed — Awaiting Review (rev-2), 2026-08-14
+**Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1, rev-2)
 **Owner**: Core (planning lane)
-**Byline**: writer sub-agent, rev-1 based on dispatch HEAD `2e2a67d`
+**Byline**: writer sub-agent, rev-2 from reviewed writer tip `91dea32`;
+dispatch/base `176ee06`; WAVE_BASE `d060ff4`
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -16,8 +17,8 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-1, Draft — Awaiting Review). **The two documents must be reviewed
-together.** Read the PRD for the full product contract and its 394-row
+(rev-2, Draft — Awaiting Review). **The two documents must be reviewed
+together.** Read the PRD for the full product contract and its 409-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
 **Blocks**: implementation of the mutating `tpatch prepare` modes (PRD §17.2
@@ -31,6 +32,7 @@ landed (PRD §17.1).
 |---|---|---|
 | rev-0 | Proposed | First draft: D1–D14. |
 | rev-1 | Proposed — Awaiting Review | Closes the rev-0 review findings. **D4 replaced**: the `O_EXCL`-plus-nonce lock (unprovable after CP1/CP2/CP8 and every `--manual` crash) is replaced by a kernel, process-lifetime advisory lock whose ownership dies with the process. **D5 rebuilt**: plan-digest binding, old-and-new identity for every canonical **and** metadata entry, and a semantic compare-and-swap before every publish, undo and remove. **D6 rescoped**: T1 is a command-owned final verification, not a claim about the world; the residual race is narrowed to content identity. **D2 rebuilt**: `(*os.Root).Rename` and the rooted write primitives close the ancestor-swap race. **D8 conditioned**: the archive selection now includes the ADR-027 D3 redaction precondition and a bounded removal surface; the "no new exposure class" claim is withdrawn. **D13 broadened**: `doctor` reports every residue (pending journal, live transaction, inert lock, staging, abandoned evidence, orphan blobs, corrupt index, journal loss) and an operator abandon route exists. **New**: D15 redaction gate, D16 retention/removal, D17 conditional Git dependency, D18 provider authority for `--regenerate`, D19 default-mode coherence, D20 `FEATURES.md` outside the transaction. |
+| rev-2 | Proposed — Awaiting Review | Corrects the live-lock unlink/recreate flaw by selecting a persistent external cache locator; defines rooted/CAS `--manual`; preserves tombstone identity and rehydrates duplicate generations; CAS-gates purge-index publication; limits mutation to Linux/Darwin/Windows; makes G1 authoritative; narrows rooted-write claims to outside-root escape; and withdraws unsupported journal-loss diagnosis. The companion matrix gains `PIB-395`…`PIB-409`. |
 
 ---
 
@@ -132,122 +134,98 @@ window it closes.
 
 ### D2 — Writes get their own boundary, and it is **rooted**
 
-Every canonical **read** in the mutating flow — preflight inspection,
-generation context, publish-time revalidation — uses the accepted ADR-034
-mechanism unchanged: one held `*os.Root`, `fs.ValidPath` root-relative names,
-observed-symlink refusal, non-regular refusal, bounded `Max+1` reads, identity
-checks, fail-closed `unix || windows` allowlist.
+Every canonical read keeps ADR-034's accepted boundary. Every mutating write —
+transactional publication, archive/index publication, the one-file `--manual`
+status transition, and the best-effort derived-index refresh — uses a held
+workspace `*os.Root` and a closed root-relative target list.
 
-Every **write** obeys, additionally:
+1. A target is derived only from the validated slug and fixed artifact IDs (or a
+   validated content digest). Provider output, report text and artifact content
+   never provide a pathname component.
+2. A same-directory temp is created with rooted `OpenFile(O_CREATE|O_EXCL|O_WRONLY,
+   0600)`, fsynced and closed; publication/removal uses rooted `Rename`/`Remove`;
+   directory creation and directory sync use rooted operations. There is no
+   `os.Rename`, `os.CreateTemp`, `os.WriteFile`, `filepath.Join(repoRoot, …)`,
+   `writeFileAtomic`, or `SaveFeatureStatus` in a mutating prepare write path.
+3. Immediately before every canonical/index rename, the command re-captures the
+   destination through the held root and compares the exact identity expected
+   by that step. A final symlink, junction, directory, FIFO, socket or device
+   aborts; a concurrent identity mismatch aborts before rename.
+4. New tracked files are `0644`, replacements preserve permission bits, and
+   local journal/staging material remains `0700`/`0600`.
 
-1. Targets come from a **closed compile-time list** of root-relative names
-   derived from the validated slug. No write path is ever composed from
-   provider output, report data or file content.
-2. **Every write is handle-relative.** Temp creation is
-   `(*os.Root).OpenFile(name, O_CREATE|O_EXCL|O_WRONLY, 0600)` in the
-   destination directory; publication is `(*os.Root).Rename`; removal is
-   `(*os.Root).Remove`; directory creation is `(*os.Root).Mkdir`. The pinned
-   toolchain provides all of them (`go.mod:3`, Go 1.26.1). **No path-based
-   `os.Rename`, `os.CreateTemp`, `os.WriteFile` or `filepath.Join(repoRoot, …)`
-   appears in the publication path** (PRD PIB-308).
-3. Immediately before each rename, the target's `Lstat` through the held root
-   must show non-existence or a **regular file**. A symlink, junction,
-   directory, FIFO, socket or device at a publication target aborts the
-   transaction. Publication never follows a link and never writes through one.
-4. Modes: `0644` for new tracked files, preserved permission bits on
-   replacement (`internal/store/store.go:871-876`), `0700`/`0600` under
-   `.tpatch/local/`.
+`os.Root` is a **root-escape** boundary, not a universal pathname-identity
+proof. It prevents a relative resolution from leaving the held workspace root,
+but follows relative symlinks that remain inside it. A raced ancestor can
+therefore redirect a write to another in-root object. CAS catches an ordinary
+redirect whose resolved identity differs from the expected preimage; it cannot
+prove the canonical name never denoted an in-root alias with the identical
+preimage. This residual is separate from the content write between CAS and
+rename (D6). No document may call the pathname half "closed" or claim that
+rooted writes eliminate all pathname redirection.
 
-**Rationale for the rooted rewrite.** rev-0 performed rooted *reads* and then a
-path-based `os.Rename`, so a concurrent rename of an ancestor directory could
-redirect a publication write outside the intended tree — the exact TOCTOU the
-read boundary exists to prevent, reintroduced on the write side. `*os.Root`
-resolves every component against a held directory handle, so the **pathname**
-half of the race is closed. What remains is the **content** half: a writer can
-still replace the destination's bytes between an entry's compare-and-swap and
-its rename (D6). rev-0 over-conceded by describing the pathname half as
-unclosable.
-
-**Not reused: the shipped single-file writer.** `writeFileAtomicWithRename`
-(`internal/store/store.go:878-917`) is path-based by construction. It is left
-untouched for its shipped callers, including `--manual`'s single `status.json`
-write (D3), and is never used by the transactional publication path.
+The cache lock namespace in D4 is a separate held root; it never accepts a
+workspace-derived cache component. Its app-owned components are real private
+directories, never symlinks/reparse points. This is a locator safety condition,
+not an extension of ADR-034's read contract.
 
 ### D3 — A single-file publication takes no journal
 
-`--manual` writes exactly one *publication-set* file (`status.json`). One
-rename **is** atomic in the ordinary POSIX sense, so that path uses the shipped
-`writeFileAtomic` (`internal/store/store.go:871-917`) directly, with no
-journal, no archive and no preimage capture. It still takes the transaction
-lock (D4) so it cannot interleave with a sibling mutating `prepare`.
+`--manual` has one publication-set entry, `status.json`, and so requires no
+undo journal or archive. It is **not** exempt from D2: under the held D4 lock it
+captures a rooted status preimage, stages a same-directory rooted temp, and
+immediately before `Root.Rename` CASes the live status identity against that
+preimage. Mismatch refuses `status-changed` before a rename or derived-index
+refresh. A crash leaves the single entry old or new, never torn.
 
-**The publication set is not the process's whole write footprint.**
-`SaveFeatureStatus` also refreshes the derived `FEATURES.md` best-effort
-(`internal/store/store.go:363-377`). D20 states that carve-out; the atomicity
-claim here is scoped to the publication set and to nothing else.
-
-**Rationale.** Ceremony that protects nothing is a cost with no benefit, and it
-would blur the line D1 exists to draw: this is the one case where "atomic" is
-the correct word.
+The existing path-based `writeFileAtomic`/`SaveFeatureStatus` are not used. A
+rooted best-effort `FEATURES.md` refresh follows only a successful status
+rename, remains outside T1/D1's publication set, and does not reintroduce a
+path-writer exception (D20). PIB-399 and PIB-400 prove rooted temp/rename and
+concurrent-status preservation.
 
 ### D4 — The transaction lock is a **kernel, process-lifetime** advisory lock
 
-**Replaces rev-0's `O_EXCL`-plus-nonce lock, which was unprovable.**
+The rev-1 lock primitive was sound but its ignored worktree locator was not:
+`git clean -xfd` could unlink a live file while its holder still locked the old
+inode, allowing a second inode/lock at the recreated path. Rev-2 chooses one
+stable authority:
 
-Under rev-0, a crash at CP1 (lock created, journal not yet written), CP2 (blobs
-written, journal not yet written), CP8 (journal cleared, lock not released) or
-anywhere in `--manual` (which writes no journal at all) left a lock file with
-no journal to match its nonce against. rev-0's own rule then left that lock
-untouched and refused the command — **permanently**, with no route out except
-an undocumented manual `rm`. A recovery model that depends on a journal a crash
-may have prevented from existing is not a recovery model.
+- The lock lives in the effective user's OS cache, outside every workspace, at
+  `tpatch/intent-locks/v1/<opaque-lock-key>.lock`; it is persistent, zero-byte,
+  private (`0700` parent / `0600` file), and is never automatically unlinked.
+- `opaque-lock-key` is SHA-256 over a versioned domain separator, GOOS, native
+  canonical workspace-root identity and canonical slug. Linux/Darwin identity
+  is device+inode; Windows is volume serial+file index. The root first passes
+  `Abs` + `EvalSymlinks` and native identity capture; error fails closed.
+  Raw paths, slugs, PIDs and hostnames are not stored in the cache name/content.
+- The user-cache base is canonicalized. Every tpatch-owned component is checked
+  as a private non-symlink directory and traversed under a held cache root;
+  unsafe or unavailable cache authority refuses before mutation.
+- Scope is same effective OS user and machine. Alias paths to the same native
+  root key together; distinct worktree/submodule roots key separately. Git is
+  not part of keying, so non-Git workspaces have the same rule. Cross-user,
+  distributed-host, and external cache-cleaner deletion while a holder lives
+  are explicitly outside the guarantee.
 
-**The decision:**
+| Platform | Mechanism | Support boundary |
+|---|---|---|
+| `linux`, `darwin` | shipped nonblocking `flock(2)` on the cache lock descriptor | existing exact statfs allowlist is checked on the cache authority namespace |
+| `windows` | deny-share `CreateFile` on the cache lock descriptor | new implementation accepts only a local fixed cache volume and requires native `windows-latest` create/contention/unlink tests |
+| all others, including BSD | none | refuse before opening a workspace/cache root or writing any byte |
 
-| Platform | Mechanism | Contention | Release |
-|---|---|---|---|
-| `linux`, `darwin`, `freebsd`, `netbsd`, `openbsd`, `dragonfly` | `syscall.Flock(fd, LOCK_EX\|LOCK_NB)` on an `O_CREATE\|O_RDWR` `0600` descriptor — the shipped `rescap` sequence (`internal/rescap/lock_unix.go:63-88`) | `EWOULDBLOCK`/`EAGAIN` | descriptor close, including on `SIGKILL`, panic or power loss (`internal/rescap/lock_unix.go:43-52`) |
-| `windows` | `syscall.CreateFile` with `dwShareMode = 0`, `OPEN_ALWAYS`, `FILE_ATTRIBUTE_NORMAL\|FILE_FLAG_OPEN_REPARSE_POINT` | `ERROR_SHARING_VIOLATION` (32) / `ERROR_LOCK_VIOLATION` (33), declared locally as `syscall.Errno` constants because the stdlib does not export them | the OS closing the handle at process exit |
-| `solaris`, `aix`, `js`, `plan9`, `wasip1` | none — **refuse**, fail-closed, before any write (`internal/rescap/lock_unsupported.go:29-32` is the shipped shape) | — | — |
+`git clean`, `checkout`, and `stash` cannot name the external locator and cannot
+unlink/recreate a held authority. A persistent released cache file is inert;
+process death closes the descriptor and a contender subsequently acquires the
+same file. Deleting it after close would reintroduce an ABA split, so v1 has no
+stale-lock cleanup, force flag, or automatic cache pruning.
 
-Consequences that are part of the decision:
-
-1. **The lock file carries no authority and no data.** Zero bytes: no nonce, no
-   PID, no hostname. A leftover file is inert and never causes a refusal. There
-   is no "stale lock" concept, therefore no stale-lock policy, therefore no
-   crash phase that can brick a slug.
-2. **Liveness is decidable from the kernel alone**, with or without a journal:
-   acquisition succeeds (no live holder) or returns the contention errno (live
-   holder). Contention is a **transient** refusal — exit 3,
-   `transaction-in-progress` — not exit 6.
-3. **Extraction, not invention.** The unix implementation is the shipped
-   `rescap` lock moved into a shared package, with `rescap` keeping its
-   behavior, refusal codes, statfs preflight and `linux || darwin` envelope
-   byte-identical against pre-change goldens (PRD PIB-286, PIB-287).
-4. **The filesystem preflight travels with the lock.** `flock(2)` is only
-   trusted on genuinely local filesystems, so the shipped `statfs` allowlist
-   (`internal/rescap/statfs_linux.go:78-96`,
-   `internal/rescap/statfs_darwin.go:59-75`) runs before anything is created,
-   and a non-allowlisted filesystem **refuses** (`lock-filesystem-unsupported`).
-   A lock that may not exclude is worse than no lock, because the entire
-   recovery model rests on liveness being decidable. On Windows the deny-share
-   open is enforced by the filesystem driver locally and by the SMB redirector
-   for network shares; that limit is disclosed rather than assumed away (PRD
-   PIB-392, PIB-393).
-5. **The mutating platform envelope is narrower than the read envelope**
-   (`unix || windows`). That delta is enumerated (PRD §12.6 D8) rather than
-   hidden, and `--check` is unaffected on the excluded targets.
-6. **No `--force`, ever.** Nothing in this design removes a lock another
-   process may hold, because nothing needs to.
-
-**The authority is deliberately narrow, and the limit is part of the decision.**
-The lock excludes only another mutating `prepare` on the same slug (and the
-archive-purge subcommand, which takes the same lock). It does not exclude
-`define`, `cycle`, an editor or a script, because this ADR does **not** add
-lock acquisition to any shipped command. What covers those writers is detection,
-not exclusion: a set-level revalidation before the window opens, plus a
-per-entry compare-and-swap immediately before each rename (D5). See D6 for the
-residual limit that remains.
+The lock excludes only prepare/purge contenders with the same root+slug in the
+same effective user namespace. It does not exclude editors, `define`, `cycle`,
+other OS users, or other machines; D5/D6 detect only some of those writes.
+PIB-395 (Git cleanup unlink/recreate), PIB-396 (process death), PIB-397
+(contention), and PIB-398 (key/privacy/topology safety) are executable/guarded
+requirements.
 
 ### D5 — The journal is **undo-only**, plan-bound, and every step is CAS-gated
 
@@ -284,9 +262,13 @@ everything, and names the abandon route (D13).
 entry its current identity must equal the preimage (or absence for a `create`);
 before undoing an entry its current identity must equal the **new image**;
 before writing a blob the existing blob must be absent or byte-consistent with
-its own name; before rewriting the index its identity must equal the recorded
-preimage. A mismatch on a publish aborts (exit 5, roll back); a mismatch on an
-undo **refuses that entry** (exit 6, preserve). Two properties follow:
+its own name; before a publication/rehydration index rename its identity must
+equal the recorded entry preimage. Purge is stricter in a different way: it
+strict-decodes and captures an index preimage, then immediately before its
+rooted rename re-reads and identity-compares it; mismatch is exit 3 and occurs
+before *any* blob removal. A mismatch on a publish aborts (exit 5, roll back);
+a mismatch on an undo **refuses that entry** (exit 6, preserve). Two properties
+follow:
 
 - A concurrent edit is never clobbered by an undo — the undo refuses instead.
 - A journal that survives the binds still cannot cause a write over content it
@@ -325,29 +307,21 @@ produce identical journals — a testable property. Strict decoding follows
 deliberately as a cheap mismatch signal and is *compared*, never *trusted* —
 equality still requires the hash.
 
-### D6 — The residual race is content identity, and it is disclosed
+### D6 — Root escape is closed; content races and in-root aliases remain
 
-A write that lands **between** an entry's compare-and-swap and that entry's
-rename is overwritten, and its bytes are **not** archived. The window is a few
-instructions under the lock, and no acceptance row claims the write is
-preserved.
+D2 closes a rename that would resolve **outside** the held workspace root. It
+does not prove every ancestor name continues to designate the same in-root
+object: `os.Root` may follow an in-root relative symlink. Pre-rename CAS detects
+a redirected target whose identity differs from the expected preimage, but an
+in-root alias with the exact expected identity remains unobservable. That is a
+name-to-object residual, not an escape and not a license to claim all pathname
+redirection is closed.
 
-**What rev-1 closed, and what it did not.** D2's rooted writes close the
-**pathname** half (no ancestor swap can redirect the write). The **content**
-half remains, because closing it would require either (a) an exclusive lock
-every writer takes (rejected in D4) or (b) a rename that verifies destination
-content at rename time, which POSIX does not offer
-(`renameat2(RENAME_EXCHANGE)` is Linux-only and still not a content check).
-
-**Writes after the final verification point are outside the postcondition, not
-a violated guarantee.** T1 is scoped to what the command verifies under its own
-lock (D1). A write landing after that is the ordinary consequence of not
-excluding other writers, and the PRD's concurrency matrix says so rather than
-implying the tree stays new forever.
-
-Overstating any of this would repeat exactly the failure ADR-034 D8 corrected
-for the read side, where an identity promise was weakened to "an object
-observed as different is never read".
+Separately, a write landing between an entry CAS and its rename can be
+overwritten without archival. Neither residual can be eliminated without every
+writer taking a common lock or an unsupported content-checked rename. Writes
+after final verification remain outside T1. PIB-310 covers outside-root escape;
+PIB-406 covers the in-root redirect/CAS distinction.
 
 ### D7 — Publication order is fixed, with `status.json` last
 
@@ -445,33 +419,29 @@ that finds the archive convenient.
 
 ### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes
 
-- Blob name: lowercase-hex SHA-256 of the file's exact raw bytes, `.blob`
-  suffix. `^[0-9a-f]{64}\.blob$`.
-- `generation_id`: lowercase-hex SHA-256 over the canonical encoding of
-  `{feature, mode, replaced[]}` with `replaced` sorted by `artifact_id`,
-  derived at **exactly one** point so every consumer agrees by construction —
-  the shipped pattern at `internal/store/resource_publish.go:131-141,152-160`.
-- `index.json`: `schema_version: 1`, fixed key order by struct declaration
-  order, **no Go map anywhere** (ADR-033 D11,
-  `internal/store/canonjson.go:11-17`), **no wall-clock field** (ADR-027 D6,
-  ADR-033 D10), and a per-entry `purged` tombstone flag (D16).
-- `generation_id` is computed over the **pre-purge** body, so purging never
-  changes an existing identifier and never invalidates an earlier record.
-- **Every read of `index.json` is strictly decoded**: single value then EOF, no
-  unknown fields, matching `schema_version` (a *higher* version refuses with an
-  "upgrade tpatch" message rather than a corruption message), matching
-  `feature`, no null arrays, well-formed unique ids, `blob == ""` iff `purged`,
-  contained paths, closed `artifact_id`s, and a recomputed `generation_id`
-  (PRD §9.3.1, X1–X10). A corrupt index causes a named refusal — never a
-  rewrite, never a blob removal, never a canonical write.
-- Appending a generation whose id already exists is a **no-op**: the archive is
-  a *set* of distinct generations, not a chronology. `generations` order is
-  publication order and carries no wall-clock claim, because no clock is
-  recorded.
-- A blob whose on-disk bytes disagree with its own name is corruption and
-  refuses the invocation; it is never overwritten. A `generation_id` collision
-  between distinct canonical bodies likewise refuses. Both follow
-  `internal/store/resource_publish.go:199-203`.
+Each archive replaced entry has immutable `content_sha256`, `path`,
+`artifact_id`, and `size_bytes`. The blob name is that raw-byte SHA-256 plus
+`.blob`. `generation_id` hashes the canonical sorted body of those immutable
+fields plus feature/mode; it excludes the mutable storage fields `blob` and
+`purged`.
+
+`index.json` is schema version 1, fixed struct-key order, no map and no
+wall-clock. A retained entry has `blob == content_sha256, purged == false`; a
+tombstone has `blob == "", purged == true`, but **retains `content_sha256`**.
+Thus X10 is computable after any purge and a tombstone is authenticated rather
+than a digest-free history hole.
+
+An existing equal generation id is body-compared. A distinct body is a
+collision refusal. The same body with no tombstones is an idempotent no-op; the
+same body with tombstones rehydrates those entries only after redaction scan,
+blob write/reuse, and an index preimage CAS. It neither appends a duplicate nor
+leaves a blob orphan. Repeated purge/rehydrate and shared-blob references retain
+this rule. Blob write precedes the index rename, so a rehydration crash produces
+at most an orphan before rename, never a live reference to a missing blob.
+
+All reads strict-decode, bind X1–X10 including the immutable body digest, and
+refuse before any rewrite/removal/canonical write. PIB-401…PIB-404 bind this
+schema, rehydration, sharing/repetition, redaction and crash ordering.
 
 ### D11 — Two small metadata preimages live in the journal directory, not the archive
 
@@ -512,43 +482,17 @@ a slice prerequisite, not a nicety.
 
 ### D13 — Recovery has three entry points; two are automatic-or-diagnostic, one is the operator's
 
-- **Automatic**: every mutating `prepare` for that slug, under the lock, before
-  any other work — the shipped shape at `internal/cli/land_journal.go:445-482`.
-- **Operator**: `tpatch prepare <slug> --abandon-transaction`, which **moves**
-  the journal, both metadata preimages and every staging tree into a gitignored
-  `abandoned-<12hex>/` evidence directory and **touches no canonical file**. It
-  is a preview without `--yes` (the shipped `session purge` gate,
-  `internal/cli/session.go:353-419`), it never removes a lock, and it never
-  restores or overwrites anything.
-- **Diagnostic**: one new `doctor` check that *reports* residue and never acts
-  on it, never creates the lock file and never changes `doctor`'s exit code.
+Automatic recovery runs under D4's external lock before a mutating prepare;
+`--abandon-transaction` moves journal/preimage/staging evidence only; D9 doctor
+reports residue only and never mutates. No other command recovers or blocks.
 
-No other command recovers, refuses, or blocks on a pending journal.
-`--dry-run` refuses with `recovery-pending` rather than printing a plan it
-cannot honour.
-
-**Why an operator route is required.** Exit 6 exists for divergence — an undo
-whose CAS refused, a journal that failed a bind, a post-publication mismatch.
-Without an explicit route, the only escape from exit 6 is hand-deleting a
-gitignored control file, which is undocumented, unguarded and performed under
-stress. `--abandon-transaction` makes it explicit, previewable, evidence-
-preserving and incapable of touching canonical bytes. **No population of exit 6
-is permanent** (PRD PIB-362, PIB-363).
-
-**What `doctor` must report — the total residue set.** Reporting only a pending
-journal (rev-0) leaves an operator blind to everything else this design can
-leave behind. D9 reports: a pending journal; a **live** transaction (via a
-non-creating, non-blocking lock probe that is released immediately); an inert
-lock file, explicitly as *informational, not a defect*; retained staging trees;
-abandoned evidence directories; orphan archive blobs, with the exact purge
-command; a corrupt archive index, with its failing bind code; and the
-journal-loss symptom of D21. It repairs none of them.
-
-**Consequently there is no pointer or generation-indirection model.** The
-canonical files are self-describing; no reader needs to consult a pointer, a
-generation directory or the journal to know what the current bundle is. That is
-a deliberate rejection of the pointer-based alternative, which would have made
-every reader depend on control state.
+D9 may report a present journal, live cache-lock contention, inert persistent
+cache locator, retained staging, abandoned evidence, orphan blobs, and corrupt
+index. It must not infer that canonical mixed/partial bytes prove a lost
+journal: ordinary analyze/define/manual lifecycle has the same shape. A clean
+lane/archive after `git clean`, fresh clone, or external deletion is ordinarily
+undetectable (D21). This preserves the abandon route without inventing recovery
+evidence.
 
 ### D14 — The accepted read-only contract is frozen
 
@@ -599,79 +543,46 @@ secret. `redact.Scan` takes in-memory bytes and never a path, so "scan before
 write" is structural rather than a call-site discipline
 (`internal/redact/redact.go:19-22`).
 
-**Accepted cost.** A false positive (most plausibly `home-absolute-path` inside
-a legitimate example) blocks a regeneration until the operator edits the file.
+**Accepted cost.** A false positive — most plausibly `home-absolute-path` or the broad empirically relevant `email-pii` class in legitimate Markdown — blocks regeneration until the operator edits the file.
 That cost is chosen over the alternative: a credential retained in every future
 clone.
 
 ### D16 — Retention is bounded: listing, purging, tombstones and orphans
 
-A durable store with no removal route is a leak. The surface is deliberately
-small and modelled on the shipped `session purge`:
+`list` is read-only. `purge` requires one selector, previews without `--yes`,
+takes D4's external per-slug authority, and refuses while a journal is pending.
 
-- `tpatch feature intent-archive list <slug>` — read-only; every generation,
-  entry, blob, presence flag and the orphan set.
-- `tpatch feature intent-archive purge <slug> (--blob | --generation |
-  --orphans | --all) [--yes]` — preview by default; **one scope selector is
-  required** (the shipped lesson that "neither" must not mean "all",
-  `internal/cli/session.go:369-375`); takes the same per-slug lock; refuses
-  while a journal is pending, because a rollback may need the blob.
+For a selected referenced blob, purge strictly decodes and captures the exact
+index preimage, validates selections/reference counts and blob digests, writes
+and fsyncs a rooted temp index, then **immediately before** the rooted index
+rename strictly re-reads and identity-compares the live index to that preimage.
+A mismatch refuses `archive-index-changed` before *any* blob removal. Only after
+the single index rename/fsync does it remove blobs. An index tombstone precedes
+a remaining blob (harmless orphan); a live index never claims a removed blob.
+`--orphans` changes no index.
 
-**Purge semantics:**
-
-1. CAS the blob (present, bytes consistent with its name) before removing it.
-2. Rewrite `index.json` **first**, tombstoning every referencing entry as
-   `{"blob": "", "purged": true}` while keeping `artifact_id`, `path`,
-   `size_bytes` and `generation_id`.
-3. Then remove the blob file and fsync the directory.
-
-The order is load-bearing: an index referencing a removed blob would be a lie;
-a tombstoned index plus a still-present blob is a harmless orphan that
-`purge --orphans` collects. A blob still referenced by a non-selected entry
-refuses with `archive-blob-referenced` rather than breaking that reference.
-
-**Orphans are reported and removable**, not "normal and permanent". They arise
-from crashes between the blob write and the index rename, and from refusals
-after a blob write. Every outcome that leaves one enumerates it, including the
-rolled-back message — which therefore does **not** claim the whole tree is
-byte-identical (rev-0's wording did).
-
-**Recovery constraint, stated in every surface.** A purged blob is gone;
-`list`, `doctor` and the purge report all say so in the same words. And a blob
-that was already **committed** remains in Git history: purging removes it from
-the working tree only, and removing it from history is a Git operation tpatch
-does not perform. Claiming otherwise would be the most dangerous false
-statement this cluster could make.
+Tombstones preserve immutable body identity, including `content_sha256`; purge
+is byte retention removal, not generation deletion. Shared non-tombstoned
+references prevent physical blob removal. A later matching regeneration can
+rehydrate a tombstoned reference without appending a duplicate generation. A
+purged blob is not recoverable, and a committed blob remains in Git history.
+PIB-405 is the concurrent-index-edit CAS row.
 
 ### D17 — The Git dependency is real, read-only, and conditional
 
-rev-0 claimed `prepare` performs no Git operation. It was false: the local-lane
-contract gate shells out and **refuses when Git is unavailable**
-(`internal/workflow/session_ignore.go:138-145`).
+G1, `git rev-parse --is-inside-work-tree`, is run from the discovered workspace
+root and is authoritative. There is no `.git` `Lstat` presence test. Exact
+`true` establishes a Git worktree (including linked worktrees/submodules) and
+permits G2/G3/G4; a clean Git-established false/not-worktree result permits the
+non-Git lane with `workspace-not-git`; missing executable, unexpected output or
+exit, and any non-standard Git failure are `local-lane-unverifiable` before
+mutation. G1 uses a C locale and a narrow known-not-worktree classifier so an
+arbitrary Git error cannot fail open.
 
-**The exact set** — all read-only, none touching the index, a commit or
-`.git/**`: `git rev-parse --is-inside-work-tree`
-(`internal/gitutil/ignore.go:25-34`); `git check-ignore -q --no-index`
-(`internal/gitutil/ignore.go:59-78`); `git --literal-pathspecs ls-files --
-.tpatch/local/` (`internal/rescap/gitgate.go:104-115`); and, only to decide the
-untracked advisory in `--regenerate`, `git ls-files -- .tpatch`
-(`internal/cli/cobra.go:3405-3407`). A git-exec spy asserts the argv set is
-exactly that subset (PRD PIB-107).
-
-**Conditional application**, decided by a single existence `Lstat` of `.git`
-through the held root:
-
-| `.git` | `git` usable | Behavior |
-|---|---|---|
-| absent | — | gate inapplicable (nothing can be tracked or ignored); no Git command runs; advisory `workspace-not-git`; the command proceeds |
-| present | yes | the shipped two-target gate runs unchanged |
-| present | no | **refuse**, exit 3, `local-lane-unverifiable` — a repository exists, so the privacy question is real and unanswerable |
-
-The third row is a disclosed regression against `define --manual` (PRD §12.6
-D9). Making the gate optional there was rejected: it would let a mutating
-command write into a lane that may be tracked, which is precisely what the
-privacy boundary forbids. Path B keeps a complete route through the per-phase
-`--manual` commands, and the refusal says so.
+All Git commands are read-only and have no role in keying, preservation, or
+recovery. `bundle-untracked-in-git` exists only when G1 established a worktree
+and G4 proved `.tpatch` untracked. PIB-327…PIB-329 are amended; PIB-408 is the
+nested-worktree/submodule regression.
 
 ### D18 — `--regenerate` requires provider success; heuristic replacement is opt-in
 
@@ -743,28 +654,16 @@ exit-5 aborts on a *derived* file. The shipped design treats it as a cache;
 this ADR matches that and says so instead of claiming `--manual` writes exactly
 one file.
 
-### D21 — T2's boundary: a lost journal is unrecoverable, and that is disclosed
+### D21 — T2's boundary: a lost journal is unrecoverable and usually undetectable
 
-The journal lives in the gitignored `.tpatch/local/` lane, so `git clean -xfd`,
-a fresh clone, or an out-of-band delete destroys it. If that happens while a
-transaction is pending, the preimages go with it and the old bytes are
-unrecoverable by `tpatch` — except for `--regenerate`, whose blobs are in the
-tracked tree.
-
-This is a **stated boundary of T2**, not an oversight: `doctor` detects the
-symptom and repairs nothing, because repair would require evidence that no
-longer exists, and reconstructing it from artifact content is exactly the guess
-D5's CAS rule forbids.
-
-**Rejected: relocating the journal under the Git directory.** It would survive
-`git clean` but not a fresh clone (the boundary moves rather than closes);
-`.git` is Git's namespace and writing control state there is a compatibility
-hazard across worktrees, submodules and the `.git`-as-a-file indirection; a
-non-Git workspace would still need a second location, so the design would carry
-two lane implementations and two crash-phase tables; and it would give `prepare`
-a hard Git dependency in exactly the mode D17 is making conditional.
-
----
+A journal removed while pending loses undo evidence. Tpatch does not reconstruct
+it from canonical bytes. `git clean`, fresh clone and manual local-lane deletion
+can all produce a clean no-journal state indistinguishable from a workspace that
+never used prepare; doctor must not call normal partial lifecycle state journal
+loss. It reports only present/evidence-bearing residue and never repairs it.
+Archive blobs that remain are recovery material, not proof that loss occurred.
+This undetectable boundary is disclosed in docs and guarded by PIB-321…PIB-323
+and PIB-407.
 
 ## Consequences
 
@@ -780,8 +679,7 @@ a hard Git dependency in exactly the mode D17 is making conditional.
   process, and every refusal has a named route out.
 - **No third-party bytes are ever clobbered by recovery**: every undo is
   CAS-gated and refuses rather than overwriting.
-- The pathname half of the publication race is closed by rooted writes; the
-  residual is content identity and is disclosed as such.
+- Rooted writes prevent outside-root escape. In-root relative-symlink redirection and the CAS→rename content race remain explicitly disclosed; neither is called a closed pathname half.
 - Retention is bounded and auditable: an operator can see what is archived,
   purge it, and be told plainly what purging cannot undo.
 - Six shipped commands (`analyze`, `define`, `explore`, `cycle`, `next`,
@@ -798,9 +696,9 @@ a hard Git dependency in exactly the mode D17 is making conditional.
   tree only, and this ADR says so rather than implying more.
 - A redaction false positive blocks a regeneration until the operator edits the
   artifact (D15). That cost is chosen deliberately.
-- **Mutating `prepare` supports fewer platforms than `prepare --check`**
-  (`solaris`, `aix`, `js`, `plan9`, `wasip1` refuse), because a
-  process-lifetime lock is a hard requirement (D4).
+- **Mutating `prepare` supports fewer platforms than `prepare --check`**:
+  only Linux, Darwin and Windows mutate; BSD, `solaris`, `aix`, `js`, `plan9`,
+  and `wasip1` refuse because the lock authority is a hard requirement (D4).
 - **Mutating `prepare` refuses in a Git repository whose `git` is unusable**
   (D17), where the per-phase `--manual` commands succeed today.
 - `--regenerate` fails where rev-0 would have silently produced heuristic
@@ -813,7 +711,8 @@ a hard Git dependency in exactly the mode D17 is making conditional.
   implementer dispatch for the slices that touch them.
 - Recovery is undo-only, so an interrupted prepare always costs a re-run of
   generation, including its provider calls.
-- A journal lost with the gitignored lane is unrecoverable (D21).
+- A journal lost with the gitignored lane is unrecoverable and, after clean
+  lane/archive deletion, ordinarily undetectable (D21).
 
 ---
 
@@ -828,7 +727,7 @@ a hard Git dependency in exactly the mode D17 is making conditional.
 | POSIX record locks (`fcntl`) to cover `solaris`/`aix` | Their close-any-descriptor release semantics are a well-known footgun in multi-threaded processes; refusing those targets is safer than a subtly broken lock (D4). |
 | Redo-style journal, like `land` | Nothing here is irreversible; roll-forward adds failure modes for no benefit (D5). |
 | A journal without plan binding | A forged or hand-edited journal could direct a restore over canonical content; `plan_digest` plus per-step CAS makes it inert (D5). |
-| Path-based `os.Rename` after rooted checks (rev-0) | Leaves an ancestor-swap race that `(*os.Root).Rename` closes outright in the pinned toolchain (D2). |
+| Path-based `os.Rename` after rooted checks (rev-0) | Leaves outside-root escape and is rejected. `(*os.Root).Rename` prevents that escape, but D2/D6 disclose that an in-root ancestor redirect remains possible. |
 | Lock acquisition in every writing command | Deadlock surface and a compatibility delta across eleven verbs, to close a window per-entry CAS already detects (D4, D6). |
 | Ephemeral preimages only | Loses bytes on the success path — the path the requirement is about (D8). |
 | Git as the preservation guarantee | `.tpatch/` is frequently untracked and fresh Path B work is uncommitted (D8). |
@@ -862,32 +761,32 @@ mechanically).
 | Decision | Verified by (PRD §18) |
 |---|---|
 | D1 three guarantees; T0 not claimed; T1 scoped | PIB-103, PIB-155, PIB-206, PIB-314, PIB-315, PIB-324 |
-| D2 rooted write boundary, no-follow, closed target list | PIB-148…PIB-151, PIB-154, PIB-182, PIB-183, PIB-308…PIB-313 |
-| D3 single-file `--manual` publication set | PIB-051, PIB-052, PIB-257, PIB-258 |
-| D4 process-lifetime lock, inert lock file, platform and filesystem envelope | PIB-053, PIB-080, PIB-117, PIB-124, PIB-125, PIB-284…PIB-295, PIB-392…PIB-394 |
+| D2 rooted writes, outside-root boundary, manual CAS and in-root residual | PIB-148…PIB-151, PIB-154, PIB-182, PIB-183, PIB-308…PIB-313, PIB-399, PIB-400, PIB-406 |
+| D3 single-file rooted/CAS `--manual` publication set | PIB-051, PIB-052, PIB-257, PIB-258, PIB-399, PIB-400 |
+| D4 external process-lifetime authority, cleanup adversary and platform envelope | PIB-053, PIB-080, PIB-117, PIB-124, PIB-125, PIB-279…PIB-295, PIB-392…PIB-398, PIB-408, PIB-409 |
 | D5 undo-only recovery, plan binding, semantic CAS | PIB-113, PIB-116…PIB-123, PIB-126, PIB-164, PIB-275…PIB-278, PIB-296…PIB-307 |
-| D6 disclosed residual content race | PIB-100…PIB-105, PIB-296, PIB-297, PIB-324 |
+| D6 disclosed content and in-root name-to-object residuals | PIB-100…PIB-105, PIB-296, PIB-297, PIB-324, PIB-406 |
 | D7 fixed publication order, status last | PIB-108, PIB-109, PIB-121, PIB-122 |
 | D8 durable content-addressed archive, conditional tracking | PIB-060…PIB-068, PIB-071, PIB-152, PIB-153, PIB-330, PIB-342…PIB-344 |
 | D9 archive is not provenance; trigger unfired | PIB-140…PIB-147, PIB-378, PIB-379 |
-| D10 deterministic ids, tombstone field, strict index decoding | PIB-064, PIB-065, PIB-069, PIB-160…PIB-162, PIB-165, PIB-168, PIB-169, PIB-331…PIB-341 |
+| D10 deterministic ids, immutable tombstone identity, strict index decoding and rehydration | PIB-064, PIB-065, PIB-069, PIB-160…PIB-162, PIB-165, PIB-168, PIB-169, PIB-331…PIB-341, PIB-401…PIB-404 |
 | D11 metadata preimages are raw files **and** modelled entries | PIB-119, PIB-122, PIB-164, PIB-277, PIB-278 |
 | D12 pure generators, goldens, nil retry store | PIB-184…PIB-190, PIB-208…PIB-211, PIB-376 |
 | D13 three recovery entry points; total doctor residue reporting | PIB-079, PIB-133…PIB-136, PIB-177, PIB-213, PIB-268…PIB-274, PIB-380…PIB-387 |
 | D14 accepted check frozen; implementation is a prerequisite | PIB-198…PIB-207, PIB-391 |
 | D15 redaction precondition; refusal, not scrubbing | PIB-262…PIB-267, PIB-388 |
-| D16 bounded retention: list, purge, tombstones, orphans | PIB-316, PIB-317, PIB-345…PIB-361 |
-| D17 exact, read-only, conditional Git usage | PIB-106, PIB-107, PIB-279…PIB-283, PIB-326…PIB-329 |
+| D16 bounded retention: list, purge, tombstones, rehydration, orphans and index CAS | PIB-316, PIB-317, PIB-345…PIB-361, PIB-405 |
+| D17 exact, read-only, tri-state Git usage | PIB-106, PIB-107, PIB-279…PIB-283, PIB-326…PIB-329, PIB-408 |
 | D18 provider authority for `--regenerate`; deadlines | PIB-365, PIB-368…PIB-375 |
 | D19 coherent-suffix default; sidecar never overwritten | PIB-245…PIB-256 |
 | D20 `FEATURES.md` derived and outside T1 | PIB-049, PIB-257…PIB-261 |
-| D21 journal-loss boundary; detected, not repaired | PIB-321…PIB-323 |
+| D21 journal-loss boundary; evidence-only residue and clean-loss non-detectability | PIB-321…PIB-323, PIB-407 |
 
 ---
 
 ## References
 
-- [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) — companion (rev-1)
+- [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) — companion (rev-2)
 - [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md) — accepted prerequisite; its **implementation** is a dispatch precondition
 - [ADR-034 rooted filesystem inspection boundary](./ADR-034-rooted-filesystem-inspection-boundary.md)
 - [ADR-033 resource capture boundary](./ADR-033-resource-capture-boundary.md)
