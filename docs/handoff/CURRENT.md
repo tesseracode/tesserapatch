@@ -2,10 +2,12 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-The transactional prepare-intent-bundle PRD writer is dispatched from fresh
-base `d060ff4`. This is planning only; no mutating command is implemented.
+The transactional prepare-intent-bundle PRD writer produced rev-0 from base
+`d060ff4` at HEAD `20e8bbe`. This is planning only; no mutating command is
+implemented and none is authorized. The writer's architecture gate **fired**,
+so a coupled proposed ADR-035 must be reviewed together with the PRD.
 
 ## Active Task
 
@@ -13,7 +15,7 @@ base `d060ff4`. This is planning only; no mutating command is implemented.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Writer rev-0
+- **Status**: Writer rev-0 complete — AWAITING DUAL REVIEW (PRD + coupled ADR-035)
 - **Assigned**: 2026-08-13
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -43,6 +45,196 @@ base `d060ff4`. This is planning only; no mutating command is implemented.
 - Evaluate persistent history/pointer/provenance alternatives. If one is
   selected, create the required ADR before acceptance.
 - Include claims audit and executable acceptance matrix; no implementation.
+
+## Prepare PRD Writer Result — rev-0 (2026-08-13)
+
+### Files changed (exact, complete)
+
+| File | Change |
+|---|---|
+| `docs/prds/PRD-prepare-intent-bundle.md` | **new**, 2,301 lines, `Status: Draft — Awaiting Review (rev-0)` |
+| `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` | **new**, 465 lines, `Status: Proposed (rev-0)` — created because the architecture gate fired |
+| `docs/adrs/README.md` | one index row added for ADR-035 |
+| `docs/handoff/CURRENT.md` | `Cluster state` flip, Active Task `Status`, and this section |
+
+Nothing else was touched. **No** edit to `docs/ROADMAP.md`,
+`docs/supervisor/LOG.md`, `SPEC.md`, `CHANGELOG.md`,
+`docs/prds/PRD-artifact-validation-and-provenance.md`,
+`docs/adrs/ADR-034-*.md`, `docs/whitepapers/**`, `internal/**`, `cmd/**`,
+`assets/**`, `tests/**`, `.github/**`, `.wave-close-allowlist`, or any guarded
+untracked WIP (`WP-004`, `WP-006`, `WP-007`, `PRD-recurring-patches.md`, the
+state-of-the-art case studies).
+
+### Counts (mechanically verified)
+
+- **234 acceptance rows** `PIB-001`…`PIB-234`, contiguous, zero duplicates,
+  zero retired. **20 categories**: A 20, B 24, C 15, D 12, E 9, F 19, G 13,
+  H 14, I 13, J 8, K 12, L 10, M 14, N 14, O 10, P 7, Q 6, R 3, S 9, T 2.
+  Sum = 234. Every row is assigned to exactly one of six slices
+  (S1 46, S2 14, S3 22, S4 97, S5 28, S6 27 = 234).
+- **142 claims** `C1`…`C142`, contiguous, each with a `file:line` anchor.
+- **ADR-035: 14 decisions** `D1`…`D14`, each mapped to named PIB rows in the
+  ADR's acceptance-dependency table.
+- **171 distinct `file:line` anchors** (355 citations) across both documents;
+  all mechanically verified in range, zero out-of-range, zero missing files.
+- **10 crash phases** `CP0`…`CP9`, each with a recovery outcome and an
+  acceptance row.
+- Closed catalogs: 7 exit codes (one deliberately retired), 10 advisories,
+  6 validation checks `V1`…`V6`, 12 injection seams.
+
+### Contract decisions made (not deferred)
+
+1. **Four modes on one verb**: `--check` (accepted, frozen), default
+   `generate`, `--manual`, `--regenerate`, plus `--dry-run`, declared mutually
+   exclusive through cobra so any conflict is a parse-time exit 1.
+2. **Default preserves.** Every `present-nonempty` canonical artifact is never
+   staged and never renamed over. `present-empty` refuses (exit 2);
+   `symlink-refused` / `not-regular` / `unreadable` / `oversize` / `unstable`
+   refuse (exit 3). The disposition table is total over the accepted nine-value
+   enum.
+3. **The sidecar is written iff `analysis.md` is generated this run**, so a
+   preserved (possibly hand-authored) analysis never gets a synthesized
+   structured sidecar — which would be a false Path A signal.
+4. **`--manual` writes exactly one file** (`status.json`) and therefore takes
+   **no journal and no archive**: one rename genuinely is atomic. It still
+   takes the lock.
+5. **`--regenerate` is all-or-nothing over the whole bundle** (three Markdown
+   files + sidecar), because `spec` derives from `analysis` and `exploration`
+   from both; partial regeneration would publish an incoherent set.
+6. **Transaction truth is a three-way split.** T0 instantaneous multi-file
+   visibility is **NOT** claimed (a rename sequence cannot provide it, and the
+   exposure window is bounded and named); T1 command-boundary all-old/all-new
+   and T2 crash recoverability **are**. The words "atomic"/"simultaneously" are
+   forbidden for the multi-file publication and mechanically guarded.
+7. **The journal is undo-only** — the deliberate inverse of `land`, which must
+   roll forward because `git commit` is irreversible. Recovery decides from
+   evidence; the journal carries no `phase` field and no wall-clock.
+8. **Publication order is fixed with `status.json` last**, which is what makes
+   the 10-phase crash table enumerable and every partial state recoverable.
+9. **Lock authority is narrow and the limit is disclosed**: it excludes only a
+   sibling mutating `prepare`. Other writers are handled by publish-time
+   identity revalidation, and the residual in-window race is stated as a limit
+   with no row claiming otherwise.
+10. **Only mutating `prepare` recovers**; `doctor` gains a report-only `D9`
+    check. The evaluated "every command must recover or refuse" model was
+    rejected, and so was any pointer/generation-indirection model — canonical
+    files stay self-describing.
+11. **Exit envelope**: 0/1/2/3/5/6 with `4` deliberately **retired, not
+    rebound** (its reserved-surface population disappears). 0/2/3 keep the
+    accepted `--check` meanings, and exit 3 also carries lifecycle refusal to
+    match the shipped `reject`/`reopen`/`unapplied` convention.
+12. **Generators are extracted as pure functions**; `RetryOptions.Store` is
+    left nil so raw provider responses land in the gitignored staging lane
+    instead of `artifacts/` — an enumerated delta, and a privacy improvement.
+13. **Provider failure falls back to the heuristic generator**, matching every
+    shipped phase command, and still yields a complete new set. No
+    `--require-provider` in v1.
+14. **No confirmation prompt and no `--yes`**: the archive is the safety
+    mechanism, `--dry-run` is the preview, and prompts break harnesses.
+15. **Seven enumerated behavior deltas (D1–D7)** and six non-invalidation
+    obligations, each with golden-pinned rows.
+
+### Architecture gate — trigger and disposition
+
+- **Fired.** `--regenerate` cannot preserve prior hand-authored bytes without a
+  persistent representation. Six alternatives were evaluated (refuse overwrite;
+  rely on Git; ephemeral rollback-only journal; durable immutable
+  content-addressed snapshots; pointer/symlink generation directories;
+  `FeatureStatus` sub-record / hash manifest).
+- **Selected**: durable, **tracked**, immutable, content-addressed **intent
+  archive** at `.tpatch/features/<slug>/artifacts/intent-archive/` (blobs +
+  `index.json`), canonical files remaining the sole authority. It reuses the
+  shipped resource-capture shape (immutable content-addressed set + atomically
+  rewritten manifest) rather than inventing one.
+- **Therefore** `docs/adrs/ADR-035-intent-bundle-publication-and-history.md`
+  was created as **Proposed rev-0** and the ADR index updated. **Neither
+  document may be accepted alone.**
+- **Provenance trigger NOT fired.** The archive records *bytes that existed at
+  a path* — no author, agent, model, provider, endpoint or Path-A/B tag.
+  `provenance: unknown` stays constant, the forbidden-inference list gains
+  exactly one entry (the archive), and ADR-034 is explicitly not cited as a
+  persistence precedent (ADR-034 D14 forbids it).
+
+### Determinism / privacy invariants held
+
+- No wall-clock field in any tracked artifact this command writes, **or in the
+  journal**. The only clock that moves is the pre-existing `status.json`
+  `updated_at`.
+- Content-addressed blob names and `generation_id`; one derivation point;
+  idempotent append (the archive is a set, not a chronology).
+- Canonical JSON, fixed key order, no Go map in any wire format.
+- Raw provider responses never reach the tracked tree; secrets remain
+  by-reference; the forbidden-field guard scopes to keys and labels, with a
+  sensitivity fixture.
+
+### Validation performed (docs-only change)
+
+- **Anchors**: 355 `file:line` citations, 171 distinct, parsed and checked in
+  range; zero out-of-range, zero missing files. Every anchor that was written
+  from memory was then **content-verified** by reading the cited line, and 40+
+  drifted anchors were re-resolved (workflow.go generator/validator/heuristic
+  sites, store.go temp-create and config, types.go/status.go structs,
+  land_journal.go `phase`/`created_at`, resource_publish.go derivation and
+  strict-decode sites, phase2.go interactive/loader/skip-execute, cobra.go
+  probing loader and manual helpers, SPEC.md exit rows, feature-layout and
+  agent-as-provider sections, WP-005 Agreed items 3/6/7 and Turn-3 items 2/3,
+  and 61 accepted-PRD section anchors).
+- **Matrix mechanics**: 234 rows contiguous; zero duplicates; every `PIB-NNN`
+  cited in either document resolves to a real row; category counts sum to 234;
+  slice assignment is a partition.
+- **Claims mechanics**: `C1`…`C142` contiguous, zero duplicates. Crash phases
+  were renamed `C*`→`CP*` specifically so they cannot be confused with claim
+  IDs in a table scan.
+- **Markdown hygiene**: fences balanced (20 markers PRD, 0 ADR); zero
+  column-count mismatches across all tables in both files; zero
+  trailing-whitespace lines; every relative link resolves on disk; all three
+  `json` blocks parse; every `§N.N` reference resolves to a real heading in
+  both documents; every `ADR-0NN D<k>` reference is inside that ADR's decision
+  range.
+- No Go source changed, so `gofmt` / `go build` / `go test` do not apply to
+  this change set. `internal/workflow/docs_totality_guard_test.go` reads three
+  verify-family documents, none of them touched here.
+
+### Implementation status
+
+**None.** No Go file, test, asset or CLI surface was created or modified. §19
+of the PRD states the authorization gate: implementation is blocked until
+**both** the PRD and ADR-035 are accepted.
+
+### Reviewer focus for rev-0
+
+1. **§7.1 is the load-bearing honesty claim.** The question to test is not "is
+   this a transaction" but "does the T0/T1/T2 split hold everywhere" — i.e.
+   whether any sentence, message, table or row anywhere in either document
+   implies instantaneous multi-file visibility. PIB-155 is the guard; challenge
+   its scope.
+2. **§8's alternatives table is the architecture gate.** Challenge the
+   *rejection* of H2 (Git) and H3 (ephemeral journal) specifically: the whole
+   ADR-035 requirement rests on the success-path argument, not the crash path.
+3. **§9.6 must survive adversarial reading.** If any reviewer can construct a
+   provenance question the archive answers, the provenance trigger fires and
+   ADR-035 is insufficient.
+4. **§7.9's CP-table plus §7.10's decision function.** Check that no reachable
+   crash point is missing a row, that CP7 (evidence beats phase) is right, and
+   that undo-only really loses nothing.
+5. **§7.4's lock limit.** The design deliberately does not lock shipped
+   commands. Challenge whether revalidation plus the disclosed residual window
+   is an acceptable trade, or whether a delta on `define`/`cycle` is required.
+6. **§12.6's seven deltas.** Verify the list is complete — particularly that
+   retiring exit 4 and changing the two `--check`-plus-flag message texts are
+   the only observable changes to the accepted surface.
+7. **§17's partition** must satisfy the AGENTS.md same-file rule:
+   `internal/cli/prepare.go` and `internal/workflow/workflow.go` are shared
+   surfaces, so any two implementers touching either must run sequentially.
+
+### Open decisions left to review (§20, eight)
+
+Q1 `--regenerate --only <ids>`; Q2 the 180s whole-command deadline; Q3 a
+`--require-provider` flag; Q4 a `--restore` verb; Q5 archive pruning; Q6
+whether `--regenerate` should invalidate a `verified-fresh` label; Q7
+per-feature vs per-workspace archive; Q8 whether `doctor` D9 should be an
+error. All eight have a stated default; none blocks review.
+
 
 ## Final Verdict
 
