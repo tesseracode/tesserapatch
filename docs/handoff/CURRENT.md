@@ -2,12 +2,15 @@
 
 ## Status
 
-**Cluster state**: REV-10 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-9** and proposed ADR-035
-**rev-9** close the rev-8 adjudication, but review found one final missing
-global pending-hash invariant plus bounded X11 scope/guard/editorial drift. A
-narrow **rev-10** is dispatched. The revision is **docs-only**; no mutating
+Transactional prepare-intent-bundle PRD **rev-10** and proposed ADR-035
+**rev-10** close every rev-9 adjudication item: global pending-hash ownership
+with a removal invariant, selector-independent whole-index X11 validation, the
+retained corrupt-blob route, the withdrawn-prose and abandon-domain
+corrections, column-0 retry-heading parity, and the pinned list/doctor,
+`--manual` and fence-count observations. The revision is **docs-only**; no
+mutating
 command is implemented or authorized.
 
 ## Active Task
@@ -16,7 +19,7 @@ command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-10 dispatched after rev-9 NEEDS REVISION
+- **Status**: Rev-10 written, awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-10)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -189,6 +192,215 @@ Rev-7 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
 implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
 change is authorized.
 
+## Prepare PRD Writer Result — rev-10 (2026-08-14)
+
+**Writer base/dispatch**: `2f8f697`; **reviewed writer tip (rev-9)**: `ebd1be8`;
+**WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the eight rev-10
+dispatch items, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-10
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-10
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **Global pending ownership (item 1).** §9.3 gains a third derived
+   predicate, `owned` (any reference to `h` is removal-pending), and the
+   invariant: *if any reference to `h` is removal-pending, the purge transaction
+   owns `h` globally.* Three consequences are normative — one transaction
+   advances the hash; **ownership outranks every other classification of that
+   hash**, so ordinary commands and previews see pending and route to purge
+   (`recovery-pending` / `recovery-required` / `pending-remove` at exit 0); and
+   **`h.blob` is removed only when the index, revalidated immediately before
+   the removal, holds no reference to `h` that is not removal-pending.**
+   §9.7.2's `RecoverPendingPurge` is rewritten into six steps: claim `h`
+   globally (one CAS rewrite setting **every** reference to `h`, in every
+   generation, to removal-pending, taken only while the blob is present,
+   regular and hash-correct) → re-read and revalidate → remove → tombstone every
+   reference; with an absent-blob path that publishes straight to tombstones
+   over every reference (byte-for-byte the shipped dangling repair) and an
+   unsafe-evidence refusal. X7 is stated explicitly per-reference so the claim's
+   transient is not a decode error. A four-row table models **external same-hash
+   reference insertion** at each window — before the claim's re-read, between
+   the re-read and its CAS, between the CAS and the revalidation, and after the
+   removal — with the honest CAS residual named in each and the disclosed
+   post-CAS final-syscall window landing in the existing
+   `archive-blob-dangling` repair. There is no in-process retry loop: the
+   operator's rerun is the loop. Updated: X7, X11, §9.3, §9.3.1, §9.7.1,
+   §9.7.2, §9.7.3, §7.8 step 5, §7.10 CP12/CP12a/CP13, §7.11, §10.4.1, §10.5
+   step 13, §6.2, §6.6 rule 8, ADR D10/D13/D16; new PIB-539, PIB-540, PIB-544,
+   PIB-545; amended PIB-356, PIB-447, PIB-524, PIB-529, PIB-534.
+   **rev-9's compound-ladder sentence that accepted a recovery-created dangling
+   reference is withdrawn**, and §21/ADR alternatives record why.
+2. **X11 global scope (item 2).** §9.3.1 gains a dedicated block: the storage
+   observation runs over the **whole index** before **every** archive mutation,
+   independent of selector. A global inconsistency refuses `--orphans`,
+   `--blob`, `--generation` and `--all` alike at exit 3 **zero-write**, naming
+   the owning repair for the observation that refused; **no partial cleanup**
+   of unrelated items proceeds around it; and the three admissions are scoped
+   to the exact inconsistency each repairs, after global classification. The
+   fail-closed choice is argued, and the selection-scoped alternative is
+   recorded and rejected in §21 and in the ADR. **PIB-533/534 are reconciled**:
+   PIB-533's removal assertion moves to a fixture without the mixed hash and it
+   gains a refusal arm plus a second sensitivity fixture (partial cleanup);
+   PIB-534 gains the admission-scoping clause. New PIB-542 adds the
+   **disjoint-selector** rows across all four selectors. §9.7's list/doctor
+   precedence and §10.5 step 22 are updated to match; PIB-465's X11 fixture is
+   run with a disjoint selector too.
+3. **Retained corrupt blob (item 3).** A retained reference beside a present
+   non-regular or hash-wrong blob is now explicitly `archive-blob-corrupt`,
+   exit 3, zero-write, pinned for `list` (new token `corrupt`, exit 3),
+   `doctor` and every ordinary mutation including `--manual`. One repo-relative
+   route: preserve the unexpected bytes if wanted → remove the managed blob
+   path → the confirmed `purge <slug> --blob <h> --yes`, which by then is the
+   **already-admitted** dangling repair, so the route is **total** and ends in
+   no new special case; or restore the exact correct blob and retry. Cost and
+   Git-history caveat stated. `--orphans` can never select it (the hash is
+   live). Aligned: §9.3's wire-state table, X11, §9.3.1, §9.7.3, §10.4 exit-3
+   population, §10.4.1 (`archive-blob-corrupt` gains two sub-populations),
+   §10.7 (form (3) widened to the shared `cp`/`rm` shape — the permitted set
+   stays at three), §12.5, §7.11.1, ADR D10/D16, amended PIB-428 and PIB-535,
+   new PIB-543.
+4. **Withdrawn prose (item 4).** §21's rev-7 tombstone row no longer says the
+   state "is unreferenced physical residue — the same object §9.7.3 calls an
+   orphan" unconditionally; it is now global-liveness-qualified with both
+   repairs. §21's rev-7 abandon row no longer says "syntactically valid".
+   `grep` over both files confirms no remaining sentence of the classes PIB-447
+   and PIB-511 reject; the ADR's own alternatives table keeps its rev-8
+   historical row (which describes the withdrawn wording) and gains the rev-9
+   domain row.
+5. **Abandon boolean domain (item 5).** The domain is **every argv that
+   requests a *true* abandon** (`--abandon-transaction` or `=true`) **plus every
+   argv that names the flag and fails in the parse layer**. `=false` selects
+   `generate` and is **outside** it — §5.2 now defines "set" as true-valued,
+   adds an explicit `=false` → `generate` row, and records that cobra's mutex is
+   keyed on flag *presence*, so `--check --abandon-transaction=false` still
+   exits 1 and is inside the domain by the parse clause. §6.6's domain
+   paragraph, gate row 1, the "three further branches" paragraph, ADR D13, the
+   §21/ADR alternatives and PIB-511 (fourth semantic fixture) all match; new
+   PIB-537 exercises all four spellings.
+6. **Retry parity (item 6).** The heading is now specified as a **column-0
+   literal**, alone on its line, with no leading or trailing whitespace, and the
+   position is declared part of the literal rather than presentation. Both
+   worked examples are rewritten: §9.7's preview and §9.7.2's divergence
+   procedure (whose explanatory and cost lines moved above the heading so the
+   command is last). §10.2's parity sentence and ADR D16 match. PIB-498 gains
+   **two** indentation-sensitivity fixtures (indented-by-two and
+   trailing-space) and its §18.50 entry is updated. §9.3.1's new corrupt-blob
+   procedure is explicitly a *procedure step*, not a retry, so it does not
+   carry the heading — consistent with §10.7's carve-out.
+7. **Pins (item 7).** (a) `list`/`doctor` precedence when exit-0 and exit-3
+   observations coexist: **render every safe observation with its own repair,
+   take the highest exit** — never truncate at the first exit-3 one, never
+   suppress the exit-0 ones, never depend on iteration order (§9.7, §12.5, ADR
+   D16, new PIB-541). (b) §6.2 is rewritten into two numbered refusal
+   populations: removal-pending state *and* **every** X11 global inconsistency,
+   each zero-write in the strongest sense (whole-tree snapshot, zero provider
+   calls, no `status.json` rename, no `FEATURES.md` refresh) with the owning
+   repair named; new PIB-538 asserts all five fixtures. (c) The handoff fence
+   count is corrected from an actual marker/block derivation — see the rev-9
+   record above and "Verification performed" below.
+8. **Mechanics (item 8).** New IDs are contiguous `PIB-537`…`PIB-545` in the
+   new §18.48 AU section; the former §18.48/§18.49 became §18.49/§18.50 and
+   every reference to them was updated (§16 R9, the rev-5 ledger's catalogs
+   bullet, the rev-9 kind-change paragraph, the kind-count paragraph). Full
+   recomputation is recorded below.
+
+### Mechanics — recomputed, not carried forward
+
+- **Matrix: 536 → 545 rows.** `PIB-001`…`PIB-545`, contiguous, zero duplicates,
+  zero retired, re-derived by script from the tables.
+- **Categories: 46 → 47** (new `AU`, 9 rows). Per-category counts re-derived
+  from the section headers; declared sum = derived sum = **545**.
+- **Kinds: `I` 240, `C` 121, `G` 110, `U` 49, `S` 25 = 545**, derived from the
+  Kind column. Rev-10 adds `I` 6, `C` 2, `G` 1 and **re-kinds nothing**, so the
+  rev-9 totals carry forward unchanged before the nine new rows.
+- **Slice partition**: `S7` absorbs `AU` and grows 142 → **151**; sum = 545,
+  47 of 47 categories covered, zero double-assigned.
+- **No refusal code, exit code, outcome token, advisory, lifecycle state,
+  report object or injection seam is added or removed.** The catalog is still
+  **53** codes and §6.4's reproduced (23) / non-evaluated (30) tables remain
+  total over it with zero overlap and zero unplaced, re-derived mechanically;
+  the advisory catalog is still **17**; the `outcome` vocabulary is still
+  **11**. `list` gains one storage-state token, `corrupt`
+  (rev-9 added `mixed-reference`).
+- **D1–D21, CP0–CP14, J1–J10 and X1–X11 keep their identifiers and counts.**
+  X11's classification map widens from (wire state × blob observation × global
+  liveness) to (wire state × blob observation × global **ownership** × global
+  liveness), adding the routed owned tuples and the retained/present-unsafe
+  tuple; accepting tuples are unchanged.
+- **Semantic-fixture table grows from twenty-two to twenty-three guards**
+  (PIB-545 joins; nothing leaves) and PIB-498, PIB-511, PIB-524 and PIB-533 each
+  gain an additional fixture inside their existing entries.
+- **Claims stay at 176**: rev-10 makes no new assertion about current shipped
+  behavior. The audit anchor base is updated to `2f8f697` (reviewed tip
+  `ebd1be8`).
+
+### Verification performed (docs-only; no build or test run)
+
+- Matrix contiguity (545, 1…545, zero duplicates), per-category counts (47
+  categories, sum 545), kind counts, the slice partition (sum 545, 47 of 47
+  categories covered, zero double-assigned) and the 53-code refusal partition
+  were each derived from the tables by script rather than trusted.
+- Every `PIB-NNN` referenced in either document resolves to a real row (0
+  dangling over both files); every `§` reference in the PRD resolves to a real
+  heading (0 dangling); every `§7.8 step N` and `§10.5 step N` reference was
+  re-derived from the numbered lists (steps 1–15 and 1–25 respectively, 0 bad
+  references).
+- **Retry-heading position was verified structurally, not by grep**: every
+  occurrence inside a fenced block was re-indexed against its fence's own
+  indentation, and all **five** emitter examples render the sentence at relative
+  **column 0** with the command immediately beneath.
+- **Markdown hygiene, derived per indentation level**: the PRD holds **58**
+  fence markers — 48 at column 0, 8 indented by two, 2 indented by three —
+  forming **29** blocks, with every level individually balanced; the ADR ships
+  **zero**. 102 PRD tables and 5 ADR tables with **zero** column-count
+  mismatches (escaped `\|` handled), zero trailing-whitespace lines in either
+  file, all five `json` fences parse, single trailing newline in both, every
+  relative link target exists on disk, and no absolute path appears anywhere in
+  either file.
+
+### Remaining issues / notes for the reviewer
+
+- `docs/adrs/README.md` still lists ADR-035 at rev-0. Updating the ADR index is
+  **out of this writer's authorized diff**; §14.1 records it as an
+  implementation-wave obligation, now pointing at rev-10.
+- **The ownership invariant is the one substantive change, and it is
+  subtractive.** rev-9 already classified globally; what it lacked was a rule
+  binding the *action* to the same scope. Rev-10 does not add a state, a code
+  or a command — it constrains when the existing removal may happen and makes
+  the claim rewrite explicit. A reviewer who disagrees should challenge the
+  claim's direction (pending, not retained) rather than its existence: the
+  argument is in §9.3 consequence 3 and §21's two new rows.
+- **Claiming a tombstoned reference into pending is deliberate and changes no
+  reference's final state.** It passes through pending to tombstoned, which is
+  where it already was; the alternative (un-tombstoning) is the same reversal
+  §9.3.1 subcase B rejects, one layer down. §21 records it.
+- **Global fail-closed has a real cost, and the PRD says so**: one mixed,
+  dangling or corrupt hash blocks unrelated archive work and every mutating
+  `prepare` mode, `--manual` included. That is stated as a consequence in the
+  ADR rather than buried, and R24 carries the risk.
+- **PIB-545 is the only new `G` row.** It is the derived ownership/removal
+  guard, and its four sensitivity fixtures are the ones that would have caught
+  rev-9's defect. Rev-10 adds **no** seam: every new crash and insertion window
+  is reachable through the existing set.
+- All frozen rev-6, rev-7, rev-8 and rev-9 closures are preserved: terminal
+  journal recovery, purge's journal refusal, purge-owned pending recovery with
+  its single `RecoverPendingPurge` call site, selector totality and the
+  `recovery-required` preview shape, the exit-6 route partition and its archive
+  procedure, the three conditional partial-purge branches, the abandon gate's
+  wait-and-retry contention row, sanitized retries, the global-liveness residue
+  split and its two repairs, root lock/lifetime/`Control` discipline, rooted
+  writes, dry-run scope, exit-5 partial-purge semantics, the removed doctor
+  probe, the Git helper/scrub boundary, and the privacy, provider, coherence,
+  archive, lifecycle and prerequisite decisions.
+
 ## Prepare PRD Writer Result — rev-9 (2026-08-14)
 
 **Writer base/dispatch**: `d9df6f9`; **reviewed writer tip (rev-8)**: `837f28a`;
@@ -360,7 +572,12 @@ untracked WIP file was touched.
 - Retry-heading uniqueness was grepped across both files: the only occurrences
   of rev-8's variant are the prose that withdraws it and PIB-498's sensitivity
   fixture.
-- Markdown hygiene: balanced fences (46 in the PRD, the ADR ships none), uniform
+- Markdown hygiene: balanced fences — the rev-9 record originally said "46 in
+  the PRD, the ADR ships none", which **rev-10 corrects**: 46 was the count of
+  fence markers at **column 0** only, and the rev-9 PRD in fact held **56**
+  markers (46 at column 0, 6 indented by two, 4 indented by three) forming
+  **28** blocks, each indentation level individually balanced; the ADR shipped
+  zero. Uniform
   column counts across every table in both files (escaped `\|` handled), no
   trailing whitespace, valid JSON in every `json` fence, single trailing
   newline, every relative link target exists, and no absolute path appears
