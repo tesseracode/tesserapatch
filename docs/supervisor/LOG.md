@@ -1,3 +1,24 @@
+## Writer — PRD prepare intent bundle rev-3 + ADR-035 rev-3 — 2026-08-14
+
+**Writer tip**: `efcddc6`
+**Dispatch**: `155e721`
+
+### Revision
+
+- Replaced cache lock files with one held workspace-root directory `flock`.
+- Narrowed mutation to Linux/Darwin and made cross-slug serialization explicit.
+- Removed every prepare-managed raw provider transcript.
+- Added root-replacement refusal and honest final syscall race disclosure.
+- Made shared-hash purge/rehydration globally consistent.
+- Added untracked archive clean risk, scrubbed single-probe Git behavior,
+  dangling-reference storage checks and closed refusals.
+- Rebuilt the matrix to 432 PIB rows and CP0–CP14.
+
+### Action Taken
+
+PRD and ADR returned to joint internal/external review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-3 + ADR-035 rev-3 — 2026-08-14
 
 **Writer base**: `9095b02`
