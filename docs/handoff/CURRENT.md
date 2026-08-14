@@ -2,11 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-2** and proposed ADR-035
-**rev-2** now incorporate the bounded adjudication. They await review; no
-mutating command is implemented or authorized.
+**rev-2** closed the rev-1 adjudication, but review found new defects in its
+cache-located lock authority, provider-response retention and archive purge /
+rehydration contract. A simplifying **rev-3** is dispatched. No mutating
+command is implemented or authorized.
 
 ## Active Task
 
@@ -14,14 +16,96 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-2 writer complete — awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 and rev-2)
+- **Status**: Rev-3 dispatched after rev-2 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1, rev-2 and rev-3)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-2 Review and Rev-3 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `faf055e`
+**Tracking tip before adjudication**: `9095b02`
+
+Rev-2 substantively closed every dispatched rev-1 defect. Rev-3 is a bounded
+correction to mechanisms introduced or exposed by that closure:
+
+1. **Raw provider responses (CRITICAL).** ADR-027 D2/D3 forbids a
+   tpatch-managed raw transcript archive even in the local lane. Remove raw
+   response persistence from staging and from PIB-188/190. Failed attempts may
+   retain only redacted or hashed metadata; intended canonical staged outputs
+   remain publication temporaries, not transcript history.
+2. **Lock authority simplification (HIGH).** Replace the environment-derived
+   external cache locator with one nonblocking `flock` on a directory
+   descriptor obtained from the held workspace `*os.Root`. The authority is
+   the workspace-root inode itself: no key, cache file, path lookup, durable
+   residue or cleanup policy. Mutating support narrows to **Linux/Darwin**;
+   read-only `--check` keeps its accepted `unix || windows` envelope.
+3. **Workspace-wide lock consequences (HIGH).** The root lock deliberately
+   serializes all `prepare`/archive-purge mutations across slugs. Amend
+   PIB-125 and the concurrency matrix, state the maximum generation hold
+   budget, acquire exactly once and thread the held handle to nested mutators.
+   `--check`, `--dry-run` and archive `list` never acquire it.
+4. **Root replacement and primitive limits (HIGH).** Alias and root rename
+   share the kernel authority. Root deletion/recreation can split it, so
+   revalidate held-vs-live native root identity before the publication window
+   and at final verification; refuse rather than exit 0 on mismatch. Any
+   `flock` result other than success/contention fails closed. Apply a deliberate
+   local-filesystem allowlist to the workspace root, with correct prepare-owned
+   remediation; keep rescap output byte-identical. Disclose cross-machine,
+   root-deletion, unmount and local-user denial limits.
+5. **Purge CAS honesty (HIGH).** A pathname CAS followed by rename/remove is
+   not atomic. Keep immediate preimage checks, but disclose the external-edit
+   window for index rename and blob removal instead of claiming it is closed.
+   Revalidate the current reference set and blob identity immediately before
+   removal; add adversarial rows for the residual.
+6. **Purge/rehydration truth (HIGH).** When identical content is rehydrated,
+   un-tombstone **every** index reference with that `content_sha256`; a
+   tombstone must never claim bytes are absent while the shared blob exists.
+   `--blob <hash>` tombstones every reference to that hash. A
+   generation-scoped purge that meets a shared reference refuses with exact
+   escalation to `--blob`/`--all`. Scope “not recoverable” to “until identical
+   content is archived again.”
+7. **Untracked archive durability (HIGH).** `git clean -fd/-xfd` can remove an
+   untracked `.tpatch/features/**` archive, not merely the ignored local lane.
+   Correct the concurrency/disclosure/advisory text and remove the false
+   “Git-independent durable recovery” claim. Add the post-regenerate,
+   pre-commit clean case.
+8. **Git environment and invocation model (MEDIUM).** Scrub repository
+   selection overrides (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`,
+   `GIT_COMMON_DIR`, `GIT_CEILING_DIRECTORIES`, `GIT_OBJECT_DIRECTORY` and
+   related alternates) for G1–G4. G1 runs once; G2/G3 consume its established
+   result rather than calling `IsGitAvailable` again. Specify exact command
+   shapes and counts and test a foreign `GIT_DIR`.
+9. **Archive totality (MEDIUM).** Add storage consistency for every
+   non-tombstoned blob (present and hash-correct), a dangling-reference
+   refusal/doctor/remediation route, and index-preimage plus per-blob identity
+   checks for `purge --orphans`. Disclose the same final syscall race rather
+   than overclaiming total CAS.
+10. **Closed refusal catalog (MEDIUM).** Register every reachable code,
+    including lock-authority/root-replacement and shared-blob cases, with one
+    stable exit mapping and actionable remediation. Do not reuse
+    `archive-index-changed` across different exits.
+11. **Reference and matrix consistency (LOW).** Correct rev/base labels,
+    S1–S7 coverage and ADR/PRD forbidden-primitive parity; explicitly cite
+    ADR-035 D1 from the PRD. List every cache-shaped PIB row whose semantics
+    changes in rev-3, then recompute all totals and anchors. PIB source order
+    may remain category-grouped; preserving stable IDs is not itself a defect.
+
+The recommended D4 is intentionally subtractive: root-directory `flock`
+deletes the cache key/canonicalization, environment split, cache filesystem,
+unremovable store and path-binding problem classes. The writer must preserve
+the honest costs: workspace-wide contention, Linux/Darwin-only mutation, and
+the detectable root-replacement boundary.
+
+Rev-3 remains a **docs-only** revision of the PRD, ADR-035 and handoff. It must
+not implement `prepare`, edit accepted prerequisites, source/assets/tracking
+owned by the supervisor, or guarded WIP.
 
 ## Rev-1 Review and Rev-2 Adjudication (2026-08-14)
 

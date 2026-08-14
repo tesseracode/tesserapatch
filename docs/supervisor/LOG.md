@@ -1,3 +1,73 @@
+## Dispatch — PRD prepare intent bundle rev-3 + ADR-035 rev-3 — 2026-08-14
+
+**Writer base**: `9095b02`
+**Reviewed writer tip**: `faf055e`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Replace the cache lock with a Linux/Darwin workspace-root directory lock.
+- Make workspace-wide serialization, root replacement and filesystem limits
+  executable and honest.
+- Eliminate persisted raw provider transcripts under ADR-027.
+- Disclose the remaining purge syscall race.
+- Make shared-blob purge and rehydration globally truthful.
+- Disclose untracked archive deletion by `git clean`.
+- Sanitize Git repository-selection environment and avoid repeated G1 probes.
+- Add dangling-reference/orphan CAS and complete refusal catalogs.
+- Correct rev/slice/decision references and rebuild the matrix.
+
+### Action Taken
+
+One sequential docs-only rev-3 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-2 + ADR-035 rev-2 — 2026-08-14
+
+**Writer tip**: `faf055e`
+**Tracking tip**: `9095b02`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- `os.UserCacheDir` is environment-derived, so one user can acquire split
+  authorities for one workspace.
+- The cache filesystem allowlist can make a valid workspace unusable with no
+  expressible remediation, while persistent lock files are undiscoverable.
+- `git clean` removes an untracked archive, contradicting the durability claim.
+- Rehydration can resurrect bytes while sibling tombstones still claim purge;
+  the secret-remediation path fails on shared references.
+- Git environment overrides can redirect G1–G4, and named call sites repeat G1.
+- Reachable refusal codes and exit mappings are absent/inconsistent.
+- Orphan purge lacks index CAS and dangling live references have no model.
+- Several rev/base/slice/primitive references drifted.
+
+### Verified
+
+All rev-1 findings were substantively closed. The 409-row matrix, 165 claims,
+ADR D1–D21, CP0–CP13 and 393 source-anchor occurrences are mechanically sound.
+
+## Internal Review — PRD prepare intent bundle rev-2 + ADR-035 rev-2 — 2026-08-14
+
+**Writer tip**: `faf055e`
+**Tracking tip**: `9095b02`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Raw provider responses retained in local staging violate ADR-027 D2/D3.
+- Purge still has a check-to-rename/remove race it describes as closed.
+- Cache keying occurs before binding authority to the held workspace root, and
+  Git environment selection is unsanitized.
+- PRD lacks an explicit ADR-035 D1 citation.
+
+### Verified
+
+409 contiguous PIB rows, 165 claims including corrected markers, D1–D21,
+CP0–CP13, 17 advisories and 393 in-range citation occurrences.
+
 ## Writer — PRD prepare intent bundle rev-2 + ADR-035 rev-2 — 2026-08-14
 
 **Writer tip**: `faf055e`
