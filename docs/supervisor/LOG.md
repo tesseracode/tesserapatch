@@ -1,3 +1,63 @@
+## Dispatch — PRD prepare intent bundle rev-8 + ADR-035 rev-8 — 2026-08-14
+
+**Writer base**: `7a05f7e`
+**Reviewed writer tip**: `751d817`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Reclassify tombstone-plus-blob as exit-3 orphan/storage residue.
+- Make pending purge recovery purge-only; normal prepare refuses with route.
+- Apply recovery/preview behavior to every purge selector, including orphans.
+- Remove the unreachable abandon-table row.
+- Define pending-purge preview JSON.
+- Correct the rev-7 ledger, ADR companion and purge-preview lock population.
+
+### Action Taken
+
+One sequential docs-only rev-8 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-7 + ADR-035 rev-7 — 2026-08-14
+
+**Writer tip**: `751d817`
+**Tracking tip**: `7a05f7e`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Tombstone-plus-live-blob cannot take the claimed pending+absent recovery path.
+- Pending-purge divergence ownership is ambiguous between prepare and purge.
+- The rev-7 ledger includes unchanged PIB-274.
+- PIB-511 requires an intentionally unreachable abandon-table row.
+- Pending-purge preview lacks a closed JSON shape.
+- ADR companion and purge-preview lock wording drifted.
+
+### Verified
+
+All seven rev-7 dispatch items otherwise close. The 520-row matrix, 176
+claims, D1–D21, the 53-code partition, lane parity, purge retry branches and
+source references were independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-7 + ADR-035 rev-7 — 2026-08-14
+
+**Writer tip**: `751d817`
+**Tracking tip**: `7a05f7e`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Tombstone-plus-blob escape is incompatible with X11 and selection semantics.
+- `--orphans --yes` pending recovery conflicts with selector-scoped recovery.
+- The pre-abandon table contains a row its guard says must be reachable.
+- ADR References still labels the companion rev-6.
+
+### Verified
+
+520 rows/kinds/slices, C1–C176, D1–D21, CP/J/X, links and local citations.
+
 ## Writer — PRD prepare intent bundle rev-7 + ADR-035 rev-7 — 2026-08-14
 
 **Writer tip**: `751d817`

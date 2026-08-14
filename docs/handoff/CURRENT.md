@@ -2,15 +2,12 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-8 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-7** and proposed ADR-035
-**rev-7** are written and awaiting review. They fold the seven rev-7
-adjudication items: the exit-6 remediation is partitioned by population, the
-pre-abandon gate is total, lane parity is corrected, the partial-purge retry is
-conditional on where it stopped, the pending-purge preview is defined, every
-recoverability claim is qualified by an applicable route, and `intent-archive
-purge` is pinned at zero Git processes. The revision is **docs-only**; no
+**rev-7** close the rev-6 adjudication, but review found one remaining archive
+state-classification contradiction plus bounded preview/ledger/reference
+drift. A narrow **rev-8** is dispatched. The revision is **docs-only**; no
 mutating command is implemented or authorized.
 
 ## Active Task
@@ -19,14 +16,56 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-7 written and awaiting review (writer tip below)
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-7)
+- **Status**: Rev-8 dispatched after rev-7 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-8)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-7 Review and Rev-8 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `751d817`
+**Tracking tip**: `7a05f7e`
+
+All rev-6 findings are closed. Rev-8 is limited to these archive/state and
+mechanical corrections:
+
+1. **Divergence classification (HIGH).** A tombstone beside a physical blob is
+   not pending purge divergence: it has no pending reference. Classify it as
+   exit-3 storage inconsistency/unreferenced physical residue with the explicit
+   `purge --orphans --yes` repair. Remove it from
+   `archive-purge-evidence-divergent`, PIB-506/507 and the pending+absent
+   recovery narrative.
+2. **Purge-only pending recovery (HIGH).** Normal mutating `prepare` never
+   runs `RecoverPendingPurge`; it refuses zero-write `recovery-pending` and
+   names a sanitized `feature intent-archive purge ... --yes` route. Only
+   archive purge `--yes` performs pending-hash recovery, so
+   `archive-purge-evidence-divergent` has one command owner. “After first
+   mutation” refers to the existing purge transaction, possibly a prior
+   invocation, not necessarily a write in the recovery invocation.
+3. **Selector totality (HIGH).** Every purge `--yes` selector, including
+   `--orphans`, recovers pending hashes first and returns terminal `recovered`;
+   the operator reruns the requested selector. Every preview selector reports
+   pending recovery without lock/write and names the `--yes` route.
+4. **Abandon-table guard (MEDIUM).** Remove the intentionally unreachable
+   `--yes` row from the pre-abandon table. The table is total over gates
+   reachable for a syntactically valid abandon invocation; PIB-511 derives and
+   tests that exact set.
+5. **Preview JSON (MEDIUM).** Define the pending-purge preview’s closed outcome
+   token and exact JSON object/fields, hashes, paths, sanitized retry and
+   `retry_cwd`; human/JSON parity gets a row.
+6. **Ledger/reference/lock wording (LOW).** Remove unchanged PIB-274 from the
+   rev-7 ledger, bump the ADR companion to rev-8, and state explicitly that
+   purge preview is in the never-acquire population. Recompute all mechanics.
+
+Rev-8 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Rev-6 Review and Rev-7 Adjudication (2026-08-14)
 
