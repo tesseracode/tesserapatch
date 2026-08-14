@@ -1,3 +1,23 @@
+## Writer — PRD prepare intent bundle rev-6 + ADR-035 rev-6 — 2026-08-14
+
+**Writer tip**: `7af5092`
+**Dispatch**: `9af1ec1`
+
+### Revision
+
+- Makes successful journal/purge recovery terminal exit 0 with sanitized retry.
+- Makes archive purge refuse pending prepare journals.
+- Branches abandon after root lock but before the Git privacy gate.
+- Defines symbolic workspace-root retry context and repeated-abandon residue.
+- Reconciles default heuristic and command-owned `--yes` grammar.
+- Routes `fstatfs` through `SyscallConn.Control` and re-audits step references.
+- Rebuilds the matrix to 505 PIB rows and C1–C176.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-6 + ADR-035 rev-6 — 2026-08-14
 
 **Writer base**: `5463c4b`
