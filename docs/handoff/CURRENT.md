@@ -2,19 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-13 DISPATCHED
 
 Transactional prepare-intent-bundle PRD **rev-12** and proposed ADR-035
-**rev-12** close every rev-11 adjudication item: repair admission is sequential
-(one chosen class per invocation under four conjunctive conditions) so a second
-class no longer bricks the first, every emitted procedure names exactly the
-type-total `rm -rf --` and no preservation command at all, an owned hash with an
-unidentifiable blob routes only to exit-6 `archive-purge-evidence-divergent`,
-§9.3's state map states its 4-tuple domain and carries exactly 18 rows over 18
-reachable tuples, the non-regular fixtures are real for four kinds with an
-explicit injected seam for the fifth, and every `--all` offer prints its
-whole-archive blast radius. The revision is **docs-only**; no mutating command
-is implemented or authorized.
+**rev-12** close the rev-11 adjudication, but review found one remaining
+repair-class ordering contradiction plus stale matrix and broad-`--all`
+emitters. A narrow **rev-13** is dispatched. The revision is **docs-only**; no
+mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -22,14 +16,51 @@ is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-12 written, awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-12)
+- **Status**: Rev-13 dispatched after rev-12 NEEDS REVISION
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-13)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-12 Review and Rev-13 Adjudication (2026-08-14)
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed writer tip**: `f6bab00`
+**Tracking tip**: `cf1b159`
+
+The sequential-repair model is retained. Rev-13 is limited to:
+
+1. **Corrupt-first class ordering (HIGH).** An unreferenced corrupt object is
+   still `corrupt-object`, not removable residue. `--orphans --yes` globally
+   refuses before removing anything while that class exists. The operator must
+   run the type-total manual prerequisite first; its resulting state then
+   follows the dangling/residue route. Encode a deterministic class order and
+   add the missing corrupt-plus-residue fixture. Reconcile §9.7.1/2/3, row 17,
+   ADR D16 and PIB-553.
+2. **Matrix parity (HIGH).** Amend PIB-548’s mixed (a)+(c) fixture to the
+   sequential rev-12 outcome and correct revision-history/handoff amendment
+   claims from the actual diff.
+3. **Stage versus invocation truth (HIGH).** Do not promise one admitted tpatch
+   invocation per corrupt class. Reports enumerate repair **stages**:
+   corrupt-object manual prerequisite, then any resulting tpatch repair, then
+   remaining classes. Pin exact counts/order for two- and three-class examples.
+4. **Pending route narrowing (MEDIUM).** Replace pending-recovery suggestions
+   of broad `--all --yes` with repeated `--blob <hash>` selectors covering the
+   exact pending set. Any remaining `--all` offer must carry the full
+   whole-archive blast radius, preview-first default and narrower repeated-blob
+   alternative at the emitter.
+5. **Output/guard cleanup (LOW).** Replace residual “triple” with “tuple”; pin
+   successful confirmed purge outcome/action and `repair_cwd`; make the
+   forbidden-command guard inspect emitted shell command lines/tokens, not
+   ordinary prose such as “Git history.”
+
+Rev-13 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
+implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
+change is authorized.
 
 ## Rev-11 Review and Rev-12 Adjudication (2026-08-14)
 

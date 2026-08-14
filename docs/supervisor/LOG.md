@@ -1,3 +1,57 @@
+## Dispatch — PRD prepare intent bundle rev-13 + ADR-035 rev-13 — 2026-08-14
+
+**Writer base**: `cf1b159`
+**Reviewed writer tip**: `f6bab00`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Make corrupt-object the mandatory first repair class.
+- Amend stale PIB-548 and exact revision ledgers.
+- Distinguish manual prerequisite stages from tpatch invocations.
+- Replace pending `--all` routes with exact repeated-blob selectors.
+- Pin purge outcome/repair cwd and command-token guard scope.
+
+### Action Taken
+
+One sequential docs-only rev-13 writer dispatched. Implementation remains
+blocked.
+
+## External Review — PRD prepare intent bundle rev-12 + ADR-035 rev-12 — 2026-08-14
+
+**Writer tip**: `f6bab00`
+**Tracking tip**: `cf1b159`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- PIB-548 contradicts the new sequential-repair row PIB-552.
+- `--orphans` is both admitted and refused beside unreferenced corrupt objects.
+- Pending routes emit `--all` without their mandated blast-radius disclosure.
+- Stage/invocation counts, outcome vocabulary and command-word guards drift.
+
+### Verified
+
+The 18-tuple map, owned-corrupt route, command allowlist, fixture honesty and
+all 560-row mechanical totals were independently verified.
+
+## Internal Review — PRD prepare intent bundle rev-12 + ADR-035 rev-12 — 2026-08-14
+
+**Writer tip**: `f6bab00`
+**Tracking tip**: `cf1b159`
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+- Corrupt-object has a manual prerequisite, so the advertised one-invocation
+  per-class sequence is impossible.
+
+### Verified
+
+560 rows/totals, C/D/CP/J/X, refusal partition, references and guards.
+
 ## Writer — PRD prepare intent bundle rev-12 + ADR-035 rev-12 — 2026-08-14
 
 **Writer tip**: `f6bab00`
