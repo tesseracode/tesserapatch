@@ -1,3 +1,23 @@
+## Writer — PRD prepare intent bundle rev-8 + ADR-035 rev-8 — 2026-08-14
+
+**Writer tip**: `837f28a`
+**Dispatch**: `aab0c32`
+
+### Revision
+
+- Reclassifies tombstone-plus-blob as repairable unreferenced residue.
+- Makes pending purge recovery purge-owned and normal prepare zero-write.
+- Applies pending recovery/preview to every selector, including orphans.
+- Makes the abandon gate table reachable by construction.
+- Adds closed `recovery-required` preview JSON.
+- Corrects ledger, companion and purge-preview lock wording.
+- Rebuilds the matrix to 530 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-8 + ADR-035 rev-8 — 2026-08-14
 
 **Writer base**: `7a05f7e`
