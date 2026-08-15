@@ -5,7 +5,7 @@
 **Cluster state**: AWAITING REVIEW
 
 The adjacent-hunk conflict, semantic replay, feature absorption and verified
-reorder investigation **rev-1** closes the initial review findings and awaits
+reorder investigation **rev-2** closes the rev-1 review findings and awaits
 re-review. The work is research only: no command, state, schema or
 implementation is authorized.
 
@@ -16,7 +16,7 @@ implementation is authorized.
   intentional upstream deletions; compare merge/rebase/current tpatch behavior;
   map absorbed-feature and reparent/reorder requests to shipped surfaces and
   existing research; formalize gaps.
-- **Status**: Rev-1 draft complete — awaiting review
+- **Status**: Rev-2 draft complete — awaiting review
 - **Assigned**: 2026-08-15
 - **WAVE_BASE**: `33826d8` (origin/main immediately before research commit
   `b19ea6a`)
@@ -27,8 +27,31 @@ implementation is authorized.
     absorbed-feature compaction tiers
   - [GH #14](https://github.com/tesseracode/tesserapatch/issues/14) —
     verified reparent/reorder through commutation
+  - [GH #15](https://github.com/tesseracode/tesserapatch/issues/15) —
+    anchored/preimage-complete recipe generation prerequisite
 - **Prior next task**: `implement-prepare-check` remains Not Started and returns
   to the front of the queue after this research closes.
+
+## Rev-1 Review and Rev-2 Adjudication
+
+**Internal verdict**: APPROVED
+**External verdict**: NEEDS REVISION
+**Reviewed tip**: `9a4ad48`
+
+1. Corrected the delete-first expected tree so surviving `--old-b` remains.
+2. Anchored phase-2 fidelity to authoritative SPEC §7 as well as ADR-010 D1;
+   documented the missing BLOCKED/STILL-NEEDED branches and applicable-only
+   evidence silence.
+3. Added GH #15 for anchored/preimage-complete recipe generation; GH #13 is
+   blocked on it because every current autogen recipe is a whole-file write and
+   no non-test writer populates `preimage_hash`.
+4. Made candidate replay all-or-nothing over the complete operation/patch
+   coverage set.
+5. Qualified external-upstream adoption evidence and replaced “restore” with
+   “implement” in the replay ticket.
+6. Added structural-recipe reconcile, second-apply, duplicate-anchor and
+   deleted-target resurrection assertions to the tracked tpatch script.
+7. Cross-linked GH #12 and GH #14 on shared dependency disposition.
 
 ## Rev-0 Review and Rev-1 Adjudication
 
@@ -53,6 +76,9 @@ implementation is authorized.
    load-bearing evidence.
 8. Narrowed Git conclusions to the tested fixture/default behavior and restored
    the required `Current State`/`WAVE_BASE` handoff fields.
+9. Corrected the delete-first expected tree, pinned SPEC §7's missing phase-2
+   branches, added all-or-nothing coverage, and split recipe-generation
+   fidelity into GH #15.
 
 ## Session Summary
 
@@ -95,10 +121,11 @@ choice here.
 
 - Provider-backed `reconcile --resolve` already supplies semantic resolution in
   a shadow worktree.
-- Accepted ADR-010 D1 already specifies operation-level replay; shipped phase 2
-  implements presence inspection only.
-- `upstream_merged` proves external-upstream adoption; local baseline landing
-  is a distinct axis handled by `land`/landed verification.
+- ADR-010 D1 and SPEC §7 specify operation-level behavior beyond shipped
+  phase-2's `allPresent` fast path.
+- `upstream_merged` records external-upstream adoption evidence (with a
+  documented human-review residual); local baseline landing is a distinct axis
+  handled by `land`/landed verification.
 - `feature unapply` is an existing patch-absent/full-history tier.
 - `reconcile --auto-drop-merged` applies only to opted-in phase-1.5 patch-id
   matches; `remove` supplies general complete deletion. There is no
@@ -134,6 +161,8 @@ choice here.
 - Structural recipe dry-run and execute: success; desired final argument list.
 - Safety fixtures: second replay duplicates arguments; duplicate anchors choose
   the first match; whole-file replay recreates a missing target.
+- Applicable-only structural reconcile is tracked: it falls through to phase 4
+  without a phase-2 operation note.
 - No production source, test, asset, SPEC, lifecycle state or schema changed.
 
 ## Next Steps

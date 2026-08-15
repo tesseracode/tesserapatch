@@ -79,6 +79,58 @@ what the 567-row acceptance matrix exists to close at implementation time; the
 matrix is the falsification instrument, and it must be executed against real
 behavior before any of these claims is treated as verified.
 
+## Research Rev-2 Writer + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
+
+**Reviewed tip**: `9a4ad48`
+**Issues**: GH #13 replay, GH #15 recipe generation, GH #12 absorption, GH #14 reorder
+
+### Revision
+
+- Corrected delete-first resolution to retain the surviving upstream argument.
+- Added SPEC §7 phase-2 outcome drift and applicable-only evidence silence.
+- Split anchored/preimage-complete recipe generation into prerequisite GH #15.
+- Required all-or-nothing operation and canonical-patch coverage.
+- Qualified upstream adoption evidence and renamed replay from restore to
+  implement.
+- Extended the tracked tpatch fixture with applicable-only reconcile,
+  non-idempotency, duplicate-anchor and deleted-target assertions.
+- Cross-linked absorption and reorder dependency ownership.
+
+### Action Taken
+
+Research rev-2 returned to joint review. No implementation or architecture
+decision is authorized.
+
+## External Review — Adjacent conflict / absorption / reorder rev-1 — 2026-08-15
+
+**Tip**: `9a4ad48`
+**Verdict**: NEEDS REVISION
+
+### Findings
+
+- Delete-first expected output incorrectly removed the surviving `--old-b`.
+- Phase-2 drift cited ADR-010 but omitted SPEC §7's real missing outcomes.
+- Safe replay lacked recipe-generation/preimage prerequisites and
+  all-or-nothing operation coverage.
+- External-upstream proof wording, “restore” naming, and ticket boundaries
+  needed qualification.
+- Applicable-only reconcile silence was source-only, not tracked evidence.
+
+### Verified
+
+All rev-0 findings closed; both tracked scripts passed and the empirical core
+remained sound.
+
+## Internal Review — Adjacent conflict / absorption / reorder rev-1 — 2026-08-15
+
+**Tip**: `9a4ad48`
+**Verdict**: APPROVED
+
+### Verified
+
+Issue identities, ADR-010 framing, replay hazards, absorption axes, existing
+primitives, WP-001 snapshot integrity, WAVE_BASE and both tracked scripts.
+
 ## Research Rev-1 Writer + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
 
 **Reviewed tip**: `b19ea6a`
@@ -96,6 +148,8 @@ behavior before any of these claims is treated as verified.
 - Documented existing manual reorder composition and deferred commutation gate.
 - Added tracked self-validating Git and tpatch reproductions.
 - Restored WP-001 snapshot integrity and handoff contract fields.
+- Corrected the delete-first expected tree; added SPEC §7 outcome drift,
+  all-or-nothing candidate coverage and GH #15 recipe-generation prerequisite.
 
 ### Action Taken
 

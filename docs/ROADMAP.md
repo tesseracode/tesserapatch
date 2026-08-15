@@ -863,10 +863,12 @@ is authorized**: every mutating slice remains blocked on the accepted
 `prepare --check` contract being implemented and landed (PRD §17.1/§19(3)),
 which is the next dispatch.
 
-**Adjacent-hunk semantic replay + feature absorption/reorder research rev-1** 🚧 AWAITING REVIEW
+**Adjacent-hunk semantic replay + feature absorption/reorder research rev-2** 🚧 AWAITING REVIEW
 (2026-08-15):
 [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) tracks ADR-010
 phase-2 fidelity and safe candidate replay before provider resolution;
+[GH #15](https://github.com/tesseracode/tesserapatch/issues/15) tracks the
+anchored/preimage-complete recipe-generation prerequisite;
 [GH #12](https://github.com/tesseracode/tesserapatch/issues/12) tracks
 post-upstream/local-baseline retention and compaction tiers; and
 [GH #14](https://github.com/tesseracode/tesserapatch/issues/14) tracks
@@ -876,8 +878,11 @@ deletions conflicting under both merge and rebase, while an anchor-based
 operation produces a clean candidate. Rev-0 review corrected swapped issue IDs, unsafe replay assumptions, ADR-010
 fidelity, local-versus-upstream absorption, existing unapply/refresh
 composition, and load-bearing session-only evidence. Research only; no
-command/state/schema implementation authorized. `implement-prepare-check`
-remains next after this review closes.
+command/state/schema implementation authorized. Rev-1 re-review added the
+correct delete-first expected tree, SPEC §7 fidelity, all-or-nothing candidate
+coverage, GH #15 recipe-generation/preimage prerequisite, tracked applicable-
+operation silence, and issue boundary links. `implement-prepare-check` remains
+next after this review closes.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

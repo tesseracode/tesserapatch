@@ -116,8 +116,10 @@ The synthetic
 study now supplies a focused operation-replay case: current hunk evidence
 correctly reports `edit-overlap`, an anchor-based recipe applies cleanly, and
 reconcile still falls through because phase 2 does not execute applicable
-operations. Accepted ADR-010 D1 already calls phase 2 operation-level replay;
-the shipped presence-only behavior is contract drift. GH #13 tracks fidelity
-and safe candidate-generation constraints. This synthetic fixture does **not**
+operations. Accepted ADR-010 D1 calls phase 2 operation-level dry-run/replay,
+while SPEC §7 also requires conflict and mixed outcomes that shipped phase 2
+does not return. GH #13 tracks that fidelity plus safe candidate generation;
+GH #15 tracks the anchored/preimage-complete recipe prerequisite. This
+synthetic fixture does **not**
 by itself lift the real-world-study deferral above or authorize the deferred
 commutation/search backlog.

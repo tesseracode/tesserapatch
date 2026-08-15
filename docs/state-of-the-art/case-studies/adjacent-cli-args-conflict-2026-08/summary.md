@@ -1,12 +1,13 @@
 # Adjacent CLI Argument Conflict — Semantic Replay Case Study
 
-**Status**: Empirical research — awaiting review; no implementation authorized
+**Status**: Empirical research rev-2 — awaiting review; no implementation authorized
 **Date**: 2026-08-15
 **Owner**: Core
 **Issues**:
 [GH #13 operation replay](https://github.com/tesseracode/tesserapatch/issues/13),
 [GH #12 feature absorption](https://github.com/tesseracode/tesserapatch/issues/12),
-[GH #14 verified reorder](https://github.com/tesseracode/tesserapatch/issues/14)
+[GH #14 verified reorder](https://github.com/tesseracode/tesserapatch/issues/14),
+[GH #15 recipe generation](https://github.com/tesseracode/tesserapatch/issues/15)
 
 ## 1. User scenario
 
@@ -44,12 +45,23 @@ expose that decision earlier or more than once because each commit is replayed
 separately. This is evidence for this shape, not a claim over every strategy,
 conflict style, `rerere` state, or multi-commit history.
 
-The correct resolved slice is:
+For the two `delete-all` fixtures, the correct resolved slice is:
 
 ```go
 args := []string{
 	"--feature-x",
 	"--feature-y",
+}
+```
+
+For `adjacent-between-delete-first`, upstream intentionally removes only
+`--old-a`; the correct result also retains upstream's surviving `--old-b`:
+
+```go
+args := []string{
+	"--feature-x",
+	"--feature-y",
+	"--old-b",
 }
 ```
 
@@ -129,26 +141,39 @@ Existing surfaces already help:
 3. an intent-preserving structural recipe can produce a clean candidate with
    `tpatch apply`.
 
-The deterministic bridge described by accepted ADR-010 D1 is missing in the
-implementation: shipped phase 2 performs presence/applicability inspection,
-not the specified recipe dry-run/replay. This is contract-fidelity work first,
-then candidate-generation research.
+The phase-2 contract is only partially implemented:
+
+- accepted ADR-010 D1 names operation-level recipe dry-run/replay;
+- authoritative SPEC §7 requires `BLOCKED` when any operation conflicts and
+  `STILL-NEEDED` for a present/applicable mix;
+- shipped code returns early only for `allPresent`, appends a note only when an
+  operation conflicts, and otherwise falls through to later phases.
+
+GH #13 is therefore SPEC/ADR fidelity first, then safe candidate-generation
+research. It is not a proposal to add a new phase 2.5 by default.
 
 ### 4.3 Recommended product direction
 
 Do not introduce a branch-history command named `tpatch rebase` first.
 `PRD-tpatch-git-primitive-mapping` already leaves history rewriting to Git and
-maps semantic advancement to reconcile. Treat GH #13 as ADR-010 D1 fidelity
-plus a reconcile candidate stage:
+maps semantic advancement to reconcile. Treat GH #13 as SPEC §7 / ADR-010 D1 fidelity plus a reconcile candidate stage,
+blocked on [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
+recipe-generation fidelity:
 
-1. reject non-unique anchors and non-idempotent second application;
-2. distinguish never-existed targets from intentional upstream deletion;
-3. refuse lossy delete/rename recipes and unsafe whole-file writes;
-4. replay the remaining applicable operations in an isolated worktree;
-5. validate preimages, path scope, resulting diff and tests;
-6. emit a reviewable patch/evidence record;
-7. require acceptance by default;
-8. write a new patch generation.
+1. generate anchored operations with usable preimage authority rather than only
+   whole-file writes;
+2. reject non-unique anchors and non-idempotent second application;
+3. distinguish never-existed targets from intentional upstream deletion;
+4. refuse lossy delete/rename recipes and unsafe whole-file writes;
+5. require every operation to be present or safely replayable — never accept a
+   partial subset as the feature;
+6. replay the complete candidate in an isolated worktree;
+7. validate path safety, preimages, resulting diff scope and configured tests;
+8. compare operation coverage with the canonical feature patch/intent and
+   refuse unexplained omissions;
+9. emit a reviewable patch/evidence record;
+10. require explicit acceptance by default;
+11. write a new patch generation.
 
 Commit rebasing can remain the operator's Git-policy choice.
 
@@ -158,11 +183,13 @@ The same investigation found adjacent but distinct lifecycle gaps.
 
 ### 5.1 Absorption
 
-`upstream_merged` means absorbed by the configured external upstream. It does
-not prove that a feature merely landed in this fork's own baseline; that axis
-is represented by `tpatch land` and landed verification. GH #12 must decide
-whether compaction is a retention overlay over both proofs or needs another
-representation. Existing neighboring primitives are:
+`upstream_merged` records/claims adoption by the configured external upstream;
+the human-review path deliberately discloses a residual where HEAD ancestry
+alone is weaker evidence. It does not mean that a feature merely landed in this
+fork's own baseline; that axis is represented by `tpatch land` and landed
+verification. GH #12 must decide whether compaction is a retention overlay over
+both evidence classes or needs another representation. Existing neighboring
+primitives are:
 
 - keep the complete `upstream_merged` feature directory;
 - `feature unapply` removes the patch from the working tree while deliberately

@@ -58,7 +58,9 @@ write_feature() {
 }
 
 write_resolved() {
-	cat >"$1/command.go" <<'EOF'
+	case "$2" in
+	delete-all)
+		cat >"$1/command.go" <<'EOF'
 package command
 
 func buildArgs() []string {
@@ -71,6 +73,24 @@ func buildArgs() []string {
 
 func run(args []string) []string { return args }
 EOF
+		;;
+	delete-first)
+		cat >"$1/command.go" <<'EOF'
+package command
+
+func buildArgs() []string {
+	args := []string{
+		"--feature-x",
+		"--feature-y",
+		"--old-b",
+	}
+	return run(args)
+}
+
+func run(args []string) []string { return args }
+EOF
+		;;
+	esac
 }
 
 run_case() {
@@ -115,11 +135,18 @@ run_case() {
 		exit 1
 	fi
 	if [ "$expected" -ne 0 ]; then
-		write_resolved "$merge"
+		write_resolved "$merge" "$master_shape"
 		git -C "$merge" add command.go
 		test "$(grep -c -- '--feature-x' "$merge/command.go")" -eq 1
 		test "$(grep -c -- '--old-a' "$merge/command.go")" -eq 0
-		test "$(grep -c -- '--old-b' "$merge/command.go")" -eq 0
+		case "$master_shape" in
+		delete-all)
+			test "$(grep -c -- '--old-b' "$merge/command.go")" -eq 0
+			;;
+		delete-first)
+			test "$(grep -c -- '--old-b' "$merge/command.go")" -eq 1
+			;;
+		esac
 	fi
 	printf '%-31s merge=%s rebase=%s\n' "$name" "$merge_rc" "$rebase_rc"
 }
