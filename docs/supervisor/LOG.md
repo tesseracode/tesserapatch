@@ -1,3 +1,112 @@
+## Supervisor Decision — PRD prepare intent bundle rev-14 + ADR-035 rev-14 — 2026-08-14
+
+**WAVE_BASE**: `d060ff4`
+**Final writer tip**: `8f1cc8a`
+**Errata tip**: `0dd36e6`
+**Close commit**: this tracking commit
+**Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11) — closed completed
+
+### Decision: ACCEPTED
+
+Both rev-14 reviewers returned **APPROVED** with **no findings**. The planning
+wave is complete and closed:
+
+- `PRD-prepare-intent-bundle` is **Accepted — 2026-08-14 (rev-14)**.
+- `ADR-035-intent-bundle-publication-and-history` is **Accepted — 2026-08-14
+  (rev-14)**, D1–D21 unchanged at acceptance.
+- Accepted contract: **567** rows (`PIB-001`…`PIB-567`), **176** claims
+  (`C1`…`C176`), ADR decisions **D1–D21**.
+- ROADMAP row flipped to ✅ ACCEPTED; ADR index row flipped to Accepted
+  (2026-08-14); handoff archived to `docs/handoff/HISTORY.md`.
+
+### No tag
+
+This wave shipped **documents only** — no Go, test, asset, `SPEC.md` or
+`CHANGELOG.md` change. v0.15.1 remains fixed at `15560af`. No release tag is
+cut.
+
+### Implementation remains blocked
+
+PRD §19(1) and §19(2) are now satisfied; §19(3) is not. Every mutating
+`prepare` slice (S1–S6) stays blocked on the accepted read-only
+`prepare --check` contract (`PRD-artifact-validation-and-provenance` rev-5 +
+ADR-034 rev-2) being **implemented and landed on `origin/main`** (PRD §17.1).
+That implementation is the next task (`implement-prepare-check`); it must
+register its own issue and record a fresh `origin/main` WAVE_BASE immediately
+before dispatch.
+
+### Action Taken
+
+Accepted both documents, flipped ROADMAP and the ADR index, prepended both
+rev-14 verdicts here, archived the wave to HISTORY, replaced `CURRENT.md` with
+a concise idle handoff (`**Cluster state**: IDLE`), committed the authorized
+docs by explicit path, pushed `origin/main`, ran
+`make wave-close-check WAVE_BASE=d060ff4`, and closed GH #11.
+
+## External Review — PRD prepare intent bundle rev-14 + ADR-035 rev-14 — 2026-08-14
+
+**Writer tip**: `8f1cc8a`
+**Errata tip**: `0dd36e6`
+**Tracking tip**: `0dd36e6`
+
+### Verdict: APPROVED — ACCEPT rev-14
+
+### Findings
+
+None. Every rev-13 external finding is closed by the errata fold, and the fold
+introduced no new one.
+
+### Verified
+
+The `PIB-524` ledger correction (fourteen → thirteen amended rows) with the
+fixture-only status recorded in both the revision history and §18.1; the
+normative-use qualification of the “triple” → “tuple” claim; the **non-owned**
+scoping of the X11 cell and the §9.7.3 orphan-exclusion sentence, with an owned
+unsafe or hash-wrong blob still routed to exit-6
+`archive-purge-evidence-divergent`; and PIB-565's “twelfth” → **thirteenth**
+`outcome` ordinal. Matrix contiguity `PIB-001`…`PIB-567`, the 176-claim set and
+ADR **D1–D21** are unchanged, and no product decision, exit code, state
+machine, closed vocabulary, class rank or stage rule moved.
+
+### Note (documentary, non-blocking)
+
+This is a **planning** acceptance of an unimplemented contract. Every
+guarantee in it — the held-root `flock` authority, the CAS-gated undo journal,
+the content-addressed archive, the purge stage model — is argued from shipped
+precedents and stdlib semantics, not from a running implementation. The
+empirical gap is inherent to accepting a document rather than code, and it is
+what the 567-row acceptance matrix exists to close at implementation time; the
+matrix is the falsification instrument, and it must be executed against real
+behavior before any of these claims is treated as verified.
+
+## Internal Review — PRD prepare intent bundle rev-14 + ADR-035 rev-14 — 2026-08-14
+
+**Writer tip**: `8f1cc8a`
+**Errata tip**: `0dd36e6`
+**Tracking tip**: `0dd36e6`
+
+### Verdict: APPROVED
+
+### Findings
+
+None.
+
+### Verified
+
+- **Ledger parity**: the amended-row ledger and §18.1 agree; `PIB-524` is
+  recorded as a semantic-fixture-only touch and no longer counted as an amended
+  matrix row.
+- **Scope discipline**: errata only. No product decision, exit code, state
+  machine, closed vocabulary, class ranking or stage arithmetic is reopened;
+  the rev-13 contract (rank-1 blocking `corrupt-object`, stage-shaped
+  remaining-work reporting, exact-pending-set `--blob` routes, pinned
+  `purged`/`none` outcome, tokenized forbidden-command guard) stands verbatim.
+- **Counts**: **567** contiguous rows `PIB-001`…`PIB-567`, **176** claims
+  `C1`…`C176`, ADR **D1–D21** — all three unchanged from rev-13, as the errata
+  fold promised.
+- **Cross-document consistency**: PRD ↔ ADR-035 companion revisions, bylines,
+  claim anchors and the §19/D14 sequencing prerequisite all read rev-14.
+
 ## Writer + Review Dispatch — PRD prepare intent bundle rev-14 + ADR-035 rev-14 (errata) — 2026-08-14
 
 **Writer base / dispatch**: `a2a6479`

@@ -1,3 +1,98 @@
+# 2026-08-14 — Prepare intent-bundle PRD + ADR-035 — ACCEPTED
+
+**WAVE_BASE**: `d060ff4`
+**Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11) — closed completed
+**PRD writer rev-0**: `409710c`
+**Final writer tip (rev-13)**: `8f1cc8a`
+**Errata tip (rev-14)**: `0dd36e6`
+**Close range**: `d060ff4..0dd36e6` plus this close-tracking commit
+**Accepted PRD**: `PRD-prepare-intent-bundle` rev-14 (Accepted 2026-08-14)
+**Accepted ADR**: ADR-035 rev-14, D1–D21 (Accepted 2026-08-14)
+**Release tag**: none — planning wave, documents only; v0.15.1 stays at `15560af`
+
+**Contract**:
+
+- Mutating `tpatch prepare <slug>`: default Path A missing-only generation,
+  `--manual` Path B complete-bundle adoption, explicit `--regenerate` overwrite.
+- Honest transaction limits: T0 instantaneous multi-file visibility is **not**
+  claimed, T1 is a command-owned final verification, T2 is crash recovery with
+  a stated, sometimes undetectable journal-loss boundary (D1, D21).
+- Publication authority is the **held workspace-root directory inode** —
+  `Root.Open(".")` plus one Linux/Darwin non-blocking `flock` inside
+  `SyscallConn.Control`; ownership dies with the process (D4).
+- Undo-only, plan-bound journal with semantic CAS on every step and a fixed
+  publication order with `status.json` last (D5, D7).
+- Replaced bytes go to a durable, tracked, content-addressed **intent archive**;
+  redaction is a write **precondition** that refuses on a match (D8, D15).
+- The archive is **not** provenance — the WP-005 provenance trigger stays
+  unfired and `--check` keeps emitting `provenance: unknown` (D9).
+- Bounded retention: `intent-archive list`/`purge`, tombstones, orphans, the
+  rank-1 blocking `corrupt-object` class and stage-shaped remaining-work
+  reporting (D10, D16).
+- Terminal recovery with three entry points, an operator abandon route that
+  precedes the Git gate, and a diagnostic that touches nothing (D13).
+- Git use is real, read-only, scrubbed, single-probe and conditional; `--check`
+  stays frozen; `FEATURES.md` is derived and outside the transaction
+  (D14, D17, D20).
+- No implementation, no new lifecycle state, no schema change to the accepted
+  read-only contract.
+
+**Final counts**: **567** acceptance rows, contiguous `PIB-001`…`PIB-567`;
+**176** claims `C1`…`C176`; ADR decisions **D1–D21**.
+
+**Review arc** (internal + external each revision; rev-0 was a joint three-way
+review):
+
+| Revision | Tip | Rows | Internal | External | Outcome |
+|---|---|---|---|---|---|
+| rev-0 | `409710c` | 234 | NEEDS REVISION | NEEDS REVISION | stale-lock ownership, rollback CAS, rooted-write TOCTOU, archive privacy/retention, provider fallback, Git/compat gaps |
+| rev-1 | `91dea32` | 394 | NEEDS REVISION | NEEDS REVISION | lock-path unlink safety, manual rooting/CAS, tombstone rehydration, purge index CAS |
+| rev-2 | `faf055e` | 409 | NEEDS REVISION | NEEDS REVISION | raw-response retention and cache-located authority rejected |
+| rev-3 | `efcddc6` | 432 | NEEDS REVISION | NEEDS REVISION | descriptor lifetime, purge recovery, root rename, filesystem policy |
+| rev-4 | `c5f7fd8` | 448 | NEEDS REVISION | NEEDS REVISION | unreachable abandon/dangling repair, path-based journal writer |
+| rev-5 | `eec458c` | 482 | NEEDS REVISION | NEEDS REVISION | recovery/zero-write, pending-journal purge, abandon-gate ordering |
+| rev-6 | `7af5092` | 505 | NEEDS REVISION | NEEDS REVISION | archive-divergence/abandon-gate and purge-retry drift |
+| rev-7 | `751d817` | 520 | NEEDS REVISION | NEEDS REVISION | archive-state classification contradiction, preview/ledger drift |
+| rev-8 | `837f28a` | 530 | NEEDS REVISION | NEEDS REVISION | global-hash residue split, editorial parity drift |
+| rev-9 | `ebd1be8` | 536 | NEEDS REVISION | NEEDS REVISION | global pending-hash invariant, X11 scope/guard drift |
+| rev-10 | `a9ad7c0` | 545 | NEEDS REVISION | NEEDS REVISION | global claim/X11 recovery exception, type-total removal gaps |
+| rev-11 | `f06c2fd` | 551 | NEEDS REVISION | NEEDS REVISION | inter-class repair deadlock, command/state-map parity |
+| rev-12 | `f6bab00` | 560 | NEEDS REVISION | NEEDS REVISION | corrupt-class ordering contradiction, stale matrix/broad-route drift |
+| rev-13 | `8f1cc8a` | 567 | APPROVED WITH ERRATA | NEEDS ERRATA | no product finding; four record-accuracy errata |
+| rev-14 | `0dd36e6` | 567 | **APPROVED** | **APPROVED** | **accepted, no findings** |
+
+**Rev-14 errata scope** (no product change): dropped `PIB-524` from rev-13's
+amended-row ledger (fourteen → thirteen, recorded as fixture-only), qualified
+the “triple”→“tuple” claim to normative uses, scoped the X11 cell and §9.7.3
+orphan exclusion to **non-owned** hashes (an owned unsafe/hash-wrong blob stays
+exit-6 `archive-purge-evidence-divergent`), and corrected PIB-565's `outcome`
+ordinal from “twelfth” to **thirteenth**.
+
+**Key architecture choices** (ADR-035, normative over the PRD where they
+overlap): held-root directory-inode lock authority; rooted writes for both the
+tracked and gitignored lanes; undo-only CAS-gated journal; content-addressed
+immutable archive conditioned on redaction and bounded retention; archive is
+explicitly not provenance; terminal recovery with a total pre-abandon gate;
+`prepare --check` frozen; provider authority required for `--regenerate`.
+
+**No implementation**: no file under `cmd/`, `internal/`, `assets/` or `tests/`
+changed, and `SPEC.md`/`CHANGELOG.md` are untouched. The wave produced
+documents only.
+
+**Next prerequisite**: PRD §19(1) and §19(2) are satisfied by this acceptance;
+§19(3) is not. Every mutating slice (S1–S6) stays blocked until the accepted
+read-only `prepare --check` contract
+(`PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2) is
+**implemented, landed on `origin/main` and passing its own 208-row matrix**
+(PRD §17.1). Its goldens must come from that implementation's commit range, not
+from this cluster (PIB-391). Next task: `implement-prepare-check` — register an
+issue and record a fresh `origin/main` WAVE_BASE immediately before dispatch.
+
+**Close gate**: `make wave-close-check WAVE_BASE=d060ff4`; GH #11 closed
+completed; no release tag.
+
+---
+
 # 2026-08-13 — GitHub CI stabilization — COMPLETE
 
 **Base**: `bd1f749`

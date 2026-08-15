@@ -807,8 +807,9 @@ legacy auto-GC. Actions run
 [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
 
-**Prepare intent-bundle PRD rev-14 + ADR-035 rev-14** 🚧 AWAITING REVIEW
-(2026-08-13, WAVE_BASE `d060ff4`, writer `409710c`,
+**Prepare intent-bundle PRD rev-14 + ADR-035 rev-14** ✅ ACCEPTED
+(2026-08-14, WAVE_BASE `d060ff4`, writer `409710c`, final writer tip `8f1cc8a`,
+errata/close tip `0dd36e6`,
 [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)): 234 PIB
 rows and 142 claims define Path A missing-only generation, Path B adoption,
 archived regeneration, undo recovery and honest T0/T1/T2 publication limits.
@@ -851,10 +852,16 @@ record-accuracy set: a rev-13 ledger claim listing `PIB-524` among its amended
 matrix rows when the diff touched only that ID's semantic fixture, an
 unqualified “corrected throughout” wording claim, two corrupt-object sentences
 broad enough to read as classifying **owned** hashes, and a stale “twelfth”
-`outcome` ordinal. Rev-14 is the errata-only fold of that set: **rev-14 errata
-in review**, still 567 PIB rows, 176 claims and ADR D1–D21, with no product
-decision, exit code, state machine or count changed. No implementation is
-authorized.
+`outcome` ordinal. Rev-14 is the errata-only fold of that set, landed at
+`0dd36e6`: still 567 PIB rows, 176 claims and ADR D1–D21, with no product
+decision, exit code, state machine or count changed. **Rev-14 joint review
+returned dual APPROVED with no findings**, so the PRD and ADR-035 are both
+**Accepted 2026-08-14**. Accepted contract: `PIB-001`…`PIB-567`, claims
+`C1`…`C176`, ADR decisions D1–D21. Close range `d060ff4..0dd36e6`; no release
+tag — this wave shipped documents only. GH #11 is closed. **No implementation
+is authorized**: every mutating slice remains blocked on the accepted
+`prepare --check` contract being implemented and landed (PRD §17.1/§19(3)),
+which is the next dispatch.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

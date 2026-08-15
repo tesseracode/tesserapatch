@@ -1,10 +1,14 @@
 # ADR-035 — Intent Bundle Publication and History
 
-**Status**: Proposed — Awaiting Review (rev-14), 2026-08-14
-**Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14)
+**Status**: **Accepted (rev-14), 2026-08-14**
+**Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14;
+**Accepted at rev-14 on 2026-08-14**)
 **Owner**: Core (planning lane)
+**Accepted**: 2026-08-14 at rev-14 — internal review **APPROVED** (no
+findings), external review **APPROVED** (no findings); accepted jointly with
+the companion PRD, as both documents required.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
-dispatch/base `a2a6479`; WAVE_BASE `d060ff4`
+dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -17,14 +21,15 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-14, Draft — Awaiting Review). **The two documents must be reviewed
-together.** Read the PRD for the full product contract and its 567-row
+(rev-14, **Accepted 2026-08-14**). **The two documents were reviewed and
+accepted together.** Read the PRD for the full product contract and its 567-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
 **Blocks**: implementation of the mutating `tpatch prepare` modes (PRD §17.2
-slices S1–S6). No implementation is authorized until both documents are
-accepted **and** the accepted `prepare --check` contract is implemented and
-landed (PRD §17.1).
+slices S1–S6). Both documents are now accepted, so the remaining block is the
+sequencing prerequisite alone: no implementation is authorized until the
+accepted `prepare --check` contract is implemented and landed on `origin/main`
+(PRD §17.1, §19(3); D14). The planning review itself is closed.
 
 **Revision history**
 
@@ -44,7 +49,16 @@ landed (PRD §17.1).
 | rev-11 | Proposed — Awaiting Review | Final bounded claim/ordering/route fold of rev-10; no product choice reopened. **D10's claim is total over the hash.** rev-10 gated every removal on *every* reference to `h` being removal-pending while still describing an already-tombstoned same-hash reference as a no-op, which deadlocks an index holding one tombstoned and one retained reference to `h`: the claim would skip the tombstone, the gate would never be satisfied, and the owned hash would be unadvanceable by any command. The exemption is withdrawn, not the gate — the claim CAS sets **every** reference to `h`, in every generation and wire state, to removal-pending in one rewrite, and the absent-blob path publishes **every** reference straight to tombstones so no retained reference survives it. **D16 states the one exception to global validation.** Whole-index X11 precedes every mutation a **new selector** requests; completing an already-pending purge transaction runs first, may finalize its owned hash while an unrelated inconsistency is present, is terminal at exit 0 `recovered`, and never proceeds into the selector — the rerun then performs the full scan. Ordering them the other way lets an unrelated residue brick a half-removed transaction. **D10/D16's corrupt-object route is type-total**: one exact-path `rm -rf --` under an explicit destructive warning replaces the `cp`/`rm` pair, which was unexecutable on a directory and misleading on a symlink; no generic preservation copy is promised, and the index-divergence restore route stays separate and names no removal. **D16's admission is per repair class, fully covered**, not per instance, so multiple same-class instances are repaired in one invocation while mixed classes stay a zero-write refusal. **D10's map is total over the full blob-observation domain** — retained/absent and retained/present-unidentifiable split on ownership, tombstoned/present-unidentifiable routes to corrupt, and corrupt dominates mixed — and D16 discloses the revalidate→unlink replacement window as a permanent residual. The companion matrix gains `PIB-546`…`PIB-551` and re-kinds nothing. |
 | rev-12 | Proposed — Awaiting Review | Final bounded repair-sequencing, printed-command and state-domain fold of rev-11; no product choice reopened. **D16's admission is sequential, one chosen class per invocation.** rev-11 required the admitted class to be the *sole* class in the index, so an archive holding an unreferenced residue **and** a mixed hash had no admitted selector at all — the same brick rev-11 removed between instances, re-created between classes. Rev-12 keeps the global scan total (it observes and reports every class, and every ordinary mutation still refuses zero-write) and admits one chosen class under four conjunctive conditions: the confirmed selection covers every instance of that class, no selected hash or removed object belongs to another class, the mutation provably cannot erase or degrade another class's evidence, and the report names every untouched class with its route and requires a rerun. §9.3's precedence collapses same-hash overlapping observations to one class, so class membership is a function and the disjointness test is decidable. `--all --yes` fails the disjointness and non-degradation conditions against any second class by construction, so it is admitted only as a sole-class repair and only with its whole-archive blast radius, the preview-first default and the narrower repeated-`--blob` alternative stated beside it. **D10's owned-corrupt route is singular**: any hash a purge transaction owns whose blob is present but non-regular or hash-wrong maps only to exit-6 `archive-purge-evidence-divergent`, through every one of its references; rev-11's residual exit-3 `archive-index-storage-inconsistent` mapping for an unsafe/wrong pending blob is **withdrawn**, because exit 3 promises a zero-write the transaction cannot honour. **D10's map states its domain**: the 4-tuple (wire state × blob observation × ownership × liveness) is 36 tuples, three stated dependencies rule out 18, and the PRD's §9.3 table has exactly 18 rows — the collapsed tombstoned/owned/present row splits on hash-correct versus unidentifiable, and the tombstoned/absent/not-owned row splits on liveness. **D10/D16 emit no preservation command at all**: the `cp -R`/`cp -P`/`readlink`/`git show` alternatives rev-11 named in prose are withdrawn with the emitted `cp`, and the PRD's §10.7 states the forbidden token set that a guard greps over every emitted block. The companion matrix gains `PIB-552`…`PIB-560` and re-kinds nothing. |
 | rev-13 | Proposed — Awaiting Review | Final bounded repair-ordering, stage-truth, pending-route and guard-scope fold of rev-12; no product choice reopened. **D16's admission gains a corrupt-first precondition, and D10's classes gain a rank.** rev-12 admitted a class repair beside a corrupt object, reasoning that the corrupt class “does not block the other two”. It does: an unidentifiable object at a managed blob path — referenced, tombstone-referenced, or unreferenced and therefore *not* residue — is unidentified content that may be another hash's bytes, so condition 3's non-degradation proof cannot be discharged against it, and `--orphans`, which derives its work list from the same directory, would be repairing part of a storage layer it has already found untrustworthy. The four classes are ranked `corrupt-object`, `dangling-reference`, `mixed-reference`, `unreferenced-residue`; **rank 1 is the only blocking rank**, and while any instance exists every confirmed selector refuses exit 3 zero-write. The class's manual type-total `rm -rf --` prerequisite runs first, and each removed object's hash is then classified — `dangling-reference` if a retained reference survives, **clean** if the hash is unreferenced — so a corrupt object contributes at most one further tpatch repair, inside another class's invocation. **Repairs are counted in stages, not in classes.** A stage is the corrupt class's one manual prerequisite or one confirmed purge invocation for one class, so three classes can need two invocations; the PRD's `remaining_repairs` carries ordered `stages[]`, `stages_remaining` and `next_stage`, on the admitted exit-0 form and on the archive-integrity exit-3 refusal alike, and every one-invocation-per-class promise is withdrawn. **Pending routes name the exact pending set.** Every `prepare`, `abandon` and recovery emitter that observes removal-pending references names repeated `--blob <h> --yes` over exactly those hashes rather than `--all --yes`, which is behaviour-preserving because the recovery pass is selector-independent; and every emitter that prints an `--all` command line at all — sole-class repair offers, the shared-reference escalation and the selector-preserving retries included — carries the whole-archive blast radius, the preview-first default and the narrower repeated-`--blob` alternative adjacent to it. **The command guard tokenizes.** rev-12's substring scan over “the prose beside” an emitted command failed the mandatory §9.6.2 Git-history caveat, so no conforming implementation existed; the guard now checks structural command lines against a closed `argv[0]` allowlist (`tpatch`, `rm`, plus `cp` on §9.5's success report alone) and matches prose only in command-invocation shape, with the residual disclosed. A successful confirmed purge is pinned at `purged`/`none`. The companion matrix gains `PIB-561`…`PIB-567` in category **AX** and re-kinds exactly one row (`PIB-557`, `I`→`G`). |
-| rev-14 | Proposed — Awaiting Review | **Errata only.** No decision is added, withdrawn, reopened or re-worded in substance: **D1–D21** stand exactly as at rev-13, the companion matrix stays at **567** rows, and no exit code, class rank, stage rule or closed vocabulary moves. This revision records the rev-13 record corrections carried in the companion PRD's rev-14 row: the PRD's rev-13 amended-row ledger dropped `PIB-524` (a **fixture-only** touch in §18.53, not an acceptance-matrix amendment) and fell from fourteen to **thirteen** rows; rev-13's “every residual ‘triple’ becomes ‘tuple’” claim is scoped to **normative** uses, excluding quoted and meta references to the corrected term; and the two PRD sentences that stated the rank-1 `corrupt-object` classification over *every* object at a managed blob path are scoped to **non-owned** hashes, restoring agreement with D10/D16 and the frozen rev-12 closure that an **owned** hash whose blob is unsafe or hash-wrong routes only to the owning transaction's **exit 6** `archive-purge-evidence-divergent`. Status, date, byline, companion pointer and the references row are re-based to rev-14 and to reviewed writer tip `8f1cc8a` / dispatch `a2a6479`. Companion matrix rows amended by this revision, exactly: `PIB-565`, `PIB-567`. |
+| rev-14 | **Accepted — 2026-08-14** | **Errata only.** No decision is added, withdrawn, reopened or re-worded in substance: **D1–D21** stand exactly as at rev-13, the companion matrix stays at **567** rows, and no exit code, class rank, stage rule or closed vocabulary moves. This revision records the rev-13 record corrections carried in the companion PRD's rev-14 row: the PRD's rev-13 amended-row ledger dropped `PIB-524` (a **fixture-only** touch in §18.53, not an acceptance-matrix amendment) and fell from fourteen to **thirteen** rows; rev-13's “every residual ‘triple’ becomes ‘tuple’” claim is scoped to **normative** uses, excluding quoted and meta references to the corrected term; and the two PRD sentences that stated the rank-1 `corrupt-object` classification over *every* object at a managed blob path are scoped to **non-owned** hashes, restoring agreement with D10/D16 and the frozen rev-12 closure that an **owned** hash whose blob is unsafe or hash-wrong routes only to the owning transaction's **exit 6** `archive-purge-evidence-divergent`. Status, date, byline, companion pointer and the references row are re-based to rev-14 and to reviewed writer tip `8f1cc8a` / dispatch `a2a6479`. Companion matrix rows amended by this revision, exactly: `PIB-565`, `PIB-567`. |
+
+**Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
+internal and external review; both reviewers returned **APPROVED** with **no
+findings**, against writer tip `8f1cc8a` and errata tip `0dd36e6` (WAVE_BASE
+`d060ff4`, [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)).
+**No decision text changed at acceptance**: D1–D21 stand exactly as written at
+rev-13/rev-14, and the companion matrix stays at 567 rows. Acceptance closes the
+planning review; mutating implementation stays blocked on the `prepare --check`
+implementation prerequisite (D14, PRD §17.1/§19(3)).
 
 ---
 
@@ -98,9 +112,9 @@ and — critically — what it must never be read as.
   signal, or any change to the accepted `--check` contract.
 - It does **not** claim the canonical files stop being the sole authority. The
   archive is recovery material; no reader consults it to decide current state.
-- It does **not** authorize implementation. Both documents must be accepted,
-  and the accepted `--check` contract must be implemented and landed first
-  (D14).
+- It does **not** authorize implementation. Both documents are accepted at
+  rev-14 (2026-08-14), but the accepted `--check` contract must still be
+  implemented and landed first (D14).
 
 ---
 
