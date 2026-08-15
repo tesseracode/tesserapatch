@@ -863,16 +863,19 @@ is authorized**: every mutating slice remains blocked on the accepted
 `prepare --check` contract being implemented and landed (PRD §17.1/§19(3)),
 which is the next dispatch.
 
-**Adjacent-hunk semantic replay + feature absorption/reorder research** 🚧 AWAITING REVIEW
+**Adjacent-hunk semantic replay + feature absorption/reorder research rev-1** 🚧 AWAITING REVIEW
 (2026-08-15):
+[GH #13](https://github.com/tesseracode/tesserapatch/issues/13) tracks ADR-010
+phase-2 fidelity and safe candidate replay before provider resolution;
 [GH #12](https://github.com/tesseracode/tesserapatch/issues/12) tracks
-deterministic replay of applicable recipe operations before provider
-resolution; [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
-tracks post-`upstream_merged` retention/compaction tiers; and
+post-upstream/local-baseline retention and compaction tiers; and
 [GH #14](https://github.com/tesseracode/tesserapatch/issues/14) tracks
-commutation-verified reparent/reorder. The synthetic Go CLI case study proves
-adjacent additions versus intentional deletions conflict under both merge and
-rebase, while an anchor-based operation applies cleanly. Research only; no
+commutation-verified reparent/reorder. The synthetic Go CLI case study
+reproduces, under default Git behavior, adjacent additions versus intentional
+deletions conflicting under both merge and rebase, while an anchor-based
+operation produces a clean candidate. Rev-0 review corrected swapped issue IDs, unsafe replay assumptions, ADR-010
+fidelity, local-versus-upstream absorption, existing unapply/refresh
+composition, and load-bearing session-only evidence. Research only; no
 command/state/schema implementation authorized. `implement-prepare-check`
 remains next after this review closes.
 

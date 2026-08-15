@@ -389,16 +389,15 @@ semicolon-separated clusters below are intentional.
 | `feat-agent-collision-detection` | pending | concurrency-and-ownership; boundary-capture-detection | Detects edits to feature-associated files by another agent/process before a patch boundary is trusted. |
 | `feat-amend-dependent-warning` | pending | dag-shape-mutation; boundary-capture-detection | Surfaces stale child spec/recipe/patch labels after hard-parent amendment. |
 | `feat-feature-amend` | pending | recovery; dag-shape-mutation | Allows in-tree fixes to already-recorded features without losing feature identity. |
-| `feat-feature-autorebase` | pending ([GH #12](https://github.com/tesseracode/tesserapatch/issues/12)) | dag-shape-mutation; recovery | Replays applicable operations after parent/upstream drift instead of leaving stale child baselines implicit; branch-history rewriting remains out of scope. |
-| `feat-feature-absorption` | pending ([GH #13](https://github.com/tesseracode/tesserapatch/issues/13)) | dag-shape-mutation; audit-trail | Compacts confirmed `upstream_merged` features through full/intent/stub/drop retention tiers without inventing a duplicate lifecycle verdict. |
+| `feat-feature-autorebase` | pending | dag-shape-mutation; recovery | Attempts to rebase children after parent drift instead of leaving stale child baselines implicit. |
 | `feat-feature-decomposition` | pending | slice-question | Direct backlog item for splitting a large feature into sub-features/epics. |
 | `feat-feature-dependencies` | done | slice-question; dag-shape-mutation | Shipped hard/soft feature DAG primitive that WP-001 treats as the first decomposition model to try. |
 | `feat-feature-import` | pending | recovery | Reverse-engineers long-running fork changes into tpatch features; closest existing anchor for after-the-fact recovery. |
 | `feat-feature-prerequisites` | pending | audit-trail | Per-feature environment assumptions can affect whether replay/recovery verdicts are meaningful. |
 | `feat-feature-provider-overrides` | pending | audit-trail | Per-feature provider/model pins are adjacent metadata, not a Step A blocker. |
 | `feat-feature-removal` | pending | dag-shape-mutation | First-class abandon/remove command; bounds lifecycle behavior for split or wrongly captured features. |
-| `feat-feature-reorder` | pending ([GH #14](https://github.com/tesseracode/tesserapatch/issues/14)) | dag-shape-mutation | Swaps parent-child order only after empirical commutation proves equivalent output. |
-| `feat-feature-standalonify` | pending ([GH #14](https://github.com/tesseracode/tesserapatch/issues/14)) | dag-shape-mutation; recovery | Detaches a dependent feature from parents by reconstructing needed context and refreshing patch/base metadata. |
+| `feat-feature-reorder` | pending | dag-shape-mutation | Swaps parent-child order in the DAG; relevant if Step A shows captured boundaries need graph surgery. |
+| `feat-feature-standalonify` | pending | dag-shape-mutation; recovery | Detaches a dependent feature from parents by reconstructing needed context. |
 | `feat-feature-tested-state` | pending | audit-trail; boundary-capture-detection | Distinguishes applied-but-unverified recovery output from active/accepted feature state. |
 | `feat-noncontiguous-feature-commits` | pending | step-B-land; recovery; audit-trail | Per-feature commit ledger for cases where one feature spans non-contiguous commits. |
 | `feat-parallel-feature-workflows` | pending | concurrency-and-ownership | Per-feature worktrees could prevent cross-feature working-tree contamination before record. |
@@ -434,6 +433,21 @@ were not present in the read-only sweep. Relevant title/description
 misses reviewed but not indexed as Step A anchors included historical C1/C2
 items, init/provider chores, and broader product ideas such as patch
 marketplace and CI/CD integration.
+
+### Post-snapshot issue cross-references — 2026-08-15
+
+The table above remains the historical T10 read-only backlog snapshot; its rows
+are not rewritten to claim later issue ownership.
+
+- [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) is adjacent
+  to, but does not subsume, `feat-feature-autorebase`: it targets ADR-010
+  phase-2 operation replay against upstream drift, while autorebase remains the
+  parent-feature drift problem defined by ADR-011.
+- [GH #12](https://github.com/tesseracode/tesserapatch/issues/12) is a new
+  absorption/compaction research ticket and was not one of the 161 T10 rows.
+- [GH #14](https://github.com/tesseracode/tesserapatch/issues/14) consumes the
+  existing `feat-feature-reorder` and `feat-feature-standalonify` questions but
+  does not mark either done.
 
 ## 5.2 Step A gap table — Cases A1 + A2  *(CO47, T12)*
 

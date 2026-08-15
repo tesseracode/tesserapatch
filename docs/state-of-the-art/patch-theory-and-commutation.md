@@ -232,6 +232,7 @@ one trivial identity case; patch-id and structural identity extend the ladder.
   Primitives": ../adrs/ADR-015-prior-art-identity-mapping.md
 - [Adjacent CLI argument conflict case study](case-studies/adjacent-cli-args-conflict-2026-08/)
 - [GH #14 — verified feature reparenting/reorder](https://github.com/tesseracode/tesserapatch/issues/14)
+- [GH #13 — operation replay fidelity and safe candidate generation](https://github.com/tesseracode/tesserapatch/issues/13)
 
 ## Open questions
 
@@ -245,7 +246,7 @@ one trivial identity case; patch-id and structural identity extend the ladder.
   search planner exists?
 - When an applicable operation succeeds but the canonical unified diff
   conflicts, should reconcile stage the operation result as a deterministic
-  candidate before provider escalation (GH #12)?
+  candidate before provider escalation (GH #13)?
 
 ## Disputes
 

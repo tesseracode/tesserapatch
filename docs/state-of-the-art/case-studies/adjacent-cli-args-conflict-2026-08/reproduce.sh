@@ -57,10 +57,27 @@ write_feature() {
 	mv "$1/next.go" "$1/command.go"
 }
 
+write_resolved() {
+	cat >"$1/command.go" <<'EOF'
+package command
+
+func buildArgs() []string {
+	args := []string{
+		"--feature-x",
+		"--feature-y",
+	}
+	return run(args)
+}
+
+func run(args []string) []string { return args }
+EOF
+}
+
 run_case() {
 	name=$1
 	feature_shape=$2
 	master_shape=$3
+	expected=$4
 	repo="$root/$name"
 
 	git init -q -b master "$repo"
@@ -92,10 +109,22 @@ run_case() {
 	rebase_rc=$?
 	set -e
 
+	if [ "$merge_rc" -ne "$expected" ] || [ "$rebase_rc" -ne "$expected" ]; then
+		printf 'unexpected result for %s: merge=%s rebase=%s expected=%s\n' \
+			"$name" "$merge_rc" "$rebase_rc" "$expected" >&2
+		exit 1
+	fi
+	if [ "$expected" -ne 0 ]; then
+		write_resolved "$merge"
+		git -C "$merge" add command.go
+		test "$(grep -c -- '--feature-x' "$merge/command.go")" -eq 1
+		test "$(grep -c -- '--old-a' "$merge/command.go")" -eq 0
+		test "$(grep -c -- '--old-b' "$merge/command.go")" -eq 0
+	fi
 	printf '%-31s merge=%s rebase=%s\n' "$name" "$merge_rc" "$rebase_rc"
 }
 
-run_case adjacent-after-delete-all after delete-all
-run_case adjacent-before-delete-all before delete-all
-run_case adjacent-between-delete-first between delete-first
-run_case separate-append-delete-all append delete-all
+run_case adjacent-after-delete-all after delete-all 1
+run_case adjacent-before-delete-all before delete-all 1
+run_case adjacent-between-delete-first between delete-first 1
+run_case separate-append-delete-all append delete-all 0

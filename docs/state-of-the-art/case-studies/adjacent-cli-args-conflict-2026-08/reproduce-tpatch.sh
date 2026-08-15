@@ -1,0 +1,178 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(CDPATH= cd -- "$(dirname "$0")/../../../.." && pwd)
+root=$(mktemp -d "${TMPDIR:-/tmp}/tpatch-operation-replay.XXXXXX")
+trap 'rm -rf "$root"' EXIT
+bin="$root/tpatch"
+
+(cd "$repo_root" && go build -o "$bin" ./cmd/tpatch)
+
+write_base() {
+	cat >"$1/command.go" <<'EOF'
+package command
+
+func buildArgs() []string {
+	args := []string{
+		"--old-a",
+		"--old-b",
+	}
+	return run(args)
+}
+
+func run(args []string) []string { return args }
+EOF
+}
+
+write_feature() {
+	sed '/"--old-b",/a\
+		"--feature-x",\
+		"--feature-y",' "$1/command.go" >"$1/next.go"
+	mv "$1/next.go" "$1/command.go"
+}
+
+write_upstream() {
+	sed '/"--old-a",/d; /"--old-b",/d; /"--feature-x",/d; /"--feature-y",/d' \
+		"$1/command.go" >"$1/next.go"
+	mv "$1/next.go" "$1/command.go"
+}
+
+init_fixture() {
+	repo=$1
+	git init -q -b master "$repo"
+	git -C "$repo" config user.name Fixture
+	git -C "$repo" config user.email fixture@example.invalid
+	git -C "$repo" config commit.gpgsign false
+	write_base "$repo"
+	git -C "$repo" add command.go
+	git -C "$repo" commit -q -m base
+	TPATCH_NO_PROBE=1 "$bin" init --path "$repo" >/dev/null
+	TPATCH_NO_PROBE=1 "$bin" add --path "$repo" --slug add-feature-args \
+		"Add feature arguments" >/dev/null
+	git -C "$repo" add -A
+	git -C "$repo" commit -q -m metadata
+}
+
+recorded="$root/recorded"
+init_fixture "$recorded"
+write_feature "$recorded"
+TPATCH_NO_PROBE=1 "$bin" record --path "$recorded" add-feature-args \
+	--files command.go >/dev/null
+recipe="$recorded/.tpatch/features/add-feature-args/artifacts/apply-recipe.json"
+grep -q '"type": "write-file"' "$recipe"
+git -C "$recorded" add command.go .tpatch
+git -C "$recorded" commit -q -m feature-record
+write_upstream "$recorded"
+git -C "$recorded" add command.go
+git -C "$recorded" commit -q -m upstream-delete
+
+reconcile_json="$root/reconcile.json"
+TPATCH_NO_PROBE=1 "$bin" reconcile --path "$recorded" --upstream-ref HEAD \
+	--format json add-feature-args >"$reconcile_json" 2>"$root/reconcile.err"
+grep -q '"outcome": "blocked"' "$reconcile_json"
+grep -q '"phase": "phase-4-forward-apply-conflicts"' "$reconcile_json"
+grep -q '"reason_code": "edit-overlap"' "$reconcile_json"
+grep -q '"confidence": "high"' "$reconcile_json"
+grep -q '"recommended_action": "human-or-provider-resolution"' "$reconcile_json"
+
+structural="$root/structural"
+init_fixture "$structural"
+write_upstream "$structural"
+git -C "$structural" add command.go
+git -C "$structural" commit -q -m upstream-delete
+structural_recipe="$structural/.tpatch/features/add-feature-args/artifacts/apply-recipe.json"
+cat >"$structural_recipe" <<'EOF'
+{
+  "feature": "add-feature-args",
+  "operations": [
+    {
+      "type": "replace-in-file",
+      "path": "command.go",
+      "search": "\t}\n\treturn run(args)",
+      "replace": "\t\t\"--feature-x\",\n\t\t\"--feature-y\",\n\t}\n\treturn run(args)"
+    }
+  ]
+}
+EOF
+TPATCH_NO_PROBE=1 "$bin" apply --path "$structural" --dry-run \
+	add-feature-args >/dev/null
+TPATCH_NO_PROBE=1 "$bin" apply --path "$structural" --mode execute \
+	add-feature-args >/dev/null
+
+test "$(grep -c -- '--feature-x' "$structural/command.go")" -eq 1
+test "$(grep -c -- '--old-a' "$structural/command.go")" -eq 0
+test "$(grep -c -- '--old-b' "$structural/command.go")" -eq 0
+
+# Known safety gap: current replace-in-file is not idempotent.
+TPATCH_NO_PROBE=1 "$bin" apply --path "$structural" --mode execute \
+	add-feature-args >/dev/null
+test "$(grep -c -- '--feature-x' "$structural/command.go")" -eq 2
+
+# Known safety gap: a repeated substring anchor silently selects the first.
+ambiguous="$root/ambiguous"
+init_fixture "$ambiguous"
+cat >"$ambiguous/command.go" <<'EOF'
+package command
+
+func first() []string {
+	args := []string{
+	}
+	return run(args)
+}
+
+func second() []string {
+	args := []string{
+	}
+	return run(args)
+}
+
+func run(args []string) []string { return args }
+EOF
+ambiguous_recipe="$ambiguous/.tpatch/features/add-feature-args/artifacts/apply-recipe.json"
+cat >"$ambiguous_recipe" <<'EOF'
+{
+  "feature": "add-feature-args",
+  "operations": [
+    {
+      "type": "replace-in-file",
+      "path": "command.go",
+      "search": "\t}\n\treturn run(args)",
+      "replace": "\t\t\"--feature-x\",\n\t}\n\treturn run(args)"
+    }
+  ]
+}
+EOF
+TPATCH_NO_PROBE=1 "$bin" apply --path "$ambiguous" --mode execute \
+	add-feature-args >/dev/null
+feature_line=$(grep -n -- '--feature-x' "$ambiguous/command.go" | cut -d: -f1)
+second_line=$(grep -n '^func second' "$ambiguous/command.go" | cut -d: -f1)
+test "$feature_line" -lt "$second_line"
+
+# Known safety gap: a whole-file write recreates a missing target.
+resurrect="$root/resurrect"
+init_fixture "$resurrect"
+resurrect_recipe="$resurrect/.tpatch/features/add-feature-args/artifacts/apply-recipe.json"
+cat >"$resurrect_recipe" <<'EOF'
+{
+  "feature": "add-feature-args",
+  "operations": [
+    {
+      "type": "write-file",
+      "path": "removed.go",
+      "content": "package command\n"
+    }
+  ]
+}
+EOF
+test ! -e "$resurrect/removed.go"
+TPATCH_NO_PROBE=1 "$bin" apply --path "$resurrect" --mode execute \
+	add-feature-args >/dev/null
+test -f "$resurrect/removed.go"
+
+printf '%s\n' \
+	"PASS record autogen: whole-file write-file" \
+	"PASS reconcile: blocked/high-confidence edit-overlap" \
+	"PASS structural candidate: desired one-shot tree" \
+	"KNOWN GAP structural replay: second apply duplicates arguments" \
+	"KNOWN GAP structural replay: duplicate anchor selects first match" \
+	"KNOWN GAP whole-file replay: missing target is recreated"

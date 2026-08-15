@@ -79,9 +79,69 @@ what the 567-row acceptance matrix exists to close at implementation time; the
 matrix is the falsification instrument, and it must be executed against real
 behavior before any of these claims is treated as verified.
 
+## Research Rev-1 Writer + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
+
+**Reviewed tip**: `b19ea6a`
+**Issues**: GH #13 replay, GH #12 absorption, GH #14 reorder
+
+### Revision
+
+- Corrected every swapped GH #12/#13 citation.
+- Recast operation replay as ADR-010 D1 fidelity plus human-accepted candidate
+  generation.
+- Added idempotency, anchor uniqueness, deletion/resurrection, preimage and
+  lossy recipe gates.
+- Distinguished upstream adoption from local landed baseline and dispositioned
+  unapply/auto-drop limitations.
+- Documented existing manual reorder composition and deferred commutation gate.
+- Added tracked self-validating Git and tpatch reproductions.
+- Restored WP-001 snapshot integrity and handoff contract fields.
+
+### Action Taken
+
+Rev-1 returned to joint review. No implementation or architecture decision is
+authorized.
+
+## External Review — Adjacent conflict / absorption / reorder rev-0 — 2026-08-15
+
+**Tip**: `b19ea6a`
+**Verdict**: NEEDS REVISION
+
+### Findings
+
+- GH #12/#13 links were swapped.
+- Applicable recipe replay is non-idempotent, substring-ambiguous, can
+  resurrect deleted files and loses delete/rename intent.
+- Accepted ADR-010 D1 already specifies operation replay; shipped behavior is
+  contract drift.
+- `upstream_merged` was conflated with local baseline landing and
+  `--auto-drop-merged` was overgeneralized.
+- Existing unapply/patch-refresh/manual reorder composition was omitted.
+- WP-001's historical backlog snapshot was rewritten.
+- The tpatch trial existed only in session state and the Git script did not
+  assert results.
+
+### Verified
+
+The adjacent merge/rebase outcomes, blocked/edit-overlap reconcile result and
+one-shot structural candidate were independently reproduced.
+
+## Internal Review — Adjacent conflict / absorption / reorder rev-0 — 2026-08-15
+
+**Tip**: `b19ea6a`
+**Verdict**: NEEDS REVISION
+
+### Finding
+
+- GH #12 and GH #13 were inverted throughout the research tracking.
+
+### Verified
+
+The four Git outcomes and current CLI claims otherwise reproduced.
+
 ## Research Writer + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
 
-**Issues**: GH #12, GH #13, GH #14
+**Issues**: GH #13 operation replay, GH #12 absorption/compaction, GH #14 reorder
 **Prior queue head**: `implement-prepare-check` (paused, not displaced)
 
 ### Evidence
@@ -100,8 +160,8 @@ behavior before any of these claims is treated as verified.
 ### Deliverables
 
 - New reproducible synthetic case study and script.
-- GH #12 deterministic operation-replay research.
-- GH #13 absorbed-feature compaction research.
+- GH #13 ADR-010 phase-2 fidelity and safe operation-candidate research.
+- GH #12 absorbed-feature compaction research.
 - GH #14 verified reparent/reorder research.
 - Existing WP-001/WP-003/patch-theory research cross-referenced.
 

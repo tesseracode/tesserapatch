@@ -5,8 +5,9 @@
 **Cluster state**: AWAITING REVIEW
 
 The adjacent-hunk conflict, semantic replay, feature absorption and verified
-reorder investigation is drafted and awaiting review. The work is research
-only: no command, state, schema or implementation is authorized.
+reorder investigation **rev-1** closes the initial review findings and awaits
+re-review. The work is research only: no command, state, schema or
+implementation is authorized.
 
 ## Active Task
 
@@ -15,17 +16,43 @@ only: no command, state, schema or implementation is authorized.
   intentional upstream deletions; compare merge/rebase/current tpatch behavior;
   map absorbed-feature and reparent/reorder requests to shipped surfaces and
   existing research; formalize gaps.
-- **Status**: Draft complete — awaiting review
+- **Status**: Rev-1 draft complete — awaiting review
 - **Assigned**: 2026-08-15
+- **WAVE_BASE**: `33826d8` (origin/main immediately before research commit
+  `b19ea6a`)
 - **Issues**:
-  - [GH #12](https://github.com/tesseracode/tesserapatch/issues/12) —
-    deterministic operation replay before provider resolution
   - [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
+    ADR-010 phase-2 fidelity and safe operation candidate generation
+  - [GH #12](https://github.com/tesseracode/tesserapatch/issues/12) —
     absorbed-feature compaction tiers
   - [GH #14](https://github.com/tesseracode/tesserapatch/issues/14) —
     verified reparent/reorder through commutation
 - **Prior next task**: `implement-prepare-check` remains Not Started and returns
   to the front of the queue after this research closes.
+
+## Rev-0 Review and Rev-1 Adjudication
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Reviewed tip**: `b19ea6a`
+
+1. Corrected swapped issue identities: GH #13 is operation replay, GH #12 is
+   absorption/compaction, GH #14 is reorder.
+2. Reframed replay as ADR-010 D1 contract fidelity plus reviewed candidate
+   generation, not automatically safe deterministic execution.
+3. Added hard gates for idempotency, anchor uniqueness, intentional deletion
+   versus missing creation target, preimage authority, and lossy delete/rename
+   recipes.
+4. Distinguished external `upstream_merged` from this fork's landed baseline;
+   qualified `--auto-drop-merged`; dispositioned `unapplied`.
+5. Documented the manual reorder composition (`unapply` → `apply` → patch
+   refresh/fixup → dependency rewire) and the equivalence/transaction gap.
+6. Restored WP-001's historical read-only backlog rows and moved issue links to
+   a post-snapshot note.
+7. Added a tracked self-validating tpatch trial; session files are no longer
+   load-bearing evidence.
+8. Narrowed Git conclusions to the tested fixture/default behavior and restored
+   the required `Current State`/`WAVE_BASE` handoff fields.
 
 ## Session Summary
 
@@ -40,9 +67,10 @@ The tracked disposable-repository script tests four Go argument-list shapes:
 | add between adjacent arguments | delete one adjacent argument | conflict | conflict |
 | separate `append(args, ...)` | delete both old arguments | clean | clean |
 
-Conclusion: rebase does not avoid the conflict; it replays the feature commit
-onto the same changed base. Merge versus rebase is branch-history policy, not a
-semantic-conflict avoidance choice.
+Conclusion for this fixture under default Git behavior: rebase does not avoid
+the conflict; it replays the feature commit onto the same changed base. Merge
+versus rebase is branch-history policy, not a semantic-conflict avoidance
+choice here.
 
 ### Current tpatch experiment
 
@@ -51,21 +79,34 @@ semantic-conflict avoidance choice.
 - `tpatch reconcile` safely returned `blocked`,
   `phase-4-forward-apply-conflicts`, high-confidence `edit-overlap`, and
   `human-or-provider-resolution`.
-- A hand-authored anchor-based `replace-in-file` recipe applied cleanly and
-  produced exactly the desired tree: deleted upstream arguments stayed deleted;
-  feature arguments were present.
+- A hand-authored anchor-based `replace-in-file` recipe produced the desired
+  candidate tree once: deleted upstream arguments stayed deleted; feature
+  arguments were present.
 - Reconcile still blocked with that applicable structural recipe because phase
-  2 recognizes `allPresent` only; it does not execute applicable operations.
+  2 recognizes `allPresent` only; it does not execute or report applicable-only
+  operations.
+- Repeating that recipe duplicates the arguments; duplicated anchors select
+  the first match; missing whole-file targets can be resurrected; delete/rename
+  autogeneration is lossy. Automatic replay is therefore unsafe today.
+
+## Current State
 
 ### Existing surface mapping
 
 - Provider-backed `reconcile --resolve` already supplies semantic resolution in
   a shadow worktree.
-- `upstream_merged` is already the semantic “absorbed into baseline” state.
-- `reconcile --auto-drop-merged` and `remove` provide complete deletion, but
-  there is no intent/stub compaction tier.
+- Accepted ADR-010 D1 already specifies operation-level replay; shipped phase 2
+  implements presence inspection only.
+- `upstream_merged` proves external-upstream adoption; local baseline landing
+  is a distinct axis handled by `land`/landed verification.
+- `feature unapply` is an existing patch-absent/full-history tier.
+- `reconcile --auto-drop-merged` applies only to opted-in phase-1.5 patch-id
+  matches; `remove` supplies general complete deletion. There is no
+  intent/stub compaction tier.
 - `feature deps add/remove` supports atomic metadata edits and cycle checks, but
   does not prove patch-order equivalence or refresh patch/base provenance.
+- Manual reorder can compose unapply/apply, patch refresh/fixup and dependency
+  rewiring, but is not transactional and proves no equivalence.
 - Existing research already names `feat-feature-autorebase`,
   `feat-feature-reorder`, `feat-feature-standalonify`, commutation graphs and
   search planning; the new issues bind the user cases to those backlogs.
@@ -74,6 +115,7 @@ semantic-conflict avoidance choice.
 
 - `docs/state-of-the-art/case-studies/adjacent-cli-args-conflict-2026-08/summary.md`
 - `docs/state-of-the-art/case-studies/adjacent-cli-args-conflict-2026-08/reproduce.sh`
+- `docs/state-of-the-art/case-studies/adjacent-cli-args-conflict-2026-08/reproduce-tpatch.sh`
 - `docs/state-of-the-art/case-studies/README.md`
 - `docs/state-of-the-art/patch-theory-and-commutation.md`
 - `docs/whitepapers/WP-001-feature-slice-gap.md`
@@ -90,6 +132,8 @@ semantic-conflict avoidance choice.
 - Current tpatch binary built successfully for the disposable trial.
 - Recorded whole-file recipe reconcile: blocked/edit-overlap.
 - Structural recipe dry-run and execute: success; desired final argument list.
+- Safety fixtures: second replay duplicates arguments; duplicate anchors choose
+  the first match; whole-file replay recreates a missing target.
 - No production source, test, asset, SPEC, lifecycle state or schema changed.
 
 ## Next Steps
@@ -106,10 +150,12 @@ None for research review.
 
 ## Context for Next Agent
 
-- The session-only full outputs are in
+- Debugging outputs remain available in
   `files/repro-adjacent-args-output.txt` and
   `files/repro-tpatch-intent-replay-output.txt`.
-- The synthetic fixture is evidence for a deterministic operation-replay gap,
+- The tracked `reproduce-tpatch.sh` now carries the load-bearing trial; session
+  outputs remain debugging detail only.
+- The synthetic fixture is evidence for an operation-candidate gap,
   not evidence that every textual conflict is semantically independent.
 - Do not create a new `absorbed` state without first disproving
   `upstream_merged` plus a retention overlay.
