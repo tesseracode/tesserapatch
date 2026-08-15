@@ -2,13 +2,18 @@
 
 ## Status
 
-**Cluster state**: REV-13 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-12** and proposed ADR-035
-**rev-12** close the rev-11 adjudication, but review found one remaining
-repair-class ordering contradiction plus stale matrix and broad-`--all`
-emitters. A narrow **rev-13** is dispatched. The revision is **docs-only**; no
-mutating command is implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-13** and proposed ADR-035
+**rev-13** close every rev-12 adjudication item: `corrupt-object` is the rank-1
+**blocking** repair class whose manual prerequisite runs before every tpatch
+repair selector, remaining work is counted and reported in **stages** rather
+than one invocation per class, every emitter that knows a pending set names
+repeated `--blob` over exactly that set, a successful confirmed purge is pinned
+at `purged`/`none`, and the forbidden-command guard tokenizes emitted command
+lines instead of scanning prose it made unsatisfiable. The stale rev-12 PIB-548
+ledger claim is corrected and a mechanical ledger guard is added. The revision
+is **docs-only**; no mutating command is implemented or authorized.
 
 ## Active Task
 
@@ -16,7 +21,7 @@ mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-13 dispatched after rev-12 NEEDS REVISION
+- **Status**: Rev-13 written, awaiting review
 - **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-13)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
@@ -104,6 +109,186 @@ Rev-12 remains a **docs-only** revision of the PRD, ADR-035 and handoff. No
 implementation, prerequisite, supervisor-owned tracking, asset or guarded WIP
 change is authorized.
 
+## Prepare PRD Writer Result — rev-13 (2026-08-14)
+
+**Writer base/dispatch**: `673fd06`; **reviewed writer tip (rev-12)**: `f6bab00`;
+**WAVE_BASE**: `d060ff4`.
+**Role**: sole sequential docs-only writer. **Scope**: the six rev-13 dispatch
+items, and nothing else.
+
+### Files changed (exactly three, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-13
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-13
+- `docs/handoff/CURRENT.md` — this record
+
+No source, test, asset, SPEC, ROADMAP, LOG, prerequisite, ADR-index or
+untracked WIP file was touched.
+
+### What changed, by dispatch item
+
+1. **Corrupt-first ordering (item 1).** §9.3.1 gains a closed **repair-class
+   precedence** table: rank 1 `corrupt-object`, rank 2 `dangling-reference`,
+   rank 3 `mixed-reference`, rank 4 `unreferenced-residue`, and **only rank 1 is
+   blocking**. While any corrupt object exists at a managed blob path — under a
+   retained reference (row 5), under a tombstoned reference of a live hash (row
+   18), under a tombstoned reference of an **unreferenced** hash (row 17), or as
+   a directory-scan object the index never mentions — **every** confirmed
+   selector refuses exit 3 zero-write, `--orphans --yes` included. rev-12's "the
+   corrupt class does not block the other two" is withdrawn, with three stated
+   reasons: an unreferenced corrupt object is a `corrupt-object` instance rather
+   than residue and `--orphans` derives its work list from the same directory;
+   condition (c)'s non-degradation proof cannot be discharged against
+   unidentified bytes that may be another hash's content; and the prerequisite
+   is one command the operator was going to run anyway. The rule is stated as a
+   **precondition** on admission, so every "four conditions" reference in the
+   cluster stays true. After the prerequisite the freed hash is **classified**,
+   not assumed repaired: `dangling-reference` where a retained reference
+   survives (and it **joins** that class, so coverage is over post-prerequisite
+   membership), **clean** where the hash is unreferenced. Reconciled at §9.3
+   rows 5/17/18 and its precedence list, §9.3.1's admission table (now rank
+   ordered), the X11 cell, §9.7's `list` block, §9.7.1's `--orphans` and
+   selection paragraphs, §9.7.2's preflight rows and worked examples, §9.7.3's
+   orphan definition and both repair blocks, §10.4.1's archive rows, §12.5's D9,
+   ADR D10 and D16. New PIB-561 (derived precedence + blocking rank), PIB-562
+   (corrupt-plus-**unreferenced**-residue, the missing fixture), PIB-563
+   (corrupt-plus-mixed, corrupt-plus-dangling and the class merge); amended
+   PIB-548, PIB-549, PIB-553.
+2. **PIB/ledger parity (item 2).** PIB-548's fourth fixture is amended from
+   rev-11's "refuses every selector" to the **rev-12 sequential outcome**:
+   `--orphans --yes` is admitted for (a), the repeated `--blob` is admitted for
+   (c), and only the selectors that are neither class's covering repair refuse;
+   a fifth fixture adds the corrupt object and asserts the rank-1 block. The
+   revision-history rev-12 row and §18.1's rev-12 ledger both drop the stale
+   `PIB-548` claim — the rev-12 diff `f06c2fd`→`f6bab00` did not touch that row —
+   and the rev-12 row's "triple corrected throughout" claim is corrected to what
+   it actually did. Both rev-12 and rev-13 rows now carry an exact,
+   diff-derived amended-row list. New **PIB-567** is the mechanical ledger
+   guard: it computes each revision's changed-row set from the diff, compares it
+   to the ledgers, and fails a claimed-but-unchanged row (rev-12's own defect is
+   its driving fixture), a changed-but-unclaimed row, and a "corrected
+   throughout" claim whose token survives elsewhere.
+3. **Stages versus invocations (item 3).** §9.3.1 defines a **stage** — the
+   corrupt class's one manual prerequisite, or one confirmed purge invocation
+   for one class — and the arithmetic that computes how many remain. Two counts
+   are pinned in a table: three residues + two mixed = 2 stages / 2 invocations;
+   two residues + two dangling + one corrupt = **3 stages / 2 invocations**.
+   §10.2's `remaining_repairs` replaces rev-12's `classes[]` with ordered
+   `stages[]` (`ordinal`, `kind`, `class`, `hashes[]`, `paths[]`, `repair`,
+   `repair_cwd`, `resulting_classes[]`, `after_prerequisite`), plus
+   `stages_remaining` and `next_stage`, and is now emitted on the admitted
+   exit-0 form **and** on the archive-integrity exit-3 refusal, so the first
+   refusal carries the whole plan. rev-12's "the total tpatch invocation count is
+   exactly one per class" is withdrawn from PIB-553. New PIB-564; amended
+   PIB-226, PIB-227, PIB-552, PIB-553, PIB-556.
+4. **Pending route narrowing (item 4).** §6.2, §6.6 rule 8, §7.8 step 5,
+   §10.4.1's `recovery-pending` and `no-pending-transaction` rows, §10.5 step 13
+   and ADR D13/D16 now name repeated `--blob <h> --yes` over **exactly** the
+   observed pending set, never `--all --yes`. The substitution is argued rather
+   than asserted: the recovery pass precedes selector processing and finalizes
+   every pending hash whatever selector carries it, so the narrow command
+   performs the identical terminal recovery. PIB-557 is widened from "every
+   emitter that names `--all` as a repair" to **every emitter that prints an
+   `--all` command line**, including the selector-preserving retries, and
+   re-kinded `I`→`G` because it is now a derived totality guard; the §9.7 worked
+   preview gains its blast-radius disclosure **above** the column-0 heading, so
+   PIB-498's "nothing between the heading and the command" still holds. New
+   PIB-566; amended PIB-453, PIB-525, PIB-528, PIB-557.
+5. **Output/guard cleanup (item 5).** Every residual "triple" is now "tuple"
+   (PIB-524's fixture text and rev-11's ledger row were the survivors; the
+   remaining occurrences are quoted references to the corrected term itself). A
+   successful confirmed purge is pinned at `outcome: "purged"`,
+   `action: "none"`, with the confirmed form total over
+   `purged`/`no-op`/`recovered`/`purge-partial`/`refused` and the preview form
+   total over `planned`/`recovery-required`/`refused`; `purged` joins the closed
+   `outcome` set and `repair_cwd` joins the closed vocabulary. §10.7's
+   forbidden-command guard is re-scoped from a substring scan to a
+   **tokenizer**: structural command lines checked against a closed `argv[0]`
+   allowlist (`tpatch`, `rm`, plus `cp` on §9.5's success report alone), prose
+   matched only in command-invocation shape, §9.6.2's mandatory "Git history"
+   caveat carried as a **must-pass** fixture, and the one residual the tokenizer
+   cannot reach disclosed rather than claimed closed. No forbidden command is
+   emitted in any corrupt/divergent procedure — a fenced-block scan finds
+   exactly one command word outside `tpatch`/`rm` in the whole PRD, and it is
+   §9.5's permitted `cp`. New PIB-565; amended PIB-524, PIB-547, PIB-559.
+6. **Mechanics (item 6).** Matrix **560 → 567** rows, `PIB-561`…`PIB-567`
+   contiguous, zero renumbered, zero retired. New category **AX** (7 rows), 49 →
+   **50** categories, sum 567. Kinds: `I` 247→**248**, `C` 122, `G`
+   117→**123**, `U` 49, `S` 25; sum 567 — with **one** re-kind, `PIB-557`
+   `I`→`G`, stated in §18.1 and carried through §18.52's arithmetic. Slice
+   partition: S7 166 → **173**, total 567. §18.53's semantic table 30 → **36**
+   guards (`PIB-557`, `PIB-561`, `PIB-564`, `PIB-565`, `PIB-566`, `PIB-567`
+   join). §10.2 gains `purged`, `repair_cwd`, `stages[].class` (rank ordered)
+   and `stages[].kind`; §10.3's advisory keeps eighteen codes with its iff
+   binding scoped to exit 0. §18.51 is the new AX section, and the former
+   §18.51/§18.52 are renumbered to §18.52/§18.53 with every internal
+   cross-reference updated. §16 gains R34–R37; §21 gains five withdrawn/rejected
+   rows and the ADR's alternatives table gains four. Claims stay at
+   **C1…C176** (rev-13 asserts nothing new about shipped behavior); anchors
+   re-based to dispatch `673fd06` / reviewed tip `f6bab00`. ADR decisions stay
+   **D1–D21**; CP, J and X sets are unchanged in membership. Every frozen rev-12
+   closure — the sequential admission's four conditions, the 18-row 4-tuple
+   state map, the owned-corrupt exit-6-only route, the type-total `rm -rf --`
+   with no preservation command, the real non-regular fixtures with the injected
+   device seam, and the terminal pending-recovery ordering exception — is
+   preserved.
+
+### Corrections to the rev-12 record
+
+Two rev-12 claims were inaccurate and are corrected in place rather than left
+standing, because a ledger that over-claims is the defect PIB-567 now guards:
+
+1. The rev-12 revision-history row and §18.1 ledger listed `PIB-548` among the
+   rows rev-12 amended. The rev-12 diff `f06c2fd`→`f6bab00` did not touch it.
+   The claim is removed from both, rev-13 amends the row for real, and both
+   ledgers now carry exact diff-derived lists.
+2. The rev-12 row claimed the mis-stated "triple" wording was corrected
+   "throughout". It was corrected in §9.3 only; `PIB-524`'s fixture text and
+   rev-11's own ledger row still carried it. The claim is narrowed to what
+   rev-12 did, and rev-13 finishes the correction.
+
+The rev-12 writer record below is left otherwise intact; its item-1 amended list
+is corrected in place for the same reason.
+
+### Verification
+
+- Contiguity: `PIB-001`…`PIB-567`, no gaps, no duplicates (derived by script
+  over the matrix tables).
+- Arithmetic: 50 categories sum to 567; kinds `I` 248 + `C` 122 + `G` 123 +
+  `U` 49 + `S` 25 = 567; slices 75+15+24+42+142+17+48+31+173 = 567; per-section
+  row counts match the category table exactly.
+- Ledger parity: the rev-13 amended list in the revision history and §18.1
+  equals the set of matrix rows the rev-13 diff against `f6bab00` changed —
+  `PIB-226`, `PIB-227`, `PIB-453`, `PIB-524`, `PIB-525`, `PIB-528`, `PIB-547`,
+  `PIB-548`, `PIB-549`, `PIB-552`, `PIB-553`, `PIB-556`, `PIB-557`, `PIB-559`.
+- Markdown: fenced blocks balanced; every JSON example parses after
+  placeholder substitution; table column counts unchanged from `f6bab00` (the
+  19 pre-existing anomalies are `\|` escapes, not new); every relative link
+  resolves.
+- Command scan: the only command word outside `tpatch`/`rm` in any fenced block
+  of the PRD is §9.5's permitted `cp` restore form.
+- No Go, asset, SPEC, ROADMAP, LOG or prerequisite file touched; `git status`
+  shows exactly the three intended paths plus the pre-existing untracked WIP.
+
+### Context for reviewer
+
+- The one substantive **behavior** change in rev-13 is that a `corrupt-object`
+  instance now refuses **every** confirmed selector in the archive rather than
+  only its own. That is strictly more conservative than rev-12 and it costs the
+  operator ordering freedom, not reachability: the class's prerequisite is a
+  command they already had to run, and the refusal now hands them the whole
+  stage plan in one pass instead of one refusal per discovery.
+- The stage model is the reason the corrupt-first rule is usable. If the
+  reviewer wants `remaining_repairs` kept to the exit-0 form only, note that an
+  archive holding a corrupt object has **no** exit-0 form until the prerequisite
+  runs, so the plan would be unreachable in exactly the state that needs it.
+- `PIB-557`'s re-kind is the only Kind change in rev-13 and it is carried
+  explicitly through §18.1 and §18.52's arithmetic, because rev-9's `PIB-498`
+  re-kind is the precedent for how that must be recorded.
+- PIB-567 is deliberately scoped to rev-12 onward. Earlier ledgers predate the
+  exact-list convention and re-deriving them would be archaeology, not
+  verification.
+
 ## Prepare PRD Writer Result — rev-12 (2026-08-14)
 
 **Writer base/dispatch**: `62c21a9`; **reviewed writer tip (rev-11)**: `f06c2fd`;
@@ -151,8 +336,10 @@ untracked WIP file was touched.
    sole-class rejection. New PIB-552 (two-class sequence end to end), PIB-553
    (three-class sequence including the manual prerequisite), PIB-554 (derived
    class collapse), PIB-555 (derived non-degradation predicate), PIB-556 (the
-   untouched-class report); amended PIB-533, PIB-534, PIB-542, PIB-548,
-   PIB-549.
+   untouched-class report); amended PIB-533, PIB-534, PIB-542,
+   PIB-549. *(Corrected by rev-13: this list originally also claimed PIB-548,
+   which the rev-12 diff `f06c2fd`→`f6bab00` did not touch. PIB-567 now derives
+   these lists from the diff.)*
 2. **Printed command parity (item 2).** Every emitted procedure and worked
    example now contains exactly one command — the type-total
    `rm -rf -- <validated repo-relative managed blob path>` beneath its
@@ -190,7 +377,9 @@ untracked WIP file was touched.
    13, completes at exit 0) versus unidentifiable (row 14, exit 6), and
    `tombstoned | absent | not owned` is split on liveness (row 10 ordinary
    purged storage, row 11 carrying the dangling hash's route). The "triple"
-   wording is corrected to "tuple" throughout. PIB-551 is amended to derive the
+   wording is corrected to "tuple" in §9.3. *(Corrected by rev-13: "throughout"
+   was over-stated — PIB-524's fixture text and rev-11's ledger row still
+   carried it, and rev-13 finishes the correction.)* PIB-551 is amended to derive the
    domain, the reachability and the row count, with four sensitivity fixtures
    including a re-collapse and a row-count/domain disagreement.
 5. **Fixtures and blast radius (item 5).** New PIB-560 pins the fixture
