@@ -1,3 +1,89 @@
+## Writer + Review Dispatch — PRD prepare intent bundle rev-14 + ADR-035 rev-14 (errata) — 2026-08-14
+
+**Writer base / dispatch**: `a2a6479`
+**Reviewed writer tip**: `8f1cc8a`
+**Verdicts folded**: internal APPROVED WITH ERRATA, external NEEDS ERRATA
+**Files**: `docs/prds/PRD-prepare-intent-bundle.md`,
+`docs/adrs/ADR-035-intent-bundle-publication-and-history.md`,
+`docs/handoff/CURRENT.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`
+
+### Scope
+
+- Drop `PIB-524` from rev-13's amended-row ledgers, fourteen → thirteen, and
+  record its fixture-only status in the revision history and §18.1.
+- Qualify rev-13's “triple”→“tuple” claim to normative uses, excluding quoted
+  and meta references.
+- Scope the X11 cell and §9.7.3's orphan-exclusion sentence to **non-owned**
+  hashes; an owned unsafe/hash-wrong blob stays exit-6
+  `archive-purge-evidence-divergent`.
+- Correct PIB-565's “twelfth” `outcome` ordinal to **thirteenth**.
+- Re-base status, byline, companion, claim anchors and the ADR revision to
+  rev-14 and add both errata revision rows.
+
+### Action Taken
+
+One errata-only fold dispatched over the PRD, ADR-035 and tracking documents.
+Errata scope only: no product decision, exit code, state machine, closed
+vocabulary, matrix count (**567**), claim count (**176**) or decision set
+(**D1–D21**) may move. PRD and ADR return to joint acceptance review at rev-14;
+**no acceptance is recorded** and implementation remains blocked.
+
+## External Review — PRD prepare intent bundle rev-13 + ADR-035 rev-13 — 2026-08-14
+
+**Writer tip**: `8f1cc8a`
+**Tracking tip**: `a2a6479`
+
+### Verdict: NEEDS ERRATA
+
+### Findings
+
+- The rev-13 revision-history row and §18.1 list `PIB-524` among fourteen
+  amended matrix rows; the rev-13 diff `f6bab00`→`8f1cc8a` changes that ID only
+  inside its §18.53 semantic-fixture entry, so the ledger over-claims by one —
+  the exact defect class PIB-567 was added to catch.
+- The same row claims “every residual ‘triple’ becomes ‘tuple’” without
+  excluding the quoted and meta references that must survive, so the claim is
+  unsatisfiable as written and PIB-567's fixture tests an unqualified scan.
+- The X11 cell and §9.7.3 state the rank-1 `corrupt-object` classification over
+  *every* object at a managed blob path, which reads as classifying **owned**
+  hashes and contradicts the frozen rev-12 closure routing an owned unsafe or
+  hash-wrong blob to exit-6 `archive-purge-evidence-divergent`.
+- PIB-565 still calls a new `outcome` token the “twelfth”; rev-13's own `purged`
+  made the closed set twelve, so a new token is the thirteenth.
+
+### Verified
+
+Matrix contiguity `PIB-001`…`PIB-567`, the §18.52 category/kind/slice
+arithmetic, the single `PIB-557` re-kind, the 176-claim set, ADR D1–D21, the
+stage model and the corrupt-first precedence itself are consistent as written.
+No product decision is contested; every finding is a record-accuracy or scope
+error, so the revision is errata, not revision.
+
+## Internal Review — PRD prepare intent bundle rev-13 + ADR-035 rev-13 — 2026-08-14
+
+**Writer tip**: `8f1cc8a`
+**Tracking tip**: `a2a6479`
+
+### Verdict: APPROVED WITH ERRATA
+
+### Findings
+
+- The rev-13 corrupt-first ordering, the stage-shaped `remaining_repairs`, the
+  narrowed pending routes, the pinned `purged`/`none` outcome and the tokenized
+  command guard each close their dispatch item; the contract is accepted in
+  substance.
+- Errata, not revision: the `PIB-524` amended-row over-claim (fourteen should be
+  thirteen, fixture-only), the unqualified “corrected throughout” claim, the two
+  corrupt-object sentences that are broad enough to cover owned hashes, and
+  PIB-565's stale “twelfth” ordinal.
+- No implementation may be authorized until both documents are accepted at the
+  corrected revision.
+
+### Action Taken
+
+Verdicts adjudicated together and folded into one errata-only rev-14 dispatch;
+acceptance deferred to the rev-14 joint review.
+
 ## Writer — PRD prepare intent bundle rev-13 + ADR-035 rev-13 — 2026-08-14
 
 **Writer tip**: `8f1cc8a`

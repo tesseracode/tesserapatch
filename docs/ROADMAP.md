@@ -807,7 +807,7 @@ legacy auto-GC. Actions run
 [31733541355](https://github.com/tesseracode/tesserapatch/actions/runs/31733541355)
 passes on Ubuntu and macOS. Production code and v0.15.1 tag unchanged.
 
-**Prepare intent-bundle PRD rev-13 + ADR-035 rev-13** 🚧 AWAITING REVIEW
+**Prepare intent-bundle PRD rev-14 + ADR-035 rev-14** 🚧 AWAITING REVIEW
 (2026-08-13, WAVE_BASE `d060ff4`, writer `409710c`,
 [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)): 234 PIB
 rows and 142 claims define Path A missing-only generation, Path B adoption,
@@ -845,7 +845,15 @@ claim/X11 recovery-exception and type-total removal gaps. Rev-11 landed at
 deadlock plus command/state-map parity gaps. Rev-12 landed at `f6bab00` with
 560 PIB rows. Acceptance review found a final corrupt-class ordering
 contradiction plus stale matrix/broad-route drift. Rev-13 landed at `8f1cc8a`
-with 567 PIB rows; joint acceptance review is pending. No implementation is
+with 567 PIB rows. Joint acceptance review returned no product finding —
+internal **APPROVED WITH ERRATA**, external **NEEDS ERRATA** — against a
+record-accuracy set: a rev-13 ledger claim listing `PIB-524` among its amended
+matrix rows when the diff touched only that ID's semantic fixture, an
+unqualified “corrected throughout” wording claim, two corrupt-object sentences
+broad enough to read as classifying **owned** hashes, and a stale “twelfth”
+`outcome` ordinal. Rev-14 is the errata-only fold of that set: **rev-14 errata
+in review**, still 567 PIB rows, 176 claims and ADR D1–D21, with no product
+decision, exit code, state machine or count changed. No implementation is
 authorized.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED

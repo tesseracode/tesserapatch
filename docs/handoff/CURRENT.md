@@ -4,16 +4,16 @@
 
 **Cluster state**: AWAITING REVIEW
 
-Transactional prepare-intent-bundle PRD **rev-13** and proposed ADR-035
-**rev-13** close every rev-12 adjudication item: `corrupt-object` is the rank-1
-**blocking** repair class whose manual prerequisite runs before every tpatch
-repair selector, remaining work is counted and reported in **stages** rather
-than one invocation per class, every emitter that knows a pending set names
-repeated `--blob` over exactly that set, a successful confirmed purge is pinned
-at `purged`/`none`, and the forbidden-command guard tokenizes emitted command
-lines instead of scanning prose it made unsatisfiable. The stale rev-12 PIB-548
-ledger claim is corrected and a mechanical ledger guard is added. The revision
-is **docs-only**; no mutating command is implemented or authorized.
+Transactional prepare-intent-bundle PRD **rev-14** and proposed ADR-035
+**rev-14** are an **errata-only** fold of the rev-13 joint review (internal
+APPROVED WITH ERRATA, external NEEDS ERRATA). No product decision, exit code,
+state machine, closed vocabulary, class ranking or stage rule is reopened: the
+matrix stays at **567** rows, the claims at **C1…C176**, the ADR at **D1–D21**.
+The rev-13 contract itself — `corrupt-object` as the rank-1 **blocking** repair
+class, stage-shaped remaining-work reporting, exact-pending-set `--blob`
+routes, the pinned `purged`/`none` purge outcome and the tokenized
+forbidden-command guard — stands unchanged. rev-14 is **awaiting review**; it
+is self-reported only and carries **no** acceptance.
 
 ## Active Task
 
@@ -21,14 +21,101 @@ is **docs-only**; no mutating command is implemented or authorized.
 - **Description**: Define Path A generation, Path B adoption and explicit
   regeneration of a complete intent bundle with truthful transaction and
   recovery semantics.
-- **Status**: Rev-13 written, awaiting review
-- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-13)
+- **Status**: Rev-14 errata fold written, awaiting review
+- **Assigned**: 2026-08-13 (rev-0), 2026-08-14 (rev-1 through rev-14)
 - **WAVE_BASE**: `d060ff4fc1aacaa34c865c9e620a902007805f76`
 - **Issue**: [GH #11](https://github.com/tesseracode/tesserapatch/issues/11)
 - **Prerequisite**: accepted artifact-validation/provenance PRD rev-5 +
   ADR-034 rev-2 — and, new in rev-1, that PRD's **implementation** must land
   before any mutating slice dispatches (PRD §17.1)
 - **Release tag**: v0.15.1 remains fixed at `15560af`
+
+## Rev-13 Review and Rev-14 Errata Fold (2026-08-14)
+
+**Internal verdict**: APPROVED WITH ERRATA
+**External verdict**: NEEDS ERRATA
+**Reviewed writer tip**: `8f1cc8a`
+**Dispatch/base**: `a2a6479`
+**Scope**: errata only — record accuracy and claim scope. No product decision,
+exit code, state machine, closed vocabulary, class rank, stage arithmetic,
+matrix count or claim count may move.
+
+### Files changed (exactly five, staged by explicit path)
+
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-14
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-14
+- `docs/handoff/CURRENT.md` — this record
+- `docs/ROADMAP.md` — rev-14 AWAITING REVIEW line
+- `docs/supervisor/LOG.md` — rev-13 verdicts + rev-14 dispatch
+
+No source, test, asset, SPEC, ADR-index, prerequisite or untracked WIP file was
+touched.
+
+### Errata result
+
+1. **Ledger parity (the PIB-567 defect class, caught on rev-13 itself).** The
+   rev-13 revision-history row and §18.1 listed `PIB-524` among **fourteen**
+   amended matrix rows. The rev-13 diff `f6bab00`→`8f1cc8a` changes that ID
+   only inside its §18.53 semantic-fixture entry, so it is a **fixture-only**
+   amendment. `PIB-524` is removed from both amended-row lists, the count is
+   **thirteen** (`PIB-226`, `PIB-227`, `PIB-453`, `PIB-525`, `PIB-528`,
+   `PIB-547`, `PIB-548`, `PIB-549`, `PIB-552`, `PIB-553`, `PIB-556`, `PIB-557`,
+   `PIB-559`), and the fixture-only status is stated where the claim stood.
+   PIB-567's matrix row gains this case as a second driving fixture.
+2. **Scoped “throughout” claim.** rev-13's “every residual ‘triple’ becomes
+   ‘tuple’” is qualified to **normative** uses; occurrences that quote the
+   corrected term itself and the meta references in the revision history, §18.1
+   and PIB-567's own guard text are stated as deliberately preserved. PIB-567's
+   matrix row and §18.53 entry now test the qualified claim.
+3. **Corrupt-class scope, non-owned only.** Two sentences stated the rank-1
+   `corrupt-object` classification over *every* object at a managed blob path,
+   which read as classifying **owned** hashes and contradicted the frozen
+   rev-12 closure. §9.3.1's X11 cell and §9.7.3's orphan-exclusion sentence are
+   scoped to **non-owned** hashes, with the owned route restated inline: an
+   owned hash whose blob is unsafe or hash-wrong stays the owning `purge --yes`
+   transaction's **exit 6** `archive-purge-evidence-divergent`. The state
+   machine, the precedence ranking and the rank-1 block for non-owned hashes are
+   unchanged.
+4. **PIB-565 ordinal.** “a twelfth `outcome` token” becomes **thirteenth**, in
+   the matrix row and in §18.53: rev-13's own `purged` made the closed set
+   twelve.
+5. **Revision bookkeeping.** PRD status/byline, the ADR companion pointer, the
+   §14.1 ADR-index row, §19's gate and the claim anchors re-base to rev-14,
+   dispatch `a2a6479`, reviewed tip `8f1cc8a`; both documents gain an
+   errata-only rev-14 revision row; §18.1 gains an exact rev-14 ledger
+   paragraph. The ADR's status, date, byline, companion and references lines
+   read rev-14.
+
+### Verification (mechanical, this working tree)
+
+- Matrix: `PIB-001`…`PIB-567` — 567 rows, contiguous, no gaps, no duplicates.
+- Kinds: `I` 248 + `C` 122 + `G` 123 + `U` 49 + `S` 25 = 567, unchanged from
+  rev-13.
+- Claims: `C1`…`C176` — 176 rows, contiguous, unchanged.
+- ADR decisions: `D1`…`D21` present, unchanged.
+- Matrix rows changed against `8f1cc8a`: exactly `PIB-565` and `PIB-567`, which
+  is what the rev-14 ledger claims — verified by diffing the matrix tables, not
+  asserted.
+- §18.53 sensitivity table: 36 rows, unchanged in count.
+- Fenced blocks: 31 in the PRD, byte-identical to `8f1cc8a`, so every JSON
+  example is untouched; ADR has none.
+- Tables: one pre-existing column-count anomaly (`PIB-551`, an escaped pipe),
+  identical at `8f1cc8a` and at this tree; no new anomaly.
+- Links: every relative link in both documents resolves.
+- Scope: `git status` shows exactly the five authorized paths plus the
+  pre-existing untracked WIP, which is untouched.
+
+### Context for the reviewer
+
+- This is a **self-reported** fold. Nothing here is an acceptance; the rev-14
+  documents return to joint review, and implementation stays blocked behind
+  PRD §17.1's prerequisite plus acceptance of both documents.
+- The `PIB-524` correction is the ledger guard PIB-567 was written for, firing
+  against the very revision that introduced it. The guard's criterion — compare
+  the ledger to the diff, in both directions — is what produced the finding.
+- The corrupt-class scoping is a **wording** fix, not a behaviour change: the
+  owned-hash exit-6 route was already normative in §9.3, §9.7.2 step 6, X11's
+  own exit-code column and PIB-558; only the two broad sentences disagreed.
 
 ## Rev-12 Review and Rev-13 Adjudication (2026-08-14)
 
