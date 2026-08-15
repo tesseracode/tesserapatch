@@ -863,6 +863,19 @@ is authorized**: every mutating slice remains blocked on the accepted
 `prepare --check` contract being implemented and landed (PRD §17.1/§19(3)),
 which is the next dispatch.
 
+**Adjacent-hunk semantic replay + feature absorption/reorder research** 🚧 AWAITING REVIEW
+(2026-08-15):
+[GH #12](https://github.com/tesseracode/tesserapatch/issues/12) tracks
+deterministic replay of applicable recipe operations before provider
+resolution; [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
+tracks post-`upstream_merged` retention/compaction tiers; and
+[GH #14](https://github.com/tesseracode/tesserapatch/issues/14) tracks
+commutation-verified reparent/reorder. The synthetic Go CLI case study proves
+adjacent additions versus intentional deletions conflict under both merge and
+rebase, while an anchor-based operation applies cleanly. Research only; no
+command/state/schema implementation authorized. `implement-prepare-check`
+remains next after this review closes.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

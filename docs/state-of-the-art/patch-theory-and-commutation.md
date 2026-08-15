@@ -230,6 +230,8 @@ one trivial identity case; patch-id and structural identity extend the ladder.
   CRDT framing: https://pijul.org/manual/theory.html
 - ADR-015, "Prior-Art Mapping for Identity Duality, Operation Log, and Stack
   Primitives": ../adrs/ADR-015-prior-art-identity-mapping.md
+- [Adjacent CLI argument conflict case study](case-studies/adjacent-cli-args-conflict-2026-08/)
+- [GH #14 — verified feature reparenting/reorder](https://github.com/tesseracode/tesserapatch/issues/14)
 
 ## Open questions
 
@@ -241,6 +243,9 @@ one trivial identity case; patch-id and structural identity extend the ladder.
   search in most cases?
 - Should conflict resolutions become first-class patch generations before a
   search planner exists?
+- When an applicable operation succeeds but the canonical unified diff
+  conflicts, should reconcile stage the operation result as a deterministic
+  candidate before provider escalation (GH #12)?
 
 ## Disputes
 

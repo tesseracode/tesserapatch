@@ -110,3 +110,11 @@ upstream-transition reconcile case study exists:
 - `PRD-reconcile-search-planner`
 - `PRD-reconcile-planner-audit-artifacts`
 - `PRD-patch-vector-index`
+
+The synthetic
+[`adjacent-cli-args-conflict-2026-08`](../state-of-the-art/case-studies/adjacent-cli-args-conflict-2026-08/)
+study now supplies a focused operation-replay case: current hunk evidence
+correctly reports `edit-overlap`, an anchor-based recipe applies cleanly, and
+reconcile still falls through because phase 2 does not execute applicable
+operations. GH #12 tracks the deterministic replay experiment. This synthetic
+fixture does **not** by itself lift the real-world-study deferral above.

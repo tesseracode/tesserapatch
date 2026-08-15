@@ -79,6 +79,37 @@ what the 567-row acceptance matrix exists to close at implementation time; the
 matrix is the falsification instrument, and it must be executed against real
 behavior before any of these claims is treated as verified.
 
+## Research Writer + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
+
+**Issues**: GH #12, GH #13, GH #14
+**Prior queue head**: `implement-prepare-check` (paused, not displaced)
+
+### Evidence
+
+- Three adjacent Go argument-addition variants conflict under both merge and
+  rebase; a separate append statement merges/rebases cleanly.
+- Current `record` autogenerates a whole-file `write-file` operation and
+  reconcile safely classifies the case as high-confidence `edit-overlap`.
+- A hand-authored anchor-based `replace-in-file` operation applies cleanly, but
+  reconcile phase 2 does not replay applicable operations.
+- `upstream_merged` already carries absorbed semantics; missing work is
+  compaction/retention and dependency rewrite.
+- Dependency edge edits exist, but verified patch reorder/standalonification
+  does not.
+
+### Deliverables
+
+- New reproducible synthetic case study and script.
+- GH #12 deterministic operation-replay research.
+- GH #13 absorbed-feature compaction research.
+- GH #14 verified reparent/reorder research.
+- Existing WP-001/WP-003/patch-theory research cross-referenced.
+
+### Action Taken
+
+Research returned to joint review. No implementation or architecture decision
+is authorized. On close, restore `implement-prepare-check` to the queue head.
+
 ## Internal Review — PRD prepare intent bundle rev-14 + ADR-035 rev-14 — 2026-08-14
 
 **Writer tip**: `8f1cc8a`

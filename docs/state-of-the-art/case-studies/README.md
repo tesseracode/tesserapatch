@@ -18,6 +18,7 @@
 | Study | Transition | Records | Key signal |
 |---|---|---|---|
 | [`t3code-upstream-v0.0.23-2026-05`](t3code-upstream-v0.0.23-2026-05/) | `tesseracode/t3code` fork from upstream `v0.0.21` lock to `v0.0.23` | 25 features, 53 hunks, 5 patch summaries | Both `upstreamed` verdicts were false positives, and 13 of 15 `blocked` verdicts were false positives. See [local notes](t3code-upstream-v0.0.23-2026-05/local-notes.md). |
+| [`adjacent-cli-args-conflict-2026-08`](adjacent-cli-args-conflict-2026-08/) | Synthetic Go CLI argument addition versus neighboring upstream deletion | 4 Git variants + 2 tpatch recipe/reconcile trials | Merge and rebase conflict identically on adjacent hunks; an anchor-based operation replays cleanly, but current reconcile does not execute applicable operations. |
 
 ## Import notes
 
@@ -32,6 +33,10 @@ before reconcile, incorrectly retired, and then re-applied;
 `copilot-skill-controls` was implemented server-side after its false upstreamed
 verdict; and `toast-close-button` was confirmed as already upstreamed but still
 needs stale dependency/status cleanup.
+
+The adjacent-argument study is a synthetic reproduction rather than an imported
+production dataset. Its script creates disposable repositories and stores no
+source outside the fixture itself.
 
 ## Candidate PRD signals
 
