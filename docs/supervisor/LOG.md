@@ -1,3 +1,22 @@
+## Writer — PRD prepare intent bundle rev-13 + ADR-035 rev-13 — 2026-08-14
+
+**Writer tip**: `8f1cc8a`
+**Dispatch**: `673fd06`
+
+### Revision
+
+- Makes corrupt-object the mandatory first repair stage.
+- Corrects stale PIB-548 and adds a mechanical revision-ledger guard.
+- Reports ordered stages instead of one invocation per class.
+- Narrows pending routes to exact repeated-blob selectors.
+- Pins successful purge output and structural command-token guards.
+- Rebuilds the matrix to 567 PIB rows.
+
+### Action Taken
+
+PRD and ADR returned to joint acceptance review. No implementation is
+authorized.
+
 ## Dispatch — PRD prepare intent bundle rev-13 + ADR-035 rev-13 — 2026-08-14
 
 **Writer base**: `cf1b159`
