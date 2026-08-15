@@ -1,6 +1,6 @@
 # Adjacent CLI Argument Conflict — Semantic Replay Case Study
 
-**Status**: Empirical research rev-2 — awaiting review; no implementation authorized
+**Status**: Empirical research rev-3 errata — awaiting review; no implementation authorized
 **Date**: 2026-08-15
 **Owner**: Core
 **Issues**:
@@ -152,28 +152,41 @@ The phase-2 contract is only partially implemented:
 GH #13 is therefore SPEC/ADR fidelity first, then safe candidate-generation
 research. It is not a proposal to add a new phase 2.5 by default.
 
+Blindly returning SPEC's phase-2 `BLOCKED` for every legacy whole-file recipe
+would be a regression: this fixture currently reaches phase 4, which supplies
+the conflict paths used by high-confidence hunk-overlap evidence and the
+`human-or-provider-resolution` recommendation. Until GH #15 makes a recipe
+authoritative, phase 2 must report its inspection and fall through. An eligible
+phase-2 terminal verdict must carry matched paths/operations so the evidence
+pipeline remains at least as informative as the current phase-4 path.
+
 ### 4.3 Recommended product direction
 
 Do not introduce a branch-history command named `tpatch rebase` first.
 `PRD-tpatch-git-primitive-mapping` already leaves history rewriting to Git and
-maps semantic advancement to reconcile. Treat GH #13 as SPEC §7 / ADR-010 D1 fidelity plus a reconcile candidate stage,
+maps semantic advancement to reconcile. Treat GH #13 as SPEC §7 / ADR-010 D1 ordering fidelity plus a reconcile candidate stage,
 blocked on [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 recipe-generation fidelity:
 
 1. generate anchored operations with usable preimage authority rather than only
    whole-file writes;
-2. reject non-unique anchors and non-idempotent second application;
-3. distinguish never-existed targets from intentional upstream deletion;
-4. refuse lossy delete/rename recipes and unsafe whole-file writes;
-5. require every operation to be present or safely replayable — never accept a
+2. classify phase-2 conflict/mixed outcomes terminally only for a recipe that
+   passes that authority gate; legacy/ineligible recipes emit inspection
+   evidence and fall through;
+3. preserve matched paths/operations and downstream evidence quality on every
+   terminal phase-2 outcome;
+4. reject non-unique anchors and non-idempotent second application;
+5. distinguish never-existed targets from intentional upstream deletion;
+6. refuse lossy delete/rename recipes and unsafe whole-file writes;
+7. require every operation to be present or safely replayable — never accept a
    partial subset as the feature;
-6. replay the complete candidate in an isolated worktree;
-7. validate path safety, preimages, resulting diff scope and configured tests;
-8. compare operation coverage with the canonical feature patch/intent and
+8. replay the complete candidate in an isolated worktree;
+9. validate path safety, preimages, resulting diff scope and configured tests;
+10. compare operation coverage with the canonical feature patch/intent and
    refuse unexplained omissions;
-9. emit a reviewable patch/evidence record;
-10. require explicit acceptance by default;
-11. write a new patch generation.
+11. emit a reviewable patch/evidence record;
+12. require explicit acceptance by default;
+13. write a new patch generation.
 
 Commit rebasing can remain the operator's Git-policy choice.
 

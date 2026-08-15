@@ -5,7 +5,7 @@
 **Cluster state**: AWAITING REVIEW
 
 The adjacent-hunk conflict, semantic replay, feature absorption and verified
-reorder investigation **rev-2** closes the rev-1 review findings and awaits
+reorder investigation **rev-3 errata** closes the rev-2 review notes and awaits
 re-review. The work is research only: no command, state, schema or
 implementation is authorized.
 
@@ -16,7 +16,7 @@ implementation is authorized.
   intentional upstream deletions; compare merge/rebase/current tpatch behavior;
   map absorbed-feature and reparent/reorder requests to shipped surfaces and
   existing research; formalize gaps.
-- **Status**: Rev-2 draft complete — awaiting review
+- **Status**: Rev-3 errata complete — awaiting review
 - **Assigned**: 2026-08-15
 - **WAVE_BASE**: `33826d8` (origin/main immediately before research commit
   `b19ea6a`)
@@ -52,6 +52,22 @@ implementation is authorized.
 6. Added structural-recipe reconcile, second-apply, duplicate-anchor and
    deleted-target resurrection assertions to the tracked tpatch script.
 7. Cross-linked GH #12 and GH #14 on shared dependency disposition.
+
+## Rev-2 Review and Rev-3 Errata
+
+**Internal verdict**: APPROVED
+**External verdict**: APPROVED WITH NOTES
+**Reviewed tip**: `95cf86e`
+
+- Made the Git fixture hermetic against missing clone identity and global commit
+  signing configuration.
+- Recorded that SPEC's phase-2 conflict/mixed terminal outcomes are safe only
+  for GH #15-authoritative recipes; legacy/ineligible recipes must retain the
+  later evidence path.
+- Required terminal phase-2 outcomes to preserve matched operation/path
+  evidence.
+- Clarified issue ownership: GH #15 generates authoritative recipes; GH #13
+  consumes them and independently enforces eligibility/all-or-nothing replay.
 
 ## Rev-0 Review and Rev-1 Adjudication
 

@@ -79,6 +79,51 @@ what the 567-row acceptance matrix exists to close at implementation time; the
 matrix is the falsification instrument, and it must be executed against real
 behavior before any of these claims is treated as verified.
 
+## Research Rev-3 Errata + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
+
+**Reviewed tip**: `95cf86e`
+**Verdicts folded**: internal APPROVED, external APPROVED WITH NOTES
+
+### Errata
+
+- Configure identity and disable commit signing in both disposable clones.
+- Gate SPEC phase-2 terminal outcomes on GH #15-authoritative recipes.
+- Preserve matched operation/path evidence before any phase-2 short circuit.
+- Clarify GH #15 generation ownership versus GH #13 replay eligibility.
+
+### Action Taken
+
+Errata returned to final joint review. No implementation or architecture
+decision is authorized.
+
+## External Review — Adjacent conflict / absorption / reorder rev-2 — 2026-08-15
+
+**Tip**: `95cf86e`
+**Verdict**: APPROVED WITH NOTES
+
+### Notes Folded
+
+- Disposable clones need local identity and `commit.gpgsign=false` for
+  hermetic Linux/global-config behavior.
+- Implementing SPEC's phase-2 conflict branch against legacy whole-file recipes
+  could suppress stronger phase-4/hunk evidence; terminal outcomes need an
+  authority/evidence gate.
+
+### Verified
+
+Every rev-1 finding closed; both tracked scripts and all issue boundaries were
+validated.
+
+## Internal Review — Adjacent conflict / absorption / reorder rev-2 — 2026-08-15
+
+**Tip**: `95cf86e`
+**Verdict**: APPROVED
+
+### Verified
+
+Both scripts, SPEC/ADR fidelity, GH #15 prerequisite, all-or-nothing coverage,
+evidence wording, issue boundaries and tracking.
+
 ## Research Rev-2 Writer + Review Dispatch — Adjacent conflict / absorption / reorder — 2026-08-15
 
 **Reviewed tip**: `9a4ad48`

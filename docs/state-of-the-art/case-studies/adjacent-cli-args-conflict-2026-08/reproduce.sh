@@ -103,6 +103,7 @@ run_case() {
 	git init -q -b master "$repo"
 	git -C "$repo" config user.name Fixture
 	git -C "$repo" config user.email fixture@example.invalid
+	git -C "$repo" config commit.gpgsign false
 	write_base "$repo"
 	git -C "$repo" add command.go
 	git -C "$repo" commit -q -m base
@@ -119,6 +120,11 @@ run_case() {
 	rebase="$root/$name-rebase"
 	git clone -q "$repo" "$merge"
 	git clone -q "$repo" "$rebase"
+	for clone in "$merge" "$rebase"; do
+		git -C "$clone" config user.name Fixture
+		git -C "$clone" config user.email fixture@example.invalid
+		git -C "$clone" config commit.gpgsign false
+	done
 	git -C "$merge" switch -q feature
 	git -C "$rebase" switch -q feature
 
