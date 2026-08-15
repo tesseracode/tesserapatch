@@ -1,6 +1,6 @@
 # Adjacent CLI Argument Conflict — Semantic Replay Case Study
 
-**Status**: Empirical research rev-3 errata — awaiting review; no implementation authorized
+**Status**: Accepted empirical research — 2026-08-15; no implementation authorized
 **Date**: 2026-08-15
 **Owner**: Core
 **Issues**:

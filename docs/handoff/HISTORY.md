@@ -1,3 +1,69 @@
+# 2026-08-15 — Adjacent conflict / semantic replay / absorption research — ACCEPTED
+
+**WAVE_BASE**: `33826d8`
+**Draft tip**: `b19ea6a`
+**Rev-1 tip**: `9a4ad48`
+**Rev-2 tip**: `95cf86e`
+**Rev-3 errata tip**: `ff4cc1f`
+**Issues**:
+[GH #13 replay](https://github.com/tesseracode/tesserapatch/issues/13),
+[GH #15 recipe generation](https://github.com/tesseracode/tesserapatch/issues/15),
+[GH #12 absorption](https://github.com/tesseracode/tesserapatch/issues/12),
+[GH #14 reorder](https://github.com/tesseracode/tesserapatch/issues/14)
+**Release tag**: none — research/docs only
+
+**Accepted evidence**:
+
+- Under default Git behavior, three adjacent Go argument-addition/deletion
+  fixtures conflict under both merge and rebase; a separate append statement
+  merges and rebases cleanly.
+- Rebase is a branch-history choice, not a conflict-avoidance mechanism for the
+  reproduced one-commit overlap.
+- Current `record` autogenerates a whole-file `write-file`; current reconcile
+  safely reaches `blocked`, high-confidence `edit-overlap`, and
+  `human-or-provider-resolution`.
+- A hand-authored anchor operation produces the desired one-shot candidate, but
+  current phase 2 neither replays nor reports an applicable-only recipe.
+- Current operations are not automatic-replay authority: second application
+  duplicates output, duplicate anchors pick the first match, missing
+  whole-file targets are recreated, and generated recipes lack preimages and
+  lose delete/rename intent.
+
+**Accepted product boundaries**:
+
+- GH #13 is SPEC §7 / ADR-010 phase-2 fidelity and human-accepted operation
+  candidate replay; it is blocked by GH #15.
+- GH #15 owns anchored/preimage-complete, patch-covering recipe generation.
+- GH #12 owns upstream-versus-landed evidence and full/intent/stub/drop
+  compaction tiers; `unapplied` and phase-1.5-only auto-drop are neighboring,
+  not sufficient, primitives.
+- GH #14 owns commutation-verified graph/patch transformation; metadata
+  rewiring and manual unapply/apply/refresh composition do not prove
+  equivalence.
+- No `tpatch rebase` command is recommended. Git retains history shaping;
+  reconcile owns semantic advancement.
+
+**Review arc**:
+
+| Revision | Internal | External | Outcome |
+|---|---|---|---|
+| rev-0 `b19ea6a` | NEEDS REVISION | NEEDS REVISION | Issue IDs, unsafe replay assumptions, absorption axes, missing tracked evidence |
+| rev-1 `9a4ad48` | APPROVED | NEEDS REVISION | Correct expected tree, SPEC fidelity, generation/preimage and all-or-nothing gaps |
+| rev-2 `95cf86e` | APPROVED | APPROVED WITH NOTES | Hermetic clone config and legacy phase-2 evidence-preservation note |
+| rev-3 `ff4cc1f` | APPROVED | APPROVED | Accepted |
+
+**Artifacts**:
+
+- `docs/state-of-the-art/case-studies/adjacent-cli-args-conflict-2026-08/`
+- tracked, self-validating Git and tpatch reproduction scripts
+- updated WP-001/WP-003/patch-theory cross-references
+
+**Next**: restore `implement-prepare-check` as queue head. Issues #12–#15 remain
+open research/planning backlog and do not preempt the accepted prerequisite
+implementation.
+
+---
+
 # 2026-08-14 — Prepare intent-bundle PRD + ADR-035 — ACCEPTED
 
 **WAVE_BASE**: `d060ff4`

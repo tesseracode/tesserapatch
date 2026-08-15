@@ -1,3 +1,52 @@
+## Supervisor Decision — Adjacent conflict / absorption / reorder research — 2026-08-15
+
+**WAVE_BASE**: `33826d8`
+**Accepted tip**: `ff4cc1f`
+**Issues retained**: GH #12, GH #13, GH #14, GH #15
+
+### Decision: ACCEPTED
+
+Both rev-3 reviewers returned **APPROVED** with no findings. The empirical
+research and ticket boundaries are accepted:
+
+- merge and rebase conflict equivalently for the three adjacent fixtures;
+- current reconcile safely diagnoses edit overlap but does not implement
+  accepted phase-2 operation behavior;
+- operation candidates require authoritative generation, idempotency,
+  uniqueness, deletion/preimage and all-or-nothing gates;
+- absorption is retention over external-upstream and/or landed evidence, not an
+  automatically justified duplicate lifecycle state;
+- metadata rewiring is not verified reorder.
+
+### Action Taken
+
+Marked the case study and ROADMAP row accepted, archived the handoff, retained
+GH #12–#15 as open backlog, and restored `implement-prepare-check` as the queue
+head. No tag and no implementation authorization.
+
+## External Review — Adjacent conflict / absorption / reorder rev-3 — 2026-08-15
+
+**Tip**: `ff4cc1f`
+**Verdict**: APPROVED
+
+### Verified
+
+- Hermetic fixture passes with empty/hostile global Git configuration.
+- Legacy/ineligible recipes fall through rather than suppressing richer
+  phase-4 evidence.
+- GH #15 owns recipe generation; GH #13 owns eligibility/replay/evidence.
+- All prior review findings remain closed; both tracked scripts pass.
+
+## Internal Review — Adjacent conflict / absorption / reorder rev-3 — 2026-08-15
+
+**Tip**: `ff4cc1f`
+**Verdict**: APPROVED
+
+### Verified
+
+Clone identity/signing isolation, authority/evidence gate, issue boundaries,
+tracked reproductions and docs-only scope.
+
 ## Supervisor Decision — PRD prepare intent bundle rev-14 + ADR-035 rev-14 — 2026-08-14
 
 **WAVE_BASE**: `d060ff4`
