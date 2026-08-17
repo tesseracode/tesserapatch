@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-1 DISPATCHED
 
-The accepted read-only `tpatch prepare <slug> --check` implementation is
-dispatched as one sequential wave. No mutating prepare mode is authorized.
+The accepted read-only `tpatch prepare <slug> --check` implementation rev-0 is
+implemented, but joint review returned **NEEDS REVISION**. A bounded rev-1 is
+dispatched. No mutating prepare mode is authorized.
 
 ## Active Task
 
@@ -13,7 +14,7 @@ dispatched as one sequential wave. No mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Awaiting Review
+- **Status**: Rev-1 dispatched after rev-0 NEEDS REVISION
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -133,3 +134,38 @@ dispatched as one sequential wave. No mutating prepare mode is authorized.
   this wave and are not task files.
 - Reviewer should preserve the negative-array-length cap guard; the former
   bare subtraction would not enforce the intended strict ordering.
+
+## Rev-0 Review and Rev-1 Adjudication
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: NEEDS REVISION
+**Writer tip**: `0440337`
+**Tracking tip**: `a587fad`
+
+1. **Status schema fidelity (HIGH).** The status ladder must reject any known
+   `FeatureStatus` field with the wrong JSON type, not decode only `state`.
+   Preserve the core's no-`internal/store` import boundary with a locally
+   mirrored/validated shape plus a source-parity guard.
+2. **Platform partition erratum (MEDIUM).** `syscall.O_NONBLOCK` is undefined
+   on unsupported targets, so buildability requires three compile halves:
+   `unix`, `windows`, `!(unix || windows)`. Record PRD/ADR rev-6 errata for
+   AVP-118/208 and D5/D6; unsupported still refuses before root opening.
+3. **AVP acceptance evidence (HIGH).** Add mechanical traceability for all
+   `AVP-001…AVP-208`, genuine behavior coverage by category, and all 43
+   guard+sensitivity pairs. A spelling-only ledger is insufficient.
+4. **Native Windows hard gate (HIGH).** Add windows-only runtime tests,
+   junction creation that fails rather than skips, identity/reparse behavior,
+   and CI/guard checks for AVP-175/176/198/199.
+5. **Pre-change routing goldens (HIGH).** Reconstruct the `9a8c1d0` binary,
+   commit baseline routing fixtures for AVP-136/137, and compare current
+   behavior byte-for-byte. Record provenance; do not silently waive the
+   prerequisite.
+6. **Race/read/allocation coverage (HIGH).** Exercise injected instability,
+   EOF taxonomy, exact cap boundaries, one-buffer allocation, lifecycle lines,
+   all abort codes and root/close ordering. Fix the fake reader so multi-read
+   behavior is real.
+7. **Typed diagnostics (LOW).** Export/use closed abort constants, remove
+   string-literal codes and generic default fallbacks, and treat wrong scratch
+   length as a programming error rather than a false root-open abort.
+
+The negative-array-length cap guard remains correct and must be preserved.

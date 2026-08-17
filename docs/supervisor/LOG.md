@@ -1,3 +1,63 @@
+## Dispatch — implement-prepare-check rev-1 — 2026-08-17
+
+**Writer tip**: `0440337`
+**Tracking tip**: `a587fad`
+**Verdict folded**: NEEDS REVISION
+
+### Scope
+
+- Full FeatureStatus-compatible malformed detection without importing store.
+- PRD/ADR rev-6 errata for the three build-tagged open-flags halves.
+- 208-row AVP traceability plus 43 real guard/sensitivity pairs.
+- Native Windows junction/identity runtime tests and CI guards.
+- Reconstructed pre-change routing goldens from WAVE_BASE `9a8c1d0`.
+- Race/EOF/allocation/cap/lifecycle/abort/root-close coverage.
+- Typed abort constants and programming-error handling.
+
+### Action Taken
+
+One sequential rev-1 implementer dispatched. Mutating prepare remains blocked.
+
+## External Review — implement-prepare-check rev-0 — 2026-08-17
+
+**Writer tip**: `0440337`
+**Tracking tip**: `a587fad`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Status decoding validates only `state`, accepting known fields with invalid
+  types that `FeatureStatus` rejects.
+- Three openFlags build halves contradict accepted AVP-118/208/D5/D6; an
+  explicit contract erratum is required for unsupported-target buildability.
+- Only 5 top-level tests/14 subcases exist for 208 rows; no AVP ledger,
+  sensitivity guards, native Windows assertions or pre-change goldens.
+- Race/EOF/allocation/lifecycle/abort populations are largely untested.
+- Abort strings/defaults and wrong scratch length can emit false diagnostics.
+
+### Verified
+
+Rooted read-only core, output schemas/bytes, zero mutation/leakage,
+determinism, one scratch buffer and most empirically probed ladders behaved
+correctly.
+
+## Internal Review — implement-prepare-check rev-0 — 2026-08-17
+
+**Writer tip**: `0440337`
+**Tracking tip**: `a587fad`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+- Required 208-row/43-sensitivity acceptance evidence is absent.
+- Native Windows behavior has no runtime assertion.
+
+### Verified
+
+Full tests/vet/build and Windows/wasip cross-build pass.
+
 ## Writer — implement-prepare-check rev-0 — 2026-08-17
 
 **Writer tip**: `0440337`
