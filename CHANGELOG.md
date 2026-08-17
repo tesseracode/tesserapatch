@@ -2,6 +2,18 @@
 
 All notable changes to tpatch are recorded here.
 
+## Unreleased
+
+### Added
+
+- **Read-only intent-bundle inspection ([GH #16](https://github.com/tesseracode/tesserapatch/issues/16)).**
+  `tpatch prepare <slug> --check [--json] [--quiet] [--path]` reports the
+  structural readiness of `analysis.md`, `spec.md`, and `exploration.md`, plus
+  the optional analysis sidecar. Its dedicated exit contract distinguishes
+  ready (0), incomplete (2), indeterminate (3), and the reserved plain
+  `prepare` surface (4). It writes no files and changes no existing lifecycle,
+  `--manual`, `next`, `cycle`, or apply behavior.
+
 ## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification
 
 ### Fixed

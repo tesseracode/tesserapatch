@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 The accepted read-only `tpatch prepare <slug> --check` implementation is
 dispatched as one sequential wave. No mutating prepare mode is authorized.
@@ -13,7 +13,7 @@ dispatched as one sequential wave. No mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: In Progress — implementation dispatch
+- **Status**: Awaiting Review
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -46,43 +46,90 @@ dispatched as one sequential wave. No mutating prepare mode is authorized.
 - Native Windows behavior is part of acceptance.
 - Mutating prepare PRD rev-14 / ADR-035 rev-14 remains blocked.
 
+## Session Summary
+
+- Read the required implementation contracts: `CLAUDE.md`, `AGENTS.md`,
+  PRD-artifact-validation-and-provenance rev-5, and ADR-034 rev-2.
+- Implemented the read-only `prepare <slug> --check` CLI, rooted inspection
+  core, deterministic JSON/human/quiet report renderers, exit precedence, and
+  status/artifact capture ladders.
+- Added supported/unsupported platform build tags, native Windows CI coverage,
+  the `winsymlink=1` main-package directive, targeted unit/integration tests,
+  docs, and all six skill-surface updates.
+- The accepted contracts require
+  an implementation correction: the documented bare constant subtraction does
+  not reject an inverted cap relationship, so the implementation uses a real
+  negative-array-length compile-time guard. This is an implementation erratum,
+  not a product-contract change.
+
 ## Current State
 
-- Planning contracts are accepted; no check implementation exists at dispatch.
-- Research GH #12–#15 is accepted/parked and may not preempt this task.
-- Tracked worktree is clean at dispatch; known allowlisted untracked research
-  WIP remains untouched.
+- `prepare --check` is a pure `internal/intent.Inspect` call over a three- and
+  three-method rooted operation seam. It uses one caller-owned 4 MiB+1 scratch
+  buffer sequentially for `status.json` and all four artifacts.
+- The command opens one root after workspace discovery and closes it after
+  report rendering. It makes no writes, provider calls, subprocess calls, or
+  lifecycle changes.
+- Existing `apply --mode prepare`, manual phase gates, `next`, and `cycle`
+  are unchanged; apply help has the reciprocal collision pointer.
+- Known allowlisted untracked research WIP remains untouched.
 
-## Files Changed (dispatch)
+## Files Changed
 
-- `docs/handoff/CURRENT.md`
-- `docs/ROADMAP.md`
-- `docs/supervisor/LOG.md`
+- `.github/workflows/ci.yml`
+- `CHANGELOG.md`, `SPEC.md`
+- `assets/assets_test.go`
+- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
+- `assets/skills/claude/tessera-patch/SKILL.md`
+- `assets/skills/copilot/tessera-patch/SKILL.md`
+- `assets/skills/cursor/tessera-patch.mdc`
+- `assets/skills/windsurf/windsurfrules`
+- `assets/workflows/tessera-patch-generic.md`
+- `cmd/tpatch/main.go`
+- `docs/agent-as-provider.md`, `docs/feature-layout.md`,
+  `docs/path-b-operator-guide.md`, `docs/handoff/CURRENT.md`
+- `internal/cli/cobra.go`, `internal/cli/prepare.go`,
+  `internal/cli/prepare_test.go`
+- `internal/intent/intent.go`, `internal/intent/inspect.go`,
+  `internal/intent/render.go`, `internal/intent/confine_supported.go`,
+  `internal/intent/confine_unsupported.go`, `internal/intent/openflags_unix.go`,
+  `internal/intent/openflags_windows.go`, `internal/intent/openflags_unsupported.go`,
+  `internal/intent/inspect_test.go`
 
-## Verification
+## Test Results
 
-- Fresh `origin/main` baseline recorded before dispatch.
-- GH #16 contains the accepted scope and sequencing block.
-- No source change yet.
+- Targeted assets/intent/CLI tests: PASS (5 top-level tests plus 14
+  table-driven subcases).
+- Asset parity: PASS.
+- `gofmt -l .` and `git diff --check`: PASS.
+- `go vet ./...`: PASS.
+- `go build ./...` and `go build ./cmd/tpatch`: PASS.
+- `go test -count=1 ./...`: PASS (14 test packages; 2 command packages
+  correctly have no tests).
+- Cross-build/vet: `GOOS=windows GOARCH=amd64 go vet ./internal/intent
+  ./internal/cli`, Windows CLI build, and `GOOS=wasip1 GOARCH=wasm` CLI build:
+  PASS. `wasip1` compiles but is refused by the runtime platform guard.
 
 ## Next Steps
 
-1. Extract the accepted PRD/ADR contract into implementation slices.
-2. Implement rooted inspection and readiness derivation.
-3. Wire CLI/output/exit behavior.
-4. Add matrix-derived tests, platform builds and public-surface guards.
-5. Update SPEC/docs/assets without authorizing mutation.
-6. Run full validation and dual review.
+1. Reviewer: compare output text, report schema/order, and every ladder row
+   against PRD rev-5; focus especially on close precedence and abort ordering.
+2. Reviewer: run the accepted matrix/guard pass, including native Windows
+   behavior and unsupported-target refusal.
+3. If approved, commit this explicit file list and push `origin/main`.
 
 ## Blockers
 
-- None for the read-only check implementation.
+- No implementation blocker.
 - Hard block for every mutating prepare slice until this wave is accepted and
   landed.
 
 ## Context for Next Agent
 
-- Read PRD §3–§6, §10–§18 and ADR-034 D1–D18 before editing.
-- Do not reuse ADR-034 as a write precedent.
-- The research issues are GH #12 absorption, #13 replay, #14 reorder, #15 recipe
-  generation; all stay out of this implementation.
+- The `openflags_unsupported.go` zero value exists only to keep unsupported
+  targets buildable; the CLI refuses before root opening.
+- Do not modify the accepted PRD/ADR, ROADMAP, supervisor LOG, HISTORY, or
+  research WIP. The untracked research files visible in `git status` predate
+  this wave and are not task files.
+- Reviewer should preserve the negative-array-length cap guard; the former
+  bare subtraction would not enforce the intended strict ordering.

@@ -405,3 +405,11 @@ B's buffer (PRD §7 D18).
 ### Custom Acceptance Criteria
 
 *(Add standard acceptance criteria that should apply to all features in this fork)*
+
+### Optional intent inspection
+
+`tpatch prepare <slug> --check` is read-only and optionally reports the
+structural state of the three intent Markdown artifacts plus the optional
+analysis sidecar. It never advances state.
+
+`tpatch prepare <slug> --check` exits 2 when the intent bundle is incomplete. That is a report result, not a workflow or system failure: the command wrote nothing, changed nothing, and the per-artifact rows say exactly what is missing. Author the missing files and re-run, or continue without it — this check is optional.

@@ -33,6 +33,15 @@ The #1 confusion, observed in live stress testing, is that users see many number
 
 Legend: **★** = canonical; **←** = lifecycle / debug; anything under `patches/` = audit trail only.
 
+## Intent-bundle inspection
+
+`tpatch prepare <slug> --check` classifies four intent artifacts:
+`analysis.md`, `spec.md`, `exploration.md`, and
+`artifacts/analysis.json`. The three Markdown documents are the structural
+readiness set. The JSON analysis sidecar is optional and is written by the
+CLI-driven analyze path, so its absence does not block readiness for a
+hand-authored Path B feature.
+
 ## Canonical vs. audit trail
 
 ### `artifacts/post-apply.patch` — use this one

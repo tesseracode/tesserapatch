@@ -92,6 +92,7 @@ func buildRootCmd() *cobra.Command {
 		sessionCmd(),
 		rejectCmd(),
 		reopenCmd(),
+		prepareCmd(),
 	)
 
 	return root
@@ -837,7 +838,7 @@ Use 'tpatch feature unapply <slug>' to remove a feature's patch from the working
 			}
 		},
 	}
-	cmd.Flags().String("mode", "auto", "Apply mode: auto (default, runs prepare→execute→done), prepare, started, execute, done")
+	cmd.Flags().String("mode", "auto", "Apply mode: auto (default, runs prepare→execute→done), prepare, started, execute, done. For read-only intent inspection, use tpatch prepare <slug> --check.")
 	cmd.Flags().Bool("dry-run", false, "Preview recipe execution without modifying files")
 	cmd.Flags().String("note", "", "Operator notes about the apply session")
 	cmd.Flags().String("validation-status", "", "Validation outcome: passed, failed, needs_review")

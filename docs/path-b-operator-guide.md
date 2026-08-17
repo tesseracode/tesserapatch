@@ -68,6 +68,9 @@ tpatch add --slug <clean-slug> "<short description>"
 #   .tpatch/features/<slug>/spec.md
 #   .tpatch/features/<slug>/exploration.md
 
+# Optional read-only bundle check; it never advances state.
+tpatch prepare <slug> --check
+
 tpatch analyze <slug> --manual
 tpatch define <slug> --manual
 tpatch explore <slug> --manual
@@ -80,6 +83,8 @@ tpatch apply <slug> --mode started
 # Preferred composed commit path:
 tpatch land <slug>
 ```
+
+`tpatch prepare <slug> --check` exits 2 when the intent bundle is incomplete. That is a report result, not a workflow or system failure: the command wrote nothing, changed nothing, and the per-artifact rows say exactly what is missing. Author the missing files and re-run, or continue without it — this check is optional.
 
 `tpatch land` runs the record step, stages the feature path set plus
 feature metadata, creates one Git commit, and writes the `Tpatch-Feature`

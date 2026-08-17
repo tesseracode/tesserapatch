@@ -79,12 +79,32 @@ of scope; see `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 | `tpatch explore <slug> [--path]` | Read codebase, find minimal changeset |
 | `tpatch implement <slug> [--path]` | Generate deterministic apply recipe |
 | `tpatch apply <slug> [--mode prepare\|started\|done] [--path]` | Execute recipe or record session |
+| `tpatch prepare <slug> --check [--json] [--quiet] [--path]` | Read-only structural inspection of the intent bundle; unrelated to `apply --mode prepare` |
 | `tpatch record <slug> [--path]` | Capture patches (tracked + untracked files) |
 | `tpatch reconcile [--upstream-ref] [slug...] [--path]` | Reconcile features against upstream |
 | `tpatch reconcile audit-retirement <slug> [--json] [--path]` | Read-only audit of retired feature dependency metadata |
 | `tpatch reconcile confirm-upstreamed <slug> [--json\|--format json] [--path]` | Confirm an upstreamed reconcile outcome and auto-run retirement cleanup audit |
 | `tpatch provider check [--path]` | Validate provider endpoint |
 | `tpatch config show\|set [--path]` | Manage configuration |
+
+#### Read-only intent inspection (GH #16)
+
+`tpatch prepare <slug> --check` reports structural presence only for
+`analysis.md`, `spec.md`, `exploration.md`, and the optional
+`artifacts/analysis.json` sidecar. It never advances state or writes files;
+the three Markdown artifacts determine readiness and every artifact reports
+`provenance: unknown`.
+
+| Code | Meaning |
+|------|---------|
+| `0` | The three required artifacts are structurally ready. |
+| `1` | Cobra/pflag usage or argument error before the command runs. |
+| `2` | The bundle is structurally not ready; a report identifies the missing or deficient required artifact. |
+| `3` | Inspection is indeterminate, including a workspace/status abort or a required artifact that changed during inspection. |
+| `4` | Reserved mutating surface: `prepare <slug>` was used without required `--check`. |
+
+The command is optional. Exit 2 is a report result, not a workflow or system
+failure: it wrote nothing and changed nothing.
 
 #### Feature rejection (v0.13.0, GH #6)
 

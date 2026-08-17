@@ -33,6 +33,7 @@ var requiredCommands = []string{
 	"tpatch feature patch fixup",
 	"tpatch doctor",
 	"tpatch next",
+	"tpatch prepare",
 	"tpatch reject",
 	"tpatch reopen",
 	"tpatch feature unapply",
@@ -87,6 +88,8 @@ var requiredAnchors = []struct {
 	// or paraphrased.
 	{"verify-freshness/bullet", "Verify before composing."},
 	{"verify-freshness/all-mode", "tpatch verify --all"},
+	{"prepare-check/read-only", "`tpatch prepare <slug> --check` is read-only"},
+	{"prepare-check/exit-2", "`tpatch prepare <slug> --check` exits 2 when the intent bundle is incomplete. That is a report result, not a workflow or system failure: the command wrote nothing, changed nothing, and the per-artifact rows say exactly what is missing. Author the missing files and re-run, or continue without it — this check is optional."},
 	// feat-amend-dependent-warning (v0.7.0): every shipped skill
 	// surface must mention the new `dependent-broken` derived label
 	// so harness agents know what to do when `tpatch status` flags a

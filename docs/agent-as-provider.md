@@ -44,14 +44,19 @@ does **not** advance.
 | `explore`   | `.tpatch/features/<slug>/exploration.md`    | `defined`         |
 | `implement` | `.tpatch/features/<slug>/artifacts/apply-recipe.json` | `implementing` |
 
+`tpatch prepare <slug> --check` optionally inspects the same intent artifacts
+read-only. It evaluates the whole three-document intent bundle but never
+advances lifecycle state; the existing `--manual` validation gate is unchanged.
+
 On success, `status.json.notes` records:
 
 ```
 Phase advanced manually (--manual); artifact authored at <path>
 ```
 
-so the audit trail distinguishes Path B transitions from provider
-output.
+This is a hint about the most recent transition, not durable per-artifact
+provenance: each lifecycle transition overwrites the notes string. The current
+honest per-artifact answer is `provenance: unknown`.
 
 ## apply-recipe.json schema (authoritative)
 
