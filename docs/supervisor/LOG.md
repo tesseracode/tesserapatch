@@ -1,3 +1,28 @@
+## Writer — implement-prepare-check rev-0 — 2026-08-17
+
+**Writer tip**: `0440337`
+**Dispatch**: `52b01ad`
+**WAVE_BASE**: `9a8c1d0`
+
+### Implementation
+
+- Added pure rooted `internal/intent` inspection and report/render model.
+- Registered read-only `prepare <slug> --check` with typed exit codes.
+- Added status/artifact ladders, one-buffer bounded reads and platform tags.
+- Added CLI/core tests, native Windows CI, docs, SPEC, CHANGELOG and six skill
+  surfaces.
+- Preserved every mutating prepare reservation and existing apply/manual flow.
+
+### Validation Reported
+
+Full test/vet/build, Windows vet/build and wasip build passed. Native Windows
+runtime behavior remains a CI empirical gap.
+
+### Action Taken
+
+Implementation returned to joint internal/external review. Mutating prepare
+remains blocked.
+
 ## Dispatch — implement-prepare-check — 2026-08-17
 
 **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
