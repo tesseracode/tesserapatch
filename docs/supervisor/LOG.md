@@ -1,3 +1,29 @@
+## Dispatch — implement-prepare-check — 2026-08-17
+
+**WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
+**Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
+**Accepted contract**: PRD-artifact-validation-and-provenance rev-5 + ADR-034
+rev-2
+
+### Scope
+
+- Read-only `tpatch prepare <slug> --check`.
+- Rooted, bounded, identity-aware inspection of three required Markdown files
+  plus optional analysis sidecar.
+- Nine structural states, full-bundle readiness and unknown provenance.
+- Exact human/JSON/quiet/exit/precedence contract.
+- `unix || windows` platform envelope and native Windows coverage.
+- Tests/goldens/docs/assets/SPEC aligned with the accepted 208-row matrix.
+
+### Sequencing
+
+One sequential implementer. Mutating prepare remains blocked until this wave is
+accepted and landed. GH #12–#15 remain parked research backlog.
+
+### Action Taken
+
+Implementation dispatched. No release tag assigned.
+
 ## Supervisor Decision — Adjacent conflict / absorption / reorder research — 2026-08-15
 
 **WAVE_BASE**: `33826d8`
