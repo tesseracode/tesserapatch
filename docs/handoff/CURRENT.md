@@ -338,6 +338,9 @@ the real exit code without shelling out. Behavior is unchanged.
 
 ### Rev-2 (this revision)
 
+Commits: `36f23b3` (implementation), `69dfe7c` (post-push CI-inspection fix),
+plus this tracking commit.
+
 CI:
 
 - `.github/workflows/ci.yml` — blocking Windows GH #16 gate, visible
@@ -587,6 +590,33 @@ names, and `parseWorkflowSteps` truncates unquoted plain scalars at ` #` so it
 sees exactly what the workflow engine sees. AVP-175 gains a seventh
 sensitivity arm that unquotes the allowed-failure name and requires the guard
 to fail.
+
+Confirming run
+[`32092224021`](https://github.com/tesseracode/tesserapatch/actions/runs/32092224021)
+at `69dfe7c` (the wave tip) —
+[windows-latest job](https://github.com/tesseracode/tesserapatch/actions/runs/32092224021/job/95576546336),
+11m02s, ✅ **success**; ubuntu ✅, macOS ✅, `release` skipped. The step names
+now survive YAML intact:
+
+| Step | Conclusion |
+|---|---|
+| `Test` | skipped (non-Windows only) |
+| `Test (Windows GH #16 surface — blocking)` | ✅ success |
+| `Test (Windows full suite — allowed to fail, owned by GH #17)` | ran, failures visible, job unaffected |
+| `Install binary (smoke test)` | skipped (non-Windows) |
+| `Install binary (smoke test, Windows)` | ✅ success |
+| `Verify tag version` | skipped (not a tag ref) |
+
+Native rows executed again on the runner (all six leaves PASS, including
+`char-device-handle-is-not-regular` under the corrected `!IsRegular` gate).
+The allowed-failure step still reports **200 failing top-level tests** across
+`internal/cli` (546.4s), `internal/workflow` (589.6s), `internal/gitutil`
+(44.6s), `internal/rescap` (16.5s), `internal/provider` (13.7s) and
+`internal/store` (7.5s), with `internal/intent`, `assets`,
+`internal/buildinfo`, `internal/redact`, `internal/safety`,
+`internal/testutil`, `internal/tools/studyvalidator` and `tests/integration`
+passing. The interim shape and this inventory were posted to
+[GH #17](https://github.com/tesseracode/tesserapatch/issues/17#issuecomment-5322764984).
 
 ## Next Steps
 
