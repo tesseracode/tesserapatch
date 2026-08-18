@@ -1,3 +1,30 @@
+## Writer — implement-prepare-check rev-2 — 2026-08-17
+
+**CI implementation**: `36f23b3`
+**YAML issue-reference fix**: `69dfe7c`
+**CI result fold**: `40ae5c2`
+**Dispatch**: `51eb90f`
+
+### Revision
+
+- Split blocking native GH #16 Windows tests from GH #17 full-suite visibility.
+- Made AVP-175 parse step ownership and detect vacuous/native-test demotion.
+- Derived AVP-168 from real Inspect behavior.
+- Switched AVP-134 to tracked-source population.
+- Closed status-schema named-type/untagged-field parity holes.
+- Made routing prefix/provenance checks non-vacuous.
+- Folded Windows/source/comment/tag-verification guard notes.
+
+### CI
+
+Runs 32091305245, 32092224021 and 32093250847 are green across all three
+matrix legs. Native Windows junction/reparse/identity leaves execute and pass;
+the GH #17 full suite remains visible under `continue-on-error`.
+
+### Action Taken
+
+Rev-2 returned to joint review. Mutating prepare remains blocked.
+
 ## Dispatch — implement-prepare-check rev-2 — 2026-08-17
 
 **Implementation tips**: `2cbccf6`, `755b31e`, `b98fac9`
