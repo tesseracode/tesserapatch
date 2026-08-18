@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1002,8 +1003,75 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 			t.Fatalf("root.Close has %d call sites, want exactly 1", closes)
 		}
 		// The whole module must contain no other OpenRoot in production code.
-		if count := countOpenRootCallSites(t); count != 1 {
-			t.Fatalf("os.OpenRoot appears at %d production call sites module-wide, want 1", count)
+		// The population is the set of **tracked** non-test Go files, taken
+		// from `git ls-files`; walking the working tree instead made this row
+		// depend on whatever happens to exist on disk (a nested `git
+		// worktree`, an editor scratch copy, a golden-baseline checkout), and
+		// the previous fix for that — exempting one hard-coded directory
+		// name — only excused the one path that had already bitten.
+		sources := trackedProductionGoSources(t)
+		count, err := countOpenRootCallSites(sources)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Fatalf("os.OpenRoot appears at %d tracked production call sites module-wide, want 1", count)
+		}
+	})
+
+	t.Run("AVP-141/sensitivity", func(t *testing.T) {
+		const opener = "package workflow\n\nimport \"os\"\n\nfunc probe(dir string) { root, _ := os.OpenRoot(dir); _ = root }\n"
+
+		// A second *tracked* production call site must fail the row.
+		extra := map[string]string{}
+		for path, source := range trackedProductionGoSources(t) {
+			extra[path] = source
+		}
+		extra[filepath.Join("internal", "workflow", "root_probe.go")] = opener
+		count, err := countOpenRootCallSites(extra)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if count == 1 {
+			t.Fatal("a second tracked os.OpenRoot call site did not change the count")
+		}
+
+		// An untracked file in the working tree must not participate. This
+		// arm writes a real one — a leading dot keeps the go tool from
+		// building it — and asserts both that it is absent from the
+		// population and that the count is unmoved.
+		scratchDir := filepath.Join(avpRepoRoot(t), fmt.Sprintf(".avp141-scratch-%d", os.Getpid()))
+		if err := os.MkdirAll(scratchDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(scratchDir) })
+		scratch := filepath.Join(scratchDir, "root_probe.go")
+		if err := os.WriteFile(scratch, []byte(opener), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		after := trackedProductionGoSources(t)
+		for path := range after {
+			if strings.Contains(filepath.ToSlash(path), ".avp141-scratch-") {
+				t.Fatalf("the untracked scratch file %s entered the population", path)
+			}
+		}
+		untrackedCount, err := countOpenRootCallSites(after)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if untrackedCount != 1 {
+			t.Fatalf("an untracked working-tree file moved the count to %d", untrackedCount)
+		}
+
+		// And every scanned path really is tracked.
+		tracked := map[string]bool{}
+		for _, path := range gitLsFilesFromRepo(t) {
+			tracked[path] = true
+		}
+		for path := range after {
+			if !tracked[filepath.ToSlash(path)] {
+				t.Fatalf("scanned %s, which git does not track", path)
+			}
 		}
 	})
 
@@ -1323,28 +1391,63 @@ func notesOf(t *testing.T, root, slug string) string {
 	return document.Notes
 }
 
-func countOpenRootCallSites(t *testing.T) int {
+// gitLsFilesFromRepo returns every path git tracks, repository-relative and
+// slash-separated. Using the index rather than the working tree is what keeps
+// the source-scan rows independent of whatever untracked files happen to sit
+// on disk.
+func gitLsFilesFromRepo(t *testing.T) []string {
 	t.Helper()
-	count := 0
+	cmd := exec.Command("git", "ls-files", "-z")
+	cmd.Dir = avpRepoRoot(t)
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git ls-files: %v", err)
+	}
+	var paths []string
+	for _, entry := range strings.Split(string(output), "\x00") {
+		if entry != "" {
+			paths = append(paths, entry)
+		}
+	}
+	if len(paths) == 0 {
+		t.Fatal("git ls-files reported no tracked files")
+	}
+	return paths
+}
+
+// trackedProductionGoSources reads every tracked non-test Go file, keyed by
+// its repository-relative path.
+func trackedProductionGoSources(t *testing.T) map[string]string {
+	t.Helper()
 	repo := avpRepoRoot(t)
-	err := filepath.WalkDir(repo, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if entry.IsDir() {
-			name := entry.Name()
-			if name == ".git" || name == "docs" || name == "tests" || name == ".golden-baseline" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	sources := map[string]string{}
+	for _, path := range gitLsFilesFromRepo(t) {
 		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
+			continue
 		}
+		local := filepath.FromSlash(path)
+		data, err := os.ReadFile(filepath.Join(repo, local))
+		if err != nil {
+			t.Fatalf("read tracked file %s: %v", path, err)
+		}
+		sources[local] = string(data)
+	}
+	if len(sources) == 0 {
+		t.Fatal("no tracked non-test Go sources; the AVP-141 scan would be vacuous")
+	}
+	return sources
+}
+
+// countOpenRootCallSites is the AVP-141 module-wide half: a pure function
+// over a tracked-source population, so its sensitivity arm can add a call
+// site without touching the working tree.
+func countOpenRootCallSites(sources map[string]string) (int, error) {
+	count := 0
+	for path, source := range sources {
 		fset := token.NewFileSet()
-		file, parseErr := parser.ParseFile(fset, path, nil, 0)
-		if parseErr != nil {
-			return nil
+		file, err := parser.ParseFile(fset, path, source, 0)
+		if err != nil {
+			return 0, fmt.Errorf("parse %s: %w", path, err)
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
@@ -1361,10 +1464,6 @@ func countOpenRootCallSites(t *testing.T) int {
 			}
 			return true
 		})
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
-	return count
+	return count, nil
 }

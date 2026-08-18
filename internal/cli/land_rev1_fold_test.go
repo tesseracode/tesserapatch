@@ -11,6 +11,7 @@ package cli
 // trailer carries the exact validated string.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +35,7 @@ func TestRev1Land_NonCanonicalBaseCommitIsRefused(t *testing.T) {
 		{"trailing-tab", func(v string) string { return v + "\t" }},
 		{"internal-space", func(v string) string { return v[:10] + " " + v[11:] }},
 		{"uppercase", func(v string) string { return strings.ToUpper(v) }},
-		{"mixed-case", func(v string) string { return strings.ToUpper(v[:8]) + v[8:] }},
+		{"mixed-case", mixedCaseBaseCommit},
 		{"too-short", func(v string) string { return v[:39] }},
 		{"too-long", func(v string) string { return v + "a" }},
 		{"whitespace-only", func(v string) string { return "   " }},
@@ -50,6 +51,13 @@ func TestRev1Land_NonCanonicalBaseCommitIsRefused(t *testing.T) {
 				t.Fatalf("fixture base commit is not 40 hex: %q", valid)
 			}
 			mangled := tc.mangle(valid)
+			// A mutation that returns the canonical value asserts that a
+			// *valid* base commit is refused, which it is not. The row would
+			// then fail for the wrong reason — or, for a mutation that is a
+			// no-op only some of the time, fail only some of the time.
+			if mangled == valid {
+				t.Fatalf("the %s mutation was a no-op on %q", tc.name, valid)
+			}
 			setLandBaseCommit(t, tmpDir, slug, mangled)
 
 			beforeHead := gitHead(t, tmpDir)
@@ -72,6 +80,63 @@ func TestRev1Land_NonCanonicalBaseCommitIsRefused(t *testing.T) {
 				t.Fatalf("a non-canonical base commit reached the trailer block")
 			}
 		})
+	}
+}
+
+// mixedCaseBaseCommit returns a mixed-case, non-canonical spelling of a
+// canonical 40-character lowercase-hex SHA, and is guaranteed to differ from
+// its input for *every* such SHA.
+//
+// The rev-2 form, `strings.ToUpper(v[:8]) + v[8:]`, was a no-op whenever the
+// first eight characters were all decimal digits — roughly a 2.3% chance per
+// fixture commit — and the row then stored a canonical value, which `land`
+// correctly accepts. That is the intermittent red tip the rev-2 external
+// review found. Uppercasing the first a-f rune is a mutation by construction;
+// an all-digit SHA has no such rune, so one digit is replaced by an uppercase
+// 'A', which keeps the length at 40 and is still non-canonical.
+func mixedCaseBaseCommit(v string) string {
+	for i := 0; i < len(v); i++ {
+		if v[i] >= 'a' && v[i] <= 'f' {
+			return v[:i] + strings.ToUpper(string(v[i])) + v[i+1:]
+		}
+	}
+	return "A" + v[1:]
+}
+
+// TestRev1Land_MixedCaseMangleIsNeverANoOp proves the property the row above
+// depends on over a deterministic population that covers both branches: every
+// single-letter position (the a-f branch, once per position per letter) and
+// the all-digit SHA (the injection branch). No randomness, so the proof is
+// the same on every run and on every runner.
+func TestRev1Land_MixedCaseMangleIsNeverANoOp(t *testing.T) {
+	const digits = "0123456789012345678901234567890123456789"
+	if len(digits) != 40 {
+		t.Fatalf("fixture is %d characters, want 40", len(digits))
+	}
+
+	check := func(t *testing.T, sha string) {
+		t.Helper()
+		got := mixedCaseBaseCommit(sha)
+		if got == sha {
+			t.Fatalf("mixedCaseBaseCommit(%q) was a no-op", sha)
+		}
+		if len(got) != 40 {
+			t.Fatalf("mixedCaseBaseCommit(%q) = %q, which is %d characters", sha, got, len(got))
+		}
+		if got != strings.ToLower(got) {
+			return // it carries an uppercase rune, which is what non-canonical means here
+		}
+		t.Fatalf("mixedCaseBaseCommit(%q) = %q, which is still all lowercase", sha, got)
+	}
+
+	t.Run("all-digits", func(t *testing.T) { check(t, digits) })
+
+	for position := 0; position < 40; position++ {
+		for _, letter := range "abcdef" {
+			name := fmt.Sprintf("letter-%c-at-%02d", letter, position)
+			sha := digits[:position] + string(letter) + digits[position+1:]
+			t.Run(name, func(t *testing.T) { check(t, sha) })
+		}
 	}
 }
 

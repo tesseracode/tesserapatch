@@ -433,19 +433,143 @@ func parseWorkflowSteps(workflow string) ([]workflowStep, error) {
 	return steps, nil
 }
 
-// runsOnWindows reports whether a step's `if` expression leaves the step
-// enabled on the windows-latest leg. An empty condition runs everywhere, so
-// it runs on Windows too.
-func runsOnWindows(condition string) bool {
-	if strings.TrimSpace(condition) == "" {
-		return true
+// The only two platform conditions AVP-175 accepts on a step it gates. Rev-2
+// matched them with strings.Contains, which accepted `runner.os == 'Windows'
+// && false` (never runs), `runner.os == 'Windows' && github.event_name ==
+// 'schedule'` (runs only on a cron the repository does not have) and every
+// other conjunct that silently disables a blocking gate while leaving the
+// text a reviewer greps for in place.
+const (
+	conditionWindows    = "runner.os == 'Windows'"
+	conditionNonWindows = "runner.os != 'Windows'"
+	conditionTagVersion = "startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'"
+)
+
+// normalizeWorkflowCondition strips an optional `${{ }}` wrapper and collapses
+// runs of whitespace, so formatting differences do not change the meaning of
+// an exact comparison.
+func normalizeWorkflowCondition(condition string) string {
+	value := strings.TrimSpace(condition)
+	if strings.HasPrefix(value, "${{") && strings.HasSuffix(value, "}}") {
+		value = strings.TrimSpace(value[3 : len(value)-2])
 	}
-	if strings.Contains(condition, "runner.os != 'Windows'") {
-		return false
+	return strings.Join(strings.Fields(value), " ")
+}
+
+// platformCondition requires a step's `if` to be exactly one of the two
+// accepted platform expressions and reports which leg it selects.
+func platformCondition(step workflowStep) (windows bool, err error) {
+	switch normalizeWorkflowCondition(step.If) {
+	case conditionWindows:
+		return true, nil
+	case conditionNonWindows:
+		return false, nil
+	default:
+		return false, fmt.Errorf("step %q has the condition %q; only %q and %q are accepted, so a hidden conjunct cannot disable the gate",
+			step.Name, step.If, conditionWindows, conditionNonWindows)
 	}
-	if strings.Contains(condition, "matrix.os == 'ubuntu-latest'") ||
-		strings.Contains(condition, "matrix.os == 'macos-latest'") {
-		return false
+}
+
+// ---------------------------------------------------------------------------
+// Job-level workflow parsing (AVP-175)
+// ---------------------------------------------------------------------------
+
+// workflowJob carries the job-level fields AVP-175 reasons about. A step-level
+// scan is not sufficient: `continue-on-error: true` declared on the *job*
+// makes every step in it advisory, including a step this guard has just
+// proven to be blocking, and `needs:` is what makes the release job depend on
+// the test job at all.
+type workflowJob struct {
+	Name            string
+	ContinueOnError bool
+	If              string
+	Needs           []string
+}
+
+// parseWorkflowJobs reads the job-level mapping keys of `jobs:` → `<job>:`.
+// Job-level keys sit at indent 4 in this workflow; step keys sit at indent 8
+// under a `- ` item at indent 6, and every other nested mapping (`strategy:`,
+// `with:`, `permissions:`) is deeper than 4, so an indent test separates them
+// without a full YAML implementation.
+func parseWorkflowJobs(workflow string) (map[string]workflowJob, error) {
+	jobs := map[string]workflowJob{}
+	name := ""
+	inJobs := false
+	needsKey := false
+
+	for _, raw := range strings.Split(workflow, "\n") {
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if indent == 0 {
+			inJobs = trimmed == "jobs:"
+			name = ""
+			needsKey = false
+			continue
+		}
+		if !inJobs {
+			continue
+		}
+		if indent == 2 && strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
+			name = strings.TrimSuffix(trimmed, ":")
+			needsKey = false
+			jobs[name] = workflowJob{}
+			continue
+		}
+		if name == "" {
+			continue
+		}
+		if needsKey {
+			// A `needs:` block sequence: `- test` items indented under it.
+			if indent > 4 && strings.HasPrefix(trimmed, "- ") {
+				job := jobs[name]
+				job.Needs = append(job.Needs, strings.TrimSpace(strings.TrimPrefix(trimmed, "-")))
+				jobs[name] = job
+				continue
+			}
+			needsKey = false
+		}
+		if indent != 4 {
+			continue
+		}
+		key, value, ok := strings.Cut(trimmed, ":")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if len(value) >= 2 && value[0] == value[len(value)-1] && (value[0] == '"' || value[0] == '\'') {
+			value = value[1 : len(value)-1]
+		}
+		job := jobs[name]
+		switch key {
+		case "name":
+			job.Name = value
+		case "if":
+			job.If = value
+		case "continue-on-error":
+			job.ContinueOnError = value == "true"
+		case "needs":
+			switch {
+			case value == "":
+				needsKey = true
+			case strings.HasPrefix(value, "["):
+				for _, entry := range strings.Split(strings.Trim(value, "[]"), ",") {
+					if entry = strings.TrimSpace(entry); entry != "" {
+						job.Needs = append(job.Needs, entry)
+					}
+				}
+			default:
+				job.Needs = append(job.Needs, value)
+			}
+		}
+		jobs[name] = job
 	}
-	return true
+
+	if len(jobs) == 0 {
+		return nil, errors.New("no workflow jobs parsed; the CI guard would be vacuous")
+	}
+	return jobs, nil
 }

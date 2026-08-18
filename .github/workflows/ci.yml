@@ -76,8 +76,10 @@ jobs:
       # regression look like a green gate.
       #
       # The package list is exactly the set that is empirically green on
-      # windows-latest (run 32086471429). It must never shrink to exclude
-      # ./internal/intent — AVP-175 guards that.
+      # windows-latest (run 32093250847). AVP-175 pins that set exactly — not
+      # as a lower bound — together with the native invocation, the per-row
+      # loop and the leaf floor, so a package cannot be dropped from here or
+      # moved into the allowed-failure step below.
       - name: "Test (Windows GH #16 surface — blocking)"
         if: runner.os == 'Windows'
         shell: bash
@@ -106,14 +108,21 @@ jobs:
             ./internal/tools/studyvalidator \
             ./tests/integration
 
-      # The rest of the repository has 192 pre-existing windows-latest failures
-      # and two package timeouts. They were invisible until GH #16 made the
-      # Windows job reach `go test` at all. They are owned and tracked by
+      # The rest of the repository has 200 pre-existing windows-latest
+      # top-level test failures (283 counting subtests) across six packages —
+      # internal/cli, internal/gitutil, internal/provider, internal/rescap,
+      # internal/store and internal/workflow (run 32093250847). At `-timeout
+      # 20m` no package times out, so the suite runs to completion and the
+      # whole inventory is reported rather than truncated by an early abort.
+      # These failures were invisible until GH #16 made the Windows job reach
+      # `go test` at all. They are owned and tracked by
       # https://github.com/tesseracode/tesserapatch/issues/17 (GH #17), which
       # also owns deleting this step: when the suite is green on Windows this
       # step and the blocking step above collapse back into one blocking
-      # `go test ./...`. Until then the failures stay VISIBLE but do not fail
-      # the job, so a tagged release remains publishable.
+      # `go test ./...`. Until then the failures stay VISIBLE in this step and
+      # in the job log — the step's own conclusion and output are what a
+      # reader inspects — but they do not fail the job, so a tagged release
+      # remains publishable.
       - name: "Test (Windows full suite — allowed to fail, owned by GH #17)"
         if: runner.os == 'Windows'
         continue-on-error: true

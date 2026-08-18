@@ -2,11 +2,14 @@
 
 ## Status
 
-**Cluster state**: REV-3 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Rev-2 closes the external rev-1 findings and is accepted in product behavior,
-but final review found a red-tip flake and CI/source-guard vacuity. Rev-3 is
-dispatched. No mutating prepare mode is authorized.
+Rev-3 closes the six rev-2 adjudication items: the intermittent mixed-case
+land row, the AVP-175 job-level/condition/package-set/leaf-floor/release-needs
+holes, the last untracked working-tree source walk (AVP-141) and the stale
+"192 + timeouts" Windows inventory. No production file changed and no product
+behavior, PRD, ADR or AVP matrix row moved. No mutating prepare mode is
+authorized.
 
 ## Active Task
 
@@ -14,7 +17,7 @@ dispatched. No mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-3 dispatched after APPROVED / APPROVED WITH NOTES
+- **Status**: Rev-3 AWAITING REVIEW
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -47,6 +50,89 @@ dispatched. No mutating prepare mode is authorized.
 - Native Windows behavior is part of acceptance.
 - Mutating prepare PRD rev-14 / ADR-035 rev-14 remains blocked.
 
+## Session Summary — rev-3
+
+Sole sequential reviser. **No production file changed**: the diff is one CI
+comment block, three test files, one test helper file and this handoff. Each
+numbered rev-2 adjudication item is closed below.
+
+1. **Green tip (BLOCKER).** `internal/cli/land_rev1_fold_test.go`'s
+   `mixed-case` mutation was `strings.ToUpper(v[:8]) + v[8:]`, a no-op
+   whenever the fixture SHA's first eight characters were all decimal digits
+   (~2.3% per run). The row then stored a *canonical* base commit and asserted
+   `land` refuses it, which it correctly does not. The mutation is now
+   `mixedCaseBaseCommit`: it uppercases the first `a`-`f` byte, and for an
+   all-digit SHA — the only input with no such byte — replaces one digit with
+   an uppercase `A`, so the result is 40 characters and non-canonical for
+   **every** 40-character lowercase-hex SHA. The table loop additionally
+   fails any arm whose mutation equals its input, so no future arm can
+   silently become a no-op. `TestRev1Land_MixedCaseMangleIsNeverANoOp` proves
+   the property deterministically over 241 subtests: one per `a`-`f` letter at
+   each of the 40 positions, plus the all-digit SHA.
+
+2. **CI job-level signal.** AVP-175 now parses job-level fields
+   (`parseWorkflowJobs`) as well as steps, and fails when: the `test` job
+   carries `continue-on-error: true` (which would make every step inside it,
+   including the blocking Windows gate, advisory); the `release` job loses
+   `needs: test` (a red test job would still publish a release); or any gating
+   step's `if` is not *exactly* `runner.os == 'Windows'` or
+   `runner.os != 'Windows'` after whitespace/`${{ }}` normalisation. The exact
+   comparison is what rejects `&& false`, event/schedule conjuncts and any
+   other alternate truthiness that keeps the text a reviewer greps for while
+   disabling the step. The tag-version step is pinned to exactly
+   `startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'`.
+
+3. **Blocking surface integrity.** `checkBlockingWindowsStep` pins the
+   blocking Windows package set **exactly** — `./internal/intent`,
+   `./assets`, `./internal/buildinfo`, `./internal/redact`,
+   `./internal/safety`, `./internal/testutil`,
+   `./internal/tools/studyvalidator`, `./tests/integration` — by extracting
+   every `./…` argument from the step and comparing the set, so a package
+   cannot be dropped or added unnoticed. It also pins the verbose native
+   invocation, the `AVP-176`/`AVP-199` row loop (both rows *and* the
+   `--- PASS: TestAVPNativeWindows/${row}` assertion), and a leaf floor of at
+   least 6. Every allowed-failure step is checked to contain none of the
+   blocking packages, no `-run TestAVPNativeWindows` and no `--- PASS:`
+   assertion, generalising the rev-2 `internal/intent`-only check.
+
+   Eight sensitivity arms are added to the existing seven:
+   `job-level-continue-on-error`, `blocking-condition-false-conjunct`,
+   `blocking-package-removed`, `blocking-package-moved-to-allowed-failure`,
+   `native-row-loop-shrunk`, `native-row-loop-removed`, `leaf-floor-zeroed`
+   and `release-needs-removed` — fifteen arms in total, each asserted to
+   fail the guard.
+
+4. **Remaining source walk.** `countOpenRootCallSites` in
+   `internal/cli/prepare_avp2_test.go` no longer walks the working tree and no
+   longer exempts `.golden-baseline`. The population is `git ls-files`:
+   tracked, non-test `.go` files only, read through
+   `trackedProductionGoSources`, and the counter is a pure function over that
+   map. `AVP-141/sensitivity` proves a **tracked** extra `os.OpenRoot` call
+   site moves the count, that a real untracked working-tree file written
+   during the test does **not** enter the population or move the count, and
+   that every scanned path is tracked. This mirrors the rev-2 AVP-134 fix and
+   removes the last `filepath.WalkDir` source population in the wave.
+
+5. **Tracking truth.** Every "192 failures plus two 10-minute timeouts"
+   statement is corrected to the run
+   [`32093250847`](https://github.com/tesseracode/tesserapatch/actions/runs/32093250847)
+   inventory: **200 failing top-level tests, 283 counting subtests, six
+   packages** (`internal/cli`, `internal/gitutil`, `internal/provider`,
+   `internal/rescap`, `internal/store`, `internal/workflow`), and **no package
+   times out** at `-timeout 20m`. The rev-1 "192" was a truncated count: two
+   packages panicked at the default ten-minute timeout, so their remaining
+   tests never ran. The rev-1 figure is retained only where it describes that
+   historical run, explicitly labelled as superseded. The history statement is
+   restated where it appears: **GH #16 added the `windows-latest` row**, and
+   `main` was green at `WAVE_BASE` `9a8c1d0` because there was no Windows leg
+   at all — not because Windows passed.
+
+6. **Guard notes.** The workflow comments are corrected to the same inventory
+   and now state the visibility claim accurately: the allowed-failure results
+   are visible **in that step and in the job log** — no claim is made about a
+   run summary, which does not carry them. Nothing else in the wave's scope
+   was reopened; full Windows remediation stays with GH #17.
+
 ## Session Summary — rev-2
 
 Sole sequential reviser. No production behavior changed: the diff is CI,
@@ -68,9 +154,10 @@ closed below.
      ./internal/tools/studyvalidator ./tests/integration`.
    - `Test (Windows full suite — allowed to fail, owned by GH #17)` —
      `go test ./... -count=1 -timeout 20m` with `continue-on-error: true`. The
-     192 unrelated failures stay **visible** in the job log; they no longer
-     fail the job, so `main` and tagged releases are publishable. The step name
-     carries `#17`, which is the issue that owns deleting it.
+     200 unrelated top-level failures (283 counting subtests) stay **visible**
+     in that step and in the job log; they no longer fail the job, so `main`
+     and tagged releases are publishable. The step name carries `#17`, which
+     is the issue that owns deleting it.
 
    `Install binary (smoke test)` is split into a bash leg (non-Windows) and a
    `pwsh` leg (Windows) — the bash form interpolates `go env GOPATH`, which is
@@ -102,8 +189,8 @@ closed below.
 3. **Tracking truth (MEDIUM).** The CI history statement is corrected below:
    GH #16 **added** the `windows-latest` row; `main` was **green** at
    `WAVE_BASE` `9a8c1d0` because no Windows leg existed; this wave exposed
-   192 pre-existing failures. GH #17 is the named owner and the explicit exit
-   condition for the allowed failure.
+   the pre-existing Windows failures. GH #17 is the named owner and the
+   explicit exit condition for the allowed failure.
 
 4. **AVP-168 derived from production (HIGH).** The test-local
    `realStatusOutcomeMap()` literal is deleted. `deriveStatusOutcomes` drives
@@ -354,6 +441,8 @@ the real exit code without shelling out. Behavior is unchanged.
   byte-identical to the reconstructed `WAVE_BASE` binary; `apply --help`
   carries only the authorized pointer sentence.
 - Known allowlisted untracked research WIP is untouched.
+- Rev-3 changed **no production file** either: one comment block in
+  `.github/workflows/ci.yml`, four `_test.go` files and this handoff.
 - Rev-2 changed **no production file**. `git diff --stat` for rev-2 covers
   `.github/workflows/ci.yml`, six `_test.go` files, one comment line in
   `internal/intent/status_schema.go`, the goldens `README.md` and this
@@ -361,7 +450,38 @@ the real exit code without shelling out. Behavior is unchanged.
 
 ## Files Changed
 
-### Rev-2 (this revision)
+### Rev-3 (this revision)
+
+Commit: see "Test Results" below for the exact SHA and CI run.
+
+CI:
+
+- `.github/workflows/ci.yml` — comment block only: the blocking package set is
+  attributed to run `32093250847` and described as pinned exactly by AVP-175;
+  the allowed-failure comment carries the corrected 200/283/six-package/no-
+  timeout inventory and claims visibility only in the step and the job log.
+
+Tests and guards (no production file changed in rev-3):
+
+- `internal/cli/land_rev1_fold_test.go` — `mixedCaseBaseCommit`, the
+  no-op-mutation assertion shared by every arm, and
+  `TestRev1Land_MixedCaseMangleIsNeverANoOp` (241 deterministic subtests).
+- `internal/cli/prepare_avp2_test.go` — `gitLsFilesFromRepo`,
+  `trackedProductionGoSources`, pure `countOpenRootCallSites`, and the new
+  `AVP-141/sensitivity` arm.
+- `internal/intent/avp_guard_helpers_test.go` — `parseWorkflowJobs`,
+  `workflowJob`, `normalizeWorkflowCondition`, `platformCondition`;
+  `runsOnWindows` (substring heuristics) removed.
+- `internal/intent/avp_guards_test.go` — job-level and exact-condition checks,
+  `checkBlockingWindowsStep`, `blockingWindowsPackages`, `nativeWindowsRows`,
+  `minimumNativeLeaves`, `nativeRowLoop`, and eight further AVP-175
+  sensitivity arms (fifteen in total).
+
+Docs:
+
+- `docs/handoff/CURRENT.md`
+
+### Rev-2
 
 Commits: `36f23b3` (implementation), `69dfe7c` (post-push CI-inspection fix),
 plus this tracking commit.
@@ -460,6 +580,30 @@ Docs:
 
 ## Test Results
 
+### Rev-3
+
+All results below are from **rev-3** on `go1.26.5 darwin/arm64`.
+
+- `gofmt -l .`: clean.
+- `go build ./...`: PASS. `go vet ./...`: PASS.
+- `go test -count=1 ./...`: PASS (14 packages; 2 command packages have no
+  tests).
+- Flake proof: `go test ./internal/cli -count=100 -run
+  'TestRev1Land_NonCanonicalBaseCommitIsRefused/mixed-case'`: PASS (100
+  independent fixture repositories, 22.3s).
+- Determinism proof: `TestRev1Land_MixedCaseMangleIsNeverANoOp`: PASS — 241
+  subtests (six letters × 40 positions, plus the all-digit SHA);
+  `go test -run 'TestRev1Land_' -v` reports 257 PASS lines in total.
+- `go test ./internal/intent -run 'TestAVPGuards/AVP-175'`: PASS — the guard
+  and all fifteen sensitivity arms.
+- `go test ./internal/cli -run 'TestAVPRootLifetimeAndDifferential/AVP-141'`:
+  PASS — the row and its new sensitivity arm.
+- Ledger: `rows=208 categories=25 references=224 guards=43` — unchanged.
+- `GOOS=windows GOARCH=amd64 go vet ./internal/intent ./internal/cli` and
+  `go build ./cmd/tpatch`: PASS.
+
+### Rev-2
+
 All results below are from **rev-2** on `go1.26.5 darwin/arm64`.
 
 - `gofmt -l .`: clean.
@@ -500,11 +644,21 @@ All results below are from **rev-2** on `go1.26.5 darwin/arm64`.
    `core.autocrlf=true` and `gofmt -l .` then lists the whole tree. The row
    existed but ran nothing.
 3. `755b31e` forced an LF checkout, and the job reached `go test` for the
-   first time. That is when the **192 pre-existing failures** in unrelated
-   packages became visible. They were exposed by this wave, not caused by it —
-   and the branch they were exposed on was green beforehand only because
-   nothing Windows had ever run.
+   first time. That is when the pre-existing failures in unrelated packages
+   became visible. They were exposed by this wave, not caused by it — and the
+   branch they were exposed on was green beforehand only because nothing
+   Windows had ever run.
 4. Rev-2 therefore splits the signal rather than reverting the row.
+5. The **authoritative inventory** is the one measured with the suite running
+   to completion: run
+   [`32093250847`](https://github.com/tesseracode/tesserapatch/actions/runs/32093250847)
+   — **200 failing top-level tests, 283 counting subtests**, in **six**
+   packages, and **no package times out** at `-timeout 20m`. The rev-1 figure
+   of "192 failures plus two 10-minute timeouts" was a *truncated* count: two
+   packages aborted at the default per-package timeout, so the run never
+   enumerated their remaining tests. Every "192 + timeouts" statement in this
+   handoff, in `.github/workflows/ci.yml` and in GH #17 is superseded by the
+   figures in this item.
 
 The rev-1 handoff sentence "`windows-latest` was already red on `main` before
 this wave" was wrong: there was no `windows-latest` before this wave. This
@@ -534,12 +688,17 @@ Package results on the Windows runner:
   `internal/testutil`, `internal/tools/studyvalidator`, `tests/integration`:
   PASS.
 - `internal/cli`, `internal/gitutil`, `internal/provider`, `internal/rescap`,
-  `internal/store`, `internal/workflow`: FAIL — **192 distinct pre-existing
-  Windows failures**, plus a 10-minute per-package timeout in `internal/cli`
+  `internal/store`, `internal/workflow`: FAIL. This run reported **192**
+  distinct failures, but the number is a floor, not the inventory: `go test`
+  ran at the default per-package timeout and `internal/cli`
   (`TestPatchGenerations_RecipeOnlySkipsGeneration`) and `internal/workflow`
-  (`TestRev2_UnlandedParentProbeFailureNeverReplays`).
+  (`TestRev2_UnlandedParentProbeFailureNeverReplays`) each panicked at ten
+  minutes, so the remaining tests in those two packages never ran. The
+  corrected inventory, measured at `-timeout 20m` with nothing aborting
+  early, is **200 top-level / 283 including subtests over six packages with
+  no timeouts** — see the rev-2/rev-3 runs below.
 
-**Zero of the 192 failures are AVP, acceptance-ledger or `prepare` rows.**
+**Zero of those failures are AVP, acceptance-ledger or `prepare` rows.**
 
 ### Rev-2 gate
 
@@ -597,9 +756,9 @@ The allowed-failure step remains fully visible in the log. At `-timeout 20m`
 the suite runs to completion and reports **200 failing top-level tests, 283
 counting subtests**, in `internal/cli` (379.7s), `internal/gitutil` (39.7s),
 `internal/provider` (13.6s), `internal/rescap` (14.7s), `internal/store`
-(5.9s) and `internal/workflow` (409.4s). The count is higher than rev-1's 192
-precisely because nothing aborts early any more; the population is the same
-pre-existing class and is owned by GH #17. `internal/intent` passes inside
+(5.9s) and `internal/workflow` (409.4s). The count is higher than rev-1's
+truncated 192 precisely because nothing aborts early any more; the population
+is the same pre-existing class and is owned by GH #17. `internal/intent` passes inside
 this step too.
 
 ### Rev-2 follow-up: YAML comment truncation in step names
@@ -650,14 +809,19 @@ passing. The interim shape and this inventory were posted to
    sensitivity fixture genuinely breaks its guard.
 2. Reviewer: confirm the PRD rev-6 / ADR-034 rev-3 errata are narrow — no
    decision changed, matrix still 208 rows, guard set still 43.
-3. Reviewer: inspect the rev-2 CI run recorded above; the `windows-latest`
+3. Reviewer: inspect the rev-3 CI run recorded above; the `windows-latest`
    **job must be green**, the blocking step must show
    `--- PASS: TestAVPNativeWindows/...` leaf lines, and the allowed-failure
    step must still be present and still list the unrelated failures.
-4. Reviewer: check AVP-175's six sensitivity arms individually — in
-   particular that moving `./internal/intent` into the allowed-failure command
-   and adding `continue-on-error: true` to the blocking step both fail it.
-5. If approved, run the Wave-Close Checklist and flip the handoff Status.
+4. Reviewer: check AVP-175's fifteen sensitivity arms individually — in
+   particular `job-level-continue-on-error`,
+   `blocking-condition-false-conjunct`,
+   `blocking-package-moved-to-allowed-failure`, `leaf-floor-zeroed` and
+   `release-needs-removed`, which are the rev-3 additions.
+5. Reviewer: re-run
+   `go test ./internal/cli -count=100 -run 'TestRev1Land_NonCanonicalBaseCommitIsRefused/mixed-case'`
+   — the rev-2 tip's 2.3%-per-run no-op is what made the review tip red.
+6. If approved, run the Wave-Close Checklist and flip the handoff Status.
 
 ## Blockers
 
@@ -679,15 +843,22 @@ passing. The interim shape and this inventory were posted to
   worktree exactly as the testdata `README.md` documents — **outside** the
   repository, so nothing untracked appears in the working tree.
 - The Windows CI shape is a contract, not a convenience. `AVP-175` parses
-  `.github/workflows/ci.yml` into steps and fails if the GH #16 surface stops
-  being blocking, if `internal/intent` appears in an allowed-failure command,
-  if the allowed-failure step stops naming GH #17, or if the tag-version check
-  is pinned to one matrix entry. When GH #17 lands, deleting the
+  `.github/workflows/ci.yml` into **jobs and steps** and fails if the GH #16
+  surface stops being blocking, if the `test` job or the blocking step becomes
+  continue-on-error, if any gating step's `if` stops being exactly
+  `runner.os == 'Windows'` / `runner.os != 'Windows'`, if any blocking package
+  leaves the pinned set or appears in an allowed-failure command, if the
+  AVP-176/199 row loop or the six-leaf floor is weakened, if the
+  allowed-failure step stops naming GH #17, if the tag-version condition
+  changes, or if the release job stops declaring `needs: test`. When GH #17 lands, deleting the
   `continue-on-error` step is a deliberate AVP-175 edit, not a silent one.
-- **Out of scope, pre-existing (2)**: the 192 Windows test failures above are
-  owned by [GH #17](https://github.com/tesseracode/tesserapatch/issues/17):
-  path separators, symlink/permission assumptions and the two per-package
-  10-minute timeouts.
+- **Out of scope, pre-existing (2)**: the Windows test failures above —
+  **200 top-level, 283 including subtests, six packages, no timeout at
+  `-timeout 20m`** (run 32093250847) — are owned by
+  [GH #17](https://github.com/tesseracode/tesserapatch/issues/17): path
+  separators, symlink/permission assumptions and runtime cost. The two
+  10-minute per-package timeouts seen in rev-1 were an artefact of the default
+  timeout and do not recur at 20m.
 - **Out of scope, pre-existing (1)**: `GOOS=js GOARCH=wasm go build ./cmd/tpatch`
   fails in `internal/rescap` (`pathopen_unix.go` references
   `syscall.O_NOFOLLOW` under a `!windows`-shaped tag). This reproduces at

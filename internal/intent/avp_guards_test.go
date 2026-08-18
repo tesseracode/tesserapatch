@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1678,6 +1679,43 @@ func registerPlatformGuards() {
 					strings.Replace(workflow,
 						"if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'",
 						"if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'", 1)},
+				// The whole job is advisory, which demotes every gate inside
+				// it — including the blocking Windows step — without touching
+				// any step.
+				{"job-level-continue-on-error",
+					strings.Replace(workflow,
+						"  test:\n    name: test (${{ matrix.os }})\n",
+						"  test:\n    name: test (${{ matrix.os }})\n    continue-on-error: true\n", 1)},
+				// The blocking step keeps its name, its command and its
+				// Windows condition, and never runs.
+				{"blocking-condition-false-conjunct",
+					strings.Replace(workflow,
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n",
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows' && false\n", 1)},
+				// A package silently leaves the blocking set.
+				{"blocking-package-removed",
+					strings.Replace(workflow, "            ./internal/safety \\\n", "", 1)},
+				// A package moves from the blocking step into the
+				// allowed-failure step, which is the demotion this guard
+				// exists for, generalised beyond ./internal/intent.
+				{"blocking-package-moved-to-allowed-failure",
+					strings.Replace(
+						strings.Replace(workflow, "            ./internal/safety \\\n", "", 1),
+						"run: go test ./... -count=1 -timeout 20m",
+						"run: go test ./internal/safety ./... -count=1 -timeout 20m", 1)},
+				// The per-row loop stops covering AVP-199.
+				{"native-row-loop-shrunk",
+					strings.Replace(workflow, "for row in AVP-176 AVP-199; do", "for row in AVP-176; do", 1)},
+				// The per-row loop disappears entirely, so a `-run` pattern
+				// that matches nothing would exit 0 and look green.
+				{"native-row-loop-removed", strings.Replace(workflow, nativeRowLoop, "", 1)},
+				// The leaf floor stops floor-ing anything.
+				{"leaf-floor-zeroed",
+					strings.Replace(workflow, "-lt 6 ]", "-lt 0 ]", 1)},
+				// The release job stops depending on the test job, so a red
+				// test job still publishes a release.
+				{"release-needs-removed",
+					strings.Replace(workflow, "    name: release\n    needs: test\n", "    name: release\n", 1)},
 			}
 			// Each arm must be *detected*. A non-detecting arm is failed with
 			// t.Fatalf rather than by returning an error: returning an error
@@ -1872,20 +1910,78 @@ func checkCIMatrix(workflow string) error {
 	return checkCIWindowsGate(workflow)
 }
 
-// checkCIWindowsGate is the rev-2 half of AVP-175.
+// checkCIWindowsGate is the rev-2 half of AVP-175, tightened in rev-3.
 //
-// GH #16 added the windows-latest leg; `main` was green at WAVE_BASE and the
-// leg exposed 192 pre-existing failures in packages this wave does not touch
-// (GH #17). The accepted interim shape is therefore two Windows test steps:
-// a BLOCKING one over the surface GH #16 owns, and a VISIBLE but
-// `continue-on-error` full-suite one that GH #17 owns and will delete. The
-// failure this guard exists to prevent is someone silencing a native-Windows
-// regression by moving `./internal/intent` into the allowed-failure step, or
-// by making the blocking step non-blocking.
+// GH #16 added the windows-latest leg; `main` was green at WAVE_BASE only
+// because no Windows leg existed, and the leg exposed 200 pre-existing
+// top-level failures (283 including subtests) in six packages this wave does
+// not touch (GH #17). The accepted interim shape is therefore two Windows test
+// steps: a BLOCKING one over the surface GH #16 owns, and a VISIBLE but
+// `continue-on-error` full-suite one that GH #17 owns and will delete.
+//
+// The failures this guard exists to prevent, each one a way to keep the text a
+// reviewer greps for while removing the signal:
+//
+//   - moving a blocking package into the allowed-failure step;
+//   - marking the blocking step, or the whole job, continue-on-error;
+//   - adding a conjunct (`&& false`, an event filter) that disables the step;
+//   - dropping the native invocation, the AVP-176/199 row loop or the leaf
+//     floor, so a `-run` pattern that matches nothing exits 0;
+//   - removing `needs: test` from the release job, which would publish a
+//     release regardless of the test job's conclusion.
 func checkCIWindowsGate(workflow string) error {
+	jobs, err := parseWorkflowJobs(workflow)
+	if err != nil {
+		return err
+	}
+	testJob, ok := jobs["test"]
+	if !ok {
+		return errors.New("the workflow has no `test` job")
+	}
+	if testJob.ContinueOnError {
+		// Job-level continue-on-error makes every step advisory, including
+		// the blocking one this guard proves below.
+		return errors.New("the `test` job is job-level continue-on-error; every gate inside it is advisory")
+	}
+	releaseJob, ok := jobs["release"]
+	if !ok {
+		return errors.New("the workflow has no `release` job")
+	}
+	if !slices.Contains(releaseJob.Needs, "test") {
+		return fmt.Errorf("the release job's needs is %v; it must depend on `test` or a red test job still publishes a release", releaseJob.Needs)
+	}
+
 	steps, err := parseWorkflowSteps(workflow)
 	if err != nil {
 		return err
+	}
+
+	// The LF-checkout step must be gated on Windows by the exact condition and
+	// must precede actions/checkout: after it, the tree is already CRLF.
+	checkout, lf := -1, -1
+	for _, step := range steps {
+		if step.Job != "test" {
+			continue
+		}
+		if checkout < 0 && strings.HasPrefix(step.Uses, "actions/checkout@") {
+			checkout = step.Index
+		}
+		if strings.Contains(step.Run, "core.autocrlf false") {
+			windows, err := platformCondition(step)
+			if err != nil {
+				return err
+			}
+			if !windows {
+				return fmt.Errorf("the LF-checkout step %q is not gated on the Windows runner", step.Name)
+			}
+			lf = step.Index
+		}
+	}
+	if lf < 0 {
+		return errors.New("no step forces an LF checkout, so the Windows job fails formatting before it reaches go test")
+	}
+	if checkout >= 0 && lf > checkout {
+		return errors.New("the LF-checkout configuration runs after actions/checkout, which is too late")
 	}
 
 	var blocking, allowed, nonWindows []workflowStep
@@ -1893,8 +1989,14 @@ func checkCIWindowsGate(workflow string) error {
 		if step.Job != "test" || !strings.Contains(step.Run, "go test") {
 			continue
 		}
+		// Every gating step's condition is pinned to one of the two accepted
+		// forms; anything else is rejected rather than interpreted.
+		windows, err := platformCondition(step)
+		if err != nil {
+			return err
+		}
 		switch {
-		case !runsOnWindows(step.If):
+		case !windows:
 			nonWindows = append(nonWindows, step)
 		case step.ContinueOnError:
 			allowed = append(allowed, step)
@@ -1918,23 +2020,16 @@ func checkCIWindowsGate(workflow string) error {
 	}
 
 	// The native rows are proven only on a real Windows runner, so the
-	// blocking Windows step must run them explicitly, verbosely, and must
-	// assert the verbose log really contains their PASS lines: `go test -run`
-	// over a pattern that matches nothing exits 0, which is exactly how a
-	// silently-unrun row would look green.
+	// blocking Windows step must run them explicitly and verbosely, must
+	// assert the verbose log really contains their PASS lines, and must carry
+	// the whole empirically green package set.
 	native := -1
 	for _, step := range blocking {
-		if !strings.Contains(step.Run, "./internal/intent") {
+		if !strings.Contains(step.Run, "./internal/intent") || !strings.Contains(step.Run, "-run TestAVPNativeWindows") {
 			continue
 		}
-		if !strings.Contains(step.Run, "-run TestAVPNativeWindows") {
-			continue
-		}
-		if !strings.Contains(step.Run, "-v ") && !strings.Contains(step.Run, "go test -v") {
-			return fmt.Errorf("the blocking Windows step %q does not run the native test verbosely, so it cannot prove the subtests executed", step.Name)
-		}
-		if !strings.Contains(step.Run, "--- PASS: TestAVPNativeWindows") {
-			return fmt.Errorf("the blocking Windows step %q does not assert the native PASS lines; a no-match -run pattern would exit 0", step.Name)
+		if err := checkBlockingWindowsStep(step); err != nil {
+			return err
 		}
 		native = step.Index
 		break
@@ -1943,11 +2038,19 @@ func checkCIWindowsGate(workflow string) error {
 		return errors.New("no blocking windows-latest step runs `go test -run TestAVPNativeWindows ./internal/intent`")
 	}
 
-	// `internal/intent` must never appear in an allowed-failure command: that
-	// is precisely how the GH #16 acceptance surface would stop gating.
+	// Nothing the blocking step proves may reappear in an allowed-failure
+	// command: that is precisely how the GH #16 acceptance surface would stop
+	// gating while still looking present in the file.
 	for _, step := range allowed {
-		if strings.Contains(step.Run, "internal/intent") {
-			return fmt.Errorf("the allowed-failure step %q names internal/intent; the GH #16 surface must stay blocking", step.Name)
+		for _, pkg := range blockingWindowsPackages {
+			if strings.Contains(step.Run, pkg) {
+				return fmt.Errorf("the allowed-failure step %q names the blocking package %s; the GH #16 surface must stay blocking", step.Name, pkg)
+			}
+		}
+		for _, marker := range []string{"-run TestAVPNativeWindows", "--- PASS: TestAVPNativeWindows"} {
+			if strings.Contains(step.Run, marker) {
+				return fmt.Errorf("the allowed-failure step %q carries %q; the native gate must not be demoted into it", step.Name, marker)
+			}
 		}
 		if step.Index < native {
 			return fmt.Errorf("the allowed-failure step %q runs before the blocking native step", step.Name)
@@ -1959,20 +2062,104 @@ func checkCIWindowsGate(workflow string) error {
 
 	// The tag-version check must run on both non-Windows legs. Pinning it to
 	// one matrix entry would let a macOS-specific ldflags or `make install`
-	// regression reach a published release unchecked.
+	// regression reach a published release unchecked, and the condition is
+	// pinned exactly so no conjunct can disable it silently.
 	for _, step := range steps {
 		if step.Job != "test" || !strings.Contains(step.If, "refs/tags/v") {
 			continue
 		}
-		if strings.Contains(step.If, "matrix.os ==") {
-			return fmt.Errorf("the tag-version step is pinned to a single matrix entry: %q", step.If)
-		}
-		if !strings.Contains(step.If, "runner.os != 'Windows'") {
-			return fmt.Errorf("the tag-version step %q does not run on both non-Windows legs", step.Name)
+		if got := normalizeWorkflowCondition(step.If); got != conditionTagVersion {
+			return fmt.Errorf("the tag-version step's condition is %q, want exactly %q", got, conditionTagVersion)
 		}
 		return nil
 	}
 	return errors.New("no tag-version verification step is present in the test job")
+}
+
+// nativeRowLoop is the blocking Windows step's per-row PASS assertion, quoted
+// verbatim so the AVP-175 sensitivity arm that deletes it is a real deletion
+// rather than an approximation of one.
+const nativeRowLoop = `          for row in AVP-176 AVP-199; do
+            if ! grep -q -- "--- PASS: TestAVPNativeWindows/${row}" "$log"; then
+              echo "::error::TestAVPNativeWindows/${row} did not execute on this runner"
+              exit 1
+            fi
+          done
+`
+
+// blockingWindowsPackages is the empirically green windows-latest package set
+// (run 32093250847). It is pinned exactly — not as a lower bound — so that
+// dropping a package from the blocking step, or moving one into the
+// allowed-failure step, fails the guard rather than quietly shrinking the
+// gate.
+var blockingWindowsPackages = []string{
+	"./assets",
+	"./internal/buildinfo",
+	"./internal/intent",
+	"./internal/redact",
+	"./internal/safety",
+	"./internal/testutil",
+	"./internal/tools/studyvalidator",
+	"./tests/integration",
+}
+
+// nativeWindowsRows are the two acceptance rows that can only be proven on a
+// real Windows runner, and minimumNativeLeaves is the floor on the leaf
+// assertions they must execute there.
+var nativeWindowsRows = []string{"AVP-176", "AVP-199"}
+
+const minimumNativeLeaves = 6
+
+var packageArgumentPattern = regexp.MustCompile(`(?:^|\s)(\./[A-Za-z0-9_./-]+)`)
+
+var leafFloorPattern = regexp.MustCompile(`-lt\s+"?([0-9]+)"?`)
+
+// checkBlockingWindowsStep pins everything the blocking Windows step must do:
+// run the native test verbosely, assert each row's PASS line, assert a leaf
+// floor, and run exactly the blocking package set.
+func checkBlockingWindowsStep(step workflowStep) error {
+	if !strings.Contains(step.Run, "-v ") && !strings.Contains(step.Run, "go test -v") {
+		return fmt.Errorf("the blocking Windows step %q does not run the native test verbosely, so it cannot prove the subtests executed", step.Name)
+	}
+	if !strings.Contains(step.Run, "--- PASS: TestAVPNativeWindows") {
+		return fmt.Errorf("the blocking Windows step %q does not assert the native PASS lines; a no-match -run pattern would exit 0", step.Name)
+	}
+	// The per-row loop is what makes each acceptance row individually
+	// asserted. Shrinking it to one row, or deleting it, leaves the step
+	// green on a runner where the other row never executed.
+	for _, row := range nativeWindowsRows {
+		if !strings.Contains(step.Run, row) {
+			return fmt.Errorf("the blocking Windows step %q does not assert the %s PASS line", step.Name, row)
+		}
+	}
+	if !strings.Contains(step.Run, "--- PASS: TestAVPNativeWindows/${row}") {
+		return fmt.Errorf("the blocking Windows step %q no longer loops over the native rows asserting each PASS line", step.Name)
+	}
+	floor := leafFloorPattern.FindStringSubmatch(step.Run)
+	if floor == nil {
+		return fmt.Errorf("the blocking Windows step %q declares no minimum leaf-assertion count", step.Name)
+	}
+	leaves, err := strconv.Atoi(floor[1])
+	if err != nil {
+		return fmt.Errorf("the blocking Windows step %q has an unparseable leaf floor %q", step.Name, floor[1])
+	}
+	if leaves < minimumNativeLeaves {
+		return fmt.Errorf("the blocking Windows step %q accepts %d native leaf assertions, want at least %d", step.Name, leaves, minimumNativeLeaves)
+	}
+
+	found := map[string]bool{}
+	for _, match := range packageArgumentPattern.FindAllStringSubmatch(step.Run, -1) {
+		found[match[1]] = true
+	}
+	var got []string
+	for pkg := range found {
+		got = append(got, pkg)
+	}
+	sort.Strings(got)
+	if !slices.Equal(got, blockingWindowsPackages) {
+		return fmt.Errorf("the blocking Windows step %q runs %v, want exactly %v", step.Name, got, blockingWindowsPackages)
+	}
+	return nil
 }
 
 func checkConfinementConstant(supported, unsupported, command string) error {
