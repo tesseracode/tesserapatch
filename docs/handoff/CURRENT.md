@@ -452,7 +452,10 @@ the real exit code without shelling out. Behavior is unchanged.
 
 ### Rev-3 (this revision)
 
-Commit: see "Test Results" below for the exact SHA and CI run.
+Commits: `54ab8b4` (implementation), plus this tracking commit.
+CI: run
+[`32096303431`](https://github.com/tesseracode/tesserapatch/actions/runs/32096303431)
+at `54ab8b4` — ubuntu ✅, macOS ✅, windows ✅, `release` skipped (not a tag).
 
 CI:
 
@@ -601,6 +604,9 @@ All results below are from **rev-3** on `go1.26.5 darwin/arm64`.
 - Ledger: `rows=208 categories=25 references=224 guards=43` — unchanged.
 - `GOOS=windows GOARCH=amd64 go vet ./internal/intent ./internal/cli` and
   `go build ./cmd/tpatch`: PASS.
+- CI at the rev-3 tip `54ab8b4`, run
+  [`32096303431`](https://github.com/tesseracode/tesserapatch/actions/runs/32096303431):
+  **all three matrix legs green**. See "Rev-3 run" below.
 
 ### Rev-2
 
@@ -801,6 +807,55 @@ The allowed-failure step still reports **200 failing top-level tests** across
 `internal/testutil`, `internal/tools/studyvalidator` and `tests/integration`
 passing. The interim shape and this inventory were posted to
 [GH #17](https://github.com/tesseracode/tesserapatch/issues/17#issuecomment-5322764984).
+
+### Rev-3 run — the green tip
+
+Run [`32096303431`](https://github.com/tesseracode/tesserapatch/actions/runs/32096303431)
+at `54ab8b4`:
+
+| Job | Result |
+|---|---|
+| `ubuntu-latest` | ✅ success |
+| `macos-latest` | ✅ success |
+| [`windows-latest`](https://github.com/tesseracode/tesserapatch/actions/runs/32096303431/job/95588230519) | ✅ success |
+| `release` | skipped (not a tag ref) |
+
+The immediately preceding run
+[`32093932654`](https://github.com/tesseracode/tesserapatch/actions/runs/32093932654)
+at `b95232e` is the red tip the external review reported: `windows-latest` and
+`ubuntu-latest` passed and **`macos-latest` failed** — the mixed-case
+base-commit no-op, reproduced by chance on one leg. That is exactly the flake
+rev-3 finding 1 removes; the fixture SHA no longer decides whether the row's
+mutation mutates anything.
+
+The blocking Windows step's verbose native output, quoted from the rev-3 log:
+
+```
+--- PASS: TestAVPNativeWindows (0.06s)
+    --- PASS: TestAVPNativeWindows/AVP-176 (0.04s)
+        --- PASS: TestAVPNativeWindows/AVP-176/symlink-spec-is-symlink-refused (0.01s)
+        --- PASS: TestAVPNativeWindows/AVP-176/junction-artifacts-is-symlink-refused (0.02s)
+        --- PASS: TestAVPNativeWindows/AVP-176/status-reparse-point-aborts (0.01s)
+        --- PASS: TestAVPNativeWindows/AVP-176/samefile-identity-over-root-lstat-and-file-stat (0.00s)
+        --- PASS: TestAVPNativeWindows/AVP-176/char-device-handle-is-not-regular (0.00s)
+    --- PASS: TestAVPNativeWindows/AVP-199 (0.01s)
+        --- PASS: TestAVPNativeWindows/AVP-199/junction-helper-fails-never-skips (0.01s)
+```
+
+Six leaf assertions, the step's own floor. The pinned blocking package set
+then passed in full: `internal/intent` (5.5s), `assets`, `internal/buildinfo`,
+`internal/redact`, `internal/safety`, `internal/testutil`,
+`internal/tools/studyvalidator`, `tests/integration`.
+
+The allowed-failure step reproduces the corrected inventory exactly:
+**200 failing top-level tests, 283 counting subtests, zero
+`panic: test timed out`**, across six packages — `internal/cli` (564.4s),
+`internal/workflow` (615.5s), `internal/gitutil` (46.8s), `internal/rescap`
+(16.3s), `internal/provider` (13.6s) and `internal/store` (9.0s) — with
+`internal/intent`, `assets`, `internal/buildinfo`, `internal/redact`,
+`internal/safety`, `internal/testutil`, `internal/tools/studyvalidator` and
+`tests/integration` passing inside that step too. GH #17's body now carries
+this inventory.
 
 ## Next Steps
 
