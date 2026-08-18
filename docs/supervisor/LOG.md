@@ -1,3 +1,120 @@
+## Supervisor Decision — implement-prepare-check — 2026-08-17
+
+**WAVE_BASE**: `9a8c1d0`
+**Implementation range**: `9a8c1d0..cacaaf8`
+**Implementation tip**: `cacaaf8`
+**Tracking tip at decision**: `1fdcf28`
+**Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
+**Release tag**: none
+
+### Verdict: ACCEPTED
+
+### Review Arc
+
+| Revision | Internal | External | Outcome |
+|---|---|---|---|
+| rev-0 `0440337` | NEEDS REVISION | NEEDS REVISION | Status-schema fidelity, openFlags errata, missing 208/43 evidence, native Windows runtime gap, pre-change goldens |
+| rev-1 `2cbccf6`/`755b31e`/`b98fac9` | APPROVED | NEEDS REVISION | Windows leg made main/tagged releases red; narrow guard vacuity |
+| rev-2 `36f23b3`/`69dfe7c`/`40ae5c2` | APPROVED WITH NOTES | APPROVED WITH NOTES | Product behavior approved; guard vacuity, nondeterministic land test, stale inventory wording |
+| rev-3 `54ab8b4`/`a4748a9` | NEEDS REVISION | APPROVED | Expression-valued `continue-on-error` hole; job-level `if`; visibility wording |
+| rev-4 `9b8efc5`/`cacaaf8` | APPROVED | APPROVED (2 LOW) | Accepted |
+
+### Accepted Evidence
+
+- 208 of 208 acceptance rows mapped, 224 references, zero duplicates.
+- 43 of 43 registered guards, each with an executed sensitivity fixture
+  asserted to fail its guard; AVP-175 carries 24 failing arms and 3 accepted
+  variants.
+- 12 pre-change routing goldens reconstructed from the `WAVE_BASE` `9a8c1d0`
+  binary in a detached out-of-tree worktree; `apply --mode prepare`, per-phase
+  `--manual`, `next` and `cycle` are byte-identical.
+- CI run
+  [32101270327](https://github.com/tesseracode/tesserapatch/actions/runs/32101270327)
+  green on Ubuntu, macOS and Windows; native `TestAVPNativeWindows` executes
+  with all six leaf assertions on `windows-latest`.
+
+### External LOW Notes (nonblocking, no action required)
+
+1. The AVP-175 YAML subset parser does not decode flow-mapping step form
+   (`- {run: ..., continue-on-error: ...}`); such a step would not be seen by
+   the ownership rules. The repository's `ci.yml` uses block form throughout,
+   and any conversion is a deliberate edit.
+2. The decoy-leaf floor selects the first matching leaf assertion rather than
+   proving uniqueness, so a duplicated decoy could satisfy the floor without
+   widening real coverage.
+
+Neither is a product finding. Both are parser-hardening follow-ups for whoever
+next edits `.github/workflows/ci.yml` or AVP-175.
+
+### Errata Folded
+
+- `PRD-artifact-validation-and-provenance` rev-6 errata (Accepted retained).
+- `ADR-034-rooted-filesystem-inspection-boundary` rev-3 errata (Accepted
+  retained). Both record the three build-tagged `openFlags()` halves; no
+  decision changed, matrix still 208 rows, guard set still 43.
+
+### Backlog Disposition
+
+- [GH #17](https://github.com/tesseracode/tesserapatch/issues/17) remains
+  **open and non-blocking**: the unrelated pre-existing `windows-latest` full
+  suite failures (200 top-level / 283 including subtests, six packages, no
+  timeout at `-timeout 20m`) stay visible behind one `continue-on-error` step
+  that names the issue. AVP-175 pins that demotion to exactly one step, the
+  exact literal `true`, and the Windows full-suite step.
+- `GOOS=js GOARCH=wasm` build failure in `internal/rescap` reproduces at
+  `WAVE_BASE` unchanged; out of scope, deserves its own ticket.
+- GH #12–#15 remain parked research backlog.
+
+### Action Taken
+
+Accepted. ROADMAP row flipped to ✅ ACCEPTED, handoff archived to
+`docs/handoff/HISTORY.md`, GH #16 closed, no tag cut. The §19(3) sequencing
+prerequisite for `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14 is now
+satisfied; `implement-prepare-intent-bundle` becomes the next task, awaiting a
+fresh issue and a fresh `WAVE_BASE`.
+
+## External Review — implement-prepare-check rev-4 — 2026-08-17
+
+**Implementation tip**: `cacaaf8`
+**Tracking tip**: `1fdcf28`
+
+### Verdict: APPROVED
+
+### Verified
+
+All four numbered rev-3 adjudication items close. Raw-scalar capture of
+`continue-on-error` plus the closed four-member classification rejects every
+non-literal form on the `test` job and on every blocking step; the job carries
+no job-level condition; the allowed-failure comment now states the failures are
+visible only in the step log; the AVP-141 scratch lands under the git directory
+and cannot be reported by the untracked-source sentinel. Green three-platform
+run 32101270327, 208 rows / 224 references / 43 guards unchanged, no production
+file, PRD/ADR/asset/golden surfaces untouched.
+
+### Notes (LOW, nonblocking)
+
+1. Flow-mapping step form is not decoded by the AVP-175 YAML subset parser.
+2. The decoy-leaf floor takes the first match rather than proving uniqueness.
+
+No product finding.
+
+## Internal Review — implement-prepare-check rev-4 — 2026-08-17
+
+**Implementation tip**: `cacaaf8`
+**Tracking tip**: `1fdcf28`
+
+### Verdict: APPROVED
+
+### Verified
+
+The rev-3 expression-valued `continue-on-error` hole is closed at the parse
+layer, not at the comparison layer. Blocking ownership now reaches every step
+in the `test` job, exactly one `continue-on-error` step is permitted and it
+must be the Windows full-suite step naming GH #17. Ledger unchanged at
+`rows=208 categories=25 references=224 guards=43`; 24 AVP-175 failing arms and
+3 accepted variants execute; full suite, vet, build and cross-builds pass; CI
+32101270327 green on all three platforms.
+
 ## Writer — implement-prepare-check rev-4 — 2026-08-17
 
 **Guard fix**: `9b8efc5`

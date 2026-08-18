@@ -1,3 +1,98 @@
+# 2026-08-17 — Implement read-only `tpatch prepare --check` — ACCEPTED
+
+**WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
+**Implementation range**: `9a8c1d0..cacaaf8`
+**Rev-0 tip**: `0440337`
+**Rev-1 tips**: `2cbccf6` (coverage/ledger), `755b31e` (Windows LF checkout),
+`b98fac9` (CI fold)
+**Rev-2 tips**: `36f23b3`, `69dfe7c`, `40ae5c2`
+**Rev-3 tips**: `54ab8b4`, `a4748a9`
+**Rev-4 tips**: `9b8efc5`, `cacaaf8` (final)
+**Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16) — closed
+**Release tag**: none — this prerequisite ships with the later mutating-prepare
+release
+**Authorities**: `PRD-artifact-validation-and-provenance` rev-5 (rev-6 errata)
++ `ADR-034-rooted-filesystem-inspection-boundary` rev-2 (rev-3 errata)
+
+**Accepted contract**:
+
+- `tpatch prepare <slug> --check [--json] [--quiet] [--path]`, strictly read
+  only: no provider, prompt, lock, filesystem mutation, state transition,
+  status timestamp, `FEATURES.md` refresh or artifact write.
+- Required artifacts `analysis.md`, `spec.md`, `exploration.md`; the optional
+  analysis sidecar never affects readiness.
+- Nine-state structural classification, three-document readiness, constant
+  `provenance: unknown`.
+- One held Go 1.26 `*os.Root`; logical root confinement, unsafe/non-regular
+  refusal, bounded `MaxArtifactBytes+1` reads with a single reused scratch
+  buffer, honest instability reporting.
+- `unix || windows` fail-closed platform policy.
+- Exact human/JSON/quiet output, exit codes (0 ready, 2 incomplete, 3
+  indeterminate, 4 reserved plain `prepare`) and precedence from the 208-row
+  `AVP-001…AVP-208` matrix.
+- Existing per-phase `--manual`, `next`, `cycle` and `apply --mode prepare`
+  stay byte-compatible.
+
+**Surfaces**:
+
+- Production: `internal/intent/` (`intent.go`, `inspect.go`, `render.go`,
+  `status_schema.go`, three build-tagged `openflags_*.go` halves),
+  `internal/cli/prepare.go`, `internal/cli/cobra.go`.
+- Tests: 14 new `internal/intent` AVP/ledger/schema/native-Windows files, 3 new
+  `internal/cli` AVP/routing-golden files, `assets/avp_parity_test.go`,
+  `internal/cli/testdata/routing-goldens/` (12 fixtures + `README.md`).
+- CI: `.github/workflows/ci.yml` — LF checkout on `windows-latest`, blocking
+  native GH #16 surface, one advisory full-suite step owned by GH #17.
+- Docs: PRD rev-6 errata, ADR-034 rev-3 errata, `docs/adrs/README.md`,
+  `CHANGELOG.md`, six skill surfaces, SPEC.
+
+**Counts**: 208 acceptance rows / 25 categories / 224 references / 43 guards,
+each guard paired with an executed sensitivity fixture; 12 pre-change routing
+goldens reconstructed from the `WAVE_BASE` binary in a detached out-of-tree
+worktree; AVP-175 carries 24 failing arms and 3 accepted variants.
+
+**Review arc**:
+
+| Revision | Internal | External | Outcome |
+|---|---|---|---|
+| rev-0 `0440337` | NEEDS REVISION | NEEDS REVISION | Status-schema fidelity, openFlags contract erratum, absent 208/43 evidence, native Windows runtime gap, missing pre-change goldens |
+| rev-1 `b98fac9` | APPROVED | NEEDS REVISION | Windows leg turned main and tagged releases red; narrow guard vacuity |
+| rev-2 `40ae5c2` | APPROVED WITH NOTES | APPROVED WITH NOTES | Product behavior approved; guard vacuity, nondeterministic land test, stale Windows inventory wording |
+| rev-3 `a4748a9` | NEEDS REVISION | APPROVED | Expression-valued `continue-on-error` hole; job-level `if`; visibility wording; AVP-141 scratch |
+| rev-4 `cacaaf8` | APPROVED | APPROVED (2 LOW) | ACCEPTED |
+
+**CI**: final run
+[32101270327](https://github.com/tesseracode/tesserapatch/actions/runs/32101270327)
+green on Ubuntu, macOS and Windows; native `TestAVPNativeWindows` executes with
+all six leaf assertions on `windows-latest`. Earlier green runs: 32093250847
+(rev-2), 32097102290 (rev-3).
+
+**External LOW notes (nonblocking)**: the AVP-175 YAML subset parser does not
+decode flow-mapping step form, and the decoy-leaf floor takes the first match
+rather than proving uniqueness. No product finding.
+
+**Errata**: PRD rev-6 and ADR-034 rev-3 (both Accepted retained) document the
+three build-tagged `openFlags()` halves — `syscall.O_NONBLOCK` does not exist
+on `js/wasm` or `plan9`, so the accepted two-half partition would not build for
+the very targets the allowlist refuses. No decision changed; matrix still 208
+rows, guard set still 43. The negative-array-length cap guard is preserved by
+reviewer instruction.
+
+**Windows backlog**: [GH #17](https://github.com/tesseracode/tesserapatch/issues/17)
+stays open and non-blocking — 200 top-level / 283 including subtests
+pre-existing full-suite failures across six packages (path separators,
+symlink/permission assumptions, runtime cost; no timeout at `-timeout 20m`)
+remain visible behind one `continue-on-error` step that names the issue.
+AVP-175 pins that demotion to exactly one step, the exact literal `true`, and
+the Windows full-suite step, so deleting it when GH #17 lands is a deliberate
+edit. Separately, `GOOS=js GOARCH=wasm go build ./cmd/tpatch` fails in
+`internal/rescap` at `WAVE_BASE` unchanged and deserves its own ticket.
+
+**No tag cut.** The §19(3) sequencing prerequisite for
+`PRD-prepare-intent-bundle` rev-14 + `ADR-035` rev-14 — an accepted **and
+landed** `prepare --check` — is now **satisfied**, unblocking the mutating
+prepare implementation cluster.
+
 # 2026-08-15 — Adjacent conflict / semantic replay / absorption research — ACCEPTED
 
 **WAVE_BASE**: `33826d8`

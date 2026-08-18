@@ -890,7 +890,7 @@ Both rev-3 reviewers approved the research. Issues #12–#15 remain open as
 planning backlog; no implementation or architecture decision is authorized.
 `implement-prepare-check` is restored as the next task.
 
-**Implement read-only `tpatch prepare --check` rev-4** 🚧 AWAITING REVIEW
+**Implement read-only `tpatch prepare --check` rev-4** ✅ ACCEPTED
 (2026-08-17; WAVE_BASE `9a8c1d0`;
 [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)): implement the
 accepted artifact-validation/provenance PRD rev-5 + ADR-034 rev-2, including
@@ -920,7 +920,27 @@ Rev-3 external review approved; internal review found one expression-valued
 `continue-on-error` hole. Rev-4 is a CI-guard-only fold.
 Rev-4 landed at `9b8efc5` with CI result fold `cacaaf8`; run
 [32101270327](https://github.com/tesseracode/tesserapatch/actions/runs/32101270327)
-is green on Ubuntu, macOS and Windows. Final confirmation is pending.
+is green on Ubuntu, macOS and Windows.
+**Accepted 2026-08-17.** Rev-4 internal review **APPROVED**; rev-4 external
+review **APPROVED** with two LOW nonblocking notes on the AVP-175 YAML subset
+parser (flow-mapping step form, and the decoy-leaf floor's first-match
+selection) — no product finding in either verdict. Implementation range
+`9a8c1d0..cacaaf8`: writer `0440337`, coverage/ledger `2cbccf6`, Windows
+CI fixes `755b31e`, `36f23b3`, `54ab8b4`, `9b8efc5`, final tip `cacaaf8`.
+Evidence: **208** acceptance rows (224 references, zero duplicates), **43**
+registered guards each with an executed sensitivity fixture, and **12**
+pre-change routing goldens recorded from the `WAVE_BASE` binary. Native
+Windows `TestAVPNativeWindows` executes and passes on `windows-latest`. The
+unrelated pre-existing full-suite Windows failures remain **visible** behind a
+`continue-on-error` step owned by
+[GH #17](https://github.com/tesseracode/tesserapatch/issues/17) — a
+non-blocking backlog item, not a regression of this wave; AVP-175 fails if that
+demotion is ever relocated or made non-literal. **No release tag**: this
+prerequisite ships with the later mutating-prepare release. GH #16 is closed.
+PRD-artifact-validation-and-provenance rev-6 errata and ADR-034 rev-3 errata
+(both Accepted retained) record the three build-tagged `openFlags()` halves.
+The §19(3) prerequisite for `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14
+is now **satisfied**; `implement-prepare-intent-bundle` is the next dispatch.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
