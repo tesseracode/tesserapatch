@@ -27,6 +27,21 @@ const (
 	StateUnstable          = "unstable"
 )
 
+// ArtifactStates is the closed §7.6 structural enum in declaration order.
+func ArtifactStates() []string {
+	return []string{
+		StatePresentNonempty,
+		StatePresentEmpty,
+		StateAbsent,
+		StateSymlinkRefused,
+		StateNotRegular,
+		StateUnreadable,
+		StateOversize,
+		StateInvalidStructured,
+		StateUnstable,
+	}
+}
+
 const (
 	FeatureStateRequested         = "requested"
 	FeatureStateAnalyzed          = "analyzed"
@@ -41,6 +56,26 @@ const (
 	FeatureStateRejected          = "rejected"
 	FeatureStateUnapplied         = "unapplied"
 )
+
+// FeatureStates is the closed lifecycle echo domain in declaration order.
+// It mirrors store.FeatureState without importing internal/store; AVP-165
+// asserts the two lists are equal by AST.
+func FeatureStates() []string {
+	return []string{
+		FeatureStateRequested,
+		FeatureStateAnalyzed,
+		FeatureStateDefined,
+		FeatureStateImplementing,
+		FeatureStateApplied,
+		FeatureStateActive,
+		FeatureStateReconciling,
+		FeatureStateReconcilingShadow,
+		FeatureStateBlocked,
+		FeatureStateUpstreamMerged,
+		FeatureStateRejected,
+		FeatureStateUnapplied,
+	}
+}
 
 const disclaimer = "Structural presence only. This report does not certify semantic quality."
 

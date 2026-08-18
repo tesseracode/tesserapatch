@@ -1,0 +1,19 @@
+$ tpatch apply --help
+exit 0
+Execute a feature's apply recipe or record an apply session.
+
+Use 'tpatch feature unapply <slug>' to remove a feature's patch from the working tree.
+
+Usage:
+  tpatch apply <slug> [flags]
+
+Flags:
+      --dry-run                    Preview recipe execution without modifying files
+  -h, --help                       help for apply
+      --mode string                Apply mode: auto (default, runs prepare→execute→done), prepare, started, execute, done (default "auto")
+      --note string                Operator notes about the apply session
+      --validation-note string     Details about validation
+      --validation-status string   Validation outcome: passed, failed, needs_review
+
+Global Flags:
+      --path string   Target repository path (default: current directory)

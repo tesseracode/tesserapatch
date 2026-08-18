@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -34,6 +36,10 @@ func prepareWorkspace(t *testing.T, complete bool) string {
 	return root
 }
 
+// runPrepare drives the real root command through the real root error
+// printer, so the returned stderr is byte-for-byte what the process emits
+// (including the single `error:` line) and the returned code is the real
+// process exit code.
 func runPrepare(t *testing.T, args ...string) (int, string, string, error) {
 	t.Helper()
 	root := buildRootCmd()
@@ -41,8 +47,12 @@ func runPrepare(t *testing.T, args ...string) (int, string, string, error) {
 	root.SetOut(&stdout)
 	root.SetErr(&stderr)
 	root.SetArgs(args)
-	err := root.Execute()
-	return exitCodeFor(err), stdout.String(), stderr.String(), err
+	code := execute(root, &stderr)
+	var err error
+	if code != 0 {
+		err = errors.New(strings.TrimSpace(stderr.String()))
+	}
+	return code, stdout.String(), stderr.String(), err
 }
 
 func TestPrepareCheckJSONAndNoMutation(t *testing.T) {

@@ -14,6 +14,13 @@ All notable changes to tpatch are recorded here.
   `prepare` surface (4). It writes no files and changes no existing lifecycle,
   `--manual`, `next`, `cycle`, or apply behavior.
 
+  `status.json` is validated against the full tpatch status schema — a known
+  field with the wrong JSON type is reported as `status-malformed`, exactly as
+  the normal status reader would refuse it — while unknown forward-compatible
+  keys are still accepted. Abort codes, readiness verdicts, reason codes and
+  advisory codes are exported as closed, typed catalogs, so the CLI boundary
+  carries no string literals and no generic fallback diagnostic.
+
 ## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification
 
 ### Fixed

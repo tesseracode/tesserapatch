@@ -1,0 +1,14 @@
+$ tpatch next routing-demo --format harness-json
+exit 0
+{
+  "phase": "explore",
+  "slug": "routing-demo",
+  "state": "defined",
+  "instructions": "Explore the codebase and identify the minimal changeset (files, code sections) needed to implement the spec.",
+  "context_files": [
+    ".tpatch/features/routing-demo/request.md",
+    ".tpatch/features/routing-demo/analysis.md",
+    ".tpatch/features/routing-demo/spec.md"
+  ],
+  "on_complete": "tpatch explore routing-demo"
+}

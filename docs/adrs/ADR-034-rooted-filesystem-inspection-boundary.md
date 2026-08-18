@@ -1,6 +1,6 @@
 # ADR-034 — Rooted Filesystem Inspection Boundary
 
-**Status**: Accepted — 2026-08-13 (rev-2)
+**Status**: Accepted — 2026-08-13 (rev-2); **errata rev-3 — 2026-08-17** (no decision change)
 **Date**: 2026-08-13 (Proposed)
 **Owner**: Core (planning lane)
 **Byline**: writer sub-agent + supervisor note-fold, rev-2 based on dispatch HEAD `70876c1`
@@ -11,7 +11,7 @@
 context, D6 no wall-clock), [ADR-033](./ADR-033-resource-capture-boundary.md)
 (D10 no tracked timestamps, D11 no Go map in a wire schema)
 **Companion**: [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md)
-(rev-5, Accepted). **The two documents were reviewed together.**
+(rev-5 Accepted, errata rev-6). **The two documents were reviewed together.**
 Read the PRD for the full design and its acceptance matrix; this ADR states the
 decisions the PRD's §7 depends on, and where the two overlap **this ADR is
 normative**.
@@ -25,6 +25,7 @@ S1–S5). No implementation is authorized until both documents are accepted.
 | rev-0 | NEEDS REVISION (internal and external) | First draft: D1–D14. |
 | rev-1 | NEEDS REVISION (internal), APPROVED WITH NOTES (external) | **D5** narrows the confinement allowlist from `unix \|\| windows \|\| wasip1` to **`unix \|\| windows`**; `wasip1` becomes an unsupported target that aborts, the "byte-identical to the stdlib tag" justification is withdrawn in favour of an asserted **subset** relation, and **no split implementation** is authorized. **D6** scopes `O_NONBLOCK` to the *open*. **D7**'s name-surrogate column is corrected to the `0x20000000` bit test rather than a two-tag list. **D8** records that bytes read through an unobserved consistent alias are **attributed to the canonical name**. **D9** corrects the `io.ReadAll(io.LimitReader(...))` rationale — it is bounded but variable and repeated, not unbounded — and states the one-time ~4 MiB zeroing cost. **D12** adds an injectable `SameFile` to the seam, making it three + three methods with **exactly two** production adapters, one per interface. **Four new decisions**: **D15** descriptor `Close` contract and close-failure precedence; **D16** withdrawal of every bounded-runtime guarantee; **D17** Cobra parse-error ownership under `SilenceUsage`/`SilenceErrors`; **D18** the deliberate exit-3 workspace divergence. |
 | rev-2 | APPROVED (internal and external) | Final no-decision-change correction: advisory catalog count ten; companion PRD rev-5 labels synchronized. |
+| rev-3 | **Errata — Accepted status retained, no decision change** | Implementation erratum raised by the GH #16 rev-0 joint review. **D5** and **D6** described `openFlags()` as a two-half `!windows` / `windows` partition. That partition does not compile: `syscall.O_NONBLOCK` is undeclared in `syscall` on `js/wasm` and `plan9` — exactly the targets D5 refuses — so a `!windows` file naming it breaks the build for the unsupported set. D5 and D6 are amended to the **three**-half partition `unix` / `windows` / `!(unix \|\| windows)`, the third half returning a constant `0` **for buildability only**. D5's decision is unchanged (the confinement allowlist remains exactly `unix \|\| windows`, `wasip1` and every unmatched `GOOS` still abort) and D6's decision is unchanged (Unix opens carry exactly `O_NONBLOCK`, Windows exactly `0`, caller-side `O_NOFOLLOW` stays removed). The new obligation the errata adds is **unreachability**: the platform gate must abort `workspace-unsupported-platform` before `os.OpenRoot` and before any name composition, so the third half is never called in production (PRD AVP-118, AVP-177, AVP-179, AVP-208). |
 
 ---
 
@@ -228,13 +229,14 @@ justification is withdrawn.** It reasons about the stdlib's implementation set
 when the question is *this design's* implementation set, and the two are not
 the same:
 
-1. **This design declares exactly two implementation halves.** D6's
-   `openFlags()` is build-tagged `!windows` / `windows`, and the non-Windows
-   half returns `syscall.O_NONBLOCK` with FIFO/character-device semantics that
-   D10's tripwire test (PRD AVP-200) exercises on a real Unix FIFO. A WASI
-   preview-1 host does not provide those semantics, so admitting `wasip1` to
-   the `true` branch would assert a property the `!windows` half does not
-   deliver there.
+1. **This design declares exactly two *implementation* halves** (rev-3
+   errata: plus one non-implementation buildability half — see below). D6's
+   `openFlags()` is build-tagged `unix` / `windows` / `!(unix || windows)`,
+   and the Unix half returns `syscall.O_NONBLOCK` with FIFO/character-device
+   semantics that D10's tripwire test (PRD AVP-200) exercises on a real Unix
+   FIFO. A WASI preview-1 host does not provide those semantics, so admitting
+   `wasip1` to the `true` branch would assert a property the `unix` half does
+   not deliver there — and the third half deliberately implements nothing.
 2. **No `wasip1` runner, fixture or cross-build is proposed.** D13 makes a
    native Windows runner mandatory precisely because an unexecuted platform
    path degrades silently. Claiming a third confined target while proposing no
@@ -256,6 +258,23 @@ the same:
 - the subset is **proper**: `wasip1` is matched by the stdlib tag and not by
   ours, and that gap is a recorded refusal rather than an oversight.
 
+**rev-3 erratum — the unsupported branch still has to compile.** rev-1 wrote
+D6's partition as two halves, `!windows` and `windows`. `syscall.O_NONBLOCK`
+is not declared in `syscall` on `js/wasm` or `plan9`, so a `!windows` file
+naming the constant fails to build for precisely the `GOOS` set this decision
+refuses — the refusal could never be reached, because the binary for those
+targets would not link. The partition is therefore three halves: `unix`
+(`syscall.O_NONBLOCK`), `windows` (`0`) and `!(unix || windows)` (`0`,
+buildability only). **The decision is unchanged**: the confinement allowlist is
+still exactly `unix || windows`, `wasip1` and every unmatched `GOOS` still
+abort, and no confinement claim is made anywhere the standard library does not
+implement the confined resolver. The errata adds one obligation, which is
+mechanically checked rather than asserted in prose: the third half must be
+**unreachable in production**, because the platform gate returns
+`workspace-unsupported-platform` before `os.OpenRoot` is called and before any
+root-relative name is composed (PRD AVP-177, AVP-179). A future `wasip1`
+implementation half remains out of scope and still requires its own ADR.
+
 PRD AVP-191 owns the tag texts and the exhaustive/disjoint property; **PRD
 AVP-208 (new in rev-1)** owns the subset relation, the proper-subset assertion
 for `wasip1`, and the sensitivity fixture that fails when `wasip1` is re-added
@@ -265,8 +284,13 @@ without a `wasip1` `openFlags()` half and a runner.
 
 `openFlags()` is build-tagged and returns:
 
-- non-Windows: `syscall.O_NONBLOCK`, and nothing else;
-- Windows: `0`.
+- Unix (`//go:build unix`): `syscall.O_NONBLOCK`, and nothing else;
+- Windows (`//go:build windows`): `0`;
+- every other target (`//go:build !(unix || windows)`, rev-3 errata): `0`,
+  declared **only** so those targets compile. `syscall.O_NONBLOCK` does not
+  exist in `syscall` there, and D5's platform gate refuses those targets before
+  `os.OpenRoot`, so this half is never called in production and asserts no
+  open-time property whatsoever.
 
 No write, create, truncate or append bit ever appears, on any target. There is
 no raw `syscall.CreateFile`, no `windows.Openat`, and no call into

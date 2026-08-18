@@ -1,0 +1,13 @@
+$ tpatch next routing-demo
+exit 0
+Feature: routing-demo
+State:   analyzed
+Phase:   define
+
+Read the analysis and generate acceptance criteria + implementation plan in spec.md.
+
+Context files:
+  - .tpatch/features/routing-demo/request.md
+  - .tpatch/features/routing-demo/analysis.md
+
+On complete: tpatch define routing-demo

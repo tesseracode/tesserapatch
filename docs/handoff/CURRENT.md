@@ -2,11 +2,15 @@
 
 ## Status
 
-**Cluster state**: REV-1 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-The accepted read-only `tpatch prepare <slug> --check` implementation rev-0 is
-implemented, but joint review returned **NEEDS REVISION**. A bounded rev-1 is
-dispatched. No mutating prepare mode is authorized.
+Rev-1 is implemented and awaiting joint internal/external review. Every rev-0
+finding is closed: full `FeatureStatus`-schema malformed detection without an
+`internal/store` import, the PRD rev-6 / ADR-034 rev-3 build-half errata, a
+mechanical 208-row `AVP-001…AVP-208` ledger, all 43 guards with paired failing
+sensitivity fixtures, native Windows runtime tests, pre-change routing goldens
+reconstructed from `WAVE_BASE`, and typed abort/readiness diagnostics. No
+mutating prepare mode is authorized.
 
 ## Active Task
 
@@ -14,7 +18,7 @@ dispatched. No mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-1 dispatched after rev-0 NEEDS REVISION
+- **Status**: Rev-1 implemented — AWAITING REVIEW
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -47,77 +51,222 @@ dispatched. No mutating prepare mode is authorized.
 - Native Windows behavior is part of acceptance.
 - Mutating prepare PRD rev-14 / ADR-035 rev-14 remains blocked.
 
-## Session Summary
+## Session Summary — rev-1
 
-- Read the required implementation contracts: `CLAUDE.md`, `AGENTS.md`,
-  PRD-artifact-validation-and-provenance rev-5, and ADR-034 rev-2.
-- Implemented the read-only `prepare <slug> --check` CLI, rooted inspection
-  core, deterministic JSON/human/quiet report renderers, exit precedence, and
-  status/artifact capture ladders.
-- Added supported/unsupported platform build tags, native Windows CI coverage,
-  the `winsymlink=1` main-package directive, targeted unit/integration tests,
-  docs, and all six skill-surface updates.
-- The accepted contracts require
-  an implementation correction: the documented bare constant subtraction does
-  not reject an inverted cap relationship, so the implementation uses a real
-  negative-array-length compile-time guard. This is an implementation erratum,
-  not a product-contract change.
+Sole sequential reviser. Each numbered rev-0 finding is closed below.
+
+1. **Status fidelity (HIGH).** `internal/intent/status_schema.go` adds a local
+   mirror of `store.FeatureStatus` and every shape reachable from it
+   (`ApplySummary`, `ReconcileSummary`, `PatchIDMatch`, `Dependency`,
+   `VerifyRecord`, `RejectionStatus`, `RejectionHistoryEntry`, `EvidenceRef`,
+   `DivergenceDetail`, including `time.Time` members). `decodeStatusDocument`
+   rejects anything that would not unmarshal into that schema, so a known
+   field with the wrong JSON type is now `status-malformed` rather than a
+   silently accepted document. Unknown keys stay accepted —
+   `DisallowUnknownFields` is deliberately not set, matching every other
+   reader. The no-`internal/store` import boundary is retained and asserted
+   (AVP-087, AVP-150). `TestAVPStatusSchemaParity` walks
+   `internal/store/types.go` + `internal/store/status.go` by AST, compares
+   field names, JSON names, `omitempty` flags and normalized types against the
+   mirror, and ships a sensitivity fixture that fails on an added field, a
+   renamed JSON tag and a changed type.
+2. **Platform errata (MEDIUM).** `PRD-artifact-validation-and-provenance` is
+   **rev-6 errata** (Accepted status retained) and
+   `ADR-034` is **rev-3 errata** (Accepted retained). Both record that
+   `syscall.O_NONBLOCK` is undeclared in `syscall` on `js/wasm` and `plan9`,
+   so the rev-4 two-half `!windows` / `windows` partition does not compile for
+   exactly the `GOOS` set D5 refuses, and three halves — `unix`, `windows`,
+   `!(unix || windows)` — are required. AVP-118 and AVP-208 are amended; D5
+   and D6 carry the matching text. The added obligation is **unreachability**:
+   the platform gate aborts before `os.OpenRoot` and before any name is
+   composed. No product behavior changes; the matrix is still 208 rows and the
+   guard set still 43. The ADR index row is updated.
+3. **Acceptance ledger (HIGH).** `internal/intent/avp_ledger_test.go` maps all
+   **208** rows to **224** references across `intent`, `cli` and `assets`.
+   References resolve by parsing the test sources (literal `t.Run`, keyed
+   table `id:` fields, and `[]string` range literals); `TestAVPGuards/<id>`
+   resolves against the live guard registry, which additionally proves the
+   guard and its sensitivity fixture exist. The ledger fails on a missing row,
+   an undeclared row, a duplicate reference and an unresolvable reference, and
+   `TestAcceptanceLedgerResolutionRejectsFalsePositives` proves comments,
+   string fixtures, wrong packages, missing subtests and non-runnable
+   signatures do not resolve. `TestAcceptanceLedgerMatrixArithmetic` re-derives
+   §18.27 (25 categories, the kind table, the 43-row guard predicate and the
+   165-row complement) from the rows themselves. No row is satisfied by raw
+   source-string presence where the behavior is testable.
+4. **43 guards + sensitivity (HIGH).** `avpGuards` registers exactly the 43
+   `G`-kind rows; `TestAVPGuards` runs each guard and then its sensitivity
+   fixture, failing when the mutated input does **not** break the guard.
+   Coverage: forbidden JSON key names and the closed human-label set,
+   path-kind absence, content-hash absence, abort shape, advisory
+   cardinality, provenance domain, output-byte rule, state/reason/advisory/
+   abort catalog totality and bijections, precedence pairs, `FeatureState`
+   parity against `internal/store` by AST, lifecycle-line totality, exit
+   templates, cap↔message coupling, forbidden readers/mutators/read
+   primitives, the fixed scratch buffer, seam shape (three + three methods,
+   exactly two adapters), single `os.SameFile` call site, `fs.ValidPath`
+   names, the reparse predicate, allocation ceilings, descriptor lifecycle,
+   CI matrix parsing, confinement-constant declaration and ordering,
+   cross-builds, build-tag allowlist exhaustiveness/disjointness over
+   `go tool dist list`, the three `openFlags()` halves, `winsymlink=1`,
+   the real-FIFO `O_NONBLOCK` Go-upgrade tripwire, over-claim scans across
+   shipped strings and both contract documents, the stdlib proper-subset
+   relation, and the derived meta-check itself.
+5. **Behavior populations (HIGH).** The fake `FileOps` now maintains a real
+   read offset, so `io.ReadFull` produces the genuine `io.EOF` /
+   `io.ErrUnexpectedEOF` / `err == nil` taxonomy instead of forced errors, and
+   every read records its requested length, capacity and backing array. Added
+   coverage: injected capture rows 13/14/15/17/18/19/20/20a/20b/20c, the full
+   status ladder including 16a close failure, exact `cap` / `cap+1` /
+   whitespace / JSON-object boundaries for both caps, the one-allocation
+   ceiling with backing-array identity for all five captures, all thirteen
+   aborts (ten reachable end-to-end, three injected), the lifecycle-line
+   table, attacker bytes, root lifetime and close precedence, sidecar advisory
+   totality over all nine states, deterministic human/JSON/quiet bytes, and
+   the compatibility differential through the real `--manual` commands.
+6. **Native Windows (HIGH).** `internal/intent/avp_native_windows_test.go` is
+   `GOOS`-constrained and contains **no skip of any kind**: junctions are
+   created with `cmd /c mklink /J` and the helper `t.Fatal`s when the command
+   is unavailable or returns non-zero; symlink, junction, reparse-point
+   status, `os.SameFile` identity across a replacement, and a `FILE_TYPE_CHAR`
+   handle are all asserted. `TestAVPWindowsSourceGuards` runs on every target
+   and pins AVP-175 (CI matrix parses and runs `go test`), AVP-176/199 (no
+   `t.Skip` in the fixture path, `mklink /J` retained), AVP-198 (the
+   `//go:debug winsymlink=1` directive) and AVP-178 (Windows cross-build).
+7. **Pre-change routing goldens (HIGH).** A temporary detached worktree at
+   `WAVE_BASE` `9a8c1d0` was created, its binary built, the goldens recorded,
+   and the worktree deleted. `internal/cli/testdata/routing-goldens/`
+   holds twelve fixtures with a `README.md` recording commit, subject,
+   toolchain, binary SHA-256 and the exact recording commands. The current
+   binary is rebuilt by the test and compared byte-for-byte. `apply --help`
+   is the one authorized delta and is asserted as a bounded change (the
+   AVP-010 pointer sentence and nothing else). The capture runs under a
+   hermetic environment so a leaked credential cannot turn the heuristic
+   `cycle` transcript into a network transcript.
+8. **Typed diagnostics (LOW).** `AbortCode` and `Readiness` are named types
+   with closed catalogs (`AbortCodes()`, `Valid()`); reason, advisory,
+   provenance, role and command constants are exported. The CLI uses the
+   constants; `NewAbortReport` panics on a code outside the catalog;
+   `abortMessage`, `lifecycleAnnotation`, `reasonCode`, `sidecarAdvisory`,
+   `remediation` and `prepareExit` are total switches that panic rather than
+   emit a generic fallback. A wrong scratch length is now a **panic** —
+   a programming error in the calling package — instead of a false
+   `workspace-root-unopenable` abort the operator could neither reproduce nor
+   remediate. Abort ↔ message ↔ lifecycle-line ↔ remediation bijections are
+   asserted (AVP-095, AVP-101, AVP-153, AVP-181).
+
+`internal/cli/cobra.go` gained one small factoring: `Execute` now delegates to
+`execute(rootCmd, io.Writer)` so tests assert the real `error:` envelope and
+the real exit code without shelling out. Behavior is unchanged.
+
+## Implementation Errata (both preserved and documented)
+
+1. **Negative-array-length cap guard.** `var _ [MaxArtifactBytes -
+   MaxStatusBytes - 1]struct{}` is retained. The documented bare subtraction
+   would not reject an inverted cap relationship; the array-length form fails
+   to compile the moment the status cap stops being strictly smaller than the
+   artifact cap. Preserved from rev-0 at reviewer instruction.
+2. **Three `openFlags()` build halves.** `syscall.O_NONBLOCK` does not exist
+   in `syscall` on `js/wasm` or `plan9`, so the accepted two-half partition
+   does not build for the very targets the platform allowlist refuses. Three
+   halves are required. Folded into PRD rev-6 and ADR-034 rev-3 errata
+   (finding 2 above) rather than left as an undocumented deviation.
 
 ## Current State
 
-- `prepare --check` is a pure `internal/intent.Inspect` call over a three- and
-  three-method rooted operation seam. It uses one caller-owned 4 MiB+1 scratch
-  buffer sequentially for `status.json` and all four artifacts.
-- The command opens one root after workspace discovery and closes it after
-  report rendering. It makes no writes, provider calls, subprocess calls, or
-  lifecycle changes.
-- Existing `apply --mode prepare`, manual phase gates, `next`, and `cycle`
-  are unchanged; apply help has the reciprocal collision pointer.
-- Known allowlisted untracked research WIP remains untouched.
+- `prepare --check` remains a pure `internal/intent.Inspect` call over the
+  three-method rooted seam, with one caller-owned `MaxArtifactBytes+1` scratch
+  buffer reused by the status capture and all four artifacts.
+- One root is opened after workspace discovery and closed after rendering.
+  No writes, provider calls, subprocess calls or lifecycle changes.
+- Existing `apply --mode prepare`, manual phase gates, `next` and `cycle` are
+  byte-identical to the reconstructed `WAVE_BASE` binary; `apply --help`
+  carries only the authorized pointer sentence.
+- Known allowlisted untracked research WIP is untouched.
 
 ## Files Changed
 
-- `.github/workflows/ci.yml`
-- `CHANGELOG.md`, `SPEC.md`
-- `assets/assets_test.go`
-- `assets/prompts/copilot/tessera-patch-apply.prompt.md`
-- `assets/skills/claude/tessera-patch/SKILL.md`
-- `assets/skills/copilot/tessera-patch/SKILL.md`
-- `assets/skills/cursor/tessera-patch.mdc`
-- `assets/skills/windsurf/windsurfrules`
-- `assets/workflows/tessera-patch-generic.md`
-- `cmd/tpatch/main.go`
-- `docs/agent-as-provider.md`, `docs/feature-layout.md`,
-  `docs/path-b-operator-guide.md`, `docs/handoff/CURRENT.md`
-- `internal/cli/cobra.go`, `internal/cli/prepare.go`,
-  `internal/cli/prepare_test.go`
+Production:
+
 - `internal/intent/intent.go`, `internal/intent/inspect.go`,
-  `internal/intent/render.go`, `internal/intent/confine_supported.go`,
-  `internal/intent/confine_unsupported.go`, `internal/intent/openflags_unix.go`,
-  `internal/intent/openflags_windows.go`, `internal/intent/openflags_unsupported.go`,
-  `internal/intent/inspect_test.go`
+  `internal/intent/render.go`, `internal/intent/status_schema.go` (new),
+  `internal/intent/openflags_unix.go`, `internal/intent/openflags_windows.go`,
+  `internal/intent/openflags_unsupported.go`
+- `internal/cli/prepare.go`, `internal/cli/cobra.go`
+
+Tests:
+
+- `internal/intent/harness_test.go` (new),
+  `internal/intent/avp_classification_test.go` (new),
+  `internal/intent/avp_status_test.go` (new),
+  `internal/intent/avp_rooted_test.go` (new),
+  `internal/intent/avp_guards_test.go` (new),
+  `internal/intent/avp_guard_helpers_test.go` (new),
+  `internal/intent/avp_document_guards_test.go` (new),
+  `internal/intent/avp_source_scans_test.go` (new),
+  `internal/intent/avp_ledger_test.go` (new),
+  `internal/intent/status_schema_test.go` (new),
+  `internal/intent/avp_native_windows_test.go` (new),
+  `internal/intent/avp_windows_guards_test.go` (new),
+  `internal/intent/fifo_tripwire_unix_test.go` (new),
+  `internal/intent/fifo_tripwire_other_test.go` (new),
+  `internal/intent/inspect_test.go` (removed — superseded)
+- `internal/cli/prepare_test.go`, `internal/cli/prepare_avp_test.go` (new),
+  `internal/cli/prepare_avp2_test.go` (new),
+  `internal/cli/prepare_routing_golden_test.go` (new)
+- `internal/cli/testdata/routing-goldens/` (new — 12 fixtures + `README.md`)
+- `assets/avp_parity_test.go` (new)
+
+Docs:
+
+- `docs/prds/PRD-artifact-validation-and-provenance.md` (rev-6 errata)
+- `docs/adrs/ADR-034-rooted-filesystem-inspection-boundary.md` (rev-3 errata)
+- `docs/adrs/README.md` (index row)
+- `CHANGELOG.md`, `docs/handoff/CURRENT.md`
+
+## Coverage
+
+- **Acceptance rows**: 208 of 208 mapped, 224 references, zero duplicates.
+- **Guards**: 43 of 43 registered, each with a paired sensitivity fixture that
+  is asserted to fail the guard.
+- **Tests**: 32 top-level AVP/ledger/schema tests and 479 subtests on this
+  host (`intent` 21/304, `cli` 10/172, `assets` 1/3). `windows-latest`
+  additionally runs `TestAVPNativeWindows` (2 rows, 5 leaf assertions) from
+  the `GOOS`-constrained file, which is not compiled on this host.
+- **Goldens**: 12 routing fixtures recorded from `WAVE_BASE` `9a8c1d0`
+  (binary SHA-256 `c06c205cc8a819aa8bb4e10eb8542c4b5174793920cfcec56b1b57d2d8388de5`,
+  `go1.26.5 darwin/arm64`).
 
 ## Test Results
 
-- Targeted assets/intent/CLI tests: PASS (5 top-level tests plus 14
-  table-driven subcases).
-- Asset parity: PASS.
-- `gofmt -l .` and `git diff --check`: PASS.
+- `gofmt -l .`: clean.
+- `go build ./...`: PASS.
 - `go vet ./...`: PASS.
-- `go build ./...` and `go build ./cmd/tpatch`: PASS.
-- `go test -count=1 ./...`: PASS (14 test packages; 2 command packages
-  correctly have no tests).
-- Cross-build/vet: `GOOS=windows GOARCH=amd64 go vet ./internal/intent
-  ./internal/cli`, Windows CLI build, and `GOOS=wasip1 GOARCH=wasm` CLI build:
-  PASS. `wasip1` compiles but is refused by the runtime platform guard.
+- `go test -count=1 ./...`: PASS (14 packages; 2 command packages have no
+  tests).
+- Targeted: `go test -count=1 ./internal/intent/ ./internal/cli/ ./assets/`:
+  PASS.
+- Asset parity (`TestSkillParityGuard`, `TestSkillDocReferencesAreSelfContained`,
+  `TestAVPAssetParity`): PASS.
+- `GOOS=windows GOARCH=amd64 go vet ./internal/intent ./internal/cli`: PASS.
+- `GOOS=windows GOARCH=amd64 go build ./cmd/tpatch`: PASS.
+- `GOOS=wasip1 GOARCH=wasm go build ./cmd/tpatch`: PASS (runtime still
+  refuses via the platform gate).
+- `GOOS=js GOARCH=wasm` and `GOOS=plan9 GOARCH=amd64 go build ./internal/intent`:
+  PASS — the rev-6 errata's buildability claim, verified directly.
+- Routing goldens re-recorded from the `WAVE_BASE` binary under the hermetic
+  environment produced byte-identical files.
 
 ## Next Steps
 
-1. Reviewer: compare output text, report schema/order, and every ladder row
-   against PRD rev-5; focus especially on close precedence and abort ordering.
-2. Reviewer: run the accepted matrix/guard pass, including native Windows
-   behavior and unsupported-target refusal.
-3. If approved, commit this explicit file list and push `origin/main`.
+1. Reviewer: run the ledger (`go test ./internal/intent -run TestAcceptance`)
+   and the guard suite (`-run TestAVPGuards`), and spot-check that each
+   sensitivity fixture genuinely breaks its guard.
+2. Reviewer: confirm the PRD rev-6 / ADR-034 rev-3 errata are narrow — no
+   decision changed, matrix still 208 rows, guard set still 43.
+3. Reviewer: inspect CI after push; `windows-latest` must execute
+   `TestAVPNativeWindows` with real assertions, not skips.
+4. If approved, run the Wave-Close Checklist and flip the handoff Status.
 
 ## Blockers
 
@@ -127,13 +276,24 @@ dispatched. No mutating prepare mode is authorized.
 
 ## Context for Next Agent
 
-- The `openflags_unsupported.go` zero value exists only to keep unsupported
-  targets buildable; the CLI refuses before root opening.
-- Do not modify the accepted PRD/ADR, ROADMAP, supervisor LOG, HISTORY, or
-  research WIP. The untracked research files visible in `git status` predate
-  this wave and are not task files.
-- Reviewer should preserve the negative-array-length cap guard; the former
-  bare subtraction would not enforce the intended strict ordering.
+- `internal/intent` still must not import `internal/store`. The status schema
+  is mirrored locally on purpose and kept honest by the AST parity guard; if
+  `store.FeatureStatus` gains a field, that guard fails until the mirror is
+  updated.
+- The guard registry is the single source of truth for the 43 `G` rows.
+  Adding a matrix row whose Kind contains `G` without registering a guard
+  fails AVP-139 and the ledger automatically.
+- Routing goldens must never be re-recorded from the current binary. If they
+  need refreshing, reconstruct the `WAVE_BASE` binary in a temporary detached
+  worktree exactly as the testdata `README.md` documents.
+- **Out of scope, pre-existing**: `GOOS=js GOARCH=wasm go build ./cmd/tpatch`
+  fails in `internal/rescap` (`pathopen_unix.go` references
+  `syscall.O_NOFOLLOW` under a `!windows`-shaped tag). This reproduces at
+  `WAVE_BASE` `9a8c1d0` unchanged and is the same failure class the rev-6
+  errata fixes inside `internal/intent`. It is **not** touched by this wave;
+  it deserves its own ticket.
+- Do not modify the ROADMAP, supervisor LOG, HISTORY, or research WIP. The
+  untracked research files in `git status` predate this wave.
 
 ## Rev-0 Review and Rev-1 Adjudication
 

@@ -31,9 +31,16 @@ import (
 // code here so harnesses can treat verify-failed (exit 2) as distinct
 // from a generic CLI error (exit 1).
 func Execute() int {
-	rootCmd := buildRootCmd()
+	return execute(buildRootCmd(), os.Stderr)
+}
+
+// execute is the single root error printer, factored out of Execute so a
+// test can assert the real process-boundary envelope — the exact `error:`
+// line and the exact exit code — without shelling out (PRD §10.1, AVP-096
+// through AVP-101).
+func execute(rootCmd *cobra.Command, stderr io.Writer) int {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		fmt.Fprintf(stderr, "error: %v\n", err)
 		return exitCodeFor(err)
 	}
 	return 0

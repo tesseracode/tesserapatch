@@ -1,0 +1,12 @@
+$ tpatch next routing-demo --format harness-json
+exit 0
+{
+  "phase": "analyze",
+  "slug": "routing-demo",
+  "state": "requested",
+  "instructions": "Run analysis on the feature request to assess compatibility and affected areas.",
+  "context_files": [
+    ".tpatch/features/routing-demo/request.md"
+  ],
+  "on_complete": "tpatch analyze routing-demo"
+}

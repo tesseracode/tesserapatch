@@ -1,0 +1,13 @@
+$ tpatch next routing-demo --format harness-json
+exit 0
+{
+  "phase": "define",
+  "slug": "routing-demo",
+  "state": "analyzed",
+  "instructions": "Read the analysis and generate acceptance criteria + implementation plan in spec.md.",
+  "context_files": [
+    ".tpatch/features/routing-demo/request.md",
+    ".tpatch/features/routing-demo/analysis.md"
+  ],
+  "on_complete": "tpatch define routing-demo"
+}

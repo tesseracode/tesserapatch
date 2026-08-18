@@ -31,10 +31,10 @@ It is read-only and never advances state. This command is unrelated to
 			scratch := make([]byte, intent.MaxArtifactBytes+1)
 			slug, err := intent.CanonicalSlug(args[0])
 			if err != nil {
-				return emitPrepareReport(cmd, intent.NewAbortReport("", "slug-unsafe"))
+				return emitPrepareReport(cmd, intent.NewAbortReport("", intent.AbortSlugUnsafe))
 			}
 			if !intent.RootConfinementSupported() {
-				return emitPrepareReport(cmd, intent.NewAbortReport(slug, "workspace-unsupported-platform"))
+				return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortUnsupportedPlatform))
 			}
 
 			start, _ := cmd.Flags().GetString("path")
@@ -43,11 +43,11 @@ It is read-only and never advances state. This command is unrelated to
 			}
 			repoRoot, err := store.FindProjectRoot(start)
 			if err != nil {
-				return emitPrepareReport(cmd, intent.NewAbortReport(slug, "workspace-not-initialized"))
+				return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortWorkspaceMissing))
 			}
 			root, err := os.OpenRoot(repoRoot)
 			if err != nil {
-				return emitPrepareReport(cmd, intent.NewAbortReport(slug, "workspace-root-unopenable"))
+				return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortRootUnopenable))
 			}
 
 			report := intent.Inspect(intent.NewRootOps(root), slug, scratch)
@@ -97,11 +97,13 @@ func prepareExit(report intent.Report) error {
 		return &ExitCodeError{Code: 3, Message: report.ExitMessage()}
 	}
 	switch report.Readiness() {
-	case "ready":
+	case intent.ReadinessReady:
 		return nil
-	case "not_ready":
+	case intent.ReadinessNotReady:
 		return &ExitCodeError{Code: 2, Message: report.ExitMessage()}
-	default:
+	case intent.ReadinessIndeterminate:
 		return &ExitCodeError{Code: 3, Message: report.ExitMessage()}
+	default:
+		panic("cli.prepareExit: readiness outside the closed domain: " + string(report.Readiness()))
 	}
 }

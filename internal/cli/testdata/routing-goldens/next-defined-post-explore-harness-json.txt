@@ -1,0 +1,15 @@
+$ tpatch next routing-demo --format harness-json
+exit 0
+{
+  "phase": "implement",
+  "slug": "routing-demo",
+  "state": "defined",
+  "instructions": "Generate the deterministic apply-recipe.json that writes/modifies the files identified in exploration.md.",
+  "context_files": [
+    ".tpatch/features/routing-demo/request.md",
+    ".tpatch/features/routing-demo/analysis.md",
+    ".tpatch/features/routing-demo/spec.md",
+    ".tpatch/features/routing-demo/exploration.md"
+  ],
+  "on_complete": "tpatch implement routing-demo"
+}

@@ -1,0 +1,3 @@
+$ tpatch apply routing-demo --mode prepare
+exit 0
+Apply packet prepared for routing-demo

@@ -1,0 +1,13 @@
+$ tpatch cycle cycle-demo --skip-execute
+exit 0
+[1/6] Analyzing cycle-demo...
+  Summary: Heuristic analysis for feature 'cycle-demo'. Manual review recommended.
+  Compatibility: unknown
+[2/6] Defining acceptance criteria...
+  Spec written to .tpatch/features/cycle-demo/spec.md
+[3/6] Exploring codebase...
+  Exploration written to .tpatch/features/cycle-demo/exploration.md
+[4/6] Generating apply recipe...
+  Recipe has 1 operation(s)
+  --skip-execute set; stopping before recipe execution.
+  To apply manually: tpatch apply cycle-demo --mode execute

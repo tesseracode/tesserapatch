@@ -11,26 +11,96 @@ import (
 	"strings"
 )
 
-const (
-	abortSlugUnsafe          = "slug-unsafe"
-	abortUnsupportedPlatform = "workspace-unsupported-platform"
-	abortWorkspaceMissing    = "workspace-not-initialized"
-	abortRootUnopenable      = "workspace-root-unopenable"
-	abortFeatureUnsafe       = "feature-dir-unsafe"
-	abortFeatureNotFound     = "feature-not-found"
-	abortStatusSymlink       = "status-symlink-refused"
-	abortStatusNotRegular    = "status-not-regular"
-	abortStatusOversize      = "status-oversize"
-	abortStatusUnreadable    = "status-unreadable"
-	abortStatusUnstable      = "status-unstable"
-	abortStatusMalformed     = "status-malformed"
-	abortStatusInvalidState  = "status-invalid-state"
-)
+// AbortCode is the closed catalog of pre-artifact inspection refusals
+// (§9.4.4). The zero value is deliberately not a member: a report either
+// carries one of the thirteen codes below or carries no abort at all.
+type AbortCode string
 
 const (
-	readinessReady         = "ready"
-	readinessNotReady      = "not_ready"
-	readinessIndeterminate = "indeterminate"
+	AbortSlugUnsafe          AbortCode = "slug-unsafe"
+	AbortUnsupportedPlatform AbortCode = "workspace-unsupported-platform"
+	AbortWorkspaceMissing    AbortCode = "workspace-not-initialized"
+	AbortRootUnopenable      AbortCode = "workspace-root-unopenable"
+	AbortFeatureUnsafe       AbortCode = "feature-dir-unsafe"
+	AbortFeatureNotFound     AbortCode = "feature-not-found"
+	AbortStatusSymlink       AbortCode = "status-symlink-refused"
+	AbortStatusNotRegular    AbortCode = "status-not-regular"
+	AbortStatusOversize      AbortCode = "status-oversize"
+	AbortStatusUnreadable    AbortCode = "status-unreadable"
+	AbortStatusUnstable      AbortCode = "status-unstable"
+	AbortStatusMalformed     AbortCode = "status-malformed"
+	AbortStatusInvalidState  AbortCode = "status-invalid-state"
+)
+
+// AbortCodes returns the thirteen §9.4.4 codes in declaration order. The
+// catalog is closed: adding a fourteenth code without a §9.4.5 message and a
+// §10.5.1 lifecycle line fails AVP-101, AVP-153 and AVP-181.
+func AbortCodes() []AbortCode {
+	return []AbortCode{
+		AbortSlugUnsafe,
+		AbortUnsupportedPlatform,
+		AbortWorkspaceMissing,
+		AbortRootUnopenable,
+		AbortFeatureUnsafe,
+		AbortFeatureNotFound,
+		AbortStatusSymlink,
+		AbortStatusNotRegular,
+		AbortStatusOversize,
+		AbortStatusUnreadable,
+		AbortStatusUnstable,
+		AbortStatusMalformed,
+		AbortStatusInvalidState,
+	}
+}
+
+// Valid reports membership in the closed catalog.
+func (c AbortCode) Valid() bool {
+	for _, code := range AbortCodes() {
+		if code == c {
+			return true
+		}
+	}
+	return false
+}
+
+// Readiness is the closed structural-readiness verdict domain (§9.1).
+type Readiness string
+
+const (
+	ReadinessReady         Readiness = "ready"
+	ReadinessNotReady      Readiness = "not_ready"
+	ReadinessIndeterminate Readiness = "indeterminate"
+)
+
+// Reason codes (§10.3), closed and total over the nine artifact states.
+const (
+	ReasonArtifactEmpty            = "artifact-empty"
+	ReasonArtifactAbsent           = "artifact-absent"
+	ReasonArtifactSymlinkRefused   = "artifact-symlink-refused"
+	ReasonArtifactNotRegular       = "artifact-not-regular"
+	ReasonArtifactUnreadable       = "artifact-unreadable"
+	ReasonArtifactOversize         = "artifact-oversize"
+	ReasonArtifactUnstable         = "artifact-snapshot-unstable"
+	ReasonSidecarNotJSON           = "sidecar-not-json"
+	ReasonSidecarNotJSONObject     = "sidecar-not-json-object"
+	AdvisoryFeatureStateAbsent     = "feature-state-absent"
+	AdvisoryProvenanceUnknown      = "provenance-unknown-by-design"
+	AdvisorySidecarAbsent          = "analysis-sidecar-absent-path-b-normal"
+	AdvisorySidecarEmpty           = "analysis-sidecar-empty"
+	AdvisorySidecarInvalid         = "analysis-sidecar-invalid-structured"
+	AdvisorySidecarUnstable        = "analysis-sidecar-unstable"
+	AdvisorySidecarSymlinkRefused  = "analysis-sidecar-symlink-refused"
+	AdvisorySidecarNotRegular      = "analysis-sidecar-not-regular"
+	AdvisorySidecarUnreadable      = "analysis-sidecar-unreadable"
+	AdvisorySidecarOversize        = "analysis-sidecar-oversize"
+	ProvenanceUnknown              = "unknown"
+	FeatureStateUnknown            = "unknown"
+	RoleRequired                   = "required"
+	RoleOptional                   = "optional"
+	CommandName                    = "prepare --check"
+	sidecarAdvisoryPrefix          = "analysis-sidecar-"
+	scratchLengthInvariantMessage  = "intent.Inspect: scratch buffer length must be exactly MaxArtifactBytes+1"
+	rootNameInvariantMessagePrefix = "invalid rooted inspection name "
 )
 
 // Artifact is one stable, structural artifact result.
@@ -46,11 +116,11 @@ type Artifact struct {
 
 // Overall contains the stable readiness counters.
 type Overall struct {
-	StructuralReadiness string `json:"structural_readiness"`
-	RequiredTotal       int    `json:"required_total"`
-	RequiredSatisfied   int    `json:"required_satisfied"`
-	OptionalTotal       int    `json:"optional_total"`
-	OptionalSatisfied   int    `json:"optional_satisfied"`
+	StructuralReadiness Readiness `json:"structural_readiness"`
+	RequiredTotal       int       `json:"required_total"`
+	RequiredSatisfied   int       `json:"required_satisfied"`
+	OptionalTotal       int       `json:"optional_total"`
+	OptionalSatisfied   int       `json:"optional_satisfied"`
 }
 
 // Advisory is a neutral report note selected from a closed catalog.
@@ -62,8 +132,8 @@ type Advisory struct {
 
 // Abort is the single pre-artifact inspection refusal.
 type Abort struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code    AbortCode `json:"code"`
+	Message string    `json:"message"`
 }
 
 // Report is the version-one prepare --check wire schema. Struct declaration
@@ -133,20 +203,25 @@ func windowsReserved(slug string) bool {
 	}
 }
 
-// NewAbortReport constructs the complete, no-artifact abort shape.
-func NewAbortReport(slug, code string) Report {
-	if code == abortSlugUnsafe {
+// NewAbortReport constructs the complete, no-artifact abort shape. The code
+// must be a member of the closed §9.4.4 catalog; anything else is a
+// programming error and panics rather than emitting an untyped diagnostic.
+func NewAbortReport(slug string, code AbortCode) Report {
+	if !code.Valid() {
+		panic("intent.NewAbortReport: abort code outside the closed catalog: " + string(code))
+	}
+	if code == AbortSlugUnsafe {
 		slug = ""
 	}
 	return Report{
 		SchemaVersion: 1,
-		Command:       "prepare --check",
+		Command:       CommandName,
 		Slug:          slug,
-		FeatureState:  "unknown",
+		FeatureState:  FeatureStateUnknown,
 		Disclaimer:    disclaimer,
 		Artifacts:     []Artifact{},
 		Overall: Overall{
-			StructuralReadiness: readinessIndeterminate,
+			StructuralReadiness: ReadinessIndeterminate,
 			RequiredTotal:       3,
 			RequiredSatisfied:   0,
 			OptionalTotal:       1,
@@ -161,52 +236,56 @@ func NewAbortReport(slug, code string) Report {
 // tree. The caller owns ops and the one shared scratch allocation.
 func Inspect(ops RootOps, canonicalSlug string, scratch []byte) Report {
 	if _, err := CanonicalSlug(canonicalSlug); err != nil {
-		return NewAbortReport("", abortSlugUnsafe)
+		return NewAbortReport("", AbortSlugUnsafe)
 	}
+	// The scratch buffer is the caller's contract, not workspace state: a
+	// wrong length is a programming error in the calling package and must
+	// never be laundered into a filesystem-shaped abort the operator can
+	// neither reproduce nor remediate (§7.4.5).
 	if len(scratch) != MaxArtifactBytes+1 {
-		return NewAbortReport(canonicalSlug, abortRootUnopenable)
+		panic(scratchLengthInvariantMessage)
 	}
 
 	base := featureBase(canonicalSlug)
-	if code := inspectFeatureDirectory(ops, canonicalSlug); code != "" {
+	if code, aborted := inspectFeatureDirectory(ops, canonicalSlug); aborted {
 		return NewAbortReport(canonicalSlug, code)
 	}
 
 	statusName := base + "/status.json"
 	status := capture(ops, statusName, nil, scratch[:MaxStatusBytes+1], MaxStatusBytes)
-	featureState := "unknown"
+	featureState := FeatureStateUnknown
 	statusAbsent := false
 	switch status.state {
 	case StatePresentNonempty:
-		var document struct {
-			State string `json:"state"`
+		state, ok := decodeStatusDocument(status.bytes)
+		if !ok {
+			return NewAbortReport(canonicalSlug, AbortStatusMalformed)
 		}
-		if !jsonObject(status.bytes) || json.Unmarshal(status.bytes, &document) != nil {
-			return NewAbortReport(canonicalSlug, abortStatusMalformed)
+		if !validFeatureState(state) {
+			return NewAbortReport(canonicalSlug, AbortStatusInvalidState)
 		}
-		if !validFeatureState(document.State) {
-			return NewAbortReport(canonicalSlug, abortStatusInvalidState)
-		}
-		featureState = document.State
+		featureState = state
 	case StateAbsent:
 		statusAbsent = true
 	case StatePresentEmpty:
-		return NewAbortReport(canonicalSlug, abortStatusMalformed)
+		return NewAbortReport(canonicalSlug, AbortStatusMalformed)
 	case StateSymlinkRefused:
-		return NewAbortReport(canonicalSlug, abortStatusSymlink)
+		return NewAbortReport(canonicalSlug, AbortStatusSymlink)
 	case StateNotRegular:
-		return NewAbortReport(canonicalSlug, abortStatusNotRegular)
+		return NewAbortReport(canonicalSlug, AbortStatusNotRegular)
 	case StateOversize:
-		return NewAbortReport(canonicalSlug, abortStatusOversize)
+		return NewAbortReport(canonicalSlug, AbortStatusOversize)
 	case StateUnstable:
-		return NewAbortReport(canonicalSlug, abortStatusUnstable)
+		return NewAbortReport(canonicalSlug, AbortStatusUnstable)
+	case StateUnreadable:
+		return NewAbortReport(canonicalSlug, AbortStatusUnreadable)
 	default:
-		return NewAbortReport(canonicalSlug, abortStatusUnreadable)
+		panic("intent.Inspect: status capture produced a state outside the closed enum: " + status.state)
 	}
 
 	report := Report{
 		SchemaVersion: 1,
-		Command:       "prepare --check",
+		Command:       CommandName,
 		Slug:          canonicalSlug,
 		FeatureState:  featureState,
 		Disclaimer:    disclaimer,
@@ -219,7 +298,7 @@ func Inspect(ops RootOps, canonicalSlug string, scratch []byte) Report {
 	}
 	if statusAbsent {
 		report.Advisories = append(report.Advisories, Advisory{
-			Code:       "feature-state-absent",
+			Code:       AdvisoryFeatureStateAbsent,
 			ArtifactID: "",
 			Message:    "This feature directory has no status.json, so the lifecycle state is reported as unknown. Artifact inspection is unaffected: no artifact classification reads status.json.",
 		})
@@ -236,10 +315,10 @@ func Inspect(ops RootOps, canonicalSlug string, scratch []byte) Report {
 		if spec.sidecar && state == StatePresentNonempty {
 			if !json.Valid(result.bytes) {
 				state = StateInvalidStructured
-				result.structuredReason = "sidecar-not-json"
+				result.structuredReason = ReasonSidecarNotJSON
 			} else if !jsonObject(result.bytes) {
 				state = StateInvalidStructured
-				result.structuredReason = "sidecar-not-json-object"
+				result.structuredReason = ReasonSidecarNotJSONObject
 			}
 		}
 		reason := reasonCode(state, spec.sidecar, result.structuredReason)
@@ -249,14 +328,14 @@ func Inspect(ops RootOps, canonicalSlug string, scratch []byte) Report {
 			Role:        spec.role,
 			State:       state,
 			ReasonCode:  reason,
-			Provenance:  "unknown",
+			Provenance:  ProvenanceUnknown,
 			Remediation: remediation(spec, name, canonicalSlug, state),
 		}
 		report.Artifacts = append(report.Artifacts, artifact)
-		if spec.role == "required" && state == StatePresentNonempty {
+		if spec.role == RoleRequired && state == StatePresentNonempty {
 			report.Overall.RequiredSatisfied++
 		}
-		if spec.role == "optional" && state == StatePresentNonempty {
+		if spec.role == RoleOptional && state == StatePresentNonempty {
 			report.Overall.OptionalSatisfied++
 		}
 		if spec.sidecar {
@@ -267,7 +346,7 @@ func Inspect(ops RootOps, canonicalSlug string, scratch []byte) Report {
 	}
 
 	report.Advisories = append(report.Advisories, Advisory{
-		Code:       "provenance-unknown-by-design",
+		Code:       AdvisoryProvenanceUnknown,
 		ArtifactID: "",
 		Message:    "Per-artifact provenance is reported as unknown for every artifact. tpatch does not yet persist durable per-artifact source metadata.",
 	})
@@ -279,21 +358,21 @@ func featureBase(slug string) string {
 	return ".tpatch/features/" + slug
 }
 
-func inspectFeatureDirectory(ops RootOps, slug string) string {
+func inspectFeatureDirectory(ops RootOps, slug string) (AbortCode, bool) {
 	for _, name := range []string{".tpatch", ".tpatch/features", featureBase(slug)} {
 		mustValidRootName(name)
 		info, err := ops.Lstat(name)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				return abortFeatureNotFound
+				return AbortFeatureNotFound, true
 			}
-			return abortFeatureUnsafe
+			return AbortFeatureUnsafe, true
 		}
 		if refused(info) || !info.IsDir() {
-			return abortFeatureUnsafe
+			return AbortFeatureUnsafe, true
 		}
 	}
-	return ""
+	return "", false
 }
 
 type captureResult struct {
@@ -426,7 +505,7 @@ func refused(info fs.FileInfo) bool {
 
 func mustValidRootName(name string) {
 	if !fs.ValidPath(name) {
-		panic(fmt.Sprintf("invalid rooted inspection name %q", name))
+		panic(fmt.Sprintf("%s%q", rootNameInvariantMessagePrefix, name))
 	}
 }
 
@@ -438,18 +517,18 @@ func jsonObject(data []byte) bool {
 	return len(trimmed) > 0 && trimmed[0] == '{'
 }
 
-func readinessFor(artifacts []Artifact) string {
+func readinessFor(artifacts []Artifact) Readiness {
 	for _, artifact := range artifacts {
-		if artifact.Role == "required" && artifact.State == StateUnstable {
-			return readinessIndeterminate
+		if artifact.Role == RoleRequired && artifact.State == StateUnstable {
+			return ReadinessIndeterminate
 		}
 	}
 	for _, artifact := range artifacts {
-		if artifact.Role == "required" && artifact.State != StatePresentNonempty {
-			return readinessNotReady
+		if artifact.Role == RoleRequired && artifact.State != StatePresentNonempty {
+			return ReadinessNotReady
 		}
 	}
-	return readinessReady
+	return ReadinessReady
 }
 
 func reasonCode(state string, sidecar bool, structuredReason string) string {
@@ -457,28 +536,28 @@ func reasonCode(state string, sidecar bool, structuredReason string) string {
 	case StatePresentNonempty:
 		return ""
 	case StatePresentEmpty:
-		return "artifact-empty"
+		return ReasonArtifactEmpty
 	case StateAbsent:
-		return "artifact-absent"
+		return ReasonArtifactAbsent
 	case StateSymlinkRefused:
-		return "artifact-symlink-refused"
+		return ReasonArtifactSymlinkRefused
 	case StateNotRegular:
-		return "artifact-not-regular"
+		return ReasonArtifactNotRegular
 	case StateUnreadable:
-		return "artifact-unreadable"
+		return ReasonArtifactUnreadable
 	case StateOversize:
-		return "artifact-oversize"
+		return ReasonArtifactOversize
 	case StateInvalidStructured:
 		return structuredReason
 	case StateUnstable:
-		return "artifact-snapshot-unstable"
+		return ReasonArtifactUnstable
 	default:
-		return "artifact-unreadable"
+		panic("intent.reasonCode: artifact state outside the closed enum: " + state)
 	}
 }
 
 func remediation(spec artifactSpec, path, slug, state string) string {
-	if spec.role != "required" || state == StatePresentNonempty {
+	if spec.role != RoleRequired || state == StatePresentNonempty {
 		return ""
 	}
 	switch state {
@@ -494,8 +573,12 @@ func remediation(spec artifactSpec, path, slug, state string) string {
 		return fmt.Sprintf("Reduce %s below the 4 MiB inspection limit, then re-run tpatch prepare %s --check.", path, slug)
 	case StateUnstable:
 		return "Re-run when no other tpatch process is writing this feature."
+	case StateInvalidStructured:
+		// Unreachable: only the optional sidecar can be invalid-structured,
+		// and the optional role returned above.
+		panic("intent.remediation: invalid-structured is not reachable for a required artifact")
 	default:
-		return ""
+		panic("intent.remediation: artifact state outside the closed enum: " + state)
 	}
 }
 
@@ -505,63 +588,63 @@ func sidecarAdvisory(state string) *Advisory {
 	case StatePresentNonempty:
 		return nil
 	case StateAbsent:
-		code, message = "analysis-sidecar-absent-path-b-normal", "artifacts/analysis.json is written by the CLI-driven analyze phase and is not produced by analyze --manual. Its absence is not a defect."
+		code, message = AdvisorySidecarAbsent, "artifacts/analysis.json is written by the CLI-driven analyze phase and is not produced by analyze --manual. Its absence is not a defect."
 	case StatePresentEmpty:
-		code, message = "analysis-sidecar-empty", "artifacts/analysis.json exists but contains no non-whitespace bytes. This is not a readiness input; the file can be regenerated by re-running the analyze phase or removed."
+		code, message = AdvisorySidecarEmpty, "artifacts/analysis.json exists but contains no non-whitespace bytes. This is not a readiness input; the file can be regenerated by re-running the analyze phase or removed."
 	case StateInvalidStructured:
-		code, message = "analysis-sidecar-invalid-structured", "artifacts/analysis.json exists but is not a JSON object. This is not a readiness input; the file can be regenerated by re-running the analyze phase or removed."
+		code, message = AdvisorySidecarInvalid, "artifacts/analysis.json exists but is not a JSON object. This is not a readiness input; the file can be regenerated by re-running the analyze phase or removed."
 	case StateUnstable:
-		code, message = "analysis-sidecar-unstable", "artifacts/analysis.json changed while it was being inspected, so its state was not determined. This is not a readiness input; re-run when no other tpatch process is writing this feature."
+		code, message = AdvisorySidecarUnstable, "artifacts/analysis.json changed while it was being inspected, so its state was not determined. This is not a readiness input; re-run when no other tpatch process is writing this feature."
 	case StateSymlinkRefused:
-		code, message = "analysis-sidecar-symlink-refused", "artifacts/analysis.json is a symbolic link and was not followed or read. This is not a readiness input; replace it with a regular file or remove it."
+		code, message = AdvisorySidecarSymlinkRefused, "artifacts/analysis.json is a symbolic link and was not followed or read. This is not a readiness input; replace it with a regular file or remove it."
 	case StateNotRegular:
-		code, message = "analysis-sidecar-not-regular", "artifacts/analysis.json exists but is not a regular file, so it was not read. This is not a readiness input."
+		code, message = AdvisorySidecarNotRegular, "artifacts/analysis.json exists but is not a regular file, so it was not read. This is not a readiness input."
 	case StateUnreadable:
-		code, message = "analysis-sidecar-unreadable", "artifacts/analysis.json could not be inspected. This is not a readiness input; check the file's permissions or remove it."
+		code, message = AdvisorySidecarUnreadable, "artifacts/analysis.json could not be inspected. This is not a readiness input; check the file's permissions or remove it."
 	case StateOversize:
-		code, message = "analysis-sidecar-oversize", "artifacts/analysis.json exceeds the 4 MiB inspection limit and was not read. This is not a readiness input; inspect it manually."
-	}
-	if code == "" {
-		return nil
+		code, message = AdvisorySidecarOversize, "artifacts/analysis.json exceeds the 4 MiB inspection limit and was not read. This is not a readiness input; inspect it manually."
+	default:
+		panic("intent.sidecarAdvisory: sidecar state outside the closed enum: " + state)
 	}
 	return &Advisory{Code: code, ArtifactID: "analysis_sidecar", Message: message}
 }
 
-func abortMessage(code, slug string) string {
+func abortMessage(code AbortCode, slug string) string {
 	switch code {
-	case abortSlugUnsafe:
+	case AbortSlugUnsafe:
 		return "the requested feature name is not a canonical tpatch slug. Canonical slugs are lowercase letters, digits and single dashes, 1-60 bytes. Create features with tpatch add, or rename a hand-made feature directory under .tpatch/features/ to a canonical name."
-	case abortUnsupportedPlatform:
+	case AbortUnsupportedPlatform:
 		return "this build of tpatch cannot guarantee that artifact inspection stays inside the repository on this platform, so prepare --check refuses to run here. Inspect the files under .tpatch/features/ directly."
-	case abortWorkspaceMissing:
+	case AbortWorkspaceMissing:
 		return "no tpatch workspace was found here or in any parent directory. Run tpatch init in the repository root, or pass --path with the repository directory."
-	case abortRootUnopenable:
+	case AbortRootUnopenable:
 		return "the repository root could not be opened for inspection. Check that the directory still exists and is readable, then re-run."
-	case abortFeatureUnsafe:
+	case AbortFeatureUnsafe:
 		return fmt.Sprintf(".tpatch/features/%s could not be inspected safely: a directory on the way to it is a symbolic link, a reparse point, or not a directory. Replace it with a real directory, or inspect the feature by hand.", slug)
-	case abortFeatureNotFound:
+	case AbortFeatureNotFound:
 		return fmt.Sprintf("no feature directory exists at .tpatch/features/%s. Run tpatch status to list the features in this workspace.", slug)
-	case abortStatusSymlink:
+	case AbortStatusSymlink:
 		return fmt.Sprintf(".tpatch/features/%s/status.json is a symbolic link or reparse point and was not followed. Replace it with a regular file, then run tpatch doctor.", slug)
-	case abortStatusNotRegular:
+	case AbortStatusNotRegular:
 		return fmt.Sprintf(".tpatch/features/%s/status.json is not a regular file and was not read. Replace it with a regular file, then run tpatch doctor.", slug)
-	case abortStatusOversize:
+	case AbortStatusOversize:
 		return fmt.Sprintf(".tpatch/features/%s/status.json exceeds the 1 MiB inspection limit and was not read. Inspect it by hand, then run tpatch doctor.", slug)
-	case abortStatusUnreadable:
+	case AbortStatusUnreadable:
 		return fmt.Sprintf(".tpatch/features/%s/status.json could not be read and closed cleanly, so the lifecycle state was not determined. Check the file's permissions and the filesystem it lives on, then run tpatch doctor.", slug)
-	case abortStatusUnstable:
+	case AbortStatusUnstable:
 		return fmt.Sprintf(".tpatch/features/%s/status.json changed while it was being read, so the lifecycle state could not be determined. Re-run when no other tpatch process is writing this feature.", slug)
-	case abortStatusMalformed:
+	case AbortStatusMalformed:
 		return fmt.Sprintf(".tpatch/features/%s/status.json was read but is not a valid tpatch status document. Run tpatch doctor to inspect and repair the workspace metadata.", slug)
-	case abortStatusInvalidState:
+	case AbortStatusInvalidState:
 		return fmt.Sprintf(".tpatch/features/%s/status.json was read but records a lifecycle state this version of tpatch does not recognise. Upgrade tpatch, or run tpatch doctor to inspect the workspace metadata.", slug)
 	default:
-		return "artifact inspection could not be completed."
+		panic("intent.abortMessage: abort code outside the closed catalog: " + string(code))
 	}
 }
 
-// AbortCode returns the report's closed abort code, if it has one.
-func (r Report) AbortCode() string {
+// AbortCode returns the report's closed abort code, or "" when the report
+// carries no abort. "" is never a catalog member.
+func (r Report) AbortCode() AbortCode {
 	if r.Abort == nil {
 		return ""
 	}
@@ -569,6 +652,6 @@ func (r Report) AbortCode() string {
 }
 
 // Readiness returns the report's closed structural-readiness value.
-func (r Report) Readiness() string {
+func (r Report) Readiness() Readiness {
 	return r.Overall.StructuralReadiness
 }

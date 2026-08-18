@@ -1,0 +1,12 @@
+$ tpatch next routing-demo
+exit 0
+Feature: routing-demo
+State:   requested
+Phase:   analyze
+
+Run analysis on the feature request to assess compatibility and affected areas.
+
+Context files:
+  - .tpatch/features/routing-demo/request.md
+
+On complete: tpatch analyze routing-demo

@@ -36,14 +36,14 @@ func (r Report) WriteHuman(w io.Writer) {
 
 	fmt.Fprintln(w, "required")
 	for _, artifact := range r.Artifacts {
-		if artifact.Role != "required" {
+		if artifact.Role != RoleRequired {
 			continue
 		}
 		writeArtifact(w, artifact)
 	}
 	fmt.Fprintln(w, "optional")
 	for _, artifact := range r.Artifacts {
-		if artifact.Role == "optional" {
+		if artifact.Role == RoleOptional {
 			writeArtifact(w, artifact)
 		}
 	}
@@ -57,10 +57,10 @@ func (r Report) WriteHuman(w io.Writer) {
 		}
 		fmt.Fprintln(w)
 	}
-	if r.Readiness() == readinessNotReady {
+	if r.Readiness() == ReadinessNotReady {
 		fmt.Fprintf(w, "readiness: not_ready (%d of 3 required artifacts are present-nonempty)\n", r.Overall.RequiredSatisfied)
 	} else {
-		fmt.Fprintf(w, "readiness: %s\n", r.Readiness())
+		fmt.Fprintf(w, "readiness: %s\n", string(r.Readiness()))
 	}
 	fmt.Fprintln(w, disclaimer)
 }
@@ -81,15 +81,15 @@ func (r Report) WriteQuiet(w io.Writer) {
 // ExitMessage is the process-level diagnostic for report-bearing failures.
 func (r Report) ExitMessage() string {
 	if r.Abort != nil {
-		if r.Abort.Code == abortSlugUnsafe {
+		if r.Abort.Code == AbortSlugUnsafe {
 			return "prepare --check: indeterminate (slug-unsafe)"
 		}
 		return fmt.Sprintf("prepare --check %s: indeterminate (%s)", r.Slug, r.Abort.Code)
 	}
 	switch r.Readiness() {
-	case readinessNotReady:
+	case ReadinessNotReady:
 		return fmt.Sprintf("prepare --check %s: not_ready (%d of 3 required artifacts are present-nonempty)", r.Slug, r.Overall.RequiredSatisfied)
-	case readinessIndeterminate:
+	case ReadinessIndeterminate:
 		return fmt.Sprintf("prepare --check %s: indeterminate (a required artifact changed while it was being inspected; re-run when no other tpatch process is writing this feature)", r.Slug)
 	default:
 		return ""
@@ -112,40 +112,40 @@ func writeArtifact(w io.Writer, artifact Artifact) {
 
 func lifecycleAnnotation(r Report) string {
 	if r.Abort == nil {
-		if r.FeatureState == "unknown" {
+		if r.FeatureState == FeatureStateUnknown {
 			return "this feature directory has no status.json"
 		}
 		return "echoed from status.json; not evaluated by this check"
 	}
 	switch r.Abort.Code {
-	case abortSlugUnsafe:
+	case AbortSlugUnsafe:
 		return "no feature was identified, so status.json was not read"
-	case abortUnsupportedPlatform:
+	case AbortUnsupportedPlatform:
 		return "inspection was refused on this platform, so status.json was not read"
-	case abortWorkspaceMissing:
+	case AbortWorkspaceMissing:
 		return "no workspace was found, so status.json was not read"
-	case abortRootUnopenable:
+	case AbortRootUnopenable:
 		return "the repository root could not be opened, so status.json was not read"
-	case abortFeatureUnsafe:
+	case AbortFeatureUnsafe:
 		return "the feature directory could not be inspected safely, so status.json was not read"
-	case abortFeatureNotFound:
+	case AbortFeatureNotFound:
 		return "no feature directory exists, so status.json was not read"
-	case abortStatusSymlink:
+	case AbortStatusSymlink:
 		return "status.json is a symbolic link or reparse point and was not followed"
-	case abortStatusNotRegular:
+	case AbortStatusNotRegular:
 		return "status.json is not a regular file and was not read"
-	case abortStatusOversize:
+	case AbortStatusOversize:
 		return "status.json exceeds the inspection limit and was not read"
-	case abortStatusUnreadable:
+	case AbortStatusUnreadable:
 		return "status.json could not be read and closed cleanly"
-	case abortStatusUnstable:
+	case AbortStatusUnstable:
 		return "status.json changed while it was being read"
-	case abortStatusMalformed:
+	case AbortStatusMalformed:
 		return "status.json was read but is not a valid status document"
-	case abortStatusInvalidState:
+	case AbortStatusInvalidState:
 		return "status.json was read but records a state this tpatch does not recognise"
 	default:
-		return "status.json was not read"
+		panic("intent.lifecycleAnnotation: abort code outside the closed catalog: " + string(r.Abort.Code))
 	}
 }
 
