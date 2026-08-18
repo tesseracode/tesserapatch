@@ -985,6 +985,14 @@ external APPROVED WITH NOTES; the sole terminology note was folded. Rev-15 is
 accepted, with no product/decision/count change. No tag before joint
 implementation acceptance.
 
+Pre-change golden phase ✅ COMPLETE at `f9208c7` + maintenance-race pin
+`977b9d5`: 51 VCS-bound fixtures cover accepted `prepare --check`, all twelve
+`next` states, phase Path A/B, never-prepared lifecycle commands, doctor D1–D8
+and feature resources. CI
+[32178723042](https://github.com/tesseracode/tesserapatch/actions/runs/32178723042)
+is green on all three platforms; GH #23's native Windows resource refusal ran
+in its own blocking step. S1b is active.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

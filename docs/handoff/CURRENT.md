@@ -18,7 +18,11 @@ D14, the rev-15 amendment ledger, shipped-prerequisite prose, producer
 auditability and fixture-before-production sensitivity. Joint re-review
 returned internal APPROVED and external APPROVED WITH NOTES; the sole
 `cacaaf8` terminology note is folded. Rev-15 is accepted and the
-pre-production golden commit is unblocked.
+pre-production golden baseline landed at `f9208c7`, with its Git-maintenance
+race pin at `977b9d5`. CI run
+[32178723042](https://github.com/tesseracode/tesserapatch/actions/runs/32178723042)
+is green on Ubuntu, macOS and Windows; the dedicated GH #23 native Windows
+resource golden is blocking and passed. S1b is now in progress.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range
@@ -34,7 +38,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-14 +
   `ADR-035-intent-bundle-publication-and-history` rev-14 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — pre-change golden baseline**
+- **Status**: **In Progress — S1b directory authority**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -105,9 +109,9 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit the complete pre-change compatibility golden suite and activate its
-   fixture-before-production history guard.
-2. Implement sequentially: S1b directory authority, S1 transaction core, S3
+1. Implement and review S1b's held-root directory authority without changing
+   `internal/rescap`.
+2. Continue sequentially: S1 transaction core, S3
    archive, S2 generators, S4 mutating CLI and S4b retention commands.
 3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
@@ -116,8 +120,8 @@ file, is the dispatch authority.
 
 ## Blockers
 
-- None. Rev-15 is accepted; production still waits only for the mandatory
-  golden commit.
+- None. Rev-15 is accepted and the mandatory golden commit is landed and
+  green.
 
 ## Context for Next Agent
 

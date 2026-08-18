@@ -1,3 +1,32 @@
+## Implementation — prepare pre-change golden baseline — 2026-08-18
+
+**Primary commit**: `f9208c7`
+**Race pin**: `977b9d5`
+**CI**:
+[32178723042](https://github.com/tesseracode/tesserapatch/actions/runs/32178723042)
+
+### Delivered
+
+- 51 fixtures from clean VCS-bound producer binaries.
+- Ready/not-ready/abort/pending `prepare --check` human and JSON bytes.
+- All twelve `next` states plus the exploration-present branch.
+- Path A/B phase outputs and complete persistent write sets.
+- Never-prepared status/verify/record/land/reconcile behavior.
+- Doctor D1–D8 and all feature-resource verbs.
+- Native Windows unsupported-resource refusal in a dedicated blocking step.
+- Producer, source-history, self-comparison and fixture-before-production
+  sensitivities.
+
+Whole-workspace/HOME zero-write snapshots exposed detached Git maintenance
+cleanup racing `maintenance.lock`; `977b9d5` applied the repository's existing
+four-key maintenance pin. Full uncached suite and build passed locally. CI is
+green on Ubuntu, macOS and Windows, including the new blocking PASS-line gate.
+
+### Action Taken
+
+Golden phase accepted. S1b directory-authority implementation is unblocked and
+active; `internal/rescap` remains frozen.
+
 ## Decision — prepare rev-15 evidence erratum — 2026-08-18
 
 **Internal re-review**: APPROVED
