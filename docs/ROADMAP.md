@@ -943,11 +943,12 @@ The §19(3) prerequisite for `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14
 is now **satisfied**; `implement-prepare-intent-bundle` is the next dispatch.
 
 **copilot-api cumulative verification/migration feedback** ✅ TRIAGED / REVIEWED
-(2026-08-18): exact `tpatch v0.15.1` reproduction at downstream commit
-`e2d7ce4` confirms 0 pass / 53 fail / 3 skip while typecheck, lint, 352 tests
-and build pass. A read-only own-base probe recovers 29 of 38 V8 failures but
-leaves nine, so isolated own-base success cannot become a blanket verifier
-pass. The four recent V10 failures are
+(2026-08-18; evidence commit `e6901a2`, range `7206dab..e6901a2`): exact
+`tpatch v0.15.1` reproduction at downstream commit `e2d7ce4` confirms 0 pass /
+53 fail / 3 skip while typecheck, lint, 352 tests and build pass. A read-only
+own-base probe recovers 29 of 38 V8 failures but leaves nine, so isolated
+own-base success cannot become a blanket verifier pass. The four recent V10
+failures are
 `recipe-provenance-unavailable` on Path B recipes, not measured stale hashes;
 all 11 non-empty preimages match their recorded bases. [GH #18](https://github.com/tesseracode/tesserapatch/issues/18)
 tracks cumulative verify/migration semantics,

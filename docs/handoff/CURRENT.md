@@ -16,9 +16,10 @@ release tag** — this prerequisite ships with the later mutating-prepare
 release. Full archive: `docs/handoff/HISTORY.md` → 2026-08-17.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
-2026-08-18. GH #18–#22 now track the confirmed migration gaps; the diagnosis
-and evidence are archived in the cumulative-verification case study. This
-backlog intake does not preempt the active prepare queue.
+2026-08-18 and accepted at evidence commit `e6901a2` (range
+`7206dab..e6901a2`). GH #18–#22 now track the confirmed migration gaps; the
+diagnosis and evidence are archived in the cumulative-verification case study.
+This backlog intake does not preempt the active prepare queue.
 
 ## Active Task
 

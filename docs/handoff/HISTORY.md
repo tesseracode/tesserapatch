@@ -3,6 +3,9 @@
 **Evidence revision**:
 [`tesseracode/copilot-api@e2d7ce4`](https://github.com/tesseracode/copilot-api/commit/e2d7ce457f11ba077f508c360adac03a4db0e8ad)
 **tpatch release reproduced**: `v0.15.1`
+**WAVE_BASE**: `7206dab`
+**Evidence commit**: `e6901a2`
+**Range**: `7206dab..e6901a2`
 **Case study**:
 `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`
 **Issues opened**: GH #18–#22

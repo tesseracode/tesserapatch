@@ -32,9 +32,9 @@ plus GH #18–#22 and tracking updates
 
 ### Action Taken
 
-Accepted as backlog evidence. GH #18–#22 remain planning issues; no production
-change or architecture decision is authorized. The active queue remains
-`implement-prepare-intent-bundle`.
+Accepted as backlog evidence at `e6901a2` (range `7206dab..e6901a2`). GH
+#18–#22 remain planning issues; no production change or architecture decision
+is authorized. The active queue remains `implement-prepare-intent-bundle`.
 
 ## Verification — copilot-api cumulative-stack feedback — 2026-08-18
 
