@@ -2,14 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-4 DISPATCHED
 
-Rev-3 closes the six rev-2 adjudication items: the intermittent mixed-case
-land row, the AVP-175 job-level/condition/package-set/leaf-floor/release-needs
-holes, the last untracked working-tree source walk (AVP-141) and the stale
-"192 + timeouts" Windows inventory. No production file changed and no product
-behavior, PRD, ADR or AVP matrix row moved. No mutating prepare mode is
-authorized.
+Rev-3 closes the rev-2 adjudication and is accepted in product behavior, but
+final review found one expression-level CI ownership hole. Rev-4 is dispatched.
+No production behavior, PRD, ADR or AVP matrix row may move.
 
 ## Active Task
 
@@ -17,7 +14,7 @@ authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-3 AWAITING REVIEW
+- **Status**: Rev-4 dispatched after APPROVED / NEEDS REVISION split
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -268,6 +265,25 @@ closed below.
 
 No test was added outside these findings, and no production file changed in
 rev-2.
+
+## Rev-3 Review and Rev-4 Adjudication
+
+**Internal verdict**: NEEDS REVISION
+**External verdict**: APPROVED
+**Implementation tip**: `a4748a9`
+**Tracking tip**: `aa27927`
+
+1. Reject expression-valued `continue-on-error` such as `${{ true }}` on the
+   test job or blocking Windows step; allowed-failure ownership must be the
+   exact literal `true`, while blocking/job scope permits only absent/false.
+2. Require the test job to have no job-level `if`; add a failing
+   `job-level-if-false` sensitivity arm.
+3. Correct CI comments: the allowed-failure step conclusion is success; only
+   the step/job log carries failing test output.
+4. Move AVP-141's real untracked scratch under `.git` (or otherwise outside the
+   untracked-source sentinel) so an interrupted test cannot leave source noise.
+
+Every other rev-0–rev-3 closure is frozen.
 
 ## Rev-2 Review and Rev-3 Adjudication
 

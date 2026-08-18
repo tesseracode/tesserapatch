@@ -1,3 +1,51 @@
+## Dispatch — implement-prepare-check rev-4 — 2026-08-17
+
+**Implementation tip**: `a4748a9`
+**Tracking tip**: `aa27927`
+**Verdicts**: internal NEEDS REVISION; external APPROVED
+
+### Scope
+
+- Reject expression-valued continue-on-error on blocking/job surfaces.
+- Forbid job-level test conditions.
+- Correct allowed-failure visibility wording.
+- Keep AVP-141 scratch out of the untracked-source sentinel.
+
+### Action Taken
+
+One sequential CI-guard-only rev-4 dispatched. Product behavior is frozen.
+
+## External Review — implement-prepare-check rev-3 — 2026-08-17
+
+**Tip**: `a4748a9`
+**Tracking tip**: `aa27927`
+**Verdict**: APPROVED
+
+### Verified
+
+Green three-platform tip, deterministic land mutation, job/step/package/native
+row/leaf/release gates, tracked source scan, inventory truth and all prior
+closures.
+
+### Notes
+
+Job-level `if` and allowed-failure visibility wording are low follow-ups.
+
+## Internal Review — implement-prepare-check rev-3 — 2026-08-17
+
+**Tip**: `a4748a9`
+**Tracking tip**: `aa27927`
+**Verdict**: NEEDS REVISION
+
+### Finding
+
+`${{ true }}` on job/step `continue-on-error` bypasses literal-true parsing and
+makes the blocking gate advisory undetected.
+
+### Verified
+
+CI green, product/goldens/errata/assets unchanged.
+
 ## Writer — implement-prepare-check rev-3 — 2026-08-17
 
 **Test/guard fix**: `54ab8b4`
