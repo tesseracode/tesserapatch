@@ -1659,12 +1659,20 @@ func registerPlatformGuards() {
 				// The blocking step stops blocking.
 				{"blocking-flag-removed",
 					strings.Replace(workflow,
-						"      - name: Test (Windows GH #16 surface — blocking)\n        if: runner.os == 'Windows'\n",
-						"      - name: Test (Windows GH #16 surface — blocking)\n        if: runner.os == 'Windows'\n        continue-on-error: true\n", 1)},
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n",
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n        continue-on-error: true\n", 1)},
 				// The native invocation stops naming the native test.
 				{"native-invocation-dropped",
 					strings.Replace(workflow, "-run TestAVPNativeWindows ./internal/intent",
 						"-run TestNothingAtAll ./internal/testutil", 1)},
+				// The allowed-failure step stops naming its owner. YAML reads
+				// ` #` in an unquoted scalar as a comment, so dropping the
+				// quotes is enough to silently lose the issue reference — the
+				// parser sees exactly what the workflow engine sees.
+				{"allowed-failure-owner-unquoted",
+					strings.Replace(workflow,
+						"      - name: \"Test (Windows full suite — allowed to fail, owned by GH #17)\"",
+						"      - name: Test (Windows full suite — allowed to fail, owned by GH #17)", 1)},
 				// The tag-version check is pinned back to one leg.
 				{"tag-version-pinned-to-ubuntu",
 					strings.Replace(workflow,

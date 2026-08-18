@@ -403,6 +403,12 @@ func parseWorkflowSteps(workflow string) ([]workflowStep, error) {
 		// downstream would silently compare truncated text.
 		if len(value) >= 2 && value[0] == value[len(value)-1] && (value[0] == '"' || value[0] == '\'') {
 			value = value[1 : len(value)-1]
+		} else if index := strings.Index(value, " #"); index >= 0 {
+			// An unquoted plain scalar ends at " #": YAML reads the rest as
+			// a comment. A step named `Test (... GH #17)` without quotes is
+			// really named `Test (... GH` on the runner, so the parser must
+			// see the same thing the workflow engine does.
+			value = strings.TrimSpace(value[:index])
 		}
 		switch key {
 		case "name":

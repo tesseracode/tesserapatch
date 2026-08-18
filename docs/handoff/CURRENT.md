@@ -95,7 +95,9 @@ closed below.
    arms — matrix row removed, CRLF checkout restored, `internal/intent` moved
    into the allowed-failure command, `continue-on-error: true` added to the
    blocking step, the native invocation dropped, and the tag check pinned back
-   to ubuntu. A non-detecting arm now calls `t.Fatalf` instead of returning an
+   to ubuntu — plus a seventh added by the post-push CI inspection (the
+   allowed-failure step name unquoted, so YAML swallows the `#17` reference).
+   A non-detecting arm now calls `t.Fatalf` instead of returning an
    error, because returning an error is how this harness signals "sensitive"
    and would launder a hole into a pass.
 
@@ -527,7 +529,64 @@ Package results on the Windows runner:
 
 ### Rev-2 run
 
-Recorded after the rev-2 push — see "Rev-2 CI Result" below.
+Run [`32091305245`](https://github.com/tesseracode/tesserapatch/actions/runs/32091305245)
+at `36f23b3`:
+
+| Job | Result |
+|---|---|
+| `ubuntu-latest` | ✅ success |
+| `macos-latest` | ✅ success |
+| [`windows-latest`](https://github.com/tesseracode/tesserapatch/actions/runs/32091305245/job/95573840737) | ✅ **success** (9m08s) |
+| `release` | skipped (not a tag ref) |
+
+Windows step-by-step: `Check out with LF line endings` ✅ → `checkout` ✅ →
+`Set up Go` ✅ → `Verify formatting` ✅ → `go vet` ✅ → `Build` ✅ →
+`Test` *skipped* (non-Windows only) → **blocking GH #16 step ✅** →
+full-suite allowed-failure step (ran, failures visible, did not fail the job)
+→ Windows smoke test ✅ → `Verify tag version` skipped (not a tag).
+
+The blocking step's verbose native output, quoted from the run log:
+
+```
+--- PASS: TestAVPNativeWindows (0.07s)
+    --- PASS: TestAVPNativeWindows/AVP-176 (0.05s)
+        --- PASS: TestAVPNativeWindows/AVP-176/symlink-spec-is-symlink-refused (0.01s)
+        --- PASS: TestAVPNativeWindows/AVP-176/junction-artifacts-is-symlink-refused (0.02s)
+        --- PASS: TestAVPNativeWindows/AVP-176/status-reparse-point-aborts (0.01s)
+        --- PASS: TestAVPNativeWindows/AVP-176/samefile-identity-over-root-lstat-and-file-stat (0.01s)
+        --- PASS: TestAVPNativeWindows/AVP-176/char-device-handle-is-not-regular (0.00s)
+    --- PASS: TestAVPNativeWindows/AVP-199 (0.02s)
+        --- PASS: TestAVPNativeWindows/AVP-199/junction-helper-fails-never-skips (0.02s)
+```
+
+Six leaf assertions executed — the step's own `--- PASS:` grep floor. The
+blocking package list then passed: `internal/intent` (42.8s), `assets`,
+`internal/buildinfo`, `internal/redact`, `internal/safety`,
+`internal/testutil`, `internal/tools/studyvalidator`, `tests/integration`.
+
+The allowed-failure step remains fully visible in the log. At `-timeout 20m`
+**no package times out** (rev-1's two 10-minute timeout panics are gone), so
+the suite runs to completion and reports **200 failing top-level tests, 283
+counting subtests**, in `internal/cli` (379.7s), `internal/gitutil` (39.7s),
+`internal/provider` (13.6s), `internal/rescap` (14.7s), `internal/store`
+(5.9s) and `internal/workflow` (409.4s). The count is higher than rev-1's 192
+precisely because nothing aborts early any more; the population is the same
+pre-existing class and is owned by GH #17. `internal/intent` passes inside
+this step too.
+
+### Rev-2 follow-up: YAML comment truncation in step names
+
+Inspecting the run surfaced a real defect in the first rev-2 commit. YAML
+reads ` #` in an *unquoted* plain scalar as a comment, so
+`name: Test (Windows full suite — allowed to fail, owned by GH #17)` was
+actually named `Test (Windows full suite — allowed to fail, owned by GH` on
+the runner — the issue reference the guard requires was silently dropped by
+the workflow engine while the guard's parser still saw it in the file. Both
+Windows step names are now **quoted**, the two smoke-test steps have distinct
+names, and `parseWorkflowSteps` truncates unquoted plain scalars at ` #` so it
+sees exactly what the workflow engine sees. AVP-175 gains a seventh
+sensitivity arm that unquotes the allowed-failure name and requires the guard
+to fail.
 
 ## Next Steps
 

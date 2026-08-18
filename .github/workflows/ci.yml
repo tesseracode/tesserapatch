@@ -78,7 +78,7 @@ jobs:
       # The package list is exactly the set that is empirically green on
       # windows-latest (run 32086471429). It must never shrink to exclude
       # ./internal/intent — AVP-175 guards that.
-      - name: Test (Windows GH #16 surface — blocking)
+      - name: "Test (Windows GH #16 surface — blocking)"
         if: runner.os == 'Windows'
         shell: bash
         run: |
@@ -114,7 +114,7 @@ jobs:
       # step and the blocking step above collapse back into one blocking
       # `go test ./...`. Until then the failures stay VISIBLE but do not fail
       # the job, so a tagged release remains publishable.
-      - name: Test (Windows full suite — allowed to fail, owned by GH #17)
+      - name: "Test (Windows full suite — allowed to fail, owned by GH #17)"
         if: runner.os == 'Windows'
         continue-on-error: true
         shell: bash
@@ -127,7 +127,7 @@ jobs:
           go install ./cmd/tpatch
           "$(go env GOPATH)/bin/tpatch" --version
 
-      - name: Install binary (smoke test)
+      - name: Install binary (smoke test, Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
