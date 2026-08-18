@@ -24,6 +24,18 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
+      # Windows runners default to core.autocrlf=true, so actions/checkout
+      # rewrites every text file's line endings and `gofmt -l .` then lists
+      # the entire tree. The Windows job failed at "Verify formatting" and
+      # never reached "Test", which silently made the native Windows
+      # acceptance rows (AVP-176, AVP-199) unrun. Checking out with LF is
+      # what makes windows-latest execute meaningful assertions.
+      - name: Check out with LF line endings on Windows
+        if: runner.os == 'Windows'
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - uses: actions/checkout@v4
 
       - name: Set up Go

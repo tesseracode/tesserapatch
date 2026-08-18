@@ -1520,7 +1520,12 @@ func registerPlatformGuards() {
 		},
 		Sensitivity: func(t *testing.T) error {
 			workflow := repoFile(t, ".github/workflows/ci.yml")
-			return checkCIMatrix(strings.ReplaceAll(workflow, "windows-latest", "ubuntu-22.04"))
+			if err := checkCIMatrix(strings.ReplaceAll(workflow, "windows-latest", "ubuntu-22.04")); err == nil {
+				return errors.New("removing windows-latest did not fail the guard")
+			}
+			// Second arm: the matrix row is present but the job can never
+			// reach `go test` on Windows.
+			return checkCIMatrix(strings.ReplaceAll(workflow, "core.autocrlf false", "core.autocrlf true"))
 		},
 	})
 
@@ -1666,13 +1671,37 @@ func checkCIMatrix(workflow string) error {
 	if !strings.Contains(workflow, "windows-latest") {
 		return errors.New("the CI test matrix no longer contains windows-latest")
 	}
+	inMatrix := false
 	for _, line := range strings.Split(workflow, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "os:") && strings.Contains(trimmed, "windows-latest") {
-			return nil
+			inMatrix = true
+			break
 		}
 	}
-	return errors.New("windows-latest is present but not in the job's os matrix")
+	if !inMatrix {
+		return errors.New("windows-latest is present but not in the job's os matrix")
+	}
+	// Presence in the matrix is not the same as reaching the test step. The
+	// Windows runner checks out with core.autocrlf=true by default, which
+	// rewrites every text file and makes `gofmt -l .` list the whole tree —
+	// the job then fails before "Test" and the native rows never run. The
+	// LF-checkout step is therefore part of this guard, not a nicety.
+	if !strings.Contains(workflow, "core.autocrlf false") {
+		return errors.New("the Windows job does not force an LF checkout, so it fails formatting before it reaches go test")
+	}
+	if !strings.Contains(workflow, "runner.os == 'Windows'") {
+		return errors.New("the LF-checkout step is not gated on the Windows runner")
+	}
+	checkoutIndex := strings.Index(workflow, "actions/checkout@")
+	autocrlfIndex := strings.Index(workflow, "core.autocrlf false")
+	if checkoutIndex >= 0 && autocrlfIndex > checkoutIndex {
+		return errors.New("the LF-checkout configuration runs after actions/checkout, which is too late")
+	}
+	if !strings.Contains(workflow, "go test") {
+		return errors.New("the CI job does not run go test")
+	}
+	return nil
 }
 
 func checkConfinementConstant(supported, unsupported, command string) error {

@@ -133,6 +133,19 @@ Sole sequential reviser. Each numbered rev-0 finding is closed below.
    and pins AVP-175 (CI matrix parses and runs `go test`), AVP-176/199 (no
    `t.Skip` in the fixture path, `mklink /J` retained), AVP-198 (the
    `//go:debug winsymlink=1` directive) and AVP-178 (Windows cross-build).
+
+   **CI defect found and fixed by inspecting the run after push.** The
+   `windows-latest` job had never reached its `Test` step: the runner checks
+   out with `core.autocrlf=true`, so every text file gains CRLF and
+   `gofmt -l .` lists the entire tree, failing `Verify formatting` in ~25s.
+   The Windows row was in the matrix and was nonetheless completely unrun —
+   the precise failure mode AVP-175 exists to prevent. `.github/workflows/ci.yml`
+   now forces `core.autocrlf false` / `core.eol lf` **before**
+   `actions/checkout`, and the AVP-175 guard was widened to assert that step
+   exists, is gated on the Windows runner, precedes the checkout, and that the
+   job runs `go test`. Its sensitivity fixture has two arms: removing
+   `windows-latest`, and leaving the row in place while flipping `autocrlf`
+   back to `true`.
 7. **Pre-change routing goldens (HIGH).** A temporary detached worktree at
    `WAVE_BASE` `9a8c1d0` was created, its binary built, the goldens recorded,
    and the worktree deleted. `internal/cli/testdata/routing-goldens/`
@@ -217,6 +230,11 @@ Tests:
 - `internal/cli/testdata/routing-goldens/` (new — 12 fixtures + `README.md`)
 - `assets/avp_parity_test.go` (new)
 
+CI:
+
+- `.github/workflows/ci.yml` (LF checkout on `windows-latest`, so the job
+  reaches `go test` and the native rows actually execute)
+
 Docs:
 
 - `docs/prds/PRD-artifact-validation-and-provenance.md` (rev-6 errata)
@@ -264,8 +282,9 @@ Docs:
    sensitivity fixture genuinely breaks its guard.
 2. Reviewer: confirm the PRD rev-6 / ADR-034 rev-3 errata are narrow — no
    decision changed, matrix still 208 rows, guard set still 43.
-3. Reviewer: inspect CI after push; `windows-latest` must execute
-   `TestAVPNativeWindows` with real assertions, not skips.
+3. Reviewer: inspect CI; `windows-latest` must now pass `Verify formatting`,
+   reach `Test`, and execute `TestAVPNativeWindows` with real assertions.
+   Before this wave the job died at formatting and ran nothing.
 4. If approved, run the Wave-Close Checklist and flip the handoff Status.
 
 ## Blockers
