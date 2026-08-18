@@ -2,15 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-2 DISPATCHED
 
-Rev-1 is implemented and awaiting joint internal/external review. Every rev-0
-finding is closed: full `FeatureStatus`-schema malformed detection without an
-`internal/store` import, the PRD rev-6 / ADR-034 rev-3 build-half errata, a
-mechanical 208-row `AVP-001…AVP-208` ledger, all 43 guards with paired failing
-sensitivity fixtures, native Windows runtime tests, pre-change routing goldens
-reconstructed from `WAVE_BASE`, and typed abort/readiness diagnostics. No
-mutating prepare mode is authorized.
+Rev-1 closes every rev-0 implementation finding and is accepted in substance,
+but external review found a Windows CI release blocker and narrow guard-quality
+issues. Rev-2 is dispatched. No mutating prepare mode is authorized.
 
 ## Active Task
 
@@ -18,7 +14,7 @@ mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-1 implemented — AWAITING REVIEW
+- **Status**: Rev-2 dispatched after split rev-1 verdict
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -357,6 +353,40 @@ of *vacuous*.
   it deserves its own ticket.
 - Do not modify the ROADMAP, supervisor LOG, HISTORY, or research WIP. The
   untracked research files in `git status` predate this wave.
+
+## Rev-1 Review and Rev-2 Adjudication
+
+**Internal verdict**: APPROVED
+**External verdict**: NEEDS REVISION (CI-scoped blocker)
+**Implementation tips**: `2cbccf6`, `755b31e`, `b98fac9`
+**Tracking tip**: `49ae6ad`
+**Windows backlog**: [GH #17](https://github.com/tesseracode/tesserapatch/issues/17)
+
+1. **Blocking Windows signal.** This wave added `windows-latest`; main was green
+   at WAVE_BASE and became red. Split a blocking Windows step that runs the
+   empirically green GH #16 surface (including explicit verbose native test)
+   from a visible `continue-on-error` full-suite step owned by GH #17. Preserve
+   tagged releases.
+2. **AVP-175 sensitivity.** Guard that `internal/intent` is in the blocking
+   step and absent from the non-blocking step; sensitivity must fail when moved.
+3. **Status outcome guard.** Derive AVP-168 from the production classifier,
+   never a test-local literal map.
+4. **Source-scan robustness.** Scan tracked files or explicit package roots;
+   remove `.golden-baseline` name coupling and tolerate unrelated worktrees.
+5. **Schema parity holes.** Assert named store types retain string underlying
+   kinds and fail on exported untagged fields.
+6. **Golden routing rigor.** Require every expected prefix to match at least one
+   fixture; eliminate vacuous `continue`. Make baseline binary provenance
+   reproducible with `-trimpath` or drop the unverifiable hash.
+7. **Windows guard cleanup.** Remove constant-literal suffix check, fix
+   character-device comment/assertion, correct stale status-schema test
+   filename, and restore tag-version verification on both non-Windows legs.
+8. **Tracking truth.** State correctly that GH #16 added the Windows row and
+   exposed pre-existing package failures; do not call the pre-wave main branch
+   red.
+
+The 208-row ledger, 43 sensitivity pairs, native Windows intent behavior,
+status fix, errata and routing goldens remain accepted and must not regress.
 
 ## Rev-0 Review and Rev-1 Adjudication
 

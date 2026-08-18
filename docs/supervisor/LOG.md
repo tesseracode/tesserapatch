@@ -1,3 +1,65 @@
+## Dispatch — implement-prepare-check rev-2 — 2026-08-17
+
+**Implementation tips**: `2cbccf6`, `755b31e`, `b98fac9`
+**Tracking tip**: `49ae6ad`
+**Verdicts**: internal APPROVED; external NEEDS REVISION
+**Windows backlog**: [GH #17](https://github.com/tesseracode/tesserapatch/issues/17)
+
+### Scope
+
+- Split blocking native GH #16 Windows tests from non-blocking full-suite
+  visibility; keep releases publishable.
+- Strengthen AVP-175 against moving `internal/intent` into the allowed-failure
+  step.
+- Replace self-certifying status-map and environment-fragile source guards.
+- Close status-schema parity holes and vacuous routing-prefix checks.
+- Correct Windows guard/comment/provenance/tag-verification notes.
+- Correct the Windows CI history statement.
+
+### Action Taken
+
+One sequential rev-2 implementer dispatched. Mutating prepare remains blocked.
+
+## External Review — implement-prepare-check rev-1 — 2026-08-17
+
+**Implementation tip**: `b98fac9`
+**Tracking tip**: `49ae6ad`
+
+### Verdict: NEEDS REVISION
+
+### Blocking Findings
+
+- GH #16 added a Windows leg that makes main and tagged release publication
+  red due to unrelated pre-existing package failures.
+- A permanently failing Windows job cannot signal future native AVP
+  regressions.
+
+### Narrow Guard Findings
+
+- AVP-168 uses a test-local outcome map.
+- AVP-134 source scan depends on a scratch-directory literal.
+- Status parity misses named-type underlying-kind and untagged-field drift.
+- Routing golden prefix matching can pass vacuously.
+
+### Verified
+
+All rev-0 findings close; ledger/guard harness, status mirror, native Windows
+intent tests, errata and pre-change goldens are substantively strong.
+
+## Internal Review — implement-prepare-check rev-1 — 2026-08-17
+
+**Implementation tip**: `b98fac9`
+**Tracking tip**: `49ae6ad`
+
+### Verdict: APPROVED
+
+### Verified
+
+208 rows / 224 references / 43 guards, executed sensitivity fixtures, status
+schema, three-half errata, goldens, typed diagnostics, full suite and
+cross-builds. Native Windows `internal/intent` passes; unrelated Windows
+failures require separate remediation before a globally green release.
+
 ## Writer — implement-prepare-check rev-1 — 2026-08-17
 
 **Implementation**: `2cbccf6`
