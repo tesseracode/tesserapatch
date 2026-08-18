@@ -976,7 +976,10 @@ standalone check-output paths PIB-391 required to pre-exist in its closed
 range. Rev-15 preserves the anti-no-op guarantee by VCS-binding record mode to
 the clean accepted `cacaaf8` binary and committing those fixtures before any
 mutating production edit. No behavior, ADR decision, matrix row/count or
-public surface changes. Production is paused for joint erratum review. No tag
+public surface changes. Review round 0: internal NEEDS REVISION, external
+APPROVED WITH NOTES. Round 1 aligns normative ADR-035 D14, the mandatory
+revision ledger, current prerequisite truth, permanent re-audit disclosure and
+an ordering sensitivity. Production is paused for joint re-review. No tag
 before joint acceptance.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED

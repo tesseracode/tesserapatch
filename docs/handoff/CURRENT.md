@@ -12,8 +12,11 @@ then S5/S6 and sequential S7 hardening. No release tag is authorized before
 joint acceptance. Golden implementation review discovered that rev-14
 PIB-391 required standalone `prepare --check` output files to have been
 committed by GH #16, but GH #16 committed no such paths. Rev-15 corrects only
-that impossible evidence predicate and is awaiting joint review; production
-slices are paused.
+that impossible evidence predicate. Rev-15 review round 0 returned internal
+NEEDS REVISION and external APPROVED WITH NOTES; round 1 now aligns ADR-035
+D14, the rev-15 amendment ledger, shipped-prerequisite prose, producer
+auditability and fixture-before-production sensitivity. Joint re-review is
+pending; production slices remain paused.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range

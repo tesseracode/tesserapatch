@@ -1,3 +1,33 @@
+## Review — prepare rev-15 evidence erratum round 0 — 2026-08-18
+
+**Commit**: `d24d5c4`
+**Internal**: NEEDS REVISION
+**External**: APPROVED WITH NOTES
+
+### Findings
+
+Internal review found four bounded contract defects:
+
+1. normative ADR-035 D14 retained the impossible past-path rule;
+2. §18.1 omitted rev-15 from the PIB-567 amendment ledger;
+3. §17.1 still described `prepare --check` as unshipped and §19 conflated the
+   satisfied prerequisite with rev-15's pending evidence mechanism;
+4. PIB-391 lacked a fixture-before-production ordering sensitivity.
+
+External review independently verified the impossibility premise, clean
+`cacaaf8` producer binding, production identity, env-ack AND-gate,
+self-comparison refusal, unchanged matrix/ADR behavior and truthful tracking.
+Its notes requested committed negative tests, ordering enforcement, precise
+`cacaaf8` wording and disclosure that permanent producer re-audit requires
+rebuilding that revision.
+
+### Action Taken
+
+Rev-15 round 1 amends PRD PIB-391 plus ADR-035 D14, adds the exact ledger and
+current prerequisite truth, expands the sensitivity to late fixture ordering,
+and records the re-audit limitation. Production remains paused for joint
+re-review.
+
 ## Writer — prepare intent bundle rev-15 evidence erratum — 2026-08-18
 
 **Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
