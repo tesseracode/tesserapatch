@@ -456,12 +456,40 @@ func registerCatalogGuards() {
 
 	registerGuard("AVP-168", guardSpec{
 		Run: func(t *testing.T) error {
-			return checkStatusAbortTotality(realStatusOutcomeMap())
+			return checkStatusAbortTotality(deriveStatusOutcomes(t, statusOutcomeProbes()))
 		},
 		Sensitivity: func(t *testing.T) error {
-			pruned := realStatusOutcomeMap()
-			delete(pruned, StateOversize)
-			return checkStatusAbortTotality(pruned)
+			// Arm 1: cross two probes' production-path inputs. The status
+			// side is fed an oversize file while the artifact side is fed an
+			// unreadable one (and vice versa), so the *derived* pairing is
+			// `unreadable → status-oversize`. Totality and disjointness still
+			// hold; only the state↔abort correspondence breaks, which is the
+			// property this guard is actually about.
+			crossed := statusOutcomeProbes()
+			oversize, unreadable := -1, -1
+			for index, probe := range crossed {
+				switch probe.name {
+				case "oversize":
+					oversize = index
+				case "unreadable":
+					unreadable = index
+				}
+			}
+			if oversize < 0 || unreadable < 0 {
+				t.Fatal("the sensitivity arm no longer matches the probe set")
+			}
+			crossed[oversize].artifact, crossed[unreadable].artifact =
+				crossed[unreadable].artifact, crossed[oversize].artifact
+			if err := checkStatusAbortTotality(deriveStatusOutcomes(t, crossed)); err == nil {
+				t.Fatal("crossing two production-path inputs did not fail the guard")
+			}
+			// Arm 2: stop exercising the oversize production path at all.
+			// Nothing is deleted from a literal map — the probe that drives
+			// `Inspect` down that branch is removed, so the derivation can no
+			// longer observe the outcome and totality fails.
+			pruned := append([]statusOutcomeProbe{}, statusOutcomeProbes()[:oversize]...)
+			pruned = append(pruned, statusOutcomeProbes()[oversize+1:]...)
+			return checkStatusAbortTotality(deriveStatusOutcomes(t, pruned))
 		},
 	})
 
@@ -822,15 +850,77 @@ func checkFeatureStateParity(implementation, declared []string) error {
 	return nil
 }
 
-func realStatusOutcomeMap() map[string]AbortCode {
-	return map[string]AbortCode{
-		StatePresentEmpty:   AbortStatusMalformed,
-		StateSymlinkRefused: AbortStatusSymlink,
-		StateNotRegular:     AbortStatusNotRegular,
-		StateOversize:       AbortStatusOversize,
-		StateUnstable:       AbortStatusUnstable,
-		StateUnreadable:     AbortStatusUnreadable,
+// statusOutcomeProbe drives one filesystem condition through the production
+// code twice: once with the condition on `status.json`, which yields an abort
+// code, and once with the same condition on `spec.md`, which yields the
+// structural state the production classifier assigns to it. Nothing here is a
+// hand-written table of expected outcomes — both halves are read back out of
+// `Inspect`.
+type statusOutcomeProbe struct {
+	name     string
+	status   func(root *fakeRoot)
+	artifact func(root *fakeRoot)
+}
+
+func statusOutcomeProbes() []statusOutcomeProbe {
+	empty := func(name string) func(*fakeRoot) {
+		return func(root *fakeRoot) { root.setFile(name, nil) }
 	}
+	symlink := func(name string) func(*fakeRoot) {
+		return func(root *fakeRoot) { root.set(name, fakeInfo{name: name, mode: fs.ModeSymlink}) }
+	}
+	notRegular := func(name string) func(*fakeRoot) {
+		return func(root *fakeRoot) { root.set(name, dir(name)) }
+	}
+	oversize := func(name string, limit int) func(*fakeRoot) {
+		return func(root *fakeRoot) { root.set(name, sized(name, int64(limit)+1)) }
+	}
+	vanished := func(name string) func(*fakeRoot) {
+		// Lstat succeeds, the open then fails with ErrNotExist: the file was
+		// replaced between the two syscalls.
+		return func(root *fakeRoot) { root.nodes[name].openErr = fs.ErrNotExist }
+	}
+	unreadable := func(name string) func(*fakeRoot) {
+		return func(root *fakeRoot) { root.nodes[name].openErr = fs.ErrPermission }
+	}
+	return []statusOutcomeProbe{
+		{"present-empty", empty(testStatus), empty(testSpec)},
+		{"symlink", symlink(testStatus), symlink(testSpec)},
+		{"not-regular", notRegular(testStatus), notRegular(testSpec)},
+		{"oversize", oversize(testStatus, MaxStatusBytes), oversize(testSpec, MaxArtifactBytes)},
+		{"unstable", vanished(testStatus), vanished(testSpec)},
+		{"unreadable", unreadable(testStatus), unreadable(testSpec)},
+	}
+}
+
+// deriveStatusOutcomes runs every probe through the real `Inspect` and returns
+// the state→abort mapping the production status ladder actually implements.
+func deriveStatusOutcomes(t *testing.T, probes []statusOutcomeProbe) map[string]AbortCode {
+	t.Helper()
+	outcomes := map[string]AbortCode{}
+	for _, probe := range probes {
+		statusRoot := fixtureRoot(t)
+		probe.status(statusRoot)
+		abort := Inspect(statusRoot, testSlug, scratchBuffer()).AbortCode()
+		if abort == "" {
+			t.Fatalf("probe %q on status.json produced no abort", probe.name)
+		}
+
+		artifactRoot := fixtureRoot(t)
+		probe.artifact(artifactRoot)
+		report := Inspect(artifactRoot, testSlug, scratchBuffer())
+		if report.AbortCode() != "" {
+			t.Fatalf("probe %q on spec.md aborted (%q); it must reach artifact classification",
+				probe.name, report.AbortCode())
+		}
+		state := artifactByID(t, report, "spec").State
+		if previous, seen := outcomes[state]; seen && previous != abort {
+			t.Fatalf("probe %q derived state %q twice with different aborts (%q, %q)",
+				probe.name, state, previous, abort)
+		}
+		outcomes[state] = abort
+	}
+	return outcomes
 }
 
 func checkStatusAbortTotality(outcomes map[string]AbortCode) error {
@@ -849,6 +939,18 @@ func checkStatusAbortTotality(outcomes map[string]AbortCode) error {
 			return fmt.Errorf("status abort code %q is not pairwise disjoint", code)
 		}
 		seen[code] = true
+	}
+	// Every ladder outcome names its own state, with exactly one documented
+	// exception: an empty status document is `status-malformed`, because zero
+	// bytes are not a decodable status document.
+	for state, code := range outcomes {
+		want := AbortCode("status-" + state)
+		if state == StatePresentEmpty {
+			want = AbortStatusMalformed
+		}
+		if code != want {
+			return fmt.Errorf("status state %q aborts %q, want %q", state, code, want)
+		}
 	}
 	// The status catalog has exactly seven codes: six ladder outcomes plus
 	// the two document verdicts, of which malformed is shared.
@@ -1125,9 +1227,12 @@ func compare(a, b fs.FileInfo) bool { return os.SameFile(a, b) }`)
 
 	registerGuard("AVP-170", guardSpec{
 		Run: func(t *testing.T) error {
+			// Real measurement of the real Inspect.
 			return checkCaptureAllocations(t, false)
 		},
 		Sensitivity: func(t *testing.T) error {
+			// Synthetic model of the rejected per-capture design — see the
+			// honesty note on checkCaptureAllocations.
 			return checkCaptureAllocations(t, true)
 		},
 	})
@@ -1138,7 +1243,9 @@ func compare(a, b fs.FileInfo) bool { return os.SameFile(a, b) }`)
 		},
 		Sensitivity: func(t *testing.T) error {
 			// A per-capture buffer would double the invocation's data-buffer
-			// footprint; the guard must reject that arithmetic.
+			// footprint; the guard must reject that arithmetic. This is an
+			// arithmetic assertion over the real invocation's measured
+			// footprint, not a measurement of a mutated build.
 			return checkSingleScratchAllocation(t, 2*(MaxArtifactBytes+1))
 		},
 	})
@@ -1399,7 +1506,16 @@ func checkReparsePredicate(predicate func(fs.FileInfo) bool) error {
 	return nil
 }
 
-func checkCaptureAllocations(t *testing.T, growable bool) error {
+// checkCaptureAllocations measures the allocation delta across a capture.
+//
+// Honesty note: the `modelRejectedDesign` arm does NOT rebuild the inspector
+// with a per-capture buffer — no production code is mutated anywhere in this
+// package. It allocates a growing slice *inside the measurement window* to
+// model what the rejected design would cost, and asserts the guard's
+// arithmetic rejects that cost. The guard's positive arm is a real
+// measurement of the real `Inspect`; the sensitivity arm is a synthetic
+// model, and the two must not be conflated when citing this row as evidence.
+func checkCaptureAllocations(t *testing.T, modelRejectedDesign bool) error {
 	sizes := []int{1, MaxArtifactBytes - 1, MaxArtifactBytes}
 	for _, size := range sizes {
 		root := fixtureRoot(t)
@@ -1408,7 +1524,7 @@ func checkCaptureAllocations(t *testing.T, growable bool) error {
 		var before, after runtime.MemStats
 		runtime.GC()
 		runtime.ReadMemStats(&before)
-		if growable {
+		if modelRejectedDesign {
 			// The rejected design: each capture grows its own slice.
 			grown := make([]byte, 0)
 			for len(grown) < size {
@@ -1419,12 +1535,20 @@ func checkCaptureAllocations(t *testing.T, growable bool) error {
 		Inspect(root, testSlug, scratch)
 		runtime.ReadMemStats(&after)
 		if allocated := after.TotalAlloc - before.TotalAlloc; allocated > MaxArtifactBytes {
-			return fmt.Errorf("capture of a %d-byte artifact allocated %d bytes inside Inspect", size, allocated)
+			return fmt.Errorf("the capture window allocated %d bytes for a %d-byte artifact; the ceiling is %d",
+				allocated, size, MaxArtifactBytes)
 		}
 	}
 	return nil
 }
 
+// checkSingleScratchAllocation asserts one invocation's data-buffer footprint
+// is one scratch buffer.
+//
+// Honesty note: the sensitivity arm asserts the *stated budget* is the one
+// that actually holds — it feeds a doubled budget and requires the real
+// invocation not to satisfy it. It does not measure a second production build
+// in which a per-capture buffer exists; no such build is produced here.
 func checkSingleScratchAllocation(t *testing.T, budget int) error {
 	root := fixtureRoot(t)
 	root.setFile(testExploration, filledBytes(MaxArtifactBytes-1))
@@ -1520,12 +1644,48 @@ func registerPlatformGuards() {
 		},
 		Sensitivity: func(t *testing.T) error {
 			workflow := repoFile(t, ".github/workflows/ci.yml")
-			if err := checkCIMatrix(strings.ReplaceAll(workflow, "windows-latest", "ubuntu-22.04")); err == nil {
-				return errors.New("removing windows-latest did not fail the guard")
+			arms := []struct {
+				name    string
+				mutated string
+			}{
+				// The matrix row disappears.
+				{"windows-row-removed", strings.ReplaceAll(workflow, "windows-latest", "ubuntu-22.04")},
+				// The row survives but the job dies at formatting.
+				{"crlf-checkout-restored", strings.ReplaceAll(workflow, "core.autocrlf false", "core.autocrlf true")},
+				// The native rows move into the allowed-failure step.
+				{"intent-moved-to-allowed-failure",
+					strings.Replace(workflow, "run: go test ./... -count=1 -timeout 20m",
+						"run: go test ./internal/intent ./... -count=1 -timeout 20m", 1)},
+				// The blocking step stops blocking.
+				{"blocking-flag-removed",
+					strings.Replace(workflow,
+						"      - name: Test (Windows GH #16 surface — blocking)\n        if: runner.os == 'Windows'\n",
+						"      - name: Test (Windows GH #16 surface — blocking)\n        if: runner.os == 'Windows'\n        continue-on-error: true\n", 1)},
+				// The native invocation stops naming the native test.
+				{"native-invocation-dropped",
+					strings.Replace(workflow, "-run TestAVPNativeWindows ./internal/intent",
+						"-run TestNothingAtAll ./internal/testutil", 1)},
+				// The tag-version check is pinned back to one leg.
+				{"tag-version-pinned-to-ubuntu",
+					strings.Replace(workflow,
+						"if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'",
+						"if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'", 1)},
 			}
-			// Second arm: the matrix row is present but the job can never
-			// reach `go test` on Windows.
-			return checkCIMatrix(strings.ReplaceAll(workflow, "core.autocrlf false", "core.autocrlf true"))
+			// Each arm must be *detected*. A non-detecting arm is failed with
+			// t.Fatalf rather than by returning an error: returning an error
+			// is how this harness signals "the guard is sensitive", so a
+			// returned error would launder a hole into a pass.
+			var last error
+			for _, arm := range arms {
+				if arm.mutated == workflow {
+					t.Fatalf("sensitivity arm %s no longer matches the workflow", arm.name)
+				}
+				last = checkCIMatrix(arm.mutated)
+				if last == nil {
+					t.Fatalf("sensitivity arm %s did not fail the guard", arm.name)
+				}
+			}
+			return last
 		},
 	})
 
@@ -1701,7 +1861,110 @@ func checkCIMatrix(workflow string) error {
 	if !strings.Contains(workflow, "go test") {
 		return errors.New("the CI job does not run go test")
 	}
-	return nil
+	return checkCIWindowsGate(workflow)
+}
+
+// checkCIWindowsGate is the rev-2 half of AVP-175.
+//
+// GH #16 added the windows-latest leg; `main` was green at WAVE_BASE and the
+// leg exposed 192 pre-existing failures in packages this wave does not touch
+// (GH #17). The accepted interim shape is therefore two Windows test steps:
+// a BLOCKING one over the surface GH #16 owns, and a VISIBLE but
+// `continue-on-error` full-suite one that GH #17 owns and will delete. The
+// failure this guard exists to prevent is someone silencing a native-Windows
+// regression by moving `./internal/intent` into the allowed-failure step, or
+// by making the blocking step non-blocking.
+func checkCIWindowsGate(workflow string) error {
+	steps, err := parseWorkflowSteps(workflow)
+	if err != nil {
+		return err
+	}
+
+	var blocking, allowed, nonWindows []workflowStep
+	for _, step := range steps {
+		if step.Job != "test" || !strings.Contains(step.Run, "go test") {
+			continue
+		}
+		switch {
+		case !runsOnWindows(step.If):
+			nonWindows = append(nonWindows, step)
+		case step.ContinueOnError:
+			allowed = append(allowed, step)
+		default:
+			blocking = append(blocking, step)
+		}
+	}
+
+	// The full suite stays blocking on ubuntu and macOS.
+	full := false
+	for _, step := range nonWindows {
+		if step.ContinueOnError {
+			return fmt.Errorf("the non-Windows step %q is continue-on-error; the full suite must stay blocking there", step.Name)
+		}
+		if strings.Contains(step.Run, "go test ./...") {
+			full = true
+		}
+	}
+	if !full {
+		return errors.New("no blocking full-suite `go test ./...` step runs on the non-Windows legs")
+	}
+
+	// The native rows are proven only on a real Windows runner, so the
+	// blocking Windows step must run them explicitly, verbosely, and must
+	// assert the verbose log really contains their PASS lines: `go test -run`
+	// over a pattern that matches nothing exits 0, which is exactly how a
+	// silently-unrun row would look green.
+	native := -1
+	for _, step := range blocking {
+		if !strings.Contains(step.Run, "./internal/intent") {
+			continue
+		}
+		if !strings.Contains(step.Run, "-run TestAVPNativeWindows") {
+			continue
+		}
+		if !strings.Contains(step.Run, "-v ") && !strings.Contains(step.Run, "go test -v") {
+			return fmt.Errorf("the blocking Windows step %q does not run the native test verbosely, so it cannot prove the subtests executed", step.Name)
+		}
+		if !strings.Contains(step.Run, "--- PASS: TestAVPNativeWindows") {
+			return fmt.Errorf("the blocking Windows step %q does not assert the native PASS lines; a no-match -run pattern would exit 0", step.Name)
+		}
+		native = step.Index
+		break
+	}
+	if native < 0 {
+		return errors.New("no blocking windows-latest step runs `go test -run TestAVPNativeWindows ./internal/intent`")
+	}
+
+	// `internal/intent` must never appear in an allowed-failure command: that
+	// is precisely how the GH #16 acceptance surface would stop gating.
+	for _, step := range allowed {
+		if strings.Contains(step.Run, "internal/intent") {
+			return fmt.Errorf("the allowed-failure step %q names internal/intent; the GH #16 surface must stay blocking", step.Name)
+		}
+		if step.Index < native {
+			return fmt.Errorf("the allowed-failure step %q runs before the blocking native step", step.Name)
+		}
+		if !strings.Contains(step.Name, "#17") {
+			return fmt.Errorf("the allowed-failure step %q does not name the issue that owns removing it (GH #17)", step.Name)
+		}
+	}
+
+	// The tag-version check must run on both non-Windows legs. Pinning it to
+	// one matrix entry would let a macOS-specific ldflags or `make install`
+	// regression reach a published release unchecked.
+	for _, step := range steps {
+		if step.Job != "test" || !strings.Contains(step.If, "refs/tags/v") {
+			continue
+		}
+		if strings.Contains(step.If, "matrix.os ==") {
+			return fmt.Errorf("the tag-version step is pinned to a single matrix entry: %q", step.If)
+		}
+		if !strings.Contains(step.If, "runner.os != 'Windows'") {
+			return fmt.Errorf("the tag-version step %q does not run on both non-Windows legs", step.Name)
+		}
+		return nil
+	}
+	return errors.New("no tag-version verification step is present in the test job")
 }
 
 func checkConfinementConstant(supported, unsupported, command string) error {

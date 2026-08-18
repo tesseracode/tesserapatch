@@ -180,15 +180,24 @@ func TestAVPNativeWindows(t *testing.T) {
 		})
 
 		t.Run("char-device-handle-is-not-regular", func(t *testing.T) {
+			// The production gate is two ordered predicates in `capture`:
+			// `refused(pre)` (symlink/reparse) and then
+			// `!pre.Mode().IsRegular()` (not-regular). A character device is
+			// refused by the *second* one, so the assertions below pin that
+			// branch: NUL must not look like a reparse point, and it must not
+			// be regular.
 			info, err := os.Lstat("NUL")
 			if err != nil {
 				t.Fatalf("stat NUL: %v", err)
 			}
+			if refused(info) {
+				t.Fatalf("a FILE_TYPE_CHAR handle matched the reparse predicate (mode %v); it must reach the not-regular gate instead", info.Mode())
+			}
 			if info.Mode().IsRegular() {
 				t.Fatalf("a FILE_TYPE_CHAR handle reported regular (mode %v)", info.Mode())
 			}
-			if !refused(info) && info.Mode().IsRegular() {
-				t.Fatal("the kind gate would admit a character device")
+			if info.Mode()&os.ModeCharDevice == 0 {
+				t.Fatalf("NUL is not reported as a character device on this runner (mode %v)", info.Mode())
 			}
 		})
 	})

@@ -23,22 +23,29 @@ import (
 // recorded provenance):
 //
 //	git worktree add --detach <dir> <WAVE_BASE>
-//	(cd <dir> && go build -o <bin> ./cmd/tpatch)
+//	(cd <dir> && go build -trimpath -o <bin> ./cmd/tpatch)
 //	TPATCH_ROUTING_GOLDEN_BIN=<bin> TPATCH_RECORD_ROUTING_GOLDENS=1 \
 //	  go test ./internal/cli -run TestAVPRoutingGoldens
 //
 // A normal run builds the CURRENT binary and compares byte-for-byte.
 
-const routingGoldenDir = "testdata/routing-goldens"
+const (
+	routingGoldenDir = "testdata/routing-goldens"
+	// The twelve fixtures recorded from WAVE_BASE. Pinned so a fixture can
+	// neither be dropped nor quietly added.
+	routingGoldenCount     = 12
+	routingGoldenBinEnv    = "TPATCH_ROUTING_GOLDEN_BIN"
+	routingGoldenRecordEnv = "TPATCH_RECORD_ROUTING_GOLDENS"
+)
 
 func TestAVPRoutingGoldens(t *testing.T) {
-	binary := os.Getenv("TPATCH_ROUTING_GOLDEN_BIN")
+	binary := os.Getenv(routingGoldenBinEnv)
 	if binary == "" {
 		binary = buildCurrentBinary(t)
 	}
 	captured := captureRoutingSurfaces(t, binary)
 
-	if os.Getenv("TPATCH_RECORD_ROUTING_GOLDENS") == "1" {
+	if os.Getenv(routingGoldenRecordEnv) == "1" {
 		recordRoutingGoldens(t, captured)
 		t.Log("recorded routing goldens; re-run without TPATCH_RECORD_ROUTING_GOLDENS to compare")
 		return
@@ -53,10 +60,19 @@ func TestAVPRoutingGoldens(t *testing.T) {
 	// AVP-136 covers the four `next` routing populations in both formats;
 	// AVP-137 the `cycle --skip-execute` transcript and final state; AVP-071
 	// and AVP-072 are the compatibility rows those goldens satisfy.
+	//
+	// Every row must match at least one fixture. The pre-rev-2 loop skipped
+	// non-matching names with a bare `continue`, so a row whose prefix
+	// matched nothing at all passed without comparing a single byte.
 	for _, id := range []string{"AVP-071", "AVP-072", "AVP-136", "AVP-137"} {
 		t.Run(id, func(t *testing.T) {
+			prefix, err := routingRowPrefix(id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			compared := 0
 			for _, name := range names {
-				if !strings.HasPrefix(name, routingRowPrefix(id)) {
+				if !strings.HasPrefix(name, prefix) {
 					continue
 				}
 				want, err := os.ReadFile(filepath.Join(routingGoldenDir, name))
@@ -67,6 +83,10 @@ func TestAVPRoutingGoldens(t *testing.T) {
 					t.Fatalf("%s drifted from the pre-change golden\n--- golden ---\n%s\n--- current ---\n%s",
 						name, want, captured[name])
 				}
+				compared++
+			}
+			if compared == 0 {
+				t.Fatalf("%s matched no golden with prefix %q; the row would pass vacuously", id, prefix)
 			}
 		})
 	}
@@ -108,27 +128,92 @@ func TestAVPRoutingGoldens(t *testing.T) {
 		if recorded != len(captured) {
 			t.Fatalf("%d goldens recorded, %d captured", recorded, len(captured))
 		}
-		if recorded < 10 {
-			t.Fatalf("only %d goldens; the four routing populations in two formats need at least 10", recorded)
+		// The baseline is exactly the twelve fixtures recorded from
+		// WAVE_BASE: four `next` populations in two formats, the
+		// `apply --mode prepare` surface, the `cycle` transcript and its
+		// final state, and the one authorized `apply --help` delta. They may
+		// not be re-recorded from the current binary, so the count is pinned.
+		if recorded != routingGoldenCount {
+			t.Fatalf("%d goldens present, want the %d recorded from WAVE_BASE", recorded, routingGoldenCount)
+		}
+	})
+
+	t.Run("provenance-is-verifiable", func(t *testing.T) {
+		readme := filepath.Join(routingGoldenDir, "README.md")
+		data, err := os.ReadFile(readme)
+		if err != nil {
+			t.Fatal(err)
+		}
+		provenance := string(data)
+
+		// The recorded binary hash was removed in rev-2: `go build` embeds a
+		// build ID derived from the toolchain, module paths and build flags,
+		// so the digest is not reproducible by a reviewer and nothing in the
+		// suite could check it. An unverifiable claim in a provenance file is
+		// worse than no claim. Anything the README still asserts is checked
+		// here.
+		for _, forbidden := range []string{"SHA-256", "SHA256", "sha256"} {
+			if strings.Contains(provenance, forbidden) {
+				t.Fatalf("the provenance file makes an unverifiable %s claim", forbidden)
+			}
+		}
+		for _, required := range []string{
+			routingGoldenBinEnv,
+			routingGoldenRecordEnv,
+			"git worktree add --detach",
+		} {
+			if !strings.Contains(provenance, required) {
+				t.Fatalf("the provenance file no longer documents %q", required)
+			}
+		}
+
+		// The manifest table and the directory must agree in both
+		// directions, so a fixture cannot be added or deleted silently.
+		entries, err := os.ReadDir(routingGoldenDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".txt") {
+				continue
+			}
+			if !strings.Contains(provenance, "`"+entry.Name()+"`") {
+				t.Errorf("golden %s is not listed in the provenance manifest", entry.Name())
+			}
+		}
+		listed := 0
+		for _, line := range strings.Split(provenance, "\n") {
+			if !strings.HasPrefix(line, "| `") || !strings.Contains(line, ".txt`") {
+				continue
+			}
+			listed++
+			name := strings.SplitN(line, "`", 3)[1]
+			if _, err := os.Stat(filepath.Join(routingGoldenDir, name)); err != nil {
+				t.Errorf("the manifest lists %s, which is not present: %v", name, err)
+			}
+		}
+		if listed != routingGoldenCount {
+			t.Fatalf("the manifest lists %d fixtures, want %d", listed, routingGoldenCount)
 		}
 	})
 }
 
-func routingRowPrefix(id string) string {
+func routingRowPrefix(id string) (string, error) {
 	switch id {
 	case "AVP-071", "AVP-136":
-		return "next-"
+		return "next-", nil
 	case "AVP-072", "AVP-137":
-		return "cycle-"
-	default:
-		return ""
+		return "cycle-", nil
 	}
+	return "", fmt.Errorf("no golden prefix is declared for %s", id)
 }
 
 func buildCurrentBinary(t *testing.T) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "tpatch-current")
-	cmd := exec.Command("go", "build", "-o", binary, "./cmd/tpatch")
+	// -trimpath matches the documented baseline recipe, so the comparison is
+	// between two binaries built the same way.
+	cmd := exec.Command("go", "build", "-trimpath", "-o", binary, "./cmd/tpatch")
 	cmd.Dir = avpRepoRoot(t)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build current binary: %v\n%s", err, output)

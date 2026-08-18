@@ -2,11 +2,13 @@
 
 ## Status
 
-**Cluster state**: REV-2 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Rev-1 closes every rev-0 implementation finding and is accepted in substance,
-but external review found a Windows CI release blocker and narrow guard-quality
-issues. Rev-2 is dispatched. No mutating prepare mode is authorized.
+Rev-2 closes the external rev-1 CI blocker and the eight narrow guard
+findings. `windows-latest` now carries a **blocking** gate over the GH #16
+surface and a **visible, allowed-to-fail** full-suite step owned by
+[GH #17](https://github.com/tesseracode/tesserapatch/issues/17). No product
+behavior changed in rev-2. No mutating prepare mode is authorized.
 
 ## Active Task
 
@@ -14,7 +16,7 @@ issues. Rev-2 is dispatched. No mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-2 dispatched after split rev-1 verdict
+- **Status**: Rev-2 implemented; awaiting joint review
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -46,6 +48,139 @@ issues. Rev-2 is dispatched. No mutating prepare mode is authorized.
   later mutating-prepare cluster.
 - Native Windows behavior is part of acceptance.
 - Mutating prepare PRD rev-14 / ADR-035 rev-14 remains blocked.
+
+## Session Summary — rev-2
+
+Sole sequential reviser. No production behavior changed: the diff is CI,
+tests/guards, testdata provenance and tracking. Each numbered rev-1 finding is
+closed below.
+
+1. **Blocking Windows signal (BLOCKER).** `.github/workflows/ci.yml` now has
+   three test steps instead of one:
+   - `Test` (`if: runner.os != 'Windows'`) — the whole repository, blocking, on
+     ubuntu-latest and macos-latest exactly as before.
+   - `Test (Windows GH #16 surface — blocking)` — runs
+     `go test -v -count=1 -run TestAVPNativeWindows ./internal/intent`, then
+     **asserts the verbose log contains the `--- PASS:` lines** for
+     `AVP-176`/`AVP-199` and at least six leaf assertions, because
+     `go test -run` over a pattern that matches nothing exits 0 and would look
+     green. It then runs the empirically green package set from run
+     `32086471429`: `./internal/intent ./assets ./internal/buildinfo
+     ./internal/redact ./internal/safety ./internal/testutil
+     ./internal/tools/studyvalidator ./tests/integration`.
+   - `Test (Windows full suite — allowed to fail, owned by GH #17)` —
+     `go test ./... -count=1 -timeout 20m` with `continue-on-error: true`. The
+     192 unrelated failures stay **visible** in the job log; they no longer
+     fail the job, so `main` and tagged releases are publishable. The step name
+     carries `#17`, which is the issue that owns deleting it.
+
+   `Install binary (smoke test)` is split into a bash leg (non-Windows) and a
+   `pwsh` leg (Windows) — the bash form interpolates `go env GOPATH`, which is
+   a backslash path on Windows. `Verify tag version` is restored to **both**
+   non-Windows legs (`runner.os != 'Windows'`), not ubuntu only; the Windows
+   leg is excluded because `make` is absent on the runner, which the comment
+   now states.
+
+2. **AVP-175 sensitivity (HIGH).** `checkCIMatrix` keeps the LF-checkout
+   assertions and delegates to a new `checkCIWindowsGate`, which parses the
+   workflow into steps (`parseWorkflowSteps`, a small YAML-subset parser for
+   mapping keys and `|` block scalars) instead of scanning the file for
+   substrings — `continue-on-error: true` anywhere in a file otherwise looks
+   like it belongs to every step. The guard asserts: the non-Windows full
+   suite is blocking; a blocking Windows step exists that names
+   `./internal/intent`, runs `-run TestAVPNativeWindows` verbosely and asserts
+   the `--- PASS:` lines; every allowed-failure step is ordered **after** it,
+   never mentions `internal/intent`, and names GH #17; and the tag-version
+   step is not pinned to one matrix entry. The sensitivity fixture has six
+   arms — matrix row removed, CRLF checkout restored, `internal/intent` moved
+   into the allowed-failure command, `continue-on-error: true` added to the
+   blocking step, the native invocation dropped, and the tag check pinned back
+   to ubuntu. A non-detecting arm now calls `t.Fatalf` instead of returning an
+   error, because returning an error is how this harness signals "sensitive"
+   and would launder a hole into a pass.
+
+3. **Tracking truth (MEDIUM).** The CI history statement is corrected below:
+   GH #16 **added** the `windows-latest` row; `main` was **green** at
+   `WAVE_BASE` `9a8c1d0` because no Windows leg existed; this wave exposed
+   192 pre-existing failures. GH #17 is the named owner and the explicit exit
+   condition for the allowed failure.
+
+4. **AVP-168 derived from production (HIGH).** The test-local
+   `realStatusOutcomeMap()` literal is deleted. `deriveStatusOutcomes` drives
+   six filesystem conditions (empty, symlink, non-regular, oversize,
+   vanished-between-lstat-and-open, permission-denied) through the real
+   `Inspect` **twice**: once on `status.json`, which yields the abort code,
+   and once on `spec.md`, which yields the structural state the production
+   classifier assigns. Both halves are read back out of `Inspect`; nothing is
+   asserted from a hand-written expectation. `checkStatusAbortTotality` adds
+   the state↔abort correspondence (`status-<state>`, with the one documented
+   `present-empty → status-malformed` exception) to the existing totality,
+   disjointness and catalog-size checks. Sensitivity arm 1 **crosses two
+   probes' production-path inputs** so the derived pairing becomes
+   `unreadable → status-oversize`; arm 2 removes the probe that drives the
+   oversize branch, so the derivation can no longer observe that outcome.
+
+5. **AVP-134 source scan (MEDIUM).** The working-tree `filepath.WalkDir` with
+   its `.golden-baseline` name exemption is deleted. The population is now
+   `git ls-files`: tracked, non-test `.go` files only, so a nested worktree,
+   an editor scratch copy or any untracked experiment cannot fail the row.
+   `checkInspectorImporters` is a pure function over that map, and
+   `AVP-134/sensitivity` proves it fails for a **tracked** forbidden importer
+   (`internal/workflow/prepare_probe.go`), fails when the one authorized
+   importer moves, and that every scanned path is in fact tracked.
+
+6. **Status parity holes (MEDIUM).** `schemaFieldsOf` now **fails** on an
+   exported field with no JSON tag (it marshals under its Go name, so it is a
+   real document member) and on an embedded field; `schemaShapeFromSources`
+   returns an error instead of `t.Fatal`ing, so a mutation that breaks
+   extraction counts as a detection. `normalizeSchemaType` records any named
+   type it has no rule for and the walk fails rather than silently
+   normalizing. `checkNamedStringTypes` asserts every enum the mirror types as
+   `string` really is `type X string` upstream and that no allowlist entry is
+   dead. Three new sensitivity arms cover the untagged exported field, an
+   alias whose underlying type stops being `string`, and a newly introduced
+   named type; a fourth asserts the unmutated sources still pass, so the
+   harness itself cannot rot into always-failing.
+
+7. **Routing golden rigor (MEDIUM).** Each of AVP-071/072/136/137 now counts
+   its matches and fails when a prefix matched no fixture; `routingRowPrefix`
+   returns an error for an unknown row instead of an empty prefix that
+   silently matched everything. The fixture count is pinned at **12**. The
+   unverifiable baseline binary digest is **removed** from
+   `testdata/routing-goldens/README.md` with the reason recorded (`go build`
+   embeds a build ID from the toolchain, module paths and flags, so a reviewer
+   cannot reproduce it and no test could check it). The claims that remain are
+   checked by `TestAVPRoutingGoldens/provenance-is-verifiable`: no digest
+   claim, both environment variables and the worktree recipe still documented,
+   and the manifest table agreeing with the directory in both directions. The
+   recipe and `buildCurrentBinary` both use `-trimpath` so baseline and
+   current are built the same way; re-recording under `-trimpath` produced
+   byte-identical goldens.
+
+8. **Low guard defects (LOW).**
+   - The tautological `strings.HasSuffix("internal/intent/avp_native_windows_test.go",
+     "_windows_test.go")` is replaced by a real constraint check: `go list`
+     reports the package's test files for `GOOS=windows` and for the host, and
+     the fixture must appear in the first and not in the second.
+   - The character-device row asserted a branch that could not execute
+     (`!refused(info) && info.Mode().IsRegular()`). It now pins the actual
+     production gate order: `refused(info)` must be false (a char device is
+     not a reparse point) and `IsRegular()` must be false, so `capture`
+     classifies it through `!pre.Mode().IsRegular()`; the comment says exactly
+     that.
+   - `internal/intent/status_schema.go` referenced a file name that never
+     existed (`status_schema_guard_test.go`); it now points at
+     `status_schema_test.go`.
+   - AVP-170's sensitivity arm allocates inside the measurement window to
+     model the rejected per-capture design; AVP-197's asserts budget
+     arithmetic. Neither rebuilds the inspector, and both now say so in a
+     dedicated honesty note, so the rows are not cited as measurements of a
+     mutated production build. AVP-116 remains a source scan plus the real
+     backing-array assertions in `TestAVPRootedBoundaryHonesty/AVP-197`, which
+     measure the real `Inspect`.
+
+No test was added outside these findings, and no production file changed in
+rev-2.
 
 ## Session Summary — rev-1
 
@@ -192,8 +327,48 @@ the real exit code without shelling out. Behavior is unchanged.
   byte-identical to the reconstructed `WAVE_BASE` binary; `apply --help`
   carries only the authorized pointer sentence.
 - Known allowlisted untracked research WIP is untouched.
+- Rev-2 changed **no production file**. `git diff --stat` for rev-2 covers
+  `.github/workflows/ci.yml`, six `_test.go` files, one comment line in
+  `internal/intent/status_schema.go`, the goldens `README.md` and this
+  handoff.
 
 ## Files Changed
+
+### Rev-2 (this revision)
+
+CI:
+
+- `.github/workflows/ci.yml` — blocking Windows GH #16 gate, visible
+  `continue-on-error` full-suite step owned by GH #17, per-OS smoke-test legs,
+  tag-version verification restored to both non-Windows legs.
+
+Tests and guards (no production file changed in rev-2):
+
+- `internal/intent/avp_guards_test.go` — `checkCIWindowsGate`, six-arm
+  AVP-175 sensitivity, production-derived AVP-168 (`statusOutcomeProbes`,
+  `deriveStatusOutcomes`, correspondence check), allocation honesty notes.
+- `internal/intent/avp_guard_helpers_test.go` — `parseWorkflowSteps`,
+  `workflowStep`, `runsOnWindows`.
+- `internal/intent/avp_windows_guards_test.go` — `go list`-based GOOS
+  constraint check replacing the literal suffix assertion.
+- `internal/intent/avp_native_windows_test.go` — character-device row matches
+  the real `!IsRegular` gate.
+- `internal/intent/avp_source_scans_test.go` — `git ls-files` population,
+  `checkInspectorImporters`, `AVP-134/sensitivity`.
+- `internal/intent/status_schema_test.go` — error-returning extraction,
+  untagged/embedded field rejection, unknown named types, named-alias
+  underlying-kind check, four new sensitivity arms.
+- `internal/intent/status_schema.go` — stale test filename in a comment.
+- `internal/cli/prepare_routing_golden_test.go` — non-vacuous prefix
+  matching, pinned fixture count, `provenance-is-verifiable`, `-trimpath`.
+- `internal/cli/testdata/routing-goldens/README.md` — digest removed with the
+  reason recorded; `-trimpath` recipe; worktree moved outside the repository.
+
+Docs:
+
+- `docs/handoff/CURRENT.md`
+
+### Rev-1 (unchanged by rev-2)
 
 Production:
 
@@ -243,23 +418,35 @@ Docs:
 - **Acceptance rows**: 208 of 208 mapped, 224 references, zero duplicates.
 - **Guards**: 43 of 43 registered, each with a paired sensitivity fixture that
   is asserted to fail the guard.
-- **Tests**: 32 top-level AVP/ledger/schema tests and 479 subtests on this
-  host (`intent` 21/304, `cli` 10/172, `assets` 1/3). `windows-latest`
-  additionally runs `TestAVPNativeWindows` (2 rows, 5 leaf assertions) from
+- **Tests**: 32 top-level AVP/ledger/schema tests and **485** subtests on this
+  host (`intent` 21/309, `cli` 10/173, `assets` 1/3). `windows-latest`
+  additionally runs `TestAVPNativeWindows` (2 rows, 6 leaf assertions) from
   the `GOOS`-constrained file, which is not compiled on this host.
 - **Goldens**: 12 routing fixtures recorded from `WAVE_BASE` `9a8c1d0`
-  (binary SHA-256 `c06c205cc8a819aa8bb4e10eb8542c4b5174793920cfcec56b1b57d2d8388de5`,
-  `go1.26.5 darwin/arm64`).
+  (`go1.26.5 darwin/arm64`, `go build -trimpath`). The rev-1 binary digest was
+  removed in rev-2 as unverifiable; see
+  `internal/cli/testdata/routing-goldens/README.md` and
+  `TestAVPRoutingGoldens/provenance-is-verifiable`.
 
 ## Test Results
+
+All results below are from **rev-2** on `go1.26.5 darwin/arm64`.
 
 - `gofmt -l .`: clean.
 - `go build ./...`: PASS.
 - `go vet ./...`: PASS.
 - `go test -count=1 ./...`: PASS (14 packages; 2 command packages have no
   tests).
-- Targeted: `go test -count=1 ./internal/intent/ ./internal/cli/ ./assets/`:
+- Targeted: `go test -count=1 ./internal/intent ./internal/cli ./assets`:
   PASS.
+- Ledger: `go test -count=1 ./internal/intent -run TestAcceptance`: PASS —
+  `rows=208 categories=25 references=224 guards=43`.
+- Guards: `go test -count=1 ./internal/intent -run TestAVPGuards`: PASS — 43
+  guards, 43 executed sensitivity fixtures.
+- Rev-2 targeted guards: `-run 'TestAVPGuards/AVP-175'`,
+  `-run 'TestAVPGuards/AVP-168'`, `-run TestAVPSourceScans`,
+  `-run TestAVPStatusSchema`, `-run TestAVPWindowsSourceGuards`,
+  `-run TestAVPRoutingGoldens`: PASS.
 - Asset parity (`TestSkillParityGuard`, `TestSkillDocReferencesAreSelfContained`,
   `TestAVPAssetParity`): PASS.
 - `GOOS=windows GOARCH=amd64 go vet ./internal/intent ./internal/cli`: PASS.
@@ -269,9 +456,31 @@ Docs:
 - `GOOS=js GOARCH=wasm` and `GOOS=plan9 GOARCH=amd64 go build ./internal/intent`:
   PASS — the rev-6 errata's buildability claim, verified directly.
 - Routing goldens re-recorded from the `WAVE_BASE` binary under the hermetic
-  environment produced byte-identical files.
+  environment produced byte-identical files; rebuilding the current binary
+  with `-trimpath` also produced byte-identical goldens.
 
-## CI Observation After Push (recorded, not acted on beyond scope)
+## Windows CI History and the Rev-2 Gate
+
+### What actually happened (corrected in rev-2)
+
+1. At `WAVE_BASE` `9a8c1d0` the CI matrix was `ubuntu-latest` and
+   `macos-latest` only. `main` was **green**: there was no Windows leg at all.
+2. **GH #16 added the `windows-latest` row.** For its first runs the job died
+   at `Verify formatting` in ~25s, because the runner checks out with
+   `core.autocrlf=true` and `gofmt -l .` then lists the whole tree. The row
+   existed but ran nothing.
+3. `755b31e` forced an LF checkout, and the job reached `go test` for the
+   first time. That is when the **192 pre-existing failures** in unrelated
+   packages became visible. They were exposed by this wave, not caused by it —
+   and the branch they were exposed on was green beforehand only because
+   nothing Windows had ever run.
+4. Rev-2 therefore splits the signal rather than reverting the row.
+
+The rev-1 handoff sentence "`windows-latest` was already red on `main` before
+this wave" was wrong: there was no `windows-latest` before this wave. This
+section replaces it.
+
+### Rev-1 run — first real Windows execution
 
 Run [`32086471429`](https://github.com/tesseracode/tesserapatch/actions/runs/32086471429)
 at `755b31e`:
@@ -282,8 +491,7 @@ at `755b31e`:
 | `macos-latest` | ✅ pass |
 | `windows-latest` | ❌ fail — **but for the first time it ran the suite** |
 
-`windows-latest` now clears `Verify formatting`, `go vet` and `Build`, and
-reaches `Test`. Package results on the Windows runner:
+Package results on the Windows runner:
 
 - **`internal/intent`: PASS (64s)** — this is the hard acceptance criterion.
   `TestAVPNativeWindows` executed on a real runner: `cmd /c mklink /J` created
@@ -302,14 +510,24 @@ reaches `Test`. Package results on the Windows runner:
   (`TestRev2_UnlandedParentProbeFailureNeverReplays`).
 
 **Zero of the 192 failures are AVP, acceptance-ledger or `prepare` rows.**
-They are Windows path/symlink/permission assumptions in code this wave does
-not touch, which had never executed on Windows because the job always died at
-formatting in ~25 seconds. Fixing them is a separate, sizeable ticket and is
-explicitly out of this wave's authorized surface; raising the per-package
-timeout was likewise left alone, because it would only remove noise from a job
-that still fails for unrelated reasons. `windows-latest` was already red on
-`main` before this wave — the change is that its redness is now *true* instead
-of *vacuous*.
+
+### Rev-2 gate
+
+- The empirically green set above is the **blocking** Windows step, with the
+  native rows run verbosely and their `--- PASS:` lines asserted.
+- The remaining failures are **visible** in a `continue-on-error` step whose
+  name carries `#17`.
+- [GH #17](https://github.com/tesseracode/tesserapatch/issues/17) is the
+  explicit owner and the explicit exit condition: it acceptance-requires
+  `go test -count=1 ./...` green on `windows-latest`, no package over the
+  timeout, and **removal** of `continue-on-error` so the two steps collapse
+  back into one blocking `go test ./...`. Until then a tagged release stays
+  publishable, and AVP-175 forbids moving `./internal/intent` into the
+  allowed-failure step.
+
+### Rev-2 run
+
+Recorded after the rev-2 push — see "Rev-2 CI Result" below.
 
 ## Next Steps
 
@@ -318,10 +536,14 @@ of *vacuous*.
    sensitivity fixture genuinely breaks its guard.
 2. Reviewer: confirm the PRD rev-6 / ADR-034 rev-3 errata are narrow — no
    decision changed, matrix still 208 rows, guard set still 43.
-3. Reviewer: inspect CI; `windows-latest` must now pass `Verify formatting`,
-   reach `Test`, and execute `TestAVPNativeWindows` with real assertions.
-   Before this wave the job died at formatting and ran nothing.
-4. If approved, run the Wave-Close Checklist and flip the handoff Status.
+3. Reviewer: inspect the rev-2 CI run recorded above; the `windows-latest`
+   **job must be green**, the blocking step must show
+   `--- PASS: TestAVPNativeWindows/...` leaf lines, and the allowed-failure
+   step must still be present and still list the unrelated failures.
+4. Reviewer: check AVP-175's six sensitivity arms individually — in
+   particular that moving `./internal/intent` into the allowed-failure command
+   and adding `continue-on-error: true` to the blocking step both fail it.
+5. If approved, run the Wave-Close Checklist and flip the handoff Status.
 
 ## Blockers
 
@@ -340,11 +562,18 @@ of *vacuous*.
   fails AVP-139 and the ledger automatically.
 - Routing goldens must never be re-recorded from the current binary. If they
   need refreshing, reconstruct the `WAVE_BASE` binary in a temporary detached
-  worktree exactly as the testdata `README.md` documents.
-- **Out of scope, pre-existing (2)**: the 192 Windows test failures above.
-  Recommend a dedicated ticket: "make the non-`intent` packages pass on
-  windows-latest", covering path separators, symlink/permission assumptions
-  and the two per-package 10-minute timeouts.
+  worktree exactly as the testdata `README.md` documents — **outside** the
+  repository, so nothing untracked appears in the working tree.
+- The Windows CI shape is a contract, not a convenience. `AVP-175` parses
+  `.github/workflows/ci.yml` into steps and fails if the GH #16 surface stops
+  being blocking, if `internal/intent` appears in an allowed-failure command,
+  if the allowed-failure step stops naming GH #17, or if the tag-version check
+  is pinned to one matrix entry. When GH #17 lands, deleting the
+  `continue-on-error` step is a deliberate AVP-175 edit, not a silent one.
+- **Out of scope, pre-existing (2)**: the 192 Windows test failures above are
+  owned by [GH #17](https://github.com/tesseracode/tesserapatch/issues/17):
+  path separators, symlink/permission assumptions and the two per-package
+  10-minute timeouts.
 - **Out of scope, pre-existing (1)**: `GOOS=js GOARCH=wasm go build ./cmd/tpatch`
   fails in `internal/rescap` (`pathopen_unix.go` references
   `syscall.O_NOFOLLOW` under a `!windows`-shaped tag). This reproduces at

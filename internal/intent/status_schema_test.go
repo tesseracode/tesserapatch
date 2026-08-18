@@ -67,13 +67,15 @@ var namedStringTypes = map[string]bool{
 }
 
 func TestAVPStatusSchemaParity(t *testing.T) {
-	storeShape := schemaShapeFromSources(t, map[string]string{
-		"types.go":  repoFile(t, "internal/store/types.go"),
-		"status.go": repoFile(t, "internal/store/status.go"),
-	}, storeToCanonical)
-	mirrorShape := schemaShapeFromSources(t, map[string]string{
-		"status_schema.go": repoFile(t, "internal/intent/status_schema.go"),
-	}, mirrorToCanonical)
+	sources := storeSchemaSources(t)
+	storeShape, err := schemaShapeFromSources(sources, storeToCanonical)
+	if err != nil {
+		t.Fatalf("walk store.FeatureStatus: %v", err)
+	}
+	mirrorShape, err := mirrorSchemaShape(t)
+	if err != nil {
+		t.Fatalf("walk the local mirror: %v", err)
+	}
 
 	if err := compareSchemaShapes(storeShape, mirrorShape); err != nil {
 		t.Fatalf("the local status mirror drifted from store.FeatureStatus: %v", err)
@@ -81,17 +83,52 @@ func TestAVPStatusSchemaParity(t *testing.T) {
 	if len(storeShape) != len(storeToCanonical) {
 		t.Fatalf("walked %d store structs, want %d", len(storeShape), len(storeToCanonical))
 	}
+	// The mirror types every store enum as a plain `string`. That is only
+	// sound while those enums *are* strings upstream: the day
+	// `type ReconcileOutcome int` lands, the mirror silently starts accepting
+	// documents `store` rejects. The alias check is therefore part of parity,
+	// not a nicety.
+	if err := checkNamedStringTypes(sources, namedStringTypes); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func TestAVPStatusSchemaParityIsSensitive(t *testing.T) {
-	mirrorShape := schemaShapeFromSources(t, map[string]string{
-		"status_schema.go": repoFile(t, "internal/intent/status_schema.go"),
-	}, mirrorToCanonical)
-
-	storeSources := map[string]string{
+func storeSchemaSources(t *testing.T) map[string]string {
+	t.Helper()
+	return map[string]string{
 		"types.go":  repoFile(t, "internal/store/types.go"),
 		"status.go": repoFile(t, "internal/store/status.go"),
 	}
+}
+
+func mirrorSchemaShape(t *testing.T) (map[string][]schemaField, error) {
+	t.Helper()
+	return schemaShapeFromSources(map[string]string{
+		"status_schema.go": repoFile(t, "internal/intent/status_schema.go"),
+	}, mirrorToCanonical)
+}
+
+// storeParityVerdict is the whole guard body over one (possibly mutated) set
+// of store sources: extract, then compare, then check the named aliases. The
+// sensitivity fixture drives this function so a mutation that breaks
+// extraction counts as a detection, not as a harness crash.
+func storeParityVerdict(sources map[string]string, mirrorShape map[string][]schemaField) error {
+	shape, err := schemaShapeFromSources(sources, storeToCanonical)
+	if err != nil {
+		return err
+	}
+	if err := compareSchemaShapes(shape, mirrorShape); err != nil {
+		return err
+	}
+	return checkNamedStringTypes(sources, namedStringTypes)
+}
+
+func TestAVPStatusSchemaParityIsSensitive(t *testing.T) {
+	mirrorShape, err := mirrorSchemaShape(t)
+	if err != nil {
+		t.Fatalf("walk the local mirror: %v", err)
+	}
+	storeSources := storeSchemaSources(t)
 
 	mutations := []struct {
 		name    string
@@ -136,6 +173,29 @@ func TestAVPStatusSchemaParityIsSensitive(t *testing.T) {
 			old:     "\tReason     string        `json:\"reason\"`",
 			replace: "\tReason     int           `json:\"reason\"`",
 		},
+		{
+			// An exported field with no JSON tag still marshals — under its
+			// Go name. Skipping it (the pre-rev-2 `continue`) let a real
+			// document member exist that the mirror had never heard of.
+			name:    "exported-field-without-a-json-tag",
+			file:    "types.go",
+			old:     "\tNotes         string              `json:\"notes,omitempty\"`",
+			replace: "\tNotes         string              `json:\"notes,omitempty\"`\n\tArchivedBy    string",
+		},
+		{
+			name:    "named-alias-stops-being-a-string",
+			file:    "types.go",
+			old:     "type ReconcileOutcome string",
+			replace: "type ReconcileOutcome int",
+		},
+		{
+			// A brand-new named type the mirror has never been told about
+			// must not be normalized away silently.
+			name:    "unknown-named-type-introduced",
+			file:    "types.go",
+			old:     "\tLastCommand   string              `json:\"last_command\"`",
+			replace: "\tLastCommand   CommandLabel        `json:\"last_command\"`",
+		},
 	}
 
 	for _, mutation := range mutations {
@@ -153,12 +213,17 @@ func TestAVPStatusSchemaParityIsSensitive(t *testing.T) {
 			}
 			mutated[mutation.file] = strings.Replace(original, mutation.old, mutation.replace, 1)
 
-			drifted := schemaShapeFromSources(t, mutated, storeToCanonical)
-			if err := compareSchemaShapes(drifted, mirrorShape); err == nil {
+			if err := storeParityVerdict(mutated, mirrorShape); err == nil {
 				t.Fatal("the parity guard accepted a drifted store shape")
 			}
 		})
 	}
+
+	t.Run("unmutated-sources-still-pass", func(t *testing.T) {
+		if err := storeParityVerdict(storeSources, mirrorShape); err != nil {
+			t.Fatalf("the sensitivity harness rejects the real sources: %v", err)
+		}
+	})
 }
 
 // TestAVPStatusSchemaRejectsUnknownFieldStrictness pins the accepted contract
@@ -179,9 +244,10 @@ func TestAVPStatusSchemaRejectsUnknownFieldStrictness(t *testing.T) {
 // mirror's own reflected JSON surface must match what the AST walk derived,
 // so a build-tag trick or a type alias cannot hide a divergence.
 func TestAVPStatusSchemaMirrorsRuntimeShape(t *testing.T) {
-	mirrorShape := schemaShapeFromSources(t, map[string]string{
-		"status_schema.go": repoFile(t, "internal/intent/status_schema.go"),
-	}, mirrorToCanonical)
+	mirrorShape, err := mirrorSchemaShape(t)
+	if err != nil {
+		t.Fatalf("walk the local mirror: %v", err)
+	}
 	declared := mirrorShape["FeatureStatus"]
 	reflected := reflect.TypeOf(statusDocument{})
 	if reflected.NumField() != len(declared) {
@@ -203,10 +269,10 @@ func TestAVPStatusSchemaMirrorsRuntimeShape(t *testing.T) {
 // Shape extraction
 // ---------------------------------------------------------------------------
 
-func schemaShapeFromSources(t *testing.T, sources map[string]string, canonical map[string]string) map[string][]schemaField {
-	t.Helper()
+func schemaShapeFromSources(sources map[string]string, canonical map[string]string) (map[string][]schemaField, error) {
 	fset := token.NewFileSet()
 	shape := map[string][]schemaField{}
+	unknown := map[string]bool{}
 	names := make([]string, 0, len(sources))
 	for name := range sources {
 		names = append(names, name)
@@ -215,7 +281,7 @@ func schemaShapeFromSources(t *testing.T, sources map[string]string, canonical m
 	for _, name := range names {
 		file, err := parser.ParseFile(fset, name, sources[name], 0)
 		if err != nil {
-			t.Fatalf("parse %s: %v", name, err)
+			return nil, fmt.Errorf("parse %s: %w", name, err)
 		}
 		for _, decl := range file.Decls {
 			gen, ok := decl.(*ast.GenDecl)
@@ -235,38 +301,73 @@ func schemaShapeFromSources(t *testing.T, sources map[string]string, canonical m
 				if !tracked {
 					continue
 				}
-				shape[key] = schemaFieldsOf(structType, canonical)
+				fields, err := schemaFieldsOf(typeSpec.Name.Name, structType, canonical, unknown)
+				if err != nil {
+					return nil, err
+				}
+				shape[key] = fields
 			}
 		}
 	}
-	return shape
+	if len(unknown) > 0 {
+		return nil, fmt.Errorf("the status document reaches named type(s) the mirror has no rule for: %s",
+			strings.Join(sortedNames(unknown), ", "))
+	}
+	return shape, nil
 }
 
-func schemaFieldsOf(structType *ast.StructType, canonical map[string]string) []schemaField {
+// schemaFieldsOf extracts the JSON shape of one struct.
+//
+// An exported field without a JSON tag is an error, not a skip: encoding/json
+// marshals it under its Go name, so it is a real member of the on-the-wire
+// document. The pre-rev-2 `continue` meant such a field could be added
+// upstream and the mirror would never notice.
+func schemaFieldsOf(structName string, structType *ast.StructType, canonical map[string]string, unknown map[string]bool) ([]schemaField, error) {
 	var fields []schemaField
 	for _, field := range structType.Fields.List {
+		exported := false
+		for _, name := range field.Names {
+			if name.IsExported() {
+				exported = true
+			}
+		}
+		if len(field.Names) == 0 {
+			// An embedded field promotes its members into the document.
+			return nil, fmt.Errorf("%s embeds a type; the mirror has no rule for promoted members", structName)
+		}
 		if field.Tag == nil {
+			if exported {
+				return nil, fmt.Errorf("%s.%s is exported but carries no json tag; it marshals under its Go name",
+					structName, field.Names[0].Name)
+			}
 			continue
 		}
 		tag, err := strconv.Unquote(field.Tag.Value)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("%s.%s has an unparsable tag: %w", structName, field.Names[0].Name, err)
 		}
 		jsonTag := reflect.StructTag(tag).Get("json")
-		if jsonTag == "" || jsonTag == "-" {
+		if jsonTag == "" {
+			if exported {
+				return nil, fmt.Errorf("%s.%s is exported but carries no json tag; it marshals under its Go name",
+					structName, field.Names[0].Name)
+			}
+			continue
+		}
+		if jsonTag == "-" {
 			continue
 		}
 		name, options, _ := strings.Cut(jsonTag, ",")
 		fields = append(fields, schemaField{
 			JSON:      name,
 			Omitempty: strings.Contains(options, "omitempty"),
-			Type:      normalizeSchemaType(field.Type, canonical),
+			Type:      normalizeSchemaType(field.Type, canonical, unknown),
 		})
 	}
-	return fields
+	return fields, nil
 }
 
-func normalizeSchemaType(expr ast.Expr, canonical map[string]string) string {
+func normalizeSchemaType(expr ast.Expr, canonical map[string]string, unknown map[string]bool) string {
 	switch typed := expr.(type) {
 	case *ast.Ident:
 		if namedStringTypes[typed.Name] {
@@ -275,13 +376,17 @@ func normalizeSchemaType(expr ast.Expr, canonical map[string]string) string {
 		if key, ok := canonical[typed.Name]; ok {
 			return "struct:" + key
 		}
+		if !builtinSchemaTypes[typed.Name] {
+			unknown[typed.Name] = true
+		}
 		return typed.Name
 	case *ast.StarExpr:
-		return "*" + normalizeSchemaType(typed.X, canonical)
+		return "*" + normalizeSchemaType(typed.X, canonical, unknown)
 	case *ast.ArrayType:
-		return "[]" + normalizeSchemaType(typed.Elt, canonical)
+		return "[]" + normalizeSchemaType(typed.Elt, canonical, unknown)
 	case *ast.MapType:
-		return "map[" + normalizeSchemaType(typed.Key, canonical) + "]" + normalizeSchemaType(typed.Value, canonical)
+		return "map[" + normalizeSchemaType(typed.Key, canonical, unknown) + "]" +
+			normalizeSchemaType(typed.Value, canonical, unknown)
 	case *ast.SelectorExpr:
 		if pkg, ok := typed.X.(*ast.Ident); ok {
 			return pkg.Name + "." + typed.Sel.Name
@@ -291,6 +396,68 @@ func normalizeSchemaType(expr ast.Expr, canonical map[string]string) string {
 		return "any"
 	}
 	return "unknown"
+}
+
+var builtinSchemaTypes = map[string]bool{
+	"string": true, "bool": true, "byte": true, "rune": true, "error": true,
+	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
+	"float32": true, "float64": true, "any": true,
+}
+
+// checkNamedStringTypes asserts every enum the mirror types as a plain
+// `string` really is declared `type X string` upstream, and that no entry in
+// the allowlist is dead.
+func checkNamedStringTypes(sources map[string]string, named map[string]bool) error {
+	fset := token.NewFileSet()
+	underlying := map[string]string{}
+	names := make([]string, 0, len(sources))
+	for name := range sources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		file, err := parser.ParseFile(fset, name, sources[name], 0)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", name, err)
+		}
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				if ident, ok := typeSpec.Type.(*ast.Ident); ok {
+					underlying[typeSpec.Name.Name] = ident.Name
+				} else {
+					underlying[typeSpec.Name.Name] = "non-ident"
+				}
+			}
+		}
+	}
+	for _, name := range sortedNames(named) {
+		kind, declared := underlying[name]
+		if !declared {
+			return fmt.Errorf("the mirror types %s as a string, but no such type is declared upstream", name)
+		}
+		if kind != "string" {
+			return fmt.Errorf("%s has underlying type %s upstream; the mirror types it as string", name, kind)
+		}
+	}
+	return nil
+}
+
+func sortedNames(set map[string]bool) []string {
+	out := make([]string, 0, len(set))
+	for name := range set {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func compareSchemaShapes(left, right map[string][]schemaField) error {

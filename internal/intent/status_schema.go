@@ -15,7 +15,7 @@ import (
 //
 // The mirror is kept honest mechanically rather than by review: the
 // AST parity guard (`TestAVPStatusSchemaParity`, AVP-093's sibling in
-// `status_schema_guard_test.go`) parses `internal/store/types.go` and
+// `status_schema_test.go`) parses `internal/store/types.go` and
 // `internal/store/status.go`, walks `FeatureStatus` transitively, and fails
 // when a field, JSON name, `omitempty` flag or normalized Go type drifts
 // from the mirror below. A sensitivity fixture proves the guard fails on a

@@ -3,6 +3,7 @@ package intent
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -271,4 +272,174 @@ func checkHumanLabels(rendered string) error {
 		}
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Workflow parsing (AVP-175)
+// ---------------------------------------------------------------------------
+
+// workflowStep is one parsed step of a GitHub Actions workflow. AVP-175 has
+// to reason about *step structure* — which step is blocking, which one is
+// allowed to fail, and in what order they run — so a substring scan over the
+// whole file is not enough: `continue-on-error: true` anywhere in the file
+// would otherwise look like it belonged to every step.
+type workflowStep struct {
+	Job             string
+	Index           int
+	Name            string
+	If              string
+	Shell           string
+	Uses            string
+	Run             string
+	ContinueOnError bool
+}
+
+// parseWorkflowSteps parses the small YAML subset this repository's workflow
+// uses: mapping keys, plain scalars and `|` block scalars, nested one level
+// under `jobs:` → `<job>:` → `steps:`. Anything deeper (`with:`, `env:`) is
+// skipped deliberately — no step field this guard needs lives there.
+func parseWorkflowSteps(workflow string) ([]workflowStep, error) {
+	lines := strings.Split(workflow, "\n")
+
+	var steps []workflowStep
+	var current *workflowStep
+	var blockKey string
+	var blockLines []string
+
+	job := ""
+	inJobs := false
+	inSteps := false
+	stepsIndent := -1
+	itemIndent := -1
+	contentIndent := -1
+
+	closeBlock := func() {
+		if blockKey == "" {
+			return
+		}
+		if current != nil && blockKey == "run" {
+			current.Run = strings.Join(blockLines, "\n")
+		}
+		blockKey = ""
+		blockLines = nil
+	}
+	flush := func() {
+		closeBlock()
+		if current != nil {
+			steps = append(steps, *current)
+			current = nil
+		}
+	}
+
+	for _, raw := range lines {
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+
+		if blockKey != "" {
+			if trimmed == "" {
+				blockLines = append(blockLines, "")
+				continue
+			}
+			if indent > contentIndent {
+				blockLines = append(blockLines, raw[min(contentIndent+2, indent):])
+				continue
+			}
+			closeBlock()
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if indent == 0 {
+			flush()
+			inSteps = false
+			inJobs = trimmed == "jobs:"
+			continue
+		}
+		if inJobs && indent == 2 && strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
+			flush()
+			inSteps = false
+			job = strings.TrimSuffix(trimmed, ":")
+			continue
+		}
+		if trimmed == "steps:" {
+			flush()
+			inSteps = true
+			stepsIndent = indent
+			itemIndent = -1
+			continue
+		}
+		if !inSteps {
+			continue
+		}
+		if indent <= stepsIndent {
+			flush()
+			inSteps = false
+			continue
+		}
+		if strings.HasPrefix(trimmed, "- ") && (itemIndent == -1 || indent == itemIndent) {
+			flush()
+			itemIndent = indent
+			contentIndent = indent + 2
+			current = &workflowStep{Job: job, Index: len(steps)}
+			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
+			indent = contentIndent
+		}
+		if current == nil || indent != contentIndent {
+			continue
+		}
+		key, value, ok := strings.Cut(trimmed, ":")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if value == "|" || value == ">" || value == "|-" {
+			blockKey = key
+			blockLines = nil
+			continue
+		}
+		// Only strip a *paired* surrounding quote: `if: runner.os ==
+		// 'Windows'` must keep its inner quotes, or every condition check
+		// downstream would silently compare truncated text.
+		if len(value) >= 2 && value[0] == value[len(value)-1] && (value[0] == '"' || value[0] == '\'') {
+			value = value[1 : len(value)-1]
+		}
+		switch key {
+		case "name":
+			current.Name = value
+		case "if":
+			current.If = value
+		case "shell":
+			current.Shell = value
+		case "uses":
+			current.Uses = value
+		case "run":
+			current.Run = value
+		case "continue-on-error":
+			current.ContinueOnError = value == "true"
+		}
+	}
+	flush()
+
+	if len(steps) == 0 {
+		return nil, errors.New("no workflow steps parsed; the CI guard would be vacuous")
+	}
+	return steps, nil
+}
+
+// runsOnWindows reports whether a step's `if` expression leaves the step
+// enabled on the windows-latest leg. An empty condition runs everywhere, so
+// it runs on Windows too.
+func runsOnWindows(condition string) bool {
+	if strings.TrimSpace(condition) == "" {
+		return true
+	}
+	if strings.Contains(condition, "runner.os != 'Windows'") {
+		return false
+	}
+	if strings.Contains(condition, "matrix.os == 'ubuntu-latest'") ||
+		strings.Contains(condition, "matrix.os == 'macos-latest'") {
+		return false
+	}
+	return true
 }

@@ -1,9 +1,12 @@
 package intent
 
 import (
+	"fmt"
 	"go/ast"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -87,10 +90,50 @@ func TestAVPSourceScans(t *testing.T) {
 
 	t.Run("AVP-134", func(t *testing.T) {
 		// The reverse call graph: only the prepare command file imports the
-		// inspector.
-		importers := inspectorImporters(t)
-		if len(importers) != 1 || !strings.HasSuffix(importers[0], filepath.Join("internal", "cli", "prepare.go")) {
-			t.Fatalf("internal/intent is imported by %v, want only internal/cli/prepare.go", importers)
+		// inspector. The population is the set of **tracked** non-test Go
+		// files, taken from `git ls-files`. Walking the working tree instead
+		// made the row fail for reasons that have nothing to do with the call
+		// graph: a detached `git worktree` checked out inside the repository,
+		// an editor scratch copy or any untracked experiment would be scanned,
+		// and the previous fix for that — skipping one hard-coded scratch
+		// directory name — only exempted the one name that had already bitten.
+		sources := trackedGoSources(t)
+		if err := checkInspectorImporters(sources); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("AVP-134/sensitivity", func(t *testing.T) {
+		const inspectorImport = `"github.com/tesseracode/tesserapatch/internal/intent"`
+
+		// A tracked second importer must fail the row.
+		extra := map[string]string{}
+		for path, source := range trackedGoSources(t) {
+			extra[path] = source
+		}
+		extra[filepath.Join("internal", "workflow", "prepare_probe.go")] =
+			"package workflow\n\nimport " + inspectorImport + "\n"
+		if err := checkInspectorImporters(extra); err == nil {
+			t.Fatal("a tracked forbidden importer passed the row")
+		}
+
+		// Losing the one authorized importer must fail it too.
+		if err := checkInspectorImporters(map[string]string{
+			filepath.Join("internal", "cli", "phase2.go"): "package cli\n\nimport " + inspectorImport + "\n",
+		}); err == nil {
+			t.Fatal("moving the import to another file passed the row")
+		}
+
+		// An untracked file cannot participate: the population is exactly
+		// what `git ls-files` reports, and every scanned path is tracked.
+		tracked := map[string]bool{}
+		for _, path := range gitLsFiles(t) {
+			tracked[path] = true
+		}
+		for path := range trackedGoSources(t) {
+			if !tracked[filepath.ToSlash(path)] {
+				t.Fatalf("scanned %s, which git does not track", path)
+			}
 		}
 	})
 
@@ -127,39 +170,68 @@ func TestAVPSourceScans(t *testing.T) {
 	})
 }
 
-// inspectorImporters returns every production file that imports the inspector.
-func inspectorImporters(t *testing.T) []string {
+// gitLsFiles returns every path Git tracks, in repository-relative slash form.
+// Untracked files, ignored files and nested worktree checkouts are absent by
+// construction, which is the whole point: the scan population must be the
+// repository's source, not whatever happens to sit in the working tree.
+func gitLsFiles(t *testing.T) []string {
 	t.Helper()
-	const path = "github.com/tesseracode/tesserapatch/internal/intent"
-	var out []string
-	repo := repoRootDir(t)
-	err := filepath.WalkDir(repo, func(candidate string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if entry.IsDir() {
-			switch entry.Name() {
-			case ".git", "docs", "tests", ".golden-baseline":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(candidate, ".go") || strings.HasSuffix(candidate, "_test.go") {
-			return nil
-		}
-		data, readErr := os.ReadFile(candidate)
-		if readErr != nil {
-			return nil
-		}
-		if strings.Contains(string(data), `"`+path+`"`) {
-			out = append(out, candidate)
-		}
-		return nil
-	})
+	cmd := exec.Command("git", "ls-files", "-z")
+	cmd.Dir = repoRootDir(t)
+	output, err := cmd.Output()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("git ls-files: %v", err)
 	}
-	return out
+	var paths []string
+	for _, entry := range strings.Split(string(output), "\x00") {
+		if entry != "" {
+			paths = append(paths, entry)
+		}
+	}
+	if len(paths) == 0 {
+		t.Fatal("git ls-files reported no tracked files")
+	}
+	return paths
+}
+
+// trackedGoSources reads every tracked non-test Go file, keyed by its
+// repository-relative path.
+func trackedGoSources(t *testing.T) map[string]string {
+	t.Helper()
+	sources := map[string]string{}
+	for _, path := range gitLsFiles(t) {
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		local := filepath.FromSlash(path)
+		data, err := os.ReadFile(filepath.Join(repoRootDir(t), local))
+		if err != nil {
+			t.Fatalf("read tracked file %s: %v", path, err)
+		}
+		sources[local] = string(data)
+	}
+	if len(sources) == 0 {
+		t.Fatal("no tracked non-test Go sources; the AVP-134 scan would be vacuous")
+	}
+	return sources
+}
+
+// checkInspectorImporters is the AVP-134 body: exactly one tracked production
+// file may import the inspector, and it must be the prepare command.
+func checkInspectorImporters(sources map[string]string) error {
+	const path = `"github.com/tesseracode/tesserapatch/internal/intent"`
+	var importers []string
+	for file, source := range sources {
+		if strings.Contains(source, path) {
+			importers = append(importers, file)
+		}
+	}
+	sort.Strings(importers)
+	want := filepath.Join("internal", "cli", "prepare.go")
+	if len(importers) != 1 || importers[0] != want {
+		return fmt.Errorf("internal/intent is imported by %v, want only %s", importers, want)
+	}
+	return nil
 }
 
 // TestAVPSkillSurfaces is AVP-188: the six shipped skill surfaces must carry

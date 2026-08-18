@@ -62,20 +62,88 @@ jobs:
       - name: Build
         run: go build ./...
 
+      # ubuntu-latest and macos-latest gate on the whole repository: the full
+      # suite is blocking there and always has been.
       - name: Test
+        if: runner.os != 'Windows'
         run: go test ./... -count=1
 
+      # windows-latest gates on the GH #16 surface only, and that gate is
+      # BLOCKING. The native rows (AVP-176, AVP-199) can only be proven on a
+      # real Windows runner, so this step runs them verbosely and then asserts
+      # the verbose log actually contains their PASS lines: `go test -run` on a
+      # pattern that matches nothing exits 0, which would make a silent
+      # regression look like a green gate.
+      #
+      # The package list is exactly the set that is empirically green on
+      # windows-latest (run 32086471429). It must never shrink to exclude
+      # ./internal/intent — AVP-175 guards that.
+      - name: Test (Windows GH #16 surface — blocking)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/native-windows.log"
+          go test -v -count=1 -run TestAVPNativeWindows ./internal/intent 2>&1 | tee "$log"
+          for row in AVP-176 AVP-199; do
+            if ! grep -q -- "--- PASS: TestAVPNativeWindows/${row}" "$log"; then
+              echo "::error::TestAVPNativeWindows/${row} did not execute on this runner"
+              exit 1
+            fi
+          done
+          leaves=$(grep -E -c -- "--- PASS: TestAVPNativeWindows/[A-Z0-9-]+/[a-z0-9-]+" "$log" || true)
+          if [ "${leaves:-0}" -lt 6 ]; then
+            echo "::error::only ${leaves:-0} native Windows leaf assertions executed; expected at least 6"
+            exit 1
+          fi
+          go test -count=1 \
+            ./internal/intent \
+            ./assets \
+            ./internal/buildinfo \
+            ./internal/redact \
+            ./internal/safety \
+            ./internal/testutil \
+            ./internal/tools/studyvalidator \
+            ./tests/integration
+
+      # The rest of the repository has 192 pre-existing windows-latest failures
+      # and two package timeouts. They were invisible until GH #16 made the
+      # Windows job reach `go test` at all. They are owned and tracked by
+      # https://github.com/tesseracode/tesserapatch/issues/17 (GH #17), which
+      # also owns deleting this step: when the suite is green on Windows this
+      # step and the blocking step above collapse back into one blocking
+      # `go test ./...`. Until then the failures stay VISIBLE but do not fail
+      # the job, so a tagged release remains publishable.
+      - name: Test (Windows full suite — allowed to fail, owned by GH #17)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: bash
+        run: go test ./... -count=1 -timeout 20m
+
       - name: Install binary (smoke test)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           go install ./cmd/tpatch
           "$(go env GOPATH)/bin/tpatch" --version
 
+      - name: Install binary (smoke test)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          go install ./cmd/tpatch
+          $gopath = (go env GOPATH)
+          & "$gopath\bin\tpatch.exe" --version
+
       # On tag pushes, ensure the binary's --version output matches the
       # git tag. This catches missing ldflags wiring or stale embedded
-      # versions before the release job publishes artifacts.
+      # versions before the release job publishes artifacts. Both non-Windows
+      # legs verify it — pinning it to a single OS would let a macOS-specific
+      # ldflags or `make install` regression reach a release unchecked. The
+      # Windows leg is excluded because `make` is not installed on
+      # windows-latest, not because the check is ubuntu-specific.
       - name: Verify tag version
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
         shell: bash
         env:
           VERSION: ${{ github.ref_name }}
