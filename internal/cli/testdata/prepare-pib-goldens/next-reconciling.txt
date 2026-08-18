@@ -1,0 +1,28 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   reconciling
+Phase:   reconcile
+
+Reconciliation in progress. Re-apply the patch against the new upstream or mark as upstream-merged.
+
+Context files:
+  - .tpatch/features/pib-golden/reconciliation
+
+On complete: tpatch reconcile pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "reconcile",
+  "slug": "pib-golden",
+  "state": "reconciling",
+  "instructions": "Reconciliation in progress. Re-apply the patch against the new upstream or mark as upstream-merged.",
+  "context_files": [
+    ".tpatch/features/pib-golden/reconciliation"
+  ],
+  "on_complete": "tpatch reconcile pib-golden"
+}
+stderr:

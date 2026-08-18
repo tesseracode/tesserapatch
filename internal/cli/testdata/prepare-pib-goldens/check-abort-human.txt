@@ -1,0 +1,16 @@
+$ tpatch --path <workspace> prepare missing-feature --check
+exit 3
+stdout:
+prepare --check  missing-feature
+lifecycle state: unknown  (no feature directory exists, so status.json was not read)
+
+no artifacts were inspected
+
+abort: feature-not-found
+  no feature directory exists at .tpatch/features/missing-feature. Run tpatch
+  status to list the features in this workspace.
+
+readiness: indeterminate
+Structural presence only. This report does not certify semantic quality.
+stderr:
+error: prepare --check missing-feature: indeterminate (feature-not-found)

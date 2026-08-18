@@ -1,0 +1,206 @@
+$ tpatch --path <workspace> land pib-golden --dry-run
+exit 0
+stdout:
+DRY RUN: tpatch land pib-golden
+
+Pre-flight:
+  feature state         : applied
+  hard-parent gate      : ok
+  working-tree hygiene  : clean
+  collision check       : (deferred to embedded record)
+
+Embedded record:
+  mode                  : working-tree
+  expected patch bytes  : 155 (current capture)
+  expected files in patch: 1
+
+Staging (path set):
+   M src/golden.txt
+   M .tpatch/features/pib-golden/artifacts/apply-recipe.json
+   M .tpatch/features/pib-golden/artifacts/patch-generations.json
+   M .tpatch/features/pib-golden/artifacts/post-apply-diff.txt
+   M .tpatch/features/pib-golden/artifacts/post-apply.patch
+   M .tpatch/features/pib-golden/patches/001-record.patch
+   M .tpatch/features/pib-golden/record.md
+   M .tpatch/features/pib-golden/status.json
+
+Carved-out global metadata (left dirty in working tree, NOT staged):
+   M .tpatch/FEATURES.md         (operator drift; record did not modify)
+     → stderr: note: leaving .tpatch/FEATURES.md dirty (operator drift outside feature scope; not staged)
+
+Commit:
+  subject               : Spec
+  trailers              :
+    Tpatch-Feature: pib-golden
+    Tpatch-Patch-SHA: 832ed8937b0fa8d2d71851292d3787f07bd6c50f2e08e8bc74e46b6625f746bd
+    Tpatch-Recipe-SHA: d1fdeffa35bf6df1b954666d7fa691158d70f3ef2ec4004619a6930e28ce0672
+    Tpatch-Base-Commit: c920fdc71d5627cdfcbad47c4e2553364ae57a13
+
+Post-conditions if you re-run without --dry-run:
+  HEAD will move from 101ed4c to a new commit.
+  Working tree will be clean w.r.t. feature scope.
+  (carve-out: 1 global metadata file(s) will remain dirty with a stderr note — see §3.3 step 3)
+  Feature → commit binding: git log --grep '^Tpatch-Feature: pib-golden$'
+  status.json:apply.base_commit unchanged (owned by record/auto-base).
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (156 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | applied | unknown |
+--- .tpatch/features/pib-golden/analysis.md (29 bytes) ---
+# Analysis
+
+Golden analysis.
+--- .tpatch/features/pib-golden/artifacts/apply-recipe.json (203 bytes) ---
+{
+  "feature": "pib-golden",
+  "operations": [
+    {
+      "type": "write-file",
+      "path": "src/golden.txt",
+      "content": "recorded change\n",
+      "search": "",
+      "replace": ""
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/artifacts/patch-generations.json (1097 bytes) ---
+{
+  "version": 1,
+  "feature": "pib-golden",
+  "current_generation": 1,
+  "generations": [
+    {
+      "generation": 1,
+      "generation_id": "pg_cec9949a5208",
+      "kind": "record",
+      "patch_sha256": "832ed8937b0fa8d2d71851292d3787f07bd6c50f2e08e8bc74e46b6625f746bd",
+      "git_patch_id": "50158f3d5cd70f7bc03f6c7571f359fbfd29eae5",
+      "git_patch_id_algorithm": "git-patch-id-stable",
+      "recipe_sha256": "d1fdeffa35bf6df1b954666d7fa691158d70f3ef2ec4004619a6930e28ce0672",
+      "canonical_patch": "artifacts/post-apply.patch",
+      "audit_patch": "patches/001-record.patch",
+      "base_commit": "HEAD^",
+      "upper": {
+        "kind": "commit",
+        "ref": "HEAD",
+        "commit": "101ed4c4ff53a9010ebbbe290f6d17ef15334a1e"
+      },
+      "capture": {
+        "mode": "committed-range",
+        "pathspecs": [],
+        "claim_ids": []
+      },
+      "touched_paths": [
+        "src/golden.txt"
+      ],
+      "dependencies": [],
+      "refs": {
+        "anchors": "",
+        "fingerprints": "",
+        "relations": "",
+        "vector_manifest": ""
+      }
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/artifacts/post-apply-diff.txt (95 bytes) ---
+ .tpatch/features/pib-golden/status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- .tpatch/features/pib-golden/artifacts/post-apply.patch (155 bytes) ---
+diff --git a/src/golden.txt b/src/golden.txt
+new file mode 100644
+index 0000000..236c5dd
+--- /dev/null
++++ b/src/golden.txt
+@@ -0,0 +1 @@
++recorded change
+--- .tpatch/features/pib-golden/exploration.md (43 bytes) ---
+# Exploration
+
+Golden implementation path.
+--- .tpatch/features/pib-golden/patches/001-record.patch (155 bytes) ---
+diff --git a/src/golden.txt b/src/golden.txt
+new file mode 100644
+index 0000000..236c5dd
+--- /dev/null
++++ b/src/golden.txt
+@@ -0,0 +1 @@
++recorded change
+--- .tpatch/features/pib-golden/record.md (734 bytes) ---
+# Implementation Record: pib-golden
+
+**Recorded**: <wall-clock>
+**Files changed**: 1
+**Patch size**: 155 bytes
+**Capture mode**: committed-range
+**Base commit**: HEAD^
+**Upper bound**: HEAD
+
+## Change Summary
+
+```
+ .tpatch/features/pib-golden/status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+## Capture Provenance
+
+- **capture_mode**: `committed-range`
+- **pathspecs**: (none)
+- **claim_ids**: (none)
+- **base_commit**: `HEAD^`
+- **upper_commit**: `HEAD`
+
+## Replay Instructions
+
+To re-apply this feature to a clean checkout:
+
+```bash
+# From the feature's artifacts directory:
+git apply .tpatch/features/pib-golden/artifacts/post-apply.patch
+```
+
+*Patch was captured as a committed diff from `HEAD^` to `HEAD`.*
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/spec.md (36 bytes) ---
+# Spec
+
+Golden acceptance criteria.
+--- .tpatch/features/pib-golden/status.json (383 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "applied",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "record",
+  "notes": "Patch recorded",
+  "apply": {
+    "base_commit": "c920fdc71d5627cdfcbad47c4e2553364ae57a13",
+    "has_patch": true
+  },
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

@@ -1,0 +1,67 @@
+$ tpatch --path <workspace> define pib-golden
+exit 0
+stdout:
+Spec generated for pib-golden
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (156 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | defined | unknown |
+--- .tpatch/features/pib-golden/analysis.md (28 bytes) ---
+# Analysis
+
+Fixed analysis.
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/spec.md (470 bytes) ---
+# Specification: pib-golden
+
+## Acceptance Criteria
+
+1. Feature works as described in the request
+2. All existing tests continue to pass
+3. No regressions introduced
+4. Changes are documented
+
+## Implementation Plan
+
+1. Review the feature request and analysis
+2. Identify affected files and code areas
+3. Implement the changes
+4. Run tests and verify acceptance criteria
+5. Record the changes
+
+*Generated in heuristic mode — connect a provider for detailed analysis.*
+--- .tpatch/features/pib-golden/status.json (319 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "defined",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "define",
+  "notes": "Acceptance criteria and plan generated",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

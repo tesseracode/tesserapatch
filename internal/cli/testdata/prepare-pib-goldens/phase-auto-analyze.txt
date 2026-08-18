@@ -1,0 +1,104 @@
+$ tpatch --path <workspace> analyze pib-golden
+exit 0
+stdout:
+Analysis saved for pib-golden
+  Summary: Heuristic analysis for feature 'pib-golden'. Manual review recommended.
+  (heuristic mode — no provider connected)
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (157 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | analyzed | unknown |
+--- .tpatch/features/pib-golden/analysis.md (695 bytes) ---
+# Analysis: pib-golden
+
+*Generated in heuristic mode (no provider). Connect a provider for detailed analysis.*
+
+## Summary
+
+Heuristic analysis for feature 'pib-golden'. Manual review recommended.
+
+## Compatibility
+
+**Status**: unknown
+
+Heuristic mode — no LLM available for compatibility assessment
+
+## Affected Areas
+
+- (manual identification needed)
+
+## Acceptance Criteria
+
+1. Feature works as described in request
+2. Existing tests pass
+3. No regressions introduced
+4. Changes documented
+
+## Implementation Notes
+
+- Analysis generated in heuristic mode — connect a provider for detailed analysis
+
+## Unresolved Questions
+
+- Detailed compatibility assessment pending provider connection
+
+--- .tpatch/features/pib-golden/artifacts/analysis.json (700 bytes) ---
+{
+  "summary": "Heuristic analysis for feature 'pib-golden'. Manual review recommended.",
+  "compatibility": {
+    "status": "unknown",
+    "reasoning": "Heuristic mode — no LLM available for compatibility assessment"
+  },
+  "affected_areas": [
+    "(manual identification needed)"
+  ],
+  "acceptance_criteria": [
+    "Feature works as described in request",
+    "Existing tests pass",
+    "No regressions introduced",
+    "Changes documented"
+  ],
+  "implementation_notes": [
+    "Analysis generated in heuristic mode — connect a provider for detailed analysis"
+  ],
+  "unresolved_questions": [
+    "Detailed compatibility assessment pending provider connection"
+  ],
+  "heuristic_mode": true
+}
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (354 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "analyzed",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "analyze",
+  "notes": "Heuristic analysis for feature 'pib-golden'. Manual review recommended.",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

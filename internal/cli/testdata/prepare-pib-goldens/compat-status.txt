@@ -1,0 +1,70 @@
+$ tpatch --path <workspace> status pib-golden --json
+exit 0
+stdout:
+{
+  "features": [
+    {
+      "id": "pib-golden",
+      "slug": "pib-golden",
+      "title": "Golden feature",
+      "state": "requested",
+      "compatibility": "unknown",
+      "requested_at": "2000-01-02T03:04:05Z",
+      "updated_at": "2000-01-02T03:04:05Z",
+      "last_command": "add",
+      "apply": {},
+      "reconcile": {},
+      "freshness_label": "never-verified",
+      "labels_rendered": [
+        "never-verified"
+      ]
+    }
+  ],
+  "provider": {
+    "type": "openai-compatible",
+    "base_url": "",
+    "model": "",
+    "auth_env": ""
+  },
+  "provider_configured": false,
+  "root": "<workspace>"
+}
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (158 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | requested | unknown |
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (273 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "requested",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "2000-01-02T03:04:05Z",
+  "last_command": "add",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

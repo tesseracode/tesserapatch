@@ -1,0 +1,29 @@
+$ tpatch --path <workspace> prepare pib-golden --check
+exit 2
+stdout:
+prepare --check  pib-golden
+lifecycle state: requested  (echoed from status.json; not evaluated by this check)
+
+required
+  analysis.md                        absent
+    → Author .tpatch/features/pib-golden/analysis.md, then re-run tpatch
+      prepare pib-golden --check.
+  spec.md                            absent
+    → Author .tpatch/features/pib-golden/spec.md, then re-run tpatch prepare
+      pib-golden --check.
+  exploration.md                     absent
+    → Author .tpatch/features/pib-golden/exploration.md, then re-run tpatch
+      prepare pib-golden --check.
+optional
+  artifacts/analysis.json            absent
+
+provenance: unknown (all artifacts)
+
+advisories
+  analysis-sidecar-absent-path-b-normal
+  provenance-unknown-by-design
+
+readiness: not_ready (0 of 3 required artifacts are present-nonempty)
+Structural presence only. This report does not certify semantic quality.
+stderr:
+error: prepare --check pib-golden: not_ready (0 of 3 required artifacts are present-nonempty)

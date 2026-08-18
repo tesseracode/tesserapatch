@@ -1,0 +1,58 @@
+$ tpatch --path <workspace> implement pib-golden --manual
+exit 0
+stdout:
+Phase implement advanced manually for pib-golden (artifact: artifacts/apply-recipe.json; state: implementing)
+  (manual mode — provider not called)
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (161 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | implementing | unknown |
+--- .tpatch/features/pib-golden/analysis.md (11 bytes) ---
+# Analysis
+--- .tpatch/features/pib-golden/artifacts/apply-recipe.json (107 bytes) ---
+{
+  "feature": "pib-golden",
+  "operations": [
+    {"type": "ensure-directory", "path": "generated"}
+  ]
+}
+--- .tpatch/features/pib-golden/exploration.md (14 bytes) ---
+# Exploration
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/spec.md (7 bytes) ---
+# Spec
+--- .tpatch/features/pib-golden/status.json (373 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "implementing",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "implement",
+  "notes": "Phase advanced manually (--manual); artifact authored at artifacts/apply-recipe.json",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

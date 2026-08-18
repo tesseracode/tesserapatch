@@ -1,0 +1,28 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   requested
+Phase:   analyze
+
+Run analysis on the feature request to assess compatibility and affected areas.
+
+Context files:
+  - .tpatch/features/pib-golden/request.md
+
+On complete: tpatch analyze pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "analyze",
+  "slug": "pib-golden",
+  "state": "requested",
+  "instructions": "Run analysis on the feature request to assess compatibility and affected areas.",
+  "context_files": [
+    ".tpatch/features/pib-golden/request.md"
+  ],
+  "on_complete": "tpatch analyze pib-golden"
+}
+stderr:

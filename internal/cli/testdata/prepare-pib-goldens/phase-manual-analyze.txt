@@ -1,0 +1,49 @@
+$ tpatch --path <workspace> analyze pib-golden --manual
+exit 0
+stdout:
+Phase analyze advanced manually for pib-golden (artifact: analysis.md; state: analyzed)
+  (manual mode — provider not called)
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (157 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | analyzed | unknown |
+--- .tpatch/features/pib-golden/analysis.md (35 bytes) ---
+# Manual analysis
+
+Fixed analysis.
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (351 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "analyzed",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "analyze",
+  "notes": "Phase advanced manually (--manual); artifact authored at analysis.md",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

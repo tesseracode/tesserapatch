@@ -37,6 +37,10 @@ jobs:
           git config --global core.eol lf
 
       - uses: actions/checkout@v4
+        with:
+          # GH #23's pre-change provenance guard verifies which accepted
+          # prepare-check commits introduced the frozen routing goldens.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -107,6 +111,20 @@ jobs:
             ./internal/testutil \
             ./internal/tools/studyvalidator \
             ./tests/integration
+
+      - name: "Test (Windows GH #23 resource golden — blocking)"
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/prepare-resource-golden.log"
+          go test -v -count=1 \
+            -run '^TestPreparePIBUnsupportedPlatformRuntimeGolden$' \
+            ./internal/cli 2>&1 | tee "$log"
+          if ! grep -q -- "--- PASS: TestPreparePIBUnsupportedPlatformRuntimeGolden" "$log"; then
+            echo "::error::TestPreparePIBUnsupportedPlatformRuntimeGolden did not execute on this runner"
+            exit 1
+          fi
 
       # The rest of the repository has 200 pre-existing windows-latest
       # top-level test failures (283 counting subtests) across six packages —

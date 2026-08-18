@@ -1,0 +1,34 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   defined
+Phase:   implement
+
+Generate the deterministic apply-recipe.json that writes/modifies the files identified in exploration.md.
+
+Context files:
+  - .tpatch/features/pib-golden/request.md
+  - .tpatch/features/pib-golden/analysis.md
+  - .tpatch/features/pib-golden/spec.md
+  - .tpatch/features/pib-golden/exploration.md
+
+On complete: tpatch implement pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "implement",
+  "slug": "pib-golden",
+  "state": "defined",
+  "instructions": "Generate the deterministic apply-recipe.json that writes/modifies the files identified in exploration.md.",
+  "context_files": [
+    ".tpatch/features/pib-golden/request.md",
+    ".tpatch/features/pib-golden/analysis.md",
+    ".tpatch/features/pib-golden/spec.md",
+    ".tpatch/features/pib-golden/exploration.md"
+  ],
+  "on_complete": "tpatch implement pib-golden"
+}
+stderr:

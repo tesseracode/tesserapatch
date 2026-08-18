@@ -1,0 +1,34 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   implementing
+Phase:   apply
+
+Implementation is in progress. Execute the apply recipe or, if implementing manually, run tests and then mark the apply as done.
+
+Context files:
+  - .tpatch/features/pib-golden/spec.md
+  - .tpatch/features/pib-golden/exploration.md
+  - .tpatch/features/pib-golden/artifacts/apply-recipe.json
+
+On complete: tpatch apply pib-golden --mode done
+On abort:    tpatch apply pib-golden --mode started
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "apply",
+  "slug": "pib-golden",
+  "state": "implementing",
+  "instructions": "Implementation is in progress. Execute the apply recipe or, if implementing manually, run tests and then mark the apply as done.",
+  "context_files": [
+    ".tpatch/features/pib-golden/spec.md",
+    ".tpatch/features/pib-golden/exploration.md",
+    ".tpatch/features/pib-golden/artifacts/apply-recipe.json"
+  ],
+  "on_complete": "tpatch apply pib-golden --mode done",
+  "on_abort": "tpatch apply pib-golden --mode started"
+}
+stderr:

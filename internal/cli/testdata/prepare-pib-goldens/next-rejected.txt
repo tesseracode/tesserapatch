@@ -1,0 +1,28 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   rejected
+Phase:   rejected
+
+Feature is rejected (reason=): . It is excluded from the actionable backlog — do NOT propose analyze/define/explore/implement/apply for it. If circumstances have changed, reopen it explicitly with an operator note; the rejection record is preserved append-only.
+
+Context files:
+  - .tpatch/features/pib-golden/request.md
+
+On complete: tpatch reopen pib-golden --note "<why this is being reconsidered>"
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "rejected",
+  "slug": "pib-golden",
+  "state": "rejected",
+  "instructions": "Feature is rejected (reason=): . It is excluded from the actionable backlog — do NOT propose analyze/define/explore/implement/apply for it. If circumstances have changed, reopen it explicitly with an operator note; the rejection record is preserved append-only.",
+  "context_files": [
+    ".tpatch/features/pib-golden/request.md"
+  ],
+  "on_complete": "tpatch reopen pib-golden --note \"\u003cwhy this is being reconsidered\u003e\""
+}
+stderr:

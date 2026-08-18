@@ -1,0 +1,36 @@
+$ tpatch --path <workspace> prepare missing-feature --check --json
+exit 3
+stdout:
+{
+  "schema_version": 1,
+  "command": "prepare --check",
+  "slug": "missing-feature",
+  "feature_state": "unknown",
+  "disclaimer": "Structural presence only. This report does not certify semantic quality.",
+  "artifacts": [],
+  "overall": {
+    "structural_readiness": "indeterminate",
+    "required_total": 3,
+    "required_satisfied": 0,
+    "optional_total": 1,
+    "optional_satisfied": 0
+  },
+  "advisories": [],
+  "abort": {
+    "code": "feature-not-found",
+    "message": "no feature directory exists at .tpatch/features/missing-feature. Run tpatch status to list the features in this workspace."
+  }
+}
+stderr:
+prepare --check  missing-feature
+lifecycle state: unknown  (no feature directory exists, so status.json was not read)
+
+no artifacts were inspected
+
+abort: feature-not-found
+  no feature directory exists at .tpatch/features/missing-feature. Run tpatch
+  status to list the features in this workspace.
+
+readiness: indeterminate
+Structural presence only. This report does not certify semantic quality.
+error: prepare --check missing-feature: indeterminate (feature-not-found)

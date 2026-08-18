@@ -1,0 +1,258 @@
+$ tpatch --path <workspace> verify pib-golden --json --quiet --no-write
+exit 2
+stdout:
+{
+  "schema_version": "1.1",
+  "slug": "pib-golden",
+  "verified_at": "<wall-clock>",
+  "verdict": "failed",
+  "exit_code": 2,
+  "repository": {
+    "object_format": "sha1",
+    "commit_id_hex_len": 40,
+    "shallow": false,
+    "partial_clone": false,
+    "git_version": "<git-version>",
+    "git_floor_satisfied": true
+  },
+  "baseline": {
+    "mode": "head-anchored",
+    "current_commit": "101ed4c4ff53a9010ebbbe290f6d17ef15334a1e"
+  },
+  "landing_evidence": {
+    "state": "none",
+    "candidates": 0
+  },
+  "target_mode": "forward",
+  "checks": [
+    {
+      "id": "status_loaded",
+      "severity": "block-abort",
+      "passed": true
+    },
+    {
+      "id": "intent_files_present",
+      "severity": "block",
+      "passed": true
+    },
+    {
+      "id": "recipe_parses",
+      "severity": "block",
+      "passed": true
+    },
+    {
+      "id": "recipe_op_targets_resolve",
+      "severity": "block",
+      "passed": true
+    },
+    {
+      "id": "dep_metadata_valid",
+      "severity": "block",
+      "passed": true
+    },
+    {
+      "id": "satisfied_by_reachable",
+      "severity": "block",
+      "passed": true,
+      "skipped": true,
+      "reason": "no satisfied_by deps to check"
+    },
+    {
+      "id": "dependency_gate_satisfied",
+      "severity": "warn",
+      "passed": true
+    },
+    {
+      "id": "recipe_replay_clean",
+      "severity": "block",
+      "passed": true,
+      "mode": "forward"
+    },
+    {
+      "id": "post_apply_patch_replay_clean",
+      "severity": "block",
+      "passed": false,
+      "remediation": "post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile pib-golden",
+      "mode": "forward"
+    },
+    {
+      "id": "reconcile_outcome_consistent",
+      "severity": "warn",
+      "passed": true,
+      "skipped": true,
+      "reason": "no Reconcile.Outcome set"
+    },
+    {
+      "id": "write_file_preimage_fresh",
+      "severity": "block",
+      "passed": true,
+      "mode": "provenance-anchor"
+    }
+  ],
+  "lifecycle_state": "applied",
+  "recipe_hash_at_verify": "d1fdeffa35bf6df1b954666d7fa691158d70f3ef2ec4004619a6930e28ce0672",
+  "patch_hash_at_verify": "832ed8937b0fa8d2d71851292d3787f07bd6c50f2e08e8bc74e46b6625f746bd"
+}
+stderr:
+error: verify failed (1 check(s) did not pass)
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (156 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | applied | unknown |
+--- .tpatch/features/pib-golden/analysis.md (29 bytes) ---
+# Analysis
+
+Golden analysis.
+--- .tpatch/features/pib-golden/artifacts/apply-recipe.json (203 bytes) ---
+{
+  "feature": "pib-golden",
+  "operations": [
+    {
+      "type": "write-file",
+      "path": "src/golden.txt",
+      "content": "recorded change\n",
+      "search": "",
+      "replace": ""
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/artifacts/patch-generations.json (1097 bytes) ---
+{
+  "version": 1,
+  "feature": "pib-golden",
+  "current_generation": 1,
+  "generations": [
+    {
+      "generation": 1,
+      "generation_id": "pg_cec9949a5208",
+      "kind": "record",
+      "patch_sha256": "832ed8937b0fa8d2d71851292d3787f07bd6c50f2e08e8bc74e46b6625f746bd",
+      "git_patch_id": "50158f3d5cd70f7bc03f6c7571f359fbfd29eae5",
+      "git_patch_id_algorithm": "git-patch-id-stable",
+      "recipe_sha256": "d1fdeffa35bf6df1b954666d7fa691158d70f3ef2ec4004619a6930e28ce0672",
+      "canonical_patch": "artifacts/post-apply.patch",
+      "audit_patch": "patches/001-record.patch",
+      "base_commit": "HEAD^",
+      "upper": {
+        "kind": "commit",
+        "ref": "HEAD",
+        "commit": "101ed4c4ff53a9010ebbbe290f6d17ef15334a1e"
+      },
+      "capture": {
+        "mode": "committed-range",
+        "pathspecs": [],
+        "claim_ids": []
+      },
+      "touched_paths": [
+        "src/golden.txt"
+      ],
+      "dependencies": [],
+      "refs": {
+        "anchors": "",
+        "fingerprints": "",
+        "relations": "",
+        "vector_manifest": ""
+      }
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/artifacts/post-apply-diff.txt (95 bytes) ---
+ .tpatch/features/pib-golden/status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- .tpatch/features/pib-golden/artifacts/post-apply.patch (155 bytes) ---
+diff --git a/src/golden.txt b/src/golden.txt
+new file mode 100644
+index 0000000..236c5dd
+--- /dev/null
++++ b/src/golden.txt
+@@ -0,0 +1 @@
++recorded change
+--- .tpatch/features/pib-golden/exploration.md (43 bytes) ---
+# Exploration
+
+Golden implementation path.
+--- .tpatch/features/pib-golden/patches/001-record.patch (155 bytes) ---
+diff --git a/src/golden.txt b/src/golden.txt
+new file mode 100644
+index 0000000..236c5dd
+--- /dev/null
++++ b/src/golden.txt
+@@ -0,0 +1 @@
++recorded change
+--- .tpatch/features/pib-golden/record.md (734 bytes) ---
+# Implementation Record: pib-golden
+
+**Recorded**: <wall-clock>
+**Files changed**: 1
+**Patch size**: 155 bytes
+**Capture mode**: committed-range
+**Base commit**: HEAD^
+**Upper bound**: HEAD
+
+## Change Summary
+
+```
+ .tpatch/features/pib-golden/status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+## Capture Provenance
+
+- **capture_mode**: `committed-range`
+- **pathspecs**: (none)
+- **claim_ids**: (none)
+- **base_commit**: `HEAD^`
+- **upper_commit**: `HEAD`
+
+## Replay Instructions
+
+To re-apply this feature to a clean checkout:
+
+```bash
+# From the feature's artifacts directory:
+git apply .tpatch/features/pib-golden/artifacts/post-apply.patch
+```
+
+*Patch was captured as a committed diff from `HEAD^` to `HEAD`.*
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/spec.md (36 bytes) ---
+# Spec
+
+Golden acceptance criteria.
+--- .tpatch/features/pib-golden/status.json (383 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "applied",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "record",
+  "notes": "Patch recorded",
+  "apply": {
+    "base_commit": "c920fdc71d5627cdfcbad47c4e2553364ae57a13",
+    "has_patch": true
+  },
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

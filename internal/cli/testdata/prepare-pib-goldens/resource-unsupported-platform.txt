@@ -1,0 +1,5 @@
+$ tpatch --path <workspace> feature resource capture pib-golden
+exit 3
+stdout:
+stderr:
+error: resource-lock-unsupported: resource capture requires a linux or darwin host; this build target has no verified flock(2) primitive

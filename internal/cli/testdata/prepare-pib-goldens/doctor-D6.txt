@@ -1,0 +1,74 @@
+$ tpatch --path <workspace> doctor --check D6 --json --release-metadata release-metadata.json
+exit 1
+stdout:
+{
+  "schema_version": 1,
+  "command": "doctor",
+  "dry_run": true,
+  "fix": false,
+  "summary": {
+    "checks_run": 1,
+    "findings": 1,
+    "warnings": 0,
+    "fixed": 0,
+    "errors": 0
+  },
+  "findings": [
+    {
+      "check_id": "D6",
+      "code": "release-missing-gh-release",
+      "severity": "drift",
+      "tag": "v9.9.9",
+      "path": "release-metadata.json",
+      "message": "local release tag v9.9.9 is absent from the provided --release-metadata snapshot",
+      "fixable": false,
+      "remediation": "Publish via: gh release create v9.9.9 --notes-file \u003cextracted-notes\u003e --verify-tag."
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "D6",
+      "status": "clean"
+    }
+  ]
+}
+stderr:
+error: doctor found 1 drift findings, 0 warnings, 0 errors
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (158 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | requested | unknown |
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (273 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "requested",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "2000-01-02T03:04:05Z",
+  "last_command": "add",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

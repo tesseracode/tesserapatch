@@ -1,0 +1,21 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   upstream_merged
+Phase:   done
+
+Feature has been merged upstream. No further action required.
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "done",
+  "slug": "pib-golden",
+  "state": "upstream_merged",
+  "instructions": "Feature has been merged upstream. No further action required.",
+  "context_files": null,
+  "on_complete": ""
+}
+stderr:

@@ -1,0 +1,71 @@
+$ tpatch --path <workspace> doctor --check D4 --json
+exit 1
+stdout:
+{
+  "schema_version": 1,
+  "command": "doctor",
+  "dry_run": true,
+  "fix": false,
+  "summary": {
+    "checks_run": 1,
+    "findings": 1,
+    "warnings": 0,
+    "fixed": 0,
+    "errors": 0
+  },
+  "findings": [
+    {
+      "check_id": "D4",
+      "code": "lock-malformed-sha",
+      "severity": "drift",
+      "path": ".tpatch/upstream.lock",
+      "field": "commit",
+      "message": "upstream.lock commit must be a 40-character lowercase hexadecimal SHA; refusing --fix because doctor must not choose a replacement commit",
+      "fixable": false,
+      "remediation": "inspect .tpatch/upstream.lock manually; only equivalent format normalization is available via 'tpatch doctor --fix --check D4'"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "D4",
+      "status": "clean"
+    }
+  ]
+}
+stderr:
+error: doctor found 1 drift findings, 0 warnings, 0 errors
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (158 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | requested | unknown |
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (273 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "requested",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "2000-01-02T03:04:05Z",
+  "last_command": "add",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (40 bytes) ---
+remote: origin
+branch: main
+commit: abc

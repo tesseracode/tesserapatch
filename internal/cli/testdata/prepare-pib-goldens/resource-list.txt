@@ -1,0 +1,76 @@
+$ tpatch --path <workspace> feature resource list pib-golden --json
+exit 0
+stdout:
+{
+  "feature": "pib-golden",
+  "resources": [
+    {
+      "resource_id": "res_894d140c8685",
+      "kind": "ignored-file",
+      "selector": "config/golden.env",
+      "adapter": "",
+      "capability": "",
+      "args": [],
+      "trust": null,
+      "batch_id": "",
+      "state": "no-capture-yet"
+    }
+  ]
+}
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (158 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | requested | unknown |
+--- .tpatch/features/pib-golden/artifacts/resources.json (333 bytes) ---
+{
+  "version": 1,
+  "feature": "pib-golden",
+  "resources": [
+    {
+      "resource_id": "res_894d140c8685",
+      "kind": "ignored-file",
+      "selector": "config/golden.env",
+      "adapter": "",
+      "capability": "",
+      "args": [],
+      "trust": null,
+      "added_by_tool_version": "tpatch/prepare-pib-golden"
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (273 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "requested",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "2000-01-02T03:04:05Z",
+  "last_command": "add",
+  "apply": {},
+  "reconcile": {}
+}
+--- .tpatch/local/resource-scratch/pib-golden/.lock (0 bytes) ---
+
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

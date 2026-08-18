@@ -1,0 +1,26 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   blocked
+Phase:   review
+
+Feature is blocked. Review the last command output and notes, resolve the blocker, then re-run the appropriate phase.
+
+Context files:
+  - .tpatch/features/pib-golden/request.md
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "review",
+  "slug": "pib-golden",
+  "state": "blocked",
+  "instructions": "Feature is blocked. Review the last command output and notes, resolve the blocker, then re-run the appropriate phase.",
+  "context_files": [
+    ".tpatch/features/pib-golden/request.md"
+  ],
+  "on_complete": ""
+}
+stderr:

@@ -1,0 +1,86 @@
+$ tpatch --path <workspace> prepare pib-golden --check --json
+exit 0
+stdout:
+{
+  "schema_version": 1,
+  "command": "prepare --check",
+  "slug": "pib-golden",
+  "feature_state": "defined",
+  "disclaimer": "Structural presence only. This report does not certify semantic quality.",
+  "artifacts": [
+    {
+      "id": "analysis",
+      "path": ".tpatch/features/pib-golden/analysis.md",
+      "role": "required",
+      "state": "present-nonempty",
+      "reason_code": "",
+      "provenance": "unknown",
+      "remediation": ""
+    },
+    {
+      "id": "spec",
+      "path": ".tpatch/features/pib-golden/spec.md",
+      "role": "required",
+      "state": "present-nonempty",
+      "reason_code": "",
+      "provenance": "unknown",
+      "remediation": ""
+    },
+    {
+      "id": "exploration",
+      "path": ".tpatch/features/pib-golden/exploration.md",
+      "role": "required",
+      "state": "present-nonempty",
+      "reason_code": "",
+      "provenance": "unknown",
+      "remediation": ""
+    },
+    {
+      "id": "analysis_sidecar",
+      "path": ".tpatch/features/pib-golden/artifacts/analysis.json",
+      "role": "optional",
+      "state": "absent",
+      "reason_code": "artifact-absent",
+      "provenance": "unknown",
+      "remediation": ""
+    }
+  ],
+  "overall": {
+    "structural_readiness": "ready",
+    "required_total": 3,
+    "required_satisfied": 3,
+    "optional_total": 1,
+    "optional_satisfied": 0
+  },
+  "advisories": [
+    {
+      "code": "analysis-sidecar-absent-path-b-normal",
+      "artifact_id": "analysis_sidecar",
+      "message": "artifacts/analysis.json is written by the CLI-driven analyze phase and is not produced by analyze --manual. Its absence is not a defect."
+    },
+    {
+      "code": "provenance-unknown-by-design",
+      "artifact_id": "",
+      "message": "Per-artifact provenance is reported as unknown for every artifact. tpatch does not yet persist durable per-artifact source metadata."
+    }
+  ]
+}
+stderr:
+prepare --check  pib-golden
+lifecycle state: defined  (echoed from status.json; not evaluated by this check)
+
+required
+  analysis.md                        present-nonempty
+  spec.md                            present-nonempty
+  exploration.md                     present-nonempty
+optional
+  artifacts/analysis.json            absent
+
+provenance: unknown (all artifacts)
+
+advisories
+  analysis-sidecar-absent-path-b-normal
+  provenance-unknown-by-design
+
+readiness: ready
+Structural presence only. This report does not certify semantic quality.

@@ -1,0 +1,28 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   applied
+Phase:   test
+
+Run the project's test command to validate the applied changes. If tests pass, the feature is complete until the next upstream reconciliation.
+
+Context files:
+  - .tpatch/features/pib-golden/record.md
+
+On complete: tpatch test pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "test",
+  "slug": "pib-golden",
+  "state": "applied",
+  "instructions": "Run the project's test command to validate the applied changes. If tests pass, the feature is complete until the next upstream reconciliation.",
+  "context_files": [
+    ".tpatch/features/pib-golden/record.md"
+  ],
+  "on_complete": "tpatch test pib-golden"
+}
+stderr:

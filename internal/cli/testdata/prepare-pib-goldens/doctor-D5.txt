@@ -1,0 +1,77 @@
+$ tpatch --path <workspace> doctor --check D5 --json
+exit 1
+stdout:
+{
+  "schema_version": 1,
+  "command": "doctor",
+  "dry_run": true,
+  "fix": false,
+  "summary": {
+    "checks_run": 1,
+    "findings": 1,
+    "warnings": 0,
+    "fixed": 0,
+    "errors": 0
+  },
+  "findings": [
+    {
+      "check_id": "D5",
+      "code": "reconcile-evidence-missing",
+      "severity": "drift",
+      "feature": "pib-golden",
+      "path": ".tpatch/features/pib-golden/artifacts/reconcile-evidence.jsonl",
+      "message": "reconcile-evidence.jsonl missing for feature whose status.json indicates a modern reconcile attempt",
+      "fixable": false,
+      "remediation": "run tpatch reconcile pib-golden"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "D5",
+      "status": "clean"
+    }
+  ]
+}
+stderr:
+error: doctor found 1 drift findings, 0 warnings, 0 errors
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (158 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | requested | unknown |
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (345 bytes) ---
+{
+  "apply": {},
+  "compatibility": "unknown",
+  "id": "pib-golden",
+  "last_command": "add",
+  "reconcile": {
+    "attempted_at": "2026-01-02T03:04:05Z",
+    "outcome": "reapplied"
+  },
+  "requested_at": "2000-01-02T03:04:05Z",
+  "slug": "pib-golden",
+  "state": "applied",
+  "title": "Golden feature",
+  "updated_at": "2000-01-02T03:04:05Z"
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

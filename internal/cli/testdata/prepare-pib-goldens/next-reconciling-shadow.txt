@@ -1,0 +1,26 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   reconciling-shadow
+Phase:   review
+
+Feature is in an unrecognized state. Review status.json manually.
+
+Context files:
+  - .tpatch/features/pib-golden/status.json
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "review",
+  "slug": "pib-golden",
+  "state": "reconciling-shadow",
+  "instructions": "Feature is in an unrecognized state. Review status.json manually.",
+  "context_files": [
+    ".tpatch/features/pib-golden/status.json"
+  ],
+  "on_complete": ""
+}
+stderr:

@@ -1,0 +1,144 @@
+$ tpatch --path <workspace> record pib-golden
+exit 0
+stdout:
+  Patch validated: round-trips cleanly against working tree
+  Saved patch: patches/001-record.patch
+  Recipe generated: artifacts/apply-recipe.json (1 ops)
+Recorded patch for pib-golden (155 bytes, 1 files)
+stderr:
+command-owned-write-set:
+--- .tpatch/local/intent-prepare/pib-golden (absent) ---
+--- .tpatch/local/resource-scratch/pib-golden (absent) ---
+--- .tpatch/FEATURES.md (156 bytes) ---
+# Tracked Features
+
+| Slug | Title | State | Compatibility |
+|------|-------|-------|---------------|
+| `pib-golden` | Golden feature | applied | unknown |
+--- .tpatch/features/pib-golden/artifacts/apply-recipe.json (203 bytes) ---
+{
+  "feature": "pib-golden",
+  "operations": [
+    {
+      "type": "write-file",
+      "path": "src/golden.txt",
+      "content": "recorded change\n",
+      "search": "",
+      "replace": ""
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/artifacts/patch-generations.json (1107 bytes) ---
+{
+  "version": 1,
+  "feature": "pib-golden",
+  "current_generation": 1,
+  "generations": [
+    {
+      "generation": 1,
+      "generation_id": "pg_33ed8ded3a0e",
+      "kind": "record",
+      "patch_sha256": "832ed8937b0fa8d2d71851292d3787f07bd6c50f2e08e8bc74e46b6625f746bd",
+      "git_patch_id": "50158f3d5cd70f7bc03f6c7571f359fbfd29eae5",
+      "git_patch_id_algorithm": "git-patch-id-stable",
+      "recipe_sha256": "d1fdeffa35bf6df1b954666d7fa691158d70f3ef2ec4004619a6930e28ce0672",
+      "canonical_patch": "artifacts/post-apply.patch",
+      "audit_patch": "patches/001-record.patch",
+      "base_commit": "92fcf51ca3b4173cc9e5aa589d0f357ebed42ddf",
+      "upper": {
+        "kind": "working-tree",
+        "ref": "working-tree",
+        "commit": ""
+      },
+      "capture": {
+        "mode": "working-tree-all",
+        "pathspecs": [],
+        "claim_ids": []
+      },
+      "touched_paths": [
+        "src/golden.txt"
+      ],
+      "dependencies": [],
+      "refs": {
+        "anchors": "",
+        "fingerprints": "",
+        "relations": "",
+        "vector_manifest": ""
+      }
+    }
+  ]
+}
+--- .tpatch/features/pib-golden/artifacts/post-apply.patch (155 bytes) ---
+diff --git a/src/golden.txt b/src/golden.txt
+new file mode 100644
+index 0000000..236c5dd
+--- /dev/null
++++ b/src/golden.txt
+@@ -0,0 +1 @@
++recorded change
+--- .tpatch/features/pib-golden/patches/001-record.patch (155 bytes) ---
+diff --git a/src/golden.txt b/src/golden.txt
+new file mode 100644
+index 0000000..236c5dd
+--- /dev/null
++++ b/src/golden.txt
+@@ -0,0 +1 @@
++recorded change
+--- .tpatch/features/pib-golden/record.md (546 bytes) ---
+# Implementation Record: pib-golden
+
+**Recorded**: <wall-clock>
+**Files changed**: 1
+**Patch size**: 155 bytes
+**Capture mode**: working-tree-all
+
+## Capture Provenance
+
+- **capture_mode**: `working-tree-all`
+- **pathspecs**: (none)
+- **claim_ids**: (none)
+- **base_commit**: `92fcf51ca3b4173cc9e5aa589d0f357ebed42ddf`
+- **upper_commit**: `working-tree`
+
+## Replay Instructions
+
+To re-apply this feature to a clean checkout:
+
+```bash
+# From the feature's artifacts directory:
+git apply .tpatch/features/pib-golden/artifacts/post-apply.patch
+```
+
+--- .tpatch/features/pib-golden/request.md (124 bytes) ---
+# Feature Request: Golden feature
+
+**Slug**: `pib-golden`
+**Created**: 2000-01-02T03:04:05Z
+
+## Description
+
+Golden feature
+--- .tpatch/features/pib-golden/status.json (383 bytes) ---
+{
+  "id": "pib-golden",
+  "slug": "pib-golden",
+  "title": "Golden feature",
+  "state": "applied",
+  "compatibility": "unknown",
+  "requested_at": "2000-01-02T03:04:05Z",
+  "updated_at": "<wall-clock>",
+  "last_command": "record",
+  "notes": "Patch recorded",
+  "apply": {
+    "base_commit": "92fcf51ca3b4173cc9e5aa589d0f357ebed42ddf",
+    "has_patch": true
+  },
+  "reconcile": {}
+}
+--- .tpatch/upstream.lock (102 bytes) ---
+# Upstream Lock
+# Updated automatically by tpatch reconcile.
+remote: ""
+branch: ""
+commit: ""
+url: ""

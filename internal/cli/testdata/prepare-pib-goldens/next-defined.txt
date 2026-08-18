@@ -1,0 +1,32 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   defined
+Phase:   explore
+
+Explore the codebase and identify the minimal changeset (files, code sections) needed to implement the spec.
+
+Context files:
+  - .tpatch/features/pib-golden/request.md
+  - .tpatch/features/pib-golden/analysis.md
+  - .tpatch/features/pib-golden/spec.md
+
+On complete: tpatch explore pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "explore",
+  "slug": "pib-golden",
+  "state": "defined",
+  "instructions": "Explore the codebase and identify the minimal changeset (files, code sections) needed to implement the spec.",
+  "context_files": [
+    ".tpatch/features/pib-golden/request.md",
+    ".tpatch/features/pib-golden/analysis.md",
+    ".tpatch/features/pib-golden/spec.md"
+  ],
+  "on_complete": "tpatch explore pib-golden"
+}
+stderr:

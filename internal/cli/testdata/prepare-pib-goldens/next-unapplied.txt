@@ -1,0 +1,28 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   unapplied
+Phase:   apply
+
+The canonical patch is preserved but absent from the working tree. Reapply it before testing, landing, or continuing dependent work.
+
+Context files:
+  - .tpatch/features/pib-golden/artifacts/post-apply.patch
+
+On complete: tpatch apply pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "apply",
+  "slug": "pib-golden",
+  "state": "unapplied",
+  "instructions": "The canonical patch is preserved but absent from the working tree. Reapply it before testing, landing, or continuing dependent work.",
+  "context_files": [
+    ".tpatch/features/pib-golden/artifacts/post-apply.patch"
+  ],
+  "on_complete": "tpatch apply pib-golden"
+}
+stderr:

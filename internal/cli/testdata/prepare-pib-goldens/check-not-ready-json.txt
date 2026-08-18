@@ -1,0 +1,93 @@
+$ tpatch --path <workspace> prepare pib-golden --check --json
+exit 2
+stdout:
+{
+  "schema_version": 1,
+  "command": "prepare --check",
+  "slug": "pib-golden",
+  "feature_state": "requested",
+  "disclaimer": "Structural presence only. This report does not certify semantic quality.",
+  "artifacts": [
+    {
+      "id": "analysis",
+      "path": ".tpatch/features/pib-golden/analysis.md",
+      "role": "required",
+      "state": "absent",
+      "reason_code": "artifact-absent",
+      "provenance": "unknown",
+      "remediation": "Author .tpatch/features/pib-golden/analysis.md, then re-run tpatch prepare pib-golden --check."
+    },
+    {
+      "id": "spec",
+      "path": ".tpatch/features/pib-golden/spec.md",
+      "role": "required",
+      "state": "absent",
+      "reason_code": "artifact-absent",
+      "provenance": "unknown",
+      "remediation": "Author .tpatch/features/pib-golden/spec.md, then re-run tpatch prepare pib-golden --check."
+    },
+    {
+      "id": "exploration",
+      "path": ".tpatch/features/pib-golden/exploration.md",
+      "role": "required",
+      "state": "absent",
+      "reason_code": "artifact-absent",
+      "provenance": "unknown",
+      "remediation": "Author .tpatch/features/pib-golden/exploration.md, then re-run tpatch prepare pib-golden --check."
+    },
+    {
+      "id": "analysis_sidecar",
+      "path": ".tpatch/features/pib-golden/artifacts/analysis.json",
+      "role": "optional",
+      "state": "absent",
+      "reason_code": "artifact-absent",
+      "provenance": "unknown",
+      "remediation": ""
+    }
+  ],
+  "overall": {
+    "structural_readiness": "not_ready",
+    "required_total": 3,
+    "required_satisfied": 0,
+    "optional_total": 1,
+    "optional_satisfied": 0
+  },
+  "advisories": [
+    {
+      "code": "analysis-sidecar-absent-path-b-normal",
+      "artifact_id": "analysis_sidecar",
+      "message": "artifacts/analysis.json is written by the CLI-driven analyze phase and is not produced by analyze --manual. Its absence is not a defect."
+    },
+    {
+      "code": "provenance-unknown-by-design",
+      "artifact_id": "",
+      "message": "Per-artifact provenance is reported as unknown for every artifact. tpatch does not yet persist durable per-artifact source metadata."
+    }
+  ]
+}
+stderr:
+prepare --check  pib-golden
+lifecycle state: requested  (echoed from status.json; not evaluated by this check)
+
+required
+  analysis.md                        absent
+    → Author .tpatch/features/pib-golden/analysis.md, then re-run tpatch
+      prepare pib-golden --check.
+  spec.md                            absent
+    → Author .tpatch/features/pib-golden/spec.md, then re-run tpatch prepare
+      pib-golden --check.
+  exploration.md                     absent
+    → Author .tpatch/features/pib-golden/exploration.md, then re-run tpatch
+      prepare pib-golden --check.
+optional
+  artifacts/analysis.json            absent
+
+provenance: unknown (all artifacts)
+
+advisories
+  analysis-sidecar-absent-path-b-normal
+  provenance-unknown-by-design
+
+readiness: not_ready (0 of 3 required artifacts are present-nonempty)
+Structural presence only. This report does not certify semantic quality.
+error: prepare --check pib-golden: not_ready (0 of 3 required artifacts are present-nonempty)

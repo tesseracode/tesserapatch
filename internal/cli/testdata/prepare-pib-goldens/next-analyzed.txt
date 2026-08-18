@@ -1,0 +1,30 @@
+$ tpatch --path <workspace> next pib-golden
+exit 0
+stdout:
+Feature: pib-golden
+State:   analyzed
+Phase:   define
+
+Read the analysis and generate acceptance criteria + implementation plan in spec.md.
+
+Context files:
+  - .tpatch/features/pib-golden/request.md
+  - .tpatch/features/pib-golden/analysis.md
+
+On complete: tpatch define pib-golden
+stderr:
+$ tpatch --path <workspace> next pib-golden --format harness-json
+exit 0
+stdout:
+{
+  "phase": "define",
+  "slug": "pib-golden",
+  "state": "analyzed",
+  "instructions": "Read the analysis and generate acceptance criteria + implementation plan in spec.md.",
+  "context_files": [
+    ".tpatch/features/pib-golden/request.md",
+    ".tpatch/features/pib-golden/analysis.md"
+  ],
+  "on_complete": "tpatch define pib-golden"
+}
+stderr:
