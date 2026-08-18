@@ -1,3 +1,27 @@
+## Writer — implement-prepare-check rev-4 — 2026-08-17
+
+**Guard fix**: `9b8efc5`
+**CI result fold**: `cacaaf8`
+**Dispatch**: `a9d35aa`
+
+### Revision
+
+- Preserved raw continue-on-error scalars and enforced exact blocking/advisory
+  ownership.
+- Applied blocking ownership to the test job and every step.
+- Forbade job-level conditions and added 24 failing plus 3 accepted variants.
+- Corrected allowed-failure visibility wording.
+- Moved AVP-141 scratch under the Git directory.
+
+### CI
+
+Run 32101270327 is green on Ubuntu, macOS and Windows; native rows and all six
+leaf assertions execute.
+
+### Action Taken
+
+Rev-4 returned to final joint confirmation. Product behavior is frozen.
+
 ## Dispatch — implement-prepare-check rev-4 — 2026-08-17
 
 **Implementation tip**: `a4748a9`
