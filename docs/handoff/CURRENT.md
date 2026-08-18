@@ -553,8 +553,11 @@ the real exit code without shelling out. Behavior is unchanged.
 
 ### Rev-4 (this revision)
 
-Commit: `REV4_COMMIT` (implementation + tracking, single commit).
-CI: run `REV4_RUN`.
+Commit: `9b8efc5` (implementation + tracking, single commit), plus this
+tracking amendment commit recording the run.
+CI: run
+[`32099941270`](https://github.com/tesseracode/tesserapatch/actions/runs/32099941270)
+at `9b8efc5` — ubuntu ✅, macOS ✅, windows ✅, `release` skipped (not a tag).
 
 CI:
 
@@ -740,7 +743,12 @@ All results below are from **rev-4** on `go1.26.5 darwin/arm64`.
   which is the failure mode this revision removes.
 - Ledger: `rows=208 categories=25 references=224 guards=43` — unchanged; no
   matrix row moved.
-- CI at the rev-4 tip: run `REV4_RUN`.
+- CI at the rev-4 tip `9b8efc5`, run
+  [`32099941270`](https://github.com/tesseracode/tesserapatch/actions/runs/32099941270):
+  **all three matrix legs green**, `release` skipped (not a tag). The blocking
+  Windows step logged `--- PASS: TestAVPNativeWindows`, both row lines
+  (`AVP-176`, `AVP-199`) and six leaf assertions, so the leaf floor of 6 was
+  met by real executions rather than by a no-match `-run` pattern.
 
 ### Rev-3
 
