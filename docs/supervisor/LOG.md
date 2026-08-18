@@ -1,3 +1,26 @@
+## Writer — implement-prepare-check rev-3 — 2026-08-17
+
+**Test/guard fix**: `54ab8b4`
+**CI result fold**: `a4748a9`
+**Dispatch**: `370bc6e`
+
+### Revision
+
+- Made the mixed-case land fixture mutation non-vacuous for all lowercase SHAs.
+- Guarded job-level failure, exact step conditions and release-needs.
+- Pinned the blocking Windows package/row/leaf surface.
+- Replaced AVP-141's worktree scan with tracked-source population.
+- Corrected the full Windows inventory and visibility wording.
+
+### CI
+
+Run 32097102290 is green on Ubuntu, macOS and Windows. Native GH #16 rows are
+blocking; GH #17 remains visible and allowed to fail.
+
+### Action Taken
+
+Rev-3 returned to final joint review. Mutating prepare remains blocked.
+
 ## Dispatch — implement-prepare-check rev-3 — 2026-08-17
 
 **Implementation tip**: `40ae5c2`
