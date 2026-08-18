@@ -1,3 +1,28 @@
+## Decision — prepare rev-15 evidence erratum — 2026-08-18
+
+**Internal re-review**: APPROVED
+**External re-review**: APPROVED WITH NOTES
+
+### Verified
+
+- PRD PIB-391 and normative ADR-035 D14 agree.
+- Rev-15 amends exactly PIB-391 and its sensitivity; 567 rows / 36 semantic
+  guards remain unchanged.
+- GH #16 independently satisfied the read-only prerequisite.
+- Record mode binds to clean GH #16 frozen implementation content `cacaaf8`,
+  production-identical to formal acceptance `7206dab`.
+- Comparison mode cannot accept a supplied baseline.
+- Fixture-before-production ordering and wrong-producer/self-comparison
+  sensitivities are executable.
+- Permanent producer re-audit requires rebuilding `cacaaf8` and is disclosed.
+
+### Verdict: ACCEPTED
+
+The external terminology note (`cacaaf8` is implementation content, not the
+formal acceptance tip) was folded into PRD, ADR and current ROADMAP wording.
+The golden baseline is unblocked; mutating production still waits for that
+commit.
+
 ## Review — prepare rev-15 evidence erratum round 0 — 2026-08-18
 
 **Commit**: `d24d5c4`
@@ -47,7 +72,7 @@ range would require rewriting accepted history.
 Rev-15 preserves the intended anti-no-op property:
 
 - eight check-output fixtures are driven by a clean binary whose embedded
-  revision is accepted GH #16 tip `cacaaf8`;
+  revision is GH #16 frozen implementation content `cacaaf8`;
 - record mode rejects an empty/wrong revision or modified producer;
 - comparison mode always builds current code and rejects supplied baselines;
 - fixtures land in GH #23's pre-production golden commit;

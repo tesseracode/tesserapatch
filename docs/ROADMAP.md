@@ -962,7 +962,7 @@ schema migrations, and
 acknowledgement without replay bypass. Research/backlog only; the accepted
 `implement-prepare-intent-bundle` queue head is unchanged.
 
-**Mutating prepare intent bundle implementation** 🔨 IN PROGRESS — REV-15 EVIDENCE ERRATUM REVIEW
+**Mutating prepare intent bundle implementation** 🔨 IN PROGRESS — REV-15 ACCEPTED
 (2026-08-18; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
 WAVE_BASE `3b579fc`): implement the accepted
 `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14 contract. Pre-change
@@ -974,13 +974,16 @@ partitioned 15/75/42/24/142/17/48/31/173 across S1b/S1/S3/S2/S4/S4b/S5/S6/S7.
 Golden review found one impossible rev-14 premise: GH #16 never committed the
 standalone check-output paths PIB-391 required to pre-exist in its closed
 range. Rev-15 preserves the anti-no-op guarantee by VCS-binding record mode to
-the clean accepted `cacaaf8` binary and committing those fixtures before any
+GH #16 frozen implementation content `cacaaf8` (production-identical to formal
+acceptance `7206dab`) and committing those fixtures before any
 mutating production edit. No behavior, ADR decision, matrix row/count or
 public surface changes. Review round 0: internal NEEDS REVISION, external
-APPROVED WITH NOTES. Round 1 aligns normative ADR-035 D14, the mandatory
+APPROVED WITH NOTES. Round 1 aligned normative ADR-035 D14, the mandatory
 revision ledger, current prerequisite truth, permanent re-audit disclosure and
-an ordering sensitivity. Production is paused for joint re-review. No tag
-before joint acceptance.
+an ordering sensitivity. Joint re-review returned internal APPROVED and
+external APPROVED WITH NOTES; the sole terminology note was folded. Rev-15 is
+accepted, with no product/decision/count change. No tag before joint
+implementation acceptance.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

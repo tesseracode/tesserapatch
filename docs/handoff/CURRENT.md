@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -13,10 +13,12 @@ joint acceptance. Golden implementation review discovered that rev-14
 PIB-391 required standalone `prepare --check` output files to have been
 committed by GH #16, but GH #16 committed no such paths. Rev-15 corrects only
 that impossible evidence predicate. Rev-15 review round 0 returned internal
-NEEDS REVISION and external APPROVED WITH NOTES; round 1 now aligns ADR-035
+NEEDS REVISION and external APPROVED WITH NOTES; round 1 aligned ADR-035
 D14, the rev-15 amendment ledger, shipped-prerequisite prose, producer
-auditability and fixture-before-production sensitivity. Joint re-review is
-pending; production slices remain paused.
+auditability and fixture-before-production sensitivity. Joint re-review
+returned internal APPROVED and external APPROVED WITH NOTES; the sole
+`cacaaf8` terminology note is folded. Rev-15 is accepted and the
+pre-production golden commit is unblocked.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range
@@ -32,7 +34,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-14 +
   `ADR-035-intent-bundle-publication-and-history` rev-14 (ADR-035 normative
   where they overlap).
-- **Status**: **Awaiting Review — rev-15 evidence erratum**
+- **Status**: **In Progress — pre-change golden baseline**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -46,8 +48,8 @@ PRD §19's three acceptance conditions are now all satisfied:
 2. `ADR-035` Accepted at rev-14 (2026-08-14), reviewed jointly with the PRD.
 3. §19(3) — the accepted `prepare --check` contract
    (`PRD-artifact-validation-and-provenance` rev-5 / rev-6 errata + `ADR-034`
-   rev-2 / rev-3 errata) is **implemented, accepted and landed** as of
-   `cacaaf8`.
+   rev-2 / rev-3 errata) has frozen implementation content at `cacaaf8` and
+   was formally accepted/closed at `7206dab`.
 
 Implementation is therefore unblocked. **The PRD's implementation slices and
 their required sequence must be re-read in full before dispatch** — this
@@ -103,20 +105,19 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Jointly review PRD rev-15's bounded PIB-391 producer-evidence correction.
-2. On approval, commit the complete pre-change compatibility golden suite.
-3. Implement sequentially: S1b directory authority, S1 transaction core, S3
+1. Commit the complete pre-change compatibility golden suite and activate its
+   fixture-before-production history guard.
+2. Implement sequentially: S1b directory authority, S1 transaction core, S3
    archive, S2 generators, S4 mutating CLI and S4b retention commands.
-4. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
+3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
-5. Run joint internal/external review to acceptance; only then select the
+4. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- Mutating production slices cannot land until rev-15's implementation-
-  evidence erratum is jointly approved. The check behavior, ADR-035 decisions,
-  567-row matrix and every public contract remain unchanged.
+- None. Rev-15 is accepted; production still waits only for the mandatory
+  golden commit.
 
 ## Context for Next Agent
 
