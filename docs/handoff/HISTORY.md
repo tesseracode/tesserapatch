@@ -1,3 +1,58 @@
+# 2026-08-18 — copilot-api cumulative verification feedback — TRIAGED
+
+**Evidence revision**:
+[`tesseracode/copilot-api@e2d7ce4`](https://github.com/tesseracode/copilot-api/commit/e2d7ce457f11ba077f508c360adac03a4db0e8ad)
+**tpatch release reproduced**: `v0.15.1`
+**Case study**:
+`docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`
+**Issues opened**: GH #18–#22
+
+The downstream Part 5 report and transient team request were independently
+verified. `verify --all --no-write --json` reproduces 0 passed, 53 failed,
+3 skipped and 0 error, with the exact 38/16/6/1 failing-check counts.
+The project itself passes typecheck, lint, 352 tests and build.
+
+A temporary-index probe found that 29 of the 38 V8-failing patches apply to
+their own recorded base while nine do not. The result confirms a cumulative
+verification/migration gap but rules out own-base success as sufficient stack
+certification.
+
+The preimage diagnosis was narrowed: four recent V10 failures are
+`recipe-provenance-unavailable`, and two historical failures lack usable
+landing evidence. All 11 non-empty recent preimages match their recorded base
+bytes. The Path B `implement --manual` producer accepts agent-authored
+preimages without writing the provenance sidecar that V10 requires.
+
+Doctor confirms 24 non-fixable D2 findings whose suggested same-byte refresh
+skips. Every affected feature has a reachable candidate
+`status.apply.base_commit`, but only six canonical patches apply to it and 18
+do not, so adoption must validate rather than discard or blindly trust the
+recorded evidence. The downstream team already cleared eight D7 findings
+through a mechanical schema migration. Dependency edges model ordering but
+currently cannot record an operator's disposition of later-touch warnings.
+
+Backlog disposition:
+
+- GH #18 — cumulative verify and migration assessment;
+- GH #19 — manual recipe provenance publication and safe adoption;
+- GH #20 — truthful legacy patch-generation adoption;
+- GH #21 — guarded mechanical recipe-schema doctor fixes;
+- GH #22 — durable later-touch acknowledgement without replay authority.
+
+Review converged after four NEEDS REVISION rounds: owner binding and
+recipe-identity migration safety; complete V7 scope and candidate-base truth;
+generated-versus-adopted provenance authority and the doctor PRD's Proposed
+status; then an issue-audit counting correction. Rev-4 returned APPROVED with
+no residual finding.
+
+All pre-existing GH #1–#17 issues were authored by `jdbencardinop`; no
+third-party issue required review. The downstream status listing remained
+identical, and a repeated v0.15.1 `--no-write` run left every `.tpatch/` file
+path and hash unchanged. No implementation or architecture decision is
+authorized, and `implement-prepare-intent-bundle` remains the queue head.
+
+---
+
 # 2026-08-17 — Implement read-only `tpatch prepare --check` — ACCEPTED
 
 **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`

@@ -942,6 +942,25 @@ PRD-artifact-validation-and-provenance rev-6 errata and ADR-034 rev-3 errata
 The §19(3) prerequisite for `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14
 is now **satisfied**; `implement-prepare-intent-bundle` is the next dispatch.
 
+**copilot-api cumulative verification/migration feedback** ✅ TRIAGED / REVIEWED
+(2026-08-18): exact `tpatch v0.15.1` reproduction at downstream commit
+`e2d7ce4` confirms 0 pass / 53 fail / 3 skip while typecheck, lint, 352 tests
+and build pass. A read-only own-base probe recovers 29 of 38 V8 failures but
+leaves nine, so isolated own-base success cannot become a blanket verifier
+pass. The four recent V10 failures are
+`recipe-provenance-unavailable` on Path B recipes, not measured stale hashes;
+all 11 non-empty preimages match their recorded bases. [GH #18](https://github.com/tesseracode/tesserapatch/issues/18)
+tracks cumulative verify/migration semantics,
+[GH #19](https://github.com/tesseracode/tesserapatch/issues/19) manual recipe
+provenance,
+[GH #20](https://github.com/tesseracode/tesserapatch/issues/20) honest legacy
+generation adoption with candidate-base validation,
+[GH #21](https://github.com/tesseracode/tesserapatch/issues/21) guarded doctor
+schema migrations, and
+[GH #22](https://github.com/tesseracode/tesserapatch/issues/22) later-touch
+acknowledgement without replay bypass. Research/backlog only; the accepted
+`implement-prepare-intent-bundle` queue head is unchanged.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

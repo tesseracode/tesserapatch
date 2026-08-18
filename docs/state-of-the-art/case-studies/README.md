@@ -19,6 +19,7 @@
 |---|---|---|---|
 | [`t3code-upstream-v0.0.23-2026-05`](t3code-upstream-v0.0.23-2026-05/) | `tesseracode/t3code` fork from upstream `v0.0.21` lock to `v0.0.23` | 25 features, 53 hunks, 5 patch summaries | Both `upstreamed` verdicts were false positives, and 13 of 15 `blocked` verdicts were false positives. See [local notes](t3code-upstream-v0.0.23-2026-05/local-notes.md). |
 | [`adjacent-cli-args-conflict-2026-08`](adjacent-cli-args-conflict-2026-08/) | Synthetic Go CLI argument addition versus neighboring upstream deletion | 4 asserted Git variants + tracked tpatch replay/safety trial | Merge and rebase conflict identically for the adjacent fixtures; an anchor-based operation produces a clean candidate, but current reconcile does not replay applicable operations and current recipe semantics require additional safety gates. |
+| [`copilot-api-cumulative-verify-2026-08`](copilot-api-cumulative-verify-2026-08/) | `tesseracode/copilot-api` long-lived cumulative fork at `e2d7ce4` | 56 features, exact v0.15.1 verify/doctor reproduction, 38 own-base patch probes | Repository gates pass while verify reports 0 pass / 53 fail / 3 skip; 29 of 38 V8 failures replay on their recorded base, and four recent V10 failures are missing manual provenance rather than measured stale hashes. |
 
 ## Import notes
 
@@ -37,6 +38,10 @@ needs stale dependency/status cleanup.
 The adjacent-argument study is a synthetic reproduction rather than an imported
 production dataset. Its script creates disposable repositories and stores no
 source outside the fixture itself.
+
+The copilot-api cumulative-verification study records only aggregate results,
+artifact metadata and source-contract findings. Raw downstream source bodies
+and full verifier output remain outside this repository.
 
 ## Candidate PRD signals
 

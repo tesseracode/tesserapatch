@@ -1,3 +1,82 @@
+## Internal Review — copilot-api feedback triage — 2026-08-18
+
+**Deliverable**:
+`docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`
+plus GH #18–#22 and tracking updates
+
+### Review Arc
+
+| Revision | Verdict | Findings closed |
+|---|---|---|
+| rev-0 | NEEDS REVISION | GH #19 owner equality; GH #21 recipe-byte identity bindings |
+| rev-1 | NEEDS REVISION | GH #18 omitted 16 V7 failures; GH #20 discarded recorded candidate bases |
+| rev-2 | NEEDS REVISION | GH #19 needed an accepted generated/manual/adopted provenance contract; GH #21 called the Proposed doctor PRD Accepted |
+| rev-3 | NEEDS REVISION | GH #7–#17 shorthand enumerated only ten of eleven issues |
+| rev-4 | **APPROVED** | No residual factual, logic, safety or tracking finding |
+
+### Final Evidence
+
+- Exact v0.15.1 0/53/3 reproduction and 38/16/6/1 check counts.
+- 29/9 V8 own-base split and complete V7 disposition requirement.
+- Four recent V10 failures correctly classified as missing provenance; all 11
+  non-empty preimages match their candidate bases.
+- D2 population has 24/24 reachable candidate bases but only 6/24
+  patch-compatible; adoption cannot discard or blindly promote them.
+- Repeated `--no-write` run preserves every `.tpatch/` file path and hash.
+- GH #19 and GH #21 require accepted planning authority before implementation.
+- GH #1–#22 authorship verified as `jdbencardinop`.
+- Historical Side Research EOF tail restored byte-for-byte at md5
+  `b385fe622db9926f48861105239f113e`.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+Accepted as backlog evidence. GH #18–#22 remain planning issues; no production
+change or architecture decision is authorized. The active queue remains
+`implement-prepare-intent-bundle`.
+
+## Verification — copilot-api cumulative-stack feedback — 2026-08-18
+
+**Verifier**: Copilot implementer
+**Evidence**: `tesseracode/copilot-api@e2d7ce4`, `.tpatch/RETROSPECTIVE.md`
+Part 5 and the transient `tpatch-team-request.md`
+
+### Verdict: CONFIRMED WITH DIAGNOSTIC CORRECTION
+
+Exact `tpatch v0.15.1` reproduction confirms 0 passed / 53 failed / 3 skipped
+and the 38 V8, 16 V7, 6 V10 and 1 intent-artifact failure counts. Independent
+downstream gates pass: typecheck, lint, 352 tests and build. Of the 38 V8
+failures, 29 canonical patches apply to their recorded base and nine do not.
+
+The report's shared-file concern is valid, but the recent V10 diagnosis is not:
+four failures stop at `recipe-provenance-unavailable`, not at a preimage hash
+comparison, and the two others stop on malformed landing evidence. All 11
+non-empty preimages in the four recent recipes match the recorded base. The
+concrete producer defect is that `implement --manual` can accept Path B
+preimages without publishing `recipe-provenance.json`.
+
+D2's 24 same-byte manifests are genuinely non-backfillable under the current
+command/schema; D7 has no fixer, though the downstream team already migrated
+its eight affected recipes mechanically; later-touch has no durable operator
+disposition. Existing GH #1/#2/#8 and open GH #13/#15 do not own these
+migration paths.
+
+### Action Taken
+
+Opened GH #18–#22 with separate scopes for cumulative verification, manual
+recipe provenance, legacy generation adoption, doctor schema migrations and
+later-touch acknowledgement. Added a bounded case study and roadmap/handoff
+links. The prepare intent-bundle implementation remains next and unblocked.
+
+## Process correction — Side Research relocation — 2026-08-18
+
+The historical `## Side Research` tail was dropped from `CURRENT.md` during a
+tracking reset without a recorded relocation. It is restored byte-for-byte at
+EOF; the invariant command again returns
+`b385fe622db9926f48861105239f113e`. This closes the carry-forward LOW without
+changing its research content.
+
 ## Supervisor Decision — implement-prepare-check — 2026-08-17
 
 **WAVE_BASE**: `9a8c1d0`
