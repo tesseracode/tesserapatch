@@ -1716,6 +1716,64 @@ func registerPlatformGuards() {
 				// test job still publishes a release.
 				{"release-needs-removed",
 					strings.Replace(workflow, "    name: release\n    needs: test\n", "    name: release\n", 1)},
+				// The whole job is demoted by an *expression*: rev-3 decoded
+				// `continue-on-error` to a bool, so `${{ true }}` collapsed
+				// onto false and read as "blocking".
+				{"job-level-continue-on-error-expression",
+					strings.Replace(workflow,
+						"  test:\n    name: test (${{ matrix.os }})\n",
+						"  test:\n    name: test (${{ matrix.os }})\n    continue-on-error: ${{ true }}\n", 1)},
+				// The same demotion written as a variable reference, whose
+				// value the guard cannot read at all.
+				{"job-level-continue-on-error-variable",
+					strings.Replace(workflow,
+						"  test:\n    name: test (${{ matrix.os }})\n",
+						"  test:\n    name: test (${{ matrix.os }})\n    continue-on-error: ${{ vars.SOFT_FAIL }}\n", 1)},
+				// The job is skipped wholesale. A skipped job's conclusion is
+				// `skipped`, not `failure`, so `needs: test` on the release
+				// job stays satisfied while no gate ever runs.
+				{"job-level-if-false",
+					strings.Replace(workflow,
+						"  test:\n    name: test (${{ matrix.os }})\n",
+						"  test:\n    name: test (${{ matrix.os }})\n    if: false\n", 1)},
+				// The blocking step is demoted by an expression rather than
+				// by the literal the `blocking-flag-removed` arm uses.
+				{"blocking-step-continue-on-error-expression",
+					strings.Replace(workflow,
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n",
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n        continue-on-error: ${{ true }}\n", 1)},
+				// `!false` is `true` to GitHub and not a literal to YAML.
+				{"blocking-step-continue-on-error-negation",
+					strings.Replace(workflow,
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n",
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n        continue-on-error: ${{ !false }}\n", 1)},
+				// A non-`go test` gating step in the same job is demoted; the
+				// rev-3 guard only inspected steps whose run contained
+				// `go test`, so `gofmt`/`vet`/`build` could go advisory
+				// unnoticed.
+				{"vet-step-demoted",
+					strings.Replace(workflow,
+						"      - name: go vet\n        run: go vet ./...\n",
+						"      - name: go vet\n        continue-on-error: true\n        run: go vet ./...\n", 1)},
+				// The allowed-failure step's ownership becomes an expression,
+				// so the demotion is no longer stated outright in the file.
+				{"allowed-failure-continue-on-error-expression",
+					strings.Replace(workflow,
+						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
+						"        if: runner.os == 'Windows'\n        continue-on-error: ${{ true }}\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m", 1)},
+				// A quoted `\"true\"` is a YAML string, not the boolean; it is
+				// not the literal this guard requires.
+				{"allowed-failure-continue-on-error-quoted",
+					strings.Replace(workflow,
+						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
+						"        if: runner.os == 'Windows'\n        continue-on-error: \"true\"\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m", 1)},
+				// `${{ false }}` on the allowed-failure step would make the
+				// pre-existing GH #17 failures red the whole job; it is also
+				// not a literal, so it is rejected on ownership grounds.
+				{"allowed-failure-continue-on-error-false-expression",
+					strings.Replace(workflow,
+						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
+						"        if: runner.os == 'Windows'\n        continue-on-error: ${{ false }}\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m", 1)},
 			}
 			// Each arm must be *detected*. A non-detecting arm is failed with
 			// t.Fatalf rather than by returning an error: returning an error
@@ -1729,6 +1787,37 @@ func registerPlatformGuards() {
 				last = checkCIMatrix(arm.mutated)
 				if last == nil {
 					t.Fatalf("sensitivity arm %s did not fail the guard", arm.name)
+				}
+			}
+
+			// The complement: writing the ownership out explicitly as the
+			// literal `false` is the same statement as omitting it, and must
+			// stay ACCEPTED. Without these the rule above could be satisfied
+			// by a guard that rejects every `continue-on-error` key it sees,
+			// which would be sensitive for the wrong reason.
+			accepted := []struct {
+				name    string
+				mutated string
+			}{
+				{"job-level-continue-on-error-false",
+					strings.Replace(workflow,
+						"  test:\n    name: test (${{ matrix.os }})\n",
+						"  test:\n    name: test (${{ matrix.os }})\n    continue-on-error: false\n", 1)},
+				{"blocking-step-continue-on-error-false",
+					strings.Replace(workflow,
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n",
+						"      - name: \"Test (Windows GH #16 surface — blocking)\"\n        if: runner.os == 'Windows'\n        continue-on-error: false\n", 1)},
+				{"job-level-if-empty",
+					strings.Replace(workflow,
+						"  test:\n    name: test (${{ matrix.os }})\n",
+						"  test:\n    name: test (${{ matrix.os }})\n    if: \n", 1)},
+			}
+			for _, arm := range accepted {
+				if arm.mutated == workflow {
+					t.Fatalf("accepted variant %s no longer matches the workflow", arm.name)
+				}
+				if err := checkCIMatrix(arm.mutated); err != nil {
+					t.Fatalf("accepted variant %s was rejected by the guard: %v", arm.name, err)
 				}
 			}
 			return last
@@ -1923,7 +2012,13 @@ func checkCIMatrix(workflow string) error {
 // reviewer greps for while removing the signal:
 //
 //   - moving a blocking package into the allowed-failure step;
-//   - marking the blocking step, or the whole job, continue-on-error;
+//   - marking the blocking step, or the whole job, continue-on-error, whether
+//     by the literal `true` or by an expression (`${{ true }}`, `!false`,
+//     `${{ vars.SOFT_FAIL }}`) whose run-time value this guard cannot read;
+//   - writing the allowed-failure step's ownership as an expression instead of
+//     the exact literal `true`, so the demotion is not greppable;
+//   - adding a job-level `if`, which skips every gate at once and still
+//     satisfies `needs: test`, because a skipped job is not a failed job;
 //   - adding a conjunct (`&& false`, an event filter) that disables the step;
 //   - dropping the native invocation, the AVP-176/199 row loop or the leaf
 //     floor, so a `-run` pattern that matches nothing exits 0;
@@ -1938,10 +2033,18 @@ func checkCIWindowsGate(workflow string) error {
 	if !ok {
 		return errors.New("the workflow has no `test` job")
 	}
-	if testJob.ContinueOnError {
-		// Job-level continue-on-error makes every step advisory, including
-		// the blocking one this guard proves below.
-		return errors.New("the `test` job is job-level continue-on-error; every gate inside it is advisory")
+	// Job-level continue-on-error makes every step advisory, including the
+	// blocking one this guard proves below.
+	if err := requireBlockingContinueOnError("job", "test", testJob.ContinueOnError); err != nil {
+		return err
+	}
+	// A job-level `if` skips the whole job, and a skipped job's conclusion is
+	// `skipped`, not `failure` — `needs: test` on the release job is still
+	// satisfied and no gate inside the job ever runs. The `test` job must
+	// therefore carry no job-level condition at all: the platform legs are
+	// selected per step, by the two exact conditions pinned below.
+	if condition := strings.TrimSpace(testJob.If); condition != "" {
+		return fmt.Errorf("the `test` job carries the job-level condition %q; a job-level `if` can skip every gate inside the job at once, so it must be absent", condition)
 	}
 	releaseJob, ok := jobs["release"]
 	if !ok {
@@ -1953,6 +2056,38 @@ func checkCIWindowsGate(workflow string) error {
 
 	steps, err := parseWorkflowSteps(workflow)
 	if err != nil {
+		return err
+	}
+
+	// Ownership pass over *every* step of the test job, not only the ones
+	// that run `go test`: formatting, vet, build and the smoke tests gate too.
+	// Each of them must be absent or the exact literal `false`. Exactly one
+	// step — the GH #17 allowed-failure step, identified below — may carry the
+	// exact literal `true`. Any other value (`${{ true }}`, `${{ false }}`,
+	// `!false`, `${{ vars.SOFT_FAIL }}`, `"true"`) is rejected outright: its
+	// run-time value comes from inputs this guard cannot read, so a reviewer
+	// grepping for `continue-on-error: true` would not see the demotion.
+	var advisory []workflowStep
+	for _, step := range steps {
+		if step.Job != "test" {
+			continue
+		}
+		if classifyContinueOnError(step.ContinueOnError) == continueOnErrorTrue {
+			advisory = append(advisory, step)
+			continue
+		}
+		if err := requireBlockingContinueOnError("step", step.Name, step.ContinueOnError); err != nil {
+			return err
+		}
+	}
+	if len(advisory) != 1 {
+		var names []string
+		for _, step := range advisory {
+			names = append(names, step.Name)
+		}
+		return fmt.Errorf("the test job has %d continue-on-error steps %v, want exactly 1 (the GH #17 allowed-failure step)", len(advisory), names)
+	}
+	if err := requireAllowedFailureContinueOnError(advisory[0].Name, advisory[0].ContinueOnError); err != nil {
 		return err
 	}
 
@@ -1998,7 +2133,7 @@ func checkCIWindowsGate(workflow string) error {
 		switch {
 		case !windows:
 			nonWindows = append(nonWindows, step)
-		case step.ContinueOnError:
+		case classifyContinueOnError(step.ContinueOnError) == continueOnErrorTrue:
 			allowed = append(allowed, step)
 		default:
 			blocking = append(blocking, step)
@@ -2008,8 +2143,8 @@ func checkCIWindowsGate(workflow string) error {
 	// The full suite stays blocking on ubuntu and macOS.
 	full := false
 	for _, step := range nonWindows {
-		if step.ContinueOnError {
-			return fmt.Errorf("the non-Windows step %q is continue-on-error; the full suite must stay blocking there", step.Name)
+		if err := requireBlockingContinueOnError("non-Windows step", step.Name, step.ContinueOnError); err != nil {
+			return err
 		}
 		if strings.Contains(step.Run, "go test ./...") {
 			full = true
@@ -2040,8 +2175,17 @@ func checkCIWindowsGate(workflow string) error {
 
 	// Nothing the blocking step proves may reappear in an allowed-failure
 	// command: that is precisely how the GH #16 acceptance surface would stop
-	// gating while still looking present in the file.
+	// gating while still looking present in the file. The single advisory step
+	// of the whole job must be exactly this Windows full-suite step, so the
+	// demotion cannot be relocated onto a formatting, vet, build or smoke step
+	// where the checks below would not apply to it.
+	if len(allowed) != 1 || allowed[0].Index != advisory[0].Index {
+		return fmt.Errorf("the job's single continue-on-error step is %q, which is not the Windows full-suite allowed-failure step", advisory[0].Name)
+	}
 	for _, step := range allowed {
+		if err := requireAllowedFailureContinueOnError(step.Name, step.ContinueOnError); err != nil {
+			return err
+		}
 		for _, pkg := range blockingWindowsPackages {
 			if strings.Contains(step.Run, pkg) {
 				return fmt.Errorf("the allowed-failure step %q names the blocking package %s; the GH #16 surface must stay blocking", step.Name, pkg)

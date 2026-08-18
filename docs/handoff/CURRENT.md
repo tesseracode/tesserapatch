@@ -2,11 +2,15 @@
 
 ## Status
 
-**Cluster state**: REV-4 DISPATCHED
+**Cluster state**: AWAITING REVIEW
 
-Rev-3 closes the rev-2 adjudication and is accepted in product behavior, but
-final review found one expression-level CI ownership hole. Rev-4 is dispatched.
-No production behavior, PRD, ADR or AVP matrix row may move.
+Rev-4 is implemented and awaiting review. It closes the four numbered rev-3
+adjudication items — expression-valued `continue-on-error`, the missing
+job-level `if` rule, the incorrect `continue-on-error` visibility comment, and
+AVP-141's working-tree scratch file. **No production file changed**: the diff is
+one CI comment block, two `internal/intent` test files, one `internal/cli` test
+file and this handoff. No production behavior, PRD, ADR or AVP matrix row
+moved.
 
 ## Active Task
 
@@ -14,7 +18,7 @@ No production behavior, PRD, ADR or AVP matrix row may move.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-4 dispatched after APPROVED / NEEDS REVISION split
+- **Status**: Rev-4 implemented, AWAITING REVIEW
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -46,6 +50,87 @@ No production behavior, PRD, ADR or AVP matrix row may move.
   later mutating-prepare cluster.
 - Native Windows behavior is part of acceptance.
 - Mutating prepare PRD rev-14 / ADR-035 rev-14 remains blocked.
+
+## Session Summary — rev-4
+
+Sole sequential reviser. **No production file changed**: the diff is one CI
+comment block, two `internal/intent` test files, one `internal/cli` test file
+and this handoff. Each numbered rev-3 adjudication item is closed below.
+
+1. **Expression-valued `continue-on-error` (the rev-3 hole).** The AVP-175
+   YAML subset parser decoded `continue-on-error` to a Go `bool` with
+   `value == "true"`, so *every* non-literal form — `${{ true }}`,
+   `${{ !false }}`, `${{ vars.SOFT_FAIL }}`, `"true"` — collapsed onto `false`,
+   i.e. onto "blocking". A job or blocking step demoted by an expression read
+   as gating to the guard while GitHub evaluated it to `true` at run time.
+   `workflowStep.ContinueOnError` and `workflowJob.ContinueOnError` are now the
+   **raw scalar as written**, captured before the quote and trailing-comment
+   normalisation the other keys go through, and
+   `classifyContinueOnError` maps it onto a closed four-member set —
+   `absent`, `false`, `true`, `non-literal`. Two ownership rules consume it:
+
+   - `requireBlockingContinueOnError` — absent or the exact literal `false`.
+     Applied to the `test` **job** and to **every step in it** except the one
+     allowed-failure step. Rev-3 only inspected steps whose `run` contained
+     `go test`, so `Verify formatting`, `go vet`, `Build` and the two smoke
+     steps could be demoted unnoticed; they are now in scope.
+   - `requireAllowedFailureContinueOnError` — the exact literal `true`, so the
+     GH #17 demotion is stated outright in the file rather than derived from
+     an expression a reader would have to evaluate.
+
+   A non-literal is **rejected**, not interpreted: its run-time value comes
+   from inputs (`vars.*`, `env.*`, `github.*`) the guard cannot read. The job
+   is additionally pinned to **exactly one** `continue-on-error` step, and that
+   step must be the Windows full-suite step, so the demotion cannot be
+   relocated onto a step the allowed-failure checks (blocking-package absence,
+   native-marker absence, ordering, `#17` ownership) would not reach.
+
+2. **Job-level `if`.** `checkCIWindowsGate` now requires the `test` job to
+   carry no job-level condition at all. A job-level `if` skips the whole job,
+   and a skipped job's conclusion is `skipped`, not `failure` — so
+   `needs: test` on the `release` job stays satisfied while no gate inside the
+   job ever runs. Platform selection stays per step, through the two exact
+   conditions rev-3 pinned; those remain unchanged.
+
+3. **CI comment correctness.** The allowed-failure step's comment claimed the
+   failures "stay VISIBLE in this step and in the job log — the step's own
+   conclusion and output are what a reader inspects". That is wrong:
+   `continue-on-error: true` maps the step's **conclusion** to `success`, so
+   the step conclusion, the job conclusion and the run summary all report
+   success. The comment now states that the failures are visible **only** in
+   the step's log output and that a reader has to open the job log to see the
+   inventory.
+
+4. **AVP-141 scratch file.** The sensitivity arm wrote its real untracked
+   `root_probe.go` into `.avp141-scratch-<pid>/` at the repository root. That
+   path is matched by `git ls-files --others --exclude-standard -- '*.go'`,
+   which is exactly the wave-close untracked-source sentinel (`Makefile`
+   `[2/8]`), so a run interrupted between the write and `t.Cleanup` left
+   source noise the gate would then flag. The scratch now lands under the
+   repository's git directory, resolved with
+   `git rev-parse --absolute-git-dir` (`avpGitDir`), which no
+   `git ls-files --others` query can ever report. The arm still proves the
+   property, and proves more of it than before: the file is asserted to exist
+   on disk, to be absent from `git ls-files`, to be absent from the sentinel's
+   own query (`gitUntrackedGoFiles`), to be absent from the scanned
+   population, and to leave the call-site count unmoved.
+
+**Sensitivity arithmetic.** AVP-175 goes from fifteen to **twenty-four**
+failing arms. The nine added: `job-level-continue-on-error-expression`,
+`job-level-continue-on-error-variable`, `job-level-if-false`,
+`blocking-step-continue-on-error-expression`,
+`blocking-step-continue-on-error-negation`, `vet-step-demoted`,
+`allowed-failure-continue-on-error-expression`,
+`allowed-failure-continue-on-error-quoted` and
+`allowed-failure-continue-on-error-false-expression`.
+
+Three **accepted variants** are added alongside them —
+`job-level-continue-on-error-false`, `blocking-step-continue-on-error-false`
+and `job-level-if-empty` — each asserted to still **pass** the guard. Without
+them the sensitivity requirement could be satisfied by a guard that rejects
+every `continue-on-error` key it sees, which would be sensitive for the wrong
+reason: writing the ownership out as the literal `false` is the same statement
+as omitting it.
 
 ## Session Summary — rev-3
 
@@ -466,7 +551,41 @@ the real exit code without shelling out. Behavior is unchanged.
 
 ## Files Changed
 
-### Rev-3 (this revision)
+### Rev-4 (this revision)
+
+Commit: `REV4_COMMIT` (implementation + tracking, single commit).
+CI: run `REV4_RUN`.
+
+CI:
+
+- `.github/workflows/ci.yml` — comment block only. The allowed-failure step's
+  visibility claim is corrected: `continue-on-error: true` maps the step
+  conclusion to `success`, so the failures are visible only in the step/job log
+  output, not in the step conclusion, the job conclusion or the run summary.
+  No key, condition, command or step ordering changed.
+
+Tests:
+
+- `internal/intent/avp_guard_helpers_test.go` — `workflowStep.ContinueOnError`
+  and `workflowJob.ContinueOnError` become the raw scalar (captured as
+  `rawValue`, before quote/comment normalisation); new
+  `continueOnErrorMode`, `classifyContinueOnError`,
+  `requireBlockingContinueOnError`, `requireAllowedFailureContinueOnError`.
+- `internal/intent/avp_guards_test.go` — `checkCIWindowsGate` gains the
+  job-level `if` rule, the whole-job `continue-on-error` ownership pass, the
+  "exactly one advisory step and it is the Windows full-suite step" pin, and
+  literal ownership on the allowed-failure step; AVP-175 sensitivity grows to
+  24 failing arms plus 3 accepted variants.
+- `internal/cli/prepare_avp2_test.go` — AVP-141's sensitivity scratch moves
+  under the git directory; new `avp141ScratchName`, `avpGitDir` and
+  `gitUntrackedGoFiles` helpers; the arm additionally asserts absence from
+  `git ls-files` and from the sentinel's own untracked-source query.
+
+Tracking:
+
+- `docs/handoff/CURRENT.md` — this revision.
+
+### Rev-3
 
 Commits: `54ab8b4` (implementation), plus this tracking commit.
 CI: run
@@ -598,6 +717,30 @@ Docs:
   `TestAVPRoutingGoldens/provenance-is-verifiable`.
 
 ## Test Results
+
+### Rev-4
+
+All results below are from **rev-4** on `go1.26.5 darwin/arm64`.
+
+- `gofmt -l .`: clean.
+- `go vet ./...`: PASS. `go build ./cmd/tpatch`: PASS.
+- `go test -count=1 ./...`: PASS — 14 packages ok, 2 command packages have no
+  tests. No skips introduced.
+- `go test ./internal/intent -run 'TestAVPGuards/AVP-175' -v`: PASS — the
+  guard, its 24 failing sensitivity arms and its 3 accepted variants.
+- `go test ./internal/intent -run 'TestAVPWindowsSourceGuards' -v`: PASS — all
+  four halves, including `AVP-175-ci-half`.
+- `go test ./internal/cli -run 'TestAVPRootLifetimeAndDifferential/AVP-141'
+  -v`: PASS — the row and its relocated sensitivity arm.
+- Sentinel proof: after the AVP-141 run,
+  `git ls-files --others --exclude-standard -- '*.go'` reports no
+  `avp141-scratch` path, and `git status --short` shows no scratch entry.
+  Negative control: a `.go` file written under the working tree *is* reported
+  by that query, while the same file written under the git directory is not —
+  which is the failure mode this revision removes.
+- Ledger: `rows=208 categories=25 references=224 guards=43` — unchanged; no
+  matrix row moved.
+- CI at the rev-4 tip: run `REV4_RUN`.
 
 ### Rev-3
 
@@ -880,19 +1023,26 @@ this inventory.
    sensitivity fixture genuinely breaks its guard.
 2. Reviewer: confirm the PRD rev-6 / ADR-034 rev-3 errata are narrow — no
    decision changed, matrix still 208 rows, guard set still 43.
-3. Reviewer: inspect the rev-3 CI run recorded above; the `windows-latest`
+3. Reviewer: inspect the rev-4 CI run recorded above; the `windows-latest`
    **job must be green**, the blocking step must show
    `--- PASS: TestAVPNativeWindows/...` leaf lines, and the allowed-failure
    step must still be present and still list the unrelated failures.
-4. Reviewer: check AVP-175's fifteen sensitivity arms individually — in
-   particular `job-level-continue-on-error`,
-   `blocking-condition-false-conjunct`,
-   `blocking-package-moved-to-allowed-failure`, `leaf-floor-zeroed` and
-   `release-needs-removed`, which are the rev-3 additions.
-5. Reviewer: re-run
+4. Reviewer: check AVP-175's **24** sensitivity arms individually — in
+   particular the rev-4 additions
+   `job-level-continue-on-error-expression`,
+   `job-level-continue-on-error-variable`, `job-level-if-false`,
+   `blocking-step-continue-on-error-expression`,
+   `blocking-step-continue-on-error-negation`, `vet-step-demoted` and the
+   three `allowed-failure-continue-on-error-*` arms — and the **3 accepted
+   variants**, which must still pass: `job-level-continue-on-error-false`,
+   `blocking-step-continue-on-error-false` and `job-level-if-empty`.
+5. Reviewer: confirm AVP-141's sensitivity scratch lands under the git
+   directory and that an interrupted run cannot leave an untracked `.go` file
+   the wave-close `[2/8]` sentinel would flag.
+6. Reviewer: re-run
    `go test ./internal/cli -count=100 -run 'TestRev1Land_NonCanonicalBaseCommitIsRefused/mixed-case'`
    — the rev-2 tip's 2.3%-per-run no-op is what made the review tip red.
-6. If approved, run the Wave-Close Checklist and flip the handoff Status.
+7. If approved, run the Wave-Close Checklist and flip the handoff Status.
 
 ## Blockers
 

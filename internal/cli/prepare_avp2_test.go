@@ -1036,11 +1036,20 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 			t.Fatal("a second tracked os.OpenRoot call site did not change the count")
 		}
 
-		// An untracked file in the working tree must not participate. This
-		// arm writes a real one — a leading dot keeps the go tool from
-		// building it — and asserts both that it is absent from the
+		// An untracked file must not participate in the population. This arm
+		// writes a real one and asserts both that it is absent from the
 		// population and that the count is unmoved.
-		scratchDir := filepath.Join(avpRepoRoot(t), fmt.Sprintf(".avp141-scratch-%d", os.Getpid()))
+		//
+		// It is written under the *git directory*, not under the working
+		// tree. A scratch `.go` file anywhere in the working tree is reported
+		// by `git ls-files --others --exclude-standard -- '*.go'`, which is
+		// exactly the wave-close untracked-source sentinel: a test
+		// interrupted between the write and t.Cleanup would leave source
+		// noise that the sentinel then flags. Nothing under the git directory
+		// is ever reported by that query, while `git ls-files` still excludes
+		// it for the same reason it excludes any untracked path — so the
+		// property under test is unchanged and the failure mode is removed.
+		scratchDir := filepath.Join(avpGitDir(t), fmt.Sprintf("%s-%d", avp141ScratchName, os.Getpid()))
 		if err := os.MkdirAll(scratchDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -1049,9 +1058,24 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if err := os.WriteFile(scratch, []byte(opener), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := os.Stat(scratch); err != nil {
+			t.Fatalf("the scratch file was not created, so this arm proves nothing: %v", err)
+		}
+		// `git ls-files` must not list it, and it must not be reported as an
+		// untracked working-tree file either.
+		for _, path := range gitLsFilesFromRepo(t) {
+			if strings.Contains(path, avp141ScratchName) {
+				t.Fatalf("git ls-files reported the scratch path %s", path)
+			}
+		}
+		for _, path := range gitUntrackedGoFiles(t) {
+			if strings.Contains(path, avp141ScratchName) {
+				t.Fatalf("the scratch file %s is reported as an untracked source file; an interrupted run would leave sentinel noise", path)
+			}
+		}
 		after := trackedProductionGoSources(t)
 		for path := range after {
-			if strings.Contains(filepath.ToSlash(path), ".avp141-scratch-") {
+			if strings.Contains(filepath.ToSlash(path), avp141ScratchName) {
 				t.Fatalf("the untracked scratch file %s entered the population", path)
 			}
 		}
@@ -1411,6 +1435,50 @@ func gitLsFilesFromRepo(t *testing.T) []string {
 	}
 	if len(paths) == 0 {
 		t.Fatal("git ls-files reported no tracked files")
+	}
+	return paths
+}
+
+// avp141ScratchName is the fixed component of the AVP-141 sensitivity arm's
+// scratch directory name, shared by the writer and every assertion that has to
+// recognise it.
+const avp141ScratchName = "avp141-scratch"
+
+// avpGitDir returns the repository's absolute git directory. Files written
+// there are outside the working tree, so no `git ls-files --others` query —
+// including the wave-close untracked-source sentinel — can ever report them,
+// even if a test is interrupted before its cleanup runs.
+func avpGitDir(t *testing.T) string {
+	t.Helper()
+	cmd := exec.Command("git", "rev-parse", "--absolute-git-dir")
+	cmd.Dir = avpRepoRoot(t)
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git rev-parse --absolute-git-dir: %v", err)
+	}
+	dir := strings.TrimSpace(string(output))
+	if dir == "" {
+		t.Fatal("git reported an empty git directory")
+	}
+	return dir
+}
+
+// gitUntrackedGoFiles is the wave-close untracked-source sentinel's own query,
+// restricted to Go files. The AVP-141 sensitivity arm asserts its scratch file
+// is absent from this list.
+func gitUntrackedGoFiles(t *testing.T) []string {
+	t.Helper()
+	cmd := exec.Command("git", "ls-files", "--others", "--exclude-standard", "-z", "--", "*.go")
+	cmd.Dir = avpRepoRoot(t)
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git ls-files --others: %v", err)
+	}
+	var paths []string
+	for _, entry := range strings.Split(string(output), "\x00") {
+		if entry != "" {
+			paths = append(paths, entry)
+		}
 	}
 	return paths
 }

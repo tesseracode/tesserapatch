@@ -284,14 +284,20 @@ func checkHumanLabels(rendered string) error {
 // whole file is not enough: `continue-on-error: true` anywhere in the file
 // would otherwise look like it belonged to every step.
 type workflowStep struct {
-	Job             string
-	Index           int
-	Name            string
-	If              string
-	Shell           string
-	Uses            string
-	Run             string
-	ContinueOnError bool
+	Job   string
+	Index int
+	Name  string
+	If    string
+	Shell string
+	Uses  string
+	Run   string
+	// ContinueOnError is the *raw* scalar as written, not a decoded bool.
+	// Decoding to a bool at parse time collapsed every non-literal form —
+	// `${{ true }}`, `!false`, `${{ vars.SOFT_FAIL }}` — onto `false`, i.e.
+	// onto "blocking", so an expression that GitHub evaluates to true at run
+	// time read as a blocking step to this guard. The raw text is retained so
+	// classifyContinueOnError can reject what it cannot evaluate statically.
+	ContinueOnError string
 }
 
 // parseWorkflowSteps parses the small YAML subset this repository's workflow
@@ -393,6 +399,11 @@ func parseWorkflowSteps(workflow string) ([]workflowStep, error) {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
+		// rawValue is the scalar exactly as written, before the quote and
+		// comment normalisation below. `continue-on-error` is compared
+		// against it so that `"true"` (a quoted string, not the YAML boolean)
+		// and every expression form stay distinguishable from the literal.
+		rawValue := value
 		if value == "|" || value == ">" || value == "|-" {
 			blockKey = key
 			blockLines = nil
@@ -422,7 +433,7 @@ func parseWorkflowSteps(workflow string) ([]workflowStep, error) {
 		case "run":
 			current.Run = value
 		case "continue-on-error":
-			current.ContinueOnError = value == "true"
+			current.ContinueOnError = rawValue
 		}
 	}
 	flush()
@@ -471,6 +482,67 @@ func platformCondition(step workflowStep) (windows bool, err error) {
 }
 
 // ---------------------------------------------------------------------------
+// continue-on-error ownership (AVP-175)
+// ---------------------------------------------------------------------------
+
+// continueOnErrorMode is the static classification of a raw `continue-on-error`
+// scalar. GitHub Actions accepts an arbitrary expression there, and an
+// expression's value is decided at run time from inputs this guard cannot see
+// (`vars.*`, `env.*`, `github.*`), so the guard admits only the two literals
+// and rejects everything else instead of guessing.
+type continueOnErrorMode int
+
+const (
+	continueOnErrorAbsent continueOnErrorMode = iota
+	continueOnErrorFalse
+	continueOnErrorTrue
+	continueOnErrorNonLiteral
+)
+
+// classifyContinueOnError maps a raw scalar onto the closed set above. Only
+// the bare YAML booleans `false` and `true` are literals: `"true"` is a
+// quoted string, `${{ true }}` and `!false` are expressions, and a bare
+// identifier is a variable reference.
+func classifyContinueOnError(raw string) continueOnErrorMode {
+	switch strings.TrimSpace(raw) {
+	case "":
+		return continueOnErrorAbsent
+	case "false":
+		return continueOnErrorFalse
+	case "true":
+		return continueOnErrorTrue
+	default:
+		return continueOnErrorNonLiteral
+	}
+}
+
+// requireBlockingContinueOnError is the ownership rule for anything that must
+// gate: the field is absent, or it is the exact literal `false`. Applied to
+// the `test` job and to every step in it except the single GH #17
+// allowed-failure step.
+func requireBlockingContinueOnError(scope, name, raw string) error {
+	switch classifyContinueOnError(raw) {
+	case continueOnErrorAbsent, continueOnErrorFalse:
+		return nil
+	case continueOnErrorTrue:
+		return fmt.Errorf("the %s %q is continue-on-error: true; it is advisory and gates nothing", scope, name)
+	default:
+		return fmt.Errorf("the %s %q declares continue-on-error: %s; only an absent field or the exact literal `false` is accepted here, because an expression is evaluated at run time from inputs this guard cannot see", scope, name, raw)
+	}
+}
+
+// requireAllowedFailureContinueOnError is the mirror rule for the one step
+// that is deliberately advisory: its ownership must be the exact literal
+// `true`, so the file states the demotion outright rather than deriving it
+// from an expression a reader would have to evaluate.
+func requireAllowedFailureContinueOnError(name, raw string) error {
+	if classifyContinueOnError(raw) != continueOnErrorTrue {
+		return fmt.Errorf("the allowed-failure step %q declares continue-on-error: %q; it must be the exact literal `true`", name, raw)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
 // Job-level workflow parsing (AVP-175)
 // ---------------------------------------------------------------------------
 
@@ -480,8 +552,11 @@ func platformCondition(step workflowStep) (windows bool, err error) {
 // proven to be blocking, and `needs:` is what makes the release job depend on
 // the test job at all.
 type workflowJob struct {
-	Name            string
-	ContinueOnError bool
+	Name string
+	// ContinueOnError is the raw scalar, for the same reason as the step-level
+	// field: a job-level `continue-on-error: ${{ true }}` demotes every step
+	// in the job and must not decode to "blocking".
+	ContinueOnError string
 	If              string
 	Needs           []string
 }
@@ -540,6 +615,7 @@ func parseWorkflowJobs(workflow string) (map[string]workflowJob, error) {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
+		rawValue := value
 		if len(value) >= 2 && value[0] == value[len(value)-1] && (value[0] == '"' || value[0] == '\'') {
 			value = value[1 : len(value)-1]
 		}
@@ -550,7 +626,7 @@ func parseWorkflowJobs(workflow string) (map[string]workflowJob, error) {
 		case "if":
 			job.If = value
 		case "continue-on-error":
-			job.ContinueOnError = value == "true"
+			job.ContinueOnError = rawValue
 		case "needs":
 			switch {
 			case value == "":

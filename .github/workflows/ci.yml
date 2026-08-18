@@ -119,10 +119,15 @@ jobs:
       # https://github.com/tesseracode/tesserapatch/issues/17 (GH #17), which
       # also owns deleting this step: when the suite is green on Windows this
       # step and the blocking step above collapse back into one blocking
-      # `go test ./...`. Until then the failures stay VISIBLE in this step and
-      # in the job log — the step's own conclusion and output are what a
-      # reader inspects — but they do not fail the job, so a tagged release
-      # remains publishable.
+      # `go test ./...`.
+      #
+      # Until then the failures are visible ONLY in this step's log output.
+      # `continue-on-error: true` maps the step's *conclusion* to `success`,
+      # so the step conclusion, the job conclusion and the run summary all
+      # report success and a reader has to open the job log to see the
+      # inventory. That is the accepted trade: the job stays green, so a
+      # tagged release remains publishable, and the blocking step above is
+      # what actually gates the GH #16 surface.
       - name: "Test (Windows full suite — allowed to fail, owned by GH #17)"
         if: runner.os == 'Windows'
         continue-on-error: true
