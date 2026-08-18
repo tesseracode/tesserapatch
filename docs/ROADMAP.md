@@ -962,6 +962,17 @@ schema migrations, and
 acknowledgement without replay bypass. Research/backlog only; the accepted
 `implement-prepare-intent-bundle` queue head is unchanged.
 
+**Mutating prepare intent bundle implementation** 🔨 IN PROGRESS
+(2026-08-18; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
+WAVE_BASE `3b579fc`): implement the accepted
+`PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14 contract. Pre-change
+goldens land first; strict order is S1b directory authority → S1 transaction
+core → S3 archive → S4 CLI → S4b retention, with S2 generator extraction
+joined before S4, then S5 doctor, S6 public parity and sequential S7
+cross-cutting hardening. The acceptance ledger is 567 contiguous PIB rows
+partitioned 15/75/42/24/142/17/48/31/173 across S1b/S1/S3/S2/S4/S4b/S5/S6/S7.
+No tag before joint acceptance.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

@@ -2,18 +2,14 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-`implement-prepare-check` is **ACCEPTED** at implementation tip `cacaaf8`
-(close/tracking commit on `main`), WAVE_BASE `9a8c1d0`, range
-`9a8c1d0..cacaaf8`. Rev-4 internal review APPROVED; rev-4 external review
-APPROVED with two LOW nonblocking AVP-175 parser notes and no product finding.
-CI run
-[32101270327](https://github.com/tesseracode/tesserapatch/actions/runs/32101270327)
-is green on Ubuntu, macOS and Windows.
-[GH #16](https://github.com/tesseracode/tesserapatch/issues/16) is closed. **No
-release tag** — this prerequisite ships with the later mutating-prepare
-release. Full archive: `docs/handoff/HISTORY.md` → 2026-08-17.
+`implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
+[GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
+rev-14 PRD + ADR-035 are authoritative, with strict implementation order
+`S1b → S1 → S3 → S4 → S4b`, pre-change goldens before producer refactors,
+then S5/S6 and sequential S7 hardening. No release tag is authorized before
+joint acceptance.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range
@@ -24,15 +20,14 @@ This backlog intake does not preempt the active prepare queue.
 ## Active Task
 
 - **Task ID**: `implement-prepare-intent-bundle`
-- **Issue**: none yet — must be opened before dispatch
+- **Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
 - **Description**: Implement the mutating `tpatch prepare <slug>` intent-bundle
   contract from the accepted `PRD-prepare-intent-bundle` rev-14 +
   `ADR-035-intent-bundle-publication-and-history` rev-14 (ADR-035 normative
   where they overlap).
-- **Status**: **Not Started — awaiting dispatch**
-- **Assigned**: unassigned
-- **WAVE_BASE**: none yet — record `git rev-parse origin/main` immediately
-  before the first implementer is dispatched
+- **Status**: **In Progress — dispatch and golden baseline**
+- **Assigned**: 2026-08-18
+- **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
   with this release
 
@@ -101,20 +96,14 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Open the tracking issue for `implement-prepare-intent-bundle` and link it
-   from the ROADMAP row and from this handoff.
-2. Record a fresh `WAVE_BASE` (`git fetch origin && git rev-parse origin/main`)
-   **before** the first implementer is dispatched, and put it in the dispatch
-   brief so `make wave-close-check WAVE_BASE=<sha>` is scoped correctly.
-3. Re-read `PRD-prepare-intent-bundle` rev-14 and `ADR-035` rev-14 and derive
-   the slice partition and sequence from them.
-4. Dispatch **sequentially**: the mutating prepare surface overlaps
-   `internal/cli/cobra.go`, `internal/cli/prepare.go` and `internal/intent/`,
-   and same-file overlap is a hard trigger for sequential execution
-   (`AGENTS.md` → Parallel-Implementer Discipline). Explicit-path staging only.
-5. Run the mutating implementation → joint internal/external review cycle to
-   acceptance, then plan the release that carries both this wave and the
-   accepted `prepare --check` prerequisite.
+1. Commit pre-change compatibility goldens for the S2, S5 and S1b
+   non-invalidation surfaces.
+2. Implement sequentially: S1b directory authority, S1 transaction core, S3
+   archive, S2 generators, S4 mutating CLI and S4b retention commands.
+3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
+   acceptance ledger and sensitivity hardening.
+4. Run joint internal/external review to acceptance; only then select the
+   release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
@@ -137,6 +126,8 @@ file, is the dispatch authority.
   not extend to writes.
 - The untracked research WIP in `git status` predates these waves and is
   covered by `.wave-close-allowlist`. Do not touch it.
+- GH #23's explicit file partition is authoritative. Stage exact files only;
+  never use `git add .`, `git add -A`, directory-scope adds or `git commit -a`.
 
 ## Side Research — State-of-the-art middle pass (2026-05-10)
 

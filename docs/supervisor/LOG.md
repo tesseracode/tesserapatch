@@ -1,3 +1,31 @@
+## Dispatch — implement-prepare-intent-bundle — 2026-08-18
+
+**Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
+**WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
+**Authorities**: `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14
+**Prerequisite**: GH #16 accepted and landed
+
+### Scope
+
+Implement all 567 PIB rows under the accepted slice partition. Pre-change
+goldens precede any refactor. Binding production order is S1b → S1 → S3 → S4
+→ S4b; S2 joins before S4, then S5/S6 and sequential S7 hardening.
+
+One implementer owns the shared worktree. Same-file overlap therefore stays
+sequential, every commit stages explicit file paths, and no broad add/commit
+form is permitted. Existing untracked research WIP is outside the dispatch.
+
+### Release Boundary
+
+No tag until implementation and joint review are accepted. The release will
+carry both the already-accepted read-only `prepare --check` prerequisite and
+the mutating bundle only after wave close.
+
+### Action Taken
+
+GH #23 opened, WAVE_BASE recorded before production edits, CURRENT moved to
+`IN PROGRESS`, and the golden-baseline phase dispatched.
+
 ## Internal Review — copilot-api feedback triage — 2026-08-18
 
 **Deliverable**:
