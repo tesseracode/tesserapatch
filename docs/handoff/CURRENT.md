@@ -275,6 +275,46 @@ Docs:
 - Routing goldens re-recorded from the `WAVE_BASE` binary under the hermetic
   environment produced byte-identical files.
 
+## CI Observation After Push (recorded, not acted on beyond scope)
+
+Run [`32086471429`](https://github.com/tesseracode/tesserapatch/actions/runs/32086471429)
+at `755b31e`:
+
+| Job | Result |
+|---|---|
+| `ubuntu-latest` | ✅ pass |
+| `macos-latest` | ✅ pass |
+| `windows-latest` | ❌ fail — **but for the first time it ran the suite** |
+
+`windows-latest` now clears `Verify formatting`, `go vet` and `Build`, and
+reaches `Test`. Package results on the Windows runner:
+
+- **`internal/intent`: PASS (64s)** — this is the hard acceptance criterion.
+  `TestAVPNativeWindows` executed on a real runner: `cmd /c mklink /J` created
+  a real junction, the junction was refused via `ModeIrregular` with no
+  `ModeSymlink` bit, a symlinked `spec.md` was `symlink-refused`, a reparse
+  `status.json` aborted `status-symlink-refused`, `os.SameFile` was true for
+  an unchanged file and false across a replacement, and a `FILE_TYPE_CHAR`
+  handle was refused as non-regular.
+- `assets`, `internal/buildinfo`, `internal/redact`, `internal/safety`,
+  `internal/testutil`, `internal/tools/studyvalidator`, `tests/integration`:
+  PASS.
+- `internal/cli`, `internal/gitutil`, `internal/provider`, `internal/rescap`,
+  `internal/store`, `internal/workflow`: FAIL — **192 distinct pre-existing
+  Windows failures**, plus a 10-minute per-package timeout in `internal/cli`
+  (`TestPatchGenerations_RecipeOnlySkipsGeneration`) and `internal/workflow`
+  (`TestRev2_UnlandedParentProbeFailureNeverReplays`).
+
+**Zero of the 192 failures are AVP, acceptance-ledger or `prepare` rows.**
+They are Windows path/symlink/permission assumptions in code this wave does
+not touch, which had never executed on Windows because the job always died at
+formatting in ~25 seconds. Fixing them is a separate, sizeable ticket and is
+explicitly out of this wave's authorized surface; raising the per-package
+timeout was likewise left alone, because it would only remove noise from a job
+that still fails for unrelated reasons. `windows-latest` was already red on
+`main` before this wave — the change is that its redness is now *true* instead
+of *vacuous*.
+
 ## Next Steps
 
 1. Reviewer: run the ledger (`go test ./internal/intent -run TestAcceptance`)
@@ -305,7 +345,11 @@ Docs:
 - Routing goldens must never be re-recorded from the current binary. If they
   need refreshing, reconstruct the `WAVE_BASE` binary in a temporary detached
   worktree exactly as the testdata `README.md` documents.
-- **Out of scope, pre-existing**: `GOOS=js GOARCH=wasm go build ./cmd/tpatch`
+- **Out of scope, pre-existing (2)**: the 192 Windows test failures above.
+  Recommend a dedicated ticket: "make the non-`intent` packages pass on
+  windows-latest", covering path separators, symlink/permission assumptions
+  and the two per-package 10-minute timeouts.
+- **Out of scope, pre-existing (1)**: `GOOS=js GOARCH=wasm go build ./cmd/tpatch`
   fails in `internal/rescap` (`pathopen_unix.go` references
   `syscall.O_NOFOLLOW` under a `!windows`-shaped tag). This reproduces at
   `WAVE_BASE` `9a8c1d0` unchanged and is the same failure class the rev-6
