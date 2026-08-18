@@ -962,7 +962,7 @@ schema migrations, and
 acknowledgement without replay bypass. Research/backlog only; the accepted
 `implement-prepare-intent-bundle` queue head is unchanged.
 
-**Mutating prepare intent bundle implementation** 🔨 IN PROGRESS
+**Mutating prepare intent bundle implementation** 🔨 IN PROGRESS — REV-15 EVIDENCE ERRATUM REVIEW
 (2026-08-18; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
 WAVE_BASE `3b579fc`): implement the accepted
 `PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14 contract. Pre-change
@@ -971,7 +971,13 @@ core → S3 archive → S4 CLI → S4b retention, with S2 generator extraction
 joined before S4, then S5 doctor, S6 public parity and sequential S7
 cross-cutting hardening. The acceptance ledger is 567 contiguous PIB rows
 partitioned 15/75/42/24/142/17/48/31/173 across S1b/S1/S3/S2/S4/S4b/S5/S6/S7.
-No tag before joint acceptance.
+Golden review found one impossible rev-14 premise: GH #16 never committed the
+standalone check-output paths PIB-391 required to pre-exist in its closed
+range. Rev-15 preserves the anti-no-op guarantee by VCS-binding record mode to
+the clean accepted `cacaaf8` binary and committing those fixtures before any
+mutating production edit. No behavior, ADR decision, matrix row/count or
+public surface changes. Production is paused for joint erratum review. No tag
+before joint acceptance.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

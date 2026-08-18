@@ -1,6 +1,7 @@
 # PRD — Prepare Intent Bundle — `tpatch prepare <slug>` (mutating modes)
 
-**Status**: **Accepted — 2026-08-14 (rev-14)**
+**Status**: **Accepted — 2026-08-14 (rev-14); rev-15 implementation-evidence
+erratum awaiting joint review**
 **Date**: 2026-08-14
 **Owner**: Core (planning lane)
 **Accepted**: 2026-08-14 at rev-14 — internal review **APPROVED** (no
@@ -8,7 +9,8 @@ findings), external review **APPROVED** (no findings). Accepted jointly with
 its companion [ADR-035](../adrs/ADR-035-intent-bundle-publication-and-history.md)
 rev-14, as §19 requires.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
-dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`
+dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`;
+rev-15 implementation evidence correction discovered by GH #23
 **Milestone**: TBD — this document ships no code
 **Issue**: [GH #11 — define the mutating prepare intent-bundle contract](https://github.com/tesseracode/tesserapatch/issues/11)
 **Graduates from**: [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md), Turns 2–4
@@ -23,16 +25,13 @@ accepted together.** ADR-035 locks the publication/history decisions; this PRD
 states the product contract that depends on them. Where they overlap,
 **ADR-035 is normative**.
 
-> **Implementation is still not authorized by this document.** The two
-> *document* acceptance conditions of §19 are now satisfied — this PRD and
-> ADR-035 are both Accepted at rev-14 (2026-08-14). The remaining gate is
-> §19(3): the accepted `prepare --check` contract
-> ([PRD-artifact-validation-and-provenance](./PRD-artifact-validation-and-provenance.md)
-> rev-5 + [ADR-034](../adrs/ADR-034-rooted-filesystem-inspection-boundary.md)
-> rev-2) must be **implemented and landed on `origin/main`** first (§17.1).
-> Until it is, no Go file, test, asset or CLI surface may change under this
-> PRD. §19 states the gate; §17.2 states the slices that become dispatchable
-> afterwards.
+> **Implementation sequencing prerequisite satisfied.** The accepted
+> `prepare --check` contract was implemented by GH #16 and landed on
+> `origin/main` before GH #23 recorded WAVE_BASE `3b579fc`. GH #23 may commit
+> pre-change tests/goldens, but no mutating production slice may land until
+> rev-15's evidence correction is jointly approved. The correction changes
+> only how PIB-391 proves which binary produced the frozen `--check` bytes; it
+> changes no command behavior, decision, matrix row, kind or count.
 
 ## Related
 
@@ -71,6 +70,7 @@ states the product contract that depends on them. Where they overlap,
 | rev-12 | Draft — Awaiting Review | Final bounded repair-sequencing, printed-command and state-domain fold of rev-11; no product choice is reopened. **Repair is sequential, one class per invocation, and a second class no longer bricks the first.** rev-11 admitted a repair only when its class was the *sole* class the global scan found, so an archive holding an unreferenced residue **and** a mixed hash had no admitted selector at all — the same brick rev-11 removed for two instances of one class, one level up. Rev-12 keeps the global scan total (it observes and reports **every** class, and every ordinary mutation still refuses zero-write) and admits **one chosen class** past it under four conjunctive conditions: the confirmed selection covers every instance of that class, no selected hash or object belongs to another class, the mutation provably cannot erase or degrade another class's evidence, and the report names every untouched class with its own route and states that a rerun is required. Same-hash overlapping observations collapse to **one** class by the fixed §9.3 precedence, so a selector can never straddle two classes silently (§9.3.1, §9.7.1, §9.7.2, §9.7.3, §10.5 step 22, new PIB-552…PIB-556, amended PIB-533/534/542/549). **The admissions are deterministic per class**: unreferenced residue ⇒ `--orphans --yes` (total over the class by construction); dangling and mixed ⇒ repeated `--blob <h> --yes` covering every hash of that class, with `--all --yes` admitted **only** when it is separately justified and its whole-archive blast radius is printed beside it; corrupt objects ⇒ no selector at all until the operator's own type-total removal has run, after which the hash is an ordinary dangling or unreferenced instance. **Printed-command parity.** Every emitted procedure and worked example drops `cp`, `cp -R`, `cp -P`, `readlink`, `git show`, `mv`, `rsync` and `tar`: the blob form emits exactly the type-total `rm -rf -- <validated repo-relative managed blob path>` beneath the destructive warning, the index-divergence form emits **no** command, and the preservation sentence tells the operator to stop and use tooling appropriate to the object's kind **without naming one** (§9.3.1, §9.7.2, §10.7, amended PIB-506/507/543/547, new PIB-559). **The owned-corrupt route is singular.** Any hash a purge transaction owns whose blob is present but non-regular or hash-wrong maps **only** to exit 6 `archive-purge-evidence-divergent`; rev-11's residual exit-3 `archive-index-storage-inconsistent` mapping for an unsafe/wrong pending blob is withdrawn from ADR D10, the X11 row, §10.4.1 and PIB-524/545/549, and the precedence that produces it — ownership first, unidentifiable bytes second — is pinned (new PIB-558). A **non-owned retained** reference beside an unidentifiable blob stays exit-3 `archive-blob-corrupt`. **The state map is total over a stated 4-tuple domain.** §9.3's domain is (this reference's wire state × the hash's single blob observation × global ownership × global liveness) = 36 tuples; three stated dependencies (a retained or removal-pending reference makes its hash live, a removal-pending reference makes it owned, and owned implies live) rule out 18, leaving **18 reachable tuples and exactly 18 rows**. The collapsed tombstoned/owned/present row splits on hash-correct versus unidentifiable, the tombstoned/absent/not-owned row splits on liveness, and the mis-stated “triple” wording is corrected in §9.3 (amended PIB-551; the residual occurrences in PIB-524 and in rev-11's own ledger row survived this revision, so “throughout” was over-stated and rev-13 finishes it). **Fixtures are real where a filesystem can make them.** Regular file, symlink, directory and FIFO are constructed on the real filesystem and the printed `rm -rf --` is executed verbatim against each; the device-node kind runs through an explicit injected file-kind seam where `mknod` needs privilege the CI user lacks, and that substitution is stated as a test limitation rather than hidden (new PIB-560, amended PIB-507/543). §21 gains the withdrawn sole-class rejection; §10.3 gains one advisory (`archive-repairs-remaining`, eighteen codes) and §10.2 one closed `remaining_repairs` object. Matrix: 560 rows; rev-12 amends listed stable rows and adds `PIB-552`…`PIB-560`. **Amended rows, exactly** — derived from the rev-12 diff `f06c2fd`→`f6bab00`, not from this prose: `PIB-226`, `PIB-227`, `PIB-506`, `PIB-507`, `PIB-524`, `PIB-533`, `PIB-534`, `PIB-542`, `PIB-543`, `PIB-545`, `PIB-547`, `PIB-549`, `PIB-551` — **thirteen**. rev-12's original ledger also claimed `PIB-548`, which its diff did not touch; rev-13 corrects that claim, amends the row for real, and adds the mechanical ledger guard that would have caught it (§18.1, PIB-548, PIB-567). |
 | rev-13 | Draft — Awaiting Review | Final bounded repair-ordering, ledger-parity, stage-truth, pending-route and guard-scope fold of rev-12; no product choice is reopened. **Corrupt objects are repaired first, and they block every tpatch selector until they are gone.** rev-12 let `--orphans --yes` clear residue beside a corrupt object and said the corrupt class “does not block the other two”. That is withdrawn. An unidentifiable object at a managed blob path — including one whose hash the index never mentions — is a `corrupt-object` instance and never removable residue, and while any instance exists **every** confirmed selector refuses exit 3 zero-write, `--orphans --yes` included, listing every corrupt object with its exact repo-relative path. The class's manual type-total `rm -rf --` prerequisite runs **first**; each removed object's hash is then reclassified from what remains — `dangling-reference` when a retained reference survives, **clean** (unreferenced, no file, in no class) when none does — and the already-admitted routes clear the rest. A closed **repair-class precedence** ranks `corrupt-object` first (**blocking**), then `dangling-reference`, `mixed-reference`, `unreferenced-residue`; that rank order is the report order and the closed set's declared order, and only rank 1 is blocking, so ranks 2–4 stay repairable in any order the operator chooses (§9.3 row 17, §9.3.1, §9.7.1, §9.7.2, §9.7.3, ADR D10/D16, new PIB-561…PIB-563, amended PIB-548/549/553). **Reports enumerate repair *stages*, not one invocation per class.** A stage is either the corrupt class's one manual prerequisite or one confirmed purge invocation admitted for one class; the corrupt class contributes a prerequisite stage plus, where a retained reference survives, membership in the **dangling** class's stage rather than a stage of its own — so three classes can need two tpatch invocations, and rev-12's “the total tpatch invocation count is exactly one per class” is **withdrawn**. `remaining_repairs` carries the ordered closed `stages[]`, `stages_remaining` and `next_stage` in place of rev-12's `classes[]`, and is emitted on the admitted exit-0 form **and** on the archive-integrity exit-3 refusal, so the first refusal an operator sees already carries the whole plan and its next stage (§9.3.1, §10.2, §10.3, new PIB-564, amended PIB-226/227/552/553/556). **Pending routes are narrowed to the exact pending set.** Every `prepare`, `abandon` and recovery emitter that observes removal-pending references names repeated `--blob <h> --yes` over exactly the hashes it observed, never `--all --yes`: the pending recovery is selector-independent, so the narrow selector performs the identical recovery under a bounded blast radius (§6.2, §6.6 rule 8, §7.8 step 5, §10.4.1, §10.5 step 13, new PIB-566, amended PIB-453/525). PIB-557 becomes **total over every emitter that prints an `--all` command line**, the selector-preserving retries included, each carrying the whole-archive blast radius, the preview-first default and the narrower repeated-`--blob` alternative adjacent to the command (amended PIB-528/557). **Output and guard cleanup.** A successful confirmed purge is pinned at `outcome: "purged"`, `action: "none"`, and the confirmed form is total over `purged`/`no-op`/`recovered`/`purge-partial`/`refused`; `repair_cwd` joins the closed vocabulary; every residual **normative** “triple” becomes “tuple” — normative uses only; occurrences that quote the corrected term itself, and the meta references in this revision history, §18.1 and PIB-567's own ledger-guard text, are deliberately preserved; and the forbidden-command guard is re-scoped from a substring scan to a **tokenizer** over emitted command lines with a closed argv[0] allowlist, so the mandatory caveat “it is still in this repository's Git history” no longer matches while a backticked or option-shaped `cp -R`, `cp -P`/`readlink` or `git show` still does; §9.5's `cp` restore stays permitted form (1) on its one surface, and the residual the tokenizer cannot reach is disclosed rather than claimed closed (§10.2, §10.7, new PIB-565, amended PIB-547/559; `PIB-524` is amended **fixture-only**, inside its §18.53 semantic-fixture entry, and its matrix row is unchanged). Matrix: 567 rows; rev-13 amends listed stable rows and adds `PIB-561`…`PIB-567` in new category **AX**. **Amended rows, exactly** — derived from the rev-13 diff `f6bab00`→that revision's writer tip `8f1cc8a`, not from this prose: `PIB-226`, `PIB-227`, `PIB-453`, `PIB-525`, `PIB-528`, `PIB-547`, `PIB-548`, `PIB-549`, `PIB-552`, `PIB-553`, `PIB-556`, `PIB-557`, `PIB-559` — **thirteen**. `PIB-524` is **not** among them: rev-13 amends it **fixture-only**, inside its §18.53 semantic-fixture entry, and leaves its acceptance-matrix row byte-identical (rev-14 errata). |
 | rev-14 | **Accepted — 2026-08-14** | **Errata only.** No product decision, exit code, state machine, vocabulary, class ranking, stage arithmetic or acceptance-matrix count is reopened or changed; the matrix stays at **567** rows and the claims set at **C1…C176**. Three corrections to rev-13's own record. **(1) Ledger parity.** rev-13's revision-history row and §18.1 listed `PIB-524` among its amended matrix rows. The rev-13 diff `f6bab00`→`8f1cc8a` changed that ID only inside its §18.53 semantic-fixture entry, so the amendment is **fixture-only**; `PIB-524` is removed from both amended-row lists, the count drops from fourteen to **thirteen**, and the fixture-only status is stated where the claim used to be — the defect class PIB-567 exists to catch, caught by PIB-567's own criterion. **(2) Scoped “throughout” claims.** rev-13's “every residual ‘triple’ becomes ‘tuple’” is qualified to **normative** uses: quoted references to the corrected term itself and the meta references in this revision history, §18.1 and PIB-567's guard text are deliberately preserved, and PIB-567's fixture and §18.53 entry are reworded to test the qualified claim rather than an unqualified scan. **(3) Corrupt-class scope.** Two sentences stated the rank-1 `corrupt-object` classification over *every* object at a managed blob path, which read as classifying **owned** hashes and contradicted the frozen rev-12 closure that an owned hash whose blob is unsafe or hash-wrong routes only to the owning transaction's **exit 6** `archive-purge-evidence-divergent`. §9.3.1's X11 cell and §9.7.3's orphan-exclusion sentence are scoped to **non-owned** hashes, with the owned route restated inline. The state machine, the precedence ranking and the blocking rule are unchanged for non-owned hashes. Also corrected: PIB-565's “twelfth” `outcome` token becomes **thirteenth** (rev-13 added `purged`, making the closed set twelve), §19's ADR-035 gate reads rev-14, and the claim anchors re-base to dispatch `a2a6479` / reviewed tip `8f1cc8a`. **Amended rows, exactly** — derived from the rev-14 diff `8f1cc8a`→this revision, not from this prose: `PIB-565`, `PIB-567` — **two**, each also amended in the matching §18.53 semantic-fixture entry with the same wording. No row is added, retired, renumbered or re-kinded, and no other matrix row changes. |
+| rev-15 | Proposed implementation-evidence erratum | GH #23 proved that rev-14's PIB-391 premise was historically false: GH #16 committed executable AVP tests and routing goldens, but no standalone ready/not-ready/abort `prepare --check` output files. Requiring those paths to have been committed in a closed past range is impossible without rewriting accepted history. The corrected rule preserves the intended anti-no-op property: GH #23 records the output fixtures **before any mutating production edit**, drives them with a clean binary whose embedded `vcs.revision` is the accepted GH #16 tip `cacaaf8` and `vcs.modified=false`, refuses record mode with any other producer, and makes comparison mode build current code with no baseline override. Existing accepted check test/routing histories remain pinned. No product decision, output byte, exit, state, row ID, kind, count or ADR decision changes; PIB-391 and its sensitivity wording alone are amended, and §17.1/§19 record the now-satisfied prerequisite. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review of the rev-14 errata fold; both reviewers returned
@@ -6184,14 +6184,21 @@ and they are hard:
    implementation has landed on `origin/main` and its own acceptance matrix
    passes.** Not "is in flight", not "is in the same cluster": landed and
    green.
-2. **Its goldens must be produced by its own implementation, not by this
-   cluster.** A golden captured from a binary this cluster built, and then
-   compared against a binary this cluster built, proves nothing — it is
-   precisely the no-op-versus-no-op comparison the accepted contract warns
-   about (`docs/prds/PRD-artifact-validation-and-provenance.md:3515-3520`).
-   PIB-198 … PIB-207 compare against goldens committed by the `--check`
-   implementation cluster, and PIB-391 asserts the golden fixtures' provenance
-   is that commit range rather than this one.
+2. **Its goldens must be produced by its accepted implementation, not by a
+   binary containing this cluster's mutating production changes.** GH #16
+   committed executable AVP tests but no standalone ready/not-ready/abort
+   output files, so rev-14's requirement that those nonexistent paths already
+   have Git history in the closed GH #16 range is impossible without rewriting
+   accepted history. GH #23 therefore commits the output fixtures in its
+   **pre-production golden commit**, drives record mode with a clean binary
+   whose embedded `vcs.revision` is exactly accepted GH #16 tip `cacaaf8` and
+   whose `vcs.modified` is false, and makes normal comparison mode build
+   current code while refusing a supplied baseline binary. A fixture recorded
+   from the GH #23 baseline/current binary fails before it can be written.
+   This preserves the no-op-versus-no-op protection the accepted contract
+   requires (`docs/prds/PRD-artifact-validation-and-provenance.md:3515-3520`)
+   without making a false path-history claim. PIB-198 … PIB-207 consume those
+   fixtures; PIB-391 proves their producer identity and ordering.
 3. **S1b — rescap non-invalidation.** S1b does not move
    `internal/rescap`'s file lock. Its existing goldens, including contention
    and unsupported-platform refusal text, remain byte-identical; PIB-286,
@@ -7182,7 +7189,7 @@ stays at **567**, §18.52's arithmetic is untouched, and §18.53 stays at
 | PIB-388 | G | sensitivity fixture for the redaction-message rule | a fixture message containing a matched substring makes the guard fail |
 | PIB-389 | G | all six skill files | none presents the archive as a general history or undo facility |
 | PIB-390 | G | all six skill files | each states that `--regenerate` requires a provider unless `--allow-heuristic` is passed |
-| PIB-391 | G | the `--check` golden fixtures used by PIB-198 … PIB-207 | their provenance is the accepted `--check` implementation's commit range, not this cluster's; a fixture regenerated by this cluster's binary fails the guard |
+| PIB-391 | G | the `--check` golden fixtures used by PIB-198 … PIB-207 | the fixtures are committed before any GH #23 mutating production edit; record mode requires a clean producer binary with embedded `vcs.revision == cacaaf8` (the accepted GH #16 tip) and refuses the GH #23 baseline/current binary, while comparison mode always builds current code and refuses every supplied baseline override |
 
 ### 18.40 AM — Rev-2 adjudication rows, amended by rev-3
 
@@ -7513,7 +7520,7 @@ wrong, and the guard must still fail:
 | PIB-267 redaction non-override | a help string offering "skip the scan for trusted repositories" without the token `--force` |
 | PIB-342 clone-durability | a sentence claiming durable recovery that never uses the word "clone" |
 | PIB-356 availability truth | a `list` rendering that reports a hash as unavailable while another generation still retains it, and one that names `--orphans --yes` as the repair for a live blob |
-| PIB-391 golden provenance | a golden file with the right bytes committed by the wrong commit range |
+| PIB-391 golden provenance | a recorder supplied the GH #23 baseline binary with the right output bytes, or a comparison run supplied the accepted baseline binary so it compared the fixture with itself; both must fail before comparison/recording |
 | PIB-459 single dangling repair | a remediation that offers "supply the original bytes and re-run" without using the word "rehydrate" |
 | PIB-471 holder identity | a diagnostic string that says "no prepare is currently running" without naming a lock, holder or probe |
 | PIB-477 provenance schema scope | a wire struct whose key is spelled `produced_by` rather than `generator`, and a canonical-prose fixture containing the word `generator` that must **pass** |
@@ -7550,26 +7557,28 @@ sensitivity fixture covers the derivation).
 
 ## 19. Implementation authorization gate
 
-**No implementation is authorized by this document yet.** Conditions (1) and
-(2) are **satisfied**; condition (3) is **not**.
+**The sequencing prerequisite is satisfied.** Conditions (1)–(3) are complete
+and GH #23 has dispatched condition (4). Until rev-15's bounded evidence
+erratum is jointly approved, only its pre-change test/golden commit is
+authorized; mutating production slices remain paused.
 
 1. ✅ This PRD must be accepted. — **Accepted 2026-08-14 at rev-14** (internal
    and external review both APPROVED, no findings).
 2. ✅ **ADR-035 must be accepted.** — **Accepted 2026-08-14 at rev-14**,
    jointly with this PRD, as the review contract required; a writer cannot
    accept its own ADR, so the two were reviewed and accepted together.
-3. ⬜ **The accepted `prepare --check` PRD must be implemented, landed on
+3. ✅ **The accepted `prepare --check` PRD must be implemented, landed on
    `origin/main`, and passing its own acceptance matrix** — §17.1. Its goldens
-   must come from that implementation's commit range, not from this cluster
-   (PIB-391). **This is the only remaining blocker.**
-4. Only then may the cluster lead declare the §17.2 file partition and
-   dispatch, beginning with S1b's pre-change `feature resource` goldens.
+   are produced by its accepted `cacaaf8` binary under rev-15's corrected
+   PIB-391 rule. — **Satisfied by GH #16 before WAVE_BASE `3b579fc`.**
+4. ✅ The cluster lead declares the §17.2 file partition and dispatches,
+   beginning with pre-change goldens before S1b. — **GH #23 dispatched
+   2026-08-18; production awaits rev-15 joint approval.**
 
-Until (3) holds, no file under `cmd/`, `internal/`, `assets/`,
-`tests/`, and no change to `SPEC.md` or `CHANGELOG.md`, is authorized by this
-PRD. The block is a **sequencing** prerequisite on the read-only contract's
-implementation, not an unresolved planning-review question: the planning
-review of this PRD and ADR-035 is closed.
+The sequencing block is closed. Rev-15 is not a product-design reopening: it
+corrects one impossible evidence predicate discovered while implementing the
+mandatory golden-first step. Once jointly approved, the §17.2 production order
+continues unchanged.
 
 ## 20. Open questions
 

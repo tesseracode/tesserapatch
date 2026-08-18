@@ -1,3 +1,36 @@
+## Writer — prepare intent bundle rev-15 evidence erratum — 2026-08-18
+
+**Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
+**WAVE_BASE**: `3b579fc`
+**Affected criterion**: PIB-391 only
+
+### Discovery
+
+The mandatory golden-first review proved rev-14's path-history premise
+unfulfillable: GH #16 committed executable AVP tests and routing fixtures, but
+no standalone ready/not-ready/abort `prepare --check` output files. Requiring
+those nonexistent paths to have been committed in the already-closed GH #16
+range would require rewriting accepted history.
+
+### Revision
+
+Rev-15 preserves the intended anti-no-op property:
+
+- eight check-output fixtures are driven by a clean binary whose embedded
+  revision is accepted GH #16 tip `cacaaf8`;
+- record mode rejects an empty/wrong revision or modified producer;
+- comparison mode always builds current code and rejects supplied baselines;
+- fixtures land in GH #23's pre-production golden commit;
+- a wrong-producer/self-comparison sensitivity must fail.
+
+No product behavior, output, exit, state, vocabulary, ADR-035 decision, matrix
+row, kind or count changes.
+
+### Action Taken
+
+CURRENT moved to `AWAITING REVIEW`; production slices paused. Rev-15 dispatched
+for joint internal/external review before the golden commit or S1b lands.
+
 ## Dispatch — implement-prepare-intent-bundle — 2026-08-18
 
 **Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)

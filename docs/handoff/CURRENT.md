@@ -2,14 +2,18 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
 rev-14 PRD + ADR-035 are authoritative, with strict implementation order
 `S1b → S1 → S3 → S4 → S4b`, pre-change goldens before producer refactors,
 then S5/S6 and sequential S7 hardening. No release tag is authorized before
-joint acceptance.
+joint acceptance. Golden implementation review discovered that rev-14
+PIB-391 required standalone `prepare --check` output files to have been
+committed by GH #16, but GH #16 committed no such paths. Rev-15 corrects only
+that impossible evidence predicate and is awaiting joint review; production
+slices are paused.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range
@@ -25,7 +29,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-14 +
   `ADR-035-intent-bundle-publication-and-history` rev-14 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — dispatch and golden baseline**
+- **Status**: **Awaiting Review — rev-15 evidence erratum**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -96,18 +100,20 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit pre-change compatibility goldens for the S2, S5 and S1b
-   non-invalidation surfaces.
-2. Implement sequentially: S1b directory authority, S1 transaction core, S3
+1. Jointly review PRD rev-15's bounded PIB-391 producer-evidence correction.
+2. On approval, commit the complete pre-change compatibility golden suite.
+3. Implement sequentially: S1b directory authority, S1 transaction core, S3
    archive, S2 generators, S4 mutating CLI and S4b retention commands.
-3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
+4. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
-4. Run joint internal/external review to acceptance; only then select the
+5. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- None. No wave is in flight.
+- Mutating production slices cannot land until rev-15's implementation-
+  evidence erratum is jointly approved. The check behavior, ADR-035 decisions,
+  567-row matrix and every public contract remain unchanged.
 
 ## Context for Next Agent
 
