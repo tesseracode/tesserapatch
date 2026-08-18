@@ -1,3 +1,59 @@
+## Dispatch — implement-prepare-check rev-3 — 2026-08-17
+
+**Implementation tip**: `40ae5c2`
+**Tracking tip**: `b95232e`
+**Verdicts**: internal NEEDS REVISION (inventory); external APPROVED WITH NOTES
+
+### Scope
+
+- Make mixed-case land-test mutation deterministic and obtain a green tip.
+- Guard job-level continue-on-error, exact step conditions and release needs.
+- Pin blocking Windows packages, native row loop and leaf floor.
+- Replace AVP-141's remaining untracked working-tree source walk.
+- Correct Windows inventory to 200 top-level / 283 including subtests, no
+  timeout at 20 minutes.
+
+### Action Taken
+
+One sequential rev-3 implementer dispatched. Product behavior is frozen;
+mutating prepare remains blocked.
+
+## External Review — implement-prepare-check rev-2 — 2026-08-17
+
+**Implementation tip**: `40ae5c2`
+**Tracking tip**: `b95232e`
+
+### Verdict: APPROVED WITH NOTES
+
+### Close Blockers
+
+- Review tip red from a 2.3%-probability pre-existing mixed-case test no-op.
+- AVP-175 misses job-level allowed failure, false condition conjuncts, blocking
+  package/leaf shrinkage and release-needs removal.
+- AVP-141 still scans untracked worktree files.
+
+### Verified
+
+Blocking native Windows leaves execute and pass; Windows full suite remains
+visible; release dependency is currently satisfied; AVP/status/routing guards
+and all prior findings are otherwise closed.
+
+## Internal Review — implement-prepare-check rev-2 — 2026-08-17
+
+**Implementation tip**: `40ae5c2`
+**Tracking tip**: `b95232e`
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+CI/tracking says 192 failures and two timeouts; the current run shows 200
+top-level failures (283 including subtests) and no timeout at 20 minutes.
+
+### Verified
+
+All code, AVP, native Windows and guard changes pass.
+
 ## Writer — implement-prepare-check rev-2 — 2026-08-17
 
 **CI implementation**: `36f23b3`

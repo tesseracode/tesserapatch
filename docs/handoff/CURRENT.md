@@ -2,13 +2,11 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: REV-3 DISPATCHED
 
-Rev-2 closes the external rev-1 CI blocker and the eight narrow guard
-findings. `windows-latest` now carries a **blocking** gate over the GH #16
-surface and a **visible, allowed-to-fail** full-suite step owned by
-[GH #17](https://github.com/tesseracode/tesserapatch/issues/17). No product
-behavior changed in rev-2. No mutating prepare mode is authorized.
+Rev-2 closes the external rev-1 findings and is accepted in product behavior,
+but final review found a red-tip flake and CI/source-guard vacuity. Rev-3 is
+dispatched. No mutating prepare mode is authorized.
 
 ## Active Task
 
@@ -16,7 +14,7 @@ behavior changed in rev-2. No mutating prepare mode is authorized.
 - **Issue**: [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)
 - **Description**: Implement
   `PRD-artifact-validation-and-provenance` rev-5 + ADR-034 rev-2.
-- **Status**: Rev-2 implemented; awaiting joint review
+- **Status**: Rev-3 dispatched after APPROVED / APPROVED WITH NOTES
 - **Assigned**: 2026-08-17
 - **WAVE_BASE**: `9a8c1d049bb973ccf377bd9f0fa67d7080d2d773`
 - **Release tag**: none assigned; this prerequisite must be reviewed before any
@@ -183,6 +181,33 @@ closed below.
 
 No test was added outside these findings, and no production file changed in
 rev-2.
+
+## Rev-2 Review and Rev-3 Adjudication
+
+**Internal verdict**: NEEDS REVISION (stale Windows inventory text only)
+**External verdict**: APPROVED WITH NOTES (close blockers)
+**Implementation tip**: `40ae5c2`
+**Tracking tip**: `b95232e`
+
+1. **Green tip.** Fix the pre-existing mixed-case base-commit test so its
+   mutation can never be a no-op when the SHA prefix contains only digits.
+2. **CI job-level signal.** AVP-175 must reject job-level
+   `continue-on-error`, require `release.needs: test`, and permit only exact
+   Windows/non-Windows `if` expressions without hidden false conjuncts.
+3. **Blocking surface integrity.** Pin the full blocking Windows package list,
+   native row loop and minimum leaf count; fail if packages/leaves move into the
+   allowed-failure step.
+4. **Remaining source walk.** Convert AVP-141's `os.OpenRoot` call-site scan
+   from working-tree `WalkDir`/`.golden-baseline` exemption to tracked files.
+5. **Tracking truth.** Replace 192/timeouts with the observed rev-2 inventory:
+   200 top-level failures (283 including subtests), six packages, no timeout at
+   20 minutes.
+6. **Guard cleanup.** Fold AVP-168/134/175 sensitivity refinements and the
+   remaining non-blocking Windows/comment/source notes without changing product
+   behavior.
+
+The 208-row matrix, native Windows behavior, status mirror, routing goldens and
+accepted PRD/ADR errata are frozen.
 
 ## Session Summary — rev-1
 

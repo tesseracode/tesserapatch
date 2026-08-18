@@ -890,7 +890,7 @@ Both rev-3 reviewers approved the research. Issues #12–#15 remain open as
 planning backlog; no implementation or architecture decision is authorized.
 `implement-prepare-check` is restored as the next task.
 
-**Implement read-only `tpatch prepare --check` rev-2** 🚧 AWAITING REVIEW
+**Implement read-only `tpatch prepare --check` rev-3** 🔨 IN PROGRESS
 (2026-08-17; WAVE_BASE `9a8c1d0`;
 [GH #16](https://github.com/tesseracode/tesserapatch/issues/16)): implement the
 accepted artifact-validation/provenance PRD rev-5 + ADR-034 rev-2, including
@@ -910,6 +910,9 @@ tagged releases, and tighten narrow guard holes.
 Rev-2 landed across `36f23b3`, `69dfe7c`, and `40ae5c2`; CI run
 [32093250847](https://github.com/tesseracode/tesserapatch/actions/runs/32093250847)
 is green on Ubuntu, macOS and Windows. Joint review is pending.
+Rev-2 product behavior is approved; rev-3 closes a nondeterministic pre-existing
+land-test failure, job-level/condition/package/release guard vacuity, the last
+untracked source scan, and stale Windows inventory wording.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
