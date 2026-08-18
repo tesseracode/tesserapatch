@@ -1,3 +1,33 @@
+## Writer — implement-prepare-check rev-1 — 2026-08-17
+
+**Implementation**: `2cbccf6`
+**Windows checkout fix**: `755b31e`
+**CI observation fold**: `b98fac9`
+**Dispatch**: `7c06a12`
+
+### Revision
+
+- Added full FeatureStatus-compatible local status decoding and parity guard.
+- Folded accepted PRD rev-6 / ADR-034 rev-3 build-half errata.
+- Added 208-row AVP ledger, 43 guards and paired sensitivity fixtures.
+- Added broad injected ladder/race/read/allocation/abort/lifecycle coverage.
+- Added native Windows junction/reparse/identity tests.
+- Reconstructed 12 pre-change routing goldens from WAVE_BASE.
+- Added typed abort/readiness catalogs and invariant panics.
+
+### CI Observation
+
+The Windows job previously died at CRLF formatting before tests. LF checkout
+now lets it run: `internal/intent` and its native Windows assertions pass;
+unrelated packages expose 192 pre-existing Windows failures/timeouts.
+
+### Action Taken
+
+Rev-1 returned to joint review. Review must decide whether the accepted native
+Windows obligation is satisfied by the passing intent surface or whether a
+green full-repository Windows job remains a hard gate. Mutating prepare remains
+blocked.
+
 ## Dispatch — implement-prepare-check rev-1 — 2026-08-17
 
 **Writer tip**: `0440337`
