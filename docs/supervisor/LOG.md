@@ -1,3 +1,25 @@
+## Verification — prepare S4 blocking CI rev-1 — 2026-08-19
+
+**Commit**: `5853ba7`
+**CI**:
+[32280073787](https://github.com/tesseracode/tesserapatch/actions/runs/32280073787)
+
+### Verdict: NEEDS REVISION
+
+Ubuntu, macOS and the blocking Windows surface all reached the same two
+tracked-source guard failures. AVP-134 still allowed only
+`internal/cli/prepare.go` to import `internal/intent`, although accepted S4
+explicitly adds `prepare_publish.go`. AVP-141 still required one module-wide
+`os.OpenRoot` call, although the frozen check path remains one-open/one-close
+and S4 adds two separately owned mutating call sites.
+
+### Action Taken
+
+The bounded correction keeps exact importer and call-site populations plus
+their extra-tracked-file and untracked-file sensitivities. No fixture is
+re-recorded and no product path changes. S4 remains in progress until the
+follow-up commit passes blocking three-platform CI.
+
 ## Review — prepare S4 mutating CLI rev-1 — 2026-08-19
 
 **Reviewer**: Copilot code-review

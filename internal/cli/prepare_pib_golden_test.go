@@ -229,7 +229,7 @@ var acceptedCheckSourceProvenance = map[string]struct {
 	},
 	"internal/intent/avp_source_scans_test.go": {
 		SHA256:  "ce2768f222833e90fc9da07e0cd5e47aa1e4174531ed38e4d3263798f3a54489",
-		History: []string{routingReadmeCommit, routingFixtureCommit}, FreezeCurrent: true,
+		History: []string{routingReadmeCommit, routingFixtureCommit},
 	},
 	"internal/intent/avp_status_test.go": {
 		SHA256:  "09b5e2be4da6586e0e996d39caae50db7545c93ebf152ef0116dd5de71632fe1",

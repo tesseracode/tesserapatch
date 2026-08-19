@@ -35,8 +35,17 @@ skipped). S2 landed at `16d614a`; CI
 [32229096085](https://github.com/tesseracode/tesserapatch/actions/runs/32229096085)
 is green on all three platforms.
 
-S4 mutating prepare is internally approved pending its explicit-path commit
-and blocking CI. Its first independent code review
+S4 mutating prepare is committed and pushed at `5853ba7`, but its first
+blocking CI run
+[32280073787](https://github.com/tesseracode/tesserapatch/actions/runs/32280073787)
+failed deterministically on two pre-S4 source guards that only saw
+`prepare_publish.go` after it became tracked. AVP-134 still admitted one
+`internal/intent` importer instead of the accepted S4 pair, and AVP-141 still
+expected one module-wide `os.OpenRoot` site instead of the frozen check site
+plus S4's two mutating sites. The correction retains exact file/site
+allowlists and sensitivity arms; no product behavior changes.
+
+Before that CI blocker, S4 was internally approved. Its first independent code review
 returned NEEDS REVISION on exit-3 writes after stale cleanup/staging, use of a
 pre-authority artifact snapshot, unsafe abandon rollback, lost deadline
 classification and repeated human rollback sections. The revision re-inspects
@@ -62,7 +71,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S4 internally approved, pre-commit validation**
+- **Status**: **In Progress — S4 CI guard revision**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -166,11 +175,17 @@ file, is the dispatch authority.
   — green on Ubuntu, macOS and Windows.
 - Side Research EOF tail remains
   `b385fe622db9926f48861105239f113e`.
+- S4 blocking CI
+  [32280073787](https://github.com/tesseracode/tesserapatch/actions/runs/32280073787)
+  — FAILED only AVP-134 and AVP-141 on stale pre-S4 tracked-source
+  allowlists; revision in progress.
+- Corrected AVP-134/AVP-141 targeted tests, the exact 51-fixture/provenance
+  guards and `go test -p=1 -count=1 ./...` from the tracked S4 state — PASS.
 
 ## Next Steps
 
-1. Commit S4 through explicit-path staging, push and require blocking
-   three-platform CI.
+1. Land the bounded AVP-134/AVP-141 tracked-source guard correction and require
+   blocking three-platform CI.
 2. Continue sequentially with S4b retention commands.
 3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.

@@ -1011,7 +1011,10 @@ is green on Ubuntu, macOS and Windows. S4 mutating CLI is in revised review
 after closing its first review's transaction-order, authority-snapshot,
 abandon-rollback, deadline-classification and report-shape findings. Focused
 re-review caught and closed one exit-6 staging-error demotion, then returned
-APPROVED; explicit-path commit and blocking three-platform CI remain.
+APPROVED. S4 is pushed at `5853ba7`; blocking CI run 32280073787 failed only
+the stale pre-S4 AVP-134/AVP-141 tracked-source allowlists after
+`prepare_publish.go` became tracked. Their exact S4 importer/root-open
+population correction is active; product behavior is unchanged.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

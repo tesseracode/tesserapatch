@@ -89,8 +89,8 @@ func TestAVPSourceScans(t *testing.T) {
 	})
 
 	t.Run("AVP-134", func(t *testing.T) {
-		// The reverse call graph: only the prepare command file imports the
-		// inspector. The population is the set of **tracked** non-test Go
+		// The reverse call graph: only the two prepare command files import
+		// the inspector. The population is the set of **tracked** non-test Go
 		// files, taken from `git ls-files`. Walking the working tree instead
 		// made the row fail for reasons that have nothing to do with the call
 		// graph: a detached `git worktree` checked out inside the repository,
@@ -106,7 +106,7 @@ func TestAVPSourceScans(t *testing.T) {
 	t.Run("AVP-134/sensitivity", func(t *testing.T) {
 		const inspectorImport = `"github.com/tesseracode/tesserapatch/internal/intent"`
 
-		// A tracked second importer must fail the row.
+		// A tracked non-prepare importer must fail the row.
 		extra := map[string]string{}
 		for path, source := range trackedGoSources(t) {
 			extra[path] = source
@@ -117,7 +117,7 @@ func TestAVPSourceScans(t *testing.T) {
 			t.Fatal("a tracked forbidden importer passed the row")
 		}
 
-		// Losing the one authorized importer must fail it too.
+		// Losing the authorized prepare importer set must fail it too.
 		if err := checkInspectorImporters(map[string]string{
 			filepath.Join("internal", "cli", "phase2.go"): "package cli\n\nimport " + inspectorImport + "\n",
 		}); err == nil {
@@ -216,8 +216,8 @@ func trackedGoSources(t *testing.T) map[string]string {
 	return sources
 }
 
-// checkInspectorImporters is the AVP-134 body: exactly one tracked production
-// file may import the inspector, and it must be the prepare command.
+// checkInspectorImporters is the AVP-134 body: only the tracked prepare
+// command implementation files may import the inspector.
 func checkInspectorImporters(sources map[string]string) error {
 	const path = `"github.com/tesseracode/tesserapatch/internal/intent"`
 	var importers []string
@@ -227,9 +227,12 @@ func checkInspectorImporters(sources map[string]string) error {
 		}
 	}
 	sort.Strings(importers)
-	want := filepath.Join("internal", "cli", "prepare.go")
-	if len(importers) != 1 || importers[0] != want {
-		return fmt.Errorf("internal/intent is imported by %v, want only %s", importers, want)
+	want := []string{
+		filepath.Join("internal", "cli", "prepare.go"),
+		filepath.Join("internal", "cli", "prepare_publish.go"),
+	}
+	if len(importers) != len(want) || importers[0] != want[0] || importers[1] != want[1] {
+		return fmt.Errorf("internal/intent is imported by %v, want only %v", importers, want)
 	}
 	return nil
 }

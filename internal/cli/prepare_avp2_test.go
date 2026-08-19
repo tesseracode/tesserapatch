@@ -971,6 +971,8 @@ func firstLifecycleLine(rendered string) string {
 // ---------------------------------------------------------------------------
 
 func TestAVPRootLifetimeAndDifferential(t *testing.T) {
+	const moduleOpenRootCallSites = 3
+
 	t.Run("AVP-141", func(t *testing.T) {
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, filepath.Join(avpRepoRoot(t), "internal", "cli", "prepare.go"), nil, 0)
@@ -1005,7 +1007,8 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if closes != 1 {
 			t.Fatalf("root.Close has %d call sites, want exactly 1", closes)
 		}
-		// The whole module must contain no other OpenRoot in production code.
+		// The module has this accepted read-only root plus the two S4 mutating
+		// prepare call sites. No other production file may add one.
 		// The population is the set of **tracked** non-test Go files, taken
 		// from `git ls-files`; walking the working tree instead made this row
 		// depend on whatever happens to exist on disk (a nested `git
@@ -1017,8 +1020,21 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if count != 1 {
-			t.Fatalf("os.OpenRoot appears at %d tracked production call sites module-wide, want 1", count)
+		if count != moduleOpenRootCallSites {
+			t.Fatalf(
+				"os.OpenRoot appears at %d tracked production call sites module-wide, want %d",
+				count, moduleOpenRootCallSites,
+			)
+		}
+		publishPath := filepath.Join("internal", "cli", "prepare_publish.go")
+		publishCount, err := countOpenRootCallSites(map[string]string{
+			publishPath: sources[publishPath],
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if publishCount != 2 {
+			t.Fatalf("mutating prepare has %d os.OpenRoot call sites, want 2", publishCount)
 		}
 	})
 
@@ -1035,8 +1051,8 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if count == 1 {
-			t.Fatal("a second tracked os.OpenRoot call site did not change the count")
+		if count != moduleOpenRootCallSites+1 {
+			t.Fatalf("an extra tracked os.OpenRoot moved the count to %d", count)
 		}
 
 		// An untracked file must not participate in the population. This arm
@@ -1086,7 +1102,7 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if untrackedCount != 1 {
+		if untrackedCount != moduleOpenRootCallSites {
 			t.Fatalf("an untracked working-tree file moved the count to %d", untrackedCount)
 		}
 
