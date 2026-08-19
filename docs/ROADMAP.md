@@ -1014,7 +1014,11 @@ re-review caught and closed one exit-6 staging-error demotion, then returned
 APPROVED. S4 is pushed at `5853ba7`; blocking CI run 32280073787 failed only
 the stale pre-S4 AVP-134/AVP-141 tracked-source allowlists after
 `prepare_publish.go` became tracked. Their exact S4 importer/root-open
-population correction is active; product behavior is unchanged.
+population correction landed at `49301eb`; product behavior is unchanged.
+Follow-up CI
+[32281269945](https://github.com/tesseracode/tesserapatch/actions/runs/32281269945)
+is green on all three platforms. S4 ✅ COMPLETE; S4b retention commands are
+active.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

@@ -1,3 +1,33 @@
+## Implementation — prepare S4 mutating CLI — 2026-08-19
+
+**Primary commit**: `5853ba7`
+**Guard correction**: `49301eb`
+**CI**:
+[32281269945](https://github.com/tesseracode/tesserapatch/actions/runs/32281269945)
+
+### Delivered
+
+- Exact five-mode / twelve-flag grammar with unchanged `--check`.
+- Authoritative held-root planning, Git G1–G4 lane gate, terminal recovery,
+  dry-run, generation/manual/regeneration and abandon flows.
+- Rooted V1–V6 staging, archive publication integration, status-last
+  transaction, fixed human/JSON reports and bounded provider metadata.
+- Absolute exit-2/3 zero-write ordering, evidence-safe exit-6 staging and
+  abandon failures, and 51-fixture pre-change compatibility.
+- Central Git executor/refactor with resource/session compatibility wrappers.
+
+The first blocking run exposed two tracked-source guards whose old populations
+could not see untracked S4 files locally. Their exact S4 populations and
+sensitivity arms landed without changing product behavior. The corrected run
+is green on Ubuntu, macOS and Windows; the release job was correctly skipped.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+S4 is complete at `49301eb`. Strict order advances to S4b intent archive
+retention commands; S5/S6/S7 remain undispatched.
+
 ## Verification — prepare S4 blocking CI rev-1 — 2026-08-19
 
 **Commit**: `5853ba7`
