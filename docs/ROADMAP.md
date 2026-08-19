@@ -1056,7 +1056,9 @@ remain for direct range-variable mutation and CommonMark fence/ATX indentation
 strictness. Rev-6 closes both; focused re-review APPROVED. Full validation,
 then found only a stale AVP-134 D9 importer set and non-hermetic PIB-146
 provider config; both corrections now pass the full uncached and CLI/workflow
-race gates. Commit and blocking CI remain.
+race gates. S5 ✅ COMPLETE at `f7ccd61`; CI
+[32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
+is green on Ubuntu, macOS and Windows. S6 public docs/assets parity is active.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

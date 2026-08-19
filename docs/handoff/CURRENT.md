@@ -109,6 +109,10 @@ the exact four-file importer set and isolates PIB-146's config home; product
 behavior is unchanged.
 Both corrections now pass the complete staged-state normal/race gate.
 
+S5 doctor D9 is complete at `f7ccd61`; blocking CI
+[32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
+is green on Ubuntu, macOS and Windows.
+
 The current rev-1 implementation uses confined
 `os.OpenInRoot` reads and exact-D9 selection bypasses the legacy feature
 loader; unreadable/unstable regular files remain non-destructive unsafe
@@ -156,7 +160,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S5 approved, ready to commit**
+- **Status**: **In Progress — S6 public docs/assets parity**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -251,7 +255,7 @@ file, is the dispatch authority.
   `internal/cli/feature_deps.go`.
 - S4b tracked-source correction:
   `internal/intent/avp_source_scans_test.go`.
-- S5 worktree (uncommitted):
+- S5 implementation:
   `internal/workflow/doctor_d9.go`,
   `internal/workflow/doctor_d9_test.go`,
   `internal/workflow/doctor_d9_s5_matrix_test.go`,
@@ -327,12 +331,14 @@ file, is the dispatch authority.
   `go test -race -p=1 ./internal/cli ./internal/workflow`, gofmt, vet, host
   build and Linux amd64/arm64, Darwin amd64 and Windows amd64 cross-builds —
   PASS.
+- S5 blocking CI
+  [32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
+  — PASS on Ubuntu, macOS and Windows; release job correctly skipped.
 
 ## Next Steps
 
-1. Commit the explicit S5/erratum/guard/tracking paths, push and require
-   blocking three-platform CI.
-2. Add S6 public docs/assets, then complete S7's 567-row
+1. Implement and review S6 public docs/assets/parity surfaces.
+2. Complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.

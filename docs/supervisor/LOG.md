@@ -1,3 +1,35 @@
+## Implementation — prepare S5 doctor D9 — 2026-08-19
+
+**Commit**: `f7ccd61`
+**CI**:
+[32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
+
+### Delivered
+
+- Warning-only, non-fixable D9 persistent prepare/archive evidence taxonomy.
+- Confined ordinary reads with exact-D9 legacy-loader bypass and zero
+  authority/flock/Control/Git/process/write probes.
+- Aggregate pending/repair-class findings, non-destructive unreadable evidence
+  and no lost-journal inference.
+- Deterministic human/JSON behavior under clean, unsafe, concurrent,
+  fresh-clone and removed-journal states.
+- PRD-bound AST ledger resolving all 48 S5 rows to runnable sensitive tests,
+  including real crash/recovery/non-invalidation and native Windows coverage.
+- AVP PRD rev-7 no-decision-change erratum adding the intent archive to the
+  forbidden provenance-inference list.
+
+Six revisions closed confinement, error taxonomy, aggregation, runtime mapping,
+scope-aware AST resolution and Markdown parser sensitivities. Staged-state
+integration then pinned the D9 importer and hermetic provider config before
+commit.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+S5 is complete. Strict order advances to S6 public docs/assets parity; S7
+remains undispatched.
+
 ## Verification — prepare S5 staged-state integration — 2026-08-19
 
 ### Verdict: NEEDS REVISION
