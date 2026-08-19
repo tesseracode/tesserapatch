@@ -1033,7 +1033,9 @@ reporting. Rev-4 closes that final finding with a bounded managed-path
 predicate and real control-filename regressions; focused re-review APPROVED.
 Tracked-state full validation then found only AVP-134's stale exact importer
 set; its sensitivity-preserving S4b correction now passes the full uncached
-and CLI race gates. Commit and blocking CI remain.
+and CLI race gates. S4b ✅ COMPLETE at `e3099d5`; CI
+[32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
+is green on Ubuntu, macOS and Windows. S5 doctor D9 is active.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

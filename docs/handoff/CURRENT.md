@@ -48,8 +48,9 @@ allowlists and sensitivity arms; no product behavior changes. Follow-up CI
 [32281269945](https://github.com/tesseracode/tesserapatch/actions/runs/32281269945)
 is green on Ubuntu, macOS and Windows.
 
-S4b retention rev-4 is implemented in the worktree and internally approved
-pending full local validation and explicit-path commit.
+S4b retention is complete at `e3099d5`; blocking CI
+[32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
+is green on Ubuntu, macOS and Windows.
 Rev-0's pending-preview, predicted-remediation, terminal-recovery,
 partial-class, divergence-shape and retry-heading defects are closed. Rev-1
 findings are also closed. Rev-2's shell quoting and selector-precedence
@@ -91,7 +92,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S4b approved, ready to commit**
+- **Status**: **In Progress — S5 doctor D9**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -180,7 +181,7 @@ file, is the dispatch authority.
 - `docs/handoff/CURRENT.md`
 - `docs/ROADMAP.md`
 - `docs/supervisor/LOG.md`
-- S4b worktree (uncommitted):
+- S4b implementation:
   `internal/cli/feature_intent_archive.go`,
   `internal/cli/feature_intent_archive_test.go`, and the registration line in
   `internal/cli/feature_deps.go`.
@@ -226,12 +227,14 @@ file, is the dispatch authority.
 - Corrected staged-state `go test -p=1 -count=1 ./...`, full
   `go test -race -p=1 ./internal/cli`, exact 51-fixture/provenance guards,
   gofmt, vet, host build and Linux/Darwin/Windows amd64 cross-builds — PASS.
+- S4b blocking CI
+  [32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
+  — PASS on Ubuntu, macOS and Windows; release job correctly skipped.
 
 ## Next Steps
 
-1. Commit the seven explicit S4b/guard/tracking paths, push and require
-   blocking three-platform CI.
-2. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
+1. Implement and review S5 doctor D9 persistent-evidence diagnostics.
+2. Add S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.

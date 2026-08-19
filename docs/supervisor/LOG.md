@@ -1,3 +1,35 @@
+## Implementation — prepare S4b retention CLI — 2026-08-19
+
+**Commit**: `e3099d5`
+**CI**:
+[32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
+
+### Delivered
+
+- Deterministic read-only archive listing with generation, entry, global
+  availability, orphan and corrupt-object truth.
+- Preview-by-default purge with exact selector families, zero lock/Git/write,
+  and bounded pending-recovery reports.
+- Confirmed rooted purge with one workspace authority, pending-journal
+  refusal, terminal pending-hash recovery, global hash claim/tombstone,
+  repair-class admission, partial/divergent progress and idempotency.
+- Fixed human/JSON/quiet schemas, sanitized retries, Git-history disclosure,
+  POSIX-safe repair commands and non-echoing control-path refusal.
+- Direct journal/process spies and complete PIB-345…PIB-361 coverage.
+
+Four review revisions closed pending-preview precedence, predicted repair
+routes, recovery/partial truth, divergence shape, retry headings, direct spies,
+selector sanitization/precedence, list completeness, fixed JSON keys,
+shell-safe exact paths and control-character line injection. A staged-state
+AVP-134 correction pinned the accepted retention importer before commit.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+S4b is complete. Strict order advances to S5 doctor D9; S6/S7 remain
+undispatched.
+
 ## Verification — prepare S4b tracked-state guard — 2026-08-19
 
 ### Verdict: NEEDS REVISION
