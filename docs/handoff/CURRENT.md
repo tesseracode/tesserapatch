@@ -48,6 +48,23 @@ allowlists and sensitivity arms; no product behavior changes. Follow-up CI
 [32281269945](https://github.com/tesseracode/tesserapatch/actions/runs/32281269945)
 is green on Ubuntu, macOS and Windows.
 
+S4b retention rev-4 is implemented in the worktree and internally approved
+pending full local validation and explicit-path commit.
+Rev-0's pending-preview, predicted-remediation, terminal-recovery,
+partial-class, divergence-shape and retry-heading defects are closed. Rev-1
+findings are also closed. Rev-2's shell quoting and selector-precedence
+findings are closed. Rev-3's final control-character path finding is closed by
+one managed-path predicate at snapshot/plan report boundaries, with
+non-echoing zero-write refusal and real newline/tab/ESC/DEL/C1 fixtures.
+Focused rev-4 re-review returned APPROVED.
+
+Pre-commit tracked-state validation found one stale S4 guard: AVP-134 admitted
+the two prepare command files but not S4b's accepted
+`feature_intent_archive.go` importer. The bounded correction pins the exact
+three-file set and retains both extra-forbidden-importer and
+missing-authorized-set sensitivities; no product behavior changes.
+The corrected staged-state full and race gates are green.
+
 Before that CI blocker, S4 was internally approved. Its first independent code review
 returned NEEDS REVISION on exit-3 writes after stale cleanup/staging, use of a
 pre-authority artifact snapshot, unsafe abandon rollback, lost deadline
@@ -74,7 +91,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S4b intent archive retention**
+- **Status**: **In Progress — S4b approved, ready to commit**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -163,6 +180,12 @@ file, is the dispatch authority.
 - `docs/handoff/CURRENT.md`
 - `docs/ROADMAP.md`
 - `docs/supervisor/LOG.md`
+- S4b worktree (uncommitted):
+  `internal/cli/feature_intent_archive.go`,
+  `internal/cli/feature_intent_archive_test.go`, and the registration line in
+  `internal/cli/feature_deps.go`.
+- S4b tracked-source correction:
+  `internal/intent/avp_source_scans_test.go`.
 
 ## Test Results
 
@@ -187,10 +210,27 @@ file, is the dispatch authority.
 - Corrected blocking CI
   [32281269945](https://github.com/tesseracode/tesserapatch/actions/runs/32281269945)
   — PASS on Ubuntu, macOS and Windows; release job correctly skipped.
+- S4b rev-0 targeted `TestFeatureIntentArchive*`, affected feature-deps/AVP
+  guards, gofmt and diff check — PASS before review; verdict NEEDS REVISION on
+  seven substantive state/report/sensitivity findings.
+- S4b rev-1 closes all seven rev-0 findings and its targeted tests pass;
+  re-review remains NEEDS REVISION on six narrower retry/list/schema/spy
+  findings.
+- S4b rev-2 closes those six findings; re-review remains NEEDS REVISION on
+  shell-safe corrupt-object repair paths and selector gate precedence.
+- S4b rev-3 closes both rev-2 findings; final re-review remains NEEDS REVISION
+  on non-echoing refusal of control-containing managed paths.
+- S4b rev-4 closes the final path-safety finding; focused re-review APPROVED.
+- First tracked-state `go test -p=1 -count=1 ./...` failed only AVP-134's stale
+  exact importer set; correction active.
+- Corrected staged-state `go test -p=1 -count=1 ./...`, full
+  `go test -race -p=1 ./internal/cli`, exact 51-fixture/provenance guards,
+  gofmt, vet, host build and Linux/Darwin/Windows amd64 cross-builds — PASS.
 
 ## Next Steps
 
-1. Implement and review S4b `feature intent-archive list|purge`.
+1. Commit the seven explicit S4b/guard/tracking paths, push and require
+   blocking three-platform CI.
 2. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 3. Run joint internal/external review to acceptance; only then select the

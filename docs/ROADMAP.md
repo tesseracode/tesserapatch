@@ -1018,7 +1018,22 @@ population correction landed at `49301eb`; product behavior is unchanged.
 Follow-up CI
 [32281269945](https://github.com/tesseracode/tesserapatch/actions/runs/32281269945)
 is green on all three platforms. S4 ✅ COMPLETE; S4b retention commands are
-active.
+active. S4b rev-0 is implemented but returned NEEDS REVISION on pending-preview
+precedence, corrupt-object remediation, terminal recovery error handling,
+partial repair-class reporting, index-divergence shape, retry headings and
+direct safety spies. Rev-1 closes those seven findings; re-review remains
+NEEDS REVISION on selector sanitization before terminal recovery, total
+dangling-class retries, unindexed corrupt-object list truth, JSON stage shape,
+duplicate divergence retry rendering and disconnected journal spies. Rev-2
+closes those six; re-review remains NEEDS REVISION on shell-safe destructive
+path rendering and restoring workspace/platform/authority precedence ahead of
+selector normalization. Rev-3 closes both; final re-review found one
+control-character path injection/line-forgery residual in corrupt-object
+reporting. Rev-4 closes that final finding with a bounded managed-path
+predicate and real control-filename regressions; focused re-review APPROVED.
+Tracked-state full validation then found only AVP-134's stale exact importer
+set; its sensitivity-preserving S4b correction now passes the full uncached
+and CLI race gates. Commit and blocking CI remain.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

@@ -89,8 +89,8 @@ func TestAVPSourceScans(t *testing.T) {
 	})
 
 	t.Run("AVP-134", func(t *testing.T) {
-		// The reverse call graph: only the two prepare command files import
-		// the inspector. The population is the set of **tracked** non-test Go
+		// The reverse call graph: only the prepare and intent-archive command
+		// files import the inspector. The population is the set of **tracked** non-test Go
 		// files, taken from `git ls-files`. Walking the working tree instead
 		// made the row fail for reasons that have nothing to do with the call
 		// graph: a detached `git worktree` checked out inside the repository,
@@ -216,8 +216,8 @@ func trackedGoSources(t *testing.T) map[string]string {
 	return sources
 }
 
-// checkInspectorImporters is the AVP-134 body: only the tracked prepare
-// command implementation files may import the inspector.
+// checkInspectorImporters is the AVP-134 body: only the tracked prepare and
+// intent-archive command implementation files may import the inspector.
 func checkInspectorImporters(sources map[string]string) error {
 	const path = `"github.com/tesseracode/tesserapatch/internal/intent"`
 	var importers []string
@@ -228,10 +228,12 @@ func checkInspectorImporters(sources map[string]string) error {
 	}
 	sort.Strings(importers)
 	want := []string{
+		filepath.Join("internal", "cli", "feature_intent_archive.go"),
 		filepath.Join("internal", "cli", "prepare.go"),
 		filepath.Join("internal", "cli", "prepare_publish.go"),
 	}
-	if len(importers) != len(want) || importers[0] != want[0] || importers[1] != want[1] {
+	if len(importers) != len(want) ||
+		importers[0] != want[0] || importers[1] != want[1] || importers[2] != want[2] {
 		return fmt.Errorf("internal/intent is imported by %v, want only %v", importers, want)
 	}
 	return nil

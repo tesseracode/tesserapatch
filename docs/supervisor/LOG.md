@@ -1,3 +1,178 @@
+## Verification — prepare S4b tracked-state guard — 2026-08-19
+
+### Verdict: NEEDS REVISION
+
+The first staged-state full suite passed every package except AVP-134:
+`feature_intent_archive.go` is an accepted S4b importer of `internal/intent`,
+but the exact reverse-call-graph allowlist still named only S4's two prepare
+files. This is the same untracked-new-file blind spot S4 exposed before its
+first CI run, now caught locally by staging before validation.
+
+### Action Taken
+
+Add the retention command to the exact three-file importer set while
+preserving the extra-importer and missing-set sensitivity arms. Product code
+and output are unchanged; rerun the complete local gate before commit.
+
+## Review — prepare S4b retention CLI rev-4 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review the final control-character managed-path correction.
+
+### Checklist
+
+- [x] Managed report paths are valid UTF-8, fs.ValidPath and archive-contained
+- [x] C0/C1/Unicode controls refuse before report construction or mutation
+- [x] Refusal is closed-code and non-echoing
+- [x] Real newline/tab/ESC/DEL/C1 fixtures are non-vacuous where supported
+- [x] Shell-metacharacter paths remain accepted and safely quoted
+- [x] Every earlier S4b finding remains closed
+
+### Verdict: APPROVED
+
+### Notes
+
+The final fold applies one bounded managed-blob path predicate at snapshot and
+purge-plan report boundaries. Unsafe observed names refuse
+`archive-index-path-escape` without echo or mutation; safe shell-significant
+names continue through exact POSIX quoting.
+
+### Action Taken
+
+S4b advances to full local validation, explicit-path commit and blocking
+three-platform CI. Later slices remain paused until that gate is green.
+
+## Review — prepare S4b retention CLI rev-3 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review shell-safe repair rendering and selector gate precedence.
+
+### Checklist
+
+- [x] Shell-significant paths use POSIX-safe single quoting
+- [x] Selector normalization preserves workspace/platform/authority precedence
+- [x] Normalized selectors alone reach recovery retries
+- [ ] Control-containing managed paths refuse non-echoingly
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-3 closes both rev-2 findings. One HIGH remains: `fs.ValidPath` admits
+newline, tab and escape bytes, while list construction and human rendering
+still accept and print those paths. The result can forge headings and
+indentation can change the copied command's exact argument despite otherwise
+correct POSIX quoting.
+
+### Action Taken
+
+The implementer receives one final path-safety correction with real control
+filename regressions. S4b remains uncommitted.
+
+## Review — prepare S4b retention CLI rev-2 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review the six rev-1 residual corrections.
+
+### Checklist
+
+- [x] Recovery retries use normalized selector values
+- [x] Dangling repair commands cover the complete class
+- [x] List reports unindexed corrupt managed objects
+- [x] Remaining-repair JSON stage schema has no human-only keys
+- [x] Divergence retry has one owner and one rendered block
+- [x] Journal operation spies are connected and sensitized
+- [ ] Destructive corrupt-object path is shell-safe
+- [ ] Selector normalization preserves gate precedence
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-2 closes every rev-1 finding. Two residuals remain: `rm -rf --` repair
+text concatenates valid but shell-significant managed filenames unquoted, and
+selector normalization runs before workspace/platform/authority gates instead
+of immediately after those gates and before any recovery report consumes the
+selector.
+
+### Action Taken
+
+The same implementer receives the two final bounded corrections. S4b remains
+uncommitted; later slices remain paused.
+
+## Review — prepare S4b retention CLI rev-1 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review the bounded S4b correction after rev-0.
+
+### Checklist
+
+- [x] Pending preview suppresses lower-precedence repair data
+- [x] Corrupt remediation uses predicted resulting classes
+- [x] Recovery returns terminally without a later capture
+- [x] Partial/divergent outcomes do not claim class completion
+- [x] Index divergence clears blob/removal fields
+- [x] Repair commands use the shared retry heading
+- [x] Real Git process spies replace source-only proof
+- [ ] Selector values are sanitized before terminal-recovery retries
+- [ ] Dangling repair retry covers the complete class
+- [ ] List includes unindexed corrupt objects and their prerequisite
+- [ ] Human-only rendering state is absent from JSON
+- [ ] Divergence retry renders exactly once
+- [ ] Journal decode/rename spies intercept production paths
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+All seven rev-0 findings are closed. Re-review found three HIGH and three
+MEDIUM residuals: raw selector values can reach a recovery retry; partial
+dangling selection offers an impossible one-hash rerun; unindexed corrupt
+objects disappear from list; human-only retry fields serialize in the fixed
+stage schema; divergence prints the same retry twice; and journal spies remain
+disconnected from any production dependency.
+
+### Action Taken
+
+The same sequential implementer receives the six bounded residuals. S4b stays
+uncommitted and S5/S6/S7 remain undispatched.
+
+## Review — prepare S4b retention CLI rev-0 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Implement `tpatch feature intent-archive list|purge` over the landed
+S3 archive state machine and S4 rooted authority/storage adapter.
+
+### Checklist
+
+- [x] Scope limited to the S4b command, tests and registration line
+- [x] Deterministic typed list/purge report model
+- [x] Preview/confirmed command split and store API reuse
+- [ ] Pending preview contains only bounded recovery truth
+- [ ] Corrupt-object remediation follows predicted reclassification
+- [ ] Terminal recovery cannot suppress a later error
+- [ ] Partial/divergent outcomes do not claim class completion
+- [ ] Index divergence omits blob paths
+- [ ] Every repair command uses the exact retry heading
+- [ ] PIB-350 and PIB-514 use direct safety spies
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The implementation is broad and well-partitioned, but seven findings are
+load-bearing. Four are HIGH: recovery-required preview leaks orphan/repair
+data; corrupt-object routes can append an impossible purge; terminal recovery
+discards a subsequent capture failure; partial purge reports can claim a class
+was repaired. Three MEDIUM findings cover index-divergence blob fields, bare
+repair commands without the shared heading, and indirect rather than direct
+journal/process spies.
+
+### Action Taken
+
+S4b remains uncommitted. The same sequential implementer receives the bounded
+findings; no S5/S6/S7 work is authorized.
+
 ## Implementation — prepare S4 mutating CLI — 2026-08-19
 
 **Primary commit**: `5853ba7`

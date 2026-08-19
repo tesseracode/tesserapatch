@@ -49,6 +49,7 @@ func featureCmd() *cobra.Command {
 	cmd.AddCommand(featureResourceCmd())
 	cmd.AddCommand(featurePatchCmd())
 	cmd.AddCommand(featureUnapplyCmd())
+	cmd.AddCommand(featureIntentArchiveCmd())
 	return cmd
 }
 
