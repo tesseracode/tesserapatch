@@ -162,12 +162,10 @@ var acceptedCheckSourceProvenance = map[string]struct {
 			routingFixtureCommit,
 			"0440337e3b8c75425c09309e8a08c37aeb0109c4",
 		},
-		FreezeCurrent: true,
 	},
 	"internal/cli/prepare_avp_test.go": {
-		SHA256:        "539bd5ea11e55fd7f6fe00383c0b4c12674eff758e47c306545200bef8c114ce",
-		History:       []string{routingFixtureCommit},
-		FreezeCurrent: true,
+		SHA256:  "539bd5ea11e55fd7f6fe00383c0b4c12674eff758e47c306545200bef8c114ce",
+		History: []string{routingFixtureCommit},
 	},
 	"internal/cli/prepare_avp2_test.go": {
 		SHA256: "e770a608d5a0930c3ef6edcaf2cf42d53c152d2273d82fe587f21fe926edb297",
@@ -176,7 +174,6 @@ var acceptedCheckSourceProvenance = map[string]struct {
 			"54ab8b4d4253638d52a8d03de2e7b31b3ae2b2da",
 			routingFixtureCommit,
 		},
-		FreezeCurrent: true,
 	},
 	"internal/cli/prepare_routing_golden_test.go": {
 		SHA256: "372459f1743308786cd396c0205a98952eeb25f1e91cede5031a06fff1efba8c",

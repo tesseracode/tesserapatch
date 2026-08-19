@@ -313,8 +313,8 @@ func TestAVPGrammarAndSurface(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
-			if !strings.Contains(stderr, "unknown flag") {
-				t.Fatalf("stderr = %q, want an unknown-flag message", stderr)
+			if !strings.Contains(stderr, "none of the others can be") {
+				t.Fatalf("stderr = %q, want a mutual-exclusion message", stderr)
 			}
 			if !bytes.Equal(before, readTree(t, filepath.Join(root, ".tpatch"))) {
 				t.Fatal(".tpatch changed on a parse error")
@@ -325,21 +325,18 @@ func TestAVPGrammarAndSurface(t *testing.T) {
 	t.Run("AVP-006", func(t *testing.T) {
 		outside := t.TempDir()
 		code, stdout, stderr, _ := runPrepare(t, "--path", outside, "prepare", avpSlug)
-		if code != 4 {
-			t.Fatalf("exit = %d, want 4 (not 3)", code)
+		if code != 3 {
+			t.Fatalf("exit = %d, want workspace refusal 3", code)
 		}
-		if stdout != "" {
-			t.Fatalf("stdout = %q, want empty", stdout)
+		if !strings.Contains(stdout, "Refusal: workspace-not-initialized") {
+			t.Fatalf("stdout = %q, want the mutating workspace refusal", stdout)
 		}
 		lines := strings.Split(strings.TrimRight(stderr, "\n"), "\n")
 		if len(lines) != 1 || !strings.HasPrefix(lines[0], "error: ") {
 			t.Fatalf("stderr = %q, want exactly one error: line", stderr)
 		}
-		if !strings.Contains(stderr, "--check") {
-			t.Fatalf("the error line does not name --check: %q", stderr)
-		}
 		if entries, err := os.ReadDir(outside); err != nil || len(entries) != 0 {
-			t.Fatalf("the reserved-surface refusal touched the filesystem: %v %v", entries, err)
+			t.Fatalf("the workspace refusal touched the filesystem: %v %v", entries, err)
 		}
 	})
 
@@ -347,7 +344,7 @@ func TestAVPGrammarAndSurface(t *testing.T) {
 		root := avpWorkspace(t, defaultAVPFiles())
 		before := readTree(t, filepath.Join(root, ".tpatch"))
 		code, stdout, _, _ := runPrepare(t, "--path", root, "prepare", avpSlug)
-		if code != 4 || stdout != "" {
+		if code != 3 || !strings.Contains(stdout, "Refusal: request-unreadable") {
 			t.Fatalf("exit = %d, stdout = %q", code, stdout)
 		}
 		if !bytes.Equal(before, readTree(t, filepath.Join(root, ".tpatch"))) {
@@ -379,9 +376,9 @@ func TestAVPGrammarAndSurface(t *testing.T) {
 		if !strings.Contains(stdout, "--check") {
 			t.Fatalf("prepare --help does not present --check: %q", stdout)
 		}
-		for _, forbidden := range []string{"--manual", "--regenerate"} {
-			if strings.Contains(stdout, forbidden) {
-				t.Fatalf("prepare --help advertises the unregistered flag %s", forbidden)
+		for _, required := range []string{"--manual", "--regenerate", "--abandon-transaction", "--allow-heuristic"} {
+			if !strings.Contains(stdout, required) {
+				t.Fatalf("prepare --help omits registered mode/authority flag %s", required)
 			}
 		}
 	})

@@ -1,3 +1,75 @@
+## Review — prepare S4 mutating CLI rev-1 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review the bounded S4 revision after the rev-0 transaction,
+authority, rollback, deadline and report findings.
+
+### Checklist
+
+- [x] Exit-2/3 gates precede invocation-owned mutation
+- [x] Post-recovery plans use an authoritative held-root snapshot
+- [x] No-op and status-only paths revalidate before success/publication
+- [x] V1–V5 staging validation is pure and pre-mutation
+- [x] Abandon rollback never overwrites recreated evidence
+- [x] Unsafe staging/rollback failures preserve exit 6 and evidence
+- [x] Deadline failure metadata is bounded and report-safe
+- [x] Human orphan/purge sections have fixed cardinality
+
+### Verdict: APPROVED
+
+### Notes
+
+The first revision review found one remaining MEDIUM: base, retained-generation
+and archive-index staging branches hard-coded exit 5 even when the rooted
+writer had committed its rename and returned typed exit 6. The final fold
+centralizes staging-failure classification, preserves typed exit 6 as
+`recovery-refused`, and adds post-rename directory-sync fault tests for both
+base and archive-index staging.
+
+### Action Taken
+
+Focused re-review returned APPROVED with no residual finding. S4 advances to
+post-fix full validation, explicit-path commit and blocking three-platform CI;
+S4b remains undispatched.
+
+## Review — prepare S4 mutating CLI rev-0 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Integrate mutating `tpatch prepare` modes and the central Git G1–G4
+gate over landed S1b/S1/S3/S2 primitives.
+
+### Checklist
+
+- [x] Changed packages compile and their normal tests pass
+- [x] Accepted `prepare --check` and 51 pre-change fixtures remain frozen
+- [ ] Exit-2/3 zero-write ordering
+- [ ] Publication plan uses an authoritative post-recovery snapshot
+- [ ] Abandon rollback preserves concurrent evidence
+- [ ] Strict deadline failures retain bounded scope/artifact metadata
+- [ ] Human rollback/archive sections have fixed cardinality
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The first review found five actionable defects: stale-lane cleanup and archive
+preflight could precede later exit-3 refusals; mutating plans retained the
+pre-lock artifact snapshot; abandon rollback could overwrite a concurrently
+recreated source and always reported exit 5; strict generation discarded the
+failed artifact/deadline class; and orphan/purge sections repeated once per
+archived artifact.
+
+### Action Taken
+
+The revision re-inspects under the held authority, preflights every exit-2/3
+condition before cleanup/staging, adds pure V1–V5 staging validation, separates
+safe exit-5 abandon rollback from unsafe exit-6 evidence preservation, carries
+bounded failure metadata and renders residue sections once. Targeted
+regressions plus serialized normal and race tests across `internal/cli`,
+`internal/gitutil`, `internal/intentpub`, `internal/rescap` and
+`internal/workflow` pass. S4 remains in revised review pending the repository
+gate, commit and blocking CI.
+
 ## Implementation — prepare S1b + S1 — 2026-08-18
 
 **S1b**: `1f35605`

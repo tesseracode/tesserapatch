@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -9,60 +10,94 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
-const prepareReservedMessage = "tpatch prepare requires --check in this release; the mutating intent-bundle form is not implemented. Run `tpatch prepare <slug> --check`, or `tpatch prepare --help` for the full grammar."
-
 func prepareCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "prepare <slug> --check",
-		Short: "Inspect an intent bundle without changing it",
-		Long: `tpatch prepare <slug> --check reports the structural state of the
-three required intent Markdown artifacts and the optional analysis sidecar.
-It is read-only and never advances state. This command is unrelated to
-` + "`tpatch apply --mode prepare`" + `.`,
+		Use:   "prepare <slug>",
+		Short: "Inspect, complete, adopt, regenerate, or abandon an intent bundle",
+		Long: `tpatch prepare has five modes:
+  --check                 inspect the bundle without changing it
+  (no mode flag)          generate the missing dependency-coherent suffix
+  --manual                adopt a complete hand-authored bundle
+  --regenerate            replace the complete bundle and archive prior bytes
+  --abandon-transaction   preserve interrupted local transaction evidence
+
+Only --regenerate overwrites an existing intent artifact. --allow-heuristic is
+the only opt-in that permits regeneration to downgrade to heuristic output.
+This command is unrelated to ` + "`tpatch apply --mode prepare`" + `.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			check, _ := cmd.Flags().GetBool("check")
-			if !check {
-				return &ExitCodeError{Code: 4, Message: prepareReservedMessage}
+			options := readPrepareOptions(cmd)
+			if options.yes && options.mode != prepareModeAbandon {
+				return &ExitCodeError{
+					Code:    1,
+					Message: "prepare: --yes is only valid with --abandon-transaction",
+				}
 			}
-
-			// This is intentionally allocated before every report-bearing
-			// check path, including aborts, and shared by all captures.
-			scratch := make([]byte, intent.MaxArtifactBytes+1)
-			slug, err := intent.CanonicalSlug(args[0])
-			if err != nil {
-				return emitPrepareReport(cmd, intent.NewAbortReport("", intent.AbortSlugUnsafe))
+			if options.mode == prepareModeCheck {
+				return runPrepareCheck(cmd, args[0])
 			}
-			if !intent.RootConfinementSupported() {
-				return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortUnsupportedPlatform))
-			}
-
-			start, _ := cmd.Flags().GetString("path")
-			if start == "" {
-				start = "."
-			}
-			repoRoot, err := store.FindProjectRoot(start)
-			if err != nil {
-				return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortWorkspaceMissing))
-			}
-			root, err := os.OpenRoot(repoRoot)
-			if err != nil {
-				return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortRootUnopenable))
-			}
-
-			report := intent.Inspect(intent.NewRootOps(root), slug, scratch)
-			renderErr := writePrepareReport(cmd, report)
-			_ = root.Close()
-			if renderErr != nil {
-				return renderErr
-			}
-			return prepareExit(report)
+			return runPreparePublish(cmd, args[0], options)
 		},
 	}
 	cmd.Flags().Bool("check", false, "Inspect intent artifacts without changing state")
+	cmd.Flags().Bool("manual", false, "Adopt a complete hand-authored intent bundle")
+	cmd.Flags().Bool("regenerate", false, "Replace the complete intent bundle and archive prior bytes")
+	cmd.Flags().Bool("abandon-transaction", false, "Preview or preserve interrupted local transaction evidence")
+	cmd.Flags().Bool("allow-heuristic", false, "Permit --regenerate to replace the bundle with heuristic output when the provider is missing or fails. Without this flag, regeneration refuses rather than downgrading hand-authored content.")
+	cmd.Flags().Bool("dry-run", false, "Report the mutation plan without executing it")
+	cmd.Flags().Bool("yes", false, "Confirm --abandon-transaction")
 	cmd.Flags().Bool("json", false, "Emit the structured report on stdout")
 	cmd.Flags().Bool("quiet", false, "Suppress the human report")
+	cmd.Flags().Duration("timeout", 180*time.Second, "Total generation deadline")
+	cmd.Flags().Duration("timeout-phase", 90*time.Second, "Per-generator deadline")
+	cmd.Flags().Bool("no-retry", false, "Disable validator-driven provider retry")
+
+	cmd.MarkFlagsMutuallyExclusive("check", "manual", "regenerate", "abandon-transaction")
+	for _, generationFlag := range []string{"timeout", "timeout-phase", "no-retry"} {
+		for _, incompatibleMode := range []string{"check", "manual", "abandon-transaction"} {
+			cmd.MarkFlagsMutuallyExclusive(generationFlag, incompatibleMode)
+		}
+	}
+	for _, incompatibleMode := range []string{"check", "manual", "abandon-transaction"} {
+		cmd.MarkFlagsMutuallyExclusive("allow-heuristic", incompatibleMode)
+	}
+	cmd.MarkFlagsMutuallyExclusive("dry-run", "check")
+	cmd.MarkFlagsMutuallyExclusive("dry-run", "abandon-transaction")
 	return cmd
+}
+
+func runPrepareCheck(cmd *cobra.Command, rawSlug string) error {
+	// This is intentionally allocated before every report-bearing
+	// check path, including aborts, and shared by all captures.
+	scratch := make([]byte, intent.MaxArtifactBytes+1)
+	slug, err := intent.CanonicalSlug(rawSlug)
+	if err != nil {
+		return emitPrepareReport(cmd, intent.NewAbortReport("", intent.AbortSlugUnsafe))
+	}
+	if !intent.RootConfinementSupported() {
+		return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortUnsupportedPlatform))
+	}
+
+	start, _ := cmd.Flags().GetString("path")
+	if start == "" {
+		start = "."
+	}
+	repoRoot, err := store.FindProjectRoot(start)
+	if err != nil {
+		return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortWorkspaceMissing))
+	}
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
+		return emitPrepareReport(cmd, intent.NewAbortReport(slug, intent.AbortRootUnopenable))
+	}
+
+	report := intent.Inspect(intent.NewRootOps(root), slug, scratch)
+	renderErr := writePrepareReport(cmd, report)
+	_ = root.Close()
+	if renderErr != nil {
+		return renderErr
+	}
+	return prepareExit(report)
 }
 
 func emitPrepareReport(cmd *cobra.Command, report intent.Report) error {

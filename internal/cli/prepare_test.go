@@ -19,6 +19,7 @@ func prepareWorkspace(t *testing.T, complete bool) string {
 	}
 	files := map[string]string{
 		"status.json":             `{"state":"defined"}`,
+		"request.md":              "request\n",
 		"analysis.md":             "analysis\n",
 		"spec.md":                 "spec\n",
 		"exploration.md":          "exploration\n",
@@ -96,9 +97,11 @@ func TestPrepareCheckJSONAndNoMutation(t *testing.T) {
 
 func TestPrepareCheckPrecedenceAndExitEnvelope(t *testing.T) {
 	workspace := prepareWorkspace(t, false)
+	readyWorkspace := prepareWorkspace(t, true)
 
-	code, stdout, _, err := runPrepare(t, "--path", workspace, "prepare", "feature")
-	if code != 4 || stdout != "" || err == nil {
+	code, stdout, _, err := runPrepare(t, "--path", readyWorkspace, "prepare", "feature")
+	if code != 0 || err != nil || !strings.Contains(stdout, "Mode:    generate") ||
+		strings.Contains(stdout, "Refusal:") {
 		t.Fatalf("plain prepare = (%d, %q, %v)", code, stdout, err)
 	}
 

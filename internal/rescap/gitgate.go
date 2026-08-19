@@ -22,9 +22,9 @@
 package rescap
 
 import (
-	"bytes"
-	"os/exec"
 	"strings"
+
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
 // ignoreCheckArgument applies §10.1's `./`-prefix rule: any selector
@@ -43,25 +43,22 @@ func ignoreCheckArgument(selector string) string {
 // IsIgnored runs the check-ignore gate. Exit 0 means ignored, exit 1
 // means not ignored, and any other exit code is a fatal Git error.
 func IsIgnored(repoRoot, selector string) (bool, error) {
-	cmd := exec.Command("git", "check-ignore", "-q", "--no-index", "--", ignoreCheckArgument(selector))
-	cmd.Dir = repoRoot
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	_, stderr, exitCode, err := gitutil.RunGitCompatibility(
+		repoRoot, "check-ignore", "-q", "--no-index", "--", ignoreCheckArgument(selector),
+	)
 	if err == nil {
 		return true, nil
 	}
-	exitErr, ok := err.(*exec.ExitError)
-	if !ok {
+	if exitCode < 0 {
 		return false, Refuse(ReasonGitIgnoreCheckError,
 			"git check-ignore %s could not run: %v", selector, err)
 	}
-	switch exitErr.ExitCode() {
+	switch exitCode {
 	case 1:
 		return false, nil
 	default:
 		return false, Refuse(ReasonGitIgnoreCheckError,
-			"git check-ignore %s exited %d: %s", selector, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
+			"git check-ignore %s exited %d: %s", selector, exitCode, strings.TrimSpace(stderr))
 	}
 }
 
@@ -74,25 +71,22 @@ const lsFilesUnmatchedMessage = "did not match any file(s) known to git"
 // path is tracked; exit 1 with the standard message means untracked;
 // anything else is a fatal Git error.
 func IsTracked(repoRoot, selector string) (bool, error) {
-	cmd := exec.Command("git", "--literal-pathspecs", "ls-files", "--error-unmatch", "--", selector)
-	cmd.Dir = repoRoot
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	_, stderr, exitCode, err := gitutil.RunGitCompatibility(
+		repoRoot, "--literal-pathspecs", "ls-files", "--error-unmatch", "--", selector,
+	)
 	if err == nil {
 		return true, nil
 	}
-	exitErr, ok := err.(*exec.ExitError)
-	if !ok {
+	if exitCode < 0 {
 		return false, Refuse(ReasonGitLsFilesError,
 			"git ls-files --error-unmatch %s could not run: %v", selector, err)
 	}
-	text := strings.TrimSpace(stderr.String())
-	if exitErr.ExitCode() == 1 && strings.Contains(text, lsFilesUnmatchedMessage) {
+	text := strings.TrimSpace(stderr)
+	if exitCode == 1 && strings.Contains(text, lsFilesUnmatchedMessage) {
 		return false, nil
 	}
 	return false, Refuse(ReasonGitLsFilesError,
-		"git ls-files --error-unmatch %s exited %d: %s", selector, exitErr.ExitCode(), text)
+		"git ls-files --error-unmatch %s exited %d: %s", selector, exitCode, text)
 }
 
 // AnythingTrackedUnder answers the broader "is anything anywhere under
@@ -102,35 +96,33 @@ func IsTracked(repoRoot, selector string) (bool, error) {
 // distinction is inferred from an exit-code/stderr shape designed for
 // a single pathname argument.
 func AnythingTrackedUnder(repoRoot, prefix string) (bool, error) {
-	cmd := exec.Command("git", "--literal-pathspecs", "ls-files", "--", prefix)
-	cmd.Dir = repoRoot
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	return anythingTrackedUnderCompatibility(repoRoot, prefix)
+}
+
+func anythingTrackedUnderCompatibility(repoRoot, prefix string) (bool, error) {
+	stdout, stderr, _, err := gitutil.RunGitCompatibility(
+		repoRoot, "--literal-pathspecs", "ls-files", "--", prefix,
+	)
+	if err != nil {
 		return false, Refuse(ReasonGitLsFilesError,
-			"git ls-files -- %s failed: %v: %s", prefix, err, strings.TrimSpace(stderr.String()))
+			"git ls-files -- %s failed: %v: %s", prefix, err, strings.TrimSpace(stderr))
 	}
-	return stdout.Len() > 0, nil
+	return len(stdout) > 0, nil
 }
 
 // RunGit runs a git subcommand in repoRoot and returns trimmed stdout.
 // Callers that need exit-code-specific behaviour use the dedicated
 // gates above instead.
 func RunGit(repoRoot string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repoRoot
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return strings.TrimSpace(stdout.String()), &gitCommandError{
+	stdout, stderr, _, err := gitutil.RunGitCompatibility(repoRoot, args...)
+	if err != nil {
+		return strings.TrimSpace(stdout), &gitCommandError{
 			Args:   args,
-			Stderr: strings.TrimSpace(stderr.String()),
+			Stderr: strings.TrimSpace(stderr),
 			Err:    err,
 		}
 	}
-	return stdout.String(), nil
+	return stdout, nil
 }
 
 type gitCommandError struct {

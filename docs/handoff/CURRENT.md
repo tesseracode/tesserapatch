@@ -6,7 +6,7 @@
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
-rev-14 PRD + ADR-035 are authoritative, with strict implementation order
+rev-15 PRD + ADR-035 are authoritative, with strict implementation order
 `S1b → S1 → S3 → S4 → S4b`, pre-change goldens before producer refactors,
 then S5/S6 and sequential S7 hardening. No release tag is authorized before
 joint acceptance. Golden implementation review discovered that rev-14
@@ -28,8 +28,25 @@ S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
 is green on Ubuntu, macOS and Windows. S1 landed at `f0ae54b`; CI
 [32202082897](https://github.com/tesseracode/tesserapatch/actions/runs/32202082897)
-is green on all three platforms. The strict order has advanced to S3; archive
-implementation is present in the worktree and under review.
+is green on all three platforms. S3 landed at `4c3dbfe`; CI
+[32220278819](https://github.com/tesseracode/tesserapatch/actions/runs/32220278819)
+passed every Ubuntu, macOS and Windows test job (the release job was correctly
+skipped). S2 landed at `16d614a`; CI
+[32229096085](https://github.com/tesseracode/tesserapatch/actions/runs/32229096085)
+is green on all three platforms.
+
+S4 mutating prepare is internally approved pending its explicit-path commit
+and blocking CI. Its first independent code review
+returned NEEDS REVISION on exit-3 writes after stale cleanup/staging, use of a
+pre-authority artifact snapshot, unsafe abandon rollback, lost deadline
+classification and repeated human rollback sections. The revision re-inspects
+under the held authority, moves every exit-2/3 gate ahead of cleanup/staging,
+prevalidates V1–V5 without writing, preserves concurrent abandon evidence,
+carries bounded deadline metadata and renders archive residue once. Serialized
+normal and race suites pass across all five changed packages. Focused re-review
+found one remaining exit-class demotion in staging failures; the final fold
+preserves typed exit 6 for both base and archive-index post-rename durability
+failures, and re-review returned APPROVED.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range
@@ -42,10 +59,10 @@ This backlog intake does not preempt the active prepare queue.
 - **Task ID**: `implement-prepare-intent-bundle`
 - **Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
 - **Description**: Implement the mutating `tpatch prepare <slug>` intent-bundle
-  contract from the accepted `PRD-prepare-intent-bundle` rev-14 +
-  `ADR-035-intent-bundle-publication-and-history` rev-14 (ADR-035 normative
+  contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
+  `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S3 intent archive review**
+- **Status**: **In Progress — S4 internally approved, pre-commit validation**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -55,8 +72,8 @@ This backlog intake does not preempt the active prepare queue.
 
 PRD §19's three acceptance conditions are now all satisfied:
 
-1. `PRD-prepare-intent-bundle` Accepted at rev-14 (2026-08-14).
-2. `ADR-035` Accepted at rev-14 (2026-08-14), reviewed jointly with the PRD.
+1. `PRD-prepare-intent-bundle` Accepted at rev-15 (2026-08-18).
+2. `ADR-035` Accepted at rev-15 (2026-08-18), reviewed jointly with the PRD.
 3. §19(3) — the accepted `prepare --check` contract
    (`PRD-artifact-validation-and-provenance` rev-5 / rev-6 errata + `ADR-034`
    rev-2 / rev-3 errata) has frozen implementation content at `cacaaf8` and
@@ -114,12 +131,47 @@ file, is the dispatch authority.
 - Full evidence and limits:
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
+## Files Changed
+
+- `internal/cli/prepare.go`
+- `internal/cli/prepare_publish.go`
+- `internal/cli/prepare_publish_s4_test.go`
+- `internal/cli/prepare_test.go`
+- `internal/cli/prepare_avp_test.go`
+- `internal/cli/prepare_avp2_test.go`
+- `internal/cli/prepare_pib_golden_test.go`
+- `internal/gitutil/ignore.go`
+- `internal/gitutil/ignore_prepare_test.go`
+- `internal/intentpub/stage.go`
+- `internal/intentpub/plan_stage_hardening_test.go`
+- `internal/rescap/gitgate.go`
+- `internal/rescap/scratch.go`
+- `internal/workflow/session_ignore.go`
+- `docs/handoff/CURRENT.md`
+- `docs/ROADMAP.md`
+- `docs/supervisor/LOG.md`
+
+## Test Results
+
+- `go test -p=1 -count=1 ./...` — PASS.
+- Serialized race coverage for all five S4 packages — PASS; the final revision
+  additionally reran the five transaction-order/fault regressions under
+  `-race`.
+- Exact 51-fixture `TestPreparePIBPreChangeGoldens` — PASS; no fixture was
+  re-recorded.
+- `gofmt -l .`, `go vet ./...`, host build and Linux amd64, Darwin amd64 and
+  Windows amd64 cross-builds — PASS.
+- S2 prerequisite CI
+  [32229096085](https://github.com/tesseracode/tesserapatch/actions/runs/32229096085)
+  — green on Ubuntu, macOS and Windows.
+- Side Research EOF tail remains
+  `b385fe622db9926f48861105239f113e`.
+
 ## Next Steps
 
-1. Review and land S3's deterministic intent archive, purge and recovery
-   domain.
-2. Continue sequentially: S2 generators, S4 mutating CLI and S4b retention
-   commands.
+1. Commit S4 through explicit-path staging, push and require blocking
+   three-platform CI.
+2. Continue sequentially with S4b retention commands.
 3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 4. Run joint internal/external review to acceptance; only then select the

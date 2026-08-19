@@ -51,7 +51,7 @@ func EnsureLocalContract(repoRoot, slug string) error {
 		return Refuse(ReasonLocalRootNotIgnored,
 			"%s is not covered by the .tpatch/local/ ignore contract: %v", leaf, err)
 	}
-	tracked, err := AnythingTrackedUnder(repoRoot, LocalScratchPrefix)
+	tracked, err := anythingTrackedUnderCompatibility(repoRoot, LocalScratchPrefix)
 	if err != nil {
 		return err
 	}

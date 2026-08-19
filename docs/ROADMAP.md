@@ -965,7 +965,7 @@ acknowledgement without replay bypass. Research/backlog only; the accepted
 **Mutating prepare intent bundle implementation** 🔨 IN PROGRESS — REV-15 ACCEPTED
 (2026-08-18; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
 WAVE_BASE `3b579fc`): implement the accepted
-`PRD-prepare-intent-bundle` rev-14 + ADR-035 rev-14 contract. Pre-change
+`PRD-prepare-intent-bundle` rev-15 + ADR-035 rev-15 contract. Pre-change
 goldens land first; strict order is S1b directory authority → S1 transaction
 core → S3 archive → S4 CLI → S4b retention, with S2 generator extraction
 joined before S4, then S5 doctor, S6 public parity and sequential S7
@@ -999,7 +999,19 @@ denial, live-path identity, explicit release; rescap unchanged), CI
 green. S1 ✅ COMPLETE at `f0ae54b` (strict journal, rooted durable transaction,
 semantic CAS, rollback and terminal recovery), CI
 [32202082897](https://github.com/tesseracode/tesserapatch/actions/runs/32202082897)
-green. S3 archive implementation/review is active.
+green. S3 ✅ COMPLETE at `4c3dbfe` (strict deterministic archive schema,
+global hash ownership, append planning, rehydration and purge state machine);
+CI run
+[32220278819](https://github.com/tesseracode/tesserapatch/actions/runs/32220278819)
+passed every platform test job. S2 ✅ COMPLETE at `16d614a` (pure generators,
+bounded control metadata and in-memory retry with legacy wrapper parity); CI
+run
+[32229096085](https://github.com/tesseracode/tesserapatch/actions/runs/32229096085)
+is green on Ubuntu, macOS and Windows. S4 mutating CLI is in revised review
+after closing its first review's transaction-order, authority-snapshot,
+abandon-rollback, deadline-classification and report-shape findings. Focused
+re-review caught and closed one exit-6 staging-error demotion, then returned
+APPROVED; explicit-path commit and blocking three-platform CI remain.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

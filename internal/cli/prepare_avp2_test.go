@@ -539,15 +539,18 @@ func TestAVPExitEnvelope(t *testing.T) {
 
 	t.Run("AVP-100", func(t *testing.T) {
 		root := avpWorkspace(t, defaultAVPFiles())
-		code, _, stderr, _ := runPrepare(t, "--path", root, "prepare", avpSlug)
-		if code != 4 {
-			t.Fatalf("exit = %d, want 4", code)
+		code, stdout, stderr, _ := runPrepare(t, "--path", root, "prepare", avpSlug)
+		if code != 3 {
+			t.Fatalf("exit = %d, want request refusal 3", code)
+		}
+		if !strings.Contains(stdout, "Refusal: request-unreadable") {
+			t.Fatalf("stdout = %q", stdout)
 		}
 		lines := strings.Split(strings.TrimRight(stderr, "\n"), "\n")
 		if len(lines) != 1 {
 			t.Fatalf("stderr has %d lines, want 1: %q", len(lines), stderr)
 		}
-		if !strings.Contains(stderr, "--check") || !strings.Contains(stderr, "tpatch prepare --help") {
+		if !strings.Contains(stderr, "request-unreadable") {
 			t.Fatalf("stderr = %q", stderr)
 		}
 		for _, forbidden := range []string{"docs/", ".md", "http://", "https://"} {

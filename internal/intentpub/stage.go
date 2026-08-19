@@ -21,6 +21,9 @@ func Stage(authority *intentlock.WorkspaceAuthority, slug string, inputs []Stage
 	if err != nil {
 		return StageResult{}, err
 	}
+	if err := ValidateStageInputs(inputs); err != nil {
+		return StageResult{}, err
+	}
 	suffix, err := options.randomHex12()
 	if err != nil || !validHex(suffix, 12) {
 		return StageResult{}, transactionError(CodeRootedWrite, "", "stage-name", "the staging directory name could not be created", 5)
@@ -88,6 +91,38 @@ func Stage(authority *intentlock.WorkspaceAuthority, slug string, inputs []Stage
 		}
 	}
 	return result, nil
+}
+
+// ValidateStageInputs applies V1-V5 without creating staging state.
+func ValidateStageInputs(inputs []StageInput) error {
+	if len(inputs) == 0 {
+		return transactionError(CodeInvalidPlan, "", "stage-input", "staging requires at least one file", 5)
+	}
+	seen := make(map[ArtifactID]bool, len(inputs))
+	for _, input := range inputs {
+		if artifactIndex(input.ArtifactID) < 0 || seen[input.ArtifactID] ||
+			input.Rel != stagedBase(input.ArtifactID) {
+			return transactionError(CodeInvalidPlan, input.ArtifactID, "stage-entry", "the staging input is invalid or duplicated", 5)
+		}
+		seen[input.ArtifactID] = true
+		mode := input.Mode.Perm()
+		if mode == 0 {
+			mode = fs.FileMode(0o644)
+		}
+		if mode != input.Mode.Perm() || input.Mode&^fs.ModePerm != 0 {
+			return transactionError(CodeInvalidPlan, input.ArtifactID, "stage-mode", "the final canonical mode is invalid", 5)
+		}
+		if _, err := identityForBytes(input.Data, mode); err != nil {
+			if len(input.Data) > MaxArtifactBytes {
+				return stagedValidationError(input.ArtifactID, "v2-size")
+			}
+			return attachArtifact(err, input.ArtifactID)
+		}
+		if err := validateStagedBytes(input.ArtifactID, input.Data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func validateStagedBytes(id ArtifactID, data []byte) error {

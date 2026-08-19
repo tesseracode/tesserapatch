@@ -136,7 +136,7 @@ func (r *LocalIgnoreRefusal) Unwrap() error { return ErrLocalIgnoreRefusal }
 // present and future — routes through the same bottleneck check. See
 // the init() below.
 func EnsureLocalIgnoreContract(repoRoot, resolvedPath string) error {
-	if !gitutil.IsGitAvailable(repoRoot) {
+	if !gitutil.CompatibilityIsGitAvailable(repoRoot) {
 		return &LocalIgnoreRefusal{
 			Reason: LocalIgnoreGitUnavailable,
 			Path:   resolvedPath,
@@ -168,7 +168,7 @@ func EnsureLocalIgnoreContract(repoRoot, resolvedPath string) error {
 			Detail: "resolved path is not under repository root " + absRoot,
 		}
 	}
-	ignored, err := gitutil.IsPathIgnored(repoRoot, absPath)
+	ignored, err := gitutil.CompatibilityIsPathIgnored(repoRoot, absPath)
 	if err != nil {
 		if errors.Is(err, gitutil.ErrGitUnavailable) {
 			return &LocalIgnoreRefusal{

@@ -203,8 +203,8 @@ func TestStageV1ThroughV6AndArtifactSensitivity(t *testing.T) {
 				typed.ExitClass != 2 || typed.Class != test.class {
 				t.Fatalf("error = %#v", err)
 			}
-			if result.StageRel == "" || !rootExists(t, authority, result.StageRel) {
-				t.Fatal("invalid staged output did not retain its owned staging directory")
+			if result.StageRel != "" || rootExists(t, authority, laneRel(testSlug)) {
+				t.Fatalf("invalid staged output created staging state: %#v", result)
 			}
 		})
 	}
