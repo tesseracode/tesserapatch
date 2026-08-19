@@ -66,47 +66,106 @@ type RetryOptions struct {
 	Store      *store.Store
 }
 
-// GenerateWithRetry calls prov.Generate up to (1 + MaxRetries) times. Each
-// response is logged to `artifacts/raw-<prefix>-response-<n>.txt`. When the
-// validator returns a non-nil error, the next attempt appends a corrective
-// user message explaining what was wrong.
+type retryIOPolicy struct {
+	startAttempt             func() func()
+	recordSuccessfulResponse func(int, string)
+	enforceContext           bool
+}
+
+// GenerateWithRetry calls prov.Generate up to (1 + MaxRetries) times. It
+// preserves the legacy spinner and optional raw-response artifact logging.
+// Pure generators must use GenerateWithRetryInMemory instead.
 //
 // Returns the first response that passes validation. If every attempt fails,
 // returns the last response together with the final validator error so the
 // caller can decide whether to fall back to heuristics.
 func GenerateWithRetry(ctx context.Context, prov provider.Provider, cfg provider.Config, req provider.GenerateRequest, opts RetryOptions) (string, error) {
+	policy := retryIOPolicy{
+		startAttempt: func() func() {
+			spinner := NewSpinnerIfTTY(os.Stderr, spinnerMessage(opts.LogPrefix))
+			return spinner.Stop
+		},
+		enforceContext: false,
+	}
+	if opts.Store != nil && opts.Slug != "" {
+		policy.recordSuccessfulResponse = func(attempt int, response string) {
+			name := fmt.Sprintf("raw-%s-response-%d.txt", opts.safePrefix(), attempt)
+			_ = opts.Store.WriteArtifact(opts.Slug, name, response)
+		}
+	}
+	return generateWithRetry(ctx, prov, cfg, req, opts, policy)
+}
+
+// GenerateWithRetryInMemory applies retry and validation without spinner,
+// filesystem, Store, or global stderr access. Store and Slug are cleared even
+// when a caller accidentally supplies them.
+func GenerateWithRetryInMemory(ctx context.Context, prov provider.Provider, cfg provider.Config, req provider.GenerateRequest, opts RetryOptions) (string, error) {
+	return generateWithRetryInMemory(ctx, prov, cfg, req, opts, true)
+}
+
+// generateWithRetryInMemoryLegacyContext preserves the legacy Run* context
+// semantics while retaining the pure in-memory retry policy.
+func generateWithRetryInMemoryLegacyContext(ctx context.Context, prov provider.Provider, cfg provider.Config, req provider.GenerateRequest, opts RetryOptions) (string, error) {
+	return generateWithRetryInMemory(ctx, prov, cfg, req, opts, false)
+}
+
+func generateWithRetryInMemory(ctx context.Context, prov provider.Provider, cfg provider.Config, req provider.GenerateRequest, opts RetryOptions, enforceContext bool) (string, error) {
+	opts.Store = nil
+	opts.Slug = ""
+	return generateWithRetry(ctx, prov, cfg, req, opts, retryIOPolicy{enforceContext: enforceContext})
+}
+
+func generateWithRetryForAuthority(ctx context.Context, prov provider.Provider, cfg provider.Config, req provider.GenerateRequest, opts RetryOptions, authority GeneratorAuthorityPolicy) (string, error) {
+	if authority.LegacyContextSemantics {
+		return generateWithRetryInMemoryLegacyContext(ctx, prov, cfg, req, opts)
+	}
+	return GenerateWithRetryInMemory(ctx, prov, cfg, req, opts)
+}
+
+func generateWithRetry(ctx context.Context, prov provider.Provider, cfg provider.Config, req provider.GenerateRequest, opts RetryOptions, ioPolicy retryIOPolicy) (string, error) {
 	if prov == nil || !cfg.Configured() {
 		return "", fmt.Errorf("provider not configured")
 	}
+	if ioPolicy.enforceContext {
+		if err := retryContextError(ctx); err != nil {
+			return "", err
+		}
+	}
 
-	attempts := opts.MaxRetries + 1
-	if retryDisabled(ctx) {
-		attempts = 1
-	}
-	if attempts < 1 {
-		attempts = 1
-	}
+	attempts := retryMaxAttempts(ctx, opts.MaxRetries)
 
 	var lastResp string
 	var lastErr error
 	currentReq := req
 
 	for i := 0; i < attempts; i++ {
-		sp := NewSpinnerIfTTY(os.Stderr, spinnerMessage(opts.LogPrefix))
+		if ioPolicy.enforceContext {
+			if err := retryContextError(ctx); err != nil {
+				return lastResp, err
+			}
+		}
+
+		stopAttempt := func() {}
+		if ioPolicy.startAttempt != nil {
+			stopAttempt = ioPolicy.startAttempt()
+		}
 		resp, err := prov.Generate(ctx, cfg, currentReq)
-		sp.Stop()
+		stopAttempt()
+
+		if err == nil && ioPolicy.recordSuccessfulResponse != nil {
+			ioPolicy.recordSuccessfulResponse(i+1, resp)
+		}
+		if ioPolicy.enforceContext {
+			if contextErr := retryContextError(ctx); contextErr != nil {
+				return resp, contextErr
+			}
+		}
 		if err != nil {
 			// Transport / provider-level error: don't retry with corrective prompt,
 			// surface it immediately.
 			return resp, err
 		}
 		lastResp = resp
-
-		// Log raw response best-effort
-		if opts.Store != nil && opts.Slug != "" {
-			name := fmt.Sprintf("raw-%s-response-%d.txt", opts.safePrefix(), i+1)
-			_ = opts.Store.WriteArtifact(opts.Slug, name, resp)
-		}
 
 		if opts.Validate == nil {
 			return resp, nil
@@ -128,6 +187,24 @@ func GenerateWithRetry(ctx context.Context, prov provider.Provider, cfg provider
 	}
 
 	return lastResp, fmt.Errorf("validation failed after %d attempt(s): %w", attempts, lastErr)
+}
+
+func retryContextError(ctx context.Context) error {
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+	return ctx.Err()
+}
+
+func retryMaxAttempts(ctx context.Context, maxRetries int) int {
+	attempts := maxRetries + 1
+	if retryDisabled(ctx) {
+		attempts = 1
+	}
+	if attempts < 1 {
+		return 1
+	}
+	return attempts
 }
 
 func (o RetryOptions) safePrefix() string {
