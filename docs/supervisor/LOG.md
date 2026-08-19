@@ -1,3 +1,31 @@
+## Implementation — prepare S1b + S1 — 2026-08-18
+
+**S1b**: `1f35605`
+**S1b CI**:
+[32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
+**S1**: `f0ae54b`
+**S1 CI**:
+[32202082897](https://github.com/tesseracode/tesserapatch/actions/runs/32202082897)
+
+### Delivered
+
+- S1b: one retained `os.Root` + root-directory file authority, Control-scoped
+  fstatfs/flock/unlock, exact denied classes, identity revalidation, explicit
+  release and unsupported-target refusal. `internal/rescap` remained
+  byte-identical.
+- S1: coherent fixed-order plans, V1–V6 staging, exact J1–J10 journal, safe
+  rooted capture, same-directory durable publication, semantic CAS, status
+  last, reverse rollback, arbitrary-mixture terminal recovery, exact modes,
+  journal-bound temp cleanup and evidence-safe clearing marker.
+
+Both slices converged through code review; race, full-suite, vet, build and
+cross-build checks passed. Their blocking three-platform CI runs are green.
+
+### Action Taken
+
+Strict order advanced from S1b → S1 → S3. Archive implementation is now under
+review; no S4 surface is authorized yet.
+
 ## Implementation — prepare pre-change golden baseline — 2026-08-18
 
 **Primary commit**: `f9208c7`

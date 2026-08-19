@@ -993,6 +993,14 @@ and feature resources. CI
 is green on all three platforms; GH #23's native Windows resource refusal ran
 in its own blocking step. S1b is active.
 
+S1b ✅ COMPLETE at `1f35605` (held-root directory authority, exact filesystem
+denial, live-path identity, explicit release; rescap unchanged), CI
+[32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
+green. S1 ✅ COMPLETE at `f0ae54b` (strict journal, rooted durable transaction,
+semantic CAS, rollback and terminal recovery), CI
+[32202082897](https://github.com/tesseracode/tesserapatch/actions/runs/32202082897)
+green. S3 archive implementation/review is active.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.

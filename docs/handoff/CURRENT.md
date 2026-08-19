@@ -22,7 +22,14 @@ pre-production golden baseline landed at `f9208c7`, with its Git-maintenance
 race pin at `977b9d5`. CI run
 [32178723042](https://github.com/tesseracode/tesserapatch/actions/runs/32178723042)
 is green on Ubuntu, macOS and Windows; the dedicated GH #23 native Windows
-resource golden is blocking and passed. S1b is now in progress.
+resource golden is blocking and passed.
+
+S1b landed at `1f35605`; CI
+[32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
+is green on Ubuntu, macOS and Windows. S1 landed at `f0ae54b`; CI
+[32202082897](https://github.com/tesseracode/tesserapatch/actions/runs/32202082897)
+is green on all three platforms. The strict order has advanced to S3; archive
+implementation is present in the worktree and under review.
 
 The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 2026-08-18 and accepted at evidence commit `e6901a2` (range
@@ -38,7 +45,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-14 +
   `ADR-035-intent-bundle-publication-and-history` rev-14 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S1b directory authority**
+- **Status**: **In Progress — S3 intent archive review**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -109,10 +116,10 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Implement and review S1b's held-root directory authority without changing
-   `internal/rescap`.
-2. Continue sequentially: S1 transaction core, S3
-   archive, S2 generators, S4 mutating CLI and S4b retention commands.
+1. Review and land S3's deterministic intent archive, purge and recovery
+   domain.
+2. Continue sequentially: S2 generators, S4 mutating CLI and S4b retention
+   commands.
 3. Add S5 doctor D9 and S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 4. Run joint internal/external review to acceptance; only then select the
