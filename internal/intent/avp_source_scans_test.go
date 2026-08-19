@@ -216,8 +216,8 @@ func trackedGoSources(t *testing.T) map[string]string {
 	return sources
 }
 
-// checkInspectorImporters is the AVP-134 body: only the tracked prepare and
-// intent-archive command implementation files may import the inspector.
+// checkInspectorImporters is the AVP-134 body: only the tracked prepare,
+// intent-archive, and D9 implementation files may import the inspector.
 func checkInspectorImporters(sources map[string]string) error {
 	const path = `"github.com/tesseracode/tesserapatch/internal/intent"`
 	var importers []string
@@ -231,9 +231,11 @@ func checkInspectorImporters(sources map[string]string) error {
 		filepath.Join("internal", "cli", "feature_intent_archive.go"),
 		filepath.Join("internal", "cli", "prepare.go"),
 		filepath.Join("internal", "cli", "prepare_publish.go"),
+		filepath.Join("internal", "workflow", "doctor_d9.go"),
 	}
 	if len(importers) != len(want) ||
-		importers[0] != want[0] || importers[1] != want[1] || importers[2] != want[2] {
+		importers[0] != want[0] || importers[1] != want[1] ||
+		importers[2] != want[2] || importers[3] != want[3] {
 		return fmt.Errorf("internal/intent is imported by %v, want only %v", importers, want)
 	}
 	return nil

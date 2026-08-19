@@ -1035,7 +1035,28 @@ Tracked-state full validation then found only AVP-134's stale exact importer
 set; its sensitivity-preserving S4b correction now passes the full uncached
 and CLI race gates. S4b ✅ COMPLETE at `e3099d5`; CI
 [32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
-is green on Ubuntu, macOS and Windows. S5 doctor D9 is active.
+is green on Ubuntu, macOS and Windows. S5 doctor D9 rev-0 is implemented but
+returned NEEDS REVISION on no-follow workspace reads, non-destructive read
+failure handling, one-class/one-route aggregation and the 48-row ledger's
+runnable/semantic resolution. Rev-1 folds all four with confined reads,
+exact-D9 loader bypass, aggregate findings and a PRD-bound AST ledger;
+re-review remains NEEDS REVISION on pending ownership beside unrelated read
+failure, three non-covering ledger mappings, resolver false positives, docs
+sensitivity and native Windows PIB-222 execution. Rev-2 closes those five;
+production D9 is clean, while re-review remains NEEDS REVISION on
+scope-aware AST binding, complete PIB-316…322 runtime observables and exact
+PIB-143/145 authoritative-surface guards. Rev-3 folds all three and adds the
+AVP PRD rev-7 no-decision-change forbidden-source erratum already mandated by
+ADR-035/PIB-143. Re-review remains NEEDS REVISION on table reassignment
+handling, normative-section binding for PIB-145 and complete
+PIB-316/318/320…322 observables. Rev-4 closes those; re-review remains NEEDS
+REVISION on alias/range-body table mutation and copied historical heading
+blocks in normative-section resolution. Rev-5 closes those; two parser edges
+remain for direct range-variable mutation and CommonMark fence/ATX indentation
+strictness. Rev-6 closes both; focused re-review APPROVED. Full validation,
+then found only a stale AVP-134 D9 importer set and non-hermetic PIB-146
+provider config; both corrections now pass the full uncached and CLI/workflow
+race gates. Commit and blocking CI remain.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

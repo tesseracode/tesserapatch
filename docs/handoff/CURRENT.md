@@ -51,6 +51,70 @@ is green on Ubuntu, macOS and Windows.
 S4b retention is complete at `e3099d5`; blocking CI
 [32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
 is green on Ubuntu, macOS and Windows.
+
+S5 doctor D9 rev-1 is implemented in the worktree and remains under revision.
+Rev-0's confinement, non-destructive read-error and class-aggregation findings
+are closed. Re-review found five MEDIUM residuals: a decoded pending hash is
+not reported when an unrelated blob read fails; PIB-143/206/209 ledger targets
+are static or unrelated rather than sensitive runtime/source coverage; the AST
+resolver accepts non-`testing.T` `.Run` calls and unrelated table names; PIB-323
+checks forbidden claims only in doctor text, not docs; and PIB-222 has no
+native Windows runtime assertion.
+
+S5 rev-2 closes all five rev-1 findings; production D9 now has no open review
+finding. Re-review remains NEEDS REVISION on three ledger/test-quality
+residuals: identifier shadowing can spoof receiver/table bindings in the AST
+resolver; PIB-316…322 mappings omit required runtime observables; and
+PIB-143/145 do not scan the exact authoritative forbidden-list/source/docs
+surfaces their rows name.
+
+S5 rev-3 folds those three residuals without changing D9 production: the
+ledger binds lexical AST objects under receiver/table shadowing; PIB-316…322
+use complete real CLI crash/recovery/orphan/fresh-state scenarios; and
+PIB-143/145 scan their authoritative table/source/docs populations. The
+implementation-discovered AVP PRD rev-7 erratum adds the one
+`intent-archive/**` forbidden-inference row already required by accepted
+ADR-035 and PIB-143; no decision, matrix row or guard count changes.
+
+S5 rev-3 re-review found three MEDIUM test/ledger residuals: the lexical-object
+resolver still reads only a table's declaration initializer and ignores a
+later assignment before range; PIB-145's positive ADR-035 claims are
+document-wide rather than bound to normative D2/current PRD sections; and
+PIB-316/318/320…322 omit explicit byte-identity, post-rename, cleanup, doctor
+and preceding-interruption observables. Production D9 and the rev-7 erratum
+have no open finding.
+
+S5 rev-4 closes the runtime-observable gaps. Re-review found two MEDIUM
+resolver residuals: table mutation through an alias or inside the range body
+can still make initializer names differ from executed subtests, and normative
+section lookup can bind to a copied heading-delimited block in historical
+prose. Both are test-only hardening; production D9 and the PRD erratum remain
+clean.
+
+S5 rev-5 closes alias/range-body table-object and normative hierarchy gaps.
+Re-review found two precise MEDIUM parser residuals: direct string range
+variables bypass the range-name stability check, and Markdown fence/ATX
+parsing accepts false fence closers or headings indented as code. Both are
+test-helper-only; production D9, runtime rows and PRD erratum remain clean.
+
+S5 rev-6 closes the final direct-range and CommonMark parser edges. Focused
+re-review returned APPROVED with all production, runtime, ledger and erratum
+findings closed.
+
+The first staged-state full suite found two pre-commit integration gaps:
+AVP-134 did not yet include the accepted D9 `internal/intent` importer, and
+PIB-146 inherited package-global provider configuration from earlier tests,
+making its heuristic parity fixture non-hermetic. The bounded correction pins
+the exact four-file importer set and isolates PIB-146's config home; product
+behavior is unchanged.
+Both corrections now pass the complete staged-state normal/race gate.
+
+The current rev-1 implementation uses confined
+`os.OpenInRoot` reads and exact-D9 selection bypasses the legacy feature
+loader; unreadable/unstable regular files remain non-destructive unsafe
+evidence; pending/repair classes aggregate to one finding and route; and the
+48-row ledger is PRD-bound and AST-resolves runnable tests/literal subtests,
+with strengthened PIB-221/323/380/381 observables.
 Rev-0's pending-preview, predicted-remediation, terminal-recovery,
 partial-class, divergence-shape and retry-heading defects are closed. Rev-1
 findings are also closed. Rev-2's shell quoting and selector-precedence
@@ -92,7 +156,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S5 doctor D9**
+- **Status**: **In Progress — S5 approved, ready to commit**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -187,6 +251,17 @@ file, is the dispatch authority.
   `internal/cli/feature_deps.go`.
 - S4b tracked-source correction:
   `internal/intent/avp_source_scans_test.go`.
+- S5 worktree (uncommitted):
+  `internal/workflow/doctor_d9.go`,
+  `internal/workflow/doctor_d9_test.go`,
+  `internal/workflow/doctor_d9_s5_matrix_test.go`,
+  `internal/cli/doctor_d9_test.go`,
+  `internal/cli/prepare_s5_test.go`, plus the bounded doctor registry/help/test
+  deltas.
+- S5 contract/guard corrections:
+  `docs/prds/PRD-artifact-validation-and-provenance.md`,
+  `internal/intent/avp_source_scans_test.go`, and
+  `internal/cli/prepare_pib_golden_windows_test.go`.
 
 ## Test Results
 
@@ -230,10 +305,33 @@ file, is the dispatch authority.
 - S4b blocking CI
   [32291924127](https://github.com/tesseracode/tesserapatch/actions/runs/32291924127)
   — PASS on Ubuntu, macOS and Windows; release job correctly skipped.
+- S5 rev-0 targeted doctor/S5/golden/AVP/platform checks, vet, build and
+  cross-builds — PASS before review; verdict NEEDS REVISION on four
+  path-safety/error-taxonomy/aggregation/ledger findings.
+- S5 rev-1 targeted doctor/S5/51-golden/compatibility tests, vet and Linux
+  amd64/arm64, Darwin arm64 and Windows amd64 builds — PASS; focused re-review
+  verdict NEEDS REVISION on five pending/ledger/docs/Windows residuals.
+- S5 rev-2 closes those five findings; re-review remains NEEDS REVISION on
+  three AST/matrix/authoritative-surface coverage residuals.
+- S5 rev-3 targeted S5/doctor/AVP/51-golden tests, vet, cross-build guards and
+  Windows test-binary/PIB-222 symbol verification — PASS; focused re-review
+  verdict NEEDS REVISION on three ledger/runtime-observable residuals.
+- S5 rev-4 closes those runtime residuals; re-review remains NEEDS REVISION on
+  two alias/range-body and copied-heading resolver gaps.
+- S5 rev-5 closes those two; re-review remains NEEDS REVISION on direct
+  range-name mutation and strict Markdown fence/indent parsing.
+- S5 rev-6 closes the final parser findings; focused re-review APPROVED.
+- First staged-state full suite failed only AVP-134's stale importer set and
+  PIB-146's inherited provider config; bounded test corrections active.
+- Corrected `go test -p=1 -count=1 ./...`, full
+  `go test -race -p=1 ./internal/cli ./internal/workflow`, gofmt, vet, host
+  build and Linux amd64/arm64, Darwin amd64 and Windows amd64 cross-builds —
+  PASS.
 
 ## Next Steps
 
-1. Implement and review S5 doctor D9 persistent-evidence diagnostics.
+1. Commit the explicit S5/erratum/guard/tracking paths, push and require
+   blocking three-platform CI.
 2. Add S6 public docs/assets, then complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 3. Run joint internal/external review to acceptance; only then select the

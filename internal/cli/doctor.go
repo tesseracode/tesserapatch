@@ -19,7 +19,8 @@ func doctorCmd() *cobra.Command {
 		Use:   "doctor",
 		Short: "Diagnose tpatch workspace metadata drift",
 		Long: "Diagnose tpatch workspace metadata drift.\n\n" +
-			"Checks feature metadata (D1), patch-generations manifests (D2), installed skill assets at the six init-managed paths (D3), the current required lock file .tpatch/upstream.lock (D4), reconcile evidence/revision JSONL artifacts (D5), CHANGELOG/tag/GitHub Release drift from local metadata only (D6), recipe schemas (D7), and workspace invariants (D8).\n" +
+			"Checks feature metadata (D1), patch-generations manifests (D2), installed skill assets at the six init-managed paths (D3), the current required lock file .tpatch/upstream.lock (D4), reconcile evidence/revision JSONL artifacts (D5), CHANGELOG/tag/GitHub Release drift from local metadata only (D6), recipe schemas (D7), workspace invariants (D8), and durable prepare/archive evidence (D9).\n" +
+			"D9 is evidence-only and never repairs findings, opens or probes workspace mutation authority, identifies an authority holder, or proves that no holder exists. A removed prepare journal is unrecoverable and ordinarily undetectable.\n" +
 			"Hand-copied skill assets outside the init-managed paths are intentionally out of scope for this doctor wave. D6 never contacts the GitHub API or prompts for auth; provide --release-metadata with a local gh release list JSON snapshot to verify GitHub Release presence.\n" +
 			"Supported local flags are --dry-run, --fix, --json, --release-metadata, and repeated --check; root persistent flags such as --path are inherited.",
 		Args: cobra.NoArgs,
@@ -59,7 +60,7 @@ func doctorCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview findings without writing changes (default)")
 	cmd.Flags().BoolVar(&fix, "fix", false, "Apply safe doctor fixes with backups before overwrites")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit deterministic schema-versioned JSON report")
-	cmd.Flags().StringArrayVar(&checks, "check", nil, "Limit execution to a doctor check ID (repeatable: D1, D2, D3, D4, D5, D6, D7, D8)")
+	cmd.Flags().StringArrayVar(&checks, "check", nil, "Limit execution to a doctor check ID (repeatable: D1, D2, D3, D4, D5, D6, D7, D8, D9)")
 	cmd.Flags().StringVar(&releaseMetadata, "release-metadata", "", "Local JSON snapshot from 'gh release list --json tagName,url,publishedAt' for D6 GitHub Release checks")
 	return cmd
 }

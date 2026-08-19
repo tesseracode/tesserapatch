@@ -113,9 +113,16 @@ func RunDoctor(s *store.Store, options DoctorOptions) (DoctorReport, error) {
 	if err != nil {
 		return DoctorReport{}, err
 	}
-	features, err := validateDoctorWorkspace(s)
-	if err != nil {
-		return DoctorReport{}, &DoctorHardInvariantError{Message: err.Error()}
+	var features []doctorFeature
+	if len(selected) == 1 && selected[0].id == "D9" {
+		if s == nil {
+			return DoctorReport{}, &DoctorHardInvariantError{Message: "doctor: nil store"}
+		}
+	} else {
+		features, err = validateDoctorWorkspace(s)
+		if err != nil {
+			return DoctorReport{}, &DoctorHardInvariantError{Message: err.Error()}
+		}
 	}
 	report := DoctorReport{
 		SchemaVersion: DoctorReportSchemaVersion,
@@ -233,6 +240,7 @@ func doctorRegistry() []doctorCheck {
 		{id: "D6", run: runDoctorD6},
 		{id: "D7", run: runDoctorD7},
 		{id: "D8", run: runDoctorD8},
+		{id: "D9", run: runDoctorD9},
 	}
 }
 

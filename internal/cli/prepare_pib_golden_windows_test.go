@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/internal/intentlock"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -71,4 +72,30 @@ func TestPreparePIBUnsupportedPlatformRuntimeGolden(t *testing.T) {
 	if !bytes.Equal([]byte(got), want) {
 		t.Fatalf("native Windows unsupported-platform transcript drifted\n--- want ---\n%s--- got ---\n%s", want, got)
 	}
+
+	t.Run("PIB-222", func(t *testing.T) {
+		before := snapshotTreeMetadata(t, "workspace", root)
+		previousAcquire := prepareAcquireAuthority
+		acquires := 0
+		prepareAcquireAuthority = func(repoRoot string) (*intentlock.WorkspaceAuthority, error) {
+			acquires++
+			return previousAcquire(repoRoot)
+		}
+		t.Cleanup(func() { prepareAcquireAuthority = previousAcquire })
+
+		code, stdout, stderr, _ := runPrepare(
+			t, "--path", root, "prepare", preparePIBSlug, "--json", "--quiet",
+		)
+		report := prepareS4Report(t, stdout)
+		if code != 3 || report.Refusal == nil || report.Refusal.Code != "prepare-unsupported-platform" {
+			t.Fatalf("native Windows mutating prepare = %d stderr=%q report=%#v", code, stderr, report)
+		}
+		if acquires != 0 {
+			t.Fatalf("native Windows refusal acquired workspace authority %d time(s)", acquires)
+		}
+		after := snapshotTreeMetadata(t, "workspace", root)
+		if after != before {
+			t.Fatalf("native Windows refusal mutated the workspace\n--- before ---\n%s--- after ---\n%s", before, after)
+		}
+	})
 }

@@ -1,3 +1,269 @@
+## Verification — prepare S5 staged-state integration — 2026-08-19
+
+### Verdict: NEEDS REVISION
+
+The first staged-state full suite exposed two test-only integration gaps.
+AVP-134's exact importer set omitted the accepted D9 `internal/intent` caller.
+PIB-146 inherited package-global provider configuration written by earlier
+tests, so its heuristic parity comparison was order-dependent.
+
+### Action Taken
+
+Add `doctor_d9.go` to the exact sensitivity-preserving importer set and isolate
+PIB-146 under an empty per-test config home. Product D9 and public behavior are
+unchanged; rerun the complete local gate before commit.
+
+## Review — prepare S5 doctor D9 rev-6 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review direct range-name stability and strict Markdown parsing.
+
+### Checklist
+
+- [x] Direct key/value range names are stability-checked
+- [x] Alias/compound/closure mutation adversaries fail
+- [x] Stable direct ranges resolve
+- [x] Fences require valid marker/length/closer syntax
+- [x] ATX headings permit at most three leading spaces
+- [x] Historical/fenced/indented copies cannot satisfy normative paths
+- [x] Every prior production/runtime/ledger finding remains closed
+
+### Verdict: APPROVED
+
+### Notes
+
+The final helper fold closes direct range-name mutation and CommonMark
+fence/heading edge cases without changing production D9. All 48 S5 mappings
+resolve through the hardened PRD-bound AST ledger.
+
+### Action Taken
+
+S5 advances to tracked-state full/race validation, explicit-path commit and
+blocking three-platform CI. S6/S7 remain paused.
+
+## Review — prepare S5 doctor D9 rev-5 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review fail-closed table bindings and structural Markdown paths.
+
+### Checklist
+
+- [x] Alias/table/range-body mutation is rejected
+- [x] Normative paths are unique and hierarchy-bound
+- [ ] Direct range-name mutation is stability-checked
+- [ ] Markdown fences and ATX indentation follow valid syntax
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two MEDIUM parser edges remain. The direct `ast.Ident` range-name branch does
+not call the stability check, so assigning a new string before `t.Run` can
+resolve an initializer-only name. The Markdown parser accepts same-marker
+lines with trailing text as fence closers and unlimited indentation as ATX
+headings.
+
+### Action Taken
+
+The implementer receives two helper-only corrections. All production and
+runtime findings remain closed.
+
+## Review — prepare S5 doctor D9 rev-4 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review table mutation policy, normative section binding and
+PIB-316/318/320…322 runtime completion.
+
+### Checklist
+
+- [x] Direct pre-range table reassignment/mutation is rejected
+- [x] PIB-145 claims bind to heading-delimited sections
+- [x] PIB-316/318/320…322 runtime observables are complete
+- [ ] Alias and range-body table mutation is rejected
+- [ ] Historical copied heading blocks cannot satisfy normative claims
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two MEDIUM test-only gaps remain. Mutation analysis follows only the original
+table object and stops before the range body, so aliases and later iterations
+can invalidate initializer names. The Markdown helper selects the first
+matching heading without proving uniqueness, parent section or normative
+context, so a copied historical block can satisfy it.
+
+### Action Taken
+
+The implementer receives the two resolver hardening fixes. Production D9 and
+the AVP PRD rev-7 erratum remain clean.
+
+## Review — prepare S5 doctor D9 rev-3 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review scope-aware ledger binding, PIB-316…322 runtime rows and
+PIB-143/145 authoritative surfaces.
+
+### Checklist
+
+- [x] Resolver rejects lexical receiver/table shadowing
+- [x] PIB-143 table and AVP PRD rev-7 erratum are exact
+- [x] Real runtime scenarios replace prior proxies
+- [ ] Resolver handles/rejects table reassignment before range
+- [ ] PIB-145 positive claims bind to normative sections
+- [ ] PIB-316/318/320…322 assert every explicit row observable
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three MEDIUM residuals remain. Object identity does not account for table
+reassignment before range. PIB-145 can pass from revision-history/rejected
+prose after normative text is removed. The runtime rows omit byte-identical
+claim rejection, a true post-rename CP10 outcome, full recovery cleanup,
+doctor execution and a preceding interrupted fresh-clone state.
+
+### Action Taken
+
+The implementer receives test/ledger-only corrections. Production D9 and the
+AVP PRD rev-7 erratum remain accepted by review.
+
+## Writer — prepare S5 doctor D9 rev-3 — 2026-08-19
+
+### Revision
+
+- Bound ledger receiver/table/range identifiers to lexical AST objects and
+  added shadowing adversaries.
+- Replaced PIB-316…322 proxies with complete real CLI orphan/crash/recovery/
+  abandoned/journal-loss/fresh-archive scenarios.
+- Strengthened PIB-143/145 against their exact forbidden-list/source/docs
+  surfaces.
+- Added AVP PRD rev-7 erratum: the `intent-archive/**` forbidden-inference row
+  already required by accepted ADR-035 and PIB-143. No decision or acceptance
+  count changes.
+
+### Action Taken
+
+Targeted tests, 51 goldens, vet, cross-build guards and Windows PIB-222 symbol
+verification pass. Rev-3 is dispatched for focused re-review.
+
+## Review — prepare S5 doctor D9 rev-2 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review pending ownership, runtime mappings, resolver, docs
+sensitivity and Windows execution.
+
+### Checklist
+
+- [x] Pending ownership survives unrelated read failure
+- [x] PIB-206/209 use real prepare/cycle runtime coverage
+- [x] PIB-323 checks doctor and docs overclaims
+- [x] PIB-222 has a native Windows runtime subtest
+- [ ] AST resolver is scope/object aware under identifier shadowing
+- [ ] PIB-316…322 mappings exercise each complete runtime observable
+- [ ] PIB-143/145 scan their exact authoritative surfaces
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+All rev-1 findings are closed and no D9 production finding remains. Three
+MEDIUM ledger/test issues remain: identifier-name matching accepts shadowed
+`t`/table objects; PIB-316…322 mappings use partial proxies; and PIB-143/145
+omit the forbidden-list/source/docs surfaces their row text requires.
+
+### Action Taken
+
+The same implementer receives test/ledger-only corrections. S5 remains
+uncommitted; S6/S7 remain paused.
+
+## Review — prepare S5 doctor D9 rev-1 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review rev-0 confinement, error taxonomy, aggregation and ledger
+corrections.
+
+### Checklist
+
+- [x] D9 reads are confined against outside-root ancestor swaps
+- [x] Exact-D9 selection alone bypasses the legacy loader
+- [x] Read failures remain non-destructive unsafe evidence
+- [x] Pending/repair instances aggregate by class
+- [ ] Known pending ownership survives unrelated read failure
+- [ ] PIB-143/206/209 map to sensitive observable coverage
+- [ ] AST resolver binds `t.Run` to the test parameter/table source
+- [ ] PIB-323 docs sensitivity rejects a docs overclaim
+- [ ] PIB-222 executes natively on Windows
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The rev-0 production findings are substantially closed. Five MEDIUM residuals
+remain: D9 returns after an unrelated blob read error without reporting a
+pending hash already known from the decoded index; three matrix targets prove
+contract/golden/capture proxies rather than their rows; the AST resolver
+accepts arbitrary `.Run` selectors and unrelated table names; docs overclaims
+escape PIB-323's sensitivity; and a cross-build substitutes for PIB-222's
+native Windows runtime behavior.
+
+### Action Taken
+
+The same implementer receives the bounded residuals. S5 stays uncommitted and
+later slices remain paused.
+
+## Writer — prepare S5 doctor D9 rev-1 — 2026-08-19
+
+### Revision
+
+- Replaced path-based post-check opens with confined `os.OpenInRoot` reads and
+  added ancestor/final swap regressions.
+- Bypassed the legacy feature/status loader only for exact D9 selection.
+- Propagated read/permission/identity failures as non-destructive unsafe
+  evidence.
+- Aggregated each pending set/repair class into one deterministic finding and
+  route.
+- Replaced the 48-row string resolver with PRD-bound AST resolution of exact
+  runnable tests and literal subtests; strengthened PIB-221/323/380/381.
+
+### Action Taken
+
+Targeted doctor/S5/golden/compatibility tests, vet and four cross-builds pass.
+Rev-1 is dispatched for focused re-review; S6/S7 remain paused.
+
+## Review — prepare S5 doctor D9 rev-0 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Add D9 persistent prepare/archive evidence diagnostics while freezing
+D1–D8.
+
+### Checklist
+
+- [x] Scope limited to D9, registry/help and tests
+- [x] Warning-only, non-fixable persistent-evidence taxonomy
+- [x] Direct zero authority/syscall/process/write spies
+- [x] D1–D8 compatibility goldens retained
+- [ ] No-follow handle-relative workspace reads
+- [ ] Read failures never become destructive corrupt-object advice
+- [ ] One finding/route per pending set or repair class
+- [ ] Forty-eight-row ledger resolves runnable sensitive coverage
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+D9's surface and zero-probe intent are present, but four findings are
+load-bearing. The ordinary path-based boundary can follow an ancestor replaced
+after its pre-check, and D9-only selection still invokes the eager
+symlink-following feature loader. Read errors become `OtherNonRegular`, which
+offers destructive `rm -rf`. Pending/repair classes repeat aggregate routes
+per instance. The matrix ledger accepts function-name and raw-subtest strings
+without proving runnable signatures or required observables.
+
+### Action Taken
+
+S5 remains uncommitted. The same sequential implementer receives the bounded
+findings; S6/S7 remain paused.
+
 ## Implementation — prepare S4b retention CLI — 2026-08-19
 
 **Commit**: `e3099d5`
