@@ -1,3 +1,23 @@
+## Implementation — S6 filesystem-classifier fixture prerequisite — 2026-08-19
+
+**Commit**: `971da91`
+**CI**:
+[32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
+
+### Delivered
+
+An internal guarded `AcquireWithFilesystemClassifier` entry point runs normal
+authority acquisition with only the raw classifier replaced. A tracked-source
+guard forbids non-test production callers; unsupported targets never invoke
+the callback. This enables a real denied-filesystem public CLI fixture without
+constructing the final typed error.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+Resume S6's final catalog fixture and focused review.
+
 ## Verification — S6 classifier fixture micro-gate — 2026-08-19
 
 ### Verdict: PASS

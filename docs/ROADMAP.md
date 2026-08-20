@@ -1095,7 +1095,9 @@ public-emission propagation. The rebuilt guards now pass for all other
 rows/catalog entries; one micro-prerequisite remains for raw denied-filesystem
 classifier injection without fabricating the final public error. Its guarded internal entry point
 passes isolated full/race/vet and supported/unsupported cross-build gates;
-commit and blocking CI remain.
+`971da91` and CI
+[32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
+are green on all three platforms. S6 resumes its final catalog fixture/review.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

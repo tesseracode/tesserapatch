@@ -161,6 +161,11 @@ The guarded classifier entry point now passes isolated full/race/vet plus all
 Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
 for a separate micro commit before the final S6 fixture.
 
+The classifier micro-prerequisite is complete at `971da91`; blocking CI
+[32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
+is green on Ubuntu, macOS and Windows. S6 can now drive the real denied
+filesystem classifier and finish its 53-entry public catalog.
+
 The S6 rebuild is **blocked on implementation prerequisites**, not prose.
 Contract/source verification confirms: §18.1 requires 37 named nil injection
 seams that are mostly absent; rooted `DurableWrite` does not revalidate the
@@ -274,7 +279,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — classifier micro-prerequisite ready to commit**
+- **Status**: **In Progress — S6 final catalog fixture/review**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -454,9 +459,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit/push the guarded intentlock classifier fixture entry point and
-   require blocking CI.
-2. Complete the final S6 catalog fixture and obtain clean review.
+1. Complete the final S6 denied-filesystem catalog fixture and obtain clean
+   review.
 3. Complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 4. Run joint internal/external review to acceptance; only then select the
