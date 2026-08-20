@@ -1,3 +1,31 @@
+## Implementation — S6 prerequisite hardening — 2026-08-19
+
+**Commit**: `b37ba4c`
+**CI**:
+[32316113750](https://github.com/tesseracode/tesserapatch/actions/runs/32316113750)
+
+### Delivered
+
+- All 37 literal §18.1 named seams, nil and production-inert, wired at exact
+  lock/publication/archive boundaries.
+- Rename-time rooted directory/final-leaf identity and kind gates for
+  PIB-148…151.
+- Descriptor-authoritative temp cleanup and post-seam held-content
+  verification across Darwin and all supported Linux architectures.
+- Explicit fail-closed write roles and exact status/control/indexed seam
+  sequences.
+- Correct purge failure-seam branch ownership and committed index observation.
+- Malformed selectors as non-report exit 1 at accepted precedence.
+- Committed divergence preserved as exit 6 for status, raw preimage and archive
+  blob writers.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+Prerequisite closed. Resume the pending S6 SPEC/docs/six-skill/31-row guard
+rebuild; S7 remains paused.
+
 ## Verification — S6 prerequisite isolated gate — 2026-08-19
 
 ### Verdict: PASS

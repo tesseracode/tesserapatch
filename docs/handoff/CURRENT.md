@@ -182,6 +182,11 @@ full uncached suite, full CLI/intentlock/intentpub/store race suites, vet, host
 build, all 13 Linux architecture builds, Darwin amd64/arm64, Windows amd64 and
 mips64/le intentpub test compilation.
 
+The S6 prerequisite hardening is complete at `b37ba4c`; blocking CI
+[32316113750](https://github.com/tesseracode/tesserapatch/actions/runs/32316113750)
+is green on Ubuntu, macOS and Windows. S6 resumes against the now-complete
+named seam, rename-time gate and closed selector behavior.
+
 The current rev-1 implementation uses confined
 `os.OpenInRoot` reads and exact-D9 selection bypasses the legacy feature
 loader; unreadable/unstable regular files remain non-destructive unsafe
@@ -229,7 +234,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S6 prerequisite approved, ready to commit**
+- **Status**: **In Progress — S6 rev-1 ledger/docs rebuild**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -409,18 +414,15 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Land the named-seam, rename-time safety and selector-code prerequisite
-   revision, push and require blocking three-platform CI.
-2. Resume S6's exact 31-row ledger/guard rebuild and public prose review.
-3. Complete S7's 567-row
+1. Resume S6's exact 31-row ledger/guard rebuild and public prose review.
+2. Complete S7's 567-row
    acceptance ledger and sensitivity hardening.
-4. Run joint internal/external review to acceptance; only then select the
+3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- S6 cannot satisfy PIB-148…151/232 or the closed refusal catalog until the
-  confirmed production prerequisite revision lands.
+- None. The S6 production prerequisite is landed and green.
 
 ## Context for Next Agent
 

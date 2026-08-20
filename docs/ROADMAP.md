@@ -1079,7 +1079,10 @@ two MEDIUM mappings remain for committed raw-preimage and archive-blob
 post-publication divergence currently downgraded to exit 5. Rev-5 preserves
 both plus manual-status exit 6; focused review APPROVED. Isolated full
 validation passes across full/race/vet and all supported build targets. Commit
-and blocking CI remain before S6 resumes.
+`b37ba4c` and blocking CI
+[32316113750](https://github.com/tesseracode/tesserapatch/actions/runs/32316113750)
+are green on Ubuntu, macOS and Windows. The prerequisite is complete; S6 rev-1
+ledger/docs rebuild resumes.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
