@@ -8,6 +8,17 @@ const AuthoritySupported = false
 
 // Acquire fails before opening the workspace on unsupported targets.
 func Acquire(string) (*WorkspaceAuthority, error) {
+	return unsupportedAuthorityError()
+}
+
+func acquireWithFilesystemClassifier(
+	_ string,
+	_ FilesystemClassifier,
+) (*WorkspaceAuthority, error) {
+	return unsupportedAuthorityError()
+}
+
+func unsupportedAuthorityError() (*WorkspaceAuthority, error) {
 	return nil, &Error{
 		Code:   CodePrepareUnsupportedPlatform,
 		Class:  "platform",

@@ -31,6 +31,21 @@ func Acquire(discoveredWorkspacePath string) (*WorkspaceAuthority, error) {
 	return acquireWithOps(discoveredWorkspacePath, defaultAuthorityOps)
 }
 
+func acquireWithFilesystemClassifier(
+	discoveredWorkspacePath string,
+	classifier FilesystemClassifier,
+) (*WorkspaceAuthority, error) {
+	if classifier == nil {
+		return nil, authorityError(
+			"invalid-test-dependency",
+			"filesystem classifier test dependency is nil",
+		)
+	}
+	ops := defaultAuthorityOps
+	ops.classify = classifier
+	return acquireWithOps(discoveredWorkspacePath, ops)
+}
+
 func acquireWithOps(discoveredWorkspacePath string, ops authorityOps) (*WorkspaceAuthority, error) {
 	root, err := ops.openRoot(discoveredWorkspacePath)
 	if err != nil {

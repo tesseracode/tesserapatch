@@ -1,3 +1,147 @@
+## Verification — S6 classifier fixture micro-gate — 2026-08-19
+
+### Verdict: PASS
+
+The internal `AcquireWithFilesystemClassifier` entry point runs the real
+authority acquisition with only the raw classifier replaced. A tracked-source
+guard forbids non-test production callers. Isolated full/race/vet pass, as do
+all Linux test builds, Darwin/Windows/FreeBSD test builds and Plan9/JS/WASI
+package builds. Mobile cgo targets are outside the repository's cross-test
+envelope.
+
+### Action Taken
+
+Commit and push the micro-prerequisite separately, then wire the final S6
+denied-filesystem public fixture after blocking CI.
+
+## Decision — S6 filesystem-classifier fixture prerequisite — 2026-08-19
+
+### Status: BLOCKED / MICRO-REVISION DISPATCHED
+
+The type-aware S6 rebuild now drives all 18 advisories and 52 public
+refusal/outcome entries through fresh JSON and human CLI states. The sole
+unreachable entry is `lock-filesystem-unsupported`: classification occurs
+before `failLockAcquire`, and the current host has no denied filesystem.
+
+### Action Taken
+
+Add one internal intentlock acquisition entry point accepting a raw filesystem
+classifier, guarded so only tests may call it. The CLI fixture will inject
+`(class=\"nfs\", denied=true, err=nil)` and exercise the real classifier,
+intentlock error and public report mapping. No final typed error injection or
+new CLI surface is authorized.
+
+## Review — prepare S6 public docs/assets rev-3 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review sink/vocabulary/catalog/atomic guard hardening.
+
+### Checklist
+
+- [ ] Sink discovery is type/import/dataflow aware over complete closure
+- [ ] Atomic polarity is evaluated per clause/claim
+- [ ] Vocabularies resolve actual emissions and production rank arrays
+- [ ] Catalog fixtures create states/faults below classifiers
+- [ ] Every catalog fixture verifies JSON and human rendering
+- [ ] Emission discovery resolves all public code propagation
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Six MEDIUM issues remain. Filename/callee matching misses RawSyscall and new
+files while counting read opens. Sentence-wide negation hides contradictory
+positive claims. Vocabulary guards substitute constants/singletons and miss
+nonliteral emissions. Many catalog fixtures return the desired classified
+error/result directly. All observations use JSON quiet. Emission extraction
+misses struct literals and propagated constants while counting formatter
+declarations.
+
+### Action Taken
+
+Return a type-aware static/runtime-state rebuild to the same S6 agent. Public
+prose stays frozen and S7 remains paused.
+
+## Review — prepare S6 public docs/assets rev-2 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review exact runtime/totality/catalog/golden guard rebuild.
+
+### Checklist
+
+- [x] Ledger/rename/FIFO/JSON/state/seam/golden findings closed
+- [ ] Write sink inventory includes descriptor-relative/platform sinks
+- [ ] Vocabulary comparison preserves production-derived order
+- [ ] Refusal reachability observes actual public reports
+- [ ] Atomicity guard rejects positive visibility overclaims
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM guard residuals remain. The sink list omits
+`removeat_unix.go`; vocabulary derivation returns expected order and scans
+whitelisted functions; refusal coverage synthesizes codes/remediations after a
+loose test match; and any preceding `not` can neutralize a positive atomic
+claim.
+
+### Action Taken
+
+Return the four exact guard corrections to the S6 agent. Public prose and all
+other row mappings remain closed.
+
+## Writer — prepare S6 public docs/assets rev-2 — 2026-08-19
+
+### Revision
+
+- Bound the ledger to exact outer `testing.T` objects and literal targets.
+- Mapped PIB-148…151 to discriminating rename/FIFO cases with no-open spy.
+- Rebuilt write-target, semantic overclaim and recursive schema guards.
+- Exercised all nine artifact states in required/sidecar contexts and every
+  valid feature state through production decisions.
+- Derived ordered vocabularies plus exact 18-advisory/53-refusal catalogs from
+  production, each with named reachability/remediation fixtures.
+- Rebuilt the G sensitivity meta-check and complete 37-seam mutation fixture.
+- Bound PIB-391 to actual record/comparison/golden provenance wiring.
+
+### Action Taken
+
+Focused S6/assets/rename/seam/51-golden tests, vet and build pass. Rev-2 is
+dispatched for re-review; S7 remains paused.
+
+## Review — prepare S6 public docs/assets rev-1 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review the exact 31-row public parity ledger/guards.
+
+### Checklist
+
+- [x] Row IDs now match rev-15 observables
+- [x] Public notes/Git/recovery/changelog prose corrected
+- [ ] Ledger binds exact outer `testing.T`
+- [ ] Rename/FIFO rows discriminate exact cases and no-open
+- [ ] Write-target/atomicity/JSON guards are complete and sensitive
+- [ ] Disposition/state/vocabulary guards derive production truth
+- [ ] Advisory/refusal fixtures prove actual reachability/remediation
+- [ ] Seam sensitivity mutates one complete observation set
+- [ ] Golden guard binds actual record/comparison wiring
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Eleven MEDIUM guard defects remain. Several rows still pass from aggregate
+helpers or source/literal proxies: nested receiver shadowing, all-case rename
+wrappers, nonblocking FIFO opens, partial target lists, keyword-only
+atomicity, map-key-blind JSON walks, incomplete state contexts, self-authored
+vocabularies, literal catalog reachability, incomplete seam observations and
+synthetic golden settings.
+
+### Action Taken
+
+The same S6 agent receives a guard-only contract-first revision. Public prose
+is retained; S7 remains paused.
+
 ## Implementation — S6 prerequisite hardening — 2026-08-19
 
 **Commit**: `b37ba4c`

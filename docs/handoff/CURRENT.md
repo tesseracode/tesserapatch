@@ -121,8 +121,48 @@ Public prose also misstates bundle-vs-phase notes, abandon's Git exemption and
 pending-purge terminal recovery, while the Unreleased changelog omits required
 §12.6 deltas.
 
+S6 rev-1 closes the systemic row-number drift and public prose/changelog
+findings. Re-review remains NEEDS REVISION on eleven guard-quality residuals:
+shadowed `testing.T` ledger binding; non-discriminating rename wrappers and
+FIFO no-open proof; incomplete write-target/atomicity/JSON guards; incomplete
+disposition/state/vocabulary totality; proxy advisory/refusal reachability;
+non-biting seam assignment sensitivity; and synthetic rather than wired
+golden provenance validation.
+
+S6 rev-2 folds those eleven guard findings: exact rename/FIFO targets,
+testing-parameter AST binding, mechanical write-target/schema/totality guards,
+production-derived 18-advisory and 53-refusal catalogs, complete one-delta seam
+sensitivities, and actual record/comparison golden wiring. Focused re-review is
+pending.
+
+S6 rev-2 re-review found four MEDIUM guard residuals: the write-sink inventory
+omits descriptor-relative unlink cleanup; vocabulary extraction substitutes
+expected order and scans a fixed function whitelist; refusal reachability
+constructs desired reports instead of observing public fixtures; and broad
+`not` handling can hide positive atomic-visibility overclaims.
+
+S6 rev-3 closes the prior surface gaps but re-review found six deeper MEDIUM
+issues: sink discovery remains filename/callee lexical rather than type/import
+and dataflow aware; atomic negation is sentence-wide; vocabulary derivation
+misses the real repair-order array and nonliteral assignments; catalog
+fixtures inject expected classified results/errors; only JSON quiet rendering
+is exercised; and emission discovery can miss struct literals/constant
+propagation while counting declarations as emissions.
+
+The type-aware rev-3 rebuild now passes every guard and real JSON/human catalog
+fixture except deterministic public reachability of
+`lock-filesystem-unsupported`. The real classifier runs before the existing
+lock failure seam and this host has no denied filesystem. One micro-prerequisite
+will expose an internal classifier-injection acquisition entry point, guarded
+against non-test callers, so S6 can exercise the classifier and public mapping
+without constructing a final typed error.
+
+The guarded classifier entry point now passes isolated full/race/vet plus all
+Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
+for a separate micro commit before the final S6 fixture.
+
 The S6 rebuild is **blocked on implementation prerequisites**, not prose.
-Contract/source verification confirms: §18.1 requires 38 named nil injection
+Contract/source verification confirms: §18.1 requires 37 named nil injection
 seams that are mostly absent; rooted `DurableWrite` does not revalidate the
 directory chain and final leaf after the rename seam/CAS, so PIB-148…151 cannot
 be proved and a swapped symlink can be overwritten; and S4b emits
@@ -234,7 +274,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S6 rev-1 ledger/docs rebuild**
+- **Status**: **In Progress — classifier micro-prerequisite ready to commit**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -414,10 +454,12 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Resume S6's exact 31-row ledger/guard rebuild and public prose review.
-2. Complete S7's 567-row
+1. Commit/push the guarded intentlock classifier fixture entry point and
+   require blocking CI.
+2. Complete the final S6 catalog fixture and obtain clean review.
+3. Complete S7's 567-row
    acceptance ledger and sensitivity hardening.
-3. Run joint internal/external review to acceptance; only then select the
+4. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers

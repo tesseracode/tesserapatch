@@ -1082,7 +1082,20 @@ validation passes across full/race/vet and all supported build targets. Commit
 `b37ba4c` and blocking CI
 [32316113750](https://github.com/tesseracode/tesserapatch/actions/runs/32316113750)
 are green on Ubuntu, macOS and Windows. The prerequisite is complete; S6 rev-1
-ledger/docs rebuild resumes.
+ledger/docs rebuild closes row attribution and prose findings, but re-review
+remains NEEDS REVISION on eleven AST/runtime/totality/catalog/sensitivity/
+golden guard blind spots. Rev-2 folds those with production-derived catalogs,
+exact runtime mappings and complete sensitivity fixtures; re-review remains
+NEEDS REVISION on descriptor-relative sink inventory, production vocabulary
+order, actual refusal fixture evidence and atomic-visibility negation.
+Rev-3 closes the surface cases but remains NEEDS REVISION on type-aware sink
+dataflow, clause-level atomic polarity, actual vocabulary ordering/constant
+resolution, below-classifier catalog states, human rendering and complete
+public-emission propagation. The rebuilt guards now pass for all other
+rows/catalog entries; one micro-prerequisite remains for raw denied-filesystem
+classifier injection without fabricating the final public error. Its guarded internal entry point
+passes isolated full/race/vet and supported/unsupported cross-build gates;
+commit and blocking CI remain.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
