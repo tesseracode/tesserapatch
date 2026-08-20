@@ -11,7 +11,9 @@ import (
 func TestIdentityExactnessModesBoundsAndKinds(t *testing.T) {
 	_, authority := acquireWorkspace(t)
 	rel := ".tpatch/features/identity/status.json"
-	first, err := DurableWrite(authority, WriteRequest{Rel: rel, Data: []byte("abcd"), Mode: 0o600}, Options{RandomHex12: sequenceHex()})
+	first, err := DurableWrite(authority, WriteRequest{
+		Rel: rel, Data: []byte("abcd"), Mode: 0o600, Role: WriteRoleOrdinaryCanonical,
+	}, Options{RandomHex12: sequenceHex()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +69,9 @@ func TestDurableWriterSequenceCASAndFaultCleanup(t *testing.T) {
 			},
 		}
 		rel := ".tpatch/local/intent-prepare/writer/control.json"
-		if _, err := DurableWrite(authority, WriteRequest{Rel: rel, Data: []byte("body"), Mode: 0o600}, options); err != nil {
+		if _, err := DurableWrite(authority, WriteRequest{
+			Rel: rel, Data: []byte("body"), Mode: 0o600, Role: WriteRoleOrdinaryCanonical,
+		}, options); err != nil {
 			t.Fatal(err)
 		}
 		assertSubsequence(t, events, []string{"open-temp", "write", "file-sync", "close", "rename", "directory-sync"})
@@ -84,6 +88,7 @@ func TestDurableWriterSequenceCASAndFaultCleanup(t *testing.T) {
 			Expected:     identityPointer(AbsentIdentity()),
 			MismatchCode: CodeEntryAppeared,
 			ArtifactID:   ArtifactStatus,
+			Role:         WriteRoleCanonicalStatus,
 		}, Options{RandomHex12: fixedHex("aaaaaaaaaaaa")})
 		assertCode(t, err, CodeEntryAppeared)
 		if string(rootRead(t, authority, rel)) != "editor" {
@@ -101,7 +106,9 @@ func TestDurableWriterSequenceCASAndFaultCleanup(t *testing.T) {
 				return &syncFailOps{RootOps: NewRootOps(root)}
 			},
 		}
-		if _, err := DurableWrite(authority, WriteRequest{Rel: rel, Data: []byte("body"), Mode: 0o600}, options); err == nil {
+		if _, err := DurableWrite(authority, WriteRequest{
+			Rel: rel, Data: []byte("body"), Mode: 0o600, Role: WriteRoleOrdinaryCanonical,
+		}, options); err == nil {
 			t.Fatal("injected sync fault was ignored")
 		}
 		if rootExists(t, authority, rel) {
@@ -174,7 +181,9 @@ func TestStageJournalAndRawPreimageModes(t *testing.T) {
 func TestInvalidJournalRecoveryPerformsNoRootMutation(t *testing.T) {
 	_, authority := acquireWorkspace(t)
 	rel := JournalRel(testSlug)
-	if _, err := DurableWrite(authority, WriteRequest{Rel: rel, Data: []byte(`{"version":1,"unknown":true}`), Mode: 0o600}, Options{RandomHex12: sequenceHex()}); err != nil {
+	if _, err := DurableWrite(authority, WriteRequest{
+		Rel: rel, Data: []byte(`{"version":1,"unknown":true}`), Mode: 0o600, Role: WriteRoleOrdinaryCanonical,
+	}, Options{RandomHex12: sequenceHex()}); err != nil {
 		t.Fatal(err)
 	}
 	mutations := 0

@@ -14,8 +14,11 @@ import (
 )
 
 type capturedFile struct {
-	Identity Identity
-	Bytes    []byte
+	Identity   Identity
+	Bytes      []byte
+	Info       fs.FileInfo
+	Components []walkedComponent
+	Rel        string
 }
 
 type walkedComponent struct {
@@ -55,7 +58,11 @@ func captureRegular(ops RootOps, rel string, scratch []byte) (capturedFile, erro
 			if err := revalidateComponents(ops, components); err != nil {
 				return capturedFile{}, err
 			}
-			return capturedFile{Identity: AbsentIdentity()}, nil
+			return capturedFile{
+				Identity:   AbsentIdentity(),
+				Components: components,
+				Rel:        rel,
+			}, nil
 		}
 		return capturedFile{}, identityError("lstat", "the file identity could not be captured")
 	}
@@ -118,8 +125,32 @@ func captureRegular(ops RootOps, rel string, scratch []byte) (capturedFile, erro
 			Size:   int64(count),
 			Mode:   uint32(after.Mode().Perm()),
 		},
-		Bytes: scratch[:count],
+		Bytes:      scratch[:count],
+		Info:       after,
+		Components: components,
+		Rel:        rel,
 	}, nil
+}
+
+func revalidateRenameTarget(ops RootOps, captured capturedFile) error {
+	if err := revalidateComponents(ops, captured.Components); err != nil {
+		return err
+	}
+	if !captured.Identity.Exists {
+		_, err := ops.Lstat(captured.Rel)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return identityError("rename-final-gate", "the absent destination appeared before rename")
+	}
+	if captured.Info == nil {
+		return identityError("rename-final-gate", "the expected destination identity is unavailable")
+	}
+	current, err := ops.Lstat(captured.Rel)
+	if err != nil || !sameSnapshot(ops, captured.Info, current) {
+		return identityError("rename-final-gate", "the destination identity changed before rename")
+	}
+	return nil
 }
 
 func walkComponents(ops RootOps, rel string) ([]walkedComponent, error) {

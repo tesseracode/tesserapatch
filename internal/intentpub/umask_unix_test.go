@@ -48,6 +48,7 @@ func TestExactModesUnderUmask(t *testing.T) {
 		Rel:  target,
 		Data: []byte("value"),
 		Mode: 0o640,
+		Role: WriteRoleOrdinaryCanonical,
 	}, Options{RandomHex12: sequenceHex()}); err != nil {
 		t.Fatal(err)
 	}
@@ -77,6 +78,7 @@ func TestExactModesUnderUmask(t *testing.T) {
 		Data:          []byte("second"),
 		Mode:          0o644,
 		RequireParent: true,
+		Role:          WriteRoleOrdinaryCanonical,
 	}, Options{RandomHex12: sequenceHex()}); err != nil {
 		t.Fatal(err)
 	}

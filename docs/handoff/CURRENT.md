@@ -113,6 +113,75 @@ S5 doctor D9 is complete at `f7ccd61`; blocking CI
 [32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
 is green on Ubuntu, macOS and Windows.
 
+S6 public parity rev-0 is implemented in the worktree and under revision after
+an independent NEEDS REVISION verdict. The main blocker is systemic: most of
+the 31 acceptance-row IDs are shifted or mapped to unrelated observables, and
+several totality/sensitivity guards cannot detect their required regressions.
+Public prose also misstates bundle-vs-phase notes, abandon's Git exemption and
+pending-purge terminal recovery, while the Unreleased changelog omits required
+§12.6 deltas.
+
+The S6 rebuild is **blocked on implementation prerequisites**, not prose.
+Contract/source verification confirms: §18.1 requires 38 named nil injection
+seams that are mostly absent; rooted `DurableWrite` does not revalidate the
+directory chain and final leaf after the rename seam/CAS, so PIB-148…151 cannot
+be proved and a swapped symlink can be overwritten; and S4b emits
+`archive-selector-invalid` although the closed refusal catalog contains no such
+public code. S6 docs/assets stay uncommitted while one sequential prerequisite
+hardening revision closes these production gaps.
+
+Prerequisite rev-0 review returned NEEDS REVISION on four MEDIUM integration
+findings: existing `FEATURES.md` refreshes now pass an implicit
+expected-absent gate; status/control rename seams are classified by artifact ID
+instead of exact write role and miss staging; `failPurgeAfterFirstMutation`
+fires in orphan/unreferenced/absent branches that own other failure seams; and
+`afterPurgeIndexRename` is skipped when the index rename committed but later
+durability verification failed.
+
+Prerequisite rev-1 folds all four: FEATURES refresh CASes its captured
+identity; every rooted writer declares ordinary-canonical,
+canonical-status or control role with exact seam sequences; the generic
+first-mutation purge failure exists only after a pending-claim CAS; and the
+post-index seam fires on every committed rename including later durability
+error. Focused re-review is pending.
+
+Prerequisite rev-1 re-review found one HIGH and two MEDIUM residuals. Temp
+cleanup retains a parent descriptor opened independently from temp creation,
+so an ancestor swap can make `unlinkat` delete the same basename in the wrong
+directory or strand the owned temp. Write-role zero silently means ordinary
+canonical instead of failing closed. The between-hashes seam can fire after an
+already-complete hash that made no current-run mutation.
+
+Prerequisite rev-2 closes those three. Re-review found one HIGH and one MEDIUM
+residual: same-inode temp content can change after writing and still pass a
+dev/inode-only final gate; and descriptor cleanup exists only on Linux
+amd64/arm64 although mutation authority supports other non-Android Linux
+architectures, causing those targets to create then strand a temp at exit 6.
+
+Prerequisite rev-3 closes content hashing and all-Linux build coverage.
+Re-review found two HIGH low-level residuals: same-size bytes can change after
+`Pread` but before post-read `Fstat` unless mutation-sensitive mtime/ctime
+nanoseconds are compared; and mips64/mips64le cannot pass Go's `Stat_t`
+directly to raw `newfstatat` because the kernel layout needs the stdlib's
+private conversion/wrapper.
+
+Adjudication withdrew the coarse-timestamp prerequisite: accepted T1
+post-rename verification guarantees tampered bytes cannot return success and
+classifies the documented residual as exit 6. Review instead found two MEDIUM
+exit-mapping bugs: committed raw-preimage divergence is hard-coded to
+rolled-back exit 5, and archive append normalization overwrites an existing
+exit 6 with resumable exit 5.
+
+Prerequisite rev-5 preserves committed exit 6 across raw preimages, archive
+blobs and manual status. Focused review returned APPROVED with every named
+seam, rename-time gate, selector error, write role, descriptor-cleanup and
+exit-mapping finding closed.
+
+The approved prerequisite patch passes isolated tracked-state validation:
+full uncached suite, full CLI/intentlock/intentpub/store race suites, vet, host
+build, all 13 Linux architecture builds, Darwin amd64/arm64, Windows amd64 and
+mips64/le intentpub test compilation.
+
 The current rev-1 implementation uses confined
 `os.OpenInRoot` reads and exact-D9 selection bypasses the legacy feature
 loader; unreadable/unstable regular files remain non-destructive unsafe
@@ -160,7 +229,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S6 public docs/assets parity**
+- **Status**: **In Progress — S6 prerequisite approved, ready to commit**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -334,19 +403,24 @@ file, is the dispatch authority.
 - S5 blocking CI
   [32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
   — PASS on Ubuntu, macOS and Windows; release job correctly skipped.
+- S6 rev-0 assets/docs/targeted/golden/vet checks — PASS before review; verdict
+  NEEDS REVISION on systemic row attribution/guard sensitivity plus bounded
+  prose/changelog findings.
 
 ## Next Steps
 
-1. Implement and review S6 public docs/assets/parity surfaces.
-2. Complete S7's 567-row
+1. Land the named-seam, rename-time safety and selector-code prerequisite
+   revision, push and require blocking three-platform CI.
+2. Resume S6's exact 31-row ledger/guard rebuild and public prose review.
+3. Complete S7's 567-row
    acceptance ledger and sensitivity hardening.
-3. Run joint internal/external review to acceptance; only then select the
+4. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- None. Rev-15 is accepted and the mandatory golden commit is landed and
-  green.
+- S6 cannot satisfy PIB-148…151/232 or the closed refusal catalog until the
+  confirmed production prerequisite revision lands.
 
 ## Context for Next Agent
 

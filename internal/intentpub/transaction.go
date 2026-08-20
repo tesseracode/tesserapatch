@@ -90,6 +90,10 @@ func Execute(authority *intentlock.WorkspaceAuthority, plan Plan, runNonce strin
 		}
 		for index := range plan.entries {
 			entry := plan.entries[index]
+			// The named seam always precedes the consolidated Options.Hook.
+			if beforeEntryCAS != nil {
+				beforeEntryCAS(index)
+			}
 			if err := callHook(options, PointBeforeEntryCAS, root, &entry); err != nil {
 				return err
 			}
@@ -119,6 +123,9 @@ func Execute(authority *intentlock.WorkspaceAuthority, plan Plan, runNonce strin
 				MismatchCode:  mismatchCode,
 				ArtifactID:    entry.ArtifactID,
 				RequireParent: true,
+				Indexed:       true,
+				EntryIndex:    index,
+				Role:          canonicalWriteRole(entry.ArtifactID),
 			}, entry.NewImage, options)
 			if writeResult.Committed {
 				result.Published = append(result.Published, entry.ArtifactID)
@@ -148,7 +155,7 @@ func Execute(authority *intentlock.WorkspaceAuthority, plan Plan, runNonce strin
 			if rollbackErr != nil {
 				return rollbackErr
 			}
-			verified, verifyErr := verifyFinalSet(authority, ops, plan.entries, expectPreimage, result.Restored, options, undoExecution)
+			verified, verifyErr := verifyExecutionRollbackSet(authority, ops, plan.entries, result.Restored, options)
 			result.Restored = verified
 			if verifyErr != nil {
 				return verifyErr
@@ -166,6 +173,9 @@ func Execute(authority *intentlock.WorkspaceAuthority, plan Plan, runNonce strin
 		}
 		if err := validateOriginalRoot(authority, true); err != nil {
 			return err
+		}
+		if beforeFinalVerify != nil {
+			beforeFinalVerify()
 		}
 		if err := callHook(options, PointBeforeFinalVerify, root, nil); err != nil {
 			return err
@@ -200,6 +210,44 @@ func Execute(authority *intentlock.WorkspaceAuthority, plan Plan, runNonce strin
 		return resultWithError(result, err)
 	}
 	return result, nil
+}
+
+func verifyExecutionRollbackSet(
+	authority *intentlock.WorkspaceAuthority,
+	ops RootOps,
+	entries []Entry,
+	restored []ArtifactID,
+	options Options,
+) ([]ArtifactID, error) {
+	if err := validateOriginalRoot(authority, true); err != nil {
+		return nil, err
+	}
+	matches := make(map[ArtifactID]bool, len(restored))
+	var firstMismatch ArtifactID
+	for _, id := range restored {
+		entry, ok := findEntry(entries, id)
+		if !ok {
+			return nil, transactionError(CodeInvalidPlan, id, "rollback-entry", "the restored entry is absent from the frozen plan", 6)
+		}
+		current, err := options.capture(ops, entry.Rel)
+		matches[id] = err == nil && current.Equal(entry.Preimage)
+		if !matches[id] && firstMismatch == "" {
+			firstMismatch = id
+		}
+	}
+	verified := make([]ArtifactID, 0, len(restored))
+	for _, id := range restored {
+		if matches[id] {
+			verified = append(verified, id)
+		}
+	}
+	if err := validateOriginalRoot(authority, true); err != nil {
+		return verified, err
+	}
+	if firstMismatch != "" {
+		return verified, undoMismatch(undoExecution, firstMismatch, "undo-final-set")
+	}
+	return verified, nil
 }
 
 func validateCanonicalParents(ops RootOps, entries []Entry) error {
@@ -304,6 +352,7 @@ func rollbackRoot(root *os.Root, ops RootOps, entries []Entry, published []Artif
 				MismatchCode:  mismatchCode,
 				ArtifactID:    entry.ArtifactID,
 				RequireParent: true,
+				Role:          canonicalWriteRole(entry.ArtifactID),
 			}, entry.Preimage, options)
 			if err != nil {
 				var typed *Error
@@ -320,6 +369,13 @@ func rollbackRoot(root *os.Root, ops RootOps, entries []Entry, published []Artif
 		}
 	}
 	return restored, nil
+}
+
+func canonicalWriteRole(id ArtifactID) WriteRole {
+	if id == ArtifactStatus {
+		return WriteRoleCanonicalStatus
+	}
+	return WriteRoleOrdinaryCanonical
 }
 
 func verifyFinalSet(

@@ -1,3 +1,243 @@
+## Verification — S6 prerequisite isolated gate — 2026-08-19
+
+### Verdict: PASS
+
+The staged hardening patch, applied alone to a detached worktree, passes the
+full uncached suite, CLI/intentlock/intentpub/store race suites, vet, host
+build, all 13 Linux architecture builds, Darwin amd64/arm64, Windows amd64 and
+mips64/le intentpub test compilation.
+
+### Action Taken
+
+Commit and push only the prerequisite hardening/tracking paths. The pending S6
+SPEC/docs/assets diff remains unstaged and uncommitted until prerequisite CI is
+green.
+
+## Review — S6 prerequisite hardening rev-5 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review committed-divergence exit mappings and the complete
+prerequisite revision.
+
+### Checklist
+
+- [x] Raw preimage committed divergence remains exit 6
+- [x] Archive blob committed divergence remains exit 6
+- [x] Manual status committed divergence remains exit 6
+- [x] Ordinary partial/precommit exits retain 5/3
+- [x] All 37 named seams and exact callpoints remain closed
+- [x] Rename-time gates and descriptor cleanup remain closed
+- [x] Malformed selectors are non-report exit 1
+
+### Verdict: APPROVED
+
+### Action Taken
+
+Run the hardening patch alone in an isolated detached worktree, then commit and
+push it separately before resuming the pending S6 docs/assets rebuild.
+
+## Adjudication — S6 prerequisite T1 boundary — 2026-08-19
+
+### Decision: NEEDS REVISION (finding narrowed)
+
+The coarse-timestamp pre-rename finding is withdrawn. Every rooted writer
+re-captures intended canonical bytes after rename and transaction T1 repeats
+the set verification, so a post-gate temp rewrite cannot return success; it is
+the documented exit-6 residual.
+
+Two real mapping defects remain: raw-preimage writer divergence is hard-coded
+to rolled-back exit 5 in the CLI, and archive append normalization overwrites
+an existing exit 6 with exit 5. Both must preserve
+`post-publication-divergence` / `recovery-refused`.
+
+### Action Taken
+
+Return the two exit mappings to the hardening agent. No filesystem support
+change or contract amendment is authorized.
+
+## Review — S6 prerequisite hardening rev-3 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review held-descriptor hashing and all-Linux syscall support.
+
+### Checklist
+
+- [x] Held descriptor content hash checked after seams
+- [x] All supported Linux targets compile descriptor cleanup
+- [ ] Pre/post-read mutation-sensitive metadata is stable
+- [ ] mips64 uses the stdlib-compatible fstatat layout conversion
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+A same-size overwrite after `Pread` but before `Fstat` can preserve
+inode/size/mode while changing canonical-bound bytes; mtime/ctime nanoseconds
+must remain equal across the held read. On mips64/le, raw `newfstatat` cannot
+write directly into Go's public `syscall.Stat_t`; the architecture requires
+its generated wrapper/private-kernel-struct conversion.
+
+### Action Taken
+
+The agent receives the two low-level corrections. S6 remains paused.
+
+## Review — S6 prerequisite hardening rev-2 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review coherent temp cleanup, write roles and between-hash seams.
+
+### Checklist
+
+- [x] Temp cleanup cannot unlink an unrelated basename
+- [x] Zero write role fails closed
+- [x] Between-hashes seam requires current-run mutation
+- [ ] Temp content/metadata is reverified after seams before rename
+- [ ] Cleanup works on every Linux architecture mutation supports
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Device/inode equality does not detect an in-place rewrite of the same temp
+inode after writing; modified bytes can reach canonical before post-write
+verification notices. Descriptor cleanup build tags cover only amd64/arm64,
+while authority support includes other non-Android Linux targets, so those
+targets mutate then discover cleanup is unavailable.
+
+### Action Taken
+
+The agent receives a held-descriptor content check and all-supported-Linux
+cleanup correction. S6 remains paused.
+
+## Review — S6 prerequisite hardening rev-1 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review write roles, FEATURES CAS and purge seam ownership.
+
+### Checklist
+
+- [x] FEATURES refresh CASes captured identity
+- [x] Status/control seams use explicit roles
+- [x] Generic purge failure stays in pending-claim branch
+- [x] Committed index error triggers after seam
+- [ ] Temp creation/cleanup share one retained directory authority
+- [ ] Zero write role fails closed
+- [ ] Between-hashes seam requires current-run mutation
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The new unlinkat cleanup opens its parent independently from temp creation, so
+an ancestor swap can point creation and cleanup at different directories.
+Ordinary-canonical being enum zero permits omitted roles. The between-hashes
+seam fires after a completed-but-unmutated hash and cannot produce the required
+completion-only partial outcome.
+
+### Action Taken
+
+The hardening agent receives the three bounded fixes. S6 remains paused.
+
+## Writer — S6 prerequisite hardening rev-1 — 2026-08-19
+
+### Revision
+
+- FEATURES refresh now CASes the captured present/absent identity.
+- Rooted writes declare ordinary-canonical, canonical-status or control role;
+  exact generate/regenerate/manual/recovery hook sequences are tested.
+- `failPurgeAfterFirstMutation` is confined to the pending-claim branch.
+- `afterPurgeIndexRename` fires once on every committed CAS, including a later
+  sync/verification error.
+
+### Action Taken
+
+Targeted intentpub/store/CLI tests, vet and Linux/Windows builds pass. Rev-1 is
+dispatched for focused re-review; S6 remains paused.
+
+## Review — S6 prerequisite hardening rev-0 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Add §18.1 named seams, rename-time safety and closed selector errors.
+
+### Checklist
+
+- [x] All 37 literal §18.1 seam names declared and called
+- [x] Final directory/leaf gate closes PIB-148…151 swap paths
+- [x] Malformed selectors no longer emit an undocumented refusal
+- [ ] Existing FEATURES.md refresh passes its captured identity
+- [ ] Status/control/staging seams classify exact write roles
+- [ ] Purge failure seams stay in their owning branches
+- [ ] Committed index rename always triggers its after seam
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM integration findings remain. The new expected-absent default makes
+derived FEATURES refresh fail on initialized workspaces. Artifact-ID-based
+status hooks fire on staged/preimage status writes while staging lacks the
+control hook. The generic first-mutation purge seam leaks into branches owned
+by orphan/between-hash seams. A committed CASIndex error returns before the
+post-rename seam.
+
+### Action Taken
+
+The same hardening agent receives the bounded fixes. S6 remains paused and its
+docs/assets diff stays uncommitted.
+
+## Decision — S6 prerequisite hardening — 2026-08-19
+
+### Status: BLOCKED / REVISION DISPATCHED
+
+S6 cannot honestly implement three accepted guard families against current
+production. The PRD §18.1 explicitly names 38 function-valued nil seams; most
+do not exist. `intentpub.DurableWrite` performs CAS capture then rename without
+post-seam directory/final-leaf validation, so PIB-148…151's swap cases can
+replace an unsafe leaf. S4b also renders `archive-selector-invalid`, which is
+not in §10.4.1's closed public refusal catalog.
+
+### Action Taken
+
+Pause S6 docs/assets. Dispatch one sequential production prerequisite revision
+to add/wire the exact seams, close rename-time kind safety, and make malformed
+selectors a non-report command error rather than inventing a refusal code.
+Resume S6 only after focused review, full gates and blocking CI.
+
+## Review — prepare S6 public docs/assets rev-0 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Publish prepare/archive SPEC, operator docs, six-skill parity and the
+31-row S6 guard ledger.
+
+### Checklist
+
+- [x] Scope limited to docs/assets/tests
+- [x] Six skill surfaces updated together
+- [x] SPEC/archive/operator prose added
+- [ ] Every S6 row maps to its exact rev-15 observable
+- [ ] Totality/vocabulary/advisory/refusal guards derive from production truth
+- [ ] Every G sensitivity fixture bites
+- [ ] Public notes/Git/recovery prose matches shipped behavior
+- [ ] Unreleased changelog carries all §12.6 deltas
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The 31-row ledger is systemically misattributed: examples include PIB-148
+pointing at archive dedup instead of symlink publication, PIB-215 pointing at
+skills instead of SPEC, and PIB-388 pointing at retired exit 4 instead of
+redaction-message sensitivity. Multiple guards sort away rank errors, accept
+new states, check literals rather than reachability/remediation, accept
+arbitrary `.Run` receivers, or reduce PIB-391 to token counts. Public prose
+also conflates bundle and phase notes, omits abandon's Git exemption and
+pending-purge terminal recovery, and misses changelog deltas.
+
+### Action Taken
+
+S6 remains uncommitted. The same agent receives a contract-first ledger/guard
+rebuild; S7 stays paused.
+
 ## Implementation — prepare S5 doctor D9 — 2026-08-19
 
 **Commit**: `f7ccd61`

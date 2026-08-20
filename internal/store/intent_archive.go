@@ -1754,6 +1754,9 @@ func PublishIntentArchiveBlobs(storage IntentArchiveStorage, plan IntentArchiveA
 
 	blobsDir, _ := IntentArchiveBlobsRel(plan.feature)
 	for _, candidate := range plan.blobs {
+		if beforeBlobWrite != nil {
+			beforeBlobWrite(candidate.Rel)
+		}
 		mutation, publishErr := storage.PublishBlob(candidate.Rel, candidate.Hash, candidate.Data)
 		result.BlobResults = append(result.BlobResults, IntentArchiveBlobPublishResult{
 			Hash:      candidate.Hash,
@@ -1766,6 +1769,9 @@ func PublishIntentArchiveBlobs(storage IntentArchiveStorage, plan IntentArchiveA
 			result.Committed = true
 			result.NewOrphanHashes = append(result.NewOrphanHashes, candidate.Hash)
 			result.Phase = mutation.Phase
+			if afterBlobWrite != nil {
+				afterBlobWrite(candidate.Rel)
+			}
 		}
 		if publishErr != nil {
 			result.NewOrphanHashes = sortedUniqueStrings(result.NewOrphanHashes)
@@ -1980,6 +1986,9 @@ func normalizeIntentArchiveAppendFailure(err error, class string, committed bool
 		return typed
 	}
 	typed.Committed = true
+	if typed.ExitClass >= 6 {
+		return typed
+	}
 	typed.ExitClass = 5
 	switch typed.Code {
 	case IntentArchiveCodeIndexChanged, IntentArchiveCodePurgeIndexChanged:
@@ -2902,6 +2911,9 @@ func executeIntentArchiveOrphanPurge(storage IntentArchiveStorage, snapshot Inte
 			corrupt.Committed = result.Committed
 			return intentArchiveOrphanFailure(result, plan.BlobRemovals, index, corrupt)
 		}
+		if afterPurgeBlobRevalidate != nil {
+			afterPurgeBlobRevalidate(observation.Path)
+		}
 		authorized := intentArchiveHashUnreferenced(snapshot.Index, observation.Hash)
 		mutation, err := removeIntentArchiveBlob(storage, observation.Path, observation.Hash, probe.Identity, authorized)
 		result.RemovalRaceResidualDisclosed = true
@@ -2914,6 +2926,11 @@ func executeIntentArchiveOrphanPurge(storage IntentArchiveStorage, snapshot Inte
 				return intentArchiveOrphanFailure(result, plan.BlobRemovals, index, intentArchiveStorageError(syncErr, "sync-blobs-directory", true, 5))
 			}
 			result.CompletedHashes = append(result.CompletedHashes, observation.Hash)
+			if index == 0 && failOrphanRemoveAfterFirst != nil {
+				if injected := failOrphanRemoveAfterFirst(); injected != nil {
+					return intentArchiveOrphanFailure(result, plan.BlobRemovals, index+1, intentArchiveStorageError(injected, "after-first-orphan", true, 5))
+				}
+			}
 		}
 		if err != nil {
 			failedIndex := index
@@ -2977,6 +2994,10 @@ func executeIntentArchiveHashPurge(storage IntentArchiveStorage, snapshot Intent
 		}
 		if execution.Capture.Exists || execution.Capture.Identity != "" {
 			currentCapture = execution.Capture
+		}
+		if err == nil && execution.Mutated &&
+			index+1 < len(plan.Hashes) && failPurgeBetweenHashes != nil {
+			err = failPurgeBetweenHashes()
 		}
 		if err != nil {
 			var typed *IntentArchiveError
@@ -3118,6 +3139,9 @@ func executeIntentArchivePurgeHash(storage IntentArchiveStorage, feature, hash s
 		if revalidatedProbe.Kind != IntentArchiveBlobKindRegular || revalidatedProbe.SHA256 != hash {
 			return execution, intentArchiveUnidentifiablePurgeError(hash, context == intentArchiveTransitionOwnedRecovery)
 		}
+		if afterPurgeBlobRevalidate != nil {
+			afterPurgeBlobRevalidate(blobRel)
+		}
 		authorized := intentArchiveHashUnreferenced(revalidatedIndex, hash)
 		mutation, removeErr := removeIntentArchiveBlob(storage, blobRel, hash, revalidatedProbe.Identity, authorized)
 		execution.Mutated = mutation.Committed
@@ -3154,6 +3178,11 @@ func executeIntentArchivePurgeHash(storage IntentArchiveStorage, feature, hash s
 				execution.Mutated || context.committed(),
 				mutation.Committed,
 			)
+		}
+		if mutation.Committed && !context.committed() && failPurgeAfterFirstMutation != nil {
+			if injected := failPurgeAfterFirstMutation(); injected != nil {
+				return execution, intentArchiveStorageError(injected, "after-first-mutation", true, 5)
+			}
 		}
 		claimCapture = nextCapture
 		context = intentArchiveTransitionOwnedRecovery
@@ -3195,6 +3224,9 @@ func executeIntentArchivePurgeHash(storage IntentArchiveStorage, feature, hash s
 	if revalidatedProbe.Kind == IntentArchiveBlobKindAbsent {
 		return executeIntentArchiveAbsentTombstone(storage, feature, hash, execution, context)
 	}
+	if afterPurgeBlobRevalidate != nil {
+		afterPurgeBlobRevalidate(blobRel)
+	}
 	tombstoned, _ := setIntentArchiveHashState(revalidatedIndex, hash, IntentArchiveWireTombstoned)
 	if revalidatedProbe.Kind == IntentArchiveBlobKindRegular {
 		if !allIntentArchiveReferencesPending(revalidatedIndex, hash) {
@@ -3214,6 +3246,9 @@ func executeIntentArchivePurgeHash(storage IntentArchiveStorage, feature, hash s
 		}
 	} else {
 		return execution, intentArchiveUnidentifiablePurgeError(hash, true)
+	}
+	if beforePendingTombstoneCAS != nil {
+		beforePendingTombstoneCAS(hash)
 	}
 	nextCapture, mutation, tombstoneErr := publishIntentArchiveIndex(storage, feature, revalidatedCapture, tombstoned)
 	execution.Mutated = execution.Mutated || mutation.Committed
@@ -3314,6 +3349,9 @@ func executeIntentArchiveAbsentTombstone(
 			return execution, intentArchiveStorageError(err, "sync-archive-directory", true, 5)
 		}
 		return execution, nil
+	}
+	if beforePendingTombstoneCAS != nil {
+		beforePendingTombstoneCAS(hash)
 	}
 	nextCapture, mutation, tombstoneErr := publishIntentArchiveIndex(storage, feature, latestCapture, tombstoned)
 	execution.Mutated = execution.Mutated || mutation.Committed
@@ -3559,7 +3597,13 @@ func publishIntentArchiveIndex(storage IntentArchiveStorage, feature string, cur
 	if err != nil {
 		return current, mutation, err
 	}
+	if beforePurgeIndexCAS != nil {
+		beforePurgeIndexCAS(indexRel)
+	}
 	mutation, err = storage.CASIndex(indexRel, current.Identity, canonical)
+	if mutation.Committed && afterPurgeIndexRename != nil {
+		afterPurgeIndexRename(indexRel)
+	}
 	if err != nil {
 		typed := intentArchiveStorageError(err, "cas-index", mutation.Committed, intentArchiveExitAfterMutation(mutation.Committed))
 		if typed.Code == IntentArchiveCodeStorageFailed {
@@ -3591,7 +3635,16 @@ func removeIntentArchiveBlob(storage IntentArchiveStorage, blobRel, hash string,
 	if !authorized {
 		return IntentArchiveMutationResult{}, intentArchiveError(IntentArchiveCodePurgeIndexChanged, "blob removal lacks a validated index authorization", 3)
 	}
+	if beforePurgeBlobRemove != nil {
+		beforePurgeBlobRemove(blobRel)
+	}
+	if beforeBlobRemove != nil {
+		beforeBlobRemove(blobRel)
+	}
 	mutation, err := storage.RemoveBlob(blobRel, identity)
+	if mutation.Committed && afterPurgeBlobRemove != nil {
+		afterPurgeBlobRemove(blobRel)
+	}
 	if err == nil && !mutation.Committed {
 		return mutation, intentArchiveError(IntentArchiveCodeStorageFailed, "blob removal returned without committed truth", 3)
 	}

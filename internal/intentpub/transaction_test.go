@@ -139,8 +139,8 @@ func TestExecuteSetAndPerEntryCAS(t *testing.T) {
 			},
 		}
 		result, err := Execute(authority, plan, "0123456789abcdef", nil, options)
-		assertCode(t, err, CodeUndoCASMismatch)
-		if result.Outcome != OutcomeFailed || result.ExitClass != 6 {
+		assertCode(t, err, CodeEntryAppeared)
+		if result.Outcome != OutcomeRolledBack || result.ExitClass != 5 {
 			t.Fatalf("result = %#v", result)
 		}
 		if rootExists(t, authority, canonicalRel(testSlug, ArtifactAnalysis)) {
@@ -149,8 +149,8 @@ func TestExecuteSetAndPerEntryCAS(t *testing.T) {
 		if string(rootRead(t, authority, canonicalRel(testSlug, ArtifactSpec))) != "editor-spec" {
 			t.Fatal("editor bytes were not preserved")
 		}
-		if !rootExists(t, authority, JournalRel(testSlug)) {
-			t.Fatal("final rollback set mismatch removed journal evidence")
+		if rootExists(t, authority, JournalRel(testSlug)) {
+			t.Fatal("successful prefix rollback retained journal evidence")
 		}
 	})
 }
@@ -321,7 +321,9 @@ func TestRollbackRestoresArchiveAndRawMetadataPreimages(t *testing.T) {
 	for _, id := range []ArtifactID{ArtifactAnalysis, ArtifactSpec, ArtifactExploration, ArtifactAnalysisSidecar} {
 		preimage := captureForTest(t, authority, canonicalRel(testSlug, id))
 		blobRel := featureRel(testSlug) + "/artifacts/intent-archive/blobs/" + preimage.SHA256 + ".blob"
-		if _, err := DurableWrite(authority, WriteRequest{Rel: blobRel, Data: oldIntent[id], Mode: 0o644}, Options{RandomHex12: sequenceHex()}); err != nil {
+		if _, err := DurableWrite(authority, WriteRequest{
+			Rel: blobRel, Data: oldIntent[id], Mode: 0o644, Role: WriteRoleOrdinaryCanonical,
+		}, Options{RandomHex12: sequenceHex()}); err != nil {
 			t.Fatal(err)
 		}
 		entries = append(entries, Entry{

@@ -885,12 +885,121 @@ func TestPrepareS5NonInvalidationSourceRows(t *testing.T) {
 	})
 
 	t.Run("PIB-214", func(t *testing.T) {
-		command := exec.Command("git", "diff", "--quiet", "54c227f", "--", "internal/store")
-		command.Dir = avpRepoRoot(t)
-		if output, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("S5 changed internal/store beyond its partition: %v\n%s", err, output)
+		baseline := prepareS5StoreSourcesAtRevision(t, "54c227f")
+		current := prepareS5CurrentStoreSources(t)
+		want, err := prepareS5StoreFunctionSet(baseline)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := prepareS5StoreFunctionSet(current)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("internal/store function surface changed\nwant: %v\n got: %v", want, got)
+		}
+		sensitivity := clonePrepareS5Sources(current)
+		sensitivity["internal/store/new_writer.go"] = []byte(
+			"package store\nfunc NewUnexpectedWriter() error { return nil }\n",
+		)
+		changed, err := prepareS5StoreFunctionSet(sensitivity)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if reflect.DeepEqual(changed, want) {
+			t.Fatal("a synthetic store writer did not change the guarded function surface")
 		}
 	})
+}
+
+func prepareS5StoreSourcesAtRevision(t *testing.T, revision string) map[string][]byte {
+	t.Helper()
+	root := avpRepoRoot(t)
+	command := exec.Command("git", "ls-tree", "-r", "--name-only", revision, "--", "internal/store")
+	command.Dir = root
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("list baseline store files: %v", err)
+	}
+	sources := map[string][]byte{}
+	for _, rel := range strings.Fields(string(output)) {
+		if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
+			continue
+		}
+		show := exec.Command("git", "show", revision+":"+rel)
+		show.Dir = root
+		data, err := show.Output()
+		if err != nil {
+			t.Fatalf("read %s at %s: %v", rel, revision, err)
+		}
+		sources[rel] = data
+	}
+	return sources
+}
+
+func prepareS5CurrentStoreSources(t *testing.T) map[string][]byte {
+	t.Helper()
+	root := avpRepoRoot(t)
+	command := exec.Command("git", "ls-files", "--cached", "--", "internal/store")
+	command.Dir = root
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("list current store files: %v", err)
+	}
+	sources := map[string][]byte{}
+	for _, rel := range strings.Fields(string(output)) {
+		if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read current %s: %v", rel, err)
+		}
+		sources[rel] = data
+	}
+	return sources
+}
+
+func prepareS5StoreFunctionSet(sources map[string][]byte) ([]string, error) {
+	set := map[string]bool{}
+	for rel, source := range sources {
+		file, err := parser.ParseFile(token.NewFileSet(), rel, source, 0)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", rel, err)
+		}
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			name := function.Name.Name
+			if function.Recv != nil && len(function.Recv.List) == 1 {
+				name = prepareS5ReceiverName(function.Recv.List[0].Type) + "." + name
+			}
+			set[name] = true
+		}
+	}
+	names := make([]string, 0, len(set))
+	for name := range set {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func prepareS5ReceiverName(expression ast.Expr) string {
+	switch value := expression.(type) {
+	case *ast.Ident:
+		return value.Name
+	case *ast.StarExpr:
+		return "*" + prepareS5ReceiverName(value.X)
+	case *ast.IndexExpr:
+		return prepareS5ReceiverName(value.X)
+	case *ast.IndexListExpr:
+		return prepareS5ReceiverName(value.X)
+	default:
+		return fmt.Sprintf("%T", expression)
+	}
 }
 
 func TestPrepareS5PlatformRows(t *testing.T) {
@@ -1190,6 +1299,7 @@ func TestPrepareS5PersistentEvidenceRuntimeRows(t *testing.T) {
 				state:   state,
 			}
 		}
+		t.Cleanup(func() { prepareIntentpubRootOps = oldFactory })
 		code, stdout, _, _ := runPrepare(
 			t, "--path", root, "prepare", slug, "--manual", "--json", "--quiet",
 		)
@@ -1600,7 +1710,6 @@ func prepareS5RollbackWithTwoArchiveBlobs(t *testing.T, jsonMode bool) prepareS5
 type prepareS5StatusPostRenameFault struct {
 	renamed   bool
 	syncFault bool
-	directory string
 }
 
 type prepareS5StatusPostRenameFaultOps struct {
@@ -1614,7 +1723,6 @@ func (o *prepareS5StatusPostRenameFaultOps) Rename(oldName, newName string) erro
 	}
 	if strings.HasSuffix(filepath.ToSlash(newName), "/status.json") {
 		o.state.renamed = true
-		o.state.directory = strings.TrimSuffix(filepath.ToSlash(newName), "/status.json")
 	}
 	return nil
 }
@@ -1624,14 +1732,10 @@ func (o *prepareS5StatusPostRenameFaultOps) Open(name string) (intentpub.RootFil
 	if err != nil {
 		return nil, err
 	}
-	if o.state.renamed && !o.state.syncFault &&
-		filepath.ToSlash(name) == o.state.directory {
-		return &prepareS5StatusDirectorySyncFaultFile{
-			RootFile: file,
-			state:    o.state,
-		}, nil
-	}
-	return file, nil
+	return &prepareS5StatusDirectorySyncFaultFile{
+		RootFile: file,
+		state:    o.state,
+	}, nil
 }
 
 type prepareS5StatusDirectorySyncFaultFile struct {
@@ -1640,8 +1744,11 @@ type prepareS5StatusDirectorySyncFaultFile struct {
 }
 
 func (f *prepareS5StatusDirectorySyncFaultFile) Sync() error {
-	f.state.syncFault = true
-	return errors.New("injected post-rename directory sync failure")
+	if f.state.renamed && !f.state.syncFault {
+		f.state.syncFault = true
+		return errors.New("injected post-rename directory sync failure")
+	}
+	return f.RootFile.Sync()
 }
 
 func prepareS5InterruptAfterJournal(t *testing.T, root, slug string, extra ...string) {

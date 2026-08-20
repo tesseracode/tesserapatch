@@ -1201,22 +1201,17 @@ func TestFeatureIntentArchiveSelectorLexicalSafetyPrecedesPendingPurgeRecovery(t
 					if confirmed {
 						args = append(args, "--yes")
 					}
-					code, stdout, _, _ := runPrepare(t, args...)
-					if code != 3 {
-						t.Fatalf("unsafe selector = %d\n%s", code, stdout)
-					}
-					report := decodeIntentArchivePurgeReport(t, stdout)
-					if report.Refusal == nil ||
-						report.Refusal.Code != string(store.IntentArchiveCodeSelectorInvalid) ||
+					code, stdout, stderr, _ := runPrepare(t, args...)
+					if code != 1 ||
+						stdout != "" ||
 						previews != 0 ||
 						recoveries != 0 ||
-						report.PendingPurge != nil ||
-						report.Recovery != nil ||
-						strings.Contains(stdout, unsafe) ||
-						strings.Contains(stdout, root) {
+						strings.Contains(stdout+stderr, unsafe) ||
+						strings.Contains(stdout+stderr, root) ||
+						strings.Contains(stdout+stderr, string(store.IntentArchiveCodeSelectorInvalid)) {
 						t.Fatalf(
-							"unsafe selector report=%#v previews=%d recoveries=%d\n%s",
-							report, previews, recoveries, stdout,
+							"unsafe selector code=%d previews=%d recoveries=%d stdout=%q stderr=%q",
+							code, previews, recoveries, stdout, stderr,
 						)
 					}
 					if !bytes.Equal(before, readTree(t, filepath.Join(root, ".tpatch"))) {
@@ -1229,17 +1224,26 @@ func TestFeatureIntentArchiveSelectorLexicalSafetyPrecedesPendingPurgeRecovery(t
 					if confirmed {
 						humanArgs = append(humanArgs, "--yes")
 					}
-					humanCode, human, _, _ := runPrepare(t, humanArgs...)
-					if humanCode != 3 ||
-						strings.Contains(human, unsafe) ||
-						strings.Contains(human, root) ||
-						strings.Contains(human, prepareRetryHeader) ||
+					humanCode, human, humanErr, _ := runPrepare(t, humanArgs...)
+					if humanCode != 1 ||
+						human != "" ||
+						strings.Contains(human+humanErr, unsafe) ||
+						strings.Contains(human+humanErr, root) ||
+						strings.Contains(human+humanErr, prepareRetryHeader) ||
+						strings.Contains(human+humanErr, string(store.IntentArchiveCodeSelectorInvalid)) ||
 						previews != 0 ||
 						recoveries != 0 {
 						t.Fatalf(
-							"unsafe selector human leaked argv = %d previews=%d recoveries=%d\n%s",
-							humanCode, previews, recoveries, human,
+							"unsafe selector human leaked argv = %d previews=%d recoveries=%d stdout=%q stderr=%q",
+							humanCode, previews, recoveries, human, humanErr,
 						)
+					}
+					authority, err := intentlock.Acquire(root)
+					if err != nil {
+						t.Fatalf("unsafe selector retained authority: %v", err)
+					}
+					if err := authority.Release(); err != nil {
+						t.Fatal(err)
 					}
 				})
 			}
@@ -1304,27 +1308,85 @@ func TestFeatureIntentArchiveRecoveryRetryUsesNormalizedSelectors(t *testing.T) 
 	}
 }
 
+func TestFeatureIntentArchiveMalformedSelectorPrecedesPendingPurgeRecovery(t *testing.T) {
+	if !intentlock.AuthoritySupported {
+		t.Skip("real workspace authority is unsupported on this target")
+	}
+	root, slug := intentArchiveCLIWorkspace(t)
+	recoveryCalls := 0
+	previous := intentArchiveRecoverPurge
+	intentArchiveRecoverPurge = func(store.IntentArchiveStorage, string) (store.IntentArchivePurgeResult, error) {
+		recoveryCalls++
+		return store.IntentArchivePurgeResult{}, errors.New("recovery must not run")
+	}
+	t.Cleanup(func() { intentArchiveRecoverPurge = previous })
+	before := readTree(t, filepath.Join(root, ".tpatch"))
+	const malformed = "/absolute/\nselector"
+	code, stdout, stderr, _ := runPrepare(
+		t, "--path", root, "feature", "intent-archive", "purge", slug,
+		"--blob", malformed, "--yes", "--json", "--quiet",
+	)
+	if code != 1 || stdout != "" || recoveryCalls != 0 ||
+		strings.Contains(stdout+stderr, malformed) ||
+		strings.Contains(stdout+stderr, string(store.IntentArchiveCodeSelectorInvalid)) {
+		t.Fatalf("selector/recovery precedence = code=%d calls=%d stdout=%q stderr=%q",
+			code, recoveryCalls, stdout, stderr)
+	}
+	if !bytes.Equal(before, readTree(t, filepath.Join(root, ".tpatch"))) {
+		t.Fatal("malformed selector changed the workspace before recovery")
+	}
+	authority, err := intentlock.Acquire(root)
+	if err != nil {
+		t.Fatalf("malformed selector retained authority: %v", err)
+	}
+	if err := authority.Release(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFeatureIntentArchiveSelectorValidationAndSequentialRepair(t *testing.T) {
 	if !intentlock.AuthoritySupported {
 		t.Skip("real workspace authority is unsupported on this target")
 	}
 	t.Run("malformed-selector", func(t *testing.T) {
-		root, slug := intentArchiveCLIWorkspace(t)
-		before := readTree(t, filepath.Join(root, ".tpatch"))
-		code, stdout, _, _ := runPrepare(
-			t, "--path", root, "feature", "intent-archive", "purge", slug,
-			"--blob", "not-a-hash", "--yes", "--json", "--quiet",
-		)
-		if code != 3 {
-			t.Fatalf("malformed selector = %d\n%s", code, stdout)
-		}
-		report := decodeIntentArchivePurgeReport(t, stdout)
-		if report.Refusal == nil ||
-			report.Refusal.Code != string(store.IntentArchiveCodeSelectorInvalid) {
-			t.Fatalf("selector report = %#v", report)
-		}
-		if !bytes.Equal(before, readTree(t, filepath.Join(root, ".tpatch"))) {
-			t.Fatal("malformed selector wrote to the workspace")
+		for _, test := range []struct {
+			name      string
+			flag      string
+			value     string
+			confirmed bool
+		}{
+			{name: "blob-malformed-preview", flag: "--blob", value: "not-a-hash"},
+			{name: "blob-control-confirmed", flag: "--blob", value: "bad\nselector", confirmed: true},
+			{name: "generation-absolute-preview", flag: "--generation", value: "/unsafe/selector"},
+			{name: "generation-control-confirmed", flag: "--generation", value: "\x00unsafe", confirmed: true},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				root, slug := intentArchiveCLIWorkspace(t)
+				before := readTree(t, filepath.Join(root, ".tpatch"))
+				args := []string{
+					"--path", root, "feature", "intent-archive", "purge", slug,
+					test.flag, test.value, "--json", "--quiet",
+				}
+				if test.confirmed {
+					args = append(args, "--yes")
+				}
+				code, stdout, stderr, _ := runPrepare(t, args...)
+				if code != 1 || stdout != "" ||
+					strings.Contains(stdout+stderr, test.value) ||
+					strings.Contains(stdout+stderr, string(store.IntentArchiveCodeSelectorInvalid)) {
+					t.Fatalf("malformed selector = code=%d stdout=%q stderr=%q", code, stdout, stderr)
+				}
+				if !bytes.Equal(before, readTree(t, filepath.Join(root, ".tpatch"))) {
+					t.Fatal("malformed selector wrote to the workspace")
+				}
+				authority, err := intentlock.Acquire(root)
+				if err != nil {
+					t.Fatalf("malformed selector retained authority: %v", err)
+				}
+				if err := authority.Release(); err != nil {
+					t.Fatal(err)
+				}
+			})
 		}
 	})
 

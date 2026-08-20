@@ -53,6 +53,9 @@ func (a *WorkspaceAuthority) ValidateOriginalPath(afterPublication bool) error {
 	if a == nil || a.root == nil || a.directory == nil || a.released {
 		return authorityError("authority-released", "workspace authority is not available")
 	}
+	if beforeRootIdentityCheck != nil {
+		beforeRootIdentityCheck(a.originalPath)
+	}
 	identity, err := a.ops.pathIdentity(a.originalPath)
 	if err == nil && identity == a.identity {
 		return nil
@@ -79,6 +82,9 @@ func (a *WorkspaceAuthority) Release() error {
 	if a.released {
 		return authorityError("authority-already-released", "workspace authority was already released")
 	}
+	if beforeLockRelease != nil {
+		beforeLockRelease()
+	}
 	a.released = true
 
 	var first error
@@ -90,6 +96,9 @@ func (a *WorkspaceAuthority) Release() error {
 	}
 	if err := a.ops.closeRoot(a.root); err != nil && first == nil {
 		first = authorityError("close-root", "workspace root handle close failed")
+	}
+	if afterLockRelease != nil {
+		afterLockRelease()
 	}
 	runtime.KeepAlive(a)
 	return first

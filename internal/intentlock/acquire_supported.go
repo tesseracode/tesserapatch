@@ -66,9 +66,16 @@ func acquireWithOps(discoveredWorkspacePath string, ops authorityOps) (*Workspac
 		}
 	}
 
-	if err := ops.lock(directory); err != nil {
+	var lockErr error
+	if failLockAcquire != nil {
+		lockErr = failLockAcquire()
+	}
+	if lockErr == nil {
+		lockErr = ops.lock(directory)
+	}
+	if lockErr != nil {
 		closeHandles()
-		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
+		if errors.Is(lockErr, syscall.EWOULDBLOCK) || errors.Is(lockErr, syscall.EAGAIN) {
 			return nil, &Error{
 				Code:   CodeTransactionInProgress,
 				Class:  "workspace",

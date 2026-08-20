@@ -63,6 +63,7 @@ func Stage(authority *intentlock.WorkspaceAuthority, slug string, inputs []Stage
 			Data:       input.Data,
 			Mode:       0o600,
 			ArtifactID: input.ArtifactID,
+			Role:       WriteRoleControl,
 		}, options)
 		if writeErr != nil {
 			return result, writeErr
@@ -188,9 +189,10 @@ func WriteRawPreimage(authority *intentlock.WorkspaceAuthority, slug string, id 
 		Expected:     identityPointer(AbsentIdentity()),
 		MismatchCode: CodeEntryAppeared,
 		ArtifactID:   id,
+		Role:         WriteRoleControl,
 	}, options)
 	if err != nil {
-		return "", err
+		return rel, err
 	}
 	return rel, nil
 }
@@ -216,13 +218,22 @@ func PersistJournal(authority *intentlock.WorkspaceAuthority, journal Journal, o
 	if marker.Exists {
 		return WriteResult{}, transactionError(CodeJournalPending, "", "clearing-marker", "a transaction clearing marker is already pending", 6)
 	}
-	return DurableWrite(authority, WriteRequest{
-		Rel:          JournalRel(journal.Slug),
+	rel := JournalRel(journal.Slug)
+	if beforeJournalWrite != nil {
+		beforeJournalWrite(rel)
+	}
+	result, err := DurableWrite(authority, WriteRequest{
+		Rel:          rel,
 		Data:         encoded,
 		Mode:         0o600,
 		Expected:     identityPointer(AbsentIdentity()),
 		MismatchCode: CodeJournalPending,
+		Role:         WriteRoleControl,
 	}, options)
+	if result.Committed && afterJournalWrite != nil {
+		afterJournalWrite(rel)
+	}
+	return result, err
 }
 
 func identityPointer(identity Identity) *Identity {

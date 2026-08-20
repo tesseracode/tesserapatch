@@ -33,6 +33,8 @@ type osRootOps struct {
 	root *os.Root
 }
 
+func (osRootOps) descriptorTempCleanup() {}
+
 func NewRootOps(root *os.Root) RootOps {
 	return osRootOps{root: root}
 }
@@ -69,6 +71,7 @@ type Options struct {
 	RootOpsFactory func(*os.Root) RootOps
 	RandomHex12    func() (string, error)
 	Hook           func(CrashPoint, *os.Root, *Entry) error
+	BeforeRename   func(WriteRequest)
 	Scratch        []byte
 	ScratchFactory func(int) []byte
 }

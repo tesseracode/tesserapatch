@@ -474,9 +474,13 @@ var (
 	beforeAbandonBranch          func()
 	beforeAbandonMove            func(string)
 	afterAbandonMove             func(string)
+	beforeLockAcquire            func()
+	beforeRedactionScan          func()
 	beforeAbandonEvidenceRename  func(*os.Root, string, string, bool) error
 	afterRecoveryComplete        func()
 	beforeManualStatusCAS        func()
+	beforeIndexRewrite           func(string)
+	beforeRehydrateIndexRename   func(string)
 	beforePrepareSetRevalidation func()
 	prepareIntentpubHook         func(intentpub.CrashPoint, *os.Root, *intentpub.Entry) error
 	prepareIntentpubRootOps      func(*os.Root) intentpub.RootOps
@@ -616,6 +620,9 @@ func runPreparePublish(cmd *cobra.Command, rawSlug string, options prepareOption
 		return emitPreparePublishReport(cmd, report, 3)
 	}
 
+	if beforeLockAcquire != nil {
+		beforeLockAcquire()
+	}
 	authority, err := prepareAcquireAuthority(repoRoot)
 	if err != nil {
 		code, class := prepareAuthorityError(err)
@@ -1685,6 +1692,9 @@ func runPrepareAbandon(cmd *cobra.Command, repoRoot, slug string, options prepar
 		report = prepareAuthorityRefusal(repoRoot, slug, report, "prepare-unsupported-platform", "")
 		return emitPreparePublishReport(cmd, report, 3)
 	}
+	if beforeLockAcquire != nil {
+		beforeLockAcquire()
+	}
 	authority, err := prepareAcquireAuthority(repoRoot)
 	if err != nil {
 		code, class := prepareAuthorityError(err)
@@ -2222,10 +2232,11 @@ func (storage *prepareArchiveStorage) PublishBlob(blobRel, contentSHA256 string,
 		Mode:         0o644,
 		Expected:     prepareIdentityPointer(intentpub.AbsentIdentity()),
 		MismatchCode: intentpub.CodeEntryAppeared,
+		Role:         intentpub.WriteRoleOrdinaryCanonical,
 	}, newPrepareIntentpubOptions())
 	result.Committed = writeResult.Committed
 	result.Phase = prepareArchiveStoragePhase(writeResult.Phase)
-	return result, err
+	return result, prepareArchiveStorageWriteError(err, contentSHA256, writeResult)
 }
 
 func (storage *prepareArchiveStorage) CASIndex(
@@ -2245,16 +2256,23 @@ func (storage *prepareArchiveStorage) CASIndex(
 	if identity.Exists {
 		mode = fs.FileMode(identity.Mode)
 	}
+	writeOptions := newPrepareIntentpubOptions()
+	writeOptions.BeforeRename = func(request intentpub.WriteRequest) {
+		if beforeIndexRewrite != nil {
+			beforeIndexRewrite(request.Rel)
+		}
+	}
 	writeResult, err := intentpub.DurableWrite(storage.authority, intentpub.WriteRequest{
 		Rel:          indexRel,
 		Data:         canonical,
 		Mode:         mode,
 		Expected:     prepareIdentityPointer(identity),
 		MismatchCode: intentpub.CodeEntryChanged,
-	}, newPrepareIntentpubOptions())
+		Role:         intentpub.WriteRoleOrdinaryCanonical,
+	}, writeOptions)
 	result.Committed = writeResult.Committed
 	result.Phase = prepareArchiveStoragePhase(writeResult.Phase)
-	return result, err
+	return result, prepareArchiveStorageWriteError(err, "", writeResult)
 }
 
 func (storage *prepareArchiveStorage) RemoveBlob(
@@ -2336,6 +2354,41 @@ func prepareArchiveStoragePhase(phase intentpub.WritePhase) store.IntentArchiveS
 		return store.IntentArchiveStoragePhaseDirectorySynced
 	default:
 		return store.IntentArchiveStoragePhaseNone
+	}
+}
+
+func prepareArchiveStorageWriteError(
+	err error,
+	hash string,
+	result intentpub.WriteResult,
+) error {
+	if err == nil {
+		return nil
+	}
+	var typed *intentpub.Error
+	if !errors.As(err, &typed) {
+		return err
+	}
+	class := string(typed.Code)
+	if typed.Class != "" {
+		class += ":" + typed.Class
+	}
+	exit := typed.ExitClass
+	committed := typed.Committed || result.Committed
+	if exit == 0 {
+		if committed {
+			exit = 5
+		} else {
+			exit = 3
+		}
+	}
+	return &store.IntentArchiveError{
+		Code:      store.IntentArchiveCodeStorageFailed,
+		Hash:      hash,
+		Class:     class,
+		Detail:    "the rooted archive publication did not complete safely",
+		ExitClass: exit,
+		Committed: committed,
 	}
 }
 
@@ -2522,6 +2575,20 @@ func prepareStagingFailure(
 	return report, exit
 }
 
+func prepareRawPreimageFailure(
+	report preparePublishReport,
+	err error,
+	stageRel, rawRel string,
+) (preparePublishReport, int) {
+	report, exit := prepareStagingFailure(report, err, stageRel)
+	report = appendPrepareOrphanAdvisory(report)
+	var typed *intentpub.Error
+	if errors.As(err, &typed) && typed.Committed && rawRel != "" && report.Refusal != nil {
+		report.Refusal.Message += " Retained raw preimage evidence: " + rawRel + "."
+	}
+	return report, exit
+}
+
 func prepareStoreArchiveFailure(report preparePublishReport, err error, afterWrite bool) preparePublishReport {
 	code := "archive-index-corrupt"
 	var typed *store.IntentArchiveError
@@ -2529,6 +2596,8 @@ func prepareStoreArchiveFailure(report preparePublishReport, err error, afterWri
 		code = string(typed.Code)
 		if typed.Code == store.IntentArchiveCodeStorageFailed {
 			switch {
+			case typed.ExitClass >= 6 && typed.Committed:
+				code = "post-publication-divergence"
 			case typed.ExitClass >= 5 && strings.Contains(typed.Class, "index"):
 				code = "archive-index-changed"
 			case typed.ExitClass >= 5:
@@ -2599,7 +2668,11 @@ func prepareStoreArchiveFailure(report preparePublishReport, err error, afterWri
 		}
 	}
 	if afterWrite {
-		report.Outcome = "rolled-back"
+		if typed != nil && typed.ExitClass >= 6 {
+			report.Outcome = "recovery-refused"
+		} else {
+			report.Outcome = "rolled-back"
+		}
 	}
 	return report
 }
@@ -2784,6 +2857,9 @@ func prepareRetryCommand(slug string, options prepareOptions) string {
 }
 
 func prepareRedactionRefusal(inputs []store.IntentArchiveReplacementInput) (string, string, string) {
+	if beforeRedactionScan != nil {
+		beforeRedactionScan()
+	}
 	for _, input := range inputs {
 		if classes := redact.Scan(input.PriorBytes); len(classes) != 0 {
 			sorted := append([]string(nil), classes...)
@@ -3209,20 +3285,29 @@ func publishPrepareStatusOnly(
 		MismatchCode:  intentpub.CodeEntryChanged,
 		ArtifactID:    intentpub.ArtifactStatus,
 		RequireParent: true,
+		Role:          intentpub.WriteRoleCanonicalStatus,
 	}, newPrepareIntentpubOptions())
 	if err != nil {
 		code := "status-changed"
 		var typed *intentpub.Error
-		if errors.As(err, &typed) && typed.Committed {
-			code = "post-publication-divergence"
+		exit := 5
+		if errors.As(err, &typed) {
+			if typed.Committed {
+				code = "post-publication-divergence"
+			} else if typed.ExitClass >= 6 {
+				code = prepareIntentpubCode(err, "status-changed")
+			}
+			if typed.ExitClass > exit {
+				exit = typed.ExitClass
+			}
 		}
 		report = refusePrepare(report, code, "")
-		if writeResult.Committed {
+		if writeResult.Committed || exit >= 6 {
 			report.Outcome = "recovery-refused"
-			return report, 6
+			return report, exit
 		}
 		report.Outcome = "rolled-back"
-		return report, 5
+		return report, exit
 	}
 	if err := authority.ValidateOriginalPath(true); err != nil {
 		report = refusePrepare(report, "workspace-root-replaced-after-publication", "")
@@ -3383,9 +3468,11 @@ func refreshPrepareFeaturesIndex(
 				mode = fs.FileMode(identity.Mode)
 			}
 			_, err = intentpub.DurableWrite(authority, intentpub.WriteRequest{
-				Rel:  ".tpatch/FEATURES.md",
-				Data: data,
-				Mode: mode,
+				Rel:      ".tpatch/FEATURES.md",
+				Data:     data,
+				Mode:     mode,
+				Expected: prepareIdentityPointer(identity),
+				Role:     intentpub.WriteRoleOrdinaryCanonical,
 			}, newPrepareIntentpubOptions())
 		}
 	}
@@ -3676,6 +3763,7 @@ func stagePrepareArchiveIndex(
 		Data:       indexBytes,
 		Mode:       0o600,
 		ArtifactID: intentpub.ArtifactArchiveIndex,
+		Role:       intentpub.WriteRoleControl,
 	}, transactionOptions)
 	if err != nil {
 		return err
@@ -3744,7 +3832,11 @@ func publishPrepareTransaction(
 			report = prepareStoreArchiveFailure(report, err, archiveResult.Committed)
 			report = appendPrepareStagingAdvisory(report, stageResult.StageRel)
 			report = appendPrepareOrphanAdvisory(report)
-			if !archiveResult.Committed {
+			exit := prepareArchiveExit(err, 5)
+			if exit < 5 {
+				exit = 5
+			}
+			if !archiveResult.Committed && exit < 6 {
 				code := "entry-changed"
 				var typed *store.IntentArchiveError
 				if errors.As(err, &typed) && typed.Code == store.IntentArchiveCodeIndexChanged {
@@ -3753,8 +3845,12 @@ func publishPrepareTransaction(
 				report = refusePrepare(report, code, "")
 				report.Refusal.Message = "The frozen archive state changed after staging."
 			}
-			report.Outcome = "rolled-back"
-			return report, 5
+			if exit >= 6 {
+				report.Outcome = "recovery-refused"
+			} else {
+				report.Outcome = "rolled-back"
+			}
+			return report, exit
 		}
 		for _, blob := range archiveResult.BlobResults {
 			if blob.Reused {
@@ -3792,11 +3888,9 @@ func publishPrepareTransaction(
 				appendPlan.IndexPreimage().Raw, transactionOptions,
 			)
 			if err != nil {
-				report = refusePrepare(report, prepareIntentpubCode(err, "entry-changed"), "")
-				report.Outcome = "rolled-back"
-				report = appendPrepareStagingAdvisory(report, stageResult.StageRel)
-				report = appendPrepareOrphanAdvisory(report)
-				return report, 5
+				return prepareRawPreimageFailure(
+					report, err, stageResult.StageRel, references.indexRaw,
+				)
 			}
 		}
 	}
@@ -3804,11 +3898,9 @@ func publishPrepareTransaction(
 		authority, slug, intentpub.ArtifactStatus, readState.status.bytes, transactionOptions,
 	)
 	if err != nil {
-		report = refusePrepare(report, prepareIntentpubCode(err, "entry-changed"), "")
-		report.Outcome = "rolled-back"
-		report = appendPrepareStagingAdvisory(report, stageResult.StageRel)
-		report = appendPrepareOrphanAdvisory(report)
-		return report, 5
+		return prepareRawPreimageFailure(
+			report, err, stageResult.StageRel, references.statusRaw,
+		)
 	}
 
 	entries := make([]intentpub.Entry, 0, len(stageResult.Files))
@@ -3875,7 +3967,8 @@ func publishPrepareTransaction(
 		return report, 5
 	}
 	transactionResult, transactionErr := intentpub.Execute(
-		authority, publicationPlan, runNonce, report.OrphanBlobs, transactionOptions,
+		authority, publicationPlan, runNonce, report.OrphanBlobs,
+		prepareTransactionOptions(transactionOptions, appendPlan, hasArchive),
 	)
 	if transactionErr != nil {
 		report = prepareIntentpubFailure(report, transactionResult, transactionErr)
@@ -3904,6 +3997,31 @@ func publishPrepareTransaction(
 	report.OrphanBlobs = []string{}
 	refreshPrepareFeaturesIndex(authority, repoRoot, &report)
 	return report, 0
+}
+
+func prepareTransactionOptions(
+	options intentpub.Options,
+	appendPlan store.IntentArchiveAppendPlan,
+	hasArchive bool,
+) intentpub.Options {
+	previous := options.BeforeRename
+	options.BeforeRename = func(request intentpub.WriteRequest) {
+		if previous != nil {
+			previous(request)
+		}
+		if hasArchive &&
+			request.ArtifactID == intentpub.ArtifactArchiveIndex &&
+			beforeIndexRewrite != nil {
+			beforeIndexRewrite(request.Rel)
+		}
+		if hasArchive &&
+			appendPlan.Outcome() == store.IntentArchiveAppendRehydrate &&
+			request.ArtifactID == intentpub.ArtifactArchiveIndex &&
+			beforeRehydrateIndexRename != nil {
+			beforeRehydrateIndexRename(request.Rel)
+		}
+	}
+	return options
 }
 
 func ensurePrepareArtifactsDirectory(

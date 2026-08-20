@@ -1058,7 +1058,28 @@ then found only a stale AVP-134 D9 importer set and non-hermetic PIB-146
 provider config; both corrections now pass the full uncached and CLI/workflow
 race gates. S5 ✅ COMPLETE at `f7ccd61`; CI
 [32304087548](https://github.com/tesseracode/tesserapatch/actions/runs/32304087548)
-is green on Ubuntu, macOS and Windows. S6 public docs/assets parity is active.
+is green on Ubuntu, macOS and Windows. S6 rev-0 public parity is implemented
+but returned NEEDS REVISION on systemic acceptance-row misattribution,
+non-biting totality/sensitivity guards, three public behavior misstatements
+and incomplete Unreleased deltas. Its rebuild is blocked on confirmed
+production prerequisites: missing §18.1 named seams, missing rename-time
+leaf/directory revalidation for PIB-148…151, and undocumented public
+`archive-selector-invalid`. One sequential hardening revision is active before
+S6 resumes. Prerequisite rev-0 review remains NEEDS REVISION on FEATURES index
+expected identity, exact status/control seam roles, purge failure-seam branch
+ownership and committed-error after-index observation. Rev-1 folds all four;
+re-review remains NEEDS REVISION on descriptor/name temp cleanup coherence,
+fail-closed write roles and between-hashes mutation ownership. Rev-2 closes
+those three; re-review remains NEEDS REVISION on post-seam same-inode temp
+content verification and descriptor cleanup coverage for every supported Linux
+architecture. Rev-3 closes those; re-review remains NEEDS REVISION on
+pre/post-read mtime/ctime validation and mips64 kernel-stat layout handling.
+The coarse-timestamp finding is withdrawn under accepted T1 verification;
+two MEDIUM mappings remain for committed raw-preimage and archive-blob
+post-publication divergence currently downgraded to exit 5. Rev-5 preserves
+both plus manual-status exit 6; focused review APPROVED. Isolated full
+validation passes across full/race/vet and all supported build targets. Commit
+and blocking CI remain before S6 resumes.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

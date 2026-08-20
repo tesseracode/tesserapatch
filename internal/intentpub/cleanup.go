@@ -24,10 +24,24 @@ func cleanupTransactionRoot(ops RootOps, journal Journal, evidence journalEviden
 	if err := validateJournalEvidence(ops, journal, evidence, options); err != nil {
 		return err
 	}
+	if beforeJournalClear != nil {
+		beforeJournalClear(markerRel)
+	}
 	if !evidence.MarkerPresent {
-		marker, err := options.capture(ops, markerRel)
-		if err != nil || marker.Exists {
+		marker, err := options.captureBytes(ops, markerRel)
+		if err != nil || marker.Identity.Exists {
 			return transactionError(CodeCleanupFailed, "", "marker-cas", "the transaction clearing marker is not absent", 6)
+		}
+		if beforeControlWriteRename != nil {
+			beforeControlWriteRename(markerRel)
+		}
+		if failRename != nil {
+			if err := failRename(markerRel); err != nil {
+				return transactionError(CodeCleanupFailed, "", "marker-rename", "the transaction journal could not enter the clearing state", 6)
+			}
+		}
+		if err := revalidateRenameTarget(ops, marker); err != nil {
+			return transactionError(CodeCleanupFailed, "", "marker-final-gate", "the transaction clearing marker appeared before rename", 6)
 		}
 		if err := ops.Rename(JournalRel(journal.Slug), markerRel); err != nil {
 			return transactionError(CodeCleanupFailed, "", "marker-rename", "the transaction journal could not enter the clearing state", 6)
@@ -103,6 +117,7 @@ func restoreClearingMarker(ops RootOps, journal Journal, evidence journalEvidenc
 		Expected:      identityPointer(AbsentIdentity()),
 		MismatchCode:  CodeCleanupFailed,
 		RequireParent: true,
+		Role:          WriteRoleControl,
 	}, evidence.Identity, options)
 	return err
 }

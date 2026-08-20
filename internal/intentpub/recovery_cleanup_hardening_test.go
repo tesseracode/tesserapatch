@@ -786,7 +786,9 @@ func stageRegeneratePlan(t *testing.T, workspaceAuthority *intentlock.WorkspaceA
 	for _, id := range []ArtifactID{ArtifactAnalysis, ArtifactSpec, ArtifactExploration, ArtifactAnalysisSidecar} {
 		preimage := captureForTest(t, workspaceAuthority, canonicalRel(testSlug, id))
 		blobRel := featureRel(testSlug) + "/artifacts/intent-archive/blobs/" + preimage.SHA256 + ".blob"
-		if _, err := DurableWrite(workspaceAuthority, WriteRequest{Rel: blobRel, Data: oldIntent[id], Mode: 0o644}, Options{RandomHex12: sequenceHex()}); err != nil {
+		if _, err := DurableWrite(workspaceAuthority, WriteRequest{
+			Rel: blobRel, Data: oldIntent[id], Mode: 0o644, Role: WriteRoleOrdinaryCanonical,
+		}, Options{RandomHex12: sequenceHex()}); err != nil {
 			t.Fatal(err)
 		}
 		entries = append(entries, Entry{

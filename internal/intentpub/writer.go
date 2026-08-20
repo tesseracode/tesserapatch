@@ -10,6 +10,15 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/intentlock"
 )
 
+type WriteRole uint8
+
+const (
+	WriteRoleInvalid WriteRole = iota
+	WriteRoleOrdinaryCanonical
+	WriteRoleCanonicalStatus
+	WriteRoleControl
+)
+
 type WriteRequest struct {
 	Rel           string
 	Data          []byte
@@ -19,11 +28,20 @@ type WriteRequest struct {
 	MismatchCode  Code
 	ArtifactID    ArtifactID
 	RequireParent bool
+	Indexed       bool
+	EntryIndex    int
+	Role          WriteRole
 }
 
 func DurableWrite(authority *intentlock.WorkspaceAuthority, request WriteRequest, options Options) (WriteResult, error) {
 	if authority == nil || !validRootRel(request.Rel) {
 		return WriteResult{}, transactionError(CodeInvalidPlan, request.ArtifactID, "write-path", "the write target is not root-relative", 5)
+	}
+	if request.Role < WriteRoleOrdinaryCanonical || request.Role > WriteRoleControl ||
+		(request.Role == WriteRoleCanonicalStatus && request.ArtifactID != ArtifactStatus) ||
+		(request.Role == WriteRoleOrdinaryCanonical && request.ArtifactID == ArtifactStatus) ||
+		(request.Indexed && request.Role == WriteRoleControl) {
+		return WriteResult{}, transactionError(CodeInvalidPlan, request.ArtifactID, "write-role", "the write role is invalid for the target", 5)
 	}
 	if request.Mode.Perm() != request.Mode || request.Mode.Perm() == 0 {
 		return WriteResult{}, transactionError(CodeInvalidPlan, request.ArtifactID, "write-mode", "the write mode is invalid", 5)
@@ -71,13 +89,58 @@ func durableWriteRoot(ops RootOps, request WriteRequest, intended Identity, opti
 	}
 	base := path.Base(request.Rel)
 	tempRel := path.Join(directory, "."+base+".tmp-"+suffix)
-	file, err := ops.OpenFile(tempRel, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	file, err := ops.OpenFile(tempRel, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
 	if err != nil {
 		return result, writerError(CodeRootedWrite, request.ArtifactID, "open-temp", "the rooted temporary file could not be created", 5, false, result.Phase)
 	}
 	result.Phase = WritePhaseTempOpened
 	tempPresent := true
 	fileOpen := true
+	parent, err := ops.Open(directory)
+	if err != nil {
+		_ = file.Close()
+		return result, writerError(CodeCleanupFailed, request.ArtifactID, "temp-parent-authority", "the temporary file parent could not be retained safely; temporary evidence was preserved", 6, false, result.Phase)
+	}
+	parentOpen := true
+	closeParent := func() error {
+		if !parentOpen {
+			return nil
+		}
+		parentOpen = false
+		return parent.Close()
+	}
+	defer func() {
+		_ = closeParent()
+	}()
+
+	descriptorCleanup := usesDescriptorTempCleanup(ops)
+	var heldTemp RootFile
+	var cleanupIdentity tempCleanupIdentity
+	if descriptorCleanup {
+		if !descriptorTempCleanupSupported() {
+			_ = file.Close()
+			_ = closeParent()
+			return result, writerError(CodeCleanupFailed, request.ArtifactID, "temp-parent-authority", "descriptor-relative temporary ownership checks are unavailable; temporary evidence was preserved", 6, false, result.Phase)
+		}
+		heldTemp, cleanupIdentity, err = retainAndVerifyTemp(parent, file, path.Base(tempRel))
+		if err != nil {
+			_ = file.Close()
+			_ = closeParent()
+			return result, writerError(CodeCleanupFailed, request.ArtifactID, "temp-parent-authority", "the retained parent did not prove ownership of the created temporary file; evidence was preserved", 6, false, result.Phase)
+		}
+	}
+	heldTempOpen := heldTemp != nil
+	closeHeldTemp := func() error {
+		if !heldTempOpen {
+			return nil
+		}
+		heldTempOpen = false
+		return heldTemp.Close()
+	}
+	defer func() {
+		_ = closeHeldTemp()
+	}()
+	tempAuthorityAmbiguous := false
 
 	cleanup := func() error {
 		var cleanupErr error
@@ -88,18 +151,42 @@ func durableWriteRoot(ops RootOps, request WriteRequest, intended Identity, opti
 			fileOpen = false
 		}
 		if tempPresent {
-			if removeErr := ops.Remove(tempRel); removeErr != nil && !errors.Is(removeErr, fs.ErrNotExist) {
+			var removeErr error
+			removed := false
+			if descriptorCleanup {
+				if tempAuthorityAmbiguous {
+					removeErr = fs.ErrInvalid
+				} else {
+					removeErr = removeVerifiedTempAtHeldDirectory(
+						parent, heldTemp, path.Base(tempRel), cleanupIdentity,
+					)
+					removed = removeErr == nil
+				}
+			} else {
+				removeErr = ops.Remove(tempRel)
+				removed = removeErr == nil || errors.Is(removeErr, fs.ErrNotExist)
+			}
+			if removeErr != nil && !(errors.Is(removeErr, fs.ErrNotExist) && !descriptorCleanup) {
 				cleanupErr = errors.Join(cleanupErr, removeErr)
-			} else if syncErr := syncDir(ops, directory); syncErr != nil {
-				cleanupErr = errors.Join(cleanupErr, syncErr)
+			} else if removed {
+				if syncErr := syncRootFile(parent, directory); syncErr != nil {
+					cleanupErr = errors.Join(cleanupErr, syncErr)
+				}
+			}
+			if !removed && descriptorCleanup {
+				cleanupErr = errors.Join(cleanupErr, fs.ErrInvalid)
 			}
 			tempPresent = false
 		}
+		if closeErr := closeHeldTemp(); closeErr != nil {
+			cleanupErr = errors.Join(cleanupErr, closeErr)
+		}
+		cleanupErr = errors.Join(cleanupErr, closeParent())
 		return cleanupErr
 	}
 	failBeforeCommit := func(code Code, class, detail string, exitClass int) (WriteResult, error) {
 		if cleanupErr := cleanup(); cleanupErr != nil {
-			return result, writerError(CodeCleanupFailed, request.ArtifactID, "temp-cleanup", "the rooted temporary file could not be removed durably", 6, false, result.Phase)
+			return result, writerError(CodeCleanupFailed, request.ArtifactID, "temp-cleanup", "the rooted temporary file could not be removed with proven authority", 6, false, result.Phase)
 		}
 		return result, writerError(code, request.ArtifactID, class, detail, exitClass, false, result.Phase)
 	}
@@ -115,7 +202,7 @@ func durableWriteRoot(ops RootOps, request WriteRequest, intended Identity, opti
 		return failBeforeCommit(CodeRootedWrite, "write-temp", "the rooted temporary file could not be written", 5)
 	}
 	result.Phase = WritePhaseTempWritten
-	if err := file.Sync(); err != nil {
+	if err := syncRootFile(file, tempRel); err != nil {
 		return failBeforeCommit(CodeRootedWrite, "sync-temp", "the rooted temporary file could not be synchronized", 5)
 	}
 	result.Phase = WritePhaseTempSynced
@@ -126,34 +213,127 @@ func durableWriteRoot(ops RootOps, request WriteRequest, intended Identity, opti
 	fileOpen = false
 	result.Phase = WritePhaseTempClosed
 
+	expected := AbsentIdentity()
 	if request.Expected != nil {
-		current, captureErr := options.capture(ops, request.Rel)
-		if captureErr != nil || !current.Equal(*request.Expected) {
-			code := request.MismatchCode
-			if code == "" {
+		expected = *request.Expected
+	}
+	renamePreimage, captureErr := options.captureBytes(ops, request.Rel)
+	if captureErr != nil || !renamePreimage.Identity.Equal(expected) {
+		code := request.MismatchCode
+		if code == "" {
+			if expected.Exists {
 				code = CodeEntryChanged
+			} else {
+				code = CodeEntryAppeared
 			}
-			return failBeforeCommit(code, "write-cas", "the destination changed before the rooted rename", exitClassForCode(code))
 		}
+		return failBeforeCommit(code, "write-cas", "the destination changed before the rooted rename", exitClassForCode(code))
 	}
 	result.Phase = WritePhaseCASValidated
+
+	// Indexed, role-specific, caller, and failure seams run in that order; the
+	// final rooted kind/identity gate is always last.
+	if request.Indexed && beforeRename != nil {
+		beforeRename(request.EntryIndex)
+	}
+	if request.Role == WriteRoleCanonicalStatus && beforeStatusRename != nil {
+		beforeStatusRename(request.Rel)
+	}
+	if request.Role == WriteRoleControl && beforeControlWriteRename != nil {
+		beforeControlWriteRename(request.Rel)
+	}
+	if options.BeforeRename != nil {
+		options.BeforeRename(request)
+	}
+	if failRename != nil {
+		if err := failRename(request.Rel); err != nil {
+			return failBeforeCommit(CodeRootedWrite, "rename-injected", "the rooted temporary file could not be published", 5)
+		}
+	}
+	if err := revalidateRenameTarget(ops, renamePreimage); err != nil {
+		code := request.MismatchCode
+		if code == "" {
+			if expected.Exists {
+				code = CodeEntryChanged
+			} else {
+				code = CodeEntryAppeared
+			}
+		}
+		return failBeforeCommit(code, "rename-final-gate", "the destination changed at the rooted rename boundary", exitClassForCode(code))
+	}
+	if !retainedParentMatchesDestination(ops, parent, directory, renamePreimage) {
+		return failBeforeCommit(CodeEntryChanged, "rename-parent-gate", "the retained temporary parent no longer matches the destination directory", 5)
+	}
+	if descriptorCleanup {
+		if err := verifyTempContentAtHeldDirectory(
+			parent, heldTemp, path.Base(tempRel), cleanupIdentity, intended, options.Scratch,
+		); err != nil {
+			if _, authorityErr := verifyTempAtHeldDirectory(
+				parent, heldTemp, path.Base(tempRel), cleanupIdentity,
+			); authorityErr != nil {
+				tempAuthorityAmbiguous = true
+			}
+			return failBeforeCommit(CodeRootedWrite, "temp-content-gate", "the temporary file content or mode changed before publication", 5)
+		}
+	}
+	// The documented residual rename race begins only after the held temp's
+	// post-read fstat and descriptor-relative fstatat checks complete here.
 	if err := ops.Rename(tempRel, request.Rel); err != nil {
 		return failBeforeCommit(CodeRootedWrite, "rename", "the rooted temporary file could not be published", 5)
 	}
 	tempPresent = false
 	result.Committed = true
 	result.Phase = WritePhaseRenamed
-
-	if err := syncDir(ops, directory); err != nil {
-		return result, writerError(CodePostPublicationDivergence, request.ArtifactID, "sync-directory", "the committed destination directory could not be synchronized", 6, true, result.Phase)
+	if request.Indexed && afterRename != nil {
+		afterRename(request.EntryIndex)
+	}
+	if request.Role == WriteRoleCanonicalStatus && afterStatusRename != nil {
+		afterStatusRename(request.Rel)
+	}
+	if err := closeHeldTemp(); err != nil {
+		return result, writerError(CodePostPublicationDivergence, request.ArtifactID, "close-temp-hold", "the committed temporary identity hold could not be closed", 6, true, result.Phase)
+	}
+	if err := syncRootFile(parent, directory); err != nil {
+		return result, writerError(CodePostPublicationDivergence, request.ArtifactID, "sync-directory", "the retained committed destination directory could not be synchronized", 6, true, result.Phase)
 	}
 	result.Phase = WritePhaseDirectorySynced
+	if err := closeParent(); err != nil {
+		return result, writerError(CodePostPublicationDivergence, request.ArtifactID, "close-parent", "the retained destination directory could not be closed", 6, true, result.Phase)
+	}
 	current, captureErr := options.capture(ops, request.Rel)
 	if captureErr != nil || !current.Equal(intended) {
 		return result, writerError(CodePostPublicationDivergence, request.ArtifactID, "writer-post-cas", "the committed rooted write could not be verified", 6, true, result.Phase)
 	}
 	result.Phase = WritePhaseVerified
 	return result, nil
+}
+
+func usesDescriptorTempCleanup(ops RootOps) bool {
+	_, ok := ops.(interface{ descriptorTempCleanup() })
+	return ok
+}
+
+func retainedParentMatchesDestination(
+	ops RootOps,
+	parent RootFile,
+	directory string,
+	captured capturedFile,
+) bool {
+	parentInfo, err := parent.Stat()
+	if err != nil || !parentInfo.IsDir() {
+		return false
+	}
+	if directory == "." {
+		return true
+	}
+	if len(captured.Components) == 0 {
+		return false
+	}
+	destinationParent := captured.Components[len(captured.Components)-1]
+	return destinationParent.rel == directory &&
+		destinationParent.info != nil &&
+		destinationParent.info.IsDir() &&
+		ops.SameFile(parentInfo, destinationParent.info)
 }
 
 func writerError(code Code, id ArtifactID, class, detail string, exitClass int, committed bool, phase WritePhase) *Error {
@@ -210,7 +390,7 @@ func mkdirChain(ops RootOps, directory string) error {
 			_ = file.Close()
 			return fs.ErrInvalid
 		}
-		if err := file.Sync(); err != nil {
+		if err := syncRootFile(file, current); err != nil {
 			_ = file.Close()
 			return err
 		}
@@ -255,11 +435,20 @@ func syncDir(ops RootOps, directory string) error {
 	if err != nil {
 		return err
 	}
-	if err := file.Sync(); err != nil {
+	if err := syncRootFile(file, directory); err != nil {
 		_ = file.Close()
 		return err
 	}
 	return file.Close()
+}
+
+func syncRootFile(file RootFile, rel string) error {
+	if failFsync != nil {
+		if err := failFsync(rel); err != nil {
+			return err
+		}
+	}
+	return file.Sync()
 }
 
 func writeAll(file RootFile, data []byte) error {

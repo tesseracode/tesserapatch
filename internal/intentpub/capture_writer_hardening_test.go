@@ -221,6 +221,7 @@ func TestRootedWriterFaultTableAndCommitState(t *testing.T) {
 				Expected:      identityPointer(AbsentIdentity()),
 				MismatchCode:  CodeEntryAppeared,
 				RequireParent: true,
+				Role:          WriteRoleOrdinaryCanonical,
 			}, Options{
 				RandomHex12: fixedHex("abcdefabcdef"),
 				RootOpsFactory: func(root *os.Root) RootOps {

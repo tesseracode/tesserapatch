@@ -495,18 +495,12 @@ func normalizeIntentArchivePurgeOptions(options intentArchivePurgeOptions) (inte
 	normalized.generations = sortedUniqueIntentArchiveStrings(options.generations)
 	for _, hash := range normalized.blobs {
 		if !intentArchiveValidSelectorID(hash) {
-			return intentArchivePurgeOptions{}, &store.IntentArchiveError{
-				Code:      store.IntentArchiveCodeSelectorInvalid,
-				ExitClass: 3,
-			}
+			return intentArchivePurgeOptions{}, errors.New("each --blob value must be 64 lowercase hexadecimal characters")
 		}
 	}
 	for _, generationID := range normalized.generations {
 		if !intentArchiveValidSelectorID(generationID) {
-			return intentArchivePurgeOptions{}, &store.IntentArchiveError{
-				Code:      store.IntentArchiveCodeSelectorInvalid,
-				ExitClass: 3,
-			}
+			return intentArchivePurgeOptions{}, errors.New("each --generation value must be 64 lowercase hexadecimal characters")
 		}
 	}
 	return normalized, nil
@@ -549,9 +543,7 @@ func runFeatureIntentArchivePurgePreview(
 	}
 	normalizedOptions, normalizeErr := normalizeIntentArchivePurgeOptions(options)
 	if normalizeErr != nil {
-		report.Outcome = "refused"
-		report.Refusal = intentArchiveRefusalFromError(slug, normalizeErr, nil, options)
-		return emitIntentArchivePurgeReport(cmd, report, 3)
+		return normalizeErr
 	}
 	options = normalizedOptions
 	report = newIntentArchivePurgeReport(slug, options)
@@ -596,6 +588,9 @@ func runFeatureIntentArchivePurgeConfirmed(
 		)
 		return emitIntentArchivePurgeReport(cmd, report, 3)
 	}
+	if beforeLockAcquire != nil {
+		beforeLockAcquire()
+	}
 	authority, err := intentArchiveAcquireAuthority(repoRoot)
 	if err != nil {
 		code, class := prepareAuthorityError(err)
@@ -626,9 +621,7 @@ func runFeatureIntentArchivePurgeConfirmed(
 	}
 	normalizedOptions, normalizeErr := normalizeIntentArchivePurgeOptions(options)
 	if normalizeErr != nil {
-		report.Outcome = "refused"
-		report.Refusal = intentArchiveRefusalFromError(slug, normalizeErr, nil, options)
-		return emitIntentArchivePurgeReport(cmd, report, 3)
+		return normalizeErr
 	}
 	options = normalizedOptions
 	report = newIntentArchivePurgeReport(slug, options)
@@ -1528,6 +1521,9 @@ func intentArchiveRefusalFromError(
 		)
 	}
 	code := string(typed.Code)
+	if typed.Code == store.IntentArchiveCodeSelectorInvalid {
+		code = string(store.IntentArchiveCodeIndexCorrupt)
+	}
 	message := "The intent archive refused the requested operation."
 	if typed.Hash != "" {
 		message += " Hash: " + typed.Hash + "."
@@ -1568,8 +1564,6 @@ func intentArchiveRefusalFromError(
 	case store.IntentArchiveCodeBlobShared:
 		retry = "tpatch feature intent-archive purge " + slug + " --blob " + typed.Hash + " --yes"
 		remediation = "The retry below is the narrow repair. The --all selector is the broader alternative: preview it first because it tombstones every reference in every generation and removes every blob; repeated --blob selectors touch only the named hashes."
-	case store.IntentArchiveCodeSelectorInvalid:
-		remediation = "Use exactly one well-formed selector family: --blob, --generation, --orphans, or --all."
 	case store.IntentArchiveCodePurgeIndexChanged:
 		remediation = "Retry from the newly observed archive tree."
 	case store.IntentArchiveCodePurgeEvidenceDivergent:
