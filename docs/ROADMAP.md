@@ -1169,6 +1169,46 @@ provider fixtures hermetic and baseline catalogs cached once. Final gate and
 all race/vet/cross-build checks pass. S6 ✅ COMPLETE at `65e876a`; CI
 [32447914694](https://github.com/tesseracode/tesserapatch/actions/runs/32447914694)
 is green on Ubuntu, macOS and Windows. S7 final sequential hardening is active.
+S7 rev-0 maps all rows arithmetically but returned NEEDS REVISION systemically:
+synthetic G toggles, unrelated ledger wrappers, incomplete CLI/archive/process
+scenarios, non-blocking Windows coverage and hard-coded PIB-567 revision
+surrogates.
+S7 rev-1 completes 14/15 AM rows exactly. PIB-402 exposes stale early
+rehydration wording contradicted by later single-owner pending-purge rules and
+current production; a no-decision PRD/ADR rev-16 erratum over §9.3 and
+PIB-402/403/425 is active before AM closes and AN–AX continue.
+S7 rev-2 completes AM–AO: 54/173 rows and 13 G sensitivities. The rev-16
+erratum and shared-blob remediation correction are under block review; AP–AX
+119 rows remain. Block review returned NEEDS REVISION on aggregate ledger
+resolution, five proxy guards, raw-sink observability, real rev-16 diff
+derivation, BSD/filesystem CLI truth and executable shared-blob commands.
+S7 rev-3 folds those findings and awaits re-review; its reported AN20/AO19
+split must be reconciled with the PRD's AN23/AO16 arithmetic before AP starts.
+Rev-3 review remains NEEDS REVISION on dead/aggregate ledger assertions,
+unbounded rev-16 diffs, incomplete raw-sink observability, three missing BSD
+cross-compile lanes and incomplete §7.13 runtime Git scrubbing. The category
+split was a report error; PRD and manifest remain correctly AM15/AN23/AO16.
+S7 rev-4 closes those findings but review remains NEEDS REVISION on unreachable
+parent subtest registrations, temp-file/file-method response sinks outside
+cwd, and an unauthorized `GIT_NAMESPACE` scrub beyond §7.13's closed list.
+S7 rev-5 review remains NEEDS REVISION on parent-registration dominance and
+independent leaves, alias/method-expression create-write-unlink temp sinks, AO
+empty-target acceptance/missing PIB-446 sensitivity, and oversized indexed
+Git-variable suffixes escaping the exact §7.13 scrub.
+S7 rev-6 review remains NEEDS REVISION on static registration false-passes
+(infinite-loop/short-circuit/terminator aliases) and intraprocedural raw-sink
+provenance across helper/value/interface boundaries.
+S7 rev-7 review remains NEEDS REVISION on forgeable test2json registration
+events, incomplete descendant timeout cleanup, and omitted `init`/imported-
+interface raw-sink reachability.
+S7 rev-8 review remains NEEDS REVISION on parent-forgeable shared marker
+metadata and legacy/generic sink APIs bypassing the expanded typed graph.
+S7 rev-9 marker objection was withdrawn after threat-model adjudication; the
+remaining blocker is fail-open non-module-aware type loading that loses
+`provider.Provider` interface dispatch. Rev-10 is active.
+S7 AM–AO rev-10 is APPROVED: 54/173 exact rows (AM15/AN23/AO16;
+I16/C20/G13/U4/S1), checkpointed by `cf324c0` + `fdf86cb`. AP is active;
+AQ–AX follow sequentially.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

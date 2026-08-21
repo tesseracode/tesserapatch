@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -342,6 +342,215 @@ S6 public docs/assets parity is complete at `65e876a`; blocking CI
 [32447914694](https://github.com/tesseracode/tesserapatch/actions/runs/32447914694)
 is green on Ubuntu, macOS and Windows.
 
+S7 rev-0 is implemented in the worktree but independent review returned
+NEEDS REVISION systemically. All 51 G sensitivities toggle a synthetic
+`family-valid` fact instead of mutating guarded input; the full ledger accepts
+unrelated aggregate wrappers; numerous CLI/publication rows omit their stated
+modes/faults/reports; archive 531…566 use low-level plan proxies instead of
+complete CLI/doctor repair ladders; authority/Git/D9 rows omit real process
+state machines; Windows rows are incomplete/non-blocking; and PIB-567 compares
+hard-coded revision surrogates rather than both real documents.
+
+S7 rev-1 rebuilt AM exactly for PIB-395…401 and 403…409; PIB-402 exposed a
+stale accepted-contract contradiction. Rev-5-era rows/prose say regeneration
+rehydrates removal-pending references, while rev-8+ D10/D13/D16 make every
+pending hash purge-owned and unreachable to regeneration. Current production
+already obeys the later rule and rehydrates tombstones only. A bounded
+PRD/ADR rev-16 erratum will amend §9.3 and PIB-402/403/425 without changing a
+decision, row, kind or count; AM then completes before AN–AX continue.
+
+S7 rev-2 completes AM–AO exactly: 54/173 rows (AM 15, AN 23, AO 16;
+I16/C20/G13/U4/S1). The accepted PRD/ADR rev-16 erratum is present with real
+PIB-402/403/425 tests. One production correction makes shared-blob remediation
+emit executable narrow/`--all` preview and confirm commands. Independent
+review of this block is pending; AP–AX (119 rows, 38 G guards) remain.
+
+AM–AO review remains NEEDS REVISION on six findings: the ledger accepts
+aggregate assertion bodies (PIB-443 exposed); PIB-437/438/445/447/448 guards
+remain token/proxy based; privacy tests cannot observe cross-file raw sinks;
+rev-16 does not derive actual changed rows/arithmetic; BSD/filesystem rows omit
+full CLI/remediation truth; and PIB-424 remediation commands are not executed.
+
+S7 rev-3 folds those six with body-aware targets, all twelve PIB-443 crash
+cells, real semantic/privacy/revision validators, classifier/platform evidence
+and executed PIB-424 routes. It reports 54 exact rows but an AN20/AO19 split
+rather than the PRD's prior AN23/AO16 arithmetic; block re-review must resolve
+that discrepancy before AP begins.
+
+S7 rev-3 review remains NEEDS REVISION on five findings: unreachable or
+parent-aggregate assertions can satisfy the ledger; rev-16 diff checks do not
+reject unrelated normative edits; privacy subprocesses omit generator roots
+and non-`os.WriteFile` transcript sinks; blocking CI cross-compiles FreeBSD
+only rather than all four supported BSD targets; and G1–G4 runtime checks do
+not reject the complete §7.13 Git-variable set. The category discrepancy was
+reporting-only: the PRD and current manifest both correctly use AM15/AN23/AO16
+with AN PIB-410…432 and AO PIB-433…448.
+
+S7 rev-4 closes all five findings without beginning AP. The body resolver now
+requires a reachable assertion in the exact selected leaf and rejects dead or
+aggregate wrappers; all 54 AM–AO rows still resolve, including PIB-443's
+twelve crash cells. Rev-16 compares the base documents against exact hashed
+section allowlists and rejects unrelated PRD or ADR edits. PIB-419 executes
+analysis/spec/exploration success, failure and retry in isolated subprocesses,
+while PIB-420/446 follow the whole workflow package call graph and bite
+cross-file stderr/stdout/file writers. Blocking CI cross-compiles all four BSD
+targets without executing them. PIB-427/439 capture every G1–G4 environment,
+derive the §7.13 scrub population, include `GIT_NAMESPACE`, and reject every
+exact/indexed variable on every request. Arithmetic is AM15/AN23/AO16
+(PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-4 review remains NEEDS REVISION on three findings: lexical subtest
+discovery accepts `t.Run` registrations inside dead/post-return parent paths;
+privacy guards miss response writes through `os.CreateTemp` and `*os.File`
+methods outside the subprocess cwd; and the production/test scrub added
+`GIT_NAMESPACE` beyond §7.13's exact closed list. Rev-5 must make registration
+reachability and temp-file observation bite, then remove the unauthorized
+variable rather than amend the accepted contract.
+
+S7 rev-5 closes those three findings without beginning AP. Exact leaf
+resolution now applies reachability to the complete parent registration path,
+so dead and post-return `t.Run` calls fail alongside the existing dead-callback
+and aggregate-wrapper sensitivities; all 54 rows and PIB-443's twelve leaves
+still resolve. PIB-419 confines cwd, temp and home roots to one observed
+sandbox and its same validator bites an out-of-cwd temp leak. PIB-420/446 now
+detect reachable `os.CreateTemp` plus receiver-typed `*os.File.Write` and
+`WriteString`, including a cross-file helper-returned file fixture.
+`GIT_NAMESPACE` is removed from production and PIB-427/439 authority sets;
+the compatibility test instead proves it remains inherited as §7.13 requires.
+Arithmetic remains AM15/AN23/AO16 (PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-5 review remains NEEDS REVISION on four findings: unknown-condition
+parent paths need dominance, not may-reach, and three leaves currently fail to
+register when selected alone; the raw-temp guard still misses aliased method
+expressions plus create/write/unlink; AO exact rows do not require nonempty
+targets and PIB-446 omits the new temp sensitivity; and overflow-sized
+digit-only indexed Git-variable suffixes survive production's integer parser
+despite §7.13 requiring every `[0-9]+` index.
+
+S7 rev-6 closes those four findings without beginning AP. The ledger resolver
+now requires selected registration on every reachable parent exit and treats
+return plus testing Fatal/Fatalf/FailNow/Skip terminators as no-fallthrough;
+dead branches and uninvoked closures bite while all 54 targets and PIB-443's
+twelve leaves resolve. PIB-401/402/404/424/445/448 setup was made independent
+of sibling execution, and every affected literal leaf passes when selected
+alone. PIB-419/420/446 use stdlib `go/types` identity plus local value/alias
+propagation for `os.CreateTemp`, `*os.File.Write`/`WriteString`, method
+expressions/values and create-write-unlink helpers. AO now rejects empty exact
+targets and maps both temp leaves. Production Git scrubbing now recognizes a
+nonempty ASCII-digit suffix lexically, including overflow-sized indexes on
+every G1–G4 request, while malformed suffixes and `GIT_NAMESPACE` remain
+inherited. Arithmetic remains AM15/AN23/AO16
+(PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-6 review remains NEEDS REVISION on two analyzer boundaries. Static
+registration flow still accepts constant infinite-loop and short-circuit
+unreachable `t.Run` calls and misses aliased test terminators. Raw-temp sink
+provenance remains intraprocedural, so helper parameters/returns, interfaces,
+package variables and selector dispatch can hide a create-write-unlink path.
+Rev-7 will replace approximated registration semantics with observed exact
+leaf execution and make sink-identity rejection interprocedurally complete (or
+conservatively reject every forbidden identity in the reachable construction).
+
+S7 rev-7 closes both analyzer findings without beginning AP. AST resolution is
+now limited to exact package/test/subtest bodies and reachable assertions;
+registration authority comes from one non-recursive `go test -json -p=1`
+subprocess with an escaped exact top-level union. It observes one literal
+target for each of the 54 AM–AO rows plus all twelve PIB-443 leaves, requiring
+exactly one RUN and PASS event per target. The same validator rejects
+compilable infinite-loop, short-circuit, aliased-SkipNow and uninvoked-closure
+packages, with an enforced timeout and ledger/observer recursion exclusions.
+PIB-446 now scans forbidden `go/types` identities in every expression of the
+fixed-point reachable function/method graph and referenced package
+initializers. Helper arguments/returns, interface boxing, package-var alias
+chains, selector dispatch and multi-alias create-write-close-unlink fixtures
+all bite while canonical final provider bytes remain allowed. Arithmetic
+remains AM15/AN23/AO16 (PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-7 review remains NEEDS REVISION on three boundaries: test2json events
+can be forged by framed stdout from an unregistered test; cancellation kills
+the `go` parent but does not reliably bound/terminate its test-binary
+descendants; and raw-sink reachability omits package `init` roots plus local
+implementations invoked through imported interfaces. Rev-8 will use
+out-of-band instrumented leaf evidence, bounded inner/outer timeouts with
+descendant cleanup, and conservative init/interface reachability.
+
+S7 rev-8 closes those three findings without beginning AP. The validator now
+builds an isolated AST overlay that injects an exact literal marker call into
+each of the 54 selected row bodies plus all twelve PIB-443 leaves. The marker
+helper is a normal no-op, but under a nonce-bearing validator environment it
+creates one O_EXCL SHA-256-named file containing the nonce and target ID; JSON
+RUN/PASS is diagnostic only. A framed test2json forgery shows clean JSON
+diagnostics but fails for its missing marker. The child `go test` has an inner
+timeout at one third of the outer deadline, WaitDelay, Unix/BSD process-group
+kill and build-safe Windows/other child kill; the infinite-loop fixture records
+its PID and proves bounded exit plus reap. Raw-sink reachability now treats
+every package `init` as a root and uses `go/types` interface implementation
+checks to enqueue compatible local concrete methods. Init-assigned aliases and
+an `io.Writer` local implementation both bite while canonical final provider
+bytes remain allowed. Arithmetic remains AM15/AN23/AO16
+(PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-8 review remains NEEDS REVISION on two trust boundaries. Marker
+directory, nonce and deterministic IDs are shared with every selected test,
+so a parent can forge both marker and test2json evidence while its leaf remains
+unreachable. The expanded init/interface graph is used only for the newest
+CreateTemp/file-method identities; legacy sinks such as `os.WriteFile` still
+use the narrower graph, and generic receiver constraints are unresolved.
+Rev-9 will inject per-target correlation tokens unavailable through shared
+environment and run every forbidden sink through one typed full graph.
+
+S7 rev-9 closes both review findings without beginning AP. Every selected leaf
+receives an independent random per-run correlation path and token as literals
+only in its AST overlay body; the child environment carries neither value, and
+the marker helper uses O_EXCL.
+The same validator rejects forged framed output plus the old shared marker
+shape, a swapped target/path association and a mutated token, then removes
+all marker, overlay and process scratch. PIB-446 now uses one fixed-point typed
+graph for generator roots, all package init functions, reachable helpers,
+referenced initializers, local methods, imported-interface implementations and
+type-parameter constraints. The centralized classifier covers the legacy
+retry/Store, filesystem, file-method, console, io, artifact/report/history and
+CreateTemp identities. Init-assigned legacy aliases, `os.WriteFile` local
+interface methods, generic `io.Writer` dispatch and the prior
+create-write-unlink cases all bite while canonical final provider bytes remain
+allowed. Arithmetic remains AM15/AN23/AO16
+(PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-9 review has one accepted finding and one withdrawn finding. The typed
+graph still uses `importer.Default` plus empty packages for unresolved module
+imports, so calls through `provider.Provider` can lose interface selection and
+hide a sink. The marker objection is withdrawn: no accepted text requires
+resistance to deliberately malicious same-UID test code, and no portable
+same-process harness can provide it. Rev-10 will move overlay scratch outside
+the repository, mode it 0700, describe markers as correlation evidence under
+the non-adversarial test-source boundary, and add fail-closed module-aware type
+loading plus a real `provider.Provider` sensitivity.
+
+S7 rev-10 closes the one accepted defect and applies the bounded hardening for
+the withdrawn marker finding without beginning AP. PIB-446 now obtains the
+real module dependency/export graph through cached
+`go list -deps -export -json` calls from the repository module and feeds those
+exports to `importer.ForCompiler`; there is no empty-package fallback, and any
+list/import/type-check error fails closed. A type-correct mutation of the real
+local `countingProvider.Generate` implementation writes and unlinks provider
+output and is reached through the actual module-resolved
+`provider.Provider` interface before failing. Separate unresolved-module and
+type-error fixtures prove fail-closed behavior while the stdlib
+`io.Writer`/generic/init cases remain biting. Correlation overlay, marker and
+process workspaces now use neutral random names outside the repository with
+0700 mode and complete cleanup; no runtime scratch is created under
+`internal/cli`. The marker is explicitly test-only semantic/proxy regression
+evidence for PIB-230/§18.53, not a sandbox or security boundary: source under
+validation is assumed not to inspect same-UID overlay files or its own
+executable. Framed output, old-marker, wrong-association and wrong-token
+sensitivities remain. Arithmetic remains AM15/AN23/AO16
+(PIB-395…448; I16/C20/G13/U4/S1).
+
+S7 rev-10 is APPROVED. AM–AO closes at 54/173 exact rows:
+AM15/AN23/AO16, I16/C20/G13/U4/S1, with no residual findings. AP is now the
+queue head. The accepted rev-16 contract is checkpointed at `cf324c0`; the
+reviewed implementation/test block is checkpointed at `fdf86cb`.
+
 The guarded classifier entry point now passes isolated full/race/vet plus all
 Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
 for a separate micro commit before the final S6 fixture.
@@ -464,7 +673,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 final hardening**
+- **Status**: **In Progress — S7 AP**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -570,6 +779,61 @@ file, is the dispatch authority.
   `docs/prds/PRD-artifact-validation-and-provenance.md`,
   `internal/intent/avp_source_scans_test.go`, and
   `internal/cli/prepare_pib_golden_windows_test.go`.
+- S7 AM–AO rev-5:
+  `.github/workflows/ci.yml`,
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_an_archive_test.go`,
+  `internal/cli/prepare_s7_ao_guard_test.go`,
+  `internal/cli/prepare_s7_ao_runtime_test.go`,
+  `internal/cli/prepare_s7_bsd_guard_test.go`,
+  `internal/cli/prepare_s7_rev16_test.go`,
+  `internal/gitutil/ignore.go`,
+  `internal/gitutil/ignore_prepare_test.go`,
+  `internal/gitutil/s7_ao_guard_test.go`,
+  `internal/intentlock/s7_am_source_guard_test.go`,
+  `internal/store/s7_am_archive_test.go`,
+  `internal/store/s7_ao_parity_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`.
+  Rev-5's bounded delta is in
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_ao_runtime_test.go`,
+  `internal/gitutil/ignore_prepare_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`; the unauthorized production
+  `internal/gitutil/ignore.go` edit was fully reverted.
+- Rev-6's bounded delta is in
+  `internal/cli/feature_intent_archive_test.go`,
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_an_archive_test.go`,
+  `internal/cli/prepare_s7_ao_guard_test.go`,
+  `internal/cli/prepare_s7_ao_runtime_test.go`,
+  `internal/cli/prepare_s7_rev16_test.go`,
+  `internal/gitutil/ignore.go`,
+  `internal/gitutil/ignore_prepare_test.go`,
+  `internal/store/s7_am_archive_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`.
+- Rev-7's bounded delta is in
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_registration_test.go`,
+  `internal/store/s7_ao_parity_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`.
+- Rev-8's bounded delta is in
+  `internal/s7marker/marker.go`,
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_registration_test.go`,
+  `internal/cli/prepare_s7_process_unix_test.go`,
+  `internal/cli/prepare_s7_process_other_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`.
+- Rev-9's bounded delta is in
+  `internal/s7marker/marker.go`,
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_registration_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`.
+- Rev-10's bounded delta is in
+  `internal/s7marker/marker.go`,
+  `internal/cli/prepare_s7_am_ledger_test.go`,
+  `internal/cli/prepare_s7_registration_test.go`,
+  `internal/cli/testdata/s7registration/fixture_test.go`, and
+  `internal/workflow/s7_an_privacy_test.go`.
 
 ## Test Results
 
@@ -641,16 +905,91 @@ file, is the dispatch authority.
 - S6 rev-0 assets/docs/targeted/golden/vet checks — PASS before review; verdict
   NEEDS REVISION on systemic row attribution/guard sensitivity plus bounded
   prose/changelog findings.
+- S7 AM–AO rev-4 exact ledger/resolver and focused row tests — PASS.
+- `go test ./internal/cli -run '^TestS7' -count=1 -timeout 5m` — PASS
+  (50.867s); complete affected `internal/cli` package — PASS (294.910s).
+- Complete affected `internal/gitutil`, `internal/intentlock`,
+  `internal/store` and `internal/workflow` packages — PASS.
+- FreeBSD/OpenBSD/NetBSD/DragonFly amd64 CLI test binaries compile and are not
+  executed; workflow YAML parse, affected-package vet, host build, gofmt and
+  whitespace checks — PASS.
+- S7 AM–AO rev-5 focused resolver, PIB-419/420/446, PIB-427 and PIB-439
+  regressions — PASS.
+- Complete S7 selectors — CLI 51.281s, workflow 0.458s, gitutil 0.228s,
+  intentlock 0.306s, intentpub 0.299s and store 0.395s.
+- Complete affected packages — CLI 289.485s, workflow 89.775s, gitutil
+  6.832s, intentlock 0.384s, intentpub 8.912s and store 2.657s.
+- Affected-package vet, host build, gofmt and `git diff --check` — PASS.
+  No full repository suite, race, CI or AP work was run.
+- Staged-source close at `fdf86cb`: serial uncached tests for `internal/cli`,
+  `gitutil`, `intentlock`, `intentpub`, `s7marker`, `store` and `workflow`;
+  affected vet; host build; gofmt and diff checks — PASS.
+- S7 AM–AO rev-6 focused resolver/ledger, typed privacy and indexed Git scrub
+  tests — PASS. All PIB-401/402/404/424/445/448 affected leaves and both new
+  PIB-446 temp leaves pass under exact individual `go test -run` selection.
+- Complete S7 selectors — CLI 51.855s, workflow 1.263s, gitutil 0.292s,
+  store 0.342s, intentlock 0.267s and intentpub 0.267s.
+- Complete affected packages — CLI 268.741s, workflow 85.487s, gitutil
+  6.680s and store 2.594s. Affected vet, host build, gofmt and whitespace
+  checks pass. No full repository suite, race, CI, commit or AP work was run.
+- S7 AM–AO rev-7 observed registration authority — PASS: 54 row targets plus
+  all twelve PIB-443 leaves in one subprocess (48.718s). All four wrong
+  registration packages and six new PIB-446 identity sensitivities bite.
+- Complete S7 selectors — CLI 106.354s, workflow 1.600s, store 0.349s,
+  gitutil 0.236s, intentlock 0.252s and intentpub 0.253s.
+- Complete affected packages — CLI 327.279s, workflow 89.490s and store
+  2.588s. Affected vet, host build, gofmt and whitespace checks pass. No full
+  repository suite, race, CI, commit or AP work was run.
+- S7 AM–AO rev-8 out-of-band marker authority — PASS: 54 row targets plus all
+  twelve PIB-443 leaves in 57.838s. Framed forgery and bounded timeout/reap
+  sensitivities pass in 4.007s; both new PIB-446 init/interface fixtures bite.
+- Complete S7 selectors — CLI 115.227s, workflow 1.520s, store 0.344s,
+  gitutil 0.246s, intentlock 0.268s and intentpub 0.256s.
+- Complete affected packages — CLI 336.064s and workflow 89.176s; marker
+  helper compile, affected vet, host build, gofmt and whitespace checks pass.
+  CLI test binaries cross-compile for Windows, FreeBSD, OpenBSD, NetBSD and
+  DragonFly. No full repository suite, race, CI, commit or AP work was run.
+- S7 AM–AO rev-9 random-correlation authority — PASS: all 54 row targets plus
+  all twelve PIB-443 leaves in 57.463s. Framed/old-marker forgery, timeout/reap,
+  target-association and token mutations pass in 4.749s; the exact ledger
+  passes in 4.553s.
+- Every unified PIB-446 sink sensitivity bites, including init-assigned legacy
+  aliases, local imported-interface `os.WriteFile`, generic `io.Writer`,
+  legacy retry/Store, artifact and prior CreateTemp/file-method cases.
+- Complete S7 selectors — CLI 116.067s, workflow 1.832s, intentlock 0.422s,
+  store 0.354s, gitutil 0.268s and intentpub 0.257s.
+- Complete affected packages — CLI 339.853s and workflow 86.256s; marker
+  helper compile, affected-package vet, host build, gofmt and whitespace checks
+  pass. CLI test binaries cross-compile for Windows, FreeBSD, OpenBSD, NetBSD
+  and DragonFly. No full repository suite, race, CI, commit or AP work was run.
+- S7 AM–AO rev-10 module-aware/fail-closed PIB-446 sensitivities — PASS
+  (1.087s): the real local `provider.Provider` implementation, unresolved
+  module import and independent type error all fail through the same validator;
+  every non-fail-closed sink mutation is required to type-check first.
+- Random external correlation workspace sensitivities — PASS (4.769s):
+  outside-repository and 0700 assertions, framed/old-marker evidence,
+  timeout/reap, wrong association and wrong token all bite with no repository
+  scratch. All 54 row targets plus twelve PIB-443 leaves pass in 58.252s; the
+  exact ledger passes.
+- Complete S7 selectors — CLI 109.685s, workflow 1.137s, intentlock 0.282s,
+  store 0.341s, gitutil 0.279s and intentpub 0.246s.
+- Complete affected packages — CLI 351.392s and workflow 96.515s; marker
+  helper compile, affected-package/testdata vet, host build, gofmt and
+  whitespace checks pass. CLI test binaries cross-compile for Windows,
+  FreeBSD, OpenBSD, NetBSD and DragonFly. No full repository suite, race, CI,
+  commit or AP work was run.
 
 ## Next Steps
 
-1. Complete S7's 173-row cross-cutting hardening and full 567-row ledger.
-2. Run joint internal/external review to acceptance; only then select the
+1. Checkpoint the approved AM–AO block, then rebuild AP exactly.
+2. Rebuild AQ–AX, remaining 38 sensitivities and the full 567 ledger from exact
+   runtime/document observables; obtain clean review.
+3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- None. The S6 production prerequisite is landed and green.
+- AP remains procedurally blocked until AM–AO rev-10 receives a clean review.
 
 ## Context for Next Agent
 
