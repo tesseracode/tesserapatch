@@ -1249,6 +1249,11 @@ can overwrite the sampled `stat`.
 AP rev-12 is APPROVED: 34 exact rows (PIB-449…482, I9/C12/G9/U2/S2).
 S7 cumulative coverage is 88/173; AP is checkpointed at `bf9424f`; AQ awaits
 green blocking CI.
+Post-checkpoint CI 32520986445 reopened AP: the native Windows dry-run target
+is PIB-463 planned/no-mutation, not PIB-461 unsupported refusal, and the
+120-second observer inner budget is too short on hosted runners. AQ is blocked.
+The bounded mapping/budget correction is APPROVED; AP arithmetic remains
+34 rows and AQ now waits only on corrected blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

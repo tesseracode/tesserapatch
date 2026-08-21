@@ -157,11 +157,11 @@ jobs:
           done
           ap_log="${RUNNER_TEMP}/prepare-s7-ap-windows.log"
           go test -v -count=1 \
-            -run '^TestS7APDryRunWindowsEvaluatedPlatform$' \
+            -run '^TestS7APDryRunWindowsNotEvaluatedPlatform$' \
             ./internal/cli 2>&1 | tee "$ap_log"
           for selector in \
-            TestS7APDryRunWindowsEvaluatedPlatform \
-            TestS7APDryRunWindowsEvaluatedPlatform/PIB-461; do
+            TestS7APDryRunWindowsNotEvaluatedPlatform \
+            TestS7APDryRunWindowsNotEvaluatedPlatform/PIB-463; do
             if ! grep -q -- "--- PASS: ${selector}" "$ap_log"; then
               echo "::error::${selector} did not execute on this runner"
               exit 1

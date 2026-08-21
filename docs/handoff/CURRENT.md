@@ -834,6 +834,34 @@ rows. AQ remains blocked until the AP checkpoint is staged, validated, pushed
 and green on blocking CI. The reviewed AP implementation/test block is
 checkpointed at `bf9424f`.
 
+Post-checkpoint CI [32520986445](https://github.com/tesseracode/tesserapatch/actions/runs/32520986445)
+invalidated the close before AQ dispatch. The native Windows dry-run leaf was
+misattributed to PIB-461 and expected exit-3 unsupported-platform, but PIB-463
+requires exit-0 `planned`, `execution_preflight: not_evaluated`, no mutation
+and no platform/filesystem/Git/lock/recovery refusal. Ubuntu/macOS also proved
+the AP observer's 120-second inner deadline is below hosted-runner runtime
+(about 138 seconds). AP requires a bounded post-acceptance correction and
+fresh review/CI; AQ–AX remain blocked.
+
+The bounded AP post-acceptance CI correction is complete without production
+changes. The native Windows target is now
+`TestS7APDryRunWindowsNotEvaluatedPlatform/PIB-463`; it and the host seam
+exercise the public quiet JSON dry-run and directly assert exit 0, exact
+planned/not-evaluated report shape and plan note, nil refusal, zero authority,
+provider and lock activity, byte-identical workspace state, and absence of
+every closed-catalog refusal code. PIB-461 now retains only evaluated step-7
+coverage; PIB-463 owns both dry-run leaves and the Windows blocking guard. CI
+and same-validator workflow sensitivities require the renamed PIB-463 target.
+The AP observer now has an eight-minute outer budget, four-minute inner budget
+and one-minute cleanup margin; wrong-input fixtures retain their explicit
+short deadlines, including the three-second hanging-process reap proof.
+
+The AP CI correction is APPROVED. AP's 34-row arithmetic is unchanged and its
+corrected acceptance is restored; AQ remains blocked only on committing,
+pushing and observing green blocking CI with the native PIB-463 leaf.
+Focused AP34, observer, workflow, vet/build/format and Windows cross-compile
+validation is green. Fresh review and blocking CI are required before AQ.
+
 S7 AP rev-2 review remains NEEDS REVISION on seven concrete gaps:
 PIB-459 scans only dangling `case` bodies and misses alternatives in other
 inventoried declarations; PIB-468 injects divergence after a completed removal
@@ -966,7 +994,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AP checkpoint; AQ blocked**
+- **Status**: **In Progress — AP correction approved; AQ blocked on CI**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -1216,6 +1244,15 @@ file, is the dispatch authority.
   production file changed.
 - S7 AP rev-12's bounded delta is test/tracking-only:
   `internal/intentlock/s7_ap_authority_test.go` and this handoff. No
+  production file changed.
+- The bounded AP post-acceptance CI correction is test/workflow/tracking-only:
+  `.github/workflows/ci.yml`,
+  `internal/cli/prepare_s7_ap_support_test.go`,
+  `internal/cli/prepare_s7_ap_dryrun_test.go`,
+  `internal/cli/prepare_s7_ap_dryrun_windows_test.go`,
+  `internal/cli/prepare_s7_ap_ledger_test.go`,
+  `internal/cli/prepare_s7_platform_guard_test.go`,
+  `internal/cli/prepare_s7_registration_test.go`, and this handoff. No
   production file changed.
 
 ## Test Results
@@ -1499,10 +1536,20 @@ file, is the dispatch authority.
 - Staged-source AP close at `bf9424f`: serial uncached full tests for CLI,
   gitutil, intentlock, intentpub, rescap, store and workflow; affected vet;
   host build; gofmt and diff checks — PASS.
+- AP post-acceptance CI correction: PIB-463 host-seam semantics, AP34 ledger,
+  renamed Windows workflow blocking guard and its sensitivities — PASS
+  (1.981s focused; 42.293s final affected selectors). Observer wrong-input and
+  explicit hanging-process cleanup fixtures — PASS (4.504s). AP34 independent
+  observed correlation with the four-minute hosted inner budget — PASS
+  (88.196s final). Windows amd64 CLI test binary cross-compile, `go vet
+  ./internal/cli`, host `go build ./cmd/tpatch`, gofmt and diff checks — PASS.
+  Native Windows execution remains for blocking CI. No full suite, race, CI,
+  commit, push or AQ–AX work was run.
 
 ## Next Steps
 
-1. Checkpoint, validate and push the approved AP block; require green CI.
+1. Commit and push the approved correction, then require green blocking CI
+   including the native Windows PIB-463 leaf.
 2. Then rebuild AQ–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the

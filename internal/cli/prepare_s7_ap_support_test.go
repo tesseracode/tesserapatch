@@ -1,8 +1,13 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/intentlock"
+	"github.com/tesseracode/tesserapatch/internal/provider"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 var (
@@ -12,6 +17,66 @@ var (
 	s7APExitThreeSnapshotMode              bool
 	s7APExitThreeSnapshots                 map[string]string
 )
+
+const s7APNotEvaluatedPlanNote = "Plan only. Generation was not attempted and may still fail. Execution preflight was not evaluated: the actual mutation can still refuse on platform, filesystem, Git, lock or recovery grounds."
+
+var s7APNotEvaluatedRefusals = s6RefusalCatalog
+
+type s7APNotEvaluatedDryRunObservation struct {
+	code      int
+	stdout    string
+	stderr    string
+	report    preparePublishReport
+	acquires  int
+	providers int
+	lockCalls int
+	before    string
+	after     string
+}
+
+func s7APObserveNotEvaluatedDryRun(
+	t *testing.T,
+	workspaceLabel string,
+	forceUnsupportedMutationLane bool,
+) s7APNotEvaluatedDryRunObservation {
+	t.Helper()
+	root, slug := prepareS4Workspace(t, workspaceLabel)
+	before := snapshotTreeMetadata(t, "workspace", root)
+	oldSupported := prepareMutationAuthoritySupported
+	oldAcquire := prepareAcquireAuthority
+	oldProvider := prepareLoadProvider
+	oldBeforeLock := beforeLockAcquire
+	acquires, providers, lockCalls := 0, 0, 0
+	if forceUnsupportedMutationLane {
+		prepareMutationAuthoritySupported = func() bool { return false }
+	}
+	prepareAcquireAuthority = func(path string) (*intentlock.WorkspaceAuthority, error) {
+		acquires++
+		return nil, errors.New("not-evaluated dry-run acquired authority")
+	}
+	prepareLoadProvider = func(repoStore *store.Store) (provider.Provider, provider.Config) {
+		providers++
+		return nil, provider.Config{}
+	}
+	beforeLockAcquire = func() { lockCalls++ }
+	t.Cleanup(func() {
+		prepareMutationAuthoritySupported = oldSupported
+		prepareAcquireAuthority = oldAcquire
+		prepareLoadProvider = oldProvider
+		beforeLockAcquire = oldBeforeLock
+	})
+	t.Setenv("PATH", t.TempDir())
+
+	code, stdout, stderr, _ := runPrepare(
+		t, "--path", root, "prepare", slug, "--dry-run", "--json", "--quiet",
+	)
+	report := prepareS4Report(t, stdout)
+	return s7APNotEvaluatedDryRunObservation{
+		code: code, stdout: stdout, stderr: stderr, report: report,
+		acquires: acquires, providers: providers, lockCalls: lockCalls,
+		before: before, after: snapshotTreeMetadata(t, "workspace", root),
+	}
+}
 
 func s7APRecordExitThreeSnapshot(root, before string, exit int) {
 	if !s7APExitThreeSnapshotMode || exit != 3 || root == "" {

@@ -3,39 +3,30 @@
 package cli
 
 import (
+	"strings"
 	"testing"
-
-	"github.com/tesseracode/tesserapatch/internal/intentlock"
 )
 
-func TestS7APDryRunWindowsEvaluatedPlatform(t *testing.T) {
-	t.Run("PIB-461", func(t *testing.T) {
-		root, slug := prepareS4Workspace(t, "S7 AP Windows dry-run")
-		before := snapshotTreeMetadata(t, "workspace", root)
-		oldAcquire := prepareAcquireAuthority
-		acquires := 0
-		prepareAcquireAuthority = func(path string) (*intentlock.WorkspaceAuthority, error) {
-			acquires++
-			return oldAcquire(path)
-		}
-		t.Cleanup(func() { prepareAcquireAuthority = oldAcquire })
-
-		code, stdout, stderr, _ := runPrepare(
-			t, "--path", root, "prepare", slug, "--dry-run", "--json", "--quiet",
+func TestS7APDryRunWindowsNotEvaluatedPlatform(t *testing.T) {
+	t.Run("PIB-463", func(t *testing.T) {
+		observation := s7APObserveNotEvaluatedDryRun(
+			t, "S7 AP Windows dry-run", false,
 		)
-		report := prepareS4Report(t, stdout)
-		if code != 3 || stderr != "" || report.Refusal == nil ||
-			report.Refusal.Code != "workspace-unsupported-platform" ||
-			!report.DryRun || report.ExecutionPreflight != "not_evaluated" ||
-			acquires != 0 {
-			t.Fatalf(
-				"Windows evaluated platform refusal = exit:%d stderr:%q authority:%d report:%+v",
-				code, stderr, acquires, report,
-			)
+		if observation.code != 0 || observation.stderr != "" ||
+			observation.report.Outcome != "planned" ||
+			!observation.report.DryRun ||
+			observation.report.ExecutionPreflight != "not_evaluated" ||
+			observation.report.PlanNote != s7APNotEvaluatedPlanNote ||
+			observation.report.Refusal != nil ||
+			observation.acquires != 0 || observation.providers != 0 ||
+			observation.lockCalls != 0 || observation.after != observation.before {
+			t.Fatalf("PIB-463 native Windows not-evaluated dry-run = %+v", observation)
 		}
-		if after := snapshotTreeMetadata(t, "workspace", root); after != before {
-			t.Fatalf("Windows dry-run platform refusal mutated workspace\nbefore:\n%s\nafter:\n%s",
-				before, after)
+		for _, refusal := range s7APNotEvaluatedRefusals {
+			if strings.Contains(observation.stdout, refusal) {
+				t.Fatalf("PIB-463 native Windows dry-run emitted refusal %q: %s",
+					refusal, observation.stdout)
+			}
 		}
 	})
 }

@@ -204,49 +204,23 @@ func TestS7APDryRunContracts(t *testing.T) {
 	})
 
 	t.Run("PIB-463", func(t *testing.T) {
-		root, slug := prepareS4Workspace(t, "AP dry skipped mutation gates")
-		oldSupported, oldAcquire := prepareMutationAuthoritySupported, prepareAcquireAuthority
-		prepareMutationAuthoritySupported = func() bool { return false }
-		prepareAcquireAuthority = func(path string) (*intentlock.WorkspaceAuthority, error) {
-			return intentlock.AcquireWithFilesystemClassifier(
-				path,
-				func(*os.File) (string, bool, error) { return "nfs", true, nil },
-			)
-		}
-		t.Cleanup(func() {
-			prepareMutationAuthoritySupported, prepareAcquireAuthority = oldSupported, oldAcquire
-		})
-		bin := filepath.Join(root, "git-spy")
-		if err := os.MkdirAll(bin, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		logPath := filepath.Join(root, "git.log")
-		if err := os.WriteFile(filepath.Join(bin, "git"), []byte(
-			"#!/bin/sh\nprintf x >> \"$TPATCH_S7_AP_DRY_GIT\"\nexit 88\n",
-		), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		t.Setenv("PATH", bin)
-		t.Setenv("TPATCH_S7_AP_DRY_GIT", logPath)
-		code, stdout, stderr, _ := runPrepare(
-			t, "--path", root, "prepare", slug, "--dry-run", "--json", "--quiet",
+		observation := s7APObserveNotEvaluatedDryRun(
+			t, "AP dry skipped mutation gates", true,
 		)
-		var report preparePublishReport
-		s7APDecodeJSONReport(t, stdout, &report)
-		_, gitErr := os.Stat(logPath)
-		forbidden := []string{
-			"prepare-unsupported-platform",
-			"lock-filesystem-unsupported",
-			"local-lane-unverifiable",
+		if observation.code != 0 || observation.stderr != "" ||
+			observation.report.Outcome != "planned" ||
+			!observation.report.DryRun ||
+			observation.report.ExecutionPreflight != "not_evaluated" ||
+			observation.report.PlanNote != s7APNotEvaluatedPlanNote ||
+			observation.report.Refusal != nil ||
+			observation.acquires != 0 || observation.providers != 0 ||
+			observation.lockCalls != 0 || observation.after != observation.before {
+			t.Fatalf("PIB-463 seam-forced not-evaluated dry-run = %+v", observation)
 		}
-		if code != 0 || stderr != "" || report.Outcome != "planned" ||
-			report.ExecutionPreflight != "not_evaluated" || !os.IsNotExist(gitErr) {
-			t.Fatalf("PIB-463 skipped gates = exit:%d stderr:%q report:%+v git:%v",
-				code, stderr, report, gitErr)
-		}
-		for _, code := range forbidden {
-			if strings.Contains(stdout, code) {
-				t.Fatalf("PIB-463 dry-run emitted non-evaluated refusal %q: %s", code, stdout)
+		for _, refusal := range s7APNotEvaluatedRefusals {
+			if strings.Contains(observation.stdout, refusal) {
+				t.Fatalf("PIB-463 seam-forced dry-run emitted refusal %q: %s",
+					refusal, observation.stdout)
 			}
 		}
 	})

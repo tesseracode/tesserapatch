@@ -50,7 +50,7 @@ func TestS7PIB417WindowsBlockingLeafGuard(t *testing.T) {
 }
 
 func TestS7APWindowsDryRunBlockingGuard(t *testing.T) {
-	t.Run("PIB-461", func(t *testing.T) {
+	t.Run("PIB-463", func(t *testing.T) {
 		workflowPath := filepath.Join(avpRepoRoot(t), ".github", "workflows", "ci.yml")
 		workflowBytes, err := os.ReadFile(workflowPath)
 		if err != nil {
@@ -78,8 +78,17 @@ func TestS7APWindowsDryRunBlockingGuardSensitivity(t *testing.T) {
 			name: "target-omitted",
 			mutation: strings.Replace(
 				workflow,
-				"-run '^TestS7APDryRunWindowsEvaluatedPlatform$'",
+				"-run '^TestS7APDryRunWindowsNotEvaluatedPlatform$'",
 				"-run '^TestNothingAtAll$'",
+				1,
+			),
+		},
+		{
+			name: "row-misattributed",
+			mutation: strings.Replace(
+				workflow,
+				"TestS7APDryRunWindowsNotEvaluatedPlatform/PIB-463",
+				"TestS7APDryRunWindowsNotEvaluatedPlatform/PIB-461",
 				1,
 			),
 		},
@@ -134,9 +143,9 @@ func validateS7APWindowsDryRunBlocking(workflow string) error {
 	}
 	required := []string{
 		"\n        if: runner.os == 'Windows'\n",
-		"-run '^TestS7APDryRunWindowsEvaluatedPlatform$'",
+		"-run '^TestS7APDryRunWindowsNotEvaluatedPlatform$'",
 		"./internal/cli 2>&1 | tee \"$ap_log\"",
-		"TestS7APDryRunWindowsEvaluatedPlatform/PIB-461",
+		"TestS7APDryRunWindowsNotEvaluatedPlatform/PIB-463",
 		`--- PASS: ${selector}`,
 	}
 	for _, value := range required {

@@ -94,11 +94,13 @@ func s7APCoverageLedger(t *testing.T) []s7AMLedgerRow {
 		}},
 		{id: "PIB-461", targets: []s7FixtureTarget{
 			target("internal/cli", "cli", "TestS7APDryRunContracts", "PIB-461"),
-			target("internal/cli", "cli", "TestS7APDryRunWindowsEvaluatedPlatform", "PIB-461"),
-			target("internal/cli", "cli", "TestS7APWindowsDryRunBlockingGuard", "PIB-461"),
 		}},
 		{id: "PIB-462", targets: []s7FixtureTarget{target("internal/cli", "cli", "TestS7APDryRunContracts", "PIB-462")}},
-		{id: "PIB-463", targets: []s7FixtureTarget{target("internal/cli", "cli", "TestS7APDryRunContracts", "PIB-463")}},
+		{id: "PIB-463", targets: []s7FixtureTarget{
+			target("internal/cli", "cli", "TestS7APDryRunContracts", "PIB-463"),
+			target("internal/cli", "cli", "TestS7APDryRunWindowsNotEvaluatedPlatform", "PIB-463"),
+			target("internal/cli", "cli", "TestS7APWindowsDryRunBlockingGuard", "PIB-463"),
+		}},
 		{id: "PIB-464", targets: []s7FixtureTarget{target("internal/cli", "cli", "TestS7APDryRunContracts", "PIB-464")}},
 		{id: "PIB-465", targets: []s7FixtureTarget{
 			target("internal/store", "store", "TestS7APPurgeContracts", "PIB-465"),

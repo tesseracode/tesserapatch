@@ -1,3 +1,26 @@
+## Review — prepare S7 AP CI correction — 2026-08-21
+
+### Verdict: APPROVED
+
+The native Windows target now proves PIB-463 planned/not-evaluated semantics;
+PIB-461 retains only evaluated dry-run checks. AP observer budgets are finite
+(8m outer, 4m inner, 1m cleanup), while wrong-input/reap deadlines remain
+short. AP arithmetic remains 34 rows.
+
+### Action Taken
+
+Correction accepted. AQ remains blocked pending commit, push and green native
+Windows/three-platform CI.
+
+## CI revision — prepare S7 AP — 2026-08-21
+
+Run 32520986445 invalidated the AP checkpoint before AQ dispatch. The blocking
+Windows target incorrectly mapped dry-run platform behavior to PIB-461 and
+expected exit 3; authority PIB-463 requires exit 0 planned/no mutation with
+execution preflight not evaluated. Ubuntu/macOS also exceeded the observer's
+120-second inner limit at about 138 seconds. AP is reopened for bounded
+correction, review and fresh blocking CI; AQ–AX remain blocked.
+
 ## Review — prepare S7 AP rev-12 — 2026-08-21
 
 ### Verdict: APPROVED

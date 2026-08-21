@@ -92,10 +92,10 @@ func TestS7ObservedAPRegistrationAuthority(t *testing.T) {
 	if len(targets) != 34 {
 		t.Fatalf("observed AP row targets = %d, want 34", len(targets))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
-	if err := validateS7ObservedRegistrationsWithInnerLimit(
-		ctx, avpRepoRoot(t), targets, 120*time.Second,
+	if err := validateS7ObservedRegistrationsWithHostedBudget(
+		ctx, avpRepoRoot(t), targets, 4*time.Minute, time.Minute,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -140,6 +140,23 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 		}
 		if info.Mode().Perm() != 0o700 {
 			t.Fatalf("workspace mode = %04o, want 0700", info.Mode().Perm())
+		}
+	})
+	t.Run("hosted-budget-order", func(t *testing.T) {
+		const (
+			outer   = 8 * time.Minute
+			inner   = 4 * time.Minute
+			cleanup = time.Minute
+		)
+		ctx, cancel := context.WithTimeout(context.Background(), outer)
+		defer cancel()
+		got := s7ObservedInnerTimeoutWithCleanup(ctx, inner, cleanup)
+		if got <= 0 || got > inner || got >= outer ||
+			outer-got < cleanup {
+			t.Fatalf(
+				"hosted observed budget = inner:%s outer:%s cleanup:%s",
+				got, outer, cleanup,
+			)
 		}
 	})
 
@@ -415,6 +432,24 @@ func validateS7ObservedRegistrationsWithInnerLimit(
 	)
 }
 
+func validateS7ObservedRegistrationsWithHostedBudget(
+	ctx context.Context,
+	repoRoot string,
+	expected []s7ObservedRegistrationTarget,
+	innerLimit time.Duration,
+	cleanupMargin time.Duration,
+) error {
+	if innerLimit <= 0 || cleanupMargin <= 0 {
+		return fmt.Errorf(
+			"observed hosted budgets must be finite and positive: inner=%s cleanup=%s",
+			innerLimit, cleanupMargin,
+		)
+	}
+	return validateS7ObservedRegistrationsWithMutation(
+		ctx, repoRoot, expected, nil, innerLimit, cleanupMargin,
+	)
+}
+
 func validateS7ObservedRegistrationsWithMutation(
 	ctx context.Context,
 	repoRoot string,
@@ -503,12 +538,19 @@ func validateS7ObservedRegistrationsWithMutation(
 	}
 	sort.Strings(packageArgs)
 	limit := 90 * time.Second
+	cleanupMargin := time.Duration(0)
 	if len(innerLimit) == 1 {
 		limit = innerLimit[0]
+	} else if len(innerLimit) == 2 {
+		limit = innerLimit[0]
+		cleanupMargin = innerLimit[1]
 	} else if len(innerLimit) > 1 {
 		return fmt.Errorf("observed registration received %d inner timeout limits", len(innerLimit))
 	}
 	innerTimeout := s7ObservedInnerTimeout(ctx, limit)
+	if cleanupMargin != 0 {
+		innerTimeout = s7ObservedInnerTimeoutWithCleanup(ctx, limit, cleanupMargin)
+	}
 	args := []string{
 		"test", "-json", "-p=1", "-count=1",
 		"-timeout=" + innerTimeout.String(),
@@ -1014,6 +1056,24 @@ func s7ObservedInnerTimeout(ctx context.Context, limit time.Duration) time.Durat
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		if candidate := remaining / 3; candidate < inner {
+			inner = candidate
+		}
+	}
+	if inner < 500*time.Millisecond {
+		return 500 * time.Millisecond
+	}
+	return inner.Round(time.Millisecond)
+}
+
+func s7ObservedInnerTimeoutWithCleanup(
+	ctx context.Context,
+	limit time.Duration,
+	cleanupMargin time.Duration,
+) time.Duration {
+	inner := limit
+	if deadline, ok := ctx.Deadline(); ok {
+		candidate := time.Until(deadline) - cleanupMargin
+		if candidate < inner {
 			inner = candidate
 		}
 	}
