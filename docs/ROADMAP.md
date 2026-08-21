@@ -1166,7 +1166,9 @@ The first tracked-state gate then exposed provider-config leakage, duplicate
 catalog runtime exceeding the 10-minute package timeout, and an older S5
 resolver nil dereference. Integration is closed: TestS6 ~101s, full CLI ~281s,
 provider fixtures hermetic and baseline catalogs cached once. Final gate and
-all race/vet/cross-build checks pass; commit and blocking CI remain.
+all race/vet/cross-build checks pass. S6 ✅ COMPLETE at `65e876a`; CI
+[32447914694](https://github.com/tesseracode/tesserapatch/actions/runs/32447914694)
+is green on Ubuntu, macOS and Windows. S7 final sequential hardening is active.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

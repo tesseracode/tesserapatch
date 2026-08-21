@@ -1,3 +1,30 @@
+## Implementation — prepare S6 public docs/assets parity — 2026-08-19
+
+**Commit**: `65e876a`
+**CI**:
+[32447914694](https://github.com/tesseracode/tesserapatch/actions/runs/32447914694)
+
+### Delivered
+
+- Complete five-mode prepare/archive SPEC and all thirteen Unreleased deltas.
+- Intent archive/Path B/operator docs aligned with shipped notes, Git
+  exemptions, terminal recovery and history limits.
+- All six skill/prompt/workflow surfaces carry exact prepare/list/purge,
+  provider and no-history/no-provenance truth without phase/preflight drift.
+- Exact 31-row S6 ledger, 22 biting G sensitivities, recursive schema/privacy,
+  state/disposition/vocabulary/advisory/refusal/seam/golden guards.
+- Fresh JSON/human runtime evidence for all 18 advisories and 53 public
+  refusal/outcome entries.
+- Type/import/dataflow analyzer hardened through review and cached to keep the
+  full CLI package below Go's default timeout.
+
+### Verdict: APPROVED
+
+### Action Taken
+
+S6 complete. Strict order advances to S7 final 173-row cross-cutting hardening
+and the complete 567-row acceptance ledger.
+
 ## Verification — prepare S6 final local gate — 2026-08-19
 
 ### Verdict: PASS

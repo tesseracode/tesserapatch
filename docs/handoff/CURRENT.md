@@ -338,6 +338,10 @@ Final tracked-state validation passes: full uncached suite (`internal/cli`
 store/workflow race suites, gofmt, vet, host build and Linux amd64/arm64,
 Darwin amd64 and Windows amd64 cross-builds.
 
+S6 public docs/assets parity is complete at `65e876a`; blocking CI
+[32447914694](https://github.com/tesseracode/tesserapatch/actions/runs/32447914694)
+is green on Ubuntu, macOS and Windows.
+
 The guarded classifier entry point now passes isolated full/race/vet plus all
 Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
 for a separate micro commit before the final S6 fixture.
@@ -460,7 +464,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S6 approved, ready to commit**
+- **Status**: **In Progress — S7 final hardening**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -640,11 +644,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit the explicit S6 docs/assets/test/tracking paths, push and require
-   blocking three-platform CI.
-3. Complete S7's 567-row
-   acceptance ledger and sensitivity hardening.
-4. Run joint internal/external review to acceptance; only then select the
+1. Complete S7's 173-row cross-cutting hardening and full 567-row ledger.
+2. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
