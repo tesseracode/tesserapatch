@@ -1,3 +1,10 @@
+## Supervisor — prepare S7 AQ dispatch — 2026-08-21
+
+Correction `3fd778b` passed CI 32523687156 on Ubuntu, macOS and Windows,
+including native PIB-463. AP is durably closed; cumulative S7 coverage is
+88/173. AQ (`PIB-483…505`, I13/C3/G7) is dispatched sequentially; AR–AX
+remain blocked.
+
 ## Review — prepare S7 AP CI correction — 2026-08-21
 
 ### Verdict: APPROVED

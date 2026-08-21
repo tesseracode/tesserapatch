@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -859,6 +859,12 @@ short deadlines, including the three-second hanging-process reap proof.
 The AP CI correction is APPROVED. AP's 34-row arithmetic is unchanged and its
 corrected acceptance is restored; AQ remains blocked only on committing,
 pushing and observing green blocking CI with the native PIB-463 leaf.
+
+The correction is committed at `3fd778b`; blocking CI
+[32523687156](https://github.com/tesseracode/tesserapatch/actions/runs/32523687156)
+is green on Ubuntu, macOS and Windows, including the native PIB-463 leaf. AP is
+durably closed at 34 rows and cumulative S7 coverage is 88/173. AQ is
+unblocked and active.
 Focused AP34, observer, workflow, vet/build/format and Windows cross-compile
 validation is green. Fresh review and blocking CI are required before AQ.
 
@@ -994,7 +1000,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — AP correction approved; AQ blocked on CI**
+- **Status**: **In Progress — S7 AQ**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -1548,9 +1554,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit and push the approved correction, then require green blocking CI
-   including the native Windows PIB-463 leaf.
-2. Then rebuild AQ–AX, remaining sensitivities and the full 567 ledger from exact
+1. Implement and review AQ exactly (`PIB-483…505`, I13/C3/G7).
+2. Then rebuild AR–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.

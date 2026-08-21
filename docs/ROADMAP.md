@@ -1254,6 +1254,9 @@ is PIB-463 planned/no-mutation, not PIB-461 unsupported refusal, and the
 120-second observer inner budget is too short on hosted runners. AQ is blocked.
 The bounded mapping/budget correction is APPROVED; AP arithmetic remains
 34 rows and AQ now waits only on corrected blocking CI.
+Correction `3fd778b` is green on all three platforms in CI 32523687156,
+including native PIB-463. AP is durably closed at 88/173 cumulative rows; AQ
+(`PIB-483…505`, I13/C3/G7) is active.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
