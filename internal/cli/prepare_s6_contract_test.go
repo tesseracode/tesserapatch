@@ -14994,6 +14994,18 @@ type s6RuntimeObservation struct {
 var s6HumanObservationMode bool
 
 func s6ObservationArgs(args []string) []string {
+	if s7APDryRunObservationMode {
+		args = append([]string(nil), args...)
+		hasDryRun := false
+		isPrepare := false
+		for _, arg := range args {
+			hasDryRun = hasDryRun || arg == "--dry-run"
+			isPrepare = isPrepare || arg == "prepare"
+		}
+		if isPrepare && !hasDryRun {
+			args = append(args, "--dry-run")
+		}
+	}
 	if !s6HumanObservationMode {
 		return args
 	}
@@ -15008,7 +15020,48 @@ func s6ObservationArgs(args []string) []string {
 
 func s6PrepareObservation(t *testing.T, args ...string) s6RuntimeObservation {
 	t.Helper()
+	var before []byte
+	exitThreeBefore := ""
+	snapshotRoot := ""
+	if s7APDryRunObservationMode {
+		for i, arg := range args {
+			if arg == "--path" && i+1 < len(args) {
+				before = readTree(t, args[i+1])
+				snapshotRoot = args[i+1]
+				break
+			}
+		}
+		if s7APDryRunGitBin != "" {
+			oldPath := os.Getenv("PATH")
+			if err := os.Setenv("PATH", s7APDryRunGitBin); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := os.Setenv("PATH", oldPath); err != nil {
+					t.Errorf("restore PATH: %v", err)
+				}
+			}()
+		}
+	}
+	if s7APExitThreeSnapshotMode && snapshotRoot == "" {
+		for i, arg := range args {
+			if arg == "--path" && i+1 < len(args) {
+				snapshotRoot = args[i+1]
+				exitThreeBefore = snapshotTreeMetadata(t, "exit-3", snapshotRoot)
+				break
+			}
+		}
+	}
 	exit, stdout, stderr, _ := runPrepare(t, s6ObservationArgs(args)...)
+	s7APRecordExitThreeSnapshot(snapshotRoot, exitThreeBefore, exit)
+	if s7APDryRunObservationMode && !s7APDryRunAllowExternalFixtureMutation {
+		for i, arg := range args {
+			if arg == "--path" && i+1 < len(args) &&
+				!bytes.Equal(before, readTree(t, args[i+1])) {
+				t.Fatalf("dry-run refusal fixture mutated %s", args[i+1])
+			}
+		}
+	}
 	if s6HumanObservationMode {
 		return s6RuntimeObservation{exit: exit, human: stdout + "\n" + stderr}
 	}
@@ -15057,7 +15110,12 @@ func s6PrepareObservation(t *testing.T, args ...string) s6RuntimeObservation {
 
 func s6ArchiveListObservation(t *testing.T, args ...string) s6RuntimeObservation {
 	t.Helper()
+	if s7APDryRunObservationMode {
+		return s6PrepareObservation(t, s7APAsDryRunPrepareArgs(args)...)
+	}
+	snapshotRoot, before := s7APObservationSnapshot(t, args)
 	exit, stdout, stderr, _ := runPrepare(t, s6ObservationArgs(args)...)
+	s7APRecordExitThreeSnapshot(snapshotRoot, before, exit)
 	if s6HumanObservationMode {
 		return s6RuntimeObservation{exit: exit, human: stdout + "\n" + stderr}
 	}
@@ -15084,7 +15142,12 @@ func s6ArchiveListObservation(t *testing.T, args ...string) s6RuntimeObservation
 
 func s6ArchivePurgeObservation(t *testing.T, args ...string) s6RuntimeObservation {
 	t.Helper()
+	if s7APDryRunObservationMode {
+		return s6PrepareObservation(t, s7APAsDryRunPrepareArgs(args)...)
+	}
+	snapshotRoot, before := s7APObservationSnapshot(t, args)
 	exit, stdout, stderr, _ := runPrepare(t, s6ObservationArgs(args)...)
+	s7APRecordExitThreeSnapshot(snapshotRoot, before, exit)
 	if s6HumanObservationMode {
 		return s6RuntimeObservation{exit: exit, human: stdout + "\n" + stderr}
 	}
@@ -16412,6 +16475,10 @@ func s6ObserveArtifactUnstable(t *testing.T) s6RuntimeObservation {
 		if err := os.WriteFile(spec, body, 0o644); err != nil {
 			t.Fatal(err)
 		}
+		exitThreeBaseline := ""
+		if s7APExitThreeSnapshotMode {
+			exitThreeBaseline = snapshotTreeMetadata(t, "exit-3", root)
+		}
 		writer, err := os.OpenFile(spec, os.O_WRONLY, 0)
 		if err != nil {
 			t.Fatal(err)
@@ -16454,6 +16521,12 @@ func s6ObserveArtifactUnstable(t *testing.T) s6RuntimeObservation {
 		if observation.code == "artifact-unstable" ||
 			(s6HumanObservationMode &&
 				strings.Contains(observation.human, "Refusal: artifact-unstable")) {
+			if s7APExitThreeSnapshotMode {
+				if err := os.WriteFile(spec, body, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				s7APExitThreeSnapshots[root] = exitThreeBaseline
+			}
 			return observation
 		}
 	}

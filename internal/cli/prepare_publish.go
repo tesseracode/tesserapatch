@@ -429,6 +429,7 @@ func writePreparePublishHuman(w io.Writer, report preparePublishReport) {
 		fmt.Fprintln(w)
 	}
 	if report.PlanNote != "" {
+		fmt.Fprintf(w, "Execution preflight: %s\n\n", report.ExecutionPreflight)
 		fmt.Fprintln(w, report.PlanNote)
 		fmt.Fprintln(w)
 	}
@@ -1247,7 +1248,7 @@ func prepareRefusalText(code string, mode prepareMode, slug, retry string) (stri
 	case "directory-flock-unavailable":
 		return "The workspace directory authority could not be established.", "Fix workspace access and retry."
 	case "transaction-in-progress":
-		return "Another mutating prepare or archive operation holds the workspace authority.", "Wait for the live operation to finish, then retry."
+		return "The workspace mutation authority is held by another mutating prepare or archive operation. The holder's identity is unknowable.", "Wait for the live operation to finish, then retry."
 	case "local-lane-not-ignored":
 		return "The local prepare lane is not effectively ignored or contains tracked files.", "Run tpatch init, ensure .tpatch/local/ is ignored, untrack local-lane files, and retry."
 	case "local-lane-unverifiable":

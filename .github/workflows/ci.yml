@@ -155,6 +155,18 @@ jobs:
               exit 1
             fi
           done
+          ap_log="${RUNNER_TEMP}/prepare-s7-ap-windows.log"
+          go test -v -count=1 \
+            -run '^TestS7APDryRunWindowsEvaluatedPlatform$' \
+            ./internal/cli 2>&1 | tee "$ap_log"
+          for selector in \
+            TestS7APDryRunWindowsEvaluatedPlatform \
+            TestS7APDryRunWindowsEvaluatedPlatform/PIB-461; do
+            if ! grep -q -- "--- PASS: ${selector}" "$ap_log"; then
+              echo "::error::${selector} did not execute on this runner"
+              exit 1
+            fi
+          done
 
       # The rest of the repository has 200 pre-existing windows-latest
       # top-level test failures (283 counting subtests) across six packages —

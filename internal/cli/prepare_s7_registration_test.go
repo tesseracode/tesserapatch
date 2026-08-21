@@ -87,6 +87,20 @@ func TestS7ObservedAMThroughAORegistrationAuthority(t *testing.T) {
 	}
 }
 
+func TestS7ObservedAPRegistrationAuthority(t *testing.T) {
+	targets := s7ObservedAPTargets(t)
+	if len(targets) != 34 {
+		t.Fatalf("observed AP row targets = %d, want 34", len(targets))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+	if err := validateS7ObservedRegistrationsWithInnerLimit(
+		ctx, avpRepoRoot(t), targets, 120*time.Second,
+	); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 	t.Run("exact-regex-escaping", func(t *testing.T) {
 		pattern := s7ObservedTopLevelPattern([]string{
@@ -339,6 +353,26 @@ func s7ObservedAMThroughAOTargets(t *testing.T) []s7ObservedRegistrationTarget {
 	return observed
 }
 
+func s7ObservedAPTargets(t *testing.T) []s7ObservedRegistrationTarget {
+	t.Helper()
+	rows := s7APCoverageLedger(t)
+	observed := make([]s7ObservedRegistrationTarget, 0, len(rows))
+	seen := map[string]string{}
+	for _, row := range rows {
+		if len(row.targets) == 0 {
+			t.Fatalf("%s has no observed-registration candidate", row.id)
+		}
+		selected := row.targets[0]
+		key := s7ObservedTargetKey(selected)
+		if previous := seen[key]; previous != "" {
+			t.Fatalf("%s and %s share observed-registration target %s", previous, row.id, key)
+		}
+		seen[key] = row.id
+		observed = append(observed, s7ObservedRegistrationTarget{row: row.id, target: selected})
+	}
+	return observed
+}
+
 func s7PIB443ObservedLeaves(t *testing.T) []s7ObservedRegistrationTarget {
 	t.Helper()
 	for _, row := range s7AOCoverageLedger() {
@@ -365,8 +399,19 @@ func validateS7ObservedRegistrations(
 	repoRoot string,
 	expected []s7ObservedRegistrationTarget,
 ) error {
+	return validateS7ObservedRegistrationsWithInnerLimit(
+		ctx, repoRoot, expected, 90*time.Second,
+	)
+}
+
+func validateS7ObservedRegistrationsWithInnerLimit(
+	ctx context.Context,
+	repoRoot string,
+	expected []s7ObservedRegistrationTarget,
+	innerLimit time.Duration,
+) error {
 	return validateS7ObservedRegistrationsWithMutation(
-		ctx, repoRoot, expected, nil,
+		ctx, repoRoot, expected, nil, innerLimit,
 	)
 }
 
@@ -375,6 +420,7 @@ func validateS7ObservedRegistrationsWithMutation(
 	repoRoot string,
 	expected []s7ObservedRegistrationTarget,
 	mutate s7ObservedOverlayMutation,
+	innerLimit ...time.Duration,
 ) error {
 	// Per-run markers correlate execution with exact leaf bodies for semantic
 	// regression checks. They are not a sandbox: source under validation is
@@ -397,6 +443,7 @@ func validateS7ObservedRegistrationsWithMutation(
 	for forbidden := range topLevel {
 		if strings.Contains(forbidden, "CoverageLedger") ||
 			strings.Contains(forbidden, "ObservedAMThroughAORegistrationAuthority") ||
+			strings.Contains(forbidden, "ObservedAPRegistrationAuthority") ||
 			strings.Contains(forbidden, "ObservedRegistrationWrongInputs") {
 			return fmt.Errorf("observed-registration selection recurses into %s", forbidden)
 		}
@@ -412,7 +459,9 @@ func validateS7ObservedRegistrationsWithMutation(
 		"TestS7RowManifestAndAMCoverageLedger",
 		"TestS7ANCoverageLedger",
 		"TestS7AOCoverageLedger",
+		"TestS7APCoverageLedger",
 		"TestS7ObservedAMThroughAORegistrationAuthority",
+		"TestS7ObservedAPRegistrationAuthority",
 	} {
 		if matched, _ := regexp.MatchString(pattern, excluded); matched {
 			return fmt.Errorf("observed-registration regex includes %s", excluded)
@@ -453,7 +502,13 @@ func validateS7ObservedRegistrationsWithMutation(
 		packageArgs = append(packageArgs, "./"+filepath.ToSlash(directory))
 	}
 	sort.Strings(packageArgs)
-	innerTimeout := s7ObservedInnerTimeout(ctx)
+	limit := 90 * time.Second
+	if len(innerLimit) == 1 {
+		limit = innerLimit[0]
+	} else if len(innerLimit) > 1 {
+		return fmt.Errorf("observed registration received %d inner timeout limits", len(innerLimit))
+	}
+	innerTimeout := s7ObservedInnerTimeout(ctx, limit)
 	args := []string{
 		"test", "-json", "-p=1", "-count=1",
 		"-timeout=" + innerTimeout.String(),
@@ -954,8 +1009,8 @@ func s7AddObservedMarkerImport(file *ast.File) error {
 	return nil
 }
 
-func s7ObservedInnerTimeout(ctx context.Context) time.Duration {
-	inner := 90 * time.Second
+func s7ObservedInnerTimeout(ctx context.Context, limit time.Duration) time.Duration {
+	inner := limit
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		if candidate := remaining / 3; candidate < inner {

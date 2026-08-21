@@ -148,7 +148,7 @@ func RunDoctor(s *store.Store, options DoctorOptions) (DoctorReport, error) {
 						CheckID:  check.id,
 						Code:     "check-error",
 						Severity: "error",
-						Message:  fmt.Sprintf("check panicked: %v", r),
+						Message:  "check panicked",
 						Fixable:  false,
 					})
 				}

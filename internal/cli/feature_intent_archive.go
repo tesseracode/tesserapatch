@@ -597,7 +597,7 @@ func runFeatureIntentArchivePurgeConfirmed(
 		message := "The workspace mutation authority could not be established."
 		remediation := "Move the workspace to a supported local filesystem and retry."
 		if code == "transaction-in-progress" {
-			message = "Another transaction holds the workspace mutation authority."
+			message = "The workspace mutation authority is held by another mutating prepare or archive operation. The holder's identity is unknowable."
 			remediation = "Wait for the current holder to finish, then retry."
 		}
 		if class != "" {

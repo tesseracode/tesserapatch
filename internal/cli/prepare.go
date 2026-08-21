@@ -23,6 +23,9 @@ func prepareCmd() *cobra.Command {
 
 Only --regenerate overwrites an existing intent artifact. --allow-heuristic is
 the only opt-in that permits regeneration to downgrade to heuristic output.
+Mutation authority is host-local: an unrecognized local filesystem may accept
+the required directory flock without excluding another machine, so no
+cross-machine guarantee follows.
 This command is unrelated to ` + "`tpatch apply --mode prepare`" + `.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
