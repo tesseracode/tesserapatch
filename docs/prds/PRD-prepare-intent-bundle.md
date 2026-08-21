@@ -1,7 +1,8 @@
 # PRD — Prepare Intent Bundle — `tpatch prepare <slug>` (mutating modes)
 
 **Status**: **Accepted — rev-14 product contract (2026-08-14), rev-15
-implementation-evidence erratum (2026-08-18)**
+implementation-evidence erratum (2026-08-18), rev-16 pending-owner
+no-decision erratum (2026-08-20)**
 **Date**: 2026-08-14
 **Owner**: Core (planning lane)
 **Accepted**: 2026-08-14 at rev-14 — internal review **APPROVED** (no
@@ -10,9 +11,13 @@ its companion [ADR-035](../adrs/ADR-035-intent-bundle-publication-and-history.md
 rev-14, as §19 requires.
 **Rev-15 acceptance**: 2026-08-18 — internal **APPROVED**, external
 **APPROVED WITH NOTES**; the sole terminology note was folded before close.
+**Rev-16 acceptance**: 2026-08-20 — **Accepted errata**; implementation
+discovery corrected stale rev-5 rehydration wording without changing a
+decision, row, kind, count, command, exit, state or implementation.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
 dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`;
-rev-15 implementation evidence correction discovered by GH #23
+rev-15 implementation evidence correction discovered by GH #23; rev-16
+pending-owner wording correction discovered during S7 implementation
 **Milestone**: TBD — this document ships no code
 **Issue**: [GH #11 — define the mutating prepare intent-bundle contract](https://github.com/tesseracode/tesserapatch/issues/11)
 **Graduates from**: [WP-005 Spec-driven workflows](../whitepapers/WP-005-spec-driven-workflows.md), Turns 2–4
@@ -22,7 +27,7 @@ rev-2 (Accepted 2026-08-13). This PRD builds **on top of** that read-only
 contract and does not reopen it. Its **implementation** is a hard sequencing
 prerequisite for every mutating slice here (§17.1).
 **Architecture**: [ADR-035 — Intent bundle publication and history](../adrs/ADR-035-intent-bundle-publication-and-history.md)
-(**Accepted 2026-08-14**, rev-14). **This PRD and ADR-035 were reviewed and
+(**Accepted 2026-08-14**, rev-16). **This PRD and ADR-035 were reviewed and
 accepted together.** ADR-035 locks the publication/history decisions; this PRD
 states the product contract that depends on them. Where they overlap,
 **ADR-035 is normative**.
@@ -73,6 +78,7 @@ states the product contract that depends on them. Where they overlap,
 | rev-13 | Draft — Awaiting Review | Final bounded repair-ordering, ledger-parity, stage-truth, pending-route and guard-scope fold of rev-12; no product choice is reopened. **Corrupt objects are repaired first, and they block every tpatch selector until they are gone.** rev-12 let `--orphans --yes` clear residue beside a corrupt object and said the corrupt class “does not block the other two”. That is withdrawn. An unidentifiable object at a managed blob path — including one whose hash the index never mentions — is a `corrupt-object` instance and never removable residue, and while any instance exists **every** confirmed selector refuses exit 3 zero-write, `--orphans --yes` included, listing every corrupt object with its exact repo-relative path. The class's manual type-total `rm -rf --` prerequisite runs **first**; each removed object's hash is then reclassified from what remains — `dangling-reference` when a retained reference survives, **clean** (unreferenced, no file, in no class) when none does — and the already-admitted routes clear the rest. A closed **repair-class precedence** ranks `corrupt-object` first (**blocking**), then `dangling-reference`, `mixed-reference`, `unreferenced-residue`; that rank order is the report order and the closed set's declared order, and only rank 1 is blocking, so ranks 2–4 stay repairable in any order the operator chooses (§9.3 row 17, §9.3.1, §9.7.1, §9.7.2, §9.7.3, ADR D10/D16, new PIB-561…PIB-563, amended PIB-548/549/553). **Reports enumerate repair *stages*, not one invocation per class.** A stage is either the corrupt class's one manual prerequisite or one confirmed purge invocation admitted for one class; the corrupt class contributes a prerequisite stage plus, where a retained reference survives, membership in the **dangling** class's stage rather than a stage of its own — so three classes can need two tpatch invocations, and rev-12's “the total tpatch invocation count is exactly one per class” is **withdrawn**. `remaining_repairs` carries the ordered closed `stages[]`, `stages_remaining` and `next_stage` in place of rev-12's `classes[]`, and is emitted on the admitted exit-0 form **and** on the archive-integrity exit-3 refusal, so the first refusal an operator sees already carries the whole plan and its next stage (§9.3.1, §10.2, §10.3, new PIB-564, amended PIB-226/227/552/553/556). **Pending routes are narrowed to the exact pending set.** Every `prepare`, `abandon` and recovery emitter that observes removal-pending references names repeated `--blob <h> --yes` over exactly the hashes it observed, never `--all --yes`: the pending recovery is selector-independent, so the narrow selector performs the identical recovery under a bounded blast radius (§6.2, §6.6 rule 8, §7.8 step 5, §10.4.1, §10.5 step 13, new PIB-566, amended PIB-453/525). PIB-557 becomes **total over every emitter that prints an `--all` command line**, the selector-preserving retries included, each carrying the whole-archive blast radius, the preview-first default and the narrower repeated-`--blob` alternative adjacent to the command (amended PIB-528/557). **Output and guard cleanup.** A successful confirmed purge is pinned at `outcome: "purged"`, `action: "none"`, and the confirmed form is total over `purged`/`no-op`/`recovered`/`purge-partial`/`refused`; `repair_cwd` joins the closed vocabulary; every residual **normative** “triple” becomes “tuple” — normative uses only; occurrences that quote the corrected term itself, and the meta references in this revision history, §18.1 and PIB-567's own ledger-guard text, are deliberately preserved; and the forbidden-command guard is re-scoped from a substring scan to a **tokenizer** over emitted command lines with a closed argv[0] allowlist, so the mandatory caveat “it is still in this repository's Git history” no longer matches while a backticked or option-shaped `cp -R`, `cp -P`/`readlink` or `git show` still does; §9.5's `cp` restore stays permitted form (1) on its one surface, and the residual the tokenizer cannot reach is disclosed rather than claimed closed (§10.2, §10.7, new PIB-565, amended PIB-547/559; `PIB-524` is amended **fixture-only**, inside its §18.53 semantic-fixture entry, and its matrix row is unchanged). Matrix: 567 rows; rev-13 amends listed stable rows and adds `PIB-561`…`PIB-567` in new category **AX**. **Amended rows, exactly** — derived from the rev-13 diff `f6bab00`→that revision's writer tip `8f1cc8a`, not from this prose: `PIB-226`, `PIB-227`, `PIB-453`, `PIB-525`, `PIB-528`, `PIB-547`, `PIB-548`, `PIB-549`, `PIB-552`, `PIB-553`, `PIB-556`, `PIB-557`, `PIB-559` — **thirteen**. `PIB-524` is **not** among them: rev-13 amends it **fixture-only**, inside its §18.53 semantic-fixture entry, and leaves its acceptance-matrix row byte-identical (rev-14 errata). |
 | rev-14 | **Accepted — 2026-08-14** | **Errata only.** No product decision, exit code, state machine, vocabulary, class ranking, stage arithmetic or acceptance-matrix count is reopened or changed; the matrix stays at **567** rows and the claims set at **C1…C176**. Three corrections to rev-13's own record. **(1) Ledger parity.** rev-13's revision-history row and §18.1 listed `PIB-524` among its amended matrix rows. The rev-13 diff `f6bab00`→`8f1cc8a` changed that ID only inside its §18.53 semantic-fixture entry, so the amendment is **fixture-only**; `PIB-524` is removed from both amended-row lists, the count drops from fourteen to **thirteen**, and the fixture-only status is stated where the claim used to be — the defect class PIB-567 exists to catch, caught by PIB-567's own criterion. **(2) Scoped “throughout” claims.** rev-13's “every residual ‘triple’ becomes ‘tuple’” is qualified to **normative** uses: quoted references to the corrected term itself and the meta references in this revision history, §18.1 and PIB-567's guard text are deliberately preserved, and PIB-567's fixture and §18.53 entry are reworded to test the qualified claim rather than an unqualified scan. **(3) Corrupt-class scope.** Two sentences stated the rank-1 `corrupt-object` classification over *every* object at a managed blob path, which read as classifying **owned** hashes and contradicted the frozen rev-12 closure that an owned hash whose blob is unsafe or hash-wrong routes only to the owning transaction's **exit 6** `archive-purge-evidence-divergent`. §9.3.1's X11 cell and §9.7.3's orphan-exclusion sentence are scoped to **non-owned** hashes, with the owned route restated inline. The state machine, the precedence ranking and the blocking rule are unchanged for non-owned hashes. Also corrected: PIB-565's “twelfth” `outcome` token becomes **thirteenth** (rev-13 added `purged`, making the closed set twelve), §19's ADR-035 gate reads rev-14, and the claim anchors re-base to dispatch `a2a6479` / reviewed tip `8f1cc8a`. **Amended rows, exactly** — derived from the rev-14 diff `8f1cc8a`→this revision, not from this prose: `PIB-565`, `PIB-567` — **two**, each also amended in the matching §18.53 semantic-fixture entry with the same wording. No row is added, retired, renumbered or re-kinded, and no other matrix row changes. |
 | rev-15 | **Accepted evidence erratum — 2026-08-18** | GH #23 proved that rev-14's PIB-391 premise was historically false: GH #16 committed executable AVP tests and routing goldens, but no standalone ready/not-ready/abort `prepare --check` output files. Requiring those paths to have been committed in a closed past range is impossible without rewriting accepted history. The corrected rule preserves the intended anti-no-op property: GH #23 records the output fixtures **before any mutating production edit**, drives them with a clean binary whose embedded `vcs.revision` is GH #16 frozen implementation content `cacaaf8` (production-identical to formal acceptance commit `7206dab`) and `vcs.modified=false`, refuses record mode with any other producer, makes comparison mode build current code with no baseline override, and derives fixture-before-production ordering from Git. Existing accepted check test/routing histories remain pinned; permanent producer re-audit rebuilds `cacaaf8` and repeats record mode. No product decision, output byte, exit, state, row ID, kind, count or publication/history decision changes; PRD PIB-391, ADR-035 D14 and the matching sensitivity wording alone are amended, and §17.1/§19 record the now-satisfied prerequisite. |
+| rev-16 | **Accepted no-decision erratum — 2026-08-20** | S7 implementation proved that rev-5 left stale wording saying rehydration could consume removal-pending references, while rev-8 through rev-13 and the shipped implementation already give every pending same-hash reference to the purge owner and make mutating `prepare` refuse `recovery-pending` zero-write. This erratum makes the current §9.3 rule and PIB-402/PIB-403/PIB-425 say **tombstoned references only**, adds the paired pending-owner refusal fixture, and records the supersession explicitly in §18.1. It adds no decision, row, kind, count, guard or slice; the matrix remains **567** rows with **thirty-six** semantic guards. The historical rev-5 row remains historical and is superseded by this row rather than silently rewritten. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review of the rev-14 errata fold; both reviewers returned
@@ -2683,17 +2689,21 @@ deterministic cases:
 
 1. no matching entry is tombstoned: duplicate no-op, no blob write and no index
    append; or
-2. one or more matching entries are tombstoned or removal-pending: scan their
-   source bytes under the redaction gate, write/reuse every required
-   content-addressed blob, then CAS-publish one rooted index rewrite that sets
-   **every reference with that content hash**, in every generation, to retained.
+2. one or more matching entries are tombstoned: scan their source bytes under
+   the redaction gate, write/reuse every required content-addressed blob, then
+   CAS-publish one rooted index rewrite that sets **every tombstoned reference
+   with that content hash**, in every generation, to retained.
    This is **rehydration**, not an appended generation; it leaves no
    duplicate-id no-op, orphan, or false tombstone.
 
 Storage availability is global by `content_sha256`. Rehydrating hash `h` first
 scans/validates the exact available content, writes or reuses `h.blob`, then
-CAS-publishes a **single** index rewrite that changes every **tombstoned or
-removal-pending** reference to `h`, in every generation, to retained. A
+CAS-publishes a **single** index rewrite that changes every **tombstoned**
+reference to `h`, in every generation, to retained. If any same-hash reference
+is removal-pending, `h` is purge-owned: mutating `prepare` refuses
+`recovery-pending` with zero writes, names the owning confirmed purge over the
+exact pending set, and rehydration never consumes or rewrites the pending
+reference. A
 **dangling retained** reference (wire says retained, `blobs/h.blob` absent) is
 deliberately *not* in that set: X11 refuses every ordinary archive or canonical
 mutation while one exists, so no regeneration can reach this path to repair it,
@@ -3276,8 +3286,9 @@ inconsistency.**
   says they are gone forever, another says they are here. Ordinary operation
   cannot produce it: purge selects **every** reference to a hash (§9.7.1),
   `--generation` refuses `archive-blob-shared` rather than splitting a hash, and
-  rehydration un-tombstones every reference to a hash in one rewrite, so all
-  references to `h` normally share one wire state. An external index edit, a
+  rehydration un-tombstones every tombstoned reference to a non-owned hash in
+  one rewrite, so all references to `h` normally share one wire state. An
+  external index edit, a
   partial hand-merge or a restored older `index.json` produces it.
 - **What tpatch does on discovery.** X11 refuses exit 3
   `archive-index-storage-inconsistent`, **writing nothing**, for every ordinary
@@ -3733,8 +3744,11 @@ forever (§9.3, §9.7.2, PIB-532, PIB-545).
   PIB-556).
 
 A purged blob is not recoverable **until identical content is archived again**.
-If identical content is later rehydrated, every tombstoned or removal-pending
-reference to its hash is un-tombstoned in the same index rewrite. A missing
+If identical content is later rehydrated, every tombstoned reference to its
+hash is un-tombstoned in the same index rewrite. A removal-pending reference is
+never part of that rewrite: it makes the hash purge-owned, blocks mutating
+`prepare` with `recovery-pending` and is terminally recovered by
+`intent-archive purge --yes` before any later regeneration. A missing
 retained blob has exactly **one** repair: the confirmed global-hash purge named
 in §9.3.1 and §9.7.3, which tombstones every reference to that hash without
 attempting a removal. A tombstone beside a blob whose hash is **live but not
@@ -6224,7 +6238,7 @@ unimplemented read half.
 | **S1** | Transaction core: journal schema + strict decoder and J1–J10 binds, identity, semantic CAS, the rooted durable single-file control writer of §7.7.1 and the rest of the rooted write primitives, staging, revalidation, publication order, rollback, recovery, cleanup. Pure package, no CLI. | new `internal/intentpub/**` |
 | **S1b** | Prepare-owned directory authority: one `WorkspaceAuthority` retaining `*os.Root` **and** `Root.Open(".")`'s `*os.File`; `SyscallConn.Control` flock/unlock with the single-goroutine ownership rule (§7.4.1), explicit close + `runtime.KeepAlive`, `fstatfs`-on-held-descriptor classification against the exact denied lists (§7.4.2), and identity/live-original-path revalidation. No doctor probe seam exists. This is **not** extraction of `rescap`'s file lock; rescap lock behavior is byte-identical. | new `internal/intentlock/**`; tests beside it |
 | **S2** | Generator extraction: `GenerateAnalysis`/`GenerateSpec`/`GenerateExploration`, in-memory-only retry response handling and the refactor of `RunAnalysis`/`RunDefine`/`RunExplore` to call them. **Lands the pre-change goldens for `analyze`/`define`/`explore`/`cycle`/`next` first.** | modified `internal/workflow/workflow.go`, `internal/workflow/retry.go`; new `internal/workflow/generate_*.go` |
-| **S3** | The archive: immutable digest-bearing tombstones, X1–X11 strict/storage decode, global-hash rehydration of tombstoned/pending references, redaction-before-rehydrate, deterministic pending → global claim → remove/recover → tombstone-every-reference, complete selector-independent purge preflight and the `archive-purge-partial` outcome, shared references, the single confirmed-purge dangling repair, the retained corrupt-blob route and orphan handling. | new `internal/store/intent_archive.go` |
+| **S3** | The archive: immutable digest-bearing tombstones, X1–X11 strict/storage decode, global-hash rehydration of tombstoned references only, pending same-hash references routed exclusively to the purge owner, redaction-before-rehydrate, deterministic pending → global claim → remove/recover → tombstone-every-reference, complete selector-independent purge preflight and the `archive-purge-partial` outcome, shared references, the single confirmed-purge dangling repair, the retained corrupt-blob route and orphan handling. | new `internal/store/intent_archive.go` |
 | **S4** | CLI wiring: modes, rooted manual status helper, flag mutexes plus the command-owned `--yes` preflight of §10.5 step 1a, the dry-run branch of §10.5 step 7, the abandon-before-Git-and-recovery branch of §10.5 step 10, the terminal-recovery returns of §10.5 steps 12–13, report model (including `execution_preflight`, `recovery`, `retry_cwd` and `purge_progress`), renderers, exits, advisories and `--abandon-transaction`. It owns the **one** closed G1–G4 executor/refactor: G1 tri-state is established once and threaded with repo-relative lane paths; the pinned environment scrub of §7.13 applies to prepare's own invocations; every existing caller keeps an explicit compatibility wrapper and its goldens. | modified `internal/cli/prepare.go` (the file the accepted S3 creates), new `internal/cli/prepare_publish.go`; modified `internal/gitutil/ignore.go`, `internal/workflow/session_ignore.go`, `internal/rescap/scratch.go`, `internal/rescap/gitgate.go`; tests beside each |
 | **S4b** | The retention surface: `tpatch feature intent-archive list\|purge`. | new `internal/cli/feature_intent_archive.go`; modified `internal/cli/feature_deps.go` (the group registration line only) |
 | **S5** | `doctor` D9 — persistent-evidence reporting only, with **no** root open and no flock probe; compatibility and non-invalidation proofs. D1–D8 retain their CLI goldens. | new `internal/workflow/doctor_d9.go`; modified `internal/workflow/doctor.go` (registry only) and `internal/cli/doctor.go` (D9 help/check-list only) |
@@ -6620,6 +6634,18 @@ wrong past path commit” to wrong-producer, self-comparison and late-fixture
 ordering fixtures. No row is added, retired, renumbered or re-kinded; the
 matrix stays at **567**, §18.52 arithmetic is unchanged, and §18.53 remains at
 **thirty-six** semantic guards.
+
+**Rev-16 is an implementation-discovered, no-decision erratum only**, and
+amends exactly three stable rows: `PIB-402`, `PIB-403` and `PIB-425`. Rev-5's
+historical “tombstoned/pending rehydration” wording is superseded: rev-8 through
+rev-13 already made a removal-pending same-hash reference purge-owned, and the
+shipped implementation correctly lets only `intent-archive purge --yes`
+advance it. Current §9.3 and these three rows therefore say rehydration changes
+**tombstoned references only**; paired pending fixtures prove mutating
+`prepare` refuses `recovery-pending` zero-write, preserves the tree and names
+the owning exact-hash purge route. No row is added, retired, renumbered or
+re-kinded; the matrix remains **567**, §18.52's category/kind/slice arithmetic
+is unchanged, and §18.53 remains at **thirty-six** semantic guards.
 
 ### 18.2 A — CLI grammar, modes and flag mutexes
 
@@ -7216,8 +7242,8 @@ matrix stays at **567**, §18.52 arithmetic is unchanged, and §18.53 remains at
 | PIB-399 | C | ready `--manual` publication with rooted-operation spy | a same-directory rooted temp is fsynced then renamed to `status.json`; no `writeFileAtomic`, `SaveFeatureStatus`, or path-based writer is called; no journal/archive is created |
 | PIB-400 | C | external `status.json` edit after manual preimage capture and before rename | exit 5 `status-changed`; the external status bytes and `FEATURES.md` are byte-identical; no rename occurs |
 | PIB-401 | U | tombstoned index entry with immutable `content_sha256` | X10 recomputes the recorded generation id after purge; missing/mismatched digest, blob/purged inconsistency, or altered immutable body refuses |
-| PIB-402 | I | later regeneration computes an existing fully tombstoned generation whose hash also appears elsewhere | redaction passes; blobs are written/reused before one CAS index rewrite rehydrates **every** tombstoned or removal-pending reference to that hash, no duplicate generation is appended, and no false tombstone/orphan remains |
-| PIB-403 | I | repeated purge→rehydrate with a blob shared by two generations | ids/order remain stable; rehydrating hash h revives **every** tombstoned or pending reference to h, and later purge counts every current live reference |
+| PIB-402 | I | later regeneration computes an existing fully tombstoned generation whose hash also appears in other tombstoned generations; paired fixture has one same-hash removal-pending reference | redaction passes; blobs are written/reused before one CAS index rewrite rehydrates **every tombstoned** reference to that hash, no duplicate generation is appended, and no false tombstone/orphan remains. In the paired pending fixture regeneration instead exits 3 `recovery-pending`, writes zero bytes, preserves the whole tree byte-identically and names the owning exact-hash `intent-archive purge --yes` route |
+| PIB-403 | I | repeated purge→rehydrate with a blob shared by two generations; paired cycle begins with a same-hash pending owner | ids/order remain stable; rehydrating hash h revives **every tombstoned** reference to h, and later purge counts every current live reference. A pending reference is terminally recovered by its purge owner before any later regeneration; regeneration never consumes it |
 | PIB-404 | C | rehydration redaction and crash-order subtests | a redaction match leaves tombstones/no blob; a crash before index rename leaves at most a blob beside its tombstone — CP13's residue, which X11 reports as exit-3 `archive-index-storage-inconsistent` and never as `archive-purge-evidence-divergent`, naming `--orphans --yes` when the hash is globally unreferenced and the confirmed `--blob <h> --yes` when another reference still holds it retained or removal-pending — while no index ever references a missing blob |
 | PIB-405 | C | concurrent index edit after purge preimage capture and immediately before rooted rename | strict re-read/CAS refuses `archive-purge-index-changed` before **any** selected blob removal; live edited index and blobs survive |
 | PIB-406 | C | ancestor becomes a relative symlink to another directory inside the held root | outside-root escape remains refused; an identity-changing in-root redirect is caught by CAS; fixture/docs do not claim detection of an equal-identity alias |
@@ -7244,7 +7270,7 @@ matrix stays at **567**, §18.52 arithmetic is unchanged, and §18.53 remains at
 | PIB-422 | C | external replacement in purge CAS→rename/remove final syscall window | documentation/report test states bytes can be overwritten/removed; no total-CAS/no-clobber claim passes |
 | PIB-423 | I | `purge --blob h --yes` with h referenced by several generations | every `h` reference is pending in one CAS publication, its hash-correct blob is removed, then every pending `h` reference is tombstoned; no live reference remains |
 | PIB-424 | I | `purge --generation id` shares h with an unselected generation | exit 3 `archive-blob-shared`, names h and exact `--blob h`/`--all` escalation; no mutation |
-| PIB-425 | C | rehydrate h with tombstones in multiple generations | one CAS rewrite un-tombstones every tombstoned/pending h reference; a dangling **retained** h reference is not in the rehydrated set and still refuses; no tombstone says absent while h.blob exists |
+| PIB-425 | C | rehydrate h with tombstones in multiple generations; paired fixture has a same-hash pending owner | one CAS rewrite un-tombstones every tombstoned h reference; a pending h reference is excluded and routes the entire hash to the purge owner, while a dangling **retained** h reference is not in the rehydrated set and still refuses; no tombstone says absent while h.blob exists |
 | PIB-426 | I | regenerate → untracked archive → `git clean -fd` and `git clean -xfd` | either clean may remove `.tpatch/features/**`; no shipped recovery claim contradicts clone/clean loss |
 | PIB-427 | S | G1–G4 exec seam with foreign `GIT_DIR` and call-count spy | every allowed invocation applies the §7.13 pinned scrub and C locale; G1 exactly once, G2/G3 consume GitState and relative lanes without rediscovery; dry-run/list spawn zero Git |
 | PIB-428 | I | retained index reference whose blob is absent, non-regular or hash-mismatched | X11 reports a missing retained blob as repairable `archive-blob-dangling`; list, doctor and the refusal all name the same one literal confirmed-purge command and nothing else. A **present** but non-regular or hash-wrong blob under that retained reference is instead `archive-blob-corrupt` (exit 3, zero-write), rendered `corrupt` by `list`, and carries §9.3.1's type-total removal-then-confirmed-purge or restore route and no other; neither observation is ever reported as an orphan, as divergence or as dangling-when-present. Unsafe/wrong evidence under a **pending** reference keeps its own evidence-preserving refusal (PIB-543) |

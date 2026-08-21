@@ -1,7 +1,7 @@
 # ADR-035 — Intent Bundle Publication and History
 
 **Status**: **Accepted — rev-14 decisions (2026-08-14), rev-15 D14 evidence
-erratum (2026-08-18)**
+erratum (2026-08-18), rev-16 pending-owner no-decision erratum (2026-08-20)**
 **Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14;
 **Accepted at rev-14 on 2026-08-14**)
 **Owner**: Core (planning lane)
@@ -10,9 +10,13 @@ findings), external review **APPROVED** (no findings); accepted jointly with
 the companion PRD, as both documents required.
 **Rev-15 acceptance**: 2026-08-18 — internal **APPROVED**, external
 **APPROVED WITH NOTES**; no D14 conclusion or other decision changed.
+**Rev-16 acceptance**: 2026-08-20 — **Accepted errata**; implementation
+discovery aligned stale rehydration wording with the already-accepted D10/D13/
+D16 pending-owner precedence. No decision changed.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
 dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`; rev-15
-PIB-391 evidence correction discovered by GH #23
+PIB-391 evidence correction discovered by GH #23; rev-16 pending-owner wording
+correction discovered during S7 implementation
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -25,7 +29,7 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-14 Accepted; rev-15 evidence erratum awaiting review). **The two documents were reviewed and
+(rev-16 Accepted). **The two documents were reviewed and
 accepted together.** Read the PRD for the full product contract and its 567-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
@@ -54,6 +58,7 @@ bounded D14/PIB-391 evidence erratum to be jointly approved.
 | rev-13 | Proposed — Awaiting Review | Final bounded repair-ordering, stage-truth, pending-route and guard-scope fold of rev-12; no product choice reopened. **D16's admission gains a corrupt-first precondition, and D10's classes gain a rank.** rev-12 admitted a class repair beside a corrupt object, reasoning that the corrupt class “does not block the other two”. It does: an unidentifiable object at a managed blob path — referenced, tombstone-referenced, or unreferenced and therefore *not* residue — is unidentified content that may be another hash's bytes, so condition 3's non-degradation proof cannot be discharged against it, and `--orphans`, which derives its work list from the same directory, would be repairing part of a storage layer it has already found untrustworthy. The four classes are ranked `corrupt-object`, `dangling-reference`, `mixed-reference`, `unreferenced-residue`; **rank 1 is the only blocking rank**, and while any instance exists every confirmed selector refuses exit 3 zero-write. The class's manual type-total `rm -rf --` prerequisite runs first, and each removed object's hash is then classified — `dangling-reference` if a retained reference survives, **clean** if the hash is unreferenced — so a corrupt object contributes at most one further tpatch repair, inside another class's invocation. **Repairs are counted in stages, not in classes.** A stage is the corrupt class's one manual prerequisite or one confirmed purge invocation for one class, so three classes can need two invocations; the PRD's `remaining_repairs` carries ordered `stages[]`, `stages_remaining` and `next_stage`, on the admitted exit-0 form and on the archive-integrity exit-3 refusal alike, and every one-invocation-per-class promise is withdrawn. **Pending routes name the exact pending set.** Every `prepare`, `abandon` and recovery emitter that observes removal-pending references names repeated `--blob <h> --yes` over exactly those hashes rather than `--all --yes`, which is behaviour-preserving because the recovery pass is selector-independent; and every emitter that prints an `--all` command line at all — sole-class repair offers, the shared-reference escalation and the selector-preserving retries included — carries the whole-archive blast radius, the preview-first default and the narrower repeated-`--blob` alternative adjacent to it. **The command guard tokenizes.** rev-12's substring scan over “the prose beside” an emitted command failed the mandatory §9.6.2 Git-history caveat, so no conforming implementation existed; the guard now checks structural command lines against a closed `argv[0]` allowlist (`tpatch`, `rm`, plus `cp` on §9.5's success report alone) and matches prose only in command-invocation shape, with the residual disclosed. A successful confirmed purge is pinned at `purged`/`none`. The companion matrix gains `PIB-561`…`PIB-567` in category **AX** and re-kinds exactly one row (`PIB-557`, `I`→`G`). |
 | rev-14 | **Accepted — 2026-08-14** | **Errata only.** No decision is added, withdrawn, reopened or re-worded in substance: **D1–D21** stand exactly as at rev-13, the companion matrix stays at **567** rows, and no exit code, class rank, stage rule or closed vocabulary moves. This revision records the rev-13 record corrections carried in the companion PRD's rev-14 row: the PRD's rev-13 amended-row ledger dropped `PIB-524` (a **fixture-only** touch in §18.53, not an acceptance-matrix amendment) and fell from fourteen to **thirteen** rows; rev-13's “every residual ‘triple’ becomes ‘tuple’” claim is scoped to **normative** uses, excluding quoted and meta references to the corrected term; and the two PRD sentences that stated the rank-1 `corrupt-object` classification over *every* object at a managed blob path are scoped to **non-owned** hashes, restoring agreement with D10/D16 and the frozen rev-12 closure that an **owned** hash whose blob is unsafe or hash-wrong routes only to the owning transaction's **exit 6** `archive-purge-evidence-divergent`. Status, date, byline, companion pointer and the references row are re-based to rev-14 and to reviewed writer tip `8f1cc8a` / dispatch `a2a6479`. Companion matrix rows amended by this revision, exactly: `PIB-565`, `PIB-567`. |
 | rev-15 | **Accepted evidence erratum — 2026-08-18** | D14's compatibility conclusion is unchanged, but its implementation-evidence sentence shared rev-14 PIB-391's impossible premise: GH #16 committed executable AVP tests but no standalone check-output files whose path history could already lie in that closed range. The corrected evidence rule binds record mode to a clean producer binary at GH #16 frozen implementation content `cacaaf8` (production-identical to acceptance commit `7206dab`), refuses every other producer, and makes comparison mode build current code with no baseline override. GH #23 commits the fixtures before mutating production code. No publication/history decision, check byte, matrix row, kind or count changes. |
+| rev-16 | **Accepted no-decision erratum — 2026-08-20** | S7 implementation exposed stale rev-5 wording that described rehydration over tombstoned/pending references despite the already-accepted rev-8 through rev-13 pending-owner rule and the shipped D10/D13/D16 implementation. D10 now states explicitly that rehydration un-tombstones **tombstoned references only**; any removal-pending same-hash reference routes the entire hash to the purge owner, blocks mutating `prepare` with `recovery-pending`, and is never consumed by rehydration. D13 and D16 cross-state the same precedence. No decision, row, kind, count, guard, slice or implementation changes; historical revision rows are not rewritten, and this row records their supersession. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review; both reviewers returned **APPROVED** with **no
@@ -709,11 +714,15 @@ the same is true of the non-owned retained corrupt-blob observation
 An existing equal generation id is body-compared. A distinct body is a
 collision refusal. The same body with all retained entries is an idempotent
 no-op. Otherwise redaction scan and blob write/reuse precede **one**
-CAS-published index rewrite that makes every **tombstoned or removal-pending**
+CAS-published index rewrite that makes every **tombstoned**
 reference in every generation with
 that `content_sha256` retained; it neither appends a duplicate nor leaves a
-false tombstone. Repeated purge/rehydrate and shared-blob references retain
-this global-by-hash rule. Blob write precedes the rehydration index rename, so
+false tombstone. **Rehydration never consumes a removal-pending reference.**
+Any pending same-hash reference makes the entire hash purge-owned, blocks
+mutating `prepare` with zero-write `recovery-pending`, and routes advancement
+to `intent-archive purge --yes` alone under D13/D16. Repeated
+purge/rehydrate and shared-blob references retain this global-by-hash rule.
+Blob write precedes the rehydration index rename, so
 a crash produces at most a blob beside its tombstone before rename — the residue
 classified above, cleared by `--orphans --yes` when its hash is unreferenced and
 by the confirmed `--blob <h> --yes` when another reference keeps it live — never
@@ -871,6 +880,12 @@ over exactly the pending hashes it observed, with
 `retry_cwd: "workspace-root"` and never a widened `--all --yes` (PIB-566). The cost is one extra invocation in a rare state;
 what it buys is that every statement about the pending-purge transaction has one
 subject (PRD §7.8 step 5, §7.11, §10.4.1, PIB-525, PIB-526).
+
+This owner precedence also dominates rehydration: a pending same-hash
+reference is never un-tombstoned or otherwise consumed by regeneration.
+`prepare` refuses and the purge owner terminally advances it before any later
+regeneration can rehydrate tombstones for that hash (PRD PIB-402, PIB-403,
+PIB-425).
 
 **That single owner is also the only holder of D16's validation-ordering
 exception.** `purge --yes` runs `RecoverPendingPurge` *before* the whole-index
@@ -1163,6 +1178,11 @@ the transaction it was added to protect. The exception is narrow — owned hashe
 only, terminal, and `purge --yes` only, since a mutating `prepare` in the same
 state still refuses exit 3 `recovery-pending` (D13, PRD §9.3.1, §9.7.2,
 PIB-525, PIB-526, PIB-546).
+
+Rehydration is not another recovery entry point. It changes tombstoned
+references only; the presence of any same-hash removal-pending reference routes
+the whole hash here, to the purge owner, and blocks mutating `prepare`
+zero-write until this terminal recovery has completed.
 
 **That recovery acts on the hash, not on the reference that carries the flag.**
 Because a removal-pending reference makes the transaction the global owner of
