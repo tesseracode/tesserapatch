@@ -1,3 +1,384 @@
+## Review — prepare S7 AP rev-12 — 2026-08-21
+
+### Verdict: APPROVED
+
+### Notes
+
+AP closes at 34 exact rows (`PIB-449…482`, I9/C12/G9/U2/S2) after twelve
+convergent revisions. All accumulated abandon, archive, dry-run, D9, Git,
+filesystem-authority, schema and reference-truth findings are closed.
+
+### Action Taken
+
+AP accepted and checkpointed at `bf9424f`; cumulative S7 is 88/173. AQ remains
+blocked pending push and green blocking CI.
+
+## Review — prepare S7 AP rev-11 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+Assignment-form range key/value targets can overwrite sampled `stat` without
+being classified as writes by the PIB-478/479 guard.
+
+### Action Taken
+
+AP rev-12 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-10 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+PIB-478/479 do not require `Fstatfs` to be the sole write to sampled `stat`;
+guard-initializer or intervening reassignment can erase the observation.
+
+### Action Taken
+
+AP rev-11 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-9 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-477 misses nested map aliases through indexing/range values.
+2. PIB-478/479 do not require one exact guard per canonical error definition.
+
+### Action Taken
+
+AP rev-10 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-8 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-476 trusts enum-typed selector fields without assignment proof.
+2. PIB-477 misses unresolved external mutators without direct writes.
+3. PIB-479 ignores indirect/aliased writes to canonical error objects.
+
+### Action Taken
+
+AP rev-9 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-7 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-476 trusts named string types without proving enum values.
+2. PIB-477 misses helper-parameter map mutations.
+3. PIB-478 does not bind `Fstatfs` result to guarded `statErr`.
+4. PIB-479 permits synthetic error assignments before canonical guards.
+
+### Action Taken
+
+AP rev-8 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-6 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-476 launders unresolved right operands through relative prefixes.
+2. PIB-477 misses map assignments through struct fields.
+3. PIB-478 accepts any expression that merely mentions the sampled stat.
+4. PIB-479 accepts nil errors as error-only returns.
+
+### Action Taken
+
+AP rev-7 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-5 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-476 trusts helper names/`Rel` suffixes without return-body proof.
+2. PIB-477 inspects only `map[string]any`, not every string-key map.
+3. PIB-478 does not bind the `Fstatfs` output to the classified `stat` object.
+4. PIB-479 permits early denial returns before terminal passthrough.
+
+### Action Taken
+
+AP rev-6 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-4 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-471 does not resolve concatenated holder clauses.
+2. PIB-476 exempts unresolved values by destination field name.
+3. PIB-477 omits controlled store/intentpub schema producers.
+4. PIB-478 accepts arbitrary fd conversion; PIB-479 omits the outer
+   classifier passthrough.
+5. PIB-482 excludes a nonhistorical rescap lock clause from its inventory.
+
+### Action Taken
+
+AP rev-5 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Writer — prepare S7 AP rev-4 — 2026-08-21
+
+### Revision
+
+- Closed PIB-459's owned-surface proof: every extracted instructional `tpatch`
+  command in each exact declaration/document surface must be the sole
+  canonical dangling purge argv.
+- Removed PIB-468's injected typed-error escape. A post-pending-CAS storage
+  probe now supplies hash-wrong evidence and ordinary production validation
+  constructs the exit-6 divergence.
+- Replaced PIB-471 and PIB-482 synonym/phrase checks with exact bounded
+  nonhistorical clause inventories.
+- Made PIB-476 report analysis fail closed for unresolved controlled strings,
+  added explicit typed non-path/relative classifications and all required
+  runtime populations, and removed panic payload disclosure from D9 reports.
+- Made PIB-477 evaluate controlled schema keys through module-aware
+  `go/types`, rejecting computed `produced_by` and unresolved dynamic keys.
+- Made PIB-478 use Linux/Darwin target export data and exact
+  `syscall.Fstatfs` identity, and made PIB-479 require one closed five-case
+  classifier switch with no alternate denial route.
+
+### Validation
+
+Focused AP CLI targets pass in 81.325s; AP targets pass in store, workflow,
+intentlock, intentpub, gitutil and rescap. The AP34 ledger and independent
+observer pass in 91.633s. Complete affected packages pass (CLI 460.849s;
+store 3.193s; workflow 98.688s; intentlock 0.489s; intentpub 9.137s; gitutil
+11.488s; rescap 16.967s), as do affected vet, host build, gofmt and whitespace
+checks. PIB-478/479 pass natively in Linux arm64; CLI tests cross-compile for
+Windows and FreeBSD/OpenBSD/NetBSD/DragonFly.
+
+### State
+
+AP rev-4 awaits review. No full repository suite, race, CI, commit, push or
+AQ–AX work was performed.
+
+## Review — prepare S7 AP rev-3 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-459 accepts detected non-purge `tpatch` commands.
+2. PIB-468 injects the expected divergence error instead of unsafe evidence.
+3. PIB-471 remains a finite phrase blacklist.
+4. PIB-476 treats unresolved path values as safe.
+5. PIB-477 ignores computed controlled-schema keys.
+6. PIB-478 foreign-platform `Fstatfs` identity is name-only.
+7. PIB-479 does not validate every denying control-flow path.
+8. PIB-482 misses direct origin synonyms such as “copied from”.
+
+### Action Taken
+
+AP rev-4 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Writer — prepare S7 AP rev-3 — 2026-08-21
+
+### Revision
+
+- PIB-459 now scans every exact inventoried declaration's complete AST,
+  including help, branches, values, identifiers and constant concatenations;
+  non-case, local-constant and concatenated alternative repairs fail while the
+  canonical purge command remains accepted.
+- PIB-468 uses the public purge command and the accepted first-mutation seam at
+  the exact post-pending-CAS/pre-removal window. Typed divergence remains exit
+  6, the strict pending index is preserved, every selected blob remains
+  byte-identical and no hash is reported completed.
+- PIB-476 adds real divergence, remaining-repairs and planned-preview report
+  populations. Its exact field/producer inventory now uses typed recursive
+  dataflow through both concatenation operands, identifiers, constants, helper
+  returns and call arguments.
+- PIB-478 type-checks only the host syscall shape, structurally validates the
+  foreign source and resolves host `Fstatfs` to the exact `syscall` object.
+  PIB-479 resolves every Linux numeric and Darwin string case expression,
+  including aliases and parentheses, and rejects extra cases.
+- PIB-482 applies clause-level polarity: only derivation predicates that are
+  themselves negated are exempt; positive claims remain failures even beside
+  rejected-precedent prose.
+
+### Validation
+
+Focused rev-3 leaves and sensitivities pass. Complete AP plus observer passes:
+CLI 168.099s, gitutil 0.501s, intentlock 0.383s, intentpub 0.304s, rescap
+0.457s, store 0.259s and workflow 0.377s. Complete CLI (484.658s), store
+(3.060s), intentlock (0.461s), affected vet, host build, gofmt and whitespace
+checks pass. PIB-478/479 execute successfully in a native Linux container; CLI
+tests cross-compile for Windows and all four BSD targets. No full repository
+suite, race, CI, commit, push or AQ–AX work was run.
+
+### State
+
+AP rev-3 awaits review. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-2 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-459 scans only dangling case bodies, not every inventoried declaration.
+2. PIB-468 injects after a completed removal rather than the pending window.
+3. PIB-476 omits output populations and right/dataflow concatenation paths.
+4. PIB-478 type-checks foreign GOOS source with host types and does not resolve
+   the exact `syscall.Fstatfs` object.
+5. PIB-479 ignores identifier-valued Darwin deny cases.
+6. PIB-482's broad precedent/rejection allowance can mask a positive origin
+   claim.
+
+### Action Taken
+
+AP rev-3 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Writer — prepare S7 AP rev-2 — 2026-08-21
+
+### Revision
+
+- PIB-450 now snapshots the complete `.tpatch/features/` subtree, including an
+  unrelated feature sentinel, paths, modes and bytes, and pins the abandoned
+  evidence directory.
+- PIB-459 uses exact owned-surface and declaration inventories. PIB-460 drives
+  one public purge and public regenerate across two generations and four hash
+  references, proving one global rewrite, complete revival and no appended
+  generation.
+- PIB-467 validates the exact ordered completion work/hash lists and every
+  required report field. PIB-476 inventories all production report fields and
+  producers and exercises eleven real output populations.
+- PIB-478 proves exact receiver/callback/flock descriptor identity. PIB-479
+  resolves the exact five Linux deny constants and rejects extras. PIB-482
+  rejects nonhistorical extraction and origin/derivation claims while retaining
+  bounded historical exclusions and structural anchor validation.
+- All AP34 targets remain nonempty, body-sensitive and independently
+  correlated; all nine G rows retain biting same-validator wrong inputs.
+
+### Validation
+
+Focused rev-2 rows and sensitivities pass. The final AP34 ledger plus observed
+correlation run passes in 89.283s; the complete AP/observer run passes in
+177.839s. Complete CLI (481.755s) and intentlock (0.483s) packages, affected
+vet, host build, gofmt and whitespace checks pass. CLI tests cross-compile for
+Windows and FreeBSD/OpenBSD/NetBSD/DragonFly; Linux intentlock tests
+cross-compile. No full repository suite, race, CI, commit, push or AQ–AX work
+was run.
+
+### State
+
+AP rev-2 awaits review. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-1 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-450 snapshots one slug, not the complete features subtree.
+2. PIB-459 does not enumerate/close every owned dangling repair surface.
+3. PIB-460 public regeneration is not multi-generation.
+4. PIB-467 does not assert completion retry hash/work reporting.
+5. PIB-476 supplies only two production output populations.
+6. PIB-478 omits receiver/callback descriptor dataflow; PIB-479 ignores extra
+   literal deny cases.
+7. PIB-482 misses equivalent origin/derivation claims without extract/reuse
+   keywords.
+
+### Action Taken
+
+AP rev-2 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Writer — prepare S7 AP rev-1 — 2026-08-21
+
+### Revision
+
+- Replaced CP9/CP4, dangling, partial-purge, exit-3, D9, Git and filesystem
+  proxy coverage with the exact public/runtime workflows required by
+  PIB-450/451, PIB-457…460, PIB-466/467/469, PIB-470/471,
+  PIB-473/475/476 and PIB-478/479/481.
+- PIB-482 now excludes only the uniquely bounded historical ledgers, resolves
+  every nonhistorical section/row/decision anchor, and rejects positive
+  rescap-extraction and separate dangling §/PIB/D mutations.
+- The blocking Windows GH #23 step runs and asserts the literal PIB-461
+  native leaf. Same-validator omission, condition and demotion mutations bite,
+  and the existing AVP-175 grammar remains green.
+- The AP34 ledger maps every row to its normative exact leaf; all targets are
+  nonempty/body-sensitive, all 34 observed correlations pass, and all nine G
+  rows retain biting same-validator wrong inputs.
+
+### Validation
+
+Complete AP/observer selectors pass in CLI 167.393s. Complete affected
+packages pass: CLI 476.664s, workflow 86.158s, rescap 17.583s, intentpub
+8.888s, gitutil 6.602s, store 2.830s and intentlock 0.348s. Targeted AVP-175,
+seam-registry/non-invalidation guards, affected vet, host build, gofmt and
+diff checks pass. CLI tests cross-compile for Windows and all four BSDs; Linux
+intentlock tests cross-compile. No full repository suite, race, CI, commit,
+push or AQ–AX work was run.
+
+### State
+
+AP rev-1 awaits review. AQ–AX remain blocked.
+
+## Review — prepare S7 AP rev-0 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-450/451 use incomplete or wrong CP9/CP4 evidence states.
+2. PIB-457/459/460 do not drive public dangling refusal/repair/regeneration.
+3. PIB-466/467/469 omit exit-5 reporting, emitted retry execution and total
+   exit-3 zero-write coverage.
+4. PIB-470/471 omit a real child holder and all owned truth surfaces.
+5. PIB-473/475/476 cover only part of compatibility/global-ignore/output.
+6. PIB-478/479/481 omit descriptor identity, exact values/sshfs and
+   post-release Control behavior.
+7. PIB-482 never detects a forbidden rescap extraction claim.
+8. AP Windows dry-run coverage is outside the blocking Windows gate.
+
+### Action Taken
+
+AP rev-1 dispatched to the existing sequential writer. AQ–AX remain blocked.
+
+## Writer — prepare S7 AP — 2026-08-21
+
+### Implementation
+
+- Added the exact PRD-derived AP34 ledger for `PIB-449…482`
+  (I9/C12/G9/U2/S2), body-sensitive resolution and independent observed
+  execution for every row.
+- Added real abandon/crash, rooted-writer, dangling/purge, dry-run, D9, Git,
+  held-descriptor filesystem, release and structural reference-truth coverage.
+- PIB-461 derives the complete 23-class evaluated dry-run population from
+  §6.4, executes 22 native refusing/admissible pairs with zero-effect
+  instrumentation, and binds the unsupported-platform class to a literal
+  native-Windows runtime target.
+- All nine G rows have baseline plus biting same-validator mutations.
+- Corrected two proven production gaps: human dry-run output now renders
+  `Execution preflight: not_evaluated`, and prepare help states that an
+  unknown-local accepted flock is host-local with no cross-machine guarantee.
+
+### Validation
+
+AP selectors pass in CLI 167.977s, gitutil 0.541s, workflow 0.344s,
+intentlock 0.273s, store 0.276s and intentpub 0.312s. The independent 34-leaf
+observer passes in 93.909s. Existing dry-run/help regressions, affected vet,
+host build, gofmt/diff checks, Windows/four-BSD CLI+intentlock test compiles and
+Linux amd64 compiles for all AP packages pass. No full suite, race, CI, commit,
+push or AQ–AX work was run.
+
+### State
+
+AP awaits review. AQ–AX remain blocked.
+
 ## Supervisor — prepare S7 AP dispatch — 2026-08-21
 
 Correction `9456a52` passed blocking CI 32476989232 on Ubuntu, macOS and

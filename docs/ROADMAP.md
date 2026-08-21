@@ -1212,6 +1212,43 @@ AQ–AX follow sequentially.
 Post-checkpoint CI 32476007227 exposed an invalid Linux-only condition and the
 macOS default timeout; correction `9456a52` is green on all three platforms in
 32476989232. AP is active.
+AP rev-0 is NOT APPROVED: abandon CP9/CP4, dangling regeneration, partial
+purge/retry, total exit-3, D9 holder, Git/privacy, descriptor authority,
+reference truth and blocking Windows surfaces require exact rev-1 coverage.
+AP rev-1 review remains NEEDS REVISION on complete feature-subtree snapshots,
+sole-route surface closure, multi-generation regeneration, completion hashes,
+all output populations, descriptor dataflow, exact deny-table closure and
+semantic origin-claim detection.
+AP rev-2 review remains NEEDS REVISION on whole-declaration dangling scans,
+the PIB-468 pending divergence window, complete/dataflow-aware output
+populations, GOOS-correct exact `Fstatfs` identity, Darwin constant closure and
+grammatically bound extraction-claim allowances.
+AP rev-3 review remains NEEDS REVISION on closed command acceptance, real
+evidence-driven divergence, exact holder/rescap clause allowlists, fail-closed
+path/key analysis, target-GOOS `Fstatfs` identity and total classifier shape.
+AP rev-4 review remains NEEDS REVISION on concatenated holder clauses,
+value-proven field safety, every controlled schema producer, exact builtin fd
+conversion/outer-classifier passthrough and the full rescap lock-clause domain.
+AP rev-5 review remains NEEDS REVISION on helper-body value proof, every
+string-key controlled map, exact `Fstatfs` destination flow and exclusion of
+pre-classifier denial returns.
+AP rev-6 review remains NEEDS REVISION on both-operand relative proofs,
+map-bearing selector assignments, exact GOOS stat transformation and canonical
+non-nil error guards.
+AP rev-7 review remains NEEDS REVISION on named-enum value proof,
+argument/parameter map mutation edges, exact `Fstatfs` error assignment and
+canonical syscall-bound error provenance.
+AP rev-8 review remains NEEDS REVISION on enum-selector assignment provenance,
+standalone unresolved map mutators and indirect/aliased error lvalue writes.
+AP rev-9 review remains NEEDS REVISION on map index/range alias propagation
+and one-to-one immediate guards for every canonical syscall error definition.
+AP rev-10 review remains NEEDS REVISION on sole-write provenance for the
+sampled `stat` object between `Fstatfs` and classification.
+AP rev-11 review remains NEEDS REVISION on assignment-form range targets that
+can overwrite the sampled `stat`.
+AP rev-12 is APPROVED: 34 exact rows (PIB-449…482, I9/C12/G9/U2/S2).
+S7 cumulative coverage is 88/173; AP is checkpointed at `bf9424f`; AQ awaits
+green blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
