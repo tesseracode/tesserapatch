@@ -1056,7 +1056,7 @@ func TestPrepareS5PlatformRows(t *testing.T) {
 			if next >= 0 {
 				rest = rest[:len(function)+next]
 			}
-			unsupported := bytes.Index(rest, []byte("!intentlock.AuthoritySupported"))
+			unsupported := bytes.Index(rest, []byte("!prepareMutationAuthoritySupported()"))
 			acquire := bytes.Index(rest, []byte("prepareAcquireAuthority(repoRoot)"))
 			if unsupported < 0 || acquire < 0 || unsupported > acquire {
 				t.Fatalf("%s does not refuse unsupported mutation before authority acquisition", function)

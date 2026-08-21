@@ -453,11 +453,12 @@ func prepareProgress(cmd *cobra.Command, options prepareOptions, format string, 
 }
 
 var (
-	prepareAcquireAuthority   = intentlock.Acquire
-	prepareRandomHex12        = store.RandomHex12
-	prepareNow                = time.Now
-	prepareLoadProvider       = loadProviderFromStore
-	prepareLoadProviderConfig = func(repoStore *store.Store) provider.Config {
+	prepareAcquireAuthority           = intentlock.Acquire
+	prepareMutationAuthoritySupported = func() bool { return intentlock.AuthoritySupported }
+	prepareRandomHex12                = store.RandomHex12
+	prepareNow                        = time.Now
+	prepareLoadProvider               = loadProviderFromStore
+	prepareLoadProviderConfig         = func(repoStore *store.Store) provider.Config {
 		merged, err := repoStore.LoadMergedConfig()
 		if err != nil {
 			return provider.Config{}
@@ -615,7 +616,7 @@ func runPreparePublish(cmd *cobra.Command, rawSlug string, options prepareOption
 	}
 	_ = readRoot.Close()
 
-	if !intentlock.AuthoritySupported {
+	if !prepareMutationAuthoritySupported() {
 		report = prepareAuthorityRefusal(repoRoot, slug, report, "prepare-unsupported-platform", "")
 		return emitPreparePublishReport(cmd, report, 3)
 	}
@@ -1688,7 +1689,7 @@ func prepareLaneHasPendingEvidence(repoRoot, slug string) bool {
 func runPrepareAbandon(cmd *cobra.Command, repoRoot, slug string, options prepareOptions) error {
 	report := newPreparePublishReport(prepareModeAbandon, slug, intent.FeatureStateUnknown)
 	report.allowHeuristic = options.allowHeuristic
-	if !intentlock.AuthoritySupported {
+	if !prepareMutationAuthoritySupported() {
 		report = prepareAuthorityRefusal(repoRoot, slug, report, "prepare-unsupported-platform", "")
 		return emitPreparePublishReport(cmd, report, 3)
 	}

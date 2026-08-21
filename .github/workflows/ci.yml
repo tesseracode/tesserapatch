@@ -72,6 +72,18 @@ jobs:
         if: runner.os != 'Windows'
         run: go test ./... -count=1
 
+      - name: Cross-compile S7 BSD CLI rows
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for goos in freebsd openbsd netbsd dragonfly; do
+            binary="${RUNNER_TEMP}/cli-${goos}.test"
+            GOOS="${goos}" GOARCH=amd64 CGO_ENABLED=0 go test -c -o "$binary" ./internal/cli
+            test -s "$binary"
+            rm -f "$binary"
+          done
+
       # windows-latest gates on the GH #16 surface only, and that gate is
       # BLOCKING. The native rows (AVP-176, AVP-199) can only be proven on a
       # real Windows runner, so this step runs them verbosely and then asserts
@@ -125,6 +137,24 @@ jobs:
             echo "::error::TestPreparePIBUnsupportedPlatformRuntimeGolden did not execute on this runner"
             exit 1
           fi
+          s7_log="${RUNNER_TEMP}/prepare-s7-windows.log"
+          go test -v -count=1 \
+            -run '^TestS7WindowsPlatformRows$' \
+            ./internal/cli 2>&1 | tee "$s7_log"
+          if ! grep -q -- "--- PASS: TestS7WindowsPlatformRows" "$s7_log"; then
+            echo "::error::TestS7WindowsPlatformRows did not execute on this runner"
+            exit 1
+          fi
+          for selector in \
+            TestS7WindowsPlatformRows/PIB-409 \
+            TestS7WindowsPlatformRows/PIB-417 \
+            TestS7WindowsPlatformRows/PIB-417/check-ready-human.txt \
+            TestS7WindowsPlatformRows/PIB-417/check-ready-json.txt; do
+            if ! grep -q -- "--- PASS: ${selector}" "$s7_log"; then
+              echo "::error::${selector} did not execute on this runner"
+              exit 1
+            fi
+          done
 
       # The rest of the repository has 200 pre-existing windows-latest
       # top-level test failures (283 counting subtests) across six packages —

@@ -440,9 +440,7 @@ func TestFeatureIntentArchivePurgeScopeAndPreview(t *testing.T) {
 
 // PIB-349 and PIB-350: one real authority and marker-only journal refusal.
 func TestFeatureIntentArchivePurgeAuthorityAndPendingJournal(t *testing.T) {
-	if !intentlock.AuthoritySupported {
-		t.Skip("real workspace authority is unsupported on this target")
-	}
+	requireIntentArchiveAuthority(t)
 	t.Run("contention", func(t *testing.T) {
 		root, slug := intentArchiveCLIWorkspace(t)
 		data := []byte("contention\n")
@@ -594,6 +592,13 @@ func TestFeatureIntentArchivePurgeAuthorityAndPendingJournal(t *testing.T) {
 			t.Fatalf("owned hash was classified as a non-owned repair class:\n%s", stdout)
 		}
 	})
+}
+
+func requireIntentArchiveAuthority(t *testing.T) {
+	t.Helper()
+	if !intentlock.AuthoritySupported {
+		t.Skip("real workspace authority is unsupported on this target")
+	}
 }
 
 func TestFeatureIntentArchiveJournalOperationSeamSensitivity(t *testing.T) {

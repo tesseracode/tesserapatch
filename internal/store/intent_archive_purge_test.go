@@ -701,21 +701,23 @@ func TestRecoverPendingPurgeOwnedUnidentifiablePreservesEvidence(t *testing.T) {
 }
 
 func TestIntentArchiveNonRegularKindsShareClosedRoutes(t *testing.T) {
-	kinds := []IntentArchiveBlobKind{
-		IntentArchiveBlobKindSymlink,
-		IntentArchiveBlobKindDirectory,
-		IntentArchiveBlobKindFIFO,
-		IntentArchiveBlobKindDevice,
-		IntentArchiveBlobKindOtherNonRegular,
-	}
-	for _, kind := range kinds {
-		t.Run(string(kind), func(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		kind IntentArchiveBlobKind
+	}{
+		{name: "symlink", kind: IntentArchiveBlobKindSymlink},
+		{name: "directory", kind: IntentArchiveBlobKindDirectory},
+		{name: "fifo", kind: IntentArchiveBlobKindFIFO},
+		{name: "device", kind: IntentArchiveBlobKindDevice},
+		{name: "other-non-regular", kind: IntentArchiveBlobKindOtherNonRegular},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			const feature = "demo"
 			retained := archiveReplacement(t, IntentArchiveArtifactAnalysis, "kind", IntentArchiveWireRetained)
 			storage := newArchiveMemoryStorage(t, archiveIndex(t, feature,
 				archiveGeneration(t, feature, retained),
 			))
-			storage.putKind(feature, retained.ContentSHA256, kind)
+			storage.putKind(feature, retained.ContentSHA256, test.kind)
 			_, err := PlanIntentArchivePurge(storage, feature, IntentArchivePurgeSelector{
 				Blobs: []string{retained.ContentSHA256},
 			}, true)
@@ -726,11 +728,11 @@ func TestIntentArchiveNonRegularKindsShareClosedRoutes(t *testing.T) {
 			storage = newArchiveMemoryStorage(t, archiveIndex(t, feature,
 				archiveGeneration(t, feature, pending),
 			))
-			storage.putKind(feature, pending.ContentSHA256, kind)
+			storage.putKind(feature, pending.ContentSHA256, test.kind)
 			result, err := RecoverPendingPurge(storage, feature)
 			typed := assertArchiveCode(t, err, IntentArchiveCodePurgeEvidenceDivergent)
 			if typed.ExitClass != 6 || !result.Committed {
-				t.Fatalf("owned %s result=%+v error=%+v", kind, result, typed)
+				t.Fatalf("owned %s result=%+v error=%+v", test.kind, result, typed)
 			}
 		})
 	}

@@ -1563,7 +1563,11 @@ func intentArchiveRefusalFromError(
 		}
 	case store.IntentArchiveCodeBlobShared:
 		retry = "tpatch feature intent-archive purge " + slug + " --blob " + typed.Hash + " --yes"
-		remediation = "The retry below is the narrow repair. The --all selector is the broader alternative: preview it first because it tombstones every reference in every generation and removes every blob; repeated --blob selectors touch only the named hashes."
+		allPreview := "tpatch feature intent-archive purge " + slug + " --all"
+		allConfirmed := allPreview + " --yes"
+		remediation = "The retry below is the narrow repair. The broader alternative is " +
+			allPreview + "; preview it first, then after review confirm with " + allConfirmed +
+			". It tombstones every reference in every generation and removes every blob; repeated --blob selectors touch only the named hashes."
 	case store.IntentArchiveCodePurgeIndexChanged:
 		remediation = "Retry from the newly observed archive tree."
 	case store.IntentArchiveCodePurgeEvidenceDivergent:

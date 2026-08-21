@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -212,8 +211,16 @@ func scrubPrepareGitVariable(name string) bool {
 		if !strings.HasPrefix(name, prefix) {
 			continue
 		}
-		_, err := strconv.ParseUint(strings.TrimPrefix(name, prefix), 10, 64)
-		return err == nil
+		suffix := strings.TrimPrefix(name, prefix)
+		if suffix == "" {
+			return false
+		}
+		for index := 0; index < len(suffix); index++ {
+			if suffix[index] < '0' || suffix[index] > '9' {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
