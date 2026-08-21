@@ -558,6 +558,11 @@ step-condition grammar on all three legs, and macOS crossed Go's default
 both non-Windows legs and restores the guard-pinned `-timeout 20m` full-suite
 command. AP remains blocked until corrected CI is green.
 
+The correction is committed at `9456a52`; blocking CI
+[32476989232](https://github.com/tesseracode/tesserapatch/actions/runs/32476989232)
+is green on Ubuntu, macOS and Windows. AM–AO is durably closed and AP is
+unblocked.
+
 The guarded classifier entry point now passes isolated full/race/vet plus all
 Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
 for a separate micro commit before the final S6 fixture.
@@ -680,7 +685,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — AM–AO CI correction; AP blocked**
+- **Status**: **In Progress — S7 AP**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship

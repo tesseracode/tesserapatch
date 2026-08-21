@@ -1,3 +1,9 @@
+## Supervisor — prepare S7 AP dispatch — 2026-08-21
+
+Correction `9456a52` passed blocking CI 32476989232 on Ubuntu, macOS and
+Windows. AM–AO is durably closed at 54/173 exact rows. AP is unblocked and
+dispatched sequentially; AQ–AX remain blocked.
+
 ## CI correction — prepare S7 AM–AO — 2026-08-21
 
 Run 32476007227 failed before AP dispatch: the S7 BSD cross-compile step used
