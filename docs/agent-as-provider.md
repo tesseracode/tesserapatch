@@ -43,20 +43,31 @@ does **not** advance.
 | `define`    | `.tpatch/features/<slug>/spec.md`           | `defined`         |
 | `explore`   | `.tpatch/features/<slug>/exploration.md`    | `defined`         |
 | `implement` | `.tpatch/features/<slug>/artifacts/apply-recipe.json` | `implementing` |
+| `prepare --manual` | the complete `analysis.md` + `spec.md` + `exploration.md` bundle | `defined` |
 
-`tpatch prepare <slug> --check` optionally inspects the same intent artifacts
-read-only. It evaluates the whole three-document intent bundle but never
-advances lifecycle state; the existing `--manual` validation gate is unchanged.
+`tpatch prepare <slug> --manual` is the one-step Path B adoption alternative.
+It adopts the **whole** bundle and requires all three Markdown files to be
+structurally non-empty; this bundle gate is intentionally stricter than the
+loose presence-only per-phase `--manual` gates. It calls no provider and changes
+no artifact bytes. `tpatch prepare <slug> --check` remains the optional
+read-only inspection form and never advances lifecycle state.
 
-On success, `status.json.notes` records:
+On successful per-phase manual adoption, `status.json.notes` records:
 
 ```
 Phase advanced manually (--manual); artifact authored at <path>
 ```
 
-This is a hint about the most recent transition, not durable per-artifact
-provenance: each lifecycle transition overwrites the notes string. The current
-honest per-artifact answer is `provenance: unknown`.
+Whole-bundle adoption records a distinct fixed note:
+
+```
+Intent bundle adopted (prepare --manual); artifacts authored by hand
+```
+
+Both are only last-transition hints. Neither is durable per-artifact history,
+authorship, or provenance: each lifecycle transition overwrites the notes
+string. The current honest per-artifact answer remains `provenance: unknown`,
+including after `prepare --manual` or regeneration.
 
 ## apply-recipe.json schema (authoritative)
 

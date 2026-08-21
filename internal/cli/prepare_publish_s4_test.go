@@ -742,10 +742,15 @@ func TestPrepareS4TerminalJournalRecoveryAndStaleStageCleanup(t *testing.T) {
 		t, "--path", root, "prepare", slug, "--json", "--quiet",
 	)
 	report = prepareS4Report(t, stdout)
+	recoveredAdvisory := false
+	for _, advisory := range report.Advisories {
+		recoveredAdvisory = recoveredAdvisory || advisory.Code == "recovered-prior-transaction"
+	}
 	if code != 0 || stderr != "" || report.Outcome != "recovered" ||
 		report.Action != "none" || report.Recovery == nil ||
 		report.Recovery.Kind != "journal-undo" ||
-		report.Recovery.Retry != "tpatch prepare "+slug+" --json --quiet" {
+		report.Recovery.Retry != "tpatch prepare "+slug+" --json --quiet" ||
+		!recoveredAdvisory {
 		t.Fatalf("terminal recovery = %d stderr=%q %#v", code, stderr, report)
 	}
 	if providerLoads != 0 {

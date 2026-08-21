@@ -11,14 +11,14 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/intentlock"
 )
 
+type renameFinalGateCase struct {
+	mutate func(*testing.T, string, *intentlockFixture, string)
+	check  func(*testing.T, string, *intentlockFixture, string)
+}
+
 func TestPIB148PIB149PIB151RenameFinalGate(t *testing.T) {
-	tests := []struct {
-		name   string
-		mutate func(*testing.T, string, *intentlockFixture, string)
-		check  func(*testing.T, string, *intentlockFixture, string)
-	}{
+	tests := []renameFinalGateCase{
 		{
-			name: "PIB-148-final-symlink",
 			mutate: func(t *testing.T, workspace string, fixture *intentlockFixture, rel string) {
 				t.Helper()
 				targetRel := filepath.ToSlash(filepath.Join(filepath.Dir(rel), "symlink-target"))
@@ -43,7 +43,6 @@ func TestPIB148PIB149PIB151RenameFinalGate(t *testing.T) {
 			},
 		},
 		{
-			name: "PIB-149-final-directory",
 			mutate: func(t *testing.T, _ string, fixture *intentlockFixture, rel string) {
 				t.Helper()
 				if err := fixture.withRoot(func(root *os.Root) error {
@@ -65,7 +64,6 @@ func TestPIB148PIB149PIB151RenameFinalGate(t *testing.T) {
 			},
 		},
 		{
-			name: "PIB-151-artifacts-symlink",
 			mutate: func(t *testing.T, workspace string, fixture *intentlockFixture, rel string) {
 				t.Helper()
 				artifactsRel := filepath.ToSlash(filepath.Dir(rel))
@@ -104,48 +102,57 @@ func TestPIB148PIB149PIB151RenameFinalGate(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			workspace, authority := acquireWorkspace(t)
-			rel := ".tpatch/features/rename-gate/artifacts/index.json"
-			fixture := &intentlockFixture{
-				authority: authority,
-				tempDir:   filepath.ToSlash(filepath.Dir(rel)),
-			}
-			if err := authority.WithRoot(func(root *os.Root) error {
-				return mkdirChain(NewRootOps(root), filepath.ToSlash(filepath.Dir(rel)))
-			}); err != nil {
-				t.Fatal(err)
-			}
-			restoreBeforeRename(t, func(index int) {
-				if index != 2 {
-					t.Fatalf("beforeRename index = %d, want 2", index)
-				}
-				test.mutate(t, workspace, fixture, rel)
-			})
-			oldAfterRename := afterRename
-			afterRenameCalls := 0
-			t.Cleanup(func() { afterRename = oldAfterRename })
-			afterRename = func(int) { afterRenameCalls++ }
+	t.Run("PIB-148-final-symlink", func(t *testing.T) {
+		runRenameFinalGateCase(t, tests[0])
+	})
+	t.Run("PIB-149-final-directory", func(t *testing.T) {
+		runRenameFinalGateCase(t, tests[1])
+	})
+	t.Run("PIB-151-artifacts-symlink", func(t *testing.T) {
+		runRenameFinalGateCase(t, tests[2])
+	})
+}
 
-			result, err := DurableWrite(authority, WriteRequest{
-				Rel:        rel,
-				Data:       []byte("ours\n"),
-				Mode:       0o644,
-				Expected:   identityPointer(AbsentIdentity()),
-				Indexed:    true,
-				EntryIndex: 2,
-				Role:       WriteRoleOrdinaryCanonical,
-			}, Options{RandomHex12: fixedHex("abcabcabcabc")})
-			var typed *Error
-			if err == nil || !errors.As(err, &typed) || typed.ExitClass != 5 ||
-				result.Committed || afterRenameCalls != 0 {
-				t.Fatalf("rename-time refusal = result=%+v after=%d err=%v", result, afterRenameCalls, err)
-			}
-			test.check(t, workspace, fixture, rel)
-			assertNoTemps(t, authority, fixture.tempDir)
-		})
+func runRenameFinalGateCase(t *testing.T, test renameFinalGateCase) {
+	t.Helper()
+	workspace, authority := acquireWorkspace(t)
+	rel := ".tpatch/features/rename-gate/artifacts/index.json"
+	fixture := &intentlockFixture{
+		authority: authority,
+		tempDir:   filepath.ToSlash(filepath.Dir(rel)),
 	}
+	if err := authority.WithRoot(func(root *os.Root) error {
+		return mkdirChain(NewRootOps(root), filepath.ToSlash(filepath.Dir(rel)))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	restoreBeforeRename(t, func(index int) {
+		if index != 2 {
+			t.Fatalf("beforeRename index = %d, want 2", index)
+		}
+		test.mutate(t, workspace, fixture, rel)
+	})
+	oldAfterRename := afterRename
+	afterRenameCalls := 0
+	t.Cleanup(func() { afterRename = oldAfterRename })
+	afterRename = func(int) { afterRenameCalls++ }
+
+	result, err := DurableWrite(authority, WriteRequest{
+		Rel:        rel,
+		Data:       []byte("ours\n"),
+		Mode:       0o644,
+		Expected:   identityPointer(AbsentIdentity()),
+		Indexed:    true,
+		EntryIndex: 2,
+		Role:       WriteRoleOrdinaryCanonical,
+	}, Options{RandomHex12: fixedHex("abcabcabcabc")})
+	var typed *Error
+	if err == nil || !errors.As(err, &typed) || typed.ExitClass != 5 ||
+		result.Committed || afterRenameCalls != 0 {
+		t.Fatalf("rename-time refusal = result=%+v after=%d err=%v", result, afterRenameCalls, err)
+	}
+	test.check(t, workspace, fixture, rel)
+	assertNoTemps(t, authority, fixture.tempDir)
 }
 
 func TestCanonicalStatusWriteUsesSameRenameFinalGate(t *testing.T) {

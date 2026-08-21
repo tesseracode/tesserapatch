@@ -153,6 +153,8 @@ func TestReal(t *testing.T) {
 	}
 	name := "computed"
 	t.Run(name, func(t *testing.T) { t.Log("not statically bound") })
+	holder := struct{name string}{name: "selector-outside-range"}
+	t.Run(holder.name, func(t *testing.T) { t.Log("selector is not range-bound") })
 	t.Run("empty", func(t *testing.T) {})
 	unrelated := []struct{name string}{{name: "unrelated-match"}}
 	selected := []struct{name string}{{name: "selected-table"}}
@@ -317,6 +319,7 @@ func TestWrongPackage(t *testing.T) { t.Log("external") }
 		{Package: "fixture", Test: "TestReal", Subtest: "direct-compound"},
 		{Package: "fixture", Test: "TestReal", Subtest: "direct-closure"},
 		{Package: "fixture", Test: "TestReal", Subtest: "direct-closure-mutated"},
+		{Package: "fixture", Test: "TestReal", Subtest: "selector-outside-range"},
 		{Package: "fixture", Test: "TestReal", Subtest: "after-late-assignment"},
 		{Package: "fixture", Test: "TestReal", Subtest: "missing"},
 		{Package: "fixture", Test: "TestReal", Subtest: "empty"},
@@ -676,9 +679,12 @@ func doctorD9S5CollectSubtests(function *ast.FuncDecl, into map[string]bool) {
 			}
 		case *ast.SelectorExpr:
 			ranged, composite := doctorD9S5CallRangeComposite(function.Body, call, argument.X)
+			if ranged == nil || composite == nil {
+				return true
+			}
 			valueIdent, _ := ranged.Value.(*ast.Ident)
 			base, _ := argument.X.(*ast.Ident)
-			if composite != nil && valueIdent != nil && base != nil &&
+			if valueIdent != nil && base != nil &&
 				valueIdent.Obj != nil && valueIdent.Obj == base.Obj &&
 				doctorD9S5StableRangeName(ranged, base.Obj) {
 				doctorD9S5CollectTableField(composite, argument.Sel.Name, into)

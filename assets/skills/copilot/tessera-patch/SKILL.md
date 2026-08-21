@@ -239,8 +239,20 @@ Each resolver run writes `.tpatch/features/<slug>/artifacts/resolution-session.j
 
 On `--accept`, tpatch applies non-conflicting hunks of `post-apply.patch` via 3-way merge (excluding resolved files), copies resolved files from shadow → real tree, regenerates `post-apply.patch`, snapshots the delta as `patches/NNN-reconcile.patch`, and marks the feature `applied`. `apply-recipe.json` is NOT auto-regenerated — re-run `tpatch implement` or `tpatch record` if the recipe matters to you.
 
-## Optional intent inspection
+## Optional intent preparation and recovery
 
-`tpatch prepare <slug> --check` is read-only and optionally reports the structural state of the three intent Markdown artifacts plus the optional analysis sidecar. It never advances state.
+`tpatch prepare` is optional and stays outside lifecycle phase ordering and preflight.
+
+Default `tpatch prepare <slug>` preserves existing intent artifact bytes and creates only a dependency-coherent missing suffix. It prefers the configured provider and falls back to disclosed heuristic output when the provider is absent or fails.
+
+`tpatch prepare <slug> --manual` adopts a complete hand-authored three-document bundle without calling a provider or changing artifact bytes. `tpatch prepare <slug> --regenerate` replaces the complete bundle and archives eligible prior bytes. `--regenerate` requires a configured successful provider unless explicit `--allow-heuristic` is passed.
+
+`tpatch prepare <slug> --dry-run` computes a plan without provider calls, Git processes, locking, or writes. `tpatch prepare <slug> --abandon-transaction` previews moving interrupted local transaction evidence aside; add `--yes` to act. It does not undo or repair canonical files.
+
+`tpatch prepare <slug> --check` is read-only and optionally reports the structural state of the three intent Markdown artifacts plus the optional `artifacts/analysis.json` sidecar. It never advances state.
 
 `tpatch prepare <slug> --check` exits 2 when the intent bundle is incomplete. That is a report result, not a workflow or system failure: the command wrote nothing, changed nothing, and the per-artifact rows say exactly what is missing. Author the missing files and re-run, or continue without it — this check is optional.
+
+Use `tpatch feature intent-archive list <slug>` to inspect retained prior bytes and repair state. Bound retention with `tpatch feature intent-archive purge <slug> --blob <hash> --yes`, `--generation <id> --yes`, `--orphans --yes`, or `--all --yes`; omit `--yes` for a preview.
+
+The intent archive is byte-recovery while retained; it is not authorship or provenance, and it is not a general history or undo facility. It does not certify semantic quality or make current artifacts canonical. Deleting a committed blob from the current tree does not rewrite Git history.

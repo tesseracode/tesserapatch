@@ -79,7 +79,9 @@ of scope; see `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 | `tpatch explore <slug> [--path]` | Read codebase, find minimal changeset |
 | `tpatch implement <slug> [--path]` | Generate deterministic apply recipe |
 | `tpatch apply <slug> [--mode prepare\|started\|done] [--path]` | Execute recipe or record session |
-| `tpatch prepare <slug> --check [--json] [--quiet] [--path]` | Read-only structural inspection of the intent bundle; unrelated to `apply --mode prepare` |
+| `tpatch prepare <slug> [mode and report flags] [--path]` | Complete, adopt, regenerate, inspect, or abandon an intent-bundle transaction; unrelated to `apply --mode prepare` |
+| `tpatch feature intent-archive list <slug> [--json] [--quiet] [--path]` | Inspect retained prior intent bytes and archive repair state |
+| `tpatch feature intent-archive purge <slug> <selector> [--yes] [--json] [--quiet] [--path]` | Preview or perform bounded archive retention cleanup |
 | `tpatch record <slug> [--path]` | Capture patches (tracked + untracked files) |
 | `tpatch reconcile [--upstream-ref] [slug...] [--path]` | Reconcile features against upstream |
 | `tpatch reconcile audit-retirement <slug> [--json] [--path]` | Read-only audit of retired feature dependency metadata |
@@ -87,24 +89,105 @@ of scope; see `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 | `tpatch provider check [--path]` | Validate provider endpoint |
 | `tpatch config show\|set [--path]` | Manage configuration |
 
-#### Read-only intent inspection (GH #16)
+#### Prepare intent bundle (GH #16 and GH #23)
 
-`tpatch prepare <slug> --check` reports structural presence only for
-`analysis.md`, `spec.md`, `exploration.md`, and the optional
-`artifacts/analysis.json` sidecar. It never advances state or writes files;
-the three Markdown artifacts determine readiness and every artifact reports
-`provenance: unknown`.
+`prepare` is optional methodology, not a lifecycle phase or precondition. It has
+five modes:
+
+```text
+tpatch prepare <slug> --check       [--json] [--quiet] [--path <dir>]
+tpatch prepare <slug>               [--json] [--quiet] [--path <dir>] [--timeout <d>] [--timeout-phase <d>] [--no-retry] [--dry-run] [--allow-heuristic]
+tpatch prepare <slug> --manual      [--json] [--quiet] [--path <dir>] [--dry-run]
+tpatch prepare <slug> --regenerate  [--json] [--quiet] [--path <dir>] [--timeout <d>] [--timeout-phase <d>] [--no-retry] [--dry-run] [--allow-heuristic]
+tpatch prepare <slug> --abandon-transaction [--json] [--quiet] [--path <dir>] [--yes]
+```
+
+- **generate** (no mode flag) creates only a dependency-coherent missing suffix
+  of `analysis.md → spec.md → exploration.md`; existing artifact bytes and a
+  present analysis sidecar are preserved. A configured provider is preferred,
+  with disclosed heuristic fallback when it is absent or fails.
+- **manual** adopts a complete hand-authored three-document bundle. It calls no
+  provider and writes no artifact bytes; its structural gate is intentionally
+  stricter than the presence-only per-phase `--manual` gates.
+- **regenerate** replaces the complete bundle and archives safely readable prior
+  bytes. It requires a configured successful provider unless
+  `--allow-heuristic` is explicitly passed.
+- **abandon** previews or, with `--yes`, moves interrupted local transaction
+  evidence aside. It changes no canonical feature file and performs no repair.
+- **check** is the unchanged read-only inspector. It reports structural presence
+  for the three Markdown artifacts plus optional `artifacts/analysis.json`,
+  never advances state, writes nothing, and keeps `provenance: unknown`.
+
+Exactly twelve local flags are registered: `--check`, `--manual`,
+`--regenerate`, `--abandon-transaction`, `--allow-heuristic`, `--dry-run`,
+`--yes`, `--json`, `--quiet`, `--timeout`, `--timeout-phase`, and `--no-retry`;
+`--path` is inherited. The four mode flags are mutually exclusive by flag
+presence, so even `--check --abandon-transaction=false` is a parse error.
+Explicit `--abandon-transaction=false` alone selects generate. Timeout,
+timeout-phase, and no-retry are legal only for generate/regenerate;
+allow-heuristic is legal only there (and is a disclosed no-op in generate);
+dry-run is legal only for generate/manual/regenerate. `--yes` is valid only
+with a true abandon request; every other prepare use exits 1 with
+`prepare: --yes is only valid with --abandon-transaction`.
+
+`--dry-run` performs bounded inspection and plan checks only. It makes no
+provider call, runs no Git process, takes no workspace authority, and writes
+nothing. Its report says `execution_preflight: "not_evaluated"` because the
+real mutation can still refuse on platform, filesystem, Git, lock, generation,
+redaction, recovery, or publication grounds.
+
+Mutating prepare is supported only on Linux and macOS, on a non-denied local
+workspace-root filesystem after a real root-directory flock succeeds. The
+authority is per workspace, not per feature, and is host-local; it provides no
+cross-machine exclusion. Rooted writes prevent escape from the held workspace,
+but do not promise that every in-root alias or final syscall race is detectable.
+`--check` retains its separate read-only platform contract. Reports contain
+repo-relative identifiers and recovery commands, not absolute paths, provider
+transcripts, artifact content, secret values, timestamps, durations, hostnames,
+PIDs, or symlink targets. Human mode sends progress to stderr; `--json` emits
+one JSON document; `--quiet` emits only the summary form.
+
+The publication set is the planned canonical intent artifacts, archive index,
+and `status.json`, with status last. Readers can observe an in-progress prefix;
+the command claims final verification and bounded crash recovery, not
+instantaneous multi-file visibility. Root `FEATURES.md` is a derived,
+best-effort refresh outside the publication set and can temporarily lag
+`status.json`. Journal recovery is terminal: the command reports `recovered`
+and the sanitized rerun instead of continuing. Divergent journal/publication
+evidence exits 6 and names abandon or a repo-relative manual route; archive
+purge divergence names its separate archive repair. Confirmed purge also treats
+pending-purge recovery as terminal: it finalizes the pending state, reports
+`recovered`, and stops without processing the requested selector. The operator
+then reruns the reported selector command.
 
 | Code | Meaning |
 |------|---------|
-| `0` | The three required artifacts are structurally ready. |
-| `1` | Cobra/pflag usage or argument error before the command runs. |
-| `2` | The bundle is structurally not ready; a report identifies the missing or deficient required artifact. |
-| `3` | Inspection is indeterminate, including a workspace/status abort or a required artifact that changed during inspection. |
-| `4` | Reserved mutating surface: `prepare <slug>` was used without required `--check`. |
+| `0` | Success: published, adopted, no-op, admissible dry-run/preview, terminal recovery, purge completion, or check-ready. |
+| `1` | Parse/usage error or unexpected internal failure; parse failures emit no report and write nothing. |
+| `2` | Bundle not ready or coherent, or staged structural validation failed; no mutation. |
+| `3` | Cannot act because of input, state, policy, platform/authority, archive integrity, contention, or pending recovery; no mutation. |
+| `4` | Retired and unpopulated. `prepare` never exits 4. |
+| `5` | Publication aborted and rolled back, or an archive purge partially advanced with deterministic retry evidence. |
+| `6` | Manual intervention required; evidence is preserved and the applicable terminal recovery route is reported. |
 
-The command is optional. Exit 2 is a report result, not a workflow or system
-failure: it wrote nothing and changed nothing.
+The optional check keeps its accepted byte contract: exit 0 is ready, exit 2 is
+not ready, and exit 3 is indeterminate. Exit 2 is a report result, not a
+workflow or system failure.
+
+Archive retention is managed separately:
+
+```text
+tpatch feature intent-archive list  <slug> [--json] [--quiet] [--path <dir>]
+tpatch feature intent-archive purge <slug> (--blob <hash>... | --generation <id>... | --orphans | --all) [--yes] [--json] [--quiet] [--path <dir>]
+```
+
+`list` is read-only. `purge` requires exactly one selector, previews without
+`--yes`, and only the confirmed form takes the workspace authority. Neither
+verb runs Git. Retained blobs provide exact byte recovery only while present;
+the archive is not canonical lifecycle truth, semantic certification,
+authorship/provenance, or a general history/undo facility. Purging publishes
+tombstones and can remove working-tree bytes, but deleting committed blobs does
+not rewrite Git history.
 
 #### Feature rejection (v0.13.0, GH #6)
 

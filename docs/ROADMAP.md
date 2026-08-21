@@ -1094,6 +1094,79 @@ resolution, below-classifier catalog states, human rendering and complete
 public-emission propagation. The rebuilt guards now pass for all other
 rows/catalog entries; one micro-prerequisite remains for raw denied-filesystem
 classifier injection without fabricating the final public error. Its guarded internal entry point
+S6 rev-4 closes runtime catalog reachability but remains NEEDS REVISION on
+concessive-clause polarity, complete wire vocabulary fields, interprocedural
+public-emission tracing and receiver/flags/syscall-aware sink taint. Its guarded internal entry point
+Rev-5 closes those but remains NEEDS REVISION on whole-function sink
+exemptions, program-point/method-value flow, additional concessive forms,
+tuple-result guarded fields and callable emitter aliases. Its guarded internal entry point
+Rev-6 closes those but remains NEEDS REVISION on reassigned delegate
+parameters, function-valued fields/parameters, comma-in-claim polarity,
+straight-line flag kills and nested tuple forwarding. Its guarded internal entry point
+Rev-7 closes those but remains NEEDS REVISION on closure/loop/fallthrough
+state, arbitrary helper return/callable/method-expression flow, callable
+factories, named bare tuple returns and quoted prohibition context. Its guarded internal entry point
+Rev-8 closes those but remains NEEDS REVISION on defer/branch semantics,
+fail-closed convergence, aliased method receivers, fenced prohibition context
+and analyzer runtime caching. Its guarded internal entry point
+Rev-9 closes those at ~375s but remains NEEDS REVISION on named defers,
+goroutine concurrency, range/select bindings and goto label routing. Its guarded internal entry point
+Rev-10 closes those but remains NEEDS REVISION on compound deferred-argument
+freezing, goroutine pointee alias taint and named/pointer range domains. Its guarded internal entry point
+Rev-11 closes those but remains NEEDS REVISION on left-to-right deferred
+argument side effects, interface-converted pointer aliases and precise
+free-variable write/escape analysis for goroutines. Its guarded internal entry point
+Rev-12 closes those but remains NEEDS REVISION on nested goroutine helper
+mutation, shared map/slice backing aliases and deferred short-circuit effects. Its guarded internal entry point
+Rev-13 closes those but remains NEEDS REVISION on reslice/channel backing
+identity, guaranteed append reallocation and recursively nested short-circuit
+evaluation. Its guarded internal entry point
+Rev-14 closes those but remains NEEDS REVISION on method/callback effect-cache
+purity, append over-allocation capacity and deterministic channel FIFO
+consumption. Its guarded internal entry point
+Rev-15 closes those but remains NEEDS REVISION on ordinary local helper
+mutation effects and consumed channel values reappearing after concurrency. Its guarded internal entry point
+Rev-16 closes those but remains NEEDS REVISION on transitive callback/helper
+writes to package globals without guarded arguments. Its guarded internal entry point
+Rev-17 closes that but remains NEEDS REVISION on global pointer/container
+aliases, package-init effects and imported global selectors. Its guarded internal entry point
+Rev-18 closes those but remains NEEDS REVISION on dependency-ordered frozen
+global initializers, synchronous opaque callback effects and real init order. Its guarded internal entry point
+Rev-19 closes those but remains NEEDS REVISION on write/escape initializer
+dependencies and identity-aware `sync.Once` done-state semantics. Its guarded internal entry point
+Rev-20 closes those but remains NEEDS REVISION on Once receiver evaluation,
+pointer aliases, aggregate copies and recovered panic control flow. Its guarded internal entry point
+Rev-21 closes those but remains NEEDS REVISION on path-sensitive recovery,
+Once aggregate channel/defer copies, builtin identity and deferred Once.Do. Its guarded internal entry point
+Rev-22 closes those but remains NEEDS REVISION on direct-recover privilege
+inside Once callbacks, used-Once copy destinations and range/map-key copies. Its guarded internal entry point
+Rev-23 closes those but remains NEEDS REVISION on append copies, zero/partial
+copy intervals, key-only ranges and generic union constraints.
+Rev-24 closes those but remains NEEDS REVISION on independent destination
+identities for copy, zero/in-place append precision and compatible generic
+collection union structure.
+Rev-25 closes those but remains NEEDS REVISION on pointer-element backing
+copies, retained self-append snapshots, generic type arguments and constraint
+intersections.
+Rev-26 closes those but remains NEEDS REVISION on large pointer-copy modeling,
+selector/index self-append snapshots and inferred generic function results.
+Rev-27 closes those but remains NEEDS REVISION on generic receiver
+substitution, partial explicit inference, variadic parameters and method-only
+constraint intersections.
+Rev-28 closes those but remains NEEDS REVISION on untyped inference, dependent
+constraints, exact-vs-approximate terms and method signatures; custom generic
+inference will be replaced with go/types authority.
+Rev-29 replaces it with go/types and leaves one MEDIUM mixed-error allowlist
+bug in partial type checking.
+Rev-30 closes that and leaves one MEDIUM type-graph cache key omission for the
+exact partial-error registry.
+Rev-31 closes the final cache finding; focused re-review APPROVED. Full
+tracked-state validation, commit and blocking CI remain.
+The first tracked-state gate then exposed provider-config leakage, duplicate
+catalog runtime exceeding the 10-minute package timeout, and an older S5
+resolver nil dereference. Integration is closed: TestS6 ~101s, full CLI ~281s,
+provider fixtures hermetic and baseline catalogs cached once. Final gate and
+all race/vet/cross-build checks pass; commit and blocking CI remain.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

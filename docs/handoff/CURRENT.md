@@ -157,6 +157,187 @@ will expose an internal classifier-injection acquisition entry point, guarded
 against non-test callers, so S6 can exercise the classifier and public mapping
 without constructing a final typed error.
 
+S6 rev-4 adds the real denied-filesystem fixture and closes catalog runtime
+reachability. Re-review found four MEDIUM static-analysis residuals: leading
+`Although ...,` concessive clauses can hide positive atomic claims; vocabulary
+discovery omits Generator/Resume/Selector/Class/Kind/CWD wire fields; code
+emission extraction still skips dynamic helper composites and uses
+name/exclusion heuristics instead of emitter reachability; and sink taint loses
+receiver type, bound OpenFile flags and syscall path arguments.
+
+S6 rev-5 closes those four but re-review found four MEDIUM analyzer bypasses:
+whole-function low-level adapter exemptions can hide a new sink; last-assignment
+flow lets a later safe value mask earlier taint and misses compound flags/
+method values; another concessive form (`Though`) hides positive visibility;
+and tuple-result assignments or callable aliases can hide vocabulary/refusal/
+advisory emissions.
+
+S6 rev-6 closes those bypasses but re-review found five MEDIUM flow residuals:
+delegated wrapper parameters can be reassigned before the exempted sink;
+function-valued struct fields/parameters hide sink/emitter identities; generic
+comma splitting breaks a single positive visibility claim; union-only flags
+ignore unconditional assignment kills; and nested multi-result forwarding
+leaves later tuple positions unresolved.
+
+S6 rev-7 closes those flow cases but re-review found six MEDIUM analyzer edges:
+closures, loop backedges and switch fallthrough are not in reaching state;
+arbitrary string-return helpers and local helper aliases/method expressions
+escape sink reachability; advisory callback factories are unresolved without
+failure; named-result bare returns do not populate tuple flow; and quoted
+prohibition examples are mistaken for asserted atomicity claims.
+
+S6 rev-8 closes those but re-review found six MEDIUM soundness/performance
+issues: deferred closures use declaration-time rather than exit-time state;
+break/continue paths are treated as fallthrough; fixed-point exhaustion returns
+partial state; method expressions preserve type aliases; fenced/escaped
+prohibition examples lose directive context; and TestS6 regressed from ~358s
+to ~1,661s without analyzer caching.
+
+S6 rev-9 closes those with runtime restored to ~375s. Re-review found four
+MEDIUM remaining constructs: named deferred functions/methods are ignored;
+goroutine effects are applied synchronously; range/select produced variables
+are unbound; and goto transfers never reach labels.
+
+S6 rev-10 closes those but re-review found three MEDIUM semantic edges:
+deferred selector/index/call arguments are not frozen at defer time; goroutine
+pointer/container aliases taint only the pointer variable, not its pointee;
+and named collection types or pointers to arrays are unresolved in otherwise
+safe range domains.
+
+S6 rev-11 closes those but re-review found two HIGH and one MEDIUM analyzer
+residual: deferred argument side effects are discarded instead of applied
+left-to-right; pointer aliases hidden by `any(...)`/anonymous-interface
+conversions escape goroutine taint; and goroutine capture analysis taints
+read-only or lexically shadowed variables by name.
+
+S6 rev-12 closes those but re-review found two HIGH and one MEDIUM residual:
+nested declared helper mutations inside goroutines are skipped; map/slice
+backing aliases do not taint all aliases on element mutation; and deferred
+boolean argument evaluation ignores `&&`/`||` short-circuit semantics.
+
+S6 rev-13 closes those but re-review found one HIGH and two MEDIUM residuals:
+reslices and channel-carried slices lose backing identity; append always
+inherits old backing even when known len==cap guarantees allocation; and nested
+ordinary short-circuit expressions still use the legacy eager call walk.
+
+S6 rev-14 closes those but re-review found two HIGH and one MEDIUM residual:
+the recursive effect cache treats selector/interface method and callback
+mutations as pure; append growth assumes exact capacity although Go may
+overallocate; and deterministic channel receives union all historical sends
+instead of consuming FIFO state.
+
+S6 rev-15 closes those but re-review found one HIGH and one MEDIUM residual:
+ordinary resolved helper pointer/method mutations are ignored outside
+goroutine/recursive-expression contexts, and consumed deterministic channel
+values are retained in historical sends and reappear after a later transition
+to nondeterministic concurrency.
+
+S6 rev-16 closes those but re-review found one HIGH residual: transitive
+helper/callback writes to package globals are recognized as mutations yet
+skipped when no guarded argument is present because the global-write gate
+examines only direct assignments.
+
+S6 rev-17 closes that but re-review found three HIGH global-flow residuals:
+writes through global pointer/interface/map/slice aliases do not taint their
+pointees/backings; package `init` mutations are absent from seeded global
+state; and imported package global selectors are not resolved.
+
+S6 rev-18 closes those but re-review found two HIGH and one MEDIUM
+package-initialization residual: global initializer values are resolved against
+later state instead of frozen in dependency order and initializer call side
+effects are omitted; synchronous callback APIs such as `sync.Once.Do` can hide
+global writes; and impossible permutations of ordered init functions create
+false unsafe final states.
+
+S6 rev-19 closes those but re-review found two HIGH residuals: initializer
+dependency ordering includes reads but not global writes/escapes performed by
+initializer helpers; and repeated `sync.Once.Do` calls execute every callback
+instead of tracking the Once object's done state.
+
+S6 rev-20 closes those but re-review found four HIGH `sync.Once`/panic
+residuals: method receiver identity is frozen after argument effects; global
+pointer aliases receive independent Once identities; aggregate copies
+containing a used Once are not rejected/propagated; and recovered panic paths
+execute statements that are unreachable at runtime.
+
+S6 rev-21 closes those but re-review found three HIGH and one MEDIUM residual:
+recover state is shared across branches/panic episodes; used Once aggregates
+can be copied through channel sends or deferred arguments; shadowed
+`panic`/`recover` identifiers are treated as builtins; and deferred Once.Do
+bypasses the Once state machine.
+
+S6 rev-22 closes those but re-review found three HIGH residuals: a Once.Do
+callback invoked by a deferred function incorrectly inherits direct-defer
+recover privilege; builtin `copy` validates only source and can overwrite a
+used Once destination; and range/map-key value copies omit Once copy/state
+validation.
+
+S6 rev-23 closes those but re-review found two HIGH and two MEDIUM
+copy-boundary residuals: append reallocation copies existing used elements;
+copy validation ignores zero/partial intervals; range validation ignores
+whether only keys are bound; and generic union constraints can hide a nested
+Once type.
+
+S6 rev-24 closes those but re-review found three MEDIUM precision residuals:
+full copy aliases destination Once identities to source instead of creating
+independent value identities; zero/in-place append rejects existing used
+elements even though no existing element is copied; and compatible generic
+collection union terms lose their shared collection structure.
+
+S6 rev-25 closes those but re-review found four MEDIUM copy/generic residuals:
+pointer-element copy aliases destination slice backing to source; self-append
+resolves through its post-assignment binding; generic instantiations discard
+type arguments; and intersected embedded constraints lose compatible
+collection shape.
+
+S6 rev-26 closes those but re-review found three MEDIUM precision residuals:
+pointer-element copy silently stops updating destination identity beyond 128
+elements; selector/index self-appends are not frozen before assignment; and
+generic function call results do not substitute inferred type arguments.
+
+S6 rev-27 closes those but re-review found four MEDIUM generic type-system
+residuals: generic receiver parameters are not substituted; partial explicit
+type arguments cannot infer trailing parameters; variadic generic parameters
+are unresolved; and method-only embedded constraints erase compatible
+collection shape.
+
+S6 rev-28 closes those but re-review found four MEDIUM generic-inference
+residuals: untyped constants are prematurely defaulted; dependent constraints
+are checked before substitution; exact terms are treated like `~` terms; and
+method constraints compare names without full signatures. The next revision
+will replace custom inference with authoritative `go/types` results.
+
+S6 rev-29 replaces custom generic authority with `go/types`. Re-review found
+one MEDIUM residual: the legacy partial-type-info gate accepts a package when
+any one error is allowlisted, suppressing unrelated generic/constraint errors
+in the same package.
+
+S6 rev-30 closes that but re-review found one MEDIUM cache-key residual:
+type-graph caching hashes sources but not the exact partial-error registration,
+so a changed registration can reuse a previously accepted partial graph.
+
+S6 rev-31 closes the final cache-key residual. Focused re-review returned
+APPROVED with all 31 row mappings, 22 G sensitivities, type/dataflow/catalog
+guards, SPEC/operator docs, Unreleased changelog and six-skill parity closed.
+
+The first tracked-state full gate found test-integration rather than contract
+failures: provider catalog fixtures inherited package-global config; repeated
+catalog baselines pushed `internal/cli` past Go's 10-minute timeout; and the S5
+AST ledger dereferenced a non-range selector from the new S6 test. S5
+nil-safety is corrected; S6 must make provider fixtures hermetic and cache
+immutable baseline catalog/analyzer evidence without weakening sensitivities.
+
+Tracked-state integration is now closed. Provider-dependent fixtures use
+isolated config homes and restore seams; immutable 18-advisory/53-refusal/
+analyzer baseline evidence builds once with deep-copy returns. The older S5
+ledger handles non-range selectors safely. Measured TestS6 is ~101s and the
+complete `internal/cli` package ~281s, comfortably below Go's default timeout.
+
+Final tracked-state validation passes: full uncached suite (`internal/cli`
+261s), S6 race (`internal/cli` 395s), affected assets/intentlock/intentpub/
+store/workflow race suites, gofmt, vet, host build and Linux amd64/arm64,
+Darwin amd64 and Windows amd64 cross-builds.
+
 The guarded classifier entry point now passes isolated full/race/vet plus all
 Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
 for a separate micro commit before the final S6 fixture.
@@ -279,7 +460,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S6 final catalog fixture/review**
+- **Status**: **In Progress — S6 approved, ready to commit**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -459,8 +640,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Complete the final S6 denied-filesystem catalog fixture and obtain clean
-   review.
+1. Commit the explicit S6 docs/assets/test/tracking paths, push and require
+   blocking three-platform CI.
 3. Complete S7's 567-row
    acceptance ledger and sensitivity hardening.
 4. Run joint internal/external review to acceptance; only then select the

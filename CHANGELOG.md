@@ -6,20 +6,43 @@ All notable changes to tpatch are recorded here.
 
 ### Added
 
-- **Read-only intent-bundle inspection ([GH #16](https://github.com/tesseracode/tesserapatch/issues/16)).**
-  `tpatch prepare <slug> --check [--json] [--quiet] [--path]` reports the
-  structural readiness of `analysis.md`, `spec.md`, and `exploration.md`, plus
-  the optional analysis sidecar. Its dedicated exit contract distinguishes
-  ready (0), incomplete (2), indeterminate (3), and the reserved plain
-  `prepare` surface (4). It writes no files and changes no existing lifecycle,
-  `--manual`, `next`, `cycle`, or apply behavior.
+- **Intent-bundle preparation and bounded byte recovery ([GH #16](https://github.com/tesseracode/tesserapatch/issues/16), GH #23).**
+  `tpatch prepare` now supports default missing-only generation, strict
+  whole-bundle `--manual` adoption, provider-required `--regenerate` with
+  explicit `--allow-heuristic`, transaction-evidence
+  `--abandon-transaction`, and the unchanged read-only `--check`.
+  The local flag surface also adds `--dry-run`, `--timeout`,
+  `--timeout-phase`, `--no-retry`, and `--yes`, with exact
+  mutual-exclusion/presence rules. `--dry-run` is plan-only; mutating modes are
+  Linux/macOS-only after the root-inode denylist and real flock, and use a
+  held-root workspace authority. The seven-code exit table retires code 4
+  rather than reusing it.
 
-  `status.json` is validated against the full tpatch status schema — a known
-  field with the wrong JSON type is reported as `status-malformed`, exactly as
-  the normal status reader would refuse it — while unknown forward-compatible
-  keys are still accepted. Abort codes, readiness verdicts, reason codes and
-  advisory codes are exported as closed, typed catalogs, so the CLI boundary
-  carries no string literals and no generic fallback diagnostic.
+  Regeneration retains eligible prior bytes under the content-addressed
+  `artifacts/intent-archive/`. New
+  `tpatch feature intent-archive list|purge` commands inspect and bound that
+  retention. The archive is byte recovery while retained, not semantic
+  certification, authorship/provenance, or general history/undo; deleting
+  committed blobs does not rewrite Git history. `land` stages archive files,
+  `doctor` reports persistent archive/transaction evidence without probing the
+  workspace lock. `FEATURES.md` remains a derived best-effort refresh outside
+  the prepare publication set: refresh failure is a prepare advisory, and
+  `status.json` stays authoritative.
+
+  Prepare persists no raw retry attempt, transcript, prompt, or source-body
+  sink; retry metadata is redacted or hashed. Human progress is routed to
+  stderr. Extracting the pure analyze/define/explore generators does not change
+  those phase commands or `cycle`. Ordinary mutating prepare modes run the
+  Git local-lane privacy gate; Git-established non-worktrees proceed with an
+  advisory, while `--abandon-transaction` and archive list/purge are Git-free
+  exemptions. `doctor` adds evidence-only D9 with zero writes and never opens
+  or flocks the workspace root; no diagnostic claims to identify a lock holder
+  or prove the authority free.
+
+  Pending prepare-journal recovery is terminal: it reports recovery and the
+  sanitized rerun command, then stops. Pending archive-purge evidence makes
+  prepare refuse with the confirmed purge repair; that purge invocation
+  finalizes recovery and likewise stops so the operator reruns the selector.
 
 ## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification
 

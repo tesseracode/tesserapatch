@@ -1,3 +1,795 @@
+## Verification — prepare S6 final local gate — 2026-08-19
+
+### Verdict: PASS
+
+The tracked-state full uncached suite passes (`internal/cli` 261s). S6 race
+passes (`internal/cli` 395s), along with assets/intentlock/intentpub/store/
+workflow race suites. Gofmt, vet, host build and Linux amd64/arm64, Darwin
+amd64 and Windows amd64 builds pass.
+
+### Action Taken
+
+Commit and push the explicit S6 docs/assets/test/tracking paths, then require
+blocking three-platform CI before S7 dispatch.
+
+## Verification — prepare S6 tracked-state integration rev-1 — 2026-08-19
+
+### Verdict: PASS
+
+Provider catalog fixtures now use isolated config homes and restored seams.
+Immutable analyzer/advisory/refusal baseline evidence builds once and returns
+deep copies; mutation sensitivities retain source-key invalidation. The S5
+resolver now treats a non-range selector as non-resolvable rather than
+dereferencing nil.
+
+Measured `TestS6` is ~101 seconds and the complete `internal/cli` package ~281
+seconds, below Go's default ten-minute timeout with CI margin.
+
+### Action Taken
+
+Run the complete tracked-state full/race/assets/golden/vet/build gate, then
+commit and push the approved S6 diff.
+
+## Verification — prepare S6 tracked-state integration — 2026-08-19
+
+### Verdict: NEEDS REVISION
+
+The approved S6 contract passes focused review, but the first full tracked
+suite found three test-integration issues: provider-not-configured/provider-
+required fixtures inherited package-global provider configuration; repeated
+catalog baseline execution pushed `internal/cli` beyond Go's default 10-minute
+timeout; and the older S5 AST ledger dereferenced a selector not associated
+with a range.
+
+### Action Taken
+
+Add S5 resolver nil safety with a non-range-selector sensitivity. Make provider
+fixtures use isolated config homes and cache only immutable baseline catalog/
+analyzer evidence so mutation fixtures still recompute. Require the complete
+CLI package to finish comfortably below 10 minutes before commit.
+
+## Review — prepare S6 public docs/assets rev-31 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Final re-review of type-graph cache and complete S6 parity.
+
+### Checklist
+
+- [x] Exact partial-error registry participates in cache identity
+- [x] Duplicate/ambiguous expectations reject
+- [x] Every prior analyzer/catalog/runtime finding remains closed
+- [x] All 31 S6 rows and 22 G sensitivities resolve
+- [x] SPEC/docs/changelog/six-skill parity matches shipped behavior
+
+### Verdict: APPROVED
+
+### Notes
+
+The final cache fold keys source, import graph, type-check config and exact
+partial-error registration, with mutation/multiplicity/order/concurrency
+sensitivities. No residual S6 finding remains.
+
+### Action Taken
+
+Advance to tracked-state full/race/assets/golden/build validation, then
+explicit-path commit and blocking CI. S7 remains paused.
+
+## Review — prepare S6 public docs/assets rev-30 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review exact partial-type error handling.
+
+### Checklist
+
+- [x] Every partial type error is exactly registered
+- [ ] Type-graph cache key includes registration state
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+One MEDIUM cache bug remains. Sources alone key the accepted type graph; changing
+the exact package/source/file/symbol registration can reuse stale partial type
+information.
+
+### Action Taken
+
+Include a deterministic registration fingerprint in the cache key (or make the
+registry immutable and duplicate-proof) and add stale-cache sensitivity.
+
+## Review — prepare S6 public docs/assets rev-29 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review go/types generic authority and package importer.
+
+### Checklist
+
+- [x] go/types owns generic/method/constraint semantics
+- [ ] Every partial-type error must be individually allowlisted
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+One MEDIUM bug remains: a single allowlisted legacy type error causes all
+other package errors to be ignored, so a mixed invalid generic call can proceed
+with partial type information.
+
+### Action Taken
+
+Require all reported errors to match exact scoped legacy expectations and add a
+mixed-error sensitivity.
+
+## Review — prepare S6 public docs/assets rev-28 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review generic receiver/inference/constraint handling.
+
+### Checklist
+
+- [x] Receiver/partial/variadic/method-only baseline handling added
+- [ ] Untyped constants follow Go inference/defaulting
+- [ ] Dependent constraints receive substitutions
+- [ ] Exact and approximation terms differ
+- [ ] Method constraints compare complete signatures
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM generic semantics remain. The custom inference engine defaults
+literals too early, validates raw dependent constraints, expands underlying
+types for exact terms, and checks method names without signatures.
+
+### Action Taken
+
+Replace custom generic-call authority with `go/types.Info.Instances`,
+Selections and signatures. Fail closed when fixtures cannot type-check instead
+of approximating Go's generic semantics.
+
+## Review — prepare S6 public docs/assets rev-27 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review large copy, self-append and generic call substitution.
+
+### Checklist
+
+- [x] Large copy/self-append/function generic baseline findings closed
+- [ ] Generic receiver parameters substitute into results
+- [ ] Partial explicit type args infer trailing parameters
+- [ ] Variadic generic parameters unify element args
+- [ ] Method-only constraints preserve structural shape
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM generic details remain. Method receiver type parameters are absent
+from FuncType.TypeParams. Explicit prefixes currently require full arity.
+Ellipsis parameter types are not represented. Method-only embedded interfaces
+are treated as unresolved shape constraints.
+
+### Action Taken
+
+Return the four exact generic fixes to S6.
+
+## Review — prepare S6 public docs/assets rev-26 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review pointer copy, self-append and generic substitution.
+
+### Checklist
+
+- [x] Baseline copy/append/generic findings closed
+- [ ] Large pointer copies update or fail closed
+- [ ] Selector/index self-appends freeze pre-assignment values
+- [ ] Generic function results substitute inferred type arguments
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three MEDIUM precision issues remain. Pointer copies above 128 elements silently
+retain stale destination identities. Field/index self-appends store recursive
+post-assignment expressions. Generic helper results retain bare type parameters
+instead of inferred concrete collection types.
+
+### Action Taken
+
+Return the three exact precision fixes to S6.
+
+## Review — prepare S6 public docs/assets rev-25 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review copy identities, append capacity and generic unions.
+
+### Checklist
+
+- [x] Value Once copy/append/union baseline findings closed
+- [ ] Pointer-element copy snapshots elements without backing alias
+- [ ] Self-append freezes pre-assignment backing/content
+- [ ] Generic instantiations substitute type arguments
+- [ ] Constraint intersections preserve compatible collection shape
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM residuals remain. Pointer pointees alias but destination slice
+storage must not. Self-append stores a recursive expression. Generic type
+arguments are dropped from IndexExpr forms. Multiple embedded constraints
+collapse to a boolean instead of intersecting collection structure.
+
+### Action Taken
+
+Return the four exact copy/generic fixes to S6.
+
+## Review — prepare S6 public docs/assets rev-24 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review append/copy/range/generic Once boundaries.
+
+### Checklist
+
+- [x] Interval/range/union baseline findings closed
+- [ ] copy creates independent destination Once identities
+- [ ] zero/in-place append does not claim existing-element copy
+- [ ] Compatible generic union terms preserve collection shape
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three MEDIUM precision issues remain. Value copy must duplicate Once state into
+a distinct identity, not alias source and destination. Append without
+reallocation copies no existing element. A union whose terms share a slice
+shape should retain that shape rather than bypassing checks.
+
+### Action Taken
+
+Return the three exact copy/append/generic corrections to S6.
+
+## Review — prepare S6 public docs/assets rev-23 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review Once callback and collection-copy boundaries.
+
+### Checklist
+
+- [x] Once callback/copy/range baseline findings closed
+- [ ] append reallocation validates copied existing elements
+- [ ] copy validates only the possible copied interval
+- [ ] key-only ranges do not copy collection values
+- [ ] Generic union terms preserve nested Once detection
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two HIGH and two MEDIUM copy-boundary residuals remain. Append growth copies the
+old elements. Zero and partial copies scan unrelated elements. Range checks do
+not inspect whether a value variable exists. Union constraints collapse to no
+type and bypass nested Once checks.
+
+### Action Taken
+
+Return exact append/copy/range/generic handling to S6. Runtime fixtures and
+public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-22 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review panic episodes, Once copies, builtins and deferred Once.Do.
+
+### Checklist
+
+- [x] Prior panic/Once findings closed
+- [ ] Once callback does not inherit direct-defer recover privilege
+- [ ] copy validates used Once values in destination
+- [ ] Range and map-key copies validate/propagate Once state
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three HIGH residuals remain. A callback nested through Once.Do is not the
+direct deferred function and cannot recover its caller's panic. `copy` can
+overwrite a destination containing a used Once. Range variables and map keys
+copy aggregate values without the Once guard/state.
+
+### Action Taken
+
+Return the three exact Once-copy/recover fixes to S6. Runtime fixtures/public
+prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-21 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review Once receiver/copy and panic/recover CFG.
+
+### Checklist
+
+- [x] Basic Once alias/copy and panic flow modeled
+- [ ] Recovery state is per-path and per-panic
+- [ ] Once aggregate copies are rejected at channel/defer boundaries
+- [ ] panic/recover resolve as predeclared builtins by object identity
+- [ ] Deferred Once.Do uses the Once transition
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three HIGH and one MEDIUM residual remain. A global recovered boolean merges
+conditional branches and separate panics. Channel sends and defer argument
+capture omit Once-copy validation. Shadowed identifiers trigger builtin
+semantics. Deferred Once.Do takes generic unresolved-call handling rather than
+the frozen-receiver Once state machine.
+
+### Action Taken
+
+Return the four exact panic/Once semantics to S6. Runtime fixtures and public
+prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-20 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review initialization ordering and sync.Once state.
+
+### Checklist
+
+- [x] Init dependencies and basic Once state modeled
+- [ ] Once receiver freezes before argument effects
+- [ ] Pointer aliases share one Once identity
+- [ ] Aggregate copies containing used Once fail/propagate
+- [ ] Panic/recover control flow preserves runtime reachability
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four HIGH semantics remain. Receiver identity is resolved after callback
+argument evaluation. Global `*sync.Once` aliases become separate objects.
+Struct copies of used Once fields execute impossible callbacks. Panic is not a
+control transfer, so post-panic safe assignments can erase unsafe callback
+effects even when recover runs.
+
+### Action Taken
+
+Return exact Once and panic-flow fixes to S6. Runtime fixtures/public prose
+remain closed.
+
+## Review — prepare S6 public docs/assets rev-19 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review package initialization and synchronous callbacks.
+
+### Checklist
+
+- [x] Frozen ordered initialization and opaque callbacks modeled
+- [ ] Initializer dependency graph includes writes/escapes
+- [ ] sync.Once identity/done state prevents repeated callbacks
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two HIGH residuals remain. An initializer helper's write to another global is
+not an ordering dependency, so a later safe initializer can incorrectly erase
+the unsafe value. Every Once.Do callback executes in the model, allowing an
+impossible second safe callback to overwrite the first unsafe callback.
+
+### Action Taken
+
+Return exact initializer dependency and Once-state fixes to S6. Runtime
+fixtures and public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-18 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review global alias/init/import modeling.
+
+### Checklist
+
+- [x] Global alias/import domains modeled
+- [ ] Global initializer values freeze in Go dependency order
+- [ ] Initializer call side effects are projected
+- [ ] Synchronous opaque callbacks cannot hide global writes
+- [ ] Init function ordering matches Go, not permutations
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two HIGH and one MEDIUM package-initialization issues remain. Global values are
+kept as AST references and re-resolved after later init changes. Calls inside
+initializers do not project side effects. `sync.Once.Do` callbacks are omitted.
+All init permutations are merged even when Go defines a single order.
+
+### Action Taken
+
+Return exact package initialization and synchronous callback semantics to S6.
+Runtime fixtures/public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-17 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review transitive package-global effect summaries.
+
+### Checklist
+
+- [x] Direct/transitive global helper effects modeled
+- [ ] Global pointer/container aliases taint pointees/backings
+- [ ] Package init effects seed global state
+- [ ] Imported global selectors resolve across analyzed packages
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three HIGH global-flow gaps remain. Effects are attributed only to syntactic
+alias roots, declaration initializers omit init writes, and selector traversal
+does not materialize imported package globals. Each can hide an unsafe global
+target from the sink guard.
+
+### Action Taken
+
+Return global alias/init/import modeling to S6. Runtime fixtures and public
+prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-16 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review ordinary helper effects and channel outstanding domains.
+
+### Checklist
+
+- [x] Ordinary helper/callback and channel findings closed
+- [ ] Transitive callback/helper global writes are applied
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+One HIGH residual remains. The mutation summary sees a transitive global write,
+but call execution is gated by guarded arguments or a direct-only global-write
+scan. A wrapper/callback with no guarded argument can therefore hide an unsafe
+package-global path used by a later sink.
+
+### Action Taken
+
+Return transitive callback-aware global effect summaries to S6. Runtime
+fixtures and public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-15 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review callable effects, append capacity and channel FIFO.
+
+### Checklist
+
+- [x] Binding-aware effects, capacity intervals and FIFO findings closed
+- [ ] Ordinary resolved local helper effects are always applied
+- [ ] Consumed channel values do not reappear after concurrency
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+One HIGH and one MEDIUM residual remain. Interprocedural helper mutation is
+only applied in goroutine/recursive-expression contexts, so a normal pointer
+helper can hide taint. FIFO receives pop the queue but not historical sends;
+those consumed values are unioned back after a nondeterministic transition.
+
+### Action Taken
+
+Return the two exact flow fixes to S6. Runtime fixtures and public prose remain
+closed.
+
+## Review — prepare S6 public docs/assets rev-14 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review channel/backing/append/recursive expression analysis.
+
+### Checklist
+
+- [x] Reslice/channel backing and recursive short-circuit findings closed
+- [ ] Effect cache includes method/callback bindings or fails closed
+- [ ] Append growth capacity remains conservatively unknown
+- [ ] Deterministic channel receives consume FIFO sends
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two HIGH and one MEDIUM residual remain. Context-insensitive effect caching
+misses method/callback mutations. A growth append records exact capacity even
+though runtime may overallocate. Known sequential channel receives never
+consume sends, causing both missed and false alias results.
+
+### Action Taken
+
+Return the three exact analyzer fixes to S6. Runtime fixtures and public prose
+remain closed.
+
+## Review — prepare S6 public docs/assets rev-13 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review goroutine summaries, backing identities and short-circuit
+flow.
+
+### Checklist
+
+- [x] Nested helper/backing/short-circuit findings closed
+- [ ] Reslices and channel transfers preserve backing identity
+- [ ] Guaranteed append reallocation does not preserve old identity
+- [ ] Nested short-circuit expressions use ordered evaluator
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+One HIGH and two MEDIUM residuals remain. Slice expressions and channel
+receives discard backing identity. Append always aliases even when a
+full-capacity literal must allocate. Short-circuit logic applies only at a
+top-level binary expression; nested call arguments still execute impossible
+RHS effects.
+
+### Action Taken
+
+Return the three collection/expression fixes to S6. Runtime fixtures and public
+prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-12 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review defer side effects, interface aliases and goroutine
+free-variable analysis.
+
+### Checklist
+
+- [x] Ordered defer/interface/free-variable findings closed
+- [ ] Nested goroutine helper mutations are summarized recursively
+- [ ] Shared map/slice backing aliases taint together
+- [ ] Deferred boolean expressions honor short-circuiting
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two HIGH and one MEDIUM residual remain. Resolved helper calls in goroutine
+bodies are treated as safe without applying pointer-mutation summaries.
+Map/slice assignments share backing state but only the alias variable is
+tainted. Deferred expression evaluation executes impossible right operands of
+`&&`/`||`.
+
+### Action Taken
+
+Return the three exact analyzer fixes to S6. Runtime fixtures and public prose
+remain closed.
+
+## Review — prepare S6 public docs/assets rev-11 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review deferred value domains, goroutine aliases and range types.
+
+### Checklist
+
+- [x] Deferred compound values, aliases and named ranges modeled
+- [ ] Deferred argument side effects apply left-to-right
+- [ ] Interface conversions preserve pointer aliases
+- [ ] Goroutine analysis taints only written/escaped free variables
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Two HIGH and one MEDIUM analyzer defects remain. An argument IIFE can mutate a
+guarded target while returning a safe deferred value because argument
+evaluation discards state changes. `any(&target)` hides a pointer from the
+goroutine alias graph. A name-based second walk also taints read-only captures
+and inner shadowed variables.
+
+### Action Taken
+
+Return the three precise analyzer fixes to S6. Runtime fixtures and public
+prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-10 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review named defer, goroutine, range/select and goto handling.
+
+### Checklist
+
+- [x] Named defer functions/methods execute at exit
+- [x] Guarded goroutines/range/select/goto are modeled
+- [ ] Every deferred argument expression freezes at defer time
+- [ ] Concurrent pointer/container aliases taint pointees
+- [ ] Named/pointer collection ranges resolve underlying domains
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three MEDIUM semantic edges remain. Only identifier defer arguments are
+snapshotted; goroutine alias tracking stops at pointer variables; and named
+array/map/slice types or pointers to arrays become unknown despite closed
+literal domains.
+
+### Action Taken
+
+Return the three precise analyzer fixes to S6. Runtime fixtures and public
+prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-9 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review defer/branch/fixed-point/cache analyzer.
+
+### Checklist
+
+- [x] Closure defers, branches and convergence are modeled
+- [x] Alias/fence/cache findings closed
+- [ ] Named deferred functions/methods resolve or fail closed
+- [ ] Goroutine capture is concurrent/unresolved
+- [ ] Range/select variables receive value domains
+- [ ] Goto reaches labels or fails closed
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM constructs remain. Only deferred literals execute; GoStmt effects
+are treated synchronously; range/select declarations remain unbound; and goto
+transfers have no label destination. Each can hide a tainted target or guarded
+result.
+
+### Action Taken
+
+Return conservative handling of the four constructs to S6. Runtime fixtures
+and public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-8 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review fixed-point/interprocedural analyzer and runtime.
+
+### Checklist
+
+- [ ] Deferred sink/result effects use exit-time state
+- [ ] Break/continue/fallthrough paths are distinct
+- [ ] Non-convergence fails closed
+- [ ] Method receiver aliases resolve to underlying type
+- [ ] Fenced/escaped prohibitions retain directive context
+- [ ] Parsed/model baselines are cached across sensitivities
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Six MEDIUM issues remain. Deferred closures apply too early; branch statements
+fall through; the 64-iteration cap returns partial truth; method-expression
+aliases hide rooted sinks; fenced prohibition examples are treated as claims;
+and analyzer runtime grew 4.6× to roughly 28 minutes.
+
+### Action Taken
+
+Return sound control-flow/context handling and caching to S6. Runtime fixtures
+and public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-7 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review CFG/callable/tuple/atomic analyzer flow.
+
+### Checklist
+
+- [ ] Closures, loop backedges and fallthrough reach fixed-point state
+- [ ] All local string-return helpers are traced
+- [ ] Helper aliases and method expressions preserve sink identity
+- [ ] Callable factories preserve advisory/refusal identity
+- [ ] Named bare tuple returns resolve reaching assignments
+- [ ] Quoted/code prohibitions are distinguished from asserted claims
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Six MEDIUM analyzer cases remain. Function literals, prior loop iterations and
+fallthrough predecessors are absent from flow; helper names still gate return
+analysis; callable aliases/method expressions/factories can hide sinks and
+emitters; named bare results are unresolved; and quoted forbidden examples
+trigger atomic overclaim failures.
+
+### Action Taken
+
+Return conservative fixed-point and interprocedural corrections to S6.
+Runtime fixtures/public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-6 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review fail-closed sink/emitter/tuple/clause analyzers.
+
+### Checklist
+
+- [ ] Delegated parameters remain unmodified at sink
+- [ ] Function-valued fields/parameters resolve or fail closed
+- [ ] Commas inside one positive claim do not hide it
+- [ ] Unconditional flag assignments kill prior straight-line values
+- [ ] Nested tuple forwarding resolves every result position
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Five MEDIUM flow cases remain: parameter reassignment bypasses exact
+delegation; callable struct fields and parameters are synthetic identities;
+generic comma splitting fragments one positive sentence; all flag assignments
+are unioned despite an unconditional reset; and nested multi-result forwarding
+records only result zero.
+
+### Action Taken
+
+Return the five dataflow corrections to S6. Runtime fixtures and public prose
+remain closed.
+
+## Review — prepare S6 public docs/assets rev-5 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review clause, vocabulary, emission and sink analyzers.
+
+### Checklist
+
+- [ ] Low-level exemptions are callsite-specific
+- [ ] Target/flag/method-value flow is program-point aware
+- [ ] All concessive/compound clauses are independently checked
+- [ ] Tuple-result guarded fields cannot disappear
+- [ ] Callable aliases preserve emitter identity
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM bypass classes remain. Entire allowlisted functions are skipped;
+last assignments can mask taint and compound flags/method values are missed;
+`Though` remains an unsplit concessive; tuple-return positions are ignored; and
+aliases of `refusePrepare`/`prepareAdvisory` are not recognized.
+
+### Action Taken
+
+Return a fail-closed analyzer simplification to S6. Runtime catalog fixtures
+and public prose remain closed.
+
+## Review — prepare S6 public docs/assets rev-4 — 2026-08-19
+
+**Reviewer**: Copilot code-review
+**Task**: Re-review type-aware sink/vocabulary/emission/catalog guards.
+
+### Checklist
+
+- [x] All 18/53 runtime fixtures use fresh JSON and human states
+- [x] Denied filesystem uses the real classifier
+- [ ] Leading concessive clauses cannot hide atomic overclaims
+- [ ] Every closed-vocabulary wire field is discovered
+- [ ] Public code emissions are traced interprocedurally
+- [ ] Sink taint resolves receivers, flags and syscall path arguments
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Four MEDIUM analyzer edges remain: `Although ... ,` stays one clause;
+Generator/Resume/Selector/Class/Kind/CWD fields are omitted; emission flow
+still skips dynamic helpers and excludes by function name; and sink analysis
+strips receiver types, misses bound write flags and relies on a variable named
+`pointer` for syscall targets.
+
+### Action Taken
+
+Return the four analyzer corrections to S6. Runtime fixtures and public prose
+remain closed.
+
 ## Implementation — S6 filesystem-classifier fixture prerequisite — 2026-08-19
 
 **Commit**: `971da91`

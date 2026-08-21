@@ -34,6 +34,8 @@ var requiredCommands = []string{
 	"tpatch doctor",
 	"tpatch next",
 	"tpatch prepare",
+	"tpatch feature intent-archive list",
+	"tpatch feature intent-archive purge",
 	"tpatch reject",
 	"tpatch reopen",
 	"tpatch feature unapply",
@@ -90,6 +92,10 @@ var requiredAnchors = []struct {
 	{"verify-freshness/all-mode", "tpatch verify --all"},
 	{"prepare-check/read-only", "`tpatch prepare <slug> --check` is read-only"},
 	{"prepare-check/exit-2", "`tpatch prepare <slug> --check` exits 2 when the intent bundle is incomplete. That is a report result, not a workflow or system failure: the command wrote nothing, changed nothing, and the per-artifact rows say exactly what is missing. Author the missing files and re-run, or continue without it — this check is optional."},
+	{"prepare/preservation-default", "Default `tpatch prepare <slug>` preserves existing intent artifact bytes and creates only a dependency-coherent missing suffix."},
+	{"prepare/placement", "`tpatch prepare` is optional and stays outside lifecycle phase ordering and preflight."},
+	{"prepare/regenerate-provider", "`--regenerate` requires a configured successful provider unless explicit `--allow-heuristic` is passed."},
+	{"prepare/archive-limit", "The intent archive is byte-recovery while retained; it is not authorship or provenance, and it is not a general history or undo facility."},
 	// feat-amend-dependent-warning (v0.7.0): every shipped skill
 	// surface must mention the new `dependent-broken` derived label
 	// so harness agents know what to do when `tpatch status` flags a
@@ -225,7 +231,7 @@ func TestSkillParityGuard(t *testing.T) {
 			content := string(data)
 
 			for _, cmd := range requiredCommands {
-				if !strings.Contains(content, cmd) {
+				if !containsExactCommand(content, cmd) {
 					t.Errorf("%s (%s) missing CLI command: %q", sf.name, sf.path, cmd)
 				}
 			}
@@ -235,11 +241,38 @@ func TestSkillParityGuard(t *testing.T) {
 						sf.name, sf.path, a.label, a.anchor)
 				}
 			}
+
 			for _, a := range requiredRegexAnchors {
 				if !a.re.MatchString(content) {
 					t.Errorf("%s (%s) missing required regex anchor [%s]: %q",
 						sf.name, sf.path, a.label, a.re.String())
 				}
+			}
+
+		})
+	}
+}
+
+func containsExactCommand(content, command string) bool {
+	pattern := `(?:^|[^A-Za-z0-9_-])` + regexp.QuoteMeta(command) + `(?:$|[\s` + "`" + `])`
+	return regexp.MustCompile(pattern).MatchString(content)
+}
+
+func TestSkillRequiredCommandBoundarySensitivity(t *testing.T) {
+	for _, command := range []string{
+		"tpatch prepare",
+		"tpatch feature intent-archive list",
+		"tpatch feature intent-archive purge",
+	} {
+		t.Run(command, func(t *testing.T) {
+			if containsExactCommand("run "+command+"-suffix", command) {
+				t.Fatalf("suffix falsely satisfied exact command %q", command)
+			}
+			if containsExactCommand("run tpatch feature intent-archive --mode list", command) {
+				t.Fatalf("--mode form falsely satisfied exact command %q", command)
+			}
+			if !containsExactCommand("run `"+command+" <slug>` now", command) {
+				t.Fatalf("valid invocation did not satisfy exact command %q", command)
 			}
 		})
 	}

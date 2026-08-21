@@ -71,6 +71,11 @@ tpatch add --slug <clean-slug> "<short description>"
 # Optional read-only bundle check; it never advances state.
 tpatch prepare <slug> --check
 
+# Choose one adoption route.
+# Whole-bundle adoption (strict: all three documents must be non-empty):
+tpatch prepare <slug> --manual
+
+# Or preserve the per-phase transition trail (loose presence-only gates):
 tpatch analyze <slug> --manual
 tpatch define <slug> --manual
 tpatch explore <slug> --manual
@@ -85,6 +90,11 @@ tpatch land <slug>
 ```
 
 `tpatch prepare <slug> --check` exits 2 when the intent bundle is incomplete. That is a report result, not a workflow or system failure: the command wrote nothing, changed nothing, and the per-artifact rows say exactly what is missing. Author the missing files and re-run, or continue without it — this check is optional.
+
+Run either `prepare --manual` or the three per-phase manual commands, not both.
+The prepare form adopts the whole bundle in one step and is strict about
+non-empty documents; the phase forms preserve their existing loose
+presence-only behavior.
 
 `tpatch land` runs the record step, stages the feature path set plus
 feature metadata, creates one Git commit, and writes the `Tpatch-Feature`
@@ -227,6 +237,23 @@ Still true:
 - The phase order is real; use `--manual` to advance through it rather
   than skipping state.
 - Collision detection is there to prevent accidental broad captures.
+
+## Non-Git and unusable-Git workspaces
+
+The normal mutating prepare modes — default generate, `--manual`, and
+`--regenerate` — perform a Git privacy gate for their gitignored local
+transaction lane. When Git successfully establishes that the workspace is not
+a worktree, prepare proceeds without the lane gate and reports that the
+workspace is non-Git. When Git cannot execute or cannot classify the workspace,
+those modes refuse `local-lane-unverifiable` before writing. The existing
+per-phase `analyze|define|explore|implement --manual` commands are unchanged and
+remain the Path B route in that case.
+
+`prepare --abandon-transaction` is explicitly exempt: it runs no Git process
+and cannot emit a local-lane refusal.
+
+Archive `list` and both preview/confirmed `purge` run no Git process because
+they do not write the local transaction lane.
 
 ## What not to use tpatch for
 

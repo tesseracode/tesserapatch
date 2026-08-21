@@ -20,6 +20,9 @@ The #1 confusion, observed in live stress testing, is that users see many number
 │   ├── incremental.patch   ← (optional) delta between two post-apply snapshots
 │   ├── post-apply-diff.txt ← `git diff --stat` of the recorded patch
 │   ├── raw-*-response-*.txt← LLM raw responses for debugging
+│   ├── intent-archive/     ← (optional) prior intent bytes from regenerate
+│   │   ├── index.json      ← content-addressed generations and tombstones
+│   │   └── blobs/<sha256>.blob ← immutable while retained; removable by purge
 │   ├── resources.json      ← (optional) typed resource declarations
 │   └── resource-captures/  ← (optional) immutable resource capture set
 │       ├── batches/<batch_id>.json  ← one file per DISTINCT content
@@ -41,6 +44,74 @@ Legend: **★** = canonical; **←** = lifecycle / debug; anything under `patche
 readiness set. The JSON analysis sidecar is optional and is written by the
 CLI-driven analyze path, so its absence does not block readiness for a
 hand-authored Path B feature.
+
+The full `prepare` surface is optional and remains outside lifecycle phase
+ordering. Default generate fills only a dependency-coherent missing suffix,
+`--manual` adopts a complete hand-authored bundle, and `--regenerate` replaces
+the complete bundle while preserving eligible prior bytes in the intent
+archive. Regenerate requires a configured successful provider unless
+`--allow-heuristic` is explicit.
+
+## `artifacts/intent-archive/` — retained bytes, not feature truth
+
+Only `tpatch prepare <slug> --regenerate` can create this directory, and only
+when at least one existing intent artifact is replaced:
+
+```text
+artifacts/intent-archive/
+├── index.json
+└── blobs/
+    └── <64-lowercase-hex>.blob
+```
+
+Each blob is named by the SHA-256 of its exact prior bytes. Blob content is
+immutable while retained: identical content reuses the existing blob rather
+than rewriting it. Blobs are nevertheless removable through the purge command.
+`index.json` records content-addressed generations, retained references,
+removal-pending references, and tombstones. It is rewritten as one canonical
+JSON file; the directory is not a chronology.
+
+This archive is **never canonical patch, lifecycle, or provenance truth**. It
+does not identify an author, Path A/Path B, provider, or model, and it does not
+certify semantic quality. It is not a general history or undo facility. Its
+one purpose is exact byte recovery while a blob remains retained:
+
+```bash
+cp .tpatch/features/<slug>/artifacts/intent-archive/blobs/<hash>.blob \
+   .tpatch/features/<slug>/spec.md
+```
+
+Inspect and bound retention with:
+
+```bash
+tpatch feature intent-archive list <slug>
+tpatch feature intent-archive purge <slug> --blob <hash> --yes
+tpatch feature intent-archive purge <slug> --generation <generation-id> --yes
+tpatch feature intent-archive purge <slug> --orphans --yes
+tpatch feature intent-archive purge <slug> --all --yes
+```
+
+`purge` is preview-by-default; omit `--yes` to inspect the plan. Confirmed
+purges mark references removal-pending before removal and then tombstone them.
+An orphan is a blob with no live reference. A dangling retained reference has
+one tpatch repair: confirmed `--blob <hash> --yes`, which tombstones every
+reference to that absent hash without pretending the bytes were restored.
+Unsafe or hash-wrong managed objects require the exact report-listed manual
+prerequisite or restoration before a confirmed purge can proceed.
+
+Before archiving, prior bytes pass the shared redaction policy. A match refuses
+regeneration rather than retaining or scrubbing secret-shaped content; edit or
+move the material and retry. When `.tpatch/` is tracked, `tpatch land` stages
+the archive like other `artifacts/**` files. Once committed, deleting a blob
+from the current tree does not remove it from Git history. When `.tpatch/` is
+untracked, the archive does not survive a fresh clone and may be removed by
+`git clean -fd` or `git clean -xfd`.
+
+Transaction staging, journal, metadata preimages, and abandoned evidence live
+under gitignored `.tpatch/local/intent-prepare/<slug>/`, not in the archive.
+The journal is bounded undo evidence for one interrupted publication. If it is
+lost, ordinary partial canonical bytes cannot reliably prove that a transaction
+existed; the archive is not a substitute transaction log.
 
 ## Canonical vs. audit trail
 
