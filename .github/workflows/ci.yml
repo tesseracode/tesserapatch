@@ -70,10 +70,10 @@ jobs:
       # suite is blocking there and always has been.
       - name: Test
         if: runner.os != 'Windows'
-        run: go test ./... -count=1
+        run: go test ./... -count=1 -timeout 20m
 
       - name: Cross-compile S7 BSD CLI rows
-        if: runner.os == 'Linux'
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail

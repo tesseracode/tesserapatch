@@ -1,3 +1,11 @@
+## CI correction — prepare S7 AM–AO — 2026-08-21
+
+Run 32476007227 failed before AP dispatch: the S7 BSD cross-compile step used
+an AVP-175-invalid Linux-only condition, and macOS exceeded Go's default
+10-minute package timeout. The correction uses the accepted exact
+`runner.os != 'Windows'` condition and the already guard-pinned
+`go test ./... -count=1 -timeout 20m`. AP remains blocked pending green CI.
+
 ## Review — prepare S7 AM–AO rev-10 — 2026-08-21
 
 ### Verdict: APPROVED

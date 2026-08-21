@@ -551,6 +551,13 @@ AM15/AN23/AO16, I16/C20/G13/U4/S1, with no residual findings. AP is now the
 queue head. The accepted rev-16 contract is checkpointed at `cf324c0`; the
 reviewed implementation/test block is checkpointed at `fdf86cb`.
 
+Post-checkpoint CI [32476007227](https://github.com/tesseracode/tesserapatch/actions/runs/32476007227)
+failed before AP dispatch. The Linux-only BSD step violated AVP-175's closed
+step-condition grammar on all three legs, and macOS crossed Go's default
+10-minute package timeout. The bounded correction runs BSD cross-compiles on
+both non-Windows legs and restores the guard-pinned `-timeout 20m` full-suite
+command. AP remains blocked until corrected CI is green.
+
 The guarded classifier entry point now passes isolated full/race/vet plus all
 Linux, Darwin, Windows, FreeBSD, Plan9, JS and WASI compile gates. It is ready
 for a separate micro commit before the final S6 fixture.
@@ -673,7 +680,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AP**
+- **Status**: **In Progress — AM–AO CI correction; AP blocked**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship

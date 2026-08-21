@@ -1209,6 +1209,9 @@ remaining blocker is fail-open non-module-aware type loading that loses
 S7 AM–AO rev-10 is APPROVED: 54/173 exact rows (AM15/AN23/AO16;
 I16/C20/G13/U4/S1), checkpointed by `cf324c0` + `fdf86cb`. AP is active;
 AQ–AX follow sequentially.
+Post-checkpoint CI 32476007227 failed on the new Linux-only step violating
+AVP-175 and macOS's default 10-minute package timeout. AP is blocked while the
+non-Windows condition/20-minute timeout correction reruns.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
