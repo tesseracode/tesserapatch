@@ -2,7 +2,7 @@
 
 Correction `e6cabb0` passed CI 32544950471 on Ubuntu, macOS and Windows. AQ is
 durably closed; cumulative S7 coverage is 111/173. AR (`PIB-506…520`,
-I7/C4/G4) is dispatched sequentially; AS–AX remain blocked.
+I6/C4/G4/S1) is dispatched sequentially; AS–AX remain blocked.
 
 ## Review — prepare S7 AQ observer callsite binding — 2026-08-22
 

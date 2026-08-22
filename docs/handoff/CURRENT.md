@@ -2039,7 +2039,7 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Implement and review AR exactly (`PIB-506…520`, I7/C4/G4).
+1. Implement and review AR exactly (`PIB-506…520`, I6/C4/G4/S1).
 2. Then implement AS–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the
