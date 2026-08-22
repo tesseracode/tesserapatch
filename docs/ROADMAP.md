@@ -1294,6 +1294,12 @@ Nested payloads are covered; review found one dynamic shell-executable bypass
 (`"$BASH" -c ...`). AR remains blocked on fail-closed executable handling.
 Dynamic executables now fail closed and the complete frozen-source timeout
 correction is APPROVED; AR waits on the final CI rerun.
+CI 32543144792 passed Ubuntu/Windows; macOS exceeded only AQ's 4m inner
+observer cap at ~4m10s. AR remains blocked on a bounded AQ-only 8m/12m budget.
+AQ/AP tuple checks exist, but review found they are disconnected from actual
+call sites. AR remains blocked on a single-source category budget binding.
+Category-keyed call sites now derive from the validated AP/AQ budget table and
+the correction is APPROVED; AR waits on the final CI rerun.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

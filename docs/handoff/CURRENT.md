@@ -1106,6 +1106,42 @@ AR–AX remain blocked.
 The complete frozen-source/S7-timeout correction is APPROVED. AR remains
 blocked only on commit, push and a green three-platform CI rerun.
 
+CI [32543144792](https://github.com/tesseracode/tesserapatch/actions/runs/32543144792)
+passed Ubuntu and Windows; macOS failed only because AQ's four-minute inner
+observer cap expired at about 4m10s. The 40-minute suite budget worked and no
+AQ assertion failed. Only AQ's hosted observer budget requires a bounded
+8m-inner/12m-outer correction; AP and short wrong-input/reap deadlines stay
+unchanged. AR–AX remain blocked.
+
+The bounded AQ observer-budget correction is complete. AQ alone now uses a
+12-minute outer context and eight-minute hosted inner limit with the existing
+one-minute cleanup margin. AP remains exactly 8m/4m/1m, AM–AO and all
+wrong-input fixture deadlines are unchanged, and the hanging-process fixture
+remains three seconds. The budget guard pins both category tuples separately,
+requires finite positive limits, inner below outer-minus-cleanup, and both
+outers below CI's 40-minute package budget; global-replacement and
+wrong-category sensitivities bite. No workflow, frozen AVP source, production
+or AQ semantics changed. AR–AX remain blocked pending review and fresh CI.
+
+Review remains NEEDS REVISION because tuple checks are disconnected from the
+actual AP/AQ call sites; swapping their constants still passes. Observer calls
+and validation must derive from one category budget table or be source-bound
+to the exact category values.
+
+The bounded callsite-binding revision closes that finding. One category table
+now owns the AP and AQ outer, inner, cleanup and row-range values. Both public
+observer tests call one helper with an explicit category key; the helper
+validates the exact table and binds that key to the complete expected PIB row
+set before constructing either timeout. Cloned-table sensitivities reject
+swapped tuples, wrong values, missing/extra categories and the accidental
+global eight-minute replacement, while cross-category target sensitivities
+reject using the same key at both call sites. Wrong-input and three-second
+reap behavior remain unchanged. No workflow, frozen AVP source, production or
+AQ semantics changed; AR–AX remain blocked.
+
+The category-bound AQ observer correction is APPROVED. AR remains blocked
+only on commit, push and a green three-platform CI rerun.
+
 S7 AP rev-2 review remains NEEDS REVISION on seven concrete gaps:
 PIB-459 scans only dangling `case` bodies and misses alternatives in other
 inventoried declarations; PIB-468 injects divergence after a completed removal
@@ -1238,7 +1274,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AQ correction approved; AR blocked on CI**
+- **Status**: **In Progress — S7 AQ observer approved; AR blocked on CI**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -1564,6 +1600,12 @@ file, is the dispatch authority.
 - The bounded dynamic-executable S7 guard revision is test/tracking-only:
   `internal/cli/prepare_s7_ci_timeout_guard_test.go` and this handoff. Frozen
   AVP source, workflow commands and production behavior are unchanged.
+- The bounded AQ observer-budget correction is test/tracking-only:
+  `internal/cli/prepare_s7_registration_test.go` and this handoff. Workflow,
+  frozen AVP source and production behavior are unchanged.
+- The bounded observer-budget callsite-binding revision is test/tracking-only:
+  `internal/cli/prepare_s7_registration_test.go` and this handoff. Workflow,
+  frozen AVP source and production behavior are unchanged.
 
 ## Test Results
 
@@ -1968,10 +2010,31 @@ file, is the dispatch authority.
   `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
   with an empty diff against `cdcd665`. No full suite, race, CI, commit, push
   or AR–AX work was run.
+- Bounded AQ observer-budget correction — PASS. AQ observed registration
+  authority passes locally (53.218s). The complete wrong-input suite,
+  including separate AP/AQ tuple assertions, category/global-replacement
+  sensitivities and the unchanged three-second hanging-process reap fixture,
+  passes (4.920s); the AP budget leaf passes independently (0.354s). `go vet
+  ./internal/cli`, host `go build ./cmd/tpatch`, changed-file gofmt and
+  `git diff --check` pass. Workflow diff is empty; frozen AVP source remains
+  SHA-256
+  `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
+  with an empty diff against `cdcd665`. No full suite, race, CI, commit, push
+  or AR–AX work was run.
+- Bounded observer-budget callsite-binding revision — PASS. Both AP/AQ budget
+  leaves pass (0.342s); the complete wrong-input/budget/reap suite passes
+  (4.807s), including cloned-table and cross-category binding sensitivities.
+  AQ observed registration authority passes (54.152s). `go vet
+  ./internal/cli`, host `go build ./cmd/tpatch`, changed-file gofmt and
+  `git diff --check` pass. Workflow diff is empty; frozen AVP source remains
+  SHA-256
+  `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
+  with an empty diff against `cdcd665`. No full suite, race, CI, commit, push
+  or AR–AX work was run.
 
 ## Next Steps
 
-1. Commit/push the approved correction and require green blocking CI.
+1. Commit/push the approved observer correction and require green blocking CI.
 2. Then implement AR–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the

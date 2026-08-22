@@ -1,3 +1,35 @@
+## Review — prepare S7 AQ observer callsite binding — 2026-08-22
+
+### Verdict: APPROVED
+
+AP/AQ call sites derive from one validated category-keyed table; swapped,
+wrong, missing, extra and global-replacement variants fail. AP remains
+8m/4m/1m, AQ 12m/8m/1m and the short reap proof is unchanged.
+
+### Action Taken
+
+Correction accepted. AR remains blocked pending commit, push and green CI.
+
+## Review — prepare S7 AQ observer budget — 2026-08-22
+
+### Verdict: NEEDS REVISION
+
+The tuple guard does not validate actual AP/AQ call sites; swapping their
+constants still passes. Derive calls and assertions from one category budget
+table or source-bind exact category values.
+
+### Action Taken
+
+Bounded callsite-binding revision dispatched. AR–AX remain blocked.
+
+## CI correction — prepare S7 AQ observer budget — 2026-08-22
+
+CI 32543144792 passed Ubuntu and Windows. macOS failed only when AQ's
+four-minute inner observer cap expired at about 4m10s; the 40-minute suite
+budget worked and no AQ assertion failed. Correct AQ alone to 8m inner/12m
+outer; retain AP and all short wrong-input/reap deadlines. AR–AX remain
+blocked.
+
 ## Review — prepare S7 AQ dynamic-shell guard — 2026-08-22
 
 ### Verdict: APPROVED
