@@ -1,3 +1,22 @@
+## Review — prepare S7 AQ CI timeout correction — 2026-08-22
+
+### Verdict: APPROVED
+
+Only the blocking non-Windows suite moves to an exact finite 40-minute
+package timeout. Windows allowed-failure remains 20 minutes; AVP-175 pins both
+and retains all blocking/ownership sensitivities.
+
+### Action Taken
+
+Correction accepted. AR remains blocked pending commit, push and green CI.
+
+## CI correction — prepare S7 AQ — 2026-08-22
+
+CI 32539554233 passed Ubuntu and Windows. macOS reached the blocking
+`go test` 20-minute package deadline while the AQ observer was still
+progressing; no AQ assertion failed. A bounded guarded timeout increase is
+required for cumulative S7 runtime. AR–AX remain blocked.
+
 ## Review — prepare S7 AQ staged-source correction — 2026-08-21
 
 ### Verdict: APPROVED

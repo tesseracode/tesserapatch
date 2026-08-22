@@ -1278,6 +1278,11 @@ change shifted AP's exact `runPreparePublish` inventory hash, and PIB-485
 regenerate/CP3 needs deterministic provider success on the unchanged tree.
 The correction is APPROVED and AQ is checkpointed at `dc789f6`; cumulative S7
 remains 111/173 and AR waits on green blocking CI.
+CI 32539554233 is green on Ubuntu/Windows; macOS exhausted the blocking
+20-minute package deadline while the AQ observer was progressing. AR remains
+blocked on a guarded cumulative-S7 timeout correction.
+The exact 40-minute non-Windows / 20-minute Windows timeout correction is
+APPROVED; AR waits only on corrected blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

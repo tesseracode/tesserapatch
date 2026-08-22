@@ -1017,6 +1017,25 @@ pass with the exact AP inventory and hermetic PIB-485 retry. The reviewed AQ
 implementation/test block is checkpointed at `dc789f6`; AR remains blocked on
 tracking commit, push and green blocking CI.
 
+Post-checkpoint CI [32539554233](https://github.com/tesseracode/tesserapatch/actions/runs/32539554233)
+is green on Ubuntu and Windows but macOS hit the blocking suite's 20-minute
+package timeout while `TestS7ObservedAQRegistrationAuthority` was still
+progressing at 2m42s. No AQ assertion failed. The non-Windows blocking timeout
+needs a guarded bounded increase for cumulative S7 runtime; AR–AX remain
+blocked pending correction and fresh CI.
+
+The bounded AQ CI timeout correction is complete. Only the blocking
+non-Windows full-suite command now uses an exact finite 40-minute package
+timeout; the GH #17 Windows allowed-failure full suite remains at 20 minutes,
+and every targeted native gate is unchanged. AVP-175 pins both commands,
+continues to prove the non-Windows step is blocking, and has biting
+lowered/removed-timeout sensitivities with no-op detection for every mutation.
+No production or AP/AQ behavior changed. AR–AX remain blocked pending review,
+checkpoint, push and fresh blocking CI.
+
+The AQ CI timeout correction is APPROVED. AR remains blocked only on commit,
+push and a green three-platform rerun.
+
 S7 AP rev-2 review remains NEEDS REVISION on seven concrete gaps:
 PIB-459 scans only dangling `case` bodies and misses alternatives in other
 inventoried declarations; PIB-468 injects divergence after a completed removal
@@ -1149,7 +1168,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AQ checkpoint; AR blocked on CI**
+- **Status**: **In Progress — S7 AQ timeout approved; AR blocked on CI**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -1457,6 +1476,10 @@ file, is the dispatch authority.
   `internal/cli/prepare_s7_ap_dangling_test.go`,
   `internal/cli/prepare_s7_aq_recovery_test.go`, and this handoff. No production
   behavior changed beyond AQ's already accepted recovery-evidence-path delta.
+- The bounded AQ CI timeout correction is workflow/test/tracking-only:
+  `.github/workflows/ci.yml`,
+  `internal/intent/avp_guards_test.go`, and this handoff. No production or
+  AP/AQ behavior changed.
 
 ## Test Results
 
@@ -1811,10 +1834,17 @@ file, is the dispatch authority.
   ./internal/cli ./internal/intentlock`, host `go build ./cmd/tpatch`,
   changed-file gofmt and `git diff --check` pass. No race, CI, commit, push or
   AR–AX work was run.
+- Bounded AQ CI timeout correction — PASS. Focused AVP-175 guard and
+  cross-platform source half pass (0.433s and 0.238s); complete
+  `TestAVPGuards` plus `TestAVPWindowsSourceGuards` pass (5.599s); all S7
+  workflow guards pass (0.382s). The workflow parses as YAML. `go vet
+  ./internal/intent ./internal/cli`, host `go build ./cmd/tpatch`,
+  changed-file gofmt and `git diff --check` pass. No full suite, race, CI,
+  commit, push or AR–AX work was run.
 
 ## Next Steps
 
-1. Commit/push AQ tracking and require green blocking CI.
+1. Commit/push the approved timeout correction and require green blocking CI.
 2. Then implement AR–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the

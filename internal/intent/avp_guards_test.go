@@ -1653,6 +1653,17 @@ func registerPlatformGuards() {
 				{"windows-row-removed", strings.ReplaceAll(workflow, "windows-latest", "ubuntu-22.04")},
 				// The row survives but the job dies at formatting.
 				{"crlf-checkout-restored", strings.ReplaceAll(workflow, "core.autocrlf false", "core.autocrlf true")},
+				// The blocking non-Windows full suite must retain a finite
+				// hosted-runner budget with margin above the observed macOS
+				// 20-minute timeout.
+				{"blocking-full-suite-timeout-lowered",
+					strings.Replace(workflow,
+						"run: go test ./... -count=1 -timeout 40m",
+						"run: go test ./... -count=1 -timeout 20m", 1)},
+				{"blocking-full-suite-timeout-removed",
+					strings.Replace(workflow,
+						"run: go test ./... -count=1 -timeout 40m",
+						"run: go test ./... -count=1", 1)},
 				// The native rows move into the allowed-failure step.
 				{"intent-moved-to-allowed-failure",
 					strings.Replace(workflow, "run: go test ./... -count=1 -timeout 20m",
@@ -2140,18 +2151,27 @@ func checkCIWindowsGate(workflow string) error {
 		}
 	}
 
-	// The full suite stays blocking on ubuntu and macOS.
-	full := false
+	// The full suite stays blocking on ubuntu and macOS, with one exact finite
+	// package timeout. An absent/unbounded or shortened timeout can otherwise
+	// turn a progressing hosted run into a false timeout or an endless gate.
+	const nonWindowsFullSuite = "go test ./... -count=1 -timeout 40m"
+	full := 0
 	for _, step := range nonWindows {
 		if err := requireBlockingContinueOnError("non-Windows step", step.Name, step.ContinueOnError); err != nil {
 			return err
 		}
 		if strings.Contains(step.Run, "go test ./...") {
-			full = true
+			full++
+			if command := strings.TrimSpace(step.Run); command != nonWindowsFullSuite {
+				return fmt.Errorf(
+					"the blocking non-Windows full-suite command is %q, want exact finite command %q",
+					command, nonWindowsFullSuite,
+				)
+			}
 		}
 	}
-	if !full {
-		return errors.New("no blocking full-suite `go test ./...` step runs on the non-Windows legs")
+	if full != 1 {
+		return fmt.Errorf("blocking non-Windows full-suite step count = %d, want exactly 1", full)
 	}
 
 	// The native rows are proven only on a real Windows runner, so the
@@ -2185,6 +2205,13 @@ func checkCIWindowsGate(workflow string) error {
 	for _, step := range allowed {
 		if err := requireAllowedFailureContinueOnError(step.Name, step.ContinueOnError); err != nil {
 			return err
+		}
+		const windowsFullSuite = "go test ./... -count=1 -timeout 20m"
+		if command := strings.TrimSpace(step.Run); command != windowsFullSuite {
+			return fmt.Errorf(
+				"the GH #17 Windows allowed-failure command is %q, want exact finite command %q",
+				command, windowsFullSuite,
+			)
 		}
 		for _, pkg := range blockingWindowsPackages {
 			if strings.Contains(step.Run, pkg) {
