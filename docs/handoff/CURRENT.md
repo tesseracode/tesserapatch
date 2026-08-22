@@ -1142,6 +1142,11 @@ AQ semantics changed; AR–AX remain blocked.
 The category-bound AQ observer correction is APPROVED. AR remains blocked
 only on commit, push and a green three-platform CI rerun.
 
+Correction `e6cabb0` passed blocking CI
+[32544950471](https://github.com/tesseracode/tesserapatch/actions/runs/32544950471)
+on Ubuntu, macOS and Windows. AQ is durably closed at 23 rows; cumulative S7
+coverage is 111/173. AR is unblocked and active.
+
 S7 AP rev-2 review remains NEEDS REVISION on seven concrete gaps:
 PIB-459 scans only dangling `case` bodies and misses alternatives in other
 inventoried declarations; PIB-468 injects divergence after a completed removal
@@ -1274,7 +1279,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AQ observer approved; AR blocked on CI**
+- **Status**: **In Progress — S7 AR**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -2034,8 +2039,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit/push the approved observer correction and require green blocking CI.
-2. Then implement AR–AX, remaining sensitivities and the full 567 ledger from exact
+1. Implement and review AR exactly (`PIB-506…520`, I7/C4/G4).
+2. Then implement AS–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
