@@ -1283,6 +1283,17 @@ CI 32539554233 is green on Ubuntu/Windows; macOS exhausted the blocking
 blocked on a guarded cumulative-S7 timeout correction.
 The exact 40-minute non-Windows / 20-minute Windows timeout correction is
 APPROVED; AR waits only on corrected blocking CI.
+CI 32540987009 proved the budget but failed PIB-391 because frozen
+`avp_guards_test.go` changed. Restore it byte-identical and relocate timeout
+guards to S7-owned tests before AR.
+Frozen source is restored; review found one S7 parser bypass for
+flag-before-`./...` full-suite argv. AR remains blocked on that correction.
+Argv parsing is fixed; review found one remaining `bash`/`sh -c` nested-suite
+bypass. AR remains blocked on recursive/fail-closed shell handling.
+Nested payloads are covered; review found one dynamic shell-executable bypass
+(`"$BASH" -c ...`). AR remains blocked on fail-closed executable handling.
+Dynamic executables now fail closed and the complete frozen-source timeout
+correction is APPROVED; AR waits on the final CI rerun.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

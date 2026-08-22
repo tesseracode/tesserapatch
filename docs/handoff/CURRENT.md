@@ -1036,6 +1036,76 @@ checkpoint, push and fresh blocking CI.
 The AQ CI timeout correction is APPROVED. AR remains blocked only on commit,
 push and a green three-platform rerun.
 
+CI [32540987009](https://github.com/tesseracode/tesserapatch/actions/runs/32540987009)
+proved the 40-minute budget sufficient (macOS CLI completed in about 21
+minutes) but correctly failed PIB-391 because the correction modified frozen
+accepted source `internal/intent/avp_guards_test.go`. That file must be
+restored byte-for-byte; the exact 40m/20m timeout assertions and sensitivities
+must move to an S7-owned guard. Windows remained green. AR–AX stay blocked.
+
+The bounded frozen-source correction is complete.
+`internal/intent/avp_guards_test.go` is byte-identical to baseline `cdcd665`
+with SHA-256
+`60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
+and an empty baseline diff. The workflow retains 40 minutes only for the
+blocking non-Windows full suite and 20 minutes for the GH #17 Windows
+allowed-failure suite. A new S7-owned structural workflow guard pins exact
+step count, conditions, ownership and finite timeout commands; same-validator
+lower/remove/default/unbounded/swap/demote/narrow sensitivities all bite.
+No production or AQ behavior changed. AR–AX remain blocked pending review,
+checkpoint, push and fresh blocking CI.
+
+Review remains NEEDS REVISION on one S7 guard bypass: full-suite detection
+requires literal `go test ./...`, so a second invocation with flags before the
+package (`go test -count=1 -timeout 0 ./...`) is ignored. The guard must parse
+argv independent of flag order and reject every additional `./...` suite.
+
+The bounded S7 timeout-guard revision closes that bypass. Each workflow
+step's shell is tokenized into command argv with line continuations, basic
+quotes, assignment prefixes and `env` prefixes handled. Every `go test`
+invocation is inspected, and exact `./...` package arguments are recognized
+independently of flag order. The workflow must contain exactly the intended
+two full suites; extra blocking, advisory, unconditioned, package-first,
+package-last and env-prefixed forms all fail. Timeout parsing rejects absent,
+zero/unbounded, duplicate and wrong values before canonical command-order
+validation. Frozen AVP source remains byte-identical. No production or AQ
+behavior changed; AR–AX remain blocked.
+
+Review remains NEEDS REVISION on one nested-shell bypass:
+`bash -c 'go test -count=1 -timeout 0 ./...'` is seen only as a `bash`
+invocation. Literal `sh`/`bash -c` payloads must be recursively parsed, and
+opaque shell execution must fail closed.
+
+The bounded nested-shell revision closes that bypass. Explicit `sh`/`bash`
+command-mode invocations require exactly one statically literal payload and
+are recursively parsed under an eight-level depth limit plus active-payload
+cycle guard. Dynamic variables, command substitutions, extra payload argv and
+all opaque shell modes fail closed. Direct, env-prefixed and nested-nested
+full suites are included in the workflow-global count regardless of condition
+or advisory ownership. Frozen AVP source and the exact 40m/20m workflow
+commands remain unchanged. No production or AQ behavior changed; AR–AX remain
+blocked.
+
+Review remains NEEDS REVISION on one dynamic-executable bypass:
+`"$BASH" -c 'go test -timeout 0 ./...'` is ignored because the executable
+token is compared literally. A dynamic shell executable paired with command
+mode must fail closed.
+
+The bounded dynamic-executable revision closes that bypass. Shell tokens now
+retain dynamic construction provenance for parameter expansion, command
+substitution and backticks. An unresolved effective executable fails closed;
+the only admitted dynamic executable identities are the workflow's fixed
+`tpatch --version` smoke-test suffixes. Literal executables with dynamic
+arguments remain valid, and explicit GitHub step-level `shell:` configuration
+is never treated as command argv. Variable, `${...}`, `$()`, backtick and
+env-prefixed dynamic shell sensitivities all bite through the same validator.
+Nested recursion, workflow-global suite counting, exact 40m/20m commands and
+frozen AVP source remain unchanged. No production or AQ behavior changed;
+AR–AX remain blocked.
+
+The complete frozen-source/S7-timeout correction is APPROVED. AR remains
+blocked only on commit, push and a green three-platform CI rerun.
+
 S7 AP rev-2 review remains NEEDS REVISION on seven concrete gaps:
 PIB-459 scans only dangling `case` bodies and misses alternatives in other
 inventoried declarations; PIB-468 injects divergence after a completed removal
@@ -1168,7 +1238,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AQ timeout approved; AR blocked on CI**
+- **Status**: **In Progress — S7 AQ correction approved; AR blocked on CI**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -1480,6 +1550,20 @@ file, is the dispatch authority.
   `.github/workflows/ci.yml`,
   `internal/intent/avp_guards_test.go`, and this handoff. No production or
   AP/AQ behavior changed.
+- The bounded frozen-source correction restores
+  `internal/intent/avp_guards_test.go` exactly and moves timeout assertions to
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go`; the workflow and this
+  handoff are the only other relevant files. No production or AQ behavior
+  changed.
+- The bounded frozen-source S7 guard revision is test/tracking-only:
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go` and this handoff. Frozen
+  AVP source, workflow commands and production behavior are unchanged.
+- The bounded nested-shell S7 guard revision is test/tracking-only:
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go` and this handoff. Frozen
+  AVP source, workflow commands and production behavior are unchanged.
+- The bounded dynamic-executable S7 guard revision is test/tracking-only:
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go` and this handoff. Frozen
+  AVP source, workflow commands and production behavior are unchanged.
 
 ## Test Results
 
@@ -1841,10 +1925,53 @@ file, is the dispatch authority.
   ./internal/intent ./internal/cli`, host `go build ./cmd/tpatch`,
   changed-file gofmt and `git diff --check` pass. No full suite, race, CI,
   commit, push or AR–AX work was run.
+- Bounded AQ frozen-source correction — PASS. The complete
+  `TestPreparePIBPreChangeGoldens` parent, including
+  `PIB-391-routing-provenance-and-immutability`, passes (7.135s). Restored
+  `TestAVPGuards` plus `TestAVPWindowsSourceGuards` pass against the 40m
+  workflow (5.277s); the new structural S7 timeout guard and all sensitivities
+  pass (0.347s). Workflow YAML parsing, `go vet ./internal/intent
+  ./internal/cli`, host `go build ./cmd/tpatch`, changed-file gofmt and
+  `git diff --check` pass. Frozen source hash is
+  `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`,
+  and `git diff cdcd665 -- internal/intent/avp_guards_test.go` is empty. No
+  full suite, race, CI, commit, push or AR–AX work was run.
+- Bounded frozen-source S7 guard revision — PASS. The argv-aware timeout guard
+  and all same-validator sensitivities pass (0.355s). The complete
+  `TestPreparePIBPreChangeGoldens` parent, including PIB-391, passes (7.225s);
+  restored `TestAVPGuards` plus `TestAVPWindowsSourceGuards` pass (5.347s).
+  Workflow YAML parsing, `go vet ./internal/intent ./internal/cli`, host
+  `go build ./cmd/tpatch`, changed-file gofmt and `git diff --check` pass.
+  Frozen source remains SHA-256
+  `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
+  with an empty diff against `cdcd665`. No full suite, race, CI, commit, push
+  or AR–AX work was run.
+- Bounded nested-shell S7 guard revision — PASS. The recursive argv/shell
+  timeout guard and direct, env-prefixed, nested, nested-nested and dynamic
+  payload sensitivities pass (0.508s). The complete
+  `TestPreparePIBPreChangeGoldens` parent, including PIB-391, passes (7.127s);
+  restored `TestAVPGuards` plus `TestAVPWindowsSourceGuards` pass (5.141s).
+  Workflow YAML parsing, `go vet ./internal/intent ./internal/cli`, host
+  `go build ./cmd/tpatch`, changed-file gofmt and `git diff --check` pass.
+  Frozen source remains SHA-256
+  `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
+  with an empty diff against `cdcd665`. No full suite, race, CI, commit, push
+  or AR–AX work was run.
+- Bounded dynamic-executable S7 guard revision — PASS. Variable, parameter,
+  command-substitution, backtick and env-prefixed dynamic executable
+  sensitivities pass with the same validator (0.370s). The complete
+  `TestPreparePIBPreChangeGoldens` parent, including PIB-391, passes (7.030s);
+  restored `TestAVPGuards` plus `TestAVPWindowsSourceGuards` pass (5.141s).
+  Workflow YAML parsing, `go vet ./internal/intent ./internal/cli`, host
+  `go build ./cmd/tpatch`, changed-file gofmt and `git diff --check` pass.
+  Frozen source remains SHA-256
+  `60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38`
+  with an empty diff against `cdcd665`. No full suite, race, CI, commit, push
+  or AR–AX work was run.
 
 ## Next Steps
 
-1. Commit/push the approved timeout correction and require green blocking CI.
+1. Commit/push the approved correction and require green blocking CI.
 2. Then implement AR–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the

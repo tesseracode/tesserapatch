@@ -1,3 +1,61 @@
+## Review — prepare S7 AQ dynamic-shell guard — 2026-08-22
+
+### Verdict: APPROVED
+
+Dynamic shell executables fail closed; literal commands with dynamic arguments
+remain supported. Nested/global suite counting, 40m/20m budgets and the frozen
+PIB-391 source remain exact.
+
+### Action Taken
+
+Complete correction accepted. AR remains blocked pending commit, push and
+green CI.
+
+## Review — prepare S7 AQ nested-shell guard — 2026-08-22
+
+### Verdict: NEEDS REVISION
+
+`"$BASH" -c 'go test -timeout 0 ./...'` is ignored because the executable is
+dynamic rather than literal `bash`. Dynamic shell command-mode executables
+must fail closed.
+
+### Action Taken
+
+Bounded dynamic-executable revision dispatched. AR–AX remain blocked.
+
+## Review — prepare S7 AQ timeout argv guard — 2026-08-22
+
+### Verdict: NEEDS REVISION
+
+Argv ordering is covered, but an extra
+`bash -c 'go test -count=1 -timeout 0 ./...'` is opaque to the parser. Parse
+literal `sh`/`bash -c` payloads recursively or fail closed.
+
+### Action Taken
+
+Bounded nested-shell revision dispatched. AR–AX remain blocked.
+
+## Review — prepare S7 AQ frozen-source correction — 2026-08-22
+
+### Verdict: NEEDS REVISION
+
+The restore is correct, but the S7 timeout guard detects only literal
+`go test ./...`. A second `go test -count=1 -timeout 0 ./...` invocation is
+ignored. Parse argv/package targets independent of flag order and reject every
+additional full-suite invocation.
+
+### Action Taken
+
+Bounded guard revision dispatched. AR–AX remain blocked.
+
+## CI correction — prepare S7 AQ frozen source — 2026-08-22
+
+CI 32540987009 showed the 40-minute budget is sufficient: macOS completed the
+CLI package in about 21 minutes, and Windows stayed green. Ubuntu/macOS failed
+only PIB-391 because `internal/intent/avp_guards_test.go` is frozen accepted
+source. Restore it byte-for-byte and move exact timeout guards/sensitivities
+to S7-owned tests. AR–AX remain blocked.
+
 ## Review — prepare S7 AQ CI timeout correction — 2026-08-22
 
 ### Verdict: APPROVED
