@@ -1257,6 +1257,27 @@ The bounded mapping/budget correction is APPROVED; AP arithmetic remains
 Correction `3fd778b` is green on all three platforms in CI 32523687156,
 including native PIB-463. AP is durably closed at 88/173 cumulative rows; AQ
 (`PIB-483…505`, I13/C3/G7) is active.
+AQ rev-0 review remains NEEDS REVISION on exact post-recovery retry state,
+multi-hash pending effects, sole recovery returns, undo-CAS preservation,
+typed privacy flow, indirect Cobra mutexes, package-wide syscalls and
+sentence/cell-bound step semantics.
+AQ rev-1 review remains NEEDS REVISION on no-op retry acceptance, aliased
+post-recovery gates, all writer sinks, every GOOS source and clause-level step
+semantics within table cells.
+AQ rev-2 review remains NEEDS REVISION on observed mode-specific retry gates,
+recursive local-helper traversal, builtin output sinks, aliased syscalls/Fd and
+step-predicate polarity.
+AQ rev-3 review remains NEEDS REVISION on production assignments to the
+recovery hook and unresolved local-interface dispatch in output renderers.
+AQ rev-4 review remains NEEDS REVISION on receiver-flow resolution for
+interface implementations outside the fixed loaded-package subset.
+AQ rev-5 is APPROVED: 23 exact rows (`PIB-483…505`, I13/C3/G7). Cumulative S7
+coverage is 111/173; AR awaits the AQ checkpoint and green CI.
+Staged-source validation reopened the checkpoint: AQ's accepted production
+change shifted AP's exact `runPreparePublish` inventory hash, and PIB-485
+regenerate/CP3 needs deterministic provider success on the unchanged tree.
+The correction is APPROVED and AQ is checkpointed at `dc789f6`; cumulative S7
+remains 111/173 and AR waits on green blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

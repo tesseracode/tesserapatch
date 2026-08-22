@@ -1,3 +1,116 @@
+## Review — prepare S7 AQ staged-source correction — 2026-08-21
+
+### Verdict: APPROVED
+
+AP PIB-459's exact inventory now accepts only the reviewed AQ declaration
+delta. PIB-485 is provider/environment-hermetic and publishes from the exact
+post-recovery tree without byte mutation. Full CLI and intentlock pass.
+
+### Action Taken
+
+AQ checkpointed at `dc789f6`. AR remains blocked pending tracking commit, push
+and green CI.
+
+## Staged-source correction — prepare S7 AQ — 2026-08-21
+
+Serial full affected-package validation failed before commit. The accepted AQ
+production delta changed AP PIB-459's exact `runPreparePublish` declaration
+hash, and PIB-485 regenerate/CP3 rolled back on provider generation instead of
+publishing. AQ checkpointing is reopened for explicit AP inventory acceptance
+and deterministic provider-seam setup that does not mutate recovered bytes.
+AR–AX remain blocked.
+
+## Review — prepare S7 AQ rev-5 — 2026-08-21
+
+### Verdict: APPROVED
+
+AQ closes at 23 exact rows (`PIB-483…505`, I13/C3/G7) after five convergent
+revisions. All terminal recovery, purge precedence, abandon reachability,
+privacy/retry, flag grammar, descriptor discipline and step-reference findings
+are closed.
+
+### Action Taken
+
+AQ accepted; cumulative S7 is 111/173. AR remains blocked pending explicit
+staging, validation, push and green blocking CI.
+
+## Review — prepare S7 AQ rev-4 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Finding
+
+PIB-497 can miss imported module/external interface implementations because
+its candidate universe is a fixed loaded-package subset.
+
+### Action Taken
+
+AQ rev-5 dispatched to the existing sequential writer. AR–AX remain blocked.
+
+## Review — prepare S7 AQ rev-3 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-484/487 trusts `afterRecoveryComplete` without validating assignments.
+2. PIB-497 accepts unresolved local-interface dispatch.
+
+### Action Taken
+
+AQ rev-4 dispatched to the existing sequential writer. AR–AX remain blocked.
+
+## Review — prepare S7 AQ rev-2 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-485 can infer an operation attempt from refusal text alone.
+2. PIB-484/487 stops at trusted local helper names.
+3. PIB-497 permits builtin print/println sinks.
+4. PIB-504 misses aliased syscall and `File.Fd` calls.
+5. PIB-505 ignores semantic polarity in step predicates.
+
+### Action Taken
+
+AQ rev-3 dispatched to the existing sequential writer. AR–AX remain blocked.
+
+## Review — prepare S7 AQ rev-1 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-485 accepts an invalid exit-0 no-op retry.
+2. PIB-484/487 gate detection is alias-bypassable.
+3. PIB-497 omits non-`fmt` writer sinks.
+4. PIB-504 inventories only Linux/Darwin/Windows GOOS files.
+5. PIB-505 permits wrong same-cell step references.
+
+### Action Taken
+
+AQ rev-2 dispatched to the existing sequential writer. AR–AX remain blocked.
+
+## Review — prepare S7 AQ rev-0 — 2026-08-21
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. PIB-485 mutates recovered state before executing retry.
+2. PIB-486/491 do not assert exact multi-hash post-recovery inventories.
+3. PIB-487 permits additional recovery-branch returns.
+4. PIB-488 assumes undo-CAS preservation.
+5. PIB-497 trusts human-output identifiers by name.
+6. PIB-503 misses indirect Cobra mutex calls.
+7. PIB-504 does not inventory every typed package syscall.
+8. PIB-505 binds semantics to an ambiguous neighboring context window.
+
+### Action Taken
+
+AQ rev-1 dispatched to the existing sequential writer. AR–AX remain blocked.
+
 ## Supervisor — prepare S7 AQ dispatch — 2026-08-21
 
 Correction `3fd778b` passed CI 32523687156 on Ubuntu, macOS and Windows,

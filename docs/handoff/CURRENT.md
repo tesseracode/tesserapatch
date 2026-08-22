@@ -868,6 +868,155 @@ unblocked and active.
 Focused AP34, observer, workflow, vet/build/format and Windows cross-compile
 validation is green. Fresh review and blocking CI are required before AQ.
 
+S7 AQ is implemented in the worktree and awaits review. The manifest-derived
+block is exactly 23 rows (`PIB-483…505`) with I13/C3/G7; all 23 rows have
+nonempty exact body-sensitive targets and independent observed-execution
+correlations without weakening the accepted AM–AP partitions. Real fixtures
+cover CP3–CP7 terminal recovery for generate/manual/regenerate, J1–J10/CP9/
+undo-CAS recovery refusal, prepare-journal and purge-pending precedence,
+purge-owned terminal recovery, abandon gate/Git/residue behavior, flag
+grammar, absolute-root privacy and every required retry population. The seven
+G rows have biting same-validator mutations. One production gap proven by
+PIB-488 is corrected: recovery failures now append sanitized repo-relative
+journal, lane, canonical-feature and archive evidence locations while
+retaining the existing classifier and exit class. AR–AX remain blocked
+pending AQ review.
+
+S7 AQ rev-0 review remains NEEDS REVISION on eight exactness findings:
+PIB-485 mutates the recovered tree before retry; PIB-486/491 do not bound
+multi-hash effects exactly; PIB-487 permits extra recovery-branch returns;
+PIB-488 assumes undo-CAS preservation; PIB-497 trusts human-output identifiers
+by name; PIB-503 misses indirect Cobra mutex calls; PIB-504 does not inventory
+all package syscalls; and PIB-505 uses an ambiguous neighboring-text window.
+AR–AX remain blocked.
+
+S7 AQ rev-1 closes all eight rev-0 findings and is ready for review. PIB-485
+executes the emitted retry from the byte-exact post-recovery tree, proves the
+requested mode through argv/report/artifact evidence and rejects a second
+recovered result. PIB-486/491 use two pending hashes, five generations, a
+shared pending reference, a separate selector and an unrelated retained blob;
+they compare exact indexes and blob identities before running the selector
+retry separately. PIB-487 requires one recovery-success return after the
+completion seam and release. PIB-488 compares the complete `.tpatch` tree
+captured at the real undo-CAS injection seam. PIB-497 reuses AP's module-aware
+recursive report proof through the complete reachable human-renderer call
+graph. PIB-503 resolves Cobra method values, aliases, wrappers and callable
+parameters. PIB-504 type-checks every Linux, Darwin and Windows production
+file and closes the complete `Flock`/`Fstatfs`/`(*os.File).Fd` inventory.
+PIB-505 binds all 95 nonhistorical references to exact Markdown sentences,
+list items or table cells and to the mechanically parsed ordered step tables.
+The AQ23 I13/C3/G7 partition is unchanged; AR–AX remain blocked pending
+rev-1 review.
+
+S7 AQ rev-1 review remains NEEDS REVISION on five residuals: PIB-485 accepts
+an invalid exit-0 no-op retry; PIB-484/487 gate detection is alias-bypassable;
+PIB-497 omits non-`fmt` writer sinks; PIB-504 inventories only Linux/Darwin/
+Windows rather than every GOOS source; and PIB-505 still permits wrong
+same-cell step citations. AR–AX remain blocked.
+
+S7 AQ rev-2 closes all five rev-1 findings and is ready for review. PIB-485
+rejects `no-op` absolutely and uses three normative untouched-tree retries —
+generate/CP3, manual/CP4 and regenerate/CP7 — whose requested operation remains
+real. PIB-484/487 use a module-aware callable graph with a closed baseline
+inventory; direct gates, function and method-value aliases, wrappers,
+parameters, returned callables and unresolved calls all fail while the sole
+terminal return remains mandatory. PIB-497 starts at all three public emitters
+and follows the reachable human, quiet, JSON, stdout and stderr graph through
+fmt/io/writer methods, aliases and local helpers; uncontrolled JSON, global
+print, `io.WriteString`, `io.Copy` and `Writer.Write` all bite through AP476's
+recursive value proof. PIB-504 derives every GOOS from `go tool dist list`,
+evaluates every production file's build partition, requires union coverage
+with no skipped source and uses target exports wherever a syscall/Fd candidate
+exists. PIB-505 binds all 95 citations to their immediate punctuation-bounded
+semantic clause, validates the ordered-step predicate before the closed
+normalized clause-inventory hash, and rejects both real-wrong PIB-494
+citations despite `flock` elsewhere in the cell. AQ23 remains I13/C3/G7;
+AR–AX remain blocked pending rev-2 review.
+
+S7 AQ rev-2 review remains NEEDS REVISION on five semantic edges: PIB-485 can
+claim an operation attempt from refusal text without a mode-specific boundary;
+PIB-484/487 stops traversal at trusted local helper names; PIB-497 permits
+builtin `print`/`println`; PIB-504 misses syscall/Fd aliases; and PIB-505
+checks step keywords without required/forbidden polarity. AR–AX remain blocked.
+
+S7 AQ rev-3 closes those five findings and is ready for review. PIB-485 now
+uses real mode-specific retry fixtures and exact observed boundaries:
+generate reaches provider/staging/set-revalidation, manual reaches the named
+manual-status CAS seam, and regenerate reaches provider authority before its
+precise refusal; the same result without the boundary fails. PIB-484/487
+recursively traverse every reachable local helper and stop only at a closed
+external/stdlib leaf inventory. PIB-497 treats the exact builtin `print` and
+`println` objects as traced output sinks. PIB-504 follows typed syscall
+callables through values, assignments, parameters, wrappers and returns across
+every GOOS partition, while any `(*os.File).Fd` selection fails. PIB-505 binds
+the mechanically parsed canonical step definitions and every immediate
+citation clause by normalized exact hashes, so gate/action/order polarity
+reversals fail. AQ23 remains I13/C3/G7; AR–AX remain blocked pending review.
+
+S7 AQ rev-3 review remains NEEDS REVISION on two callgraph edges:
+PIB-484/487 trusts `afterRecoveryComplete` before validating production
+assignments/callback bodies, and PIB-497 silently accepts unresolved local
+interface dispatch absent from its function universe. AR–AX remain blocked.
+
+S7 AQ rev-4 closes both findings and is ready for review. PIB-484/487 now scan
+every non-test CLI production source, require the one exact nil `func()` seam
+declaration and reject every assignment, lvalue mutation or address escape;
+conditional, aliased and helper callback assignments bite while test-only
+assignments stay outside the production scan. PIB-497 now resolves typed local
+interface dispatch through all implementing value, pointer, embedded and
+generic method sets, recursively validates every concrete method body, rejects
+missing internal targets, and keeps external interface calls fail-closed
+unless they are exact classified leaves. Safe local implementations pass;
+`io.WriteString`, `Writer.Write`, builtin `println` and method-value alias
+sensitivities fail. AQ23 remains I13/C3/G7; AR–AX remain blocked pending
+rev-4 review.
+
+S7 AQ rev-4 review remains NEEDS REVISION on one interface edge: PIB-497
+enumerates implementations only from a fixed loaded-package subset and can
+miss imported module/external concrete receivers. AR–AX remain blocked.
+
+S7 AQ rev-5 closes that final interface edge and is ready for review. PIB-497
+now resolves the actual receiver value through assignments, composites,
+conversions, local constructors/returns and context-specific interface
+parameter bindings from each reachable callsite. Concrete methods come from a
+module-aware source graph whose local dependency closure is checked against an
+offline `go list -deps -mod=readonly` manifest; external exports use the
+existing `GOPROXY=off`/`GOSUMDB=off` importer. Only the resolved receiver
+implementations are traversed—never a guessed world subset—and every
+module-local method must have a loaded body. External or unresolved
+implementations fail closed except exact writer sinks whose output arguments
+are independently validated. Imported workflow implementations bite through
+direct, constructor/return and interface-parameter routes; an unavailable
+external implementation fails, while a selected safe module implementation
+passes. AQ23 remains I13/C3/G7; AR–AX remain blocked pending rev-5 review.
+
+S7 AQ rev-5 is APPROVED with no residual findings. AQ closes at 23/173 rows:
+PIB-483…505, I13/C3/G7. Cumulative S7 coverage is 111/173. AR remains blocked
+until the AQ checkpoint is staged, validated, pushed and green on blocking CI.
+
+Staged-source validation reopened the AQ checkpoint before commit. The
+accepted `prepare_publish.go` evidence-path change intentionally changes the
+AP PIB-459 exact declaration hash for `runPreparePublish`, so the accepted AP
+inventory required an explicit update. The full CLI package also proved
+PIB-485's regenerate/CP3 retry is provider-dependent and rolls back at exit 5;
+the test required deterministic provider behavior outside the byte-exact
+recovered tree and prove the unchanged retry publishes. AR–AX remain blocked.
+
+The bounded staged-source correction is complete. PIB-459's exact declaration
+inventory accepts only the reviewed `runPreparePublish` hash delta caused by
+AQ's recovery-evidence-path routing. PIB-485 now isolates provider
+configuration and process environment outside the recovered workspace, uses a
+deterministic in-memory provider for generate/regenerate, restores every
+global/environment value, and requires all three modes to publish through
+their observed operation boundaries with exact artifact dispositions. The
+complete uncached CLI package and intentlock package pass serially. No
+additional production behavior changed; AR–AX remain blocked.
+
+The staged-source correction is APPROVED. Full CLI and intentlock packages
+pass with the exact AP inventory and hermetic PIB-485 retry. The reviewed AQ
+implementation/test block is checkpointed at `dc789f6`; AR remains blocked on
+tracking commit, push and green blocking CI.
+
 S7 AP rev-2 review remains NEEDS REVISION on seven concrete gaps:
 PIB-459 scans only dangling `case` bodies and misses alternatives in other
 inventoried declarations; PIB-468 injects divergence after a completed removal
@@ -1000,7 +1149,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In Progress — S7 AQ**
+- **Status**: **In Progress — S7 AQ checkpoint; AR blocked on CI**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -1260,6 +1409,54 @@ file, is the dispatch authority.
   `internal/cli/prepare_s7_platform_guard_test.go`,
   `internal/cli/prepare_s7_registration_test.go`, and this handoff. No
   production file changed.
+- S7 AQ's bounded delta is in
+  `internal/cli/prepare_publish.go`,
+  `internal/cli/prepare_s7_aq_abandon_test.go`,
+  `internal/cli/prepare_s7_aq_docs_test.go`,
+  `internal/cli/prepare_s7_aq_flags_test.go`,
+  `internal/cli/prepare_s7_aq_ledger_test.go`,
+  `internal/cli/prepare_s7_aq_privacy_test.go`,
+  `internal/cli/prepare_s7_aq_purge_test.go`,
+  `internal/cli/prepare_s7_aq_recovery_test.go`,
+  `internal/cli/prepare_s7_aq_retry_test.go`,
+  `internal/cli/prepare_s7_registration_test.go`,
+  `internal/cli/prepare_s7_ap_git_test.go`,
+  `internal/cli/prepare_s7_ap_purge_test.go`,
+  `internal/intentlock/s7_aq_authority_test.go`, and this handoff. Production
+  changes are limited to the recovery-error evidence formatter and its call
+  site in `prepare_publish.go`.
+- S7 AQ rev-1 is test/tracking-only:
+  `internal/cli/prepare_s7_aq_docs_test.go`,
+  `internal/cli/prepare_s7_aq_flags_test.go`,
+  `internal/cli/prepare_s7_aq_privacy_test.go`,
+  `internal/cli/prepare_s7_aq_purge_test.go`,
+  `internal/cli/prepare_s7_aq_recovery_test.go`,
+  `internal/cli/prepare_s7_ap_git_test.go`,
+  `internal/intentlock/s7_aq_authority_test.go`, and this handoff. No
+  production behavior changed in rev-1.
+- S7 AQ rev-2 is test/tracking-only:
+  `internal/cli/prepare_s7_aq_docs_test.go`,
+  `internal/cli/prepare_s7_aq_privacy_test.go`,
+  `internal/cli/prepare_s7_aq_recovery_test.go`,
+  `internal/intentlock/s7_aq_authority_test.go`, and this handoff. No
+  production behavior changed in rev-2.
+- S7 AQ rev-3 is test/tracking-only:
+  `internal/cli/prepare_s7_aq_docs_test.go`,
+  `internal/cli/prepare_s7_aq_privacy_test.go`,
+  `internal/cli/prepare_s7_aq_recovery_test.go`,
+  `internal/intentlock/s7_aq_authority_test.go`, and this handoff. No
+  production behavior changed in rev-3.
+- S7 AQ rev-4 is test/tracking-only:
+  `internal/cli/prepare_s7_aq_privacy_test.go`,
+  `internal/cli/prepare_s7_aq_recovery_test.go`, and this handoff. No
+  production behavior changed in rev-4.
+- S7 AQ rev-5 is test/tracking-only:
+  `internal/cli/prepare_s7_aq_privacy_test.go` and this handoff. No production
+  behavior changed in rev-5.
+- The bounded AQ staged-source correction is test/tracking-only:
+  `internal/cli/prepare_s7_ap_dangling_test.go`,
+  `internal/cli/prepare_s7_aq_recovery_test.go`, and this handoff. No production
+  behavior changed beyond AQ's already accepted recovery-evidence-path delta.
 
 ## Test Results
 
@@ -1551,18 +1748,81 @@ file, is the dispatch authority.
   ./internal/cli`, host `go build ./cmd/tpatch`, gofmt and diff checks — PASS.
   Native Windows execution remains for blocking CI. No full suite, race, CI,
   commit, push or AQ–AX work was run.
+- S7 AQ focused tests — PASS: CLI 20.960s and intentlock 0.340s. AQ23 exact
+  ledger resolution is included; independent observed correlation — PASS
+  (23.655s). PIB-498's reused partial/dangling/corrupt/tombstone archive
+  targets and the affected AP PIB-476 privacy guard pass. `go vet
+  ./internal/cli ./internal/intentlock`, host `go build ./cmd/tpatch`,
+  changed-file gofmt and diff checks pass. CLI, intentlock and the command
+  cross-compile for Linux amd64, Windows amd64 and FreeBSD amd64. No full
+  suite, race, CI, commit, push or AR–AX work was run.
+- S7 AQ rev-1 focused CLI tests — PASS (22.317s), including AQ23 I13/C3/G7
+  ledger resolution and all seven biting G-row sensitivities. Independent AQ
+  observed correlation — PASS (24.949s). AQ intentlock guard — PASS (0.438s);
+  affected AP PIB-476 recursive report proof — PASS (6.048s).
+  `go vet ./internal/cli ./internal/intentlock`, host
+  `go build ./cmd/tpatch`, changed-file gofmt and `git diff --check` pass.
+  CLI, intentlock and `cmd/tpatch` cross-compile for Linux amd64, Windows
+  amd64 and FreeBSD amd64. No full suite, race, CI, commit, push or AR–AX work
+  was run.
+- S7 AQ rev-2 focused CLI tests — PASS (45.649s), including the unchanged
+  AQ23 I13/C3/G7 ledger and every G-row sensitivity. Independent AQ observed
+  correlation — PASS (56.882s). AQ intentlock — PASS (1.015s); affected AP
+  PIB-476 — PASS (11.600s). `go vet ./internal/cli ./internal/intentlock`,
+  host `go build ./cmd/tpatch`, changed-file gofmt, diff and cleanup checks
+  pass. CLI and intentlock test binaries cross-compile for Linux, Windows,
+  FreeBSD, OpenBSD, NetBSD and DragonFly amd64; `cmd/tpatch` cross-builds for
+  Linux, Windows and FreeBSD amd64. PIB-504 additionally type-checks every
+  GOOS partition derived from the installed Go target matrix. No full suite,
+  race, CI, commit, push or AR–AX work was run.
+- S7 AQ rev-3 focused CLI suite — PASS (53.015s), including the unchanged AQ23
+  I13/C3/G7 ledger; exact ledger re-audit — PASS (1.994s). Independent AQ
+  observed correlation — PASS (58.151s). AQ intentlock — PASS (1.100s);
+  affected AP PIB-476 — PASS (6.187s). `go vet
+  ./internal/cli ./internal/intentlock`, host `go build ./cmd/tpatch`,
+  changed-file gofmt, diff and cleanup checks pass. CLI and intentlock test
+  binaries cross-compile for Linux, Windows, FreeBSD, OpenBSD, NetBSD and
+  DragonFly amd64; `cmd/tpatch` cross-builds for Linux, Windows and FreeBSD
+  amd64. PIB-504 type-checks every GOOS partition mechanically derived from
+  the installed Go target matrix. No full suite, race, CI, commit, push or
+  AR–AX work was run.
+- S7 AQ rev-4 focused CLI suite — PASS (52.672s), including the unchanged AQ23
+  I13/C3/G7 ledger and both new biting guard families. Independent AQ observed
+  correlation — PASS (52.809s); affected AP PIB-476 — PASS (6.022s). `go vet
+  ./internal/cli`, host `go build ./cmd/tpatch`, changed-file gofmt, diff and
+  cleanup checks pass. CLI test binaries cross-compile for Linux, Windows,
+  FreeBSD, OpenBSD, NetBSD and DragonFly amd64; `cmd/tpatch` cross-builds for
+  Linux, Windows and FreeBSD amd64. No full suite, race, CI, commit, push or
+  AR–AX work was run.
+- S7 AQ rev-5 focused CLI suite — PASS (53.266s), including the unchanged AQ23
+  I13/C3/G7 ledger and the receiver-flow sensitivities. Independent AQ observed
+  correlation — PASS (56.691s); affected AP PIB-476 — PASS (6.163s). `go vet
+  ./internal/cli`, host `go build ./cmd/tpatch`, changed-file gofmt, diff and
+  cleanup checks pass. CLI test binaries cross-compile for Linux, Windows,
+  FreeBSD, OpenBSD, NetBSD and DragonFly amd64; `cmd/tpatch` cross-builds for
+  Linux, Windows and FreeBSD amd64. The renderer graph uses an offline
+  `go list -deps -mod=readonly` manifest with `GOPROXY=off` and `GOSUMDB=off`.
+  No full suite, race, CI, commit, push or AR–AX work was run.
+- Bounded AQ staged-source correction — PASS. Exact AP PIB-459 and AQ PIB-485
+  pass (0.725s and 1.528s); the complete AQ recovery suite passes (15.395s);
+  independent AQ observed correlation passes (55.896s). Serial uncached
+  package validation passes for `internal/cli` (605.805s with the required
+  20-minute package timeout) and `internal/intentlock` (1.447s). `go vet
+  ./internal/cli ./internal/intentlock`, host `go build ./cmd/tpatch`,
+  changed-file gofmt and `git diff --check` pass. No race, CI, commit, push or
+  AR–AX work was run.
 
 ## Next Steps
 
-1. Implement and review AQ exactly (`PIB-483…505`, I13/C3/G7).
-2. Then rebuild AR–AX, remaining sensitivities and the full 567 ledger from exact
+1. Commit/push AQ tracking and require green blocking CI.
+2. Then implement AR–AX, remaining sensitivities and the full 567 ledger from exact
    runtime/document observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- AQ–AX remain procedurally blocked until S7 AP receives a clean review.
+- AR–AX remain procedurally blocked until AQ is checkpointed and green in CI.
 
 ## Context for Next Agent
 
