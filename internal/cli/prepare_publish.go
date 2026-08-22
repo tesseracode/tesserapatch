@@ -682,7 +682,7 @@ func runPreparePublish(cmd *cobra.Command, rawSlug string, options prepareOption
 	transactionOptions := newPrepareIntentpubOptions()
 	recovery, recoveryErr := intentpub.Recover(authority, slug, transactionOptions)
 	if recoveryErr != nil {
-		report = prepareIntentpubFailure(report, recovery, recoveryErr)
+		report = prepareRecoveryIntentpubFailure(report, recovery, recoveryErr)
 		_ = release()
 		return emitPreparePublishReport(cmd, report, recovery.ExitClass)
 	}
@@ -2710,6 +2710,23 @@ func prepareIntentpubFailure(
 	} else {
 		report.Outcome = "recovery-refused"
 	}
+	return report
+}
+
+func prepareRecoveryIntentpubFailure(
+	report preparePublishReport,
+	result intentpub.Result,
+	err error,
+) preparePublishReport {
+	report = prepareIntentpubFailure(report, result, err)
+	if report.Refusal == nil {
+		return report
+	}
+	lane := ".tpatch/local/intent-prepare/" + report.Slug + "/"
+	feature := ".tpatch/features/" + report.Slug + "/"
+	report.Refusal.Message += " Preserved transaction evidence: " +
+		lane + " (including " + lane + "journal.json), and canonical/archive evidence under " +
+		feature + " (including " + feature + "artifacts/intent-archive/)."
 	return report
 }
 

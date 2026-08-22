@@ -101,6 +101,20 @@ func TestS7ObservedAPRegistrationAuthority(t *testing.T) {
 	}
 }
 
+func TestS7ObservedAQRegistrationAuthority(t *testing.T) {
+	targets := s7ObservedAQTargets(t)
+	if len(targets) != 23 {
+		t.Fatalf("observed AQ row targets = %d, want 23", len(targets))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
+	if err := validateS7ObservedRegistrationsWithHostedBudget(
+		ctx, avpRepoRoot(t), targets, 4*time.Minute, time.Minute,
+	); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 	t.Run("exact-regex-escaping", func(t *testing.T) {
 		pattern := s7ObservedTopLevelPattern([]string{
@@ -390,6 +404,26 @@ func s7ObservedAPTargets(t *testing.T) []s7ObservedRegistrationTarget {
 	return observed
 }
 
+func s7ObservedAQTargets(t *testing.T) []s7ObservedRegistrationTarget {
+	t.Helper()
+	rows := s7AQCoverageLedger(t)
+	observed := make([]s7ObservedRegistrationTarget, 0, len(rows))
+	seen := map[string]string{}
+	for _, row := range rows {
+		if len(row.targets) == 0 {
+			t.Fatalf("%s has no observed-registration candidate", row.id)
+		}
+		selected := row.targets[0]
+		key := s7ObservedTargetKey(selected)
+		if previous := seen[key]; previous != "" {
+			t.Fatalf("%s and %s share observed-registration target %s", previous, row.id, key)
+		}
+		seen[key] = row.id
+		observed = append(observed, s7ObservedRegistrationTarget{row: row.id, target: selected})
+	}
+	return observed
+}
+
 func s7PIB443ObservedLeaves(t *testing.T) []s7ObservedRegistrationTarget {
 	t.Helper()
 	for _, row := range s7AOCoverageLedger() {
@@ -479,6 +513,7 @@ func validateS7ObservedRegistrationsWithMutation(
 		if strings.Contains(forbidden, "CoverageLedger") ||
 			strings.Contains(forbidden, "ObservedAMThroughAORegistrationAuthority") ||
 			strings.Contains(forbidden, "ObservedAPRegistrationAuthority") ||
+			strings.Contains(forbidden, "ObservedAQRegistrationAuthority") ||
 			strings.Contains(forbidden, "ObservedRegistrationWrongInputs") {
 			return fmt.Errorf("observed-registration selection recurses into %s", forbidden)
 		}
@@ -495,8 +530,10 @@ func validateS7ObservedRegistrationsWithMutation(
 		"TestS7ANCoverageLedger",
 		"TestS7AOCoverageLedger",
 		"TestS7APCoverageLedger",
+		"TestS7AQCoverageLedger",
 		"TestS7ObservedAMThroughAORegistrationAuthority",
 		"TestS7ObservedAPRegistrationAuthority",
+		"TestS7ObservedAQRegistrationAuthority",
 	} {
 		if matched, _ := regexp.MatchString(pattern, excluded); matched {
 			return fmt.Errorf("observed-registration regex includes %s", excluded)

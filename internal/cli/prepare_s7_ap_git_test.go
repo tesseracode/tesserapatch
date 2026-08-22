@@ -1041,6 +1041,7 @@ func validateS7APReportFieldInventory(sources map[string]string) error {
 		"internal/cli/prepare_publish.go:prepareIntentpubFailure",
 		"internal/cli/prepare_publish.go:preparePlanActions",
 		"internal/cli/prepare_publish.go:prepareRawPreimageFailure",
+		"internal/cli/prepare_publish.go:prepareRecoveryIntentpubFailure",
 		"internal/cli/prepare_publish.go:prepareStagingFailure",
 		"internal/cli/prepare_publish.go:prepareStoreArchiveFailure",
 		"internal/cli/prepare_publish.go:prepareValidateArchiveSnapshot",
@@ -2381,6 +2382,7 @@ func s7APProvenExternalStringCall(
 		"strconv.Itoa",
 		"strings.Join",
 		"strings.ReplaceAll",
+		"strings.Split",
 		"strings.TrimPrefix",
 		"strings.TrimSpace",
 		"strings.TrimSuffix":
@@ -2511,7 +2513,17 @@ func s7APProvenRelativeSelector(receiver types.Type, field string) bool {
 		"github.com/tesseracode/tesserapatch/internal/cli.intentArchiveRepairPresentation.Retry",
 		"github.com/tesseracode/tesserapatch/internal/cli.intentArchiveRepairPresentation.RetryCWD":
 		return true
-	case "github.com/tesseracode/tesserapatch/internal/cli.prepareRecoveryReport.Retry":
+	case "github.com/tesseracode/tesserapatch/internal/cli.prepareRecoveryReport.Retry",
+		"github.com/tesseracode/tesserapatch/internal/cli.prepareRecoveryReport.RestoredEntries",
+		"github.com/tesseracode/tesserapatch/internal/cli.prepareArtifactReport.Path",
+		"github.com/tesseracode/tesserapatch/internal/cli.prepareActionReport.Path",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.CompletedHashes",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.PendingHash",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.RemainingHashes",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.Resume",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.Retry",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.RetryCWD",
+		"github.com/tesseracode/tesserapatch/internal/cli.preparePurgeProgressReport.State":
 		return true
 	case "github.com/tesseracode/tesserapatch/internal/intentlock.Error.Code",
 		"github.com/tesseracode/tesserapatch/internal/intentlock.Error.Class":

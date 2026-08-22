@@ -320,6 +320,8 @@ type s7APPartialPurgeObservation struct {
 	slug   string
 	hashes []string
 	code   int
+	stdout string
+	stderr string
 	report intentArchivePurgeReport
 	index  store.IntentArchiveIndex
 }
@@ -561,7 +563,8 @@ func s7APRunPartialPurge(t *testing.T) s7APPartialPurgeObservation {
 			code, stderr, hookCalls, report)
 	}
 	return s7APPartialPurgeObservation{
-		root: root, slug: slug, hashes: hashes, code: code, report: report, index: index,
+		root: root, slug: slug, hashes: hashes, code: code,
+		stdout: stdout, stderr: stderr, report: report, index: index,
 	}
 }
 

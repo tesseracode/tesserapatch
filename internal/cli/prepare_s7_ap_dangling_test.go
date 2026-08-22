@@ -568,6 +568,8 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 	return nil
 }
 
+// AQ's accepted recovery-evidence-path delta routes runPreparePublish recovery
+// errors through prepareRecoveryIntentpubFailure; it is the sole reviewed drift.
 var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:const:intentArchiveHistoryDisclosure":           "8360622adc2d49bf4dfa3467140f147d0c23d27093f10672161049d58fee33ba",
 	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveDivergence":              "1fbf0a05a9ac93018c1c07c07860403d2a19a101061d016ad44ccf3bddb5182d",
@@ -602,7 +604,7 @@ var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/prepare_publish.go:func:prepareValidateArchiveSnapshot":                   "7b24188ff4fc1747f558079b76fd9ff92259236bf91be5d841ae3ca2d4c7098d",
 	"internal/cli/prepare_publish.go:func:renderPrepareFeaturesIndex":                       "2d5d1b0ee19df24bd6cc6cb1081f7718b4e71fdd640ee2b17a579d39143d3a00",
 	"internal/cli/prepare_publish.go:func:runPrepareAbandon":                                "95f5bf69f4f66b172406f001541657a2dd94f546a7fc144ae301a333acdaaaf6",
-	"internal/cli/prepare_publish.go:func:runPreparePublish":                                "9e0b560147f39983d212e43473c9636256d27d1517e58ef90292a1eec999bcbf",
+	"internal/cli/prepare_publish.go:func:runPreparePublish":                                "565275caf220cbb7b43af2edb5e321ae7fb979736f67b1d64fbccb38ed6af876",
 	"internal/cli/prepare_publish.go:func:writePreparePublishHuman":                         "1f92259db76bdb11482e0853b12d534bc6c9b1be6e4f72b75ebedf6ac32dd038",
 	"internal/workflow/doctor_d9.go:func:doctorD9ArchiveClassFinding":                       "38a3b8c708fdfe6b9ba4fcd41a354a40f808eea93355fb58cd6e7c320912caf2",
 	"internal/workflow/doctor_d9.go:func:doctorD9ArchiveClassRemediation":                   "746e01d9e0b605a2908269565c6b1745e3d7b802cd294acb4d304170c1115634",
