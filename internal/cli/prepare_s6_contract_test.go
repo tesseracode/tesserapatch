@@ -27511,7 +27511,7 @@ func s6CloneFieldBindings(
 ) map[string][]ast.Expr {
 	clone := make(map[string][]ast.Expr, len(source))
 	for field, values := range source {
-		clone[field] = append([]ast.Expr(nil), values...)
+		clone[field] = s6ShareExpressionDomain(values)
 	}
 	return clone
 }
@@ -33218,28 +33218,138 @@ func s6FunctionBindingsAfterReturnWithModel(
 	return s6MergeReachingBindings(states...)
 }
 
-func s6NewReachingBindings() *s6ReachingBindings {
+func TestS6ReachingBindingsCloneSensitivity(t *testing.T) {
+	object := &ast.Object{Kind: ast.Var, Name: "result"}
+	call := &ast.CallExpr{Fun: ast.NewIdent("produce")}
+	source := s6NewReachingBindings()
+	first := ast.Expr(ast.NewIdent("first"))
+	second := ast.Expr(ast.NewIdent("second"))
+	domain := make([]ast.Expr, 1, 2)
+	domain[0] = first
+	source.byName["result"] = domain
+	source.tupleByName["result"] = []s6TupleCallPosition{{
+		call: call, position: 1,
+	}}
+	source.tupleByObj[object] = []s6TupleCallPosition{{
+		call: call, position: 1,
+	}}
+
+	cloned := s6CloneReachingBindings(source)
+	if len(cloned.tupleByName["result"]) != 1 ||
+		len(cloned.tupleByObj[object]) != 1 {
+		t.Fatal("tuple bindings were not cloned independently of field bindings")
+	}
+	if &cloned.byName["result"][0] != &source.byName["result"][0] ||
+		cap(cloned.byName["result"]) != len(cloned.byName["result"]) {
+		t.Fatal("immutable expression domain was not cap-clamped and shared")
+	}
+	cloned.byName["result"] = s6AppendUniqueExpressions(
+		cloned.byName["result"], second,
+	)
+	if len(source.byName["result"]) != 1 ||
+		source.byName["result"][0] != first {
+		t.Fatal("expression-domain append mutated shared source state")
+	}
+	cloned.tupleByName["result"][0].position = 2
+	cloned.tupleByObj[object][0].position = 2
+	if source.tupleByName["result"][0].position != 1 ||
+		source.tupleByObj[object][0].position != 1 {
+		t.Fatal("tuple binding clone shares mutable slice storage")
+	}
+}
+
+func s6ShareExpressionDomain(values []ast.Expr) []ast.Expr {
+	if len(values) == 0 {
+		return nil
+	}
+	// Expression domains are immutable; clamp capacity so appends copy on write.
+	return values[:len(values):len(values)]
+}
+
+type s6ReachingBindingsCapacity struct {
+	byName           int
+	byObject         int
+	globalByKey      int
+	globalAliases    int
+	fieldsByName     int
+	fieldsByObj      int
+	tupleByName      int
+	tupleByObj       int
+	channelSends     int
+	channelQueues    int
+	onceStates       int
+	onceMethods      int
+	concurrentByName int
+	concurrentByObj  int
+	pendingPanics    int
+}
+
+func (capacity *s6ReachingBindingsCapacity) include(
+	source *s6ReachingBindings,
+) {
+	if source == nil {
+		return
+	}
+	capacity.byName = max(capacity.byName, len(source.byName))
+	capacity.byObject = max(capacity.byObject, len(source.byObject))
+	capacity.globalByKey = max(capacity.globalByKey, len(source.globalByKey))
+	capacity.globalAliases = max(
+		capacity.globalAliases, len(source.globalAliases),
+	)
+	capacity.fieldsByName = max(
+		capacity.fieldsByName, len(source.fieldsByName),
+	)
+	capacity.fieldsByObj = max(
+		capacity.fieldsByObj, len(source.fieldsByObj),
+	)
+	capacity.tupleByName = max(capacity.tupleByName, len(source.tupleByName))
+	capacity.tupleByObj = max(capacity.tupleByObj, len(source.tupleByObj))
+	capacity.channelSends = max(capacity.channelSends, len(source.channelSends))
+	capacity.channelQueues = max(
+		capacity.channelQueues, len(source.channelQueues),
+	)
+	capacity.onceStates = max(capacity.onceStates, len(source.onceStates))
+	capacity.onceMethods = max(capacity.onceMethods, len(source.onceMethods))
+	capacity.concurrentByName = max(
+		capacity.concurrentByName, len(source.concurrentByName),
+	)
+	capacity.concurrentByObj = max(
+		capacity.concurrentByObj, len(source.concurrentByObj),
+	)
+	capacity.pendingPanics += len(source.pendingPanics)
+}
+
+func s6NewReachingBindingsWithCapacity(
+	capacity s6ReachingBindingsCapacity,
+) *s6ReachingBindings {
 	return &s6ReachingBindings{
-		byName:           map[string][]ast.Expr{},
-		byObject:         map[*ast.Object][]ast.Expr{},
-		globalByKey:      map[string][]ast.Expr{},
-		globalAliases:    map[string]map[string]bool{},
-		fieldsByName:     map[string]map[string][]ast.Expr{},
-		fieldsByObj:      map[*ast.Object]map[string][]ast.Expr{},
-		tupleByName:      map[string][]s6TupleCallPosition{},
-		tupleByObj:       map[*ast.Object][]s6TupleCallPosition{},
-		channelSends:     map[ast.Node][]ast.Expr{},
-		channelQueues:    map[ast.Node]s6ChannelQueue{},
-		onceStates:       map[string]s6OnceState{},
-		onceMethods:      map[string]s6OnceMethodValue{},
-		concurrentByName: map[string]bool{},
-		concurrentByObj:  map[*ast.Object]bool{},
+		byName:           make(map[string][]ast.Expr, capacity.byName),
+		byObject:         make(map[*ast.Object][]ast.Expr, capacity.byObject),
+		globalByKey:      make(map[string][]ast.Expr, capacity.globalByKey),
+		globalAliases:    make(map[string]map[string]bool, capacity.globalAliases),
+		fieldsByName:     make(map[string]map[string][]ast.Expr, capacity.fieldsByName),
+		fieldsByObj:      make(map[*ast.Object]map[string][]ast.Expr, capacity.fieldsByObj),
+		tupleByName:      make(map[string][]s6TupleCallPosition, capacity.tupleByName),
+		tupleByObj:       make(map[*ast.Object][]s6TupleCallPosition, capacity.tupleByObj),
+		channelSends:     make(map[ast.Node][]ast.Expr, capacity.channelSends),
+		channelQueues:    make(map[ast.Node]s6ChannelQueue, capacity.channelQueues),
+		onceStates:       make(map[string]s6OnceState, capacity.onceStates),
+		onceMethods:      make(map[string]s6OnceMethodValue, capacity.onceMethods),
+		concurrentByName: make(map[string]bool, capacity.concurrentByName),
+		concurrentByObj:  make(map[*ast.Object]bool, capacity.concurrentByObj),
+		pendingPanics:    make([]*s6ReachingBindings, 0, capacity.pendingPanics),
 		reachable:        true,
 	}
 }
 
+func s6NewReachingBindings() *s6ReachingBindings {
+	return s6NewReachingBindingsWithCapacity(s6ReachingBindingsCapacity{})
+}
+
 func s6CloneReachingBindings(source *s6ReachingBindings) *s6ReachingBindings {
-	clone := s6NewReachingBindings()
+	capacity := s6ReachingBindingsCapacity{}
+	capacity.include(source)
+	clone := s6NewReachingBindingsWithCapacity(capacity)
 	clone.analysisErr = source.analysisErr
 	clone.reachable = source.reachable
 	clone.panicking = source.panicking
@@ -33252,22 +33362,22 @@ func s6CloneReachingBindings(source *s6ReachingBindings) *s6ReachingBindings {
 		clone.pendingPanics = append(clone.pendingPanics, cloned)
 	}
 	for name, values := range source.byName {
-		clone.byName[name] = append([]ast.Expr(nil), values...)
+		clone.byName[name] = s6ShareExpressionDomain(values)
 	}
 	for object, values := range source.byObject {
-		clone.byObject[object] = append([]ast.Expr(nil), values...)
+		clone.byObject[object] = s6ShareExpressionDomain(values)
 	}
 	for key, values := range source.globalByKey {
-		clone.globalByKey[key] = append([]ast.Expr(nil), values...)
+		clone.globalByKey[key] = s6ShareExpressionDomain(values)
 	}
 	for key, aliases := range source.globalAliases {
-		clone.globalAliases[key] = map[string]bool{}
+		clone.globalAliases[key] = make(map[string]bool, len(aliases))
 		for alias := range aliases {
 			clone.globalAliases[key][alias] = true
 		}
 	}
 	for channel, values := range source.channelSends {
-		clone.channelSends[channel] = append([]ast.Expr(nil), values...)
+		clone.channelSends[channel] = s6ShareExpressionDomain(values)
 	}
 	for channel, queue := range source.channelQueues {
 		clone.channelQueues[channel] = s6CloneChannelQueue(queue)
@@ -33279,22 +33389,22 @@ func s6CloneReachingBindings(source *s6ReachingBindings) *s6ReachingBindings {
 		clone.onceMethods[key] = s6CloneOnceMethodValue(method)
 	}
 	for name, fields := range source.fieldsByName {
-		clone.fieldsByName[name] = map[string][]ast.Expr{}
+		clone.fieldsByName[name] = make(map[string][]ast.Expr, len(fields))
 		for field, values := range fields {
-			clone.fieldsByName[name][field] = append([]ast.Expr(nil), values...)
+			clone.fieldsByName[name][field] = s6ShareExpressionDomain(values)
 		}
 	}
 	for object, fields := range source.fieldsByObj {
-		clone.fieldsByObj[object] = map[string][]ast.Expr{}
+		clone.fieldsByObj[object] = make(map[string][]ast.Expr, len(fields))
 		for field, values := range fields {
-			clone.fieldsByObj[object][field] = append([]ast.Expr(nil), values...)
+			clone.fieldsByObj[object][field] = s6ShareExpressionDomain(values)
 		}
-		for name, tuples := range source.tupleByName {
-			clone.tupleByName[name] = append([]s6TupleCallPosition(nil), tuples...)
-		}
-		for object, tuples := range source.tupleByObj {
-			clone.tupleByObj[object] = append([]s6TupleCallPosition(nil), tuples...)
-		}
+	}
+	for name, tuples := range source.tupleByName {
+		clone.tupleByName[name] = append([]s6TupleCallPosition(nil), tuples...)
+	}
+	for object, tuples := range source.tupleByObj {
+		clone.tupleByObj[object] = append([]s6TupleCallPosition(nil), tuples...)
 	}
 	for name := range source.concurrentByName {
 		clone.concurrentByName[name] = true
@@ -33306,7 +33416,11 @@ func s6CloneReachingBindings(source *s6ReachingBindings) *s6ReachingBindings {
 }
 
 func s6MergeReachingBindings(states ...*s6ReachingBindings) *s6ReachingBindings {
-	merged := s6NewReachingBindings()
+	capacity := s6ReachingBindingsCapacity{}
+	for _, state := range states {
+		capacity.include(state)
+	}
+	merged := s6NewReachingBindingsWithCapacity(capacity)
 	merged.reachable = false
 	allPanicking := true
 	sawReachable := false
@@ -33366,7 +33480,7 @@ func s6MergeReachingBindings(states ...*s6ReachingBindings) *s6ReachingBindings 
 		}
 		for key, aliases := range state.globalAliases {
 			if merged.globalAliases[key] == nil {
-				merged.globalAliases[key] = map[string]bool{}
+				merged.globalAliases[key] = make(map[string]bool, len(aliases))
 			}
 			for alias := range aliases {
 				merged.globalAliases[key][alias] = true
@@ -33388,7 +33502,9 @@ func s6MergeReachingBindings(states ...*s6ReachingBindings) *s6ReachingBindings 
 		}
 		for name, fields := range state.fieldsByName {
 			if merged.fieldsByName[name] == nil {
-				merged.fieldsByName[name] = map[string][]ast.Expr{}
+				merged.fieldsByName[name] = make(
+					map[string][]ast.Expr, len(fields),
+				)
 			}
 			for field, values := range fields {
 				merged.fieldsByName[name][field] = s6AppendUniqueExpressions(
@@ -33398,7 +33514,9 @@ func s6MergeReachingBindings(states ...*s6ReachingBindings) *s6ReachingBindings 
 		}
 		for object, fields := range state.fieldsByObj {
 			if merged.fieldsByObj[object] == nil {
-				merged.fieldsByObj[object] = map[string][]ast.Expr{}
+				merged.fieldsByObj[object] = make(
+					map[string][]ast.Expr, len(fields),
+				)
 			}
 			for field, values := range fields {
 				merged.fieldsByObj[object][field] = s6AppendUniqueExpressions(
@@ -33431,7 +33549,7 @@ func s6MergeReachingBindings(states ...*s6ReachingBindings) *s6ReachingBindings 
 			"conditional panic reaches guarded flow",
 		)
 	}
-	onceIdentities := map[string]bool{}
+	onceIdentities := make(map[string]bool, capacity.onceStates)
 	for _, state := range reachableStates {
 		for identity := range state.onceStates {
 			onceIdentities[identity] = true
@@ -33455,7 +33573,7 @@ func s6MergeReachingBindings(states ...*s6ReachingBindings) *s6ReachingBindings 
 			merged.onceStates[identity] = status
 		}
 	}
-	methodKeys := map[string]bool{}
+	methodKeys := make(map[string]bool, capacity.onceMethods)
 	for _, state := range reachableStates {
 		for key := range state.onceMethods {
 			methodKeys[key] = true

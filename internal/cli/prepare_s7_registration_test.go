@@ -92,6 +92,7 @@ type s7ObservedCategory string
 const (
 	s7ObservedCategoryAP     s7ObservedCategory = "AP"
 	s7ObservedCategoryAQ     s7ObservedCategory = "AQ"
+	s7ObservedCategoryAR     s7ObservedCategory = "AR"
 	s7ObservedCIPackageLimit                    = 40 * time.Minute
 )
 
@@ -111,6 +112,10 @@ var s7ObservedHostedBudgets = map[s7ObservedCategory]s7ObservedHostedBudget{
 	s7ObservedCategoryAQ: {
 		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
 		first: 483, last: 505,
+	},
+	s7ObservedCategoryAR: {
+		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
+		first: 506, last: 520,
 	},
 }
 
@@ -139,6 +144,10 @@ func validateS7ObservedHostedBudgets(
 		s7ObservedCategoryAQ: {
 			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
 			first: 483, last: 505,
+		},
+		s7ObservedCategoryAR: {
+			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
+			first: 506, last: 520,
 		},
 	}
 	if len(budgets) != len(want) {
@@ -178,6 +187,10 @@ func TestS7ObservedAPRegistrationAuthority(t *testing.T) {
 
 func TestS7ObservedAQRegistrationAuthority(t *testing.T) {
 	runS7ObservedCategory(t, s7ObservedCategoryAQ, s7ObservedAQTargets(t))
+}
+
+func TestS7ObservedARRegistrationAuthority(t *testing.T) {
+	runS7ObservedCategory(t, s7ObservedCategoryAR, s7ObservedARTargets(t))
 }
 
 func runS7ObservedCategory(
@@ -284,6 +297,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 		for _, category := range []s7ObservedCategory{
 			s7ObservedCategoryAP,
 			s7ObservedCategoryAQ,
+			s7ObservedCategoryAR,
 		} {
 			budget := s7ObservedHostedBudgets[category]
 			t.Run(string(category), func(t *testing.T) {
@@ -325,11 +339,51 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				},
 			},
 			{
+				name: "ar-range-swapped-with-ap",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ap := budgets[s7ObservedCategoryAP]
+					budgets[s7ObservedCategoryAP] = budgets[s7ObservedCategoryAR]
+					budgets[s7ObservedCategoryAR] = ap
+				},
+			},
+			{
 				name: "wrong-value",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					aq := budgets[s7ObservedCategoryAQ]
 					aq.inner = 7 * time.Minute
 					budgets[s7ObservedCategoryAQ] = aq
+				},
+			},
+			{
+				name: "wrong-ar-range",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ar := budgets[s7ObservedCategoryAR]
+					ar.first = 505
+					budgets[s7ObservedCategoryAR] = ar
+				},
+			},
+			{
+				name: "wrong-ar-outer-only",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ar := budgets[s7ObservedCategoryAR]
+					ar.outer = 11 * time.Minute
+					budgets[s7ObservedCategoryAR] = ar
+				},
+			},
+			{
+				name: "wrong-ar-inner-only",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ar := budgets[s7ObservedCategoryAR]
+					ar.inner = 7 * time.Minute
+					budgets[s7ObservedCategoryAR] = ar
+				},
+			},
+			{
+				name: "wrong-ar-cleanup-only",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ar := budgets[s7ObservedCategoryAR]
+					ar.cleanup = 2 * time.Minute
+					budgets[s7ObservedCategoryAR] = ar
 				},
 			},
 			{
@@ -339,11 +393,17 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				},
 			},
 			{
+				name: "missing-ar-category",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					delete(budgets, s7ObservedCategoryAR)
+				},
+			},
+			{
 				name: "extra-category",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
-					budgets["AR"] = s7ObservedHostedBudget{
+					budgets["AS"] = s7ObservedHostedBudget{
 						outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
-						first: 506, last: 520,
+						first: 521, last: 532,
 					}
 				},
 			},
@@ -372,6 +432,13 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				s7ObservedAPTargets(t),
 			); err == nil {
 				t.Fatal("AQ category key accepted AP observer targets")
+			}
+			if err := validateS7ObservedCategoryTargets(
+				s7ObservedCategoryAR,
+				s7ObservedHostedBudgets[s7ObservedCategoryAR],
+				s7ObservedAQTargets(t),
+			); err == nil {
+				t.Fatal("AR category key accepted AQ observer targets")
 			}
 		})
 	})
@@ -626,6 +693,26 @@ func s7ObservedAQTargets(t *testing.T) []s7ObservedRegistrationTarget {
 	return observed
 }
 
+func s7ObservedARTargets(t *testing.T) []s7ObservedRegistrationTarget {
+	t.Helper()
+	rows := s7ARCoverageLedger(t)
+	observed := make([]s7ObservedRegistrationTarget, 0, len(rows))
+	seen := map[string]string{}
+	for _, row := range rows {
+		if len(row.targets) == 0 {
+			t.Fatalf("%s has no observed-registration candidate", row.id)
+		}
+		selected := row.targets[0]
+		key := s7ObservedTargetKey(selected)
+		if previous := seen[key]; previous != "" {
+			t.Fatalf("%s and %s share observed-registration target %s", previous, row.id, key)
+		}
+		seen[key] = row.id
+		observed = append(observed, s7ObservedRegistrationTarget{row: row.id, target: selected})
+	}
+	return observed
+}
+
 func s7PIB443ObservedLeaves(t *testing.T) []s7ObservedRegistrationTarget {
 	t.Helper()
 	for _, row := range s7AOCoverageLedger() {
@@ -716,6 +803,7 @@ func validateS7ObservedRegistrationsWithMutation(
 			strings.Contains(forbidden, "ObservedAMThroughAORegistrationAuthority") ||
 			strings.Contains(forbidden, "ObservedAPRegistrationAuthority") ||
 			strings.Contains(forbidden, "ObservedAQRegistrationAuthority") ||
+			strings.Contains(forbidden, "ObservedARRegistrationAuthority") ||
 			strings.Contains(forbidden, "ObservedRegistrationWrongInputs") {
 			return fmt.Errorf("observed-registration selection recurses into %s", forbidden)
 		}
@@ -733,9 +821,11 @@ func validateS7ObservedRegistrationsWithMutation(
 		"TestS7AOCoverageLedger",
 		"TestS7APCoverageLedger",
 		"TestS7AQCoverageLedger",
+		"TestS7ARCoverageLedger",
 		"TestS7ObservedAMThroughAORegistrationAuthority",
 		"TestS7ObservedAPRegistrationAuthority",
 		"TestS7ObservedAQRegistrationAuthority",
+		"TestS7ObservedARRegistrationAuthority",
 	} {
 		if matched, _ := regexp.MatchString(pattern, excluded); matched {
 			return fmt.Errorf("observed-registration regex includes %s", excluded)

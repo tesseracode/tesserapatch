@@ -1496,7 +1496,7 @@ func buildIntentArchiveDivergence(
 	if kind == "index" {
 		report.Warning = "The archive index stopped strict-decoding after purge ownership was established."
 		report.RestoreInstruction = "Restore index.json to bytes that strict-decode using your own version control or backup, then rerun the purge. Do not remove index.json."
-		report.Cost = "Restoring the strict index preimage preserves the archive generations; removing index.json would discard them."
+		report.Cost = "Restoring the strict index preimage preserves the archive generations; removing index.json would discard them. Archived blob bytes that were ever committed remain in this repository's Git history; removing them from history is not something tpatch does."
 		return report
 	}
 	blobRel, _ := store.IntentArchiveBlobRel(slug, hash)
@@ -2018,6 +2018,7 @@ func writeIntentArchivePurgeHuman(w io.Writer, report intentArchivePurgeReport) 
 		for _, hash := range report.PurgeProgress.RemainingHashes {
 			fmt.Fprintf(w, "  remaining %s\n", hash)
 		}
+		fmt.Fprintln(w, intentArchivePurgeResumeInstruction(report.PurgeProgress.Resume))
 		writeIntentArchiveRetry(w, report.PurgeProgress.Retry)
 	}
 	if report.RemainingRepairs != nil {
@@ -2086,6 +2087,19 @@ func writeIntentArchivePurgeHuman(w io.Writer, report intentArchivePurgeReport) 
 		writeIntentArchiveRetry(w, report.Retry)
 	}
 	fmt.Fprintln(w, report.HistoryDisclosure)
+}
+
+func intentArchivePurgeResumeInstruction(resume string) string {
+	switch store.IntentArchivePurgeResume(resume) {
+	case store.IntentArchiveResumePendingRecoveryThenCompletion:
+		return "The first retry finalizes the pending hash and exits 0 recovered without processing the selector. Run the same command a second time to complete the remaining work."
+	case store.IntentArchiveResumeCompletionOnly:
+		return "Exactly one retry completes the remaining hashes. It does not produce or promise a recovered outcome."
+	case store.IntentArchiveResumeOrphanScan:
+		return "Exactly one retry rescans the archive and removes the remaining orphan blobs. It does not produce or promise a recovered outcome."
+	default:
+		return "The purge cannot state a retry procedure because its resume class is unknown."
+	}
 }
 
 func writeIntentArchiveRefusal(w io.Writer, refusal *intentArchiveRefusalReport) {
