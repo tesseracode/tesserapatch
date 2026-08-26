@@ -1,3 +1,2215 @@
+## Supervisor Decision — prepare S7 AR rev-32 — 2026-08-26
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+Rev-32 consumed exactly one authorized observer execution after a clean
+CPU-quiet gate. The unchanged category-bound observer passed all 15 AR targets
+in 268.44s test / 268.835s package / 269.279s monotonic wall, clearing the
+419-second cutoff by 149.721 seconds. Final refs, hashes, staging,
+workflow/assets, Side Research, formatting and residue boundaries are clean.
+
+AR may now be checkpointed by explicit-path staging, committed with the
+required trailer, pushed, and validated by blocking CI. The observer allowance
+is consumed and no local Go command may run before checkpoint.
+
+## Review — prepare S7 AR rev-32 — 2026-08-26
+
+**Reviewer**: independent `rev32-evidence-review`
+**Task**: Review the sole final-code observer execution and closure evidence
+
+### Checklist
+
+- [x] Fresh 60-second strict resource gate passed
+- [x] Exactly one unchanged observer process group started
+- [x] Frozen 12m / 8m / 1m budgets remained bound
+- [x] 419-second external cutoff remained clear
+- [x] Observer passed all 15 registered AR targets
+- [x] Observer allowance is consumed
+- [x] Refs, hashes, staging and workflow/assets boundary remained intact
+- [x] No new root binary residue was created
+
+### Verdict: APPROVED
+
+### Notes
+
+The observer exited zero after 269.279s monotonic wall time, consistent with
+268.835s package and 269.25s `/usr/bin/time` real output. The cutoff margin is
+149.721s. Known root binaries predate rev-32 and retain their prior mtimes.
+
+### Action Taken
+
+AR is accepted. Explicit-path checkpointing and blocking CI are authorized;
+AS–AX remain blocked until that CI is green.
+
+## Supervisor Decision — prepare S7 AR rev-31 — 2026-08-26
+
+**Decision**: **APPROVED STATIC + ELIGIBLE — rev-32 observer-only dispatched**
+
+Rev-31's bounded test-harness correction is statically approved and its fresh
+CPU-quiet eligibility trilogy passed at 255.936s package time, 69.064s below
+the immutable 325-second cap. Production behavior, fail-closed semantics,
+ledger, caps, observer budgets and workflow/assets remain unchanged.
+
+Rev-32 may change only `docs/handoff/CURRENT.md`. After a fresh 60-second
+CPU-quiet preflight, it may consume exactly one unchanged
+`TestS7ObservedARRegistrationAuthority` execution under the frozen 12m outer /
+8m inner / 1m cleanup budgets and a 419-second external cutoff. Any source or
+hash change, competing exact process, observer failure or cutoff stops the
+revision. No earlier observer result may be relabeled.
+
+## Review — prepare S7 AR rev-31 — 2026-08-26
+
+**Reviewer**: independent `rev31-static-review`
+**Task**: Review the bounded AR validation performance correction and timing
+eligibility
+
+### Checklist
+
+- [x] Tuple bindings clone independently of field bindings
+- [x] Shared expression domains are cap-clamped and copy on write
+- [x] Clone and merge capacity changes preserve every state field
+- [x] Two-file pre-abandon model retains full-package `go/types` authority
+- [x] Moved/omitted reachable helpers and synthetic fixtures fail closed
+- [x] Production, ledger, caps, budgets and threshold remain unchanged
+- [x] Fresh strict trilogy totals 255.936s, below 325 seconds
+- [x] No observer ran during implementation or review
+
+### Verdict: APPROVED
+
+### Notes
+
+The review found no actionable correctness or performance-safety defect.
+Mutable tuple slices remain deep copies; immutable expression domains are
+shared only with capacity clamping; all audited updates replace entries or
+copy on write. The narrowed program body set does not narrow type authority:
+`go/types` still augments and checks the complete disk package, while missing
+or moved reachable helpers fail closed.
+
+### Action Taken
+
+Rev-31 is statically approved and timing-eligible. Rev-32 receives one
+observer-only execution after a fresh strict resource gate.
+
+## Supervisor Decision — prepare S7 AR rev-29 — 2026-08-23
+
+**Decision**: **BLOCKED — one CPU-quiet rev-30 validation retry authorized**
+
+Rev-29 correctly stopped before PIB-519 and the observer when PIB-518 plus
+PIB-511 reached 431.200s package time, already above the immutable 325-second
+eligibility cap. The observer allowance was not consumed. Frozen source,
+hashes and repository boundaries remained intact.
+
+The result does not yet establish a final-code performance regression. At the
+same frozen rev-27 guard, PIB-511 previously passed in 173.708s package time;
+rev-29 measured 280.894s, a 107.186s / 61.7% increase with no source change.
+PIB-518 likewise rose from the earlier 102.880s reference to 150.306s. Rev-29
+enforced memory and exact Go-process isolation but did not gate unrelated
+CPU-heavy work. Post-run inspection found competing external Go/Python work
+and a long-lived Copilot process consuming more than one core.
+
+One validation-only rev-30 retry is authorized after a stricter CPU-quiet
+window. It may change only the handoff, must preserve all frozen hashes, and
+must run the same fresh serial PIB-518/511/519 eligibility. The observer may
+start exactly once only if their package sum is at most 325 seconds. If the
+quiet rev-30 run exceeds the cap, no further validation-only retry is
+authorized; work returns to a bounded performance-correction revision.
+
+The ignored root `cli.test`/`cli.test.exe` artifacts predate rev-29 and were
+neither created nor modified by it. They are not execution evidence and must
+not be removed as part of this validation.
+
+## Review — prepare S7 AR rev-29 — 2026-08-23
+
+**Reviewer**: supervisor evidence review
+**Task**: Review rev-29 final-code timing eligibility and observer authority
+
+### Checklist
+
+- [x] Frozen refs, hashes, ledger/caps and Side Research matched
+- [x] Staging and workflow/assets diff remained empty
+- [x] PIB-518 and PIB-511 selectors passed functionally
+- [ ] Fresh PIB-511/518/519 package sum at or below 325 seconds
+- [ ] Final-code observer executed successfully
+- [x] Mandatory stop fired before PIB-519 and observer
+- [x] Observer allowance remains unconsumed
+
+### Verdict: BLOCKED
+
+### Notes
+
+PIB-518 passed in 150.306s package / 151.23s wall and PIB-511 passed in
+280.894s package / 281.75s wall. Their 431.200s package sum exceeded the full
+three-selector cap by 106.200s before PIB-519 could run. No observer or cutoff
+process started. The final close preserved every protected boundary.
+
+### Action Taken
+
+Rev-29 is closed blocked. Rev-30 receives one validation-only retry under a
+strengthened CPU-quiet preflight; source edits remain forbidden.
+
+## Supervisor Decision — prepare S7 AR rev-27 — 2026-08-23
+
+**Decision**: **APPROVED STATIC — rev-29 validation-only dispatched**
+
+Frozen rev-27 passed the complete pre-observer static review after the
+withdrawn uncertainty finding. Rev-29 may change only
+`docs/handoff/CURRENT.md`. It must preserve every frozen hash, wait for a clean
+exact-process and memory preflight, run fresh serial PIB-518/511/519 timing
+eligibility with package-time sum at or below 325 seconds, then consume exactly
+one unchanged `TestS7ObservedARRegistrationAuthority` execution under the
+frozen 12m outer / 8m inner / 1m cleanup budgets and a 419-second external
+cutoff. Any source change, eligibility failure, competing Go process or
+observer failure stops the revision. Prior observer evidence remains consumed
+and must not be relabeled.
+
+## Review — prepare S7 AR rev-27 resumed — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review-final`
+**Task**: Complete the static-only pre-observer review interrupted by the
+withdrawn rev-27 backing-uncertainty finding
+
+### Checklist
+
+- [x] Frozen refs, hashes, staging, workflow/assets and Side Research intact
+- [x] Call operand and method receiver snapshot flow complete and sound
+- [x] Observation demand and callable-origin leakage audited
+- [x] Defer LIFO, scheduled closures and asynchronous calls audited
+- [x] Select operand pre-evaluation and case execution audited
+- [x] Correlated-state merge, 64-state cap and 32-loop convergence audited
+- [x] Rev-26 and earlier bite/inverse contracts remain substantive
+- [x] Runtime, renderer, 15-row ledger, registration and AVP boundaries intact
+- [x] Cache, copy, equality, determinism and performance edits audited
+- [x] No Go command, observer, edit, staging or other prohibited action
+
+### Verdict: APPROVED
+
+### Notes
+
+All eight previously incomplete audit areas were completed with no actionable
+defect. Rev-27 snapshots call operands left-to-right, binds named helpers and
+method receivers from those snapshots, preserves select operand effects, and
+models scheduled/async execution conservatively without laundering unresolved
+origins into the canonical four-write inventory. Exact guard SHA-256 remains
+`9c2fa6ddcc2710b6296e1a09ef838f22d2d11aa689a33b68e43110b53a240d58`;
+all protected hashes and exact ledger `I6/C4/G4/S1` match.
+
+One non-blocking fragility was recorded: clone/equality traverse
+`backingOrigins` through `backingOverrideSet`, relying on their current
+lockstep key-set invariant. Every present write/delete site maintains that
+invariant and `backingUncertain` is independent, so no current correctness or
+precision defect exists. Revisit only if future analyzer work changes either
+map independently.
+
+### Action Taken
+
+Rev-27 is statically approved. A separate validation-only rev-29 is dispatched
+for fresh eligibility and the sole final-code observer execution; no source
+edit is authorized.
+
+## Supervisor Decision — prepare S7 AR rev-28 close — 2026-08-23
+
+**Decision**: **REV-27 FINDING WITHDRAWN — RESUME FROZEN STATIC REVIEW**
+
+The final supported method-value receiver pair did not reproduce the claimed
+rev-27 false authorization. Unchanged rev-27 failed closed at
+`s7ARRev28Invoke:callbacks[0]` for both guaranteed-reuse and forced-allocation
+append. The earlier fixed-parameter and helper-to-variadic-sink attempts were
+also either outside the supported traversal surface or conservatively
+unresolved in both branches. There is no unsafe-RED / precision-GREEN
+asymmetry and therefore no evidence authorizing a production correction.
+
+The rev-27 uncertain-backing finding is withdrawn as an actionable defect. A
+static implementation concern may be revisited only with a supported reachable
+route that demonstrates false acceptance while preserving a green disjoint-
+backing inverse. Rev-28's experimental test was removed; gofmt restores
+`internal/cli/prepare_s7_ar_guard_test.go` byte-for-byte to frozen rev-27
+SHA-256
+`9c2fa6ddcc2710b6296e1a09ef838f22d2d11aa689a33b68e43110b53a240d58`.
+No production analyzer code changed.
+
+Independent static review resumes from that exact frozen guard. It must finish
+the areas skipped by the prior mandatory early-stop, including observation
+leakage, scheduling/defer/go behavior, the remaining select audit, inherited
+contracts and performance edits. Observer execution remains forbidden until a
+complete clean static verdict dispatches a separate validation-only revision.
+
+## Supervisor Decision — prepare S7 AR rev-28 receiver-route adjudication — 2026-08-23
+
+**Decision**: **CONTINUE REV-28 — final test-only receiver bite**
+
+The corrected non-variadic-helper-to-variadic-sink pair is not a usable
+backing-uncertainty discriminator. Unchanged rev-27 reports both
+`s7ARRev28Invoke:s7ARRev28Sink` and
+`s7ARRev28Sink:callbacks[0]` unresolved for the guaranteed-reuse and
+forced-allocation branches alike. That conservative fixed-parameter expansion
+result dominates the state distinction the test was meant to observe.
+
+A narrower supported route remains before the rev-27 finding must be
+withdrawn. Method-value evaluation snapshots its receiver before evaluating
+arguments, and `s7ARApplyEvaluatedCallableDemandCallMutation` explicitly binds
+a `types.MethodVal` receiver from `context.function`. Receiver element calls
+are not excluded by `s7ARFixedCallableSliceElementInvocation`. The final pair
+must therefore use a named slice receiver whose method invokes element zero.
+Its later argument first rebinds the receiver variable away from the old
+backing, then uses guaranteed-reuse append through a retained alias. This is
+the exact state shape in which final-state uncertainty exists for the frozen
+backing but was not eagerly projected onto the rebound variable. The inverse
+performs the same rebind with forced-allocation append.
+
+Only the rev-28 fixture and tracking evidence may change. Against unchanged
+analyzer logic, unsafe must falsely retain exactly four writes and safe must
+retain exactly four writes. Any other result ends rev-28 and withdraws or
+substantially narrows the rev-27 finding. No analyzer edit, observer,
+eligibility run, broader test, staging, commit, push or CI is authorized.
+
+## Supervisor Decision — prepare S7 AR rev-28 RED adjudication — 2026-08-23
+
+**Decision**: **CONTINUE REV-28 — correct the test scaffold before analyzer edits**
+
+The mandatory unchanged-logic pair returned `nil` for both branches because
+its helper invoked `callbacks[0]()` through a non-variadic `[]func()`
+parameter. That edge is deliberately outside the accepted analyzer surface:
+`s7ARFixedCallableSliceElementInvocation` suppresses fixed element calls
+through non-variadic slice parameters. The harness therefore observed neither
+the canonical callback nor the reviewed backing-uncertainty path.
+
+The rev-27 state defect remains statically live. Argument zero freezes the
+earlier descriptor; guaranteed-reuse append in argument one marks the shared
+backing uncertain; exact-helper binding restores the frozen object and
+`s7ARRefreshCallableDemandObjectBacking` reapplies only exact
+`backingOrigins`, not the later `backingUncertain` state.
+
+Rev-28 is re-dispatched for a test-only correction through the already
+supported variadic-sink route used by the rev-26/rev-27 fixtures. Against
+unchanged analyzer logic, the unsafe guaranteed-reuse branch must fail its
+unresolved-origin assertion by falsely retaining exactly four writes, while
+the forced-allocation inverse must pass with exactly four writes. If that
+asymmetry is not reproduced, work stops and the rev-27 finding is withdrawn or
+substantially narrowed. No analyzer edit is authorized before that proof; all
+observer, eligibility, staging, commit, push and CI prohibitions remain.
+
+## Supervisor Decision — prepare S7 AR rev-27 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-28 pre-observer correction dispatched**
+
+Independent static review rejected the frozen rev-27 operand-snapshot guard
+before observer authorization. Rev-27 freezes an earlier slice descriptor and
+starts exact-helper execution from the final caller state, but parameter
+binding then restores the old operand object and refreshes only exact
+`backingOrigins`. A later argument that performs guaranteed-backing-reuse
+`append` records the shared-backing write in `backingUncertain`; that mutation
+is not projected onto the frozen descriptor. The helper can therefore observe
+the stale pre-append callback and falsely preserve four canonical writes.
+
+Rev-27 is rejected at guard SHA-256
+`9c2fa6ddcc2710b6296e1a09ef838f22d2d11aa689a33b68e43110b53a240d58`.
+No rev-27 observer ran, so no observer allowance was consumed. Rev-28 may
+modify only `internal/cli/prepare_s7_ar_guard_test.go` and
+`docs/handoff/CURRENT.md`. It must first add the reviewer's guaranteed-reuse
+`append(storage[:0:1], replacement)` bite and forced-allocation
+`append(storage[:0:0], replacement)` inverse against unchanged rev-27. The
+bite must fail for unresolved callable origins at its unique route rather than
+inventory mismatch; the inverse must prove exactly four writes.
+
+The correction must keep the operand's frozen descriptor identity, offset and
+view while projecting every later final-state uncertainty for that backing
+into helper binding, observation and effect transfer, or fail closed where
+projection is not reliable. It must challenge nonzero views, aliases,
+multiple uncertain indices and unrelated/forced-allocation backings without
+weakening exact-origin behavior. All rev-27 operand correlation, select
+preselection, return/defer/async, registration/capture, fail-closed and cap
+semantics remain frozen.
+
+This is a correction/challenge revision only. All Go work must remain serial
+with `-p=1`, tests use `-count=1`, no toolchain processes may overlap, and no
+heavy phase may launch below 70% system-wide free memory. No observer,
+wrong-input observer target, standalone PIB-518 eligibility, eligibility
+trilogy, full/race/Windows suite, CI, staging, commit, amend, push or tag is
+authorized. After targeted and inherited non-observer regressions plus static
+self-challenge, the implementer must freeze the guard hash and stop for a
+complete independent static review. An approval would authorize a separate
+validation-only rev-29. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-27 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Complete static-only pre-observer review of the rev-27
+call-operand snapshot correction and the rev-26 remainder
+
+### Checklist
+
+- [x] Exact refs, empty staging, frozen hashes and Side Research intact
+- [x] Workflow/assets diff empty; no observer or prohibited command executed
+- [x] Earlier slice descriptor identity survives later variable rebinding
+- [ ] Later uncertain mutations to that frozen backing remain visible
+- [ ] Complete adversarial review reaches its end rather than mandatory stop
+- [ ] AR is eligible for a validation-only observer revision
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The reviewer found one Medium PIB-518 defect at
+`internal/cli/prepare_s7_ar_guard_test.go:16310-16440`,
+`:16907-16929` and `:17886-17916`:
+
+```go
+func invoke(callbacks []func(), _ int) chan<- func() {
+	callbacks[0]()
+	return nil
+}
+
+func unsafe(replacement, known func()) {
+	storage := []func(){known}
+	view := storage
+	select {
+	case invoke(view, func() int {
+		_ = append(storage[:0:1], replacement)
+		return 0
+	}()) <- known:
+	default:
+	}
+}
+```
+
+Go snapshots `view` before the later argument overwrites element zero of its
+shared backing. Rev-27 correctly retains that earlier descriptor, but append
+reuse records the later write only in `backingUncertain`. Exact-helper
+parameter binding copies the old operand state, and
+`s7ARRefreshCallableDemandObjectBacking` reapplies only exact
+`backingOrigins`; later sequence resolution does not otherwise consume
+`backingUncertain`. The helper can consequently resolve `callbacks[0]` as
+`known` instead of `replacement`, a false acceptance.
+
+The restoring inverse uses `append(storage[:0:0], replacement)`, which must
+allocate a disjoint backing and leave the original callback provable. Existing
+same-backing rev-27 fixtures use an exact assignment helper and therefore
+exercise only the `backingOrigins` path already handled by the refresh.
+
+Mandatory static early-stop fired. Observation leakage, scheduling/defer/go,
+the remaining select audit, inherited contracts and performance edits remain
+incomplete. The reviewer made no edit and ran no Go, observer, build, staging
+or other prohibited command.
+
+### Action Taken
+
+Rev-27 was blocked before observer authorization. Rev-28 was dispatched as a
+bounded uncertain-backing refresh correction/challenge revision; it requires
+another complete independent static review before any validation-only
+observer revision.
+
+## Supervisor Decision — prepare S7 AR rev-26 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-27 pre-observer correction dispatched**
+
+Independent static review rejected the frozen rev-26 guard before observer
+authorization. Rev-26 evaluates call arguments left-to-right, but then binds
+named-helper parameters and derives transferred backing identities from the
+single final post-argument state. A later argument can therefore reassign the
+expression used by an earlier slice argument after Go has already snapshotted
+that slice descriptor. The analyzer can execute the helper against the later
+backing instead of the actual earlier backing and falsely preserve a known
+callback.
+
+Rev-26 is rejected at guard SHA-256
+`062980bc350709c6f2b9bbffe2ebc05b8649986b79980741b4ddef277061c97e`.
+No rev-26 observer ran, so no observer allowance was consumed. Rev-27 may
+modify only `internal/cli/prepare_s7_ar_guard_test.go` and
+`docs/handoff/CURRENT.md`. It must first add the reviewer’s later-argument
+rebinding bite and restoring inverse against rev-26. The correction must carry
+each receiver/argument value and backing snapshot at its own evaluation point
+through every correlated state alternative, while preserving all later
+argument side effects in the final caller state. Parameter binding, call
+observation and helper-effect transfer must consume those snapshots rather
+than re-resolving earlier expressions after later arguments execute.
+
+Rev-27 must challenge method-value receiver snapshots, method-expression
+receiver offsets, scalar and slice arguments, aliased arguments, branching
+later-argument side effects and multiple ordered rebindings. It must retain
+the rev-26 select preselection correction, named-helper fail-closed boundary,
+return/defer/async behavior, registration/capture split, 64-state/32-loop caps
+and closed PIB-511/519 behavior. This is a correction/challenge revision only.
+No observer, focused eligibility trilogy, full suite, race suite, Windows run,
+CI, staging, commit, push or tag is authorized. After targeted and inherited
+non-observer regressions plus a static self-challenge pass, the implementer
+must freeze the guard hash and stop for another complete independent
+pre-observer static review. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-26 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Static-only pre-observer review of the rev-26 select-preselection
+and exact named-helper correction
+
+### Checklist
+
+- [x] Exact refs, empty staging, frozen hashes and Side Research intact
+- [x] Workflow/assets diff empty; no observer or prohibited command executed
+- [x] Shared select preselection addresses the rev-25 canonical route
+- [ ] Earlier call arguments remain snapshotted across later-argument effects
+- [ ] Complete adversarial review reaches its end rather than mandatory stop
+- [ ] AR is eligible for a validation-only observer revision
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The reviewer found one Medium PIB-518 defect at
+`internal/cli/prepare_s7_ar_guard_test.go:15152-15162` and
+`:15255-15325`:
+
+```go
+func mutate(callbacks []func(), value func(), _ int) chan<- func() {
+	callbacks[0] = value
+	return nil
+}
+
+func route(replacement, known func()) {
+	original := []func(){known}
+	other := []func(){known}
+	callbacks := original
+	target := func() {
+		select {
+		case mutate(callbacks, replacement,
+			func() int { callbacks = other; return 0 }()) <- known:
+		default:
+		}
+		return
+	}
+	defer sink(original...)
+	defer target()
+}
+```
+
+Go snapshots the first argument's `original` slice descriptor before the
+third argument reassigns `callbacks` to `other`. `mutate` therefore replaces
+`original[0]`. Rev-26 first evaluates all arguments, then binds the original
+argument expressions and derives transfer backings against the final state.
+It consequently mutates only `other` in the model and can falsely prove four
+canonical writes from the unchanged `original`. Reversing the initialized
+callbacks and passing `known` is the required restoring inverse.
+
+Existing rev-26 fixtures test ordering between communication helpers, but all
+helper arguments are stable expressions. None allows a later argument to
+rebind the expression used by an earlier slice argument. The correction must
+preserve each correlated operand snapshot without losing the later side
+effects that form the helper's caller state.
+
+Mandatory static early-stop fired during exact-helper review, so the remaining
+review objectives were not completed. No Go command, observer, timing run,
+build or worktree edit was performed by the reviewer.
+
+### Action Taken
+
+Rev-26 was blocked before observer authorization. Rev-27 was dispatched as a
+bounded correction/challenge revision; it requires another complete fresh
+independent static review before any validation-only observer revision.
+
+## Supervisor Decision — prepare S7 AR rev-25 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-26 pre-observer correction dispatched**
+
+Independent static review rejected the frozen rev-25 guard before observer
+authorization. Go evaluates every select communication's channel operand and
+send right-hand side once, in source order, before choosing a case. The AR
+analyzer instead starts each clause from the original prefix state, and its
+ordinary `SendStmt` path observes channel/value expressions without applying
+their mutations. A send-channel helper can therefore replace a callback before
+selection while the analyzer transfers the old safe callback into deferred
+replay.
+
+Rev-25 is rejected at guard SHA-256
+`9dcee12aae86f2dd5c96565b5266c2ac2d823454f31c2fadc9ae77d3847ddf13`.
+No rev-25 observer ran, so no observer allowance was consumed. Rev-26 may
+modify only `internal/cli/prepare_s7_ar_guard_test.go` and
+`docs/handoff/CURRENT.md`. It must first add the reviewer’s nil-channel/default
+send-operand bite and its restoring inverse against rev-25. The correction
+must model ordinary send operand mutations and the select preselection phase:
+all receive-channel operands, send-channel operands and send values are
+evaluated exactly once in source order into one common state before case
+branching; selected receive assignments remain clause-local.
+
+Rev-26 must challenge send value effects, receive operands, multiple
+communications and source order, default inheritance, selected receive
+assignment timing, and non-select sends while preserving rev-25 return-flow,
+defer LIFO, async, registration/capture, cap and fail-closed semantics. It is a
+correction/challenge revision only. No observer, focused eligibility trilogy,
+full suite, race suite, Windows run, CI, staging, commit, push or tag is
+authorized. After targeted and inherited non-observer regressions plus a
+static self-challenge pass, the implementer must freeze the guard hash and stop
+for another independent pre-observer static review. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-25 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Static-only pre-observer review of the rev-25 explicit-return
+terminal-flow correction
+
+### Checklist
+
+- [x] Exact refs, empty staging, frozen hashes and Side Research intact
+- [x] Workflow/assets diff empty; no observer or prohibited command executed
+- [x] Explicit-return states survive compound control flow and completion
+- [ ] Select communication operands mutate one common preselection state
+- [ ] AR is eligible for a validation-only observer revision
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The reviewer found one Medium PIB-518 defect at
+`internal/cli/prepare_s7_ar_guard_test.go:13865-13869` and
+`:15132-15160`:
+
+```go
+func route(replacement, known func()) {
+	callbacks := []func(){known}
+	target := func() {
+		select {
+		case mutatingChannel(callbacks, replacement) <- known:
+		default:
+		}
+		return
+	}
+	defer sink(callbacks...)
+	defer target()
+}
+```
+
+Go evaluates the send channel and value before choosing a select case.
+`mutatingChannel` therefore replaces `callbacks[0]` even though its nil
+channel disables the send and the default executes. The analyzer starts every
+clause from `prefix.next`; `SendStmt` only observes its operands and returns
+the original state. The unchanged state then survives explicit-return
+completion and outer LIFO replay, falsely preserving the callback correlated
+with `known`.
+
+The rev-25 select fixtures use a side-effect-free receive operand and mutate
+only in the selected body, so they do not bite mandatory preselection
+evaluation. The correction must apply ordinary send expression mutations and
+evaluate all select communication operands into a shared preselection state
+before branching, without prematurely evaluating selected receive
+assignments.
+
+Mandatory static early-stop fired. No Go command, observer, timing run, build
+or worktree edit was performed by the reviewer.
+
+### Action Taken
+
+Rev-25 was blocked before observer authorization. Rev-26 was dispatched as a
+bounded correction/challenge revision; it requires another fresh independent
+static review before any validation-only observer revision.
+
+## Supervisor Decision — prepare S7 AR rev-24 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-25 pre-observer correction dispatched**
+
+Independent static review rejected the frozen rev-24 guard before observer
+authorization. Direct stored-literal execution consumes only `flow.next`, while
+an explicit `return` publishes nested schedules and then returns an empty flow.
+The terminal mutation state is therefore discarded. Outer deferred replay can
+collapse to zero states and skip older defers, allowing a stored closure that
+mutates a callback and returns to evade the sink that observes that mutation.
+
+Rev-24 is rejected at guard SHA-256
+`e1bff6763c826949a74971a81a9ad1ac784610b11f2e546820d5c3755051bd44`.
+No rev-24 observer ran, so no observer allowance was consumed. Rev-25 may
+modify only `internal/cli/prepare_s7_ar_guard_test.go` and
+`docs/handoff/CURRENT.md`. It must first add stored-literal explicit-return
+bites and safe inverses for deferred and asynchronous paths. The correction
+must preserve terminal states through blocks and control flow, execute nested
+deferred effects exactly once, and merge explicit-return completion with
+natural completion only when replaying the stored literal. It must not turn a
+return into fallthrough or disturb registration-time targets/arguments,
+execution-time captures, outer LIFO order, async alternatives, caps or closed
+PIB-511/519 behavior.
+
+Rev-25 is correction and challenge only. No observer, focused eligibility
+trilogy, full suite, race suite, Windows run, CI, staging, commit, push or tag
+is authorized. After targeted and inherited non-observer regressions plus a
+static self-challenge pass, the implementer must freeze the guard hash and stop
+for another independent pre-observer static review. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-24 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Static-only pre-observer review of the rev-24 stored-literal replay
+correction
+
+### Checklist
+
+- [x] Exact refs, empty staging, frozen hashes and Side Research intact
+- [x] Workflow/assets diff empty; no observer or prohibited command executed
+- [x] Registration target and execution-time capture roles are separated
+- [ ] Explicit-return terminal states survive stored-literal execution
+- [ ] Deferred/async stored-literal return bites and inverses are covered
+- [ ] AR is eligible for a validation-only observer revision
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The reviewer found one Medium PIB-518 defect at
+`internal/cli/prepare_s7_ar_guard_test.go:12453-12466`,
+`:12519-12534`, `:12843-12868` and `:12933-12946`:
+
+```go
+func route(replacement, known func()) {
+	callbacks := []func(){known}
+	target := func() {
+		callbacks[0] = replacement
+		return
+	}
+	defer sink(callbacks...)
+	defer target()
+}
+```
+
+Rev-24 correctly stores and executes `target`. Its assignment updates the
+execution state, but `ReturnStmt` then yields an empty
+`s7ARCallableDemandFlow`. `s7ARApplyScheduledCallableCallMutation` consumes
+only `flow.next`, so it produces no completed candidate. The outer LIFO replay
+replaces its state set with empty and never analyzes `sink`, even though the
+real program invokes the replacement callback. The rev-21 explicit-return
+fixture returns from the owning function rather than from a stored literal and
+does not bite this route.
+
+The correction must carry explicit-return terminal states separately from
+fallthrough, propagate them through compound control flow, and include them in
+stored-literal completion after nested deferred mutations have been applied
+exactly once. Deferred and asynchronous unsafe/safe inverses are required.
+
+Mandatory static early-stop fired. No Go command, observer, timing run, build
+or worktree edit was performed by the reviewer.
+
+### Action Taken
+
+Rev-24 was blocked before observer authorization. Rev-25 was dispatched as a
+bounded correction/challenge revision; it requires a fresh independent static
+review before any validation-only observer revision.
+
+## Supervisor Decision — prepare S7 AR rev-23 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-24 pre-observer correction dispatched**
+
+Independent static review rejected the frozen rev-23 guard before any observer
+authorization. Rev-23 correctly stored each scalar alias's literal target at
+registration, but a target that also references its own function variable puts
+that variable in `scheduled.captures`. Execution-time capture refresh then
+overwrites the scalar slot used by `scheduled.call.Fun`, and deferred replay
+re-resolves the outer call instead of executing `scheduled.literals`. An
+unsafe registered closure can therefore be replaced by a later safe value in
+the analyzer even though Go still invokes the original unsafe closure.
+
+Rev-23 is rejected at guard SHA-256
+`62063887dc7eab05bc08a72aeb774ddcc3d815a64ed69c601e46251556d2f2d2`.
+No rev-23 observer ran, so no observer allowance was consumed. Rev-24 may
+modify only `internal/cli/prepare_s7_ar_guard_test.go` and
+`docs/handoff/CURRENT.md`. It must first add a self-capturing unsafe-to-safe
+bite and safe-to-unsafe inverse, then keep the registered target distinct from
+execution-time capture state. Stored literal targets must execute directly;
+free variables used inside those literal bodies must still observe their
+execution-time state. Deferred LIFO, asynchronous alternatives, explicit
+argument capture, named-call behavior, caps and all closed PIB-511/519
+behavior remain frozen.
+
+Rev-24 is correction and challenge only. No observer, focused eligibility
+trilogy, full suite, race suite, Windows run, CI, staging, commit, push or tag
+is authorized. After targeted and inherited non-observer regressions plus a
+static self-challenge pass, the implementer must freeze the guard hash and stop
+for another independent pre-observer static review. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-23 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Static-only pre-observer review of the rev-23 scheduled-closure alias
+correction
+
+### Checklist
+
+- [x] Exact refs, empty staging, frozen hashes and Side Research intact
+- [x] Workflow/assets diff empty; no observer or prohibited command executed
+- [x] Registration-time literal targets are stored per reaching state
+- [ ] Stored target remains distinct from a same-object execution-time capture
+- [ ] Self-capturing target-reassignment bite and inverse are covered
+- [ ] AR is eligible for a validation-only observer revision
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The reviewer found one Medium PIB-518 defect at
+`internal/cli/prepare_s7_ar_guard_test.go:11634-11673`,
+`:11794-11809`, `:11909-11916` and `:13188-13207`. A scheduled closure can
+genuinely capture the same function variable through which it was registered:
+
+```go
+func route(replacement, known func()) {
+	callbacks := []func(){known}
+	var target func()
+	unsafe := func() {
+		callbacks[0] = replacement
+		_ = target
+	}
+	safe := func() {}
+	target = unsafe
+	defer sink(callbacks...)
+	defer target()
+	target = safe
+}
+```
+
+Rev-23 stores `unsafe` in `scheduled.literals`, but also includes `target` in
+`scheduled.captures`. At execution, capture transfer correctly refreshes the
+value seen by `_ = target`, but it also replaces the scalar slot later used to
+re-resolve the outer `target()` call. Deferred replay therefore executes
+`safe`, misses the callback overwrite and can retain canonical authority even
+though Go invokes the registered `unsafe` closure. Registering a self-capturing
+safe closure before assigning an unsafe one is the precision inverse.
+
+The existing target-reassignment tests do not make the registered target a
+free capture, and transitive-capture tests use a different variable. The
+smallest correction is to replay nonempty `scheduled.literals` directly while
+using refreshed captures only inside their bodies, rather than re-resolving
+the outer scheduled `call.Fun`. Both deferred and asynchronous paths must be
+checked for this target/capture role collision.
+
+Mandatory static early-stop fired. No Go command, observer, timing run, build
+or worktree edit was performed by the reviewer.
+
+### Action Taken
+
+Rev-23 was blocked before observer authorization. Rev-24 was dispatched as a
+bounded correction/challenge revision; it requires a fresh independent static
+review before any validation-only observer revision.
+
+## Supervisor Decision — prepare S7 AR rev-22 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-23 pre-observer correction dispatched**
+
+The rev-22 final-code evidence is valid for its frozen guard, but independent
+static review found one additional Medium PIB-518 defect. A zero-argument
+scheduled closure is capture/effect analyzed only when `call.Fun` is
+syntactically a direct function literal. Calling the same closure through a
+reaching-state scalar alias leaves the deferred or asynchronous call
+unscheduled, so its execution-time backing mutation or captured sink demand is
+lost. The ordinary call-mutation path already resolves literal targets from
+reaching state; the scheduling path does not.
+
+Rev-22 is rejected and its sole observer execution remains consumed. It must
+not be rerun or relabeled. Rev-23 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` and
+`docs/handoff/CURRENT.md`. It must first add canonical defer/go alias bites and
+their registration-time value-capture, reassignment, inert and disjoint
+controls, then resolve scheduled callable targets from the state at
+registration. Ambiguous or unresolved targets must fail closed. Direct-literal
+behavior, explicit-argument descriptor capture, LIFO replay, async escape,
+64-state/32-loop caps and all closed PIB-511/519 behavior remain frozen.
+
+Rev-23 is a correction and challenge revision only. No observer, focused
+eligibility trilogy, full suite, race suite, Windows run, CI, staging, commit,
+push or tag is authorized. Once targeted and inherited non-observer
+regressions plus a static self-challenge pass, the implementer must freeze the
+new guard hash and stop. Independent static review will precede any separate
+final-code validation-only observer revision. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-22 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Static-first final-code review of PIB-506…520 (`I6/C4/G4/S1`)
+after rev-22 validation
+
+### Checklist
+
+- [x] Final refs, frozen hashes, Side Research and empty staging intact
+- [x] Rev-22 timing and sole-observer evidence recorded against final code
+- [x] Exact 15-row `I6/C4/G4/S1` ledger and immutable caps preserved
+- [ ] Scheduled closure aliases participate in capture/effect analysis
+- [ ] Remaining PIB-511/519 static re-audit completes
+- [ ] AR is safe to stage
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found a Medium PIB-518 gap at
+`internal/cli/prepare_s7_ar_guard_test.go:11333-11416`.
+`s7ARScheduleCallableCall` discovers captures only when the scheduled
+`call.Fun` is a direct `*ast.FuncLit`. With no callable-sequence argument, a
+closure invoked through a scalar alias leaves `relevant` false and is merely
+observed at registration time:
+
+```go
+func route(replacement, known func()) {
+	callbacks := []func(){known}
+	mutate := func() { callbacks[0] = replacement }
+	defer sink(callbacks...)
+	defer mutate()
+}
+```
+
+LIFO executes `mutate` before `sink`, so `sink` can invoke `replacement`.
+Because `defer mutate()` is not scheduled, rev-22 instead preserves the
+original known callback and can certify the canonical writes. The same defect
+misses `go launch()` when an aliased zero-argument closure captures and invokes
+the sink. Direct-literal fixtures do not cover scalar alias scheduling, and
+the older aliased scalar fixture covers callback value capture rather than a
+closure's captured backing effects.
+
+The reviewer inspected the accepted PIB-506…520/ADR authority, all rev-21
+canonical and challenge fixtures, scheduled state and replay, capture/effect
+transfer, async escape, terminal flow, caps, and the frozen
+runtime/ledger/registration/renderer interfaces. Mandatory static early-stop
+fired before the remaining PIB-511/519 pass. No Go, observer, build, vet or
+timing command ran. Final boundary checks remained clean with 82% free memory
+and no worktree mutation.
+
+### Action Taken
+
+Rev-22 was blocked. Rev-23 was dispatched as a bounded pre-observer correction
+and challenge revision; a separate independent static review is required
+before any fresh observer authorization.
+
+## Supervisor Decision — prepare S7 AR rev-21 — 2026-08-23
+
+**Decision**: **BLOCKED — rev-22 final-code validation-only revision dispatched**
+
+Rev-21 closed the three independently reported PIB-518 defects and its focused
+PIB-511/518/519 eligibility totaled 299.916 seconds. Its single authorized
+observer then passed all 15 registered targets. A subsequent static
+self-challenge found one additional material PIB-518 route: a helper-launched
+zero-argument goroutine closure could capture a callable slice and invoke the
+sink without transporting that asynchronous invocation demand to its caller.
+The guard was corrected and the bite plus its no-mutation and
+descriptor-reassignment controls pass, but that material final-code change
+supersedes the already-consumed rev-21 observer result.
+
+No rev-21 observer rerun is authorized. Rev-22 starts from guard SHA-256
+`e7ce411cc2d9241774597a830eef977b00c42e533cbf4ce390f29afa46091b3c` as
+an evidence-only revision. Before any observer, it must finish the bounded
+post-fix regressions and obtain fresh serial `-p=1 -count=1` PIB-511/518/519
+package timing totaling at most 325 seconds. If eligible, it may execute the
+unchanged observer exactly once under the frozen 12m/8m/1m budgets and
+419-second external cutoff. Any guard change blocks rev-22 immediately and
+requires a new revision with fresh eligibility; the observer must not run
+against code that changes afterward.
+
+The authorized writable surface is only `docs/handoff/CURRENT.md`; the guard,
+runtime, renderer, ledger, registration/observer, AVP, workflow/assets,
+contracts and this LOG are frozen during validation. Rev-19, rev-20 and rev-21
+observer allowances remain consumed. Nothing may be staged, committed, pushed
+or sent to CI before independent review. AS–AX remain blocked.
+
+## Review — prepare S7 AR rev-20 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-20
+defer/go execution-state and non-variadic reaching-state correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Rev-20's 37 sensitivities use substantive complete-validator outcomes
+- [ ] Asynchronous expanded-slice escape is propagated across call boundaries
+- [ ] Scheduled closure captures contribute their backing mutations
+- [ ] Deferred mutation replay respects LIFO execution order
+- [ ] Remaining backing-mutation, PIB-511 and PIB-519 static review completes
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found three Medium PIB-518 defects in
+`internal/cli/prepare_s7_ar_guard_test.go`. The mandatory static early-stop
+fired before any Go command or observer execution.
+
+First, scheduled goroutine state remains local to one function's reaching-state
+analysis at `:10264-10331`. A helper can launch an expanded-slice goroutine,
+return, and have its caller mutate the shared backing array without that
+mutation reaching the scheduled observation:
+
+```go
+func launch(callbacks []func()) {
+	go s7ARRev20Sink(callbacks...)
+}
+
+func outer(replacement, known func()) {
+	callbacks := []func(){known}
+	launch(callbacks)
+	callbacks[0] = replacement
+}
+```
+
+When `replacement` is unknown and `known` is canonical, the goroutine can
+invoke the unknown callback. Rev-20 analyzes `launch` and `outer` in separate
+initial states at `:11697-11807`; scheduled calls are absent from argument
+bindings and returned effects. The existing asynchronous mutation sensitivity
+mutates within the launching helper, so it does not bite this caller-after-
+return route.
+
+Second, a call is scheduled at `:10273-10322` only when an explicit argument
+is a callable sequence. A deferred or goroutine closure that takes no
+arguments but captures and mutates the shared slice is therefore observed at
+declaration without applying its later backing effect:
+
+```go
+func deferredClosure(replacement, known func()) {
+	callbacks := []func(){known}
+	defer s7ARRev20Sink(callbacks...)
+	defer func() { callbacks[0] = replacement }()
+}
+```
+
+LIFO execution mutates the backing before the sink invokes it, but `relevant`
+remains false and `:10320-10322` returns the state unchanged. Rev-20's closure
+sensitivity invokes its mutator synchronously and does not cover a scheduled
+closure capture.
+
+Third, deferred mutation replay at `:10237-10259` first applies every
+deferred call's mutation to one execution state and then observes every
+deferred call against that fully mutated state. This ignores LIFO and can
+reject a safe ordering:
+
+```go
+func orderedDefers(replacement, known func()) {
+	callbacks := []func(){known}
+	defer s7ARRev20DeferredWrite(callbacks, replacement) // executes second
+	defer s7ARRev20Sink(callbacks...)                    // executes first
+}
+```
+
+The sink deterministically observes `known` before the mutator runs. Rev-20
+instead applies the mutator before observing the sink. Its existing deferred
+mutator case covers only the opposite registration order.
+
+The reviewer confirmed exactly 37 rev-20 fixtures, typed production source
+sets, the complete validator, exact-four-write or route-specific unresolved
+assertions, inventory-count exclusion and no fixture/function/path
+special-casing. Historical RED output was not rerun after static rejection.
+PIB-511/519, the inherited backing remainder, cap behavior and package timing
+were not independently reverified.
+
+HEAD/local/origin remain `c363ed7`; staging, workflow/assets diff and
+repository residue remain empty. Guard SHA-256 is
+`125172b33728814009291ff9a044869a6c3afe8f0cdd9fb333c178e331669314`.
+All frozen hashes, exact `I6/C4/G4/S1` ledger, immutable observer budgets and
+Side Research `b385fe622db9926f48861105239f113e` remain intact. No exact Go
+toolchain process was active, final memory was 84% free and the reviewer left
+the worktree byte-for-byte unchanged.
+
+### Action Taken
+
+AR returned for bounded rev-21 guard correction. Rev-21 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must
+propagate asynchronous callable-backing escape across helper boundaries, or
+fail closed exactly where a caller can subsequently mutate the escaped
+backing; account for scheduled zero-argument closures that mutate captured
+callable backing; and process deferred calls in reverse registration order,
+observing each call before applying its effects to calls that execute later.
+Complete-validator RED/inverse coverage is required for caller-after-return
+mutation versus disjoint/no-later-mutation controls, deferred and asynchronous
+capturing closures, and both deterministic defer orders. All 37 rev-20
+sensitivities, frozen surfaces, caps and immutable budgets remain unchanged.
+Fresh PIB-511/518/519 package time must remain at or below 325 seconds before
+rev-21 may earn one unchanged observer execution under the 12m/8m/1m budgets
+and 420-second target. AS–AX remain blocked and no AR file may be staged
+before re-review.
+
+## Review — prepare S7 AR rev-19 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-19
+program-point reaching-state correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Rev-19 sensitivities use substantive complete-validator outcomes
+- [ ] Deferred and asynchronous expanded calls preserve execution-time authority
+- [ ] Reaching-state analysis covers active non-variadic functions
+- [ ] Remaining backing-mutation, PIB-511 and PIB-519 static review completes
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found two Medium PIB-518 gaps in
+`internal/cli/prepare_s7_ar_guard_test.go`.
+
+First, `defer` and `go` calls are observed like synchronous calls at
+`:9395-9400`. For `defer sink(callbacks...)`, Go evaluates and retains the
+slice descriptor at the defer statement, but a later write through that
+descriptor's shared backing array changes the element that the deferred sink
+will invoke. Rev-19 permanently records only the declaration-time state in
+`s7ARObserveCallableDemandExpressions` (`:9807-9863`), and the final audit
+consumes that stale observation at `:7522-7555`. This route can therefore
+false-clean:
+
+```go
+func deferredSink(callbacks ...func()) { callbacks[0]() }
+
+func deferred(replacement func(), callbacks ...func()) {
+	defer deferredSink(callbacks...)
+	callbacks[0] = replacement
+}
+```
+
+When the caller supplies the canonical callback followed by an unknown
+replacement, the deferred sink invokes the replacement rather than the
+canonical callback. A post-`go` shared-backing mutation is timing-dependent
+and likewise cannot be certified from the synchronous statement-time state.
+None of the 41 rev-19 fixtures exercises `defer` or `go`.
+
+Second, `s7ARCallableReachingStatesAtCalls` returns `nil` when the containing
+function has no callable variadic parameter (`:10321-10326`). Scalar aliases
+and fixed-slice flow in ordinary functions then fall back to the rejected
+whole-body assignment union at `:7350-7420`, `:10386-10400` and
+`:10439-10453`. A later definite replacement can consequently contaminate an
+earlier safe call:
+
+```go
+func scalarLater(known, replacement func()) {
+	callback := known
+	callback()
+	callback = replacement
+}
+```
+
+The existing post-call scalar control is declared inside a variadic function,
+so it activates the new walker and does not bite this route.
+
+The 41 rev-19 fixtures are substantive: they use the typed production model
+and require exact four-write or route-specific unresolved evidence while
+excluding inventory-count failures. The mandatory static early-stop fired
+before Go execution. PIB-511/519 remainder, overflow behavior, package timing
+and observer behavior were therefore not independently reverified.
+
+HEAD/local/origin remain `c363ed7`; staging, workflow/assets diff and
+repository residue remain empty. Guard SHA-256 is
+`b752aa3f8c00862d00967907fdb8d3030c12deb7ba5af646bcad83b861511800`.
+All frozen hashes, the exact `I6/C4/G4/S1` ledger and Side Research
+`b385fe622db9926f48861105239f113e` remain intact. No process or worktree
+mutation was introduced.
+
+### Action Taken
+
+AR returned for bounded rev-20 guard correction. Rev-20 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must model
+deferred expanded calls at their reachable execution states or fail closed
+when captured backing may mutate; relevant asynchronous calls must remain
+conservative under statement-time versus later shared-backing alternatives.
+It must also run correlated reaching-state analysis for every active function,
+including non-variadic scalar and fixed-slice flows, without restoring
+whole-body unions. Complete-validator RED/inverse coverage is required for
+defer/go backing mutation and non-variadic post-call assignment before the
+previously skipped static remainder may resume. Every frozen surface, earlier
+sensitivity and immutable budget remains intact. Fresh PIB-511/518/519 package
+time must remain at or below 325 seconds before rev-20's unchanged observer
+may run once under its immutable 12m/8m/1m budgets and 420-second target.
+AS–AX remain blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-18 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-18
+element-sensitive demand and backing-mutation correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] An invoked explicit unknown variadic element fails closed
+- [ ] Variadic demand respects definite reassignment and program order
+- [ ] Remaining backing-mutation, PIB-511 and PIB-519 static review completes
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found one Medium PIB-518 false-positive path in
+`internal/cli/prepare_s7_ar_guard_test.go:8233-8253` and `:8283-8412`.
+`s7ARCallableVariadicParameterDemand` seeds the variadic parameter's view and
+then computes sequence views and element demands with whole-body monotonic
+unions. A definite straight-line reassignment to a disjoint callable slice
+cannot kill the old parameter-derived view, and an assignment after a call can
+retroactively contaminate that earlier call. Consequently, this safe route is
+rejected even though the caller's unknown callback cannot reach the sink:
+
+```go
+func forward(callbacks ...func()) {
+	callbacks = []func(){func() {}}
+	sink(callbacks...)
+}
+func sink(callbacks ...func()) { callbacks[0]() }
+```
+
+The same stale-view defect applies to sequence aliases and element aliases.
+Existing rev-18 forwarding cases never overwrite the forwarded value, while
+the alias-reassignment control exercises backing mutation rather than
+transitive invocation demand. The original rev-17 selected-explicit unknown
+route appears closed, but the new demand abstraction remains flow-insensitive.
+
+The mandatory static early-stop fired. No Go test, observer, vet, build,
+cross-compile or CI command ran; the remaining backing model, PIB-511 and
+PIB-519 were not re-audited. HEAD/local/origin remain `c363ed7`; staging,
+workflow/assets diff and repository residue remain empty; guard SHA-256 remains
+`9e6641df2a5ead424bd721e3c7c10c51ed423adea49e88bbaa356bd6d6719093`.
+All frozen hashes, the exact `I6/C4/G4/S1` ledger and Side Research
+`b385fe622db9926f48861105239f113e` remain intact.
+
+### Action Taken
+
+AR returned for bounded rev-19 guard correction. Rev-19 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. Invocation
+demand must be computed at each program point with strong updates for definite
+straight-line reassignment and conservative merges only at genuine
+control-flow joins. The correction must cover parameter, sequence-alias and
+element-alias reassignment before invocation, plus post-call assignment,
+branch/loop and forwarding inverses through the complete validator. Every
+frozen surface and earlier sensitivity remains intact. Fresh PIB-511/518/519
+package time must remain at or below 325 seconds before rev-19's unchanged
+observer may run once under its immutable 12m/8m/1m budgets and 420-second
+target. AS–AX remain blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-17 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-17 ordered-origin, sequence-mutation and invocation-gating correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [ ] Invoked explicit variadic elements fail closed when their target is unknown
+- [ ] Backing-array mutation through local calls and append aliases is accounted for
+- [ ] Expanded-slice completeness is gated by the elements an invoked sink can reach
+- [ ] PIB-511 and PIB-519 complete static re-review
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found three Medium PIB-518 gaps in
+`internal/cli/prepare_s7_ar_guard_test.go`.
+
+First, an explicit variadic callback selected by `callbacks[0]()` retains
+`transported=false` (`:6375-6381`, `:6437-6438`, `:6508-6537`). An unknown
+function identifier therefore resolves to an empty target set with
+`incomplete=false`, and the final audit accepts an invoked callback whose
+authority could not be proved. This route does not enter the ellipsis
+completeness check.
+
+Second, the forward sequence interpreter recognizes `copy` but does not
+account for backing-array mutation through a local helper or through an append
+alias (`:8328-8450`, `:8492-8510`). A helper that executes
+`xs[0] = replacement`, or `append(callbacks[:0], canonical)` when capacity
+forces backing-array reuse, can leave the original sequence at its stale
+no-op initializer and omit the callback actually invoked.
+
+Third, expansion gating is represented by one variadic-parameter boolean
+(`:7607-7642`). Once any variadic element is invoked, the final completeness
+check requires every expanded element to resolve, including an element
+provably excluded by an exact constant index. For `callbacks[0]()` and an
+expanded two-element slice, an unknown index 1 therefore invents unresolved
+evidence even though it cannot reach the sink.
+
+Existing sensitivities do not bite these paths: explicit-call cases resolve
+their selected callbacks, append reassigns the source variable rather than
+mutating a shared backing array, and inert expansion disables invocation
+entirely instead of distinguishing selected from unselected elements.
+
+The mandatory static early-stop fired. No Go test, observer, vet, build,
+cross-compile or CI command ran; PIB-511 and PIB-519 were not re-audited after
+the findings. HEAD/local/origin remain `c363ed7`; staging and workflow/assets
+diff remain empty; guard SHA-256 remains
+`01aa7379b2b23fbc6e844adb8b1db057c5ced8c3183dbc714387a0aa6434ea35`;
+all frozen hashes, the exact `I6/C4/G4/S1` ledger and Side Research
+`b385fe622db9926f48861105239f113e` remain intact. No process or residue was
+introduced.
+
+### Action Taken
+
+AR returned for bounded rev-18 guard correction. Rev-18 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. An invoked
+element selected from a bound callable sequence must retain transported
+authority and fail closed if neither a literal nor named target resolves.
+Sequence analysis must model or conservatively invalidate backing-array
+mutation through local helper calls and append/reslice aliases, but only let
+that uncertainty reject a route that can reach an invoked sink. Invocation
+demand must become element-sensitive: exact constant indices validate only
+reachable elements, while dynamic index/range or unresolved forwarding
+conservatively demand every possible element. Add independent
+complete-validator sensitivities and inverses for all three findings. Every
+frozen surface and earlier sensitivity remains intact. Fresh PIB-511/518/519
+package time must remain at or below 325 seconds before rev-18's unchanged
+observer may run once under its immutable 12m/8m/1m budgets and 420-second
+target. AS–AX remain blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-16 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-16 variadic-tail and expanded-slice correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [ ] Variadic element positions preserve exact constant-index authority
+- [ ] Known expanded slices account for later element/alias mutation
+- [ ] Inert expanded variadic calls avoid disconnected fail-closed evidence
+- [ ] PIB-511 and PIB-519 complete static re-review
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found three Medium PIB-518 gaps in
+`internal/cli/prepare_s7_ar_guard_test.go`. First, every explicit variadic
+callback is merged into one parameter-object origin set
+(`:6471-6474`, `:6920-7053`), while `IndexExpr` resolution discards its
+constant index. A method that invokes only `callbacks[0]` can therefore gain
+authority from a canonical callback passed at index 1 and falsely report a
+fourth emitter. The rev-16 positive sensitivities invoke the same element
+that carries authority and do not detect this over-union.
+
+Second, expanded-slice collection sees direct identifier assignment but not
+element writes, `copy`, or alias mutation (`:5750-5790`, `:7145-7175`,
+`:7643-7648`). A known no-op initializer followed by
+`callbacks[0] = canonicalCallback` can consequently be treated as completely
+resolved while omitting the callback executed at runtime.
+
+Third, the final expanded-argument audit requires every known callable
+variadic target to resolve even when the callee never invokes or forwards its
+variadic parameter (`:5697-5709`, `:5905-5932`, `:7056-7101`). An inert
+`retain(callbacks...)` call with an unresolved slice therefore fails closed,
+contradicting the inert ordinary-variadic control.
+
+The mandatory static early-stop fired. No Go test, observer, vet, build,
+cross-compile or CI command ran; PIB-511 and PIB-519 were not re-audited after
+the findings. HEAD/local/origin remain `c363ed7`; staging and workflow/assets
+diff remain empty; guard SHA-256 remains
+`aa467f908123601e275450e68db226383ae70a922c4b4ff7e8e77a36ac5788a0`;
+all frozen hashes, the exact `I6/C4/G4/S1` ledger and Side Research
+`b385fe622db9926f48861105239f113e` remain intact; process and residue checks
+are clean. The canonical rev-16 RED evidence in `CURRENT.md` is
+`error=<nil> writes=0 counted=false`; the reviewer-dispatch brief's
+`writes=3 counted=true` wording was an inaccurate transcription and is not
+the evidence of record.
+
+### Action Taken
+
+AR returned for bounded rev-17 guard correction. Rev-17 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. Variadic
+analysis must preserve ordered element origins so constant indices resolve
+exactly and dynamic indices/ranges conservatively union; expanded-slice
+analysis must model or fail closed on element, `copy`, and alias mutation;
+and unresolved expansion may fail closed only along a callee route that
+actually invokes or transitively invokes the variadic parameter. Add inverse
+MethodVal/MethodExpr constant-index controls, index-write/`copy`/alias
+mutation sensitivities, and inert unresolved-expansion controls through the
+same complete validator. Every frozen surface and earlier sensitivity remains
+intact. Fresh PIB-511/518/519 package time must remain at or below 325 seconds
+before the unchanged observer may run once under its immutable 12m/8m/1m
+budgets and 420-second target. AS–AX remain blocked and no AR file may be
+staged before re-review.
+
+## Review — prepare S7 AR rev-15 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-15 variadic-interface classifier correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Variadic callable interface methods enter concrete receiver recovery
+- [ ] All explicit variadic callback arguments reach the callee parameter
+- [ ] PIB-511 and PIB-519 complete static re-review
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found one Medium PIB-518 false-pass path in
+`internal/cli/prepare_s7_ar_guard_test.go:5698-5760`, `:6295-6354` and
+`:6794-6841`. `s7ARBindCallableArguments` flattens declared AST parameter
+identifiers and pairs them one-to-one with call arguments. A variadic method
+has only one final parameter identifier, so the binder records the first
+variadic callback and silently drops every later callback. Invocation through
+either a MethodVal or MethodExpr can therefore resolve the concrete method and
+receiver while missing canonical authority placed in a later callback.
+`s7ARFunctionLiteralExpressions` resolves `callbacks[index]` through the
+slice identifier, but that object retains only the first origin. Every new
+rev-15 active sensitivity passes exactly one callback, so none bites the
+multi-argument path.
+
+The rev-15 classifier itself correctly limits special handling to the final
+variadic slice element and preserves fixed-container exclusions. The mandatory
+static early-stop fired. No Go command, focused PIB test, observer, regression,
+vet/build or cross-compile ran; PIB-511 and PIB-519 were not re-audited after
+the finding. HEAD/local/origin remain `c363ed7`; staging and workflow/assets
+diff remain empty; guard SHA-256 remains
+`21ceb16f7a430a5a0dd686375624745e685b02355291fc5a1f8355342191ddf3`;
+all frozen hashes, the exact `I6/C4/G4/S1` ledger and Side Research
+`b385fe622db9926f48861105239f113e` remain intact; process, residue and root
+binary checks are clean.
+
+### Action Taken
+
+AR returned for bounded rev-16 guard correction. Rev-16 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. Callable
+argument binding must preserve fixed prefixes and MethodExpr receiver offset,
+bind every explicit variadic tail argument to the final variadic parameter,
+and either recover `slice...` origins or fail closed when they cannot be
+resolved. Complete-validator sensitivities must independently place canonical
+authority in a later variadic callback for MethodVal and MethodExpr routes,
+with fixed-prefix, expansion, inert and false-positive controls. Every frozen
+surface and earlier sensitivity remains intact. Fresh PIB-511/518/519 package
+time must remain at or below 325 seconds before the unchanged observer may run
+once under its immutable 12m/8m/1m budgets and 420-second target. AS–AX remain
+blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-14 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-14 direct-interface correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Fixed-arity direct interface MethodVal/MethodExpr recovery is present
+- [ ] Variadic callable interface methods recover or reject receiver dispatch
+- [ ] PIB-511 and PIB-519 complete static re-review
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found one Medium PIB-518 false-pass path in
+`internal/cli/prepare_s7_ar_guard_test.go:5784-5815` and `:6070-6105`.
+`s7ARSignatureCarriesCallable` recognizes tuple entries only when their full
+underlying type is a function signature. `go/types` exposes a variadic
+`invoke(...func())` parameter as `[]func()`, so the interface is classified as
+not callable-bearing. Direct MethodVal and MethodExpr calls then skip concrete
+receiver recovery, and unknown variadic dispatch is accepted instead of
+failing closed. The new rev-14 sensitivities use only fixed-arity
+`invoke(func())` signatures and do not bite this path.
+
+The mandatory static early-stop fired. No Go command, reviewer repro, focused
+PIB test, observer, regression, vet/build or cross-compile ran. PIB-511 and
+PIB-519 were not re-audited after the finding. HEAD/local/origin remain
+`c363ed7`; staging and workflow/assets diff remain empty; the guard and every
+frozen hash match; the ledger remains 15 rows `I6/C4/G4/S1`; Side Research
+remains `b385fe622db9926f48861105239f113e`; no Go process, scratch residue or
+root-binary change was present.
+
+### Action Taken
+
+AR returned for bounded rev-15 guard correction. Rev-15 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. The final
+variadic parameter must be recognized when its slice element is
+function-valued, without treating unrelated container parameters as callable
+authority. Complete-validator sensitivities must independently bite known and
+unknown variadic MethodVal and MethodExpr dispatch and prove inert
+materialization remains inert. Every fixed-arity sensitivity and frozen
+surface remains unchanged. Fresh PIB-511/518/519 package time must remain at
+or below 325 seconds before the unchanged observer may run once under its
+immutable 12m/8m/1m budgets and 420-second target. AS–AX remain blocked and no
+AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-13 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-13 callable-origin correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Aliased method values preserve selected method identity and bound receiver
+- [ ] Direct interface method invocation recovers or rejects receiver dispatch
+- [ ] PIB-511 and PIB-519 complete static re-review
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static review found one Medium PIB-518 false-pass path in
+`internal/cli/prepare_s7_ar_guard_test.go:5462-5465`,
+`:5533-5536` and `:5614-5648`. Concrete interface receiver recovery is gated
+by `transported == true`. A direct call such as `dispatched.invoke(...)`
+reaches `s7ARNamedCallableTargets` with `transported == false`, so a known
+concrete interface receiver neither activates its selected method nor binds
+its receiver. An unresolved direct interface dispatch is also silently
+accepted instead of failing closed. The existing interface sensitivities
+first alias `dispatched.invoke`, which changes the path to transported and
+does not bite direct invocation.
+
+The mandatory static early-stop fired. No Go command, reviewer repro, focused
+PIB test, observer, regression, vet/build or cross-compile ran. PIB-511 and
+PIB-519 were not re-audited after the finding. HEAD/local/origin remain
+`c363ed7`; staging and workflow/assets diff remain empty; the guard and all
+frozen hashes match; the ledger remains 15 rows `I6/C4/G4/S1`; Side Research
+remains `b385fe622db9926f48861105239f113e`; no Go process, scratch residue or
+root-binary change was present.
+
+### Action Taken
+
+AR returned for bounded rev-14 guard correction. Rev-14 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. Invocation
+must resolve a direct interface `MethodVal` from concrete receiver origins
+regardless of transport and fail closed when dispatch remains unresolved,
+without activating merely materialized method values. Direct interface method
+expressions must recover their argument-zero receiver or fail closed.
+Same-validator sensitivities must cover known and unknown direct interface
+invocation plus inert and ordinary function-field controls. PIB-511, PIB-519,
+production, runtime, ledger, registration/observer, workflow, frozen AVP,
+assets, PRD/ADR and every other closed surface remain frozen. Fresh
+PIB-511/518/519 package time must remain at or below 325 seconds before the
+unchanged observer may run once under its immutable 12m/8m/1m budgets and
+420-second target. AS–AX remain blocked and no AR file may be staged before
+re-review.
+
+## Review — prepare S7 AR rev-12 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-12 guard correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Direct method-expression and method-value receiver binding is present
+- [ ] PIB-518 preserves bound receivers through aliased method values
+- [ ] PIB-511 and PIB-519 complete static re-review
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static and adversarial review found one Medium PIB-518 false-pass
+path. Receiver binding runs only when the invoked `call.Fun` is itself a
+selector. Assigning a bound method value to a local variable loses both the
+selected method and its receiver:
+
+```go
+invoke := receiver.invoke
+invoke(func() {})
+```
+
+The identifier invocation resolves the recorded selector origin, but
+`s7ARCallableOriginMayReturnFunction` excludes selector expressions and
+`s7ARFunctionLiteralExpressions` handles only `types.FieldVal`, not
+`types.MethodVal`. The named method target is therefore absent, its receiver
+is never bound, and a canonical `PurgeProgress` store invoked through the
+receiver's function field silently remains outside the inventory. Existing
+sensitivities invoke method values directly and do not bite assignment,
+argument or return transport.
+
+The mandatory static early-stop fired. No focused Go tests, observer,
+regressions, vet/build or cross-compiles ran, so the implementation-side
+295.121-second package sum and observer result were not independently
+reverified. PIB-519 slug/polarity and the remaining cross-revision audit were
+not completed after early stop. All supplied hashes matched; HEAD/local/
+origin remain `c363ed7`; the ledger remains 15 rows `I6/C4/G4/S1`; Side
+Research, workflow/assets, empty staging and process/scratch cleanup remain
+intact.
+
+### Action Taken
+
+AR returned for bounded rev-13 guard correction. Rev-13 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must
+preserve the selected method object together with its bound receiver through
+local aliases, arguments and returns, then activate the method and bind that
+receiver at invocation. Unsupported invoked interface dispatch must fail
+closed. Same-validator sensitivities must cover local, passed and returned
+value/pointer method values plus inert, ordinary-function and interface
+controls. PIB-511, PIB-519, production, runtime, ledger,
+registration/observer, workflow, frozen AVP, assets, PRD/ADR and every other
+closed surface remain frozen. Fresh PIB-511/518/519 package time must remain
+at or below 325 seconds before the unchanged observer may run once under its
+immutable 12m/8m/1m budgets and 420-second target. AS–AX remain blocked and
+no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-11 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-11 guard correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] Rev-10's method-expression argument shift is corrected
+- [x] PIB-519 invalidates unchanged cross-file constant dependents
+- [x] PIB-519 rejects selector values from the wrong domain
+- [ ] PIB-518 follows callable origins held by a method-expression receiver
+- [ ] PIB-519 applies the exact production slug predicate to manual routes
+- [ ] PIB-519 inventories punctuated/reordered negative-quantifier guarantees
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static and adversarial review found three Medium false-pass paths:
+
+- PIB-518 consumes a method expression's explicit receiver before parameter
+  binding but discards its callable origin. A method that invokes a function
+  field on that receiver can therefore execute an extra canonical
+  `PurgeProgress` store without entering the inventory. The rev-11
+  sensitivities use only inert receivers and do not bite this path.
+- PIB-519 validates concrete manual-route slugs with a kebab-case expression
+  but omits production's 60-byte limit and Windows-reserved-name rejection.
+  A route using `con` or a 61-byte lowercase slug is accepted as authority
+  even though the CLI always terminates with `slug-unsafe`.
+- PIB-519 now inventories `No operator can strand the archive.`, but its
+  negative-quantifier grammar remains whitespace/order sensitive. Equivalent
+  guarantees such as `No operator, ever, can strand the archive.` and
+  `No operator ever can strand the archive.` still escape the inventory.
+
+The review intentionally stopped before focused Go tests and the observer,
+as required once a material static false pass is found. The cross-file cache
+correction, selector-specific blob/generation domains and PIB-511 closure had
+no material static residual. All supplied hashes matched; HEAD/local/origin
+remain `c363ed7`; the ledger remains 15 rows `I6/C4/G4/S1`; Side Research,
+workflow/assets, empty staging and process/scratch cleanup remain intact.
+
+### Action Taken
+
+AR returned for bounded rev-12 guard correction. Rev-12 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must bind
+method-expression receiver origins before resolving callable receiver fields,
+reuse the exact production slug domain for every manual route, and parse
+bounded negative-quantifier anti-stranding clauses across equivalent
+punctuation and `ever` placement. Each reviewer repro requires a
+same-validator biting sensitivity plus broader positive and exclusion
+controls. Production, runtime, ledger, registration/observer, workflow,
+frozen AVP, assets, PRD/ADR and every other closed surface remain frozen.
+Fresh PIB-511/518/519 package time must remain at or below 325 seconds before
+the unchanged observer may run once under its immutable 12m/8m/1m budgets and
+420-second target. AS–AX remain blocked and no AR file may be staged before
+re-review.
+
+## Review — prepare S7 AR rev-10 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) after the rev-10 guard correction
+
+### Checklist
+
+- [x] Persisted hashes, refs, exact ledger and empty staging remain intact
+- [x] PIB-511 canonical pending-evidence body has no material static residual
+- [ ] PIB-518 binds method-expression receiver and callback arguments correctly
+- [ ] PIB-519 invalidates cross-file constant dependents
+- [ ] PIB-519 enforces selector-specific route value grammar
+- [ ] PIB-519 inventories equivalent negative-quantifier anti-stranding claims
+- [ ] Focused timing gate and independent observer are eligible to run
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Independent static and adversarial review found four Medium false-pass paths:
+
+- PIB-518's callable argument binder starts method-expression parameter
+  binding at argument zero. The explicit receiver is therefore bound as the
+  callback and the real callback argument is ignored. A value- or
+  pointer-receiver method expression can invoke an extra canonical
+  `PurgeProgress` store without entering the inventory.
+- PIB-519 refreshes resolver declarations package-wide after a source change
+  but regenerates section and claim caches only for files directly marked
+  changed. A claim in an unchanged build-tagged file can retain a stale folded
+  value after one of its cross-file constant candidates changes.
+- PIB-519 uses one permissive route-value helper for blob and generation
+  selectors. For example, `--blob <slug>` is accepted as authority even though
+  the selector requires the exact hash domain.
+- PIB-519 recognizes `operators cannot` and `operators can never` but omits
+  the equivalent active claim `No operator can strand the archive.`, so that
+  guarantee escapes route validation.
+
+The review intentionally stopped before focused Go tests and the observer,
+as required once a material static false pass is found. All supplied hashes
+matched; HEAD/local/origin remain `c363ed7`; the ledger remains 15 rows
+`I6/C4/G4/S1`; Side Research, workflow/assets, empty staging and process/
+scratch cleanup remain intact.
+
+### Action Taken
+
+AR returned for bounded rev-11 guard correction. Rev-11 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must bind
+method-expression receivers separately from callable parameters, invalidate
+all affected cross-file claim dependents, validate each route selector against
+its exact production domain, and inventory negative-quantifier active
+anti-stranding claims. Each reviewer repro requires value/pointer or broader
+same-validator sensitivities that bite the complete inventory. Production,
+runtime, ledger, registration/observer, workflow, frozen AVP, assets, PRD/ADR
+and every other closed surface remain frozen. Fresh PIB-511/518/519 package
+time must remain at or below 325 seconds before the unchanged observer may run
+once under its immutable 12m/8m/1m budgets and 420-second target. AS–AX remain
+blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-9 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`) and the rev-9 performance fold
+
+### Checklist
+
+- [x] Focused PIB-511/518/519 package sum remains at or below 325 seconds
+- [x] Cold AR observer passes all 15 targets below the 420-second target
+- [x] Exact ledger, frozen hashes, refs and empty staging remain intact
+- [x] Narrow regressions, formatting, scoped vet and cross-compiles pass
+- [ ] PIB-511 validates the canonical pending-evidence predicate body
+- [ ] PIB-518 resolves callbacks returned through named results
+- [ ] PIB-519 preserves authoritative Go constant semantics
+- [ ] PIB-519 rejects conditional and wildcard manual routes
+- [ ] PIB-519 inventories active anti-stranding guarantees
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-9 restores strong performance margin without changing observer budgets.
+Fresh PIB-511/518/519 package times are 184.950s, 60.446s and 17.892s
+(263.288s total), and the unchanged cold observer passes all 15 targets in
+264.985s package / 265.56s wall. Narrow regressions, formatting, diff checks,
+scoped vet, host build and Linux/Darwin amd64 cross-compiles pass. The exact
+ledger remains `I6/C4/G4/S1`; frozen hashes, refs, workflow/assets, Side
+Research, empty staging and scratch/process cleanup are intact.
+
+Independent adversarial review nevertheless found five material authority
+residuals:
+
+- PIB-511 source-binds the helper call but does not validate
+  `preparePendingEvidenceName` itself. Replacing its body with the
+  control-only predicate preserves the current call counts and compiled
+  `journal.json` fixture while dropping all stage evidence.
+- PIB-518 collects explicit return operands but misses a callback assigned to
+  a named function result and returned through a bare `return`.
+- PIB-519's lightweight constant evaluator skips valid Go constants such as
+  `string('c')` concatenations and discards multiple mutually exclusive
+  build-specific bindings rather than evaluating every viable candidate.
+- PIB-519 strips `*` before metacharacter validation and admits open-ended
+  conditional prefixes such as `if approved, then run`, so wildcard removal
+  and conditional routes still satisfy authority.
+- PIB-519 treats `can never ... strand` as negative recoverability even
+  though it is an active anti-stranding guarantee that requires an
+  authoritative route.
+
+### Action Taken
+
+AR returned for bounded rev-10 guard correction. Rev-10 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must bind
+the canonical control-or-stage predicate body, resolve named-result callback
+returns, preserve every viable Go string-constant candidate, validate raw
+manual targets and closed affirmative clauses, and make claim polarity
+verb-sensitive. Each reviewer repro requires a same-validator biting
+sensitivity plus broader negative/ambiguity controls. Production, runtime,
+ledger, registration/observer, workflow, frozen AVP, assets, PRD/ADR and every
+other closed surface remain frozen. Fresh PIB-511/518/519 package time must
+remain at or below 325 seconds before the unchanged observer may run once
+under its immutable 12m/8m/1m budgets; it must remain below the 420-second
+target. AS–AX remain blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-8 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Cold AR observer completes within its mandatory 8-minute inner budget
+- [x] Cold AR observer retains the implementation target margin
+- [x] Exact 15-row `I6/C4/G4/S1` ledger remains bound
+- [x] Protected hashes, formatting, scoped vet and cross-compiles pass
+- [ ] PIB-511 binds the pending-evidence helper's source semantics
+- [ ] PIB-518 resolves invoked helper-returned callbacks
+- [ ] PIB-519 uses complete route and reference polarity semantics
+- [ ] PIB-519 inventories equivalent recoverability claims
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-8 retains acceptable performance: the unchanged cold observer passes in
+395.35s test / 397.26s wall, about 85 seconds inside its fixed 480-second
+inner budget and below the 420-second implementation target. All 15
+registered targets correlated. Focused guards and regressions, formatting,
+scoped vet, host build and Linux/Darwin cross-compiles pass. The exact ledger,
+protected hashes, workflow/assets diff, Side Research hash, refs and empty
+staging state remain intact.
+
+Independent adversarial review nevertheless found four material authority
+residuals:
+
+- PIB-511 validates `prepareAuthorityRefusal` and exercises the compiled
+  runtime helper, but does not source-bind `prepareLaneHasPendingEvidence`.
+  Reversing the helper's positive predicate therefore changes which lanes
+  receive destructive fallback while the same validator still passes.
+- PIB-518 does not resolve a function-valued result from an invoked local or
+  named helper. A helper-returned callback can perform an additional canonical
+  `PurgeProgress` store while remaining classified as uninvoked and absent
+  from the emitted population.
+- PIB-519 still uses incomplete blacklist polarity and prefix target
+  recognition. Conditional authority using `subject to`, a negative
+  target-local `not governed by D13` reference, a traversal-bearing intent
+  lane, and a child of a canonical blob path all pass.
+- PIB-519 does not inventory equivalent active recoverability claims using
+  `restore`, `recovery is always possible`, `impossible to strand`, or
+  `unblock`; those claims bypass route validation and leave the expected
+  eight-claim inventory unchanged.
+
+The three focused baseline guards pass in 159.53s, 41.81s and 111.77s test
+time. Their external wall readings were anomalously host-wait dominated, but
+the isolated cold observer retained credible measured margin. No full suite,
+race, CI or AS–AX work was run.
+
+### Action Taken
+
+AR returned for bounded rev-9 guard correction. Rev-9 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must
+source-bind the pending-evidence helper, resolve invoked callable-return
+origins, replace residual route/reference prefix and blacklist acceptance with
+positive exact semantics, and inventory the named recoverability paraphrases
+with negative/quoted/conditional controls. Production, runtime, ledger,
+registration/observer, workflow, frozen AVP, assets, PRD/ADR and every other
+closed surface remain frozen. The unchanged cold observer retains the
+12m/8m/1m envelope and must remain below the 420-second target. AS–AX remain
+blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-7 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Cold AR observer completes within its mandatory 8-minute inner budget
+- [x] Exact 15-row `I6/C4/G4/S1` ledger remains bound
+- [x] Protected hashes, formatting, scoped vet and cross-compiles pass
+- [x] Rev-6's direct helper, closure, suffix and reference probes are closed
+- [ ] PIB-511 binds both authority-remediation populations and all indirections
+- [ ] PIB-518 resolves reachable callable and pointer indirections
+- [ ] PIB-519 validates exact command, reference and recoverability semantics
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-7 restores credible timing margin: the unchanged cold observer passes in
+337.88s test / 338.83s wall, about 141 seconds inside its fixed 480-second
+inner budget. The exact ledger, guard and protected hashes remain stable;
+formatting, scoped vet, host build and Linux/Darwin cross-compiles pass.
+Independent adversarial review nevertheless found four material guard
+residuals:
+
+- PIB-511 derives only the base `prepareAuthorityRefusal` outcome. It does not
+  bind §6.6's evidence-present override for rows 5, 6 and 8: the exact
+  repo-relative manual-removal route and its destructive-cost warning can
+  drift without changing the derived stop table. Existing AR runtime coverage
+  exercises those authority refusals only with an empty lane.
+- PIB-511 propagates `&code` through one alias level but loses the origin at
+  `pp := &p`, and call-side inspection ignores method receivers and captured
+  callable fields. Equivalent helper mutations can therefore rebind a
+  refusal code or report while the guard substitutes the permitted caller
+  value.
+- PIB-518 recognizes directly invoked literals and identifier aliases, but
+  not a reachable closure passed through an invoked callable parameter or
+  composite field. A canonical `PurgeProgress` store can hide there.
+  Definite noncanonical origin is also lost through another pointer level,
+  turning an authorized decoy store into an unresolved false failure.
+- PIB-519 still recognizes command prefixes rather than exact argv and ends a
+  command clause at a semicolon. A later prohibition or condition can be
+  ignored; illegal suffixes such as `--abandon-transaction=false`,
+  `--abandon-transaction --check`, and purge without `--yes` are accepted.
+  Negative prose can satisfy the finite route/reference grammar, and an
+  equivalent active recoverability claim such as "Operators can always
+  recover the archive" is not inventoried.
+
+The cold observer passes in 337.88s; the focused ledger/runtime/meta
+regressions pass in 17.354s. Scoped vet, host build and Linux/Darwin
+cross-compiles pass. The guard and every protected hash match, workflow/assets
+diffs are empty, Side Research remains stable, HEAD/local/origin remain
+`c363ed7`, and staging is empty. Review was Darwin-only and did not run the
+full suite, race, CI or AS–AX.
+
+### Action Taken
+
+AR returned for bounded rev-8 guard correction. Rev-8 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking. It must bind
+both §6.6 authority-remediation populations, close transitive address/callable
+flow in PIB-511 and PIB-518, and replace PIB-519's finite prefix recognition
+with exact command/reference/claim authority. Production, runtime, ledger,
+registration/observer, workflow, frozen AVP, assets, PRD/ADR and every other
+closed surface remain frozen. The unchanged cold observer must retain its
+8-minute budget and credible margin. AS–AX remain blocked and no AR file may
+be staged before re-review.
+
+## Review — prepare S7 AR rev-6 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Corrected PIB-511, PIB-518 and PIB-519 guard tests pass independently
+- [x] Exact 15-row `I6/C4/G4/S1` ledger remains bound
+- [x] Embedded `.mdc` and extensionless asset coverage is closed
+- [x] Protected hashes, formatting, scoped vet and cross-compiles pass
+- [ ] AR observer completes within its mandatory 8-minute inner budget
+- [ ] PIB-511 resolves indirect rebinding and every remediation branch
+- [ ] PIB-518 inventories invoked closures and preserves decoy pointer origins
+- [ ] PIB-519 validates the complete route clause and exact references
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-6 closes the previously named direct mutations, canonical field identity
+and embedded-asset omissions, but independent adversarial review found four
+material residuals:
+
+- The unchanged AR observer fails at its mandatory 8-minute inner timeout.
+  Its package process ran for 483.925s before reporting the registration
+  missing; the three corrected guards independently consumed 312.378s,
+  91.821s and 126.886s. The 583.44s focused run recorded in the handoff was
+  inside the 12-minute outer budget but does not satisfy the separate
+  8-minute observer budget.
+- PIB-511 recognizes direct identifier assignments but misses address-taken
+  helper rebinding such as `rewrite(&code)`. Remediation extraction sees only
+  direct case returns, so a nested abandon-specific wrong remediation can
+  escape.
+- PIB-518 now binds the canonical field object, but skips every function
+  literal. An immediately invoked closure can add a reachable canonical store
+  without changing the inventory. A noncanonical field written through a
+  pointer alias is instead unresolved, creating a false failure.
+- PIB-519 inspects only route-prefix text and treats an empty prefix as
+  affirmative, so prohibited or conditional suffix context can pass.
+  Reference matching uses substring containment (`D130` satisfies `D13`),
+  and the positive claim grammar misses equivalent recoverability prose such
+  as “The archive can always be recovered.”
+
+PIB-511, PIB-518 and PIB-519 pass independently in 312.378s, 91.821s and
+126.886s. Ledger and wrong-input/budget guards pass in 6.514s; PIB-508/520
+regressions pass in 0.566s. Scoped vet and Linux/Darwin cross-compiles pass.
+The guard and all protected hashes match, formatting and `git diff --check`
+are clean, HEAD/local/origin remain `c363ed7`, and staging is empty.
+
+### Action Taken
+
+AR returned for bounded rev-7 guard corrections and performance work.
+Rev-7 may modify only `internal/cli/prepare_s7_ar_guard_test.go` plus handoff
+tracking. It must close indirect mutation/branch analysis, invoked-closure
+and decoy-pointer handling, complete-clause/exact-reference/recoverability
+semantics, and pass the unchanged cold AR observer below its 8-minute inner
+budget. Production, runtime, ledger, registration, observer, workflow,
+frozen AVP, assets and all other closed surfaces remain frozen. AS–AX remain
+blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-5 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] PIB-510 passes from a cold isolated test process
+- [x] Focused AR suite, observer authority and exact ledger pass
+- [x] Scoped formatting, diff, workflow and protected-source checks pass
+- [x] Production, ledger, registration and observer surfaces remain unchanged
+- [ ] PIB-511 resolves every refusal-code and remediation alternative exactly
+- [ ] PIB-518 binds stores to the canonical `PurgeProgress` field object
+- [ ] PIB-519 uses positive semantic claim and route authority
+- [ ] PIB-519 inventories every embedded textual asset
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-5 closes PIB-510: cold isolated execution passes after production-source
+discovery moved before the Git exit-93 spy. Four guard defects remain:
+
+- PIB-511 resolves caller parameters before dominating local code assignments
+  and merges refusal-code alternatives with boolean OR. A helper that rebinds
+  `code` to `slug-unsafe` can still be accepted as
+  `workspace-not-initialized`; retry/remediation is not validated exactly.
+- PIB-518 accepts a same-name, same-type field in the same package instead of
+  requiring identity with `intentArchivePurgeReport.PurgeProgress`. A decoy
+  store can replace the authorized store, while an unrelated same-shaped field
+  can create a false-positive emitter.
+- PIB-519 remains blacklist-based. Equivalent claims such as “The archive
+  cannot be stranded” can escape, “not permitted to run” and quoted command
+  prose can satisfy route authority, and constant aliases can inflate the
+  shipped inventory.
+- PIB-519's shipped-asset scan excludes embedded `.mdc` and extensionless
+  textual assets, including the Cursor and Windsurf surfaces.
+
+Cold PIB-510 passes in 24.742s. The complete focused AR suite passes in
+459.850s and observer authority in 460.309s. The ledger remains exactly 15
+rows (`I6/C4/G4/S1`); formatting and `git diff --check` pass. Protected hashes
+and workflow/assets diffs remain clean, HEAD/local/origin remain `c363ed7`,
+and staging is empty. Review was Darwin-only and used the declared device
+seam.
+
+### Action Taken
+
+AR returned for bounded rev-6 corrections to PIB-511, PIB-518 and PIB-519.
+PIB-510 and its runtime test are now closed. Rev-6 may modify only
+`internal/cli/prepare_s7_ar_guard_test.go` plus handoff tracking; production,
+runtime, ledger, registration, observer, workflow, frozen AVP and all other
+closed surfaces remain frozen. AS–AX remain blocked and no AR file may be
+staged before re-review.
+
+## Review — prepare S7 AR rev-4 — 2026-08-23
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Residual PIB-511/518/519 guard trio passes
+- [x] Exact 15-row `I6/C4/G4/S1` ledger remains bound
+- [x] AR observer and 12m/8m/1m budget sensitivities pass
+- [x] Scoped formatting, diff, workflow and frozen-source checks pass
+- [x] Production, ledger, registration and observer surfaces remain unchanged
+- [ ] PIB-510 passes from a cold isolated test process
+- [ ] PIB-511 proves every reachable report alternative is refused
+- [ ] PIB-518 inventories stores through promoted fields
+- [ ] PIB-519 folds package constants and rejects conditional routes
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-4 closes the direct rev-3 mutations, but independent cold execution and
+adversarial variants expose four remaining evidence defects:
+
+- PIB-510 installs its `git` spawn spy before `s7ARProductionSourceSet` calls
+  `git ls-files`. It fails in isolation with the spy's exit 93 and passes in a
+  broader run only when another guard has warmed the shared source cache.
+- PIB-511 merges alternative local/helper report values with boolean OR and
+  treats a bare `preparePublishReport` as resolved. A helper with one refused
+  return and one unchanged-report return contributes the expected stop even
+  though one reachable exit-3 path has no refusal. Parameter substitution also
+  precedes local rebinding.
+- PIB-518 identifies a selected field from `Selection.Recv()` instead of the
+  selected field object. A promoted `PurgeProgress` assignment through an
+  anonymous wrapper is ignored.
+- PIB-519 folds only top-level constants in one file, requires `permanently`
+  in its unrecoverability pattern and accepts conditional command text such as
+  `if asked, run ...` as an affirmative route.
+
+The residual trio passes in 339.199s. The remaining selected AR evidence fails
+on PIB-510 in 3.620s; isolated PIB-510 reproduces the failure in 0.99s. The AR
+observer/budget tests pass in 366.778s. Formatting, diffs, exact ledger,
+frozen AVP, workflow, hashes and HEAD/origin checks pass; staging remains
+empty. Review was Darwin-only and used the documented device seam.
+
+### Action Taken
+
+AR returned for bounded rev-5 corrections to PIB-510, PIB-511, PIB-518 and
+PIB-519. The runtime-test edit is restricted to moving production-source
+capture ahead of the Git spy. Production behavior, ledger, registration,
+observer, workflow, frozen AVP and all other closed surfaces remain frozen.
+AS–AX remain blocked and no AR file may be staged before re-review.
+
+## Review — prepare S7 AR rev-3 — 2026-08-22
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Focused AR guards pass
+- [x] AR ledger, observer and wrong-input tests pass
+- [x] Direct rev-3 sensitivity mutations are rejected
+- [x] Scoped formatting, diff, workflow and frozen-source checks pass
+- [x] Production, runtime, ledger and observer surfaces remain unchanged
+- [ ] PIB-511 preserves transitive refusal values and execution order
+- [ ] PIB-518 inventories cross-file progress stores
+- [ ] PIB-519 recognizes folded/equivalent claims and affirmative routes
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-3 rejects every direct mutation named in the rev-2 verdict, but three
+deeper false-pass classes remain:
+
+- PIB-511 recognizes a refusal only when `refusePrepare` and
+  `emitPreparePublishReport` occur in the same expression. A reachable helper
+  that returns the refusal yields zero sites, zero is accepted, local sites
+  are appended before all callees rather than at call-site order, and
+  recursion is silently skipped by the visited fast path.
+- PIB-518 builds a typed package model but traverses stores only in
+  `feature_intent_archive.go`. A helper in another `internal/cli` production
+  file can write through a passed `&report.PurgeProgress` pointer without
+  changing the accepted inventory.
+- PIB-519 still inspects individual Go string literals through an enumerated
+  regex list and uses a negation blacklist. A claim split across constant
+  literals, the equivalent “permanently stranded” phrase, and the route
+  prohibition word “forbidden” can escape or false-pass.
+
+The three rev-3 guards pass in 229.671s. The ledger plus observer and
+wrong-input suite passes in 249.772s, and the focused partial/divergence
+regression passes in 1.23s. The exact 15-row `I6/C4/G4/S1` ledger, 12m/8m/1m
+budgets, formatting, diffs, frozen AVP hash, workflow and HEAD/origin checks
+pass. No files were modified during review.
+
+### Action Taken
+
+AR returned to implementation for bounded rev-4 corrections to the three
+residual evidence paths only. Accepted production/runtime/ledger/observer and
+all closed AR surfaces remain frozen. AS–AX remain blocked; no AR file may be
+staged before another independent review.
+
+## Review — prepare S7 AR rev-2 — 2026-08-22
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Focused AR tests pass
+- [x] AR observed-registration and wrong-input tests pass
+- [x] Exact 15-row `I6/C4/G4/S1` ledger passes
+- [x] Scoped formatting, diff, workflow and frozen-source checks pass
+- [x] Production rendering and observer budgets remain unchanged
+- [ ] PIB-511 pre-abandon proof is transitive and exact
+- [ ] PIB-518 inventories aliased progress emitters
+- [ ] PIB-519 proves clause-local affirmative recovery routes
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-2 closes four of the seven rev-1 findings, but AR remains unsafe to stage:
+
+- PIB-511 collects refusal sites only from the two root-prefix bodies; reachable
+  helper refusals do not contribute. It recognizes direct `os.ReadFile` but can
+  exempt `os.Open`, parenthesized or function-field aliases, and table checks
+  do not compare every exit/code/route cell exactly.
+- PIB-518 inventories direct `PurgeProgress` assignments and keyed composite
+  fields but can miss an additional write through a pointer alias or unkeyed
+  composite.
+- PIB-519 still discovers claims from a fixed substring list and validates
+  paragraph-wide route co-occurrence. The mandated semantic sensitivity
+  “no interrupted purge can leave the archive permanently blocked” is not
+  discovered, and a route in a negated or unrelated sentence can satisfy a
+  recognized slogan.
+
+Focused AR tests pass in 103.97s, observer/wrong-input coverage in 112.23s and
+the focused partial-branch regression in 1.37s. Formatting, diff, frozen AVP
+hash and workflow checks pass. Review was Darwin-only; device coverage used
+the declared injected seam.
+
+### Action Taken
+
+AR returned to implementation for bounded rev-3 corrections to PIB-511,
+PIB-518 and PIB-519 only. Accepted production rendering and all closed rev-2
+surfaces must remain unchanged. AS–AX remain blocked; no AR file may be staged
+before another independent review.
+
+## Review — prepare S7 AR rev-1 — 2026-08-22
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Re-review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Focused AR tests pass
+- [x] AR observed-registration and wrong-input tests pass
+- [x] Scoped formatting, diff, workflow and frozen-source checks pass
+- [x] Authorized production rendering matches the PRD
+- [ ] Runtime obligations are exact and complete
+- [ ] Semantic guards reject conforming-shape wrong behavior
+- [ ] Handoff accurately states review status
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+AR remains unsafe to stage. Rev-1 closes the production-rendering and
+observer-budget findings, but seven material evidence gaps remain:
+
+- PIB-506's two non-owned classifications only require one repair string to
+  occur; extra stages, unsafe routes, wrong envelope fields and privacy leaks
+  can pass.
+- PIB-508 checks required route substrings but not exact alternatives or the
+  normative definition cell, so an extra valid-looking route can pass.
+- PIB-511's duplicate-stop sensitivity adds a new code instead of duplicating
+  an existing gate-table code; the boolean stop set collapses duplicate sites,
+  and reachable raw/dynamic read or Git calls can escape classification.
+- PIB-515 snapshots only `.tpatch`, so a preview write elsewhere under the
+  workspace can pass.
+- PIB-516…518 do not compare the complete partial-purge object, exact retry
+  argv and complete rendering; their emitter inventory misses enclosing
+  composite-field writes.
+- PIB-519 accepts exact claim slogans without an executable/manual route or a
+  resolved reference, and inventories only `internal/cli` plus a fixed
+  document subset rather than the applicable shipped surface.
+- PIB-520 ignores additional grammar productions whose code-fence line has
+  leading whitespace.
+
+Focused AR, observed-registration and wrong-input tests pass serially.
+Formatting, diff checks, the frozen AVP hash and empty workflow diff pass.
+Review was Darwin-only; device coverage uses the declared seam.
+
+### Action Taken
+
+AR returned to implementation for bounded rev-2 evidence corrections. The
+authorized production rendering is accepted and must not be widened. AS–AX
+remain blocked; no AR file may be staged before another independent review.
+
+## Review — prepare S7 AR rev-0 — 2026-08-22
+
+**Reviewer**: independent `prepare-s7-ar-review`
+**Task**: Review PIB-506…520 (`I6/C4/G4/S1`)
+
+### Checklist
+
+- [x] Focused AR tests pass
+- [x] AR observed-registration tests pass
+- [x] Scoped formatting and diff checks pass
+- [ ] Runtime obligations are exact and complete
+- [ ] Semantic guards reject conforming-shape wrong behavior
+- [ ] Handoff accurately states review status
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+AR is not safe to stage. The passing suite has material false-pass paths:
+
+- PIB-506/507 omit complete index-divergence report/privacy assertions,
+  accept inexact non-owned classifications, and do not prove managed-blob
+  sibling safety before executing the printed removal.
+- PIB-508 compares a hard-coded route list rather than deriving the exit-6
+  refusal catalog bidirectionally.
+- PIB-510…513 use literal/source-name checks instead of reachable
+  control-flow/dataflow evidence, do not prove `=false` selects generate,
+  omit required retry wording, and use a no-Git fixture that can miss failed
+  spawn attempts.
+- PIB-514/515 do not prove whole-workspace write confinement or exact
+  pending-object/retry-argv equality.
+- PIB-516…518 do not validate the required branch-specific retry prose with
+  valid-but-wrong same-shape sensitivities; production currently renders only
+  the resume token and command.
+- PIB-519 scans an incomplete shipped-surface inventory and accepts generic
+  route words rather than an executable command or manual procedure.
+- PIB-520 token-scans flags instead of parsing the five grammar productions
+  structurally and lacks a missing-registration sensitivity.
+- AR observer-budget sensitivities do not isolate the exact 12m/8m/1m tuple.
+
+### Action Taken
+
+AR returned to implementation for a bounded rev-1. AS–AX remain blocked. No
+AR files may be staged until independent re-review approves the corrected
+runtime, guard, observer and tracking evidence.
+
 ## Supervisor — prepare S7 AR dispatch — 2026-08-22
 
 Correction `e6cabb0` passed CI 32544950471 on Ubuntu, macOS and Windows. AQ is

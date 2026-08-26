@@ -1303,6 +1303,10 @@ the correction is APPROVED; AR waits on the final CI rerun.
 Correction `e6cabb0` is green on all three platforms in CI 32544950471. AQ is
 durably closed at 111/173 cumulative rows; AR (`PIB-506…520`,
 I6/C4/G4/S1) is active.
+AR is APPROVED at 15 exact rows (`PIB-506…520`, I6/C4/G4/S1), bringing
+cumulative S7 coverage to 126/173. The reviewed implementation/test block is
+checkpointed at `db17262`; AS remains blocked pending the tracking checkpoint,
+push and green blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
