@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 observer isolation checkpointed at `27473aa`; CI pending**
+- **Status**: **In progress — S7 rev-45 checkpointed at `021697c`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6496,14 +6496,28 @@ file, is the dispatch authority.
   Rev-41/43 checkpoint and blocking CI are authorized.
 - Final category budgets and fourteen-command observer isolation are
   checkpointed at `27473aa` by explicit-path staging.
+- Blocking CI
+  [33060962809](https://github.com/tesseracode/tesserapatch/actions/runs/33060962809)
+  passed Ubuntu and Windows. macOS passed non-AR, AM–AO/AP/AQ observers and
+  every nine non-observer AR shard, but AR remained last after nearly two
+  hours and exhausted its 16m inner budget at 974.454s. Rev-45 moves only the
+  existing fresh AR observer command directly after AQ, before recursive AR
+  shards; coverage, budgets, job topology and source remain unchanged.
+- Rev-45 exact-order guard passes in 0.459s package. Independent review
+  returned **APPROVED**, confirming complete coverage, fail-fast semantics,
+  hosted-degradation rationale and final observer non-invalidation. Combined
+  rev-41/43/45 checkpoint and blocking CI are authorized.
+- The final AR observer reorder and exact-order guard are checkpointed at
+  `021697c` by explicit-path staging; category budgets were already present in
+  the preceding checkpoint lineage.
 
 ## Next Steps
 
-1. Commit tracking, push `27473aa` plus tracking and rerun blocking CI.
-4. After green blocking CI, implement AS–AX, remaining
+1. Commit tracking, push `021697c` plus tracking and rerun blocking CI.
+2. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
-4. Run joint internal/external review to acceptance; only then select the
+3. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers

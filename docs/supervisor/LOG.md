@@ -1,3 +1,42 @@
+## Supervisor Decision — prepare S7 rev-45 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+The unchanged AR observer now runs directly after AQ, before recursive AR
+shards can degrade the hosted runner. Exact command order, fail-fast behavior,
+coverage and budgets remain unchanged.
+
+## Review — prepare S7 rev-45 — 2026-08-27
+
+**Reviewer**: independent `rev45-reorder-review`
+**Task**: Review AR observer scheduling correction
+
+### Verdict: APPROVED
+
+### Notes
+
+The reorder preserves the complete disjoint union and fail-fast semantics,
+does not invalidate final observer evidence, and directly addresses the
+late-run degradation observed on macOS.
+
+### Action Taken
+
+Combined rev-41/43/45 checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 isolated-observer CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-45 AR observer reorder dispatched**
+
+CI run
+[33060962809](https://github.com/tesseracode/tesserapatch/actions/runs/33060962809)
+passed Ubuntu and Windows. macOS passed non-AR, AM–AO/AP/AQ observers and all
+nine non-observer AR shards, but AR remained last after nearly two hours and
+exhausted its 16-minute inner budget at 974.454s.
+
+Rev-45 may move the existing fresh AR observer process directly after AQ and
+before recursive AR shards. Commands, coverage, budgets, environment, job
+topology and all source remain unchanged.
+
 ## Supervisor Decision — prepare S7 rev-44 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**

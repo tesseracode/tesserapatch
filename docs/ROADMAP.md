@@ -1336,6 +1336,10 @@ and moves AM–AO/AP/AQ observers into fresh CI processes.
 AP's fresh 234.54s test left only 5.46s under 4m, so rev-43 assigns AP the
 proven 12m/8m/1m envelope. Final AM–AO/AP/AQ observers pass and the complete
 observer isolation is checkpointed at `27473aa`. AS waits on blocking CI.
+CI 33060962809 passed every platform/shard except the last macOS AR observer,
+which began after nearly two hours and expired at 974.454s. Rev-45 moves that
+fresh process immediately after AQ without changing coverage or budgets.
+Rev-45 is approved and checkpointed at `021697c`; AS waits on blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
