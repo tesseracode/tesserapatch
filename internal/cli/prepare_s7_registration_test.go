@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -202,12 +203,116 @@ func TestS7ObservedAQRegistrationAuthority(t *testing.T) {
 	runS7ObservedCategory(t, s7ObservedCategoryAQ, s7ObservedAQTargets(t))
 }
 
-func TestS7ObservedARRegistrationAuthority(t *testing.T) {
-	runS7ObservedCategory(t, s7ObservedCategoryAR, s7ObservedARTargets(t))
+type s7ObservedARProcessGroup struct {
+	name        string
+	first, last int
+}
+
+var s7ObservedARProcessGroups = []s7ObservedARProcessGroup{
+	{name: "core", first: 506, last: 517},
+	{name: "purge", first: 518, last: 518},
+	{name: "claims", first: 519, last: 520},
+}
+
+func TestS7ObservedARCoreRegistrationAuthority(t *testing.T) {
+	runS7ObservedARProcessGroup(t, "core")
+}
+
+func TestS7ObservedARPurgeRegistrationAuthority(t *testing.T) {
+	runS7ObservedARProcessGroup(t, "purge")
+}
+
+func TestS7ObservedARClaimsRegistrationAuthority(t *testing.T) {
+	runS7ObservedARProcessGroup(t, "claims")
 }
 
 func TestS7ObservedASRegistrationAuthority(t *testing.T) {
 	runS7ObservedCategory(t, s7ObservedCategoryAS, s7ObservedASTargets(t))
+}
+
+func runS7ObservedARProcessGroup(t *testing.T, name string) {
+	t.Helper()
+	if err := validateS7ObservedHostedBudgets(
+		s7ObservedHostedBudgets, s7ObservedCIPackageLimit,
+	); err != nil {
+		t.Fatal(err)
+	}
+	groups, err := s7PartitionObservedARTargets(
+		s7ObservedARTargets(t), s7ObservedARProcessGroups,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, ok := groups[name]
+	if !ok {
+		t.Fatalf("unknown AR observer process group %q", name)
+	}
+	budget := s7ObservedHostedBudgets[s7ObservedCategoryAR]
+	ctx, cancel := context.WithTimeout(context.Background(), budget.outer)
+	defer cancel()
+	if err := validateS7ObservedRegistrationsWithHostedBudget(
+		ctx, avpRepoRoot(t), group,
+		budget.inner, budget.cleanup,
+	); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func s7PartitionObservedARTargets(
+	targets []s7ObservedRegistrationTarget,
+	processGroups []s7ObservedARProcessGroup,
+) (map[string][]s7ObservedRegistrationTarget, error) {
+	budget, ok := s7ObservedHostedBudgets[s7ObservedCategoryAR]
+	if !ok {
+		return nil, errors.New("AR observer budget is missing")
+	}
+	if err := validateS7ObservedCategoryTargets(
+		s7ObservedCategoryAR, budget, targets,
+	); err != nil {
+		return nil, err
+	}
+	groups := make(map[string][]s7ObservedRegistrationTarget, len(processGroups))
+	owners := make(map[string]string, len(targets))
+	for _, target := range targets {
+		row, err := strconv.Atoi(strings.TrimPrefix(target.row, "PIB-"))
+		if err != nil {
+			return nil, fmt.Errorf("AR observer row %q is invalid", target.row)
+		}
+		owner := ""
+		for _, group := range processGroups {
+			if row >= group.first && row <= group.last {
+				if owner != "" {
+					return nil, fmt.Errorf(
+						"AR observer row %s belongs to both %s and %s",
+						target.row, owner, group.name,
+					)
+				}
+				owner = group.name
+			}
+		}
+		if owner == "" {
+			return nil, fmt.Errorf("AR observer row %s has no process group", target.row)
+		}
+		key := s7ObservedTargetKey(target.target)
+		if previous := owners[key]; previous != "" {
+			return nil, fmt.Errorf(
+				"AR observer target %s belongs to both %s and %s",
+				key, previous, owner,
+			)
+		}
+		owners[key] = owner
+		groups[owner] = append(groups[owner], target)
+	}
+	for _, group := range processGroups {
+		want := group.last - group.first + 1
+		if len(groups[group.name]) != want {
+			return nil, fmt.Errorf(
+				"AR observer group %s has %d targets, want %d",
+				group.name, len(groups[group.name]), want,
+			)
+		}
+	}
+	return groups, nil
 }
 
 func runS7ObservedCategory(
@@ -306,6 +411,59 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 			t.Fatalf("workspace mode = %04o, want 0700", info.Mode().Perm())
 		}
 	})
+	t.Run("ar-process-partition", func(t *testing.T) {
+		targets := s7ObservedARTargets(t)
+		groups, err := s7PartitionObservedARTargets(
+			targets, s7ObservedARProcessGroups,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(groups) != 3 ||
+			len(groups["core"]) != 12 ||
+			len(groups["purge"]) != 1 ||
+			len(groups["claims"]) != 2 {
+			t.Fatalf("AR observer process groups = %v", groups)
+		}
+		for _, fixture := range []struct {
+			name    string
+			targets []s7ObservedRegistrationTarget
+			groups  []s7ObservedARProcessGroup
+		}{
+			{
+				name:    "missing-target",
+				targets: targets[:len(targets)-1],
+				groups:  s7ObservedARProcessGroups,
+			},
+			{
+				name:    "overlapping-ranges",
+				targets: targets,
+				groups: []s7ObservedARProcessGroup{
+					{name: "core", first: 506, last: 518},
+					{name: "purge", first: 518, last: 518},
+					{name: "claims", first: 519, last: 520},
+				},
+			},
+			{
+				name:    "gap",
+				targets: targets,
+				groups: []s7ObservedARProcessGroup{
+					{name: "core", first: 506, last: 517},
+					{name: "purge", first: 519, last: 519},
+					{name: "claims", first: 520, last: 520},
+				},
+			},
+		} {
+			t.Run(fixture.name, func(t *testing.T) {
+				if _, err := s7PartitionObservedARTargets(
+					fixture.targets, fixture.groups,
+				); err == nil {
+					t.Fatal("AR observer partition accepted wrong input")
+				}
+			})
+		}
+	})
+
 	t.Run("hosted-budget-order", func(t *testing.T) {
 		if err := validateS7ObservedHostedBudgets(
 			s7ObservedHostedBudgets, s7ObservedCIPackageLimit,
@@ -872,10 +1030,8 @@ func validateS7ObservedRegistrationsWithMutation(
 	}
 	for forbidden := range topLevel {
 		if strings.Contains(forbidden, "CoverageLedger") ||
-			strings.Contains(forbidden, "ObservedAMThroughAORegistrationAuthority") ||
-			strings.Contains(forbidden, "ObservedAPRegistrationAuthority") ||
-			strings.Contains(forbidden, "ObservedAQRegistrationAuthority") ||
-			strings.Contains(forbidden, "ObservedARRegistrationAuthority") ||
+			(strings.Contains(forbidden, "Observed") &&
+				strings.Contains(forbidden, "RegistrationAuthority")) ||
 			strings.Contains(forbidden, "ObservedRegistrationWrongInputs") {
 			return fmt.Errorf("observed-registration selection recurses into %s", forbidden)
 		}
@@ -897,7 +1053,10 @@ func validateS7ObservedRegistrationsWithMutation(
 		"TestS7ObservedAMThroughAORegistrationAuthority",
 		"TestS7ObservedAPRegistrationAuthority",
 		"TestS7ObservedAQRegistrationAuthority",
-		"TestS7ObservedARRegistrationAuthority",
+		"TestS7ObservedARCoreRegistrationAuthority",
+		"TestS7ObservedARPurgeRegistrationAuthority",
+		"TestS7ObservedARClaimsRegistrationAuthority",
+		"TestS7ObservedASRegistrationAuthority",
 	} {
 		if matched, _ := regexp.MatchString(pattern, excluded); matched {
 			return fmt.Errorf("observed-registration regex includes %s", excluded)

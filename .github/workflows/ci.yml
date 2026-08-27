@@ -80,7 +80,7 @@ jobs:
           GOENV: "off"
         run: |
           set -euo pipefail
-          go test ./... -count=1 -timeout 40m -skip '^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR|AS)RegistrationAuthority)$'
+          go test ./... -count=1 -timeout 40m -skip '^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS)RegistrationAuthority)$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(11|12|13|14|15).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(16|17|18).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(19|20).*$'
@@ -274,7 +274,9 @@ jobs:
           GOENV: "off"
         run: |
           set -euo pipefail
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARCoreRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARPurgeRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARClaimsRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAMThroughAORegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAPRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAQRegistrationAuthority$'

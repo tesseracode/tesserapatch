@@ -31,7 +31,7 @@ type s7CITimeoutStep struct {
 }
 
 const (
-	s7CIARPartitionPattern                   = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR|AS)RegistrationAuthority)$`
+	s7CIARPartitionPattern                   = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS)RegistrationAuthority)$`
 	s7CIAMThroughAOObserverPattern           = `^TestS7ObservedAMThroughAORegistrationAuthority$`
 	s7CIAPObserverPattern                    = `^TestS7ObservedAPRegistrationAuthority$`
 	s7CIAQObserverPattern                    = `^TestS7ObservedAQRegistrationAuthority$`
@@ -44,7 +44,9 @@ const (
 	s7CIARAbandonPattern                     = `^TestS7ARAbandonGateTableGuard$`
 	s7CIARPurgePattern                       = `^TestS7ARPurgeProgressGuard$`
 	s7CIARPermanentPattern                   = `^TestS7ARPermanentBlockClaimsGuard$`
-	s7CIARObserverPattern                    = `^TestS7ObservedARRegistrationAuthority$`
+	s7CIARCoreObserverPattern                = `^TestS7ObservedARCoreRegistrationAuthority$`
+	s7CIARPurgeObserverPattern               = `^TestS7ObservedARPurgeRegistrationAuthority$`
+	s7CIARClaimsObserverPattern              = `^TestS7ObservedARClaimsRegistrationAuthority$`
 	s7CIASObserverPattern                    = `^TestS7ObservedASRegistrationAuthority$`
 	s7CINonWindowsFullCommand                = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
 	s7CINonWindowsAMThroughAOObserverCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAMThroughAOObserverPattern + `'`
@@ -59,7 +61,9 @@ const (
 	s7CINonWindowsARAbandonCommand           = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARAbandonPattern + `'`
 	s7CINonWindowsARPurgeCommand             = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPurgePattern + `'`
 	s7CINonWindowsARPermanentCommand         = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPermanentPattern + `'`
-	s7CINonWindowsARObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
+	s7CINonWindowsARCoreObserverCommand      = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCoreObserverPattern + `'`
+	s7CINonWindowsARPurgeObserverCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPurgeObserverPattern + `'`
+	s7CINonWindowsARClaimsObserverCommand    = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARClaimsObserverPattern + `'`
 	s7CINonWindowsASObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIASObserverPattern + `'`
 	s7CINonWindowsTestScript                 = "set -euo pipefail\n" +
 		s7CINonWindowsFullCommand + "\n" +
@@ -73,7 +77,9 @@ const (
 		s7CINonWindowsARPurgeCommand + "\n" +
 		s7CINonWindowsARPermanentCommand
 	s7CIObserverTestScript = "set -euo pipefail\n" +
-		s7CINonWindowsARObserverCommand + "\n" +
+		s7CINonWindowsARCoreObserverCommand + "\n" +
+		s7CINonWindowsARPurgeObserverCommand + "\n" +
+		s7CINonWindowsARClaimsObserverCommand + "\n" +
 		s7CINonWindowsAMThroughAOObserverCommand + "\n" +
 		s7CINonWindowsAPObserverCommand + "\n" +
 		s7CINonWindowsAQObserverCommand + "\n" +
@@ -354,7 +360,7 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "observer-command-removed",
 			mutation: strings.Replace(
 				workflow,
-				"\n          "+s7CINonWindowsARObserverCommand,
+				"\n          "+s7CINonWindowsARCoreObserverCommand,
 				"",
 				1,
 			),
@@ -363,8 +369,44 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "observer-command-failure-masked",
 			mutation: strings.Replace(
 				workflow,
-				s7CINonWindowsARObserverCommand,
-				s7CINonWindowsARObserverCommand+" || true",
+				s7CINonWindowsARCoreObserverCommand,
+				s7CINonWindowsARCoreObserverCommand+" || true",
+				1,
+			),
+		},
+		{
+			name: "observer-ar-purge-command-removed",
+			mutation: strings.Replace(
+				workflow,
+				"\n          "+s7CINonWindowsARPurgeObserverCommand,
+				"",
+				1,
+			),
+		},
+		{
+			name: "observer-ar-purge-command-failure-masked",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARPurgeObserverCommand,
+				s7CINonWindowsARPurgeObserverCommand+" || true",
+				1,
+			),
+		},
+		{
+			name: "observer-ar-claims-command-removed",
+			mutation: strings.Replace(
+				workflow,
+				"\n          "+s7CINonWindowsARClaimsObserverCommand,
+				"",
+				1,
+			),
+		},
+		{
+			name: "observer-ar-claims-command-failure-masked",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARClaimsObserverCommand,
+				s7CINonWindowsARClaimsObserverCommand+" || true",
 				1,
 			),
 		},
@@ -390,10 +432,10 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "observer-order-swapped",
 			mutation: strings.Replace(
 				workflow,
-				"          "+s7CINonWindowsARObserverCommand+"\n"+
-					"          "+s7CINonWindowsAMThroughAOObserverCommand,
-				"          "+s7CINonWindowsAMThroughAOObserverCommand+"\n"+
-					"          "+s7CINonWindowsARObserverCommand,
+				"          "+s7CINonWindowsARCoreObserverCommand+"\n"+
+					"          "+s7CINonWindowsARPurgeObserverCommand,
+				"          "+s7CINonWindowsARPurgeObserverCommand+"\n"+
+					"          "+s7CINonWindowsARCoreObserverCommand,
 				1,
 			),
 		},
@@ -1078,7 +1120,9 @@ func validateS7ObserverTestPartition(step s7CITimeoutStep) error {
 		}
 	}
 	want := []string{
-		s7CINonWindowsARObserverCommand,
+		s7CINonWindowsARCoreObserverCommand,
+		s7CINonWindowsARPurgeObserverCommand,
+		s7CINonWindowsARClaimsObserverCommand,
 		s7CINonWindowsAMThroughAOObserverCommand,
 		s7CINonWindowsAPObserverCommand,
 		s7CINonWindowsAQObserverCommand,
@@ -1305,7 +1349,9 @@ func validateS7ARPartitionTestOwners(root string) error {
 		regexp.MustCompile(s7CIARAbandonPattern),
 		regexp.MustCompile(s7CIARPurgePattern),
 		regexp.MustCompile(s7CIARPermanentPattern),
-		regexp.MustCompile(s7CIARObserverPattern),
+		regexp.MustCompile(s7CIARCoreObserverPattern),
+		regexp.MustCompile(s7CIARPurgeObserverPattern),
+		regexp.MustCompile(s7CIARClaimsObserverPattern),
 	}
 	matched := map[string][]int{
 		"linux":  make([]int, len(shards)),
