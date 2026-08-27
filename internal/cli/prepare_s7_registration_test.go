@@ -114,7 +114,7 @@ var s7ObservedHostedBudgets = map[s7ObservedCategory]s7ObservedHostedBudget{
 		first: 483, last: 505, targets: 23,
 	},
 	s7ObservedCategoryAR: {
-		outer: 35 * time.Minute, inner: 30 * time.Minute, cleanup: 2 * time.Minute,
+		outer: 39 * time.Minute, inner: 37 * time.Minute, cleanup: time.Minute,
 		first: 506, last: 520, targets: 15,
 	},
 }
@@ -150,7 +150,7 @@ func validateS7ObservedHostedBudgets(
 			first: 483, last: 505, targets: 23,
 		},
 		s7ObservedCategoryAR: {
-			outer: 2100 * time.Second, inner: 1800 * time.Second, cleanup: 120 * time.Second,
+			outer: 2340 * time.Second, inner: 2220 * time.Second, cleanup: 60 * time.Second,
 			first: 506, last: 520, targets: 15,
 		},
 	}
@@ -396,7 +396,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				name: "wrong-ar-outer-only",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					ar := budgets[s7ObservedCategoryAR]
-					ar.outer = 20 * time.Minute
+					ar.outer = 35 * time.Minute
 					budgets[s7ObservedCategoryAR] = ar
 				},
 			},
@@ -404,7 +404,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				name: "wrong-ar-inner-only",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					ar := budgets[s7ObservedCategoryAR]
-					ar.inner = 16 * time.Minute
+					ar.inner = 30 * time.Minute
 					budgets[s7ObservedCategoryAR] = ar
 				},
 			},
@@ -412,7 +412,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				name: "wrong-ar-cleanup-only",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					ar := budgets[s7ObservedCategoryAR]
-					ar.cleanup = time.Minute
+					ar.cleanup = 2 * time.Minute
 					budgets[s7ObservedCategoryAR] = ar
 				},
 			},

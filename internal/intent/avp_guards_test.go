@@ -1712,10 +1712,10 @@ func registerPlatformGuards() {
 				// The leaf floor stops floor-ing anything.
 				{"leaf-floor-zeroed",
 					strings.Replace(workflow, "-lt 6 ]", "-lt 0 ]", 1)},
-				// The release job stops depending on the test job, so a red
-				// test job still publishes a release.
+				// The release job stops depending on both blocking jobs, so a
+				// red test or observer job still publishes a release.
 				{"release-needs-removed",
-					strings.Replace(workflow, "    name: release\n    needs: test\n", "    name: release\n", 1)},
+					strings.Replace(workflow, "    name: release\n    needs: [test, s7-observers]\n", "    name: release\n", 1)},
 				// The whole job is demoted by an *expression*: rev-3 decoded
 				// `continue-on-error` to a bool, so `${{ true }}` collapsed
 				// onto false and read as "blocking".
@@ -2022,8 +2022,8 @@ func checkCIMatrix(workflow string) error {
 //   - adding a conjunct (`&& false`, an event filter) that disables the step;
 //   - dropping the native invocation, the AVP-176/199 row loop or the leaf
 //     floor, so a `-run` pattern that matches nothing exits 0;
-//   - removing `needs: test` from the release job, which would publish a
-//     release regardless of the test job's conclusion.
+//   - removing `needs: [test, s7-observers]` from the release job, which would
+//     publish regardless of either blocking job's conclusion.
 func checkCIWindowsGate(workflow string) error {
 	jobs, err := parseWorkflowJobs(workflow)
 	if err != nil {
