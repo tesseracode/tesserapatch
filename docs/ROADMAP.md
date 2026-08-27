@@ -1345,6 +1345,9 @@ CI 33069822776 showed ordering was not causal: early macOS AR still expired at
 the fixed 40m process limit.
 Rev-46 is approved and checkpointed at `efe7fc2`; the fresh local AR observer
 passes under the stronger 419s cutoff. AS waits on blocking CI.
+After shared-runner AR reached 1816.512s, rev-48 moves all observers to a
+dedicated full-history Ubuntu/macOS job, AR first, with release depending on
+both test jobs. The approved checkpoint is `47c4488`; AS waits on CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

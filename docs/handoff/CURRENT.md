@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 final hosted budget checkpointed at `efe7fc2`; CI pending**
+- **Status**: **In progress — S7 rev-48 checkpointed at `47c4488`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6522,6 +6522,28 @@ file, is the dispatch authority.
   `16efe5e820ec4ca5fcce2c7d85c8524d5502e98827f50ba5e1371c14920b1a26`;
   prior 20m/16m/1m values each bite independently. No post-rev-46 observer has
   run; staging, whitespace and Side Research remain clean.
+- Shared-job AR still timed out at 1816.512s under 30m after non-AR plus three
+  observer processes, proving runner age/degradation rather than the nominal
+  envelope is the remaining constraint. Rev-48 creates a separate blocking
+  Ubuntu/macOS `s7-observers` matrix job, runs AR first, then AM–AO/AP/AQ, and
+  makes release depend on both `test` and `s7-observers`. The main job skips
+  all four observers and retains every ordinary/AR shard.
+- Dedicated-job topology, exact four-command script, environment, order,
+  release dependency and expanded complete AST shard union are guarded with
+  direct mutations. Combined budget + CI guards pass in 4.646s package.
+  Current hashes: registration `16efe5e8`, workflow `16aba535`, CI guard
+  `158eea6e`; all production/AR analyzer hashes and Side Research are unchanged.
+- Rev-48 round-0 review returned **NEEDS REVISION** because AM–AO PIB-445
+  requires historical `git show` evidence but the new checkout was shallow.
+  The observer job now uses exact `fetch-depth: 0`; the guard parses the actual
+  checkout `with:` map and rejects shallow/missing depth. Dedicated-job
+  topology/script/release, full-history checkout, budget and shard-union guards
+  pass together in 4.721s package.
+- Focused rev-48 re-review returned **APPROVED**. Dedicated observer
+  workflow/guard checkpoint and blocking CI are authorized; final local
+  observer evidence remains valid because no observer source changed.
+- The dedicated full-history observer job and its semantic guard are
+  checkpointed at `47c4488` by explicit-path staging.
 - Independent rev-46 review returned **APPROVED**. Rev-47 may consume one
   final local AR observer after the strict gate under the unchanged stronger
   419-second cutoff.
@@ -6544,8 +6566,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit tracking, push `efe7fc2` plus tracking and rerun blocking CI.
-2. After green blocking CI, implement AS–AX, remaining
+1. Commit tracking, push `47c4488` plus tracking and rerun blocking CI.
+3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the

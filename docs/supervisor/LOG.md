@@ -48,6 +48,66 @@ prior 20m/16m/1m sensitivities all pass.
 One final local AR observer is authorized under the unchanged stronger
 419-second cutoff.
 
+## Supervisor Decision — prepare S7 rev-48 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+The dedicated Ubuntu/macOS observer job is blocking, full-history, AR-first,
+exactly guarded and required by release. Main test coverage remains complete
+and observer-free. Final budgets and local observer evidence remain valid.
+
+## Review — prepare S7 rev-48 — 2026-08-27
+
+**Reviewer**: independent `rev48-checkout-rereview`
+**Task**: Re-review dedicated observer full-history checkout
+
+### Verdict: APPROVED
+
+### Notes
+
+Exact `actions/checkout@v4` with only `fetch-depth: 0` closes PIB-445 history
+availability. Observer topology, script, release dependency and guard
+sensitivities remain clean.
+
+### Action Taken
+
+Workflow/guard checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 rev-48 round 0 — 2026-08-27
+
+**Decision**: **NEEDS REVISION — full-history checkout correction dispatched**
+
+The dedicated observer-job architecture is retained. Rev-48 may add exact
+`fetch-depth: 0` to its checkout and guard the actual checkout step.
+
+## Review — prepare S7 rev-48 round 0 — 2026-08-27
+
+**Reviewer**: independent `rev48-observer-job-review`
+**Task**: Review dedicated observer job
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Default shallow checkout omits the historical commit required by AM–AO
+PIB-445's `git show` evidence.
+
+### Action Taken
+
+Observer checkout now uses `fetch-depth: 0`; the guard parses actual `with:`
+inputs and rejects shallow/missing depth. Dedicated job, release dependency,
+script and budget guards pass.
+
+## Supervisor Decision — prepare S7 observer architecture — 2026-08-27
+
+**Decision**: **rev-48 dedicated observer job dispatched**
+
+Repeated macOS runs show observer duration degrades with shared-job age even
+when AR is moved early. Rev-48 moves all four category observers to a separate
+Ubuntu/macOS matrix job, AR first, with release depending on both test jobs.
+Main non-Windows coverage still skips exactly those observers and retains all
+ordinary/AR shards.
+
 ## Supervisor Decision — prepare S7 AR reordered-observer CI — 2026-08-27
 
 **Decision**: **NEEDS REVISION — rev-46 final AR hosted budget dispatched**
