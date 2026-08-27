@@ -1358,7 +1358,9 @@ CI 33085315805 passed Windows and Ubuntu observers but macOS PIB-518 exhausted
 PIB-391 dual baseline/current AVP source-hash pin. Local PIB-518 fell 48.6% to
 64.60s, the fresh trilogy totals 199.248s and the full AR observer passes in
 213.12s package. Independent review approved and code is checkpointed at
-`871d3ab`; blocking CI remains, so AS is still blocked.
+`871d3ab`. CI 33091499900 is green on all five blocking platform/observer
+jobs. AR is durably closed at 126/173 cumulative rows; AS (`PIB-521…530`,
+I7/G3) is active from `6f7171e`.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

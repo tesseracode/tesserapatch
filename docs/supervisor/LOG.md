@@ -1,3 +1,20 @@
+## Supervisor Decision — prepare S7 AR close / AS dispatch — 2026-08-27
+
+**Decision**: **AR ACCEPTED — AS DISPATCHED**
+
+Blocking CI
+[33091499900](https://github.com/tesseracode/tesserapatch/actions/runs/33091499900)
+is green on Ubuntu, macOS and Windows, including both dedicated full-history
+observer jobs. Release correctly skipped on the untagged push. AR closes
+durably at 15 exact rows (`PIB-506`…`PIB-520`, I6/C4/G4/S1), bringing
+cumulative S7 coverage to 126/173.
+
+AS is dispatched sequentially from `6f7171e`: ten exact rows
+`PIB-521`…`PIB-530` (I7/G3), covering unreferenced physical residue,
+purge-owned recovery/preview totality and authority shape. Preserve the final
+AR tuple, the positioned-expression cache, the 15-row AR ledger and all prior
+slice boundaries.
+
 ## Supervisor Decision — prepare S7 rev-50 — 2026-08-27
 
 **Decision**: **APPROVED FOR CI**

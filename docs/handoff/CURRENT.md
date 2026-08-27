@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 rev-50 checkpointed at `871d3ab`; CI next**
+- **Status**: **In progress — S7 AS dispatched from `6f7171e`**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6592,6 +6592,15 @@ file, is the dispatch authority.
   zero Go-tool processes. Immediate preflight was 85% / 1.62 / zero.
 - Rev-50's positioned-AST cache and dual provenance pin are checkpointed at
   `871d3ab` by explicit-path staging with the required trailer.
+- Blocking CI
+  [33091499900](https://github.com/tesseracode/tesserapatch/actions/runs/33091499900)
+  is green across Ubuntu, macOS and Windows, including both dedicated
+  full-history observer jobs. Release correctly skipped on the untagged push.
+  AR is durably complete: 15 exact rows, I6/C4/G4/S1; cumulative S7 is 126/173.
+- AS is dispatched sequentially from tracking tip `6f7171e`: ten exact rows
+  `PIB-521`…`PIB-530` (I7/G3). Scope is physical residue,
+  purge-owned recovery/preview totality and authority shape. No prior slice
+  contract or observer budget may regress.
 - Independent rev-46 review returned **APPROVED**. Rev-47 may consume one
   final local AR observer after the strict gate under the unchanged stronger
   419-second cutoff.
@@ -6614,8 +6623,9 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit tracking, push `871d3ab` plus tracking and rerun blocking CI.
-2. If all blocking jobs pass, close AR and dispatch AS.
+1. Implement AS `PIB-521`…`PIB-530` and its exact ledger.
+2. Validate all G sensitivities and cumulative S7 arithmetic.
+3. Obtain independent review before checkpointing AS.
 3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
