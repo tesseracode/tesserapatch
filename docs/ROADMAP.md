@@ -1330,6 +1330,12 @@ inner budget at 611.861s. Rev-39 uses a robust AR-only 20m/16m/1m tuple under
 the unchanged 40m package limit.
 Rev-39 is approved and checkpointed at `0c5f55f`; its fresh local observer
 passes under the stronger 419s cutoff. AS waits on blocking CI.
+CI 33054901334 failed before AR on macOS when AM–AO's legacy 90s inner
+observer timeout expired at 122.36s. Rev-41 category-binds AM–AO at 8m/4m/1m
+and moves AM–AO/AP/AQ observers into fresh CI processes.
+AP's fresh 234.54s test left only 5.46s under 4m, so rev-43 assigns AP the
+proven 12m/8m/1m envelope. Final AM–AO/AP/AQ observers pass and the complete
+observer isolation is checkpointed at `27473aa`. AS waits on blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

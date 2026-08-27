@@ -1,3 +1,106 @@
+## Supervisor Decision — prepare S7 rev-44 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+Fresh isolated AM–AO/AP/AQ observers pass under the final category table.
+AR rev-40 evidence remains valid because its category tuple, targets and
+analyzer sources are unchanged.
+
+## Review — prepare S7 rev-44 — 2026-08-27
+
+**Reviewer**: independent `rev44-evidence-review`
+**Task**: Review final isolated legacy observer evidence
+
+### Verdict: APPROVED
+
+### Notes
+
+AM–AO 81.259s, AP 156.424s and AQ 70.950s package times all retain robust
+inner-budget margins. Separate process execution and final boundaries match.
+
+### Action Taken
+
+Rev-41/43 checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 rev-43 — 2026-08-27
+
+**Decision**: **APPROVED — rev-44 isolated observers dispatched**
+
+AP now uses outer 12m / inner 8m / cleanup 1m, matching AQ's proven hosted
+envelope. AM–AO, AQ and AR tuples remain unchanged. Exact prior 8m/4m AP
+regressions and category binding pass.
+
+## Review — prepare S7 rev-43 — 2026-08-27
+
+**Reviewer**: independent `rev43-ap-review`
+**Task**: Review AP-only hosted observer budget
+
+### Verdict: APPROVED
+
+### Notes
+
+The larger AP tuple is finite, category-bound and preserves distinct AP/AQ
+row/target identities despite equal timing values.
+
+### Action Taken
+
+Fresh isolated AM–AO/AP/AQ observers are authorized before checkpoint.
+
+## Supervisor Decision — prepare S7 rev-42 observer evidence — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-43 AP hosted budget dispatched**
+
+Fresh isolated observers pass: AM–AO 78.354s package under 4m inner, AP
+234.857s under 4m inner, and AQ 70.638s under 8m inner. AP's test time of
+234.54s leaves only 5.46s below its inner cap, which is not robust for hosted
+macOS variance.
+
+Rev-43 may change only AP's hosted tuple to outer 12m / inner 8m / cleanup 1m,
+matching AQ's proven envelope, add prior 8m/4m regression sensitivities and
+update tracking. AM–AO, AQ and AR remain unchanged.
+
+## Supervisor Decision — prepare S7 AR rev-41 — 2026-08-27
+
+**Decision**: **APPROVED — rev-42 legacy observers dispatched**
+
+AM–AO now uses the category-bound 8m/4m/1m tuple over PIB-395…448 with exact
+65-target multiplicity. AM–AO/AP/AQ observers are removed from the ordinary
+non-AR process and each receives a fresh blocking CI process. AR remains
+20m/16m/1m.
+
+## Review — prepare S7 AR rev-41 — 2026-08-27
+
+**Reviewer**: independent `rev41-observer-review` +
+`rev41-range-rereview`
+**Task**: Review legacy observer category binding and CI sharding
+
+### Verdict: APPROVED
+
+### Notes
+
+Round 0 found only a LOG typo (`PIB-402…448`); the implementation and CURRENT
+correctly used PIB-395…448. After correction, budget multiplicity, category
+binding and fourteen-command disjoint union are approved.
+
+### Action Taken
+
+Fresh AM–AO/AP/AQ observer validation is authorized before checkpoint.
+
+## Supervisor Decision — prepare S7 AR robust-budget CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-41 legacy observer partition dispatched**
+
+CI run
+[33054901334](https://github.com/tesseracode/tesserapatch/actions/runs/33054901334)
+passed Ubuntu and Windows but failed before reaching AR on macOS. The non-AR
+process exposed `TestS7ObservedAMThroughAORegistrationAuthority`'s legacy
+hardcoded 90-second inner timeout at 122.36s. No AM–AO target assertion failed.
+
+Rev-41 may move AM–AO into the category-bound hosted budget table at outer 8m
+/ inner 4m / cleanup 1m, preserve its exact 65 targets over PIB-395…448, and
+shard AM–AO/AP/AQ observers into fresh blocking CI processes. AR's approved
+20m/16m/1m tuple remains unchanged.
+
 ## Supervisor Decision — prepare S7 AR rev-40 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**

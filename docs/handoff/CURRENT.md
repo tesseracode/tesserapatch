@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AR rev-39 checkpointed at `0c5f55f`; CI pending**
+- **Status**: **In progress — S7 observer isolation checkpointed at `27473aa`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6450,11 +6450,57 @@ file, is the dispatch authority.
   checkpoint and blocking CI are authorized.
 - Rev-39's robust AR-only hosted observer budget is checkpointed at `0c5f55f`
   by explicit-path staging.
+- Blocking CI
+  [33054901334](https://github.com/tesseracode/tesserapatch/actions/runs/33054901334)
+  passed Ubuntu and Windows but failed before reaching AR on macOS. The
+  non-AR process exposed AM–AO's legacy hardcoded 90s inner observer timeout
+  at 122.36s; no target assertion failed. Rev-41 moves AM–AO's exact 65-target
+  set into the category-bound table at 8m/4m/1m and shards AM–AO/AP/AQ
+  observers into fresh blocking CI processes. AR 20m/16m/1m remains unchanged.
+- Rev-41 adds AM–AO (`PIB-395…448`) to the category budget table with exact
+  65-target multiplicity (PIB-443 owns 12 leaves) at 8m/4m/1m. The non-AR
+  skip now covers AM–AO/AP/AQ/AR observers, each with an exact fresh process;
+  the guard proves fourteen commands and thirteen non-empty Linux/macOS
+  shards. Budget/category and full CI mutation suites pass in 4.720s package.
+  Current hashes: registration
+  `76a20aa482c6f75ad9f6c9b997e171e06ae85ef33646b94bf4f9553b560dda7f`,
+  workflow
+  `a4920dcc03aada53a636de1bfaaebdf511bd9de02cdcdd5d6c3a4fe93717bedd`,
+  CI guard
+  `9cd2de0e30d37f43d1e523429e68d372a9d9a6298ae44eac484f191449b5bac4`.
+  AR guard/S6 and production remain unchanged; no post-rev-41 observer ran.
+- Rev-41 review found only a supervisor-LOG range typo, corrected from
+  PIB-402…448 to PIB-395…448. Focused re-review returned **APPROVED**.
+  Rev-42 may run fresh AM–AO/AP/AQ observer processes before checkpoint.
+- Rev-42 fresh isolated observers all pass: AM–AO 77.94s test / 78.354s
+  package, AP 234.54s / 234.857s, AQ 70.23s / 70.638s. AM–AO and AQ retain
+  robust margins; AP leaves only 5.46s under its 4m inner limit. Rev-43 raises
+  AP alone to the already proven AQ envelope, outer 12m / inner 8m / cleanup
+  1m. AM–AO, AQ and AR remain unchanged.
+- Rev-43 exact budget/category and fourteen-command CI guard suites pass in
+  4.882s package. Registration hash is
+  `19814bd74c93b0d5287c95dcbfba9446aac93ca502be0076e18facdbfd817b63`;
+  workflow/CI guard and all production/AR hashes remain unchanged. No
+  post-rev-43 observer has run.
+- Independent rev-43 review returned **APPROVED**. Rev-44 may run fresh
+  isolated AM–AO/AP/AQ observers against the final table; AR evidence remains
+  valid because its tuple and all observer targets/sources are unchanged.
+- Rev-44 fresh isolated observers all pass after one strict gate at 89% free
+  memory, load 1.70 and zero exact processes: AM–AO 80.93s test / 81.259s
+  package / 81.70s wall; AP 156.12s / 156.424s / 156.85s; AQ 70.58s /
+  70.950s / 71.38s. Read-only close at `2026-08-27T02:53:28-0700` retained
+  89% free memory, zero exact processes, refs `c19bc45`, empty staging, clean
+  formatting/whitespace, hashes registration `19814bd7`, workflow `a4920dcc`,
+  CI guard `9cd2de0e`, and Side Research intact.
+- Independent rev-44 evidence review returned **APPROVED** with no mismatch.
+  Rev-41/43 checkpoint and blocking CI are authorized.
+- Final category budgets and fourteen-command observer isolation are
+  checkpointed at `27473aa` by explicit-path staging.
 
 ## Next Steps
 
-1. Commit tracking, push `0c5f55f` plus tracking and rerun blocking CI.
-3. After green blocking CI, implement AS–AX, remaining
+1. Commit tracking, push `27473aa` plus tracking and rerun blocking CI.
+4. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
 4. Run joint internal/external review to acceptance; only then select the
@@ -6468,6 +6514,8 @@ file, is the dispatch authority.
   observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.
 - Blocking CI 33046534111 passed every non-observer shard but macOS exhausted
   AR's 10m inner budget at 611.861s. Rev-39 is active.
+- Blocking CI 33054901334 failed before AR because macOS AM–AO exhausted its
+  legacy 90s inner timeout at 122.36s. Rev-41 is active.
 - Blocking CI 33024637427 failed on the type-model projection collision and
   non-Windows runtime exhaustion; AR is reopened at rev-33.
 - Rev-19 and rev-20 are rejected, and rev-21 lacks valid final-code observer
