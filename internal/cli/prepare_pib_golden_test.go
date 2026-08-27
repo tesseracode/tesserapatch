@@ -142,6 +142,7 @@ var unsupportedLockSourceHistory = []string{
 var acceptedCheckSourceProvenance = map[string]struct {
 	SHA256        string
 	History       []string
+	CurrentSHA256 string
 	FreezeCurrent bool
 }{
 	"assets/assets_test.go": {
@@ -203,7 +204,8 @@ var acceptedCheckSourceProvenance = map[string]struct {
 		FreezeCurrent: true,
 	},
 	"internal/intent/avp_guards_test.go": {
-		SHA256: "60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38",
+		SHA256:        "60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38",
+		CurrentSHA256: "c584f6b7c4de5d4add17533d22194bac95c5e3fa5b3d5a10d4f7e5a1513fc0f5",
 		History: []string{
 			"9b8efc57f5b77f557e524c3326b4397ba006e19c",
 			"54ab8b4d4253638d52a8d03de2e7b31b3ae2b2da",
@@ -1728,6 +1730,9 @@ func assertAcceptedCheckSourceHistory(t *testing.T) {
 		if !derived[rel] {
 			t.Fatalf("pinned accepted check source %s is absent from the derived closed set", rel)
 		}
+		if want.CurrentSHA256 != "" && !want.FreezeCurrent {
+			t.Fatalf("accepted check source %s has a current hash without a current freeze", rel)
+		}
 		show := exec.Command("git", "show", acceptedRoutingTip+":"+rel)
 		show.Dir = root
 		body, err := show.Output()
@@ -1743,9 +1748,13 @@ func assertAcceptedCheckSourceHistory(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			currentWant := want.SHA256
+			if want.CurrentSHA256 != "" {
+				currentWant = want.CurrentSHA256
+			}
 			currentSum := sha256.Sum256(current)
-			if got := hex.EncodeToString(currentSum[:]); got != want.SHA256 {
-				t.Fatalf("frozen accepted check source %s current sha256=%s, want %s", rel, got, want.SHA256)
+			if got := hex.EncodeToString(currentSum[:]); got != currentWant {
+				t.Fatalf("frozen accepted check source %s current sha256=%s, want %s", rel, got, currentWant)
 			}
 		}
 		history := exec.Command("git", "log", "--format=%H",

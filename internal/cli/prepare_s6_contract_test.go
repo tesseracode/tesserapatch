@@ -65,6 +65,7 @@ var (
 	s6FrozenAppendCache    sync.Map
 	s6FrozenSliceCache     sync.Map
 	s6ZeroMapElementCache  sync.Map
+	s6StableExprKeyCache   sync.Map
 	s6LegacyPartialTypes   = s6LegacyPartialTypeRegistry{
 		entries: map[s6LegacyPartialTypeKey]s6LegacyPartialTypeRegistration{},
 	}
@@ -35836,6 +35837,12 @@ func s6StableExpressionKey(expression ast.Expr) string {
 	if expression == nil {
 		return "<nil>"
 	}
+	cacheable := expression.Pos().IsValid()
+	if cacheable {
+		if cached, ok := s6StableExprKeyCache.Load(expression); ok {
+			return cached.(string)
+		}
+	}
 	var formatted bytes.Buffer
 	if err := format.Node(&formatted, token.NewFileSet(), expression); err != nil {
 		return fmt.Sprintf("%T:%d:%d", expression, expression.Pos(), expression.End())
@@ -35853,9 +35860,52 @@ func s6StableExpressionKey(expression ast.Expr) string {
 		}
 		return true
 	})
-	return fmt.Sprintf(
+	key := fmt.Sprintf(
 		"%T:%s%s", expression, formatted.String(), identity.String(),
 	)
+	if !cacheable {
+		return key
+	}
+	actual, _ := s6StableExprKeyCache.LoadOrStore(expression, key)
+	return actual.(string)
+}
+
+func TestS6StableExpressionKeyCacheSensitivity(t *testing.T) {
+	parse := func(source string) ast.Expr {
+		t.Helper()
+		expression, err := parser.ParseExpr(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return expression
+	}
+	expression := parse("1 + 2")
+	equivalent := parse("1 + 2")
+	different := parse("1 - 2")
+	key := s6StableExpressionKey(expression)
+	if got := s6StableExpressionKey(equivalent); got != key {
+		t.Fatalf("equivalent expression key = %q, want %q", got, key)
+	}
+	if got := s6StableExpressionKey(different); got == key {
+		t.Fatalf("different expression reused key %q", got)
+	}
+
+	const sentinel = "stable-expression-cache-hit"
+	s6StableExprKeyCache.Store(expression, sentinel)
+	t.Cleanup(func() {
+		s6StableExprKeyCache.Delete(expression)
+		s6StableExprKeyCache.Delete(equivalent)
+		s6StableExprKeyCache.Delete(different)
+	})
+	if got := s6StableExpressionKey(expression); got != sentinel {
+		t.Fatalf("cached expression key = %q, want %q", got, sentinel)
+	}
+
+	transient := ast.NewIdent("transient")
+	_ = s6StableExpressionKey(transient)
+	if _, cached := s6StableExprKeyCache.Load(transient); cached {
+		t.Fatal("positionless expression was retained in the stable-key cache")
+	}
 }
 
 func s6AppendAssignmentNeedsFreeze(
