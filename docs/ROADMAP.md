@@ -1340,6 +1340,11 @@ CI 33060962809 passed every platform/shard except the last macOS AR observer,
 which began after nearly two hours and expired at 974.454s. Rev-45 moves that
 fresh process immediately after AQ without changing coverage or budgets.
 Rev-45 is approved and checkpointed at `021697c`; AS waits on blocking CI.
+CI 33069822776 showed ordering was not causal: early macOS AR still expired at
+971.863s. Rev-46 sets the final AR-only hosted envelope to 35m/30m/2m under
+the fixed 40m process limit.
+Rev-46 is approved and checkpointed at `efe7fc2`; the fresh local AR observer
+passes under the stronger 419s cutoff. AS waits on blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

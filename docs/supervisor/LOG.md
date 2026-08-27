@@ -1,3 +1,67 @@
+## Supervisor Decision — prepare S7 AR rev-47 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+The final local AR observer passed in 270.33s test / 270.658s package /
+271.140s monotonic wall, clearing the stronger 419-second cutoff by 147.860
+seconds. Its sole allowance is consumed and all boundaries are clean.
+
+## Review — prepare S7 AR rev-47 — 2026-08-27
+
+**Reviewer**: independent `rev47-evidence-review`
+**Task**: Review final hosted-budget observer evidence
+
+### Verdict: APPROVED
+
+### Notes
+
+Single start, strict resource gate, final budget binding, cutoff arithmetic,
+allowance consumption and repository closure all match.
+
+### Action Taken
+
+Combined rev-41/43/46 checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 AR rev-46 — 2026-08-27
+
+**Decision**: **APPROVED — rev-47 observer-only dispatched**
+
+AR's final hosted tuple is outer 35m / inner 30m / cleanup 2m under package
+40m. It leaves about 826 seconds above the worst observed hosted execution
+while retaining finite package and cleanup margins. Other categories remain
+unchanged.
+
+## Review — prepare S7 AR rev-46 — 2026-08-27
+
+**Reviewer**: independent `rev46-budget-review`
+**Task**: Review final robust AR hosted budget
+
+### Verdict: APPROVED
+
+### Notes
+
+AR-only scope, tuple ordering, package margin, worst-case hosted margin and
+prior 20m/16m/1m sensitivities all pass.
+
+### Action Taken
+
+One final local AR observer is authorized under the unchanged stronger
+419-second cutoff.
+
+## Supervisor Decision — prepare S7 AR reordered-observer CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-46 final AR hosted budget dispatched**
+
+CI run
+[33069822776](https://github.com/tesseracode/tesserapatch/actions/runs/33069822776)
+passed Ubuntu and Windows. Reordering disproved late-run degradation: macOS
+started AR after about 25 minutes, yet its 16-minute inner budget still expired
+at 971.863s. No target assertion failed.
+
+Rev-46 may set AR alone to outer 35m / inner 30m / cleanup 2m under the fixed
+40m package process. This leaves nearly 14 minutes above the worst observed
+hosted run and ends incremental budget tuning. AM–AO/AP/AQ remain unchanged.
+
 ## Supervisor Decision — prepare S7 rev-45 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**

@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 rev-45 checkpointed at `021697c`; CI pending**
+- **Status**: **In progress — S7 final hosted budget checkpointed at `efe7fc2`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6510,10 +6510,41 @@ file, is the dispatch authority.
 - The final AR observer reorder and exact-order guard are checkpointed at
   `021697c` by explicit-path staging; category budgets were already present in
   the preceding checkpoint lineage.
+- Blocking CI
+  [33069822776](https://github.com/tesseracode/tesserapatch/actions/runs/33069822776)
+  passed Ubuntu and Windows. macOS started AR after about 25 minutes, but the
+  observer still exhausted its 16m inner budget at 971.863s; no target
+  assertion failed. Rev-46 ends incremental tuning with AR-only outer 35m /
+  inner 30m / cleanup 2m under package 40m, leaving nearly 14 minutes over the
+  worst hosted run. AM–AO/AP/AQ remain unchanged.
+- Rev-46 exact budget/category guard passes in 4.837s package. Registration
+  hash is
+  `16efe5e820ec4ca5fcce2c7d85c8524d5502e98827f50ba5e1371c14920b1a26`;
+  prior 20m/16m/1m values each bite independently. No post-rev-46 observer has
+  run; staging, whitespace and Side Research remain clean.
+- Independent rev-46 review returned **APPROVED**. Rev-47 may consume one
+  final local AR observer after the strict gate under the unchanged stronger
+  419-second cutoff.
+- Rev-47's sole observer allowance is consumed and **PASS**. Its strict gate
+  ended with 89% free memory, load 1.76, zero exact processes and 61
+  continuous eligible seconds. Immediate launch retained 89%/1.97/zero and
+  all frozen boundaries. The AR observer passed in **270.33s test / 270.658s
+  package / 271.140s monotonic wall**, clearing the 419-second cutoff by
+  147.860 seconds.
+- Read-only close at `2026-08-27T05:51:13-0700` found 88% free memory, load
+  2.57, zero exact processes, refs `0183465`, empty staging, clean
+  formatting/whitespace, hashes registration `16efe5e8`, workflow `84cd11dc`,
+  CI guard `ef8b683a`, and Side Research intact.
+- Independent rev-47 evidence review returned **APPROVED**. Combined
+  rev-41/43/46 checkpoint and blocking CI are authorized; no further local
+  observer may run.
+- The final AR 35m/30m/2m hosted tuple is checkpointed at `efe7fc2` by
+  explicit-path staging; observer scheduling/guard changes are already in the
+  preceding checkpoint lineage.
 
 ## Next Steps
 
-1. Commit tracking, push `021697c` plus tracking and rerun blocking CI.
+1. Commit tracking, push `efe7fc2` plus tracking and rerun blocking CI.
 2. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
