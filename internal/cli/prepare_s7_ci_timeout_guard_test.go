@@ -3,8 +3,14 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/build"
+	"go/parser"
+	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -16,8 +22,31 @@ type s7CITimeoutStep struct {
 	condition       string
 	continueOnError string
 	shell           string
+	environment     map[string]string
+	keys            map[string]int
 	run             string
+	runStyle        string
 }
+
+const (
+	s7CIARPartitionPattern          = `^(TestS7AR.*|TestS7ObservedARRegistrationAuthority)$`
+	s7CIARLegacyPattern             = `^TestS7ARRev(11|12|13|14|15|16|17|18|19|20).*$`
+	s7CIARCurrentPattern            = `^TestS7ARRev(21|23|24|25|26|27).*$`
+	s7CIARCorePattern               = `^TestS7AR(ExitSixRouteGuard|AbandonGateTableGuard|PurgeProgressGuard|PermanentBlockClaimsGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
+	s7CIARObserverPattern           = `^TestS7ObservedARRegistrationAuthority$`
+	s7CINonWindowsFullCommand       = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
+	s7CINonWindowsARLegacyCommand   = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyPattern + `'`
+	s7CINonWindowsARCurrentCommand  = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentPattern + `'`
+	s7CINonWindowsARCoreCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCorePattern + `'`
+	s7CINonWindowsARObserverCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
+	s7CINonWindowsTestScript        = "set -euo pipefail\n" +
+		s7CINonWindowsFullCommand + "\n" +
+		s7CINonWindowsARLegacyCommand + "\n" +
+		s7CINonWindowsARCurrentCommand + "\n" +
+		s7CINonWindowsARCoreCommand + "\n" +
+		s7CINonWindowsARObserverCommand
+	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
+)
 
 func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 	workflowPath := filepath.Join(avpRepoRoot(t), ".github", "workflows", "ci.yml")
@@ -30,19 +59,34 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nonWindows := `      - name: Test
-        if: runner.os != 'Windows'
-        run: go test ./... -count=1 -timeout 40m
-`
+	nonWindows := "      - name: Test\n" +
+		"        if: runner.os != 'Windows'\n" +
+		"        shell: bash\n" +
+		"        env:\n" +
+		"          BASH_ENV: /dev/null\n" +
+		"          GOFLAGS: \"\"\n" +
+		"          GOENV: \"off\"\n" +
+		"        run: |\n" +
+		"          set -euo pipefail\n" +
+		"          " + s7CINonWindowsFullCommand + "\n" +
+		"          " + s7CINonWindowsARLegacyCommand + "\n" +
+		"          " + s7CINonWindowsARCurrentCommand + "\n" +
+		"          " + s7CINonWindowsARCoreCommand + "\n" +
+		"          " + s7CINonWindowsARObserverCommand + "\n"
 	windows := `      - name: "Test (Windows full suite — allowed to fail, owned by GH #17)"
         if: runner.os == 'Windows'
         continue-on-error: true
         shell: bash
-        run: go test ./... -count=1 -timeout 20m
+        run: ` + s7CIWindowsFullSuiteCommand + `
 `
 	swapTimeouts := strings.Replace(workflow, nonWindows, "__S7_NON_WINDOWS_FULL_SUITE__", 1)
-	swapTimeouts = strings.Replace(swapTimeouts, windows, strings.Replace(windows, "20m", "40m", 1), 1)
-	swapTimeouts = strings.Replace(swapTimeouts, "__S7_NON_WINDOWS_FULL_SUITE__", strings.Replace(nonWindows, "40m", "20m", 1), 1)
+	swapTimeouts = strings.Replace(
+		swapTimeouts, windows, strings.ReplaceAll(windows, "20m", "40m"), 1,
+	)
+	swapTimeouts = strings.Replace(
+		swapTimeouts, "__S7_NON_WINDOWS_FULL_SUITE__",
+		strings.ReplaceAll(nonWindows, "40m", "20m"), 1,
+	)
 	withAdditionalStep := func(step string) string {
 		return strings.Replace(workflow, nonWindows, nonWindows+step, 1)
 	}
@@ -54,6 +98,43 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 		insert := releaseSteps + len("    steps:\n")
 		return workflow[:insert] + step + workflow[insert:]
 	}
+	scalarStepDecoy := `      - name: S7 inert scalar decoy
+        if: false
+        uses: actions/checkout@v4
+        with:
+          payload: |
+            steps:
+              - name: Test
+                if: runner.os != 'Windows'
+                shell: bash
+                env:
+                  BASH_ENV: /dev/null
+                  GOFLAGS: ""
+                run: |
+                  set -euo pipefail
+                  ` + s7CINonWindowsFullCommand + `
+                  ` + s7CINonWindowsARLegacyCommand + `
+                  ` + s7CINonWindowsARCurrentCommand + `
+                  ` + s7CINonWindowsARCoreCommand + `
+                  ` + s7CINonWindowsARObserverCommand + `
+`
+	wideBareNonWindows := "      -\n" +
+		"          name: Test\n" +
+		"          if: false\n" +
+		"          shell: bash\n" +
+		"          env:\n" +
+		"            BASH_ENV: /dev/null\n" +
+		"            GOFLAGS: \"\"\n" +
+		"            GOENV: \"off\"\n" +
+		"          run: |\n" +
+		"            set -euo pipefail\n" +
+		"            " + s7CINonWindowsFullCommand + "\n" +
+		"            " + s7CINonWindowsARLegacyCommand + "\n" +
+		"            " + s7CINonWindowsARCurrentCommand + "\n" +
+		"            " + s7CINonWindowsARCoreCommand + "\n" +
+		"            " + s7CINonWindowsARObserverCommand + "\n" +
+		"      -\n" +
+		"          if: runner.os != 'Windows'\n"
 
 	for _, fixture := range []struct {
 		name     string
@@ -63,8 +144,169 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "lowered-timeout",
 			mutation: strings.Replace(
 				workflow,
-				"go test ./... -count=1 -timeout 40m",
-				"go test ./... -count=1 -timeout 20m",
+				s7CINonWindowsFullCommand,
+				strings.Replace(s7CINonWindowsFullCommand, "40m", "20m", 1),
+				1,
+			),
+		},
+		{
+			name: "non-windows-shell-loses-fail-fast",
+			mutation: strings.Replace(
+				workflow,
+				"if: runner.os != 'Windows'\n        shell: bash\n        env:\n          BASH_ENV: /dev/null\n          GOFLAGS: \"\"\n          GOENV: \"off\"\n        run: |",
+				"if: runner.os != 'Windows'\n        shell: bash {0}\n        env:\n          BASH_ENV: /dev/null\n          GOFLAGS: \"\"\n          GOENV: \"off\"\n        run: |",
+				1,
+			),
+		},
+		{
+			name: "non-windows-bash-env-removed",
+			mutation: strings.Replace(
+				workflow,
+				"          BASH_ENV: /dev/null\n",
+				"",
+				1,
+			),
+		},
+		{
+			name: "non-windows-bash-env-inherited",
+			mutation: strings.Replace(
+				workflow,
+				"BASH_ENV: /dev/null",
+				"BASH_ENV: /tmp/inherited",
+				1,
+			),
+		},
+		{
+			name: "non-windows-fail-fast-reset-removed",
+			mutation: strings.Replace(
+				workflow,
+				"          set -euo pipefail\n",
+				"",
+				1,
+			),
+		},
+		{
+			name: "non-windows-goflags-removed",
+			mutation: strings.Replace(
+				workflow,
+				"          GOFLAGS: \"\"\n",
+				"",
+				1,
+			),
+		},
+		{
+			name: "non-windows-goflags-list-only",
+			mutation: strings.Replace(
+				workflow,
+				"GOFLAGS: \"\"",
+				"GOFLAGS: -list=.",
+				1,
+			),
+		},
+		{
+			name: "non-windows-goenv-removed",
+			mutation: strings.Replace(
+				workflow,
+				"          GOENV: \"off\"\n",
+				"",
+				1,
+			),
+		},
+		{
+			name: "non-windows-goenv-inherited",
+			mutation: strings.Replace(
+				workflow,
+				"GOENV: \"off\"",
+				"GOENV: /tmp/inherited-goenv",
+				1,
+			),
+		},
+		{
+			name: "non-windows-run-folded",
+			mutation: strings.Replace(
+				workflow,
+				"          GOENV: \"off\"\n        run: |\n",
+				"          GOENV: \"off\"\n        run: >\n",
+				1,
+			),
+		},
+		{
+			name: "test-matrix-windows-only",
+			mutation: strings.Replace(
+				workflow,
+				"os: [ubuntu-latest, macos-latest, windows-latest]",
+				"os: [windows-latest]",
+				1,
+			),
+		},
+		{
+			name: "test-runner-pinned-to-windows",
+			mutation: strings.Replace(
+				workflow,
+				"runs-on: ${{ matrix.os }}",
+				"runs-on: windows-latest",
+				1,
+			),
+		},
+		{
+			name: "test-matrix-excludes-non-windows",
+			mutation: strings.Replace(
+				workflow,
+				"        os: [ubuntu-latest, macos-latest, windows-latest]\n",
+				"        os: [ubuntu-latest, macos-latest, windows-latest]\n"+
+					"        exclude:\n"+
+					"          - os: ubuntu-latest\n"+
+					"          - os: macos-latest\n",
+				1,
+			),
+		},
+		{
+			name: "test-job-disabled",
+			mutation: strings.Replace(
+				workflow,
+				"  test:\n    name:",
+				"  test:\n    if: false\n    name:",
+				1,
+			),
+		},
+		{
+			name: "test-job-demoted",
+			mutation: strings.Replace(
+				workflow,
+				"  test:\n    name:",
+				"  test:\n    continue-on-error: true\n    name:",
+				1,
+			),
+		},
+		{
+			name: "test-job-disabled-after-steps",
+			mutation: strings.Replace(
+				workflow,
+				"\n  release:\n",
+				"\n    if: false\n  release:\n",
+				1,
+			),
+		},
+		{
+			name: "test-job-demoted-after-steps",
+			mutation: strings.Replace(
+				workflow,
+				"\n  release:\n",
+				"\n    continue-on-error: true\n  release:\n",
+				1,
+			),
+		},
+		{
+			name: "inert-block-scalar-step-decoy",
+			mutation: strings.Replace(
+				workflow,
+				nonWindows,
+				scalarStepDecoy+strings.Replace(
+					nonWindows,
+					"if: runner.os != 'Windows'",
+					"if: runner.os != 'Windows' && false",
+					1,
+				),
 				1,
 			),
 		},
@@ -76,8 +318,26 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "default-timeout",
 			mutation: strings.Replace(
 				workflow,
-				"go test ./... -count=1 -timeout 40m",
-				"go test ./... -count=1",
+				s7CINonWindowsFullCommand,
+				strings.Replace(s7CINonWindowsFullCommand, " -timeout 40m", "", 1),
+				1,
+			),
+		},
+		{
+			name: "windows-suite-skipped-by-or",
+			mutation: strings.Replace(
+				workflow,
+				s7CIWindowsFullSuiteCommand,
+				"true || "+s7CIWindowsFullSuiteCommand,
+				1,
+			),
+		},
+		{
+			name: "windows-suite-failure-masked",
+			mutation: strings.Replace(
+				workflow,
+				s7CIWindowsFullSuiteCommand,
+				s7CIWindowsFullSuiteCommand+" || true",
 				1,
 			),
 		},
@@ -85,8 +345,8 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "unbounded-timeout",
 			mutation: strings.Replace(
 				workflow,
-				"go test ./... -count=1 -timeout 40m",
-				"go test ./... -count=1 -timeout 0",
+				s7CINonWindowsFullCommand,
+				strings.Replace(s7CINonWindowsFullCommand, "40m", "0", 1),
 				1,
 			),
 		},
@@ -94,8 +354,13 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "duplicate-timeout",
 			mutation: strings.Replace(
 				workflow,
-				"go test ./... -count=1 -timeout 40m",
-				"go test ./... -count=1 -timeout 40m -timeout=40m",
+				s7CINonWindowsFullCommand,
+				strings.Replace(
+					s7CINonWindowsFullCommand,
+					"-timeout 40m",
+					"-timeout 40m -timeout=40m",
+					1,
+				),
 				1,
 			),
 		},
@@ -103,8 +368,80 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "equals-timeout-noncanonical",
 			mutation: strings.Replace(
 				workflow,
-				"go test ./... -count=1 -timeout 40m",
-				"go test ./... -count=1 -timeout=40m",
+				s7CINonWindowsFullCommand,
+				strings.Replace(s7CINonWindowsFullCommand, "-timeout 40m", "-timeout=40m", 1),
+				1,
+			),
+		},
+		{
+			name: "ar-partition-removed",
+			mutation: strings.Replace(
+				workflow, "\n          "+s7CINonWindowsARLegacyCommand, "", 1,
+			),
+		},
+		{
+			name: "ar-partition-timeout-lowered",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARLegacyCommand,
+				strings.Replace(s7CINonWindowsARLegacyCommand, "40m", "20m", 1),
+				1,
+			),
+		},
+		{
+			name: "ar-partition-run-narrowed",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARLegacyCommand,
+				strings.Replace(
+					s7CINonWindowsARLegacyCommand,
+					s7CIARLegacyPattern,
+					`^TestS7ARRev11ReviewerRepros$`,
+					1,
+				),
+				1,
+			),
+		},
+		{
+			name: "full-suite-skip-narrowed",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsFullCommand,
+				strings.Replace(
+					s7CINonWindowsFullCommand,
+					s7CIARPartitionPattern,
+					`^TestS7AR.*$`,
+					1,
+				),
+				1,
+			),
+		},
+		{
+			name: "partition-order-swapped",
+			mutation: strings.Replace(
+				workflow,
+				"          "+s7CINonWindowsFullCommand+"\n"+
+					"          "+s7CINonWindowsARLegacyCommand,
+				"          "+s7CINonWindowsARLegacyCommand+"\n"+
+					"          "+s7CINonWindowsFullCommand,
+				1,
+			),
+		},
+		{
+			name: "partition-shard-skipped-by-or",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARLegacyCommand,
+				"true || "+s7CINonWindowsARLegacyCommand,
+				1,
+			),
+		},
+		{
+			name: "partition-shard-failure-masked",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARLegacyCommand,
+				s7CINonWindowsARLegacyCommand+" || true",
 				1,
 			),
 		},
@@ -118,6 +455,79 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 				workflow,
 				"      - name: Test\n        if: runner.os != 'Windows'\n",
 				"      - name: Test\n        if: runner.os != 'Windows'\n        continue-on-error: true\n",
+				1,
+			),
+		},
+		{
+			name: "blocking-step-demoted-by-quoted-key",
+			mutation: strings.Replace(
+				workflow,
+				"      - name: Test\n        if: runner.os != 'Windows'\n",
+				"      - name: Test\n        if: runner.os != 'Windows'\n"+
+					"        \"continue-on-error\": true\n",
+				1,
+			),
+		},
+		{
+			name: "blocking-step-demoted-by-escaped-key",
+			mutation: strings.Replace(
+				workflow,
+				"      - name: Test\n        if: runner.os != 'Windows'\n",
+				"      - name: Test\n        if: runner.os != 'Windows'\n"+
+					`        "\u0063ontinue-on-error": true`+"\n",
+				1,
+			),
+		},
+		{
+			name: "blocking-step-demoted-by-merge-key",
+			mutation: strings.Replace(
+				workflow,
+				"      - name: Test\n        if: runner.os != 'Windows'\n",
+				"      - name: Test\n        if: runner.os != 'Windows'\n"+
+					"        <<: {continue-on-error: true}\n",
+				1,
+			),
+		},
+		{
+			name: "blocking-step-duplicate-condition",
+			mutation: strings.Replace(
+				workflow,
+				"      - name: Test\n        if: runner.os != 'Windows'\n",
+				"      - name: Test\n        if: runner.os != 'Windows'\n"+
+					"        if: false\n",
+				1,
+			),
+		},
+		{
+			name: "bare-sequence-split-step-impersonation",
+			mutation: strings.Replace(
+				workflow,
+				nonWindows,
+				wideBareNonWindows,
+				1,
+			),
+		},
+		{
+			name: "commented-bare-sequence-split",
+			mutation: strings.Replace(
+				workflow,
+				nonWindows,
+				strings.ReplaceAll(
+					wideBareNonWindows,
+					"      -\n",
+					"      - # split item\n",
+				),
+				1,
+			),
+		},
+		{
+			name: "explicit-quoted-key-demotion",
+			mutation: strings.Replace(
+				workflow,
+				"      - name: Test\n        if: runner.os != 'Windows'\n",
+				"      - name: Test\n        if: runner.os != 'Windows'\n"+
+					"        ? \"continue-on-error\"\n"+
+					"        : true\n",
 				1,
 			),
 		},
@@ -256,9 +666,36 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			}
 		})
 	}
+
+	if err := validateS7ARPartitionTestOwners(avpRepoRoot(t)); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateS7ARPartitionTestOwner(
+		"internal/store/injected_test.go", "TestS7ARInjected",
+	); err == nil {
+		t.Fatal("S7 AR partition owner guard accepted a matching external package test")
+	}
+	windowsOnly := filepath.Join(t.TempDir(), "injected_windows_test.go")
+	if err := os.WriteFile(
+		windowsOnly,
+		[]byte("//go:build windows\n\npackage cli\n"),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	eligible, err := s7ARPartitionNonWindowsEligibility(windowsOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if eligible["linux"] || eligible["darwin"] {
+		t.Fatal("S7 AR partition eligibility accepted a Windows-only test file")
+	}
 }
 
 func validateS7CIFullSuiteTimeouts(workflow string) error {
+	if err := validateS7CITestJobTopology(workflow); err != nil {
+		return err
+	}
 	steps, err := parseS7CITimeoutSteps(workflow)
 	if err != nil {
 		return err
@@ -266,8 +703,6 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 	const (
 		nonWindowsCondition = "runner.os != 'Windows'"
 		windowsCondition    = "runner.os == 'Windows'"
-		nonWindowsCommand   = "go test ./... -count=1 -timeout 40m"
-		windowsCommand      = "go test ./... -count=1 -timeout 20m"
 		windowsName         = "Test (Windows full suite — allowed to fail, owned by GH #17)"
 	)
 	type fullSuiteInvocation struct {
@@ -312,12 +747,25 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 				return fmt.Errorf("non-Windows full suite is %s, want blocking", mode)
 			}
 			if err := validateS7FullSuiteInvocation(
-				invocation.argv, invocation.args, nonWindowsCommand, "40m",
+				invocation.argv, invocation.args, s7CINonWindowsFullCommand, "40m",
 			); err != nil {
 				return fmt.Errorf("non-Windows full suite: %w", err)
 			}
+			if err := validateS7NonWindowsTestPartition(step); err != nil {
+				return err
+			}
 		case windowsCondition:
 			windowsCount++
+			wantKeys := map[string]int{
+				"name": 1, "if": 1, "continue-on-error": 1,
+				"shell": 1, "run": 1,
+			}
+			if !maps.Equal(step.keys, wantKeys) {
+				return fmt.Errorf(
+					"Windows full-suite keys = %v, want %v",
+					step.keys, wantKeys,
+				)
+			}
 			if step.name != windowsName {
 				return fmt.Errorf("Windows allowed-failure full-suite name = %q, want %q", step.name, windowsName)
 			}
@@ -327,8 +775,13 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 			if step.shell != "bash" {
 				return fmt.Errorf("Windows allowed-failure full-suite shell = %q, want bash", step.shell)
 			}
+			if strings.TrimSpace(step.run) != s7CIWindowsFullSuiteCommand {
+				return errors.New(
+					"Windows allowed-failure full-suite script is not the exact canonical command",
+				)
+			}
 			if err := validateS7FullSuiteInvocation(
-				invocation.argv, invocation.args, windowsCommand, "20m",
+				invocation.argv, invocation.args, s7CIWindowsFullSuiteCommand, "20m",
 			); err != nil {
 				return fmt.Errorf("Windows allowed-failure full suite: %w", err)
 			}
@@ -341,6 +794,348 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 	}
 	if windowsCount != 1 {
 		return fmt.Errorf("Windows allowed-failure full-suite step count = %d, want exactly 1", windowsCount)
+	}
+	return nil
+}
+
+func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
+	wantKeys := map[string]int{
+		"name": 1, "if": 1, "shell": 1, "env": 1, "run": 1,
+	}
+	if !maps.Equal(step.keys, wantKeys) {
+		return fmt.Errorf(
+			"non-Windows test partition keys = %v, want %v",
+			step.keys, wantKeys,
+		)
+	}
+	if step.shell != "bash" {
+		return fmt.Errorf(
+			"non-Windows test partition shell = %q, want exact bash",
+			step.shell,
+		)
+	}
+	if step.runStyle != "|" {
+		return fmt.Errorf(
+			"non-Windows test partition run style = %q, want literal block |",
+			step.runStyle,
+		)
+	}
+	wantEnvironment := map[string]string{
+		"BASH_ENV": "/dev/null",
+		"GOFLAGS":  "",
+		"GOENV":    "off",
+	}
+	if !maps.Equal(step.environment, wantEnvironment) {
+		return fmt.Errorf(
+			"non-Windows test partition environment = %v, want %v",
+			step.environment, wantEnvironment,
+		)
+	}
+	if strings.TrimSpace(step.run) != s7CINonWindowsTestScript {
+		return errors.New(
+			"non-Windows test partition script is not the exact canonical five-command sequence",
+		)
+	}
+	invocations, err := collectS7ShellInvocations(step.run, 0, map[string]bool{})
+	if err != nil {
+		return fmt.Errorf("parse non-Windows test partition: %w", err)
+	}
+	var tests []s7ShellInvocation
+	for _, invocation := range invocations {
+		if _, ok := s7GoTestArgs(invocation.argv()); ok {
+			tests = append(tests, invocation)
+		}
+	}
+	if len(tests) != 5 {
+		return fmt.Errorf(
+			"non-Windows test partition command count = %d, want exactly 5",
+			len(tests),
+		)
+	}
+	for index, expected := range []struct {
+		command string
+		timeout string
+	}{
+		{command: s7CINonWindowsFullCommand, timeout: "40m"},
+		{command: s7CINonWindowsARLegacyCommand, timeout: "40m"},
+		{command: s7CINonWindowsARCurrentCommand, timeout: "40m"},
+		{command: s7CINonWindowsARCoreCommand, timeout: "40m"},
+		{command: s7CINonWindowsARObserverCommand, timeout: "40m"},
+	} {
+		argv := tests[index].argv()
+		args, _ := s7GoTestArgs(argv)
+		if err := validateS7FullSuiteInvocation(
+			argv, args, expected.command, expected.timeout,
+		); err != nil {
+			return fmt.Errorf("non-Windows test partition %d: %w", index, err)
+		}
+	}
+	return nil
+}
+
+func validateS7CITestJobTopology(workflow string) error {
+	lines := strings.Split(workflow, "\n")
+	inJobs := false
+	var starts []int
+	for index := 0; index < len(lines); index++ {
+		raw := lines[index]
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if indent == 0 {
+			inJobs = trimmed == "jobs:"
+			continue
+		}
+		if inJobs && indent == 2 && trimmed == "test:" {
+			starts = append(starts, index)
+		}
+	}
+	if len(starts) != 1 {
+		return fmt.Errorf("jobs.test definition count = %d, want exactly 1", len(starts))
+	}
+	start := starts[0]
+	end := len(lines)
+	for index := start + 1; index < len(lines); index++ {
+		raw := lines[index]
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && indent <= 2 {
+			end = index
+			break
+		}
+	}
+	direct := map[string]string{}
+	for index := start + 1; index < end; index++ {
+		raw := lines[index]
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || indent != 4 {
+			continue
+		}
+		key, value, ok := strings.Cut(trimmed, ":")
+		if !ok {
+			return fmt.Errorf("jobs.test direct entry is malformed: %q", trimmed)
+		}
+		key = strings.TrimSpace(key)
+		value = normalizeS7CIScalar(strings.TrimSpace(value))
+		if _, duplicate := direct[key]; duplicate {
+			return fmt.Errorf("jobs.test direct key %q is duplicated", key)
+		}
+		direct[key] = value
+		switch key {
+		case "name", "runs-on", "steps":
+		case "strategy":
+			if err := validateS7CITestStrategy(lines, index, end); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("jobs.test has unsupported direct key %q", key)
+		}
+	}
+	want := map[string]string{
+		"name":     "test (${{ matrix.os }})",
+		"runs-on":  "${{ matrix.os }}",
+		"strategy": "",
+		"steps":    "",
+	}
+	if !maps.Equal(direct, want) {
+		return fmt.Errorf("jobs.test direct topology = %v, want %v", direct, want)
+	}
+	return nil
+}
+
+func validateS7CITestStrategy(lines []string, start, jobEnd int) error {
+	end := jobEnd
+	for index := start + 1; index < jobEnd; index++ {
+		raw := lines[index]
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && indent <= 4 {
+			end = index
+			break
+		}
+	}
+	strategy := map[string]string{}
+	matrix := map[string]string{}
+	inMatrix := false
+	for index := start + 1; index < end; index++ {
+		raw := lines[index]
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		switch indent {
+		case 6:
+			key, value, ok := strings.Cut(trimmed, ":")
+			if !ok {
+				return fmt.Errorf("jobs.test strategy entry is malformed: %q", trimmed)
+			}
+			key = strings.TrimSpace(key)
+			if _, duplicate := strategy[key]; duplicate {
+				return fmt.Errorf("jobs.test strategy key %q is duplicated", key)
+			}
+			strategy[key] = normalizeS7CIScalar(strings.TrimSpace(value))
+			inMatrix = key == "matrix"
+		case 8:
+			if !inMatrix {
+				return fmt.Errorf("jobs.test strategy has unexpected nested entry %q", trimmed)
+			}
+			key, value, ok := strings.Cut(trimmed, ":")
+			if !ok {
+				return fmt.Errorf("jobs.test matrix entry is malformed: %q", trimmed)
+			}
+			key = strings.TrimSpace(key)
+			if _, duplicate := matrix[key]; duplicate {
+				return fmt.Errorf("jobs.test matrix key %q is duplicated", key)
+			}
+			matrix[key] = normalizeS7CIScalar(strings.TrimSpace(value))
+		default:
+			return fmt.Errorf(
+				"jobs.test strategy has unsupported indentation %d: %q",
+				indent, trimmed,
+			)
+		}
+	}
+	wantStrategy := map[string]string{"fail-fast": "false", "matrix": ""}
+	if !maps.Equal(strategy, wantStrategy) {
+		return fmt.Errorf(
+			"jobs.test strategy = %v, want %v",
+			strategy, wantStrategy,
+		)
+	}
+	wantMatrix := map[string]string{
+		"os": "[ubuntu-latest, macos-latest, windows-latest]",
+	}
+	if !maps.Equal(matrix, wantMatrix) {
+		return fmt.Errorf("jobs.test matrix = %v, want %v", matrix, wantMatrix)
+	}
+	return nil
+}
+
+func validateS7ARPartitionTestOwners(root string) error {
+	pattern := regexp.MustCompile(s7CIARPartitionPattern)
+	shards := []*regexp.Regexp{
+		regexp.MustCompile(s7CIARLegacyPattern),
+		regexp.MustCompile(s7CIARCurrentPattern),
+		regexp.MustCompile(s7CIARCorePattern),
+		regexp.MustCompile(s7CIARObserverPattern),
+	}
+	matched := map[string][]int{
+		"linux":  make([]int, len(shards)),
+		"darwin": make([]int, len(shards)),
+	}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" || entry.Name() == ".tpatch" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(content), "TestS7AR") &&
+			!strings.Contains(string(content), "TestS7ObservedARRegistrationAuthority") {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, content, 0)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Recv != nil || !pattern.MatchString(function.Name.Name) {
+				continue
+			}
+			if err := validateS7ARPartitionTestOwner(rel, function.Name.Name); err != nil {
+				return err
+			}
+			eligible, err := s7ARPartitionNonWindowsEligibility(path)
+			if err != nil {
+				return err
+			}
+			if !eligible["linux"] && !eligible["darwin"] {
+				return fmt.Errorf(
+					"S7 AR partition test %s is ineligible on all non-Windows runners: %s",
+					function.Name.Name, rel,
+				)
+			}
+			owners := 0
+			for index, shard := range shards {
+				if shard.MatchString(function.Name.Name) {
+					for goos, included := range eligible {
+						if included {
+							matched[goos][index]++
+						}
+					}
+					owners++
+				}
+			}
+			if owners != 1 {
+				return fmt.Errorf(
+					"S7 AR partition test %s belongs to %d shards, want exactly 1",
+					function.Name.Name, owners,
+				)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for goos, counts := range matched {
+		for index, count := range counts {
+			if count == 0 {
+				return fmt.Errorf(
+					"S7 AR partition shard %d owns no %s tests",
+					index, goos,
+				)
+			}
+		}
+	}
+	return nil
+}
+
+func s7ARPartitionNonWindowsEligibility(path string) (map[string]bool, error) {
+	result := map[string]bool{}
+	for goos, goarch := range map[string]string{
+		"linux": "amd64", "darwin": "arm64",
+	} {
+		context := build.Default
+		context.GOOS = goos
+		context.GOARCH = goarch
+		matched, err := context.MatchFile(
+			filepath.Dir(path), filepath.Base(path),
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"match S7 AR partition file %s for %s/%s: %w",
+				path, goos, goarch, err,
+			)
+		}
+		result[goos] = matched
+	}
+	return result, nil
+}
+
+func validateS7ARPartitionTestOwner(rel, name string) error {
+	if !regexp.MustCompile(s7CIARPartitionPattern).MatchString(name) {
+		return nil
+	}
+	if filepath.ToSlash(filepath.Dir(rel)) != "internal/cli" {
+		return fmt.Errorf("S7 AR partition test %s is outside internal/cli: %s", name, rel)
 	}
 	return nil
 }
@@ -776,6 +1571,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 		contentIndent = -1
 		blockRun      bool
 		blockLines    []string
+		blockEnv      bool
 	)
 	closeBlock := func() {
 		if blockRun && current != nil {
@@ -786,6 +1582,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 	}
 	flush := func() {
 		closeBlock()
+		blockEnv = false
 		if current != nil {
 			steps = append(steps, *current)
 			current = nil
@@ -805,6 +1602,34 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			}
 			closeBlock()
 		}
+		if blockEnv {
+			if trimmed == "" {
+				continue
+			}
+			if current != nil && indent == contentIndent+2 {
+				key, value, ok := strings.Cut(trimmed, ":")
+				if !ok {
+					return nil, errors.New("workflow step environment entry is malformed")
+				}
+				key = strings.TrimSpace(key)
+				if strings.HasPrefix(key, `"`) || strings.HasPrefix(key, `'`) {
+					return nil, errors.New("quoted workflow environment keys are unsupported")
+				}
+				if _, duplicate := current.environment[key]; duplicate {
+					return nil, fmt.Errorf(
+						"workflow environment key %q is duplicated",
+						key,
+					)
+				}
+				current.environment[key] =
+					normalizeS7CIScalar(strings.TrimSpace(value))
+				continue
+			}
+			if indent > contentIndent {
+				return nil, errors.New("workflow step environment nesting is unsupported")
+			}
+			blockEnv = false
+		}
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
@@ -821,7 +1646,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			job = strings.TrimSuffix(trimmed, ":")
 			continue
 		}
-		if trimmed == "steps:" {
+		if inJobs && indent == 4 && trimmed == "steps:" {
 			flush()
 			inSteps = true
 			stepsIndent = indent
@@ -836,11 +1661,20 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			inSteps = false
 			continue
 		}
-		if strings.HasPrefix(trimmed, "- ") && (itemIndent == -1 || indent == itemIndent) {
+		if (trimmed == "-" || strings.HasPrefix(trimmed, "- #")) &&
+			(itemIndent == -1 || indent == itemIndent) {
+			return nil, errors.New("standalone workflow step markers are unsupported")
+		}
+		if strings.HasPrefix(trimmed, "- ") &&
+			(itemIndent == -1 || indent == itemIndent) {
 			flush()
 			itemIndent = indent
 			contentIndent = indent + 2
-			current = &s7CITimeoutStep{job: job}
+			current = &s7CITimeoutStep{
+				job:         job,
+				environment: map[string]string{},
+				keys:        map[string]int{},
+			}
 			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
 			indent = contentIndent
 		}
@@ -849,16 +1683,28 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 		}
 		key, value, ok := strings.Cut(trimmed, ":")
 		if !ok {
-			continue
+			return nil, fmt.Errorf("workflow step entry is malformed: %q", trimmed)
 		}
 		key = strings.TrimSpace(key)
+		if key == "" || strings.HasPrefix(key, "?") {
+			return nil, fmt.Errorf("explicit workflow step keys are unsupported: %q", trimmed)
+		}
+		if strings.HasPrefix(key, `"`) || strings.HasPrefix(key, `'`) {
+			return nil, errors.New("quoted workflow step keys are unsupported")
+		}
+		current.keys[key]++
 		value = strings.TrimSpace(value)
 		rawValue := value
 		if value == "|" || value == ">" || value == "|-" {
 			if key == "run" {
+				current.runStyle = value
 				blockRun = true
 				blockLines = nil
 			}
+			continue
+		}
+		if key == "env" && value == "" {
+			blockEnv = true
 			continue
 		}
 		value = normalizeS7CIScalar(value)

@@ -568,11 +568,11 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 	return nil
 }
 
-// AQ's accepted recovery-evidence-path delta routes runPreparePublish recovery
-// errors through prepareRecoveryIntentpubFailure; it is the sole reviewed drift.
+// AQ's accepted recovery-evidence-path delta and AR's accepted history
+// disclosure are the reviewed declaration drifts after AP.
 var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:const:intentArchiveHistoryDisclosure":           "8360622adc2d49bf4dfa3467140f147d0c23d27093f10672161049d58fee33ba",
-	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveDivergence":              "1fbf0a05a9ac93018c1c07c07860403d2a19a101061d016ad44ccf3bddb5182d",
+	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveDivergence":              "90e96b9720f14541241ae0892030b8a82a3641aeed8f0230bb0ad582e26ee660",
 	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveListReport":              "bf5435ef4939a0eabf55195aa8d599deeba2af199a95e160065d8548534f2246",
 	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveRemainingRepairsReport":  "97c72618d563438a744b65054f1631c16091d4f4f9ee3ba946e62e2dc524039f",
 	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveUnindexedCorruptObjects": "52a5d21da4d4ec6f11d3d65c712cc1c527079fec0f261d162f0643e9c840e290",

@@ -13209,6 +13209,42 @@ func init() { injected(nil) }
 	if fresh[productionRel] != original {
 		t.Fatal("caller mutation contaminated immutable production source cache")
 	}
+
+	const (
+		firstProjectionRel  = "internal/intent/intent.go"
+		secondProjectionRel = "internal/intent/status_schema.go"
+	)
+	firstProjection := map[string]string{
+		firstProjectionRel: s6RepoFile(t, firstProjectionRel),
+	}
+	secondProjection := s6CloneSourceSet(firstProjection)
+	secondProjection[secondProjectionRel] = s6RepoFile(t, secondProjectionRel)
+	firstGraph, err := s6BuildTypeGraph(firstProjection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondGraph, err := s6BuildTypeGraph(secondProjection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstGraph.sourceKey != secondGraph.sourceKey {
+		t.Fatal("projection cache fixture did not converge on one augmented graph")
+	}
+	firstModel, err := s6BuildSourceTypeModel(firstProjection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondModel, err := s6BuildSourceTypeModel(secondProjection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstModel == secondModel || firstModel.sourceKey == secondModel.sourceKey {
+		t.Fatal("different source projections reused one type model")
+	}
+	if firstModel.files[secondProjectionRel] != nil ||
+		secondModel.files[secondProjectionRel] == nil {
+		t.Fatal("type model cache lost the caller-provided file projection")
+	}
 }
 
 func s6ReportRootTypes() []reflect.Type {
@@ -21151,12 +21187,15 @@ func s6BuildSourceTypeModel(sources map[string]string) (*s6SourceTypeModel, erro
 	if err != nil {
 		return nil, err
 	}
-	key := typeGraph.sourceKey
+	key := s6FingerprintFields(
+		typeGraph.sourceKey,
+		s6SourceSetHash(sources),
+	)
 	if cached, ok := s6TypeModelCache.Load(key); ok {
 		result := cached.(s6TypeModelResult)
 		return result.model, result.err
 	}
-	model, err := s6BuildSourceTypeModelUncached(sources, typeGraph)
+	model, err := s6BuildSourceTypeModelUncached(sources, typeGraph, key)
 	if err != nil {
 		return nil, err
 	}
@@ -21169,6 +21208,7 @@ func s6BuildSourceTypeModel(sources map[string]string) (*s6SourceTypeModel, erro
 func s6BuildSourceTypeModelUncached(
 	sources map[string]string,
 	typeGraph *s6TypeGraph,
+	sourceKey string,
 ) (*s6SourceTypeModel, error) {
 	sourceKeys := make([]string, 0, len(sources))
 	for rel := range sources {
@@ -21176,7 +21216,7 @@ func s6BuildSourceTypeModelUncached(
 	}
 	sort.Strings(sourceKeys)
 	model := &s6SourceTypeModel{
-		sourceKey:                typeGraph.sourceKey,
+		sourceKey:                sourceKey,
 		files:                    map[string]*ast.File{},
 		fileSet:                  typeGraph.fileSet,
 		typedPackages:            typeGraph.packages,
