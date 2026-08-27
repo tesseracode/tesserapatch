@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AR corrections checkpointed at `5658d5e`; CI pending**
+- - **Status**: **In progress — S7 AR rev-36 checkpointed at `9cd43b9`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6359,11 +6359,37 @@ file, is the dispatch authority.
 - Rev-33/34 cache, AP inventory, CI partition guard and workflow corrections
   are checkpointed at `5658d5e` by explicit-path staging. Unrelated untracked
   research files remain unstaged.
+- Corrected blocking CI
+  [33036710574](https://github.com/tesseracode/tesserapatch/actions/runs/33036710574)
+  passed Ubuntu and Windows. macOS completed the non-AR partition in
+  1703.167s, then the combined rev-11…20 AR process was SIGKILLed after
+  2009.735s, before its 40-minute Go timeout; no assertion failed. Rev-36 is
+  bounded to finer AR process shards so analyzer caches are released between
+  revision groups and heavy semantic guards. Broad skip union, exact test
+  ownership, blocking authority and 40-minute per-process limits stay fixed.
+- Rev-36 replaces the four AR processes with ten smaller fresh processes:
+  legacy 11–15, 16–18 and 19–20; current 21/23/24 and 25/26/27; lightweight
+  core; PIB-511; PIB-518; PIB-519; and observer. The broad non-AR skip remains
+  unchanged. The guard now requires eleven exact ordered commands and proves
+  every broad-pattern test belongs to exactly one non-empty Linux/macOS shard.
+- All nine new non-observer AR shards pass locally under the exact CI
+  environment: 29.29s, 113.47s, 173.08s, 187.61s, 38.09s, 8.45s, 103.83s,
+  121.61s and 31.95s wall respectively. The complete guard passes in 0.503s.
+  Rev-35 observer remains valid because S6, AR guard/runtime/ledger and
+  registration hashes are unchanged. Current workflow hash is
+  `40777cb335beabcc3abceba96497e82a0f736915026ffc43002e32fb073791d7`;
+  CI guard hash is
+  `e6520ff942fc8e1121de15996a60ef6aca061fbf1a724b910109e1f374d1e4b1`.
+- Independent rev-36 review returned **APPROVED**. It confirmed exact complete
+  disjoint ownership, per-process budgets, GitHub job feasibility, macOS
+  cache-release behavior and rev-35 observer non-invalidation. Workflow/guard
+  checkpoint and blocking CI are authorized.
+- Rev-36 workflow and guard are checkpointed at `9cd43b9` by explicit-path
+  staging.
 
 ## Next Steps
 
-1. Commit this tracking checkpoint, push `5658d5e` plus tracking, and verify
-   blocking CI.
+1. Commit tracking, push `9cd43b9` plus tracking, and rerun blocking CI.
 3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.

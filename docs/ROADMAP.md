@@ -1315,6 +1315,11 @@ Rev-33's projection-aware cache and rev-34's guarded five-command non-Windows
 partition are approved and checkpointed at `5658d5e`. Local non-AR, legacy AR,
 current AR, core AR, AP observer and fresh AR observer validation are green;
 AS waits on corrected blocking CI.
+Corrected CI 33036710574 passed Ubuntu/Windows; macOS completed non-AR but its
+combined legacy AR process was killed before 40m. Rev-36 splits AR into
+smaller fresh processes without changing coverage or timeout policy.
+Rev-36's exact eleven-command union is approved and checkpointed at `9cd43b9`;
+all nine new non-observer shards pass locally. AS waits on blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

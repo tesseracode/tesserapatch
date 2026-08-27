@@ -1,3 +1,45 @@
+## Supervisor Decision — prepare S7 AR rev-36 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+Rev-36's ten fresh AR processes preserve the broad skip union and exact
+one-shard ownership while releasing analyzer caches between groups. All nine
+non-observer shards pass locally; the slowest is 187.61s wall. Rev-35 observer
+evidence remains valid because no observer-affecting source changed.
+
+## Review — prepare S7 AR rev-36 — 2026-08-27
+
+**Reviewer**: independent `rev36-shard-review`
+**Task**: Review finer AR CI sharding
+
+### Verdict: APPROVED
+
+### Notes
+
+The eleven-command Test script is complete, disjoint, ordered, finite and
+feasible within GitHub's job limit. Smaller fresh processes directly address
+the macOS SIGKILL class by dropping package-local caches between groups.
+
+### Action Taken
+
+Workflow/guard checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 AR corrected CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-36 finer AR sharding dispatched**
+
+Corrected CI run
+[33036710574](https://github.com/tesseracode/tesserapatch/actions/runs/33036710574)
+passed Ubuntu and Windows. macOS completed the full non-AR partition in
+1703.167s, then its combined rev-11…20 AR package process was killed after
+2009.735s, before the 40-minute Go test timeout. No assertion failed.
+
+Rev-36 may change only the AR partition granularity, its exact guard and
+tracking. It must preserve the same broad skip union, blocking shell/job
+authority, 40-minute per-process limit and complete one-shard AST ownership.
+Smaller processes must release analyzer caches between revision groups and the
+three heavy semantic guards.
+
 ## Supervisor Decision — prepare S7 AR rev-35 — 2026-08-26
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**
