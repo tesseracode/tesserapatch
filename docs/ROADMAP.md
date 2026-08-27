@@ -1360,7 +1360,13 @@ PIB-391 dual baseline/current AVP source-hash pin. Local PIB-518 fell 48.6% to
 213.12s package. Independent review approved and code is checkpointed at
 `871d3ab`. CI 33091499900 is green on all five blocking platform/observer
 jobs. AR is durably closed at 126/173 cumulative rows; AS (`PIB-521…530`,
-I7/G3) is active from `6f7171e`.
+I7/G3) rev-0 is NEEDS REVISION on aggregate ledger targets, wrong fixture
+slug, proxy G sensitivities and incomplete generation/journal/output coverage.
+Rev-1 remained NEEDS REVISION on a duplicate linker seam and incomplete
+decode/call-graph/authority proof. Rev-2 fixes those, wires the 10-row observer
+and removes a real duplicate-heading single-class preview defect; local
+validation and independent review are APPROVED. Checkpoint and blocking CI
+remain before AT. Implementation is checkpointed at `9438848`.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

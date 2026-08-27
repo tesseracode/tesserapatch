@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AS dispatched from `6f7171e`**
+- **Status**: **In progress — S7 AS checkpointed at `9438848`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6620,22 +6620,75 @@ file, is the dispatch authority.
 - The final AR 35m/30m/2m hosted tuple is checkpointed at `efe7fc2` by
   explicit-path staging; observer scheduling/guard changes are already in the
   preceding checkpoint lineage.
+- S7 AS rev-0 added three test files and no production changes. Executable
+  review returned **NEEDS REVISION**: six ledger rows target aggregate
+  wrappers; PIB-521/525 use the wrong fixture slug and reach
+  `feature-not-found`; G-kind "sensitivities" never feed wrong inputs through
+  the same validator; PIB-529 omits generation and exact order; PIB-530 skips
+  all journal cases; doctor/decode/rehydration, exact retry and `--all`
+  blast-radius assertions are incomplete. The suite compiled, failed ledger
+  resolution and those runtime rows, and reported eight skips. Rev-1 is
+  dispatched; no production gap is established yet.
+- S7 AS rev-1 rewrites all three AS test files without production changes.
+  Ledger targets are now top-level test functions with empty subtests (no
+  `t.Run("PIB-NNN", ...)` wrappers). PIB-521/525 use fixture-returned slug.
+  PIB-524 uses `validateS7ASX11Classification` same-validator with 18
+  reachable tuples, 5 mutated classifiers and an unchanged-mutation fatality.
+  PIB-526 uses typed AST call graph with reverse reachability to verify
+  exactly one `intentArchiveRecoverPurge` call from confirmed purge path;
+  `prepare_publish` mutation sensitivity fails the same validator. PIB-528
+  builds per-selector observations for all 4 selectors with preview+yes
+  through `validateS7ASSelectorTotality`; orphans→all widening and missing
+  --all blast-radius disclosure fail the same validator. PIB-522 uses
+  `beforePurgeBlobRemove` hook (via `//go:linkname`) to prove index decode
+  precedes first removal without relying on CaptureIndex; regenerate
+  rehydrates exactly after repair. PIB-529 covers all 4 selectors including
+  generation, validates JSON key ordering, and exact pending-purge schema.
+  PIB-530 covers clean/pending/journal × 4 selectors × preview/yes (24
+  combinations, zero skips) using `s6WriteJournalFixture`. Sensitivities
+  are in separate top-level tests. Ledger is I7/G3 contiguous PIB-521..530.
+  No production changes; no gap established. Ready for independent re-review.
+- S7 AS rev-2 closes the rev-1 review/executable residuals. A genuine
+  production defect was established: successful single-class preview
+  admission rebuilt the selected class as `remaining_repairs`, producing two
+  retry headings. The redundant fallback is removed; refused/multi-class
+  previews retain remaining-repair reports.
+- PIB-522 now observes the successful production strict decode through a new
+  nil-by-default store seam before the existing removal seam. PIB-526 parses
+  every CLI production file, pins exact alias/store references, direct caller
+  and `!options.yes` branch shape. PIB-528 uses independent pending/retained/
+  orphan targets and proves only the pending blob is removed. PIB-530 covers
+  all 24 combinations with local-lane and authority/cache/lock path closure.
+- AS is hosted-observer wired at 8m/4m/1m for exact rows 521…530; the guarded
+  main skip and dedicated observer script include it. Complete AS + store seam
+  + budget/CI guards pass; full store and existing archive CLI regressions
+  pass. The AS observer passes in 10.120s package / 10.57s wall. Current
+  hashes: store `c1b6331a`, store seam `dc2c7829`, seam nil `b5144f14`,
+  runtime `fe47d7ec`, guard `0afec4b3`, ledger `da124469`, registration
+  `a6e29ef9`, CI guard `78a5dc4b`, workflow `529eb204`. Staging, whitespace
+  and Side Research are clean.
+- Independent rev-2 review returned **APPROVED** with no findings. Final
+  provenance/aggregate/AS/registration/CI/AVP-175 guards pass in 18.840s +
+  0.301s; full store and existing archive CLI regressions pass; affected
+  package vet and CLI build pass. Every Go process followed a separate
+  authoritative 60-second gate at 85% free memory.
+- AS production, exact tests, observer budget and CI topology are checkpointed
+  at `9438848` by explicit-path staging with the required trailer.
 
 ## Next Steps
 
-1. Implement AS `PIB-521`…`PIB-530` and its exact ledger.
-2. Validate all G sensitivities and cumulative S7 arithmetic.
-3. Obtain independent review before checkpointing AS.
-3. After green blocking CI, implement AS–AX, remaining
+1. Commit tracking, push `9438848` plus tracking and run blocking CI.
+2. If CI is green, close AS at 136/173 cumulative rows and dispatch AT.
+4. After green blocking CI, implement AT–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
-3. Run joint internal/external review to acceptance; only then select the
+5. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- AS–AX remain procedurally blocked until AR is approved, checkpointed,
-  pushed and green in CI.
+- AS rev-2 awaits review; AT–AX remain procedurally blocked until AS is accepted,
+  checkpointed, pushed and green in CI.
 - Blocking CI 33040928741 passed every platform/shard except macOS's final AR
   observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.
 - Blocking CI 33046534111 passed every non-observer shard but macOS exhausted

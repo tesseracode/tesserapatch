@@ -1,3 +1,111 @@
+## Supervisor Decision — prepare S7 AS rev-2 — 2026-08-27
+
+**Decision**: **APPROVED FOR CHECKPOINT AND CI**
+
+Final provenance, aggregate-ledger, AS, registration/budget, CI topology and
+AVP-175 guards pass. Full store and prior archive CLI regressions pass;
+affected-package vet and CLI build pass. The exact 10-target AS observer passes
+in 10.120s package / 10.57s wall under the 8m/4m/1m hosted tuple.
+
+### Action Taken
+
+AS implementation/CI checkpointed at `9438848` by explicit-path staging with
+the required trailer; tracking checkpoint and blocking CI follow.
+
+## Review — prepare S7 AS rev-2 — 2026-08-27
+
+**Reviewer**: `s7-as-rev2-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+No significant issue found. The single-class preview fix removes only the
+post-admission reconstruction from original classes; pending, rejected and
+multi-class paths retain their mutually exclusive remaining-repair reports.
+The post-decode seam is nil-guarded/restored, mutable globals are sequential,
+and AS ledger/observer/CI authority is complete.
+
+### Action Taken
+
+Checkpoint AS by explicit paths and require green blocking CI before AT.
+
+## Supervisor Decision — prepare S7 AS rev-2 — 2026-08-27
+
+**Decision**: **AWAITING REVIEW**
+
+Rev-2 closes the rev-1 executable/static findings, wires AS into the hosted
+observer partition and establishes one production defect: a single-class
+preview rebuilt its currently selected class as `remaining_repairs`, rendering
+the retry heading twice. The fallback is removed only after successful
+admission; multi-class and refused selections retain their reports.
+
+The complete AS suite, store seam guard, category budget and CI topology pass.
+The AS observer independently passes all ten targets in 10.120s package.
+
+## Review — prepare S7 AS rev-1 — 2026-08-27
+
+**Reviewer**: `s7-as-rev1-review` + executable supervisor pass
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Rev-1 fixed direct ledger targets and same-validator G bites, but initially
+failed to build by redeclaring AP's purge-removal linker seam. Review also
+found the recovery call graph covered only two files, PIB-522 performed its
+own decode rather than observing production strict decode, global spy scopes
+were incomplete and durable authority absence was under-proved. Executable
+alignment then exposed the duplicate retry heading in single-class preview.
+
+### Action Taken
+
+Rev-2 reuses the AP seam, adds a nil-by-default post-decode store seam, makes
+the call graph package-wide and alias-closed, strengthens selector non-
+processing and durable-authority checks, and fixes the preview defect.
+
+## Review — prepare S7 AS rev-0 — 2026-08-27
+
+**Reviewer**: supervisor static + executable review
+**Task**: AS `PIB-521`…`PIB-530`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. Six ledger targets (`PIB-524/525/526/528/529/530`) resolve only to aggregate
+   wrappers with nested subtests, so the exact-target resolver rejects them and
+   an observer could not prove the full row.
+2. PIB-521 and PIB-525 invoke `prepare feature` rather than the fixture's
+   returned slug; both reach `feature-not-found` instead of the required
+   archive classifications.
+3. PIB-524/526/528's named sensitivities are positive assertions against
+   unchanged production. They do not feed a deliberately wrong input through
+   the same validator and therefore do not meet the G-kind contract.
+4. PIB-529 omits the `--generation` selector and does not prove exact JSON key
+   order or the complete human adjacency/plan shape.
+5. PIB-530 skips all eight pending-journal combinations even though the row
+   requires clean, removal-pending and journal fixtures across every selector
+   and preview/confirmed form.
+6. PIB-521's doctor coverage checks only two forbidden strings;
+   PIB-522's decode spy observes capture rather than successful strict decode
+   and its regeneration assertion accepts unrelated failures; PIB-525 does not
+   prove exact sorted retry argv/`retry_cwd`/subsequent prepare; PIB-528 does
+   not assert PIB-557's three `--all` blast-radius elements.
+
+### Validation
+
+The bounded suite compiled. Ledger resolution failed on the six aggregate
+rows; PIB-521 and all nine PIB-525 mode/count cases failed with
+`feature-not-found`; the remaining rows passed their current weaker assertions;
+PIB-530 reported eight skips.
+
+### Action Taken
+
+Dispatch bounded rev-1 to replace proxy/aggregate coverage with exact runnable
+targets and complete the missing accepted cases. No production gap is yet
+established.
+
 ## Supervisor Decision — prepare S7 AR close / AS dispatch — 2026-08-27
 
 **Decision**: **AR ACCEPTED — AS DISPATCHED**
