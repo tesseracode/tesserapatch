@@ -1,3 +1,67 @@
+## Supervisor Decision — prepare S7 AR rev-38 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+The post-budget AR observer passed in 270.85s test / 271.178s package /
+271.655s monotonic wall under the stronger 419-second local cutoff. Its sole
+allowance is consumed and all boundaries remain clean.
+
+## Review — prepare S7 AR rev-38 — 2026-08-27
+
+**Reviewer**: independent `rev38-evidence-review`
+**Task**: Review post-budget AR observer evidence
+
+### Verdict: APPROVED
+
+### Notes
+
+Single-start authority, strict resource gate, exact hashes, 147.345-second
+cutoff margin, allowance consumption and final closure all match.
+
+### Action Taken
+
+Rev-37 budget checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 AR rev-37 — 2026-08-27
+
+**Decision**: **APPROVED — rev-38 observer-only dispatched**
+
+AR's hosted inner observer budget is raised minimally from 8m to 10m after
+macOS timed out at 489.674s. Outer 12m, cleanup 1m, package 40m and AP/AQ
+tuples remain unchanged. The exact prior-8m regression sensitivity passes.
+
+## Review — prepare S7 AR rev-37 — 2026-08-27
+
+**Reviewer**: independent `rev37-budget-review`
+**Task**: Review AR-only hosted observer budget
+
+### Verdict: APPROVED
+
+### Notes
+
+The 10m inner budget remains below outer minus cleanup, applies only to AR
+rows 506–520, and leaves AP/AQ unchanged. Exact budget, category binding and
+wrong-input/reap guards pass.
+
+### Action Taken
+
+Rev-38 may consume one fresh unchanged AR observer after the strict resource
+gate and under the stronger 419-second local cutoff.
+
+## Supervisor Decision — prepare S7 AR finer-shard CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-37 AR observer budget dispatched**
+
+Finer-shard CI run
+[33040928741](https://github.com/tesseracode/tesserapatch/actions/runs/33040928741)
+passed Ubuntu and Windows. macOS passed the non-AR partition and every nine
+non-observer AR shard. The final AR observer reached its unchanged 8-minute
+inner timeout at 489.674s package time; no target assertion failed.
+
+Rev-37 may change only AR's hosted inner observer budget from 8m to 10m,
+retain outer 12m / cleanup 1m / package 40m, add the exact prior-8m regression
+sensitivity and update tracking. AP and AQ budgets remain frozen.
+
 ## Supervisor Decision — prepare S7 AR rev-36 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**

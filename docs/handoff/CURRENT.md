@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- - **Status**: **In progress — S7 AR rev-36 checkpointed at `9cd43b9`; CI pending**
+- **Status**: **In progress — S7 AR rev-37 checkpointed at `16e3495`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6386,20 +6386,54 @@ file, is the dispatch authority.
   checkpoint and blocking CI are authorized.
 - Rev-36 workflow and guard are checkpointed at `9cd43b9` by explicit-path
   staging.
+- Finer-shard blocking CI
+  [33040928741](https://github.com/tesseracode/tesserapatch/actions/runs/33040928741)
+  passed Ubuntu and Windows. macOS passed non-AR and all nine non-observer AR
+  shards; only the final AR observer failed when its 8-minute inner budget
+  expired at 489.674s package time. No target assertion failed.
+- Rev-37 raises only AR's hosted inner budget from 8m to 10m. Outer 12m,
+  cleanup 1m and package 40m remain unchanged; AP/AQ budgets remain frozen.
+  The exact budget guard now uses the prior 8m value as its regression bite.
+- Rev-37 exact budget/wrong-input/category-binding suite passes in 4.936s
+  package. Registration hash is
+  `95073eed5c7fff9e85a0de7ba549fcf2ac0b1d23e246c731fac3466db40edd46`;
+  AR guard, S6, workflow and CI guard remain unchanged. Staging, formatting,
+  whitespace and Side Research boundaries are clean. No post-rev-37 observer
+  has run.
+- Independent rev-37 review returned **APPROVED**. Rev-38 may consume one
+  fresh unchanged AR observer after the strict resource gate, still under the
+  stronger 419-second local cutoff.
+- Rev-38's sole observer allowance is consumed and **PASS**. The strict gate
+  ended at `2026-08-26T23:30:35-0700` with 90% free memory, load 1.70, zero
+  exact processes and 61 continuous eligible seconds. Immediate launch at
+  `23:30:56-0700` retained 90%/1.79/zero and all frozen refs/hashes.
+  `TestS7ObservedARRegistrationAuthority` passed in **270.85s test /
+  271.178s package / 271.655s monotonic wall**, clearing the 419-second cutoff
+  by 147.345 seconds.
+- Read-only close at `23:35:38-0700` found 89% free memory, load 2.92, zero
+  exact processes, refs `3b65e1f`, empty staging, clean formatting/whitespace,
+  Side Research intact and all rev-37/38 hashes unchanged.
+- Independent rev-38 evidence review returned **APPROVED**. Rev-37's one-file
+  budget checkpoint and blocking CI are authorized; no further local observer
+  may run.
+- Rev-37's AR-only hosted observer budget is checkpointed at `16e3495` by
+  explicit-path staging.
 
 ## Next Steps
 
-1. Commit tracking, push `9cd43b9` plus tracking, and rerun blocking CI.
+1. Commit tracking, push `16e3495` plus tracking and rerun blocking CI.
 3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
-3. Run joint internal/external review to acceptance; only then select the
+4. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
 - AS–AX remain procedurally blocked until AR is approved, checkpointed,
   pushed and green in CI.
+- Blocking CI 33040928741 passed every platform/shard except macOS's final AR
+  observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.
 - Blocking CI 33024637427 failed on the type-model projection collision and
   non-Windows runtime exhaustion; AR is reopened at rev-33.
 - Rev-19 and rev-20 are rejected, and rev-21 lacks valid final-code observer

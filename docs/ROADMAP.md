@@ -1320,6 +1320,11 @@ combined legacy AR process was killed before 40m. Rev-36 splits AR into
 smaller fresh processes without changing coverage or timeout policy.
 Rev-36's exact eleven-command union is approved and checkpointed at `9cd43b9`;
 all nine new non-observer shards pass locally. AS waits on blocking CI.
+CI 33040928741 passed Ubuntu/Windows and every macOS non-observer shard; only
+AR's 8m inner observer budget expired at 489.674s. Rev-37 raises AR inner to
+10m with outer/cleanup/package limits unchanged.
+Rev-37 is approved and checkpointed at `16e3495`; its fresh local observer
+passes under the stronger 419s cutoff. AS waits on blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
