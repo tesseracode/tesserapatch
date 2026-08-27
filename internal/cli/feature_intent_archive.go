@@ -1196,6 +1196,7 @@ func intentArchiveCorruptClassPrerequisite(classes []store.IntentArchiveRepairCl
 		}
 		parts := []string{
 			"Remove every corrupt-object instance below before running any tpatch repair selector in this archive.",
+			"Restoring each exact hash-correct managed object instead also resolves its observation.",
 		}
 		for _, instance := range class.Instances {
 			parts = append(parts, intentArchiveCorruptRemovalText(instance.Path))

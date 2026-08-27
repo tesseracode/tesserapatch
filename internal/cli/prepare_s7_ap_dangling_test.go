@@ -579,7 +579,7 @@ var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:func:intentArchiveBlobRetry":                    "485faea30c5d1085076fc45dcebf3b7da65a71929de3a542e1661fc512ec2957",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveClassRepairText":              "540d9516c9dcd0d23abbf3fe9c5c6cdda6b7f5b7d8a09bf264239a4e1db6ca93",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveCorruptClassPredictsDangling": "55358a42da33008b0b0e8d859b6f11b22e9ebd5d139f86384533c9ac42052bb3",
-	"internal/cli/feature_intent_archive.go:func:intentArchiveCorruptClassPrerequisite":     "f6459d5a467cb57c4491d28dc14f87d9f177ee7885275e03d9762c4cc4f2aae5",
+	"internal/cli/feature_intent_archive.go:func:intentArchiveCorruptClassPrerequisite":     "2aefd004c3fdc4e735aef39bee20b643632e519ade699b3ec4546991fc1b0caa",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveCorruptRemovalText":           "011a97f93805fd05c0a96a87ed959b1705adf7a86ac830cdb12d582da6497b9a",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveDanglingClassRetry":           "da6b449cd8dad07a071542a4d239f80a7383a374f916ccfa357f9112782c8872",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveListInspectionRefusal":        "96b38ce0947f04b32482d38ea28eb92da480a5afbb336192c9c137ab660a7254",

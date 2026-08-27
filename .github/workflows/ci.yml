@@ -80,7 +80,7 @@ jobs:
           GOENV: "off"
         run: |
           set -euo pipefail
-          go test ./... -count=1 -timeout 40m -skip '^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS)RegistrationAuthority)$'
+          go test ./... -count=1 -timeout 40m -skip '^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS|AT)RegistrationAuthority)$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(11|12|13|14|15).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(16|17|18).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(19|20).*$'
@@ -281,6 +281,7 @@ jobs:
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAPRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAQRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedASRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedATRegistrationAuthority$'
 
   # Publish a GitHub Release whenever a v* tag is pushed.
   # Release notes are generated from commits since the previous tag.

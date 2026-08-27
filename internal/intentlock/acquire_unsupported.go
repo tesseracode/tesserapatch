@@ -18,6 +18,13 @@ func acquireWithFilesystemClassifier(
 	return unsupportedAuthorityError()
 }
 
+func acquireWithStageHook(
+	_ string,
+	_ AuthorityStageHook,
+) (*WorkspaceAuthority, error) {
+	return unsupportedAuthorityError()
+}
+
 func unsupportedAuthorityError() (*WorkspaceAuthority, error) {
 	return nil, &Error{
 		Code:   CodePrepareUnsupportedPlatform,

@@ -46,6 +46,48 @@ func acquireWithFilesystemClassifier(
 	return acquireWithOps(discoveredWorkspacePath, ops)
 }
 
+func acquireWithStageHook(
+	discoveredWorkspacePath string,
+	hook AuthorityStageHook,
+) (*WorkspaceAuthority, error) {
+	if hook == nil {
+		return nil, authorityError(
+			"invalid-test-dependency",
+			"authority stage test dependency is nil",
+		)
+	}
+	ops := defaultAuthorityOps
+	openRoot := ops.openRoot
+	ops.openRoot = func(path string) (*os.Root, error) {
+		if err := hook("open-root"); err != nil {
+			return nil, err
+		}
+		return openRoot(path)
+	}
+	openDir := ops.openDir
+	ops.openDir = func(root *os.Root) (*os.File, error) {
+		if err := hook("open-directory"); err != nil {
+			return nil, err
+		}
+		return openDir(root)
+	}
+	classify := ops.classify
+	ops.classify = func(file *os.File) (string, bool, error) {
+		if err := hook("fstatfs"); err != nil {
+			return "", false, err
+		}
+		return classify(file)
+	}
+	lock := ops.lock
+	ops.lock = func(file *os.File) error {
+		if err := hook("flock"); err != nil {
+			return err
+		}
+		return lock(file)
+	}
+	return acquireWithOps(discoveredWorkspacePath, ops)
+}
+
 func acquireWithOps(discoveredWorkspacePath string, ops authorityOps) (*WorkspaceAuthority, error) {
 	root, err := ops.openRoot(discoveredWorkspacePath)
 	if err != nil {
