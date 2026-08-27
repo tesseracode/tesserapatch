@@ -48,6 +48,49 @@ prior 20m/16m/1m sensitivities all pass.
 One final local AR observer is authorized under the unchanged stronger
 419-second cutoff.
 
+## Supervisor Decision — prepare S7 rev-49 — 2026-08-27
+
+**Decision**: **APPROVED FOR CI**
+
+The final authoritative AR observer passed in 271.24s package / 272.166s
+external under the 419-second process-group cutoff after the required
+60-second quiet gate. Preflight was 89% free memory, load1 2.04 and zero exact
+Go-tool processes. Checkpoint rev-49 and require all blocking CI jobs before
+closing AR.
+
+### Action Taken
+
+Rev-49 code checkpointed at `263d6a8` by explicit-path staging with the
+required trailer; tracking checkpoint and blocking CI follow.
+
+## Review — prepare S7 rev-49 — 2026-08-27
+
+**Reviewer**: `rev49-final-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+The 39m/37m/1m AR budget preserves the fixed 40m process ceiling, leaves a
+402-second margin over the fresh macOS observation and independently bites the
+superseded 35m/30m/2m tuple. The dedicated full-history observer job remains
+blocking and release-gating. AVP-175's bounded release-needs sensitivity update
+correctly follows `[test, s7-observers]`; no significant issue found.
+
+## Supervisor Decision — prepare S7 dedicated-observer CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-49 final ceiling + AVP correction**
+
+CI run
+[33080934964](https://github.com/tesseracode/tesserapatch/actions/runs/33080934964)
+proved the dedicated architecture but macOS AR still required 1818.238s and
+exhausted inner 30m. Main jobs also exposed AVP-175's stale sensitivity anchor
+for the new release dependency.
+
+Rev-49 may set AR to outer 39m / inner 37m / cleanup 1m under process 40m,
+preserving a 402-second margin over the fresh-runner observation, and update
+only AVP-175's release-needs mutation/comment to `[test, s7-observers]`.
+
 ## Supervisor Decision — prepare S7 rev-48 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**

@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 rev-48 checkpointed at `47c4488`; CI pending**
+- **Status**: **In progress — S7 rev-49 code checkpointed at `263d6a8`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6544,6 +6544,26 @@ file, is the dispatch authority.
   observer evidence remains valid because no observer source changed.
 - The dedicated full-history observer job and its semantic guard are
   checkpointed at `47c4488` by explicit-path staging.
+- Blocking CI
+  [33080934964](https://github.com/tesseracode/tesserapatch/actions/runs/33080934964)
+  proved the dedicated job but macOS AR still exhausted inner 30m at
+  1818.238s. Main Ubuntu/macOS and Windows blocking surfaces also failed only
+  because AVP-175's `release-needs-removed` sensitivity still matched
+  `needs: test`. Rev-49 sets AR to 39m/37m/1m under process 40m and updates
+  that exact AVP sensitivity to `[test, s7-observers]`.
+- Rev-49 final budget/category, dedicated observer-job, full-history checkout,
+  release-dependency and AVP-175 suites pass together in 5.084s package.
+  Current hashes: registration `11d1ef76`, workflow `c6cb015d`, CI guard
+  `f59ef102`, AVP `c584f6b7`. Staging, whitespace and Side Research are clean.
+  No post-rev-49 observer has run.
+- Independent rev-49 review returned **APPROVED** with no findings. The final
+  authoritative local AR observer is now eligible.
+- The final rev-49 AR observer passed at 271.24s package / 272.166s external
+  under the 419-second process-group cutoff. Its immediate preflight reported
+  89% free memory, load1 2.04 and zero exact Go-tool processes after the
+  authoritative 60-second quiet gate passed at 89% free.
+- Rev-49's final AR budget and bounded AVP-175 sensitivity correction are
+  checkpointed at `263d6a8` by explicit-path staging with the required trailer.
 - Independent rev-46 review returned **APPROVED**. Rev-47 may consume one
   final local AR observer after the strict gate under the unchanged stronger
   419-second cutoff.
@@ -6566,7 +6586,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit tracking, push `47c4488` plus tracking and rerun blocking CI.
+1. Commit tracking, push `263d6a8` plus tracking and rerun blocking CI.
+2. If all required jobs pass, close AR and dispatch AS.
 3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.

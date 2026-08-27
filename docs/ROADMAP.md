@@ -1348,6 +1348,12 @@ passes under the stronger 419s cutoff. AS waits on blocking CI.
 After shared-runner AR reached 1816.512s, rev-48 moves all observers to a
 dedicated full-history Ubuntu/macOS job, AR first, with release depending on
 both test jobs. The approved checkpoint is `47c4488`; AS waits on CI.
+CI 33080934964 measured fresh-runner macOS AR at 1818.238s and exposed
+AVP-175's stale release-needs mutation. Rev-49 uses final 39m/37m/1m under
+40m and updates the exact two-job release sensitivity. Independent review
+approved and the final local AR observer passed in 271.24s package under the
+stronger 419-second local cutoff. Code is checkpointed at `263d6a8`; blocking
+CI remains.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
