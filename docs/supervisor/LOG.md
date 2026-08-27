@@ -1,3 +1,58 @@
+## Supervisor Decision — prepare S7 AT rev-1 — 2026-08-27
+
+**Decision**: **APPROVED FOR CHECKPOINT AND CI**
+
+Final focused/archive/intentlock suites, AP/AR frozen surfaces, AVP-175,
+affected vet/build and Windows/FreeBSD compile gates pass. The exact six-target
+AT observer passes in 9.413s package / 9.86s wall under 8m/4m/1m.
+
+## Review — prepare S7 AT rev-1 — 2026-08-27
+
+**Reviewer**: `s7-at-rev1-review`, final re-review `s7-at-final-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+No significant issue remains. Final re-review specifically approved the
+supported/unsupported raw authority test dependency, its zero-production-
+caller guard, committed CAS observation, PIB-533 same-validator bites,
+corrupt restoration disclosure ordering and complete AT ledger/observer/CI
+registration.
+
+### Action Taken
+
+AT implementation/CI is checkpointed at `496016a` by explicit-path staging
+with the required trailer. Tracking checkpoint and blocking CI follow.
+
+## Review — prepare S7 AT rev-0 — 2026-08-27
+
+**Reviewer**: `s7-at-rev0-review` + executable supervisor pass
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+1. The package does not compile: `claimIncludedTombstoned` is written but
+   unused.
+2. Workflow AT observer changes are absent from the semantic CI guard.
+3. PIB-533's mixed-index comparison is an empty loop and discards both byte
+   snapshots; its three claimed sensitivities never pass wrong inputs through
+   a shared validator.
+4. PIB-532 reads disk in `beforePurgeIndexCAS`, before the claim commits, so it
+   cannot prove the claim payload; its pre-state is discarded and it duplicates
+   AP's pending-tombstone linker binding.
+5. PIB-536's fstatfs/flock counters are never connected to a syscall seam and
+   therefore always read zero.
+6. PIB-534 captures and discards an index preimage rather than asserting the
+   intended recovery transition.
+
+### Action Taken
+
+Dispatch rev-1 to add payload-aware CAS observation, real syscall counting,
+same-validator PIB-533 mutations, complete index comparisons and guarded AT CI
+wiring. No production gap is established by rev-0.
+
 ## Supervisor Decision — prepare S7 AS close / AT dispatch — 2026-08-27
 
 **Decision**: **AS ACCEPTED — AT DISPATCHED**

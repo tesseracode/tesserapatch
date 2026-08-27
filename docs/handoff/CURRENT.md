@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AT dispatched from `a55a0ab`**
+- **Status**: **In progress — S7 AT checkpointed at `496016a`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6700,10 +6700,118 @@ file, is the dispatch authority.
   exact claim/removal/tombstone repair, multi-observation list/doctor truth
   and pre-syscall directory-authority refusal.
 
+### AT Implementation Session
+
+AT `PIB-531`…`PIB-536` is implemented in the worktree with six exact top-level
+test bodies, one per PIB row.
+
+**Files created:**
+
+- `internal/cli/prepare_s7_at_runtime_test.go` — PIB-531/532/534/535/536 runtime
+  tests: mixed-reference prepare/regenerate/list/doctor refusal (531), exact
+  claim→remove→tombstone CAS ordering spy (532), pending-recovery + multi-class
+  sequential repair (534), list over five fixtures (535), beforeLockAcquire
+  workspace root open failure (536).
+- `internal/cli/prepare_s7_at_guard_test.go` — PIB-533 G-kind: global orphan
+  predicate contracts with two runtime fixtures (orphan-only and orphan+mixed)
+  and three semantic sensitivity tests (per-reference predicate, silent mixed
+  omission, partial intra-class cleanup) plus unchanged-mutation fatal.
+- `internal/cli/prepare_s7_at_ledger_test.go` — AT coverage ledger (6 exact rows,
+  I4/C1/G1), AST target resolution, observed target provider
+  `s7ObservedATTargets`, and prior-partition preservation assertion.
+
+**Files modified:**
+
+- `internal/cli/prepare_s7_registration_test.go` — added `s7ObservedCategoryAT`
+  constant with 8m/4m/1m budget, rows 531–536, targets 6; added
+  `TestS7ObservedATRegistrationAuthority`; extended wrong-budget, missing-category,
+  wrong-range and callsite-binding sensitivity fixtures.
+- `.github/workflows/ci.yml` — main test skip now includes `AT` in the observer
+  regex; s7-observers job runs `TestS7ObservedATRegistrationAuthority` after AS;
+  release dependency unchanged.
+
+**No production files changed.** All six tests exercise existing production paths
+(mixed-reference classification, CAS ordering, orphan predicate, recovery
+exception, list storage rendering, authority acquisition error mapping).
+No production gap was demonstrated: the existing `authorityError` in
+`internal/intentlock/error.go` already maps open-root and open-directory failures
+to `CodeDirectoryFlockUnavailable`, and the prepare publish path already routes
+that code through `prepareAuthorityRefusal` correctly.
+
+**Untested state (AT scope):**
+
+- PIB-531 doctor D9 finding tag assertion is loose (matches `contains "mixed"`)
+  rather than the exact tag constant, because the doctor finding tag is
+  implementation-derived and was verified by visual inspection rather than
+  deep-string assertion.
+- PIB-532 CAS spy reads the index at `beforePurgeIndexCAS` time, which is just
+  before the atomic rename. The claim CAS has already prepared the pending index
+  bytes at that point. The spy reads the on-disk index (pre-CAS) rather than the
+  about-to-be-written index. The assertion verifies post-CAS state via the
+  afterPurgeIndexDecode seam and the final parsed index.
+- PIB-535 corrupt fixture uses a hash-wrong regular file; symlink, directory,
+  FIFO and device node object kinds are covered by PIB-543 (AV scope).
+
+**Likely residuals:**
+
+- PIB-533 fixture 1 relies on `s7ASWriteResidueFixture` producing a directory-scan
+  orphan through its tombstoned replacement. Verify that the orphan hash written
+  as a bare blob file (no index reference) is detected by the production orphan
+  predicate as an unindexed orphan.
+- PIB-534 third fixture creates a dangling reference (retained, no blob) as the
+  second repair class. If the production code's class ordering puts dangling
+  before mixed, the rerun assertion for "repairs mixed then reports dangling"
+  might reverse. The test trusts the production ordering.
+
+**Supervisor rev-0 verdict: NEEDS REVISION.** The package does not compile
+(unused claim variable); CI semantic guards omit AT; PIB-533 has an empty
+mixed-index comparison and no actual shared validator for its three wrong
+inputs; PIB-532 samples disk before claim CAS and duplicates AP's linker seam;
+PIB-536's syscall counters are disconnected; PIB-534 discards its preimage.
+Rev-1 is dispatched with no production gap yet established.
+
+**AT rev-1 complete and APPROVED.** PIB-532 now observes committed claim and
+tombstone CAS states through existing post-rename hooks. PIB-533 uses one
+shared validator over exact residue-only/residue-plus-mixed observations and
+three mutated clones. PIB-536 uses a platform-split raw authority test
+dependency guarded to zero production callers across open-root/open-directory
+and none/journal/preimage/staging evidence.
+
+Two bounded production-source changes were established: corrupt list
+presentation now states the exact-hash restoration alternative before its
+final executable `rm -rf` line, and a raw test dependency composes copied
+authority ops without changing production `Acquire`. AT is wired into
+8m/4m/1m hosted observation and exact guarded CI.
+
+Complete AT/archive/intentlock suites pass; the six-target observer passes in
+9.413s package / 9.86s wall. AP/AR frozen checks pass in 47.728s after updating
+only `intentArchiveCorruptClassPrerequisite`'s owned hash. AVP-175, vet, build,
+Windows and FreeBSD intentlock compile pass. Final review is **APPROVED**.
+Current hashes: presentation `a14869e1`, AP hash guard `8180c43c`, runtime
+`659f419b`, G guard `6f22f0cc`, ledger `93cb3ebb`, registration `48bf9aaf`,
+CI guard `65a16685`, workflow `38754ccc`, common authority dependency
+`2c9e5ea2`, dependency guard `bbbf24e1`, supported/unsupported halves
+`abd604d2`/`39c6ee74`. Staging, whitespace and Side Research are clean.
+- AT production/test/observer/CI code is checkpointed at `496016a` by
+  explicit-path staging with the required trailer.
+
+**Suggested exact selectors:**
+
+```
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATMixedResiduePrepareRefusalContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATMixedResidueBlobRepairContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATGlobalOrphanPredicateContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATPendingRepairMultiClassContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATListStorageContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATWorkspaceRootOpenFailureContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATCoverageLedger$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ObservedATRegistrationAuthority$'
+```
+
 ## Next Steps
 
-1. Implement AT `PIB-531`…`PIB-536` and its exact ledger/observer targets.
-2. Validate its one G sensitivity and all cross-surface runtime rows.
+1. Commit tracking, push `496016a` plus tracking and run blocking CI.
+2. If green, close AT at 142/173 cumulative rows and dispatch AU.
 3. Obtain independent review before checkpointing AT.
 4. After green blocking CI, implement AU–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document

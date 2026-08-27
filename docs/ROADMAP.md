@@ -1373,7 +1373,12 @@ three-process AR observer partition is APPROVED after local 12/1/2 target
 passes and removal/masking guard review; it is checkpointed at `9d15cb6` and
 CI 33108548581 is green across all five blocking jobs. AS is durably closed at
 136/173 cumulative rows; AT (`PIB-531…536`, I4/C1/G1) is active from
-`a55a0ab`.
+`a55a0ab`. AT rev-0 is NEEDS REVISION on compile failure, proxy/no-op
+assertions, disconnected spies and missing CI semantic guards; rev-1 is active.
+AT rev-1 closes those findings with exact committed-state/syscall observation,
+one shared G validator, complete observer/CI wiring and two bounded product
+disclosures. Local validation and final review are APPROVED; checkpoint and CI
+remain before AU. Implementation is checkpointed at `496016a`.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
