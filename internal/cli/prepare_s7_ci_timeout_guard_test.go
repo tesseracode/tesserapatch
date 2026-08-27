@@ -29,21 +29,39 @@ type s7CITimeoutStep struct {
 }
 
 const (
-	s7CIARPartitionPattern          = `^(TestS7AR.*|TestS7ObservedARRegistrationAuthority)$`
-	s7CIARLegacyPattern             = `^TestS7ARRev(11|12|13|14|15|16|17|18|19|20).*$`
-	s7CIARCurrentPattern            = `^TestS7ARRev(21|23|24|25|26|27).*$`
-	s7CIARCorePattern               = `^TestS7AR(ExitSixRouteGuard|AbandonGateTableGuard|PurgeProgressGuard|PermanentBlockClaimsGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
-	s7CIARObserverPattern           = `^TestS7ObservedARRegistrationAuthority$`
-	s7CINonWindowsFullCommand       = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
-	s7CINonWindowsARLegacyCommand   = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyPattern + `'`
-	s7CINonWindowsARCurrentCommand  = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentPattern + `'`
-	s7CINonWindowsARCoreCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCorePattern + `'`
-	s7CINonWindowsARObserverCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
-	s7CINonWindowsTestScript        = "set -euo pipefail\n" +
+	s7CIARPartitionPattern             = `^(TestS7AR.*|TestS7ObservedARRegistrationAuthority)$`
+	s7CIARLegacyPattern                = `^TestS7ARRev(11|12|13|14|15).*$`
+	s7CIARLegacyMidPattern             = `^TestS7ARRev(16|17|18).*$`
+	s7CIARLegacyLatePattern            = `^TestS7ARRev(19|20).*$`
+	s7CIARCurrentPattern               = `^TestS7ARRev(21|23|24).*$`
+	s7CIARCurrentLatePattern           = `^TestS7ARRev(25|26|27).*$`
+	s7CIARCorePattern                  = `^TestS7AR(ExitSixRouteGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
+	s7CIARAbandonPattern               = `^TestS7ARAbandonGateTableGuard$`
+	s7CIARPurgePattern                 = `^TestS7ARPurgeProgressGuard$`
+	s7CIARPermanentPattern             = `^TestS7ARPermanentBlockClaimsGuard$`
+	s7CIARObserverPattern              = `^TestS7ObservedARRegistrationAuthority$`
+	s7CINonWindowsFullCommand          = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
+	s7CINonWindowsARLegacyCommand      = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyPattern + `'`
+	s7CINonWindowsARLegacyMidCommand   = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyMidPattern + `'`
+	s7CINonWindowsARLegacyLateCommand  = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyLatePattern + `'`
+	s7CINonWindowsARCurrentCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentPattern + `'`
+	s7CINonWindowsARCurrentLateCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentLatePattern + `'`
+	s7CINonWindowsARCoreCommand        = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCorePattern + `'`
+	s7CINonWindowsARAbandonCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARAbandonPattern + `'`
+	s7CINonWindowsARPurgeCommand       = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPurgePattern + `'`
+	s7CINonWindowsARPermanentCommand   = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPermanentPattern + `'`
+	s7CINonWindowsARObserverCommand    = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
+	s7CINonWindowsTestScript           = "set -euo pipefail\n" +
 		s7CINonWindowsFullCommand + "\n" +
 		s7CINonWindowsARLegacyCommand + "\n" +
+		s7CINonWindowsARLegacyMidCommand + "\n" +
+		s7CINonWindowsARLegacyLateCommand + "\n" +
 		s7CINonWindowsARCurrentCommand + "\n" +
+		s7CINonWindowsARCurrentLateCommand + "\n" +
 		s7CINonWindowsARCoreCommand + "\n" +
+		s7CINonWindowsARAbandonCommand + "\n" +
+		s7CINonWindowsARPurgeCommand + "\n" +
+		s7CINonWindowsARPermanentCommand + "\n" +
 		s7CINonWindowsARObserverCommand
 	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
 )
@@ -67,12 +85,9 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 		"          GOFLAGS: \"\"\n" +
 		"          GOENV: \"off\"\n" +
 		"        run: |\n" +
-		"          set -euo pipefail\n" +
-		"          " + s7CINonWindowsFullCommand + "\n" +
-		"          " + s7CINonWindowsARLegacyCommand + "\n" +
-		"          " + s7CINonWindowsARCurrentCommand + "\n" +
-		"          " + s7CINonWindowsARCoreCommand + "\n" +
-		"          " + s7CINonWindowsARObserverCommand + "\n"
+		"          " + strings.ReplaceAll(
+		s7CINonWindowsTestScript, "\n", "\n          ",
+	) + "\n"
 	windows := `      - name: "Test (Windows full suite — allowed to fail, owned by GH #17)"
         if: runner.os == 'Windows'
         continue-on-error: true
@@ -110,14 +125,11 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
                 env:
                   BASH_ENV: /dev/null
                   GOFLAGS: ""
+                  GOENV: "off"
                 run: |
-                  set -euo pipefail
-                  ` + s7CINonWindowsFullCommand + `
-                  ` + s7CINonWindowsARLegacyCommand + `
-                  ` + s7CINonWindowsARCurrentCommand + `
-                  ` + s7CINonWindowsARCoreCommand + `
-                  ` + s7CINonWindowsARObserverCommand + `
-`
+                  ` + strings.ReplaceAll(
+		s7CINonWindowsTestScript, "\n", "\n                  ",
+	) + "\n"
 	wideBareNonWindows := "      -\n" +
 		"          name: Test\n" +
 		"          if: false\n" +
@@ -127,12 +139,9 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 		"            GOFLAGS: \"\"\n" +
 		"            GOENV: \"off\"\n" +
 		"          run: |\n" +
-		"            set -euo pipefail\n" +
-		"            " + s7CINonWindowsFullCommand + "\n" +
-		"            " + s7CINonWindowsARLegacyCommand + "\n" +
-		"            " + s7CINonWindowsARCurrentCommand + "\n" +
-		"            " + s7CINonWindowsARCoreCommand + "\n" +
-		"            " + s7CINonWindowsARObserverCommand + "\n" +
+		"            " + strings.ReplaceAll(
+		s7CINonWindowsTestScript, "\n", "\n            ",
+	) + "\n" +
 		"      -\n" +
 		"          if: runner.os != 'Windows'\n"
 
@@ -846,9 +855,9 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 			tests = append(tests, invocation)
 		}
 	}
-	if len(tests) != 5 {
+	if len(tests) != 11 {
 		return fmt.Errorf(
-			"non-Windows test partition command count = %d, want exactly 5",
+			"non-Windows test partition command count = %d, want exactly 11",
 			len(tests),
 		)
 	}
@@ -858,8 +867,14 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 	}{
 		{command: s7CINonWindowsFullCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyCommand, timeout: "40m"},
+		{command: s7CINonWindowsARLegacyMidCommand, timeout: "40m"},
+		{command: s7CINonWindowsARLegacyLateCommand, timeout: "40m"},
 		{command: s7CINonWindowsARCurrentCommand, timeout: "40m"},
+		{command: s7CINonWindowsARCurrentLateCommand, timeout: "40m"},
 		{command: s7CINonWindowsARCoreCommand, timeout: "40m"},
+		{command: s7CINonWindowsARAbandonCommand, timeout: "40m"},
+		{command: s7CINonWindowsARPurgeCommand, timeout: "40m"},
+		{command: s7CINonWindowsARPermanentCommand, timeout: "40m"},
 		{command: s7CINonWindowsARObserverCommand, timeout: "40m"},
 	} {
 		argv := tests[index].argv()
@@ -1016,8 +1031,14 @@ func validateS7ARPartitionTestOwners(root string) error {
 	pattern := regexp.MustCompile(s7CIARPartitionPattern)
 	shards := []*regexp.Regexp{
 		regexp.MustCompile(s7CIARLegacyPattern),
+		regexp.MustCompile(s7CIARLegacyMidPattern),
+		regexp.MustCompile(s7CIARLegacyLatePattern),
 		regexp.MustCompile(s7CIARCurrentPattern),
+		regexp.MustCompile(s7CIARCurrentLatePattern),
 		regexp.MustCompile(s7CIARCorePattern),
+		regexp.MustCompile(s7CIARAbandonPattern),
+		regexp.MustCompile(s7CIARPurgePattern),
+		regexp.MustCompile(s7CIARPermanentPattern),
 		regexp.MustCompile(s7CIARObserverPattern),
 	}
 	matched := map[string][]int{

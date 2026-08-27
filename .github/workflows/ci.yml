@@ -67,9 +67,9 @@ jobs:
         run: go build ./...
 
       # ubuntu-latest and macos-latest gate on the whole repository: the full
-      # suite is blocking there and always has been. S7 AR runs in a second
-      # process so its recursive analyzer fixtures release package-local caches
-      # before starting, while the complementary regexes retain complete
+      # suite is blocking there and always has been. S7 AR runs in smaller
+      # fresh processes so recursive analyzer fixtures release package-local
+      # caches between groups, while complementary regexes retain complete
       # non-overlapping coverage.
       - name: Test
         if: runner.os != 'Windows'
@@ -81,9 +81,15 @@ jobs:
         run: |
           set -euo pipefail
           go test ./... -count=1 -timeout 40m -skip '^(TestS7AR.*|TestS7ObservedARRegistrationAuthority)$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(11|12|13|14|15|16|17|18|19|20).*$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(21|23|24|25|26|27).*$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7AR(ExitSixRouteGuard|AbandonGateTableGuard|PurgeProgressGuard|PermanentBlockClaimsGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(11|12|13|14|15).*$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(16|17|18).*$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(19|20).*$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(21|23|24).*$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(25|26|27).*$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7AR(ExitSixRouteGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARAbandonGateTableGuard$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARPurgeProgressGuard$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARPermanentBlockClaimsGuard$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARRegistrationAuthority$'
 
       - name: Cross-compile S7 BSD CLI rows
