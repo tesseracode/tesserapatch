@@ -84,6 +84,7 @@ jobs:
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAMThroughAORegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAPRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAQRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(11|12|13|14|15).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(16|17|18).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(19|20).*$'
@@ -93,7 +94,6 @@ jobs:
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARAbandonGateTableGuard$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARPurgeProgressGuard$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARPermanentBlockClaimsGuard$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARRegistrationAuthority$'
 
       - name: Cross-compile S7 BSD CLI rows
         if: runner.os != 'Windows'

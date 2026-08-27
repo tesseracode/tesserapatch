@@ -62,6 +62,7 @@ const (
 		s7CINonWindowsAMThroughAOObserverCommand + "\n" +
 		s7CINonWindowsAPObserverCommand + "\n" +
 		s7CINonWindowsAQObserverCommand + "\n" +
+		s7CINonWindowsARObserverCommand + "\n" +
 		s7CINonWindowsARLegacyCommand + "\n" +
 		s7CINonWindowsARLegacyMidCommand + "\n" +
 		s7CINonWindowsARLegacyLateCommand + "\n" +
@@ -70,8 +71,7 @@ const (
 		s7CINonWindowsARCoreCommand + "\n" +
 		s7CINonWindowsARAbandonCommand + "\n" +
 		s7CINonWindowsARPurgeCommand + "\n" +
-		s7CINonWindowsARPermanentCommand + "\n" +
-		s7CINonWindowsARObserverCommand
+		s7CINonWindowsARPermanentCommand
 	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
 )
 
@@ -878,6 +878,7 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 		{command: s7CINonWindowsAMThroughAOObserverCommand, timeout: "40m"},
 		{command: s7CINonWindowsAPObserverCommand, timeout: "40m"},
 		{command: s7CINonWindowsAQObserverCommand, timeout: "40m"},
+		{command: s7CINonWindowsARObserverCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyMidCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyLateCommand, timeout: "40m"},
@@ -887,7 +888,6 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 		{command: s7CINonWindowsARAbandonCommand, timeout: "40m"},
 		{command: s7CINonWindowsARPurgeCommand, timeout: "40m"},
 		{command: s7CINonWindowsARPermanentCommand, timeout: "40m"},
-		{command: s7CINonWindowsARObserverCommand, timeout: "40m"},
 	} {
 		argv := tests[index].argv()
 		args, _ := s7GoTestArgs(argv)
