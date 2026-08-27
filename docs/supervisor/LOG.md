@@ -1,3 +1,18 @@
+## Supervisor Decision — prepare S7 AT close / AU dispatch — 2026-08-27
+
+**Decision**: **AT ACCEPTED — AU DISPATCHED**
+
+CI [33117127691](https://github.com/tesseracode/tesserapatch/actions/runs/33117127691)
+is green on Ubuntu, macOS and Windows, including both observer jobs and AT's
+six exact targets. Release correctly skipped on the untagged push.
+
+AT closes durably at six exact rows (`PIB-531`…`PIB-536`, I4/C1/G1), bringing
+cumulative S7 coverage to 142/173. AU is dispatched sequentially from
+`c14f790`: nine exact rows (`PIB-537`…`PIB-545`, I6/C2/G1) covering abandon
+boolean semantics, manual archive precedence, global pending ownership,
+claimed-hash crash/insertion windows, multi-class observations/admission and
+derived claim/removal authority.
+
 ## Supervisor Decision — prepare S7 AT rev-1 — 2026-08-27
 
 **Decision**: **APPROVED FOR CHECKPOINT AND CI**

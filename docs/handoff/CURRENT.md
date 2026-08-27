@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AT checkpointed at `496016a`; CI next**
+- **Status**: **In progress — S7 AU dispatched from `c14f790`**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6794,6 +6794,15 @@ CI guard `65a16685`, workflow `38754ccc`, common authority dependency
 `abd604d2`/`39c6ee74`. Staging, whitespace and Side Research are clean.
 - AT production/test/observer/CI code is checkpointed at `496016a` by
   explicit-path staging with the required trailer.
+- Blocking CI
+  [33117127691](https://github.com/tesseracode/tesserapatch/actions/runs/33117127691)
+  is green on every main platform and both observer jobs, including AT's six
+  exact targets. Release correctly skipped on the untagged push. AT is durably
+  complete at I4/C1/G1; cumulative S7 is 142/173.
+- AU is dispatched sequentially from `c14f790`: `PIB-537`…`PIB-545`
+  (I6/C2/G1), covering abandon boolean semantics, manual archive precedence,
+  global pending ownership, claimed-hash crash/insertion windows, coexisting
+  observation/admission behavior and derived claim/removal authority.
 
 **Suggested exact selectors:**
 
@@ -6810,8 +6819,9 @@ go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ObservedATRegistrationA
 
 ## Next Steps
 
-1. Commit tracking, push `496016a` plus tracking and run blocking CI.
-2. If green, close AT at 142/173 cumulative rows and dispatch AU.
+1. Implement AU `PIB-537`…`PIB-545` with exact ledger and hosted observer.
+2. Validate its G same-validator and both crash-window rows.
+3. Obtain independent review before checkpointing AU.
 3. Obtain independent review before checkpointing AT.
 4. After green blocking CI, implement AU–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
@@ -6821,7 +6831,7 @@ go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ObservedATRegistrationA
 
 ## Blockers
 
-- AT is active; AU–AX remain procedurally blocked until AT is accepted,
+- AU is active; AV–AX remain procedurally blocked until AU is accepted,
   checkpointed, pushed and green in CI.
 - Blocking CI 33040928741 passed every platform/shard except macOS's final AR
   observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.

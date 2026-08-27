@@ -1376,9 +1376,12 @@ CI 33108548581 is green across all five blocking jobs. AS is durably closed at
 `a55a0ab`. AT rev-0 is NEEDS REVISION on compile failure, proxy/no-op
 assertions, disconnected spies and missing CI semantic guards; rev-1 is active.
 AT rev-1 closes those findings with exact committed-state/syscall observation,
-one shared G validator, complete observer/CI wiring and two bounded product
-disclosures. Local validation and final review are APPROVED; checkpoint and CI
-remain before AU. Implementation is checkpointed at `496016a`.
+one shared G validator, complete observer/CI wiring and bounded production-
+source corrections. Local validation and final review are APPROVED;
+implementation is checkpointed at `496016a`.
+CI 33117127691 is green across all five blocking jobs. AT is durably closed at
+142/173 cumulative rows; AU (`PIB-537…545`, I6/C2/G1) is active from
+`c14f790`.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
