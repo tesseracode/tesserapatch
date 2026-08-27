@@ -29,30 +29,39 @@ type s7CITimeoutStep struct {
 }
 
 const (
-	s7CIARPartitionPattern             = `^(TestS7AR.*|TestS7ObservedARRegistrationAuthority)$`
-	s7CIARLegacyPattern                = `^TestS7ARRev(11|12|13|14|15).*$`
-	s7CIARLegacyMidPattern             = `^TestS7ARRev(16|17|18).*$`
-	s7CIARLegacyLatePattern            = `^TestS7ARRev(19|20).*$`
-	s7CIARCurrentPattern               = `^TestS7ARRev(21|23|24).*$`
-	s7CIARCurrentLatePattern           = `^TestS7ARRev(25|26|27).*$`
-	s7CIARCorePattern                  = `^TestS7AR(ExitSixRouteGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
-	s7CIARAbandonPattern               = `^TestS7ARAbandonGateTableGuard$`
-	s7CIARPurgePattern                 = `^TestS7ARPurgeProgressGuard$`
-	s7CIARPermanentPattern             = `^TestS7ARPermanentBlockClaimsGuard$`
-	s7CIARObserverPattern              = `^TestS7ObservedARRegistrationAuthority$`
-	s7CINonWindowsFullCommand          = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
-	s7CINonWindowsARLegacyCommand      = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyPattern + `'`
-	s7CINonWindowsARLegacyMidCommand   = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyMidPattern + `'`
-	s7CINonWindowsARLegacyLateCommand  = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyLatePattern + `'`
-	s7CINonWindowsARCurrentCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentPattern + `'`
-	s7CINonWindowsARCurrentLateCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentLatePattern + `'`
-	s7CINonWindowsARCoreCommand        = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCorePattern + `'`
-	s7CINonWindowsARAbandonCommand     = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARAbandonPattern + `'`
-	s7CINonWindowsARPurgeCommand       = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPurgePattern + `'`
-	s7CINonWindowsARPermanentCommand   = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPermanentPattern + `'`
-	s7CINonWindowsARObserverCommand    = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
-	s7CINonWindowsTestScript           = "set -euo pipefail\n" +
+	s7CIARPartitionPattern                   = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR)RegistrationAuthority)$`
+	s7CIAMThroughAOObserverPattern           = `^TestS7ObservedAMThroughAORegistrationAuthority$`
+	s7CIAPObserverPattern                    = `^TestS7ObservedAPRegistrationAuthority$`
+	s7CIAQObserverPattern                    = `^TestS7ObservedAQRegistrationAuthority$`
+	s7CIARLegacyPattern                      = `^TestS7ARRev(11|12|13|14|15).*$`
+	s7CIARLegacyMidPattern                   = `^TestS7ARRev(16|17|18).*$`
+	s7CIARLegacyLatePattern                  = `^TestS7ARRev(19|20).*$`
+	s7CIARCurrentPattern                     = `^TestS7ARRev(21|23|24).*$`
+	s7CIARCurrentLatePattern                 = `^TestS7ARRev(25|26|27).*$`
+	s7CIARCorePattern                        = `^TestS7AR(ExitSixRouteGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
+	s7CIARAbandonPattern                     = `^TestS7ARAbandonGateTableGuard$`
+	s7CIARPurgePattern                       = `^TestS7ARPurgeProgressGuard$`
+	s7CIARPermanentPattern                   = `^TestS7ARPermanentBlockClaimsGuard$`
+	s7CIARObserverPattern                    = `^TestS7ObservedARRegistrationAuthority$`
+	s7CINonWindowsFullCommand                = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
+	s7CINonWindowsAMThroughAOObserverCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAMThroughAOObserverPattern + `'`
+	s7CINonWindowsAPObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAPObserverPattern + `'`
+	s7CINonWindowsAQObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAQObserverPattern + `'`
+	s7CINonWindowsARLegacyCommand            = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyPattern + `'`
+	s7CINonWindowsARLegacyMidCommand         = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyMidPattern + `'`
+	s7CINonWindowsARLegacyLateCommand        = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyLatePattern + `'`
+	s7CINonWindowsARCurrentCommand           = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentPattern + `'`
+	s7CINonWindowsARCurrentLateCommand       = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentLatePattern + `'`
+	s7CINonWindowsARCoreCommand              = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCorePattern + `'`
+	s7CINonWindowsARAbandonCommand           = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARAbandonPattern + `'`
+	s7CINonWindowsARPurgeCommand             = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPurgePattern + `'`
+	s7CINonWindowsARPermanentCommand         = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARPermanentPattern + `'`
+	s7CINonWindowsARObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
+	s7CINonWindowsTestScript                 = "set -euo pipefail\n" +
 		s7CINonWindowsFullCommand + "\n" +
+		s7CINonWindowsAMThroughAOObserverCommand + "\n" +
+		s7CINonWindowsAPObserverCommand + "\n" +
+		s7CINonWindowsAQObserverCommand + "\n" +
 		s7CINonWindowsARLegacyCommand + "\n" +
 		s7CINonWindowsARLegacyMidCommand + "\n" +
 		s7CINonWindowsARLegacyLateCommand + "\n" +
@@ -430,8 +439,8 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			mutation: strings.Replace(
 				workflow,
 				"          "+s7CINonWindowsFullCommand+"\n"+
-					"          "+s7CINonWindowsARLegacyCommand,
-				"          "+s7CINonWindowsARLegacyCommand+"\n"+
+					"          "+s7CINonWindowsAMThroughAOObserverCommand,
+				"          "+s7CINonWindowsAMThroughAOObserverCommand+"\n"+
 					"          "+s7CINonWindowsFullCommand,
 				1,
 			),
@@ -855,9 +864,9 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 			tests = append(tests, invocation)
 		}
 	}
-	if len(tests) != 11 {
+	if len(tests) != 14 {
 		return fmt.Errorf(
-			"non-Windows test partition command count = %d, want exactly 11",
+			"non-Windows test partition command count = %d, want exactly 14",
 			len(tests),
 		)
 	}
@@ -866,6 +875,9 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 		timeout string
 	}{
 		{command: s7CINonWindowsFullCommand, timeout: "40m"},
+		{command: s7CINonWindowsAMThroughAOObserverCommand, timeout: "40m"},
+		{command: s7CINonWindowsAPObserverCommand, timeout: "40m"},
+		{command: s7CINonWindowsAQObserverCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyMidCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyLateCommand, timeout: "40m"},
@@ -1030,6 +1042,9 @@ func validateS7CITestStrategy(lines []string, start, jobEnd int) error {
 func validateS7ARPartitionTestOwners(root string) error {
 	pattern := regexp.MustCompile(s7CIARPartitionPattern)
 	shards := []*regexp.Regexp{
+		regexp.MustCompile(s7CIAMThroughAOObserverPattern),
+		regexp.MustCompile(s7CIAPObserverPattern),
+		regexp.MustCompile(s7CIAQObserverPattern),
 		regexp.MustCompile(s7CIARLegacyPattern),
 		regexp.MustCompile(s7CIARLegacyMidPattern),
 		regexp.MustCompile(s7CIARLegacyLatePattern),
@@ -1063,7 +1078,7 @@ func validateS7ARPartitionTestOwners(root string) error {
 			return err
 		}
 		if !strings.Contains(string(content), "TestS7AR") &&
-			!strings.Contains(string(content), "TestS7ObservedARRegistrationAuthority") {
+			!strings.Contains(string(content), "TestS7Observed") {
 			return nil
 		}
 		file, err := parser.ParseFile(token.NewFileSet(), path, content, 0)

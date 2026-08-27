@@ -76,24 +76,19 @@ func TestS7ObservedAMThroughAORegistrationAuthority(t *testing.T) {
 		t.Fatalf("observed AM-AO unique leaf events = %d, want 65", len(required))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
-	defer cancel()
-	if err := validateS7ObservedRegistrations(
-		ctx,
-		avpRepoRoot(t),
-		required,
-	); err != nil {
-		t.Fatal(err)
-	}
+	runS7ObservedCategory(
+		t, s7ObservedCategoryAMThroughAO, required,
+	)
 }
 
 type s7ObservedCategory string
 
 const (
-	s7ObservedCategoryAP     s7ObservedCategory = "AP"
-	s7ObservedCategoryAQ     s7ObservedCategory = "AQ"
-	s7ObservedCategoryAR     s7ObservedCategory = "AR"
-	s7ObservedCIPackageLimit                    = 40 * time.Minute
+	s7ObservedCategoryAMThroughAO s7ObservedCategory = "AM-AO"
+	s7ObservedCategoryAP          s7ObservedCategory = "AP"
+	s7ObservedCategoryAQ          s7ObservedCategory = "AQ"
+	s7ObservedCategoryAR          s7ObservedCategory = "AR"
+	s7ObservedCIPackageLimit                         = 40 * time.Minute
 )
 
 type s7ObservedHostedBudget struct {
@@ -102,20 +97,25 @@ type s7ObservedHostedBudget struct {
 	cleanup time.Duration
 	first   int
 	last    int
+	targets int
 }
 
 var s7ObservedHostedBudgets = map[s7ObservedCategory]s7ObservedHostedBudget{
-	s7ObservedCategoryAP: {
+	s7ObservedCategoryAMThroughAO: {
 		outer: 8 * time.Minute, inner: 4 * time.Minute, cleanup: time.Minute,
-		first: 449, last: 482,
+		first: 395, last: 448, targets: 65,
+	},
+	s7ObservedCategoryAP: {
+		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
+		first: 449, last: 482, targets: 34,
 	},
 	s7ObservedCategoryAQ: {
 		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
-		first: 483, last: 505,
+		first: 483, last: 505, targets: 23,
 	},
 	s7ObservedCategoryAR: {
 		outer: 20 * time.Minute, inner: 16 * time.Minute, cleanup: time.Minute,
-		first: 506, last: 520,
+		first: 506, last: 520, targets: 15,
 	},
 }
 
@@ -137,17 +137,21 @@ func validateS7ObservedHostedBudgets(
 		return fmt.Errorf("hosted CI package budget = %s, want finite 40m", packageLimit)
 	}
 	want := map[s7ObservedCategory]s7ObservedHostedBudget{
-		s7ObservedCategoryAP: {
+		s7ObservedCategoryAMThroughAO: {
 			outer: 480 * time.Second, inner: 240 * time.Second, cleanup: 60 * time.Second,
-			first: 449, last: 482,
+			first: 395, last: 448, targets: 65,
+		},
+		s7ObservedCategoryAP: {
+			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
+			first: 449, last: 482, targets: 34,
 		},
 		s7ObservedCategoryAQ: {
 			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
-			first: 483, last: 505,
+			first: 483, last: 505, targets: 23,
 		},
 		s7ObservedCategoryAR: {
 			outer: 1200 * time.Second, inner: 960 * time.Second, cleanup: 60 * time.Second,
-			first: 506, last: 520,
+			first: 506, last: 520, targets: 15,
 		},
 	}
 	if len(budgets) != len(want) {
@@ -226,21 +230,22 @@ func validateS7ObservedCategoryTargets(
 	budget s7ObservedHostedBudget,
 	targets []s7ObservedRegistrationTarget,
 ) error {
-	wantCount := budget.last - budget.first + 1
+	wantCount := budget.targets
 	if wantCount <= 0 || len(targets) != wantCount {
 		return fmt.Errorf("%s observed row targets = %d, want %d",
 			category, len(targets), wantCount)
 	}
-	seen := make(map[string]bool, len(targets))
+	seen := make(map[string]int, len(targets))
 	for _, target := range targets {
-		if seen[target.row] {
-			return fmt.Errorf("%s observed row %s is duplicated", category, target.row)
-		}
-		seen[target.row] = true
+		seen[target.row]++
 	}
 	for id := budget.first; id <= budget.last; id++ {
 		row := fmt.Sprintf("PIB-%03d", id)
-		if !seen[row] {
+		expected := 1
+		if category == s7ObservedCategoryAMThroughAO && row == "PIB-443" {
+			expected = 12
+		}
+		if seen[row] != expected {
 			return fmt.Errorf("%s observed targets omit %s", category, row)
 		}
 	}
@@ -295,6 +300,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, category := range []s7ObservedCategory{
+			s7ObservedCategoryAMThroughAO,
 			s7ObservedCategoryAP,
 			s7ObservedCategoryAQ,
 			s7ObservedCategoryAR,
@@ -328,6 +334,30 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 					aq := budgets[s7ObservedCategoryAQ]
 					aq.inner = 12 * time.Minute
 					budgets[s7ObservedCategoryAQ] = aq
+				},
+			},
+			{
+				name: "wrong-ap-outer-only",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ap := budgets[s7ObservedCategoryAP]
+					ap.outer = 8 * time.Minute
+					budgets[s7ObservedCategoryAP] = ap
+				},
+			},
+			{
+				name: "wrong-ap-inner-only",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					ap := budgets[s7ObservedCategoryAP]
+					ap.inner = 4 * time.Minute
+					budgets[s7ObservedCategoryAP] = ap
+				},
+			},
+			{
+				name: "wrong-am-ao-inner-only",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					amAO := budgets[s7ObservedCategoryAMThroughAO]
+					amAO.inner = 90 * time.Second
+					budgets[s7ObservedCategoryAMThroughAO] = amAO
 				},
 			},
 			{
@@ -403,7 +433,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					budgets["AS"] = s7ObservedHostedBudget{
 						outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
-						first: 521, last: 532,
+						first: 521, last: 532, targets: 12,
 					}
 				},
 			},
@@ -419,6 +449,13 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 			})
 		}
 		t.Run("callsite-category-binding", func(t *testing.T) {
+			if err := validateS7ObservedCategoryTargets(
+				s7ObservedCategoryAMThroughAO,
+				s7ObservedHostedBudgets[s7ObservedCategoryAMThroughAO],
+				s7ObservedAPTargets(t),
+			); err == nil {
+				t.Fatal("AM-AO category key accepted AP observer targets")
+			}
 			if err := validateS7ObservedCategoryTargets(
 				s7ObservedCategoryAP,
 				s7ObservedHostedBudgets[s7ObservedCategoryAP],
