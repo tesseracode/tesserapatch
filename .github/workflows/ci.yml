@@ -81,10 +81,6 @@ jobs:
         run: |
           set -euo pipefail
           go test ./... -count=1 -timeout 40m -skip '^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR)RegistrationAuthority)$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAMThroughAORegistrationAuthority$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAPRegistrationAuthority$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAQRegistrationAuthority$'
-          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARRegistrationAuthority$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(11|12|13|14|15).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(16|17|18).*$'
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ARRev(19|20).*$'
@@ -255,11 +251,39 @@ jobs:
             exit 1
           fi
 
+  s7-observers:
+    name: S7 observers (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test S7 observers
+        shell: bash
+        env:
+          BASH_ENV: /dev/null
+          GOFLAGS: ""
+          GOENV: "off"
+        run: |
+          set -euo pipefail
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedARRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAMThroughAORegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAPRegistrationAuthority$'
+          go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAQRegistrationAuthority$'
+
   # Publish a GitHub Release whenever a v* tag is pushed.
   # Release notes are generated from commits since the previous tag.
   release:
     name: release
-    needs: test
+    needs: [test, s7-observers]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

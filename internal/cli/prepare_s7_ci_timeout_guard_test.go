@@ -23,9 +23,11 @@ type s7CITimeoutStep struct {
 	continueOnError string
 	shell           string
 	environment     map[string]string
+	inputs          map[string]string
 	keys            map[string]int
 	run             string
 	runStyle        string
+	uses            string
 }
 
 const (
@@ -59,10 +61,6 @@ const (
 	s7CINonWindowsARObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARObserverPattern + `'`
 	s7CINonWindowsTestScript                 = "set -euo pipefail\n" +
 		s7CINonWindowsFullCommand + "\n" +
-		s7CINonWindowsAMThroughAOObserverCommand + "\n" +
-		s7CINonWindowsAPObserverCommand + "\n" +
-		s7CINonWindowsAQObserverCommand + "\n" +
-		s7CINonWindowsARObserverCommand + "\n" +
 		s7CINonWindowsARLegacyCommand + "\n" +
 		s7CINonWindowsARLegacyMidCommand + "\n" +
 		s7CINonWindowsARLegacyLateCommand + "\n" +
@@ -72,6 +70,11 @@ const (
 		s7CINonWindowsARAbandonCommand + "\n" +
 		s7CINonWindowsARPurgeCommand + "\n" +
 		s7CINonWindowsARPermanentCommand
+	s7CIObserverTestScript = "set -euo pipefail\n" +
+		s7CINonWindowsARObserverCommand + "\n" +
+		s7CINonWindowsAMThroughAOObserverCommand + "\n" +
+		s7CINonWindowsAPObserverCommand + "\n" +
+		s7CINonWindowsAQObserverCommand
 	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
 )
 
@@ -297,6 +300,92 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			),
 		},
 		{
+			name: "observer-job-demoted",
+			mutation: strings.Replace(
+				workflow,
+				"  s7-observers:\n    name:",
+				"  s7-observers:\n    continue-on-error: true\n    name:",
+				1,
+			),
+		},
+		{
+			name: "observer-checkout-shallow",
+			mutation: strings.Replace(
+				workflow,
+				"    steps:\n"+
+					"      - uses: actions/checkout@v4\n"+
+					"        with:\n"+
+					"          fetch-depth: 0\n"+
+					"      - uses: actions/setup-go@v5",
+				"    steps:\n"+
+					"      - uses: actions/checkout@v4\n"+
+					"        with:\n"+
+					"          fetch-depth: 1\n"+
+					"      - uses: actions/setup-go@v5",
+				1,
+			),
+		},
+		{
+			name: "observer-checkout-depth-removed",
+			mutation: strings.Replace(
+				workflow,
+				"      - uses: actions/checkout@v4\n"+
+					"        with:\n"+
+					"          fetch-depth: 0\n"+
+					"      - uses: actions/setup-go@v5",
+				"      - uses: actions/checkout@v4\n"+
+					"      - uses: actions/setup-go@v5",
+				1,
+			),
+		},
+		{
+			name: "observer-matrix-macos-only",
+			mutation: strings.Replace(
+				workflow,
+				"os: [ubuntu-latest, macos-latest]",
+				"os: [macos-latest]",
+				1,
+			),
+		},
+		{
+			name: "observer-command-removed",
+			mutation: strings.Replace(
+				workflow,
+				"\n          "+s7CINonWindowsARObserverCommand,
+				"",
+				1,
+			),
+		},
+		{
+			name: "observer-command-failure-masked",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsARObserverCommand,
+				s7CINonWindowsARObserverCommand+" || true",
+				1,
+			),
+		},
+		{
+			name: "observer-order-swapped",
+			mutation: strings.Replace(
+				workflow,
+				"          "+s7CINonWindowsARObserverCommand+"\n"+
+					"          "+s7CINonWindowsAMThroughAOObserverCommand,
+				"          "+s7CINonWindowsAMThroughAOObserverCommand+"\n"+
+					"          "+s7CINonWindowsARObserverCommand,
+				1,
+			),
+		},
+		{
+			name: "release-drops-observer-dependency",
+			mutation: strings.Replace(
+				workflow,
+				"needs: [test, s7-observers]",
+				"needs: test",
+				1,
+			),
+		},
+		{
 			name: "test-job-disabled-after-steps",
 			mutation: strings.Replace(
 				workflow,
@@ -439,8 +528,8 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			mutation: strings.Replace(
 				workflow,
 				"          "+s7CINonWindowsFullCommand+"\n"+
-					"          "+s7CINonWindowsAMThroughAOObserverCommand,
-				"          "+s7CINonWindowsAMThroughAOObserverCommand+"\n"+
+					"          "+s7CINonWindowsARLegacyCommand,
+				"          "+s7CINonWindowsARLegacyCommand+"\n"+
 					"          "+s7CINonWindowsFullCommand,
 				1,
 			),
@@ -711,7 +800,23 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 }
 
 func validateS7CIFullSuiteTimeouts(workflow string) error {
-	if err := validateS7CITestJobTopology(workflow); err != nil {
+	if err := validateS7CIMatrixJobTopology(
+		workflow,
+		"test",
+		"test (${{ matrix.os }})",
+		"[ubuntu-latest, macos-latest, windows-latest]",
+	); err != nil {
+		return err
+	}
+	if err := validateS7CIMatrixJobTopology(
+		workflow,
+		"s7-observers",
+		"S7 observers (${{ matrix.os }})",
+		"[ubuntu-latest, macos-latest]",
+	); err != nil {
+		return err
+	}
+	if err := validateS7CIReleaseObserverDependency(workflow); err != nil {
 		return err
 	}
 	steps, err := parseS7CITimeoutSteps(workflow)
@@ -813,6 +918,37 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 	if windowsCount != 1 {
 		return fmt.Errorf("Windows allowed-failure full-suite step count = %d, want exactly 1", windowsCount)
 	}
+	observerCount := 0
+	for _, step := range steps {
+		if step.job != "s7-observers" || step.name != "Test S7 observers" {
+			continue
+		}
+		observerCount++
+		if err := validateS7ObserverTestPartition(step); err != nil {
+			return err
+		}
+	}
+	if observerCount != 1 {
+		return fmt.Errorf("S7 observer test step count = %d, want exactly 1", observerCount)
+	}
+	checkoutCount := 0
+	for _, step := range steps {
+		if step.job != "s7-observers" || step.uses != "actions/checkout@v4" {
+			continue
+		}
+		checkoutCount++
+		wantKeys := map[string]int{"uses": 1, "with": 1}
+		wantInputs := map[string]string{"fetch-depth": "0"}
+		if !maps.Equal(step.keys, wantKeys) ||
+			!maps.Equal(step.inputs, wantInputs) ||
+			step.condition != "" ||
+			classifyS7CIContinueOnError(step.continueOnError) != "blocking" {
+			return errors.New("S7 observer checkout is not exact full-history blocking checkout")
+		}
+	}
+	if checkoutCount != 1 {
+		return fmt.Errorf("S7 observer checkout count = %d, want exactly 1", checkoutCount)
+	}
 	return nil
 }
 
@@ -864,9 +1000,9 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 			tests = append(tests, invocation)
 		}
 	}
-	if len(tests) != 14 {
+	if len(tests) != 10 {
 		return fmt.Errorf(
-			"non-Windows test partition command count = %d, want exactly 14",
+			"non-Windows test partition command count = %d, want exactly 10",
 			len(tests),
 		)
 	}
@@ -875,10 +1011,6 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 		timeout string
 	}{
 		{command: s7CINonWindowsFullCommand, timeout: "40m"},
-		{command: s7CINonWindowsAMThroughAOObserverCommand, timeout: "40m"},
-		{command: s7CINonWindowsAPObserverCommand, timeout: "40m"},
-		{command: s7CINonWindowsAQObserverCommand, timeout: "40m"},
-		{command: s7CINonWindowsARObserverCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyMidCommand, timeout: "40m"},
 		{command: s7CINonWindowsARLegacyLateCommand, timeout: "40m"},
@@ -900,7 +1032,55 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 	return nil
 }
 
-func validateS7CITestJobTopology(workflow string) error {
+func validateS7ObserverTestPartition(step s7CITimeoutStep) error {
+	wantKeys := map[string]int{"name": 1, "shell": 1, "env": 1, "run": 1}
+	wantEnvironment := map[string]string{
+		"BASH_ENV": "/dev/null", "GOFLAGS": "", "GOENV": "off",
+	}
+	if !maps.Equal(step.keys, wantKeys) ||
+		step.condition != "" ||
+		classifyS7CIContinueOnError(step.continueOnError) != "blocking" ||
+		step.shell != "bash" ||
+		step.runStyle != "|" ||
+		!maps.Equal(step.environment, wantEnvironment) ||
+		strings.TrimSpace(step.run) != s7CIObserverTestScript {
+		return errors.New("S7 observer step is not the exact blocking canonical partition")
+	}
+	invocations, err := collectS7ShellInvocations(step.run, 0, map[string]bool{})
+	if err != nil {
+		return err
+	}
+	var tests []s7ShellInvocation
+	for _, invocation := range invocations {
+		if _, ok := s7GoTestArgs(invocation.argv()); ok {
+			tests = append(tests, invocation)
+		}
+	}
+	want := []string{
+		s7CINonWindowsARObserverCommand,
+		s7CINonWindowsAMThroughAOObserverCommand,
+		s7CINonWindowsAPObserverCommand,
+		s7CINonWindowsAQObserverCommand,
+	}
+	if len(tests) != len(want) {
+		return fmt.Errorf("S7 observer command count = %d, want %d", len(tests), len(want))
+	}
+	for index, command := range want {
+		argv := tests[index].argv()
+		args, _ := s7GoTestArgs(argv)
+		if err := validateS7FullSuiteInvocation(argv, args, command, "40m"); err != nil {
+			return fmt.Errorf("S7 observer command %d: %w", index, err)
+		}
+	}
+	return nil
+}
+
+func validateS7CIMatrixJobTopology(
+	workflow string,
+	jobName string,
+	displayName string,
+	osMatrix string,
+) error {
 	lines := strings.Split(workflow, "\n")
 	inJobs := false
 	var starts []int
@@ -908,16 +1088,19 @@ func validateS7CITestJobTopology(workflow string) error {
 		raw := lines[index]
 		trimmed := strings.TrimSpace(raw)
 		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
 		if indent == 0 {
 			inJobs = trimmed == "jobs:"
 			continue
 		}
-		if inJobs && indent == 2 && trimmed == "test:" {
+		if inJobs && indent == 2 && trimmed == jobName+":" {
 			starts = append(starts, index)
 		}
 	}
 	if len(starts) != 1 {
-		return fmt.Errorf("jobs.test definition count = %d, want exactly 1", len(starts))
+		return fmt.Errorf("jobs.%s definition count = %d, want exactly 1", jobName, len(starts))
 	}
 	start := starts[0]
 	end := len(lines)
@@ -940,37 +1123,82 @@ func validateS7CITestJobTopology(workflow string) error {
 		}
 		key, value, ok := strings.Cut(trimmed, ":")
 		if !ok {
-			return fmt.Errorf("jobs.test direct entry is malformed: %q", trimmed)
+			return fmt.Errorf("jobs.%s direct entry is malformed: %q", jobName, trimmed)
 		}
 		key = strings.TrimSpace(key)
 		value = normalizeS7CIScalar(strings.TrimSpace(value))
 		if _, duplicate := direct[key]; duplicate {
-			return fmt.Errorf("jobs.test direct key %q is duplicated", key)
+			return fmt.Errorf("jobs.%s direct key %q is duplicated", jobName, key)
 		}
 		direct[key] = value
 		switch key {
 		case "name", "runs-on", "steps":
 		case "strategy":
-			if err := validateS7CITestStrategy(lines, index, end); err != nil {
+			if err := validateS7CITestStrategy(lines, index, end, osMatrix); err != nil {
 				return err
 			}
 		default:
-			return fmt.Errorf("jobs.test has unsupported direct key %q", key)
+			return fmt.Errorf("jobs.%s has unsupported direct key %q", jobName, key)
 		}
 	}
 	want := map[string]string{
-		"name":     "test (${{ matrix.os }})",
+		"name":     displayName,
 		"runs-on":  "${{ matrix.os }}",
 		"strategy": "",
 		"steps":    "",
 	}
 	if !maps.Equal(direct, want) {
-		return fmt.Errorf("jobs.test direct topology = %v, want %v", direct, want)
+		return fmt.Errorf("jobs.%s direct topology = %v, want %v", jobName, direct, want)
 	}
 	return nil
 }
 
-func validateS7CITestStrategy(lines []string, start, jobEnd int) error {
+func validateS7CIReleaseObserverDependency(workflow string) error {
+	lines := strings.Split(workflow, "\n")
+	inJobs := false
+	inRelease := false
+	needs := ""
+	count := 0
+	for _, raw := range lines {
+		trimmed := strings.TrimSpace(raw)
+		indent := len(raw) - len(strings.TrimLeft(raw, " "))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if indent == 0 {
+			inJobs = trimmed == "jobs:"
+			inRelease = false
+			continue
+		}
+		if inJobs && indent == 2 && strings.HasSuffix(trimmed, ":") {
+			inRelease = trimmed == "release:"
+			continue
+		}
+		if !inRelease || indent != 4 {
+			continue
+		}
+		key, value, ok := strings.Cut(trimmed, ":")
+		if !ok || strings.TrimSpace(key) != "needs" {
+			continue
+		}
+		count++
+		needs = normalizeS7CIScalar(strings.TrimSpace(value))
+	}
+	if count != 1 || needs != "[test, s7-observers]" {
+		return fmt.Errorf(
+			"release needs = %q count=%d, want [test, s7-observers] exactly once",
+			needs, count,
+		)
+	}
+	return nil
+}
+
+func validateS7CITestStrategy(
+	lines []string,
+	start int,
+	jobEnd int,
+	osMatrix string,
+) error {
 	end := jobEnd
 	for index := start + 1; index < jobEnd; index++ {
 		raw := lines[index]
@@ -1031,7 +1259,7 @@ func validateS7CITestStrategy(lines []string, start, jobEnd int) error {
 		)
 	}
 	wantMatrix := map[string]string{
-		"os": "[ubuntu-latest, macos-latest, windows-latest]",
+		"os": osMatrix,
 	}
 	if !maps.Equal(matrix, wantMatrix) {
 		return fmt.Errorf("jobs.test matrix = %v, want %v", matrix, wantMatrix)
@@ -1608,6 +1836,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 		blockRun      bool
 		blockLines    []string
 		blockEnv      bool
+		blockInputs   bool
 	)
 	closeBlock := func() {
 		if blockRun && current != nil {
@@ -1619,6 +1848,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 	flush := func() {
 		closeBlock()
 		blockEnv = false
+		blockInputs = false
 		if current != nil {
 			steps = append(steps, *current)
 			current = nil
@@ -1639,7 +1869,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			closeBlock()
 		}
 		if blockEnv {
-			if trimmed == "" {
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 				continue
 			}
 			if current != nil && indent == contentIndent+2 {
@@ -1665,6 +1895,30 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 				return nil, errors.New("workflow step environment nesting is unsupported")
 			}
 			blockEnv = false
+		}
+		if blockInputs {
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			if current != nil && indent == contentIndent+2 {
+				key, value, ok := strings.Cut(trimmed, ":")
+				if !ok {
+					return nil, errors.New("workflow step input entry is malformed")
+				}
+				key = strings.TrimSpace(key)
+				if strings.HasPrefix(key, `"`) || strings.HasPrefix(key, `'`) {
+					return nil, errors.New("quoted workflow input keys are unsupported")
+				}
+				if _, duplicate := current.inputs[key]; duplicate {
+					return nil, fmt.Errorf("workflow input key %q is duplicated", key)
+				}
+				current.inputs[key] = normalizeS7CIScalar(strings.TrimSpace(value))
+				continue
+			}
+			if indent > contentIndent {
+				return nil, errors.New("workflow step input nesting is unsupported")
+			}
+			blockInputs = false
 		}
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
@@ -1709,6 +1963,7 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			current = &s7CITimeoutStep{
 				job:         job,
 				environment: map[string]string{},
+				inputs:      map[string]string{},
 				keys:        map[string]int{},
 			}
 			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
@@ -1743,6 +1998,10 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			blockEnv = true
 			continue
 		}
+		if key == "with" && value == "" {
+			blockInputs = true
+			continue
+		}
 		value = normalizeS7CIScalar(value)
 		switch key {
 		case "name":
@@ -1753,6 +2012,8 @@ func parseS7CITimeoutSteps(workflow string) ([]s7CITimeoutStep, error) {
 			current.continueOnError = rawValue
 		case "shell":
 			current.shell = value
+		case "uses":
+			current.uses = value
 		case "run":
 			current.run = value
 		}
