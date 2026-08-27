@@ -1325,6 +1325,11 @@ AR's 8m inner observer budget expired at 489.674s. Rev-37 raises AR inner to
 10m with outer/cleanup/package limits unchanged.
 Rev-37 is approved and checkpointed at `16e3495`; its fresh local observer
 passes under the stronger 419s cutoff. AS waits on blocking CI.
+CI 33046534111 passed every non-observer shard, but macOS exhausted AR's 10m
+inner budget at 611.861s. Rev-39 uses a robust AR-only 20m/16m/1m tuple under
+the unchanged 40m package limit.
+Rev-39 is approved and checkpointed at `0c5f55f`; its fresh local observer
+passes under the stronger 419s cutoff. AS waits on blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AR rev-37 checkpointed at `16e3495`; CI pending**
+- **Status**: **In progress — S7 AR rev-39 checkpointed at `0c5f55f`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6418,10 +6418,42 @@ file, is the dispatch authority.
   may run.
 - Rev-37's AR-only hosted observer budget is checkpointed at `16e3495` by
   explicit-path staging.
+- Blocking CI
+  [33046534111](https://github.com/tesseracode/tesserapatch/actions/runs/33046534111)
+  passed Ubuntu, Windows and every macOS non-observer shard. The macOS AR
+  observer then exhausted the 10m inner budget at 611.861s package time with
+  no target assertion failure. Rev-39 replaces the non-robust increment with
+  AR-only outer 20m / inner 16m / cleanup 1m, still below package 40m; AP/AQ
+  stay unchanged.
+- Rev-39 exact budget/category/wrong-input suite passes in 4.891s package.
+  Registration hash is
+  `f30cc6270f9d6b59b3feef91124f72d1c4681c08ec643222267fe896fe865e4b`;
+  all other protected hashes, staging, whitespace and Side Research remain
+  unchanged. No post-rev-39 observer has run.
+- Independent rev-39 review returned **APPROVED**. Rev-40 may consume one
+  fresh unchanged local AR observer after the strict gate, still under the
+  stronger 419-second cutoff.
+- Rev-40's sole observer allowance is consumed and **PASS**. Its strict gate
+  ended at `2026-08-27T01:32:07-0700` with 90% free memory, load 1.66, zero
+  exact processes and 61 continuous eligible seconds. Immediate launch at
+  `01:32:23-0700` retained 90%/1.93/zero and all frozen boundaries.
+  `TestS7ObservedARRegistrationAuthority` passed in **272.35s test /
+  272.676s package / 273.123s monotonic wall**, clearing the 419-second cutoff
+  by 145.877 seconds.
+- Read-only close at `01:37:05-0700` found 89% free memory, load 2.12, zero
+  exact processes, refs `3dbfc8b`, empty staging, clean formatting/whitespace,
+  registration hash
+  `f30cc6270f9d6b59b3feef91124f72d1c4681c08ec643222267fe896fe865e4b`
+  and Side Research intact.
+- Independent rev-40 evidence review returned **APPROVED**, confirming the
+  exact 145.877-second margin and clean single-start boundaries. Rev-39
+  checkpoint and blocking CI are authorized.
+- Rev-39's robust AR-only hosted observer budget is checkpointed at `0c5f55f`
+  by explicit-path staging.
 
 ## Next Steps
 
-1. Commit tracking, push `16e3495` plus tracking and rerun blocking CI.
+1. Commit tracking, push `0c5f55f` plus tracking and rerun blocking CI.
 3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
@@ -6434,6 +6466,8 @@ file, is the dispatch authority.
   pushed and green in CI.
 - Blocking CI 33040928741 passed every platform/shard except macOS's final AR
   observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.
+- Blocking CI 33046534111 passed every non-observer shard but macOS exhausted
+  AR's 10m inner budget at 611.861s. Rev-39 is active.
 - Blocking CI 33024637427 failed on the type-model projection collision and
   non-Windows runtime exhaustion; AR is reopened at rev-33.
 - Rev-19 and rev-20 are rejected, and rev-21 lacks valid final-code observer

@@ -1,3 +1,67 @@
+## Supervisor Decision — prepare S7 AR rev-40 — 2026-08-27
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+The post-rev-39 observer passed in 272.35s test / 272.676s package / 273.123s
+monotonic wall, clearing the stronger 419-second cutoff by 145.877 seconds.
+Its sole allowance is consumed and all final boundaries are clean.
+
+## Review — prepare S7 AR rev-40 — 2026-08-27
+
+**Reviewer**: independent `rev40-evidence-review`
+**Task**: Review robust-budget observer evidence
+
+### Verdict: APPROVED
+
+### Notes
+
+Single start, exact cutoff arithmetic, budget binding, allowance consumption
+and repository closure all match.
+
+### Action Taken
+
+Rev-39 checkpoint, push and blocking CI are authorized.
+
+## Supervisor Decision — prepare S7 AR rev-39 — 2026-08-27
+
+**Decision**: **APPROVED — rev-40 observer-only dispatched**
+
+AR's hosted observer tuple is now outer 20m / inner 16m / cleanup 1m under the
+unchanged 40m package limit. This leaves substantial margin over the observed
+611.861s macOS run while remaining finite and AR-only. AP/AQ stay frozen.
+
+## Review — prepare S7 AR rev-39 — 2026-08-27
+
+**Reviewer**: independent `rev39-budget-review`
+**Task**: Review robust AR hosted observer budget
+
+### Verdict: APPROVED
+
+### Notes
+
+Tuple ordering, package bound, AR-only category binding, observed hosted margin
+and prior 12m/10m regression sensitivities all pass.
+
+### Action Taken
+
+Rev-40 may consume one fresh unchanged local AR observer after the strict gate
+and under the stronger 419-second cutoff.
+
+## Supervisor Decision — prepare S7 AR 10m-budget CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-39 robust hosted budget dispatched**
+
+CI run
+[33046534111](https://github.com/tesseracode/tesserapatch/actions/runs/33046534111)
+passed Ubuntu, Windows and every macOS non-observer shard. The final AR
+observer exhausted the new 10-minute inner budget at 611.861s package time;
+again no target assertion failed. Hosted variance from 489.674s to 611.861s
+shows a two-minute increment is not a robust correction.
+
+Rev-39 may change only AR's hosted tuple to outer 20m / inner 16m / cleanup
+1m, still below the 40m package limit, add exact regression sensitivities and
+update tracking. AP/AQ remain frozen.
+
 ## Supervisor Decision — prepare S7 AR rev-38 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**
