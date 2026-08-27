@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AR checkpointed at `db17262`; blocking CI pending**
+- **Status**: **In progress — S7 AR corrections checkpointed at `5658d5e`; CI pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6202,12 +6202,169 @@ file, is the dispatch authority.
   and unchanged pre-existing residue. Supervisor decision accepts AR and
   authorizes explicit-path checkpointing plus blocking CI. No further local Go
   command is permitted before checkpoint.
+- AR code/test checkpoint `db17262` and tracking checkpoint `1a98f4c` were
+  pushed to `origin/main`. Blocking CI
+  [33024637427](https://github.com/tesseracode/tesserapatch/actions/runs/33024637427)
+  failed after Windows passed. macOS produced deterministic PIB-511/PIB-518
+  missing-model-file failures before its 40-minute timeout:
+  `s6TypeModelCache` keyed only the augmented complete graph even though each
+  model exposes only the caller-provided file projection. A prior model with
+  the same augmented graph but a narrower projection could therefore omit
+  `feature_intent_archive.go`. Ubuntu exited 143 after about 15 minutes with
+  no assertion output. Rev-33 is bounded to the projection cache key and a
+  direct bite before full-suite budget reassessment. Rev-32's observer is
+  historical after this harness change and cannot be relabeled.
+- Rev-33 keys `s6TypeModelCache` by both the augmented complete type graph and
+  the exact caller-provided source projection; `model.sourceKey` carries that
+  same composite identity into dependent caches. A direct bite proves that
+  one-file and two-file projections converge on the same augmented graph but
+  produce distinct models and retain exactly their provided files.
+  `TestS6AnalyzerCacheSensitivity` passes in 0.772s package.
+- Rev-33 fresh strict eligibility passes: PIB-518 121.029s, PIB-511 103.086s,
+  PIB-519 31.660s; package sum **255.775s**, 69.225s below the 325-second cap.
+  Every selector launched after a 60-second gate at 83% free memory, load
+  2.00–2.17 and zero exact processes. The S6 harness hash is
+  `45d4bf497f6c8ec61d6567dff29dea3bfb23de49938ce7a21d52b44862363ddf`;
+  all other protected hashes and boundaries remain unchanged. No observer ran.
+- Independent rev-33 review returned **APPROVED**. Rev-34 retains the exact
+  finite 40-minute package limit but partitions the non-Windows test step into
+  two sequential blocking processes: the complete non-AR set, then the
+  complete AR plus AR-observer set. The guard must prove exact complementary
+  regexes, no overlap/gap, canonical order, exact package targets, one timeout
+  per process and unchanged Windows ownership.
+- Rev-34 first split the non-Windows step into non-AR and broad-AR processes.
+  The non-AR process correctly exposed AP PIB-459's stale declaration hash for
+  AR's accepted `buildIntentArchiveDivergence` history-disclosure sentence;
+  that sole hash is updated and PIB-459 plus the AP observer pass (0.565s /
+  135.328s package). The corrected complete non-AR partition passes in
+  948.59s wall (CLI 810.608s).
+- The broad AR process then independently proved too large, timing out at
+  2541.79s while entering the ledger. Rev-34 now uses four exact AR shards:
+  legacy rev-11…20 repros (300.96s wall), current rev-21/23…27 repros
+  (216.39s), accepted core guards/runtime/ledger (266.01s), and the AR
+  observer alone. The workflow guard proves five total non-Windows commands,
+  exact order/argv/package/40m timeout, the broad skip union, AST-level
+  one-shard ownership for every matching test, non-empty shards, and unchanged
+  Windows allowed-failure ownership. All mutation and external-owner bites
+  pass in 0.856s package. No fresh AR observer has run after rev-33.
+- Rev-34 hashes: S6
+  `45d4bf497f6c8ec61d6567dff29dea3bfb23de49938ce7a21d52b44862363ddf`,
+  CI guard
+  `6e3f5079a68d0817f0e2033c13a05a49b4cdd338929411601ddc17d4364fe590`,
+  AP inventory
+  `f9d2caf5ace2d0ff74e6d42b502f7470b733374b895e3375c0835643433ec0c9`,
+  workflow
+  `2a5b7f6effa74b7547dd9689c0558ffecf47a8a79f5e7dc0c7c4fd7ec3374c87`.
+  AR guard/registration and all production hashes remain unchanged; staging,
+  formatting, whitespace and Side Research boundaries are clean.
+- Rev-34 round-0 review returned **NEEDS REVISION**: shell operators were
+  discarded before filtered `go test` validation, allowing `true || shard` to
+  skip execution or `shard || true` to mask failure. The bounded correction
+  requires the exact canonical five-line script before parsing and adds both
+  bypasses as mutations. The complete guard suite passes in 0.444s package;
+  workflow commands and prior shard timings are unchanged.
+- Rev-34 round-1 re-review returned **NEEDS REVISION**: a custom
+  non-Windows `bash {0}` shell could remove fail-fast semantics, and Windows
+  lacked the exact-script check. The workflow now pins non-Windows
+  `shell: bash`; the guard requires that exact value and the exact Windows
+  command, with mutations for `bash {0}`, Windows prefix skip and suffix
+  masking. The complete guard suite passes in 0.448s package; shard commands,
+  ownership and timings remain unchanged.
+- Rev-34 round-2 re-review returned **NEEDS REVISION** on unreachable runner
+  topology, inherited `BASH_ENV`, and build-ineligible ownership. The guard
+  now pins the exact Ubuntu/macOS/Windows matrix and
+  `runs-on: ${{ matrix.os }}`, pins `BASH_ENV=/dev/null`, requires
+  `set -euo pipefail`, and applies Go filename/build-constraint matching for
+  Linux amd64 and Darwin arm64. Every broad-pattern test must be eligible on
+  at least one non-Windows runner, belong to exactly one shard, and every
+  shard must be non-empty on both runners. Windows-only, matrix, runner,
+  environment and fail-fast sensitivities all bite; the complete guard passes
+  in 0.466s package. Workflow test commands and prior shard timings remain
+  unchanged.
+- Rev-34 round-3 re-review returned **NEEDS REVISION** because file-wide
+  topology/environment substrings could be satisfied by a dead copy, folded
+  `run: >` was treated as newline-preserving, and inherited
+  `GOFLAGS=-list=.` could suppress test execution. The guard now parses the
+  actual `jobs.test` header and actual Test step environment/run style,
+  requiring the exact direct matrix topology, `BASH_ENV=/dev/null`,
+  `GOFLAGS=""`, literal `run: |`, and leading `set -euo pipefail`.
+  Matrix-exclude, dead/demoted job, folded-run, GOFLAGS and decoy-resistant
+  environment mutations all bite. Per-Linux/macOS build eligibility remains
+  enforced. The complete guard passes in 0.407s package; executable shard
+  commands and evidence remain unchanged.
+- Rev-34 round-4 re-review returned **NEEDS REVISION** because direct job
+  controls after `steps:` escaped header validation and inert block scalars
+  could impersonate a `steps:` sequence. Topology validation now parses the
+  complete direct `jobs.test` mapping regardless of key order, permits only
+  exact name/runs-on/strategy/steps, validates exact strategy/matrix children,
+  and rejects duplicate/unknown keys. Step discovery requires a direct
+  indent-4 `steps:` node. Post-steps disable/demotion and inert scalar-decoy
+  mutations all bite; the complete guard passes in 0.455s package. Workflow
+  commands and all executable shard evidence remain unchanged.
+- Rev-34 round-5 re-review returned **NEEDS REVISION** on quoted step keys and
+  standalone sequence markers. Step/environment keys are now scalar-normalized
+  before matching and every bare `-` flushes/starts an independent item.
+  Quoted `continue-on-error` demotion and split-step impersonation mutations
+  bite; the complete guard passes in 0.407s package. Workflow commands and all
+  executable evidence remain unchanged.
+- Rev-34 round-6 re-review returned **NEEDS REVISION** on escaped quoted keys
+  and arbitrary indentation below standalone sequence markers. The guard now
+  fails closed on every quoted step/environment key and every standalone step
+  marker rather than partially decoding noncanonical forms. An escaped
+  `continue-on-error` key and valid four-space-deeper split-step fixture both
+  bite; the complete guard passes in 0.469s package. Workflow commands and all
+  executable evidence remain unchanged.
+- Rev-34 round-7 re-review returned **NEEDS REVISION** on commented bare
+  markers and explicit mapping keys. Direct `- # comment` markers now fail
+  closed; malformed, empty or `?` step keys are rejected; exact direct-key
+  counts also reject merge keys and duplicates. Commented-marker,
+  explicit-key, merge-key and duplicate-condition sensitivities all bite; the
+  complete guard passes in 0.441s package. Workflow commands and all
+  executable evidence remain unchanged.
+- Final retained review returned only `NEEDS REVISION` with no finding or
+  supporting content. Supervisor fallback audit closed the remaining parser
+  surface directly. Quoted/escaped/explicit/merge/duplicate keys,
+  bare/commented markers, scalar decoys, complete direct job topology, actual
+  step environment/run style, per-OS build eligibility and exact shard union
+  are all fail-closed and bite-tested. `BASH_ENV=/dev/null`, `GOFLAGS=""` and
+  `GOENV=off` are pinned; Ruby's YAML parser independently resolves exactly
+  the intended three-OS job and five-command Test step. The complete guard
+  passes in 0.457s package. Supervisor verdict is **APPROVED**.
+- Rev-35 is observer-only and may consume one fresh unchanged AR observer
+  against rev-33 after the strict 60-second gate and under the 419-second
+  cutoff. No source edit is authorized.
+- Rev-35's sole observer allowance is consumed and **PASS**. Its strict gate
+  ended at `2026-08-26T20:25:55-0700` with 90% free memory, load 2.28, zero
+  exact processes and 61 continuous eligible seconds. Immediate launch at
+  `20:26:07-0700` retained 90%/2.47/zero and all frozen refs/hashes.
+  `TestS7ObservedARRegistrationAuthority` passed in **270.04s test /
+  270.374s package / 270.827s monotonic wall**, clearing the 419-second cutoff
+  by 148.173 seconds.
+- Read-only close at `20:30:46-0700` found 89% free memory, load 2.23, zero
+  exact processes, HEAD/local/origin `1a98f4c`, empty staging, clean formatting
+  and whitespace, Side Research md5
+  `b385fe622db9926f48861105239f113e`, and final hashes: S6
+  `45d4bf497f6c8ec61d6567dff29dea3bfb23de49938ce7a21d52b44862363ddf`,
+  AP inventory
+  `f9d2caf5ace2d0ff74e6d42b502f7470b733374b895e3375c0835643433ec0c9`,
+  CI guard
+  `25eca1cdf268a459e8fd32427ba6a187f4d534373a11e7ef7bf85561e20aa4fb`,
+  workflow
+  `3127130bac3391b37d3afd6ff1bdbc27ce47bb3af23741d877617c825532cf3a`.
+  AR guard/registration and production hashes remain unchanged.
+- Independent rev-35 evidence review returned **APPROVED** with no mismatch.
+  Supervisor decision authorizes explicit-path rev-33/34 checkpointing and
+  blocking CI. The observer allowance is consumed and no further local Go
+  command is authorized before checkpoint.
+- Rev-33/34 cache, AP inventory, CI partition guard and workflow corrections
+  are checkpointed at `5658d5e` by explicit-path staging. Unrelated untracked
+  research files remain unstaged.
 
 ## Next Steps
 
-1. Commit this tracking checkpoint, push `db17262` plus tracking, and verify
+1. Commit this tracking checkpoint, push `5658d5e` plus tracking, and verify
    blocking CI.
-2. After green blocking CI, implement AS–AX, remaining
+3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
 3. Run joint internal/external review to acceptance; only then select the
@@ -6217,6 +6374,8 @@ file, is the dispatch authority.
 
 - AS–AX remain procedurally blocked until AR is approved, checkpointed,
   pushed and green in CI.
+- Blocking CI 33024637427 failed on the type-model projection collision and
+  non-Windows runtime exhaustion; AR is reopened at rev-33.
 - Rev-19 and rev-20 are rejected, and rev-21 lacks valid final-code observer
   evidence. Their observer allowances are consumed. Rev-22 is rejected on the
   scheduled-closure-alias defect and its final-code observer is also consumed.

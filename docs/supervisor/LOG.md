@@ -1,3 +1,381 @@
+## Supervisor Decision — prepare S7 AR rev-35 — 2026-08-26
+
+**Decision**: **APPROVED — checkpoint and blocking CI authorized**
+
+Rev-35 consumed exactly one authorized observer execution after a 90%-free
+strict gate. The unchanged AR observer passed in 270.04s test / 270.374s
+package / 270.827s monotonic wall, clearing the 419-second cutoff by 148.173
+seconds. Final refs, hashes, staging, formatting and Side Research boundaries
+are clean.
+
+Rev-33/34 may now be checkpointed by explicit-path staging, committed with the
+required trailer, pushed and validated by blocking CI. The observer allowance
+is consumed; no further local Go command is authorized before checkpoint.
+
+## Review — prepare S7 AR rev-35 — 2026-08-26
+
+**Reviewer**: independent `rev35-evidence-review`
+**Task**: Review the final post-cache/post-CI-partition observer execution
+
+### Verdict: APPROVED
+
+### Notes
+
+Single-start authority, exact resource gate, unchanged command/budgets,
+148.173-second cutoff margin, allowance consumption and final repository
+boundaries all match.
+
+### Action Taken
+
+Final rev-33/34 checkpoint and blocking CI are authorized. AS remains blocked
+until CI is green.
+
+## Supervisor Decision — prepare S7 AR rev-34 final — 2026-08-26
+
+**Decision**: **APPROVED — rev-35 observer-only dispatched**
+
+The final retained reviewer returned only `NEEDS REVISION` without any finding,
+line, reproducer or remediation; its full retained turn contained no additional
+content and is not an adjudicable review result. Per fallback protocol, the
+supervisor completed the final semantic audit directly.
+
+Ruby's standard YAML parser confirms the actual workflow resolves to exactly
+one `jobs.test` with the three-OS matrix, no job demotion/condition, the pinned
+Test step environment, literal five-command script and blocking shell. The
+guard now fails closed across complete job mapping, direct step scope,
+run-scalar style, environment, build eligibility, key encoding, sequence
+encoding, merge/duplicate keys and shell operators. All sensitivities pass.
+Local non-AR, legacy AR, current AR and core AR shards each pass below 40
+minutes. Rev-34 is approved.
+
+Rev-35 may consume exactly one fresh unchanged AR observer against rev-33
+after the strict 60-second resource gate and under the existing 419-second
+external cutoff. No source change is authorized during rev-35.
+
+## Review — prepare S7 AR rev-34 final — 2026-08-26
+
+**Reviewer**: supervisor semantic adjudication
+**Task**: Final review of guarded CI partition after seven independent rounds
+
+### Checklist
+
+- [x] Actual jobs.test mapping and matrix parsed exactly
+- [x] Job-level skip/demotion/exclusions rejected
+- [x] Actual Test step shell/environment/run style parsed exactly
+- [x] BASH_ENV, GOFLAGS and GOENV pinned
+- [x] Five commands exact, ordered, finite and fail-fast
+- [x] Broad skip and four shards form an AST-verified disjoint union
+- [x] Linux/macOS build eligibility proven per shard
+- [x] Quoted/escaped/explicit/merge/duplicate keys fail closed
+- [x] Bare/commented sequence and scalar decoys fail closed
+- [x] Windows ownership and exact script preserved
+- [x] All executable non-observer shards pass locally
+
+### Verdict: APPROVED
+
+### Notes
+
+The last agent output was incomplete and supplied no actionable defect. Direct
+review plus an independent Ruby YAML parse found no remaining semantic
+mismatch between the guarded representation and the actual workflow.
+
+### Action Taken
+
+Rev-35 observer-only validation is dispatched.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 7 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — explicit YAML forms rejected**
+
+Workflow commands and executable evidence remain unchanged. Rev-34 may reject
+commented standalone markers, explicit mapping-key syntax, merge keys and
+duplicate direct step keys with reproducing sensitivities.
+
+## Review — prepare S7 AR rev-34 round 7 — 2026-08-26
+
+**Reviewer**: independent `rev34-failclosed-review`
+**Task**: Review fail-closed quoted-key and sequence handling
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+`- # comment` remained a standalone marker that escaped the exact bare-marker
+check, and explicit `? \"continue-on-error\"` mappings were ignored as unknown
+lines.
+
+### Action Taken
+
+Commented direct markers now fail closed; malformed, empty and explicit direct
+step keys are rejected. Exact direct-key counts reject YAML merge keys and
+duplicates. Commented-marker, explicit-key, merge-key and duplicate-condition
+sensitivities pass.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 6 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — noncanonical YAML forms rejected**
+
+Workflow commands and executable evidence remain unchanged. Rev-34 may fail
+closed on quoted step/environment keys and standalone sequence items, with
+escaped-key and wide-indentation reproductions.
+
+## Review — prepare S7 AR rev-34 round 6 — 2026-08-26
+
+**Reviewer**: independent `rev34-yaml-key-review`
+**Task**: Review quoted-key and bare-sequence corrections
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+YAML escape sequences in quoted keys were not decoded, and standalone sequence
+children may use arbitrary greater indentation. Both could hide demotion or
+split-step impersonation.
+
+### Action Taken
+
+The canonical guard now rejects all quoted step/environment keys and all
+standalone step markers rather than partially decoding them. Sensitivities use
+an escaped `continue-on-error` key and valid four-space-deeper bare-item
+children. The complete guard passes.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 5 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — YAML key/sequence correction dispatched**
+
+Workflow commands and executable evidence remain unchanged. Rev-34 may
+normalize quoted step keys, recognize standalone sequence markers, and add
+the exact demotion/impersonation sensitivities.
+
+## Review — prepare S7 AR rev-34 round 5 — 2026-08-26
+
+**Reviewer**: independent `rev34-complete-parser-review`
+**Task**: Review complete-job and scalar-scope corrections
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Quoted `\"continue-on-error\"` was ignored as an unknown step key, and a valid
+standalone `-` sequence marker did not flush the prior step. Together these
+could demote or split a Test step while its fields were merged into accepted
+evidence.
+
+### Action Taken
+
+Step and environment keys are YAML-normalized before dispatch, standalone
+sequence markers create independent steps, and quoted-demotion plus
+bare-sequence split-step impersonation sensitivities pass.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 4 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — complete-job parser correction dispatched**
+
+Workflow commands and all executable evidence remain unchanged. Rev-34 may
+validate the complete direct `jobs.test` mapping and restrict step discovery
+to direct job-level `steps:` nodes, with post-steps and scalar-decoy bites.
+
+## Review — prepare S7 AR rev-34 round 4 — 2026-08-26
+
+**Reviewer**: independent `rev34-semantic-review`
+**Task**: Review the semantic job/step parser
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Direct job controls after `steps:` were outside the validated header, and an
+inert block scalar could contain decoy `steps:` text that the step parser
+accepted while ignoring the real sequence.
+
+### Action Taken
+
+Topology validation now consumes the entire direct `jobs.test` mapping
+regardless of key order, permits exactly name/runs-on/strategy/steps, parses
+strategy and matrix keys exactly, and rejects duplicates/unknowns. Step
+discovery now requires a direct indent-4 `steps:` node. Post-steps
+if/continue-on-error and inert scalar-decoy sensitivities pass.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 3 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — semantic YAML correction dispatched**
+
+Workflow commands and executable evidence remain unchanged. Rev-34 may replace
+file-wide topology/environment substrings with validation of the actual
+`jobs.test` header and Test step, pin `GOFLAGS`, require literal-block run
+style, and apply per-OS build eligibility.
+
+## Review — prepare S7 AR rev-34 round 3 — 2026-08-26
+
+**Reviewer**: independent `rev34-topology-review`
+**Task**: Review topology, environment and build-eligibility correction
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+File-wide substrings could be satisfied by a dead copy while the actual test
+job used exclusions or job-level demotion. Folded YAML was treated like a
+literal block, `BASH_ENV` was not tied to the Test step, and inherited
+`GOFLAGS=-list=.` could suppress all test bodies.
+
+### Action Taken
+
+The guard now parses the actual `jobs.test` header, requires the exact direct
+three-OS topology with no exclusions/job condition/demotion, parses the actual
+step environment and run scalar style, requires `BASH_ENV=/dev/null`,
+`GOFLAGS=""`, literal `run: |`, and `set -euo pipefail`. New semantic
+mutations cover every finding.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 2 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — topology/environment correction dispatched**
+
+Shard commands and executable evidence remain unchanged. Rev-34 may add exact
+test-job topology, Bash environment/fail-fast, and per-non-Windows build
+eligibility guards plus their sensitivities.
+
+## Review — prepare S7 AR rev-34 round 2 — 2026-08-26
+
+**Reviewer**: independent `rev34-final-review`
+**Task**: Final execution-shape review
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+Three paths could still make shards appear guarded while not executing:
+Windows-only matrix or runner topology; inherited `BASH_ENV` disabling
+fail-fast; and build-ineligible test declarations satisfying ownership counts.
+
+### Action Taken
+
+The guard now pins the exact Ubuntu/macOS/Windows matrix and matrix runner,
+pins `BASH_ENV=/dev/null`, requires `set -euo pipefail`, applies Go build
+matching for Linux amd64 and Darwin arm64, requires every shard be non-empty
+on both, and rejects tests ineligible on all non-Windows runners. All
+topology/environment/build sensitivities pass.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 1 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — shell semantics correction dispatched**
+
+Executable shard commands and timings remain unchanged. Rev-34 may additionally
+pin the non-Windows shell to exact `bash`, validate the Windows script exactly,
+and add the corresponding shell/operator mutations.
+
+## Review — prepare S7 AR rev-34 round 1 — 2026-08-26
+
+**Reviewer**: independent `rev34-guard-rereview`
+**Task**: Re-review the exact-script guard correction
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The non-Windows step did not validate its shell, so `bash {0}` could remove
+Actions fail-fast behavior and let a later successful shard mask an earlier
+failure. Windows still lacked exact-script validation, allowing operator-based
+skip or masking.
+
+### Action Taken
+
+The workflow now pins non-Windows `shell: bash`; the guard requires that exact
+value, requires the exact Windows script, and bites `bash {0}`, Windows prefix
+skip and Windows suffix masking.
+
+## Supervisor Decision — prepare S7 AR rev-34 round 0 — 2026-08-26
+
+**Decision**: **NEEDS REVISION — bounded guard correction dispatched**
+
+The workflow partition and all executable shard evidence remain unchanged.
+Rev-34 may change only its CI guard and tracking to require the exact
+five-command script and reject control-operator bypasses.
+
+## Review — prepare S7 AR rev-34 round 0 — 2026-08-26
+
+**Reviewer**: independent `rev34-ci-review`
+**Task**: Review the guarded non-Windows CI partition
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+The guard extracted only `go test` invocations and discarded shell operators.
+`true || <canonical shard>` could skip a shard, while
+`<canonical shard> || true` could mask its failure without changing the
+filtered count/order/argv.
+
+### Action Taken
+
+The guard now requires the exact canonical five-line script before parsing and
+adds same-validator mutations for both bypasses.
+
+## Supervisor Decision — prepare S7 AR rev-33 — 2026-08-26
+
+**Decision**: **APPROVED — rev-34 CI partition dispatched**
+
+Rev-33 correctly keys the type-model cache by both complete augmented graph
+and exact caller projection. The direct same-graph/different-projection bite
+passes, dependent caches inherit the composite `model.sourceKey`, and fresh
+strict AR eligibility remains 255.775s.
+
+The cache correction does not by itself address the macOS 40-minute monolithic
+package timeout or Ubuntu's exit 143. Rev-34 is therefore separately bounded
+to the non-Windows CI execution shape and its S7 guard: retain the existing
+40-minute finite package limit while splitting complete coverage into
+disjoint blocking non-AR and AR partitions.
+
+## Review — prepare S7 AR rev-33 — 2026-08-26
+
+**Reviewer**: independent `rev33-cache-review`
+**Task**: Review the type-model projection cache correction
+
+### Checklist
+
+- [x] Complete graph authority remains in the cache key
+- [x] Exact caller projection is added to the model key
+- [x] Dependent caches receive the composite model key
+- [x] Same-graph/different-projection bite is deterministic
+- [x] Caller-provided model file sets remain exact
+- [x] Fresh strict trilogy remains below 325 seconds
+- [x] No observer ran
+
+### Verdict: APPROVED
+
+### Notes
+
+The correction closes the CI-reproduced stale projection without weakening
+registry, import-graph or build-configuration identity. No mutable-map or
+stale dependent-cache defect was found.
+
+### Action Taken
+
+Rev-33 is approved. Rev-34 owns only the guarded CI runtime partition and
+tracking.
+
+## Supervisor Decision — prepare S7 AR post-checkpoint CI — 2026-08-26
+
+**Decision**: **NEEDS REVISION — rev-33 cache correction dispatched**
+
+Blocking CI run
+[33024637427](https://github.com/tesseracode/tesserapatch/actions/runs/33024637427)
+invalidates the durable AR close. Windows passed. macOS deterministically
+failed PIB-511 and PIB-518 because `s6TypeModelCache` reused a model built for
+a different caller-provided source projection: its key covered the augmented
+complete type graph, while `model.files` intentionally contained only
+provided files. The reused model therefore omitted
+`feature_intent_archive.go`. macOS then reached the 40-minute package timeout;
+Ubuntu exited 143 after about 15 minutes without assertion output.
+
+Rev-33 may correct only the type-model projection cache key, add a direct bite,
+update tracking, and then reassess the non-Windows full-suite budget. The
+accepted production renderer, AR ledger/runtime/registration, observer
+budgets, 325-second threshold, workflow and assets remain frozen until the
+cache correction's evidence determines whether a separate CI-budget revision
+is required. Rev-32 observer evidence is historical after the S6 harness
+changes and must not be relabeled.
+
 ## Supervisor Decision — prepare S7 AR rev-32 — 2026-08-26
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**

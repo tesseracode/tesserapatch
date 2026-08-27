@@ -1307,6 +1307,14 @@ AR is APPROVED at 15 exact rows (`PIB-506…520`, I6/C4/G4/S1), bringing
 cumulative S7 coverage to 126/173. The reviewed implementation/test block is
 checkpointed at `db17262`; AS remains blocked pending the tracking checkpoint,
 push and green blocking CI.
+Post-checkpoint CI 33024637427 reopened AR: macOS exposed a type-model
+projection-cache collision in PIB-511/518 and then hit the 40-minute package
+timeout; Ubuntu exited 143 after about 15 minutes. Rev-33 corrects the cache
+key before hosted-budget reassessment. AS remains blocked.
+Rev-33's projection-aware cache and rev-34's guarded five-command non-Windows
+partition are approved and checkpointed at `5658d5e`. Local non-AR, legacy AR,
+current AR, core AR, AP observer and fresh AR observer validation are green;
+AS waits on corrected blocking CI.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
