@@ -114,7 +114,7 @@ var s7ObservedHostedBudgets = map[s7ObservedCategory]s7ObservedHostedBudget{
 		first: 483, last: 505,
 	},
 	s7ObservedCategoryAR: {
-		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
+		outer: 12 * time.Minute, inner: 10 * time.Minute, cleanup: time.Minute,
 		first: 506, last: 520,
 	},
 }
@@ -146,7 +146,7 @@ func validateS7ObservedHostedBudgets(
 			first: 483, last: 505,
 		},
 		s7ObservedCategoryAR: {
-			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
+			outer: 720 * time.Second, inner: 600 * time.Second, cleanup: 60 * time.Second,
 			first: 506, last: 520,
 		},
 	}
@@ -374,7 +374,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				name: "wrong-ar-inner-only",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					ar := budgets[s7ObservedCategoryAR]
-					ar.inner = 7 * time.Minute
+					ar.inner = 8 * time.Minute
 					budgets[s7ObservedCategoryAR] = ar
 				},
 			},
