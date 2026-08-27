@@ -2282,9 +2282,6 @@ func BuildIntentArchivePurgePlan(snapshot IntentArchiveSnapshot, selector Intent
 	}
 	if !confirmed {
 		plan.Outcome = IntentArchivePurgePlanned
-		if plan.RemainingRepairs == nil && len(snapshot.Inspection.Classes) != 0 {
-			plan.RemainingRepairs = buildIntentArchiveRemainingRepairs(snapshot.Feature, snapshot.Inspection.Classes, "")
-		}
 		return plan, nil
 	}
 	if len(selection.hashes) == 0 && len(selection.removals) == 0 {
@@ -3587,6 +3584,9 @@ func captureIntentArchiveIndexOnly(storage IntentArchiveStorage, feature string)
 		return capture, index, newErr
 	}
 	index, err := DecodeIntentArchiveIndex(capture.Raw, feature)
+	if err == nil && afterPurgeIndexDecode != nil {
+		afterPurgeIndexDecode(indexRel)
+	}
 	return capture, index, err
 }
 

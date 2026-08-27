@@ -12,6 +12,7 @@ func TestS6InjectionSeamsNilAtInitialization(t *testing.T) {
 			failPurgeAfterFirstMutation != nil ||
 			beforePurgeIndexCAS != nil ||
 			afterPurgeIndexRename != nil ||
+			afterPurgeIndexDecode != nil ||
 			beforePurgeBlobRemove != nil ||
 			afterPurgeBlobRevalidate != nil ||
 			failPurgeBetweenHashes != nil ||

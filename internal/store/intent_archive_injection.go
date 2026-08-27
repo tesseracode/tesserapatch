@@ -9,6 +9,7 @@ var (
 	failPurgeAfterFirstMutation func() error
 	beforePurgeIndexCAS         func(string)
 	afterPurgeIndexRename       func(string)
+	afterPurgeIndexDecode       func(string)
 	beforePurgeBlobRemove       func(string)
 	afterPurgeBlobRevalidate    func(string)
 	failPurgeBetweenHashes      func() error
