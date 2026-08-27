@@ -1,3 +1,44 @@
+## Supervisor Decision — prepare S7 AR observer split — 2026-08-27
+
+**Decision**: **APPROVED FOR CI**
+
+The exact 12/1/2 target processes pass locally at 113.801s, 72.164s and
+39.743s package after independent 60-second resource gates. Registration and
+CI topology guards prove the disjoint 15-row union, exact command order,
+blocking ownership and removal/masking sensitivity for all three commands.
+
+## Review — prepare S7 AR observer split — 2026-08-27
+
+**Reviewer**: `ar-split-review`, re-review `ar-split-rereview`
+
+### Verdict: APPROVED
+
+### Notes
+
+Round 0 found missing explicit `|| true` bites for the purge and claims
+commands. Both were added and pass the same semantic CI validator. Re-review
+found the prior issue closed and no new high-confidence issue.
+
+### Action Taken
+
+The bounded three-file split is checkpointed at `9d15cb6` by explicit-path
+staging with the required trailer. Tracking checkpoint and blocking CI follow.
+
+## Supervisor Decision — prepare S7 AS blocking CI — 2026-08-27
+
+**Decision**: **NEEDS REVISION — split AR observer processes**
+
+CI [33102941110](https://github.com/tesseracode/tesserapatch/actions/runs/33102941110)
+passed Ubuntu/Windows/macOS main suites and the Ubuntu observer, including AS.
+The sole failure was the pre-existing monolithic macOS AR observer: PIB-518
+completed, PIB-519 began, then the shared inner 37m expired at 2238.33s.
+
+Further timeout growth is impossible under package 40m and prohibited.
+Partition AR observation into independently guarded fresh processes for
+`PIB-506…517`, `PIB-518`, and `PIB-519…520`. Each may use the accepted
+39m/37m/1m envelope, their union must be exactly the frozen 15-row AR target
+set with zero overlap, and release remains gated on the observer job.
+
 ## Supervisor Decision — prepare S7 AS rev-2 — 2026-08-27
 
 **Decision**: **APPROVED FOR CHECKPOINT AND CI**

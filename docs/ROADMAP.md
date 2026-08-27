@@ -1366,7 +1366,12 @@ Rev-1 remained NEEDS REVISION on a duplicate linker seam and incomplete
 decode/call-graph/authority proof. Rev-2 fixes those, wires the 10-row observer
 and removes a real duplicate-heading single-class preview defect; local
 validation and independent review are APPROVED. Checkpoint and blocking CI
-remain before AT. Implementation is checkpointed at `9438848`.
+remain before AT. Implementation is checkpointed at `9438848`. CI 33102941110
+passed AS and every main platform; only the monolithic macOS AR observer
+re-exhausted its shared 37m after PIB-518 completed and PIB-519 began. A
+three-process AR observer partition is APPROVED after local 12/1/2 target
+passes and removal/masking guard review; it is checkpointed at `9d15cb6` and
+CI remains.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

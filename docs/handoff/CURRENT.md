@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AS checkpointed at `9438848`; CI next**
+- **Status**: **In progress — AR observer split checkpointed at `9d15cb6`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6674,11 +6674,27 @@ file, is the dispatch authority.
   authoritative 60-second gate at 85% free memory.
 - AS production, exact tests, observer budget and CI topology are checkpointed
   at `9438848` by explicit-path staging with the required trailer.
+- Blocking CI
+  [33102941110](https://github.com/tesseracode/tesserapatch/actions/runs/33102941110)
+  passed every main platform suite and the Ubuntu observer, including AS. The
+  sole failure was monolithic macOS AR: optimized PIB-518 completed, PIB-519
+  began, then the shared 37m inner budget expired at 2238.33s. AS has no
+  observed failure. The bounded correction splits AR into fresh processes for
+  rows 506…517, 518, and 519…520 under the unchanged per-process tuple.
+- Split registration/CI guards pass, including missing-target, overlap, gap,
+  command removal, masking and ordering bites. Fresh local observers pass at
+  113.801s (rows 506…517), 72.164s (row 518) and 39.743s (rows 519…520)
+  package after separate 60-second gates at >=85% free memory. Round-0 review
+  requested purge/claims masking bites; re-review is **APPROVED** with no
+  residual finding. Current hashes: registration `56356e69`, CI guard
+  `26661fde`, workflow `9ed5c7c7`.
+- The exact split is checkpointed at `9d15cb6` by explicit-path staging with
+  the required trailer.
 
 ## Next Steps
 
-1. Commit tracking, push `9438848` plus tracking and run blocking CI.
-2. If CI is green, close AS at 136/173 cumulative rows and dispatch AT.
+1. Commit tracking, push `9d15cb6` plus tracking and rerun blocking CI.
+3. If green, close AS at 136/173 cumulative rows and dispatch AT.
 4. After green blocking CI, implement AT–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
