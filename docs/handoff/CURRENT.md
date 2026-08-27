@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — AR observer split checkpointed at `9d15cb6`; CI next**
+- **Status**: **In progress — S7 AT dispatched from `a55a0ab`**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6690,12 +6690,22 @@ file, is the dispatch authority.
   `26661fde`, workflow `9ed5c7c7`.
 - The exact split is checkpointed at `9d15cb6` by explicit-path staging with
   the required trailer.
+- Blocking CI
+  [33108548581](https://github.com/tesseracode/tesserapatch/actions/runs/33108548581)
+  is green on Ubuntu, macOS and Windows, including both observer jobs and all
+  three fresh AR processes. Release correctly skipped on the untagged push.
+  AS is durably complete at ten exact rows (I7/G3); cumulative S7 is 136/173.
+- AT is dispatched sequentially from `a55a0ab`: `PIB-531`…`PIB-536`
+  (I4/C1/G1), covering mixed tombstone/live-reference global availability,
+  exact claim/removal/tombstone repair, multi-observation list/doctor truth
+  and pre-syscall directory-authority refusal.
 
 ## Next Steps
 
-1. Commit tracking, push `9d15cb6` plus tracking and rerun blocking CI.
-3. If green, close AS at 136/173 cumulative rows and dispatch AT.
-4. After green blocking CI, implement AT–AX, remaining
+1. Implement AT `PIB-531`…`PIB-536` and its exact ledger/observer targets.
+2. Validate its one G sensitivity and all cross-surface runtime rows.
+3. Obtain independent review before checkpointing AT.
+4. After green blocking CI, implement AU–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
 5. Run joint internal/external review to acceptance; only then select the
@@ -6703,7 +6713,7 @@ file, is the dispatch authority.
 
 ## Blockers
 
-- AS rev-2 awaits review; AT–AX remain procedurally blocked until AS is accepted,
+- AT is active; AU–AX remain procedurally blocked until AT is accepted,
   checkpointed, pushed and green in CI.
 - Blocking CI 33040928741 passed every platform/shard except macOS's final AR
   observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.

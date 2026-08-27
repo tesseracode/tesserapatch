@@ -1371,7 +1371,9 @@ passed AS and every main platform; only the monolithic macOS AR observer
 re-exhausted its shared 37m after PIB-518 completed and PIB-519 began. A
 three-process AR observer partition is APPROVED after local 12/1/2 target
 passes and removal/masking guard review; it is checkpointed at `9d15cb6` and
-CI remains.
+CI 33108548581 is green across all five blocking jobs. AS is durably closed at
+136/173 cumulative rows; AT (`PIB-531…536`, I4/C1/G1) is active from
+`a55a0ab`.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

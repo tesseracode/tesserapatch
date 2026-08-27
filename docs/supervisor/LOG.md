@@ -1,3 +1,18 @@
+## Supervisor Decision — prepare S7 AS close / AT dispatch — 2026-08-27
+
+**Decision**: **AS ACCEPTED — AT DISPATCHED**
+
+CI [33108548581](https://github.com/tesseracode/tesserapatch/actions/runs/33108548581)
+is green on every main platform and both observer jobs. The three AR observer
+processes complete on macOS without timeout; AS's exact observer remains
+blocking and green. Release correctly skipped on the untagged push.
+
+AS closes durably at ten exact rows (`PIB-521`…`PIB-530`, I7/G3), bringing
+cumulative S7 coverage to 136/173. AT is dispatched sequentially from
+`a55a0ab`: six exact rows (`PIB-531`…`PIB-536`, I4/C1/G1) for global-hash
+mixed residue, exact repair sequencing, complete observation surfaces and
+directory-authority failure ordering.
+
 ## Supervisor Decision — prepare S7 AR observer split — 2026-08-27
 
 **Decision**: **APPROVED FOR CI**
