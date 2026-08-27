@@ -1353,7 +1353,12 @@ AVP-175's stale release-needs mutation. Rev-49 uses final 39m/37m/1m under
 40m and updates the exact two-job release sensitivity. Independent review
 approved and the final local AR observer passed in 271.24s package under the
 stronger 419-second local cutoff. Code is checkpointed at `263d6a8`; blocking
-CI remains.
+CI 33085315805 passed Windows and Ubuntu observers but macOS PIB-518 exhausted
+37m at 2237.53s. Rev-50 is a bounded PIB-518 optimization plus the authorized
+PIB-391 dual baseline/current AVP source-hash pin. Local PIB-518 fell 48.6% to
+64.60s, the fresh trilogy totals 199.248s and the full AR observer passes in
+213.12s package. Independent review approved and code is checkpointed at
+`871d3ab`; blocking CI remains, so AS is still blocked.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

@@ -1,3 +1,37 @@
+## Supervisor Decision — prepare S7 rev-50 — 2026-08-27
+
+**Decision**: **APPROVED FOR CI**
+
+The final optimized AR observer passed at 213.12s package / 213.989s external
+under the unchanged 419-second process-group cutoff. Its authoritative gate
+passed at 85% free memory, load1 1.56 and zero Go-tool processes; immediate
+preflight was 85% / 1.62 / zero. Checkpoint by explicit paths and require every
+blocking CI job before closing AR.
+
+### Action Taken
+
+Rev-50 code checkpointed at `871d3ab` by explicit-path staging with the
+required trailer; tracking checkpoint and blocking CI follow.
+
+## Review — prepare S7 rev-50 — 2026-08-27
+
+**Reviewer**: `rev50-perf-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+No significant issue found. The cache is scoped to retained parser-positioned
+AST expressions, preserves the complete stable key and leaves synthetic
+`NoPos` values uncached. The direct bite covers key equivalence/difference,
+cache use and non-retention. PIB-391's dual hash preserves the accepted
+routing-tip bytes and independently freezes the authorized current AVP bytes.
+
+### Action Taken
+
+Authorize one final local AR observer under the unchanged 419-second external
+cutoff before explicit-path checkpointing.
+
 ## Supervisor Decision — prepare S7 AR rev-47 — 2026-08-27
 
 **Decision**: **APPROVED — checkpoint and blocking CI authorized**
@@ -47,6 +81,24 @@ prior 20m/16m/1m sensitivities all pass.
 
 One final local AR observer is authorized under the unchanged stronger
 419-second cutoff.
+
+## Supervisor Decision — prepare S7 blocking CI rev-49 — 2026-08-27
+
+**Decision**: **NEEDS REVISION — rev-50 PIB-518 optimization**
+
+Blocking CI
+[33085315805](https://github.com/tesseracode/tesserapatch/actions/runs/33085315805)
+passed Windows and Ubuntu observers, but macOS AR exhausted inner 37m at
+2237.53s while PIB-518 alone was RUN and every later target remained RUN=0.
+The prior fresh macOS sample was 1818.238s. Further monolithic timeout growth
+is prohibited: rev-50 must profile and optimize PIB-518 while preserving the
+accepted semantics, caps and 15-row observed authority.
+
+Main Ubuntu/macOS failed only PIB-391's frozen accepted AVP source hash after
+the authorized AVP-175 sensitivity correction. Preserve `60e7a736...` as the
+accepted routing-tip hash and separately pin current authorized bytes at
+`c584f6b7...`; do not weaken current drift detection. Windows and Ubuntu
+observers passed, and release correctly skipped.
 
 ## Supervisor Decision — prepare S7 rev-49 — 2026-08-27
 

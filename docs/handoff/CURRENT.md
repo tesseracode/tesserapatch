@@ -1747,7 +1747,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 rev-49 code checkpointed at `263d6a8`; CI next**
+- **Status**: **In progress — S7 rev-50 checkpointed at `871d3ab`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -6564,6 +6564,34 @@ file, is the dispatch authority.
   authoritative 60-second quiet gate passed at 89% free.
 - Rev-49's final AR budget and bounded AVP-175 sensitivity correction are
   checkpointed at `263d6a8` by explicit-path staging with the required trailer.
+- Blocking CI
+  [33085315805](https://github.com/tesseracode/tesserapatch/actions/runs/33085315805)
+  passed Windows and Ubuntu observers. Main Ubuntu/macOS failed only PIB-391's
+  frozen AVP source hash after the authorized sensitivity edit. Fresh macOS AR
+  exhausted 37m at 2237.53s with only PIB-518 RUN; every later target was
+  RUN=0. Release correctly skipped. Rev-50 must optimize PIB-518 rather than
+  raise the monolithic timeout again.
+- Rev-50's CPU profile measured 37.77s / 33.32% in repeated stable-expression
+  key generation, including 21.17s formatting the same retained AST
+  expressions. A `sync.Map` now caches keys only for parser-positioned,
+  immutable expressions; synthetic `NoPos` expressions remain uncached and a
+  direct bite proves both cache use and non-retention. Fresh PIB-518 fell from
+  125.78s to 64.60s (48.6%).
+- PIB-391 now keeps the accepted routing-tip AVP hash `60e7a736...` and
+  separately pins current authorized bytes at `c584f6b7...`; current drift
+  remains fail-closed. The complete pre-change golden test passes.
+- Final fresh eligibility under a separate authoritative 60-second gate before
+  every process: PIB-518 64.826s, PIB-511 102.578s, PIB-519 31.844s package;
+  total 199.248s, 125.752s below the 325-second cap. Current hashes: S6
+  `a6b27da2`, PIB golden `245083d5`, registration `11d1ef76`, AVP `c584f6b7`.
+  Staging, whitespace and Side Research are clean.
+- Independent rev-50 review returned **APPROVED** with no findings. One final
+  local AR observer is authorized under the unchanged 419-second cutoff.
+- The final optimized AR observer passed at 213.12s package / 213.989s
+  external after the authoritative gate passed at 85% free, load1 1.56 and
+  zero Go-tool processes. Immediate preflight was 85% / 1.62 / zero.
+- Rev-50's positioned-AST cache and dual provenance pin are checkpointed at
+  `871d3ab` by explicit-path staging with the required trailer.
 - Independent rev-46 review returned **APPROVED**. Rev-47 may consume one
   final local AR observer after the strict gate under the unchanged stronger
   419-second cutoff.
@@ -6586,8 +6614,8 @@ file, is the dispatch authority.
 
 ## Next Steps
 
-1. Commit tracking, push `263d6a8` plus tracking and rerun blocking CI.
-2. If all required jobs pass, close AR and dispatch AS.
+1. Commit tracking, push `871d3ab` plus tracking and rerun blocking CI.
+2. If all blocking jobs pass, close AR and dispatch AS.
 3. After green blocking CI, implement AS–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
