@@ -111,6 +111,53 @@ func TestExecuteAcceptsByteIdenticalRegenerateBundle(t *testing.T) {
 	}
 }
 
+func TestExecuteSemanticNoOpCASRejectsDriftBeforePublication(t *testing.T) {
+	_, authority := acquireWorkspace(t)
+	plan := stageSemanticNoOpRegeneratePlan(t, authority)
+	drifted := false
+	result, err := Execute(
+		authority,
+		plan,
+		"0123456789abcdef",
+		nil,
+		Options{
+			RandomHex12: sequenceHex(),
+			Hook: func(point CrashPoint, root *os.Root, entry *Entry) error {
+				if point != PointBeforeEntryCAS || entry == nil ||
+					entry.ArtifactID != ArtifactAnalysis {
+					return nil
+				}
+				drifted = true
+				return writeRootFile(
+					root, entry.Rel, []byte("editor-no-op-drift\n"), 0o644,
+				)
+			},
+		},
+	)
+	var typed *Error
+	if !errors.As(err, &typed) ||
+		typed.Code != CodeEntryChanged ||
+		typed.Class != "no-op-cas" ||
+		typed.ArtifactID != ArtifactAnalysis ||
+		typed.ExitClass != 5 {
+		t.Fatalf("semantic no-op drift error = %#v", err)
+	}
+	if !drifted || result.Outcome != OutcomeRolledBack ||
+		result.ExitClass != 5 ||
+		len(result.Published) != 0 || len(result.Restored) != 0 {
+		t.Fatalf("semantic no-op drift result = %#v, drifted=%t", result, drifted)
+	}
+	if got := string(rootRead(
+		t, authority, canonicalRel(testSlug, ArtifactAnalysis),
+	)); got != "editor-no-op-drift\n" {
+		t.Fatalf("semantic no-op drift bytes = %q", got)
+	}
+	if rootExists(t, authority, JournalRel(testSlug)) ||
+		rootExists(t, authority, plan.StageRel()) {
+		t.Fatal("semantic no-op drift retained transaction evidence")
+	}
+}
+
 func TestExecuteSetAndPerEntryCAS(t *testing.T) {
 	t.Run("set-level", func(t *testing.T) {
 		_, authority := acquireWorkspace(t)

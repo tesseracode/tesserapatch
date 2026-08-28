@@ -139,6 +139,28 @@ func TestPlanAllowsSemanticNoOpReplaceForEveryArtifact(t *testing.T) {
 	}
 }
 
+func TestPlanRejectsArtifactBoundToNoncanonicalPath(t *testing.T) {
+	entries := []Entry{
+		planFixtureEntry(t, ArtifactAnalysis, ActionReplace, "canonical-path"),
+		planFixtureEntry(t, ArtifactSpec, ActionReplace, "canonical-path"),
+		planFixtureEntry(t, ArtifactExploration, ActionReplace, "canonical-path"),
+		planFixtureEntry(t, ArtifactAnalysisSidecar, ActionReplace, "canonical-path"),
+		planFixtureEntry(t, ArtifactArchiveIndex, ActionReplace, "canonical-path"),
+		planFixtureEntry(t, ArtifactStatus, ActionReplace, "canonical-path"),
+	}
+	entries[0].Rel = canonicalRel(testSlug, ArtifactSpec)
+
+	_, err := NewPlan(testSlug, ModeRegenerate, testStageRel, entries)
+	var typed *Error
+	if !errors.As(err, &typed) ||
+		typed.Code != CodeInvalidPlan ||
+		typed.Class != "canonical-path" ||
+		typed.ArtifactID != ArtifactAnalysis ||
+		typed.ExitClass != 5 {
+		t.Fatalf("noncanonical artifact path error = %#v", err)
+	}
+}
+
 func TestRecoveryDualMatchDoesNotRestoreSemanticNoOps(t *testing.T) {
 	_, authority := acquireWorkspace(t)
 	base := stageRegeneratePlan(t, authority)
