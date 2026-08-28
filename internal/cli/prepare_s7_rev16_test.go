@@ -271,6 +271,98 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 			},
 		},
 		{
+			// rev-19: PIB-562's joint `list`/`doctor` exit, restored.
+			name: "rev-19-joint-list-and-doctor-exit-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("`list` renders the corrupt object and both residues in one pass and exits **3**; `doctor`'s D9 renders that identical observation set as **warning** findings and exits **0**, which is ADR-035 D16's warning-only rule rather than a second refusal surface. Neither ever names"),
+					[]byte("`list` and `doctor` render the corrupt object and both residues in one pass, exit 3, and never name"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: the impossible exit-0 worked example, restored field by
+			// field — outcome first.
+			name: "rev-19-worked-example-outcome-purged-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("{\n  \"outcome\": \"refused\",\n  \"action\": \"none\",\n  \"remaining_repairs\": {\n    \"rerun_required\": true,\n    \"stages_remaining\": 2,"),
+					[]byte("{\n  \"outcome\": \"purged\",\n  \"action\": \"none\",\n  \"remaining_repairs\": {\n    \"rerun_required\": true,\n    \"stages_remaining\": 2,"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: `repaired_class` restored beside the manual prerequisite.
+			name: "rev-19-worked-example-repaired-class-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("    \"rerun_required\": true,\n    \"stages_remaining\": 2,"),
+					[]byte("    \"rerun_required\": true,\n    \"repaired_class\": \"unreferenced-residue\",\n    \"stages_remaining\": 2,"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: PIB-566's derived population loses the doctor emitter.
+			name: "rev-19-pib-566-doctor-emitter-dropped",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte(" — §12.5's `doctor` D9 pending-purge remediation included:"),
+					[]byte(":"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: PIB-566's `retry_cwd` re-widened to every carrier.
+			name: "rev-19-pib-566-retry-cwd-rewidened",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("covering exactly the pending set, with no inherited `--path`"),
+					[]byte("covering exactly the pending set, with `retry_cwd: \"workspace-root\"` and no inherited `--path`"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: R25's joint exit, restored.
+			name: "rev-19-r25-joint-exit-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("The observation is `archive-blob-corrupt`, zero-write, and pinned across `list`, `doctor` and every ordinary mutation: `list` and every ordinary mutation refuse it at exit **3**, and `doctor`'s D9 renders the identical observation as a **warning** finding and exits **0**, which is ADR-035 D16's warning-only rule. All of them carry one repo-relative procedure:"),
+					[]byte("The observation is `archive-blob-corrupt` at exit 3, zero-write, pinned across `list`, `doctor` and every ordinary mutation, with one repo-relative procedure:"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: the rev-19 revision-history row dropped from the PRD.
+			name: "rev-19-revision-row-dropped",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("| rev-19 | **Proposed no-decision erratum — 2026-08-28"),
+					[]byte("| rev-19b | **Proposed no-decision erratum — 2026-08-28"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: ADR D10's joint refusal sentence, restored.
+			name: "rev-19-adr-d10-joint-refusal-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("`list` and\nevery ordinary mutation refuse it zero-write at exit **3** — and, since rev-13,\nso does **every confirmed purge selector in the archive**, because it is the\nrank-1 blocking repair class (PIB-561); `doctor`'s D9 renders the identical\nobservation as a **warning** finding and exits **0**, which is the warning-only\ndisposition D16 already states for that surface, not a fourth refusal."),
+					[]byte("It refuses\nzero-write for `list`, `doctor` and every ordinary mutation — and, since rev-13,\nfor **every confirmed purge selector in the archive**, because it is the rank-1\nblocking repair class (PIB-561)."), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-19: an ADR `retry_cwd` claim D16's pending-route rule never
+			// needed, injected into D10.
+			name: "rev-19-adr-d10-gains-a-retry-cwd-claim",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("restore the exact correct blob and retry. The destructive cost and the\nGit-history caveat are stated with it."),
+					[]byte("restore the exact correct blob and retry. The destructive cost and the\nGit-history caveat are stated with it, and every surface carries `retry_cwd`."), 1)
+				return wrong
+			},
+		},
+		{
 			name: "unrelated-adr-normative-edit",
 			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
 				wrong.adr = bytes.Replace(wrong.adr,
@@ -336,6 +428,9 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 	if err := validateS7Rev16PendingOwnerErratum(input.prd, input.adr); err != nil {
 		return err
 	}
+	if err := validateS7Rev19RecordErratum(input.prd, input.adr); err != nil {
+		return err
+	}
 	if err := validateS7Rev16DocumentDiffs(input); err != nil {
 		return err
 	}
@@ -366,6 +461,7 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 		"PIB-402", "PIB-403", "PIB-425",
 		"PIB-542", "PIB-543", "PIB-544",
 		"PIB-550",
+		"PIB-562", "PIB-566",
 	}
 	if fmt.Sprint(changed) != fmt.Sprint(wantChanged) {
 		return fmt.Errorf("rev-16 actual matrix row changes = %v, want %v", changed, wantChanged)
@@ -391,9 +487,9 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 			return fmt.Errorf("%s: %w", label, err)
 		}
 		if len(revisions) < 3 ||
-			revisions[len(revisions)-3] != 16 ||
-			revisions[len(revisions)-2] != 17 ||
-			revisions[len(revisions)-1] != 18 {
+			revisions[len(revisions)-3] != 17 ||
+			revisions[len(revisions)-2] != 18 ||
+			revisions[len(revisions)-1] != 19 {
 			return fmt.Errorf("%s revision predecessor = %v", label, revisions)
 		}
 	}
@@ -444,6 +540,33 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 			return fmt.Errorf("PRD rev-18 history lacks %q: %s", token, prdRev18)
 		}
 	}
+	// rev-19 is the AX record erratum: two amended matrix rows plus three
+	// non-matrix companion corrections. It is proposed, not accepted.
+	prdRev19 := s7RevisionRow(string(input.prd), 19)
+	adrRev19 := s7RevisionRow(string(input.adr), 19)
+	for label, row := range map[string]string{"PRD": prdRev19, "ADR": adrRev19} {
+		for _, token := range []string{
+			"Proposed no-decision erratum — 2026-08-28",
+			"No decision",
+		} {
+			if !strings.Contains(strings.ToLower(row), strings.ToLower(token)) {
+				return fmt.Errorf("%s rev-19 history lacks no-decision claim %q: %s", label, token, row)
+			}
+		}
+	}
+	for _, token := range []string{
+		"PIB-562", "PIB-566", "row", "kind", "count", "567", "thirty-six",
+		"amended rows, exactly", "**two**",
+	} {
+		if !strings.Contains(strings.ToLower(prdRev19), strings.ToLower(token)) {
+			return fmt.Errorf("PRD rev-19 history lacks %q: %s", token, prdRev19)
+		}
+	}
+	for _, token := range []string{"D10", "D16", "no `retry_cwd` claim is added"} {
+		if !strings.Contains(strings.ToLower(adrRev19), strings.ToLower(token)) {
+			return fmt.Errorf("ADR rev-19 history lacks %q: %s", token, adrRev19)
+		}
+	}
 	// The retired rev-11 readings the erratum replaced must be gone from both
 	// documents' current normative text, exactly as rev-16's superseded
 	// rehydration wording is.
@@ -451,10 +574,17 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 		"PRD": {
 			"step 3 removes whatever object is at that path",
 			"not detected, and not claimed to be",
+			// rev-19: the joint `list`/`doctor` exit readings.
+			"and `doctor` render the corrupt object and both residues in one pass, exit 3",
+			"at exit 3, zero-write, pinned across `list`, `doctor` and every ordinary mutation",
+			// rev-19: the impossible exit-0 worked example.
+			"\"repaired_class\": \"unreferenced-residue\"",
 		},
 		"ADR": {
 			"which the unlink cannot be conditioned on",
 			"so the replacement is what gets removed",
+			// rev-19: D10's joint refusal sentence.
+			"zero-write for `list`, `doctor` and every ordinary mutation",
 		},
 	} {
 		document := s7CurrentNormativeText(string(input.prd))
@@ -497,18 +627,25 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "PRD",
 			base:  input.basePRD, current: input.prd,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "fdb85c40e20707b7554b6c10478123b67db7b6d927037074f1e92724e8801ba0"},
-				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "8920d6a1f29408880d9a8f21d31d7229152919f852283d0412ebb803380a89e8"},
+				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "1911ac5d53687cdab0da035b0725bed90323e1505cdceec13ef22f05e007a01d"},
+				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "9d2859f4edff39ab583fc5e9de7902bb09aca5c3841b67b9a8f65a6618e46abf"},
 				{label: "section-9.3-rehydration", heading: "### 9.3 `index.json`", baseHash: "fd9f4f35b499a2b17a60c6d256b9c1ff2448b57ef750e9f1f367505406e5ecc9", currentHash: "e8298d7394da53eee093bfc0b3b1e7a61bea0c8579fea731922b63f6a5e98254"},
 				{label: "section-9.7.1-consistency", heading: "#### 9.7.1 Selection and shared references", baseHash: "3210b5cf279b85e0f53e3d9edaa3caae1677849392155d06690455ae59f3287c", currentHash: "03b78d83c11bc56599cbb8e71cdb4f11f9506ed3c13922215e82a252ff0b1d93"},
 				{label: "section-9.7.2-residual-window", heading: "#### 9.7.2 Honest purge procedure and residual race", baseHash: "efe42995f891dce9e1bcef16fba4c9b8888898a67f0e5734d465f2ad8da14734", currentHash: "b2356f6742030f9297b9577b303f18afe6919c503c50df0900d1b99785007d81"},
+				// rev-19: §10.2's worked sequential-repair example becomes the
+				// exit-3 archive-integrity refusal form it always had to be.
+				{label: "section-10.2-purge-report-example", heading: "### 10.2 JSON report (v1)", baseHash: "b07b4080df837ee3ffdad9ce4dd6cc8d7fd892103d9309623daefbc947945102", currentHash: "108addefcf728a9d9b48ef8e6a07c6a4ab1a435d3ff542e0beb36b1d427a8bdf"},
+				// rev-19: R25's joint `list`/`doctor`/mutation exit is split.
+				{label: "section-16-risks", heading: "## 16. Risks", baseHash: "8b245e8716ede244c3025597bb2a94f808c9839403acdc892447d536bd96448d", currentHash: "72e1190115af77c3f9e886127fc29db4dc926172472cf94bf82951a38348911f"},
 				{label: "mechanical-slice-summary", heading: "### 17.2 Slices", baseHash: "32831b33b9200267975945357a3f035ad8ac84d8c91720496007986fcdea8f2a", currentHash: "d18b0764ee3c2985016ba5efe2c6aca5d1c32765ee9844e32a1dacdfd82aca05"},
-				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "45bcb74e3ca20210afa6c97a2698fb4ea60b71660c7f1ebee7e0f4ac62e960ee"},
+				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "a5fa33727aeec9c5e9efa650f3a2be08702e2d3e45a87a8cc051d27333acdf9c"},
 				{label: "matrix-pib-402-403", heading: "### 18.40 AM — Rev-2 adjudication rows, amended by rev-3", baseHash: "ea342198fd9ecfe95385245fb29af8f89dab05332ea7d63947a488907637a2b6", currentHash: "307e6c60f1b23cd64ca254aaef2e49135eb0c0cf33475e8fc887c9b5b7def16a"},
 				{label: "matrix-pib-425", heading: "### 18.41 AN — Rev-3 adjudication: directory authority, privacy and archive truth", baseHash: "c3812ced4e0254b749cc1b9e24ecf8b284223678619de5966aa16f25e50ed3a0", currentHash: "5edc1c5c1ccac9f836099faee0c2c329da858b7cab357b96df9bd50fae3efc5d"},
 				{label: "matrix-pib-542-544", heading: "### 18.48 AU — Rev-10 adjudication: global pending ownership, selector-independent validation and the corrupt-blob route", baseHash: "7b8dc7b2b98655beef1f5f03706cc832d21a48699418d24ffc13396d8d237d01", currentHash: "0c5a59211d322812d6c14dd37cd99b2ffc78fc60d2df43602bc36435fab37098"},
 				{label: "matrix-pib-550", heading: "### 18.49 AV — Rev-11 adjudication: total same-hash claim, the recovery exception, type-total removal and repair-class multiplicity", baseHash: "c7936d0efed11b970c6e5f9c802ee31209effc6fa12294d1674b2c704d748486", currentHash: "7a1a865a60b2fcd8d189bf1b1f6796a6ee2a365a6f451bf2f9e5a2036d0f5d08"},
-				{label: "section-18.53-sensitivities", heading: "### 18.53 Sensitivity requirement", baseHash: "231a50903312049358535b16f39da9148cf5733c50f5a24ebfa53d9ce535f15a", currentHash: "10956d2dad686c3d2f60fda87b7a29b9f93c327561bc69efd76cac3dff44c20d"},
+				// rev-19: the two amended matrix rows, PIB-562 and PIB-566.
+				{label: "matrix-pib-562-566", heading: "### 18.51 AX — Rev-13 adjudication: corrupt-first ordering, repair stages, pending-route narrowing and ledger parity", baseHash: "b93accf062371958db4f645bc9c4146008f9239306c87f0a9473a848b5fd42c2", currentHash: "5c560e913cb3c8591529ed0bc660b2b6542f0fe650183bf61707b5e46a8b624c"},
+				{label: "section-18.53-sensitivities", heading: "### 18.53 Sensitivity requirement", baseHash: "231a50903312049358535b16f39da9148cf5733c50f5a24ebfa53d9ce535f15a", currentHash: "4cabfe5672743748dae062b97a4bfe2a0c235d39bb05ed956a801d8dfb484fd7"},
 				{label: "section-21-alternatives", heading: "## 21. Alternatives considered (summary)", baseHash: "ec652ea2de6e47354d9c0229ebd1035ea6a5e17d3b171c94d1be32f040be0c7f", currentHash: "21f291115164a56339b77a70bb44ef6ac3952397c5f2ec0d3bbd014a5ace7e3e"},
 			},
 		},
@@ -516,8 +653,8 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "ADR",
 			base:  input.baseADR, current: input.adr,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "4053b04d2f52fe27b51cc27669039d8508137984522296132e68e123eedbe933"},
-				{label: "D10-pending-owner", heading: "### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes", baseHash: "04b8affc6125b69e4191b2b30d6cb8c9760e0ab872abf9aa520aa53040a4b4e5", currentHash: "c9b97c41e7e1127dad58fe227aa06e3f62da053a468661d3333fa255db819380"},
+				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "ac728e778952a9564b2a692c2f9b83f8a2c8d4a7a3045281cec9493c5d2e7429"},
+				{label: "D10-pending-owner", heading: "### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes", baseHash: "04b8affc6125b69e4191b2b30d6cb8c9760e0ab872abf9aa520aa53040a4b4e5", currentHash: "76a7b43b42f63214620a4712ff96dfcef906d2e9944ec4b70dcf62c6566e9d33"},
 				{label: "D13-terminal-owner-precedence", heading: "### D13 — Recovery has three entry points, it is terminal, the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing", baseHash: "77633643c1cc2c1b5607ba673cfe8af6b17d25d47510e1c6904b0a0f50c6cbb1", currentHash: "b5b45839dc04492a0673aa44b232d7138fff88cc7b8657072feb26c0c01a454f"},
 				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "9757ddc5251a04f0e0ed6b9f5559420d08ddf8fc8c4bbf7abf76d836e00d287a"},
 				{label: "adr-alternatives-considered", heading: "## Alternatives considered", baseHash: "fa303b87ef6fd1054570916d0dbcead3f770f8760b6177a66eb714d2319a5649", currentHash: "3f5062fda963eaf676a24821dd09e829ae36555c2cb9f2925641e17b9e586ac8"},
@@ -905,6 +1042,200 @@ func validateS7Rev16PendingOwnerErratum(prd, adr []byte) error {
 		if strings.Contains(body, "tombstoned or removal-pending") {
 			return fmt.Errorf("%s retains superseded pending-rehydration wording", section.start)
 		}
+	}
+	return nil
+}
+
+// s7Rev19PurgePlanExample returns the §10.2 worked sequential-repair example —
+// the fenced JSON block whose plan carries the rank-1 `corrupt-object`
+// `manual-prerequisite` stage — so its coherence is judged over the example's
+// own bytes rather than over prose about it.
+func s7Rev19PurgePlanExample(prd string) (string, error) {
+	section, err := s7MarkdownSection(prd, "### 10.2 JSON report (v1)", "### 10.3 ")
+	if err != nil {
+		return "", err
+	}
+	const fence = "```json\n"
+	rest := section
+	for {
+		open := strings.Index(rest, fence)
+		if open < 0 {
+			return "", fmt.Errorf("PRD §10.2 shows no sequential-repair plan example")
+		}
+		rest = rest[open+len(fence):]
+		closed := strings.Index(rest, "```")
+		if closed < 0 {
+			return "", fmt.Errorf("PRD §10.2 has an unterminated JSON fence")
+		}
+		block := rest[:closed]
+		rest = rest[closed+3:]
+		if strings.Contains(block, `"kind": "manual-prerequisite"`) {
+			return block, nil
+		}
+	}
+}
+
+// validateS7Rev19RecordErratum is the rev-19 half of the frozen-document
+// authority: the AX record erratum amends exactly `PIB-562` and `PIB-566` and
+// corrects three non-matrix companions — §10.2's worked example, §16's `R25`
+// and ADR-035's D10 prose — without moving a decision, an exit the product
+// emits, or the 567/thirty-six arithmetic.
+func validateS7Rev19RecordErratum(prd, adr []byte) error {
+	prdText := string(prd)
+	adrText := string(adr)
+	for _, token := range []string{
+		"rev-19 observed-product surface-split\nno-decision erratum (2026-08-28)",
+		"**Rev-19 acceptance**: **pending joint review** (raised 2026-08-28)",
+		"| rev-19 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** |",
+		"amends exactly two stable rows: `PIB-562` and `PIB-566`",
+		"**companions, not matrix rows**",
+	} {
+		if !strings.Contains(prdText, token) {
+			return fmt.Errorf("PRD rev-19 token missing: %q", token)
+		}
+	}
+	for _, token := range []string{
+		"rev-19 D10\nobserved-product no-decision erratum (2026-08-28)",
+		"**Rev-19 acceptance**: **pending joint review** (raised 2026-08-28)",
+		"| rev-19 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** |",
+		"rev-17, rev-18 and rev-19 no-decision errata are pending",
+	} {
+		if !strings.Contains(adrText, token) {
+			return fmt.Errorf("ADR rev-19 token missing: %q", token)
+		}
+	}
+
+	// The two amended matrix rows, each judged on its own line.
+	for _, row := range []struct {
+		id      string
+		tokens  []string
+		retired []string
+	}{
+		{
+			id: "PIB-562",
+			tokens: []string{
+				"`list` renders the corrupt object and both residues in one pass and exits **3**",
+				"`doctor`'s D9 renders that identical observation set as **warning** findings and exits **0**",
+				"Neither ever names `--orphans --yes` as the corrupt object's repair",
+			},
+			retired: []string{"in one pass, exit 3"},
+		},
+		{
+			id: "PIB-566",
+			tokens: []string{
+				"§12.5's `doctor` D9 pending-purge remediation included",
+				"asserted on the **structured retry carriers**",
+				"has no `retry`/`retry_cwd` pair of its own",
+				"no inherited `--path`",
+				"**none** of them names `--all --yes` in any form",
+				"identical terminal recovery as `--all --yes` would",
+				"Three semantic sensitivity fixtures",
+			},
+			retired: []string{
+				"covering exactly the pending set, with `retry_cwd: \"workspace-root\"` and no inherited `--path`",
+			},
+		},
+	} {
+		line := s7MarkdownTableRow(prdText, row.id)
+		if line == "" {
+			return fmt.Errorf("%s row missing", row.id)
+		}
+		for _, token := range row.tokens {
+			if !strings.Contains(line, token) {
+				return fmt.Errorf("%s rev-19 token missing: %q", row.id, token)
+			}
+		}
+		for _, token := range row.retired {
+			if strings.Contains(line, token) {
+				return fmt.Errorf("%s retains the retired rev-13 reading %q", row.id, token)
+			}
+		}
+	}
+
+	// §18.53 keeps three fixtures for PIB-566, with the omitted-`retry_cwd` one
+	// scoped to a carrier that has such a field at all.
+	fixtureRow := s7MarkdownTableRow(prdText, "PIB-566 pending-route narrowing")
+	if fixtureRow == "" {
+		return fmt.Errorf("§18.53 PIB-566 fixture entry missing")
+	}
+	if !strings.Contains(fixtureRow,
+		"names the right hashes on a structured retry carrier but omits that carrier's `retry_cwd`") {
+		return fmt.Errorf("§18.53 PIB-566 fixture entry is not carrier-scoped: %s", fixtureRow)
+	}
+	if strings.Count(fixtureRow, ";") != 2 {
+		return fmt.Errorf("§18.53 PIB-566 fixture entry no longer lists three fixtures: %s", fixtureRow)
+	}
+
+	// §10.2's worked example, judged over its own bytes: an archive-integrity
+	// refusal plan that still carries the rank-1 manual prerequisite, and
+	// therefore carries no `repaired_class`.
+	example, err := s7Rev19PurgePlanExample(prdText)
+	if err != nil {
+		return err
+	}
+	for _, token := range []string{
+		`"outcome": "refused"`,
+		`"action": "none"`,
+		`"class": "corrupt-object"`,
+		`"kind": "manual-prerequisite"`,
+	} {
+		if !strings.Contains(example, token) {
+			return fmt.Errorf("PRD §10.2 worked example lacks %q:\n%s", token, example)
+		}
+	}
+	if strings.Contains(example, "repaired_class") {
+		return fmt.Errorf(
+			"PRD §10.2 worked example carries repaired_class beside a manual-prerequisite stage:\n%s",
+			example,
+		)
+	}
+	if !strings.Contains(prdText,
+		"**The worked example below is that exit-3 archive-integrity refusal**") {
+		return fmt.Errorf("PRD §10.2 does not label its worked example as the exit-3 refusal form")
+	}
+	if !strings.Contains(prdText,
+		"can never appear beside a `manual-prerequisite` stage") {
+		return fmt.Errorf("PRD §10.2 does not state the repaired_class/manual-prerequisite exclusion")
+	}
+
+	// §16's R25, split by surface the same way PIB-562 is.
+	risk := s7MarkdownTableRow(prdText, "R25")
+	if risk == "" {
+		return fmt.Errorf("R25 row missing")
+	}
+	for _, token := range []string{
+		"`list` and every ordinary mutation refuse it at exit **3**",
+		"`doctor`'s D9 renders the identical observation as a **warning** finding and exits **0**",
+	} {
+		if !strings.Contains(risk, token) {
+			return fmt.Errorf("R25 rev-19 token missing: %q", token)
+		}
+	}
+
+	// ADR-035's paired D10 prose, and D16's already-correct warning-only rule
+	// left exactly where it was.
+	d10, err := s7MarkdownSection(adrText, "### D10 ", "### D11 ")
+	if err != nil {
+		return err
+	}
+	for _, token := range []string{
+		"`list` and\nevery ordinary mutation refuse it zero-write at exit **3**",
+		"`doctor`'s D9 renders the identical\nobservation as a **warning** finding and exits **0**",
+		"rank-1 blocking repair class (PIB-561)",
+	} {
+		if !strings.Contains(d10, token) {
+			return fmt.Errorf("ADR D10 rev-19 token missing: %q", token)
+		}
+	}
+	if strings.Contains(d10, "retry_cwd") {
+		return fmt.Errorf("ADR D10 gained a retry_cwd claim rev-19 does not make")
+	}
+	d16, err := s7MarkdownSection(adrText, "### D16 ", "### D17 ")
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(d16, "`doctor`'s D9 reports the identical set, warning-only (PIB-541)") {
+		return fmt.Errorf("ADR D16's warning-only rule moved; rev-19 changes no D16 text")
 	}
 	return nil
 }
