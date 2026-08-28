@@ -28,6 +28,14 @@ S7 AV is durably accepted at `b6b1709`: CI
 [33166330402](https://github.com/tesseracode/tesserapatch/actions/runs/33166330402)
 passed all three platforms and both observer jobs. Cumulative S7 is 157/173.
 S7 AW (`PIB-552`…`PIB-560`, nine rows) is now dispatched sequentially.
+AW rev-2 closes both review rounds and is **APPROVED**: remaining-stage rendering no longer
+mislabels future stages as immediate retries, multi-class repair procedures
+are emitted as separate command blocks rather than shell pipelines, the
+tokenizer derives commands from emitted physical lines, and the AP declaration
+pin follows the reviewed function body. The exact AW suite, observer, vet,
+build and full non-observer suite pass. Checkpoint and blocking CI are next.
+AW production, exact tests and observer/CI guards are checkpointed at
+`0d0cc25`.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1803,7 +1811,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AW dispatched from `b6b1709`**
+- **Status**: **In progress — S7 AW checkpointed at `0d0cc25`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship

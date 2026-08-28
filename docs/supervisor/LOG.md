@@ -1,3 +1,60 @@
+## Review — prepare S7 AW rev-2 — 2026-08-28
+
+**Reviewer**: `s7-aw-final-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+All nine AW rows (`PIB-552`…`PIB-560`, I4/C0/G5) and their semantic
+sensitivities bind to direct executable targets. The three production
+corrections are coherent with D10/D16, prior guards are aligned, and
+registration plus CI ownership are complete. Exact target, observer, vet,
+build and full non-observer gates pass; the full CLI package took 465.423s.
+
+### Action Taken
+
+AW is checkpointed by explicit paths at `0d0cc25`; blocking CI is required
+before AX.
+
+## Review — prepare S7 AW rev-1 — 2026-08-28
+
+**Reviewer**: `s7-aw-rev1-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The two rev-0 findings are closed, but the reviewed
+`prepareArchiveCompleteClassRoutes` body left AP's declaration digest pinned to
+its pre-fix bytes. `TestS7APDanglingPublicWorkflows/PIB-459` therefore failed
+deterministically.
+
+### Action Taken
+
+Updated the exact declaration digest to the reviewed body and advanced AW to
+rev-2. The owning AP target and complete AW target suite pass.
+
+## Review — prepare S7 AW rev-0 — 2026-08-28
+
+**Reviewer**: `s7-aw-rev0-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+PIB-556's correct no-retry-heading stage renderer conflicted with two stale
+accepted guards, and `prepareArchiveCompleteClassRoutes` flattened destructive
+procedures and later class routes with shell `|`/`;` separators. The PIB-559
+guard supplied command lines by hand, so it could not detect the emitted
+flattening.
+
+### Action Taken
+
+Aligned the older renderer/AQ guards to PIB-556, emitted one class procedure
+block at a time, derived tokenizer commands from physical output, and added
+chained-command rejection plus a real multi-class output assertion.
+
 ## Supervisor Decision — prepare S7 AV close / AW dispatch — 2026-08-28
 
 **Decision**: **AV ACCEPTED — AW DISPATCHED**
