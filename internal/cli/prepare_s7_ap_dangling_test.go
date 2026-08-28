@@ -624,9 +624,9 @@ var s7APAcceptedDanglingSurfaces = map[string]string{
 	"assets/skills/cursor/tessera-patch.mdc":                     "88cb89a4aec4f3400eb654ffb545b5f377446ae69b3dc6d1bb9f66a1a05c8eea",
 	"assets/skills/windsurf/windsurfrules":                       "60df5c3a9758c4d58e899621d34fdcb70eec97be4fbcd3424f1b267543f8eaae",
 	"assets/workflows/tessera-patch-generic.md":                  "7325c4507b67058fbe9092b4f6c49bc5d5a911712a645912f8b561c09788d735",
-	"docs/adrs/ADR-035-intent-bundle-publication-and-history.md": "6169a6aae209f6a6f228fcff80b9f5e6c2b707e059b05afbbcb9db3883c63d99",
+	"docs/adrs/ADR-035-intent-bundle-publication-and-history.md": "1526a51b13a4977e873e0e3d64b7c03ee34378fab1899157025e0ec70820f1be",
 	"docs/feature-layout.md":                                     "7065454f25457249e63d409494c7f9da25078e2d2e4c4d4c6570cdebca3b707e",
-	"docs/prds/PRD-prepare-intent-bundle.md":                     "e8663123fece1e8b49befe54800ffd27f4dd49b51658ca99c7bc9179c847f632",
+	"docs/prds/PRD-prepare-intent-bundle.md":                     "33c280ddd978f3b7682c4958b024e8c4f9911faa6b37f22a8a9668079209a2e0",
 }
 
 func s7APCloneStringMap(input map[string]string) map[string]string {

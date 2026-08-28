@@ -244,6 +244,24 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 			},
 		},
 		{
+			name: "rev-18-retired-undetected-removal-reading-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("**The probe→unlink gap is not detected, and is not claimed to be.**"),
+					[]byte("**Not detected, and not claimed to be.** Step 3 removes whatever object is at that path."), 1)
+				return wrong
+			},
+		},
+		{
+			name: "rev-18-revision-row-dropped",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("| rev-18 | **Proposed no-decision erratum — 2026-08-28"),
+					[]byte("| rev-18b | **Proposed no-decision erratum — 2026-08-28"), 1)
+				return wrong
+			},
+		},
+		{
 			name: "unrelated-prd-normative-edit",
 			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
 				wrong.prd = bytes.Replace(wrong.prd,
@@ -347,6 +365,7 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 	wantChanged := []string{
 		"PIB-402", "PIB-403", "PIB-425",
 		"PIB-542", "PIB-543", "PIB-544",
+		"PIB-550",
 	}
 	if fmt.Sprint(changed) != fmt.Sprint(wantChanged) {
 		return fmt.Errorf("rev-16 actual matrix row changes = %v, want %v", changed, wantChanged)
@@ -371,7 +390,10 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", label, err)
 		}
-		if len(revisions) < 2 || revisions[len(revisions)-2] != 16 || revisions[len(revisions)-1] != 17 {
+		if len(revisions) < 3 ||
+			revisions[len(revisions)-3] != 16 ||
+			revisions[len(revisions)-2] != 17 ||
+			revisions[len(revisions)-1] != 18 {
 			return fmt.Errorf("%s revision predecessor = %v", label, revisions)
 		}
 	}
@@ -398,6 +420,50 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 		} {
 			if !strings.Contains(strings.ToLower(row), strings.ToLower(token)) {
 				return fmt.Errorf("%s rev-16 history lacks no-decision/count claim %q: %s", label, token, row)
+			}
+		}
+	}
+	// rev-18 is the AV removal-identity re-probe erratum. It is proposed rather
+	// than accepted, so its disposition token differs from rev-16's, but it
+	// carries the same no-decision claim and the PRD half additionally states
+	// the amended row and the unchanged counts.
+	prdRev18 := s7RevisionRow(string(input.prd), 18)
+	adrRev18 := s7RevisionRow(string(input.adr), 18)
+	for label, row := range map[string]string{"PRD": prdRev18, "ADR": adrRev18} {
+		for _, token := range []string{
+			"Proposed no-decision erratum — 2026-08-28",
+			"No decision",
+		} {
+			if !strings.Contains(strings.ToLower(row), strings.ToLower(token)) {
+				return fmt.Errorf("%s rev-18 history lacks no-decision claim %q: %s", label, token, row)
+			}
+		}
+	}
+	for _, token := range []string{"PIB-550", "row", "kind", "count", "567", "thirty-six"} {
+		if !strings.Contains(strings.ToLower(prdRev18), strings.ToLower(token)) {
+			return fmt.Errorf("PRD rev-18 history lacks %q: %s", token, prdRev18)
+		}
+	}
+	// The retired rev-11 readings the erratum replaced must be gone from both
+	// documents' current normative text, exactly as rev-16's superseded
+	// rehydration wording is.
+	for label, retired := range map[string][]string{
+		"PRD": {
+			"step 3 removes whatever object is at that path",
+			"not detected, and not claimed to be",
+		},
+		"ADR": {
+			"which the unlink cannot be conditioned on",
+			"so the replacement is what gets removed",
+		},
+	} {
+		document := s7CurrentNormativeText(string(input.prd))
+		if label == "ADR" {
+			document = s7CurrentNormativeText(string(input.adr))
+		}
+		for _, phrase := range retired {
+			if strings.Contains(document, strings.ToLower(phrase)) {
+				return fmt.Errorf("%s rev-18 current normative text retains the retired reading %q", label, phrase)
 			}
 		}
 	}
@@ -431,25 +497,30 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "PRD",
 			base:  input.basePRD, current: input.prd,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "7450fbeef810da38de9223490da93bc9abf48bcefc677d47949c6d0516212cb6"},
-				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "17909fb698b8d56d555558b03c3a62a9f7cb225f696702c63c5871f54b42b103"},
+				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "fdb85c40e20707b7554b6c10478123b67db7b6d927037074f1e92724e8801ba0"},
+				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "8920d6a1f29408880d9a8f21d31d7229152919f852283d0412ebb803380a89e8"},
 				{label: "section-9.3-rehydration", heading: "### 9.3 `index.json`", baseHash: "fd9f4f35b499a2b17a60c6d256b9c1ff2448b57ef750e9f1f367505406e5ecc9", currentHash: "e8298d7394da53eee093bfc0b3b1e7a61bea0c8579fea731922b63f6a5e98254"},
 				{label: "section-9.7.1-consistency", heading: "#### 9.7.1 Selection and shared references", baseHash: "3210b5cf279b85e0f53e3d9edaa3caae1677849392155d06690455ae59f3287c", currentHash: "03b78d83c11bc56599cbb8e71cdb4f11f9506ed3c13922215e82a252ff0b1d93"},
+				{label: "section-9.7.2-residual-window", heading: "#### 9.7.2 Honest purge procedure and residual race", baseHash: "efe42995f891dce9e1bcef16fba4c9b8888898a67f0e5734d465f2ad8da14734", currentHash: "b2356f6742030f9297b9577b303f18afe6919c503c50df0900d1b99785007d81"},
 				{label: "mechanical-slice-summary", heading: "### 17.2 Slices", baseHash: "32831b33b9200267975945357a3f035ad8ac84d8c91720496007986fcdea8f2a", currentHash: "d18b0764ee3c2985016ba5efe2c6aca5d1c32765ee9844e32a1dacdfd82aca05"},
-				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "11aa208cf76d4800615c11e154416ee3f2f3a93bbf234a5c78c7a7a4399616d3"},
+				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "45bcb74e3ca20210afa6c97a2698fb4ea60b71660c7f1ebee7e0f4ac62e960ee"},
 				{label: "matrix-pib-402-403", heading: "### 18.40 AM — Rev-2 adjudication rows, amended by rev-3", baseHash: "ea342198fd9ecfe95385245fb29af8f89dab05332ea7d63947a488907637a2b6", currentHash: "307e6c60f1b23cd64ca254aaef2e49135eb0c0cf33475e8fc887c9b5b7def16a"},
 				{label: "matrix-pib-425", heading: "### 18.41 AN — Rev-3 adjudication: directory authority, privacy and archive truth", baseHash: "c3812ced4e0254b749cc1b9e24ecf8b284223678619de5966aa16f25e50ed3a0", currentHash: "5edc1c5c1ccac9f836099faee0c2c329da858b7cab357b96df9bd50fae3efc5d"},
 				{label: "matrix-pib-542-544", heading: "### 18.48 AU — Rev-10 adjudication: global pending ownership, selector-independent validation and the corrupt-blob route", baseHash: "7b8dc7b2b98655beef1f5f03706cc832d21a48699418d24ffc13396d8d237d01", currentHash: "0c5a59211d322812d6c14dd37cd99b2ffc78fc60d2df43602bc36435fab37098"},
+				{label: "matrix-pib-550", heading: "### 18.49 AV — Rev-11 adjudication: total same-hash claim, the recovery exception, type-total removal and repair-class multiplicity", baseHash: "c7936d0efed11b970c6e5f9c802ee31209effc6fa12294d1674b2c704d748486", currentHash: "7a1a865a60b2fcd8d189bf1b1f6796a6ee2a365a6f451bf2f9e5a2036d0f5d08"},
+				{label: "section-18.53-sensitivities", heading: "### 18.53 Sensitivity requirement", baseHash: "231a50903312049358535b16f39da9148cf5733c50f5a24ebfa53d9ce535f15a", currentHash: "10956d2dad686c3d2f60fda87b7a29b9f93c327561bc69efd76cac3dff44c20d"},
+				{label: "section-21-alternatives", heading: "## 21. Alternatives considered (summary)", baseHash: "ec652ea2de6e47354d9c0229ebd1035ea6a5e17d3b171c94d1be32f040be0c7f", currentHash: "21f291115164a56339b77a70bb44ef6ac3952397c5f2ec0d3bbd014a5ace7e3e"},
 			},
 		},
 		{
 			label: "ADR",
 			base:  input.baseADR, current: input.adr,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "79af540d36b91ba1c3921b92c301c34974fc04b82219c9c37293ceeb4683176a"},
+				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "4053b04d2f52fe27b51cc27669039d8508137984522296132e68e123eedbe933"},
 				{label: "D10-pending-owner", heading: "### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes", baseHash: "04b8affc6125b69e4191b2b30d6cb8c9760e0ab872abf9aa520aa53040a4b4e5", currentHash: "c9b97c41e7e1127dad58fe227aa06e3f62da053a468661d3333fa255db819380"},
 				{label: "D13-terminal-owner-precedence", heading: "### D13 — Recovery has three entry points, it is terminal, the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing", baseHash: "77633643c1cc2c1b5607ba673cfe8af6b17d25d47510e1c6904b0a0f50c6cbb1", currentHash: "b5b45839dc04492a0673aa44b232d7138fff88cc7b8657072feb26c0c01a454f"},
-				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "e2131eeb1727beca9783d7d81f428e765bf6b8f2ccb15814c10a4e4510111e21"},
+				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "9757ddc5251a04f0e0ed6b9f5559420d08ddf8fc8c4bbf7abf76d836e00d287a"},
+				{label: "adr-alternatives-considered", heading: "## Alternatives considered", baseHash: "fa303b87ef6fd1054570916d0dbcead3f770f8760b6177a66eb714d2319a5649", currentHash: "3f5062fda963eaf676a24821dd09e829ae36555c2cb9f2925641e17b9e586ac8"},
 			},
 		},
 	}
