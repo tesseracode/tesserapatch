@@ -1780,7 +1780,7 @@ expectations.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AU checkpointed at `bbf093e`; CI next**
+- **Status**: **In progress — S7 AU rev-17 guard correction**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -7453,6 +7453,10 @@ affected vet and CLI build pass. Final review confirms every prior finding is
 closed and explicitly approves the `publishIntentArchiveIndex` clamp.
 - AU production/test/observer/CI code is checkpointed at `bbf093e` by
   explicit-path staging with the required trailer.
+- CI 33151661769 passed Windows and both observer jobs; Ubuntu/macOS failed
+  only rev-16's stale document-region hashes after rev-17. The guard now
+  allowlists exact rev-17 header/history/ledger/AU regions and expects matrix
+  changes `PIB-402/403/425/542/543/544`; baseline plus all sensitivities pass.
 
 **Residuals:**
 - PIB-543's exact-string assertion binds the three mutating surfaces to

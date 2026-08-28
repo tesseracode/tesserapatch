@@ -1,3 +1,13 @@
+## Supervisor Decision — prepare S7 AU blocking CI — 2026-08-28
+
+**Decision**: **NEEDS REVISION — rev-17 frozen allowlist**
+
+CI [33151661769](https://github.com/tesseracode/tesserapatch/actions/runs/33151661769)
+passed Windows and both AU observer jobs. Ubuntu/macOS failed only the rev-16
+document guard because rev-17's authorized header/history/ledger/AU matrix
+regions were not added to its frozen allowlist. Exact hashes and the expanded
+six-row diff set now pass the full baseline and all sensitivity arms.
+
 ## Review — prepare S7 AU rev-5 + rev-17 erratum — 2026-08-27
 
 **Reviewer**: `s7-au-joint-review`, `s7-au-rev5-review`
