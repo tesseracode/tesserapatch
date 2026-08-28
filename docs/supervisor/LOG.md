@@ -1,3 +1,12 @@
+## Supervisor Decision — prepare S7 AV close / AW dispatch — 2026-08-28
+
+**Decision**: **AV ACCEPTED — AW DISPATCHED**
+
+CI [33166330402](https://github.com/tesseracode/tesserapatch/actions/runs/33166330402)
+is green on Ubuntu, macOS, Windows and both observer jobs. AV closes at six
+exact rows (`PIB-546`…`PIB-551`, I2/C1/G3); cumulative S7 is 157/173.
+AW (`PIB-552`…`PIB-560`, nine rows) is dispatched sequentially from `b6b1709`.
+
 ## Review — prepare S7 AV rev-2 + rev-18 erratum — 2026-08-28
 
 **Reviewer**: `s7-av-final-review`, post-pin supervisor close
@@ -14,7 +23,7 @@ command pass (CLI 471.544s).
 ### Action Taken
 
 AV test/observer/CI code is checkpointed at `cf2389f`; paired rev-18 tracking
-and blocking CI follow.
+closed at `b6b1709`, with blocking CI 33166330402 green.
 
 ## Review — prepare S7 AV rev-0 — 2026-08-28
 
