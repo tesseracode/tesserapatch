@@ -1385,6 +1385,8 @@ CI 33117127691 is green across all five blocking jobs. AT is durably closed at
 AU rev-5 and paired PRD/ADR rev-17 no-decision errata are APPROVED: nine exact
 rows, all prior review findings closed, local suite/observer/vet/build green.
 Checkpoint and blocking CI remain before AV.
+Corrected CI 33153117728 is green across all five blocking jobs. AU is durably
+closed at 151/173 cumulative rows; AV (`PIB-546…551`) is active.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

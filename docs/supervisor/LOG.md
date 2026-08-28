@@ -1,3 +1,12 @@
+## Supervisor Decision — prepare S7 AU close / AV dispatch — 2026-08-28
+
+**Decision**: **AU ACCEPTED — AV DISPATCHED**
+
+CI [33153117728](https://github.com/tesseracode/tesserapatch/actions/runs/33153117728)
+is green on all three platforms and both observer jobs. AU closes at nine
+exact rows (`PIB-537`…`PIB-545`, I6/C2/G1); cumulative S7 is 151/173.
+AV (`PIB-546`…`PIB-551`) is dispatched sequentially.
+
 ## Supervisor Decision — prepare S7 AU blocking CI — 2026-08-28
 
 **Decision**: **NEEDS REVISION — rev-17 frozen allowlist**

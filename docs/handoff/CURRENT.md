@@ -1780,7 +1780,7 @@ expectations.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AU rev-17 guard correction**
+- **Status**: **In progress — S7 AV dispatched**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -7457,6 +7457,9 @@ closed and explicitly approves the `publishIntentArchiveIndex` clamp.
   only rev-16's stale document-region hashes after rev-17. The guard now
   allowlists exact rev-17 header/history/ledger/AU regions and expects matrix
   changes `PIB-402/403/425/542/543/544`; baseline plus all sensitivities pass.
+- Corrected CI 33153117728 is green on Ubuntu, macOS, Windows and both
+  observer jobs. AU is durably complete at I6/C2/G1; cumulative S7 is
+  151/173. AV (`PIB-546`…`PIB-551`) is active.
 
 **Residuals:**
 - PIB-543's exact-string assertion binds the three mutating surfaces to
