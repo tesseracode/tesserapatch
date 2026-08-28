@@ -456,6 +456,7 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 		"internal/cli/prepare.go:func:prepareCmd",
 		"internal/cli/prepare_publish.go:func:appendPrepareOrphanAdvisory",
 		"internal/cli/prepare_publish.go:func:applyPrepareGenerationReport",
+		"internal/cli/prepare_publish.go:func:prepareArchiveCompleteClassRoutes",
 		"internal/cli/prepare_publish.go:func:prepareArchiveRepairText",
 		"internal/cli/prepare_publish.go:func:preparePendingPurgeCommand",
 		"internal/cli/prepare_publish.go:func:prepareRefusalText",
@@ -568,8 +569,8 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 	return nil
 }
 
-// AQ's accepted recovery-evidence-path delta and AR's accepted history
-// disclosure are the reviewed declaration drifts after AP.
+// AQ's recovery-evidence path, AR's history disclosure, and AW's complete
+// repair-class routes are the reviewed declaration drifts after AP.
 var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:const:intentArchiveHistoryDisclosure":           "8360622adc2d49bf4dfa3467140f147d0c23d27093f10672161049d58fee33ba",
 	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveDivergence":              "90e96b9720f14541241ae0892030b8a82a3641aeed8f0230bb0ad582e26ee660",
@@ -585,7 +586,7 @@ var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:func:intentArchiveListInspectionRefusal":        "96b38ce0947f04b32482d38ea28eb92da480a5afbb336192c9c137ab660a7254",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveListRepair":                   "e3e58c17c62226f6d218e9980877c287e0ecfc6e157aa083d6c17489736d575d",
 	"internal/cli/feature_intent_archive.go:func:intentArchivePendingJournalRefusal":        "55102086021476d5ba0c9a45ec648e4c03c4ffd8247ff8ab4855bc6d810313f7",
-	"internal/cli/feature_intent_archive.go:func:intentArchiveRefusalFromError":             "2fc101e63ac25622566534afc587c4bc4a3fce4c12b65d4fe6052c314138e4f1",
+	"internal/cli/feature_intent_archive.go:func:intentArchiveRefusalFromError":             "c9192295dd5ddbacb6f7819f5d1b110265caf460f153c341f373a22d2d2e88c5",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveRemainingRepairsText":         "977256aa149233e70fc46199a9a994711f8118fbb1c5131098c0facefcb975aa",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveRepairPriority":               "3319cffe754cfaefd7732c81c1f3804157c56c6a8ae3a0f592fa37b1d2766430",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveStorageToken":                 "252378708c66ae58d2fa589bf6164e34ef594d82d523b2019e554368675902af",
@@ -596,15 +597,16 @@ var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/prepare.go:func:prepareCmd":                                               "f68758114e1adea915fe85640033015498c8636d6e9424760e009fcec550e504",
 	"internal/cli/prepare_publish.go:func:appendPrepareOrphanAdvisory":                      "40b3d043fbbae54426dc55b18303cd4dfd8d0108d2a97ae93abeaea58ef556ce",
 	"internal/cli/prepare_publish.go:func:applyPrepareGenerationReport":                     "fda949b7e12fbce78aae64213ca2c93b7317246d164527b7ecc61aa9c49c6ebd",
+	"internal/cli/prepare_publish.go:func:prepareArchiveCompleteClassRoutes":                "12e758ab0675169738e89de1dd060af9d6a473c5329fc899155dc60ec33fd2d4",
 	"internal/cli/prepare_publish.go:func:prepareArchiveRepairText":                         "27cd1b95b252d76e2e392721c21f79ea603bbe3faa0ac4f7e8a05297757a2f4a",
 	"internal/cli/prepare_publish.go:func:preparePendingPurgeCommand":                       "82cb363ba31ee78eaa084d23d0aab576e446c816ed63dec1b71ec8005f7e417e",
 	"internal/cli/prepare_publish.go:func:prepareRefusalText":                               "cea790bc9d41c5bd416fcbdc3e6bc3866a28bb12a1c3be4921658fc27834afb3",
 	"internal/cli/prepare_publish.go:func:prepareStateRemediation":                          "deff3dcce09c3a0146bcbdaf5969058c1620fa2c3d82e2ef5de55eb987ae7773",
-	"internal/cli/prepare_publish.go:func:prepareStoreArchiveFailure":                       "58d8c79013be38297ec9bf9be7dc038f1bba0cf47177a8ae419374f518043786",
+	"internal/cli/prepare_publish.go:func:prepareStoreArchiveFailure":                       "5698680a4eec61a1558f3302128aacd7e9d046a450e5ff6f75c327ed24f7958f",
 	"internal/cli/prepare_publish.go:func:prepareValidateArchiveSnapshot":                   "7b24188ff4fc1747f558079b76fd9ff92259236bf91be5d841ae3ca2d4c7098d",
 	"internal/cli/prepare_publish.go:func:renderPrepareFeaturesIndex":                       "2d5d1b0ee19df24bd6cc6cb1081f7718b4e71fdd640ee2b17a579d39143d3a00",
 	"internal/cli/prepare_publish.go:func:runPrepareAbandon":                                "95f5bf69f4f66b172406f001541657a2dd94f546a7fc144ae301a333acdaaaf6",
-	"internal/cli/prepare_publish.go:func:runPreparePublish":                                "565275caf220cbb7b43af2edb5e321ae7fb979736f67b1d64fbccb38ed6af876",
+	"internal/cli/prepare_publish.go:func:runPreparePublish":                                "15f1e8c5f0b80b0a2e0dea50b13e55d3df4339c4181586ffd6e2c40a7192e722",
 	"internal/cli/prepare_publish.go:func:writePreparePublishHuman":                         "1f92259db76bdb11482e0853b12d534bc6c9b1be6e4f72b75ebedf6ac32dd038",
 	"internal/workflow/doctor_d9.go:func:doctorD9ArchiveClassFinding":                       "38a3b8c708fdfe6b9ba4fcd41a354a40f808eea93355fb58cd6e7c320912caf2",
 	"internal/workflow/doctor_d9.go:func:doctorD9ArchiveClassRemediation":                   "746e01d9e0b605a2908269565c6b1745e3d7b802cd294acb4d304170c1115634",

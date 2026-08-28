@@ -93,6 +93,7 @@ const (
 	s7ObservedCategoryAT          s7ObservedCategory = "AT"
 	s7ObservedCategoryAU          s7ObservedCategory = "AU"
 	s7ObservedCategoryAV          s7ObservedCategory = "AV"
+	s7ObservedCategoryAW          s7ObservedCategory = "AW"
 	s7ObservedCIPackageLimit                         = 40 * time.Minute
 )
 
@@ -137,6 +138,10 @@ var s7ObservedHostedBudgets = map[s7ObservedCategory]s7ObservedHostedBudget{
 	s7ObservedCategoryAV: {
 		outer: 8 * time.Minute, inner: 4 * time.Minute, cleanup: time.Minute,
 		first: 546, last: 551, targets: 6,
+	},
+	s7ObservedCategoryAW: {
+		outer: 8 * time.Minute, inner: 4 * time.Minute, cleanup: time.Minute,
+		first: 552, last: 560, targets: 9,
 	},
 }
 
@@ -189,6 +194,10 @@ func validateS7ObservedHostedBudgets(
 		s7ObservedCategoryAV: {
 			outer: 480 * time.Second, inner: 240 * time.Second, cleanup: 60 * time.Second,
 			first: 546, last: 551, targets: 6,
+		},
+		s7ObservedCategoryAW: {
+			outer: 480 * time.Second, inner: 240 * time.Second, cleanup: 60 * time.Second,
+			first: 552, last: 560, targets: 9,
 		},
 	}
 	if len(budgets) != len(want) {
@@ -267,6 +276,36 @@ func TestS7ObservedAURegistrationAuthority(t *testing.T) {
 
 func TestS7ObservedAVRegistrationAuthority(t *testing.T) {
 	runS7ObservedCategory(t, s7ObservedCategoryAV, s7ObservedAVTargets(t))
+}
+
+func TestS7ObservedAWRegistrationAuthority(t *testing.T) {
+	aw := s7ObservedAWTargets(t)
+	if err := validateS7ObservedCategoryOwnership(map[s7ObservedCategory][]s7ObservedRegistrationTarget{
+		s7ObservedCategoryAV: s7ObservedAVTargets(t),
+		s7ObservedCategoryAW: aw,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runS7ObservedCategory(t, s7ObservedCategoryAW, aw)
+}
+
+func validateS7ObservedCategoryOwnership(
+	groups map[s7ObservedCategory][]s7ObservedRegistrationTarget,
+) error {
+	owners := map[string]s7ObservedCategory{}
+	for category, targets := range groups {
+		for _, target := range targets {
+			key := s7ObservedTargetKey(target.target)
+			if owner, duplicate := owners[key]; duplicate {
+				return fmt.Errorf(
+					"observed target %s belongs to both %s and %s",
+					key, owner, category,
+				)
+			}
+			owners[key] = category
+		}
+	}
+	return nil
 }
 
 func runS7ObservedARProcessGroup(t *testing.T, name string) {
@@ -502,6 +541,63 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 			})
 		}
 	})
+	t.Run("aw-category-targets", func(t *testing.T) {
+		aw := s7ObservedAWTargets(t)
+		budget := s7ObservedHostedBudgets[s7ObservedCategoryAW]
+		if err := validateS7ObservedCategoryTargets(
+			s7ObservedCategoryAW, budget, aw,
+		); err != nil {
+			t.Fatal(err)
+		}
+		if err := validateS7ObservedCategoryOwnership(
+			map[s7ObservedCategory][]s7ObservedRegistrationTarget{
+				s7ObservedCategoryAV: s7ObservedAVTargets(t),
+				s7ObservedCategoryAW: aw,
+			},
+		); err != nil {
+			t.Fatal(err)
+		}
+		for _, fixture := range []struct {
+			name   string
+			mutate func([]s7ObservedRegistrationTarget) []s7ObservedRegistrationTarget
+		}{
+			{
+				name: "missing-row",
+				mutate: func(targets []s7ObservedRegistrationTarget) []s7ObservedRegistrationTarget {
+					return targets[:len(targets)-1]
+				},
+			},
+			{
+				name: "wrong-range",
+				mutate: func(targets []s7ObservedRegistrationTarget) []s7ObservedRegistrationTarget {
+					targets[0].row = "PIB-551"
+					return targets
+				},
+			},
+		} {
+			t.Run(fixture.name, func(t *testing.T) {
+				targets := append([]s7ObservedRegistrationTarget(nil), aw...)
+				targets = fixture.mutate(targets)
+				if err := validateS7ObservedCategoryTargets(
+					s7ObservedCategoryAW, budget, targets,
+				); err == nil {
+					t.Fatal("AW target validator accepted wrong input")
+				}
+			})
+		}
+		t.Run("borrows-av-target", func(t *testing.T) {
+			targets := append([]s7ObservedRegistrationTarget(nil), aw...)
+			targets[0].target = s7ObservedAVTargets(t)[0].target
+			if err := validateS7ObservedCategoryOwnership(
+				map[s7ObservedCategory][]s7ObservedRegistrationTarget{
+					s7ObservedCategoryAV: s7ObservedAVTargets(t),
+					s7ObservedCategoryAW: targets,
+				},
+			); err == nil {
+				t.Fatal("AW ownership validator accepted an AV target")
+			}
+		})
+	})
 
 	t.Run("hosted-budget-order", func(t *testing.T) {
 		if err := validateS7ObservedHostedBudgets(
@@ -518,6 +614,7 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 			s7ObservedCategoryAT,
 			s7ObservedCategoryAU,
 			s7ObservedCategoryAV,
+			s7ObservedCategoryAW,
 		} {
 			budget := s7ObservedHostedBudgets[category]
 			t.Run(string(category), func(t *testing.T) {
@@ -707,6 +804,28 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				},
 			},
 			{
+				name: "wrong-aw-range",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					aw := budgets[s7ObservedCategoryAW]
+					aw.first = 551
+					budgets[s7ObservedCategoryAW] = aw
+				},
+			},
+			{
+				name: "wrong-aw-target-count",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					aw := budgets[s7ObservedCategoryAW]
+					aw.targets = 8
+					budgets[s7ObservedCategoryAW] = aw
+				},
+			},
+			{
+				name: "missing-aw-category",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					delete(budgets, s7ObservedCategoryAW)
+				},
+			},
+			{
 				name: "extra-category",
 				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
 					budgets["AY"] = s7ObservedHostedBudget{
@@ -782,6 +901,20 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 				s7ObservedAUTargets(t),
 			); err == nil {
 				t.Fatal("AV category key accepted AU observer targets")
+			}
+			if err := validateS7ObservedCategoryTargets(
+				s7ObservedCategoryAW,
+				s7ObservedHostedBudgets[s7ObservedCategoryAW],
+				s7ObservedAVTargets(t),
+			); err == nil {
+				t.Fatal("AW category key accepted AV observer targets")
+			}
+			if err := validateS7ObservedCategoryTargets(
+				s7ObservedCategoryAV,
+				s7ObservedHostedBudgets[s7ObservedCategoryAV],
+				s7ObservedAWTargets(t),
+			); err == nil {
+				t.Fatal("AV category key accepted AW observer targets")
 			}
 		})
 	})
@@ -1173,6 +1306,7 @@ func validateS7ObservedRegistrationsWithMutation(
 		"TestS7ObservedATRegistrationAuthority",
 		"TestS7ObservedAURegistrationAuthority",
 		"TestS7ObservedAVRegistrationAuthority",
+		"TestS7ObservedAWRegistrationAuthority",
 	} {
 		if matched, _ := regexp.MatchString(pattern, excluded); matched {
 			return fmt.Errorf("observed-registration regex includes %s", excluded)

@@ -31,7 +31,7 @@ type s7CITimeoutStep struct {
 }
 
 const (
-	s7CIARPartitionPattern                   = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS|AT|AU|AV)RegistrationAuthority)$`
+	s7CIARPartitionPattern                   = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS|AT|AU|AV|AW)RegistrationAuthority)$`
 	s7CIAMThroughAOObserverPattern           = `^TestS7ObservedAMThroughAORegistrationAuthority$`
 	s7CIAPObserverPattern                    = `^TestS7ObservedAPRegistrationAuthority$`
 	s7CIAQObserverPattern                    = `^TestS7ObservedAQRegistrationAuthority$`
@@ -51,6 +51,7 @@ const (
 	s7CIATObserverPattern                    = `^TestS7ObservedATRegistrationAuthority$`
 	s7CIAUObserverPattern                    = `^TestS7ObservedAURegistrationAuthority$`
 	s7CIAVObserverPattern                    = `^TestS7ObservedAVRegistrationAuthority$`
+	s7CIAWObserverPattern                    = `^TestS7ObservedAWRegistrationAuthority$`
 	s7CINonWindowsFullCommand                = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
 	s7CINonWindowsAMThroughAOObserverCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAMThroughAOObserverPattern + `'`
 	s7CINonWindowsAPObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAPObserverPattern + `'`
@@ -71,6 +72,7 @@ const (
 	s7CINonWindowsATObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIATObserverPattern + `'`
 	s7CINonWindowsAUObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAUObserverPattern + `'`
 	s7CINonWindowsAVObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAVObserverPattern + `'`
+	s7CINonWindowsAWObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAWObserverPattern + `'`
 	s7CINonWindowsTestScript                 = "set -euo pipefail\n" +
 		s7CINonWindowsFullCommand + "\n" +
 		s7CINonWindowsARLegacyCommand + "\n" +
@@ -92,7 +94,8 @@ const (
 		s7CINonWindowsASObserverCommand + "\n" +
 		s7CINonWindowsATObserverCommand + "\n" +
 		s7CINonWindowsAUObserverCommand + "\n" +
-		s7CINonWindowsAVObserverCommand
+		s7CINonWindowsAVObserverCommand + "\n" +
+		s7CINonWindowsAWObserverCommand
 	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
 )
 
@@ -470,6 +473,44 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 				workflow,
 				s7CINonWindowsAVObserverCommand,
 				s7CINonWindowsAVObserverCommand+" || true",
+				1,
+			),
+		},
+		{
+			name: "observer-aw-command-removed",
+			mutation: strings.Replace(
+				workflow,
+				"\n          "+s7CINonWindowsAWObserverCommand,
+				"",
+				1,
+			),
+		},
+		{
+			name: "observer-aw-not-excluded-from-monolith",
+			mutation: strings.Replace(
+				workflow,
+				"|AT|AU|AV|AW)RegistrationAuthority",
+				"|AT|AU|AV)RegistrationAuthority",
+				1,
+			),
+		},
+		{
+			name: "observer-aw-command-failure-masked",
+			mutation: strings.Replace(
+				workflow,
+				s7CINonWindowsAWObserverCommand,
+				s7CINonWindowsAWObserverCommand+" || true",
+				1,
+			),
+		},
+		{
+			name: "observer-aw-runs-before-av",
+			mutation: strings.Replace(
+				workflow,
+				"          "+s7CINonWindowsAVObserverCommand+"\n"+
+					"          "+s7CINonWindowsAWObserverCommand,
+				"          "+s7CINonWindowsAWObserverCommand+"\n"+
+					"          "+s7CINonWindowsAVObserverCommand,
 				1,
 			),
 		},
@@ -1175,6 +1216,7 @@ func validateS7ObserverTestPartition(step s7CITimeoutStep) error {
 		s7CINonWindowsATObserverCommand,
 		s7CINonWindowsAUObserverCommand,
 		s7CINonWindowsAVObserverCommand,
+		s7CINonWindowsAWObserverCommand,
 	}
 	if len(tests) != len(want) {
 		return fmt.Errorf("S7 observer command count = %d, want %d", len(tests), len(want))
@@ -1391,6 +1433,7 @@ func validateS7ARPartitionTestOwners(root string) error {
 		regexp.MustCompile(s7CIATObserverPattern),
 		regexp.MustCompile(s7CIAUObserverPattern),
 		regexp.MustCompile(s7CIAVObserverPattern),
+		regexp.MustCompile(s7CIAWObserverPattern),
 		regexp.MustCompile(s7CIARLegacyPattern),
 		regexp.MustCompile(s7CIARLegacyMidPattern),
 		regexp.MustCompile(s7CIARLegacyLatePattern),

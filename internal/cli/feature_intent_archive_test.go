@@ -1564,7 +1564,7 @@ func TestFeatureIntentArchiveSelectorValidationAndSequentialRepair(t *testing.T)
 			"--orphans", "--yes",
 		)
 		if humanCode != 3 ||
-			strings.Contains(human, "repair: tpatch ") ||
+			!strings.Contains(human, "repair: tpatch ") ||
 			strings.Contains(human, "Then run tpatch ") {
 			t.Fatalf("corrupt blocking human = %d\n%s", humanCode, human)
 		}

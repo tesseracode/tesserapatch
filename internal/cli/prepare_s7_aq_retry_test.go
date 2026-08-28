@@ -385,8 +385,10 @@ func validateS7AQRerunEmitters(sources map[string]string) error {
 	if headingSites != 4 {
 		return fmt.Errorf("derived heading sites = %d, want 4", headingSites)
 	}
-	if archiveHelperCalls != 8 {
-		return fmt.Errorf("derived archive retry handoffs = %d, want 8", archiveHelperCalls)
+	// PIB-556 renders remaining purge stages as repair lines, not immediate
+	// rerun handoffs, so they deliberately do not use the canonical heading.
+	if archiveHelperCalls != 7 {
+		return fmt.Errorf("derived archive retry handoffs = %d, want 7", archiveHelperCalls)
 	}
 	return nil
 }

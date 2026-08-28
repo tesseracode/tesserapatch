@@ -706,7 +706,7 @@ func validateS7ASSelectorTotality(observations []s7ASSelectorTotalityObservation
 	if len(observations) != 4 {
 		return fmt.Errorf("selector observations = %d, want 4", len(observations))
 	}
-	wantBlastRadius := "The --all selector tombstones every reference in every generation and removes every blob in this archive. The unconfirmed preview is the default; repeated --blob selectors are the narrower alternative."
+	wantBlastRadius := "The --all selector claims and tombstones every reference in every generation and removes every blob in this archive, leaving no recoverable bytes for any artifact until identical content is archived again. The unconfirmed preview is the default and shows the full selection first; repeated --blob selectors over the hashes listed in this report cover the same work while touching nothing else."
 	seen := map[store.IntentArchiveSelectorKind]bool{}
 	for _, observation := range observations {
 		if seen[observation.selector.kind] {
@@ -861,7 +861,7 @@ func TestS7ASSelectorTotalityGuardSensitivityAllDisclosureMissing(t *testing.T) 
 			observations[index].previewReport.BlastRadius = ""
 			observations[index].previewHuman = strings.ReplaceAll(
 				observations[index].previewHuman,
-				"The --all selector tombstones every reference in every generation and removes every blob in this archive. The unconfirmed preview is the default; repeated --blob selectors are the narrower alternative.\n",
+				"The --all selector claims and tombstones every reference in every generation and removes every blob in this archive, leaving no recoverable bytes for any artifact until identical content is archived again. The unconfirmed preview is the default and shows the full selection first; repeated --blob selectors over the hashes listed in this report cover the same work while touching nothing else.\n",
 				"",
 			)
 			break

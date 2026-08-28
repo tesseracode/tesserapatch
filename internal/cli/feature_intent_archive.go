@@ -26,6 +26,7 @@ const (
 	intentArchiveCommandPurge      = "feature intent-archive purge"
 	intentArchiveHistoryDisclosure = "A committed blob remains in Git history; removing it from history is not something tpatch performs, and tpatch does not rewrite Git history."
 	intentArchivePendingPlan       = "claim every reference to it, remove the blob if it is present, then tombstone every reference to it"
+	intentArchiveAllBlastRadius    = "The --all selector claims and tombstones every reference in every generation and removes every blob in this archive, leaving no recoverable bytes for any artifact until identical content is archived again. The unconfirmed preview is the default and shows the full selection first; repeated --blob selectors over the hashes listed in this report cover the same work while touching nothing else."
 	intentArchiveSHA256HexLength   = 64
 )
 
@@ -1268,7 +1269,7 @@ func newIntentArchivePurgeReport(slug string, options intentArchivePurgeOptions)
 		HistoryDisclosure: intentArchiveHistoryDisclosure,
 	}
 	if options.all {
-		report.BlastRadius = "The --all selector tombstones every reference in every generation and removes every blob in this archive. The unconfirmed preview is the default; repeated --blob selectors are the narrower alternative."
+		report.BlastRadius = intentArchiveAllBlastRadius
 	}
 	return report
 }
@@ -1566,9 +1567,9 @@ func intentArchiveRefusalFromError(
 		retry = "tpatch feature intent-archive purge " + slug + " --blob " + typed.Hash + " --yes"
 		allPreview := "tpatch feature intent-archive purge " + slug + " --all"
 		allConfirmed := allPreview + " --yes"
-		remediation = "The retry below is the narrow repair. The broader alternative is " +
-			allPreview + "; preview it first, then after review confirm with " + allConfirmed +
-			". It tombstones every reference in every generation and removes every blob; repeated --blob selectors touch only the named hashes."
+		remediation = "The narrow repair is " + retry + ". Preview the broader selector first with " +
+			allPreview + "; only after reviewing that full selection confirm with " + allConfirmed +
+			". " + intentArchiveAllBlastRadius
 	case store.IntentArchiveCodePurgeIndexChanged:
 		remediation = "Retry from the newly observed archive tree."
 	case store.IntentArchiveCodePurgeEvidenceDivergent:
@@ -2043,17 +2044,12 @@ func writeIntentArchivePurgeHuman(w io.Writer, report intentArchivePurgeReport) 
 			for _, item := range stage.Paths {
 				fmt.Fprintf(w, "    path: %s\n", item)
 			}
-			if stage.Kind != string(store.IntentArchiveRepairStagePurge) {
-				fmt.Fprintf(w, "    repair: %s\n", strings.ReplaceAll(stage.Repair, "\n", "\n    "))
-			}
+			fmt.Fprintf(w, "    repair: %s\n", strings.ReplaceAll(stage.Repair, "\n", "\n    "))
 			fmt.Fprintf(w, "    repair_cwd: %s\n", stage.RepairCWD)
 			if len(stage.ResultingClasses) != 0 {
 				fmt.Fprintf(w, "    resulting classes: %s\n", strings.Join(stage.ResultingClasses, ", "))
 			}
 			fmt.Fprintf(w, "    after prerequisite: %t\n", stage.AfterPrerequisite)
-			if stage.Kind == string(store.IntentArchiveRepairStagePurge) {
-				writeIntentArchiveRetry(w, stage.Repair)
-			}
 		}
 	}
 	if report.Divergence != nil {

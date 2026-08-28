@@ -244,7 +244,7 @@ func validateS7APCompletedPurgeReport(
 		return fmt.Errorf("completed blob work = %+v", report.Blobs)
 	}
 	const history = "A committed blob remains in Git history; removing it from history is not something tpatch performs, and tpatch does not rewrite Git history."
-	const blast = "The --all selector tombstones every reference in every generation and removes every blob in this archive. The unconfirmed preview is the default; repeated --blob selectors are the narrower alternative."
+	const blast = "The --all selector claims and tombstones every reference in every generation and removes every blob in this archive, leaving no recoverable bytes for any artifact until identical content is archived again. The unconfirmed preview is the default and shows the full selection first; repeated --blob selectors over the hashes listed in this report cover the same work while touching nothing else."
 	if len(report.OrphanBlobs) != 0 || len(report.Advisories) != 0 ||
 		report.HistoryDisclosure != history || report.BlastRadius != blast ||
 		report.Retry != "" || report.RetryCWD != "" ||

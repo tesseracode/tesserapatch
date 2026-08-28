@@ -1304,7 +1304,7 @@ func s7ARExpectedPartialReport(
 		},
 	}
 	if selector == "all" {
-		report.BlastRadius = "The --all selector tombstones every reference in every generation and removes every blob in this archive. The unconfirmed preview is the default; repeated --blob selectors are the narrower alternative."
+		report.BlastRadius = "The --all selector claims and tombstones every reference in every generation and removes every blob in this archive, leaving no recoverable bytes for any artifact until identical content is archived again. The unconfirmed preview is the default and shows the full selection first; repeated --blob selectors over the hashes listed in this report cover the same work while touching nothing else."
 	}
 	return report
 }

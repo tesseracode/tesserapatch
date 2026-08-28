@@ -780,7 +780,9 @@ func runPreparePublish(cmd *cobra.Command, rawSlug string, options prepareOption
 		snapshot, _, _, archiveErr := prepareArchivePreflight(archiveStorage, slug, plan)
 		report = applyPrepareArchiveObservation(report, snapshot)
 		if archiveErr != nil {
-			report = prepareStoreArchiveFailure(report, archiveErr, false)
+			report = prepareStoreArchiveFailure(
+				report, archiveErr, false, snapshot.Inspection.Classes,
+			)
 			_ = release()
 			return emitPreparePublishReport(cmd, report, prepareArchiveExit(archiveErr, 3))
 		}
@@ -870,7 +872,9 @@ func runPreparePublish(cmd *cobra.Command, rawSlug string, options prepareOption
 	snapshot, appendPlan, _, archiveErr := prepareArchivePreflight(archiveStorage, slug, plan)
 	report = applyPrepareArchiveObservation(report, snapshot)
 	if archiveErr != nil {
-		report = prepareStoreArchiveFailure(report, archiveErr, false)
+		report = prepareStoreArchiveFailure(
+			report, archiveErr, false, snapshot.Inspection.Classes,
+		)
 		_ = release()
 		return emitPreparePublishReport(cmd, report, prepareArchiveExit(archiveErr, 3))
 	}
@@ -1534,7 +1538,9 @@ func runPrepareDryPlan(
 		archiveErr = prepareValidateArchiveSnapshot(snapshot, false)
 	}
 	if archiveErr != nil {
-		return prepareStoreArchiveFailure(report, archiveErr, false), prepareArchiveExit(archiveErr, 3)
+		return prepareStoreArchiveFailure(
+			report, archiveErr, false, snapshot.Inspection.Classes,
+		), prepareArchiveExit(archiveErr, 3)
 	}
 	if options.mode == prepareModeRegenerate {
 		if !options.allowHeuristic {
@@ -2591,7 +2597,12 @@ func prepareRawPreimageFailure(
 	return report, exit
 }
 
-func prepareStoreArchiveFailure(report preparePublishReport, err error, afterWrite bool) preparePublishReport {
+func prepareStoreArchiveFailure(
+	report preparePublishReport,
+	err error,
+	afterWrite bool,
+	observedClasses ...[]store.IntentArchiveRepairClassReport,
+) preparePublishReport {
 	code := "archive-index-corrupt"
 	var typed *store.IntentArchiveError
 	if errors.As(err, &typed) {
@@ -2676,7 +2687,94 @@ func prepareStoreArchiveFailure(report preparePublishReport, err error, afterWri
 			report.Outcome = "rolled-back"
 		}
 	}
+	if len(observedClasses) == 1 &&
+		prepareArchiveNeedsCompleteClassRoutes(observedClasses[0]) &&
+		report.Refusal != nil {
+		report.Refusal.Remediation = prepareArchiveCompleteClassRoutes(
+			report.Slug, observedClasses[0],
+		)
+		report.Refusal.Retry = ""
+		report.Refusal.RetryCWD = ""
+	}
 	return report
+}
+
+func prepareArchiveNeedsCompleteClassRoutes(
+	classes []store.IntentArchiveRepairClassReport,
+) bool {
+	if len(classes) > 1 {
+		return true
+	}
+	return len(classes) == 1 && len(classes[0].Hashes) > 1
+}
+
+func prepareArchiveCompleteClassRoutes(
+	slug string,
+	classes []store.IntentArchiveRepairClassReport,
+) string {
+	byClass := make(map[store.IntentArchiveRepairClass]store.IntentArchiveRepairClassReport, len(classes))
+	predictedDangling := []string{}
+	for _, class := range classes {
+		byClass[class.Class] = class
+		if class.Class != store.IntentArchiveRepairCorruptObject {
+			continue
+		}
+		for _, instance := range class.Instances {
+			for _, resulting := range instance.ResultingClasses {
+				if resulting == store.IntentArchiveRepairDanglingReference &&
+					instance.Hash != "" {
+					predictedDangling = append(predictedDangling, instance.Hash)
+				}
+			}
+		}
+	}
+	routes := make([]string, 0, len(classes)+2)
+	hasCorrupt := false
+	if corrupt, ok := byClass[store.IntentArchiveRepairCorruptObject]; ok {
+		hasCorrupt = true
+		parts := make([]string, 0, len(corrupt.Paths))
+		for _, item := range corrupt.Paths {
+			parts = append(parts, intentArchiveCorruptRemovalText(item))
+		}
+		if len(parts) != 0 {
+			routes = append(
+				routes,
+				string(store.IntentArchiveRepairCorruptObject)+":\n"+
+					strings.Join(parts, "\n"),
+			)
+		}
+	}
+	dangling := append(
+		append([]string(nil), byClass[store.IntentArchiveRepairDanglingReference].Hashes...),
+		predictedDangling...,
+	)
+	if len(dangling) != 0 {
+		routes = append(
+			routes,
+			string(store.IntentArchiveRepairDanglingReference)+":\n"+
+				preparePendingPurgeCommand(slug, dangling),
+		)
+	}
+	if mixed := byClass[store.IntentArchiveRepairMixedReference].Hashes; len(mixed) != 0 {
+		routes = append(
+			routes,
+			string(store.IntentArchiveRepairMixedReference)+":\n"+
+				preparePendingPurgeCommand(slug, mixed),
+		)
+	}
+	if _, ok := byClass[store.IntentArchiveRepairUnreferencedResidue]; ok {
+		routes = append(
+			routes,
+			string(store.IntentArchiveRepairUnreferencedResidue)+
+				":\ntpatch feature intent-archive purge "+slug+" --orphans --yes",
+		)
+	}
+	remediation := "Complete every observed archive repair class before retrying prepare. Run each command from the workspace root.\n\n" +
+		strings.Join(routes, "\n\n")
+	if hasCorrupt {
+		remediation += "\n\n" + intentArchiveHistoryDisclosure
+	}
+	return remediation
 }
 
 func prepareArchiveExit(err error, fallback int) int {
