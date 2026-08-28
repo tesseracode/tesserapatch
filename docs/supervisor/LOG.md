@@ -1,3 +1,58 @@
+## Review — prepare S7 AX rev-2 + rev-19 — 2026-08-28
+
+**Reviewer**: supervisor direct fallback (`s7-ax-joint-review` returned no
+usable verdict)
+
+### Verdict: APPROVED FOR CHECKPOINT
+
+### Notes
+
+All seven AX rows (`PIB-561`…`PIB-567`, I2/G5), their sensitivities, observer
+ownership and CI partition are exact and direct. Paired rev-19 amends only
+`PIB-562` and `PIB-566` plus the disclosed non-matrix companions, changes no
+product decision, and preserves 567 rows / 36 semantic guards. The committed
+rev-19 writer-diff check passes at `0ecdcb1`; AX is checkpointed at `5e444d6`.
+Exact targets, observer, vet/build and full non-observer suite pass (CLI
+457.968s).
+
+### Action Taken
+
+Push the two checkpoints with tracking and require green blocking CI. Final
+aggregate external review remains required before release authorization.
+
+## Review — prepare S7 AX rev-1 — 2026-08-28
+
+**Reviewer**: `s7-ax-rev1-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+PIB-561's fourth sensitivity mutated the wrong function, duplicated its first
+fixture and was not type-correct. PIB-567 hardcoded rev-17 while selecting the
+reference revision positionally, so rev-19 would break it. PIB-564's
+quantification exemptions matched raw substrings and unrelated quote
+characters too broadly. The three disclosed record inconsistencies were
+confirmed as genuine no-decision errata.
+
+### Action Taken
+
+Bound the sensitivity to `admitIntentArchiveRepair` and type-check mutated
+sources, derived revision-ledger mutations from the selected revision, made
+quantification exemptions sentence/token/quote scoped, and authored paired
+PRD/ADR rev-19 with exact frozen-region and example-coherence guards.
+
+## Supervisor Decision — prepare S7 AX rev-0 contract blockers — 2026-08-28
+
+**Decision**: **ADJUDICATION REQUIRED**
+
+AX's exact implementation found three record inconsistencies: PIB-562's doctor
+exit conflicts with D9's warning-only contract, PIB-566 assigns retry fields to
+doctor's remediation-only carrier, and §10.2's example combines exit-0
+admission with a blocking corrupt-object stage. No production behavior is
+implicated. Compile/runtime validation and a bounded paired erratum must close
+these before AX review.
+
 ## Supervisor Decision — prepare S7 AW close / AX dispatch — 2026-08-28
 
 **Decision**: **AW ACCEPTED — AX DISPATCHED**

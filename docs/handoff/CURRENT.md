@@ -40,6 +40,22 @@ AW is durably accepted at `31192a0`: CI
 [33177631054](https://github.com/tesseracode/tesserapatch/actions/runs/33177631054)
 passed all three platforms and both observer jobs. Cumulative S7 is 166/173.
 S7 AX (`PIB-561`…`PIB-567`, seven rows) is now dispatched sequentially.
+AX rev-0 is implemented in the worktree with no production change. Static
+implementation exposed three contract-record inconsistencies requiring
+adjudication before acceptance: PIB-562 assigns doctor exit 3 despite D9's
+accepted warning-only exit 0; PIB-566 assigns doctor a retry_cwd field its
+accepted carrier does not own; and §10.2 illustrates an admitted exit-0 report
+with a rank-1 corrupt-object stage that rev-13 makes unreachable.
+AX rev-2 closes the aggregate-target, JSON-carrier, sensitivity-anchor,
+future-revision and quantification-scan defects found in execution/review.
+Paired PRD/ADR rev-19 corrects the three record inconsistencies without a
+product decision or behavior change. The exact AX/rev-19 guard suite passes;
+joint final review is active.
+Direct fallback review found no residual after the joint-review sub-agent
+returned no usable verdict. Rev-19 is checkpointed at `0ecdcb1`; AX exact
+tests and CI observer guards are checkpointed at `5e444d6`. The committed
+rev-19 writer-diff guard passes. Blocking CI is next; final aggregate external
+review remains before release authorization.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1815,7 +1831,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AX dispatched from `31192a0`**
+- **Status**: **In progress — S7 AX/rev-19 checkpointed; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
