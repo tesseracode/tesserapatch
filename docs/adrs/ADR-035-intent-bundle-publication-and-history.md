@@ -2,8 +2,9 @@
 
 **Status**: **Accepted — rev-14 decisions (2026-08-14), rev-15 D14 evidence
 erratum (2026-08-18), rev-16 pending-owner no-decision erratum (2026-08-20);
-rev-17 companion-row no-decision erratum (2026-08-27) and rev-18
-removal-identity-re-probe no-decision erratum (2026-08-28) — acceptance pending
+rev-17 companion-row no-decision erratum (2026-08-27), rev-18
+removal-identity-re-probe no-decision erratum (2026-08-28) and rev-19 D10
+observed-product no-decision erratum (2026-08-28) — acceptance pending
 joint review**
 **Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14;
 **Accepted at rev-14 on 2026-08-14**)
@@ -33,13 +34,26 @@ the rerun refuses exit 6 `archive-purge-evidence-divergent`; the residual
 narrows to the unseamed gap between that re-probe and the unlink, which stays
 disclosed and unclaimed. **No D16 decision, condition, invariant or admitted
 route changed**, and no other decision changed.
+**Rev-19 acceptance**: **pending joint review** (raised 2026-08-28) —
+**proposed no-decision erratum**; the independent S7 AX review found that
+**D10's** corrupt-blob paragraph states one refusal for `list`, `doctor` and
+every ordinary mutation jointly. `doctor`'s D9 is warning-only — D16 already
+says so in its own words, and the shipped exit mapper returns **0** for a run
+that raises only warnings — so `list` and every ordinary mutation refuse the
+observation at exit **3**, while `doctor` reports the identical observation as
+a warning finding at exit **0**. Only that sentence changes. **No D10 or D16
+decision, condition, invariant, admitted route, exit code or product behaviour
+changes**, and no other decision changed. The companion PRD's rev-19 carries
+the matching `PIB-562`/`PIB-566` and §10.2 corrections.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
 dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`; rev-15
 PIB-391 evidence correction discovered by GH #23; rev-16 pending-owner wording
 correction discovered during S7 implementation; rev-17 companion `PIB-542` /
 `PIB-543` / `PIB-544` observed-product corrections discovered during S7 AU
 implementation (`PIB-537`…`PIB-545`); rev-18 D16 removal-identity re-probe
-correction discovered during S7 AV implementation (`PIB-546`…`PIB-551`)
+correction discovered during S7 AV implementation (`PIB-546`…`PIB-551`);
+rev-19 D10 corrupt-blob surface-split correction raised by the independent S7
+AX review (`PIB-561`…`PIB-567`)
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -52,8 +66,8 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-16 Accepted; its rev-17 and rev-18 no-decision errata are pending the same
-joint review as this document's). **The two documents were reviewed and
+(rev-16 Accepted; its rev-17, rev-18 and rev-19 no-decision errata are pending
+the same joint review as this document's). **The two documents were reviewed and
 accepted together.** Read the PRD for the full product contract and its 567-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
@@ -85,6 +99,7 @@ bounded D14/PIB-391 evidence erratum to be jointly approved.
 | rev-16 | **Accepted no-decision erratum — 2026-08-20** | S7 implementation exposed stale rev-5 wording that described rehydration over tombstoned/pending references despite the already-accepted rev-8 through rev-13 pending-owner rule and the shipped D10/D13/D16 implementation. D10 now states explicitly that rehydration un-tombstones **tombstoned references only**; any removal-pending same-hash reference routes the entire hash to the purge owner, blocks mutating `prepare` with `recovery-pending`, and is never consumed by rehydration. D13 and D16 cross-state the same precedence. No decision, row, kind, count, guard, slice or implementation changes; historical revision rows are not rewritten, and this row records their supersession. |
 | rev-17 | **Proposed no-decision erratum — 2026-08-27; acceptance pending joint review** | S7 AU implementation found that three companion PRD acceptance-matrix rows asserted expectations the frozen decisions and the shipped product do not produce. **`PIB-542`**: over an archive holding a single repair class (the mixed tombstone/live-reference hash `h₂`) beside a healthy hash `h₃`, the row expected **all four** selectors, `--all` included, to refuse exit 3. D16's frozen rev-12 rule says the opposite for `--all --yes` — it is admitted exactly where the chosen class is the archive's **only** class, and a healthy hash belongs to **no** repair class and so supplies no second class. **`PIB-543`**: the row required exit **3** from every observer and one procedure presentation from all five, but this ADR already fixes `doctor`'s D9 as **warning-only**, so it exits **0** while `prepare`, `--regenerate`, `--manual` and `list` exit 3; and the same corrupt-object route is printed in two presentations — `list`'s quoted per-entry procedure with the structured `retry`/`retry_cwd` pair, `doctor`'s identical quoted procedure lines without that pair, and the three mutating readers' refusal-`remediation` prose over the unquoted repo-relative managed path. Every obligation D16 places on those procedures — repo-relative paths only, the stated destructive cost, the Git-history caveat, the single type-total `rm -rf --`, no preservation command named — is unchanged and still required of all five. **`PIB-544`**: the row named a driver seam set (`beforePurgeIndexCAS`, `afterPurgeBlobRevalidate`, `beforePurgeBlobRemove`, `beforePendingTombstoneCAS`) that is not the one the four §9.7.2 windows are reached through; the corrected row uses the authoritative mapping the store's own `TestRecoverPendingPurgeInsertionWindowsPIB544` drives — the post-preflight index capture, `beforePurgeIndexCAS`, `afterPurgeIndexRename`, and the post-unlink `beforePendingTombstoneCAS` — and excludes `afterPurgeBlobRevalidate` because that seam is the **fifth** window this ADR discloses as a permanent residual. **No D16 decision, admission condition, blast-radius disclosure obligation, warning-only D9 rule, precedence rank or normative sentence is changed, reworded or reopened, and no other decision changes**; D1–D21 stand exactly as at rev-14/rev-15/rev-16, and no window's exit, outcome, resume token or removal truth moves. The erratum is recorded here only because the corrected companion rows are these decisions' own worked cases. The companion matrix stays at 567 rows; exactly three rows (`PIB-542`, `PIB-543`, `PIB-544`) are amended, and none is added, retired, renumbered, re-categorised or re-kinded. |
 | rev-18 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** | S7 AV implementation found that D16's residual paragraph and the companion PRD row `PIB-550` both described the replacement of a managed object between the pre-removal revalidation and the unlink as a byte-level loss rather than a detection. The shipped machine hands the revalidated identity to the removal, and the storage re-probes the managed object immediately before the syscall and refuses when that identity no longer matches — for a regular blob the recorded mode, size and content hash — so the replacement is preserved, the invocation ends at exit 5 `archive-purge-partial` and the sanitized rerun refuses exit 6 `archive-purge-evidence-divergent`. D16's disclosure now narrows the residual to the unseamed gap between that re-probe and the unlink syscall, stated beside the post-CAS final CAS→rename window and still claimed closed by neither. **No decision, condition, invariant, admitted route, exit code or emitted state changes**; the erratum touches D16's residual prose and the matching alternatives row only. |
+| rev-19 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** | The independent S7 AX review found that **D10's** corrupt-blob paragraph states one refusal for three surfaces jointly: a present but unidentifiable blob under a retained reference “refuses zero-write for `list`, `doctor` and every ordinary mutation”. `doctor`'s D9 is warning-only — D16 already states it in its own words, and the shipped exit mapper returns **0** for a run that raises only warnings — so the accurate reading is that `list` and every ordinary mutation refuse the observation at exit **3** with zero writes, while `doctor` reports the identical observation as a **warning** finding and exits **0**. The corrected paragraph says exactly that and nothing more. **No decision changes** — in particular no D10 or D16 decision, condition, invariant, admitted route, class rank, exit code, emitted state or product behaviour changes; the rank-1 block, the type-total removal, the already-admitted dangling repair, the restore alternative, the destructive cost and the Git-history caveat all stand exactly as accepted. D16's pending-route rule is already correct and is not touched, so no `retry_cwd` claim is added here. The companion PRD's rev-19 carries the matching `PIB-562` and `PIB-566` row corrections, the §10.2 worked-example coherence correction, `R25` and `PIB-566`'s §18.53 fixture wording; that matrix stays at **567** rows with **thirty-six** semantic guards. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review; both reviewers returned **APPROVED** with **no
@@ -680,10 +695,12 @@ non-regular file — a symlink, a directory, a FIFO or a device node — or one
 whose bytes do not hash to its name, beneath a
 retained reference is neither dangling (the file exists, and tombstoning a live
 reference against bytes tpatch never validated would destroy unseen evidence)
-nor an orphan (the hash is live, so `--orphans` may never select it). It refuses
-zero-write for `list`, `doctor` and every ordinary mutation — and, since rev-13,
-for **every confirmed purge selector in the archive**, because it is the rank-1
-blocking repair class (PIB-561). Its route is
+nor an orphan (the hash is live, so `--orphans` may never select it). `list` and
+every ordinary mutation refuse it zero-write at exit **3** — and, since rev-13,
+so does **every confirmed purge selector in the archive**, because it is the
+rank-1 blocking repair class (PIB-561); `doctor`'s D9 renders the identical
+observation as a **warning** finding and exits **0**, which is the warning-only
+disposition D16 already states for that surface, not a fourth refusal. Its route is
 repo-relative and **total** because it terminates in an already-admitted repair:
 one type-total removal of the managed blob path — after
 which the reference is dangling — then the confirmed
