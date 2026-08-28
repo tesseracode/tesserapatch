@@ -1,7 +1,9 @@
 # ADR-035 — Intent Bundle Publication and History
 
 **Status**: **Accepted — rev-14 decisions (2026-08-14), rev-15 D14 evidence
-erratum (2026-08-18), rev-16 pending-owner no-decision erratum (2026-08-20)**
+erratum (2026-08-18), rev-16 pending-owner no-decision erratum (2026-08-20);
+rev-17 companion-row no-decision erratum (2026-08-27) — acceptance pending
+joint review**
 **Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14;
 **Accepted at rev-14 on 2026-08-14**)
 **Owner**: Core (planning lane)
@@ -13,10 +15,18 @@ the companion PRD, as both documents required.
 **Rev-16 acceptance**: 2026-08-20 — **Accepted errata**; implementation
 discovery aligned stale rehydration wording with the already-accepted D10/D13/
 D16 pending-owner precedence. No decision changed.
+**Rev-17 acceptance**: **pending joint review** (raised 2026-08-27) —
+**proposed no-decision erratum**; S7 AU implementation discovery corrected
+**three** companion acceptance-matrix rows (PRD `PIB-542`, `PIB-543`,
+`PIB-544`) whose stated expectations the shipped product and the already-frozen
+decisions do not produce. **No D16 decision, condition or normative
+sentence changed**, and no other decision changed.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
 dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`; rev-15
 PIB-391 evidence correction discovered by GH #23; rev-16 pending-owner wording
-correction discovered during S7 implementation
+correction discovered during S7 implementation; rev-17 companion `PIB-542` /
+`PIB-543` / `PIB-544` observed-product corrections discovered during S7 AU
+implementation (`PIB-537`…`PIB-545`)
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -29,7 +39,8 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-16 Accepted). **The two documents were reviewed and
+(rev-16 Accepted; its rev-17 no-decision erratum is pending the same joint
+review as this document's). **The two documents were reviewed and
 accepted together.** Read the PRD for the full product contract and its 567-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
@@ -59,6 +70,7 @@ bounded D14/PIB-391 evidence erratum to be jointly approved.
 | rev-14 | **Accepted — 2026-08-14** | **Errata only.** No decision is added, withdrawn, reopened or re-worded in substance: **D1–D21** stand exactly as at rev-13, the companion matrix stays at **567** rows, and no exit code, class rank, stage rule or closed vocabulary moves. This revision records the rev-13 record corrections carried in the companion PRD's rev-14 row: the PRD's rev-13 amended-row ledger dropped `PIB-524` (a **fixture-only** touch in §18.53, not an acceptance-matrix amendment) and fell from fourteen to **thirteen** rows; rev-13's “every residual ‘triple’ becomes ‘tuple’” claim is scoped to **normative** uses, excluding quoted and meta references to the corrected term; and the two PRD sentences that stated the rank-1 `corrupt-object` classification over *every* object at a managed blob path are scoped to **non-owned** hashes, restoring agreement with D10/D16 and the frozen rev-12 closure that an **owned** hash whose blob is unsafe or hash-wrong routes only to the owning transaction's **exit 6** `archive-purge-evidence-divergent`. Status, date, byline, companion pointer and the references row are re-based to rev-14 and to reviewed writer tip `8f1cc8a` / dispatch `a2a6479`. Companion matrix rows amended by this revision, exactly: `PIB-565`, `PIB-567`. |
 | rev-15 | **Accepted evidence erratum — 2026-08-18** | D14's compatibility conclusion is unchanged, but its implementation-evidence sentence shared rev-14 PIB-391's impossible premise: GH #16 committed executable AVP tests but no standalone check-output files whose path history could already lie in that closed range. The corrected evidence rule binds record mode to a clean producer binary at GH #16 frozen implementation content `cacaaf8` (production-identical to acceptance commit `7206dab`), refuses every other producer, and makes comparison mode build current code with no baseline override. GH #23 commits the fixtures before mutating production code. No publication/history decision, check byte, matrix row, kind or count changes. |
 | rev-16 | **Accepted no-decision erratum — 2026-08-20** | S7 implementation exposed stale rev-5 wording that described rehydration over tombstoned/pending references despite the already-accepted rev-8 through rev-13 pending-owner rule and the shipped D10/D13/D16 implementation. D10 now states explicitly that rehydration un-tombstones **tombstoned references only**; any removal-pending same-hash reference routes the entire hash to the purge owner, blocks mutating `prepare` with `recovery-pending`, and is never consumed by rehydration. D13 and D16 cross-state the same precedence. No decision, row, kind, count, guard, slice or implementation changes; historical revision rows are not rewritten, and this row records their supersession. |
+| rev-17 | **Proposed no-decision erratum — 2026-08-27; acceptance pending joint review** | S7 AU implementation found that three companion PRD acceptance-matrix rows asserted expectations the frozen decisions and the shipped product do not produce. **`PIB-542`**: over an archive holding a single repair class (the mixed tombstone/live-reference hash `h₂`) beside a healthy hash `h₃`, the row expected **all four** selectors, `--all` included, to refuse exit 3. D16's frozen rev-12 rule says the opposite for `--all --yes` — it is admitted exactly where the chosen class is the archive's **only** class, and a healthy hash belongs to **no** repair class and so supplies no second class. **`PIB-543`**: the row required exit **3** from every observer and one procedure presentation from all five, but this ADR already fixes `doctor`'s D9 as **warning-only**, so it exits **0** while `prepare`, `--regenerate`, `--manual` and `list` exit 3; and the same corrupt-object route is printed in two presentations — `list`'s quoted per-entry procedure with the structured `retry`/`retry_cwd` pair, `doctor`'s identical quoted procedure lines without that pair, and the three mutating readers' refusal-`remediation` prose over the unquoted repo-relative managed path. Every obligation D16 places on those procedures — repo-relative paths only, the stated destructive cost, the Git-history caveat, the single type-total `rm -rf --`, no preservation command named — is unchanged and still required of all five. **`PIB-544`**: the row named a driver seam set (`beforePurgeIndexCAS`, `afterPurgeBlobRevalidate`, `beforePurgeBlobRemove`, `beforePendingTombstoneCAS`) that is not the one the four §9.7.2 windows are reached through; the corrected row uses the authoritative mapping the store's own `TestRecoverPendingPurgeInsertionWindowsPIB544` drives — the post-preflight index capture, `beforePurgeIndexCAS`, `afterPurgeIndexRename`, and the post-unlink `beforePendingTombstoneCAS` — and excludes `afterPurgeBlobRevalidate` because that seam is the **fifth** window this ADR discloses as a permanent residual. **No D16 decision, admission condition, blast-radius disclosure obligation, warning-only D9 rule, precedence rank or normative sentence is changed, reworded or reopened, and no other decision changes**; D1–D21 stand exactly as at rev-14/rev-15/rev-16, and no window's exit, outcome, resume token or removal truth moves. The erratum is recorded here only because the corrected companion rows are these decisions' own worked cases. The companion matrix stays at 567 rows; exactly three rows (`PIB-542`, `PIB-543`, `PIB-544`) are amended, and none is added, retired, renumbered, re-categorised or re-kinded. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review; both reviewers returned **APPROVED** with **no

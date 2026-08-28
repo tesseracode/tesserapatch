@@ -1739,6 +1739,39 @@ The `tesseracode/copilot-api` v0.15.1 feedback was independently triaged on
 diagnosis and evidence are archived in the cumulative-verification case study.
 This backlog intake does not preempt the active prepare queue.
 
+S7 AU implementation also surfaced **documentation** defects, not production
+ones: three acceptance-matrix rows stated expectations the frozen rules and the
+shipped product do not produce. `PIB-542`'s first fixture expected all four
+selectors to refuse exit 3 over an archive holding one repair class (the mixed
+hash `h₂`) beside a healthy `h₃`, which contradicts the frozen rev-12 /
+ADR-035 D16 rule that `--all --yes` is admitted when the chosen class is the
+archive's only class — a healthy hash is in no class and makes no second class.
+`PIB-543` required exit 3 from **every** observer and one procedure
+presentation from all five, while the product's `doctor` D9 is warning-only and
+exits 0 (D16 already says so) and the same corrupt-object route is printed in
+two presentations. `PIB-544` named a driver seam set that is not the one the
+four §9.7.2 insertion windows are reached through.
+`PRD-prepare-intent-bundle` **rev-17** and `ADR-035` **rev-17** are raised as a
+paired **no-decision erratum**, dated 2026-08-27, **acceptance pending joint
+review**. They correct those three rows only: for `PIB-542`, `--orphans`,
+`--blob <h₃>` and `--generation <id₃>` keep refusing exit 3 zero-write while
+`--all --yes` is admitted, prints its whole-archive blast-radius disclosure and
+purges the archive at exit 0; for `PIB-543`, `prepare`, `--regenerate`,
+`--manual` and `list` exit 3 while `doctor` reports the same observation as a
+warning and exits 0, with `list` carrying the quoted procedure plus the
+structured `retry`/`retry_cwd` pair, `doctor` the same quoted procedure lines
+without that pair, and the three mutating readers the same route as refusal
+`remediation` prose over the unquoted managed path; for `PIB-544`, the driver
+list becomes the store fixture
+`TestRecoverPendingPurgeInsertionWindowsPIB544`'s own seam mapping, with
+`afterPurgeBlobRevalidate` excluded as PIB-550's fifth-window seam. The clean
+control, the two-mixed-hash fixture, the two-class residue-plus-mixed fixture
+and every window outcome are unchanged. No D16 normative text, decision, exit
+code the product emits, state, row ID, kind, category or count changes; the
+matrix stays at **567** rows with **thirty-six** semantic guards, and the AU
+fixtures follow the corrected rows rather than the AU tests weakening their
+expectations.
+
 ## Active Task
 
 - **Task ID**: `implement-prepare-intent-bundle`
@@ -1747,7 +1780,7 @@ This backlog intake does not preempt the active prepare queue.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AU dispatched from `c14f790`**
+- **Status**: **In progress — S7 AU checkpointed at `bbf093e`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -2274,8 +2307,28 @@ file, is the dispatch authority.
   `internal/cli/prepare_s7_ar_runtime_test.go`, and
   `internal/cli/prepare_s7_registration_test.go`. The reviewed code/test block
   is committed at `db17262`.
+- S7 AU (uncommitted worktree, rev-5): the three new AU files
+  `internal/cli/prepare_s7_au_ledger_test.go`,
+  `internal/cli/prepare_s7_au_runtime_test.go` and
+  `internal/cli/prepare_s7_au_guard_test.go`; the registration/CI wiring in
+  `internal/cli/prepare_s7_registration_test.go`,
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go` and
+  `.github/workflows/ci.yml`; the contract documents
+  `docs/prds/PRD-prepare-intent-bundle.md` and
+  `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` (rev-17
+  erratum); `docs/supervisor/LOG.md`; and this handoff. The **only**
+  uncommitted production change is the three-line uncommitted-CAS exit-class
+  clamp in `internal/store/intent_archive.go` that the PIB-544 fifth fixture
+  depends on. `internal/store/intent_archive_purge_test.go` and the rev-3
+  `SelectorAll` admission guard were reverted and are no longer part of this
+  slice.
 
 ## Test Results
+
+- S7 AU rev-5 — full AU/store/CI suite **PASS** in 12.291s CLI / 0.251s
+  store; final focused AU suite **PASS** in 12.081s; exact nine-target observer
+  **PASS** in 15.398s package (15.12s test). `gofmt`, affected vet and
+  `go build ./cmd/tpatch` pass.
 
 - S7 AR final strict eligibility — PASS: PIB-518 121.776s, PIB-511 102.177s,
   PIB-519 31.983s; package sum 255.936s, 69.064s below the 325-second cap.
@@ -6810,6 +6863,54 @@ CI guard `65a16685`, workflow `38754ccc`, common authority dependency
   mismatched artifact `Rel` as `CodeInvalidPlan` / `canonical-path`. Both pass
   together in 0.555s package. Independent review is **APPROVED** with no
   findings; the dedicated test-only checkpoint is `87c8763`.
+- AU rev-0 added three test files and observer wiring but is **NEEDS
+  REVISION**. It does not compile; six row targets are aggregate wrappers;
+  PIB-540 is panic/recover rather than process-crash evidence; PIB-544 hook
+  timing is not authoritative; PIB-545 lacks semantic claim/removal proof; and
+  PIB-537 is not bound to PIB-511. Rev-1 is dispatched.
+- AU rev-1 removes aggregate targets and panic modeling, but review returned
+  **NEEDS REVISION**: PIB-545's in-memory AST path tries to reread synthetic
+  filenames, so its baseline fails and mutations bite vacuously; two
+  sensitivities also use raw sentinel strings. Rev-2 is bounded to a genuine
+  same-validator fix.
+- AU rev-2 static review is **APPROVED**, including the seven PIB-545
+  mutations and four subprocess crash exits. Go validation is resource-blocked:
+  a 10-minute gate never reached 80% free memory and ended at 68%; follow-up
+  samples remained 66–71%. No Go process is active. Another independently
+  owned `copilot --yolo --resume` process uses about 2.1 GB RSS and Chrome
+  renderers use several GB; this session will not terminate them.
+- After memory cleanup, the authoritative gate passed at 84% free. Executable
+  rev-2 is **NEEDS REVISION** on seven concrete defects: PIB-544 wrong
+  insertion linearization, PIB-545 empty baseline extraction, PIB-537 broken
+  Cobra import in its synthetic graph, PIB-539 foreign-index fixture, PIB-542
+  admitted `--all` fixture, PIB-543 wrong owned-path invocation, and missing AU
+  CI owner-union registration. Rev-3 must correct fixtures, not expectations.
+- Executable rev-3 is **NEEDS REVISION** on seven further roots, all fixed in
+  rev-4 without weakening an expectation: the AU observer belonged to zero CI
+  shards; PIB-545's baseline rejected shipped source because it looked for a
+  lexical `allPending` in the removal's own function (and its mutation source
+  could not parse); PIB-544 injected window 2 at `afterPurgeBlobRevalidate`,
+  which is the PIB-550 final-syscall residual, not one of §9.7.2's four
+  windows; PIB-537 previewed an abandon with no journal evidence; PIB-539
+  expected exit 3 from a `list` that correctly exits 0 with `pending-remove`;
+  PIB-542's clean controls reused the mixed fixture's selector identifiers on a
+  shared, mutated archive; and PIB-543's restore fixture wrote to another
+  slug's managed blob path. See "AU Implementation Session — rev-4".
+- The rev-3 `PIB-542` "admitted `--all` fixture" finding is now traced to the
+  PRD row itself, not to the test: the row's first fixture contradicted the
+  accepted ADR-035 D16 sole-class admission rule. PRD rev-17 + ADR-035 rev-17
+  (**no-decision erratum, acceptance pending joint review**) correct the row;
+  the AU fixture must follow the corrected row — three no-class selectors
+  refuse exit 3 zero-write, `--all --yes` is admitted with its blast-radius
+  disclosure and exits 0 `purged`. The rev-3 production `SelectorAll` guard and
+  its store-test edit are **reverted**.
+- Rev-4 passed the parent's run: the AU suite in **12.081s** and the AU
+  observer in **15.019s**. Joint review then returned six findings — a
+  tautological PIB-538 post-command snapshot, an unarmed PIB-542 decode spy and
+  an under-asserted admitted `--all` branch, an unverified claim about the
+  PIB-543 mutating-refusal presentation, a rev-17 erratum scoped to one row
+  when three are wrong, stale CURRENT files/evidence, and dead residual
+  claims. Rev-5 folds all six. See "AU Implementation Session — rev-5".
 
 **Suggested exact selectors:**
 
@@ -6824,13 +6925,548 @@ go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ATCoverageLedger$'
 go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ObservedATRegistrationAuthority$'
 ```
 
+### AU Implementation Session — rev-1
+
+AU `PIB-537`…`PIB-545` rev-1 addresses all rev-0 NEEDS REVISION findings.
+Nine exact top-level nonaggregate test targets (I6/C2/G1) across three files
+plus infrastructure updates to registration, CI guard and CI workflow:
+
+- `internal/cli/prepare_s7_au_ledger_test.go` — 9-row ledger, AU kind counts
+  I6/C2/G1, prior AM–AT partition invariants, observed-target uniqueness.
+  Unchanged from rev-0.
+- `internal/cli/prepare_s7_au_runtime_test.go` — PIB-537/538/539/541/542/543
+  I-kind runtime tests. Rev-1 changes:
+  - PIB-537: structurally binds to PIB-511 via `validateS7ARAbandonGateTable`
+    (the same domain predicate/table parser/validator used by the AR guard),
+    not identifier presence. Straight loop with labels, no nested `t.Run`.
+  - PIB-538: straight loop, no nested `t.Run`. Five fixture classes asserted.
+  - PIB-539: unchanged (already direct, no `t.Run`).
+  - PIB-541: fixed `IntentArchiveRepairOrphanedResidue` →
+    `IntentArchiveRepairUnreferencedResidue` (the undefined constant from
+    rev-0). Straight loop, no nested `t.Run`.
+  - PIB-542: straight loops in all selector iterations, no `t.Run`.
+  - PIB-543: straight loop over five kinds, no nested `t.Run`. Device-node
+    uses the accepted `s7ARInstallDeviceProbe` seam and is asserted, not
+    skipped. FIFO creation failure is `t.Fatalf`, not `t.Skipf`. Both repair
+    routes (remove+purge and restore-correct-blob) are executed and asserted
+    for every kind.
+- `internal/cli/prepare_s7_au_guard_test.go` — Rev-1 changes:
+  - PIB-540: real subprocess crash via `TestS7AUCrashFixtureHelper` (child
+    process reads env vars, installs the exact documented `go:linkname` store
+    hooks — `beforePurgeIndexCAS`, `beforePurgeBlobRemove`,
+    `afterPurgeBlobRemove`, `beforePendingTombstoneCAS` — and calls
+    `os.Exit(97)` at each seam). Parent inspects disk invariants and reruns
+    the same command. Four exact crash points, next-action asserted, invariant
+    checked, no repeat removal needed. No `panic`/`recover`.
+  - PIB-544: uses exact documented `go:linkname` hooks at four linearization
+    points (`afterPurgeIndexDecode`, `afterPurgeBlobRevalidate`,
+    `afterPurgeIndexRename` post-CAS, `afterPurgeBlobRemove`). Straight loop,
+    no nested `t.Run`. Fifth fixture (new-selection) is inline.
+  - PIB-545: combined validator performs real AST analysis:
+    `s7AUExtractClassificationBranches` walks `ClassifyIntentArchiveTuple`'s
+    AST return statements; `s7AUValidateClaimCASCoverage` inspects claim
+    function AST for tombstoned-skip branch statements;
+    `s7AUValidateRemovalDomination` finds `RemoveBlob` call sites and verifies
+    all-pending guard co-location. Seven wrong-input sensitivity fixtures
+    through the same validator; unchanged mutation fatal. No shallow string
+    alternatives for structural properties.
+- `internal/cli/prepare_s7_registration_test.go` — AU category constant,
+  hosted budget (8m/4m/1m, rows 537–545, targets 9), observer test, budget
+  validation want map, callsite-category binding, wrong-input mutations
+  (wrong range, missing category, cross-category target swap). Unchanged from
+  rev-0.
+- `internal/cli/prepare_s7_ci_timeout_guard_test.go` — AU observer pattern and
+  command constants, skip pattern extended, observer script updated, want list
+  updated. Unchanged from rev-0.
+- `.github/workflows/ci.yml` — skip pattern extended with `|AU`, AU observer
+  command added to s7-observers job. Unchanged from rev-0.
+
+**Rev-1 status: UNTESTED.** Files are written but `go test` has not been run.
+The parent must validate compilation and all selectors before review.
+
+**Residual design notes:**
+- PIB-543 device-node kind reuses `s7ARInstallDeviceProbe` /
+  `s7ARDeviceProbeStorage` from the AR runtime test.
+- PIB-537 now depends on `validateS7ARAbandonGateTable` from the AR guard;
+  if the gate table structure changes, both PIB-511 and PIB-537 update
+  together.
+
+### AU Implementation Session — rev-2 (bounded PIB-545)
+
+Rev-2 is a bounded fix to `internal/cli/prepare_s7_au_guard_test.go` only,
+addressing three PIB-545 findings from rev-1 review:
+
+**1. PIB-545 `s7AUNodeString` synthetic filename read failure (F1).**
+The old `s7AUNodeString` called `os.ReadFile(start.Filename)` using the
+line/column position from `fset.Position()`. When called from the
+`combinedValidator` path (which parses synthetic source strings via
+`s7AUParseSource` with filenames `"store.go"` / `"cli.go"`), the read
+would fail because no such file exists on disk, and the error was silently
+converted to a `<read error: ...>` string instead of propagated.
+
+Fix: Introduced `s7AUSourceRegistry` — a `map[string][]byte` keyed by
+`token.File.Name()`. All parse functions (`s7AUParsePackage`,
+`s7AUParseSource`) register their source bytes in the registry.
+`s7AUNodeString` now uses `fset.File(node.Pos())` to get the `token.File`,
+looks up bytes from the registry by `tokFile.Name()`, and extracts the exact
+byte slice `[tokFile.Offset(node.Pos()):tokFile.Offset(node.End())]`.
+Returns `(string, error)` — read errors are explicit, never converted to
+strings. All callers updated to handle the error.
+
+**2. Raw `strings.Contains` sentinel detection removed (F2).**
+Rev-1 mutations 6 (`claim-skips-tombstoned-references`) and 7
+(`absent-blob-path-leaves-retained`) replaced Go identifiers with
+`SKIP_TOMBSTONED_WIRE` / `ONLY_PENDING_WIRE` sentinel strings, then the
+`combinedValidator` detected those sentinels via `strings.Contains(storeSrc, ...)`.
+This is raw string matching, not structural validation.
+
+Fix: Both sentinels removed. Two new AST validators added:
+- `s7AUValidateClaimIteratesAllWireStates` — walks
+  `setIntentArchiveHashState`'s range body and verifies that no
+  `if-continue` branch references a specific `IntentArchiveWire*` constant
+  beyond the legitimate `== state` comparison. Detects mutations that add
+  tombstoned-skip branches.
+- `s7AUValidateAbsentPathTombstonesAll` — walks the same function and
+  verifies no skip branch references `IntentArchiveWireRetained`, which
+  would cause the tombstone path to leave retained refs behind.
+
+Mutations 6 and 7 changed from sentinel-injection to structural mutations:
+- Mutation 6 now appends `|| replacement.WireState() == IntentArchiveWireTombstoned`
+  to the skip condition, which the AST validator detects.
+- Mutation 7 now appends `|| replacement.WireState() == IntentArchiveWireRetained`
+  to the skip condition, which the AST validator detects.
+Both produce valid compilable source shapes that fail structural checks.
+
+**3. Mutation verification and error class assertions (F3).**
+- Every mutation verifies `mutatedStore != storeSource` (or CLI equivalent)
+  before running the validator — unchanged source is fatal.
+- Baseline positive runs before the first mutation.
+- Post-mutation unchanged baseline positive runs after all mutations.
+- Each `sensitivityFixture` has a `wantClass` field; after the validator
+  rejects the mutation, the test asserts the error message contains the
+  expected class substring (`"missing classification"`, `"all-pending"`,
+  `"claim CAS"`, `"absent-blob"`).
+
+**Files changed:**
+- `internal/cli/prepare_s7_au_guard_test.go` — all changes confined to
+  `TestS7AUClassificationAuthorityGuard` and its helpers.
+
+**Rev-2 status: UNTESTED.** Syntax-checked (brace/paren balance verified)
+but `go test` has not been run per dispatch constraints (no Go commands).
+The parent must validate compilation and the
+`TestS7AUClassificationAuthorityGuard` selector before review.
+
+**Residuals:**
+- The structural validators for mutations 6/7 are specific to
+  `setIntentArchiveHashState`'s current control-flow shape. A refactor that
+  moves the skip logic to a helper function would require validator updates.
+- PIB-545 sensitivity mutations still use `strings.Replace` for mutations
+  1–5; those target classification disposition names which are unlikely to
+  change identifier shape.
+
+**Suggested exact selector:**
+
+```
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUClassificationAuthorityGuard$'
+```
+
+**Suggested exact selectors:**
+
+```
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUAbandonBooleanDomainContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUManualModeRefusalContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AURetainedPendingSameHashContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUCrashInjectionContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUListDoctorMultiObservationContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUDisjointSelectorRefusalContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUCorruptBlobRouteContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUSameHashInsertionWindowContracts$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUClassificationAuthorityGuard$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7AUCoverageLedger$'
+go test ./internal/cli -count=1 -timeout 8m -run '^TestS7ObservedAURegistrationAuthority$'
+```
+
+### AU Implementation Session — rev-3 (seven concrete defect fixes)
+
+Rev-3 addresses the seven concrete defects from rev-2 executable review.
+
+**1. PIB-545 empty baseline extraction (F1).**
+`s7AUExtractClassificationBranches` looked for `*ast.ReturnStmt` but
+`ClassifyIntentArchiveTuple` assigns fields to a local `result` variable and
+returns it. Branches extracted = 0. Fix: extract `*ast.AssignStmt` nodes where
+the LHS is `result.Disposition`, matching the production code's assignment
+pattern. Required disposition check list updated from Code names
+(RecoveryPending, BlobDangling, BlobCorrupt, PurgeEvidenceDivergent) to
+Disposition names (PendingRemove, CorruptObject, DanglingReference). Sensitivity
+mutations updated to target Disposition constants. All seven same-validator
+classes use the same combined validator. In-memory source registry preserved.
+
+**2. PIB-537 broken Cobra import (F2).**
+`s7AUInstallDeterministicProvider` changes HOME to a temp dir. The type graph
+builder's `go list -export` for cobra fails with GOPROXY=off because the Go
+cache is unreachable. Fix: move `validateS7ARAbandonGateTable` call before
+`s7AUInstallDeterministicProvider(t)` so HOME is still real during type graph
+construction. The gate table validation doesn't need the provider. Shared AR
+authority (`validateS7ARAbandonGateTable`, `s7ARBuildPreAbandonProgram`) is
+unchanged.
+
+**3. PIB-539 foreign-index fixture (F3).**
+The test built the archive under `slug2` (from `intentArchiveCLIWorkspace`),
+then copied it to `prepSlug` (from `prepareS4Workspace`). The index contained
+`slug2`'s identity, which the validator rejected as `archive-index-foreign`.
+Fix: build the retained+pending archive directly under `prepSlug` using
+`intentArchiveCLIGeneration(t, prepSlug, ...)`. No cross-slug copy; no foreign
+index.
+
+**4. PIB-542 admitted --all fixture (F4).** **Superseded by rev-5 — this
+diagnosis and its production change are withdrawn.** Rev-3 read the admitted
+`--all` as a production gap and added an
+`equalStringSets(selected, inspection.Classes[0].Hashes)` guard to the
+`SelectorAll` admission case, with the store test
+`TestIntentArchiveAllSelectsEveryReferenceAndBlob` updated to match. ADR-035
+D16 admits `--all --yes` exactly when the chosen class is the archive's **only**
+class, which is what the shipped code already did; the defect was in the
+`PIB-542` row, not in `admitIntentArchiveRepair`. Rev-5 reverted both the
+production guard and the store-test edit; the PRD/ADR rev-17 erratum corrects
+the row instead.
+
+**5. PIB-543 wrong owned-path invocation (F5).**
+Prepare/list readers route owned state as recovery-pending (exit 3). The test
+incorrectly expected exit 6 (divergent) from `prepare` on owned corrupt blob.
+Exit 6 divergent is the response from `purge --yes` on a corrupt owned blob.
+Fix: assert `prepare` exits 3 with `recovery-pending`, then separately assert
+`purge --yes` exits 6 with `archive-purge-evidence-divergent`. Doctor observer
+now captures actual exit code from `runDoctorCLI` instead of hard-coding
+`obsCode = 3`.
+
+**6. PIB-544 wrong insertion linearization (F6).**
+Hooks did not match the four PRD-documented linearization points. The
+`between-reread-and-CAS` window used `afterPurgeBlobRevalidate` (post-
+revalidation) instead of `beforePurgeIndexCAS` (pre-CAS). Fix: four windows now
+use `beforePurgeIndexCAS`, `afterPurgeBlobRevalidate`, `beforePurgeBlobRemove`,
+`beforePendingTombstoneCAS` exactly as documented. Fifth fixture (new-selection)
+uses `beforePurgeIndexCAS`. References to `afterPurgeIndexDecode`,
+`afterPurgeIndexRename`, `afterPurgeBlobRemove` removed from PIB-544 code;
+those hooks remain available for PIB-540 crash injection.
+
+**7. CI owner-union registration.**
+Already present: AU observer pattern, CI workflow entry, skip pattern, and
+registration test were all implemented in rev-0. No change needed.
+
+**Files changed:**
+- `internal/store/intent_archive.go` — PIB-542 SelectorAll admission fix
+  (**reverted in rev-5**)
+- `internal/store/intent_archive_purge_test.go` — Updated
+  `TestIntentArchiveAllSelectsEveryReferenceAndBlob` for new admission behavior
+  (**reverted in rev-5**)
+- `internal/cli/prepare_s7_au_guard_test.go` — PIB-544 hook alignment, PIB-545
+  branch extraction rewrite
+- `internal/cli/prepare_s7_au_runtime_test.go` — PIB-537 gate validation
+  ordering, PIB-539 direct archive build, PIB-543 owned-path fix
+
+**Rev-3 status: UNTESTED.** The parent must validate compilation and all
+selectors before review. No Go commands were run.
+
+**Residuals:**
+- `copyArchiveTree` in `prepare_s7_au_runtime_test.go` was left dead after the
+  PIB-539 fix; rev-4 removed it, so this residual is closed.
+- PIB-545 mutations 1-5 now target Disposition constant names rather than
+  Code/RepairClass names. The mutation strings are chosen so each replaces a
+  unique required disposition.
+- The store test update in `intent_archive_purge_test.go` is **withdrawn** with
+  the rev-3 admission change; `internal/store/intent_archive_purge_test.go` is
+  byte-identical to `origin/main` again after rev-5.
+
+### AU Implementation Session — rev-4 (seven executable failure roots)
+
+Rev-4 addresses the runtime failures rev-3 left open. Every fix corrects the
+fixture, seam or guard that produced the failure; no expectation was weakened,
+and no product behaviour changed except the PIB-542 `SelectorAll` admission
+already landed in rev-3.
+
+**1. AU observer owned by zero CI shards.**
+`validateS7ARPartitionTestOwners` builds its shard list from the observer
+patterns, but `s7CIAUObserverPattern` was never added, so
+`TestS7ObservedAURegistrationAuthority` matched `s7CIARPartitionPattern` and
+belonged to 0 shards. Fix: the AU observer regexp is now a shard, between AT
+and the AR legacy shards. The workflow command and skip pattern were already
+present, so only the owner union changed.
+
+**2. PIB-545 baseline rejected the shipped source ("no blob removal guarded
+all-pending").**
+`s7AUValidateRemovalDomination` scanned the *enclosing function's source text*
+for the literal `allPending`. Production spells the predicate
+`allIntentArchiveReferencesPending` and puts the syscall behind the
+`removeIntentArchiveBlob` helper, so the lexical scan could never match, and
+the paired mutation (`allPending` → `true`) changed nothing. The old validator
+also concatenated whole packages into one synthetic file, which cannot parse
+(repeated `package` clauses), so the mutation arm was unreachable anyway.
+
+Rev-4 replaces it with a structural authority walk over two real single-file
+sources (`internal/store/intent_archive.go`, `internal/cli/prepare_publish.go`):
+
+- the removal syscall (`storage.RemoveBlob`) is located by call graph; any call
+  site outside the store authority is a failure;
+- its enclosing wrapper must gate on a boolean parameter whose negation
+  terminates before the syscall (`removeIntentArchiveBlob`'s `authorized`);
+- every call site of that wrapper must pass an argument that resolves to a
+  total authority predicate (`allIntentArchiveReferencesPending` or
+  `intentArchiveHashUnreferenced`) directly, through its binding, or — for the
+  literal `true` — through a terminating `if !<authority>(…)` guard that
+  dominates the call in the enclosing function's statement tree;
+- both predicates must iterate generations and replacements and return false.
+
+The combined validator also derives the classification map from
+`ClassifyIntentArchiveTuple` assignments, asserts the ownership branch returns
+before any non-owned classification and routes unidentifiable blobs, asserts
+the owned unidentifiable arm of `intentArchiveUnidentifiablePurgeError` carries
+only exit-6 `archive-purge-evidence-divergent`, and asserts
+`setIntentArchiveHashState`'s skip condition excludes neither tombstoned (claim
+totality) nor retained (absent-blob totality) references.
+
+Seven same-validator mutations, all valid Go against real source:
+owned→mixed disposition, both all-pending gates degraded to
+`intentArchiveHashHasState`, corrupt→dangling disposition, the orphan path's
+`authorized :=` bound to `true`, the owned divergent constructor rewritten to
+exit-3 `archive-blob-corrupt`, and the two wire-state skip exclusions. Their
+expected classes are `missing classification`, `blob removal in
+executeIntentArchivePurgeHash`, `missing classification`, `blob removal in
+executeIntentArchiveOrphanPurge`, `exit-6 route`, `claim CAS` and
+`absent-blob`. Both baselines (before and after the mutation sweep) must pass.
+
+**3. PIB-544 windows were injected at the wrong linearization points.**
+Rev-3 drove window 2 through `afterPurgeBlobRevalidate`, which fires *after*
+the pre-removal revalidation: the removal legitimately proceeds there, so
+asserting "no removal" contradicted the disclosed final-syscall residual the
+PRD assigns to PIB-550. Rev-4 mirrors the store fixture
+`TestRecoverPendingPurgeInsertionWindowsPIB544` seam for seam and outcome for
+outcome:
+
+| window | CLI seam | store subtest | outcome |
+|---|---|---|---|
+| before the claim's re-read | `CaptureIndex` spy armed after `PreflightIndexCAS` | `before-claim-reread-is-included` | exit 0 `recovered`, blob removed, all three references tombstoned |
+| between the re-read and its CAS | `beforePurgeIndexCAS` | `between-reread-and-claim-cas-is-partial` | exit 5 `purge-partial`, `pending-recovery-then-completion`, `pending_hash`, no removal |
+| between the CAS and the revalidation | `afterPurgeIndexRename` | `between-claim-cas-and-revalidate-is-partial` | exit 5, same progress record, no removal |
+| after the removal | `beforePendingTombstoneCAS` | `after-removal-before-tombstone-retries-absent-path` | exit 5, blob already unlinked, no completed hash; retry takes the absent path with zero removals |
+
+The window-1 seam is a storage spy rather than a hook because the store fixture
+inserts before the *second* capture — after the recovery preflight — and an
+`afterPurgeIndexDecode` insertion would land before `PreflightIndexCAS` and
+change the outcome. Each partial window's sanitized retry must reach exit 0
+with every reference (including the inserted one) tombstoned. The fifth fixture
+now uses a **new selection** on a clean archive and asserts exit 3
+`archive-purge-index-changed` with a tree byte-identical to the externally
+inserted index.
+
+**4. PIB-537 bare abandon had no evidence.**
+`prepare <slug> --abandon-transaction` correctly exits 3 `no-pending-transaction`
+when the lane is empty; §6.6's preview contract needs journal evidence. Rev-4
+writes a real journal with `s6WriteJournalFixture` for the bare and `=true`
+arms and asserts exit 0, mode `abandon`, outcome `abandon-planned`, `moved`
+exactly `[journal.json]`, a byte-identical tree and no `abandoned-` directory.
+`--abandon-transaction=false` runs on a separate clean workspace (exit 0, mode
+`generate`, outcome `no-op`, `beforeAbandonBranch` never fires). The
+`--check --abandon-transaction=false` mutex asserts pflag's own
+`[check manual regenerate abandon-transaction]` text and binds its expected
+exit to the abandon gate table's own row 1 rather than to prose; the structural
+PIB-511 binding through `validateS7ARAbandonGateTable` is unchanged and still
+runs before the provider fixture changes `HOME`.
+
+**5. PIB-539 expected the wrong list exit.**
+An owned hash produces no repair class (`case owned:` files it under
+`PendingHashes`), so `intentArchiveListExit` returns 0. Rev-4 expects exit 0
+with both same-hash entries rendered as `pending-remove` carrying the exact
+`--blob <h> --yes` repair, retry and `workspace-root` retry CWD, no orphans and
+no corrupt objects. The raw-substring "no dangling/mixed/corrupt" scan was
+replaced by exact refusal-code and decoded-field checks, because the list
+schema always emits a `corrupt_objects` array. `prepare` (exit 3
+`recovery-pending`) and the purge preview (exit 0 `recovery-required`) are
+unchanged.
+
+**6. PIB-542 clean controls were not clean.**
+The control loop reused the *mixed* fixture's `h₃` hash and `id₃` generation
+against a different archive and ran all four mutating selectors over one
+workspace. Rev-4 builds each control independently with unique canonical
+artifact and generation data, proves the control is clean with a `list` before
+any selector runs, derives every selector argument from that control, and
+asserts all four succeed — plus that the disjoint `h₂` blob survives the
+`--blob`/`--generation` controls.
+
+**7. PIB-543 restore fixture pointed at another slug's blob path.**
+The restore-alternative workspace reused `blobRel` from the first slug, so the
+managed blob parent did not exist under the alternative root and the symlink
+kind failed with ENOENT. Rev-4 derives `blobRel` from the alternative slug and
+ensures the parent exists. The owned half now asserts the confirmed purge exits
+exactly 6 with refusal code `archive-purge-evidence-divergent`, a divergence
+record naming the hash and blob, and no exit-3 code anywhere; the doctor
+observer runs the real command and asserts its actual exit code (0 —
+warning-only) with exactly one `corrupt-object` D9 finding whose remediation
+carries the `rm -rf -- '<blob>'` line and the retry command. The forbidden-word
+scan is now a case-sensitive word-boundary check over the procedure text with
+the blob path elided, so it cannot be satisfied by padding and does not confuse
+the required "Git history" caveat with the `git` command.
+
+**8. Dead code.** `copyArchiveTree` and the now-unused
+`s7AUAfterPurgeBlobRevalidate` linkname were removed, along with the stale
+error-class comment block in the old PIB-545 validator. No `t.Run`, skip or
+panic was introduced; all nine ledger targets remain top-level test bodies.
+
+**Files changed:**
+- `internal/cli/prepare_s7_ci_timeout_guard_test.go` — AU observer shard
+- `internal/cli/prepare_s7_au_runtime_test.go` — PIB-537/539/542/543 fixtures
+  and expectations, clean-control builder, forbidden-word helper
+- `internal/cli/prepare_s7_au_guard_test.go` — PIB-544 window realignment,
+  PIB-545 structural authority validator and its seven mutations
+
+**Rev-4 status: UNTESTED.** No Go command was run in this session (no build, no
+vet, no gofmt, no test) and nothing was staged, committed or pushed. Symbols
+were verified by static scan only: every helper, hook, constant and report
+field referenced by the AU files was grepped to its declaration.
+
+**Residuals:**
+- The whole AU suite still needs a resource-gated `go test ./internal/cli`
+  run plus `gofmt -l`; formatting of the rewritten blocks is hand-maintained.
+  (Superseded by rev-5: the parent ran the AU suite and the observer; see
+  "AU Implementation Session — rev-5".)
+- PIB-543's PRD row says every observer "exits 3"; the product's doctor is
+  warning-only (`DoctorExitCode` returns 0 when only warnings exist), so rev-4
+  asserts the real exit 0 and the rendered corrupt route. **Closed by the
+  rev-17 erratum**, which corrects the row to product truth.
+- PIB-543's PRD row also expects the printed `rm -rf --` procedure from every
+  observer. Rev-4 recorded this as "`prepare`/`--regenerate`/`--manual` emit
+  the short `prepareArchiveRepairText` remediation instead". **That reading is
+  wrong and is withdrawn by rev-5**: `prepareArchiveRepairText`'s short string
+  is the `refusePrepare` default, but `prepareStoreArchiveFailure`'s
+  `IntentArchiveCodeBlobCorrupt` arm overwrites it with the full destructive
+  warning + `rm -rf -- <blobRel>` + literal purge retry + restore alternative +
+  Git-history caveat (`internal/cli/prepare_publish.go`). Rev-5 asserts that
+  exact string on all three surfaces; the rev-17 erratum records the
+  presentation difference (quoting and the absent `retry_cwd` pair) instead of
+  a missing route.
+- PIB-544's PRD row names `afterPurgeBlobRevalidate` among the four drivers;
+  rev-4 deliberately does not use it, because that seam is the PIB-550
+  final-syscall residual. Window 1 uses a `CaptureIndex` storage spy for the
+  same reason the store fixture uses `before:capture-index`. **Closed by the
+  rev-17 erratum**, which replaces the row's driver list with the store
+  fixture's authoritative seam mapping.
+- PIB-545's guard is source-structural: it proves the removal gate exists and
+  dominates, not that the predicate is semantically correct at runtime. The
+  runtime proof of that property stays with PIB-539/PIB-540/PIB-544.
+
+### AU Implementation Session — rev-5 (joint review findings)
+
+Rev-5 is a bounded fold of the joint review of rev-4. It changes one test file
+(three test bodies), three tracking/contract documents, and reverts the last
+two rev-3 store edits; it weakens no expectation and adds no product behaviour.
+
+**1. PIB-538 tautological post-command snapshot removed.**
+`TestS7AUManualModeRefusalContracts` re-read the feature directory twice
+*after* the command and compared the two reads, which can never fail. The
+whole-`.tpatch` pre/post byte comparison two statements above it is already the
+exact zero-write proof, so the block is deleted rather than repaired. The
+now-dead `report.Refusal != nil` guard in the forbidden-word loop — the nil
+case already fatals above it — is dropped with it. The write-spy count, the
+refusal code per fixture class, the forbidden-word ban and the leak check are
+unchanged.
+
+**2. PIB-542 decode spy armed and the admitted branch asserted.**
+`TestS7AUDisjointSelectorRefusalContracts` now arms the existing
+`s7ASAfterPurgeIndexDecode` linkname seam immediately before each of the four
+main selector invocations and restores the previous hook on the next statement,
+with no failure path in between; the counter only counts decodes of this slug's
+own `index.json` rel path, and a selector that decides without one is fatal.
+That is the row's "a decode spy confirms the whole-index X11 scan ran before
+each of the three refusals **and** before the admission".
+The corrected `--all` branch now asserts the whole admitted outcome: exit 0,
+`outcome: "purged"`, `action: "none"`, no refusal, `remaining_repairs` absent,
+`blast_radius` byte-equal to the shipped constant
+(`s7AUAllBlastRadius` — tombstones every reference/removes every blob, the
+unconfirmed preview default and the narrower repeated-`--blob` alternative in
+one string), both the `h₂` and `h₃` blobs gone from disk, and no workspace-root
+leak. The disclosure is carried by the JSON `blast_radius` field, so no human
+(non-JSON) preview run is needed to observe it. The three refusal branches keep
+their whole-tree byte equality and now also assert that both managed blob paths
+still exist.
+
+**3. PIB-543 bound to the observed refusal presentation.**
+The three mutating readers' actual `remediation` was read out of
+`prepareStoreArchiveFailure` rather than assumed: they emit the full route.
+`TestS7AUCorruptBlobRouteContracts` now asserts the exact composed string —
+destructive warning, `rm -rf -- <repo-relative blobRel>` (unquoted), the
+literal `tpatch feature intent-archive purge <slug> --blob <h> --yes`, the
+restore alternative and the Git-history caveat — for `prepare`,
+`--regenerate` and `--manual`, and asserts those refusals carry no
+`retry`/`retry_cwd` pair, which is where they differ from `list`'s structured
+`retry_cwd: "workspace-root"`. `list` keeps its quoted-procedure, retry and
+`retry_cwd` assertions; `doctor` keeps its real exit code (0, warning-only)
+with exactly one `corrupt-object` D9 finding carrying the quoted `rm -rf --`
+line and the retry. A `--orphans` scan now runs over **every** observer's
+stdout, not just the procedure prose. The rev-17 erratum records the
+presentation split so the row and the product agree.
+
+**4. PRD/ADR rev-17 erratum widened to its true scope.**
+The erratum now covers exactly `PIB-542`, `PIB-543` and `PIB-544` — not one
+row. `PIB-543` is corrected for the doctor warning-only exit 0 beside the
+exit-3 `prepare`/`--regenerate`/`--manual`/`list` observers and for which
+surface carries which presentation of the one route; `PIB-544`'s incorrect
+driver list is replaced by the authoritative seam mapping the store fixture
+`TestRecoverPendingPurgeInsertionWindowsPIB544` already drives, with
+`afterPurgeBlobRevalidate` excluded as PIB-550's fifth-window seam. No decision,
+normative rule, admission condition, precedence rank, emitted exit code, state,
+vocabulary token or count changes; ADR-035's D16 normative text is untouched
+and only its companion-row record moves. The matrix stays at **567** rows with
+**thirty-six** semantic guards, and the §18.1 amendment ledger, the revision
+rows, both headers and both bylines were updated together.
+
+**5. Store surface reduced to one uncommitted production change.**
+The rev-3 `SelectorAll` admission guard was already reverted; rev-5 also
+reverted the whitespace-only churn in
+`internal/store/intent_archive_purge_test.go`, so that file is byte-identical
+to `origin/main`. The **only** surviving store change is the uncommitted
+three-line clamp in `publishIntentArchiveIndex`
+(`internal/store/intent_archive.go`): an index CAS that did **not** commit and
+whose inherited typed error carries `ExitClass 5` is clamped to **3** before
+the code is rewritten to `archive-purge-index-changed`. Without it the
+PIB-544 fifth fixture — an external insertion before a new selection's first
+write — inherits `intentpub`'s `entry-changed` exit 5 although nothing was
+written, contradicting the row's exit 3 whole-tree-snapshot expectation;
+`intentArchiveExitAfterMutation(false)` is already 3, so the clamp restores the
+store's own uncommitted-failure exit class rather than inventing one.
+
+**Files changed in rev-5:**
+- `internal/cli/prepare_s7_au_runtime_test.go` — PIB-538 snapshot block
+  removed; PIB-542 decode spy, admitted-branch and blob-path assertions plus
+  the `s7AUAllBlastRadius` constant; PIB-543 exact mutating-route assertions,
+  structured-retry check and per-observer `--orphans` scan.
+- `docs/prds/PRD-prepare-intent-bundle.md` — rev-17 status/acceptance/byline,
+  the rev-17 revision row, the §18.1 amendment ledger entry, and the `PIB-543`
+  and `PIB-544` matrix rows.
+- `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` — rev-17 status,
+  acceptance note, byline and revision row, all companion-row only.
+- `docs/handoff/CURRENT.md` — this section, the erratum intake paragraph, the
+  rev-3/rev-4 superseded claims and the Status/Next Steps lines.
+- `internal/store/intent_archive_purge_test.go` — reverted to `origin/main`.
+
+**Rev-5 status: TESTED AND APPROVED.** The full AU/store/CI suite passes in
+12.291s / 0.251s; the nine-target observer passes in 15.398s package. `gofmt`,
+affected vet and CLI build pass. Final review confirms every prior finding is
+closed and explicitly approves the `publishIntentArchiveIndex` clamp.
+- AU production/test/observer/CI code is checkpointed at `bbf093e` by
+  explicit-path staging with the required trailer.
+
+**Residuals:**
+- PIB-543's exact-string assertion binds the three mutating surfaces to
+  `prepareStoreArchiveFailure`'s current composition. If that message is ever
+  reworded, the test fails loudly rather than silently, which is the intent,
+  but the reword must then be reflected in the `PIB-543` row too.
+- The `publishIntentArchiveIndex` clamp is approved production code for
+  PIB-544's zero-write new-selection CAS race.
+
 ## Next Steps
 
-1. Implement AU `PIB-537`…`PIB-545` with exact ledger and hosted observer.
-2. Validate its G same-validator and both crash-window rows.
-3. Obtain independent review before checkpointing AU.
-3. Obtain independent review before checkpointing AT.
-4. After green blocking CI, implement AU–AX, remaining
+1. Checkpoint AU rev-5 and the paired rev-17 erratum by explicit paths.
+2. Push and require green blocking CI.
+3. After green blocking CI, implement AV–AX, remaining
    sensitivities and the full 567 ledger from exact runtime/document
    observables; obtain clean review.
 5. Run joint internal/external review to acceptance; only then select the

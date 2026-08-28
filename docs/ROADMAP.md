@@ -1382,6 +1382,9 @@ implementation is checkpointed at `496016a`.
 CI 33117127691 is green across all five blocking jobs. AT is durably closed at
 142/173 cumulative rows; AU (`PIB-537…545`, I6/C2/G1) is active from
 `c14f790`.
+AU rev-5 and paired PRD/ADR rev-17 no-decision errata are APPROVED: nine exact
+rows, all prior review findings closed, local suite/observer/vet/build green.
+Checkpoint and blocking CI remain before AV.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

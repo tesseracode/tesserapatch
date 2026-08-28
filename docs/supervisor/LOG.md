@@ -1,3 +1,90 @@
+## Review — prepare S7 AU rev-5 + rev-17 erratum — 2026-08-27
+
+**Reviewer**: `s7-au-joint-review`, `s7-au-rev5-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+All AU code findings are closed. Rev-17 corrects exactly PIB-542/543/544
+without changing D16, row/kind/category counts or the 36-guard total. The
+uncommitted CAS exit clamp is explicitly approved. The final record now carries
+the 12.291s suite, 15.398s observer, formatting, vet and build evidence.
+
+### Action Taken
+
+AU implementation/CI is checkpointed at `bbf093e` by explicit-path staging
+with the required trailer. The paired erratum/tracking checkpoint and blocking
+CI follow.
+
+## Supervisor Decision — prepare S7 AU rev-2 resources — 2026-08-27
+
+**Decision**: **BLOCKED — authoritative memory gate**
+
+Static review approves rev-2, but the required 60-second >=80%-free gate did
+not open during a 10-minute wait (ending at 68%; subsequent samples 66–71%).
+No Go toolchain process is active. The largest external consumers include
+another independently owned Copilot session and Chrome; do not terminate them.
+
+## Review — prepare S7 AU rev-2 executable — 2026-08-27
+
+**Reviewer**: supervisor executable pass
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The resource-gated suite exposed seven defects: PIB-544 removes a blob while
+its injected retained reference is visible; PIB-545 extracts no baseline
+classification branches; PIB-537's synthetic type graph cannot import Cobra;
+PIB-539 builds a foreign archive index; PIB-542's `--all` fixture is admitted
+instead of exercising the required disjoint-class refusal; PIB-543 invokes
+prepare rather than the owning confirmed purge for its exit-6 half; and the CI
+owner union omits AU.
+
+### Action Taken
+
+Dispatch rev-3 to correct fixtures and exact hook linearization. Do not weaken
+the accepted outcomes.
+
+## Review — prepare S7 AU rev-1 — 2026-08-27
+
+**Reviewer**: `s7-au-rev1-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+PIB-545 parses in-memory mutated source under synthetic filenames and then
+tries to read those names from disk. Its baseline therefore always fails and
+all seven mutations are detected vacuously. Two claim/removal sensitivities
+also depend on raw sentinel substrings rather than structural AST authority.
+
+### Action Taken
+
+Dispatch rev-2 to carry source bytes with parsed AST nodes and make all seven
+mutations fail the same semantic/structural validator without string markers.
+
+## Review — prepare S7 AU rev-0 — 2026-08-27
+
+**Reviewer**: `s7-au-rev0-review` + executable supervisor pass
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+AU rev-0 does not compile (`IntentArchiveRepairOrphanedResidue` is undefined).
+Six ledger targets are aggregate wrappers, PIB-540 uses recoverable panics
+instead of process crashes, PIB-544's hook linearization is uncertain,
+PIB-545 is shallow string/AST presence rather than the required semantic
+authority, and PIB-537 is not bound to PIB-511's domain.
+
+### Action Taken
+
+Dispatch rev-1 to use direct top-level targets, subprocess crash fixtures,
+exact insertion seams, exhaustive classifier authority plus claim/removal CFG
+proof, and a structural PIB-511 domain binding.
+
 ## Review — transaction sensitivity notes — 2026-08-27
 
 **Reviewer**: `review-notes-tests`
