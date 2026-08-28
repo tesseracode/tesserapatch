@@ -344,7 +344,10 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 			changed = append(changed, id)
 		}
 	}
-	wantChanged := []string{"PIB-402", "PIB-403", "PIB-425"}
+	wantChanged := []string{
+		"PIB-402", "PIB-403", "PIB-425",
+		"PIB-542", "PIB-543", "PIB-544",
+	}
 	if fmt.Sprint(changed) != fmt.Sprint(wantChanged) {
 		return fmt.Errorf("rev-16 actual matrix row changes = %v, want %v", changed, wantChanged)
 	}
@@ -368,7 +371,7 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", label, err)
 		}
-		if len(revisions) < 2 || revisions[len(revisions)-2] != 15 || revisions[len(revisions)-1] != 16 {
+		if len(revisions) < 2 || revisions[len(revisions)-2] != 16 || revisions[len(revisions)-1] != 17 {
 			return fmt.Errorf("%s revision predecessor = %v", label, revisions)
 		}
 	}
@@ -428,21 +431,22 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "PRD",
 			base:  input.basePRD, current: input.prd,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "1ba5bd8382209f0309c907b9455d10a69c755e2af78e08269cc5ddcecdbc78d5"},
-				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "254d361cbfdf7a0c9495936c03e74c202fd21518784a2e52cccab86c29d772a9"},
+				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "7450fbeef810da38de9223490da93bc9abf48bcefc677d47949c6d0516212cb6"},
+				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "17909fb698b8d56d555558b03c3a62a9f7cb225f696702c63c5871f54b42b103"},
 				{label: "section-9.3-rehydration", heading: "### 9.3 `index.json`", baseHash: "fd9f4f35b499a2b17a60c6d256b9c1ff2448b57ef750e9f1f367505406e5ecc9", currentHash: "e8298d7394da53eee093bfc0b3b1e7a61bea0c8579fea731922b63f6a5e98254"},
 				{label: "section-9.7.1-consistency", heading: "#### 9.7.1 Selection and shared references", baseHash: "3210b5cf279b85e0f53e3d9edaa3caae1677849392155d06690455ae59f3287c", currentHash: "03b78d83c11bc56599cbb8e71cdb4f11f9506ed3c13922215e82a252ff0b1d93"},
 				{label: "mechanical-slice-summary", heading: "### 17.2 Slices", baseHash: "32831b33b9200267975945357a3f035ad8ac84d8c91720496007986fcdea8f2a", currentHash: "d18b0764ee3c2985016ba5efe2c6aca5d1c32765ee9844e32a1dacdfd82aca05"},
-				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "102b0bda5cb26b0489aefd5bce70f46a12d970fa092529ac49851fc8244573f4"},
+				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "11aa208cf76d4800615c11e154416ee3f2f3a93bbf234a5c78c7a7a4399616d3"},
 				{label: "matrix-pib-402-403", heading: "### 18.40 AM — Rev-2 adjudication rows, amended by rev-3", baseHash: "ea342198fd9ecfe95385245fb29af8f89dab05332ea7d63947a488907637a2b6", currentHash: "307e6c60f1b23cd64ca254aaef2e49135eb0c0cf33475e8fc887c9b5b7def16a"},
 				{label: "matrix-pib-425", heading: "### 18.41 AN — Rev-3 adjudication: directory authority, privacy and archive truth", baseHash: "c3812ced4e0254b749cc1b9e24ecf8b284223678619de5966aa16f25e50ed3a0", currentHash: "5edc1c5c1ccac9f836099faee0c2c329da858b7cab357b96df9bd50fae3efc5d"},
+				{label: "matrix-pib-542-544", heading: "### 18.48 AU — Rev-10 adjudication: global pending ownership, selector-independent validation and the corrupt-blob route", baseHash: "7b8dc7b2b98655beef1f5f03706cc832d21a48699418d24ffc13396d8d237d01", currentHash: "0c5a59211d322812d6c14dd37cd99b2ffc78fc60d2df43602bc36435fab37098"},
 			},
 		},
 		{
 			label: "ADR",
 			base:  input.baseADR, current: input.adr,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "d6607aca9f22683063c2ae3f3aba29f287b0eb102e19b7c969756d49dc11cd3e"},
+				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "79af540d36b91ba1c3921b92c301c34974fc04b82219c9c37293ceeb4683176a"},
 				{label: "D10-pending-owner", heading: "### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes", baseHash: "04b8affc6125b69e4191b2b30d6cb8c9760e0ab872abf9aa520aa53040a4b4e5", currentHash: "c9b97c41e7e1127dad58fe227aa06e3f62da053a468661d3333fa255db819380"},
 				{label: "D13-terminal-owner-precedence", heading: "### D13 — Recovery has three entry points, it is terminal, the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing", baseHash: "77633643c1cc2c1b5607ba673cfe8af6b17d25d47510e1c6904b0a0f50c6cbb1", currentHash: "b5b45839dc04492a0673aa44b232d7138fff88cc7b8657072feb26c0c01a454f"},
 				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "e2131eeb1727beca9783d7d81f428e765bf6b8f2ccb15814c10a4e4510111e21"},
