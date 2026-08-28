@@ -6803,6 +6803,13 @@ CI guard `65a16685`, workflow `38754ccc`, common authority dependency
   (I6/C2/G1), covering abandon boolean semantics, manual archive precedence,
   global pending ownership, claimed-hash crash/insertion windows, coexisting
   observation/admission behavior and derived claim/removal authority.
+- External Group A+B review at baseline `81885a9` returned **APPROVED WITH
+  NOTES**. Its two LOW findings were sensitivity gaps, not production defects.
+  Direct owning-package tests now pin semantic-no-op CAS drift to exit 5
+  `CodeEntryChanged` / `no-op-cas` while preserving editor bytes, and reject a
+  mismatched artifact `Rel` as `CodeInvalidPlan` / `canonical-path`. Both pass
+  together in 0.555s package. Independent review is **APPROVED** with no
+  findings; the dedicated test-only checkpoint is `87c8763`.
 
 **Suggested exact selectors:**
 

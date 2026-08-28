@@ -1,3 +1,44 @@
+## Review — transaction sensitivity notes — 2026-08-27
+
+**Reviewer**: `review-notes-tests`
+
+### Verdict: APPROVED
+
+### Notes
+
+Both tests reach the intended timing and exact guard. The semantic no-op case
+distinguishes clean exit-5 rollback from the final-verification exit-6
+backstop, and the malformed plan differs only at the canonical artifact path.
+No significant issue found.
+
+### Action Taken
+
+The two test-only fixes are checkpointed at `87c8763` with explicit-path
+staging and the required trailer. AU implementation may proceed.
+
+## Review — prepare transaction core + generators/D9 — 2026-08-27
+
+**Reviewer**: external review at baseline `81885a9`
+
+### Verdict: APPROVED WITH NOTES
+
+### Notes
+
+Production behavior is correct. Two LOW sensitivity gaps were found:
+semantic-no-op drift before publication was not pinned to exit 5
+`entry-changed [no-op-cas]`, and a plan artifact could be mutation-tested past
+its canonical-path binding without an owning-package failure.
+
+Both gaps now have direct `internal/intentpub` bites:
+`TestExecuteSemanticNoOpCASRejectsDriftBeforePublication` and
+`TestPlanRejectsArtifactBoundToNoncanonicalPath`. They assert the exact code,
+class, artifact, exit class, rollback outcome and preservation boundaries.
+
+### Action Taken
+
+Address the notes in a dedicated test-only checkpoint before AU. No production
+change or architecture amendment is required.
+
 ## Supervisor Decision — prepare S7 AT close / AU dispatch — 2026-08-27
 
 **Decision**: **AT ACCEPTED — AU DISPATCHED**
