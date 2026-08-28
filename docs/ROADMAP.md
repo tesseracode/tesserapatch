@@ -1389,8 +1389,8 @@ Corrected CI 33153117728 is green across all five blocking jobs. AU is durably
 closed at 151/173 cumulative rows. AV rev-2 and paired rev-18 no-decision
 erratum are accepted at `b6b1709`; CI 33166330402 is green across all five
 blocking jobs. S7 is 157/173 and AW (`PIB-552…560`) is active.
-AW rev-2 is APPROVED with nine exact rows and green local target, observer,
-vet/build and full non-observer gates; checkpoint and blocking CI remain.
+AW rev-2 is accepted at `31192a0`; CI 33177631054 is green across all five
+blocking jobs. S7 is 166/173 and AX (`PIB-561…567`) is active.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

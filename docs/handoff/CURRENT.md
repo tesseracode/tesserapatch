@@ -36,6 +36,10 @@ pin follows the reviewed function body. The exact AW suite, observer, vet,
 build and full non-observer suite pass. Checkpoint and blocking CI are next.
 AW production, exact tests and observer/CI guards are checkpointed at
 `0d0cc25`.
+AW is durably accepted at `31192a0`: CI
+[33177631054](https://github.com/tesseracode/tesserapatch/actions/runs/33177631054)
+passed all three platforms and both observer jobs. Cumulative S7 is 166/173.
+S7 AX (`PIB-561`…`PIB-567`, seven rows) is now dispatched sequentially.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1811,7 +1815,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AW checkpointed at `0d0cc25`; CI next**
+- **Status**: **In progress — S7 AX dispatched from `31192a0`**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship

@@ -1,3 +1,13 @@
+## Supervisor Decision — prepare S7 AW close / AX dispatch — 2026-08-28
+
+**Decision**: **AW ACCEPTED — AX DISPATCHED**
+
+CI [33177631054](https://github.com/tesseracode/tesserapatch/actions/runs/33177631054)
+is green on Ubuntu, macOS, Windows and both observer jobs. AW closes at nine
+exact rows (`PIB-552`…`PIB-560`, I4/G5); cumulative S7 is 166/173.
+AX (`PIB-561`…`PIB-567`, seven rows) is dispatched sequentially from
+`31192a0`.
+
 ## Review — prepare S7 AW rev-2 — 2026-08-28
 
 **Reviewer**: `s7-aw-final-review`
