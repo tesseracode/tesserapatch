@@ -1,3 +1,13 @@
+## Supervisor Decision — prepare S7 AX close / aggregate dispatch — 2026-08-28
+
+**Decision**: **AX ACCEPTED — S7 173/173**
+
+CI [33198502426](https://github.com/tesseracode/tesserapatch/actions/runs/33198502426)
+is green on Ubuntu, macOS, Windows and both observer jobs. AX closes at seven
+exact rows (`PIB-561`…`PIB-567`, I2/G5); all S7 categories now total 173/173.
+The complete body-sensitive 567-row ledger and G-row sensitivity registry are
+dispatched as the final implementation task before aggregate review.
+
 ## Review — prepare S7 AX rev-2 + rev-19 — 2026-08-28
 
 **Reviewer**: supervisor direct fallback (`s7-ax-joint-review` returned no

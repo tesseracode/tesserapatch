@@ -56,6 +56,11 @@ returned no usable verdict. Rev-19 is checkpointed at `0ecdcb1`; AX exact
 tests and CI observer guards are checkpointed at `5e444d6`. The committed
 rev-19 writer-diff guard passes. Blocking CI is next; final aggregate external
 review remains before release authorization.
+AX is durably accepted at `51382fc`: CI
+[33198502426](https://github.com/tesseracode/tesserapatch/actions/runs/33198502426)
+passed Ubuntu, macOS, Windows and both observer jobs. S7 is now **173/173**.
+The aggregate body-sensitive 567-row ledger and complete G-row sensitivity
+registry are the active pre-release task.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1831,7 +1836,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AX/rev-19 checkpointed; CI next**
+- **Status**: **In progress — S7 173/173; aggregate ledger active**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship

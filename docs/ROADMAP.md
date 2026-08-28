@@ -1394,6 +1394,9 @@ blocking jobs. S7 is 166/173 and AX (`PIB-561…567`) is active.
 AX rev-2 and paired rev-19 are checkpointed at `0ecdcb1..5e444d6`; exact
 target, committed-ledger, observer, vet/build and full non-observer gates pass.
 Blocking CI remains before the 173/173 aggregate close.
+CI 33198502426 is green across all five blocking jobs. AX is durably accepted
+at `51382fc`; S7 is **173/173**. Aggregate 567-row ledger/sensitivity closure
+and final joint review remain before release preparation.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
