@@ -3606,6 +3606,9 @@ func publishIntentArchiveIndex(storage IntentArchiveStorage, feature string, cur
 	}
 	if err != nil {
 		typed := intentArchiveStorageError(err, "cas-index", mutation.Committed, intentArchiveExitAfterMutation(mutation.Committed))
+		if !mutation.Committed && !typed.Committed && typed.ExitClass == 5 {
+			typed.ExitClass = 3
+		}
 		if typed.Code == IntentArchiveCodeStorageFailed {
 			typed.Code = IntentArchiveCodePurgeIndexChanged
 		}
