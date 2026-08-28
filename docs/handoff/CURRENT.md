@@ -1772,6 +1772,24 @@ matrix stays at **567** rows with **thirty-six** semantic guards, and the AU
 fixtures follow the corrected rows rather than the AU tests weakening their
 expectations.
 
+S7 AV is at **rev-2** in the worktree. Review of rev-1 returned five findings,
+all folded here without touching production. The load-bearing one is `PIB-550`:
+rev-1 recorded a PRD-row/implementation divergence rather than resolving it.
+The adjudication is a paired **rev-18 no-decision erratum** in the PRD and
+ADR-035, dated 2026-08-28 and **acceptance pending joint review**. The shipped
+removal is conditioned on a fresh identity re-probe taken inside
+`prepareArchiveStorage.RemoveBlob`, so an external replacement landing at
+`beforePurgeBlobRemove` is refused with the replacement preserved (exit 5
+`archive-purge-partial`, rerun exit 6 `archive-purge-evidence-divergent`), and
+the genuinely open residual narrows to the unseamed gap between that re-probe
+and `root.Remove`. The erratum amends `PIB-550`, §9.7.2's fourth window row,
+its closing residual paragraph, §9.7.2's exit-6 atomicity note, §21's
+alternatives row, the §18.53 sensitivity entries of `PIB-546` and `PIB-551`,
+and ADR-035's paired D16 residual prose and alternatives row. **No decision,
+normative rule, row ID, kind, category, count, command, exit code or emitted
+state changes**; the matrix stays at **567** rows with **thirty-six** semantic
+guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
+
 ## Active Task
 
 - **Task ID**: `implement-prepare-intent-bundle`
@@ -1780,7 +1798,7 @@ expectations.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 AV dispatched**
+- **Status**: **In progress — S7 AV checkpointed at `cf2389f`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -2322,6 +2340,26 @@ file, is the dispatch authority.
   depends on. `internal/store/intent_archive_purge_test.go` and the rev-3
   `SelectorAll` admission guard were reverted and are no longer part of this
   slice.
+- S7 AV (uncommitted worktree, rev-1): the three new AV files
+  `internal/cli/prepare_s7_av_ledger_test.go`,
+  `internal/cli/prepare_s7_av_guard_test.go` and
+  `internal/cli/prepare_s7_av_runtime_test.go`; the observer/CI wiring in
+  `internal/cli/prepare_s7_registration_test.go`,
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go` and
+  `.github/workflows/ci.yml`; and this handoff. **No production source or asset
+  is touched by AV** — every AV row was satisfiable against the shipped seams,
+  so no production change was demonstrated as needed.
+- S7 AV rev-2 (uncommitted worktree) additionally touches
+  `docs/prds/PRD-prepare-intent-bundle.md` and
+  `docs/adrs/ADR-035-intent-bundle-publication-and-history.md` (the paired
+  rev-18 erratum) and `internal/cli/prepare_s7_rev16_test.go` (the erratum
+  evidence guard, which pins both documents against base
+  `2d9492cbf6fd9c69c5aa75d64d05983c05e1563f` and therefore had to learn the
+  rev-18 regions, the seventh changed matrix row and the 16/17/18 revision
+  tail). `internal/cli/prepare_s7_av_guard_test.go` and
+  `internal/cli/prepare_s7_av_runtime_test.go` carry the four test-side folds.
+  **Production, assets, ROADMAP and LOG remain untouched**, and the six AV
+  ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
 
@@ -7459,7 +7497,8 @@ closed and explicitly approves the `publishIntentArchiveIndex` clamp.
   changes `PIB-402/403/425/542/543/544`; baseline plus all sensitivities pass.
 - Corrected CI 33153117728 is green on Ubuntu, macOS, Windows and both
   observer jobs. AU is durably complete at I6/C2/G1; cumulative S7 is
-  151/173. AV (`PIB-546`…`PIB-551`) is active.
+  151/173. AV (`PIB-546`…`PIB-551`) is implemented at rev-1 in the worktree
+  and awaiting review; with it S7 would be 157/173.
 
 **Residuals:**
 - PIB-543's exact-string assertion binds the three mutating surfaces to
@@ -7469,20 +7508,425 @@ closed and explicitly approves the `publishIntentArchiveIndex` clamp.
 - The `publishIntentArchiveIndex` clamp is approved production code for
   PIB-544's zero-write new-selection CAS race.
 
+### AV Implementation Session — rev-1
+
+**Scope**: `PIB-546`…`PIB-551` (PRD §18.49), dispatched from the post-AU
+baseline `d6aa482` (`docs: close S7 AU and dispatch AV`). Manifest kinds parsed
+from the PRD are `546 G`, `547 I`, `548 I`, `549 G`, `550 C`, `551 G` — the
+ledger asserts `I` 2 / `C` 1 / `G` 3, which matches §18.52's "rev-11 added
+`I` 2, `C` 1 and `G` 3". Six direct top-level exact targets, no skips and no
+proxies; every guard reuses the AU/AT/AS helpers and the shipped injection
+seams.
+
+**Ledger, observer and CI**
+
+- `internal/cli/prepare_s7_av_ledger_test.go` registers the six rows against
+  six top-level bodies, resolves each through the shared AST resolver, asserts
+  the kind counts and re-asserts that the accepted AM–AU partitions
+  (54/12/34/23/15/10/6/9) are unchanged.
+- `s7ObservedCategoryAV` is added at **8m outer / 4m inner / 1m cleanup**,
+  `first: 546`, `last: 551`, `targets: 6`, in both the live budget map and the
+  independent `want` map the budget validator compares against. Three new
+  wrong-input arms (`wrong-av-range`, `wrong-av-target-count`,
+  `missing-av-category`) plus a cross-category arm (AV must reject AU's
+  targets) keep the budget guard sensitive.
+- CI: `AV` joins the full-suite `-skip` partition pattern, a dedicated
+  `TestS7ObservedAVRegistrationAuthority` step joins the `s7-observers` job,
+  and the guard gains `s7CIAVObserverPattern` /
+  `s7CINonWindowsAVObserverCommand`, the observer-script tail, the
+  observer-command partition list, the **owner** regexp set, the
+  **recursion** exclusion list (the observed-registration regex must not match
+  the AV observer itself) and two new workflow sensitivities
+  (`observer-av-command-removed`, `observer-av-command-failure-masked`).
+
+**PIB-546 — `TestS7AVRecoveryBeforeGlobalScanGuard` (G)**
+
+`s7AVValidateRecoveryOrdering` derives the ordering from control flow, not
+prose. It parses `internal/store/intent_archive.go`,
+`internal/cli/feature_intent_archive.go` and `internal/cli/prepare_publish.go`;
+derives the archive-mutating primitives as the three writing storage methods
+(`PublishBlob`, `CASIndex`, `RemoveBlob`) and the global X11 scan as
+`InspectIntentArchive`; resolves the CLI's package-level store indirection vars;
+derives the command entry points as the `run*` runners no other runner
+delegates to; and then threads a "has the global scan already run on this path"
+fact through the structured control flow (if/else, switch/select, loops,
+returns, inlined callees, cycle-guarded and memoised). Every mutation the fact
+does not dominate is a finding attributed to the outermost store API on the
+stack. The baseline yields **exactly one** route — `RecoverPendingPurge` — from
+**exactly one** entry point, the confirmed purge. The guard additionally proves
+the recovery is restricted to `PendingIntentArchiveHashes` and iterates that
+set, that the `recovered` branch of `runFeatureIntentArchivePurgeConfirmed`
+terminates with a return, and that the single `intentArchivePlanPurge` call sits
+after it.
+
+The runtime half runs the derived property end to end on an archive holding a
+removal-pending `h₁` and an unrelated mixed `h₂`: `purge <slug> --orphans --yes`
+and `purge <slug> --blob <h₂> --yes` both exit **0** `recovered`, finalize `h₁`
+(blob gone, every reference tombstoned), leave `h₂`'s blob byte-identical and
+its retained/tombstoned pair untouched, and carry the
+`recovered-prior-transaction` advisory rather than processing the selector. The
+`--orphans` rerun then performs the full global scan and refuses exit 3
+`archive-index-storage-inconsistent`; the `--blob <h₂>` rerun is admitted and
+repairs it. A mutating `prepare` over the same archive refuses exit 3
+`recovery-pending` before each run.
+
+Three same-validator semantic sensitivities, all valid Go with correct names:
+running `store.CaptureIntentArchive` before the recovery (→ "no path mutates
+before the global scan"), demoting the recovered branch's `return` to `_ =`
+(→ "continues into the selector"), and granting the same exception to the
+mutating prepare by calling `store.RecoverPendingPurge` before its
+`recovery-pending` refusal (→ two entry points).
+
+**PIB-547 — `TestS7AVPrintedRemovalProcedureContracts` (I)**
+
+Both printed procedures are executed verbatim from the workspace root, over
+five object kinds at the managed blob path: a hash-wrong regular file, a symlink
+to a file **outside** `.tpatch/`, a directory containing **two** files, a real
+FIFO, and a device node through PIB-560's injected file-kind seam
+(`s7ARInstallDeviceProbe`). The divergent-blob procedure is driven through the
+owned exit-6 route (`s7AROwnedDivergenceFixture` + `s7ARReplaceArchiveBlobKind`);
+the corrupt-object procedure is driven through `list` on an independent
+non-owned fixture of the same kind.
+
+`s7AVValidatePrintedRemoval` is the single validator for the ten real
+observations, the must-pass caveat fixture and the three must-fail fixtures. It
+tokenises rather than scans: the removal must split to exactly
+`["rm","-rf","--",<managed blob path>]` (no wildcard, no second path, no
+directory prefix above the blob, no `-i`/`-I`/`--interactive`), the destructive
+warning must appear above it, §10.7 rule 2's closed `argv[0]` allowlist
+`{tpatch, rm}` is applied to every structural command line **and** to any
+remaining line in invocation shape, and §10.7 rule 3 fails a forbidden token
+only as inline code or immediately followed by an option- or path-shaped word.
+Each printed line is then run with `sh -c` from the workspace root: it exits 0
+silently, the path is absent afterwards, the symlink's target file is
+byte-identical, and the sibling blob is byte-identical. The index-divergence
+form names no removal command, no blob field, no `rm -rf` and no managed blob
+path on either surface.
+
+Sensitivities: rev-10's `cp` + plain `rm` pair, `rm -rf <path>` without the `--`
+terminator, and a correct `rm -rf --` beside rev-11's own
+`cp -R … cp -P … git show` prose. The must-pass fixture is §9.6.2's caveat
+"it is still in this repository's Git history", which rev-12's prose-substring
+rule would have failed.
+
+**PIB-548 — `TestS7AVMultiInstanceRepairClassContracts` (I)**
+
+Five real archives built by one spec-driven fixture builder. (a) three globally
+unreferenced tombstone-beside-blob residues: `list` renders all six
+observations (three generation entries + three orphan rows) carrying the
+**identical** class repair `purge <slug> --orphans --yes`, `doctor --check D9`
+emits exactly **one** `unreferenced-residue` finding naming all three paths with
+that same remediation, and one `--orphans --yes` exits 0 removing all three with
+`index.json` byte-identical. (b) two dangling hashes and (c) two mixed hashes:
+each instance renders the same class-total repeated-`--blob` command, `doctor`
+emits one finding per class, and one invocation completes (b) with **zero**
+removals and (c) with **two** removals (proved by a `RemoveBlob` spy), after
+which `list` exits 0 and an ordinary mutating `prepare` proceeds. (d) classes
+(a)+(c) together at the **rev-12 sequential outcome**: `--generation <id> --yes`,
+`--all --yes` and the partial `--blob <h₁> --yes` each refuse exit 3 with a
+byte-identical `.tpatch` tree and a `remaining_repairs` object rendering **both**
+routes in rank order; `--orphans --yes` is then admitted at exit 0
+(`purged`/`none`) with the three residue blobs gone, `index.json` byte-identical,
+both mixed blobs byte-identical, `repaired_class: unreferenced-residue`,
+`stages_remaining: 1` and a single `mixed-reference` stage; the rerun over both
+mixed hashes exits 0 with nothing remaining. (e) the same archive plus one real
+`corrupt-object` (a directory at a managed blob path under a retained
+reference): **every** selector — `--orphans --yes` included — refuses exit 3
+zero-write with `archive-blob-corrupt` and a `next_stage` of kind
+`manual-prerequisite` / class `corrupt-object`.
+
+**PIB-549 — `TestS7AVRepairAdmissionPredicateGuard` (G)**
+
+`s7AVValidateAdmissionPredicate` derives §9.3.1's predicate from
+`admitIntentArchiveRepair` and `InspectIntentArchive`: the corrupt-first
+precondition must exist, must not be conditioned on the observed class set's
+cardinality, must terminate and must carry no `else`; no gate may compare the
+class set against any cardinality other than zero (the "nothing is wrong" early
+exit); the single closed selector switch must admit exactly
+`unreferenced-residue` for `--orphans`, exactly `{dangling, mixed}` for
+`--blob`, nothing for `--generation`, and only a **sole** observed class for
+`--all`; the `--orphans`/`--blob` arms must require set **equality** against the
+class report's hashes and must not condition on an instance count; and the
+class-collapse switch must decide ownership first and the unidentifiable
+observation second, unconditioned on liveness, assigning at most one class per
+hash.
+
+Six same-validator semantic sensitivities: rev-10's sole-inconsistency rule,
+rev-11's sole-class rule, a partial-coverage admission, `--all` admitted beside
+a second class, a precedence change that routes a mixed-plus-unidentifiable hash
+to `mixed-reference`, and rev-12's rule that a corrupt object does not block the
+other classes.
+
+**PIB-550 — `TestS7AVRevalidateUnlinkWindowContracts` (C)**
+
+The window is driven exactly where the row specifies: an external writer
+replaces the managed object at `beforePurgeBlobRemove`, gated on
+`afterPurgeBlobRevalidate` having already fired for the same path, over both a
+replacement **regular file** and a replacement **directory**. The guard half is
+implemented as specified — `s7AVValidateWindowDisclosure` proves the PRD §9.7.2
+five-window table and ADR-035's residual paragraph both disclose the
+revalidate→unlink replacement **beside** the post-CAS final-syscall race (and in
+that order), that both still deny closure, and that no normative sentence and no
+shipped surface **asserts** closure. Claim detection is sentence-scoped so the
+documents' own denials ("No shipped message claims this window is closed") pass,
+and alternatives-table rows (`| Claiming …`) and acceptance-matrix rows
+(`| PIB-…`) are excluded as quotation rather than assertion. Four sensitivities:
+the closure claim added to the PRD's normative row, to ADR-035's normative
+paragraph, to a shipped report string, and the final-syscall race dropped from
+the disclosure.
+
+**PIB-550 behaviour divergence — recorded at rev-1, adjudicated at rev-2 by the
+paired rev-18 erratum (see the rev-2 section below).** The rev-11 row asserted
+that the unlink removes the replacement and the invocation ends at exit 0
+`recovered` with the byte-level loss undetected. That is **not** what the
+shipped product does at this seam, and the test asserts the shipped behaviour
+instead. `prepareArchiveStorage.RemoveBlob` calls `PreflightBlobRemove`, which
+re-probes the managed object's identity token immediately before `root.Remove`,
+so a replacement landing at `beforePurgeBlobRemove` is **detected**: both kinds
+end at exit **5** `archive-purge-partial` with `resume:
+pending-recovery-then-completion`, `pending_hash: h`, zero completed hashes, the
+replacement object byte-identical (no byte-level loss at all), the hash still
+removal-pending, and the rerun routing to exit 6
+`archive-purge-evidence-divergent` naming the managed blob path. The genuinely
+open residual therefore narrows to the probe→unlink syscall gap, which has no
+injection seam and is exactly the already-disclosed final-syscall race. **This
+is a PRD-row/implementation divergence for the supervisor to adjudicate** — the
+honest fix is a rev-N erratum to PIB-550's asserted observable, not a
+weakening of the shipped identity re-probe. No production code was changed.
+**Rev-2 took exactly that route**: the rev-18 erratum now states the shipped
+observable, and the test asserts it against the corrected contract rather than
+against a contradicted one.
+
+**PIB-551 — `TestS7AVDispositionTableTotalityGuard` (G)**
+
+`s7AVValidateDispositionTotality` derives both sides. The domain comes from the
+declared `IntentArchiveWireState` and `IntentArchiveBlobState` constants
+(3 × 3 × 2 × 2 = **36**); reachability is computed independently from §9.3's
+three dependencies and the **18** ruled-out tuples are asserted by partition
+(**6** retained × unreferenced, **9** removal-pending, **3** tombstoned × owned ×
+unreferenced), leaving **18** reachable. A bounded interpreter over the real
+source of `IntentArchiveTupleReachable` and `ClassifyIntentArchiveTuple`
+produces the mapping, and its faithfulness is proved by cross-checking all 36
+tuples against the live shipped functions before any fixture is judged. The
+shipped §9.3 table is parsed from the PRD: exactly **18** rows, contiguous
+ordinals, a bijection onto the reachable set, no duplicated tuple, no row over an
+unreachable tuple, and each row naming exactly the one repair family its
+interpreted classification assigns (with the corrupt row permitted to name the
+dangling follow-up its own prerequisite produces, and never `--orphans`). The
+two rev-12 splits — rows 10/11 on liveness and rows 13/14 on hash-correctness —
+are asserted directly as four distinct rows. Ownership precedence is asserted
+over every reachable owned tuple: no repair class, no code, no exit class, and
+action `route-pending-owner`.
+
+Four same-validator sensitivities: dropping the retained/absent-and-owned tuple
+so an owned dangling reference is classified `archive-blob-dangling`; adding a
+second route (`--orphans --yes` beside the corrupt procedure) to the
+tombstoned/present-unidentifiable row; re-collapsing rows 13 and 14 into
+rev-11's single row (17 rows); and duplicating a row so the count disagrees with
+the stated domain (19 rows over 18 tuples) — which a count-free totality check
+would pass.
+
+**AV rev-1 test results (macOS, local):**
+
+- `go test ./internal/cli -run '^(TestS7AV.*|TestS7CI.*|TestS7ObservedRegistrationWrongInputs)$'`
+  — pass, 5.881s package.
+- `go test ./internal/cli -run '^TestS7ObservedAVRegistrationAuthority$'` —
+  pass, 4.748s package (six-target overlay observer).
+- `gofmt -l .` clean; `go vet ./...` clean; `go build ./cmd/tpatch` clean.
+- Full non-observer suite with the CI skip pattern
+  (`go test ./... -count=1 -timeout 40m -skip '…|AS|AT|AU|AV)RegistrationAuthority)$'`)
+  — every package **ok**; `internal/cli` 366.230s, `internal/workflow` 104.890s,
+  `internal/store` 10.533s. No regression.
+
+**AV rev-1 residuals (see the rev-2 section for their disposition):**
+
+- **PIB-550's asserted observable is falsified by the shipped storage layer**
+  (see above). **Closed at rev-2** by the paired rev-18 no-decision erratum;
+  no production behaviour changed.
+- **PIB-547's caveat wording is split across the two procedures.** The exact
+  rev-13 sentence "it is still in this repository's Git history" ships on the
+  divergent-blob (exit-6) surface. The corrupt-object procedure printed by
+  `list`/`doctor` carries §9.6.2's caveat in its own shipped wording
+  (`intentArchiveHistoryDisclosure`, "A committed blob remains in Git
+  history…"). The test asserts the exact sentence where it ships and a
+  Git-history caveat on the other surface, and both are required to pass the
+  tokenizer — which is the property the rev-13 correction is actually about.
+  Whether the two surfaces should be unified on one sentence is a contract
+  question, not an implementation gap.
+- PIB-551's table parser is deliberately strict: an unrecognised wire-state or
+  blob-observation phrase in a §9.3 row is an error, not a default. Rewording a
+  row without updating the parser fails loudly, which is the intent.
+- PIB-546's flow walker treats a loop body as executing zero or more times, so
+  it is conservative in the "not yet scanned" direction. It reports a possible
+  pre-scan mutation rather than proving one on a concrete path; the runtime
+  half is what proves the concrete path. **Still true at rev-2**, and
+  deliberately so.
+- PIB-546's rev-1 memo was keyed on `function|scanned` alone and cached only
+  the resulting scan fact, so a helper first walked under one route reported
+  nothing when a second route reached it. **Closed at rev-2.**
+- `internal/cli` is now 366s locally for the non-observer suite. It remains
+  under the 40m CI package budget with wide margin, but it is the slowest
+  package by an order of magnitude.
+
+### AV Implementation Session — rev-2 (five review findings)
+
+**Scope**: the five findings raised against AV rev-1. No production source or
+asset is touched, no Go command was run in this session (documents and tests
+only), and the six AV ledger rows keep the same six exact top-level targets.
+
+**F1 — `PIB-550`: adjudicate the divergence with a paired erratum.** Rev-1
+recorded that the shipped storage detects the replacement instead of removing
+it. Rev-2 amends the contract rather than the product, as a **rev-18
+no-decision erratum** dated 2026-08-28, **acceptance pending joint review**, in
+both documents:
+
+- PRD header (Status, a `**Rev-18 acceptance**` block, Byline and the
+  Architecture companion note), a `| rev-18 |` revision-history row, and the
+  §18.1 amendment-ledger paragraph;
+- PRD §9.7.2's **fourth window row**, which now states that the removal carries
+  step 2's identity, that `prepareArchiveStorage.RemoveBlob` re-probes the
+  managed object immediately before the syscall and refuses a mismatch, that the
+  replacement is preserved at exit **5** `archive-purge-partial`
+  (`resume: pending-recovery-then-completion`, `pending_hash: h`, zero completed
+  hashes) with the rerun at exit **6** `archive-purge-evidence-divergent`, and
+  that the residual narrows to the probe→unlink syscall gap, which is **not**
+  detected and not claimed to be;
+- PRD §9.7.2's closing two-residual paragraph and its exit-6 atomicity note,
+  PRD §21's alternatives row (the re-check ships; it narrows rather than closes
+  the window), and matrix row `PIB-550`;
+- PRD §18.53's sensitivity entries for `PIB-546` and `PIB-551`, which gain the
+  fixtures F2 and F3 required;
+- ADR-035's header (Status, `**Rev-18 acceptance**`, Byline, companion note), a
+  `| rev-18 |` revision-history row, D16's residual paragraph, D16's closing
+  atomicity paragraph and the matching alternatives row.
+
+Counts are unchanged: **567** matrix rows, **thirty-six** semantic guards,
+§18.52's category/kind/slice arithmetic untouched, and **no ADR decision
+changes** — D1–D21 stand as accepted.
+
+The disclosure validator was rebuilt around the corrected text. Each document
+now carries **three ordered anchors** — the revalidate→unlink window, the
+residual probe→unlink gap, and the post-CAS final-syscall race — each of which
+must occur **exactly once** and in that order, plus a unique denial sentence and
+a list of **retired** rev-11 readings that must be absent. The old contradictory
+anchors are gone: the PRD no longer keys on `**Not detected, and not claimed to
+be.**` and the ADR no longer keys on `between the pre-removal revalidation and
+the` or `disclosed rather than claimed closed`, both of which occurred three and
+two times respectively and could not order anything. Ten sensitivity fixtures
+cover claim injection into each document and into a report, dropping either
+residual from either document, reordering the two residuals, duplicating the
+window row, dropping the denial, and restoring the retired reading in each
+document.
+
+**F2 — `PIB-546`: the flow walker's memo dropped findings.** `walkFunction`
+memoised `name|scanned` → `after` and recorded findings only as a side effect,
+so the first route to reach a shared helper consumed it: a second route hitting
+the cache reported nothing. Rev-2 keys the memo on
+`entry|routeContext|name|scanned`, caches the findings recorded during the
+sub-walk, and **replays them on a cache hit**, so every route/context that
+reaches a mutation reports it. A walk truncated by the recursion guard is not
+cached at all, because its result depends on the caller chain the key does not
+carry. `route()` and the new `routeContext()` share one attribution table.
+
+The new sensitivity proves the fix bites where rev-1 was blind: the ordinary
+selector execution is hoisted ahead of the plan **and** `ExecuteIntentArchivePurge`
+is made to trust the planned selection, so the ordinary route reaches
+`executeIntentArchivePurgeHash` — the same helper `RecoverPendingPurge`
+reaches — with no scan before it. The validator must then report **two**
+mutation routes. Two deltas are needed because the ordinary route is dominated
+by two independent scans (`PlanIntentArchivePurge` in the CLI and
+`CaptureIntentArchive`/`BuildIntentArchivePurgePlan` inside Execute); the
+fixture table now carries an ordered delta list for that reason, and every other
+fixture stays a single delta.
+
+**F3 — `PIB-551`: derive row 14's exit 6 from the purge machine.** The
+classifier deliberately gives an owned tuple no code and no exit class, so
+rev-1's split assertion could only distinguish rows 13 and 14 by row count. Rev-2
+adds a second authority derived from the shipped machine:
+`s7AVDeriveOwnedUnidentifiableRoute` requires `executeIntentArchivePurgeHash`'s
+evidence check, `RecoverPendingPurge`'s owned preflight and
+`intentArchiveUnidentifiablePurgeError`'s owned arm to **agree** on one code and
+one exit class, marks the refusal post-mutation, and requires the not-owned arm
+to stay a distinct exit-3 classification;
+`s7AVDeriveOwnedCompletionRoute` requires the hash-correct branch to reach
+`removeIntentArchiveBlob`, publish the tombstone after it, construct no
+divergent error and end the function at `return execution, nil`. Every owned
+row is then held to its machine outcome — an unidentifiable observation must
+name the derived code and exactly the derived exit class, and every other owned
+observation must name neither — and rows 13 and 14 are additionally asserted as
+exit **0** under the owner versus exit **6** divergent.
+
+Four sensitivities bite the route rather than the count: row 14 given row 13's
+owner-sweep wording with all eighteen rows intact; row 13 given row 14's exit-6
+divergent route; the shared owned arm demoted to the not-owned exit-3
+classification; and the machine's evidence check demoted to exit 3 while its
+owned recovery preflight still refuses exit 6.
+
+**F4 — global hook replacements now register `t.Cleanup` immediately.**
+`s7AVRestoreSeam(t, restore)` registers the restore with `t.Cleanup` at install
+time and returns an **idempotent** restore the caller runs explicitly before any
+later phase. All four AV seam sites use it: the `afterPurgeBlobRevalidate` and
+`beforePurgeBlobRemove` pair in the replacement window (restored before the
+rerun and disclosure phases), the `afterPurgeIndexRename` index-divergence
+driver, the `intentArchiveNewStorage` removal spy, and both
+`s7ARInstallDeviceProbe` installs. A `t.Fatal` between install and the explicit
+restore can no longer leak a seam into a later test.
+
+**F5 — this handoff.** Updated above and below; the stale rev-1 residual and
+blocker are marked closed with their disposition rather than deleted, and the
+rev-2 record states exactly what changed.
+
+**Erratum evidence guard.** `internal/cli/prepare_s7_rev16_test.go` pins both
+documents against base `2d9492cbf6fd9c69c5aa75d64d05983c05e1563f`, so the
+erratum required it to learn: five new allowlisted regions (PRD §9.7.2, §18.49,
+§18.53, §21 and ADR `## Alternatives considered`), updated current hashes for
+the five regions the erratum edits (PRD header, revision history, §18.1; ADR
+header, D16), `PIB-550` as the seventh changed matrix row in both the parsed
+matrix and the `git diff` row set, a 16/17/18 revision tail, rev-18 disposition
+and no-decision token checks, PRD rev-18 row tokens (`PIB-550`, row, kind,
+count, 567, thirty-six), and an absence check for the retired readings in both
+documents' current normative text. Two rev-18 sensitivity fixtures join the
+existing seven.
+
+**AV rev-2 test results:** AV suite **PASS** in 6.263s; exact six-target
+observer **PASS** in 9.928s; exact full non-observer command **PASS** with CLI
+at 471.544s. Formatting, vet and CLI build pass.
+- AV exact tests, observer and CI guards are checkpointed at `cf2389f`.
+
+**AV rev-2 residuals:**
+
+- Final review and the reviewed AP PRD/ADR span-pin acknowledgement are
+  **APPROVED**.
+- The `PIB-546` shared-helper sensitivity is **two deltas**, not one, for the
+  reason stated above. Every other AV sensitivity remains a single delta.
+- The rev-18 erratum is **proposed**, not accepted: joint review must accept it
+  together with rev-17 before AV can be marked complete.
+- `PIB-547`'s split caveat wording (rev-1 residual) is unchanged and remains a
+  contract question rather than an implementation gap.
+- `internal/cli` remains the slowest package; rev-2 adds route-context memo keys
+  to the PIB-546 walk and one extra document parse per PIB-551 fixture, so a
+  small runtime increase is expected and should be measured on the next run.
+
 ## Next Steps
 
-1. Checkpoint AU rev-5 and the paired rev-17 erratum by explicit paths.
-2. Push and require green blocking CI.
-3. After green blocking CI, implement AV–AX, remaining
-   sensitivities and the full 567 ledger from exact runtime/document
-   observables; obtain clean review.
-5. Run joint internal/external review to acceptance; only then select the
+1. Checkpoint AV rev-2 and rev-18 by explicit paths, then push and require green
+   blocking CI (the `s7-observers` job now carries the AV step).
+2. After green blocking CI, implement AW–AX, remaining sensitivities and the
+   full 567 ledger from exact runtime/document observables; obtain clean review.
+6. Run joint internal/external review to acceptance; only then select the
    release tag carrying `prepare --check` plus mutating prepare.
 
 ## Blockers
 
-- AU is active; AV–AX remain procedurally blocked until AU is accepted,
+- AV rev-2 is approved; AW–AX remain procedurally blocked until AV is
   checkpointed, pushed and green in CI.
+- **The rev-18 `PIB-550` erratum is proposed, not accepted.** It resolves
+  rev-1's blocker — the shipped `prepareArchiveStorage.RemoveBlob` re-probes the
+  managed object's identity in `PreflightBlobRemove`, refuses at exit 5
+  `archive-purge-partial` with the replacement intact, and the residual narrows
+  to the unseamed probe→unlink gap — but it must be accepted jointly with
+  rev-17 before AV can be marked complete. No production behaviour changed and
+  the identity re-probe was not weakened.
 - Blocking CI 33040928741 passed every platform/shard except macOS's final AR
   observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.
 - Blocking CI 33046534111 passed every non-observer shard but macOS exhausted

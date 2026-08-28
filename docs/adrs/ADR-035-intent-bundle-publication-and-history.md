@@ -2,7 +2,8 @@
 
 **Status**: **Accepted — rev-14 decisions (2026-08-14), rev-15 D14 evidence
 erratum (2026-08-18), rev-16 pending-owner no-decision erratum (2026-08-20);
-rev-17 companion-row no-decision erratum (2026-08-27) — acceptance pending
+rev-17 companion-row no-decision erratum (2026-08-27) and rev-18
+removal-identity-re-probe no-decision erratum (2026-08-28) — acceptance pending
 joint review**
 **Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14;
 **Accepted at rev-14 on 2026-08-14**)
@@ -21,12 +22,24 @@ D16 pending-owner precedence. No decision changed.
 `PIB-544`) whose stated expectations the shipped product and the already-frozen
 decisions do not produce. **No D16 decision, condition or normative
 sentence changed**, and no other decision changed.
+**Rev-18 acceptance**: **pending joint review** (raised 2026-08-28) —
+**proposed no-decision erratum**; S7 AV implementation discovery corrected
+D16's residual disclosure and the companion row `PIB-550`. Both said the
+replacement of a managed object landing between the pre-removal revalidation
+and the unlink is what gets removed. The shipped removal re-probes that
+object's identity immediately before the syscall and refuses when it no longer
+matches, so the replacement is preserved at exit 5 `archive-purge-partial` and
+the rerun refuses exit 6 `archive-purge-evidence-divergent`; the residual
+narrows to the unseamed gap between that re-probe and the unlink, which stays
+disclosed and unclaimed. **No D16 decision, condition, invariant or admitted
+route changed**, and no other decision changed.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
 dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`; rev-15
 PIB-391 evidence correction discovered by GH #23; rev-16 pending-owner wording
 correction discovered during S7 implementation; rev-17 companion `PIB-542` /
 `PIB-543` / `PIB-544` observed-product corrections discovered during S7 AU
-implementation (`PIB-537`…`PIB-545`)
+implementation (`PIB-537`…`PIB-545`); rev-18 D16 removal-identity re-probe
+correction discovered during S7 AV implementation (`PIB-546`…`PIB-551`)
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -39,8 +52,8 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-16 Accepted; its rev-17 no-decision erratum is pending the same joint
-review as this document's). **The two documents were reviewed and
+(rev-16 Accepted; its rev-17 and rev-18 no-decision errata are pending the same
+joint review as this document's). **The two documents were reviewed and
 accepted together.** Read the PRD for the full product contract and its 567-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
 on, and where the two overlap **this ADR is normative**.
@@ -71,6 +84,7 @@ bounded D14/PIB-391 evidence erratum to be jointly approved.
 | rev-15 | **Accepted evidence erratum — 2026-08-18** | D14's compatibility conclusion is unchanged, but its implementation-evidence sentence shared rev-14 PIB-391's impossible premise: GH #16 committed executable AVP tests but no standalone check-output files whose path history could already lie in that closed range. The corrected evidence rule binds record mode to a clean producer binary at GH #16 frozen implementation content `cacaaf8` (production-identical to acceptance commit `7206dab`), refuses every other producer, and makes comparison mode build current code with no baseline override. GH #23 commits the fixtures before mutating production code. No publication/history decision, check byte, matrix row, kind or count changes. |
 | rev-16 | **Accepted no-decision erratum — 2026-08-20** | S7 implementation exposed stale rev-5 wording that described rehydration over tombstoned/pending references despite the already-accepted rev-8 through rev-13 pending-owner rule and the shipped D10/D13/D16 implementation. D10 now states explicitly that rehydration un-tombstones **tombstoned references only**; any removal-pending same-hash reference routes the entire hash to the purge owner, blocks mutating `prepare` with `recovery-pending`, and is never consumed by rehydration. D13 and D16 cross-state the same precedence. No decision, row, kind, count, guard, slice or implementation changes; historical revision rows are not rewritten, and this row records their supersession. |
 | rev-17 | **Proposed no-decision erratum — 2026-08-27; acceptance pending joint review** | S7 AU implementation found that three companion PRD acceptance-matrix rows asserted expectations the frozen decisions and the shipped product do not produce. **`PIB-542`**: over an archive holding a single repair class (the mixed tombstone/live-reference hash `h₂`) beside a healthy hash `h₃`, the row expected **all four** selectors, `--all` included, to refuse exit 3. D16's frozen rev-12 rule says the opposite for `--all --yes` — it is admitted exactly where the chosen class is the archive's **only** class, and a healthy hash belongs to **no** repair class and so supplies no second class. **`PIB-543`**: the row required exit **3** from every observer and one procedure presentation from all five, but this ADR already fixes `doctor`'s D9 as **warning-only**, so it exits **0** while `prepare`, `--regenerate`, `--manual` and `list` exit 3; and the same corrupt-object route is printed in two presentations — `list`'s quoted per-entry procedure with the structured `retry`/`retry_cwd` pair, `doctor`'s identical quoted procedure lines without that pair, and the three mutating readers' refusal-`remediation` prose over the unquoted repo-relative managed path. Every obligation D16 places on those procedures — repo-relative paths only, the stated destructive cost, the Git-history caveat, the single type-total `rm -rf --`, no preservation command named — is unchanged and still required of all five. **`PIB-544`**: the row named a driver seam set (`beforePurgeIndexCAS`, `afterPurgeBlobRevalidate`, `beforePurgeBlobRemove`, `beforePendingTombstoneCAS`) that is not the one the four §9.7.2 windows are reached through; the corrected row uses the authoritative mapping the store's own `TestRecoverPendingPurgeInsertionWindowsPIB544` drives — the post-preflight index capture, `beforePurgeIndexCAS`, `afterPurgeIndexRename`, and the post-unlink `beforePendingTombstoneCAS` — and excludes `afterPurgeBlobRevalidate` because that seam is the **fifth** window this ADR discloses as a permanent residual. **No D16 decision, admission condition, blast-radius disclosure obligation, warning-only D9 rule, precedence rank or normative sentence is changed, reworded or reopened, and no other decision changes**; D1–D21 stand exactly as at rev-14/rev-15/rev-16, and no window's exit, outcome, resume token or removal truth moves. The erratum is recorded here only because the corrected companion rows are these decisions' own worked cases. The companion matrix stays at 567 rows; exactly three rows (`PIB-542`, `PIB-543`, `PIB-544`) are amended, and none is added, retired, renumbered, re-categorised or re-kinded. |
+| rev-18 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** | S7 AV implementation found that D16's residual paragraph and the companion PRD row `PIB-550` both described the replacement of a managed object between the pre-removal revalidation and the unlink as a byte-level loss rather than a detection. The shipped machine hands the revalidated identity to the removal, and the storage re-probes the managed object immediately before the syscall and refuses when that identity no longer matches — for a regular blob the recorded mode, size and content hash — so the replacement is preserved, the invocation ends at exit 5 `archive-purge-partial` and the sanitized rerun refuses exit 6 `archive-purge-evidence-divergent`. D16's disclosure now narrows the residual to the unseamed gap between that re-probe and the unlink syscall, stated beside the post-CAS final CAS→rename window and still claimed closed by neither. **No decision, condition, invariant, admitted route, exit code or emitted state changes**; the erratum touches D16's residual prose and the matching alternatives row only. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review; both reviewers returned **APPROVED** with **no
@@ -1216,16 +1230,24 @@ between the claim's read and its CAS (the CAS fails, nothing is removed),
 between the CAS and the revalidation (no removal; exit 5 `archive-purge-partial`
 whose retry re-derives the claim), or after the removal (the tombstone CAS
 detects it; the retry tombstones it, which is truthful because the bytes are
-gone). **Two windows leave a disclosed byte-level residual rather than a
-detection**: a write inside the final CAS→rename syscall window, which lands in
-`archive-blob-dangling` with the repair D10 already names; and a **replacement
-of the object at `blobs/<h>.blob` between the pre-removal revalidation and the
-unlink**, which the unlink cannot be conditioned on — no primitive on either
-supported platform removes a path only if its contents still hash to a value
-observed a moment earlier — so the replacement is what gets removed. The index's
+gone). A replacement of the object at `blobs/<h>.blob` landing between the
+pre-removal revalidation and the unlink is refused rather than removed: the
+removal carries the revalidated identity and the storage re-probes the managed
+object immediately before the syscall, so a replacement caught there preserves
+the object, ends the invocation at exit 5 `archive-purge-partial` and routes the
+rerun to exit 6 `archive-purge-evidence-divergent`. **Two windows still leave a
+disclosed byte-level residual rather than a detection.** The first is
+**the gap between that identity re-probe and the unlink syscall**, which no
+primitive on either supported platform closes — none removes a path only if its
+contents still hash to a value observed a moment earlier — and which has no
+injection seam. The second is
+**a write inside the final CAS→rename syscall window**, which
+lands in `archive-blob-dangling` with the repair D10 already names. The index's
 end state is truthful either way (every reference tombstoned, no blob); what is
-lost is bytes an external writer placed there after tpatch had decided to remove
-that path, and that is disclosed rather than claimed closed. There is no
+lost in those two gaps is bytes an external writer placed there after tpatch had
+decided to remove that path, and
+**both gaps are disclosed here as residuals this ADR does not claim to close**.
+There is no
 in-process retry loop: the operator's rerun is the loop, so the command always
 terminates and always reports what it saw (PIB-539, PIB-540, PIB-544, PIB-545,
 PIB-550).
@@ -1541,7 +1563,8 @@ archived bytes (PRD §9.7.2, PIB-506, PIB-507, PIB-508, PIB-547).
 CAS then rename/remove
 is not atomic: external edit/replacement in the final syscall window can still
 be overwritten/removed, and the same holds for a replacement of the managed
-object between the pre-removal revalidation and the unlink. The tpatch lock
+object that lands after the removal's identity re-probe, while one that lands
+before it is refused with the object intact. The tpatch lock
 excludes tpatch mutators only. Both are
 stated for canonical and purge paths — and neither is claimed closed in any
 shipped string or in either document — with detected pre-CAS and disclosed
@@ -1947,7 +1970,7 @@ and PIB-407.
 | Mapping an unsafe or hash-wrong blob on an **owned** hash to exit-3 `archive-index-storage-inconsistent` (rev-11) | A contradiction and a false promise: D10's own table and D16's step 6 mapped the same tuple to exit 6, and exit 3 means the tree was not written while an owned hash's transaction has already written. Every observation of an owned hash with an unidentifiable blob — through a retained, a pending or a tombstoned reference — is exit-6 `archive-purge-evidence-divergent` with D16's archive procedure, and X11 emits no exit-3 code for an owned hash (D10, PIB-558). |
 | Naming kind-appropriate preservation commands in prose beside the `rm -rf --` step (rev-11) | rev-11 removed the emitted `cp` and then wrote `cp -R`/`cp -P`/`readlink`/`git show` in the sentence below it, which vouches for commands against an object whose kind the operator has not confirmed and reads as a menu tpatch has vetted; none of them is a permitted external form. The message names no preservation command, and the PRD's §10.7 states the forbidden command-word set that PIB-559 greps over every emitted block (D10, D16). |
 | Collapsing `tombstoned × owned × present` into one row across the blob observation (rev-11) | The two halves have different exits — hash-correct completes at exit 0 under the owner, unidentifiable refuses exit 6 — so one row reads as promising that an owned tombstoned reference beside a directory is merely swept into the claim. D10 states the 4-tuple domain (36 tuples, 18 ruled out by three dependencies, 18 reachable) and the table has exactly 18 rows, one per reachable tuple (D10, PIB-551, PIB-558). |
-| Claiming the revalidate→unlink window is closed by re-checking the object immediately before removal | Unimplementable on either supported platform: no unlink is conditioned on content, so a replacement landing in that gap is what gets removed. The window is disclosed as a residual beside the post-CAS rename race, and no shipped string or document sentence may say otherwise (PIB-550). |
+| Claiming the revalidate→unlink window is closed by re-checking the object immediately before removal | The re-check itself ships — the removal re-probes the managed object's identity and refuses a replacement it catches — but it cannot close the window: no unlink on either supported platform is conditioned on content, so a replacement landing between that re-probe and the syscall is still what gets removed. The remaining gap is disclosed as a residual beside the post-CAS rename race, and no shipped string or document sentence may say otherwise (PIB-550). |
 
 ---
 | Repairing another class beside a `corrupt-object` instance (rev-12) | **Withdrawn.** An unidentifiable object at a managed blob path is unidentified content that may be another hash's bytes, so condition 3's non-degradation proof cannot be discharged against it; and an **unreferenced** corrupt object is a `corrupt-object` instance, not residue, so `--orphans` — which derives its work list from the same directory — would repair part of a storage layer it has already found untrustworthy. `corrupt-object` is rank 1 and blocking: its manual prerequisite runs first, and the freed hash is then classified as dangling or clean (D10, D16, PIB-561, PIB-562, PIB-563). |

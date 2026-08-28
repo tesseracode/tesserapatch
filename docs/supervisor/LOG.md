@@ -1,3 +1,40 @@
+## Review — prepare S7 AV rev-2 + rev-18 erratum — 2026-08-28
+
+**Reviewer**: `s7-av-final-review`, post-pin supervisor close
+
+### Verdict: APPROVED
+
+### Notes
+
+All AV findings are closed. Rev-18 corrects PIB-550 and its normative PRD/ADR
+residual without changing D16. AP's deliberate PRD/ADR span pins were reviewed
+and updated. AV suite, six-target observer and exact full non-observer CI
+command pass (CLI 471.544s).
+
+### Action Taken
+
+AV test/observer/CI code is checkpointed at `cf2389f`; paired rev-18 tracking
+and blocking CI follow.
+
+## Review — prepare S7 AV rev-0 — 2026-08-28
+
+**Reviewer**: `s7-av-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+PIB-550's row, PRD normative paragraph and ADR residual all describe a wider
+undetected window than production's conditional RemoveBlob contract; its guard
+also uses non-unique ADR anchors. PIB-546 memoization drops findings on shared
+helper cache hits. PIB-551 does not derive row 14's exit-6 route. Several
+global seams restore after calls that can Goexit rather than through cleanup.
+
+### Action Taken
+
+Dispatch AV rev-1 with a paired no-decision erratum, finding-replaying flow
+memoization, owned-unidentifiable route authority and cleanup-safe seams.
+
 ## Supervisor Decision — prepare S7 AU close / AV dispatch — 2026-08-28
 
 **Decision**: **AU ACCEPTED — AV DISPATCHED**

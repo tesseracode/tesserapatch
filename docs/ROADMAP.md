@@ -1387,6 +1387,8 @@ rows, all prior review findings closed, local suite/observer/vet/build green.
 Checkpoint and blocking CI remain before AV.
 Corrected CI 33153117728 is green across all five blocking jobs. AU is durably
 closed at 151/173 cumulative rows; AV (`PIB-546…551`) is active.
+AV rev-2 and paired rev-18 no-decision erratum are APPROVED; full non-observer
+and exact observer gates pass. Checkpoint and blocking CI remain before AW.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
