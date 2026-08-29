@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/rescap"
@@ -1482,19 +1483,84 @@ func recordPreparePIBGoldens(t *testing.T, captured map[string]string) {
 	}
 }
 
-func comparePreparePIBGolden(t *testing.T, name, got string) {
-	t.Helper()
+// preparePIBGoldenDelta is the shipped byte-parity comparator. It returns nil
+// exactly when `got` — bytes produced by the current binary — is byte-identical
+// to the recorded pre-change fixture, and an error naming the drift otherwise.
+//
+// comparePreparePIBGolden is the fatal wrapper TestPreparePIBPreChangeGoldens
+// drives. The §18.53 golden sensitivities call this same function, so the row
+// fixtures and the golden suite judge current product bytes with one comparator
+// rather than a locally reimplemented one.
+func preparePIBGoldenDelta(name, got string) error {
 	if got == "" {
-		t.Fatalf("capture did not produce %s", name)
+		return fmt.Errorf("capture did not produce %s", name)
 	}
 	want, err := os.ReadFile(filepath.Join(preparePIBGoldenDir, name))
 	if err != nil {
-		t.Fatalf("read golden %s: %v", name, err)
+		return fmt.Errorf("read golden %s: %w", name, err)
 	}
 	if !bytes.Equal(want, []byte(got)) {
-		t.Fatalf("%s drifted from baseline %s\n--- golden ---\n%s\n--- current ---\n%s",
+		return fmt.Errorf("%s drifted from baseline %s\n--- golden ---\n%s\n--- current ---\n%s",
 			name, preparePIBBaseline, want, got)
 	}
+	return nil
+}
+
+func comparePreparePIBGolden(t *testing.T, name, got string) {
+	t.Helper()
+	if err := preparePIBGoldenDelta(name, got); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// preparePIBCurrent is the one current-code capture the §18.53 golden rows
+// share. Building the comparator binary and replaying every surface is the
+// expensive part of this suite, so the ten byte-parity fixtures do that work
+// exactly once per test binary instead of ten times.
+var preparePIBCurrent struct {
+	sync.Once
+	captured map[string]string
+}
+
+// preparePIBCurrentCapture returns the surfaces the *current* binary produces
+// through the shipped capture path. The shared map is never handed out: callers
+// receive a copy, so one fixture's mutation cannot reach another's baseline.
+func preparePIBCurrentCapture(t *testing.T) map[string]string {
+	t.Helper()
+	if !rescap.LockSupported {
+		t.Skip("runtime capture uses the resource-capture-supported linux/darwin envelope")
+	}
+	preparePIBCurrent.Do(func() {
+		binary := buildPreparePIBCurrentBinary(t)
+		preparePIBCurrent.captured = capturePreparePIBSurfaces(t, binary, binary)
+	})
+	if len(preparePIBCurrent.captured) != preparePIBRuntimeCount {
+		t.Fatalf("shared current capture holds %d runtime fixtures, want %d",
+			len(preparePIBCurrent.captured), preparePIBRuntimeCount)
+	}
+	copied := make(map[string]string, len(preparePIBCurrent.captured))
+	for name, body := range preparePIBCurrent.captured {
+		copied[name] = body
+	}
+	return copied
+}
+
+// preparePIBCapturedNames applies a row's own shipped selector table to the
+// captured population, so a row cannot quietly widen or narrow its evidence and
+// cannot select a fixture the current binary never produced.
+func preparePIBCapturedNames(t *testing.T, captured map[string]string, selectors []string) []string {
+	t.Helper()
+	names := []string{}
+	for name := range captured {
+		if matchesGoldenSelector(name, selectors) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		t.Fatalf("selector %q matched no captured surface", selectors)
+	}
+	return names
 }
 
 func matchesGoldenSelector(name string, selectors []string) bool {

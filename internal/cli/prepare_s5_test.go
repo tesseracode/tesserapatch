@@ -62,14 +62,8 @@ func TestPrepareS5ProvenanceBoundaryRows(t *testing.T) {
 		root, slug := prepareS4Workspace(t, "S5 no authorship")
 		_, mutating, _, _ := runPrepare(t, "--path", root, "prepare", slug, "--json", "--quiet")
 		_, checking, _, _ := runPrepare(t, "--path", root, "prepare", slug, "--check", "--json", "--quiet")
-		joined := strings.ToLower(mutating + checking)
-		for _, forbidden := range []string{
-			"path a", "path_a", "path b", "path_b",
-			"authored by", "authored_by", "author identity",
-		} {
-			if strings.Contains(joined, forbidden) {
-				t.Fatalf("report asserted provenance token %q:\n%s", forbidden, joined)
-			}
+		if err := validatePrepareS5NoPathProvenanceTokens([]string{mutating, checking}); err != nil {
+			t.Fatalf("%v\n%s%s", err, mutating, checking)
 		}
 	})
 
@@ -138,19 +132,12 @@ func TestPrepareS5ProvenanceBoundaryRows(t *testing.T) {
 		root, slug := prepareS4Workspace(t, "S5 generator schema")
 		_, mutating, _, _ := runPrepare(t, "--path", root, "prepare", slug, "--json", "--quiet")
 		_, checking, _, _ := runPrepare(t, "--path", root, "prepare", slug, "--check", "--json", "--quiet")
-		if !strings.Contains(mutating, `"generator":`) {
-			t.Fatalf("mutating report lost generator field:\n%s", mutating)
-		}
-		if strings.Contains(checking, `"generator":`) {
-			t.Fatalf("accepted check schema gained generator field:\n%s", checking)
-		}
 		fields, err := prepareS5GeneratorJSONFields(avpRepoRoot(t))
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := []string{"internal/cli/prepare_publish.go:prepareArtifactReport.Generator"}
-		if fmt.Sprint(fields) != fmt.Sprint(want) {
-			t.Fatalf("generator-class JSON fields = %v, want mutating-report-only %v", fields, want)
+		if err := validatePrepareS5GeneratorSchema(mutating, checking, fields); err != nil {
+			t.Fatalf("%v\n--- mutating ---\n%s--- check ---\n%s", err, mutating, checking)
 		}
 		fixture := map[string][]byte{
 			"internal/cli/prepare_publish.go": []byte("package cli; type prepareArtifactReport struct { Generator string `json:\"generator\"` }"),
@@ -288,37 +275,9 @@ func TestPrepareS5ProvenanceBoundaryRows(t *testing.T) {
 	})
 
 	t.Run("PIB-146", func(t *testing.T) {
-		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-		prepareRoot, prepareSlug := prepareS4Workspace(t, "S5 heuristic parity")
-		phaseRoot, phaseSlug := prepareS4Workspace(t, "S5 heuristic parity")
-		if prepareSlug != phaseSlug {
-			t.Fatalf("fixture slugs differ: %q %q", prepareSlug, phaseSlug)
-		}
-		if code, _, stderr, _ := runPrepare(t, "--path", prepareRoot, "prepare", prepareSlug, "--json", "--quiet"); code != 0 {
-			t.Fatalf("prepare = %d: %s", code, stderr)
-		}
-		if code, _, stderr, _ := runPrepare(t, "--path", phaseRoot, "analyze", phaseSlug); code != 0 {
-			t.Fatalf("analyze = %d: %s", code, stderr)
-		}
-		for _, rel := range []string{"analysis.md", "artifacts/analysis.json"} {
-			fromPrepare, err := os.ReadFile(filepath.Join(prepareRoot, ".tpatch", "features", prepareSlug, filepath.FromSlash(rel)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			fromAnalyze, err := os.ReadFile(filepath.Join(phaseRoot, ".tpatch", "features", phaseSlug, filepath.FromSlash(rel)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(fromPrepare, fromAnalyze) {
-				t.Fatalf("%s differs between prepare heuristic and analyze", rel)
-			}
-		}
-		sidecar, err := os.ReadFile(filepath.Join(prepareRoot, ".tpatch", "features", prepareSlug, "artifacts", "analysis.json"))
-		if err != nil {
+		fromPrepare, fromAnalyze := prepareS5HeuristicParityCorpus(t)
+		if err := validatePrepareS5HeuristicSidecarParity(fromPrepare, fromAnalyze); err != nil {
 			t.Fatal(err)
-		}
-		if !bytes.Contains(sidecar, []byte(`"heuristic_mode": true`)) {
-			t.Fatalf("heuristic sidecar lost mode flag: %s", sidecar)
 		}
 	})
 
@@ -1114,6 +1073,120 @@ func TestPrepareS5PlatformRows(t *testing.T) {
 			t.Fatal("unsupported mutation path can open the workspace or lost its fixed refusal")
 		}
 	})
+}
+
+// prepareS5ForbiddenProvenanceTokens is PIB-142's closed token set: no shipped
+// string of either report schema may assert a Path A vs Path B (or authorship)
+// route for a feature.
+var prepareS5ForbiddenProvenanceTokens = []string{
+	"path a", "path_a", "path b", "path_b",
+	"authored by", "authored_by", "author identity",
+}
+
+// validatePrepareS5NoPathProvenanceTokens is PIB-142's validator. It is shared
+// by the row's acceptance subtest and by its §18.53 sensitivity fixture, so both
+// judge the same texts with the same rule.
+func validatePrepareS5NoPathProvenanceTokens(texts []string) error {
+	if len(texts) == 0 {
+		return errors.New("the provenance-token scan received no report text")
+	}
+	for _, text := range texts {
+		if strings.TrimSpace(text) == "" {
+			return errors.New("the provenance-token scan received an empty report")
+		}
+		lowered := strings.ToLower(text)
+		for _, forbidden := range prepareS5ForbiddenProvenanceTokens {
+			if strings.Contains(lowered, forbidden) {
+				return fmt.Errorf("report asserted provenance token %q", forbidden)
+			}
+		}
+	}
+	return nil
+}
+
+// validatePrepareS5GeneratorSchema is PIB-144's validator: the `generator` key
+// belongs to the mutating report schema alone, and no other declared wire struct
+// or persistence sink may carry a generator-class field.
+func validatePrepareS5GeneratorSchema(mutating, checking string, fields []string) error {
+	if !strings.Contains(mutating, `"generator":`) {
+		return errors.New("the mutating report lost its generator field")
+	}
+	if strings.Contains(checking, `"generator":`) {
+		return errors.New("the accepted --check schema gained a generator field")
+	}
+	want := []string{"internal/cli/prepare_publish.go:prepareArtifactReport.Generator"}
+	if fmt.Sprint(fields) != fmt.Sprint(want) {
+		return fmt.Errorf("generator-class JSON fields = %v, want mutating-report-only %v", fields, want)
+	}
+	return nil
+}
+
+// prepareS5HeuristicParityRelPaths is the artifact set PIB-146 compares between
+// a heuristic `prepare` and the `analyze` phase for the same input.
+var prepareS5HeuristicParityRelPaths = []string{"analysis.md", "artifacts/analysis.json"}
+
+// validatePrepareS5HeuristicSidecarParity is PIB-146's validator: the heuristic
+// bundle is byte-compatible with `analyze`'s output for the same input, and the
+// sidecar still declares heuristic mode.
+func validatePrepareS5HeuristicSidecarParity(fromPrepare, fromAnalyze map[string][]byte) error {
+	if len(fromPrepare) != len(prepareS5HeuristicParityRelPaths) ||
+		len(fromAnalyze) != len(prepareS5HeuristicParityRelPaths) {
+		return fmt.Errorf("heuristic parity compares %d/%d artifacts, want %d",
+			len(fromPrepare), len(fromAnalyze), len(prepareS5HeuristicParityRelPaths))
+	}
+	for _, rel := range prepareS5HeuristicParityRelPaths {
+		prepared, ok := fromPrepare[rel]
+		if !ok {
+			return fmt.Errorf("the heuristic prepare produced no %s", rel)
+		}
+		analyzed, ok := fromAnalyze[rel]
+		if !ok {
+			return fmt.Errorf("analyze produced no %s", rel)
+		}
+		if !bytes.Equal(prepared, analyzed) {
+			return fmt.Errorf("%s differs between prepare heuristic and analyze", rel)
+		}
+	}
+	if !bytes.Contains(fromPrepare["artifacts/analysis.json"], []byte(`"heuristic_mode": true`)) {
+		return errors.New("the heuristic sidecar lost its mode flag")
+	}
+	return nil
+}
+
+// prepareS5HeuristicParityCorpus runs the two shipped producers PIB-146 compares
+// — a heuristic `prepare` and the `analyze` phase over an identical fixture —
+// and returns exactly the artifacts the row governs.
+func prepareS5HeuristicParityCorpus(t *testing.T) (map[string][]byte, map[string][]byte) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	prepareRoot, prepareSlug := prepareS4Workspace(t, "S5 heuristic parity")
+	phaseRoot, phaseSlug := prepareS4Workspace(t, "S5 heuristic parity")
+	if prepareSlug != phaseSlug {
+		t.Fatalf("fixture slugs differ: %q %q", prepareSlug, phaseSlug)
+	}
+	if code, _, stderr, _ := runPrepare(t, "--path", prepareRoot, "prepare", prepareSlug, "--json", "--quiet"); code != 0 {
+		t.Fatalf("prepare = %d: %s", code, stderr)
+	}
+	if code, _, stderr, _ := runPrepare(t, "--path", phaseRoot, "analyze", phaseSlug); code != 0 {
+		t.Fatalf("analyze = %d: %s", code, stderr)
+	}
+	fromPrepare := map[string][]byte{}
+	fromAnalyze := map[string][]byte{}
+	for _, rel := range prepareS5HeuristicParityRelPaths {
+		prepared, err := os.ReadFile(filepath.Join(
+			prepareRoot, ".tpatch", "features", prepareSlug, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		analyzed, err := os.ReadFile(filepath.Join(
+			phaseRoot, ".tpatch", "features", phaseSlug, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fromPrepare[rel] = prepared
+		fromAnalyze[rel] = analyzed
+	}
+	return fromPrepare, fromAnalyze
 }
 
 func prepareS5GeneratorJSONFields(root string) ([]string, error) {
