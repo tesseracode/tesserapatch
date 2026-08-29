@@ -1397,6 +1397,12 @@ Blocking CI remains before the 173/173 aggregate close.
 CI 33198502426 is green across all five blocking jobs. AX is durably accepted
 at `51382fc`; S7 is **173/173**. Aggregate 567-row ledger/sensitivity closure
 and final joint review remain before release preparation.
+Aggregate rev-4 is APPROVED at 567/567 rows and 123/123 G sensitivities with
+zero blocked escapes. Final full/race/cross-build validation and whole-wave
+review remain before the pre-release approval boundary.
+Aggregate acceptance is checkpointed at `7d4981a`; full uncached, split race,
+vet/build and cross-platform compile gates pass. Blocking CI and whole-wave
+review remain.
 passes isolated full/race/vet and supported/unsupported cross-build gates;
 `971da91` and CI
 [32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)

@@ -1,3 +1,107 @@
+## Review — prepare aggregate ledger rev-4 — 2026-08-29
+
+**Reviewer**: `prepare-aggregate-rev4-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+PIB-230 resolves all 567 matrix rows through body-sensitive runnable targets.
+PIB-231 derives all 123 G rows and binds each to a distinct, row-owned
+same-validator mutation/rejection proof. Product-produced golden bytes replace
+self-comparison; the seven rotated fixtures have direct owners; the proof gate
+is leaf-local and data-linked with substantive meta bites. All aggregate and
+owning fixtures pass.
+
+### Action Taken
+
+Checkpointed at `7d4981a` after the full uncached suite, split race coverage,
+vet/build and Linux/Darwin/Windows/BSD compile gates passed. The monolithic CLI
+race attempt exhausted 40 minutes in an older AP guard; non-overlapping
+aggregate/S5/golden and shared-S6 shards passed instead. Blocking CI follows.
+
+## Review — prepare aggregate ledger rev-3 — 2026-08-29
+
+**Reviewer**: `prepare-aggregate-rev3-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+PIB-230's 567-row body-sensitive ledger and arithmetic pass review. PIB-231's
+registry does not: ten golden rows compare the fixture directory with itself
+through a local comparator; seven rows rotate unrelated neighbouring
+sensitivities (`PIB-142`, `144`, `145`, `146`, `326`, `344`, `473`); and
+`pibAssertSensitivityShape` treats common assignments or a sibling subtest's
+mutation as sufficient. Seventeen of 123 G rows therefore lack their own
+same-validator wrong-input proof.
+
+### Action Taken
+
+Require product-produced golden bytes, seven direct row-owned sensitivities,
+and a data-linked mutation/rejection gate with a real no-op bite proof.
+
+## Review — prepare aggregate ledger rev-2 — 2026-08-29
+
+**Reviewer**: supervisor executable owning-fixture gate
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The core aggregate gates now pass at 567/567 and 123/123, with zero blocked
+escapes and literal target resolution. All new intentlock/intentpub/store/
+workflow owners pass. Eleven CLI owners fail: incorrect `--check` stderr
+expectation (206), invalid lifecycle fixtures (128/294), and eight guards/
+goldens whose baseline or mutation does not establish the claimed row (059,
+136, 180, 221, 258, 267, 295, 356).
+
+### Action Taken
+
+Require each failed owner to validate the shipped baseline and reject its own
+one-delta mutation without weakening aggregate counts or the resolver.
+
+## Review — prepare aggregate ledger rev-1 — 2026-08-29
+
+**Reviewer**: supervisor executable gate
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The matrix parser and PIB-161/PIB-498 sensitivity defects are fixed, blocked
+escapes are removed, and the 123-row sensitivity registry passes. The
+acceptance ledger still maps numerous rows to dynamic or nonexistent literal
+subtest paths (`--manual`, `v1-empty`, `cp3-all-preimages`, strict-decoder
+case names, and others), so those rows resolve no runnable body. Static
+emulation did not match the repository's actual resolver.
+
+### Action Taken
+
+Keep the body resolver fixed and replace every failed target with a real
+literal owning body. No parent aggregate or dynamic-name exception is
+authorized.
+
+## Review — prepare aggregate ledger rev-0 — 2026-08-29
+
+**Reviewer**: supervisor executable gate
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The proposed ledger leaves 77/567 rows and 51/123 G sensitivities in
+`blocked` escape sets, which cannot satisfy PIB-230/PIB-231. Its matrix parser
+reads PIB-392 in position 291, and the live PIB-161 and PIB-498 sensitivity
+mappings fail the no-op/subtest resolver checks. The framework therefore
+reports neither total nor executable coverage.
+
+### Action Taken
+
+Require a zero-block rev-1: 567/567 body-sensitive targets and 123/123
+same-validator sensitivity targets, with the parser and two live mappings
+corrected before review.
+
 ## Supervisor Decision — prepare S7 AX close / aggregate dispatch — 2026-08-28
 
 **Decision**: **AX ACCEPTED — S7 173/173**

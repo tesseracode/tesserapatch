@@ -61,6 +61,38 @@ AX is durably accepted at `51382fc`: CI
 passed Ubuntu, macOS, Windows and both observer jobs. S7 is now **173/173**.
 The aggregate body-sensitive 567-row ledger and complete G-row sensitivity
 registry are the active pre-release task.
+Aggregate rev-0 is **NEEDS REVISION**: it resolves only 490/567 ledger rows and
+72/123 G sensitivities, its matrix parser misorders PIB-392 as row 291, and
+two supposedly live sensitivity mappings fail. Declared-blocked rows are not
+an acceptance mechanism; rev-1 must reach 567/567 and 123/123 with zero
+blocked entries.
+Aggregate rev-1 reaches zero declared blocks and its 123/123 G sensitivity
+registry passes, but the 567-row body resolver rejects dynamic/nonexistent
+subtest paths across grammar, intentpub journal/stage, AVP readiness, archive
+decoder and refusal fixtures. Rev-2 must replace every failed path with a
+literal resolvable body; the resolver stays unchanged.
+Aggregate rev-2 passes the 567-row ledger, 123-row sensitivity registry and
+all meta-gates, and all new non-CLI owning packages pass. Eleven CLI fixtures
+still fail (`PIB-059`, `128`, `136`, `180`, `206`, `221`, `258`, `267`,
+`294`, `295`, `356`), so the aggregate is not accepted.
+Aggregate rev-3 passes every aggregate/owning fixture, but independent review
+rejects the PIB-231 sensitivity half: ten golden fixtures compare recorded
+bytes with themselves, seven rows borrow another validator's mutation, and the
+shape gate lets sibling/arbitrary mutations qualify. The 567-row PIB-230
+ledger is approved; rev-4 must correct all 17 G rows and make the same-validator
+link mechanically biting.
+Aggregate rev-4 is **APPROVED**: all 567 rows resolve to body-sensitive
+runnable targets, all 123 G rows carry distinct same-validator wrong-input
+proofs, blocked escapes are structurally forbidden, and the aggregate/new
+owning suites pass. Final tracked-state validation is active.
+Aggregate acceptance is checkpointed at `7d4981a`. The full uncached
+non-observer suite passes (CLI 512.183s); race passes for the changed
+aggregate/S5/golden shard (901.022s), the isolated shared S6 guard baseline
+(307.001s), and all other touched packages. The monolithic CLI race attempt
+hit its 40-minute cap in an older AP guard, so it was replaced by those
+non-overlapping shards. Vet/build, Linux/Darwin/Windows/BSD CLI test-compiles,
+Linux amd64/arm64, Darwin amd64 and Windows amd64 binary builds all pass.
+Side Research remains `b385fe622db9926f48861105239f113e`.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1836,7 +1868,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — S7 173/173; aggregate ledger active**
+- **Status**: **In progress — aggregate checkpointed at `7d4981a`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
