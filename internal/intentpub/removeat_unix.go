@@ -126,19 +126,11 @@ func verifyTempContentAtHeldDirectory(
 		}
 
 		limit := int(intended.Size) + 1
-		count := 0
-		for count < limit {
-			read, err := syscall.Pread(int(fileDescriptor), scratch[count:limit], int64(count))
-			count += read
-			if err != nil {
-				if err == syscall.EINTR {
-					continue
-				}
-				return err
-			}
-			if read == 0 {
-				break
-			}
+		count, err := readTempContent(
+			int(fileDescriptor), scratch, limit, syscall.Pread,
+		)
+		if err != nil {
+			return err
 		}
 		if count != int(intended.Size) {
 			return fs.ErrInvalid
@@ -172,6 +164,33 @@ func verifyTempContentAtHeldDirectory(
 			return nil
 		})
 	})
+}
+
+func readTempContent(
+	fileDescriptor int,
+	scratch []byte,
+	limit int,
+	pread func(int, []byte, int64) (int, error),
+) (int, error) {
+	count := 0
+	for count < limit {
+		read, err := pread(fileDescriptor, scratch[count:limit], int64(count))
+		if read > 0 {
+			count += read
+		} else if read < 0 && err == nil {
+			return count, fs.ErrInvalid
+		}
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			return count, err
+		}
+		if read == 0 {
+			break
+		}
+	}
+	return count, nil
 }
 
 func duplicateRootFile(file RootFile) (RootFile, error) {
