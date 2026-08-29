@@ -1,3 +1,38 @@
+## Review — GH #23 wave-close sharding — 2026-08-29
+
+**Reviewer**: `prepare-wave-close-timeout-review`,
+`prepare-wave-close-shard-review`, `prepare-wave-close-script-review`,
+supervisor final fold
+
+### Verdict: APPROVED TO RERUN
+
+### Notes
+
+The initial flat 40-minute timeout was rejected because CI's budget is per
+shard. The final design runs the exact 22-command blocking-CI partition from a
+POSIX script with pinned `BASH_ENV`, `GOFLAGS`, `GOENV`, `GOMAXPROCS` and
+`-p=1`; Make invokes it without recursive-make dry-run semantics. The parity
+guard rejects command removal/reorder/timeout drift, environment poisoning,
+gate bypass and omission of `scripts/**` from the untracked-file sentinel.
+
+### Action Taken
+
+Restored terminal tracking, checkpointed the gate correction, and authorized
+one final serial `make wave-close-check` rerun. Release operations remain
+unauthorized.
+
+## Supervisor Decision — GH #23 wave-close timeout — 2026-08-29
+
+**Decision**: **CLOSE REOPENED — MECHANICAL SHARDING ONLY**
+
+`make wave-close-check WAVE_BASE=3b579fc...` passed checks 1–7 at `8c95f92`.
+Check 8 ran the now-expanded full CLI suite with Go's 10-minute default and
+timed out at 600.608s; every other package passed. Blocking CI is green because
+it runs the complete package partition in fresh processes with a 40-minute
+timeout per process. Reuse that exact partition in the mechanical gate, rerun
+it under serial resource controls, and restore terminal state. No product or
+acceptance decision is reopened.
+
 ## Supervisor Decision — GH #23 implementation close — 2026-08-29
 
 **Decision**: **IMPLEMENTATION ACCEPTED — RELEASE AUTHORIZATION PENDING**

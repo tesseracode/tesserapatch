@@ -1415,6 +1415,10 @@ with **123/123** G sensitivities. The whole-wave production review is
 across all five blocking jobs at `30dbdba`. Terminal implementation range:
 `3b579fc..30dbdba`; close metadata follows. Release authorization has not been
 granted — nothing is tagged or released.
+The first serial mechanical close passed checks 1–7; check 8 hit Go's
+10-minute default in unsharded `internal/cli`. Exact blocking-CI sharding is
+now reused through a pinned POSIX script and parity guard; implementation
+acceptance is unchanged and the terminal gate rerun is pending.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

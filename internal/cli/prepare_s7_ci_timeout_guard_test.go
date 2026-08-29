@@ -102,6 +102,167 @@ const (
 	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
 )
 
+func TestS7WaveCloseShardParity(t *testing.T) {
+	root := avpRepoRoot(t)
+	makefileBytes, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	makefile := string(makefileBytes)
+	scriptBytes, err := os.ReadFile(filepath.Join(root, "scripts", "wave-close-test-shards.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(scriptBytes)
+	if err := validateS7WaveCloseShardParity(makefile, script); err != nil {
+		t.Fatal(err)
+	}
+	for _, fixture := range []struct {
+		name           string
+		mutateMakefile func(string) string
+		mutateScript   func(string) string
+	}{
+		{
+			name: "observer-removed",
+			mutateScript: func(body string) string {
+				return strings.Replace(
+					body,
+					strings.Replace(s7CINonWindowsAXObserverCommand, "go test ", "go test -p=1 ", 1)+"\n",
+					"",
+					1,
+				)
+			},
+		},
+		{
+			name: "shards-reordered",
+			mutateScript: func(body string) string {
+				first := strings.Replace(s7CINonWindowsFullCommand, "go test ", "go test -p=1 ", 1) + "\n"
+				second := strings.Replace(s7CINonWindowsARLegacyCommand, "go test ", "go test -p=1 ", 1) + "\n"
+				return strings.Replace(body, first+second, second+first, 1)
+			},
+		},
+		{
+			name: "timeout-narrowed",
+			mutateScript: func(body string) string {
+				return strings.Replace(body, "-timeout 40m", "-timeout 20m", 1)
+			},
+		},
+		{
+			name: "ambient-goflags-restored",
+			mutateScript: func(body string) string {
+				return strings.Replace(body, "GOFLAGS=\n", "GOFLAGS=-list=.\n", 1)
+			},
+		},
+		{
+			name: "goenv-restored",
+			mutateScript: func(body string) string {
+				return strings.Replace(body, "GOENV=off\n", "GOENV=\n", 1)
+			},
+		},
+		{
+			name: "package-serialization-removed",
+			mutateScript: func(body string) string {
+				return strings.Replace(body, "go test -p=1 ", "go test ", 1)
+			},
+		},
+		{
+			name: "gate-bypasses-script",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(
+					body,
+					"if out=$$(sh scripts/wave-close-test-shards.sh 2>&1); then \\",
+					"go test -count=1 ./...",
+					1,
+				)
+			},
+		},
+		{
+			name: "script-removed-from-untracked-sentinel",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, " 'scripts/**'", "", 1)
+			},
+		},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			mutatedMakefile := makefile
+			if fixture.mutateMakefile != nil {
+				mutatedMakefile = fixture.mutateMakefile(mutatedMakefile)
+			}
+			mutatedScript := script
+			if fixture.mutateScript != nil {
+				mutatedScript = fixture.mutateScript(mutatedScript)
+			}
+			if mutatedMakefile == makefile && mutatedScript == script {
+				t.Fatal("mutation changed nothing")
+			}
+			if err := validateS7WaveCloseShardParity(mutatedMakefile, mutatedScript); err == nil {
+				t.Fatal("wave-close shard parity accepted wrong input")
+			}
+		})
+	}
+}
+
+func validateS7WaveCloseShardParity(makefile, script string) error {
+	const environment = "#!/bin/sh\nset -eu\n\n" +
+		"BASH_ENV=/dev/null\n" +
+		"GOFLAGS=\n" +
+		"GOENV=off\n" +
+		"GOMAXPROCS=1\n" +
+		"export BASH_ENV GOFLAGS GOENV GOMAXPROCS\n\n"
+	if !strings.HasPrefix(script, environment) {
+		return errors.New("wave-close shard script lost its closed shell/Go environment")
+	}
+	var commands []string
+	for _, line := range strings.Split(strings.TrimPrefix(script, environment), "\n") {
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(line, "go test -p=1 ") {
+			return fmt.Errorf("wave-close shard is not a serialized go test command: %q", line)
+		}
+		commands = append(commands, strings.Replace(line, "go test -p=1 ", "go test ", 1))
+	}
+	var expected []string
+	for _, command := range strings.Split(
+		s7CINonWindowsTestScript+"\n"+s7CIObserverTestScript,
+		"\n",
+	) {
+		if command != "set -euo pipefail" {
+			expected = append(expected, command)
+		}
+	}
+	if !slices.Equal(commands, expected) {
+		return fmt.Errorf(
+			"wave-close shards differ from blocking CI:\n got %q\nwant %q",
+			commands,
+			expected,
+		)
+	}
+	const scriptCall = "sh scripts/wave-close-test-shards.sh"
+	if strings.Count(makefile, scriptCall) != 2 {
+		return fmt.Errorf("wave-close shard script invocation count = %d, want 2", strings.Count(makefile, scriptCall))
+	}
+	const target = "wave-close-test-shards:\n\t@" + scriptCall + "\n"
+	if !strings.Contains(makefile, target) {
+		return errors.New("wave-close-test-shards target does not invoke the guarded script")
+	}
+	checkStart := strings.Index(makefile, "wave-close-check:\n")
+	if checkStart < 0 ||
+		!strings.Contains(
+			makefile[checkStart:],
+			"if out=$$("+scriptCall+" 2>&1); then \\",
+		) {
+		return errors.New("wave-close-check does not invoke the guarded shard script")
+	}
+	if strings.Contains(makefile[checkStart:], "$(MAKE)") {
+		return errors.New("wave-close-check contains recursive make and is unsafe under make -n/-q/-t")
+	}
+	if strings.Count(makefile, "'scripts/**'") != 1 {
+		return errors.New("wave-close untracked-source sentinel does not cover scripts/** exactly once")
+	}
+	return nil
+}
+
 func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 	workflowPath := filepath.Join(avpRepoRoot(t), ".github", "workflows", "ci.yml")
 	workflowBytes, err := os.ReadFile(workflowPath)

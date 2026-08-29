@@ -1,4 +1,4 @@
-.PHONY: build test fmt install clean lint all wave-close-check
+.PHONY: build test fmt install clean lint all wave-close-test-shards wave-close-check
 
 BINARY=bin/tpatch
 BUILD_DIR=./cmd/tpatch
@@ -45,17 +45,25 @@ all: fmt lint test build
 # WAVE_BASE=<ref> to override the default trailer-check range
 # (default: origin/main..HEAD excluding HEAD; for wave close on a
 # pushed HEAD, we walk the last-shipped-tag..HEAD range instead).
-# Cluster E F1 (2026-08-04): added [8/8] `go test -count=1 ./...` as
+# Cluster E F1 (2026-08-04): added [8/8] uncached full-suite coverage as
 # a mechanical check. Prior to this the gate never ran the test
 # suite, so it could report PASS on a red suite (demonstrated
 # empirically at Cluster D HEAD `1bc2a25`). `-count=1` disables the
 # Go build cache so the check is deterministic across gate runs.
+# GH #23 (2026-08-29): the accepted suite outgrew Go's 10-minute package
+# default. Check 8 now runs the exact blocking-CI partition in fresh
+# processes, each with CI's 40-minute package timeout. The POSIX script pins
+# the load-bearing Go environment, and a parity guard keeps its commands
+# synchronized with CI.
 # Cluster E-prime Obs 2 (2026-08-05): [2/8] now reads
 # `.wave-close-allowlist` (repo root) and subtracts matching entries
 # from the untracked-source WARN list before reporting. Three
 # consecutive clusters (C, D, E) surfaced the same known WIP files
 # as WARN every run, training reviewers to skim past the sentinel.
 # Residual (non-allowlisted) untracked files still WARN as before.
+wave-close-test-shards:
+	@sh scripts/wave-close-test-shards.sh
+
 WAVE_BASE ?=
 wave-close-check:
 	@echo "=== Wave-Close Checklist (mechanical gate) ==="
@@ -69,7 +77,7 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[2/8] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
-	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'docs/*.md' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' '.wave-close-allowlist' 2>/dev/null); \
+	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'scripts/**' 'docs/*.md' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' '.wave-close-allowlist' 2>/dev/null); \
 	if [ -n "$$untracked_src" ]; then \
 		allowlist_file=".wave-close-allowlist"; \
 		allow_patterns=""; \
@@ -213,8 +221,8 @@ wave-close-check:
 	else \
 		echo "  OK"; \
 	fi; \
-	echo "[8/8] go test ./... clean..."; \
-	if out=$$(go test -count=1 ./... 2>&1); then \
+	echo "[8/8] CI-equivalent uncached test shards clean..."; \
+	if out=$$(sh scripts/wave-close-test-shards.sh 2>&1); then \
 		echo "  OK"; \
 	else \
 		echo "  FAIL: test suite failed"; \

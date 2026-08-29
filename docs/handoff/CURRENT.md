@@ -115,6 +115,14 @@ Final blocking CI
 is green on Ubuntu, macOS, Windows and both observer jobs at `30dbdba`.
 GH #23 implementation and acceptance are complete; release authorization is
 the only remaining boundary.
+The first mechanical close attempt passed checks 1–7 but `internal/cli`
+reached Go's 10-minute default during check 8 under mandated serial execution.
+Blocking CI had passed by splitting the package into fresh processes; exact
+CI-equivalent sharding is the sole active close correction.
+The correction is reviewed: `scripts/wave-close-test-shards.sh` pins the Go
+environment and runs the exact 22-command CI partition serially; Make invokes
+it directly, and a sensitivity-guarded parity test covers command order,
+environment, dry-run safety and the `scripts/**` forgotten-file sentinel.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)

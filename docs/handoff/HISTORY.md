@@ -40,6 +40,10 @@ all six shipped skill surfaces.
 - Binary builds: Linux amd64/arm64, Darwin amd64 and Windows amd64 PASS.
 - Aggregate CI 33230665925: five blocking jobs PASS at `6eb51c0`.
 - Final post-review CI 33236724647: five blocking jobs PASS at `30dbdba`.
+- The first mechanical close passed checks 1–7 and timed out in unsharded
+  `internal/cli` at Go's 10-minute default. The gate was corrected to reuse
+  blocking CI's exact 22-process partition under pinned serial resource
+  controls; its final rerun follows the correction commit.
 
 ## Review scoreboard
 

@@ -133,7 +133,7 @@ test matrix had affirmatively decided edge creation onto that parent is *allowed
 gofmt -l .            # never piped — must be run directly
 go vet ./...
 go build ./cmd/tpatch
-go test -count=1 ./...
+make wave-close-test-shards
 make wave-close-check
 ```
 
