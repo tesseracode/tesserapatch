@@ -1,3 +1,19 @@
+## Supervisor Decision — GH #23 mechanical close — 2026-08-29
+
+**Decision**: **PASS 8/8 — STOP AT RELEASE AUTHORIZATION BOUNDARY**
+
+`make wave-close-check
+WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936` passes all eight
+mechanical checks at `2df3346`. The gate verifies a clean pushed tree, 96/96
+required trailers, terminal handoff state, formatting, vet/build, and the exact
+22-process uncached blocking-CI partition.
+
+### Action Taken
+
+Persisted the terminal close record. No version bump, CHANGELOG graduation,
+tag, tag push or GitHub release was performed; explicit user approval remains
+required.
+
 ## Review — GH #23 wave-close sharding — 2026-08-29
 
 **Reviewer**: `prepare-wave-close-timeout-review`,

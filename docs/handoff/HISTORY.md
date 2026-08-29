@@ -43,7 +43,7 @@ all six shipped skill surfaces.
 - The first mechanical close passed checks 1–7 and timed out in unsharded
   `internal/cli` at Go's 10-minute default. The gate was corrected to reuse
   blocking CI's exact 22-process partition under pinned serial resource
-  controls; its final rerun follows the correction commit.
+  controls; the rerun passes **8/8** at `2df3346`.
 
 ## Review scoreboard
 

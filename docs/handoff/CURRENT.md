@@ -123,6 +123,11 @@ The correction is reviewed: `scripts/wave-close-test-shards.sh` pins the Go
 environment and runs the exact 22-command CI partition serially; Make invokes
 it directly, and a sensitivity-guarded parity test covers command order,
 environment, dry-run safety and the `scripts/**` forgotten-file sentinel.
+`make wave-close-check
+WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936` passes **8/8** at
+`2df3346`: the tree is clean, HEAD pushed, all 96 wave commits carry the
+trailer, terminal state parses, formatting/vet/build pass, and all 22 uncached
+CI-equivalent test shards pass.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
