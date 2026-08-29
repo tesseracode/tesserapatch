@@ -93,6 +93,23 @@ hit its 40-minute cap in an older AP guard, so it was replaced by those
 non-overlapping shards. Vet/build, Linux/Darwin/Windows/BSD CLI test-compiles,
 Linux amd64/arm64, Darwin amd64 and Windows amd64 binary builds all pass.
 Side Research remains `b385fe622db9926f48861105239f113e`.
+Aggregate CI
+[33230665925](https://github.com/tesseracode/tesserapatch/actions/runs/33230665925)
+is green on all three platforms and both observer jobs at `6eb51c0`. The
+complete GH #23 implementation range is now in final split review: production
+correctness separately from contract/tests/docs/release readiness.
+Production review found one latent `Pread` EINTR negative-offset panic; the
+reviewed fix is committed at `1c5ad8b`. Release-readiness review then found
+stale acceptance metadata, authorization/index/ROADMAP/handoff records and a
+CHANGELOG graduation guard that would reject a versioned heading. The
+non-tracking corrections are implemented and their targeted guards pass;
+tracking reconciliation and post-fix CI remain.
+Focused correction review is complete. The ROADMAP acceptance date is
+2026-08-29, and the changelog guard now survives all three repository-standard
+states: `Unreleased`, `vX.Y.Z (unreleased)`, and the final dated release
+heading, including a later empty `Unreleased` section.
+The paired readiness contract/index/guard corrections are checkpointed at
+`223efb0`; production fix `1c5ad8b` immediately precedes them.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1868,7 +1885,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — aggregate checkpointed at `7d4981a`; CI next**
+- **Status**: **In progress — corrections checkpointed at `223efb0`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -7963,64 +7980,43 @@ observer **PASS** in 9.928s; exact full non-observer command **PASS** with CLI
 at 471.544s. Formatting, vet and CLI build pass.
 - AV exact tests, observer and CI guards are checkpointed at `cf2389f`.
 
-**AV rev-2 residuals:**
+**Final GH #23 validation:**
 
-- Final review and the reviewed AP PRD/ADR span-pin acknowledgement are
-  **APPROVED**.
-- The `PIB-546` shared-helper sensitivity is **two deltas**, not one, for the
-  reason stated above. Every other AV sensitivity remains a single delta.
-- The rev-18 erratum is **proposed**, not accepted: joint review must accept it
-  together with rev-17 before AV can be marked complete.
-- `PIB-547`'s split caveat wording (rev-1 residual) is unchanged and remains a
-  contract question rather than an implementation gap.
-- `internal/cli` remains the slowest package; rev-2 adds route-context memo keys
-  to the PIB-546 walk and one extra document parse per PIB-551 fixture, so a
-  small runtime increase is expected and should be measured on the next run.
+- AW accepted at `31192a0`; CI 33177631054 green on all five blocking jobs.
+- AX/rev-19 accepted at `51382fc`; CI 33198502426 green on all five blocking
+  jobs. S7 is 173/173.
+- Aggregate acceptance committed at `7d4981a`: 567/567 body-sensitive rows,
+  123/123 G sensitivities, zero blocked escapes.
+- Full uncached non-observer suite **PASS** (`internal/cli` 512.183s);
+  aggregate/S5/golden race shard **PASS** (901.022s); shared S6 guard race
+  shard **PASS** (307.001s); other touched-package race suites **PASS**.
+- Vet/build, Linux/Darwin/Windows/BSD CLI test-compiles and Linux amd64/arm64,
+  Darwin amd64 and Windows amd64 binary builds **PASS**.
+- Aggregate CI 33230665925 is green at `6eb51c0`.
+- Production review found the `Pread` EINTR count-underflow panic. Fix
+  `1c5ad8b` and its focused non-race/race/Linux/Windows tests are **APPROVED**.
+- Rev-17, rev-18 and rev-19 are accepted jointly on 2026-08-29. Changelog
+  graduation, ADR-index, authorization, ROADMAP and doctor-panic record guards
+  pass locally.
+- Side Research md5 remains `b385fe622db9926f48861105239f113e`.
 
 ## Next Steps
 
-1. Checkpoint AV rev-2 and rev-18 by explicit paths, then push and require green
-   blocking CI (the `s7-observers` job now carries the AV step).
-2. After green blocking CI, implement AW–AX, remaining sensitivities and the
-   full 567 ledger from exact runtime/document observables; obtain clean review.
-6. Run joint internal/external review to acceptance; only then select the
-   release tag carrying `prepare --check` plus mutating prepare.
+1. Review and commit the pre-release contract/docs/guard/tracking corrections;
+   push `1c5ad8b` plus those commits.
+2. Require a new green five-job blocking CI on the final pre-release tip.
+3. Run `make wave-close-check
+   WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936`, archive this handoff to
+   `docs/handoff/HISTORY.md`, and stop at the user-approval boundary.
+4. Only after explicit user approval: graduate CHANGELOG to `v0.16.0`, update
+   version metadata, commit the release, create/push the annotated tag, and
+   create the GitHub release.
 
 ## Blockers
 
-- AV rev-2 is approved; AW–AX remain procedurally blocked until AV is
-  checkpointed, pushed and green in CI.
-- **The rev-18 `PIB-550` erratum is proposed, not accepted.** It resolves
-  rev-1's blocker — the shipped `prepareArchiveStorage.RemoveBlob` re-probes the
-  managed object's identity in `PreflightBlobRemove`, refuses at exit 5
-  `archive-purge-partial` with the replacement intact, and the residual narrows
-  to the unseamed probe→unlink gap — but it must be accepted jointly with
-  rev-17 before AV can be marked complete. No production behaviour changed and
-  the identity re-probe was not weakened.
-- Blocking CI 33040928741 passed every platform/shard except macOS's final AR
-  observer, whose 8m inner budget expired at 489.674s. Rev-37 is active.
-- Blocking CI 33046534111 passed every non-observer shard but macOS exhausted
-  AR's 10m inner budget at 611.861s. Rev-39 is active.
-- Blocking CI 33054901334 failed before AR because macOS AM–AO exhausted its
-  legacy 90s inner timeout at 122.36s. Rev-41 is active.
-- Blocking CI 33024637427 failed on the type-model projection collision and
-  non-Windows runtime exhaustion; AR is reopened at rev-33.
-- Rev-19 and rev-20 are rejected, and rev-21 lacks valid final-code observer
-  evidence. Their observer allowances are consumed. Rev-22 is rejected on the
-  scheduled-closure-alias defect and its final-code observer is also consumed.
-  Rev-23 is rejected on the target/capture-role collision; no rev-23 observer
-  ran. Rev-24 is rejected on lost explicit-return terminal states; no rev-24
-  observer ran. Rev-25 is rejected on discarded select communication operand
-  mutations; no rev-25 observer ran. Rev-26 is rejected on post-evaluation
-  rebinding of earlier helper arguments; no rev-26 observer ran. Rev-27's
-  dropped-later-uncertainty finding is withdrawn, and its exact frozen guard
-  passed complete static review. No rev-27 observer ran. Rev-28 is closed with
-  its experimental fixture removed and no analyzer edit. Rev-29 is closed
-  blocked on timing with its observer unconsumed. Rev-30 is the sole
-  authorized validation retry and is now closed on a CPU-quiet cap failure.
-  No rev-30 observer ran. Rev-31 closes the required optimization, passes
-  static review and fresh eligibility. Rev-32 consumed its sole observer
-  allowance and is approved; only checkpoint/push/green CI blocks AS–AX.
+- Post-`1c5ad8b` blocking CI has not run yet.
+- Version bump, CHANGELOG graduation, tag, tag push and GitHub release remain
+  blocked on explicit user approval by design.
 
 ## Context for Next Agent
 

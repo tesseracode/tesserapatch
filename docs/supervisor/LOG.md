@@ -1,3 +1,98 @@
+## Review — GH #23 readiness corrections final — 2026-08-29
+
+**Reviewer**: supervisor focused follow-up
+
+### Verdict: APPROVED TO CHECKPOINT
+
+### Notes
+
+The CHANGELOG guard accepts `## Unreleased`, the documented
+`## vX.Y.Z (unreleased) — <scope>` intermediate form, and the final dated
+heading, while selecting the anchor-bearing release section beneath a later
+empty Unreleased section. Targeted changelog and rev-17/18/19 frozen-record
+guards pass.
+
+### Action Taken
+
+Readiness corrections are checkpointed at `223efb0`. Push them with
+`1c5ad8b` and tracking, then
+require new five-job blocking CI before wave close.
+
+## Review — GH #23 readiness corrections — 2026-08-29
+
+**Reviewer**: `prepare-readiness-fixes-review`,
+`prepare-readiness-final-review`
+
+### Verdict: APPROVED WITH NOTES
+
+### Notes
+
+All original readiness blockers are closed. Follow-up found the ROADMAP header
+retained rev-15's date and the changelog resolver initially failed a later
+empty Unreleased section, then identified the repository's intermediate
+`vX.Y.Z (unreleased)` heading. All three were corrected before checkpoint.
+
+## Review — GH #23 release readiness — 2026-08-29
+
+**Reviewer**: `prepare-wave-readiness-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The CHANGELOG completeness guard would reject a graduated version heading;
+CURRENT's actionable tail and Test Results were AV-era stale; tracking omitted
+the unpushed `1c5ad8b` production fix; rev-17/18/19 remained proposed; the
+ADR index and PRD/ADR authorization text still claimed implementation was
+blocked; ROADMAP carried 20 truncated fragments; and the doctor panic-message
+hardening lacked a record note.
+
+### Action Taken
+
+Implemented the non-tracking contract/index/ROADMAP/guard corrections and
+rewrote CURRENT's Test Results, Next Steps and Blockers. Targeted readiness
+guards pass. Post-fix CI remains required before the terminal close.
+
+## Review — GH #23 production follow-up — 2026-08-29
+
+**Reviewer**: `prepare-eintr-fix-review`
+
+### Verdict: APPROVED
+
+### Notes
+
+`1c5ad8b` checks `Pread` errors before count accumulation, retries
+`-1/EINTR` at the unchanged offset, accounts for positive partial reads, and
+rejects an impossible negative/no-error result. Intentpub full/race and
+Linux/Windows cross-compiles pass.
+
+## Review — GH #23 production — 2026-08-29
+
+**Reviewer**: `prepare-wave-production-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+`verifyTempContentAtHeldDirectory` added `Pread`'s `-1` error return to
+`count` before handling EINTR, so the retry sliced `scratch[-1:limit]` and
+panicked instead of preserving the typed transaction failure contract.
+
+### Action Taken
+
+Corrected and regression-tested the loop at `1c5ad8b`; focused re-review
+approved it.
+
+## Supervisor Decision — aggregate CI / whole-wave review — 2026-08-29
+
+**Decision**: **FINAL REVIEW DISPATCHED**
+
+CI [33230665925](https://github.com/tesseracode/tesserapatch/actions/runs/33230665925)
+is green on Ubuntu, macOS, Windows and both observer jobs at `6eb51c0`.
+GH #23's full implementation range is split into production-correctness and
+acceptance/release-readiness reviews. No version, tag or release operation is
+authorized.
+
 ## Review — prepare aggregate ledger rev-4 — 2026-08-29
 
 **Reviewer**: `prepare-aggregate-rev4-review`
