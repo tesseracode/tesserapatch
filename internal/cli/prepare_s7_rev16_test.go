@@ -256,8 +256,8 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 			name: "rev-18-revision-row-dropped",
 			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
 				wrong.prd = bytes.Replace(wrong.prd,
-					[]byte("| rev-18 | **Proposed no-decision erratum — 2026-08-28"),
-					[]byte("| rev-18b | **Proposed no-decision erratum — 2026-08-28"), 1)
+					[]byte("| rev-18 | **Accepted no-decision erratum — raised 2026-08-28"),
+					[]byte("| rev-18b | **Accepted no-decision erratum — raised 2026-08-28"), 1)
 				return wrong
 			},
 		},
@@ -336,8 +336,73 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 			name: "rev-19-revision-row-dropped",
 			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
 				wrong.prd = bytes.Replace(wrong.prd,
-					[]byte("| rev-19 | **Proposed no-decision erratum — 2026-08-28"),
-					[]byte("| rev-19b | **Proposed no-decision erratum — 2026-08-28"), 1)
+					[]byte("| rev-19 | **Accepted no-decision erratum — raised 2026-08-28"),
+					[]byte("| rev-19b | **Accepted no-decision erratum — raised 2026-08-28"), 1)
+				return wrong
+			},
+		},
+		{
+			// Joint acceptance: the PRD rev-17 row reverted to proposed.
+			name: "rev-17-revision-row-reverted-to-proposed",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("| rev-17 | **Accepted no-decision erratum — raised 2026-08-27, accepted 2026-08-29** |"),
+					[]byte("| rev-17 | **Proposed no-decision erratum — 2026-08-27; acceptance pending joint review** |"), 1)
+				return wrong
+			},
+		},
+		{
+			// Joint acceptance: the ADR rev-19 acceptance block reverted to
+			// pending.
+			name: "rev-19-adr-acceptance-reverted-to-pending",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("**Rev-19 acceptance**: 2026-08-29 — **Accepted no-decision erratum**, jointly\nwith rev-17 and rev-18 (raised 2026-08-28)"),
+					[]byte("**Rev-19 acceptance**: **pending joint review** (raised 2026-08-28) —\n**proposed no-decision erratum**"), 1)
+				return wrong
+			},
+		},
+		{
+			// Readiness: §19's stale paused-production authorization wording,
+			// restored.
+			name: "readiness-authorization-gate-paused-production-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("**The gate is satisfied and closed.** Conditions (1)–(4) are complete: rev-15's\nbounded evidence erratum was jointly approved on 2026-08-18, which lifted the\npre-change-commit-only restriction, and the GH #23 implementation of the §17.2\nproduction order has been accepted through aggregate review. Release\nauthorization is a separate decision and is not recorded by this gate."),
+					[]byte("**The sequencing prerequisite is satisfied.** Conditions (1)–(3) are complete\nand GH #23 has dispatched condition (4). Until rev-15's bounded evidence\nerratum is jointly approved, only its pre-change test/golden commit is\nauthorized; mutating production slices remain paused."), 1)
+				return wrong
+			},
+		},
+		{
+			// Readiness: ADR-035's `Blocks` metadata restored to the rev-15
+			// wait over slices S1–S6.
+			name: "readiness-adr-blocks-rev15-wait-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("slices S1–S7). The sequencing prerequisite is satisfied by GH #16, and the\nimplementation authorization gate (PRD §19) is satisfied: GH #23 landed\nS1–S7 and that implementation has been accepted through aggregate review.\nRelease authorization remains a separate decision."),
+					[]byte("slices S1–S6). The sequencing prerequisite is satisfied by GH #16; GH #23 may\nland pre-change evidence, while mutating production slices wait for rev-15's\nbounded D14/PIB-391 evidence erratum to be jointly approved."), 1)
+				return wrong
+			},
+		},
+		{
+			// Readiness: the ADR index row's blocking-prerequisite language,
+			// restored.
+			name: "readiness-adr-index-blocking-prerequisite-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.index = bytes.Replace(wrong.index,
+					[]byte("rev-19. Decisions D1–D21. The mutating implementation (PRD §17.2 slices S1–S7, GH #23) and its acceptance are complete; release authorization is pending."),
+					[]byte("rev-14. Decisions D1–D21. Mutating implementation is blocked by the `prepare --check` implementation prerequisite, not by planning review."), 1)
+				return wrong
+			},
+		},
+		{
+			// Readiness: §12.6's D6 delta promising an interpolated panic
+			// detail again.
+			name: "readiness-doctor-panic-detail-promise-restored",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("The recovered-panic finding message is a constant for **every** doctor check, so D1–D8 no longer interpolate the panic value either"),
+					[]byte("The recovered-panic finding message still includes the panic value for every doctor check, so D1–D8 are untouched"), 1)
 				return wrong
 			},
 		},
@@ -392,9 +457,14 @@ func s7Rev16BaselineEvidence(t *testing.T) s7Rev16Evidence {
 	if err != nil {
 		t.Fatal(err)
 	}
+	index, err := os.ReadFile(filepath.Join(root, "docs", "adrs", "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	const base = "2d9492cbf6fd9c69c5aa75d64d05983c05e1563f"
 	basePRD := s7GitFileAt(t, root, base, "docs/prds/PRD-prepare-intent-bundle.md")
 	baseADR := s7GitFileAt(t, root, base, "docs/adrs/ADR-035-intent-bundle-publication-and-history.md")
+	baseIndex := s7GitFileAt(t, root, base, "docs/adrs/README.md")
 	diffCommand := exec.Command(
 		"git", "diff", base, "--",
 		"docs/prds/PRD-prepare-intent-bundle.md",
@@ -406,15 +476,16 @@ func s7Rev16BaselineEvidence(t *testing.T) s7Rev16Evidence {
 		t.Fatal(err)
 	}
 	return s7Rev16Evidence{
-		base: base, prd: prd, adr: adr, basePRD: basePRD, baseADR: baseADR, diff: diff,
+		base: base, prd: prd, adr: adr, index: index,
+		basePRD: basePRD, baseADR: baseADR, baseIndex: baseIndex, diff: diff,
 	}
 }
 
 type s7Rev16Evidence struct {
-	base             string
-	prd, adr         []byte
-	basePRD, baseADR []byte
-	diff             []byte
+	base                        string
+	prd, adr, index             []byte
+	basePRD, baseADR, baseIndex []byte
+	diff                        []byte
 }
 
 type s7Rev16MatrixRow struct {
@@ -428,7 +499,7 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 	if err := validateS7Rev16PendingOwnerErratum(input.prd, input.adr); err != nil {
 		return err
 	}
-	if err := validateS7Rev19RecordErratum(input.prd, input.adr); err != nil {
+	if err := validateS7Rev19RecordErratum(input.prd, input.adr, input.index); err != nil {
 		return err
 	}
 	if err := validateS7Rev16DocumentDiffs(input); err != nil {
@@ -519,15 +590,23 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 			}
 		}
 	}
-	// rev-18 is the AV removal-identity re-probe erratum. It is proposed rather
-	// than accepted, so its disposition token differs from rev-16's, but it
-	// carries the same no-decision claim and the PRD half additionally states
-	// the amended row and the unchanged counts.
+	// rev-17, rev-18 and rev-19 were raised as proposed no-decision errata and
+	// accepted jointly with ADR-035's paired halves on 2026-08-29. Their rows
+	// therefore carry the accepted disposition with both dates, and the same
+	// no-decision claim rev-16's row makes; the PRD halves of rev-18 and rev-19
+	// additionally state the amended rows and the unchanged counts.
+	prdRev17 := s7RevisionRow(string(input.prd), 17)
+	adrRev17 := s7RevisionRow(string(input.adr), 17)
+	for label, row := range map[string]string{"PRD": prdRev17, "ADR": adrRev17} {
+		if !strings.Contains(row, "**Accepted no-decision erratum — raised 2026-08-27, accepted 2026-08-29**") {
+			return fmt.Errorf("%s rev-17 history is not a jointly accepted erratum: %s", label, row)
+		}
+	}
 	prdRev18 := s7RevisionRow(string(input.prd), 18)
 	adrRev18 := s7RevisionRow(string(input.adr), 18)
 	for label, row := range map[string]string{"PRD": prdRev18, "ADR": adrRev18} {
 		for _, token := range []string{
-			"Proposed no-decision erratum — 2026-08-28",
+			"Accepted no-decision erratum — raised 2026-08-28, accepted 2026-08-29",
 			"No decision",
 		} {
 			if !strings.Contains(strings.ToLower(row), strings.ToLower(token)) {
@@ -541,12 +620,12 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 		}
 	}
 	// rev-19 is the AX record erratum: two amended matrix rows plus three
-	// non-matrix companion corrections. It is proposed, not accepted.
+	// non-matrix companion corrections, accepted with rev-17 and rev-18.
 	prdRev19 := s7RevisionRow(string(input.prd), 19)
 	adrRev19 := s7RevisionRow(string(input.adr), 19)
 	for label, row := range map[string]string{"PRD": prdRev19, "ADR": adrRev19} {
 		for _, token := range []string{
-			"Proposed no-decision erratum — 2026-08-28",
+			"Accepted no-decision erratum — raised 2026-08-28, accepted 2026-08-29",
 			"No decision",
 		} {
 			if !strings.Contains(strings.ToLower(row), strings.ToLower(token)) {
@@ -627,18 +706,21 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "PRD",
 			base:  input.basePRD, current: input.prd,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "1911ac5d53687cdab0da035b0725bed90323e1505cdceec13ef22f05e007a01d"},
-				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "9d2859f4edff39ab583fc5e9de7902bb09aca5c3841b67b9a8f65a6618e46abf"},
+				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "7c3b82a0381193dac152b2f301df398adbd47bf47fb49a8f0edfd1a37c1630db"},
+				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "82850aafe0c1f35a17f8a31be80b46a04d78a66f1de9470fbf0c1afe22e35e0f"},
 				{label: "section-9.3-rehydration", heading: "### 9.3 `index.json`", baseHash: "fd9f4f35b499a2b17a60c6d256b9c1ff2448b57ef750e9f1f367505406e5ecc9", currentHash: "e8298d7394da53eee093bfc0b3b1e7a61bea0c8579fea731922b63f6a5e98254"},
 				{label: "section-9.7.1-consistency", heading: "#### 9.7.1 Selection and shared references", baseHash: "3210b5cf279b85e0f53e3d9edaa3caae1677849392155d06690455ae59f3287c", currentHash: "03b78d83c11bc56599cbb8e71cdb4f11f9506ed3c13922215e82a252ff0b1d93"},
 				{label: "section-9.7.2-residual-window", heading: "#### 9.7.2 Honest purge procedure and residual race", baseHash: "efe42995f891dce9e1bcef16fba4c9b8888898a67f0e5734d465f2ad8da14734", currentHash: "b2356f6742030f9297b9577b303f18afe6919c503c50df0900d1b99785007d81"},
 				// rev-19: §10.2's worked sequential-repair example becomes the
 				// exit-3 archive-integrity refusal form it always had to be.
 				{label: "section-10.2-purge-report-example", heading: "### 10.2 JSON report (v1)", baseHash: "b07b4080df837ee3ffdad9ce4dd6cc8d7fd892103d9309623daefbc947945102", currentHash: "108addefcf728a9d9b48ef8e6a07c6a4ab1a435d3ff542e0beb36b1d427a8bdf"},
+				// Readiness: §12.6's D6 delta records that the recovered-panic
+				// finding message is constant for every doctor check.
+				{label: "section-12.6-behavior-deltas", heading: "### 12.6 Enumerated behavior deltas — the complete list", baseHash: "87c382a287ec444a8eb6d410640d7f244bf5ccb1aa0c707599bb8e79d135dbad", currentHash: "1b8b2cc209014dec1a96e98850b6ca8de8493bd040a41f769df94d06f5846993"},
 				// rev-19: R25's joint `list`/`doctor`/mutation exit is split.
 				{label: "section-16-risks", heading: "## 16. Risks", baseHash: "8b245e8716ede244c3025597bb2a94f808c9839403acdc892447d536bd96448d", currentHash: "72e1190115af77c3f9e886127fc29db4dc926172472cf94bf82951a38348911f"},
 				{label: "mechanical-slice-summary", heading: "### 17.2 Slices", baseHash: "32831b33b9200267975945357a3f035ad8ac84d8c91720496007986fcdea8f2a", currentHash: "d18b0764ee3c2985016ba5efe2c6aca5d1c32765ee9844e32a1dacdfd82aca05"},
-				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "a5fa33727aeec9c5e9efa650f3a2be08702e2d3e45a87a8cc051d27333acdf9c"},
+				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "aa8f9b170d83949f353197e08516cd433c202e74c4612f7de710eb681510b652"},
 				{label: "matrix-pib-402-403", heading: "### 18.40 AM — Rev-2 adjudication rows, amended by rev-3", baseHash: "ea342198fd9ecfe95385245fb29af8f89dab05332ea7d63947a488907637a2b6", currentHash: "307e6c60f1b23cd64ca254aaef2e49135eb0c0cf33475e8fc887c9b5b7def16a"},
 				{label: "matrix-pib-425", heading: "### 18.41 AN — Rev-3 adjudication: directory authority, privacy and archive truth", baseHash: "c3812ced4e0254b749cc1b9e24ecf8b284223678619de5966aa16f25e50ed3a0", currentHash: "5edc1c5c1ccac9f836099faee0c2c329da858b7cab357b96df9bd50fae3efc5d"},
 				{label: "matrix-pib-542-544", heading: "### 18.48 AU — Rev-10 adjudication: global pending ownership, selector-independent validation and the corrupt-blob route", baseHash: "7b8dc7b2b98655beef1f5f03706cc832d21a48699418d24ffc13396d8d237d01", currentHash: "0c5a59211d322812d6c14dd37cd99b2ffc78fc60d2df43602bc36435fab37098"},
@@ -646,6 +728,9 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 				// rev-19: the two amended matrix rows, PIB-562 and PIB-566.
 				{label: "matrix-pib-562-566", heading: "### 18.51 AX — Rev-13 adjudication: corrupt-first ordering, repair stages, pending-route narrowing and ledger parity", baseHash: "b93accf062371958db4f645bc9c4146008f9239306c87f0a9473a848b5fd42c2", currentHash: "5c560e913cb3c8591529ed0bc660b2b6542f0fe650183bf61707b5e46a8b624c"},
 				{label: "section-18.53-sensitivities", heading: "### 18.53 Sensitivity requirement", baseHash: "231a50903312049358535b16f39da9148cf5733c50f5a24ebfa53d9ce535f15a", currentHash: "4cabfe5672743748dae062b97a4bfe2a0c235d39bb05ed956a801d8dfb484fd7"},
+				// Readiness: §19's gate records conditions (1)–(4) complete and
+				// the accepted GH #23 implementation, without a release claim.
+				{label: "section-19-authorization-gate", heading: "## 19. Implementation authorization gate", baseHash: "360f2df976a308bae2f5bc541c5b6532f3b9f360a30c1ff1a9ce2aa2fade1375", currentHash: "a561571e0f058cb97454c4744c0e8266e89c8a8768cd98cfb3c006aa89a483a4"},
 				{label: "section-21-alternatives", heading: "## 21. Alternatives considered (summary)", baseHash: "ec652ea2de6e47354d9c0229ebd1035ea6a5e17d3b171c94d1be32f040be0c7f", currentHash: "21f291115164a56339b77a70bb44ef6ac3952397c5f2ec0d3bbd014a5ace7e3e"},
 			},
 		},
@@ -653,11 +738,20 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "ADR",
 			base:  input.baseADR, current: input.adr,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "ac728e778952a9564b2a692c2f9b83f8a2c8d4a7a3045281cec9493c5d2e7429"},
+				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "551209f77e49c58a04861919b4200b8e272dfb9eb028ebddab4f88a853d6aa9f"},
 				{label: "D10-pending-owner", heading: "### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes", baseHash: "04b8affc6125b69e4191b2b30d6cb8c9760e0ab872abf9aa520aa53040a4b4e5", currentHash: "76a7b43b42f63214620a4712ff96dfcef906d2e9944ec4b70dcf62c6566e9d33"},
 				{label: "D13-terminal-owner-precedence", heading: "### D13 — Recovery has three entry points, it is terminal, the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing", baseHash: "77633643c1cc2c1b5607ba673cfe8af6b17d25d47510e1c6904b0a0f50c6cbb1", currentHash: "b5b45839dc04492a0673aa44b232d7138fff88cc7b8657072feb26c0c01a454f"},
 				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "9757ddc5251a04f0e0ed6b9f5559420d08ddf8fc8c4bbf7abf76d836e00d287a"},
 				{label: "adr-alternatives-considered", heading: "## Alternatives considered", baseHash: "fa303b87ef6fd1054570916d0dbcead3f770f8760b6177a66eb714d2319a5649", currentHash: "3f5062fda963eaf676a24821dd09e829ae36555c2cb9f2925641e17b9e586ac8"},
+			},
+		},
+		{
+			// Readiness: the ADR index row is the third frozen document. Only
+			// its `## Index` block may move, and only for ADR-035's own row.
+			label: "ADR index",
+			base:  input.baseIndex, current: input.index,
+			allowedRegions: []s7Rev16AllowedRegion{
+				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "a70be9f0f3d88286999bed8d5a9521ddaf44b973c1e643a9c15c024c85c3db61"},
 			},
 		},
 	}
@@ -1079,14 +1173,19 @@ func s7Rev19PurgePlanExample(prd string) (string, error) {
 // authority: the AX record erratum amends exactly `PIB-562` and `PIB-566` and
 // corrects three non-matrix companions — §10.2's worked example, §16's `R25`
 // and ADR-035's D10 prose — without moving a decision, an exit the product
-// emits, or the 567/thirty-six arithmetic.
-func validateS7Rev19RecordErratum(prd, adr []byte) error {
+// emits, or the 567/thirty-six arithmetic. It also owns the readiness record:
+// rev-17, rev-18 and rev-19 are jointly accepted, PRD §19's authorization gate
+// and ADR-035's `Blocks` metadata are satisfied without a release claim, the
+// ADR index row says the same, and §12.6's D6 delta records the constant
+// recovered-panic message.
+func validateS7Rev19RecordErratum(prd, adr, index []byte) error {
 	prdText := string(prd)
 	adrText := string(adr)
+	indexText := string(index)
 	for _, token := range []string{
 		"rev-19 observed-product surface-split\nno-decision erratum (2026-08-28)",
-		"**Rev-19 acceptance**: **pending joint review** (raised 2026-08-28)",
-		"| rev-19 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** |",
+		"**Rev-19 acceptance**: 2026-08-29 — **Accepted no-decision erratum**, jointly\nwith rev-17 and rev-18 (raised 2026-08-28)",
+		"| rev-19 | **Accepted no-decision erratum — raised 2026-08-28, accepted 2026-08-29** |",
 		"amends exactly two stable rows: `PIB-562` and `PIB-566`",
 		"**companions, not matrix rows**",
 	} {
@@ -1096,13 +1195,16 @@ func validateS7Rev19RecordErratum(prd, adr []byte) error {
 	}
 	for _, token := range []string{
 		"rev-19 D10\nobserved-product no-decision erratum (2026-08-28)",
-		"**Rev-19 acceptance**: **pending joint review** (raised 2026-08-28)",
-		"| rev-19 | **Proposed no-decision erratum — 2026-08-28; acceptance pending joint review** |",
-		"rev-17, rev-18 and rev-19 no-decision errata are pending",
+		"**Rev-19 acceptance**: 2026-08-29 — **Accepted no-decision erratum**, jointly\nwith rev-17 and rev-18 (raised 2026-08-28)",
+		"| rev-19 | **Accepted no-decision erratum — raised 2026-08-28, accepted 2026-08-29** |",
+		"rev-17, rev-18 and rev-19 no-decision errata were\naccepted in the same joint review as this document's, on 2026-08-29",
 	} {
 		if !strings.Contains(adrText, token) {
 			return fmt.Errorf("ADR rev-19 token missing: %q", token)
 		}
+	}
+	if err := validateS7ReadinessRecord(prdText, adrText, indexText); err != nil {
+		return err
 	}
 
 	// The two amended matrix rows, each judged on its own line.
@@ -1236,6 +1338,122 @@ func validateS7Rev19RecordErratum(prd, adr []byte) error {
 	}
 	if !strings.Contains(d16, "`doctor`'s D9 reports the identical set, warning-only (PIB-541)") {
 		return fmt.Errorf("ADR D16's warning-only rule moved; rev-19 changes no D16 text")
+	}
+	return nil
+}
+
+// validateS7ReadinessRecord pins the pre-release record the three frozen
+// documents carry once the joint rev-17/18/19 acceptance landed: PRD §19's
+// authorization gate is closed on all four conditions with the GH #23
+// implementation accepted through aggregate review, ADR-035's `Blocks`
+// metadata says the same over slices S1–S7, the ADR index row agrees, and
+// none of the three claims a release or a tag. §12.6's D6 delta additionally
+// records that the recovered-panic finding message is a constant for every
+// doctor check, so D1–D8 carry no interpolated panic value either.
+func validateS7ReadinessRecord(prd, adr, index string) error {
+	gate, err := s7MarkdownSection(prd, "## 19. Implementation authorization gate", "\n## 20. ")
+	if err != nil {
+		return err
+	}
+	for _, token := range []string{
+		"**The gate is satisfied and closed.**",
+		"Conditions (1)–(4) are complete",
+		"has been accepted through aggregate review",
+		"Release\nauthorization is a separate decision",
+		"production slices S1–S7 landed and were accepted through aggregate\n   review",
+	} {
+		if !strings.Contains(gate, token) {
+			return fmt.Errorf("PRD §19 readiness token missing: %q", token)
+		}
+	}
+	for _, retired := range []string{
+		"Conditions (1)–(3) are complete",
+		"mutating production slices remain paused",
+		"production awaits rev-15 joint approval",
+		"only its pre-change test/golden commit is",
+		"tagged",
+		"released",
+	} {
+		if strings.Contains(gate, retired) {
+			return fmt.Errorf("PRD §19 carries the wrong authorization reading %q", retired)
+		}
+	}
+
+	deltas, err := s7MarkdownSection(prd, "### 12.6 Enumerated behavior deltas", "\n## 13. ")
+	if err != nil {
+		return err
+	}
+	for _, token := range []string{
+		"The recovered-panic finding message is a constant for **every** doctor check",
+		"so D1–D8 no longer interpolate the panic value either",
+		"no D1–D8 golden fixture drives a panicking check",
+	} {
+		if !strings.Contains(deltas, token) {
+			return fmt.Errorf("PRD §12.6 D6 panic-record token missing: %q", token)
+		}
+	}
+	for _, retired := range []string{
+		"includes the panic value",
+		"interpolates the panic value",
+		"carries the panic value",
+	} {
+		if strings.Contains(deltas, retired) {
+			return fmt.Errorf("PRD §12.6 D6 promises an interpolated panic detail: %q", retired)
+		}
+	}
+
+	blocks, err := s7MarkdownSection(adr, "**Blocks**:", "\n\n**Revision history**")
+	if err != nil {
+		return err
+	}
+	for _, token := range []string{
+		"slices S1–S7",
+		"implementation authorization gate (PRD §19) is satisfied",
+		"accepted through aggregate review",
+		"Release authorization remains a separate decision.",
+	} {
+		if !strings.Contains(blocks, token) {
+			return fmt.Errorf("ADR Blocks readiness token missing: %q", token)
+		}
+	}
+	for _, retired := range []string{
+		"slices S1–S6",
+		"mutating production slices wait for rev-15",
+		"may\nland pre-change evidence",
+	} {
+		if strings.Contains(blocks, retired) {
+			return fmt.Errorf("ADR Blocks carries the wrong authorization reading %q", retired)
+		}
+	}
+
+	row := ""
+	for _, line := range strings.Split(index, "\n") {
+		if strings.HasPrefix(line, "- [ADR-035:") {
+			row = line
+			break
+		}
+	}
+	if row == "" {
+		return fmt.Errorf("ADR index has no ADR-035 row")
+	}
+	for _, token := range []string{
+		"errata through rev-19 accepted",
+		"rev-17, rev-18 and rev-19 jointly on 2026-08-29",
+		"rev-19. Decisions D1–D21.",
+		"and its acceptance are complete; release authorization is pending.",
+	} {
+		if !strings.Contains(row, token) {
+			return fmt.Errorf("ADR index row readiness token missing: %q: %s", token, row)
+		}
+	}
+	for _, retired := range []string{
+		"Mutating implementation is blocked by",
+		"not by planning review",
+		"rev-14. Decisions",
+	} {
+		if strings.Contains(row, retired) {
+			return fmt.Errorf("ADR index row carries the wrong readiness reading %q: %s", retired, row)
+		}
 	}
 	return nil
 }

@@ -962,8 +962,9 @@ schema migrations, and
 acknowledgement without replay bypass. Research/backlog only; the accepted
 `implement-prepare-intent-bundle` queue head is unchanged.
 
-**Mutating prepare intent bundle implementation** 🔨 IN PROGRESS — REV-15 ACCEPTED
-(2026-08-18; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
+**Mutating prepare intent bundle implementation** ✅ IMPLEMENTATION ACCEPTED —
+RELEASE AUTHORIZATION PENDING
+(accepted 2026-08-29; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
 WAVE_BASE `3b579fc`): implement the accepted
 `PRD-prepare-intent-bundle` rev-15 + ADR-035 rev-15 contract. Pre-change
 goldens land first; strict order is S1b directory authority → S1 transaction
@@ -1093,53 +1094,57 @@ dataflow, clause-level atomic polarity, actual vocabulary ordering/constant
 resolution, below-classifier catalog states, human rendering and complete
 public-emission propagation. The rebuilt guards now pass for all other
 rows/catalog entries; one micro-prerequisite remains for raw denied-filesystem
-classifier injection without fabricating the final public error. Its guarded internal entry point
+classifier injection without fabricating the final public error. Its guarded
+internal entry point passes isolated full/race/vet and supported/unsupported
+cross-build gates; `971da91` and CI
+[32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
+are green on all three platforms. S6 resumes its final catalog fixture/review.
 S6 rev-4 closes runtime catalog reachability but remains NEEDS REVISION on
 concessive-clause polarity, complete wire vocabulary fields, interprocedural
-public-emission tracing and receiver/flags/syscall-aware sink taint. Its guarded internal entry point
+public-emission tracing and receiver/flags/syscall-aware sink taint.
 Rev-5 closes those but remains NEEDS REVISION on whole-function sink
 exemptions, program-point/method-value flow, additional concessive forms,
-tuple-result guarded fields and callable emitter aliases. Its guarded internal entry point
+tuple-result guarded fields and callable emitter aliases.
 Rev-6 closes those but remains NEEDS REVISION on reassigned delegate
 parameters, function-valued fields/parameters, comma-in-claim polarity,
-straight-line flag kills and nested tuple forwarding. Its guarded internal entry point
+straight-line flag kills and nested tuple forwarding.
 Rev-7 closes those but remains NEEDS REVISION on closure/loop/fallthrough
 state, arbitrary helper return/callable/method-expression flow, callable
-factories, named bare tuple returns and quoted prohibition context. Its guarded internal entry point
+factories, named bare tuple returns and quoted prohibition context.
 Rev-8 closes those but remains NEEDS REVISION on defer/branch semantics,
 fail-closed convergence, aliased method receivers, fenced prohibition context
-and analyzer runtime caching. Its guarded internal entry point
+and analyzer runtime caching.
 Rev-9 closes those at ~375s but remains NEEDS REVISION on named defers,
-goroutine concurrency, range/select bindings and goto label routing. Its guarded internal entry point
+goroutine concurrency, range/select bindings and goto label routing.
 Rev-10 closes those but remains NEEDS REVISION on compound deferred-argument
-freezing, goroutine pointee alias taint and named/pointer range domains. Its guarded internal entry point
+freezing, goroutine pointee alias taint and named/pointer range domains.
 Rev-11 closes those but remains NEEDS REVISION on left-to-right deferred
 argument side effects, interface-converted pointer aliases and precise
-free-variable write/escape analysis for goroutines. Its guarded internal entry point
+free-variable write/escape analysis for goroutines.
 Rev-12 closes those but remains NEEDS REVISION on nested goroutine helper
-mutation, shared map/slice backing aliases and deferred short-circuit effects. Its guarded internal entry point
+mutation, shared map/slice backing aliases and deferred short-circuit effects.
 Rev-13 closes those but remains NEEDS REVISION on reslice/channel backing
 identity, guaranteed append reallocation and recursively nested short-circuit
-evaluation. Its guarded internal entry point
+evaluation.
 Rev-14 closes those but remains NEEDS REVISION on method/callback effect-cache
 purity, append over-allocation capacity and deterministic channel FIFO
-consumption. Its guarded internal entry point
+consumption.
 Rev-15 closes those but remains NEEDS REVISION on ordinary local helper
-mutation effects and consumed channel values reappearing after concurrency. Its guarded internal entry point
+mutation effects and consumed channel values reappearing after concurrency.
 Rev-16 closes those but remains NEEDS REVISION on transitive callback/helper
-writes to package globals without guarded arguments. Its guarded internal entry point
+writes to package globals without guarded arguments.
 Rev-17 closes that but remains NEEDS REVISION on global pointer/container
-aliases, package-init effects and imported global selectors. Its guarded internal entry point
+aliases, package-init effects and imported global selectors.
 Rev-18 closes those but remains NEEDS REVISION on dependency-ordered frozen
-global initializers, synchronous opaque callback effects and real init order. Its guarded internal entry point
+global initializers, synchronous opaque callback effects and real init order.
 Rev-19 closes those but remains NEEDS REVISION on write/escape initializer
-dependencies and identity-aware `sync.Once` done-state semantics. Its guarded internal entry point
+dependencies and identity-aware `sync.Once` done-state semantics.
 Rev-20 closes those but remains NEEDS REVISION on Once receiver evaluation,
-pointer aliases, aggregate copies and recovered panic control flow. Its guarded internal entry point
+pointer aliases, aggregate copies and recovered panic control flow.
 Rev-21 closes those but remains NEEDS REVISION on path-sensitive recovery,
-Once aggregate channel/defer copies, builtin identity and deferred Once.Do. Its guarded internal entry point
+Once aggregate channel/defer copies, builtin identity and deferred Once.Do.
 Rev-22 closes those but remains NEEDS REVISION on direct-recover privilege
-inside Once callbacks, used-Once copy destinations and range/map-key copies. Its guarded internal entry point
+inside Once callbacks, used-Once copy destinations and range/map-key copies.
 Rev-23 closes those but remains NEEDS REVISION on append copies, zero/partial
 copy intervals, key-only ranges and generic union constraints.
 Rev-24 closes those but remains NEEDS REVISION on independent destination
@@ -1403,10 +1408,12 @@ review remain before the pre-release approval boundary.
 Aggregate acceptance is checkpointed at `7d4981a`; full uncached, split race,
 vet/build and cross-platform compile gates pass. Blocking CI and whole-wave
 review remain.
-passes isolated full/race/vet and supported/unsupported cross-build gates;
-`971da91` and CI
-[32328091360](https://github.com/tesseracode/tesserapatch/actions/runs/32328091360)
-are green on all three platforms. S6 resumes its final catalog fixture/review.
+CI 33230665925 is green across all five blocking jobs at `6eb51c0`.
+S7 is closed at **173/173** rows and the aggregate ledger at **567/567** rows
+with **123/123** G sensitivities. The whole-wave production review is
+**APPROVED** after the `1c5ad8b` correction; blocking CI for that correction is
+still pending, and release authorization has not been granted — nothing is
+tagged or released.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

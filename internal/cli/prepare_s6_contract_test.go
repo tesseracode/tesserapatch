@@ -1761,20 +1761,40 @@ func cloneS6Vocabulary(source map[string][]string) map[string][]string {
 	return clone
 }
 
-func TestS6UnreleasedChangelogCompleteness(t *testing.T) {
-	body := s6RepoFile(t, "CHANGELOG.md")
-	start := strings.Index(body, "## Unreleased\n")
-	if start < 0 {
-		t.Fatal("CHANGELOG lacks Unreleased")
-	}
-	section := body[start+len("## Unreleased\n"):]
-	if end := strings.Index(section, "\n## "); end >= 0 {
-		section = section[:end]
-	}
-	deltas := []struct {
-		id     string
-		anchor string
-	}{
+// The changelog completeness guard reads its section through a pure resolver so
+// the assertion survives the release lifecycle: `## Unreleased` first becomes
+// a versioned in-flight heading, then graduates into a dated release heading.
+// The D1–D13 anchors move with it rather than disappearing.
+
+// s6ChangelogHeadingRule states the three headings the resolver accepts.
+const s6ChangelogHeadingRule = "`## Unreleased`, `## vX.Y.Z (unreleased) — <scope>`, or `## vX.Y.Z — YYYY-MM-DD — <scope>`"
+
+var (
+	errS6ChangelogNoTitle        = errors.New("CHANGELOG lacks its `# Changelog` title")
+	errS6ChangelogNoSection      = errors.New("CHANGELOG has no `## ` section after its title")
+	errS6ChangelogHeading        = errors.New("CHANGELOG section heading is not " + s6ChangelogHeadingRule)
+	errS6ChangelogNoDeltaSection = errors.New("CHANGELOG has no section carrying the prepare D1-D13 anchors")
+)
+
+// s6ChangelogReleaseHeading is the canonical dated release heading `## Unreleased`
+// graduates into. The scope segment must be present and non-blank.
+var s6ChangelogReleaseHeading = regexp.MustCompile(
+	`^## v[0-9]+\.[0-9]+\.[0-9]+ — [0-9]{4}-[0-9]{2}-[0-9]{2} — \S.*$`,
+)
+
+var s6ChangelogInFlightHeading = regexp.MustCompile(
+	`^## v[0-9]+\.[0-9]+\.[0-9]+ \(unreleased\) — \S.*$`,
+)
+
+type s6ChangelogDelta struct {
+	id     string
+	anchor string
+}
+
+// s6ChangelogDeltas is the D1–D13 anchor set the first changelog section must
+// carry, whether that section is still `## Unreleased` or has graduated.
+func s6ChangelogDeltas() []s6ChangelogDelta {
+	return []s6ChangelogDelta{
 		{"D1", "default missing-only generation"},
 		{"D2", "`--timeout-phase`, `--no-retry`, and `--yes`"},
 		{"D3", "no raw retry attempt, transcript, prompt, or source-body\n  sink"},
@@ -1789,11 +1809,287 @@ func TestS6UnreleasedChangelogCompleteness(t *testing.T) {
 		{"D12", "use a\n  held-root workspace authority"},
 		{"D13", "Pending archive-purge evidence makes\n  prepare refuse with the confirmed purge repair"},
 	}
-	for _, delta := range deltas {
-		if !strings.Contains(section, delta.anchor) {
-			t.Errorf("Unreleased is missing %s anchor %q", delta.id, delta.anchor)
+}
+
+// s6ChangelogContractSection returns the section carrying this wave's D1-D13
+// anchors. This survives both graduation and a later empty Unreleased section.
+func s6ChangelogContractSection(body string) (string, string, error) {
+	lines := strings.Split(body, "\n")
+	title := -1
+	for index, line := range lines {
+		if line == "# Changelog" {
+			title = index
+			break
 		}
 	}
+	if title < 0 {
+		return "", "", errS6ChangelogNoTitle
+	}
+	var headings []int
+	for index := title + 1; index < len(lines); index++ {
+		if strings.HasPrefix(lines[index], "## ") {
+			headings = append(headings, index)
+		}
+	}
+	if len(headings) == 0 {
+		return "", "", errS6ChangelogNoSection
+	}
+	bestHeading := ""
+	bestSection := ""
+	bestCount := 0
+	for position, heading := range headings {
+		end := len(lines)
+		if position+1 < len(headings) {
+			end = headings[position+1]
+		}
+		section := strings.Join(lines[heading+1:end], "\n")
+		count := len(s6ChangelogDeltas()) -
+			len(s6ChangelogMissingDeltaAnchors(section))
+		if count > bestCount {
+			if lines[heading] != "## Unreleased" &&
+				!s6ChangelogInFlightHeading.MatchString(lines[heading]) &&
+				!s6ChangelogReleaseHeading.MatchString(lines[heading]) {
+				return "", "", fmt.Errorf("%w: %q", errS6ChangelogHeading, lines[heading])
+			}
+			bestHeading = lines[heading]
+			bestSection = section
+			bestCount = count
+		}
+	}
+	if bestCount == 0 {
+		return "", "", errS6ChangelogNoDeltaSection
+	}
+	return bestHeading, bestSection, nil
+}
+
+// s6ChangelogMissingDeltaAnchors reports the D-numbers whose anchor is absent
+// from the resolved section.
+func s6ChangelogMissingDeltaAnchors(section string) []string {
+	missing := []string{}
+	for _, delta := range s6ChangelogDeltas() {
+		if !strings.Contains(section, delta.anchor) {
+			missing = append(missing, delta.id)
+		}
+	}
+	return missing
+}
+
+func TestS6UnreleasedChangelogCompleteness(t *testing.T) {
+	body := s6RepoFile(t, "CHANGELOG.md")
+	heading, section, err := s6ChangelogContractSection(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, delta := range s6ChangelogDeltas() {
+		if !strings.Contains(section, delta.anchor) {
+			t.Errorf("%q is missing %s anchor %q", heading, delta.id, delta.anchor)
+		}
+	}
+}
+
+func TestS6ChangelogContractSectionResolver(t *testing.T) {
+	withHeading := func(heading string) string {
+		return "# Changelog\n\nAll notable changes to tpatch are recorded here.\n\n" +
+			heading + "\n\n### Added\n\n- default missing-only generation.\n\n" +
+			"## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification\n" +
+			"\n### Fixed\n\n- An older delta.\n"
+	}
+	accepted := []struct {
+		name    string
+		heading string
+	}{
+		{"unreleased", "## Unreleased"},
+		{"versioned-unreleased", "## v0.16.0 (unreleased) — intent-bundle preparation"},
+		{"graduated-release", "## v0.16.0 — 2026-09-04 — intent-bundle preparation"},
+		{"graduated-release-multi-digit", "## v10.20.30 — 2027-12-31 — a scope"},
+	}
+	for _, accept := range accepted {
+		t.Run(accept.name, func(t *testing.T) {
+			heading, section, err := s6ChangelogContractSection(withHeading(accept.heading))
+			if err != nil {
+				t.Fatalf("resolver refused %q: %v", accept.heading, err)
+			}
+			if heading != accept.heading || !strings.Contains(section, "default missing-only generation") {
+				t.Fatalf("resolver = heading %q section %q", heading, section)
+			}
+			if strings.Contains(section, "An older delta.") {
+				t.Fatalf("resolver ran past the next release heading: %q", section)
+			}
+		})
+	}
+	refused := []struct {
+		name string
+		body string
+		want error
+	}{
+		{
+			name: "malformed-two-component-version",
+			body: withHeading("## v0.16 — 2026-09-04 — intent-bundle preparation"),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "malformed-missing-v-prefix",
+			body: withHeading("## 0.16.0 — 2026-09-04 — intent-bundle preparation"),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "malformed-hyphen-separator",
+			body: withHeading("## v0.16.0 - 2026-09-04 - intent-bundle preparation"),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "malformed-unpadded-date",
+			body: withHeading("## v0.16.0 — 2026-9-4 — intent-bundle preparation"),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "malformed-empty-scope",
+			body: withHeading("## v0.16.0 — 2026-09-04 — "),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "malformed-missing-scope",
+			body: withHeading("## v0.16.0 — 2026-09-04"),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "unrecognized-heading",
+			body: withHeading("## Unreleased (next)"),
+			want: errS6ChangelogHeading,
+		},
+		{
+			name: "missing-title",
+			body: "All notable changes to tpatch are recorded here.\n\n## Unreleased\n\n- One delta.\n",
+			want: errS6ChangelogNoTitle,
+		},
+		{
+			name: "missing-heading",
+			body: "# Changelog\n\nAll notable changes to tpatch are recorded here.\n",
+			want: errS6ChangelogNoSection,
+		},
+		{
+			name: "no-section-carries-a-delta-anchor",
+			body: "# Changelog\n\n## Unreleased\n\n" +
+				"## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification\n\n- Older.\n",
+			want: errS6ChangelogNoDeltaSection,
+		},
+	}
+	for _, refuse := range refused {
+		t.Run(refuse.name, func(t *testing.T) {
+			heading, section, err := s6ChangelogContractSection(refuse.body)
+			if !errors.Is(err, refuse.want) {
+				t.Fatalf(
+					"resolver = heading %q section %q err %v, want %v",
+					heading, section, err, refuse.want,
+				)
+			}
+		})
+	}
+}
+
+func TestS6ChangelogCompletenessSensitivity(t *testing.T) {
+	body := s6RepoFile(t, "CHANGELOG.md")
+	if missing := s6ChangelogMissingDeltaAnchors(s6MustChangelogSection(t, body)); len(missing) != 0 {
+		t.Fatalf("baseline CHANGELOG is missing %v", missing)
+	}
+	t.Run("graduated-heading-keeps-the-anchors", func(t *testing.T) {
+		heading, _, err := s6ChangelogContractSection(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		graduated := strings.Replace(
+			body, heading+"\n",
+			"## v0.16.0 — 2026-09-04 — intent-bundle preparation\n", 1,
+		)
+		got, section, err := s6ChangelogContractSection(graduated)
+		if err != nil {
+			t.Fatalf("resolver refused the graduated heading: %v", err)
+		}
+		if got != "## v0.16.0 — 2026-09-04 — intent-bundle preparation" {
+			t.Fatalf("graduated heading = %q", got)
+		}
+		if missing := s6ChangelogMissingDeltaAnchors(section); len(missing) != 0 {
+			t.Fatalf("graduated section is missing %v", missing)
+		}
+		reopened := strings.Replace(
+			graduated,
+			"## v0.16.0 — 2026-09-04 — intent-bundle preparation\n",
+			"## Unreleased\n\n## v0.16.0 — 2026-09-04 — intent-bundle preparation\n",
+			1,
+		)
+		got, section, err = s6ChangelogContractSection(reopened)
+		if err != nil || got != "## v0.16.0 — 2026-09-04 — intent-bundle preparation" {
+			t.Fatalf("resolver lost the graduated section after reopening Unreleased: %q %v", got, err)
+		}
+		if missing := s6ChangelogMissingDeltaAnchors(section); len(missing) != 0 {
+			t.Fatalf("reopened changelog section is missing %v", missing)
+		}
+	})
+	t.Run("versioned-unreleased-heading-keeps-the-anchors", func(t *testing.T) {
+		heading, _, err := s6ChangelogContractSection(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inFlight := strings.Replace(
+			body, heading+"\n",
+			"## v0.16.0 (unreleased) — intent-bundle preparation\n", 1,
+		)
+		got, section, err := s6ChangelogContractSection(inFlight)
+		if err != nil {
+			t.Fatalf("resolver refused the versioned in-flight heading: %v", err)
+		}
+		if got != "## v0.16.0 (unreleased) — intent-bundle preparation" {
+			t.Fatalf("versioned in-flight heading = %q", got)
+		}
+		if missing := s6ChangelogMissingDeltaAnchors(section); len(missing) != 0 {
+			t.Fatalf("versioned in-flight section is missing %v", missing)
+		}
+	})
+	for _, delta := range s6ChangelogDeltas() {
+		t.Run("dropped-"+delta.id, func(t *testing.T) {
+			wrong := strings.Replace(body, delta.anchor, "", 1)
+			missing := s6ChangelogMissingDeltaAnchors(s6MustChangelogSection(t, wrong))
+			if fmt.Sprint(missing) != fmt.Sprint([]string{delta.id}) {
+				t.Fatalf("dropping %s reported missing %v", delta.id, missing)
+			}
+		})
+	}
+	t.Run("renamed-to-an-unrecognized-heading", func(t *testing.T) {
+		heading, _, err := s6ChangelogContractSection(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wrong := strings.Replace(body, heading+"\n", "## Next\n", 1)
+		if _, _, err := s6ChangelogContractSection(wrong); !errors.Is(err, errS6ChangelogHeading) {
+			t.Fatalf("resolver accepted an unrecognized first heading: %v", err)
+		}
+	})
+	t.Run("dropped-heading", func(t *testing.T) {
+		heading, _, err := s6ChangelogContractSection(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wrong := strings.Replace(body, heading+"\n", "", 1)
+		got, section, err := s6ChangelogContractSection(wrong)
+		if err != nil {
+			return
+		}
+		if got == heading {
+			t.Fatalf("dropping %q left the same first heading", heading)
+		}
+		if missing := s6ChangelogMissingDeltaAnchors(section); len(missing) == 0 {
+			t.Fatalf("dropping %q still resolved a section carrying every anchor", heading)
+		}
+	})
+}
+
+func s6MustChangelogSection(t *testing.T, body string) string {
+	t.Helper()
+	_, section, err := s6ChangelogContractSection(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return section
 }
 
 func TestS6CatalogReachabilityFixtures(t *testing.T) {

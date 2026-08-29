@@ -19,7 +19,7 @@
 - [ADR-028: Supersession Edge Model](ADR-028-supersession-edge-model.md) — Accepted
 - [ADR-029: Write-file Recipe Safety](ADR-029-write-file-recipe-safety.md) — Accepted
 - [ADR-034: Rooted Filesystem Inspection Boundary](ADR-034-rooted-filesystem-inspection-boundary.md) — Accepted (2026-08-13), errata rev-3 (2026-08-17, three `openFlags()` build halves, no decision change); companion to accepted [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md) rev-5 (errata rev-6)
-- [ADR-035: Intent Bundle Publication and History](ADR-035-intent-bundle-publication-and-history.md) — Accepted (2026-08-14); companion to accepted [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) rev-14. Decisions D1–D21. Mutating implementation is blocked by the `prepare --check` implementation prerequisite, not by planning review.
+- [ADR-035: Intent Bundle Publication and History](ADR-035-intent-bundle-publication-and-history.md) — Accepted (2026-08-14), errata through rev-19 accepted (rev-17, rev-18 and rev-19 jointly on 2026-08-29; no decision changed); companion to accepted [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) rev-19. Decisions D1–D21. The mutating implementation (PRD §17.2 slices S1–S7, GH #23) and its acceptance are complete; release authorization is pending.
 
 ## Locked-In Decisions (from review process)
 
