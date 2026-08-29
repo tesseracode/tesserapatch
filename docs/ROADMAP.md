@@ -1411,9 +1411,10 @@ review remain.
 CI 33230665925 is green across all five blocking jobs at `6eb51c0`.
 S7 is closed at **173/173** rows and the aggregate ledger at **567/567** rows
 with **123/123** G sensitivities. The whole-wave production review is
-**APPROVED** after the `1c5ad8b` correction; blocking CI for that correction is
-still pending, and release authorization has not been granted — nothing is
-tagged or released.
+**APPROVED** after the `1c5ad8b` correction. Final CI 33236724647 is green
+across all five blocking jobs at `30dbdba`. Terminal implementation range:
+`3b579fc..30dbdba`; close metadata follows. Release authorization has not been
+granted — nothing is tagged or released.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

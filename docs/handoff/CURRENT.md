@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: ACCEPTED
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -110,6 +110,11 @@ states: `Unreleased`, `vX.Y.Z (unreleased)`, and the final dated release
 heading, including a later empty `Unreleased` section.
 The paired readiness contract/index/guard corrections are checkpointed at
 `223efb0`; production fix `1c5ad8b` immediately precedes them.
+Final blocking CI
+[33236724647](https://github.com/tesseracode/tesserapatch/actions/runs/33236724647)
+is green on Ubuntu, macOS, Windows and both observer jobs at `30dbdba`.
+GH #23 implementation and acceptance are complete; release authorization is
+the only remaining boundary.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1885,7 +1890,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **In progress — corrections checkpointed at `223efb0`; CI next**
+- **Status**: **Complete — implementation accepted; release authorization pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -7992,7 +7997,8 @@ at 471.544s. Formatting, vet and CLI build pass.
   shard **PASS** (307.001s); other touched-package race suites **PASS**.
 - Vet/build, Linux/Darwin/Windows/BSD CLI test-compiles and Linux amd64/arm64,
   Darwin amd64 and Windows amd64 binary builds **PASS**.
-- Aggregate CI 33230665925 is green at `6eb51c0`.
+- Aggregate CI 33230665925 is green at `6eb51c0`; final post-fix CI
+  33236724647 is green at `30dbdba`.
 - Production review found the `Pread` EINTR count-underflow panic. Fix
   `1c5ad8b` and its focused non-race/race/Linux/Windows tests are **APPROVED**.
 - Rev-17, rev-18 and rev-19 are accepted jointly on 2026-08-29. Changelog
@@ -8002,19 +8008,13 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Review and commit the pre-release contract/docs/guard/tracking corrections;
-   push `1c5ad8b` plus those commits.
-2. Require a new green five-job blocking CI on the final pre-release tip.
-3. Run `make wave-close-check
-   WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936`, archive this handoff to
-   `docs/handoff/HISTORY.md`, and stop at the user-approval boundary.
-4. Only after explicit user approval: graduate CHANGELOG to `v0.16.0`, update
+1. Wait for explicit user approval.
+2. After approval: graduate CHANGELOG to `v0.16.0`, update
    version metadata, commit the release, create/push the annotated tag, and
    create the GitHub release.
 
 ## Blockers
 
-- Post-`1c5ad8b` blocking CI has not run yet.
 - Version bump, CHANGELOG graduation, tag, tag push and GitHub release remain
   blocked on explicit user approval by design.
 

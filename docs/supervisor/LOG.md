@@ -1,3 +1,20 @@
+## Supervisor Decision — GH #23 implementation close — 2026-08-29
+
+**Decision**: **IMPLEMENTATION ACCEPTED — RELEASE AUTHORIZATION PENDING**
+
+Final CI
+[33236724647](https://github.com/tesseracode/tesserapatch/actions/runs/33236724647)
+is green on Ubuntu, macOS, Windows and both S7 observer jobs at `30dbdba`.
+Production review is APPROVED after `1c5ad8b`; release-readiness corrections
+are APPROVED at `223efb0`; the aggregate ledger is 567/567 with 123/123 G
+sensitivities and zero blocked escapes; S7 is 173/173.
+
+### Action Taken
+
+Flipped CURRENT and ROADMAP terminal, archived the implementation wave to
+HISTORY, and prepared the wave-close gate. No version, tag, tag push or GitHub
+release operation is authorized.
+
 ## Review — GH #23 readiness corrections final — 2026-08-29
 
 **Reviewer**: supervisor focused follow-up

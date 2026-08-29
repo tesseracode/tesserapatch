@@ -1,3 +1,67 @@
+# 2026-08-29 — GH #23 mutating prepare intent bundle — IMPLEMENTATION ACCEPTED
+
+**Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
+**WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
+**Accepted pre-release tip**: `30dbdba5c1a034d9c420080b9d248de7b24678e2`
+**Release candidate**: `v0.16.0` — explicit user authorization pending
+**Latest released tag remains**: `v0.15.1`
+
+GH #23 implements the accepted mutating `tpatch prepare <slug>` intent-bundle
+contract and its retention surface. The wave added the held-root workspace
+authority, rooted transactional publication and recovery, deterministic intent
+archive, `prepare` generate/manual/regenerate/dry-run/abandon behavior,
+`feature intent-archive list|purge`, doctor D9, pure generators, public docs and
+all six shipped skill surfaces.
+
+## Acceptance record
+
+- S1b, S1, S2, S3, S4, S4b, S5 and S6 landed sequentially with blocking
+  three-platform CI.
+- S7 AM–AX closed at **173/173** exact rows after category-local review and
+  observer CI.
+- Aggregate acceptance closed at **567/567** body-sensitive runnable targets
+  and **123/123** row-owned G sensitivities, with zero blocked escapes.
+- PRD/ADR no-decision errata rev-17, rev-18 and rev-19 were accepted jointly
+  on 2026-08-29. The matrix remains 567 rows and D1–D21 are unchanged.
+- Production final review found one latent `Pread` EINTR negative-offset panic.
+  `1c5ad8b` fixes it and focused re-review approved the correction.
+- Release-readiness review corrected changelog graduation, stale authorization
+  and ADR-index state, ROADMAP fragmentation, handoff state, and the bounded
+  doctor panic-message record. Corrections landed through `30dbdba`.
+
+## Validation
+
+- Full uncached non-observer suite: PASS (`internal/cli` 512.183s).
+- Split race validation: aggregate/S5/goldens PASS (901.022s); shared S6 guard
+  baseline PASS (307.001s); other touched packages PASS.
+- `gofmt`, vet and host build: PASS.
+- CLI test compilation: Linux, Darwin, Windows, FreeBSD, OpenBSD, NetBSD and
+  DragonFly BSD PASS.
+- Binary builds: Linux amd64/arm64, Darwin amd64 and Windows amd64 PASS.
+- Aggregate CI 33230665925: five blocking jobs PASS at `6eb51c0`.
+- Final post-review CI 33236724647: five blocking jobs PASS at `30dbdba`.
+
+## Review scoreboard
+
+- Aggregate ledger rev-0 → rev-4: three executable/review rejections followed
+  by APPROVED after dynamic-target, owning-fixture, golden self-comparison,
+  rotated-sensitivity and data-link corrections.
+- Whole-wave production review: NEEDS REVISION → APPROVED.
+- Whole-wave release-readiness review: NEEDS REVISION → APPROVED TO CHECKPOINT.
+- Final state: **IMPLEMENTATION ACCEPTED — RELEASE AUTHORIZATION PENDING**.
+
+## Non-invalidation and pending boundary
+
+- Side Research md5 preserved:
+  `b385fe622db9926f48861105239f113e`.
+- `.wave-close-allowlist` did not grow; unrelated research WIP remains
+  untouched.
+- Every wave commit carries the required Copilot trailer.
+- No version bump, CHANGELOG graduation, annotated tag, tag push or GitHub
+  release was performed. Those operations require explicit user approval.
+
+---
+
 # 2026-08-18 — copilot-api cumulative verification feedback — TRIAGED
 
 **Evidence revision**:
