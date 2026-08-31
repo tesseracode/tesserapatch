@@ -1429,6 +1429,9 @@ Focused final-byte tests pass; the pre-isolation full non-observer suite is
 green. Local heavy race/cross-build retry remains gated at 69% free memory, so
 blocking CI owns final committed-byte validation without relaxing the 80%
 resource threshold.
+CI 33364393230 is green across all five blocking jobs at `07f35a3`. Rev-20's
+only remaining close step is the local 8/8 gate, currently resource-blocked at
+72% free memory versus the required 80%.
 The first serial mechanical close passed checks 1–7; check 8 hit Go's
 10-minute default in unsharded `internal/cli`. Exact blocking-CI sharding is
 now reused through a pinned POSIX script and parity guard; implementation

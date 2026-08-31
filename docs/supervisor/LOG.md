@@ -1,3 +1,15 @@
+## Supervisor Decision — selector rev-20 blocking CI — 2026-08-30
+
+**Decision**: **CI GREEN — LOCAL CLOSE RESOURCE-BLOCKED**
+
+CI [33364393230](https://github.com/tesseracode/tesserapatch/actions/runs/33364393230)
+passes Ubuntu, macOS, Windows and both S7 observer jobs at `07f35a3`. The
+selector correction and accepted rev-20 record are durable.
+
+The final local wave-close preflight reports 72% free memory against the
+accepted 80% threshold, load 3.38 and no Go toolchain process. The close waits;
+the threshold is not relaxed and no unrelated process is terminated.
+
 ## Review — GH #23 selector rev-20 — 2026-08-30
 
 **Reviewer**: `selector-rev20-review`, `selector-rev20-rereview`,
