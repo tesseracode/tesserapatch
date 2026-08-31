@@ -1415,6 +1415,20 @@ with **123/123** G sensitivities. The whole-wave production review is
 across all five blocking jobs at `30dbdba`. Terminal implementation range:
 `3b579fc..30dbdba`; close metadata follows. Release authorization has not been
 granted — nothing is tagged or released.
+Post-close external review is APPROVED WITH NOTES. One LOW diagnostic
+correction is active before release: surface the store's
+`archive-selector-invalid` code instead of rewriting it as archive corruption,
+and align unknown blob/generation selectors. The two carried intentpub
+sensitivity notes are already closed by dedicated regression tests.
+Rev-20 is accepted on 2026-08-30 after three correction reviews: public
+`archive-selector-invalid` is scoped to well-formed unknown IDs, malformed
+values remain exit-1 usage errors, selector reports carry no lower-precedence
+archive observations, and the 54-code catalog plus PIB-431/PIB-465 are aligned.
+Final validation/CI/close remain.
+Focused final-byte tests pass; the pre-isolation full non-observer suite is
+green. Local heavy race/cross-build retry remains gated at 69% free memory, so
+blocking CI owns final committed-byte validation without relaxing the 80%
+resource threshold.
 The first serial mechanical close passed checks 1–7; check 8 hit Go's
 10-minute default in unsharded `internal/cli`. Exact blocking-CI sharding is
 now reused through a pinned POSIX script and parity guard; implementation

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -128,6 +128,28 @@ WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936` passes **8/8** at
 `2df3346`: the tree is clean, HEAD pushed, all 96 wave commits carry the
 trailer, terminal state parses, formatting/vet/build pass, and all 22 uncached
 CI-equivalent test shards pass.
+Post-close external review is APPROVED WITH NOTES and raises one valid LOW:
+unknown or malformed archive selectors are correctly classified by the store
+as `archive-selector-invalid`, but the CLI rewrites that code to
+`archive-index-corrupt`, and unknown generations use the wrong store code.
+A bounded rev-20 contract/code correction is active. The review's two carried
+sensitivity notes are already closed by
+`TestExecuteSemanticNoOpCASRejectsDriftBeforePublication` and
+`TestPlanRejectsArtifactBoundToNoncanonicalPath`.
+Rev-20 is now **accepted** after three correction reviews. The public code is
+limited to well-formed unknown blob/generation IDs; malformed values retain
+exit-1 usage behavior; typed refusal rendering no longer rewrites the code;
+selector failures publish no lower-precedence archive observations. The
+54-code catalog, PIB-431/PIB-465, PRD/ADR/SPEC/CHANGELOG and frozen guards are
+aligned.
+Focused store/CLI/catalog/frozen-document suites pass, including malformed
+selector precedence and the archive-with-residue report-isolation fixture.
+The full non-observer suite passed before that final isolation fold
+(`internal/cli` 545.446s). A fresh local race/cross-build launch is deferred
+because the authoritative resource gate fell to 69% free memory; blocking CI
+will validate the final committed bytes without relaxing the 80% threshold.
+Rev-20 implementation/tests are checkpointed at `fd8dd8b`; the accepted
+contract/SPEC/CHANGELOG/ADR-index record is checkpointed at `9f7095c`.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1903,7 +1925,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **Complete — implementation accepted; release authorization pending**
+- **Status**: **In progress — rev-20 checkpointed at `9f7095c`; CI next**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -8021,8 +8043,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Wait for explicit user approval.
-2. After approval: graduate CHANGELOG to `v0.16.0`, update
+1. Checkpoint and push rev-20, then require green blocking CI and wave close.
+2. Wait for explicit user approval.
+3. After approval: graduate CHANGELOG to `v0.16.0`, update
    version metadata, commit the release, create/push the annotated tag, and
    create the GitHub release.
 
@@ -8030,6 +8053,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - Version bump, CHANGELOG graduation, tag, tag push and GitHub release remain
   blocked on explicit user approval by design.
+- Release mechanics wait for rev-20's green close gates.
 
 ## Context for Next Agent
 

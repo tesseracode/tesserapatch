@@ -1,3 +1,55 @@
+## Review — GH #23 selector rev-20 — 2026-08-30
+
+**Reviewer**: `selector-rev20-review`, `selector-rev20-rereview`,
+`selector-rev20-final-review`, `selector-rev20-approval`
+
+### Verdict: APPROVED
+
+### Notes
+
+The initial amendment overclaimed malformed values as public exit-3 refusals
+and over-scoped PIB-431. Rev-1 restored malformed exit-1 behavior and scoped
+the no-rewrite rule to `intentArchiveRefusalFromError`. Rev-2 corrected
+confirmed malformed-selector authority precedence. Rev-3 removed the false
+"nothing inspected" message and clears lower-precedence archive report state
+only for selector-invalid failures. The final runtime matrix includes absent,
+healthy populated and unreferenced-residue archives.
+
+The accepted contract amends exactly PIB-431 and PIB-465, keeps 567 rows and
+36 semantic guards, and grows the closed refusal catalog from 53 to 54.
+
+### Action Taken
+
+Accepted paired PRD/ADR rev-20 on 2026-08-30. Final full validation, blocking
+CI and wave close are required before returning to release authorization.
+Focused final-byte suites pass; local heavy race/cross-build retry is deferred
+at 69% free memory rather than relaxing the 80% gate.
+Implementation/tests are checkpointed at `fd8dd8b`; paired accepted contract
+records are checkpointed at `9f7095c`.
+
+## Review — GH #23 external post-close — 2026-08-30
+
+**Reviewer**: user-provided external reviewer
+
+### Verdict: APPROVED WITH NOTES
+
+### Findings
+
+One LOW is valid: `intentArchiveRefusalFromError` rewrites
+`archive-selector-invalid` to `archive-index-corrupt`, while the adjacent
+unknown-generation branch also emits index corruption. Unknown selectors do
+not prove corrupt archive bytes and receive misleading preservation guidance.
+
+The two carried sensitivity notes are already closed:
+`TestExecuteSemanticNoOpCASRejectsDriftBeforePublication` exercises semantic
+no-op CAS drift, and `TestPlanRejectsArtifactBoundToNoncanonicalPath` bites
+canonical artifact-path binding. Side Research is confirmed restored.
+
+### Action Taken
+
+Reopened the pre-release close for a bounded rev-20 selector-code contract and
+implementation correction. Release operations remain unauthorized.
+
 ## Supervisor Decision — GH #23 mechanical close — 2026-08-29
 
 **Decision**: **PASS 8/8 — STOP AT RELEASE AUTHORIZATION BOUNDARY**
