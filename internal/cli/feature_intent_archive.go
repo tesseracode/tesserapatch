@@ -558,6 +558,7 @@ func runFeatureIntentArchivePurgePreview(
 	report = applyIntentArchivePurgePlan(report, plan)
 	if planErr != nil {
 		exit := prepareArchiveExit(planErr, 3)
+		clearIntentArchiveSelectorFailureReport(&report, planErr)
 		report.Outcome = "refused"
 		report.Refusal = intentArchiveRefusalFromError(slug, planErr, &plan, options)
 		return emitIntentArchivePurgeReport(cmd, report, exit)
@@ -664,6 +665,7 @@ func runFeatureIntentArchivePurgeConfirmed(
 	report = applyIntentArchivePurgePlan(report, plan)
 	if planErr != nil {
 		exit := prepareArchiveExit(planErr, 3)
+		clearIntentArchiveSelectorFailureReport(&report, planErr)
 		report.Outcome = "refused"
 		report.Refusal = intentArchiveRefusalFromError(slug, planErr, &plan, options)
 		return emitIntentArchivePurgeReport(cmd, report, exit)
@@ -706,6 +708,13 @@ func clearIntentArchiveLowerPrecedenceReport(report *intentArchivePurgeReport) {
 	report.RemainingRepairs = nil
 	report.Retry = ""
 	report.RetryCWD = ""
+}
+
+func clearIntentArchiveSelectorFailureReport(report *intentArchivePurgeReport, err error) {
+	var typed *store.IntentArchiveError
+	if errors.As(err, &typed) && typed.Code == store.IntentArchiveCodeSelectorInvalid {
+		clearIntentArchiveLowerPrecedenceReport(report)
+	}
 }
 
 func intentArchiveIndexExists(storage store.IntentArchiveStorage, slug string) (bool, error) {
@@ -1523,9 +1532,6 @@ func intentArchiveRefusalFromError(
 		)
 	}
 	code := string(typed.Code)
-	if typed.Code == store.IntentArchiveCodeSelectorInvalid {
-		code = string(store.IntentArchiveCodeIndexCorrupt)
-	}
 	message := "The intent archive refused the requested operation."
 	if typed.Hash != "" {
 		message += " Hash: " + typed.Hash + "."
@@ -1536,6 +1542,19 @@ func intentArchiveRefusalFromError(
 	remediation := "Preserve the archive bytes, correct the reported condition, and retry."
 	retry := ""
 	switch typed.Code {
+	case store.IntentArchiveCodeSelectorInvalid:
+		listing := "tpatch feature intent-archive list " + slug
+		switch {
+		case typed.Hash != "":
+			message = "The --blob selector names no content hash this feature's intent archive indexes. Hash: " + typed.Hash + "."
+			remediation = "Run " + listing + " from the workspace root to see which content hashes this archive indexes, then rerun this command with one of them; if that listing names no hash, this archive has nothing to purge and there is nothing to repair."
+		case typed.GenerationID != "":
+			message = "The --generation selector names no archive generation this feature's intent archive records. Generation: " + typed.GenerationID + "."
+			remediation = "Run " + listing + " from the workspace root to see which generation ids this archive records, then rerun this command with one of them; if that listing names no generation, this archive has nothing to purge and there is nothing to repair."
+		default:
+			message = "The purge selection is not a well-formed selector. The rejected value is not echoed."
+			remediation = "Use exactly one well-formed selector: --blob or --generation with a 64-character lowercase hexadecimal id, --orphans, or --all."
+		}
 	case store.IntentArchiveCodeRecoveryPending:
 		remediation = "Retry the same confirmed purge so the owning pending-hash transaction can finish first."
 		retry = intentArchivePurgeRetry(slug, options, true)

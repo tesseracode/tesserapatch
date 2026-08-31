@@ -16245,6 +16245,8 @@ func s6ObserveRefusalOnce(t *testing.T, code string) s6RuntimeObservation {
 		return s6ObserveInjectedArchiveListRefusal(t, code)
 	case "archive-purge-index-changed":
 		return s6ObserveArchivePlanRefusal(t, code)
+	case "archive-selector-invalid":
+		return s6ObserveArchiveSelectorRefusal(t)
 	case "no-pending-transaction":
 		root, slug := prepareS4Workspace(t, "S6 no pending transaction")
 		return s6PrepareObservation(
@@ -16410,6 +16412,28 @@ func s6ObserveRefusalOnce(t *testing.T, code string) s6RuntimeObservation {
 		t.Fatalf("no actual refusal fixture for %q", code)
 		return s6RuntimeObservation{}
 	}
+}
+
+// s6ObserveArchiveSelectorRefusal drives the real `archive-selector-invalid`
+// route: a healthy, populated archive and a well-formed `--blob` hash it does
+// not index. The archive is deliberately consistent, so the refusal cannot
+// borrow an archive-integrity observation, and the preview form is used so the
+// fixture takes no workspace authority.
+func s6ObserveArchiveSelectorRefusal(t *testing.T) s6RuntimeObservation {
+	t.Helper()
+	root, slug := intentArchiveCLIWorkspace(t)
+	data := []byte("archive selector fixture\n")
+	replacement := intentArchiveCLIReplacement(
+		t, store.IntentArchiveArtifactAnalysis, data, store.IntentArchiveWireRetained,
+	)
+	writeIntentArchiveCLIFixture(t, root, slug,
+		intentArchiveCLIIndex(t, slug, intentArchiveCLIGeneration(t, slug, replacement)),
+		map[string][]byte{replacement.ContentSHA256: data},
+	)
+	return s6ArchivePurgeObservation(
+		t, "--path", root, "feature", "intent-archive", "purge", slug,
+		"--blob", strings.Repeat("b", 64), "--json", "--quiet",
+	)
 }
 
 func s6ObserveLockFilesystemUnsupported(t *testing.T) s6RuntimeObservation {
@@ -17466,6 +17490,9 @@ var s6RefusalCatalog = []string{
 	"archive-index-storage-inconsistent",
 	"archive-blob-shared",
 	"archive-purge-index-changed",
+	// rev-20: the selector's own code. It is deliberately adjacent to the
+	// archive-integrity block and deliberately not one of them.
+	"archive-selector-invalid",
 	"no-pending-transaction",
 	"incoherent-bundle-gap",
 	"artifact-empty-not-overwritten",
@@ -18968,8 +18995,8 @@ func validateS6Refusals(
 	catalog []string,
 	evidence map[string]s6RefusalFixture,
 ) error {
-	if len(expected) != 53 {
-		return fmt.Errorf("refusal catalog has %d codes, want 53", len(expected))
+	if len(expected) != 54 {
+		return fmt.Errorf("refusal catalog has %d codes, want 54", len(expected))
 	}
 	if !reflect.DeepEqual(catalog, expected) {
 		return fmt.Errorf("refusal catalog = %v, want ordered %v", catalog, expected)

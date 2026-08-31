@@ -569,8 +569,9 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 	return nil
 }
 
-// AQ's recovery-evidence path, AR's history disclosure, and AW's complete
-// repair-class routes are the reviewed declaration drifts after AP.
+// AQ's recovery-evidence path, AR's history disclosure, AW's complete
+// repair-class routes and rev-20's selector-specific refusal text are the
+// reviewed declaration drifts after AP.
 var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:const:intentArchiveHistoryDisclosure":           "8360622adc2d49bf4dfa3467140f147d0c23d27093f10672161049d58fee33ba",
 	"internal/cli/feature_intent_archive.go:func:buildIntentArchiveDivergence":              "90e96b9720f14541241ae0892030b8a82a3641aeed8f0230bb0ad582e26ee660",
@@ -586,14 +587,14 @@ var s7APAcceptedDanglingDeclarations = map[string]string{
 	"internal/cli/feature_intent_archive.go:func:intentArchiveListInspectionRefusal":        "96b38ce0947f04b32482d38ea28eb92da480a5afbb336192c9c137ab660a7254",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveListRepair":                   "e3e58c17c62226f6d218e9980877c287e0ecfc6e157aa083d6c17489736d575d",
 	"internal/cli/feature_intent_archive.go:func:intentArchivePendingJournalRefusal":        "55102086021476d5ba0c9a45ec648e4c03c4ffd8247ff8ab4855bc6d810313f7",
-	"internal/cli/feature_intent_archive.go:func:intentArchiveRefusalFromError":             "c9192295dd5ddbacb6f7819f5d1b110265caf460f153c341f373a22d2d2e88c5",
+	"internal/cli/feature_intent_archive.go:func:intentArchiveRefusalFromError":             "a8922f510f2d610a33734a96344cd0440bb71cb433f4b46647ccb26d3ad0de91",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveRemainingRepairsText":         "977256aa149233e70fc46199a9a994711f8118fbb1c5131098c0facefcb975aa",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveRepairPriority":               "3319cffe754cfaefd7732c81c1f3804157c56c6a8ae3a0f592fa37b1d2766430",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveStorageToken":                 "252378708c66ae58d2fa589bf6164e34ef594d82d523b2019e554368675902af",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveWorkspace":                    "7a25bd9745eac07976db0ab29877dc00fb4194f1660c865a1890553a90827cbf",
 	"internal/cli/feature_intent_archive.go:func:intentArchiveWorkspaceRemediation":         "7686755639c1399b273d2bb6cbf105e4a73442cd1444a229a7e8da7607ee4ac8",
 	"internal/cli/feature_intent_archive.go:func:runFeatureIntentArchiveList":               "8011da4c1e6fb26766a42ae5347e57b6aae9d481a88dfdc8d54d0dd914a63178",
-	"internal/cli/feature_intent_archive.go:func:runFeatureIntentArchivePurgePreview":       "ee3997207c64928529250fcd4016c16f84d73b9d9b1dff5c92f3f043a2345bd8",
+	"internal/cli/feature_intent_archive.go:func:runFeatureIntentArchivePurgePreview":       "6463993d19b709474fc3f8c668ed25a0b44f76a9f47b0e448b9d6284ecc528fa",
 	"internal/cli/prepare.go:func:prepareCmd":                                               "f68758114e1adea915fe85640033015498c8636d6e9424760e009fcec550e504",
 	"internal/cli/prepare_publish.go:func:appendPrepareOrphanAdvisory":                      "40b3d043fbbae54426dc55b18303cd4dfd8d0108d2a97ae93abeaea58ef556ce",
 	"internal/cli/prepare_publish.go:func:applyPrepareGenerationReport":                     "fda949b7e12fbce78aae64213ca2c93b7317246d164527b7ecc61aa9c49c6ebd",
@@ -627,11 +628,13 @@ var s7APAcceptedDanglingSurfaces = map[string]string{
 	"assets/skills/windsurf/windsurfrules":                 "60df5c3a9758c4d58e899621d34fdcb70eec97be4fbcd3424f1b267543f8eaae",
 	"assets/workflows/tessera-patch-generic.md":            "7325c4507b67058fbe9092b4f6c49bc5d5a911712a645912f8b561c09788d735",
 	// rev-19 splits D10's joint `list`/`doctor`/mutation refusal sentence into
-	// the exit-3 refusal surfaces and `doctor`'s warning-only exit 0. D16 is
-	// untouched, so only the D10 half of this surface moves.
-	"docs/adrs/ADR-035-intent-bundle-publication-and-history.md": "c7428e757cfbd5bcd7e4d14377013f4b81b242794b6f7b1ffb4cc6a42048b86e",
+	// the exit-3 refusal surfaces and `doctor`'s warning-only exit 0. rev-20
+	// then adds D16's selector-classification vocabulary paragraph and the
+	// companion PRD's `archive-selector-invalid` catalog row, so both document
+	// surfaces move again; neither touches a dangling claim.
+	"docs/adrs/ADR-035-intent-bundle-publication-and-history.md": "edbf901f42e7b7df24ecac8c2b6befae0a5a16136322ccee19634ce4f1af17c8",
 	"docs/feature-layout.md":                                     "7065454f25457249e63d409494c7f9da25078e2d2e4c4d4c6570cdebca3b707e",
-	"docs/prds/PRD-prepare-intent-bundle.md":                     "33c280ddd978f3b7682c4958b024e8c4f9911faa6b37f22a8a9668079209a2e0",
+	"docs/prds/PRD-prepare-intent-bundle.md":                     "3dd28b88f34f5f5f2e523a8738681d473a6255c8bf03d9b80d3a165ab49e3cc9",
 }
 
 func s7APCloneStringMap(input map[string]string) map[string]string {

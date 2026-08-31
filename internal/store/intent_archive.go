@@ -2193,7 +2193,7 @@ func (selector IntentArchivePurgeSelector) normalized(index IntentArchiveIndex) 
 			return normalized, "", intentArchiveError(IntentArchiveCodeSelectorInvalid, "a --generation selector is not a lowercase SHA-256", 3)
 		}
 		if _, exists := generationSet[generationID]; !exists {
-			err := intentArchiveError(IntentArchiveCodeIndexCorrupt, "a --generation selector does not name an archive generation", 3)
+			err := intentArchiveError(IntentArchiveCodeSelectorInvalid, "a --generation selector does not name an archive generation", 3)
 			err.GenerationID = generationID
 			return normalized, "", err
 		}

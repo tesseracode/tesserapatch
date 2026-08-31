@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -390,7 +391,7 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 			name: "readiness-adr-index-blocking-prerequisite-restored",
 			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
 				wrong.index = bytes.Replace(wrong.index,
-					[]byte("rev-19. Decisions D1–D21. The mutating implementation (PRD §17.2 slices S1–S7, GH #23) and its acceptance are complete; release authorization is pending."),
+					[]byte("rev-20. Decisions D1–D21. The mutating implementation (PRD §17.2 slices S1–S7, GH #23) and its acceptance are complete; release authorization is pending."),
 					[]byte("rev-14. Decisions D1–D21. Mutating implementation is blocked by the `prepare --check` implementation prerequisite, not by planning review."), 1)
 				return wrong
 			},
@@ -424,6 +425,236 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 				wrong.adr = bytes.Replace(wrong.adr,
 					[]byte("restore the exact correct blob and retry. The destructive cost and the\nGit-history caveat are stated with it."),
 					[]byte("restore the exact correct blob and retry. The destructive cost and the\nGit-history caveat are stated with it, and every surface carries `retry_cwd`."), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: the retired unknown-id reading, restored in §9.7.2.
+			name: "rev-20-unknown-id-classified-as-index-corrupt",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("exit 3 (`archive-selector-invalid` for a well-formed `--blob` hash the index does not carry"),
+					[]byte("exit 3 (`archive-index-corrupt` for an unknown id"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20's own correction: a malformed value is an exit-1 usage
+			// error the command rejects before any archive read, so §9.7.2 may
+			// not promise it the public exit-3 code.
+			name: "rev-20-malformed-value-promised-a-public-refusal-code",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("exit 3 (`archive-selector-invalid` for a well-formed `--blob` hash the index does not carry"),
+					[]byte("exit 3 (`archive-selector-invalid` for a malformed id, for a well-formed `--blob` hash the index does not carry"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: the closed catalog loses the new code, so the emitters
+			// have nothing to surface and the count falls back to 53.
+			name: "rev-20-catalog-drops-the-selector-code",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				start := bytes.Index(wrong.prd, []byte("| `archive-selector-invalid` | 3 |"))
+				if start < 0 {
+					return wrong
+				}
+				end := bytes.IndexByte(wrong.prd[start:], '\n')
+				wrong.prd = append(append([]byte(nil), wrong.prd[:start]...), wrong.prd[start+end+1:]...)
+				return wrong
+			},
+		},
+		{
+			// rev-20: PIB-431 loses the renderer-scoped no-relabel obligation,
+			// which is the row-level statement the CLI defect violated. The
+			// blanket "no emitter anywhere" reading is also wrong — the
+			// `archive-storage-failed` mapping is a legitimate classification —
+			// so restoring it must fail too.
+			name: "rev-20-pib-431-drops-the-scoped-no-relabel-obligation",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("**the typed archive refusal renderer surfaces an already-public catalog code unchanged**"),
+					[]byte("**no emitter rewrites a classified code into a different catalog code**"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: PIB-431 keeps the obligation but withdraws the explicit
+			// permission for a boundary to classify an internal, non-catalog
+			// transport failure — which would make the row false about
+			// `prepareStoreArchiveFailure`.
+			name: "rev-20-pib-431-forbids-internal-transport-classification",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte(" The obligation is scoped to that renderer and claims nothing about boundaries the validator does not read: an internal, non-catalog transport failure such as `archive-storage-failed` is legitimately classified into a catalog code by its owning boundary, which is what `prepareStoreArchiveFailure` does, and that mapping stays permitted."),
+					[]byte(""), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: PIB-465 keeps the selector row but drops the
+			// absent-archive population, which is the reported defect.
+			name: "rev-20-pib-465-drops-the-absent-archive-population",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("over an absent/empty archive as well as a populated healthy one"),
+					[]byte("over a populated healthy archive"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: PIB-465 keeps the exit-3 half but drops the exit-1 half,
+			// so nothing pins the malformed population as a non-report one.
+			name: "rev-20-pib-465-drops-the-exit-1-non-report-half",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("Its exit-1 half is asserted separately and as a **non**-report population"),
+					[]byte("Its exit-1 half is out of scope"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: the disposition downgraded to the erratum shape its
+			// predecessors use, although the emitted closed code changes.
+			name: "rev-20-recorded-as-a-no-decision-erratum",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("| rev-20 | **Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30** |"),
+					[]byte("| rev-20 | **Accepted no-decision erratum — raised 2026-08-30, accepted 2026-08-30** |"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the PRD revision-history row reverted to the
+			// pre-acceptance proposed/pending disposition.
+			name: "rev-20-revision-row-reverted-to-proposed",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("| rev-20 | **Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30** |"),
+					[]byte("| rev-20 | **Proposed bounded public diagnostic-vocabulary amendment — raised 2026-08-30; acceptance pending review** |"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the PRD status header reverted to the proposed
+			// clause with acceptance still pending.
+			name: "rev-20-prd-status-header-reverted-to-pending",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("diagnostic-vocabulary amendment (accepted 2026-08-30) — not a no-decision\nerratum, because the closed code a selector that names nothing emits changes**"),
+					[]byte("diagnostic-vocabulary amendment (proposed 2026-08-30) — not a no-decision\nerratum, because the closed code a selector that names nothing emits changes —\nacceptance pending review**"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the PRD acceptance block reverted to the disposition
+			// block it replaced, losing the external finding and the three
+			// internal correction reviews.
+			name: "rev-20-prd-acceptance-block-reverted-to-disposition",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("**Rev-20 acceptance**: **Accepted bounded public diagnostic-vocabulary\namendment — 2026-08-30**, accepted after the post-close external finding that\nraised it and **three** internal correction reviews of the drafted amendment,\nwith the semantics that were reviewed unchanged: the same two amended rows\n`PIB-431` and `PIB-465`, the same **567**-row matrix with unchanged §18.52\narithmetic and **thirty-six** §18.53 semantic guards, and no D1–D21 change\noutside D16's diagnostic vocabulary."),
+					[]byte("**Rev-20 disposition**: **Proposed 2026-08-30 — bounded public\ndiagnostic-vocabulary amendment, acceptance pending review.**"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: §18.1's rev-20 paragraph reverted to proposed with
+			// acceptance pending review.
+			name: "rev-20-section-18.1-reverted-to-pending",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("erratum** — it was **accepted** on 2026-08-30, after the post-close external\nfinding that raised it and **three** internal correction reviews of the drafted\namendment, with the reviewed semantics unchanged by acceptance — and it\namends exactly two stable rows"),
+					[]byte("erratum** — it is **proposed** on 2026-08-30 with acceptance **pending\nreview** — and it\namends exactly two stable rows"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the ADR status header reverted to proposed with
+			// acceptance pending review.
+			name: "rev-20-adr-status-header-reverted-to-pending",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("public diagnostic-vocabulary amendment (accepted 2026-08-30) — not a\nno-decision erratum**"),
+					[]byte("public diagnostic-vocabulary amendment (proposed 2026-08-30) — not a\nno-decision erratum, and acceptance pending review**"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the ADR acceptance block reverted to the disposition
+			// block it replaced.
+			name: "rev-20-adr-acceptance-block-reverted-to-disposition",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("**Rev-20 acceptance**: **Accepted bounded public diagnostic-vocabulary\namendment — 2026-08-30**, accepted with the companion PRD's rev-20 after the\npost-close external finding that raised it and **three** internal correction\nreviews of the drafted amendment, with the semantics that were reviewed\nunchanged: the same companion row pair `PIB-431`/`PIB-465`, the same **567**-row\nmatrix with **thirty-six** semantic guards, and no D1–D21 change outside D16's\ndiagnostic vocabulary."),
+					[]byte("**Rev-20 disposition**: **Proposed 2026-08-30 — bounded public\ndiagnostic-vocabulary amendment, acceptance pending review.**"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the ADR revision-history row reverted to the
+			// pre-acceptance proposed/pending disposition.
+			name: "rev-20-adr-revision-row-reverted-to-proposed",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("| rev-20 | **Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30** |"),
+					[]byte("| rev-20 | **Proposed bounded public diagnostic-vocabulary amendment — raised 2026-08-30; acceptance pending review** |"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the PRD's companion-revision metadata left behind at
+			// rev-19, so the paired acceptance is unrecorded on this side.
+			name: "rev-20-prd-architecture-metadata-stops-at-rev-19",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("(**Accepted 2026-08-14**, rev-20;"),
+					[]byte("(**Accepted 2026-08-14**, rev-19;"), 1)
+				return wrong
+			},
+		},
+		{
+			// Acceptance: the ADR's companion metadata left behind at rev-19.
+			name: "rev-20-adr-companion-metadata-stops-at-rev-19",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("(rev-20 Accepted;"),
+					[]byte("(rev-19 Accepted;"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: the §18.1 ledger claims a row the diff does not change.
+			name: "rev-20-ledger-claims-a-third-row",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("amends exactly two stable rows: `PIB-431` and `PIB-465`"),
+					[]byte("amends exactly three stable rows: `PIB-347`, `PIB-431` and `PIB-465`"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: §6.4's partition claims a dry-run evaluates the purge
+			// selector it never reaches.
+			name: "rev-20-selector-code-moved-into-the-dry-run-evaluated-column",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("`archive-purge-index-changed`, `archive-selector-invalid`, `archive-blob-shared`"),
+					[]byte("`archive-purge-index-changed`, `archive-blob-shared`"), 1)
+				wrong.prd = bytes.Replace(wrong.prd,
+					[]byte("| `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-blob-dangling`"),
+					[]byte("| `archive-selector-invalid`, `archive-index-corrupt`, `archive-index-version-unsupported`, `archive-index-foreign`, `archive-index-path-escape`, `archive-index-generation-mismatch`, `archive-blob-dangling`"), 1)
+				return wrong
+			},
+		},
+		{
+			// rev-20: ADR-035's D16 vocabulary paragraph gains the structured
+			// retry carrier §10.4.1 deliberately withholds.
+			name: "rev-20-adr-d16-selector-paragraph-gains-a-retry-carrier",
+			mutate: func(wrong s7Rev16Evidence) s7Rev16Evidence {
+				wrong.adr = bytes.Replace(wrong.adr,
+					[]byte("workspace root — a value to rerun with, or the fact that this archive holds\nnone."),
+					[]byte("workspace root — a value to rerun with, or the fact that this archive holds\nnone, carried as `retry` with `retry_cwd: \"workspace-root\"`."), 1)
 				return wrong
 			},
 		},
@@ -502,6 +733,9 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 	if err := validateS7Rev19RecordErratum(input.prd, input.adr, input.index); err != nil {
 		return err
 	}
+	if err := validateS7Rev20SelectorAmendment(input.prd, input.adr); err != nil {
+		return err
+	}
 	if err := validateS7Rev16DocumentDiffs(input); err != nil {
 		return err
 	}
@@ -530,6 +764,9 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 	}
 	wantChanged := []string{
 		"PIB-402", "PIB-403", "PIB-425",
+		// rev-20's two amended rows: the refusal-renderer guard and the
+		// §9.7.2 preflight-row fixture set.
+		"PIB-431", "PIB-465",
 		"PIB-542", "PIB-543", "PIB-544",
 		"PIB-550",
 		"PIB-562", "PIB-566",
@@ -558,9 +795,9 @@ func validateS7Rev16Evidence(input s7Rev16Evidence) error {
 			return fmt.Errorf("%s: %w", label, err)
 		}
 		if len(revisions) < 3 ||
-			revisions[len(revisions)-3] != 17 ||
-			revisions[len(revisions)-2] != 18 ||
-			revisions[len(revisions)-1] != 19 {
+			revisions[len(revisions)-3] != 18 ||
+			revisions[len(revisions)-2] != 19 ||
+			revisions[len(revisions)-1] != 20 {
 			return fmt.Errorf("%s revision predecessor = %v", label, revisions)
 		}
 	}
@@ -706,23 +943,31 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "PRD",
 			base:  input.basePRD, current: input.prd,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "7c3b82a0381193dac152b2f301df398adbd47bf47fb49a8f0edfd1a37c1630db"},
-				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "82850aafe0c1f35a17f8a31be80b46a04d78a66f1de9470fbf0c1afe22e35e0f"},
+				{label: "status-and-acceptance-header", heading: "<header>", baseHash: "a3aa799f8ab92acf0d16bcafe716977ad9b2d8279c84670a1736595e3d523f2a", currentHash: "31202b6e21780e5a911726edb715387636aad2069850242d72de31597d94e17c"},
+				{label: "revision-history", heading: "## Revision history", baseHash: "d9b6aff94362d6bdc8cbe89eec06f514d5d3eccae4175673a84c5771a669067c", currentHash: "a959242dfc73707cbad30ca48f73e0147a2085ee32c4a3158854c6530bc76314"},
+				// rev-20: §6.4's dry-run partition gains the new selector code in
+				// its not-evaluated column.
+				{label: "section-6.4-dry-run-partition", heading: "### 6.4 `--dry-run` — plan, not outcome", baseHash: "2b13832a1f351b834a7f9f8c9329c696cee1f6c0a50cffb4ac77b26bbd536422", currentHash: "da4c7e30b7d41ca1d675b0b52f1cfd60a6e33cc2b944463d31a207c53b6b3164"},
 				{label: "section-9.3-rehydration", heading: "### 9.3 `index.json`", baseHash: "fd9f4f35b499a2b17a60c6d256b9c1ff2448b57ef750e9f1f367505406e5ecc9", currentHash: "e8298d7394da53eee093bfc0b3b1e7a61bea0c8579fea731922b63f6a5e98254"},
-				{label: "section-9.7.1-consistency", heading: "#### 9.7.1 Selection and shared references", baseHash: "3210b5cf279b85e0f53e3d9edaa3caae1677849392155d06690455ae59f3287c", currentHash: "03b78d83c11bc56599cbb8e71cdb4f11f9506ed3c13922215e82a252ff0b1d93"},
-				{label: "section-9.7.2-residual-window", heading: "#### 9.7.2 Honest purge procedure and residual race", baseHash: "efe42995f891dce9e1bcef16fba4c9b8888898a67f0e5734d465f2ad8da14734", currentHash: "b2356f6742030f9297b9577b303f18afe6919c503c50df0900d1b99785007d81"},
+				{label: "section-9.7.1-consistency", heading: "#### 9.7.1 Selection and shared references", baseHash: "3210b5cf279b85e0f53e3d9edaa3caae1677849392155d06690455ae59f3287c", currentHash: "a2a59fd0907b0948bf59e8453aefc45b0731364ac8dff6911cc1cedef5b0b4a7"},
+				{label: "section-9.7.2-residual-window", heading: "#### 9.7.2 Honest purge procedure and residual race", baseHash: "efe42995f891dce9e1bcef16fba4c9b8888898a67f0e5734d465f2ad8da14734", currentHash: "49660792f52cc19dad5bf0d65e5e75b48f882334ed1c9d112e360a78a50b9b3b"},
 				// rev-19: §10.2's worked sequential-repair example becomes the
 				// exit-3 archive-integrity refusal form it always had to be.
 				{label: "section-10.2-purge-report-example", heading: "### 10.2 JSON report (v1)", baseHash: "b07b4080df837ee3ffdad9ce4dd6cc8d7fd892103d9309623daefbc947945102", currentHash: "108addefcf728a9d9b48ef8e6a07c6a4ab1a435d3ff542e0beb36b1d427a8bdf"},
+				// rev-20: §10.4.1 gains the archive-selector-invalid row, so the
+				// closed catalog grows from 53 to 54 codes.
+				{label: "section-10.4.1-refusal-catalog", heading: "### 10.4.1 Closed refusal catalog — code, exit, human and JSON shape", baseHash: "42bb98b4b61a2aa9e3d8f55f414b486357897c9f4e113fe8b6afcb53d062113f", currentHash: "2282fa5e58d00c6d3fd92a8310801c1a0710bb8499719e696ffe814f07e0eaae"},
 				// Readiness: §12.6's D6 delta records that the recovered-panic
 				// finding message is constant for every doctor check.
 				{label: "section-12.6-behavior-deltas", heading: "### 12.6 Enumerated behavior deltas — the complete list", baseHash: "87c382a287ec444a8eb6d410640d7f244bf5ccb1aa0c707599bb8e79d135dbad", currentHash: "1b8b2cc209014dec1a96e98850b6ca8de8493bd040a41f769df94d06f5846993"},
 				// rev-19: R25's joint `list`/`doctor`/mutation exit is split.
-				{label: "section-16-risks", heading: "## 16. Risks", baseHash: "8b245e8716ede244c3025597bb2a94f808c9839403acdc892447d536bd96448d", currentHash: "72e1190115af77c3f9e886127fc29db4dc926172472cf94bf82951a38348911f"},
+				{label: "section-16-risks", heading: "## 16. Risks", baseHash: "8b245e8716ede244c3025597bb2a94f808c9839403acdc892447d536bd96448d", currentHash: "e9762690d2631ddb1f33c916404c4a771c061d9eb8a7fcd8e87cec3bb05925f9"},
 				{label: "mechanical-slice-summary", heading: "### 17.2 Slices", baseHash: "32831b33b9200267975945357a3f035ad8ac84d8c91720496007986fcdea8f2a", currentHash: "d18b0764ee3c2985016ba5efe2c6aca5d1c32765ee9844e32a1dacdfd82aca05"},
-				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "aa8f9b170d83949f353197e08516cd433c202e74c4612f7de710eb681510b652"},
+				{label: "section-18.1-amendment-ledger", heading: "### 18.1 How to read this matrix", baseHash: "2d07413506629fc420e5e2768bb446633a2579195a60189820cc6f16187b91cd", currentHash: "dc3c69e7beaf4c1a1deb078b5a9f6cfe2354de0370d6f3e1ff40e07b355fdb12"},
 				{label: "matrix-pib-402-403", heading: "### 18.40 AM — Rev-2 adjudication rows, amended by rev-3", baseHash: "ea342198fd9ecfe95385245fb29af8f89dab05332ea7d63947a488907637a2b6", currentHash: "307e6c60f1b23cd64ca254aaef2e49135eb0c0cf33475e8fc887c9b5b7def16a"},
-				{label: "matrix-pib-425", heading: "### 18.41 AN — Rev-3 adjudication: directory authority, privacy and archive truth", baseHash: "c3812ced4e0254b749cc1b9e24ecf8b284223678619de5966aa16f25e50ed3a0", currentHash: "5edc1c5c1ccac9f836099faee0c2c329da858b7cab357b96df9bd50fae3efc5d"},
+				{label: "matrix-pib-425-431", heading: "### 18.41 AN — Rev-3 adjudication: directory authority, privacy and archive truth", baseHash: "c3812ced4e0254b749cc1b9e24ecf8b284223678619de5966aa16f25e50ed3a0", currentHash: "079807566d8f011be65bdec81e4e3383e96e38a12a5573a69d10588eae0d0c5d"},
+				// rev-20: PIB-465 owns the §9.7.2 preflight-row fixture set.
+				{label: "matrix-pib-465", heading: "### 18.43 AP — Rev-5 adjudication: reachability, rooted control writes and bounded totality", baseHash: "e05f2dc51cfbb947ecbf2ba6165ca7acb10496310268cea81c30558b1fab7b14", currentHash: "0b1dbbee9c424b8924c43bfab551d3d4650165fa358ec4348f962e70d93104b1"},
 				{label: "matrix-pib-542-544", heading: "### 18.48 AU — Rev-10 adjudication: global pending ownership, selector-independent validation and the corrupt-blob route", baseHash: "7b8dc7b2b98655beef1f5f03706cc832d21a48699418d24ffc13396d8d237d01", currentHash: "0c5a59211d322812d6c14dd37cd99b2ffc78fc60d2df43602bc36435fab37098"},
 				{label: "matrix-pib-550", heading: "### 18.49 AV — Rev-11 adjudication: total same-hash claim, the recovery exception, type-total removal and repair-class multiplicity", baseHash: "c7936d0efed11b970c6e5f9c802ee31209effc6fa12294d1674b2c704d748486", currentHash: "7a1a865a60b2fcd8d189bf1b1f6796a6ee2a365a6f451bf2f9e5a2036d0f5d08"},
 				// rev-19: the two amended matrix rows, PIB-562 and PIB-566.
@@ -731,17 +976,17 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 				// Readiness: §19's gate records conditions (1)–(4) complete and
 				// the accepted GH #23 implementation, without a release claim.
 				{label: "section-19-authorization-gate", heading: "## 19. Implementation authorization gate", baseHash: "360f2df976a308bae2f5bc541c5b6532f3b9f360a30c1ff1a9ce2aa2fade1375", currentHash: "a561571e0f058cb97454c4744c0e8266e89c8a8768cd98cfb3c006aa89a483a4"},
-				{label: "section-21-alternatives", heading: "## 21. Alternatives considered (summary)", baseHash: "ec652ea2de6e47354d9c0229ebd1035ea6a5e17d3b171c94d1be32f040be0c7f", currentHash: "21f291115164a56339b77a70bb44ef6ac3952397c5f2ec0d3bbd014a5ace7e3e"},
+				{label: "section-21-alternatives", heading: "## 21. Alternatives considered (summary)", baseHash: "ec652ea2de6e47354d9c0229ebd1035ea6a5e17d3b171c94d1be32f040be0c7f", currentHash: "182e9da7f69590a01438dea6e266114a984c6664ca688479878048e3ec7373a2"},
 			},
 		},
 		{
 			label: "ADR",
 			base:  input.baseADR, current: input.adr,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "551209f77e49c58a04861919b4200b8e272dfb9eb028ebddab4f88a853d6aa9f"},
+				{label: "status-revision-amendment-ledgers", heading: "<header>", baseHash: "09f50199314281aa28d17c63bbb25519738c4ffcefb3c2a2c2d960380a7e1ab6", currentHash: "935e5a8a5de61deb87143ff5a5dcc511efb732d45accf274448d7e5878c43d86"},
 				{label: "D10-pending-owner", heading: "### D10 — Content-addressed, deterministic identifiers; no wall-clock in tracked bytes", baseHash: "04b8affc6125b69e4191b2b30d6cb8c9760e0ab872abf9aa520aa53040a4b4e5", currentHash: "76a7b43b42f63214620a4712ff96dfcef906d2e9944ec4b70dcf62c6566e9d33"},
 				{label: "D13-terminal-owner-precedence", heading: "### D13 — Recovery has three entry points, it is terminal, the operator's runs *instead of* the automatic ones, and the diagnostic touches nothing", baseHash: "77633643c1cc2c1b5607ba673cfe8af6b17d25d47510e1c6904b0a0f50c6cbb1", currentHash: "b5b45839dc04492a0673aa44b232d7138fff88cc7b8657072feb26c0c01a454f"},
-				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "9757ddc5251a04f0e0ed6b9f5559420d08ddf8fc8c4bbf7abf76d836e00d287a"},
+				{label: "D16-purge-owner", heading: "### D16 — Retention is bounded: listing, purging, tombstones and orphans", baseHash: "ee66479c3eae9c1ed0af5de192d63e088d00ddc3843aaf9c8666151909e2ec41", currentHash: "f556bc199ff3afaf15fbd2f13dfe1529b6522f06770647c4bad47f6b40918d6d"},
 				{label: "adr-alternatives-considered", heading: "## Alternatives considered", baseHash: "fa303b87ef6fd1054570916d0dbcead3f770f8760b6177a66eb714d2319a5649", currentHash: "3f5062fda963eaf676a24821dd09e829ae36555c2cb9f2925641e17b9e586ac8"},
 			},
 		},
@@ -751,7 +996,7 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "ADR index",
 			base:  input.baseIndex, current: input.index,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "a70be9f0f3d88286999bed8d5a9521ddaf44b973c1e643a9c15c024c85c3db61"},
+				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "a0bb77a779b346063d0960bbd9ca3b0684fef0f9c4e68f25aae860e3c96fe976"},
 			},
 		},
 	}
@@ -1437,9 +1682,9 @@ func validateS7ReadinessRecord(prd, adr, index string) error {
 		return fmt.Errorf("ADR index has no ADR-035 row")
 	}
 	for _, token := range []string{
-		"errata through rev-19 accepted",
-		"rev-17, rev-18 and rev-19 jointly on 2026-08-29",
-		"rev-19. Decisions D1–D21.",
+		"no-decision errata through rev-19 accepted jointly on 2026-08-29",
+		"rev-20's bounded selector diagnostic amendment accepted on 2026-08-30",
+		"rev-20. Decisions D1–D21.",
 		"and its acceptance are complete; release authorization is pending.",
 	} {
 		if !strings.Contains(row, token) {
@@ -1548,4 +1793,341 @@ func s7GenerationIDs(index store.IntentArchiveIndex) []string {
 		ids = append(ids, generation.GenerationID)
 	}
 	return ids
+}
+
+// validateS7Rev20SelectorAmendment pins rev-20, which is deliberately not
+// shaped like rev-16…rev-19. Those were no-decision errata; rev-20 changes the
+// closed public code an invalid purge selector emits, so its disposition says
+// "amendment", the §10.4.1 catalog grows from 53 to 54 codes, and the two rows
+// it amends carry the new obligations. Everything the amendment must *not* do —
+// reclassify strict-index failures, echo a rejected raw value, claim
+// corruption, offer preservation or an `rm` form — is asserted as an absence.
+// Since 2026-08-30 the disposition is also terminal: both documents record the
+// **accepted** amendment, name the external finding and the three internal
+// correction reviews behind it, and carry no pre-acceptance proposed/pending
+// metadata anywhere. The accepted semantics are the reviewed ones — the same
+// `PIB-431`/`PIB-465` pair, 567 rows, thirty-six semantic guards.
+func validateS7Rev20SelectorAmendment(prd, adr []byte) error {
+	prdText := string(prd)
+	adrText := string(adr)
+	for _, token := range []string{
+		"rev-20 selector-classification bounded public\ndiagnostic-vocabulary amendment (accepted 2026-08-30) — not a no-decision\nerratum",
+		"**Rev-20 acceptance**: **Accepted bounded public diagnostic-vocabulary\namendment — 2026-08-30**",
+		"| rev-20 | **Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30** |",
+		"amends exactly two stable rows: `PIB-431` and `PIB-465`",
+		"**A selector that names nothing is a selector fault, not an archive fault.**",
+		// The acceptance record: one external finding, three internal
+		// correction reviews, and semantics unchanged by acceptance.
+		"accepted after the post-close external finding that\nraised it and **three** internal correction reviews of the drafted amendment,\nwith the semantics that were reviewed unchanged",
+		"it was **accepted** on 2026-08-30, after the post-close external\nfinding that raised it and **three** internal correction reviews of the drafted\namendment, with the reviewed semantics unchanged by acceptance",
+		"(**Accepted 2026-08-14**, rev-20;",
+	} {
+		if !strings.Contains(prdText, token) {
+			return fmt.Errorf("PRD rev-20 token missing: %q", token)
+		}
+	}
+	for _, token := range []string{
+		"rev-20 D16 selector-classification bounded\npublic diagnostic-vocabulary amendment (accepted 2026-08-30) — not a\nno-decision erratum",
+		"**Rev-20 acceptance**: **Accepted bounded public diagnostic-vocabulary\namendment — 2026-08-30**",
+		"| rev-20 | **Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30** |",
+		"accepted with the companion PRD's rev-20 after the\npost-close external finding that raised it and **three** internal correction\nreviews of the drafted amendment, with the semantics that were reviewed\nunchanged",
+		"no D1–D21 change outside D16's\ndiagnostic vocabulary",
+		"(rev-20 Accepted;",
+	} {
+		if !strings.Contains(adrText, token) {
+			return fmt.Errorf("ADR rev-20 token missing: %q", token)
+		}
+	}
+
+	// The accepted disposition is terminal in both documents: no current
+	// metadata may still record rev-20 as proposed or as awaiting review.
+	for label, document := range map[string]string{"PRD": prdText, "ADR": adrText} {
+		for _, stale := range []string{
+			"**Rev-20 disposition**",
+			"acceptance pending review",
+			"amendment (proposed 2026-08-30)",
+			"| rev-20 | **Proposed",
+		} {
+			if strings.Contains(document, stale) {
+				return fmt.Errorf("%s rev-20 still records the pre-acceptance disposition %q", label, stale)
+			}
+		}
+	}
+
+	// rev-20 is an amendment, not an erratum: neither document may record it
+	// with the accepted-no-decision disposition its predecessors carry, and the
+	// PRD's own ledger claim must be the two rows the diff really changes.
+	prdRow := s7RevisionRow(prdText, 20)
+	if !strings.Contains(prdRow, "**Amended rows, exactly**: `PIB-431` and `PIB-465` — **two**") {
+		return fmt.Errorf("PRD rev-20 does not claim exactly two amended rows: %s", prdRow)
+	}
+	for label, row := range map[string]string{
+		"PRD": prdRow,
+		"ADR": s7RevisionRow(adrText, 20),
+	} {
+		if row == "" {
+			return fmt.Errorf("%s rev-20 revision row missing", label)
+		}
+		if strings.Contains(row, "Accepted no-decision erratum") {
+			return fmt.Errorf("%s rev-20 is recorded as an accepted no-decision erratum: %s", label, row)
+		}
+		if !strings.Contains(row,
+			"**Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30**") {
+			return fmt.Errorf("%s rev-20 is not recorded as the accepted amendment: %s", label, row)
+		}
+		if !strings.Contains(row, "**three** internal correction reviews") {
+			return fmt.Errorf("%s rev-20 does not record the three internal correction reviews: %s", label, row)
+		}
+		if !strings.Contains(row, "`PIB-431`") || !strings.Contains(row, "`PIB-465`") {
+			return fmt.Errorf("%s rev-20 does not name both amended rows: %s", label, row)
+		}
+	}
+
+	// §10.4.1 carries the code as its own exit-3 row, and the catalog is 54.
+	catalog, err := s7Rev20RefusalCatalog(prdText)
+	if err != nil {
+		return err
+	}
+	if len(catalog) != 54 {
+		return fmt.Errorf("§10.4.1 lists %d refusal codes, want 54", len(catalog))
+	}
+	selectorRows := 0
+	for _, code := range catalog {
+		if code == "archive-selector-invalid" {
+			selectorRows++
+		}
+	}
+	if selectorRows != 1 {
+		return fmt.Errorf("§10.4.1 lists archive-selector-invalid %d times", selectorRows)
+	}
+	catalogRow := s7MarkdownTableRow(prdText, "`archive-selector-invalid`")
+	if catalogRow == "" {
+		return errors.New("§10.4.1 has no archive-selector-invalid row of its own")
+	}
+	for _, token := range []string{
+		"| `archive-selector-invalid` | 3 |",
+		"The code has exactly two emitted populations",
+		"reject at exit **1** before any archive read",
+		"tpatch feature intent-archive list <slug>",
+		"a rejected malformed value is never echoed",
+		"`archive-index-*` codes remain reserved for X1–X10 strict decoding and X11 storage",
+		"none of them is a report population",
+	} {
+		if !strings.Contains(catalogRow, token) {
+			return fmt.Errorf("§10.4.1 archive-selector-invalid row lacks %q", token)
+		}
+	}
+	for _, forbidden := range []string{"preserve the archive", "rm -rf", "corrupt archive"} {
+		if strings.Contains(strings.ToLower(catalogRow), forbidden) {
+			return fmt.Errorf("§10.4.1 archive-selector-invalid row carries %q", forbidden)
+		}
+	}
+
+	// §6.4's dry-run partition places it in the not-evaluated column only.
+	partition, err := s7MarkdownSection(prdText,
+		"**What dry-run reproduces, and what it deliberately does not evaluate.**",
+		"The redaction scan is deliberately")
+	if err != nil {
+		return err
+	}
+	evaluated, notEvaluated := 0, 0
+	for _, line := range strings.Split(partition, "\n") {
+		if !strings.HasPrefix(line, "|") || strings.Contains(line, "---") {
+			continue
+		}
+		cells := strings.Split(line, "|")
+		if len(cells) < 4 {
+			continue
+		}
+		if strings.Contains(cells[1], "`archive-selector-invalid`") {
+			evaluated++
+		}
+		if strings.Contains(cells[2], "`archive-selector-invalid`") {
+			notEvaluated++
+		}
+	}
+	if evaluated != 0 || notEvaluated != 1 {
+		return fmt.Errorf(
+			"§6.4 places archive-selector-invalid evaluated=%d not-evaluated=%d, want 0/1",
+			evaluated, notEvaluated,
+		)
+	}
+
+	// §9.7.2's preflight selector row, and the retired readings it replaces.
+	preflight := s7MarkdownTableRow(prdText,
+		"selector present, exactly one, and well-formed (`^[0-9a-f]{64}$` hashes, known generation ids)")
+	if preflight == "" {
+		return errors.New("§9.7.2 selector preflight row missing")
+	}
+	for _, token := range []string{
+		"exit 1 (no selector, a repeated scope family, or a value that is not a full lowercase SHA-256",
+		"with an empty report, no refusal code and no echo of the rejected value",
+		"exit 3 (`archive-selector-invalid` for a well-formed `--blob` hash the index does not carry",
+		"the index does not record",
+		"No `archive-index-*` code is reachable from it",
+		"is never a report population",
+	} {
+		if !strings.Contains(preflight, token) {
+			return fmt.Errorf("§9.7.2 selector preflight row lacks %q", token)
+		}
+	}
+	if strings.Contains(prdText, "`archive-index-corrupt` for an unknown id") {
+		return errors.New("PRD retains the retired unknown-id `archive-index-corrupt` reading")
+	}
+	// The correction rev-20 itself needed: a malformed value is an exit-1 usage
+	// error, never a structured exit-3 refusal, so the PRD may not promise one.
+	for _, overreach := range []string{
+		"`archive-selector-invalid` for a malformed id",
+		"malformed or unknown ids keep **exit 3**",
+		"malformed or unknown ids\nexit 3",
+	} {
+		if strings.Contains(prdText, overreach) {
+			return fmt.Errorf("PRD promises a public refusal code for a malformed selector: %q", overreach)
+		}
+	}
+
+	// The two amended matrix rows.
+	for _, row := range []struct {
+		id      string
+		tokens  []string
+		retired []string
+	}{
+		{
+			id: "PIB-431",
+			tokens: []string{
+				"**the typed archive refusal renderer surfaces an already-public catalog code unchanged**",
+				"`intentArchiveRefusalFromError` may not relabel one catalog code as another",
+				"`archive-selector-invalid` reaches the report as itself and never as an `archive-index-*` code",
+				"an internal, non-catalog transport failure such as `archive-storage-failed` is legitimately classified into a catalog code by its owning boundary",
+				"which is what `prepareStoreArchiveFailure` does",
+				"identical in human and JSON",
+			},
+			retired: []string{
+				"purge/publication index codes stay distinct |",
+				"no emitter rewrites a classified code",
+			},
+		},
+		{
+			id: "PIB-465",
+			tokens: []string{
+				"each refuse `archive-selector-invalid` — never an `archive-index-*` code",
+				"over an absent/empty archive as well as a populated healthy one",
+				"Its exit-1 half is asserted separately and as a **non**-report population",
+				"preview takes no authority, while confirmed takes and releases exactly one workspace authority before normalization",
+				"Workspace, platform, pending-journal and confirmed contention refusals retain their higher precedence",
+				"The strict-decode row keeps its `archive-index-*` classification unchanged",
+			},
+		},
+	} {
+		line := s7MarkdownTableRow(prdText, row.id)
+		if line == "" {
+			return fmt.Errorf("%s row missing", row.id)
+		}
+		flat := strings.Join(strings.Fields(line), " ")
+		for _, token := range row.tokens {
+			if !strings.Contains(flat, strings.Join(strings.Fields(token), " ")) {
+				return fmt.Errorf("%s rev-20 token missing: %q", row.id, token)
+			}
+		}
+		for _, token := range row.retired {
+			if strings.Contains(line, token) {
+				return fmt.Errorf("%s retains the retired pre-rev-20 reading %q", row.id, token)
+			}
+		}
+	}
+
+	// PIB-347 keeps its exit-1 grammar row: rev-20 amends exactly two rows, and
+	// the missing/multiple-selector population is not one of them.
+	grammar := s7MarkdownTableRow(prdText, "PIB-347")
+	if !strings.Contains(grammar,
+		"exit 1; the message names `--blob`, `--generation`, `--orphans`, `--all`; zero writes") {
+		return fmt.Errorf("PIB-347's exit-1 selector grammar row changed: %s", grammar)
+	}
+
+	// §16's R38 states the misclassification risk this amendment closes.
+	risk := s7MarkdownTableRow(prdText, "R38")
+	if risk == "" {
+		return errors.New("R38 row missing")
+	}
+	for _, token := range []string{
+		"`archive-selector-invalid`",
+		"feature intent-archive list <slug>",
+		"none prints an `rm` form",
+	} {
+		if !strings.Contains(risk, token) {
+			return fmt.Errorf("R38 rev-20 token missing: %q", token)
+		}
+	}
+
+	// ADR-035 D16 states the same vocabulary, and adds no retry carrier.
+	d16, err := s7MarkdownSection(adrText, "### D16 ", "### D17 ")
+	if err != nil {
+		return err
+	}
+	for _, token := range []string{
+		"**The selector check has its own public code, and it is not an archive\naccusation.**",
+		"**the typed archive refusal\nrenderer surfaces it unchanged**",
+		"an internal, non-catalog transport failure is still\nclassified into a catalog code by the boundary that owns it",
+		"`archive-index-*` stays reserved for X1–X10 strict decoding\nand X11 storage observation and is unreachable from a selector fault",
+		"missing/multiple-selector grammar keeps exit\n**1**",
+		"is not a full\nlowercase SHA-256",
+	} {
+		if !strings.Contains(d16, token) {
+			return fmt.Errorf("ADR D16 rev-20 token missing: %q", token)
+		}
+	}
+	if strings.Contains(d16, "**no\nemitter rewrites it into another catalog code**") {
+		return errors.New("ADR D16 retains the unscoped no-rewrite claim rev-20 had to narrow")
+	}
+	// The selector paragraph itself names no structured retry carrier: D16's
+	// other paragraphs legitimately do, so the scan is scoped to this one.
+	selectorParagraph, err := s7MarkdownSection(d16,
+		"**The selector check has its own public code",
+		"`archive-index-*` stays reserved")
+	if err != nil {
+		return err
+	}
+	for _, forbidden := range []string{"retry_cwd", "rm -rf"} {
+		if strings.Contains(selectorParagraph, forbidden) {
+			return fmt.Errorf("ADR D16's selector paragraph carries %q", forbidden)
+		}
+	}
+	for _, token := range []string{
+		"names no preservation, correction or `rm` form",
+		"carries no\nstructured retry",
+	} {
+		if !strings.Contains(selectorParagraph, token) {
+			return fmt.Errorf("ADR D16's selector paragraph lacks %q", token)
+		}
+	}
+	return nil
+}
+
+// s7Rev20RefusalCatalog reads §10.4.1's first-cell codes in document order,
+// exactly as the shipped S6 catalog reader does.
+func s7Rev20RefusalCatalog(document string) ([]string, error) {
+	section, err := s7MarkdownSection(document,
+		"### 10.4.1 Closed refusal catalog", "### 10.5 Precedence")
+	if err != nil {
+		return nil, err
+	}
+	pattern := regexp.MustCompile("`([a-z][a-z0-9-]+)`")
+	seen := map[string]bool{}
+	var codes []string
+	for _, line := range strings.Split(section, "\n") {
+		if !strings.HasPrefix(line, "| `") {
+			continue
+		}
+		firstCell := strings.SplitN(strings.TrimPrefix(line, "|"), "|", 2)[0]
+		for _, match := range pattern.FindAllStringSubmatch(firstCell, -1) {
+			if !seen[match[1]] {
+				seen[match[1]] = true
+				codes = append(codes, match[1])
+			}
+		}
+	}
+	if len(codes) == 0 {
+		return nil, errors.New("parsed no refusal codes from §10.4.1")
+	}
+	return codes, nil
 }
