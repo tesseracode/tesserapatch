@@ -44,6 +44,21 @@ All notable changes to tpatch are recorded here.
   prepare refuse with the confirmed purge repair; that purge invocation
   finalizes recovery and likewise stops so the operator reruns the selector.
 
+  A `feature intent-archive purge` selector that names nothing is reported as
+  `archive-selector-invalid` and never as archive corruption. That public code
+  covers exactly two populations: a well-formed lowercase 64-hex `--blob` hash
+  the archive index carries no reference to, and a well-formed `--generation`
+  id it records no generation for. Both exit 3, in preview and confirmed form
+  alike, without writing anything. Selector grammar is unchanged and stays
+  outside the refusal catalog: a missing or repeated scope family, and a
+  `--blob`/`--generation` value that is not a full lowercase SHA-256, remain
+  usage errors that exit 1 before any archive is read, print no report and
+  never echo the rejected value. The refusal says which selector matched
+  nothing and points at `tpatch feature intent-archive list <slug>` from the
+  workspace root; it makes no claim about archive bytes, asks for no
+  preservation and prints no removal command, so a feature with no archive is
+  no longer told its index is corrupt.
+
 ## v0.15.1 — 2026-08-12 — nested-worktree safety and landed verification
 
 ### Fixed

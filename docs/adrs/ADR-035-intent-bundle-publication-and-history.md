@@ -5,7 +5,9 @@ erratum (2026-08-18), rev-16 pending-owner no-decision erratum (2026-08-20);
 rev-17 companion-row no-decision erratum (2026-08-27), rev-18
 removal-identity-re-probe no-decision erratum (2026-08-28) and rev-19 D10
 observed-product no-decision erratum (2026-08-28) — rev-17, rev-18 and rev-19
-accepted jointly on 2026-08-29**
+accepted jointly on 2026-08-29; rev-20 D16 selector-classification bounded
+public diagnostic-vocabulary amendment (accepted 2026-08-30) — not a
+no-decision erratum**
 **Date**: 2026-08-13 (Proposed rev-0), 2026-08-14 (rev-1 through rev-14;
 **Accepted at rev-14 on 2026-08-14**)
 **Owner**: Core (planning lane)
@@ -45,6 +47,35 @@ a warning finding at exit **0**. Only that sentence changes. **No D10 or D16
 decision, condition, invariant, admitted route, exit code or product behaviour
 changes**, and no other decision changed. The companion PRD's rev-19 carries
 the matching `PIB-562`/`PIB-566` and §10.2 corrections.
+**Rev-20 acceptance**: **Accepted bounded public diagnostic-vocabulary
+amendment — 2026-08-30**, accepted with the companion PRD's rev-20 after the
+post-close external finding that raised it and **three** internal correction
+reviews of the drafted amendment, with the semantics that were reviewed
+unchanged: the same companion row pair `PIB-431`/`PIB-465`, the same **567**-row
+matrix with **thirty-six** semantic guards, and no D1–D21 change outside D16's
+diagnostic vocabulary. The post-close
+external review of the GH #23 cluster found that D16's preflight vocabulary
+names *selector well-formedness* as a validation step without naming the code
+it emits, and that the shipped product disagreed with itself: the store
+classified a selector value the index does not carry as
+`archive-selector-invalid` while the CLI rewrote that code to
+`archive-index-corrupt`, and the store's own unknown-generation branch emitted
+`archive-index-corrupt` directly. rev-20
+states the vocabulary in D16 — one code, `archive-selector-invalid`, for the
+two selections that reach a report, a well-formed `--blob` hash the index
+carries no reference to and a well-formed `--generation` id it records no
+generation for; selector grammar and malformed values left where they already
+are, at exit 1 before any archive read, outside the catalog; `archive-index-*`
+reserved for X1–X10 strict decoding and
+X11 storage observation — and the companion PRD's rev-20 carries §6.4, §9.7.1,
+§9.7.2, §10.4.1, `R38`, §21 and the `PIB-431`/`PIB-465` row amendments. It is
+recorded as an **amendment** rather than as a no-decision erratum because the
+emitted closed code changes. **No D1–D21 decision, condition, invariant,
+admitted route, class rank, exit code, emitted state or product behaviour
+otherwise changes**: exit 1 stays the missing/multiple-selector grammar and the
+malformed-value normalization beside it, exit 3 stays the well-formed but
+unknown population, both stay zero-write, and every lock, Git, preview and
+mutation rule is untouched.
 **Byline**: supervisor errata fold, rev-14 from reviewed writer tip `8f1cc8a`;
 dispatch/base `a2a6479`; errata tip `0dd36e6`; WAVE_BASE `d060ff4`; rev-15
 PIB-391 evidence correction discovered by GH #23; rev-16 pending-owner wording
@@ -53,7 +84,8 @@ correction discovered during S7 implementation; rev-17 companion `PIB-542` /
 implementation (`PIB-537`…`PIB-545`); rev-18 D16 removal-identity re-probe
 correction discovered during S7 AV implementation (`PIB-546`…`PIB-551`);
 rev-19 D10 corrupt-blob surface-split correction raised by the independent S7
-AX review (`PIB-561`…`PIB-567`)
+AX review (`PIB-561`…`PIB-567`); rev-20 D16 selector-classification amendment
+raised by the post-close external review of the same cluster
 **Cluster**: WP-005 spec-driven workflows / GH #11
 **Supersedes**: none
 **Superseded by**: none
@@ -66,8 +98,10 @@ wire schema),
 [ADR-034](./ADR-034-rooted-filesystem-inspection-boundary.md) (the rooted
 **read** boundary, reused unchanged and **not** extended to writes)
 **Companion**: [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md)
-(rev-19 Accepted; its rev-17, rev-18 and rev-19 no-decision errata were
-accepted in the same joint review as this document's, on 2026-08-29). **The
+(rev-20 Accepted; its rev-17, rev-18 and rev-19 no-decision errata were
+accepted in the same joint review as this document's, on 2026-08-29, and its
+rev-20 diagnostic-vocabulary amendment was accepted with this document's
+rev-20 on 2026-08-30). **The
 two documents were reviewed and
 accepted together.** Read the PRD for the full product contract and its 567-row
 acceptance matrix; this ADR states the decisions the PRD's §7, §8 and §9 depend
@@ -102,6 +136,7 @@ Release authorization remains a separate decision.
 | rev-17 | **Accepted no-decision erratum — raised 2026-08-27, accepted 2026-08-29** | S7 AU implementation found that three companion PRD acceptance-matrix rows asserted expectations the frozen decisions and the shipped product do not produce. **`PIB-542`**: over an archive holding a single repair class (the mixed tombstone/live-reference hash `h₂`) beside a healthy hash `h₃`, the row expected **all four** selectors, `--all` included, to refuse exit 3. D16's frozen rev-12 rule says the opposite for `--all --yes` — it is admitted exactly where the chosen class is the archive's **only** class, and a healthy hash belongs to **no** repair class and so supplies no second class. **`PIB-543`**: the row required exit **3** from every observer and one procedure presentation from all five, but this ADR already fixes `doctor`'s D9 as **warning-only**, so it exits **0** while `prepare`, `--regenerate`, `--manual` and `list` exit 3; and the same corrupt-object route is printed in two presentations — `list`'s quoted per-entry procedure with the structured `retry`/`retry_cwd` pair, `doctor`'s identical quoted procedure lines without that pair, and the three mutating readers' refusal-`remediation` prose over the unquoted repo-relative managed path. Every obligation D16 places on those procedures — repo-relative paths only, the stated destructive cost, the Git-history caveat, the single type-total `rm -rf --`, no preservation command named — is unchanged and still required of all five. **`PIB-544`**: the row named a driver seam set (`beforePurgeIndexCAS`, `afterPurgeBlobRevalidate`, `beforePurgeBlobRemove`, `beforePendingTombstoneCAS`) that is not the one the four §9.7.2 windows are reached through; the corrected row uses the authoritative mapping the store's own `TestRecoverPendingPurgeInsertionWindowsPIB544` drives — the post-preflight index capture, `beforePurgeIndexCAS`, `afterPurgeIndexRename`, and the post-unlink `beforePendingTombstoneCAS` — and excludes `afterPurgeBlobRevalidate` because that seam is the **fifth** window this ADR discloses as a permanent residual. **No D16 decision, admission condition, blast-radius disclosure obligation, warning-only D9 rule, precedence rank or normative sentence is changed, reworded or reopened, and no other decision changes**; D1–D21 stand exactly as at rev-14/rev-15/rev-16, and no window's exit, outcome, resume token or removal truth moves. The erratum is recorded here only because the corrected companion rows are these decisions' own worked cases. The companion matrix stays at 567 rows; exactly three rows (`PIB-542`, `PIB-543`, `PIB-544`) are amended, and none is added, retired, renumbered, re-categorised or re-kinded. |
 | rev-18 | **Accepted no-decision erratum — raised 2026-08-28, accepted 2026-08-29** | S7 AV implementation found that D16's residual paragraph and the companion PRD row `PIB-550` both described the replacement of a managed object between the pre-removal revalidation and the unlink as a byte-level loss rather than a detection. The shipped machine hands the revalidated identity to the removal, and the storage re-probes the managed object immediately before the syscall and refuses when that identity no longer matches — for a regular blob the recorded mode, size and content hash — so the replacement is preserved, the invocation ends at exit 5 `archive-purge-partial` and the sanitized rerun refuses exit 6 `archive-purge-evidence-divergent`. D16's disclosure now narrows the residual to the unseamed gap between that re-probe and the unlink syscall, stated beside the post-CAS final CAS→rename window and still claimed closed by neither. **No decision, condition, invariant, admitted route, exit code or emitted state changes**; the erratum touches D16's residual prose and the matching alternatives row only. |
 | rev-19 | **Accepted no-decision erratum — raised 2026-08-28, accepted 2026-08-29** | The independent S7 AX review found that **D10's** corrupt-blob paragraph states one refusal for three surfaces jointly: a present but unidentifiable blob under a retained reference “refuses zero-write for `list`, `doctor` and every ordinary mutation”. `doctor`'s D9 is warning-only — D16 already states it in its own words, and the shipped exit mapper returns **0** for a run that raises only warnings — so the accurate reading is that `list` and every ordinary mutation refuse the observation at exit **3** with zero writes, while `doctor` reports the identical observation as a **warning** finding and exits **0**. The corrected paragraph says exactly that and nothing more. **No decision changes** — in particular no D10 or D16 decision, condition, invariant, admitted route, class rank, exit code, emitted state or product behaviour changes; the rank-1 block, the type-total removal, the already-admitted dangling repair, the restore alternative, the destructive cost and the Git-history caveat all stand exactly as accepted. D16's pending-route rule is already correct and is not touched, so no `retry_cwd` claim is added here. The companion PRD's rev-19 carries the matching `PIB-562` and `PIB-566` row corrections, the §10.2 worked-example coherence correction, `R25` and `PIB-566`'s §18.53 fixture wording; that matrix stays at **567** rows with **thirty-six** semantic guards. |
+| rev-20 | **Accepted bounded public diagnostic-vocabulary amendment — 2026-08-30** | The post-close external review of the GH #23 cluster found the shipped product disagreeing with itself about the public code a purge selector that names nothing emits. `internal/store` already classifies a `--blob`/`--generation` value the index does not carry as `archive-selector-invalid`, but the CLI refusal builder rewrote that code to `archive-index-corrupt` because the companion PRD's closed §10.4.1 catalog omitted it, and the store's adjacent unknown-generation branch emitted `archive-index-corrupt` directly — so a feature with **no archive** and a well-formed but unindexed hash was told its index was corrupt and to preserve archive bytes that do not exist. D16's preflight paragraph already listed *selector well-formedness* as the first predictable check; rev-20 states the **code** that check emits and the boundary around it: one code, `archive-selector-invalid`, for the two selections that reach a report — a well-formed hash the index carries no reference to and a well-formed generation id the index does not record; selector arity and malformed values are **not** among them and stay exit-1 usage errors the command rejects before any archive read, with no report and no code, so the catalog gains no population an operator cannot reach; the store's defensive classification of arity, malformed values, unusable kinds and preview-plan execution under the same typed code remains internal and unemitted; `archive-index-*` reserved for X1–X10 strict decoding and X11 storage observation and unreachable from a selector fault; the refusal routing to `feature intent-archive list <slug>` from the workspace root and never to preservation, correction or an `rm` form. This is an **amendment, not a no-decision erratum**, because the emitted closed code changes and the companion catalog grows from **53** to **54** codes. **No D1–D21 decision, condition, invariant, admitted route, class rank, exit code, emitted state or product behaviour otherwise changes**; exit 1 stays the missing/multiple-selector grammar and the malformed-value normalization beside it, exit 3 the unknown-but-well-formed population, both zero-write. The companion PRD's rev-20 carries §6.4, §9.7.1, §9.7.2, §10.4.1, `R38`, §21 and exactly two amended matrix rows, `PIB-431` and `PIB-465`; that matrix stays at **567** rows with **thirty-six** semantic guards. Accepted on 2026-08-30 with the companion PRD's rev-20, after the post-close external finding that raised it and **three** internal correction reviews of the drafted amendment, with the reviewed semantics unchanged by acceptance. |
 
 **Acceptance record.** rev-14 was accepted on **2026-08-14** after joint
 internal and external review; both reviewers returned **APPROVED** with **no
@@ -1351,6 +1386,38 @@ analysis, per-orphan identity and hash, and the global live-reference count per
 selected hash. Each of those refuses at exit 3 with nothing written, which is
 what lets exit 3 keep its zero-write meaning across the whole command surface
 (PIB-465, PIB-469).
+
+**The selector check has its own public code, and it is not an archive
+accusation.** `archive-selector-invalid` is the code for a selection that
+names nothing: a well-formed `--blob` hash the index carries no reference to,
+and a well-formed `--generation` id the index records no generation for. Those
+two populations are its whole public extent, and both refuse exit **3**,
+zero-write, in the preview and the confirmed form alike. The classifier that
+assigns the code is the only authority on it: **the typed archive refusal
+renderer surfaces it unchanged** and may not relabel it as another catalog
+code, which is what the shipped CLI did through rev-19, reporting a selection
+that matched nothing as a corrupt index and telling the operator to preserve
+archive bytes that a feature without an archive does not have. The obligation
+is on that renderer; an internal, non-catalog transport failure is still
+classified into a catalog code by the boundary that owns it. The
+missing/multiple-selector grammar keeps exit
+**1**, and so does a `--blob` or `--generation` value that is not a full
+lowercase SHA-256: the command's own scope check and selector normalization
+reject both before any archive is read, printing no report, carrying no code
+and echoing no rejected value, so neither is a catalog population. The store
+keeps its own defensive classification of arity, malformed values, unusable
+kinds and preview-plan execution under the same typed code, binding no rejected
+value to it; none of them is reachable through the shipped command. The refusal
+names which selector matched nothing, carries the offending value — always an
+already-validated lowercase hash or generation id — and routes to
+`feature intent-archive list <slug>` from the
+workspace root — a value to rerun with, or the fact that this archive holds
+none. It states nothing about whether archive bytes are corrupt, present or
+absent, names no preservation, correction or `rm` form, and carries no
+structured retry, because the next step is an inspection to read rather than a
+repair to paste. `archive-index-*` stays reserved for X1–X10 strict decoding
+and X11 storage observation and is unreachable from a selector fault
+(PRD §9.7.1, §9.7.2, §10.4.1, PIB-347, PIB-431, PIB-465).
 
 **Selector-independence of the *validation* is load-bearing, not a scoping
 detail.** The global scan runs over the whole index before every mutation a new

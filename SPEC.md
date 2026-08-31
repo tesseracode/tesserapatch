@@ -183,10 +183,20 @@ tpatch feature intent-archive purge <slug> (--blob <hash>... | --generation <id>
 
 `list` is read-only. `purge` requires exactly one selector, previews without
 `--yes`, and only the confirmed form takes the workspace authority. Neither
-verb runs Git. Retained blobs provide exact byte recovery only while present;
-the archive is not canonical lifecycle truth, semantic certification,
-authorship/provenance, or a general history/undo facility. Purging publishes
-tombstones and can remove working-tree bytes, but deleting committed blobs does
+verb runs Git. A missing or repeated scope family, and a `--blob` or
+`--generation` value that is not a full lowercase SHA-256, are usage errors:
+each exits 1 before any archive is read, prints no report, carries no refusal
+code and never echoes the rejected value. A well-formed `--blob` hash the
+archive indexes no reference to, or a well-formed `--generation` id it records
+no generation for, is refused as `archive-selector-invalid` at exit 3, never as
+archive corruption; that refusal names which selector matched nothing and
+routes to `intent-archive list` from the workspace root, while
+`archive-index-*` codes stay reserved for the archive's own strict decode and
+storage observation. Neither path writes anything. Retained blobs provide exact
+byte recovery only while present; the archive is not canonical lifecycle truth,
+semantic certification, authorship/provenance, or a
+general history/undo facility. Purging publishes tombstones and can remove
+working-tree bytes, but deleting committed blobs does
 not rewrite Git history.
 
 #### Feature rejection (v0.13.0, GH #6)
