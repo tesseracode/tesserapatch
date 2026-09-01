@@ -82,7 +82,9 @@ review's two carried intentpub sensitivity notes were already closed by
 
 Implementation/tests: `fd8dd8b`; accepted contract: `9f7095c`; durable CI tip:
 `07f35a3`. CI 33364393230 passes all five blocking jobs. Focused final race and
-Linux/Windows cross-compile checks pass. Release authorization remains pending.
+Linux/Windows cross-compile checks pass. The final mechanical gate passes 8/8
+at `decb7b8` over 102 trailer-complete commits. Release authorization remains
+pending.
 
 ---
 

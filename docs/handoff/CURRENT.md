@@ -159,6 +159,10 @@ The resource gate recovered to 84–85% for 61 continuous seconds. Rev-20's
 targeted race suites pass (`internal/cli` 6.540s, `internal/store` 1.288s,
 `internal/intentpub` 1.596s), and Linux/Windows CLI/store test packages
 cross-compile. Rev-20 is ready for terminal wave close.
+`make wave-close-check
+WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936` passes **8/8** at
+`decb7b8`: 102/102 wave commits carry the trailer and all 22 uncached
+CI-equivalent test shards pass.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -8052,9 +8056,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Run the final rev-20 wave-close gate at the terminal tracking commit.
-2. Wait for explicit user approval.
-3. After approval: graduate CHANGELOG to `v0.16.0`, update
+1. Wait for explicit user approval.
+2. After approval: graduate CHANGELOG to `v0.16.0`, update
    version metadata, commit the release, create/push the annotated tag, and
    create the GitHub release.
 
@@ -8062,7 +8065,6 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - Version bump, CHANGELOG graduation, tag, tag push and GitHub release remain
   blocked on explicit user approval by design.
-- Release mechanics wait for rev-20's green close gates.
 
 ## Context for Next Agent
 

@@ -1,3 +1,17 @@
+## Supervisor Decision — selector rev-20 mechanical close — 2026-08-30
+
+**Decision**: **PASS 8/8 — RELEASE AUTHORIZATION PENDING**
+
+`make wave-close-check
+WAVE_BASE=3b579fc7243bf0d1b21605d3c87562226f1fd936` passes all eight
+checks at `decb7b8`: clean pushed state, 102/102 trailers, terminal handoff,
+format/vet/build and all 22 uncached CI-equivalent test shards.
+
+### Action Taken
+
+Closed the external review note and returned to the explicit release approval
+boundary. No version, tag, tag push or GitHub release operation was performed.
+
 ## Supervisor Decision — selector rev-20 close — 2026-08-30
 
 **Decision**: **ACCEPTED — TERMINAL GATE AUTHORIZED**
