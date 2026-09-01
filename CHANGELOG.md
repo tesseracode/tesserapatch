@@ -2,7 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## Unreleased
+## v0.16.0 — 2026-08-31 — prepare intent bundles and archive retention
 
 ### Added
 

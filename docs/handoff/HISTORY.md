@@ -1,10 +1,10 @@
-# 2026-08-29 — GH #23 mutating prepare intent bundle — IMPLEMENTATION ACCEPTED
+# 2026-08-29 — GH #23 mutating prepare intent bundle — SHIPPED v0.16.0
 
 **Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
 **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 **Accepted pre-release tip**: `30dbdba5c1a034d9c420080b9d248de7b24678e2`
-**Release candidate**: `v0.16.0` — explicit user authorization pending
-**Latest released tag remains**: `v0.15.1`
+**Release**: `v0.16.0` — authorized and shipped 2026-08-31
+**Previous release**: `v0.15.1`
 
 GH #23 implements the accepted mutating `tpatch prepare <slug>` intent-bundle
 contract and its retention surface. The wave added the held-root workspace
@@ -52,7 +52,7 @@ all six shipped skill surfaces.
   rotated-sensitivity and data-link corrections.
 - Whole-wave production review: NEEDS REVISION → APPROVED.
 - Whole-wave release-readiness review: NEEDS REVISION → APPROVED TO CHECKPOINT.
-- Final state: **IMPLEMENTATION ACCEPTED — RELEASE AUTHORIZATION PENDING**.
+- Final state: **SHIPPED — v0.16.0**.
 
 ## Non-invalidation and pending boundary
 
@@ -61,8 +61,8 @@ all six shipped skill surfaces.
 - `.wave-close-allowlist` did not grow; unrelated research WIP remains
   untouched.
 - Every wave commit carries the required Copilot trailer.
-- No version bump, CHANGELOG graduation, annotated tag, tag push or GitHub
-  release was performed. Those operations require explicit user approval.
+- Release authorization was granted on 2026-08-31. The CHANGELOG section,
+  annotated tag and GitHub Release are published as `v0.16.0`.
 
 ## Post-close external note — selector diagnostic rev-20 — 2026-08-30
 
@@ -83,8 +83,8 @@ review's two carried intentpub sensitivity notes were already closed by
 Implementation/tests: `fd8dd8b`; accepted contract: `9f7095c`; durable CI tip:
 `07f35a3`. CI 33364393230 passes all five blocking jobs. Focused final race and
 Linux/Windows cross-compile checks pass. The final mechanical gate passes 8/8
-at `decb7b8` over 102 trailer-complete commits. Release authorization remains
-pending.
+at `decb7b8` over 102 trailer-complete commits. The correction ships in
+`v0.16.0`.
 
 ---
 

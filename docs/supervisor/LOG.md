@@ -1,3 +1,18 @@
+## Supervisor Decision — v0.16.0 release — 2026-08-31
+
+**Decision**: **AUTHORIZED — SHIP v0.16.0**
+
+The user explicitly authorized the release after external re-review approved
+all selector and sensitivity findings. The release commit graduates the
+CHANGELOG to `v0.16.0 — 2026-08-31 — prepare intent bundles and archive
+retention`, flips tracking to SHIPPED, and is the sole annotated-tag target.
+
+### Action Taken
+
+Create annotated tag `v0.16.0` before pushing, publish main and the tag, verify
+the tag CI, canonicalize the GitHub Release body from this CHANGELOG section,
+and close GH #23.
+
 ## Supervisor Decision — selector rev-20 mechanical close — 2026-08-30
 
 **Decision**: **PASS 8/8 — RELEASE AUTHORIZATION PENDING**

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: SHIPPED
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -142,6 +142,9 @@ exit-1 usage behavior; typed refusal rendering no longer rewrites the code;
 selector failures publish no lower-precedence archive observations. The
 54-code catalog, PIB-431/PIB-465, PRD/ADR/SPEC/CHANGELOG and frozen guards are
 aligned.
+Release authorization was granted on 2026-08-31. This close commit is the
+`v0.16.0` release target; the annotated tag and GitHub Release publish the
+CHANGELOG section titled "prepare intent bundles and archive retention".
 Focused store/CLI/catalog/frozen-document suites pass, including malformed
 selector precedence and the archive-with-residue report-isolation fixture.
 The full non-observer suite passed before that final isolation fold
@@ -1938,11 +1941,10 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **Complete — rev-20 accepted; release authorization pending**
+- **Status**: **Shipped — v0.16.0**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
-- **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
-  with this release
+- **Release tag**: `v0.16.0`
 
 ## Prerequisite Status
 
@@ -8056,15 +8058,12 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Wait for explicit user approval.
-2. After approval: graduate CHANGELOG to `v0.16.0`, update
-   version metadata, commit the release, create/push the annotated tag, and
-   create the GitHub release.
+1. Verify the `v0.16.0` tag workflow and GitHub Release, then select the next
+   unblocked roadmap task.
 
 ## Blockers
 
-- Version bump, CHANGELOG graduation, tag, tag push and GitHub release remain
-  blocked on explicit user approval by design.
+- None.
 
 ## Context for Next Agent
 

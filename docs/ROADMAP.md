@@ -962,9 +962,8 @@ schema migrations, and
 acknowledgement without replay bypass. Research/backlog only; the accepted
 `implement-prepare-intent-bundle` queue head is unchanged.
 
-**Mutating prepare intent bundle implementation** ✅ IMPLEMENTATION ACCEPTED —
-RELEASE AUTHORIZATION PENDING
-(accepted 2026-08-29; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
+**Mutating prepare intent bundle implementation** ✅ SHIPPED — `v0.16.0`
+(released 2026-08-31; [GH #23](https://github.com/tesseracode/tesserapatch/issues/23);
 WAVE_BASE `3b579fc`): implement the accepted
 `PRD-prepare-intent-bundle` rev-15 + ADR-035 rev-15 contract. Pre-change
 goldens land first; strict order is S1b directory authority → S1 transaction
@@ -1434,6 +1433,8 @@ resource gate recovered to 84–85%; targeted CLI/store/intentpub race and
 Linux/Windows cross-compile checks pass. Terminal 8/8 close is authorized.
 `make wave-close-check WAVE_BASE=3b579fc...` passes 8/8 at `decb7b8`;
 terminal implementation range including rev-20 is `3b579fc..decb7b8`.
+Release authorization was granted; `v0.16.0` carries the accepted
+implementation, aggregate ledger and rev-20 diagnostic correction.
 The first serial mechanical close passed checks 1–7; check 8 hit Go's
 10-minute default in unsharded `internal/cli`. Exact blocking-CI sharding is
 now reused through a pinned POSIX script and parity guard; implementation
