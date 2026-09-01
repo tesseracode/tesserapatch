@@ -64,6 +64,26 @@ all six shipped skill surfaces.
 - No version bump, CHANGELOG graduation, annotated tag, tag push or GitHub
   release was performed. Those operations require explicit user approval.
 
+## Post-close external note — selector diagnostic rev-20 — 2026-08-30
+
+External review was APPROVED WITH NOTES and found one valid LOW: the store's
+`archive-selector-invalid` classification was rewritten by the CLI as
+`archive-index-corrupt`, and unknown generation IDs used that corruption code
+directly. Rev-20 surfaces the existing selector code for well-formed unknown
+blob/generation IDs, keeps malformed values as exit-1 usage errors, preserves
+higher-precedence workspace/journal/contention refusals, and clears unrelated
+archive observations from selector-invalid reports.
+
+Rev-20 amends exactly PIB-431 and PIB-465, keeps the matrix at 567 rows and 36
+semantic guards, and grows the closed refusal catalog from 53 to 54. The
+review's two carried intentpub sensitivity notes were already closed by
+`TestExecuteSemanticNoOpCASRejectsDriftBeforePublication` and
+`TestPlanRejectsArtifactBoundToNoncanonicalPath`.
+
+Implementation/tests: `fd8dd8b`; accepted contract: `9f7095c`; durable CI tip:
+`07f35a3`. CI 33364393230 passes all five blocking jobs. Focused final race and
+Linux/Windows cross-compile checks pass. Release authorization remains pending.
+
 ---
 
 # 2026-08-18 — copilot-api cumulative verification feedback — TRIAGED

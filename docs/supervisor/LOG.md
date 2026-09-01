@@ -1,3 +1,18 @@
+## Supervisor Decision — selector rev-20 close — 2026-08-30
+
+**Decision**: **ACCEPTED — TERMINAL GATE AUTHORIZED**
+
+CI [33364393230](https://github.com/tesseracode/tesserapatch/actions/runs/33364393230)
+is green across all five blocking jobs at `07f35a3`. The local resource gate
+then recovered to 84–85% free memory for 61 continuous seconds. Focused race
+passes for CLI/store/intentpub, and Linux/Windows CLI/store test packages
+cross-compile.
+
+### Action Taken
+
+Restored terminal tracking and authorized the final 8/8 wave-close gate. No
+release operation is authorized.
+
 ## Supervisor Decision — selector rev-20 blocking CI — 2026-08-30
 
 **Decision**: **CI GREEN — LOCAL CLOSE RESOURCE-BLOCKED**

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: ACCEPTED
 
 `implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
 [GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
@@ -155,6 +155,10 @@ Blocking CI
 is green on Ubuntu, macOS, Windows and both observer jobs at `07f35a3`.
 The only remaining rev-20 close step is the local 8/8 wave-close gate; its
 resource preflight is blocked at 72% free memory versus the required 80%.
+The resource gate recovered to 84–85% for 61 continuous seconds. Rev-20's
+targeted race suites pass (`internal/cli` 6.540s, `internal/store` 1.288s,
+`internal/intentpub` 1.596s), and Linux/Windows CLI/store test packages
+cross-compile. Rev-20 is ready for terminal wave close.
 
 S1b landed at `1f35605`; CI
 [32185709105](https://github.com/tesseracode/tesserapatch/actions/runs/32185709105)
@@ -1930,7 +1934,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
   contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
   `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
   where they overlap).
-- **Status**: **Blocked — rev-20 CI green; local close awaits 80% free memory**
+- **Status**: **Complete — rev-20 accepted; release authorization pending**
 - **Assigned**: 2026-08-18
 - **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
 - **Release tag**: TBD; the accepted `prepare --check` prerequisite will ship
@@ -8048,8 +8052,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. When the 60-second resource gate holds at 80% free memory, run the final
-   rev-20 wave-close gate.
+1. Run the final rev-20 wave-close gate at the terminal tracking commit.
 2. Wait for explicit user approval.
 3. After approval: graduate CHANGELOG to `v0.16.0`, update
    version metadata, commit the release, create/push the annotated tag, and
@@ -8060,8 +8063,6 @@ at 471.544s. Formatting, vet and CLI build pass.
 - Version bump, CHANGELOG graduation, tag, tag push and GitHub release remain
   blocked on explicit user approval by design.
 - Release mechanics wait for rev-20's green close gates.
-- Rev-20's local wave-close gate is resource-blocked at 72% free memory; do
-  not relax the accepted 80% threshold or terminate unrelated processes.
 
 ## Context for Next Agent
 
