@@ -1,3 +1,212 @@
+## Supervisor Decision — GH #15 planning accepted — 2026-09-01
+
+**Decision**: **APPROVED**
+
+PRD-recipe-generation-authority and ADR-036 are Accepted at rev-7. GH #13
+consumer planning is authorized against that exact representation. Production
+implementation remains sequential: GH #15 ships as v0.17.0 before GH #13
+implementation begins.
+
+### Action Taken
+
+Closed the GH #15 planning wave and prepared its accepted documents and
+tracking record for commit and push.
+
+## Review — GH #15 planning rev-7 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev7-review`
+
+### Checklist
+
+- [x] PRD/ADR schema blocks byte-identical
+- [x] Ten completeness predicates byte-identical
+- [x] 360-row matrix contiguous and correctly counted
+- [x] All 81 semantic guards name same-validator wrong-input fixtures
+- [x] Seven-producer registry and site mapping complete
+- [x] Legacy migration and ADR-029 D7 preserved
+- [x] GH #13 consumer boundary remains independently recomputed
+
+### Verdict: APPROVED
+
+### Notes
+
+Zero residual blockers. `operation-missing` is limited to effects for which an
+operation was owed; unsupported and ambiguous effects retain their truthful
+dispositions. The canonical schema, severity ladder, execute classifier,
+producer map and source anchors all passed independent read-only checks.
+
+### Action Taken
+
+Accepted PRD/ADR rev-7 and authorized GH #13 consumer planning. GH #15
+implementation remains the required v0.17.0 release before GH #13
+implementation.
+
+## Review — GH #15 planning rev-6 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev6-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+Exact set-equality makes `operation-missing` apply literally to every effect
+whose unsupported disposition intentionally emits no operation. Because
+`mismatch` has precedence, the rule contradicts every pinned unsupported and
+ambiguous cohort.
+
+### Action Taken
+
+Dispatch rev-7 to raise `operation-missing` only when the effect is otherwise
+representable and an operation was owed, then recheck disposition cohorts.
+
+## Review — GH #15 planning rev-5 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev5-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The half-observed add fixture says `content_kind: unknown` although its sole
+extant postimage is observed. A present-but-unreadable recipe matches no D17
+row. `recipe-owner-mismatch` is simultaneously a warning-class schema reason
+and a blocking rung-2 surface mapping.
+
+### Action Taken
+
+Dispatch rev-6 to align content classification with extant-side observation,
+route absent-or-unreadable recipes through the named no-executable-recipe
+refusal, and separate coverage-owner binding failure from recipe-owner
+incompleteness.
+
+## Review — GH #15 planning rev-4 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev4-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+No-capture effects cannot encode unknown content/object kinds. A
+whitespace-only patch yields zero effects and can vacuously become complete.
+P6 documents a parse-error return that the implementation does not make. D17
+does not classify incomplete coverage with a present recipe or the legacy
+recipe-present case. Artifact presence is recomputed in only one direction,
+and two predicate/mapping restatements remain incorrect.
+
+### Action Taken
+
+Dispatch rev-5 with explicit unknown kind values, a nonzero-effect
+completeness gate, source-accurate P6 behavior, a total execute decision table,
+bidirectional presence binding and corrected predicate/surface scopes.
+
+## Review — GH #15 planning rev-3 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev3-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+P2's same-byte checkpoint contradicts the event definition. D17 recommends a
+state-selected reapply branch that cannot be reached when D17 fires. The wire
+schema cannot encode a present unparseable patch, present undecodable recipe,
+or an existing but unobserved preimage; effect disposition has no reason-code
+mapping. The PRD and ADR also carry divergent completeness predicates and an
+unimplementable seven-writer count.
+
+### Action Taken
+
+Dispatch rev-4 with explicit checkpoint events, actionable state-aware apply
+guidance, parse/recipe status and observation-state carriers, deterministic
+disposition precedence, one canonical completeness list, and registry-to-site
+mapping rather than raw writer arithmetic.
+
+## Review — GH #15 planning rev-2 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev2-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The P1-P5 registry omits the production `implement` recipe writer and
+misstates composite `cycle`. Top-level `reasons[]` has no allocation or
+completeness rules, and `producer-patch-rewrite` is both unconditional and
+conditional. Modes, content kind and the hidden normalized-hunk digest are
+not fully recomputable. Suppressing a partial recipe leaves execute-mode apply
+behavior unspecified. Finally, the PI-7 migration would lose the both-side
+rename/copy scope unapply needs.
+
+### Action Taken
+
+Dispatch rev-3 with explicit recipe/manual mutation ownership, a
+patch-presence schema, feature-versus-effect reason allocation, exact fragment
+hashing and observation-derived modes, a named no-recipe apply contract, and
+an error-returning strict all-paths adapter.
+
+## Review — GH #15 planning rev-1 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev1-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+Coverage omitted `feature patch refresh|fixup`, reconcile accept and cycle
+patch writers. The noop path could not distinguish record-derived bytes from a
+manual/provider recipe. Missing-produced versus legacy coverage had no durable
+carrier, so deletion downgraded failures. Legacy `recipe-stale.json` became an
+unintended hard failure. The one-parser claim omitted novelty/hunk/unapply
+consumers. Finally, one effect `kind` conflated change, binary and object modes.
+
+### Action Taken
+
+Dispatch rev-2 with all-producer coverage, byte-equality origin proof, uniform
+missing/stale warning semantics that never authorize replay, a derived parser
+inventory, and orthogonal effect axes/reason arrays.
+
+## Review — GH #15 planning rev-0 — 2026-09-01
+
+**Reviewer**: `gh15-planning-rev0-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+Four blockers: the three-state write rule contradicted ADR-029's supersession
+downgrade; missing provenance could not recover on a recipe-noop rerun;
+executable additions and preserved append operations could not meet exact-mode
+simulation; and PRD/ADR strict coverage schemas disagreed and omitted required
+fields/reason codes.
+
+Seven additional gaps covered created-by authority, constructable unstaged
+capture truth, verify ID/severity/legacy migration, result accounting, the
+explicit GH #15 anchor deferral, and remaining lenient patch-path consumers.
+
+### Action Taken
+
+Dispatch planning rev-1. No production implementation is authorized.
+
+## Supervisor Decision — GH #15 recipe authority planning dispatch — 2026-09-01
+
+**Decision**: **PLANNING REV-0 DISPATCHED**
+
+WAVE_BASE is `897cff9822173fc9b62f56466feb4e60fc0f5a27`, the `v0.16.0`
+release commit. GH #15 is the producer prerequisite for GH #13.
+
+The PRD/ADR must decide record-generated provenance, newly active write-file
+preimage migration, coverage binding/recovery, and whether contextual anchors
+are persisted or derived later. Coverage authority binds recomputed
+patch/recipe hashes; patch-generation identity is context, not trust.
+
+### Action Taken
+
+Dispatch one sequential planning author for
+`PRD-recipe-generation-authority.md` and
+`ADR-036-recipe-coverage-authority.md`. No production change is authorized
+before joint acceptance.
+
 ## Supervisor Decision — v0.16.0 release — 2026-08-31
 
 **Decision**: **AUTHORIZED — SHIP v0.16.0**

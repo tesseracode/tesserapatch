@@ -20,6 +20,7 @@
 - [ADR-029: Write-file Recipe Safety](ADR-029-write-file-recipe-safety.md) — Accepted
 - [ADR-034: Rooted Filesystem Inspection Boundary](ADR-034-rooted-filesystem-inspection-boundary.md) — Accepted (2026-08-13), errata rev-3 (2026-08-17, three `openFlags()` build halves, no decision change); companion to accepted [PRD-artifact-validation-and-provenance](../prds/PRD-artifact-validation-and-provenance.md) rev-5 (errata rev-6)
 - [ADR-035: Intent Bundle Publication and History](ADR-035-intent-bundle-publication-and-history.md) — Accepted (2026-08-14), no-decision errata through rev-19 accepted jointly on 2026-08-29, and rev-20's bounded selector diagnostic amendment accepted on 2026-08-30; companion to accepted [PRD-prepare-intent-bundle](../prds/PRD-prepare-intent-bundle.md) rev-20. Decisions D1–D21. The mutating implementation (PRD §17.2 slices S1–S7, GH #23) and its acceptance are complete; release authorization is pending.
+- [ADR-036: Recipe Generation and Coverage Authority](ADR-036-recipe-coverage-authority.md) — Accepted rev-7 (2026-09-01, after rev-0 through rev-6 NEEDS REVISION and rev-7 APPROVED); companion to accepted [PRD-recipe-generation-authority](../prds/PRD-recipe-generation-authority.md) rev-7, GH #15, and prerequisite for GH #13. Decisions D1–D17; amends [ADR-029](ADR-029-write-file-recipe-safety.md) D3 for exact-postimage recognition while preserving D7 supersession severity.
 
 ## Locked-In Decisions (from review process)
 

@@ -2,27 +2,17 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: APPROVED
 
-`implement-prepare-intent-bundle` is dispatched from WAVE_BASE `3b579fc` under
-[GH #23](https://github.com/tesseracode/tesserapatch/issues/23). The accepted
-rev-15 PRD + ADR-035 are authoritative, with strict implementation order
-`S1b → S1 → S3 → S4 → S4b`, pre-change goldens before producer refactors,
-then S5/S6 and sequential S7 hardening. No release tag is authorized before
-joint acceptance. Golden implementation review discovered that rev-14
-PIB-391 required standalone `prepare --check` output files to have been
-committed by GH #16, but GH #16 committed no such paths. Rev-15 corrects only
-that impossible evidence predicate. Rev-15 review round 0 returned internal
-NEEDS REVISION and external APPROVED WITH NOTES; round 1 aligned ADR-035
-D14, the rev-15 amendment ledger, shipped-prerequisite prose, producer
-auditability and fixture-before-production sensitivity. Joint re-review
-returned internal APPROVED and external APPROVED WITH NOTES; the sole
-`cacaaf8` terminology note is folded. Rev-15 is accepted and the
-pre-production golden baseline landed at `f9208c7`, with its Git-maintenance
-race pin at `977b9d5`. CI run
-[32178723042](https://github.com/tesseracode/tesserapatch/actions/runs/32178723042)
-is green on Ubuntu, macOS and Windows; the dedicated GH #23 native Windows
-resource golden is blocking and passed.
+GH #15 recipe-generation authority planning is **APPROVED** and Accepted at
+PRD/ADR rev-7. The accepted contract has 360 contiguous acceptance rows,
+seven governed producer classes, one strict normalized effect grammar, and a
+deterministic coverage sidecar that remains necessary but insufficient for
+GH #13 replay. WAVE_BASE is
+`897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`). The next task is GH
+#13 consumer planning; production implementation remains sequential.
+
+### Historical execution record
 
 S7 AV is durably accepted at `b6b1709`: CI
 [33166330402](https://github.com/tesseracode/tesserapatch/actions/runs/33166330402)
@@ -145,6 +135,50 @@ aligned.
 Release authorization was granted on 2026-08-31. This close commit is the
 `v0.16.0` release target; the annotated tag and GitHub Release publish the
 CHANGELOG section titled "prepare intent bundles and archive retention".
+The next phase is dispatched from `v0.16.0` / WAVE_BASE
+`897cff9822173fc9b62f56466feb4e60fc0f5a27`: GH #15 recipe-generation
+authority planning first, followed by GH #13 operation-replay planning only
+after the producer contract is accepted.
+GH #15 planning rev-0 is implemented as
+`PRD-recipe-generation-authority.md` plus ADR-036. Independent review returned
+NEEDS REVISION: supersession downgrade was omitted; provenance failure could
+not recover on recipe noop; executable/append effects could not satisfy exact
+simulation; the strict schema omitted required fields; and seven migration,
+capture, verify, accounting, anchor-deferral and parser interactions were
+underspecified. Rev-1 is active.
+Planning rev-1 closes those findings but remains NEEDS REVISION. Coverage did
+not govern every `post-apply.patch` writer; record-generated provenance lacked
+a durable discriminator; missing/stale coverage severity depended on evidence
+that does not exist; the strict-parser inventory omitted production consumers;
+and the effect schema conflated change, content and object kinds. Rev-2 is
+active.
+Planning rev-2 closes five of those seven findings but remains NEEDS REVISION.
+Its allegedly complete producer registry omits `implement`; top-level coverage
+reasons have no allocation rules; `producer-patch-rewrite` has conflicting
+triggers; mode/content/effect-digest inputs are not fully recomputable; the
+no-recipe apply behavior is unspecified; and the unapply parser migration
+would lose rename/copy source paths. Rev-3 is active.
+Planning rev-3 closes the producer list, reason-axis direction, PI-7 scope and
+most migration findings, but remains NEEDS REVISION. The schema still cannot
+encode unparseable patches, undecodable recipes or unobserved image sides;
+effect disposition has no deterministic allocation; P2's same-byte checkpoint
+contradicts the event definition; and D17 points at an unreachable reapply
+branch. Rev-4 is active.
+Planning rev-4 closes those findings but remains NEEDS REVISION. No-capture
+effects still cannot encode unknown content/object kinds; whitespace-only
+patches can vacuously become complete; P6 documents a nonexistent parse-error
+return; the execute classifier omits valid incomplete recipes; presence
+recomputation is one-directional; and two low-level contract references remain
+incorrect. Rev-5 is active.
+Planning rev-5 closes those seven findings but remains NEEDS REVISION on three
+points: the half-observed add cohort contradicts the normative content-kind
+rule; present-but-unreadable recipes fall through the supposedly total execute
+classifier; and recipe-owner mismatch is assigned both warning and blocking
+severity. Rev-6 is active.
+Planning rev-6 closes those three findings but remains NEEDS REVISION on one
+bounded rule: exact-set validation makes `operation-missing` applicable to
+every intentionally unsupported effect unless its trigger is scoped to effects
+for which an operation was actually owed. Rev-7 is active.
 Focused store/CLI/catalog/frozen-document suites pass, including malformed
 selector precedence and the archive-with-residue report-isolation fixture.
 The full non-observer suite passed before that final isolation fold
@@ -1935,32 +1969,21 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-prepare-intent-bundle`
-- **Issue**: [GH #23](https://github.com/tesseracode/tesserapatch/issues/23)
-- **Description**: Implement the mutating `tpatch prepare <slug>` intent-bundle
-  contract from the accepted `PRD-prepare-intent-bundle` rev-15 +
-  `ADR-035-intent-bundle-publication-and-history` rev-15 (ADR-035 normative
-  where they overlap).
-- **Status**: **Shipped — v0.16.0**
-- **Assigned**: 2026-08-18
-- **WAVE_BASE**: `3b579fc7243bf0d1b21605d3c87562226f1fd936`
-- **Release tag**: `v0.16.0`
+- **Task ID**: `plan-recipe-generation-authority`
+- **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
+- **Description**: Define trustworthy recipe generation and coverage authority
+  that GH #13 can consume without treating partial or legacy recipes as safe.
+- **Status**: **Complete — Accepted rev-7, APPROVED**
+- **Assigned**: 2026-09-01
+- **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27`
+- **Release target**: `v0.17.0` after implementation and soak
 
 ## Prerequisite Status
 
-PRD §19's three acceptance conditions are now all satisfied:
-
-1. `PRD-prepare-intent-bundle` Accepted at rev-15 (2026-08-18).
-2. `ADR-035` Accepted at rev-15 (2026-08-18), reviewed jointly with the PRD.
-3. §19(3) — the accepted `prepare --check` contract
-   (`PRD-artifact-validation-and-provenance` rev-5 / rev-6 errata + `ADR-034`
-   rev-2 / rev-3 errata) has frozen implementation content at `cacaaf8` and
-   was formally accepted/closed at `7206dab`.
-
-Implementation is therefore unblocked. **The PRD's implementation slices and
-their required sequence must be re-read in full before dispatch** — this
-handoff deliberately does not restate them, and the slice partition, not this
-file, is the dispatch authority.
+GH #15 planning is accepted. GH #13 planning is unblocked and must consume
+ADR-036 rev-7 without weakening its producer/consumer boundary. GH #13
+implementation remains blocked until GH #15 is implemented, soaked and
+released as v0.17.0.
 
 ## Backlog
 
@@ -1976,11 +1999,13 @@ file, is the dispatch authority.
   AVP-175 is next edited.
 - `GOOS=js GOARCH=wasm go build ./cmd/tpatch` fails in `internal/rescap` at
   `WAVE_BASE` unchanged; unticketed, out of scope of any prepare wave.
-- [GH #12](https://github.com/tesseracode/tesserapatch/issues/12),
-  [GH #13](https://github.com/tesseracode/tesserapatch/issues/13),
-  [GH #14](https://github.com/tesseracode/tesserapatch/issues/14),
-  [GH #15](https://github.com/tesseracode/tesserapatch/issues/15) — parked
-  research backlog; no implementation or architecture decision authorized.
+- [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) — next
+  planning task; implementation waits for shipped GH #15.
+- [GH #15](https://github.com/tesseracode/tesserapatch/issues/15) — planning
+  accepted; implementation targets v0.17.0 after GH #13 consumer planning.
+- [GH #12](https://github.com/tesseracode/tesserapatch/issues/12) and
+  [GH #14](https://github.com/tesseracode/tesserapatch/issues/14) — parked
+  research backlog.
 - [GH #18](https://github.com/tesseracode/tesserapatch/issues/18) — cumulative
   verify semantics and a truthful migration assessment.
 - [GH #19](https://github.com/tesseracode/tesserapatch/issues/19) — Path B
@@ -2504,6 +2529,14 @@ file, is the dispatch authority.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- GH #15 planning rev-7 independent review: **APPROVED**, zero residual
+  blockers.
+- Matrix: 360 contiguous rows (`RGA-001`…`RGA-360`), I 77 / C 83 / G 81 /
+  U 117 / S 2; every G row names a same-validator wrong-input fixture.
+- PRD/ADR canonical schema and ten-predicate completeness blocks are
+  byte-identical; `git diff --check` passes.
+- Side Research md5 remains `b385fe622db9926f48861105239f113e`.
 
 - S7 AU rev-5 — full AU/store/CI suite **PASS** in 12.291s CLI / 0.251s
   store; final focused AU suite **PASS** in 12.081s; exact nine-target observer
@@ -8058,14 +8091,25 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Verify the `v0.16.0` tag workflow and GitHub Release, then select the next
-   unblocked roadmap task.
+1. Commit and push the accepted GH #15 planning wave.
+2. Dispatch and jointly review GH #13's consumer PRD/ADR against ADR-036
+   rev-7.
+3. Implement and soak GH #15 as v0.17.0 before GH #13 implementation.
 
 ## Blockers
 
-- None.
+- GH #13 planning has no blocker.
+- GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
+
+- GH #15 planning is Accepted at PRD/ADR rev-7. The seven-producer registry,
+  strict effect schema, exact reason/disposition rules, ten completeness
+  predicates, D13 severity ladder and D17 execute classifier are fixed inputs
+  to GH #13 planning.
+- GH #13 must recompute every binding against a named tree and must hard-refuse
+  missing, malformed, incomplete or stale-marker coverage regardless of
+  verify's warning-class exit.
 
 - `internal/intent` must not import `internal/store`; the status schema is
   mirrored locally on purpose and kept honest by the AST parity guard.

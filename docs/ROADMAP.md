@@ -1441,6 +1441,58 @@ now reused through a pinned POSIX script and parity guard; implementation
 acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 8/8 at `2df3346`.
 
+## Recipe authority and semantic replay — GH #15 → GH #13 🚧 IN PROGRESS
+
+**Dispatch**: 2026-09-01.
+**WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).
+**Order**: accept GH #15's producer contract, then plan GH #13 against that
+exact representation; implementation remains sequential.
+
+GH #15 owns strict patch-effect parsing, capture-correct preimage authority,
+record-generated provenance, deterministic hash-bound recipe coverage,
+explicit ineligibility, recovery and migration behavior. GH #13 independently
+recomputes those bindings, evaluates against one named tree, creates an
+all-or-nothing shadow candidate, preserves later provider/phase-4 evidence, and
+uses guarded explicit acceptance.
+
+Planned releases are separate because GH #15 activates record/apply/verify
+behavior with a wider migration surface: `v0.17.0` for recipe authority after
+soak, then `v0.18.0` for semantic replay.
+
+Planning rev-0 is NEEDS REVISION. Rev-1 must preserve ADR-029 supersession,
+make provenance reruns convergent, close the coverage wire schema, mark
+unsupported executable/append/parent-created effects, use HEAD truth for the
+constructable unstaged mode, pin verify severity/accounting, explicitly record
+anchor deferral, and retire all lenient patch-path consumers.
+Planning rev-1 closes its input findings but remains NEEDS REVISION on seven
+new points: complete producer ownership, generated-recipe proof, legacy
+missing/stale severity, strict parser inventory, and an orthogonal effect wire
+schema. Rev-2 is active.
+Planning rev-2 closes origin proof, missing/stale migration, consumer
+ineligibility, and the orthogonal-axis direction, but remains NEEDS REVISION.
+Rev-3 must add `implement`/manual mutation ownership, define coverage-level
+reasons and exact digest inputs, preserve unapply's both-side path scope, and
+pin apply behavior when generation intentionally publishes no partial recipe.
+Planning rev-3 closes those structural findings but remains NEEDS REVISION on
+truthful absent/malformed/unobserved encodings, deterministic disposition,
+same-byte checkpoint semantics and reachable execute-mode remediation. Rev-4
+is active.
+Planning rev-4 closes those items but remains NEEDS REVISION on unknown-kind
+encoding, zero-effect patches, P6's actual return path, total execute
+classification and bidirectional presence recomputation. Rev-5 is active.
+Planning rev-5 closes those findings but remains NEEDS REVISION on three
+bounded contradictions: half-observed content classification, unreadable
+recipe routing and owner-mismatch severity. Rev-6 is active.
+Planning rev-6 closes those findings but remains NEEDS REVISION on the single
+`operation-missing` trigger, which must exclude effects already known to be
+unsupported, unsafe or unobservable. Rev-7 is active.
+Planning rev-7 is **APPROVED** with zero residual blockers. GH #15's producer
+contract is Accepted at PRD/ADR rev-7 with a 360-row matrix (I 77, C 83,
+G 81, U 117, S 2), seven governed producers and the canonical coverage schema.
+The next sequential task is GH #13 consumer planning against this exact
+representation; GH #15 implementation remains the v0.17.0 release prerequisite
+before any GH #13 implementation.
+
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
 **Dispatch**: 2026-08-11.
