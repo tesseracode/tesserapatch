@@ -1441,7 +1441,7 @@ now reused through a pinned POSIX script and parity guard; implementation
 acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 8/8 at `2df3346`.
 
-## Recipe authority and semantic replay — GH #15 → GH #13 🚧 IN PROGRESS
+## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).
@@ -1492,6 +1492,38 @@ G 81, U 117, S 2), seven governed producers and the canonical coverage schema.
 The next sequential task is GH #13 consumer planning against this exact
 representation; GH #15 implementation remains the v0.17.0 release prerequisite
 before any GH #13 implementation.
+GH #13 planning rev-0 is now dispatched from WAVE_BASE `e76e0f7`. It must
+define an independently recomputed, named-tree, all-or-nothing semantic replay
+candidate without weakening the existing provider and forward-apply phases.
+Rev-0 is authored as PRD-reconcile-operation-replay-candidate plus ADR-037 and
+is NEEDS REVISION. It carries 34 decisions and a 212-row matrix, but rev-1
+must correct confirmation-gate authority, exact boundary mapping, phase-4
+precedence, acceptance CAS, portable locks, candidate identity/lifecycle and
+evidence semantics.
+Rev-1 implements those corrections and is under independent review with 40
+decision blocks and a 253-row matrix. Review approves the alignment proof but
+returns NEEDS REVISION on gate reachability, evidence cardinality, acceptance
+state/base updates, the confirmation-proof carrier and candidate-lock scope.
+Rev-2 is active.
+Rev-2 implements those corrections and is under independent review with 41
+decision blocks and a 280-row matrix. Review returns NEEDS REVISION on the
+CG5-CG7 evidence carrier, same-phase evidence cardinality and candidate-pointer
+carry-forward. Rev-3 is active.
+Rev-3 implements those corrections and is under independent review with a
+289-row matrix. Review returns NEEDS REVISION on the proof-route call-site
+inventory: ten shipped calls exist, not nine. Rev-4 is active.
+Rev-4 corrects the ten-site inventory and is under independent review with a
+291-row matrix. Review returns NEEDS REVISION on candidate-ready evidence
+substitution plus two stale range/wording references. Rev-5 is active.
+Rev-5 implements those corrections and is under independent review with a
+293-row matrix. Primary review approved it; a follow-up note fold found one
+source-truth residue about `phase35` pointer identity. Rev-6 is active.
+Rev-6 corrects that residue and is under final independent review; the matrix
+remains 293 rows.
+Rev-6 is **APPROVED** with zero residual blockers. GH #13's PRD/ADR are
+Accepted with 41 decision blocks, nine byte-identical parity regions and a
+293-row matrix (I 59, C 85, G 74, U 66, S 9). The planning sequence is
+complete; GH #15 implementation for v0.17.0 is next.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

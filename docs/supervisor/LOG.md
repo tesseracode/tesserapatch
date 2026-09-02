@@ -1,3 +1,230 @@
+## Supervisor Decision — GH #13 planning accepted — 2026-09-02
+
+**Decision**: **APPROVED**
+
+PRD-reconcile-operation-replay-candidate and ADR-037 are Accepted at rev-6.
+Together with ADR-036 rev-7, the producer→consumer planning sequence is
+complete. GH #15 implementation is authorized next; GH #13 implementation
+remains blocked until v0.17.0 ships.
+
+### Action Taken
+
+Closed the GH #13 planning wave and prepared its accepted documents and
+tracking record for commit and push.
+
+## Review — GH #13 planning rev-6 — 2026-09-02
+
+**Reviewer**: `gh13-planning-rev6-review`
+
+### Checklist
+
+- [x] Exact-line alignment proof remains mathematically sound
+- [x] Ten proof-route call sites and same-pointer phase-3.5 path verified
+- [x] Ordered verdict substitution has no duplicate phase entry
+- [x] Nine PRD/ADR parity regions byte-identical
+- [x] 293-row matrix contiguous and correctly counted
+- [x] All 74 semantic guards name same-validator wrong-input fixtures
+- [x] Acceptance state/base/CAS/journal contract complete
+
+### Verdict: APPROVED
+
+### Notes
+
+Zero residual blockers. Matrix split: I 59 / C 85 / G 74 / U 66 / S 9.
+Producer and consumer contracts remain release-separated at v0.17.0 and
+v0.18.0.
+
+### Action Taken
+
+Accept PRD/ADR rev-6 and close planning.
+
+## Supervisor Decision — GH #13 planning rev-6 review — 2026-09-02
+
+**Decision**: **REVIEW DISPATCHED**
+
+Rev-6 corrects the `phase35` same-pointer source fact, scopes gate-off evidence
+identity and pins identical JSONL/session evidence ordering.
+
+## Review — GH #13 planning rev-5 note fold — 2026-09-02
+
+**Reviewer**: `gh13-note-fold-check`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+`phase35` is not a distinct result object: `tryPhase35` mutates and returns the
+same `*ReconcileResult` it receives. The parity/claims block states the
+opposite. Two gate-on rows also overclaim gate-off evidence byte identity.
+
+### Action Taken
+
+Dispatch rev-6 for the pointer-identity correction and exact gate-off/direct-
+append evidence scoping.
+
+## Supervisor Decision — GH #13 planning rev-5 review — 2026-09-02
+
+**Decision**: **REVIEW DISPATCHED**
+
+Rev-5 substitutes an ordered verdict-attempt list on both authoritative arms:
+one phase-2 attempt for all-present, and phase-2 plus phase-4 conflict for
+candidate-ready.
+
+## Review — GH #13 planning rev-4 — 2026-09-02
+
+**Reviewer**: `gh13-planning-rev4-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+Candidate-ready stages no attempt while its public phase still maps to
+phase-2, so the legacy builder creates a duplicate phase-2 verdict and no
+phase-4 textual-conflict verdict. The matrix preamble also stops at ROC-289,
+and two gate descriptions still say the graded entry is written by the gate.
+
+### Action Taken
+
+Dispatch rev-5 with an ordered in-process verdict-attempt list that substitutes
+for derived evidence on both authoritative arms.
+
+## Supervisor Decision — GH #13 planning rev-4 review — 2026-09-02
+
+**Decision**: **REVIEW DISPATCHED**
+
+Rev-4 enumerates all ten proof-route call sites and makes the authoritative
+phase-2 evidence entry replace, rather than duplicate, the legacy derived
+entry on the all-present arm.
+
+## Review — GH #13 planning rev-3 — 2026-09-02
+
+**Reviewer**: `gh13-planning-rev3-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The proof-plumbing inventory omits `reconcile.go:570`, where
+`saveReconcileArtifacts(s, slug, phase35)` must pass a nil proof. Source has
+ten production call sites, not nine.
+
+### Action Taken
+
+Dispatch rev-4 to correct the ten-site inventory and clarify that the new
+phase-2 entry replaces, rather than duplicates, the legacy derived entry.
+
+## Supervisor Decision — GH #13 planning rev-3 review — 2026-09-02
+
+**Decision**: **REVIEW DISPATCHED**
+
+Rev-3 pins the new phase-2 evidence fields and proof plumbing, corrects
+supporting detector cardinality, preserves candidate pointers across unrelated
+status writes, and tightens the acceptance CAS, rollback and parity contracts.
+
+## Review — GH #13 planning rev-2 — 2026-09-02
+
+**Reviewer**: `gh13-planning-rev2-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+CG5-CG7 name fields the new phase-2 verdict entry never explicitly emits.
+The evidence model calls four phase-3.5 entries supporting although one is the
+main verdict and the confirmation entry is mutually exclusive. Finally,
+`updateFeatureState` replaces `status.Reconcile` and can silently drop a
+pending operation-candidate pointer.
+
+### Action Taken
+
+Dispatch rev-3 to pin the phase-2 evidence fields, correct verdict/supporting
+cardinality, and carry the candidate pointer through every unrelated state
+update.
+
+## Supervisor Decision — GH #13 planning rev-2 review — 2026-09-02
+
+**Decision**: **REVIEW DISPATCHED**
+
+Rev-2 makes all eligibility codes reachable, models existing supporting
+detector evidence, binds candidate state and new base metadata, passes a typed
+in-process confirmation proof, and locks every candidate-state mutation.
+
+## Review — GH #13 planning rev-1 — 2026-09-01
+
+**Reviewer**: `gh13-planning-rev1-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The alignment proof is mathematically sound and solves the motivating
+fixtures. Remaining blockers: E4 shadows later recipe drift gates; the
+one-attempt-per-phase claim contradicts shipped detector evidence; candidate
+accept has no permitted feature-state or `Apply.BaseCommit` rule; CG2-CG4
+lack an in-process carrier; and stale-candidate cleanup can race acceptance
+outside the feature lock.
+
+### Action Taken
+
+Dispatch rev-2 to reorder eligibility, distinguish verdict-bearing evidence,
+bind acceptance state/base metadata, pass a typed in-memory confirmation proof,
+and lock every candidate-state mutation.
+
+## Supervisor Decision — GH #13 planning rev-1 review — 2026-09-01
+
+**Decision**: **REVIEW DISPATCHED**
+
+Rev-1 replaces the anchor heuristic with an all-optimal exact-line alignment
+proof, gates candidate persistence on a real phase-4 conflict, adds a strict
+confirmation authority class and repairs the lock, identity, lifecycle,
+evidence and transaction contracts.
+
+## Review — GH #13 planning rev-0 — 2026-09-01
+
+**Reviewer**: `gh13-planning-rev0-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+Authoritative all-present evidence does not currently satisfy the upstreamed
+confirmation gate. The byte-window anchor algorithm rejects normal repeated
+bytes and cannot bridge the motivating upstream deletions. Candidate-ready
+terminality suppresses working phase-4 reapply, exact HEAD equality makes
+acceptance unreachable on normal branches, and the proposed PID/stale-lock
+protocol contradicts the cited kernel lock. The review also found gate-order,
+typed-root, flag-count, lifecycle, identity, recovery and evidence gaps.
+
+### Action Taken
+
+Dispatch rev-1 with explicit confirmation-gate authority, unique deterministic
+line-boundary mapping across all optimal alignments, phase-4-conflict-gated
+candidate persistence, path CAS instead of HEAD equality, portable kernel
+locks, immutable candidate identity and corrected evidence/recovery contracts.
+
+## Supervisor Decision — GH #13 planning rev-0 review — 2026-09-01
+
+**Decision**: **REVIEW DISPATCHED**
+
+The rev-0 PRD/ADR define a bounded additive-text candidate, independent
+named-tree eligibility, separate candidate namespace, ordered phase evidence,
+and journaled explicit acceptance. Review must challenge the algorithm and
+transaction boundaries; production remains unauthorized.
+
+## Supervisor Decision — GH #13 planning dispatch — 2026-09-01
+
+**Decision**: **PLANNING REV-0 DISPATCHED**
+
+WAVE_BASE is `e76e0f726d3cdcff157d398f3e1ff796f2343376`, the pushed GH #15
+planning-acceptance commit. ADR-036 rev-7 is the fixed producer input.
+
+### Action Taken
+
+Authorize consumer planning only. GH #13 must recompute all bindings against a
+named tree, build an all-or-nothing shadow candidate, preserve nonterminal
+conflicts for later reconcile phases, and require explicit acceptance.
+Production implementation remains blocked until GH #15 ships as v0.17.0.
+
 ## Supervisor Decision — GH #15 planning accepted — 2026-09-01
 
 **Decision**: **APPROVED**

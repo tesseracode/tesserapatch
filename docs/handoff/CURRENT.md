@@ -4,13 +4,67 @@
 
 **Cluster state**: APPROVED
 
-GH #15 recipe-generation authority planning is **APPROVED** and Accepted at
-PRD/ADR rev-7. The accepted contract has 360 contiguous acceptance rows,
-seven governed producer classes, one strict normalized effect grammar, and a
-deterministic coverage sidecar that remains necessary but insufficient for
-GH #13 replay. WAVE_BASE is
-`897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`). The next task is GH
-#13 consumer planning; production implementation remains sequential.
+GH #15 recipe-generation authority planning is **APPROVED**, Accepted at
+PRD/ADR rev-7 and pushed at `e76e0f7`. GH #13 consumer planning is now
+dispatched from WAVE_BASE
+`e76e0f726d3cdcff157d398f3e1ff796f2343376`. It must independently recompute
+ADR-036 bindings against one named tree and may not promote producer coverage,
+verify warnings or persisted contextual hints into replay authority.
+GH #13 planning rev-0 is authored as
+`PRD-reconcile-operation-replay-candidate.md` plus ADR-037 and is under
+independent review. Rev-0 is NEEDS REVISION: the all-present confirmation gate
+was misread; the anchor algorithm is vacuous and misses deleted neighboring
+context; terminal candidate-ready would regress phase-4 reapply; HEAD equality
+is unreachable; and the lock contract describes a PID protocol the cited
+kernel lock does not implement. No implementation is authorized.
+Planning rev-1 closes those findings with a confirmation-gate authority class,
+an all-optimal exact-line alignment proof, conflict-gated candidate
+persistence, portable kernel locks, immutable candidate identity and corrected
+accept/evidence/recovery contracts. Independent review is active.
+Planning rev-1 is NEEDS REVISION. Its alignment mathematics is approved, but
+the gate order makes recipe drift codes unreachable; evidence cardinality
+ignores existing same-phase detector entries; acceptance lacks a feature-state
+and `Apply.BaseCommit` contract; confirmation facts have no in-process
+carrier; and stale-candidate mutation is unlocked. Rev-2 is active.
+Planning rev-2 closes those findings with reachable gate ordering,
+verdict-bearing versus supporting evidence, state/base-bound acceptance, a
+typed in-process confirmation proof, locked candidate mutation and
+linux/darwin/windows local-filesystem lock support. Independent review is
+active.
+Planning rev-2 is NEEDS REVISION on three points: the GH #13 phase-2 evidence
+entry does not explicitly emit CG5-CG7's origin/presence/commit fields; the
+evidence taxonomy overcounts mutually exclusive phase-3.5/phase-4 supporting
+entries; and ordinary `updateFeatureState` paths can erase a pending candidate
+pointer. Rev-3 is active.
+Planning rev-3 pins the CG evidence fields and proof route, corrects shipped
+supporting-evidence cardinality, carries pending candidate pointers through
+unrelated status updates, and tightens CAS/parity/rollback details.
+Independent review is active.
+Planning rev-3 is NEEDS REVISION on one source-inventory defect: the proof
+route lists nine `saveReconcileArtifacts` call sites but source has ten,
+including the phase-3.5 `phase35` call that must pass a nil proof. Rev-4 is
+active.
+Planning rev-4 corrects all ten proof-route call sites and stages exactly one
+authoritative phase-2 verdict entry paired with the in-process proof.
+Independent review is active.
+Planning rev-4 is NEEDS REVISION: candidate-ready still lets the legacy
+builder derive a second phase-2 entry and has no carrier for its required
+phase-4 textual-conflict verdict. Two stale matrix/wording references remain.
+Rev-5 is active.
+Planning rev-5 substitutes one ordered verdict-attempt list on both
+authoritative arms and corrects the stale range/wording residues. Independent
+review is active.
+Planning rev-5's primary review was APPROVED, but the approval-note fold
+exposed one factual residue in the proof-route block: `phase35` is the same
+`*ReconcileResult` mutated and returned by `tryPhase35`, not a distinct
+object. Rev-6 is active for that correction and adjacent gate-off evidence
+scoping.
+Planning rev-6 corrects the `phase35` pointer identity and scopes gate-off
+evidence byte identity while requiring JSONL/session dual-sink parity.
+Independent review is active.
+Planning rev-6 is **APPROVED** with zero residual blockers. GH #13's consumer
+contract is Accepted; together with Accepted ADR-036 rev-7 it completes the
+GH #15 → GH #13 planning sequence. Production remains sequential.
 
 ### Historical execution record
 
@@ -1969,21 +2023,20 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `plan-recipe-generation-authority`
-- **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: Define trustworthy recipe generation and coverage authority
-  that GH #13 can consume without treating partial or legacy recipes as safe.
-- **Status**: **Complete — Accepted rev-7, APPROVED**
+- **Task ID**: `plan-semantic-operation-replay`
+- **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
+- **Description**: Define safe reconcile-time semantic operation replay over
+  ADR-036's accepted producer representation.
+- **Status**: **Complete — Accepted rev-6, APPROVED**
 - **Assigned**: 2026-09-01
-- **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27`
-- **Release target**: `v0.17.0` after implementation and soak
+- **WAVE_BASE**: `e76e0f726d3cdcff157d398f3e1ff796f2343376`
+- **Release target**: `v0.18.0`, after GH #15 ships as v0.17.0
 
 ## Prerequisite Status
 
-GH #15 planning is accepted. GH #13 planning is unblocked and must consume
-ADR-036 rev-7 without weakening its producer/consumer boundary. GH #13
-implementation remains blocked until GH #15 is implemented, soaked and
-released as v0.17.0.
+GH #15 producer planning and GH #13 consumer planning are both accepted.
+GH #15 implementation is unblocked and targets v0.17.0. GH #13 implementation
+remains blocked until that release is implemented, soaked and shipped.
 
 ## Backlog
 
@@ -2035,6 +2088,10 @@ released as v0.17.0.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- `docs/prds/PRD-reconcile-operation-replay-candidate.md`
+- `docs/adrs/ADR-037-reconcile-operation-replay-candidate-authority.md`
+- `docs/adrs/README.md`
 
 - `internal/cli/prepare.go`
 - `internal/cli/prepare_publish.go`
@@ -2529,6 +2586,23 @@ released as v0.17.0.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- GH #13 planning rev-0 structure: 212 contiguous rows (`ROC-001`…`ROC-212`),
+  I 46 / C 64 / G 40 / U 56 / S 6; `git diff --check` passes.
+- GH #13 planning rev-1 structure: 253 contiguous rows (`ROC-001`…`ROC-253`),
+  I 51 / C 77 / G 61 / U 56 / S 8; `git diff --check` passes.
+- GH #13 planning rev-2 structure: 280 contiguous rows (`ROC-001`…`ROC-280`),
+  I 54 / C 83 / G 70 / U 64 / S 9; `git diff --check` passes.
+- GH #13 planning rev-3 structure: 289 contiguous rows (`ROC-001`…`ROC-289`),
+  I 57 / C 85 / G 72 / U 66 / S 9; `git diff --check` passes.
+- GH #13 planning rev-4 structure: 291 contiguous rows (`ROC-001`…`ROC-291`),
+  I 58 / C 85 / G 73 / U 66 / S 9; `git diff --check` passes.
+- GH #13 planning rev-5 structure: 293 contiguous rows (`ROC-001`…`ROC-293`),
+  I 59 / C 85 / G 74 / U 66 / S 9; `git diff --check` passes.
+- GH #13 planning rev-6 retains the same 293-row matrix and kind counts;
+  `git diff --check` passes.
+- GH #13 planning rev-6 independent review: **APPROVED**, zero residual
+  blockers. All nine parity regions are byte-identical.
 
 - GH #15 planning rev-7 independent review: **APPROVED**, zero residual
   blockers.
@@ -8091,14 +8165,14 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit and push the accepted GH #15 planning wave.
-2. Dispatch and jointly review GH #13's consumer PRD/ADR against ADR-036
-   rev-7.
-3. Implement and soak GH #15 as v0.17.0 before GH #13 implementation.
+1. Commit and push the accepted GH #13 planning wave.
+2. Dispatch GH #15 implementation from its frozen S0 baseline and execute its
+   slices sequentially toward v0.17.0.
+3. After v0.17.0 ships and soaks, implement GH #13 toward v0.18.0.
 
 ## Blockers
 
-- GH #13 planning has no blocker.
+- GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
@@ -8110,6 +8184,13 @@ at 471.544s. Formatting, vet and CLI build pass.
 - GH #13 must recompute every binding against a named tree and must hard-refuse
   missing, malformed, incomplete or stale-marker coverage regardless of
   verify's warning-class exit.
+- GH #13 must preserve the existing four-phase reconcile order, keep
+  nonterminal phase-2 conflicts available to provider and forward-apply
+  evidence, and require explicit acceptance before any candidate mutates the
+  operator's worktree.
+- GH #13 planning is Accepted at PRD/ADR rev-6. Its exact-line all-optimal
+  alignment proof, conflict-gated candidate persistence, nine parity regions,
+  293-row matrix and journaled accept contract are fixed implementation inputs.
 
 - `internal/intent` must not import `internal/store`; the status schema is
   mirrored locally on purpose and kept honest by the AST parity guard.
