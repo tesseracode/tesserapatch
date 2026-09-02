@@ -65,6 +65,10 @@ Independent review is active.
 Planning rev-6 is **APPROVED** with zero residual blockers. GH #13's consumer
 contract is Accepted; together with Accepted ADR-036 rev-7 it completes the
 GH #15 → GH #13 planning sequence. Production remains sequential.
+The post-planning external review is APPROVED WITH NOTES. Its sole LOW is
+closed: ADR-036/its PRD now cite ADR-024 D1 in the sidecar decision and no
+longer declare unused ADR-010/ADR-025 dependencies. No product decision or
+matrix row changed.
 
 ### Historical execution record
 
@@ -2603,6 +2607,8 @@ remains blocked until that release is implemented, soaked and shipped.
   `git diff --check` passes.
 - GH #13 planning rev-6 independent review: **APPROVED**, zero residual
   blockers. All nine parity regions are byte-identical.
+- External planning-wave review: **APPROVED WITH NOTES**; ADR-036 dependency
+  citation hygiene corrected with no decision change.
 
 - GH #15 planning rev-7 independent review: **APPROVED**, zero residual
   blockers.

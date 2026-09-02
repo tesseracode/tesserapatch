@@ -1524,6 +1524,9 @@ Rev-6 is **APPROVED** with zero residual blockers. GH #13's PRD/ADR are
 Accepted with 41 decision blocks, nine byte-identical parity regions and a
 293-row matrix (I 59, C 85, G 74, U 66, S 9). The planning sequence is
 complete; GH #15 implementation for v0.17.0 is next.
+Post-planning external review is APPROVED WITH NOTES. The sole LOW citation
+note is closed by engaging ADR-024 D1 in ADR-036 D3 and removing unused
+ADR-010/ADR-025 dependency declarations; no decision or matrix row changed.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

@@ -1,3 +1,21 @@
+## Review — GH #15/GH #13 planning wave external — 2026-09-02
+
+**Reviewer**: external planning reviewer
+
+### Verdict: APPROVED WITH NOTES
+
+### Findings
+
+One LOW citation-hygiene note: ADR-036 declared ADR-010, ADR-024 and ADR-025
+as dependencies, but only ADR-024's separate-manifest boundary materially
+informs D3.
+
+### Action Taken
+
+Removed unused ADR-010/ADR-025 dependencies from ADR-036 and its PRD, and
+cited ADR-024 D1 in the sidecar decision. No product decision, schema, matrix
+row or release boundary changed.
+
 ## Supervisor Decision — GH #13 planning accepted — 2026-09-02
 
 **Decision**: **APPROVED**
