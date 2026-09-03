@@ -1,0 +1,13 @@
+diff --git a/command.go b/command.go
+index bd73b26..6a19393 100644
+--- a/command.go
++++ b/command.go
+@@ -4,6 +4,8 @@ func buildArgs() []string {
+{{CONTEXT}}	args := []string{
+{{CONTEXT}}		"--old-a",
+{{CONTEXT}}		"--old-b",
++		"--feature-x",
++		"--feature-y",
+{{CONTEXT}}	}
+{{CONTEXT}}	return run(args)
+{{CONTEXT}}}

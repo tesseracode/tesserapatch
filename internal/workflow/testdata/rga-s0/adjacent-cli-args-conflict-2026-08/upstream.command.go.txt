@@ -1,0 +1,9 @@
+package command
+
+func buildArgs() []string {
+	args := []string{
+	}
+	return run(args)
+}
+
+func run(args []string) []string { return args }
