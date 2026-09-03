@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 GH #15 recipe-generation authority planning is **APPROVED**, Accepted at
 PRD/ADR rev-7 and pushed at `e76e0f7`. GH #13 consumer planning is now
@@ -69,6 +69,20 @@ The post-planning external review is APPROVED WITH NOTES. Its sole LOW is
 closed: ADR-036/its PRD now cite ADR-024 D1 in the sidecar decision and no
 longer declare unused ADR-010/ADR-025 dependencies. No product decision or
 matrix row changed.
+GH #15 implementation is now dispatched from WAVE_BASE
+`4ea7b0bb9d5fe60d8d8850141762268600395210`. S0 frozen evidence is the only
+active slice; no production refactor is authorized until its baseline and
+sensitivity guards are reviewed.
+S0 tests and fixtures are implemented in the worktree with no production
+change. Static review found one unfirable P6 parse-error guard; it is corrected
+with an exact return-provenance check and mutation bite-proof. Go validation is
+blocked: a 600-second resource wait never found the mandatory 60 continuous
+seconds at >=80% free memory and ended at 60% free, load1 2.75, zero active
+toolchain processes. S1 remains unauthorized.
+External static review is APPROVED WITH NOTES. Its gofmt LOW is closed:
+repo-wide `gofmt -l .` is empty. The 3,993-line test/fixture baseline is
+checkpointed locally at `f019b4e` with the required trailer, intentionally
+unpushed until it type-checks and passes under the resource gate.
 
 ### Historical execution record
 
@@ -2027,14 +2041,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `plan-semantic-operation-replay`
-- **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
-- **Description**: Define safe reconcile-time semantic operation replay over
-  ADR-036's accepted producer representation.
-- **Status**: **Complete — Accepted rev-6, APPROVED**
-- **Assigned**: 2026-09-01
-- **WAVE_BASE**: `e76e0f726d3cdcff157d398f3e1ff796f2343376`
-- **Release target**: `v0.18.0`, after GH #15 ships as v0.17.0
+- **Task ID**: `implement-recipe-generation-authority-s0`
+- **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
+- **Description**: Freeze pre-v0.17 record/apply/verify and governed-producer
+  behavior before implementing ADR-036.
+- **Status**: **Blocked — S0 validation resource gate**
+- **Assigned**: 2026-09-02
+- **WAVE_BASE**: `4ea7b0bb9d5fe60d8d8850141762268600395210`
+- **Release target**: `v0.17.0`
 
 ## Prerequisite Status
 
@@ -2093,6 +2107,13 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- `internal/cli/recipe_authority_s0_cli_test.go`
+- `internal/gitutil/recipe_authority_s0_pi12_test.go`
+- `internal/workflow/recipe_authority_s0_adjacent_fixture_test.go`
+- `internal/workflow/recipe_authority_s0_legacy_v10_test.go`
+- `internal/workflow/recipe_authority_s0_producers_test.go`
+- `internal/workflow/recipe_authority_s0_source_guards_test.go`
+- `internal/workflow/testdata/rga-s0/adjacent-cli-args-conflict-2026-08/`
 - `docs/prds/PRD-reconcile-operation-replay-candidate.md`
 - `docs/adrs/ADR-037-reconcile-operation-replay-candidate-authority.md`
 - `docs/adrs/README.md`
@@ -2591,6 +2612,15 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
+- GH #15 S0 static review: initial NEEDS REVISION on one unfirable P6
+  source guard; corrected with a third same-guard mutation fixture.
+- External S0 static review: **APPROVED WITH NOTES**. The two gofmt
+  violations are fixed; repo-wide `gofmt -l .` reports zero files.
+- S0 tests/fixtures are committed locally at `f019b4e`; validation and push
+  remain pending.
+- No Go command has run for S0. The mandatory 600-second quiet-window wait
+  ended at 60% free memory / load1 2.75 / zero active Go toolchain processes,
+  without one eligible 60-second interval.
 - GH #13 planning rev-0 structure: 212 contiguous rows (`ROC-001`…`ROC-212`),
   I 46 / C 64 / G 40 / U 56 / S 6; `git diff --check` passes.
 - GH #13 planning rev-1 structure: 253 contiguous rows (`ROC-001`…`ROC-253`),
@@ -8171,14 +8201,16 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit and push the accepted GH #13 planning wave.
-2. Dispatch GH #15 implementation from its frozen S0 baseline and execute its
-   slices sequentially toward v0.17.0.
-3. After v0.17.0 ships and soaks, implement GH #13 toward v0.18.0.
+1. Obtain a fresh 60-second resource window at >=80% free memory, load1 <=5
+   and zero Go/compiler/link/vet/test processes.
+2. Run gofmt and the targeted S0 cli/gitutil/workflow suites serially, then
+   build (gofmt is already clean; do not rerun it unnecessarily).
+3. Review and checkpoint S0 before authorizing S1.
 
 ## Blockers
 
 - GH #15 implementation has no planning blocker.
+- S0 validation is blocked on the mandatory >=80% free-memory window.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
@@ -8197,6 +8229,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 - GH #13 planning is Accepted at PRD/ADR rev-6. Its exact-line all-optimal
   alignment proof, conflict-gated candidate persistence, nine parity regions,
   293-row matrix and journaled accept contract are fixed implementation inputs.
+- GH #15 implementation order is S0 → S1 → S2 → S3 → S4 → S5 → S6. S0
+  changes tests/fixtures only and must be reviewed before S1 production work.
 
 - `internal/intent` must not import `internal/store`; the status schema is
   mirrored locally on purpose and kept honest by the AST parity guard.

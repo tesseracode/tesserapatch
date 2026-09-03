@@ -1527,6 +1527,14 @@ complete; GH #15 implementation for v0.17.0 is next.
 Post-planning external review is APPROVED WITH NOTES. The sole LOW citation
 note is closed by engaging ADR-024 D1 in ADR-036 D3 and removing unused
 ADR-010/ADR-025 dependency declarations; no decision or matrix row changed.
+GH #15 implementation is now 🚧 at S0 frozen evidence from WAVE_BASE
+`4ea7b0b`. Production changes wait for S0 review.
+S0 tests/fixtures are implemented with no production change. Static review's
+one P6 guard defect is corrected; Go validation is blocked after a 600-second
+wait ended at 60% free memory without the mandatory 60-second >=80% window.
+External static review is APPROVED WITH NOTES; its gofmt LOW is closed.
+Tests/fixtures are checkpointed locally at `f019b4e` and remain unpushed until
+the targeted suites pass.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

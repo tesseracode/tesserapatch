@@ -1,3 +1,64 @@
+## Review — GH #15 implementation S0 external static — 2026-09-03
+
+**Reviewer**: external S0 reviewer
+
+### Verdict: APPROVED WITH NOTES
+
+### Findings
+
+One LOW: two new test files were not gofmt-clean. The test suite otherwise
+parses, references no unimplemented API, carries no skips, and includes
+sensitivity pairs; runtime/type-check validation remains blocked by the
+resource gate.
+
+### Action Taken
+
+Ran gofmt over all six S0 test files and confirmed repo-wide `gofmt -l .` is
+empty. Checkpointed the 12 test/fixture paths at `f019b4e` with the required
+trailer. The commit remains unpushed until validation.
+
+## Supervisor Decision — GH #15 S0 local checkpoint — 2026-09-03
+
+**Decision**: **CHECKPOINTED; VALIDATION PENDING**
+
+S0 tests and promoted fixtures are durable at local commit `f019b4e`. No
+production code changed. S1 remains unauthorized until the 80% resource gate,
+targeted suites and build pass.
+
+## Review — GH #15 implementation S0 static — 2026-09-02
+
+**Reviewer**: `gh15-s0-test-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The P6 parse-error source guard could never fire because its write-error helper
+tested existence, not exclusivity. It therefore failed to detect the exact
+extra `return err` regression it claimed to freeze.
+
+### Action Taken
+
+Replaced it with an exact sole-return/provenance check and added the missing
+parse-error-return mutation fixture. Go validation remains blocked by the
+resource gate; S1 is not authorized.
+
+## Supervisor Decision — GH #15 S0 validation blocked — 2026-09-02
+
+**Decision**: **WAIT FOR RESOURCES**
+
+A 600-second gate ended at 60% free memory, load1 2.75 and zero active
+toolchain processes without one continuous eligible 60-second interval.
+Thresholds remain unchanged; no Go command or S1 production work started.
+
+## Supervisor Decision — GH #15 implementation S0 dispatch — 2026-09-02
+
+**Decision**: **S0 FROZEN EVIDENCE DISPATCHED**
+
+WAVE_BASE is `4ea7b0bb9d5fe60d8d8850141762268600395210`, the pushed
+post-planning citation erratum. S0 may add tests and fixtures only; parser,
+generator, coverage and producer production code remain frozen until review.
+
 ## Review — GH #15/GH #13 planning wave external — 2026-09-02
 
 **Reviewer**: external planning reviewer
