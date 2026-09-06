@@ -1535,6 +1535,9 @@ wait ended at 60% free memory without the mandatory 60-second >=80% window.
 External static review is APPROVED WITH NOTES; its gofmt LOW is closed.
 Tests/fixtures are checkpointed locally at `f019b4e` and remain unpushed until
 the targeted suites pass.
+S0 is ✅ APPROVED: all 43 targeted tests pass in the three owning packages,
+the serial CLI build passes, and final review reports zero blockers. Push is
+the remaining durability step before S1 dispatch.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

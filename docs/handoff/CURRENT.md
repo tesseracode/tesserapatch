@@ -83,6 +83,10 @@ External static review is APPROVED WITH NOTES. Its gofmt LOW is closed:
 repo-wide `gofmt -l .` is empty. The 3,993-line test/fixture baseline is
 checkpointed locally at `f019b4e` with the required trailer, intentionally
 unpushed until it type-checks and passes under the resource gate.
+The resource gate recovered and S0 is **APPROVED**. All `TestRGAS0*` tests
+pass serially in `internal/cli`, `internal/gitutil` and `internal/workflow`;
+the serial `./cmd/tpatch` build passes. Final review found zero blockers.
+S1 is now unblocked but not yet dispatched.
 
 ### Historical execution record
 
@@ -2045,7 +2049,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Freeze pre-v0.17 record/apply/verify and governed-producer
   behavior before implementing ADR-036.
-- **Status**: **Blocked — S0 validation resource gate**
+- **Status**: **Complete — S0 APPROVED**
 - **Assigned**: 2026-09-02
 - **WAVE_BASE**: `4ea7b0bb9d5fe60d8d8850141762268600395210`
 - **Release target**: `v0.17.0`
@@ -2618,9 +2622,17 @@ remains blocked until that release is implemented, soaked and shipped.
   violations are fixed; repo-wide `gofmt -l .` reports zero files.
 - S0 tests/fixtures are committed locally at `f019b4e`; validation and push
   remain pending.
-- No Go command has run for S0. The mandatory 600-second quiet-window wait
-  ended at 60% free memory / load1 2.75 / zero active Go toolchain processes,
-  without one eligible 60-second interval.
+- The initial mandatory 600-second quiet-window wait ended at 60% free memory
+  / load1 2.75 / zero active Go toolchain processes without one eligible
+  interval; no Go command ran during that blocked phase.
+- Validation gate passed at 80% free memory / load1 2.22 / zero toolchain
+  processes for 60 continuous seconds.
+- `GOMAXPROCS=1 go test -p=1 -count=1 ./internal/cli ./internal/gitutil
+  ./internal/workflow -run '^TestRGAS0'` **PASS**.
+- Fresh build gate passed at 80% free memory / load1 1.81 / zero toolchain
+  processes for 60 continuous seconds.
+- `GOMAXPROCS=1 go build -p=1 ./cmd/tpatch` **PASS**.
+- Final independent S0 review: **APPROVED**, zero blockers.
 - GH #13 planning rev-0 structure: 212 contiguous rows (`ROC-001`…`ROC-212`),
   I 46 / C 64 / G 40 / U 56 / S 6; `git diff --check` passes.
 - GH #13 planning rev-1 structure: 253 contiguous rows (`ROC-001`…`ROC-253`),
@@ -8201,16 +8213,13 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Obtain a fresh 60-second resource window at >=80% free memory, load1 <=5
-   and zero Go/compiler/link/vet/test processes.
-2. Run gofmt and the targeted S0 cli/gitutil/workflow suites serially, then
-   build (gofmt is already clean; do not rerun it unnecessarily).
-3. Review and checkpoint S0 before authorizing S1.
+1. Push the approved S0 test/tracking commits.
+2. Dispatch S1 strict normalized effects and immutable capture.
+3. Keep S2-S6 sequential and GH #13 implementation blocked until v0.17.0.
 
 ## Blockers
 
 - GH #15 implementation has no planning blocker.
-- S0 validation is blocked on the mandatory >=80% free-memory window.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
@@ -8231,6 +8240,9 @@ at 471.544s. Formatting, vet and CLI build pass.
   293-row matrix and journaled accept contract are fixed implementation inputs.
 - GH #15 implementation order is S0 → S1 → S2 → S3 → S4 → S5 → S6. S0
   changes tests/fixtures only and must be reviewed before S1 production work.
+- S1 review should widen two non-blocking S0 source guards: scan the whole
+  `internal/cli` package for `openInEditor` call sites, and bind the P6
+  reachability guard to the validator actually passed by `RunImplement`.
 
 - `internal/intent` must not import `internal/store`; the status schema is
   mirrored locally on purpose and kept honest by the AST parity guard.
