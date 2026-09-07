@@ -108,6 +108,12 @@ type transitions and rejects extra quoted operands.
 S1 is **APPROVED** with zero blockers. All targeted and owning-package tests,
 the CLI regression selector, vet/build and the exact 22-shard full suite pass
 in the staged state. S2 is unblocked but not dispatched.
+Post-S1 external review is APPROVED WITH NOTES. Its sole LOW is corrected:
+`extractUpstreamContext` is now PI-13, uses the strict all-paths projection,
+and the inventory detects `+++`/`---`-only path readers. The reviewer could
+not run long suites, but this session already ran full workflow/CLI and
+22-shard suites before the correction. Focused inventory and full workflow
+revalidation pass; independent correction review is APPROVED.
 
 ### Historical execution record
 
@@ -2656,6 +2662,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - Exact `scripts/wave-close-test-shards.sh` 22-shard suite in staged state:
   **PASS**; primary CLI package 512.874s plus all 21 CLI shards.
 - Final independent S1 review: **APPROVED**, zero blockers.
+- Post-S1 external review: **APPROVED WITH NOTES**; PI-13 migration and
+  inventory widening implemented and revalidated.
 - GH #15 S0 static review: initial NEEDS REVISION on one unfirable P6
   source guard; corrected with a third same-guard mutation fixture.
 - External S0 static review: **APPROVED WITH NOTES**. The two gofmt
@@ -8253,7 +8261,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit and push the approved S1 implementation and tracking.
+1. Push the PI-13 post-review correction.
 2. Dispatch S2 pure derivation, preimage synthesis and provenance convergence.
 3. Keep S3-S6 sequential and GH #13 implementation blocked until v0.17.0.
 

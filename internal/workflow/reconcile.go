@@ -468,22 +468,28 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		request, _ := s.ReadFeatureFile(slug, "request.md")
 		spec, _ := s.ReadFeatureFile(slug, "spec.md")
 
-		// Extract affected files from patch and read their current upstream content
-		upstreamContext := extractUpstreamContext(s.Root, patch)
-
-		semanticResult, err := providerSemanticCheck(ctx, prov, cfg, request, spec, patch, upstreamRef, upstreamContext)
-		if err == nil {
-			if semanticResult == "upstreamed" {
-				result.Outcome = store.ReconcileUpstreamed
-				result.Phase = "phase-3-provider-semantic"
-				result.Notes = append(result.Notes, "Provider determined upstream satisfies acceptance criteria")
-				saveReconcileArtifacts(s, slug, result)
-				updateFeatureState(s, slug, result)
-				return result, nil
-			}
-			result.Notes = append(result.Notes, fmt.Sprintf("Provider semantic check: %s", semanticResult))
+		// Extract affected files through the strict effect grammar before
+		// sending any repository content to the provider. A malformed patch
+		// yields no partial context; phase 3 records the skip and phase 4
+		// remains available.
+		upstreamContext, contextErr := extractUpstreamContext(s.Root, patch)
+		if contextErr != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Provider semantic check skipped: %v", contextErr))
 		} else {
-			result.Notes = append(result.Notes, fmt.Sprintf("Provider semantic check error: %v", err))
+			semanticResult, err := providerSemanticCheck(ctx, prov, cfg, request, spec, patch, upstreamRef, upstreamContext)
+			if err == nil {
+				if semanticResult == "upstreamed" {
+					result.Outcome = store.ReconcileUpstreamed
+					result.Phase = "phase-3-provider-semantic"
+					result.Notes = append(result.Notes, "Provider determined upstream satisfies acceptance criteria")
+					saveReconcileArtifacts(s, slug, result)
+					updateFeatureState(s, slug, result)
+					return result, nil
+				}
+				result.Notes = append(result.Notes, fmt.Sprintf("Provider semantic check: %s", semanticResult))
+			} else {
+				result.Notes = append(result.Notes, fmt.Sprintf("Provider semantic check error: %v", err))
+			}
 		}
 	}
 
@@ -1306,28 +1312,15 @@ func deriveIncrementalPatches(s *store.Store, slugs []string, baseCommit string)
 
 // extractUpstreamContext reads the current contents of files affected by the patch.
 // This gives the LLM the actual upstream code to compare against acceptance criteria.
-func extractUpstreamContext(repoRoot, patch string) string {
-	var files []string
-	seen := make(map[string]bool)
-	for _, line := range strings.Split(patch, "\n") {
-		if strings.HasPrefix(line, "+++ b/") {
-			file := strings.TrimPrefix(line, "+++ b/")
-			if !seen[file] && file != "/dev/null" {
-				seen[file] = true
-				files = append(files, file)
-			}
-		} else if strings.HasPrefix(line, "--- a/") {
-			file := strings.TrimPrefix(line, "--- a/")
-			if !seen[file] && file != "/dev/null" {
-				seen[file] = true
-				files = append(files, file)
-			}
-		}
+func extractUpstreamContext(repoRoot, patch string) (string, error) {
+	files, err := gitutil.PathsAffectedByPatchStrict(patch)
+	if err != nil {
+		return "", fmt.Errorf("cannot determine patch paths for provider context: %w", err)
 	}
 
 	var b strings.Builder
 	for _, file := range files {
-		content, err := os.ReadFile(filepath.Join(repoRoot, file))
+		content, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(file)))
 		if err != nil {
 			b.WriteString(fmt.Sprintf("## %s\n(file not present in upstream)\n\n", file))
 			continue
@@ -1339,7 +1332,7 @@ func extractUpstreamContext(repoRoot, patch string) string {
 		}
 		b.WriteString(fmt.Sprintf("## %s\n```\n%s\n```\n\n", file, text))
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 // tryPhase35 runs the ADR-010 provider-assisted resolver for a feature

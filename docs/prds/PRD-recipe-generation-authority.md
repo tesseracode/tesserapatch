@@ -44,7 +44,9 @@ PI-12 preserves b-side path/order semantics while accepting new fail-closed
 path/header safety checks. `ordinal` indexes normalized effects, so Git's
 adjacent delete+add representation of a real object-type change becomes one
 modify effect whose fragment spans both records. No schema field, producer
-rule, coverage predicate or matrix count changed.
+rule, coverage predicate or matrix count changed. Post-review,
+`extractUpstreamContext` is registered as PI-13 and migrated to the strict
+all-paths projection; inventory guards now detect `+++`/`---`-only parsers.
 
 ## 1. Summary
 
@@ -58,7 +60,7 @@ This PRD makes generated recipes truthful inputs to later safety analysis. It:
 
 1. makes one strict grammar authoritative for every production consumer that
    claims a file path or an effect kind, over a complete derived parser
-   inventory (PI-1..PI-12), in two documented projections — b-side and
+   inventory (PI-1..PI-13), in two documented projections — b-side and
    all-paths — and registers every remaining specialized parser as
    non-authoritative;
 2. captures the exact reference/preimage observation before artifact writes,
@@ -564,6 +566,7 @@ S1 migrates the complete derived inventory, not a subset:
 | PI-10 | `countPatchFiles` (`internal/cli/cobra.go:2094-2101`) | display counter with **four** production consumers: correct file counts at `internal/cli/cobra.go:1863`, `internal/cli/feature_patch.go:163` and `internal/cli/record_collision.go:96`, and **incorrectly an operation count** at `internal/cli/cobra.go:1908` | retained, registered, guarded as a **human file count only**; the three file-count consumers are unchanged and the operation-count consumer is removed/migrated |
 | PI-11 | `FilesInPatchStrict` and its grammar (`internal/gitutil/patch_paths_strict.go:235-253`) | strict header grammar, b-side projection | **the authority**, extended to the full normalized effect model; the b-side projection keeps its exact current result |
 | PI-12 | Existing `FilesInPatchStrict` b-side callers: `internal/cli/land.go:767,1212`, `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009,1163` | strict b-side path list | preserve b-side path/order projection; new malformed/path-safety refusals fail closed |
+| PI-13 | `extractUpstreamContext` (`internal/workflow/reconcile.go`) | hand-parses `+++ b/` / `--- a/`; silently drops C-quoted paths | provider-context path set | strict all-paths projection; malformed patches skip phase 3 with a diagnostic and continue to phase 4 |
 
 An adapter is acceptable only if it derives its output from the strict
 normalized effect set and propagates the strict error. It may not re-implement
@@ -571,11 +574,12 @@ header splitting, dequoting or `a/`/`b/` stripping, and it may not swallow the
 error to preserve today's short list.
 
 A **source-inventory guard** derives this list from production sources rather
-than trusting the table: it enumerates every production `diff --git` reader and
-requires each to be PI-11, a registered adapter, a registered b-side consumer,
-or a registered non-authoritative scanner. A new unregistered reader fails the
-guard, and a registered non-authoritative scanner whose output starts feeding a
-path, effect or operation decision fails the authority-boundary guard.
+than trusting the table: it enumerates every production path reader using
+`diff --git`, `+++ ` or `--- ` markers and requires each to be PI-11, a
+registered adapter, a registered projection consumer (PI-12/PI-13), or a
+registered non-authoritative scanner. A new unregistered reader fails the
+guard, and a registered non-authoritative scanner whose output starts feeding
+a path, effect or operation decision fails the authority-boundary guard.
 
 #### 6.1.1 PI-7 gets a new strict projection, not the b-side one
 
@@ -2768,12 +2772,16 @@ than the mapped subset alone, is disjointness: no token appears in both layers.
   `internal/workflow/refresh.go:59`,
   `internal/workflow/verify_landed.go:1009,1163`) and pin the b-side contract
   with a regression guard.
+- Register PI-13 (`extractUpstreamContext`) and migrate provider-context path
+  reads to the strict all-paths projection. A strict refusal skips phase 3
+  with a diagnostic and leaves phase 4 available.
 - Register PI-8, PI-9 and PI-10 as non-authoritative and add the guard that
   fails if any of them starts feeding a path, effect or operation decision.
 - Replace the `internal/cli/cobra.go:1908` operation count with the derived
   recipe's actual operation count (PI-10, §6.1.3).
 - Add the source-inventory guard that derives the registry from production
-  sources and fails on an unregistered `diff --git` reader.
+  sources and fails on an unregistered `diff --git`, `+++ ` or `--- ` path
+  reader.
 - Capture pre/postimage observations for every record mode **and for every
   other governed producer**, recording per-side observation flags, including
   P7's before/after snapshots of the **resolved** artifact path.
@@ -3034,7 +3042,7 @@ Token-presence-only fixtures do not satisfy a semantic guard.
 | ID | Kind | Case | Observable |
 |---|---|---|---|
 | RGA-063 | G | Effect-grammar ownership | Wrong-input fixture `parser-fields-split-quoted-path` (a reintroduced `strings.Fields` b-side splitter fed a C-quoted path containing a space) fails the same normalized-effect validator that the strict grammar passes |
-| RGA-064 | G | Parser inventory totality | Wrong-input fixture `unregistered-diff-git-parser` (a new production `diff --git` scanner absent from the PI-1..PI-12 registry) fails the same derived parser-inventory guard |
+| RGA-064 | G | Parser inventory totality | Wrong-input fixtures `unregistered-diff-git-parser` and `unregistered-plus-header-parser` (new production path scanners absent from the PI-1..PI-13 registry) fail the same derived parser-inventory guard |
 | RGA-065 | G | Adapter exactness | Wrong-input fixture `adapter-drops-quoted-path` (a thin adapter that re-implements header splitting instead of projecting the strict effect set) fails the same path-totality validator |
 | RGA-066 | G | Non-authoritative scanner boundary | Wrong-input fixture `countpatchfiles-feeds-effect-count` (`countPatchFiles` output used as an effect count) fails the same authority-boundary validator; `headerReferencedGitPath` and `stripGitInternalFileStanzas` stay registered as refusal/sanitization-only |
 | RGA-067 | G | PI-10 operation-count boundary | Wrong-input fixture `recipe-op-count-from-file-counter` (the `internal/cli/cobra.go:1908` use of `countPatchFiles(patch)-len(skippedPaths)` as an operation count) fails the same authority-boundary validator |

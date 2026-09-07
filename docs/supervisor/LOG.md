@@ -1,3 +1,23 @@
+## Review — GH #15 implementation S1 external — 2026-09-07
+
+**Reviewer**: external S1 reviewer
+
+### Verdict: APPROVED WITH NOTES
+
+### Findings
+
+One LOW: `extractUpstreamContext` still hand-parsed `+++ b/` / `--- a/`, so
+C-quoted paths were silently omitted from phase-3 provider context. The
+inventory scanned only `diff --git` literals and could not detect that reader.
+
+### Action Taken
+
+Registered the reader as PI-13, migrated it to
+`PathsAffectedByPatchStrict`, made strict refusal skip phase 3 while retaining
+phase 4, widened inventory markers to `diff --git` / `+++ ` / `--- `, and
+added quoted/rename/refusal tests. Focused inventory and full workflow tests
+pass; independent correction review is APPROVED.
+
 ## Review — GH #15 implementation S1 final — 2026-09-07
 
 **Reviewer**: `gh15-s1-validated-review`

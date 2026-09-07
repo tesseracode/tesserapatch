@@ -51,7 +51,9 @@ PI-12 preserves b-side path/order semantics while accepting new fail-closed
 path/header safety checks. `ordinal` indexes normalized effects, so Git's
 adjacent delete+add representation of a real object-type change becomes one
 modify effect whose fragment spans both records. No schema field, producer
-rule, coverage predicate or matrix count changed.
+rule, coverage predicate or matrix count changed. Post-review, the provider
+context reader is registered as PI-13 and migrated to the strict all-paths
+projection; inventory guards now detect `+++`/`---`-only parsers too.
 
 ## Context
 
@@ -233,6 +235,7 @@ is:
 | PI-10 | `countPatchFiles` (`internal/cli/cobra.go:2094-2101`) | counts `diff --git` prefixes; consumed by **four** production sites — three as a human file count (`internal/cli/cobra.go:1863`, `internal/cli/feature_patch.go:163`, `internal/cli/record_collision.go:96`) **and one, wrongly, as a recipe operation count** (`internal/cli/cobra.go:1908`) | **none** — display counter | retained, registered, guarded as a **human file count only**; the three file-count consumers stay unchanged and the `cobra.go:1908` operation-count use is removed/migrated (see below) |
 | PI-11 | `FilesInPatchStrict` and its grammar (`internal/gitutil/patch_paths_strict.go:235-253`) | strict header grammar, b-side projection | path (b-side) | **the authority**, extended to the full normalized effect model; the b-side projection is retained unchanged for PI-12 |
 | PI-12 | Existing `FilesInPatchStrict` b-side consumers: `internal/cli/land.go:767,1212`, `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009,1163` | strict b-side path list | path (b-side) | preserve b-side path/order projection; new malformed/path-safety refusals fail closed |
+| PI-13 | `extractUpstreamContext` (`internal/workflow/reconcile.go`) | hand-parses `+++ b/` / `--- a/`; silently drops C-quoted paths | provider-context path set | strict all-paths projection; malformed patches skip phase 3 with a diagnostic and continue to phase 4 |
 
 PI-8, PI-9 and PI-10 are retained deliberately. PI-8 and PI-9 must recognize
 non-Git diff dialects that the strict Git grammar does not model, and their
@@ -341,16 +344,17 @@ separate function with a separate name, and a regression row pins the b-side
 contract.
 
 A **source-inventory guard** derives the inventory from production sources
-rather than from this table: it enumerates every production `diff --git`
-reader and requires each to be the authority (PI-11), a registered adapter, a
-registered b-side consumer (PI-12), or a registered non-authoritative scanner.
-A new unregistered reader fails the guard. The PRD's S1 slice and its
-parser-ownership guard rows are scoped to this complete PI-1..PI-12 inventory,
+rather than from this table: it enumerates every production path reader using
+`diff --git`, `+++ ` or `--- ` markers and requires each to be the authority
+(PI-11), a registered adapter, a registered projection consumer (PI-12/PI-13),
+or a registered non-authoritative scanner. A new unregistered reader fails the
+guard. The PRD's S1 slice and its
+parser-ownership guard rows are scoped to this complete PI-1..PI-13 inventory,
 not to a two-caller subset.
 
-A migrated caller that **already tolerates** an unparseable header — PI-3 and
-PI-4 — now surfaces the strict error to that existing fail-soft handler rather
-than returning a silently short path list. A migrated caller that has **no**
+PI-3 producers surface an unparseable header before their first bound write.
+PI-4 surfaces it to its existing fail-soft evidence handler. Neither returns a
+silently short path list. A migrated caller that has **no**
 such handler — all three PI-7 call sites — gains a new fail-closed return
 instead. The distinction is stated rather than blurred, because claiming a
 handler that does not exist is how a strict parser turns into a nil-scope

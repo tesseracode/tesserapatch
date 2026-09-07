@@ -1550,6 +1550,10 @@ S1 is ✅ APPROVED. The strict normalized grammar, PI-3–PI-7 migrations,
 PI-12 projection, immutable P1–P7 observations and editor error propagation
 pass targeted/owning suites, vet/build and the exact 22-shard full suite.
 S2 is next.
+Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
+registering `extractUpstreamContext` as PI-13, migrating it to strict
+all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
+inventory and full workflow validation pass; correction review is APPROVED.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 

@@ -40,6 +40,8 @@ import (
 // projecting.
 var rgaS1GrammarMarkers = []string{
 	"diff --git",
+	"+++ ",
+	"--- ",
 	"new file mode ",
 	"deleted file mode ",
 	"rename from ",

@@ -362,9 +362,10 @@ func rgaS0PIType(buf *strings.Builder, expr ast.Expr) {
 }
 
 // rgaS0PIReaders returns `file|func` for every function in src whose body
-// contains a STRING LITERAL beginning with `diff --git`. Scoping to
-// literals (not comments, not identifiers) is what makes this a semantic
-// inventory of patch-header readers rather than a prose grep.
+// contains a path-authoritative diff-header literal. Scoping to literals
+// (not comments, not identifiers) is what makes this a semantic inventory,
+// while including `+++ `/`--- ` prevents a parser from evading the registry
+// by ignoring `diff --git`.
 func rgaS0PIReaders(relPath, src string) ([]string, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), relPath, src, parser.ParseComments)
 	if err != nil {
@@ -387,9 +388,11 @@ func rgaS0PIReaders(relPath, src string) ([]string, error) {
 			if uerr != nil {
 				return true
 			}
-			if strings.HasPrefix(value, "diff --git") && !seen[owner] {
-				seen[owner] = true
-				out = append(out, owner)
+			for _, marker := range []string{"diff --git", "+++ ", "--- "} {
+				if strings.HasPrefix(value, marker) && !seen[owner] {
+					seen[owner] = true
+					out = append(out, owner)
+				}
 			}
 			return true
 		})
@@ -457,6 +460,7 @@ func TestRGAS0PatchHeaderReaderInventory(t *testing.T) {
 		// the authoritative strict effect grammar (PI-11)
 		"internal/gitutil/patch_effects.go|patchRecordStarts":  "PI-11 record boundaries",
 		"internal/gitutil/patch_effects.go|normalizeOneRecord": "PI-11 record normalizer",
+		"internal/gitutil/patch_effects.go|scanRecordHeaders":  "PI-11 record metadata",
 		// registered NON-authoritative scanners (PI-8/9/10)
 		"internal/store/store.go|headerReferencedGitPath":         "PI-8 .git containment",
 		"internal/gitutil/gitutil.go|stripGitInternalFileStanzas": "PI-9 sanitization",
@@ -496,11 +500,11 @@ func TestRGAS0PatchHeaderReaderInventory(t *testing.T) {
 	}
 	for key := range got {
 		if _, registered := want[key]; !registered {
-			t.Errorf("UNREGISTERED `diff --git` reader %q; register it in the PRD §6.1 inventory before shipping it", key)
+			t.Errorf("UNREGISTERED diff-header path reader %q; register it in the PRD §6.1 inventory before shipping it", key)
 		}
 	}
 	if len(got) != len(want) {
-		t.Errorf("production `diff --git` reader count = %d, want %d", len(got), len(want))
+		t.Errorf("production diff-header path reader count = %d, want %d", len(got), len(want))
 	}
 }
 
@@ -517,6 +521,13 @@ func TestRGAS0PatchHeaderReaderScannerIsSensitive(t *testing.T) {
 			src: "package p\nimport \"strings\"\nfunc sneak(patch string) {\n" +
 				"\tfor _, l := range strings.Split(patch, \"\\n\") {\n" +
 				"\t\tif strings.HasPrefix(l, \"diff --git \") {\n\t\t\t_ = l\n\t\t}\n\t}\n}\n",
+			want: 1,
+		},
+		{
+			name: "detects-a-plus-header-only-reader",
+			src: "package p\nimport \"strings\"\nfunc sneak(patch string) {\n" +
+				"\tfor _, l := range strings.Split(patch, \"\\n\") {\n" +
+				"\t\tif strings.HasPrefix(l, \"+++ b/\") { _ = l }\n\t}\n}\n",
 			want: 1,
 		},
 		{
@@ -571,6 +582,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 			"internal/cli/cobra.go|runApplyExecuteChecked":                 1,
 			"internal/cli/cobra.go|validateReapplyMaterialization":         1,
 			"internal/cli/feature_unapply.go|runFeatureUnapplyWithRuntime": 1,
+			"internal/workflow/reconcile.go|extractUpstreamContext":        1,
 		},
 		"NormalizePatchEffects": {
 			"internal/gitutil/patch_effects.go|PathsAffectedByPatchStrict": 1,
@@ -593,7 +605,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 	}
 	wantTotals := map[string]int{
 		"FilesInPatchStrict":         6,
-		"PathsAffectedByPatchStrict": 3,
+		"PathsAffectedByPatchStrict": 4,
 		"NormalizePatchEffects":      4,
 		"normalizePatchEffects":      2,
 		"FilesInPatch":               0,

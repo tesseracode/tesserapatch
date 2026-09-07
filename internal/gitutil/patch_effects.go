@@ -350,10 +350,10 @@ func FilesInPatchStrict(patch string) ([]string, error) {
 //
 // It parses in AUTHORITY mode, so a repeated destination is refused
 // rather than collapsed. Nothing in its accepted contract asks for the
-// PI-12 de-duplication: its three call sites derive a snapshot, a diff
-// scope and a reverse-apply scope, and each of those has to know which
-// effect it is undoing. The union it returns is de-duplicated across the
-// two SIDES of one effect set, which is a different statement.
+// PI-12 de-duplication: PI-7 callers derive snapshot/diff/reverse-apply
+// scopes, while PI-13 derives provider context, and each needs the complete
+// affected path set. The union it returns is de-duplicated across the two
+// SIDES of one effect set, which is a different statement.
 //
 // Callers derive a snapshot, a diff scope or a reverse-apply scope from
 // this, so they MUST fail closed on the error rather than continue with a
